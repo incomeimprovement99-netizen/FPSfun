@@ -7370,3 +7370,49 @@ fifth round.
   with both palms on the gun, and back; the gun away for a throw and back with no hand through it), seen failing with
   each fault put back (the shoulder's reach at 18, the gun shown early, the thrust taken out); the `sksquad`, `duel`,
   `speedkills` and `soldier` sections; verify; rules; the live sheets and the lab's.
+
+## Milestone 354 — High City's roofs joined: a ring of the pack's bridges round the tower, walked island to island
+
+Phase 28.7, the bridges (the owner, 2026-09-29: "focus on the center district and take screenshots from all angles ...
+we want the full layout, you need to study each piece and compare and see what and where you can put them together
+before fully doing it. your layout has been good so far, expand on it").
+
+- **The ring.** Four bridges of the pack's floating deck (`PlatformBridge00_5x5`, 5 m cells, and its corner piece,
+  turned so its open sides face both legs) join the four High City islands' roofs over the street crossings between
+  them: north to east, east to south, south to west, west to north, 56 decks, a rooftop circuit round the tower at
+  27 m. From the street each crossing has a lit V of deck overhead (`tools/neon-layout.ts`, rules.bridges; generated
+  from four paths in `neonmap.json`).
+- **How a bridge meets an island, studied before it was built.** The islands are the pack's round-lobed platforms,
+  fenced all round with its crystal fence (the fence's parts read off the prefabs: arcs, straights from 1 to 5 m,
+  pillars, the roof's floor at 26.0 m and the pillars' tops at 26.86). Three ways were built and measured:
+  1. *The deck at the roof's height, ending at the fence.* A 0.85 m fence stood across each end, and the roofs' plan
+     drawn from the collision showed every end meeting a lobe's arc on a slant.
+  2. *The fence cut where the deck crosses it.* A 5 m deck never covers a lobe's arc (4.5 m radius, crossed on a
+     slant): with the arcs whose middle was under the deck left out, the roof's edge opened beside the bridge (46 spots
+     at one landing where a body walked off, 26 m over the street); with only the parts wholly under it left out, the
+     arcs stood across the way and no bridge was walked. Backed out.
+  3. *Nothing cut: the deck over the fence.* The decks ride at 26.9 m, 4 cm over the fence's pillars, so where a
+     bridge crosses an island's fence the fence is inside the deck's own 2 m body and the island's edge stays closed
+     all round. Each end runs a cell on into its island and steps down to the roof by the pack's small stair
+     (`SmallStairs00c`, its ramp measured off its collision at 0.5 m of climb: the 0.83 m in its bounds is its side
+     cheeks, so the deck is a 0.4 m step over its top, under a player's 0.56 m step). This is what shipped.
+  The pack's own High City demo scene was read piece by piece for how it joins roofs (868 instances): it uses a
+  different roof set (walled platforms and a 340 m decorative bridge), so the join here is our own.
+- **Two jump pads moved, and why.** The pads onto the north and west islands from the inner street stood exactly where
+  two bridge ends now land. The pad finder allowed a rail only within the first metre behind a roof's face, and along
+  those islands' whole inner face the fence stands 1.5 m in: the old spot was the one place the face sat half a metre
+  further back. That distance is now a rule (`rules.pads.edge`, 1.5 m); all eight pads are found again, six of them
+  a few metres nearer their blocks' middles.
+- The map: 2,684 placements, 1.69 M triangles (from 1.64 M), 44,636 collision boxes. **Its files are version 9.**
+- **Checked** (`tools/checks/sk-neon.ts`, 16 new checks, four a bridge): each bridge walked on foot both ways from one
+  island's named deck up its stair, across, down and onto the next island's named deck, a body an eighth of a metre
+  at a time (a fence's top is no floor: let stand on it the body walked the fences round to anywhere); each stair
+  climbed straight up its middle from roof to deck; and from every metre of a deck's middle a look to either side at
+  the waist meets a rail, the corner's two outer sides among them. Seen failing: with the stairs left out, all eight
+  climbs stopped at the roof and six of the eight walks failed (the other two got up by the deck's skirt, half a
+  metre proud of its sides, round the outside of the rail: why the stair has a check of its own); with a corner
+  turned a quarter wrong, each bridge reported its one open side. verify and rules. The ring photographed by day and
+  by night from the air on four sides, from the street under each corner, along the deck, and at all eight landings.
+- Not yet: the roofs reached on foot from the street (the pack's 30 m stair towers, Phase 28 step 3), the ring out to
+  the tower itself, and the bots' graph over the bridges (the owner, 2026-09-29: "don't bother with the bot's pathing
+  for now").

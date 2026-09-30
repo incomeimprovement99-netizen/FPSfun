@@ -484,6 +484,76 @@ if (holes.length) {
   }
 }
 
+// High City's roofs joined (rules.bridges): the pack's floating bridge decks from one island's roof to the next, over
+// the street crossing between them, a rooftop circuit round the tower (the High City trailer has its roofs joined so).
+// Each path a line of 5 m cells: straights along its legs and the pack's corner where it turns, turned so its open
+// sides face both legs (their own decks are at different heights in their own frames, measured: the straight's at 0, the
+// corner's at 1 m). The islands are round-lobed and fenced all round with the pack's crystal fence, and a 5 m deck
+// always crosses a lobe's arc on a slant: the arc left out opened the roof's edge beside the bridge, and kept stood
+// across the way. So nothing of an island is cut. The decks ride at the fence's top, where a bridge crosses the fence
+// it is inside the deck's own 2 m body and the island's edge stays closed, and each end runs on into its island and
+// steps down to the roof by the pack's small stair (its ramp climbs 0.5 m of the 0.9: the deck is a step over its top)
+{
+  const B = R.bridges;
+  const [straight, corner, stair] = [piece(B.straight.piece).row, piece(B.corner.piece).row, piece(B.stairs.piece).row];
+  const cell = straight.size![0];
+  /** a piece's turn about y as the bake turns it: its own (x, z) onto the map's */
+  const rot = (yaw: number, x: number, z: number): [number, number] => {
+    const a = (yaw * Math.PI) / 180;
+    const [c, s] = [Math.round(Math.cos(a)), Math.round(Math.sin(a))];
+    return [c * x + s * z, -s * x + c * z];
+  };
+  const same = (p: number[], q: number[]) => Math.abs(p[0] - q[0]) < 1e-6 && Math.abs(p[1] - q[1]) < 1e-6;
+  const put = (name: string, y: number, yaw: number, [cx, cz]: number[], mid: [number, number]) => {
+    const [ox, oz] = rot(yaw, ...mid);
+    add("c-bridges", "c", [piece(name).key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), yaw, "o"] as Place);
+  };
+  // (the straight's middle in its own frame: it runs along its own x from its pivot; the corner's, back along its -x)
+  const sMid: [number, number] = [(straight.min![0] + straight.max![0]) / 2, (straight.min![2] + straight.max![2]) / 2];
+  const cMid: [number, number] = [(corner.min![0] + corner.max![0]) / 2, (corner.min![2] + corner.max![2]) / 2];
+  // the stair's top edge in its own frame: the middle of its side toward `up`, the way it climbs
+  const up = B.stairs.up as number[];
+  const tMid: [number, number] = [
+    up[0] ? (up[0] > 0 ? stair.max![0] : stair.min![0]) : (stair.min![0] + stair.max![0]) / 2,
+    up[1] ? (up[1] > 0 ? stair.max![2] : stair.min![2]) : (stair.min![2] + stair.max![2]) / 2,
+  ];
+  if (B.deck < B.fence + 0.02) throw new Error(`the decks at ${B.deck} m do not clear the islands' fence, ${B.fence} m`);
+  // (the stair's ramp tops out under its cheeks: its climb is measured, rules.bridges.stairs.rise, not its bounds)
+  if (B.deck - B.roof - B.stairs.rise > B.stairs.step) throw new Error(`the stair climbs ${B.stairs.rise} m and the deck is ${(B.deck - B.roof).toFixed(2)} m over the roof: a step of more than ${B.stairs.step} m at its top`);
+  let decks = 0;
+  for (const path of B.paths as number[][][]) {
+    for (let i = 0; i + 1 < path.length; i++) {
+      const [a, b] = [path[i], path[i + 1]];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const d = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+      const yaw = Math.abs(d[0]) > 0.5 ? 0 : 90;
+      const from = i === 0 ? cell / 2 : cell;
+      const to = i + 2 === path.length ? len - cell / 2 : len - cell;
+      for (let t = from; t <= to + 1e-6; t += cell) (put(B.straight.piece, B.deck - B.straight.deck, yaw, [a[0] + d[0] * t, a[1] + d[1] * t], sMid), decks++);
+      // the corner at the far end of every leg but the last, its open sides toward this leg and the next
+      if (i + 2 < path.length) {
+        const c = path[i + 2];
+        const len2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
+        const on = [(c[0] - b[0]) / len2, (c[1] - b[1]) / len2];
+        const cyaw = [0, 90, 180, 270].find((y) => {
+          const opens = [rot(y, 1, 0), rot(y, 0, 1)];
+          return opens.some((o) => same(o, [-d[0], -d[1]])) && opens.some((o) => same(o, on));
+        })!;
+        put(B.corner.piece, B.deck - B.corner.deck, cyaw, b, cMid);
+        decks++;
+      }
+    }
+    // a stair at each end, on the roof, climbing toward the deck, its top edge at the deck's end
+    for (const [e, n] of [[path[0], path[1]], [path[path.length - 1], path[path.length - 2]]]) {
+      const l = Math.hypot(n[0] - e[0], n[1] - e[1]);
+      const toward = [(n[0] - e[0]) / l, (n[1] - e[1]) / l];
+      const syaw = [0, 90, 180, 270].find((y) => same(rot(y, up[0], up[1]), toward))!;
+      put(B.stairs.piece, B.roof - stair.min![1], syaw, e, tMid);
+    }
+  }
+  console.log(`bridges: ${decks} decks on ${B.paths.length} paths, a stair at each of their ${B.paths.length * 2} ends`);
+}
+
 // The fronts along the centre's streets and its ring hung with the pack's neon signs (rules.signs): found in the last
 // bake's collision (src/config/neon/neonmap.solids.json; a sign changes no building's): from the pavement, at a sign's
 // height, straight at the block to the first front within `reach`, kept where the front is flat across the sign's width

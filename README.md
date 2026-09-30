@@ -1296,9 +1296,11 @@ their escalators. Under the south street is Centre Station, the pack's own metro
 station put together as its demo scene puts it: a glass-roofed hall on the plaza
 down to a platform with a train at it, a tunnel off into the dark, and a marble
 concourse behind the platform, closed on every side. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
-roofs; the bots' graph covers the street, the roofs and the floors, and a share
+roofs, and the four roofs are joined into a ring round the tower by the pack's
+floating bridges over the street crossings, each riding over its islands' fence
+and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map.
-`tools/checks/sk-neon.ts` rides every pad, walks the graph, both metro
+`tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
 entrances and each rooms building's floors from the street.
 
 **The field is rock, scrub and cliff, not boxes.** The battle royale's cover

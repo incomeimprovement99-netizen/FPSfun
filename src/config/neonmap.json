@@ -1,6 +1,6 @@
 {
- "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), a pack material over all its parts where given, and the parts of it left out, by their model's file name, where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, the `rooms` to fight in on each block's inner corner, the pack's realistic `piece` with its floors, stairs and rooms walkable (its own triangles), over the four cells there, the yard among them, turned by `face` (by the block's corner, x and z signs) toward the middle, and `low` buildings in the other cells (a piece may overhang its cell by `overhang`; `tall`, on the block's outer corner so it keeps a roof high over the streets, the inner corner's before the rooms; none of them deeper than a cell and its overhang, measured with their floors); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; the `fine` pieces' collision measured at its finer `cell` (the metro kiosk's escalators are 2 m wide with their glass sides, and the rooms building's stairs 1.6 m with their railings, and at the rooms' half-metre cells each side widened to half a metre and left no room for a body between them); a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall, and on the long sides an `entrance` from the street at the far end: the pack's metro kiosk, its bottom landing (10 m) toward the court over the hall's corridor, which is its walls and roof there, and its two flights down from the street in a `well` from its landing's end (in the kiosk's own metres along the hall, measured off its sections: from the street near 1 m to -3.2 m at 5.6 m, and back down to -6.8 m at 0) walled with the court's wall, the ground's tiles over the well taken up and laid again in the pack's `patch` tile of the same material but for the well itself, its way through for a body, its `route` (x, z in the kiosk's own metres, the height it is walked at: from the plaza beside it, in through its doorway, the 2 m gap in its side between its walls and glass (its other side is walled, its end glass), down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, 3.3 m in, where its foot leaves a body room, and along the hall into the court; walked both ways by a player's own movement, tools/checks/sk-neon.ts; a bot's square body does not fit the lower flight's foot), and the kiosk's parts `without` left out, a model's file name for every part drawn from it or name@x,y,z for the one whose middle is there in the kiosk's own metres (its hanging ad board, 0.3 to 2 m over its landing's floor at the landing's end, stood across the hall's mouth: in Unity it hangs in a hall wider than the corridor; and the pack's plain wall closing its bottom level's end toward the court, where in Unity its way out is a gate in its side) (the layout writes `court` and its halls' rectangles, each with the `slab` over its corridor; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the `underground`: Centre Station, the pack's metro station under the south street put together as the pack's own demo scene (NeonUnderground00) puts its -10 m station, every piece where the demo has it from the station's pivot (the platform's back at its floor, `x`, `platform`, `back`; the offsets measured off the scene): its `mouth` end with the tunnel portal, `modules` platform modules (`mid`, the first `mouthLength` on: the mouth has no platform floor of its own, and stands on the first module as the demo's does), the `end` with the buffer stop, the `train` standing at the platform (its front `front` into the end, `down` under the platform's floor, `out` from its back), the `tunnel` running on west (its `first` piece at its offset from the station's pivot, its rails in line with the station's, `segment`s on to x `to`, closed there with the court's wall), the glass-roofed `hall` on the plaza behind the platform `at` its offset, its arcade at the street and its marble room at the platform's floor facing the platform's open back, and the `concourse` on east of it behind the platform to `to` metres past the station's pivot, the pack's marble hall modules (`piece`) on the hall's line under its floor slabs laid as a `ceiling`, the north side of both and their two ends and the platform's west end closed with the pack's plain hall `cap` (`capAt` from the hall's pivot), so every arch in the platform's back opens onto a room and none onto nothing (the demo's arches there open onto corridors; its other caps' doorways here looked out on the sky and the city through the ground), its north wall lined with the pack's ticket and vending `machines` every `every` metres from `from` in, their fronts to the platform (the layout writes `underground`: where the game lowers the world's floor, the station and tunnel to their track bed and the hall to its marble floor, and the street's slabs over the station and the tunnel); the centre's streets' `dress`: the pack's street `lamp` every `every` metres on both pavements, `inset` from the kerb, its arms along it; its `cars` parked in the lanes by the kerbs, their middle `lane` metres out, a seeded gap between `gap` metres apart, a car at each with the `chance`, as crouching cover in the street; and `count` `flying` cars over the streets between `height` metres, out of reach and so with no collision; all clear of the crossings (by `crossing` metres), the pads (by `padClear`), the ring road and the metro's kiosks; the fronts along the centre's streets and its ring hung with the pack's neon `signs`: tried every `step` metres along a line on the pavement a metre from the kerb with the `chance`, at a height between `height` metres, straight at the block to the first front within `reach` metres in the last bake's collision, kept where the front is flat to `flat` metres across the sign's width and `apart` metres from the last on that side, hung lit side to the street (a sign is lit on its own +z only), colliding with nothing; the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres at its edge, the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: its own `air` (atmosphere.ts ownAir, from Balanced up), a haze of one colour by `night` and one by `day` from `near` to `far` metres, thinning `farUp` metres further a metre climbed (a pale violet, as the store's pictures' is pale: a dark one over a dark city did not show; far as the ILranch city's, for the fights' sightlines), in place of the ILranch city's blocks' colours and its districts' staged light, which fell on this map's streets where those blocks had stood; the city's own picture its materials `reflect`, a cube `size` pixels a side taken from `at` (map-local, the street south of the tower at eye height) out to `far` metres once the map's file is in, in place of the sky's (the pack's asphalt is a wet street, smoothness 0.85, and with the sky in it the roads came out pale); the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
- "version": 8,
+ "_note": "The map made of Daelonik's Neon City bundle (Phase 28, docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md): the owner, 2026-09-28, 'basically wiping the entire map except the idea ... implement using all new assets, nothing at all should be custom made'. `rules` are the plan's, read by tools/neon-layout.ts, which writes `chunks` (every placement: the prefab by its path under the bundle's City Builder, its pivot x, y, z in map-local metres, its turn about y in degrees, how it collides: g the ground and what lies flat on it, none, s solid to its own top a cell at a time (a building with no rooms), o its own triangles' spans (rooms, stairs, floors to walk), a pack material over all its parts where given, and the parts of it left out, by their model's file name, where given) and `tallest` and `measured`, never typed. tools/import-neon.ts NEON=bake bakes the chunks into one file a texture size and the collision off their triangles; src/game/neonmap.ts draws and plays it. `rules`: the map to `extent` metres (past the 152 m edge, so the ground reaches the fence); the ground's `tile`, the pack's 10 m pavement plane, and the carriageways in `road`, the pack's asphalt; the centre's `streets` (`road` metres wide at `centres`, the pavement either side belonging to the blocks, so roof to roof across a street is about 15 m, a double jump's 22 carry with room: tools/checks/reach.ts) with the pack's kerbs `every` metres and its dashed line; the `ring` road round the centre; the centre's 3 by 3 `blocks` (the middle one's half width `inner`, the others between `outer`); the `middle` block's tallest building; the axis blocks' `high` city of High City's towers with walkable roofs, a big piece fronting the middle and a `row` of smaller ones on the ring's side; the corner blocks' `low` city, a 3 by 3 of cells with a yard in the middle, the `rooms` to fight in on each block's inner corner, the pack's realistic `piece` with its floors, stairs and rooms walkable (its own triangles), over the four cells there, the yard among them, turned by `face` (by the block's corner, x and z signs) toward the middle, and `low` buildings in the other cells (a piece may overhang its cell by `overhang`; `tall`, on the block's outer corner so it keeps a roof high over the streets, the inner corner's before the rooms; none of them deeper than a cell and its overhang, measured with their floors); the chunks whose names begin with `bake merge` baked as one named `as`, a mesh a material (the centre's pieces share the pack's materials: a chunk at a time they drew 920 calls in the street, as one 440, 2.3 ms a frame on Competitive, measured in turn by tools/bench.ts); the rooms' collision kept down to `below floor` and every span topping out over `below minTop` (the tallest building stands in a pit to its basement, 7 m under the street, whose floors the districts' rule for the street's scraps, nothing under 0.35 m, threw away), the world's floor lowered over the pit in the game; the `fine` pieces' collision measured at its finer `cell` (the metro kiosk's escalators are 2 m wide with their glass sides, and the rooms building's stairs 1.6 m with their railings, and at the rooms' half-metre cells each side widened to half a metre and left no room for a body between them); a solid building's `shell`: what its ground floor's walls close in (the triangles crossing its lowest `band` metres, gaps up to twice `close` metres shut) collides from its foot to its top, since High City's towers are shells with nothing inside (tools/import-neon.ts columnSolids); the `court` the tallest building stands in: the hole its footprint leaves in the ground floored at its foot, 7 m down, with the ground's tiles `under` metres beneath its basement's own floor, and walled round with the pack's `wall` (5 m lengths; one-sided, its face toward `faces` in its own frame, measured off its triangles, 36.5 m2 that way and none the other, so each is turned to look into the court), as tall as the hole is deep; its `halls`, the pack's metro corridors off the court through a door in one side's wall (the segment from `at` left out), out under the plaza on the court's floor, their `pieces` in order from the court, floored with `hallTile` and closed with the court's wall, and on the long sides an `entrance` from the street at the far end: the pack's metro kiosk, its bottom landing (10 m) toward the court over the hall's corridor, which is its walls and roof there, and its two flights down from the street in a `well` from its landing's end (in the kiosk's own metres along the hall, measured off its sections: from the street near 1 m to -3.2 m at 5.6 m, and back down to -6.8 m at 0) walled with the court's wall, the ground's tiles over the well taken up and laid again in the pack's `patch` tile of the same material but for the well itself, its way through for a body, its `route` (x, z in the kiosk's own metres, the height it is walked at: from the plaza beside it, in through its doorway, the 2 m gap in its side between its walls and glass (its other side is walled, its end glass), down the upper flight, round the balustrades' ends at 6.4 m, down the lower flight on its middle line, 3.3 m in, where its foot leaves a body room, and along the hall into the court; walked both ways by a player's own movement, tools/checks/sk-neon.ts; a bot's square body does not fit the lower flight's foot), and the kiosk's parts `without` left out, a model's file name for every part drawn from it or name@x,y,z for the one whose middle is there in the kiosk's own metres (its hanging ad board, 0.3 to 2 m over its landing's floor at the landing's end, stood across the hall's mouth: in Unity it hangs in a hall wider than the corridor; and the pack's plain wall closing its bottom level's end toward the court, where in Unity its way out is a gate in its side) (the layout writes `court` and its halls' rectangles, each with the `slab` over its corridor; the game lowers its floor in the court and the halls and lays the street's slab over the halls); the `underground`: Centre Station, the pack's metro station under the south street put together as the pack's own demo scene (NeonUnderground00) puts its -10 m station, every piece where the demo has it from the station's pivot (the platform's back at its floor, `x`, `platform`, `back`; the offsets measured off the scene): its `mouth` end with the tunnel portal, `modules` platform modules (`mid`, the first `mouthLength` on: the mouth has no platform floor of its own, and stands on the first module as the demo's does), the `end` with the buffer stop, the `train` standing at the platform (its front `front` into the end, `down` under the platform's floor, `out` from its back), the `tunnel` running on west (its `first` piece at its offset from the station's pivot, its rails in line with the station's, `segment`s on to x `to`, closed there with the court's wall), the glass-roofed `hall` on the plaza behind the platform `at` its offset, its arcade at the street and its marble room at the platform's floor facing the platform's open back, and the `concourse` on east of it behind the platform to `to` metres past the station's pivot, the pack's marble hall modules (`piece`) on the hall's line under its floor slabs laid as a `ceiling`, the north side of both and their two ends and the platform's west end closed with the pack's plain hall `cap` (`capAt` from the hall's pivot), so every arch in the platform's back opens onto a room and none onto nothing (the demo's arches there open onto corridors; its other caps' doorways here looked out on the sky and the city through the ground), its north wall lined with the pack's ticket and vending `machines` every `every` metres from `from` in, their fronts to the platform (the layout writes `underground`: where the game lowers the world's floor, the station and tunnel to their track bed and the hall to its marble floor, and the street's slabs over the station and the tunnel); the centre's streets' `dress`: the pack's street `lamp` every `every` metres on both pavements, `inset` from the kerb, its arms along it; its `cars` parked in the lanes by the kerbs, their middle `lane` metres out, a seeded gap between `gap` metres apart, a car at each with the `chance`, as crouching cover in the street; and `count` `flying` cars over the streets between `height` metres, out of reach and so with no collision; all clear of the crossings (by `crossing` metres), the pads (by `padClear`), the ring road and the metro's kiosks; High City's roofs joined by the pack's floating `bridges`, a rooftop circuit round the tower: each of the `paths` (map-local points, from inside one island's roof, round the corner over a street crossing, to inside the next) a line of 5 m cells, the `straight` piece along its legs and the `corner` where it turns, turned so its open sides face both legs (each piece's own `deck` height in its own frame, measured, taken off). The islands' `roof` is measured at 26.0 m and their crystal `fence`'s pillars top out at 26.86 (its glass at 26.84): every deck rides at `deck`, just over the fence (the layout stops if it does not clear it), so where a bridge crosses an island's fence the fence is inside the deck's 2 m body and nothing of the island is cut (a lobe's arc crosses a 5 m deck on a slant: left out it opened the roof's edge beside the bridge, kept it stood across the way). Each end steps down to the roof by the `stairs` piece, on the roof with its top edge at the deck's end, climbing its own `up` way; its ramp climbs `rise` metres (measured off its collision on a 26.0 m roof: 26.15, 26.25, 26.40, 26.50 a quarter metre at a time toward its own -z; the 0.83 m of its bounds is its side cheeks), so the deck stands 0.4 m over its top, a step a player takes in stride (0.56 m), and the layout stops if that step is over `step` metres; it collides fine (rules.fine) so its ramp is a ramp; the fronts along the centre's streets and its ring hung with the pack's neon `signs`: tried every `step` metres along a line on the pavement a metre from the kerb with the `chance`, at a height between `height` metres, straight at the block to the first front within `reach` metres in the last bake's collision, kept where the front is flat to `flat` metres across the sign's width and `apart` metres from the last on that side, hung lit side to the street (a sign is lit on its own +z only), colliding with nothing; the jump `pads` onto each high city block's roof from the street before it and the ring road behind it, the pack's `plate` on the ground and its `beam` of light rising from it, found by the bake in the collision it has just made (a `body`-wide line from the street's middle toward the block, tried every metre `across` either side of the block's middle, meets as its face the first column at least `roofMin` high within `search` metres, kept where the roof behind the face is level to `flat` metres for `flatDepth`, the landing, with no more than a `rail` of `rail` metres within `edge` metres of the face (the islands' fence stands 0.5 to 1.5 m in, measured along the north block's inner face; at 1 m the one spot that passed was where a bridge's end now stands), the nearest the street and the block's middle taken, `landBonus` metres nearer where a bot walks at least `landArea` square metres of the roof from where it lands (a bot never jumps: a High City roof's raised decks, 0.85 m, are walls to it)) and written to `pads` (never typed): each the face's point, the way out of it, the floor the pad stands on and the roof, the throw solved in the game (src/game/padsolve.ts). `game`: what src/game/neonmap.ts plays it with: its own `air` (atmosphere.ts ownAir, from Balanced up), a haze of one colour by `night` and one by `day` from `near` to `far` metres, thinning `farUp` metres further a metre climbed (a pale violet, as the store's pictures' is pale: a dark one over a dark city did not show; far as the ILranch city's, for the fights' sightlines), in place of the ILranch city's blocks' colours and its districts' staged light, which fell on this map's streets where those blocks had stood; the city's own picture its materials `reflect`, a cube `size` pixels a side taken from `at` (map-local, the street south of the tower at eye height) out to `far` metres once the map's file is in, in place of the sky's (the pack's asphalt is a wet street, smoothness 0.85, and with the sky in it the roads came out pale); the street's `slab`, metres deep, over the court's halls under the plaza; a street spot is `clear` metres round of anything at a body's height; the bots' graph a node every `graph step` metres of the street and every `raised` metres of the floors over it (a roof, a room: High City's roofs step 0.3 to 0.85 m between their decks, too fine for the street's lattice) over the map (`margin` in from its edge), linked where a bot walks there and back ending within `level` metres of the other's height, between floors no more than `climb` apart (a pad's landing joined the same way); each district's `drops` spread over its street nodes; respawn `beacons` at street spots (map-local); the small named `sites` the big map shows and a match puts loot of their own at (loot.json site), so a share of it is on the roofs where the fights are: a high city block's deck at the middle of its graph's nodes `roof` metres up and more, the lobby at the tallest building's middle.",
+ "version": 9,
  "rules": {
   "seed": 20260929,
   "extent": 160,
@@ -123,7 +123,8 @@
    "flat": 0.6,
    "rail": 1,
    "landArea": 150,
-   "landBonus": 6
+   "landBonus": 6,
+   "edge": 1.5
   },
   "shell": {
    "band": 3,
@@ -243,7 +244,8 @@
    "cell": 0.25,
    "pieces": [
     "MetroEntrance00.prefab",
-    "Neon Building 04.prefab"
+    "Neon Building 04.prefab",
+    "SmallStairs00c Variant.prefab"
    ]
   },
   "dress": {
@@ -363,6 +365,86 @@
      "every": 2.5
     }
    }
+  },
+  "bridges": {
+   "roof": 26,
+   "fence": 26.86,
+   "deck": 26.9,
+   "straight": {
+    "piece": "PlatformBridge00_5x5.prefab",
+    "deck": 0
+   },
+   "corner": {
+    "piece": "PlatformBridgeCorner00.prefab",
+    "deck": 1
+   },
+   "stairs": {
+    "piece": "SmallStairs00c Variant.prefab",
+    "up": [
+     0,
+     -1
+    ],
+    "rise": 0.5,
+    "step": 0.45
+   },
+   "paths": [
+    [
+     [
+      20,
+      -52.5
+     ],
+     [
+      52.5,
+      -52.5
+     ],
+     [
+      52.5,
+      -15
+     ]
+    ],
+    [
+     [
+      52.5,
+      15
+     ],
+     [
+      52.5,
+      52.5
+     ],
+     [
+      15,
+      52.5
+     ]
+    ],
+    [
+     [
+      -15,
+      52.5
+     ],
+     [
+      -52.5,
+      52.5
+     ],
+     [
+      -52.5,
+      20
+     ]
+    ],
+    [
+     [
+      -52.5,
+      -20
+     ],
+     [
+      -52.5,
+      -52.5
+     ],
+     [
+      -20,
+      -52.5
+     ]
+    ]
+   ]
   }
  },
  "tallest": {
@@ -374,6 +456,523 @@
   "foot": -7
  },
  "chunks": {
+  "c-bridges": {
+   "sector": "c",
+   "place": [
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     20,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     25,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     30,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     35,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     40,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     45,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridgeCorner00.prefab",
+     52.5,
+     25.9,
+     -50,
+     270,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     -45,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     -40,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     -35,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     -30,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     -25,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     -20,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     -15,
+     90,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     19,
+     26,
+     -53.25,
+     270,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     51.75,
+     26,
+     -14,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     20,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     25,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     30,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     35,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     40,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     45,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     52.5,
+     26.9,
+     50,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridgeCorner00.prefab",
+     50,
+     25.9,
+     52.5,
+     180,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     45,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     40,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     35,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     30,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     25,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     20,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     15,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     53.25,
+     26,
+     14,
+     180,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     14,
+     26,
+     51.75,
+     270,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -20,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -25,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -30,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -35,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -40,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -45,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -50,
+     26.9,
+     52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridgeCorner00.prefab",
+     -52.5,
+     25.9,
+     50,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     50,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     45,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     40,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     35,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     30,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     25,
+     90,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     -14,
+     26,
+     53.25,
+     90,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     -51.75,
+     26,
+     19,
+     180,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     -20,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     -25,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     -30,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     -35,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     -40,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -52.5,
+     26.9,
+     -45,
+     90,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridgeCorner00.prefab",
+     -50,
+     25.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -50,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -45,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -40,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -35,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -30,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "1_Premade/High City/Platform Floating/PlatformBridge00_5x5.prefab",
+     -25,
+     26.9,
+     -52.5,
+     0,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     -53.25,
+     26,
+     -19,
+     0,
+     "o"
+    ],
+    [
+     "2_Deco/Building Deco/Stairs/SmallStairs00c Variant.prefab",
+     -19,
+     26,
+     -51.75,
+     90,
+     "o"
+    ]
+   ]
+  },
   "c-court": {
    "sector": "c",
    "place": [
@@ -874,14 +1473,6 @@
     ],
     [
      "2_Deco/Lighting/Lighting_Deco002_lgt.prefab",
-     -2.5,
-     0,
-     -40.6,
-     0,
-     "o"
-    ],
-    [
-     "2_Deco/Lighting/Lighting_Deco002_lgt.prefab",
      12.5,
      0,
      -40.6,
@@ -929,8 +1520,8 @@
      "o"
     ],
     [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     -0.973,
+     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
+     22.706,
      0.39,
      -38.2,
      90,
@@ -938,15 +1529,15 @@
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     16.791,
+     53.272,
      0.39,
      -38.2,
-     90,
+     270,
      "o"
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
-     59.238,
+     64.925,
      0.39,
      -38.2,
      270,
@@ -954,7 +1545,7 @@
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     75.513,
+     81.2,
      0.39,
      -38.2,
      270,
@@ -1033,16 +1624,8 @@
      "o"
     ],
     [
-     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     -70.121,
-     0.39,
-     -31.8,
-     270,
-     "o"
-    ],
-    [
      "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
-     -48.984,
+     -75.171,
      0.39,
      -31.8,
      90,
@@ -1050,7 +1633,7 @@
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     4.046,
+     -58.924,
      0.39,
      -31.8,
      270,
@@ -1058,7 +1641,7 @@
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
-     59.451,
+     -21.447,
      0.39,
      -31.8,
      270,
@@ -1066,7 +1649,15 @@
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     80.904,
+     11.384,
+     0.39,
+     -31.8,
+     270,
+     "o"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
+     66.789,
      0.39,
      -31.8,
      270,
@@ -1148,47 +1739,23 @@
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      -38.2,
      0.39,
-     -66.126,
+     -43.834,
      0,
      "o"
     ],
     [
-     "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
-     -38.2,
-     0.39,
-     -20.265,
-     180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     -38.2,
-     0.39,
-     -3.661,
-     180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     -38.2,
-     0.39,
-     7.086,
-     180,
-     "o"
-    ],
-    [
      "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
      -38.2,
      0.39,
-     69.834,
-     180,
+     54.62,
+     0,
      "o"
     ],
     [
-     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
+     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      -38.2,
      0.39,
-     83.335,
+     78.75,
      180,
      "o"
     ],
@@ -1268,23 +1835,15 @@
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      -31.8,
      0.39,
-     -85.942,
+     -54.694,
      0,
      "o"
     ],
     [
-     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
+     "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
      -31.8,
      0.39,
-     -47.508,
-     180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     -31.8,
-     0.39,
-     -26.071,
+     -21.154,
      180,
      "o"
     ],
@@ -1292,7 +1851,23 @@
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      -31.8,
      0.39,
-     -7.716,
+     -3.289,
+     180,
+     "o"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
+     -31.8,
+     0.39,
+     17.84,
+     180,
+     "o"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
+     -31.8,
+     0.39,
+     67.398,
      0,
      "o"
     ],
@@ -1300,15 +1875,7 @@
      "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
      -31.8,
      0.39,
-     9.639,
-     180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
-     -31.8,
-     0.39,
-     63.594,
+     84.753,
      180,
      "o"
     ],
@@ -1385,8 +1952,32 @@
      "o"
     ],
     [
+     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
+     -84.748,
+     0.39,
+     31.8,
+     90,
+     "o"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
+     -60.845,
+     0.39,
+     31.8,
+     90,
+     "o"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
+     -23.996,
+     0.39,
+     31.8,
+     90,
+     "o"
+    ],
+    [
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
-     -77.719,
+     -8.722,
      0.39,
      31.8,
      270,
@@ -1394,26 +1985,10 @@
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     -10.134,
+     58.863,
      0.39,
      31.8,
      90,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     23.904,
-     0.39,
-     31.8,
-     90,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
-     72.671,
-     0.39,
-     31.8,
-     270,
      "o"
     ],
     [
@@ -1489,24 +2064,32 @@
      "o"
     ],
     [
-     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
-     -80.998,
+     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
+     -74.365,
      0.39,
      38.2,
      270,
+     "o"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
+     -63.249,
+     0.39,
+     38.2,
+     270,
+     "o"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
+     -49.217,
+     0.39,
+     38.2,
+     90,
      "o"
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     -71.02,
-     0.39,
-     38.2,
-     90,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     -9.941,
+     -21.967,
      0.39,
      38.2,
      90,
@@ -1514,18 +2097,18 @@
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
-     49.217,
+     48.679,
      0.39,
      38.2,
      90,
      "o"
     ],
     [
-     "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
-     71.12,
+     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
+     70.116,
      0.39,
      38.2,
-     270,
+     90,
      "o"
     ],
     [
@@ -1604,15 +2187,7 @@
      "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
      31.8,
      0.39,
-     -74.112,
-     180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     31.8,
-     0.39,
-     -64.186,
+     -60.432,
      0,
      "o"
     ],
@@ -1620,39 +2195,15 @@
      "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
      31.8,
      0.39,
-     -49.653,
-     180,
+     -12.888,
+     0,
      "o"
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      31.8,
      0.39,
-     -12.841,
-     0,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     31.8,
-     0.39,
-     43.95,
-     180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
-     31.8,
-     0.39,
-     65.728,
-     0,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00.prefab",
-     31.8,
-     0.39,
-     77.399,
+     57.101,
      180,
      "o"
     ],
@@ -1721,10 +2272,18 @@
      "o"
     ],
     [
+     "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
+     38.2,
+     0.39,
+     -51.891,
+     0,
+     "o"
+    ],
+    [
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      38.2,
      0.39,
-     -76.031,
+     10.739,
      0,
      "o"
     ],
@@ -1732,15 +2291,7 @@
      "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
      38.2,
      0.39,
-     -65.627,
-     0,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00b.prefab",
-     38.2,
-     0.39,
-     -51.473,
+     21.143,
      0,
      "o"
     ],
@@ -1748,144 +2299,128 @@
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      38.2,
      0.39,
-     -17.817,
+     50.974,
      180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     38.2,
-     0.39,
-     19.941,
-     0,
      "o"
     ],
     [
      "2_Deco/Street Deco/Cars/UrbanCar00c.prefab",
      38.2,
      0.39,
-     58.564,
+     66.772,
      180,
      "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/UrbanCar00d.prefab",
-     38.2,
-     0.39,
-     78.841,
-     180,
-     "o"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00c Variant.prefab",
-     -36.724,
-     21.427,
-     34.083,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00b Variant.prefab",
-     -33.352,
-     19.145,
-     11.778,
-     180,
-     "g"
     ],
     [
      "2_Deco/Street Deco/Cars/MovingCars/FlyingCar01.prefab",
-     -64.619,
-     12.372,
-     34.794,
+     69.931,
+     17.778,
+     34.521,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00c Variant.prefab",
+     49.802,
+     12.685,
+     36.58,
      270,
      "g"
     ],
     [
      "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00b Variant.prefab",
-     36.627,
-     27.35,
-     72.69,
+     34.98,
+     20.552,
+     -40.457,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Cars/FloatingCar00.prefab",
-     35.486,
-     20.192,
-     -39.655,
-     180,
+     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00c Variant.prefab",
+     20.406,
+     18.134,
+     -35.117,
+     270,
      "g"
     ],
     [
      "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00.prefab",
-     -65.845,
-     14.177,
-     36.871,
-     270,
+     -3.755,
+     21.546,
+     35.788,
+     90,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar01.prefab",
-     -30.862,
-     15.997,
-     2.119,
-     0,
+     "2_Deco/Street Deco/Cars/FloatingCar00.prefab",
+     -33.176,
+     22.43,
+     -73.388,
+     180,
      "g"
     ],
     [
      "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00b Variant.prefab",
-     -35.375,
-     24.858,
-     75.78,
+     83.118,
+     26.837,
+     33.655,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00.prefab",
+     35.754,
+     26.593,
+     7.325,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00c Variant.prefab",
+     -56.361,
+     17.31,
+     36.243,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Cars/FloatingCar00.prefab",
+     32.536,
+     11.734,
+     -34.998,
      180,
      "g"
     ],
     [
      "2_Deco/Street Deco/Cars/FloatingCar00.prefab",
-     35.083,
-     27.002,
-     60.087,
-     0,
+     58.826,
+     25.059,
+     -34.484,
+     270,
      "g"
     ],
     [
      "2_Deco/Street Deco/Cars/MovingCars/FlyingCar01.prefab",
-     24.332,
-     13.098,
-     -38.647,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00.prefab",
-     8.153,
-     27.789,
-     -33.721,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00c Variant.prefab",
-     -33.662,
-     15.184,
-     -49.948,
+     36.442,
+     11.041,
+     79.433,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00.prefab",
-     -33.9,
-     18.075,
-     7.451,
-     180,
+     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00c Variant.prefab",
+     -35.824,
+     13.688,
+     -67.791,
+     0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00c Variant.prefab",
-     -39.393,
-     18.555,
-     -34.801,
-     90,
+     "2_Deco/Street Deco/Cars/MovingCars/FlyingCar00b Variant.prefab",
+     87.771,
+     19.189,
+     33.136,
+     270,
      "g"
     ]
    ]
@@ -11452,472 +11987,480 @@
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
      -83.165,
-     6.723,
+     5.678,
      -45.325,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
-     -76.92,
-     8.453,
-     -44.96,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     76,
+     4.225,
+     -43.96,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
-     79.01,
-     6.937,
-     -44.03,
-     0,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
-     -44.52,
-     7.667,
-     -79.945,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     -44.455,
+     4.724,
+     -79.92,
      90,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
-     -82.945,
-     7.812,
-     -26.98,
-     180,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     -45.53,
+     4.98,
+     78.99,
+     90,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
-     -27.47,
-     9.457,
-     -52.99,
+     57.99,
+     5.296,
+     -23.47,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     -23.54,
+     5.702,
+     58,
      270,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
-     -23.545,
+     -26.545,
      3.572,
-     57.92,
+     81.92,
      270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
-     -26.47,
-     5.771,
-     79.01,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
-     -26.54,
-     9.036,
-     85,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
-     -55.995,
-     5.173,
-     27.54,
-     0,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
-     58.005,
-     7.074,
-     23.54,
-     0,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon017.prefab",
-     82.015,
-     9.59,
-     26.39,
-     0,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
-     -76.945,
-     7.65,
-     44.52,
+     -2.055,
+     2.274,
+     23.73,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     57.92,
+     5.131,
+     23.545,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     82.01,
+     9.259,
+     26.47,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     23.47,
+     4.592,
+     57.99,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
+     -83.08,
+     6.699,
+     44.46,
      180,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
-     75.995,
-     9.603,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     -77,
+     8.108,
+     44.46,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     4.165,
+     6.605,
+     42.325,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab",
+     75.975,
+     7.952,
      43.96,
      180,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
-     81.94,
-     5.78,
      43.95,
+     9.559,
+     -82.94,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
+     43.96,
+     3.444,
+     -76.92,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon016.prefab",
+     -83,
+     7.28,
+     -84.98,
      180,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
-     44.02,
-     2.53,
-     -79.985,
-     270,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon016.prefab",
+     -77,
+     6.755,
+     -84.98,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     -64.835,
+     10.41,
+     -86.175,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     -46.92,
+     4.194,
+     -84.545,
+     180,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
-     46.52,
-     7.986,
-     75.945,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon017.prefab",
-     46.11,
-     6.098,
-     82.015,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
-     -83.065,
-     4.075,
-     -85.04,
-     180,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
-     -77.005,
-     3.609,
-     -85.04,
-     180,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
-     -49.945,
+     -22.945,
      6.487,
-     -86.98,
+     -87.98,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     -5.06,
+     7.644,
+     -87.55,
      180,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
-     -26.01,
+     3.99,
      6.805,
      -87.97,
      180,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon015.prefab",
-     -5.015,
-     6.095,
-     -87.48,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
+     15.92,
+     8.74,
+     -88.04,
      180,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon016.prefab",
-     16,
+     46,
      7.517,
-     -87.98,
+     -85.98,
      180,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
-     46.08,
+     61.08,
+     7.782,
+     -85.045,
+     180,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     79.08,
      8.726,
-     -86.045,
+     -85.045,
      180,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
-     60.99,
-     4.462,
-     -84.97,
-     180,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
-     75.99,
-     5.914,
-     -84.97,
-     180,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
-     81.94,
-     5.43,
-     -85.05,
-     180,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
-     -85.55,
-     3.318,
-     -82.94,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     -85.675,
+     7.86,
+     -83.165,
      270,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
-     -85.55,
-     8.111,
-     -76.94,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     -85.54,
+     6.178,
+     -76.935,
      270,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
      -86.04,
-     5.425,
-     -68,
+     5.536,
+     -67.995,
      270,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
-     -85.97,
-     7.798,
-     -61.99,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     -86.045,
+     9.613,
+     -62.08,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
+     -85.54,
+     9.882,
+     -52.995,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
+     -85.47,
+     4.26,
+     -46.99,
      270,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
-     -85.54,
+     -87.54,
      4.488,
-     -52.92,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
-     -88.045,
-     3.888,
-     -8.08,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab",
-     -87.98,
-     3.742,
-     18.945,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
-     -86.97,
-     7.397,
-     67.01,
-     270,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
-     -87.045,
-     8.677,
-     78.92,
+     -22.92,
      270,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
-     -68.165,
-     4.625,
-     86.175,
+     -88.175,
+     5.993,
+     -8.165,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     -88.04,
+     4.008,
+     19.065,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon015.prefab",
+     -85.98,
+     7.185,
+     49.015,
+     270,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     -79.935,
+     6.57,
+     86.54,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
-     -62.165,
-     6.834,
-     86.175,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab",
+     -67.975,
+     9.711,
+     86.04,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
-     -53.165,
-     5.728,
-     87.675,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
+     -52.985,
+     3.261,
+     87.48,
      0,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon016.prefab",
-     -5,
-     2.704,
+     -47,
+     5.48,
      87.98,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
-     22,
-     2.895,
-     88.04,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     -22.99,
+     9.286,
+     87.47,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
-     49,
-     3.261,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
+     -4.985,
+     4.533,
+     87.98,
+     0,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab",
+     4.08,
+     9.211,
      87.54,
      0,
      "g"
     ],
     [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
-     61.01,
-     10.1,
-     85.47,
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     78.92,
+     6.649,
+     85.545,
      0,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
-     78.835,
-     4.495,
-     85.175,
-     0,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
-     85.175,
-     11.169,
-     -82.835,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon015.prefab",
-     84.98,
-     5.755,
-     -77.015,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
-     85.175,
-     10.715,
-     -67.835,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab",
-     85.04,
-     9.046,
-     -62.025,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon015.prefab",
-     85.98,
-     7.927,
-     -50.015,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
-     87.47,
-     4.596,
-     -11.01,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
-     87.98,
-     7.457,
-     3.985,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
-     87.55,
-     7.694,
-     21.94,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
-     85.98,
-     8.872,
-     45.985,
-     90,
-     "g"
-    ],
-    [
-     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
-     86.05,
-     4.29,
-     51.94,
-     90,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon009.prefab",
      84.97,
-     8.083,
-     60.99,
+     9.985,
+     -83.01,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab",
+     85.175,
+     6.363,
+     -76.835,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011b.prefab",
+     85.045,
+     8.994,
+     -67.92,
      90,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab",
-     84.54,
-     4.071,
-     67,
+     85.04,
+     8.615,
+     -62,
      90,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
-     85.54,
-     4.599,
-     75.995,
+     86.04,
+     8.512,
+     -53.005,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     86.04,
+     9.842,
+     -47.065,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon011.prefab",
+     88.04,
+     5.028,
+     -23.005,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     88.05,
+     6.913,
+     3.94,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon017.prefab",
+     87.39,
+     8.324,
+     21.985,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon008.prefab",
+     85.97,
+     8.841,
+     45.99,
      90,
      "g"
     ],
     [
      "2_Deco/Street Deco/Street Ads/SignLetters/Neon016.prefab",
+     85.98,
+     8.069,
+     52,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab",
+     85.05,
+     7.694,
+     60.94,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab",
+     85.54,
+     7.985,
+     75.935,
+     90,
+     "g"
+    ],
+    [
+     "2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab",
      85.48,
-     3.332,
-     82,
+     3.708,
+     81.985,
      90,
      "g"
     ]
@@ -21756,15 +22299,15 @@
   }
  },
  "measured": {
-  "placements": 2627,
-  "pieces": 65
+  "placements": 2684,
+  "pieces": 68
  },
  "baked": {
-  "triangles": 1636678,
-  "boxes": 43031,
+  "triangles": 1691020,
+  "boxes": 44636,
   "chunks": {
    "c": {
-    "tris": 1623830,
+    "tris": 1678172,
     "min": [
      -100,
      -13,
@@ -21882,10 +22425,10 @@
    }
   },
   "mb": {
-   "preview": 45.7,
-   "lo": 63,
-   "hi": 117.7,
-   "max": 312.5
+   "preview": 47.3,
+   "lo": 64.6,
+   "hi": 119.2,
+   "max": 314
   }
  },
  "game": {
@@ -21968,16 +22511,16 @@
   {
    "id": "n-in",
    "face": [
-    -20,
-    -50
+    -5,
+    -42.05
    ],
    "out": [
     0,
     1
    ],
    "pad": [
-    -20,
-    -48.19
+    -5,
+    -40.24
    ],
    "floor": 0,
    "roof": 26
@@ -22002,16 +22545,16 @@
   {
    "id": "s-in",
    "face": [
-    4,
-    42.55
+    1,
+    42.05
    ],
    "out": [
     0,
     -1
    ],
    "pad": [
-    4,
-    40.74
+    1,
+    40.24
    ],
    "floor": 0,
    "roof": 26
@@ -22019,16 +22562,16 @@
   {
    "id": "s-out",
    "face": [
-    5,
-    87.45
+    -2,
+    87.95
    ],
    "out": [
     0,
     1
    ],
    "pad": [
-    5,
-    89.26
+    -2,
+    89.76
    ],
    "floor": 0,
    "roof": 26
@@ -22036,16 +22579,16 @@
   {
    "id": "w-in",
    "face": [
-    -50,
-    20
+    -42.05,
+    5
    ],
    "out": [
     1,
     0
    ],
    "pad": [
-    -48.19,
-    20
+    -40.24,
+    5
    ],
    "floor": 0,
    "roof": 26
@@ -22054,7 +22597,7 @@
    "id": "w-out",
    "face": [
     -87.95,
-    4
+    -4
    ],
    "out": [
     -1,
@@ -22062,7 +22605,7 @@
    ],
    "pad": [
     -89.76,
-    4
+    -4
    ],
    "floor": 0,
    "roof": 26
@@ -22070,16 +22613,16 @@
   {
    "id": "e-in",
    "face": [
-    42.55,
-    -4
+    42.05,
+    -1
    ],
    "out": [
     -1,
     0
    ],
    "pad": [
-    40.74,
-    -4
+    40.24,
+    -1
    ],
    "floor": 0,
    "roof": 26
@@ -22087,16 +22630,16 @@
   {
    "id": "e-out",
    "face": [
-    87.45,
-    -6
+    87.95,
+    1
    ],
    "out": [
     1,
     0
    ],
    "pad": [
-    89.26,
-    -6
+    89.76,
+    1
    ],
    "floor": 0,
    "roof": 26

@@ -287,7 +287,7 @@ if (mode === "bake") {
  * the middle of the street before it and of the ring road behind it, a body-wide line toward the block, tried every
  * metre `across` either side of the block's middle. The first column at least `roofMin` high within `search` metres is
  * the face; it is kept where the roof behind it is level to `flat` for `flatDepth` metres (the landing), past no more
- * than a `rail` at its edge, and the pad's own spot, `padStandOff` out, is clear to the sky but for what lies on the
+ * than a `rail` within `edge` metres of the face, and the pad's own spot, `padStandOff` out, is clear to the sky but for what lies on the
  * ground. Of the kept, the nearest the street, then the block's middle, and `landBonus` metres nearer where a bot walks
  * `landArea` square metres of the roof from where it lands. Map-local: the face's point, the way out of it
  * (toward the pad), the pad's spot, the floor it stands on, the roof
@@ -358,7 +358,7 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
         const tops: number[] = [];
         for (let k = 0.5; k <= P.flatDepth; k += 0.5) tops.push(top(...at(hit + k), P.body));
         const roof = tops.slice(-4).sort((a, b) => a - b)[1];
-        if (tops.some((y) => y > roof + P.rail) || tops.slice(2).some((y) => Math.abs(y - roof) > P.flat)) continue;
+        if (tops.some((y) => y > roof + P.rail) || tops.slice(Math.round(P.edge / 0.5)).some((y) => Math.abs(y - roof) > P.flat)) continue;
         // the landing's roof walked by a body stepping no higher than a bot steps (a raised deck 0.85 m up is a wall
         // to a bot, which never jumps): the more of it the better, so a bot thrown up has somewhere to go
         const walk = walkedArea(...at(hit + 3), roof);

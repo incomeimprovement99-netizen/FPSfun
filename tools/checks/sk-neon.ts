@@ -279,12 +279,133 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     for (let x = x0 + 0.5; x < x1; x += 1)
       for (let z = z0 + 0.5; z < z1; z += 1) {
         const p = [x + BR_X, eye, z + BR_Z];
-        // (not a spot inside a wall or a pillar)
-        if (solidsIn(p[0], p[0], p[2], p[2]).some((s) => p[0] >= s.minX && p[0] <= s.maxX && p[2] >= s.minZ && p[2] <= s.maxZ && s.base < eye && s.top > sy + 0.3)) continue;
+        // (not a spot inside a wall or a pillar: something standing across the eye's height there)
+        if (solidsIn(p[0], p[0], p[2], p[2]).some((s) => p[0] >= s.minX && p[0] <= s.maxX && p[2] >= s.minZ && p[2] <= s.maxZ && s.base < eye && s.top > eye)) continue;
         spots++;
         for (const d of dirs) if (hit(p, d, 60) >= 60) open.push(`(${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
       }
   check("Centre Station closed: from every metre of its platform and concourse a look along the ground or up meets its walls within 60 m", spots > 300 && open.length === 0, `${spots} spots, ${open.length} looks out on nothing${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
+}
+
+// High City's bridges (rules.bridges): each walked from one island's deck to the next and back, on foot, and railed.
+// The islands are fenced all round and a bridge crosses the fence in its own deck's body, stepping down to the roof
+// inside by a stair: with its stair missing or short of it a deck's end is a wall 0.9 m high, a deck stopped short of
+// the fence is fenced off from its island, and a landing on a lobe with no way off it goes nowhere. A body a square round the
+// player's round one is flooded an eighth of a metre at a time from the foot of the stair at one end: up a step at a
+// time, down as far as a deck stands over its roof. It reaches the named deck of the island it starts on, the foot of
+// the stair at the far end and that island's named deck. (A fence's top is no floor: it stands 4 cm under a deck
+// beside the deck's end, and a body let stand on it walked the fences round to anywhere.) And from every metre of a
+// deck's middle a look to either side at the waist meets a rail, the corner's two outer sides among them: a corner
+// turned wrong is open over the street. Each stair is also climbed on its own, straight up its middle from the roof
+// onto the deck: the deck's skirt stands half a metre proud of its sides half a metre under it, and with no stair at
+// all the flood still got up two of the eight ends by it, round the outside of the rail
+{
+  const B = cfg.rules.bridges as { roof: number; fence: number; deck: number; paths: number[][][] };
+  const C = 0.125;
+  const H = MOVE.radius;
+  const drop = B.deck - B.roof + 0.1;
+  const decks = map.sites.filter((q) => q.id.endsWith("-deck")).map((q) => [q.x - BR_X, q.z - BR_Z]);
+  const nearest = (p: number[]) => decks.reduce((best, q) => (Math.hypot(q[0] - p[0], q[1] - p[1]) < Math.hypot(best[0] - p[0], best[1] - p[1]) ? q : best));
+  for (const path of B.paths) {
+    const past = (p: number[], q: number[], by: number) => { const l = Math.hypot(p[0] - q[0], p[1] - q[1]); return [p[0] + ((p[0] - q[0]) / l) * by, p[1] + ((p[1] - q[1]) / l) * by]; };
+    // the foot of each end's stair: a metre and a half past the deck's end, on the roof
+    const feet = [past(path[0], path[1], 1.5), past(path.at(-1)!, path.at(-2)!, 1.5)];
+    const sites = [nearest(path[0]), nearest(path.at(-1)!)];
+    const pts = [sites[0], feet[0], ...path, feet[1], sites[1]];
+    const M = 8;
+    const [X0, X1, Z0, Z1] = [Math.min(...pts.map((p) => p[0])) - M, Math.max(...pts.map((p) => p[0])) + M, Math.min(...pts.map((p) => p[1])) - M, Math.max(...pts.map((p) => p[1])) + M];
+    const near = (x: number, z: number) => pts.slice(0, -1).some((p, k) => {
+      const q = pts[k + 1];
+      return x >= Math.min(p[0], q[0]) - M && x <= Math.max(p[0], q[0]) + M && z >= Math.min(p[1], q[1]) - M && z <= Math.max(p[1], q[1]) + M;
+    });
+    const [NI, NJ] = [Math.round((X1 - X0) / C), Math.round((Z1 - Z0) / C)];
+    const boxes = (i: number, j: number) => {
+      const x = X0 + (i + 0.5) * C + BR_X, z = Z0 + (j + 0.5) * C + BR_Z;
+      return solidsIn(x - H, x + H, z - H, z + H).filter((s) => s.minX < x + H && s.maxX > x - H && s.minZ < z + H && s.maxZ > z - H);
+    };
+    /** the floor a body at y finds at a spot: the highest top under its square within a step up; null, blocked there */
+    const floorFor = (i: number, j: number, y: number): number | null => {
+      const here = boxes(i, j);
+      let f = -Infinity;
+      for (const s of here) if (s.top <= y + MOVE.stepHeight && s.top > f && Math.abs(s.top - B.fence) > 0.02) f = s.top;
+      const at = Math.max(f, y - drop);
+      return here.some((s) => s.base < at + MOVE.standHeight && s.top > at + MOVE.stepHeight) ? null : f;
+    };
+    const cell = (p: number[]) => [Math.floor((p[0] - X0) / C), Math.floor((p[1] - Z0) / C)];
+    const name = `(${path[0].join(", ")}) to (${path.at(-1)!.join(", ")})`;
+    for (const way of [0, 1]) {
+      const seen = new Map<number, number>();
+      const [si, sj] = cell(feet[way]);
+      const start = floorFor(si, sj, B.roof);
+      const todo: number[] = [];
+      if (start !== null && Math.abs(start - B.roof) < 0.1) (seen.set(si * NJ + sj, start), todo.push(si * NJ + sj));
+      while (todo.length) {
+        const k = todo.pop()!;
+        const [i, j, y] = [Math.floor(k / NJ), k % NJ, seen.get(k)!];
+        for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const [a, b] = [i + di, j + dj];
+          if (a < 0 || b < 0 || a >= NI || b >= NJ) continue;
+          const was = seen.get(a * NJ + b);
+          if (!near(X0 + (a + 0.5) * C, Z0 + (b + 0.5) * C)) continue;
+          const f = floorFor(a, b, y);
+          if (f === null || f < y - drop) continue;
+          // (a spot reached lower down is reached again from higher: from a deck the way on is along the deck)
+          if (was !== undefined && was >= f) continue;
+          seen.set(a * NJ + b, f);
+          todo.push(a * NJ + b);
+        }
+      }
+      const reached = (p: number[], within: number) => { for (const k of seen.keys()) if (Math.hypot(X0 + (Math.floor(k / NJ) + 0.5) * C - p[0], Z0 + ((k % NJ) + 0.5) * C - p[1]) <= within) return true; return false; };
+      const got = [reached(sites[way], 4), reached(feet[1 - way], 0.5), reached(sites[1 - way], 4)];
+      const high = [...seen.values()].filter((y) => Math.abs(y - B.deck) < 0.1).length;
+      check(`High City's bridge ${name}, ${way ? "back" : "there"}: walked on foot from its island's deck up its stair, across, down and onto the next island's deck`, got.every(Boolean) && high > 1000, `${seen.size} spots, ${high} on the bridge; its own deck ${got[0] ? "reached" : "NOT reached"}, the far stair's foot ${got[1] ? "reached" : "NOT reached"}, the far deck ${got[2] ? "reached" : "NOT reached"}`);
+    }
+    // its stairs: from each foot straight along the leg's line to a metre and a half onto the deck
+    const climbs = feet.map((foot, w) => {
+      const end = w ? path.at(-1)! : path[0];
+      let y = B.roof;
+      for (let t = 0; t <= 3 + 1e-6; t += C) {
+        const [i, j] = cell([foot[0] + ((end[0] - foot[0]) / 1.5) * t, foot[1] + ((end[1] - foot[1]) / 1.5) * t]);
+        const f = floorFor(i, j, y);
+        if (f === null || f < y - 0.05) return `stopped ${t.toFixed(2)} m on at ${y.toFixed(2)} m`;
+        y = f;
+      }
+      return Math.abs(y - B.deck) < 0.05 ? "" : `ends at ${y.toFixed(2)} m`;
+    });
+    check(`High City's bridge ${name}: the stair at each end climbed straight up its middle, roof to deck`, climbs.every((c) => c === ""), climbs.map((c, w) => `${w ? "far" : "near"} ${c || "climbed"}`).join(", "));
+    // its rails: a look from p toward d (along x or z) at the waist, a box standing across that height within `far`
+    const waist = B.deck + 0.5;
+    const railed = (p: number[], d: number[], far: number): boolean => {
+      const [x0, x1, z0, z1] = [Math.min(p[0], p[0] + d[0] * far) + BR_X, Math.max(p[0], p[0] + d[0] * far) + BR_X, Math.min(p[1], p[1] + d[1] * far) + BR_Z, Math.max(p[1], p[1] + d[1] * far) + BR_Z];
+      return solidsIn(x0, x1, z0, z1).some((s) => s.minX <= x1 && s.maxX >= x0 && s.minZ <= z1 && s.maxZ >= z0 && s.base < waist && s.top > waist);
+    };
+    const open: string[] = [];
+    let looks = 0;
+    const width = 5;
+    for (let i = 0; i + 1 < path.length; i++) {
+      const [a, b] = [path[i], path[i + 1]];
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const d = [(b[0] - a[0]) / len, (b[1] - a[1]) / len];
+      const side = [-d[1], d[0]];
+      // the leg's straights: from its end (or past the corner it left) to the corner it meets (or its end)
+      for (let t = (i ? width / 2 : 0) + 0.5; t < len - (i + 2 < path.length ? width / 2 : 0); t += 1)
+        for (const sd of [side, [-side[0], -side[1]]]) {
+          looks++;
+          const p = [a[0] + d[0] * t, a[1] + d[1] * t];
+          if (!railed(p, sd, width / 2 + 0.25)) open.push(`(${p[0].toFixed(1)}, ${p[1].toFixed(1)}) toward ${sd.join(",")}`);
+        }
+      // the corner: on past it the way this leg came, and back against the way the next one goes
+      if (i + 2 < path.length) {
+        const c = path[i + 2];
+        const l2 = Math.hypot(c[0] - b[0], c[1] - b[1]);
+        for (const sd of [d, [-(c[0] - b[0]) / l2, -(c[1] - b[1]) / l2]]) {
+          looks++;
+          if (!railed(b, sd, width / 2 + 0.25)) open.push(`the corner (${b.join(", ")}) toward ${sd.join(",")}`);
+        }
+      }
+    }
+    check(`High City's bridge ${name}: railed both sides all its way, and its corner's outer sides`, looks > 100 && open.length === 0, `${looks} looks, ${open.length} open${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
+  }
 }
 
 // loot where the fights are, as a match lays it (brmatch.ts): each place's and site's spots on any floor there with a

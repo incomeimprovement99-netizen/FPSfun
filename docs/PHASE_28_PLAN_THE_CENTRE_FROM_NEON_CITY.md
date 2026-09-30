@@ -275,10 +275,16 @@ the importer read FBX only. They are drawn now, the tower's and the metro's incl
    street entrances (MetroEntrance00, 5.3 x 14.4 x 20 m, stairs down) on two streets, and SquareHoleGroundLevel00
    (22.6 x 13.7 x 25 m) in the plaza: the ground opened into the station, a sunken court with sightlines up and down.
    The world's floor lowered where it opens (`floors.ts FLOORS`, as the old metro had it).
-3. **High City's roofs joined and reached on foot.** HighPlatform_Stairs01 and 02 (stair towers 30.4 and 33.9 m) on
-   each axis block, so a body and a bot walk up to the 26 m roofs without a pad; StreetPlatformBridge00 to 03 (10 m
-   spans at 26.9 m) and the floating PlatformBridge modules (5 m, 2.9 m deep) across the inner streets where two roofs
-   face each other, and FloorBridge00 (10 m) to the low city's roofs.
+3. **High City's roofs joined and reached on foot.** Joined (Milestone 354): a ring of the floating PlatformBridge
+   modules round the tower, island to island over the four street crossings, the decks riding over the islands' fence
+   at 26.9 m (the islands are round-lobed and a 5 m deck crosses a lobe's arc on a slant, so cutting the fence either
+   opened the roof's edge or left the arc across the way) and stepping down to each roof by the pack's small stair.
+   Still to do: the roofs reached on foot from the street. Not by HighPlatform_Stairs01 and 02, as this plan first
+   had it: photographed, they are High City towers (30.4 and 33.9 m) whose roofs carry an escalator between two roof
+   levels, and HighPlatform_Stairs00 is that escalator pair alone (5 m of climb); none starts at the street. The
+   pack's fire escapes (FireEscape00, 6 m a flight), its CityWallsStairs00 (15.5 m) and its stair rooms are what is
+   left to study for it. And StreetPlatformBridge00 to 03 (10 m spans on 26 m pillars) where two roofs face each other
+   across an inner street, the ring out to the tower itself, and FloorBridge00 (10 m) to the low city's roofs.
 4. **The streets dressed**: begun (Milestone 338): the pack's lamps along the kerbs, parked cars as cover, flying cars
    over the streets; its neon signs on the fronts (Milestone 339). Still: its billboards and holograms, its street props (benches, bins,
    vending machines, barriers, planters) as cover along the pavements, its StreetFocus lamps and its flying cars over
