@@ -1213,7 +1213,7 @@ export class MannequinFigure {
       this.butt = this.rifle ? buttOf(gun) : null;
       // the magazine group the reload takes out (gunmodels.ts builds it as "mag"), where it sits, and the handle
       const mag = gun.getObjectByName("mag") ?? null;
-      this.reloadParts = this.rifle ? { mag, magHome: mag ? mag.position.clone() : new THREE.Vector3(), magBottom: m.magBottom.clone(), handle: m.boltGrip ? m.boltGrip.clone() : null } : null;
+      this.reloadParts = this.rifle ? { mag, magHome: mag ? mag.position.clone() : new THREE.Vector3(), magHomeQ: mag ? mag.quaternion.clone() : new THREE.Quaternion(), magBottom: m.magBottom.clone(), handle: m.boltGrip ? m.boltGrip.clone() : null } : null;
       this.sight = new THREE.Vector3(0, m.sightY, -m.rearF);
       return;
     }

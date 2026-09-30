@@ -173,7 +173,7 @@
     "up": 5,
     "back": 0
   },
-  "_reload": "The reload as other players see it (Phase 27, 27.9; rifle.ts reloadTarget), a share of the gun's own reload time (weapons.ts reloadTime) at each step, so an enemy's plays from the moment their \"reload\" arrives and nothing new goes over the network. The gun turns its magazine toward the left hand (`tilt`, in over `tiltIn`, back over `tiltOut`); the left hand goes from the handguard to the magazine, pulls it `out` metres down over `pull` and lets it go at `dropAt` (a copy falls to the floor and fades), fetches a new one from the pouch at the left hip (in the hand over `inHand`, its bottom `magInPalm` over the palm), pushes it home, racks the charging handle and goes back. `left` and `right` are each hand's keys, [share, key]; a hand without keys at that share holds as it always does. `keys` are palm places and turns: off the magazine's bottom (`mag`), the charging handle or bolt (`handle`), or the hips (`hips`, in the figure's frame: +x its left, +z its front), with `fwd` and `palm` as in `hands`. A bolt gun works its bolt with the right hand (guns.sentinel).",
+  "_reload": "The reload as other players see it (Phase 27, 27.9; rifle.ts reloadTarget), a share of the gun's own reload time (weapons.ts reloadTime) at each step, so an enemy's plays from the moment their \"reload\" arrives and nothing new goes over the network. The gun turns its magazine toward the left hand (`tilt`, in over `tiltIn`, back over `tiltOut`); the left hand goes from the handguard to the magazine, pulls it `out` metres down over `pull` and lets it go at `dropAt` (a copy falls to the floor and fades), fetches a new one from the pouch at the left hip (in the hand over `inHand`, its bottom `magInPalm` over the palm), pushes it home, racks the charging handle and goes back. `left` and `right` are each hand's keys, [share, key]; a hand without keys at that share holds as it always does. `keys` are palm places and turns: off the magazine's bottom (`mag`), the charging handle or bolt (`handle`), or the hips (`hips`, in the figure's frame: +x its left, +z its front), with `fwd` and `palm` as in `hands`. A bolt gun works its bolt with the right hand (guns.sentinel). upright: over this share of the reload the new magazine turns from held as a hand holds it (its length across the hand, at the pouch) to upright as the gun is (its bottom in the palm), so it goes in straight: kept upright all the way, it ran through the left forearm and the belly at the pouch (40 mm).",
   "reload": {
     "magazine": true,
     "tilt": {
@@ -197,6 +197,10 @@
     "inHand": [
       0.4,
       0.62
+    ],
+    "upright": [
+      0.44,
+      0.54
     ],
     "magInPalm": 0.02,
     "keys": {
@@ -937,9 +941,9 @@
           "mag": {
             "from": "mag",
             "at": [
-              -0.05,
-              0.055,
-              0
+              -0.0565,
+              0.0441,
+              0.0027
             ],
             "fwd": [
               1.15,
@@ -955,9 +959,9 @@
           "magOut": {
             "from": "mag",
             "at": [
-              -0.05,
-              -0.075,
-              0
+              -0.0565,
+              -0.0859,
+              0.0027
             ],
             "fwd": [
               1.15,
@@ -973,9 +977,9 @@
           "magUnder": {
             "from": "mag",
             "at": [
-              -0.05,
-              -0.095,
-              0
+              -0.0565,
+              -0.1059,
+              0.0027
             ],
             "fwd": [
               1.15,

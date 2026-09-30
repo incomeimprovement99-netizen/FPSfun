@@ -336,6 +336,8 @@ export interface ReloadParts {
   mag: THREE.Object3D | null;
   /** the magazine group's place at rest, in the gun */
   magHome: THREE.Vector3;
+  /** its rotation at rest, gun-local, which it goes back to */
+  magHomeQ: THREE.Quaternion;
   magBottom: THREE.Vector3;
   handle: THREE.Vector3 | null;
 }
@@ -529,6 +531,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const parts = g.parts;
   if (parts?.mag) {
     const m = parts.mag;
+    m.quaternion.copy(parts.magHomeQ);
     if (u === null || !R.magazine) {
       m.position.copy(parts.magHome);
       m.visible = true;
@@ -540,15 +543,28 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       } else if (u < R.inHand[0]) {
         m.visible = false;
       } else if (u < R.inHand[1]) {
-        // in the left hand: its bottom in the palm, upright as the gun is, so it goes in straight
+        // In the left hand. Down at the pouch it is held as a hand holds it, its length across the hand (thumb side up)
+        // and its middle against the palm: kept upright as the gun is there, it ran through the forearm and the belly.
+        // On the way up it comes upright as the gun is, its bottom in the palm (reload.upright), so it goes in straight.
         m.visible = true;
         const hand = b.hand_l;
         const hr = rig.hands.l;
         if (hand) {
           const palm = hand.localToWorld(hr.palm.clone());
-          const bottomOff = parts.magBottom.clone().sub(parts.magHome);
           const home = g.gun.worldToLocal(palm);
-          m.position.copy(home.sub(bottomOff).add(new THREE.Vector3(0, R.magInPalm, 0)));
+          const upright = home.clone().sub(parts.magBottom.clone().sub(parts.magHome)).add(new THREE.Vector3(0, R.magInPalm, 0));
+          const toGun = g.gun.getWorldQuaternion(new THREE.Quaternion()).invert();
+          const handQ = hand.getWorldQuaternion(new THREE.Quaternion());
+          const fwdG = hr.fwd.clone().applyQuaternion(handQ).applyQuaternion(toGun);
+          const faceG = hr.face.clone().applyQuaternion(handQ).applyQuaternion(toGun);
+          // (the left hand's across, little finger to index: face = fwd x across, so across = face x fwd)
+          const across = faceG.clone().cross(fwdG).normalize();
+          const turn = frameTo(new THREE.Vector3(0, 1, 0), new THREE.Vector3(0, 0, -1), across, fwdG);
+          const mid = parts.magBottom.clone().sub(parts.magHome).multiplyScalar(0.5).applyQuaternion(turn);
+          const held = home.clone().addScaledVector(faceG, R.magInPalm).sub(mid);
+          const k = 1 - smooth(u, R.upright[0], R.upright[1]);
+          m.quaternion.copy(new THREE.Quaternion().slerp(turn, k)).multiply(parts.magHomeQ);
+          m.position.copy(upright.lerp(held, k));
         }
       } else m.position.copy(parts.magHome);
       m.visible = u < R.dropAt || u >= R.inHand[0];
