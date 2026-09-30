@@ -7329,3 +7329,44 @@ broker), cutting the host page's broker socket at chosen moments.
 
 Milestones 351 and 352 were held on a branch for the owner's review and merged on 2026-09-30, rebased onto main
 and run again first: verify, rules, migrate 19 of 19, p2p 47 of 47, br and loot 78 of 78.
+
+## Milestone 353 — The bug hunt: the soldier photographed in the game itself, a melee that is a strike with the gun, and six faults found and fixed
+
+The owner, 2026-09-30: "Go bug hunting and ensure we have everything working as expected. Get many pics of enemies and
+third person and a alone frame by frame for the 2 guns and melee." SpeedKills' soldier, the USSO and BOOG. 27.12's
+fifth round.
+
+- **Photographed in the game, not only the lab** (`tools/live-shots.ts`, new): the lab steps one figure through set
+  poses; the faults below were all in how the game itself drives a figure. Three parts: `enemies` (an Arena Bots match,
+  each bot given the USSO or BOOG, followed by the camera as its AI moves, fights and reloads), `self` (your own soldier
+  in third person, driven by the keys a player presses, from behind, the front and the side), `remote` (a second page
+  joins an arena 1v1 over the local transport and is driven by keys; this page photographs the figure it draws of them).
+  The lab gained `melee`, `throw`, `heal`, `strafe` and `runaim` sequences (`tools/figure-frames.ts`).
+- **The melee was a boxer's punches** (the figures' clips): the gun vanished for each swing, the second swing threw the
+  whole body half a metre out to the side, and the gun came back through both hands. It is now a strike with the gun,
+  both hands on it (`rifle.ts`, `soldierhold.json` melee): driven out and back in the game's own melee time, the chest
+  squaring into it; a jab, a sweep across and a jab up in turn, a string going on from one to the next.
+- **A gun coming back into the hands went through them** (after a throw, a heal, a reach for something: 23 to 28 mm):
+  shown the frame the act ended, while the hands were still on their way. The hands now go to where it will be and it
+  shows once both are on it (`soldierhold.json` gunBack); the soldier's throw ends when the grenade has gone (`throwFor`,
+  0.4 s), where its arms hung empty for the rest of the 0.7 s the act lasts on the wire.
+- **Aimed on the move, the left hand was in the gun** (11 to 15 mm, both guns): the running clips lean the chest 20 cm
+  forward, the arm came up short, and the hold slid a third of the way back to the grip. Every bot showed it, since bots
+  aim as they run; the lab's run was unaimed and its aim stood still. The shoulder now reaches up to 34 degrees of the
+  clavicle (`reach.shoulder`, it was 18), only as far as is needed; nothing slides.
+- **SpeedKills' bots healed with cells and syringes**, which no player there has (health and shield come back on their
+  own): a bot stood behind cover with its gun put away, holding nothing, for the four seconds of a heal (`bots.ts`). Off
+  in SpeedKills; a hurt bot still takes cover while its shield comes back.
+- **A swap replaced the whole figure**, your own in third person and every other player's: a figure of its own for each
+  gun, the new one starting from its rest pose, its hands 2 to 6 cm off the new gun and 20 mm into it for the frame it
+  changed. One gun for another is now the same figure taking the new gun in its hands (`main.ts` selfFigure, `duel.ts`
+  setAvatarLook), as a bot's always was.
+- **Looked at and left:** BOOG's butt plate pressed 2 to 4 cm into the rigid shoulder armour (hidden from outside, as
+  before); about 0.3 s of empty hands between a throw's release and the gun showing again (shown sooner, the hands
+  were through it); a far figure's hold is only worked out every few frames (the figures' level of detail), which the
+  live sheets can read as a palm off its hold.
+- **Checked:** `tools/checks/soldier-hold.ts` in verify (the soldier's melee swing is the game's melee time); the e2e
+  `skfigure` section, eight new checks (aimed at a sprint the left hand on its hold; the melee a strike driven 18 cm out
+  with both palms on the gun, and back; the gun away for a throw and back with no hand through it), seen failing with
+  each fault put back (the shoulder's reach at 18, the gun shown early, the thrust taken out); the `sksquad`, `duel`,
+  `speedkills` and `soldier` sections; verify; rules; the live sheets and the lab's.

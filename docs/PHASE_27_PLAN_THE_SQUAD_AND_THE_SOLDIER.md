@@ -270,3 +270,10 @@ jump each with a carry of their own, blended in; the gun's arc between the carry
 soldier at rest with the whole gun framed. Left for the owner's check (2026-09-30): BOOG's stock pressed 2 to 4 cm into
 the rigid shoulder armour in its still poses (hidden from outside), the reload's left fingertips at the receiver (close
 up only), and the USSO's stock end in the forearm pad on a jump's takeoff (hidden).
+
+Round five (Milestone 353), the bug hunt in the game itself (`tools/live-shots.ts`: bots, your own figure in third
+person, another player over the network): the melee a strike with the gun; a returning gun shown once the hands are on
+it; the shoulder's reach to 34 degrees, so nothing slides aimed on the move; no item heals for SpeedKills' bots; a swap
+on the same figure. After it, what is left of the two guns is what the owner was shown on 2026-09-30: BOOG's butt plate
+in the rigid shoulder armour (hidden), the reload's left fingertips at the receiver (close up only), and 0.3 s of empty
+hands after a throw. The other eight guns are planned in PLAN_SOLDIER_EIGHT_GUNS.md and wait on the owner's word.
