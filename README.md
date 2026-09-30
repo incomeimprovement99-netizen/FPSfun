@@ -177,14 +177,16 @@ Game) or `?game=legacy`, and everything below this section describes it.
   shot goes, and its rounds leave a thick blue tracer; aimed in, its
   scope throws a lens flare other players can see. Your own rounds' tracers
   are dim, a quarter as bright as other players' (so fire coming at you still
-  reads), and your muzzle flash is drawn at half strength. Every other player leaves
+  reads), and your muzzle flash is drawn at a tenth of its strength. Every other player leaves
   a trail of light behind their feet, as in Hyper Scape: red for enemies, blue
   for squad mates, gold for the crown's carrier. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
   The USSO and BOOG are held by real first-person arms (a bought pack's, where
   its files are): an SMG hold and a sniper hold, fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
-  a pickup (every frame of each photographed and measured), and the wrists kept
+  a pickup (every frame of each photographed and measured); the USSO's left palm
+  and thumb lie flat along its side, and the right hand's lower three fingers sit
+  together on the grip with the forefinger on the trigger; and the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,
   the other presets at 1024. On a reload the gun turns its underside toward you and
   the left forefinger points at the magazine and leads it, down a moment before

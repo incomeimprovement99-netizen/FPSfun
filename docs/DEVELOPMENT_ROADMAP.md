@@ -7436,3 +7436,39 @@ sides, `shots/figure-final`) flagged the new melee: the left hand up to 14 mm in
   22 cm butt plate is 2 to 4 cm into the rigid shoulder armour, hidden from outside.
 - **Checked:** the `skfigure` e2e checks every swing of a string, seen failing on both guns with the old chest turn put
   back; verify; rules; the melee sheets.
+
+## Milestone 356 — The USSO's hands: the left palm and thumb along its side, the right fingers together
+
+The owner, 2026-09-29: "THE THUMB AND THE PALM OF THE LEFT ARM ARE NOT EXACTLY FLUSH UP WITH THE USSO ON THE GUNS LEFT
+SIDE, SEE THE GAP? TAKE SCREENSHOTS FOR IT, THE GAP IS OBVIOUS", and "for the right hands bottom two fingers, why is the
+middle finger so separated from the bottom two? the 3 should be next to each other and then the pointer on the
+trigger".
+
+- **Seen and measured:** photographed at 3 times the owner's size, the left hand stood off the gun's left side with a
+  dark gap between; the right middle fingertip stood apart from the ring and little fingers. The fit tools had asked only
+  that the palm's nearest point touch (`pack-audit.js` palmGap): it did, 0.7 mm at one point of its heel, while a tenth
+  of the palm's skin was 18.6 mm off and more and the thumb's nearest quarter 21 to 28 mm. The audit now gives every
+  tested skin point's gap by bone (`gapList`).
+- **The left hand** (`fparms.json` MPS5 hold l, `tools/pack-flush.ts`): a new search scores how much of a bone's skin
+  lies on the gun (the palm's nearest tenth, the thumb's nearest quarter), placing the palm and thumb first with only
+  their own depth counted, then `tools/pack-solve.ts joints` laying the fingers back on the gun, a finishing pass with
+  every bone counted and the solver again, and the hand eased 0.7 mm out (the palm pressed 3.9 mm into the gun's side,
+  and 4.1 turned by a first draw's flourish). The palm's nearest tenth is now 10.9 mm off, its nearest twentieth 7.2,
+  the thumb's quarter 3 to 6 mm; every finger on the gun and no skin more than 4 mm in it.
+- **The pickup** (`fprig.ts` mixFit, hold `pick`): the pickup's clip carries the gun where the flush hand was out of the
+  arm's reach, and it came back 10 mm into the gun (the frame sheets flagged 64 to 76% of it); a hold may now carry its
+  own fit for a pickup, blended back into the hold as the pickup lets go. The USSO's is its hold from before, clean there.
+- **The right hand** (MPS5 hold r joints middle_01, middle_02): the middle finger turned down beside the ring finger, its
+  fingertip 24.9 mm from the ring's where it was 36.4, the ring's 25 from the little finger's; all three on the grip, the
+  forefinger on the trigger.
+- **Found by the frame sheets on the way:** BOOG's left wrist bent 61 degrees at 92 to 94% of the inspect, as its open
+  hand went back to the gun (Milestone 330's elbow, 14 cm down; the e2e's samples at 90 and 96% had missed it): 10 cm
+  down, 57 there and 43 held. And a first draw's flourish rolled the USSO's newly turned left wrist to 62: its roll 0.36
+  from 0.42.
+- **Checked:** close-ups before and after; the frame sheets of every state on both guns, no frame flagged; new soldier
+  e2e checks, the left palm's nearest tenth within 13 mm and the thumb's quarter within 9, and the right middle finger's
+  gap to the ring within a quarter of the ring's to the little finger, each seen failing with the old holds back (with
+  Milestone 346's near plane check in the same run). Milestone 346's other check, the gun's middle, did not fail with
+  its fault back: it drew the gun again by giving the slot a new one, which builds the model afresh, so it never drew a
+  gun still carrying its last throw. It now swaps to the other slot and back as a player does, where the fault measures
+  the USSO's middle 78 cm off and BOOG's 70, and is seen failing there. The soldier section; verify; rules.

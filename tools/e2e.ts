@@ -3286,7 +3286,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; palm: { w: number; cards: number }; palmArm: { hand: number[]; elbow: number[]; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; swapDeep: number; swapRise: number; swapAhead: number; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; handFit: { palm: number; thumb: number; mr: number; rp: number }; palm: { w: number; cards: number }; palmArm: { hand: number[]; elbow: number[]; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; miss: number; off: number; through: Record<string, number>; swapMove: number; swapHeld: number; swapDeep: number; swapRise: number; swapAhead: number; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[]; inspectLen: { time: number; at44: boolean; at56: boolean; e44: number; e56: number } } = { guns: {}, jump: [], inspectLen: { time: 0, at44: false, at56: true, e44: 0, e56: 0 } };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3312,6 +3312,18 @@ async function packFrames(page: Page): Promise<void> {
           if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
           await wait(20);
         }
+      };
+      // the other slot and back, as a player swaps (giving slot 0 a new gun builds it again: it never draws a gun that
+      // still carries its last throw, which is the draw the middle was measured wrong on)
+      H.slot = async (i) => {
+        const went = r.loadout.requestSwap(i, r.gameTime());
+        const t0 = performance.now();
+        let clearFrom = r.gameTime();
+        while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
+          if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
+          await wait(20);
+        }
+        return went;
       };
       H.clear = () => {
         r.debugView.reload = null;
@@ -3370,10 +3382,11 @@ async function packFrames(page: Page): Promise<void> {
     await pf(`await H.hold(${JSON.stringify(other)});`);
     await pf(`await H.hold(${JSON.stringify(id)});`);
     o.tilt = [t0, await pf<number>(`return r.packRig().tilt;`)];
-    // and its middle measured the same, drawn back after a thrown swap
+    o.gripSame = await pf<number>(`return Math.min(...H.fingers().map((q, i) => Math.abs(q.dot(H.first[i]))));`);
+    // and its middle measured the same, thrown for the other slot's gun and drawn back
+    o.centreSwapped = (await pf<boolean>(`return await H.slot(1);`)) && (await pf<boolean>(`return await H.slot(0);`));
     const c1 = await pf<number[]>(`return r.packArms().gunCentre;`);
     o.centreShift = Math.hypot(c1[0] - c0[0], c1[1] - c0[1], c1[2] - c0[2]);
-    o.gripSame = await pf<number>(`return Math.min(...H.fingers().map((q, i) => Math.abs(q.dot(H.first[i]))));`);
     // the barrel's pitch at rest (the owner: "the gun is never like that" up and to the left)
     o.pitch = await pf<number>(`await H.gameWait(0.3); return H.pitch();`);
     // the wrists: at rest and aimed, pointing, and early in a swap as the pack's unequip swings the gun
@@ -3396,6 +3409,9 @@ async function packFrames(page: Page): Promise<void> {
     o.handover = await pf<number>(`let least = Infinity; for (const u of ${JSON.stringify(across)}) { r.debugView.reload = u; await H.gameWait(0.12); least = Math.min(least, r.packArms().offHold); } H.clear(); await H.gameWait(0.3); return least;`);
     // the rack's grab: the fingertips on the handle (the USSO's pinch)
     o.hook = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const h = r.packArms().hookMiss; H.clear(); await H.gameWait(0.3); return Number.isFinite(h) ? h : ${id === "r97" ? 99 : 0};`);
+    // the hands at rest: how much of the left palm and thumb lie on the gun (mm off it of the palm's nearest tenth of skin
+    // and the thumb's nearest quarter), and the right hand's last three fingertips' spacing, mm
+    o.handFit = await pf<Frames["handFit"]>(`H.clear(); await H.gameWait(0.3); const T = r.THREE; const a = window.__packAudit(0.004, false, { side: "l", gapList: true }); const pct = (xs, q) => { const s = (xs || []).slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 99; }; const g = r.packRig().group; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const s = g.getWorldScale(new T.Vector3()).x; const d = (p, q) => (at(p).distanceTo(at(q)) / s) * 1000; return { palm: pct(a.gapList.hand_l, 0.1), thumb: Math.max(pct(a.gapList.thumb_02_l, 0.25), pct(a.gapList.thumb_03_l, 0.25)), mr: d("middle_03_r", "ring_03_r"), rp: d("ring_03_r", "pinky_03_r") };`);
     // and the forefinger closed round it, degrees
     o.rackCurl = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const c = r.packArms().rackCurl; H.clear(); await H.gameWait(0.3); return c;`);
     // the pointing finger against the magazine, shares of the slide: a quarter into the phase out and halfway into the in
@@ -3537,8 +3553,8 @@ async function packFrames(page: Page): Promise<void> {
   // completely broken")
   check(
     "pack frames: the USSO's and BOOG's middles are measured the same drawn first and drawn back after a thrown swap",
-    g.every((x) => x.centreShift < 1e-4),
-    show((x) => +x.centreShift.toFixed(5)),
+    g.every((x) => x.centreSwapped && x.centreShift < 1e-4),
+    show((x) => `${+x.centreShift.toFixed(5)}${x.centreSwapped ? "" : " (no swap)"}`),
   );
   check(
     `pack frames: at rest the USSO's and BOOG's barrels point ${(fparmsCfg.hipPitch * 180 / Math.PI).toFixed(0)} degrees up (within 1), not up the fit's tilt`,
@@ -3564,6 +3580,21 @@ async function packFrames(page: Page): Promise<void> {
     "pack frames: at rest the support hand holds the USSO and BOOG ahead of the magazine, not on it (its palm's middle 1 cm and more ahead of the magazine's front)",
     g.every((x) => x.palmAhead >= 0.01),
     show((x) => +(x.palmAhead * 100).toFixed(1)),
+  );
+  // (the owner, 2026-09-29: "THE THUMB AND THE PALM OF THE LEFT ARM ARE NOT EXACTLY FLUSH UP WITH THE USSO ON THE GUNS
+  // LEFT SIDE, SEE THE GAP?": the palm touched at one point of its heel and its nearest tenth of skin stood 18.6 mm off,
+  // the thumb's quarter 21 to 28 mm)
+  check(
+    "pack frames: at rest the USSO's left palm and thumb lie along its left side (the palm's nearest tenth of skin within 13 mm, the thumb's quarter within 9)",
+    res.guns.r97?.handFit.palm <= 13 && res.guns.r97?.handFit.thumb <= 9,
+    show((x) => ({ palm: +x.handFit.palm.toFixed(1), thumb: +x.handFit.thumb.toFixed(1) })),
+  );
+  // (and of the right: "why is the middle finger so separated from the bottom two? the 3 should be next to each other":
+  // its tip 36 mm from the ring finger's, the ring's 25 from the little finger's)
+  check(
+    "pack frames: at rest the USSO's right middle, ring and little fingers lie together on the grip (the middle's gap to the ring within a quarter of the ring's to the little finger)",
+    Math.abs(res.guns.r97?.handFit.mr - res.guns.r97?.handFit.rp) <= 0.25 * res.guns.r97?.handFit.rp,
+    show((x) => ({ middleRing: +x.handFit.mr.toFixed(1), ringLittle: +x.handFit.rp.toFixed(1) })),
   );
   // (the owner, 2026-09-28: "the hand goes back to the grip in between pointing at the mag and hitting the charging
   // handle": it came within 4 cm of its place, the point let go as the magazine seated and the grab not yet reaching)

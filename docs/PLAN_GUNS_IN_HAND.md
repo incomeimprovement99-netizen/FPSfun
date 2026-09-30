@@ -118,14 +118,18 @@ Checked against the deployed build's own sheets before acting on each.
 only once i approve we can move on to the other 8 guns".
 
 1. "THE THUMB AND THE PALM OF THE LEFT ARM ARE NOT EXACTLY FLUSH UP WITH THE USSO ON THE GUNS LEFT SIDE, SEE THE GAP?
-   TAKE SCREENSHOTS FOR IT, THE GAP IS OBVIOUS": to do.
+   TAKE SCREENSHOTS FOR IT, THE GAP IS OBVIOUS": **seen** (a dark gap between hand and gun at 3 times the owner's size;
+   the palm touched at one point, a tenth of it 18.6 mm off, the thumb 21 to 28 mm) and **done** (Milestone 356), the
+   palm's tenth 10.5 mm, the thumb 2 to 5 mm, no skin in the gun. The lesson: a hand on a gun is measured by how much
+   of it lies on the gun, not its nearest point (`tools/pack-flush.ts`).
 2. "the sight's base has seethrough textures and the bottom half of the red dot sight has them as well. that is
    obviously bugs and i asked for you to fix them before": **seen** (the lower half of the hex frame and the base
    see-through at rest, the sight a shell lifted off the steady SMG and drawn from the front only) and **done**
    (Milestone 346), drawn from both sides. And the owner, the same evening: "adsing with the usso is completely broken
    right now on the live build": Milestone 329's push undone, the near plane brought in instead (Milestone 346).
 3. "for the right hands bottom two fingers, why is the middle finger so separated from the bottom two? the 3 should be
-   next to each other and then the pointer on the trigger": to do.
+   next to each other and then the pointer on the trigger": **done** (Milestone 356), the middle fingertip 24.9 mm from
+   the ring's where it was 36.4, as the ring's from the little finger's.
 4. "MAKE THE muzzle flash only like 10% transparent, since we don't have a paid asset for it, it looks like shit still":
    **done** (Milestone 346), a tenth of it drawn (read as less of it: "only", and "it looks like shit still").
 5. The swap: "we need the arms to go flying upwards and hands opening, then the reverse to catch the gun ... currently,
@@ -140,6 +144,17 @@ only once i approve we can move on to the other 8 guns".
    it should be that glow we are using on the hacks, not the janky looking highlight we made from our non-assets days":
    to do.
 7. "WE SHOULD UPDATE OUR HACKS ON THE UI TO LOOK MORE LIKE THE HACKS IN THE ANIMATION": to do.
+8. (2026-09-30) "THE LAST THING I WANT IS FOR THE GUNS TO BE PUSHED RIGHT SLIGHTLY, FEELS LIKE THEY ARE TOO CLOSE TO THE
+   MIDDLE OF THE SCREEN. THEN WE WILL NEED TO ANGLE THE GUN SLIGHTLY MORE TO THE LEFT AND UP TO COMPENSATE. IT SHOULD BE
+   SIMILAR TO THE HYPERSCAPE AND HOW IT HAD THEIR GUNS. YOU'LL HAVE TO RECHECK ALL ANIMATIONS WITH THEM TO SEE IF ANYTHING
+   GOT MESSED UP FROM IT"; and "LIKE WHEN WE GO TO MELEE THE GUN IS IN A BETTER ANGLE": to do.
+9. The melee: "THE MELEE IS BROKE, THE GUN SHOULD JUST DISAPPEAR WHILE WE PUNCH FOR NOW. REVISIT THE MELEE IF NEEDED, IT
+   SHOULD JUST BE LIKE THIS INSTEAD: HOLD THE WEAPON WITH THE RIGHT ARM, SWING AT THEM WITH THE LEFT ARM, LEFT ARM SHOULD GO
+   FROM SUPPORTING THE GUN, BACK A BIT TOWARDS THE PLAYERS CHEST, THEN SWING OUT. ENSURE THE MELEE ACTUALLY WORKS AND DOES
+   DAMAGE, WE SHOULDN'T BE ABLE TO SHOOT WITH MELEEING": to do.
+10. BOOG's bolt: "the sniper doesn't even have a visible bolt on it ... add something small on that side? we have paid
+    assets that we can find something for": to do, a handle lifted from one of the bought sci-fi guns, moved by the clip
+    that throws it.
 
 ## 2. The bar every gun in hand meets
 
@@ -155,7 +170,8 @@ Each is a check in the e2e soldier section (`tools/e2e.ts` packFrames) or on the
 | The point | the fingertip on its spot, down and left of the magazine, within 1 cm and 10 degrees |
 | The magazine | out 8 cm as it phases out; the new one phases in below and slides home, the pointing finger leading it a third of the way and more |
 | From the point to the rack | the support hand goes straight to the handle or bolt, never back to the gun between |
-| The support hand at rest | on the handguard, ahead of the magazine, never on it |
+| The support hand at rest | on the handguard, ahead of the magazine, never on it; its palm and thumb lying along the gun (the palm's nearest tenth of skin within 13 mm, the thumb's quarter within 9), not touching at one point |
+| The grip hand | the three last fingers together on the grip, each gap as the next, the forefinger on the trigger |
 | The rack | the fingers close on the handle (the USSO's: the thumb and forefinger's tips within 2 cm of its knob, the forefinger curled 100 degrees and more round it) |
 | At rest | the gun level, as Hyper Scape holds it, not pointed up and left |
 | The inspect | the other hand open, palm up, its forearm up from below the picture (the elbow under its bottom edge), every hack carried floating over it with its level, clear of the gun's sway; tossed up and phased out before the hand goes back |

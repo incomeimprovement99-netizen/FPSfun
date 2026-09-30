@@ -176,6 +176,9 @@ window.__packAudit = (deep, keep, only) => {
         }
       }
       if (only && only.points) (out.points ??= []).push(ptDepth);
+      // (`only.gapList`: each bone's tested points' gaps to the gun, mm, below 0 into it: how much of a palm lies on the
+      // gun, where its nearest point alone read a hand touching at its heel as flush, tools/pack-flush.ts)
+      if (only && only.gapList) ((out.gapList ??= {})[bone] ??= []).push(Math.round(-ptDepth * 10000) / 10);
     }
   });
   for (const [mat, side] of sides) mat.side = side;

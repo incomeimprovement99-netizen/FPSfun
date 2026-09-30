@@ -30,7 +30,20 @@ const FINGER_L = /^(index|middle|ring|pinky|thumb)_0[123]_l$/;
  * and any one joint turned `joint` radians about its own axes (the fit a joint at a time: a whole finger's curl left
  * one knuckle in the grip whichever way it went)
  */
-type HandFit = { shift: number[]; open: Record<string, number>; turn?: Record<string, number[]>; joint?: Record<string, number[]>; rot?: number[] };
+type HandFit = { shift: number[]; open: Record<string, number>; turn?: Record<string, number[]>; joint?: Record<string, number[]>; rot?: number[]; pick?: HandFit };
+/** one hand's fit `k` of the way to another: each number of each setting in between (a setting one lacks counts as none) */
+function mixFit(a: HandFit, b: HandFit, k: number): HandFit {
+  const mix3 = (x?: number[], y?: number[]) => [0, 1, 2].map((i) => (x?.[i] ?? 0) * (1 - k) + (y?.[i] ?? 0) * k);
+  const each = <V>(x: Record<string, V> | undefined, y: Record<string, V> | undefined, f: (p?: V, q?: V) => V) =>
+    Object.fromEntries([...new Set([...Object.keys(x ?? {}), ...Object.keys(y ?? {})])].map((n) => [n, f(x?.[n], y?.[n])]));
+  return {
+    shift: mix3(a.shift, b.shift),
+    rot: mix3(a.rot, b.rot),
+    open: each(a.open, b.open, (p, q) => (p ?? 0) * (1 - k) + (q ?? 0) * k),
+    turn: each(a.turn, b.turn, mix3),
+    joint: each(a.joint, b.joint, mix3),
+  };
+}
 /** a pack gun's shoulders moved on top of its own clavicle offsets, metres in the rig (Unity's axes): at rest, and aimed */
 type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] };
 export type HoldFit = { l?: HandFit; r?: HandFit };
@@ -795,7 +808,11 @@ export class PackArms {
     // the hold's fit on our gun: each finger opened as far as it has to be to stay out of it (our grips are thicker than the
     // pack's: the USSO's magazine runs up its grip, and the hand made for the MPS5's sank 15 mm into it), as far as the
     // hand is holding (a clip's own move of it, a point or a grab takes over)
-    const hold = this.debugHold ?? PACK[this.active!]?.hold;
+    // (in a pickup, a hold's own `pick` fit for the left hand, blended back into the hold as the pickup lets go: the USSO's
+    // left hand, moved and turned to lie flush on its side, was out of the arm's reach where the pickup's clip carries the
+    // gun, and came back 10 mm into it; its fit from before, made where the clip carries it, is clean there)
+    const baseHold = this.debugHold ?? PACK[this.active!]?.hold;
+    const hold = this.lead === "pickup" && baseHold?.l?.pick ? { ...baseHold, l: mixFit(baseHold.l, baseHold.l.pick, leadW) } : baseHold;
     const palmW = f.palm?.w ?? 0;
     // (in a pickup the right hand holds the gun all through, and the left takes its fit back as it comes back to its
     // place on the gun: without them, the pack's hands made for thinner grips went 13 mm into ours)
