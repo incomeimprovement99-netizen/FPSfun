@@ -9,6 +9,7 @@
 //
 // Run: npx tsx tools/neon-layout.ts   (needs the catalogue: NEON=catalogue npx tsx tools/import-neon.ts)
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { streets, StreetField, contours, along, type Pt, type Street } from "./neon-streets";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -60,6 +61,47 @@ function turned(row: Row, yaw: number): [number, number, number, number] {
   return [Math.min(...corners.map((q) => q[0])), Math.max(...corners.map((q) => q[0])), Math.min(...corners.map((q) => q[1])), Math.max(...corners.map((q) => q[1]))];
 }
 
+/** a turn about y as the bake applies it (x' = c x + s z, z' = -s x + c z), any angle */
+const rotY = (yaw: number, x: number, z: number): Pt => {
+  const a = (yaw * Math.PI) / 180;
+  const [c, s] = [Math.cos(a), Math.sin(a)];
+  return [c * x + s * z, -s * x + c * z];
+};
+/** the turn that points a piece's own +z along (dx, dz) */
+const yawToward = (dx: number, dz: number) => (Math.atan2(dx, dz) * 180) / Math.PI;
+/** an oriented box on the ground: its middle, its own x and z axes on the map, their half lengths */
+type OBox = { c: Pt; u: Pt; v: Pt; hu: number; hv: number; top: number };
+/**
+ * place a piece at any turn, the middle of its own footprint at (cx, cz), its base at y; the oriented box it covers
+ */
+function placeTurned(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0): OBox {
+  const { key, row } = piece(name);
+  const [mx, mz] = [(row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2];
+  const [ox, oz] = rotY(yaw, mx, mz);
+  add(chunk, "c", [key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), +yaw.toFixed(2), mode] as Place);
+  return { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: y + row.max![1] };
+}
+/** whether two oriented boxes, each grown by `gap`, overlap (separating axes) */
+function overlaps(a: OBox, b: OBox, gap: number): boolean {
+  for (const ax of [a.u, a.v, b.u, b.v]) {
+    const proj = (o: OBox) => (o.hu + gap / 2) * Math.abs(o.u[0] * ax[0] + o.u[1] * ax[1]) + (o.hv + gap / 2) * Math.abs(o.v[0] * ax[0] + o.v[1] * ax[1]);
+    const d = Math.abs((a.c[0] - b.c[0]) * ax[0] + (a.c[1] - b.c[1]) * ax[1]);
+    if (d > proj(a) + proj(b)) return false;
+  }
+  return true;
+}
+/** points round an oriented box's edge, every metre */
+const rim = (o: OBox): Pt[] => {
+  const out: Pt[] = [];
+  for (const [su, sv, du, dv, n] of [[-1, -1, 1, 0, o.hu * 2], [1, -1, 0, 1, o.hv * 2], [1, 1, -1, 0, o.hu * 2], [-1, 1, 0, -1, o.hv * 2]] as const)
+    for (let t = 0; t <= n + 1e-6; t += 1) {
+      const a = su * o.hu + du * t, b = sv * o.hv + dv * t;
+      out.push([o.c[0] + o.u[0] * a + o.v[0] * b, o.c[1] + o.u[1] * a + o.v[1] * b]);
+    }
+  return out;
+};
+const boxOf = (r: number[]): OBox => ({ c: [(r[0] + r[1]) / 2, (r[2] + r[3]) / 2], u: [1, 0], v: [0, 1], hu: (r[1] - r[0]) / 2, hv: (r[3] - r[2]) / 2, top: 0 });
+
 /** place a piece so its turned footprint's middle is at (cx, cz) and its base (its measured bottom, or `base`) at y */
 function placeAt(chunk: string, sector: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], o: { y?: number; bottom?: boolean; mat?: string; without?: string[] } = {}): { x0: number; x1: number; z0: number; z1: number; top: number; px: number; pz: number } {
   const { key, row } = piece(name);
@@ -94,11 +136,19 @@ const sectorAt = (x: number, z: number): string => {
 };
 
 // ---------------------------------------------------------------- the ground and the streets
-// The road: the centre's two streets each way, out to the map's edge, and its ring; everything else the pack's pavement.
-// Tiles on a 10 m grid, the carriageways' edges on it (rules: streets, ring)
+// The centre's streets curve (rules.streets.curves, tools/neon-streets.ts): the Loop round the tower and eight streets
+// out from four forks on it in an S to the edge road, where the outer districts' straight roads go on. Their surface is
+// baked from the same curves (tools/import-neon.ts): the ground's tiles under them are pavement. Outside the centre
+// (the ring road and past it) the straight roads stay, their tiles the road's
 const T = R.tile;
+const CV = R.streets.curves;
+const STREETS: Street[] = streets(CV);
+const SF = new StreetField(STREETS);
+/** how far outside the centre's roads a point is (negative: on one), with the junctions' rounded corners */
+const onRoad = (x: number, z: number, except?: Street) => SF.surface(x, z, CV.round, except);
 const inBand = (v: number, a: number, b: number) => v > a - 1e-6 && v < b + 1e-6;
 const road = (x: number, z: number): boolean => {
+  if (Math.max(Math.abs(x), Math.abs(z)) < CV.inside) return false;
   const C = R.streets.centres as number[];
   const hw = R.streets.road / 2;
   if (C.some((c) => inBand(x, c - hw, c + hw) || inBand(z, c - hw, c + hw))) return true;
@@ -107,6 +157,8 @@ const road = (x: number, z: number): boolean => {
   const inRingZ = Math.abs(z) >= r0 && Math.abs(z) <= r1 && Math.abs(x) <= r1;
   return inRingX || inRingZ;
 };
+/** a street's unit normal at point i, and which side of it is the corner block's (away from the axes) */
+const normalAt = (s: Street, i: number): Pt => [-s.tan[i][1], s.tan[i][0]];
 /** the footprints the ground is left out under (a building's own floor is its ground there, and its basement goes down) */
 const noGround: Array<[number, number, number, number]> = [];
 
@@ -119,84 +171,125 @@ const noGround: Array<[number, number, number, number]> = [];
 }
 
 // ---------------------------------------------------------------- the high city: the four axis blocks
+// Each block one of High City's islands, its inner face at `face` from the middle, on the Loop's outer pavement
+const islands: number[][] = [];
 {
   const H = R.high;
   const [a, b] = R.blocks.inner; // the axis blocks' span across (-27.5 to 27.5)
-  const [o0, o1] = R.blocks.outer; // and their span out from the middle (42.5 to 87.5)
   for (const dir of ["n", "s", "w", "e"] as const) {
     const spec = H[dir];
     const along = dir === "n" || dir === "s";
     const sgn = dir === "n" || dir === "w" ? -1 : 1;
-    // the big piece fronts the street toward the middle; its outer side the ring's, with a yard between
-    const depth = spec.depth;
-    const mid = sgn * (o0 + depth / 2);
-    const cx = along ? (a + b) / 2 : mid;
-    const cz = along ? mid : (a + b) / 2;
-    placeAt(`c-${dir}`, "c", spec.piece, cx, cz, spec.yaw, "s", { bottom: true });
-    // a row of the smaller towers along the ring's side
-    let u = a + 1;
-    let k = 0;
-    while (u < b - 4) {
-      const name = spec.row[k % spec.row.length];
-      const { row } = piece(name);
-      const [fx0, fx1, fz0, fz1] = turned(row, spec.rowYaw);
-      const w = along ? fx1 - fx0 : fz1 - fz0;
-      const d = along ? fz1 - fz0 : fx1 - fx0;
-      if (u + w > b) break;
-      const out = sgn * (o1 - d / 2);
-      placeAt(`c-${dir}`, "c", name, along ? u + w / 2 : out, along ? out : u + w / 2, spec.rowYaw, "s", { bottom: true });
-      u += w + H.gap;
-      k++;
-    }
+    const mid = sgn * (H.face + spec.depth / 2);
+    const r = placeAt(`c-${dir}`, "c", spec.piece, along ? (a + b) / 2 : mid, along ? mid : (a + b) / 2, spec.yaw, "s", { bottom: true });
+    islands.push([r.x0, r.x1, r.z0, r.z1]);
   }
 }
 
 // ---------------------------------------------------------------- the low city: the four corner blocks
+// Each corner block lies between two of the curved streets and the edge road. Its rooms building (rules.low.rooms, the
+// realistic building with its floors and stairs) toward its outer corner, and along both its streets a row of the low
+// buildings (and out toward the edge road the tall ones), each turned to face its street where it stands, so the fronts
+// follow the curves.
+// A building is kept only clear of every road by the pavement, of the edge road, the islands and the others; under the
+// High City bridges (rules.bridges.paths) only one that tops out under them
+const rooms: number[][] = [];
 {
   const L = R.low;
-  const [o0, o1] = R.blocks.outer;
-  const cell = (o1 - o0) / 3;
-  for (const [sx, sz, sector] of [
-    [-1, -1, "c"],
-    [1, -1, "c"],
-    [-1, 1, "c"],
-    [1, 1, "c"],
-  ] as const) {
+  const placed: OBox[] = [];
+  const bridgeLines = (R.bridges.paths as number[][][]).flatMap((p) => p.slice(1).map((q, i) => [p[i], q]));
+  const nearBridge = (q: Pt) => bridgeLines.some(([a, b]) => {
+    const [ax, az, bx, bz] = [a[0], a[1], b[0], b[1]];
+    const l2 = (bx - ax) ** 2 + (bz - az) ** 2;
+    const u = Math.max(0, Math.min(1, ((q[0] - ax) * (bx - ax) + (q[1] - az) * (bz - az)) / l2));
+    return Math.hypot(q[0] - ax - (bx - ax) * u, q[1] - az - (bz - az) * u) < L.bridgeClear;
+  });
+  /** a box standing where it may: off every road by the pavement, inside the edge road's, clear of the rest */
+  const why = new Map<string, number>();
+  const fits = (o: OBox): boolean => {
+    const r = rim(o);
+    const k = !r.every(([x, z]) => onRoad(x, z) >= CV.pave) ? "road" : !r.every(([x, z]) => Math.max(Math.abs(x), Math.abs(z)) <= L.edge) ? "edge" : islands.some((q) => overlaps(o, boxOf(q), L.gap)) ? "island" : placed.some((q) => overlaps(o, q, L.gap)) ? "placed" : o.top > L.underBridge && r.some(nearBridge) ? "bridge" : "ok";
+    why.set(k, (why.get(k) ?? 0) + 1);
+    return k === "ok";
+  };
+  for (const [sx, sz] of [[-1, -1], [1, -1], [-1, 1], [1, 1]] as const) {
     const chunk = `c-${sz < 0 ? "n" : "s"}${sx < 0 ? "w" : "e"}`;
-    let last = "";
-    // The rooms to fight in (rules.low.rooms): a realistic building of the pack's, its floors, stairs and rooms its own
-    // triangles, on the block's inner corner over the four cells there (the yard among them), turned to face the middle
-    const rooms = L.rooms ? piece(L.rooms.piece).row : null;
-    if (rooms) {
-      const [fx0, fx1, fz0, fz1] = turned(rooms, L.rooms.face[`${sx},${sz}`]);
-      if (fx1 - fx0 > 2 * cell || fz1 - fz0 > 2 * cell) throw new Error(`${L.rooms.piece} does not fit two cells`);
-      placeAt(chunk, "c", L.rooms.piece, sx * (o0 + cell), sz * (o0 + cell), L.rooms.face[`${sx},${sz}`], "o");
-    }
-    for (let i = 0; i < 3; i++)
-      for (let j = 0; j < 3; j++) {
-        if (i === 1 && j === 1) continue; // the yard
-        if (rooms && i < 2 && j < 2) continue;
-        const cx = sx * (o0 + cell * (i + 0.5));
-        const cz = sz * (o0 + cell * (j + 0.5));
-        // facing out to the nearer street: toward the middle's street on the inner rows, the ring on the outer
-        const faceX = i === 0 ? -sx : i === 2 ? sx : 0;
-        const faceZ = j === 0 ? -sz : j === 2 ? sz : 0;
-        const face = Math.abs(faceZ) >= Math.abs(faceX) ? (faceZ > 0 ? 0 : 180) : faceX > 0 ? 90 : 270;
-        // a tall one on the block's inner corner, low ones round it; with the rooms there, on its outer corner, so the
-        // block keeps a roof high over the streets
-        const tallAt = rooms ? 2 : 0;
-        const pool: string[] = i === tallAt && j === tallAt ? L.tall : L.low;
-        let name = pool[Math.floor(rnd() * pool.length)];
-        for (let tries = 0; name === last && tries < 5; tries++) name = pool[Math.floor(rnd() * pool.length)];
-        last = name;
-        const { row } = piece(name);
-        const [fx0, fx1, fz0, fz1] = turned(row, face);
-        if (fx1 - fx0 > cell + L.overhang || fz1 - fz0 > cell + L.overhang) throw new Error(`${name} does not fit a ${cell} m cell`);
-        // (a realistic building has its rooms to walk: its own triangles; any other is solid to its top)
-        placeAt(chunk, sector, name, cx, cz, face, name.startsWith("Neon Building ") ? "o" : "s");
+    const rp = piece(L.rooms.piece).row;
+    const rr = placeAt(chunk, "c", L.rooms.piece, sx * L.rooms.at, sz * L.rooms.at, L.rooms.face[`${sx},${sz}`], "o");
+    rooms.push([rr.x0, rr.x1, rr.z0, rr.z1].map((v) => +v.toFixed(3)));
+    placed.push(boxOf([rr.x0, rr.x1, rr.z0, rr.z1]));
+    if (rp.size![1] > L.underBridge) throw new Error(`${L.rooms.piece} is ${rp.size![1]} m tall, over the bridges`);
+    // the wedge where the block's two streets leave their fork: one building out along the bisector, facing the
+    // junction on the diagonal (a flatiron's corner), as near the fork as it clears both streets' pavements
+    const fork = [sx * CV.loop.r * Math.SQRT1_2, sz * CV.loop.r * Math.SQRT1_2];
+    const b: Pt = [sx * Math.SQRT1_2, sz * Math.SQRT1_2];
+    const yaw = yawToward(-b[0], -b[1]);
+    let wedge = "";
+    for (let dist = L.wedge.from; dist <= L.wedge.to && !wedge; dist += 0.5)
+      for (const name of [...L.low].sort(() => rnd() - 0.5)) {
+        const row = piece(name).row;
+        const c: Pt = [fork[0] + b[0] * (dist + row.size![2] / 2), fork[1] + b[1] * (dist + row.size![2] / 2)];
+        const o: OBox = { c, u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.max![1] };
+        if (!fits(o)) continue;
+        placed.push(placeTurned(chunk, name, c[0], c[1], yaw, "s"));
+        wedge = name;
+        break;
       }
+    if (!wedge) throw new Error(`no building fits the ${chunk} wedge`);
   }
+  // the fronts along the streets: each street's corner side, from its fork out to the edge road
+  let fronts = 0;
+  for (const st of STREETS.filter((q) => !q.closed)) {
+    // (where the next front may begin, metres along the street: each building's middle half its width on from there)
+    let freeAt = L.front.from;
+    const length = (st.pts.length - 1) * 0.5;
+    while (freeAt < length) {
+      let done = false;
+      const probe = st.pts[Math.min(st.pts.length - 1, Math.round(freeAt / 0.5))];
+      // (the tall ones too, out toward the edge road, for the skyline)
+      const pool = Math.max(Math.abs(probe[0]), Math.abs(probe[1])) > L.front.tallPast ? [...L.low, ...L.tall] : L.low;
+      for (const name of [...pool].sort(() => rnd() - 0.5)) {
+        const row = piece(name).row;
+        const [w, d] = [row.size![0], row.size![2]];
+        const i = Math.round((freeAt + w / 2) / 0.5);
+        if (i >= st.pts.length) continue;
+        const [x, z] = st.pts[i];
+        const n = normalAt(st, i);
+        // (the corner block's side: the one away from the axis the street runs beside)
+        const side = Math.abs(x) > Math.abs(z) ? Math.sign(n[1] * Math.sign(z)) : Math.sign(n[0] * Math.sign(x));
+        const out: Pt = [n[0] * side, n[1] * side];
+        const chunk = `c-${z < 0 ? "n" : "s"}${x < 0 ? "w" : "e"}`;
+        // its own +z, its front, toward the street; set back as little as its ends clear the kerb (a bend's inside
+        // comes nearer at a straight front's ends than at its middle)
+        // (and failing that squared to the grid, as the edge road is: out at a street's end the curve's tilt put a
+        // building's corner over the edge road's pavement)
+        const turned = yawToward(-out[0], -out[1]);
+        for (const yaw of [turned, Math.round(turned / 90) * 90])
+        for (let extra = 0; extra <= L.front.slide && !done; extra += 0.5) {
+          const back = st.half + CV.pave + L.front.setback + extra + d / 2;
+          const c: Pt = [x + out[0] * back, z + out[1] * back];
+          const o: OBox = { c, u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: w / 2, hv: d / 2, top: row.max![1] };
+          if (!fits(o)) continue;
+          placed.push(placeTurned(chunk, name, c[0], c[1], yaw, "s"));
+          fronts++;
+          freeAt += w + L.front.gap[0] + rnd() * (L.front.gap[1] - L.front.gap[0]);
+          done = true;
+        }
+        if (done) break;
+      }
+      if (!done) freeAt += 1;
+    }
+  }
+  cfg.rooms = rooms;
+  console.log(`corner blocks: ${fronts} buildings along the curves and a building in each wedge (${JSON.stringify(Object.fromEntries(why))} tried)`);
 }
+
+// the respawn beacons (game.beacons): one a side of the centre, half way along a street out of it
+cfg.game.beacons = (R.streets.beacons as string[]).map((id) => {
+  const st = STREETS.find((q) => q.id === id)!;
+  const p = st.pts[Math.floor(st.pts.length / 2)];
+  return [+p[0].toFixed(2), +p[1].toFixed(2)];
+});
 
 // the ground itself, less the building footprints that keep their own floor
 /** the tiles left out, a footprint's: the hole in the ground its basement stands in */
@@ -527,50 +620,47 @@ if (holes.length) {
 
 // The centre's streets dressed with the pack's own (rules.dress): its street lamps along both kerbs, cars parked in the
 // lanes by the kerbs (crouching cover in the street), and cars flying over the streets (the store's pictures have them,
-// out of reach and so with no collision). Clear of the crossings, the ring road, the jump pads and the metro's kiosks
+// out of reach and so with no collision), all turned along the curves. Clear of the junctions, the jump pads and the
+// metro's kiosks
 {
   const D = R.dress;
-  const C = R.streets.centres as number[];
-  const hw = R.streets.road / 2;
-  const edge = R.centre;
   const pads = ((cfg.pads ?? []) as Array<{ pad: number[] }>).map((q) => q.pad);
   const kiosks = ((cfg.court?.halls ?? []) as Array<{ route?: number[][]; x0: number; x1: number; z0: number; z1: number }>).filter((h) => h.route);
-  /** a spot along a street clear of what is there (map-local) */
-  const nearRoad = (v: number) => C.some((c) => Math.abs(v - c) < hw + D.crossing);
-  const clear = (x: number, z: number, r: number): boolean =>
-    // not in a crossing (near a road each way), on a pad or by a kiosk
-    !(nearRoad(x) && nearRoad(z)) &&
+  const clear = (x: number, z: number, r: number, st: Street): boolean =>
+    onRoad(x, z, st) > D.crossing + r &&
+    Math.max(Math.abs(x), Math.abs(z)) < CV.inside - 3 &&
     !pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + D.padClear) &&
     !kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r);
-  for (const c of C)
-    for (const along of ["x", "z"] as const)
-      for (const side of [-1, 1]) {
-        const kerb = c + side * hw;
-        const at = (u: number, off: number): [number, number] => (along === "x" ? [u, kerb + off] : [kerb + off, u]);
-        const yawAlong = along === "x" ? 90 : 0;
-        // the lamps on the pavement, `inset` in from the kerb, their arms along it
-        for (let u = -edge + D.lamp.every / 2; u < edge; u += D.lamp.every) {
-          const [x, z] = at(u, side * D.lamp.inset);
-          if (Math.abs(u) > R.ring[0] - 2 || !clear(x, z, 1)) continue;
-          placeAt("c-dress", "c", D.lamp.piece, x, z, along === "x" ? 0 : 90, "o");
-        }
-        // the cars in the lane by the kerb, a seeded gap apart
-        for (let u = -edge + 6 + rnd() * D.cars.gap[1]; u < edge - 6; u += D.cars.gap[0] + rnd() * (D.cars.gap[1] - D.cars.gap[0])) {
-          if (rnd() > D.cars.chance) continue;
-          const [x, z] = at(u, -side * D.cars.lane);
-          if (Math.abs(u) > R.ring[0] - 4 || !clear(x, z, 3)) continue;
-          const name = D.cars.pieces[Math.floor(rnd() * D.cars.pieces.length)];
-          placeAt("c-dress", "c", name, x, z, yawAlong + (rnd() < 0.5 ? 0 : 180), "o", { bottom: true });
-        }
+  for (const st of STREETS)
+    for (const side of [-1, 1]) {
+      // the lamps on the pavement, `inset` in from the kerb, their arms across it
+      for (let i = Math.round(D.lamp.every / 2 / 0.5); i < st.pts.length; i += Math.round(D.lamp.every / 0.5)) {
+        const n = normalAt(st, i);
+        const [x, z] = [st.pts[i][0] + n[0] * side * (st.half + D.lamp.inset), st.pts[i][1] + n[1] * side * (st.half + D.lamp.inset)];
+        if (!clear(x, z, 1, st) || onRoad(x, z) < D.lamp.inset - 0.1) continue;
+        placeTurned("c-dress", D.lamp.piece, x, z, yawToward(n[0], n[1]), "o");
       }
+      // the cars in the lane by the kerb, a seeded gap apart
+      for (let u = 6 + rnd() * D.cars.gap[1]; u < st.pts.length * 0.5 - 6; u += D.cars.gap[0] + rnd() * (D.cars.gap[1] - D.cars.gap[0])) {
+        if (rnd() > D.cars.chance) continue;
+        const i = Math.round(u / 0.5);
+        const n = normalAt(st, i);
+        const t = st.tan[i];
+        const [x, z] = [st.pts[i][0] + n[0] * side * (st.half - D.cars.lane), st.pts[i][1] + n[1] * side * (st.half - D.cars.lane)];
+        if (!clear(x, z, 3, st)) continue;
+        const name = D.cars.pieces[Math.floor(rnd() * D.cars.pieces.length)];
+        placeTurned("c-dress", name, x, z, yawToward(t[0], t[1]) + (rnd() < 0.5 ? 0 : 180), "o", -piece(name).row.min![1]);
+      }
+    }
   // the flying cars, over the streets out of reach
-  for (let i = 0; i < D.flying.count; i++) {
-    const c = C[Math.floor(rnd() * C.length)];
-    const u = -edge + 10 + rnd() * (2 * edge - 20);
-    const along = rnd() < 0.5;
-    const [x, z] = along ? [u, c + (rnd() - 0.5) * hw] : [c + (rnd() - 0.5) * hw, u];
+  for (let k = 0; k < D.flying.count; k++) {
+    const st = STREETS[Math.floor(rnd() * STREETS.length)];
+    const i = Math.floor(rnd() * st.pts.length);
+    const n = normalAt(st, i);
+    const off = (rnd() - 0.5) * st.half;
     const y = D.flying.height[0] + rnd() * (D.flying.height[1] - D.flying.height[0]);
-    placeAt("c-dress", "c", D.flying.pieces[Math.floor(rnd() * D.flying.pieces.length)], x, z, (along ? 90 : 0) + (rnd() < 0.5 ? 0 : 180), "g", { y });
+    const t = st.tan[i];
+    placeTurned("c-dress", D.flying.pieces[Math.floor(rnd() * D.flying.pieces.length)], st.pts[i][0] + n[0] * off, st.pts[i][1] + n[1] * off, yawToward(t[0], t[1]) + (rnd() < 0.5 ? 0 : 180), "g", y);
   }
 }
 
@@ -653,54 +743,62 @@ if (holes.length) {
   const S = R.signs;
   const solidsFile = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
   const boxes: number[][] = existsSync(solidsFile) ? JSON.parse(readFileSync(solidsFile, "utf8")).solids : [];
-  /** how far from (x, z) along (dx, dz) the first box standing across height y is, within `reach` */
+  /** how far from (x, z) along the unit (dx, dz) the first box standing across height y is, within `reach` */
   const faceAt = (x: number, z: number, dx: number, dz: number, y: number): number => {
     let best = Infinity;
     for (const [x0, x1, z0, z1, y0, y1] of boxes) {
       if (y0 > y || y1 < y) continue;
-      // the ray's entry into the box's footprint (a slab test on the one axis it runs along)
-      if (dx !== 0) {
-        if (z < z0 || z > z1) continue;
-        const t = dx > 0 ? x0 - x : x - x1;
-        if (t >= 0 && t < best && (dx > 0 ? x1 > x : x0 < x)) best = t;
-      } else {
-        if (x < x0 || x > x1) continue;
-        const t = dz > 0 ? z0 - z : z - z1;
-        if (t >= 0 && t < best && (dz > 0 ? z1 > z : z0 < z)) best = t;
+      let t0 = 0, t1 = S.reach + 1;
+      for (const [o, d, lo, hi] of [[x, dx, x0, x1], [z, dz, z0, z1]]) {
+        if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) t0 = Infinity; continue; }
+        let [a, b] = [(lo - o) / d, (hi - o) / d];
+        if (a > b) [a, b] = [b, a];
+        t0 = Math.max(t0, a);
+        t1 = Math.min(t1, b);
       }
+      if (t0 <= t1 && t0 < best) best = t0;
     }
     return best;
   };
-  const C = R.streets.centres as number[];
-  const hw = R.streets.road / 2;
-  // each street's two sides and the ring's inner one: the road's middle, its half width, the way to the block beyond
-  const ringHalf = (R.ring[1] - R.ring[0]) / 2;
-  const lines: Array<[number, number, number]> = [];
-  for (const c of C) for (const side of [-1, 1]) lines.push([c, hw, side]);
-  for (const r of [-1, 1]) lines.push([(r * (R.ring[0] + R.ring[1])) / 2, ringHalf, -r]);
+  // each street's two sides, and the ring road's inner side as four straight lines
+  const lines: Array<{ st: Street; sides: number[] }> = STREETS.map((st) => ({ st, sides: [-1, 1] }));
+  const rc = (R.ring[0] + R.ring[1]) / 2, rh = (R.ring[1] - R.ring[0]) / 2, e = R.ring[0];
+  for (const [a, b] of [[[-e, -rc], [e, -rc]], [[rc, -e], [rc, e]], [[e, rc], [-e, rc]], [[-rc, e], [-rc, -e]]] as Array<[Pt, Pt]>) {
+    const pts: Pt[] = [];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    for (let t = 0; t <= L; t += 0.5) pts.push([a[0] + ((b[0] - a[0]) * t) / L, a[1] + ((b[1] - a[1]) * t) / L]);
+    const tan: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+    const st: Street = { id: "ring", closed: false, pts, tan: pts.map(() => tan), half: rh };
+    // (the side toward the middle)
+    const n = normalAt(st, 0);
+    lines.push({ st, sides: [Math.sign(-(n[0] * a[0] + n[1] * a[1])) || 1] });
+  }
   let hung = 0;
-  for (const [c, half, side] of lines)
-    for (const along of ["x", "z"] as const) {
-      // the line on the pavement a metre past the kerb
-      const at = c + side * (half + 1);
+  for (const { st, sides } of lines)
+    for (const side of sides) {
       let lastU = -Infinity;
-      for (let u = -R.centre + 2; u < R.centre - 2; u += S.step) {
+      for (let i = 4; i < st.pts.length - 4; i += Math.round(S.step / 0.5)) {
+        const u = i * 0.5;
         if (u - lastU < S.apart || rnd() > S.chance) continue;
+        const n = normalAt(st, i);
+        const dir: Pt = [n[0] * side, n[1] * side];
+        const q: Pt = [st.pts[i][0] + dir[0] * (st.half + 1), st.pts[i][1] + dir[1] * (st.half + 1)];
+        if (onRoad(q[0], q[1]) < 0.5 && st.id !== "ring") continue;
         const name = S.pieces[Math.floor(rnd() * S.pieces.length)];
         const row = piece(name).row;
         const w = row.size![0];
         const y = S.height[0] + rnd() * (S.height[1] - S.height[0]);
-        const [x, z] = along === "x" ? [u, at] : [at, u];
-        const [dx, dz] = along === "x" ? [0, side] : [side, 0];
-        const d = faceAt(x, z, dx, dz, y);
+        const d = faceAt(q[0], q[1], dir[0], dir[1], y);
         if (d > S.reach) continue;
         // flat across its width: the front as near at each end as in the middle
-        const ends = [-w / 2, w / 2].map((o) => faceAt(along === "x" ? x + o : x, along === "x" ? z : z + o, dx, dz, y));
-        if (ends.some((e) => Math.abs(e - d) > S.flat)) continue;
-        // hung with its +z toward the street: its back, `row.min z` behind its pivot, on the front
-        const [fx, fz] = [x + dx * (d + row.min![2]), z + dz * (d + row.min![2])];
-        const yaw = along === "x" ? (side > 0 ? 180 : 0) : side > 0 ? 270 : 90;
-        placeAt("c-signs", "c", name, fx, fz, yaw, "g", { y: y - (row.min![1] + row.max![1]) / 2 });
+        const t = st.tan[i];
+        const ends = [-w / 2, w / 2].map((o) => faceAt(q[0] + t[0] * o, q[1] + t[1] * o, dir[0], dir[1], y));
+        if (ends.some((f) => Math.abs(f - d) > S.flat)) continue;
+        // hung with its +z toward the street, the middle of its back on the front
+        const yaw = yawToward(-dir[0], -dir[1]);
+        const [bx, bz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, row.min![2]);
+        const f: Pt = [q[0] + dir[0] * d, q[1] + dir[1] * d];
+        add("c-signs", "c", [piece(name).key, +(f[0] - bx).toFixed(3), +(y - (row.min![1] + row.max![1]) / 2).toFixed(3), +(f[1] - bz).toFixed(3), +yaw.toFixed(2), "g"] as Place);
         lastU = u;
         hung++;
       }
@@ -708,30 +806,63 @@ if (holes.length) {
   console.log(`signs: ${hung} hung on the fronts`);
 }
 
-// the kerbs along each carriageway's edge where pavement meets it, and the dashed line down its middle
+// The kerbs along the roads' edges and the dashed lines down their middles. In the centre the edge is traced where the
+// curved roads' surface ends (its rounded junctions too), a kerb every piece's length, its body on the pavement side;
+// outside it, along the outer districts' straight roads as before
 {
-  const C = R.streets.centres as number[];
-  const hw = R.streets.road / 2;
   const K = R.streets.kerb;
   const edge = R.extent;
   const chunkAt = (x: number, z: number) => (sectorAt(x, z) === "c" ? "c-ground" : `ground-${sectorAt(x, z)}`);
+  const kerb = piece(K.piece).row;
+  const klen = kerb.size![2];
+  const pads = ((cfg.pads ?? []) as Array<{ pad: number[] }>).map((q) => q.pad);
+  const inside = CV.inside;
+  let kerbs = 0;
+  for (const c of contours((x, z) => onRoad(x, z), -inside, inside, -inside, inside, CV.trace))
+    for (const { p, t } of along(c.pts, c.closed, klen)) {
+      if (Math.max(Math.abs(p[0]), Math.abs(p[1])) > inside - 1 || pads.some(([px, pz]) => Math.hypot(px - p[0], pz - p[1]) < 2)) continue;
+      // the way into the road: across the edge toward where the surface is
+      const e = 0.3;
+      const n: Pt = [-t[1], t[0]];
+      const toRoad: Pt = onRoad(p[0] + n[0] * e, p[1] + n[1] * e) < onRoad(p[0] - n[0] * e, p[1] - n[1] * e) ? n : [-n[0], -n[1]];
+      // (its own +x, the edge its pivot is on, toward the road: its body on the pavement)
+      const yaw = (Math.atan2(-toRoad[1], toRoad[0]) * 180) / Math.PI;
+      add("c-ground", "c", [piece(K.piece).key, +p[0].toFixed(3), 0, +p[1].toFixed(3), +yaw.toFixed(2), "g"] as Place);
+      kerbs++;
+    }
+  // (outside the centre: the straight roads' kerbs as they were)
+  const C = R.streets.centres as number[];
+  const hw = R.streets.road / 2;
   for (const c of C)
     for (const side of [-1, 1]) {
       const at = c + side * hw;
       for (let u = -edge + K.every / 2; u < edge; u += K.every) {
-        // the street along z at x = at, and the one along x at z = at: a kerb where the far side is pavement
+        if (Math.abs(u) < R.ring[0]) continue;
         if (!road(at + side * 0.5, u)) placeAt(chunkAt(at, u), sectorAt(at, u), K.piece, at, u, 0, "g");
         if (!road(u, at + side * 0.5)) placeAt(chunkAt(u, at), sectorAt(u, at), K.piece, u, at, 90, "g");
       }
+    }
+  // the centre lines: a dash every `every` metres down each curved street, none in a junction
+  const line = piece(R.streets.line.piece).row;
+  const dash = line.size![0];
+  let dashes = 0;
+  for (const st of STREETS)
+    for (const { p, t } of along(st.pts, st.closed, R.streets.line.every)) {
+      if (onRoad(p[0], p[1], st) < 2 || Math.max(Math.abs(p[0]), Math.abs(p[1])) > inside - dash / 2) continue;
+      // (its own x along the street, from its pivot back: the pivot half a dash on from its middle)
+      // (on the baked surface, not under it)
+      add("c-ground", "c", [piece(R.streets.line.piece).key, +(p[0] + (t[0] * dash) / 2).toFixed(3), CV.surface.y + 0.01, +(p[1] + (t[1] * dash) / 2).toFixed(3), +((Math.atan2(-t[1], t[0]) * 180) / Math.PI).toFixed(2), "g"] as Place);
+      dashes++;
     }
   const [r0, r1] = R.ring;
   const crossing = (u: number) => C.some((q) => Math.abs(u - q) < hw + 1) || (Math.abs(u) > r0 - 1 && Math.abs(u) < r1 + 1);
   for (const c of C)
     for (let u = -edge + R.streets.line.every / 2; u < edge; u += R.streets.line.every) {
-      if (crossing(u)) continue;
+      if (crossing(u) || Math.abs(u) < r0) continue;
       placeAt(chunkAt(c, u), sectorAt(c, u), R.streets.line.piece, c, u, 90, "g");
       placeAt(chunkAt(u, c), sectorAt(u, c), R.streets.line.piece, u, c, 0, "g");
     }
+  console.log(`streets: ${STREETS.length} curved (${STREETS.map((q) => `${q.id} ${(q.pts.length * 0.5).toFixed(0)} m`).join(", ")}), ${kerbs} kerbs and ${dashes} dashes along them`);
 }
 
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));

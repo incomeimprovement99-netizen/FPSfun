@@ -30,6 +30,7 @@ const { RANGE_SOLIDS } = await import("../../src/game/range");
 const { solidsIn } = await import("../../src/game/solidgrid");
 const { floorAt } = await import("../../src/game/floors");
 const { MOVE } = await import("../../src/game/movement");
+const { streets: curvedStreets, StreetField } = await import("../neon-streets");
 const cfg = (await import("../../src/config/neonmap.json")).default;
 const SOLIDS = (await import("../../src/config/neon/neonmap.solids.json")).default;
 const firstSolid = RANGE_SOLIDS.length;
@@ -235,6 +236,50 @@ check("every pad a bot is sent up lands it on the roof's graph", padNodes.length
 // the small named places: each high city block's deck and the lobby
 check("the four high city decks and the lobby as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
 
+// The centre's curved streets (rules.streets.curves; the owner, 2026-09-30: "have them curve left and right along with
+// buildings so that it's different visually"): each of the eight bends one way and then the other, and meets the edge
+// road on the line of the outer district's straight road, heading along it; nothing but a parked car stands in any of
+// them; and each corner block is built along its curves (its rooms building and three more at least)
+{
+  const CV = cfg.rules.streets.curves as Parameters<typeof curvedStreets>[0] & { inside: number; round: number };
+  const ST = curvedStreets(CV);
+  const SF = new StreetField(ST);
+  const bends: string[] = [];
+  for (const st of ST.filter((q) => !q.closed)) {
+    // the way it turns, a metre at a time (left or right, where it turns at all), and how often that changes
+    let last = 0, changes = 0;
+    for (let i = 2; i + 2 < st.tan.length; i += 2) {
+      const [a, b] = [st.tan[i - 2], st.tan[i + 2]];
+      const turn = a[0] * b[1] - a[1] * b[0];
+      if (Math.abs(turn) < 0.01) continue;
+      const sgn = Math.sign(turn);
+      if (last && sgn !== last) changes++;
+      last = sgn;
+    }
+    bends.push(`${st.id} ${changes}`);
+  }
+  check("the centre's eight streets each bend one way and then the other (an S), none straight", bends.length === 8 && bends.every((b) => Number(b.split(" ")[1]) >= 2), bends.join(", "));
+  const ends = (CV.spokes as Array<{ id: string; to: number[]; out: number[] }>).map((q) => {
+    const st = ST.find((x) => x.id === q.id)!;
+    const [e, t] = [st.pts[st.pts.length - 1], st.tan[st.tan.length - 1]];
+    return Math.hypot(e[0] - q.to[0], e[1] - q.to[1]) < 0.05 && t[0] * q.out[0] + t[1] * q.out[1] > 0.999 && Math.max(Math.abs(e[0]), Math.abs(e[1])) === CV.inside && (cfg.rules.streets.centres as number[]).some((c) => Math.abs(Math.min(Math.abs(e[0]), Math.abs(e[1])) - Math.abs(c)) < 0.05);
+  });
+  check("each curved street meets the edge road on the outer district's straight road, heading along it", ends.every(Boolean), `${ends.filter(Boolean).length} of ${ends.length}`);
+  // (on the road a metre in from its kerb, a metre at a time: a box taller than a car standing across a body's height)
+  const onRoad: string[] = [];
+  let cells = 0;
+  for (let x = -CV.inside + 0.5; x < CV.inside; x += 1)
+    for (let z = -CV.inside + 0.5; z < CV.inside; z += 1) {
+      if (SF.surface(x, z, CV.round) > -1) continue;
+      cells++;
+      const [wx, wz] = [x + BR_X, z + BR_Z];
+      if (solidsIn(wx, wx, wz, wz).some((b) => wx >= b.minX && wx <= b.maxX && wz >= b.minZ && wz <= b.maxZ && b.base < MOVE.standHeight && b.top > 2.6)) onRoad.push(`(${x}, ${z})`);
+    }
+  check("nothing taller than a parked car stands on the centre's roads", cells > 3000 && onRoad.length === 0, `${cells} m2 of road, ${onRoad.length} blocked${onRoad.length ? `: ${onRoad.slice(0, 4).join("; ")}` : ""}`);
+  const built = ["c-nw", "c-ne", "c-sw", "c-se"].map((k) => (cfg.chunks as Record<string, { place: unknown[] }>)[k].place.length);
+  check("each corner block built along its curves: its rooms building and three more at least", built.every((n) => n >= 4), built.join(", "));
+}
+
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it
 // and up its stairs, on foot, no climbing, an eighth of a metre at a time (at the collision's own quarter a body a door's
 // width round was seen not to fit it, sampled only there): every floor with a standing body's room over it is
@@ -242,8 +287,8 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
 // player's round one, so what it passes a player passes. Its ground floor and the two over it by the stairs (the roof
 // over those is a climb)
 {
-  const [o0, o1] = cfg.rules.blocks.outer;
-  const third = (o1 - o0) / 3;
+  // (each corner block's rooms building where the layout put it: neonmap.json rooms, its footprint)
+  const R4 = (cfg as unknown as { rooms: number[][] }).rooms;
   const C = 0.125;
   const H = MOVE.radius;
   const chunks = cfg.chunks as Record<string, { place: unknown[][] }>;
@@ -251,7 +296,8 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const rooms = chunks["c-se"].place.find(isRooms);
   check("the rooms building on each corner block", Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k)).every((k) => chunks[k].place.some(isRooms)), `${rooms?.[0]}`);
   for (const [sx, sz, name] of [[-1, -1, "nw"], [1, -1, "ne"], [-1, 1, "sw"], [1, 1, "se"]] as const) {
-    const [mx, mz] = [sx * (o0 + third), sz * (o0 + third)];
+    const rect = R4.find((r) => Math.sign(r[0] + r[1]) === sx && Math.sign(r[2] + r[3]) === sz)!;
+    const [mx, mz] = [(rect[0] + rect[1]) / 2, (rect[2] + rect[3]) / 2];
     // the building's 20 m and 6 m of street round it
     const [X0, Z0] = [mx - 16, mz - 16];
     const N = Math.round(32 / C);

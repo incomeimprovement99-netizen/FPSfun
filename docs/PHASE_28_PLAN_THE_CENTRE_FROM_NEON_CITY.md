@@ -118,8 +118,11 @@ behind glass.
   around it to the edge at 152, so the decay, the capture zone and the edge work unchanged.
 - **The eight around it, plain for now:** the pack's road tiles on a ring road round the centre and on the centre's
   street lines out to the edge, the pack's concrete floor tiles between them. Nothing else.
-- **The centre, the largest:** on today's street lines (the owner: "the layout and shape is great"), a 3 by 3 grid of
-  blocks with 15 m streets centred on x and z of -36.25 and 36.25:
+- **The centre, the largest.** Since Milestone 360 its streets curve (the owner, 2026-09-30: "have them curve left and
+  right along with buildings so that it's different visually"): the Loop round the tower and eight S-curved streets out
+  to the edge road (`tools/neon-streets.ts`), the blocks laid along them; the master plan for every level is at
+  https://claude.ai/artifact/Pa1VbqmLBvytX2gBVvK9fP. Before that, a 3 by 3 grid of blocks with 15 m streets centred on
+  x and z of -36.25 and 36.25:
   - the middle block, 57.5 m square (-28.75 to 28.75): the tallest building;
   - four blocks along the axes, 57.5 x 56.25 m: the high city, High City's 26.9 m towers with walkable roofs;
   - four corner blocks, 56.25 m square: the low city, buildings of 3 to 6 storeys (12.5 to 24.5 m).
@@ -173,8 +176,9 @@ behind glass.
 | 28.4 | The new map in the game (`src/game/neonmap.ts`): its ground, its collision, its districts and their places, the bots' graph, loot, pads, the drop | done (Milestone 325); SpeedKills' default since Milestone 328, the old city at `?map=city` |
 | 28.5 | The first look beside the pack's own pictures, for the owner | done: the buildings and their textures are the pack's; its signs, props and haze are not in yet |
 | 28.6 | Before and after: downloads, load, triangles, draw calls, frame times | done (below) |
-| 28.7 | The detail: the underground station, the tallest building's rooms, the high city's bridges, cover | |
-| 28.8 | The checks: walked streets, every pad's landing, every roof joined by jumps, rooms walked, the drop lands only on what is drawn, the bots reach every level | |
+| 28.7 | The detail: the underground station, the tallest building's rooms, the high city's bridges, cover | the station, the bridge ring, the court's halls done (Milestones 349 to 358) |
+| 28.8 | The master plan, built in phases: the curved streets (Milestone 360); the Sky Ring walkway storey; glass lifts; the Well; life on every level | phase 1 done |
+| 28.9 | The checks: walked streets, every pad's landing, every roof joined by jumps, rooms walked, the drop lands only on what is drawn, the bots reach every level | |
 
 ### What building it found (28.2 to 28.4)
 

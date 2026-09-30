@@ -1282,12 +1282,15 @@ High 2,889k. In the street of a match on the owner's RX 9070 XT that costs about
 `docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md`) is made of Daelonik's Neon
 City bundle alone, nothing drawn by hand; `?map=city` in the address plays the
 ILranch city it replaced.
-The same nine districts, the eight round the centre plain for now; the centre a
-3 by 3 of blocks with 15 m streets, the bundle's 151 m Neon Building 08 in the
-middle, High City's 26 m towers with walkable roofs on the four axis blocks, 3
-to 6 storey buildings on the corners, and on each corner block's inner corner
-the pack's Neon Building 04, rooms to fight in: its ground floor and two more
-up its own stairs, its roof a climb. The streets carry the pack's lamps,
+The same nine districts, the eight round the centre plain for now with straight
+roads. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
+streets wind out from it in S-bends to the straight roads beyond, their surface
+baked from the same curves. High City's 26 m towers with walkable roofs face the
+Loop on the four axes; on each corner block a wedge building faces its junction,
+a row of 3 to 6 storey buildings follows each of its curved streets, and in its
+outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
+and two more up its own stairs, its roof a climb. The streets carry the pack's lamps,
 parked cars as cover, flying cars and neon signs. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size

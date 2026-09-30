@@ -14,6 +14,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { padStandOff } from "../src/game/padsolve";
+import { streets, StreetField, fieldSurface } from "./neon-streets";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
@@ -247,6 +248,26 @@ if (mode === "bake") {
     join(ROOT, "src", "config", "neon", "neonmap.solids.json"),
     JSON.stringify({ _note: "The collision of the Neon City map (src/config/neonmap.json), written by tools/import-neon.ts NEON=bake off the placed pieces' own triangles, never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres.", version: cfg.version, solids: all.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
   );
+  // the centre's curved streets (rules.streets.curves, tools/neon-streets.ts): their surface in the pack's asphalt over the
+  // pavement tiles, traced from the same curves the layout laid their kerbs by. Mapped a tenth of the texture a metre,
+  // as the ground's tiles are (their 10 m spans 0 to 1), so it matches the edge road's asphalt where the two meet
+  {
+    const CV = cfg.rules.streets.curves;
+    const SF = new StreetField(streets(CV));
+    const inside = CV.inside;
+    const value = (x: number, z: number) => Math.max(SF.surface(x, z, CV.round), Math.max(Math.abs(x), Math.abs(z)) - inside);
+    const { pos, idx } = fieldSurface(value, -inside, inside, -inside, inside, CV.surface.cell, CV.surface.y);
+    const uv = new Float32Array((pos.length / 3) * 2);
+    for (let k = 0; k < pos.length / 3; k++) [uv[k * 2], uv[k * 2 + 1]] = [pos[k * 3] / 10, pos[k * 3 + 2] / 10];
+    const nrm = new Float32Array(pos.length);
+    for (let k = 0; k < pos.length / 3; k++) nrm[k * 3 + 1] = 1;
+    const matGuid = pack.matFor(cfg.rules.ground.road);
+    if (!matGuid) throw new Error(`no material ${cfg.rules.ground.road}`);
+    const model = { meshes: [{ name: "streets", prims: [{ pos: new Float32Array(pos), nrm, uv, idx: new Uint32Array(idx), material: cfg.rules.ground.road }] }], nodes: [], roots: [] } as unknown as Draw["model"];
+    const d: Draw = { model, mesh: 0, pre: null, mats: [matGuid], modelGuid: "", on: true, go: null };
+    (groups.get(groupOf("c-streets")) ?? groups.set(groupOf("c-streets"), []).get(groupOf("c-streets"))!).push({ d, m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] });
+    console.log(`streets: ${idx.length / 3} triangles of surface`);
+  }
   // the jump pads, found in the collision just made (rules.pads), and the pack's plate and beam of light where each stands
   cfg.pads = findPads(all, cfg.rules);
   const padDraws: Array<{ d: Draw; m: M4 }> = [];
@@ -335,7 +356,7 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
     return seen.size * C * C;
   };
   const found: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; roof: number }> = [];
-  const inner = rules.streets.centres[1];
+  const inner = rules.pads.inner;
   const ring = (rules.ring[0] + rules.ring[1]) / 2;
   for (const dir of ["n", "s", "w", "e"]) {
     // toward the block: n is -z, s +z, w -x, e +x

@@ -7572,3 +7572,41 @@ are in the ship ... you can't test the full end to end flow with screenshots cap
   after it the doors' count runs. Each seen failing with its fault put back (the hold off: moved on 0.00 s; the card
   before boarding and no screen at Start: four checks fail). e2e `intro` and `skship`, verify and rules. The flow sheet
   after: loading screen, menu, loading screen, card, ship, no other frame between.
+
+## Milestone 360 — The centre's streets curve: the Loop round the tower and eight S-bends out to the edge road
+
+Phase 28.8, the master plan's first phase (the plan: https://claude.ai/artifact/Pa1VbqmLBvytX2gBVvK9fP; the owner,
+2026-09-30: "since the outer districts are straight roads, we should make the ones in the center district be not
+straight, have them curve left and right along with buildings so that it's different visually", and "it's ok to wipe
+what we had before if the new plan doesn't suit it").
+
+- **Studied first.** Before this phase every category of the packs was re-photographed on current contact sheets (87
+  sheets, 1,826 pieces), the eight trailers read again for how their pieces join, all eight demo scenes read piece by
+  piece and drawn by height (10,113 pieces), and Hyper Scape's design rules gathered. The result is the master plan:
+  the centre level by level from the station to the High City decks, every join between levels, the build order.
+- **The streets** (`tools/neon-streets.ts`, rules.streets.curves). The centre's straight 3 by 3 grid is gone. A round
+  road, the Loop, circles the tower 45 m out, and from four forks on it eight streets wind out in an S (a pair of Hermite
+  curves each, no bend under 21 m radius) to the same eight points on the edge road where the outer districts' straight
+  roads go on. Where two streets meet the kerb turns a rounded corner: the roads are one surface joined by a smooth
+  minimum 4 m wide.
+- **Their surface** is baked from the same curves (`tools/import-neon.ts`): the pack's asphalt, traced along its edge
+  half a metre at a time (8,300 triangles), mapped as the ground's tiles are so it meets the edge road's asphalt
+  without a seam. Along it the kerbs (632, traced along the edge, rounded corners too), the dashed centre lines, the
+  lamps, parked cars, flying cars and signs are all laid along the curves and turned with them.
+- **The blocks follow the streets.** The High City decks moved 10 m out, their inner faces on the Loop's pavement, and
+  lost their back rows of small towers (no room against the edge road; they were backdrop). Each corner block now has
+  a flatiron building in the wedge where its two streets leave their fork, turned to face the junction on the
+  diagonal; a row of buildings down each of its streets, each turned to face its street where it stands (squared to
+  the grid near the edge road, where the curve's tilt put a corner over its pavement); its rooms building in its
+  outer corner; and yards between. The bridge ring moved out with the decks, so each end lands where it did.
+- **Beacons and pads** follow: the respawn beacons half way along four of the streets, and the jump pads onto the decks'
+  inner faces sought from the Loop's middle (all eight found again).
+- The map: 2,675 placements, 1.84 M triangles (from 1.73 M), 45,908 collision boxes. **Its files are version 12.**
+- **Checked** (`tools/checks/sk-neon.ts`, 4 new checks): each of the eight streets bends one way and then the other
+  (seen failing with one straightened: "ne-n 0"); each meets the edge road on its outer road's line, heading along it;
+  nothing taller than a parked car stands on the centre's roads (5,848 m2 of road, seen failing with a building on one);
+  each corner block is built along its curves. The rooms buildings are walked into and up where they now stand, every
+  bridge walked from deck to deck, the pads ridden. verify and rules; e2e `loot` and `br`. Photographed from above and
+  at street level on the Loop, a fork and a curved street.
+- Next (the plan's phase 2): the Sky Ring, the walkway storey at 3.5 m, its footbridges and the walkways out to the
+  rooms buildings' first floors.
