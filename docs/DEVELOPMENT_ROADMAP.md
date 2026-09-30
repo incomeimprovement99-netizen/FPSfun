@@ -7690,3 +7690,29 @@ Phase 28.8, the master plan's second phase (https://claude.ai/artifact/Pa1VbqmLB
   edges from every metre but the stairs' openings (seen failing with the outer fence left off: 248 open); a standing
   body's room under it all the way round (seen failing with a 2 m deep slab: 1.5 m). verify and rules; e2e `loot` and
   `br`. Photographed on the deck by day and night, from the Loop, under it and at a stair.
+
+## Milestone 363 — A double jump lifts the knees and a turn in it leaves a tracer, and a sniper glints only when scoped in
+
+The owner, after Milestone 361: "honest I don't like the flip for double jump. People will double jump all the time
+and that's hard to hit I assume. Can we just have the legs raise a bit at the same time as the double jump, so there's
+something there? And then a tracer if they changed directions in the middle of the jump", and "remember that the
+sniper should only have glint when they are ADSing".
+
+- **The knee lift in place of the flip** (figure.json doubleJump: the thighs up 25 degrees and the knees bent 40 more,
+  up and back down over 0.35 s, the body upright): the knee comes up about 11 cm, 25 degrees and 40 chosen over 35 and
+  50, whose knee reached the USSO's low magazine. The thighs and calves join the bones put back from the clip each
+  frame. The flip's root turn is gone.
+- **The tracer** (trails.ts, hud.json jumpTracers): from a player's double jump, for up to 0.6 s of air time, the way
+  they go (over the last 0.1 s) is held against the way they went over the 0.2 s before it; 25 degrees apart, and a
+  ribbon of their trail's light, 0.1 m across at the body's middle, is drawn from before the jump through the turn and
+  fades over 0.8 s. A double jump only gives the jump back and the turn is air control over the tenths after it, so a
+  window of a fixed 0.15 s after the jump missed it. It fades out within 3 to 6 m of you, not the trails' 12 to 25:
+  it is for seeing a turn in a fight. Seen by the figure's double-jump count, which Milestone 361 already sends.
+- **A sniper's glint only while scoped in** (mannequin.ts scoped): the aim in, the gun up at the eye, the hands on
+  nothing else (a reload, a swap, a throw, a strike), not carried low. By the pose's aim alone, a bot aiming as it
+  reloaded glinted through the reload, and one aiming through a swap through the swap.
+- **Checked:** the skfigure e2e (the knees up 6 cm or more and back, upright, none for a count first seen; BOOG's
+  glint aimed in and not through a reload, a swap or at the hip), each seen failing with its fault put back; the
+  trails check (a turn at once and one made over the air time draw a tracer, straight on and a count first seen draw
+  none, it fades in its time), seen failing with the turn test broken; the soldier section's own glint check; the
+  frames of the double jumps; a tracer drawn in the game's own scene, 12 m off; verify; rules.
