@@ -7543,8 +7543,8 @@ The owner, 2026-09-30, of the order Milestone 349 left: "the intro now is fucked
 animation matrix, then it shows our gun while it like loads the map again or something with black background, then we
 are in the ship ... you can't test the full end to end flow with screenshots capturing frames every like 5% to tell?"
 
-- **Seen frame by frame first.** A drawn page with every painted frame kept (Chrome's screencast) and, every 100 ms,
-  what the game was doing, laid out as a sheet of a frame every 5% of the way: Start froze the menu on the screen for
+- **Seen frame by frame first** (`tools/flow-frames.ts`, new). A drawn page with every painted frame kept (Chrome's
+  screencast) and, every 100 ms, what the game was doing, laid out as a sheet of a frame every 5% of the way: Start froze the menu on the screen for
   a second (the match being built), the card played over the range with WAITING FOR EVERYONE TO CLICK PLAY behind it,
   broke into the range and the gun, then one frame of the gun on black and a stall, then the ship. With the city's
   real files in, that stall was **6.8 s**: every shader of the Neon City map compiled the moment it was first drawn,
