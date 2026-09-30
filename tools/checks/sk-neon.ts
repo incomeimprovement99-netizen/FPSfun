@@ -115,6 +115,58 @@ for (const h of K.halls.filter((q) => !("route" in q) && !("open" in q))) {
   const over = sprint((sx0 + sx1) / 2, (sz0 + sz1) / 2, 0.05, yaw, 0.5);
   check(`hall at (${mx.toFixed(0)}, ${mz.toFixed(0)}): walked from the court to its far wall on the court's floor, and the plaza over it holds a body`, gone < 1.2 && Math.abs(r.y - K.y) < 0.05 && r.low > K.y - 0.05 && Math.abs(over.y) < 0.05, `ended ${gone.toFixed(2)} m from its end at ${r.y.toFixed(2)} m; on the plaza over it ${over.y.toFixed(2)} m`);
 }
+// The side rooms of the court's shop corridors (rules.court.halls, the pack's noodle bar and market): each walked into on
+// foot from its hall's middle, an eighth of a metre at a time, a body the square round the player's round one, a step
+// up at a time; most of each room's floor with a standing body's room over it is reached (its tables and stools take
+// the rest), and the street over it holds a body
+for (const h of K.halls) {
+  const rooms = cfg.underground.floors.filter((f) => "room" in f && f.rect[0] < h.x1 && f.rect[1] > h.x0 && f.rect[2] < h.z1 + 0.01 && f.rect[3] > h.z0 - 0.01 && (f.rect[2] >= h.z1 - 0.01 || f.rect[3] <= h.z0 + 0.01 || f.rect[0] >= h.x1 - 0.01 || f.rect[1] <= h.x0 + 0.01)).map((f) => f.rect);
+  if (!rooms.length) continue;
+  const C = 0.125, H = MOVE.radius;
+  const all = [[h.x0, h.x1, h.z0, h.z1], ...rooms];
+  const inside = (x: number, z: number) => all.some(([x0, x1, z0, z1]) => x >= x0 && x <= x1 && z >= z0 && z <= z1);
+  const [X0, X1, Z0, Z1] = [Math.min(...all.map((r) => r[0])), Math.max(...all.map((r) => r[1])), Math.min(...all.map((r) => r[2])), Math.max(...all.map((r) => r[3]))];
+  const [NI, NJ] = [Math.ceil((X1 - X0) / C), Math.ceil((Z1 - Z0) / C)];
+  const floorOf = (i: number, j: number): number | null => {
+    const x = X0 + (i + 0.5) * C, z = Z0 + (j + 0.5) * C;
+    if (!inside(x, z)) return null;
+    const [wx, wz] = [x + BR_X, z + BR_Z];
+    const here = solidsIn(wx - H, wx + H, wz - H, wz + H).filter((b) => b.minX < wx + H && b.maxX > wx - H && b.minZ < wz + H && b.maxZ > wz - H);
+    let f = K.y;
+    for (const b of here) if (b.top <= K.y + MOVE.stepHeight && b.top > f) f = b.top;
+    return here.some((b) => b.base < f + MOVE.standHeight && b.top > f + MOVE.stepHeight) ? null : f;
+  };
+  const seen = new Map<number, number>();
+  const [si, sj] = [Math.floor(((h.x0 + h.x1) / 2 - X0) / C), Math.floor(((h.z0 + h.z1) / 2 - Z0) / C)];
+  const f0 = floorOf(si, sj);
+  const todo: number[] = [];
+  if (f0 !== null) (seen.set(si * NJ + sj, f0), todo.push(si * NJ + sj));
+  while (todo.length) {
+    const k = todo.pop()!;
+    const [i, j, y] = [Math.floor(k / NJ), k % NJ, seen.get(k)!];
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const [a2, b2] = [i + di, j + dj];
+      if (a2 < 0 || b2 < 0 || a2 >= NI || b2 >= NJ || seen.has(a2 * NJ + b2)) continue;
+      const f = floorOf(a2, b2);
+      if (f === null || Math.abs(f - y) > MOVE.stepHeight) continue;
+      seen.set(a2 * NJ + b2, f);
+      todo.push(a2 * NJ + b2);
+    }
+  }
+  const shares = rooms.map(([x0, x1, z0, z1]) => {
+    let [got, of] = [0, 0];
+    for (let i = 0; i < NI; i++)
+      for (let j = 0; j < NJ; j++) {
+        const x = X0 + (i + 0.5) * C, z = Z0 + (j + 0.5) * C;
+        if (x < x0 || x > x1 || z < z0 || z > z1 || floorOf(i, j) === null) continue;
+        of++;
+        if (seen.has(i * NJ + j)) got++;
+      }
+    return of ? got / of : 0;
+  });
+  const over = rooms.map(([x0, x1, z0, z1]) => sprint((x0 + x1) / 2, (z0 + z1) / 2, 0.05, 0, 0.5).y);
+  check(`hall at (${((h.x0 + h.x1) / 2).toFixed(0)}, ${((h.z0 + h.z1) / 2).toFixed(0)}): its side rooms walked into from the hall, and the street over them holds a body`, shares.every((q) => q >= 0.6) && over.every((y) => Math.abs(y) < 0.05), `${shares.map((q) => `${(q * 100).toFixed(0)}%`).join(", ")} of their floors reached; on the street over them ${over.map((y) => y.toFixed(2)).join(", ")} m`);
+}
 // (an entrance's hall: the plaza over its corridor holds a body too; its walk is its route, below)
 for (const h of K.halls.filter((q) => "route" in q)) {
   const [sx0, sx1, sz0, sz1] = h.slab;

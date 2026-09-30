@@ -7510,3 +7510,29 @@ them together before fully doing it").
   first from a start inside the tower's basement wall, which stands 2.5 m in front of that stretch of the court's
   wall); the station's closed check now looks from every metre of the ramp too, eight ways and up (405 spots). verify
   and rules; e2e `loot` and `br`. The link and the court's corners photographed by day from inside and out.
+
+## Milestone 358 — The court's east and west halls: a noodle bar and an electronics shop under the plaza
+
+Phase 28.7, the underground (the owner, 2026-09-29: "we want the full layout ... your layout has been good so far,
+expand on it").
+
+- **The two dead ends.** The tower court's east and west halls were 5 m stubs of corridor ending in a concrete wall.
+  Each is now 10 m of the pack's shop corridor: its vaulted corridor with a room off one side behind arched doorways
+  and a counter window. East, a noodle bar (`MetroPassage00D3`: red neon sign, lanterns, a counter with stools, tables
+  inside); west, an electronics shop (`MetroPassage00D2`: a neon shop sign, walls of screens, shelves along an aisle),
+  facing the corridor's poster wall.
+- **Placed by their pivots.** The hall code now places every piece by its pivot, its corridor across its own x from 0
+  to the door's width (the plain corridors land exactly where they did); a shop corridor's side room stands out beyond
+  that, and its floor is lowered to the court's and the street's slab laid over it like the station's floors. A first
+  try put the pivot at the hall's near end for halls running toward -z and -x, which would have moved the north hall
+  10 m: caught comparing the court's placements before and after, which now change only in the two halls.
+- **Chosen by walking into them.** Each candidate was baked and a body walked in from its hall, an eighth of a metre
+  at a time, a square round the player's round one: the pack's market (`MetroPassage00E2`, a room each side) reached
+  36% and 18% of its rooms' floor (its shop's aisles narrower than a player, its bar packed with tables), `D4` 40%, and
+  `D2` all of its aisle. At the map's half-metre collision the noodle bar's stools, bins and signs each filled a cell
+  and only 45% of it was reached; its two corridors now collide at a quarter metre (rules.fine), 85%.
+- The map: 2,713 placements, 1.73 M triangles (from 1.69 M), 45,592 collision boxes. **Its files are version 11.**
+- **Checked** (`tools/checks/sk-neon.ts`): each hall's side rooms walked into from its middle, 60% and more of their
+  floor with a standing body's room over it reached, and the street over them holds a body (seen failing with the
+  market and `D4` above); the halls' own walks to their far walls, now 10 m. verify and rules; e2e `loot` and `br`.
+  Both photographed in daylight from the halls, the doorways and inside, their roofs closed.

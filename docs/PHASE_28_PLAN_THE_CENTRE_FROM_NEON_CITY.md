@@ -269,7 +269,8 @@ the importer read FBX only. They are drawn now, the tower's and the metro's incl
    plaza its way down, a concourse of marble halls behind the platform, closed on every side (checked by looking out
    from every metre of it). The court joined to it (Milestone 357): a door in the court's south wall, one of the pack's
    corridors, and the pack's 3 m terrain ramp down to a gate behind the marble room's first arch (the pack's stairs
-   and escalators all climb 3.5 m, the court stands 3 m over the station). Still to do: a way down the bots can walk (the
+   and escalators all climb 3.5 m, the court stands 3 m over the station). The court's east and west halls the pack's shop corridors, a noodle
+   bar and an electronics shop (Milestone 358). Still to do: a way down the bots can walk (the
    kiosk's lower escalator is too narrow at its foot for a bot's square body), the demo's -24 m station and its lines
    under it, and the square shaft through every level. The pack's station (`Subway Hall` MetroStation00 modules, 10 x 10.5 x
    11 m; MetroStationDouble00 for the platforms either side), its tunnels (`Subway Tunnels`) out under two streets, the

@@ -1294,7 +1294,8 @@ The tower stands in a sunken court 7 m deep, its own basement at its floor,
 walled with the pack's concrete (the world's floor lowered into it, as the old
 metro's was), and four of the pack's metro corridors lead off it under the
 plaza, two of them down from the street through the pack's metro kiosks and
-their escalators. Under the south street is Centre Station, the pack's own metro
+their escalators, the other two the pack's shop corridors, a noodle bar and an
+electronics shop to walk into. Under the south street is Centre Station, the pack's own metro
 station put together as its demo scene puts it: a glass-roofed hall on the plaza
 down to a platform with a train at it, a tunnel off into the dark, and a marble
 concourse behind the platform, closed on every side, and reached from the tower's

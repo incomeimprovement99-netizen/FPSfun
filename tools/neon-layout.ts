@@ -246,6 +246,9 @@ const openGround = (ox0: number, ox1: number, oz0: number, oz1: number): void =>
   g.place = [...keep, ...laid];
 };
 
+/** the side rooms of the court's halls (a shop corridor's shop), map-local [x0, x1, z0, z1] on the court's floor */
+const hallRooms: number[][] = [];
+
 // the court the tallest building stands in: the hole its footprint leaves in the ground floored at its foot (its basement,
 // 7 m down) with the same tiles, a hair under the basement's own floor so its floor draws where it has one, and walled
 // round with the pack's concrete city walls, as tall as the hole is deep (rules.court). Without it the hole showed the
@@ -302,12 +305,27 @@ if (holes.length) {
     const across = h.at + len / 2;
     /** a spot `d` metres out from the court's edge on the hall's middle line */
     const spot = (d: number): [number, number] => (alongX ? [start + out * d, across] : [across, start + out * d]);
+    // Each piece by its pivot: the pack's corridors all run along their own z from their pivot back, their corridor
+    // across their own x from 0 to the door's width; a shop corridor's side room stands out beyond that (its own x under
+    // 0, or over the width), a room off the hall with its floor lowered and the street's slab over it too
     let d = 0;
     for (const name of h.pieces) {
       const row = piece(name).row;
-      if (Math.abs(row.size![0] - len) > 0.05) throw new Error(`hall piece ${name} is ${row.size![0]} m wide, the door ${len} m`);
-      placeAt("c-court", "c", name, ...spot(d + row.size![2] / 2), alongX ? 90 : 0, "o", { y: foot });
-      d += row.size![2];
+      if (row.min![0] > 0.05 || row.max![0] < len - 0.05) throw new Error(`hall piece ${name} runs ${row.min![0]} to ${row.max![0]} across, not its corridor 0 to ${len} m`);
+      // (to the half metre the pack builds on: the market's runs 10.05, and its last 5 cm under the end wall laid a floor
+      // tile beyond the hall)
+      const run = Math.round(-row.min![2] * 2) / 2;
+      const [a, b] = [start + out * d, start + out * (d + run)].sort((p, q) => p - q);
+      // (it runs from its pivot back along its own z: the pivot at the hall's far end on the map's axis, whichever way
+      // the hall goes; turned a quarter, its own x runs back along the map's z from it: x' = z, z' = -x)
+      const [px, pz] = alongX ? [b, h.at + len] : [h.at, b];
+      add("c-court", "c", [piece(name).key, +px.toFixed(3), foot, +pz.toFixed(3), alongX ? 90 : 0, "o"] as Place);
+      for (const [lo, hi] of [[row.min![0], 0], [len, row.max![0]]]) {
+        if (hi - lo < 0.5) continue;
+        const [c0, c1] = alongX ? [pz - hi, pz - lo] : [px + lo, px + hi];
+        hallRooms.push((alongX ? [a, b, c0, c1] : [c0, c1, a, b]).map((v) => +v.toFixed(3)));
+      }
+      d += run;
     }
     const back = (out > 0 ? "-" : "+") + (alongX ? "x" : "z");
     /** the rectangle from `d0` to `d1` out along the hall, map-local [x0, x1, z0, z1] */
@@ -501,8 +519,9 @@ if (holes.length) {
       { rect: hallRect.map((v) => +v.toFixed(3)), y: sy },
       { rect: concourseRect.map((v) => +v.toFixed(3)), y: sy },
       ...(linkRect ? [{ rect: linkRect, y: sy, ramp: true }] : []),
+      ...hallRooms.map((r) => ({ rect: r, y: cfg.court.y, room: true })),
     ],
-    slabs: [stationRect, tunnelRect, concourseRect, ...(linkRect ? [linkRect] : [])].map((r) => r.map((v) => +v.toFixed(3))),
+    slabs: [stationRect, tunnelRect, concourseRect, ...(linkRect ? [linkRect] : []), ...hallRooms].map((r) => r.map((v) => +v.toFixed(3))),
   };
 }
 
