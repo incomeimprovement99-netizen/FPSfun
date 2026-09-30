@@ -29,6 +29,7 @@ import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
+import { solidsIn } from "./solidgrid";
 // the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
 import { DISTRICT_FLOORS, floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
 import { ammoTypeOf, STACK } from "./ammo";
@@ -528,6 +529,10 @@ function standingSpots(x: number, z: number): number[] {
   const here = RANGE_SOLIDS.filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
   // a top is a floor only if it is wide enough to stand on: not a parapet, a wall's top or a stair's tread
   const floorTops = here.filter((s) => s.maxX - s.minX >= cfg.minSurface && s.maxZ - s.minZ >= cfg.minSurface).map((s) => s.top);
+  // SpeedKills' buildings collide by their own triangles (tools/import-city.ts districtSolids), so a room's floor is many
+  // boxes side by side, few of them a metre across: there a top is a floor too where boxes at that height cover the
+  // square round the spot between them. Without it the rooms held loot on their ground floors only
+  if (IS_SK) floorTops.push(...acrossTops(x, z));
   // the highest floor loot is put on: the legacy map's roofs top out near 12 m; SpeedKills' city is its roofs
   const tops = [0, ...floorTops].filter((y) => y <= MAX_FLOOR);
   const out: number[] = [];
@@ -539,6 +544,23 @@ function standingSpots(x: number, z: number): number[] {
     if (!blocked && !inHall(x, z, y)) out.push(y);
   }
   return out.sort((a, b) => a - b);
+}
+
+/** the tops over (x, z) that boxes at that height, together, cover the `minSurface` square round it with */
+function acrossTops(x: number, z: number): number[] {
+  const h = cfg.minSurface / 2;
+  // (from the solid grid: over all of the Neon map's boxes a spot at a time it took laying a match's loot from 170 ms
+  // to 320; from the grid, 175)
+  const near = solidsIn(x - h, x + h, z - h, z + h).filter((s) => x > s.minX - h && x < s.maxX + h && z > s.minZ - h && z < s.maxZ + h);
+  const covered = (px: number, pz: number, y: number) => near.some((s) => Math.abs(s.top - y) < 0.05 && px >= s.minX && px <= s.maxX && pz >= s.minZ && pz <= s.maxZ);
+  const out: number[] = [];
+  for (const s of near) {
+    if (x < s.minX || x > s.maxX || z < s.minZ || z > s.maxZ) continue;
+    let all = true;
+    for (let dx = -h; dx <= h + 1e-6 && all; dx += h) for (let dz = -h; dz <= h + 1e-6 && all; dz += h) all = covered(x + dx, z + dz, s.top);
+    if (all) out.push(s.top);
+  }
+  return out;
 }
 
 /**

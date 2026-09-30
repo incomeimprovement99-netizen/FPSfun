@@ -248,10 +248,15 @@ the view over the centre is.
 The owner, 2026-09-28: "once we have the layout, start adding in the detail, ensuring we utilize the underground,
 higher buildings, inside rooms to fight in". In this order, each shipped on its own, each walked by a body and the bots:
 
+**First, the corner blocks' rooms (Milestone 344):** the pack's Neon Building 04 on each corner block's inner corner,
+its ground floor and the two over it walked on foot from the street (`sk-neon.ts`), its roof a climb. Building it found
+that every room in the bundle had been drawn with no floor: the pack's floor slabs and plain walls are OBJ files, and
+the importer read FBX only. They are drawn now, the tower's and the metro's included. Still: the bots on the stairs.
+
 1. **The tallest building's rooms.** Its ground floor, first floor, the ring of rooms at 38 to 50 m and the top rooms
    (the sections, 28.4) walked: which doors open to the plaza, which stairs join which floors (its stair tower climbs
-   13 to 40 m), and every floor drawn made a floor a body stands on (its floors come out of the collision as narrow
-   strips today). The way up: its own stairs, and a window pad (the old Sky Lobby's, `hold`) from the plaza into the
+   13 to 40 m), and every floor drawn made a floor a body stands on (its floors came out of the collision as narrow
+   strips: its floor slabs, OBJ files, were never drawn until Milestone 344). The way up: its own stairs, and a window pad (the old Sky Lobby's, `hold`) from the plaza into the
    40 m ring. Loot in the rooms. Found already: its base is an open atrium of terraces, glass rails, ramps and stairs
    (a body sprinting at it from the plaza gets 2 m inside on 154 of 168 tries, legitimately), standing in a pit to its
    basement 7 m down that showed the sky through the world and was walked over on nothing: floored and walled as a

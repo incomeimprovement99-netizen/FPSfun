@@ -164,17 +164,28 @@ const noGround: Array<[number, number, number, number]> = [];
   ] as const) {
     const chunk = `c-${sz < 0 ? "n" : "s"}${sx < 0 ? "w" : "e"}`;
     let last = "";
+    // The rooms to fight in (rules.low.rooms): a realistic building of the pack's, its floors, stairs and rooms its own
+    // triangles, on the block's inner corner over the four cells there (the yard among them), turned to face the middle
+    const rooms = L.rooms ? piece(L.rooms.piece).row : null;
+    if (rooms) {
+      const [fx0, fx1, fz0, fz1] = turned(rooms, L.rooms.face[`${sx},${sz}`]);
+      if (fx1 - fx0 > 2 * cell || fz1 - fz0 > 2 * cell) throw new Error(`${L.rooms.piece} does not fit two cells`);
+      placeAt(chunk, "c", L.rooms.piece, sx * (o0 + cell), sz * (o0 + cell), L.rooms.face[`${sx},${sz}`], "o");
+    }
     for (let i = 0; i < 3; i++)
       for (let j = 0; j < 3; j++) {
         if (i === 1 && j === 1) continue; // the yard
+        if (rooms && i < 2 && j < 2) continue;
         const cx = sx * (o0 + cell * (i + 0.5));
         const cz = sz * (o0 + cell * (j + 0.5));
         // facing out to the nearer street: toward the middle's street on the inner rows, the ring on the outer
         const faceX = i === 0 ? -sx : i === 2 ? sx : 0;
         const faceZ = j === 0 ? -sz : j === 2 ? sz : 0;
         const face = Math.abs(faceZ) >= Math.abs(faceX) ? (faceZ > 0 ? 0 : 180) : faceX > 0 ? 90 : 270;
-        // a tall one on the block's inner corner, low ones round it
-        const pool: string[] = i === 0 && j === 0 ? L.tall : L.low;
+        // a tall one on the block's inner corner, low ones round it; with the rooms there, on its outer corner, so the
+        // block keeps a roof high over the streets
+        const tallAt = rooms ? 2 : 0;
+        const pool: string[] = i === tallAt && j === tallAt ? L.tall : L.low;
         let name = pool[Math.floor(rnd() * pool.length)];
         for (let tries = 0; name === last && tries < 5; tries++) name = pool[Math.floor(rnd() * pool.length)];
         last = name;

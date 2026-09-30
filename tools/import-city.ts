@@ -260,7 +260,9 @@ export class Models {
     const src = pack.file(guid);
     const p = pack.guidPath.get(guid) ?? "";
     let model: RawModel | null = null;
-    if (src && /\.fbx$/i.test(p)) {
+    // (the pack's basic floors and walls are ProBuilder's OBJ exports: read as they are, their faces keeping their materials)
+    if (src && /\.obj$/i.test(p)) model = readObj(readFileSync(src, "utf8"));
+    else if (src && /\.fbx$/i.test(p)) {
       const out = join(this.dir, pack.name, guid);
       mkdirSync(dirname(out), { recursive: true });
       if (!existsSync(out + ".glb")) {
@@ -284,6 +286,66 @@ export class Models {
     this.cache.set(key, model);
     return model;
   }
+}
+
+/**
+ * An OBJ's geometry, as FBX2glTF would have written it: each object a mesh (a node of its own at the origin), its faces
+ * split by material and fanned into triangles, V flipped to glTF's. Its coordinates are taken as they are: ProBuilder
+ * writes them right-handed (x flipped from Unity's) and Unity flips them back on import, the same round trip an FBX
+ * makes, so they are already in the frame the FBX models are read in. (FBX2glTF reads an OBJ too, but as centimetres,
+ * and with every face in one material.)
+ */
+function readObj(text: string): RawModel {
+  const v: number[][] = [];
+  const vt: number[][] = [];
+  const vn: number[][] = [];
+  const meshes: RawModel["meshes"] = [];
+  type Part = { pos: number[]; nrm: number[]; uv: number[]; idx: number[]; seen: Map<string, number> };
+  let mesh: { name: string; byMat: Map<string, Part> } | null = null;
+  let mat = "";
+  const flush = () => {
+    if (!mesh) return;
+    const prims = [...mesh.byMat].filter(([, q]) => q.idx.length).map(([m, q]): RawPrim => ({ pos: Float32Array.from(q.pos), nrm: Float32Array.from(q.nrm), uv: Float32Array.from(q.uv), idx: Uint32Array.from(q.idx), material: m }));
+    if (prims.length) meshes.push({ name: mesh.name, prims });
+  };
+  const start = (name: string) => {
+    flush();
+    mesh = { name, byMat: new Map() };
+  };
+  for (const line of text.split("\n")) {
+    const t = line.trim().split(/\s+/);
+    const k = t[0];
+    if (k === "v") v.push(t.slice(1, 4).map(Number));
+    else if (k === "vt") vt.push(t.slice(1, 3).map(Number));
+    else if (k === "vn") vn.push(t.slice(1, 4).map(Number));
+    else if (k === "o") start(t.slice(1).join(" "));
+    else if (k === "usemtl") mat = t.slice(1).join(" ");
+    else if (k === "f") {
+      if (!mesh) start("");
+      const byMat = mesh!.byMat;
+      const q = byMat.get(mat) ?? byMat.set(mat, { pos: [], nrm: [], uv: [], idx: [], seen: new Map() }).get(mat)!;
+      const corner = (s: string): number => {
+        const hit = q.seen.get(s);
+        if (hit !== undefined) return hit;
+        const [a, b, c] = s.split("/");
+        const at = (list: number[][], i: string | undefined) => (i ? list[Number(i) < 0 ? list.length + Number(i) : Number(i) - 1] : undefined);
+        const P = at(v, a) ?? [0, 0, 0];
+        const T = at(vt, b) ?? [0, 0];
+        const N = at(vn, c) ?? [0, 1, 0];
+        const n = q.pos.length / 3;
+        q.pos.push(P[0], P[1], P[2]);
+        q.uv.push(T[0], 1 - T[1]);
+        q.nrm.push(N[0], N[1], N[2]);
+        q.seen.set(s, n);
+        return n;
+      };
+      const ids = t.slice(1).map(corner);
+      for (let i = 1; i + 1 < ids.length; i++) q.idx.push(ids[0], ids[i], ids[i + 1]);
+    }
+  }
+  flush();
+  const nodes = meshes.map((m, i) => ({ name: m.name, mesh: i, t: [0, 0, 0] as Vec3, r: [0, 0, 0, 1] as Quat, s: [1, 1, 1] as Vec3, kids: [] as number[], parent: null as number | null }));
+  return { meshes, nodes, roots: nodes.map((_, i) => i) };
 }
 
 /** a GLB's geometry and node tree, read directly: the importer needs raw arrays, not a scene */

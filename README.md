@@ -1271,7 +1271,10 @@ ILranch city it replaced.
 The same nine districts, the eight round the centre plain for now; the centre a
 3 by 3 of blocks with 15 m streets, the bundle's 151 m Neon Building 08 in the
 middle, High City's 26 m towers with walkable roofs on the four axis blocks, 3
-to 6 storey buildings on the corners. `tools/neon-layout.ts` places every piece
+to 6 storey buildings on the corners, and on each corner block's inner corner
+the pack's Neon Building 04, rooms to fight in: its ground floor and two more
+up its own stairs, its roof a climb. The streets carry the pack's lamps,
+parked cars as cover, flying cars and neon signs. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size
 (512, 1024 and 2048 px for Competitive, Balanced and High) with the collision
@@ -1285,7 +1288,8 @@ plaza, two of them down from the street through the pack's metro kiosks and
 their escalators. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
 roofs; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map.
-`tools/checks/sk-neon.ts` rides every pad and walks the graph.
+`tools/checks/sk-neon.ts` rides every pad, walks the graph, both metro
+entrances and each rooms building's floors from the street.
 
 **The field is rock, scrub and cliff, not boxes.** The battle royale's cover
 is scanned rock (Poly Haven, CC0), its open ground has dead trees and branches

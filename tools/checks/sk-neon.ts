@@ -27,6 +27,9 @@ const { SPIRE_TOP } = await import("../../src/game/city");
 const { LootField } = await import("../../src/game/loot");
 const brmapCfg = (await import("../../src/config/brmap.json")).default;
 const { RANGE_SOLIDS } = await import("../../src/game/range");
+const { solidsIn } = await import("../../src/game/solidgrid");
+const { floorAt } = await import("../../src/game/floors");
+const { MOVE } = await import("../../src/game/movement");
 const cfg = (await import("../../src/config/neonmap.json")).default;
 const SOLIDS = (await import("../../src/config/neon/neonmap.solids.json")).default;
 const firstSolid = RANGE_SOLIDS.length;
@@ -178,6 +181,66 @@ check("every pad a bot is sent up lands it on the roof's graph", padNodes.length
 
 // the small named places: each high city block's deck and the lobby
 check("the four high city decks and the lobby as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
+
+// The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it
+// and up its stairs, on foot, no climbing, an eighth of a metre at a time (at the collision's own quarter a body a door's
+// width round was seen not to fit it, sampled only there): every floor with a standing body's room over it is
+// a spot, and from a spot a body walks to a neighbour's floor within a step. The body is taken as the square round the
+// player's round one, so what it passes a player passes. Its ground floor and the two over it by the stairs (the roof
+// over those is a climb)
+{
+  const [o0, o1] = cfg.rules.blocks.outer;
+  const third = (o1 - o0) / 3;
+  const C = 0.125;
+  const H = MOVE.radius;
+  const rooms = cfg.chunks["c-se"].place.find((p) => p[0].endsWith(`/${cfg.rules.low.rooms.piece}`));
+  check("the rooms building on each corner block", Object.keys(cfg.chunks).filter((k) => /^c-[ns][ew]$/.test(k)).every((k) => cfg.chunks[k].place.some((p) => p[0].endsWith(`/${cfg.rules.low.rooms.piece}`))), `${rooms?.[0]}`);
+  for (const [sx, sz, name] of [[-1, -1, "nw"], [1, -1, "ne"], [-1, 1, "sw"], [1, 1, "se"]] as const) {
+    const [mx, mz] = [sx * (o0 + third), sz * (o0 + third)];
+    // the building's 20 m and 6 m of street round it
+    const [X0, Z0] = [mx - 16, mz - 16];
+    const N = Math.round(32 / C);
+    const spots: Array<{ i: number; j: number; y: number }> = [];
+    const at = new Map<number, number[]>();
+    for (let i = 0; i < N; i++)
+      for (let j = 0; j < N; j++) {
+        const x = X0 + (i + 0.5) * C + BR_X, z = Z0 + (j + 0.5) * C + BR_Z;
+        const here = solidsIn(x - H, x + H, z - H, z + H).filter((s) => s.minX < x + H && s.maxX > x - H && s.minZ < z + H && s.maxZ > z - H);
+        const ground = floorAt(x, z);
+        const ys = new Set<number>([ground]);
+        for (const s of here) if (s.minX <= x && s.maxX >= x && s.minZ <= z && s.maxZ >= z && s.top > ground) ys.add(s.top);
+        const list = [...ys].filter((y) => !here.some((s) => s.base < y + MOVE.standHeight && s.top > y + MOVE.stepHeight));
+        if (list.length) at.set(i * N + j, list.map((y) => (spots.push({ i, j, y }), spots.length - 1)));
+      }
+    const seen = new Uint8Array(spots.length);
+    const todo: number[] = [];
+    for (const [k, list] of at) {
+      const i = Math.floor(k / N), j = k % N;
+      if (i > 1 && i < N - 2 && j > 1 && j < N - 2) continue;
+      for (const s of list) if (Math.abs(spots[s].y) < 0.05) ((seen[s] = 1), todo.push(s));
+    }
+    while (todo.length) {
+      const a = spots[todo.pop()!];
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        if (a.i + di < 0 || a.i + di >= N) continue;
+        for (const s of at.get((a.i + di) * N + a.j + dj) ?? []) if (!seen[s] && spots[s].y - a.y <= MOVE.stepHeight) ((seen[s] = 1), todo.push(s));
+      }
+    }
+    // its floors by storey (the ground's, the first at about 3.5 m, the second at about 7), the share of each reached
+    const storeys = [0, 0, 0].map(() => [0, 0]);
+    spots.forEach((s, k) => {
+      const x = X0 + (s.i + 0.5) * C, z = Z0 + (s.j + 0.5) * C;
+      if (Math.abs(x - mx) > 10 || Math.abs(z - mz) > 10) return;
+      const f = s.y < 2 ? 0 : s.y < 5 ? 1 : s.y < 8.5 ? 2 : -1;
+      if (f < 0) return;
+      storeys[f][0]++;
+      if (seen[k]) storeys[f][1]++;
+    });
+    const share = storeys.map(([all, got]) => (all ? got / all : 0));
+    check(`the ${name} rooms: walked into from the street and up its stairs, on foot, its ground floor and the two over it`, share.every((q) => q >= 0.95), share.map((q, f) => `${["ground", "first", "second"][f]} ${(q * 100).toFixed(0)}%`).join(", "));
+  }
+}
+
 // loot where the fights are, as a match lays it (brmatch.ts): each place's and site's spots on any floor there with a
 // head's room, the roofs and rooms among them
 const loot = new LootField(null);

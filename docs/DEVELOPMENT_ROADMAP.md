@@ -7036,3 +7036,57 @@ FPS, showing short description + button(s) ... this will help new players."
   kept over a reload; Casual at 0.75 of its tier's speed and Skilled as it was; the keys up by default with I for
   inspect and / named; I turning the gun over; / hiding them, remembered over a reload. e2e: sklobby 24 of 24, each new check but one seen failing with its change taken out (the one: a choice kept over a reload); the speedkills section three times: its battle royale check, which read the row's old default, now sets trios and 27 itself; two other checks failed once each and passed on the other runs (host and guest in one city match; the loot start's death box); page passed. Seen: the
   panel photographed in the range at 1600x900. verify, rules.
+
+## Milestone 344 — Rooms to fight in on the corner blocks, and the pack's floors, missing everywhere, drawn
+
+Phase 28.7, the rooms (the owner, 2026-09-28: "start adding in the detail, ensuring we utilize the underground, higher
+buildings, inside rooms to fight in").
+
+- **The rooms**: on each corner block's inner corner, over the four cells there (the yard among them), the pack's
+  realistic Neon Building 04 (20 x 19 x 20 m), turned to face the middle: a basement, a ground floor of rooms and
+  corridors, two floors over it at 3.5 and 7 m joined by its own stairs, and its roof at 10.5 m with the pack's roof
+  rooms on it (a climb). The block's tall building moves to its outer corner, so each block keeps a roof high over the
+  streets.
+- **The see-through lower floor** (the owner, 2026-09-29: "the basement / lower floor is like see through and not how
+  it should be"): the tallest building's floors over its court were among the missing. On the live map, standing in
+  it at street height, one looks straight down through its lower storey into the 7 m pit; with its floors drawn, it
+  is a tiled floor with walls (the same spots photographed on both).
+- **Its floors were not there, nor any room's.** The pack's basic floor slabs and plain walls (FloorBasic00 and the
+  Wall_Simple set, 24 models) are ProBuilder's OBJ exports, and the importer read FBX only, so every room in the bundle
+  was drawn with no floor: the rooms building's upper storeys were walls standing over nothing, and loot had nothing
+  there to lie on. The importer reads OBJ now (`tools/import-city.ts` readObj): each face keeps its material, V is
+  flipped as FBX2glTF flips it, and the coordinates are taken as they are, since ProBuilder's export and Unity's import
+  flip x the same way an FBX's round trip does (FBX2glTF reads an OBJ too, but as centimetres and in one material). 431
+  of the bundle's 1,826 pieces gained triangles and 78 were measured for the first time; of the 51 the map places, 14
+  changed.
+- **What that moved.** Neon Building 09 is 17.6 m deep with its floors and no longer fits a corner cell: out of the
+  tall list. The metro kiosk turned out to be a whole entrance in Unity, two levels under the street walled down both
+  sides and across both ends, its way out a gate in one side: its bottom level's end wall toward the court is left out
+  (a `without` entry may now name one part by its place, name@x,y,z, as the pack's plain walls are one model in many
+  places), and its way in from the plaza is its real doorway, a 2 m gap in one side (the side the route used is walled
+  now, and its front end is glass). The tallest building's ground floor, at street height in the court, a storey over
+  the court's floor and walled in, was taken for street by the bots' graph: two nodes an island a drop could be put on.
+  The street lattice leaves the court out.
+- **Stairs a body fits.** The rooms' stairs are 1.6 m wide with a railing each side, and at the collision's half-metre
+  cells each railing took a whole cell and left half a metre between them: the building is measured at the kiosk's
+  quarter-metre cells (rules.fine).
+- **Loot upstairs.** A room's floor collides as many boxes side by side, few of them a metre across, and loot counted a
+  surface only where one box was: SpeedKills' loot now counts a top where boxes at that height together cover the
+  square round the spot (`loot.ts` acrossTops; the legacy game's loot is untouched), the boxes near it taken from the
+  solid grid: over all 39,000 a spot at a time the pass took laying a match's loot from 170 ms to 320, from the grid
+  to 175. Loot over 12 m: 34 items with the tall buildings off the corners, 61 with them on the outer corners and the
+  rooms' floors counted.
+- The map: 2,543 placements, 1.49 M triangles (from 1.56 M: one building where three or four stood on each corner),
+  39,038 collision boxes (from 26,887: the floors, and the rooms at the finer cells). In the street (bench skmatch)
+  a frame draws 462 calls and 2.74 M triangles on Competitive (454 and 2.79 M before) and 489 and 2.78 M on Balanced
+  (477 and 2.84 M). Frame times were not measured: with the machine loaded, the same run swung from 5 to 41 ms.
+- **The map's files are version 7.**
+- Bots keep to the rooms' ground floors for now: the graph has no nodes on the stairs.
+- **Checked:** `sk-neon.ts` walks each rooms building from the street round it, on foot, an eighth of a metre at a time
+  with the square round the player's round body: ground floor 100%, first floor 100%, second 98%, on all four; seen
+  failing (0% upstairs) with the building taken off the fine cells. The kiosks' routes walked both ways again, through
+  their doorways. A player's own movement up the first flight onto the first floor. The street one network again.
+  verify and rules; e2e `loot` and `br`.
+- Also on main before it (3c25274): a `?norender` page, the e2e's, no longer dresses the Neon map it never draws. That
+  load took the CPU from the e2e's Arena fights: the bots section's last fight failed four runs in four with it, and
+  passed two in two without.

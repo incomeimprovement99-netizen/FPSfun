@@ -99,9 +99,12 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   const onStreetGrid = (v: number) => Math.abs((v + lim) / step - Math.round((v + lim) / step)) < 1e-6;
   // (above the street or under it: the court and its halls, 7 m down, are walked at the finer step too)
   const raised = (i: number) => Math.abs(nodes[i].y ?? 0) > MOVE.stepHeight;
+  // (the street's height inside the court is the tallest building's ground floor, a storey over the court's and walled
+  // in, not street: nodes there were an island a drop could be put on)
+  const inCourt = (x: number, z: number) => x > K.x0 && x < K.x1 && z > K.z0 && z < K.z1;
   for (let x = -lim; x <= lim + 1e-6; x += fine)
     for (let z = -lim; z <= lim + 1e-6; z += fine) {
-      const street = onStreetGrid(x) && onStreetGrid(z);
+      const street = onStreetGrid(x) && onStreetGrid(z) && !inCourt(x, z);
       const ys = floorsAt(x, z).filter((y) => street || Math.abs(y) > MOVE.stepHeight);
       if (ys.length) at.set(`${x},${z}`, ys.map((y) => add(x, z, y)));
     }

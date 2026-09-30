@@ -217,8 +217,17 @@ if (mode === "bake") {
       const matGuid = mat ? pack.matFor(mat) : null;
       if (mat && !matGuid) throw new Error(`no material ${mat}`);
       // (a placement may leave named parts of its prefab out: neonmap.json's rules say which and why)
-      const kept = without ? draws(key).filter(({ d }) => !without.includes(basename(pack.guidPath.get(d.modelGuid) ?? ""))) : draws(key);
-      if (without && kept.length === draws(key).length) throw new Error(`${key}: none of ${without.join(", ")} to leave out`);
+      // An entry is a model's file name (every part drawn from it) or "name@x,y,z", the one part of it whose middle is
+      // within half a metre of there in the prefab's own metres (the pack's plain walls are one model in many places)
+      const leftOut = (w: string, d: Draw, m: M4): boolean => {
+        const [name, at] = w.split("@");
+        if (basename(pack.guidPath.get(d.modelGuid) ?? "") !== name) return false;
+        if (!at) return true;
+        const mid = partMiddle(d, m);
+        return at.split(",").map(Number).every((v, i) => Math.abs(v - mid[i]) < 0.5);
+      };
+      const kept = without ? draws(key).filter(({ d, m }) => !without.some((w) => leftOut(w, d, m))) : draws(key);
+      for (const w of without ?? []) if (!draws(key).some(({ d, m }) => leftOut(w, d, m))) throw new Error(`${key}: no ${w} to leave out`);
       const mine = kept.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
       all.push(...mine);
       if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...mine);
@@ -367,6 +376,20 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
     }
   }
   return found;
+}
+
+/** the middle of a part's bounds, placed by `m` (column-major) */
+function partMiddle(d: Draw, m: M4): [number, number, number] {
+  const lo = [Infinity, Infinity, Infinity];
+  const hi = [-Infinity, -Infinity, -Infinity];
+  for (const q of d.model.meshes[d.mesh].prims)
+    for (let k = 0; k < q.pos.length; k += 3)
+      for (let a = 0; a < 3; a++) {
+        const v = m[a] * q.pos[k] + m[4 + a] * q.pos[k + 1] + m[8 + a] * q.pos[k + 2] + m[12 + a];
+        lo[a] = Math.min(lo[a], v);
+        hi[a] = Math.max(hi[a], v);
+      }
+  return [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
 }
 
 /**
