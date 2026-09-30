@@ -241,7 +241,7 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
 // road on the line of the outer district's straight road, heading along it; nothing but a parked car stands in any of
 // them; and each corner block is built along its curves (its rooms building and three more at least)
 {
-  const CV = cfg.rules.streets.curves as Parameters<typeof curvedStreets>[0] & { inside: number; round: number };
+  const CV = cfg.rules.streets.curves as unknown as Parameters<typeof curvedStreets>[0] & { inside: number; round: number };
   const ST = curvedStreets(CV);
   const SF = new StreetField(ST);
   const bends: string[] = [];
