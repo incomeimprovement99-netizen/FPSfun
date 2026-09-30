@@ -7660,3 +7660,33 @@ boog and the usso. It's critical to have the agents on the same page with it bef
   fault put back; net-delta (the count through a keyframe, a difference and a full packet, seen failing without it);
   the TTK check; paid-weapons (a gun is over 0.22 m: the launcher's round is 0.18, the pistol 0.254); the speedkills and
   sklobby e2e (128); verify; rules; the frame sheets of every sequence and the live sheets.
+
+## Milestone 362 — The Sky Ring: a walkway round the tower's plaza at a first floor's height
+
+Phase 28.8, the master plan's second phase (https://claude.ai/artifact/Pa1VbqmLBvytX2gBVvK9fP).
+
+- **The ring** (rules.skyring). A walkway 4 m wide at 3.5 m (a realistic building's first floor) round the tower's
+  plaza, from 37.5 to 41.5 m out: over the plaza's edge and the Loop's inner lane, 2.7 m of headroom under it. Its deck is
+  baked as a true circle of the pack's floor slab (tools/import-neon.ts, tools/neon-streets.ts ringSlab), worn as the
+  pack's FloorBasic00 wears its faces: paving on top, brick edges, plaster underneath. Measured first: the pack's High
+  City walkway pieces are 2 m deep (1.5 m of headroom under a 3.5 m deck), and its straight slabs round a circle leave a
+  gap at every joint.
+- **Its fence and stairs.** The pack's elegant glass fence along both edges, a 2.5 m length on each chord (its hex panels
+  glow green at night), left open where the stairs arrive; the pack's double stair up from the plaza on each axis,
+  measured to climb 3.42 m to the 3.5 m deck. The Loop's lamps no longer stand under it or at a stair's foot.
+- **Moved from the plan, and why.** The plan had the ring over the Loop's outer pavement; the High City decks stand
+  there now, so it rings the plaza inside the Loop instead, clear of the jump pads. The walkways from it to the rooms
+  buildings are dropped (those buildings stand in the blocks' far corners now). The footbridges out to the decks come
+  with the glass lifts.
+- **Found by the checks.** At the map's half-metre collision the stair's last step onto the deck measured 0.65 m, over a
+  player's 0.56 m step, and the deck's inner edge stood over its last tread: the stair and the deck are measured at a
+  quarter metre (rules.fine) now.
+- **Next, from the owner's note:** the tower becomes the main fight space, many floors of big rooms and stairs, each
+  floor laid out differently (open to dense), so the centre is worth fighting in. The tower has real floors at 0 to 14 m
+  and 38.5 to 49 m and nothing between; six new floors go there.
+- The map: 2,869 placements, 1.87 M triangles, 49,015 collision boxes. **Its files are version 13.**
+- **Checked** (`tools/checks/sk-neon.ts`, 3 new checks): walked up each stair from the plaza onto the deck and round the
+  whole of it, all 248 m and all four stairs' tops (seen failing with the stairs set a metre short); railed along both
+  edges from every metre but the stairs' openings (seen failing with the outer fence left off: 248 open); a standing
+  body's room under it all the way round (seen failing with a 2 m deep slab: 1.5 m). verify and rules; e2e `loot` and
+  `br`. Photographed on the deck by day and night, from the Loop, under it and at a stair.

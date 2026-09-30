@@ -280,6 +280,94 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   check("each corner block built along its curves: its rooms building and three more at least", built.every((n) => n >= 4), built.join(", "));
 }
 
+// The Sky Ring (rules.skyring): the walkway storey round the tower's plaza. Walked up each of its stairs from the
+// plaza, on foot (a body the square round the player's round one, a step up at a time, a quarter metre at a time), onto
+// its deck and round the whole of it to the tops of the other three; railed along both edges from every metre but its
+// stairs' openings (a look across the deck at the waist, in and out, meets a fence); and a standing body's room under
+// it wherever it passes over the plaza and the Loop
+{
+  const SR = cfg.rules.skyring as { r0: number; r1: number; deck: number; fence: { gap: number } };
+  const K2 = (cfg as unknown as { skyring: { stairs: number[][]; exits: number[][] } }).skyring;
+  const C = 0.25, H = MOVE.radius, E = SR.r1 + 4;
+  const N = Math.round((2 * E) / C);
+  const boxes = (i: number, j: number) => {
+    const x = -E + (i + 0.5) * C + BR_X, z = -E + (j + 0.5) * C + BR_Z;
+    return solidsIn(x - H, x + H, z - H, z + H).filter((b) => b.minX < x + H && b.maxX > x - H && b.minZ < z + H && b.maxZ > z - H);
+  };
+  const floorFor = (i: number, j: number, y: number): number | null => {
+    const r = Math.hypot(-E + (i + 0.5) * C, -E + (j + 0.5) * C);
+    if (r < SR.r0 - 9 || r > SR.r1 + 1) return null;
+    const here = boxes(i, j);
+    let f = 0;
+    for (const b of here) if (b.top <= y + MOVE.stepHeight && b.top > f) f = b.top;
+    return here.some((b) => b.base < Math.max(f, y) + MOVE.standHeight && b.top > Math.max(f, y) + MOVE.stepHeight) ? null : f;
+  };
+  const cell = (x: number, z: number) => [Math.floor((x + E) / C), Math.floor((z + E) / C)];
+  const seen = new Map<number, number>();
+  const todo: number[] = [];
+  // (from the plaza in front of each stair: its lower flight's foot is under the ring's edge, a metre on out)
+  for (const [sx, sz] of K2.stairs) {
+    const r = Math.hypot(sx, sz);
+    const [i, j] = cell((sx / r) * (r - 4), (sz / r) * (r - 4));
+    const f = floorFor(i, j, 0);
+    if (f !== null && !seen.has(i * N + j)) (seen.set(i * N + j, f), todo.push(i * N + j));
+  }
+  while (todo.length) {
+    const k = todo.pop()!;
+    const [i, j, y] = [Math.floor(k / N), k % N, seen.get(k)!];
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const [a, b] = [i + di, j + dj];
+      if (a < 0 || b < 0 || a >= N || b >= N) continue;
+      const was = seen.get(a * N + b);
+      const f = floorFor(a, b, y);
+      if (f === null || f < y - 0.6) continue;
+      if (was !== undefined && was >= f) continue;
+      seen.set(a * N + b, f);
+      todo.push(a * N + b);
+    }
+  }
+  // the deck's middle circle a metre at a time: reached, and railed both ways
+  const mid = (SR.r0 + SR.r1) / 2;
+  let deck = 0, reached = 0;
+  const open: string[] = [];
+  const waist = SR.deck + 0.5;
+  const railed = (x: number, z: number, dx: number, dz: number, far: number) => {
+    for (let t = 0; t <= far; t += 0.1) {
+      const [wx, wz] = [x + dx * t + BR_X, z + dz * t + BR_Z];
+      if (solidsIn(wx, wx, wz, wz).some((b) => wx >= b.minX && wx <= b.maxX && wz >= b.minZ && wz <= b.maxZ && b.base < waist && b.top > waist)) return true;
+    }
+    return false;
+  };
+  const n = Math.round(2 * Math.PI * mid);
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * 2 * Math.PI;
+    const [x, z] = [Math.cos(a) * mid, Math.sin(a) * mid];
+    const [i, j] = cell(x, z);
+    deck++;
+    if (Math.abs((seen.get(i * N + j) ?? -9) - SR.deck) < 0.1) reached++;
+    const nearExit = K2.exits.some(([ex, ez]) => Math.hypot(ex - Math.cos(a) * SR.r0, ez - Math.sin(a) * SR.r0) < SR.fence.gap + 0.5);
+    if (!railed(x, z, Math.cos(a), Math.sin(a), (SR.r1 - SR.r0) / 2 + 0.3)) open.push(`out at ${((a * 180) / Math.PI).toFixed(0)} deg`);
+    if (!nearExit && !railed(x, z, -Math.cos(a), -Math.sin(a), (SR.r1 - SR.r0) / 2 + 0.3)) open.push(`in at ${((a * 180) / Math.PI).toFixed(0)} deg`);
+  }
+  const tops = K2.exits.filter(([ex, ez]) => {
+    const [i, j] = cell(ex, ez);
+    return Math.abs((seen.get(i * N + j) ?? -9) - SR.deck) < 0.2;
+  }).length;
+  check("the Sky Ring: walked up its stairs from the plaza onto its deck and round the whole of it, on foot", reached / deck > 0.98 && tops === K2.exits.length, `${reached} of ${deck} metres of its deck reached, ${tops} of ${K2.exits.length} stairs' tops`);
+  check("the Sky Ring: railed along both edges from every metre, but where its stairs arrive", deck > 200 && open.length === 0, `${open.length} open${open.length ? `: ${open.slice(0, 5).join("; ")}` : ""}`);
+  // (under it: the lowest thing over the plaza and the Loop between its edges)
+  let low = Infinity;
+  for (let k = 0; k < n; k++) {
+    const a = (k / n) * 2 * Math.PI;
+    for (let r = SR.r0 + 0.3; r < SR.r1 - 0.3; r += 0.5) {
+      const [wx, wz] = [Math.cos(a) * r + BR_X, Math.sin(a) * r + BR_Z];
+      // (what stands overhead: the deck and what is on it, not a parked car in the lane under it)
+      for (const b of solidsIn(wx, wx, wz, wz)) if (wx >= b.minX && wx <= b.maxX && wz >= b.minZ && wz <= b.maxZ && b.top > SR.deck - 1 && b.base < low) low = b.base;
+    }
+  }
+  check("the Sky Ring: a standing body's room under it all the way round", low > MOVE.standHeight + 0.5, `its underside ${low.toFixed(2)} m up at its lowest`);
+}
+
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it
 // and up its stairs, on foot, no climbing, an eighth of a metre at a time (at the collision's own quarter a body a door's
 // width round was seen not to fit it, sampled only there): every floor with a standing body's room over it is

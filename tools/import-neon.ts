@@ -14,7 +14,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { padStandOff } from "../src/game/padsolve";
-import { streets, StreetField, fieldSurface } from "./neon-streets";
+import { streets, StreetField, fieldSurface, ringSlab } from "./neon-streets";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
@@ -235,6 +235,26 @@ if (mode === "bake") {
       else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
       placed++;
     }
+  }
+  // the Sky Ring (rules.skyring): the walkway storey round the tower's plaza, a true circle of the pack's floor slab
+  // (its paving on top, its brick edges, its plaster underside, as FloorBasic00 wears them), too round for the pack's
+  // straight slabs to follow without a gap at every joint; walked on, so measured for the collision like any room
+  const SR = cfg.rules.skyring;
+  if (SR) {
+    const parts = ringSlab(SR.r0, SR.r1, SR.deck, SR.thick, SR.segments, SR.scale);
+    const prims = (["top", "edge", "under"] as const).map((k) => ({ pos: new Float32Array(parts[k].pos), nrm: new Float32Array(parts[k].nrm), uv: new Float32Array(parts[k].uv), idx: new Uint32Array(parts[k].idx), material: SR.mats[k] }));
+    const mats = prims.map((p) => {
+      const g = pack.matFor(p.material);
+      if (!g) throw new Error(`no material ${p.material}`);
+      return g;
+    });
+    const model = { meshes: [{ name: "skyring", prims }], nodes: [], roots: [] } as unknown as Draw["model"];
+    const d: Draw = { model, mesh: 0, pre: null, mats, modelGuid: "", on: true, go: null };
+    const I: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    (groups.get(groupOf("c-skyring")) ?? groups.set(groupOf("c-skyring"), []).get(groupOf("c-skyring"))!).push({ d, m: I });
+    // (at the finer cell: at the half metre its inner edge stood over the last tread of each stair up to it)
+    openFine.push({ d, m: I });
+    console.log(`the Sky Ring: ${prims.reduce((a, p) => a + p.idx.length / 3, 0)} triangles`);
   }
   // the rooms, stairs and what stands in the open: their own spans, as a district's are (no fill: these pieces are whole)
   // (below the street kept: the tallest building stands in a pit to its basement, 7 m down, whose floors the districts'

@@ -62,6 +62,8 @@ function turned(row: Row, yaw: number): [number, number, number, number] {
 }
 
 /** a turn about y as the bake applies it (x' = c x + s z, z' = -s x + c z), any angle */
+/** a player's step (movement.json stepHeight, in hammer units: an inch each), metres */
+const MOVE_STEP = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).stepHeight * 0.0254;
 const rotY = (yaw: number, x: number, z: number): Pt => {
   const a = (yaw * Math.PI) / 180;
   const [c, s] = [Math.cos(a), Math.sin(a)];
@@ -618,6 +620,46 @@ if (holes.length) {
   };
 }
 
+// The Sky Ring (rules.skyring): the walkway storey, a ring of the pack's floor slab round the tower's plaza at the
+// height of a building's first floor, its deck baked as a true circle (tools/import-neon.ts). Here its fences, the
+// pack's elegant glass one along both edges, a length along each chord; and its stairs, the pack's double flight up from
+// the plaza on each axis, their top at the ring's inner edge, the fence left open where each arrives
+const skyStairs: Pt[] = [];
+{
+  const SR = R.skyring;
+  const fence = piece(SR.fence.piece).row;
+  const flen = fence.max![0];
+  const stair = piece(SR.stairs.piece).row;
+  if (Math.abs(SR.deck - SR.stairs.rise) > MOVE_STEP) throw new Error(`the stair climbs ${SR.stairs.rise} m to a deck at ${SR.deck}`);
+  // the stairs: own +z (the side its upper flight tops out on) out toward the ring, its pivot on the inner edge
+  const exits: Pt[] = [];
+  for (const deg of SR.stairs.at as number[]) {
+    const u: Pt = [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)];
+    const yaw = yawToward(u[0], u[1]);
+    add("c-skyring", "c", [piece(SR.stairs.piece).key, +(u[0] * SR.r0).toFixed(3), 0, +(u[1] * SR.r0).toFixed(3), +yaw.toFixed(2), "o"] as Place);
+    const [ex, ez] = rotY(yaw, SR.stairs.exit[0], SR.stairs.exit[1]);
+    exits.push([u[0] * SR.r0 + ex, u[1] * SR.r0 + ez]);
+    skyStairs.push([u[0] * (SR.r0 - stair.size![2] / 2), u[1] * (SR.r0 - stair.size![2] / 2)]);
+  }
+  let fences = 0;
+  for (const [r, open] of [[SR.r0 + SR.fence.inset, true], [SR.r1 - SR.fence.inset, false]] as const) {
+    const n = Math.ceil((2 * Math.PI * r) / (flen - 0.05));
+    for (let k = 0; k < n; k++) {
+      const [a, b] = [(k / n) * 2 * Math.PI, ((k + 1) / n) * 2 * Math.PI];
+      const pa: Pt = [Math.cos(a) * r, Math.sin(a) * r];
+      const pb: Pt = [Math.cos(b) * r, Math.sin(b) * r];
+      const mid: Pt = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
+      if (open && exits.some((e) => Math.hypot(e[0] - mid[0], e[1] - mid[1]) < SR.fence.gap)) continue;
+      const d: Pt = [pb[0] - pa[0], pb[1] - pa[1]];
+      // (its own x along the chord from its pivot)
+      add("c-skyring", "c", [piece(SR.fence.piece).key, +pa[0].toFixed(3), SR.deck, +pa[1].toFixed(3), +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2), "o"] as Place);
+      fences++;
+    }
+  }
+  cfg.skyring = { r0: SR.r0, r1: SR.r1, deck: SR.deck, stairs: skyStairs.map((q) => q.map((v) => +v.toFixed(2))), exits: exits.map((q) => q.map((v) => +v.toFixed(2))) };
+  console.log(`the Sky Ring: ${fences} lengths of fence, ${exits.length} stairs`);
+}
+
 // The centre's streets dressed with the pack's own (rules.dress): its street lamps along both kerbs, cars parked in the
 // lanes by the kerbs (crouching cover in the street), and cars flying over the streets (the store's pictures have them,
 // out of reach and so with no collision), all turned along the curves. Clear of the junctions, the jump pads and the
@@ -628,6 +670,8 @@ if (holes.length) {
   const kiosks = ((cfg.court?.halls ?? []) as Array<{ route?: number[][]; x0: number; x1: number; z0: number; z1: number }>).filter((h) => h.route);
   const clear = (x: number, z: number, r: number, st: Street): boolean =>
     onRoad(x, z, st) > D.crossing + r &&
+    !(Math.hypot(x, z) > R.skyring.r0 - r - 1 && Math.hypot(x, z) < R.skyring.r1 + r + 1 && r < 2) &&
+    !skyStairs.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < r + 5) &&
     Math.max(Math.abs(x), Math.abs(z)) < CV.inside - 3 &&
     !pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + D.padClear) &&
     !kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r);

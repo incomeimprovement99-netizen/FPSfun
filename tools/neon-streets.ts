@@ -264,6 +264,46 @@ export function contours(value: (x: number, z: number) => number, x0: number, x1
   return out;
 }
 
+/**
+ * A ring-shaped slab (an annulus from r0 to r1, its top at `top`, `thick` deep) as three surfaces: its top, its
+ * underside and its two edges, `n` segments round. Positions and indices each, the top and underside mapped by the
+ * metre over the ground (`scale` of the texture a metre), the edges along the ring and up; wound to face out
+ */
+export function ringSlab(r0: number, r1: number, top: number, thick: number, n: number, scale: number): Record<"top" | "under" | "edge", { pos: number[]; uv: number[]; nrm: number[]; idx: number[] }> {
+  const part = () => ({ pos: [] as number[], uv: [] as number[], nrm: [] as number[], idx: [] as number[] });
+  const out = { top: part(), under: part(), edge: part() };
+  const at = (k: number): Pt => [Math.cos((k / n) * 2 * Math.PI), Math.sin((k / n) * 2 * Math.PI)];
+  for (let k = 0; k < n; k++) {
+    const [a, b] = [at(k), at(k + 1)];
+    // the top and the underside: a quad from the inner edge to the outer
+    for (const [p, y, ny] of [[out.top, top, 1], [out.under, top - thick, -1]] as const) {
+      const base = p.pos.length / 3;
+      for (const [d, r] of [[a, r0], [a, r1], [b, r1], [b, r0]] as const) {
+        p.pos.push(d[0] * r, y, d[1] * r);
+        p.uv.push(d[0] * r * scale, d[1] * r * scale);
+        p.nrm.push(0, ny, 0);
+      }
+      // (seen from above, a to b round the ring turns counter-clockwise in x z with z south: the top's winding flips)
+      if (ny > 0) p.idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
+      else p.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+    }
+    // the edges: the outer facing out, the inner facing in
+    for (const [r, sgn] of [[r1, 1], [r0, -1]] as const) {
+      const p = out.edge;
+      const base = p.pos.length / 3;
+      const u0 = ((k / n) * 2 * Math.PI * r) * scale, u1 = (((k + 1) / n) * 2 * Math.PI * r) * scale;
+      for (const [d, y, u] of [[a, top, u0], [b, top, u1], [b, top - thick, u1], [a, top - thick, u0]] as const) {
+        p.pos.push(d[0] * r, y, d[1] * r);
+        p.uv.push(u, (top - y) * scale);
+        p.nrm.push(d[0] * sgn, 0, d[1] * sgn);
+      }
+      if (sgn > 0) p.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      else p.idx.push(base, base + 2, base + 1, base, base + 3, base + 2);
+    }
+  }
+  return out;
+}
+
 /** a polyline's points every `every` metres along it, each with its unit tangent */
 export function along(pts: Pt[], closed: boolean, every: number, from = every / 2): Array<{ p: Pt; t: Pt }> {
   const src = closed ? [...pts, pts[0]] : pts;
