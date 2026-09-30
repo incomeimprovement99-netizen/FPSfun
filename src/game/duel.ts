@@ -244,6 +244,13 @@ export interface LocalState {
   name: string;
   /** in the game (not on the menu) */
   ready: boolean;
+  /**
+   * SpeedKills: the mode's intro card is still up, so this player is not ready
+   * yet however they came in: the match's start (the countdown, the ship) waits
+   * for the card to end (the owner, 2026-09-29: "then when that finishes
+   * playing, then we start the drop ship and / or other modes").
+   */
+  held?: boolean;
   /** for the figure the others see */
   stance: FigureStance;
   speed: number;
@@ -1924,7 +1931,7 @@ export class Duel implements MatchLike {
   private frame(local: LocalState): void {
     const now = wallClock();
     this.selfAt.set(local.x, local.y, local.z);
-    this.ready = local.ready;
+    this.ready = local.ready && !local.held;
     // Capture time is real time too. Up to 1.1 s a step covers a hidden tab's
     // one frame a second; a longer gap (a stalled tab) is not counted.
     const dt = Math.max(0, Math.min(1.1, now - this.lastClock));

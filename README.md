@@ -984,7 +984,11 @@ damage).
   material, PBR textures and glTF props are CC0 and fetched by script, and
   three presets trade post-processing for frame rate.
 - **The intro card** (`src/ui/intro.ts`, `src/config/intro.json`): one 2D
-  canvas over the page, and the loading screen while it is there. The rain is a column every
+  canvas over the page, and the loading screen while it is there. SpeedKills
+  plays no card as the page opens: its loading screen and bar stay until the
+  world, the bought guns and the figures are in, the mode's card plays as a
+  match starts, once loading is done, and the match (the countdown, the
+  dropship) waits for it to end. The rain is a column every
   16 px, each falling at its own speed with its head lit and its tail left
   behind by a frame that only half clears; the name lands from two and a half
   times its size with a green and a cyan copy a few pixels either side; the

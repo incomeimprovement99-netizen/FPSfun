@@ -2122,6 +2122,8 @@ export class BotMatch implements MatchLike {
     const feet = new THREE.Vector3(local.x, local.y, local.z);
     this.lastFeet.copy(feet);
     const center = this.center;
+    // the first countdown waits for the mode's card to end, as a match's start does (duel.ts LocalState.held)
+    if (local.held && this.phase === "countdown" && this.round === 1) this.phaseEndsAt = Math.max(this.phaseEndsAt, now + COUNTDOWN);
 
     if (this.phase === "fight") {
       const since = now - this.fightStartedAt;

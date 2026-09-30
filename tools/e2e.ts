@@ -31,6 +31,7 @@ import ammoCfg from "../src/config/ammo.json";
 import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
 import botsCfgE2e from "../src/config/bots.json";
+import hudCfgE2e from "../src/config/hud.json";
 import fparmsCfg from "../src/config/fparms.json";
 import squadCfg from "../src/config/squad.json";
 import cityCfgE2e from "../src/config/city.json";
@@ -6379,9 +6380,13 @@ async function skDefaultsTest(browser: Browser): Promise<void> {
  */
 async function skOutlineTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?game=speedkills&norender");
-  // the bot on the rifle, whose bought model is the one with scale-100 parts (a bot's gun is otherwise drawn at random)
-  await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "normal"; const w = document.getElementById("botWeapon"); w.value = "rspn101"; w.dispatchEvent(new Event("change")); window.__range.startBots(); })()`);
+  // the bought soldier and guns in first: a figure made before them keeps its stand-in body and gun for the match
+  await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 120000 }).catch(() => undefined);
+  await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "normal"; window.__range.startBots(); })()`);
   await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).catch(() => undefined);
+  // the bot on the rifle, whose bought model is the one with scale-100 parts (a bot 1v1 draws its bot's gun at
+  // random, and the Bot guns box is the modes'; on another gun this check measured nothing that could go wrong)
+  await ev(page, `(() => { const b0 = window.__range.duel()?.bots?.[0]; if (b0) (b0.bot ?? b0).setWeapon("rspn101"); })()`);
   // the bot's figure with a bought gun in its hands (the scale-100 parts), its outline on at 2 cm
   const read = `(() => { const r = window.__range; const d = r.duel(); const b0 = d?.bots?.[0]; if (!b0) return null; const fig = (b0.bot ?? b0).dummy;
     fig.setOutline(true, 0.02, 0xff2a3a, 0.12);
@@ -6392,8 +6397,49 @@ async function skOutlineTest(browser: Browser): Promise<void> {
   const off = got ? got.widths.filter((w) => Math.abs(w - 0.02) > 0.0005) : [];
   if (!got) console.log("  --  outline read:", await ev<string>(page, `(() => { try { return JSON.stringify(${read}); } catch (e) { return "threw: " + e.message; } })()`).catch((e) => String(e)));
   check("outline: every hull round an enemy stands 2 cm out, the bought gun's scale-100 parts too (they stood 2 m out: the red orb)", !!got && got.on > 0 && got.big > 0 && off.length === 0, JSON.stringify({ hulls: got?.widths.length, big: got?.big, off: off.slice(0, 6) }));
-  // the bots' guns back to the mixed list for the pages after this one (they share the browser's storage)
-  await ev(page, `(() => { const w = document.getElementById("botWeapon"); w.value = ""; w.dispatchEvent(new Event("change")); })()`);
+  await page.close();
+}
+
+/**
+ * SpeedKills' order of things (the owner, 2026-09-29): "the basic speed kills with the progress bar is all we want them
+ * to see whenever we are loading things, then once that's done, then we put the animation specific screen up (depending
+ * on which mode they are playing), then when that finishes playing, then we start the drop ship and / or other modes".
+ * The one SpeedKills page in the suite with the card on.
+ */
+async function skIntroTest(browser: Browser): Promise<void> {
+  // drawn: a ?norender page never builds the first-person arms, one of the late steps the loading screen waits on
+  const page = await open(browser, "?game=speedkills&intro=on");
+  // while it loads: the loading screen, its bar, and no card; and it goes only once everything the card waits on is in
+  const boot = await ev<{ everCard: boolean; bar: boolean; atHide: { loaded: boolean; secs: number; status: string; waited: boolean; kind: string | null } | null }>(
+    page,
+    `new Promise((ok) => { const R = window.__range; const L = document.getElementById("loading"); let everCard = false; let bar = false; const t0 = performance.now();
+      const step = () => { const s = R.intro.state(); if (s.kind !== null) everCard = true; if (L && !L.hidden && !L.classList.contains("done") && document.getElementById("loadingFill")) bar = true;
+        const gone = !L || L.hidden || L.classList.contains("done");
+        const st = document.getElementById("loadingStatus")?.textContent ?? "";
+        if (!gone && /READY/.test(st)) window.__waitedLate = true;
+        if (gone) return ok({ everCard, bar, atHide: { loaded: R.loaded(), secs: (performance.now() - t0) / 1000, status: st, waited: !!window.__waitedLate, kind: s.kind } });
+        if (performance.now() - t0 > 120000) return ok({ everCard, bar, atHide: null });
+        setTimeout(step, 50); };
+      step(); })`
+  );
+  const after = await ev<{ played: number; kind: string | null }>(page, `(() => { const s = window.__range.intro.state(); return { played: s.played, kind: s.kind }; })()`);
+  check("sk order: while it loads, the loading screen and its bar and no card; no card when it goes either", !boot.everCard && boot.bar && after.played === 0 && after.kind === null, JSON.stringify({ boot, after }));
+  // it goes by itself once everything asked for is in and the late steps (the bought guns, the figures) are done, not
+  // on its time limit (hud.json loading.maxSeconds). (Its count can run on after it has gone: a page asks for a few
+  // more files as it settles, and the line keeps counting under the fade.)
+  check("sk order: the loading screen goes by itself once everything is in, not on its time limit", !!boot.atHide && boot.atHide.loaded && boot.atHide.secs < hudCfgE2e.loading.maxSeconds, JSON.stringify(boot.atHide));
+  // a battle royale: the mode's card, and the match waiting under it; the ship only once it has ended
+  await ev(page, `(() => { document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  await pressPlay(page);
+  const during = await page
+    .waitForFunction(`(() => { const s = window.__range.intro.state(); return s.kind === "match" ? { phase: window.__range.duel()?.phase, aboard: window.__range.player.aboard, dropping: window.__range.player.dropping } : null; })()`, { polling: 50, timeout: 20000 })
+    .then((h) => h.jsonValue() as Promise<{ phase: string; aboard: boolean; dropping: boolean }>, () => null);
+  await sleep(1200);
+  const stillHeld = await ev<{ kind: string | null; phase: string; aboard: boolean }>(page, `(() => ({ kind: window.__range.intro.state().kind, phase: window.__range.duel()?.phase, aboard: window.__range.player.aboard }))()`);
+  check("sk order: starting a battle royale plays its card, and the match waits under it: no countdown, no ship", !!during && during.phase === "waiting" && !during.aboard && !during.dropping && (stillHeld.kind === null || (stillHeld.phase === "waiting" && !stillHeld.aboard)), JSON.stringify({ during, stillHeld }));
+  const ended = await page.waitForFunction(`window.__range.intro.state().kind === null`, { polling: 50, timeout: 20000 }).then(() => true, () => false);
+  const started = await page.waitForFunction(`window.__range.duel()?.phase !== "waiting" && (window.__range.player.aboard || window.__range.player.dropping)`, { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  check("sk order: once the card has ended the match starts, and you are on the ship", ended && started, JSON.stringify({ ended, started, phase: await ev<string>(page, "window.__range.duel()?.phase ?? null") }));
   await page.close();
 }
 
@@ -8465,6 +8511,7 @@ async function main(): Promise<void> {
       await skGroupTest(browser);
       await skDefaultsTest(browser);
       await skOutlineTest(browser);
+      await skIntroTest(browser);
     }
 
     if (want("skfriends")) {

@@ -182,6 +182,11 @@ const intro = new Intro();
 const NO_INTRO = new URLSearchParams(location.search).has("nointro");
 /** the card that opens the game has been played (the frame loop starts it once the world is in) */
 let introShown = false;
+/**
+ * SpeedKills: a mode's card asked for while the loading screen is still up (a match started from an invite link as the
+ * page opens): it waits for the screen to go, then plays, and the match waits for it (the local state's `held`)
+ */
+let cardPending: { words?: { name: string; sub: string } } | null = null;
 // a key or a click takes the rest of it: nobody wants a title card twice
 if (!NO_INTRO) for (const ev of ["keydown", "pointerdown"] as const) window.addEventListener(ev, () => intro.skip(), { capture: true });
 // the shot the card is built round, heard as well as seen. Nothing is heard on
@@ -203,6 +208,9 @@ intro.onWarm = () => {
 // first-person arms built from him, which are asked for twice a second): each was a stall that landed on the card once
 // it had started (intro.json settle)
 intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms)));
+// SpeedKills: the loading screen, its bar and its tips, is what shows while anything loads, up to those late steps
+// too; there is no card over it, and a mode's card plays once it is done (below, and wireMatch)
+if (IS_SK) loadingScreen.waitFor = () => paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms);
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -4940,7 +4948,11 @@ function modeWords(d: MatchLike, kind: MatchKind): { name: string; sub: string }
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   // dropping into a match: the short card, over the match already starting
   // underneath it. Nothing waits for it (src/ui/intro.ts).
-  if (!NO_INTRO) void intro.play("match", modeWords(d, kind));
+  // SpeedKills: never over the loading screen; the mode's card once it has gone (cardPending), the match held under it
+  if (!NO_INTRO) {
+    if (IS_SK && !loadingScreen.loaded) cardPending = { words: modeWords(d, kind) };
+    else void intro.play("match", modeWords(d, kind));
+  }
   note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
   d.onRespawn = () => respawnForMatch(d);
   // a guest with a seat key (a host that gives one) gets back in after a dropped connection
@@ -7997,6 +8009,8 @@ function step(): void {
     look: lookCode(loadouts.current),
     name: profile.profile.name,
     ready: input.playing,
+    // SpeedKills: the mode's card still up holds the match's start (duel.ts LocalState.held)
+    held: IS_SK && (intro.kind !== null || cardPending !== null),
     stance: downedNow ? "downed" : player.stance,
     speed: player.speed,
     ads: ws.adsFrac,
@@ -8350,10 +8364,20 @@ function step(): void {
   // models and textures coming in and being decoded, which is one long stutter
   // on the main thread: a card played through that plays on a clock nobody can
   // see. From here the frames are steady (src/ui/intro.ts).
+  // a mode's card that waited for the loading screen: now it has gone
+  if (cardPending && loadingScreen.loaded) {
+    const { words } = cardPending;
+    cardPending = null;
+    void intro.play("match", words);
+  }
   if (!NO_INTRO && !introShown) {
     introShown = true;
-    loadingScreen.hide();
-    void intro.play("boot");
+    // SpeedKills opens on its loading screen alone, which goes by itself once everything is in (its waitFor); the
+    // card is the mode's own, as a match starts (the owner, 2026-09-29: the card was played too often)
+    if (!IS_SK) {
+      loadingScreen.hide();
+      void intro.play("boot");
+    }
   }
   // CPU time for everything this frame did: simulation, render submission and
   // HUD. The GPU works on it after this, in parallel with the next frame.

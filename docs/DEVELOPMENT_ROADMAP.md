@@ -7174,3 +7174,34 @@ the red dot sight has them as well. that is obviously bugs and i asked for you t
   inside test at the pad's open edge); the reload's left fingertips 9 to 23 mm into the receiver at the magazine and the
   handle, seen only close.
 - **Checked:** verify; rules; the e2e `skfigure` and `soldier` sections; the sheets above.
+
+## Milestone 348 — Loading, then the mode's card, then the match: the ship waits for the card
+
+The owner, 2026-09-29: "I want the ship to start way further back or at least don't make the ship start moving until we
+already played the animation thing and loaded. and the animation screen gets played too often now, it should only play
+once we loaded everything, the basic speed kills with the progress bar is all we want them to see whenever we are
+loading things, then once thats done, then we put the animation specific screen up (depending on which mode they are
+playing), then when that finishs playing, then we start the drop ship and / or other modes."
+
+SpeedKills only (the legacy game keeps its card as it was, and its intro check with it).
+
+- **Loading** (`loading.ts` waitFor, `main.ts`): SpeedKills opens on its loading screen alone, the bar and the tips.
+  The intro card had stood in for it since Phase 20, holding on its rain until the world was in, which made it a card
+  on every page load. The screen now waits for the world and for SpeedKills' late steps too (the bought guns dressed,
+  the figures done, the first-person arms), the line saying "GETTING THE SOLDIERS AND GUNS READY" while it does, still
+  gone by its 25 s limit whatever happens.
+- **The mode's card** (`main.ts` cardPending): plays as a match starts, never over the loading screen: a match started
+  while the page still loads (an invite link opened) has its card wait until the screen has gone.
+- **The match waits for the card** (`duel.ts` LocalState.held, `bots.ts` BotMatch): while the card is up, or waiting
+  to play, the player is not ready, and every friends', battle royale and mode match already waits for everyone to be
+  ready before its countdown and its ship; the bot 1v1, which counted down from the moment it was made, holds its first
+  countdown the same way. So the dropship does not start until the card has ended, for every friend in the match too,
+  and a key that skips the card starts it at once.
+- **Checked:** new sklobby checks on a drawn SpeedKills page with the card on: while it loads the loading screen and
+  its bar and no card, none when it goes either; it goes by itself inside its limit; a battle royale plays its card with
+  the match waiting under it, no countdown and no ship; once the card ends the match starts and you are on the ship.
+  With the old order put back (the boot card, nothing held) three of them failed. The outline check of Milestone 345
+  now waits for the bought soldier before its match (a figure made before it keeps its stand-in for the match, and on
+  it the check measured nothing), and puts the rifle in the bot's hands itself (a bot 1v1 draws its gun at random).
+  sklobby 29 of 29; speedkills 100 of 100 run alone (a first run under load failed two of the friends' ghost checks,
+  which passed alone, as they have before); verify, rules.

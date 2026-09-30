@@ -22,6 +22,17 @@ const TIPS: string[] = IS_SK ? CFG.tipsSk : CFG.tips;
 export class LoadingScreen {
   /** everything asked for is in and the first frame is drawn (the tools wait on it) */
   loaded = false;
+  /**
+   * Something more to wait for once the world is in, or null for the world
+   * alone. SpeedKills waits here for its late heavy steps too (main.ts: the
+   * bought guns dressed, the figures settled, the first-person arms built): the
+   * owner, 2026-09-29, "the basic speed kills with the progress bar is all we
+   * want them to see whenever we are loading things", where its intro card had
+   * stood in for this screen and held on its rain until they were done.
+   */
+  waitFor: (() => boolean) | null = null;
+  /** the status line while it waits for that, the bar full */
+  waitingText = "GETTING THE SOLDIERS AND GUNS READY";
   private itemsLoaded = 0;
   private itemsTotal = 0;
   private allIn = false;
@@ -88,8 +99,10 @@ export class LoadingScreen {
     // nothing was ever asked for (all cached, or a page with no loads): a short grace, then go
     const nothingAsked = this.itemsTotal === 0 && t > CFG.quietSeconds;
     if (t < CFG.minSeconds) return;
-    if ((this.allIn || nothingAsked) && this.firstFrame) this.finish();
+    const settled = !this.waitFor || this.waitFor();
+    if ((this.allIn || nothingAsked) && this.firstFrame && settled) this.finish();
     else if (t > CFG.maxSeconds) this.finish();
+    else if ((this.allIn || nothingAsked) && !settled && this.status) this.status.textContent = this.waitingText;
   }
 
   /**
