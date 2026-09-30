@@ -7610,3 +7610,53 @@ what we had before if the new plan doesn't suit it").
   at street level on the Loop, a fork and a curved street.
 - Next (the plan's phase 2): the Sky Ring, the walkway storey at 3.5 m, its footbridges and the walkways out to the
   rooms buildings' first floors.
+
+## Milestone 361 — The soldier's reload is the first person's, its fingers on the trigger and a tenth smaller, BOOG by its rail, a flip on the double jump, and a pistol for PULSAR
+
+SpeedKills' soldier and roster, from the owner's look at the USSO and BOOG (2026-09-30): "there should be an
+animation for when we double jump for sure, the boogs 3rd person still has the hand grabbing the magazine instead of
+the had stop/rail", "trigger finger should be on the trigger, not in the ready position", "remove the pulsar, no need
+for a fast marksman, just call it marksman now in all the references of it, then add the pistol to replace it", and
+"the first and third person final forms agree with each others animations and movements when they reload for the
+boog and the usso. It's critical to have the agents on the same page with it before we move on".
+
+- **The reload, one timeline for both views.** The soldier's reload is laid on the first person's, read at run time
+  from the guns agent's fparms.json (reload: point, phaseOut, phaseIn, seat, rack, rackBlend, slide, lead, follow, and
+  slideIn and rackOut when present; guns; packGuns.<gun>.rack), so the two cannot part (rifle.ts reloadPlanOf). The
+  gun turns its magazine toward the left hand as the hand leaves the fore-end and points at it (index out, the rest
+  curled, the thumb tucked); the magazine slides `slide` down its own length and phases out with the first person's
+  own sweep (phase.ts, gunfeel.json phase, run on this figure's magazine alone), a new one phases in and seats with a
+  kick; then the USSO's left hand racks the charging handle on the MPS5's grab shares, and BOOG's left goes back to the
+  fore-end while its right works the bolt over the L96X clip's bolt (0.68 to 0.86 of the reload). The magazine is
+  never dropped and nothing comes from a pouch: the soldier used to pull it, drop a copy to the floor and fetch a new
+  one from the hip, which the first person never did. The two agents agreed the timeline over messages, and the guns
+  agent's slideIn (the new magazine phases in seated, built from the well down: the owner's "the reverse order", which
+  on screen came from the rise) and rackOut (BOOG's bolt hands back over 0.86 to 0.98) are read as they land.
+- **The trigger finger on the trigger:** tools/figure-fit.ts searches the right index's joints and swing onto the
+  bought model's Trigger part (anywhere on its front face, tools/figure-audit.js __triggerGap). The USSO's index is 0.1
+  mm from it, BOOG's 0.1 (BOOG's right hand 1 cm further up its grip, where the index reaches the trigger's loop).
+- **The fingers a tenth smaller** (soldierhold.json fingerSize 0.9, each finger scaled about its root, the figure's
+  alone). Half size, first asked, could not hold the guns: the index stopped 17 mm short of BOOG's trigger from any grip
+  it could close round, and the left hands shut into fists beside the fore-ends; thinned to half their thickness at 0.8
+  of their length instead, the owner saw them "gucked up" and asked for 90%. All four hands fitted again round them
+  (the USSO drawn 1.05 times its model, where its fingers close inside its guard; 1.1 before).
+- **BOOG by its rail:** the left hand on the rail under the fore-end at its rear end, 22.5 cm in front of the grip, not
+  the magazine. At the rail's middle the arm fell short at rest and the hold slid back 19%, and aimed on the move 54%
+  onto the magazine; there, with BOOG's shoulder let reach 70 degrees (the shared 34 slid 44% aimed at a sprint), it
+  does not slide at rest, aimed, looking up or down, running or sprinting aimed, or through a melee.
+- **A double jump is a front flip** (figure.json doubleJump: 360 degrees in 0.5 s, eased, round the hips, the legs
+  tucked; SpeedKills' double jump rises 0.39 s): the player's count of them (player.ts airJumps) goes to the figure
+  and over the network as `dj` (net/state.ts, the last optional key, so an older build ignores it). Only an explicit
+  count: found from the figure's height, a wall run's start, a climb's end boost and a zipline's pop flipped it too.
+- **The roster:** PULSAR (g2) is out and HAEFY is plain Marksman. HAMMER (a working name) is the legacy Wingman tuned
+  to Hyper Scape's Riot One: its 26 against Hyper Scape's 120 health is five body hits, which against our 150 is 32.5
+  (Wingman 50 x 0.65), six rounds, a quarter of the kick, 1.5 to the head, no drop-off, 2.8 shots a second; 1.79 s to
+  kill at 80% on target, fused the same. It wears the pack's second pistol (SciFiPistol02_2, measured into
+  paidmodels.json, aimed down its own dot). The defaults: Marksman is HAEFY and PANDA, Skirmisher STRYDER and HAMMER;
+  the bots and the Gulag carry HAMMER where they carried PULSAR. On the soldier HAMMER has the clips' own pistol hold
+  until its turn in PLAN_SOLDIER_EIGHT_GUNS.md.
+- **Checked:** the skfigure e2e (44: the trigger finger on both guns, every finger at 0.9, BOOG's hold on the rail, the
+  reload against fparms.json at its beats, never dropped, a double jump's flip), each new check seen failing with its
+  fault put back; net-delta (the count through a keyframe, a difference and a full packet, seen failing without it);
+  the TTK check; paid-weapons (a gun is over 0.22 m: the launcher's round is 0.18, the pistol 0.254); the speedkills and
+  sklobby e2e (128); verify; rules; the frame sheets of every sequence and the live sheets.
