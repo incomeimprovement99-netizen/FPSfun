@@ -4713,6 +4713,40 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
 }
 
 /**
+ * The broker gone for a moment in the middle of a Join (link.ts, net.json broker). The host's page loses its broker
+ * socket a moment after the friend's Join, mid-handshake: it ended the join ("Connection failed (webrtc)") and could
+ * end the host's lobby too, with "No match with that code" on the host's own screen (a probe on our own server,
+ * 2026-09-29). Now the host's lobby waits for the broker and the friend's page tries once more.
+ */
+async function brokerBlipTest(browser: Browser, query: string, afterMs: number): Promise<void> {
+  const REC = `(() => { const W = window.WebSocket; window.__sockets = []; window.WebSocket = class extends W { constructor(...a) { super(...a); window.__sockets.push(this); } }; })()`;
+  const host = await open(browser, query, BASE, REC);
+  const guest = await open(browser, query);
+  const label = `a broker blip ${afterMs} ms into a friend's Join`;
+  await ev(host, `document.getElementById("duelHost").click()`);
+  let code = "";
+  try {
+    await host.waitForSelector("#duelStatus .code", { timeout: 30000 });
+    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
+  } catch {
+    console.log(`  --  ${label}: skipped, no code from the broker`);
+    await host.close();
+    await guest.close();
+    return;
+  }
+  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  await sleep(afterMs);
+  const cut = await ev<number>(host, `(() => { const s = window.__sockets.filter((x) => /peerjs/.test(x.url) && x.readyState === 1); s.forEach((x) => x.close()); return s.length; })()`);
+  const inBoth = await Promise.all([host, guest].map((p) => p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 45000 }).then(() => true, () => false)));
+  const said = await Promise.all([host, guest].map((p) => ev<string>(p, `document.getElementById("duelStatus").textContent`)));
+  check(`${label}: the friend still gets in, and the host's lobby is not ended by it`, cut === 1 && inBoth.every(Boolean), JSON.stringify({ cut, inBoth, host: said[0].slice(0, 90), guest: said[1].slice(0, 90) }));
+  for (const p of [guest, host]) {
+    await ev(p, "window.__range.duel()?.leave()").catch(() => undefined);
+    await p.close();
+  }
+}
+
+/**
  * Getting back in: a guest whose connection drops mid-match (no goodbye)
  * keeps playing, the host holds the seat, and the guest is back on it with
  * the same code and the seat's key; a seat nobody comes back for is given up,
@@ -8591,6 +8625,8 @@ async function main(): Promise<void> {
         await handoverTest(browser, "?norender");
         console.log("\nVoice chat, over peer to peer");
         await voiceTest(browser, "?norender");
+        console.log("\nThe broker gone for a moment in the middle of a Join, over peer to peer");
+        for (const ms of [50, 300]) await brokerBlipTest(browser, "?norender", ms);
         console.log("\nThe group from match to match, over peer to peer (a welcome mid-match, packed the way PeerJS packs it)");
         await skGroupTest(browser, "?game=speedkills&norender");
       }

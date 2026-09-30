@@ -24,6 +24,12 @@ import { withoutUndefined } from "./wire";
 
 /** the unordered channel for the delta packets (net.json fast) */
 const FAST = netCfgFast.fast;
+/** the broker gone for a moment, a host's and a friend's patience with it (net.json broker) */
+const BROKER = netCfgFast.broker;
+/** what a failed handshake says that a moment later can mend: no such match yet, or WebRTC giving out mid-offer */
+const HANDSHAKE_ERRORS = new Set(["peer-unavailable", "webrtc"]);
+/** the broker itself gone (a restart, a network blink), which PeerJS gets back from on reconnect */
+const BROKER_ERRORS = new Set(["network", "socket-error", "socket-closed", "server-error", "disconnected"]);
 
 /** everything that goes over the link; see duel.ts for the meanings */
 export type NetMsg =
@@ -772,7 +778,17 @@ export function hostMatch(
     if (cancelled) return;
     const p = new Peer(`${PREFIX}${code}`, o);
     peer = p;
-    p.on("open", () => !cancelled && onCode(code));
+    // "open" comes again on every reconnect, and the code is the same one: said once (a second said it
+    // again, copied the invite again, and ran a handover's next step twice)
+    let told = false;
+    /** when the broker went, while it is gone */
+    let goneAt: number | null = null;
+    p.on("open", () => {
+      goneAt = null;
+      if (told || cancelled) return;
+      told = true;
+      onCode(code);
+    });
     p.on("connection", (conn) => {
       conn.on("open", () => {
         // a cancelled match lets the connection open and then closes it, so
@@ -799,9 +815,25 @@ export function hostMatch(
       });
     });
     // a broker blip: register the code again, or the next friend (or one
-    // coming back after a dropped connection) gets "no match with that code"
+    // coming back after a dropped connection) gets "no match with that code".
+    // Not at once: straight back against a server still starting, it failed
+    // again at once, and the failure ended the lobby (net.json broker).
     p.on("disconnected", () => {
-      if (!cancelled && !p.destroyed) p.reconnect();
+      if (cancelled || p.destroyed) return;
+      goneAt ??= performance.now();
+      const since = goneAt;
+      setTimeout(() => {
+        if (cancelled || p.destroyed || !p.disconnected) return;
+        try {
+          p.reconnect();
+        } catch {
+          // destroyed meanwhile: nothing to get back
+        }
+      }, BROKER.retry * 1000);
+      // still away after `lost`, with nobody in: say so (someone in has their own connection and needs no broker)
+      setTimeout(() => {
+        if (!cancelled && !p.destroyed && goneAt === since && taken.size === 0) onError(peerError("network"));
+      }, BROKER.lost * 1000);
     });
     p.on("error", (err: { type?: string }) => {
       // Taking a match over: the broker still has the old host on this code
@@ -815,6 +847,11 @@ export function hostMatch(
       }
       // once someone is in, a broker hiccup does not touch the direct connections
       if (cancelled || taken.size > 0) return;
+      // One friend's handshake that failed is theirs: the lobby goes on, and they try again. It ended the
+      // lobby, with "no match with that code" on the host's own screen.
+      if (err.type && HANDSHAKE_ERRORS.has(err.type)) return;
+      // after the code was given out, the broker gone is waited out ("disconnected" above), not the end
+      if (told && err.type && BROKER_ERRORS.has(err.type)) return;
       if (err.type === "unavailable-id" && attempt < 3) {
         // someone already has this code: pick another
         p.destroy();
@@ -867,19 +904,35 @@ export function joinMatch(
   let done = false;
   let cancelled = false;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  /** report once, and let go of the broker: a failed join leaves nothing behind */
-  const fail = (msg: string) => {
+  /** a handshake that failed has had its one more try (net.json broker) */
+  let retried = false;
+  /**
+   * Report once, and let go of the broker: a failed join leaves nothing behind.
+   * `again`: a handshake that a moment later can go through (the host's broker
+   * back, WebRTC's offer made again) is tried once more before it is reported.
+   */
+  const fail = (msg: string, again = false) => {
     if (done || cancelled) return;
-    done = true;
     clearTimeout(timer);
+    const was = peer;
+    setTimeout(() => was?.destroy(), 0);
+    if (again && !retried) {
+      retried = true;
+      setTimeout(() => void start(), BROKER.retry * 1000);
+      return;
+    }
+    done = true;
     onError(msg);
-    setTimeout(() => peer?.destroy(), 0);
   };
-  void peerOptions().then((o) => {
-    if (cancelled) return;
+  const start = async (): Promise<void> => {
+    const o = await peerOptions();
+    if (cancelled || done) return;
     const p = new Peer(o);
     peer = p;
+    /** this try is still the one: a try given up on still fires its closes and errors */
+    const live = () => peer === p;
     p.on("open", () => {
+      if (!live()) return;
       const conn = p.connect(`${PREFIX}${code}`, { reliable: true });
       let opened = false;
       // the broker found the host but the two browsers never reach each other:
@@ -898,13 +951,14 @@ export function joinMatch(
         };
         link.send({ t: "hello", v: 2, seat });
       });
-      conn.on("close", () => fail(opened ? "The host turned the connection away (the match is full, or over)." : JOIN_TIMEOUT));
+      conn.on("close", () => live() && fail(opened ? "The host turned the connection away (the match is full, or over)." : JOIN_TIMEOUT));
       // ICE failing shows up only as an error on the connection (PeerJS sends
       // no close for a connection that never opened)
-      conn.on("error", () => fail(opened ? "Lost the connection to the host." : JOIN_TIMEOUT));
+      conn.on("error", () => live() && fail(opened ? "Lost the connection to the host." : JOIN_TIMEOUT));
     });
-    p.on("error", (err: { type?: string }) => fail(peerError(err.type)));
-  });
+    p.on("error", (err: { type?: string }) => live() && fail(peerError(err.type), !!err.type && HANDSHAKE_ERRORS.has(err.type)));
+  };
+  void start();
   return () => {
     cancelled = true;
     clearTimeout(timer);

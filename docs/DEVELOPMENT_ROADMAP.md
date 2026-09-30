@@ -7296,3 +7296,36 @@ six bots, three armed after a minute, the other three one squad, one of them an 
   within hurrySearch and nothing else; nothing further than hurrySearch; a walled spot given up at 2.1 s where it took
   10); "and frags" on the rich floor is now "armed, it still picks up a frag near it" (the frags were only ever in the
   first 20 points by being nearest). The migrate section, three runs: four runs with the fix: all 19 checks in two; in the third the migration passed and the kit comparison failed on two bots that had each gone up an armour tier with the same gun while the takeover ran (it compared whole kits, armour included, one change allowed, and a bot goes on looting through the takeover: it now compares the guns, and fails on any gun or armour lost); the fourth, with that check, 19 of 19. Before the fix, one run in four stopped at "four bots armed" (3 of 6). verify, rules.
+
+## Milestone 352 — A moment without the broker no longer ends a lobby or a Join
+
+Milestone 337 left the "no match with that code" of the first Join after a deploy unexplained: two restarts did not
+bring it back. The broker (PeerJS's server, ours on the game's server) queues an offer for an id it does not hold and
+answers "expired" 5 s later, which is that message: for 5 s the host was not registered. So this looked at what a host
+and a friend do when the broker goes for a moment, on the real server run here (`serve.mjs`, the built site, our own
+broker), cutting the host page's broker socket at chosen moments.
+
+- **What happened:** cut before the Join, the host's PeerJS came back and the offer waiting for it was delivered: fine.
+  Cut 50 ms after the Join, mid-handshake: the friend got "Connection failed (webrtc)", and in one run in two the
+  **host's** lobby ended with "No match with that code" on its own screen. On the build as it was: both 50 ms cuts
+  failed that way (a 300 ms cut got through twice that time, and failed the run before).
+- **Why** (`link.ts` hostMatch and joinMatch): until a friend was in, the host took every error as the end of its
+  lobby, including one friend's handshake failing ("peer-unavailable", "webrtc") and the broker socket closing ("network"),
+  which PeerJS was already reconnecting from. The reconnect went at once, against a server that may still be starting
+  (a deploy), and failed again. PeerJS says "open" again after every reconnect, and each time the host treated the
+  same code as new: the invite copied again, a handover's next step run twice. A friend's handshake that failed was
+  reported at once, where a second try a moment later goes through.
+- **The fix** (`net.json` broker): a host's lobby ends on a friend's failed handshake no more; after its code is out, a
+  broker that goes is waited for, reconnecting every `retry` (1.5 s) and giving the lobby up only after `lost` (25 s)
+  away with nobody in (the deploy's health wait allows 20); "open" is told once. A friend whose handshake fails
+  ("peer-unavailable", "webrtc") tries once more after `retry` before saying so, so a code that is really wrong still
+  says so, about 7 s later than it did.
+- **After:** the same four cuts, 50 and 300 ms twice each: all four in, the 50 ms ones through the second try (2.1 s).
+- **Not found:** why a host's broker socket would drop in the first seconds after a deploy. This makes the lobby and
+  the friend ride over it whatever it is, and Milestone 337's live check still says when its first Join needed a
+  second.
+- **Checked:** new e2e checks in p2p (the broker cut 50 and 300 ms into a friend's Join, over the public broker):
+  both passed over the public broker in the p2p section (47 checks, E2E PASS). The same cut, at the same moments, is the probe above: on the build as it was it failed both 50 ms cuts. verify, rules.
+
+Milestones 351 and 352 were held on a branch for the owner's review and merged on 2026-09-30, rebased onto main
+and run again first: verify, rules, migrate 19 of 19, p2p 47 of 47, br and loot 78 of 78.

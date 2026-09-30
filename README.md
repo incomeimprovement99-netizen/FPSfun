@@ -1458,7 +1458,7 @@ guns are built with their grips at the hand for that.
 | Nothing works on a phone or tablet | it is a PC game (keyboard and mouse, or a controller); the menu says so on a phone. Open the link on a PC in Chrome or Edge. |
 | Clicking Play does nothing | the menu now says why: Chrome waits about a second after Esc before it locks the mouse again; click again. A DPI measurement in progress also holds the lock. |
 | "Could not reach the matchmaking server" | on https://fpsfun.duckdns.org/ the server is down (`npm run fps health`); on a static mirror it means the free public broker is down or rate-limited, so try again in a minute or use the address above. |
-| "No match with that code" | a typo (codes never contain 0, O, 1, I or L) or the host closed the tab. Make a new match. |
+| "No match with that code" | a typo (codes never contain 0, O, 1, I or L) or the host closed the tab. Make a new match. The page has already tried a second time by itself (a moment without the matchmaking server mid-join is ridden over), so it is not a blip. |
 | "Found the match but could not connect to the host" (after 20 s) | one of you is on a network that blocks direct peer connections (offices, schools, university halls, phone hotspots, VPNs) and no relay got through. On our server, check the relay (SERVER_GUIDE section 8). Try home wifi, or with the VPN off. |
 | "WAITING FOR EVERYONE TO CLICK PLAY" | someone is still on the menu; every player clicks Play (or presses Start) before round 1. |
 | The other player freezes | their tab was hidden or throttled. Alt-tabbing is fine (frames keep running on a timer); a minimised Chrome for minutes is not. |
