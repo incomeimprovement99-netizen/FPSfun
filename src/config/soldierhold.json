@@ -206,7 +206,7 @@
   "throwFor": 0.4,
   "_gunBack": "How far both hands have come back onto the long gun (the hold's weights, 0 to 1, the slower of the two) when it is shown again after a throw, a heal or a reach for something: until then the hands go to where it will be, the gun hidden. Shown at once, it came back through both hands (23 to 28 mm) while they were still on their way; at 0.85 of the way the right palm was still 3 cm off its grip. At 0.97 it shows about 0.3 s after the hands start back.",
   "gunBack": 0.97,
-  "_melee": "A melee, as the soldier holding a long gun does it: a strike with the gun, both hands on it (rifle.ts). `time` is the game's melee, s (viewmodel.ts MELEE_TIME, which the first person's gun dips out of sight over; tools/checks/soldier-hold.ts holds them equal): a string of swings goes on from one to the next. The strike is out by `out` of the swing and back from `back[0]` to `back[1]`; each swing drives the gun `thrust` metres out along the figure's front and `up` metres up, the muzzle `pitch` degrees up and `yaw` to the figure's left, the chest squared `square` degrees into it: a jab, a sweep across, a jab up, in turn. The figures' clips are a boxer's punches: played, the gun went away for each swing, the second threw the body half a metre out to the side, and the gun came back through both hands.",
+  "_melee": "A melee, as the soldier holding a long gun does it: a strike with the gun, both hands on it (rifle.ts). `time` is the game's melee, s (viewmodel.ts MELEE_TIME, which the first person's gun dips out of sight over; tools/checks/soldier-hold.ts holds them equal): a string of swings goes on from one to the next. The strike is out by `out` of the swing and back from `back[0]` to `back[1]`; each swing drives the gun `thrust` metres out along the figure's front and `up` metres up, the muzzle `pitch` degrees up and `yaw` to the figure's left, the chest turned `square` degrees toward square-on (less than none: further side-on, the left shoulder leading): a jab, a sweep across and a jab up in turn. The two jabs lead with the left shoulder, as a bayonet's thrust does: squared into (18 and 12 degrees), the left shoulder went back, the arm came up short of its hold by most of the way to the grip and the hand went 12 to 24 mm into the gun; the sweep turns the gun toward the left hand, and squares. The figures' clips are a boxer's punches: played, the gun went away for each swing, the second threw the body half a metre out to the side, and the gun came back through both hands.",
   "melee": {
     "time": 0.38,
     "out": 0.3,
@@ -220,7 +220,7 @@
         "up": 0.03,
         "pitch": 5,
         "yaw": 0,
-        "square": 18
+        "square": -15
       },
       {
         "thrust": 0.16,
@@ -234,7 +234,7 @@
         "up": 0.08,
         "pitch": 16,
         "yaw": 0,
-        "square": 12
+        "square": -10
       }
     ]
   },

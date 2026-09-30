@@ -7425,6 +7425,20 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(0.6); })()`);
     const after2 = await ev<{ z: number; shown: boolean }>(page, gunZ);
     check(`the soldier's ${name} melee: and back to the hold after it`, after2.shown && Math.abs(after2.z - rest.z) < 0.02, JSON.stringify({ rest, after2 }));
+    // each of a string's three swings, through its whole length: the left hand stays on its hold (squared into, the
+    // jabs took the left shoulder back, the hold slid most of the way to the grip and the hand went 12 to 24 mm in)
+    let swingWorst = 0;
+    let swingSlide = 0;
+    for (let sw = 0; sw < 3; sw++) {
+      await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "melee" })`);
+      for (let i = 0; i < 8; i++) {
+        const m = await ev<{ slide: number; a: A | null }>(page, `(() => { const r = window.__range; r.figureLabStep(0.045); return { slide: r.labFigures()[0].figure.supportSlide, a: window.__figureAudit(0, { pitch: 0 }) }; })()`);
+        swingWorst = Math.max(swingWorst, m.a?.handIn?.l ?? 0, m.a?.handIn?.r ?? 0);
+        swingSlide = Math.max(swingSlide, m.slide);
+      }
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(0.5); })()`);
+    }
+    check(`the soldier's ${name} melee: through all three swings the left hold does not slide, and no hand goes into the gun (8 mm at most)`, swingSlide < 0.01 && swingWorst <= 8, JSON.stringify({ swingSlide, swingWorst }));
     // A grenade thrown: the gun away for the throw, and back only once both hands are on it (shown at once, it came
     // back through both hands, 23 to 28 mm, while they were still on their way)
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "throw" }); r.figureLabStep(0.2); })()`);
