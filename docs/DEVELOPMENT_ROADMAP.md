@@ -7717,6 +7717,57 @@ sniper should only have glint when they are ADSing".
   none, it fades in its time), seen failing with the turn test broken; the soldier section's own glint check; the
   frames of the double jumps; a tracer drawn in the game's own scene, 12 m off; verify; rules.
 
+## Milestone 364 — The bug hunt: every mode played by a scripted player, and what it found
+
+The owner, 2026-09-30: "go on a bug hunt across all functionality game wise to ensure we don't have any bugs hidden
+that we are missing now".
+
+- **The hunt** (`tools/hunt.ts`, new): one drawn SpeedKills page plays every mode in turn (the range with all ten guns,
+  a battle royale from the ship to its end, the 1v1 against bots, Gun Run, team deathmatch, Crown, Control,
+  free-for-all, Search, the Run, the tour, the lab, the arena), driven by a scripted player that aims, fires, closes in,
+  strafes, jumps, slides, swaps, uses its hacks and picks up. A watchdog in the page notes page and console errors,
+  failed requests, NaN or fallen-through positions, health out of range, NaN in the HUD, frames over 120 ms (with the
+  shaders, textures and geometry new on them), and battle royale bots standing still 25 s. Between modes it records what
+  the page holds, lists assets fetched twice, and takes a screenshot every 5 s. Beside it, the full e2e sweep, now with
+  `sklobby`, `sksquad`, `skfigure` and the new `skhunt` in its batches (they were missing from it).
+- **Bots standing still for the rest of a match** (brmatch.ts). A bot's node was chosen by (x, z) alone. One that came
+  down in the court took the deck 18 m over it and stood under it for good: it stops 1.5 m off a node's (x, z) and
+  arrives only on the node's floor. 4 of 28 bots stood still 20 s and more in one match. Now a landed bot takes the
+  nearest node on its own floor with links (`nearestNode` with its height). One that finds itself under or over its node
+  for 2 s re-anchors the same way (`unstick`, bots.json `unstick`). After: one bot of 28 still in a match, and that one
+  was shooting at the probe's invincible player.
+- **Bots inside care packages.** A lured bot walked onto the crate's middle and stood inside it for the whole 45 s
+  contest. Two bots of two squads did, each blind to the other half a metre away. Now it stands 4 m off on its own side
+  (br.json `podStand`), and once the crate is down and the bot is there, its looting and fighting take over (`podsDone`).
+- **The Gulag's first frame froze 0.75 s** (10 shaders compiled on it). The boot warm-up now compiles everything out of
+  view as the range's side draws it, not only the city: the freeze is gone.
+- **The music at nothing still streamed.** The city's loop played through every match at volume 0. Now it is not fetched
+  or played until the slider is above nothing, and a slider moved up mid-match starts it (audio.ts `syncLoop`).
+- **The soldier's body fetched twice.** It was loaded on its own and again for the first figure that asked, seven
+  textures and two copies held. Now it loads once (mannequin.ts through `loadBody`).
+- **A flaky check.** The soldier section waited a fixed 600 ms for the USSO's level-5 skin. A frame drawn in software
+  took 643 ms alone, so it failed under load. It now waits for the change, 10 s at the most.
+- **Found and handed on.** The Neon City's bot graph is in 757 islands. The court, the halls, the metro and the roof
+  decks are joined neither to each other nor to the street, so a bot that walks into the court has no way out on the
+  graph. Sent to the maps agent. The owner set pathing to minimal effort today ("just stick on the street"), so the
+  bot-side re-anchoring above is the fix for now.
+- **Looked at and fine.** No page errors in any mode. Nothing leaks across the 13 runs: geometries, textures and
+  programs are flat after the first battle royale. Two friends in two browsers over the real broker get the loading
+  screen, the card together and their ships off in step. Search's spectator watching a still defender is the defender
+  holding its site. A bot match starting again after its end is by design.
+- **Known, not fixed.** The killcam's first frame is 0.25 to 0.8 s: its figures are built on the spot (170 ms) and first
+  drawn. The match's build takes about 1 s, now under the loading screen.
+- **The sweep itself.** One wait that timed out (a 1v1's countdown, Gun Run with a friend) threw out of its section and
+  took every section after it in the batch with it: each section now runs in its own `section()`, a throw failing
+  that section alone. The recap's "the bot eliminates you" waited 30 s of real time, 10 s of the game on a machine at
+  94% (other agents' test browsers beside it): it waits 25 s of the game's own time now.
+- **Checked** (e2e `skhunt`, new, on the Neon City's graph): a landed bot takes the node on its own floor, not the deck
+  over it; one stood under its node re-anchors after 2 s and not before; a lured bot stands 4 m off a care package and
+  is then done with it; the body texture is fetched once; the city's loop is off at nothing and plays once the slider is
+  up. All five were seen failing with their faults put back. The full sweep and `npm run fit`: every failure in it
+  (the recap chain, three bot-tier timings, the ship's shut doors, the squad's downed figure and its box, a lossy
+  friend's speed) was a timing under the machine's load and passed run alone. Verify and rules.
+
 ## Milestone 365 — The base: the tower's wide lower floors
 
 Phase 28.8, from the owner's note on the centre (2026-09-30): "I want the building to be big and wide on the first x

@@ -146,8 +146,9 @@ export class GameAudio {
     this.hitBus.gain.setTargetAtTime(this.volumes.hits, t, 0.02);
     // your own gun skips the master gain (it joins after the master compressor), so the sliders reach it here
     this.ownBus?.gain.setTargetAtTime(0.5 * this.volumes.master * this.volumes.effects, t, 0.02);
-    if (this.musicState.on) this.musicBus?.gain.setTargetAtTime(this.volumes.music * cfg.music.level, t, 0.02);
-    if (this.ambienceState.on) this.ambBus?.gain.setTargetAtTime(this.volumes.music * cfg.ambience.level, t, 0.02);
+    // (a loop that is on starts or stops with the slider: at nothing it is not played at all)
+    if (this.musicState.on) this.syncLoop("music", false, true);
+    if (this.ambienceState.on) this.syncLoop("ambience", false, true);
   }
 
   /** the drop theme's element and its gain, made the first time it plays */
@@ -160,34 +161,11 @@ export class GameAudio {
   private ambBus: GainNode | null = null;
   readonly ambienceState = { on: false, missing: false };
 
-  /** the city under a SpeedKills match (audio.json ambience): faded in and out, on the effects volume */
+  /** the city under a SpeedKills match (audio.json ambience): faded in and out, on the music volume */
   ambience(on: boolean): void {
     if (on === this.ambienceState.on) return;
     this.ambienceState.on = on;
-    const ctx = on ? this.ensure() : this.ctx;
-    if (!ctx || !this.master) return;
-    if (on && !this.ambEl) {
-      const el = new Audio("audio/music/city.mp3");
-      el.loop = true;
-      el.addEventListener("error", () => (this.ambienceState.missing = true));
-      const bus = ctx.createGain();
-      bus.gain.value = 0;
-      ctx.createMediaElementSource(el).connect(bus).connect(this.master);
-      this.ambEl = el;
-      this.ambBus = bus;
-    }
-    const el = this.ambEl;
-    const bus = this.ambBus;
-    if (!el || !bus) return;
-    const t = ctx.currentTime;
-    bus.gain.cancelScheduledValues(t);
-    if (on) {
-      void el.play().catch(() => undefined);
-      bus.gain.setTargetAtTime(this.volumes.music * cfg.ambience.level, t, cfg.ambience.fadeIn / 3);
-    } else {
-      bus.gain.setTargetAtTime(0, t, cfg.ambience.fadeOut / 3);
-      setTimeout(() => void (this.ambienceState.on || el.pause()), cfg.ambience.fadeOut * 1000);
-    }
+    this.syncLoop("ambience");
   }
 
   /**
@@ -199,31 +177,53 @@ export class GameAudio {
   music(on: boolean): void {
     if (on === this.musicState.on) return;
     this.musicState.on = on;
-    const ctx = on ? this.ensure() : this.ctx;
+    this.syncLoop("music", on);
+  }
+
+  /**
+   * A streamed loop (the drop theme, the city's ambience) brought to where it should be: playing and faded in to its
+   * level while it is on and the music slider is above nothing, else faded out and paused. At nothing (everyone's
+   * default since audio.json musicOff) its file is never fetched and nothing plays: silent, the city's loop still
+   * streamed its file under every match (a hunt, 2026-09-30). `restart` from the top (a new drop); `quick` for a
+   * slider's change rather than a fade.
+   */
+  private syncLoop(which: "music" | "ambience", restart = false, quick = false): void {
+    const state = which === "music" ? this.musicState : this.ambienceState;
+    const c = which === "music" ? cfg.music : cfg.ambience;
+    const want = state.on && this.volumes.music > 0;
+    const ctx = want ? this.ensure() : this.ctx;
     if (!ctx || !this.master) return;
-    if (on && !this.musicEl) {
-      const el = new Audio("audio/music/drop.mp3");
-      el.loop = true;
-      el.addEventListener("error", () => (this.musicState.missing = true));
-      const bus = ctx.createGain();
-      bus.gain.value = 0;
-      ctx.createMediaElementSource(el).connect(bus).connect(this.master);
-      this.musicEl = el;
-      this.musicBus = bus;
+    let el = which === "music" ? this.musicEl : this.ambEl;
+    let bus = which === "music" ? this.musicBus : this.ambBus;
+    if (want && (!el || !bus)) {
+      const made = new Audio(which === "music" ? "audio/music/drop.mp3" : "audio/music/city.mp3");
+      made.loop = true;
+      made.addEventListener("error", () => (state.missing = true));
+      const gain = ctx.createGain();
+      gain.gain.value = 0;
+      ctx.createMediaElementSource(made).connect(gain).connect(this.master);
+      el = made;
+      bus = gain;
+      if (which === "music") {
+        this.musicEl = made;
+        this.musicBus = gain;
+      } else {
+        this.ambEl = made;
+        this.ambBus = gain;
+      }
     }
-    const el = this.musicEl;
-    const bus = this.musicBus;
     if (!el || !bus) return;
     const t = ctx.currentTime;
     bus.gain.cancelScheduledValues(t);
-    if (on) {
-      el.currentTime = 0;
+    if (want) {
+      if (restart) el.currentTime = 0;
       void el.play().catch(() => undefined);
-      bus.gain.setTargetAtTime(this.volumes.music * cfg.music.level, t, cfg.music.fadeIn / 3);
+      bus.gain.setTargetAtTime(this.volumes.music * c.level, t, quick ? 0.02 : c.fadeIn / 3);
     } else {
-      bus.gain.setTargetAtTime(0, t, cfg.music.fadeOut / 3);
-      // paused once it has faded, unless a new drop wanted it back first
-      setTimeout(() => void (this.musicState.on || el.pause()), cfg.music.fadeOut * 1000);
+      bus.gain.setTargetAtTime(0, t, quick ? 0.02 : c.fadeOut / 3);
+      // paused once it has faded, unless it was wanted back first
+      const playing = el;
+      setTimeout(() => void ((state.on && this.volumes.music > 0) || playing.pause()), (quick ? 0.1 : c.fadeOut) * 1000);
     }
   }
 

@@ -2731,7 +2731,14 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__range.landHit(1, 20, true, 'r97', 12)");
   await ev(page, "window.__range.landHit(1, 15, false, 'r97', 12)");
   await ev(page, "(() => { const d = window.__range.duel(); d.shield = 0; d.health = 3; })()");
-  const out = await page.waitForFunction("window.__range.duel() && !window.__range.duel().alive", { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  // 25 s of the game's own time (110 s of real time at the most): 30 s of real time was 10 s of the game on a loaded
+  // machine, the bot still 40 m off at the arena's middle (it failed twice in the sweep on 2026-09-30, and passed alone)
+  const out = await ev<boolean>(
+    page,
+    `new Promise((ok) => { const R = window.__range; const g0 = R.gameTime(); const t0 = performance.now();
+      const step = () => { const d = R.duel(); if (d && !d.alive) return ok(true); if (R.gameTime() - g0 > 25 || performance.now() - t0 > 110000) return ok(false); setTimeout(step, 100); };
+      step(); })`,
+  );
   check("recap: the bot eliminates you", out, out ? "" : JSON.stringify(await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; const pl = window.__range.player.pos; return { phase: d.phase, alive: d.alive, hp: d.health, bot: [b.pos.x.toFixed(1), b.pos.y.toFixed(1), b.pos.z.toFixed(1)], you: [pl.x.toFixed(1), pl.y.toFixed(1), pl.z.toFixed(1)], sees: b.sees(pl), crouch: b.crouching, cover: !!b.cover, heard: !!b.heard, seen: !!b.lastSeen, knocked: b.dummy.knocked, joltLeft: b.joltLeft, dropping: b.dropping }; })()`)));
   const kc = await ev<{ active: boolean; killer: string; weapon: string; frames: number; span: number }>(page, "window.__range.killcamState()");
   check("killcam: it starts, from the bot's eyes, with its gun", kc.active && kc.killer === "BOT ASH" && kc.weapon === "rspn101", JSON.stringify(kc));
@@ -5471,7 +5478,10 @@ async function soldierTest(browser: Browser): Promise<void> {
       r.setScript(null);
       const held = r.paidGuns();
       r.loadout.setFusion(0, 5);
-      await wait(600);
+      // until it changes, 10 s at the most: it changes on the next frame of play, and a frame drawn in software took
+      // 643 ms on its own (a fixed 600 ms wait failed under load with the first skin still on, 2026-09-30)
+      const t1 = performance.now();
+      while (r.paidGuns().skin === held.skin && performance.now() - t1 < 10000) await wait(50);
       const fused = r.paidGuns().skin;
       r.loadout.setFusion(0, 0);
       const [fig] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000000" }], 4, 0);
@@ -6474,6 +6484,80 @@ async function skOutlineTest(browser: Browser): Promise<void> {
   if (!got) console.log("  --  outline read:", await ev<string>(page, `(() => { try { return JSON.stringify(${read}); } catch (e) { return "threw: " + e.message; } })()`).catch((e) => String(e)));
   check("outline: every hull round an enemy stands 2 cm out, the bought gun's scale-100 parts too (they stood 2 m out: the red orb)", !!got && got.on > 0 && got.big > 0 && off.length === 0, JSON.stringify({ hulls: got?.widths.length, big: got?.big, off: off.slice(0, 6) }));
   await page.close();
+}
+
+/**
+ * What the bug hunt of 2026-09-30 found (every mode played by a scripted player, a watchdog in the page): battle royale
+ * bots standing still for the rest of a match under a deck or inside a care package, the city's loop streamed with the
+ * music at nothing, and the soldier's body fetched twice.
+ */
+async function skHuntTest(browser: Browser): Promise<void> {
+  // the Neon City's graph (its decks, the court 7 m down): a battle royale on it, bots landed
+  const page = await open(browser, "?norender&game=speedkills&map=neon");
+  await ev(page, brRow("solo", 9));
+  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
+  const landed = await page.waitForFunction(`window.__range.duel()?.phase === "fight" && window.__range.duel().bots.some((b) => b.landed && b.bot.alive && !b.guard)`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
+  const bots = await ev<{ deck: number; street: number; sky: number; floor: number; floorY: number | null; floorLinks: number; before: number; after: number; afterY: number | null; stand: number; side: boolean; done: boolean } | { none: string }>(
+    page,
+    `(() => {
+      const R = window.__range; const d = R.duel(); d.holdFire = true;
+      const nodes = d.map.nodes;
+      // a deck node with a street node under it: a bot on the street there, its node the deck, stands under it for good
+      let deck = -1, street = -1;
+      for (let i = 0; i < nodes.length && deck < 0; i++) {
+        // (not a hall's: a bot coming down from the sky never takes one, so the sky's choice below is the deck itself)
+        if ((nodes[i].y ?? 0) < 5 || nodes[i].hall) continue;
+        // (a little off the deck's (x, z), so from the sky the deck is the nearer of the two, not a tie)
+        const j = nodes.findIndex((m) => (m.y ?? 0) === 0 && m.links.length > 0 && Math.hypot(m.x - nodes[i].x, m.z - nodes[i].z) > 0.2 && Math.hypot(m.x - nodes[i].x, m.z - nodes[i].z) < 1.4);
+        if (j >= 0) { deck = i; street = j; }
+      }
+      if (deck < 0) return { none: "no deck over a street node" };
+      const b = d.bots.find((x) => x.landed && x.bot.alive && !x.guard && !x.down);
+      if (!b) return { none: "no bot landed" };
+      // where a bot on the street under the deck takes itself to be: on its own floor, a node with links
+      const floor = d.nearestNode(nodes[deck].x, nodes[deck].z, 0);
+      const sky = d.nearestNode(nodes[deck].x, nodes[deck].z);
+      // stood under the deck with the deck its node: unstick, now and 2.5 s on
+      b.bot.pos.set(nodes[street].x, 0, nodes[street].z);
+      b.node = b.goal = deck;
+      const t = performance.now() / 1000;
+      d.unstick(b, t);
+      const before = b.goal;
+      d.unstick(b, t + 2.5);
+      const after = b.goal;
+      // a care package 20 m off, landed and hot: the bot stands 4 m short of it on its own side, and once there it is done with it
+      const V = R.THREE.Vector3; const at = new V(b.bot.pos.x + 20, 0, b.bot.pos.z);
+      d.pods.push({ id: 4242, at, hotUntil: t + 60, landed: true });
+      const g = d.podToContest(b.bot.pos, b);
+      b.bot.pos.set(at.x - 3, 0, at.z);
+      const there = d.podToContest(b.bot.pos, b);
+      d.pods.splice(d.pods.findIndex((p) => p.id === 4242), 1);
+      return { deck, street, sky, floor, floorY: nodes[floor].y ?? null, floorLinks: nodes[floor].links.length, before, after, afterY: nodes[after].y ?? null,
+        stand: g ? Math.hypot(g.x - at.x, g.z - at.z) : -1, side: !!g && g.x < at.x, done: there === null && !!b.podsDone && b.podsDone.has(4242) };
+    })()`,
+  );
+  const ok = landed && !("none" in bots);
+  const b = bots as Exclude<typeof bots, { none: string }>;
+  // (from the sky, by (x, z) alone, the deck is the nearest: which is what a landed bot used to keep)
+  check("hunt: a landed bot takes the nearest node on its own floor with links, not the deck over its head (it stood under one for good)", ok && b.sky === b.deck && b.floor !== b.deck && Math.abs(b.floorY ?? 0) < 2.5 && b.floorLinks > 0, JSON.stringify(bots));
+  check("hunt: a bot stood under its node (a deck 5 m and more over it) takes one on its own floor after 2 s, not before", ok && b.before === b.deck && b.after !== b.deck && Math.abs(b.afterY ?? 0) < 2.5, JSON.stringify(bots));
+  check("hunt: a bot lured to a care package stands 4 m off it on its own side, and there it is done with it (two stood inside one, blind to each other)", ok && Math.abs(b.stand - 4) < 0.2 && b.side && b.done, JSON.stringify(bots));
+  await page.close();
+  // drawn: the soldier's body and textures fetched once, and the city's loop not fetched at all while the music is at nothing
+  const arena = await open(browser, "?game=speedkills");
+  await arena.waitForFunction("window.__range.loaded()", { polling: 250, timeout: 120000 }).catch(() => undefined);
+  const body = await ev<number>(arena, `performance.getEntriesByType("resource").filter((e) => /T_Superhero_Male_Dark/.test(e.name)).length`);
+  check("hunt: the soldier's body texture is fetched once (it was twice: the body loaded on its own and again for a figure)", body === 1, String(body));
+  await ev(arena, `(() => { window.__range.audio.setVolumes({ music: 0 }); document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
+  await arena.waitForFunction("window.__range.duel()?.phase === 'fight' || window.__range.duel()?.phase === 'countdown'", { polling: 200, timeout: 30000 }).catch(() => undefined);
+  await sleep(1500);
+  const silent = await ev<{ on: boolean; el: boolean }>(arena, "(() => { const a = window.__range.audio; return { on: a.ambienceState.on, el: !!a.ambEl && !a.ambEl.paused }; })()");
+  await ev(arena, "window.__range.audio.setVolumes({ music: 0.3 })");
+  await sleep(1500);
+  const heard = await ev<{ on: boolean; el: boolean }>(arena, "(() => { const a = window.__range.audio; return { on: a.ambienceState.on, el: !!a.ambEl && !a.ambEl.paused }; })()");
+  await ev(arena, "window.__range.audio.setVolumes({ music: 0 })");
+  check("hunt: the city's loop is on under a match but not fetched or played with the music at nothing, and plays once the slider is up", silent.on && !silent.el && heard.on && heard.el, JSON.stringify({ silent, heard }));
+  await arena.close();
 }
 
 /**
@@ -7744,7 +7828,7 @@ async function skSquadTest(browser: Browser): Promise<void> {
   await close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skfriends, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -8175,6 +8259,17 @@ async function ownerTest(browser: Browser): Promise<void> {
 
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
+/**
+ * One section, run so that a throw in it (a wait that timed out) is a failed check and the sections after it still run: a
+ * 1v1's countdown wait timed out under load on 2026-09-30, and the throw took every section after it in its batch with it.
+ */
+async function section(name: string, run: () => Promise<void>): Promise<void> {
+  try {
+    await run();
+  } catch (e) {
+    check(`${name}: the section ran to its end`, false, String(e).split(/\r?\n/)[0].slice(0, 300));
+  }
+}
 
 async function main(): Promise<void> {
   const browser = await puppeteer.launch({
@@ -8558,7 +8653,7 @@ async function main(): Promise<void> {
     await page.close();
     }
 
-    if (want("duel")) {
+    if (want("duel")) await section("duel", async () => {
       console.log("\n1v1 over the local transport (two tabs)");
       await duelTest(browser, "?net=local&norender", "local");
       console.log("\nA friend's figure over a jittery connection");
@@ -8567,24 +8662,24 @@ async function main(): Promise<void> {
       await jitterTest(browser, "?net=local&norender&jitter=60&loss=0.15", true);
       console.log("\nCustom rules");
       await rulesTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("intro")) {
+    if (want("intro")) await section("intro", async () => {
       console.log("\nThe intro card: the name, the shot through the screen, and out of the way");
       await introTest(browser);
-    }
+    });
 
-    if (want("emote")) {
+    if (want("emote")) await section("emote", async () => {
       console.log("\nEmotes: yours, the camera, a step to end it, a 1v1's host's on the guest's screen");
       await emoteTest(browser, "?norender", "?net=local&norender");
-    }
+    });
 
-    if (want("invite")) {
+    if (want("invite")) await section("invite", async () => {
       console.log("\nInvite links");
       await inviteTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("triple")) {
+    if (want("triple")) await section("triple", async () => {
       console.log("\n1v1v1 over the local transport (three tabs)");
       await tripleTest(browser, "?net=local&norender");
       // ?deltas=0 puts a page on the full packets exactly as a build from
@@ -8594,92 +8689,92 @@ async function main(): Promise<void> {
       await tripleTest(browser, "?net=local&norender", "1v1v1 mixed", [{}, {}, { extra: "&deltas=0", want: "full" }]);
       console.log("\nHanding the host over in the lobby");
       await handoverTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("bots")) {
+    if (want("bots")) await section("bots", async () => {
       console.log("\nArena, Bots");
       await botsTest(browser, "?norender");
       console.log("\nBot tiers");
       await botTiersTest(browser, "?norender");
       console.log("\nWhere you are being shot from");
       await damageDirTest(browser, "?norender");
-    }
+    });
 
-    if (want("pad")) {
+    if (want("pad")) await section("pad", async () => {
       console.log("\nController");
       await padTest(browser, "?norender");
-    }
+    });
 
-    if (want("panel")) {
+    if (want("panel")) await section("panel", async () => {
       console.log("\nThe lobby");
       await lobbyPanelTest(browser);
-    }
-    if (want("hold")) {
+    });
+    if (want("hold")) await section("hold", async () => {
       console.log("\nHow a figure holds a gun");
       await holdTest(browser);
-    }
-    if (want("spray")) {
+    });
+    if (want("spray")) await section("spray", async () => {
       console.log("\nThe spray, against what the range draws of it");
       await sprayTest(browser);
-    }
-    if (want("ping")) {
+    });
+    if (want("ping")) await section("ping", async () => {
       console.log("\nA match at a real ping");
       await pingTest(browser, 30);
       await pingTest(browser, 60);
-    }
-    if (want("owner")) {
+    });
+    if (want("owner")) await section("owner", async () => {
       console.log("\nThe owner's list");
       await ownerTest(browser);
-    }
-    if (want("range")) {
+    });
+    if (want("range")) await section("range", async () => {
       console.log("\nThe range's tooling");
       await rangeTest(browser, "?norender");
-    }
-    if (want("br")) {
+    });
+    if (want("br")) await section("br", async () => {
       console.log("\nBattle royale against bots");
       await brTest(browser, "?norender");
       console.log("\nDoors");
       await doorTest(browser, "?norender");
       console.log("\nThe vault");
       await vaultTest(browser, "?norender");
-    }
+    });
 
-    if (want("loot")) {
+    if (want("loot")) await section("loot", async () => {
       console.log("\nBattle royale: landing with nothing, the loot");
       await brLootTest(browser, "?norender");
-    }
+    });
 
-    if (want("ship")) {
+    if (want("ship")) await section("ship", async () => {
       console.log("\nThe dropship: the ride, the jump, the end of the line, the bots, the jumpmaster");
       await shipTest(browser, "?norender", "?net=local&norender");
-    }
+    });
 
-    if (want("console")) {
+    if (want("console")) await section("console", async () => {
       console.log("\nRing Consoles: the scan, the circle after next, the squad");
       await consoleTest(browser, "?norender", "?net=local&norender");
-    }
+    });
 
-    if (want("gulag")) {
+    if (want("gulag")) await section("gulag", async () => {
       console.log("\nThe Gulag: in, the fight, the way back, one trip, overtime, a squad mate");
       await gulagTest(browser, "?norender", "?net=local&norender");
-    }
+    });
 
-    if (want("resurgence")) {
+    if (want("resurgence")) await section("resurgence", async () => {
       console.log("\nResurgence: the wait, the way back, the bots, the final round, the squad");
       await resurgenceTest(browser, "?norender", "?net=local&norender");
-    }
+    });
 
-    if (want("finish")) {
+    if (want("finish")) await section("finish", async () => {
       console.log("\nThe finishing touches: toggles, per-optic ADS, the controller, inspect, the first draw, the tour");
       await finishTest(browser, "?norender");
-    }
+    });
 
-    if (want("throw")) {
+    if (want("throw")) await section("throw", async () => {
       console.log("\nThrowables: the frag, the arc star, thermite");
       await throwTest(browser, "?norender");
-    }
+    });
 
-    if (want("modes")) {
+    if (want("modes")) await section("modes", async () => {
       console.log("\nThe arena's modes: Gun Run, team deathmatch, Crown (alone, against bots)");
       await modesTest(browser, "?norender");
       console.log("\nThe new arenas: the Vault, the Crossing, the Ringworks");
@@ -8692,80 +8787,85 @@ async function main(): Promise<void> {
       await kitsFriendsTest(browser, "?net=local&norender");
       await lobbyTest(browser, "?net=local&norender");
       await lobbyShortTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("hidden")) {
+    if (want("hidden")) await section("hidden", async () => {
       console.log("\nA hidden host: the match runs on at 30 Hz from a worker, not at the background tab's one frame a second");
       await hiddenHostTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("speedkills")) {
+    if (want("speedkills")) await section("speedkills", async () => {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
       await speedkillsSlamTest(browser);
       await speedkillsDistrictHoldTest(browser);
-    }
+    });
     // (the slam alone, named only: a rerun of the one check that failed, as a flaky one is rerun)
     if (ONLY.includes("skslam")) {
       console.log("\nSpeedKills: the slam, alone");
       await speedkillsSlamTest(browser);
     }
 
-    if (want("soldier")) {
+    if (want("soldier")) await section("soldier", async () => {
       console.log("\nSpeedKills' soldier: it renders, its hit volumes, bots' kits and the fallback");
       await soldierTest(browser);
       await heldTexTest(browser);
-    }
+    });
 
-    if (want("sklobby")) {
+    if (want("sklobby")) await section("sklobby", async () => {
       console.log("\nSpeedKills' lobby: the USSO and BOOG first; the group, from match to match with no new code");
       await skLoadoutTest(browser);
       await skGroupTest(browser);
       await skDefaultsTest(browser);
       await skOutlineTest(browser);
       await skIntroTest(browser);
-    }
+    });
 
-    if (want("skfriends")) {
+    if (want("skhunt")) await section("skhunt", async () => {
+      console.log("\nSpeedKills: what the bug hunt of 2026-09-30 found (stuck bots, the silent loop, the body fetched twice)");
+      await skHuntTest(browser);
+    });
+
+    if (want("skfriends")) await section("skfriends", async () => {
       console.log("\nSpeedKills with friends: two friends into one battle royale");
       await brFriendsJoinTest(browser);
-    }
+    });
 
-    if (want("skfigure")) {
+    if (want("skfigure")) await section("skfigure", async () => {
       console.log("\nThe soldier as others see it, holding the USSO and BOOG, and its reload (Phase 27)");
       await figureHoldTest(browser);
-    }
+    });
 
-    if (want("sksquad")) {
+    if (want("sksquad")) await section("sksquad", async () => {
       console.log("\nThe squad you can see: a friend's number, colour, name, ring and every change of state (Phase 27)");
       await skSquadTest(browser);
-    }
+    });
 
-    if (want("skship")) {
+    if (want("skship")) await section("skship", async () => {
       console.log("\nSpeedKills' dropship, ridden: off the city, doors after five seconds, a landing in the city");
       await speedkillsShipTest(browser);
-    }
+    });
 
-    if (want("sktour")) {
+    if (want("sktour")) await section("sktour", async () => {
       console.log("\nSpeedKills' tour: eight steps, each done for real in the range");
       await speedkillsTourTest(browser);
-    }
+    });
 
-    if (want("botsquads")) {
+    if (want("botsquads")) await section("botsquads", async () => {
       console.log("\nBot squads: a trio of bots keeps together");
       await botSquadsTest(browser, "?norender");
-    }
+    });
 
-    if (want("brsolo")) {
+    if (want("brsolo")) await section("brsolo", async () => {
       console.log("\nSolo with a friend: everyone against everyone, each placed on their own");
       await brSoloTest(browser, "?net=local&norender");
       console.log("\nSquads of friends: two duos against each other");
       await brSquadsTest(browser, "?net=local&norender");
       console.log("\nGetting back in after a dropped connection");
       await rejoinTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("migrate")) {
+    if (want("migrate")) await section("migrate", async () => {
       console.log("\nHost migration: the host's tab crashes and a friend takes the match over");
       await migrateTest(browser, "?net=local&norender");
       console.log("\nHost migration in team deathmatch, with bots");
@@ -8774,14 +8874,14 @@ async function main(): Promise<void> {
       await migrateTest(browser, "?net=local&norender", "host migration (control)", "control", 3);
       console.log("\nHost migration in a battle royale");
       await brMigrateTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("squad")) {
+    if (want("squad")) await section("squad", async () => {
       console.log("\nBattle royale as a squad (two tabs, the local transport)");
       await brSquadTest(browser, "?net=local&norender");
-    }
+    });
 
-    if (want("p2p")) {
+    if (want("p2p")) await section("p2p", async () => {
       console.log("\n1v1 over peer to peer (the public broker)");
       const ran = await duelTest(browser, "?norender", "p2p");
       if (!ran) console.log("  --  skipped: the broker or the internet was not reachable");
@@ -8799,7 +8899,7 @@ async function main(): Promise<void> {
         console.log("\nThe group from match to match, over peer to peer (a welcome mid-match, packed the way PeerJS packs it)");
         await skGroupTest(browser, "?game=speedkills&norender");
       }
-    }
+    });
 
     // An older build against this one, over the real peer to peer path:
     // OLD_URL is where the older build is served (a second dev server on an
@@ -8809,7 +8909,7 @@ async function main(): Promise<void> {
     // packets since they shipped, so the two find each other and use them;
     // OLD_NET=full is for a build from before them, where both fall back to
     // the full packets.
-    if (want("mixed")) {
+    if (want("mixed")) await section("mixed", async () => {
       const OLD = process.env.OLD_URL;
       const oldNet: NetWant = process.env.OLD_NET === "full" ? "full" : "deltas";
       if (!OLD) console.log("\nAn older build and this one: skipped, set OLD_URL to an older build (and OLD_NET=full if it is from before the delta packets)");
@@ -8820,7 +8920,7 @@ async function main(): Promise<void> {
         await tripleTest(browser, "?norender", "1v1v1, an old guest", [{}, {}, { base: OLD, want: oldNet }]);
         await tripleTest(browser, "?norender", "1v1v1, an old host", [{ base: OLD, want: oldNet }, { want: oldNet }, { want: oldNet }]);
       }
-    }
+    });
 
     check("no page errors anywhere", errors.length === 0, [...new Set(errors)].slice(0, 5).join(" | "));
   } finally {

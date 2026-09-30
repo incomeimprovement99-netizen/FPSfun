@@ -528,6 +528,8 @@ interface BrBot {
   guard?: { x: number; z: number };
   /** the route's next step is a rope to here (br.ts node ropes): the bot rides rather than walks it */
   ropeTo?: { x: number; z: number } | null;
+  /** the care packages it has been to once they were down (podToContest): contested, and not walked back to */
+  podsDone?: Set<number>;
   /** SpeedKills: taking the high ground, a low tower's roof node, and holding it until (bots.json skRoofs) */
   climb?: { roof: number; holdUntil: number | null } | null;
 }
@@ -1499,35 +1501,87 @@ export class BrMatch extends Duel {
     return this.view;
   }
 
-  /** the nearest package worth walking to from here: falling, or landed and still hot */
-  private podToContest(from: THREE.Vector3): THREE.Vector3 | null {
+  /**
+   * The nearest package worth walking to from here, falling or landed and still hot, and where to stand for it: a few
+   * metres off on this side (br.json podStand), never on it. Stood on the crate itself, two bots of two squads spent
+   * its whole contest inside it, each blind to the other half a metre away (a hunt, 2026-09-30). Once it is down and
+   * the bot is there, it has been contested: the bot's own looting and fighting take over (`b.podsDone`).
+   */
+  private podToContest(from: THREE.Vector3, b?: BrBot): THREE.Vector3 | null {
     const now = wallClock();
     let best: Pod | null = null;
     let bd = brCfg.podLure;
     for (const p of this.pods) {
-      if (now >= p.hotUntil) continue;
+      if (now >= p.hotUntil || b?.podsDone?.has(p.id)) continue;
       const d = Math.hypot(p.at.x - from.x, p.at.z - from.z);
       if (d < bd) {
         bd = d;
         best = p;
       }
     }
-    return best ? new THREE.Vector3(best.at.x, 0, best.at.z) : null;
+    if (!best) return null;
+    const stand = brCfg.podStand;
+    if (b && best.landed && bd <= stand + 1) {
+      (b.podsDone ??= new Set()).add(best.id);
+      return null;
+    }
+    const away = bd > 1e-3 ? stand / bd : 0;
+    return new THREE.Vector3(best.at.x + (from.x - best.at.x) * away, 0, best.at.z + (from.z - best.at.z) * away);
   }
 
-  /** where a bot comes down (a drop, a redeploy): always under the open sky, so never a node inside a hall (GraphNode hall) */
-  private nearestNode(x: number, z: number): number {
+  /**
+   * The node a bot at (x, z) takes as where it is: the nearest. Coming down from the sky (no `y`), never one inside a
+   * hall (GraphNode hall). Given its height `y` (landed, or lost), one on its own floor and joined to others wherever
+   * there is one: by (x, z) alone a bot down in the court took the deck 18 m over it, and stood under it for good,
+   * since it stops a metre and a half off a node's (x, z) and arrives only on the node's floor (a hunt, 2026-09-30:
+   * four of 28 bots stood still for the rest of the match); and on a node with no links it had nowhere to go.
+   */
+  private nearestNode(x: number, z: number, y?: number): number {
     let best = 0;
     let bd = Infinity;
+    const floor = botsCfg.unstick.floor;
     this.map.nodes.forEach((n, i) => {
-      if (n.hall) return;
-      const d = Math.hypot(n.x - x, n.z - z);
+      if (n.hall && y === undefined) return;
+      let d = Math.hypot(n.x - x, n.z - z);
+      if (y !== undefined) {
+        // (a node with no height is on whatever the bot stands on)
+        if (Math.abs((n.y ?? y) - y) >= floor) d += 1000;
+        if (!n.links.length && !n.pad) d += 500;
+      }
       if (d < bd) {
         bd = d;
         best = i;
       }
     });
     return best;
+  }
+
+  /** since when each bot has stood under its node or over it (unstick) */
+  private underSince = new Map<BrBot, number>();
+  /**
+   * A bot standing under the node it walks to, or over it (a deck, a bridge, the court's floor 7 m down): it stops a
+   * metre and a half off the node's (x, z) and arrives only on the node's floor, so it stood there for good. After
+   * bots.json unstick.under seconds of that it takes the nearest node on its own floor, and walks on from there.
+   * Not a planned step it takes another way (a pad's throw, a rope), nor while it is in the air.
+   */
+  private unstick(b: BrBot, now: number): void {
+    const bot = b.bot;
+    const nodes = this.map.nodes;
+    const g = nodes[b.goal];
+    const here = nodes[b.node];
+    const U = botsCfg.unstick;
+    const planned = !!here && (here.pad?.to === b.goal || !!here.ropes?.includes(b.goal));
+    const under = !!g && g.y !== undefined && !planned && !bot.travel && !bot.dropping && Math.hypot(g.x - bot.pos.x, g.z - bot.pos.z) < U.reach && Math.abs(g.y - bot.pos.y) >= U.floor;
+    if (!under) {
+      this.underSince.delete(b);
+      return;
+    }
+    const since = this.underSince.get(b) ?? now;
+    this.underSince.set(b, since);
+    if (now - since < U.under) return;
+    this.underSince.delete(b);
+    b.node = b.goal = this.nearestNode(bot.pos.x, bot.pos.z, bot.pos.y);
+    b.climb = null;
   }
 
   // ------------------------------------------------------------ the fight
@@ -3032,6 +3086,9 @@ export class BrMatch extends Duel {
       if (!b.landed && b.bot.alive && !b.bot.dropping) {
         b.landed = true;
         b.landedAt = { x: b.bot.pos.x, z: b.bot.pos.z };
+        // where it came down, its own floor's node (its node was chosen in the sky, by (x, z) alone)
+        b.node = b.goal = this.nearestNode(b.bot.pos.x, b.bot.pos.z, b.bot.pos.y);
+        b.climb = null;
         // nobody shoots for a moment after a landing, loot or loadouts; with
         // loot on, the bot's own search is what keeps its gun down after that
         b.armedAt = now + squadCfg.drop.grace;
@@ -3307,10 +3364,12 @@ export class BrMatch extends Duel {
     const outsideNext = this.decay ? !!skSector && skSector.phase !== "live" : Math.hypot(bot.pos.x - ring.next.cx, bot.pos.z - ring.next.cz) > ring.next.r - 4;
     const hurry = this.decay ? outsideNext : outsideNext && (ring.state === "closing" || ring.timeLeft < 25 || ring.outside(bot.pos.x, bot.pos.z));
     let goal: THREE.Vector3 | null;
+    // standing under its node or over it for a while: the nearest node on its own floor instead
+    if (b.landed) this.unstick(b, wallClock());
     // a package coming down near it is worth more than the next node: without
     // this nobody contests one but the squad, and a package nobody contests
     // is a free gold gun rather than an event
-    const pod = this.podToContest(bot.pos);
+    const pod = this.podToContest(bot.pos, b);
     const zone = this.decay && !hurry ? this.captureZone() : null;
     if (hurry) {
       // (a climb is given up: the decay comes first)

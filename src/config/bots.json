@@ -262,6 +262,12 @@
   },
   "_maxStep": "Metres: the longest single step a bot's walk is made of in one go (bots.ts). A frame's walk longer than this (a slow frame: dt runs to 0.1 s, and 0.1 s at 6.6 m/s is 0.66 m) is walked in pieces, each with its own wall check and slide, as a quick frame would have walked it. 0.2 m is a quick frame's step at the fastest tier's pace and 30 fps.",
   "maxStep": 0.2,
+  "_unstick": "A battle royale bot standing under the graph node it walks to, or over it (brmatch.ts unstick): it stops `reach` m off a node's (x, z) and arrives only within `floor` m of the node's height (the arrival checks' own 2.5), so under a deck, a bridge or the court's floor 7 m down it stood for good; after `under` s of that it takes the nearest node on its own floor. `floor` is also how far off its height a node counts as another floor when a landed bot takes its nearest (brmatch.ts nearestNode). A hunt, 2026-09-30: four of 28 bots stood still 20 s and more, two under decks 18 m over them. Ours.",
+  "unstick": {
+    "floor": 2.5,
+    "reach": 1.5,
+    "under": 2
+  },
   "_skRoofs": "SpeedKills: a bot out of a fight, not looting and not running from the decay, now and then takes the high ground (brmatch.ts): up the stairs of a low tower within reach metres (city.ts ROOF_ROUTES), or up a district's pad onto its walkway (city.ts DISTRICT_HOLDS, Phase 26.4: in a test match none went up the corner's walkways, which only a wander that happened onto a pad reached), where it holds the roof for hold seconds. chance is per node it arrives at, by tier; a beginner never does. Ours: the city's fights are meant to be vertical, and the roofs were empty.",
   "skRoofs": {
     "reach": 120,

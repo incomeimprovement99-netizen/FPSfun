@@ -6147,8 +6147,9 @@ const merged = new URLSearchParams(location.search).has("nomerge")
   : mergeStatic(scene, [[...rangeRoots, ...courses.map((c) => c.root)], arena.root, triArena.root, brMap.root], [rangeSide, rangeSide, rangeSide, brSide]);
 
 /**
- * SpeedKills: the city's side made ready to be drawn before anyone flies over it, under the page's own loading screen
- * (its waitFor). Drawn for the first time from the ship, it froze the page for 6.8 s (measured, 2026-09-30: every
+ * SpeedKills: the city's side made ready to be drawn before anyone flies over it, and the rest of the world out of view
+ * with it (the Gulag's room), under the page's own loading screen (its waitFor). Drawn for the first time from the ship,
+ * the city froze the page for 6.8 s (measured, 2026-09-30: every
  * shader of the map compiled the moment it was first drawn), which was the owner's "black background" between the card
  * and the ship. Its shaders are compiled by three's compileAsync, which the browser does off the page's thread where it
  * can (0.6 to 0.8 s here, and the freeze on the ship 0.3 to 0.6 s after it), and its textures are sent to the GPU a few
@@ -6167,18 +6168,24 @@ function warmBrSide(): void {
   const was = [rangeSide.visible, brSide.visible];
   rangeSide.visible = false;
   brSide.visible = true;
-  let compiled: Promise<unknown>;
+  const compiling: Array<Promise<unknown>> = [];
   try {
-    compiled = renderer.compileAsync(brSide, camera, scene);
+    compiling.push(renderer.compileAsync(brSide, camera, scene));
+    // and everything else as the range's side draws it, what is out of view included: the Gulag's room was 10 shaders
+    // compiled on its first frame, a 0.75 s freeze on the way in (a hunt, 2026-09-30)
+    rangeSide.visible = true;
+    brSide.visible = false;
+    for (const c of scene.children) if (c !== brSide && !(c as THREE.Light).isLight && !(c as THREE.Camera).isCamera) compiling.push(renderer.compileAsync(c, camera, scene));
   } catch {
-    compiled = Promise.resolve();
+    /* a compile that throws is a frame that compiles it later, as before */
   } finally {
     rangeSide.visible = was[0];
     brSide.visible = was[1];
   }
+  const compiled = Promise.all(compiling);
   const textures: THREE.Texture[] = [];
   const seen = new Set<THREE.Texture>();
-  brSide.traverse((o) => {
+  scene.traverse((o) => {
     const mat = (o as THREE.Mesh).material;
     for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : []) {
       for (const v of Object.values(m)) {
@@ -8852,6 +8859,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   cameraPos: () => camera.position.toArray(),
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   loaded: () => loadingScreen.loaded,
+  /** SpeedKills' way into a match (show): its stage, or null once the match is its own (tools/e2e.ts) */
+  showState: () => (show ? { stage: show.stage, br: show.br, up: loadingScreen.up, calm: loadingScreen.calm, allAsked: loadingScreen.allAsked, loaded: loadingScreen.loaded } : null),
   /** the intro card (tools/e2e.ts, tools/snap.ts): what it is doing, skip it, or hold it at one moment for a picture */
   intro: {
     state: () => intro.state(),

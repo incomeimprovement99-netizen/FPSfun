@@ -664,14 +664,15 @@ export function loadMannequin(): Promise<void> {
       // a robot when the check ran. The grey mannequin is 4.4 MB we load
       // anyway and has the same skeleton, so figures start there, and every
       // figure built after the body arrives is the real one.
-      void loader
-        .loadAsync(`models/body/${DEFAULT_BODY}.gltf`)
-        .then((b) => {
-          if (!template) return;
-          bodies.set(DEFAULT_BODY, b.scene);
-          template.scene = bodyFor(DEFAULT_BODY, "regular") ?? b.scene;
+      // (Through loadBody, the one fetch a body gets: loaded here on its own, a figure asking for the same body before it
+      // came fetched its file and its seven textures a second time, and held two copies of them; a hunt, 2026-09-30.)
+      void loadBody(DEFAULT_BODY)
+        .then(() => {
+          const body = bodies.get(DEFAULT_BODY);
+          if (!template || !body) return;
+          template.scene = bodyFor(DEFAULT_BODY, "regular") ?? body;
           // the hand's aim pose is sampled off whatever the body is
-          const p2 = cloneSkinned(b.scene);
+          const p2 = cloneSkinned(body);
           const m2 = new THREE.AnimationMixer(p2);
           m2.clipAction(clips.get("full:Pistol_Aim_Neutral")!).play();
           m2.update(0);
