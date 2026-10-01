@@ -775,6 +775,44 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     check(`the fire escape on the ${f.block} block's rooms building: climbed from the street onto its roof and back down, by a player`, u.k === up.length && d.k === up.length && Math.abs(u.y - f.roof) < 0.1 && d.y < 0.1, `up ${u.k - 1} of ${up.length - 1} legs, at ${u.y.toFixed(2)} m (${u.x.toFixed(1)}, ${u.z.toFixed(1)}); down ${d.k - 1}, at ${d.y.toFixed(2)} m`);
   }
   check("a fire escape on each rooms building", FI.length === Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k) && blockOf(k) !== wellBlock).length, `${FI.length}`);
+  // and its walled yard (rules.low.yard, the layout's yards): on each rooms building's roof, its inside reached from
+  // where the fire escape steps over the parapet, a body's square a quarter metre at a time over the collision at the
+  // roof's height (a floor there under its middle, nothing over a step in its room)
+  const YD = (cfg as unknown as { yards?: Array<{ block: string; inside: number[]; y: number }> }).yards ?? [];
+  check("a walled yard on each rooms building's roof", YD.length === FI.length && YD.length > 0, `${YD.length}`);
+  for (const yd of YD) {
+    const f = FI.find((q) => q.block === yd.block);
+    const rect = R4.find((r) => `${Math.sign(r[0] + r[1])},${Math.sign(r[2] + r[3])}` === yd.block);
+    if (!f || !rect) {
+      check(`the ${yd.block} block's roof yard: reached from its fire escape`, false, "no fire escape or rooms building");
+      continue;
+    }
+    const a = (f.yaw * Math.PI) / 180;
+    const from = [f.at[0] + Math.cos(a) * -1.5 + Math.sin(a) * -4.2, f.at[1] - Math.sin(a) * -1.5 + Math.cos(a) * -4.2];
+    const [G, r, y] = [0.25, MOVE.radius, yd.y];
+    const stands = (x: number, z: number): boolean => {
+      const [wx, wz] = [x + BR_X, z + BR_Z];
+      const near = solidsIn(wx - r, wx + r, wz - r, wz + r).filter((s) => s.maxX > wx - r && s.minX < wx + r && s.maxZ > wz - r && s.minZ < wz + r);
+      return near.some((s) => wx >= s.minX && wx <= s.maxX && wz >= s.minZ && wz <= s.maxZ && Math.abs(s.top - y) < 0.06) && !near.some((s) => s.top > y + MOVE.stepHeight && s.base < y + MOVE.standHeight);
+    };
+    const [i0, j0] = [Math.round(from[0] / G), Math.round(from[1] / G)];
+    const seen = new Set<string>([`${i0},${j0}`]);
+    const todo = stands(i0 * G, j0 * G) ? [[i0, j0]] : [];
+    let into = false;
+    while (todo.length && !into) {
+      const [i, j] = todo.pop()!;
+      const [x, z] = [i * G, j * G];
+      if (x > yd.inside[0] && x < yd.inside[1] && z > yd.inside[2] && z < yd.inside[3]) into = true;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const [ni, nj] = [i + di, j + dj];
+        const k = `${ni},${nj}`;
+        if (seen.has(k) || ni * G < rect[0] - 3 || ni * G > rect[1] + 3 || nj * G < rect[2] - 3 || nj * G > rect[3] + 3) continue;
+        seen.add(k);
+        if (stands(ni * G, nj * G)) todo.push([ni, nj]);
+      }
+    }
+    check(`the ${yd.block} block's roof yard: its inside reached on the roof from where its fire escape steps over the parapet`, into, `${seen.size} squares tried`);
+  }
   for (const [sx, sz, name] of [[-1, -1, "nw"], [1, -1, "ne"], [-1, 1, "sw"], [1, 1, "se"]] as const) {
     if (`${sx},${sz}` === wellBlock) continue;
     const rect = R4.find((r) => Math.sign(r[0] + r[1]) === sx && Math.sign(r[2] + r[3]) === sz)!;

@@ -8786,3 +8786,23 @@ the crosshair, the side of the gun showing where theirs show its back.
   before the last fixes (BOOG's elbow, the open hand, the swap's curl, the palm measure, BOOG's point), its new checks
   passing; its rerun and the proof run were stopped when the owner asked to ship and play it (2026-10-01: "Can we just
   skip the e2e test and deploy?"), so they run with the next change.
+
+## Milestone 397 — Walled yards on the rooms buildings' roofs
+
+The master plan's fire escapes lead "onto a walled roof yard". Up each rooms building's fire escape (Milestone 395) the
+roof was open, 20 m across behind a 0.5 m parapet, under the High City decks' guns 16 m higher.
+
+- **A yard on each roof** (rules.low.yard, tools/neon-layout.ts): the pack's ExteriorYard00c, slatted concrete walls
+  1.5 m high on three sides of a 5 m square, as the pack's own scene sets its yards beside rooms at the same height. Its
+  own floor is left out: the roof is its floor, in the same plane.
+- **Where it stands is measured** off the building's triangles every quarter metre: where both of a 5 m yard's walls
+  stand wholly on open roof (at 10.5 m, nothing over it to a body's height) and its inside is open. The parapets, the
+  roof room, the water tank and the pergola over the terrace leave one such place, west of the pergola (a hundred fits,
+  all between x -16.75 and -10.25 and z 3.25 and 9.75 of the building's own metres), and the yard stands in its middle,
+  its open side to the south: toward the bay and its fire escape on the north-west and north-east. None fits right
+  behind a fire escape: the bay is 4 m between its parapets.
+- The map: its files lo 83 MB, hi 143 MB, max 348 MB. **Its files are version 24.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): a yard on each rooms building's roof, and its inside reached
+  from where the fire escape steps over the parapet, a body's square at a time over the collision at the roof's height
+  (seen failing with a yard's inside put out past the landing, in the air). The fire escapes climbed both ways as
+  before. verify and rules; e2e `loot` and `br`. Photographed.

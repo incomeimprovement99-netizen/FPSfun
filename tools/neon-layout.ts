@@ -339,6 +339,7 @@ const islands: number[][] = [];
 // High City bridges (rules.bridges.paths) only one that tops out under them
 const rooms: number[][] = [];
 const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> = [];
+const yards: Array<{ block: string; inside: number[]; y: number }> = [];
 {
   const L = R.low;
   const placed: OBox[] = [];
@@ -371,6 +372,17 @@ const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; ris
     placed.push(boxOf([rr.x0, rr.x1, rr.z0, rr.z1]));
     // its fire escape (rules.low.fire), stood once the block is built (below)
     if (!well && L.fire && "px" in rr) fireAt.push({ chunk, block: `${sx},${sz}`, px: rr.px, pz: rr.pz, fy, beside: placed[placed.length - 1] });
+    // and a walled yard on its roof (rules.low.yard): the pack's yard, its walls on the one part of the roof where a 5 m
+    // yard's stand wholly on open roof, its own floor left out (the roof is its floor, in the same plane)
+    if (!well && L.yard && "px" in rr) {
+      const Y = L.yard;
+      const yp = piece(Y.piece);
+      const [ox, oz] = rotY(fy, Y.at[0], Y.at[1]);
+      add(chunk, "c", [yp.key, +(rr.px + ox).toFixed(3), Y.y, +(rr.pz + oz).toFixed(3), fy + Y.at[2], "o", null, Y.without] as Place);
+      // (its inside, for tools/checks/sk-neon.ts to reach from the fire escape)
+      const corners = [[-4.5, -4.5], [-0.5, 0]].map(([x, z]) => rotY(fy + Y.at[2], x, z)).map(([x, z]) => [rr.px + ox + x, rr.pz + oz + z]);
+      yards.push({ block: `${sx},${sz}`, inside: [Math.min(corners[0][0], corners[1][0]), Math.max(corners[0][0], corners[1][0]), Math.min(corners[0][1], corners[1][1]), Math.max(corners[0][1], corners[1][1])].map((v) => +v.toFixed(3)), y: Y.y });
+    }
     if (rp.size![1] > L.underBridge) throw new Error(`${L.rooms.piece} is ${rp.size![1]} m tall, over the bridges`);
     // the wedge where the block's two streets leave their fork: one building out along the bisector, facing the
     // junction on the diagonal (a flatiron's corner), as near the fork as it clears both streets' pavements
@@ -459,6 +471,7 @@ const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; ris
   cfg.rooms = rooms;
   // (each fire escape where it stands, for tools/checks/sk-neon.ts to climb)
   cfg.fires = fires;
+  cfg.yards = yards;
   console.log(`corner blocks: ${fronts} buildings along the curves and a building in each wedge (${JSON.stringify(Object.fromEntries(why))} tried)`);
 }
 

@@ -1332,7 +1332,7 @@ a row of 3 to 6 storey buildings follows each of its curved streets, and in its
 outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
 and two more up its own stairs, and its roof reached by the pack's fire escape up
 its outside, a drop stair over the street to jump onto and three flights (each
-colliding as its own faces, so a body fits it). In the south-east block's corner
+colliding as its own faces, so a body fits it) to a walled yard on top. In the south-east block's corner
 instead, the Well: the pack's inverted building, a light-well with galleries of
 shops 3.5 m apart down to 10 m under the street, a stair down every storey from
 a stairwell in the street, a rope up its middle, and a corridor from its lowest
@@ -1372,7 +1372,7 @@ floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map.
 `tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
-entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back.
+entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back and into its yard.
 
 **The field is rock, scrub and cliff, not boxes.** The battle royale's cover
 is scanned rock (Poly Haven, CC0), its open ground has dead trees and branches
