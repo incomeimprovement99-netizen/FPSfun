@@ -42,7 +42,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -758,6 +758,9 @@ function reloadSeconds(id: string, empty: boolean): number {
   return t;
 }
 
+/** the first person's magazine phases round its own middle (fparms.json reload.magPhase), not along it */
+const MAG_RADIAL = (FIRST_PERSON_RELOAD as { magPhase?: string }).magPhase === "radial";
+
 /** a signature gun's swap phase (gunfeel.json guns.<id>.swap: shares of the swap, the model changing at its middle) */
 const swapOf = (id: string): { out: number[]; in: number[] } | null => (feelCfg.guns as unknown as Record<string, { swap?: { out: number[]; in: number[] } }>)[id]?.swap ?? null;
 /** a gun's holster and draw times, seconds (weapons.ts, fusion 0): what a swap's phase out and in run over */
@@ -1275,9 +1278,14 @@ export class MannequinFigure {
         const inv = mag.matrixWorld.clone().invert();
         const box = new THREE.Box3();
         const v = new THREE.Vector3();
+        // (the magazine as drawn: its group holds the procedural gun's magazine too, hidden, 107 mm off on the USSO)
+        const drawn = (o: THREE.Object3D) => {
+          for (let q: THREE.Object3D | null = o; q && q !== mag; q = q.parent) if (!q.visible) return false;
+          return true;
+        };
         mag.traverse((o) => {
           const mesh = o as THREE.Mesh;
-          if (!mesh.isMesh) return;
+          if (!mesh.isMesh || !drawn(mesh)) return;
           const pos = mesh.geometry.getAttribute("position");
           const to = new THREE.Matrix4().multiplyMatrices(inv, mesh.matrixWorld);
           for (let i = 0; i < pos.count; i++) box.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(to));
@@ -1286,6 +1294,8 @@ export class MannequinFigure {
         const cz = (box.min.z + box.max.z) / 2;
         this.magTop.set(cx, box.max.y, cz);
         this.magEnd.set(cx, box.min.y, cz);
+        box.getCenter(this.magMid);
+        this.magRadius = Math.max(0.005, box.getSize(new THREE.Vector3()).length() / 2);
         const under = (o: THREE.Object3D, g: THREE.Object3D | null) => {
           for (let q: THREE.Object3D | null = o; q; q = q.parent) if (q === g) return true;
           return false;
@@ -1351,6 +1361,9 @@ export class MannequinFigure {
   private readonly magSweep: PhaseSweep = newSweep(feelCfg.phase);
   private readonly magTop = new THREE.Vector3();
   private readonly magEnd = new THREE.Vector3();
+  /** the drawn magazine's middle (its group's frame) and half its size corner to corner, for a radial phase */
+  private readonly magMid = new THREE.Vector3();
+  private magRadius = 0.05;
   /**
    * A signature gun's swap, as the first person's (gunfeel.json guns.<id>.swap, viewmodel.ts): the gun going away
    * phases out over the holster, the one coming phases in over its draw, along the gun from its back to its muzzle,
@@ -1910,20 +1923,16 @@ export class MannequinFigure {
       const G = this.gunSweep;
       G.phase.value = swapPh;
       G.time.value = this.t;
-      // In place, as the first person's (phase.ts radial): out from the gun's edges in, and the next from its middle out.
-      // (Read where the sweep has it: phase.ts before the guns agent's radial phase runs only along the gun.)
-      const R = G as unknown as { radial?: { value: number }; center?: { value: THREE.Vector3 }; radius?: { value: number } };
-      if (R.radial) R.radial.value = cup ? 1 : 0;
+      // in place, as the first person's (phase.ts radial): out from the gun's edges in, and the next from its middle out
+      G.radial.value = cup ? 1 : 0;
       if (swapPh < 1 && this.gun) {
         this.gun.updateWorldMatrix(true, false);
         G.origin.value.copy(this.gunNear).applyMatrix4(this.gun.matrixWorld);
         G.dir.value.copy(this.gunFar).applyMatrix4(this.gun.matrixWorld).sub(G.origin.value);
         G.len.value = Math.max(1e-4, G.dir.value.length());
         G.dir.value.normalize();
-        if (R.center && R.radius) {
-          R.center.value.copy(this.gunMid).applyMatrix4(this.gun.matrixWorld);
-          R.radius.value = this.gunRadius * this.gun.getWorldScale(new THREE.Vector3()).x;
-        }
+        G.center.value.copy(this.gunMid).applyMatrix4(this.gun.matrixWorld);
+        G.radius.value = this.gunRadius * this.gun.getWorldScale(new THREE.Vector3()).x;
       }
       // the magazine's phase: along it from its top, as far as the reload has it (1 whole); in a swap the gun's, with it
       const mag = this.reloadParts?.mag;
@@ -1934,12 +1943,9 @@ export class MannequinFigure {
         S.origin.value.copy(G.origin.value);
         S.dir.value.copy(G.dir.value);
         S.len.value = G.len.value;
-        const M = S as unknown as typeof R;
-        if (M.radial && R.radial) M.radial.value = R.radial.value;
-        if (M.center && M.radius && R.center && R.radius) {
-          M.center.value.copy(R.center.value);
-          M.radius.value = R.radius.value;
-        }
+        S.radial.value = G.radial.value;
+        S.center.value.copy(G.center.value);
+        S.radius.value = G.radius.value;
       } else if (mag && S.phase.value < 1) {
         mag.updateMatrixWorld(true);
         // out from the top down its length; in the way gunfeel.json phase.magIn says, as the first person's ("up": from its
@@ -1949,6 +1955,11 @@ export class MannequinFigure {
         S.dir.value.copy(up ? this.magTop : this.magEnd).applyMatrix4(mag.matrixWorld).sub(S.origin.value);
         S.len.value = Math.max(1e-4, S.dir.value.length());
         S.dir.value.normalize();
+        // round its own middle, as the first person's (fparms.json reload.magPhase "radial"; the owner, 2026-10-01: "make the
+        // magazine phase in from the middle out and then we take the mag out it should be from the outside in")
+        S.radial.value = MAG_RADIAL ? 1 : 0;
+        S.center.value.copy(this.magMid).applyMatrix4(mag.matrixWorld);
+        S.radius.value = this.magRadius * mag.getWorldScale(new THREE.Vector3()).x;
       }
     } else if (this.mount && this.grip) {
       // a long gun: lowered and canted across the body for a sprint or a swap, up at the shoulder otherwise

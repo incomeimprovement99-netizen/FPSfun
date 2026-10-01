@@ -7987,8 +7987,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const R = RT.reloadEmpty;
     const FR = fparmsCfg.reload;
     const rack = (fparmsCfg.packGuns as Record<string, { rack?: { grab?: { reach: number[]; pull: number[] } } }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.rack;
-    type Mag = { y: number; shown: boolean; phase: number; keys: string; drops: number } | null;
-    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; return m ? { y: m.position.y, shown: m.visible, phase: f.magSweep.phase.value, keys: f.rifleOut?.keys ?? "", drops } : null; })()`;
+    type Mag = { y: number; shown: boolean; phase: number; keys: string; drops: number; radial: number; off: number } | null;
+    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; const S = f.magSweep; const mid = new window.__range.THREE.Box3(); m.traverse((o) => { if (o.isMesh) { let on = true; for (let q = o; q && q !== m; q = q.parent) on &&= q.visible; if (on) mid.expandByObject(o); } }); return m ? { y: m.position.y, shown: m.visible, phase: S.phase.value, keys: f.rifleOut?.keys ?? "", drops, radial: S.radial.value, off: Math.round(S.center.value.distanceTo(mid.getCenter(new window.__range.THREE.Vector3())) * 1000) } : null; })()`;
     const home = await ev<Mag>(page, mag);
     await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true })`);
     let at = 0;
@@ -8015,6 +8015,14 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       `the soldier's ${name} reload: then the hands work the gun as the first person's do (${rack?.grab ? "the left racks the charging handle" : "the right works the bolt"})`,
       !!working && (rack?.grab ? /l:handle/.test(working.keys) : /r:bolt/.test(working.keys)),
       working?.keys ?? "none"
+    );
+    // round its own middle where the first person's is (fparms.json reload.magPhase; the owner, 2026-10-01: "make the
+    // magazine phase in from the middle out and then we take the mag out it should be from the outside in")
+    const radialMag = (FR as { magPhase?: string }).magPhase === "radial";
+    check(
+      `the soldier's ${name} reload: the magazine phases ${radialMag ? "round its own middle, out from its edges in and in from its middle out" : "along its length"}, as the first person's`,
+      [pointing, coming].every((m) => !!m && m.radial === (radialMag ? 1 : 0) && (!radialMag || m.off <= 5)),
+      JSON.stringify({ radialMag, pointing: pointing && { radial: pointing.radial, off: pointing.off }, coming: coming && { radial: coming.radial, off: coming.off } })
     );
     check(`the soldier's ${name} reload: no magazine is ever dropped, and no hand goes to a pouch`, [pointing, gone, coming, seated, working].every((m) => !!m && m.drops === 0 && !/pouch/.test(m.keys)), JSON.stringify([pointing, gone, coming, seated, working].map((m) => m && { drops: m.drops, keys: m.keys })));
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
