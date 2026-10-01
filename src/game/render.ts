@@ -25,6 +25,7 @@ import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
 import { makeGradePass, GRADE, normalised } from "./grade";
 import type { Quality } from "./quality";
+import { slow } from "./slow";
 
 
 /**
@@ -59,6 +60,57 @@ function excludeFromAo(gtao: GTAOPass): void {
       // (and what draws only its shadow, the centre's tower skins under the kit: userData.noAo)
       if (list.every((m) => m.transparent || !m.visible || m.userData.noAo)) o.visible = false;
     });
+  };
+}
+
+/**
+ * The same, in one walk of what is drawn (?slow=aowalk puts the old way back). GTAOPass kept the visibility of every
+ * object in the scene in a map, in a walk of the whole scene before its prepass and another after it, and the hiding
+ * above was a third: about 3 ms a frame of a High frame's CPU in a battle royale (tools/profile-frame.ts, 2026-10-01:
+ * traverse and the pass's own walks the second and sixth costliest). This walks only what is shown, hides what the
+ * prepass must not draw, and shows those again after: the same picture.
+ */
+function hideFromAoCheaply(gtao: GTAOPass): void {
+  const pass = gtao as unknown as { overrideVisibility: () => void; restoreVisibility: () => void; scene: THREE.Scene };
+  const hidden: THREE.Object3D[] = [];
+  pass.overrideVisibility = () => {
+    hidden.length = 0;
+    pass.scene.traverseVisible((o) => {
+      // points and lines (the pass's own rule), sprites, and what draws nothing solid (the rule above)
+      let hide: boolean = !!((o as THREE.Points).isPoints || (o as THREE.Line).isLine || (o as THREE.Sprite).isSprite);
+      if (!hide) {
+        const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+        if (mat) hide = (Array.isArray(mat) ? mat : [mat]).every((m) => m.transparent || !m.visible || m.userData.noAo);
+      }
+      if (hide) {
+        o.visible = false;
+        hidden.push(o);
+      }
+    });
+  };
+  pass.restoreVisibility = () => {
+    for (const o of hidden) o.visible = true;
+    hidden.length = 0;
+  };
+}
+
+/**
+ * The AO pass's prepass (the scene drawn again for its depth and normals) leaves the shadow map alone. With live
+ * shadows (High) it drew the whole map again for nothing, a second time every frame: half of a High frame's
+ * 18 million triangles and 1900 draw calls at the Neon City's street (tools/bench.ts, 2026-10-01). ?slow=aoshadow
+ * puts the old way back.
+ */
+function aoPrepassKeepsShadows(gtao: GTAOPass): void {
+  const pass = gtao as unknown as { renderOverride: (r: THREE.WebGLRenderer, ...rest: unknown[]) => void };
+  const original = pass.renderOverride.bind(gtao);
+  pass.renderOverride = (r: THREE.WebGLRenderer, ...rest: unknown[]) => {
+    const shadows = r.shadowMap.autoUpdate;
+    r.shadowMap.autoUpdate = false;
+    try {
+      original(r, ...rest);
+    } finally {
+      r.shadowMap.autoUpdate = shadows;
+    }
   };
 }
 
@@ -137,7 +189,9 @@ export class Renderer {
         screenSpaceRadius: false,
       });
       gtao.blendIntensity = 1.0;
-      excludeFromAo(gtao);
+      if (slow("aowalk")) excludeFromAo(gtao);
+      else hideFromAoCheaply(gtao);
+      if (!slow("aoshadow")) aoPrepassKeepsShadows(gtao);
       composer.addPass(gtao);
     }
 

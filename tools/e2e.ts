@@ -6780,6 +6780,32 @@ async function skHuntTest(browser: Browser): Promise<void> {
   const heard = await ev<{ on: boolean; el: boolean }>(arena, "(() => { const a = window.__range.audio; return { on: a.ambienceState.on, el: !!a.ambEl && !a.ambEl.paused }; })()");
   await ev(arena, "window.__range.audio.setVolumes({ music: 0 })");
   check("hunt: the city's loop is on under a match but not fetched or played with the music at nothing, and plays once the slider is up", silent.on && !silent.el && heard.on && heard.el, JSON.stringify({ silent, heard }));
+  // a bot's figure is culled as anything else is, by a sphere round it (mannequin.ts cullAsFigure): drawn 4 m in front
+  // of you standing and fallen, and not drawn with you facing away. Never culled, every figure in a match was drawn
+  // every frame wherever it stood (2026-10-01). Its skinned meshes are counted as three draws them (onBeforeRender).
+  const drawn = (yaw: number, fall: boolean) =>
+    ev<{ n: number; meshes: number }>(
+      arena,
+      `new Promise((ok) => { const R = window.__range; const d = R.duel(); d.holdFire = true; const b = d.bots[0];
+        // playing, as a player is (with the menu up the view is the menu's, not yours)
+        R.input.locked = true; document.getElementById("overlay").classList.add("hidden");
+        ${fall ? "b.dummy.fallDown();" : ""}
+        // counted over frames, not time: the suite's pages draw in software, a frame of the city a second and more
+        const meshes = []; b.dummy.group.traverse((o) => { if (o.isSkinnedMesh) meshes.push(o); }); let n = 0; let f = 0;
+        const step = () => { R.player.teleport(b.pos.x, b.pos.y, b.pos.z + 4, ${yaw}, 0); f++;
+          if (f === 3) for (const m of meshes) m.onBeforeRender = () => { n++; };
+          if (f === 6) { for (const m of meshes) m.onBeforeRender = () => {}; return ok({ n, meshes: meshes.length }); }
+          requestAnimationFrame(step); };
+        requestAnimationFrame(step); })`,
+    );
+  const front = await drawn(0, false);
+  const back = await drawn(180, false);
+  const fallen = await drawn(0, true);
+  check(
+    "hunt: a bot's figure is drawn in front of you, standing and fallen, and not drawn behind you (every figure was drawn every frame)",
+    front.meshes > 0 && front.n > 0 && back.n === 0 && fallen.n > 0,
+    JSON.stringify({ front, back, fallen }),
+  );
   await arena.close();
 }
 

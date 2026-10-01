@@ -15,6 +15,8 @@ const PAGE_URL = process.env.SHOT_URL ?? "http://localhost:5173/";
 const SPOT = process.env.PROFILE_SPOT ?? "skmatch";
 const PRESET = process.env.PROFILE_PRESET ?? "competitive";
 const SECONDS = Number(process.env.PROFILE_SECONDS ?? 5);
+/** PROFILE_AT="x,y,z,yaw,pitch": where the camera is held instead of the spot's own (the Neon City's street: "0,1.7,545,0,0") */
+const AT = process.env.PROFILE_AT ? process.env.PROFILE_AT.split(",").map(Number).join(", ") : null;
 const SK = SPOT.startsWith("sk");
 
 interface Node {
@@ -27,6 +29,8 @@ async function main(): Promise<void> {
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: true,
+    // (the Neon City's file is parsed on the page's thread: a minute and more where the page answers nothing)
+    protocolTimeout: 900000,
     args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--disable-gpu-vsync", "--disable-frame-rate-limit", "--mute-audio", "--no-sandbox"],
   });
   try {
@@ -37,11 +41,13 @@ async function main(): Promise<void> {
     await page.evaluateOnNewDocument(`window.__straightDrop = true;`);
     await page.goto(`${PAGE_URL}?nointro&game=${SK ? "speedkills" : "legacy"}`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForFunction("window.__range && window.__range.loaded()", { timeout: 60000 });
+    // the Neon City's file loads after the page says it is loaded: profiled once it is drawn
+    await page.waitForFunction("!window.__range.neonMap || !window.__range.neonMap().on || window.__range.neonMap().drawn", { timeout: 300000 });
     await page.evaluate(`document.getElementById("overlay").classList.add("hidden")`);
     await page.evaluate(`(async () => { const r = window.__range; r.startBr({ seed: 42, poi: ${SK ? '"c"' : '"hub"'} }); r.input.lock();
       for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
       const d = r.duel(); if (d) d.holdFire = true;
-      const hold = () => r.player.teleport(${SPOT === "skroof" ? "0, 100, 500, 30, -18" : SK ? "0, 0.3, 590, 0, 12" : "0, 0, 530, 0, -2"});
+      const hold = () => r.player.teleport(${AT ?? (SPOT === "skroof" ? "0, 100, 500, 30, -18" : SK ? "0, 0.3, 590, 0, 12" : "0, 0, 530, 0, -2")});
       hold(); setInterval(hold, 50); })()`);
     await new Promise((r) => setTimeout(r, 4000));
     const cdp = await page.createCDPSession();

@@ -5,6 +5,7 @@
 // What it draws is the bundle's pieces alone, baked into one file a texture size (public/models/paid/neon/, served only by
 // the game's own server): until it is in, or where it is not (a checkout without the bought files), a plain floor.
 import * as THREE from "three";
+import { slow } from "./slow";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
@@ -323,6 +324,13 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
   });
   gltf.scene.name = "neon:map";
   root.add(gltf.scene);
+  // nothing in the file moves (its decay is its materials' own), so its matrices are worked out once and not every
+  // frame (?slow=static: every frame, as before)
+  if (!slow("static"))
+    gltf.scene.traverse((o) => {
+      o.updateMatrix();
+      o.matrixAutoUpdate = false;
+    });
   holdForDecay(gltf.scene, null);
   reflectCity(gltf.scene, renderer);
   if (standIn) standIn.visible = false;

@@ -14,6 +14,7 @@ import type { AttachSlot } from "./game/attachments";
 import { HU, MOVE } from "./game/movement";
 import { installSky } from "./game/materials";
 import { Renderer, VM_LAYER } from "./game/render";
+import { slow } from "./game/slow";
 import vmCfg from "./config/viewmodel.json";
 import figureCfg from "./config/figure.json";
 import introCfg from "./config/intro.json";
@@ -6205,6 +6206,16 @@ function showSide(): void {
 // Hidden subtrees are left out of the per-frame matrix walk (hiddenskip.ts);
 // ?noskip keeps the old walk, so its effect is measured, as the merge's is.
 if (!new URLSearchParams(location.search).has("noskip")) skipHiddenSubtrees();
+// The world's fixed containers work their matrices out once and not every frame (?slow=static: every frame, as before).
+// The scene's own did every frame, and so made every object in the world work its own out again, the still ones too:
+// with it still, an object that moves still does its own, and one that does not (the Neon City's file, the loot on the
+// floor, the merged statics) costs nothing (tools/profile-frame.ts, 2026-10-01: the matrix walk the costliest of a
+// frame's CPU, 4782 objects visited).
+if (!slow("static"))
+  for (const o of [scene, rangeSide, brSide, brMap.root]) {
+    o.updateMatrix();
+    o.matrixAutoUpdate = false;
+  }
 const merged = new URLSearchParams(location.search).has("nomerge")
   ? null
   : mergeStatic(scene, [[...rangeRoots, ...courses.map((c) => c.root)], arena.root, triArena.root, brMap.root], [rangeSide, rangeSide, rangeSide, brSide]);

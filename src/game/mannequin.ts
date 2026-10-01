@@ -33,6 +33,8 @@ import { OUR_GEOMETRY, buildOutfit, outfitMaterials } from "./outfit";
 import outfitCfg from "../config/outfits.json";
 import vmCfg from "../config/viewmodel.json";
 import figureCfg from "../config/figure.json";
+import perfCfg from "../config/perf.json";
+import { slow } from "./slow";
 import soldierHold from "../config/soldierhold.json";
 import finCfg from "../config/finisher.json";
 import feelCfg from "../config/gunfeel.json";
@@ -846,6 +848,70 @@ function rearOfGrip(gun: THREE.Object3D, gripF: number): number {
 /** each merged geometry's head: the sum of its Head vertices in the Head bone's rest frame, and how many (MannequinFigure.headMiddle) */
 const headSums = new WeakMap<THREE.BufferGeometry, { sum: THREE.Vector3; n: number }>();
 
+/** a figure's height off its rest pose, skinned (the soldier's meshes are stored lying down), by its first mesh's geometry */
+const figureHeights = new WeakMap<THREE.BufferGeometry, number>();
+
+/** how tall a figure stands: its skinned meshes' box in its own frame, measured once for each kind of figure */
+function figureHeight(root: THREE.Object3D, meshes: THREE.SkinnedMesh[]): number {
+  const had = figureHeights.get(meshes[0].geometry);
+  if (had !== undefined) return had;
+  root.updateMatrixWorld(true);
+  const toRoot = root.matrixWorld.clone().invert();
+  const box = new THREE.Box3();
+  for (const m of meshes) {
+    m.computeBoundingBox();
+    box.union(m.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(toRoot, m.matrixWorld)));
+  }
+  const h = Math.max(0.5, box.max.y);
+  figureHeights.set(meshes[0].geometry, h);
+  return h;
+}
+
+/**
+ * A figure's skinned meshes culled by one sphere round the figure, where they were never culled (?slow=cull puts that
+ * back). Never, because a skinned mesh's bounds are its rest pose's and an animated one leaves them; but then every
+ * figure in a match was drawn every frame wherever it stood, its skeleton worked out and sent to the GPU, behind you or
+ * across the map (a battle royale's 29 bots: about 116 of a frame's 500 draw calls at the Neon City's street,
+ * 2026-10-01). The sphere is the figure's, not each mesh's: half its height up and perf.json figureCull heights
+ * across, so it holds the figure lying down with its gun, and every piece of it (an eye's own rest sphere is 4 cm
+ * round its head) is drawn wherever the figure is. It is set in the figure's frame and carried into each mesh's (the
+ * soldier's are stored lying down and stood up by their skeleton: a sphere off a mesh's own geometry stood 1.7 m out
+ * along the ground, and the figure in front of you was not drawn).
+ */
+function cullAsFigure(root: THREE.Object3D, meshes: THREE.SkinnedMesh[], height: number): void {
+  root.updateMatrixWorld(true);
+  const toRoot = root.matrixWorld.clone().invert();
+  for (const m of meshes) {
+    const rel = new THREE.Matrix4().multiplyMatrices(toRoot, m.matrixWorld);
+    const centre = new THREE.Vector3(0, height / 2, 0).applyMatrix4(rel.clone().invert());
+    m.boundingSphere = new THREE.Sphere(centre, (height * perfCfg.figureCull) / rel.getMaxScaleOnAxis());
+  }
+}
+
+/** two skeletons over the same bones in the same rest pose: one can do for both */
+const sameRig = (a: THREE.Skeleton, b: THREE.Skeleton): boolean =>
+  a.bones.length === b.bones.length && a.bones.every((x, i) => x === b.bones[i]) && a.boneInverses.every((x, i) => x.equals(b.boneInverses[i]));
+
+/**
+ * A figure's skinned meshes over the same bones in the same rest pose share one skeleton (?slow=skeleton puts one each
+ * back). The clone gave each of the soldier's four meshes a skeleton of its own over the same 67 bones, each worked out
+ * every frame and sent to the GPU: four times over (2026-10-01, with every figure drawn: 109 bone textures a frame).
+ */
+function shareSkeletons(root: THREE.Object3D): void {
+  const kept: THREE.Skeleton[] = [];
+  root.traverse((o) => {
+    const m = o as THREE.SkinnedMesh;
+    if (!m.isSkinnedMesh) return;
+    const same = kept.find((k) => k !== m.skeleton && sameRig(k, m.skeleton));
+    if (!same) {
+      if (!kept.includes(m.skeleton)) kept.push(m.skeleton);
+      return;
+    }
+    m.skeleton.dispose();
+    m.skeleton = same;
+  });
+}
+
 export class MannequinFigure {
   readonly root: THREE.Object3D;
   private headMid: THREE.Vector3 | null = null;
@@ -855,6 +921,8 @@ export class MannequinFigure {
   private lowerName = "";
   private upperName = "";
   private bones: Record<string, THREE.Object3D> = {};
+  /** how tall it stands, off its rest pose (figureHeight): the size of the sphere it is culled by */
+  private height = 1.8;
   /**
    * The clip's own rotation of each bone this class turns on top of the clips.
    * three's mixer writes a bone only when the clip's value has changed since
@@ -1009,13 +1077,15 @@ export class MannequinFigure {
     if (!body && !this.soldier) void loadBody(want);
     this.root = cloneSkinned(body ?? t.scene);
     this.root.name = "mannequin";
+    const skinned: THREE.SkinnedMesh[] = [];
     this.mixer = new THREE.AnimationMixer(this.root);
     this.root.traverse((o) => {
       if ((o as THREE.Bone).isBone) this.bones[o.name] = o;
       const m = o as THREE.SkinnedMesh;
       if (m.isSkinnedMesh) {
         m.castShadow = true;
-        m.frustumCulled = false;
+        if (slow("cull")) m.frustumCulled = false;
+        else skinned.push(m);
         // its own materials, so a hit can flash this figure and not every one.
         // The grey mannequin is untextured and takes the operator's colours:
         // the body the shell's, the joints the accent's. A real body is NOT
@@ -1050,8 +1120,13 @@ export class MannequinFigure {
       }
     });
     // the soldier wears its own pieces, nothing of the figures' wardrobe; its fingers are drawn smaller than its model's
+    if (skinned.length) {
+      this.height = figureHeight(this.root, skinned);
+      cullAsFigure(this.root, skinned, this.height);
+    }
     if (!this.soldier) this.wearGear(skin);
     else sizeFingers(this.bones);
+    if (!slow("skeleton")) shareSkeletons(this.root);
     if (gunId) this.setGun(gunId);
   }
 
@@ -1095,12 +1170,15 @@ export class MannequinFigure {
         const mesh = new THREE.SkinnedMesh(geo, mat);
         mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
         mesh.castShadow = true;
-        mesh.frustumCulled = false;
+        if (slow("cull")) mesh.frustumCulled = false;
+        else cullAsFigure(this.root, [mesh], this.height);
         mesh.name = k === 0 ? `wear:${n}` : `wear:${n}#${k}`;
         this.root.add(mesh);
         this.worn.push(mesh);
       }
     }
+    // (a garment cut for the same rest pose shares the body's skeleton too)
+    if (!slow("skeleton")) shareSkeletons(this.root);
   }
 
   /** the outfit's atlas arrived after the clothes went on: put it on them */
@@ -1992,7 +2070,7 @@ export class MannequinFigure {
     this.mixer.uncacheRoot(this.root);
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
-    // each clone has its own skeleton (and its bone texture on the GPU)
+    // each clone has its own skeleton (and its bone texture on the GPU), or shares one (disposing a disposed one is nothing)
     this.root.traverse((o) => {
       const m = o as THREE.SkinnedMesh;
       if (m.isSkinnedMesh) m.skeleton.dispose();

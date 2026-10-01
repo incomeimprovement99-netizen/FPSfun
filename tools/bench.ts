@@ -48,6 +48,22 @@
 // "skrun" is the spot for it: the match, with the camera running a street toward the Spire at a sprint (14 m/s),
 // since hitches come with moving, not with standing.
 //
+// The Neon City (the default map since Phase 28; the spots above are the old city's): "neonstreet", the match on
+// seed 42 at eye height in the street 45 m south of the tower, facing it (the most drawn from the ground: about 690
+// draw calls and 5.7 million triangles on Balanced, 2026-10-01), and "neonhigh", 40 m up 120 m south of it, the
+// city in front of you as from a drop.
+//
+// BENCH_VARIANTS="name=query;name=query" measures each preset once a variant, the query added to the page's address
+// (quality.ts reads &q=key:value,... as one setting of the preset changed): what one setting costs, in the same
+// interleaved rounds as the preset it changes. "base=" is the preset as it is.
+//
+// BENCH_GPU=1 times the GPU's own work a frame with timer queries round every draw (EXT_disjoint_timer_query_webgl2):
+// a frame longer than the loop's own time and the GPU's is the browser's or the wait between them.
+//
+// BENCH_DPR is the screen's pixel density (default 1): Balanced draws at up to 1.5 of it and High at up to 2, which a
+// 1080p bench at 1 never shows, where a laptop's 1.25 to 2 does. BENCH_CPU=4 runs the page on a quarter of the CPU
+// (Chrome's own throttle), for a slower machine's processor.
+//
 // Run: npm run bench        (needs `npm run dev` already running)
 import puppeteer from "puppeteer";
 
@@ -59,6 +75,15 @@ const MERGE = process.env.BENCH_MERGE === "both" ? [true, false] : [true];
 const SPOT = process.env.BENCH_SPOT ?? "range";
 const RUNS = Math.max(1, Number(process.env.BENCH_RUNS ?? 1));
 const PHASES = process.env.BENCH_PHASES === "1";
+const GPU = process.env.BENCH_GPU === "1";
+const DPR = Number(process.env.BENCH_DPR ?? 1);
+const CPU_SLOW = Number(process.env.BENCH_CPU ?? 1);
+/** (name, query) a variant; one, unnamed and empty, unless BENCH_VARIANTS names some */
+const VARIANTS: Array<[string, string]> = (process.env.BENCH_VARIANTS ?? "")
+  .split(";")
+  .filter(Boolean)
+  .map((v) => [v.split("=")[0], v.slice(v.indexOf("=") + 1)] as [string, string]);
+if (!VARIANTS.length) VARIANTS.push(["", ""]);
 /** the hitch line, ms: the plan's */
 const HITCH = 50;
 const GAME = SPOT.startsWith("sk") ? "speedkills" : "legacy";
@@ -102,11 +127,15 @@ const SPOTS: Record<string, string> = {
   skroof: skMatch(0, 160, 520, 30, -18),
   // down the street at map x 36 (city.json blocks), from the north edge toward the Spire at a sprint, eye height
   skrun: skRun(36, 1.7, 740, 14),
+  neonstreet: skMatch(0, 1.7, 545, 0, 0),
+  neonhigh: skMatch(0, 40, 620, 0, -5),
 };
 /** spots that need the page told something before it loads: a straight drop, and none of the real mouse */
 const STRAIGHT_DROP = `window.__straightDrop = true; for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 const BEFORE: Record<string, string> = {
   skmatch: STRAIGHT_DROP,
+  neonstreet: STRAIGHT_DROP,
+  neonhigh: STRAIGHT_DROP,
   skroof: STRAIGHT_DROP,
   brmatch: `window.__straightDrop = true; for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`,
 };
@@ -123,6 +152,8 @@ type Run = {
   tris: number;
   bots: number;
   merged: { meshes: number; after: number } | null;
+  /** the GPU's own time a frame, ms (BENCH_GPU): median and 95th percentile */
+  gpuMs: { med: number; p95: number } | null;
   perf: { means: Record<string, number>; hitches: Array<{ ms: number; phases: Record<string, number> }> } | null;
 };
 
@@ -130,6 +161,8 @@ async function main(): Promise<void> {
   const browser = await puppeteer.launch({
     executablePath: CHROME,
     headless: true,
+    // (the Neon City's file is parsed on the page's thread: a minute and more where the page answers nothing)
+    protocolTimeout: 900000,
     args: [
       "--use-angle=d3d11",
       "--enable-gpu",
@@ -140,14 +173,15 @@ async function main(): Promise<void> {
       "--no-sandbox",
     ],
   });
-  const combos = PRESETS.flatMap((preset) => MERGE.map((merge) => ({ preset, merge })));
-  const label = (c: { preset: string; merge: boolean }) => `${c.preset}${MERGE.length > 1 ? (c.merge ? " merged" : " unmerged") : ""}${SPOT !== "range" ? ` @${SPOT}` : ""}`;
+  const combos = PRESETS.flatMap((preset) => MERGE.flatMap((merge) => VARIANTS.map(([vname, query]) => ({ preset, merge, vname, query }))));
+  const label = (c: { preset: string; merge: boolean; vname: string }) =>
+    `${c.preset}${c.vname ? ` [${c.vname}]` : ""}${MERGE.length > 1 ? (c.merge ? " merged" : " unmerged") : ""}${SPOT !== "range" ? ` @${SPOT}` : ""}`;
   const results = new Map<string, Run[]>();
   try {
     // round by round, every preset in turn: a change in the machine's load lands on all of them, not on one
     for (let round = 0; round < RUNS; round++) {
       for (const c of combos) {
-        const out = await measure(browser, c.preset, c.merge);
+        const out = await measure(browser, c.preset, c.merge, c.query);
         const l = label(c);
         results.set(l, [...(results.get(l) ?? []), out]);
         console.log(
@@ -156,6 +190,7 @@ async function main(): Promise<void> {
             `${String(out.calls).padStart(5)} draw calls   ${(out.tris / 1000).toFixed(0).padStart(5)}k triangles` +
             (SPOT === "brmatch" || GAME === "speedkills" ? `   ${out.bots} bots` : "") +
             (out.merged ? `   (static meshes ${out.merged.meshes} -> ${out.merged.after})` : "") +
+            (out.gpuMs ? `   GPU ${out.gpuMs.med.toFixed(2)} ms (p95 ${out.gpuMs.p95.toFixed(2)})` : "") +
             `   GPU: ${out.gpu}`
         );
         if (out.perf) {
@@ -177,7 +212,14 @@ async function main(): Promise<void> {
       for (const [l, rs] of results) {
         const fps = rs.map((r) => 1000 / r.med).sort((a, b) => a - b);
         const p99 = rs.map((r) => r.p99).sort((a, b) => a - b);
-        console.log(`${l.padEnd(26)} ${mid(fps).toFixed(0).padStart(5)} fps (${fps[0].toFixed(0)} to ${fps[fps.length - 1].toFixed(0)})   p99 ${mid(p99).toFixed(2)} ms   hitches ${rs.map((r) => r.hitches).join(", ")}`);
+        const gpuMed = rs.map((r) => r.gpuMs?.med ?? NaN).sort((a, b) => a - b);
+        const loop = rs.map((r) => (r.perf ? Object.values(r.perf.means).reduce((a, b) => a + b, 0) : NaN)).sort((a, b) => a - b);
+        console.log(
+          `${l.padEnd(34)} ${mid(fps).toFixed(0).padStart(5)} fps (${fps[0].toFixed(0)} to ${fps[fps.length - 1].toFixed(0)})   ${(1000 / mid(fps)).toFixed(2)} ms   p99 ${mid(p99).toFixed(2)} ms` +
+            (GPU ? `   GPU ${mid(gpuMed).toFixed(2)} ms` : "") +
+            (PHASES ? `   loop ${mid(loop).toFixed(2)} ms` : "") +
+            `   calls ${rs[0].calls}   tris ${(rs[0].tris / 1e6).toFixed(2)}M   hitches ${rs.map((r) => r.hitches).join(", ")}`,
+        );
       }
     }
   } finally {
@@ -186,14 +228,15 @@ async function main(): Promise<void> {
 }
 
 /** one run of one preset: a fresh page, the spot, a settle, then SECONDS of frames */
-async function measure(browser: import("puppeteer").Browser, preset: string, merge: boolean): Promise<Run> {
+async function measure(browser: import("puppeteer").Browser, preset: string, merge: boolean, query = ""): Promise<Run> {
   const page = await browser.newPage();
-  await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+  await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: DPR });
+  if (CPU_SLOW > 1) await (await page.createCDPSession()).send("Emulation.setCPUThrottlingRate", { rate: CPU_SLOW });
   await page.evaluateOnNewDocument((v: string) => localStorage.setItem("range.quality", v), preset);
   // one hour for every run (a battle royale draws its own from the seed otherwise)
   await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
   if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
-  await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + `&game=${GAME}` + (PHASES ? "&perf" : "") + (process.env.BENCH_QUERY ?? ""), { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + `&game=${GAME}` + (PHASES ? "&perf" : "") + (process.env.BENCH_QUERY ?? "") + query, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
   await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
   // the Neon City map's file (&map=neon, Phase 28) loads after the page says it is loaded: measured once it is drawn
@@ -207,6 +250,33 @@ async function measure(browser: import("puppeteer").Browser, preset: string, mer
   await new Promise((r) => setTimeout(r, 3000));
   // what the phase timer kept while settling is not the run's
   if (PHASES) await page.evaluate("window.__range.perf(true)");
+  // the GPU's time a frame: a timer query round every draw the renderer is asked for (the outermost, where one draw
+  // asks for another: the queries do not nest), summed by the animation frame it was asked in
+  if (GPU)
+    await page.evaluate(`(() => {
+      const r = window.__range.renderer; const gl = r.getContext(); const ext = gl.getExtension("EXT_disjoint_timer_query_webgl2");
+      if (!ext) return;
+      const W = (window.__gpuT = { frames: [], pending: [], id: 0 });
+      const tick = () => { W.id++; requestAnimationFrame(tick); };
+      requestAnimationFrame(tick);
+      const orig = r.render.bind(r);
+      let depth = 0;
+      r.render = (scene, camera) => {
+        if (depth++ > 0) { try { return orig(scene, camera); } finally { depth--; } }
+        const q = gl.createQuery(); gl.beginQuery(ext.TIME_ELAPSED_EXT, q);
+        try { return orig(scene, camera); } finally { gl.endQuery(ext.TIME_ELAPSED_EXT); W.pending.push({ q, f: W.id }); depth--; }
+      };
+      const poll = () => {
+        const disjoint = gl.getParameter(ext.GPU_DISJOINT_EXT); const still = [];
+        for (const p of W.pending) {
+          if (!gl.getQueryParameter(p.q, gl.QUERY_RESULT_AVAILABLE)) { still.push(p); continue; }
+          const ns = gl.getQueryParameter(p.q, gl.QUERY_RESULT); gl.deleteQuery(p.q);
+          if (!disjoint) W.frames[p.f] = (W.frames[p.f] || 0) + ns / 1e6;
+        }
+        W.pending = still; requestAnimationFrame(poll);
+      };
+      requestAnimationFrame(poll);
+    })()`);
   // Sent as a string: tsx wraps named functions in a __name helper that
   // does not exist inside the page.
   const out = (await page.evaluate(`(async () => {
@@ -215,6 +285,7 @@ async function measure(browser: import("puppeteer").Browser, preset: string, mer
     const gpu = dbg ? String(gl.getParameter(dbg.UNMASKED_RENDERER_WEBGL)) : "unknown";
     const times = [];
     let calls = 0, tris = 0, n = 0;
+    const g0 = window.__gpuT ? window.__gpuT.id : 0;
     await new Promise((done) => {
       let prev = 0;
       const end = performance.now() + ${SECONDS} * 1000;
@@ -227,6 +298,11 @@ async function measure(browser: import("puppeteer").Browser, preset: string, mer
       }
       requestAnimationFrame(tick);
     });
+    const g1 = window.__gpuT ? window.__gpuT.id : 0;
+    // (the last frames' queries come back a frame or two late)
+    if (window.__gpuT) await new Promise((ok) => setTimeout(ok, 300));
+    const gt = window.__gpuT ? window.__gpuT.frames.slice(g0 + 1, g1).filter((v) => v > 0).sort((a, b) => a - b) : [];
+    const gpuMs = gt.length ? { med: gt[Math.floor(gt.length / 2)], p95: gt[Math.floor(gt.length * 0.95)] } : null;
     const hitches = times.filter((t) => t > ${HITCH}).length;
     const worst = times.reduce((m, t) => Math.max(m, t), 0);
     times.sort((a, b) => a - b);
@@ -244,6 +320,7 @@ async function measure(browser: import("puppeteer").Browser, preset: string, mer
       tris: Math.round(tris / Math.max(1, n)),
       bots: r.duel()?.bots?.length ?? 0,
       merged: r.merged,
+      gpuMs,
       perf: perf && { means: perf.means, hitches: perf.hitches },
     };
   })()`)) as Run;

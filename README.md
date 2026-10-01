@@ -1199,7 +1199,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
-| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 160 m over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced |
+| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the old city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 160 m over it; `BENCH_SPOT=neonstreet` the same match in the Neon City's street facing its tower (the most drawn from the ground) and `neonhigh` 40 m up over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced; `BENCH_VARIANTS="name=query;..."` measures several such pages in the same interleaved rounds (`&q=ao:0` changes one setting of a preset, `&slow=cull` puts back one saving of the performance pass, `src/game/slow.ts`). `BENCH_GPU=1` adds the GPU's own time a frame (timer queries), `BENCH_DPR=2` a high-density screen, `BENCH_CPU=4` a processor a quarter as fast, `BENCH_RUNS=3` three rounds and their medians |
 | `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch`, `skroof` or `brmatch`), the scene's objects by group and how many are hidden, and with `PROFILE_CALLERS=name` who calls a function. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
@@ -1290,6 +1290,19 @@ and from 96, 156 and 85 to 213, 208 and 102 over the Spire; the legacy match
 went from 250, 196 and 110 to 345, 312 and 149, its Balanced draw calls halved.
 `tools/checks/city-budget.ts` holds the city's meshes and triangles, and the
 e2e holds that no material in a match is the rebuilding kind.
+
+**A performance pass, and High at what Balanced cost.** Measured on the Neon City (2026-10-01, `npm run bench`
+with the GPU's own time, the screen's density and a slowed processor, and `npm run profile`), the game is CPU-bound
+on every preset: three.js walking the scene and sending its draws is two thirds of a frame, and High drew the scene
+five times over (18 million triangles). Five savings, each one put back by `?slow=name` for measuring
+(`src/game/slow.ts`): ambient occlusion's prepass no longer redraws the shadow map (High drew it twice a frame);
+the AO pass walks the scene once instead of three times; every figure was drawn every frame wherever it stood, its
+skinned meshes never culled, and is now culled by a sphere round it (measured off its rest pose, wide enough for it
+lying down); a soldier's four meshes share one skeleton instead of four copies of it; and the scene, the Neon City's
+file and the loot on the floor no longer work out their unmoving matrices every frame. In the street of a battle
+royale of thirty: Balanced from 182 to 278 fps and High from 97 to 154 on the owner's machine; on a processor a
+quarter as fast, Balanced from 51 to 67 and High from 18 to 34. Ambient occlusion is still High's dearest setting
+(it draws the scene again for its depth and normals), and the draw distance is what costs from the air.
 
 **The bought city kits, and what they cost.** The centre wears about 6,300
 pieces from the owner's city packs (`src/game/citydress.ts` places them,

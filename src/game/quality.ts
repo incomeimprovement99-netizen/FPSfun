@@ -139,11 +139,28 @@ const KEY = "range.quality";
 export function loadQuality(): Quality {
   try {
     const p = localStorage.getItem(KEY) as Preset | null;
-    if (p && p in PRESETS) return PRESETS[p];
+    if (p && p in PRESETS) return overridden(PRESETS[p]);
   } catch {
     /* storage blocked: fall through to the default */
   }
-  return PRESETS.competitive;
+  return overridden(PRESETS.competitive);
+}
+
+/**
+ * The preset with some of its settings changed by the page's address, `&q=ao:0,shadows:live`, each key a Quality's
+ * own: for measuring what one setting costs on its own (tools/bench.ts BENCH_QUERY), where a preset moves several.
+ */
+function overridden(q: Quality): Quality {
+  const raw = typeof location === "undefined" ? null : new URLSearchParams(location.search).get("q");
+  if (!raw) return q;
+  const out: Record<string, unknown> = { ...q };
+  for (const part of raw.split(",")) {
+    const [k, v] = part.split(":");
+    if (!(k in q) || v === undefined) continue;
+    const was = out[k];
+    out[k] = typeof was === "boolean" ? v === "1" || v === "true" : typeof was === "number" ? Number(v) : v;
+  }
+  return out as unknown as Quality;
 }
 
 export function saveQuality(p: Preset): void {

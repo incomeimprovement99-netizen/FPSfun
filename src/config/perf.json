@@ -1,0 +1,5 @@
+{
+  "_note": "The performance pass's numbers (2026-10-01; src/game/slow.ts names each saving and puts it back for measuring).",
+  "_figureCull": "A figure's skinned meshes are culled by one sphere round the figure (mannequin.ts cullAsFigure): centred half its height up, its radius this many of its heights (the height measured off its rest pose, figureHeight). Lying down, its head is a height from its feet and so the square root of 1.25, 1.12 heights, from the middle; 1.2 holds its gun past that. Never culled, every figure in a match was drawn every frame wherever it was.",
+  "figureCull": 1.2
+}

@@ -21,6 +21,7 @@
 import { IS_SK, PROFILE } from "./game";
 import { HACK_IDS, hackDef, hackSlotOf } from "./hacks";
 import * as THREE from "three";
+import { slow } from "./slow";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
@@ -700,6 +701,11 @@ export class LootField {
   constructor(scene: THREE.Scene | null) {
     this.group.name = "loot";
     scene?.add(this.group);
+    // (it never moves, nor does an item once it is down: their matrices worked out once, not every frame; ?slow=static)
+    if (!slow("static")) {
+      this.group.updateMatrix();
+      this.group.matrixAutoUpdate = false;
+    }
     this.headless = !scene;
   }
   private headless: boolean;
@@ -801,6 +807,11 @@ export class LootField {
     const obj = this.visual(item);
     obj.position.copy(pos);
     this.group.add(obj);
+    if (!slow("static"))
+      obj.traverse((o) => {
+        o.updateMatrix();
+        o.matrixAutoUpdate = false;
+      });
     this.drops.set(k, { key: k, item, pos: pos.clone(), obj });
     return k;
   }
@@ -1075,7 +1086,10 @@ export class LootField {
       d.obj.visible = v;
       if (!v) continue;
       // a bin of ours turns; the pack's case stands still, as a case does
-      if (d.item.kind === "bin" && !(IS_SK && paidPropReady("supplybin"))) d.obj.rotation.y = now * 0.8 + d.key;
+      if (d.item.kind === "bin" && !(IS_SK && paidPropReady("supplybin"))) {
+        d.obj.rotation.y = now * 0.8 + d.key;
+        d.obj.updateMatrix();
+      }
       this.drawBatched(d, now, d.pos.distanceToSquared(cam) < CORE_DETAIL2);
     }
     for (const b of this.batches.values()) b.close();
