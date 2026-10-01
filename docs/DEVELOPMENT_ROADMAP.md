@@ -8701,3 +8701,41 @@ higher quality at or around the same frames as before our optimizations?"
     not drawn;
   - the skfigure, sksquad, sklobby, loot and br sections; verify; rules;
   - photographed: the street and its view behind, the same as before.
+
+## Milestone 395 — Fire escapes up the rooms buildings onto their roofs
+
+The master plan's sixth phase, life on every level, begun with its fire escapes ("fire escapes to the roof yards"). The
+three rooms buildings on the corner blocks (Neon Building 04, Milestone 344) had their roofs at 10.5 m behind a 0.5 m
+parapet, with the pack's roof rooms on them, and no way up but a climb no one could make.
+
+- **A fire escape on each** (rules.low.fire, tools/neon-layout.ts): the pack's FireEscape001, a 5 m landing 2.6 m out
+  from a wall with a stair down through it 3 m, three of them stacked as the pack's own street scenes stack them, one
+  over another every 3 m, the top landing level with the roof. So the lowest flight's foot hangs 1.5 m over the street,
+  as a real one's drop stair does: a jump and a mantle onto it, then three flights, and over the parapet onto the roof.
+- **Where each stands is measured** off the building's triangles: a 5 m stretch of wall with nothing standing out of
+  it from the foot to over the parapet (signs, units and pipes are on most of its walls), the roof open right behind the
+  parapet. The first spot whose room no building of the block stands in is taken once the block is built: the bay on
+  its +z wall faces the block's inner side on the north-west and north-east; on the south-west a building stands 1 m
+  off the bay and another 1.4 m off its west wall, so its escape is on the wall toward the edge road. (A flat stretch
+  on the +z wall proper was tried first: the pack's roof room stands 0.75 m behind the parapet there, no room for a
+  body.) Chosen once the block is built, not kept from the others as they are placed: kept, it turned a building away
+  and every seeded choice after it, the cars and the signs, came out different.
+- **The rooms buildings stand on the collision's lines** (rules.low.rooms.snap): centred, each was 3 cm off them, every
+  wall in a cell's middle and its box reaching the cell's far edge, 0.22 m out of the wall.
+- **The fire escape collides as its own faces** (rules.fine.exact), not as cells. Its walkway beside the wall is 1.09 m
+  and its stair 1.08 m inside for a body 0.81 m across, and each flight stands 3 m over the one under it. In cells a
+  side lost part of a cell, the beam under each landing and the risers of the flight above reached down to a head, and
+  a body was put out over the railing, stopped short, or mantled up onto the flight above, by how each stack lay on the
+  grid (seen at quarter and eighth metre cells, a stack at a time). Now, part by part as measured off it: its landings'
+  and treads' level faces up, where nothing of them lies over them (the landing's beams face up under its deck), are
+  plates 2 cm deep (a landing from a fall is swept, so a plate is not fallen through); its stringers' sides and its
+  railings are walls, an eighth of a metre at a time along them (as one box a sloped stringer stood from its foot to its
+  top all along it, across the landing over its top); its risers, its sloped underside and its braces are nothing. And
+  its room is its own: the building's collision reaching into it, a cell over sills and pipes standing out under
+  0.12 m, is cut back to the wall's plane.
+- The map: 2.40 million triangles; its collision 63,699 boxes (the fire escapes 3,429); its files lo 83 MB, hi 143 MB, max 348 MB.
+  **Its files are version 23.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): a fire escape on each rooms building, and each climbed by a
+  player's own movement from the street (a jump onto its lowest flight), up every flight and landing and over the
+  parapet onto the roof, and back down to the street. Seen failing on every stack as each fault above was found. verify
+  and rules; e2e `loot` and `br`. Photographed from the street and on the landings.

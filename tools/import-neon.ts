@@ -206,6 +206,39 @@ if (mode === "bake") {
   /** the rooms whose collision is measured at the finer cell (rules.fine): an entrance's escalators, 2 m wide with their
    * glass sides, left no room for a body between sides widened to half a metre each */
   const openFine: Array<{ d: Draw; m: M4 }> = [];
+  /** the pieces that collide as their own faces (rules.fine.exact), each where it stands */
+  const EXACT = (cfg.rules.fine as { exact?: { pieces: string[]; parts: Record<string, "floor" | "flight" | "rail">; plate: number; slice: number; room: number[] } }).exact;
+  const exactAt: Array<{ x: number; y: number; z: number; yaw: number }> = [];
+  const exactBoxes: number[][] = [];
+  /** a triangle's own bounds in each `cell` square of the map it crosses, [x0, x1, z0, z1, y0, y1] */
+  const sliced = (tri: number[][], cell: number): number[][] => {
+    const clip = (poly: number[][], axis: number, v: number, above: boolean): number[][] => {
+      const out: number[][] = [];
+      for (let i = 0; i < poly.length; i++) {
+        const [a, b] = [poly[i], poly[(i + 1) % poly.length]];
+        const [ina, inb] = [above ? a[axis] >= v : a[axis] <= v, above ? b[axis] >= v : b[axis] <= v];
+        if (ina) out.push(a);
+        if (ina !== inb) {
+          const t = (v - a[axis]) / (b[axis] - a[axis]);
+          out.push([0, 1, 2].map((k) => a[k] + (b[k] - a[k]) * t));
+        }
+      }
+      return out;
+    };
+    const out: number[][] = [];
+    const [xs, zs] = [tri.map((p) => p[0]), tri.map((p) => p[2])];
+    for (let i = Math.floor(Math.min(...xs) / cell); i <= Math.floor(Math.max(...xs) / cell); i++)
+      for (let j = Math.floor(Math.min(...zs) / cell); j <= Math.floor(Math.max(...zs) / cell); j++) {
+        let poly = clip(tri, 0, i * cell, true);
+        if (poly.length) poly = clip(poly, 0, (i + 1) * cell, false);
+        if (poly.length) poly = clip(poly, 2, j * cell, true);
+        if (poly.length) poly = clip(poly, 2, (j + 1) * cell, false);
+        if (poly.length < 3) continue;
+        const b = [0, 2, 1].flatMap((k) => [Math.min(...poly.map((p) => p[k])), Math.max(...poly.map((p) => p[k]))]);
+        out.push(b);
+      }
+    return out;
+  };
   const solidBoxes: number[][] = [];
   let placed = 0;
   // the chunks named by rules.bake.merge baked as one, a mesh a material (the centre's: its pieces share the pack's
@@ -322,7 +355,57 @@ if (mode === "bake") {
       if (baseMask.has(id)) standingDraws.push(...mine);
       // (and the pieces closing its shell's slits: the partitions and cover inside are left out, so a gap is not hidden)
       if (id === "c-middle" || (id === "c-tower" && cfg.rules.tower?.slots && key.endsWith(`/${cfg.rules.tower.slots.piece}`))) towerDrawn.push(...mine);
-      if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...mine);
+      if (how === "o" && EXACT?.pieces.some((f) => key.endsWith(`/${f}`))) {
+        // the pack's fire escape (rules.fine.exact) collides as its own faces, not cells: its walkway beside the wall is
+        // 1.09 m and its stair 1.08 m between stringer and handrail for a body 0.81 m across, and the next flight
+        // stands 3 m over each; in cells of a quarter or an eighth of a metre a side lost part of a cell, the beam
+        // under each landing and the risers of the flight above reached down to a head, and a body coming down stopped
+        // short, put out over the railing or mantled up onto the flight above, by how the stack lay on the grid. Its
+        // parts by `parts` (their model's mesh): a floor's faces up as plates `plate` deep (a landing from a fall is
+        // swept from the feet before to the feet after, so a plate is not fallen through); a flight's faces up so, and
+        // its sides (faces turned across the flight, its own x) as walls, its risers none (a riser's box came down to
+        // a head on the flight under it); a rail's faces all as walls; the rest (its braces) none
+        exactAt.push({ x, y, z, yaw });
+        const a = (yaw * Math.PI) / 180;
+        const [c, s] = [Math.cos(a), Math.sin(a)];
+        for (const { d, m } of mine) {
+          const mode = EXACT.parts[String(d.mesh)];
+          if (!mode) continue;
+          const up: number[][] = [];
+          // (a part's wall slices in one square joined: a rail's tube is many faces, each sliced alike)
+          const walls = new Map<string, number[]>();
+          for (const q of d.model.meshes[d.mesh].prims) {
+            const V = (k: number) => [0, 1, 2].map((i) => m[i] * q.pos[k * 3] + m[4 + i] * q.pos[k * 3 + 1] + m[8 + i] * q.pos[k * 3 + 2] + m[12 + i]);
+            for (let k = 0; k + 2 < q.idx.length; k += 3) {
+              const [A, B, D] = [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])];
+              const n = [(B[1] - A[1]) * (D[2] - A[2]) - (B[2] - A[2]) * (D[1] - A[1]), (B[2] - A[2]) * (D[0] - A[0]) - (B[0] - A[0]) * (D[2] - A[2]), (B[0] - A[0]) * (D[1] - A[1]) - (B[1] - A[1]) * (D[0] - A[0])];
+              const L = Math.hypot(n[0], n[1], n[2]);
+              if (L < 1e-9) continue;
+              const [x0, x1, y1, z0, z1] = [Math.min(A[0], B[0], D[0]), Math.max(A[0], B[0], D[0]), Math.max(A[1], B[1], D[1]), Math.min(A[2], B[2], D[2]), Math.max(A[2], B[2], D[2])];
+              // (its normal across the flight: the world's turned back into the piece's own x)
+              const across = Math.abs(c * n[0] - s * n[2]) / L;
+              // (a wall a slice at a time along the map's x and z, `slice` long, each its face's own bounds there: one
+              // box for a sloped stringer or handrail stood from its foot to its top along all its length, across the
+              // landing over its top)
+              if (mode === "rail" || (mode === "flight" && across > 0.7))
+                for (const b of sliced([A, B, D], EXACT.slice)) {
+                  const key = `${Math.floor((b[0] + b[1]) / 2 / EXACT.slice)},${Math.floor((b[2] + b[3]) / 2 / EXACT.slice)}`;
+                  const w = walls.get(key);
+                  if (!w) walls.set(key, b);
+                  else for (let i = 0; i < 6; i++) w[i] = i % 2 ? Math.max(w[i], b[i]) : Math.min(w[i], b[i]);
+                }
+              // (faces up level only: the flight's underside is one plane at 45 degrees, 0.71 up, and as a plate it
+              // roofed the whole flight at a head's height)
+              else if (n[1] / L > 0.9) up.push([x0, x1, z0, z1, y1 - EXACT.plate, y1, (A[0] + B[0] + D[0]) / 3, (A[2] + B[2] + D[2]) / 3]);
+            }
+          }
+          // (a floor's faces up only where nothing of it lies over them: its beams' flanges face up under its deck,
+          // and as plates they put the beam back over a head on the flight under it)
+          for (const f of up)
+            if (!up.some((g) => g[5] > f[5] + 0.01 && g[5] < f[5] + 0.6 && f[6] >= g[0] && f[6] <= g[1] && f[7] >= g[2] && f[7] <= g[3])) exactBoxes.push(f.slice(0, 6));
+          exactBoxes.push(...walls.values());
+        }
+      } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...mine);
       else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
       placed++;
     }
@@ -606,7 +689,43 @@ if (mode === "bake") {
   // street-scrap rule, nothing topping out under 0.35 m, threw away; rules.below)
   const { solids: coarse } = districtSolids(open, { cell: C.cell, stick: C.stick, floor: cfg.rules.below.floor, merge: C.merge, thin: C.thin, minTop: cfg.rules.below.minTop });
   const { solids: fine } = openFine.length ? districtSolids(openFine, { cell: cfg.rules.fine.cell, stick: C.stick, floor: cfg.rules.below.floor, merge: C.merge, thin: C.thin, minTop: cfg.rules.below.minTop }) : { solids: [] };
-  const solids = [...coarse, ...fine];
+  if (exactBoxes.length) console.log(`${exactAt.length} pieces colliding as their own faces: ${exactBoxes.length} collision boxes`);
+  // (and each flight's room its own, rules.fine.exact.room, in its own metres x0, x1, y0, y1, z0, z1 from its wall side
+  // out: the rest's collision reaching into it cut back to the wall's plane. A wall's sills and pipes stand out of it
+  // under 0.12 m, and at the quarter metre filled a cell, 0.25 m into a walkway 1.09 m wide, where a body 0.81 m across
+  // then did not pass; what is drawn is as it was, and a body there is 0.41 m off the wall at least)
+  let trimmed = 0;
+  const cutBack = (list: number[][]): number[][] => {
+    if (!EXACT?.room) return list;
+    const [rx0, rx1, ry0, ry1, rz0, rz1] = EXACT.room;
+    const out: number[][] = [];
+    for (const b of list) {
+      let keep = true;
+      for (const q of exactAt) {
+        const a = (q.yaw * Math.PI) / 180;
+        const [c, s] = [Math.round(Math.cos(a)), Math.round(Math.sin(a))];
+        // the box's corners in the flight's own metres (it turns by quarter turns only)
+        const xs: number[] = [], zs: number[] = [];
+        for (const wx of [b[0], b[1]]) for (const wz of [b[2], b[3]]) {
+          const [dx, dz] = [wx - q.x, wz - q.z];
+          xs.push(c * dx - s * dz);
+          zs.push(s * dx + c * dz);
+        }
+        const [lx0, lx1, lz0, lz1] = [Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)];
+        if (lx1 <= rx0 + 1e-6 || lx0 >= rx1 || lz1 <= rz0 || lz0 >= rz1 || b[5] <= q.y + ry0 || b[4] >= q.y + ry1) continue;
+        trimmed++;
+        if (lx0 >= rx0 - 1e-6) { keep = false; break; }
+        // back to the wall's plane: its own x from lx0 to rx0, turned back to the map's
+        const back = (lx: number, lz: number) => [q.x + c * lx + s * lz, q.z - s * lx + c * lz];
+        const [p0, p1] = [back(lx0, lz0), back(rx0, lz1)];
+        b[0] = Math.min(p0[0], p1[0]); b[1] = Math.max(p0[0], p1[0]); b[2] = Math.min(p0[1], p1[1]); b[3] = Math.max(p0[1], p1[1]);
+      }
+      if (keep) out.push(b);
+    }
+    return out;
+  };
+  const solids = [...cutBack(coarse), ...cutBack(fine), ...exactBoxes];
+  if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);
   const all = [...solids, ...solidBoxes];
   mkdirSync(join(ROOT, "src", "config", "neon"), { recursive: true });
   if (!TAG) writeFileSync(

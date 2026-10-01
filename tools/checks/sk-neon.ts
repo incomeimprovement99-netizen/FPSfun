@@ -730,6 +730,51 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const blockOf = (k: string) => `${k.endsWith("w") ? -1 : 1},${k[2] === "n" ? -1 : 1}`;
   const rooms = chunks["c-nw"].place.find(isRooms);
   check("the rooms building on each corner block but the Well's", Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k) && blockOf(k) !== wellBlock).every((k) => chunks[k].place.some(isRooms)), `${rooms?.[0]}`);
+  // its fire escape (rules.low.fire, the layout's fires): climbed by a player's own movement from the street, a jump
+  // onto its lowest flight (it hangs over the street as a real one's drop stair does), up every flight and its landing
+  // and over the parapet onto the roof; and back down to the street. Points in the flight's own metres (its wall side
+  // at x 0, its landing 2.6 m out and 5 m along -z, its stair's foot near z -1 under the landing's +z end and its top
+  // near z -4, measured off it: the way onto a flight is from beyond that end, along its own -z)
+  const FI = (cfg as unknown as { fires?: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> }).fires ?? [];
+  const climb = (pts: number[][], jumpLeg: number): { k: number; x: number; z: number; y: number } => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.sprintMode = "auto";
+    p.teleport(pts[0][0] + BR_X, pts[0][2] + 0.05, pts[0][1] + BR_Z, 0);
+    let t = 1000, k = 1, jumped = false;
+    for (let i = 0; i < 40 * 144 && k < pts.length; i++) {
+      const [tx, tz, ty] = pts[k];
+      const dx = tx - (p.pos.x - BR_X), dz = tz - (p.pos.z - BR_Z);
+      if (Math.hypot(dx, dz) < (pts[k][3] ?? 0.35) && Math.abs(p.pos.y - ty) < 1) {
+        k++;
+        continue;
+      }
+      const jump = k === jumpLeg && !jumped && Math.hypot(dx, dz) < 1.4;
+      if (jump) jumped = true;
+      p.yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+      p.update(1 / 144, (t += 1 / 144), { held: (a: Action) => a === "forward", pressedNow: (a: Action) => jump && a === "jump" }, 0, 1, false);
+    }
+    // (and on its feet where it ends: the last leg is reached in the drop from the lowest flight's foot)
+    for (let i = 0; i < 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+    return { k, x: p.pos.x - BR_X, z: p.pos.z - BR_Z, y: p.pos.y };
+  };
+  for (const f of FI) {
+    const on = (x: number, z: number, y: number) => {
+      const a = (f.yaw * Math.PI) / 180;
+      return [f.at[0] + Math.cos(a) * x + Math.sin(a) * z, f.at[1] - Math.sin(a) * x + Math.cos(a) * z, y];
+    };
+    const up: number[][] = [on(1.75, 2.5, 0), on(1.75, -1.6, f.roof - f.flights * f.rise + 0.6)];
+    for (let n = f.flights - 1; n >= 0; n--) {
+      const y = f.roof - n * f.rise;
+      up.push(on(1.75, -4.2, y), on(0.5, -4.2, y));
+      if (n) up.push(on(0.5, -0.5, y), [...on(1.75, -0.7, y), 0.1]);
+    }
+    up.push(on(-1.5, -4.2, f.roof));
+    const u = climb(up, 1);
+    // (the way down at the walking tolerance: lining up on a flight's middle is for the way up)
+    const d = climb([...up].reverse().map((q) => q.slice(0, 3)), -1);
+    check(`the fire escape on the ${f.block} block's rooms building: climbed from the street onto its roof and back down, by a player`, u.k === up.length && d.k === up.length && Math.abs(u.y - f.roof) < 0.1 && d.y < 0.1, `up ${u.k - 1} of ${up.length - 1} legs, at ${u.y.toFixed(2)} m (${u.x.toFixed(1)}, ${u.z.toFixed(1)}); down ${d.k - 1}, at ${d.y.toFixed(2)} m`);
+  }
+  check("a fire escape on each rooms building", FI.length === Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k) && blockOf(k) !== wellBlock).length, `${FI.length}`);
   for (const [sx, sz, name] of [[-1, -1, "nw"], [1, -1, "ne"], [-1, 1, "sw"], [1, 1, "se"]] as const) {
     if (`${sx},${sz}` === wellBlock) continue;
     const rect = R4.find((r) => Math.sign(r[0] + r[1]) === sx && Math.sign(r[2] + r[3]) === sz)!;

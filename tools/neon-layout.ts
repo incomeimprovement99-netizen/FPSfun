@@ -106,12 +106,19 @@ const rim = (o: OBox): Pt[] => {
 };
 const boxOf = (r: number[]): OBox => ({ c: [(r[0] + r[1]) / 2, (r[2] + r[3]) / 2], u: [1, 0], v: [0, 1], hu: (r[1] - r[0]) / 2, hv: (r[3] - r[2]) / 2, top: 0 });
 
-/** place a piece so its turned footprint's middle is at (cx, cz) and its base (its measured bottom, or `base`) at y */
-function placeAt(chunk: string, sector: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], o: { y?: number; bottom?: boolean; mat?: string; without?: string[] } = {}): { x0: number; x1: number; z0: number; z1: number; top: number; px: number; pz: number } {
+/**
+ * place a piece so its turned footprint's middle is at (cx, cz) and its base (its measured bottom, or `base`) at y; with
+ * `snap`, its pivot moved onto the nearest of that grid's lines and its middle with it
+ */
+function placeAt(chunk: string, sector: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], o: { y?: number; bottom?: boolean; mat?: string; without?: string[]; snap?: number } = {}): { x0: number; x1: number; z0: number; z1: number; top: number; px: number; pz: number } {
   const { key, row } = piece(name);
   const [fx0, fx1, fz0, fz1] = turned(row, yaw);
-  const px = cx - (fx0 + fx1) / 2;
-  const pz = cz - (fz0 + fz1) / 2;
+  let px = cx - (fx0 + fx1) / 2;
+  let pz = cz - (fz0 + fz1) / 2;
+  if (o.snap) {
+    [px, pz] = [Math.round(px / o.snap) * o.snap, Math.round(pz / o.snap) * o.snap];
+    [cx, cz] = [px + (fx0 + fx1) / 2, pz + (fz0 + fz1) / 2];
+  }
   // by default the piece's own zero is the ground (a building's ground floor, whatever lies under it); `bottom` puts its
   // lowest point there instead (High City's towers, whose zero is their roof)
   const py = (o.y ?? 0) - (o.bottom ? row.min![1] : 0);
@@ -331,9 +338,11 @@ const islands: number[][] = [];
 // A building is kept only clear of every road by the pavement, of the edge road, the islands and the others; under the
 // High City bridges (rules.bridges.paths) only one that tops out under them
 const rooms: number[][] = [];
+const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> = [];
 {
   const L = R.low;
   const placed: OBox[] = [];
+  const fireAt: Array<{ chunk: string; block: string; px: number; pz: number; fy: number; beside: OBox }> = [];
   const bridgeLines = (R.bridges.paths as number[][][]).flatMap((p) => p.slice(1).map((q, i) => [p[i], q]));
   const nearBridge = (q: Pt) => bridgeLines.some(([a, b]) => {
     const [ax, az, bx, bz] = [a[0], a[1], b[0], b[1]];
@@ -357,9 +366,11 @@ const rooms: number[][] = [];
     const well = R.well && R.well.block === `${sx},${sz}`;
     const [cx, cz, fy] = [sx * L.rooms.at, sz * L.rooms.at, L.rooms.face[`${sx},${sz}`]];
     const [fx0, fx1, fz0, fz1] = turned(rp, fy);
-    const rr = well ? { x0: cx - (fx1 - fx0) / 2, x1: cx + (fx1 - fx0) / 2, z0: cz - (fz1 - fz0) / 2, z1: cz + (fz1 - fz0) / 2 } : placeAt(chunk, "c", L.rooms.piece, cx, cz, fy, "o");
+    const rr = well ? { x0: cx - (fx1 - fx0) / 2, x1: cx + (fx1 - fx0) / 2, z0: cz - (fz1 - fz0) / 2, z1: cz + (fz1 - fz0) / 2 } : placeAt(chunk, "c", L.rooms.piece, cx, cz, fy, "o", { snap: L.rooms.snap });
     if (!well) rooms.push([rr.x0, rr.x1, rr.z0, rr.z1].map((v) => +v.toFixed(3)));
     placed.push(boxOf([rr.x0, rr.x1, rr.z0, rr.z1]));
+    // its fire escape (rules.low.fire), stood once the block is built (below)
+    if (!well && L.fire && "px" in rr) fireAt.push({ chunk, block: `${sx},${sz}`, px: rr.px, pz: rr.pz, fy, beside: placed[placed.length - 1] });
     if (rp.size![1] > L.underBridge) throw new Error(`${L.rooms.piece} is ${rp.size![1]} m tall, over the bridges`);
     // the wedge where the block's two streets leave their fork: one building out along the bisector, facing the
     // junction on the diagonal (a flatiron's corner), as near the fork as it clears both streets' pavements
@@ -422,7 +433,32 @@ const rooms: number[][] = [];
       if (!done) freeAt += 1;
     }
   }
+  // each rooms building's fire escape (rules.low.fire): the pack's flights stacked as the pack's own street scenes stack
+  // them, up a stretch of its walls clear from over the street to over its parapet, the top landing level with its roof
+  // (the roof was a climb no one could make). The first of its measured spots (`at`) whose room no building of the
+  // block stands in: chosen once the block is built, not kept from the others as they were placed, where it turned a
+  // building away and every seeded choice after it (cars, signs) came out different
+  for (const { chunk, block, px, pz, fy, beside } of fireAt) {
+    const F = L.fire!;
+    const fp = piece(F.piece);
+    const at = (x: number, z: number): Pt => {
+      const [ox, oz] = rotY(fy, x, z);
+      return [px + ox, pz + oz];
+    };
+    const spot = (F.at as number[][]).find(([ax, az, turn]) => {
+      const [fx0, fx1, fz0, fz1] = turned(fp.row, turn);
+      const box: OBox = { c: at(ax + (fx0 + fx1) / 2, az + (fz0 + fz1) / 2), u: rotY(fy, 1, 0), v: rotY(fy, 0, 1), hu: (fx1 - fx0) / 2, hv: (fz1 - fz0) / 2, top: F.roof + fp.row.max![1] };
+      return !placed.some((q) => q !== beside && overlaps(box, q, 0));
+    });
+    if (!spot) throw new Error(`no room for the ${chunk} rooms building's fire escape at any of rules.low.fire.at`);
+    const [wx, wz] = at(spot[0], spot[1]);
+    for (let k = 0; k < F.flights; k++) add(chunk, "c", [fp.key, +wx.toFixed(3), F.roof - k * F.rise, +wz.toFixed(3), fy + spot[2], "o"] as Place);
+    fires.push({ block, at: [+wx.toFixed(3), +wz.toFixed(3)], yaw: fy + spot[2], roof: F.roof, rise: F.rise, flights: F.flights });
+    console.log(`the ${chunk} rooms building's fire escape at its spot ${F.at.indexOf(spot) + 1} of ${F.at.length}`);
+  }
   cfg.rooms = rooms;
+  // (each fire escape where it stands, for tools/checks/sk-neon.ts to climb)
+  cfg.fires = fires;
   console.log(`corner blocks: ${fronts} buildings along the curves and a building in each wedge (${JSON.stringify(Object.fromEntries(why))} tried)`);
 }
 
