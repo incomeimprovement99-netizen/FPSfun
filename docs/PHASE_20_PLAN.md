@@ -80,10 +80,10 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   - The speed readout stays, smaller.
 - **A7:**
   - The kinds: PANDA Heavy Rifle, STRYDER Fast Rifle, ANAKIN Steady SMG, USSO Fast SMG, BIGANTLER Heavy
-    Shotgun, REZ Auto Shotgun, HAEFY Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper, NOVA Energy LMG.
+    Shotgun, REZ Auto Shotgun, HAEFY Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper, CHOOCH Energy LMG.
     The Run's pistols are Pistol.
   - The kill feed names no gun, as today.
-  - The bot called NOVA is renamed in SpeedKills.
+  - The bot called NOVA is renamed in SpeedKills (it was the Energy LMG's name, CHOOCH since 2026-10-01).
   - SpeedKills' default loadouts get names that fit their guns.
   - The FUSED notice is no longer overwritten.
 - **A8:**

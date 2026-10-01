@@ -5684,11 +5684,11 @@ async function soldierTest(browser: Browser): Promise<void> {
     worn.inHand === "SciFiSMG02_2" && /^SciFiSMG02A/.test(worn.skin ?? "") && /^SciFiSMG02C/.test(worn.fused ?? "") && worn.figure === "SciFiSMG02_2" && worn.pickers === 0,
     JSON.stringify(worn),
   );
-  // the pack's own parts move in the hand (paidgun.ts PaidParts; the pack gives them split and moves none): NOVA's drum
+  // the pack's own parts move in the hand (paidgun.ts PaidParts; the pack gives them split and moves none): CHOOCH's drum
   // turns a chamber a shot and its trigger stays back through a burst; a bought gun is aimed down its own sights, the
-  // fitted optic not drawn on top of them (NOVA's and BOOG's); HAEFY takes out a magazine on a reload (its procedural
+  // fitted optic not drawn on top of them (CHOOCH's and BOOG's); HAEFY takes out a magazine on a reload (its procedural
   // gun has none, and the bought one's stayed in)
-  const moving = await ev<{ why: unknown; shots: number; pulled: number; drum: number; step: number; novaOptic: boolean | null; boogOptic: boolean | null; helixMag: number; helixOut: number }>(
+  const moving = await ev<{ why: unknown; shots: number; pulled: number; drum: number; step: number; choochOptic: boolean | null; boogOptic: boolean | null; helixMag: number; helixOut: number }>(
     page,
     `(async () => {
       const r = window.__range;
@@ -5723,8 +5723,8 @@ async function soldierTest(browser: Browser): Promise<void> {
       r.setScript(null);
       const shots = clip0 - r.loadout.active.state.clip;
       await gameWait(0.6);
-      const novaAll = r.gunParts();
-      const nova = novaAll?.parts;
+      const choochAll = r.gunParts();
+      const chooch = choochAll?.parts;
       await hold("sentinel");
       const boog = r.gunParts();
       await hold("3030");
@@ -5733,15 +5733,15 @@ async function soldierTest(browser: Browser): Promise<void> {
       await gameWait(0.3);
       const out = r.gunParts();
       r.debugView.reload = null;
-      return { why, shots, pulled, drum: nova?.drum ?? NaN, step: nova?.drumStep ?? 0, novaOptic: novaAll?.opticShown ?? null, boogOptic: boog?.opticShown ?? null, helixMag: out?.mag ?? 0, helixOut: (rest?.magY ?? 0) - (out?.magY ?? 0) };
+      return { why, shots, pulled, drum: chooch?.drum ?? NaN, step: chooch?.drumStep ?? 0, choochOptic: choochAll?.opticShown ?? null, boogOptic: boog?.opticShown ?? null, helixMag: out?.mag ?? 0, helixOut: (rest?.magY ?? 0) - (out?.magY ?? 0) };
     })()`,
   );
   check(
-    "soldier guns: the pack's parts move, NOVA's drum a chamber a shot with its trigger back through a burst; NOVA and BOOG aimed down their own sights, no fitted optic drawn over them; and HAEFY's magazine out on a reload",
+    "soldier guns: the pack's parts move, CHOOCH's drum a chamber a shot with its trigger back through a burst; CHOOCH and BOOG aimed down their own sights, no fitted optic drawn over them; and HAEFY's magazine out on a reload",
     moving.shots >= 2 &&
       Math.abs(moving.drum - moving.shots * moving.step) < 0.02 &&
       moving.pulled > 0.3 &&
-      moving.novaOptic === false &&
+      moving.choochOptic === false &&
       moving.boogOptic === false &&
       moving.helixMag >= 1 &&
       moving.helixOut > 0.02,
@@ -6293,7 +6293,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   check("speedkills: High City's corner is drawn from its own file, its faces from behind too (no film set's frames to see through)", !!dist && dist.drawn.includes("high-corner") && dist.triangles > 500000 && dist.opaque > 20 && dist.both === dist.opaque, JSON.stringify(dist));
   // the guns: ten of its own, named, the owner's friends among them
   const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
-  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "HAEFY", "APUHTHEE", "BOOG", "NOVA"].includes(n)), JSON.stringify(guns));
+  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "HAEFY", "APUHTHEE", "BOOG", "CHOOCH"].includes(n)), JSON.stringify(guns));
   // fusion: level 5 is half again the magazine
   const fused = await ev<{ before: number; after: number; level: number }>(page, `(() => { const r = window.__range; const before = r.loadout.slots[0].weapon.clipSize; r.sk.setFusion(0, 5); return { before, after: r.loadout.slots[0].weapon.clipSize, level: r.sk.fusion()[0] }; })()`);
   check("speedkills: fused to 5, a gun's magazine is half as big again", fused.level === 5 && Math.abs(fused.after / fused.before - 1.5) < 0.08, JSON.stringify(fused));

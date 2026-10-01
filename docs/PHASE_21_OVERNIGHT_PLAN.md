@@ -49,7 +49,7 @@ The owner: "We have the full plan laid out already so do not stop until we are d
 | SciFiShotGun02 | _1, _2 | BIGANTLER (hard shotgun) |
 | SciFiSniperRifle01 | _1, _2 | BOOG (sniper) and HAEFY (hard marksman) |
 | SciFiPistol01, 02 | _1, _2 each | none in SpeedKills' roster today; PULSAR (fast marksman) if it reads right |
-| SciFiGrenadeLauncher01 | three parts | NOVA (special), if it reads right |
+| SciFiGrenadeLauncher01 | three parts | CHOOCH (special), if it reads right |
 | SciFiRocketLauncher01 | _1, _2 | spare |
 
 - **Also in the pack:** grenades, a smoke grenade, two mines (the MINE hack's model), med injectors, med packs and a
@@ -84,7 +84,7 @@ The owner: "We have the full plan laid out already so do not stop until we are d
 | PULSAR (fast marksman) | SciFiSMG01_1 | the long SMG without a scope, as a carbine |
 | HAEFY (hard marksman) | SciFiSniperRifle01_1 | the plain long rifle |
 | BOOG (sniper) | SciFiSniperRifle01_2 | the long rifle with its spinners and magazine |
-| NOVA (special) | SciFiGrenadeLauncher01_2 | the heavy energy gun, with its own sight |
+| CHOOCH (special) | SciFiGrenadeLauncher01_2 | the heavy energy gun, with its own sight |
 
 - **Skins:** a gun sharing a family with another starts from a different skin (A, B or C), so the pair differs at
   a glance; the fusion level moves it on (as found, levels 2 to 3, levels 4 to 5) and brightens the glow.
@@ -179,7 +179,7 @@ right in first person beat every variant; a measured reach table and proven modu
 - [x] W5 the guns in the soldiers' hands, checked in a picture
 - [x] W7 the pack's props: the MINE hack's mine, death boxes (the storage case), care packages (the weapon case), floor guns in their skins, the med kit in a HEAL area; SpeedKills has no grenades, so the pack's are unused; `tools/checks/paid-weapons.ts` looks for every prop's files
 - [x] W8 the guns are live (9915b25, Milestone 239)
-- [x] The pack's parts animated (Milestone 250): triggers, NOVA's drum, the sniper's wheels, BIGANTLER's gate, the releases; the launcher's flip sights fold under its optic; every optic on its measured seat; the sniper's own scope; HAEFY's magazine
+- [x] The pack's parts animated (Milestone 250): triggers, CHOOCH's drum, the sniper's wheels, BIGANTLER's gate, the releases; the launcher's flip sights fold under its optic; every optic on its measured seat; the sniper's own scope; HAEFY's magazine
 - [x] W9 withdrawn at the owner's word (Milestone 249): one model a gun by its class, no picker; the skin is the fusion level's
 - [x] W9 audited (Milestone 247): every gun on its split build (three kept their magazines in on a reload), model picks only between the SMGs (the rest by skin); the audit sheet is `tools/weapon-picks-sheet.ts`
 - [x] W9 the player's choice of each gun's model and skin: on the Loadouts tab by each slot, kept and carried to friends as the look's sixth field; every family model measured into `src/config/paidmodels.json`; the e2e soldier section checks a pick in hand and on a friend's figure of you (Milestone 245)

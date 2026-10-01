@@ -3311,10 +3311,10 @@ built, on SpeedKills pages only, so the legacy game's measured Apex numbers are 
 Stages D and E.
 
 - **The ten:** PANDA and STRYDER (rifles), ANAKIN and USSO (SMGs), BIGANTLER and REZ (shotguns), HAEFY and
-  PULSAR (marksman), BOOG (sniper) and NOVA (an energy gun that overheats), each with one fixed optic and no
+  PULSAR (marksman), BOOG (sniper) and CHOOCH (an energy gun that overheats), each with one fixed optic and no
   attachments.
 - **Tuned to the owner's longer fights:** `tools/checks/ttk.ts` measures every gun at every fusion level
-  against 150 at 80% on target. The rifles, SMGs and NOVA kill in 1.3 to 1.8 s (the legacy numbers were about
+  against 150 at 80% on target. The rifles, SMGs and CHOOCH kill in 1.3 to 1.8 s (the legacy numbers were about
   0.9), the shotguns in 0.8 to 1.4, the marksman guns in 1.2 to 2.4. USSO is the fastest gun and the hardest
   to hold (recoil 1.6x), ANAKIN the easiest (0.6x). BOOG's headshot is 450, a kill through full health, shield
   and an ARMOR hack. USSO's magazine went to 27 when the check showed a fused magazine removing a reload.
@@ -4072,7 +4072,7 @@ diagnosis at 1280x720:
 - **HAEFY and PULSAR, the 3x scope.** Aimed past 0.9, the gun is hidden so the HUD's scope picture can take
   over. The player's arms are not under the gun, so they stayed drawn, frozen, and the scope's narrow view blew
   the left arm up into the picture: 23,800 to 29,200 pixels. Now the arms are hidden whenever nothing posed them.
-- **PANDA, STRYDER and NOVA, a reload in the sights.** At full size the reload rolled the gun, and the support
+- **PANDA, STRYDER and CHOOCH, a reload in the sights.** At full size the reload rolled the gun, and the support
   hand still on the handguard showed in the 2x window: 152 to 621 pixels. A reload while aiming now keeps 15% of
   its roll (speedkills.json `viewmodel.reloadAds` 0.85), so the sight holds steady.
 - The four red-dot guns never showed the arm.
@@ -4149,7 +4149,7 @@ Phase 20, A7 (the owner: "USSO (Fast SMG)", so a beginner can see what each gun 
 - **Each SpeedKills gun has a two-word class** (speedkills.json `kind`), read off its numbers. Each pair reads
   Heavy or Steady against Fast or Auto: PANDA Heavy Rifle, STRYDER Fast Rifle, ANAKIN Steady SMG, USSO Fast
   SMG, BIGANTLER Heavy Shotgun, REZ Auto Shotgun, HAEFY Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper,
-  NOVA Energy LMG. The Run's pistols are Pistol.
+  CHOOCH Energy LMG. The Run's pistols are Pistol.
 - **`weaponLabel` names a gun with its class wherever there is room:**
   - the loot prompts and the reach list;
   - pickup notices and the range's fusion notice;
@@ -4162,7 +4162,7 @@ Phase 20, A7 (the owner: "USSO (Fast SMG)", so a beginner can see what each gun 
 - **A fix:** the FUSED notice for a gun or a hack was written over by the bare name straight after.
 - **Renamed:**
   - SpeedKills' default loadouts get names that fit their guns: Sidearms is Skirmisher, Dirt Bike is Long Shot.
-  - The bot called NOVA is BOT NEXUS, beside the gun NOVA.
+  - The bot called NOVA is BOT NEXUS, beside the gun that then had its name (CHOOCH since 2026-10-01).
 - **Checked:** a new e2e check for the label and the loadout picker.
 
 ## Milestone 228 — The loot card ✅
@@ -4482,7 +4482,7 @@ Phase 21 S6's "bots pick a random variant and colours".
 Phase 21 W9, the second half of W6 (the weapons' variants the owner asked for).
 
 - **On the Loadouts tab, by each slot's gun** (SpeedKills, with the bought guns in): its model, any of its family in
-  the pack (the USSO's two, NOVA's three), and the skin it shows at levels 0 and 1; fusing it still moves on through
+  the pack (the USSO's two, CHOOCH's three), and the skin it shows at levels 0 and 1; fusing it still moves on through
   the other two. The finish picker, which the bought model hides, gives way to them.
 - **Seen by everyone:** the picks ride the look code as its sixth field (`src/game/gunpick.ts`, one digit a gun),
   kept under `range.sk.guns`; your figure holds your picks on a friend's screen. The wire's look limit went from 64 to
@@ -4523,11 +4523,11 @@ mid-reload, and prints what the reload moves.
 
 - **Three guns kept their magazines in on a reload** since the guns went live: STRYDER, HAEFY and PULSAR wore the pack's `_1` builds. The pack's `_1` of a family is the same gun as its `_2` (the same length, muzzle and
   sights, measured) in one piece, with nothing a reload can move. Every gun now wears its family's split build.
-- **The model picks were not real:** a gun's "other model" was its own family's `_1`, the same gun unsplit, and NOVA
+- **The model picks were not real:** a gun's "other model" was its own family's `_1`, the same gun unsplit, and CHOOCH
   was offered the launcher's round (0.18 m) as a model. A gun now picks between the pack's guns of its class whose
   moving parts match its animation (`paidweapons.json` modelGroups): the SMGs (USSO, ANAKIN and PULSAR choose between
   the two SMG models). The shotguns do not match (a magazine against a pump: either on the other kept everything still
-  on a reload), so they, the rifles, the snipers and NOVA are picked by skin; the Loadouts tab hides the model picker
+  on a reload), so they, the rifles, the snipers and CHOOCH are picked by skin; the Loadouts tab hides the model picker
   for a gun with one model.
 - **A bought gun's own scope gives way to a fitted optic** (`viewmodel.ts`): the two stacked filled the sight picture
   under the optic with the scope's back.
@@ -4558,7 +4558,7 @@ The owner: "one model per gun ... smg is one of the two smgs ... and the skin va
   it), so a gun's skin says its fusion level to everyone: as found, then the second skin at levels 2 to 3, the third at
   4 to 5, brighter each level.
 - **One model a gun, by its class** (`paidweapons.json` guns): ANAKIN and USSO the pack's two SMGs, BIGANTLER and REZ
-  its two shotguns, PANDA and STRYDER its rifle, BOOG its sniper, NOVA its launcher (the only drum-fed heavy). The pack
+  its two shotguns, PANDA and STRYDER its rifle, BOOG its sniper, CHOOCH its launcher (the only drum-fed heavy). The pack
   has no marksman rifle: HAEFY (heavy marksman) wears the sniper and PULSAR (fast marksman) the scoped rifle, where it
   had worn ANAKIN's SMG. Guns sharing a model start in different skins. The pack's two pistols and rocket launcher fit
   none of the ten.
@@ -4576,18 +4576,18 @@ buyer to animate. Until now only the magazine, slide and pump moved.
 - **Every part moves** (`paidgun.ts` hingeParts, `viewmodel.ts` animateParts, `paidweapons.json` motion). Each part is
   hinged at an edge measured off its own geometry, not at its origin (the auto shotgun's parts all sit at the gun's).
   - The triggers swing back on a shot and stay back through a burst.
-  - NOVA's drum turns a chamber a shot (45 degrees, its 8 rounds counted).
+  - CHOOCH's drum turns a chamber a shot (45 degrees, its 8 rounds counted).
   - The sniper's two side wheels turn over a rechamber and wind in going into the sights.
   - BIGANTLER's loading gate opens with the pump and for a shell reload, and the shell in the hand rides up into it.
   - The magazine releases (ANAKIN, REZ) go in as a reload starts.
   - The rifle's extruder drops on a shot.
 - **The launcher's flip-up sights fold under its optic.** Standing, the front one stood in the optic's window, filling
-  NOVA's sight picture. They fold forward from the back edge of the foot; from the middle, the long foot tipped back
+  CHOOCH's sight picture. They fold forward from the back edge of the foot; from the middle, the long foot tipped back
   up into the window.
 - **Every optic sits on its gun** (`paidmodels.json` railTop, measured without the pack's own sights).
   - STRYDER, PANDA and PULSAR's optic sat on the top of the rifle's hidden scope, 69 mm over the gun.
   - ANAKIN's sat 18 mm high.
-  - NOVA's sat on its rear sight, which now folds.
+  - CHOOCH's sat on its rear sight, which now folds.
 - **BOOG and HAEFY sight down the sniper's own scope.** It is one piece with the gun, and the fitted optic stood stacked
   on it at the hip. The fitted optic's housing is off and the eye comes up the scope's measured axis.
 - **HAEFY takes its magazine out on a reload.** Its procedural gun has none, so the bought one's stayed in. The support
@@ -4595,7 +4595,7 @@ buyer to animate. Until now only the magazine, slide and pump moved.
 - **Checked:**
   - `tools/checks/paid-weapons.ts`, on the game's own hinges: the drum turned a chamber puts every round where another
     stood; the folded sights lie under the optic's window (0.103 m against 0.116 m).
-  - The e2e soldier section: NOVA's 4-round burst turns the drum 4 chambers with the trigger back, its sights folded;
+  - The e2e soldier section: CHOOCH's 4-round burst turns the drum 4 chambers with the trigger back, its sights folded;
     BOOG's housing off; HAEFY's magazine 133 mm out mid-reload.
   - Each failed with its bug put back: a 7-chamber step, the middle hinge, the drum left still.
   - Pictures of all ten at the hip, in the sights and mid-reload.
@@ -4607,7 +4607,7 @@ hands are huge ... the knuckles take up part of the view when aiming and then bl
 the owner's word.
 
 - **Own sights only** (`paidmodels.json` eye, measured; `paidgun.ts` ownSight; `viewmodel.ts` fitOptic). A bought gun
-  is aimed down its own sights: the rifle's and the steady SMG's scopes on their reticle dots, NOVA's holographic
+  is aimed down its own sights: the rifle's and the steady SMG's scopes on their reticle dots, CHOOCH's holographic
   front sight, the sniper's scope on its axis, and USSO's and the shotguns' irons. The gun's optic lends its zoom and,
   magnified, its picture over the screen, and is never drawn. This replaces Milestone 250's optic seat and folding
   flip sights, which are gone.
@@ -4616,8 +4616,8 @@ the owner's word.
 - **Hands and forearms the drawn glove's size** (`fparms.ts` fit). The soldier's armoured hands measure 1.4 times the
   glove the grips were posed for (wrist to middle knuckle 124 mm to 87). Its hand and forearm are drawn at the glove's
   size; the upper arm keeps the body's, since a shorter one ended in the frame.
-- **Checked:** pictures at the hip and in the sights of STRYDER, ANAKIN, USSO, BIGANTLER and NOVA; verify, rules; the
-  e2e soldier section's parts check now reads no optic drawn on NOVA and BOOG.
+- **Checked:** pictures at the hip and in the sights of STRYDER, ANAKIN, USSO, BIGANTLER and CHOOCH; verify, rules; the
+  e2e soldier section's parts check now reads no optic drawn on CHOOCH and BOOG.
 
 ## Milestone 252 — The bug hunt: no red ring in a fight, a slide that speeds you up, a support arm that reads
 
@@ -4644,7 +4644,7 @@ of bounds; a slide slower than the holstered run; the support arm "clearly fucke
   - The arm is turned until the upper arm's cut end is past the frame's edge: at the hip toward the frame's lower corner
     (straight down it stood like a post), in the sights down under the gun (to the side, it crossed half the picture),
     then on toward the eye only as far as it takes. The thickness used is measured off the soldier (0.069 m at the cut).
-  - NOVA's support hand sits furthest out, and at the hip its cut end is still just inside the frame.
+  - CHOOCH's support hand sits furthest out, and at the hip its cut end is still just inside the frame.
 - **Aiming from a test's script**: a scripted page aims as it fires (`main.ts`), so a check reads the view aimed for
   real. The view's debug hold moves the gun into the sights but leaves the gun camera at the hip's wider frame.
 - **Checked:** the e2e soldier section, where both cut ends are off the frame at the hip and aimed, on the USSO and
@@ -4791,7 +4791,7 @@ aimed, firing and reloading; every change here was judged on it.
 - **The support hand is where the bought gun is held** (`paidweapons.json` support, `paidmodels.json` support, measured
   by `tools/checks/paid-weapons.ts`). It had been where the procedural gun's handguard was: on the USSO over the top of
   the bought gun and, aimed, beside its rear sight, a hand and forearm by the eye. Now it is under the front of the
-  USSO's receiver, ahead of the magazine on the rifle and the sniper, on BIGANTLER's pump and ahead of NOVA's drum,
+  USSO's receiver, ahead of the magazine on the rifle and the sniper, on BIGANTLER's pump and ahead of CHOOCH's drum,
   22 mm above the measured underside.
 - **Both arms at the body's size** (`fparms.ts`). Sized to its glove, the support arm took the support glove's 1.15
   and was 15% bigger than the arm on the trigger.
@@ -5034,7 +5034,7 @@ ladder.
   into it as far as it sits into its own gun, both tops measured off the models as they load. The USSO is aimed down
   its dot, and its skin follows the fusion level.
 - **Red dots** (`paidgun.ts` tintDots). A bought gun's dots take its optic's colour: red on the SMGs, orange-red on the
-  rifles and NOVA. They were white.
+  rifles and CHOOCH. They were white.
 - **The draw, from the first Hyper Scape research pass** (`gunfeel.json` phase, spin, fuse):
   - PC Gamer: "switching between weapons spins the gun ahead of you like a fractured boomerang, materialising your
     secondary weapon before your eyes and returning it fully-formed back into your hand". A signature gun now turns
@@ -6163,7 +6163,7 @@ feedback that you'll have to remember for context when we go for the other guns"
 - **The renames** (`speedkills.json` weapons): ZEPHYR is STRYDER, RIPTIDE REZ and HELIX HAEFY, in the code, the
   config, the checks, the README and the docs (79 mentions). The guns' ids are the legacy ones (`rspn101`, `shotgun`,
   `3030`), so saved loadouts keep their guns. RIPTIDE and HELIX were the two chosen because they were ours rather than
-  friends' names; PULSAR and NOVA are now the only invented ones.
+  friends' names; PULSAR and the Energy LMG's name were then the only invented ones (the LMG is CHOOCH since 2026-10-01).
 - **The right fist on its forearm** (`fparms.json` free palmSign): the hands are mirror images, so a palm off the
   knuckles faces opposite ways on the two; with the right's sign the same as the left's, its palm faced out and up and
   the hand was rolled 159 degrees on its forearm (measured, `fprig.ts` wristTwist), the glove's cuff split from the
@@ -8412,8 +8412,8 @@ magazine phase in from the middle out and then we take the mag out it should be 
 The owner, 2026-10-01: "replace the most fitting remaining gun name with Apuhthee. Replace all references to it."
 
 - **Which name:** the heavy pistol's, the one name in the roster that was a working one, waiting for the owner's own
-  since the pistol came in for PULSAR (Milestone 361). The other invented name, NOVA, has stood since the roster was
-  made; the rest carry the owner's own names.
+  since the pistol came in for PULSAR (Milestone 361). The Energy LMG's was then the other invented name (CHOOCH since 2026-10-01); the rest carry the owner's
+  own names.
 - **Everywhere:**
   - the roster (speedkills.json weapons.wingman) and its notes, and the bought models' note (paidweapons.json);
   - the e2e's list of SpeedKills names and a check's comment (tools/checks/paid-weapons.ts);
@@ -8423,7 +8423,8 @@ The owner, 2026-10-01: "replace the most fitting remaining gun name with Apuhthe
   - nothing in the repo names the pistol's old name, the guns agent's newest work included;
   - the Loadouts tab shows APUHTHEE;
   - the speedkills e2e (100); verify; rules.
-- **The roster now:** nine of the ten guns carry the owner's own names; NOVA is the one that does not.
+- **The roster then:** nine of the ten guns carried the owner's own names, all but the Energy LMG's (CHOOCH since
+  2026-10-01).
 
 ## Milestone 386 — The glass lifts: from the Sky Ring up to every High City island
 

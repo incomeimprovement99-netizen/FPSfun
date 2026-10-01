@@ -10,7 +10,7 @@ The guns in your own hands in first person are the guns agent's (PLAN_GUNS_IN_HA
 **The owner's changes, 2026-09-30.** PULSAR is gone ("no need for a fast marksman, just call it marksman now"): HAEFY
 is the one Marksman. In its place is a pistol, "just like the riot 1 from Hyperscape", wearing the pack's second pistol
 ("yep use pitstol 02"): APUHTHEE, the owner's name for it (2026-10-01; speedkills.json weapons.wingman). So the eight
-still to do are HAEFY, PANDA, STRYDER, ANAKIN, REZ, BIGANTLER, NOVA and APUHTHEE. BIGANTLER's reload is decided: the
+still to do are HAEFY, PANDA, STRYDER, ANAKIN, REZ, BIGANTLER, CHOOCH and APUHTHEE. BIGANTLER's reload is decided: the
 KINEMATION KXG12 pump's clips ("the kxg12 pump shotgun is clear answer"). Skins do not matter to the owner ("as long as
 each gun is different thats fine, idc about skins"): two guns may share a model when they play differently.
 
@@ -28,7 +28,7 @@ survey of each gun's hold points and reload parts). Lengths are the bought model
 | ANAKIN | Steady SMG | the second SMG | 86 cm | 61 cm | magazine and a charging handle, 1.9 s | a handle to rack, as the USSO has |
 | REZ | Auto Shotgun | the first shotgun | 92 cm | 86 cm | magazine, 2.75 s | the furthest hold of any gun |
 | BIGANTLER | Heavy Shotgun | the second shotgun | 94 cm | 71 cm | no magazine: a pump, 2.0 s | the only gun that needs a new kind of reload |
-| NOVA | Energy LMG | the launcher | 124 cm | 81 cm | a drum, 3.26 s | 24 cm wide at its drum |
+| CHOOCH | Energy LMG | the launcher | 124 cm | 81 cm | a drum, 3.26 s | 24 cm wide at its drum |
 
 So the eight guns are **six new shapes**, not eight: the rifle (two guns), the second SMG, the two shotguns, the
 launcher and the pistol. HAEFY wears the model BOOG already holds.
@@ -91,7 +91,7 @@ Most shared and most seen first, the new code last.
    move, its hold comes back along the gun as BOOG's did.
 6. **BIGANTLER.** No magazine: shells and a pump. Its reload is new (below), and its pump is where the left hand
    already is, which no other gun has.
-7. **NOVA.** The widest gun by far: its drum against the chest and the left forearm at rest, in the carries and in a
+7. **CHOOCH.** The widest gun by far: its drum against the chest and the left forearm at rest, in the carries and in a
    swap, and a drum to change.
 
 ## Groundwork, once, before the first of them
@@ -105,7 +105,7 @@ Most shared and most seen first, the new code last.
   a shell each loop, and its end), the guns agent's in first person. On the soldier the same beats, read from their
   config as the USSO's and BOOG's are: the left hand on the pump racks it, the right feeds a shell at the gate each
   loop; the pump is already a moving part of the bought model.
-- **A drum** (for NOVA): taken off and put on as a magazine is, from the pouch at the hip; its size in the left hand is
+- **A drum** (for CHOOCH): taken off and put on as a magazine is, from the pouch at the hip; its size in the left hand is
   the new part.
 
 ## What is carried over, known
@@ -124,4 +124,4 @@ Most shared and most seen first, the new code last.
 ## For the owner to say
 
 - **Go, and in this order?** The order above is by what is shared and what is seen most. If a gun you play matters more
-  (REZ, NOVA, APUHTHEE), it moves up; nothing later depends on the order except HAEFY coming first.
+  (REZ, CHOOCH, APUHTHEE), it moves up; nothing later depends on the order except HAEFY coming first.

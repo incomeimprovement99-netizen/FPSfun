@@ -315,9 +315,9 @@ models. Owner's friends' names are in capitals as given; the rest are ours.
 | Marksman | **HAEFY** | `3030` | lever action; a charged shot hits hard: patience |
 | Marksman | **PULSAR** | `g2` | fast semi-auto: rhythm |
 | Sniper | **BOOG** | `sentinel` | bolt action; **a headshot always kills, at any fusion level and any health** |
-| Special | **NOVA** | `lstar` | an energy beam gun with no reload that overheats instead: suppression |
+| Special | **CHOOCH** | `lstar` | an energy beam gun with no reload that overheats instead: suppression |
 
-**No attachments.** Each gun has one fixed optic: 1x on the SMGs and shotguns, 2x on the rifles and NOVA,
+**No attachments.** Each gun has one fixed optic: 1x on the SMGs and shotguns, 2x on the rifles and CHOOCH,
 3x on the marksman guns, and a 6x scope on BOOG.
 
 **Recoil.** Predictable and learnable. Each gun's pattern scale sets its difficulty (USSO the hardest, ANAKIN
@@ -346,7 +346,7 @@ among the easiest), and every pattern stays a pattern: never random past its spr
 | 5 | 1.10 | 1.5 | 0.80 | 0.80 |
 
 - **BOOG** fuses its body damage and handling only; its headshot is already a kill.
-- **NOVA** fuses its heat capacity where others fuse the magazine.
+- **CHOOCH** fuses its heat capacity where others fuse the magazine.
 - **Picking up a gun you already hold** raises yours one level. A copy of a higher level than yours raises
   yours to that level.
 - **Hacks fuse** to four levels, each 10% off the cooldown.
@@ -360,7 +360,7 @@ among the easiest), and every pattern stays a pattern: never random past its spr
 - **No heal items and no armour loot.** This is our simplification, not the owner's words. The owner said
   loot should be a gun and a hack, never homework; this is the whole of how health works, and it can be
   changed.
-- **Ammo:** infinite reserve. Every gun reloads forever, and NOVA cools down instead.
+- **Ammo:** infinite reserve. Every gun reloads forever, and CHOOCH cools down instead.
 
 ### 7.7 Hacks: ten, in two slots
 
@@ -674,7 +674,7 @@ These do not block the build. Each proceeds as written unless the owner says oth
 
 - **Health model** (7.6): 100 health and 50 shield with regeneration and no heal items. This is my
   simplification of "loot is a gun and a hack".
-- **The five non-friend gun names:** STRYDER, REZ, HAEFY, PULSAR, NOVA. Renamed in one config file.
+- **The five non-friend gun names:** STRYDER, REZ, HAEFY, PULSAR, CHOOCH. Renamed in one config file.
 - **District names** (7.9): working names.
 - **Capture hold time** (about 45 s) and **ghost sight range** (about 25 m): starting values, tuned in play.
   The match length is the owner's: about 6 to 7 minutes.

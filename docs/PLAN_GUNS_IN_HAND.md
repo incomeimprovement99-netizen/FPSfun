@@ -288,7 +288,7 @@ Milestone 312's.
 | REZ (auto shotgun) | G3, a weak match | the long handguard | the G3-style handle slap | |
 | HAEFY (heavy marksman, lever) | SVD | handguard | its bolt | the bolt (the pack has no lever gun) |
 | PULSAR (fast marksman) | Mk14 EBR | handguard | its handle | |
-| NOVA (energy LMG, never reloads) | MGX5, the hold only | ahead of the drum | on overheating, a short vent gesture | |
+| CHOOCH (energy LMG, never reloads) | MGX5, the hold only | ahead of the drum | on overheating, a short vent gesture | |
 
 Open for the owner: HAEFY on the SVD or on a Kar98K-style bolt loaded round by round; whether REZ's G3 hold is close
-enough; whether NOVA gets a vent gesture. The order: BIGANTLER first (the exact match), then PANDA.
+enough; whether CHOOCH gets a vent gesture. The order: BIGANTLER first (the exact match), then PANDA.

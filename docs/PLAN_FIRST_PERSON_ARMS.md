@@ -110,7 +110,7 @@ A first mapping, to be judged on pictures at the owner's view (1920 by 1080, 110
 | PULSAR (`g2`) | Fast Marksman | Mk14EBR | DMR |
 | HAEFY (`3030`) | Heavy Marksman | SVD | DMR, a long gun |
 | BOOG (`sentinel`) | Sniper | L96X | bolt sniper: the bolt worked after each shot |
-| NOVA (`lstar`) | Energy LMG | MGX5 | LMG hold for the drum launcher's bulk |
+| CHOOCH (`lstar`) | Energy LMG | MGX5 | LMG hold for the drum launcher's bulk |
 
 The pack's pistols are ready for when SpeedKills has one (the Tirgames pistols are already imported).
 

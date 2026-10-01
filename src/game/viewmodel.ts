@@ -1396,7 +1396,7 @@ export class ViewModel {
     if (f.reloading && this.lastReloadP === 0) this.reloadEmpty = f.clipEmpty;
     this.packRP = packOn && f.reloading && !this.reloadEmpty && !this.pack.tacticalRacks && w.reloadEmptyTime > 0 ? reloadP * (w.reloadTime / w.reloadEmptyTime) : reloadP;
     // In the sights the gun holds still for a reload, as it does for a strafe: rolled at full size, a 2x window
-    // swung onto the support hand still on the handguard (PANDA, STRYDER, NOVA; Phase 20 A3)
+    // swung onto the support hand still on the handguard (PANDA, STRYDER, CHOOCH; Phase 20 A3)
     const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);
 
     // ---- sprint blend; ADS and reloading both win over it
