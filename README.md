@@ -863,8 +863,8 @@ together. Your rounds belong inside the corridor, not on the dots), the flick
 drill (thirty figures one at a time in a 60-degree cone, a clock, your best on
 the Stats tab and the online board; the pad by the firing line or the Play
 tab's button starts it), the superglide trainer (every mantle draws a bar of
-its last 0.3 s with your jump and crouch on it and the frame you hit, ten
-tries scored), and the per-gun session numbers on the Stats tab.
+its last 0.3 s with a needle running to its end, your jump and crouch on it
+and the frame you hit, ten tries scored), and the per-gun session numbers on the Stats tab.
 
 ## Your character, stats and boards
 

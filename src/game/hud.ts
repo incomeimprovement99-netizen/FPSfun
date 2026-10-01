@@ -901,15 +901,20 @@ export class Hud {
     c.fillRect(x0, y, w, 12 * u);
     c.fillStyle = "rgba(125,220,138,0.55)";
     c.fillRect(xAt(t.window), y, x0 + w - xAt(t.window), 12 * u);
-    const mark = (before: number | null, label: string, col: string) => {
+    // a good glide puts the two marks one frame (a few pixels) apart: JUMP's label sits a row above CROUCH's so neither hides the other
+    const mark = (before: number | null, label: string, col: string, lift: number) => {
       if (before === null) return;
       const x = xAt(before);
       c.fillStyle = col;
-      c.fillRect(x - 1.5 * u, y - 6 * u, 3 * u, 24 * u);
-      this.text(label, x, y - 9 * u, 700, 11 * u, col, "center");
+      c.fillRect(x - 1.5 * u, y - (6 + lift) * u, 3 * u, (24 + lift) * u);
+      this.text(label, x, y - (9 + lift) * u, 700, 11 * u, col, "center");
     };
-    mark(t.jump, "JUMP", "#ffd23c");
-    mark(t.crouch, "CROUCH", "#8fd8ff");
+    mark(t.jump, "JUMP", "#ffd23c", 13);
+    mark(t.crouch, "CROUCH", "#8fd8ff", 0);
+    if (t.left !== null) {
+      c.fillStyle = WHITE;
+      c.fillRect(xAt(t.left) - 1 * u, y - 3 * u, 2 * u, 18 * u);
+    }
     const verdict = t.result === "SUPERGLIDE" ? "SUPERGLIDE" : t.result === "MISS" ? `MISS: ${t.reason}` : "SUPERGLIDE: JUMP IN THE GREEN, CROUCH ONE FRAME LATER";
     this.text(verdict + (t.frames !== null && t.result ? `   (${t.frames} frame${t.frames === 1 ? "" : "s"} apart)` : ""), cx, y + 30 * u, 700, 13 * u, t.result === "SUPERGLIDE" ? "#7ddc8a" : t.result === "MISS" ? "#ff9f43" : DIM, "center");
     // the last ten tries as dots

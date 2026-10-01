@@ -18,6 +18,8 @@ export interface TrainerHud {
   window: number;
   jump: number | null;
   crouch: number | null;
+  /** while live, the time left in the mantle: the needle you jump on, which a bar that stood still never gave */
+  left: number | null;
   /** frames from the jump to the crouch */
   frames: number | null;
   /** the verdict, once the mantle is over */
@@ -80,6 +82,7 @@ export class SuperglideTrainer {
             window: c.window,
             jump: c.jump,
             crouch: c.crouch,
+            left: null,
             frames: c.jump !== null && c.crouch !== null ? c.crouchFrame - c.jumpFrame : null,
             result: ok ? "SUPERGLIDE" : "MISS",
             reason: ok ? "" : this.missReason || (c.crouch === null ? "no crouch after the jump" : "outside the window"),
@@ -96,7 +99,7 @@ export class SuperglideTrainer {
 
   hud(now: number): TrainerHud | null {
     const c = this.cur;
-    if (c) return { span: SPAN, window: c.window, jump: c.jump, crouch: c.crouch, frames: c.jump !== null && c.crouch !== null ? c.crouchFrame - c.jumpFrame : null, result: null, reason: "", tries: this.tries.slice(), live: true, age: 0 };
+    if (c) return { span: SPAN, window: c.window, jump: c.jump, crouch: c.crouch, left: c.end - now, frames: c.jump !== null && c.crouch !== null ? c.crouchFrame - c.jumpFrame : null, result: null, reason: "", tries: this.tries.slice(), live: true, age: 0 };
     if (this.last && now - this.lastAt < 2.5) return { ...this.last, age: now - this.lastAt };
     return null;
   }

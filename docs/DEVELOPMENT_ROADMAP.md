@@ -8861,3 +8861,16 @@ circle". Then: "all i want is the map, the bots can move shitty, its more for 1v
 - **Checked:** verify's arenas check (the list, the spawns, circle and points inside the circle, opposite pairs);
   the speedkills e2e (fought on it, inside it, you cannot leave it, its bot reaches its circle from the north, seen
   failing without the graph, 40.3 m); verify; rules; photographed from a spawn, out through the fence and from above.
+
+## Milestone 400 — The superglide trainer's bar fixed: a needle to jump on, and JUMP no longer hidden under CROUCH
+
+The owner, 2026-10-01: "QUICK FIX, THE JUMP METER IS BROKEN ON THE SUPERGLIDE, FIX THAT, NO OTHER FIXES".
+
+- **What was wrong** (the HUD photographed mid-mantle and after a glide by a scripted superglide in the range): the
+  bar stood still through the mantle, its green window and nothing moving, so there was nothing on it to time the
+  jump against. And after a good glide the two marks are one frame apart (5 ms, a few pixels), so CROUCH's label was
+  drawn over JUMP's and the jump vanished from the bar.
+- **The fix:** trainer.ts gives the bar the time left in the mantle (`left`), and hud.ts draws it as a white needle
+  running to the bar's right edge; JUMP's label and mark sit a row above CROUCH's.
+- **Checked:** photographed again mid-mantle (the needle on the bar) and after a superglide (JUMP and CROUCH both
+  read); verify; rules. No e2e, at the owner's word.
