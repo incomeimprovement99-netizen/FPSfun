@@ -69,8 +69,58 @@ First person, from `PLAN_GUNS_IN_HAND.md` section 5 (the guns agent's, to be con
 | HAEFY | SVD (or a Kar98K-style bolt: the owner's call) | open | handguard | its bolt or handle |
 | BIGANTLER | KXG12 | exact | on the pump | shells one by one at the gate, then a pump; a pump after each shot |
 | REZ | G3 | weak (the owner's call) | the long handguard | the G3 handle slap |
-| CHOOCH | MGX5, the hold only | hold only | ahead of the drum | none; a vent on overheating if the owner wants one |
+| CHOOCH | MGX5, the hold only | hold only | ahead of the drum | none; a vent on overheating, seen by others |
 | APUHTHEE | **none chosen yet** | gap | both hands on the grip | the slide |
+
+## 2a. Each gun's equivalents, what the packs give us, and the repeats
+
+The owner, 2026-10-01: "match them to their Hyperscape and apex equivalent guns and what we have to work with for the
+assets pack ... We don't want repeats where only the skin changes".
+
+What the packs hold:
+
+- **The guns you see (Tirgames' Sci-Fi Battle Weapons):** ten gun families, each in a one-piece `_1` and a split `_2`
+  build of the same shape: Rifle01, SMG01, SMG02, ShotGun01, ShotGun02, SniperRifle01, GrenadeLauncher01, Pistol01,
+  Pistol02, RocketLauncher01. Eight are worn today; **Pistol01 and RocketLauncher01 are unused.**
+- **The first-person arms (KINEMATION FPS Animation Ultimate):** twenty guns' clips (`PLAN_FIRST_PERSON_ARMS.md` section
+  1): rifles AK, MX16A4, G3, ASVal; SMGs MPS5, Striker-V, PDW90; shotguns KXG12 (pump), Drake-12 (magazine); marksman
+  Mk14EBR, SVD; bolt snipers L96X, Kar98K; the LMG MGX5; pistols M1911, X18, DGL50, Kolibri, Viper-357. Only MPS5, L96X
+  and Striker-V are imported so far. These are the hands and the clips; the pack's own gun meshes are measured, not shown.
+
+Hyper Scape's guns are its Season 1 list (`RESEARCH_PHASE_12.md` 5.4); the Apex ones are our guns' own data ids.
+
+| Our gun | Class | Apex equivalent | Hyper Scape equivalent | Model it wears | First-person pack gun |
+|---|---|---|---|---|---|
+| USSO | Fast SMG | R-99 | Harpy (the SMG, 740 a minute) | SMG02 | MPS5 |
+| ANAKIN | Steady SMG | Alternator | Ripper (the compact automatic), nearest | SMG01 | ASVal (or MPS5, PDW90) |
+| PANDA | Heavy Rifle | VK-47 Flatline | Ripper, nearest | **Rifle01** | AK or G3 |
+| STRYDER | Fast Rifle | R-301 Carbine | Ripper, nearest | **Rifle01** | MX16A4 |
+| REZ | Auto Shotgun | EVA-8 Auto | none (Hyper Scape had one shotgun) | ShotGun01 | Drake-12 (the magazine shotgun, a closer match than the G3) |
+| BIGANTLER | Heavy Shotgun | Mastiff | Mammoth MK1 (five shells) | ShotGun02 | KXG12 |
+| HAEFY | Marksman | 30-30 Repeater | Dragonfly (the semi-auto rifle) | **SniperRifle01** | SVD or Mk14EBR |
+| BOOG | Sniper | Sentinel | Protocol V (the scoped bolt sniper) | **SniperRifle01** | L96X |
+| APUHTHEE | Heavy Pistol | Wingman | Riot One | Pistol02 | DGL50 (the heavy pistol) or Viper-357 |
+| CHOOCH | Energy LMG | L-STAR (overheats) | Hexfire (the minigun) | GrenadeLauncher01 | MGX5 |
+| (unused) | | | D-Tap (the auto-lock pistol) | Pistol01 | M1911, X18 or Kolibri |
+| (unused) | | | Skybreaker (rocket); Salvo EPL, Komodo (launchers) | RocketLauncher01 | RPG |
+
+**The repeats: two pairs, not one.** PANDA and STRYDER both wear Rifle01, and HAEFY and BOOG both wear SniperRifle01;
+each pair differs only by its skin (paidweapons.json starts them in different skins). With no repeats and only these
+models, the choices are:
+
+1. **Eight guns:** one gun a model; one of PANDA and STRYDER and one of HAEFY and BOOG leave (BOOG is finished, so in
+   practice HAEFY), and their names with them.
+2. **Ten guns:** the two leftover models become two guns of new classes: a fast pistol on Pistol01 (Hyper Scape's
+   D-Tap), making a pistol pair with APUHTHEE as the SMGs and shotguns are pairs, and a launcher on RocketLauncher01
+   (the Skybreaker). One of each repeating pair moves to them (for example STRYDER to the fast pistol, HAEFY to the
+   launcher), so every name stays but the fast rifle and the marksman go as classes.
+3. **Nine guns:** one pair's spare leaves and the other's moves to a leftover model (for example STRYDER leaves and
+   HAEFY becomes the fast pistol or the launcher).
+4. **Ten guns, the classes kept:** a second rifle and a marksman rifle from another pack in the same style (money,
+   the owner's call).
+
+Until the owner picks, the order below stands with the repeats in it; a gun that moves to a new model is fitted on that
+model when its turn comes.
 
 ## 3. The order, and why
 
@@ -85,7 +135,7 @@ carries and checks need nothing from the first person; only its reload's keys wa
 | 3 | **HAEFY** | Nearly free on the soldier (BOOG's model, BOOG's fit), once the owner picks its first-person action (SVD or a bolt). Waits on that word, so it may swap places with 4. |
 | 4 | **BIGANTLER** | The exact pack match (KXG12), but the one new kind of reload in both views (shells at the gate in a loop, then a pump) and a pump after every shot. Built once the pipeline is proven on simpler guns. |
 | 5 | **REZ** | A magazine shotgun with the furthest fore-end hold of any gun (the soldier's left arm may come up short, as BOOG's did, so its hold may come back along the gun) and a weak pack match: the owner looks at the G3 first. |
-| 6 | **CHOOCH** | No reload in either view; the work is the hold of the widest gun (its drum against the chest and the left forearm), its carries and swap, and the vent if the owner wants it. |
+| 6 | **CHOOCH** | No reload in either view; the work is the hold of the widest gun (its drum against the chest and the left forearm), its carries and swap, and the vent on overheating, which others see too. |
 | 7 | **APUHTHEE** | The one pistol: a new kind of hold in both views (no stock, both hands on the grip, no pack pistol chosen yet), so the most new code, last. |
 
 The guns agent's own order put BIGANTLER first, for its exact match. What decides it: if the owner plays BIGANTLER most,
@@ -162,9 +212,10 @@ soldier's work (the character agent's), and what to look out for. Everything not
 - **Soldier:** a pump reload in rifle.ts, the hands as the KXG12's (which hand feeds the gate and which works the pump
   is read off its clips by the guns agent, and the soldier follows), a shell a loop, then the pump; the per-shot pump
   from the remote's shots (groundwork). The left hand's hold is on the pump already (71 cm from the butt).
-- **Look out for:** another player's figure does not know how many shells are missing; the loop count it plays must
-  come from the reload's time (a fixed count per reload), not the ammo, or be sent (an act code change, appended). A
-  reload from empty is the loop plus a pump; with a shell chambered, the loop only (the tactical rule).
+- **Decided (the owner, 2026-10-01): a fixed number of shells.** Another player's figure plays the same fixed count
+  of shells every reload, whatever is missing, so nothing new goes over the network. The guns agent picks the count to
+  fit the reload's time, and the soldier reads it from the shared keys. A reload from empty is the loop plus a pump;
+  with a shell chambered, the loop only (the tactical rule).
 
 ### 5.5 REZ (shotgun), the auto shotgun
 
@@ -178,11 +229,14 @@ soldier's work (the character agent's), and what to look out for. Everything not
 ### 5.6 CHOOCH (lstar), the energy LMG
 
 - **New:** no reload: it cools when it overheats (speedkills.json `_ammo`). The widest gun, 24 cm at its drum.
-- **First person:** the MGX5's hold only; a vent gesture on overheating if the owner wants one; the drum already turns a
-  chamber a shot.
+- **First person:** the MGX5's hold only; a vent gesture on overheating (decided, and seen by others); the drum already
+  turns a chamber a shot.
 - **Soldier:** the hold and the carries round the drum (the drum against the chest and the left forearm at rest, in
   the sprint, the air and the swap carries, measured through the stride); the support hand ahead of the drum; no reload
-  keys; a vent on the figure only if the first person has one (an act code if it is to be seen by others).
+  keys.
+- **Decided (the owner, 2026-10-01): other players see the overheat.** The vent the first person plays when CHOOCH
+  overheats is shown on the figure too: a new act code, appended (an older page shows nothing rather than the wrong
+  thing), sent while the gun cools, and the figure's own vent on the first person's shares.
 - **Look out for:** the drum is the gun's widest part and sits where the left forearm passes; check every carry, not
   only the hold. `PLAN_SOLDIER_EIGHT_GUNS.md` gave it a drum change, which it does not have.
 
@@ -244,9 +298,11 @@ Both bars hold, each agent's own:
 - Go, and in this order (section 3)? Any gun you play most moves up.
 - HAEFY's first-person action: the SVD (semi, a handle) or a bolt worked round by round.
 - REZ on the G3, or another pack gun.
-- CHOOCH: a vent gesture when it overheats, seen by others too?
+- ~~CHOOCH: a vent gesture when it overheats, seen by others too?~~ **Yes, seen by others** (2026-10-01).
 - APUHTHEE: one hand or two, and which pistol arms in first person.
-- BIGANTLER: how many shells the loop shows when others see it reload (a fixed count, or the real count sent).
+- ~~BIGANTLER: how many shells the loop shows when others see it reload~~ **A fixed count** (2026-10-01).
+- **The repeats (section 2a):** eight guns, ten with two new classes on the unused models, nine, or ten with new models
+  bought.
 
 ## 9. Each agent's homework, before its first gun
 
