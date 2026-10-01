@@ -2302,6 +2302,21 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
     check(`${label}: the delta packets and their acks went on the unordered channel, both ways`, fast.every((f) => !!f && f.open && f.sent > 5 && f.got > 5), JSON.stringify(fast));
   }
 
+  // Which reload it is crosses to the other screen (act code 9 from empty, 1 with rounds left): the owner, 2026-09-30, "a
+  // reload differentiator for empty mag vs still 1 in the chamber". The guest reloads from empty, then with half a
+  // magazine, its gun's own reload begun on its own clock (a key needs the gun out, and the round may have it away)
+  const reloadSeen = async (clip: string): Promise<{ act: string | null; empty: boolean | null }> => {
+    await ev(guest, `(() => { const r = window.__range; const s = r.loadout.active.state; s.clip = ${clip}; s.startReload(r.gameTime()); })()`);
+    const got = await host
+      .waitForFunction(`(() => { const r = window.__range.duel().remotes.get(1); const s = r?.samples[r.samples.length - 1]; return s && s.act === "reload" ? { act: s.act, empty: !!s.reloadEmpty } : null; })()`, { polling: 50, timeout: 5000 })
+      .then((h) => h.jsonValue() as Promise<{ act: string; empty: boolean }>, () => ({ act: null, empty: null }));
+    await guest.waitForFunction("!window.__range.loadout.active.state.reloading", { polling: 100, timeout: 8000 }).catch(() => undefined);
+    return got;
+  };
+  const fromEmpty = await reloadSeen("0");
+  const tactical = await reloadSeen("Math.max(1, Math.floor(s.clip / 2))");
+  check(`${label}: a reload from empty is seen as one on the other screen, and one with rounds left as the tactical one`, fromEmpty.act === "reload" && fromEmpty.empty === true && tactical.act === "reload" && tactical.empty === false, JSON.stringify({ fromEmpty, tactical }));
+
   // leaving tells the other side
   await ev(guest, "window.__range.duel().leave()");
   await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 });

@@ -14,6 +14,7 @@
 // Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-solve.ts <gun id> <stage>
 // ONLY=down,roll moves only the stage's numbers whose path names one of those (a hand fitted by tools/figure-fit.ts kept)
 // KEYFINGERS=1 (the reload stage) searches the key's own fingers too, each of which should lie on the gun
+// START='{...}' starts the search from those numbers over the gun's own (a restart out of a local minimum)
 // WRITE=1 writes what it found into soldierhold.json as that gun's own numbers (guns.<id>).
 import fs from "node:fs";
 import path from "node:path";
@@ -235,6 +236,9 @@ async function main(): Promise<void> {
       }
     };
     mergeInto(cur, own);
+    // START='{"reload":{"keys":{"handle":{"at":[0.01,0.02,0.015]}}}}': begin the search from there (a restart out of a
+    // local minimum: the USSO's handle hand stopped with its palm 17 mm in the receiver)
+    if (process.env.START) mergeInto(cur, JSON.parse(process.env.START) as Record<string, unknown>);
     // a reload key is measured at each moment of the reload the hand holds it (the middle of its span), the tilt at three
     let reloadTime = 0;
     if (STAGE === "reload") {

@@ -279,7 +279,10 @@ async function remote(browser: import("puppeteer").Browser, host: Page): Promise
     { name: "stand", start: async () => undefined, frames: 4, every: 250 },
     { name: "aim", start: hold(`a === "ads"`), stop: free, frames: 5, every: 200 },
     { name: "fire", start: hold(`a === "fire" || a === "ads"`), stop: free, frames: 8, every: 60 },
-    { name: "reload", start: (p) => press(p, "KeyR"), frames: 16, every: 80 },
+    // a reload with rounds still in the magazine (the tactical one, its shorter time), and one from empty (the whole one,
+    // the handle racked: act code 9), as an enemy's screen tells them apart
+    { name: "reload", start: async (p) => { await ev<void>(p, "(() => { const s = window.__range.loadout.active.state; s.clip = Math.ceil(s.clip / 2); })()"); await press(p, "KeyR"); }, frames: 24, every: 80 },
+    { name: "reload-empty", start: async (p) => { await ev<void>(p, "window.__range.loadout.active.state.clip = 0"); await press(p, "KeyR"); }, frames: 32, every: 85 },
     { name: "swap", start: (p) => press(p, "Digit2"), frames: 14, every: 80 },
     { name: "aim-boog", start: hold(`a === "ads"`), stop: free, frames: 4, every: 200 },
     { name: "swap-back", start: (p) => press(p, "Digit1"), frames: 14, every: 80 },
