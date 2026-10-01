@@ -7819,3 +7819,61 @@ amount of floors, it can be more narrow the higher it goes, only using the asset
   Photographed on every storey by day and night and from outside.
 - **Next:** the tower's floors over the base, many floors of big rooms and stairs, each laid out differently, the
   owner's first note on the centre; their stair core runs up from the base's ground floor.
+
+## Milestone 366 — A reload from empty and a tactical one told apart, the trigger at the finger's crease, and the soldier's swap phased as the first person's
+
+The owner, after Milestone 363: "don't forget we need a reload differentiator for empty mag vs still 1 in the chamber
+(mag not empty on reload) for most guns. We don't have that right now", and "fix the frame by frame stuff as well, then
+the trigger finger should be more through the hold and still touching the trigger. right now its like the very finger
+tip is the only thing that can press the trigger, visually".
+
+- **Which reload it is** (weapon-state.ts `reloadEmpty`): set as a reload begins, from the magazine (empty: the clip at
+  0 as the key or a dry trigger starts it). A bow's next arrow is never one. It goes out as its own act code, 9 (1 stays
+  the tactical reload: an older page reads 9 as no act and only misses that one reload), and comes in as the figure's
+  `reloadEmpty` (dummy.ts actCode, emptyReloadOf; duel.ts; main.ts for your own figure).
+- **The figure's reload by it** (mannequin.ts, rifle.ts `tacticalOf`, `reloadPlanOf(id, tactical)`): from empty, the
+  whole first-person timeline (the point, the magazine out and in, the seat, the rack or the bolt) over the gun's empty
+  reload time; a tactical one over its tactical time. When the guns agent's fparms.json has `reload.tactical` (rack
+  false, `back`: the hand's way back to the fore-end), the tactical one is its own plan, the empty one's beats in
+  seconds, ending before the rack, with no rack or bolt, as the first person plays it; until then it is the whole one
+  over the shorter time, as the first person also plays it today. Tried with the guns agent's pending numbers in
+  place: the tactical reload ran point, magazine out and in, hold, done in its 1.8 s (USSO) and 3 s (BOOG), never a
+  rack or bolt key.
+- **Bots** reload only when the magazine runs out, so always from empty, and now for the empty reload's time
+  (bots.ts BotMag), as a player emptying a magazine takes. The bot-fire check's player held the trigger through a
+  reload of the tactical time, which no player gets from an empty magazine; it now takes the empty one's, and a bot
+  fires 0.97 to 1.00 of what that player does over 20 s.
+- **A host's bots, to its guests** (brmatch.ts): their state packets sent the place and nothing of the hands. A guest's
+  figure of a bot now reloads, heals and aims in as the host's does, its look's pitch with it.
+- **The trigger at the crease** (soldierhold.json fingers, figure-audit.js `__triggerGap`): what touches the trigger's
+  front face is now measured as the skin round the index finger's last joint, not its tip. BOOG's finger had only its
+  tip on the trigger, the crease 18.5 mm off it; now 0.1 mm, the finger through the guard and round the trigger. The
+  USSO's crease was already 1.6 mm off; its finger now curls 15 degrees further through the guard (0.3 mm).
+- **The swap phased as the first person's** (mannequin.ts gunSweep; gunfeel.json guns.<id>.swap, the first person's
+  own shares): the gun going away phases out over its holster, along it from the muzzle back, its magazine with it,
+  and the one coming phases in from its stock over its draw. The new gun appeared whole in the hands at the swap's
+  middle: a jump in the frames, and not what your own view shows.
+- **Frame by frame** (tools/figure-solve.ts, its reload stage now on the page's own plan of the empty reload):
+  - the USSO's left hand at the point, its cost 273 to 28: the wrist bent 88 degrees at worst, now 49;
+  - BOOG's right hand on its bolt (bolt 427 to 355, boltUp 318 to 144, boltBack 184 to 161);
+  - BOOG's rest pocket and elbows (261 to 235);
+  - the swap's lowered carry: the USSO's magazine went 40 mm into the belly, now clear; BOOG's stock 25 mm into the
+    chest, now 16.
+- **Tools:** figure-frames.ts films the reload from empty and the tactical one as two sequences; figure-solve.ts measures
+  the air carry 0.15 s into a sprint jump too.
+- **Checked:**
+  - the skfigure e2e, 48 checks:
+    - the tactical reload over its own time, with no rack or bolt where the first person has its own;
+    - the trigger at the crease within 4 mm;
+    - the swap's phase out and in, the magazine with the gun;
+  - the squad e2e: a bot reloading on the host is seen reloading from empty on the guest's screen;
+  - each check above seen failing with its fault put back (a figure that ignores which reload it is, BOOG's old finger
+    at 18.5 mm, the bot packet without its act, the new gun shown whole);
+  - net-delta (act code 9 round trip) and bot-fire (seen failing with the bots' old reload);
+  - the frames of both reloads, the swaps and the jumps;
+  - verify; rules.
+- **Left for the next pass, measured:**
+  - the USSO's left hand 12 to 23 mm into the receiver at its charging handle, its fingers off the handle;
+  - BOOG's right hand 17 to 30 mm into the receiver at the bolt;
+  - BOOG's long stock into the right arm and chest through its reload and its sprint jumps (up to 40 mm, mostly hidden
+    by the arm itself), as before this milestone.
