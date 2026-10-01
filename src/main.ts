@@ -95,6 +95,7 @@ import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
 import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
+import { HIP_GUN_FOV } from "./game/fprig";
 import { Abilities, ABILITIES, ABILITY_IDS, ABILITY_KNOBS, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, tuneAbilities, tuningChanges, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
@@ -1135,6 +1136,10 @@ let holsterAt = 0;
  * change what the viewmodel DRAWS, never the simulation, so a stray value can
  * not affect aim, damage or movement.
  */
+/** the gun camera's hip FOV now, degrees, easing toward its target (fparms.json hipGunFov); -1 until the first frame */
+let gunHipNow = -1;
+/** the world's layers and background while the gun is drawn alone (soloGun) */
+let soloWas: { mask: number; bg: THREE.Scene["background"] } | null = null;
 const debugView: {
   weapon: string | null;
   ads: number | null;
@@ -1153,8 +1158,11 @@ const debugView: {
   flourish: number | null;
   /** hold a hack's cast at a moment in it, for a screenshot (tools/hackcast-sheet.ts) */
   cast: { id: string; at: number } | null;
+  /** the gun camera's vertical FOV, degrees, tried in place of viewmodel.json's (tools fitting the hold to other games' pictures) */
+  gunFov: number | null;
 } = {
   cast: null,
+  gunFov: null,
   raise: null,
   flourish: null,
   weapon: null,
@@ -7944,7 +7952,14 @@ function step(): void {
   camera.fov = shotFov ?? (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
   // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
-  vmCamera.fov = gunFov(hipH, adsH, ws.adsFrac, settings.fovScale, vmCfg.fovScale);
+  // (in the bought arms' hands the hip end is their own, fparms.json hipGunFov, eased so a swap to or from a gun in other
+  // hands does not pop; aimed it is the view's as before)
+  const gunHipV = gunFov(hipH, adsH, 0, settings.fovScale, vmCfg.fovScale);
+  gunHipNow = gunHipNow < 0 ? (viewModel.packHipFov ?? gunHipV) : gunHipNow + ((viewModel.packHipFov ?? gunHipV) - gunHipNow) * Math.min(1, dt / HIP_GUN_FOV.ease);
+  // (a held aim, debugView.ads, aims the gun camera too: the picture as aimed, not the aimed pose at the hip's FOV)
+  // (an inspect in the bought arms' hands framed as before the refit: the view's own hip FOV, viewmodel.ts inspectFrameW)
+  const hipNow = gunHipNow + (gunHipV - gunHipNow) * viewModel.inspectFrameW;
+  vmCamera.fov = debugView.gunFov ?? hipNow + (gunFov(hipH, adsH, 1, settings.fovScale, vmCfg.fovScale) - hipNow) * (debugView.ads ?? ws.adsFrac);
   vmCamera.aspect = camera.aspect;
   vmCamera.updateProjectionMatrix();
   viewModel.setView(vmCamera.fov, vmCamera.aspect, debugView.ads ?? ws.adsFrac);
@@ -8934,6 +8949,18 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   },
   /** the gun's own camera's vertical FOV against the world's */
   gunFov: () => ({ gun: vmCamera.fov, world: camera.fov }),
+  // the gun alone on a flat key colour, the world not drawn (tools that lay our gun over other games' pictures)
+  soloGun: (on: boolean) => {
+    if (on && !soloWas) {
+      soloWas = { mask: camera.layers.mask, bg: scene.background };
+      camera.layers.disableAll();
+      scene.background = new THREE.Color(0xff00ff);
+    } else if (!on && soloWas) {
+      camera.layers.mask = soloWas.mask;
+      scene.background = soloWas.bg;
+      soloWas = null;
+    }
+  },
   /** the finish a gun model wears now (tools/e2e.ts) */
   gunFinish: (id: string) => ({ finish: gunModel(id).root.userData.finish ?? "factory" }),
   /** voice chat as this page has it: sending, the loudest each player it hears is now, and the group (tools/e2e.ts) */

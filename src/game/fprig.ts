@@ -50,7 +50,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; tacticalRack?: boolean };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean };
 const MEASURED = (cfg as unknown as { measured: Record<string, Measured> }).measured;
 const PACK = cfg.packGuns as unknown as Record<string, PackGun>;
 const GUNS = cfg.guns as Record<string, string>;
@@ -161,6 +161,10 @@ const HIP_OWN = (cfg as unknown as { hipOwn: number }).hipOwn;
 /** the look on top of the gun's own place: a move (view metres) and a turn (up, left, roll, radians) about its origin, the arms
  * with it (fparms.json hipLook) */
 const HIP_LOOK = (cfg as unknown as { hipLook: { shift: number[]; turn: number[] } }).hipLook;
+/** the gun camera's FOV at the hip while these arms hold the gun (fparms.json hipGunFov) */
+export const HIP_GUN_FOV = (cfg as unknown as { hipGunFov: { fov: number; ease: number } }).hipGunFov;
+/** an inspect framed as before the refit (fparms.json inspectFrame), shares of the inspect */
+export const INSPECT_FRAME = (cfg as unknown as { inspectFrame: { in: number[]; out: number[] } }).inspectFrame;
 
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 const loader = new GLTFLoader();
@@ -247,7 +251,7 @@ export interface PackArmsFrame {
   /** 0..1 through taking something off the ground, or null */
   pickup: number | null;
   /** the left hand off the gun and open, palm up, `w` of the way, its wrist at `at` (world): an inspect's hack */
-  palm: { w: number; at: THREE.Vector3 } | null;
+  palm: { w: number; at: THREE.Vector3; turn?: THREE.Quaternion } | null;
   /** the gun's pitch taken off at rest (radians, down about the view's x through `levelAt`, the gun's origin in the
    * view): the arms turn with it, so the hold is the pack's own */
   level: number;
@@ -389,6 +393,10 @@ export class PackArms {
   /** the look on top of the gun's own place tried in place of the config's: x, y, z view metres, then up, left and roll */
   debugHipLook: number[] | null = null;
   /** the look on top of the gun's own place: the config's, or the one being tried */
+  /** the look an inspect is framed with (fparms.json packGuns inspectLook), else the rest look */
+  get inspectLook(): { shift: number[]; turn: number[] } {
+    return PACK[this.active!]?.inspectLook ?? this.hipLook;
+  }
   get hipLook(): { shift: number[]; turn: number[] } {
     const d = this.debugHipLook;
     return d ? { shift: d.slice(0, 3), turn: d.slice(3, 6) } : (PACK[this.active!]?.look ?? HIP_LOOK);
@@ -1329,8 +1337,10 @@ export class PackArms {
       // off the gun and open, palm up, for an inspect's hack
       if (side === "l" && palmW > 0.001 && f.palm) {
         pos.lerp(f.palm.at, palmW);
-        const along = this.debugPalmAlong ? new THREE.Vector3().fromArray(this.debugPalmAlong) : PALM_ALONG;
-        quat.slerp(this.handTurn("l", along, PALM_UP), palmW);
+        // (its ways turned as its place was moved, with the look's change since the look it was set under: viewmodel.ts palmFrame)
+        const pt = f.palm.turn ?? new THREE.Quaternion();
+        const along = (this.debugPalmAlong ? new THREE.Vector3().fromArray(this.debugPalmAlong) : PALM_ALONG.clone()).applyQuaternion(pt);
+        quat.slerp(this.handTurn("l", along, PALM_UP.clone().applyQuaternion(pt)), palmW);
         // the elbow back along the knuckles' line, so the forearm runs on into the hand (palm up and held up, a hanging
         // elbow bent the wrist to 100 degrees)
         const fore = this.bones.lowerarm_l.getWorldPosition(new THREE.Vector3()).distanceTo(this.bones.hand_l.getWorldPosition(new THREE.Vector3()));
@@ -1338,7 +1348,7 @@ export class PackArms {
         // and moved as the pack gun's rig needs it (view metres): from a shoulder lower and further ahead, BOOG's elbow
         // swung out to the left and its sleeve lay across the bottom of the picture
         const elbowBy = this.debugPalmElbow ?? PACK[this.active!]?.palmElbow;
-        if (elbowBy) palmElbow.add(new THREE.Vector3().fromArray(elbowBy).applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion())).multiplyScalar(gsW));
+        if (elbowBy) palmElbow.add(new THREE.Vector3().fromArray(elbowBy).applyQuaternion(pt).applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion())).multiplyScalar(gsW));
         // down and out round the gun's left side on the way up and back, the most near the gun, as a hand lets go of what
         // it holds from under it (straight, the hand went 9 to 25 mm through it; out alone, BOOG's fingers still 9 mm)
         pos.add(new THREE.Vector3(-1, -1, 0).applyMatrix3(toWorldDir).normalize().multiplyScalar(6.75 * palmW * (1 - palmW) ** 2 * PACK_PALM.clear * gsW));
@@ -1444,7 +1454,9 @@ export class PackArms {
     // magazine: BOOG's hand held its plate; the owner, 2026-09-28: "for the boog, the support hand is holding the mag")
     if (knuckle && !this.magBoxO.isEmpty()) {
       const toO = new THREE.Matrix4().copy(gunWorld).invert();
-      const aheadO = new THREE.Vector3(0, 0, -1).applyQuaternion(this.group.getWorldQuaternion(new THREE.Quaternion())).transformDirection(toO);
+      // (along our gun's own barrel, its -z: the view's ahead, taken here before the guns were refitted to lie across the
+      // picture, cut the gun at 22 degrees and put BOOG's palm 1 cm behind a magazine it is 2.9 cm ahead of, the same under either look)
+      const aheadO = new THREE.Vector3(0, 0, -1);
       const palmO = this.bones.hand_l.getWorldPosition(new THREE.Vector3()).add(knuckle).multiplyScalar(0.5).applyMatrix4(toO);
       const b = this.magBoxO;
       let front = -Infinity;

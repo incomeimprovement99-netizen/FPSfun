@@ -200,10 +200,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   hands throw BOOG's bolt, as after
   every shot; the rack and the bolt only when the magazine was empty: with a round
   still chambered the magazine swaps on the same beats and the hand goes back (the third-person
-  soldier's reload runs to the same beats, from the same settings). At rest both
-  guns come up out of the bottom right corner turned in toward the crosshair, as
-  Hyper Scape, Apex and EMPULSE hold theirs (measured off their frames: an SMG
-  covering about 15% of the screen, a sniper 19%), the support arm only a forearm
+  soldier's reload runs to the same beats, from the same settings). At rest the
+  USSO lies across the bottom right as Apex's R-99 does and BOOG as its Sentinel,
+  each fitted to the game's own resting frame (the barrel's line and the muzzle on
+  theirs, `tools/gun-fit.ts`) and drawn by a gun camera of its own at 55 degrees
+  tall, Apex's default, whatever your field of view; the support arm only a forearm
   up from under the gun. An inspect in these
   arms lasts 5.2 s, a beat held after each turn of the gun: the left hand comes
   up from below, palm up, with the hacks you carry floating over it, each card

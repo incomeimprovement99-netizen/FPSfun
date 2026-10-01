@@ -26,7 +26,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_MELEE, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_CUP, SWAP_THROW, packGunFor, type FreeHand, type PackArmsFrame } from "./fprig";
+import { FREE, HIP_GUN_FOV, HIP_PITCH, INSPECT_FRAME, LOCO, PACK_INSPECT, PACK_MELEE, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_CUP, SWAP_THROW, packGunFor, type FreeHand, type PackArmsFrame } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -466,6 +466,17 @@ export class ViewModel {
    */
   private readonly pack = new PackArms();
   private packOn = false;
+  /** the gun camera's hip FOV the view eases toward (fparms.json hipGunFov while the bought arms hold the gun), null: the view's own */
+  get packHipFov(): number | null {
+    return this.packOn ? HIP_GUN_FOV.fov : null;
+  }
+  /** how far an inspect is framed as before the refit, 0..1 (fparms.json inspectFrame): its look here, the gun FOV in main.ts */
+  inspectFrameW = 0;
+  /**
+   * the rest look's move undone and the one before the refit done (inspectLook): a melee's places and an inspect's open
+   * hand were set where the shoulders were under that look, and the shoulders move with the look
+   */
+  private readonly beforeLook = new THREE.Matrix4();
   /** the gun's swap and holster phase this frame, before a fusion's flood: the bought arms drop out as it goes */
   private swapPhase = 1;
   private readonly locoPos = new THREE.Vector3();
@@ -788,7 +799,7 @@ export class ViewModel {
    * it (the owner, 2026-09-28: "we should 'inspect' whatever hack we have in our inventory at that moment in the off
    * hand ... a palm open hand and the hack glowing/levitating off of the palm"); none without a hack
    */
-  private palmFrame(f: VMFrame): { w: number; at: THREE.Vector3 } | null {
+  private palmFrame(f: VMFrame): { w: number; at: THREE.Vector3; turn: THREE.Quaternion } | null {
     const i = f.inspect;
     if (i === undefined || i < 0 || i >= 1 || !f.hacks?.length) return null;
     const P = PACK_PALM;
@@ -796,8 +807,12 @@ export class ViewModel {
     const at = new THREE.Vector3().fromArray(this.pack.debugPalmAt ?? P.at);
     // the palm flicked up and back as it tosses the cards away
     at.y += P.toss.flick * Math.sin(Math.PI * smooth(P.toss.at[0], P.toss.at[1], i));
+    // (set where the shoulders were under the look before the refit, so carried by the look's change since: left where it
+    // was as the inspect eased back to the refit's look, BOOG's open hand bent its wrist to 87 degrees, 47 under that look)
+    const since = this.beforeLook.clone().invert();
+    at.applyMatrix4(since);
     this.group.updateMatrixWorld(true);
-    return { w, at: this.group.localToWorld(at) };
+    return { w, at: this.group.localToWorld(at), turn: new THREE.Quaternion().setFromRotationMatrix(since) };
   }
 
   /**
@@ -812,8 +827,8 @@ export class ViewModel {
     const elbow = new THREE.Vector3().fromArray(M.chestElbow).lerp(new THREE.Vector3().fromArray(M.outElbow), k);
     // (carried with the arms, as the rest look carries them: left in the view, the arm moved 19 cm nearer with the USSO
     // fell short of the punch)
-    at.applyMatrix4(this.swapArms);
-    elbow.applyMatrix4(this.swapArms);
+    at.applyMatrix4(this.swapArms).applyMatrix4(this.beforeLook);
+    elbow.applyMatrix4(this.swapArms).applyMatrix4(this.beforeLook);
     this.group.updateMatrixWorld(true);
     return {
       w: smooth(M.on[0], M.on[1], mp) * (1 - smooth(M.off[0], M.off[1], mp)),
@@ -1791,7 +1806,14 @@ export class ViewModel {
       // turned in toward the middle, as Hyper Scape, Apex and EMPULSE hold their guns, so the support arm barely shows
       // (the owner, 2026-09-30: "all of the other games the support arm barely shows and the gun is angled out of the
       // bottom right corner"); the arms with it, none of it in the sights (fparms.json hipLook)
-      const LK = this.pack.hipLook;
+      // (an inspect framed as it was before the refit: its own look, eased in as the gun rolls and out as it settles,
+      // fparms.json inspectFrame; the gun FOV with it in main.ts)
+      const ins = f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1 ? f.inspect : -1;
+      this.inspectFrameW = ins >= 0 ? smooth(INSPECT_FRAME.in[0], INSPECT_FRAME.in[1], ins) * (1 - smooth(INSPECT_FRAME.out[0], INSPECT_FRAME.out[1], ins)) : 0;
+      const LR = this.pack.hipLook;
+      const LI = this.pack.inspectLook;
+      const iw = this.inspectFrameW;
+      const LK = iw > 0 ? { shift: LR.shift.map((v, j) => v + (LI.shift[j] - v) * iw), turn: LR.turn.map((v, j) => v + ((LI.turn[j] ?? 0) - v) * iw) } : LR;
       const kl = 1 - ads;
       if (kl > 0.001 && (LK.shift.some((v) => v !== 0) || LK.turn.some((v) => v !== 0))) {
         const at = k > 0.001 ? this.tmp2.copy(this.ownHipNow()).sub(this.pack.hip.position).multiplyScalar(k).add(this.pack.hip.position) : this.tmp2.copy(this.pack.hip.position);
@@ -1802,7 +1824,15 @@ export class ViewModel {
         this.pose.position.applyMatrix4(look);
         this.pose.quaternion.premultiply(q);
         this.hipOwnQ.premultiply(q);
-      }
+        // (a melee's places are the look's before the refit, fparms.json packGuns inspectLook: carried by the refit's, the
+        // chest the left hand draws back to came by the eye, a sheet of sleeve across the gun; the look between, so it
+        // undoes this one and does that)
+        const LO = this.pack.inspectLook;
+        const qo = new THREE.Quaternion().setFromEuler(new THREE.Euler(LO.turn[0] * kl, LO.turn[1] * kl, (LO.turn[2] ?? 0) * kl, "YXZ"));
+        const dO = new THREE.Vector3().fromArray(LO.shift).multiplyScalar(kl);
+        const lookOld = new THREE.Matrix4().makeTranslation(at.x + dO.x, at.y + dO.y, at.z + dO.z).multiply(new THREE.Matrix4().makeRotationFromQuaternion(qo)).multiply(new THREE.Matrix4().makeTranslation(-at.x, -at.y, -at.z));
+        this.beforeLook.copy(lookOld).multiply(look.clone().invert());
+      } else this.beforeLook.identity();
     }
 
     // Magnified scopes: at full aim the HUD draws the scope picture, and the

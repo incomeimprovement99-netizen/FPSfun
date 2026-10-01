@@ -225,7 +225,17 @@ only once i approve we can move on to the other 8 guns".
 3. Open for the owner: since the corner hold the USSO's reload turn brings it to 1.5 times its size at rest, its
    magazine at the picture's bottom edge (part under the weapon panel) and the pointing hand under the picture with
    only the fingertip in it. A search found turns that bring the hand and magazine up, but each moves the gun further
-   from its corner; pictures sent, kept as it is until the owner picks.
+   from its corner; pictures sent, kept as it is until the owner picks. **Settled by item 4**: at the refit the magazine
+   comes up into plain view.
+4. "Our guns still look like they are pointed too far up and to the left ... our whole ass left arm on the usso is
+   covering the gun", then "the exact match on the harpy and r99 from their respective games ... Same with the boog for
+   the apex and Hyperscape snipers": **done** (Milestone 396). The guns had been turned to point up past the crosshair,
+   where the R-99's barrel points a little left of and below it. While the bought arms hold a gun its camera is 55 degrees
+   (`hipGunFov`, Apex's own default; at the world's 92 BOOG could not lie as the Sentinel), each gun's look solved onto its
+   reference frame by `tools/gun-fit.ts` (the USSO on the R-99 and the Harpy, BOOG on the Sentinel and the Protocol V), the
+   USSO's left forearm up from under the gun's front. The inspect keeps its old framing and the melee and the inspect's
+   open hand their old places. Open: BOOG's pointing wrist 62 to 63 degrees at the bottom edge mid-reload. For every other
+   gun: fit the same way, to a named gun at rest in its game's showcase.
 
 ## 2. The bar every gun in hand meets
 
@@ -274,8 +284,12 @@ Milestone 312's.
 4. Fit the arms: `tools/pack-solve.ts wrists`, the shoulders and the pointing arm, never with more of the arms in the
    picture.
 5. Measure when its clips move the magazine, handle or bolt, and where the finger points.
-6. Sheets of every stage (`tools/pack-frames.ts`) until none is flagged; look at them too.
-7. Add it to the soldier e2e checks and send the owner the sheets and close-ups.
+6. Place it: a named gun of its kind at rest in a game's own weapon showcase (a still camera) as the reference, and
+   `tools/gun-fit.ts` solves the look at the 55 degree gun camera (`hipGunFov`) until the barrel's line and the muzzle sit
+   on the reference's, our gun's outline laid over their frame to judge; then the support elbow searched so its forearm
+   comes up from under the gun.
+7. Sheets of every stage (`tools/pack-frames.ts`) until none is flagged; look at them too.
+8. Add it to the soldier e2e checks and send the owner the sheets and close-ups, beside the reference.
 
 ## 5. The other eight
 

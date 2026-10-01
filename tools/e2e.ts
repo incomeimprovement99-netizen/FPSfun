@@ -3357,7 +3357,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; thumb: number; mr: number; rp: number }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; fov: number; inspectFov: number; after: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; thumb: number; mr: number; rp: number }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[]; inspectLen: { time: number; at44: boolean; at56: boolean; e44: number; e56: number }; meleeWorks: { swung: boolean; hurt: number; during: number; after: number; meleeing: boolean } } = { guns: {}, jump: [], inspectLen: { time: 0, at44: false, at56: true, e44: 0, e56: 0 }, meleeWorks: { swung: false, hurt: 0, during: 0, after: 0, meleeing: false } };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3489,6 +3489,12 @@ async function packFrames(page: Page): Promise<void> {
     // the wrists: at rest and aimed, pointing, and early in a swap as the pack's unequip swings the gun
     const wr = (js: string) => pf<number[]>(`${js} await H.gameWait(0.35); const s = r.packArms(); H.clear(); await H.gameWait(0.3); return [s.wristL, s.wristR];`);
     o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: (await wr("r.debugView.reload = 0.28;"))[0], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
+    // at rest, as fitted to the other games' resting frames (fparms.json hipGunFov, packGuns look): where the barrel's line
+    // meets the screen and where the muzzle is (shares of the screen, from the left and the top), the gun camera's FOV; that
+    // FOV mid-inspect (framed as before the refit, inspectFrame) and after it; and how much of the left upper arm is in the
+    // picture through a melee (carried by the refit's look, the chest it draws back to came by the eye, a sheet of sleeve
+    // across the gun: 80% of it in the picture on the USSO)
+    o.fit = await pf<Frames["fit"]>(`H.clear(); await H.gameWait(0.4); const T = r.THREE; const rig = r.packRig(); const root = r.viewModelRoot(); let gun = null; root.traverse((x) => { if (x.userData && x.userData.paid && !gun) gun = x; }); gun.updateWorldMatrix(true, true); const ginv = new T.Matrix4().copy(gun.matrixWorld).invert(); const lb = new T.Box3(); gun.traverse((m) => { if (m.isMesh && m.visible) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); lb.union(m.geometry.boundingBox.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(ginv, m.matrixWorld))); } }); const vinv = new T.Matrix4().copy(root.matrixWorld).invert(); const tv = Math.tan(r.gunFov().gun / 2 * Math.PI / 180); const th = tv * innerWidth / innerHeight; const toV = (q) => q.clone().applyMatrix4(gun.matrixWorld).applyMatrix4(vinv); const share = (v) => [(1 + v.x / -v.z / th) / 2, (1 - v.y / -v.z / tv) / 2]; const c = lb.getCenter(new T.Vector3()); const back = toV(new T.Vector3(c.x, c.y, lb.max.z)), front = toV(new T.Vector3(c.x, c.y, lb.min.z)); const d = front.clone().sub(back); const fov = r.gunFov().gun; r.debugView.inspect = 0.45; await H.gameWait(0.4); const inspectFov = r.gunFov().gun; r.debugView.inspect = -1; await H.gameWait(0.6); const after = r.gunFov().gun; const upperIn = () => { const inv = new T.Matrix4().copy(root.matrixWorld).invert(); const tv2 = Math.tan(r.gunFov().gun / 2 * Math.PI / 180); const th2 = tv2 * innerWidth / innerHeight; let n = 0, k = 0; rig.group.traverse((m) => { if (!m.isSkinnedMesh) return; const g = m.geometry; const pos = g.attributes.position; const sk = g.attributes.skinIndex, sw = g.attributes.skinWeight; const v = new T.Vector3(); for (let i = 0; i < pos.count; i += 2) { let up = 0; for (let j = 0; j < 4; j++) if (sw.getComponent(i, j) > 0.5 && /^upperarm.*_l$/.test(m.skeleton.bones[sk.getComponent(i, j)].name)) up = 1; if (!up) continue; n++; v.fromBufferAttribute(pos, i); m.applyBoneTransform(i, v); v.applyMatrix4(m.matrixWorld).applyMatrix4(inv); if (v.z < 0 && Math.abs(v.x / -v.z / th2) < 1 && Math.abs(v.y / -v.z / tv2) < 1) k++; } }); return n ? k / n : 0; }; let upper = 0; for (const u of [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]) { r.meleeAt(u); await H.gameWait(0.15); upper = Math.max(upper, upperIn()); } r.meleeAt(null); H.clear(); await H.gameWait(0.3); return { vanish: d.z < 0 ? share(d) : [9, 9], muzzle: share(front), fov, inspectFov, after, upper };`);
     // every joint of the arms a number, held (one that is not is drawn from nowhere)
     o.nanBones = await pf<string[]>(`H.clear(); await H.gameWait(0.3); const n = []; r.packRig().group.traverse((b) => { const q = b.quaternion, p = b.position; if (![q.x, q.y, q.z, q.w, p.x, p.y, p.z].every(Number.isFinite)) n.push(b.name); }); return n;`);
     // and how high in the picture the pointing wrist is (-1 its bottom edge, the gun camera's), -9 behind the eye
@@ -3731,9 +3737,13 @@ async function packFrames(page: Page): Promise<void> {
     g.every((x) => x.adsNear > 0),
     show((x) => +x.adsNear.toFixed(4)),
   );
+  // (the bought arms had been drawn at their pack's own 80 degrees, and with the guns turned up toward the crosshair they
+  // sat big and steep, so from 2026-09-29 at the view's own; refitted to Apex's and Hyper Scape's resting frames on
+  // 2026-10-01, at the view's 92 BOOG could not lie as the Sentinel at any distance, and 55 degrees tall is Apex's own
+  // default, 70 on its 4:3 scale: fparms.json hipGunFov)
   check(
-    "pack frames: at the hip the bought arms' guns are drawn at the gun camera's own field of view, as a gun the view's own arms hold (within half a degree)",
-    g.every((x) => Math.abs(x.fov - plainFov) < 0.5),
+    `pack frames: at the hip the bought arms' guns are drawn at their own ${fparmsCfg.hipGunFov.fov} degrees (fparms.json hipGunFov), and a gun the view's own arms hold at the world's (80 and wider)`,
+    g.every((x) => Math.abs(x.fov - fparmsCfg.hipGunFov.fov) < 0.5) && plainFov > 80,
     `${plainFov.toFixed(1)}: ${show((x) => +x.fov.toFixed(1))}`,
   );
   // (the owner, 2026-09-28: "for the boog, the support hand is holding the mag": its palm was 10 cm back from the
@@ -3785,6 +3795,27 @@ async function packFrames(page: Page): Promise<void> {
     "pack frames: the pointing finger leads the magazine, a third of its way and more ahead as it starts out, and is back at its spot as the new one builds",
     g.every((x) => x.lead.out[0] - x.lead.out[1] >= 0.33 && (RL.slideIn > 0 ? x.lead.into[1] - x.lead.into[0] >= 0.33 : x.lead.into[0] < 0.05 && x.lead.into[1] < 0.05)),
     show((x) => ({ out: x.lead.out.map((v) => +v.toFixed(2)), in: x.lead.into.map((v) => +v.toFixed(2)) })),
+  );
+  // (the owner, 2026-10-01: "Our guns still look like they are pointed too far up and to the left", then "the exact match on
+  // the harpy and r99 from their respective games ... Same with the boog for the apex and Hyperscape snipers": Apex's R-99 and
+  // Sentinel at rest in the game's own weapon showcase, a still camera, traced; the USSO checked on Hyper Scape's Harpy and
+  // BOOG on its Protocol V. Their barrels lie flat across the lower right, the line meeting the horizon far off the left)
+  const FIT: Record<string, { vanish: number[]; muzzle: number[] }> = { r97: { vanish: [0.25, 0.58], muzzle: [0.55, 0.74] }, sentinel: { vanish: [0.3, 0.58], muzzle: [0.55, 0.69] } };
+  check(
+    `pack frames: at rest the USSO lies as Apex's R-99 and BOOG as its Sentinel (the barrel's line meeting the screen and the muzzle on theirs, within 2% of the screen), drawn at the gun camera's ${fparmsCfg.hipGunFov.fov} degrees`,
+    g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.fov - fparmsCfg.hipGunFov.fov) < 0.5; }),
+    show((x) => ({ vanish: x.fit.vanish.map((v) => +v.toFixed(3)), muzzle: x.fit.muzzle.map((v) => +v.toFixed(3)), fov: +x.fit.fov.toFixed(1) })),
+  );
+  // (the owner, of the inspect before the refit: "The hack inspect is perfect though")
+  check(
+    "pack frames: an inspect is framed as before the refit (the view's own gun FOV in its middle, 80 degrees and wider), and the gun camera is back at the refit's after it",
+    g.every((x) => x.fit.inspectFov > 80 && Math.abs(x.fit.after - fparmsCfg.hipGunFov.fov) < 0.5),
+    show((x) => ({ mid: +x.fit.inspectFov.toFixed(1), after: +x.fit.after.toFixed(1) })),
+  );
+  check(
+    "pack frames: through a melee the left upper arm stays out of the picture (under 10% of it in it), no sheet of sleeve across the gun",
+    g.every((x) => x.fit.upper < 0.1),
+    show((x) => +x.fit.upper.toFixed(2)),
   );
   // (BOOG's left ring finger's middle joint had been NaN in every frame BOOG was held, after the USSO: the L96X's hold has
   // no track for it, and three.js kept the NaN it once blended toward)

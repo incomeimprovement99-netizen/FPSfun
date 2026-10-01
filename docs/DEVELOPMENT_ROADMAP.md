@@ -8739,3 +8739,50 @@ parapet, with the pack's roof rooms on them, and no way up but a climb no one co
   player's own movement from the street (a jump onto its lowest flight), up every flight and landing and over the
   parapet onto the roof, and back down to the street. Seen failing on every stack as each fault above was found. verify
   and rules; e2e `loot` and `br`. Photographed from the street and on the landings.
+
+## Milestone 396 — The USSO and BOOG placed as Apex's R-99 and Sentinel, at a gun camera of their own
+
+The owner, 2026-10-01, after the round 7 framing: "Our guns still look like they are pointed too far up and to the left.
+You can't see that? ... are our guns too thin? Is the angle off? Do we need it closer to the users face? Higher up? ...
+our whole ass left arm on the usso is covering the gun", then "the exact match on the harpy and r99 from their respective
+games ... Same with the boog for the apex and Hyperscape snipers". Round 7 had matched where the muzzle sat and how much of
+the screen the gun covered, and got there by turning the guns 19 and 20 degrees left and 8 and 12 up: they pointed up past
+the crosshair, the side of the gun showing where theirs show its back.
+
+- **The references:** each gun at rest in the games' own weapon showcases (a still camera, frames every half second:
+  Apex's R-99 and Sentinel, Hyper Scape's Harpy and Protocol V), traced on a 1% grid. The R-99's barrel lies low across
+  the lower right, its line meeting the screen 25% across and 58% down, a little left of and below the crosshair; the
+  Sentinel's 30% and 58%.
+- **The camera** (`fparms.json` hipGunFov, `main.ts`): while the bought arms hold the gun the gun camera is 55 degrees at
+  the hip, Apex's own default (70 on its 4:3 scale), eased over 0.25 s when a gun in other hands takes over so a swap does
+  not pop; aimed it is the view's own as before. At the world's 92 (tried with the corrected targets) the USSO matched only
+  25 cm nearer the eye and BOOG not at all, its thin body along the Sentinel's lower edge at any distance. The bought arms
+  had once been drawn at their pack's own 80 and moved to the world's on 2026-09-29, when the guns, still turned up toward
+  the crosshair, sat big and steep: the turn was the fault, as this round found.
+- **The looks** (`packGuns` look), solved by `tools/gun-fit.ts` (new: the look turned until the barrel's line meets the
+  screen where the reference's does and moved until the muzzle sits on theirs, our gun's outline then laid over their frame
+  to judge): the USSO on the R-99 (the muzzle 55% across and 74% down, 30 cm further from the eye than the gun's own hold)
+  and checked on the Harpy; BOOG on the Sentinel and the Protocol V (the muzzle 55% and 69%).
+- **The left arms** (`packGuns holdElbow`): the USSO's elbow searched for the least of the arm in the picture, its forearm
+  now up from under the picture's edge below the gun's front, none of the upper arm in it, the wrist 37 degrees; BOOG's for
+  no skin in the gun at rest, racking or mid-flourish (its first-draw roll had pressed the palm 8 mm into the fore-end).
+- **What the new framing changed, every state looked at:** the reload brings the magazine up into plain view (it had been
+  at the bottom edge on the USSO, part under the weapon panel), as Apex's R-99 reload does. The inspect came out twice the
+  size, so it is framed as before (`inspectFrame`, each gun's `inspectLook`), eased in as the gun rolls and out as it
+  settles. The arms' shoulders move with the look, and two hand places had been set where the shoulders were under the old
+  one: a melee's (the chest the hand drew back to came by the eye, the camera looking into the sleeve's open end, a sheet of
+  sleeve across the gun: 80% of the upper arm in the picture, 1% now) and the inspect's open hand (BOOG's wrist 87 degrees
+  as the framing eased back, 47 now); both are now carried by the look's change. The swap's fingers curl 0.3 of the way to
+  a fist (`swap.cup.curl`): at 0.45 the USSO's middle fingertip passed 5.8 mm through its grip as the hand came back, hidden
+  until now. BOOG's pointing finger turns 0.85 of the way to its spot (off 7.6 degrees).
+- **Measures the framing had outrun:** the support palm's place is read along the gun's own barrel (read along the view's
+  ahead, the gun now turned 22 degrees across it put BOOG's palm 1 cm behind a magazine it is 2.9 cm ahead of).
+- **Left for the owner:** BOOG's pointing wrist is 62 to 63 degrees from 36% to 52% of the reload, at the picture's
+  bottom edge, where every turn of the reload, elbow, reach and aim tried kept it 67 to 77 at the new placement.
+- **Checked:** new soldier e2e checks: each gun's barrel line and muzzle on its reference (within 2% of the screen) at the
+  55 degree camera; an inspect at the view's own FOV in its middle and back after; the melee's upper arm out of the
+  picture; the old check that the bought arms are drawn at the view's own FOV rewritten for the new rule. Verify, rules and
+  the type check pass, and every state of both guns was photographed and looked at. The soldier e2e section ran once
+  before the last fixes (BOOG's elbow, the open hand, the swap's curl, the palm measure, BOOG's point), its new checks
+  passing; its rerun and the proof run were stopped when the owner asked to ship and play it (2026-10-01: "Can we just
+  skip the e2e test and deploy?"), so they run with the next change.
