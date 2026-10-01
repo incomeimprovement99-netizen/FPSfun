@@ -178,7 +178,9 @@ const noGround: Array<[number, number, number, number]> = [];
   // (and the lobby's arch that stood a metre before the core's west door: its post and its round top; the cut goes
   // `cutPast` beyond the core's faces sideways, so a face lying on one, a lobby pillar's, goes with it, and not down, so
   // the lobby's floor under the core stays)
-  const without = T ? [...(T.lobbyArch as string[]), `*#${T.strip.join(",")}`, `*#${T.floorStrip.join(",")}~FloorBasic00`, `*|${[C.box[0] - C.cutPast, C.box[1] + C.cutPast, C.storeys[0], C.top, C.box[2] - C.cutPast, C.box[3] + C.cutPast].join(",")}`] : [];
+  // (and the way from the base's roof onto the tower's terrace at 10.5 m and in through its glass waist: the terrace's
+  // curb, 0.75 m, a wall to a walk, left out in front of each of the waist's two doors, and the doors themselves, shut)
+  const without = T ? [...(T.lobbyArch as string[]), ...((T.terraceWay ?? []) as string[]), `*#${T.strip.join(",")}`, `*#${T.floorStrip.join(",")}~FloorBasic00`, `*|${[C.box[0] - C.cutPast, C.box[1] + C.cutPast, C.storeys[0], C.top, C.box[2] - C.cutPast, C.box[3] + C.cutPast].join(",")}`] : [];
   const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o", T ? { without } : {});
   noGround.push([b.x0, b.x1, b.z0, b.z1]);
   cfg.tallest = { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, top: +b.top.toFixed(2), foot: +piece(M.building).row.min![1].toFixed(2) };

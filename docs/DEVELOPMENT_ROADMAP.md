@@ -8119,3 +8119,22 @@ renderer counters and Chrome's profiler): **0.43 and 0.55 s**.
   at x 94 to 95 in a lane between a wall (x 95.5) and a 1.4 m box (x 93.8 to 95.4, z -31.3 to -29.7), a crate
   0.2 m off the box's other end, and walks into the box for the whole match; its wedge escape's only free way is
   back north, and it walks straight back in. It is the next item.
+
+## Milestone 374 — The base's roof onto the tower's terrace and in through its glass waist
+
+The base's roof (Milestone 365) is at 10.5 m, the height of the tower's own terrace over its lower block, and the two
+met edge to edge. But the terrace is edged with a curb, the pack's 0.75 m floor strips stood on end, and the glass
+waist's two doors onto it were shut: the roof stopped at the tower's foot, and the waist, a storey of the tower's, was
+reached only up the stair core.
+
+- **A way in on each side** (rules.tower.terraceWay). The curb is left out in front of each of the waist's two doors,
+  north and south, and the doors themselves (the pack's CityDoors00, shut) with it, so the base's roof runs
+  straight onto the terrace and through into the waist: a second way up the tower, from the base's stairs, beside the
+  core's. Everywhere else the curb stays, the terrace's edge as the pack built it.
+- The map: 2.39 million triangles, 120 fewer than version 15 (the two doors and the two lengths of curb left out); its files lo 81 MB, hi 138 MB, max 334 MB. **Its files are version 16.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check in the base's walk): the waist's floor walked into from the
+  plaza, up the base's stairs and across its roof, with the core kept out of the walk (154 m2 of it; seen failing
+  with the curb and doors put back: 0 m2). A first try at the check passed with them back too: it walked over the
+  tower's square alone, which the plaza reaches through the lobby's door and up the core, so the check had to be the
+  base's own walk, which climbs its stairs, with the core left out. verify and rules; e2e `loot` and `br`. Photographed
+  from the base's roof and through each door.

@@ -177,7 +177,7 @@ behind glass.
 | 28.5 | The first look beside the pack's own pictures, for the owner | done: the buildings and their textures are the pack's; its signs, props and haze are not in yet |
 | 28.6 | Before and after: downloads, load, triangles, draw calls, frame times | done (below) |
 | 28.7 | The detail: the underground station, the tallest building's rooms, the high city's bridges, cover | the station, the bridge ring, the court's halls done (Milestones 349 to 358) |
-| 28.8 | The master plan, built in phases: the curved streets (Milestone 360); the Sky Ring walkway storey (Milestone 362); the base, the tower's wide lower floors (Milestone 365); the tower's floors (Milestone 368); glass lifts; the Well; life on every level | phases 1 to 3 and the base done |
+| 28.8 | The master plan, built in phases: the curved streets (Milestone 360); the Sky Ring walkway storey (Milestone 362); the base, the tower's wide lower floors (Milestone 365); the tower's floors (Milestones 368 and 370) and the way in from the base's roof (Milestone 374); glass lifts; the Well; life on every level | phases 1 to 3 and the base done |
 | 28.9 | The checks: walked streets, every pad's landing, every roof joined by jumps, rooms walked, the drop lands only on what is drawn, the bots reach every level | |
 
 ### What building it found (28.2 to 28.4)

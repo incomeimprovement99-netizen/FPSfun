@@ -376,7 +376,9 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
 // along its flights; from the plaza round it and the tops of the stairs walked, on foot (a body the square round the
 // player's round one, a quarter metre at a time, up a step at a time, down any drop), each of its storeys and its roof
 // reached over most of its floor; and each door in its faces and each bridge from the Sky Ring walked through by a
-// player's own movement, ending inside on that storey. (The stairs are walked, not flooded: the collision's quarter
+// player's own movement, ending inside on that storey; and from its roof onto the tower's terrace and in through its
+// glass waist (the tower's core kept out of the walk: the plaza walks into it through the lobby's door, and up it to every
+// storey). (The stairs are walked, not flooded: the collision's quarter
 // metre widens the pack's double flight's cheeks to leave its lower flight 1.0 m clear, room for the player's round
 // 0.82 but not for the flood's square on its own grid)
 {
@@ -386,6 +388,11 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const xs = BS.outline.map((p) => p[0]), zs = BS.outline.map((p) => p[1]);
   const [X0, X1, Z0, Z1] = [Math.min(...xs) - 4, Math.max(...xs) + 4, Math.min(...zs) - 4, Math.max(...zs) + 4];
   const [NI, NJ] = [Math.ceil((X1 - X0) / C), Math.ceil((Z1 - Z0) / C)];
+  const [cx0, cx1, cz0, cz1] = (cfg as unknown as { tower: { core: { box: number[] } } }).tower.core.box;
+  const inCore = (q: { i: number; j: number }) => {
+    const [x, z] = [X0 + (q.i + 0.5) * C, Z0 + (q.j + 0.5) * C];
+    return x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3;
+  };
   const insideBase = (x: number, z: number) => {
     let inside = false;
     const p = BS.outline;
@@ -422,7 +429,7 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     const a = spots[todo.pop()!];
     for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
       if (a.i + di < 0 || a.i + di >= NI || a.j + dj < 0 || a.j + dj >= NJ) continue;
-      for (const s of at.get((a.i + di) * NJ + a.j + dj) ?? []) if (!seen[s] && spots[s].y - a.y <= MOVE.stepHeight) ((seen[s] = 1), todo.push(s));
+      for (const s of at.get((a.i + di) * NJ + a.j + dj) ?? []) if (!seen[s] && spots[s].y - a.y <= MOVE.stepHeight && !inCore(spots[s])) ((seen[s] = 1), todo.push(s));
     }
   }
   if (process.env.DEBUG_BASE) { const band = new Map<number, number[]>(); spots.forEach((q, k) => { const r = band.get(Math.round(q.y)) ?? [0, 0]; r[0]++; if (seen[k]) r[1]++; band.set(Math.round(q.y), r); }); console.log("base spots by height", JSON.stringify([...band].sort((x, y) => x[0] - y[0]))); }
@@ -440,6 +447,16 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   });
   check("the base: each of its storeys and its roof walked to from the plaza, up its stairs, over most of its floor", shares.every((q) => q.of > 500 && q.share > 0.9), shares.map((q) => `${q.y} m: ${(q.share * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2`).join("; "));
   check("the base: every stair walked up from its foot and back down by a player", climbed.length === BS.stairs.length, `${climbed.length} of ${BS.stairs.length}${climbed.length < BS.stairs.length ? `: not ${walked.filter((w) => !climbed.includes(w)).map((w) => `${w.q.at} m at (${w.q.top.join(", ")}): up ${w.up.k - 1} of ${w.q.route.length - 1} legs to ${w.up.y.toFixed(2)} m, down ${w.down.k - 1}`).join("; ")}` : ""}`);
+  // the waist's floor (rules.tower.waist, its box in the tower's own frame) at the roof's height
+  const TWR = cfg as unknown as { tower: { pivot: number[] }; rules: { tower: { waist: number[] } } };
+  const [wx0, wx1, wz0, wz1] = TWR.rules.tower.waist.map((v, k) => v + TWR.tower.pivot[k < 2 ? 0 : 1]);
+  const roof = BS.levels.at(-1)!.y;
+  let waist = 0;
+  spots.forEach((s, k) => {
+    const [x, z] = [X0 + (s.i + 0.5) * C, Z0 + (s.j + 0.5) * C];
+    if (seen[k] && Math.abs(s.y - roof) < 0.1 && x > wx0 && x < wx1 && z > wz0 && z < wz1) waist += C * C;
+  });
+  check("the base: its roof walked onto the tower's terrace and in through its glass waist, the core kept out", waist > 100, `${waist.toFixed(0)} m2 of the waist's floor at ${roof} m`);
   check("the base: each stair's foot on the plaza's side reached on foot", BS.stairs.every((q) => q.at > 0 || reachedAt(q.route[0][0], q.route[0][1], q.at)), "");
   // each door sprinted through from a metre outside to three in, and each bridge from the Sky Ring's deck to the door
   const through = (from: number[], to: number[], y: number) => {
