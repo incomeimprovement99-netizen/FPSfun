@@ -8138,3 +8138,33 @@ reached only up the stair core.
   tower's square alone, which the plaza reaches through the lobby's door and up the core, so the check had to be the
   base's own walk, which climbs its stairs, with the core left out. verify and rules; e2e `loot` and `br`. Photographed
   from the base's roof and through each door.
+
+## Milestone 375 — A bot wedged in the same pocket again detours twice as far, and the bots check starts it in one
+
+Found by Milestone 373's checks: the legacy game's bots match (e2e bots) failed "the bot closes in and lands a shot"
+and "the bot eliminates you", with the killcam and recap checks after it, in three runs of five, with and without
+that milestone's change.
+
+- **What it was** (a scratch probe printing the bot's place and sight every half second, and the solids round it):
+  in the warehouse a bot that came down the inside of the middle lane's wall (x 94 to 95) walked into the 1.4 m box
+  of the mantle chain at the wall's end (x 93.8 to 95.4, z -31.3 to -29.7), its step crate 0.2 m off the box's
+  other side, and stayed there. Wedged (no headway for 0.7 s), a bot takes the free way nearest the one it wants for
+  0.8 s: here only back up the lane, from where it walked straight back in, for the whole match. Where the bot came
+  down was down to chance, so the checks passed when it came down elsewhere.
+- **Now** (bots.ts, bots.json `wedge`, its numbers out of the code): wedged again within `near` 2 m of the last time
+  and within `within` 8 s of it, the detour lasts twice the last, to `most` 3.2 s. From that pocket the bot is out in
+  about 19 s of the game's time (measured, a probe placing it there), where it never was.
+- **Left as it is:** a route round the box. The bots' chase walks straight with a slide and this detour; routing by
+  turning points exists only for finding cover. The pocket is the legacy warehouse's (SpeedKills fights its 1v1s on
+  the Neon block), and the box and its step crate are the mantle chain up the lane wall, by design.
+- **The checks** (e2e bots):
+  - "the bot closes in and lands a shot" starts the bot in that pocket and waits 35 s of the game's own time for its
+    shot, as the recap's wait was moved onto the game's clock in Milestone 364. Seen failing with the fixed 0.8 s
+    detour put back (the bot at 94.0, -29.3 to the end);
+  - "the bot eliminates you" stands you where the bot sees you first (searched round it with its own sight, clear
+    of every box): it and the killcam and recap checks after it are about what an elimination leaves, not the way
+    to you. With it the three killcam checks Milestone 373 could not run passed;
+  - the bots section, 61 checks; skhunt and sksquad (SpeedKills' bots, the same code), 24; verify; rules.
+- **Seen, not this milestone's:** "figures: the bot is a mannequin" failed in runs at 100% CPU (other agents' test
+  browsers, 37 Chrome processes): the figure's model came after the check looked. It passed when the machine was
+  quieter.
