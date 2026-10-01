@@ -108,7 +108,8 @@ import { blastOffsets } from "./game/blast";
 import hudCfg from "./config/hud.json";
 import { SuperglideTrainer } from "./game/trainer";
 import { BrPlay, PING_INTENTS, pingPickAt, REACH } from "./game/brplay";
-import { LS_LOOT_CARD, lootCardView, type LootCardMode, type LootCardView } from "./game/lootcard";
+import { LS_LOOT_CARD, gunOutcome, hackOutcome, lootCardView, type LootCardMode, type LootCardView } from "./game/lootcard";
+import { Armory, armorySolids, type ArmoryStation, type ArmoryView } from "./game/armory";
 import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
@@ -810,7 +811,7 @@ const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.inne
 vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
-buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: IS_SK ? "city" : "warehouse", sandbox: IS_SK ? rangeCfg.sandbox : null });
+buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: IS_SK ? "city" : "warehouse", sandbox: IS_SK ? rangeCfg.sandbox : null, solids: IS_SK ? armorySolids() : undefined });
 // the 1v1 arena, east of the range, and the 1v1v1 triangle north of it (src/game/arena.ts)
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
@@ -956,6 +957,11 @@ $("copyFlags").addEventListener("click", () => {
 const rangeProps = new THREE.Group();
 rangeProps.name = "range-props";
 scene.add(rangeProps);
+// SpeedKills' armory on the range's back wall (armory.ts): every gun and hack on a stand, a screen behind each, E takes
+// one and taking it again fuses it. With the range's props, so it is on the range's side and out of the static merge
+// (its holograms turn)
+const armory = IS_SK && !new URLSearchParams(location.search).has("norender") ? new Armory() : null;
+if (armory) rangeProps.add(armory.root);
 void placeProps(rangeProps, PROP_PLACEMENTS).then(() => {
   renderer.shadowMap.needsUpdate = true;
 });
@@ -4728,6 +4734,46 @@ let watchName = "";
  * not fit goes back down), an attachment onto whichever gun takes it, a
  * helmet on, a banner carried.
  */
+/** what you carry, as the armory's stands show it (armory.ts) */
+/** the prompt shown under the crosshair, outside a match's own (the checks read it) */
+let shownPrompt: { key: string; text: string } | null = null;
+
+function armoryView(): ArmoryView {
+  const guns: Record<string, number> = {};
+  for (const sl of loadout.slots) if (!sl.empty) guns[sl.id] = sl.fusion ?? 0;
+  const held = (slot: HackSlot) => {
+    const h = hacks.get(slot);
+    return h ? { id: h.id, level: h.level } : null;
+  };
+  return { guns, hacks: { mobility: held("mobility"), utility: held("utility") }, keys: { take: keyLabel("interact"), mobility: keyLabel("ability"), utility: keyLabel("grenade") } };
+}
+
+/** what E does at a stand of the armory, as the prompt says it: take it, fuse it, or it is at its top (lootcard.ts, as applyLoot does it) */
+function armorySay(st: ArmoryStation): string {
+  if (st.kind === "gun") {
+    const slots = loadout.slots.map((sl) => ({ id: sl.id, empty: sl.empty, fusion: sl.fusion ?? 0, clip: sl.state.clip }));
+    const o = gunOutcome(st.id, 0, slots, loadout.activeIndex);
+    const name = weaponName(st.id);
+    if (o.verdict === "fuse") return `FUSE ${name}  ·  LEVEL ${o.from} TO ${o.to}`;
+    if (o.verdict === "max") return `${name} IS AT LEVEL ${o.from}, ITS TOP`;
+    if (o.verdict === "swap") return `TAKE ${name} FOR ${weaponName(loadout.slots[o.slot].id)}`;
+    return `TAKE ${name}`;
+  }
+  const slot = hackSlotOf(st.id) ?? "mobility";
+  const h = hacks.get(slot);
+  const o = hackOutcome(st.id, 0, h ? { id: h.id, level: h.level } : null);
+  const name = hackDef(st.id)?.name ?? st.id;
+  if (o.verdict === "fuse") return `FUSE ${name}  ·  LEVEL ${o.from} TO ${o.to}`;
+  if (o.verdict === "max") return `${name} IS AT LEVEL ${o.from}, ITS TOP`;
+  if (o.verdict === "swap" && h) return `TAKE ${name} FOR ${hackDef(h.id)?.name ?? h.id}`;
+  return `TAKE ${name} (${slot.toUpperCase()})`;
+}
+
+/** a stand of the armory taken: as a copy off a match's floor is (applyLoot: the same one fuses a level up) */
+function takeFromArmory(st: ArmoryStation): void {
+  applyLoot(st.kind === "gun" ? { kind: "weapon", id: st.id, n: 1, rarity: "common", fusion: 0 } : { kind: "hack", id: st.id, n: 0, rarity: "common" });
+}
+
 function applyLoot(it: LootItem): void {
   const d = duel instanceof BrMatch ? duel : null;
   // the hands take it off the ground (a gun comes into them by the swap instead)
@@ -7113,7 +7159,8 @@ function step(): void {
 
     // discrete keys
     // the pad's X is interact when there is a prompt for it (a zipline, an item, a revive)
-    const padInteracts = (player.zipPrompt || (duel instanceof BrMatch && brPlay.hud.prompt !== null) || (!duel && drill.state === "idle" && drill.onPad(player.pos))) && input.pad.pressedNow("reload");
+    const atStand = !duel && armory ? armory.near(player.pos, player.yaw) : null;
+    const padInteracts = (player.zipPrompt || (duel instanceof BrMatch && brPlay.hud.prompt !== null) || (!duel && drill.state === "idle" && drill.onPad(player.pos)) || !!atStand) && input.pad.pressedNow("reload");
     if (armed && input.pressedNow("reload") && !loadout.swapping && !padInteracts) {
       ws.startReload(now);
       if (ws.reloading) audio.reload();
@@ -7125,6 +7172,8 @@ function step(): void {
     if (armed && input.pressedNow("swapWeapon") && loadout.requestNext(now)) audio.swap();
     if (!duel && input.pressedNow("dummyMode")) hud.notice(`DUMMIES: ${cycleDummyMode()}`, now, 1.2);
     if (!duel && input.pressedNow("interact") && drill.state === "idle" && drill.onPad(player.pos)) drill.start(now);
+    // the armory: the stand in front of you, taken (or fused, taken again)
+    else if (atStand && ((scriptInput ?? input).pressedNow("interact") || padInteracts)) takeFromArmory(atStand);
     if (input.pressedNow("cycleArmor")) {
       armorTier = ((armorTier + 1) % 5) as ArmorTier;
       for (const d of dummies) d.setTier(armorTier); // also clears engagedAt
@@ -8111,6 +8160,9 @@ function step(): void {
   }
   trainer.update(now, player, scriptInput ?? input);
   readmeTv.update(now);
+  // the armory's holograms turn, and a stand whose gun or hack you now carry at another level redraws its screen (only
+  // while the range's side is the one drawn)
+  if (armory && sideShown !== "br") armory.update(now, armoryView());
   for (const d of dummies) d.update(now, dt);
   drill.target.update(now, dt);
   for (const d of galleryFigs) d.update(now, dt);
@@ -8363,9 +8415,11 @@ function step(): void {
   else if (duel instanceof BrMatch && brPlay.hud.prompt) prompt = brPlay.hud.prompt;
   else if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
   else if (!duel && drill.state === "idle" && drill.onPad(player.pos)) prompt = { key: keyLabel("interact"), text: "START THE FLICK DRILL" };
+  else if (!duel && armory?.near(player.pos, player.yaw)) prompt = { key: keyLabel("interact"), text: armorySay(armory.near(player.pos, player.yaw)!) };
   else if (player.onGround && ladderAhead(player.pos.x, player.pos.y, player.pos.z, player.yaw)) {
     prompt = { key: "SPACE", text: "JUMP INTO THE WALL, HOLD W TO CLIMB" };
   }
+  shownPrompt = prompt;
   const optic = viewModel.opticFitted;
   const aimNow = debugView.ads ?? ws.adsFrac;
   const duelHud = duel ? duel.hud() : null;
@@ -8747,6 +8801,15 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   fitDebug: (on: boolean) => setFitDebug(on),
   /** how many guns have been fused into one already carried (br.json fusion) */
   fused: () => fusedCount,
+  /** the prompt under the crosshair this frame, outside a match's own (tools/e2e.ts: the armory's) */
+  prompt: () => shownPrompt,
+  /** the range's armory (armory.ts): each stand, what its screen was last drawn for and what its hologram wears */
+  armory: () =>
+    armory && {
+      stands: armory.stations.map((s) => ({ kind: s.kind, id: s.id, x: s.x, z: s.z, drawn: s.drawn, stand: !!s.stand, dressed: s.dressed, skin: (s.item?.material as THREE.Material | undefined)?.name ?? "", box: armory.caseBox(s) })),
+      redraws: armory.redraws,
+      near: () => armory.near(player.pos, player.yaw)?.id ?? null,
+    },
   /** which of the field's scenery props are drawn: rocks, scrub, cliff faces, and what grows (br.ts flora) */
   sceneryDrawn: () => sceneryDrawn.slice(),
   /** how many cells of the field's scenery are drawn where you stand, of how many (props.ts) */

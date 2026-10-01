@@ -192,6 +192,8 @@ export interface RangeOptions {
   /** SpeedKills: the city's night look, and the sandbox's edge (range.json; Phase 20 A12) */
   look?: "warehouse" | "city";
   sandbox?: typeof rangeCfg.sandbox | null;
+  /** boxes of things other modules stand in the range (SpeedKills' armory's cases, armory.ts), pushed with its own */
+  solids?: Solid[];
 }
 
 /** where a player may go in the range: all of it, or in SpeedKills up to the sandbox's edge (range.json edgeZ) */
@@ -254,6 +256,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   TARGET_RAILS.length = 0;
   ZIPLINES.length = 0;
   LADDERS.length = 0;
+  if (opts.solids) RANGE_SOLIDS.push(...opts.solids);
 
   // Tints shape one palette out of five packs. A tint multiplies the map, so
   // it can only darken: the packs themselves have to be light to begin with.
@@ -721,7 +724,8 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     ["SNIPER", 0x9a7bff],
     ["SUPPLY", 0xd94f9a],
   ];
-  AMMO.forEach(([label, colour], i) => {
+  // (SpeedKills: the armory's stands stand here instead, armory.ts, the owner, 2026-09-30)
+  if (!IS_SK) AMMO.forEach(([label, colour], i) => {
     // Behind the firing line, flanking the spawn, so they never block a lane.
     const x = -26 + i * 10.4;
     const z = 5.5;
@@ -824,8 +828,8 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   for (const x of [-22, -10, 10, 22]) {
     prop({ prop: "concrete_road_barrier", x, z: -8, rot: 90, solid: { w: 0.8, h: 0.85, d: 2.2 } });
   }
-  // ammo boxes and shelving beside the racks
-  for (let i = 0; i < 6; i++) {
+  // ammo boxes and shelving beside the racks (not SpeedKills': its armory is there)
+  for (let i = 0; i < (IS_SK ? 0 : 6); i++) {
     prop({ prop: "ammo_box", x: -26 + i * 10.4 + 2.2, z: 4.6, rot: 180 });
     prop({ prop: "plastic_crate_03", x: -26 + i * 10.4 - 2.2, z: 4.8, rot: 20 * i });
   }
@@ -835,10 +839,12 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   for (const x of [-30, -6, 18]) {
     prop({ prop: "security_light", x, z: 1.1, y: 4.2, rot: 180, scale: 1.4 });
   }
-  // yard clutter behind the line
-  prop({ prop: "portable_generator", x: -18, z: 6.5, rot: -25, solid: { w: 1.2, h: 0.9, d: 1.0 } });
-  prop({ prop: "utility_box_01", x: 14, z: 7.4, rot: 180, scale: 1.2 });
-  prop({ prop: "steel_frame_shelves_01", x: 28, z: 7.0, rot: 200 });
+  // yard clutter behind the line (not SpeedKills': the armory stands along that wall)
+  if (!IS_SK) {
+    prop({ prop: "portable_generator", x: -18, z: 6.5, rot: -25, solid: { w: 1.2, h: 0.9, d: 1.0 } });
+    prop({ prop: "utility_box_01", x: 14, z: 7.4, rot: 180, scale: 1.2 });
+    prop({ prop: "steel_frame_shelves_01", x: 28, z: 7.0, rot: 200 });
+  }
 
   // ---------- lighting ----------
   //

@@ -32,6 +32,8 @@ import ringCfg from "../src/config/ring.json";
 import ammoCfg from "../src/config/ammo.json";
 import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
+import armoryCfg from "../src/config/armory.json";
+import hacksCfg from "../src/config/hacks.json";
 import botsCfgE2e from "../src/config/bots.json";
 import hudCfgE2e from "../src/config/hud.json";
 import fparmsCfg from "../src/config/fparms.json";
@@ -6565,6 +6567,122 @@ async function skHuntTest(browser: Browser): Promise<void> {
 }
 
 /**
+ * The range's armory (armory.ts; the owner, 2026-09-30: "the back end of the firing range to show the 10 guns ... make
+ * each hack and gun have a tv behind it showing details on the gun, what it is, how to fuse ... Same for hacks"): the
+ * ten guns and the ten hacks on the back wall clear of the gates, each on its case with its hologram and its screen
+ * drawn; each case solid, the size measured off it; at a stand E takes it and E again fuses it a level up, to its top and no further, the prompt saying which,
+ * and the stand's screen drawn again and its hologram's skin changed as the level goes up.
+ */
+async function skArmoryTest(browser: Browser): Promise<void> {
+  // drawn: a ?norender page builds no armory (its screens are for a player to read)
+  const page = await open(browser, "?game=speedkills");
+  await ev(page, "window.__range.input.locked = true");
+  type Stand = { kind: string; id: string; x: number; z: number; drawn: string; stand: boolean; dressed: boolean; skin: string; box: number[] | null };
+  const ready = await page
+    .waitForFunction(`(() => { const a = window.__range.armory(); return !!a && a.stands.every((s) => s.drawn && s.stand && s.dressed); })()`, { polling: 250, timeout: 90000 })
+    .then(() => true, () => false);
+  const stands = (await ev<Stand[] | null>(page, "window.__range.armory()?.stands ?? null")) ?? [];
+  const guns = stands.filter((s) => s.kind === "gun").map((s) => s.id);
+  const hacks = stands.filter((s) => s.kind === "hack").map((s) => s.id);
+  // every screen clear of the gates' lit posts (0.1 m out from a gate, 0.2 m wide) and inside the side walls (x 34)
+  const half = armoryCfg.tv.w / 2;
+  const GATES = [[-23.5, -19.5], [-2, 2], [19.5, 23.5]];
+  const clear = stands.every((s) => GATES.every(([l, r]) => s.x + half < l - 0.2 || s.x - half > r + 0.2) && Math.abs(s.x) + half < 34);
+  check(
+    "armory: the ten guns and the ten hacks on the range's back wall, clear of the gates, each on its case with its hologram and its screen drawn",
+    ready && guns.join() === armoryCfg.guns.join() && hacks.join() === armoryCfg.hacks.join() && clear && stands.every((s) => (s.x < 0) === (s.kind === "gun")),
+    JSON.stringify({ ready, guns, hacks, clear, at: stands.map((s) => `${s.id}@${s.x.toFixed(2)}${s.drawn ? "" : " undrawn"}${s.stand ? "" : " nocase"}${s.dressed ? "" : " plain"}`) }),
+  );
+  // each case is a solid the size armory.json's solid says, held to the case as measured off the loaded model
+  const S = armoryCfg.solid;
+  const solids = await ev<Array<{ minX: number; maxX: number; minZ: number; maxZ: number; top: number }>>(page, "window.__range.solids.map((s) => ({ minX: s.minX, maxX: s.maxX, minZ: s.minZ, maxZ: s.maxZ, top: s.top }))");
+  const near3 = (a: number, b: number) => Math.abs(a - b) < 0.03;
+  const off = stands.filter((s) => {
+    const b = s.box;
+    const fits = !!b && near3(b[0], S.minX) && near3(b[1], S.maxX) && near3(b[2], S.top) && near3(b[3], S.minZ) && near3(b[4], S.maxZ);
+    const has = solids.some((o) => near3(o.minX, s.x + S.minX) && near3(o.maxX, s.x + S.maxX) && near3(o.minZ, s.z + S.minZ) && near3(o.maxZ, s.z + S.maxZ) && near3(o.top, S.top));
+    return !fits || !has;
+  });
+  // walked into, a case stops you at its face
+  const gunAt = stands.find((s) => s.id === "vinson");
+  await ev(page, `window.__range.player.teleport(${gunAt?.x ?? 0}, 0, ${(gunAt?.z ?? 0) - 1.6}, 180, 0)`);
+  await ev(page, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false })`);
+  await gameSleep(page, 1.2);
+  await ev(page, "window.__range.setScript(null)");
+  const stopped = await ev<number>(page, "window.__range.player.pos.z");
+  const face = (gunAt?.z ?? 0) + S.minZ;
+  check(
+    "armory: each stand's case is solid, its box the case's own as it stands, and walking into one stops you at its face",
+    off.length === 0 && stopped < face && stopped > face - 0.8,
+    JSON.stringify({ off: off.map((s) => `${s.id} ${JSON.stringify(s.box)}`), solid: S, stopped, face }),
+  );
+  const go = (id: string) => ev(page, `(() => { const r = window.__range; const s = r.armory().stands.find((t) => t.id === "${id}"); r.player.teleport(s.x, 0, s.z - 1.6, 180, 0); })()`);
+  // E for one frame, as a key press is
+  const press = async () => {
+    await ev(page, `(() => { window.__armK = 0; window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" && window.__armK === 2 }, () => { window.__armK++; }); })()`);
+    await page.waitForFunction("window.__armK > 5", { polling: 30, timeout: 15000 }).catch(() => undefined);
+    await ev(page, "window.__range.setScript(null)");
+    await gameSleep(page, 0.1);
+  };
+  type Seen = { held: Array<string | null>; prompt: string | null; near: string | null; redraws: number; stand: Stand; hack: { id: string; level: number } | null };
+  const seen = (id: string) =>
+    ev<Seen>(
+      page,
+      `(() => { const r = window.__range; const a = r.armory(); return { held: r.loadout.slots.map((s) => s.empty ? null : s.id + ":" + (s.fusion ?? 0)), prompt: r.prompt()?.text ?? null, near: a.near(), redraws: a.redraws, stand: a.stands.find((s) => s.id === "${id}"), hack: r.sk.hacks().find((h) => h.slot === "mobility").held }; })()`,
+    );
+  // a gun not carried (a new player holds the USSO and the BOOG): looked at, the prompt offers it; E takes it
+  const GUN = "3030";
+  const TOP = skCfg.fusion.levels;
+  await go(GUN);
+  await gameSleep(page, 0.2);
+  const g0 = await seen(GUN);
+  await press();
+  const g1 = await seen(GUN);
+  check(
+    "armory: in front of a gun's stand the prompt offers it, and E takes it into your hands at level 0",
+    g0.near === GUN && /^TAKE /.test(g0.prompt ?? "") && !g0.held.some((h) => h?.startsWith(`${GUN}:`)) && g1.held.includes(`${GUN}:0`) && /^FUSE .*LEVEL 0 TO 1/.test(g1.prompt ?? ""),
+    JSON.stringify({ g0, g1 }),
+  );
+  // E again, and again: a level up each time to the top, the screen drawn again and the skin changed on the way
+  const levels: number[] = [];
+  for (let i = 0; i < TOP; i++) {
+    await press();
+    const s = await seen(GUN);
+    levels.push(Number(s.held.find((h) => h?.startsWith(`${GUN}:`))?.split(":")[1] ?? -1));
+  }
+  const gTop = await seen(GUN);
+  await press();
+  const gOver = await seen(GUN);
+  check(
+    `armory: E at a gun you carry fuses it a level up each time, to ${TOP} and no further, and its stand is drawn again at each level, its skin changed on the way`,
+    levels.join() === Array.from({ length: TOP }, (_, i) => i + 1).join() && /ITS TOP/.test(gTop.prompt ?? "") && gOver.held.includes(`${GUN}:${TOP}`) && gTop.redraws >= g1.redraws + TOP && gTop.stand.drawn.startsWith(`${TOP}|`) && g1.stand.skin !== gTop.stand.skin,
+    JSON.stringify({ levels, gTop: { prompt: gTop.prompt, held: gTop.held, drawn: gTop.stand.drawn, skin: gTop.stand.skin, redraws: gTop.redraws }, g1: { drawn: g1.stand.drawn, skin: g1.stand.skin, redraws: g1.redraws }, over: gOver.held }),
+  );
+  // a hack: E takes it into its slot (the mobility one, for the GRAPPLE), and fuses it a level up each time, to its top
+  const HACK = "grapple";
+  const HTOP = hacksCfg.fuseLevels;
+  await go(HACK);
+  await gameSleep(page, 0.2);
+  const h0 = await seen(HACK);
+  await press();
+  const h1 = await seen(HACK);
+  const hl: number[] = [];
+  for (let i = 0; i < HTOP; i++) {
+    await press();
+    hl.push((await seen(HACK)).hack?.level ?? -1);
+  }
+  const hTop = await seen(HACK);
+  await press();
+  const hOver = await seen(HACK);
+  check(
+    `armory: E at a hack's stand takes it into its slot, and again fuses it a level up each time, to ${HTOP} and no further, its screen drawn again`,
+    h0.near === HACK && /^TAKE /.test(h0.prompt ?? "") && h0.hack?.id !== HACK && h1.hack?.id === HACK && h1.hack.level === 0 && hl.join() === Array.from({ length: HTOP }, (_, i) => i + 1).join() && /ITS TOP/.test(hTop.prompt ?? "") && hOver.hack?.level === HTOP && hTop.stand.drawn.startsWith(`${HACK}:${HTOP}|`),
+    JSON.stringify({ h0: { prompt: h0.prompt, hack: h0.hack }, h1: h1.hack, hl, hTop: { prompt: hTop.prompt, drawn: hTop.stand.drawn }, over: hOver.hack }),
+  );
+  await page.close();
+}
+
+/**
  * SpeedKills' order of things (the owner, 2026-09-29): "the basic speed kills with the progress bar is all we want them
  * to see whenever we are loading things, then once that's done, then we put the animation specific screen up (depending
  * on which mode they are playing), then when that finishes playing, then we start the drop ship and / or other modes".
@@ -7908,7 +8026,7 @@ async function skSquadTest(browser: Browser): Promise<void> {
   await close();
 }
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skfriends, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -8904,6 +9022,11 @@ async function main(): Promise<void> {
     if (want("skhunt")) await section("skhunt", async () => {
       console.log("\nSpeedKills: what the bug hunt of 2026-09-30 found (stuck bots, the silent loop, the body fetched twice)");
       await skHuntTest(browser);
+    });
+
+    if (want("skarmory")) await section("skarmory", async () => {
+      console.log("\nSpeedKills' range armory: the ten guns and ten hacks on the back wall, taken and fused at their stands");
+      await skArmoryTest(browser);
     });
 
     if (want("skfriends")) await section("skfriends", async () => {

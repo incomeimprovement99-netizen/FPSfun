@@ -57,11 +57,11 @@ export function hackOutcome(id: string, level: number, held: { id: string; level
 }
 
 /** a number as a card shows it: whole when it is within 0.05 of one, else one decimal */
-function one(n: number): string {
+export function one(n: number): string {
   return Math.abs(n - Math.round(n)) < 0.05 ? String(Math.round(n)) : n.toFixed(1);
 }
 
-interface GunStats {
+export interface GunStats {
   ttk: number;
   dmg: string;
   head: number;
@@ -71,7 +71,8 @@ interface GunStats {
   heat: boolean;
 }
 
-function gunStats(id: string, level: number): GunStats {
+/** a gun's numbers at a fusion level (the range's armory screens show them too: armory.ts) */
+export function gunStats(id: string, level: number): GunStats {
   const w = resolveWeapon(id, 0, [], level);
   const per = w.damage.near;
   const pellets = Math.max(1, w.pellets);
@@ -116,7 +117,7 @@ function cmpOf(have: number, get: number, lowerBetter: boolean): -1 | 0 | 1 {
 }
 
 /** what a family is for, one line (speedkills.json families.use) */
-function useOf(id: string): string {
+export function useOf(id: string): string {
   for (const f of Object.values(PROFILE.families ?? {}) as Array<{ guns: string[]; use?: string }>) if (f.guns.includes(id)) return f.use ?? "";
   return "";
 }

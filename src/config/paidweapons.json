@@ -138,7 +138,7 @@
     "buttonPress": 0.0025,
     "extruder": 0.008
   },
-  "_props": "The rest of the pack where the game has the thing (W7): the model a prop wears when the paid files are here, and its skin. mine is the MINE hack's mine (ours was a lit ring); its size is the model's own. deathbox is a death box (ours was a dark crate with an orange glow). carepackage is a care package (ours was a lit cylinder), the 1.51 m weapon case drawn at scale, which reads from further off. healkit is the med kit standing in the middle of a HEAL area (ours was the lit ring alone), 0.40 by 0.38 m on its own base; Everyone's area has the same one. hackcore is a hack core on the floor, the pack's canister (0.19 m, drawn 2.2 times, 0.42 m) standing and turning, its glow in its slot's colour (mobility cyan, utility magenta); ours was a spinning coloured box, the second most common thing on the floor. supplybin is a supply bin, the weapon case whose Cover is a part of its own (0.75 times its 1.51 m, skin C, so it differs from the care package's B); lid is that part, and open how far it swings open about its back edge, radians, once the bin is looted; ours was a crate with a box for a lid.",
+  "_props": "The rest of the pack where the game has the thing (W7): the model a prop wears when the paid files are here, and its skin. mine is the MINE hack's mine (ours was a lit ring); its size is the model's own. deathbox is a death box (ours was a dark crate with an orange glow). carepackage is a care package (ours was a lit cylinder), the 1.51 m weapon case drawn at scale, which reads from further off. healkit is the med kit standing in the middle of a HEAL area (ours was the lit ring alone), 0.40 by 0.38 m on its own base; Everyone's area has the same one. hackcore is a hack core on the floor, the pack's canister (0.19 m, drawn 2.2 times, 0.42 m) standing and turning, its glow in its slot's colour (mobility cyan, utility magenta); ours was a spinning coloured box, the second most common thing on the floor. supplybin is a supply bin, the weapon case whose Cover is a part of its own (0.75 times its 1.51 m, skin C, so it differs from the care package's B); lid is that part, and open how far it swings open about its back edge, radians, once the bin is looted; ours was a crate with a box for a lid. armorygun and armoryhack are the range armory's stands (armory.ts): a gun stands over the supply bin's case in skin A (white) at 0.82, 1.24 m wide, about half the 2.4 m between stands, its cover open; a hack over the same case in skin B (black), so the two runs read as one set in two colours (the flat storage case, tried first, read as an open laptop).",
   "props": {
     "mine": {
       "model": "ScifiMine01",
@@ -168,6 +168,20 @@
       "scale": 0.75,
       "lid": "Cover",
       "open": -1.9
+    },
+    "armorygun": {
+      "model": "SciFiWeaponCase01_2",
+      "skin": "A",
+      "scale": 0.82,
+      "lid": "Cover",
+      "open": -1.75
+    },
+    "armoryhack": {
+      "model": "SciFiWeaponCase01_2",
+      "skin": "B",
+      "scale": 0.82,
+      "lid": "Cover",
+      "open": -1.75
     }
   },
   "_mount": "A sight from another model of the pack mounted on a gun that has none but irons (a gun's mount: the model it comes from, the part, and where along this gun its middle goes, the model's z). The pack has no sight attachments of its own: its only sights are built into the rifle, the steady SMG and the launcher, and the steady SMG's reflex sight is a part of its own, so the USSO (irons only) wears it: the owner, 2026-09-27, \"does the guns come with like red dot sights? we want to use those\". It sits into this gun's top as far as it sits into its own gun's (both measured off the models as they load, paidgun.ts mountSight), and the gun is aimed down its dot."
