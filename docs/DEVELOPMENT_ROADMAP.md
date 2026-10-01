@@ -8527,3 +8527,26 @@ The owner, 2026-10-01: "nova should be chooch. Do the same treatment, replace al
   - the speedkills and soldier e2e sections (156), the names list and CHOOCH's drum among them; verify; rules.
 - **The roster now:** all ten guns carry the owner's own names: PANDA, STRYDER, ANAKIN, USSO, BIGANTLER, REZ, HAEFY,
   APUHTHEE, BOOG and CHOOCH.
+
+## Milestone 390 — The Well's corridor: from the metro station to its lowest gallery
+
+The master plan's fifth phase finished: "the corridor from the station platform to its lowest gallery". The Well
+(Milestones 387 and 388) went down to -10 m, the station's floor, but the two were some 45 m apart under the
+south-east block.
+
+- **A corridor under the block** (rules.well.corridor, tools/neon-layout.ts). The pack's low metro corridor, its 5 m
+  pieces lit by their own lamps, out of the east end of the station's concourse through the pack's gated cap, 39 m east
+  along its south side, round the pack's corner, and 35 m south to the Well, in through the lowest gallery's shop door
+  onto its walkway, by the foot of the stair down from the gallery above. The last piece of each leg is cut exactly
+  to fit (the concourse's end to the door is not a whole number of pieces), and the world's floor lowered under it and
+  the street's slab laid over it, as the station's are. The concourse's east end had two plain caps overlapping by 2 m;
+  the second is the gate now, and the first moved a cap's width down so it no longer stands across it.
+- **The Well is a way between the street and the station**: down its stairs or its rope to the bottom, along the
+  corridor to the concourse and the platform; or up from the station the same way.
+- The map: 2.39 million triangles, 4,600 more than version 20 (the corridor's fifteen pieces); its files lo 83 MB, hi 142 MB, max 345 MB. **Its files are version 21.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): the corridor walked from inside the concourse out through its
+  gate, east, round the corner and south into the gallery, and back, by a player's own movement (seen failing with the
+  concourse's end closed by its plain cap: stopped at the concourse's end both ways). The station's closed-in check
+  now looks 100 m before it calls a look open: down the concourse and on along the straight corridor a look met the
+  corridor's corner 79 m away, past the 60 m it allowed. verify and rules; e2e `loot` and `br`. Photographed along the
+  corridor and through the door into the Well.

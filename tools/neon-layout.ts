@@ -681,8 +681,12 @@ if (holes.length) {
     pivot("c-station", bay && Math.abs(cx - bay[0]) < 1e-6 ? L.gate : Q.cap, cx, sy, hz + Q.capAt, 180);
   }
   // (turned -90: x from its pivot to 1 m on, z 5 m up to its pivot; turned 90: x 1 m up to its pivot, z 5 m on)
+  // (the east end's second cap the pack's gate when the Well's corridor leaves by it, rules.well.corridor: the first
+  // then moved down a cap's width, the two overlapped by 2 m and the plain one stood across the gate)
+  const wellGate = R.well?.corridor ? R.well.corridor.gate : null;
   for (const z of [hallRect[2] + capLen, hallRect[3]]) {
-    pivot("c-station", Q.cap, qx, sy, z, -90);
+    const gate = wellGate && z === hallRect[3];
+    pivot("c-station", gate ? wellGate : Q.cap, qx, sy, wellGate && z !== hallRect[3] ? hallRect[3] - capLen : z, -90);
     pivot("c-station", Q.cap, hallRect[0], sy, z - capLen, 90);
   }
   pivot("c-station", Q.cap, sx + piece(S.pieces.mouth).row.min![0], sy, sz, 90);
@@ -1154,7 +1158,38 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
       }
       return { ...f, n: measure(f, F.spec).n, cut: cut.map((v) => +v.toFixed(3)), route: wellFlight(f, F.spec, F.scale).route.map((r) => r.map((v) => +v.toFixed(3))) };
     });
+    // the corridor from the station's concourse to the lowest gallery (rules.well.corridor): the pack's low metro corridor,
+    // east from the concourse's gated end along its south part, round the pack's corner, south to the gallery's north
+    // shops, in through the shop door there (left out); its pieces 5 m each, the last of each leg cut to fit, exactly
+    const CO = W.corridor;
+    if (CO) {
+      const lowest = levels.length - 1;
+      (cuts.get(lowest) ?? cuts.set(lowest, []).get(lowest)!).push(CO.door);
+    }
     levels.forEach((lv, k) => add("c-well", "c", [piece(lv.piece).key, +(ox + lv.x).toFixed(3), lv.y, +(oz + lv.z).toFixed(3), 0, "o", ...(cuts.has(k) ? [null, cuts.get(k)!] : [])] as Place));
+    const corridor: number[][] = [];
+    if (CO) {
+      const y = Math.min(...levels.map((q) => q.y));
+      const [z0, z1] = CO.z as number[];
+      const len = piece(CO.straight[0]).row.size![0];
+      // east, yaw 0: a piece covers x from its pivot to `len` on, z `len` up to its pivot
+      let n = 0;
+      for (let x = CO.from; x < CO.turn - 1e-6; x += len, n++) {
+        const over = x + len - CO.turn;
+        const px = over > 0 ? CO.turn - len : x;
+        add("c-well", "c", [piece(CO.straight[n % CO.straight.length]).key, +px.toFixed(3), y, z1, 0, "o", ...(over > 1e-6 ? [null, [`*|-0.1,${(x - px).toFixed(3)},-1,5,-5.1,0.1`]] : [])] as Place);
+      }
+      // the corner, turned 90: open west and south; covers x `len` up to its pivot, z `len` up to it
+      const ex = CO.turn + len;
+      add("c-well", "c", [piece(CO.corner).key, +ex.toFixed(3), y, z1, 90, "o"] as Place);
+      // south, turned 90: a piece covers x `len` up to its pivot, z `len` up to it; the last cut off at the gallery's edge
+      const to = oz + CO.to;
+      for (let z = z1; z < to - 1e-6; z += len, n++) {
+        const over = z + len - to;
+        add("c-well", "c", [piece(CO.straight[n % CO.straight.length]).key, +ex.toFixed(3), y, +(z + len).toFixed(3), 90, "o", ...(over > 1e-6 ? [null, [`*|-0.1,${over.toFixed(3)},-1,5,-5.1,0.1`]] : [])] as Place);
+      }
+      corridor.push([CO.from, ex, z0, z1], [CO.turn, ex, z1, to]);
+    }
     const hole = [ox + W.hole[0], ox + W.hole[1], oz + W.hole[2], oz + W.hole[3]];
     // (the street's tiles taken up over the whole of the ground ring, which is paved itself round its openings, and over
     // the stairwell down from the street to the first gallery, on the tiles' grid round its slot)
@@ -1173,6 +1208,8 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     const ug = cfg.underground as { floors: Array<{ rect: number[]; y: number; well?: boolean }>; slabs: number[][] };
     ug.floors = ug.floors.filter((f) => !f.well);
     ug.floors.push({ rect: foot, y: bottom, well: true });
+    // (the corridor's, as the station's own: the world's floor lowered under it, the street's slab over it)
+    for (const r of corridor) ug.floors.push({ rect: r.map((v) => +v.toFixed(3)), y: bottom });
     const r3 = (v: number) => +v.toFixed(3);
     const ring = [[foot[0], hole[0], foot[2], foot[3]], [hole[1], foot[1], foot[2], foot[3]], [hole[0], hole[1], foot[2], hole[2]], [hole[0], hole[1], hole[3], foot[3]]].map((q) => q.map(r3));
     ug.slabs = ug.slabs.filter((q) => !(cfg.well?.slabs ?? []).some((w: number[]) => w.every((v, i) => Math.abs(v - q[i]) < 1e-3)));
@@ -1187,7 +1224,7 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
       if (h[3] < b1) out.push([c0, c1, h[3], b1]);
       return out;
     });
-    const slabs = streetSlots.reduce((rs, h) => less(rs, h), ring).map((q) => q.map(r3));
+    const slabs = [...streetSlots.reduce((rs, h) => less(rs, h), ring), ...corridor].map((q) => q.map(r3));
     ug.slabs.push(...slabs);
     // the rope up the well, a vertical zipline as the glass lifts' are: from a body's hang over the bottom to where the
     // feet hang `clear` of the ground ring's railing round the opening, so the top of the ride puts a rider over it and
@@ -1195,7 +1232,7 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     const hang = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).ziplineHang * 0.0254;
     const [rx, rz] = [+(ox + W.rope.at[0]).toFixed(3), +(oz + W.rope.at[1]).toFixed(3)];
     const ropes = [{ rope: [[rx, +(bottom + hang + R.lifts.under).toFixed(3), rz], [rx, +(W.rope.clear + hang).toFixed(3), rz]], floor: bottom, colour: W.rope.colour, onto: W.rope.onto, out: W.rope.out }];
-    cfg.well = { at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale };
+    cfg.well = { at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale, corridor };
     console.log(`the Well: ${W.levels.length} levels to ${bottom} m, its well ${(hole[1] - hole[0]).toFixed(1)} by ${(hole[3] - hole[2]).toFixed(1)} m`);
   }
 }

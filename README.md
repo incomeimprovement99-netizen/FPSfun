@@ -1319,7 +1319,8 @@ outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
 and two more up its own stairs, its roof a climb. In the south-east block's corner
 instead, the Well: the pack's inverted building, a light-well with galleries of
 shops 3.5 m apart down to 10 m under the street, a stair down every storey from
-a stairwell in the street, and a rope up its middle. A walkway one floor up, the Sky
+a stairwell in the street, a rope up its middle, and a corridor from its lowest
+gallery to the metro station's concourse. A walkway one floor up, the Sky
 Ring, circles the tower's plaza inside the Loop, glass-railed, with a stair up
 from the plaza on each side, and a footbridge from it to a glass lift beside each
 High City island: interact facing its rope and it carries you up the island's side

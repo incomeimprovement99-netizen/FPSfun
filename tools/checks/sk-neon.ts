@@ -694,6 +694,17 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const FL = (WL as unknown as { flights?: Array<{ high: number; low: number; route: number[][] }> } | undefined)?.flights ?? [];
   const walked = FL.map((q) => ({ q, down: along(q.route), up: along([...q.route].reverse()) }));
   const ok = (w: (typeof walked)[number]) => w.down.k === w.q.route.length && Math.abs(w.down.y - w.q.low) < 0.2 && w.up.k === w.q.route.length && Math.abs(w.up.y - w.q.high) < 0.2;
+  // its corridor (rules.well.corridor): from inside the station's concourse out through its gated end, east, round the
+  // corner and south, in through the lowest gallery's shop door onto its walkway; and back
+  const CR = (WL as unknown as { corridor?: number[][]; bottom: number } | undefined)?.corridor ?? [];
+  if (CR.length) {
+    const [east, south] = CR;
+    const yb = (WL as unknown as { bottom: number }).bottom;
+    const [zc, xc] = [(east[2] + east[3]) / 2, (south[0] + south[1]) / 2];
+    const route = [[east[0] - 3, zc, yb], [east[0] + 1, zc, yb], [xc, zc, yb], [xc, south[3] - 1, yb], [xc, south[3] + 1.5, yb]];
+    const [there, back] = [along(route), along([...route].reverse())];
+    check("the Well: its corridor walked from the station's concourse to its lowest gallery and back, by a player", there.k === route.length && back.k === route.length, `there ${there.k - 1} of ${route.length - 1} legs, stopped at (${there.x.toFixed(1)}, ${there.y.toFixed(2)}, ${there.z.toFixed(1)}); back ${back.k - 1}, stopped at (${back.x.toFixed(1)}, ${back.y.toFixed(2)}, ${back.z.toFixed(1)})`);
+  }
   check("the Well: each of its stairs walked down from the floor above to the gallery below and back up, by a player", FL.length >= 3 && walked.every(ok), walked.map((w) => `${w.q.high} to ${w.q.low} m: down ${w.down.k - 1} of ${w.q.route.length - 1} legs to ${w.down.y.toFixed(2)} m, up to ${w.up.y.toFixed(2)} m`).join("; "));
 }
 
@@ -796,6 +807,9 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     return best;
   };
   const eye = sy + 1.6;
+  // (how far a look goes before it must have met a wall: the station and the Well's corridor out of its concourse run
+  // 80 m in a straight line, rules.well.corridor, and a look down them met the corridor's corner past 60)
+  const far = 100;
   let spots = 0;
   const open: string[] = [];
   // on the ramp down from the court: from every metre of it, an eye's height over the ramp there
@@ -806,7 +820,7 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
         const under = solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).filter((b) => x + BR_X >= b.minX && x + BR_X <= b.maxX && z + BR_Z >= b.minZ && z + BR_Z <= b.maxZ && b.top <= cfg.court.y + 0.05);
         const p = [x + BR_X, Math.max(sy, ...under.map((b) => b.top)) + 1.6, z + BR_Z];
         spots++;
-        for (const d of dirs) if (hit(p, d, 60) >= 60) open.push(`the ramp (${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
+        for (const d of dirs) if (hit(p, d, far) >= far) open.push(`the ramp (${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
       }
   }
   for (const [x0, x1, z0, z1] of areas)
@@ -816,9 +830,9 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
         // (not a spot inside a wall or a pillar: something standing across the eye's height there)
         if (solidsIn(p[0], p[0], p[2], p[2]).some((s) => p[0] >= s.minX && p[0] <= s.maxX && p[2] >= s.minZ && p[2] <= s.maxZ && s.base < eye && s.top > eye)) continue;
         spots++;
-        for (const d of dirs) if (hit(p, d, 60) >= 60) open.push(`(${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
+        for (const d of dirs) if (hit(p, d, far) >= far) open.push(`(${x.toFixed(1)}, ${z.toFixed(1)}) ${d[1] ? "up" : `toward ${d[0].toFixed(1)},${d[2].toFixed(1)}`}`);
       }
-  check("Centre Station closed: from every metre of its platform, its concourse and the ramp down from the court a look along the ground or up meets its walls within 60 m", spots > 300 && open.length === 0, `${spots} spots, ${open.length} looks out on nothing${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
+  check(`Centre Station closed: from every metre of its platform, its concourse and the ramp down from the court a look along the ground or up meets its walls within ${far} m`, spots > 300 && open.length === 0, `${spots} spots, ${open.length} looks out on nothing${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
 
   // The way down from the court (rules.underground.link): a player's own movement sprints from the court's floor
   // through the door in its south wall, along the corridor, down the ramp and through the gate into the marble room,
