@@ -179,8 +179,8 @@ character agent's), and what to look out for. Everything not named here is as th
 - **Soldier:** the hands, the trigger at the crease, the fore-end hold 83 cm from the butt, inside the arm's reach
   standing (`PLAN_SOLDIER_EIGHT_GUNS.md`'s survey), checked aimed on the move; the carries through the stride; the
   reload's keys at its rack spot.
-- **Look out for:** a long gun's butt plate sits 2 to 4 cm into the soldier's rigid shoulder armour at rest, as BOOG's
-  does, hidden from outside and flagged by the measure; photograph it from four sides. The Extruder is the model's own
+- **Look out for:** the stock in the soldier's right forearm, as BOOG's is (16 mm at rest, 40 in a reload; measured by
+  the soldier's sweep, 2026-10-01, which put it on the forearm and not in the shoulder armour as had been thought). The Extruder is the model's own
   part, not a handle.
 
 ### 5.3 BIGANTLER (mastiff), the pump shotgun

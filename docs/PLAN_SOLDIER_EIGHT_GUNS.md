@@ -40,10 +40,23 @@ What it says:
   Pistol_Idle_Loop and Pistol_Reload, no rifle rig), so none of the soldier's reload, swap cup or punch applies to it.
 - **The template is not clean between its frames.** The USSO and BOOG pass their e2e checks, which look at chosen
   moments, but the sweep finds the USSO's reload with a hand up to 22 mm in the gun over 27 of its 87 frames, one sprint
-  jump frame with the gun 39 mm in the body, and BOOG over the line nearly everywhere. Part of BOOG's is known and hidden
-  from outside (its butt plate 2 to 4 cm into the rigid shoulder armour) and part is a known open fault (the stock's comb
-  at the right wrist in a sprint jump); the reload's 30 mm hand is not yet explained. The eight copy this template, so it
-  is cleaned first (step 0).
+  jump frame with the gun 39 mm in the body, and BOOG over the line nearly everywhere. Located (`figure-sweep.ts
+  DETAIL=1`):
+  - **The USSO's charging handle**: from 1.53 s to 2.30 s of the reload from empty the left palm is up to 22 mm into the
+    receiver, its deepest skin at the gun's own middle plane, with the gun rolled toward it; the key was only ever
+    searched at the middle of its span, where it measures 17 mm, and no single move of the key or its fingers lowers it
+    (a local minimum). Also 13 to 17 mm of the left ring and middle fingers at the reload's first 0.2 s, as the gun
+    starts to roll and the hand is still on its hold.
+  - **The USSO's sprint jump**: one frame (0.33 s) with the magazine 39 mm into the belly as the feet leave the ground.
+  - **The USSO aimed 40 degrees up**: the gun 16 mm into the left collarbone at the very end.
+  - **BOOG's stock in the right forearm**: 179 of its bad frames are the gun into the right forearm (16 mm at rest, 30
+    running aimed, 35 sprinting, 40 or more in the reload and the jump), then the right upper arm crouched (35), the left
+    collarbone aimed (23) and the chest looking down (40). It is not the butt in the shoulder armour, as was thought: the
+    measure puts it on the forearm. **Every long gun of the eight has a stock**, so this is the template fault that
+    matters most to them.
+  - **BOOG's reload**: the right thumb up to 30 mm in at the bolt's end (2.5 s), and the left hand at its point (58
+    frames).
+  The eight copy this template, so it is cleaned first (step 0).
 
 ## 2. Step 0: the template clean, before any new gun
 
@@ -53,13 +66,12 @@ The soldier's own work on the USSO and BOOG, no new gun involved:
    gun (one page for many guns died after two, "Target closed"), each sequence at 1/30 s, the worst frame of each
    measure and where it is (the audit's `locate`: which bone, which part of the gun). Minutes a gun, against the two
    hours the frame sheets take at that step.
-2. **Tell the armour from the body.** The gun's depth is reported by body part (the audit's gunWhere), so BOOG's butt
-   in the shoulder armour, accepted, is counted apart from a stock in the forearm or a muzzle in the chest, which are
-   not. A long gun's real clash must never hide under the known one.
-3. **Find and fix or explain each bad frame**: the USSO's reload hand (22 mm, which key and which hand), its sprint
-   jump frame (39 mm), its look at the ends (16 mm); BOOG's reload hand (30 mm or more) and its jump (the comb, open
-   since M367). Each is located, photographed close (`figure-hands.ts STEP=`), and either fixed in soldierhold.json and
-   checked, or written down with why it is left (seen from outside or not).
+2. **Say where each clash is.** The sweep reports the gun's depth by part and bone and the hand's skin in the gun's
+   own frame (done: it is what showed BOOG's clash is the forearm, not the armour it had been taken for).
+3. **Fix or explain each located fault** (section 1), BOOG's stock in the forearm first since every long gun meets it:
+   each photographed close (`figure-hands.ts STEP=`), and either fixed in soldierhold.json and checked, or written down
+   with why it is left. A key searched at one moment needs searching across its span (figure-solve.ts measures the
+   middle only), and a local minimum needs a restart with combined moves, not one number at a time.
 4. **The numbers become the bar.** The sweep's clean numbers for the USSO and BOOG are what each new gun is held to.
 
 ## 3. Groundwork, once, before the first new gun
@@ -126,8 +138,8 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 - **Work:** the rack's spot is the measured one both views read (the shared plan's groundwork), never a second copy in
   soldierhold.json. The fore-end hold checked aimed on the move; if the arm comes up short, a shoulder reach of its own
   (`reach.shoulder`, as BOOG's 70) or the hold brought back along the gun, BOOG's two answers.
-- **Expected:** the butt plate into the shoulder armour, as BOOG's (2 to 4 cm, hidden): photographed from four sides,
-  and counted apart (step 0.2) so a real clash is not hidden under it. A long gun's sprint carry clashes at one moment
+- **Expected:** the stock in the right forearm, as BOOG's (16 mm at rest, 40 in a reload): the right elbow and grip
+  fitted with the sweep's forearm number in the cost, through every sequence, not at rest alone. A long gun's sprint carry clashes at one moment
   of the stride and not another (the USSO's was clean at one and 17 mm into the chest a few tenths later). The Extruder
   is the model's own part, not a handle.
 - **Checks:** the rack's hand at the shared spot (within 6 mm, its fingers on the gun).
@@ -234,6 +246,8 @@ Each lands with its gun's turn, so no gun is ever without its look.
 ## 7. Faults to head off on every gun
 
 - **Between the frames**: the sweep at 1/30 s, never the 4% sheet alone.
+- **The stock in the right forearm**: BOOG's 179 bad frames; on every long gun the right arm is fitted against the stock
+  through the sweep, not at rest.
 - **Hidden meshes**: measure drawn meshes only (the procedural magazine in a bought gun's magazine group).
 - **A search's blind spots**: every fit and solve looked at in photographs (a cost with no palm term moved BOOG's
   carried hand 6 cm off).
@@ -255,7 +269,7 @@ Each lands with its gun's turn, so no gun is ever without its look.
 
 The template's bar, made a number by the sweep: at rest, aimed, looking up and down, running aimed, sprinting,
 crouched, jumping and in the melee, no frame with a hand more than 6 mm into the gun or the gun more than 15 mm into the
-body (the butt plate in the armour counted apart), both palms on their holds, the wrists inside 60 degrees; every
+body, both palms on their holds, the wrists inside 60 degrees; every
 reload frame looked at; whole in the Loadouts panel at every turn; the trigger at the crease; the reload, swap, melee
 and cycle as the first person's; its skfigure checks each seen failing with the fault put back; the frame sheets and
 live shots to the owner.
