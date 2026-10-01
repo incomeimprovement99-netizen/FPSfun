@@ -1626,6 +1626,12 @@ let cycleDummyMode: () => string = () => "";
 /** the last 8 s of every match, the replay of your elimination, and the damage log for the recap */
 const recorder = new Recorder();
 const killcam = new Killcam(scene, projectiles);
+// (its figures' shaders compiled off the page's thread, each figure shown once they are in: killcam.ts)
+if (!NO_RENDER) killcam.prepare = (o) => renderer.compileAsync(o, camera, scene);
+/** the killer's gun in view is drawn once its shaders are compiled (killcam.ts prepare: first drawn, they froze the frame) */
+let killcamGunReady = true;
+/** which killcam's gun is being compiled: an older one's finishing does not show a newer one's */
+let killcamGunGen = 0;
 const dlog = new DamageLog();
 /** the recap of your last elimination, shown after the killcam until you close it or play on */
 let recap: Recap | null = null;
@@ -2137,7 +2143,17 @@ function onEliminated(d: MatchLike, by: number): void {
   if (by === EDGE_ID) player.teleport(edgeInside.x, edgeInside.y, edgeInside.z, player.yaw);
   recap = dlog.recap(t, by, (id) => d.nameFor(id), (id) => d.vitalsFor(id));
   recapShownAt = gameTime;
-  if (killcamOn && by >= 0 && by !== d.id) killcam.start(recorder, t, by, d.nameFor(by));
+  if (killcamOn && by >= 0 && by !== d.id && killcam.start(recorder, t, by, d.nameFor(by), d.id) && killcam.killerWeapon && !NO_RENDER) {
+    // the killer's gun, as the view will hold it, compiled before it is shown (gunLayer's lights are the scene's)
+    killcamGunReady = false;
+    const gen = ++killcamGunGen;
+    void renderer
+      .compileAsync(gunModel(killcam.killerWeapon).root, vmCamera, scene)
+      .catch(() => undefined)
+      .finally(() => {
+        if (gen === killcamGunGen) killcamGunReady = true;
+      });
+  }
 }
 /**
  * A new life: the log starts over. A replay still running (a round's respawn
@@ -8255,7 +8271,7 @@ function step(): void {
   // in the skydive the hands are put away, out of the view of the ground you are steering onto
   // a snapshot of a figure wants the whole figure: the gun in your own hands
   // covers the half of it nearest the camera (tools/snap.ts)
-  viewModel.group.visible = !snapNoGun && (killcam.active || (!third && !knockedOut && !player.dropping && !player.aboard));
+  viewModel.group.visible = !snapNoGun && (killcam.active ? killcamGunReady : !third && !knockedOut && !player.dropping && !player.aboard);
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
   selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(loadouts.current), third && !killcam.active, knockedOut, downedNow);
   if (!labManual)
@@ -8956,7 +8972,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   smokeSpots: () => SMOKES.map((c) => ({ x: c.at.x, y: c.at.y, z: c.at.z, r: c.r })),
   gameTime: () => gameTime,
   /** the killcam and the recap (tools/e2e.ts) */
-  killcamState: () => ({ active: killcam.active, killer: killcam.killerName, weapon: killcam.killerWeapon, progress: killcam.progress, frames: recorder.frames.length, span: recorder.span, shots: recorder.shots.length }),
+  killcamState: () => ({ active: killcam.active, killer: killcam.killerName, killerId: killcam.killerId, weapon: killcam.killerWeapon, progress: killcam.progress, frames: recorder.frames.length, span: recorder.span, shots: recorder.shots.length, ghosts: killcam.ghostIds }),
   recap: () => recap,
   /** which side of the world is drawn, and which it should be (Phase 20 A5: the city from the ship's first frame) */
   sides: () => ({ want: wantSide(), shown: sideShown }),

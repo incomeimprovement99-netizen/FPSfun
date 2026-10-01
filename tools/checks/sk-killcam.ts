@@ -26,20 +26,24 @@ function check(label: string, cond: boolean, detail = ""): void {
 }
 
 console.log("\nThe killcam's figures");
+// a bot in the replay, and the bot that got you (its own figure would sit on the camera, so the replay builds none)
 const BOT = 105;
+const KILLER = 106;
 const code = botSoldierCode(BOT);
 const rec = new Recorder();
 const actor = (id: number, t: number, soldier?: string) => ({ id, name: "BOT", x: 0, y: 0, z: -5 - t, yaw: 0, pitch: 0, stance: "stand" as const, speed: 1, weapon: "rspn101", op: "vanguard", alive: true, soldier });
-// you (id 0, no soldier recorded) and the bot that got you, four seconds of them
-for (let t = 0; t < 4; t += 0.05) rec.sample(t, () => [actor(0, t), actor(BOT, t, code)]);
+// you (id 0, no soldier recorded), a bot and the bot that got you, four seconds of them
+for (let t = 0; t < 4; t += 0.05) rec.sample(t, () => [actor(0, t), actor(BOT, t, code), actor(KILLER, t, botSoldierCode(KILLER))]);
 const kc = new Killcam(new THREE.Scene(), { fire() {} } as never);
-const started = kc.start(rec, 3.5, BOT, "BOT");
-kc.update(3.5, 1 / 60);
+const started = kc.start(rec, 3.5, KILLER, "BOT", 0);
+// one figure a frame (killcam.json ghostsAFrame): three frames for the two it shows
+for (let i = 0; i < 3; i++) kc.update(3.5 + i / 60, 1 / 60);
 const ghosts = (kc as unknown as { ghosts: Map<number, { skin: { soldier?: string } }> }).ghosts;
 console.warn = warn;
 check("the killcam replays a bot's kill", started && ghosts.has(BOT));
-check("and its figure of the bot wears the bot's own soldier, not its operator's look", ghosts.get(BOT)?.skin.soldier === code, `${ghosts.get(BOT)?.skin.soldier} against ${code}`);
-check("while a figure with no soldier recorded keeps its operator's", ghosts.get(0)?.skin.soldier === undefined);
+check("and its figure of a bot wears the bot's own soldier, not its operator's look", ghosts.get(BOT)?.skin.soldier === code, `${ghosts.get(BOT)?.skin.soldier} against ${code}`);
+check("while a figure with no soldier recorded keeps its operator's", ghosts.has(0) && ghosts.get(0)?.skin.soldier === undefined);
+check("and the killer has none: its own figure would sit on the camera", !ghosts.has(KILLER), [...ghosts.keys()].join());
 
 console.log(fails === 0 ? "\nSK KILLCAM PASS" : `\nSK KILLCAM FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

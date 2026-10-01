@@ -11,6 +11,16 @@
 // the killer's eye following their aim, their rounds fired again as tracers
 // when the replay reaches them. It plays the 4 s before the kill and 1 s
 // after; a key, or the next round's fight, ends it.
+//
+// A ghost is a figure built, 7 to 14 ms each. Built all on the first frame, a
+// battle royale's were every actor in the match, 30 of them, and that frame
+// took 0.43 to 0.55 s (2026-10-01). Now they come one a frame, the victim
+// first and then the nearest the killer; the killer's own (it would sit on
+// the camera) and anyone dead through the whole replay are not built at all.
+// And each one's shaders are compiled off the page's thread (main.ts sets
+// `prepare` to three's compileAsync), the figure shown once they are in:
+// drawn at once, a gun's parts no figure on screen had carried yet (an
+// LSTAR's magazine) were compiled on that frame, up to 0.25 s more.
 import * as THREE from "three";
 import { Dummy, type FigureStance } from "./dummy";
 import { operatorById } from "./operators";
@@ -124,6 +134,16 @@ export class Killcam {
   t = 0;
   private ghosts = new Map<number, Dummy>();
   private ghostKey = new Map<number, string>();
+  /** who the replay shows: the victim, then the nearest the killer first */
+  private cast: number[] = [];
+  /** how many of the cast have their ghost (the rest come in one a frame) */
+  private built = 0;
+  /** compiles a figure's shaders off the page's thread (main.ts: three's compileAsync); null draws it at once */
+  prepare: ((o: THREE.Object3D) => Promise<unknown>) | null = null;
+  /** the ghosts still being prepared, hidden until they are */
+  private pending = new Set<number>();
+  /** which replay a preparation belongs to: one that finishes after its replay has gone shows nothing */
+  private gen = 0;
   private weapons = new Map<string, ResolvedWeapon>();
   /** the killer fired this frame: the gun in view kicks */
   firedThisFrame = false;
@@ -138,7 +158,7 @@ export class Killcam {
    * `killerId`. Returns false when there is nothing to show (the ring, or no
    * recording of them).
    */
-  start(rec: Recorder, killT: number, killerId: number, killerName: string): boolean {
+  start(rec: Recorder, killT: number, killerId: number, killerName: string, victimId = -1): boolean {
     this.stop();
     if (killerId < 0 || !rec.saw(killerId, killT, cfg.before + 0.5)) return false;
     this.rec = rec;
@@ -151,8 +171,25 @@ export class Killcam {
     this.killerId = killerId;
     this.killerName = killerName;
     this.killerWeapon = this.actorAt(this.startT, killerId)?.weapon ?? "";
+    this.castFor(killerId, victimId);
     this.active = true;
     return true;
+  }
+
+  /** who the replay shows: everyone recorded in it alive at some moment of it but the killer, the victim first, then by how near they came to the killer */
+  private castFor(killerId: number, victimId: number): void {
+    const near = new Map<number, number>();
+    for (const f of this.rec?.frames ?? []) {
+      if (f.t < this.startT - 0.2 || f.t > this.endT + 0.2) continue;
+      const k = f.actors.find((a) => a.id === killerId);
+      for (const a of f.actors) {
+        if (a.id === killerId || !a.alive) continue;
+        const d = k ? Math.hypot(a.x - k.x, a.y - k.y, a.z - k.z) : 0;
+        near.set(a.id, Math.min(near.get(a.id) ?? Infinity, a.id === victimId ? -1 : d));
+      }
+    }
+    this.cast = [...near.keys()].sort((a, b) => near.get(a)! - near.get(b)!);
+    this.built = 0;
   }
 
   /** how far through, 0..1 */
@@ -215,6 +252,16 @@ export class Killcam {
       g = new Dummy(0, 0, 0, { armed: a.weapon || undefined, respawn: false, skin: a.soldier ? { ...op, soldier: a.soldier } : op, rig: true, noBase: true });
       g.group.name = `killcam:${a.id}`;
       this.scene.add(g.group);
+      if (this.prepare) {
+        const id = a.id;
+        const gen = this.gen;
+        this.pending.add(id);
+        void this.prepare(g.group)
+          .catch(() => undefined)
+          .finally(() => {
+            if (gen === this.gen) this.pending.delete(id);
+          });
+      }
       this.ghosts.set(a.id, g);
       this.ghostKey.set(a.id, key);
     }
@@ -232,21 +279,20 @@ export class Killcam {
       this.stop();
       return false;
     }
-    const ids = new Set<number>();
-    for (const f of this.rec.frames) if (f.t >= this.startT - 0.2 && f.t <= this.endT + 0.2) for (const a of f.actors) ids.add(a.id);
-    for (const id of ids) {
+    // one more figure a frame (killcam.json ghostsAFrame)
+    this.built = Math.min(this.cast.length, this.built + cfg.ghostsAFrame);
+    for (let i = 0; i < this.built; i++) {
+      const id = this.cast[i];
       const a = this.actorAt(this.t, id);
       if (!a) continue;
       const g = this.ghost(a);
-      g.group.visible = true;
+      g.group.visible = !this.pending.has(id);
       g.group.position.set(a.x, a.y, a.z);
       if (!a.alive) g.fallDown();
       else if (g.knocked) g.reset();
       if (!g.knocked) g.group.rotation.y = a.yaw * DEG + Math.PI;
       g.setPose({ speed: a.speed, stance: a.stance, pitch: a.pitch, ads: a.ads ?? 0 });
       g.update(this.t, dt);
-      // the killer's own figure would sit on the camera
-      if (id === this.killerId) g.group.visible = false;
     }
     this.firedThisFrame = false;
     for (const s of this.rec.shots) {
@@ -271,6 +317,11 @@ export class Killcam {
     this.killerAds = k.ads ?? 0;
   }
 
+  /** whose ghosts are built, in the order they were (the checks read it) */
+  get ghostIds(): number[] {
+    return [...this.ghosts.keys()];
+  }
+
   /** the ghosts, to hide the live figures behind them for the frame */
   get ghostCount(): number {
     return this.ghosts.size;
@@ -281,6 +332,10 @@ export class Killcam {
     for (const g of this.ghosts.values()) g.dispose();
     this.ghosts.clear();
     this.ghostKey.clear();
+    this.cast = [];
+    this.built = 0;
+    this.pending.clear();
+    this.gen++;
     this.rec = null;
   }
 }

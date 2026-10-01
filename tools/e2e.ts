@@ -34,6 +34,7 @@ import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
 import armoryCfg from "../src/config/armory.json";
 import hacksCfg from "../src/config/hacks.json";
+import killcamCfg from "../src/config/killcam.json";
 import botsCfgE2e from "../src/config/bots.json";
 import hudCfgE2e from "../src/config/hud.json";
 import fparmsCfg from "../src/config/fparms.json";
@@ -6563,6 +6564,30 @@ async function skHuntTest(browser: Browser): Promise<void> {
   check("hunt: a landed bot takes the nearest node on its own floor with links, not the deck over its head (it stood under one for good)", ok && b.sky === b.deck && b.floor !== b.deck && Math.abs(b.floorY ?? 0) < 2.5 && b.floorLinks > 0, JSON.stringify(bots));
   check("hunt: a bot stood under its node (a deck 5 m and more over it) takes one on its own floor after 2 s, not before", ok && b.before === b.deck && b.after !== b.deck && Math.abs(b.afterY ?? 0) < 2.5, JSON.stringify(bots));
   check("hunt: a bot lured to a care package stands 4 m off it on its own side, and there it is done with it (two stood inside one, blind to each other)", ok && Math.abs(b.stand - 4) < 0.2 && b.side && b.done, JSON.stringify(bots));
+  // the killcam of an elimination in it (killcam.ts): its figures one a frame, the victim's first, the killer's never.
+  // Built all on its first frame they were every actor in the match, 30, and that frame took 0.43 to 0.55 s.
+  await gameSleep(page, 5);
+  const kcRun = await ev<{ victim: number; killer: number; seen: number[][]; active: boolean }>(
+    page,
+    `new Promise((ok) => {
+      const R = window.__range; const d = R.duel();
+      const killer = d.bots.find((x) => x.landed && x.bot.alive && !x.guard).bot.remote.id;
+      const seen = [];
+      R.setScript({ held: () => false, pressedNow: () => false }, () => { const k = R.killcamState(); if (k.active && seen.length < 8) seen.push(k.ghosts.slice()); });
+      d.shield = 0; d.health = 1;
+      d.hurt(500, killer, "r97", 10);
+      const t0 = performance.now();
+      const step = () => { if (seen.length >= 8 || performance.now() - t0 > 20000) { R.setScript(null); return ok({ victim: d.id, killer, seen, active: R.killcamState().active }); } setTimeout(step, 50); };
+      step();
+    })`,
+  );
+  const grows = kcRun.seen.every((g, i) => i === 0 || g.length - kcRun.seen[i - 1].length <= killcamCfg.ghostsAFrame);
+  const firstGhost = kcRun.seen.find((g) => g.length > 0)?.[0];
+  check(
+    "hunt: a battle royale's killcam builds its figures one a frame, the victim's first and the killer's never (all on its first frame, 30 of them, it froze for half a second)",
+    kcRun.seen.length >= 8 && grows && kcRun.seen[0].length <= 1 && firstGhost === kcRun.victim && !kcRun.seen.some((g) => g.includes(kcRun.killer)) && (kcRun.seen.at(-1)?.length ?? 0) > 1,
+    JSON.stringify({ victim: kcRun.victim, killer: kcRun.killer, counts: kcRun.seen.map((g) => g.length), first: kcRun.seen.slice(0, 3) }),
+  );
   await page.close();
   // drawn: the soldier's body and textures fetched once, and the city's loop not fetched at all while the music is at nothing
   const arena = await open(browser, "?game=speedkills");
@@ -6585,8 +6610,9 @@ async function skHuntTest(browser: Browser): Promise<void> {
  * The range's armory (armory.ts; the owner, 2026-09-30: "the back end of the firing range to show the 10 guns ... make
  * each hack and gun have a tv behind it showing details on the gun, what it is, how to fuse ... Same for hacks"): the
  * ten guns and the ten hacks on the back wall clear of the gates, each on its case with its hologram and its screen
- * drawn; each case solid, the size measured off it; at a stand E takes it and E again fuses it a level up, to its top and no further, the prompt saying which,
- * and the stand's screen drawn again and its hologram's skin changed as the level goes up.
+ * drawn; each case solid, the size measured off it; at a stand E takes it and E again fuses it a level up, to its top
+ * and no further, the prompt saying which, and the stand's screen drawn again and its hologram's skin changed as the
+ * level goes up.
  */
 async function skArmoryTest(browser: Browser): Promise<void> {
   // drawn: a ?norender page builds no armory (its screens are for a player to read)

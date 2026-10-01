@@ -4,5 +4,7 @@
   "keepSeconds": 8,
   "before": 4,
   "after": 1,
-  "healedWithin": 10
+  "healedWithin": 10,
+  "_ghosts": "A replay's figures are built as it plays (killcam.ts ghost, 7 to 14 ms each, measured 2026-10-01). Built all on its first frame, a battle royale's was 0.43 to 0.55 s (30 figures). Now ghostsAFrame a frame: the victim first, then the nearest the killer; each is shown once its shaders are compiled, a few frames on, so building the near ones together on the first frame (tried: 5 of them, 50 ms) showed nothing sooner.",
+  "ghostsAFrame": 1
 }

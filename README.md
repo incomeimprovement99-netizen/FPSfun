@@ -980,8 +980,10 @@ damage).
   so the others replay it from one message, and the thrower decides the
   damage the way the shooter decides a bullet's.
 - **The killcam** (`src/game/killcam.ts`) records every figure 30 times a
-  second and replays the last seconds from the killer's eye; **the recap**
-  (`recap.ts`) keeps the life's hits and heals each way.
+  second and replays the last seconds from the killer's eye. Its figures come
+  in one a frame (yours first, then the nearest the killer), each shown once
+  its shaders are compiled off the page's thread, so it starts without a
+  freeze; **the recap** (`recap.ts`) keeps the life's hits and heals each way.
 - **Sound** (`src/game/audio.ts`, `soundscape.ts`) is synthesised: positional
   (HRTF), dulled and delayed with distance, a gun class per weapon, footsteps
   by surface, the reload in parts, the match's cues. CC0 recordings are layered
