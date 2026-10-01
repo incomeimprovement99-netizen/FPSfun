@@ -7943,3 +7943,63 @@ them above the ground could be reached on foot.
   rules; e2e `loot` and `br`. Photographed on every floor, in the core and at its lobby door.
 - **Next:** glass lifts from the base's roof and the Sky Ring to the tower's floors (the master plan's next phase), and
   loot on the new floors.
+
+## Milestone 369 — The range's armory: the ten guns and the ten hacks on the back wall, each with its screen, taken and fused at its stand
+
+The owner, 2026-09-30: "We need the back end of the firing range to show the 10 guns with some futuristic way of
+displaying them. Look up how Hyperscape had theirs, we want to show all hacks and guns in that similar style ... use
+paid assets, make them look similar to the hacks we inspect, allow them to fusion together to upgrade the guns in the
+range. Make each hack and gun have a tv behind it showing details on the gun, what it is, how to fuse ... Same for
+hacks. This replaced the legacy weapon ammo types we have before", and of where: "the wall behind where the user do
+send in st, where the runs are at".
+
+- **Hyper Scape's:** its training room had every gun and every hack out to try; its loot stood as a hologram turning
+  over the floor, its hacks on amber cards (our hack card, hackcast.ts, is drawn from them). So a stand here is the
+  pack's own weapon case, open, with the gun (or the hack's core) turning in a column of light over it and a card
+  over that, and a screen on the wall behind.
+- **Where** (armory.ts places, armory.json): the back wall's runs between the Run gates, at z 6.4 (the wall's face is
+  at 8). The guns left of THE CHAIN's gate, the hacks right of it; the run nearest the middle filled first (seven a
+  side), the last three past the outer gates. 2.4 m apart, so seven fill the 17.5 m between two gates with 0.35 m
+  spare and the 2.2 m screens clear the gates' lit posts and the middle gate's sign. At 2.5 m the end screens stood
+  over the posts.
+- **The stands:** SciFiWeaponCase01_2 at 0.82, its Cover open (paidweapons.json props armorygun, armoryhack): white
+  (skin A) under a gun, black (skin B) under a hack, so the two runs read as one set. The flat storage case was tried
+  for the hacks first and read as an open laptop. A gun's hologram is its floor model in its bought skin at the level
+  you carry it (the skin changes at 2 and 4, as in your hands); a hack's is its core in its slot's colour.
+- **The screens** (a canvas each, 896 px across 2.2 m by 1.6 m, drawn again only when what it shows changes: your
+  level, your slot, your keys, the font coming in):
+  - a gun's: its name, class and use; whether it is in your hands and at what level, as pips; damage, headshot, fire
+    rate, magazine, reload and time to kill at your level and at the next, what changes in green; what level 5 adds
+    in all; and a lit band along the foot saying what E does here now and that a second copy in a match fuses the same;
+  - a hack's: its name, slot and key; whether your slot holds it, another, or nothing; what it does; its cooldown at
+    each level with yours lit; and the band: take it, fuse it, another of its slot swaps it, its core in a match.
+  - First drawn at 24 px type with a table of each fusion level, the rows came out about 5 px tall on a 720-line
+    screen from where E reaches: the game's field of view is wide, and a 2.24 m screen 4 m off spanned 200 px. Now
+    38 px rows (about 12 px there), fewer words, and the cards lowered so their top stays under the line from a
+    1.5 m eye to the screen's foot.
+- **Taking and fusing** (main.ts takeFromArmory, armorySay): E (or a pad's X) at the stand you face within 2.2 m is
+  applyLoot with a level 0 copy, as one off a match's floor: the gun you carry fuses a level up, to 5; a new one fills
+  an empty slot or takes the place of the one in your hand. A hack goes into its slot; the same one fuses, to 4;
+  another of its slot swaps it. The prompt says which (lootcard.ts gunOutcome, hackOutcome): TAKE HAEFY FOR USSO,
+  FUSE HAEFY · LEVEL 0 TO 1, HAEFY IS AT LEVEL 5, ITS TOP.
+- **Solid** (armory.json solid, armory.ts armorySolids, range.ts buildRange's `solids`): each case is a box on the range's
+  solids, built with the range whether or not the stands are drawn (a ?norender page builds no stands, but you collide
+  the same). Its size MEASURED off the loaded case as it stands, its cover open (`__range.armory()` stands[].box):
+  1.224 m across, 0.970 m to the cover's top, 0.342 m in front of the stand's middle to 0.531 m behind. Before, you
+  walked through the cases and stood in the hologram.
+- **Out of SpeedKills' range** (range.ts): the legacy racks by ammo type, the ammo boxes and crates beside them, and
+  the yard clutter along that wall. The legacy range keeps them.
+- **Tools:** `__range.armory()` (each stand, what its screen was last drawn for, its hologram's skin) and
+  `__range.prompt()` (the prompt under the crosshair outside a match's own); a scripted E reaches the stands.
+- **Checked:**
+  - the new skarmory e2e, 5 checks: the twenty stands in armory.json's order, the guns left and the hacks right, every
+    screen clear of the gates, each on its case with its hologram and screen drawn; every case's box within 3 cm of
+    armory.json's solid and on the range's solids, and walking into one stops you at its face; at a gun's stand the
+    prompt offers
+    it and E takes it; E fuses it 1 to 5 and no further, its stand drawn again at each level and its skin changed;
+    a hack taken into its slot and fused 1 to 4 and no further. Seen failing with the stands 2.5 m apart (the end
+    screens over the gates' posts), with a gun's screen keyed without its level (never drawn again), with no case
+    solids (you walked through to the wall, z 7.59 against the face's 6.06), and with a case size typed by eye (0.5 m
+    tall: you stepped up onto it and walked over);
+  - the speedkills e2e section with it (104 checks); verify; rules;
+  - photographed from the spawn, at a gun's stand, a hack's, and the outer runs.
