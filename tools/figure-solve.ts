@@ -151,8 +151,13 @@ let POSES: Pose[] =
         { speed: 0, stance: "stand", pitch: 0, then: { pose: { speed: 14, stance: "stand", pitch: 0 }, dt } },
       ])
     : STAGE === "lowered"
-    ? // the sprint (the swap and a sprint jump have their own, stages swap and air)
-      [{ speed: 14, stance: "stand", pitch: 0 }]
+    ? // the sprint and the run, which carry the gun low (the swap and a sprint jump have their own, stages swap and
+      // air), at moments through their strides: measured at one, BOOG's carry was clean there and 17 mm into the chest
+      // a few tenths of a second later (the frames, 2026-10-01)
+      [
+        ...[0, 0.15, 0.3, 0.45].map((dt) => ({ speed: 14, stance: "stand", pitch: 0, then: { pose: { speed: 14, stance: "stand", pitch: 0 }, dt } })),
+        ...[0, 0.25].map((dt) => ({ speed: 7, stance: "stand", pitch: 0, then: { pose: { speed: 7, stance: "stand", pitch: 0 }, dt } })),
+      ]
     : [
         { speed: 0, stance: "stand", pitch: 0 },
         { speed: 0, stance: "stand", pitch: 0, ads: 1 },

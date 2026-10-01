@@ -142,7 +142,7 @@
       ]
     }
   },
-  "_lowered": "The gun lowered across the body for a sprint or a swap (SpeedKills always sprints, so this is how an enemy is mostly seen): turned down, toward the figure's left and rolled about its own length, about the butt, held `out` (the figure's frame: +x its left, +z its front) from the body so its receiver clears the belly, the left hand taking it its own way (`l`, as in hands), blended in as it drops. `arc` (metres, the figure's frame) is how far out the gun swings at the middle of its way down or up, 4 lo (1 - lo) of it: blended straight between the two carries, BOOG's stock swept through the right upper arm each time a sprint stopped (found by tools/figure-solve.ts rise). A jump out of a sprint keeps this carry (mannequin.ts), so the lowered stage measures one in the air too.",
+  "_lowered": "The gun lowered across the body for a sprint or a swap (SpeedKills always sprints, so this is how an enemy is mostly seen): turned down, toward the figure's left and rolled about its own length, about the butt, held `out` (the figure's frame: +x its left, +z its front) from the body so its receiver clears the belly, the left hand taking it its own way (`l`, as in hands), blended in as it drops. `arc` (metres, the figure's frame) is how far out the gun swings at the middle of its way down or up, 4 lo (1 - lo) of it: blended straight between the two carries, BOOG's stock swept through the right upper arm each time a sprint stopped (found by tools/figure-solve.ts rise). A jump out of a sprint keeps this carry (mannequin.ts), so the lowered stage measures one in the air too. Measured through the stride (tools/figure-solve.ts lowered: four moments of a sprint's and two of a run's): fitted at one, BOOG's stock was clean there and 17 mm into the chest a few tenths of a second later. Its left hand stays where it holds the gun; a search that could move it slid it 6 cm along and the palm off it.",
   "lowered": {
     "down": 26,
     "left": 17,
@@ -758,9 +758,9 @@
         -0.225
       ],
       "lowered": {
-        "down": 18.5,
-        "left": 5,
-        "roll": -14,
+        "down": 17,
+        "left": -2.5,
+        "roll": 5.5,
         "out": [
           0.03,
           -0.01,
@@ -938,23 +938,6 @@
       },
       "blade": 28,
       "lowered": {
-        "l": {
-          "at": [
-            -0.0142,
-            -0.0464,
-            0.0051
-          ],
-          "fwd": [
-            0.789,
-            0.015,
-            -0.615
-          ],
-          "palm": [
-            -0.2,
-            1.4,
-            -0.2
-          ]
-        },
         "down": 26,
         "left": 11,
         "roll": -26,
@@ -963,6 +946,23 @@
           -0.02,
           0.12
         ],
+        "l": {
+          "at": [
+            -0.0142,
+            -0.0564,
+            0.0051
+          ],
+          "fwd": [
+            0.789,
+            0.015,
+            -0.615
+          ],
+          "palm": [
+            -0.05,
+            1.4,
+            -0.2
+          ]
+        },
         "arc": [
           -0.02,
           0,
