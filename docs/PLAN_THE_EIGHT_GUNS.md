@@ -304,4 +304,7 @@ Both bars hold, each agent's own:
 - **The character agent:** for each gun, the trigger guard against the glove, the fore-end hold's reach standing and on
   the move, the carries round the gun's widest part, and the soldier's new kinds of hold and reload (the pump, the
   pistol, the launcher); the tools and checks over a list (section 4); the roster change and the launcher's gameplay
-  (section 4). Write it into section 5's soldier lines.
+  (section 4). Write it into section 5's soldier lines. Done for the plan (2026-10-01): `PLAN_SOLDIER_EIGHT_GUNS.md`
+  has each gun measured on the soldier today, the soldier's groundwork, and the faults expected a gun with what heads
+  each off. Two found on the way: CHOOCH's overheat already shows other players the start of a reload (the vent fixes
+  it), and a saved loadout naming STRYDER or HAEFY falls back to the default once their ids change (mapped instead).
