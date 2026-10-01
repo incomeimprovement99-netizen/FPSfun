@@ -8507,3 +8507,23 @@ inverted building is a set piece, with no stairs from one gallery to the next.
   -4.95 and -8.45 m). The rope's two checks again at its new place. verify and rules; e2e `loot` and `br` (the supply bin's check came up
   two items short once, and passed run alone, seven). Photographed
   from the street, on each flight and at each slot.
+
+## Milestone 389 — The Energy LMG is CHOOCH
+
+The owner, 2026-10-01: "nova should be chooch. Do the same treatment, replace all."
+
+- **Everywhere it is the gun:**
+  - the roster (speedkills.json weapons.lstar) and its notes, and the bought models' note (paidweapons.json);
+  - a viewmodel comment; the e2e's list of SpeedKills names and its drum check (its variables too);
+  - the README and every doc. History that called it the last invented name now says so of the name it had then.
+- **Not the gun's, and kept:**
+  - the legacy bot BOT NOVA, which SpeedKills already calls BOT NEXUS (lists.botRename, so the name does not come back
+    as a bot's);
+  - the phoenix kit's label on the public build ("Nova kit", "NOVA"), a heal of the legacy game;
+  - the city's NOVA LINE, a word in the handle generator (stats.ts), and the Benelli Nova a shotgun's sound was recorded
+    from.
+- **Checked:**
+  - no NOVA left in the repo that names the gun;
+  - the speedkills and soldier e2e sections (156), the names list and CHOOCH's drum among them; verify; rules.
+- **The roster now:** all ten guns carry the owner's own names: PANDA, STRYDER, ANAKIN, USSO, BIGANTLER, REZ, HAEFY,
+  APUHTHEE, BOOG and CHOOCH.
