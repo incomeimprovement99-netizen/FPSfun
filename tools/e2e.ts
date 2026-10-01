@@ -6502,23 +6502,20 @@ async function skHuntTest(browser: Browser): Promise<void> {
     `(() => {
       const R = window.__range; const d = R.duel(); d.holdFire = true;
       const nodes = d.map.nodes;
-      // a deck node with a street node under it: a bot on the street there, its node the deck, stands under it for good
-      let deck = -1, street = -1;
-      for (let i = 0; i < nodes.length && deck < 0; i++) {
-        // (not a hall's: a bot coming down from the sky never takes one, so the sky's choice below is the deck itself)
-        if ((nodes[i].y ?? 0) < 5 || nodes[i].hall) continue;
-        // (a little off the deck's (x, z), so from the sky the deck is the nearer of the two, not a tie)
-        const j = nodes.findIndex((m) => (m.y ?? 0) === 0 && m.links.length > 0 && Math.hypot(m.x - nodes[i].x, m.z - nodes[i].z) > 0.2 && Math.hypot(m.x - nodes[i].x, m.z - nodes[i].z) < 1.4);
-        if (j >= 0) { deck = i; street = j; }
-      }
-      if (deck < 0) return { none: "no deck over a street node" };
+      // a bot at street height 0.3 m off a deck node's (x, z), 5 m and more below it, its node the deck: it stands under
+      // it for good. (Any deck: the map's layout changes, and the bot is put there, not found there.)
+      // (one with no other node within a metre of its (x, z): from the sky the deck is then the nearest, not a tie with one under it)
+      const deck = nodes.findIndex((n, i) => (n.y ?? 0) >= 5 && !n.hall && n.links.length > 0 && !nodes.some((m, j) => j !== i && Math.hypot(m.x - n.x, m.z - n.z) < 1));
+      if (deck < 0) return { none: "no deck node" };
+      const street = -1;
+      const qx = nodes[deck].x + 0.3, qz = nodes[deck].z;
       const b = d.bots.find((x) => x.landed && x.bot.alive && !x.guard && !x.down);
       if (!b) return { none: "no bot landed" };
-      // where a bot on the street under the deck takes itself to be: on its own floor, a node with links
-      const floor = d.nearestNode(nodes[deck].x, nodes[deck].z, 0);
-      const sky = d.nearestNode(nodes[deck].x, nodes[deck].z);
+      // where a bot at street height there takes itself to be: on its own floor, a node with links; from the sky, the deck
+      const floor = d.nearestNode(qx, qz, 0);
+      const sky = d.nearestNode(qx, qz);
       // stood under the deck with the deck its node: unstick, now and 2.5 s on
-      b.bot.pos.set(nodes[street].x, 0, nodes[street].z);
+      b.bot.pos.set(qx, 0, qz);
       b.node = b.goal = deck;
       const t = performance.now() / 1000;
       d.unstick(b, t);

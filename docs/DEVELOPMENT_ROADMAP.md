@@ -7735,7 +7735,12 @@ that we are missing now".
   arrives only on the node's floor. 4 of 28 bots stood still 20 s and more in one match. Now a landed bot takes the
   nearest node on its own floor with links (`nearestNode` with its height). One that finds itself under or over its node
   for 2 s re-anchors the same way (`unstick`, bots.json `unstick`). After: one bot of 28 still in a match, and that one
-  was shooting at the probe's invincible player.
+  was shooting at the probe's invincible player. On the curved streets (map version 13, merged the same day) bots still stood still now
+  and then: against walls the layout moved (two of two squads wedged together at map-local (-37, 18), 1 m up, sent to
+  the maps agent) or down in the court with their node up on the street. A second check, re-anchoring any bot that
+  made no metre in 8 s on its own route, was tried and taken out: squads of bots held together in 14 to 28 samples of
+  35 to 40 with it, where they hold in 36 to 40 of 40 without (a lead turned loose walked its followers apart). The
+  owner set pathing to minimal effort until the map is done.
 - **Bots inside care packages.** A lured bot walked onto the crate's middle and stood inside it for the whole 45 s
   contest. Two bots of two squads did, each blind to the other half a metre away. Now it stands 4 m off on its own side
   (br.json `podStand`), and once the crate is down and the bot is there, its looting and fighting take over (`podsDone`).
