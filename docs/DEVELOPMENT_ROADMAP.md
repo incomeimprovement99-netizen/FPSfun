@@ -8168,3 +8168,23 @@ that milestone's change.
 - **Seen, not this milestone's:** "figures: the bot is a mannequin" failed in runs at 100% CPU (other agents' test
   browsers, 37 Chrome processes): the figure's model came after the check looked. It passed when the machine was
   quieter.
+
+## Milestone 376 — A second bug hunt on today's build, and the hands' pickup clip loaded once
+
+The bug hunt (tools/hunt.ts, Milestone 364) again, every mode played on one drawn page, after the armory (369), the
+tower's floors and loot (368, 370), the killcam (373) and the bots' detour (375).
+
+- **What it found:**
+  - the first-person pickup clip fetched twice, at boot and again in the range: each pack gun's set of clips
+    (fprig.ts gunSet) loaded the pack's one pickup again, so a second gun in your hands fetched and parsed it a
+    second time. It is loaded once now (fprig.ts loadPickup) and the same clip goes into every set; the clips are
+    only read, and the mixer keeps one action a clip, set up again on each gun;
+  - nothing else new. No page or console errors (the HEAD probes the dev server aborts are its known noise); no bot
+    standing still; nothing growing from mode to mode (116 shaders, 1055 textures, about 1340 geometries after every
+    mode from the battle royale on); no killcam stall, where Milestone 364's hunt had one. The frames over 120 ms:
+    the battle royale's build (1.2 s, under the loading screen, known), its first frame aboard (0.31 s), one in its
+    fight (0.24 s) and one in the range (0.17 s).
+- **Checked:**
+  - skhunt e2e, new: after a swap to your second gun, the pickup clip has been fetched once. Seen failing with the
+    old code (2);
+  - verify; rules.
