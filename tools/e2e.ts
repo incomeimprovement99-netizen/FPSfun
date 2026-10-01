@@ -6838,6 +6838,21 @@ async function skIntroTest(browser: Browser): Promise<void> {
   const kept = under.length && firstUnder.startAt !== null && lastUnder.startAt !== null ? lastUnder.startAt - firstUnder.startAt : 0;
   check("sk order: the ship waits at its start while the loading screen and the card are up (its clock held with the card)", cardLong > 1.5 && full > 1 && kept > cardLong * 0.5, `full ${full}; the card ${cardLong.toFixed(2)} s; the ship's start moved on ${kept.toFixed(2)} s with it`);
   check("sk order: once the card has gone the ship sets off", !last.card && last.aboard && last.doorsIn !== null && last.doorsIn < full - 0.5, brief(last));
+  // the match's own things (its bots, their guns, the floor's loot) have their shaders while you ride, before the ship
+  // flies over them (main.ts warmMatch): drawn first from the ship, they were compiled on that frame, 0.25 s about 9 s
+  // into the ride (a hunt, 2026-10-01)
+  const unready = await ev<{ total: number; n: number; without: string[] }>(
+    page,
+    `(() => { const R = window.__range; const skip = new Set([R.scene.getObjectByName("range-side"), R.scene.getObjectByName("br-side")]);
+      let total = 0; const without = [];
+      for (const c of R.scene.children) {
+        if (skip.has(c) || c.isLight || c.isCamera) continue;
+        c.traverse((o) => { if (!o.isMesh && !o.isSprite) return; for (const m of Array.isArray(o.material) ? o.material : [o.material]) {
+          if (!m) continue; total++; const pr = R.renderer.properties.get(m); if (!pr || !pr.currentProgram) without.push((c.name || c.type) + ":" + (o.name || m.type)); } });
+      }
+      return { total, n: without.length, without: without.slice(0, 12) }; })()`,
+  );
+  check("sk order: aboard, the match's own figures and loot have their shaders before the ship flies over them", unready.total > 50 && unready.n === 0, JSON.stringify(unready));
   await page.close();
 }
 

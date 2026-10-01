@@ -2970,6 +2970,7 @@ function respawnForMatch(d: MatchLike): void {
     if (d.phase !== "waiting") {
       player.setBounds(BR_BOUNDS);
       setRegion("br");
+      warmMatch();
       // the start of the match is the ship; a beacon's respawn (and the tests) drop straight in
       const run = d.takeBoarding();
       if (run) boardShip(d, run);
@@ -6222,6 +6223,44 @@ function brWarmed(): boolean {
   if (brWarm === "done") return true;
   if (brWarm === "no" && cityIn) warmBrSide();
   return false;
+}
+/**
+ * A battle royale's own figures and things (its bots, their guns, the floor's loot) are made with the match, after the
+ * city's side was made ready (warmBrSide): their shaders compiled off the page's thread as the city's side draws them,
+ * and their textures sent a few a frame, before the ship flies over them. Drawn first from the ship, they were compiled
+ * on that frame: 0.25 s about 9 s into the ride (a hunt, 2026-10-01). Not on a ?norender page, which never draws them.
+ */
+function warmMatch(): void {
+  if (NO_RENDER) return;
+  const was = [rangeSide.visible, brSide.visible];
+  rangeSide.visible = false;
+  brSide.visible = true;
+  const mine = scene.children.filter((c) => c !== rangeSide && c !== brSide && !(c as THREE.Light).isLight && !(c as THREE.Camera).isCamera);
+  try {
+    for (const c of mine) void renderer.compileAsync(c, camera, scene).catch(() => undefined);
+  } catch {
+    /* a compile that throws is a frame that compiles it later, as before */
+  } finally {
+    rangeSide.visible = was[0];
+    brSide.visible = was[1];
+  }
+  const textures = new Set<THREE.Texture>();
+  for (const c of mine)
+    c.traverse((o) => {
+      const mat = (o as THREE.Mesh).material;
+      for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : [])
+        for (const v of Object.values(m)) {
+          const t = v as THREE.Texture | null;
+          if (t && t.isTexture && !(t as unknown as { isRenderTargetTexture?: boolean }).isRenderTargetTexture) textures.add(t);
+        }
+    });
+  const left = [...textures];
+  // a few a frame, as warmBrSide sends the city's (the ones already sent cost nothing)
+  const send = (): void => {
+    for (let i = 0; i < 3 && left.length; i++) renderer.initTexture(left.pop()!);
+    if (left.length) requestAnimationFrame(send);
+  };
+  requestAnimationFrame(send);
 }
 function warmBrSide(): void {
   brWarm = "going";
