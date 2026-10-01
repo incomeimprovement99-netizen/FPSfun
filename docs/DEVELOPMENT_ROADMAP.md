@@ -8599,3 +8599,36 @@ colour through the ground (seen from the lowest gallery beside the corridor's do
   without the back: 16 and more rays out on every gallery). The corridor walked, the stairs walked down and up and the
   rope ridden up and down as before. verify and rules; e2e `loot` and `br`. Photographed from the lowest gallery
   toward the former gap.
+
+## Milestone 393 — The soldier's melee is the first person's: the gun stays in the right hand and the left punches
+
+The guns agent's melee (Milestone 381; the owner, 2026-09-29: "HOLD THE WEAPON WITH THE RIGHT ARM, SWING AT THEM WITH THE
+LEFT ARM, LEFT ARM SHOULD GO FROM SUPPORTING THE GUN, BACK A BIT TOWARDS THE PLAYERS CHEST, THEN SWING OUT"), followed by
+the soldier others see, as the reload and the swap are.
+
+- **The punch** (rifle.ts PUNCH, soldierhold.json melee.punch):
+  - The gun stays where it is in the right hand. On the first person's shares of the swing (fparms.json melee: off the
+    gun over 0 to 0.22, the punch over 0.26 to 0.44, back on over 0.62 to 1, a fist over 0.25 to 0.7):
+    - the left hand leaves the gun down and round it;
+    - it draws back beside the chest, its elbow low and out;
+    - it punches out to the arm's reach as a fist, its palm turning down;
+    - it comes back onto the gun.
+  - The places are the figure's own, from the soldier as measured: the left shoulder at 0.17, 1.44, 0.07 m in its frame,
+    the arm 0.53 m.
+  - It had been a strike with the gun in both hands, which the first person's no longer is.
+- **Measured into shape:**
+  - The left hand's fingers hook over the gun's far side: bowed out to the left as the hand left, they dragged 18 to 24
+    mm through the gun as it left and came back. It now goes down 15 cm and 3 cm to the figure's right, and the most of
+    any hand in the gun through a string of punches is 7 mm on the USSO and 3 on BOOG.
+  - Drawn back with its knuckles straight ahead the wrist bent 81 degrees; laid along the forearm's way in, 43.
+  - The melee's flagged frames on the sheets went from 74 to 16, all of them BOOG's stock 16 mm against the chest at its
+    own hold, as when it stands still.
+- **A shared fist** (soldierhold.json fist): the swap's cup bends toward it, the punch closes to it.
+- **Checked:** the skfigure e2e (52), its melee checks now the punch's:
+  - the gun stays and the right hand on its grip;
+  - the fist punched 20 cm or more forward from the chest;
+  - back on the gun after;
+  - three punches with no hand in the gun past 8 mm and the left wrist at most 60 degrees.
+  - Each seen failing with the punch switched off. Also the frames of both guns' melee; verify; rules.
+- **Matching the first person, done:** the reload (empty and tactical, the magazine phased round its middle), the swap in
+  place, and the melee. The inspect and its glow are your own view's alone.
