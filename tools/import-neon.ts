@@ -17,6 +17,7 @@ import { padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
 import { inside, sdPoly, standing, storeySlab, type Grid } from "./neon-base";
 import { backFaces, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
+import { wellFlight, type Flight } from "./neon-well";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
@@ -409,6 +410,12 @@ if (mode === "bake") {
     const C2 = TW.core;
     const core = stairCore({ ...C2, box: C2.box }, C2.scale);
     let tri = push("tower-core", [{ part: core.walls, mat: C2.mats.wall }, { part: core.landings, mat: TW.mats.top }, { part: core.steps, mat: C2.mats.step }]);
+    // the Well's stairs (cfg.well.flights, tools/neon-well.ts): each flight's treads and its walls, and its slot's parapet
+    const WF = cfg.well as { flights?: Flight[]; flightSpec: Parameters<typeof wellFlight>[1]; flightScale: { step: number; wall: number }; flightMats: { step: string; wall: string } } | undefined;
+    for (const f of WF?.flights ?? []) {
+      const w = wellFlight(f, WF!.flightSpec, WF!.flightScale);
+      tri += push("well-flight", [{ part: w.steps, mat: WF!.flightMats.step }, { part: w.walls, mat: WF!.flightMats.wall }]);
+    }
     // the main body's floors: the tower's own triangles at each storey are its shell (its middle is cleared from 14 m)
     const towerTris = function* (): Generator<[number[], number[], number[]]> {
       for (const { d, m } of standingDraws)

@@ -8482,3 +8482,27 @@ Well yes"). The south-east corner block held a rooms building like the other thr
   the railing, back at the bottom). The corner blocks' checks count the Well in its block's rooms building's place, and
   the station's closed-in check keeps to the station, the Well being open to the sky. verify and rules; e2e `loot` and
   `br`. Photographed from above, from the street, from each gallery and from the bottom.
+
+## Milestone 388 — The Well's stairs: from a stairwell in the street down through every gallery
+
+The Well (Milestone 387) had its galleries and a rope up the middle, but nothing to walk between them: the pack's
+inverted building is a set piece, with no stairs from one gallery to the next.
+
+- **A stair down every storey** (rules.well.flights, tools/neon-well.ts). A straight flight from the street down to the
+  first gallery, then from each gallery to the next: concrete treads floating between two plaster walls that are their
+  railings, the step a player's (risers no higher than 0.175 m, treads of 0.3 m). Each rises through a slot cut in the floor above,
+  walled round. The first comes down from a stairwell in the street on the Well's north side, three of the street's
+  tiles long and walled round like a subway entrance; the flights zig-zag, north, south, north, so a walker crosses every
+  gallery on the way down, the lowest flight straight under the first: a second way to the bottom, beside the rope.
+- **The galleries' own floors cut exactly**, piece by piece (the `*|` cut), and the street's slab left off the stairwell.
+  The slot is measured to a walking body, not just a head: a body steps down only once its front has moved on, so
+  its head stays over the higher step a body's width further than a head alone. Cut where the head alone needed, a
+  walker came to a stop at -2.15 m with its head in the floor; and the floor's collision, laid on half-metre cells,
+  reaches up to a cell past where the floor was cut, which the slot now allows for too.
+- **The rope moved 3 m east**, so its landing on the street is clear of the stairwell.
+- The map: 2.39 million triangles, about a thousand more than version 19 (the three flights and their walls); its files lo 83 MB, hi 142 MB, max 345 MB. **Its files are version 20.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): each of the three stairs walked down from the floor above to the
+  gallery below and back up, by a player's own movement (seen failing with the slot cut for a head alone: stuck at -2.15,
+  -4.95 and -8.45 m). The rope's two checks again at its new place. verify and rules; e2e `loot` and `br` (the supply bin's check came up
+  two items short once, and passed run alone, seven). Photographed
+  from the street, on each flight and at each slot.

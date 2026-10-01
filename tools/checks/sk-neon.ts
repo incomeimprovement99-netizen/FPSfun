@@ -689,6 +689,12 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     check("the Well: its rope ridden down from the street to the bottom", down.rode && Math.abs(down.y - q.floor) < 0.15 && Math.hypot(down.x - x, down.z - z) < 1, `${down.rode ? "rode" : "did not grab"}, off at ${down.y.toFixed(2)} m, ${Math.hypot(down.x - x, down.z - z).toFixed(1)} m from the rope (rope to ${top[1]} m)`);
   }
   check("the Well: a rope up it", (WL?.ropes ?? []).length > 0, `${(WL?.ropes ?? []).length}`);
+  // its stairs (rules.well.flights): each walked down by a player from a metre short of its top to a metre past its foot,
+  // and back up
+  const FL = (WL as unknown as { flights?: Array<{ high: number; low: number; route: number[][] }> } | undefined)?.flights ?? [];
+  const walked = FL.map((q) => ({ q, down: along(q.route), up: along([...q.route].reverse()) }));
+  const ok = (w: (typeof walked)[number]) => w.down.k === w.q.route.length && Math.abs(w.down.y - w.q.low) < 0.2 && w.up.k === w.q.route.length && Math.abs(w.up.y - w.q.high) < 0.2;
+  check("the Well: each of its stairs walked down from the floor above to the gallery below and back up, by a player", FL.length >= 3 && walked.every(ok), walked.map((w) => `${w.q.high} to ${w.q.low} m: down ${w.down.k - 1} of ${w.q.route.length - 1} legs to ${w.down.y.toFixed(2)} m, up to ${w.up.y.toFixed(2)} m`).join("; "));
 }
 
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it

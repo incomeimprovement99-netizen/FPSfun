@@ -11,6 +11,7 @@
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { streets, StreetField, contours, along, type Pt, type Street } from "./neon-streets";
 import { stairCore } from "./neon-tower";
+import { measure, wellFlight, type Flight } from "./neon-well";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -1131,10 +1132,36 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
   const W = R.well;
   if (W) {
     const [ox, oz] = W.at;
-    for (const lv of W.levels as Array<{ piece: string; x: number; y: number; z: number }>) add("c-well", "c", [piece(lv.piece).key, +(ox + lv.x).toFixed(3), lv.y, +(oz + lv.z).toFixed(3), 0, "o"] as Place);
+    const levels = W.levels as Array<{ piece: string; x: number; y: number; z: number }>;
+    // the stairs (rules.well.flights, tools/neon-well.ts): each from the floor at `from` (the street over the first gallery)
+    // down to the one at `to`, its top end at (x, z) from `at`; the floor above it cut for a head, in the piece's own frame
+    const F = W.flights;
+    const cuts = new Map<number, string[]>();
+    const flights = (F.list as Array<{ x: number; z: number; dir: number; from: number; to: number }>).map((q) => {
+      const f: Flight = { x: ox + q.x, z: oz + q.z, dir: q.dir, low: levels[q.to].y, high: levels[q.from].y, width: F.width };
+      // (from the street, its slot as long as the street's tiles are taken up for it: whole tiles)
+      if (f.high === 0) {
+        const st = piece(R.court.entrance.patch).row.size![0];
+        f.slot = Math.ceil(measure(f, F.spec).cut / st - 1e-6) * st;
+      }
+      const { cut } = wellFlight(f, F.spec, F.scale);
+      // (cut from the floor above and from the gallery under it, whose ceiling is its own pieces' tops)
+      for (const k of [q.from]) {
+        const lv = levels[k];
+        const [px, pz] = [ox + lv.x, oz + lv.z];
+        const own = [cut[0] - px, cut[1] - px, cut[4] - lv.y, cut[5] - lv.y, cut[2] - pz, cut[3] - pz].map((v) => +v.toFixed(3));
+        (cuts.get(k) ?? cuts.set(k, []).get(k)!).push(`*|${own.join(",")}`);
+      }
+      return { ...f, n: measure(f, F.spec).n, cut: cut.map((v) => +v.toFixed(3)), route: wellFlight(f, F.spec, F.scale).route.map((r) => r.map((v) => +v.toFixed(3))) };
+    });
+    levels.forEach((lv, k) => add("c-well", "c", [piece(lv.piece).key, +(ox + lv.x).toFixed(3), lv.y, +(oz + lv.z).toFixed(3), 0, "o", ...(cuts.has(k) ? [null, cuts.get(k)!] : [])] as Place));
     const hole = [ox + W.hole[0], ox + W.hole[1], oz + W.hole[2], oz + W.hole[3]];
-    // (the street's tiles taken up over the whole of the ground ring, which is paved itself round its openings)
+    // (the street's tiles taken up over the whole of the ground ring, which is paved itself round its openings, and over
+    // the stairwell down from the street to the first gallery, on the tiles' grid round its slot)
     openGround(ox + W.ground[0], ox + W.ground[1], oz + W.ground[2], oz + W.ground[3]);
+    const st = piece(R.court.entrance.patch).row.size![0];
+    const streetSlots = flights.filter((f) => f.high === 0).map((f) => [Math.floor(f.cut[0] / st + 1e-6) * st, Math.ceil(f.cut[1] / st - 1e-6) * st, Math.floor(f.cut[2] / st + 1e-6) * st, Math.ceil(f.cut[3] / st - 1e-6) * st]);
+    for (const q of streetSlots) openGround(q[0], q[1], q[2], q[3]);
     // the well's bottom: the pack's floor tile across it, its top `sink` under the lowest gallery's floor (the gallery's
     // own floor reaches into the well at its corners, and in one plane the two fought for the same pixels)
     const tile = piece(W.bottom.piece).row;
@@ -1149,14 +1176,26 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     const r3 = (v: number) => +v.toFixed(3);
     const ring = [[foot[0], hole[0], foot[2], foot[3]], [hole[1], foot[1], foot[2], foot[3]], [hole[0], hole[1], foot[2], hole[2]], [hole[0], hole[1], hole[3], foot[3]]].map((q) => q.map(r3));
     ug.slabs = ug.slabs.filter((q) => !(cfg.well?.slabs ?? []).some((w: number[]) => w.every((v, i) => Math.abs(v - q[i]) < 1e-3)));
-    ug.slabs.push(...ring);
+    // (less the stairwell's slots: each slab rectangle split round each)
+    const less = (rs: number[][], h: number[]): number[][] => rs.flatMap(([a0, a1, b0, b1]) => {
+      if (h[1] <= a0 || h[0] >= a1 || h[3] <= b0 || h[2] >= b1) return [[a0, a1, b0, b1]];
+      const out: number[][] = [];
+      if (h[0] > a0) out.push([a0, h[0], b0, b1]);
+      if (h[1] < a1) out.push([h[1], a1, b0, b1]);
+      const [c0, c1] = [Math.max(a0, h[0]), Math.min(a1, h[1])];
+      if (h[2] > b0) out.push([c0, c1, b0, h[2]]);
+      if (h[3] < b1) out.push([c0, c1, h[3], b1]);
+      return out;
+    });
+    const slabs = streetSlots.reduce((rs, h) => less(rs, h), ring).map((q) => q.map(r3));
+    ug.slabs.push(...slabs);
     // the rope up the well, a vertical zipline as the glass lifts' are: from a body's hang over the bottom to where the
     // feet hang `clear` of the ground ring's railing round the opening, so the top of the ride puts a rider over it and
     // onto the street (rules.well.rope)
     const hang = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).ziplineHang * 0.0254;
     const [rx, rz] = [+(ox + W.rope.at[0]).toFixed(3), +(oz + W.rope.at[1]).toFixed(3)];
     const ropes = [{ rope: [[rx, +(bottom + hang + R.lifts.under).toFixed(3), rz], [rx, +(W.rope.clear + hang).toFixed(3), rz]], floor: bottom, colour: W.rope.colour, onto: W.rope.onto, out: W.rope.out }];
-    cfg.well = { at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs: ring, ropes };
+    cfg.well = { at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale };
     console.log(`the Well: ${W.levels.length} levels to ${bottom} m, its well ${(hole[1] - hole[0]).toFixed(1)} by ${(hole[3] - hole[2]).toFixed(1)} m`);
   }
 }
