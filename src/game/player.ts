@@ -39,6 +39,8 @@ const FOLLOW = squadCfg.ship.follow;
 
 export interface Bounds {
   minX: number; maxX: number; minZ: number; maxZ: number;
+  /** and a circle inside the box you cannot leave (THE CENTRE, arenas/centre.ts) */
+  circle?: { x: number; z: number; r: number };
 }
 
 /** what the controller needs from input; Input satisfies it, and so can a test */
@@ -1520,7 +1522,11 @@ export class Player {
       (this.pitch >= MOVE.ziplineAirPitchDeg || (this.pitch <= -MOVE.ziplineAirPitchDeg && !this.fatigueOn));
     let best: ZipTarget | null = null;
     let bestD = Infinity;
+    // (a rope with an end outside a circle you cannot leave is not yours to ride: THE CENTRE's lifts run out to cars past it)
+    const c = this.bounds.circle;
+    const outside = (p: THREE.Vector3) => !!c && Math.hypot(p.x - c.x, p.z - c.z) > c.r;
     for (const line of ZIPLINES) {
+      if (outside(line.a) || outside(line.b)) continue;
       const abx = line.b.x - line.a.x;
       const aby = line.b.y - line.a.y;
       const abz = line.b.z - line.a.z;
@@ -2055,6 +2061,17 @@ export class Player {
     const b = this.bounds;
     this.pos.x = Math.max(b.minX + r, Math.min(b.maxX - r, this.pos.x));
     this.pos.z = Math.max(b.minZ + r, Math.min(b.maxZ - r, this.pos.z));
+    // and its circle: back onto it, along the line from its middle
+    const c = b.circle;
+    if (c) {
+      const dx = this.pos.x - c.x;
+      const dz = this.pos.z - c.z;
+      const d = Math.hypot(dx, dz);
+      if (d > c.r - r) {
+        this.pos.x = c.x + (dx / d) * (c.r - r);
+        this.pos.z = c.z + (dz / d) * (c.r - r);
+      }
+    }
   }
 
   /** landing: fatigue timer, fall stun, slide on landing, camera dip */

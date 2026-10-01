@@ -19,8 +19,8 @@ export interface ArenaMapInfo {
   name: string;
   /** one line for the menu */
   blurb: string;
-  /** the play area the player is clamped to (src/game/player.ts Bounds) */
-  bounds: { minX: number; maxX: number; minZ: number; maxZ: number };
+  /** the play area the player is clamped to (src/game/player.ts Bounds), and a circle inside it where there is one */
+  bounds: { minX: number; maxX: number; minZ: number; maxZ: number; circle?: { x: number; z: number; r: number } };
   /** the middle of the map, where the 1v1 circle and the crown sit */
   center: { x: number; z: number };
   /** every spawn, world space; the first two are a pair of opposite ends */
@@ -33,8 +33,10 @@ export interface ArenaMapInfo {
   crown: { x: number; z: number };
   /** the modes the map was drawn for */
   bestFor: string[];
-  /** the plan behind it, for the builder and the checks; null for the two hand-built arenas */
+  /** the plan behind it, for the builder and the checks; null for the two hand-built arenas and THE CENTRE */
   plan: ArenaPlan | null;
+  /** played on the battle royale's city, not on an arena of its own (THE CENTRE, arenas/centre.ts) */
+  city?: boolean;
 }
 
 /** a plan, as the rest of the game wants to read it */

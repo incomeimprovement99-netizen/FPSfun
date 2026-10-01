@@ -64,7 +64,7 @@ import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
 import { LIFE_WIRE, SquadWatch, type MateNow } from "./game/squadview";
 import { reloadPlanOf, rifleConfig, tuneRifle } from "./game/rifle";
-import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP, CITY_GROUND } from "./game/city";
+import { buildCityMap, buildRingWall, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP, CITY_GROUND } from "./game/city";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
 import { healArea } from "./game/healarea";
@@ -85,7 +85,9 @@ import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
-import { buildArena, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
+import { buildArena, buildCentreMarks, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
+import { CENTRE, CENTRE_MAP } from "./game/arenas/centre";
+import { CircleNav } from "./game/centrenav";
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, operatorWearing, OPERATORS } from "./game/operators";
 import { lookCode } from "./game/outfit";
@@ -829,7 +831,10 @@ brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || wha
  * The sun's shadow map and the fog follow the part of the world you are in:
  * the range (tight, sharp shadows) or the open BR map (wide and far).
  */
+/** the part of the world it is lit and fogged as now */
+let regionNow: "range" | "br" = "range";
 function setRegion(region: "range" | "br"): void {
+  regionNow = region;
   const fog = scene.fog as THREE.Fog | null;
   audio.setSpace(region === "br" ? "outdoor" : "indoor");
   // the region's own fog, shortened to what the preset draws; the far plane
@@ -2530,7 +2535,7 @@ for (const [value, label] of [
   // the box wears the word MAP in the lobby, so the options do not repeat it
   ["warehouse", "The warehouse"],
   ["auto", "Picked for the mode"],
-  ...ARENA_MAPS.filter((m) => m.plan).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
+  ...ARENA_MAPS.filter((m) => m.plan || (NEON && m.city)).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
 ] as Array<[string, string]>) {
   const o = document.createElement("option");
   o.value = value;
@@ -2556,8 +2561,9 @@ arenaMapSel.addEventListener("change", () => {
 });
 /** the arena for a mode (or "duel"), from the picker */
 const arenaMapChoice = (kind: string, players: number): ArenaMapId => {
-  if (arenaMapSel.value === "auto") return mapFor(kind, players);
-  return arenaMap(arenaMapSel.value).id as ArenaMapId;
+  const id = arenaMapSel.value === "auto" ? mapFor(kind, players) : (arenaMap(arenaMapSel.value).id as ArenaMapId);
+  // THE CENTRE is the Neon City's middle: on the city before it (?map=city) a 1v1 is in the city block, as it was
+  return id === CENTRE_MAP.id && !NEON ? "neonblock" : id;
 };
 /** a map id from the wire, which may be from an older build or not a map at all */
 const arenaFromWire = (id: string | undefined): ArenaMapId | null => (id ? (arenaMap(id).id as ArenaMapId) : null);
@@ -5682,6 +5688,7 @@ function startBots(): void {
   const count = Math.max(1, Math.min(MOST_BOTS, Number(botCount.value) || 1));
   // the Map picker covers the 1v1 against bots too; the warehouse is still the default
   const d = new BotMatch(scene, projectiles, diff, count, abilitySetting("bots"), arenaMapChoice("duel", 2));
+  if (d.arenaId === CENTRE_MAP.id) d.nav = centreNav ??= new CircleNav(brMap.nodes, CENTRE_MAP.bounds.circle!);
   duel = d;
   player.setBounds(d.arenaBounds);
   wireMatch(d, `bots:${diff}`);
@@ -6206,7 +6213,27 @@ function showSide(): void {
   brSide.visible = want === "br";
   // the static shadow map is drawn from what is shown
   renderer.shadowMap.needsUpdate = true;
+  // and the light, the fog and the sound go with the side (a match on the city that is not a battle royale, THE
+  // CENTRE, set none of them: the battle royale, its Gulag and its end set their own and still do)
+  if (want !== regionNow) setRegion(want);
+  // THE CENTRE: the sun's shadows over its circle, sharper than over the whole city
+  if (want === "br" && onCentre()) setShadowRegion(new THREE.Vector3(CENTRE.x, 0, CENTRE.z), CENTRE.shadow);
 }
+
+/** a match on THE CENTRE (arenas/centre.ts): the city's own middle, not a battle royale */
+function onCentre(): boolean {
+  return !!duel && !(duel instanceof BrMatch) && "arenaId" in duel && (duel as { arenaId: string }).arenaId === CENTRE_MAP.id;
+}
+// THE CENTRE's wall where its circle is, and its capture circle, shown while a match is played on it (frame below)
+const centreWall = buildRingWall(brMap.root);
+// (the ring wall is centred on its middle: cut to the fence's height, its foot on the street)
+centreWall.scale.set(CENTRE.radius, CENTRE.wall.height / (centreWall.geometry as THREE.CylinderGeometry).parameters.height, CENTRE.radius);
+centreWall.position.y = CENTRE.wall.height / 2;
+(centreWall.material as THREE.MeshBasicMaterial).opacity = CENTRE.wall.opacity;
+centreWall.visible = false;
+const centreMarks = buildCentreMarks(brSide);
+/** the city's graph cut to THE CENTRE's circle, made the first time bots are fought on it */
+let centreNav: CircleNav | null = null;
 // The range and the course are several hundred static meshes. Merged by
 // material they are a few dozen draw calls, which is CPU time back on every
 // frame (see staticmerge.ts). ?nomerge in the URL turns it off, so the
@@ -8420,6 +8447,12 @@ function step(): void {
   } else lastMatchPhase = null;
   wasDropping = player.dropping;
 
+  // THE CENTRE's wall and capture circle, while a match is played on it
+  {
+    const on = onCentre();
+    centreWall.visible = on;
+    centreMarks.root.visible = on;
+  }
   // the arena circles: a column of light once the match's is live
   {
     const z = duel ? duel.hud().zone : null;

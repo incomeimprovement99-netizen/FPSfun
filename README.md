@@ -313,8 +313,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   line, the same thickness on the screen at any range or zoom, and
   streaks at the screen's edge show when you are going faster than a sprint. The rim is the same width round the gun in their hands as round
   them (the gun's parts are scaled up a hundredfold, and it had swollen into a red ball).
-- **Arenas** in the city: NEON BLOCK, a crossing with four decks a storey up
-  and skybridges between them, for 1v1, FFA, team deathmatch and Control.
+- **Arenas** in the city: THE CENTRE, the 1v1's map, is the Neon City's own
+  middle (its tower, the tower's podium and the Sky Ring) inside a circle you
+  cannot leave; NEON BLOCK, a crossing with four decks a storey up and
+  skybridges between them, for FFA, team deathmatch and Control (and the 1v1
+  in the Map box).
 - **A controller** with an outer deadzone, a curve strength, per-optic ADS and
   aim assist that fades with distance and never snaps between targets.
 - **The tour:** eight steps, each done for real in the range.

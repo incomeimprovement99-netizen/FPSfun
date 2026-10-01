@@ -20,7 +20,8 @@ import { MOVE } from "../../src/game/movement";
 import { PLAN_MAPS, ARENA_PLANS } from "../../src/game/arenas";
 import { MOVELAB } from "../../src/game/arenas/movelab";
 import { allBoxes, boundsOf, solidsOf, type ArenaPlan, type PlanSolid } from "../../src/game/arenas/plan";
-import { ARENA_BOUNDS, TRI_BOUNDS, ARENA_MAPS, mapFor } from "../../src/game/arena";
+import { ARENA_BOUNDS, TRI_BOUNDS, ARENA_MAPS, ZONE_RADIUS, mapFor } from "../../src/game/arena";
+import { CENTRE_MAP } from "../../src/game/arenas/centre";
 import { RANGE_BOUNDS } from "../../src/game/range";
 import { BR_BOUNDS } from "../../src/game/br";
 import { MODE_KINDS } from "../../src/game/modes";
@@ -265,10 +266,28 @@ function meshCount(plan: ArenaPlan): number {
 
 check("four drawn arenas: three for the modes, and SpeedKills' city block", ARENA_PLANS.length === 4 && ARENA_PLANS.some((p) => p.id === "neonblock" && p.look === "city"), ARENA_PLANS.map((p) => p.id).join(", "));
 check(
-  "the menu's list holds the old two as well as the drawn four",
-  ARENA_MAPS.length === 6 && ARENA_MAPS[0].id === "warehouse" && ARENA_MAPS[1].id === "triangle",
+  "the menu's list holds the old two, the drawn four and THE CENTRE",
+  ARENA_MAPS.length === 7 && ARENA_MAPS[0].id === "warehouse" && ARENA_MAPS[1].id === "triangle" && ARENA_MAPS[6].id === "centre" && !!ARENA_MAPS[6].city,
   ARENA_MAPS.map((m) => m.id).join(", ")
 );
+// THE CENTRE (arenas/centre.ts): the city's own middle inside a circle. Its spawns, its 1v1 circle and Control's
+// points inside that circle (the 1v1's by its own radius), its spawns in opposite pairs, each facing the tower
+{
+  const c = CENTRE_MAP.bounds.circle!;
+  const r = (p: { x: number; z: number }) => Math.hypot(p.x - c.x, p.z - c.z);
+  const pairs = CENTRE_MAP.spawns.every((s, i) => i % 2 === 1 || (Math.abs(s.x + CENTRE_MAP.spawns[i + 1].x - 2 * c.x) < 0.5 && Math.abs(s.z + CENTRE_MAP.spawns[i + 1].z - 2 * c.z) < 0.5));
+  const facing = CENTRE_MAP.spawns.every((s) => {
+    const fx = -Math.sin((s.yaw * Math.PI) / 180);
+    const fz = -Math.cos((s.yaw * Math.PI) / 180);
+    return (fx * (c.x - s.x) + fz * (c.z - s.z)) / r(s) > 0.99;
+  });
+  check(
+    "THE CENTRE: its spawns, its 1v1 circle and its points inside its circle, the spawns in opposite pairs facing the tower",
+    CENTRE_MAP.spawns.length === 8 && CENTRE_MAP.spawns.every((s) => r(s) < c.r - 1) && r(CENTRE_MAP.center) + ZONE_RADIUS < c.r && CENTRE_MAP.zones.every((z) => r(z) < c.r) && pairs && facing &&
+      c.x >= CENTRE_MAP.bounds.minX + c.r - 0.01 && c.x <= CENTRE_MAP.bounds.maxX - c.r + 0.01,
+    JSON.stringify({ r: c.r, spawns: CENTRE_MAP.spawns.map((s) => +r(s).toFixed(1)), zone: +r(CENTRE_MAP.center).toFixed(1), pairs, facing })
+  );
+}
 check(
   "every map id is its own, and every map names modes that exist",
   new Set(ARENA_MAPS.map((m) => m.id)).size === ARENA_MAPS.length &&

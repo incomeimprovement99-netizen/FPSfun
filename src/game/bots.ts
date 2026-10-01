@@ -44,6 +44,7 @@ import { BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, TRIAGE, type AbilityId } from
 import type { ActorState } from "./killcam";
 import items from "../config/items.json";
 import botsCfg from "../config/bots.json";
+import type { CircleNav } from "./centrenav";
 import lootCfg from "../config/loot.json";
 import throwCfg from "../config/throwables.json";
 import { asDifficulty } from "./stats";
@@ -678,6 +679,8 @@ export class Bot {
   sightMode: BotSightMode = "arena";
   /** SpeedKills: the city a map bot keeps to (its edge a wall to it); null elsewhere */
   fence: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null;
+  /** a circle it keeps inside, its edge a wall to it (THE CENTRE, arenas/centre.ts); null elsewhere */
+  ring: { x: number; z: number; r: number } | null = null;
   /**
    * The floor it loots off, or null for a bot that was handed its kit (every
    * arena mode). Setting it is the whole of the wiring: from its next frame
@@ -1303,6 +1306,8 @@ export class Bot {
     // SpeedKills: the city's edge is a wall to a bot (brmatch.ts sets it); a chase along it slides as along any wall
     const f = this.fence;
     if (f && (x < f.minX + MOVE.radius || x > f.maxX - MOVE.radius || z < f.minZ + MOVE.radius || z > f.maxZ - MOVE.radius)) return true;
+    const g = this.ring;
+    if (g && Math.hypot(x - g.x, z - g.z) > g.r - MOVE.radius) return true;
     return botBlocked(x, z, this.pos.y);
   }
 
@@ -1984,6 +1989,8 @@ export class BotMatch implements MatchLike {
   readonly arenaId: ArenaMapId;
   readonly arenaBounds: Bounds;
   private readonly center: THREE.Vector3;
+  /** the city's graph cut to THE CENTRE's circle, its bots' way about it (main.ts sets it; null on an arena's own) */
+  nav: CircleNav | null = null;
   onRespawn: (() => void) | null = null;
   onHurt: ((amount: number) => void) | null = null;
   onRemoteShot: ((origin: THREE.Vector3) => void) | null = null;
@@ -2015,7 +2022,8 @@ export class BotMatch implements MatchLike {
     // the bots take the rest, the far end first. The warehouse keeps its own
     // host spawn and three bot spawns exactly as they were.
     const m = map ? arenaMap(map) : null;
-    const drawn = m && m.plan ? m : null;
+    // (THE CENTRE has no plan: it is the city's own middle, arenas/centre.ts)
+    const drawn = m && (m.plan || m.city) ? m : null;
     this.arenaId = (drawn ? drawn.id : "warehouse") as ArenaMapId;
     this.arenaBounds = drawn ? drawn.bounds : ARENA_BOUNDS;
     this.center = drawn ? new THREE.Vector3(drawn.center.x, 0, drawn.center.z) : ARENA_CENTER;
@@ -2045,6 +2053,7 @@ export class BotMatch implements MatchLike {
               yaw: home.yaw,
             };
       const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
+      b.ring = drawn?.bounds.circle ?? null;
       b.setAbilities(abilities);
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
       b.onHealed = (item) => this.onHealSeen?.(b.remote.id, item);
@@ -2219,7 +2228,9 @@ export class BotMatch implements MatchLike {
     for (const b of this.bots) {
       const before = b.alive;
       const sees = this.alive && b.alive && !b.dropping && b.sees(feet);
-      const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal: center, canShoot: this.phase === "fight" && !this.holdFire });
+      // (on THE CENTRE by the city's graph, round the tower's podium and up its stairs, not straight into them)
+      const goal = this.nav ? this.nav.step(b.pos, center, new THREE.Vector3()) : center;
+      const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal, canShoot: this.phase === "fight" && !this.holdFire });
       // a frag: its flight is drawn by the page, which hands the blast back (botBlast)
       const th = b.takeThrow();
       if (th) this.onRemoteFx?.("throw", b.remote.id, th.from, th.vel, throwCode(th.kind));

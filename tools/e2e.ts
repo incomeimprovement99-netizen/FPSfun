@@ -35,6 +35,7 @@ import skCfg from "../src/config/games/speedkills.json";
 import armoryCfg from "../src/config/armory.json";
 import hacksCfg from "../src/config/hacks.json";
 import killcamCfg from "../src/config/killcam.json";
+import { CENTRE_MAP } from "../src/game/arenas/centre";
 import botsCfgE2e from "../src/config/bots.json";
 import hudCfgE2e from "../src/config/hud.json";
 import fparmsCfg from "../src/config/fparms.json";
@@ -6390,13 +6391,51 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await skWholeNumbers(page);
   await skHitsLand(page);
   await page.close();
-  // an arena match in SpeedKills is fought in the city: NEON BLOCK (arenas/neonblock.ts), its bounds 74..118 by 94..142
+  // an arena match in SpeedKills on the city before the Neon City (?map=city, the suite's) is fought in its block:
+  // NEON BLOCK (arenas/neonblock.ts), its bounds 74..118 by 94..142 (THE CENTRE is the Neon City's middle: below)
   const arena = await open(browser, "?game=speedkills");
   await ev(arena, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
   await arena.waitForFunction("window.__range.duel()?.phase === 'fight' || window.__range.duel()?.phase === 'countdown'", { polling: 200, timeout: 20000 }).catch(() => undefined);
   await sleep(500);
   const where = await ev<{ x: number; z: number; phase: string | null }>(arena, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, phase: window.__range.duel()?.phase ?? null })");
   check("speedkills: an arena match is fought in NEON BLOCK, the city's crossing", where.x > 74 && where.x < 118 && where.z > 94 && where.z < 142, JSON.stringify(where));
+  // SpeedKills' 1v1 on the Neon City is fought on THE CENTRE (arenas/centre.ts, the owner, 2026-10-01): the city's
+  // own middle, inside a circle you cannot leave; its bot from the spawn north of the tower reaches the 1v1's circle by
+  // the city's graph (walking straight at it from there, it was 40 m off after 45 s: measured from each spawn)
+  {
+    const page = await open(browser, "?norender&game=speedkills&map=neon");
+    await ev(page, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
+    await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 200, timeout: 30000 }).catch(() => undefined);
+    const at = await ev<{ x: number; z: number; map: string | null; bot: number[] }>(
+      page,
+      "(() => { const R = window.__range; const d = R.duel(); return { x: R.player.pos.x, z: R.player.pos.z, map: d?.arenaId ?? null, bot: [d.bots[0].pos.x, d.bots[0].pos.z] }; })()",
+    );
+    const circle = CENTRE_MAP.bounds.circle!;
+    const fromMiddle = (p: { x: number; z: number }) => Math.hypot(p.x - circle.x, p.z - circle.z);
+    check("speedkills: a 1v1 against a bot on the Neon City is fought on THE CENTRE, the city's middle, inside its circle", at.map === "centre" && fromMiddle(at) < circle.r, JSON.stringify({ ...at, r: +fromMiddle(at).toFixed(1) }));
+    // walked out of it, you are back on its edge
+    await ev(page, `(() => { const R = window.__range; R.input.locked = true; R.player.teleport(${circle.x}, 0, ${circle.z + circle.r + 12}, 0, 0); })()`);
+    await gameSleep(page, 0.4);
+    const out = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+    // you back at your spawn, south, far from the circle; the bot from its own, north of the tower
+    const you = CENTRE_MAP.spawns[0];
+    const zone = CENTRE_MAP.center;
+    const nearest = await ev<number>(
+      page,
+      `new Promise((ok) => { const R = window.__range; const d = R.duel(); d.holdFire = true; R.player.teleport(${you.x}, 0, ${you.z}, ${you.yaw}, 0);
+        const b = d.bots[0]; b.pos.set(${CENTRE_MAP.spawns[1].x}, 0, ${CENTRE_MAP.spawns[1].z});
+        const g0 = R.gameTime(); const t0 = performance.now(); let best = Infinity;
+        const step = () => { best = Math.min(best, Math.hypot(b.pos.x - ${zone.x}, b.pos.z - ${zone.z}));
+          if (best < 3 || R.gameTime() - g0 > 45 || performance.now() - t0 > 180000) return ok(best); setTimeout(step, 100); };
+        step(); })`,
+    );
+    check(
+      "speedkills: on THE CENTRE you cannot leave its circle, and its bot reaches the 1v1's circle from north of the tower by the city's graph",
+      fromMiddle(out) <= circle.r + 0.01 && nearest < 3,
+      JSON.stringify({ out: +fromMiddle(out).toFixed(2), botNearestToCircle: +nearest.toFixed(1) }),
+    );
+    await page.close();
+  }
   // the city under it: the ambience on, and its file found (audio.json ambience)
   await sleep(1500);
   const amb = await ev<{ on: boolean; missing: boolean }>(arena, "({ ...window.__range.audio.ambienceState })");
