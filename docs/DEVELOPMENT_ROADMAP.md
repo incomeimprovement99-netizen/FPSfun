@@ -8454,3 +8454,31 @@ stopped at the Loop.
   at 23 m); walked off the landing down its stair onto the roof; ridden down from the landing into the car. The Sky
   Ring's rail check now knows each bridge's gap in its outer fence. verify and rules; e2e `loot` and `br`.
   Photographed from the ring, the street, inside a car looking up, and on a landing.
+
+## Milestone 387 — The Well: a light-well of shop galleries in the south-east block, and a rope up it
+
+Phase 28.8's fifth phase begun: "the light-well in the south-east block, its galleries" (the master plan, agreed as "the
+Well yes"). The south-east corner block held a rooms building like the other three.
+
+- **The pack's inverted building, stacked as the pack stacks it** (rules.well, tools/neon-layout.ts). Its ground ring at
+  the street, a raised plaza round two openings under a curved walkway and a balcony with the pack's big lit sign, and
+  under it a gallery of shops round the light-well every 3.5 m down, at -3, -6.5 and -10 m, as the pack's own
+  underground scene (NeonUnderground00) stacks them. It stands where the block's rooms building stood. That building's
+  room is kept while the street fronts are placed round it, so every other building stands where it did.
+- **Set into the street.** The street's tiles are taken up over the ground ring's own raised paving, and kept over its
+  edges, whose strips are the galleries' ceilings faced down (the probe found the street missing there, and the
+  galleries showing through). Underground the world's floor is lowered under the whole stack, and the street's slab laid
+  over it round the well, so a body stands on every gallery and on the street above it and falls down the well. The
+  well's bottom is floored with the pack's tile 2 cm under the lowest gallery's floor, which reaches into the well at its
+  corners: in one plane the two fought for the same pixels, and the bake's measure of such fights now covers the Well.
+- **A rope up the well**, a vertical zipline in the Well's own yellow. Ridden up from the bottom, it puts you over the
+  ground ring's railing onto the street. From the street, pressed against that railing and looking down, it takes you to
+  the bottom. Its first place, a metre off the raised platform's edge, stood 0.25 m from the platform's railing, which
+  threw every rider off. Its galleries are a zip jump off the rope; stairs between them and the corridor from the
+  station to the lowest gallery come next.
+- The map: 2.38 million triangles, 8,600 fewer than version 18 (the Well's 37 thousand in, the rooms building it stands in place of out); its files lo 83 MB, hi 142 MB, max 345 MB. **Its files are version 19.**
+- **Checked** (`tools/checks/sk-neon.ts`): the rope ridden up from the bottom and put off onto the street, and ridden
+  down from the street to the bottom, each by a player's own movement (seen failing at its first place: thrown off at
+  the railing, back at the bottom). The corner blocks' checks count the Well in its block's rooms building's place, and
+  the station's closed-in check keeps to the station, the Well being open to the sky. verify and rules; e2e `loot` and
+  `br`. Photographed from above, from the street, from each gallery and from the bottom.

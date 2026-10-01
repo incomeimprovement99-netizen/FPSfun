@@ -482,7 +482,10 @@ if (mode === "bake") {
             }
           }
     };
-    const dropped = settle(flatOnes(), box, TW.coplanar.cell);
+    // (over the Well's footprint too, rules.well: its galleries' floors and its bottom's tiles meet in one plane)
+    const boxes = [box, ...(cfg.well?.foot ? [cfg.well.foot as number[]] : [])];
+    const dropped = new Set<number>();
+    for (const b of boxes) for (const k of settle(flatOnes(), b, TW.coplanar.cell)) dropped.add(k);
     const byDraw = new Map<string, { list: Array<{ d: Draw; m: M4 }>; at: number; tris: Map<number, Set<number>> }>();
     const lists = [...groups.values()];
     for (const key of dropped) {
@@ -521,7 +524,7 @@ if (mode === "bake") {
             for (let k = 0; k + 2 < q.idx.length; k += 3) yield { p: [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])], mat, who };
           }
     };
-    const fights = coplanar(flat(), box, TW.coplanar.cell);
+    const fights = boxes.flatMap((b) => coplanar(flat(), b, TW.coplanar.cell)).sort((p, q) => q.m2 - p.m2);
     // (each material by its name: the pack's are known to the bake by their guids)
     const named = fights.slice(0, 16).map((q) => ({ ...q, mats: q.mats.map((g) => g.replace(/^[^ ]+/, (k) => basename(pack.guidPath.get(k) ?? k).replace(/\.mat$/, ""))) }));
     cfg.tower.measured.coplanar = named;

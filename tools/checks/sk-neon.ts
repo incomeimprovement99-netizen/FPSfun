@@ -278,8 +278,10 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
       if (solidsIn(wx, wx, wz, wz).some((b) => wx >= b.minX && wx <= b.maxX && wz >= b.minZ && wz <= b.maxZ && b.base < MOVE.standHeight && b.top > 2.6)) onRoad.push(`(${x}, ${z})`);
     }
   check("nothing taller than a parked car stands on the centre's roads", cells > 3000 && onRoad.length === 0, `${cells} m2 of road, ${onRoad.length} blocked${onRoad.length ? `: ${onRoad.slice(0, 4).join("; ")}` : ""}`);
-  const built = ["c-nw", "c-ne", "c-sw", "c-se"].map((k) => (cfg.chunks as Record<string, { place: unknown[] }>)[k].place.length);
-  check("each corner block built along its curves: its rooms building and three more at least", built.every((n) => n >= 4), built.join(", "));
+  // (the Well's block, rules.well, the Well where its rooms building was)
+  const wellBlock = (cfg.rules as unknown as { well?: { block: string } }).well?.block;
+  const built = ["c-nw", "c-ne", "c-sw", "c-se"].map((k) => (cfg.chunks as Record<string, { place: unknown[] }>)[k].place.length + (`${k.endsWith("w") ? -1 : 1},${k[2] === "n" ? -1 : 1}` === wellBlock && (cfg.chunks as Record<string, { place: unknown[] }>)["c-well"]?.place.length ? 1 : 0));
+  check("each corner block built along its curves: its rooms building (or the Well) and three more at least", built.every((n) => n >= 4), built.join(", "));
 }
 
 // The Sky Ring (rules.skyring): the walkway storey round the tower's plaza. Walked up each of its stairs from the
@@ -655,6 +657,40 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   check("the glass lifts: each ridden down from its landing into its car", LF.length === 4 && downs.every((a) => a.ok), downs.map((a) => `${a.q.id} ${a.back.rode ? "rode" : "did not grab"}, off at ${a.back.y.toFixed(2)} m, ${Math.hypot(a.back.x - a.q.car[0], a.back.z - a.q.car[1]).toFixed(1)} m from the rope`).join("; "));
 }
 
+// The Well (rules.well): its rope, by a player's own movement, ridden up from the bottom of the well and put off over
+// the ground ring's railing onto the street, and from the street, pressed against that railing and looking down, ridden
+// down to the bottom (a way out of the well, and a way in)
+{
+  const WL = (cfg as unknown as { well?: { ropes: Array<{ rope: number[][]; floor: number; onto: number; out: number[] }> } }).well;
+  const ride = (sx: number, sz: number, y: number, d: number[], pitch: number) => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(sx + BR_X, y + 0.05, sz + BR_Z, (Math.atan2(-d[0], -d[1]) * 180) / Math.PI);
+    p.pitch = pitch;
+    let [t, tap] = [1000, false];
+    const input = { held: (_a: Action) => false, pressedNow: (a: Action) => tap && a === "interact" };
+    const step = () => p.update(1 / 144, (t += 1 / 144), input, 0, 1, false);
+    for (let i = 0; i < 36; i++) step();
+    tap = true;
+    step();
+    tap = false;
+    const rode = p.stance === "zip";
+    for (let i = 0; i < 144 * 6 && p.stance === "zip"; i++) step();
+    for (let i = 0; i < 144 * 2; i++) step();
+    return { rode, x: p.pos.x - BR_X, y: p.pos.y, z: p.pos.z - BR_Z };
+  };
+  for (const q of WL?.ropes ?? []) {
+    const [[x, , z], top] = q.rope;
+    const w = q.out;
+    const up = ride(x - w[0] * 0.6, z - w[1] * 0.6, q.floor, w, 0);
+    const off = (up.x - x) * w[0] + (up.z - z) * w[1];
+    check("the Well: its rope ridden up from the bottom and put off over the railing onto the street", up.rode && Math.abs(up.y - q.onto) < 0.5 && off > 1, `${up.rode ? "rode" : "did not grab"}, off at ${up.y.toFixed(2)} m, ${off.toFixed(1)} m out from the rope`);
+    // (as near as a body stands to the rope from the street: against the railing, 0.41 m round)
+    const down = ride(x + w[0] * 2.35, z + w[1] * 2.35, q.onto + 0.45, [-w[0], -w[1]], -45);
+    check("the Well: its rope ridden down from the street to the bottom", down.rode && Math.abs(down.y - q.floor) < 0.15 && Math.hypot(down.x - x, down.z - z) < 1, `${down.rode ? "rode" : "did not grab"}, off at ${down.y.toFixed(2)} m, ${Math.hypot(down.x - x, down.z - z).toFixed(1)} m from the rope (rope to ${top[1]} m)`);
+  }
+  check("the Well: a rope up it", (WL?.ropes ?? []).length > 0, `${(WL?.ropes ?? []).length}`);
+}
+
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it
 // and up its stairs, on foot, no climbing, an eighth of a metre at a time (at the collision's own quarter a body a door's
 // width round was seen not to fit it, sampled only there): every floor with a standing body's room over it is
@@ -668,9 +704,13 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const H = MOVE.radius;
   const chunks = cfg.chunks as Record<string, { place: unknown[][] }>;
   const isRooms = (p: unknown[]) => String(p[0]).endsWith(`/${cfg.rules.low.rooms.piece}`);
-  const rooms = chunks["c-se"].place.find(isRooms);
-  check("the rooms building on each corner block", Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k)).every((k) => chunks[k].place.some(isRooms)), `${rooms?.[0]}`);
+  // (but the Well's block, rules.well: the Well stands where its rooms building did)
+  const wellBlock = (cfg.rules as unknown as { well?: { block: string } }).well?.block;
+  const blockOf = (k: string) => `${k.endsWith("w") ? -1 : 1},${k[2] === "n" ? -1 : 1}`;
+  const rooms = chunks["c-nw"].place.find(isRooms);
+  check("the rooms building on each corner block but the Well's", Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k) && blockOf(k) !== wellBlock).every((k) => chunks[k].place.some(isRooms)), `${rooms?.[0]}`);
   for (const [sx, sz, name] of [[-1, -1, "nw"], [1, -1, "ne"], [-1, 1, "sw"], [1, 1, "se"]] as const) {
+    if (`${sx},${sz}` === wellBlock) continue;
     const rect = R4.find((r) => Math.sign(r[0] + r[1]) === sx && Math.sign(r[2] + r[3]) === sz)!;
     const [mx, mz] = [(rect[0] + rect[1]) / 2, (rect[2] + rect[3]) / 2];
     // the building's 20 m and 6 m of street round it
@@ -727,7 +767,8 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const [sx, sy, sz] = [S.x, S.platform, S.back];
   // (the way down from the court is lowered to the station's floor under its ramp, where nobody stands: its looks are
   // from on the ramp, below)
-  const areas = cfg.underground.floors.filter((f) => Math.abs(f.y - sy) < 0.05 && !("ramp" in f)).map((f) => f.rect);
+  // (not the Well's, rules.well: it lies open to the sky by its light-well)
+  const areas = cfg.underground.floors.filter((f) => Math.abs(f.y - sy) < 0.05 && !("ramp" in f) && !("well" in f)).map((f) => f.rect);
   // the platform itself: its back to its edge, along the modules
   areas.push([sx, sx + 10 * S.modules, sz, sz + 5]);
   const dirs = [...Array.from({ length: 8 }, (_, k) => [Math.cos((k * Math.PI) / 4), 0, Math.sin((k * Math.PI) / 4)]), [0, 1, 0]];

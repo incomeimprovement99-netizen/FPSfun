@@ -221,7 +221,9 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   // the glass lifts (neon-layout.ts rules.lifts): each a vertical rope up out of its glass car over the Sky Ring's
   // footbridge to over its island's landing, ridden as any zipline is (interact, up or down), lit in its island's colour
   // from the car's floor to just over the rope's top
-  for (const q of (neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }> }).lifts ?? []) {
+  // (and the Well's rope, neon-layout.ts rules.well: up its light-well from the bottom to the ground ring)
+  const ropeCfg = neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }>; well?: { ropes: Array<{ rope: number[][]; floor: number; colour: string }> } };
+  for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? [])]) {
     const [a, b] = q.rope;
     const top = b[1] + 0.3;
     const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, top - q.floor, 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));
