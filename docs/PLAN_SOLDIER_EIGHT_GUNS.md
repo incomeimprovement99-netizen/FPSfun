@@ -1,5 +1,9 @@
 # Plan: the other eight guns in the soldier's hands
 
+**Superseded for the order and the per-gun plan by `PLAN_THE_EIGHT_GUNS.md` (2026-10-01), the plan both agents share.**
+What follows is the soldier's survey and recipe, still true; its order and its CHOOCH line (a drum to change: CHOOCH
+never reloads, it cools) are not.
+
 The owner, 2026-09-30: "Once we have that perfect we plan out each 8 remaining guns." This is that plan. Nothing in it
 is started: the USSO and BOOG are with the owner to verify first (PHASE_27_PLAN_THE_SQUAD_AND_THE_SOLDIER.md, 27.12),
 and the eight follow on the owner's word.
