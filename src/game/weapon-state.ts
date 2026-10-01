@@ -198,19 +198,26 @@ export class WeaponState {
     this.choke = 0;
   }
 
+  /**
+   * the reload under way is from an empty magazine (the longer one, the round chambered again: the handle racked, the
+   * bolt worked), not a tactical one with a round still in the chamber. The views and the figure others see read it.
+   */
+  reloadEmpty = false;
+
   /** a reload by the key: not on an overheating gun (it cools instead), not with nothing to load */
   startReload(now: number): void {
     if (this.w.mech.overheat) return;
-    this.beginReload(now, this.clip === 0 ? this.w.reloadEmptyTime : this.w.reloadTime);
+    this.beginReload(now, this.clip === 0 ? this.w.reloadEmptyTime : this.w.reloadTime, this.clip === 0);
   }
 
-  private beginReload(now: number, seconds: number): void {
+  private beginReload(now: number, seconds: number, empty: boolean): void {
     if (this.reloading || this.clip >= this.w.clipSize) return;
     if (this.supply && this.supply.available() <= 0) {
       this.noAmmo = true;
       return;
     }
     this.reloading = true;
+    this.reloadEmpty = empty;
     this.reloadTotal = Math.max(0.01, seconds);
     this.reloadDoneAt = now + this.reloadTotal;
     this.chargeShotAt = null;
@@ -319,11 +326,13 @@ export class WeaponState {
         // a fuller draw hits harder, flies faster and truer (the truer is ours)
         out.push({ cone, kick, coneScale: 1.5 - 0.5 * d, dmgScale: m.draw.minDamage + (1 - m.draw.minDamage) * d, speedScale: m.draw.minSpeed + (1 - m.draw.minSpeed) * d });
         this.drawFrac = 0;
-        this.beginReload(now, this.w.reloadTime);
+        // (a bow's arrow nocked again: not a magazine's reload)
+        this.beginReload(now, this.w.reloadTime, false);
       } else if (!triggerDown) this.drawFrac = 0;
       if (triggerDown && !this.triggerWasDown && this.clip <= 0 && !this.reloading) {
         this.dryFire = true;
-        this.beginReload(now, this.w.reloadTime);
+        // (the bow's next arrow, as after a shot: a bow has no magazine to reload from empty)
+        this.beginReload(now, this.w.reloadTime, false);
       }
       this.triggerWasDown = triggerDown;
       this.spread.update(dt, now, stance, motion, this.adsFrac);

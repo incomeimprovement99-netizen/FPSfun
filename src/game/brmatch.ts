@@ -148,7 +148,7 @@ function openGround(x: number, z: number): { x: number; z: number } {
 
 /** a bot goes only for loot within this height of its feet (src/config/bots.json loot.floor) */
 const BOT_LOOT_FLOOR = botsCfg.loot.floor;
-import type { Dummy } from "./dummy";
+import { actCode, type Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, type NavTree } from "./navgraph";
 import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./city";
@@ -3288,6 +3288,10 @@ export class BrMatch extends Duel {
         // on the ship it is nowhere yet: a guest draws a figure only once one has been sent
         if (bot.aboard) continue;
         const yaw = ((bot.dummy.group.rotation.y - Math.PI) * 180) / Math.PI;
+        // what its hands are doing and where it aims, as a player's state says: a guest's figure of a bot reloaded, healed
+        // and aimed in only on the host's screen
+        const pose = bot.dummy.currentPose;
+        const ac = actCode(pose.act ?? null, Math.max(0, HEAL_CODES.indexOf(pose.healItem ?? "")), pose.reloadEmpty);
         this.broadcast({
           t: "s",
           from: bot.remote.id,
@@ -3296,7 +3300,9 @@ export class BrMatch extends Duel {
           y: bot.pos.y,
           z: bot.pos.z,
           yaw,
-          pitch: 0,
+          pitch: pose.pitch,
+          ad: pose.ads ? Math.round(pose.ads * 10) : undefined,
+          ac: ac || undefined,
           crouch: bot.crouching,
           w: this.botArmed(b, now) ? bot.remote.avatarWeapon : "",
           hp: bot.dummy.health,

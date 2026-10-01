@@ -42,7 +42,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -738,17 +738,40 @@ const DEG = Math.PI / 180;
 const Y = new THREE.Vector3(0, 1, 0);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
 
-/** a gun's reload time, seconds (weapons.ts, fusion 0): how long an enemy's figure takes over its reload */
+/**
+ * a gun's reload time, seconds (weapons.ts, fusion 0), from empty (the longer, with the rack) or tactical (a round
+ * still chambered): how long an enemy's figure takes over its reload
+ */
 const reloadTimes = new Map<string, number>();
-function reloadSeconds(id: string): number {
-  let t = reloadTimes.get(id);
+function reloadSeconds(id: string, empty: boolean): number {
+  const key = `${id}|${empty}`;
+  let t = reloadTimes.get(key);
   if (t === undefined) {
     try {
-      t = resolveWeapon(id, 0).reloadTime;
+      const w = resolveWeapon(id, 0);
+      t = empty ? w.reloadEmptyTime : w.reloadTime;
     } catch {
       t = 2;
     }
-    reloadTimes.set(id, (t = Math.max(0.5, t)));
+    reloadTimes.set(key, (t = Math.max(0.5, t)));
+  }
+  return t;
+}
+
+/** a signature gun's swap phase (gunfeel.json guns.<id>.swap: shares of the swap, the model changing at its middle) */
+const swapOf = (id: string): { out: number[]; in: number[] } | null => (feelCfg.guns as unknown as Record<string, { swap?: { out: number[]; in: number[] } }>)[id]?.swap ?? null;
+/** a gun's holster and draw times, seconds (weapons.ts, fusion 0): what a swap's phase out and in run over */
+const swapTimes = new Map<string, { holster: number; deploy: number }>();
+function swapSeconds(id: string): { holster: number; deploy: number } {
+  let t = swapTimes.get(id);
+  if (!t) {
+    try {
+      const w = resolveWeapon(id, 0);
+      t = { holster: Math.max(0.1, w.holsterTime), deploy: Math.max(0.1, w.deployTime) };
+    } catch {
+      t = { holster: 0.5, deploy: 0.5 };
+    }
+    swapTimes.set(id, t);
   }
   return t;
 }
@@ -1196,6 +1219,8 @@ export class MannequinFigure {
     this.gun?.removeFromParent();
     this.mount?.removeFromParent();
     this.mount = null;
+    // (a gun in place of another is the one a swap phases in; the first one given is just there)
+    if (id !== this.gunId) this.gunAt = this.gunId ? this.t : -1;
     this.gunId = id;
     this.rifleMem.gunInHand = null;
     const m = displayGunModel(id);
@@ -1261,11 +1286,28 @@ export class MannequinFigure {
         const cz = (box.min.z + box.max.z) / 2;
         this.magTop.set(cx, box.max.y, cz);
         this.magEnd.set(cx, box.min.y, cz);
-        const under = (o: THREE.Object3D) => {
-          for (let q: THREE.Object3D | null = o; q; q = q.parent) if (q === mag) return true;
+        const under = (o: THREE.Object3D, g: THREE.Object3D | null) => {
+          for (let q: THREE.Object3D | null = o; q; q = q.parent) if (q === g) return true;
           return false;
         };
-        phaseMeshes(gun, (mesh) => (under(mesh) ? this.magSweep : null));
+        // the bought model's own meshes for the swap (never the flash, the glint or a procedural gun under them), its
+        // length in its own frame as the first person's sweep runs it: from the back to the muzzle
+        const paid = swapOf(id) ? gun.getObjectByName("paid") ?? null : null;
+        if (paid) {
+          gun.updateMatrixWorld(true);
+          const ginv = gun.matrixWorld.clone().invert();
+          const g = new THREE.Box3();
+          paid.traverse((o) => {
+            const mesh = o as THREE.Mesh;
+            if (!mesh.isMesh || !mesh.visible) return;
+            if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+            g.union(mesh.geometry.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(ginv, mesh.matrixWorld)));
+          });
+          const cy = (g.min.y + g.max.y) / 2;
+          this.gunNear.set(0, cy, g.max.z);
+          this.gunFar.set(0, cy, g.min.z);
+        }
+        phaseMeshes(gun, (mesh) => (under(mesh, mag) ? this.magSweep : paid && under(mesh, paid) ? this.gunSweep : null));
       }
       this.sight = new THREE.Vector3(0, m.sightY, -m.rearF);
       return;
@@ -1307,6 +1349,17 @@ export class MannequinFigure {
   private readonly magSweep: PhaseSweep = newSweep(feelCfg.phase);
   private readonly magTop = new THREE.Vector3();
   private readonly magEnd = new THREE.Vector3();
+  /**
+   * A signature gun's swap, as the first person's (gunfeel.json guns.<id>.swap, viewmodel.ts): the gun going away
+   * phases out over the holster, the one coming phases in over its draw, along the gun from its back to its muzzle,
+   * its magazine with it. Without it the new gun appeared whole in the hands at the swap's middle, a jump in the frames.
+   * A gun with no swap of its own changes as it did.
+   */
+  private readonly gunSweep: PhaseSweep = newSweep(feelCfg.phase);
+  private readonly gunNear = new THREE.Vector3();
+  private readonly gunFar = new THREE.Vector3();
+  /** when the gun in the hands last changed (setGun), on the figure's clock */
+  private gunAt = -1;
   private seatKick = 0;
   /**
    * Where the gun ended up, for the checks: how far behind the shoulder its
@@ -1808,7 +1861,11 @@ export class MannequinFigure {
       this.ikW += ((support ? 1 : 0) - this.ikW) * Math.min(1, dt * REACH.support);
       if (this.gunComing && Math.min(this.gripW, this.ikW) >= GUN_BACK) this.gunComing = false;
       // a reload's progress, on the gun's own reload time (an enemy's figure is told only that it reloads)
-      const reload = shown && !full && p.act === "reload" ? Math.min(1, (this.t - this.actAt) / reloadSeconds(this.gunId)) : null;
+      // (a tactical one, where the first person has its own, laid on the empty one's beats in seconds: rifle.ts tacticalOf)
+      const empty = p.reloadEmpty ?? false;
+      const tactical = !empty && !!tacticalOf(this.gunId);
+      const reloadU = shown && !full && p.act === "reload" ? Math.min(1, (this.t - this.actAt) / reloadSeconds(this.gunId, empty)) : null;
+      const reload = reloadU !== null && tactical ? (reloadU * reloadSeconds(this.gunId, false)) / reloadSeconds(this.gunId, true) : reloadU;
       this.rifleOut = holdRifle(this.root, this.bones, this.rifle, { id: this.gunId, gun: this.gun!, mount: this.mount, grip: this.grip, support: this.supportHold(), butt: this.butt, parts: this.reloadParts ?? undefined, sight: this.sight ?? undefined }, {
         pitch: (Math.max(-70, Math.min(70, p.pitch)) * DEG * (aimed ? 1 : 0)),
         ads: aimed ? (p.ads ?? 0) : 0,
@@ -1818,6 +1875,7 @@ export class MannequinFigure {
         wL: this.ikW,
         stance: this.gripW,
         reload,
+        reloadTactical: tactical,
         lastReload: this.lastReload,
         // a seat's kick, as the first person's slap of the magazine home (soldierhold.json reload.seatKick)
         kick: Math.max(fx.kick, this.seatKick * soldierHold.reload.seatKick),
@@ -1827,12 +1885,34 @@ export class MannequinFigure {
       this.lastReload = reload;
       if (this.rifleOut.seated) this.seatKick = 1;
       this.seatKick = Math.max(0, this.seatKick - dt / soldierHold.reload.seatKickFor);
-      // the magazine's phase: along it from its top, as far as the reload has it (1 whole)
+      // a swap's phase, as the first person's shares of it run: the gun going away out over its holster (the first half),
+      // the new one in over its draw from when it came (the second); whole once the swap is over
+      const SW = swapOf(this.gunId);
+      let swapPh = 1;
+      if (SW && p.act === "swap") {
+        const T = swapSeconds(this.gunId);
+        swapPh = this.gunAt >= this.actAt ? smooth(SW.in[0], SW.in[1], 0.5 + (0.5 * (this.t - this.gunAt)) / T.deploy) : 1 - smooth(SW.out[0], SW.out[1], (0.5 * (this.t - this.actAt)) / T.holster);
+      }
+      const G = this.gunSweep;
+      G.phase.value = swapPh;
+      G.time.value = this.t;
+      if (swapPh < 1 && this.gun) {
+        this.gun.updateWorldMatrix(true, false);
+        G.origin.value.copy(this.gunNear).applyMatrix4(this.gun.matrixWorld);
+        G.dir.value.copy(this.gunFar).applyMatrix4(this.gun.matrixWorld).sub(G.origin.value);
+        G.len.value = Math.max(1e-4, G.dir.value.length());
+        G.dir.value.normalize();
+      }
+      // the magazine's phase: along it from its top, as far as the reload has it (1 whole); in a swap the gun's, with it
       const mag = this.reloadParts?.mag;
       const S = this.magSweep;
-      S.phase.value = this.rifleOut.magPhase ?? 1;
+      S.phase.value = Math.min(this.rifleOut.magPhase ?? 1, swapPh);
       S.time.value = this.t;
-      if (mag && S.phase.value < 1) {
+      if (swapPh < 1) {
+        S.origin.value.copy(G.origin.value);
+        S.dir.value.copy(G.dir.value);
+        S.len.value = G.len.value;
+      } else if (mag && S.phase.value < 1) {
         mag.updateMatrixWorld(true);
         // out from the top down its length; in the way gunfeel.json phase.magIn says, as the first person's ("up": from its
         // end up), the same key the guns agent's view reads

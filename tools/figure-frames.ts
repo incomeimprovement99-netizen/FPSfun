@@ -40,7 +40,7 @@ const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 6, gunIn: 15, off:
 const HOLDING = { r: ["middle", "ring", "pinky", "thumb"], l: ["index", "middle", "ring", "pinky"] };
 const XRAY = process.env.XRAY === "1";
 
-type Pose = { speed: number; stance: string; pitch?: number; ads?: number; moveDir?: number; act?: string | null; weapon?: string; airJumps?: number };
+type Pose = { speed: number; stance: string; pitch?: number; ads?: number; moveDir?: number; act?: string | null; weapon?: string; airJumps?: number; reloadEmpty?: boolean };
 type Times = { reload: number; reloadEmpty: number; deploy: number; holster: number };
 /** a sequence: its pose to settle into, then what it does over time (a pose from each moment on), and when to photograph it */
 type Seq = { name: string; settle: Pose; at: (t: number) => Pose; frames: number[]; label: (t: number) => string; aimed: (t: number) => boolean; kicks?: number[] };
@@ -53,7 +53,9 @@ const every = (to: number, step: number, from = 0) => {
 };
 
 function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
-  const R = T.reload;
+  // the reload from empty (the rack or the bolt after the magazine) and the tactical one, a round still chambered
+  const R = T.reloadEmpty;
+  const Rt = T.reload;
   const S = T.holster + To.deploy;
   const pct = (t: number, of: number) => `${Math.round((t / of) * 100)}%`;
   return [
@@ -72,10 +74,18 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
     {
       name: "reload",
       settle: stand,
-      at: (t) => ({ ...stand, act: t < R ? "reload" : null }),
+      at: (t) => ({ ...stand, act: t < R ? "reload" : null, reloadEmpty: true }),
       frames: [...every(R, R * 0.04), R * 1.08, R * 1.2],
       label: (t) => pct(t, R),
       aimed: (t) => t >= R * 1.1,
+    },
+    {
+      name: "tactical",
+      settle: stand,
+      at: (t) => ({ ...stand, act: t < Rt ? "reload" : null, reloadEmpty: false }),
+      frames: [...every(Rt, Rt * 0.04), Rt * 1.08, Rt * 1.2],
+      label: (t) => `${pct(t, Rt)} tactical`,
+      aimed: (t) => t >= Rt * 1.1,
     },
     {
       name: "swap",
@@ -105,7 +115,7 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
       aimed: () => true,
     },
     {
-      // a double jump out of a sprint: the jump, the second one in the air at 0.45 s (the flip, figure.json doubleJump),
+      // a double jump out of a sprint: the jump, the second one in the air at 0.45 s (the knees up, figure.json doubleJump),
       // the landing and the stop
       name: "doublejump",
       settle: { speed: 14, stance: "stand", pitch: 0, airJumps: 0 },

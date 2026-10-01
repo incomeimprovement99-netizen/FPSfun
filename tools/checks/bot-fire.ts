@@ -41,8 +41,9 @@ console.log("A bot's gun, and its death box");
       mag.fired(t, w, interval);
       shots++;
     }
-    // a player holding the trigger: a magazine, then a reload, round again
-    const cycle = w.clipSize * interval + w.reloadTime;
+    // a player holding the trigger: a magazine, then a reload, round again (from empty: the empty reload's time, as
+    // weapon-state.ts startReload gives a magazine run dry, and a bot's reload is always from empty)
+    const cycle = w.clipSize * interval + w.reloadEmptyTime;
     const player = Math.floor(SECONDS / cycle) * w.clipSize + Math.min(w.clipSize, Math.ceil((SECONDS % cycle) / interval));
     const ratio = shots / player;
     check(`${w.name}: over ${SECONDS} s a bot fires what a player can (a magazine, then a reload)`, ratio > 0.85 && ratio < 1.2, `${shots} shots against a player's ${player}, x${ratio.toFixed(2)}; without reloads it was ${Math.floor(SECONDS / interval)}`);
@@ -52,7 +53,7 @@ console.log("A bot's gun, and its death box");
   mag.ready(0, w);
   for (let i = 0; i < w.clipSize; i++) mag.fired(i * 0.05, w, 0.05);
   const last = (w.clipSize - 1) * 0.05;
-  check("the last round starts a reload as long as the gun's", mag.reloading(last + 0.1) && !mag.reloading(last + 0.05 + w.reloadTime + 0.01), `${w.reloadTime} s`);
+  check("the last round starts a reload as long as the gun's from empty", mag.reloading(last + 0.1) && mag.reloading(last + 0.05 + w.reloadEmptyTime - 0.01) && !mag.reloading(last + 0.05 + w.reloadEmptyTime + 0.01), `${w.reloadEmptyTime} s, against ${w.reloadTime} s with a round still chambered`);
   check("and a gun it picks up comes loaded", mag.ready(last + 0.1, resolveWeapon("wingman", 2)));
 }
 

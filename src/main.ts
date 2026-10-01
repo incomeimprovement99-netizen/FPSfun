@@ -34,7 +34,7 @@ import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRan
 import { lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
-import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, type ArmorTier, type FigurePose } from "./game/dummy";
+import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, rangeBounds, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { floorAt } from "./game/floors";
 import rangeCfg from "./config/range.json";
@@ -62,7 +62,7 @@ import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
 import { LIFE_WIRE, SquadWatch, type MateNow } from "./game/squadview";
-import { rifleConfig, tuneRifle } from "./game/rifle";
+import { reloadPlanOf, rifleConfig, tuneRifle } from "./game/rifle";
 import { buildCityMap, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP, CITY_GROUND } from "./game/city";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
@@ -6848,7 +6848,7 @@ function localAct(): number {
   const held = brPlay.holdKind;
   if (held) return actCode(held);
   if (loadout.swapping) return actCode("swap");
-  if (loadout.active.state.reloading) return actCode("reload");
+  if (loadout.active.state.reloading) return actCode("reload", 0, loadout.active.state.reloadEmpty);
   return 0;
 }
 
@@ -6885,7 +6885,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();
-  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item, airJumps: player.airJumps });
+  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item, airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
   f.update(now, dt);
 }
 
@@ -9112,6 +9112,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the soldier's rifle hold's numbers changed live, and read back (rifle.ts; tools/figure-solve.ts) */
   rifleTune: (patch: Record<string, unknown>) => tuneRifle(patch),
   rifleConfig: () => rifleConfig(),
+  /** a gun's reload on the soldier, its hands' keys at their shares (rifle.ts reloadPlanOf; tools/figure-solve.ts) */
+  rifleReloadPlan: (id: string, tactical: boolean) => reloadPlanOf(id, tactical),
   /** the camera's vertical field of view held at `deg` for a tool's pictures, or given back (null) */
   shotFov: (deg: number | null) => {
     shotFov = deg;

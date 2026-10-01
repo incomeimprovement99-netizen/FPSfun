@@ -8,8 +8,9 @@
 // the floating hand).
 //
 // Stages: pocket (where the butt sits, and the chest's turn), hands (each palm's place and turn on its hold, and the
-// elbows), rest, lowered, and reload: one of the reload's hand places (KEY=mag, magOut, pouch, magUnder, handle ...),
-// measured at the moments of the reload the hand is at it, or KEY=tilt, how far the gun is turned toward the left hand.
+// elbows), rest, lowered, and reload: one of the reload's hand places (KEY=point, handle, handleBack, bolt, boltUp,
+// boltBack), measured at the moments of the empty reload the hand is at it (its plan is the first person's, rifle.ts
+// reloadPlanOf, read off the page), or KEY=tilt, how far the gun is turned toward the left hand.
 // Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-solve.ts <gun id> <stage>
 // ONLY=down,roll moves only the stage's numbers whose path names one of those (a hand fitted by tools/figure-fit.ts kept)
 // WRITE=1 writes what it found into soldierhold.json as that gun's own numbers (guns.<id>).
@@ -135,6 +136,8 @@ let POSES: Pose[] =
         { speed: 14, stance: "air", pitch: 0 },
         { speed: 7, stance: "air", pitch: 0 },
         { speed: 14, stance: "stand", pitch: 0, then: { pose: { speed: 14, stance: "air", pitch: 0 }, dt: 0.1 } },
+        // (and as the body tucks, 0.15 s up: the USSO's magazine went 39 mm into the belly there, between two measured)
+        { speed: 14, stance: "stand", pitch: 0, then: { pose: { speed: 14, stance: "air", pitch: 0 }, dt: 0.15 } },
         { speed: 14, stance: "air", pitch: 0, then: { pose: { speed: 0, stance: "stand", pitch: 0 }, dt: 0.12 } },
       ]
     : STAGE === "rise"
@@ -158,7 +161,7 @@ type Audit = { grip?: number; support?: number; wristL: number; wristR: number; 
 const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"].filter(
   // (in a reload the left hand holds the gun only at its magazine, at the pouch or the handle its fingers are its own;
   // and the right hand working a bolt is off its grip)
-  (f) => STAGE !== "reload" || (f.endsWith("_l") ? ["mag", "magUnder"].includes(KEY) : !KEY.startsWith("bolt")),
+  (f) => STAGE !== "reload" || (f.endsWith("_l") ? false : !KEY.startsWith("bolt")),
 );
 type Out = { shortL: number; shortR: number } | null;
 
@@ -232,11 +235,12 @@ async function main(): Promise<void> {
     // a reload key is measured at each moment of the reload the hand holds it (the middle of its span), the tilt at three
     let reloadTime = 0;
     if (STAGE === "reload") {
-      const R = cur.reload as { left: [number, string][]; right: [number, string][] };
+      // (the empty reload's plan, every key of it: the first person's timeline, rifle.ts reloadPlanOf)
+      const R = await ev<{ left: [number, string][]; right: [number, string][] }>(page, `window.__range.rifleReloadPlan(${JSON.stringify(ID)}, false)`);
       const at: number[] = [];
       for (const seq of [R.left, R.right]) seq.forEach(([u, k], i) => k === KEY && at.push(seq[i + 1]?.[1] === KEY ? (u + seq[i + 1][0]) / 2 : u));
       POSES = (KEY === "tilt" ? [0.2, 0.45, 0.7] : at.length ? at : [0.5]).map((u) => ({ speed: 0, stance: "stand", pitch: 0, reloadAt: u }));
-      reloadTime = await ev<number>(page, `window.__range.weaponTimes(${JSON.stringify(ID)}).reload`);
+      reloadTime = await ev<number>(page, `window.__range.weaponTimes(${JSON.stringify(ID)}).reloadEmpty`);
       console.log(`${ID} reload ${KEY}: measured at ${POSES.map((p) => p.reloadAt).join(", ")} of its ${reloadTime} s`);
     }
     // the patch this stage owns: its numbers' own sub-objects, whole, so a write keeps what it did not move
@@ -259,7 +263,7 @@ async function main(): Promise<void> {
         // (a reload's moment: settled, then the reload begun and stepped to it; or settled, then another pose for a while)
         const then =
           reloadAt !== undefined
-            ? `r.figureLabPose(0, ${JSON.stringify({ ...pose, act: "reload", weapon: ID })}); r.figureLabStep(${reloadAt * reloadTime});`
+            ? `r.figureLabPose(0, ${JSON.stringify({ ...pose, act: "reload", reloadEmpty: true, weapon: ID })}); r.figureLabStep(${reloadAt * reloadTime});`
             : next
               ? `r.figureLabPose(0, ${JSON.stringify({ ...next.pose, weapon: ID })}); r.figureLabStep(${next.dt});`
               : "";

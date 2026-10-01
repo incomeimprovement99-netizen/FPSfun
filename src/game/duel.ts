@@ -32,7 +32,7 @@ import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
 import netCfg from "../config/net.json";
-import { Dummy, actFromCode, stanceCode, stanceFromCode, type FigureAct, type FigureStance } from "./dummy";
+import { Dummy, actFromCode, emptyReloadOf, stanceCode, stanceFromCode, type FigureAct, type FigureStance } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { AckMsg, DeltaMsg, DeltaPart, Link, NetMsg, RoundPhase, StateMsg } from "../net/link";
@@ -166,6 +166,8 @@ interface Sample {
   healItem?: string;
   /** the double jumps they had made by then (the low 8 bits) */
   airJumps?: number;
+  /** their reload is from an empty magazine (act code 9) */
+  reloadEmpty?: boolean;
 }
 
 /** another player as this side sees them */
@@ -1449,7 +1451,7 @@ export class Duel implements MatchLike {
     const stale = m.alive && !r.alive && sentAt !== null && r.outAtSent !== undefined && sentAt <= r.outAtSent;
     const alive = m.alive && !stale;
     this.noteLateness(r, at, now);
-    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined, airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0 });
+    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), healItem: ac >= 10 ? HEAL_CODES[ac - 10] : undefined, airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0, reloadEmpty: emptyReloadOf(ac) });
     if (r.samples.length > 30) r.samples.shift();
     // Their own numbers lag our hits by a round trip, so just after a hit a
     // packet can only LOWER what we predicted; after that it is the truth, a
@@ -2144,6 +2146,7 @@ export class Duel implements MatchLike {
       act: near.act,
       healItem: near.healItem,
       airJumps: near.airJumps,
+      reloadEmpty: near.reloadEmpty,
     });
     void dt;
   }

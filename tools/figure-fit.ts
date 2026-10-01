@@ -268,7 +268,7 @@ async function main(): Promise<void> {
         }
       }
       cfg.fingers.r.index = best.J;
-      console.log(`r index on the trigger: its tip ${best.c.toFixed(1)} mm from the trigger's face, joints ${JSON.stringify(best.J)}`);
+      console.log(`r index on the trigger: its crease ${best.c.toFixed(1)} mm from the trigger's face, joints ${JSON.stringify(best.J)}`);
     };
 
     const sides = (process.env.SIDES ?? "r,l").split(",") as Side[];

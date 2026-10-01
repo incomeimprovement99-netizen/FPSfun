@@ -11,10 +11,11 @@
 //   by the models' inner shells).
 // - gunIn: how deep the gun is inside the body (torso, arms, head; the hands are handIn's), mm, by the same rule the
 //   other way round: the gun's points against the body's skin, which is skinned, so it is taken afresh every frame.
-// - __triggerGap(i): how far the right index finger's tip is from the trigger, mm: the nearest of the skin points its
-//   last joint moves most to the trigger's front face (the bought model's own part, a mesh named Trigger), sampled over
-//   the face's triangles; anywhere on the face is a finger on the trigger, as a real one pulls it low or high on the
-//   blade. null for a gun with no trigger part (the soldier's finger is on it: the owner, 2026-09-30)
+// - __triggerGap(i): how far the right index finger is from the trigger, mm, where a finger pulls one: the skin round its
+//   last joint's crease (within 11 mm of the joint, on the last and middle phalanges), not its tip. The owner,
+//   2026-09-30: "the trigger finger should be more through the hold and still touching the trigger. right now its like
+//   the very finger tip is the only thing that can press the trigger". To the trigger's front face (the bought model's
+//   own part, a mesh named Trigger), sampled over the face's triangles, anywhere on it. null for a gun with no trigger
 // Never the real mouse or keyboard: it only reads the scene.
 (() => {
   const HAND = /^(hand|index|middle|ring|pinky|thumb)(_\d+)?_([lr])$/;
@@ -394,23 +395,27 @@
       const skin = [];
       mq.root.traverse((o) => {
         if (!o.isSkinnedMesh) return;
-        const bi = o.skeleton.bones.findIndex((b) => b.name === "index_03_r");
-        if (bi < 0) return;
+        const near = [o.skeleton.bones.findIndex((b) => b.name === "index_03_r"), o.skeleton.bones.findIndex((b) => b.name === "index_02_r")].filter((b) => b >= 0);
+        if (!near.length) return;
         const si = o.geometry.getAttribute("skinIndex"), sw = o.geometry.getAttribute("skinWeight");
         for (let k = 0; k < si.count; k++) {
           let top = -1, w = -1;
           for (let c = 0; c < 4; c++) if (sw.getComponent(k, c) > w) (w = sw.getComponent(k, c)), (top = si.getComponent(k, c));
-          if (top === bi) skin.push([o, k]);
+          if (near.includes(top)) skin.push([o, k]);
         }
       });
-      known = { target, skin };
+      known = { target, skin, joint: mq.boneAt("index_03_r") };
       tips.set(gun, known);
     }
     gun.updateMatrixWorld(true);
     const inv = gun.matrixWorld.clone().invert(), v = new T.Vector3();
+    const joint = known.joint.getWorldPosition(new T.Vector3());
     let d = Infinity;
     for (const [m, k] of known.skin) {
-      m.getVertexPosition(k, v).applyMatrix4(m.matrixWorld).applyMatrix4(inv);
+      m.getVertexPosition(k, v).applyMatrix4(m.matrixWorld);
+      // (the crease's skin: round the last joint, not the tip)
+      if (v.distanceTo(joint) > 0.011) continue;
+      v.applyMatrix4(inv);
       for (const q of known.target) d = Math.min(d, v.distanceTo(q));
     }
     return Number.isFinite(d) ? Math.round(d * 10000) / 10 : null;

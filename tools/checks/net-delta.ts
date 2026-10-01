@@ -31,6 +31,7 @@ import * as THREE from "three";
 import { pack, unpack } from "peerjs-js-binarypack";
 import netCfg from "../../src/config/net.json";
 import { Duel, type HeirSnapshot, type LocalState } from "../../src/game/duel";
+import { actCode, actFromCode, emptyReloadOf } from "../../src/game/dummy";
 import type { DeltaMsg, DeltaPart, Link, NetMsg, StateMsg } from "../../src/net/link";
 import { operatorById, operatorWearing } from "../../src/game/operators";
 import { lookCode, readLook } from "../../src/game/outfit";
@@ -168,6 +169,15 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
     "a double jump's count comes through a keyframe, a difference and a full packet, and its low 8 bits wrap",
     dequantise(q1).dj === 3 && moved.d.dj === 3 && !!after && dequantise(after).dj === 3 && stateOf(stateMsg(jumped)).dj === 3 && dequantise(quantise({ ...s, dj: 300 })).dj === 44,
     JSON.stringify({ key: dequantise(q1).dj, diff: moved.d.dj, applied: after && dequantise(after).dj, full: stateOf(stateMsg(jumped)).dj })
+  );
+  // A reload from empty goes as its own act code, 9, the tactical one keeping 1 (dummy.ts actCode): an older page reads
+  // 9 as nothing, a newer one as a reload from empty (the rack at its end), and through the codec it is kept
+  const codes = { tactical: actCode("reload"), empty: actCode("reload", 0, true) };
+  const through = dequantise(quantise({ ...s, ac: codes.empty })).ac;
+  check(
+    "a reload from empty is its own act code (9, the tactical one 1), read back as a reload from empty, through the codec",
+    codes.tactical === 1 && codes.empty === 9 && actFromCode(9) === "reload" && emptyReloadOf(9) && !emptyReloadOf(1) && actFromCode(1) === "reload" && through === 9,
+    JSON.stringify({ codes, through })
   );
   const spun = dequantise(quantise({ ...sample(0, 0), yaw: 725 }));
   check("a yaw that has wound round many times still names the same angle", apart(spun.yaw, 725) < 0.06, `${spun.yaw.toFixed(1)} for 725`);

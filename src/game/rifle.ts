@@ -223,9 +223,22 @@ export function tuneRifle(patch: Record<string, unknown>): void {
  * length as it phases out over `phaseOut`, a new one phases in over `phaseIn` from there and seats at `seat`; then over
  * `rack` the hands work the gun, each gun as its pack gun does (fparms.json guns, packGuns.<gun>.rack).
  */
-const FPR = (fp as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; rackBlend: number; slide: number; lead: number; follow: number; slideIn?: number; rackOut?: number[]; tipBack?: number[] } }).reload;
+const FPR = (fp as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; rackBlend: number; slide: number; lead: number; follow: number; slideIn?: number; rackOut?: number[]; tipBack?: number[]; tactical?: { rack: boolean; back: number[] } } }).reload;
 type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[] };
-const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<string, { rack?: { clip: string; window: number[]; grab?: Grab } }> };
+const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<string, { rack?: { clip: string; window: number[]; grab?: Grab }; tacticalRack?: boolean }> };
+
+/**
+ * A tactical reload (a round still chambered) as the first person's: the empty reload's beats in seconds, so the
+ * magazine leaves, phases and seats at the same moments, ending before the rack, and with no rack or bolt (fparms.json
+ * reload.tactical; a pack gun's tacticalRack keeps it). `u` is the share of the tactical reload; the share of the empty
+ * one it is at is u x reloadTime / reloadEmptyTime. Null when the first person has no tactical reload of its own yet:
+ * then both play the empty one, each over its own time.
+ */
+export function tacticalOf(id: string): { back: number[] } | null {
+  const T = FPR.tactical;
+  if (!T || T.rack || PACKS.packGuns[PACKS.guns[id] ?? ""]?.tacticalRack) return null;
+  return { back: T.back };
+}
 /** the first person's reload shares (fparms.json reload), for the checks */
 export const FIRST_PERSON_RELOAD = FPR;
 
@@ -245,10 +258,29 @@ const plans = new Map<string, ReloadPlan>();
  * rack (soldierhold.json reload.bolt, shares of it). The gun turns in while the hand points and out as the first
  * person's does: with a rack pose, at the rack's end; without, as the rack begins.
  */
-export function reloadPlanOf(id: string): ReloadPlan {
-  const had = plans.get(id);
+export function reloadPlanOf(id: string, tactical = false): ReloadPlan {
+  const key = `${id}|${tactical}`;
+  const had = plans.get(key);
   if (had) return had;
   const R = FPR;
+  const tac = tactical ? tacticalOf(id) : null;
+  if (tac) {
+    // the tactical: the point, the magazine out and in, and the hand back to the fore-end, the gun's turn out with it
+    const plan: ReloadPlan = {
+      left: [
+        [0, "hold"],
+        [R.point[0], "hold"],
+        [R.point[1], "point"],
+        [tac.back[0], "point"],
+        [tac.back[1], "hold"],
+      ],
+      right: [],
+      tiltIn: [0, R.point[1]],
+      tiltOut: tac.back,
+    };
+    plans.set(key, plan);
+    return plan;
+  }
   const rack = PACKS.packGuns[PACKS.guns[id] ?? ""]?.rack;
   const at = (x: number) => R.rack[0] + x * (R.rack[1] - R.rack[0]);
   const left: Array<[number, string]> = [
@@ -267,7 +299,7 @@ export function reloadPlanOf(id: string): ReloadPlan {
     if (bolt) bolt.forEach(([x, k], i) => right.push([i === bolt.length - 1 && R.rackOut ? R.rack[1] + R.rackOut[1] : at(x), k]));
   }
   const plan: ReloadPlan = { left, right, tiltIn: [0, R.point[1]], tiltOut: G ? [R.rack[1] - R.rackBlend, R.rack[1]] : [R.rack[0] - R.rackBlend, R.rack[0]] };
-  plans.set(id, plan);
+  plans.set(key, plan);
   return plan;
 }
 
@@ -436,8 +468,10 @@ export interface RifleState {
   wL: number;
   /** 0..1 the stance itself (the chest's turn, the butt in the shoulder), off for a full-body clip */
   stance: number;
-  /** a reload's progress 0..1, or null when not reloading */
+  /** a reload's progress 0..1 on the empty reload's timeline (a tactical one's already mapped onto it), or null */
   reload: number | null;
+  /** the reload is a tactical one (its own plan: no rack, no bolt; tacticalOf) */
+  reloadTactical?: boolean;
   /** a shot's kick, 1 as it fires and fading (dummy.ts kick) */
   kick: number;
   /** a melee swing under way: its progress (0..1) and which swing of a string it is (soldierhold.json melee) */
@@ -531,7 +565,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   // a reload turns the gun's magazine toward the left hand and tips it down, then back, as the first person's does
   const R = C.reload;
   const u = s.reload;
-  const plan = u === null ? null : reloadPlanOf(g.id);
+  const plan = u === null ? null : reloadPlanOf(g.id, !!s.reloadTactical);
   const tilt = u === null || !plan ? 0 : smooth(u, plan.tiltIn[0], plan.tiltIn[1]) * (1 - smooth(u, plan.tiltOut[0], plan.tiltOut[1]));
   // the magazine's own way down (its group's -y) and how far along it the hand's keys off the magazine are: the pointing
   // finger leads the magazine by `lead` (fparms.json), as the first person's does

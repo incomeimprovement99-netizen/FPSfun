@@ -216,8 +216,10 @@ export interface FigurePose {
   act?: FigureAct;
   /** a heal's item, for what it holds */
   healItem?: string;
-  /** how many double jumps it has made (player.ts airJumps): a new one is a flip on the figure (mannequin.ts) */
+  /** how many double jumps it has made (player.ts airJumps): a new one lifts the figure's knees (mannequin.ts) */
   airJumps?: number;
+  /** a reload from an empty magazine (weapon-state.ts reloadEmpty): the longer one, with the rack; else a tactical one */
+  reloadEmpty?: boolean;
 }
 /**
  * What the hands are doing, as one small number for the network: 0 nothing,
@@ -226,8 +228,15 @@ export interface FigurePose {
  * on an old page just does not play the new motion.
  */
 const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "revive", "interact", "finish", "finished"];
-export const actCode = (a: FigureAct, healCode = 0): number => (a === "heal" ? 10 + healCode : Math.max(0, ACT_CODES.indexOf(a)));
-export const actFromCode = (c: number | undefined): FigureAct => (c !== undefined && c >= 10 ? "heal" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
+/**
+ * A reload from an empty magazine has a code of its own, 9 (1 stays the tactical reload), so the others see which: an
+ * older page reads it as nothing and just does not show that reload
+ */
+const EMPTY_RELOAD = 9;
+export const actCode = (a: FigureAct, healCode = 0, emptyReload = false): number => (a === "heal" ? 10 + healCode : a === "reload" && emptyReload ? EMPTY_RELOAD : Math.max(0, ACT_CODES.indexOf(a)));
+export const actFromCode = (c: number | undefined): FigureAct => (c !== undefined && c >= 10 ? "heal" : c === EMPTY_RELOAD ? "reload" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
+/** the act code is a reload from empty */
+export const emptyReloadOf = (c: number | undefined): boolean => c === EMPTY_RELOAD;
 
 /** a heal item's colour in the hand: shields blue, health red, the phoenix gold */
 const HEAL_COLOUR: Record<string, number> = { cell: 0x3b8bff, battery: 0x3b8bff, syringe: 0xe84a4a, medkit: 0xe84a4a, phoenix: 0xffa000 };

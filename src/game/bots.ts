@@ -1758,6 +1758,8 @@ export class Bot {
       ads: target && this.knife === null && !this.healing ? 0.85 : 0,
       act: this.healing ? "heal" : this.mag.reloading(now) ? "reload" : null,
       healItem: this.healing?.item,
+      // (a bot reloads only when its magazine runs out: always from empty)
+      reloadEmpty: true,
     });
     this.dummy.update(now, dt);
 
@@ -1861,11 +1863,15 @@ export class BotMag {
     return now >= this.until;
   }
 
-  /** one shot gone; the last one starts the reload, after the shot's own interval */
-  fired(now: number, w: { clipSize: number; reloadTime: number }, interval: number): void {
+  /**
+   * one shot gone; the last one starts the reload, after the shot's own interval, for the gun's empty reload's time (a
+   * player's from empty takes that: the magazine and then the handle racked or the bolt worked, which the bot's figure
+   * shows)
+   */
+  fired(now: number, w: { clipSize: number; reloadTime: number; reloadEmptyTime?: number }, interval: number): void {
     if (--this.left <= 0) {
       this.left = w.clipSize;
-      this.until = now + interval + w.reloadTime;
+      this.until = now + interval + (w.reloadEmptyTime ?? w.reloadTime);
     }
   }
 

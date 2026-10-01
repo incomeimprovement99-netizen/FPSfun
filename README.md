@@ -267,7 +267,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
     wander more than 12 m away. Two restores a match.
 - **The soldier as others see it:** holding the USSO or BOOG the way a rifleman
   does, the stock in the right shoulder, the right hand closed round the grip with
-  the trigger finger on the trigger, and the left under the front (BOOG's on the
+  the trigger finger through the guard, the trigger at the crease of its last
+  joint, and the left under the front (BOOG's on the
   rail under its barrel, standing more side-on as a marksman does), the gun
   pointing where they look; aiming, it comes up to their eye; sprinting, it is
   carried low across the body; sliding or climbing, it stays in their right hand.
@@ -275,7 +276,9 @@ Game) or `?game=legacy`, and everything below this section describes it.
   knees for a moment. Their gloved fingers are drawn a tenth smaller than the model's. A reload
   is the one you see in your own hands, on the same timeline: the left hand points
   at the magazine as it slides out and phases away, a new one phases in and seats,
-  then the handle is racked or the bolt worked, in the gun's own reload time. The
+  then the handle is racked or the bolt worked, in the gun's own reload time.
+  Others see which reload it is: from empty, that whole one; with a round still
+  in the chamber, the shorter tactical reload, as your own view plays it. The
   Loadouts tab shows the same soldier.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
@@ -1194,7 +1197,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/hunt.ts` | the bug hunt: one drawn SpeedKills page plays every mode in turn (the range with every gun, the battle royale from the ship to its end, every arena mode, the courses, the tour, the lab) driven by a scripted player, while a watchdog in the page notes page and console errors, failed requests, NaN or fallen-through positions, health out of range, NaN in the HUD, frames over 120 ms with what was new on them, and battle royale bots standing still 25 s; between modes what the page holds (a leak is a number), assets fetched twice, a screenshot every 5 s. `OUT` (default `shots/hunt`), `SCENES`, `QUERY`. Needs `npm run dev` and a real GPU |
 | `npx tsx tools/flow-frames.ts` | SpeedKills from opening the page to riding the dropship, as a player sees it: every painted frame (Chrome's screencast) with what the game was doing every 100 ms beside it (the loading screen and its line, the card, the match's phase, the ship's doors), a sheet of a frame every 5% of the whole and of Start to the ship, and the order of things in one line. `OUT` (default `shots/flow`), `QUERY`, `GL`, `RIDE`. Needs `npm run dev` and a real GPU |
 | `npx tsx tools/squad-shots.ts [dir]` | pictures of the squad view drawn for real from two pages in one SpeedKills squad: the panel, the name and the ring round a teammate (through a wall too), a hit on their row, far off with the compass and the map, their Gulag, their ghost, their restore and their leaving, each with what the HUD was given (`SHOT_URL`, needs `npm run dev`; a real GPU) |
-| `npx tsx tools/figure-frames.ts [dir] [guns]` | the soldier as other players see it, frame by frame (the third-person twin of `tools/pack-frames.ts`): holding each gun at rest, aimed, looking up and down, firing, the reload and the swap a frame every 4%, a jump, a run, a sprint, crouching and a slide, from four sides whole and close, and the Loadouts tab's soldier; each frame measured (each palm on its hold, the barrel along the look, the wrists, skin in the gun, a palm or a holding finger off it, the gun in the body) with the faults on the tile. `SEQ`, `VIEWS`, `DIST` pick; `XRAY=1` marks where. Needs `npm run dev` and a real GPU |
+| `npx tsx tools/figure-frames.ts [dir] [guns]` | the soldier as other players see it, frame by frame (the third-person twin of `tools/pack-frames.ts`): holding each gun at rest, aimed, looking up and down, firing, the reload from empty, the tactical one and the swap a frame every 4%, a jump, a double jump, a run, a sprint, crouching and a slide, from four sides whole and close, and the Loadouts tab's soldier; each frame measured (each palm on its hold, the barrel along the look, the wrists, skin in the gun, a palm or a holding finger off it, the gun in the body) with the faults on the tile. `SEQ`, `VIEWS`, `DIST` pick; `XRAY=1` marks where. Needs `npm run dev` and a real GPU |
 | `npx tsx tools/live-shots.ts [dir]` | the soldier in the game itself, not the lab: bots in an Arena Bots match given the USSO and BOOG, your own soldier in third person driven by the keys a player presses, and another player's figure over the network, each photographed a frame at a time and measured as the lab's sheets are (a double jump's flip among them). `PARTS=enemies,self,remote` picks, `ACTS=double-jump,melee` only those actions. Needs `npm run dev` and a real GPU |
 | `npx tsx tools/figure-solve.ts <gun> <stage>` | searches the soldier's rifle hold (`src/config/soldierhold.json`) against the same measures: `rest` (the pocket, the chest's turn, the elbows, the aim), `lowered`, and the older `pocket`, `hands`, `right`, `left`, `fingers`; `WRITE=1` stores what it found as that gun's own numbers |
 | `npx tsx tools/figure-fit.ts <gun>` | closes each of the soldier's hands round its hold as a hand grasps: the palm onto the gun, each finger a phalanx at a time until it touches, the thumb round the far side, the hand's place searched round a start measured off the gun, then the right index finger searched onto the trigger's face; `SCALE`, `HAND_R`/`HAND_L`, `SIDES`, `SEARCH=0`, `TRIGGER_ONLY=1`; `WRITE=1` stores it |

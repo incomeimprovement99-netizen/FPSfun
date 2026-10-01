@@ -35,6 +35,7 @@ import skCfg from "../src/config/games/speedkills.json";
 import botsCfgE2e from "../src/config/bots.json";
 import hudCfgE2e from "../src/config/hud.json";
 import fparmsCfg from "../src/config/fparms.json";
+import gunfeelCfg from "../src/config/gunfeel.json";
 import squadCfg from "../src/config/squad.json";
 import cityCfgE2e from "../src/config/city.json";
 import districtsCfg from "../src/config/citydistricts.json";
@@ -1834,6 +1835,12 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   await ev(host, `(() => { const d = window.__range.duel(); const a = d.bots.find((x) => x.bot.remote.id === ${knocked}); const m = a && d.bots.find((o) => o !== a && o.team === a.team && o.bot.alive && !o.down); if (a && m) d.reviveBot(a, m); })()`);
   const upSeen = downSeen && (await guest.waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${knocked}); const s = r?.samples[r.samples.length - 1]; return !!r && !r.downed && s?.stance !== "downed"; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false));
   check("squad: a duo's bot knocked with its mate up shows down on the guest's screen, and up again once revived", downSeen && upSeen, JSON.stringify({ knocked, downSeen, upSeen }));
+  // a bot reloading on the host reloads on the guest's screen too, and from empty (act code 9): the host sent its bots'
+  // place alone, so a guest's figures of them never reloaded, healed or aimed in
+  const rel = await ev<number>(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.aboard && !x.down && !x.bot.healing); if (!b) return -1; b.bot.mag.until = 1e12; return b.bot.remote.id; })()`);
+  const relSeen = rel >= 0 && (await guest.waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${rel}); const s = r?.samples[r.samples.length - 1]; return !!s && s.act === "reload" && s.reloadEmpty === true; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false));
+  await ev(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.remote.id === ${rel}); if (b) b.bot.mag.until = 0; })()`);
+  check("squad: a bot reloading on the host is seen reloading from empty on the guest's screen", relSeen, JSON.stringify({ rel, relSeen }));
   // doors: the guest opens one (the host does it for everyone), the host shuts it, and a door the guest has wrong is put right
   const doorI = await ev<number>(guest, `(() => { const r = window.__range; const me = r.player.pos; const ds = r.brMap.doors; const d = ds.list.filter((x) => !x.open).sort((a, b) => Math.hypot(a.centre.x - me.x, a.centre.z - me.z) - Math.hypot(b.centre.x - me.x, b.centre.z - me.z))[0]; r.player.teleport(d.centre.x, d.centre.y - 1.3, d.centre.z + (d.side === "s" ? 2 : d.side === "n" ? -2 : 0) + 0, 0, 0); if (d.side === "e") r.player.pos.x += 2; if (d.side === "w") r.player.pos.x -= 2; return d.i; })()`);
   await sleep(600);
@@ -7561,7 +7568,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     // The right index on the trigger, not laid along the frame (the owner, 2026-09-30: the gun fires on a click, and a
     // straight finger read as not firing): aimed in, the tip of its last joint on the trigger's face, 4 mm at most
     const trig = await ev<number | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return window.__triggerGap(0); })()`);
-    check(`the soldier holding ${name}: the right index finger on the trigger, aimed in`, trig !== null && trig <= 4, `${trig} mm from its face`);
+    // (at the crease of its last joint, through the guard, not only its tip: the owner, 2026-09-30, "more through the hold")
+    check(`the soldier holding ${name}: the right index finger on the trigger at its last joint's crease, aimed in`, trig !== null && trig <= 4, `${trig} mm from its face`);
     // the fingers drawn at soldierhold.json fingerSize (the owner: "cut down by like 50%"), every one of both hands
     const sizes = await ev<number[]>(page, `(() => { const f = window.__range.labFigures()[0].figure; return ["index", "middle", "ring", "pinky", "thumb"].flatMap((n) => ["l", "r"].map((s) => Math.round(f.boneAt(n + "_01_" + s).scale.x * 1000) / 1000)); })()`);
     check(`the soldier holding ${name}: every finger drawn at ${soldierHoldCfg.fingerSize} of the model's size`, sizes.every((x) => Math.abs(x - soldierHoldCfg.fingerSize) < 1e-3), sizes.join());
@@ -7623,13 +7631,15 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     // The reload, the first person's (the owner, 2026-09-30: "the first and third person final forms agree ... when they
     // reload"): read from the guns agent's fparms.json, as the soldier reads it, so a change there fails here. The
     // magazine slides down and phases out, a new one phases in and seats, all in the gun; nothing is dropped
-    const R = await ev<number>(page, `window.__range.weaponTimes("${id}").reload`);
+    // (from empty: the whole timeline, the rack or bolt at its end, over the gun's empty reload time)
+    const RT = await ev<{ reload: number; reloadEmpty: number }>(page, `window.__range.weaponTimes("${id}")`);
+    const R = RT.reloadEmpty;
     const FR = fparmsCfg.reload;
     const rack = (fparmsCfg.packGuns as Record<string, { rack?: { grab?: { reach: number[]; pull: number[] } } }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.rack;
     type Mag = { y: number; shown: boolean; phase: number; keys: string; drops: number } | null;
     const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; return m ? { y: m.position.y, shown: m.visible, phase: f.magSweep.phase.value, keys: f.rifleOut?.keys ?? "", drops } : null; })()`;
     const home = await ev<Mag>(page, mag);
-    await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload" })`);
+    await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true })`);
     let at = 0;
     const to = async (u: number): Promise<Mag> => {
       await ev(page, `window.__range.figureLabStep(${Math.max(0, u - at) * R})`);
@@ -7657,8 +7667,68 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     );
     check(`the soldier's ${name} reload: no magazine is ever dropped, and no hand goes to a pouch`, [pointing, gone, coming, seated, working].every((m) => !!m && m.drops === 0 && !/pouch/.test(m.keys)), JSON.stringify([pointing, gone, coming, seated, working].map((m) => m && { drops: m.drops, keys: m.keys })));
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
+    // A tactical reload (a round still chambered: the owner, 2026-09-30, "a reload differentiator for empty mag vs still
+    // 1 in the chamber"): over the gun's tactical time. Where the first person has its own (fparms.json reload.tactical),
+    // it is the empty one's beats in seconds, ending before the rack, and no rack or bolt ever; until then, the whole
+    // timeline over the tactical time, as the first person plays it
+    {
+      const tac = (FR as { tactical?: { rack: boolean; back: number[] } }).tactical;
+      const own = !!tac && !tac.rack;
+      await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload" })`);
+      const seen: string[] = [];
+      let mags: Mag[] = [];
+      for (let k = 1; k <= 12; k++) {
+        await ev(page, `window.__range.figureLabStep(${RT.reload / 12})`);
+        const m = await ev<Mag>(page, mag);
+        mags.push(m);
+        seen.push(m?.keys ?? "");
+      }
+      const racked = seen.some((k) => /l:handle|r:bolt/.test(k));
+      await ev(page, `window.__range.figureLabStep(0.1)`);
+      const done = await ev<Mag>(page, mag);
+      mags = [...mags, done];
+      check(
+        `the soldier's ${name} tactical reload: over the gun's tactical time (${RT.reload} s, against ${RT.reloadEmpty} from empty)${own ? ", the magazine out and in with no rack or bolt" : " (the first person has no tactical timeline of its own yet: the whole one)"}, done by its end`,
+        !!done && done.shown && done.phase === 1 && !done.keys && (own ? !racked : true) && mags.some((m) => !!m && m.phase < 1),
+        JSON.stringify({ own, racked, keys: seen, done })
+      );
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
+    }
     const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
     check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true), JSON.stringify(after));
+  }
+  // A swap as the first person's (gunfeel.json guns.<id>.swap; the owner, 2026-09-30, "no resetting states, jumping UI or
+  // bugging in any frame"): the USSO phases out over its holster, BOOG in over its draw from when it comes, the model
+  // changing between, the magazine with the gun. The new gun appeared whole in the hands at the swap's middle
+  {
+    type Ph = { gun: number; mag: number; id: string; shown: boolean };
+    const ph = `(() => { const f = window.__range.labFigures()[0].figure; return { gun: f.gunSweep.phase.value, mag: f.magSweep.phase.value, id: f.gunId, shown: !!f.gunObject?.visible }; })()`;
+    const SWC = gunfeelCfg.guns as unknown as Record<string, { swap: { out: number[]; in: number[] } }>;
+    const H = (await ev<{ holster: number }>(page, `window.__range.weaponTimes("r97")`)).holster;
+    const D = (await ev<{ deploy: number }>(page, `window.__range.weaponTimes("sentinel")`)).deploy;
+    await ev(page, `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(1); r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "r97" }); })()`);
+    const held = await ev<Ph>(page, ph);
+    // (the first person's shares are of the whole swap, its first half the holster: half a share is a share of it)
+    const outMid = (SWC.r97.swap.out[0] + SWC.r97.swap.out[1]) * H;
+    await ev(page, `window.__range.figureLabStep(${outMid})`);
+    const going = await ev<Ph>(page, ph);
+    await ev(page, `window.__range.figureLabStep(${H - outMid})`);
+    const gone = await ev<Ph>(page, ph);
+    await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "sentinel" })`);
+    const arrived = await ev<Ph>(page, ph);
+    const inMid = (SWC.sentinel.swap.in[0] + SWC.sentinel.swap.in[1] - 1) * D;
+    await ev(page, `window.__range.figureLabStep(${inMid})`);
+    const coming = await ev<Ph>(page, ph);
+    await ev(page, `window.__range.figureLabStep(${D - inMid})`);
+    const whole = await ev<Ph>(page, ph);
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, weapon: "sentinel" }); r.figureLabStep(0.5); })()`);
+    const after = await ev<Ph>(page, ph);
+    const mid = (x: Ph) => x.gun > 0.15 && x.gun < 0.85 && Math.abs(x.mag - x.gun) < 1e-6;
+    check(
+      "the soldier's swap is the first person's: the USSO phases out over its holster, the magazine with it, BOOG phases in over its draw from nothing, whole by its end",
+      held.gun === 1 && mid(going) && going.id === "r97" && gone.gun < 0.01 && arrived.id === "sentinel" && arrived.gun === 0 && mid(coming) && coming.id === "sentinel" && whole.gun === 1 && after.gun === 1 && after.mag === 1 && [held, going, gone, arrived, coming, whole].every((x) => x.shown),
+      JSON.stringify({ held, going, gone, arrived, coming, whole, after })
+    );
   }
   // A double jump: the knees come up and go back down, the body upright (the owner, 2026-09-30, of the flip it first was:
   // "just have the legs raise a bit at the same time as the double jump"). One seen for the first time with a count
