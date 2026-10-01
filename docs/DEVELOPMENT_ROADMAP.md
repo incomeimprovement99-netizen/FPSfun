@@ -8550,3 +8550,31 @@ south-east block.
   now looks 100 m before it calls a look open: down the concourse and on along the straight corridor a look met the
   corridor's corner 79 m away, past the 60 m it allowed. verify and rules; e2e `loot` and `br`. Photographed along the
   corridor and through the door into the Well.
+
+## Milestone 391 — The soldier's magazine phases round its own middle, and the in-place swap is live on it
+
+The guns agent finished the first person's round (Milestones 379 to 384): the swap in place, the tactical reload and the
+magazine phased round its middle. The owner, of matching it: the soldier others see follows.
+
+- **The magazine** (mannequin.ts; fparms.json reload.magPhase "radial"): the figure's magazine sweep now runs out from
+  the drawn magazine's middle, its radius half the magazine corner to corner, as the first person's does. The old
+  magazine goes from its edges in as it slides out, and the new one grows from its middle out.
+  - The magazine is measured off its drawn meshes only: its group also holds the procedural gun's magazine, hidden,
+    107 mm off on the USSO.
+- **The swap in place, live:**
+  - With fparms.json swap.style "cup" on main, the figure's swap from Milestone 371 is on: the gun stays up, the hands
+    cup round it, and it phases out from its edges and the next in from its middle.
+  - It uses phase.ts's radial fields directly now that they are there.
+  - Filmed: BOOG goes from both ends toward its middle, the hands open, and the USSO grows from its middle as they close
+    on it; two frames flagged, the right hand 15 to 17 mm into a gun as it leaves or takes it.
+- **The tactical reload, live:** the first person's tactical timeline is on main, and the figure's tactical reload,
+  ready since Milestone 366, plays it.
+- **Not followed:** the first person's inspect and its glow, which are your own view's alone (no inspect goes to the
+  others).
+- **Next:** the melee. The first person's keeps the gun in the right hand while the left punches (Milestone 381); the
+  soldier still strikes with the gun in both hands.
+- **Checked:**
+  - the skfigure e2e (52): the magazine round its own middle on both guns, within 4 mm of it, seen failing with it
+    along the magazine; the swap in place;
+  - the frames of both reloads and both swaps;
+  - verify; rules.
