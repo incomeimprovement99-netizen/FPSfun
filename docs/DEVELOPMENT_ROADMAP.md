@@ -8632,3 +8632,72 @@ the soldier others see, as the reload and the swap are.
   - Each seen failing with the punch switched off. Also the frames of both guns' melee; verify; rules.
 - **Matching the first person, done:** the reload (empty and tactical, the magazine phased round its middle), the swap in
   place, and the melee. The inspect and its glow are your own view's alone.
+
+## Milestone 394 — A performance pass: what a frame costs, and five savings that make High cost what Balanced did
+
+The owner, 2026-10-01: "let's do a performance analysis at this point. What costs us the most? Are there things we are
+doing that can be optimized easily and will have a noticeable frame improvement or allow someone to jump up to a
+higher quality at or around the same frames as before our optimizations?"
+
+- **How it was measured** (tools/bench.ts, extended): on the Neon City, in a battle royale of thirty on seed 42, at two
+  new spots: `neonstreet`, eye height in the street 45 m south of the tower facing it (the most drawn from the ground:
+  about 690 draw calls and 5.7 million triangles), and `neonhigh`, 40 m up 120 m south of it. Each preset, and each
+  setting of a preset changed alone (`BENCH_VARIANTS`, quality.ts `&q=key:value`), three rounds taken in turn, medians.
+  New: the GPU's own time a frame from timer queries round every draw (`BENCH_GPU=1`), the screen's pixel density
+  (`BENCH_DPR`), a slower processor (`BENCH_CPU=4`, Chrome's throttle). The bench's old SpeedKills spots were the old
+  city's. tools/profile-frame.ts says where a frame's CPU goes by function (`PROFILE_AT` holds the camera anywhere).
+  The machine: a Ryzen 7 9800X3D and a Radeon RX 9070 XT, so a GPU's share here is small next to most players'.
+- **What a frame cost** (street, 1080p): Competitive 323 fps (3.1 ms), Balanced 294 (3.4 ms), High 137 (7.3 ms;
+  1913 draw calls and 18.3 million triangles, five times Balanced's). CPU-bound in every preset on this machine: the
+  loop's own time is the frame's, and its `render` phase (three walking the scene and sending the draws) is two
+  thirds of it. Twice the pixel density moved the GPU's time by under 0.6 ms (2.25 and 4 times the pixels); on a
+  processor a quarter as fast Balanced ran at 43 to 56 fps and High at 10 to 65.
+- **What High's settings cost, each taken off alone** (High at 1.5x density): ambient occlusion 3.2 ms and half its
+  draws; live shadows 1.5 ms; bloom 0.5 ms; SMAA, the grade, point lights, the kit's texture size: within the noise.
+  `cityDetail` changes nothing on the Neon City (its tiers dress the old city only).
+- **The CPU by function** (Balanced): the matrix walk the costliest (`updateMatrixWorld` and its multiplies, about
+  2.8 ms a profiled frame), then three's render list, the bone textures sent each frame, the city's decay, the HUD's
+  text. On High the AO pass's own walks of the scene about 3 ms more.
+- **The savings** (src/game/slow.ts names each; `?slow=name` puts it back, for measuring it against the old way):
+  - `aoshadow` (render.ts): the AO pass draws the scene again for its depth and normals, and with live shadows that
+    drew the whole shadow map a second time every frame for nothing. Its prepass now leaves the shadow map alone:
+    510 draw calls and 5 million triangles less on High.
+  - `aowalk` (render.ts): GTAOPass kept every object's visibility in a map, in a walk of the whole scene before its
+    prepass and one after, and our hiding of sprites and see-through meshes was a third. Now one walk of what is
+    shown, and only what it hid is shown again: the same picture, 1 ms less on High.
+  - `cull` (mannequin.ts, perf.json figureCull): every figure's skinned meshes were never culled, so every bot in a
+    match was drawn every frame wherever it stood, its skeleton worked out and sent to the GPU. Now one sphere round
+    the figure culls all its meshes: half its height up (the height measured off its skinned rest pose, once a kind
+    of figure), 1.2 heights across, which holds it lying down with its gun. Each mesh's own rest sphere was tried
+    first and was wrong: the soldier's meshes are stored lying down and stood up by their skeleton, so the sphere
+    stood 1.7 m out along the ground and the bot in front of you was not drawn (the new check caught it; the first
+    after-numbers, taken with it, are not these).
+  - `skeleton` (mannequin.ts): the clone gave each of a soldier's four meshes a skeleton of its own over the same 67
+    bones, each worked out and sent every frame. Meshes over the same bones in the same rest pose share one now.
+    With `cull`: 109 bone textures sent a frame down to 25.
+  - `static` (main.ts, neonmap.ts, loot.ts): the scene's own matrix was worked out every frame, which made every
+    object in the world work its own out again. The scene, the two sides and the map's root are fixed now, and so
+    are the Neon City's file and the loot on the floor once it is down: of the 4782 objects the walk visits, 3087
+    still work theirs out (the bots' bones, what moves).
+- **After** (street, 1080p, three interleaved rounds, the before being `?slow=` all five): Balanced 182 to 278 fps
+  (5.5 to 3.6 ms, draws 502 to 439); High 97 to 154 fps (10.3 to 6.5 ms; 1895 to 1270 draws, 18.2 to 12.9 million
+  triangles). Each put back alone: on High the AO walks 1 ms, culling 1.5, the AO shadow redraw 0.4 (and 510 draws),
+  the skeletons 0.7; on Balanced culling 1.2 and the skeletons 0.3; static within the noise. On a processor a quarter
+  as fast: Balanced 51 to 67 fps, High 18 to 34 (57 to 30 ms, frames over 50 ms from 18 to 55 a run down to 3 to
+  12). The machine was busier this round than the first (Balanced's old 182 fps against 294 earlier in the day): the
+  shares hold, the absolute numbers swing. High now costs about what Balanced did.
+- **Found on the way:** the worktree held an older Neon bake than its code asked for (v16 against v20): the dev
+  server answers a missing file's probe with its index page, and the map quietly drew no city. Some of the day's
+  drawn measurements before this were taken without it, Milestone 378's ride among them; its saving is the bots and
+  loot, which were there.
+- **Left, measured, for later:** ambient occlusion at half resolution (its 16 samples a pixel are the cost a weaker
+  card will feel; this card is not short of pixels, so it cannot show it); far bots' animation at a lower rate; the
+  HUD's text drawn every frame (0.3 to 0.5 ms); High's 760 m draw distance from the air (189 fps against 620 m's
+  270 at the high spot).
+- **Checked:**
+  - skhunt e2e, new: a bot 4 m in front of you is drawn standing and fallen, and not drawn behind you, counted over
+    frames (the suite's pages draw in software, a frame of the city a second and more). Seen failing with
+    `?slow=cull` (drawn behind you, 9 of 9 frames) and, before the sphere was the figure's, with the bot in front
+    not drawn;
+  - the skfigure, sksquad, sklobby, loot and br sections; verify; rules;
+  - photographed: the street and its view behind, the same as before.
