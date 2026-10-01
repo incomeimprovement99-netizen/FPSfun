@@ -4,18 +4,32 @@ The owner, 2026-10-01: "once I finalize the first person guns and reload animati
 have like a clear plan that you can share with the other agents on which guns we'll do first and how we'll plan to
 attack them ... break down each part ... that the agent ... will need to know about each gun ... tell the other agent to
 do their homework too but to use this as a stepping stone ... which ones we'll do in order, why, all the things to look
-out for ... since they use a shared platform now".
+out for ... since they use a shared platform now". And on the roster: "We don't want repeats where only the skin
+changes", choosing ten guns with every name kept ("Yes option 2 idc about a marksman").
 
 This is the shared plan for the guns agent (the first person: `apex-soldier`, fparms.json, gunfeel.json, viewmodel.ts,
 fprig.ts) and the character agent (the soldier as others see it: `apex-character`, soldierhold.json, rifle.ts,
 mannequin.ts). It starts when the owner signs off the USSO and BOOG in first person (their guns, reload, swap and
-inspect). It replaces the order in `PLAN_SOLDIER_EIGHT_GUNS.md` and sits beside `PLAN_GUNS_IN_HAND.md`, whose bar (its
-section 2) and fitting recipe (its section 4) still hold for the first person.
+inspect) and gives this plan its final approval; then both agents read it, agree it, and each builds its own view of the
+same gun at the same time. It replaces the order in `PLAN_SOLDIER_EIGHT_GUNS.md` and sits beside `PLAN_GUNS_IN_HAND.md`,
+whose bar (its section 2) and fitting recipe (its section 4) still hold for the first person.
 
 **It is a stepping stone.** Each agent does its own homework on each gun before building it (its pack gun's clips, its
-model measured, the owner's words on it) and writes what it finds into its row below, correcting anything here that
+model measured, the owner's words on it) and writes what it finds into its lines below, correcting anything here that
 turns out wrong. Nothing here is typed in by eye: where a number appears, it came from the configs or a measurement
 named beside it.
+
+## 0. The owner's decisions (2026-10-01)
+
+| Question | Decided |
+|---|---|
+| Repeats where only the skin changes (PANDA and STRYDER on one rifle, HAEFY and BOOG on one sniper) | **None.** Ten guns, every name kept: STRYDER becomes a fast pistol on the unused Pistol01, HAEFY a launcher on the unused RocketLauncher01. No marksman ("idc about a marksman"); no fast rifle. |
+| CHOOCH's overheat | **A vent, seen by other players too** (a new act code). |
+| BIGANTLER's reload as others see it | **A fixed number of shells** every reload, so nothing new goes over the network. |
+
+Defaults written in, for the owner's final approval to confirm or change: the two pistols held in **both hands** in
+both views; REZ on the pack's **Drake-12** (a magazine shotgun, closer than the G3); PANDA's class label **Rifle**, now
+it is the only one; STRYDER's and HAEFY's numbers proposed when their turn comes (section 5).
 
 ## 1. Where we stand
 
@@ -43,131 +57,108 @@ named beside it.
 - **Only the USSO and BOOG have a gunfeel.json entry**, and the soldier's swap phase and cup need one per gun
   (mannequin.ts swapOf). Each new gun's gunfeel entry is the guns agent's.
 
-## 2. The eight, as they are
-
-Numbers from the game (weapons.ts resolveWeapon at fusion 0, SpeedKills' tuning, 2026-10-01). Parts are the bought
-model's own named parts (read off each .glb), which are what both views can move.
-
-| Gun | Class | Magazine | Reload, round chambered / from empty | Fire | Bought model | Its moving parts | Shares a model with |
-|---|---|---|---|---|---|---|---|
-| ANAKIN | Steady SMG | 18 | 1.90 / 2.20 s | auto, 600 a minute | SciFiSMG01_2 | Clip, Slide, Button | (the USSO wears its scope) |
-| PANDA | Heavy Rifle | 19 | 2.40 / 3.10 s | auto, 510 | SciFiRifle01_2 | Clip, Extruder; no handle | STRYDER |
-| STRYDER | Fast Rifle | 21 | 2.40 / 3.20 s | auto, 810 | SciFiRifle01_2 | Clip, Extruder; no handle | PANDA |
-| HAEFY | Marksman | 6 | 2.60 / 3.40 s | semi, 139 | SciFiSniperRifle01_2 | Clip, Spinners | BOOG |
-| BIGANTLER | Heavy Shotgun | 5 | 2.00 / 3.00 s | semi, 60 | SciFiShotGun02_2 | Pump, Cover, Bullet; no magazine | none |
-| REZ | Auto Shotgun | 8 | 2.75 / 3.00 s | auto, 168 | SciFiShotGun01_2 | Clip, Button; no handle | none |
-| CHOOCH | Energy LMG | 24 (heat) | never reloads: cools when it overheats | auto, 600 | SciFiGrenadeLauncher01_2 | Drum (turns a chamber a shot), sights | none |
-| APUHTHEE | Heavy Pistol | 6 | 2.10 / 2.10 s | semi, 168 | SciFiPistol02_2 | Clip, Slide | none |
-
-First person, from `PLAN_GUNS_IN_HAND.md` section 5 (the guns agent's, to be confirmed in their homework):
-
-| Gun | Pack gun | Match | Support hand | After the seat |
-|---|---|---|---|---|
-| ANAKIN | ASVal | good | handguard, ahead of the magazine | its handle |
-| PANDA | AK | good | handguard | the AK's side handle |
-| STRYDER | MX16A4 | good | handguard | the rear handle pulled |
-| HAEFY | SVD (or a Kar98K-style bolt: the owner's call) | open | handguard | its bolt or handle |
-| BIGANTLER | KXG12 | exact | on the pump | shells one by one at the gate, then a pump; a pump after each shot |
-| REZ | G3 | weak (the owner's call) | the long handguard | the G3 handle slap |
-| CHOOCH | MGX5, the hold only | hold only | ahead of the drum | none; a vent on overheating, seen by others |
-| APUHTHEE | **none chosen yet** | gap | both hands on the grip | the slide |
-
-## 2a. Each gun's equivalents, what the packs give us, and the repeats
-
-The owner, 2026-10-01: "match them to their Hyperscape and apex equivalent guns and what we have to work with for the
-assets pack ... We don't want repeats where only the skin changes".
+## 2. The ten guns, as they will be
 
 What the packs hold:
 
 - **The guns you see (Tirgames' Sci-Fi Battle Weapons):** ten gun families, each in a one-piece `_1` and a split `_2`
   build of the same shape: Rifle01, SMG01, SMG02, ShotGun01, ShotGun02, SniperRifle01, GrenadeLauncher01, Pistol01,
-  Pistol02, RocketLauncher01. Eight are worn today; **Pistol01 and RocketLauncher01 are unused.**
+  Pistol02, RocketLauncher01. With the owner's choice, **each gun wears its own**.
 - **The first-person arms (KINEMATION FPS Animation Ultimate):** twenty guns' clips (`PLAN_FIRST_PERSON_ARMS.md` section
   1): rifles AK, MX16A4, G3, ASVal; SMGs MPS5, Striker-V, PDW90; shotguns KXG12 (pump), Drake-12 (magazine); marksman
-  Mk14EBR, SVD; bolt snipers L96X, Kar98K; the LMG MGX5; pistols M1911, X18, DGL50, Kolibri, Viper-357. Only MPS5, L96X
-  and Striker-V are imported so far. These are the hands and the clips; the pack's own gun meshes are measured, not shown.
+  Mk14EBR, SVD; bolt snipers L96X, Kar98K; the LMG MGX5; pistols M1911, X18, DGL50, Kolibri, Viper-357; the RPG. Only
+  MPS5, L96X and Striker-V are imported so far. These are the hands and the clips; the pack's own gun meshes are
+  measured, not shown.
 
-Hyper Scape's guns are its Season 1 list (`RESEARCH_PHASE_12.md` 5.4); the Apex ones are our guns' own data ids.
+Hyper Scape's guns are its Season 1 list (`RESEARCH_PHASE_12.md` 5.4); the Apex ones are each gun's data id.
 
-| Our gun | Class | Apex equivalent | Hyper Scape equivalent | Model it wears | First-person pack gun |
+| Gun | Class | Apex equivalent (data id) | Hyper Scape equivalent | Model | First-person pack gun |
 |---|---|---|---|---|---|
-| USSO | Fast SMG | R-99 | Harpy (the SMG, 740 a minute) | SMG02 | MPS5 |
-| ANAKIN | Steady SMG | Alternator | Ripper (the compact automatic), nearest | SMG01 | ASVal (or MPS5, PDW90) |
-| PANDA | Heavy Rifle | VK-47 Flatline | Ripper, nearest | **Rifle01** | AK or G3 |
-| STRYDER | Fast Rifle | R-301 Carbine | Ripper, nearest | **Rifle01** | MX16A4 |
-| REZ | Auto Shotgun | EVA-8 Auto | none (Hyper Scape had one shotgun) | ShotGun01 | Drake-12 (the magazine shotgun, a closer match than the G3) |
-| BIGANTLER | Heavy Shotgun | Mastiff | Mammoth MK1 (five shells) | ShotGun02 | KXG12 |
-| HAEFY | Marksman | 30-30 Repeater | Dragonfly (the semi-auto rifle) | **SniperRifle01** | SVD or Mk14EBR |
-| BOOG | Sniper | Sentinel | Protocol V (the scoped bolt sniper) | **SniperRifle01** | L96X |
-| APUHTHEE | Heavy Pistol | Wingman | Riot One | Pistol02 | DGL50 (the heavy pistol) or Viper-357 |
-| CHOOCH | Energy LMG | L-STAR (overheats) | Hexfire (the minigun) | GrenadeLauncher01 | MGX5 |
-| (unused) | | | D-Tap (the auto-lock pistol) | Pistol01 | M1911, X18 or Kolibri |
-| (unused) | | | Skybreaker (rocket); Salvo EPL, Komodo (launchers) | RocketLauncher01 | RPG |
+| USSO (done) | Fast SMG | R-99 (r97) | Harpy | SMG02 | MPS5 |
+| ANAKIN | Steady SMG | Alternator (alternator_smg) | Ripper, nearest | SMG01 | ASVal (or PDW90) |
+| PANDA | Rifle | VK-47 Flatline (vinson) | Ripper | Rifle01 | AK (or G3) |
+| REZ | Auto Shotgun | EVA-8 Auto (shotgun) | none: Hyper Scape had one shotgun | ShotGun01 | Drake-12 |
+| BIGANTLER | Heavy Shotgun | Mastiff (mastiff) | Mammoth MK1 | ShotGun02 | KXG12 |
+| BOOG (done) | Sniper | Sentinel (sentinel) | Protocol V | SniperRifle01 | L96X |
+| CHOOCH | Energy LMG | L-STAR (lstar) | Hexfire | GrenadeLauncher01 | MGX5, the hold only |
+| APUHTHEE | Heavy Pistol | Wingman (wingman) | Riot One | Pistol02 | DGL50 (or Viper-357) |
+| **STRYDER** | **Fast Pistol** (was the Fast Rifle) | RE-45 Auto (autopistol, in our data) | D-Tap | **Pistol01** | X18 (an automatic; or M1911, Kolibri) |
+| **HAEFY** | **Launcher** (was the Marksman) | none: Apex has no rocket launcher; a new gun | Skybreaker | **RocketLauncher01** | RPG |
 
-**The repeats: two pairs, not one.** PANDA and STRYDER both wear Rifle01, and HAEFY and BOOG both wear SniperRifle01;
-each pair differs only by its skin (paidweapons.json starts them in different skins). With no repeats and only these
-models, the choices are:
+The families now: two SMGs (fast, steady), two shotguns (auto, heavy), two pistols (fast, heavy), and one each of the
+rifle, the sniper, the LMG and the launcher.
 
-1. **Eight guns:** one gun a model; one of PANDA and STRYDER and one of HAEFY and BOOG leave (BOOG is finished, so in
-   practice HAEFY), and their names with them.
-2. **Ten guns:** the two leftover models become two guns of new classes: a fast pistol on Pistol01 (Hyper Scape's
-   D-Tap), making a pistol pair with APUHTHEE as the SMGs and shotguns are pairs, and a launcher on RocketLauncher01
-   (the Skybreaker). One of each repeating pair moves to them (for example STRYDER to the fast pistol, HAEFY to the
-   launcher), so every name stays but the fast rifle and the marksman go as classes.
-3. **Nine guns:** one pair's spare leaves and the other's moves to a leftover model (for example STRYDER leaves and
-   HAEFY becomes the fast pistol or the launcher).
-4. **Ten guns, the classes kept:** a second rifle and a marksman rifle from another pack in the same style (money,
-   the owner's call).
+Today's numbers (weapons.ts resolveWeapon at fusion 0, SpeedKills' tuning) and the bought models' moving parts, read
+off each .glb:
 
-Until the owner picks, the order below stands with the repeats in it; a gun that moves to a new model is fitted on that
-model when its turn comes.
+| Gun | Magazine | Reload, round chambered / from empty | Fire | Its model's moving parts |
+|---|---|---|---|---|
+| ANAKIN | 18 | 1.90 / 2.20 s | auto, 600 a minute | Clip, Slide, Button |
+| PANDA | 19 | 2.40 / 3.10 s | auto, 510 | Clip, Extruder; no handle |
+| REZ | 8 | 2.75 / 3.00 s | auto, 168 | Clip, Button; no handle |
+| BIGANTLER | 5 | 2.00 / 3.00 s | semi, 60 | Pump, Cover (the gate), Bullet (a shell); no magazine |
+| CHOOCH | 24 shots of heat | never reloads: cools when it overheats | auto, 600 | Drum (turns a chamber a shot), sights |
+| APUHTHEE | 6 | 2.10 / 2.10 s | semi, 168 | Clip, Slide |
+| STRYDER | from the RE-45's data, to be tuned (section 5.6) | | automatic | Pistol01's parts, read at its turn |
+| HAEFY | a new launcher's, to be set (section 5.7) | | a rocket a shot | RocketLauncher01's parts, read at its turn |
 
 ## 3. The order, and why
 
 The soldier follows the first person (its reload, rack and swap keys are the first person's), so each gun is the guns
-agent's first and the character agent's right after. Both can start a gun at once: the soldier's hold, fingers,
-carries and checks need nothing from the first person; only its reload's keys wait for the first person's.
+agent's first and the character agent's right after. Both start a gun at once: the soldier's hold, fingers, carries
+and checks need nothing from the first person; only its reload's keys wait for the first person's.
 
 | # | Gun | Why here |
 |---|---|---|
 | 1 | **ANAKIN** | The nearest to the USSO in both views: a magazine ahead of the grip and a real Slide to rack (SciFiSMG01_2), a good pack match (ASVal). No new kind of reload in either view, so it proves the per-gun pipeline (the groundwork below) with the least new code. |
-| 2 | **PANDA and STRYDER** | Two of the most played guns on one bought model: one fit of the soldier's hands and carries for both. Two pack guns in first person (AK, MX16A4), so two racks. New: the model has no handle part, so where the rack's hand goes is decided once for both views (section 4). |
-| 3 | **HAEFY** | Nearly free on the soldier (BOOG's model, BOOG's fit), once the owner picks its first-person action (SVD or a bolt). Waits on that word, so it may swap places with 4. |
-| 4 | **BIGANTLER** | The exact pack match (KXG12), but the one new kind of reload in both views (shells at the gate in a loop, then a pump) and a pump after every shot. Built once the pipeline is proven on simpler guns. |
-| 5 | **REZ** | A magazine shotgun with the furthest fore-end hold of any gun (the soldier's left arm may come up short, as BOOG's did, so its hold may come back along the gun) and a weak pack match: the owner looks at the G3 first. |
-| 6 | **CHOOCH** | No reload in either view; the work is the hold of the widest gun (its drum against the chest and the left forearm), its carries and swap, and the vent on overheating, which others see too. |
-| 7 | **APUHTHEE** | The one pistol: a new kind of hold in both views (no stock, both hands on the grip, no pack pistol chosen yet), so the most new code, last. |
+| 2 | **PANDA** | The one rifle, much played. New: its model has no handle part, so where the rack's hand goes is decided once for both views (section 4); the same answer serves REZ. |
+| 3 | **BIGANTLER** | The exact pack match (KXG12), but the one new kind of reload in both views (shells at the gate in a loop, a fixed count, then a pump) and a pump after every shot. Built once the pipeline is proven. |
+| 4 | **REZ** | A magazine shotgun with the furthest fore-end hold of any gun (the soldier's left arm may come up short, as BOOG's did) and no handle part (PANDA's answer). |
+| 5 | **CHOOCH** | No reload; the hold of the widest gun (its drum against the chest and the left forearm), its carries and swap, and the overheat's vent, which others see (a new act code). |
+| 6 | **APUHTHEE and STRYDER** | The two pistols together: one new kind of hold in both views (no stock, both hands on the grip) serves both. STRYDER's move onto the RE-45's data and Pistol01 lands here. |
+| 7 | **HAEFY** | The launcher: new gameplay (a rocket and its blast) before either view can hold it, and a hold of its own (a launcher on the shoulder), so last. |
 
-The guns agent's own order put BIGANTLER first, for its exact match. What decides it: if the owner plays BIGANTLER most,
-it goes first and the pipeline is proven on it; otherwise ANAKIN first. The owner's word moves any gun up.
+The guns agent's own order once put BIGANTLER first, for its exact match; if the owner plays it most, it moves up. The
+owner's word moves any gun up.
 
 ## 4. Groundwork, once, before the first gun
 
 Both agents, agreed in a message before either builds:
 
 - **A gun's reload in the shared keys, per gun.** Today `reload` is one timeline for both guns and only the rack differs
-  (packGuns.&lt;g&gt;.rack). The eight need a gun's own: a pump's loop (BIGANTLER), a slide (APUHTHEE), none (CHOOCH). The
-  guns agent proposes the shape (for example packGuns.&lt;g&gt;.reload over the shared one, with a `style` of mag, pump or
-  none, and a pump's start, each and end shares), and the soldier reads the same.
-- **Where a rack's hand goes on a model without a handle** (both rifles, REZ): a measured spot on the bought model,
-  one per gun (the AK's handle is on the right side, the MX16A4's at the rear top, though PANDA and STRYDER share a
-  model), kept in one place both views read (paidweapons.json or fparms.json), not two places that can disagree.
+  (packGuns.&lt;g&gt;.rack). The eight need a gun's own: a pump's loop with its fixed shell count (BIGANTLER), a slide
+  (the pistols), none (CHOOCH), a rocket into the tube (HAEFY). The guns agent proposes the shape (for example
+  packGuns.&lt;g&gt;.reload over the shared one, with a `style` of mag, pump, slide, tube or none, and a loop's start,
+  each, end and count), and the soldier reads the same.
+- **Where a rack's hand goes on a model without a handle** (PANDA's Rifle01, REZ's ShotGun01): a measured spot on the
+  bought model, one per gun, kept in one place both views read (paidweapons.json or fparms.json), not two places that
+  can disagree.
 - **A gunfeel.json entry per gun** (the guns agent): its swap's out and in shares and its feel. Without it the soldier's
   swap pops the gun and has no cup (mannequin.ts swapOf).
 - **The tools and checks take a list of guns**, not the USSO and BOOG by name: figure-frames.ts, figure-hands.ts and the
   skfigure e2e (the character agent's); pack-frames.ts and the soldier e2e (the guns agent's). Adding a gun is then
   adding its id.
-- **One fit a shape on the soldier** (soldierhold.json `guns.<id>`): a gun may take another's numbers and write only
-  what differs (`guns.3030` from `guns.sentinel`, `guns.vinson` from `guns.rspn101`), so a shape is fitted once.
 - **A shot's own motion on the soldier.** In first person BOOG's gun cycles after a shot (gunfeel.json `cycle`: it
-  cants and its wheels turn) and BIGANTLER will pump; the soldier shows only a kick today. A remote's shots already reach its figure (the kick), so the figure can play a
-  per-shot cycle from them: BOOG's now, BIGANTLER's pump with it.
+  cants and its wheels turn) and BIGANTLER will pump; the soldier shows only a kick today. A remote's shots already
+  reach its figure (the kick), so the figure can play a per-shot cycle from them: BOOG's now, BIGANTLER's pump with it.
+- **The roster change** (the character agent, as it made PULSAR's on 2026-09-30, each at its gun's turn so no gun is
+  ever without its look):
+  - STRYDER onto the RE-45's data (`autopistol`), tuned into the TTK band the checks hold (tools/checks/ttk.ts), on
+    Pistol01, kind "Fast Pistol"; HAEFY onto a new launcher (below); PANDA's kind "Rifle".
+  - speedkills.json's families, lists (the bots' guns, the six default loadouts, whose Marksman and Skirmisher pairs
+    change, the Gulag's pool), tuning and notes; paidweapons.json; the README, the guides and the docs; the e2e's name
+    list.
+  - **The launcher is new gameplay:** no Apex gun to start from. A rocket that flies (projectile.ts) and bursts with a
+    blast (throwables.ts blastDamage, and the thrower-decides rule over the network), seen in flight by others, its
+    numbers from the Skybreaker's ratios (in Hyper Scape 40 a hit, full damage and area from 20 m, one in the tube),
+    held to the TTK and fusion rules the other guns are. Its feel in first person (the rocket, its trail, the burst) is
+    the guns agent's.
 
 ## 5. Each gun
 
-Each section: what is new in it, the first person's work (the guns agent's, from their plan; theirs to correct), the
-soldier's work (the character agent's), and what to look out for. Everything not named here is as the USSO and BOOG
-(the recipe in `PLAN_GUNS_IN_HAND.md` section 4 and `PLAN_SOLDIER_EIGHT_GUNS.md`'s recipe).
+Each section: what is new in it, the first person's work (the guns agent's, theirs to correct), the soldier's work (the
+character agent's), and what to look out for. Everything not named here is as the USSO and BOOG (the recipe in
+`PLAN_GUNS_IN_HAND.md` section 4 and `PLAN_SOLDIER_EIGHT_GUNS.md`'s recipe).
 
 ### 5.1 ANAKIN (alternator_smg), the Steady SMG
 
@@ -181,76 +172,80 @@ soldier's work (the character agent's), and what to look out for. Everything not
   not a hold; its magazine group may hold the procedural magazine hidden, as the USSO's did (measure drawn meshes
   only).
 
-### 5.2 PANDA (vinson) and STRYDER (rspn101), the rifles
+### 5.2 PANDA (vinson), the rifle
 
-- **New:** one soldier fit for two guns; two first-person racks on a model with no handle part.
-- **First person:** two pack guns (AK, MX16A4), each fitted; the rack spot measured on our model for each (groundwork);
-  two gunfeel entries.
-- **Soldier:** one fit (guns.vinson takes guns.rspn101's numbers, groundwork); each gun's reload keys at its own rack
-  spot; the fore-end hold 83 cm from the butt, inside the arm's reach standing (`PLAN_SOLDIER_EIGHT_GUNS.md`'s survey),
-  checked aimed on the move.
+- **New:** a model with no handle part (Rifle01: Clip and Extruder only).
+- **First person:** the AK (or the G3); its rack spot measured on our model (groundwork); its gunfeel entry.
+- **Soldier:** the hands, the trigger at the crease, the fore-end hold 83 cm from the butt, inside the arm's reach
+  standing (`PLAN_SOLDIER_EIGHT_GUNS.md`'s survey), checked aimed on the move; the carries through the stride; the
+  reload's keys at its rack spot.
 - **Look out for:** a long gun's butt plate sits 2 to 4 cm into the soldier's rigid shoulder armour at rest, as BOOG's
-  does, hidden from outside and flagged by the measure; the rifle is as long, expect the same and photograph it from
-  four sides. The Extruder part is the model's own, not a handle.
+  does, hidden from outside and flagged by the measure; photograph it from four sides. The Extruder is the model's own
+  part, not a handle.
 
-### 5.3 HAEFY (3030), the Marksman
+### 5.3 BIGANTLER (mastiff), the pump shotgun
 
-- **New:** the owner's choice of action in first person (SVD semi with a handle, or a bolt worked round by round).
-- **First person:** the chosen pack gun; HAEFY fires semi-automatic at 139 a minute with no rechamber, so whichever is
-  chosen, no bolt between shots.
-- **Soldier:** BOOG's fit as it stands (same model, same rail hold, same carries), its own reload keys for the chosen
-  action, its own reload time (2.6 / 3.4 s against BOOG's 3.0 / 4.0).
-- **Look out for:** HAEFY and BOOG must still read as different guns (the owner: "as long as each gun is different"):
-  the skins differ (B C A against A B C), the action and the fire rate differ; the per-shot cycle is BOOG's alone.
-
-### 5.4 BIGANTLER (mastiff), the pump shotgun
-
-- **New:** the one new reload in both views: no magazine, shells fed at the gate one by one (the pack's start, loop and
-  end), then a pump; and a pump after every shot.
+- **New:** the one new reload in both views: no magazine, a fixed number of shells fed at the gate one by one (the
+  pack's start, loop and end), then a pump; and a pump after every shot.
 - **First person:** the KXG12's clips (an exact match); the pump is a moving part of our model (Pump), the gate is
-  Cover and a shell is Bullet; its gunfeel entry; the reload's shape in the shared keys (groundwork).
+  Cover and a shell is Bullet; the shell count chosen to fit the reload's time, in the shared keys; its gunfeel entry.
 - **Soldier:** a pump reload in rifle.ts, the hands as the KXG12's (which hand feeds the gate and which works the pump
-  is read off its clips by the guns agent, and the soldier follows), a shell a loop, then the pump; the per-shot pump
-  from the remote's shots (groundwork). The left hand's hold is on the pump already (71 cm from the butt).
-- **Decided (the owner, 2026-10-01): a fixed number of shells.** Another player's figure plays the same fixed count
-  of shells every reload, whatever is missing, so nothing new goes over the network. The guns agent picks the count to
-  fit the reload's time, and the soldier reads it from the shared keys. A reload from empty is the loop plus a pump;
-  with a shell chambered, the loop only (the tactical rule).
+  is read off its clips by the guns agent, and the soldier follows), the same fixed count of shells, then the pump; the
+  per-shot pump from the remote's shots (groundwork). The left hand's hold is on the pump already (71 cm from the butt).
+- **Decided:** a fixed number of shells, so another player's figure needs nothing new over the network. A reload from
+  empty is the loop plus a pump; with a shell chambered, the loop only (the tactical rule).
 
-### 5.5 REZ (shotgun), the auto shotgun
+### 5.4 REZ (shotgun), the auto shotgun
 
-- **New:** the furthest fore-end hold of any gun (86 cm from the butt) and a weak pack match.
-- **First person:** the G3, if the owner keeps it; its handle slap at a measured spot (no handle part, groundwork).
+- **New:** the furthest fore-end hold of any gun (86 cm from the butt); no handle part.
+- **First person:** the Drake-12 (a magazine shotgun, the default; the G3 was the weaker match); its handle at the spot
+  PANDA's answer gives.
 - **Soldier:** the fore-end hold checked aimed on the move: if the arm comes up short it slides back along the gun, as
-  BOOG's did before its rail fit; the reload as the USSO's with the slap at its spot.
+  BOOG's did before its rail fit; the reload as the USSO's with the rack at its spot.
 - **Look out for:** the auto shotgun's parts all sit at the gun's origin in the pack (paidgun.ts hingeParts finds their
   hinges off their geometry); its Button is not a handle.
 
-### 5.6 CHOOCH (lstar), the energy LMG
+### 5.5 CHOOCH (lstar), the energy LMG
 
 - **New:** no reload: it cools when it overheats (speedkills.json `_ammo`). The widest gun, 24 cm at its drum.
-- **First person:** the MGX5's hold only; a vent gesture on overheating (decided, and seen by others); the drum already
-  turns a chamber a shot.
+- **First person:** the MGX5's hold only; the vent gesture while it cools; the drum already turns a chamber a shot.
 - **Soldier:** the hold and the carries round the drum (the drum against the chest and the left forearm at rest, in
-  the sprint, the air and the swap carries, measured through the stride); the support hand ahead of the drum; no reload
-  keys.
-- **Decided (the owner, 2026-10-01): other players see the overheat.** The vent the first person plays when CHOOCH
-  overheats is shown on the figure too: a new act code, appended (an older page shows nothing rather than the wrong
-  thing), sent while the gun cools, and the figure's own vent on the first person's shares.
+  the sprint, the air and the swap carries, measured through the stride); the support hand ahead of the drum; the vent
+  on the figure on the first person's shares, from a new act code sent while the gun cools (appended, so an older page
+  shows nothing rather than the wrong thing).
 - **Look out for:** the drum is the gun's widest part and sits where the left forearm passes; check every carry, not
-  only the hold. `PLAN_SOLDIER_EIGHT_GUNS.md` gave it a drum change, which it does not have.
+  only the hold.
 
-### 5.7 APUHTHEE (wingman), the heavy pistol
+### 5.6 APUHTHEE (wingman) and STRYDER (autopistol), the pistols
 
-- **New:** the only pistol: no stock, so neither view's long-gun hold applies; no pack pistol chosen in first person.
-- **First person:** choose the pistol's arms and clips (which pistol, if any, the bought arms' packs have is the guns
-  agent's homework); the slide (Slide) and the magazine (Clip, in the grip); its reload is 2.1 s from empty
-  and with a round chambered alike, so the slide's release on an empty one is a look, not a time.
-- **Soldier:** a pistol stance in rifle.ts (the gun placed by the hands and the look, not a shoulder pocket; both hands
-  on the grip; aimed at the eye; carried low for a sprint and the swap); the reload from the grip's bottom; the swap's
-  cup round a small gun; the punch with the pistol in the right hand.
-- **Look out for:** the old pistol hold (mannequin.ts, the clips' own) must give way only for this gun on the soldier;
-  the legacy game's figures keep theirs.
+- **New:** the pistols: no stock, so neither view's long-gun hold applies; both hands on the grip (the default); no pack
+  pistol imported yet. STRYDER changes from a rifle to the fast pistol here (the roster change, groundwork).
+- **First person:** the pistols' arms and clips: the DGL50 (or Viper-357) for APUHTHEE, the X18 (an automatic; or the
+  M1911, Kolibri) for STRYDER; each one's slide (Slide) and magazine (Clip, in the grip); gunfeel entries. APUHTHEE's
+  reload is 2.1 s from empty and with a round chambered alike, so the slide's release on an empty one is a look, not a
+  time.
+- **Soldier:** a pistol stance in rifle.ts, for both (the gun placed by the hands and the look, not a shoulder pocket;
+  both hands on the grip; aimed at the eye; carried low for a sprint and the swap); the reload from the grip's bottom;
+  the swap's cup round a small gun; the punch with the pistol in the right hand.
+- **STRYDER's numbers**, proposed at its turn: the RE-45's data tuned into the band tools/checks/ttk.ts holds a pistol
+  to (APUHTHEE was tuned the same way), a fast automatic against APUHTHEE's heavy single shots, as the SMG and shotgun
+  pairs are.
+- **Look out for:** the old pistol hold (mannequin.ts, the clips' own) must give way only for these guns on the
+  soldier; the legacy game's figures keep theirs. Pistol01's parts are read off its .glb at its turn.
+
+### 5.7 HAEFY, the launcher
+
+- **New:** everything: a new gun in the game (groundwork), a launcher held on the shoulder in both views, a rocket that
+  flies and bursts, its reload a rocket into the tube.
+- **First person:** the RPG's arms and clips (the hold and its reload); the rocket, its trail and the burst; a gunfeel
+  entry.
+- **Soldier:** a launcher stance (on the right shoulder, both hands on it, aimed along the look); its carries; the reload
+  (a rocket into the tube) on the first person's shares; the swap's cup round a long tube; the punch.
+- **HAEFY's numbers**, proposed at its turn: from the Skybreaker's ratios (a rocket a shot, its burst's full damage and
+  area, a slow reload), held to the TTK and fusion rules; how far its blast reaches and whether it hurts its own holder
+  are the owner's to approve.
+- **Look out for:** the launcher's length on the shoulder against the head and the left arm in every carry; others must
+  see the rocket in flight, not only its burst.
 
 ## 6. Done, for a gun
 
@@ -293,22 +288,20 @@ Both bars hold, each agent's own:
 - **The bought files deploy from main** (`npm run fps deploy` builds from apex-range): a re-bake made in a worktree is
   copied into apex-range's public/models/paid.
 
-## 8. For the owner to say
+## 8. For the owner's final approval
 
-- Go, and in this order (section 3)? Any gun you play most moves up.
-- HAEFY's first-person action: the SVD (semi, a handle) or a bolt worked round by round.
-- REZ on the G3, or another pack gun.
-- ~~CHOOCH: a vent gesture when it overheats, seen by others too?~~ **Yes, seen by others** (2026-10-01).
-- APUHTHEE: one hand or two, and which pistol arms in first person.
-- ~~BIGANTLER: how many shells the loop shows when others see it reload~~ **A fixed count** (2026-10-01).
-- **The repeats (section 2a):** eight guns, ten with two new classes on the unused models, nine, or ten with new models
-  bought.
+- Go, and in this order (section 3)?
+- The defaults in section 0: the pistols in both hands, REZ on the Drake-12, PANDA labelled Rifle.
+- STRYDER's and HAEFY's numbers, shown at their turn (sections 5.6 and 5.7), including whether HAEFY's blast hurts its
+  own holder.
 
 ## 9. Each agent's homework, before its first gun
 
 - **The guns agent:** for each gun, its pack gun's clips (the reload, the rack, the hold), the match against our model,
   the rack spot where there is no handle, and a gunfeel entry; the reload's per-gun shape in the shared keys (section
-  4); a pistol for APUHTHEE. Write it into section 5's first-person lines and section 2's second table.
+  4); the pistols' and the RPG's arms and clips; the launcher's first-person feel. Write it into section 5's
+  first-person lines.
 - **The character agent:** for each gun, the trigger guard against the glove, the fore-end hold's reach standing and on
-  the move, the carries round the gun's widest part, and the soldier's reload kinds still to build (the pump, the
-  pistol); the tools and checks over a list (section 4). Write it into section 5's soldier lines.
+  the move, the carries round the gun's widest part, and the soldier's new kinds of hold and reload (the pump, the
+  pistol, the launcher); the tools and checks over a list (section 4); the roster change and the launcher's gameplay
+  (section 4). Write it into section 5's soldier lines.
