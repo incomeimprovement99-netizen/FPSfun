@@ -8055,3 +8055,26 @@ two views agree, as the reload does.
   - verify; rules.
 - **Left, measured:** with the cup, the right hand 14 mm into BOOG's grip for a moment as it leaves it and as it comes
   back, and BOOG's stock 22 mm into the outstretched right arm as BOOG builds.
+
+## Milestone 372 — The sprint's carry fitted through the stride, and the soldier's full frame sweep for a new day
+
+The day's sweep of the soldier's frames (tools/figure-frames.ts, both guns, every sequence, front and right, close),
+against the last day's:
+- **Flagged frames:** 757 to 702, with a new sequence of 68 (the tactical reload); like for like, 634.
+- **Better:** the USSO's reload (42 to 18), its double hop (25 to 4), BOOG's melee (82 to 54), its rest (12 to 2), its
+  throw (20 to 2) and its heal (6 to 0).
+- **Worse:** BOOG's run (6 to 14) and sprint (14 to 20), whose carry Milestone 366 had fitted at one moment of the stride.
+
+- **The sprint's carry measured through the stride** (tools/figure-solve.ts lowered): four moments of a sprint's stride
+  and two of a run's, not one settled moment. Searched so for BOOG, its own `lowered` 199 to 193:
+  - the gun turned 17 degrees down, 2.5 left and rolled 5.5;
+  - its left hand kept where it held the gun. A search that could move the hand slid it 6 cm along the gun and the palm
+    11 mm off it, which the search's cost did not see.
+- **BOOG, after it:** run 14 to 6 flagged frames, sprint 20 to 4 (two frames still put the stock 35 mm into the right
+  forearm), jump 40 to 34, double jump 68 to 58.
+- **The USSO:** its carry searched the same way, 105 to 66, no frame of it flagged before or after; its left hand 1 mm
+  into the gun, from 3.
+- **Checked:** the skfigure e2e (50); the frames of every moving sequence of both guns; verify; rules.
+- **Left, measured:** BOOG's hops and jumps still put its long stock 20 to 40 mm into the chest and the right forearm
+  while the body tucks, mostly hidden by that arm. A carry's own elbow was tried for it at Milestone 367 and does not
+  clear it.
