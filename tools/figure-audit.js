@@ -11,6 +11,7 @@
 //   by the models' inner shells).
 // - gunIn: how deep the gun is inside the body (torso, arms, head; the hands are handIn's), mm, by the same rule the
 //   other way round: the gun's points against the body's skin, which is skinned, so it is taken afresh every frame.
+//   Both count only the gun as drawn: a point ahead of its phase's front (a swap, a reload's magazine) is not there.
 // - __triggerGap(i): how far the right index finger is from the trigger, mm, where a finger pulls one: the skin round its
 //   last joint's crease (within 11 mm of the joint, on the last and middle phalanges), not its tip. The owner,
 //   2026-09-30: "the trigger finger should be more through the hold and still touching the trigger. right now its like
@@ -245,6 +246,19 @@
     }
     if (!out.armed || opts.depth === false) return out;
 
+    // A point of the gun is drawn only behind its phase's front (phase.ts): ahead of it, in a swap or a reload, the gun is
+    // not there to clip a hand or the body. Its magazine's on the magazine's sweep, the rest on the gun's.
+    const sweepOf = (o) => {
+      for (let q = o; q && q !== gun; q = q.parent) if (q.name === "mag") return mq.magSweep;
+      return mq.gunSweep;
+    };
+    const drawn = (o, p) => {
+      const S = sweepOf(o);
+      if (!S || S.phase.value >= 0.999) return true;
+      if (S.phase.value <= 0.001) return false;
+      const s = S.radial && S.radial.value > 0.5 ? p.distanceTo(S.center.value) / S.radius.value : p.clone().sub(S.origin.value).dot(S.dir.value) / S.len.value;
+      return s <= S.phase.value * (1 + S.band.value + S.jag.value);
+    };
     // the gun's parts, each with its triangles in its own frame
     const parts = [];
     gun.updateMatrixWorld(true);
@@ -296,7 +310,7 @@
         if (!gunBox.containsPoint(wp)) continue;
         const fm = FINGER.exec(boneOf[k]);
         for (const pt of parts) {
-          if (!pt.box.containsPoint(wp)) continue;
+          if (!pt.box.containsPoint(wp) || !drawn(pt.o, wp)) continue;
           const lp = wp.clone().applyMatrix4(pt.inv);
           far.d = Infinity;
           const d = depthIn(pt.g, [lp.x, lp.y, lp.z], 0.03 / pt.scale, pt.flip, null, far) * pt.scale;
@@ -352,6 +366,7 @@
         const pos = pt.o.geometry.getAttribute("position");
         for (let k = 0; k < pos.count; k += 4) {
           v.set(pos.getX(k), pos.getY(k), pos.getZ(k)).applyMatrix4(pt.o.matrixWorld);
+          if (!drawn(pt.o, v)) continue;
           const d = depthIn(bg, [v.x, v.y, v.z], 0.04, 1, hit);
           if (d > 0.01) {
             const key = `${pt.o.name || "part"}>${bodyBone[hit.t / 9]}`;

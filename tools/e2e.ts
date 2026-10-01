@@ -7847,8 +7847,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // bugging in any frame"): the USSO phases out over its holster, BOOG in over its draw from when it comes, the model
   // changing between, the magazine with the gun. The new gun appeared whole in the hands at the swap's middle
   {
-    type Ph = { gun: number; mag: number; id: string; shown: boolean };
-    const ph = `(() => { const f = window.__range.labFigures()[0].figure; return { gun: f.gunSweep.phase.value, mag: f.magSweep.phase.value, id: f.gunId, shown: !!f.gunObject?.visible }; })()`;
+    type Ph = { gun: number; mag: number; id: string; shown: boolean; lowered: number; keys: string; radial: number | null };
+    const ph = `(() => { const f = window.__range.labFigures()[0].figure; return { gun: f.gunSweep.phase.value, mag: f.magSweep.phase.value, id: f.gunId, shown: !!f.gunObject?.visible, lowered: f.lowered, keys: f.rifleOut?.keys ?? "", radial: f.gunSweep.radial ? f.gunSweep.radial.value : null }; })()`;
     const SWC = gunfeelCfg.guns as unknown as Record<string, { swap: { out: number[]; in: number[] } }>;
     const H = (await ev<{ holster: number }>(page, `window.__range.weaponTimes("r97")`)).holster;
     const D = (await ev<{ deploy: number }>(page, `window.__range.weaponTimes("sentinel")`)).deploy;
@@ -7874,6 +7874,15 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       "the soldier's swap is the first person's: the USSO phases out over its holster, the magazine with it, BOOG phases in over its draw from nothing, whole by its end",
       held.gun === 1 && mid(going) && going.id === "r97" && gone.gun < 0.01 && arrived.id === "sentinel" && arrived.gun === 0 && mid(coming) && coming.id === "sentinel" && whole.gun === 1 && after.gun === 1 && after.mag === 1 && [held, going, gone, arrived, coming, whole].every((x) => x.shown),
       JSON.stringify({ held, going, gone, arrived, coming, whole, after })
+    );
+    // and held as the first person's is: in place when its style is the cup (fparms.json swap.style; the owner, 2026-09-30,
+    // "keep the hands where they are while the weapon phases ... like the streetfighter haduken"), the gun up, both hands
+    // off it and cupped round it, the phase out from its edges where the sweep has one; else lowered across the body
+    const cupOn = (fparmsCfg as { swap?: { style?: string } }).swap?.style === "cup";
+    check(
+      cupOn ? "the soldier's swap is in place, as the first person's cup: the gun stays up, both hands cupped round it through the swap's middle, back on BOOG's holds after" : "the soldier's swap lowers the gun across the body, as the first person's swap (not the cup) does",
+      cupOn ? [going, gone, arrived, coming].every((x) => x.lowered < 0.05 && (x.radial === null || x.radial === 1)) && [gone, arrived].every((x) => /l:cup/.test(x.keys) && /r:cup/.test(x.keys)) && !/cup/.test(after.keys) : gone.lowered > 0.5,
+      JSON.stringify({ cupOn, going, gone, arrived, coming, after })
     );
   }
   // A double jump: the knees come up and go back down, the body upright (the owner, 2026-09-30, of the flip it first was:

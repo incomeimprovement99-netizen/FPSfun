@@ -278,8 +278,10 @@ Game) or `?game=legacy`, and everything below this section describes it.
   at the magazine as it slides out and phases away, a new one phases in and seats,
   then the handle is racked or the bolt worked, in the gun's own reload time.
   Others see which reload it is: from empty, that whole one; with a round still
-  in the chamber, the shorter tactical reload, as your own view plays it. The
-  Loadouts tab shows the same soldier.
+  in the chamber, the shorter tactical reload, as your own view plays it. A swap
+  phases the gun out and the next one in, as your own view does; when your own
+  view swaps in place, theirs does too, the gun staying up while the hands open
+  round it as it goes. The Loadouts tab shows the same soldier.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and

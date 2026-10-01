@@ -42,7 +42,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -803,7 +803,7 @@ export interface MannequinImpulses {
   stagger?: number;
   /** when the head was last hit, on the figure's clock */
   headHit?: number;
-  /** how many double jumps it has made (FigurePose.airJumps): a change is a new one, and a flip */
+  /** how many double jumps it has made (FigurePose.airJumps): a change is a new one, and its knee lift */
   airJumps?: number;
   /** an emote in progress (emotes.ts): its angles, already eased */
   emote?: EmotePose | null;
@@ -1306,6 +1306,8 @@ export class MannequinFigure {
           const cy = (g.min.y + g.max.y) / 2;
           this.gunNear.set(0, cy, g.max.z);
           this.gunFar.set(0, cy, g.min.z);
+          g.getCenter(this.gunMid);
+          this.gunRadius = Math.max(0.01, g.getSize(new THREE.Vector3()).length() / 2);
         }
         phaseMeshes(gun, (mesh) => (under(mesh, mag) ? this.magSweep : paid && under(mesh, paid) ? this.gunSweep : null));
       }
@@ -1358,8 +1360,16 @@ export class MannequinFigure {
   private readonly gunSweep: PhaseSweep = newSweep(feelCfg.phase);
   private readonly gunNear = new THREE.Vector3();
   private readonly gunFar = new THREE.Vector3();
+  /** the bought model's middle, gun-local, and half its size corner to corner: a swap in place phases out from and to it */
+  private readonly gunMid = new THREE.Vector3();
+  private gunRadius = 0.3;
   /** when the gun in the hands last changed (setGun), on the figure's clock */
   private gunAt = -1;
+
+  /** a swap in place, as the first person's (rifle.ts SWAP_CUP): a signature gun held as a rifle, being swapped */
+  private cupSwap(p: FigurePose): boolean {
+    return p.act === "swap" && !!SWAP_CUP && !!this.rifle && !!this.mount && !!swapOf(this.gunId);
+  }
   private seatKick = 0;
   /**
    * Where the gun ended up, for the checks: how far behind the shoulder its
@@ -1749,7 +1759,7 @@ export class MannequinFigure {
         upper = this.rifle && this.mount ? "Pistol_Aim_Neutral" : "Pistol_Reload";
         upperRate = 1;
         once = !(this.rifle && this.mount);
-      } else if (p.act === "swap" || ((lower === "Sprint_Loop" || sprintJump) && (p.ads ?? 0) < 0.3)) {
+      } else if ((p.act === "swap" && !this.cupSwap(p)) || ((lower === "Sprint_Loop" || sprintJump) && (p.ads ?? 0) < 0.3)) {
         upper = "Pistol_Idle_Loop";
         upperRate = 1;
       } else {
@@ -1846,12 +1856,21 @@ export class MannequinFigure {
       // (the hold goes on for a gun on its way back, not yet shown: the hands go to where it will be)
       const holding = shown || (this.gunComing && wantGun);
       // SpeedKills' soldier: the rifleman's hold (rifle.ts), the stance, the gun and both hands, on top of the clips
-      const low = holding && !full && !rifleMelee && (p.act === "swap" || upper === "Pistol_Idle_Loop") ? 1 : 0;
+      // (a swap in place keeps the gun where it is: SWAP_CUP)
+      const cup = this.cupSwap(p);
+      const low = holding && !full && !rifleMelee && ((p.act === "swap" && !cup) || upper === "Pistol_Idle_Loop") ? 1 : 0;
       this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
       // a melee's swing: where it is, and which of a string (a string held on the act goes on from one to the next)
       const swung = rifleMelee ? (this.t - this.actAt) / soldierHold.melee.time : -1;
       const melee = swung >= 0 ? { u: swung % 1, swing: this.meleeSwing + Math.floor(swung) } : null;
-      this.carryW.swap += ((p.act === "swap" ? 1 : 0) - this.carryW.swap) * Math.min(1, dt * REACH.lower);
+      this.carryW.swap += ((p.act === "swap" && !cup ? 1 : 0) - this.carryW.swap) * Math.min(1, dt * REACH.lower);
+      // how far into the swap, as the first person's shares of it run: the gun going away over its holster (the first
+      // half, held at its middle until the next comes), the one coming over its draw from when it came (the second)
+      const SW = swapOf(this.gunId);
+      const second = this.gunAt >= this.actAt;
+      const swapR = SW && p.act === "swap" ? (second ? Math.min(1, 0.5 + (0.5 * (this.t - this.gunAt)) / swapSeconds(this.gunId).deploy) : Math.min(0.5, (0.5 * (this.t - this.actAt)) / swapSeconds(this.gunId).holster)) : null;
+      const K = SWAP_CUP;
+      const cupState = cup && K && swapR !== null ? { w: smooth(K.off[0], K.off[1], swapR) * (1 - smooth(K.back[0], K.back[1], swapR)), second, carry: smooth(K.carry[0], K.carry[1], swapR) } : null;
       // (the air's own carry as fast as the jump's clip tucks the body, 0.18 s: at the carry's own pace the body was
       // tucked round a gun still in the sprint's carry, 39 mm into the belly, as the feet left the ground)
       this.carryW.air += ((sprintJump ? 1 : 0) - this.carryW.air) * Math.min(1, dt * AIR_CARRY);
@@ -1866,7 +1885,7 @@ export class MannequinFigure {
       const tactical = !empty && !!tacticalOf(this.gunId);
       const reloadU = shown && !full && p.act === "reload" ? Math.min(1, (this.t - this.actAt) / reloadSeconds(this.gunId, empty)) : null;
       const reload = reloadU !== null && tactical ? (reloadU * reloadSeconds(this.gunId, false)) / reloadSeconds(this.gunId, true) : reloadU;
-      this.rifleOut = holdRifle(this.root, this.bones, this.rifle, { id: this.gunId, gun: this.gun!, mount: this.mount, grip: this.grip, support: this.supportHold(), butt: this.butt, parts: this.reloadParts ?? undefined, sight: this.sight ?? undefined }, {
+      this.rifleOut = holdRifle(this.root, this.bones, this.rifle, { id: this.gunId, gun: this.gun!, mount: this.mount, grip: this.grip, support: this.supportHold(), butt: this.butt, parts: this.reloadParts ?? undefined, sight: this.sight ?? undefined, mid: this.gunMid }, {
         pitch: (Math.max(-70, Math.min(70, p.pitch)) * DEG * (aimed ? 1 : 0)),
         ads: aimed ? (p.ads ?? 0) : 0,
         lowered: this.lowered,
@@ -1881,27 +1900,30 @@ export class MannequinFigure {
         kick: Math.max(fx.kick, this.seatKick * soldierHold.reload.seatKick),
         melee,
         mem: this.rifleMem,
+        cup: cupState,
       });
       this.lastReload = reload;
       if (this.rifleOut.seated) this.seatKick = 1;
       this.seatKick = Math.max(0, this.seatKick - dt / soldierHold.reload.seatKickFor);
-      // a swap's phase, as the first person's shares of it run: the gun going away out over its holster (the first half),
-      // the new one in over its draw from when it came (the second); whole once the swap is over
-      const SW = swapOf(this.gunId);
-      let swapPh = 1;
-      if (SW && p.act === "swap") {
-        const T = swapSeconds(this.gunId);
-        swapPh = this.gunAt >= this.actAt ? smooth(SW.in[0], SW.in[1], 0.5 + (0.5 * (this.t - this.gunAt)) / T.deploy) : 1 - smooth(SW.out[0], SW.out[1], (0.5 * (this.t - this.actAt)) / T.holster);
-      }
+      // a swap's phase: the gun going away out over the first half, the new one in over the second; whole once it is over
+      const swapPh = SW && swapR !== null ? (second ? smooth(SW.in[0], SW.in[1], swapR) : 1 - smooth(SW.out[0], SW.out[1], swapR)) : 1;
       const G = this.gunSweep;
       G.phase.value = swapPh;
       G.time.value = this.t;
+      // In place, as the first person's (phase.ts radial): out from the gun's edges in, and the next from its middle out.
+      // (Read where the sweep has it: phase.ts before the guns agent's radial phase runs only along the gun.)
+      const R = G as unknown as { radial?: { value: number }; center?: { value: THREE.Vector3 }; radius?: { value: number } };
+      if (R.radial) R.radial.value = cup ? 1 : 0;
       if (swapPh < 1 && this.gun) {
         this.gun.updateWorldMatrix(true, false);
         G.origin.value.copy(this.gunNear).applyMatrix4(this.gun.matrixWorld);
         G.dir.value.copy(this.gunFar).applyMatrix4(this.gun.matrixWorld).sub(G.origin.value);
         G.len.value = Math.max(1e-4, G.dir.value.length());
         G.dir.value.normalize();
+        if (R.center && R.radius) {
+          R.center.value.copy(this.gunMid).applyMatrix4(this.gun.matrixWorld);
+          R.radius.value = this.gunRadius * this.gun.getWorldScale(new THREE.Vector3()).x;
+        }
       }
       // the magazine's phase: along it from its top, as far as the reload has it (1 whole); in a swap the gun's, with it
       const mag = this.reloadParts?.mag;
@@ -1912,6 +1934,12 @@ export class MannequinFigure {
         S.origin.value.copy(G.origin.value);
         S.dir.value.copy(G.dir.value);
         S.len.value = G.len.value;
+        const M = S as unknown as typeof R;
+        if (M.radial && R.radial) M.radial.value = R.radial.value;
+        if (M.center && M.radius && R.center && R.radius) {
+          M.center.value.copy(R.center.value);
+          M.radius.value = R.radius.value;
+        }
       } else if (mag && S.phase.value < 1) {
         mag.updateMatrixWorld(true);
         // out from the top down its length; in the way gunfeel.json phase.magIn says, as the first person's ("up": from its

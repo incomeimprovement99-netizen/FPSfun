@@ -242,6 +242,18 @@ export function tacticalOf(id: string): { back: number[] } | null {
 /** the first person's reload shares (fparms.json reload), for the checks */
 export const FIRST_PERSON_RELOAD = FPR;
 
+/**
+ * The swap in place, when the first person's is (fparms.json swap, style "cup"; the owner, 2026-09-30, of a swap: "keep
+ * the hands where they are while the weapon phases / disintegrates from the outside going in ... then the new weapon
+ * should materialize from the inside out", the hands closing round it "like the streetfighter haduken"): its shares of
+ * the swap, read as the first person's are. `off` the hands come off, `back` they go back on, `carry` they go from the
+ * gun going away's cup to the next one's; per hand, when it moves (`moveAt`) and when it turns and bends (`shape`),
+ * `turn` of the way to face the gun's middle and `curl` of the way to a fist. Null for any other style.
+ */
+type CupShares = { off: number[]; back: number[]; carry: number[]; moveAt: Record<Side, number[]>; shape: Record<Side, number[]>; turn: number; curl: number };
+const SWAP_FP = (fp as unknown as { swap?: { style?: string; cup?: CupShares } }).swap;
+export const SWAP_CUP: CupShares | null = SWAP_FP?.style === "cup" ? (SWAP_FP.cup ?? null) : null;
+
 /** each hand's keys through a reload ([share, key], none for a hand that holds as it always does), and the gun's turn */
 interface ReloadPlan {
   left: Array<[number, string]>;
@@ -483,7 +495,12 @@ export interface RifleState {
    * (a slide, a climb, a zipline) takes the arms, and the gun goes with the right hand rather than hanging at the
    * shoulder with no hand on it.
    */
-  mem?: { gunInHand: THREE.Matrix4 | null };
+  mem?: { gunInHand: THREE.Matrix4 | null; cup?: Partial<Record<Side, { at: THREE.Vector3; face: THREE.Vector3; fwd: THREE.Vector3 }>> };
+  /**
+   * A swap in place (SWAP_CUP): `w` how far the hands are into their cup round the gun (0 on it, 1 cupped), `second`
+   * once the gun coming is the one held, and `carry` how far the hands are from the last gun's cup to this one's
+   */
+  cup?: { w: number; second: boolean; carry: number } | null;
 }
 
 /** what a gun offers a reload, gun-local: its magazine (the group a reload takes out) and where the hand takes it, and the charging handle or bolt */
@@ -509,6 +526,8 @@ export interface RifleGun {
   grip: THREE.Vector3;
   support: THREE.Vector3;
   butt: THREE.Vector3;
+  /** gun-local: the middle of the gun's own model, what a swap's cupped hands close round */
+  mid?: THREE.Vector3;
 }
 
 /** what the hold did this frame, for the checks: how far short each arm fell, and a magazine let go this frame */
@@ -630,7 +649,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   local.decompose(g.mount.position, g.mount.quaternion, g.mount.scale);
   g.mount.updateMatrixWorld(true);
   // 4. the fingers closed round the hold, each joint about its own bend axis, from its bind pose
-  const closeFingers = (side: Side, w: number, at: ReloadFingers | null = null): void => {
+  const closeFingers = (side: Side, w: number, at: ReloadFingers | null = null, cupK = 0): void => {
     const F0 = C.fingers[side];
     // in a reload a key's own (reload.keys.<key>.fingers; the point's are reload.pointFingers), blended in with the hand's
     // way to it: at the USSO's charging handle and on BOOG's bolt the hold's grip closed the fingers into the receiver
@@ -638,7 +657,10 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     const over = (K: Record<string, number[]> | null): typeof F0 => (K ? (Object.fromEntries(Object.entries(F0).map(([f, a]) => [f, a.map((x, i) => K[f]?.[i] ?? x)])) as typeof F0) : F0);
     const A = at ? over(own(at.from)) : F0;
     const B = at && at.t > 0 ? over(own(at.to)) : A;
-    const F = A === B ? A : (Object.fromEntries(Object.entries(A).map(([f, a]) => [f, a.map((x, i) => x + (((B as Record<string, number[]>)[f]?.[i] ?? x) - x) * at!.t)])) as typeof F0);
+    const F1 = A === B ? A : (Object.fromEntries(Object.entries(A).map(([f, a]) => [f, a.map((x, i) => x + (((B as Record<string, number[]>)[f]?.[i] ?? x) - x) * at!.t)])) as typeof F0);
+    // a swap's cup: every finger bent `curl` of the way from open to a fist (soldierhold.json swapCup.fist), its swing kept
+    const fist = (C as { swapCup?: { fist: Record<string, number[]> } }).swapCup?.fist;
+    const F = cupK > 0 && fist && SWAP_CUP ? (Object.fromEntries(Object.entries(F1).map(([f, a]) => [f, a.map((x, i) => (i < 3 && fist[f] ? x + (fist[f][i] * SWAP_CUP.curl - x) * cupK : x))])) as typeof F0) : F1;
     for (const f of FINGERS)
       for (let j = 1; j <= 3; j++) {
         const fb = b[`${f}_0${j}_${side}`];
@@ -680,6 +702,33 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     }
     const reloadAt = u !== null && g.parts && plan ? reloadTarget(side === "l" ? plan.left : plan.right, u, C, g, gunQ, b, figQ, handDrop) : null;
     const { at: palmAt, fwd, face } = reloadAt ?? aimAt;
+    // A swap in place: the hand comes off its hold `move` (the gun's frame, metres: soldierhold.json swapCup), its palm
+    // turned toward the gun's middle; the gun coming takes the hands on from where the last one's cup left them
+    let cupK = 0;
+    if (s.cup && SWAP_CUP && s.cup.w > 0 && !reloadAt) {
+      const K = SWAP_CUP;
+      const CC = (C as { swapCup?: { move: Record<Side, number[]> } }).swapCup;
+      const gs = g.gun.getWorldScale(new THREE.Vector3()).x;
+      cupK = smooth(s.cup.w, K.shape[side][0], K.shape[side][1]);
+      // (off its hold on purpose, as a reload's key: the checks hold it to the cup, not the hold)
+      if (s.cup.w > 0.02) out.keys = `${out.keys ? `${out.keys} ` : ""}${side}:cup`;
+      if (CC) palmAt.add(new THREE.Vector3(...CC.move[side]).multiplyScalar(gs * smooth(s.cup.w, K.moveAt[side][0], K.moveAt[side][1])).applyQuaternion(gunQ));
+      const mid = g.gun.localToWorld((g.mid ?? g.grip.clone().add(g.support).multiplyScalar(0.5)).clone());
+      face.lerp(mid.sub(palmAt).normalize(), K.turn * cupK).normalize();
+      const mem = s.mem;
+      if (mem) {
+        const kept = (mem.cup ??= {});
+        const toFig = fig.getWorldQuaternion(new THREE.Quaternion()).invert();
+        if (!s.cup.second) kept[side] = { at: fig.worldToLocal(palmAt.clone()), face: face.clone().applyQuaternion(toFig), fwd: fwd.clone().applyQuaternion(toFig) };
+        else if (kept[side] && s.cup.carry < 1) {
+          const k = kept[side]!;
+          const fromFig = toFig.clone().invert();
+          palmAt.copy(fig.localToWorld(k.at.clone()).lerp(palmAt, s.cup.carry));
+          face.copy(k.face.clone().applyQuaternion(fromFig).lerp(face, s.cup.carry).normalize());
+          fwd.copy(k.fwd.clone().applyQuaternion(fromFig).lerp(fwd, s.cup.carry).normalize());
+        }
+      }
+    } else if (s.mem?.cup && !s.cup) s.mem.cup = undefined;
     (out.palm ??= {})[side] = palmAt.clone();
     if (reloadAt) out.keys = `${out.keys ? `${out.keys} ` : ""}${side}:${reloadAt.key}`;
     const hr = rig.hands[side];
@@ -701,7 +750,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       const roll = twistAbout(rel, tw.along);
       twb.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(tw.along, roll * C.twist * w).multiply(tw.bind));
     }
-    closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w, reloadAt?.fingers ?? null);
+    closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w, reloadAt?.fingers ?? null, cupK);
   }
   // held in both hands in the stance: remember where the gun is in the right hand, for when a full-body clip takes the arms
   if (s.mem && handR && s.stance > 0.99 && s.wR > 0.99 && u === null) {

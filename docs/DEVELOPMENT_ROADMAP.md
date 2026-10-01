@@ -8019,3 +8019,39 @@ base 28: nothing to climb for in the part of the map built to be fought over.
   wall, so they draw what they drew.
 - **Checked** (`tools/checks/sk-neon.ts`): loot on every floor of the tower over its lobby, 5 items and more each (6 to 10
   a floor; seen failing with the floors left off the halls: 0 to 3). verify and rules; e2e `loot` and `br`.
+
+## Milestone 371 — The soldier's swap in place, as the first person's cup, and which reload a player made checked between two pages
+
+The owner, to the guns agent, of the first person's swap (2026-09-30): "keep the hands where they are while the weapon
+phases / disintegrates from the outside going in and gets replaced by the new weapon ... then the new weapon should
+materialize from the inside out", the hands closing round it "like the streetfighter haduken". The guns agent is
+landing that as fparms.json swap style "cup", with a radial phase in phase.ts. The figure others see follows it, so the
+two views agree, as the reload does.
+
+- **The swap in place** (rifle.ts SWAP_CUP, mannequin.ts cupSwap; soldierhold.json swapCup): when the first person's
+  style is the cup, the figure's swap has no lowered carry. The gun stays up in the hold while it phases out and the
+  next phases in. Each hand comes off its hold and turns its palm toward the gun's middle, its fingers bent toward a
+  fist, on the first person's own shares of the swap (fparms.json swap.cup: off, back, carry, moveAt, shape, turn,
+  curl). In the second half the hands go from the last gun's cup to the next one's. The moves are the figure's own,
+  searched over both swaps' moments: the right hand 10 cm out (the most before its wrist bends past 60 degrees), the
+  left 6 cm down. Where phase.ts has the radial phase, the figure's runs out from the gun's edges in and the next from its
+  middle out, its magazine with it. Until the guns agent's push, main's style is "throw" and the figure keeps the
+  lowered carry it had.
+- **The frames judge the gun as drawn** (figure-audit.js): a point of the gun ahead of its phase's front is not drawn,
+  so it no longer counts as a hand in the gun or the gun in the body. A cup's hands report a `cup` key, as a reload's
+  do, so a hand off its hold on purpose is not flagged.
+- **Which reload a player made, between two pages** (tools/e2e.ts duel, p2p): the guest reloads from empty and then
+  with half a magazine; the host must see the first as a reload from empty (act code 9) and the second as the
+  tactical one. Seen failing with the local player's act sent without the flag.
+- **Tools:** live-shots.ts films another player's tactical reload and one from empty; figure-solve.ts `START=` begins
+  a search from given numbers.
+- **Checked:**
+  - the skfigure e2e, 50 checks, with main's fparms.json and with the guns agent's pending cup in place: in place
+    (the gun up, both hands cupped through the middle, back on BOOG's holds after), or lowered when not the cup. Seen
+    failing with the figure's cup switched off;
+  - the duel and p2p e2e sections (the p2p's rejoin test passed on its rerun alone; the duel's two jitter-smoothness
+    checks failed twice with the machine at 97% CPU and passed in the run between);
+  - the frames of both swaps with the cup on;
+  - verify; rules.
+- **Left, measured:** with the cup, the right hand 14 mm into BOOG's grip for a moment as it leaves it and as it comes
+  back, and BOOG's stock 22 mm into the outstretched right arm as BOOG builds.

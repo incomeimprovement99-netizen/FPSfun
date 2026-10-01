@@ -186,6 +186,48 @@
       0.1
     ]
   },
+  "_swapCup": "The swap in place, when the first person's is (fparms.json swap style \"cup\": rifle.ts SWAP_CUP; the owner, 2026-09-30, the gun phasing out \"from the outside going in\" and the next \"from the inside out\", the hands closing round it \"like the streetfighter haduken\"): the gun stays up in the hands' hold, with no lowered carry, and each hand comes off its hold `move` metres in the gun's frame (+x its right, +y up, +z back), turned toward the gun's middle and its fingers bent toward `fist` (degrees, as fingers) by the first person's own curl, over the first person's own shares of the swap (fparms.json swap.cup). The first person's moves are view metres; these are the figure's, searched over both swaps' moments (each hand's skin in the gun as drawn, the wrists): the right hand 10 cm out, the most before its wrist bends past 60 degrees, and the left 6 cm down, where nearer ones left the cupped fingers in the gun.",
+  "swapCup": {
+    "move": {
+      "l": [
+        0,
+        -0.06,
+        0.03
+      ],
+      "r": [
+        0.1,
+        -0.05,
+        0.05
+      ]
+    },
+    "fist": {
+      "index": [
+        90,
+        100,
+        70
+      ],
+      "middle": [
+        90,
+        100,
+        70
+      ],
+      "ring": [
+        90,
+        100,
+        70
+      ],
+      "pinky": [
+        90,
+        100,
+        70
+      ],
+      "thumb": [
+        40,
+        40,
+        40
+      ]
+    }
+  },
   "_air": "The lowered carry in the air, for a jump out of a sprint (which keeps the sprint's carry, mannequin.ts), over the sprint's: the jump's clip tucks the body forward, and carried the sprint's way the USSO was 39 mm into the belly. A gun's own in guns, found by tools/figure-solve.ts air. The swap's and the air's are blended in over the carry's own time, so a swap begun mid-sprint does not snap the gun from one to the other.",
   "air": {
     "down": 26,
