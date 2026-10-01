@@ -18,6 +18,8 @@ import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay } from 
 import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
 import { padOnto } from "./padsolve";
+import { emissive } from "./geo";
+import { ZIPLINES } from "./traversal";
 import neonCfg from "../config/neonmap.json";
 import SOLIDS from "../config/neon/neonmap.solids.json";
 
@@ -215,6 +217,19 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   }
   // respawn beacons at street crossings, one a side of the centre
   const beacons = (G.beacons as number[][]).map(([x, z]) => ({ x: x + BR_X, z: z + BR_Z }));
+
+  // the glass lifts (neon-layout.ts rules.lifts): each a vertical rope up out of its glass car over the Sky Ring's
+  // footbridge to over its island's landing, ridden as any zipline is (interact, up or down), lit in its island's colour
+  // from the car's floor to just over the rope's top
+  for (const q of (neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }> }).lifts ?? []) {
+    const [a, b] = q.rope;
+    const top = b[1] + 0.3;
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, top - q.floor, 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));
+    rope.position.set(a[0], (q.floor + top) / 2, a[2]);
+    rope.name = "neon:lift";
+    root.add(rope);
+    ZIPLINES.push({ a: new THREE.Vector3(a[0] + BR_X, a[1], a[2] + BR_Z), b: new THREE.Vector3(b[0] + BR_X, b[1], b[2] + BR_Z) });
+  }
 
   holdForDecay(root, RANGE_SOLIDS.slice(first));
   root.updateMatrixWorld(true);

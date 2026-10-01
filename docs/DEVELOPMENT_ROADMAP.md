@@ -8424,3 +8424,33 @@ The owner, 2026-10-01: "replace the most fitting remaining gun name with Apuhthe
   - the Loadouts tab shows APUHTHEE;
   - the speedkills e2e (100); verify; rules.
 - **The roster now:** nine of the ten guns carry the owner's own names; NOVA is the one that does not.
+
+## Milestone 386 — The glass lifts: from the Sky Ring up to every High City island
+
+Phase 28.8's fourth phase, as the owner answered the plan: "glass lifts yes, one on each deck's face beside its inner
+jump pad". The four High City islands could be reached from the street only by their jump pads, and the Sky Ring
+stopped at the Loop.
+
+- **A lift to each island** (rules.lifts, tools/neon-layout.ts). From the Sky Ring's outer edge a footbridge, the pack's,
+  crosses the Loop straight along the island's pad line, beside the pad, onto one of High City's floating decks. The
+  pack's glass lift car stands on it with its roof, lamp and door glass left out. A rope rises out of the car up the
+  island's face, lit in the island's own colour (north cyan, east magenta, south amber, west green). At its top a
+  landing of floating decks at the islands' bridges' height runs from beside the rope over the island's fence, and the
+  pack's small stair at its end steps down to the roof, as High City's bridges end.
+- **Ridden as a zipline.** Interact facing the rope and it carries you up at the vertical zip's 480 hu/s, 23.7 m in
+  about two seconds. At the top it puts you forward onto the landing; from the landing, interact facing it and it
+  carries you down into the car. The ropes are the game's own ziplines (src/game/neonmap.ts), so every zip rule holds
+  on them: jump or crouch off part way, three grabs in the air.
+- **Where they stand** is measured off each island: its face flat for the car's width, 11 m to the side of the pad on
+  the two round-lobed islands and 12.5 m on the other two, toward the shorter crossing.
+- **Found by the checks.** A street lamp's head stood across the north footbridge at head height; the street's lamps
+  and cars now keep clear of each bridge and car. The landing's deck collided half a metre short of where it is drawn
+  (the collision's cell), 0.34 m from the north rope, and threw a rider off at 23 m; the landing now starts 1.2 m past
+  the rope, a body and a whole cell clear.
+- The map: 2.39 million triangles, 23,600 more than version 17 (the four lifts' bridges, cars, landings and stairs); its files lo 82 MB, hi 138 MB, max 335 MB. **Its files are version 18.**
+- **Checked** (`tools/checks/sk-neon.ts`, 4 new checks, each by a player's own movement on all four lifts): walked
+  from the Sky Ring across the footbridge into the car (seen failing with the lamp over the north bridge); ridden up
+  and put off onto the landing (seen failing with the landing 0.7 m from the rope: the north and west riders thrown off
+  at 23 m); walked off the landing down its stair onto the roof; ridden down from the landing into the car. The Sky
+  Ring's rail check now knows each bridge's gap in its outer fence. verify and rules; e2e `loot` and `br`.
+  Photographed from the ring, the street, inside a car looking up, and on a landing.

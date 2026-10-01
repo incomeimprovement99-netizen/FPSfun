@@ -1116,6 +1116,69 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
   console.log(`the base: ${walls} bays of wall, ${stairs.length} stairs, ${atria} atria, ${baseBridges.length} bridges to the Sky Ring, ${fences} lengths of rail`);
 }
 
+// The glass lifts (rules.lifts, the master plan's phase 4): from the Sky Ring to each High City island's roof, beside
+// its inner jump pad. A footbridge, the pack's, from the ring's outer edge out across the Loop, straight along the pad's
+// line `side` metres to one side of it, onto one of High City's floating decks with the pack's glass lift car on it
+// (its roof, lamp and door left out: the bridge is its way in, and a rope rises out of it). The rope, a vertical
+// zipline, from the car's floor to over the island's fence; at its top a walk of `decks` floating decks at the islands'
+// bridges' height from beside the rope over the fence, and the pack's small stair at its end down to the roof, as
+// High City's bridges end. Placed where the island's face is flat for the car's width (measured, rules.lifts.at)
+const liftRing: Pt[] = [];
+const lifts: Array<{ id: string; rope: number[][]; floor: number; ring: number[]; car: number[]; out: number[]; land: number[]; foot: number[]; colour: string }> = [];
+{
+  const L = R.lifts;
+  const SR = R.skyring;
+  const B = R.bridges;
+  // (the platform and the landing are High City's floating deck, measured for its bridges: its deck at its own zero)
+  if (piece(L.platform).key !== piece(B.straight.piece).key || piece(L.landing).key !== piece(B.straight.piece).key) throw new Error("the lifts' decks are not the bridges' floating deck, whose deck height is measured");
+  const hang = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).ziplineHang * 0.0254;
+  const [bridge, platform, landing, stair] = [piece(L.bridge).row, piece(L.platform).row, piece(L.landing).row, piece(L.stairs).row];
+  for (const q of (cfg.pads ?? []) as Array<{ id: string; face: number[]; out: number[] }>) {
+    const at = L.at[q.id];
+    if (!at) continue;
+    // the pad's own frame: u toward the middle, v to one side; the walk out from the ring along w
+    const u: Pt = [q.out[0], q.out[1]];
+    const v: Pt = [-u[1], u[0]];
+    const w: Pt = [-u[0], -u[1]];
+    const line: Pt = [q.face[0] + v[0] * at.side, q.face[1] + v[1] * at.side];
+    // where the line meets the ring's outer edge (|line + u t| = r1, the near crossing)
+    const b2 = 2 * (line[0] * u[0] + line[1] * u[1]), c2 = line[0] * line[0] + line[1] * line[1] - SR.r1 * SR.r1;
+    const t = (-b2 - Math.sqrt(b2 * b2 - 4 * c2)) / 2;
+    const ring: Pt = [line[0] + u[0] * t, line[1] + u[1] * t];
+    // along w from `onRing` on the ring: the bridge, then the platform, the car and the rope in its middle
+    const along = (k: number): Pt => [ring[0] + w[0] * k, ring[1] + w[1] * k];
+    const [b0, len, plat] = [-L.onRing, bridge.size![0], platform.size![0]];
+    const car = along(b0 + len + plat / 2);
+    // (each piece's own +x along w: x' = c x + s z, z' = -s x + c z, so (c, -s) = w)
+    const yaw = +((Math.atan2(-w[1], w[0]) * 180) / Math.PI).toFixed(2);
+    placeTurned("c-lifts", L.bridge, ...along(b0 + len / 2), yaw, "o", L.deck - bridge.min![1]);
+    placeTurned("c-lifts", L.platform, ...car, yaw, "o", L.deck - B.straight.deck);
+    placeAt("c-lifts", "c", L.car.piece, car[0], car[1], yaw, "o", { y: L.deck, without: L.car.without });
+    // the rope: from a body's hang over the car's floor to the hang over the landing's, `over` above it
+    const [rx, rz] = [+car[0].toFixed(3), +car[1].toFixed(3)];
+    const rope = [[rx, +(L.deck + hang + L.under).toFixed(3), rz], [rx, +(B.deck + hang + L.over).toFixed(3), rz]];
+    // the landing: decks along w from `gap` past the rope, at the bridges' height, and the stair down at its end
+    const from = plat / 2 + L.gap;
+    for (let k = 0; k < at.decks; k++) placeTurned("c-lifts", L.landing, ...along(b0 + len + from + landing.size![0] * (k + 0.5)), yaw, "o", B.deck - B.straight.deck);
+    const end = along(b0 + len + from + landing.size![0] * at.decks);
+    // (the stair climbs along its own `up`, toward the landing: -w; its top edge at the landing's end)
+    const up = B.stairs.up as number[];
+    const syaw = [0, 90, 180, 270].find((y) => {
+      const [x2, z2] = rotY(y, up[0], up[1]);
+      return Math.abs(x2 + w[0]) < 1e-6 && Math.abs(z2 + w[1]) < 1e-6;
+    })!;
+    const tMid: Pt = [up[0] ? (up[0] > 0 ? stair.max![0] : stair.min![0]) : (stair.min![0] + stair.max![0]) / 2, up[1] ? (up[1] > 0 ? stair.max![2] : stair.min![2]) : (stair.min![2] + stair.max![2]) / 2];
+    const [ox, oz] = rotY(syaw, tMid[0], tMid[1]);
+    add("c-lifts", "c", [piece(L.stairs).key, +(end[0] - ox).toFixed(3), +(B.roof - stair.min![1]).toFixed(3), +(end[1] - oz).toFixed(3), syaw, "o"] as Place);
+    const runs = Math.max(stair.size![0], stair.size![2]);
+    const foot = along(b0 + len + from + landing.size![0] * at.decks + runs + 0.5);
+    liftRing.push(ring);
+    lifts.push({ id: q.id, rope, floor: L.deck, ring: ring.map((x) => +x.toFixed(3)), car: car.map((x) => +x.toFixed(3)), out: w, land: along(b0 + len + from + 1).map((x) => +x.toFixed(3)), foot: foot.map((x) => +x.toFixed(3)), colour: L.colours[q.id] });
+  }
+  cfg.lifts = lifts;
+  console.log(`the glass lifts: ${lifts.length}, ropes ${lifts.map((q) => `${q.id} ${(q.rope[1][1] - q.rope[0][1]).toFixed(1)} m`).join(", ")}`);
+}
+
 // The Sky Ring (rules.skyring): the walkway storey, a ring of the pack's floor slab round the tower's plaza at the
 // height of a building's first floor, its deck baked as a true circle (tools/import-neon.ts). Here its fences, the
 // pack's elegant glass one along both edges, a length along each chord; and its stairs, the pack's double flight up from
@@ -1146,6 +1209,8 @@ const skyStairs: Pt[] = [];
       const pb: Pt = [Math.cos(b) * r, Math.sin(b) * r];
       const mid: Pt = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
       if (open && [...exits, ...baseBridges].some((e) => Math.hypot(e[0] - mid[0], e[1] - mid[1]) < SR.fence.gap)) continue;
+      // (and the outer edge where each glass lift's bridge leaves it)
+      if (!open && liftRing.some((e) => Math.hypot(e[0] - mid[0], e[1] - mid[1]) < SR.fence.gap)) continue;
       const d: Pt = [pb[0] - pa[0], pb[1] - pa[1]];
       // (its own x along the chord from its pivot)
       add("c-skyring", "c", [piece(SR.fence.piece).key, +pa[0].toFixed(3), SR.deck, +pa[1].toFixed(3), +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2), "o"] as Place);
@@ -1170,6 +1235,13 @@ const skyStairs: Pt[] = [];
     !skyStairs.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < r + 5) &&
     Math.max(Math.abs(x), Math.abs(z)) < CV.inside - 3 &&
     !pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + D.padClear) &&
+    // (nor under a glass lift's footbridge or by its car: a street lamp's head stood across the bridge at a head's height)
+    !lifts.some((q) => {
+      const [ax, az, bx, bz] = [q.ring[0], q.ring[1], q.car[0], q.car[1]];
+      const l2 = (bx - ax) ** 2 + (bz - az) ** 2;
+      const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / l2));
+      return Math.hypot(x - ax - (bx - ax) * t, z - az - (bz - az) * t) < r + R.lifts.clear;
+    }) &&
     !kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r);
   for (const st of STREETS)
     for (const side of [-1, 1]) {

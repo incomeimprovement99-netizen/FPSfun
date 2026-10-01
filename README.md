@@ -1318,7 +1318,9 @@ a row of 3 to 6 storey buildings follows each of its curved streets, and in its
 outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
 and two more up its own stairs, its roof a climb. A walkway one floor up, the Sky
 Ring, circles the tower's plaza inside the Loop, glass-railed, with a stair up
-from the plaza on each side. The tower stands on a wide base filling the plaza,
+from the plaza on each side, and a footbridge from it to a glass lift beside each
+High City island: interact facing its rope and it carries you up the island's side
+to a landing onto the roof, or back down. The tower stands on a wide base filling the plaza,
 built of the tower's own pieces (`tools/neon-base.ts` bakes its floors to meet
 the tower's on every storey): three storeys and a roof, shops on the ground
 floor, offices on the first, a warehouse hall on the second, four stairs between

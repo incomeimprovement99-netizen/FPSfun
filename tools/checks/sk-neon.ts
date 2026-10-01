@@ -350,7 +350,9 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     // (and where the base's bridges meet it, rules.base)
     // (the fence is left open by the chord: within its gap of a bridge, a chord's half length on)
     const nearExit = K2.exits.some(([ex, ez]) => Math.hypot(ex - Math.cos(a) * SR.r0, ez - Math.sin(a) * SR.r0) < SR.fence.gap + 0.5) || ((cfg as unknown as { base?: { bridges: number[][] } }).base?.bridges ?? []).some(([ex, ez]) => Math.hypot(ex - Math.cos(a) * SR.r0, ez - Math.sin(a) * SR.r0) < SR.fence.gap + 1.3);
-    if (!railed(x, z, Math.cos(a), Math.sin(a), (SR.r1 - SR.r0) / 2 + 0.3)) open.push(`out at ${((a * 180) / Math.PI).toFixed(0)} deg`);
+    // (and its outer edge where each glass lift's bridge leaves it, rules.lifts)
+    const nearLift = ((cfg as unknown as { lifts?: Array<{ ring: number[] }> }).lifts ?? []).some(({ ring: [ex, ez] }) => Math.hypot(ex - Math.cos(a) * SR.r1, ez - Math.sin(a) * SR.r1) < SR.fence.gap + 1.3);
+    if (!nearLift && !railed(x, z, Math.cos(a), Math.sin(a), (SR.r1 - SR.r0) / 2 + 0.3)) open.push(`out at ${((a * 180) / Math.PI).toFixed(0)} deg`);
     if (!nearExit && !railed(x, z, -Math.cos(a), -Math.sin(a), (SR.r1 - SR.r0) / 2 + 0.3)) open.push(`in at ${((a * 180) / Math.PI).toFixed(0)} deg`);
   }
   const tops = K2.exits.filter(([ex, ez]) => {
@@ -588,6 +590,69 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   const fights = CP.measured?.coplanar;
   const fought = (fights ?? []).reduce((a, q) => a + q.m2, 0);
   check("the base and the tower: no floor drawn over another in the same plane", fights !== undefined && fought <= CP.coplanar.most, fights === undefined ? "not measured: bake the map" : fights.length ? `${fought.toFixed(1)} m2: ${fights.slice(0, 6).map((q) => `${q.m2} m2 at ${q.y} m (${q.at.join(", ")})`).join("; ")}` : "none");
+}
+
+// The glass lifts (rules.lifts): each by a player's own movement, from the Sky Ring across its footbridge into its glass
+// car; in the car, interact facing the rope, ridden up and put off at its top onto the landing at the bridges' height;
+// from the landing down its stair onto the island's roof; and from the landing, interact facing the rope, ridden down
+// into the car again
+{
+  const LF = (cfg as unknown as { lifts?: Array<{ id: string; rope: number[][]; floor: number; ring: number[]; car: number[]; out: number[]; land: number[]; foot: number[] }> }).lifts ?? [];
+  const BRG = (cfg.rules as unknown as { bridges: { deck: number; roof: number } }).bridges;
+  const facing = (d: number[]) => (Math.atan2(-d[0], -d[1]) * 180) / Math.PI;
+  /** a player stood at (x, z) on a floor at y facing `yaw`: walking forward `walk` metres and stopping, or with `zip`
+   * interact pressed once settled and left to ride and land; where it comes to rest, and whether it rode */
+  const go = (x: number, z: number, y: number, yaw: number, o: { walk?: number; zip?: boolean; pitch?: number }) => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(x + BR_X, y + 0.05, z + BR_Z, yaw);
+    p.pitch = o.pitch ?? 0;
+    let [t, tap, rode, walking] = [1000, false, false, !!o.walk];
+    const input = { held: (a: Action) => walking && a === "forward", pressedNow: (a: Action) => tap && a === "interact" };
+    const step = () => p.update(1 / 144, (t += 1 / 144), input, 0, 1, false);
+    if (o.walk) {
+      for (let i = 0; i < 144 * 8 && Math.hypot(p.pos.x - BR_X - x, p.pos.z - BR_Z - z) < o.walk; i++) step();
+      // (a run is quick: off a landing's end it is in the air at the stair's foot, so it stops and comes to rest)
+      walking = false;
+      for (let i = 0; i < 144; i++) step();
+    } else {
+      for (let i = 0; i < 36; i++) step();
+      tap = true;
+      step();
+      tap = false;
+      rode = p.stance === "zip";
+      // (the ride, then the fall off its end, and a moment to stand)
+      for (let i = 0; i < 144 * 6 && p.stance === "zip"; i++) step();
+      for (let i = 0; i < 144 * 2; i++) step();
+    }
+    return { rode, x: p.pos.x - BR_X, y: p.pos.y, z: p.pos.z - BR_Z };
+  };
+  const SRK = cfg.rules.skyring as { deck: number };
+  const across = LF.map((q) => {
+    const [w, r] = [q.out, q.ring];
+    const from = [r[0] - w[0] * 1.5, r[1] - w[1] * 1.5];
+    const want = Math.hypot(q.car[0] - from[0], q.car[1] - from[1]) - 0.8;
+    const e = go(from[0], from[1], SRK.deck, facing(w), { walk: want });
+    return { q, ok: Math.abs(e.y - q.floor) < 0.15 && Math.hypot(e.x - q.car[0], e.z - q.car[1]) < 1.2, e };
+  });
+  check("the glass lifts: each walked into from the Sky Ring across its footbridge", LF.length === 4 && across.every((a) => a.ok), across.map((a) => `${a.q.id} ${a.ok ? "in" : `stopped at (${a.e.x.toFixed(1)}, ${a.e.y.toFixed(2)}, ${a.e.z.toFixed(1)})`}`).join("; "));
+  const ups = LF.map((q) => {
+    const w = q.out;
+    const e = go(q.car[0] - w[0] * 0.6, q.car[1] - w[1] * 0.6, q.floor, facing(w), { zip: true });
+    // (put off onto the landing, past the rope along the way out)
+    const past = (e.x - q.car[0]) * w[0] + (e.z - q.car[1]) * w[1];
+    return { q, ok: e.rode && Math.abs(e.y - BRG.deck) < 0.15 && past > 0.5, e, past };
+  });
+  check("the glass lifts: each ridden up from its car and put off onto its landing", LF.length === 4 && ups.every((a) => a.ok), ups.map((a) => `${a.q.id} ${a.e.rode ? "rode" : "did not grab"}, off at ${a.e.y.toFixed(2)} m ${a.past.toFixed(1)} m past the rope`).join("; "));
+  const downs = LF.map((q) => {
+    const w = q.out;
+    // (a metre on past the stair's foot, so it is not left standing on the stair's last step)
+    const toFoot = go(q.land[0], q.land[1], BRG.deck, facing(w), { walk: Math.hypot(q.foot[0] - q.land[0], q.foot[1] - q.land[1]) + 1 });
+    const back = go(q.land[0], q.land[1], BRG.deck, facing([-w[0], -w[1]]), { zip: true });
+    // (down at the roof's level, off the landing 0.9 m over it: the roof itself has plates a step high on it)
+    return { q, roof: Math.abs(toFoot.y - BRG.roof) < 0.3, toFoot, ok: back.rode && Math.abs(back.y - q.floor) < 0.15 && Math.hypot(back.x - q.car[0], back.z - q.car[1]) < 1.3, back };
+  });
+  check("the glass lifts: each landing walked off down its stair onto the island's roof", LF.length === 4 && downs.every((a) => a.roof), downs.map((a) => `${a.q.id} at ${a.toFoot.y.toFixed(2)} m`).join("; "));
+  check("the glass lifts: each ridden down from its landing into its car", LF.length === 4 && downs.every((a) => a.ok), downs.map((a) => `${a.q.id} ${a.back.rode ? "rode" : "did not grab"}, off at ${a.back.y.toFixed(2)} m, ${Math.hypot(a.back.x - a.q.car[0], a.back.z - a.q.car[1]).toFixed(1)} m from the rope`).join("; "));
 }
 
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it
