@@ -73,10 +73,33 @@ export function cutOut(pos: ArrayLike<number>, nrm: ArrayLike<number> | null, uv
   return out;
 }
 
-/** a mesh's triangles turned to face the other way, normals reversed: a one-sided shell seen from inside too */
-export function backFaces(pos: ArrayLike<number>, nrm: ArrayLike<number> | null, uv: ArrayLike<number> | null, idx: ArrayLike<number>): Part {
-  const out: Part = { pos: Array.from(pos), uv: uv ? Array.from(uv) : new Array((pos.length / 3) * 2).fill(0), nrm: nrm ? Array.from(nrm).map((v) => -v) : new Array(pos.length).fill(0), idx: [] };
-  for (let k = 0; k + 2 < idx.length; k += 3) out.idx.push(idx[k], idx[k + 2], idx[k + 1]);
+/**
+ * A one-sided shell's upright triangles (on the map: |normal.y| under `upright`) turned to face the other way, normals
+ * reversed, so it is seen from inside too. Upright alone: a corner piece's bottom cap turned over lay face up on the
+ * floor it stands on, and the two fought for the same pixels; the floors and ceilings close the shell top and bottom.
+ * With `scale`, mapped by the metre along the wall (the axis its face runs along) and down it, for a material of the
+ * builder's choosing, the piece's own UVs suiting only its own; without, the piece's own UVs (its glass, kept as glass)
+ */
+export function backFaces(pos: ArrayLike<number>, nrm: ArrayLike<number> | null, uv: ArrayLike<number> | null, idx: ArrayLike<number>, upright: number, scale: number | null): Part {
+  const out: Part = { pos: [], uv: [], nrm: [], idx: [] };
+  for (let k = 0; k + 2 < idx.length; k += 3) {
+    const tri = [idx[k], idx[k + 2], idx[k + 1]];
+    const [a, b, c] = tri.map((i) => [pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]]);
+    const [u, v] = [[b[0] - a[0], b[1] - a[1], b[2] - a[2]], [c[0] - a[0], c[1] - a[1], c[2] - a[2]]];
+    const f = [u[1] * v[2] - u[2] * v[1], u[2] * v[0] - u[0] * v[2], u[0] * v[1] - u[1] * v[0]];
+    const len = Math.hypot(f[0], f[1], f[2]);
+    if (len < 1e-12 || Math.abs(f[1]) / len >= upright) continue;
+    const alongZ = Math.abs(f[0]) > Math.abs(f[2]);
+    for (const i of tri) {
+      out.pos.push(pos[i * 3], pos[i * 3 + 1], pos[i * 3 + 2]);
+      if (nrm) out.nrm.push(-nrm[i * 3], -nrm[i * 3 + 1], -nrm[i * 3 + 2]);
+      else out.nrm.push(f[0] / len, f[1] / len, f[2] / len);
+      if (scale !== null) out.uv.push((alongZ ? pos[i * 3 + 2] : pos[i * 3]) * scale, -pos[i * 3 + 1] * scale);
+      else out.uv.push(uv ? uv[i * 2] : 0, uv ? uv[i * 2 + 1] : 0);
+    }
+    const n = out.pos.length / 3;
+    out.idx.push(n - 3, n - 2, n - 1);
+  }
   return out;
 }
 
@@ -234,4 +257,143 @@ export function escapes(tris: Array<[number[], number[], number[]]>, points: num
       if (best > far) out.push([p[0], p[1], +((t * 180) / Math.PI).toFixed(0)]);
     }
   return { rays, out };
+}
+
+/**
+ * How much drawn surface lies face up in the same plane as another material's, over the same ground: two surfaces at one
+ * height fight for the same pixels, first one and then the other showing through as the view moves (a corner piece's
+ * bottom cap, turned over to be seen from inside, lay on the floor it stands on). The face-up triangles flat to the
+ * millimetre whose middles are in `box` (x0, x1, z0, z1), each laid at its height on a grid of `cell` metres by its
+ * material; the area two materials both cover at a height, the middle of its biggest patch (x, z) and the patches'
+ * count, and the two materials most of it is with the pieces they are of (`who`), the most first
+ */
+export function coplanar(tris: Iterable<{ p: number[][]; mat: string; who: string }>, box: number[], cell: number): Array<{ y: number; m2: number; at: number[]; patches: number; mats: string[] }> {
+  const [x0, x1, z0, z1] = box;
+  const byY = new Map<number, Array<{ p: number[][]; mat: string; who: string }>>();
+  for (const t of tris) {
+    const [a, b, c] = t.p;
+    if (Math.max(a[1], b[1], c[1]) - Math.min(a[1], b[1], c[1]) > 0.001) continue;
+    // (the y of (b - a) x (c - a): over nothing, face up)
+    if ((b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]) < 1e-9) continue;
+    const [mx, mz] = [(a[0] + b[0] + c[0]) / 3, (a[2] + b[2] + c[2]) / 3];
+    if (mx < x0 || mx > x1 || mz < z0 || mz > z1) continue;
+    const y = Math.round(a[1] * 1000);
+    (byY.get(y) ?? byY.set(y, []).get(y)!).push(t);
+  }
+  const out: Array<{ y: number; m2: number; at: number[]; patches: number; mats: string[] }> = [];
+  // (cells' middles a hair off the grid, so one on a shared edge is not in both triangles)
+  const off = cell * 0.0137;
+  for (const [y, list] of byY) {
+    if (new Set(list.map((t) => t.mat)).size < 2) continue;
+    const mats = new Map<string, number>();
+    const whos = new Map<string, number>();
+    const first = new Map<number, number>();
+    const firstWho = new Map<number, number>();
+    const both = new Map<number, string>();
+    const nx = Math.ceil((x1 - x0) / cell) + 1;
+    for (const t of list) {
+      const id = mats.get(t.mat) ?? mats.set(t.mat, mats.size).get(t.mat)!;
+      const who = whos.get(t.who) ?? whos.set(t.who, whos.size).get(t.who)!;
+      const [a, b, c] = t.p;
+      const side = (px: number, pz: number, q: number[], r: number[]) => (q[0] - px) * (r[2] - pz) - (r[0] - px) * (q[2] - pz);
+      const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - x0) / cell)), i1 = Math.min(nx - 1, Math.ceil((Math.max(a[0], b[0], c[0]) - x0) / cell));
+      const j0 = Math.max(0, Math.floor((Math.min(a[2], b[2], c[2]) - z0) / cell)), j1 = Math.ceil((Math.max(a[2], b[2], c[2]) - z0) / cell);
+      for (let j = j0; j <= j1; j++)
+        for (let i = i0; i <= i1; i++) {
+          const [px, pz] = [x0 + (i + 0.5) * cell + off, z0 + (j + 0.5) * cell + off];
+          const s1 = side(px, pz, a, b), s2 = side(px, pz, b, c), s3 = side(px, pz, c, a);
+          if (!((s1 > 0 && s2 > 0 && s3 > 0) || (s1 < 0 && s2 < 0 && s3 < 0))) continue;
+          const k = j * nx + i;
+          const was = first.get(k);
+          if (was === undefined) (first.set(k, id), firstWho.set(k, who));
+          else if (was !== id && !both.has(k)) both.set(k, `${was},${firstWho.get(k)}|${id},${who}`);
+        }
+    }
+    if (!both.size) continue;
+    const pairs = new Map<string, number>();
+    for (const pair of both.values()) pairs.set(pair, (pairs.get(pair) ?? 0) + 1);
+    // the patches, cells joined side to side: the biggest one's middle says where to look
+    const seen = new Set<number>();
+    let [patches, most, at] = [0, 0, [0, 0]];
+    for (const k0 of both.keys()) {
+      if (seen.has(k0)) continue;
+      patches++;
+      const todo = [k0];
+      seen.add(k0);
+      let [n, sx, sz] = [0, 0, 0];
+      while (todo.length) {
+        const k = todo.pop()!;
+        n++;
+        sx += x0 + ((k % nx) + 0.5) * cell;
+        sz += z0 + (Math.floor(k / nx) + 0.5) * cell;
+        for (const q of [k + 1, k - 1, k + nx, k - nx]) if (both.has(q) && !seen.has(q)) (seen.add(q), todo.push(q));
+      }
+      if (n > most) [most, at] = [n, [+(sx / n).toFixed(2), +(sz / n).toFixed(2)]];
+    }
+    const top = [...pairs].sort((p, q) => q[1] - p[1])[0][0].split("|").map((q) => q.split(",").map(Number));
+    const [names, people] = [[...mats.keys()], [...whos.keys()]];
+    out.push({ y: y / 1000, m2: +(both.size * cell * cell).toFixed(2), at, patches, mats: top.map(([i, w]) => `${names[i]} (${people[w]})`) });
+  }
+  return out.sort((p, q) => q.m2 - p.m2);
+}
+
+/**
+ * Coplanar's fights settled: at each height, the flat triangles (to the millimetre, middles in `box`) laid on a grid of
+ * `cell` metres by material, and a face-up one is to be left out when every cell of it is covered by a face-down one
+ * (something sits on it: a wall's top under the wall stacked on it, never seen) or by another material face up, one
+ * with more face-up area at that height in the box (the floor a strip or a wall's top lies on, the ground a tile lies
+ * on). Returns the keys (`key` of each triangle) to leave out
+ */
+export function settle(tris: Iterable<{ p: number[][]; mat: string; key: number }>, box: number[], cell: number): Set<number> {
+  const [x0, x1, z0, z1] = box;
+  const byY = new Map<number, Array<{ p: number[][]; mat: string; key: number; area: number }>>();
+  const downAt = new Map<number, Array<number[][]>>();
+  for (const t of tris) {
+    const [a, b, c] = t.p;
+    if (Math.max(a[1], b[1], c[1]) - Math.min(a[1], b[1], c[1]) > 0.001) continue;
+    const up = (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]);
+    if (Math.abs(up) < 1e-9) continue;
+    const [mx, mz] = [(a[0] + b[0] + c[0]) / 3, (a[2] + b[2] + c[2]) / 3];
+    if (mx < x0 || mx > x1 || mz < z0 || mz > z1) continue;
+    const y = Math.round(a[1] * 1000);
+    if (up < 0) (downAt.get(y) ?? downAt.set(y, []).get(y)!).push(t.p);
+    else (byY.get(y) ?? byY.set(y, []).get(y)!).push({ ...t, area: up / 2 });
+  }
+  const out = new Set<number>();
+  const off = cell * 0.0137;
+  const nx = Math.ceil((x1 - x0) / cell) + 1;
+  // a triangle's cells: those whose middles are in it
+  const cellsIn = (p: number[][]): number[] => {
+    const [a, b, c] = p;
+    const side = (px: number, pz: number, q: number[], r: number[]) => (q[0] - px) * (r[2] - pz) - (r[0] - px) * (q[2] - pz);
+    const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - x0) / cell)), i1 = Math.min(nx - 1, Math.ceil((Math.max(a[0], b[0], c[0]) - x0) / cell));
+    const j0 = Math.max(0, Math.floor((Math.min(a[2], b[2], c[2]) - z0) / cell)), j1 = Math.ceil((Math.max(a[2], b[2], c[2]) - z0) / cell);
+    const ks: number[] = [];
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const [px, pz] = [x0 + (i + 0.5) * cell + off, z0 + (j + 0.5) * cell + off];
+        const s1 = side(px, pz, a, b), s2 = side(px, pz, b, c), s3 = side(px, pz, c, a);
+        if ((s1 > 0 && s2 > 0 && s3 > 0) || (s1 < 0 && s2 < 0 && s3 < 0)) ks.push(j * nx + i);
+      }
+    return ks;
+  };
+  for (const [y, list] of byY) {
+    const area = new Map<string, number>();
+    for (const t of list) area.set(t.mat, (area.get(t.mat) ?? 0) + t.area);
+    const down = new Set<number>();
+    for (const p of downAt.get(y) ?? []) for (const k of cellsIn(p)) down.add(k);
+    if (area.size < 2 && !down.size) continue;
+    // each triangle's cells, and each cell's materials
+    const cellsOf = list.map((t) => cellsIn(t.p));
+    const mats = new Map<number, Set<string>>();
+    list.forEach((t, n) => {
+      for (const k of cellsOf[n]) (mats.get(k) ?? mats.set(k, new Set()).get(k)!).add(t.mat);
+    });
+    list.forEach((t, n) => {
+      const mine = area.get(t.mat)!;
+      const ks = cellsOf[n];
+      if (ks.length && ks.every((k) => down.has(k) || [...mats.get(k)!].some((m) => m !== t.mat && area.get(m)! > mine))) out.add(t.key);
+    });
+  }
+  return out;
 }

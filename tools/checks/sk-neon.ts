@@ -582,6 +582,12 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   check("the tower: its new floors each the inside of its shell, the same on every storey", F.length === TW.shaft.length && Math.min(...F) > 300 && Math.max(...F) - Math.min(...F) < 0.05 * Math.max(...F), `${F.join(", ")} m2`);
   const S = TW.measured?.seal ?? [];
   check("the tower: its new floors not seen through, every ray from each meets a wall", S.length === TW.shaft.length && S.every((q) => q.rays > 500 && q.out === 0), S.map((q) => `${q.at} m ${q.out} of ${q.rays} out`).join("; "));
+  // nothing drawn face up over another material in the same plane over the base and the tower (the bake's measure,
+  // tools/neon-tower.ts coplanar): two such fight for the same pixels, a sawtooth of the two by turns as the view moves
+  const CP = (TW as unknown as { coplanar: { most: number }; measured?: { coplanar?: Array<{ y: number; m2: number; at: number[] }> } });
+  const fights = CP.measured?.coplanar;
+  const fought = (fights ?? []).reduce((a, q) => a + q.m2, 0);
+  check("the base and the tower: no floor drawn over another in the same plane", fights !== undefined && fought <= CP.coplanar.most, fights === undefined ? "not measured: bake the map" : fights.length ? `${fought.toFixed(1)} m2: ${fights.slice(0, 6).map((q) => `${q.m2} m2 at ${q.y} m (${q.at.join(", ")})`).join("; ")}` : "none");
 }
 
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it

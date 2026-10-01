@@ -207,6 +207,8 @@ const noGround: Array<[number, number, number, number]> = [];
       mats: T.mats,
       scale: T.scale,
       backs: T.backs,
+      backWear: T.backWear,
+      coplanar: T.coplanar,
       core: { box: [...on(C.box[0], C.box[2]), ...on(C.box[1], C.box[3])], storeys: C.storeys, top: C.top, wall: C.wall, landing: C.landing, divider: C.divider, tread: C.tread, riser: C.riser, stepDepth: C.stepDepth, slab: C.slab, door: C.door, doors, mats: C.mats, scale: C.scale },
     };
     // (as x0, x1, z0, z1 on the map)

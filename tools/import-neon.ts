@@ -16,7 +16,7 @@ import { basename, dirname, join } from "node:path";
 import { padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
 import { inside, sdPoly, standing, storeySlab, type Grid } from "./neon-base";
-import { backFaces, cutOut, escapes, stairCore, type Box3 } from "./neon-tower";
+import { backFaces, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
@@ -218,6 +218,8 @@ if (mode === "bake") {
   const standingDraws: Array<{ d: Draw; m: M4 }> = [];
   // the tower as drawn (its back faces too), for the measure of whether its floors can be seen through
   const towerDrawn: Array<{ d: Draw; m: M4 }> = [];
+  // (each placed draw's chunk, for naming what the bake's measures find)
+  const chunkOf = new WeakMap<object, string>();
   for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, string[]?]> }>(cfg.chunks)) {
     const all = groups.get(groupOf(id)) ?? groups.set(groupOf(id), []).get(groupOf(id))!;
     for (const [key, x, y, z, yaw, how, mat, without] of chunk.place) {
@@ -275,7 +277,9 @@ if (mode === "bake") {
       const shaped = cuts.length ? kept.map(({ d, m }) => (cuts.some((b) => reaches(b, d, m)) ? cutPart(d, m) : { d, m })) : kept;
       const mine = shaped.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
       // the tower's one-sided shell pieces (rules.tower.backs) drawn from inside too, their triangles turned over: from
-      // inside its floors the pack's "fake" walls, faced only toward the street, showed the sky through the building
+      // inside its floors the pack's "fake" walls, faced only toward the street, showed the sky through the building.
+      // Worn inside as backWear says: the pack's own materials there are mostly metals, which show only what they
+      // reflect, and inside, with nothing lit to reflect, they drew black; glass (backWear.keep) stays glass
       if (id === "c-middle" && cfg.tower?.backs)
         for (const { d, m } of mine) {
           if (!(cfg.tower.backs as string[]).includes(basename(pack.guidPath.get(d.modelGuid) ?? ""))) continue;
@@ -283,14 +287,36 @@ if (mode === "bake") {
           const [lo, hi] = partBounds(d, m);
           const [qx0, qx1, qz0, qz1] = cfg.tower.square as number[];
           if ((lo[0] + hi[0]) / 2 < qx0 - 0.1 || (lo[0] + hi[0]) / 2 > qx1 + 0.1 || (lo[2] + hi[2]) / 2 < qz0 - 0.1 || (lo[2] + hi[2]) / 2 > qz1 + 0.1) continue;
-          const prims = d.model.meshes[d.mesh].prims.map((q) => {
-            const b = backFaces(q.pos, q.nrm, q.uv, q.idx);
+          const BW = cfg.tower.backWear as { mat: string; scale: number; keep: string[]; upright: number };
+          const wear = pack.matFor(BW.mat);
+          if (!wear) throw new Error(`no material ${BW.mat}`);
+          const mats: string[] = [];
+          const prims = d.model.meshes[d.mesh].prims.map((q, i) => {
+            // (on the map: the turn-over keeps the upright faces, and maps the wear by the metre)
+            const pos = new Float32Array(q.pos.length);
+            const nrm = q.nrm ? new Float32Array(q.nrm.length) : null;
+            for (let k = 0; k < q.pos.length; k += 3) {
+              for (let a = 0; a < 3; a++) {
+                pos[k + a] = m[a] * q.pos[k] + m[4 + a] * q.pos[k + 1] + m[8 + a] * q.pos[k + 2] + m[12 + a];
+                if (nrm && q.nrm) nrm[k + a] = m[a] * q.nrm[k] + m[4 + a] * q.nrm[k + 1] + m[8 + a] * q.nrm[k + 2];
+              }
+              if (nrm) {
+                const l = Math.hypot(nrm[k], nrm[k + 1], nrm[k + 2]) || 1;
+                for (let a = 0; a < 3; a++) nrm[k + a] /= l;
+              }
+            }
+            const own = d.mats?.[i] ?? pack.matFor(q.material);
+            const glass = BW.keep.includes(basename(pack.guidPath.get(own ?? "") ?? "").replace(/\.mat$/, ""));
+            mats.push(glass && own ? own : wear);
+            const b = backFaces(pos, nrm, q.uv, q.idx, BW.upright, glass ? null : BW.scale);
             return { pos: new Float32Array(b.pos), nrm: new Float32Array(b.nrm), uv: new Float32Array(b.uv), idx: new Uint32Array(b.idx), material: q.material };
           });
-          const back = { d: { ...d, model: { meshes: [{ name: "back", prims }], nodes: [], roots: [] } as unknown as Draw["model"], mesh: 0, pre: null }, m };
+          const I: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+          const back = { d: { ...d, mats, model: { meshes: [{ name: "back", prims }], nodes: [], roots: [] } as unknown as Draw["model"], mesh: 0, pre: null }, m: I };
           all.push(back);
           towerDrawn.push(back);
         }
+      for (const q of mine) chunkOf.set(q, id);
       all.push(...mine);
       if (baseMask.has(id)) standingDraws.push(...mine);
       // (and the pieces closing its shell's slits: the partitions and cover inside are left out, so a gap is not hidden)
@@ -435,6 +461,71 @@ if (mode === "bake") {
     cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.out.length, where: q.out })) };
     console.log(`the tower's floors sealed: ${seal.map((q) => `${q.at} m ${q.out.length} of ${q.rays} rays out`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
+    // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a
+    // sawtooth of the two showing through by turns: the pack's own walls topped flush by its floor strips, the court's
+    // tiles on the plaza's ground. Settled (tools/neon-tower.ts settle): the one wholly over the material with more of
+    // the plane there is left out, each draw so cut drawn again on the map without it
+    const xs = (cfg.base?.outline ?? [[sx0, sz0], [sx1, sz1]]).map((q: number[]) => q[0]), zs = (cfg.base?.outline ?? [[sx0, sz0], [sx1, sz1]]).map((q: number[]) => q[1]);
+    const box = [Math.min(...xs) - 1, Math.max(...xs) + 1, Math.min(...zs) - 1, Math.max(...zs) + 1];
+    const refs: Array<{ list: Array<{ d: Draw; m: M4 }>; at: number; prim: number; tri: number }> = [];
+    const flatOnes = function* (): Generator<{ p: number[][]; mat: string; key: number }> {
+      for (const list of groups.values())
+        for (const [at, { d, m }] of list.entries())
+          for (const [i, q] of d.model.meshes[d.mesh].prims.entries()) {
+            const V = (k: number) => [0, 1, 2].map((a) => m[a] * q.pos[k * 3] + m[4 + a] * q.pos[k * 3 + 1] + m[8 + a] * q.pos[k * 3 + 2] + m[12 + a]);
+            const mat = d.mats?.[i] ?? q.material;
+            for (let k = 0; k + 2 < q.idx.length; k += 3) {
+              const p = [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])];
+              if (Math.max(p[0][1], p[1][1], p[2][1]) - Math.min(p[0][1], p[1][1], p[2][1]) > 0.001) continue;
+              refs.push({ list, at, prim: i, tri: k / 3 });
+              yield { p, mat, key: refs.length - 1 };
+            }
+          }
+    };
+    const dropped = settle(flatOnes(), box, TW.coplanar.cell);
+    const byDraw = new Map<string, { list: Array<{ d: Draw; m: M4 }>; at: number; tris: Map<number, Set<number>> }>();
+    const lists = [...groups.values()];
+    for (const key of dropped) {
+      const r = refs[key];
+      const id = `${lists.indexOf(r.list)}:${r.at}`;
+      const e = byDraw.get(id) ?? byDraw.set(id, { list: r.list, at: r.at, tris: new Map() }).get(id)!;
+      (e.tris.get(r.prim) ?? e.tris.set(r.prim, new Set()).get(r.prim)!).add(r.tri);
+    }
+    for (const { list, at, tris } of byDraw.values()) {
+      const { d, m } = list[at];
+      const prims = d.model.meshes[d.mesh].prims.map((q, i) => {
+        const pos = new Float32Array(q.pos.length);
+        const nrm = q.nrm ? new Float32Array(q.nrm.length) : null;
+        for (let k = 0; k < q.pos.length; k += 3)
+          for (let a = 0; a < 3; a++) {
+            pos[k + a] = m[a] * q.pos[k] + m[4 + a] * q.pos[k + 1] + m[8 + a] * q.pos[k + 2] + m[12 + a];
+            if (nrm && q.nrm) nrm[k + a] = m[a] * q.nrm[k] + m[4 + a] * q.nrm[k + 1] + m[8 + a] * q.nrm[k + 2];
+          }
+        const out = tris.get(i);
+        const idx = out ? Array.from(q.idx).filter((_, k) => !out.has(Math.floor(k / 3))) : Array.from(q.idx);
+        return { pos, nrm, uv: q.uv ? new Float32Array(q.uv) : null, idx: new Uint32Array(idx), material: q.material };
+      });
+      const again = { d: { ...d, model: { meshes: [{ name: d.model.meshes[d.mesh].name, prims }], nodes: [], roots: [] } as unknown as Draw["model"], mesh: 0, pre: null }, m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as M4 };
+      chunkOf.set(again, chunkOf.get(list[at]) ?? "made");
+      list[at] = again;
+    }
+    console.log(`face up in another's plane, settled: ${dropped.size} triangles left out of ${byDraw.size} draws`);
+    const flat = function* (): Generator<{ p: number[][]; mat: string; who: string }> {
+      for (const list of groups.values())
+        for (const dm of list)
+          for (const [i, q] of dm.d.model.meshes[dm.d.mesh].prims.entries()) {
+            const { d, m } = dm;
+            const V = (k: number) => [0, 1, 2].map((a) => m[a] * q.pos[k * 3] + m[4 + a] * q.pos[k * 3 + 1] + m[8 + a] * q.pos[k * 3 + 2] + m[12 + a]);
+            const mat = d.mats?.[i] ?? q.material;
+            const who = `${chunkOf.get(dm) ?? "made"}: ${basename(pack.guidPath.get(d.modelGuid) ?? "") || d.model.meshes[d.mesh].name}`;
+            for (let k = 0; k + 2 < q.idx.length; k += 3) yield { p: [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])], mat, who };
+          }
+    };
+    const fights = coplanar(flat(), box, TW.coplanar.cell);
+    // (each material by its name: the pack's are known to the bake by their guids)
+    const named = fights.slice(0, 16).map((q) => ({ ...q, mats: q.mats.map((g) => g.replace(/^[^ ]+/, (k) => basename(pack.guidPath.get(k) ?? k).replace(/\.mat$/, ""))) }));
+    cfg.tower.measured.coplanar = named;
+    console.log(`drawn face up over another in the same plane: ${named.length ? named.slice(0, 10).map((q) => `${q.m2} m2 at ${q.y} m in ${q.patches}, most at (${q.at.join(", ")}), ${q.mats.join(" over ")}`).join("; ") : "none"}`);
   }
   // the rooms, stairs and what stands in the open: their own spans, as a district's are (no fill: these pieces are whole)
   // (below the street kept: the tallest building stands in a pit to its basement, 7 m down, whose floors the districts'

@@ -8188,3 +8188,31 @@ tower's floors and loot (368, 370), the killcam (373) and the bots' detour (375)
   - skhunt e2e, new: after a swap to your second gun, the pickup clip has been fetched once. Seen failing with the
     old code (2);
   - verify; rules.
+
+## Milestone 377 — The tower's walls lit from inside, and no floor drawn over another
+
+Photographing the way into the glass waist (Milestone 374) showed two faults inside the tower. A round corner wall stood
+pitch black against a lit floor, and at its foot the floor broke into a sawtooth that shifted as the view moved.
+
+- **The black walls.** The tower's shell is the pack's one-sided "fake" pieces, drawn from inside too since Milestone
+  368 by turning their triangles over. The faces were right and so were their normals; the materials were the
+  trouble. The pack wears those pieces mostly in metals, and a metal shows only what it reflects. Inside, with nothing lit
+  to reflect, it drew black. The inside of the shell is worn in the core's plaster now (rules.tower.backWear),
+  mapped by the metre as the core's walls are. Its glass stays glass, so a window still reads as a dark window at night.
+- **The sawtooth.** Each corner piece is capped top and bottom. Its bottom cap, turned over to be seen from inside, lay
+  face up on the floor it stands on, and the two fought for the same pixels. Only the shell's upright faces are turned
+  over now. The new floors fought the same way with the caps of the corner pieces under them, 21 m2 on each of the
+  eight, which are left out where a new floor lies.
+- **Every such fight found and settled.** The bake now measures it (tools/neon-tower.ts coplanar). Over the base and the
+  tower, every triangle lying face up in another material's plane is laid on a 10 cm grid. It found 442 m2 with nothing settled:
+  the court's tiles lying on the plaza's ground across the base's ground floor (143 m2), the pack's own wall
+  tops under its floor strips in the court's basement and the side core, and the tower's roof. The bake settles them
+  (tools/neon-tower.ts settle). A face-up triangle something sits on (a wall's top under the wall stacked on it, never
+  seen) is left out, and so is one lying wholly over the material with more of that plane (the floor a strip lies on,
+  the ground a tile lies on). That left out 8,000 triangles nobody could see or that only flickered, and 17.2 m2 is
+  left, the pack's strips half over its walls' tops.
+- The map: 2.37 million triangles, 18,600 fewer than version 16 (the faces nobody could see or that only flickered, left out); its files lo 81 MB, hi 137 MB, max 334 MB. **Its files are version 17.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): over the base and the tower, no floor drawn over another in the
+  same plane, the bake's measure under 20 m2 (17.2 m2; seen failing with the settling turned off:
+  442 m2). The floors still sealed, every ray from each meeting a wall. verify and rules; e2e `loot` and `br`.
+  Photographed in the waist and on the new floors, before and after.
