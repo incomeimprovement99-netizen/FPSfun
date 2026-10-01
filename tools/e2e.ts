@@ -2470,7 +2470,15 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
   check("tiers: and the frag's blast lands on you (the bot's side works it out)", fragHit, JSON.stringify(await ev(page, "window.__hits.slice(-6)")));
   // it crouches now and then in the fight (close in, where nothing low stands between you), and dodges when hit
   // in front of it: a bot that has wandered off with its back to you does not see you (its view cone), which is the point
-  await ev(page, "(() => { const r = window.__range; const b = r.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; const y = b.dummy.group.rotation.y; const s = r.openGround(b.pos.x + Math.sin(y) * 12, b.pos.z + Math.cos(y) * 12, 1.5); if (s) r.player.teleport(s.x, 0, s.z, 0); })()");
+  // (open ground in front that it also sees: the first open spot 12 m ahead had a box between, 2026-10-01, and the
+  // bot facing you 20 degrees off never saw you; the turns and distances tried after it are near the same)
+  await ev(page, `(() => { const r = window.__range; const b = r.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; const y = b.dummy.group.rotation.y; const V = r.THREE.Vector3;
+    let first = null;
+    for (const d of [12, 10, 14, 8]) for (const t of [0, 0.25, -0.25, 0.5, -0.5]) {
+      const s = r.openGround(b.pos.x + Math.sin(y + t) * d, b.pos.z + Math.cos(y + t) * d, 1.5); if (!s) continue; first = first || s;
+      if (b.sees(new V(s.x, b.pos.y, s.z))) { r.player.teleport(s.x, 0, s.z, 0); return; }
+    }
+    if (first) r.player.teleport(first.x, 0, first.z, 0); })()`);
   const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 12000 }).then(() => true, () => false);
   check("tiers: the elite bot crouches while it fires", crouched, crouched ? "" : JSON.stringify({ ...(await ev<object>(page, `(() => { const b = window.__range.duel().bots[0]; const p = window.__range.player.pos; const y = b.dummy.group.rotation.y; const dx = p.x - b.pos.x, dz = p.z - b.pos.z; return { sees: b.sees(p), seenAgo: b.lastSeen ? +(performance.now() / 1000 - b.lastSeen.at).toFixed(1) : null, facingDeg: Math.round(Math.acos(Math.max(-1, Math.min(1, (Math.sin(y) * dx + Math.cos(y) * dz) / Math.hypot(dx, dz)))) * 180 / Math.PI), d: +Math.hypot(dx, dz).toFixed(1), healing: !!b.healing, cover: !!b.cover }; })()`)), where: await where(), carried }));
   const dodge = await ev<boolean>(page, `(() => { const b = window.__range.duel().bots[0]; const before = b.strafeSign; b.dummy.hit(0, "body", 5, 1, 1, b.pos.clone().setY(1.2)); return new Promise((r) => setTimeout(() => r(b.strafeSign !== before), 400)); })()`);
@@ -2516,6 +2524,9 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   // without end (three's mixer skips a bone whose clip value has not changed,
   // so every frame's turn piled onto the last). Force a still pose with a
   // steep look and watch the chest's and head's yaw against the figure's.
+  // (Its model loads after the match starts: on a machine at 100% it had not come when this looked, 2026-10-01, and
+  // the check failed for want of a mannequin, three runs of four. It waits for it now, 30 s at most.)
+  await page.waitForFunction(`!!window.__range.duel().avatars[0]?.group.getObjectByName("spine_03")`, { polling: 250, timeout: 30000 }).catch(() => undefined);
   const spin = await ev<{ mannequin: boolean; chest: number; head: number; pelvis: number } | null>(
     page,
     `(() => new Promise((res) => {
