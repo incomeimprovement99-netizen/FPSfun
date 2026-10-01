@@ -10,7 +10,7 @@ import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { rebuildSolidGrid, solidsIn } from "./solidgrid";
-import { FLOORS, floorAt } from "./floors";
+import { FLOORS, HALL_FLOORS, floorAt } from "./floors";
 import { botWalk } from "./botbody";
 import { Doors } from "./doors";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi } from "./br";
@@ -53,6 +53,16 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   // and the underground (neon-layout.ts rules.underground): the station and its tunnel to their track bed, the glass hall
   // to its marble floor (FLOORS is read first match first: these are clear of the court's and the halls')
   const UG = neonCfg.underground ?? { floors: [], slabs: [] };
+  // the tower's floors over its lobby (neon-layout.ts rules.tower), each a hall's for the loot (loot.ts halls): spots of
+  // their own a floor, and the field's loot kept off them. Spread over every floor at random they held half an item a
+  // floor, and they are the centre's fight
+  HALL_FLOORS.length = 0;
+  const TW = (neonCfg as unknown as { tower?: { square: number[]; slab: number; core: { storeys: number[] } } }).tower;
+  if (TW) {
+    const [sx0, sx1, sz0, sz1] = TW.square;
+    const S = TW.core.storeys;
+    for (let k = 1; k < S.length; k++) HALL_FLOORS.push({ minX: sx0 + BR_X, maxX: sx1 + BR_X, minZ: sz0 + BR_Z, maxZ: sz1 + BR_Z, y: S[k], top: (S[k + 1] ?? S[k] + 3) - TW.slab });
+  }
   for (const { rect: [x0, x1, z0, z1], y } of UG.floors) FLOORS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, y });
 
   // the collision, measured off the pieces' triangles at the bake

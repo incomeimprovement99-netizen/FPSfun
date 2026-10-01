@@ -980,13 +980,16 @@ export class LootField {
     // each hall's floor, clear of its columns and counters
     const Hl = cfg.halls;
     const hallRnd = seeded((seed ^ 0x4a11f10a) >>> 0);
+    // (with a floor under the spot: a hall need not be floored all over, the Neon tower's floors stop at the grooves down
+    // its faces; the old city's halls are floored wall to wall and draw what they drew)
+    const floored = (x: number, z: number, y: number) => Math.abs(worldFloor(x, z) - y) < 0.15 || RANGE_SOLIDS.some((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && Math.abs(s.top - y) < 0.15);
     for (const f of HALL_FLOORS) {
       const spots: THREE.Vector3[] = [];
       for (let tries = 0; spots.length < Hl.perHall && tries < Hl.perHall * 20; tries++) {
         const x = f.minX + 1.5 + hallRnd() * (f.maxX - f.minX - 3);
         const z = f.minZ + 1.5 + hallRnd() * (f.maxZ - f.minZ - 3);
         const blocked = RANGE_SOLIDS.some((s) => x > s.minX - 1 && x < s.maxX + 1 && z > s.minZ - 1 && z < s.maxZ + 1 && s.base < f.y + 1.9 && s.top > f.y + 0.05);
-        if (!blocked) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
+        if (!blocked && floored(x, z, f.y)) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
       }
       for (const s of spots) for (const item of rollSpot(hallRnd, Hl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((hallRnd() - 0.5) * 0.8, 0, (hallRnd() - 0.5) * 0.8)));
     }

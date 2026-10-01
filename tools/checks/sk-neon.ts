@@ -846,6 +846,13 @@ const over24 = drops.filter((d) => d.pos.y > 24).length;
 check("loot over the map, 150 items and more", drops.length >= 150, `${drops.length}`);
 // (the old city's bar, its e2e's: the eight districts round the centre are plain ground until their own build)
 check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40 && over24 >= 10, `${over12} over 12 m, ${over24} over 24 m, of ${drops.length}`);
+// every floor of the tower its core serves over the lobby stocked (src/game/neonmap.ts: each a hall's for the loot)
+{
+  const TW = (cfg as unknown as { tower: { square: number[]; shaft: number[]; core: { storeys: number[] } } }).tower;
+  const [sx0, sx1, sz0, sz1] = TW.square;
+  const per = TW.core.storeys.slice(1).map((h) => ({ h, n: drops.filter((d) => Math.abs(d.pos.y - h) < 0.2 && d.pos.x - BR_X > sx0 && d.pos.x - BR_X < sx1 && d.pos.z - BR_Z > sz0 && d.pos.z - BR_Z < sz1).length }));
+  check("loot on every floor of the tower over its lobby, 5 items and more each", per.every((q) => q.n >= 5), per.map((q) => `${q.h} m ${q.n}`).join(", "));
+}
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

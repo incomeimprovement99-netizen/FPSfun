@@ -8003,3 +8003,19 @@ send in st, where the runs are at".
     tall: you stepped up onto it and walked over);
   - the speedkills e2e section with it (104 checks); verify; rules;
   - photographed from the spawn, at a gun's stand, a hack's, and the outer runs.
+
+## Milestone 370 — Loot on every floor of the tower
+
+The centre's loot went on any floor at a spot at random, so with the base and the tower's 19 storeys over the plaza the
+tower's eight new floors held half an item each a match (measured over five matches' seeds), and the court under the
+base 28: nothing to climb for in the part of the map built to be fought over.
+
+- **Each tower floor stocked.** Every floor the stair core serves over the lobby (3.5 to 45.5 m, 14 of them) is a hall's
+  for the loot now (src/game/neonmap.ts, the old city's podium halls' rule, loot.json halls): six spots of its own a
+  match at the small sites' tier, about eight items, and the field's own loot kept off it. Over the map that is 1,180
+  items a match, about 120 more, all in the tower.
+- **Only on a floor.** A hall's spot is now taken only where there is floor under it (src/game/loot.ts): the tower's
+  floors stop at the grooves down its faces, and a spot there hung in the air. The old city's halls are floored wall to
+  wall, so they draw what they drew.
+- **Checked** (`tools/checks/sk-neon.ts`): loot on every floor of the tower over its lobby, 5 items and more each (6 to 10
+  a floor; seen failing with the floors left off the halls: 0 to 3). verify and rules; e2e `loot` and `br`.
