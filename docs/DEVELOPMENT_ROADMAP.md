@@ -7877,3 +7877,29 @@ tip is the only thing that can press the trigger, visually".
   - BOOG's right hand 17 to 30 mm into the receiver at the bolt;
   - BOOG's long stock into the right arm and chest through its reload and its sprint jumps (up to 40 mm, mostly hidden
     by the arm itself), as before this milestone.
+
+## Milestone 367 — The reload's hands have fingers of their own at the charging handle and the bolt
+
+The owner's "ensuring each frame is perfect", after Milestone 366: the first of what it left.
+
+- **A reload key's own fingers** (rifle.ts closeFingers; soldierhold.json reload.keys.<key>.fingers): a key may carry
+  a finger table, as the hold's, blended in as the hand goes to it and out as it leaves. The point's stays
+  `pointFingers`. With the hold's alone, the USSO's left hand racked its charging handle with its fingers still laid
+  for the fore-end, the index and middle fingers 25 mm off the gun.
+- **Searched onto the gun** (tools/figure-solve.ts `KEYFINGERS=1`: the key's place, its turn and its fingers together,
+  each of that hand's fingers costed by its gap past 6 mm):
+  - the USSO's handle 113 to 68, handleBack 159 to 100, the left fingers now within 0 to 6 mm of the gun;
+  - BOOG's bolt 356 to 321, boltUp 225 to 197, boltBack 185 to 166.
+- **Tried and not kept:** an elbow of its own for the lowered carries, searched for BOOG in the air (275 to 270): its
+  stock is through the right forearm at the wrist, just behind the grip where the stock's comb rises, which no elbow
+  clears. The code went back out.
+- **Tools:** figure-hands.ts `STEP` photographs a moment of a pose (a reload's key), not only 0.8 s into it.
+- **Checked:**
+  - the skfigure e2e, 49 checks, its new one: at the USSO's charging handle each left finger is within 6 mm of the gun.
+    Seen failing with the handle's own fingers taken out (the middle finger 11 mm off);
+  - the frames of both reloads;
+  - verify; rules.
+- **Still measured, for the next pass:**
+  - the USSO's left palm 12 to 22 mm into the receiver at the handle;
+  - BOOG's right hand up to 28 mm into it at the bolt;
+  - BOOG's stock into the right forearm in a sprint jump (32 mm).
