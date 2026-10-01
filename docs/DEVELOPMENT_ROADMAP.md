@@ -8406,3 +8406,21 @@ magazine phase in from the middle out and then we take the mag out it should be 
   pointing hand up were found (`tools/` scratch searches over the turn, scored by where the magazine and fingertip land,
   how much of the magazine the eye sees, the gun's size and the wrist), but each moves the gun further from its corner.
   Kept as it is until the owner picks.
+
+## Milestone 385 — The heavy pistol is APUHTHEE
+
+The owner, 2026-10-01: "replace the most fitting remaining gun name with Apuhthee. Replace all references to it."
+
+- **Which name:** the heavy pistol's, the one name in the roster that was a working one, waiting for the owner's own
+  since the pistol came in for PULSAR (Milestone 361). The other invented name, NOVA, has stood since the roster was
+  made; the rest carry the owner's own names.
+- **Everywhere:**
+  - the roster (speedkills.json weapons.wingman) and its notes, and the bought models' note (paidweapons.json);
+  - the e2e's list of SpeedKills names and a check's comment (tools/checks/paid-weapons.ts);
+  - the README and the docs, the eight-guns plan's open question about the name closed.
+  - The engine's Hammer units and the Hammerpoint hop-up are other things and keep their names.
+- **Checked:**
+  - nothing in the repo names the pistol's old name, the guns agent's newest work included;
+  - the Loadouts tab shows APUHTHEE;
+  - the speedkills e2e (100); verify; rules.
+- **The roster now:** nine of the ten guns carry the owner's own names; NOVA is the one that does not.
