@@ -7716,3 +7716,50 @@ sniper should only have glint when they are ADSing".
   trails check (a turn at once and one made over the air time draw a tracer, straight on and a count first seen draw
   none, it fades in its time), seen failing with the turn test broken; the soldier section's own glint check; the
   frames of the double jumps; a tracer drawn in the game's own scene, 12 m off; verify; rules.
+
+## Milestone 365 — The base: the tower's wide lower floors
+
+Phase 28.8, from the owner's note on the centre (2026-09-30): "I want the building to be big and wide on the first x
+amount of floors, it can be more narrow the higher it goes, only using the assets we have".
+
+- **The block.** A block round the tower's foot filling the plaza inside the Loop to a few metres short of the Sky Ring
+  and its stairs: its outer faces at x 25 and z 30.5 either way, its corners cut (rules.base). Three storeys of the
+  tower's own 3.5 m (0, 3.5 and 7 m, the storeys of the tower's lower block, so its floors run on into the tower's)
+  and a roof terrace at 10.5 m where the tower's lower block ends. Outside the tower's own footprint that is 980 m2 of
+  floor on the ground storey, 740 on the first (the atria over the metro), 1,040 on the second and 1,250 on the roof.
+- **Built from the tower's own pieces.** Faced with the tower's window wall a 5 m bay at a time (turned as the tower
+  turns them, measured off the tower), the pack's wide gate for its doors, its plain pillar at each corner, the
+  pack's glass rail round the roof and every hole. Gluing whole buildings side by side was the other way: their outer
+  walls would have stood back to back inside, with no way through and facades that do not match.
+- **Its floors measured against what stands there.** Each storey's slab is baked (tools/neon-base.ts) from the base's
+  outline in to whatever already stands at that height, measured off its triangles a quarter metre at a time: the
+  tower's lower block is a different shape on every storey, and the base's floors meet each one and run on into the
+  tower's own floors where they are open. The slab is tucked a cell under what it meets, 3 mm low, so no crack shows.
+- **Doors and stairs.** 14 doors in the ground floor's faces and four in the first floor's cut corners, the latter
+  onto short bridges to the Sky Ring, whose inner fence is left open where they meet. 12 of the pack's double stairs,
+  four between each pair of storeys, placed so each storey's stairs up are away from its stairs down: you cross the
+  floor to climb on.
+- **Different on every storey.** The ground floor a concourse with shop units along its north and south faces, each
+  open to it through the pack's wide gate; the first floor offices, two rows of rooms either side of a corridor with
+  doorways through to their neighbours; the second floor a warehouse hall of pillars and the pack's racks in aisles;
+  the roof the pack's cooling boxes. Every storey strewn with the pack's crates, barrels and furniture as cover, none
+  within reach of a stair, a door or an atrium, and lit by the pack's ceiling lamp on a 7.5 m grid.
+- **The plaza's pieces inside it.** The metro's two kiosks and the station's glass hall now stand on the ground floor,
+  the floor over each one's raised middle left open as an atrium railed round (the kiosks' tall "U" signs are left
+  out: they stood through the floor above). The court round the tower's foot is roofed by the ground floor: a basement
+  now, still walked to through the kiosks and from the station.
+- **Found by the checks.** The pack's double stair, on the collision's quarter-metre grid, leaves its lower flight 1.0
+  m clear between its cheeks: room for the player's round 0.82 m body but not for the flood's square on its own grid,
+  so the stairs are walked by the player's own movement instead. Three ground doors opened straight onto a kiosk or
+  the glass hall and two stairs stood under the tower's east bay: all moved. The rails at a stair's top stand back 0.4 m
+  from its flight.
+- The map: 2.17 million triangles, the base about 300 thousand of them (its pieces 164 thousand, its floors 137 thousand); its files lo 76 MB, hi 133 MB, max 329 MB. **Its files are version 14.**
+- **Checked** (`tools/checks/sk-neon.ts`, 4 new checks, 3 changed): every stair walked up and back down by a player,
+  all 12 (seen failing with the first floor's stair wells left closed: 8 of 12); every storey and the roof walked to from
+  the plaza over 98% of its floor and more; every door walked through from outside, all 18 (seen failing with the doors
+  walled up: 0 of 18); every bridge walked across from the Sky Ring, all 4 (seen failing with their decks left out: 0 of
+  4). The court is dropped into from under the ground floor now, the halls' plaza holds a body where the base's walls
+  stand over it, and the Sky Ring's inner fence may be open at a bridge. verify and rules; e2e `loot` and `br`.
+  Photographed on every storey by day and night and from outside.
+- **Next:** the tower's floors over the base, many floors of big rooms and stairs, each laid out differently, the
+  owner's first note on the centre; their stair core runs up from the base's ground floor.

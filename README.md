@@ -1299,7 +1299,11 @@ a row of 3 to 6 storey buildings follows each of its curved streets, and in its
 outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
 and two more up its own stairs, its roof a climb. A walkway one floor up, the Sky
 Ring, circles the tower's plaza inside the Loop, glass-railed, with a stair up
-from the plaza on each side. The streets carry the pack's lamps,
+from the plaza on each side. The tower stands on a wide base filling the plaza,
+built of the tower's own pieces (`tools/neon-base.ts` bakes its floors to meet
+the tower's on every storey): three storeys and a roof, shops on the ground
+floor, offices on the first, a warehouse hall on the second, four stairs between
+each, and bridges from its first floor's corners to the Sky Ring. The streets carry the pack's lamps,
 parked cars as cover, flying cars and neon signs. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size

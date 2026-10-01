@@ -70,7 +70,8 @@ check("the collision the bake measured, every box, and the street's slab over ea
 check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.tallest.top) < 1e-6 && SPIRE_TOP.y > 100, `${SPIRE_TOP.y}`);
 
 // the court the tallest building stands in: a body dropped in its corners stands on its drawn floor, 7 m down, not on
-// the street's height over nothing (the hole showed the sky through the world before it was floored)
+// the street's height over nothing (the hole showed the sky through the world before it was floored). Dropped from under
+// the street: the base's ground floor covers the court now (rules.base), a basement under it
 const K = cfg.court;
 const rests = [
   [K.x0 + 1, K.z0 + 1],
@@ -79,7 +80,7 @@ const rests = [
   [K.x1 - 1, K.z1 - 1],
 ].map(([x, z]) => {
   const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
-  p.teleport(x + BR_X, 3, z + BR_Z, 0);
+  p.teleport(x + BR_X, -5, z + BR_Z, 0);
   let t = 1000;
   for (let i = 0; i < 2 * 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
   return +p.pos.y.toFixed(2);
@@ -111,10 +112,11 @@ for (const h of K.halls.filter((q) => !("route" in q) && !("open" in q))) {
   const r = sprint(fx, fz, K.y + 0.05, yaw, 3);
   const far = alongX ? (out > 0 ? h.x1 : h.x0) : out > 0 ? h.z1 : h.z0;
   const gone = Math.abs((alongX ? r.x : r.z) - far);
-  // (the plaza over its corridor: an entrance's well beyond is open to the street)
+  // (the plaza over its corridor: an entrance's well beyond is open to the street; not sunk through is what counts, the
+  // base's walls stand over some of them now)
   const [sx0, sx1, sz0, sz1] = h.slab;
   const over = sprint((sx0 + sx1) / 2, (sz0 + sz1) / 2, 0.05, yaw, 0.5);
-  check(`hall at (${mx.toFixed(0)}, ${mz.toFixed(0)}): walked from the court to its far wall on the court's floor, and the plaza over it holds a body`, gone < 1.2 && Math.abs(r.y - K.y) < 0.05 && r.low > K.y - 0.05 && Math.abs(over.y) < 0.05, `ended ${gone.toFixed(2)} m from its end at ${r.y.toFixed(2)} m; on the plaza over it ${over.y.toFixed(2)} m`);
+  check(`hall at (${mx.toFixed(0)}, ${mz.toFixed(0)}): walked from the court to its far wall on the court's floor, and the plaza over it holds a body`, gone < 1.2 && Math.abs(r.y - K.y) < 0.05 && r.low > K.y - 0.05 && over.y > -0.05, `ended ${gone.toFixed(2)} m from its end at ${r.y.toFixed(2)} m; on the plaza over it ${over.y.toFixed(2)} m`);
 }
 // The side rooms of the court's shop corridors (rules.court.halls, the pack's noodle bar and market): each walked into on
 // foot from its hall's middle, an eighth of a metre at a time, a body the square round the player's round one, a step
@@ -166,7 +168,7 @@ for (const h of K.halls) {
     return of ? got / of : 0;
   });
   const over = rooms.map(([x0, x1, z0, z1]) => sprint((x0 + x1) / 2, (z0 + z1) / 2, 0.05, 0, 0.5).y);
-  check(`hall at (${((h.x0 + h.x1) / 2).toFixed(0)}, ${((h.z0 + h.z1) / 2).toFixed(0)}): its side rooms walked into from the hall, and the street over them holds a body`, shares.every((q) => q >= 0.6) && over.every((y) => Math.abs(y) < 0.05), `${shares.map((q) => `${(q * 100).toFixed(0)}%`).join(", ")} of their floors reached; on the street over them ${over.map((y) => y.toFixed(2)).join(", ")} m`);
+  check(`hall at (${((h.x0 + h.x1) / 2).toFixed(0)}, ${((h.z0 + h.z1) / 2).toFixed(0)}): its side rooms walked into from the hall, and the street over them holds a body`, shares.every((q) => q >= 0.6) && over.every((y) => y > -0.05), `${shares.map((q) => `${(q * 100).toFixed(0)}%`).join(", ")} of their floors reached; on the street over them ${over.map((y) => y.toFixed(2)).join(", ")} m`);
 }
 // (an entrance's hall: the plaza over its corridor holds a body too; its walk is its route, below)
 for (const h of K.halls.filter((q) => "route" in q)) {
@@ -345,7 +347,9 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     const [i, j] = cell(x, z);
     deck++;
     if (Math.abs((seen.get(i * N + j) ?? -9) - SR.deck) < 0.1) reached++;
-    const nearExit = K2.exits.some(([ex, ez]) => Math.hypot(ex - Math.cos(a) * SR.r0, ez - Math.sin(a) * SR.r0) < SR.fence.gap + 0.5);
+    // (and where the base's bridges meet it, rules.base)
+    // (the fence is left open by the chord: within its gap of a bridge, a chord's half length on)
+    const nearExit = K2.exits.some(([ex, ez]) => Math.hypot(ex - Math.cos(a) * SR.r0, ez - Math.sin(a) * SR.r0) < SR.fence.gap + 0.5) || ((cfg as unknown as { base?: { bridges: number[][] } }).base?.bridges ?? []).some(([ex, ez]) => Math.hypot(ex - Math.cos(a) * SR.r0, ez - Math.sin(a) * SR.r0) < SR.fence.gap + 1.3);
     if (!railed(x, z, Math.cos(a), Math.sin(a), (SR.r1 - SR.r0) / 2 + 0.3)) open.push(`out at ${((a * 180) / Math.PI).toFixed(0)} deg`);
     if (!nearExit && !railed(x, z, -Math.cos(a), -Math.sin(a), (SR.r1 - SR.r0) / 2 + 0.3)) open.push(`in at ${((a * 180) / Math.PI).toFixed(0)} deg`);
   }
@@ -366,6 +370,102 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     }
   }
   check("the Sky Ring: a standing body's room under it all the way round", low > MOVE.standHeight + 0.5, `its underside ${low.toFixed(2)} m up at its lowest`);
+}
+
+// The base (rules.base): the tower's wide lower floors. Each of its stairs walked up and down by a player's own movement
+// along its flights; from the plaza round it and the tops of the stairs walked, on foot (a body the square round the
+// player's round one, a quarter metre at a time, up a step at a time, down any drop), each of its storeys and its roof
+// reached over most of its floor; and each door in its faces and each bridge from the Sky Ring walked through by a
+// player's own movement, ending inside on that storey. (The stairs are walked, not flooded: the collision's quarter
+// metre widens the pack's double flight's cheeks to leave its lower flight 1.0 m clear, room for the player's round
+// 0.82 but not for the flood's square on its own grid)
+{
+  const BS = (cfg as unknown as { base: { outline: number[][]; levels: Array<{ y: number }>; stairs: Array<{ at: number; top: number[]; route: number[][] }>; gates: Array<{ at: number; out: number[]; in: number[] }>; bridges: number[][] } }).base;
+  const T = cfg.tallest;
+  const C = 0.25, H = MOVE.radius;
+  const xs = BS.outline.map((p) => p[0]), zs = BS.outline.map((p) => p[1]);
+  const [X0, X1, Z0, Z1] = [Math.min(...xs) - 4, Math.max(...xs) + 4, Math.min(...zs) - 4, Math.max(...zs) + 4];
+  const [NI, NJ] = [Math.ceil((X1 - X0) / C), Math.ceil((Z1 - Z0) / C)];
+  const insideBase = (x: number, z: number) => {
+    let inside = false;
+    const p = BS.outline;
+    for (let i = 0, j = p.length - 1; i < p.length; j = i++) if (p[i][1] > z !== p[j][1] > z && x < ((p[j][0] - p[i][0]) * (z - p[i][1])) / (p[j][1] - p[i][1]) + p[i][0]) inside = !inside;
+    return inside;
+  };
+  // each cell's floors with a standing body's room over them
+  const spots: Array<{ i: number; j: number; y: number }> = [];
+  const at = new Map<number, number[]>();
+  for (let i = 0; i < NI; i++)
+    for (let j = 0; j < NJ; j++) {
+      const [x, z] = [X0 + (i + 0.5) * C + BR_X, Z0 + (j + 0.5) * C + BR_Z];
+      const here = solidsIn(x - H, x + H, z - H, z + H).filter((b) => b.minX < x + H && b.maxX > x - H && b.minZ < z + H && b.maxZ > z - H);
+      const ys = new Set<number>([floorAt(x, z)]);
+      for (const b of here) if (b.minX <= x && b.maxX >= x && b.minZ <= z && b.maxZ >= z && b.top < 20) ys.add(b.top);
+      const list = [...ys].filter((y) => !here.some((b) => b.base < y + MOVE.standHeight && b.top > y + MOVE.stepHeight));
+      if (list.length) at.set(i * NJ + j, list.map((y) => (spots.push({ i, j, y }), spots.length - 1)));
+    }
+  const seen = new Uint8Array(spots.length);
+  const todo: number[] = [];
+  for (const [k, list] of at) {
+    const [i, j] = [Math.floor(k / NJ), k % NJ];
+    if (i > 1 && i < NI - 2 && j > 1 && j < NJ - 2) continue;
+    for (const s of list) if (Math.abs(spots[s].y) < 0.05) ((seen[s] = 1), todo.push(s));
+  }
+  // each stair walked up its flights and back down; the top of each one walked up seeds the flood on its storey
+  const walked = BS.stairs.map((q) => ({ q, up: along(q.route), down: along([...q.route].reverse()) }));
+  const climbed = walked.filter((w) => w.up.k === w.q.route.length && w.down.k === w.q.route.length);
+  for (const { q } of climbed) {
+    const [tx, tz, ty] = q.route.at(-1)!;
+    for (const s of at.get(Math.floor((tx - X0) / C) * NJ + Math.floor((tz - Z0) / C)) ?? []) if (Math.abs(spots[s].y - ty) < 0.1 && !seen[s]) ((seen[s] = 1), todo.push(s));
+  }
+  while (todo.length) {
+    const a = spots[todo.pop()!];
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (a.i + di < 0 || a.i + di >= NI || a.j + dj < 0 || a.j + dj >= NJ) continue;
+      for (const s of at.get((a.i + di) * NJ + a.j + dj) ?? []) if (!seen[s] && spots[s].y - a.y <= MOVE.stepHeight) ((seen[s] = 1), todo.push(s));
+    }
+  }
+  if (process.env.DEBUG_BASE) { const band = new Map<number, number[]>(); spots.forEach((q, k) => { const r = band.get(Math.round(q.y)) ?? [0, 0]; r[0]++; if (seen[k]) r[1]++; band.set(Math.round(q.y), r); }); console.log("base spots by height", JSON.stringify([...band].sort((x, y) => x[0] - y[0]))); }
+  const reachedAt = (x: number, z: number, y: number) => (at.get(Math.floor((x - X0) / C) * NJ + Math.floor((z - Z0) / C)) ?? []).some((s) => seen[s] && Math.abs(spots[s].y - y) < 0.1);
+  // a storey's own floor: in the outline, out of the tower's footprint, at the storey's height
+  const shares = BS.levels.map(({ y }) => {
+    let [of, got] = [0, 0];
+    spots.forEach((s, k) => {
+      const [x, z] = [X0 + (s.i + 0.5) * C, Z0 + (s.j + 0.5) * C];
+      if (Math.abs(s.y - y) > 0.1 || !insideBase(x, z) || (x > T.x0 && x < T.x1 && z > T.z0 && z < T.z1)) return;
+      of++;
+      if (seen[k]) got++;
+    });
+    return { y, of: of * C * C, share: of ? got / of : 0 };
+  });
+  check("the base: each of its storeys and its roof walked to from the plaza, up its stairs, over most of its floor", shares.every((q) => q.of > 500 && q.share > 0.9), shares.map((q) => `${q.y} m: ${(q.share * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2`).join("; "));
+  check("the base: every stair walked up from its foot and back down by a player", climbed.length === BS.stairs.length, `${climbed.length} of ${BS.stairs.length}${climbed.length < BS.stairs.length ? `: not ${walked.filter((w) => !climbed.includes(w)).map((w) => `${w.q.at} m at (${w.q.top.join(", ")}): up ${w.up.k - 1} of ${w.q.route.length - 1} legs to ${w.up.y.toFixed(2)} m, down ${w.down.k - 1}`).join("; ")}` : ""}`);
+  check("the base: each stair's foot on the plaza's side reached on foot", BS.stairs.every((q) => q.at > 0 || reachedAt(q.route[0][0], q.route[0][1], q.at)), "");
+  // each door sprinted through from a metre outside to three in, and each bridge from the Sky Ring's deck to the door
+  const through = (from: number[], to: number[], y: number) => {
+    const yaw = (Math.atan2(-(to[0] - from[0]), -(to[1] - from[1])) * 180) / Math.PI;
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(from[0] + BR_X, y + 0.05, from[1] + BR_Z, yaw);
+    const walk = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
+    let t = 1000;
+    const want = Math.hypot(to[0] - from[0], to[1] - from[1]);
+    for (let i = 0; i < 144 * 4; i++) {
+      p.update(1 / 144, (t += 1 / 144), walk, 0, 1, false);
+      if (Math.hypot(p.pos.x - BR_X - from[0], p.pos.z - BR_Z - from[1]) >= want) break;
+    }
+    return Math.hypot(p.pos.x - BR_X - to[0], p.pos.z - BR_Z - to[1]) < 0.6 && Math.abs(p.pos.y - y) < 0.3;
+  };
+  const doors = BS.gates.filter((g) => !through(g.out, g.in, g.at));
+  check("the base: every door in its faces walked through from outside", BS.gates.length > 10 && doors.length === 0, `${BS.gates.length - doors.length} of ${BS.gates.length}${doors.length ? `: not ${doors.map((g) => `${g.at} m at (${g.out.join(", ")})`).join("; ")}` : ""}`);
+  const SR = cfg.rules.skyring as { r0: number; r1: number; deck: number };
+  // (along each bridge's own line, from a metre and a half out on the ring to three in through its door)
+  const axes = (BS as unknown as { bridgeAxes: number[][][] }).bridgeAxes;
+  const bridges = axes.filter(([door, far]) => {
+    const L = Math.hypot(far[0] - door[0], far[1] - door[1]);
+    const u = [(far[0] - door[0]) / L, (far[1] - door[1]) / L];
+    return through([far[0] + u[0] * 1.5, far[1] + u[1] * 1.5], [door[0] - u[0] * 3, door[1] - u[1] * 3], SR.deck);
+  });
+  check("the base: every bridge from the Sky Ring walked across into its first floor", BS.bridges.length > 0 && bridges.length === BS.bridges.length, `${bridges.length} of ${BS.bridges.length}`);
 }
 
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it

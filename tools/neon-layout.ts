@@ -167,7 +167,8 @@ const noGround: Array<[number, number, number, number]> = [];
 // ---------------------------------------------------------------- the middle block: the tallest building
 {
   const M = R.middle;
-  const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o");
+  // its main body's interior is cleared from inside its shell and its floors built again (rules.tower)
+  const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o", R.tower ? { without: [`*#${R.tower.strip.join(",")}`] } : {});
   noGround.push([b.x0, b.x1, b.z0, b.z1]);
   cfg.tallest = { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, top: +b.top.toFixed(2), foot: +piece(M.building).row.min![1].toFixed(2) };
 }
@@ -620,6 +621,368 @@ if (holes.length) {
   };
 }
 
+// ---------------------------------------------------------------- the base: the tower's wide lower floors (rules.base)
+// The owner, 2026-09-30: "I want the building to be big and wide on the first x amount of floors, it can be more narrow
+// the higher it goes, only using the assets we have". A block round the tower's foot as wide as the plaza allows short of
+// the Sky Ring and its stairs, its corners cut, three storeys of the tower's own 3.5 m (0, 3.5 and 7: the tower's lower
+// block's storeys, so its floors run on into the tower's) and a roof at 10.5 where the tower's lower block ends; faced
+// with the tower's own window wall a 5 m bay at a time, the pack's wide gate for its doors and its plain pillar at each
+// corner. Its slabs are baked (tools/neon-base.ts) from its outline in to whatever already stands there. The metro's
+// kiosks and the station's glass hall stand inside it: the floor over each one's raised middle is left open, an atrium
+// railed round, and the bridges from its first floor's corner doors out to the Sky Ring meet the ring where its inner
+// fence is left open
+const baseBridges: Pt[] = [];
+/** each bridge's door (its middle on the base's face) and its far end on the Sky Ring */
+const baseBridgeAxes: Array<[Pt, Pt]> = [];
+{
+  const B = R.base;
+  const [hx, hz] = B.half;
+  const [kx, kz] = B.corner;
+  // the outline, the outer faces' corners, round from the north face's west end (x east, z south); each side's name
+  const O: Pt[] = [[-hx + kx, -hz], [hx - kx, -hz], [hx, -hz + kz], [hx, hz - kz], [hx - kx, hz], [-hx + kx, hz], [-hx, hz - kz], [-hx, -hz + kz]];
+  const sideName = ["n", "ne", "e", "se", "s", "sw", "w", "nw"];
+  for (const [x, z] of O) if (Math.hypot(x, z) > R.skyring.r0 - 1) throw new Error(`the base's corner (${x}, ${z}) is within a metre of the Sky Ring`);
+  const sides = O.map((a, k) => {
+    const b = O[(k + 1) % O.length];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const d: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+    let n: Pt = [-d[1], d[0]];
+    if (n[0] * -(a[0] + b[0]) + n[1] * -(a[1] + b[1]) < 0) n = [-n[0], -n[1]];
+    // its bays: as many of the wall's 5 m as fit, the rest in the plain 1 m wall, the whole centred on the side
+    const bays = Math.floor(L / B.bay + 1e-6);
+    const plains = Math.round(L - bays * B.bay);
+    return { a, b, L, d, n, name: sideName[k], bays, plains, off: (L - bays * B.bay - plains) / 2 };
+  });
+  type Side = (typeof sides)[number];
+  const at = (s: Side, t: number, inward: number): Pt => [s.a[0] + s.d[0] * t + s.n[0] * inward, s.a[1] + s.d[1] * t + s.n[1] * inward];
+  const thick = -piece(B.wall).row.min![2];
+  const levels = [...(B.storeys as number[])];
+  const holes = new Map<number, Pt[][]>(levels.map((h) => [h, []]));
+  holes.set(B.roof, []);
+  const adds = new Map<number, Pt[][]>();
+  const rails: Array<[Pt, Pt, number]> = [];
+  let walls = 0;
+  for (const h of levels) {
+    const gates = (B.gates[String(h)] ?? {}) as Record<string, number[]>;
+    for (const s of sides) {
+      // (a wall's own +z looks into the building: the tower's window walls are turned so, measured off the tower)
+      const yaw = yawToward(s.n[0], s.n[1]);
+      for (let k = 0; k < s.bays; k++) {
+        const [cx, cz] = at(s, s.off + (k + 0.5) * B.bay, thick / 2);
+        placeTurned("c-base", gates[s.name]?.includes(k) ? B.gate : B.wall, cx, cz, yaw, "o", h);
+        walls++;
+      }
+      for (let k = 0; k < s.plains; k++) {
+        const [cx, cz] = at(s, s.off + s.bays * B.bay + k + 0.5, thick / 2);
+        placeTurned("c-base", B.plain, cx, cz, yaw, "o", h);
+      }
+    }
+    // a pillar at each corner over the joint, turned to its bisector
+    O.forEach((p, k) => {
+      const [n0, n1] = [sides[(k + O.length - 1) % O.length].n, sides[k].n];
+      const m: Pt = [n0[0] + n1[0], n0[1] + n1[1]];
+      const ml = Math.hypot(m[0], m[1]);
+      placeTurned("c-base", B.pillar, p[0] + (m[0] / ml) * 0.6, p[1] + (m[1] / ml) * 0.6, yawToward(m[0], m[1]), "o", h);
+    });
+  }
+  // the roof's edge railed, a fence's width in from the outer face
+  for (const s of sides) rails.push([at(s, 0, B.rail.inset), at(s, s.L, B.rail.inset), B.roof]);
+  // the stairs between the storeys: the pack's double flight, its well the hole in the floor above, railed but where its
+  // upper flight arrives (its own +z edge, `arrive` its own x: measured off its parts)
+  const st = piece(B.stairs.piece).row;
+  const stairs: Array<{ at: number; foot: Pt; top: Pt; route: number[][] }> = [];
+  for (const [hs, list] of Object.entries(B.stairs.at as Record<string, number[][]>)) {
+    const h = Number(hs);
+    const up = h + 3.5;
+    if (!levels.includes(up) && up !== B.roof) throw new Error(`stairs at ${h} lead to no storey`);
+    if (up - (h + B.stairs.rise) > MOVE_STEP) throw new Error(`the base's stair climbs ${B.stairs.rise} m of ${up - h}`);
+    for (const [x, z, yaw] of list) {
+      const box = placeTurned("c-base", B.stairs.piece, x, z, yaw, "o", h);
+      // own (x, z) of the stair onto the map, by its footprint's middle
+      const [mx, mz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
+      const own = (ox: number, oz: number): Pt => [x + box.u[0] * (ox - mx) + box.v[0] * (oz - mz), z + box.u[1] * (ox - mx) + box.v[1] * (oz - mz)];
+      const [x0, x1, z0, z1] = [st.min![0], st.max![0], st.min![2], st.max![2]];
+      holes.get(up)!.push([own(x0, z0), own(x1, z0), own(x1, z1), own(x0, z1)]);
+      // (the rail stands back from the flight's sides by `clear`: flush with them it left a body's square no way off)
+      const [a0, a1] = [B.stairs.arrive[0] - B.stairs.clear, B.stairs.arrive[1] + B.stairs.clear];
+      const o = 0.05;
+      rails.push([own(x0 - o, z0 - o), own(x1 + o, z0 - o), up], [own(x1 + o, z0 - o), own(x1 + o, z1 + o), up], [own(x0 - o, z1 + o), own(x0 - o, z0 - o), up]);
+      rails.push([own(x1 + o, z1 + o), own(a1, z1 + o), up], [own(a0, z1 + o), own(x0 - o, z1 + o), up]);
+      // its way up for a body (rules.base.stairs.route, its own metres and height over its foot) onto the map
+      const route = (B.stairs.route as number[][]).map(([ox, oz, oy]) => [...own(ox, oz), h + oy]);
+      stairs.push({ at: h, foot: own(1, z1 + 1), top: own(B.stairs.route.at(-1)[0], B.stairs.route.at(-1)[1]), route });
+    }
+  }
+  // the atria: over each kiosk's and the glass hall's raised middle (its own x0, x1, z0, z1, measured off its parts: what
+  // tops out over 3 m), on the first floor, railed round
+  let atria = 0;
+  for (const [name, [ax0, ax1, az0, az1]] of Object.entries(B.atria as Record<string, number[]>)) {
+    const key = piece(name).key;
+    for (const c of chunks.values())
+      for (const q of c.place) {
+        if (q[0] !== key) continue;
+        const a = (q[4] * Math.PI) / 180;
+        const [co, si] = [Math.cos(a), Math.sin(a)];
+        const w = (lx: number, lz: number): Pt => [q[1] + co * lx + si * lz, q[3] - si * lx + co * lz];
+        const m = B.atriumMargin;
+        const ring = [w(ax0 - m, az0 - m), w(ax1 + m, az0 - m), w(ax1 + m, az1 + m), w(ax0 - m, az1 + m)];
+        holes.get(levels[1])!.push(ring);
+        ring.forEach((p, k) => rails.push([p, ring[(k + 1) % 4], levels[1]]));
+        atria++;
+      }
+  }
+  // the bridges from the first floor's corner doors to the Sky Ring: from the door's middle straight out to the ring's
+  // inner edge, a slab of the base's floor, railed both sides
+  for (const s of sides.filter((q) => q.name.length === 2)) {
+    for (const k of (B.gates[String(levels[1])]?.[s.name] ?? []) as number[]) {
+      const mid = at(s, s.off + (k + 0.5) * B.bay, 0);
+      const out: Pt = [-s.n[0], -s.n[1]];
+      // how far out along `out` the ring's inner edge is (and 2 cm on, under the ring's own edge)
+      const pb = mid[0] * out[0] + mid[1] * out[1];
+      const t = -pb + Math.sqrt(pb * pb - (mid[0] * mid[0] + mid[1] * mid[1]) + R.skyring.r0 * R.skyring.r0) + 0.02;
+      const w2 = B.bridge.width / 2;
+      const p0: Pt = [mid[0] - s.d[0] * w2, mid[1] - s.d[1] * w2];
+      const p1: Pt = [mid[0] + s.d[0] * w2, mid[1] + s.d[1] * w2];
+      const far = (p: Pt): Pt => [p[0] + out[0] * t, p[1] + out[1] * t];
+      (adds.get(levels[1]) ?? adds.set(levels[1], []).get(levels[1])!).push([p0, p1, far(p1), far(p0)]);
+      const o = 0.1;
+      const i0: Pt = [p0[0] + s.d[0] * o, p0[1] + s.d[1] * o];
+      const i1: Pt = [p1[0] - s.d[0] * o, p1[1] - s.d[1] * o];
+      rails.push([i0, far(i0), levels[1]], [i1, far(i1), levels[1]]);
+      baseBridges.push(far(mid));
+      baseBridgeAxes.push([mid, far(mid)]);
+    }
+  }
+  // the base's insides (rules.base.inside), a plan a storey and each storey different (the owner, 2026-09-30: "some should
+  // have no or little walls, some should have a lot of walls ... if they don't have cover to fight in then they die from
+  // the outskirts all the time"): the ground floor a concourse with shop units along its north and south faces, each open
+  // to it through the pack's wide gate; the first floor offices, two rows of rooms a side either side of a corridor, a
+  // doorway each; the second floor a warehouse hall of pillars and the pack's racks in aisles; the roof the pack's cooling
+  // boxes. Rooms are on a 2.5 m grid from the north face's straight run, in the pack's plain 3 m wall (the storeys are the
+  // tower's 3.5 m, its slab 0.5: floor to ceiling); every storey's open floor strewn with the pack's crates, barrels and
+  // furniture as cover, none within reach of a stair, an atrium, a door or another piece
+  {
+    const I = B.inside;
+    const rnd2 = seeded(I.seed);
+    const pick = <T,>(a: T[]): T => a[Math.floor(rnd2() * a.length)];
+    const rect = cfg.tallest as { x0: number; x1: number; z0: number; z1: number };
+    const box = (x0: number, x1: number, z0: number, z1: number): OBox => boxOf([Math.min(x0, x1), Math.max(x0, x1), Math.min(z0, z1), Math.max(z0, z1)]);
+    // what each storey keeps clear: the stairs' ways on and off, the atria and the kiosks and the glass hall under them,
+    // the doors in the faces and the bridges' doors
+    const keep = new Map<number, OBox[]>([...levels, B.roof].map((h) => [h, []]));
+    const C2 = I.clear;
+    const grow = (o: OBox, g: number): OBox => ({ ...o, hu: o.hu + g, hv: o.hv + g });
+    for (const [hs, list] of Object.entries(B.stairs.at as Record<string, number[][]>)) {
+      const h = Number(hs);
+      for (const [x, z, yaw] of list) {
+        const u = rotY(yaw, 1, 0), v = rotY(yaw, 0, 1);
+        const [hu, hv] = [st.size![0] / 2, st.size![2] / 2];
+        // the stair and its way on at the foot (its own +z side), and on the floor above its well and the way off it
+        const o: OBox = { c: [x + v[0] * (C2.stair / 2), z + v[1] * (C2.stair / 2)], u, v, hu: hu + 0.6, hv: hv + C2.stair / 2 + 0.6, top: 0 };
+        keep.get(h)!.push(o);
+        keep.get(h + 3.5)!.push(o);
+      }
+    }
+    for (const ring of holes.get(levels[1])!) {
+      const xs = ring.map((p) => p[0]), zs = ring.map((p) => p[1]);
+      const o = grow(box(Math.min(...xs), Math.max(...xs), Math.min(...zs), Math.max(...zs)), C2.atrium);
+      keep.get(levels[1])!.push(o);
+    }
+    for (const [name] of Object.entries(B.atria as Record<string, number[]>)) {
+      const row = piece(name).row;
+      const key = piece(name).key;
+      for (const c of chunks.values())
+        for (const q of c.place) {
+          if (q[0] !== key) continue;
+          const a = (q[4] * Math.PI) / 180;
+          const w = (lx: number, lz: number): Pt => [q[1] + Math.cos(a) * lx + Math.sin(a) * lz, q[3] - Math.sin(a) * lx + Math.cos(a) * lz];
+          const cs = [w(row.min![0], row.min![2]), w(row.max![0], row.max![2])];
+          keep.get(levels[0])!.push(grow(box(cs[0][0], cs[1][0], cs[0][1], cs[1][1]), 1.5));
+        }
+    }
+    // (a shop's back may be a door in the face: the doors keep only the cover, the pillars and a room's walls off)
+    const doors = new Map<number, OBox[]>([...levels, B.roof].map((h) => [h, []]));
+    const doorsAt = doors;
+    for (const h of levels)
+      for (const s of sides)
+        for (const k of ((B.gates[String(h)] ?? {})[s.name] ?? []) as number[]) {
+          const p = at(s, s.off + (k + 0.5) * B.bay, thick + C2.gate / 2);
+          doors.get(h)!.push({ c: p, u: s.d, v: s.n, hu: B.bay / 2, hv: C2.gate / 2, top: 0 });
+        }
+    const clearOf = (o: OBox, h: number, g = 0, door = true) => !keep.get(h)!.some((k) => overlaps(o, k, g)) && !(door && doors.get(h)!.some((k) => overlaps(o, k, g)));
+    const inTower = (o: OBox, g: number) => overlaps(o, box(rect.x0, rect.x1, rect.z0, rect.z1), g);
+    const inside = (p: Pt, inset: number) => O.every((a, k) => {
+      const s = sides[k];
+      return (p[0] - a[0]) * s.n[0] + (p[1] - a[1]) * s.n[1] > inset;
+    });
+    const placed = new Map<number, OBox[]>([...levels, B.roof].map((h) => [h, []]));
+    let nWalls = 0, nProps = 0, nRooms = 0, nLamps = 0;
+    /** a wall along a grid line from a to b (axis-aligned), its door slots (2.5 m each from a) left open */
+    const wallLine = (h: number, a: Pt, b: Pt, doors: number[], wide = -1) => {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const n = Math.round(L / I.grid);
+      const d: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      const yaw = Math.abs(d[0]) > 0.5 ? 0 : 90;
+      let k = 0;
+      while (k < n) {
+        if (doors.includes(k)) { k++; continue; }
+        // (none of a room's wall across the way in from a door in the face)
+        const cut: Pt = [a[0] + d[0] * (k + 0.5) * I.grid, a[1] + d[1] * (k + 0.5) * I.grid];
+        if (doorsAt.get(h)!.some((q) => overlaps({ c: cut, u: d, v: [-d[1], d[0]], hu: I.grid / 2, hv: 0.25, top: 0 }, q, 0.1))) { k++; continue; }
+        // the pack's wide gate over two slots where asked, else a 5 m wall over two free slots, else a 2.5 m
+        const two = k + 1 < n && !doors.includes(k + 1);
+        const name = k === wide && two ? I.wide : two ? I.walls["5"] : I.walls["2.5"];
+        const len = two ? 2 * I.grid : I.grid;
+        const c: Pt = [a[0] + d[0] * (k * I.grid + len / 2), a[1] + d[1] * (k * I.grid + len / 2)];
+        const o = placeTurned("c-base", name, c[0], c[1], yaw, "o", h);
+        placed.get(h)!.push(o);
+        nWalls++;
+        k += two ? 2 : 1;
+      }
+    };
+    /** a row of rooms along the north or south face's straight run, from the face `z0` to `z1`, doors toward `z1` */
+    const roomRow = (h: number, z0: number, z1: number, widths: number[], shop: boolean, backDoor: number, sideDoor: number) => {
+      const [xa, xb] = [O[0][0], O[1][0]];
+      let x = xa;
+      let open = true;
+      const rooms: Array<[number, number, number, number]> = [];
+      while (x < xb - 2.4) {
+        // the plan's width at random, or the widest of the others that fits here (a room steps round what is in its way)
+        const first = pick(widths);
+        const w = [first, ...[...new Set(widths)].filter((q) => q !== first).sort((a, b) => b - a)]
+          .map((q) => Math.min(q, xb - x))
+          .find((q) => q > 4.9 && clearOf(box(x, x + q, z0, z1), h, 0.2, false) && !inTower(box(x, x + q, z0, z1), 0.3));
+        if (w === undefined) {
+          x += I.grid;
+          open = true;
+          continue;
+        }
+        const slots = Math.round(w / I.grid);
+        const depth = Math.round(Math.abs(z1 - z0) / I.grid);
+        // its side walls (the first of a run's left one too, a doorway through to its neighbour now and then), its front
+        // with a doorway, a shop's the wide gate
+        if (open) wallLine(h, [x, z0], [x, z1], []);
+        wallLine(h, [x + w, z0], [x + w, z1], rnd2() < sideDoor && x + w < xb - 4.9 ? [Math.floor(rnd2() * Math.max(1, depth - 1))] : []);
+        if (shop) wallLine(h, [x, z1], [x + w, z1], [], Math.floor(rnd2() * (slots - 1)));
+        else wallLine(h, [x, z1], [x + w, z1], [1 + Math.floor(rnd2() * Math.max(1, slots - 2))]);
+        if (backDoor >= 0 && rnd2() < backDoor) wallLine(h, [x, z0], [x + w, z0], [Math.floor(rnd2() * slots)]);
+        rooms.push([x, x + w, z0, z1]);
+        nRooms++;
+        x += w;
+        open = false;
+      }
+      return rooms;
+    };
+    /** pieces strewn over a storey's open floor (or a room's), `count` tries' worth of the ones that fit */
+    const strew = (h: number, names: string[], count: number, within?: [number, number, number, number]) => {
+      for (let t = 0, got = 0; t < count * 30 && got < count; t++) {
+        const name = pick(names);
+        const row = piece(name).row;
+        const p: Pt = within ? [within[0] + 1 + rnd2() * (within[1] - within[0] - 2), within[2] + 1 + rnd2() * (within[3] - within[2] - 2)] : [O[7][0] + rnd2() * (O[2][0] - O[7][0]), O[0][1] + rnd2() * (O[4][1] - O[0][1])];
+        const yaw = Math.floor(rnd2() * 4) * 90 + (row.size![0] < 1.2 && row.size![2] < 1.2 ? rnd2() * 40 - 20 : 0);
+        const o: OBox = { c: p, u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: 0 };
+        if (!inside(p, 1.4) || inTower(o, 0.6) || !clearOf(o, h, 0.4) || placed.get(h)!.some((q) => overlaps(o, q, C2.apart))) continue;
+        placeTurned("c-base", name, p[0], p[1], yaw, "o", h - row.min![1]);
+        placed.get(h)!.push(o);
+        nProps++;
+        got++;
+      }
+    };
+    /** the plain pillar on a grid over the open floor */
+    const pillars = (h: number, every: number) => {
+      for (let x = O[7][0] + every / 2; x < O[2][0]; x += every)
+        for (let z = O[0][1] + every / 2; z < O[4][1]; z += every) {
+          const o = placeTurnedBox(x, z);
+          if (!inside([x, z], 2) || inTower(o, 1) || !clearOf(o, h, 0.6) || placed.get(h)!.some((q) => overlaps(o, q, 1.5))) continue;
+          placeTurned("c-base", I.pillar, x, z, 0, "o", h);
+          placed.get(h)!.push(o);
+        }
+    };
+    const placeTurnedBox = (x: number, z: number): OBox => ({ c: [x, z], u: [1, 0], v: [0, 1], hu: 0.5, hv: 0.5, top: 0 });
+    const zIn = O[0][1] + thick;
+    const zOut = O[4][1] - thick;
+    for (const [hs, P] of Object.entries(I.storeys as Record<string, { plan: string; rows?: number[]; corridor?: number; widths?: number[]; back?: number; side?: number; pillars?: number; aisles?: { piece: string; run: number; every: number }; cover: { count: number; pieces: string[] }; inRooms?: { pieces: string[]; each: number } }>)) {
+      const h = Number(hs);
+      const rooms: Array<[number, number, number, number]> = [];
+      if (P.plan === "shops" || P.plan === "offices") {
+        const [dA, dB] = [P.rows![0], P.rows![1] ?? 0];
+        const cor = P.corridor ?? 0;
+        // the north face's rows (from the face south) and the south face's (from the face north)
+        for (const [face, sgn] of [[zIn, 1], [zOut, -1]] as const) {
+          rooms.push(...roomRow(h, face, face + sgn * dA, P.widths!, P.plan === "shops", -1, P.side ?? 0));
+          if (dB) {
+            const b0 = face + sgn * (dA + cor);
+            const b1 = sgn > 0 ? Math.min(b0 + dB, rect.z0 - 0.6) : Math.max(b0 - dB, rect.z1 + 0.6);
+            rooms.push(...roomRow(h, b1, b0, P.widths!, false, P.back ?? -1, P.side ?? 0));
+          }
+        }
+      }
+      if (P.pillars) pillars(h, P.pillars);
+      if (P.aisles) {
+        // racks end to end in runs along x, a run every `every` m down each band, gaps where they do not fit
+        const A = P.aisles;
+        const row = piece(A.piece).row;
+        for (const [z0, z1] of [[zIn + 2.5, rect.z0 - 2], [rect.z1 + 2, zOut - 2.5]])
+          for (let z = Math.min(z0, z1); z <= Math.max(z0, z1); z += A.every)
+            for (let x = O[0][0] + 1; x + A.run * row.size![0] < O[1][0]; x += A.run * row.size![0] + 3) {
+              const o = box(x, x + A.run * row.size![0], z - 0.4, z + 0.4);
+              if (!clearOf(o, h, 0.5) || inTower(o, 1) || placed.get(h)!.some((q) => overlaps(o, q, 1.2))) continue;
+              for (let k = 0; k < A.run; k++) placeTurned("c-base", A.piece, x + (k + 0.5) * row.size![0], z, 0, "o", h);
+              placed.get(h)!.push(o);
+              nProps += A.run;
+            }
+      }
+      if (P.inRooms) for (const r of rooms) strew(h, P.inRooms.pieces, P.inRooms.each, r);
+      strew(h, P.cover.pieces, P.cover.count);
+      // the pack's ceiling lamp on a grid under the storey's ceiling (the storey above's slab), none over a hole
+      if (h + 3.5 <= B.roof) {
+        const lamp = piece(I.lamps.piece).row;
+        for (let x = O[7][0] + I.lamps.every / 2; x < O[2][0]; x += I.lamps.every)
+          for (let z = O[0][1] + I.lamps.every / 2; z < O[4][1]; z += I.lamps.every) {
+            const o: OBox = { c: [x, z], u: [1, 0], v: [0, 1], hu: lamp.size![0] / 2, hv: lamp.size![2] / 2, top: 0 };
+            if (!inside([x, z], 1.5) || inTower(o, 0.5) || keep.get(h + 3.5)!.some((k) => overlaps(o, k, 0.5))) continue;
+            placeTurned("c-base", I.lamps.piece, x, z, 0, "g", h + 3.5 - B.slab - I.lamps.under - lamp.max![1]);
+            nLamps++;
+          }
+      }
+    }
+    console.log(`the base's insides: ${nRooms} rooms, ${nWalls} lengths of wall, ${nProps} pieces of cover, ${nLamps} lamps`);
+  }
+  // every rail a run of the fence's lengths along it, the last one short where the run does not come out even
+  const long = piece(B.rail.long).row.max![0];
+  const short = piece(B.rail.short).row.max![0];
+  let fences = 0;
+  for (const [a, b, y] of rails) {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const d: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+    const yaw = +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2);
+    let u = 0;
+    while (u < L - 0.3) {
+      const name = L - u >= long - 0.2 ? B.rail.long : B.rail.short;
+      add("c-base", "c", [piece(name).key, +(a[0] + d[0] * u).toFixed(3), y, +(a[1] + d[1] * u).toFixed(3), yaw, "o"] as Place);
+      u += name === B.rail.long ? long : short;
+      fences++;
+    }
+  }
+  const r2 = (p: Pt) => p.map((v) => +v.toFixed(3));
+  cfg.base = {
+    outline: O,
+    levels: [...levels, B.roof].map((y) => ({ y, holes: (holes.get(y) ?? []).map((h) => h.map(r2)), adds: (adds.get(y) ?? []).map((h) => h.map(r2)), ...(y === levels[0] ? { court: true } : {}) })),
+    slab: B.slab,
+    tuck: B.tuck,
+    cell: B.cell,
+    mats: B.mats,
+    scale: B.scale,
+    mask: B.mask,
+    stairs: stairs.map((q) => ({ at: q.at, foot: r2(q.foot), top: r2(q.top), route: q.route.map((v) => v.map((w) => +w.toFixed(2))) })),
+    // each door in the faces: a metre outside it and three in, on its storey
+    gates: levels.flatMap((h) => sides.flatMap((s) => ((B.gates[String(h)]?.[s.name] ?? []) as number[]).map((k) => ({ at: h, out: r2(at(s, s.off + (k + 0.5) * B.bay, -1)), in: r2(at(s, s.off + (k + 0.5) * B.bay, 3)) })))),
+    bridges: baseBridges.map(r2),
+    bridgeAxes: baseBridgeAxes.map(([a, b]) => [r2(a), r2(b)]),
+  };
+  console.log(`the base: ${walls} bays of wall, ${stairs.length} stairs, ${atria} atria, ${baseBridges.length} bridges to the Sky Ring, ${fences} lengths of rail`);
+}
+
 // The Sky Ring (rules.skyring): the walkway storey, a ring of the pack's floor slab round the tower's plaza at the
 // height of a building's first floor, its deck baked as a true circle (tools/import-neon.ts). Here its fences, the
 // pack's elegant glass one along both edges, a length along each chord; and its stairs, the pack's double flight up from
@@ -649,7 +1012,7 @@ const skyStairs: Pt[] = [];
       const pa: Pt = [Math.cos(a) * r, Math.sin(a) * r];
       const pb: Pt = [Math.cos(b) * r, Math.sin(b) * r];
       const mid: Pt = [(pa[0] + pb[0]) / 2, (pa[1] + pb[1]) / 2];
-      if (open && exits.some((e) => Math.hypot(e[0] - mid[0], e[1] - mid[1]) < SR.fence.gap)) continue;
+      if (open && [...exits, ...baseBridges].some((e) => Math.hypot(e[0] - mid[0], e[1] - mid[1]) < SR.fence.gap)) continue;
       const d: Pt = [pb[0] - pa[0], pb[1] - pa[1]];
       // (its own x along the chord from its pivot)
       add("c-skyring", "c", [piece(SR.fence.piece).key, +pa[0].toFixed(3), SR.deck, +pa[1].toFixed(3), +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2), "o"] as Place);

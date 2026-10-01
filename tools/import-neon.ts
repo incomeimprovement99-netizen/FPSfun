@@ -14,7 +14,8 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
 import { padStandOff } from "../src/game/padsolve";
-import { streets, StreetField, fieldSurface, ringSlab } from "./neon-streets";
+import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
+import { sdPoly, standing, storeySlab, type Grid } from "./neon-base";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
@@ -211,6 +212,9 @@ if (mode === "bake") {
   const TAG = process.env.NEON_TAG ?? "";
   const groupOf = (id: string) => (id.startsWith(cfg.rules.bake.merge) ? cfg.rules.bake.as : id);
   const groups = new Map<string, Array<{ d: Draw; m: M4 }>>();
+  // what already stands where the base's floors go (cfg.base.mask's chunks: the tower, the court, the station's kiosks)
+  const baseMask = new Set<string>(cfg.base?.mask ?? []);
+  const standingDraws: Array<{ d: Draw; m: M4 }> = [];
   for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, string[]?]> }>(cfg.chunks)) {
     const all = groups.get(groupOf(id)) ?? groups.set(groupOf(id), []).get(groupOf(id))!;
     for (const [key, x, y, z, yaw, how, mat, without] of chunk.place) {
@@ -219,8 +223,15 @@ if (mode === "bake") {
       if (mat && !matGuid) throw new Error(`no material ${mat}`);
       // (a placement may leave named parts of its prefab out: neonmap.json's rules say which and why)
       // An entry is a model's file name (every part drawn from it) or "name@x,y,z", the one part of it whose middle is
-      // within half a metre of there in the prefab's own metres (the pack's plain walls are one model in many places)
+      // within half a metre of there in the prefab's own metres (the pack's plain walls are one model in many places), or
+      // "*#x0,x1,y0,y1,z0,z1", every part lying wholly inside that box in the prefab's own metres (a building's interior
+      // cleared from inside its shell: the walls and floors that reach under the shell are not wholly inside and stay)
       const leftOut = (w: string, d: Draw, m: M4): boolean => {
+        if (w.startsWith("*#")) {
+          const [x0, x1, y0, y1, z0, z1] = w.slice(2).split(",").map(Number);
+          const [lo, hi] = partBounds(d, m);
+          return lo[0] >= x0 && hi[0] <= x1 && lo[1] >= y0 && hi[1] <= y1 && lo[2] >= z0 && hi[2] <= z1;
+        }
         const [name, at] = w.split("@");
         if (basename(pack.guidPath.get(d.modelGuid) ?? "") !== name) return false;
         if (!at) return true;
@@ -231,6 +242,7 @@ if (mode === "bake") {
       for (const w of without ?? []) if (!draws(key).some(({ d, m }) => leftOut(w, d, m))) throw new Error(`${key}: no ${w} to leave out`);
       const mine = kept.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
       all.push(...mine);
+      if (baseMask.has(id)) standingDraws.push(...mine);
       if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...mine);
       else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
       placed++;
@@ -255,6 +267,45 @@ if (mode === "bake") {
     // (at the finer cell: at the half metre its inner edge stood over the last tread of each stair up to it)
     openFine.push({ d, m: I });
     console.log(`the Sky Ring: ${prims.reduce((a, p) => a + p.idx.length / 3, 0)} triangles`);
+  }
+  // the base's floors (cfg.base, tools/neon-base.ts): each storey's slab from the base's outline (on the ground storey,
+  // the court's opening, the plaza's tiles being the floor elsewhere) in to what already stands there, measured off its
+  // triangles, less the stairs' wells and the atria; walked on, so measured for the collision at the finer cell
+  const BS = cfg.base;
+  if (BS) {
+    const tris = function* (): Generator<[number[], number[], number[]]> {
+      for (const { d, m } of standingDraws)
+        for (const q of d.model.meshes[d.mesh].prims) {
+          const V = (i: number) => [0, 1, 2].map((a) => m[a] * q.pos[i * 3] + m[4 + a] * q.pos[i * 3 + 1] + m[8 + a] * q.pos[i * 3 + 2] + m[12 + a]);
+          for (let k = 0; k + 2 < q.idx.length; k += 3) yield [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])];
+        }
+    };
+    const pts: Pt[] = [...BS.outline, ...BS.levels.flatMap((l: { adds: Pt[][] }) => l.adds.flat())];
+    const cell = BS.cell;
+    const gx0 = Math.floor(Math.min(...pts.map((p) => p[0])) / cell) * cell - cell, gz0 = Math.floor(Math.min(...pts.map((p) => p[1])) / cell) * cell - cell;
+    const g: Grid = { x0: gx0, z0: gz0, cell, nx: Math.ceil((Math.max(...pts.map((p) => p[0])) - gx0) / cell) + 2, nz: Math.ceil((Math.max(...pts.map((p) => p[1])) - gz0) / cell) + 2 };
+    const court = cfg.court as { x0: number; x1: number; z0: number; z1: number };
+    const courtRing: Pt[] = [[court.x0, court.z0], [court.x1, court.z0], [court.x1, court.z1], [court.x0, court.z1]];
+    let tri = 0;
+    for (const L of BS.levels as Array<{ y: number; holes: Pt[][]; adds: Pt[][]; court?: boolean }>) {
+      // (what stands in a body's height over the floor and the floor's own depth under it)
+      const stood = standing(g, tris(), L.y - BS.slab - 0.05, L.y + 2);
+      const region = L.court ? (x: number, z: number) => sdPoly(courtRing, x, z) : (x: number, z: number) => Math.min(sdPoly(BS.outline, x, z), ...L.adds.map((a) => sdPoly(a, x, z)));
+      const parts = storeySlab(g, region, L.holes, stood, L.y - BS.tuck, BS.slab, BS.scale);
+      const prims = (["top", "edge", "under"] as const).map((k) => ({ pos: new Float32Array(parts[k].pos), nrm: new Float32Array(parts[k].nrm), uv: new Float32Array(parts[k].uv), idx: new Uint32Array(parts[k].idx), material: BS.mats[k] }));
+      const mats = prims.map((p) => {
+        const mg = pack.matFor(p.material);
+        if (!mg) throw new Error(`no material ${p.material}`);
+        return mg;
+      });
+      const model = { meshes: [{ name: `base-${L.y}`, prims }], nodes: [], roots: [] } as unknown as Draw["model"];
+      const d: Draw = { model, mesh: 0, pre: null, mats, modelGuid: "", on: true, go: null };
+      const I: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+      (groups.get(groupOf("c-base")) ?? groups.set(groupOf("c-base"), []).get(groupOf("c-base"))!).push({ d, m: I });
+      openFine.push({ d, m: I });
+      tri += prims.reduce((a, p) => a + p.idx.length / 3, 0);
+    }
+    console.log(`the base's floors: ${BS.levels.length} storeys, ${tri} triangles`);
   }
   // the rooms, stairs and what stands in the open: their own spans, as a district's are (no fill: these pieces are whole)
   // (below the street kept: the tallest building stands in a pit to its basement, 7 m down, whose floors the districts'
@@ -421,6 +472,12 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
 
 /** the middle of a part's bounds, placed by `m` (column-major) */
 function partMiddle(d: Draw, m: M4): [number, number, number] {
+  const [lo, hi] = partBounds(d, m);
+  return [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+}
+
+/** a part's bounds, placed by `m` (column-major): its least and most corner */
+function partBounds(d: Draw, m: M4): [number[], number[]] {
   const lo = [Infinity, Infinity, Infinity];
   const hi = [-Infinity, -Infinity, -Infinity];
   for (const q of d.model.meshes[d.mesh].prims)
@@ -430,7 +487,7 @@ function partMiddle(d: Draw, m: M4): [number, number, number] {
         lo[a] = Math.min(lo[a], v);
         hi[a] = Math.max(hi[a], v);
       }
-  return [(lo[0] + hi[0]) / 2, (lo[1] + hi[1]) / 2, (lo[2] + hi[2]) / 2];
+  return [lo, hi];
 }
 
 /**
