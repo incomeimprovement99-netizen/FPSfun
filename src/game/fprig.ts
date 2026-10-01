@@ -144,6 +144,16 @@ export const HIP_PITCH = (cfg as unknown as { hipPitch: number }).hipPitch;
 
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 const loader = new GLTFLoader();
+/**
+ * The pack's one pickup clip, loaded once for every gun's hands: each gun's set of clips asked for it again, so a
+ * second gun in hand fetched and parsed it a second time (a hunt, 2026-10-01: GET at boot, GET again in the range)
+ */
+let pickupClip: Promise<THREE.AnimationClip | null> | null = null;
+const loadPickup = (): Promise<THREE.AnimationClip | null> =>
+  (pickupClip ??= loader
+    .loadAsync(url(`${cfg.models}clips/${PICKUP.clip}.glb`))
+    .then((g) => g.animations[0] ?? null)
+    .catch(() => null));
 
 /** the pack gun that stands in for one of ours, or null (the view's own arms hold it) */
 export function packGunFor(id: string): string | null {
@@ -427,10 +437,13 @@ export class PackArms {
       if (!pg) return null;
       const set: GunSet = { name, arms: new Map(), gun: new Map() };
       await Promise.all([
-        // (every gun's hands take things off the ground the same: the pack's one pickup)
-        ...Object.entries({ ...pg.arms, pickup: PICKUP.clip }).map(async ([k, clip]) => {
+        ...Object.entries(pg.arms).map(async ([k, clip]) => {
           const g = await loader.loadAsync(url(`${cfg.models}clips/${clip}.glb`));
           if (g.animations[0]) set.arms.set(k, g.animations[0]);
+        }),
+        // (every gun's hands take things off the ground the same: the pack's one pickup, the same clip in every set)
+        loadPickup().then((c) => {
+          if (c) set.arms.set("pickup", c);
         }),
         ...Object.entries(pg.gun).map(async ([k, clip]) => {
           // a gun's pose can be a still with no clip file (the L96X's)

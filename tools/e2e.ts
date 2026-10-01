@@ -6620,7 +6620,13 @@ async function skHuntTest(browser: Browser): Promise<void> {
   await arena.waitForFunction("window.__range.loaded()", { polling: 250, timeout: 120000 }).catch(() => undefined);
   const body = await ev<number>(arena, `performance.getEntriesByType("resource").filter((e) => /T_Superhero_Male_Dark/.test(e.name)).length`);
   check("hunt: the soldier's body texture is fetched once (it was twice: the body loaded on its own and again for a figure)", body === 1, String(body));
-  await ev(arena, `(() => { window.__range.audio.setVolumes({ music: 0 }); document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
+  // the hands' pickup clip fetched once, with the second gun's hands loaded too (each gun's set of clips fetched it
+  // again: a hunt, 2026-10-01)
+  await ev(arena, "(() => { const R = window.__range; R.loadout.requestSwap(1 - R.loadout.activeIndex, R.gameTime()); })()");
+  await gameSleep(arena, 4);
+  const pickups = await ev<number>(arena, `performance.getEntriesByType("resource").filter((e) => /A_FP_PickUp_Item/.test(e.name)).length`);
+  check("hunt: the hands' pickup clip is fetched once, a second gun's hands loaded as well (each gun's fetched it again)", pickups === 1, String(pickups));
+  await ev(arena, `(() => { window.__range.audio.setVolumes({ music: 0 });document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
   await arena.waitForFunction("window.__range.duel()?.phase === 'fight' || window.__range.duel()?.phase === 'countdown'", { polling: 200, timeout: 30000 }).catch(() => undefined);
   await sleep(1500);
   const silent = await ev<{ on: boolean; el: boolean }>(arena, "(() => { const a = window.__range.audio; return { on: a.ambienceState.on, el: !!a.ambEl && !a.ambEl.paused }; })()");
