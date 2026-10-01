@@ -8806,3 +8806,29 @@ roof was open, 20 m across behind a 0.5 m parapet, under the High City decks' gu
   from where the fire escape steps over the parapet, a body's square at a time over the collision at the roof's height
   (seen failing with a yard's inside put out past the landing, in the air). The fire escapes climbed both ways as
   before. verify and rules; e2e `loot` and `br`. Photographed.
+
+## Milestone 398 — The soldier's plan for the eight guns, and the heal codes kept to 10 to 19 ahead of CHOOCH's vent
+
+The owner, 2026-10-01: "just stick to the 3rd person and enemies view and have it planned well so you can finish better or
+have less bugs".
+
+- **The soldier's plan** (`docs/PLAN_SOLDIER_EIGHT_GUNS.md`, under the shared `PLAN_THE_EIGHT_GUNS.md`):
+  - Every gun swept on a lab figure at 1/30 s through idle, aim, look, run aimed, sprint, crouch, reload, jump and melee,
+    each frame audited. The six fitted to nothing are at the audit's caps on every frame (a hand 25 to 30 mm or more
+    through the gun, the gun 31 to 40 mm or more into the body), so each is a fit from scratch. APUHTHEE is still on the
+    clips' pistol hold, outside the rig.
+  - The USSO and BOOG pass their checks at the moments they look at but not between them (the USSO's reload has a hand up
+    to 22 mm in the gun over 27 of its 87 frames), so the template is cleaned before any new gun (its step 0).
+  - Groundwork G1 to G8 (a sweep tool, the checks over the fitted list, this narrowing, a reload built by its style, a
+    shot's cycle off the kick every figure already gets, pistol and launcher stances, hand on hand in the audit, the left
+    hand fitted round the right), and for each gun the faults expected, what heads each off, and the checks it adds.
+  - Found on the way: an overheated CHOOCH sends the act "reload" today (weapon-state.ts sets `reloading` for the
+    lockout), so other players see a reload start; and a saved loadout naming STRYDER or HAEFY would drop to the default
+    once their ids change (loadouts.ts valid()), to be mapped instead.
+- **The heal codes kept to 10 to 19** (dummy.ts HEALS, healOfCode; duel.ts's recorded heal item): every page read any act
+  code from 10 as a heal, so a new act there (CHOOCH's vent, 20) would show as a heal with no item on a page from
+  before. This goes out a release ahead of the vent, so the pages in play by then read 20 as nothing. Nothing sent
+  changes: the heals are 10 to 14.
+- **Checked:** net-delta (each heal's item through the codec, and 20, 21 and 30 read as no act), seen failing with the
+  old decoding put back; the modes e2e section (87), its remote heal still showing the item; verify; rules; the type
+  check.

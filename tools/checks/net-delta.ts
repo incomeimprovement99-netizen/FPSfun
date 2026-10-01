@@ -31,7 +31,8 @@ import * as THREE from "three";
 import { pack, unpack } from "peerjs-js-binarypack";
 import netCfg from "../../src/config/net.json";
 import { Duel, type HeirSnapshot, type LocalState } from "../../src/game/duel";
-import { actCode, actFromCode, emptyReloadOf } from "../../src/game/dummy";
+import { actCode, actFromCode, emptyReloadOf, healOfCode } from "../../src/game/dummy";
+import { HEAL_CODES } from "../../src/game/recap";
 import type { DeltaMsg, DeltaPart, Link, NetMsg, StateMsg } from "../../src/net/link";
 import { operatorById, operatorWearing } from "../../src/game/operators";
 import { lookCode, readLook } from "../../src/game/outfit";
@@ -178,6 +179,15 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
     "a reload from empty is its own act code (9, the tactical one 1), read back as a reload from empty, through the codec",
     codes.tactical === 1 && codes.empty === 9 && actFromCode(9) === "reload" && emptyReloadOf(9) && !emptyReloadOf(1) && actFromCode(1) === "reload" && through === 9,
     JSON.stringify({ codes, through })
+  );
+  // A heal is 10 to 19 alone, so an act appended later (20 on: CHOOCH's vent) is read as nothing by this page and not as
+  // a heal with no item, as every page read any code from 10 before (dummy.ts HEALS)
+  const heals = HEAL_CODES.map((h, i) => ({ h, code: actCode("heal", i), back: dequantise(quantise({ ...s, ac: actCode("heal", i) })).ac }));
+  const later = [20, 21, 30].map((c) => ({ c, act: actFromCode(c), heal: healOfCode(c) }));
+  check(
+    "each heal's item goes over the wire and comes back (10 to 19), and a code from 20 on is no act yet, not a heal",
+    HEAL_CODES.length <= 10 && heals.every((x, i) => x.back === x.code && actFromCode(x.back) === "heal" && healOfCode(x.back) === i) && later.every((x) => x.act === null && x.heal < 0),
+    JSON.stringify({ heals, later })
   );
   const spun = dequantise(quantise({ ...sample(0, 0), yaw: 725 }));
   check("a yaw that has wound round many times still names the same angle", apart(spun.yaw, 725) < 0.06, `${spun.yaw.toFixed(1)} for 725`);

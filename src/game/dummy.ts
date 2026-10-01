@@ -224,8 +224,8 @@ export interface FigurePose {
 /**
  * What the hands are doing, as one small number for the network: 0 nothing,
  * 1 reload, 2 swap, 3 throw, 4 melee, 5 revive, 6 interact, 7 finishing
- * someone (finisher.ts), 8 being finished, 10 + a heal's code. A page from before 3 to 6 existed reads them as nothing, so a figure
- * on an old page just does not play the new motion.
+ * someone (finisher.ts), 8 being finished, 9 a reload from empty, 10 + a heal's code. A page from before 3 to 6 existed
+ * reads them as nothing, so a figure on an old page just does not play the new motion.
  */
 const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "revive", "interact", "finish", "finished"];
 /**
@@ -233,8 +233,17 @@ const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "reviv
  * older page reads it as nothing and just does not show that reload
  */
 const EMPTY_RELOAD = 9;
-export const actCode = (a: FigureAct, healCode = 0, emptyReload = false): number => (a === "heal" ? 10 + healCode : a === "reload" && emptyReload ? EMPTY_RELOAD : Math.max(0, ACT_CODES.indexOf(a)));
-export const actFromCode = (c: number | undefined): FigureAct => (c !== undefined && c >= 10 ? "heal" : c === EMPTY_RELOAD ? "reload" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
+/**
+ * A heal is 10 + its item's code (recap.ts HEAL_CODES), and 10 to 19 are the heals' alone: an act added later goes from
+ * 20. Pages read every code from 10 as a heal until this, so one of them would show such an act (CHOOCH's vent,
+ * docs/PLAN_SOLDIER_EIGHT_GUNS.md G3) as a heal with no item; this goes out a release ahead of the first, so the pages
+ * in play by then read it as nothing.
+ */
+const HEALS = [10, 20];
+export const actCode = (a: FigureAct, healCode = 0, emptyReload = false): number => (a === "heal" ? HEALS[0] + healCode : a === "reload" && emptyReload ? EMPTY_RELOAD : Math.max(0, ACT_CODES.indexOf(a)));
+/** the heal item's code (recap.ts HEAL_CODES) in an act code, or -1 when it is not a heal */
+export const healOfCode = (c: number | undefined): number => (c !== undefined && c >= HEALS[0] && c < HEALS[1] ? c - HEALS[0] : -1);
+export const actFromCode = (c: number | undefined): FigureAct => (healOfCode(c) >= 0 ? "heal" : c === EMPTY_RELOAD ? "reload" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
 /** the act code is a reload from empty */
 export const emptyReloadOf = (c: number | undefined): boolean => c === EMPTY_RELOAD;
 
