@@ -8832,3 +8832,32 @@ have less bugs".
 - **Checked:** net-delta (each heal's item through the codec, and 20, 21 and 30 read as no act), seen failing with the
   old decoding put back; the modes e2e section (87), its remote heal still showing the item; verify; rules; the type
   check.
+
+## Milestone 399 — THE CENTRE: SpeedKills' 1v1 on the Neon City's own middle, inside a circle you cannot leave
+
+The owner, 2026-10-01: "default it to a new map and just make it like one of the sections of our ... map ... that
+middle district, the circular part, and the vertical building ... a small map where you can't go outside of that ...
+circle". Then: "all i want is the map, the bots can move shitty, its more for 1v1".
+
+- **The map** (src/game/arenas/centre.ts, src/config/centre.json): the battle royale's city itself, nothing built for
+  it: a 48 m circle round the tower, its podium, the Sky Ring and the ring road. The jump pads (50.2) and the lift
+  cars (51) are outside it.
+  - Eight spawns on the ring road at 45.3 m in opposite pairs, street nodes of the city's graph, facing the tower.
+  - The 1v1's circle on the ring road a quarter turn from the first pair: the map's middle is inside the tower.
+  - SpeedKills' 1v1 (with a friend or against bots) defaults to it on the Neon City (arena.ts mapFor). NEON BLOCK
+    stays in the Map box and for the other modes, and is still the 1v1 on the old city (?map=city).
+- **The circle:**
+  - you are put back on its edge (player.ts Bounds.circle);
+  - a bot's `ring` is a wall to it;
+  - a rope with an end outside it is not grabbed;
+  - a 6 m fence (the ring wall cut down, 12%; at 120 m it tinted the city and the sky pink) and its capture circle
+    show while a match is on it.
+- **The region** (fog, the sun's shadow box, the sound's space) now follows the side of the world drawn (main.ts
+  showSide), so a match on the centre gets the city's light, with a 70 m shadow box over the circle.
+- **Its bots** (src/game/centrenav.ts): straight where nothing stands between them and the circle, else the city's
+  graph cut to the circle. Measured from each spawn with you out of sight: straight alone never got there from the
+  two north of the tower (40 m off after 45 s); this way from all eight in 0.4 to 22 s. Left there, at the owner's
+  word.
+- **Checked:** verify's arenas check (the list, the spawns, circle and points inside the circle, opposite pairs);
+  the speedkills e2e (fought on it, inside it, you cannot leave it, its bot reaches its circle from the north, seen
+  failing without the graph, 40.3 m); verify; rules; photographed from a spawn, out through the fence and from above.
