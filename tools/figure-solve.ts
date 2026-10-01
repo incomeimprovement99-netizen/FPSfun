@@ -13,6 +13,7 @@
 // reloadPlanOf, read off the page), or KEY=tilt, how far the gun is turned toward the left hand.
 // Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-solve.ts <gun id> <stage>
 // ONLY=down,roll moves only the stage's numbers whose path names one of those (a hand fitted by tools/figure-fit.ts kept)
+// KEYFINGERS=1 (the reload stage) searches the key's own fingers too, each of which should lie on the gun
 // WRITE=1 writes what it found into soldierhold.json as that gun's own numbers (guns.<id>).
 import fs from "node:fs";
 import path from "node:path";
@@ -113,6 +114,8 @@ STAGES.reload =
         ...[0, 1, 2].map((i) => ({ path: ["reload", "keys", KEY, "at", i], lo: -0.3, hi: 0.3, step: 0.01, min: 0.002 })),
         ...[0, 1, 2].map((i) => ({ path: ["reload", "keys", KEY, "fwd", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
         ...[0, 1, 2].map((i) => ({ path: ["reload", "keys", KEY, "palm", i], lo: -1.5, hi: 1.5, step: 0.15, min: 0.02 })),
+        // KEYFINGERS=1: the key's own fingers too (rifle.ts: a key's fingers in place of the hold's), from the hold's
+        ...(process.env.KEYFINGERS === "1" ? ["index", "middle", "ring", "pinky", "thumb"].flatMap((f) => [0, 1, 2].map((j) => ({ path: ["reload", "keys", KEY, "fingers", f, j], lo: -10, hi: 100, step: 8, min: 1 }))) : []),
       ];
 type Pose = { speed: number; stance: string; pitch: number; ads?: number; act?: string; reloadAt?: number; then?: { pose: Omit<Pose, "then">; dt: number } };
 /** the poses a try is measured in: the hold's four, or for the lowered carry a sprint and a swap (settled into) */
@@ -158,7 +161,7 @@ let POSES: Pose[] =
 
 type Audit = { grip?: number; support?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; fingerGap?: Record<string, number>; handWhere?: Record<string, number>; gunWhere?: Record<string, number> };
 /** the fingers that hold the gun, each of which should touch it: a hand held open beside it is not holding it */
-const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"].filter(
+let HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"].filter(
   // (in a reload the left hand holds the gun only at its magazine, at the pouch or the handle its fingers are its own;
   // and the right hand working a bolt is off its grip)
   (f) => STAGE !== "reload" || (f.endsWith("_l") ? false : !KEY.startsWith("bolt")),
@@ -239,6 +242,14 @@ async function main(): Promise<void> {
       const R = await ev<{ left: [number, string][]; right: [number, string][] }>(page, `window.__range.rifleReloadPlan(${JSON.stringify(ID)}, false)`);
       const at: number[] = [];
       for (const seq of [R.left, R.right]) seq.forEach(([u, k], i) => k === KEY && at.push(seq[i + 1]?.[1] === KEY ? (u + seq[i + 1][0]) / 2 : u));
+      // the key's own fingers searched: they start as the hold's, and each of them should lie on the gun
+      if (process.env.KEYFINGERS === "1") {
+        const side = R.left.some(([, k]) => k === KEY) ? "l" : "r";
+        const keys = (cur.reload as { keys: Record<string, { fingers?: Record<string, number[]> }> }).keys;
+        const hold = (cur.fingers as Record<string, Record<string, number[]>>)[side];
+        keys[KEY].fingers ??= Object.fromEntries(["index", "middle", "ring", "pinky", "thumb"].map((f) => [f, hold[f].slice(0, 3)]));
+        HOLDING = ["index", "middle", "ring", "pinky", "thumb"].map((f) => `${f}_${side}`);
+      }
       POSES = (KEY === "tilt" ? [0.2, 0.45, 0.7] : at.length ? at : [0.5]).map((u) => ({ speed: 0, stance: "stand", pitch: 0, reloadAt: u }));
       reloadTime = await ev<number>(page, `window.__range.weaponTimes(${JSON.stringify(ID)}).reloadEmpty`);
       console.log(`${ID} reload ${KEY}: measured at ${POSES.map((p) => p.reloadAt).join(", ")} of its ${reloadTime} s`);

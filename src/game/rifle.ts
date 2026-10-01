@@ -630,11 +630,15 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   local.decompose(g.mount.position, g.mount.quaternion, g.mount.scale);
   g.mount.updateMatrixWorld(true);
   // 4. the fingers closed round the hold, each joint about its own bend axis, from its bind pose
-  const closeFingers = (side: Side, w: number, point = 0): void => {
+  const closeFingers = (side: Side, w: number, at: ReloadFingers | null = null): void => {
     const F0 = C.fingers[side];
-    // pointing at the magazine in a reload (reload.pointFingers), blended in with the hand's way to it
-    const P = (R as { pointFingers?: Record<string, number[]> }).pointFingers;
-    const F = point > 0 && P ? (Object.fromEntries(Object.entries(F0).map(([f, a]) => [f, a.map((x, i) => x + ((P[f]?.[i] ?? x) - x) * point)])) as typeof F0) : F0;
+    // in a reload a key's own (reload.keys.<key>.fingers; the point's are reload.pointFingers), blended in with the hand's
+    // way to it: at the USSO's charging handle and on BOOG's bolt the hold's grip closed the fingers into the receiver
+    const own = (k: string): Record<string, number[]> | null => (k === "point" ? ((R as { pointFingers?: Record<string, number[]> }).pointFingers ?? null) : ((R.keys as Record<string, { fingers?: Record<string, number[]> }>)[k]?.fingers ?? null));
+    const over = (K: Record<string, number[]> | null): typeof F0 => (K ? (Object.fromEntries(Object.entries(F0).map(([f, a]) => [f, a.map((x, i) => K[f]?.[i] ?? x)])) as typeof F0) : F0);
+    const A = at ? over(own(at.from)) : F0;
+    const B = at && at.t > 0 ? over(own(at.to)) : A;
+    const F = A === B ? A : (Object.fromEntries(Object.entries(A).map(([f, a]) => [f, a.map((x, i) => x + (((B as Record<string, number[]>)[f]?.[i] ?? x) - x) * at!.t)])) as typeof F0);
     for (const f of FINGERS)
       for (let j = 1; j <= 3; j++) {
         const fb = b[`${f}_0${j}_${side}`];
@@ -697,7 +701,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       const roll = twistAbout(rel, tw.along);
       twb.quaternion.copy(new THREE.Quaternion().setFromAxisAngle(tw.along, roll * C.twist * w).multiply(tw.bind));
     }
-    closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w, reloadAt?.point ?? 0);
+    closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w, reloadAt?.fingers ?? null);
   }
   // held in both hands in the stance: remember where the gun is in the right hand, for when a full-body clip takes the arms
   if (s.mem && handR && s.stance > 0.99 && s.wR > 0.99 && u === null) {
@@ -757,24 +761,26 @@ function keyTarget(key: string, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion,
   return { at: g.gun.localToWorld(base.clone().add(new THREE.Vector3(...K.at))), fwd: new THREE.Vector3(...K.fwd).normalize().applyQuaternion(gunQ), face: new THREE.Vector3(...K.palm).normalize().applyQuaternion(gunQ), key };
 }
 
+/** a reload's fingers: the key the hand is leaving, the one it is going to, and how far between (eased) */
+type ReloadFingers = { from: string; to: string; t: number };
+
 /**
  * a hand's target during a reload: between the two of its keys (`list`, reloadPlanOf) the progress is between, eased;
- * null when this hand has none then. `point` is how much of it is the pointing hand (reload.pointFingers)
+ * null when this hand has none then. `fingers` says whose fingers it has (a key's own, or the hold's)
  */
-function reloadTarget(list: Array<[number, string]>, u: number, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion, b: Record<string, THREE.Object3D>, figQ: THREE.Quaternion, drop: THREE.Vector3 | null): (Target & { point: number }) | null {
+function reloadTarget(list: Array<[number, string]>, u: number, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion, b: Record<string, THREE.Object3D>, figQ: THREE.Quaternion, drop: THREE.Vector3 | null): (Target & { fingers: ReloadFingers }) | null {
   if (!list.length || u < list[0][0] || u > list[list.length - 1][0]) return null;
   let i = 0;
   while (i < list.length - 2 && u > list[i + 1][0]) i++;
   const [a0, k0] = list[i];
   const [a1, k1] = list[i + 1];
   const t = smooth(u, a0, a1);
-  const point = (k0 === "point" ? 1 - t : 0) + (k1 === "point" ? t : 0);
   const A = keyTarget(k0, C, g, gunQ, b, figQ, drop);
-  if (t <= 0 || k0 === k1) return { ...A, point };
+  if (t <= 0 || k0 === k1) return { ...A, fingers: { from: k0, to: k0, t: 0 } };
   const B = keyTarget(k1, C, g, gunQ, b, figQ, drop);
   const fwd = A.fwd.clone().lerp(B.fwd, t).normalize();
   const face = A.face.clone().lerp(B.face, t).normalize();
-  return { at: A.at.clone().lerp(B.at, t), fwd, face, key: t < 0.5 ? k0 : k1, point };
+  return { at: A.at.clone().lerp(B.at, t), fwd, face, key: t < 0.5 ? k0 : k1, fingers: { from: k0, to: k1, t } };
 }
 
 /**

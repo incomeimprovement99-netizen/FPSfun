@@ -7694,6 +7694,19 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       );
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
     }
+    // At the charging handle the left hand has fingers of its own (soldierhold.json reload.keys.handle.fingers): with the
+    // hold's, laid along the fore-end, its index and middle fingers stood 25 mm off the gun while the palm racked it
+    if (rack?.grab) {
+      const plan = await ev<{ left: [number, string][] }>(page, `window.__range.rifleReloadPlan("${id}", false)`);
+      const i = plan.left.findIndex(([, k]) => k === "handle");
+      const uKey = i < 0 ? -1 : plan.left[i + 1]?.[1] === "handle" ? (plan.left[i][0] + plan.left[i + 1][0]) / 2 : plan.left[i][0];
+      await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true })`);
+      await ev(page, `window.__range.figureLabStep(${Math.max(0, uKey) * R})`);
+      const a = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
+      const gaps = ["thumb", "index", "middle", "ring", "pinky"].map((f) => a?.fingerGap?.[`${f}_l`] ?? 99);
+      check(`the soldier's ${name} reload: at the charging handle the left hand's own fingers lie on the gun, each within 6 mm`, uKey > 0 && gaps.every((g) => g <= 6), JSON.stringify({ uKey, gaps }));
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
+    }
     const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
     check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true), JSON.stringify(after));
   }

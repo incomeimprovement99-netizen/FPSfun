@@ -15,6 +15,7 @@
 //      TUNE='{"hands":...}' tries hold numbers over the gun's own before photographing (soldierhold.json guns.<id>)
 //      POSE='{"speed":14}' photographs the hands in another pose than aimed in (a lab pose: speed, stance, pitch, ads, act)
 //      FINGERS=0.7 draws the fingers at that size instead of soldierhold.json fingerSize
+//      STEP=1.75 photographs that many seconds into the pose rather than 0.8: a reload's moment, with POSE's act
 // (needs the dev server and a real GPU; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
@@ -81,7 +82,7 @@ async function main(): Promise<void> {
               r.figureLabManual(false);
               r.figureLab([${JSON.stringify({ ...POSE, weapon: "@" })}].map((p) => ({ ...p, weapon: ${JSON.stringify(id)}, look: "S0000010" })), 2.6, ${turn});
               r.figureLabManual(true);
-              r.figureLabStep(0.8);
+              r.figureLabStep(${Number(process.env.STEP ?? 0.8)});
               const f = r.labFigures()[0], mq = f.figure;
               f.group.updateMatrixWorld(true);
               const at = mq.holdPoints()[${JSON.stringify(hold)}].clone();
