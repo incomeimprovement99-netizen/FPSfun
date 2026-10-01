@@ -1307,7 +1307,10 @@ from the plaza on each side. The tower stands on a wide base filling the plaza,
 built of the tower's own pieces (`tools/neon-base.ts` bakes its floors to meet
 the tower's on every storey): three storeys and a roof, shops on the ground
 floor, offices on the first, a warehouse hall on the second, four stairs between
-each, and bridges from its first floor's corners to the Sky Ring. The streets carry the pack's lamps,
+each, and bridges from its first floor's corners to the Sky Ring. A stair core runs
+up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
+door onto each of its 15 storeys, eight of them new floors between 14 and 35 m,
+each laid out differently: open, rooms, halls or a maze. The streets carry the pack's lamps,
 parked cars as cover, flying cars and neon signs. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size

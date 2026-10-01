@@ -468,6 +468,105 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
   check("the base: every bridge from the Sky Ring walked across into its first floor", BS.bridges.length > 0 && bridges.length === BS.bridges.length, `${bridges.length} of ${BS.bridges.length}`);
 }
 
+// The tower's floors (rules.tower): its stair core walked by a player's own movement from the lobby in through its west
+// door to its top storey's landing and back down; from the plaza and the core's landings so walked, on foot (the base's
+// flood), every storey the core serves reached beyond its doors and the main body's new floors over most of their floor;
+// those floors each the inside of the tower's shell, the same on every storey; and none of them seen through: the
+// bake's fan of rays from all over each floor at eye height meets a face turned toward it every time
+{
+  const TW = (cfg as unknown as { tower: { square: number[]; shaft: number[]; core: { box: number[]; storeys: number[]; route: number[][] }; measured: { floors: number[]; seal: Array<{ at: number; rays: number; out: number }> } } }).tower;
+  const [cx0, cx1, cz0, cz1] = TW.core.box;
+  // (from the lobby a metre and a half out of its west door, through the door's middle)
+  const route = [[cx0 - 1.5, (cz0 + cz1) / 2, TW.core.storeys[0]], [cx0 + 0.75, (cz0 + cz1) / 2, TW.core.storeys[0]], ...TW.core.route];
+  // (a longer walk than an entrance's: fourteen storeys up a switchback)
+  const walk = (pts: number[][]) => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(pts[0][0] + BR_X, pts[0][2] + 0.05, pts[0][1] + BR_Z, 0);
+    const go = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
+    let t = 1000;
+    let k = 1;
+    for (let i = 0; i < 240 * 144 && k < pts.length; i++) {
+      const [tx, tz, ty] = pts[k];
+      const dx = tx - (p.pos.x - BR_X), dz = tz - (p.pos.z - BR_Z);
+      if (Math.hypot(dx, dz) < 0.3 && Math.abs(p.pos.y - ty) < 0.6) {
+        k++;
+        continue;
+      }
+      p.yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+      p.update(1 / 144, (t += 1 / 144), go, 0, 1, false);
+    }
+    return { k, y: p.pos.y };
+  };
+  const up = walk(route);
+  const down = walk([...route].reverse());
+  const climbed = up.k === route.length && down.k === route.length;
+  check("the tower: its stair core walked from the lobby to its top storey and back down by a player", climbed, `up ${up.k - 1} of ${route.length - 1} legs to ${up.y.toFixed(2)} m, down ${down.k - 1}`);
+  // every storey from the plaza and the walked core's landings, on foot
+  const [sx0, sx1, sz0, sz1] = TW.square;
+  const C = 0.25, H = MOVE.radius;
+  const [X0, X1, Z0, Z1] = [sx0 - 3, sx1 + 3, sz0 - 3, sz1 + 3];
+  const [NI, NJ] = [Math.ceil((X1 - X0) / C), Math.ceil((Z1 - Z0) / C)];
+  const spots: Array<{ i: number; j: number; y: number }> = [];
+  const at = new Map<number, number[]>();
+  const boxesAt = new Map<number, Array<{ base: number; top: number }>>();
+  for (let i = 0; i < NI; i++)
+    for (let j = 0; j < NJ; j++) {
+      const [x, z] = [X0 + (i + 0.5) * C + BR_X, Z0 + (j + 0.5) * C + BR_Z];
+      const here = solidsIn(x - H, x + H, z - H, z + H).filter((b) => b.minX < x + H && b.maxX > x - H && b.minZ < z + H && b.maxZ > z - H);
+      boxesAt.set(i * NJ + j, here);
+      const ys = new Set<number>([floorAt(x, z)]);
+      for (const b of here) if (b.minX <= x && b.maxX >= x && b.minZ <= z && b.maxZ >= z && b.top < 50) ys.add(b.top);
+      const list = [...ys].filter((y) => !here.some((b) => b.base < y + MOVE.standHeight && b.top > y + MOVE.stepHeight));
+      if (list.length) at.set(i * NJ + j, list.map((y) => (spots.push({ i, j, y }), spots.length - 1)));
+    }
+  const seen = new Uint8Array(spots.length);
+  const todo: number[] = [];
+  const seed = (x: number, z: number, y: number) => {
+    for (const s of at.get(Math.floor((x - X0) / C) * NJ + Math.floor((z - Z0) / C)) ?? []) if (Math.abs(spots[s].y - y) < 0.15 && !seen[s]) ((seen[s] = 1), todo.push(s));
+  };
+  for (const [k, list] of at) {
+    const [i, j] = [Math.floor(k / NJ), k % NJ];
+    if (i > 1 && i < NI - 2 && j > 1 && j < NJ - 2) continue;
+    for (const s of list) if (Math.abs(spots[s].y) < 0.05) ((seen[s] = 1), todo.push(s));
+  }
+  if (climbed) for (const [x, z, y] of TW.core.route) seed(x, z, y);
+  while (todo.length) {
+    const a = spots[todo.pop()!];
+    for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      if (a.i + di < 0 || a.i + di >= NI || a.j + dj < 0 || a.j + dj >= NJ) continue;
+      // (a drop only down a clear column: nothing in the cell dropped into between its floor and the faller's head; the
+      // flood dropped through the tower's shell from the sky floors' balconies onto its floors otherwise)
+      const q = (a.i + di) * NJ + a.j + dj;
+      for (const s of at.get(q) ?? []) {
+        if (seen[s] || spots[s].y - a.y > MOVE.stepHeight) continue;
+        if (spots[s].y < a.y - MOVE.stepHeight && boxesAt.get(q)!.some((b) => b.top > spots[s].y + MOVE.stepHeight && b.base < a.y + MOVE.standHeight)) continue;
+        seen[s] = 1;
+        todo.push(s);
+      }
+    }
+  }
+  // a storey's floor out of the core: what of it a body stands on, what of that it walked to
+  const storey = (y: number) => {
+    let [of, got] = [0, 0];
+    spots.forEach((s, k) => {
+      const [x, z] = [X0 + (s.i + 0.5) * C, Z0 + (s.j + 0.5) * C];
+      if (Math.abs(s.y - y) > 0.1 || x < sx0 || x > sx1 || z < sz0 || z > sz1 || (x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3)) return;
+      of++;
+      if (seen[k]) got++;
+    });
+    return { y, of: of * C * C, got: got * C * C };
+  };
+  const all = TW.core.storeys.map(storey);
+  check("the tower: every storey its core serves walked to from the plaza, beyond the core's doors", all.every((q) => q.got > 30), all.map((q) => `${q.y} m ${q.got.toFixed(0)} m2`).join("; "));
+  const shaft = all.filter((q) => TW.shaft.includes(q.y));
+  check("the tower: its new floors walked over, most of each", shaft.length === TW.shaft.length && shaft.every((q) => q.of > 100 && q.got / q.of > 0.9), shaft.map((q) => `${q.y} m ${((q.got / q.of) * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2`).join("; "));
+  // (measured by the bake: a layout run since without a bake leaves none)
+  const F = TW.measured?.floors ?? [];
+  check("the tower: its new floors each the inside of its shell, the same on every storey", F.length === TW.shaft.length && Math.min(...F) > 300 && Math.max(...F) - Math.min(...F) < 0.05 * Math.max(...F), `${F.join(", ")} m2`);
+  const S = TW.measured?.seal ?? [];
+  check("the tower: its new floors not seen through, every ray from each meets a wall", S.length === TW.shaft.length && S.every((q) => q.rays > 500 && q.out === 0), S.map((q) => `${q.at} m ${q.out} of ${q.rays} out`).join("; "));
+}
+
 // The rooms to fight in (rules.low.rooms): each corner block's realistic building walked into from the street round it
 // and up its stairs, on foot, no climbing, an eighth of a metre at a time (at the collision's own quarter a body a door's
 // width round was seen not to fit it, sampled only there): every floor with a standing body's room over it is

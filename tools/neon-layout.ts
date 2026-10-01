@@ -10,6 +10,7 @@
 // Run: npx tsx tools/neon-layout.ts   (needs the catalogue: NEON=catalogue npx tsx tools/import-neon.ts)
 import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { streets, StreetField, contours, along, type Pt, type Street } from "./neon-streets";
+import { stairCore } from "./neon-tower";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -167,10 +168,138 @@ const noGround: Array<[number, number, number, number]> = [];
 // ---------------------------------------------------------------- the middle block: the tallest building
 {
   const M = R.middle;
-  // its main body's interior is cleared from inside its shell and its floors built again (rules.tower)
-  const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o", R.tower ? { without: [`*#${R.tower.strip.join(",")}`] } : {});
+  // The tower's floors (rules.tower): its main body's tall empty middle (14 to 38 m: its floors stop at 14 and start again
+  // at 38.5, nothing between) cleared from inside its shell, and a stair core cut up its middle from the lobby's floor to
+  // under its roof, the pack's floors and walls it passes through clipped to the core's box (tools/neon-tower.ts). The
+  // bake builds the core and the main body's floors from 14 to 35 m, a 3 m storey each as its facade has them
+  const T = R.tower;
+  const C = T?.core;
+  // (and the pack's floor tiles of its first 3 m storey, which reach out under its shell to its faces)
+  // (and the lobby's arch that stood a metre before the core's west door: its post and its round top; the cut goes
+  // `cutPast` beyond the core's faces sideways, so a face lying on one, a lobby pillar's, goes with it, and not down, so
+  // the lobby's floor under the core stays)
+  const without = T ? [...(T.lobbyArch as string[]), `*#${T.strip.join(",")}`, `*#${T.floorStrip.join(",")}~FloorBasic00`, `*|${[C.box[0] - C.cutPast, C.box[1] + C.cutPast, C.storeys[0], C.top, C.box[2] - C.cutPast, C.box[3] + C.cutPast].join(",")}`] : [];
+  const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o", T ? { without } : {});
   noGround.push([b.x0, b.x1, b.z0, b.z1]);
   cfg.tallest = { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, top: +b.top.toFixed(2), foot: +piece(M.building).row.min![1].toFixed(2) };
+  if (T) {
+    if (M.yaw !== 0) throw new Error("the tower's floors are laid in its own frame, unturned");
+    // (the prefab's frame onto the map: its pivot, the building unturned)
+    const [px, pz] = [b.px, b.pz];
+    const on = (x: number, z: number): Pt => [+(x + px).toFixed(3), +(z + pz).toFixed(3)];
+    const doors = (C.storeys as number[]).map((h) => (C.doors[String(h)] ?? C.doors.default) as string[]);
+    // (the bake's measure of the floors, kept until it measures them again)
+    const measured = cfg.tower?.measured;
+    cfg.tower = {
+      ...(measured ? { measured } : {}),
+      pivot: [px, pz],
+      shaft: T.shaft,
+      square: [...on(T.square[0], T.square[2]), ...on(T.square[1], T.square[3])],
+      seed: on(T.seed[0], T.seed[1]),
+      cell: T.cell,
+      close: T.close,
+      seal: T.seal,
+      reach: T.reach,
+      slab: T.slab,
+      tuck: T.tuck,
+      mats: T.mats,
+      scale: T.scale,
+      backs: T.backs,
+      core: { box: [...on(C.box[0], C.box[2]), ...on(C.box[1], C.box[3])], storeys: C.storeys, top: C.top, wall: C.wall, landing: C.landing, divider: C.divider, tread: C.tread, riser: C.riser, stepDepth: C.stepDepth, slab: C.slab, door: C.door, doors, mats: C.mats, scale: C.scale },
+    };
+    // (as x0, x1, z0, z1 on the map)
+    const [ax, az, bx, bz] = cfg.tower.core.box;
+    cfg.tower.core.box = [ax, bx, az, bz];
+    const [sx0, sz0, sx1, sz1] = cfg.tower.square;
+    cfg.tower.square = [sx0, sx1, sz0, sz1];
+    // the core's way up for a body, storey by storey (walked by the checks), from the same geometry the bake builds
+    cfg.tower.core.route = stairCore(cfg.tower.core, C.scale).route.map((q) => q.map((v) => +v.toFixed(2)));
+    // Each of the main body's floors laid out (rules.tower.floors; the owner, 2026-09-30: "many floors of big rooms and
+    // staircases and some walls partitioning the floor off, differs each floor. Some should have no or little walls,
+    // some should have a lot of walls"). The core stands in the middle of a ring 7.5 m wide; the partitions run from the
+    // core's corners out to the faces (`lines`: its own x 5 and 12.5 north and south, 7.5 m each, and its own z 5 and 10
+    // west and east, 5 m from the core to each face's groove), and `extra` ones part the corner rooms. A plan names which
+    // lines stand and how each is opened: `door` a 2.5 m doorway in it, `gate` the pack's wide gate, `wall` closed.
+    // Every floor strewn with its `cover` and lit, none of it within reach of the core's doors
+    // the slits beside the north and south faces' grooves closed (rules.tower.slots): a body's width of sky showed
+    // through between the window wall's end and the groove at every storey, measured by the bake's seal (a ray out of
+    // each); the pack's half-metre wall stood in each, a storey at a time
+    for (const h of T.shaft as number[]) for (const [sx, sz] of T.slots.at as number[][]) placeTurned("c-tower", T.slots.piece, sx + px, sz + pz, 0, "o", h - 0.02);
+    const F = T.floors;
+    const rnd3 = seeded(F.seed);
+    const pick3 = <Q,>(a: Q[]): Q => a[Math.floor(rnd3() * a.length)];
+    const lines = F.lines as Record<string, number[]>;
+    let tWalls = 0, tProps = 0, tLamps = 0;
+    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[] }>)) {
+      const h = Number(hs);
+      const plan = F.plans[P.plan] as Record<string, string>;
+      const placed: OBox[] = [];
+      // the core and the way out of each of its doors, kept clear
+      const [cx0, cx1, cz0, cz1] = C.box;
+      const keepT: OBox[] = [boxOf([cx0 + px - 0.3, cx1 + px + 0.3, cz0 + pz - 0.3, cz1 + pz + 0.3])];
+      const ds = (C.doors[hs] ?? C.doors.default) as string[];
+      const dz = (cz0 + cz1) / 2, dx = cx0 + C.wall + C.landing / 2;
+      if (ds.includes("w")) keepT.push(boxOf([cx0 + px - 3, cx0 + px, dz + pz - 1.5, dz + pz + 1.5]));
+      if (ds.includes("n")) keepT.push(boxOf([dx + px - 1.5, dx + px + 1.5, cz0 + pz - 3, cz0 + pz]));
+      if (ds.includes("s")) keepT.push(boxOf([dx + px - 1.5, dx + px + 1.5, cz1 + pz, cz1 + pz + 3]));
+      // the partitions: a line from a to b (its own metres), opened as the plan says
+      for (const [name, how] of Object.entries(plan)) {
+        const [ax, az, bx, bz] = lines[name] ?? F.extra[name];
+        const L = Math.hypot(bx - ax, bz - az);
+        const n = Math.round(L / 2.5);
+        const d: Pt = [(bx - ax) / L, (bz - az) / L];
+        const yaw = Math.abs(d[0]) > 0.5 ? 0 : 90;
+        // (a line's doorway and its gate at its core end: at the face end the grooves, the slits' walls and the round
+        // corners crowded each one to less than a body's way through)
+        const door = how === "door" ? n - 1 : -1;
+        const gate = how === "gate" ? n - 2 : -1;
+        let k = 0;
+        while (k < n) {
+          if (k === door) { k++; continue; }
+          // (a 5 m piece over this slot and the next, but where the next begins the gate: a 2.5 m one first)
+          const two = k === gate || (k + 1 < n && k + 1 !== door && k + 1 !== gate);
+          const piece5 = k === gate ? F.gate : F.walls["5"];
+          const len = two ? 5 : 2.5;
+          const c: Pt = [ax + d[0] * (k * 2.5 + len / 2) + px, az + d[1] * (k * 2.5 + len / 2) + pz];
+          // (2 cm into the floor, its top 2 cm inside the slab over it: neither face shares a plane with a floor)
+          placed.push(placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", h - 0.02));
+          tWalls++;
+          k += two ? 2 : 1;
+        }
+      }
+      // inside the floor: the main body's inner faces, its round corners and the grooves down each face
+      const [qx0, qx1, qz0, qz1] = F.inner;
+      const inFloor = (x: number, z: number, m: number) => {
+        if (x < qx0 + m || x > qx1 - m || z < qz0 + m || z > qz1 - m) return false;
+        for (const [gx, gz, r] of F.grooves as number[][]) if (Math.hypot(x - gx, z - gz) < r + m) return false;
+        for (const [ox, oz, r] of F.corners as number[][]) if ((x - ox) * Math.sign(ox - (qx0 + qx1) / 2) > 0 && (z - oz) * Math.sign(oz - (qz0 + qz1) / 2) > 0 && Math.hypot(x - ox, z - oz) > r - m) return false;
+        return true;
+      };
+      const names = (P.pieces ?? F.cover) as string[];
+      for (let t = 0, got = 0; t < P.cover * 40 && got < P.cover; t++) {
+        const name = pick3(names);
+        const row = piece(name).row;
+        const [lx, lz] = [qx0 + rnd3() * (qx1 - qx0), qz0 + rnd3() * (qz1 - qz0)];
+        const yaw = Math.floor(rnd3() * 4) * 90 + (row.size![0] < 1.2 && row.size![2] < 1.2 ? rnd3() * 40 - 20 : 0);
+        const o: OBox = { c: [lx + px, lz + pz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: 0 };
+        const reach = Math.hypot(o.hu, o.hv);
+        if (!inFloor(lx, lz, reach + 0.3) || keepT.some((q) => overlaps(o, q, 0.3)) || placed.some((q) => overlaps(o, q, F.apart))) continue;
+        placeTurned("c-tower", name, lx + px, lz + pz, yaw, "o", h - row.min![1]);
+        placed.push(o);
+        tProps++;
+        got++;
+      }
+      // the pack's ceiling lamp on a grid under the floor over it, none over the core
+      const lamp = piece(F.lamp.piece).row;
+      for (let lx = qx0 + F.lamp.every / 2; lx < qx1; lx += F.lamp.every)
+        for (let lz = qz0 + F.lamp.every / 2; lz < qz1; lz += F.lamp.every) {
+          if (!inFloor(lx, lz, 0.8) || overlaps({ c: [lx + px, lz + pz], u: [1, 0], v: [0, 1], hu: 0.5, hv: 1.6, top: 0 }, keepT[0], 0.2)) continue;
+          placeTurned("c-tower", F.lamp.piece, lx + px, lz + pz, 0, "g", h + 3 - T.slab - F.lamp.under - lamp.max![1]);
+          tLamps++;
+        }
+    }
+    console.log(`the tower's floors: ${tWalls} lengths of wall, ${tProps} pieces of cover, ${tLamps} lamps`);
+  }
 }
 
 // ---------------------------------------------------------------- the high city: the four axis blocks

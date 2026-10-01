@@ -7903,3 +7903,43 @@ The owner's "ensuring each frame is perfect", after Milestone 366: the first of 
   - the USSO's left palm 12 to 22 mm into the receiver at the handle;
   - BOOG's right hand up to 28 mm into it at the bolt;
   - BOOG's stock into the right forearm in a sprint jump (32 mm).
+
+## Milestone 368 — The tower's floors: a stair core to the top and eight floors to fight on
+
+Phase 28.8, the owner's note on the centre (2026-09-30): "in this big center building I want it to be many floors of big
+rooms and staircases and some walls partitioning the floor off, differs each floor. Some should have no or little walls,
+some should have a lot of walls". The tower had floors at 0 to 14 m and 38.5 to 45.5 m and nothing between, and none of
+them above the ground could be reached on foot.
+
+- **A stair core to the top** (rules.tower.core, tools/neon-tower.ts). A core up the middle of the tower's main body from
+  the lobby to its top storey: 15 storeys, the lobby, the lower block's two, the glass waist at 10.5 m, the eight new
+  floors and the three sky floors, a doorway onto each. Inside, a switchback a storey: a landing, a flight up one half, a
+  half landing, a flight back, a wall between. Where it passes through the pack's own floors and walls they are cut to its
+  box exactly, their triangles clipped (a new leave-out, `*|`): a 10 m floor tile straddles the core, and left whole it
+  stood across the stairwell, left out it left a 10 m hole.
+- **Eight new floors** from 14 to 35 m, on the facade's own 3 m storeys, 364 m2 each. Each is the inside of the tower's
+  shell at that storey, measured off its triangles (a flood from inside, so its round corners and the grooves down its
+  faces come out as they stand), less the core. The shell's "fake" pieces, faced only toward the street, are drawn from
+  inside too: before, the floors looked straight out through the corners and grooves. Four slits a storey beside the
+  north and south grooves, a body's width of sky between a window wall and the groove, are closed with the pack's wall.
+- **Each floor different.** Partitions run from the core's corners out to the faces, opened at their core end: two open
+  floors (14 and 26 m) with cover only, two of eight rooms (17 and 29), two of three halls joined by the pack's wide gates
+  (20 and 35), two mazes, the rooms with their corners parted again (23 and 32). Each strewn with the pack's crates,
+  barrels, tables, racks and machines as cover, and lit by its ceiling lamp.
+- **Found by the checks.** A lobby arch stood a metre before the core's west door, and a pillar's face lay on the core's
+  wall (the cut now goes 2 cm past it); the base's floors filled the core's box at 3.5 and 7 m (nothing of the tower stood
+  there after the cut); the core's north wall was walked through (a wall one collision cell thick, its faces on the
+  cells' edges, left the cell between them empty: each wall now has a plane down its middle); a 3.5 m storey's longer wall
+  between the flights stood 1.5 m over the half landing below; the landings were too thick for a head coming down; the
+  halls had no gates (the walls were laid two slots at a time from the face end); doorways at the face end were crowded
+  shut by the grooves; and the check's own flood dropped through walls from the sky floors' balconies, so it now drops only
+  down a clear column.
+- The map: 2.39 million triangles, about 220 thousand more than version 14 (the core and the new floors 69 thousand, their walls, cover and lamps 124 thousand, the shell drawn from inside the rest); its files lo 81 MB, hi 138 MB, max 334 MB. **Its files are version 15.**
+- **Checked** (`tools/checks/sk-neon.ts`, 5 new checks): the core walked from the lobby to the top and back down by a
+  player, 100 legs each way (seen failing with metre-high steps: 2 of 100); every storey it serves walked to from the plaza,
+  and the new floors over 94% of their floor and more (seen failing with the core's doors onto them closed: 0 m2 of each);
+  each the inside of the shell, the same on every storey; and sealed, the bake's 696 level rays from all over each floor at
+  eye height every one meeting a wall (seen failing with the shell's back faces left off: 12 a floor got out). verify and
+  rules; e2e `loot` and `br`. Photographed on every floor, in the core and at its lobby door.
+- **Next:** glass lifts from the base's roof and the Sky Ring to the tower's floors (the master plan's next phase), and
+  loot on the new floors.

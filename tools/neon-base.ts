@@ -109,3 +109,44 @@ export function storeySlab(g: Grid, region: (x: number, z: number) => number, ho
   }
   return out;
 }
+
+/**
+ * The cells inside a closed outline (a building's shell, `stood`), from a seed: the shell grown by `close` cells first
+ * so a gap narrower than that between two of its pieces does not let the flood out, the inside grown back by `reach`
+ * cells after so it meets the shell again (and runs a cell under it). Returns the inside and how many cells it has
+ */
+export function inside(g: Grid, stood: Uint8Array, seed: [number, number], close: number, reach: number): { cells: Uint8Array; n: number } {
+  const at = (m: Uint8Array, i: number, j: number) => i >= 0 && i < g.nx && j >= 0 && j < g.nz && m[j * g.nx + i] === 1;
+  const grow = (m: Uint8Array, k: number) => {
+    let cur = m;
+    for (let t = 0; t < k; t++) {
+      const next = cur.slice();
+      for (let j = 0; j < g.nz; j++) for (let i = 0; i < g.nx; i++) if (!cur[j * g.nx + i] && (at(cur, i - 1, j) || at(cur, i + 1, j) || at(cur, i, j - 1) || at(cur, i, j + 1))) next[j * g.nx + i] = 1;
+      cur = next;
+    }
+    return cur;
+  };
+  const wall = grow(stood, close);
+  const cells = new Uint8Array(g.nx * g.nz);
+  const [si, sj] = [Math.floor((seed[0] - g.x0) / g.cell), Math.floor((seed[1] - g.z0) / g.cell)];
+  if (at(wall, si, sj)) throw new Error(`the seed (${seed.join(", ")}) is in the shell`);
+  const todo = [sj * g.nx + si];
+  cells[todo[0]] = 1;
+  let n = 1;
+  while (todo.length) {
+    const k = todo.pop()!;
+    const [i, j] = [k % g.nx, Math.floor(k / g.nx)];
+    for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+      if (a < 0 || a >= g.nx || b < 0 || b >= g.nz) throw new Error("the flood left the grid: the shell is not closed");
+      const q = b * g.nx + a;
+      if (cells[q] || wall[q]) continue;
+      cells[q] = 1;
+      n++;
+      todo.push(q);
+    }
+  }
+  const out = grow(cells, close + reach);
+  let m = 0;
+  for (const v of out) m += v;
+  return { cells: out, n: m };
+}

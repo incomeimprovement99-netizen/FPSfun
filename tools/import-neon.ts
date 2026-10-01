@@ -15,7 +15,8 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, dirname, join } from "node:path";
 import { padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
-import { sdPoly, standing, storeySlab, type Grid } from "./neon-base";
+import { inside, sdPoly, standing, storeySlab, type Grid } from "./neon-base";
+import { backFaces, cutOut, escapes, stairCore, type Box3 } from "./neon-tower";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
@@ -215,6 +216,8 @@ if (mode === "bake") {
   // what already stands where the base's floors go (cfg.base.mask's chunks: the tower, the court, the station's kiosks)
   const baseMask = new Set<string>(cfg.base?.mask ?? []);
   const standingDraws: Array<{ d: Draw; m: M4 }> = [];
+  // the tower as drawn (its back faces too), for the measure of whether its floors can be seen through
+  const towerDrawn: Array<{ d: Draw; m: M4 }> = [];
   for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, string[]?]> }>(cfg.chunks)) {
     const all = groups.get(groupOf(id)) ?? groups.set(groupOf(id), []).get(groupOf(id))!;
     for (const [key, x, y, z, yaw, how, mat, without] of chunk.place) {
@@ -225,10 +228,21 @@ if (mode === "bake") {
       // An entry is a model's file name (every part drawn from it) or "name@x,y,z", the one part of it whose middle is
       // within half a metre of there in the prefab's own metres (the pack's plain walls are one model in many places), or
       // "*#x0,x1,y0,y1,z0,z1", every part lying wholly inside that box in the prefab's own metres (a building's interior
-      // cleared from inside its shell: the walls and floors that reach under the shell are not wholly inside and stay)
+      // cleared from inside its shell: the walls and floors that reach under the shell are not wholly inside and stay), or
+      // "*|x0,x1,y0,y1,z0,z1", that box cut out of every part it reaches, the part's triangles clipped to it exactly (the
+      // tower's stair core through its floors: tools/neon-tower.ts cutOut)
+      const cuts = (without ?? []).filter((w) => w.startsWith("*|")).map((w) => w.slice(2).split(",").map(Number) as Box3);
+      const reaches = (b: Box3, d: Draw, m: M4) => {
+        const [lo, hi] = partBounds(d, m);
+        return hi[0] > b[0] && lo[0] < b[1] && hi[1] > b[2] && lo[1] < b[3] && hi[2] > b[4] && lo[2] < b[5];
+      };
       const leftOut = (w: string, d: Draw, m: M4): boolean => {
+        if (w.startsWith("*|")) return false;
         if (w.startsWith("*#")) {
-          const [x0, x1, y0, y1, z0, z1] = w.slice(2).split(",").map(Number);
+          // ("*#box~Name": only the parts whose model's file name begins with Name)
+          const [spec, only] = w.slice(2).split("~");
+          if (only && !basename(pack.guidPath.get(d.modelGuid) ?? "").startsWith(only)) return false;
+          const [x0, x1, y0, y1, z0, z1] = spec.split(",").map(Number);
           const [lo, hi] = partBounds(d, m);
           return lo[0] >= x0 && hi[0] <= x1 && lo[1] >= y0 && hi[1] <= y1 && lo[2] >= z0 && hi[2] <= z1;
         }
@@ -239,10 +253,48 @@ if (mode === "bake") {
         return at.split(",").map(Number).every((v, i) => Math.abs(v - mid[i]) < 0.5);
       };
       const kept = without ? draws(key).filter(({ d, m }) => !without.some((w) => leftOut(w, d, m))) : draws(key);
-      for (const w of without ?? []) if (!draws(key).some(({ d, m }) => leftOut(w, d, m))) throw new Error(`${key}: no ${w} to leave out`);
-      const mine = kept.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
+      for (const w of without ?? []) if (!w.startsWith("*|") && !draws(key).some(({ d, m }) => leftOut(w, d, m))) throw new Error(`${key}: no ${w} to leave out`);
+      for (const b of cuts) if (!draws(key).some(({ d, m }) => reaches(b, d, m))) throw new Error(`${key}: nothing to cut at ${b.join(",")}`);
+      // a part a cut reaches, drawn again in the prefab's own metres with the cut's box taken out of it
+      const cutPart = (d: Draw, m: M4): { d: Draw; m: M4 } => {
+        const prims = d.model.meshes[d.mesh].prims.map((q) => {
+          const pos = new Float32Array(q.pos.length);
+          const nrm = q.nrm ? new Float32Array(q.nrm.length) : null;
+          for (let k = 0; k < q.pos.length; k += 3)
+            for (let a = 0; a < 3; a++) {
+              pos[k + a] = m[a] * q.pos[k] + m[4 + a] * q.pos[k + 1] + m[8 + a] * q.pos[k + 2] + m[12 + a];
+              if (nrm && q.nrm) nrm[k + a] = m[a] * q.nrm[k] + m[4 + a] * q.nrm[k + 1] + m[8 + a] * q.nrm[k + 2];
+            }
+          let part = { pos: Array.from(pos), nrm: nrm ? Array.from(nrm) : null, uv: q.uv ? Array.from(q.uv) : null, idx: Array.from(q.idx) } as { pos: number[]; nrm: number[] | null; uv: number[] | null; idx: number[] };
+          for (const b of cuts) if (reaches(b, d, m)) part = cutOut(part.pos, part.nrm, part.uv, part.idx, b);
+          return { pos: new Float32Array(part.pos), nrm: part.nrm ? new Float32Array(part.nrm) : null, uv: part.uv ? new Float32Array(part.uv) : null, idx: new Uint32Array(part.idx), material: q.material };
+        });
+        const model = { meshes: [{ name: d.model.meshes[d.mesh].name, prims }], nodes: [], roots: [] } as unknown as Draw["model"];
+        return { d: { ...d, model, mesh: 0, pre: null }, m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] };
+      };
+      const shaped = cuts.length ? kept.map(({ d, m }) => (cuts.some((b) => reaches(b, d, m)) ? cutPart(d, m) : { d, m })) : kept;
+      const mine = shaped.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
+      // the tower's one-sided shell pieces (rules.tower.backs) drawn from inside too, their triangles turned over: from
+      // inside its floors the pack's "fake" walls, faced only toward the street, showed the sky through the building
+      if (id === "c-middle" && cfg.tower?.backs)
+        for (const { d, m } of mine) {
+          if (!(cfg.tower.backs as string[]).includes(basename(pack.guidPath.get(d.modelGuid) ?? ""))) continue;
+          // (only the main body's own shell: the side core's round glass corners are seen from outside alone)
+          const [lo, hi] = partBounds(d, m);
+          const [qx0, qx1, qz0, qz1] = cfg.tower.square as number[];
+          if ((lo[0] + hi[0]) / 2 < qx0 - 0.1 || (lo[0] + hi[0]) / 2 > qx1 + 0.1 || (lo[2] + hi[2]) / 2 < qz0 - 0.1 || (lo[2] + hi[2]) / 2 > qz1 + 0.1) continue;
+          const prims = d.model.meshes[d.mesh].prims.map((q) => {
+            const b = backFaces(q.pos, q.nrm, q.uv, q.idx);
+            return { pos: new Float32Array(b.pos), nrm: new Float32Array(b.nrm), uv: new Float32Array(b.uv), idx: new Uint32Array(b.idx), material: q.material };
+          });
+          const back = { d: { ...d, model: { meshes: [{ name: "back", prims }], nodes: [], roots: [] } as unknown as Draw["model"], mesh: 0, pre: null }, m };
+          all.push(back);
+          towerDrawn.push(back);
+        }
       all.push(...mine);
       if (baseMask.has(id)) standingDraws.push(...mine);
+      // (and the pieces closing its shell's slits: the partitions and cover inside are left out, so a gap is not hidden)
+      if (id === "c-middle" || (id === "c-tower" && cfg.rules.tower?.slots && key.endsWith(`/${cfg.rules.tower.slots.piece}`))) towerDrawn.push(...mine);
       if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...mine);
       else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
       placed++;
@@ -291,7 +343,9 @@ if (mode === "bake") {
       // (what stands in a body's height over the floor and the floor's own depth under it)
       const stood = standing(g, tris(), L.y - BS.slab - 0.05, L.y + 2);
       const region = L.court ? (x: number, z: number) => sdPoly(courtRing, x, z) : (x: number, z: number) => Math.min(sdPoly(BS.outline, x, z), ...L.adds.map((a) => sdPoly(a, x, z)));
-      const parts = storeySlab(g, region, L.holes, stood, L.y - BS.tuck, BS.slab, BS.scale);
+      // (nor across the tower's stair core: its cut leaves nothing standing in its box, which the base's floor would fill)
+      const core: Pt[][] = cfg.tower ? [((b) => [[b[0], b[2]], [b[1], b[2]], [b[1], b[3]], [b[0], b[3]]] as Pt[])(cfg.tower.core.box)] : [];
+      const parts = storeySlab(g, region, [...L.holes, ...core], stood, L.y - BS.tuck, BS.slab, BS.scale);
       const prims = (["top", "edge", "under"] as const).map((k) => ({ pos: new Float32Array(parts[k].pos), nrm: new Float32Array(parts[k].nrm), uv: new Float32Array(parts[k].uv), idx: new Uint32Array(parts[k].idx), material: BS.mats[k] }));
       const mats = prims.map((p) => {
         const mg = pack.matFor(p.material);
@@ -306,6 +360,81 @@ if (mode === "bake") {
       tri += prims.reduce((a, p) => a + p.idx.length / 3, 0);
     }
     console.log(`the base's floors: ${BS.levels.length} storeys, ${tri} triangles`);
+  }
+  // the tower's floors (cfg.tower, tools/neon-tower.ts): its stair core, walls and landings and steps; and the main
+  // body's floors from 14 to 35 m, each the inside of its shell at that storey (measured off the shell's triangles, a
+  // flood from a seed inside, so its round corners and the grooves down each face come out as they stand), less the core
+  const TW = cfg.tower;
+  if (TW) {
+    const I: M4 = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1];
+    const push = (name: string, parts: Array<{ part: { pos: number[]; nrm: number[]; uv: number[]; idx: number[] }; mat: string }>) => {
+      const prims = parts.filter((q) => q.part.idx.length).map((q) => ({ pos: new Float32Array(q.part.pos), nrm: new Float32Array(q.part.nrm), uv: new Float32Array(q.part.uv), idx: new Uint32Array(q.part.idx), material: q.mat }));
+      const mats = prims.map((p) => {
+        const mg = pack.matFor(p.material);
+        if (!mg) throw new Error(`no material ${p.material}`);
+        return mg;
+      });
+      const model = { meshes: [{ name, prims }], nodes: [], roots: [] } as unknown as Draw["model"];
+      const d: Draw = { model, mesh: 0, pre: null, mats, modelGuid: "", on: true, go: null };
+      (groups.get(groupOf("c-middle")) ?? groups.set(groupOf("c-middle"), []).get(groupOf("c-middle"))!).push({ d, m: I });
+      openFine.push({ d, m: I });
+      return prims.reduce((a, p) => a + p.idx.length / 3, 0);
+    };
+    const C2 = TW.core;
+    const core = stairCore({ ...C2, box: C2.box }, C2.scale);
+    let tri = push("tower-core", [{ part: core.walls, mat: C2.mats.wall }, { part: core.landings, mat: TW.mats.top }, { part: core.steps, mat: C2.mats.step }]);
+    // the main body's floors: the tower's own triangles at each storey are its shell (its middle is cleared from 14 m)
+    const towerTris = function* (): Generator<[number[], number[], number[]]> {
+      for (const { d, m } of standingDraws)
+        for (const q of d.model.meshes[d.mesh].prims) {
+          const V = (i: number) => [0, 1, 2].map((a) => m[a] * q.pos[i * 3] + m[4 + a] * q.pos[i * 3 + 1] + m[8 + a] * q.pos[i * 3 + 2] + m[12 + a]);
+          for (let k = 0; k + 2 < q.idx.length; k += 3) yield [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])];
+        }
+    };
+    const [sx0, sx1, sz0, sz1] = TW.square;
+    const cell = TW.cell;
+    const g: Grid = { x0: sx0 - 1, z0: sz0 - 1, cell, nx: Math.ceil((sx1 - sx0 + 2) / cell), nz: Math.ceil((sz1 - sz0 + 2) / cell) };
+    const [cx0, cx1, cz0, cz1] = C2.box;
+    const coreHole: Pt[] = [[cx0, cz0], [cx1, cz0], [cx1, cz1], [cx0, cz1]];
+    const areas: number[] = [];
+    // (the tower as drawn and the core's walls, triangle by triangle on the map, for the seal's rays)
+    const drawnTris: Array<[number[], number[], number[]]> = [];
+    for (const { d, m } of towerDrawn)
+      for (const q of d.model.meshes[d.mesh].prims) {
+        const V = (i: number) => [0, 1, 2].map((a) => m[a] * q.pos[i * 3] + m[4 + a] * q.pos[i * 3 + 1] + m[8 + a] * q.pos[i * 3 + 2] + m[12 + a]);
+        for (let k = 0; k + 2 < q.idx.length; k += 3) drawnTris.push([V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])]);
+      }
+    for (let k = 0; k + 2 < core.walls.idx.length; k += 3) drawnTris.push([0, 1, 2].map((j) => core.walls.pos.slice(core.walls.idx[k + j] * 3, core.walls.idx[k + j] * 3 + 3)) as [number[], number[], number[]]);
+    const seal: Array<{ at: number; rays: number; out: number[][] }> = [];
+    for (const h of TW.shaft as number[]) {
+      // (what stands on this floor, from just over it: the glass round the storey under 14 m tops out at 13.5)
+      const stood = standing(g, towerTris(), h + 0.05, h + 2);
+      const inn = inside(g, stood, TW.seed, TW.close, TW.reach);
+      areas.push(inn.n * cell * cell);
+      // (a corner of the grid is in the floor when any cell round it is)
+      const region = (x: number, z: number) => {
+        const i = Math.round((x - g.x0) / cell), j = Math.round((z - g.z0) / cell);
+        const c = (a: number, b: number) => a >= 0 && a < g.nx && b >= 0 && b < g.nz && inn.cells[b * g.nx + a] === 1;
+        return c(i - 1, j - 1) || c(i, j - 1) || c(i - 1, j) || c(i, j) ? -cell / 2 : cell / 2;
+      };
+      const parts = storeySlab(g, region, [coreHole], null, h, TW.slab, TW.scale);
+      // is it sealed: from points a few metres apart over its floor, out of the core, a fan of rays at eye height each
+      // meeting a face turned toward it (tools/neon-tower.ts escapes)
+      const pts: number[][] = [];
+      for (let j = 0; j < g.nz; j += Math.round(TW.seal.every / cell))
+        for (let i = 0; i < g.nx; i += Math.round(TW.seal.every / cell)) {
+          const [x, z] = [g.x0 + (i + 0.5) * cell, g.z0 + (j + 0.5) * cell];
+          if (inn.cells[j * g.nx + i] && sdPoly(coreHole, x, z) > 1 && region(x - 1, z) < 0 && region(x + 1, z) < 0 && region(x, z - 1) < 0 && region(x, z + 1) < 0) pts.push([x, z]);
+        }
+      const e = escapes(drawnTris, pts, h + TW.seal.eye, TW.seal.rays, TW.seal.far);
+      seal.push({ at: h, rays: e.rays, out: e.out.slice(0, 12) });
+      tri += push(`tower-${h}`, (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: TW.mats[k] })));
+    }
+    // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
+    if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.out.length, where: q.out })) };
+    console.log(`the tower's floors sealed: ${seal.map((q) => `${q.at} m ${q.out.length} of ${q.rays} rays out`).join("; ")}`);
+    console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
   }
   // the rooms, stairs and what stands in the open: their own spans, as a district's are (no fill: these pieces are whole)
   // (below the street kept: the tallest building stands in a pit to its basement, 7 m down, whose floors the districts'
@@ -370,7 +499,7 @@ if (mode === "bake") {
   // only what the bake measured goes back, into the file as it is now: a bake takes minutes, and writing back the copy
   // read at its start threw away the game's sites, added to the file while one ran
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));
-  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads }, null, 1) + "\n");
+  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}) }, null, 1) + "\n");
   console.log(`unresolved materials: ${IMPORT_STATS.unresolved.size}, unmatched meshes: ${IMPORT_STATS.unmatchedMeshes.size}`);
 }
 
