@@ -742,6 +742,10 @@ export class Bot {
   private headwaySince = 0;
   private detour = new THREE.Vector2();
   private detourUntil = -Infinity;
+  /** where and when it was last wedged, and how long that detour was: wedged there again soon, the next is twice it */
+  private wedgeAt = new THREE.Vector3();
+  private wedgeTime = -Infinity;
+  private wedgeFor = 0;
   /** frags left, when it may throw the next, and one thrown this frame (for the match) */
   /** frags left: SpeedKills carries no grenades, so a SpeedKills bot never has one to throw (Phase 20 A10) */
   frags: number = IS_SK ? 0 : GRENADE.count;
@@ -1651,20 +1655,26 @@ export class Bot {
     }
     // a wall in the way: slide along it, and remember which way for a moment.
     // Wedged (a pocket between boxes where both slides are blocked too): no
-    // headway for 0.7 s and it takes the free way nearest the one it wants,
-    // backing out if it must, for 0.8 s.
+    // headway for a moment and it takes the free way nearest the one it wants,
+    // backing out if it must, for a while (bots.json wedge). Wedged again in
+    // the same place soon after, that way led back in: twice as far this time.
     if (want.length() > 1e-3) {
       if (now < this.detourUntil) want.copy(this.detour);
       else if (this.pos.distanceTo(this.headwayAt) > 0.1) {
         this.headwayAt.copy(this.pos);
         this.headwaySince = now;
-      } else if (now - this.headwaySince > 0.7) {
+      } else if (now - this.headwaySince > botsCfg.wedge.after) {
+        const W = botsCfg.wedge;
+        const again = now - this.wedgeTime < W.within && this.pos.distanceTo(this.wedgeAt) < W.near;
+        this.wedgeFor = again ? Math.min(W.most, this.wedgeFor * 2) : W.detour;
+        this.wedgeAt.copy(this.pos);
+        this.wedgeTime = now;
         const base = Math.atan2(want.y, want.x);
         for (const turn of [0.8, -0.8, 1.6, -1.6, 2.4, -2.4, Math.PI]) {
           const d = new THREE.Vector2(Math.cos(base + turn), Math.sin(base + turn));
           if (!this.blocked(this.pos.x + d.x * 0.5, this.pos.z + d.y * 0.5)) {
             this.detour.copy(d);
-            this.detourUntil = now + 0.8;
+            this.detourUntil = now + this.wedgeFor;
             want.copy(d);
             break;
           }

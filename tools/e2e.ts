@@ -2550,10 +2550,20 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   const offAb = await ev<{ on: boolean; choosing: boolean }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing })");
   check("bots: abilities are off by default, no card", !offAb.on && !offAb.choosing, JSON.stringify(offAb));
-  // the bot hunts you down the middle lane and shoots: the shield drops
-  const shot = await page.waitForFunction("window.__range.duel().shield < 75", { polling: 250, timeout: 25000 }).then(() => true, () => false);
+  // the bot hunts you down the middle lane and shoots: the shield drops. From the inside of the lane wall at x 94, which
+  // ends in the 1.4 m box of the mantle chain with its step crate 0.2 m off: a bot that came in there walked into the
+  // box for the whole match, its detour back up the lane leading it straight back in (2026-10-01, three runs of five).
+  // Now each detour from the same pocket is twice the last (bots.json wedge), out in about 19 s of the game's time:
+  // waited for on the game's clock, 35 s of it, as the recap's below (a loaded machine runs it at a third of real time)
+  await ev(page, "(() => { const b = window.__range.duel().bots[0]; b.pos.set(94.6, 0, -24); })()");
+  const shot = await ev<boolean>(
+    page,
+    `new Promise((ok) => { const R = window.__range; const g0 = R.gameTime(); const t0 = performance.now();
+      const step = () => { if (R.duel().shield < 75) return ok(true); if (R.gameTime() - g0 > 35 || performance.now() - t0 > 150000) return ok(false); setTimeout(step, 100); };
+      step(); })`,
+  );
   const pos = await ev<{ x: number; z: number; sh: number }>(page, "(() => { const b = window.__range.duel().avatars[0].group.position; return { x: b.x, z: b.z, sh: window.__range.duel().shield }; })()");
-  check("bots: the bot closes in and lands a shot", shot, `bot at ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}, your shield ${pos.sh}` + (shot ? "" : " " + JSON.stringify(await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; const pl = window.__range.player.pos; return { y: b.pos.y, you: [pl.x.toFixed(1), pl.z.toFixed(1)], sees: b.sees(pl), crouch: b.crouching, cover: !!b.cover, heard: !!b.heard, seen: b.lastSeen && [b.lastSeen.pos.x.toFixed(1), b.lastSeen.pos.z.toFixed(1)], slideDir: b.slideDir, joltLeft: b.joltLeft, healing: !!b.healing }; })()`))));
+  check("bots: the bot closes in and lands a shot, from the lane at x 94 that ends in a box", shot, `bot at ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}, your shield ${pos.sh}` + (shot ? "" : " " + JSON.stringify(await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; const pl = window.__range.player.pos; return { y: b.pos.y, you: [pl.x.toFixed(1), pl.z.toFixed(1)], sees: b.sees(pl), crouch: b.crouching, cover: !!b.cover, heard: !!b.heard, seen: b.lastSeen && [b.lastSeen.pos.x.toFixed(1), b.lastSeen.pos.z.toFixed(1)], slideDir: b.slideDir, joltLeft: b.joltLeft, healing: !!b.healing }; })()`))));
   check("bots: it moved off its spawn toward you", pos.z < -12, `z ${pos.z.toFixed(1)}`);
   const snd = await ev<{ played: number; voices: number }>(page, "({ played: window.__range.audio.played, voices: window.__range.audio.voiceCount })");
   check("sound: the fight is heard (its shots and footsteps), under the voice cap", snd.played > 5 && snd.voices <= 56, JSON.stringify(snd));
@@ -2756,6 +2766,22 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__range.landHit(1, 20, true, 'r97', 12)");
   await ev(page, "window.__range.landHit(1, 15, false, 'r97', 12)");
   await ev(page, "(() => { const d = window.__range.duel(); d.shield = 0; d.health = 3; })()");
+  // you where the bot sees you, clear of every box: these checks are about what an elimination leaves, not the way
+  // to you. In the warehouse a bot that came in by the lane at x 94 walked into the box at its end for the whole match
+  // (a wall on one side, a crate 0.2 m off the other; 2026-10-01, three runs of three), the legacy game's routing,
+  // which is not this check's
+  const inSight = await ev<number[] | null>(
+    page,
+    `(() => { const R = window.__range; const b = R.duel().bots[0]; const V = R.THREE.Vector3;
+      const boxed = (x, z) => R.solids.some((s) => s.base < 1.8 && s.top > 0.3 && x > s.minX - 0.6 && x < s.maxX + 0.6 && z > s.minZ - 0.6 && z < s.maxZ + 0.6);
+      for (const r of [8, 12, 6, 16]) for (let i = 0; i < 16; i++) {
+        const a = (i / 16) * Math.PI * 2; const p = new V(b.pos.x + Math.cos(a) * r, b.pos.y, b.pos.z + Math.sin(a) * r);
+        if (boxed(p.x, p.z) || !b.sees(p)) continue;
+        R.player.teleport(p.x, p.y, p.z, 0, 0); return [+p.x.toFixed(1), +p.z.toFixed(1)];
+      }
+      return null; })()`,
+  );
+  if (!inSight) console.log("  --  recap: no spot in the bot's sight; you wait where you stand");
   // 25 s of the game's own time (110 s of real time at the most): 30 s of real time was 10 s of the game on a loaded
   // machine, the bot still 40 m off at the arena's middle (it failed twice in the sweep on 2026-09-30, and passed alone)
   const out = await ev<boolean>(

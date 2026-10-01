@@ -262,6 +262,8 @@
   },
   "_maxStep": "Metres: the longest single step a bot's walk is made of in one go (bots.ts). A frame's walk longer than this (a slow frame: dt runs to 0.1 s, and 0.1 s at 6.6 m/s is 0.66 m) is walked in pieces, each with its own wall check and slide, as a quick frame would have walked it. 0.2 m is a quick frame's step at the fastest tier's pace and 30 fps.",
   "maxStep": 0.2,
+  "_wedge": "A bot with no headway for `after` s (a pocket between boxes where both its slides are blocked) takes the free way nearest the one it wants for `detour` s (bots.ts). Wedged again within `near` m of where the last one was and within `within` s of it, the detour lasts twice the last, to `most` s. In the legacy warehouse a bot that came down the lane at x 94 (a wall on one side, a box across its end, a crate 0.2 m off the box's other side) took the only free way, back up the lane, for 0.8 s and walked straight back in, for the whole match (e2e bots, 2026-10-01: three runs of five).",
+  "wedge": { "after": 0.7, "detour": 0.8, "near": 2, "within": 8, "most": 3.2 },
   "_unstick": "A battle royale bot standing under the graph node it walks to, or over it (brmatch.ts unstick): it stops `reach` m off a node's (x, z) and arrives only within `floor` m of the node's height (the arrival checks' own 2.5), so under a deck, a bridge or the court's floor 7 m down it stood for good; after `under` s of that it takes the nearest node on its own floor. `floor` is also how far off its height a node counts as another floor when a landed bot takes its nearest (brmatch.ts nearestNode). A hunt, 2026-09-30: four of 28 bots stood still 20 s and more, two under decks 18 m over them. Ours.",
   "unstick": {
     "floor": 2.5,
