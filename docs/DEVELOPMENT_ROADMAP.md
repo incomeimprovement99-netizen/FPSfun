@@ -8078,3 +8078,44 @@ against the last day's:
 - **Left, measured:** BOOG's hops and jumps still put its long stock 20 to 40 mm into the chest and the right forearm
   while the body tucks, mostly hidden by that arm. A carry's own elbow was tried for it at Milestone 367 and does not
   clear it.
+
+## Milestone 373 — The killcam starts without a freeze: its figures one a frame, each shown once its shaders are in
+
+Left by the bug hunt (Milestone 364): "The killcam's first frame is 0.25 to 0.8 s". Measured again in a solo battle
+royale on the Neon City, nine bots, a bot made your killer (a scratch probe timing every frame in the page, three's
+renderer counters and Chrome's profiler): **0.43 and 0.55 s**.
+
+- **What it was:** the replay built a ghost figure (killcam.ts ghost, a Dummy with its soldier and its gun) for every
+  actor in the recording on its first frame: in a battle royale every actor in the match, 30, including bots dead
+  through the whole replay and the killer, whose own figure is hidden at the camera. 7 to 14 ms each. Then the first
+  drawing of them compiled the shaders of gun parts no figure on screen had carried yet (an LSTAR's magazine, the
+  killer's first-person muzzle flash): 1 to 8 programs, up to 0.25 s more. Re-firing the recorded shots (every shot
+  anyone fired on the map, ~500) cost under 2 ms a frame and stays.
+- **Now** (killcam.ts castFor, update; killcam.json ghostsAFrame):
+  - who the replay shows is worked out once as it starts: everyone alive at some moment of it but the killer, the
+    victim first, then by how near they came to the killer;
+  - one figure a frame in that order, so the frame's cost is one figure's;
+  - each new figure's shaders compiled off the page's thread (`prepare`, main.ts: three's `compileAsync`) and the
+    figure shown once they are in, a few frames on. The killer's gun in your view the same (main.ts
+    `killcamGunReady`). Building the near ones together on the first frame was tried (5 of them, 50 ms) and showed
+    them no sooner, since each waits for its shaders anyway.
+- **Tried and taken out:** compiling every gun of the roster as a figure carries it under the loading screen (the
+  warm-up of Milestone 359). The killcam still compiled new programs: a shader is keyed to the lights present when it
+  is compiled, and a match adds its own.
+- **Measured after** (the same probe, three runs): the first frame 22 ms, and 87 ms on a session's first death (its
+  first drawing of other things lands there too); no frame of the replay over ~50 ms, most 17 to 29 ms.
+- **Tools:** `__range.killcamState()` gives the ghosts built, in order, and the killer's id.
+- **Checked:**
+  - skhunt e2e, new: in a solo battle royale, the killcam's ghosts frame by frame grow by at most one a frame, the
+    victim's first, the killer's never (counts 0, 1, 2 ... 7). Seen failing with every figure built on the first
+    frame (0, then 9);
+  - the verify killcam check (sk-killcam.ts) holds a second bot in the replay to its own soldier, and the killer to
+    having no figure (it had read the killer's, which the replay no longer builds);
+  - a 1v1 against a bot on a drawn page: the killcam from the bot's eyes, its gun in view once compiled, your figure
+    alone built, playing on into the next round's countdown;
+  - the br and squad e2e sections' killcam checks; verify; rules.
+- **Found on the way, not this milestone's:** the legacy game's bots match (e2e bots, "the bot eliminates you" and
+  the killcam and recap checks after it) fails the same with and without this change: in one arena the bot spawns
+  at x 94 to 95 in a lane between a wall (x 95.5) and a 1.4 m box (x 93.8 to 95.4, z -31.3 to -29.7), a crate
+  0.2 m off the box's other end, and walks into the box for the whole match; its wedge escape's only free way is
+  back north, and it walks straight back in. It is the next item.
