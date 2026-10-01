@@ -8216,3 +8216,26 @@ pitch black against a lit floor, and at its foot the floor broke into a sawtooth
   same plane, the bake's measure under 20 m2 (17.2 m2; seen failing with the settling turned off:
   442 m2). The floors still sealed, every ray from each meeting a wall. verify and rules; e2e `loot` and `br`.
   Photographed in the waist and on the new floors, before and after.
+
+## Milestone 378 — A battle royale's own figures and loot have their shaders before the ship flies over them
+
+The second hunt (Milestone 376) left three frames over 120 ms in a battle royale. Timed again from the click to the
+landing, the frame phases of every frame over 50 ms (a scratch probe, two to three runs each):
+
+- **The build** (0.94 to 1.2 s): outside any frame, under the loading screen. Known (Milestone 364).
+- **The first frame aboard** (247 to 334 ms, all of it drawing, no new shader or texture): the city drawn for the
+  first time and the sun's shadow map drawn again for it. Drawing the city once beforehand into a 1 by 1 target was
+  tried and taken out: it took 5 to 6 s and compiled 48 shaders the real frame never uses (a render target's are
+  keyed apart from the screen's), and left the frame at 211 to 230 ms.
+- **A frame about 9 s into the ride** (244 to 272 ms, 2 new shaders, 13 textures, 12 geometries): the match's own
+  things, made with the match after the city's side was made ready (warmBrSide, Milestone 359): its bots, their guns
+  and the floor's loot, their shaders for the city's light compiled the moment the ship first flew over them.
+- **Now** (main.ts warmMatch): as a battle royale switches to the city's side, the scene's own objects (not the two
+  sides, the lights or the camera) are compiled with three's `compileAsync` as the city's side draws them, and their
+  textures sent three a frame (eight a frame made five frames of 60 to 80 ms). Measured after, two runs: that frame
+  51 to 71 ms; the first frame aboard 130 to 139 ms; nothing else over 50 ms before the drop (98 to 109 ms, as before);
+  the build about 0.4 s longer, under the loading screen.
+- **Checked:**
+  - sklobby e2e, new: a few seconds into the ride every material of the match's own things has its shader (4665,
+    none without). Seen failing with the warm-up taken out (1725 without);
+  - verify; rules.
