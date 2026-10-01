@@ -118,9 +118,11 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
   const a = resolveWeapon("rspn101", 0, [], 0);
   const b = resolveWeapon("rspn101", 0, [], 5);
   check("fused to 5: +10% damage and +50% magazine on a real gun", Math.abs(b.damage.near / a.damage.near - 1.1) < 1e-9 && Math.abs(b.clipSize / a.clipSize - 1.5) < 0.06, `${a.clipSize} to ${b.clipSize} rounds`);
-  // switching guns (the owner, 2026-09-26): 1.5 times as quick as the legacy data as found, twice as quick at level 5
+  // switching guns (the owner, 2026-09-26): 1.5 times as quick as the legacy data as found, twice as quick at level 5;
+  // then 1.35 times those, for a swap that phases the gun out and the next in where it is held (the owner, 2026-09-30:
+  // "i think our swaps are too quick for how we wanted it"): 0.9 of the legacy time as found, 0.675 at level 5
   const legacyDraw = 0.6;
-  check("a gun draws 1.5 times as quick as found and twice as quick at level 5, quicker each level", Math.abs(legacyDraw / a.deployTime - 1.5) < 0.01 && Math.abs(legacyDraw / b.deployTime - 2) < 0.01 && [0, 1, 2, 3, 4].every((l) => resolveWeapon("rspn101", 0, [], l + 1).deployTime < resolveWeapon("rspn101", 0, [], l).deployTime), `${a.deployTime.toFixed(2)} s to ${b.deployTime.toFixed(2)} s`);
+  check("a gun draws in 0.9 of the legacy time as found and 0.675 at level 5, quicker each level", Math.abs(a.deployTime / legacyDraw - 0.9) < 0.01 && Math.abs(b.deployTime / legacyDraw - 0.675) < 0.01 && [0, 1, 2, 3, 4].every((l) => resolveWeapon("rspn101", 0, [], l + 1).deployTime < resolveWeapon("rspn101", 0, [], l).deployTime), `${a.deployTime.toFixed(2)} s to ${b.deployTime.toFixed(2)} s`);
 }
 
 console.log(fails === 0 ? "\nTTK PASS" : `\nTTK FAIL (${fails})`);

@@ -26,7 +26,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_THROW, packGunFor, type FreeHand } from "./fprig";
+import { FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_MELEE, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_CUP, SWAP_THROW, packGunFor, type FreeHand, type PackArmsFrame } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -134,6 +134,8 @@ interface GunFeel {
 
 /** how much of your own muzzle flash is drawn, 0 to 1 (gunfeel.json flashOpacity) */
 const FLASH_OPACITY = (feelCfg as unknown as { flashOpacity: number }).flashOpacity;
+/** an inspect's glow on a signature gun, as the hack cards glow (gunfeel.json inspectGlow) */
+const INSPECT_GLOW = (feelCfg as unknown as { inspectGlow: { base: number; depth: number; rate: number; in: number[]; out: number[] } }).inspectGlow;
 /** a signature gun's muzzle flash (gunfeel.json flash) */
 interface FlashStyle {
   color: string;
@@ -484,6 +486,11 @@ export class ViewModel {
   private palmW = 0;
   /** the pack's swap's swing of the gun this frame, in the view's space (the arms go with it: fprig.ts swing) */
   private readonly swapArms = new THREE.Matrix4();
+  /** where the rest level turns the gun about: its origin before the swap's swing and the move to the gun's own place */
+  private readonly levelAt = new THREE.Vector3();
+  /** this frame's turn of the rest hold to the gun's own place (fparms.json hipOwn), in the view's space */
+  private readonly hipOwnQ = new THREE.Quaternion();
+  private readonly tmpQ = new THREE.Quaternion();
   /** the pitch taken off the bought arms' gun at rest this frame (the arms turn with it: fprig.ts level) */
   private levelBy = 0;
   /** when something was last taken off the ground (the bought arms' pickup), view seconds */
@@ -524,6 +531,8 @@ export class ViewModel {
   private armFamily: ArmFamily = "guard";
   /** the middle of the gun, gun-local: what an inspect or a flourish turns about */
   private readonly gunCentre = new THREE.Vector3();
+  /** half the gun's box's diagonal, gun-local: how far a swap's phase reaches out from its middle */
+  private gunRadius = 0.3;
   /**
    * our trigger, gun-local (packRefresh): what an inspect turns about in the bought arms' hands. About the gun's middle,
    * far ahead of the grip on a long gun, BOOG's grip swung out of the right arm's reach, 20 cm short, the hand off it
@@ -571,6 +580,9 @@ export class ViewModel {
   private readonly gunFar = new THREE.Vector3();
   private readonly magTop = new THREE.Vector3();
   private readonly magEnd = new THREE.Vector3();
+  /** the magazine's middle, in its own frame, and half its box's diagonal: what a radial phase grows out from and reaches */
+  private readonly magMid = new THREE.Vector3();
+  private magRadius = 0.05;
   private feelKick = 0;
   private feelKickVel = 0;
   /** the glow's jump on a shot, a seat or a gun coming whole, 1 at its height, falling away */
@@ -579,6 +591,10 @@ export class ViewModel {
   private lastReloadP = 0;
   /** the reload running started with the magazine empty (the USSO racks its handle after the seat) */
   private reloadEmpty = false;
+  /** this frame's reload share on the bought arms' timeline: a tactical reload's read onto the empty one's */
+  private packRP = 0;
+  /** last frame's, for the seat's moment on that timeline */
+  private lastPackRP = 0;
   private racked = false;
   /** a fusion's scan: when it started, or -Infinity */
   private scanAt = -Infinity;
@@ -697,7 +713,9 @@ export class ViewModel {
       // one draw and not after another, the owner, 2026-09-29)
       m.root.position.set(0, 0, 0);
       m.root.quaternion.identity();
-      new THREE.Box3().setFromObject(m.root).getCenter(this.gunCentre);
+      const box = new THREE.Box3().setFromObject(m.root);
+      box.getCenter(this.gunCentre);
+      this.gunRadius = Math.max(0.01, box.getSize(new THREE.Vector3()).length() / 2);
       this.pack.gunDelta.add(m.root);
       m.root.add(this.flash.group);
       this.flash.group.position.copy(m.muzzle);
@@ -782,6 +800,42 @@ export class ViewModel {
     return { w, at: this.group.localToWorld(at) };
   }
 
+  /**
+   * A melee in the bought arms' hands (fparms.json melee), `mp` of the way through the swing (below 0 none): how far the
+   * left hand is off the gun, where it is between the chest and the punch (world), and how it is turned
+   */
+  private punchFrame(mp: number): PackArmsFrame["punch"] {
+    if (!this.packOn || mp < 0 || mp >= 1) return null;
+    const M = PACK_MELEE;
+    const k = smooth(M.punch[0], M.punch[1], mp);
+    const at = new THREE.Vector3().fromArray(M.chest).lerp(new THREE.Vector3().fromArray(M.out), k);
+    const elbow = new THREE.Vector3().fromArray(M.chestElbow).lerp(new THREE.Vector3().fromArray(M.outElbow), k);
+    // (carried with the arms, as the rest look carries them: left in the view, the arm moved 19 cm nearer with the USSO
+    // fell short of the punch)
+    at.applyMatrix4(this.swapArms);
+    elbow.applyMatrix4(this.swapArms);
+    this.group.updateMatrixWorld(true);
+    return {
+      w: smooth(M.on[0], M.on[1], mp) * (1 - smooth(M.off[0], M.off[1], mp)),
+      at: this.group.localToWorld(at),
+      elbow: this.group.localToWorld(elbow),
+      palm: new THREE.Vector3().fromArray(M.palmChest).lerp(new THREE.Vector3().fromArray(M.palmOut), k).normalize(),
+    };
+  }
+
+  /**
+   * A swap in place (fparms.json swap cup): how far the hands are into their cup round the gun's middle, which half of
+   * the swap it is (the model changes at its middle), and how far the second half's hands have come from where the first
+   * left them; null outside one
+   */
+  private cupFrame(f: VMFrame, m: GunModel): PackArmsFrame["cup"] {
+    if (!(this.packOn && SWAP_THROW.style === "cup" && f.raise > 0 && f.raise < 1)) return null;
+    const C = SWAP_CUP;
+    const r = f.raise;
+    m.root.updateWorldMatrix(true, false);
+    return { w: smooth(C.off[0], C.off[1], r) * (1 - smooth(C.back[0], C.back[1], r)), mid: this.gunCentre.clone().applyMatrix4(m.root.matrixWorld), half: r < 0.5 ? 0 : 1, carry: smooth(C.carry[0], C.carry[1], r) };
+  }
+
   /** an inspect's length now, s: the bought arms' own when they hold the gun (fparms.json inspectPack seconds) */
   get inspectTime(): number {
     return this.packOn ? PACK_INSPECT.seconds : INSPECT_TIME;
@@ -835,6 +889,9 @@ export class ViewModel {
   /** a share of the pickup held, for the checks and pictures (main.ts packPickupAt) */
   pickupHold: number | null = null;
 
+  /** a share of a melee swing held, for the checks and pictures (main.ts meleeAt) */
+  meleeHold: number | null = null;
+
   /** how far through taking something off the ground, or null */
   private pickupShare(): number | null {
     if (this.pickupHold !== null) return this.pickupHold;
@@ -842,13 +899,20 @@ export class ViewModel {
     return u >= 0 && u < 1 ? u : null;
   }
 
+  /** where the gun's own hold has it at the hip (a signature gun's hip moved as gunfeel.json says), in the view's space */
+  private ownHipNow(): THREE.Vector3 {
+    const m = this.model;
+    if (!m) return this.hipFeel.set(0, 0, 0);
+    return this.feel?.hip ? this.hipFeel.copy(m.hip).add(this.tmp2.fromArray(this.feel.hip)) : this.hipFeel.copy(m.hip);
+  }
+
   /** the bought arms' rig itself (tools/pack-fit.ts tries holds on it) */
   get packRig(): PackArms {
     return this.pack;
   }
 
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number; palmCardKeys: string[]; palmCardY: number; palmWhole: number; inspectTime: number; gunCentre: number[] } {
-    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length, palmCardKeys: this.palmCardIds.filter((k, i) => k && this.palmCards[i].group.visible), palmCardY: this.palmCardY, palmWhole: this.palmWhole, inspectTime: this.inspectTime, gunCentre: this.gunCentre.toArray() };
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number; palmCardKeys: string[]; palmCardY: number; palmWhole: number; inspectTime: number; gunCentre: number[]; poseAt: number[]; poseTurn: number[]; ownAt: number[] } {
+    return { active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length, palmCardKeys: this.palmCardIds.filter((k, i) => k && this.palmCards[i].group.visible), palmCardY: this.palmCardY, palmWhole: this.palmWhole, inspectTime: this.inspectTime, gunCentre: this.gunCentre.toArray(), poseAt: this.pose.position.toArray(), poseTurn: this.pose.quaternion.toArray(), ownAt: this.ownHipNow().toArray() };
   }
 
   /**
@@ -922,6 +986,8 @@ export class ViewModel {
       const cz = (b.min.z + b.max.z) / 2;
       this.magTop.set(cx, b.max.y, cz);
       this.magEnd.set(cx, b.min.y, cz);
+      b.getCenter(this.magMid);
+      this.magRadius = Math.max(1e-4, b.getSize(new THREE.Vector3()).length() / 2);
     }
     this.phaseGun(m);
   }
@@ -1038,16 +1104,27 @@ export class ViewModel {
     S.dir.value.copy(toWorld(this.gunFar, m.root)).sub(S.origin.value);
     S.len.value = Math.max(1e-4, S.dir.value.length());
     S.dir.value.normalize();
+    // a swap in place phases the gun out from its edges in, and the next in from its middle out (fparms.json swap cup);
+    // a fusion's flood and an inspect's scan still run along it
+    S.radial.value = this.packOn && SWAP_THROW.style === "cup" && (f.raise < 1 || f.lowered > 0) ? 1 : 0;
+    S.center.value.copy(toWorld(this.gunCentre, m.root));
+    S.radius.value = Math.max(1e-4, this.gunRadius * m.root.getWorldScale(this.tmp2).x);
     // its screen: the rounds and the fusion level
     if (F.screen && f.clip !== undefined) this.drawScreen(f.clip, w.fusion ?? 0, F.screen.color);
     // the sounds of the phase: out as it starts to go, in as it starts to come
     if (this.lastPhase >= 0.999 && phase < 0.999) this.onFeel?.("out");
     else if (this.lastPhase <= 0.001 && phase > 0.001) this.onFeel?.("in");
-    // the scan: an inspect's passes, or a fusion's, a band along the whole gun
+    // an inspect: the gun glows in the band's light, pulsing as the hack cards' glow does, where the scan's band passed
+    // along it (the owner, 2026-09-29: "when we inspect it should be that glow we are using on the hacks, not the janky
+    // looking highlight we made from our non-assets days"); a fusion's scan still passes along it
     let scan = -1;
-    if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) scan = ((f.inspect * F.scan.inspect) % 1) * 1.3 - 0.15;
-    else if (this.t - this.scanAt < F.scan.fusion) scan = ((this.t - this.scanAt) / F.scan.fusion) * 1.3 - 0.15;
+    let rim = 0;
+    if (f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) {
+      const G = INSPECT_GLOW;
+      rim = smooth(G.in[0], G.in[1], f.inspect) * (1 - smooth(G.out[0], G.out[1], f.inspect)) * (G.base + G.depth * Math.sin(this.t * G.rate));
+    } else if (this.t - this.scanAt < F.scan.fusion) scan = ((this.t - this.scanAt) / F.scan.fusion) * 1.3 - 0.15;
     S.scan.value = scan;
+    S.rim.value = rim;
     // into the sights: a pulse and a hum
     if (this.lastAdsFeel < 0.6 && f.adsFrac >= 0.6) {
       this.pulse = Math.max(this.pulse, F.ads);
@@ -1089,13 +1166,17 @@ export class ViewModel {
       const magIn = PR ? PR.phaseIn : R.magIn;
       const seat = PR ? PR.seat : R.seat;
       const mid = (magOut[1] + magIn[0]) / 2;
-      mp = Math.min(phase, reloadP < mid ? 1 - smooth(magOut[0], magOut[1], reloadP) : smooth(magIn[0], magIn[1], reloadP));
+      // (on the bought arms' timeline: a tactical reload's magazine goes and comes when the empty one's does)
+      const rp = PR ? this.packRP : reloadP;
+      const lastRp = PR ? this.lastPackRP : this.lastReloadP;
+      mp = Math.min(phase, rp < mid ? 1 - smooth(magOut[0], magOut[1], rp) : smooth(magIn[0], magIn[1], rp));
       // the seat: a slap into the hands and a pulse
-      if (this.lastReloadP < seat && reloadP >= seat) {
+      if (lastRp < seat && rp >= seat) {
         this.feelKickVel += R.snap;
         this.pulse = Math.max(this.pulse, R.pulse);
       }
     }
+    this.lastPackRP = reloading ? this.packRP : 0;
     this.lastReloadP = reloading ? reloadP : 0;
     if (!reloading) this.onKnob = 0;
     const M = this.magSweep;
@@ -1309,6 +1390,11 @@ export class ViewModel {
     // the pack's arms hold this gun: not while the hands are on the fists, a zipline or a cast (the view's own arms)
     const packOn = this.pack.active !== null && this.pack.active === packGunFor(w.id) && !this.fists.visible && !this.zipRig.visible && !this.castRig.visible;
     this.packOn = packOn;
+    // whether this reload began from empty, known from its first frame; and in the bought arms' hands a reload with a round
+    // still chambered read onto the empty one's timeline, its beats in the same seconds, ending before the rack
+    // (fparms.json reload tactical)
+    if (f.reloading && this.lastReloadP === 0) this.reloadEmpty = f.clipEmpty;
+    this.packRP = packOn && f.reloading && !this.reloadEmpty && !this.pack.tacticalRacks && w.reloadEmptyTime > 0 ? reloadP * (w.reloadTime / w.reloadEmptyTime) : reloadP;
     // In the sights the gun holds still for a reload, as it does for a strafe: rolled at full size, a 2x window
     // swung onto the support hand still on the handguard (PANDA, STRYDER, NOVA; Phase 20 A3)
     const reloadEnv = (f.reloading ? smooth(0, 0.14, reloadP) * (1 - smooth(0.84, 1, reloadP)) : 0) * (1 - ads * RELOAD_ADS);
@@ -1482,11 +1568,18 @@ export class ViewModel {
       const PR = PACK_RELOAD;
       // (the point's turn hands straight over to the rack's, over `rackBlend`: back to the hold between them, the gun had
       // jumped in 40 ms)
-      const into = f.reloading ? smooth(PR.rack[0] - PR.rackBlend, PR.rack[0], reloadP) : 0;
+      // (on the arms' timeline; a round still chambered: no rack's pose, the turn easing out as the hand goes back)
+      const rp = this.packRP;
+      const racks = this.reloadEmpty || this.pack.tacticalRacks;
+      // (a gun's own turn into its rack pose, else over `rackBlend` before the rack: the USSO's, while its finger still
+      // pointed, took the magazine out of the arm's reach, the wrist bent 100 degrees and the arm 10 mm short)
+      const PIn = this.pack.rackPoseIn ?? [PR.rack[0] - PR.rackBlend, PR.rack[0]];
+      const into = f.reloading && racks ? smooth(PIn[0], PIn[1], rp) : 0;
       const damp = 1 - ads * RELOAD_ADS;
-      const envP = (f.reloading ? smooth(0, PR.point[1], reloadP) * (1 - into) : 0) * damp;
+      const back = racks ? 0 : smooth(PR.tactical.back[0], PR.tactical.back[1], rp);
+      const envP = (f.reloading ? smooth(0, PR.point[1], rp) * (1 - into) * (1 - back) : 0) * damp;
       const RP = this.pack.rackPose;
-      const envR = RP && f.reloading ? into * (1 - smooth(PR.rack[1] - PR.rackBlend, PR.rack[1], reloadP)) * damp : 0;
+      const envR = RP && f.reloading ? into * (1 - smooth(PR.rack[1] - PR.rackBlend, PR.rack[1], rp)) * damp : 0;
       for (const [T, e] of [[this.pack.twist, envP], [RP, envR]] as const) {
         if (!T || e <= 0) continue;
         rz += T.roll * e;
@@ -1530,13 +1623,18 @@ export class ViewModel {
     // outgoing one over the swap's first half, the incoming one over its second (the model changes at the middle),
     // and out and in again over a holster and a draw. Only a little of the drop is kept, so the phase is seen
     let phase = 1;
+    // a swap in place, in the bought arms' hands (fparms.json swap style "cup"): the gun stays where it is and phases out
+    // from its edges in and the next in from its middle out, while the hands cup round it
+    const cupped = packOn && SWAP_THROW.style === "cup";
     if (F) {
       const swapPh = f.raise >= 1 ? 1 : f.raise < 0.5 ? 1 - smooth(F.swap.out[0], F.swap.out[1], f.raise) : smooth(F.swap.in[0], F.swap.in[1], f.raise);
       phase = Math.min(swapPh, 1 - smooth(F.holster.out[0], F.holster.out[1], f.lowered));
       this.swapPhase = phase;
-      // coming whole it rises into the hands and unrolls
-      p.y -= (1 - phase) * F.swap.rise;
-      rz += (1 - phase) * F.swap.roll;
+      // coming whole it rises into the hands and unrolls (not in place: the owner, "without the weapon moving much")
+      if (!cupped) {
+        p.y -= (1 - phase) * F.swap.rise;
+        rz += (1 - phase) * F.swap.roll;
+      }
       // a fusion floods it: the phase dips and comes back, the band sweeping it rebuilt
       const fu = (this.t - this.fuseAt) / FUSE.seconds;
       if (fu >= 0 && fu < 1) phase = Math.min(phase, 1 - (1 - FUSE.dip) * Math.sin(Math.PI * fu));
@@ -1573,12 +1671,12 @@ export class ViewModel {
         this.throwLeave[side] = smooth(T.hands[side].leave[0], T.hands[side].leave[1], u);
       }
       this.throwRelease = smooth(T.drop[0], T.drop[1], u);
-    } else this.spinGun(m, F && !(packOn && this.pack.swapsByClip) ? 1 - phase : 0);
+    } else this.spinGun(m, F && !(packOn && (this.pack.swapsByClip || cupped)) ? 1 - phase : 0);
     const move = F ? F.swap.move : 1;
     // melee: a quick in-and-out envelope over the swing
-    const mp = (this.t - this.meleeAt) / MELEE_TIME;
+    const mp = this.meleeHold ?? (this.t - this.meleeAt) / MELEE_TIME;
     const meleeEnv = mp >= 0 && mp < 1 ? Math.sin(mp * Math.PI) : 0;
-    const swapDip = Math.sin(clamp(f.raise, 0, 1) * Math.PI);
+    const swapDip = cupped ? 0 : Math.sin(clamp(f.raise, 0, 1) * Math.PI);
     const dip = Math.max(swapDip, gunGone, meleeEnv * 0.8);
     p.y -= dip * 0.35 * move;
     rx -= dip * 0.9 * move;
@@ -1659,14 +1757,52 @@ export class ViewModel {
       this.pose.quaternion.premultiply(this.locoQuat);
       // and on a swap, the pack's own: the gun swung down to the chest in the hands as it phases out, the next up out of there
       const from = this.tmp.copy(this.pose.position);
-      if (SWAP_THROW.style === "throw") {
+      if (SWAP_THROW.style === "throw" || SWAP_THROW.style === "cup") {
         this.locoPos.set(0, 0, 0);
         this.locoQuat.identity();
       } else this.pack.swapMotion(f.raise, this.locoPos, this.locoQuat);
       // (the arms carried through the swing with the gun: swung alone, the gun bent the left wrist to 72 degrees)
       this.swapArms.makeTranslation(from.x + this.locoPos.x, from.y + this.locoPos.y, from.z + this.locoPos.z).multiply(new THREE.Matrix4().makeRotationFromQuaternion(this.locoQuat)).multiply(new THREE.Matrix4().makeTranslation(-from.x, -from.y, -from.z));
+      // (the level is turned about where the gun was before these moves: it is part of the gun's own turn)
+      this.levelAt.copy(from);
       this.pose.position.add(this.locoPos);
       this.pose.quaternion.premultiply(this.locoQuat);
+      // and the rest hold moved, gun and arms as one, to where the gun's own hold has it: the place it jumped to on a melee,
+      // when the bought arms let it go (the owner, 2026-09-30: "the gun goes to a different spot, which actually looks
+      // smaller and placed at a more natural angle and looks more like other shooters ... we want it defaulted there");
+      // everything the pack's hold does on top is carried with it, and none of it is left in the sights (fparms.json hipOwn)
+      const k = this.pack.hipOwn * (1 - ads);
+      this.hipOwnQ.identity();
+      if (k > 0.001) {
+        const own = this.ownHipNow();
+        const at = this.pack.hip.position;
+        // the pack's rest turn (its hold's, every gun's 3 degrees in, the level) against the gun's own (the 3 degrees alone)
+        const order = this.pose.rotation.order;
+        const packQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(this.pack.hip.euler.x - (this.pack.tilt - HIP_PITCH), 0.05 + this.pack.hip.euler.y, this.pack.hip.euler.z, order));
+        const ownQ = new THREE.Quaternion().setFromEuler(new THREE.Euler(0, 0.05, 0, order));
+        this.hipOwnQ.slerp(ownQ.multiply(packQ.invert()), k);
+        const to = this.tmp2.copy(own).sub(at).multiplyScalar(k).add(at);
+        const move = new THREE.Matrix4().makeTranslation(to.x, to.y, to.z).multiply(new THREE.Matrix4().makeRotationFromQuaternion(this.hipOwnQ)).multiply(new THREE.Matrix4().makeTranslation(-at.x, -at.y, -at.z));
+        this.swapArms.premultiply(move);
+        this.pose.position.applyMatrix4(move);
+        this.pose.quaternion.premultiply(this.hipOwnQ);
+      }
+      // and the look on top, about the gun's origin where the rest hold now has it: out of the bottom right corner and
+      // turned in toward the middle, as Hyper Scape, Apex and EMPULSE hold their guns, so the support arm barely shows
+      // (the owner, 2026-09-30: "all of the other games the support arm barely shows and the gun is angled out of the
+      // bottom right corner"); the arms with it, none of it in the sights (fparms.json hipLook)
+      const LK = this.pack.hipLook;
+      const kl = 1 - ads;
+      if (kl > 0.001 && (LK.shift.some((v) => v !== 0) || LK.turn.some((v) => v !== 0))) {
+        const at = k > 0.001 ? this.tmp2.copy(this.ownHipNow()).sub(this.pack.hip.position).multiplyScalar(k).add(this.pack.hip.position) : this.tmp2.copy(this.pack.hip.position);
+        const q = new THREE.Quaternion().setFromEuler(new THREE.Euler(LK.turn[0] * kl, LK.turn[1] * kl, (LK.turn[2] ?? 0) * kl, "YXZ"));
+        const d = new THREE.Vector3().fromArray(LK.shift).multiplyScalar(kl);
+        const look = new THREE.Matrix4().makeTranslation(at.x + d.x, at.y + d.y, at.z + d.z).multiply(new THREE.Matrix4().makeRotationFromQuaternion(q)).multiply(new THREE.Matrix4().makeTranslation(-at.x, -at.y, -at.z));
+        this.swapArms.premultiply(look);
+        this.pose.position.applyMatrix4(look);
+        this.pose.quaternion.premultiply(q);
+        this.hipOwnQ.premultiply(q);
+      }
     }
 
     // Magnified scopes: at full aim the HUD draws the scope picture, and the
@@ -1678,7 +1814,9 @@ export class ViewModel {
       (o.reticle.material as THREE.MeshBasicMaterial).opacity = smooth(0.35, 0.85, f.adsFrac);
     }
 
-    this.updateFists(f, Math.max(easeInOut(clamp(f.lowered * 2 - 1, 0, 1)), meleeEnv), mp >= 0 && mp < 1 ? mp : -1);
+    // (a melee in the bought arms' hands is their own: the right keeps the gun and the left punches, fprig.ts punch)
+    const packPunch = this.pack.active !== null && this.pack.active === packGunFor(w.id);
+    this.updateFists(f, Math.max(easeInOut(clamp(f.lowered * 2 - 1, 0, 1)), packPunch ? 0 : meleeEnv), !packPunch && mp >= 0 && mp < 1 ? mp : -1);
     this.heirloom?.animate?.(this.t);
     this.updateZipHand(f, dt, ads);
     this.updateCast(dt, ads);
@@ -1718,7 +1856,7 @@ export class ViewModel {
     // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
     if (packOn) {
       this.pack.update(
-        { dt, reload: f.reloading ? reloadP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F && SWAP_THROW.style !== "throw" ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.pose.position, swing: this.swapArms, rollR: this.rollR, release: this.throwRelease, open: this.throwOpen, leave: this.throwLeave },
+        { dt, reload: f.reloading ? this.packRP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F && SWAP_THROW.style !== "throw" && SWAP_THROW.style !== "cup" ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.levelAt, swing: this.swapArms, rollR: this.rollR, release: this.throwRelease, open: this.throwOpen, leave: this.throwLeave, cup: this.cupFrame(f, m), punch: this.punchFrame(mp >= 0 && mp < 1 ? mp : -1) },
         this.holder,
         m.mag,
         m.bolt,
@@ -1728,6 +1866,8 @@ export class ViewModel {
       // the right forearm's line at rest, for an inspect to roll the gun about
       if (!(f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1) && this.pack.forearm("r", this.forearmR)) {
         this.forearmR.transformDirection(new THREE.Matrix4().copy(this.group.matrixWorld).invert());
+        // (in the frame the gun is turned in before the move to its own place: the inspect's roll is turned in there)
+        this.forearmR.applyQuaternion(this.tmpQ.copy(this.hipOwnQ).invert());
         this.forearmOn = true;
       }
       this.real.group.visible = false;
@@ -1745,7 +1885,10 @@ export class ViewModel {
     }
   }
 
-  /** the magazine's sweep along it, top to bottom, where it is now */
+  /**
+   * the magazine's sweep where it is now: along it, top to bottom, or in the bought arms' hands out from its middle
+   * (fparms.json reload magPhase), the old one going from its edges in and the new one coming from its middle out
+   */
   private aimMagSweep(m: GunModel): void {
     if (!m.mag) return;
     const M = this.magSweep;
@@ -1754,6 +1897,9 @@ export class ViewModel {
     M.dir.value.copy(this.magEnd).applyMatrix4(m.mag.matrixWorld).sub(M.origin.value);
     M.len.value = Math.max(1e-4, M.dir.value.length());
     M.dir.value.normalize();
+    M.radial.value = this.packOn && PACK_RELOAD.magPhase === "radial" ? 1 : 0;
+    M.center.value.copy(this.magMid).applyMatrix4(m.mag.matrixWorld);
+    M.radius.value = Math.max(1e-4, this.magRadius * m.mag.getWorldScale(this.tmp2).x);
   }
 
   /** the look the first-person arms wear: the body, the build and the outfit's sleeves */
@@ -1786,12 +1932,12 @@ export class ViewModel {
   }
 
   /** the signature gun's feel in hand (gunfeel.json), its phase and its magazine's, and whether it is drawn (the e2e soldier section) */
-  get feelState(): { gun: string | null; phase: number; mag: number; shown: boolean; scan: number; charge: number | null; screen: string | null; roll: number; onHandle: number | null } {
+  get feelState(): { gun: string | null; radial: number; rim: number; phase: number; mag: number; magRadial: number; magCenter: number[]; shown: boolean; scan: number; charge: number | null; screen: string | null; roll: number; onHandle: number | null } {
     const hasScreen = !!this.model?.root.getObjectByName("gun-screen");
     const m = this.model;
     // how far the support hand is from the charging handle, metres in the gun's space (the rack puts it there)
     const onHandle = m?.boltGrip && m.bolt ? this.left.group.position.distanceTo(this.tmp.copy(m.boltGrip).setZ(m.boltGrip.z + m.bolt.position.z - this.boltBase.z)) : null;
-    return { gun: this.feel ? (this.model?.id ?? null) : null, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, shown: this.holder.visible, scan: this.bodySweep.scan.value, charge: this.scopeFeel?.charge ?? null, screen: hasScreen ? this.screenDrawn : null, roll: this.rollNow, onHandle };
+    return { gun: this.feel ? (this.model?.id ?? null) : null, radial: this.bodySweep.radial.value, rim: this.bodySweep.rim.value, phase: this.bodySweep.phase.value, mag: this.magSweep.phase.value, magRadial: this.magSweep.radial.value, magCenter: this.magSweep.center.value.toArray(), shown: this.holder.visible, scan: this.bodySweep.scan.value, charge: this.scopeFeel?.charge ?? null, screen: hasScreen ? this.screenDrawn : null, roll: this.rollNow, onHandle };
   }
 
   /** each real arm's wrist bend when last posed, degrees (fparms.ts; tools/e2e.ts) */

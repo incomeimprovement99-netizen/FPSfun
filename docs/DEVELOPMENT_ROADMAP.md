@@ -8239,3 +8239,170 @@ landing, the frame phases of every frame over 50 ms (a scratch probe, two to thr
   - sklobby e2e, new: a few seconds into the ride every material of the match's own things has its shader (4665,
     none without). Seen failing with the warm-up taken out (1725 without);
   - verify; rules.
+
+## Milestone 379 — The USSO and BOOG held as Hyper Scape, Apex and EMPULSE hold their guns: out of the bottom right corner, the support arm only a forearm
+
+The owner, 2026-09-30: "when we melee currently, the gun goes to a different spot, which actually looks smaller and
+placed at a more natural angle and looks more like other shooters ... we want it defaulted there at that spot, have all
+our animations and frame inspects based off of that"; then, of the left arm: "a bit too high and the part of the arm that
+connects to the shoulder is like see through and bugged out ... the support arm is much less pronounced than ours. Look
+up references to apex Hyperscape empulse and show me side by side comparisons"; "we want less of the arms showing, all of
+the other games the support arm barely shows and the gun is angled out of the bottom right corner"; "compare the angle of
+our gun on a Hyperscape sniper and a empulse sniper and smgs like our two. I want it to look exactly like that ... Ours
+looks cheap in comparison"; and "Do the grid stuff with apex as well and see what the best combination of them are".
+
+- **The references:** frames of all three games' first person (EMPULSE's own Steam screenshots, YouTube's stored frames of
+  no-commentary play for Hyper Scape and Apex), side by side with ours and sent to the owner, then gridded at 1920 by 1080
+  and measured. Combined: an SMG's muzzle 55% across and 57% down, its bottom leaving the bottom edge about 59% across (only
+  the support hand there), its top edge leaving the right side about 84% down, the gun covering about 15% of the screen; a
+  sniper's 54% and 56%, 59%, 78% and 19%. Ours had the angle but covered 10.5% (the USSO) and 6.9% (BOOG): too small and
+  too far out, the support arm across the lower left with its upper arm in the corner.
+- **The gun's own place** (`fparms.json` hipOwn, `viewmodel.ts`): first, the pack's hold moved all the way to where the
+  gun's own hold has it, the place a melee showed (measured: the USSO 5.5 cm right, 2.3 up and 15 further out, BOOG 10.5
+  right, 13 down and 12 out). Gun and arms move by one matrix, the one a swap carries the arms by, so the hands stay on the
+  gun as fitted and every move the pack makes on top (a reload, an inspect, a pickup) is carried with it; none of it is
+  left in the sights. An earlier reading, 5 cm right and turned 4.6 degrees back in by eye, was not what was asked, and is
+  gone.
+- **The look** (`fparms.json` packGuns look, hipLook): then each gun moved and turned on top, fitted to those numbers by
+  the gun's own vertices through the gun camera (the tip, where it leaves the edges and the screen share it covers) and
+  chosen by the photographs beside theirs: the USSO 11.5 cm right, 6 down and 19 nearer, turned 7 degrees up, 16 left and
+  rolled 12, covering 13.5%; BOOG 12 right, 2 down, 20 nearer, 11 up, 17 left, rolled 17.
+- **The support arm** (`fprig.ts` holdElbow, `fparms.json` packGuns holdElbow): at the hold the support elbow is bent
+  toward a place given from the hand, turned with the arms, so the forearm comes up from under the gun: the USSO's left
+  wrist 24 degrees where it was 41, BOOG's 5; searched for the straightest wrist that reaches with nothing seen in the gun.
+- **What it moved, found by the frame sheets:** the reload's pointing elbow now turns with the arms (left, the USSO's
+  finger aimed 10 degrees off the magazine); the point's share of its own aim 0.92 on both guns; the USSO's pickup fit 3 mm
+  left (a ring fingertip 5 mm in the gun at 72%) and its left hand 1 mm off the gun's side; the melee's punch carried with
+  the arms (left in the view, the arm fell short of it); the inspect's forearm roll turned in the frame before the move;
+  the USSO turned into its rack pose as the hand goes to the handle rather than while it still points (`packGuns rack
+  poseIn`; turned under the finger, the left wrist bent 100 degrees and the arm fell 10 mm short); BOOG's left hand 0.5
+  mm lower (4.02 mm of its palm seen in the gun aimed in at 76%); and the point measured once it has landed, at 99.5% of
+  its way (at 98% the sheets caught BOOG's finger still landing on a tactical reload's shorter timeline).
+- **Checked:** every state's frame sheets on both guns from the new place; the soldier e2e holds the gun at rest within 2
+  mm and half a degree of its own hold moved by its look, and aimed exactly where it was.
+
+## Milestone 380 — The swap in place: the gun phases out from its edges in and the next from its middle out, the hands cupped round it
+
+The owner, 2026-09-30: "lets toss out the throw up and vaporize ... keep the hands where they are while the weapon phases /
+disintegrates from the outside going in and gets replaced by the new weapon, it should go from the outside in, then the
+new weapon should materialize from the inside out", the hands "close and open around the phasing out/in of the weapon,
+like the streetfighter haduken ... slightly come off of where they were originally ... then slowly turn both hands
+inwards to that like ball type motion with the fingers bent in ... then we just slightly move the left and the right hand
+back to where the right hand's on the trigger and the left hand's on the hand rest for that specific gun", and "i think
+our swaps are too quick for how we wanted it".
+
+- **The phase** (`phase.ts` radial): a sweep may run out from a middle instead of along an axis; the swap's runs from the
+  gun's middle, so going it goes from its edges in and coming it grows from its middle out. The gun stays where it is: no
+  throw, no drop of the arms, no dip, no spin (`fparms.json` swap style "cup"; "throw" and "drop" kept as reverts).
+- **The hands** (`fprig.ts` cup, `viewmodel.ts` cupFrame, `fparms.json` swap cup): each hand comes a little off the gun
+  in the gun's own frame (the left 2.5 cm down and back along it, the right 3.2 cm out and back: straight away from the
+  middle, the left went along the barrel 19 mm into the USSO's silencer and the right 15 mm into its magazine), turns on
+  its forearm to face the gun's middle (the least turn bent the right wrist to 63 degrees) and bends its fingers 45% of
+  the way to a fist; each in its own order, the right's fingers opening before it leaves the grip and the left leaving
+  the handguard before its fingers bend. The model changes at the swap's middle: the second half's hands go from where
+  the first left them onto the next gun's cup and then its holds, so the animation needs no knowledge of the next gun.
+- **Longer** (`speedkills.json` fusion swap): 1.35 times the time at every level, 0.9 as found to 0.675 at level 5, the
+  phase windows 0.03 to 0.47 and 0.53 to 0.95 (`gunfeel.json`).
+- **Checked:** the frame sheets of the swap on both guns, no frame flagged; the soldier e2e's swap check now asks the gun
+  kept within 1 cm, the phase radial, the hands 1 to 4 cm off and turned in, the fingers bent, nothing in the gun.
+
+## Milestone 381 — The melee in the bought arms: the right hand keeps the gun, the left punches, and no shot fires through it
+
+The owner, 2026-09-29: "THE MELEE IS BROKE ... HOLD THE WEAPON WITH THE RIGHT ARM, SWING AT THEM WITH THE LEFT ARM, LEFT
+ARM SHOULD GO FROM SUPPORTING THE GUN, BACK A BIT TOWARDS THE PLAYERS CHEST, THEN SWING OUT. ENSURE THE MELEE ACTUALLY
+WORKS AND DOES DAMAGE, WE SHOULDN'T BE ABLE TO SHOOT WITH MELEEING".
+
+- **The punch** (`fprig.ts` punch, `viewmodel.ts` punchFrame, `fparms.json` melee): with the USSO or BOOG the view no
+  longer puts up its own fists; the left hand comes down and out round the gun, back beside the body with its elbow low
+  and out (drawn back in front of the eye, the sleeve filled a third of the picture), and out in a punch, a fist closing
+  as it leaves the gun, the knuckles on along the forearm (given a way of their own, the wrist bent 133 degrees), then
+  back onto the handguard.
+- **No shot** (`main.ts` trigger): the trigger holds nothing through the swing, as it holds nothing through a swap.
+- **Checked:** the melee's frame sheets on both guns (`tools/pack-frames.ts` SEQ melee, `meleeAt` holds a swing); new
+  soldier e2e checks: the bought arms on the gun through a melee with the left hand off it in a fist and nothing in the
+  gun; a swing with the USSO at a dummy 1.2 m ahead takes 30; the trigger held through it fires nothing until the swing is
+  over and fires after.
+
+## Milestone 382 — Round 7's details: BOOG's grip, both forefingers on the trigger, the magazine phasing in from the top, the inspect's glow, and a jump check on every frame
+
+- **BOOG's right hand** (the owner: "the bottom 3 fingers on the BOOG are not lined up like they are on the USSO ... the
+  trigger / pointer finger extends weirdly out to the right, there shouldn't be much of a gap if any there. only visible
+  when we inspect"): seen from the gun's side, the pack's sniper grip held the stock's wrist flat, knuckles forward; the
+  middle finger stood out in the air before the grip and the forefinger lay along the gun past the trigger. Turned down
+  the grip and searched (`tools/pack-flush.ts`, new TRIGGER and TOGETHER_MM terms, and a hold's `copy` of one finger's
+  bend onto another in `fprig.ts`): the three fingers wrap the grip, the forefinger's tip on the trigger.
+- **Both forefingers on the trigger** (the owner, of the soldier: "trigger finger should be on the trigger, not in the
+  ready position"): the USSO's forefinger's tip 20 mm off its Trigger part, now on it.
+- **The magazine's phase in** (the owner: "I also want the mag phase in for reload in to be in the reverse order it
+  currently is ... So it goes from bottom to top now, should go from top to bottom now"): filmed every 3%, the sweep
+  already built the new magazine from its top down its length; what read as bottom to top was the magazine rising 8 cm
+  into the gun as it built. It now phases in seated (`fparms.json` reload slideIn 0), the pointing finger back at its spot
+  as it builds down. The soldier's reload reads the same keys (the character agent's rifle.ts).
+- **BOOG's bolt hand back to the grip** over 0.86 to 0.98 of the reload (`reload.rackOut`): over the last 5% of the
+  rack, the right hand came 12 cm from the bolt to the grip in one frame of the sheets.
+- **The inspect's glow** (the owner: "when we inspect it should be that glow we are using on the hacks, not the janky
+  looking highlight"): the scan's band is gone from an inspect; the gun glows in the phase band's amber round its edges,
+  pulsing as the hack cards do (`phase.ts` rim, `gunfeel.json` inspectGlow; at a tenth over all the whole USSO went gold,
+  at the fifth power of the edge nothing read).
+- **The frame sheets catch jumps** (the owner: "ensuring each frame is perfect, no resetting states, jumping UI, or
+  bugging in any frame from start to finish for each animation type"): each hand and the gun's origin measured every
+  frame and against the hold before and after, a move flagged where it is 25 mm or 8 degrees and more and 2.5 times the
+  moves either side of it (`tools/pack-frames.ts`).
+
+## Milestone 383 — A reload with a round still chambered: no rack, no bolt, the magazine on the same beats
+
+The owner, 2026-09-30: "don't forget we need a reload differentiator for empty mag vs still 1 in the chamber (mag not
+empty on reload) for most guns. We don't have that right now." The rack (the USSO's charging handle, BOOG's bolt) ran on
+every reload, measured.
+
+- **The rule** (`fparms.json` reload tactical, `viewmodel.ts` packRP, `fprig.ts`): a reload begun with rounds in the
+  magazine is read onto the empty reload's timeline in the same seconds (the share times reloadTime over reloadEmptyTime,
+  the USSO's 1.8 s of 2.5, BOOG's 3.0 of 4.0), so the old magazine goes, the new one phases in and seats at the same moment
+  in both, and the tactical one ends where the empty one would rack; no rack clip, no grab, no bolt, the pointing hand back
+  to the hold over 0.56 to 0.70 of the empty timeline and the gun's turn easing out with it. A gun may keep its rack on a
+  tactical reload (`packGuns tacticalRack`); none does today.
+- **One timeline with the soldier:** the character agent's third-person reload reads the same keys (agreed and messaged):
+  the soldier racks only from empty too.
+- **Found on the way, between the frame sheets' 4% steps:** BOOG's left middle fingertip slid 16 mm through its fore-end
+  at 7% of every reload, the point's clearance bowing the hand out to the left while its fingers still wrapped under the
+  fore-end; a pack gun's point now carries its own clearance way (`clearWay`), BOOG's down and a little out: none past
+  touching from 5% to 14%. Two changes tried first did nothing and are not kept.
+- **Checked:** the frame sheets of both reloads on both guns (`tools/pack-frames.ts` SEQ tactical); a new soldier e2e check:
+  from empty the USSO's handle goes back and BOOG's bolt clip leads, with a round chambered neither, the hands on the gun.
+
+## Milestone 384 — The magazine phased round its middle, BOOG's ring finger, and the checks read as the corner hold left them
+
+The owner, 2026-10-01, of the USSO and BOOG ("the two guns we currently have that are like 95%+ perfect"): "make the
+magazine phase in from the middle out and then we take the mag out it should be from the outside in."
+
+- **The magazine's phase** (`fparms.json` reload magPhase "radial", `viewmodel.ts` aimMagSweep): in the bought arms'
+  hands the magazine's sweep runs out from its own middle, as a gun's does on a swap. The old magazine goes from its
+  edges in to a cloud of cells at its middle as it slides out, and the new one grows from its middle out, seated in the
+  gun. Every other gun's still runs along it. The key is in the reload keys the soldier's reload reads, and the
+  character agent is told.
+- **BOOG's left ring finger was drawn from nowhere in every frame BOOG was held**: its middle joint's position was NaN.
+  The L96X's hold clip has no track for that joint; three.js blends a joint the clips' weights leave short toward a value
+  it keeps from frame to frame, and once that value was NaN it stayed so (drawing the USSO, whose hold has the track,
+  cleared it). Each pack gun's hold now carries every bone any of its clips moves, as the body was made where it has
+  none of its own, so the weights fill every joint every frame (`fprig.ts` gunSet). Found when the swap check's finger
+  curl came back null.
+- **BOOG's pointing arm**, searched again from the corner hold (`packGuns.L96X.point` elbow and aimAt): the wrist 57
+  degrees at most through the point (it was 71), the finger 8 degrees off its spot, the arm never short.
+- **Measures the corner hold had outrun**, each checked against photographs: the inspect's forearm is walked to where it
+  leaves the picture (the USSO's elbow is behind the eye now, and projected from there it came out at 24, 62 in the
+  picture's units); the hands' height in the picture is read at the knuckles (BOOG's left wrist sits on the bottom edge
+  with the hand in the picture); the swap's palms are measured facing the gun's middle across the forearm they turn on
+  (BOOG's middle is far ahead along it, 78 degrees off whatever the turn; across it 13, the USSO's 30); and the pointing
+  wrist's 60 degree limit holds where the wrist is in the picture (the USSO's is 0.7 to 0.9 of the half picture under its
+  bottom edge through the point, bent 67 to 80 degrees, only the fingertip in the picture).
+- **Checked:** a new soldier e2e check (the phase radial in the middle of both, round the magazine's own middle within
+  5 mm, seen failing with the old phase put back); photographs of both phases on both guns.
+- **A check that read the clock wrong under load:** the melee's is read every frame of the swing (read at 0.3 s of
+  game time, of 0.38, a slow frame carried the read past the swing's end and counted the first round after it). The
+  proof run put every round 7 and 8 fault back at once; nine checks failed on them (the slide check reads its
+  expectation from the same key, so it cannot catch `slideIn` changed in the config).
+- **Left for the owner:** the USSO's reload turn, tuned before the corner hold, now brings the gun to 1.5 times its size
+  at rest with its magazine at the bottom edge, part under the weapon panel. Turns that bring the magazine and the
+  pointing hand up were found (`tools/` scratch searches over the turn, scored by where the magazine and fingertip land,
+  how much of the magazine the eye sees, the gun's size and the wrist), but each moves the gun further from its corner.
+  Kept as it is until the owner picks.

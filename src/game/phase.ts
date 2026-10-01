@@ -35,6 +35,16 @@ export interface PhaseSweep {
   time: { value: number };
   /** a scan: a lit band passing along the whole gun without taking any of it away (an inspect, a fusion), below 0 none */
   scan: { value: number };
+  /**
+   * 1: the phase runs out from `center` instead of along the axis, `radius` its reach: going, the gun goes from its edges
+   * in, and coming, it grows from its middle out (the owner, 2026-09-30, of a swap: "phases / disintegrates from the
+   * outside going in ... then the new weapon should materialize from the inside out"). The scan stays along the axis
+   */
+  radial: { value: number };
+  center: { value: THREE.Vector3 };
+  radius: { value: number };
+  /** a glow in the band's light round the gun's edges, 0 none (an inspect: the hack cards' glow, the owner, 2026-09-29) */
+  rim: { value: number };
 }
 
 export function newSweep(o: { color: string; cube: string; band: number; jag: number; cell: number; lines: number; ahead: number; scatter: number }): PhaseSweep {
@@ -53,6 +63,10 @@ export function newSweep(o: { color: string; cube: string; band: number; jag: nu
     scatter: { value: o.scatter },
     time: { value: 0 },
     scan: { value: -1 },
+    radial: { value: 0 },
+    center: { value: new THREE.Vector3() },
+    radius: { value: 1 },
+    rim: { value: 0 },
   };
 }
 
@@ -77,6 +91,10 @@ uniform float uPhaseAhead;
 uniform float uPhaseScatter;
 uniform float uPhaseTime;
 uniform float uPhaseScan;
+uniform float uPhaseRadial;
+uniform vec3 uPhaseCenter;
+uniform float uPhaseRadius;
+uniform float uPhaseRim;
 varying vec3 vPhasePos;
 float phaseHash(vec3 p) { return fract(sin(dot(p, vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
 `;
@@ -88,9 +106,11 @@ bool phaseHolo = false;
 if (uPhase < 0.0001) discard;
 if (uPhase < 0.9999 || uPhaseScan > -0.5) {
   float s = dot(vPhasePos - uPhaseOrigin, uPhaseDir) / uPhaseLen;
+  // how far out the phase has to come to reach this fragment: along the axis, or out from the middle
+  float sp = uPhaseRadial > 0.5 ? length(vPhasePos - uPhaseCenter) / uPhaseRadius : s;
   vec3 cell = floor(vPhasePos / (uPhaseCell * uPhaseLen));
   // the edge: the sweep's front, pushed back and forth by a cell at a time, so it steps like pixels
-  float edge = uPhase * (1.0 + uPhaseBand + uPhaseJag) - uPhaseJag * phaseHash(cell) - s;
+  float edge = uPhase * (1.0 + uPhaseBand + uPhaseJag) - uPhaseJag * phaseHash(cell) - sp;
   if (edge < 0.0) {
     // ahead of the front: a thinning scatter of cells, re-rolled many times a second
     float k = 1.0 + edge / uPhaseAhead;
@@ -115,6 +135,11 @@ const FRAG_TAIL = /* glsl */ `
 // ahead of the band, the dark cubes the gun is being built from, lit at their edges by the band
 if (phaseHolo) gl_FragColor = vec4(uPhaseCube + uPhaseColor * 0.35 * phaseEdge, 1.0);
 else gl_FragColor.rgb += uPhaseColor * phaseGlow * 2.2;
+// a lit gun's glow: the band's light round its edges, where its faces turn from the eye, and a little over all of it (at a
+// tenth over all and 1.6 at the edges, the whole USSO went gold; at 0.7 and the fifth power, nothing read)
+#ifdef STANDARD
+if (uPhaseRim > 0.0 && !phaseHolo) gl_FragColor.rgb += uPhaseColor * uPhaseRim * (0.05 + 1.1 * pow(1.0 - abs(dot(normalize(normal), normalize(vViewPosition))), 3.0));
+#endif
 `;
 
 const phased = new WeakMap<THREE.Material, Map<PhaseSweep, THREE.Material>>();
@@ -143,6 +168,10 @@ export function phasedMaterial(src: THREE.Material, sweep: PhaseSweep): THREE.Ma
       uPhaseScatter: sweep.scatter,
       uPhaseTime: sweep.time,
       uPhaseScan: sweep.scan,
+      uPhaseRadial: sweep.radial,
+      uPhaseCenter: sweep.center,
+      uPhaseRadius: sweep.radius,
+      uPhaseRim: sweep.rim,
     });
     shader.vertexShader = VERT_HEAD + shader.vertexShader.replace("#include <begin_vertex>", `#include <begin_vertex>\n${VERT_BODY}`);
     shader.fragmentShader =

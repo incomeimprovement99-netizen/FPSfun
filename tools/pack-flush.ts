@@ -18,6 +18,8 @@
 //   OVER_BONES=^(hand|thumb)             which bones' skin counts as in the gun (default all)
 //   TOUCH_BONES=index_03,middle_03       the bones whose nearest point must touch it
 //   TOGETHER=middle_03,ring_03,pinky_03  fingertips kept together, each gap as the last pair's
+//   TOGETHER_MM=25                       or each gap this many mm (the USSO's lie 25 apart)
+//   TRIGGER=index_03                     this finger's tip on the gun's Trigger part
 //   JOINTS=thumb_01,thumb_02             joints turned (Euler, radians) besides the hold's shift and rot
 //   PICKUP=0.64,0.7,0.76                 pickup shares scored for the arm's reach and depth
 //   START='{"shift":..,"rot":..,"joints":{..}}'  go on from an earlier best
@@ -39,7 +41,8 @@ const TURN = Number(process.env.TURN ?? 0.3);
 const JTURN = Number(process.env.JTURN ?? 0.4);
 const PCT = Number(process.env.PCT ?? 0.25);
 const FLUSH = Number(process.env.FLUSH ?? 1.5);
-const DEEP = 4;
+/** skin deeper than this in the gun counts against a hold, mm (DEEP=): under the sheets' 4, for a hold that is rolled in an inspect */
+const DEEP = Number(process.env.DEEP ?? 4);
 const list = (s: string | undefined, d: string) => (s ?? d).split(",").filter(Boolean);
 /** a bone may carry its own share, `hand@0.1`: a palm's pad is a tenth of its skin, a thumb's side a quarter */
 const FLUSH_BONES = list(process.env.FLUSH_BONES, "hand@0.1,thumb_02,thumb_03");
@@ -79,7 +82,7 @@ try {
     for (const [j, e] of Object.entries(s.joints ?? {})) hold[SIDE].joint[j] = e;
   }
   for (const j of JOINTS) hold[SIDE].joint[j] ??= [0, 0, 0];
-  const setup = { side: SIDE, pickup: list(process.env.PICKUP, "").map(Number), over: OVER_BONES, flush: FLUSH_BONES, touch: TOUCH_BONES, together: TOGETHER, joints: JOINTS, pct: PCT, flushMm: FLUSH, deep: DEEP, tries: TRIES, move: MOVE, turn: TURN, jturn: JTURN };
+  const setup = { side: SIDE, pickup: list(process.env.PICKUP, "").map(Number), over: OVER_BONES, flush: FLUSH_BONES, touch: TOUCH_BONES, together: TOGETHER, togetherMm: Number(process.env.TOGETHER_MM ?? 0), trigger: process.env.TRIGGER ?? "", joints: JOINTS, pct: PCT, flushMm: FLUSH, deep: DEEP, tries: TRIES, move: MOVE, turn: TURN, jturn: JTURN };
   const res = (await page.evaluate(`(async () => {
     const r = window.__range;
     const T = r.THREE;
@@ -105,7 +108,21 @@ try {
       // the fingertips' spacing, mm: each pair's gap against the last pair's
       let apart = 0; const gaps = [];
       for (let i = 0; i + 1 < S.together.length; i++) gaps.push(at(S.together[i]).distanceTo(at(S.together[i + 1])) / gs * 1000);
-      if (gaps.length > 1) for (let i = 0; i + 1 < gaps.length; i++) apart += Math.abs(gaps[i] - gaps[gaps.length - 1]);
+      // (each against a set spacing where one is given: asked only to be even, BOOG's spread 74 mm apart were made even at
+      // 101, where a hand's lie 25 apart)
+      if (S.togetherMm > 0) for (const g of gaps) apart += Math.abs(g - S.togetherMm);
+      else if (gaps.length > 1) for (let i = 0; i + 1 < gaps.length; i++) apart += Math.abs(gaps[i] - gaps[gaps.length - 1]);
+      // the forefinger's tip on the trigger (its last joint out by 0.8 of the bone before, as fprig.ts finds a tip), mm to
+      // the trigger's box: the owner, 2026-09-30, "trigger finger should be on the trigger, not in the ready position"
+      let trig = 0;
+      if (S.trigger) {
+        const j2 = at(S.trigger.replace("_03", "_02"));
+        const j3 = at(S.trigger);
+        const tip = j3.clone().addScaledVector(j3.clone().sub(j2), 0.8);
+        let t = null;
+        r.viewModelRoot().traverse((o) => { if (!t && o.name === "Trigger") t = o; });
+        trig = t ? new T.Box3().setFromObject(t).distanceToPoint(tip) / gs * 1000 : 30;
+      }
       const wrist = S.side === "l" ? st.wristL : st.wristR;
       const short = (S.side === "l" ? st.reachShort : st.reachShortR) * 1000;
       // and the same hold where the pickup's clip carries the gun (PICKUP shares): the arm reaching and nothing in the gun
@@ -120,10 +137,10 @@ try {
         pickOver += Object.entries(b.bones).filter(([n]) => n.endsWith("_" + S.side)).reduce((s, [, v]) => s + Math.max(0, v - S.deep), 0);
       }
       if (S.pickup.length) { r.packPickupAt(null); await frame(); }
-      const score = over * 3 + flush.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) * 2 + touch.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) + apart * 0.5 + Math.max(0, wrist - 45) + short * 10 + pickShort * 10 + pickOver * 3;
+      const score = over * 3 + flush.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) * 2 + touch.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) + apart * 0.5 + trig * 2 + Math.max(0, wrist - 45) + short * 10 + pickShort * 10 + pickOver * 3;
       // (and each flush bone's spread, for the report: its skin's gaps at a twentieth, a tenth, a quarter and half)
       const spread = Object.fromEntries(S.flush.map((f) => f.split("@")[0]).map((b) => [b, [0.05, 0.1, 0.25, 0.5].map((q) => pct(a.gapList[b + "_" + S.side], q))]));
-      return { score, over, flush, touch, gaps, wrist, short, pickShort, pickOver, spread };
+      return { score, over, flush, touch, gaps, trig, wrist, short, pickShort, pickOver, spread };
     };
     const x0 = { shift: H.shift.slice(), rot: H.rot.slice(), joints: Object.fromEntries(S.joints.map((j) => [j, H.joint[j].slice()])) };
     const start = await look(x0);

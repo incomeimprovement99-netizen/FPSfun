@@ -160,8 +160,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   (lifted off, its inner faces showed). The gun camera draws from half a
   millimetre off the eye, so a gun whose back end comes right up to it aimed is
   never cut open. The USSO and BOOG have
-  their own feel in the hands: on a swap they spin in ahead of the hand and
-  build out of dark pixel cubes behind a sweeping amber band, as Hyper Scape's
+  their own feel in the hands: on a swap they break up into dark pixel cubes
+  behind a sweeping amber band and build back out of them, as Hyper Scape's
   did, kick on their own spring (the USSO tight and
   buzzing, BOOG a heavy punch and a recharge you can see), and a reload rolls
   the gun's underside toward you and brings it up while the magazine phases out
@@ -170,7 +170,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   cells, and BOOG a shockwave off the muzzle), BOOG's scope powers on with a scan
   line, and after a shot a faint ring round the aim point closes as it
   recharges (closed, it can fire); their glow stutters when the
-  magazine is nearly out, and an inspect or a fusion runs a scan along the gun.
+  magazine is nearly out, an inspect makes the gun glow amber round its edges as
+  the hack cards glow, and a fusion runs a scan along it.
   Like Hyper Scape's guns they carry a live screen on the side (the rounds in
   big digits, the fusion level as pips, gold at the top); BOOG's scope is
   Hyper Scape's full-screen one, thin red lines in a chamfered frame with the
@@ -187,25 +188,34 @@ Game) or `?game=legacy`, and everything below this section describes it.
   its files are): an SMG hold and a sniper hold, fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
   a pickup (every frame of each photographed and measured); the USSO's left palm
-  and thumb lie flat along its side, and the right hand's lower three fingers sit
-  together on the grip with the forefinger on the trigger; and the wrists kept
+  and thumb lie flat along its side, and on both guns the right hand's lower three
+  fingers sit together round the grip with the forefinger's tip on the trigger; and
+  the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,
   the other presets at 1024. On a reload the gun turns its underside toward you and
   the left forefinger points at the magazine and leads it, down a moment before
-  it drops out of the gun as it phases away and up before a new one phases in
-  below and slides home; then the hands work the gun: the left hand closes on
+  it drops out of the gun as it phases away from its edges in, and back to its spot as the new one
+  phases in seated, built from its middle out; then the hands work the gun: the left hand closes on
   the USSO's charging handle, pulls it and lets it slam home, and the pack's own
   hands throw BOOG's bolt, as after
-  every shot. At rest both guns point level down the range. An inspect in these
+  every shot; the rack and the bolt only when the magazine was empty: with a round
+  still chambered the magazine swaps on the same beats and the hand goes back (the third-person
+  soldier's reload runs to the same beats, from the same settings). At rest both
+  guns come up out of the bottom right corner turned in toward the crosshair, as
+  Hyper Scape, Apex and EMPULSE hold theirs (measured off their frames: an SMG
+  covering about 15% of the screen, a sniper 19%), the support arm only a forearm
+  up from under the gun. An inspect in these
   arms lasts 5.2 s, a beat held after each turn of the gun: the left hand comes
   up from below, palm up, with the hacks you carry floating over it, each card
   glowing and showing its level as the HUD's pips do, and near the end tosses
-  them up to burn out in the air as a swapped gun does; holstered
-  or meleeing, the fists are the same bought arms and gloves. A
-  swap is a throw: the hands lift the gun and toss it up and away, turning over
-  as it phases out in the air, and the next phases in out there and flies back
-  into the hands, which come up to catch it (a setting brings back the pack's own
-  swap, the gun swung down to the chest in both hands). Jumping plays
+  them up to burn out in the air; holstered, the fists are the same bought arms
+  and gloves. A melee keeps the gun in the right hand while the left pulls back
+  beside you and punches, a fist, for 30; the gun cannot fire through it. A swap
+  happens in place: the gun breaks up from its edges inward while both hands ease
+  a little off it and cup round it, fingers bent, as a Hadouken is held, and the
+  next builds out from its middle as the hands settle onto its own grip and
+  handguard (settings bring back the thrown swap, or the pack's own, the gun swung
+  down to the chest in both hands). Jumping plays
   the pack's take-off and landing, and taking loot off the ground its pickup. Every other bought gun's support hand holds it where the bought model is
   held (measured), under the gun, and rolls round it until its wrist is nearly
   straight on the forearm; the soldier's first-person arms are drawn the

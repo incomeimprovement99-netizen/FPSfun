@@ -7538,8 +7538,9 @@ function step(): void {
   // In a 1v1, firing is held during the countdown and after a round is decided.
   // the trigger, from the script when a test is driving (as the crouch, the
   // interact and the movement already do): a magazine held on the spray wall
-  // is a thing worth being able to ask for without a fake pad
-  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease && !finisher;
+  // is a thing worth being able to ask for without a fake pad. Not while a melee swings (the owner, 2026-09-29: "WE
+  // SHOULDN'T BE ABLE TO SHOOT WITH MELEEING")
+  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease && !finisher && gameTime - swungAt >= MELEE_TIME;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
@@ -8887,6 +8888,10 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   packPickupAt: (u: number | null) => {
     viewModel.pickupHold = u;
   },
+  /** hold the view's melee swing at a share of it, for pictures and the checks (null: as the game has it) */
+  meleeAt: (u: number | null) => {
+    viewModel.meleeHold = u;
+  },
   /** how many movement trails are drawn now (trails.ts) */
   trailCount: () => trails.count,
   /** a hack's cast in the hands (hackcast.ts): how far up the hand is and whether it has tapped */
@@ -8908,7 +8913,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     return { on: phases.on, line: phases.line, means: phases.means(), hitches: phases.hitches.slice() };
   },
   /** each thing that holds the trigger (the frame's trigger line): a check whose gun fired nothing says which */
-  triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, readied: !!ordnance.readied, lockedToRelease: fireLockedToRelease, finisher: !!finisher, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
+  triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, readied: !!ordnance.readied, lockedToRelease: fireLockedToRelease, finisher: !!finisher, meleeing: gameTime - swungAt < MELEE_TIME, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
   setLootCard: (m: LootCardMode) => (lootCardMode = m),
   /** a gun as a beginner reads it, with its class (Phase 20 A7) */
   weaponLabel,
@@ -8965,6 +8970,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   swing: (): boolean => {
     if (gameTime < meleeReadyAt || loadout.swapping) return false;
     meleeReadyAt = gameTime + MELEE_COOLDOWN;
+    swungAt = gameTime;
     viewModel.melee();
     meleeHitAt = gameTime + MELEE_TIME * 0.35;
     return true;

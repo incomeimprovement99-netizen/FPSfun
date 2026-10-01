@@ -138,23 +138,94 @@ only once i approve we can move on to the other 8 guns".
    reverse motion, other weapon phases in and they catch it higher up and bring it down. we don't want the hands to go
    too far up, just a bit to show the toss. and with how quick it is now the animation we want doesn't show the phasing
    in, you should have seen this in your screenshot frame by frame reviews, it needs to just be a slightly longer swap
-   time and a faster animation for throwing it up and making it vaporize": to do.
+   time and a faster animation for throwing it up and making it vaporize": done, then replaced by round 7's swap in
+   place (item 3).
 6. "Like we are doing the same things already with the hacks in the left hand, we should do that pretty much for the
    weapon swap. also we should use that animation/phase style with the weapon when it goes to swap and when we inspect
    it should be that glow we are using on the hacks, not the janky looking highlight we made from our non-assets days":
-   to do.
+   **done** (Milestones 358 and 360): the swap phases as the cards do, out from the gun's middle; an inspect glows amber
+   round the gun's edges, pulsing as the cards glow, the scan band gone.
 7. "WE SHOULD UPDATE OUR HACKS ON THE UI TO LOOK MORE LIKE THE HACKS IN THE ANIMATION": to do.
 8. (2026-09-30) "THE LAST THING I WANT IS FOR THE GUNS TO BE PUSHED RIGHT SLIGHTLY, FEELS LIKE THEY ARE TOO CLOSE TO THE
    MIDDLE OF THE SCREEN. THEN WE WILL NEED TO ANGLE THE GUN SLIGHTLY MORE TO THE LEFT AND UP TO COMPENSATE. IT SHOULD BE
    SIMILAR TO THE HYPERSCAPE AND HOW IT HAD THEIR GUNS. YOU'LL HAVE TO RECHECK ALL ANIMATIONS WITH THEM TO SEE IF ANYTHING
-   GOT MESSED UP FROM IT"; and "LIKE WHEN WE GO TO MELEE THE GUN IS IN A BETTER ANGLE": to do.
+   GOT MESSED UP FROM IT"; and "LIKE WHEN WE GO TO MELEE THE GUN IS IN A BETTER ANGLE". First read as a move of my own (5 cm
+   right, turned 4.6 degrees back in), which was not what was asked: see round 7, item 1.
 9. The melee: "THE MELEE IS BROKE, THE GUN SHOULD JUST DISAPPEAR WHILE WE PUNCH FOR NOW. REVISIT THE MELEE IF NEEDED, IT
    SHOULD JUST BE LIKE THIS INSTEAD: HOLD THE WEAPON WITH THE RIGHT ARM, SWING AT THEM WITH THE LEFT ARM, LEFT ARM SHOULD GO
    FROM SUPPORTING THE GUN, BACK A BIT TOWARDS THE PLAYERS CHEST, THEN SWING OUT. ENSURE THE MELEE ACTUALLY WORKS AND DOES
-   DAMAGE, WE SHOULDN'T BE ABLE TO SHOOT WITH MELEEING": to do.
+   DAMAGE, WE SHOULDN'T BE ABLE TO SHOOT WITH MELEEING": **done** (Milestone 381): the right hand keeps the gun, the left
+   goes back beside the body and punches, a fist; 30 a hit, measured on a dummy; the trigger holds nothing through it.
 10. BOOG's bolt: "the sniper doesn't even have a visible bolt on it ... add something small on that side? we have paid
     assets that we can find something for": to do, a handle lifted from one of the bought sci-fi guns, moved by the clip
     that throws it.
+
+### Round 7 (2026-09-30, the owner on round 6's first fixes)
+
+"Everything else I mentioned is perfect except you did NOT fix the viewmodel of the gun that i requested."
+
+1. The rest place: "when we melee currently, the gun goes to a different spot, which actually looks smaller and palced at
+   a more natural angle and looks more like other shooters. simply equip the boog or usso, melee and within the melee
+   frames, you'll see it jump to another spot. we want it defaulted there at that spot, have all our animations and frame
+   inspects based off of that. The hack inspect is perfect though": the spot is the gun's own hold, where it goes when a
+   melee lets the bought arms go (measured: the USSO 5.5 cm right, 2.3 cm up and 15 cm further out than the pack's hold,
+   BOOG 10.5 cm right, 13 cm down and 12 cm out, neither turned). **Done** (Milestone 379): the rest hold moved there, gun
+   and arms as one (`fparms.json` hipOwn), every state's frame sheets on both guns taken again from there.
+2. BOOG's right hand: "the bottom 3 fingers on the BOOG are not lined up like they are on the USSO, it looks bad, then the
+   trigger / pointer finger extends weirdly out to the right, there shouldn't be much of a gap if any there. only visible
+   when we inspect". Seen from the gun's side: the forefinger lay straight along the gun above the trigger guard, the
+   middle finger stood out in the air in front of the grip, the ring and little fingers far apart (fingertips 106 and 74 mm
+   apart where the USSO's are 25). And the owner to the character agent, of the soldier: "trigger finger should be on the
+   trigger, not in the ready position": both guns' forefingers onto the trigger. **Done** (Milestone 382): BOOG's hand
+   turned down its grip, the three fingers wrapped round it, the forefinger's tip on the trigger; the USSO's forefinger
+   onto its trigger (its tip 20 mm off before).
+3. The swap: "lets toss out the throw up and vaporize ... keep the hands where they are while the weapon phases /
+   disintegrates from the outside going in and gets replaced by the new weapon, it should go from the outside in, then the
+   new weapon should materialize from the inside out ... more time for the vaporizing/materializing without the weapon
+   moving much", and the hands "close and open around the phasing out/in of the weapon, like the streetfighter haduken",
+   then, more exactly: "just have the two hands move together slightly and have the hands form facing the center like the
+   street fighter does it ... slightly come off of where they were originally ... then slowly turn both hands inwards to
+   that like ball type motion with the fingers bent in. Like, doesn't need to be too close to the center because then
+   you're moving the hands a lot. And then as the next one forms in, we know where to place the hands because it's already
+   that gun and selected. So then we just slightly move the left and the right hand back to where the right hand's on the
+   trigger and the left hand's on the hand rest for that specific gun". And "i think our swaps are too quick for how we
+   wanted it". **Done** (Milestone 380): swap style "cup", the phase radial round the gun's middle, each hand's own move
+   off the gun and its own order, the swap 1.35 times longer.
+4. "I also want the mag phase in for reload in to be in the reverse order it currently is. Makes it visually pop a bit
+   more. So it goes from bottom to top now, should go from top to bottom now": **done** (Milestone 382). Filmed every 3%:
+   the sweep already built the new magazine from its top down; the magazine rising 8 cm into the gun as it built read
+   as bottom to top. It now phases in seated (`reload.slideIn` 0).
+5. "ensuring each frame is perfect, no resetting states, jumping UI, or bugging in any frame from start to finish for
+   each animation type. Pay extra attention to details like some of the arm missing or something like that and that the
+   first and third person final forms agree with each others animations and movements when they reload for the boog and
+   the usso. It's critical to have the agents on the same page with it before we move on to the remaining 8 guns": the
+   frame sheets now catch jumps (each hand and the gun measured every frame, a spike re-held at four steps between to
+   tell a snap from a quick move), and the soldier's reload is driven from the first person's own keys (`fparms.json`
+   reload, packGuns rack), agreed with the character agent: no pouch, no drop, the magazine sliding and phasing out, the
+   new one phasing in seated, the USSO's left hand racking and BOOG's right working the bolt over the same shares, and
+   their e2e fails when the two part.
+6. The look (the owner, after the first side by side): "the left arm a bit too high and the part of the arm that connects
+   to the shoulder is like see through ... the support arm is much less pronounced than ours", "the gun is angled out of
+   the bottom right corner", "I want it to look exactly like that ... Ours looks cheap in comparison", "Do the grid stuff
+   with apex as well": **done** (Milestone 379), Hyper Scape's, Apex's and EMPULSE's frames gridded and measured, each
+   gun fitted to the combined framing (an SMG covering 15% of the screen from the bottom right, a sniper 19%; ours had
+   covered 10.5 and 6.9), the support arm only a forearm from under the gun.
+7. "we need a reload differentiator for empty mag vs still 1 in the chamber (mag not empty on reload) for most guns":
+   **done** (Milestone 383), no rack or bolt with a round chambered, the magazine on the same beats in seconds, the
+   soldier the same (agreed with the character agent).
+
+### Round 8 (2026-10-01, the owner: the two guns "like 95%+ perfect")
+
+1. "make the magazine phase in from the middle out and then we take the mag out it should be from the outside in":
+   **done** (Milestone 384), the magazine's phase radial round its own middle (`reload.magPhase`), as a gun's is on a
+   swap; the key is the soldier's to read too (the character agent told).
+2. Found on the way: BOOG's left ring finger drawn from nowhere in every frame it was held (a joint's position NaN in
+   the animation mixer, which the L96X's hold clip never refilled). **Fixed** (Milestone 384): every pack gun's hold
+   carries every bone its clips move.
+3. Open for the owner: since the corner hold the USSO's reload turn brings it to 1.5 times its size at rest, its
+   magazine at the picture's bottom edge (part under the weapon panel) and the pointing hand under the picture with
+   only the fingertip in it. A search found turns that bring the hand and magazine up, but each moves the gun further
+   from its corner; pictures sent, kept as it is until the owner picks.
 
 ## 2. The bar every gun in hand meets
 
@@ -163,18 +234,21 @@ Each is a check in the e2e soldier section (`tools/e2e.ts` packFrames) or on the
 
 | What | The measure |
 |---|---|
-| Every frame of the reload, the swap, aiming in and the pickup, a frame every 4% | no frame flagged on any sheet |
+| Every frame of the reload, the swap, aiming in, the pickup, the inspect, the first draw's flourish and the melee, a frame every 4% | no frame flagged on any sheet, a jump (a hand or the gun moved in one step of four between two frames) included |
 | No hand through the gun | no seen skin more than 4 mm into it, in every state |
 | Wrists | 50 degrees or less at rest and aimed, 60 pointing and swapping |
 | The fists | the bought arms', rolled 45 degrees or less on the forearm, every finger curled, the thumb across the fingers |
 | The point | the fingertip on its spot, down and left of the magazine, within 1 cm and 10 degrees |
-| The magazine | out 8 cm as it phases out; the new one phases in below and slides home, the pointing finger leading it a third of the way and more |
+| The magazine | out 8 cm as it phases out, the pointing finger leading it a third of the way and more; the new one phases in seated, built from the well down, the finger back at its spot |
 | From the point to the rack | the support hand goes straight to the handle or bolt, never back to the gun between |
 | The support hand at rest | on the handguard, ahead of the magazine, never on it; its palm and thumb lying along the gun (the palm's nearest tenth of skin within 13 mm, the thumb's quarter within 9), not touching at one point |
-| The grip hand | the three last fingers together on the grip, each gap as the next, the forefinger on the trigger |
+| The grip hand | the three last fingers together round the grip, each gap as the next, the forefinger's tip on the gun's Trigger part (not in the ready position), seen from both sides of the gun |
 | The rack | the fingers close on the handle (the USSO's: the thumb and forefinger's tips within 2 cm of its knob, the forefinger curled 100 degrees and more round it) |
-| At rest | the gun level, as Hyper Scape holds it, not pointed up and left |
-| The inspect | the other hand open, palm up, its forearm up from below the picture (the elbow under its bottom edge), every hack carried floating over it with its level, clear of the gun's sway; tossed up and phased out before the hand goes back |
+| At rest | the gun level, as Hyper Scape holds it, not pointed up and left, at the gun's own hold's place (where a melee used to show it), the arms moved with it |
+| The swap | the gun kept in place (its middle within 1 cm), phasing out from its edges in and the next from its middle out; the hands 1 to 4 cm off it, turned in round its middle, the fingers bent; no knowledge of the next gun needed |
+| The melee | the bought arms keep the gun in the right hand; the left punches from beside the body, a fist; 30 a hit on a dummy; no shot through it |
+| First and third person | the soldier's reload beats read from the same keys as the first person's (fparms.json reload, packGuns rack), the character agent's e2e failing when they part |
+| The inspect | the gun glowing amber round its edges as the hack cards glow; the other hand open, palm up, its forearm up from below the picture (the elbow under its bottom edge), every hack carried floating over it with its level, clear of the gun's sway; tossed up and phased out before the hand goes back |
 | The inspect's own move | no frame at fault: the gun turned by the forearm, both arms reaching, wrists 60 or less, a forearm wrung 90 or less |
 | Firing | a muzzle flash and tracers that read without covering the target |
 | The textures | the held gun at 2048 on High |

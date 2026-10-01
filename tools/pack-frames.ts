@@ -5,7 +5,7 @@
 // falls short of the gun, and how much of the hands' skin is inside the gun: each hand vertex (a sample) against the nearest
 // part's surface (tools/pack-audit.js). A grip's fingers touch the gun, so only skin deeper than `DEEP` counts.
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-frames.ts <out dir> [ids...]   (SEQ=reload,swap,ads,pickup,inspect,flourish STEP=0.04)
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-frames.ts <out dir> [ids...]   (SEQ=reload,tactical,swap,ads,pickup,inspect,flourish,melee STEP=0.04; tactical: a reload begun with rounds still in the magazine)
 // At the owner's view (1920 by 1080, FOV setting 1.571). Headless, never the real mouse or keyboard.
 import fs from "node:fs";
 import path from "node:path";
@@ -38,6 +38,33 @@ const COLS = 5;
 const AUDIT = fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "pack-audit.js"), "utf8");
 
 type Frame = { at: number; file: string; s: Record<string, number | string>; a: { l: number; r: number; seenL: number; seenR: number; seenDeepest: number; deepest: number; where: Record<string, number>; tested: number; touch: number; self: boolean; selfShare?: number } | null };
+/** where the hands and the gun are, in the view's own space, for the frame-to-frame jumps */
+type Place = { l: number[] | null; r: number[] | null; gc: number[] | null; gq: number[] | null };
+// (the owner, 2026-09-30: "ensuring each frame is perfect, no resetting states, jumping UI, or bugging in any frame from
+// start to finish for each animation type"): each hand and the gun measured every frame and against the hold before and
+// after, and a move flagged as a jump where it is a spike, JUMP_MM and more and JUMP_K times the moves either side of it
+const JUMP_MM = 25;
+const JUMP_DEG = 8;
+const JUMP_K = 2.5;
+const PLACE = `(() => {
+  const r = window.__range; const T = r.THREE; const root = r.viewModelRoot();
+  root.updateWorldMatrix(true, true);
+  const inv = new T.Matrix4().copy(root.matrixWorld).invert();
+  const g = r.packRig().group;
+  const at = (n) => { const b = g.getObjectByName(n); return b ? b.getWorldPosition(new T.Vector3()).applyMatrix4(inv).toArray() : null; };
+  let gun = null;
+  root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; });
+  // (the gun's own origin, not its box: the box takes in the magazine and handle, which move on their own)
+  const gc = gun ? gun.getWorldPosition(new T.Vector3()).applyMatrix4(inv).toArray() : null;
+  const gq = gun ? gun.getWorldQuaternion(new T.Quaternion()).premultiply(root.getWorldQuaternion(new T.Quaternion()).invert()).toArray() : null;
+  return { l: at("hand_l"), r: at("hand_r"), gc, gq };
+})()`;
+/** each move between two places: the hands' and the gun's middle's in mm (view metres) and the gun's turn in degrees */
+function moves(a: Place, b: Place): { l: number; r: number; gc: number; gq: number } {
+  const d = (x: number[] | null, y: number[] | null) => (x && y ? Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]) * 1000 : 0);
+  const q = (x: number[] | null, y: number[] | null) => (x && y ? (2 * Math.acos(Math.min(1, Math.abs(x[0] * y[0] + x[1] * y[1] + x[2] * y[2] + x[3] * y[3]))) * 180) / Math.PI : 0);
+  return { l: d(a.l, b.l), r: d(a.r, b.r), gc: d(a.gc, b.gc), gq: q(a.gq, b.gq) };
+}
 
 fs.mkdirSync(OUT, { recursive: true });
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--mute-audio", "--no-sandbox"] });
@@ -59,17 +86,20 @@ try {
       const knob = seq === "swap" ? "raise" : seq === "ads" ? "ads" : seq === "inspect" || seq === "flourish" ? seq : "reload";
       const frames: Frame[] = [];
       const steps: number[] = [];
-      for (let p = seq === "reload" ? 0 : STEP; p <= 1 - (seq === "swap" || seq === "inspect" || seq === "flourish" ? STEP / 2 : -1e-9); p += STEP) if (p >= FROM - 1e-9 && p <= TO + 1e-9) steps.push(Math.round(p * 1000) / 1000);
+      for (let p = seq === "reload" || seq === "tactical" ? 0 : STEP; p <= 1 - (seq === "swap" || seq === "inspect" || seq === "flourish" || seq === "melee" ? STEP / 2 : -1e-9); p += STEP) if (p >= FROM - 1e-9 && p <= TO + 1e-9) steps.push(Math.round(p * 1000) / 1000);
       if (seq === "reload") await page.evaluate("window.__range.loadout.active.state.clip = 0");
-      // (pickup: taking something off the ground, held at each share of it by its own knob)
+      // (pickup: taking something off the ground, and melee: a swing, each held at each share of it by its own knob)
       // (an inspect put back to none rather than to the game's own: the sweep keeps inspects and flourishes off)
-      const set = (v: number | null) => (seq === "pickup" ? `window.__range.packPickupAt(${v})` : seq === "inspect" || seq === "flourish" ? `window.__range.debugView.${seq} = ${v ?? -1}` : `window.__range.debugView.${knob} = ${v}`);
+      const set = (v: number | null) => (seq === "pickup" ? `window.__range.packPickupAt(${v})` : seq === "melee" ? `window.__range.meleeAt(${v})` : seq === "inspect" || seq === "flourish" ? `window.__range.debugView.${seq} = ${v ?? -1}` : `window.__range.debugView.${knob} = ${v}`);
+      // the hold before it, for the jump into its first frame
+      const places: Place[] = [(await page.evaluate(PLACE)) as Place];
       for (const p of steps) {
         await page.evaluate(set(p));
         await wait(220);
         const file = path.join(OUT, `${id}-${seq}-${String(Math.round(p * 100)).padStart(3, "0")}.png`);
         await page.screenshot({ path: file as `${string}.png`, clip: { x: CROP.left, y: CROP.top, width: CROP.width, height: CROP.height } });
         const s = (await page.evaluate("window.__range.packArms()")) as Record<string, number | string>;
+        places.push((await page.evaluate(PLACE)) as Place);
         const a = (await page.evaluate(`window.__packAudit(${DEEP}, ${XRAY})`)) as Frame["a"] & { pts?: number[][] };
         // (an inspect's hack cards: how much of each is over the gun on the screen)
         if (seq === "inspect") s.cards = JSON.stringify(await page.evaluate("window.__cardOverGun()"));
@@ -102,6 +132,43 @@ try {
       }
       await page.evaluate(`${set(null)}; window.__range.loadout.active.state.clip = window.__range.loadout.active.weapon.clipSize;`);
       await wait(400);
+      // and the hold after it, for the jump out of its last frame: a state that ends somewhere other than where it began snaps
+      places.push((await page.evaluate(PLACE)) as Place);
+      const mv = places.slice(1).map((pl, i) => moves(places[i], pl));
+      const jumps: string[] = [];
+      for (let i = 0; i < mv.length; i++) {
+        const said: string[] = [];
+        for (const k of ["l", "r", "gc", "gq"] as const) {
+          const floor = k === "gq" ? JUMP_DEG : JUMP_MM;
+          const side = Math.max(mv[i - 1]?.[k] ?? 0, mv[i + 1]?.[k] ?? 0);
+          if (mv[i][k] >= floor && mv[i][k] > JUMP_K * side) said.push(`${k === "gc" ? "gun" : k === "gq" ? "gun turn" : `hand ${k.toUpperCase()}`} ${mv[i][k].toFixed(0)}${k === "gq" ? "deg" : "mm"}`);
+        }
+        if (!said.length) continue;
+        // (between two frames of the state, held again at four steps between them, each let settle longer: a jump is a
+        // move made in one of them, where a quick one spreads across them all; at 4% steps the pack's own quick moves, a
+        // pickup's hand back to the gun, BOOG's bolt thrown, read as spikes, and so did the view still settling)
+        if (i >= 1 && i < frames.length) {
+          const sub: Place[] = [];
+          for (let k = 0; k <= 4; k++) {
+            await page.evaluate(set(steps[i - 1] + ((steps[i] - steps[i - 1]) * k) / 4));
+            await wait(450);
+            sub.push((await page.evaluate(PLACE)) as Place);
+          }
+          await page.evaluate(set(null));
+          const parts = sub.slice(1).map((pl, j) => moves(sub[j], pl));
+          const snap = (["l", "r", "gc", "gq"] as const).some((k) => {
+            const total = parts.reduce((s, m) => s + m[k], 0);
+            const most = Math.max(...parts.map((m) => m[k]));
+            return most >= (k === "gq" ? JUMP_DEG : JUMP_MM) / 2 && most > 0.6 * total;
+          });
+          if (!snap) continue;
+        }
+        // (onto frame i: the move from the one before it, or from the hold; the last is onto the hold after)
+        const msg = `jump ${said.join(" ")}`;
+        if (i < frames.length) frames[i].s.jump = msg;
+        // (not aiming's: its sheet runs the way into the sights, and ends aimed, not back at the hold)
+        else if (seq !== "ads") jumps.push(`${id} ${seq} end: ${msg} back to the hold`);
+      }
       // the sheet: each frame with its moment and its faults written on it
       const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? v : null);
       const tiles = await Promise.all(
@@ -128,6 +195,7 @@ try {
           // (through where it can be seen; inside but hidden behind the gun, as a fingertip round a grip's far side, is not)
           if (fr.a && fr.a.seenL + fr.a.seenR > 0) bad.push(`through gun L${fr.a.seenL} R${fr.a.seenR} ${(fr.a.seenDeepest * 1000).toFixed(0)}mm`);
           if (fr.a && !fr.a.self && fr.a.selfShare !== undefined && fr.a.tested > 0 && (fr.a as { parts?: number }).parts !== 0) bad.push(`inside test failed on itself (${Math.round((fr.a.selfShare ?? 0) * 16)}/16)`);
+          if (typeof s.jump === "string") bad.push(s.jump);
           const line1 = `${seq} ${Math.round(fr.at * 100)}%  ${s.lead}${miss !== null ? `  tip ${(miss * 100).toFixed(1)}cm ${off?.toFixed(0)}deg` : ""}  wrist ${Math.round((s.wristL as number) || 0)}/${Math.round((s.wristR as number) || 0)}`;
           const esc = (t: string) => t.replace(/&/g, "&amp;").replace(/</g, "&lt;");
           const svg = `<svg width="${TILE.w}" height="${TILE.h}"><rect x="0" y="0" width="${TILE.w}" height="34" fill="rgba(0,0,0,0.65)"/><text x="6" y="14" font-family="Arial" font-size="12" fill="#fff">${esc(line1)}</text><text x="6" y="29" font-family="Arial" font-size="12" fill="${bad.length ? "#ff5050" : "#60ff60"}">${esc(bad.length ? bad.join(", ") : "ok")}</text></svg>`;
@@ -143,6 +211,7 @@ try {
         .toFile(sheet);
       console.log(sheet);
       for (const fr of frames) if (fr.s.bad) report.push(`${id} ${seq} ${Math.round(fr.at * 100)}%: ${fr.s.bad}${fr.a && Object.keys(fr.a.where).length ? ` (${JSON.stringify(fr.a.where)})` : ""}`);
+      report.push(...jumps);
       fs.writeFileSync(path.join(OUT, `${id}-${seq}.json`), JSON.stringify(frames.map((f) => ({ at: f.at, ...f.s, audit: f.a })), null, 1));
     }
     await page.evaluate("window.__range.debugView.inspect = null; window.__range.debugView.flourish = null");
