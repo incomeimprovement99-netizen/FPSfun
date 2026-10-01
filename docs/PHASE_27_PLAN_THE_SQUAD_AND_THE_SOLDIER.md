@@ -282,5 +282,5 @@ Round six (the owner's look at the two guns, 2026-09-30): the soldier's reload m
 guns agent's fparms.json at run time (the two agents agreed it over messages: the point, the phase out and in, the seat,
 the rack, and the guns agent's slideIn and rackOut as they land); the right index on the trigger; the fingers a tenth
 smaller (half could not hold the guns); BOOG by its rail, its shoulder let reach 70 degrees; a double jump's front flip,
-sent over the network as a count; PULSAR out and HAMMER, a Riot One-like pistol, in. The two guns go back to the owner
+sent over the network as a count; PULSAR out and APUHTHEE, a Riot One-like pistol, in. The two guns go back to the owner
 to verify, first and third person together, before the other guns.

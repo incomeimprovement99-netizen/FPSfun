@@ -9,8 +9,8 @@ The guns in your own hands in first person are the guns agent's (PLAN_GUNS_IN_HA
 
 **The owner's changes, 2026-09-30.** PULSAR is gone ("no need for a fast marksman, just call it marksman now"): HAEFY
 is the one Marksman. In its place is a pistol, "just like the riot 1 from Hyperscape", wearing the pack's second pistol
-("yep use pitstol 02"): HAMMER, a working name until the owner names it (speedkills.json weapons.wingman). So the eight
-still to do are HAEFY, PANDA, STRYDER, ANAKIN, REZ, BIGANTLER, NOVA and HAMMER. BIGANTLER's reload is decided: the
+("yep use pitstol 02"): APUHTHEE, the owner's name for it (2026-10-01; speedkills.json weapons.wingman). So the eight
+still to do are HAEFY, PANDA, STRYDER, ANAKIN, REZ, BIGANTLER, NOVA and APUHTHEE. BIGANTLER's reload is decided: the
 KINEMATION KXG12 pump's clips ("the kxg12 pump shotgun is clear answer"). Skins do not matter to the owner ("as long as
 each gun is different thats fine, idc about skins"): two guns may share a model when they play differently.
 
@@ -24,7 +24,7 @@ survey of each gun's hold points and reload parts). Lengths are the bought model
 | HAEFY | Marksman | the sniper (BOOG's) | 125 cm | 78 cm, BOOG's rail | magazine, 2.6 s | nothing new: BOOG's model |
 | PANDA | Heavy Rifle | the rifle | 104 cm | 83 cm | magazine, 2.4 s | shares the rifle with STRYDER |
 | STRYDER | Fast Rifle | the rifle | 104 cm | 83 cm | magazine, 2.4 s | the same model as PANDA |
-| HAMMER | Heavy Pistol | the second pistol | 25 cm | both hands on the grip | a block under the barrel, 2.1 s | the only one-handed gun: the clips' own pistol hold |
+| APUHTHEE | Heavy Pistol | the second pistol | 25 cm | both hands on the grip | a block under the barrel, 2.1 s | the only one-handed gun: the clips' own pistol hold |
 | ANAKIN | Steady SMG | the second SMG | 86 cm | 61 cm | magazine and a charging handle, 1.9 s | a handle to rack, as the USSO has |
 | REZ | Auto Shotgun | the first shotgun | 92 cm | 86 cm | magazine, 2.75 s | the furthest hold of any gun |
 | BIGANTLER | Heavy Shotgun | the second shotgun | 94 cm | 71 cm | no magazine: a pump, 2.0 s | the only gun that needs a new kind of reload |
@@ -81,7 +81,7 @@ Most shared and most seen first, the new code last.
 1. **HAEFY.** BOOG's model, so BOOG's hands, rail, pocket and carries as they are; its own reload time, its own
    checks. The smallest of the eight, and it proves the first piece of groundwork below.
 2. **The rifle: PANDA and STRYDER.** One fit, two guns.
-3. **HAMMER.** The pistol is the one gun the soldier's clip library was made for (Pistol_Idle_Loop, Pistol_Aim_Neutral
+3. **APUHTHEE.** The pistol is the one gun the soldier's clip library was made for (Pistol_Idle_Loop, Pistol_Aim_Neutral
    and its up and down, Pistol_Shoot, Pistol_Reload): the legacy figures' pistol hold (mannequin.ts, a gun on the right
    hand), the pistol's grip and trigger measured and both hands fitted to it, its block of a magazine out from under the
    barrel on the reload clip.
@@ -124,5 +124,4 @@ Most shared and most seen first, the new code last.
 ## For the owner to say
 
 - **Go, and in this order?** The order above is by what is shared and what is seen most. If a gun you play matters more
-  (REZ, NOVA, HAMMER), it moves up; nothing later depends on the order except HAEFY coming first.
-- **HAMMER's name.** A working name; the guns carry the owner's friends' names.
+  (REZ, NOVA, APUHTHEE), it moves up; nothing later depends on the order except HAEFY coming first.

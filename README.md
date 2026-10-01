@@ -149,7 +149,7 @@ Game) or `?game=legacy`, and everything below this section describes it.
   Weapons model, in first person, in hands and on the floor, and a fused gun
   changes skin and glows brighter each level. One model a gun, by its class:
   the two SMGs and the two shotguns one each, the two rifles the rifle,
-  HAEFY and BOOG the sniper, HAMMER the second pistol, NOVA the launcher. The
+  HAEFY and BOOG the sniper, APUHTHEE the second pistol, NOVA the launcher. The
   pack's own parts move:
   triggers, NOVA's drum a chamber a shot, the sniper's wheels, the heavy
   shotgun's loading gate, the magazine releases. Every gun is aimed down its
@@ -252,7 +252,7 @@ Game) or `?game=legacy`, and everything below this section describes it.
   (never more than three flashes a second). Light only: it never hides anyone.
 - **Ten guns**, most named for the owner's friends: two rifles, two SMGs, two
   shotguns, a marksman gun (HAEFY), a sniper (BOOG, which kills with one
-  headshot), a heavy pistol (HAMMER, a heavy semi-automatic with six rounds, no
+  headshot), a heavy pistol (APUHTHEE, a heavy semi-automatic with six rounds, no
   drop-off and almost no recoil: five body hits a kill) and NOVA, which cools
   instead of reloading. Ammo is infinite; the magazine is not.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to

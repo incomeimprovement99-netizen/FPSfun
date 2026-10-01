@@ -7648,12 +7648,12 @@ boog and the usso. It's critical to have the agents on the same page with it bef
   tucked; SpeedKills' double jump rises 0.39 s): the player's count of them (player.ts airJumps) goes to the figure
   and over the network as `dj` (net/state.ts, the last optional key, so an older build ignores it). Only an explicit
   count: found from the figure's height, a wall run's start, a climb's end boost and a zipline's pop flipped it too.
-- **The roster:** PULSAR (g2) is out and HAEFY is plain Marksman. HAMMER (a working name) is the legacy Wingman tuned
+- **The roster:** PULSAR (g2) is out and HAEFY is plain Marksman. APUHTHEE (a working name then; the owner named it on 2026-10-01) is the legacy Wingman tuned
   to Hyper Scape's Riot One: its 26 against Hyper Scape's 120 health is five body hits, which against our 150 is 32.5
   (Wingman 50 x 0.65), six rounds, a quarter of the kick, 1.5 to the head, no drop-off, 2.8 shots a second; 1.79 s to
   kill at 80% on target, fused the same. It wears the pack's second pistol (SciFiPistol02_2, measured into
-  paidmodels.json, aimed down its own dot). The defaults: Marksman is HAEFY and PANDA, Skirmisher STRYDER and HAMMER;
-  the bots and the Gulag carry HAMMER where they carried PULSAR. On the soldier HAMMER has the clips' own pistol hold
+  paidmodels.json, aimed down its own dot). The defaults: Marksman is HAEFY and PANDA, Skirmisher STRYDER and APUHTHEE;
+  the bots and the Gulag carry APUHTHEE where they carried PULSAR. On the soldier APUHTHEE has the clips' own pistol hold
   until its turn in PLAN_SOLDIER_EIGHT_GUNS.md.
 - **Checked:** the skfigure e2e (44: the trigger finger on both guns, every finger at 0.9, BOOG's hold on the rail, the
   reload against fparms.json at its beats, never dropped, a double jump's flip), each new check seen failing with its

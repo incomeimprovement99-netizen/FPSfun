@@ -173,7 +173,7 @@ for (const [id, g] of Object.entries(guns)) {
 // every gun's model is a split build (its magazine, slide or pump a part of its own, which a reload or a shot moves)
 // and a gun, not a part: the pack's _1 of a family is the same gun in one piece, and three guns that wore one kept
 // their magazines in on a reload; SciFiGrenadeLauncher01_3 is the launcher's round, 0.18 m, and the shortest gun is
-// HAMMER's pistol, 0.254 m, so a gun is anything over 0.22 m
+// APUHTHEE's pistol, 0.254 m, so a gun is anything over 0.22 m
 {
   const partsOf = async (name: string): Promise<string[]> => {
     const b = readFileSync(`${dir}${name}.glb`);
