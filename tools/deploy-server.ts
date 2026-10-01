@@ -61,7 +61,10 @@ const DOMAIN = process.env.RANGE_DOMAIN ?? "";
  * the server was not yet listening, and a deploy that had gone out whole failed there, 2026-09-29)
  */
 const HEALTH_AFTER_RELOAD = "for i in $(seq 1 20); do curl -fsS localhost:4100/health >/dev/null 2>&1 && break; sleep 1; done; curl -fsS localhost:4100/health; echo";
-const sshArgs = [...(KEY ? ["-i", KEY] : []), "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15"];
+// (ConnectTimeout covers opening the connection only: on 2026-10-01 one opened and then stalled, and the deploy sat
+// silent for 29 minutes before anything said so. The keep-alives drop a session the far end has stopped answering
+// after a minute; a long quiet step, npm ci or the reload, is still answered and goes on.)
+const sshArgs = [...(KEY ? ["-i", KEY] : []), "-o", "StrictHostKeyChecking=accept-new", "-o", "ConnectTimeout=15", "-o", "ServerAliveInterval=15", "-o", "ServerAliveCountMax=4"];
 /** the box's address, from RANGE_HOST (user@ip) */
 const IP = HOST.replace(/^.*@/, "");
 let keyChecked = false;
