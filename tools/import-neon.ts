@@ -16,7 +16,7 @@ import { basename, dirname, join } from "node:path";
 import { padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
 import { inside, sdPoly, standing, storeySlab, type Grid } from "./neon-base";
-import { backFaces, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
+import { backFaces, boxInto, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
 import { wellFlight, type Flight } from "./neon-well";
 import { MOVE } from "../src/game/movement";
 import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
@@ -416,6 +416,26 @@ if (mode === "bake") {
       const w = wellFlight(f, WF!.flightSpec, WF!.flightScale);
       tri += push("well-flight", [{ part: w.steps, mat: WF!.flightMats.step }, { part: w.walls, mat: WF!.flightMats.wall }]);
     }
+    // the Well's back (cfg.well.back): a wall round the stack's footprint underground, from under its bottom to under
+    // the street. The pack's galleries stood among its other buildings in the pack's own scene, and through the gaps in
+    // their shopfronts here one looked out on nothing; the corridor's way through it left open, a lintel over it
+    const WK = cfg.well as { foot: number[]; bottom: number; corridor?: number[][]; back?: { thick: number; under: number; top: number; door: number; mat: string; scale: number } } | undefined;
+    if (WK?.back) {
+      const B2 = WK.back;
+      const bp = { pos: [] as number[], uv: [] as number[], nrm: [] as number[], idx: [] as number[] };
+      const [x0, x1, z0, z1] = WK.foot;
+      const [t, yb, yt] = [B2.thick, WK.bottom - B2.under, B2.top];
+      boxInto(bp, x0 - t, x0, yb, yt, z0 - t, z1 + t, B2.scale);
+      boxInto(bp, x1, x1 + t, yb, yt, z0 - t, z1 + t, B2.scale);
+      boxInto(bp, x0, x1, yb, yt, z1, z1 + t, B2.scale);
+      const door = WK.corridor?.[1];
+      if (door) {
+        boxInto(bp, x0, door[0], yb, yt, z0 - t, z0, B2.scale);
+        boxInto(bp, door[1], x1, yb, yt, z0 - t, z0, B2.scale);
+        boxInto(bp, door[0], door[1], WK.bottom + B2.door, yt, z0 - t, z0, B2.scale);
+      } else boxInto(bp, x0, x1, yb, yt, z0 - t, z0, B2.scale);
+      tri += push("well-back", [{ part: bp, mat: B2.mat }]);
+    }
     // the main body's floors: the tower's own triangles at each storey are its shell (its middle is cleared from 14 m)
     const towerTris = function* (): Generator<[number[], number[], number[]]> {
       for (const { d, m } of standingDraws)
@@ -535,6 +555,50 @@ if (mode === "bake") {
     // (each material by its name: the pack's are known to the bake by their guids)
     const named = fights.slice(0, 16).map((q) => ({ ...q, mats: q.mats.map((g) => g.replace(/^[^ ]+/, (k) => basename(pack.guidPath.get(k) ?? k).replace(/\.mat$/, ""))) }));
     cfg.tower.measured.coplanar = named;
+    // the Well sealed (cfg.well): from every metre of each gallery's floor with a body's room over it, a fan of level rays
+    // at eye height each meeting a drawn face turned toward it (tools/neon-tower.ts escapes). The pack's galleries stood
+    // among its other buildings in the pack's own scene: a gap in their shopfronts here looks out on nothing, the sky's
+    // colour through the ground, and the collision cannot see it (a stair's low wall, laid on cells, filled it there)
+    const WS = cfg.well as { foot: number[]; hole: number[]; levels: number[]; bottom: number; measured?: unknown } | undefined;
+    if (WS) {
+      const [wx0, wx1, wz0, wz1] = WS.foot;
+      const all: Array<[number[], number[], number[]]> = [];
+      for (const list of groups.values())
+        for (const { d, m } of list)
+          for (const q of d.model.meshes[d.mesh].prims) {
+            const V = (k: number) => [0, 1, 2].map((a) => m[a] * q.pos[k * 3] + m[4 + a] * q.pos[k * 3 + 1] + m[8 + a] * q.pos[k * 3 + 2] + m[12 + a]);
+            for (let k = 0; k + 2 < q.idx.length; k += 3) {
+              const t = [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])] as [number[], number[], number[]];
+              if (Math.max(t[0][0], t[1][0], t[2][0]) < wx0 - 60 || Math.min(t[0][0], t[1][0], t[2][0]) > wx1 + 60 || Math.max(t[0][2], t[1][2], t[2][2]) < wz0 - 60 || Math.min(t[0][2], t[1][2], t[2][2]) > wz1 + 60) continue;
+              if (Math.min(t[0][1], t[1][1], t[2][1]) > 2 || Math.max(t[0][1], t[1][1], t[2][1]) < WS.bottom - 1) continue;
+              all.push(t);
+            }
+          }
+      const cell = 0.5;
+      const gw: Grid = { x0: wx0, z0: wz0, cell, nx: Math.ceil((wx1 - wx0) / cell), nz: Math.ceil((wz1 - wz0) / cell) };
+      const seal: Array<{ at: number; points: number; rays: number; out: number; where: number[][] }> = [];
+      for (const y of WS.levels.slice(1)) {
+        // its floor here: a face-up triangle at its height over the point
+        const floors = all.filter(([a, b, c]) => Math.abs(a[1] - y) < 0.06 && Math.abs(b[1] - y) < 0.06 && Math.abs(c[1] - y) < 0.06 && (b[2] - a[2]) * (c[0] - a[0]) - (b[0] - a[0]) * (c[2] - a[2]) > 1e-9);
+        const under = (x: number, z: number) => floors.some(([a, b, c]) => {
+          const side = (q: number[], r: number[]) => (q[0] - x) * (r[2] - z) - (r[0] - x) * (q[2] - z);
+          const [s1, s2, s3] = [side(a, b), side(b, c), side(c, a)];
+          return (s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0);
+        });
+        const stood = standing(gw, all, y + 0.3, y + 1.8);
+        const clear = (x: number, z: number) => {
+          const [i, j] = [Math.floor((x - gw.x0) / cell), Math.floor((z - gw.z0) / cell)];
+          for (let a = i - 1; a <= i + 1; a++) for (let b = j - 1; b <= j + 1; b++) if (a >= 0 && a < gw.nx && b >= 0 && b < gw.nz && stood[b * gw.nx + a]) return false;
+          return true;
+        };
+        const pts: number[][] = [];
+        for (let x = wx0 + 0.5; x < wx1; x += 1) for (let z = wz0 + 0.5; z < wz1; z += 1) if (under(x, z) && clear(x, z)) pts.push([x, z]);
+        const e = escapes(all, pts, y + 1.6, 24, 60);
+        seal.push({ at: y, points: pts.length, rays: e.rays, out: e.out.length, where: e.out.slice(0, 16) });
+      }
+      (cfg.well as { measured?: unknown }).measured = { seal };
+      console.log(`the Well sealed: ${seal.map((q) => `${q.at} m ${q.out} of ${q.rays} rays out from ${q.points} points`).join("; ")}`);
+    }
     console.log(`drawn face up over another in the same plane: ${named.length ? named.slice(0, 10).map((q) => `${q.m2} m2 at ${q.y} m in ${q.patches}, most at (${q.at.join(", ")}), ${q.mats.join(" over ")}`).join("; ") : "none"}`);
   }
   // the rooms, stairs and what stands in the open: their own spans, as a district's are (no fill: these pieces are whole)
@@ -600,7 +664,7 @@ if (mode === "bake") {
   // only what the bake measured goes back, into the file as it is now: a bake takes minutes, and writing back the copy
   // read at its start threw away the game's sites, added to the file while one ran
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));
-  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}) }, null, 1) + "\n");
+  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}), ...(cfg.well?.measured ? { well: { ...now.well, measured: cfg.well.measured } } : {}) }, null, 1) + "\n");
   console.log(`unresolved materials: ${IMPORT_STATS.unresolved.size}, unmatched meshes: ${IMPORT_STATS.unmatchedMeshes.size}`);
 }
 

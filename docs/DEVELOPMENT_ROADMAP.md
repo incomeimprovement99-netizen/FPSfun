@@ -8578,3 +8578,24 @@ magazine phased round its middle. The owner, of matching it: the soldier others 
     along the magazine; the swap in place;
   - the frames of both reloads and both swaps;
   - verify; rules.
+
+## Milestone 392 — The Well sealed: a wall behind its galleries, measured with drawn rays
+
+The Well (Milestones 387, 388 and 390) is the pack's inverted building, galleries of shops round a light-well, and in
+the pack's own scene it stands among its other buildings underground. Set into the street here, nothing stood behind
+it: through the gaps between its shopfronts, a look from a gallery went out under the street to nothing, the sky's
+colour through the ground (seen from the lowest gallery beside the corridor's door).
+
+- **Its back** (rules.well.back, tools/import-neon.ts): a plaster wall a quarter metre thick round the whole stack's
+  footprint, from half a metre under its bottom to under the street's slab, with the corridor's way through it left open
+  to 3.6 m and a lintel over that.
+- **Measured sealed in the bake**: from every metre of each gallery's floor with a body's room over it, a fan of 24
+  level rays at eye height out to 60 m, each of which must meet a drawn face turned toward it (the same measure the
+  tower's floors are sealed by, Milestone 368). -3 m: none of 2,952 rays out from 123 points; -6.5 m: none of 2,928
+  from 122; -10 m: none of 7,032 from 293. The collision could not see these gaps (a stair's low wall, laid on
+  half-metre cells, filled one there), so the earlier collision check gave way to this one.
+- The map: 2.39 million triangles; its files lo 83 MB, hi 142 MB, max 345 MB. **Its files are version 22.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check reading the bake's measure): every gallery sealed (seen failing
+  without the back: 16 and more rays out on every gallery). The corridor walked, the stairs walked down and up and the
+  rope ridden up and down as before. verify and rules; e2e `loot` and `br`. Photographed from the lowest gallery
+  toward the former gap.

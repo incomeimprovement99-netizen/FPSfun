@@ -1232,7 +1232,8 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     const hang = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).ziplineHang * 0.0254;
     const [rx, rz] = [+(ox + W.rope.at[0]).toFixed(3), +(oz + W.rope.at[1]).toFixed(3)];
     const ropes = [{ rope: [[rx, +(bottom + hang + R.lifts.under).toFixed(3), rz], [rx, +(W.rope.clear + hang).toFixed(3), rz]], floor: bottom, colour: W.rope.colour, onto: W.rope.onto, out: W.rope.out }];
-    cfg.well = { at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale, corridor };
+    // (the bake's measure of its seal kept until it measures again)
+    cfg.well = { ...(cfg.well?.measured ? { measured: cfg.well.measured } : {}), at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale, corridor, back: W.back };
     console.log(`the Well: ${W.levels.length} levels to ${bottom} m, its well ${(hole[1] - hole[0]).toFixed(1)} by ${(hole[3] - hole[2]).toFixed(1)} m`);
   }
 }

@@ -705,6 +705,10 @@ check("the four high city decks and the lobby as the map's named sites", map.sit
     const [there, back] = [along(route), along([...route].reverse())];
     check("the Well: its corridor walked from the station's concourse to its lowest gallery and back, by a player", there.k === route.length && back.k === route.length, `there ${there.k - 1} of ${route.length - 1} legs, stopped at (${there.x.toFixed(1)}, ${there.y.toFixed(2)}, ${there.z.toFixed(1)}); back ${back.k - 1}, stopped at (${back.x.toFixed(1)}, ${back.y.toFixed(2)}, ${back.z.toFixed(1)})`);
   }
+  // sealed: the bake's fan of level rays from every metre of each gallery's floor at eye height, each meeting a drawn face
+  // (tools/import-neon.ts; the collision cannot see a gap a low wall's cells fill)
+  const SL = (WL as unknown as { measured?: { seal: Array<{ at: number; points: number; rays: number; out: number; where: number[][] }> } } | undefined)?.measured?.seal ?? [];
+  check("the Well sealed: from every metre of its galleries a look at eye height meets a wall", SL.length >= 3 && SL.every((q) => q.points > 40 && q.out === 0), SL.map((q) => `${q.at} m ${q.out} of ${q.rays} out${q.out ? ` (${q.where.slice(0, 3).map((w) => `${w[0].toFixed(1)}, ${w[1].toFixed(1)} toward ${w[2]}`).join("; ")})` : ""}`).join("; "));
   check("the Well: each of its stairs walked down from the floor above to the gallery below and back up, by a player", FL.length >= 3 && walked.every(ok), walked.map((w) => `${w.q.high} to ${w.q.low} m: down ${w.down.k - 1} of ${w.q.route.length - 1} legs to ${w.down.y.toFixed(2)} m, up to ${w.up.y.toFixed(2)} m`).join("; "));
 }
 
