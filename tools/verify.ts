@@ -76,6 +76,7 @@ import { introFails } from "./checks/intro";
 import { finisherFails } from "./checks/finisher";
 import { announcerFails } from "./checks/announcer";
 import { packSoundsFails } from "./checks/packsounds";
+import { brCardFails } from "./checks/brcard";
 import { gamesFails } from "./checks/games";
 import { hacksFails } from "./checks/hacks";
 import { solidGridFails } from "./checks/solidgrid";
@@ -1885,7 +1886,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + paintFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + paintFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

@@ -14,6 +14,10 @@
 // of the world are loading too, and they were a black frame with the gun and a stall between the mode's card and the
 // ship (the owner, 2026-09-30).
 //
+// A battle royale's screen carries your card (setCard): your name and banner title, your figure in your loadout's
+// look, three of your numbers, your guns and hacks, and the battle royale's tips beside it, as Apex's squad screen
+// shows each player's banner (the owner, 2026-10-02).
+//
 // The numbers and the tips are in src/config/hud.json `loading`.
 import { IS_SK } from "../game/game";
 import * as THREE from "three";
@@ -25,6 +29,38 @@ const CFG = hudCfg.loading;
 const SETTLE = introCfg.settle;
 // SpeedKills teaches its own game on the loading screen
 const TIPS: string[] = IS_SK ? CFG.tipsSk : CFG.tips;
+
+/** your card on a battle royale's loading screen (main.ts playerCard) */
+export interface PlayerCard {
+  name: string;
+  /** the banner's title, and its frame's colour (the card's) */
+  title: string;
+  color: string;
+  /** your account level, Apex's badge on the banner */
+  level: number;
+  /** your operator */
+  look: string;
+  /** this match as the menu set it up (the squad, the bots, the pace) */
+  match: string;
+  /** three of your numbers, the way Apex's banner carries three trackers */
+  stats: Array<{ value: string; label: string }>;
+  /** the guns' heading: whether you land with them */
+  gunsHead: string;
+  guns: Array<{ name: string; kind: string; level: number }>;
+  hacks: Array<{ name: string; level: number; blurb: string; color: string }>;
+  /** the battle royale's tips, its numbers already in */
+  tips: Array<{ tag: string; say: string }>;
+  /** draws your figure into the card's canvas, a frame after the card is up (main.ts: the loadouts panel's renderer) */
+  portrait?: (canvas: HTMLCanvasElement) => void;
+}
+
+/** an element with its text: what a player typed (a name) is never read as markup */
+function el(tag: string, cls: string, text = ""): HTMLElement {
+  const e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (text) e.textContent = text;
+  return e;
+}
 
 export class LoadingScreen {
   /** everything asked for is in and the first frame is drawn (the tools wait on it) */
@@ -69,6 +105,11 @@ export class LoadingScreen {
   private readonly fill = document.getElementById("loadingFill");
   private readonly status = document.getElementById("loadingStatus");
   private readonly tip = document.getElementById("loadingTip");
+  /** the battle royale's card while it is up (setCard), or null */
+  card: PlayerCard | null = null;
+  /** the card's tips: when one last changed, and the next to show */
+  private cardTipAt = 0;
+  private cardTipNext = 0;
 
   constructor() {
     // chained, so anything else that listens to the manager still hears it
@@ -133,6 +174,7 @@ export class LoadingScreen {
       this.showTip();
     }
     if (this.up) this.countCalm();
+    if (this.card && this.up) this.turnCardTip();
     // up for a match: it goes when main takes it down, not by itself
     if (this.loaded) {
       this.draw();
@@ -180,7 +222,93 @@ export class LoadingScreen {
     this.el.classList.add("done");
     // off the page once it has faded, so it takes no clicks and no layout
     window.clearTimeout(this.hideTimer);
-    this.hideTimer = window.setTimeout(() => (this.el!.hidden = true), 400);
+    this.hideTimer = window.setTimeout(() => {
+      this.el!.hidden = true;
+      this.setCard(null);
+    }, 400);
+  }
+
+  /**
+   * The battle royale's card, or null for the plain screen: filled now, its figure drawn a frame later (the card's text
+   * is up at once, and the draw of a figure is not in the click that started the match).
+   */
+  setCard(card: PlayerCard | null): void {
+    this.card = card;
+    this.el?.classList.toggle("br", !!card);
+    if (!card) return;
+    const get = (id: string) => document.getElementById(id);
+    get("pcard")?.style.setProperty("--pc", card.color);
+    const put = (id: string, text: string) => {
+      const e = get(id);
+      if (e) e.textContent = text;
+    };
+    put("pcTitle", card.title);
+    put("pcName", card.name);
+    put("pcLevel", `LV ${card.level}`);
+    put("pcLook", card.look);
+    put("pcMatch", card.match);
+    put("pcGunsHead", card.gunsHead);
+    const fill = (id: string, rows: HTMLElement[]) => get(id)?.replaceChildren(...rows);
+    fill(
+      "pcStats",
+      card.stats.map((s) => {
+        const e = el("div", "pcStat");
+        e.append(el("b", "", s.value), el("span", "", s.label));
+        return e;
+      })
+    );
+    fill(
+      "pcGuns",
+      card.guns.map((g) => {
+        const e = el("div", "pcRow");
+        e.append(el("b", "", g.name), el("i", "", g.kind), el("em", "", `LV ${g.level}`));
+        return e;
+      })
+    );
+    fill(
+      "pcHacks",
+      card.hacks.map((h) => {
+        const e = el("div", "pcRow");
+        const chip = el("span", "chip");
+        chip.style.background = h.color;
+        e.append(chip, el("b", "", h.name), el("i", "", h.blurb), el("em", "", `LV ${h.level}`));
+        return e;
+      })
+    );
+    // the first few tips at once, from a different one each match
+    const n = Math.min(CFG.brCard.tipsShown, card.tips.length);
+    const from = Math.floor(Math.random() * Math.max(1, card.tips.length));
+    fill(
+      "ltips",
+      Array.from({ length: n }, (_, i) => this.tipCard(card.tips[(from + i) % card.tips.length]))
+    );
+    this.cardTipNext = from + n;
+    this.cardTipAt = performance.now();
+    const canvas = get("pcFig") as HTMLCanvasElement | null;
+    if (canvas && card.portrait) {
+      const draw = card.portrait;
+      requestAnimationFrame(() => {
+        if (this.card === card) draw(canvas);
+      });
+    }
+  }
+
+  private tipCard(t: { tag: string; say: string }): HTMLElement {
+    const e = el("div", "lt");
+    e.append(el("b", "", t.tag), el("span", "", t.say));
+    return e;
+  }
+
+  /** every brCard.tipSeconds the oldest tip on the card makes way for the next, at the bottom */
+  private turnCardTip(): void {
+    const card = this.card;
+    const box = document.getElementById("ltips");
+    if (!card || !box || card.tips.length <= box.childElementCount) return;
+    const now = performance.now();
+    if (now - this.cardTipAt < CFG.brCard.tipSeconds * 1000) return;
+    this.cardTipAt = now;
+    box.firstElementChild?.remove();
+    box.append(this.tipCard(card.tips[this.cardTipNext++ % card.tips.length]));
   }
 
   /**
@@ -189,7 +317,9 @@ export class LoadingScreen {
    * is asked for from now (the bought guns' textures for the loot and the bots came in after the page's own had), and
    * it stays until close: the match decides when it is ready to be seen.
    */
-  again(text: string): void {
+  again(text: string, card?: PlayerCard | null): void {
+    // (a card given is put up, null takes it away, none given leaves it as it is)
+    if (card !== undefined && card !== this.card) this.setCard(card);
     const already = this.up;
     this.up = true;
     this.upText = text;

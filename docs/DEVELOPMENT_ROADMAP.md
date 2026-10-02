@@ -9045,6 +9045,7 @@ then we mantle and it's very slow", asking for one and a half to twice the speed
   it, so that check asks the zip to be no slower than the climb by 0.1 s.
 - **Checked:** verify (the movement simulator's mantles and superglides) and rules; e2e `sktour` (its mantle and
   superglide steps) and `speedkills`.
+
 ## Milestone 410 — The guns' own sounds from the bought pack, SLAM's boom, and what the hours cost
 
 The owner, 2026-10-02: "none of the gun packs came with sounds, right? ... if they did, we should be using those
@@ -9111,3 +9112,35 @@ fourteen doors.
   the storeys over it walled (seen failing with the colonnade taken out); the ground floor the most open storey, the most
   of its floor a standing body's room (seen failing with the shops put back); every door in the faces walked through
   from outside, now all 40 of the ground floor's bays. verify and rules; e2e `loot` and `br`. Photographed.
+
+## Milestone 412 — Your player card on the battle royale's loading screen, with its tips
+
+The owner, 2026-10-02: "for the loading screen for the [battle royale] specifically, they should be giving the Apex
+style of ... banners. So you should show who you are right now ... on like a player card screen like Apex does on the
+champion squad or your squad screens, which shows like, you know, three of your best stats. It shows like your player,
+what guns you have equipped, you know, your skin ... and your name, and any other useful information like hacks ...
+that should take a 50, 75% or whatever, and then it should just be littered with ... those helpful tips, but battle
+royale specific".
+
+- **The card** (index.html `.pcard`, src/ui/loading.ts setCard, main.ts playerCard), about two thirds of the screen:
+  - your banner's title in its frame's colour (the card's colour), your name and your level's badge, your operator;
+  - your figure in your loadout's look, holding its gun, three-quarters on (main.ts drawPortrait: the loadouts
+    panel's own figure, scene and renderer, drawn on a clear background into the card a frame after it is up, so the
+    click that started the match does not wait on it);
+  - three numbers, as a banner's three trackers: your battle royale wins and kills, and the move you have landed most
+    (your damage until you have landed one);
+  - your two guns with their class and level, and whether you land with them (the row's start setting);
+  - your two hacks with what they do and their level, each in its slot's colour;
+  - this match as the menu set it up: the squad, the bots, the pace.
+  - What a player typed (a name) is written as text, never read as markup.
+- **The tips** (hud.json `loading.tipsBr`): twelve, four on the card at once, the oldest giving way to the next every
+  5 s: the decay ("there is no ring"), the capture zone, fusing guns and hacks, getting up high (jump pads, lifts, zip
+  lines), the moves (double jump, wall run, wall kick, slide, superglide, tap-strafe, each with its own tip where it
+  needs one), the second chance, the drop and the ammo. Their numbers (the capture's hold, the gun and hack levels)
+  are put in from the game's own config. Every claim was checked against the code (the lurch is what tap-strafing
+  is here; the wall kick is the wallbounce).
+- **Only the battle royale:** any other match keeps the plain screen; the card goes with the screen's fade.
+- **A phone's width:** the card over the tips, the page scrolling.
+- **Checked:** the new brcard check in verify (every topic asked for is taught, no tip says the ring closes, every
+  number is one the game puts in, more tips than shown; seen failing with the wall run taken out); photographed at
+  1920x1080, 1366x768 and 412x915; verify; rules. No e2e: every e2e page skips the match screen (?nointro).

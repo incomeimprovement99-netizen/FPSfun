@@ -44,6 +44,52 @@
       #loading .fill { height: 100%; width: 0%; background: linear-gradient(90deg, #d4712a, #ffd23c); transition: width .2s ease; }
       #loading .status { color: #9aa4ad; font-family: "Rajdhani", "Segoe UI", sans-serif; font-size: 14px; font-weight: 700; letter-spacing: .14em; }
       #loading .tip { color: #c8d0d8; font-size: 15px; max-width: min(520px, 86vw); min-height: 2.8em; text-align: center; line-height: 1.4; }
+      /* the battle royale's loading screen (src/ui/loading.ts setCard): your card, two thirds of the screen, and the
+         battle royale's tips beside it, as Apex's squad screen shows each player's banner */
+      #loading .pcard, #loading .ltips { display: none; }
+      #loading.br { display: grid; grid-template-columns: minmax(0, 1.9fr) minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto auto; gap: 14px 28px; padding: 3.5vh 4vw 4vh; box-sizing: border-box; align-items: stretch; justify-items: stretch; }
+      #loading.br .brand { grid-column: 1 / -1; justify-self: start; transform: scale(.6); transform-origin: left center; margin: -1.5vh 0; }
+      #loading.br .pcard { display: grid; grid-column: 1; grid-row: 2; }
+      #loading.br .ltips { display: flex; grid-column: 2; grid-row: 2; }
+      #loading.br .bar { grid-column: 1 / -1; width: 100%; }
+      #loading.br .status { grid-column: 1 / -1; justify-self: start; }
+      #loading.br .tip { display: none; }
+      .pcard { --pc: #20e0ff; position: relative; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr); min-height: 0; background: linear-gradient(160deg, rgba(20,28,48,.94), rgba(8,10,18,.96)); border: 1px solid rgba(255,255,255,.08); border-top: 6px solid var(--pc); clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 0 100%); overflow: hidden; font-family: "Rajdhani", "Segoe UI", sans-serif; color: #e8eef4; }
+      .pcard .pcFig { position: relative; min-height: 0; background: radial-gradient(ellipse at 50% 38%, color-mix(in srgb, var(--pc) 22%, #0a0e13) 0%, #0a0e13 68%); }
+      .pcard .pcFig canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
+      .pcard .pcFig::after { content: ""; position: absolute; inset: auto 0 0 0; height: 30%; background: linear-gradient(transparent, rgba(8,10,18,.9)); }
+      .pcard .pcBody { display: flex; flex-direction: column; gap: 2.4vh; padding: 3vh 2.4vw 3vh 1.6vw; min-width: 0; overflow: hidden; }
+      .pcard .pcTitle { color: var(--pc); font-weight: 700; font-size: clamp(13px, 1.25vw, 20px); letter-spacing: .22em; }
+      .pcard .pcName { font-weight: 700; font-size: clamp(30px, 4.2vw, 70px); line-height: .92; letter-spacing: .02em; overflow-wrap: anywhere; }
+      .pcard .pcNameRow { display: flex; align-items: center; gap: 14px; min-width: 0; }
+      .pcard .pcLevel { flex: none; border: 2px solid var(--pc); color: var(--pc); font-weight: 700; font-size: clamp(13px, 1.1vw, 18px); letter-spacing: .08em; padding: 2px 8px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+      .pcard .pcMatch { font-weight: 700; font-size: clamp(14px, 1.2vw, 20px); letter-spacing: .1em; }
+      .pcard .pcLook { color: #9aa4ad; font-weight: 600; font-size: clamp(12px, 1vw, 16px); letter-spacing: .16em; }
+      .pcard .pcStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+      .pcard .pcStat { background: rgba(255,255,255,.04); border-left: 3px solid var(--pc); padding: 8px 12px; min-width: 0; }
+      .pcard .pcStat b { display: block; font-size: clamp(22px, 2.3vw, 40px); line-height: 1; }
+      .pcard .pcStat span { display: block; color: #9aa4ad; font-weight: 700; font-size: clamp(10px, .8vw, 13px); letter-spacing: .14em; margin-top: 4px; overflow-wrap: anywhere; }
+      .pcard .pcHead { color: #9aa4ad; font-weight: 700; font-size: clamp(11px, .85vw, 14px); letter-spacing: .22em; border-bottom: 1px solid rgba(255,255,255,.08); padding-bottom: 4px; margin-bottom: 6px; }
+      .pcard .pcRow { display: flex; align-items: baseline; gap: 10px; padding: 3px 0; min-width: 0; }
+      .pcard .pcRow b { font-size: clamp(18px, 1.7vw, 30px); font-weight: 700; letter-spacing: .04em; }
+      .pcard .pcRow i { font-style: normal; color: #9aa4ad; font-weight: 600; font-size: clamp(11px, .85vw, 14px); letter-spacing: .1em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+      .pcard .pcRow em { font-style: normal; font-weight: 700; font-size: clamp(11px, .85vw, 14px); letter-spacing: .1em; color: var(--pc); }
+      .pcard .pcRow .chip { width: 10px; height: 10px; flex: none; align-self: center; transform: rotate(45deg); }
+      .pcard .pcNote { color: #ffd23c; font-weight: 700; font-size: clamp(11px, .85vw, 14px); letter-spacing: .1em; }
+      .ltips { flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; font-family: "Rajdhani", "Segoe UI", sans-serif; }
+      .ltips .lt { background: rgba(12,16,28,.86); border-left: 4px solid #ff2e9a; padding: 12px 16px; animation: ltIn .45s ease both; }
+      .ltips .lt:nth-child(2n) { border-left-color: #20e0ff; }
+      .ltips .lt b { display: block; color: #ffd23c; font-weight: 700; font-size: clamp(12px, .95vw, 15px); letter-spacing: .2em; margin-bottom: 4px; }
+      .ltips .lt span { display: block; color: #d6dde4; font-family: "Segoe UI", system-ui, sans-serif; font-size: clamp(13px, 1vw, 16px); line-height: 1.4; }
+      @keyframes ltIn { from { opacity: 0; transform: translateX(14px); } to { opacity: 1; transform: none; } }
+      /* a narrow screen: the card over the tips, the figure a strip beside the name */
+      @media (max-width: 900px) {
+        #loading.br { grid-template-columns: minmax(0, 1fr); grid-template-rows: repeat(5, max-content); overflow-y: auto; padding: 16px; }
+        #loading.br .ltips { grid-column: 1; grid-row: 3; }
+        #loading.br .bar, #loading.br .status { grid-row: auto; }
+        .pcard { grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr); }
+        .pcard .pcFig { min-height: 220px; }
+      }
       #overlay.hidden { display: none; }
       .panel { width: 520px; max-width: 92vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 6px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
       .panel h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .04em; text-transform: uppercase; color: #f0f0f0; }
@@ -336,6 +382,17 @@
     <p id="introSay" class="sr" aria-live="polite"></p>
     <div id="loading" role="status" aria-live="polite">
       <div class="brand"><span class="logo legacyOnly">B00G's</span><span class="title legacyOnly">RANGE</span><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span></div>
+      <div class="pcard" id="pcard" aria-label="Your player card">
+        <div class="pcFig"><canvas id="pcFig" width="480" height="720"></canvas></div>
+        <div class="pcBody">
+          <div><div class="pcTitle" id="pcTitle"></div><div class="pcNameRow"><div class="pcName" id="pcName"></div><div class="pcLevel" id="pcLevel"></div></div><div class="pcLook" id="pcLook"></div></div>
+          <div class="pcStats" id="pcStats"></div>
+          <div><div class="pcHead" id="pcGunsHead">LOADOUT</div><div id="pcGuns"></div></div>
+          <div><div class="pcHead">HACKS</div><div id="pcHacks"></div></div>
+          <div><div class="pcHead">THIS MATCH</div><div class="pcMatch" id="pcMatch"></div></div>
+        </div>
+      </div>
+      <div class="ltips" id="ltips"></div>
       <div class="bar"><div class="fill" id="loadingFill"></div></div>
       <div class="status" id="loadingStatus">LOADING THE WORLD</div>
       <div class="tip" id="loadingTip"></div>

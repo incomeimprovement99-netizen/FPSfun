@@ -143,7 +143,7 @@ import { STACK, ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
-import { LoadingScreen } from "./ui/loading";
+import { LoadingScreen, type PlayerCard } from "./ui/loading";
 import { Intro } from "./ui/intro";
 import { setMuzzleViewer } from "./game/muzzle";
 import { SPRAYS, SprayLayer } from "./game/sprays";
@@ -2092,7 +2092,8 @@ function previewRect(): { x: number; y: number; w: number; h: number } | null {
  * picture was behind the page.
  */
 let previewDraws = 0;
-const previewRenderer = new THREE.WebGLRenderer({ canvas: $<HTMLCanvasElement>("loCanvas"), antialias: true });
+// (alpha: the battle royale's card draws the figure on a clear background, over the card's own light; drawPortrait)
+const previewRenderer = new THREE.WebGLRenderer({ canvas: $<HTMLCanvasElement>("loCanvas"), antialias: true, alpha: true });
 previewRenderer.setPixelRatio(Math.min(2, window.devicePixelRatio));
 previewRenderer.setClearColor(0x0a0e13, 1);
 previewRenderer.shadowMap.enabled = false;
@@ -2111,6 +2112,94 @@ function drawPreview(): void {
   }
   previewDraws++;
   previewRenderer.render(previewScene, previewCam);
+}
+
+/**
+ * Your figure in your loadout's look, with its gun, drawn into `canvas` for the battle royale's card: the loadouts
+ * panel's own figure, scene and renderer, turned three-quarters to show the gun (hud.json loading.brCard), then left
+ * as the panel had them (its size is set again when it is next shown).
+ */
+function drawPortrait(canvas: HTMLCanvasElement): void {
+  const turn = previewTurn;
+  const zoom = previewZoom;
+  previewTurn = hudCfg.loading.brCard.portraitTurn;
+  previewZoom = 1;
+  previewLoadout(gameTime, 0);
+  // the canvas the size of its box on screen, so the figure is not letterboxed in it
+  const box = canvas.getBoundingClientRect();
+  const dpr = Math.min(2, window.devicePixelRatio);
+  if (box.width > 40 && box.height > 40) {
+    canvas.width = Math.round(box.width * dpr);
+    canvas.height = Math.round(box.height * dpr);
+  }
+  if (previewFig) {
+    previewRenderer.setPixelRatio(1);
+    previewRenderer.setSize(canvas.width, canvas.height, false);
+    previewCam.aspect = canvas.width / canvas.height;
+    previewCam.updateProjectionMatrix();
+    previewWhole = previewFitNow(previewFig);
+    placePreviewCam();
+    previewRenderer.setClearAlpha(0);
+    previewRenderer.render(previewScene, previewCam);
+    // (drawn across in the same task as the render, while the canvas still holds it)
+    const c = canvas.getContext("2d");
+    c?.clearRect(0, 0, canvas.width, canvas.height);
+    c?.drawImage(previewRenderer.domElement, 0, 0, canvas.width, canvas.height);
+    previewRenderer.setClearAlpha(1);
+    previewRenderer.setPixelRatio(dpr);
+    previewSize = "";
+  }
+  previewTurn = turn;
+  previewZoom = zoom;
+  placePreviewCam();
+}
+
+/** a tip's {name} put in from the game's own numbers (hud.json loading._brCard) */
+function tipWords(say: string): string {
+  const v: Record<string, number> = { captureHold: DECAY_CFG.capture.hold, gunLevels: PROFILE.fusion.levels, hackLevels: HACK.fuseLevels };
+  return say.replace(/\{(\w+)\}/g, (all, k: string) => (k in v ? String(v[k]) : all));
+}
+
+/**
+ * Your card for the battle royale's loading screen, as Apex's squad screen shows a player's banner (the owner,
+ * 2026-10-02): your name under your banner's title in its colour, your figure, three of your numbers (the wins and
+ * kills a battle royale has given you, and the movement you have landed most, the game's own trade; your damage
+ * until you have landed any), your guns and your hacks as you drop, and the battle royale's tips.
+ */
+function playerCard(): PlayerCard {
+  const banner = bannerOf(myBanner());
+  const def = loadouts.current;
+  const p = profile.profile;
+  const br = p.matches.br;
+  const top = Object.entries(p.tech).sort((a, b) => b[1] - a[1])[0];
+  const n = (x: number) => Math.round(x).toLocaleString("en-US");
+  const picks = savedPicks();
+  // the battle royale row's choices as the menu words them (the squad, the bots, the pace)
+  const said = (id: string) => {
+    const s = document.getElementById(id) as HTMLSelectElement | null;
+    return s?.selectedOptions[0]?.textContent?.trim() ?? "";
+  };
+  return {
+    name: (p.name || "PLAYER").toUpperCase(),
+    title: banner?.title ?? "",
+    color: banner?.frame ?? PROFILE.identity.accent,
+    level: progress.level.level,
+    look: (operatorById(def.operator)?.name ?? def.operator).toUpperCase(),
+    match: [said("brTeam"), said("brBots"), said("brPace") && `${said("brPace")} pace`].filter(Boolean).join("  ·  ").toUpperCase(),
+    stats: [
+      { value: n(br?.won ?? 0), label: "BR WINS" },
+      { value: n(br?.kills ?? 0), label: "BR KILLS" },
+      top && top[1] > 0 ? { value: n(top[1]), label: top[0] } : { value: n(br?.damage ?? 0), label: "BR DAMAGE" },
+    ],
+    gunsHead: brStart() === "loadout" ? "LOADOUT" : "LOADOUT  ·  YOU LAND WITH NOTHING: LOOT THE CITY",
+    guns: loadout.slots.filter((s) => !s.empty).map((s) => ({ name: s.weapon.name, kind: weaponKind(s.id) ?? "", level: s.fusion ?? 0 })),
+    hacks: (["mobility", "utility"] as const).map((slot) => {
+      const h = hackDef(picks[slot]);
+      return { name: h?.name ?? picks[slot], level: 0, blurb: h?.blurb ?? "", color: slot === "mobility" ? PROFILE.identity.accent : PROFILE.identity.accent2 };
+    }),
+    tips: hudCfg.loading.tipsBr.map((t) => ({ tag: t.tag, say: tipWords(t.say) })),
+    portrait: drawPortrait,
+  };
 }
 
 // the killcam can be turned off (Settings); the recap still shows
@@ -5084,7 +5173,7 @@ function showFrame(): void {
     if (input.playing || scriptInput) show.menuAt = now;
     const menu = now - show.menuAt > S.menuGrace;
     if (menu && loadingScreen.up) loadingScreen.close();
-    else if (!menu && !loadingScreen.up) loadingScreen.again(S.text);
+    else if (!menu && !loadingScreen.up) loadingScreen.again(S.text, show.br ? playerCard() : null);
     if (menu) {
       // and its time limits wait with it
       show.at = now;
@@ -5175,7 +5264,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   if (!NO_INTRO) {
     if (IS_SK && !document.hidden) {
       show = { stage: "load", words: modeWords(d, kind), br: d instanceof BrMatch, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
-      loadingScreen.again(introCfg.show.text);
+      // (a battle royale's card is up already when Start put the screen up; a friend's match starting it is not)
+      loadingScreen.again(introCfg.show.text, d instanceof BrMatch ? (loadingScreen.card ?? playerCard()) : null);
     } else if (!IS_SK) void intro.play("match", modeWords(d, kind));
   }
   note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
@@ -6518,7 +6608,7 @@ const menu = new Menu(loadouts, profile, {
     // SpeedKills: the loading screen up and drawn before a match is built. Building one is a second or more of work (a
     // battle royale's bots and loot), and the menu stood frozen on the screen through it after the click on Start.
     if (IS_SK && !NO_INTRO && !calibrating && MATCH_MODES.has(mode) && !document.hidden) {
-      loadingScreen.again(introCfg.show.text);
+      loadingScreen.again(introCfg.show.text, mode === "br" ? playerCard() : null);
       readSettings();
       void input.lock();
       afterPaint(() => {

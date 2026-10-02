@@ -304,6 +304,22 @@
   },
   "_loading": "The loading screen (src/ui/loading.ts): up for at least minSeconds so it does not flash, gone once everything asked for is in and a frame is drawn, or after maxSeconds whatever happens. With nothing asked for at all (a page served from the cache) it goes after quietSeconds. A tip turns over every tipSeconds. Ours.",
   "loading": {
+    "_brCard": "SpeedKills' battle royale loading screen (src/ui/loading.ts, main.ts playerCard): your card as Apex's squad screen shows a player's banner, about two thirds of the screen (the owner, 2026-10-02: 'it should show it on like a player card screen like Apex does ... three of your best stats ... what guns you have equipped ... your skin ... your name, and any other useful information like hacks ... that should take a 50, 75%'), and the battle royale's own tips beside it, `tipsShown` at once, one changed every `tipSeconds`. `portraitTurn` is the figure's turn on the card, radians from facing you: a three-quarter view shows the gun. In a tip, {captureHold}, {gunLevels} and {hackLevels} are the game's own numbers (decay.json, speedkills.json fusion, hacks.json), put in when the card is made. Ours.",
+    "brCard": { "tipsShown": 4, "tipSeconds": 5, "portraitTurn": -0.55 },
+    "tipsBr": [
+      { "tag": "THE DECAY", "say": "There is no ring. Sectors of the city decay in waves, each warned on your map first. Inside a decaying sector you take damage, and it eats the ground floors first: climb or get out." },
+      { "tag": "THE CAPTURE ZONE", "say": "When only the last sector is left, its capture zone opens. Hold it for {captureHold} seconds to win, or be the last squad standing." },
+      { "tag": "FUSE YOUR GUNS", "say": "Walk over a copy of a gun you carry to fuse it a level up, to level {gunLevels}. A copy at a higher level takes yours straight to it." },
+      { "tag": "FUSE YOUR HACKS", "say": "You carry one mobility hack and one utility hack. Take the same hack again to fuse it a level up, to level {hackLevels}: a shorter cooldown each time." },
+      { "tag": "GET UP HIGH", "say": "Jump pads throw you onto the roofs, the lifts carry you up the towers, and zip lines run from the roof yards to the High City decks." },
+      { "tag": "MOVEMENT", "say": "Double jump, wall run, wall kick, slide, superglide and tap-strafe all work here. Chain them: speed is your armour." },
+      { "tag": "SUPERGLIDE", "say": "Jump in the last moment of a mantle and crouch the frame after for a burst of speed. The range's trainer bar shows your timing." },
+      { "tag": "TAP-STRAFE", "say": "Just after a jump, tap a direction key to swing your momentum that way. Small taps keep almost all your speed." },
+      { "tag": "WALL KICK", "say": "Jump into a wall and jump again off it to kick away. The wallbounce wall in the range has the recipe on a sign." },
+      { "tag": "SECOND CHANCE", "say": "Die once and you win your way back in a 1v1. Die again and you are a ghost: stay with your squad to be revived faster." },
+      { "tag": "THE DROP", "say": "The middle of the city is the hottest drop: the most loot, and the most fights." },
+      { "tag": "AMMO", "say": "You never run out of ammo. Reload and keep moving." }
+    ],
     "minSeconds": 0.6,
     "maxSeconds": 25,
     "quietSeconds": 1.2,
