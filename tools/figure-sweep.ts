@@ -4,7 +4,9 @@
 // looks at every frame, in minutes a gun, without pictures.
 //
 //   hand   the deepest skin of either hand inside the gun, mm (the audit stops at 30), and the bone it is on
-//   gun    the deepest drawn point of the gun inside the body, mm (the audit stops at 40), the gun's part and the bone
+//   gun    the deepest drawn point of the gun inside the body, mm, the gun's part and the bone: the audit's exact look
+//          (15 cm in, each deepest point confirmed inside by rays; EXACT=0 for its plain 4 cm look, which reads a point
+//          deeper than that as outside: ANAKIN's stock in the forearm read 40 where it is 67)
 //   grip, sup   each palm off its hold, mm, while it is meant to be on it (not at a reload's key)
 //   wrist  the more bent wrist, degrees
 // A frame is bad past 6 mm (hand), 15 (gun), 3 (grip), 4 (sup) or 60 degrees.
@@ -23,6 +25,7 @@ const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mous
 const IDS = process.argv.slice(2).length ? process.argv.slice(2) : Object.keys(soldierHold.guns).filter((k) => !k.startsWith("_"));
 const ONLY = (process.env.SEQ ?? "").split(",").filter(Boolean);
 const DETAIL = !!process.env.DETAIL;
+const EXACT = process.env.EXACT !== "0";
 const DT = 1 / 30;
 const BAR = { hand: 6, gun: 15, grip: 3, sup: 4, wrist: 60 };
 
@@ -74,7 +77,7 @@ async function sweep(id: string): Promise<void> {
           r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: id })});
           r.figureLabStep(${DT});
           const fig = r.labFigures()[0].figure;
-          const a = window.__figureAudit(0, { pitch: ${(pose.pitch as number) ?? 0}, locate: ${DETAIL} });
+          const a = window.__figureAudit(0, { pitch: ${(pose.pitch as number) ?? 0}, locate: ${DETAIL}, exact: ${EXACT} });
           if (!a) return null;
           return { hand: Math.max(a.handIn?.l ?? 0, a.handIn?.r ?? 0), handWhere: a.handWhere, whereAt: a.whereAt, gun: a.gunIn ?? 0, gunWhere: a.gunWhere, grip: a.grip ?? 0, sup: a.support ?? 0, wrist: Math.max(a.wristL, a.wristR), keys: fig.rifleOut?.keys ?? "" };
         })()`)) as (Omit<Frame, "handAt" | "gunAt"> & { handWhere?: Record<string, number>; gunWhere?: Record<string, number>; whereAt?: Record<string, unknown[]> }) | null;

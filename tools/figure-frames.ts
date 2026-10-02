@@ -22,6 +22,9 @@ import sharp from "sharp";
 const URL = process.env.SHOT_URL ?? "http://localhost:5198/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const OUT = path.resolve(process.argv[2] ?? "shots/figure");
+// EXACT=1: the gun in the body by the audit's exact look (15 cm in, confirmed by rays), slower; its plain 4 cm look reads
+// a gun deeper in than that as outside
+const EXACT = process.env.EXACT === "1";
 // (by default every gun the soldier is fitted to hold: soldierhold.json guns)
 const IDS = process.argv.slice(3).length ? process.argv.slice(3) : Object.keys(soldierHold.guns).filter((k) => !k.startsWith("_"));
 const W = 1600;
@@ -356,7 +359,7 @@ async function main(): Promise<void> {
               fs.mkdirSync(path.dirname(file), { recursive: true });
               const at = await cropOf(page, dname === "close", crop);
               await page.screenshot({ path: file as `${string}.png`, clip: at });
-              const audit = await ev<Audit | null>(page, `window.__figureAudit(0, { pitch: ${seq.at(t).pitch ?? 0}, pts: ${XRAY} })`);
+              const audit = await ev<Audit | null>(page, `window.__figureAudit(0, { pitch: ${seq.at(t).pitch ?? 0}, pts: ${XRAY}, exact: ${EXACT} })`);
               // XRAY=1: the same frame again with the soldier see-through and every point found inside marked (red: the gun
               // in the body; yellow: a hand in the gun), to see where a measure comes from
               const pts = (audit as { pts?: number[][] } | null)?.pts;

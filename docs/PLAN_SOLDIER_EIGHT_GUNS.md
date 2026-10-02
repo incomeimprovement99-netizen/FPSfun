@@ -47,7 +47,7 @@ What it says:
     searched at the middle of its span, where it measures 17 mm, and no single move of the key or its fingers lowers it
     (a local minimum). Also 13 to 17 mm of the left ring and middle fingers at the reload's first 0.2 s, as the gun
     starts to roll and the hand is still on its hold.
-  - **The USSO's sprint jump**: one frame (0.33 s) with the magazine 39 mm into the belly as the feet leave the ground.
+  - ~~The USSO's sprint jump~~: the 39 mm frame was a false reading; measured exactly (below) it is 8 mm.
   - **The USSO aimed 40 degrees up**: the gun 16 mm into the left collarbone at the very end.
   - **BOOG's stock in the right forearm**: 179 of its bad frames are the gun into the right forearm (16 mm at rest, 30
     running aimed, 35 sprinting, 40 or more in the reload and the jump), then the right upper arm crouched (35), the left
@@ -57,6 +57,18 @@ What it says:
   - **BOOG's reload**: the right thumb up to 30 mm in at the bolt's end (2.5 s), and the left hand at its point (58
     frames).
   The eight copy this template, so it is cleaned first (step 0).
+- **The gun-in-body measure was blind past 4 cm (found 2026-10-02).** figure-audit.js looks 4 cm in from a gun point
+  for the body's surface and calls a point with none that near outside, so a stock right through an arm showed only
+  its edge (40 at most), and a longer look alone took points beside an armour shell for inside (the USSO's stock "74
+  mm" in a forearm it only runs beside). Its exact look (`exact`) searches 15 cm and keeps a point only if rays from it
+  cross the mesh it is in an odd number of times; the sweep and the solver use it. Measured so:
+  - **The USSO is clean** (its sprint-jump frame really 8 mm).
+  - **BOOG**: the stock 73 mm into the chest looking 35 up (the plain look said 39), 104 mm into the right forearm at
+    the reload's end (2.67 s), 61 in a sprint jump; 16 at rest and 23 aimed as before.
+  - **ANAKIN**: 59 to 79 mm into the right forearm just behind the hand at rest, running, sprinting and reloading, and
+    150 or more into the belly in a sprint jump; 26 aimed (the butt in the shoulder armour).
+  - The skfigure e2e still uses the plain look (its BAR.gunIn 40): moved to the exact one once these are fixed, or its
+    checks would fail on faults already written here.
 
 ## 2. Step 0: the template clean, before any new gun
 
@@ -148,17 +160,19 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   a raked magazine on a gun rolled for the reload put it 9 mm off). Its reload is the magazine alone until the guns
   agent's ANAKIN rack lands; its swap has no phase or cup until its gunfeel.json entry does.
 - **Left open, measured:** the stock in the right forearm. Behind the grip the stock is a solid slab 5.2 cm wide and up
-  to 30 cm tall, and the armoured forearm runs through it: 70 to 140 mm deep at rest (the audit's deeper look,
-  `gunCap`), 25 aimed (the butt in the shoulder armour). No place of the butt, chest turn, elbow, eye relief or hand turn
-  clears every pose (a rest carry at 47 mm made the aimed one 67 to 125). Seen from outside it reads as the forearm laid
-  along the stock, hidden from behind. The way out is the template fault's (step 0): the right arm fitted against the
-  stock through the sweep, the forearm angled out past it.
+  to 30 cm tall, and the armoured forearm runs into it just behind the hand: 67 mm at rest, 59 running aimed, 76
+  sprinting (the audit's exact look), 26 aimed (the butt in the shoulder armour); and 150 or more into the belly in a
+  sprint jump, which the plain look hid from the first carry solve. No place of the butt, chest turn, elbow, eye relief,
+  hand turn or the gun's size clears every pose (the best hand turn, 10 degrees out, brought running aimed to 21 and
+  sprinting to 59 but put the hand 9 mm into the grip). Seen from outside it reads as the forearm laid along the stock,
+  hidden from behind. The way out is the template fault's (step 0): the right arm fitted against the stock through the
+  sweep, the forearm angled out past it; or the owner's call on how such a stock is carried.
 - **Learnt:** a hand search from the shared start laid the right hand flat on the receiver's side, its fingers straight
   (a hand can measure 2 mm and hold nothing): start a hand from a fitted gun with the same kind of grip (the USSO's,
-  carried over by each gun's trigger and grip) and grasp it there. And the audit stops at 40 mm, so a tuning grid saw no
-  change where the clash was 124 mm and getting better: tune with `gunCap`.
+  carried over by each gun's trigger and grip) and grasp it there. And the audit's plain look is blind past 4 cm, so a
+  tuning grid saw no change where the clash was 67 mm and getting better: tune and solve with its exact look.
 
-### 5.2 PANDA (vinson), SciFiRifle01_2, 104 cm
+## 5.2 PANDA (vinson), SciFiRifle01_2, 104 cm
 
 - **Model:** Clip and Extruder only; no handle. The fore-end hold 83 cm from the butt. Measured 2026-10-02 (cm, the
   gun's own frame, from the trigger): 96.5 cm long; the magazine (Clip) 18 to 31 cm in front of the trigger, 7 to 16.5
@@ -285,8 +299,9 @@ Each lands with its gun's turn, so no gun is ever without its look.
 ## 7. Faults to head off on every gun
 
 - **Between the frames**: the sweep at 1/30 s, never the 4% sheet alone.
-- **The audit's own limits**: it stops looking at 30 mm (a hand) and 40 mm (the gun), so a number at the cap is "that or
-  more"; tune past it with `gunCap` (ANAKIN's stock was 124 mm in, reading 40).
+- **The audit's own limits**: its plain look reads a gun point more than 4 cm inside the body as outside, and a hand's
+  at 3 cm; use its exact look (`exact`, rays to confirm), which the sweep and the solver now do. A tuning grid on the
+  plain look saw nothing change while the clash moved from 67 to 52 mm.
 - **A hand search's start**: start from a fitted gun with the same kind of grip, not the shared numbers (ANAKIN's right
   hand came out flat on the receiver from the shared start).
 - **The stock in the right forearm**: BOOG's 179 bad frames; on every long gun the right arm is fitted against the stock

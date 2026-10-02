@@ -25,6 +25,9 @@ const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Applic
 const ID = process.argv[2] ?? "r97";
 const STAGE = process.argv[3] ?? "pocket";
 const MAX = Number(process.env.EVALS ?? 160);
+// the gun in the body by the audit's exact look (15 cm in, confirmed by rays): its plain 4 cm look reads a gun deeper in
+// than that as outside, and a search on it walked ANAKIN's sprint jump 150 mm into the belly unseen (EXACT=0 for the plain)
+const EXACT = process.env.EXACT !== "0";
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 
@@ -287,7 +290,7 @@ async function main(): Promise<void> {
             : next
               ? `r.figureLabPose(0, ${JSON.stringify({ ...next.pose, weapon: ID })}); r.figureLabStep(${next.dt});`
               : "";
-        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, then: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} return { a: window.__figureAudit(0, { pitch: ${p.pitch} }), o: r.labFigures()[0].figure.rifleOut }; })()`;
+        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, then: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} return { a: window.__figureAudit(0, { pitch: ${p.pitch}, exact: ${EXACT} }), o: r.labFigures()[0].figure.rifleOut }; })()`;
         let got: { a: Audit | null; o: Out };
         try {
           got = await ev<{ a: Audit | null; o: Out }>(page, expr);

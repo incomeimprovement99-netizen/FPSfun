@@ -12,6 +12,10 @@
 // - gunIn: how deep the gun is inside the body (torso, arms, head; the hands are handIn's), mm, by the same rule the
 //   other way round: the gun's points against the body's skin, which is skinned, so it is taken afresh every frame.
 //   Both count only the gun as drawn: a point ahead of its phase's front (a swap, a reload's magazine) is not there.
+//   It looks 4 cm in: a point further from every surface than that reads as outside (0), so a stock right through an
+//   arm shows only its edge. opts.exact looks 15 cm in and keeps a point only if rays from it cross the mesh it is in
+//   an odd number of times (most of five): a long look alone took points outside an armour shell for inside (the USSO's
+//   stock "74 mm" in a forearm it is only beside).
 // - __triggerGap(i): how far the right index finger is from the trigger, mm, where a finger pulls one: the skin round its
 //   last joint's crease (within 11 mm of the joint, on the last and middle phalanges), not its tip. The owner,
 //   2026-09-30: "the trigger finger should be more through the hold and still touching the trigger. right now its like
@@ -288,7 +292,10 @@
     const bodyTris = [];
     /** each of bodyTris' triangles' bone (its first corner's), to say where the gun went in */
     const bodyBone = [];
-    const gunBox = new T.Box3().setFromObject(gun).expandByScalar(0.05);
+    /** (opts.exact) each of bodyTris' triangles' mesh, and each mesh's whole upper body, for the rays */
+    const bodySkin = [];
+    const skinTris = [];
+    const gunBox = new T.Box3().setFromObject(gun).expandByScalar(opts.exact ? 0.15 : 0.05);
     const v = V();
     for (const sk of skins) {
       const pos = sk.geometry.getAttribute("position");
@@ -338,10 +345,14 @@
       if (opts.handsOnly) continue;
       const idx = sk.geometry.index;
       const n = idx ? idx.count : pos.count;
+      const all = opts.exact ? [] : null;
+      skinTris.push(all);
       for (let t = 0; t < n; t += 3) {
         const a = idx ? idx.getX(t) : t;
         const b = idx ? idx.getX(t + 1) : t + 1;
         const c = idx ? idx.getX(t + 2) : t + 2;
+        // (the rays need the mesh whole, hands too; only the never skinned legs are left out)
+        if (all && world[a * 3] < 1e8 && world[b * 3] < 1e8 && world[c * 3] < 1e8) all.push(world[a * 3], world[a * 3 + 1], world[a * 3 + 2], world[b * 3], world[b * 3 + 1], world[b * 3 + 2], world[c * 3], world[c * 3 + 1], world[c * 3 + 2]);
         // the hands and wrists hold the gun: their contact with it is handIn's to measure, not the body's
         if (GRIP.test(boneOf[a]) || GRIP.test(boneOf[b]) || GRIP.test(boneOf[c])) continue;
         // a corner on the legs was never skinned (upperOf): such a triangle is the hips', and no held gun's
@@ -350,6 +361,7 @@
         if (!gunBox.containsPoint(v.set(ax, ay, az)) && !gunBox.containsPoint(v.set(world[b * 3], world[b * 3 + 1], world[b * 3 + 2])) && !gunBox.containsPoint(v.set(world[c * 3], world[c * 3 + 1], world[c * 3 + 2]))) continue;
         bodyTris.push(ax, ay, az, world[b * 3], world[b * 3 + 1], world[b * 3 + 2], world[c * 3], world[c * 3 + 1], world[c * 3 + 2]);
         bodyBone.push(boneOf[a]);
+        bodySkin.push(skinTris.length - 1);
       }
     }
     out.handIn = { l: Math.round(handIn.l * 1000), r: Math.round(handIn.r * 1000) };
@@ -368,11 +380,18 @@
           v.set(pos.getX(k), pos.getY(k), pos.getZ(k)).applyMatrix4(pt.o.matrixWorld);
           if (!drawn(pt.o, v)) continue;
           // (opts.gunCap, metres: how deep to look, 4 cm unless a tuning run needs to see past it)
-          const d = depthIn(bg, [v.x, v.y, v.z], opts.gunCap ?? 0.04, 1, hit);
+          let d = depthIn(bg, [v.x, v.y, v.z], opts.exact ? 0.15 : (opts.gunCap ?? 0.04), 1, hit);
+          // (only a point that would be a new deepest is worth its rays)
+          if (opts.exact && d > 0.01 && (d > gunIn || Math.round(d * 1000) > (out.gunWhere[`${pt.o.name || "part"}>${bodyBone[hit.t / 9]}`] ?? 0)) && !insideByRays(v, skinTris[bodySkin[hit.t / 9]])) d = 0;
           if (d > 0.01) {
             const key = `${pt.o.name || "part"}>${bodyBone[hit.t / 9]}`;
             out.gunWhere[key] = Math.max(out.gunWhere[key] ?? 0, Math.round(d * 1000));
             if (opts.pts) (out.pts ??= []).push([v.x, v.y, v.z, 1]);
+          }
+          // (with opts.locate, where the deepest is: cm in the gun's own frame, and the bone it is in)
+          if (d > gunIn && opts.locate && d > 0.01) {
+            const g = gun.worldToLocal(v.clone());
+            out.gunAt = [cm(g.x), cm(g.y), cm(g.z), bodyBone[hit.t / 9]];
           }
           if (d > gunIn) gunIn = d;
         }
@@ -381,6 +400,38 @@
     out.gunIn = Math.round(gunIn * 1000);
     return out;
   };
+
+  /**
+   * Whether p is inside a mesh given as a flat array of world triangles: rays from it along five ways (the four level
+   * ones and up; not down, where the never skinned legs leave the mesh open) each cross it an odd number of times, three
+   * or more of the five (Moller-Trumbore)
+   */
+  function insideByRays(p, tris) {
+    if (!tris || !tris.length) return false;
+    const ways = [[1, 0, 0], [-1, 0, 0], [0, 0, 1], [0, 0, -1], [0, 1, 0]];
+    let odd = 0;
+    for (const [dx, dy, dz] of ways) {
+      let c = 0;
+      for (let t = 0; t < tris.length; t += 9) {
+        const ax = tris[t], ay = tris[t + 1], az = tris[t + 2];
+        const e1x = tris[t + 3] - ax, e1y = tris[t + 4] - ay, e1z = tris[t + 5] - az;
+        const e2x = tris[t + 6] - ax, e2y = tris[t + 7] - ay, e2z = tris[t + 8] - az;
+        const hx = dy * e2z - dz * e2y, hy = dz * e2x - dx * e2z, hz = dx * e2y - dy * e2x;
+        const det = e1x * hx + e1y * hy + e1z * hz;
+        if (Math.abs(det) < 1e-12) continue;
+        const f = 1 / det;
+        const sx = p.x - ax, sy = p.y - ay, sz = p.z - az;
+        const u = f * (sx * hx + sy * hy + sz * hz);
+        if (u < 0 || u > 1) continue;
+        const qx = sy * e1z - sz * e1y, qy = sz * e1x - sx * e1z, qz = sx * e1y - sy * e1x;
+        const w = f * (dx * qx + dy * qy + dz * qz);
+        if (w < 0 || u + w > 1) continue;
+        if (f * (e2x * qx + e2y * qy + e2z * qz) > 1e-6) c++;
+      }
+      if (c % 2 === 1) odd++;
+    }
+    return odd >= 3;
+  }
 
   /** each figure's trigger face (gun-local) and fingertip points, found once a figure and gun */
   const tips = new WeakMap();
