@@ -8900,3 +8900,21 @@ a 55 degree gun camera had been added to make that fit, doubling their size.
 - **Open:** the left forearm shows from the bottom of the picture to the hand on the gun's front, wider and lighter than the
   R-99's; the owner wants only the hand and wrist, as Hyper Scape's support hand shows. The hand moves back along each gun
   next.
+
+## Milestone 402 — The corner blocks named on the map: MOTEL HILL, NOODLE ROW, MARKET and THE WELL
+
+The master plan gives each of the centre's nine blocks a name, a light colour and something only it has, so you know
+where you are at a glance. The four High City decks and the lobby were named sites on the big map; the four corner
+blocks were not.
+
+- **Their names** (game.sites, src/game/neonmap.ts): MOTEL HILL (north-west), NOODLE ROW (north-east), MARKET
+  (south-west) and THE WELL (south-east), the plan's own, each named in the map's small type over its rooms building's
+  roof yard (Milestone 397), or over the Well.
+- **Their own loot**, as every site has: the site tier's four spots, each on any floor within its `reach` (6 m) of the
+  name, so through the rooms building's storeys and up its fire escape onto the roof, or down the Well's galleries. A
+  site's reach is its own now where it gives one (br.ts Site.radius, else brmap.json siteRadius as before). The map's
+  loot goes from 1,198 items to 1,225.
+- No new bake: the names and their loot are laid at run time from the layout's yards and the Well.
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): each corner block named over its roof yard or the Well, and six
+  items and more of its own loot about its name (seen failing with the names taken out: none named, no loot). verify
+  and rules; e2e `loot` and `br`.

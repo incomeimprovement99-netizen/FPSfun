@@ -77,6 +77,8 @@ export interface Site {
   /** world space */
   x: number;
   z: number;
+  /** how far its own loot is laid out, metres (else brmap.json siteRadius): a corner block's on the Neon map is its rooms building */
+  radius?: number;
 }
 
 export interface GraphNode {

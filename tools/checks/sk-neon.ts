@@ -236,7 +236,12 @@ const stranded = padNodes.filter((n) => !map.nodes[n.pad!.to].links.length);
 check("every pad a bot is sent up lands it on the roof's graph", padNodes.length >= 6 && stranded.length === 0, `${padNodes.length} pads for bots, ${stranded.length} stranded`);
 
 // the small named places: each high city block's deck and the lobby
-check("the four high city decks and the lobby as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
+// (and each corner block's own name, over its rooms building's roof yard or over the Well, the master plan's names)
+const YDS = (cfg as unknown as { yards?: Array<{ block: string; inside: number[] }> }).yards ?? [];
+const WAT = (cfg as unknown as { well?: { at: number[] } }).well?.at;
+const cornerAt = (id: string) => map.sites.find((s) => s.id === id);
+check("each corner block named on the map over its roof yard, or the Well's over the Well", ["motel", "noodle", "market", "well"].every((id) => cornerAt(id)) && YDS.every((y) => map.sites.some((s) => s.radius !== undefined && Math.abs(s.x - BR_X - (y.inside[0] + y.inside[1]) / 2) < 0.01 && Math.abs(s.z - BR_Z - (y.inside[2] + y.inside[3]) / 2) < 0.01)) && !!WAT && Math.hypot(cornerAt("well")!.x - BR_X - WAT[0], cornerAt("well")!.z - BR_Z - WAT[1]) < 0.01, ["motel", "noodle", "market", "well"].map((id) => { const s = cornerAt(id); return s ? `${s.name} (${(s.x - BR_X).toFixed(1)}, ${(s.z - BR_Z).toFixed(1)})` : `${id} missing`; }).join(", "));
+check("the high city decks, the lobby and the corner blocks as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
 
 // The centre's curved streets (rules.streets.curves; the owner, 2026-09-30: "have them curve left and right along with
 // buildings so that it's different visually"): each of the eight bends one way and then the other, and meets the edge
@@ -1074,7 +1079,7 @@ loot.generate(
   20260929,
   map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })),
   { minX: BR_X - BR_HALF, maxX: BR_X + BR_HALF, minZ: BR_Z - BR_HALF, maxZ: BR_Z + BR_HALF },
-  map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: brmapCfg.siteRadius })),
+  map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius })),
 );
 const drops = [...loot.drops.values()];
 const over12 = drops.filter((d) => d.pos.y > 12).length;
@@ -1088,6 +1093,15 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const [sx0, sx1, sz0, sz1] = TW.square;
   const per = TW.core.storeys.slice(1).map((h) => ({ h, n: drops.filter((d) => Math.abs(d.pos.y - h) < 0.2 && d.pos.x - BR_X > sx0 && d.pos.x - BR_X < sx1 && d.pos.z - BR_Z > sz0 && d.pos.z - BR_Z < sz1).length }));
   check("loot on every floor of the tower over its lobby, 5 items and more each", per.every((q) => q.n >= 5), per.map((q) => `${q.h} m ${q.n}`).join(", "));
+}
+// each corner block's own loot (game.sites, its `reach`): in its rooms building or the Well, some of it up the fire escape
+{
+  const corner = map.sites.filter((q) => q.radius !== undefined);
+  const each = corner.map((q) => {
+    const near = drops.filter((d) => Math.hypot(d.pos.x - q.x, d.pos.z - q.z) <= (q.radius ?? 0) + 1.5);
+    return { name: q.name, n: near.length, up: near.filter((d) => d.pos.y > 10).length };
+  });
+  check("each corner block's own loot about its name, 6 items and more", corner.length === 4 && each.every((q) => q.n >= 6), each.map((q) => `${q.name} ${q.n} (${q.up} on the roof)`).join(", "));
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

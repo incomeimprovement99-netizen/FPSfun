@@ -1373,7 +1373,8 @@ station's marble hall. Eight jump pads, the pack's plate and blue beam, throw yo
 roofs, and the four roofs are joined into a ring round the tower by the pack's
 floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
-of the loot is on the four roofs, named decks on the map.
+of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE
+ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof.
 `tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
 entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back and into its yard.
 
