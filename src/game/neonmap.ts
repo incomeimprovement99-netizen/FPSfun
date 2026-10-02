@@ -244,6 +244,17 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     root.add(rope);
     ZIPLINES.push({ a: new THREE.Vector3(a[0] + BR_X, a[1], a[2] + BR_Z), b: new THREE.Vector3(b[0] + BR_X, b[1], b[2] + BR_Z) });
   }
+  // the zip lines (neon-layout.ts rules.low.zip): from each rooms building's roof yard up to a High City deck, a rope
+  // between its ends lit in its block's colour, ridden up or down
+  for (const q of (neonCfg as unknown as { zips?: Array<{ a: number[]; b: number[]; colour: string }> }).zips ?? []) {
+    const [a, b] = [new THREE.Vector3(...(q.a as [number, number, number])), new THREE.Vector3(...(q.b as [number, number, number]))];
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, a.distanceTo(b), 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));
+    rope.position.copy(a).add(b).multiplyScalar(0.5);
+    rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    rope.name = "neon:zip";
+    root.add(rope);
+    ZIPLINES.push({ a: new THREE.Vector3(a.x + BR_X, a.y, a.z + BR_Z), b: new THREE.Vector3(b.x + BR_X, b.y, b.z + BR_Z) });
+  }
 
   holdForDecay(root, RANGE_SOLIDS.slice(first));
   root.updateMatrixWorld(true);

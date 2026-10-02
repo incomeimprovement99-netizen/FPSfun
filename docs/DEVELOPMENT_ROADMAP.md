@@ -8990,3 +8990,21 @@ their tops. One on each corner block is now a building to walk into and fight th
 - **Checked** (`tools/checks/sk-neon.ts`, a new check): each walk-in entered from the street at its door side to its
   ground floor's middle, a body's square at a time with a step at most between squares (seen failing with them baked
   as shells). verify and rules; e2e `loot` and `br`. Photographed.
+
+## Milestone 407 — Zip lines from the High City decks down to the roof yards
+
+The master plan asks for more ways between the levels. Up a fire escape (Milestone 395) you reach a rooms building's
+roof yard; from there nothing led on.
+
+- **Two zip lines** (rules.low.zip, tools/neon-layout.ts; drawn and ridden by src/game/neonmap.ts): from MOTEL HILL's
+  roof yard to the West deck, 53 m, and from NOODLE ROW's to the East deck, 51 m, about 15 m between their ends. Each
+  is the shortest rope from the yard to a deck beside its block that stands 2.35 m above both ends and leaves a hanging
+  body's room (movement.json ziplineHang under it, a body's radius round it) clear of the last bake's collision all
+  along it, with roof on past its top end, since off a rope's top a rider is thrown on. Each is lit in its block's
+  colour, pink and red, and ridden up or down like any zip line.
+- Only ropes from a deck's very edge clear its fence. MARKET's one clear rope ended where a rider coming up was thrown
+  7 m off the deck onto the street, so it has none.
+- No new bake: the ropes are drawn by the game.
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): each ridden by a player's own movement down from the deck onto the
+  yard's roof and back up onto the deck (seen failing on MARKET's rope, the rider off onto the street). verify and
+  rules; e2e `loot` and `br`. Photographed.

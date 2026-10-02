@@ -1747,6 +1747,67 @@ const skyStairs: Pt[] = [];
   console.log(`streets: ${STREETS.length} curved (${STREETS.map((q) => `${q.id} ${(q.pts.length * 0.5).toFixed(0)} m`).join(", ")}), ${kerbs} kerbs and ${dashes} dashes along them`);
 }
 
+// the zip lines (rules.low.zip, the master plan's "more ways up"): from each rooms building's roof yard to the deck of a
+// High City island beside its block, the shortest rope that stands `over` metres above both ends and leaves a hanging
+// body's room (movement.json ziplineHang under it, a body's radius round it) clear of the last bake's collision all
+// along it, within `reach` metres; ridden as any zipline is, up or down (src/game/neonmap.ts draws it)
+{
+  const Z = R.low.zip as { over: number; reach: number; run: number; decks: Record<string, string[]>; colours: Record<string, string> } | undefined;
+  const zf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
+  if (Z && existsSync(zf)) {
+    const S: number[][] = JSON.parse(readFileSync(zf, "utf8")).solids;
+    const MV = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8"));
+    const [hang, rad] = [MV.ziplineHang * 0.0254, MV.radius * 0.0254];
+    const B = R.blocks;
+    const deck = (d: string): number[] => {
+      const far = d === "n" || d === "w" ? [-B.outer[1], -B.outer[0]] : [B.outer[0], B.outer[1]];
+      return d === "n" || d === "s" ? [B.inner[0], B.inner[1], far[0], far[1]] : [far[0], far[1], B.inner[0], B.inner[1]];
+    };
+    const topAt = (x: number, z: number) => {
+      let t = -Infinity;
+      for (const b of S) if (x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && b[5] >= 24 && b[5] <= 30 && b[5] > t) t = b[5];
+      return t;
+    };
+    const clearRope = (a: number[], b: number[]) => {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      for (let d = 2; d < L - 2; d += 0.5) {
+        const [x, y, z] = [0, 1, 2].map((k) => a[k] + ((b[k] - a[k]) * d) / L);
+        for (const q of S) if (q[0] < x + rad && q[1] > x - rad && q[2] < z + rad && q[3] > z - rad && q[4] < y + 0.2 && q[5] > y - hang - 0.1) return false;
+      }
+      return true;
+    };
+    const zips: Array<{ block: string; a: number[]; b: number[]; colour: string }> = [];
+    for (const y of yards) {
+      if (!Z.decks[y.block]) continue;
+      const b = [(y.inside[0] + y.inside[1]) / 2, y.y + Z.over, (y.inside[2] + y.inside[3]) / 2];
+      let best: { a: number[]; L: number } | null = null;
+      for (const d of Z.decks[y.block] ?? []) {
+        const [x0, x1, z0, z1] = deck(d);
+        for (let x = x0 + 1; x < x1; x += 1)
+          for (let z = z0 + 1; z < z1; z += 1) {
+            const top = topAt(x, z);
+            if (top === -Infinity) continue;
+            const a = [x, top + Z.over, z];
+            const L = Math.hypot(a[0] - b[0], a[2] - b[2]);
+            if (L > Z.reach || (best && L >= best.L)) continue;
+            // (and roof on past its end for `run` metres: off a rope's top a rider is thrown on along it)
+            const [ux, uz] = [(a[0] - b[0]) / L, (a[2] - b[2]) / L];
+            let roofed = true;
+            for (let k = 1; k <= Z.run && roofed; k += 1) if (topAt(x + ux * k, z + uz * k) < top - 1) roofed = false;
+            if (!roofed || !clearRope(a, b)) continue;
+            best = { a, L };
+          }
+      }
+      if (!best) {
+        console.log(`no clear zip line from the ${y.block} block's roof yard within ${Z.reach} m`);
+        continue;
+      }
+      zips.push({ block: y.block, a: best.a.map((v) => +v.toFixed(3)), b: b.map((v) => +v.toFixed(3)), colour: Z.colours[y.block] });
+    }
+    cfg.zips = zips;
+    console.log(`zip lines: ${zips.map((q) => `${q.block} ${Math.hypot(q.a[0] - q.b[0], q.a[2] - q.b[2]).toFixed(1)} m`).join(", ")}`);
+  }
+}
 // each corner block's own light (rules.low.beam, the master plan's colour a block): the pack's beam of light in the pack
 // material of the block's colour, up from its rooms building's roof yard, or up the Well from its bottom, so where it
 // is and where its own loot lies show from anywhere; drawn only, nothing to stand on
