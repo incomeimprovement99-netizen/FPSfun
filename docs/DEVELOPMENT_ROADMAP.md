@@ -9029,3 +9029,19 @@ and make sure it has an opposite color outline so it's easier to read".
   (500) and its keys 600.
 - **Checked:** the announcer check (no ring line in the decay, the decay's own line for stepping into it; seen
   failing with the old rule); the panel photographed before and after at 1080p; verify; rules.
+
+## Milestone 409 — The mantle 1.75 times as fast
+
+The owner, 2026-10-02: "the mantle is extremely slow for our now super fast-paced gameplay ... we zoom around the map and
+then we mantle and it's very slow", asking for one and a half to twice the speed.
+
+- **Its four durations** (src/config/movement.json, by how high the ledge is): 0.7, 0.6, 0.5 and 0.35 s, now 0.4,
+  0.343, 0.286 and 0.2 s, the middle of the asked range. The speed carried out of a mantle is as it was.
+- **The superglide's window stays 0.15 s.** It is now three quarters of the shortest mantle where it was under half, so a
+  superglide is easier to land than it was; at twice the speed it would have been nearly all of it.
+- Two simulator checks (tools/movesim.ts) followed the mantle, not the feature: the early superglide call-out jumped a
+  fixed 0.3 s before the end, now before the start of the shortest mantle, so it jumps halfway between the window and
+  the mantle's start; and a 4.5 m climb with its mantle now reaches a deck 0.07 s ahead of the short vertical zip beside
+  it, so that check asks the zip to be no slower than the climb by 0.1 s.
+- **Checked:** verify (the movement simulator's mantles and superglides) and rules; e2e `sktour` (its mantle and
+  superglide steps) and `speedkills`.

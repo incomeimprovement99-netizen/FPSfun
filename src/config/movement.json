@@ -84,12 +84,12 @@
   "slideFovScale": 1.1,
   "slideFovLerpTime": 0.25,
 
-  "_mantle": "Auto-mantle up to mantleHeight. Duration is bucketed by how high the ledge is relative to the player, not by approach speed.",
+  "_mantle": "Auto-mantle up to mantleHeight. Duration is bucketed by how high the ledge is relative to the player, not by approach speed. 1.75 times as fast as it was (0.7, 0.6, 0.5 and 0.35 s): the owner, 2026-10-02, 'the mantle is extremely slow for our now super fast-paced gameplay ... we zoom around the map and then we mantle and it's very slow', asking for one and a half to twice. The superglide's window stays 0.15 s, now three quarters of the shortest mantle where it was under half, so a superglide is easier than it was.",
   "mantleHeight": 80,
-  "mantleDurationBelow": 0.7,
-  "mantleDurationLevel": 0.6,
-  "mantleDurationAbove": 0.5,
-  "mantleDurationHigh": 0.35,
+  "mantleDurationBelow": 0.4,
+  "mantleDurationLevel": 0.343,
+  "mantleDurationAbove": 0.286,
+  "mantleDurationHigh": 0.2,
   "stepHeight": 22,
 
   "_crouchTiming": "Crouching takes effect after a delay; standing up is instant. Both are instant while sliding.",
