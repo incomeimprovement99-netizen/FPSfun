@@ -238,9 +238,22 @@ check("every pad a bot is sent up lands it on the roof's graph", padNodes.length
 // the small named places: each high city block's deck and the lobby
 // (and each corner block's own name, over its rooms building's roof yard or over the Well, the master plan's names)
 const YDS = (cfg as unknown as { yards?: Array<{ block: string; inside: number[] }> }).yards ?? [];
-const WAT = (cfg as unknown as { well?: { at: number[] } }).well?.at;
+const WH = (cfg as unknown as { well?: { hole: number[] } }).well?.hole;
+const WAT = WH ? [(WH[0] + WH[1]) / 2, (WH[2] + WH[3]) / 2] : undefined;
 const cornerAt = (id: string) => map.sites.find((s) => s.id === id);
 check("each corner block named on the map over its roof yard, or the Well's over the Well", ["motel", "noodle", "market", "well"].every((id) => cornerAt(id)) && YDS.every((y) => map.sites.some((s) => s.radius !== undefined && Math.abs(s.x - BR_X - (y.inside[0] + y.inside[1]) / 2) < 0.01 && Math.abs(s.z - BR_Z - (y.inside[2] + y.inside[3]) / 2) < 0.01)) && !!WAT && Math.hypot(cornerAt("well")!.x - BR_X - WAT[0], cornerAt("well")!.z - BR_Z - WAT[1]) < 0.01, ["motel", "noodle", "market", "well"].map((id) => { const s = cornerAt(id); return s ? `${s.name} (${(s.x - BR_X).toFixed(1)}, ${(s.z - BR_Z).toFixed(1)})` : `${id} missing`; }).join(", "));
+// (and each corner block's own light: the pack's beam in its colour, over its name)
+{
+  const BM = (cfg.rules.low as unknown as { beam?: { piece: string; mats: Record<string, string> } }).beam;
+  const placed = Object.entries(cfg.chunks as Record<string, { place: unknown[][] }>).flatMap(([, v]) => v.place.filter((p) => !!BM && String(p[0]).endsWith(`/${BM.piece}`)));
+  const blockOfSite: Record<string, string> = { motel: "-1,-1", noodle: "1,-1", market: "-1,1", well: "1,1" };
+  const lit = Object.entries(blockOfSite).map(([id, block]) => {
+    const s = cornerAt(id);
+    const p = s && placed.find((q) => Math.hypot((q[1] as number) - (s.x - BR_X), (q[3] as number) - (s.z - BR_Z)) < 0.01);
+    return { name: s?.name ?? id, mat: p ? (p[6] as string) : null, want: BM?.mats[block] };
+  });
+  check("a beam of light over each corner block in its own colour", placed.length === 4 && lit.every((q) => q.mat && q.mat === q.want) && new Set(lit.map((q) => q.mat)).size === 4, lit.map((q) => `${q.name} ${q.mat ?? "none"}`).join(", "));
+}
 check("the high city decks, the lobby and the corner blocks as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
 
 // The centre's curved streets (rules.streets.curves; the owner, 2026-09-30: "have them curve left and right along with

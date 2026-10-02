@@ -340,6 +340,8 @@ const islands: number[][] = [];
 const rooms: number[][] = [];
 const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> = [];
 const yards: Array<{ block: string; inside: number[]; y: number }> = [];
+/** each corner block's light (rules.low.beam): where it rises from */
+const beams: Array<{ chunk: string; block: string; x: number; y: number; z: number }> = [];
 {
   const L = R.low;
   const placed: OBox[] = [];
@@ -382,6 +384,7 @@ const yards: Array<{ block: string; inside: number[]; y: number }> = [];
       // (its inside, for tools/checks/sk-neon.ts to reach from the fire escape)
       const corners = [[-4.5, -4.5], [-0.5, 0]].map(([x, z]) => rotY(fy + Y.at[2], x, z)).map(([x, z]) => [rr.px + ox + x, rr.pz + oz + z]);
       yards.push({ block: `${sx},${sz}`, inside: [Math.min(corners[0][0], corners[1][0]), Math.max(corners[0][0], corners[1][0]), Math.min(corners[0][1], corners[1][1]), Math.max(corners[0][1], corners[1][1])].map((v) => +v.toFixed(3)), y: Y.y });
+      beams.push({ chunk, block: `${sx},${sz}`, x: (corners[0][0] + corners[1][0]) / 2, y: Y.y, z: (corners[0][1] + corners[1][1]) / 2 });
     }
     if (rp.size![1] > L.underBridge) throw new Error(`${L.rooms.piece} is ${rp.size![1]} m tall, over the bridges`);
     // the wedge where the block's two streets leave their fork: one building out along the bisector, facing the
@@ -1283,6 +1286,8 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     const ropes = [{ rope: [[rx, +(bottom + hang + R.lifts.under).toFixed(3), rz], [rx, +(W.rope.clear + hang).toFixed(3), rz]], floor: bottom, colour: W.rope.colour, onto: W.rope.onto, out: W.rope.out }];
     // (the bake's measure of its seal kept until it measures again)
     cfg.well = { ...(cfg.well?.measured ? { measured: cfg.well.measured } : {}), at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale, corridor, back: W.back };
+    // its block's light (rules.low.beam, below): up the light-well from its bottom
+    beams.push({ chunk: `c-${W.block.split(",")[1] === "-1" ? "n" : "s"}${W.block.split(",")[0] === "-1" ? "w" : "e"}`, block: W.block, x: (hole[0] + hole[1]) / 2, y: bottom, z: (hole[2] + hole[3]) / 2 });
     console.log(`the Well: ${W.levels.length} levels to ${bottom} m, its well ${(hole[1] - hole[0]).toFixed(1)} by ${(hole[3] - hole[2]).toFixed(1)} m`);
   }
 }
@@ -1648,6 +1653,17 @@ const skyStairs: Pt[] = [];
   console.log(`streets: ${STREETS.length} curved (${STREETS.map((q) => `${q.id} ${(q.pts.length * 0.5).toFixed(0)} m`).join(", ")}), ${kerbs} kerbs and ${dashes} dashes along them`);
 }
 
+// each corner block's own light (rules.low.beam, the master plan's colour a block): the pack's beam of light in the pack
+// material of the block's colour, up from its rooms building's roof yard, or up the Well from its bottom, so where it
+// is and where its own loot lies show from anywhere; drawn only, nothing to stand on
+{
+  const BM = R.low.beam as { piece: string; mats: Record<string, string> } | undefined;
+  if (BM) {
+    const bp = piece(BM.piece);
+    for (const b of beams) add(b.chunk, "c", [bp.key, +b.x.toFixed(3), b.y, +b.z.toFixed(3), 0, "g", BM.mats[b.block]] as Place);
+    cfg.beams = beams.map((b) => ({ block: b.block, at: [+b.x.toFixed(3), b.y, +b.z.toFixed(3)], mat: BM.mats[b.block] }));
+  }
+}
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));
 cfg.measured = { placements: [...chunks.values()].reduce((a, c) => a + c.place.length, 0), pieces: new Set([...chunks.values()].flatMap((c) => c.place.map((p) => p[0]))).size };
 writeFileSync(CFG_FILE, JSON.stringify(cfg, null, 1) + "\n");

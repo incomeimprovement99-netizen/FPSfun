@@ -8918,3 +8918,21 @@ blocks were not.
 - **Checked** (`tools/checks/sk-neon.ts`, new checks): each corner block named over its roof yard or the Well, and six
   items and more of its own loot about its name (seen failing with the names taken out: none named, no loot). verify
   and rules; e2e `loot` and `br`.
+
+## Milestone 403 — Each corner block's own colour: a beam of light over it
+
+The master plan's blocks each have a light colour so you know where you are at a glance: MOTEL HILL pink, NOODLE ROW
+red, MARKET yellow-green and THE WELL teal. Named on the map (Milestone 402), they had no colour of their own in the
+world.
+
+- **A beam over each** (rules.low.beam, tools/neon-layout.ts): the pack's beam of light, 92 m tall (StreetFocusLarge00),
+  in the pack material of the block's colour, read off the materials' emission: MOTEL HILL ADSLight04 (#f887ff),
+  NOODLE ROW Light04 (#ff0000), MARKET Light07 (#08ff39), THE WELL Light06 (#39ffff). The pack's own beams come in red
+  and cyan (StreetFocusLarge00b and 00c) in those same two materials.
+- **Where:** up from the middle of each rooms building's roof yard (Milestone 397), where the block's name and its own
+  loot are, and up the Well from the middle of its bottom, through the light-well. Drawn only, nothing to stand on.
+- THE WELL's name stood over the Well's stack's corner (its pivot), 14 m from the middle of the light-well; it is at
+  the middle now, with its beam.
+- The map: its files lo 83 MB, hi 143 MB, max 349 MB. **Its files are version 25.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): a beam over each corner block's name in its own colour, four
+  colours (seen failing with the beams left out). verify and rules; e2e `loot` and `br`. Photographed from the street.

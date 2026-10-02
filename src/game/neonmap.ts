@@ -207,10 +207,10 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     return dir === "n" || dir === "s" ? [B.inner[0], B.inner[1], far[0], far[1]] : [far[0], far[1], B.inner[0], B.inner[1]];
   };
   const sites: BrMap["sites"] = [];
-  // (and each corner block's own name, the master plan's: over its rooms building's roof yard, or over the Well, its
+  // (and each corner block's own name, the master plan's: over its rooms building's roof yard, or over the Well's middle, its
   // loot within `reach` of there, so up the fire escape and through the building's floors)
   const yards = (neonCfg as unknown as { yards?: Array<{ block: string; inside: number[] }> }).yards ?? [];
-  const well = (neonCfg as unknown as { well?: { at: number[] } }).well;
+  const well = (neonCfg as unknown as { well?: { hole: number[] } }).well;
   for (const q of G.sites.list as Array<{ id: string; name: string; over: string; reach?: number }>) {
     if (q.over === "middle") {
       sites.push({ id: q.id, name: q.name, x: (T.x0 + T.x1) / 2 + BR_X, z: (T.z0 + T.z1) / 2 + BR_Z });
@@ -219,7 +219,7 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     if (q.over.length === 2) {
       const block = `${q.over[1] === "w" ? -1 : 1},${q.over[0] === "n" ? -1 : 1}`;
       const y = yards.find((w) => w.block === block);
-      const at = y ? [(y.inside[0] + y.inside[1]) / 2, (y.inside[2] + y.inside[3]) / 2] : well && neonCfg.rules.well?.block === block ? well.at : null;
+      const at = y ? [(y.inside[0] + y.inside[1]) / 2, (y.inside[2] + y.inside[3]) / 2] : well && neonCfg.rules.well?.block === block ? [(well.hole[0] + well.hole[1]) / 2, (well.hole[2] + well.hole[3]) / 2] : null;
       if (at) sites.push({ id: q.id, name: q.name, x: at[0] + BR_X, z: at[1] + BR_Z, radius: q.reach });
       continue;
     }
