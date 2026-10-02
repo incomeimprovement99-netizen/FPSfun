@@ -4356,14 +4356,15 @@ function stepDecay(now: number): void {
   }
   if (warned.length) {
     hud.notice(`DECAY INCOMING  ·  ${warned.join(", ")}`, now, 3);
-    announcer.say("ringClosing", realNow());
+    // the first wave is warned while the ship is still boarding: the notice shows where not to land, a voice there only talked over the drop
+    if (!player.aboard && !player.dropping) announcer.say("decayWarn", realNow());
   }
   if (decaying.length) hud.notice(`DECAYING  ·  ${decaying.join(", ")}  ·  GET OUT`, now, 3);
   if (d.captureZone() && !captureSaid) {
     captureSaid = true;
     const fin = brMap.pois.find((p) => p.id === d.decay!.final)?.name ?? "THE LAST SECTOR";
     hud.notice(`THE CAPTURE ZONE IS OPEN  ·  ${fin}  ·  HOLD IT ${DECAY_CFG.capture.hold} S TO WIN`, now, 4);
-    announcer.say("finalRing", realNow());
+    announcer.say("captureOpen", realNow());
   }
 }
 
@@ -8535,7 +8536,7 @@ function step(): void {
     const b = duelHud?.br;
     const dropping = duel instanceof BrMatch && (player.aboard || player.dropping);
     if (b) {
-      const w: Watch = { dropping, ringPhase: b.ring.phase, ringPhases: b.ring.phases, closing: b.ring.closing, outside: b.ring.outside, squads: b.squads, team: b.team, placement: b.placement };
+      const w: Watch = { dropping, ringPhase: b.ring.phase, ringPhases: b.ring.phases, closing: b.ring.closing, outside: b.ring.outside, squads: b.squads, team: b.team, placement: b.placement, decay: duel instanceof BrMatch && !!duel.decay };
       for (const line of cues(watchWas, w)) announcer.say(line, realNow());
       watchWas = w;
     } else watchWas = null;

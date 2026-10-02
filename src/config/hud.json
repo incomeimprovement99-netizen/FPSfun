@@ -388,7 +388,10 @@
         "modeFont": 13
       },
       "outline": {
+        "_note": "The outline is the opposite of the text it is under: dark (rgb) under light text, light (lightRgb) under text darker than darkBelow (its luminance, 0 to 1). A dark outline under the keys' dark letters on their white caps smeared them into blobs (the owner, 2026-10-02: 'make sure it has an opposite color outline so it's easier to read').",
         "rgb": "0,0,0",
+        "lightRgb": "255,255,255",
+        "darkBelow": 0.4,
         "alpha": 0.85,
         "text": 0.1,
         "min": 2,

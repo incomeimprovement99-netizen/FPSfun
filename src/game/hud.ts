@@ -385,6 +385,21 @@ function squadState(life: MateLife): { text: string; color: string } | null {
       return null;
   }
 }
+/** a CSS colour's luminance, 0 to 1, from #rgb, #rrggbb or rgb()/rgba(); a colour it cannot read counts as light */
+const lumSeen = new Map<string, number>();
+function lumOf(color: string): number {
+  let l = lumSeen.get(color);
+  if (l !== undefined) return l;
+  const s = color.trim();
+  let rgb: number[] | null = null;
+  const fn = /^rgba?\(([^)]*)\)$/.exec(s);
+  if (fn) rgb = fn[1].split(",").slice(0, 3).map(Number);
+  else if (/^#[0-9a-f]{6}$/i.test(s)) rgb = [1, 3, 5].map((i) => parseInt(s.slice(i, i + 2), 16));
+  else if (/^#[0-9a-f]{3}$/i.test(s)) rgb = [1, 2, 3].map((i) => parseInt(s[i] + s[i], 16));
+  l = rgb && rgb.every(Number.isFinite) ? (0.2126 * rgb[0] + 0.7152 * rgb[1] + 0.0722 * rgb[2]) / 255 : 1;
+  lumSeen.set(color, l);
+  return l;
+}
 /** a CSS colour's own alpha: an rgba()'s fourth part, else 1 (the outline fades with the text it is under) */
 function alphaOf(color: string): number {
   const m = /^rgba\(([^)]*)\)$/.exec(color.trim());
@@ -1107,33 +1122,34 @@ export class Hud {
       // right to left, so the last key sits on the panel's right edge
       let x = x0;
       for (let i = keys.length - 1; i >= 0; i--) {
-        c.font = this.font(700, 15 * u);
+        c.font = this.font(600, 15 * u);
         const w = Math.max(cap, c.measureText(keys[i]).width + 12 * u);
         x -= w;
         c.fillStyle = "#f2f2f2";
         c.fillRect(x, yMid - cap / 2, w, cap);
-        this.text(keys[i], x + w / 2, yMid + 5 * u, 700, 15 * u, "#101214", "center");
+        this.text(keys[i], x + w / 2, yMid + 5 * u, 600, 15 * u, "#101214", "center");
         x -= 5 * u;
       }
     };
     let y = top + head;
     for (const r of k.rows) {
       const mid = y + rowH / 2;
-      this.text(r.label, left, mid + 5 * u, 600, 15 * u, WHITE);
+      // a weight down from the rest of the HUD: a column of bold labels read as a heavy block (the owner, 2026-10-02)
+      this.text(r.label, left, mid + 5 * u, 500, 15 * u, WHITE);
       caps(r.keys, right, mid);
       y += rowH;
     }
     // how to put it away, in the hacks' gold so it is the line a new player finds
     const mid = y + foot / 2;
-    this.text("Press", left, mid + 5 * u, 700, 14 * u, "#ffd23c");
-    c.font = this.font(700, 14 * u);
+    this.text("Press", left, mid + 5 * u, 600, 14 * u, "#ffd23c");
+    c.font = this.font(600, 14 * u);
     const pw = c.measureText("Press ").width;
-    c.font = this.font(700, 13 * u);
+    c.font = this.font(600, 13 * u);
     const hw = Math.max(cap, c.measureText(k.hide).width + 12 * u);
     c.fillStyle = "#ffd23c";
     c.fillRect(left + pw, mid - cap / 2, hw, cap);
-    this.text(k.hide, left + pw + hw / 2, mid + 5 * u, 700, 13 * u, "#101214", "center");
-    this.text("to hide this", left + pw + hw + 6 * u, mid + 5 * u, 700, 14 * u, "#ffd23c");
+    this.text(k.hide, left + pw + hw / 2, mid + 5 * u, 600, 13 * u, "#101214", "center");
+    this.text("to hide this", left + pw + hw + 6 * u, mid + 5 * u, 600, 14 * u, "#ffd23c");
     this.hintsBottom = top + h;
   }
 
@@ -1930,8 +1946,8 @@ export class Hud {
     const c = this.ctx;
     c.font = this.font(weight, size);
     c.textAlign = align;
-    // SpeedKills: a thin dark outline under every text, so none of it is lost against a lit wall or a bright floor
-    // (the owner, Phase 20 A6); faded text keeps a faded outline
+    // SpeedKills: a thin outline under every text, so none of it is lost against a lit wall or a bright floor
+    // (the owner, Phase 20 A6), in the colour opposite the text's; faded text keeps a faded outline
     const L = this.layout;
     if (L) {
       const o = L.outline;
@@ -1940,7 +1956,7 @@ export class Hud {
       c.lineJoin = "round";
       c.miterLimit = 2;
       c.lineWidth = Math.min(o.max * this.uNow, Math.max(o.min * this.uNow, size * o.text));
-      c.strokeStyle = `rgba(${o.rgb},${o.alpha * alphaOf(color)})`;
+      c.strokeStyle = `rgba(${lumOf(color) < o.darkBelow ? o.lightRgb : o.rgb},${o.alpha * alphaOf(color)})`;
       c.strokeText(t, x, y);
       c.lineWidth = lw;
       c.lineJoin = lj;

@@ -29,6 +29,8 @@ export interface Watch {
   team: number;
   /** where you finished, once you have (1 is the win) */
   placement: number | null;
+  /** SpeedKills' sector decay: there is no ring to speak of, its waves are said where the decay is run (main.ts stepDecay) */
+  decay?: boolean;
 }
 
 /**
@@ -40,8 +42,8 @@ export function cues(prev: Watch | null, next: Watch): Line[] {
   const out: Line[] = [];
   if (!prev) return next.dropping ? ["drop"] : [];
   if (next.dropping && !prev.dropping) out.push("drop");
-  if (next.closing && !prev.closing) out.push(next.ringPhase >= next.ringPhases ? "finalRing" : "ringClosing");
-  if (next.outside && !prev.outside && !next.dropping) out.push("outside");
+  if (next.closing && !prev.closing && !next.decay) out.push(next.ringPhase >= next.ringPhases ? "finalRing" : "ringClosing");
+  if (next.outside && !prev.outside && !next.dropping) out.push(next.decay ? "decayOutside" : "outside");
   // squads counted down to the last three and the last two, said once each, and not when it is you and one other in solo
   if (next.team > 1 && next.squads < prev.squads) {
     if (next.squads === 3) out.push("squads3");

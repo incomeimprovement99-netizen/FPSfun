@@ -30,6 +30,7 @@ console.log("The announcer");
   check("down to three squads, then two, each said once", same(cues(w({ squads: 4 }), w({ squads: 3 })), ["squads3"]) && same(cues(w({ squads: 3 }), w({ squads: 2 })), ["squads2"]) && same(cues(w({ squads: 5 }), w({ squads: 4 })), []));
   check("in solo the count is not said: it is everyone", same(cues(w({ team: 1, squads: 4 }), w({ team: 1, squads: 3 })), []));
   check("the end says the win or the loss, once", same(cues(base, w({ placement: 1 })), ["won"]) && same(cues(base, w({ placement: 4 })), ["lost"]) && same(cues(w({ placement: 4 }), w({ placement: 4 })), []));
+  check("in the sector decay no ring is said: its waves closing are not the ring closing, and stepping into the decay says the decay", same(cues(w({ decay: true }), w({ decay: true, closing: true })), []) && same(cues(w({ decay: true, ringPhase: 5 }), w({ decay: true, ringPhase: 5, closing: true })), []) && same(cues(w({ decay: true }), w({ decay: true, outside: true })), ["decayOutside"]));
   check("two things at once are both said, in order", same(cues(base, w({ closing: true, squads: 3 })), ["ringClosing", "squads3"]));
   // the config: every line said by a voice there is, with words to say, and short enough to be a callout
   const lines = Object.entries(CFG.lines);

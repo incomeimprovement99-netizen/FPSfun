@@ -9008,3 +9008,24 @@ roof yard; from there nothing led on.
 - **Checked** (`tools/checks/sk-neon.ts`, a new check): each ridden by a player's own movement down from the deck onto the
   yard's roof and back up onto the deck (seen failing on MARKET's rope, the rider off onto the street). verify and
   rules; e2e `loot` and `br`. Photographed.
+
+## Milestone 408 — No ring on the dropship, and the keys on screen read cleanly
+
+The owner, 2026-10-02: "I don't like the ring is closing as soon as we get in the drop ship. Let's get rid of that.
+It's not even a ring anymore", and of the keys on the right: "it's bolded, but it looks bad bolded ... not bold it
+and make sure it has an opposite color outline so it's easier to read".
+
+- **The ring line:** SpeedKills' battle royale has sector decay, not a ring, but its first wave is warned while the
+  ship is still boarding and the warning said "The ring is closing." Now:
+  - nothing is said on the ship or in the drop (the DECAY INCOMING notice stays: it shows where not to land);
+  - after landing a wave says "Decay incoming. Move.";
+  - stepping into the decay says "Get out of the decay", not "outside the ring";
+  - the capture zone opening says so, not "Final ring";
+  - the ring's own lines (closing, final ring, outside) are never said in the decay (announcer.ts `decay`).
+  The legacy battle royale's ring lines are as they were.
+- **The keys panel:** every SpeedKills HUD text had the same dark outline, so the dark letters on the keys' white
+  caps smeared into blobs. The outline is now the opposite of its text: dark under light text, white under text
+  darker than 0.4 luminance (hud.json `outline.lightRgb`, `darkBelow`). The panel's labels are a weight lighter
+  (500) and its keys 600.
+- **Checked:** the announcer check (no ring line in the decay, the decay's own line for stepping into it; seen
+  failing with the old rule); the panel photographed before and after at 1080p; verify; rules.
