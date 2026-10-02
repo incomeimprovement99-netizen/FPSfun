@@ -9172,3 +9172,40 @@ pads threw you onto the High City decks from the Loop; the tower and its base we
   from the plaza, each landing on the roof walked from (both seen failing with the way down's landing moved over the
   roof's stair well). verify and rules; e2e `br`. Photographed from the plaza, the base's roof and the top, by day and
   by night.
+
+## Milestone 414 — ANAKIN on the soldier: the first of the eight guns fitted for other players' view
+
+The owner, 2026-10-02: "start with the next gun and then you know, continue on the plan ... the first person agent can
+see your work ... it will have, like, a head start on the first gun". The first gun of `PLAN_THE_EIGHT_GUNS.md`, on the
+soldier as others see it (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.1), with its groundwork G2.
+
+- **G2, the checks over the fitted guns:** the skfigure e2e, figure-frames.ts and figure-hands.ts take every gun
+  soldierhold.json has a fit for, in the roster's order, so a gun joins every check by its fit alone. The glint is
+  checked on any gun with a magnified scope; the reload's work after the seat is the first person's rack, the soldier's
+  own bolt, or nothing yet for a gun the first person has no rack for; the swap is checked into each fitted gun with the
+  first person's swap shares from the one before it, so the USSO and BOOG are now swapped both ways.
+- **ANAKIN measured** (SciFiSMG01_2, its parts' boxes and `gun-shape.ts`): 85 cm; the magazine inside its pistol grip,
+  raked back about 35 degrees, as the USSO's is; the trigger in a big guard; the charging handle on the left 18 to 20 cm
+  ahead of the trigger, where the MP5's is; the fore-end the receiver's flat underside, 6 cm wide; a stock that is a
+  solid slab 5.2 cm wide and up to 30 cm tall behind the grip. `figure-hands.ts GUNONLY WHOLE=1` photographs a gun
+  whole, level, on a grid. Sent to the guns agent as its head start, with the next guns' layouts.
+- **Fitted** (soldierhold.json guns.alternator_smg):
+  - the left hand under the receiver, 20.5 cm ahead of the trigger (the shared default was inside the guard);
+  - the right hand on the grip's top with the index on the trigger at its crease (0 mm), placed from the USSO's fitted
+    hand carried over by each gun's trigger and grip: the search from the shared start had laid it flat on the
+    receiver's side with straight fingers;
+  - the body at rest, the sprint, air, swap and rise carries, the reload's point and tilt;
+  - the shoulder's reach of 70 degrees, as BOOG's (at the shared 34 the hold slid 30% back aimed at a sprint, at 55 4%).
+  - In every pose but the reload's first tenth of a second no hand is more than 3 or 4 mm into the gun.
+- **Left open, measured:** the stock runs through the right forearm, 70 to 140 mm at rest and 25 aimed. No place of the
+  butt, chest turn, elbow, eye relief or hand turn clears every pose; from outside it reads as the forearm laid along
+  the stock, hidden from behind. `figure-audit.js` takes `gunCap` to look past its 40 mm cap, which had hidden how deep
+  this was (and that some tries were better) from a tuning grid.
+- **Two checks made fair to any gun:** the punch's fist is judged by how far it closes toward the fist from the gun's
+  own hold, and the magazine's middle is measured in the magazine's own frame (a box on the world's axes round a raked
+  magazine on a rolled gun put ANAKIN's 9 mm off).
+- **Checked:** the skfigure e2e (76, ANAKIN's 22 among them), the two rewritten checks seen failing on all three guns with
+  the fist switched off and the magazine's phase centre at its top; `figure-sweep.ts` over every motion; frame sheets
+  of ANAKIN at rest, aimed and sprinting from four sides; verify; rules; the type check.
+- **Waiting on the guns agent:** ANAKIN's first-person rack (fparms.json packGuns) and its gunfeel.json entry. Until
+  then the soldier reloads ANAKIN with the magazine alone and its swap has no phase or cup; both turn on with them.
