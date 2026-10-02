@@ -7980,13 +7980,18 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // A hand is on its hold, too: its palm and the fingers that close round it touching the gun, `off` mm at most (a hand
   // kept out of the gun and splayed beside it measured perfect by depth alone).
   const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40, off: 8 };
+  // Every gun the soldier is fitted to hold (soldierhold.json guns, in the roster's order: docs/PLAN_SOLDIER_EIGHT_GUNS.md
+  // G2): each is held to every check below, so a gun joins them by its fit alone, and none is forgotten for it
+  const ROSTER = skCfg.roster as string[];
+  const FITTED = Object.keys(soldierHoldCfg.guns).filter((k) => !k.startsWith("_")).sort((a, b) => ROSTER.indexOf(a) - ROSTER.indexOf(b));
+  const nameOf = (id: string) => (skCfg.weapons as Record<string, { name?: string }>)[id]?.name ?? id;
   type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number> };
   const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"];
   const on = (a: A) => Math.max(a.palmGap?.l ?? 99, a.palmGap?.r ?? 99) <= BAR.off && HOLDING.every((f) => (a.fingerGap?.[f] ?? 99) <= BAR.off);
   const within = (a: A | null, aimed: boolean) =>
     !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn && on(a);
-  for (const id of ["r97", "sentinel"]) {
-    const name = id === "r97" ? "USSO" : "BOOG";
+  for (const id of FITTED) {
+    const name = nameOf(id);
     await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, -9); r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "${id}", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.9); })()`);
     const poses: Array<[string, Record<string, unknown>]> = [
       ["at rest", { speed: 0, stance: "stand", pitch: 0 }],
@@ -8013,13 +8018,16 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     // the fingers drawn at soldierhold.json fingerSize (the owner: "cut down by like 50%"), every one of both hands
     const sizes = await ev<number[]>(page, `(() => { const f = window.__range.labFigures()[0].figure; return ["index", "middle", "ring", "pinky", "thumb"].flatMap((n) => ["l", "r"].map((s) => Math.round(f.boneAt(n + "_01_" + s).scale.x * 1000) / 1000)); })()`);
     check(`the soldier holding ${name}: every finger drawn at ${soldierHoldCfg.fingerSize} of the model's size`, sizes.every((x) => Math.abs(x - soldierHoldCfg.fingerSize) < 1e-3), sizes.join());
-    if (id === "sentinel") {
-      // BOOG's scope glints only while the figure looks down it (the owner, 2026-09-30: "the sniper should only have glint
-      // when they are ADSing"): aimed in, yes; the aim held through a reload or a swap, or at the hip, no
+    const glinting = await ev<boolean>(page, `!!window.__range.labFigures()[0].figure.glint`);
+    if (glinting) {
+      // A magnified scope glints only while the figure looks down it (the owner, 2026-09-30, of BOOG: "the sniper should
+      // only have glint when they are ADSing"): aimed in, yes; the aim held through a reload or a swap, or at the hip, no
       const glintIn = async (p: Record<string, unknown>) => ev<boolean | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify({ speed: 0, stance: "stand", pitch: 0, ...p })}); r.figureLabStep(0.6); const g = r.labFigures()[0].figure.glint; return g ? g.visible : null; })()`);
       const glints = { aimed: await glintIn({ ads: 1 }), reloading: await glintIn({ ads: 1, act: "reload" }), swapping: await glintIn({ ads: 1, act: "swap" }), hip: await glintIn({ ads: 0 }), again: await glintIn({ ads: 1 }) };
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
-      check("BOOG's scope glints only while the soldier looks down it: aimed in, not through a reload or a swap, not at the hip", glints.aimed === true && glints.reloading === false && glints.swapping === false && glints.hip === false && glints.again === true, JSON.stringify(glints));
+      check(`${name}'s scope glints only while the soldier looks down it: aimed in, not through a reload or a swap, not at the hip`, glints.aimed === true && glints.reloading === false && glints.swapping === false && glints.hip === false && glints.again === true, JSON.stringify(glints));
+    }
+    if (id === "sentinel") {
       // BOOG's left hand on the rail under its fore-end, not the magazine (which ends 20 cm in front of the grip): the
       // owner, 2026-09-30, "the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail"
       const rail = await ev<{ z: number; y: number; slide: number }>(page, `(() => { const f = window.__range.labFigures()[0].figure, g = f.gunObject, h = f.holdPoints(); const at = g.worldToLocal(h.support.clone()); return { z: Math.round(at.z * 1000) / 1000, y: Math.round(at.y * 1000) / 1000, slide: f.supportSlide }; })()`);
@@ -8105,6 +8113,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const coming = await to((FR.phaseIn[0] + FR.phaseIn[1]) / 2);
     const seated = await to(FR.seat + 0.02);
     const workAt = rack?.grab ? FR.rack[0] + ((rack.grab.pull[0] + rack.grab.pull[1]) / 2) * (FR.rack[1] - FR.rack[0]) : FR.rack[0] + 0.5 * (FR.rack[1] - FR.rack[0]);
+    const bolted = !rack?.grab && !!(soldierHoldCfg.guns as Record<string, { reload?: { bolt?: unknown } }>)[id]?.reload?.bolt;
     const working = await to(workAt);
     const slid = (m: Mag) => (home && m ? home.y - m.y : 0);
     check(`the soldier's ${name} reload is the first person's: the left hand points at the magazine as it slides down and phases out`, !!pointing && pointing.shown && pointing.phase > 0 && pointing.phase < 1 && slid(pointing) > 0 && /l:point/.test(pointing.keys), JSON.stringify({ pointing, slid: slid(pointing) }));
@@ -8115,8 +8124,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     check(`the soldier's ${name} reload: a new one phases in (${SI} of the way out) and comes up`, !!coming && coming.shown && coming.phase > 0.2 && coming.phase < 0.8 && Math.abs(slid(coming) - FR.slide * SI * (1 - coming.phase)) < 0.002, JSON.stringify({ coming, slid: slid(coming) }));
     check(`the soldier's ${name} reload: seated by the first person's seat (${FR.seat}), home and whole`, !!seated && !!home && seated.shown && seated.phase === 1 && Math.abs(slid(seated)) < 1e-3, JSON.stringify({ seated, slid: slid(seated) }));
     check(
-      `the soldier's ${name} reload: then the hands work the gun as the first person's do (${rack?.grab ? "the left racks the charging handle" : "the right works the bolt"})`,
-      !!working && (rack?.grab ? /l:handle/.test(working.keys) : /r:bolt/.test(working.keys)),
+      `the soldier's ${name} reload: then the hands work the gun as the first person's do (${rack?.grab ? "the left racks the charging handle" : bolted ? "the right works the bolt" : "nothing yet: the first person has no rack for it, so the magazine alone"})`,
+      !!working && (rack?.grab ? /l:handle/.test(working.keys) : bolted ? /r:bolt/.test(working.keys) : !/l:handle|r:bolt/.test(working.keys)),
       working?.keys ?? "none"
     );
     // round its own middle where the first person's is (fparms.json reload.magPhase; the owner, 2026-10-01: "make the
@@ -8175,33 +8184,37 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // A swap as the first person's (gunfeel.json guns.<id>.swap; the owner, 2026-09-30, "no resetting states, jumping UI or
   // bugging in any frame"): the USSO phases out over its holster, BOOG in over its draw from when it comes, the model
   // changing between, the magazine with the gun. The new gun appeared whole in the hands at the swap's middle
-  {
+  const SWAPPED = FITTED.filter((g) => !!(gunfeelCfg.guns as Record<string, { swap?: unknown }>)[g]?.swap);
+  for (const [k, SB] of SWAPPED.entries()) {
+    if (SWAPPED.length < 2) break;
+    // (from the one before it, the last into the first)
+    const SA = SWAPPED[(k + SWAPPED.length - 1) % SWAPPED.length];
     type Ph = { gun: number; mag: number; id: string; shown: boolean; lowered: number; keys: string; radial: number | null };
     const ph = `(() => { const f = window.__range.labFigures()[0].figure; return { gun: f.gunSweep.phase.value, mag: f.magSweep.phase.value, id: f.gunId, shown: !!f.gunObject?.visible, lowered: f.lowered, keys: f.rifleOut?.keys ?? "", radial: f.gunSweep.radial ? f.gunSweep.radial.value : null }; })()`;
     const SWC = gunfeelCfg.guns as unknown as Record<string, { swap: { out: number[]; in: number[] } }>;
-    const H = (await ev<{ holster: number }>(page, `window.__range.weaponTimes("r97")`)).holster;
-    const D = (await ev<{ deploy: number }>(page, `window.__range.weaponTimes("sentinel")`)).deploy;
-    await ev(page, `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(1); r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "r97" }); })()`);
+    const H = (await ev<{ holster: number }>(page, `window.__range.weaponTimes("${SA}")`)).holster;
+    const D = (await ev<{ deploy: number }>(page, `window.__range.weaponTimes("${SB}")`)).deploy;
+    await ev(page, `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "${SA}", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(1); r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "${SA}" }); })()`);
     const held = await ev<Ph>(page, ph);
     // (the first person's shares are of the whole swap, its first half the holster: half a share is a share of it)
-    const outMid = (SWC.r97.swap.out[0] + SWC.r97.swap.out[1]) * H;
+    const outMid = (SWC[SA].swap.out[0] + SWC[SA].swap.out[1]) * H;
     await ev(page, `window.__range.figureLabStep(${outMid})`);
     const going = await ev<Ph>(page, ph);
     await ev(page, `window.__range.figureLabStep(${H - outMid})`);
     const gone = await ev<Ph>(page, ph);
-    await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "sentinel" })`);
+    await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "swap", weapon: "${SB}" })`);
     const arrived = await ev<Ph>(page, ph);
-    const inMid = (SWC.sentinel.swap.in[0] + SWC.sentinel.swap.in[1] - 1) * D;
+    const inMid = (SWC[SB].swap.in[0] + SWC[SB].swap.in[1] - 1) * D;
     await ev(page, `window.__range.figureLabStep(${inMid})`);
     const coming = await ev<Ph>(page, ph);
     await ev(page, `window.__range.figureLabStep(${D - inMid})`);
     const whole = await ev<Ph>(page, ph);
-    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, weapon: "sentinel" }); r.figureLabStep(0.5); })()`);
+    await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, weapon: "${SB}" }); r.figureLabStep(0.5); })()`);
     const after = await ev<Ph>(page, ph);
     const mid = (x: Ph) => x.gun > 0.15 && x.gun < 0.85 && Math.abs(x.mag - x.gun) < 1e-6;
     check(
-      "the soldier's swap is the first person's: the USSO phases out over its holster, the magazine with it, BOOG phases in over its draw from nothing, whole by its end",
-      held.gun === 1 && mid(going) && going.id === "r97" && gone.gun < 0.01 && arrived.id === "sentinel" && arrived.gun === 0 && mid(coming) && coming.id === "sentinel" && whole.gun === 1 && after.gun === 1 && after.mag === 1 && [held, going, gone, arrived, coming, whole].every((x) => x.shown),
+      `the soldier's swap is the first person's: the ${nameOf(SA)} phases out over its holster, the magazine with it, the ${nameOf(SB)} phases in over its draw from nothing, whole by its end`,
+      held.gun === 1 && mid(going) && going.id === SA && gone.gun < 0.01 && arrived.id === SB && arrived.gun === 0 && mid(coming) && coming.id === SB && whole.gun === 1 && after.gun === 1 && after.mag === 1 && [held, going, gone, arrived, coming, whole].every((x) => x.shown),
       JSON.stringify({ held, going, gone, arrived, coming, whole, after })
     );
     // and held as the first person's is: in place when its style is the cup (fparms.json swap.style; the owner, 2026-09-30,
@@ -8209,7 +8222,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     // off it and cupped round it, the phase out from its edges where the sweep has one; else lowered across the body
     const cupOn = (fparmsCfg as { swap?: { style?: string } }).swap?.style === "cup";
     check(
-      cupOn ? "the soldier's swap is in place, as the first person's cup: the gun stays up, both hands cupped round it through the swap's middle, back on BOOG's holds after" : "the soldier's swap lowers the gun across the body, as the first person's swap (not the cup) does",
+      cupOn ? `the soldier's swap is in place, as the first person's cup: the gun stays up, both hands cupped round it through the swap's middle, back on the ${nameOf(SB)}'s holds after` : "the soldier's swap lowers the gun across the body, as the first person's swap (not the cup) does",
       cupOn ? [going, gone, arrived, coming].every((x) => x.lowered < 0.05 && (x.radial === null || x.radial === 1)) && [gone, arrived].every((x) => /l:cup/.test(x.keys) && /r:cup/.test(x.keys)) && !/cup/.test(after.keys) : gone.lowered > 0.5,
       JSON.stringify({ cupOn, going, gone, arrived, coming, after })
     );
@@ -8242,8 +8255,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // Each gun: both palms on their holds, the gun held as the soldier stands with it (not aimed in, head down on the
   // stock), and the whole gun inside the panel at every turn (BOOG, held side on, ran out of it)
   await ev(lp, `(() => { const r = window.__range; r.loadouts.copyTo({ kind: "default", index: 0 }, 0); document.getElementById("overlay").classList.remove("hidden"); document.querySelector('[data-tab="loadouts"]').click(); })()`);
-  for (const id of ["r97", "sentinel"]) {
-    const name = id === "r97" ? "USSO" : "BOOG";
+  for (const id of FITTED) {
+    const name = nameOf(id);
     await ev(lp, `window.__range.loadouts.edit(0, { slot1: "${id}" })`);
     const shown = await lp.waitForFunction(`(window.__range.previewState().key || "").includes("|${id}|")`, { polling: 100, timeout: 15000 }).then(() => true, () => false);
     await sleep(1500);

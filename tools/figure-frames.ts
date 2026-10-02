@@ -15,13 +15,15 @@
 // (needs the dev server; a real GPU, as pack-frames.ts has; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
+import soldierHold from "../src/config/soldierhold.json";
 import puppeteer, { type Page } from "puppeteer";
 import sharp from "sharp";
 
 const URL = process.env.SHOT_URL ?? "http://localhost:5198/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const OUT = path.resolve(process.argv[2] ?? "shots/figure");
-const IDS = process.argv.slice(3).length ? process.argv.slice(3) : ["r97", "sentinel"];
+// (by default every gun the soldier is fitted to hold: soldierhold.json guns)
+const IDS = process.argv.slice(3).length ? process.argv.slice(3) : Object.keys(soldierHold.guns).filter((k) => !k.startsWith("_"));
 const W = 1600;
 const H = 1000;
 const COLS = 6;

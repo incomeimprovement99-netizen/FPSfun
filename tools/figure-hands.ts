@@ -11,6 +11,8 @@
 // Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-hands.ts [out dir] [gun ids...]
 //      GUNONLY=1 hides the soldier and draws a centimetre grid in the gun's own middle plane (red every 5 cm): how a
 //      new gun's grip and fore-end are measured before its hands are fitted (tools/gun-shape.ts gives the numbers)
+//      WHOLE=1 (with GUNONLY) frames the whole gun from each side instead of a hold, the grid over all of it: a new gun's
+//      shape at a glance, where the close views showed only what lay round holds that were not yet its own
 //      XRAY=1 adds each view with the soldier see-through and the skin found in the gun marked
 //      TUNE='{"hands":...}' tries hold numbers over the gun's own before photographing (soldierhold.json guns.<id>)
 //      POSE='{"speed":14}' photographs the hands in another pose than aimed in (a lab pose: speed, stance, pitch, ads, act)
@@ -19,13 +21,15 @@
 // (needs the dev server and a real GPU; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
+import soldierHold from "../src/config/soldierhold.json";
 import puppeteer, { type Page } from "puppeteer";
 import sharp from "sharp";
 
 const URL = process.env.SHOT_URL ?? "http://localhost:5198/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 const OUT = path.resolve(process.argv[2] ?? "shots/hands");
-const IDS = process.argv.slice(3).length ? process.argv.slice(3) : ["r97", "sentinel"];
+// (by default every gun the soldier is fitted to hold: soldierhold.json guns)
+const IDS = process.argv.slice(3).length ? process.argv.slice(3) : Object.keys(soldierHold.guns).filter((k) => !k.startsWith("_"));
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 /** each view: the figure's turn from facing the camera (degrees) */
 const VIEWS: Record<string, number> = { right: 90, left: -90, front: 0 };
@@ -34,6 +38,8 @@ const NEAR: Record<string, Record<string, number>> = { grip: { right: 0.1, left:
 const HOLDS = { grip: "r", support: "l" } as const;
 /** how far in front of the camera the hold is put, metres */
 const OFF = 0.55;
+/** the whole gun from its sides (WHOLE=1, with GUNONLY) */
+const WHOLE = process.env.GUNONLY === "1" && process.env.WHOLE === "1";
 const CLIP = { x: 200, y: 200, width: 600, height: 600 };
 const TILE = 300;
 /** the pose the hands are photographed in: aimed in, or what POSE says over it */
@@ -70,7 +76,9 @@ async function main(): Promise<void> {
     for (const id of IDS) {
       const tiles: Buffer[] = [];
       for (const [hold, side] of Object.entries(HOLDS)) {
+        if (WHOLE && hold !== "grip") continue;
         for (const [view, turn] of Object.entries(VIEWS)) {
+          if (WHOLE && view === "front") continue;
           // the figure aimed in, then moved so its hold is OFF in front of the camera
           const audit = await ev<Audit | null>(
             page,
@@ -85,20 +93,39 @@ async function main(): Promise<void> {
               r.figureLabStep(${Number(process.env.STEP ?? 0.8)});
               const f = r.labFigures()[0], mq = f.figure;
               f.group.updateMatrixWorld(true);
-              const at = mq.holdPoints()[${JSON.stringify(hold)}].clone();
+              if (${WHOLE}) {
+                // the whole gun level and side on: the figure turned so the gun's own frame faces the camera (its side
+                // toward it, its up the picture's), whatever an unfitted hold does to it
+                const cam0 = r.camera;
+                cam0.updateMatrixWorld(true);
+                const dir = cam0.getWorldDirection(new T.Vector3());
+                const up = new T.Vector3(0, 1, 0).applyQuaternion(cam0.getWorldQuaternion(new T.Quaternion()));
+                const X = dir.clone().multiplyScalar(${JSON.stringify(view)} === "right" ? -1 : 1);
+                const Z = new T.Vector3().crossVectors(X, up).normalize();
+                const want = new T.Quaternion().setFromRotationMatrix(new T.Matrix4().makeBasis(X, new T.Vector3().crossVectors(Z, X), Z));
+                const gq = mq.gunObject.getWorldQuaternion(new T.Quaternion());
+                f.group.quaternion.premultiply(want.multiply(gq.invert()));
+                f.group.updateMatrixWorld(true);
+              }
+              const box = new T.Box3().setFromObject(mq.gunObject);
+              // (the whole gun: its box's middle, far enough off that its length fills nine tenths of the 40 degree view)
+              const at = ${WHOLE} ? box.getCenter(new T.Vector3()) : mq.holdPoints()[${JSON.stringify(hold)}].clone();
+              const off = ${WHOLE} ? (box.getSize(new T.Vector3()).length() / 2 / Math.tan((20 * Math.PI) / 180)) / 0.9 : ${OFF};
               const cam = r.camera;
-              cam.near = ${NEAR[hold][view]};
+              cam.near = ${WHOLE} ? 0.1 : ${NEAR[hold][view]};
               cam.updateProjectionMatrix();
               cam.updateMatrixWorld(true);
-              const want = cam.getWorldPosition(new T.Vector3()).addScaledVector(cam.getWorldDirection(new T.Vector3()), ${OFF});
+              const want = cam.getWorldPosition(new T.Vector3()).addScaledVector(cam.getWorldDirection(new T.Vector3()), off);
               f.group.position.add(want.sub(at));
               r.figureLabStep(0.001);
               if (${process.env.GUNONLY === "1"}) {
                 mq.root.traverse((o) => { if (o.isSkinnedMesh) o.visible = false; });
                 const pts = [], cols = [];
                 const col = (k) => (k % 5 === 0 ? [1, 0.2, 0.2] : [0.2, 0.6, 1]);
-                for (let a = -30; a <= 30; a++) { pts.push(0, -0.3, a / 100, 0, 0.05, a / 100); cols.push(...col(a), ...col(a)); }
-                for (let b = -30; b <= 5; b++) { pts.push(0, b / 100, -0.3, 0, b / 100, 0.3); cols.push(...col(b), ...col(b)); }
+                // (the gun's own frame, cm: -z its muzzle, +y up; the whole gun's grid reaches over a launcher's length)
+                const [z0, z1, y0, y1] = ${WHOLE} ? [-80, 60, -35, 20] : [-30, 30, -30, 5];
+                for (let a = z0; a <= z1; a++) { pts.push(0, y0 / 100, a / 100, 0, y1 / 100, a / 100); cols.push(...col(a), ...col(a)); }
+                for (let b = y0; b <= y1; b++) { pts.push(0, b / 100, z0 / 100, 0, b / 100, z1 / 100); cols.push(...col(b), ...col(b)); }
                 const g = new T.BufferGeometry().setAttribute("position", new T.Float32BufferAttribute(pts, 3)).setAttribute("color", new T.Float32BufferAttribute(cols, 3));
                 const lines = new T.LineSegments(g, new T.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.45, depthTest: false }));
                 lines.renderOrder = 998;
@@ -108,8 +135,9 @@ async function main(): Promise<void> {
             })()`,
           );
           await wait(400);
-          const file = path.join(OUT, `${id}-${hold}-${view}.png`);
-          await page.screenshot({ path: file as `${string}.png`, clip: CLIP });
+          const file = path.join(OUT, WHOLE ? `${id}-whole-${view}.png` : `${id}-${hold}-${view}.png`);
+          // (the whole gun: the whole window, not the hold's middle)
+          await page.screenshot({ path: file as `${string}.png`, clip: WHOLE ? { x: 0, y: 0, width: 1000, height: 1000 } : CLIP });
           const svg = `<svg width="${TILE}" height="${TILE}"><rect width="${TILE}" height="34" fill="rgba(0,0,0,0.7)"/><text x="5" y="14" font-family="Arial" font-size="11" fill="#fff">${esc(`${id} ${hold} (${side === "r" ? "right" : "left"} hand) from the ${view}`)}</text><text x="5" y="29" font-family="Arial" font-size="10" fill="#ddd">${esc(caption(audit, side))}</text></svg>`;
           tiles.push(await sharp(file).resize(TILE, TILE).composite([{ input: Buffer.from(svg), top: 0, left: 0 }]).png().toBuffer());
           if (process.env.XRAY === "1") {
