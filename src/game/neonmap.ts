@@ -293,7 +293,7 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
  * pale, lit or not (turning the moon, the sky's fill and the environment down left them as they were). One picture of
  * the lit map taken from `reflect.at` (map-local) once its file is in, as the old city's wet streets did (atmosphere.ts)
  */
-let reflection: { cam: THREE.CubeCamera; scene: THREE.Scene; renderer: THREE.WebGLRenderer } | null = null;
+let reflection: { cam: THREE.CubeCamera; scene: THREE.Scene; renderer: THREE.WebGLRenderer; mats: THREE.MeshStandardMaterial[] } | null = null;
 function reflectCity(map: THREE.Object3D, renderer: THREE.WebGLRenderer): void {
   const scene = map.parent?.parent as THREE.Scene | undefined;
   if (!scene) return;
@@ -301,7 +301,8 @@ function reflectCity(map: THREE.Object3D, renderer: THREE.WebGLRenderer): void {
   const rt = new THREE.WebGLCubeRenderTarget(R.size, { generateMipmaps: true, minFilter: THREE.LinearMipmapLinearFilter });
   const cam = new THREE.CubeCamera(0.5, R.far, rt);
   cam.position.set(BR_X + R.at[0], R.at[1], BR_Z + R.at[2]);
-  reflection = { cam, scene, renderer };
+  const mats: THREE.MeshStandardMaterial[] = [];
+  reflection = { cam, scene, renderer, mats };
   retakeReflection();
   const done = new Set<THREE.Material>();
   map.traverse((o) => {
@@ -310,16 +311,49 @@ function reflectCity(map: THREE.Object3D, renderer: THREE.WebGLRenderer): void {
     done.add(m);
     m.envMap = rt.texture;
     m.needsUpdate = true;
+    mats.push(m);
   });
 }
 
 /** the city's picture taken again, as the hour changes (main.ts applyHour): a night's city reflected in a golden hour's road read wrong */
 export function retakeReflection(): void {
   if (!reflection) return;
-  const { cam, scene, renderer } = reflection;
+  const { cam, scene, renderer, mats } = reflection;
+  // Taken as the first one was, before the city was given it: its materials without their own reflection. Given it,
+  // every city shader needed a second build for the cube's faces, and the first change of hour in a visit held the page
+  // 3.1 s compiling them (a CPU profile, 2026-10-02: 3,022 ms in the shaders' link); and each would have been drawn
+  // reading the very picture it was drawn into.
+  const own = mats.map((m) => m.envMap);
+  for (const m of mats) m.envMap = null;
   scene.add(cam);
   cam.update(renderer, scene);
   scene.remove(cam);
+  mats.forEach((m, i) => (m.envMap = own[i]));
+}
+
+/**
+ * The retake's shaders built ahead (main.ts warmBrSide, under the loading screen), off the page's thread where the browser
+ * can: `root` as the retake draws it, its materials without their own reflection, into the cube's faces. A shader is
+ * built for the target it draws into, and the screen's, which the warm builds, are not the cube's: the first retake in
+ * a match still built them on the spot, 1.3 s on the first change of hour.
+ */
+export function warmReflection(root: THREE.Object3D): Promise<unknown> {
+  if (!reflection) return Promise.resolve();
+  const { cam, scene, renderer, mats } = reflection;
+  const own = mats.map((m) => m.envMap);
+  for (const m of mats) m.envMap = null;
+  const was = renderer.getRenderTarget();
+  let built: Promise<unknown> = Promise.resolve();
+  try {
+    renderer.setRenderTarget(cam.renderTarget);
+    built = renderer.compileAsync(root, cam.children[0] as THREE.Camera, scene);
+  } catch {
+    /* built on the retake, as before */
+  } finally {
+    renderer.setRenderTarget(was);
+    mats.forEach((m, i) => (m.envMap = own[i]));
+  }
+  return built;
 }
 
 /**

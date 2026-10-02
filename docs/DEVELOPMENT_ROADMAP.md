@@ -9288,3 +9288,24 @@ have to be a well placed sniper shot to get the knock." The tower's eight floors
   Photographed inside and out.
 - **A fresh review** scored the centre 4.5 of 10 from pictures alone, against Hyper Scape: docs/CENTRE_REVIEW.md has the
   scores, the gaps and the order of the fixes, of which this is the first.
+
+## Milestone 418 — The first change of hour in a match no longer holds the page 3 seconds
+
+Measured with Milestone 410: the first change of hour in a visit (F8 or the Settings menu) held the page 2.9 s, later
+ones 0.09 s. The owner, 2026-10-02: "continue w next steps".
+
+- **Where the time went** (Chrome's CPU profile of the menu's own select, inside a battle royale on the Neon City):
+  3,068 ms in neonmap.ts retakeReflection, 3,022 of them in the shaders' link. The roads' reflection is the city
+  drawn six times into a cube. Its first picture was taken before the city's materials were given it; given it, every
+  city shader needed a second build for the cube's faces, made the first time the picture was taken again: at the first
+  change of hour. Each was also drawn reading the very picture it was drawn into.
+- **The fix, in two parts:**
+  - the retake draws the city as the first picture did, its materials without their own reflection for the six faces,
+    and given it back after. The first change: 3,071 ms to 1,268;
+  - the rest was the picture taken under the city's lights, not the range's, where the first was taken. So the battle
+    royale's warm-up (main.ts warmBrSide, under the page's loading screen) now builds the reflection's shaders too, off
+    the page's thread like the city's own (neonmap.ts warmReflection: the cube as the target while they are made). The
+    first change: 33 ms; the next ones 11 and 12 ms, as before.
+- **The load:** no added time measured (two fresh pages each way, alternated: 18.2 and 23.6 s with it, 25.7 and 25.4 s
+  without, the machine in use).
+- **Checked:** the profile before and after; the load compared; verify; rules.

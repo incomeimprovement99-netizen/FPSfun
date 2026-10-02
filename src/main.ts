@@ -125,7 +125,7 @@ import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
-import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, retakeReflection } from "./game/neonmap";
+import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, retakeReflection, warmReflection } from "./game/neonmap";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
 import { atmosphereOn, districtHere, ownAir, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
@@ -6523,6 +6523,8 @@ function warmBrSide(): void {
   const compiling: Array<Promise<unknown>> = [];
   try {
     compiling.push(renderer.compileAsync(brSide, camera, scene));
+    // and as the roads' reflection draws it, which a change of hour takes again (neonmap.ts retakeReflection)
+    compiling.push(warmReflection(brSide));
     // and everything else as the range's side draws it, what is out of view included: the Gulag's room was 10 shaders
     // compiled on its first frame, a 0.75 s freeze on the way in (a hunt, 2026-09-30)
     rangeSide.visible = true;
