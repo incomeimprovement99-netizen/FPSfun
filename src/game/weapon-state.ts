@@ -223,6 +223,11 @@ export class WeaponState {
     this.chargeShotAt = null;
   }
 
+  /** the reload under way's length, seconds (its sound is timed to it) */
+  get reloadSeconds(): number {
+    return this.reloadTotal;
+  }
+
   reloadProgress(now: number): number {
     if (!this.reloading) return 0;
     return 1 - Math.max(0, this.reloadDoneAt - now) / this.reloadTotal;

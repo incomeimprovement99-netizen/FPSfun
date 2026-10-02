@@ -3481,6 +3481,23 @@ function keyHintsNow(now: number): HudState["keyHints"] {
   keyHintsBuilt = { at: now, key, value };
   return value;
 }
+/**
+ * The reload's sound from its first frame, whatever started it (the key, a trigger on an empty magazine), and stopped
+ * when it is cut short. Before, only the key's reload made a sound, and that one click.
+ */
+let reloadHeard: { ws: typeof loadout.active.state; until: number } | null = null;
+function hearReload(now: number): void {
+  const ws = loadout.active.state;
+  if (reloadHeard && (reloadHeard.ws !== ws || !ws.reloading)) {
+    if (now < reloadHeard.until - 0.05) audio.stopReload();
+    reloadHeard = null;
+  }
+  // (an overheated gun's lockout is a reload to the code, and has its own sound)
+  if (!reloadHeard && ws.reloading && !ws.overheated) {
+    audio.reloadOf(loadout.active.id, ws.reloadEmpty, ws.reloadSeconds);
+    reloadHeard = { ws, until: now + ws.reloadSeconds };
+  }
+}
 function pickAbility(id: AbilityId, now: number): void {
   if (!abilities.enabled) return;
   abilities.pick(id);
@@ -4199,7 +4216,7 @@ function stepHacks(now: number, dt: number): void {
       const at = player.pos.clone();
       const dmg = (H.slam as unknown as { damages?: number[] }).damages?.[skSlam.level ?? 0] ?? H.slam.damage;
       for (const e of slamTargets(at)) hackHurt(e.rem, e.fig, dmg, "slam");
-      audio.blast("arcstar", at);
+      audio.blast("slam", at);
       fx.jolt(at.clone().setY(at.y + 3), at, now);
       sendFx("sk", at, undefined, 7);
       if (input.pad.active) input.pad.rumble(0.8, 0.8, 160);
@@ -4435,7 +4452,7 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
     }
     case 7:
     case 8: {
-      audio.blast(n === 7 ? "arcstar" : "frag", a);
+      audio.blast(n === 7 ? "slam" : "frag", a);
       // the mine that went off: its drawing goes
       if (n === 8) {
         const i = mines.findIndex((m) => !m.mine && m.at.distanceTo(a) < 6);
@@ -7146,6 +7163,7 @@ function step(): void {
   loadout.update(now);
   phases.lap("input");
   const ws = loadout.active.state;
+  hearReload(now);
   {
     const w = loadout.active.weapon;
     const target = loadout.active.zoomAlt && w.zoomToggleFov43 !== null ? 1 : 0;
@@ -7262,7 +7280,6 @@ function step(): void {
     const padInteracts = (player.zipPrompt || (duel instanceof BrMatch && brPlay.hud.prompt !== null) || (!duel && drill.state === "idle" && drill.onPad(player.pos)) || !!atStand) && input.pad.pressedNow("reload");
     if (armed && input.pressedNow("reload") && !loadout.swapping && !padInteracts) {
       ws.startReload(now);
-      if (ws.reloading) audio.reload();
     }
     // weapon select: 1 and 2 pick a slot, Q swaps to the other
     if (armed && input.pressedNow("slot1") && loadout.requestSwap(0, now)) audio.swap();
@@ -8048,6 +8065,8 @@ function step(): void {
     hardYaw += s.kick.permYawLeft;
     viewModel.onShot();
     audio.gun(weapon.id);
+    // (the rechamber the first-person clip plays over: viewmodel.ts's own)
+    audio.rechamber(weapon.id, Math.max(0.4, weapon.rechamberTime || weapon.shotInterval));
     // the last rounds: a click that climbs as the magazine runs out (hud.json lowAmmo)
     {
       const left = loadout.active.state.clip;

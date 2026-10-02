@@ -25,5 +25,10 @@ reserved, may be used without royalty or credit". Credited anyway. Re-fetch with
 The drop theme is **Battle Theme A** by cynicmusic (opengameart.org/content/battle-theme-a), CC0, fetched
 into public/audio/music by tools/fetch-music.ts as part of `npm run sounds`.
 
+The guns' own shots, the USSO's and BOOG's reloads and BOOG's bolt are from **FPS Animation Ultimate** by
+KINEMATION (Unity Asset Store), bought by the owner and licensed to them under the Asset Store's EULA: written into
+public/audio/paid by `npm run paid:sounds` (tools/import-pack-sounds.ts), never in git, and served only by the game's
+own server. Without them each gun plays the free recordings above.
+
 They are layered over the game's own synthesis (src/game/audio.ts), which plays alone where a file is missing.
 Re-fetch with `npm run sounds` (tools/fetch-sounds.ts) and `npm run guns`; the files are gitignored.

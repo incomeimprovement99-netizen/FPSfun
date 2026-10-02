@@ -3,7 +3,10 @@
 // what synthesis cannot (Kenney's packs, fetched by tools/fetch-sounds.ts into
 // public/audio/kenney: footsteps, landings and body falls, a punch, the
 // magazine and bolt, a frag's crunch, the menu's clicks). The guns are all
-// synthesis. Without the files every sound is the synthesis alone.
+// synthesis. Without the files every sound is the synthesis alone. Where the
+// paid pack's sounds are there (public/audio/paid, src/config/packsounds.json)
+// a gun shoots with its pack gun's recording, and a gun reloaded with the
+// pack's own animation reloads with the sound recorded to it.
 //
 // The engine:
 //   - A listener on the camera; sounds from somewhere go through a panner
@@ -22,6 +25,7 @@
 // pitch, a band of noise for the body, a crack at the front, a tail into the
 // reverb; energy guns add a zap. Footsteps by surface: concrete, metal, dirt.
 import cfg from "../config/audio.json";
+import PACK from "../config/packsounds.json";
 
 type Vec = { x: number; y: number; z: number };
 export type Surface = "concrete" | "metal" | "dirt";
@@ -35,6 +39,22 @@ interface Loop {
 }
 
 const LS = "range.audio.v1";
+
+/**
+ * A pack sound recorded to a clip of `clip` seconds, played to one of `seconds` (audio.ts packTimed): each piece, from
+ * one of its `cuts` to the next (the last to the sound's `length`), starts at the same share of `seconds` as of the
+ * clip, at its own speed, and runs to where the next starts plus `overlap` (faded over it), or its own end if sooner.
+ */
+export function packPieces(cuts: readonly number[], clip: number, length: number, seconds: number, overlap: number): Array<{ at: number; offset: number; len: number }> {
+  const k = seconds / clip;
+  const out: Array<{ at: number; offset: number; len: number }> = [];
+  cuts.forEach((c, i) => {
+    const end = i + 1 < cuts.length ? cuts[i + 1] : length;
+    const len = Math.min(end - c, (end - c) * k + overlap);
+    if (len > 0.005) out.push({ at: c * k, offset: c, len });
+  });
+  return out;
+}
 
 export class GameAudio {
   private ctx: AudioContext | null = null;
@@ -294,7 +314,14 @@ export class GameAudio {
   private loadSamples(ctx: AudioContext): void {
     if (this.samplesAsked) return;
     this.samplesAsked = true;
-    for (const dir of ["audio/kenney", "audio/guns"]) {
+    // the pack's timed sounds' clips and cuts (tools/import-pack-sounds.ts); without them a reload is the click
+    void fetch("audio/paid/meta.json")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((m: GameAudio["packMeta"] | null) => {
+        if (m && typeof m === "object") this.packMeta = m;
+      })
+      .catch(() => undefined);
+    for (const dir of ["audio/kenney", "audio/guns", "audio/paid"]) {
       void fetch(`${dir}/index.json`)
         .then((r) => (r.ok ? r.json() : null))
         .then(async (index: Record<string, string[]> | null) => {
@@ -315,6 +342,70 @@ export class GameAudio {
         })
         .catch(() => undefined);
     }
+  }
+
+  /** the pack's timed sounds (a reload, a rechamber): the clip each was recorded to and where each of its sounds starts */
+  private packMeta: Record<string, { clip: number; cuts: number[] }> = {};
+  /** the reload's pieces still to play, stopped if the reload is cut short */
+  private reloadSrc: AudioBufferSourceNode[] = [];
+
+  /**
+   * A pack sound recorded to a clip, played to a clip of `seconds` instead: each piece (from one of its cuts to the
+   * next) starts at the same share of `seconds` as of the clip, at its own speed, and ends with a quick fade where the
+   * next begins. Our reloads are quicker than the pack's: played whole and faster, every click would rise in pitch.
+   */
+  private packTimed(key: string, seconds: number, level: number): AudioBufferSourceNode[] {
+    const buf = this.samples.get(key)?.[0];
+    const m = this.packMeta[key];
+    const ctx = this.ctx;
+    if (!buf || !m || !ctx) return [];
+    const v = this.voice(null, seconds + 0.6, "fx", 2, 0.3);
+    if (!v) return [];
+    const out: AudioBufferSourceNode[] = [];
+    for (const p of packPieces(m.cuts, m.clip, buf.duration, seconds, PACK.overlap)) {
+      const at = v.t + p.at;
+      const src = ctx.createBufferSource();
+      src.buffer = buf;
+      const g = ctx.createGain();
+      g.gain.setValueAtTime(level, at);
+      g.gain.setValueAtTime(level, at + Math.max(0, p.len - PACK.overlap));
+      g.gain.linearRampToValueAtTime(0, at + p.len);
+      src.connect(g).connect(v.input);
+      src.start(at, p.offset, p.len);
+      out.push(src);
+    }
+    this.samplesPlayed += out.length;
+    return out;
+  }
+
+  /** your reload, from its first frame: the pack's own sound for a gun reloaded with the pack's animation, else the click */
+  reloadOf(id: string, empty: boolean, seconds: number): void {
+    this.stopReload();
+    this.cue("reload", null);
+    this.reloadSrc = this.packTimed(`pack_reload_${id}_${empty ? "empty" : "tac"}`, seconds, PACK.reloadLevel);
+    if (!this.reloadSrc.length) this.reloadStep("in");
+  }
+
+  /** the reload under way plays the pack's recording of it (soundscape.ts leaves its own clicks out) */
+  get reloadPacked(): boolean {
+    return this.reloadSrc.length > 0;
+  }
+
+  /** a reload cut short (a swap, a holster): its pieces not yet played are not */
+  stopReload(): void {
+    for (const s of this.reloadSrc) {
+      try {
+        s.stop();
+      } catch {
+        /* already over */
+      }
+    }
+    this.reloadSrc = [];
+  }
+
+  /** after your shot, a pack gun's rechamber over `seconds` (BOOG's bolt, worked in the pack's fire clip) */
+  rechamber(id: string, seconds: number): void {
+    this.packTimed(`pack_foley_${id}`, seconds, PACK.foleyLevel);
   }
 
   /** how many recorded sounds are loaded (tests) */
@@ -520,7 +611,8 @@ export class GameAudio {
     // a gun carries (ref 20 m, not a footstep's 3); your own on its own bus; far gunfire is dropped first.
     // A recorded take can run longer than the synthesised tail, and the voice
     // has to outlive it or the take is cut off with a click.
-    const takes = this.samples.get(`shot_${cls}`);
+    const pack = this.samples.get(`pack_fire_${id}`);
+    const takes = pack ?? this.samples.get(`shot_${cls}`);
     const life = Math.max(k.tail, takes ? Math.max(...takes.map((b) => b.duration)) : 0);
     const v = at ? this.voice(at, life + 0.6, "fx", far0 > D.gunLow ? 0 : 1, 1, D.ref.gun) : this.voice(null, life + 0.2, "own", 2);
     if (!v) return;
@@ -532,14 +624,18 @@ export class GameAudio {
     // synthesised crack, body and tail are not layered under it; the far
     // echo and an energy gun's whine still are, since no recording has them.
     const S = cfg.shots;
+    const packLevel = (PACK.guns as Record<string, { level: number } | undefined>)[id]?.level ?? 1;
     const recorded =
-      (far && this.sample(v.input, v.t, `shot_${cls}_far`, S.level * S.far * L)) || this.sample(v.input, v.t, `shot_${cls}`, S.level * L);
+      (far && this.sample(v.input, v.t, `shot_${cls}_far`, S.level * S.far * L)) ||
+      (!!pack && this.sample(v.input, v.t, `pack_fire_${id}`, S.level * packLevel * L)) ||
+      this.sample(v.input, v.t, `shot_${cls}`, S.level * L);
     if (recorded) {
       if (far) {
         const echo = D.farEcho[0] + Math.random() * (D.farEcho[1] - D.farEcho[0]);
         this.noise(v.input, v.t + echo, k.tail * 0.8, "lowpass", D.farEchoHz, 0.6, 0.35 * L, 0.01, 180);
       }
-      if (cfg.energy.includes(id)) this.tone(v.input, v.t, 0.09, "sawtooth", 1900 * jitter, 380, 0.16 * L, 0.001);
+      // a pack gun's own recording is the whole shot: the energy whine over it was the squeak (the owner, 2026-10-02)
+      if (cfg.energy.includes(id) && !pack) this.tone(v.input, v.t, 0.09, "sawtooth", 1900 * jitter, 380, 0.16 * L, 0.001);
       return;
     }
     // the crack: a very short bright burst (gone far off: the air takes it)
@@ -568,8 +664,8 @@ export class GameAudio {
     if (cfg.energy.includes(id)) this.tone(v.input, v.t, 0.09, "sawtooth", 1900 * jitter, 380, 0.16 * L, 0.001);
   }
 
-  /** a grenade going off: a frag's deep boom, an arc star's crackling snap */
-  blast(kind: "frag" | "arcstar", at: Vec): void {
+  /** a grenade going off: a frag's deep boom, an arc star's crackling snap; SLAM's landing, a boom into the ground */
+  blast(kind: "frag" | "arcstar" | "slam", at: Vec): void {
     this.cue("blast", at);
     const v = this.voice(at, 1.6, "fx", 2, 1.4, cfg.distance.ref.blast);
     if (!v) return;
@@ -579,6 +675,14 @@ export class GameAudio {
       this.tone(v.input, v.t, 0.5, "sine", 90, 28, 1.3, 0.002);
       this.noise(v.input, v.t, 0.45, "lowpass", 1200, 0.6, 1.0, 0.003, 120);
       this.noise(v.input, v.t + 0.02, 1.3, "lowpass", 500, 0.5, 0.35, 0.02, 80);
+    } else if (kind === "slam") {
+      // it played the arc star's crackle, whose falling sawtooth was the squeak the owner heard (2026-10-02): a boom,
+      // a body landing hard under it, and a low thump felt more than heard
+      this.sample(v.input, v.t, "explosion", 0.85, 0.7);
+      this.sample(v.input, v.t, "land", 0.9, 0.6);
+      this.tone(v.input, v.t, 0.6, "sine", 75, 24, 1.4, 0.002);
+      this.noise(v.input, v.t, 0.5, "lowpass", 700, 0.6, 1.0, 0.003, 100);
+      this.noise(v.input, v.t + 0.03, 1.2, "lowpass", 300, 0.5, 0.4, 0.02, 60);
     } else {
       this.noise(v.input, v.t, 0.04, "highpass", 5200, 0.9, 0.8, 0.0006);
       this.tone(v.input, v.t, 0.25, "sawtooth", 1400, 180, 0.35, 0.001);

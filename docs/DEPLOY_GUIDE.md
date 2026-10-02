@@ -91,6 +91,11 @@ they never enter git and never go to Pages:
   Every file under `public/` ships with a release, so an older version's three files are moved out when a new one
   goes in (to `speedkills-paid/neon/old-bakes/`): three versions left there were 1.4 GB sent with every deploy that
   no build asked for.
+- **The guns' sounds:** `npm run paid:sounds` writes the FPS Animation Ultimate pack's recordings the guns use
+  (`src/config/packsounds.json`) to `public/audio/paid/` (44 files, 3.2 MB), which git ignores and `npm run rules`
+  refuses if tracked. It reads the pack `npm run paid` unpacked (or unpacks it) and the reload clips' lengths from
+  `public/models/paid/arms/clips/`. A deploy builds from `apex-range`: run it there, or copy a worktree's
+  `public/audio/paid/` into it. Without them every gun sounds as before (the free recordings and the synthesis).
 - **The guns' skins:** `PAID_ONLY=weapons npm run paid` writes each one twice, `public/models/paid/weapons/tex/` at
   1024 px and `weapons/tex2k/` at 2048 (270 files, 40 MB); the 2048 ones are loaded only for the gun in your hands on
   High (`paidweapons.json` textures2k).

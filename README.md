@@ -1189,6 +1189,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run paid` | the owner's bought Unity packages (soldier, guns, city kits) into `public/models/paid`, never in git; `PAID_ONLY=soldier`, `weapons` or `city` does one. See the deploy guide |
 | `npm run sounds` | fetch Kenney's CC0 recorded sounds and the metal and gravel footsteps into `public/audio/kenney`, and the drop theme into `public/audio/music` |
 | `npm run guns` | fetch The Free Firearm Sound Library (CC0) and write recorded gunshots per class into `public/audio/guns` |
+| `npm run paid:sounds` | the bought FPS Animation Ultimate pack's gun sounds (each gun's shots, the USSO's and BOOG's reloads, BOOG's bolt) into `public/audio/paid`, never in git (`src/config/packsounds.json`) |
 | `npm run fonts` | fetch the HUD's two faces from Google Fonts and self-host them into `public/fonts` (SIL OFL 1.1, latin only, 110 KB). The game makes no third-party font request and works offline. |
 | `npm run icons` | fetch the HUD's 45 icons into `public/icons`: Lucide (ISC) for the interface, game-icons.net (CC BY 3.0, credited by author) for ammo, magazines, grenades, armour and a parachute |
 | `npm run compress` | re-encode already fetched textures as WebP |
@@ -1501,8 +1502,13 @@ far off is a far recording rather than a near one turned down (`npm run
 guns`). Footsteps are recorded on concrete, grass, gravel and metal, and
 Kenney's CC0 recordings cover landings, falls, punches, reloads, a frag's
 crunch and the menu's clicks (`npm run sounds`, which also fetches the drop
-theme). The callouts and the announcer are the browser's own speech
-synthesis, so they need no files. What is still made in the
+theme). Where the bought animation pack's own recordings are on the server
+(`npm run paid:sounds`), each SpeedKills gun shoots with the pack gun it is
+most like (APUHTHEE a revolver, BIGANTLER a pump, CHOOCH a light machine gun),
+and the USSO and BOOG, reloaded with the pack's own animations, reload with
+the sounds recorded to them, each sound placed at the same point of our quicker
+reload; BOOG works its bolt after every shot. The callouts and the announcer
+are the browser's own speech synthesis, so they need no files. What is still made in the
 browser is everything else, and all of it, shots included, if the files have
 not been fetched.
 A player who only ever presses Start on a controller gets none at all

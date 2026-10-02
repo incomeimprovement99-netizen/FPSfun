@@ -9045,3 +9045,46 @@ then we mantle and it's very slow", asking for one and a half to twice the speed
   it, so that check asks the zip to be no slower than the climb by 0.1 s.
 - **Checked:** verify (the movement simulator's mantles and superglides) and rules; e2e `sktour` (its mantle and
   superglide steps) and `speedkills`.
+## Milestone 410 — The guns' own sounds from the bought pack, SLAM's boom, and what the hours cost
+
+The owner, 2026-10-02: "none of the gun packs came with sounds, right? ... if they did, we should be using those
+sounds to reload. Because, like, some of the sounds when we shoot, it's like we're squeezing a dog toy ... Especially,
+like, slam. It lands and it's like, squeak! Instead of like boom", and of the day, night and hazy skies: "how much is
+that costing us in terms of FPS performance and or loading time?"
+
+- **What came with the packs:** Tirgames' Sci-Fi Battle Weapons and the Sci-Fi Modular Soldier, none; KINEMATION's
+  FPS Animation Ultimate, 145: shots for 20 guns, each one's full tactical and empty reloads recorded to its own
+  animations, equips, a pump, bolts, footsteps on concrete and a landing.
+- **The squeaks, found in the code:** SLAM's landing played the arc star's blast, a crackle over a sawtooth falling
+  from 1400 to 180 Hz; and BOOG and CHOOCH, on audio.json's energy list, laid a sawtooth falling from 1900 to 380 Hz
+  over every shot.
+- **The shots:** each of the ten guns shoots with the pack gun most like it (packsounds.json): the USSO the MPS5,
+  BOOG the L96X, PANDA the AKX200, STRYDER the MX16A4, ANAKIN the Striker-V, BIGANTLER the KXG12 pump, REZ the Drake-12,
+  HAEFY the Mk14 EBR, APUHTHEE the Viper-357 revolver and CHOOCH the MGX5 machine gun. No energy whine over a pack shot.
+  A far shot still plays the free library's far take, which is what a far recording is for.
+- **The reloads:** the USSO and BOOG are reloaded with the pack's own animations (fparms.json guns), so they reload
+  with the sounds recorded to them. Our reloads are quicker than the pack's clips (the USSO's 1.8 s and 2.5 s against
+  3 and 4, measured in the page); played faster, every click would rise in pitch. So the import cuts each sound where
+  each of its sounds starts (4 to 8 pieces) and the game starts each piece at the same share of our reload, at its own
+  speed (audio.ts packPieces). A reload cut short by a swap stops its pieces. The free clicks soundscape.ts adds
+  through every reload are left out under a pack one; the other eight guns keep them.
+- **Every reload sounds now:** only the R key's reload made a sound; an empty magazine's own reload was silent.
+  main.ts hearReload starts the sound on any reload's first frame.
+- **BOOG's bolt:** the pack's fire clip works the bolt over the rechamber, and its recording of it now plays with it.
+- **SLAM:** a boom (Kenney's explosion slowed, a hard landing, a 75 to 24 Hz thump), for yours and for another's.
+- **The files:** tools/import-pack-sounds.ts (`npm run paid:sounds`): mono, 32 kHz, 16 bit, one peak, a shot trimmed
+  where its tail dies; 44 files, 3.2 MB, to public/audio/paid, gitignored and refused by `npm run rules` if tracked
+  (seen failing with one staged). The clips' lengths are measured off the clips themselves.
+- **The hours, measured** (no change): a fresh page an hour, Balanced, a battle royale on the Neon City's street 45 m
+  from the tower, the three hours in turn three rounds:
+  - each page fetched one sky file, its own hour's (1.1 to 1.2 MB); the others cost nothing to load;
+  - loaded in 12.3 to 13.2 s whichever the hour (15.8 s for the first, cold page);
+  - frame time medians: Neon night 5.9 to 6.4 ms, golden hour 5.9 to 9.0, hazy day 6.2 to 7.2; the spread inside
+    one hour is wider than between them, with other agents loading the machine;
+  - the city is not built twice: an hour is the dome's colours, the sun, the fog, the window glow and one
+    environment map;
+  - the one real cost: the first change of hour in a visit held the page 2.9 s, later ones about 90 ms.
+- **Checked:** the new packsounds check in verify (every gun has shots; reload sounds only on the pack's own
+  animations; a piece's start, length and overlap; seen failing with the sound played whole); a page: the USSO's shot
+  and tactical reload (four pieces at 0, 0.34, 0.92 and 0.98 s of 1.8), cut short by a swap; BOOG's shot, its bolt over
+  1.62 s, and its empty reload's eight pieces over 4 s with no other click; SLAM's boom; the bots e2e; verify; rules.

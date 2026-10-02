@@ -42,7 +42,8 @@
     "clips": "tsx tools/fetch-clips.ts",
     "fit": "tsx tools/fit.ts",
     "profile": "tsx tools/profile-frame.ts",
-    "paid": "tsx tools/import-paid.ts"
+    "paid": "tsx tools/import-paid.ts",
+    "paid:sounds": "tsx tools/import-pack-sounds.ts"
   },
   "dependencies": {
     "peerjs": "^1.5.4",

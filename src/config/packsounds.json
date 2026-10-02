@@ -1,0 +1,37 @@
+{
+  "_note": "The guns' recorded sounds from KINEMATION's FPS Animation Ultimate, a paid pack that came with 145 of them (the owner, 2026-10-02: 'if they did, we should be using those sounds to reload ... some of the sounds when we shoot, it's like we're squeezing a dog toy'). tools/import-pack-sounds.ts writes them to public/audio/paid, gitignored and shipped only with the game server like every paid file; a checkout without them plays the free sounds as before. `guns` gives each of our guns the pack gun it sounds like: its shots, picked for the kind of gun (APUHTHEE the revolver, BIGANTLER the pump our owner gave it, CHOOCH the light machine gun). Its reload sounds are used only when its reload is the pack gun's own animation (fparms.json guns: the USSO is the MPS5's, BOOG the L96X's), since the pack recorded each reload to its animation; `foley` is a sound played over a shot's rechamber, the same way (BOOG's bolt). level is that gun's shots against the class's recorded level (audio.json shots.level) once every take is brought to the same peak. rate is the sample rate written, the gunshots' own (tools/fetch-guns.ts).",
+  "rate": 32000,
+  "peak": 0.89,
+  "_levels": "reloadLevel and foleyLevel are a reload's and a rechamber's level against a shot's (every file at the same peak); overlap is how far, in seconds, a piece of one runs on under the next as it fades.",
+  "reloadLevel": 0.5,
+  "foleyLevel": 0.45,
+  "overlap": 0.04,
+  "packs": {
+    "MPS5": { "fire": ["MPS5/S_MPS5_01_Sounds.WAV", "MPS5/S_MPS5_02_Sounds.WAV", "MPS5/S_MPS5_03_Sounds.WAV", "MPS5/S_MPS5_04_Sounds.WAV"], "reloadTac": "MPS5/S_MPS5_Reload_Tac_Full.WAV", "reloadEmpty": "MPS5/S_MPS5_Reload_Empty_Full.WAV" },
+    "L96X": { "fire": ["L96X/S_L96X_01_Sounds.WAV", "L96X/S_L96X_02_Sounds.WAV", "L96X/S_L96X_03_Sounds.WAV", "L96X/S_L96X_04_Sounds.WAV"], "reloadTac": "L96X/S_L96X_Reload_Wet_Full.WAV", "reloadEmpty": "L96X/S_L96X_Reload_Dry_Full.WAV", "foley": "L96X/S_L96X_Fire_Foley_Full.WAV" },
+    "AK": { "fire": ["AK/S_AKX200_Shot_0.WAV", "AK/S_AKX200_Shot_1.WAV", "AK/S_AKX200_Shot_2.WAV"] },
+    "MX16A4": { "fire": ["MX16A4/S_MX16A4_Fire_A.WAV", "MX16A4/S_MX16A4_Fire_B.WAV", "MX16A4/S_MX16A4_Fire_C.WAV", "MX16A4/S_MX16A4_Fire_D.WAV"] },
+    "Striker-V": { "fire": ["Striker-V/S_Striker-V_01_Sounds.WAV", "Striker-V/S_Striker-V_02_Sounds.WAV", "Striker-V/S_Striker-V_03_Sounds.WAV", "Striker-V/S_Striker-V_04_Sounds.WAV"], "reloadTac": "Striker-V/S_Striker-V_Reload_Tac_Full.WAV", "reloadEmpty": "Striker-V/S_Striker-V_Reload_Empty_Full.WAV" },
+    "KXG12": { "fire": ["KXG12/S_KXG12_01_Sounds.WAV", "KXG12/S_KXG12_02_Sounds.WAV", "KXG12/S_KXG12_03_Sounds.WAV", "KXG12/S_KXG12_04_Sounds.WAV"] },
+    "Drake-12": { "fire": ["Drake-12/S_Drake-12_01_Sounds.WAV", "Drake-12/S_Drake-12_02_Sounds.WAV", "Drake-12/S_Drake-12_03_Sounds.WAV", "Drake-12/S_Drake-12_04_Sounds.WAV"] },
+    "Mk14EBR": { "fire": ["Mk14EBR/S_MK14-EBR_01_Sounds.WAV", "Mk14EBR/S_MK14-EBR_02_Sounds.WAV", "Mk14EBR/S_MK14-EBR_03_Sounds.WAV", "Mk14EBR/S_MK14-EBR_04_Sounds.WAV"] },
+    "Viper-357": { "fire": ["Viper-357/S_Viper-357_01_Sounds.WAV", "Viper-357/S_Viper-357_02_Sounds.WAV", "Viper-357/S_Viper-357_03_Sounds.WAV", "Viper-357/S_Viper-357_04_Sounds.WAV"] },
+    "MGX5": { "fire": ["MGX5/S_MGX5_01_Sounds.WAV", "MGX5/S_MGX5_02_Sounds.WAV", "MGX5/S_MGX5_03_Sounds.WAV", "MGX5/S_MGX5_04_Sounds.WAV"] }
+  },
+  "guns": {
+    "r97": { "pack": "MPS5", "level": 1.0 },
+    "sentinel": { "pack": "L96X", "level": 1.1 },
+    "vinson": { "pack": "AK", "level": 1.0 },
+    "rspn101": { "pack": "MX16A4", "level": 1.0 },
+    "alternator_smg": { "pack": "Striker-V", "level": 1.0 },
+    "mastiff": { "pack": "KXG12", "level": 1.1 },
+    "shotgun": { "pack": "Drake-12", "level": 1.05 },
+    "3030": { "pack": "Mk14EBR", "level": 1.0 },
+    "wingman": { "pack": "Viper-357", "level": 1.05 },
+    "lstar": { "pack": "MGX5", "level": 1.0 }
+  },
+  "_cuts": "A reload's sound is cut where each of its sounds starts (a 10 ms window's level rising past `on` of the file's loudest, from under `off`, at least `gap` seconds after the last cut), and each piece is played at the same share of our reload as of the pack's clip: our reloads are quicker than the pack's (the USSO's 1.8 s against its clip's 3 s), and playing the whole file faster would raise every click's pitch.",
+  "cuts": { "on": 0.25, "off": 0.12, "gap": 0.08 },
+  "_shotTrim": "A shot is kept until its 10 ms level falls under `floor` of its loudest, then faded over `fade` seconds: the pack's files run 1.9 s, most of it silence.",
+  "shotTrim": { "floor": 0.01, "fade": 0.08 }
+}

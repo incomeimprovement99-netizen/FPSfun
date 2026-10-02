@@ -144,10 +144,10 @@ export class Soundscape {
       this.ringWasClosing = false;
       this.placementPlayed = false;
     }
-    // ---- the parts of a reload: the magazine out, in, and the bolt from empty
+    // ---- the parts of a reload: the magazine out, in, and the bolt from empty (not under the pack's own recording of them)
     const r = f.reload;
     if (r.on && !this.wasReloading) this.reloadMarks = { out: false, in: false, bolt: false };
-    if (r.on) {
+    if (r.on && !a.reloadPacked) {
       if (!this.reloadMarks.out && r.progress >= 0.18) {
         this.reloadMarks.out = true;
         a.reloadStep("out");

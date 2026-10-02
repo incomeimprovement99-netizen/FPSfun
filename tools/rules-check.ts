@@ -44,7 +44,7 @@ for (const f of files) {
 }
 // The bought assets (Unity Asset Store EULA, docs/PHASE_21_PLAN_THE_VERTICAL_CENTRE.md section 5) are licensed to the
 // owner, not to the public: their files may never be tracked, or a push would publish them on GitHub
-const paid = execSync("git ls-files public/models/paid", { cwd: ROOT, encoding: "utf8" }).trim();
+const paid = execSync("git ls-files public/models/paid public/audio/paid", { cwd: ROOT, encoding: "utf8" }).trim();
 if (paid) {
   console.error(`RULES FAIL paid asset files are tracked by git (they must stay local):\n${paid.split("\n").slice(0, 10).join("\n")}`);
   bad++;
