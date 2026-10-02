@@ -1385,7 +1385,8 @@ concourse behind the platform, closed on every side, and reached from the tower'
 court too: a door in its south wall, a corridor and a ramp down to a gate into the
 station's marble hall. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
 roofs; four more with white beams throw you from the plaza onto the tower's base's roof, one from there up to a lookout
-on the tower's east block at 49 m, and one with a red beam back down off it, and the four roofs are joined into a ring round the tower by the pack's
+on the tower's east block at 49 m, two more from there up to the tower's crown at 109 m, and one with a red beam back
+down off the lookout, and the four roofs are joined into a ring round the tower by the pack's
 floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE

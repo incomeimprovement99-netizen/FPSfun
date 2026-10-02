@@ -246,7 +246,14 @@ const ups = SPINE.up.map((q, k) => {
   const past = (p.pos.x - BR_X - q.face[0]) * -q.out[0] + (p.pos.z - BR_Z - q.face[1]) * -q.out[1];
   return { q, ok: p.onGround && Math.abs(p.pos.y - q.ground) < 0.3 && past > 1, said: `${q.id} at ${p.pos.y.toFixed(2)} m, ${past.toFixed(1)} m in, highest ${high.toFixed(1)}` };
 });
-check("the centre's pads: each up from the plaza onto the base's roof, and from there onto the top, lands you past its face", ups.length >= 5 && ups.every((u) => u.ok), ups.map((u) => u.said).join("; "));
+check("the centre's pads: each up from the plaza onto the base's roof, and from there onto the top and the crown, lands you past its face", ups.length >= 7 && ups.every((u) => u.ok), ups.map((u) => u.said).join("; "));
+// the crown (the tower's roof at 109 m) reached by two pads from the base's roof, and cover on it and on the lookout,
+// each piece standing level at its perch's height
+const crown = ups.filter((u) => u.q.id.startsWith("crown") && u.q.ground > 100);
+const PCH = (cfg as unknown as { perches?: Array<{ name: string; at: number[][] }> }).perches ?? [];
+const onIt = (p: { at: number[][] }) => p.at.filter(([x, y, z]) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).some((b) => Math.abs(b.top - y) < 0.06));
+check("the crown at 109 m: two pads up to it from the base's roof, each landing on it", crown.length === 2 && crown.every((u) => u.ok), crown.map((u) => u.said).join("; "));
+check("the perches: cover on the crown and the lookout, each piece standing on its roof", PCH.length === 2 && PCH.every((p) => p.at.length >= (p.name === "crown" ? 6 : 2) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 const downs = SPINE.down.map((q, k) => {
   const { p } = ride(map.pads[cfg.pads.length + SPINE.up.length + k]);
   const off = Math.hypot(p.pos.x - BR_X - q.land[0], p.pos.z - BR_Z - q.land[1]);

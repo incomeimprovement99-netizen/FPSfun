@@ -9329,3 +9329,27 @@ see in matches is the character agent's.
 - **Checked:** a new skfigure check (the toes within 2 degrees of the bind pose, the soles within 10 mm of the floor),
   seen failing with the fix off (16.1 degrees, 44 and 45 mm); the skfigure e2e (77); verify; rules; the standing
   soldier photographed from the side.
+
+## Milestone 420 — Two pads up to the tower's crown, and cover on the high perches
+
+The owner, 2026-10-02: "the high spots should be reachable, and I think there should be a couple pads or something from
+some somewhat reachable, easy access area. So it's not like a god spot when somebody gets up there ... but is still a
+super superior spot. And especially against bots, that's where I'd get up and snipe them." The tower's crown, the roof
+round its roof room at 109 m, was the highest open roof on the map and had no way up.
+
+- **Two pads up to the crown** (rules.pads.spine `crown-n` and `crown-s`, measured by the bake as the others): on the
+  base's roof by the middle of its north and south faces, 2 m off the tower, thrown 102 m up over the crown's 0.5 m
+  kerb and 3.5 m in onto its deck, where the deck is 5 m wide. The base's roof is the easy-access area: four pads from
+  the plaza and twelve stairs reach it, so the crown is a place a squad takes rather than keeps.
+- **The crown** is a deck 2.5 to 5.5 m wide round the roof room, with a covered undercroft under the room 6 m high on
+  columns; its edge a kerb and a ledge, the ledge a 98 m drop. A jump off it lands anywhere below (SpeedKills has no
+  fall stun), so there is no pad down; the lookout's red pad stays the marked way down from 49 m.
+- **Cover on the perches** (rules.perches, tools/neon-layout.ts): 8 of the pack's cooling units and crates on the
+  crown and 3 on the lookout at 49 m, laid on the last bake's collision where a piece's footprint is level at the
+  perch's floor, 1.2 m off any drop, apart, and 3 m off where a pad lands; the last layout's own cover is not read as
+  roof, so a layout does not move the pieces. Both perches had been bare decks.
+- The map: its files lo 79 MB, hi 139 MB, max 349 MB. **Its files are version 32.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): both crown pads ridden by a player as a match throws them, landing
+  on the crown past its kerb (seen failing with a pad's face moved); the perches' cover counted and each piece standing
+  on its roof (seen failing with the perches left out). verify and rules; e2e `br`. Photographed from the crown and the
+  base's roof.

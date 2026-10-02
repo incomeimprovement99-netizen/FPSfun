@@ -1885,6 +1885,72 @@ const skyStairs: Pt[] = [];
     cfg.beams = beams.map((b) => ({ block: b.block, at: [+b.x.toFixed(3), b.y, +b.z.toFixed(3)], mat: BM.mats[b.block] }));
   }
 }
+// cover on the high perches (rules.perches): the tower's crown at 109 m and its east block's lookout at 49 m, each reached
+// by a pad, with a few of the pack's cooling units and crates to fight round (the owner, 2026-10-02: a high spot "a super
+// superior spot" a squad can still take). On the last bake's collision: each piece's footprint level at the perch's
+// height, `edge` metres off any drop, `apart` from the others and 3 m off where a pad lands
+{
+  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number }> | undefined;
+  const pf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
+  if (PR && existsSync(pf)) {
+    const S: number[][] = JSON.parse(readFileSync(pf, "utf8")).solids;
+    const G = 2;
+    const grid = new Map<string, number[][]>();
+    for (const b of S)
+      for (let i = Math.floor(b[0] / G); i <= Math.floor(b[1] / G); i++)
+        for (let j = Math.floor(b[2] / G); j <= Math.floor(b[3] / G); j++) (grid.get(`${i},${j}`) ?? grid.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
+    // (the roof and what is built on it, not the cover the bake before this stood on it: a box standing on the perch's
+    // own floor under 2.2 m tall is a crate or a cooling unit of the last layout's, and counting it would move this one's;
+    // a beam at knee height under the roof room starts above the floor and counts)
+    const topAt = (x: number, z: number, floor: number[]) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && !(b[4] >= floor[0] - 0.05 && b[4] <= floor[1] + 0.05 && b[5] - b[4] < 2.2) && b[5] > t ? b[5] : t), -Infinity);
+    const anyTop = (x: number, z: number, h: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h && b[5] > t ? b[5] : t), -Infinity);
+    // (where each pad lands on the perches, as the bake finds it: the first column `face` metres high along its line, a
+    // body wide, and `land` metres past it; or the way down's own spot)
+    const lands: number[][] = [];
+    for (const q of (R.pads.spine?.up ?? []) as Array<{ at: number[]; to: number[]; floor: number; face: number; land: number }>) {
+      if (q.floor < 10) continue;
+      let t = 0;
+      while (t < 40 && anyTop(q.at[0] + q.to[0] * t, q.at[1] + q.to[1] * t, R.pads.body) < q.face) t += 0.05;
+      lands.push([q.at[0] + q.to[0] * (t + R.pads.body + q.land), q.at[1] + q.to[1] * (t + R.pads.body + q.land)]);
+    }
+    for (const q of (R.pads.spine?.down ?? []) as Array<{ pad: number[] }>) lands.push(q.pad);
+    const perches: Array<{ name: string; at: number[][] }> = [];
+    for (const P of PR) {
+      const rnd = seeded(P.seed);
+      const spots: Pt[] = [];
+      for (let x = P.box[0]; x <= P.box[1]; x += 0.5) for (let z = P.box[2]; z <= P.box[3]; z += 0.5) spots.push([x, z]);
+      for (let i = spots.length - 1; i > 0; i--) {
+        const j = Math.floor(rnd() * (i + 1));
+        [spots[i], spots[j]] = [spots[j], spots[i]];
+      }
+      const mine: Array<{ c: Pt; r: number }> = [];
+      const at: number[][] = [];
+      for (const [x, z] of spots) {
+        if (at.length >= P.count) break;
+        const name = P.pieces[at.length % P.pieces.length];
+        const row = piece(name).row;
+        const yaw = rnd() < 0.5 ? 0 : 90;
+        const [hx, hz] = yaw === 0 ? [row.size![0] / 2, row.size![2] / 2] : [row.size![2] / 2, row.size![0] / 2];
+        const r = Math.hypot(hx, hz);
+        // (level under the whole footprint, at the perch's height)
+        const under = P.y;
+        const y = topAt(x, z, under);
+        if (y < P.y[0] || y > P.y[1]) continue;
+        let ok = true;
+        for (const fx of [-hx, 0, hx]) for (const fz of [-hz, 0, hz]) if (Math.abs(topAt(x + fx, z + fz, under) - y) > 0.05) ok = false;
+        // (and no drop within `edge` of it: a piece by the roof's edge is a step off it)
+        for (const fx of [-hx - P.edge, 0, hx + P.edge]) for (const fz of [-hz - P.edge, 0, hz + P.edge]) if (topAt(x + fx, z + fz, under) < y - 0.5) ok = false;
+        if (!ok || lands.some((l) => Math.hypot(l[0] - x, l[1] - z) < 3 + r) || mine.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r)) continue;
+        placeTurned("c-dress", name, x, z, yaw, "o", y - row.min![1]);
+        mine.push({ c: [x, z], r });
+        at.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2)]);
+      }
+      perches.push({ name: P.name, at });
+    }
+    cfg.perches = perches;
+    console.log(`the perches' cover: ${perches.map((q) => `${q.name} ${q.at.length}`).join(", ")}`);
+  }
+}
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));
 cfg.measured = { placements: [...chunks.values()].reduce((a, c) => a + c.place.length, 0), pieces: new Set([...chunks.values()].flatMap((c) => c.place.map((p) => p[0]))).size };
 writeFileSync(CFG_FILE, JSON.stringify(cfg, null, 1) + "\n");

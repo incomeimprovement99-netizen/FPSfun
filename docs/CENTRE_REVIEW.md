@@ -51,7 +51,7 @@ the streets) and close range too (eight tower floors, the base, the court, the m
 
 1. Open windows in the tower's floors and the base (the owner's ask). *Done, Milestone 417.*
 2. Two pads to the tower's roof at 108 m from the base's roof, with cover up there and on the lookout: a superior spot
-   anyone can contest.
+   anyone can contest. *Done, Milestone 420.*
 3. Light the interiors.
 4. Fix the beams: MOTEL HILL's black beam, and shorter pad beams so only the four block beams stand tall.
 5. Cover on the roofs, and mid-range cover in the streets.
