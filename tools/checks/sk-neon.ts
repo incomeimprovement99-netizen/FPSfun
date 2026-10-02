@@ -274,6 +274,43 @@ check("each corner block named on the map over its roof yard, or the Well's over
   const stacks = CR.map((q) => ({ q, n: sw.filter((p) => /\/Crate0/.test(String(p[0])) && Math.hypot((p[1] as number) - q.at[0], (p[3] as number) - q.at[1]) < 2.5).length, street: onStreetHere(q.at[0], q.at[1]) }));
   check("MARKET: its crate stacks, three crates each, on the block's own ground off the street", MK.length > 0 && CR.length === MK.reduce((a, m) => a + m.count, 0) && stacks.every((e) => e.n >= 3 && !e.street && e.q.at[0] < 0 && e.q.at[1] > 0), stacks.map((e) => `(${e.q.at.join(", ")}) ${e.n} crates${e.street ? " ON THE STREET" : ""}`).join("; "));
 }
+// (and the walk-in buildings on the curves, the master plan's shop fronts: each entered from the street at its door side, a
+// body's square a quarter metre at a time over the collision, a step at most between squares, to its ground floor's middle)
+{
+  const WIs = (cfg as unknown as { walkIns?: Array<{ chunk: string; piece: string; at: number[]; door: number[] }> }).walkIns ?? [];
+  const [G, r] = [0.25, MOVE.radius];
+  const standAt = (x: number, z: number, from: number): number | null => {
+    const [wx, wz] = [x + BR_X, z + BR_Z];
+    const near = solidsIn(wx - r, wx + r, wz - r, wz + r).filter((s) => s.maxX > wx - r && s.minX < wx + r && s.maxZ > wz - r && s.minZ < wz + r);
+    // the highest top under its middle within a step of where it comes from, the street's floor at 0 the least
+    let top = Math.abs(from) <= MOVE.stepHeight ? 0 : -Infinity;
+    for (const s of near) if (wx >= s.minX && wx <= s.maxX && wz >= s.minZ && wz <= s.maxZ && s.top <= from + MOVE.stepHeight && s.top > top) top = s.top;
+    if (top === -Infinity) return null;
+    return near.some((s) => s.top > top + MOVE.stepHeight && s.base < top + MOVE.standHeight) ? null : top;
+  };
+  const each = WIs.map((w) => {
+    const seen = new Map<string, number>();
+    const [i0, j0] = [Math.round(w.door[0] / G), Math.round(w.door[1] / G)];
+    const y0 = standAt(i0 * G, j0 * G, 0);
+    const todo: Array<[number, number, number]> = y0 === null ? [] : [[i0, j0, y0]];
+    if (y0 !== null) seen.set(`${i0},${j0}`, y0);
+    let inside = false;
+    while (todo.length && !inside) {
+      const [i, j, y] = todo.pop()!;
+      if (Math.hypot(i * G - w.at[0], j * G - w.at[1]) < 2.5 && y > -0.5 && y < 1) inside = true;
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const [ni, nj] = [i + di, j + dj];
+        if (seen.has(`${ni},${nj}`) || Math.hypot(ni * G - w.at[0], nj * G - w.at[1]) > 16) continue;
+        const ny = standAt(ni * G, nj * G, y);
+        if (ny === null || ny > 1.5) continue;
+        seen.set(`${ni},${nj}`, ny);
+        todo.push([ni, nj, ny]);
+      }
+    }
+    return { w, inside, n: seen.size };
+  });
+  check("the walk-in buildings on the curves: one a corner block, each entered from the street to its ground floor's middle", each.length === 4 && each.every((e) => e.inside), each.map((e) => `${e.w.chunk} ${e.w.piece.replace(".prefab", "")} ${e.inside ? "entered" : `NOT entered (${e.n} squares)`}`).join("; "));
+}
 check("the high city decks, the lobby and the corner blocks as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
 
 // The centre's curved streets (rules.streets.curves; the owner, 2026-09-30: "have them curve left and right along with

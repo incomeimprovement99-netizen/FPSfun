@@ -340,6 +340,7 @@ const islands: number[][] = [];
 const rooms: number[][] = [];
 const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> = [];
 const yards: Array<{ block: string; inside: number[]; y: number }> = [];
+const walkIns: Array<{ chunk: string; piece: string; at: number[]; yaw: number; door: number[] }> = [];
 /** each corner block's light (rules.low.beam): where it rises from */
 const beams: Array<{ chunk: string; block: string; x: number; y: number; z: number }> = [];
 {
@@ -476,6 +477,38 @@ const beams: Array<{ chunk: string; block: string; x: number; y: number; z: numb
     fires.push({ block, at: [+wx.toFixed(3), +wz.toFixed(3)], yaw: fy + spot[2], roof: F.roof, rise: F.rise, flights: F.flights });
     console.log(`the ${chunk} rooms building's fire escape at its spot ${F.at.indexOf(spot) + 1} of ${F.at.length}`);
   }
+  // The walk-in buildings (rules.low.walkIn, the master plan's shop fronts along the curves): each of the street fronts'
+  // `swap` shells (a shell, solid to its top) swapped, once the block is built, for one of the pack's realistic
+  // buildings, `pieces` in turn, with rooms, stairs and floors inside: on the shell's front line and middle, its door
+  // side (`face` degrees from its own +z) to the street, its collision its own triangles. The shell's footprint holds
+  // it whole, so nothing else moves; mixed into the fronts' pool instead, none fitted along a curve and every seeded
+  // choice after it came out different
+  const WI = L.walkIn as { swap: string; pieces: string[]; face: number } | undefined;
+  if (WI) {
+    let n = 0;
+    for (const [chunk, ch] of chunks) {
+      if (!/^c-[ns][ew]$/.test(chunk)) continue;
+      ch.place.forEach((p, i) => {
+        if (!p[0].endsWith(`/${WI.swap}`)) return;
+        const sh = piece(WI.swap).row;
+        const name = WI.pieces[n++ % WI.pieces.length];
+        const wr = piece(name);
+        const t = p[4];
+        // the shell's front's middle on the map, and the way to the street
+        const [fx, fz] = rotY(t, (sh.min![0] + sh.max![0]) / 2, sh.max![2]);
+        const out = rotY(t, 0, 1);
+        const yaw = t + WI.face;
+        const [w0, w1] = [wr.row.min!, wr.row.max!];
+        // (its depth from the street: its own extent along the side turned to it)
+        const depth = Math.abs(WI.face) === 90 ? w1[0] - w0[0] : w1[2] - w0[2];
+        const c: Pt = [p[1] + fx - out[0] * (depth / 2), p[3] + fz - out[1] * (depth / 2)];
+        const [mx, mz] = rotY(yaw, (w0[0] + w1[0]) / 2, (w0[2] + w1[2]) / 2);
+        ch.place[i] = [wr.key, +(c[0] - mx).toFixed(3), 0, +(c[1] - mz).toFixed(3), +yaw.toFixed(2), "o"] as Place;
+        walkIns.push({ chunk, piece: name, at: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), door: [+(p[1] + fx + out[0] * 2).toFixed(3), +(p[3] + fz + out[1] * 2).toFixed(3)] });
+      });
+    }
+    console.log(`walk-in buildings: ${walkIns.length} for the ${WI.swap} shells`);
+  }
   // Each corner block's own things (the master plan's), a set at a time, each set placed after the last so it keeps
   // off it: NOODLE ROW's street food stalls (rules.low.stalls) and MARKET's (rules.low.market). Each on the block's own
   // ground where a building may stand (off every road by the pavement, inside the edge road, clear of the buildings,
@@ -534,6 +567,7 @@ const beams: Array<{ chunk: string; block: string; x: number; y: number; z: numb
   cfg.rooms = rooms;
   // (each fire escape where it stands, for tools/checks/sk-neon.ts to climb)
   cfg.fires = fires;
+  cfg.walkIns = walkIns;
   cfg.yards = yards;
   console.log(`corner blocks: ${fronts} buildings along the curves and a building in each wedge (${JSON.stringify(Object.fromEntries(why))} tried)`);
 }

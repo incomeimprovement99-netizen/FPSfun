@@ -8970,3 +8970,23 @@ The master plan's MARKET, the south-west block, has "stalls, crates and racks" a
 - **Checked** (`tools/checks/sk-neon.ts`, a new check): MARKET's four stacks, three crates each, none on the street
   (seen failing with a stack put on the Loop). NOODLE ROW's stalls stand where they stood. verify and rules; e2e
   `loot` and `br`. Photographed.
+
+## Milestone 406 — Walk-in buildings on the curves
+
+The master plan's sixth phase has shop fronts along the curved streets; the buildings there were shells, solid to
+their tops. One on each corner block is now a building to walk into and fight through.
+
+- **The walk-ins** (rules.low.walkIn, tools/neon-layout.ts): each of the four street-front shells StreetBuilding01
+  (22.6 by 16 m) swapped, once its block is built, for one of the pack's realistic buildings in turn, Neon Building 05
+  and 06 (11 to 13 m deep, 21.3 m along the street, two storeys of rooms and stairs over a basement), on the shell's
+  front line and middle, turned so the side with its door is to the street (found by photographing both from round
+  about in a bake of their own: their glass doors and courtyard are on their own -x), colliding as their own triangles
+  at the fine cell, as the rooms buildings' narrow stairs need. The shell's footprint holds each whole, so nothing else
+  moved.
+- Mixed into the street fronts' pool instead, none fitted along a curve (21 m straight against a bend) and every
+  seeded choice after it came out different, so that was undone.
+- The map: 2.13 million triangles (the shells' detailed fronts were heavier than the buildings that replaced them);
+  its files lo 79 MB, hi 140 MB, max 349 MB. **Its files are version 28.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): each walk-in entered from the street at its door side to its
+  ground floor's middle, a body's square at a time with a step at most between squares (seen failing with them baked
+  as shells). verify and rules; e2e `loot` and `br`. Photographed.
