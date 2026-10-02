@@ -33,5 +33,11 @@
     "time": 0.35,
     "raise": 25,
     "bend": 40
+  },
+  "_flatFeet": "Standing or crouched still, the soldier's clips hold its toes 16.1 degrees up from its bind pose, so it stood on its heels (measured by apex-lobby for the battle royale's card, Milestone 416: the foot-to-ball line 30.5 degrees down against 46.6 bound, the ankle 0.152 m up and the ball 0.072; the owner asked it fixed). Under `under` m/s each foot is turned back until its toe is no higher than the bind pose has it, eased in and out at `rate` a second (rifle-hold soldiers only; the legacy figures keep their clips). A foot the clips point down (a crouch's kneeling foot) and every moving foot are the clips' own: walking and running, the planted feet come down flat by themselves (measured: 2 to 8 degrees at mid stance). Turned flat, a standing sole was 11 to 22 mm into the floor (its heel had been 44 mm in, the toe 9 above): the standing clip holds the legs lower than a walk's planted foot (the ankle 0.152 m up against 0.174), so a figure standing still is also lifted `lift` m, eased the same way (measured off the boots' lowest skin; not crouched, whose kneeling foot is already above the floor).",
+  "flatFeet": {
+    "under": 0.6,
+    "rate": 10,
+    "lift": 0.021
   }
 }

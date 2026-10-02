@@ -8244,6 +8244,46 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     lifted.knee - firstSeen.knee >= 60 && Math.abs(after.knee - firstSeen.knee) <= 20 && firstSeen.turn === 0 && lifted.turn === 0 && after.turn === 0,
     JSON.stringify({ firstSeen, lifted, after })
   );
+  // Standing still, flat on its feet (figure.json flatFeet; the owner asked it fixed when the card showed it on its heels,
+  // toes 16 degrees up): each foot's toe no higher than its bind pose has it, and the boots' lowest skin on the floor
+  const feet = await ev<{ toes: number[]; soles: number[] }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(1.5);
+      const f = r.labFigures()[0];
+      f.group.updateMatrixWorld(true);
+      let mesh = null; f.group.traverse((o) => { if (!mesh && o.isSkinnedMesh && o.skeleton.bones.some((x) => x.name === "foot_l")) mesh = o; });
+      const sk = mesh.skeleton, bi = (n) => sk.bones.findIndex((x) => x.name === n);
+      const bindAt = (i) => new T.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert());
+      const up = bindAt(bi("Head")).sub(bindAt(bi("foot_l")).add(bindAt(bi("foot_r"))).multiplyScalar(0.5)).normalize();
+      const toes = ["l", "r"].map((s) => {
+        const rest = Math.asin(bindAt(bi("ball_" + s)).sub(bindAt(bi("foot_" + s))).normalize().dot(up));
+        const d = sk.bones[bi("ball_" + s)].getWorldPosition(new T.Vector3()).sub(sk.bones[bi("foot_" + s)].getWorldPosition(new T.Vector3())).normalize();
+        return Math.round((Math.asin(d.y) - rest) * 573) / 10;
+      });
+      const soles = { l: 9, r: 9 };
+      const v = new T.Vector3();
+      f.group.traverse((o) => {
+        if (!o.isSkinnedMesh || !o.visible) return;
+        const pos = o.geometry.getAttribute("position"), sw = o.geometry.getAttribute("skinWeight"), si = o.geometry.getAttribute("skinIndex");
+        for (let i = 0; i < pos.count; i++) {
+          let best = 0, bone = -1;
+          for (let k = 0; k < 4; k++) if (sw.getComponent(i, k) > best) { best = sw.getComponent(i, k); bone = si.getComponent(i, k); }
+          const m = /^(foot|ball)_([lr])$/.exec(o.skeleton.bones[bone]?.name ?? "");
+          if (!m) continue;
+          o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld);
+          soles[m[2]] = Math.min(soles[m[2]], v.y - f.group.position.y);
+        }
+      });
+      return { toes, soles: [soles.l, soles.r].map((x) => Math.round(x * 1000)) };
+    })()`,
+  );
+  check(
+    "the soldier standing still is flat on its feet: each toe no higher than its bind pose has it (2 degrees), the soles on the floor (10 mm)",
+    feet.toes.every((t) => t <= 2) && feet.soles.every((s) => Math.abs(s) <= 10),
+    JSON.stringify(feet)
+  );
   await ev(page, "window.__range.figureLabManual(false)");
   await page.close();
   // the Loadouts tab's soldier holding the USSO: the same hold, its palms on their holds (on a page that draws: the

@@ -9309,3 +9309,23 @@ ones 0.09 s. The owner, 2026-10-02: "continue w next steps".
 - **The load:** no added time measured (two fresh pages each way, alternated: 18.2 and 23.6 s with it, 25.7 and 25.4 s
   without, the machine in use).
 - **Checked:** the profile before and after; the load compared; verify; rules.
+
+## Milestone 419 — The soldier stands flat on its feet
+
+apex-lobby found it photographing the battle royale's card (Milestone 416): a standing soldier stood on its heels, toes
+16.1 degrees up from its bind pose, and fixed the card's figure alone; the owner asked it fixed, and the soldier others
+see in matches is the character agent's.
+
+- **Measured** (lab soldier, each foot's foot-to-ball line against its bind pose, and the boots' lowest skin): standing
+  and aimed, both toes 16.1 degrees up with the heels 44 mm into the floor and the toes 9 mm above it; crouched, the front
+  foot the same and the kneeling foot's toes down (-38). Walking and running, the planted feet come down flat by
+  themselves (2 to 8 degrees at mid stance), so it is the standing and crouching clips, not a constant offset.
+- **The fix** (mannequin.ts flattenFeet, figure.json flatFeet): under 0.6 m/s, standing or crouched, each foot is turned
+  about its own side to side until its toe is no higher than its bind pose has it (read off the skeleton's inverse
+  binds, the head over the feet as up), eased in as the soldier stops and out as it moves; a toes-down foot is left
+  alone. Flat, a standing sole was 11 to 22 mm into the floor, the standing clip holding the legs lower than a walk's
+  planted foot (the ankle 0.152 m against 0.174), so standing still the soldier is also lifted 21 mm. Now both toes 0,
+  the soles at 0 and -1 mm. Rifle-hold soldiers only; the legacy figures keep their clips.
+- **Checked:** a new skfigure check (the toes within 2 degrees of the bind pose, the soles within 10 mm of the floor),
+  seen failing with the fix off (16.1 degrees, 44 and 45 mm); the skfigure e2e (77); verify; rules; the standing
+  soldier photographed from the side.

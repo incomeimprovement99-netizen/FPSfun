@@ -607,6 +607,8 @@ function clipSeconds(name: string): number {
 const ATHLETIC_JUMP = figureCfg.athleticJump;
 /** a double jump's knee lift: how long, and how far the thighs come up and the knees bend, degrees (figure.json doubleJump) */
 const DOUBLE_JUMP = figureCfg.doubleJump;
+/** standing or crouched still, each foot's toe brought down to its bind pose's (figure.json flatFeet) */
+const FLAT_FEET = figureCfg.flatFeet;
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
 const THROW_FOR = soldierHold.throwFor;
 /** how far the hands have come back onto a returning long gun when it shows (soldierhold.json gunBack) */
@@ -1036,6 +1038,18 @@ export class MannequinFigure {
   private gripW = 0;
   /** 0..1 the long gun lowered and canted across the body (a sprint, a swap) */
   private lowered = 0;
+  /** how far the still figure's feet are flattened, 0 to 1, eased (figure.json flatFeet) */
+  private flatW = 0;
+  /** how far a figure standing still is lifted onto its flattened soles, 0 to 1, eased (figure.json flatFeet.lift) */
+  private liftW = 0;
+  /** each foot's foot-to-ball pitch in the bind pose against the figure's up, radians, found once */
+  private footRest: Record<string, number> | null = null;
+  private readonly footA = new THREE.Vector3();
+  private readonly footB = new THREE.Vector3();
+  private readonly footSide = new THREE.Vector3();
+  private readonly footQ = new THREE.Quaternion();
+  private readonly footW = new THREE.Quaternion();
+  private readonly footT = new THREE.Quaternion();
   /** the long gun is on its way back into the hands after a throw, a heal or a reach: hidden until they are on it */
   private gunComing = false;
   /** 0..1 each, eased: the lowered carry a swap's own, and a sprint jump's own (rifle.ts carryOf) */
@@ -1414,6 +1428,50 @@ export class MannequinFigure {
     gun.visible = this.gunShown && !this.dead;
     hand.add(gun);
     this.gun = gun;
+  }
+
+  /**
+   * Each foot's toe brought down by `w` of the way to no higher than its bind pose has it, about the foot's own side to
+   * side (the figure stands upright, so its up is the world's). The bind pose's pitch is read off the skeleton's inverse
+   * binds against the head over the feet, as the meshes are Z up.
+   */
+  private flattenFeet(w: number): void {
+    const b = this.bones;
+    if (!this.footRest) {
+      let sk: THREE.Skeleton | null = null;
+      this.root.traverse((o) => {
+        const m = o as THREE.SkinnedMesh;
+        if (!sk && m.isSkinnedMesh && m.skeleton.bones.some((x) => x.name === "foot_l")) sk = m.skeleton;
+      });
+      const S = sk as THREE.Skeleton | null;
+      if (!S) return;
+      const at = (name: string) => {
+        const i = S.bones.findIndex((x) => x.name === name);
+        return i < 0 ? null : new THREE.Vector3().setFromMatrixPosition(S.boneInverses[i].clone().invert());
+      };
+      const [head, fl, fr, bl, br] = ["Head", "foot_l", "foot_r", "ball_l", "ball_r"].map(at);
+      if (!head || !fl || !fr || !bl || !br) return;
+      const up = head.clone().sub(fl.clone().add(fr).multiplyScalar(0.5)).normalize();
+      const pitch = (f: THREE.Vector3, ball: THREE.Vector3) => Math.asin(THREE.MathUtils.clamp(ball.clone().sub(f).normalize().dot(up), -1, 1));
+      this.footRest = { l: pitch(fl, bl), r: pitch(fr, br) };
+    }
+    for (const s of ["l", "r"]) {
+      const foot = b[`foot_${s}`];
+      const ball = b[`ball_${s}`];
+      if (!foot || !ball || !foot.parent) continue;
+      foot.parent.updateWorldMatrix(true, false);
+      foot.updateMatrixWorld(true);
+      const dir = ball.getWorldPosition(this.footA).sub(foot.getWorldPosition(this.footB)).normalize();
+      const lift = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1)) - this.footRest[s];
+      if (lift <= 0) continue;
+      // (a positive turn about this lifts the toe)
+      const side = this.footSide.crossVectors(dir, Y).normalize();
+      if (side.lengthSq() < 0.5) continue;
+      const parentQ = foot.parent.getWorldQuaternion(this.footQ);
+      const world = this.footW.copy(parentQ).multiply(foot.quaternion);
+      world.premultiply(this.footT.setFromAxisAngle(side, -lift * w));
+      foot.quaternion.copy(parentQ.invert().multiply(world));
+    }
   }
 
   /** how far this gun reaches behind its own grip, metres (0 for a pistol) */
@@ -1930,7 +1988,7 @@ export class MannequinFigure {
         turnBone(b.lowerarm_l, fig, X, -em.lElbowF);
       }
       this.root.position.y = em.bounce;
-    } else this.root.position.y = p.stance === "downed" ? -0.15 : 0;
+    } else this.root.position.y = p.stance === "downed" ? -0.15 : FLAT_FEET.lift * this.liftW;
     // the double jump's knees, up and back down over its time: the thighs forward (a turn about the figure's left by a
     // negative angle brings a hanging bone's end forward) and the knees bent back
     if (lift >= 0 && lift < 1) {
@@ -1942,6 +2000,15 @@ export class MannequinFigure {
         if (calf) turnBone(calf, fig, X_AXIS, DOUBLE_JUMP.bend * DEG * w);
       }
     }
+    // Standing or crouched still, the soldier's clips held its toes 16 degrees up from its bind pose, so it stood on its
+    // heels (measured by apex-lobby for the card, Milestone 416; the owner asked it fixed): each foot is turned about its
+    // own side to side until its toe is no higher than the bind pose has it, eased in as it stops and out as it moves, so
+    // a walk's, a run's, a jump's and a kneeling foot's are the clips' own
+    const still = this.soldier && (p.stance === "stand" || p.stance === "crouch") && p.speed < FLAT_FEET.under ? 1 : 0;
+    this.flatW += (still - this.flatW) * Math.min(1, dt * FLAT_FEET.rate);
+    // (and lifted onto them standing: the standing clip holds the legs lower than a walk's planted foot)
+    this.liftW += ((still && p.stance === "stand" ? 1 : 0) - this.liftW) * Math.min(1, dt * FLAT_FEET.rate);
+    if (this.flatW > 0.01) this.flattenFeet(this.flatW);
     const shown = !!this.gun && this.gun.visible;
     if (this.mount && this.grip && this.rifle && this.butt && this.support) {
       // (the hold goes on for a gun on its way back, not yet shown: the hands go to where it will be)

@@ -304,6 +304,10 @@ Each lands with its gun's turn, so no gun is ever without its look.
   plain look saw nothing change while the clash moved from 67 to 52 mm.
 - **A hand search's start**: start from a fitted gun with the same kind of grip, not the shared numbers (ANAKIN's right
   hand came out flat on the receiver from the shared start).
+- **The solver scores still poses, the sweep scores motion**: figure-solve's rest stage, run on BOOG with the exact look,
+  cut its four still poses' cost by a quarter to a third (the butt 3 cm out and 4.5 higher, the right elbow out), yet over
+  the sweep it made rest 16 to 31 mm, the sprint's bad frames 3 to 24 and the reload 104 to 115 (2026-10-02; not kept).
+  A solve is kept only if the sweep agrees; the lasting fix is a solve whose cost is the sweep's sequences.
 - **The stock in the right forearm**: BOOG's 179 bad frames; on every long gun the right arm is fitted against the stock
   through the sweep, not at rest.
 - **Hidden meshes**: measure drawn meshes only (the procedural magazine in a bought gun's magazine group).
