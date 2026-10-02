@@ -9209,3 +9209,18 @@ soldier as others see it (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.1), with its groundwork
   of ANAKIN at rest, aimed and sprinting from four sides; verify; rules; the type check.
 - **Waiting on the guns agent:** ANAKIN's first-person rack (fparms.json packGuns) and its gunfeel.json entry. Until
   then the soldier reloads ANAKIN with the magazine alone and its swap has no phase or cup; both turn on with them.
+
+## Milestone 415 — The soldier's gun-in-body measure made exact, and what it found
+
+- **The blind spot:** figure-audit.js looked 4 cm in from each gun point for the body's surface and called a point with
+  none that near outside, so a stock right through an arm showed only its edge (40 mm at most), and a longer look alone
+  took points beside an armour shell for inside. Its exact look (`exact`) searches 15 cm and keeps a point only if rays
+  from it cross the mesh it is in an odd number of times, most of five. `figure-sweep.ts` and `figure-solve.ts` use it;
+  the skfigure e2e and the frame sheets keep the plain look (`EXACT=1` on the sheets) until the faults below are fixed.
+- **Measured exactly:** the USSO is clean (its "39 mm" sprint-jump frame is 8). BOOG's stock is 73 mm into the chest
+  looking 35 up, 104 mm into the right forearm at the reload's end and 61 in a sprint jump. ANAKIN's sprint jump had put
+  its gun 150 mm or more into the belly, unseen by the first carry solve; solved again with the exact look it does not.
+- **Still open:** ANAKIN's stock slab against the armoured right wrist, 59 to 85 mm: no place of the butt, chest turn,
+  elbow, eye relief, hand turn or the gun's size clears every pose. With the owner, with photographs.
+- **Checked:** the deepest points confirmed by rays (the USSO's false 74 mm read 0, ANAKIN's 40 read 67 and was inside
+  the body mesh); the skfigure e2e (76); verify; rules.
