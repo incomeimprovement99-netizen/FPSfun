@@ -8954,3 +8954,19 @@ The master plan's NOODLE ROW, the north-east block, has "street food stalls ... 
 - The map: its files lo 85 MB, hi 145 MB, max 353 MB. **Its files are version 26.**
 - **Checked** (`tools/checks/sk-neon.ts`, a new check): the four stalls in NOODLE ROW, each with its two lanterns, none on
   the street (seen failing with a stall put on the Loop). verify and rules; e2e `loot` and `br`. Photographed.
+
+## Milestone 405 — MARKET's crate stacks
+
+The master plan's MARKET, the south-west block, has "stalls, crates and racks" as the thing only it has.
+
+- **Four crate stacks** (rules.low.market, tools/neon-layout.ts), three of the pack's crates to a stack, on the block's
+  own ground near its streets, at least 6 m apart: cover in the street, colliding.
+- **The block's own things are one rule now:** NOODLE ROW's stalls (Milestone 404) and MARKET's crates are sets placed
+  the same way, each after the last so it keeps off it: on the block's own ground where a building may stand, near
+  the street, apart from each other, turned with a set side to the nearest road, with pieces round each.
+- The pack's bus stop was tried first: at 9.3 m long, no stretch of MARKET's open ground near a street holds it clear
+  of the buildings, so it is left out.
+- The map: its files lo 85 MB, hi 146 MB, max 353 MB. **Its files are version 27.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): MARKET's four stacks, three crates each, none on the street
+  (seen failing with a stack put on the Loop). NOODLE ROW's stalls stand where they stood. verify and rules; e2e
+  `loot` and `br`. Photographed.

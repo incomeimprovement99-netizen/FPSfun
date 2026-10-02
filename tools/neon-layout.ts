@@ -340,7 +340,6 @@ const islands: number[][] = [];
 const rooms: number[][] = [];
 const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> = [];
 const yards: Array<{ block: string; inside: number[]; y: number }> = [];
-const stalls: Array<{ at: number[]; yaw: number; piece: string }> = [];
 /** each corner block's light (rules.low.beam): where it rises from */
 const beams: Array<{ chunk: string; block: string; x: number; y: number; z: number }> = [];
 {
@@ -477,54 +476,61 @@ const beams: Array<{ chunk: string; block: string; x: number; y: number; z: numb
     fires.push({ block, at: [+wx.toFixed(3), +wz.toFixed(3)], yaw: fy + spot[2], roof: F.roof, rise: F.rise, flights: F.flights });
     console.log(`the ${chunk} rooms building's fire escape at its spot ${F.at.indexOf(spot) + 1} of ${F.at.length}`);
   }
-  // NOODLE ROW's food stalls (rules.low.stalls, the master plan's: "street food stalls ... lanterns"): the pack's street
-  // food stalls on the block's own ground, where a building may stand (off every road by the pavement, inside the
-  // edge road, clear of the buildings, the islands and the fire escape's room by the gap), the ones nearest the street,
-  // `apart` metres from each other, each turned with its counter to its nearest road; their counters collide (cover),
-  // and two of the pack's paper lanterns hang at each one's front, drawn only. The pavement is 2.5 m and a stall 2.7 m
-  // across, so none stands on it
-  const ST = L.stalls as { block: string; pieces: string[]; count: number; apart: number; lantern: string; lanterns: number[][] } | undefined;
-  if (ST) {
-    const [bx, bz] = ST.block.split(",").map(Number);
+  // Each corner block's own things (the master plan's), a set at a time, each set placed after the last so it keeps
+  // off it: NOODLE ROW's street food stalls (rules.low.stalls) and MARKET's (rules.low.market). Each on the block's own
+  // ground where a building may stand (off every road by the pavement, inside the edge road, clear of the buildings,
+  // the islands and the fire escape's room by the gap, out past the Loop's pavement and the High City islands), `near`
+  // the street (its distance beyond the pavement, in metres), the nearest first, `apart` metres from each other, its
+  // footprint grown by `grow` for what stands round it; turned so its own side `face` (degrees from its own +z) is to
+  // its nearest road (down the road distance's slope), and its `extras` (pieces at x, y, z in its own metres) with it.
+  // The pavement is 2.5 m, so none stands on it
+  type DressSet = { name: string; block: string; pieces: string[]; count: number; apart: number; near: number[]; face: number; grow?: number; extras: Array<{ piece: string; at: number[]; mode: "g" | "s" | "o" }>; save?: string };
+  const SL = L.stalls as { block: string; pieces: string[]; count: number; apart: number; lantern: string; lanterns: number[][] } | undefined;
+  const sets: DressSet[] = [
+    // (a stall's counter is its own +x, measured by photographing it from all four sides: its z faces are panels)
+    ...(SL ? [{ name: "NOODLE ROW", block: SL.block, pieces: SL.pieces, count: SL.count, apart: SL.apart, near: [1, 6], face: 90, extras: SL.lanterns.map((at) => ({ piece: SL.lantern, at, mode: "g" as const })), save: "stalls" }] : []),
+    ...((L.market as DressSet[] | undefined) ?? []),
+  ];
+  const saved: Record<string, Array<{ at: number[]; yaw: number; piece: string }>> = {};
+  for (const D of sets) {
+    const [bx, bz] = D.block.split(",").map(Number);
     const chunk = `c-${bz < 0 ? "n" : "s"}${bx < 0 ? "w" : "e"}`;
-    const cands: Array<{ c: Pt; yaw: number; d: number; name: string }> = [];
+    const row0 = piece(D.pieces[0]).row;
+    const cands: Array<{ c: Pt; yaw: number; d: number }> = [];
     for (let x = 8; x <= L.edge; x += 1)
       for (let z = 8; z <= L.edge; z += 1) {
         const [cx, cz] = [bx * x, bz * z];
         // (the block's own ground: out past the Loop's pavement, and past the High City islands either side of the axes)
         if (Math.hypot(cx, cz) < CV.loop.r + CV.road / 2 + CV.pave + 1 || Math.min(x, z) < R.blocks.inner[1]) continue;
         const d = onRoad(cx, cz);
-        if (d < CV.pave + 1 || d > CV.pave + 6) continue;
-        // its front toward the road: down the distance's slope
+        if (d < CV.pave + D.near[0] || d > CV.pave + D.near[1]) continue;
         const gx = onRoad(cx + 0.5, cz) - onRoad(cx - 0.5, cz), gz = onRoad(cx, cz + 0.5) - onRoad(cx, cz - 0.5);
-        // (its counter is its own +x, measured by photographing it from all four sides: its z faces are panels)
-        const yaw = yawToward(-gx, -gz) - 90;
-        const row = piece(ST.pieces[0]).row;
-        const o: OBox = { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.max![1] };
+        const yaw = yawToward(-gx, -gz) - D.face;
+        const o: OBox = { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row0.size![0] / 2 + (D.grow ?? 0), hv: row0.size![2] / 2 + (D.grow ?? 0), top: row0.max![1] };
         if (!fits(o) || fireBoxes.some((q) => overlaps(o, q, L.gap))) continue;
-        cands.push({ c: [cx, cz], yaw, d, name: "" });
+        cands.push({ c: [cx, cz], yaw, d });
       }
     cands.sort((a, b) => a.d - b.d);
     const chosen: typeof cands = [];
-    for (const q of cands) if (chosen.length < ST.count && chosen.every((r) => Math.hypot(r.c[0] - q.c[0], r.c[1] - q.c[1]) >= ST.apart)) chosen.push(q);
-    if (chosen.length < ST.count) throw new Error(`room for only ${chosen.length} of NOODLE ROW's ${ST.count} stalls`);
-    const lp = piece(ST.lantern);
+    for (const q of cands) if (chosen.length < D.count && chosen.every((r) => Math.hypot(r.c[0] - q.c[0], r.c[1] - q.c[1]) >= D.apart)) chosen.push(q);
+    if (chosen.length < D.count) throw new Error(`room for only ${chosen.length} of ${D.name}'s ${D.count} ${D.pieces[0]}`);
     chosen.forEach((q, i) => {
-      const name = ST.pieces[i % ST.pieces.length];
+      const name = D.pieces[i % D.pieces.length];
       const { row } = piece(name);
-      placed.push(placeTurned(chunk, name, q.c[0], q.c[1], q.yaw, "o"));
-      // (its pivot, as placeTurned puts it, for the lanterns in its own metres)
+      const box = placeTurned(chunk, name, q.c[0], q.c[1], q.yaw, "o");
+      placed.push({ ...box, hu: box.hu + (D.grow ?? 0), hv: box.hv + (D.grow ?? 0) });
+      // (its pivot, as placeTurned puts it, for its extras in its own metres)
       const [ox, oz] = rotY(q.yaw, (row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2);
       const [px, pz] = [q.c[0] - ox, q.c[1] - oz];
-      for (const [lx, ly, lz] of ST.lanterns) {
-        const [wx, wz] = rotY(q.yaw, lx, lz);
-        add(chunk, "c", [lp.key, +(px + wx).toFixed(3), ly, +(pz + wz).toFixed(3), +q.yaw.toFixed(2), "g"] as Place);
+      for (const e of D.extras) {
+        const [wx, wz] = rotY(q.yaw, e.at[0], e.at[2]);
+        add(chunk, "c", [piece(e.piece).key, +(px + wx).toFixed(3), e.at[1], +(pz + wz).toFixed(3), +q.yaw.toFixed(2), e.mode] as Place);
       }
-      stalls.push({ at: [+q.c[0].toFixed(3), +q.c[1].toFixed(3)], yaw: +q.yaw.toFixed(2), piece: name });
+      if (D.save) (saved[D.save] ??= []).push({ at: [+q.c[0].toFixed(3), +q.c[1].toFixed(3)], yaw: +q.yaw.toFixed(2), piece: name });
     });
-    cfg.stalls = stalls;
-    console.log(`NOODLE ROW: ${chosen.length} stalls, of ${cands.length} spots`);
+    console.log(`${D.name}: ${chosen.length} ${D.pieces[0]}, of ${cands.length} spots`);
   }
+  for (const [k, v] of Object.entries(saved)) cfg[k] = v;
   cfg.rooms = rooms;
   // (each fire escape where it stands, for tools/checks/sk-neon.ts to climb)
   cfg.fires = fires;

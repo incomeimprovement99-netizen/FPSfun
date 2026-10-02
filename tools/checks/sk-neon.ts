@@ -267,6 +267,12 @@ check("each corner block named on the map over its roof yard, or the Well's over
   const lanterns = ne.filter((p) => !!ST && String(p[0]).endsWith(`/${ST.lantern}`));
   const each = SS.map((q) => ({ q, lit: lanterns.filter((p) => Math.hypot((p[1] as number) - q.at[0], (p[3] as number) - q.at[1]) < 3).length, street: onStreetHere(q.at[0], q.at[1]) }));
   check("NOODLE ROW: its food stalls, each with its two lanterns, on the block's own ground off the street", !!ST && SS.length === ST.count && each.every((e) => e.lit >= 2 && !e.street && e.q.at[0] > 0 && e.q.at[1] < 0), each.map((e) => `(${e.q.at.join(", ")}) ${e.lit} lanterns${e.street ? " ON THE STREET" : ""}`).join("; "));
+  // (and MARKET's: crate stacks for cover on its ground, each its three crates, none on the street)
+  const MK = (cfg.rules.low as unknown as { market?: Array<{ count: number; pieces: string[]; extras: unknown[] }> }).market ?? [];
+  const CR = (cfg as unknown as { crates?: Array<{ at: number[] }> }).crates ?? [];
+  const sw = (cfg.chunks as Record<string, { place: unknown[][] }>)["c-sw"]?.place ?? [];
+  const stacks = CR.map((q) => ({ q, n: sw.filter((p) => /\/Crate0/.test(String(p[0])) && Math.hypot((p[1] as number) - q.at[0], (p[3] as number) - q.at[1]) < 2.5).length, street: onStreetHere(q.at[0], q.at[1]) }));
+  check("MARKET: its crate stacks, three crates each, on the block's own ground off the street", MK.length > 0 && CR.length === MK.reduce((a, m) => a + m.count, 0) && stacks.every((e) => e.n >= 3 && !e.street && e.q.at[0] < 0 && e.q.at[1] > 0), stacks.map((e) => `(${e.q.at.join(", ")}) ${e.n} crates${e.street ? " ON THE STREET" : ""}`).join("; "));
 }
 check("the high city decks, the lobby and the corner blocks as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
 
