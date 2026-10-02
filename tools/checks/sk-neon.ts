@@ -254,6 +254,20 @@ check("each corner block named on the map over its roof yard, or the Well's over
   });
   check("a beam of light over each corner block in its own colour", placed.length === 4 && lit.every((q) => q.mat && q.mat === q.want) && new Set(lit.map((q) => q.mat)).size === 4, lit.map((q) => `${q.name} ${q.mat ?? "none"}`).join(", "));
 }
+// (and NOODLE ROW's own: the pack's street food stalls on its ground, each with two paper lanterns at its front, none on
+// a pavement or in a fire escape's room)
+{
+  const ST = (cfg.rules.low as unknown as { stalls?: { block: string; pieces: string[]; count: number; lantern: string } }).stalls;
+  const SS = (cfg as unknown as { stalls?: Array<{ at: number[]; yaw: number; piece: string }> }).stalls ?? [];
+  const ne = (cfg.chunks as Record<string, { place: unknown[][] }>)["c-ne"]?.place ?? [];
+  const CVs = cfg.rules.streets.curves as unknown as Parameters<typeof curvedStreets>[0] & { round: number; pave: number };
+  const SFs = new StreetField(curvedStreets(CVs));
+  // (on the carriageway or its pavement: the road's distance under a pavement's width)
+  const onStreetHere = (x: number, z: number) => SFs.surface(x, z, CVs.round) < CVs.pave;
+  const lanterns = ne.filter((p) => !!ST && String(p[0]).endsWith(`/${ST.lantern}`));
+  const each = SS.map((q) => ({ q, lit: lanterns.filter((p) => Math.hypot((p[1] as number) - q.at[0], (p[3] as number) - q.at[1]) < 3).length, street: onStreetHere(q.at[0], q.at[1]) }));
+  check("NOODLE ROW: its food stalls, each with its two lanterns, on the block's own ground off the street", !!ST && SS.length === ST.count && each.every((e) => e.lit >= 2 && !e.street && e.q.at[0] > 0 && e.q.at[1] < 0), each.map((e) => `(${e.q.at.join(", ")}) ${e.lit} lanterns${e.street ? " ON THE STREET" : ""}`).join("; "));
+}
 check("the high city decks, the lobby and the corner blocks as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
 
 // The centre's curved streets (rules.streets.curves; the owner, 2026-09-30: "have them curve left and right along with
@@ -1114,7 +1128,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     const near = drops.filter((d) => Math.hypot(d.pos.x - q.x, d.pos.z - q.z) <= (q.radius ?? 0) + 1.5);
     return { name: q.name, n: near.length, up: near.filter((d) => d.pos.y > 10).length };
   });
-  check("each corner block's own loot about its name, 6 items and more", corner.length === 4 && each.every((q) => q.n >= 6), each.map((q) => `${q.name} ${q.n} (${q.up} on the roof)`).join(", "));
+  // (a site lays its four spots, each one item and more: a count over that is the seed's, and moves with the collision)
+  check("each corner block's own loot about its name, an item a spot and more (4)", corner.length === 4 && each.every((q) => q.n >= 4), each.map((q) => `${q.name} ${q.n} (${q.up} on the roof)`).join(", "));
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

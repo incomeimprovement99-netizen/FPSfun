@@ -1375,7 +1375,7 @@ floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE
 ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof, and each with a beam of
-light over it in its own colour (pink, red, green, teal).
+light over it in its own colour (pink, red, green, teal); NOODLE ROW has street food stalls under paper lanterns.
 `tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
 entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back and into its yard.
 

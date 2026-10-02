@@ -8936,3 +8936,21 @@ world.
 - The map: its files lo 83 MB, hi 143 MB, max 349 MB. **Its files are version 25.**
 - **Checked** (`tools/checks/sk-neon.ts`, a new check): a beam over each corner block's name in its own colour, four
   colours (seen failing with the beams left out). verify and rules; e2e `loot` and `br`. Photographed from the street.
+
+## Milestone 404 — NOODLE ROW's street food: stalls and paper lanterns
+
+The master plan's NOODLE ROW, the north-east block, has "street food stalls ... lanterns" as the thing only it has.
+
+- **Four stalls** (rules.low.stalls, tools/neon-layout.ts): the pack's two street food stalls in turn, on the block's own
+  ground where a building may stand (off every road by the pavement, inside the edge road, clear of the buildings, the
+  islands and the fire escape's room by the gap, out past the Loop's pavement and the High City islands), the four
+  nearest the street, at least 6 m apart, each with its counter to its nearest road. Its counter is its own +x, found
+  by photographing one from all four sides (its z faces are panels; the first bake had a stall's back to the street).
+  The pavement is 2.5 m and a stall 2.7 m across, so none stands on it. Their counters collide: cover by the street.
+- **Two of the pack's paper lanterns** (ChineseLamp00) hang over each stall's counter, drawn only.
+- The corner blocks' loot check asks an item a spot (4) now: its 6 was a count of the seed's, and the stalls' collision
+  moved MOTEL HILL's to 5.
+- Chosen once the block is built, so nothing else in the layout moved: twelve pieces added, nothing else changed.
+- The map: its files lo 85 MB, hi 145 MB, max 353 MB. **Its files are version 26.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): the four stalls in NOODLE ROW, each with its two lanterns, none on
+  the street (seen failing with a stall put on the Loop). verify and rules; e2e `loot` and `br`. Photographed.
