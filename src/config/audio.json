@@ -182,6 +182,17 @@
     }
   },
   "_shots": "Recorded gunshots (tools/fetch-guns.ts): The Free Firearm Sound Library, 24 real firearms, CC0. Each class has takes recorded near and at mid distance; a shot past `distance.farFrom` plays a mid-distance take. When a class has takes, the recording is the shot and the synthesised crack, body, thump and tail are not played: layered under a real report they only muddied it. `level` is the recording's loudness against the class's own `level`; `far` scales the mid-distance takes, which were recorded further off and are quieter for it. Without the files the synthesis plays exactly as before.",
+  "_hacks": "Each hack's recorded layers from Kenney's Sci-Fi Sounds (CC0, tools/fetch-sounds.ts hack_*), over the synthesis it already had (src/game/audio.ts hackSound): `take` a picked set, `level` against the rest of the mix, `len` seconds of it (the thrusters and the scan are five-second loops, cut and faded), `rate` its playback speed (under 1 deeper). The owner, 2026-10-02: the abilities' sounds were synthesis, and SLAM's a squeak; free recorded effects in their place. ARMOR's was the sound of a shield breaking, as it went up: its force field plays in its place. GRAPPLE (the zipline's catch) and INVISIBILITY (a whoosh) keep their own. Without the files every hack sounds as it did.",
+  "hacks": {
+    "dash": [{ "take": "hack_thrust", "level": 0.55, "len": 0.35, "rate": 1.15 }],
+    "leap": [{ "take": "hack_thrust", "level": 0.6, "len": 0.7, "rate": 0.9 }],
+    "slam": [{ "take": "hack_thrust", "level": 0.55, "len": 0.5, "rate": 0.85 }],
+    "heal": [{ "take": "hack_field", "level": 0.45, "len": 0.95, "rate": 1.1 }],
+    "armor": [{ "take": "hack_field", "level": 0.6, "len": 0.95, "rate": 0.9 }],
+    "wall": [{ "take": "hack_field", "level": 0.45, "len": 0.8, "rate": 0.8 }, { "take": "hack_metal", "level": 0.6, "len": 0.75, "rate": 0.9 }],
+    "reveal": [{ "take": "hack_scan", "level": 0.35, "len": 0.7, "rate": 1 }],
+    "mine": [{ "take": "hack_metal", "level": 0.5, "len": 0.6, "rate": 1.1 }]
+  },
   "shots": {
     "level": 0.9,
     "far": 1.1

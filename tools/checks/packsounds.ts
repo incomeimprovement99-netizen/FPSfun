@@ -10,6 +10,8 @@ import { packPieces } from "../../src/game/audio";
 import PACK from "../../src/config/packsounds.json";
 import FP from "../../src/config/fparms.json";
 import SK from "../../src/config/games/speedkills.json";
+import AUDIO from "../../src/config/audio.json";
+import { readFileSync } from "node:fs";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -44,6 +46,25 @@ console.log("The pack's gun sounds");
   const slow = packPieces(cuts, 3, 3, 4.5, PACK.overlap);
   check("a reload slower than the clip plays each piece whole, spread out", slow.every((x, i) => Math.abs(x.len - ((i + 1 < cuts.length ? cuts[i + 1] : 3) - cuts[i])) < 1e-9) && Math.abs(slow[3].at - 1.635 * 1.5) < 1e-9);
   check("the overlap is a fade, not a second sound (under 0.1 s)", PACK.overlap > 0 && PACK.overlap < 0.1);
+}
+
+console.log("\nThe hacks' recorded sounds");
+{
+  // every hack has its recorded layers, but the two kept as they were (GRAPPLE the zipline's catch, INVISIBILITY a whoosh)
+  const kept = ["grapple", "invis"];
+  const layers = AUDIO.hacks as Record<string, Array<{ take: string; level: number; len: number; rate: number }>>;
+  const ids = (SK.abilities.set as Array<{ id: string }>).map((h) => h.id);
+  const without = ids.filter((id) => !layers[id] && !kept.includes(id));
+  check("every hack has recorded layers, but the two kept as they were", without.length === 0, without.join(", "));
+  check("no layers for a hack that is not one", Object.keys(layers).every((id) => ids.includes(id)));
+  // each take one tools/fetch-sounds.ts fetches, and none of the pack's lasers (a laser's falling pitch is the squeak)
+  const fetched = readFileSync(new URL("../fetch-sounds.ts", import.meta.url), "utf8");
+  const takes = [...new Set(Object.values(layers).flat().map((l) => l.take))];
+  const unknown = takes.filter((t) => !new RegExp(`\\b${t}: \\{ pack: "sci-fi-sounds"`).test(fetched));
+  check("every take is one the sounds tool fetches from the sci-fi pack", unknown.length === 0, unknown.join(", "));
+  const picks = takes.map((t) => new RegExp(`\\b${t}: \\{[^}]*files: \\[([^\\]]*)\\]`).exec(fetched)?.[1] ?? "").join(" ");
+  check("no laser among them", !/laser/i.test(picks) && picks.length > 0, picks);
+  check("each layer a short sound at a level in the mix (under 1.2 s, level 0.1 to 1, rate 0.5 to 2)", Object.values(layers).flat().every((l) => l.len > 0 && l.len <= 1.2 && l.level >= 0.1 && l.level <= 1 && l.rate >= 0.5 && l.rate <= 2));
 }
 
 console.log(fails === 0 ? "\nPACK SOUNDS PASS" : `\nPACK SOUNDS FAIL (${fails})`);

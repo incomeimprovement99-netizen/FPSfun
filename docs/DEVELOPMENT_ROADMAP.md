@@ -9353,3 +9353,31 @@ round its roof room at 109 m, was the highest open roof on the map and had no wa
   on the crown past its kerb (seen failing with a pad's face moved); the perches' cover counted and each piece standing
   on its roof (seen failing with the perches left out). verify and rules; e2e `br`. Photographed from the crown and the
   base's roof.
+
+## Milestone 421 — The hacks' own recorded sounds, and ARMOR no longer goes up to a shield breaking
+
+The owner, 2026-10-02, of the sounds: "we should really be looking into ... free sound effects, because they're just
+like sound effects. They should be easy" (SLAM's squeak was the first, Milestone 410), and "continue w next steps".
+
+- **What they were:** synthesis, each with a stand-in: DASH a filtered noise, LEAP, SLAM's launch and INVISIBILITY a
+  whoosh, HEAL a chime, WALL a clatter, REVEAL a ping's tick, MINE a grenade's bounce, and ARMOR the sound of your
+  shield breaking, as it went up.
+- **Picked by measuring, not by name** (Kenney's Sci-Fi Sounds, CC0; its 73 takes decoded in a browser and measured:
+  length, peak, zero crossings a second, and early against late for a sweep in pitch):
+  - a thruster's burst for DASH (0.35 s), LEAP (0.7 s, deeper) and SLAM's launch (0.5 s): thrusterFire 001 and 003,
+    about 1,700 crossings a second; 000, 002 and 004 run 3,300 to 6,400, a hiss;
+  - a force field's hum for HEAL, ARMOR (in place of the shield breaking) and WALL: forceField 002 to 004, low and
+    level, no sweep;
+  - a metal clank for WALL and MINE: impactMetal 000, 003 and 004, the crisper three;
+  - a computer's chatter for REVEAL's scan: computerNoise 002 and 003, the steadier two;
+  - none of the pack's lasers, whose falling pitch is the squeak.
+- **How they play** (audio.ts hackSound, audio.json hacks): each a layer over the synthesis it had, cut to its length,
+  faded, at its own level and speed. GRAPPLE (the zipline's catch) and INVISIBILITY (a whoosh) keep theirs. Without the
+  files every hack sounds as it did (ARMOR then still the old sound).
+- **The attribution:** tools/fetch-sounds.ts writes public/audio/ATTRIBUTION.md whole, and the first run after
+  Milestone 410 dropped the paid pack's credit written into it by hand: the credit is in the tool's template now.
+- **The card's foot fix taken out:** the figure stands flat itself since Milestone 419 (the card measured -0.1 degrees a
+  foot after it), so main.ts flattenFeet went.
+- **Checked:** the packsounds check (every hack has its layers but the two kept, every take one the tool fetches from
+  the sci-fi pack, no laser, lengths and levels in range); a page: each of the ten hacks used, the eight playing their
+  layers and ARMOR no longer the shield's break; verify; rules.

@@ -54,6 +54,14 @@ const PICK: Record<string, { pack: (typeof PACKS)[number]; files: string[] }> = 
   horn: { pack: "sci-fi-sounds", files: ["lowFrequency_explosion_000"] },
   ping: { pack: "interface-sounds", files: ["tick_002", "tick_004"] },
   zip_ride: { pack: "sci-fi-sounds", files: ["spaceEngine_001"] },
+  // The hacks' recorded layers (audio.json hacks): a thruster's burst for the moves, a force field's hum for the shields
+  // and the heal, a metal clank for what is put down, a computer's chatter for the scan. Picked by measuring the pack's
+  // takes in a browser's decoder (2026-10-02), not by name alone: thrusterFire 000, 002 and 004 cross zero 3,300 to
+  // 6,400 times a second (a hiss), 001 and 003 about 1,700; the force fields hum low and level, with no sweep in pitch.
+  hack_thrust: { pack: "sci-fi-sounds", files: ["thrusterFire_001", "thrusterFire_003"] },
+  hack_field: { pack: "sci-fi-sounds", files: ["forceField_002", "forceField_003", "forceField_004"] },
+  hack_metal: { pack: "sci-fi-sounds", files: ["impactMetal_000", "impactMetal_003", "impactMetal_004"] },
+  hack_scan: { pack: "sci-fi-sounds", files: ["computerNoise_002", "computerNoise_003"] },
 };
 
 /**
@@ -166,7 +174,7 @@ async function main(): Promise<void> {
       "| Pack | Used for |",
       "|---|---|",
       "| Impact Sounds (kenney.nl/assets/impact-sounds) | footsteps on concrete and grass, landings, a body falling, a punch, the magazine and bolt, a gun hitting the floor |",
-      "| Sci-Fi Sounds (kenney.nl/assets/sci-fi-sounds) | the frag's crunch under its synthesised boom |",
+      "| Sci-Fi Sounds (kenney.nl/assets/sci-fi-sounds) | the frag's crunch under its synthesised boom, the beacon, the drop's horn, the zipline's ride, and the hacks: a thruster's burst, a force field, a metal clank, a computer's scan |",
       "| Interface Sounds (kenney.nl/assets/interface-sounds) | the menu's clicks, a confirmation, an error |",
       "",
       "Footsteps on metal and gravel from **Footsteps on different surfaces** by congusbongus",
@@ -184,6 +192,12 @@ async function main(): Promise<void> {
       "",
       "The drop theme is **Battle Theme A** by cynicmusic (opengameart.org/content/battle-theme-a), CC0, fetched",
       "into public/audio/music by tools/fetch-music.ts as part of `npm run sounds`.",
+      "",
+      // (written here, since this file is written whole by this tool: the paid pack's credit was lost the first time it ran after)
+      "The guns' own shots, the USSO's and BOOG's reloads and BOOG's bolt are from **FPS Animation Ultimate** by",
+      "KINEMATION (Unity Asset Store), bought by the owner and licensed to them under the Asset Store's EULA: written into",
+      "public/audio/paid by `npm run paid:sounds` (tools/import-pack-sounds.ts), never in git, and served only by the game's",
+      "own server. Without them each gun plays the free recordings above.",
       "",
       "They are layered over the game's own synthesis (src/game/audio.ts), which plays alone where a file is missing.",
       "Re-fetch with `npm run sounds` (tools/fetch-sounds.ts) and `npm run guns`; the files are gitignored.",

@@ -6,7 +6,7 @@ commercial use permitted, attribution not required, redistribution permitted. Cr
 | Pack | Used for |
 |---|---|
 | Impact Sounds (kenney.nl/assets/impact-sounds) | footsteps on concrete and grass, landings, a body falling, a punch, the magazine and bolt, a gun hitting the floor |
-| Sci-Fi Sounds (kenney.nl/assets/sci-fi-sounds) | the frag's crunch under its synthesised boom |
+| Sci-Fi Sounds (kenney.nl/assets/sci-fi-sounds) | the frag's crunch under its synthesised boom, the beacon, the drop's horn, the zipline's ride, and the hacks: a thruster's burst, a force field, a metal clank, a computer's scan |
 | Interface Sounds (kenney.nl/assets/interface-sounds) | the menu's clicks, a confirmation, an error |
 
 Footsteps on metal and gravel from **Footsteps on different surfaces** by congusbongus

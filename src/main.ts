@@ -2114,48 +2114,6 @@ function drawPreview(): void {
   previewRenderer.render(previewScene, previewCam);
 }
 
-/**
- * Each foot of a posed figure turned about its ankle so its heel-to-ball line falls as it does in the model's rest
- * pose, where it stands flat: the standing clip leaves this soldier on its heels, both toes up about 15 degrees (the
- * owner, 2026-10-02: "his feet look really weird ... pointed up at the ankles"). The rest pose's line is read off the
- * skeleton's bind (its up, the head over the feet), so it is measured, not typed in. Returns the turn given each foot,
- * degrees (the probe that photographs the card reads it).
- */
-function flattenFeet(root: THREE.Object3D): Record<string, number> {
-  const out: Record<string, number> = {};
-  let mesh: THREE.SkinnedMesh | null = null;
-  root.traverse((o) => {
-    const m = o as THREE.SkinnedMesh;
-    if (!mesh && m.isSkinnedMesh && m.skeleton.bones.some((b) => b.name === "foot_l")) mesh = m;
-  });
-  const sk = (mesh as THREE.SkinnedMesh | null)?.skeleton;
-  if (!sk) return out;
-  const bone = (name: string) => sk.bones.findIndex((b) => b.name === name);
-  const bindAt = (i: number) => new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert());
-  const ids = ["Head", "foot_l", "foot_r", "ball_l", "ball_r"].map(bone);
-  if (ids.some((i) => i < 0)) return out;
-  const [head, fl, fr] = ids.slice(0, 3).map(bindAt);
-  const up = head.sub(fl.clone().add(fr).multiplyScalar(0.5)).normalize();
-  root.updateMatrixWorld(true);
-  const Y = new THREE.Vector3(0, 1, 0);
-  for (const s of ["l", "r"]) {
-    const fi = bone(`foot_${s}`);
-    const bi = bone(`ball_${s}`);
-    const rest = Math.asin(THREE.MathUtils.clamp(bindAt(bi).sub(bindAt(fi)).normalize().dot(up), -1, 1));
-    const foot = sk.bones[fi];
-    const dir = sk.bones[bi].getWorldPosition(new THREE.Vector3()).sub(foot.getWorldPosition(new THREE.Vector3())).normalize();
-    const now = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
-    // about the foot's own side to side: a positive turn lifts the toe
-    const side = new THREE.Vector3().crossVectors(dir, Y).normalize();
-    if (!foot.parent || side.lengthSq() < 0.5) continue;
-    const turn = new THREE.Quaternion().setFromAxisAngle(side, rest - now);
-    const parent = foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
-    foot.quaternion.copy(parent.multiply(turn.multiply(foot.getWorldQuaternion(new THREE.Quaternion()))));
-    foot.updateMatrixWorld(true);
-    out[s] = +THREE.MathUtils.radToDeg(rest - now).toFixed(1);
-  }
-  return out;
-}
 
 /**
  * Your figure in your loadout's look, with its gun, drawn into `canvas` for the battle royale's card: the loadouts
@@ -2176,12 +2134,11 @@ function drawPortrait(canvas: HTMLCanvasElement): void {
   const gun = [loadouts.current.slot1, loadouts.current.slot2].find((g) => ready.includes(g)) ?? ready[0];
   // Built afresh, facing you: the panel's figure had been turning, and standing still a figure's feet stay planted while
   // its body turns (dummy.ts TURN_STEP_AT), so turned to face you its legs were twisted over feet left at the old angle,
-  // a boot turned out and its toe up. And posed for a moment before its picture: drawn after one update, the hold puts
+  // a boot turned out (its boots stand flat by the figure's own flatFeet, Milestone 419). And posed for a moment before its picture: drawn after one update, the hold puts
   // the gun in the hands from where they were the frame before, and the gun hung at its side while the hands held nothing.
   previewKey = "";
   for (let i = 0; i < C.settleFrames; i++) previewLoadout(gameTime + i / 60, 1 / 60, gun);
   previewHeldAt = held;
-  if (previewFig) portraitFeet = flattenFeet(previewFig.group);
   // the canvas the size of its box on screen, so the figure is not letterboxed in it
   const box = canvas.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio);
@@ -2241,9 +2198,6 @@ function drawPortrait(canvas: HTMLCanvasElement): void {
   previewZoom = zoom;
   placePreviewCam();
 }
-
-/** the turn the card's portrait gave each foot, degrees (flattenFeet; the probe that photographs the card reads it) */
-let portraitFeet: Record<string, number> = {};
 
 /** a tip's {name} put in from the game's own numbers (hud.json loading._brCard) */
 function tipWords(say: string): string {
@@ -4258,6 +4212,7 @@ function useHack(slot: HackSlot, now: number): void {
       player.vel.set(player.vel.x, Math.max(0, player.vel.y), player.vel.z);
       if (thirdPerson) fx.jolt(from, to, now);
       audio.jolt(1);
+      audio.hackSound("dash");
       sendFx("jolt", from, to);
       selfFig?.jolt();
       joltedAt = gameTime;
@@ -4268,6 +4223,7 @@ function useHack(slot: HackSlot, now: number): void {
       player.impulse(player.vel.x * 0.15, Math.sqrt(2 * MOVE.gravity * H.slam.apex), player.vel.z * 0.15);
       skSlam = { phase: "up", at: now, level: held.level };
       audio.whoosh();
+      audio.hackSound("slam");
       sendFx("sk", player.pos.clone(), undefined, 1);
       break;
     }
@@ -4275,6 +4231,7 @@ function useHack(slot: HackSlot, now: number): void {
       player.impulse(player.vel.x * 0.3, Math.sqrt(2 * MOVE.gravity * H.leap.height), player.vel.z * 0.3);
       skLeap = true;
       audio.whoosh();
+      audio.hackSound("leap");
       sendFx("sk", player.pos.clone(), undefined, 2);
       break;
     }
@@ -4299,12 +4256,14 @@ function useHack(slot: HackSlot, now: number): void {
       const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
       healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
       audio.healDone();
+      audio.hackSound("heal");
       sendFx("sk", at, undefined, 3);
       break;
     }
     case "armor": {
       armorUntil = now + H.armor.seconds;
-      audio.shieldBreak();
+      // (it went up to the sound of a shield breaking: its force field, where the files are)
+      if (!audio.hackSound("armor")) audio.shieldBreak();
       sendFx("sk", player.pos.clone(), undefined, 4);
       break;
     }
@@ -4315,6 +4274,7 @@ function useHack(slot: HackSlot, now: number): void {
       while (myWalls.length >= H.wall.max) myWalls.shift()!.until = now;
       myWalls.push(putWall(scene, spot.x, spot.y, spot.z, spot.deg, now, H.wall.seconds));
       audio.clatter(new THREE.Vector3(spot.x, spot.y, spot.z));
+      audio.hackSound("wall");
       sendFx("wall", new THREE.Vector3(spot.x, spot.y, spot.z), new THREE.Vector3(spot.deg, 0, 0));
       break;
     }
@@ -4329,6 +4289,7 @@ function useHack(slot: HackSlot, now: number): void {
       // a cone the way you look, as Hyper Scape's final Reveal was (a 50 degree frustum out to 60 m; Phase 20 A9)
       const n = kitSight()?.reveal(player.pos, fwd, H.reveal.range, H.reveal.cone, H.reveal.seconds) ?? 0;
       audio.pingTick();
+      audio.hackSound("reveal");
       hud.notice(n > 0 ? `REVEAL: ${n} ENEMY${n > 1 ? " CONTACTS" : ""}` : "REVEAL: NOBODY THERE", now, 1.4);
       break;
     }
@@ -4348,6 +4309,7 @@ function useHack(slot: HackSlot, now: number): void {
       const dmgs = (H.mine as unknown as { damages?: number[] }).damages;
       mines.push({ at: to, armAt: now + H.mine.arm, until: now + H.mine.life, mesh, mine: true, damage: dmgs?.[held.level] ?? H.mine.damage, chaseFrom: null });
       audio.throwNoise("bounce", to);
+      audio.hackSound("mine");
       sendFx("sk", to, undefined, 6);
       break;
     }
@@ -9503,8 +9465,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the figures figureLab put up, for tools that measure them (tools/soldier-hits.ts) */
   labFigures: () => labFigs.map((l) => l.f),
   /** a gun's times as the game plays them (fusion 0): its reload, empty and not, and its swap's two halves */
-  /** the turn the battle royale card's portrait gave each foot, degrees (flattenFeet) */
-  portraitFeet: () => ({ ...portraitFeet }),
   weaponTimes: (id: string) => {
     const w = resolveWeapon(id, 0);
     return { reload: w.reloadTime, reloadEmpty: w.reloadEmptyTime, deploy: w.deployTime, holster: w.holsterTime };

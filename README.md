@@ -1516,8 +1516,9 @@ Nagant, a Benelli Nova and more, recorded near and at mid distance, so a shot
 far off is a far recording rather than a near one turned down (`npm run
 guns`). Footsteps are recorded on concrete, grass, gravel and metal, and
 Kenney's CC0 recordings cover landings, falls, punches, reloads, a frag's
-crunch and the menu's clicks (`npm run sounds`, which also fetches the drop
-theme). Where the bought animation pack's own recordings are on the server
+crunch, the menu's clicks and the hacks (a thruster's burst for DASH, LEAP and
+SLAM, a force field for HEAL, ARMOR and WALL, a clank for WALL and MINE, a scan
+for REVEAL; `npm run sounds`, which also fetches the drop theme). Where the bought animation pack's own recordings are on the server
 (`npm run paid:sounds`), each SpeedKills gun shoots with the pack gun it is
 most like (APUHTHEE a revolver, BIGANTLER a pump, CHOOCH a light machine gun),
 and the USSO and BOOG, reloaded with the pack's own animations, reload with

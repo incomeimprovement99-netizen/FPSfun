@@ -378,6 +378,37 @@ export class GameAudio {
     return out;
   }
 
+  /** a take of a recorded sound cut to `len` seconds of its own time at `rate`, faded in at once and out at its end */
+  private sampleCut(dest: AudioNode, t: number, name: string, level: number, len: number, rate: number): boolean {
+    const takes = this.samples.get(name);
+    const ctx = this.ctx;
+    if (!takes?.length || !ctx) return false;
+    const src = ctx.createBufferSource();
+    src.buffer = takes[Math.floor(Math.random() * takes.length)];
+    src.playbackRate.value = rate * (0.96 + Math.random() * 0.08);
+    const g = ctx.createGain();
+    const fade = Math.min(0.12, len / 3);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(level, t + 0.008);
+    g.gain.setValueAtTime(level, t + Math.max(0.01, len - fade));
+    g.gain.linearRampToValueAtTime(0, t + len);
+    src.connect(g).connect(dest);
+    src.start(t, 0, len * rate + 0.02);
+    this.samplesPlayed++;
+    return true;
+  }
+
+  /** a hack's recorded layers (audio.json hacks) over its own synthesis; false when it has none or the files are not there */
+  hackSound(id: string): boolean {
+    const layers = (cfg.hacks as Record<string, Array<{ take: string; level: number; len: number; rate: number }> | undefined>)[id];
+    if (!layers?.length) return false;
+    const v = this.voice(null, Math.max(...layers.map((l) => l.len)) + 0.3, "own", 2, 0.4);
+    if (!v) return false;
+    let any = false;
+    for (const l of layers) any = this.sampleCut(v.input, v.t, l.take, l.level, l.len, l.rate) || any;
+    return any;
+  }
+
   /** your reload, from its first frame: the pack's own sound for a gun reloaded with the pack's animation, else the click */
   reloadOf(id: string, empty: boolean, seconds: number): void {
     this.stopReload();
