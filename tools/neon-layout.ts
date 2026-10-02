@@ -1129,6 +1129,25 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
         }
     // (a side with no bay leading in has none, not every one)
     for (const h of colonnade) for (const s of sides) if (!doorBays.has(`${h}:${s.name}`)) doorBays.set(`${h}:${s.name}`, []);
+    // the windows (rules.windows) in each walled storey's window walls, along x or z: a window opens only onto room, so
+    // the cover and a room's furniture stand `room` metres off each (the bake measures them: these are its spans, the
+    // pack's opening 4.86 m centred in its 5 m bay, parted alike)
+    const windowKeep = new Map<number, OBox[]>(levels.map((h) => [h, []]));
+    const WR = R.windows;
+    if (WR)
+      for (const h of levels.filter((y) => !colonnade.includes(y)))
+        for (const s of sides) {
+          if (Math.abs(s.d[0]) < 0.99 && Math.abs(s.d[1]) < 0.99) continue;
+          const n = Math.max(1, Math.round((B.bay - 0.14) / WR.per));
+          const total = n * WR.width + (n - 1) * WR.gap;
+          for (let k = 0; k < s.bays; k++) {
+            if (gatesOf(h, s).includes(k)) continue;
+            for (let i = 0; i < n; i++) {
+              const off = -total / 2 + i * (WR.width + WR.gap) + WR.width / 2;
+              windowKeep.get(h)!.push({ c: at(s, s.off + (k + 0.5) * B.bay + off, thick + WR.room / 2), u: s.d, v: s.n, hu: WR.width / 2, hv: WR.room / 2, top: 0 });
+            }
+          }
+        }
     const clearOf = (o: OBox, h: number, g = 0, door = true) => !keep.get(h)!.some((k) => overlaps(o, k, g)) && !(door && doors.get(h)!.some((k) => overlaps(o, k, g)));
     const inTower = (o: OBox, g: number) => overlaps(o, box(rect.x0, rect.x1, rect.z0, rect.z1), g);
     const inside = (p: Pt, inset: number) => O.every((a, k) => {
@@ -1215,7 +1234,7 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
         const p: Pt = within ? [within[0] + 1 + rnd2() * (within[1] - within[0] - 2), within[2] + 1 + rnd2() * (within[3] - within[2] - 2)] : [O[7][0] + rnd2() * (O[2][0] - O[7][0]), O[0][1] + rnd2() * (O[4][1] - O[0][1])];
         const yaw = Math.floor(rnd2() * 4) * 90 + (row.size![0] < 1.2 && row.size![2] < 1.2 ? rnd2() * 40 - 20 : 0);
         const o: OBox = { c: p, u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: 0 };
-        if (!inside(p, 1.4) || inTower(o, 0.6) || !clearOf(o, h, 0.4) || placed.get(h)!.some((q) => overlaps(o, q, C2.apart))) continue;
+        if (!inside(p, 1.4) || inTower(o, 0.6) || !clearOf(o, h, 0.4) || (windowKeep.get(h) ?? []).some((q) => overlaps(o, q, 0.2)) || placed.get(h)!.some((q) => overlaps(o, q, C2.apart))) continue;
         placeTurned("c-base", name, p[0], p[1], yaw, "o", h - row.min![1]);
         placed.get(h)!.push(o);
         nProps++;

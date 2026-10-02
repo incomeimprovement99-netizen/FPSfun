@@ -252,6 +252,62 @@ if (mode === "bake") {
   const standingDraws: Array<{ d: Draw; m: M4 }> = [];
   // the tower as drawn (its back faces too), for the measure of whether its floors can be seen through
   const towerDrawn: Array<{ d: Draw; m: M4 }> = [];
+  // the windows (rules.windows; the owner, 2026-10-02: "the windows in the large tower ... actual windows that are open
+  // and that we can just go right on through ... regular sized windows, like it would have to be a well placed sniper
+  // shot"): in the zones it names, each window wall's glass left out and its one wide opening parted by piers into windows
+  // `width` metres wide and `gap` apart, centred, one for each `per` metres of opening; the piers drawn, and colliding as
+  // boxes, and each window cut out of the cells' collision exactly (on half-metre cells a 1.25 m window came out anywhere
+  // from 0.25 to 1.25 m, and a body is 0.82). Only walls along x or z: a window is cut out of the boxes as a box
+  const WIN = cfg.rules.windows as { models: string[]; glass: string[]; width: number; gap: number; per: number; thick: number; carve: number; sliver: number; scale: number; clear: number; room: number; pierMats: string[]; zones: Array<{ chunk: string; y: number[]; square?: boolean }> } | undefined;
+  /** each opened window wall: its opening's near end (x, z) at the glass's plane, its way along and its normal (unit, on x
+   * or z), its length, sill and head, its chunk, the piers' material (the wall's own) and the windows' spans along it */
+  const windowWalls: Array<{ p0: number[]; U: number[]; N: number[]; L: number; base: number; sill: number; head: number; chunk: string; mat: string; spans: number[][]; glass: { d: Draw; m: M4 } }> = [];
+  const openWindows = (id: string, list: Array<{ d: Draw; m: M4 }>): Array<{ d: Draw; m: M4 }> => {
+    const zones = WIN?.zones.filter((z) => z.chunk === id) ?? [];
+    if (!WIN || !zones.length) return list;
+    return list.map(({ d, m }) => {
+      if (!WIN.models.includes(basename(pack.guidPath.get(d.modelGuid) ?? ""))) return { d, m };
+      const prims = d.model.meshes[d.mesh].prims;
+      const matOf = (i: number): string => d.mats?.[i] ?? pack.matFor(prims[i].material) ?? "";
+      const gi = prims.findIndex((_, i) => WIN.glass.includes(basename(pack.guidPath.get(matOf(i)) ?? "").replace(/\.mat$/, "")));
+      if (gi < 0) return { d, m };
+      const q = prims[gi];
+      const pts: number[][] = [];
+      for (let k = 0; k < q.pos.length; k += 3) pts.push([0, 1, 2].map((a) => m[a] * q.pos[k] + m[4 + a] * q.pos[k + 1] + m[8 + a] * q.pos[k + 2] + m[12 + a]));
+      const sill = Math.min(...pts.map((p) => p[1])), head = Math.max(...pts.map((p) => p[1]));
+      const [mx, mz] = [0, 2].map((a) => pts.reduce((sum, p) => sum + p[a], 0) / pts.length);
+      const SQ = cfg.tower?.square as number[] | undefined;
+      if (!zones.some((z) => sill >= z.y[0] && sill <= z.y[1] && (!z.square || (SQ && mx > SQ[0] && mx < SQ[1] && mz > SQ[2] && mz < SQ[3])))) return { d, m };
+      // (its way along between its two farthest corners, snapped to x or z: the pane's own thickness tilts it a degree)
+      let [a, b, far] = [pts[0], pts[0], -1];
+      for (const p of pts) for (const r of pts) if (Math.hypot(p[0] - r[0], p[2] - r[2]) > far) [a, b, far] = [p, r, Math.hypot(p[0] - r[0], p[2] - r[2])];
+      const [ux, uz] = [(b[0] - a[0]) / far, (b[2] - a[2]) / far];
+      if (Math.abs(ux) < 0.99 && Math.abs(uz) < 0.99) return { d, m };
+      const U = Math.abs(ux) > Math.abs(uz) ? [Math.sign(ux), 0] : [0, Math.sign(uz)];
+      const N = [-U[1], U[0]];
+      const ts = pts.map((p) => p[0] * U[0] + p[2] * U[1]);
+      const c = pts.reduce((sum, p) => sum + p[0] * N[0] + p[2] * N[1], 0) / pts.length;
+      const [t0, t1] = [Math.min(...ts), Math.max(...ts)];
+      const L = t1 - t0;
+      const n = Math.max(1, Math.round(L / WIN.per));
+      const s0 = (L - n * WIN.width - (n - 1) * WIN.gap) / 2;
+      const spans = [...Array(n).keys()].map((k) => [s0 + k * (WIN.width + WIN.gap), s0 + k * (WIN.width + WIN.gap) + WIN.width]);
+      // (the piers in the wall's own face: the first of `pierMats` it wears, else its biggest part; its biggest in the
+      // tower is its black plastic, and the piers drew as black slabs)
+      const named = prims.map((_, i) => basename(pack.guidPath.get(matOf(i)) ?? "").replace(/\.mat$/, ""));
+      const liked = WIN.pierMats.map((n) => named.indexOf(n)).find((i) => i >= 0 && i !== gi);
+      const bi = liked ?? prims.map((p, i) => ({ i, n: i === gi ? -1 : p.idx.length })).sort((x, y) => y.n - x.n)[0].i;
+      // (the wall's foot, its floor: its lowest corner)
+      let base = Infinity;
+      for (const r of prims) for (let k = 0; k < r.pos.length; k += 3) base = Math.min(base, m[1] * r.pos[k] + m[5] * r.pos[k + 1] + m[9] * r.pos[k + 2] + m[13]);
+      const glassModel = { meshes: [{ name: d.model.meshes[d.mesh].name, prims: [q] }], nodes: [], roots: [] } as unknown as Draw["model"];
+      const glass = { d: { ...d, model: glassModel, mesh: 0, pre: null, mats: d.mats ? [d.mats[gi]] : d.mats }, m };
+      windowWalls.push({ p0: [U[0] * t0 + N[0] * c, U[1] * t0 + N[1] * c], U, N, L, base, sill, head, chunk: id, mat: matOf(bi), spans, glass });
+      const keep = prims.map((_, i) => i).filter((i) => i !== gi);
+      const model = { meshes: [{ name: d.model.meshes[d.mesh].name, prims: keep.map((i) => prims[i]) }], nodes: [], roots: [] } as unknown as Draw["model"];
+      return { d: { ...d, model, mesh: 0, pre: null, mats: d.mats ? keep.map((i) => d.mats![i]) : d.mats }, m };
+    });
+  };
   // (each placed draw's chunk, for naming what the bake's measures find)
   const chunkOf = new WeakMap<object, string>();
   for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, string[]?]> }>(cfg.chunks)) {
@@ -350,11 +406,13 @@ if (mode === "bake") {
           all.push(back);
           towerDrawn.push(back);
         }
-      for (const q of mine) chunkOf.set(q, id);
-      all.push(...mine);
+      // (drawn and colliding with its windows open; the floors' flood still meets the glass, or it ran out through them)
+      const drawn = openWindows(id, mine);
+      for (const q of drawn) chunkOf.set(q, id);
+      all.push(...drawn);
       if (baseMask.has(id)) standingDraws.push(...mine);
       // (and the pieces closing its shell's slits: the partitions and cover inside are left out, so a gap is not hidden)
-      if (id === "c-middle" || (id === "c-tower" && cfg.rules.tower?.slots && key.endsWith(`/${cfg.rules.tower.slots.piece}`))) towerDrawn.push(...mine);
+      if (id === "c-middle" || (id === "c-tower" && cfg.rules.tower?.slots && key.endsWith(`/${cfg.rules.tower.slots.piece}`))) towerDrawn.push(...drawn);
       if (how === "o" && EXACT?.pieces.some((f) => key.endsWith(`/${f}`))) {
         // the pack's fire escape (rules.fine.exact) collides as its own faces, not cells: its walkway beside the wall is
         // 1.09 m and its stair 1.08 m between stringer and handrail for a body 0.81 m across, and the next flight
@@ -405,10 +463,160 @@ if (mode === "bake") {
             if (!up.some((g) => g[5] > f[5] + 0.01 && g[5] < f[5] + 0.6 && f[6] >= g[0] && f[6] <= g[1] && f[7] >= g[2] && f[7] <= g[3])) exactBoxes.push(f.slice(0, 6));
           exactBoxes.push(...walls.values());
         }
-      } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...mine);
+      } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...drawn);
       else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
       placed++;
     }
+  }
+  // the windows' piers (rules.windows): drawn in their wall's own material, `thick` deep about the glass's plane, their
+  // fronts, backs and the ends a window has beside it (their tops and bottoms meet the frame), and colliding as boxes;
+  // each window, from its sill to its head and `carve` either side of the plane, cut out of the cells' collision once it
+  // is made. Written to `windows` for the checks, each with the way out of its building
+  const windowBoxes: number[][] = [];
+  const windowCuts: number[][] = [];
+  cfg.windows = [];
+  if (WIN && windowWalls.length) {
+    // a window opens only onto something: a body's breadth of level rays, at three heights, `clear` metres out of it and
+    // `room` metres into its building, meeting nothing drawn (on the tower's east side its windows looked into the east
+    // block, and in the base some backed onto a stair); one that meets something is pier, and a wall none of whose windows
+    // opens keeps its glass
+    const CELL = 2;
+    const want = new Set<string>();
+    const cellOf = (x: number, z: number) => `${Math.floor(x / CELL)},${Math.floor(z / CELL)}`;
+    for (const w of windowWalls)
+      for (let t = -1; t <= w.L + 1; t += CELL / 2)
+        for (let o = -WIN.room - 1; o <= WIN.clear + 1; o += CELL / 2) want.add(cellOf(w.p0[0] + w.U[0] * t + w.N[0] * o, w.p0[1] + w.U[1] * t + w.N[1] * o));
+    const nearTris = new Map<string, Array<[number[], number[], number[]]>>();
+    for (const list of groups.values())
+      for (const { d, m } of list)
+        for (const q of d.model.meshes[d.mesh].prims) {
+          const V = (i: number) => [0, 1, 2].map((a) => m[a] * q.pos[i * 3] + m[4 + a] * q.pos[i * 3 + 1] + m[8 + a] * q.pos[i * 3 + 2] + m[12 + a]);
+          for (let k = 0; k + 2 < q.idx.length; k += 3) {
+            const t = [V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])] as [number[], number[], number[]];
+            const [x0, x1] = [Math.min(t[0][0], t[1][0], t[2][0]), Math.max(t[0][0], t[1][0], t[2][0])];
+            const [z0, z1] = [Math.min(t[0][2], t[1][2], t[2][2]), Math.max(t[0][2], t[1][2], t[2][2])];
+            for (let i = Math.floor(x0 / CELL); i <= Math.floor(x1 / CELL); i++)
+              for (let j = Math.floor(z0 / CELL); j <= Math.floor(z1 / CELL); j++) {
+                const c = `${i},${j}`;
+                if (want.has(c)) (nearTris.get(c) ?? nearTris.set(c, []).get(c)!).push(t);
+              }
+          }
+        }
+    /** whether a level segment from (x, y, z) along (dx, dz) for `len` metres meets a drawn triangle (either face) */
+    const meets = (x: number, y: number, z: number, dx: number, dz: number, len: number): boolean => {
+      const seen = new Set<object>();
+      for (let s0 = 0; s0 <= len + CELL; s0 += CELL / 2) {
+        for (const t of nearTris.get(cellOf(x + dx * Math.min(s0, len), z + dz * Math.min(s0, len))) ?? []) {
+          if (seen.has(t)) continue;
+          seen.add(t);
+          const [a, b, c] = t;
+          const e1 = [b[0] - a[0], b[1] - a[1], b[2] - a[2]], e2 = [c[0] - a[0], c[1] - a[1], c[2] - a[2]];
+          const pv = [-dz * e2[1], dz * e2[0] - dx * e2[2], dx * e2[1]];
+          const det = e1[0] * pv[0] + e1[1] * pv[1] + e1[2] * pv[2];
+          if (Math.abs(det) < 1e-12) continue;
+          const tv = [x - a[0], y - a[1], z - a[2]];
+          const u = (tv[0] * pv[0] + tv[1] * pv[1] + tv[2] * pv[2]) / det;
+          if (u < 0 || u > 1) continue;
+          const qv = [tv[1] * e1[2] - tv[2] * e1[1], tv[2] * e1[0] - tv[0] * e1[2], tv[0] * e1[1] - tv[1] * e1[0]];
+          const v = (dx * qv[0] + dz * qv[2]) / det;
+          if (v < 0 || u + v > 1) continue;
+          const dist = (e2[0] * qv[0] + e2[1] * qv[1] + e2[2] * qv[2]) / det;
+          if (dist > 0 && dist < len) return true;
+        }
+      }
+      return false;
+    };
+    let shut = 0;
+    for (const w of windowWalls) {
+      const SQ = cfg.tower?.square as number[] | undefined;
+      const mid = w.chunk === "c-middle" && SQ ? [(SQ[0] + SQ[1]) / 2, (SQ[2] + SQ[3]) / 2] : [0, 0];
+      const cx = w.p0[0] + w.U[0] * (w.L / 2), cz = w.p0[1] + w.U[1] * (w.L / 2);
+      const sign = (cx - mid[0]) * w.N[0] + (cz - mid[1]) * w.N[1] > 0 ? 1 : -1;
+      const out = [w.N[0] * sign, w.N[1] * sign];
+      const opens = w.spans.filter(([t0, t1]) => {
+        // (in, from just over the sill: a stair well's rail 0.75 m in at waist height left a window no way in; and
+        // turned a quarter right and left too: a partition meeting the face behind a window lay along the straight rays,
+        // which passed inside its thickness and met no face of it)
+        for (const lat of [-0.4, 0, 0.4])
+          for (const up of [0.3, 0.8, 1.3, 1.9])
+            for (const turn of [0, 0.44, -0.44]) {
+              const t = (t0 + t1) / 2 + lat;
+              const [x, z] = [w.p0[0] + w.U[0] * t, w.p0[1] + w.U[1] * t];
+              const y = w.sill + up;
+              const [c, sn] = [Math.cos(turn), Math.sin(turn)];
+              const [ox, oz] = [out[0] * c - out[1] * sn, out[0] * sn + out[1] * c];
+              if (up > 0.5 && meets(x + out[0] * 0.3, y, z + out[1] * 0.3, ox, oz, WIN.clear)) return false;
+              if (meets(x - out[0] * 0.3, y, z - out[1] * 0.3, -ox, -oz, WIN.room)) return false;
+            }
+        return true;
+      });
+      shut += w.spans.length - opens.length;
+      w.spans = opens;
+      if (!opens.length) {
+        const g = groups.get(groupOf(w.chunk))!;
+        g.push(w.glass);
+        chunkOf.set(w.glass, w.chunk);
+        if (w.chunk === "c-middle") towerDrawn.push(w.glass);
+        open.push(w.glass);
+      }
+    }
+    console.log(`windows: ${shut} left shut, opening onto something within ${WIN.clear} m out or ${WIN.room} m in`);
+    const piers = new Map<string, { pos: number[]; nrm: number[]; uv: number[]; idx: number[]; chunk: string; mat: string }>();
+    for (const w of windowWalls) {
+      if (!w.spans.length) continue;
+      const P = (t: number, o: number, y: number) => [w.p0[0] + w.U[0] * t + w.N[0] * o, y, w.p0[1] + w.U[1] * t + w.N[1] * o];
+      const box = (t0: number, t1: number, o0: number, o1: number, y0: number, y1: number) => {
+        const [a, b] = [P(t0, o0, y0), P(t1, o1, y1)];
+        return [Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[2], b[2]), Math.max(a[2], b[2]), y0, y1];
+      };
+      const key = `${w.chunk}|${w.mat}`;
+      const g = piers.get(key) ?? piers.set(key, { pos: [], nrm: [], uv: [], idx: [], chunk: w.chunk, mat: w.mat }).get(key)!;
+      /** a face's four corners, counter-clockwise seen from its front, `n` its normal, mapped by the metre along and up */
+      const face = (c: number[][], n: number[], along: number[]) => {
+        const base = g.pos.length / 3;
+        for (const [k, q] of c.entries()) {
+          g.pos.push(...q);
+          g.nrm.push(...n);
+          g.uv.push(along[k] * WIN.scale, q[1] * WIN.scale);
+        }
+        g.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
+      };
+      const T = WIN.thick / 2;
+      const [y0, y1] = [w.sill, w.head];
+      const U3 = [w.U[0], 0, w.U[1]], N3 = [w.N[0], 0, w.N[1]];
+      const edges = [0, ...w.spans.flat(), w.L];
+      for (let k = 0; k + 1 < edges.length; k += 2) {
+        const [t0, t1] = [edges[k], edges[k + 1]];
+        if (t1 - t0 < 1e-3) continue;
+        windowBoxes.push(box(t0, t1, -T, T, y0, y1));
+        face([P(t0, T, y0), P(t1, T, y0), P(t1, T, y1), P(t0, T, y1)], N3, [t0, t1, t1, t0]);
+        face([P(t1, -T, y0), P(t0, -T, y0), P(t0, -T, y1), P(t1, -T, y1)], N3.map((v) => -v), [t1, t0, t0, t1]);
+        if (t0 > 1e-3) face([P(t0, -T, y0), P(t0, T, y0), P(t0, T, y1), P(t0, -T, y1)], U3.map((v) => -v), [-T, T, T, -T]);
+        if (t1 < w.L - 1e-3) face([P(t1, T, y0), P(t1, -T, y0), P(t1, -T, y1), P(t1, T, y1)], U3, [T, -T, -T, T]);
+      }
+      // (the way out: away from the middle of the tower's square, or of the base)
+      const SQ = cfg.tower?.square as number[] | undefined;
+      const mid = w.chunk === "c-middle" && SQ ? [(SQ[0] + SQ[1]) / 2, (SQ[2] + SQ[3]) / 2] : [0, 0];
+      for (const [t0, t1] of w.spans) {
+        // (from the floor up: the cells under a sill reached half a metre into the room, a 0.44 m step where a standing
+        // head met the ceiling, 2.2 m over the tower's floors, and was pushed off it; the sill stands as its own box,
+        // the wall's depth)
+        windowCuts.push(box(t0, t1, -WIN.carve, WIN.carve, w.base + 0.05, y1));
+        windowBoxes.push(box(t0, t1, -T, T, w.base, y0));
+        const c = P((t0 + t1) / 2, 0, (y0 + y1) / 2);
+        const sign = (c[0] - mid[0]) * w.N[0] + (c[2] - mid[1]) * w.N[1] > 0 ? 1 : -1;
+        (cfg.windows as unknown[]).push({ at: c.map((v) => +v.toFixed(3)), out: [w.N[0] * sign, w.N[1] * sign], wide: +(t1 - t0).toFixed(3), sill: +y0.toFixed(3), high: +(y1 - y0).toFixed(3), chunk: w.chunk });
+      }
+    }
+    for (const g of piers.values()) {
+      const model = { meshes: [{ name: "window piers", prims: [{ pos: new Float32Array(g.pos), nrm: new Float32Array(g.nrm), uv: new Float32Array(g.uv), idx: new Uint32Array(g.idx), material: "pier" }] }], nodes: [], roots: [] } as unknown as Draw["model"];
+      const dm = { d: { model, mesh: 0, pre: null, mats: [g.mat], modelGuid: "", on: true, go: null } as Draw, m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as M4 };
+      chunkOf.set(dm, g.chunk);
+      (groups.get(groupOf(g.chunk)) ?? groups.set(groupOf(g.chunk), []).get(groupOf(g.chunk))!).push(dm);
+      if (g.chunk === "c-middle") towerDrawn.push(dm);
+    }
+    const by = (c: string) => (cfg.windows as Array<{ chunk: string }>).filter((q) => q.chunk === c).length;
+    console.log(`windows: ${cfg.windows.length} opened in ${windowWalls.length} walls (the tower ${by("c-middle")}, the base ${by("c-base")}), ${windowBoxes.length} piers`);
   }
   // the Sky Ring (rules.skyring): the walkway storey round the tower's plaza, a true circle of the pack's floor slab
   // (its paving on top, its brick edges, its plaster underside, as FloorBasic00 wears them), too round for the pack's
@@ -541,7 +749,7 @@ if (mode === "bake") {
         for (let k = 0; k + 2 < q.idx.length; k += 3) drawnTris.push([V(q.idx[k]), V(q.idx[k + 1]), V(q.idx[k + 2])]);
       }
     for (let k = 0; k + 2 < core.walls.idx.length; k += 3) drawnTris.push([0, 1, 2].map((j) => core.walls.pos.slice(core.walls.idx[k + j] * 3, core.walls.idx[k + j] * 3 + 3)) as [number[], number[], number[]]);
-    const seal: Array<{ at: number; rays: number; out: number[][] }> = [];
+    const seal: Array<{ at: number; rays: number; out: number[][]; windows: number; gaps: number }> = [];
     for (const h of TW.shaft as number[]) {
       // (what stands on this floor, from just over it: the glass round the storey under 14 m tops out at 13.5)
       const stood = standing(g, towerTris(), h + 0.05, h + 2);
@@ -563,13 +771,29 @@ if (mode === "bake") {
           if (inn.cells[j * g.nx + i] && sdPoly(coreHole, x, z) > 1 && region(x - 1, z) < 0 && region(x + 1, z) < 0 && region(x, z - 1) < 0 && region(x, z + 1) < 0) pts.push([x, z]);
         }
       const e = escapes(drawnTris, pts, h + TW.seal.eye, TW.seal.rays, TW.seal.far);
-      seal.push({ at: h, rays: e.rays, out: e.out.slice(0, 12) });
+      // (a ray out through a window is the window: only one out through anything else is a gap)
+      const eye = h + TW.seal.eye;
+      const wins = (cfg.windows as Array<{ at: number[]; out: number[]; wide: number; sill: number; high: number }>).filter((q) => eye > q.sill && eye < q.sill + q.high);
+      const through = (o: number[]) => {
+        const t = (o[2] * Math.PI) / 180;
+        const [dx, dz] = [Math.cos(t), Math.sin(t)];
+        return wins.some((q) => {
+          const dn = dx * q.out[0] + dz * q.out[1];
+          if (Math.abs(dn) < 1e-6) return false;
+          const k = ((q.at[0] - o[0]) * q.out[0] + (q.at[2] - o[1]) * q.out[1]) / dn;
+          if (k <= 0 || k > TW.seal.far) return false;
+          const [hx, hz] = [o[0] + dx * k, o[1] + dz * k];
+          return Math.abs((hx - q.at[0]) * q.out[1] - (hz - q.at[2]) * q.out[0]) <= q.wide / 2;
+        });
+      };
+      const gaps = e.out.filter((o) => !through(o));
+      seal.push({ at: h, rays: e.rays, out: gaps.slice(0, 12), windows: e.out.length - gaps.length, gaps: gaps.length });
       tri += push(`tower-${h}`, (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: TW.mats[k] })));
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
-    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.out.length, where: q.out })) };
-    console.log(`the tower's floors sealed: ${seal.map((q) => `${q.at} m ${q.out.length} of ${q.rays} rays out`).join("; ")}`);
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
+    console.log(`the tower's floors sealed but for their windows: ${seal.map((q) => `${q.at} m ${q.gaps} of ${q.rays} rays out elsewhere, ${q.windows} through the windows`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
     // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a
     // sawtooth of the two showing through by turns: the pack's own walls topped flush by its floor strips, the court's
@@ -724,7 +948,35 @@ if (mode === "bake") {
     }
     return out;
   };
-  const solids = [...cutBack(coarse), ...cutBack(fine), ...exactBoxes];
+  // (the windows cut out of the cells' boxes exactly: a box a window reaches split round it, up to six)
+  let carved = 0;
+  const carve = (list: number[][]): number[][] => {
+    let out = list;
+    for (const k of windowCuts) {
+      const next: number[][] = [];
+      for (const b of out) {
+        if (b[1] <= k[0] || b[0] >= k[1] || b[3] <= k[2] || b[2] >= k[3] || b[5] <= k[4] || b[4] >= k[5]) {
+          next.push(b);
+          continue;
+        }
+        carved++;
+        const [x0, x1, z0, z1] = [Math.max(b[0], k[0]), Math.min(b[1], k[1]), Math.max(b[2], k[2]), Math.min(b[3], k[3])];
+        // (a sliver left at the cut's edge, a cell reaching a hair past it, is the wall's own spill: none thinner than
+        // `sliver`, or a window's own width of plane stood half a metre behind it, as solid to a shot as glass)
+        const S0 = WIN?.sliver ?? 0;
+        if (k[0] - b[0] > S0) next.push([b[0], k[0], b[2], b[3], b[4], b[5]]);
+        if (b[1] - k[1] > S0) next.push([k[1], b[1], b[2], b[3], b[4], b[5]]);
+        if (k[2] - b[2] > S0) next.push([x0, x1, b[2], k[2], b[4], b[5]]);
+        if (b[3] - k[3] > S0) next.push([x0, x1, k[3], b[3], b[4], b[5]]);
+        if (b[4] < k[4]) next.push([x0, x1, z0, z1, b[4], k[4]]);
+        if (b[5] > k[5]) next.push([x0, x1, z0, z1, k[5], b[5]]);
+      }
+      out = next;
+    }
+    return out;
+  };
+  const solids = [...cutBack(carve(coarse)), ...cutBack(carve(fine)), ...exactBoxes, ...windowBoxes];
+  if (carved) console.log(`the windows cut out of ${carved} collision boxes`);
   if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);
   const all = [...solids, ...solidBoxes];
   mkdirSync(join(ROOT, "src", "config", "neon"), { recursive: true });
@@ -788,7 +1040,7 @@ if (mode === "bake") {
   // only what the bake measured goes back, into the file as it is now: a bake takes minutes, and writing back the copy
   // read at its start threw away the game's sites, added to the file while one ran
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));
-  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, spine: cfg.spine, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}), ...(cfg.well?.measured ? { well: { ...now.well, measured: cfg.well.measured } } : {}) }, null, 1) + "\n");
+  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, spine: cfg.spine, windows: cfg.windows, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}), ...(cfg.well?.measured ? { well: { ...now.well, measured: cfg.well.measured } } : {}) }, null, 1) + "\n");
   console.log(`unresolved materials: ${IMPORT_STATS.unresolved.size}, unmatched meshes: ${IMPORT_STATS.unmatchedMeshes.size}`);
 }
 

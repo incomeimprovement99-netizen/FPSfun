@@ -9256,3 +9256,35 @@ ready ... it should be the BOOG and the USSO to start ... and then add the hacks
 - **Checked:** the brcard check (the figure holds only roster guns with the soldier's own hold, and faces you);
   photographed front and side on, then the card at 1920x1080, 1366x768 and 412x915; verify; rules; the public build's
   check (index.html changed).
+
+## Milestone 417 — Open windows in the tower and its base
+
+The owner, 2026-10-02: "make sure that the windows in the large tower are like actual windows that are open and that we
+can just go right on through ... there shouldn't be much glass ... just like regular sized windows though, like it would
+have to be a well placed sniper shot to get the knock." The tower's eight floors were sealed boxes by design (Milestone
+370), and its base's first and second floors were glazed.
+
+- **203 windows open** (rules.windows, tools/import-neon.ts): 111 in the tower's floors (14 to 35 m) and its top rooms
+  (38.5 to 45.5 m), 92 in the base's first and second floors, facing the plaza and the Sky Ring. Each window wall's
+  glass is left out, and its one wide opening (the pack's, 4.86 by 2.12 m over a 0.44 m sill, measured off the glass) is
+  parted by piers into windows 1.25 m wide, two to a 5 m wall: regular windows, a well-placed shot to hit someone
+  through, and a body (0.82 m) gets in or out over the sill.
+- **What is drawn open is open.** The piers collide as boxes, and each window is cut out of the collision exactly: on
+  half-metre cells a 1.25 m window came out anywhere from 0.25 to 1.25 m wide. The cut runs from the floor up, with the
+  sill as its own box the wall's depth: the cells under a sill reached half a metre into the room, a step where a
+  standing head met the tower's ceiling (2.2 m over its floors) and the player was pushed off it.
+- **A window opens only onto something.** A body's breadth of rays, straight and turned a quarter either way, must meet
+  nothing drawn 3 m out of it or 1.5 m in. 88 stay shut: the tower's east windows looked into its east block, and some
+  backed onto a stair well's rail, a partition or a stair. A wall none of whose windows opens keeps its glass. The base's
+  cover and its rooms' furniture are kept off its windows.
+- **Getting in:** from the base's roof (10.5 m) a double jump and a mantle reach the tower's 14 m windows; the Sky Ring
+  faces the base's first floor; the pads' throws pass the base's windows.
+- The tower's floors are still sealed but for their windows: every other ray from each floor meets a wall.
+- The map: its files lo 78 MB, hi 139 MB, max 348 MB. **Its files are version 31.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): every window open to a shot through its middle (seen failing
+  against the glazed collision: 0 of 203); every window walked out of by a player from inside (seen failing the same way:
+  3 of 203); every window 1.5 m wide or under and a body's height (seen failing with one made 2.4 m); the base's upper
+  storeys windowed, about a quarter open; the tower's floors sealed but by their windows. verify and rules; e2e `br`.
+  Photographed inside and out.
+- **A fresh review** scored the centre 4.5 of 10 from pictures alone, against Hyper Scape: docs/CENTRE_REVIEW.md has the
+  scores, the gaps and the order of the fixes, of which this is the first.

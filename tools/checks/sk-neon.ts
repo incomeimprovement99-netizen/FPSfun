@@ -631,9 +631,10 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
       }
     return { y, share: got / of };
   });
-  // (half: the collision's half-metre cells make a colonnade's 1 m pillar 1.5 m, so a 5 m bay is 3.5 m open; the walled
-  // storeys are open a few per cent, and the ground floor was about a sixth with its fourteen doors)
-  check("the base: its ground floor open to the plaza all round, the storeys over it walled", faces[0].open > 0.5 && faces.slice(1).every((f) => f.open < 0.1), faces.map((f) => `${f.y} m: ${(f.open * 100).toFixed(0)}% of its faces open`).join("; "));
+  // (half: the collision's half-metre cells make a colonnade's 1 m pillar 1.5 m, so a 5 m bay is 3.5 m open; the storeys
+  // over it a quarter, their windows 2.5 m of each 5 m bay less the probe's reach either side; the ground floor was about
+  // a sixth with its fourteen doors)
+  check("the base: its ground floor open to the plaza all round, the storeys over it windowed", faces[0].open > 0.5 && faces.slice(1).every((f) => f.open > 0.1 && f.open < 0.4), faces.map((f) => `${f.y} m: ${(f.open * 100).toFixed(0)}% of its faces open`).join("; "));
   check("the base: its ground floor the most open of its storeys, the most of its floor a standing body's room", room.slice(1).every((r) => r.share < room[0].share), room.map((r) => `${r.y} m: ${(r.share * 100).toFixed(0)}%`).join("; "));
   const SR = cfg.rules.skyring as { r0: number; r1: number; deck: number };
   // (along each bridge's own line, from a metre and a half out on the ring to three in through its door)
@@ -653,6 +654,39 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   ];
   const astray = stops.filter((q) => !reachedAt(q.x, q.z, q.y));
   check("the centre's pads: each on the plaza and the one up to the top walked to, each landing on the base's roof walked from", stops.length >= 10 && astray.length === 0, `${stops.length - astray.length} of ${stops.length}${astray.length ? `: not ${astray.map((q) => q.id).join(", ")}` : ""}`);
+  // the windows (rules.windows; the owner, 2026-10-02: "actual windows that are open and that we can just go right on
+  // through ... regular sized windows, like it would have to be a well placed sniper shot"): each in the tower and the
+  // base open to a shot through its middle at a standing chest's height, through the wall's depth and more either side
+  // of its plane; each walked out of by a player from three quarters of a metre inside, over its 0.44 m sill (a table stands a
+  // metre and a quarter in behind one); none wider than a window
+  const WN = (cfg as unknown as { windows: Array<{ at: number[]; out: number[]; wide: number; sill: number; high: number; chunk: string }> }).windows ?? [];
+  const shot = (q: (typeof WN)[number]) => {
+    const y = q.sill + 1.3;
+    for (let k = -0.7; k <= 0.7; k += 0.05) {
+      const [x, z] = [q.at[0] + q.out[0] * k + BR_X, q.at[2] + q.out[1] * k + BR_Z];
+      if (solidsIn(x, x, z, z).some((b) => x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ && y >= b.base && y <= b.top)) return false;
+    }
+    return true;
+  };
+  const outOf = (q: (typeof WN)[number]) => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    const floor = q.sill - 0.44;
+    p.teleport(q.at[0] - q.out[0] * 0.75 + BR_X, floor + 0.05, q.at[2] - q.out[1] * 0.75 + BR_Z, (Math.atan2(-q.out[0], -q.out[1]) * 180) / Math.PI);
+    const go = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
+    let t = 1000;
+    for (let i = 0; i < 144 * 2; i++) {
+      p.update(1 / 144, (t += 1 / 144), go, 0, 1, false);
+      if ((p.pos.x - BR_X - q.at[0]) * q.out[0] + (p.pos.z - BR_Z - q.at[2]) * q.out[1] > 0.6) return true;
+    }
+    return false;
+  };
+  const shut = WN.filter((q) => !shot(q));
+  const stuck = WN.filter((q) => !outOf(q));
+  const where = (l: typeof WN) => l.slice(0, 6).map((q) => `${q.chunk} (${q.at.map((v) => v.toFixed(1)).join(", ")})`).join("; ");
+  const inTower = WN.filter((q) => q.chunk === "c-middle").length;
+  check("the windows: each in the tower and the base open to a shot through its middle", inTower > 80 && WN.length - inTower > 80 && shut.length === 0, `${WN.length - shut.length} of ${WN.length} (the tower ${inTower})${shut.length ? `: not ${where(shut)}` : ""}`);
+  check("the windows: each walked out of by a player from inside", stuck.length === 0, `${WN.length - stuck.length} of ${WN.length}${stuck.length ? `: not ${where(stuck)}` : ""}`);
+  check("the windows: each a window, 1.5 m wide or under and a body's height", WN.every((q) => q.wide <= 1.5 && q.wide > 0.9 && q.high > MOVE.standHeight), `${Math.min(...WN.map((q) => q.wide)).toFixed(2)} to ${Math.max(...WN.map((q) => q.wide)).toFixed(2)} m wide, ${Math.min(...WN.map((q) => q.high)).toFixed(2)} m high`);
   check("the base: every bridge from the Sky Ring walked across into its first floor", BS.bridges.length > 0 && bridges.length === BS.bridges.length, `${bridges.length} of ${BS.bridges.length}`);
 }
 
@@ -751,8 +785,9 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // (measured by the bake: a layout run since without a bake leaves none)
   const F = TW.measured?.floors ?? [];
   check("the tower: its new floors each the inside of its shell, the same on every storey", F.length === TW.shaft.length && Math.min(...F) > 300 && Math.max(...F) - Math.min(...F) < 0.05 * Math.max(...F), `${F.join(", ")} m2`);
-  const S = TW.measured?.seal ?? [];
-  check("the tower: its new floors not seen through, every ray from each meets a wall", S.length === TW.shaft.length && S.every((q) => q.rays > 500 && q.out === 0), S.map((q) => `${q.at} m ${q.out} of ${q.rays} out`).join("; "));
+  const S = (TW.measured?.seal ?? []) as Array<{ at: number; rays: number; out: number; windows?: number }>;
+  // (but through its windows, open since the owner asked: a ray out anywhere else is a gap in its shell)
+  check("the tower: its new floors not seen through but by their windows, every other ray from each meets a wall", S.length === TW.shaft.length && S.every((q) => q.rays > 500 && q.out === 0 && (q.windows ?? 0) > 0), S.map((q) => `${q.at} m ${q.out} of ${q.rays} out elsewhere, ${q.windows ?? 0} through windows`).join("; "));
   // nothing drawn face up over another material in the same plane over the base and the tower (the bake's measure,
   // tools/neon-tower.ts coplanar): two such fight for the same pixels, a sawtooth of the two by turns as the view moves
   const CP = (TW as unknown as { coplanar: { most: number }; measured?: { coplanar?: Array<{ y: number; m2: number; at: number[] }> } });
