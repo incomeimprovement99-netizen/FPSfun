@@ -229,13 +229,13 @@ only once i approve we can move on to the other 8 guns".
    comes up into plain view.
 4. "Our guns still look like they are pointed too far up and to the left ... our whole ass left arm on the usso is
    covering the gun", then "the exact match on the harpy and r99 from their respective games ... Same with the boog for
-   the apex and Hyperscape snipers": **done** (Milestone 396). The guns had been turned to point up past the crosshair,
-   where the R-99's barrel points a little left of and below it. While the bought arms hold a gun its camera is 55 degrees
-   (`hipGunFov`, Apex's own default; at the world's 92 BOOG could not lie as the Sentinel), each gun's look solved onto its
-   reference frame by `tools/gun-fit.ts` (the USSO on the R-99 and the Harpy, BOOG on the Sentinel and the Protocol V), the
-   USSO's left forearm up from under the gun's front. The inspect keeps its old framing and the melee and the inspect's
-   open hand their old places. Open: BOOG's pointing wrist 62 to 63 degrees at the bottom edge mid-reload. For every other
-   gun: fit the same way, to a named gun at rest in its game's showcase.
+   the apex and Hyperscape snipers": first shipped wrong (Milestone 396: the R-99's barrel line read off the wrong edges,
+   the guns flat across the picture at a 55 degree camera; the owner, live: "my gun is still pointing super weird and
+   clipping through"), then **corrected** (the next milestone): the references' edges found by machine meet at the
+   crosshair, so each gun points straight at it, level, the muzzle on theirs, at the world's own camera. A reload, melee,
+   first draw and inspect ease back to the placement they were made in (`beforeFrame`). Open: the left arm still shows
+   from the bottom of the picture to the hand on the gun's front (the owner wants only the hand and wrist): the hand to
+   move back along each gun. For every other gun: fit the same way, to a named gun at rest in its game's showcase.
 
 ## 2. The bar every gun in hand meets
 
@@ -285,9 +285,9 @@ Milestone 312's.
    picture.
 5. Measure when its clips move the magazine, handle or bolt, and where the finger points.
 6. Place it: a named gun of its kind at rest in a game's own weapon showcase (a still camera) as the reference, and
-   `tools/gun-fit.ts` solves the look at the 55 degree gun camera (`hipGunFov`) until the barrel's line and the muzzle sit
-   on the reference's, our gun's outline laid over their frame to judge; then the support elbow searched so its forearm
-   comes up from under the gun.
+   edges found on that frame by machine (OpenCV Canny and Hough lines) for where its barrel points (where its barrel-parallel edges meet)
+   and how level it is (its cross edges); `tools/gun-fit.ts` solves our look to those (`vp`, `level`) and the muzzle onto
+   theirs at the world's camera, our gun's outline laid over their frame to judge; then the support elbow searched.
 7. Sheets of every stage (`tools/pack-frames.ts`) until none is flagged; look at them too.
 8. Add it to the soldier e2e checks and send the owner the sheets and close-ups, beside the reference.
 

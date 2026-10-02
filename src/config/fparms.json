@@ -266,21 +266,21 @@
       ],
       "holdElbow": {
         "l": [
-          0.2,
+          0.05,
           -0.45,
-          -0.1
+          0.1
         ]
       },
       "look": {
         "shift": [
-          0.0982,
-          -0.0109,
-          -0.107
+          -0.0555,
+          0.0475,
+          0.243
         ],
         "turn": [
-          -0.0843,
-          0.3837,
-          -0.21
+          0.0197,
+          -0.047,
+          -0.0529
         ]
       },
       "inspectLook": {
@@ -534,20 +534,20 @@
       "holdElbow": {
         "l": [
           -0.1,
-          -0.3,
+          -0.45,
           -0.25
         ]
       },
       "look": {
         "shift": [
-          0.2241,
-          0.0734,
-          -0.3
+          -0.0193,
+          0.1593,
+          0.1
         ],
         "turn": [
-          -0.0917,
-          0.3094,
-          -0.3
+          -0.0176,
+          -0.0579,
+          -0.0326
         ]
       },
       "inspectLook": {
@@ -580,7 +580,7 @@
   "hipPitch": 0,
   "_hipOwn": "How far the rest hold goes, gun and arms as one, from where the pack holds the gun to where the gun's own hold has it (gunfeel.json hip on the model's hip, turned only its 3 degrees in toward the crosshair): 1 all the way, 0 the pack's hold. The view moves the whole of it by one matrix, the one a swap carries the arms by, so the hands stay on the gun as fitted and every move the pack makes on top (a reload, an inspect, a pickup) is carried with it; none of it is left in the sights. The owner, 2026-09-30: \"when we melee currently, the gun goes to a different spot, which actually looks smaller and placed at a more natural angle and looks more like other shooters ... we want it defaulted there at that spot, have all our animations and frame inspects based off of that\" (a melee lets the bought arms go, and the gun alone went back to its own hold). An eyed move before it, 5 cm right and turned 4.6 degrees back in, was not what the owner had asked for.",
   "hipOwn": 1,
-  "_hipLook": "The look on top of the gun's own place (viewmodel.ts, after hipOwn, the arms carried with it as by it): `shift` view metres (x right, y up, z back) and `turn` radians (up, left, roll) about the gun's origin, none of it in the sights; a pack gun's own (packGuns look) over this. The owner, 2026-09-30: \"remember we want less of the arms showing, all of the other games the support arm barely shows and the gun is angled out of the bottom right corner\", then \"compare the angle of our gun on a Hyperscape sniper and a empulse sniper and smgs like our two. I want it to look exactly like that, minimal arm showing and from the corner and angled exactly like they have theirs. Ours looks cheap in comparison\", and \"Do the grid stuff with apex as well and see what the best combination of them are\". Their frames gridded (Hyper Scape's Protocol twice, EMPULSE's SMG and rifle, Apex's CAR and Sentinel), the combined framing at 1920 by 1080: an SMG's muzzle 55% across and 57% down, its bottom leaving the bottom edge about 59% across (only the support hand there), its top edge leaving the right side about 84% down, the gun covering about 15% of the screen; a sniper's muzzle 54% and 56%, 59%, 78%, and 19%. Ours had the angle but covered 10.5% (the USSO) and 6.9% (BOOG): too small and too far out. Fitted to those by the gun's own vertices through the gun camera (the tip, the edges and the screen share it covers) and chosen by the photographs beside theirs: the USSO 11.5 cm right, 6 down and 19 nearer, turned 7 degrees up, 16 left and rolled 12, covering 13.5%; BOOG 12 right, 2 down, 20 nearer, 11 up, 17 left, rolled 17. Then, 2026-10-01, each gun refitted to one game's resting frame at the 55 degree gun camera (hipGunFov): the USSO to Apex's R-99 (its barrel's line meets the screen 25% across and 58% down, the muzzle 55% across and 74% down, 30 cm further from the eye than the gun's own hold) and checked on Hyper Scape's Harpy, BOOG to the Sentinel and the Protocol V (30% and 58%, its muzzle 55% and 69%, 30 cm further). The USSO's left elbow (holdElbow) then searched so its forearm comes up from under the picture's edge below the gun's front: across the gun, as it lay before, the owner: \"our whole ass left arm on the usso is covering the gun. That doesn't happen on the other AAA games\". Its wrist 37 degrees, none of the arm above the forearm in the picture.",
+  "_hipLook": "The look on top of the gun's own place (viewmodel.ts, after hipOwn, the arms carried with it as by it): `shift` view metres (x right, y up, z back) and `turn` radians (up, left, roll) about the gun's origin, none of it in the sights; a pack gun's own (packGuns look) over this. The owner, 2026-09-30: \"remember we want less of the arms showing, all of the other games the support arm barely shows and the gun is angled out of the bottom right corner\", then \"compare the angle of our gun on a Hyperscape sniper and a empulse sniper and smgs like our two. I want it to look exactly like that, minimal arm showing and from the corner and angled exactly like they have theirs. Ours looks cheap in comparison\", and \"Do the grid stuff with apex as well and see what the best combination of them are\". Their frames gridded (Hyper Scape's Protocol twice, EMPULSE's SMG and rifle, Apex's CAR and Sentinel), the combined framing at 1920 by 1080: an SMG's muzzle 55% across and 57% down, its bottom leaving the bottom edge about 59% across (only the support hand there), its top edge leaving the right side about 84% down, the gun covering about 15% of the screen; a sniper's muzzle 54% and 56%, 59%, 78%, and 19%. Ours had the angle but covered 10.5% (the USSO) and 6.9% (BOOG): too small and too far out. Fitted to those by the gun's own vertices through the gun camera (the tip, the edges and the screen share it covers) and chosen by the photographs beside theirs: the USSO 11.5 cm right, 6 down and 19 nearer, turned 7 degrees up, 16 left and rolled 12, covering 13.5%; BOOG 12 right, 2 down, 20 nearer, 11 up, 17 left, rolled 17. Then, 2026-10-01, each gun fitted to one game's own gun at rest in its weapon showcase (a still camera): the owner, \"the exact match on the harpy and r99 from their respective games ... Same with the boog for the apex and Hyperscape snipers\". The reference's edges found by machine (Canny and Hough lines): the R-99's top rail, the Sentinel's and the Protocol V's body edges all meet at the crosshair, so each gun points straight at it, and its cross edges (the R-99's ammo panel, the Protocol V's scope) lie within 3 degrees of level. tools/gun-fit.ts turns our gun until its barrel's line meets the screen there and its across axis is as level as theirs, then moves it until the muzzle sits on theirs (the USSO's on the R-99's, 54% across and 61% down; BOOG's on the Sentinel's and the Protocol V's, 55% and 57%), at the world's own field of view, the distance chosen by laying our gun's outline over their frame. A first fit read the R-99's barrel line from the wrong edges, 25% across the screen: the guns lay flat across the picture, their sides to the eye, drawn at a 55 degree gun camera to make it fit (the owner, of it live: \"my gun is still pointing super weird and clipping through\"); that camera is gone.",
   "hipLook": {
     "shift": [
       0.115,
@@ -724,7 +724,7 @@
     "at": 0.15,
     "clear": 0.1
   },
-  "_swap": "On a swap or holster the arms drop out of the picture as the gun phases out, and come back up to take the next one as it phases in (the owner: \"the guns fly in and out but the arms stay in a weird position\"): at the phase's bottom the whole rig is `drop` m lower, `back` m nearer and pitched `pitch` radians down, about the eye. With `clips` of the pack's own swap on top (fprig.ts swapMotion, its Rifle_Unequip and Rifle_Equip, measured: the gun swung 29 cm across, 34 cm in to the chest and turned 58 degrees, the hands on it all the way), the one into the other over `cross` of the swap either side of its middle, where the guns change; the owner, 2026-09-28: \"look for more things we can do with it, especially when we swap guns, what the hands and arms can do\". The arms drop only from `dropFrom` of the way out of the picture (the gun all but gone): from the start they left the gun flying on its own while the pack's swap carried it. `style`: \"throw\" (the owner, 2026-09-28: \"have the character throw it up and out ... the weapon phases out and the new one phases in in its place and then animates towards the user's hands ... make a note of how it is now in case we need to revert\") or \"drop\", the pack's own swap as above (tagged swap-drop in git, docs/PLAN_GUNS_IN_HAND.md). Thrown (viewmodel.ts throwGun), over the swap's first half and back again over its second: the hands lift the gun `lift` view metres over `liftAt` of the swap (up, not ahead: pushed 10 cm ahead, the arms, near their reach at rest, fell short; lifted 6 cm, BOOG's right wrist bent 61 degrees), and from `fly[0]` it goes on alone, straight up out of the hands first (along the grip) and on ahead and to the side as the square of its way, `to` view metres (x right, y up, z back) by the swap's middle, `slide` ahead a metre up, turning `turn` radians about its middle from `clear` of its way and lifted `arc` (ahead or turning at once, the grip went into the right hand's fingers and the magazine swung back through them). Each hand (`hands`) backs off `off` view metres in the gun's frame over `leave`, its fingertips relaxing `relax` of the way to straight, and opens its fingers over `open`, once the gun is clear of it (opened round it, the straightening fingers went into the USSO's magazine and front); the arms drop out of the picture over `drop`, and come back up to catch the next, which lands in them the same way run backwards. Each gun phases out and in over its own swap timing (gunfeel.json swap), in the air. tools/throw-release.ts searches the let-go's settings. And \"cup\", the swap in place (the owner, 2026-09-30: \"keep the hands where they are while the weapon phases / disintegrates from the outside going in and gets replaced by the new weapon ... then the new weapon should materialize from the inside out\", and of the hands, \"close and open around the phasing out/in of the weapon, like the streetfighter haduken ... slightly come off of where they were originally ... slowly turn both hands inwards to that like ball type motion with the fingers bent in ... doesn't need to be too close to the center\"; fprig.ts cup, viewmodel.ts cupFrame, phase.ts radial): the gun stays where it is, no drop, no dip, no spin, and phases out from its edges in and the next in from its middle out; each hand comes `lift` view metres off its hold square to the gun's length and `gather` toward its middle along it (straight away from the middle, the left hand at the handguard went along the barrel, 19 mm into the USSO's silencer; the right hand's fingers are round the grip, so it comes further off and not along: drawn along and 1.5 cm off, they went 15 mm into the USSO's magazine), over `off` of the swap, off the gun over `moveAt` of its way and turned and bent over `shape`, each hand in its own order: the right's fingers open before it leaves the grip (leaving closed, they went 15 mm into the USSO's grip and magazine), the left leaves the handguard before its fingers bend (opened there, they went 9 mm into the silencer), turned on its forearm `turn` of the way to face the middle (the least turn bent the USSO's right wrist to 63 degrees) with its fingers bent `curl` of the way from open to a fist (0.3: at 0.45 the USSO's right middle fingertip passed 5.8 mm through its grip as the hand came back to it, hidden until the guns were refitted to lie across the picture, 2026-10-01; bent 62 to 70 degrees now); the model changes at the swap's middle, and over `carry` the hands go from where the last gun left them to the next one's cup, then onto its holds over `back`.",
+  "_swap": "On a swap or holster the arms drop out of the picture as the gun phases out, and come back up to take the next one as it phases in (the owner: \"the guns fly in and out but the arms stay in a weird position\"): at the phase's bottom the whole rig is `drop` m lower, `back` m nearer and pitched `pitch` radians down, about the eye. With `clips` of the pack's own swap on top (fprig.ts swapMotion, its Rifle_Unequip and Rifle_Equip, measured: the gun swung 29 cm across, 34 cm in to the chest and turned 58 degrees, the hands on it all the way), the one into the other over `cross` of the swap either side of its middle, where the guns change; the owner, 2026-09-28: \"look for more things we can do with it, especially when we swap guns, what the hands and arms can do\". The arms drop only from `dropFrom` of the way out of the picture (the gun all but gone): from the start they left the gun flying on its own while the pack's swap carried it. `style`: \"throw\" (the owner, 2026-09-28: \"have the character throw it up and out ... the weapon phases out and the new one phases in in its place and then animates towards the user's hands ... make a note of how it is now in case we need to revert\") or \"drop\", the pack's own swap as above (tagged swap-drop in git, docs/PLAN_GUNS_IN_HAND.md). Thrown (viewmodel.ts throwGun), over the swap's first half and back again over its second: the hands lift the gun `lift` view metres over `liftAt` of the swap (up, not ahead: pushed 10 cm ahead, the arms, near their reach at rest, fell short; lifted 6 cm, BOOG's right wrist bent 61 degrees), and from `fly[0]` it goes on alone, straight up out of the hands first (along the grip) and on ahead and to the side as the square of its way, `to` view metres (x right, y up, z back) by the swap's middle, `slide` ahead a metre up, turning `turn` radians about its middle from `clear` of its way and lifted `arc` (ahead or turning at once, the grip went into the right hand's fingers and the magazine swung back through them). Each hand (`hands`) backs off `off` view metres in the gun's frame over `leave`, its fingertips relaxing `relax` of the way to straight, and opens its fingers over `open`, once the gun is clear of it (opened round it, the straightening fingers went into the USSO's magazine and front); the arms drop out of the picture over `drop`, and come back up to catch the next, which lands in them the same way run backwards. Each gun phases out and in over its own swap timing (gunfeel.json swap), in the air. tools/throw-release.ts searches the let-go's settings. And \"cup\", the swap in place (the owner, 2026-09-30: \"keep the hands where they are while the weapon phases / disintegrates from the outside going in and gets replaced by the new weapon ... then the new weapon should materialize from the inside out\", and of the hands, \"close and open around the phasing out/in of the weapon, like the streetfighter haduken ... slightly come off of where they were originally ... slowly turn both hands inwards to that like ball type motion with the fingers bent in ... doesn't need to be too close to the center\"; fprig.ts cup, viewmodel.ts cupFrame, phase.ts radial): the gun stays where it is, no drop, no dip, no spin, and phases out from its edges in and the next in from its middle out; each hand comes `lift` view metres off its hold square to the gun's length and `gather` toward its middle along it (straight away from the middle, the left hand at the handguard went along the barrel, 19 mm into the USSO's silencer; the right hand's fingers are round the grip, so it comes further off and not along: drawn along and 1.5 cm off, they went 15 mm into the USSO's magazine), over `off` of the swap, off the gun over `moveAt` of its way and turned and bent over `shape`, each hand in its own order: the right's fingers open before it leaves the grip (leaving closed, they went 15 mm into the USSO's grip and magazine), the left leaves the handguard before its fingers bend (opened there, they went 9 mm into the silencer), turned on its forearm `turn` of the way to face the middle (the least turn bent the USSO's right wrist to 63 degrees) with its fingers bent `curl` of the way from open to a fist (0.3: at 0.45 the USSO's right middle fingertip passed 5.8 mm through its grip as the hand came back to it, seen when the guns were placed afresh, 2026-10-01; bent 62 to 70 degrees now); the model changes at the swap's middle, and over `carry` the hands go from where the last gun left them to the next one's cup, then onto its holds over `back`.",
   "swap": {
     "drop": 0.35,
     "back": 0.12,
@@ -1084,20 +1084,27 @@
     ],
     "flourish": 0.36
   },
-  "_hipGunFov": "The gun camera's vertical FOV at the hip, degrees, while the bought arms hold the gun (main.ts; aimed it blends to the view's own aimed FOV as before, and it eases over `ease` s when a gun in other hands takes over, so a swap does not pop). The owner, 2026-10-01: \"Our guns still look like they are pointed too far up and to the left ... are our guns too thin? Is the angle off? Do we need it closer to the users face?\", then \"the exact match on the harpy and r99 from their respective games ... Same with the boog for the apex and Hyperscape snipers\". Their resting frames (the games' own weapon showcases, a still camera) traced: the R-99's barrel lies low across the lower right, its line meeting the screen 25% across and 58% down, a little left of and below the crosshair (ours had pointed up past it), the Sentinel's 30% and 58%. 55 degrees tall is Apex's own default field of view (70 on its 4:3 scale). At the world's 92 the USSO matched only 25 cm nearer the eye, and BOOG not at all: its thin body lay along the Sentinel's lower edge at any distance. At 55 both lie on theirs, the muzzle on theirs (tools/gun-fit.ts, the gun's own outline laid over their frames). The bought arms had once been drawn at their pack's own 80 and moved to the world's on 2026-09-29, when the guns turned up toward the crosshair sat big and steep; the turn was the fault. The other eight guns keep the view's FOV until they are fitted the same way.",
-  "hipGunFov": {
-    "fov": 55,
-    "ease": 0.25
-  },
-  "_inspectFrame": "An inspect in the bought arms' hands is framed as it was before the guns were refitted to the other games' resting frames (hipGunFov, 2026-10-01): each pack gun's `inspectLook` (the look it had then) and the view's own gun FOV, eased in over `in` of the inspect (as the gun rolls to show its left side) and out over `out` (as it settles back). The owner, 2026-09-29, of that inspect: \"The hack inspect is perfect though\"; at the new 55 degree gun camera the open hand and the two hack cards over it came out twice the size, the cards past the screen's middle.",
-  "inspectFrame": {
-    "in": [
-      0.025,
-      0.16
-    ],
-    "out": [
-      0.808,
-      0.9
-    ]
+  "_beforeFrame": "The moves made with the guns at the look they had before they were fitted to the other games' resting frames (2026-10-01) are framed with that look while they play: each pack gun's `inspectLook`, the gun and arms eased to it and back. An inspect over `inspect` in and out (shares of it: in as the gun rolls to show its left side, out as it settles; the owner, 2026-09-29: \"The hack inspect is perfect though\"); a first draw's flick over `flourish`; a melee as the left hand leaves and comes back (melee on and off); a reload by its own turn (reload twist and the rack pose, viewmodel.ts reloadFrameW). At the new look the reload's turn swung the USSO into the eye, filling the picture, the first draw put the gun up against it, and the punch drew the sleeve across the picture. A melee's places and the inspect's open hand, set under that look too, are carried by the look's change (viewmodel.ts beforeLook).",
+  "beforeFrame": {
+    "inspect": {
+      "in": [
+        0.025,
+        0.16
+      ],
+      "out": [
+        0.808,
+        0.9
+      ]
+    },
+    "flourish": {
+      "in": [
+        0,
+        0.2
+      ],
+      "out": [
+        0.8,
+        1
+      ]
+    }
   }
 }

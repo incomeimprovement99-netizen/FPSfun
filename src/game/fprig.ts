@@ -161,10 +161,8 @@ const HIP_OWN = (cfg as unknown as { hipOwn: number }).hipOwn;
 /** the look on top of the gun's own place: a move (view metres) and a turn (up, left, roll, radians) about its origin, the arms
  * with it (fparms.json hipLook) */
 const HIP_LOOK = (cfg as unknown as { hipLook: { shift: number[]; turn: number[] } }).hipLook;
-/** the gun camera's FOV at the hip while these arms hold the gun (fparms.json hipGunFov) */
-export const HIP_GUN_FOV = (cfg as unknown as { hipGunFov: { fov: number; ease: number } }).hipGunFov;
-/** an inspect framed as before the refit (fparms.json inspectFrame), shares of the inspect */
-export const INSPECT_FRAME = (cfg as unknown as { inspectFrame: { in: number[]; out: number[] } }).inspectFrame;
+/** the moves made under the look before the refit that are framed with it (fparms.json beforeFrame): an inspect's and a first draw's shares */
+export const BEFORE_FRAME = (cfg as unknown as { beforeFrame: { inspect: { in: number[]; out: number[] }; flourish: { in: number[]; out: number[] } } }).beforeFrame;
 
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 const loader = new GLTFLoader();
@@ -1454,8 +1452,8 @@ export class PackArms {
     // magazine: BOOG's hand held its plate; the owner, 2026-09-28: "for the boog, the support hand is holding the mag")
     if (knuckle && !this.magBoxO.isEmpty()) {
       const toO = new THREE.Matrix4().copy(gunWorld).invert();
-      // (along our gun's own barrel, its -z: the view's ahead, taken here before the guns were refitted to lie across the
-      // picture, cut the gun at 22 degrees and put BOOG's palm 1 cm behind a magazine it is 2.9 cm ahead of, the same under either look)
+      // (along our gun's own barrel, its -z: along the view's ahead, with the guns once turned 22 degrees across it, BOOG's
+      // palm read 1 cm behind a magazine it is 2.9 cm ahead of)
       const aheadO = new THREE.Vector3(0, 0, -1);
       const palmO = this.bones.hand_l.getWorldPosition(new THREE.Vector3()).add(knuckle).multiplyScalar(0.5).applyMatrix4(toO);
       const b = this.magBoxO;

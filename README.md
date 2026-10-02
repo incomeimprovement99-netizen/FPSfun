@@ -201,11 +201,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   every shot; the rack and the bolt only when the magazine was empty: with a round
   still chambered the magazine swaps on the same beats and the hand goes back (the third-person
   soldier's reload runs to the same beats, from the same settings). At rest the
-  USSO lies across the bottom right as Apex's R-99 does and BOOG as its Sentinel,
-  each fitted to the game's own resting frame (the barrel's line and the muzzle on
-  theirs, `tools/gun-fit.ts`) and drawn by a gun camera of its own at 55 degrees
-  tall, Apex's default, whatever your field of view; the support arm only a forearm
-  up from under the gun. An inspect in these
+  USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V:
+  pointing at the crosshair from the bottom right, level, the muzzle where theirs
+  is (each fitted to the game's own resting frame, `tools/gun-fit.ts`); a reload,
+  melee, first draw or inspect eases back to the placement it was made in while it
+  plays. An inspect in these
   arms lasts 5.2 s, a beat held after each turn of the gun: the left hand comes
   up from below, palm up, with the hacks you carry floating over it, each card
   glowing and showing its level as the HUD's pips do, and near the end tosses

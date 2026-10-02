@@ -1,6 +1,6 @@
 /**
  * A gun in the bought arms' hands placed as another game's gun of its kind is at rest (docs/PLAN_GUNS_IN_HAND.md, the
- * recipe's placement step): its look (fparms.json packGuns look) solved at the gun camera's hip FOV (hipGunFov) until the
+ * recipe's placement step): its look (fparms.json packGuns look) solved at the gun camera's field of view until the
  * barrel's line meets the screen where the reference's does and the muzzle sits on the reference's, then our gun laid over
  * the reference frame, its outline in red and a ghost of it, to judge by eye.
  *
@@ -11,7 +11,8 @@
  *   ID=r97 REF=r99-rest.jpg OUT=shots CANDS='[{"name":"r99","vp":[0.25,0.58],"muzzle":[0.55,0.74],"dz":-0.3}]' \
  *     npx tsx tools/gun-fit.ts
  *
- * A candidate is a `look` to show as it is ([x, y, z view metres, up, left, roll radians]), or a `vp` and `muzzle` to solve
+ * A candidate is a `look` to show as it is ([x, y, z view metres, up, left, roll radians]), or a `vp` and `muzzle` (and
+ * `level`, the degrees off level of the gun's across axis on the screen) to solve
  * for, starting from the gun's look with `dz` added to its depth (how far from the eye: further, smaller) and `roll` in place
  * of its roll. `fov` draws it at another gun FOV. NOARMS=1 hides the arms for a gun-only comparison. Each writes
  * <ID>-<name>-normal.png (the game's picture), -over.png (the reference with ours laid on it) and -mask.png, and prints the
@@ -21,8 +22,8 @@ import fs from "node:fs";
 import puppeteer from "puppeteer";
 import sharp from "sharp";
 
-type Cand = { name: string; look?: number[]; fov?: number; vp?: number[]; muzzle?: number[]; dz?: number; roll?: number };
-type Measure = { vanish: number[]; muzzle: number[]; wrists: number[]; short: number; tanH: number; tanV: number };
+type Cand = { name: string; look?: number[]; fov?: number; vp?: number[]; muzzle?: number[]; dz?: number; roll?: number; level?: number };
+type Measure = { vanish: number[]; muzzle: number[]; across: number; wrists: number[]; short: number; tanH: number; tanV: number };
 
 const OUT = process.env.OUT ?? ".";
 const ID = process.env.ID ?? "r97";
@@ -66,8 +67,14 @@ try {
       const c = lb.getCenter(new T.Vector3());
       const back = toV(new T.Vector3(c.x, c.y, lb.max.z)), front = toV(new T.Vector3(c.x, c.y, lb.min.z));
       const d = front.clone().sub(back);
+      // the gun's across axis on the screen, degrees from level (a vector square to the view's line keeps its angle in
+      // the picture; below 0 its right end lower), folded to -90..90
+      const ax = toV(new T.Vector3(c.x + 0.1, c.y, c.z)).sub(toV(c));
+      let across = Math.atan2(ax.y, ax.x) * 180 / Math.PI;
+      if (across > 90) across -= 180;
+      if (across < -90) across += 180;
       const s = r.packArms();
-      return { vanish: d.z < 0 ? scr(d) : [9, 9], muzzle: scr(front), wrists: [s.wristL, s.wristR], short: Math.max(s.reachShort, s.reachShortR), tanH: th, tanV: tv };
+      return { vanish: d.z < 0 ? scr(d) : [9, 9], muzzle: scr(front), across, wrists: [s.wristL, s.wristR], short: Math.max(s.reachShort, s.reachShortR), tanH: th, tanV: tv };
     };
   })()`);
   // (everything but the game's own canvas hidden for the gun-alone shot: the HUD and the page's panels)
@@ -86,9 +93,15 @@ try {
       const meas = async (look: number[]) => (await page.evaluate(`window.__gunFit(${JSON.stringify(look)})`)) as Measure;
       let mm = await meas(L);
       for (let it = 0; it < 8; it++) {
-        // turned until the barrel's line meets the screen at `vp` (the angle off it taken away each pass), then moved
-        // across and up until the muzzle is on `muzzle` (a step each way measured, the two solved together)
-        for (let k = 0; k < 5 && (Math.abs(mm.vanish[0] - vx) > 0.004 || Math.abs(mm.vanish[1] - vy) > 0.004); k++) {
+        // turned until the barrel's line meets the screen at `vp` (the angle off it taken away each pass) and, with `level`,
+        // rolled until its across axis is that many degrees off level on the screen (the reference's cross edges: below 0
+        // its right end lower); then moved across and up until the muzzle is on `muzzle` (a step each way measured, the
+        // two solved together)
+        for (let k = 0; k < 6; k++) {
+          const offVp = Math.abs(mm.vanish[0] - vx) > 0.004 || Math.abs(mm.vanish[1] - vy) > 0.004;
+          const offLevel = c.level !== undefined && Math.abs(mm.across - c.level) > 0.3;
+          if (!offVp && !offLevel) break;
+          if (offLevel) L[5] += ((c.level! - mm.across) * Math.PI) / 180;
           L[3] += Math.atan(vy * mm.tanV) - Math.atan(mm.vanish[1] * mm.tanV);
           L[4] += Math.atan(-vx * mm.tanH) - Math.atan(-mm.vanish[0] * mm.tanH);
           mm = await meas(L);
@@ -110,7 +123,7 @@ try {
         mm = await meas(L);
       }
       c.look = L;
-      console.log(`${ID} ${c.name}: look ${JSON.stringify({ shift: L.slice(0, 3).map((x) => +x.toFixed(4)), turn: L.slice(3).map((x) => +x.toFixed(4)) })}, barrel line ${mm.vanish.map((x) => x.toFixed(3))}, muzzle ${mm.muzzle.map((x) => x.toFixed(3))}, wrists ${mm.wrists.map(Math.round)}, arms short ${(mm.short * 1000).toFixed(1)} mm`);
+      console.log(`${ID} ${c.name}: look ${JSON.stringify({ shift: L.slice(0, 3).map((x) => +x.toFixed(4)), turn: L.slice(3).map((x) => +x.toFixed(4)) })}, barrel line ${mm.vanish.map((x) => x.toFixed(3))}, muzzle ${mm.muzzle.map((x) => x.toFixed(3))}, across ${mm.across.toFixed(1)} deg, wrists ${mm.wrists.map(Math.round)}, arms short ${(mm.short * 1000).toFixed(1)} mm`);
     }
     await page.evaluate(`(() => { const r = window.__range; r.packRig().debugHipLook = ${JSON.stringify(c.look ?? null)}; r.packRig().group.traverse((o) => { if (o.isMesh) o.visible = ${process.env.NOARMS ? "false" : "true"}; }); })()`);
     await wait(700);

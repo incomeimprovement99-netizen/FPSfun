@@ -26,7 +26,7 @@ import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
-import { FREE, HIP_GUN_FOV, HIP_PITCH, INSPECT_FRAME, LOCO, PACK_INSPECT, PACK_MELEE, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_CUP, SWAP_THROW, packGunFor, type FreeHand, type PackArmsFrame } from "./fprig";
+import { BEFORE_FRAME, FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_MELEE, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_CUP, SWAP_THROW, packGunFor, type FreeHand, type PackArmsFrame } from "./fprig";
 import type { OperatorSkin } from "./operators";
 import { buildOptic, type OpticModel } from "./optics";
 import { heirloomModel, type HeirloomModel } from "./heirlooms";
@@ -466,12 +466,10 @@ export class ViewModel {
    */
   private readonly pack = new PackArms();
   private packOn = false;
-  /** the gun camera's hip FOV the view eases toward (fparms.json hipGunFov while the bought arms hold the gun), null: the view's own */
-  get packHipFov(): number | null {
-    return this.packOn ? HIP_GUN_FOV.fov : null;
-  }
-  /** how far an inspect is framed as before the refit, 0..1 (fparms.json inspectFrame): its look here, the gun FOV in main.ts */
-  inspectFrameW = 0;
+  /** how far the gun is framed as before the refit, 0..1, while a move made there plays (fparms.json beforeFrame) */
+  beforeW = 0;
+  /** this frame's reload turn, 0..1 (the point's and the rack pose's together): a reload is framed as before the refit by it */
+  private reloadFrameW = 0;
   /**
    * the rest look's move undone and the one before the refit done (inspectLook): a melee's places and an inspect's open
    * hand were set where the shoulders were under that look, and the shoulders move with the look
@@ -1577,6 +1575,7 @@ export class ViewModel {
     rx += f.landDip * 1.5;
 
     // ---- reload pose, which depends on how this gun reloads; with the pack's arms their clip moves the gun
+    this.reloadFrameW = 0;
     if (packOn) {
       // the bought arms: the gun turns its underside toward you while the left hand points at the magazine and it
       // phases (fparms.json reload), then the pack's clip moves it as its hands work it (fprig.ts gunDelta)
@@ -1595,6 +1594,8 @@ export class ViewModel {
       const envP = (f.reloading ? smooth(0, PR.point[1], rp) * (1 - into) * (1 - back) : 0) * damp;
       const RP = this.pack.rackPose;
       const envR = RP && f.reloading ? into * (1 - smooth(PR.rack[1] - PR.rackBlend, PR.rack[1], rp)) * damp : 0;
+      // (the two turns hand over as one: their sum, the aim taken out, frames the reload)
+      this.reloadFrameW = f.reloading ? Math.min(1, (envP + envR) / Math.max(1e-6, damp)) : 0;
       for (const [T, e] of [[this.pack.twist, envP], [RP, envR]] as const) {
         if (!T || e <= 0) continue;
         rz += T.roll * e;
@@ -1806,13 +1807,22 @@ export class ViewModel {
       // turned in toward the middle, as Hyper Scape, Apex and EMPULSE hold their guns, so the support arm barely shows
       // (the owner, 2026-09-30: "all of the other games the support arm barely shows and the gun is angled out of the
       // bottom right corner"); the arms with it, none of it in the sights (fparms.json hipLook)
-      // (an inspect framed as it was before the refit: its own look, eased in as the gun rolls and out as it settles,
-      // fparms.json inspectFrame; the gun FOV with it in main.ts)
+      // (the moves made under the look before the refit framed with it while they play, eased in and out: an inspect, a
+      // first draw, a reload's turn and a melee; at the new look the reload's turn swung the USSO into the eye and the
+      // punch drew a sleeve across the picture: fparms.json beforeFrame)
+      const BF = BEFORE_FRAME;
       const ins = f.inspect !== undefined && f.inspect >= 0 && f.inspect < 1 ? f.inspect : -1;
-      this.inspectFrameW = ins >= 0 ? smooth(INSPECT_FRAME.in[0], INSPECT_FRAME.in[1], ins) * (1 - smooth(INSPECT_FRAME.out[0], INSPECT_FRAME.out[1], ins)) : 0;
+      const fl = f.flourish !== undefined && f.flourish >= 0 && f.flourish < 1 ? f.flourish : -1;
+      const ml = mp >= 0 && mp < 1 ? mp : -1;
+      this.beforeW = Math.max(
+        ins >= 0 ? smooth(BF.inspect.in[0], BF.inspect.in[1], ins) * (1 - smooth(BF.inspect.out[0], BF.inspect.out[1], ins)) : 0,
+        fl >= 0 ? smooth(BF.flourish.in[0], BF.flourish.in[1], fl) * (1 - smooth(BF.flourish.out[0], BF.flourish.out[1], fl)) : 0,
+        ml >= 0 ? smooth(PACK_MELEE.on[0], PACK_MELEE.on[1], ml) * (1 - smooth(PACK_MELEE.off[0], PACK_MELEE.off[1], ml)) : 0,
+        this.reloadFrameW,
+      );
       const LR = this.pack.hipLook;
       const LI = this.pack.inspectLook;
-      const iw = this.inspectFrameW;
+      const iw = this.beforeW;
       const LK = iw > 0 ? { shift: LR.shift.map((v, j) => v + (LI.shift[j] - v) * iw), turn: LR.turn.map((v, j) => v + ((LI.turn[j] ?? 0) - v) * iw) } : LR;
       const kl = 1 - ads;
       if (kl > 0.001 && (LK.shift.some((v) => v !== 0) || LK.turn.some((v) => v !== 0))) {

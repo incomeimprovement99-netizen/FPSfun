@@ -97,7 +97,6 @@ import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
 import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
-import { HIP_GUN_FOV } from "./game/fprig";
 import { Abilities, ABILITIES, ABILITY_IDS, ABILITY_KNOBS, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, tuneAbilities, tuningChanges, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
@@ -1141,8 +1140,6 @@ let holsterAt = 0;
  * change what the viewmodel DRAWS, never the simulation, so a stray value can
  * not affect aim, damage or movement.
  */
-/** the gun camera's hip FOV now, degrees, easing toward its target (fparms.json hipGunFov); -1 until the first frame */
-let gunHipNow = -1;
 /** the world's layers and background while the gun is drawn alone (soloGun) */
 let soloWas: { mask: number; bg: THREE.Scene["background"] } | null = null;
 const debugView: {
@@ -7979,14 +7976,8 @@ function step(): void {
   camera.fov = shotFov ?? (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
   // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
-  // (in the bought arms' hands the hip end is their own, fparms.json hipGunFov, eased so a swap to or from a gun in other
-  // hands does not pop; aimed it is the view's as before)
-  const gunHipV = gunFov(hipH, adsH, 0, settings.fovScale, vmCfg.fovScale);
-  gunHipNow = gunHipNow < 0 ? (viewModel.packHipFov ?? gunHipV) : gunHipNow + ((viewModel.packHipFov ?? gunHipV) - gunHipNow) * Math.min(1, dt / HIP_GUN_FOV.ease);
   // (a held aim, debugView.ads, aims the gun camera too: the picture as aimed, not the aimed pose at the hip's FOV)
-  // (an inspect in the bought arms' hands framed as before the refit: the view's own hip FOV, viewmodel.ts inspectFrameW)
-  const hipNow = gunHipNow + (gunHipV - gunHipNow) * viewModel.inspectFrameW;
-  vmCamera.fov = debugView.gunFov ?? hipNow + (gunFov(hipH, adsH, 1, settings.fovScale, vmCfg.fovScale) - hipNow) * (debugView.ads ?? ws.adsFrac);
+  vmCamera.fov = debugView.gunFov ?? gunFov(hipH, adsH, debugView.ads ?? ws.adsFrac, settings.fovScale, vmCfg.fovScale);
   vmCamera.aspect = camera.aspect;
   vmCamera.updateProjectionMatrix();
   viewModel.setView(vmCamera.fov, vmCamera.aspect, debugView.ads ?? ws.adsFrac);

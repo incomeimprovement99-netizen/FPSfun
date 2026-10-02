@@ -8874,3 +8874,29 @@ The owner, 2026-10-01: "QUICK FIX, THE JUMP METER IS BROKEN ON THE SUPERGLIDE, F
   running to the bar's right edge; JUMP's label and mark sit a row above CROUCH's.
 - **Checked:** photographed again mid-mantle (the needle on the bar) and after a superglide (JUMP and CROUCH both
   read); verify; rules. No e2e, at the owner's word.
+
+## Milestone 401 — The USSO and BOOG point at the crosshair as the R-99, Sentinel and Protocol V do
+
+Milestone 396 shipped the guns wrong. The owner, playing it live: "my gun is still pointing super weird and clipping
+through ... it clearly doesn't match apex, hyperscape, empulse". Its fit had read the R-99's barrel line off the wrong edges
+(25% across the screen, far left of the crosshair), so the guns lay flat across the picture with their sides to the eye, and
+a 55 degree gun camera had been added to make that fit, doubling their size.
+
+- **The references read by machine:** edges found on each resting frame (OpenCV Canny and Hough lines). The R-99's top rail,
+  extended, passes through the screen's centre; two body edges each of the Sentinel and the Protocol V meet at it (50%, 52%
+  and 50%, 49.5%). All three point straight at the crosshair, the standard first-person hold, and their cross edges (the
+  R-99's ammo panel, the Protocol V's scope) lie within 3 degrees of level.
+- **The fit** (`tools/gun-fit.ts`, now with `level`): each gun turned until its barrel's line meets the screen where theirs
+  does, rolled until its across axis is as level as theirs, and moved until its muzzle sits on theirs (the USSO's on the
+  R-99's, 54% across and 61% down; BOOG's between the Sentinel's and the Protocol V's, 55% and 57%), at the world's own
+  camera; the distance chosen by laying our gun's outline over their frames. The 55 degree camera is gone.
+- **The moves made at the old placement** (`fparms.json` beforeFrame): a reload's turn, a melee, a first draw and an
+  inspect ease back to the look they were made under while they play and back again. At the new look the reload swung the
+  USSO into the eye and filled the picture, and the first draw put it against the eye.
+- **The left elbows** (`packGuns holdElbow`) searched again for the straightest wrist with the elbow under the picture.
+- **Checks:** the soldier e2e's placement check now holds each gun pointing at the crosshair (the barrel's line within 2% of
+  theirs), level within 2 degrees, the muzzle within 2%; the bought arms back at the world's camera. Verify and rules pass.
+  Shipped at the owner's word ("Deploy then test"), the soldier e2e run after.
+- **Open:** the left forearm shows from the bottom of the picture to the hand on the gun's front, wider and lighter than the
+  R-99's; the owner wants only the hand and wrist, as Hyper Scape's support hand shows. The hand moves back along each gun
+  next.

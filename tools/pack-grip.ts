@@ -6,9 +6,14 @@
 // every finger and the thumb on it too and none of the skin more than `DEEP` into it. tools/pack-solve.ts joints then
 // lays each finger on it joint by joint. WRITE=1 writes the hold's shift and rot.
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-grip.ts <id> [side]   (TRIES=600, SPREAD=0.03,0.9, AHEAD=2)
+// FORE weighs how long the forearm is on the screen (the owner, 2026-10-01, of the support arm: "arm not visible, hand and
+// wrist visible") and WRIST the wrist's bend past 45 degrees, both 0 unless given.
+//
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-grip.ts <id> [side]   (TRIES=600, SPREAD=0.03,0.9, AHEAD=2, FORE=0, WRIST=0)
 // Headless, never the real mouse or keyboard.
 import fs from "node:fs";
+const FORE = Number(process.env.FORE ?? 0);
+const WRIST = Number(process.env.WRIST ?? 0);
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
@@ -35,6 +40,9 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: true,
 try {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
+  // (the owner's screen and field of view, 110: where the forearm is in the picture depends on both)
+  await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+  await page.evaluateOnNewDocument(`try { const k = "range.settings.v1"; const s = JSON.parse(localStorage.getItem(k) || "{}"); s.fovScale = 1.571; localStorage.setItem(k, JSON.stringify(s)); } catch {}`);
   await page.goto(`${URL}?game=speedkills&nointro`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("window.__range && window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 120000 });
   await page.evaluate(fs.readFileSync(path.join(HERE, "pack-audit.js"), "utf8"));
@@ -62,10 +70,18 @@ try {
       const palm = (a.palmGap["${SIDE}"] ?? 1) * 1000;
       const short = r.packArms().reachShort * 1000;
       const ahead = r.packArms().palmAhead * 100;
+      // (FORE: how long the forearm is on the screen, in the screen's half-heights, from wrist to elbow where it is in it;
+      // WRIST: the wrist's bend past 45 degrees)
+      const root = r.viewModelRoot(); const T = r.THREE; const inv = new T.Matrix4().copy(root.matrixWorld).invert();
+      const tv = Math.tan(r.gunFov().gun / 2 * Math.PI / 180); const th = tv * innerWidth / innerHeight;
+      const hp = rig.group.getObjectByName('hand_${SIDE}').getWorldPosition(new T.Vector3()), ep = rig.group.getObjectByName('lowerarm_${SIDE}').getWorldPosition(new T.Vector3());
+      let fore = 0, prev = null;
+      for (let i = 0; i <= 20; i++) { const v = hp.clone().lerp(ep, i / 20).applyMatrix4(inv); const s = v.z < 0 ? [v.x / -v.z / th * innerWidth / innerHeight, v.y / -v.z / tv] : null; const inside = s && Math.abs(s[0]) < innerWidth / innerHeight && Math.abs(s[1]) < 1; if (inside && prev) fore += Math.hypot(s[0] - prev[0], s[1] - prev[1]); prev = inside ? s : null; }
+      const wrist = r.packArms()['wrist' + '${SIDE}'.toUpperCase()];
       // the palm on it and ahead of the magazine, the fingers and thumb on it (the thumb half as much: a support hand's
       // thumb may lie along the side), nothing in it, the arm reaching, and no more turn than it needs
-      const score = over * 3 + Math.max(0, palm - 1) * 4 + gaps.slice(0, 4).reduce((s, g) => s + Math.max(0, g - 1.5), 0) + Math.max(0, gaps[4] - 1.5) * 0.5 + short * 10 + Math.max(0, ${AHEAD} - ahead) * 20;
-      return { score, over, palm, gaps, short, ahead };
+      const score = over * 3 + Math.max(0, palm - 1) * 4 + gaps.slice(0, 4).reduce((s, g) => s + Math.max(0, g - 1.5), 0) + Math.max(0, gaps[4] - 1.5) * 0.5 + short * 10 + Math.max(0, ${AHEAD} - ahead) * 20 + ${FORE} * fore * 100 + ${WRIST} * Math.max(0, wrist - 45);
+      return { score, over, palm, gaps, short, ahead, fore, wrist };
     };
     const reg = (rot) => (Math.abs(rot[0] - r0[0]) + Math.abs(rot[1] - r0[1]) + Math.abs(rot[2] - r0[2])) * 2;
     const start = await look(s0, r0);
@@ -85,7 +101,7 @@ try {
     rig.debugHold = null;
     return { start, best };
   })()`)) as { start: { over: number; palm: number; gaps: number[]; short: number; ahead: number }; best: { shift: number[]; rot: number[]; over: number; palm: number; gaps: number[]; short: number; ahead: number } };
-  const fmt = (m: { over: number; palm: number; gaps: number[]; short: number; ahead: number }) => `in the gun ${m.over.toFixed(1)} mm summed, palm ${m.palm.toFixed(1)} mm and ${m.ahead.toFixed(1)} cm ahead of the magazine, fingers and thumb ${m.gaps.map((g) => g.toFixed(0)).join("/")} mm, arm short ${m.short.toFixed(0)} mm`;
+  const fmt = (m: { over: number; palm: number; gaps: number[]; short: number; ahead: number; fore?: number; wrist?: number }) => `in the gun ${m.over.toFixed(1)} mm summed, palm ${m.palm.toFixed(1)} mm and ${m.ahead.toFixed(1)} cm ahead of the magazine, fingers and thumb ${m.gaps.map((g) => g.toFixed(0)).join("/")} mm, arm short ${m.short.toFixed(0)} mm, forearm ${(m.fore ?? 0).toFixed(2)} of the screen's half-height on it, wrist ${Math.round(m.wrist ?? 0)} degrees`;
   console.log(`${ID} ${SIDE} before: ${fmt(res.start)}`);
   console.log(`${ID} ${SIDE} best: ${fmt(res.best)}; shift [${res.best.shift.map((v) => v.toFixed(4))}], rot [${res.best.rot.map((v) => v.toFixed(3))}]`);
   if (WRITE) {
