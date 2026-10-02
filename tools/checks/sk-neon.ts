@@ -581,6 +581,38 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   };
   const doors = BS.gates.filter((g) => !through(g.out, g.in, g.at));
   check("the base: every door in its faces walked through from outside", BS.gates.length > 10 && doors.length === 0, `${BS.gates.length - doors.length} of ${BS.gates.length}${doors.length ? `: not ${doors.map((g) => `${g.at} m at (${g.out.join(", ")})`).join("; ")}` : ""}`);
+  // the ground floor the most open (the owner, 2026-10-02: "the first floor should be the most open and wide"): its faces
+  // open at a body's height along most of their length, and of the storeys the most of its floor a standing body's room
+  const openAlong = (y: number) => {
+    let [of, open] = [0, 0];
+    const O = BS.outline;
+    for (let k = 0; k < O.length; k++) {
+      const [a, b] = [O[k], O[(k + 1) % O.length]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      for (let t = 0.125; t < L; t += 0.25) {
+        const [x, z] = [a[0] + ((b[0] - a[0]) * t) / L + BR_X, a[1] + ((b[1] - a[1]) * t) / L + BR_Z];
+        of++;
+        if (!solidsIn(x - 0.3, x + 0.3, z - 0.3, z + 0.3).some((q) => q.minX < x + 0.3 && q.maxX > x - 0.3 && q.minZ < z + 0.3 && q.maxZ > z - 0.3 && q.base < y + 2 && q.top > y + 0.5)) open++;
+      }
+    }
+    return open / of;
+  };
+  const faces = BS.levels.slice(0, -1).map(({ y }) => ({ y, open: openAlong(y) }));
+  const room = BS.levels.slice(0, -1).map(({ y }) => {
+    let [of, got] = [0, 0];
+    for (let i = 0; i < NI; i++)
+      for (let j = 0; j < NJ; j++) {
+        const [x, z] = [X0 + (i + 0.5) * C, Z0 + (j + 0.5) * C];
+        if (!insideBase(x, z) || (x > T.x0 && x < T.x1 && z > T.z0 && z < T.z1)) continue;
+        of++;
+        if ((at.get(i * NJ + j) ?? []).some((s) => Math.abs(spots[s].y - y) < 0.1)) got++;
+      }
+    return { y, share: got / of };
+  });
+  // (half: the collision's half-metre cells make a colonnade's 1 m pillar 1.5 m, so a 5 m bay is 3.5 m open; the walled
+  // storeys are open a few per cent, and the ground floor was about a sixth with its fourteen doors)
+  check("the base: its ground floor open to the plaza all round, the storeys over it walled", faces[0].open > 0.5 && faces.slice(1).every((f) => f.open < 0.1), faces.map((f) => `${f.y} m: ${(f.open * 100).toFixed(0)}% of its faces open`).join("; "));
+  check("the base: its ground floor the most open of its storeys, the most of its floor a standing body's room", room.slice(1).every((r) => r.share < room[0].share), room.map((r) => `${r.y} m: ${(r.share * 100).toFixed(0)}%`).join("; "));
   const SR = cfg.rules.skyring as { r0: number; r1: number; deck: number };
   // (along each bridge's own line, from a metre and a half out on the ring to three in through its door)
   const axes = (BS as unknown as { bridgeAxes: number[][][] }).bridgeAxes;

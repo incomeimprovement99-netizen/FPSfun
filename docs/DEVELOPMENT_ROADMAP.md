@@ -9088,3 +9088,26 @@ that costing us in terms of FPS performance and or loading time?"
   animations; a piece's start, length and overlap; seen failing with the sound played whole); a page: the USSO's shot
   and tactical reload (four pieces at 0, 0.34, 0.92 and 0.98 s of 1.8), cut short by a swap; BOOG's shot, its bolt over
   1.62 s, and its empty reload's eight pieces over 4 s with no other click; SLAM's boom; the bots e2e; verify; rules.
+
+
+## Milestone 411 — The base's ground floor open and wide
+
+The owner, 2026-10-02: "I feel like the first floor should be the most open and wide." The base's ground floor was its
+most closed: a concourse walled in by rows of shop units along its north and south faces, behind window walls with
+fourteen doors.
+
+- **A colonnade** (rules.base.colonnade, tools/neon-layout.ts): on the ground floor the faces are the plain pillar at
+  each joint between the 5 m bays and nothing between, so every bay is a way in, 40 of them, open to the plaza all round.
+  The pillars stand flush with the face; each run's ends are the corners' pillars or the plain 1 m walls as before. The
+  first and second floors keep their window walls.
+- **An open hall inside** (rules.base.inside.storeys "0", plan `open`): no shop units, the pillar every 10 m where the
+  floors above have it every 7.5, and low cover only (crates, couches, benches, tables, all a metre high or under, so you
+  see over them standing): 26 pieces where there were 34 and two in each of ten shops. The stairs, the metro kiosks and
+  the glass hall stay where they were.
+- **Each storey its own draw from the seed:** one draw for all of them meant a change to one storey's plan re-rolled every
+  other. So the first floor's offices and the second floor's hall are laid out afresh this once, by the same rules.
+- The map: its files lo 78 MB, hi 139 MB, max 349 MB. **Its files are version 29.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): the ground floor open along most of its faces at a body's height and
+  the storeys over it walled (seen failing with the colonnade taken out); the ground floor the most open storey, the most
+  of its floor a standing body's room (seen failing with the shops put back); every door in the faces walked through
+  from outside, now all 40 of the ground floor's bays. verify and rules; e2e `loot` and `br`. Photographed.

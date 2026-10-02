@@ -1346,8 +1346,8 @@ from the plaza on each side, and a footbridge from it to a glass lift beside eac
 High City island: interact facing its rope and it carries you up the island's side
 to a landing onto the roof, or back down. The tower stands on a wide base filling the plaza,
 built of the tower's own pieces (`tools/neon-base.ts` bakes its floors to meet
-the tower's on every storey): three storeys and a roof, shops on the ground
-floor, offices on the first, a warehouse hall on the second, four stairs between
+the tower's on every storey): three storeys and a roof, an open hall behind a
+colonnade on the ground floor (open to the plaza all round), offices on the first, a warehouse hall on the second, four stairs between
 each, bridges from its first floor's corners to the Sky Ring, and its roof runs
 onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
