@@ -33,3 +33,15 @@ export function padOnto(fx: number, fz: number, nx: number, nz: number, floor: n
     land: { x: fx - nx * landInside, z: fz - nz * landInside, y: roof },
   };
 }
+
+/**
+ * A pad that throws you off a roof onto a lower one (the centre's way down, neonmap.json rules.pads.spine): `hop` metres
+ * up first, so you clear the parapet it stands behind, then down onto (lx, lz) at `landY`, the throw solved for the
+ * heights. In the caller's coordinates: the push up and across, and how long you are in the air
+ */
+export function padOff(px: number, pz: number, floor: number, lx: number, lz: number, landY: number, hop: number): { up: number; dx: number; dz: number; t: number } {
+  const g = MOVE.gravity;
+  const up = Math.sqrt(2 * g * hop);
+  const t = (up + Math.sqrt(up * up + 2 * g * (floor - landY))) / g;
+  return { up, dx: (lx - px) / t, dz: (lz - pz) / t, t };
+}

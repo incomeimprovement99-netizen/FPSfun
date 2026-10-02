@@ -1135,6 +1135,20 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
       const s = sides[k];
       return (p[0] - a[0]) * s.n[0] + (p[1] - a[1]) * s.n[1] > inset;
     });
+    // the centre's spine of pads (rules.pads.spine) on the roof: where each from the plaza lands, the spot and run-up of
+    // the one up to the top, and where the way down lands, all clear of the roof's cover (the bake measures them exactly)
+    const SP = R.pads.spine;
+    for (const q of (SP?.up ?? []) as Array<{ at: number[]; to: number[]; floor: number; land: number }>) {
+      const u: Pt = [q.to[0], q.to[1]];
+      // (its line into the outline from the plaza, or into the tallest building's footprint from the roof)
+      const into = (p: Pt) => (q.floor === levels[0] ? inside(p, 0) : p[0] > rect.x0 && p[0] < rect.x1 && p[1] > rect.z0 && p[1] < rect.z1);
+      let t = 0;
+      while (t < 40 && !into([q.at[0] + u[0] * t, q.at[1] + u[1] * t])) t += 0.1;
+      const f: Pt = [q.at[0] + u[0] * t, q.at[1] + u[1] * t];
+      const c: Pt = q.floor === levels[0] ? [f[0] + u[0] * q.land, f[1] + u[1] * q.land] : [f[0] - u[0] * 2.5, f[1] - u[1] * 2.5];
+      keep.get(B.roof)!.push({ c, u, v: [-u[1], u[0]], hu: 2.5, hv: 2, top: 0 });
+    }
+    for (const q of (SP?.down ?? []) as Array<{ land: number[] }>) keep.get(B.roof)!.push({ c: [q.land[0], q.land[1]], u: [1, 0], v: [0, 1], hu: 2, hv: 2, top: 0 });
     const placed = new Map<number, OBox[]>([...levels, B.roof].map((h) => [h, []]));
     let nWalls = 0, nProps = 0, nRooms = 0, nLamps = 0;
     /** a wall along a grid line from a to b (axis-aligned), its door slots (2.5 m each from a) left open */

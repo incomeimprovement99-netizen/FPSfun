@@ -206,19 +206,20 @@ for (const h of K.halls.filter((q) => "route" in q && q.route)) {
   check(`the entrance at (${route[1][0].toFixed(0)}, ${route[1][1].toFixed(0)}): a player walks from the plaza down into the court, and back up`, down.k === route.length && up.k === route.length, `down ${down.k - 1} of ${route.length - 1} legs to (${down.x.toFixed(1)}, ${down.z.toFixed(1)}) at ${down.y.toFixed(2)} m; up ${up.k - 1} to (${up.x.toFixed(1)}, ${up.z.toFixed(1)}) at ${up.y.toFixed(2)} m`);
 }
 
-// every pad the bake found, ridden: a player stood on it thrown straight up, carried across once above `over`
-check("a jump pad onto each side of the four high city blocks", map.pads.length === cfg.pads.length && map.pads.length === 8, `${map.pads.length}`);
-for (const [k, pad] of map.pads.entries()) {
-  const q = cfg.pads[k];
+// every pad the bake found, ridden: a player stood on it thrown as a match throws it (brplay.ts), straight up and carried
+// across once above `over`, or a way down thrown out at once
+const SPINE = (cfg as unknown as { spine: { up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; roof: number; land: number; ground: number }>; down: Array<{ id: string; pad: number[]; floor: number; land: number[]; landY: number }> } }).spine;
+const ride = (pad: (typeof map.pads)[number]) => {
   const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
   p.teleport(pad.x, pad.y ?? 0, pad.z, 0);
   const DT = 1 / 144;
   let t = 1000;
   for (let i = 0; i < 20; i++) p.update(DT, (t += DT), idle, 0, 1, false);
-  p.impulse(0, pad.up ?? 0, 0);
-  let carry = true;
+  const across = pad.over !== undefined;
+  p.impulse(across ? 0 : pad.dx, pad.up ?? 0, across ? 0 : pad.dz);
+  let carry = across;
   let high = 0;
-  for (let i = 0; i < 6 / DT; i++) {
+  for (let i = 0; i < 8 / DT; i++) {
     if (carry && p.pos.y >= (pad.over ?? 0)) {
       p.vel.x = pad.dx;
       p.vel.z = pad.dz;
@@ -228,9 +229,30 @@ for (const [k, pad] of map.pads.entries()) {
     high = Math.max(high, p.pos.y);
     if (!carry && p.onGround) break;
   }
+  return { p, high };
+};
+check("a jump pad onto each side of the four high city blocks, and the centre's", cfg.pads.length === 8 && map.pads.length === cfg.pads.length + SPINE.up.length + SPINE.down.length, `${cfg.pads.length} and ${map.pads.length - cfg.pads.length}`);
+for (const [k, pad] of map.pads.slice(0, cfg.pads.length).entries()) {
+  const q = cfg.pads[k];
+  const { p, high } = ride(pad);
   const past = (p.pos.x - BR_X - q.face[0]) * -q.out[0] + (p.pos.z - BR_Z - q.face[1]) * -q.out[1];
   check(`pad ${q.id}: lands you on its ${q.roof} m roof, past the edge`, p.onGround && Math.abs(p.pos.y - q.roof) < 0.3 && past > 1, `at ${p.pos.y.toFixed(2)} m, ${past.toFixed(1)} m in, highest ${high.toFixed(1)}`);
 }
+// the centre's spine (the owner, 2026-10-02: "clear jump pads to get all the way up and all the way down"): each up pad
+// ridden onto what is past its face, from the plaza onto the base's roof and from there onto the top; each way down ridden
+// off the top, landing where it aims on the base's roof
+const ups = SPINE.up.map((q, k) => {
+  const { p, high } = ride(map.pads[cfg.pads.length + k]);
+  const past = (p.pos.x - BR_X - q.face[0]) * -q.out[0] + (p.pos.z - BR_Z - q.face[1]) * -q.out[1];
+  return { q, ok: p.onGround && Math.abs(p.pos.y - q.ground) < 0.3 && past > 1, said: `${q.id} at ${p.pos.y.toFixed(2)} m, ${past.toFixed(1)} m in, highest ${high.toFixed(1)}` };
+});
+check("the centre's pads: each up from the plaza onto the base's roof, and from there onto the top, lands you past its face", ups.length >= 5 && ups.every((u) => u.ok), ups.map((u) => u.said).join("; "));
+const downs = SPINE.down.map((q, k) => {
+  const { p } = ride(map.pads[cfg.pads.length + SPINE.up.length + k]);
+  const off = Math.hypot(p.pos.x - BR_X - q.land[0], p.pos.z - BR_Z - q.land[1]);
+  return { ok: p.onGround && Math.abs(p.pos.y - q.landY) < 0.3 && off < 1.5, said: `${q.id} from ${q.floor} m to ${p.pos.y.toFixed(2)} m, ${off.toFixed(1)} m off its mark` };
+});
+check("the centre's pads: the way down off the top lands you on the base's roof where it aims", downs.length >= 1 && downs.every((d) => d.ok), downs.map((d) => d.said).join("; "));
 const padNodes = map.nodes.filter((n) => n.pad);
 const stranded = padNodes.filter((n) => !map.nodes[n.pad!.to].links.length);
 check("every pad a bot is sent up lands it on the roof's graph", padNodes.length >= 6 && stranded.length === 0, `${padNodes.length} pads for bots, ${stranded.length} stranded`);
@@ -621,6 +643,16 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     const u = [(far[0] - door[0]) / L, (far[1] - door[1]) / L];
     return through([far[0] + u[0] * 1.5, far[1] + u[1] * 1.5], [door[0] - u[0] * 3, door[1] - u[1] * 3], SR.deck);
   });
+  // the centre's pads joined on foot: each pad on the plaza and the pad up to the top walked to from the plaza, each landing
+  // on the base's roof (from the plaza, and the way down's) walked from there
+  const SPN = (cfg as unknown as { spine: { up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; land: number; ground: number }>; down: Array<{ id: string; land: number[]; landY: number }> } }).spine;
+  const stops = [
+    ...SPN.up.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
+    ...SPN.up.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
+    ...SPN.down.map((q) => ({ id: `${q.id}'s landing`, x: q.land[0], z: q.land[1], y: q.landY })),
+  ];
+  const astray = stops.filter((q) => !reachedAt(q.x, q.z, q.y));
+  check("the centre's pads: each on the plaza and the one up to the top walked to, each landing on the base's roof walked from", stops.length >= 10 && astray.length === 0, `${stops.length - astray.length} of ${stops.length}${astray.length ? `: not ${astray.map((q) => q.id).join(", ")}` : ""}`);
   check("the base: every bridge from the Sky Ring walked across into its first floor", BS.bridges.length > 0 && bridges.length === BS.bridges.length, `${bridges.length} of ${BS.bridges.length}`);
 }
 

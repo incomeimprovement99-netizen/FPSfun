@@ -18,11 +18,17 @@ import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi } from "./br"
 import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay } from "./city";
 import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
-import { padOnto } from "./padsolve";
+import { padOff, padOnto } from "./padsolve";
 import { emissive } from "./geo";
 import { ZIPLINES } from "./traversal";
 import neonCfg from "../config/neonmap.json";
 import SOLIDS from "../config/neon/neonmap.solids.json";
+
+/** the centre's spine of pads as the bake measured it (tools/import-neon.ts spinePads) */
+interface Spine {
+  up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; roof: number; land: number }>;
+  down: Array<{ id: string; pad: number[]; floor: number; land: number[]; landY: number; hop: number }>;
+}
 
 /** what the map drew, for the page's hook and the checks */
 export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0 };
@@ -163,8 +169,10 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
       .filter(({ i, d }) => i !== n && d < step * 1.5 && Math.abs((nodes[i].y ?? 0) - (nodes[n].y ?? 0)) < G.graph.climb)
       .sort((a, b) => a.d - b.d)
       .map(({ i }) => i);
-  for (const q of neonCfg.pads) {
-    const { pad, land } = padOnto(q.face[0], q.face[1], q.out[0], q.out[1], q.floor, q.roof);
+  // (and the centre's spine, neonmap.json spine: up from the plaza onto the base's roof, and from there onto the top)
+  const SPINE = (neonCfg as unknown as { spine?: Spine }).spine ?? { up: [], down: [] };
+  for (const q of [...neonCfg.pads.map((q) => ({ ...q, land: undefined as number | undefined })), ...SPINE.up]) {
+    const { pad, land } = padOnto(q.face[0], q.face[1], q.out[0], q.out[1], q.floor, q.roof, q.land);
     pads.push({ ...pad, x: pad.x + BR_X, z: pad.z + BR_Z });
     const pn = add(pad.x, pad.z, pad.y);
     const ln = add(land.x, land.z, land.y);
@@ -184,6 +192,11 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     if (!nodes[ln].links.length) continue;
     nodes[pn].pad = { to: ln, up: pad.up, dx: pad.dx, dz: pad.dz, over: pad.over };
     (nodes[ln].padFrom ??= []).push(pn);
+  }
+  // the spine's way down: off the top, thrown out over its parapet onto the base's roof (no bot is sent up there)
+  for (const q of SPINE.down) {
+    const t = padOff(q.pad[0], q.pad[1], q.floor, q.land[0], q.land[1], q.landY, q.hop);
+    pads.push({ x: q.pad[0] + BR_X, z: q.pad[1] + BR_Z, y: q.floor, up: t.up, dx: t.dx, dz: t.dz });
   }
 
   // the nine places: each sector's street nodes its drops, spread across it

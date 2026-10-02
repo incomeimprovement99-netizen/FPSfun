@@ -9144,3 +9144,31 @@ royale specific".
 - **Checked:** the new brcard check in verify (every topic asked for is taught, no tip says the ring closes, every
   number is one the game puts in, more tips than shown; seen failing with the wall run taken out); photographed at
   1920x1080, 1366x768 and 412x915; verify; rules. No e2e: every e2e page skips the match screen (?nointro).
+
+## Milestone 413 — Jump pads up the centre, and one back down
+
+The owner, 2026-10-02: "there should be clear jump pads to get all the way up and all the way down." The centre's only
+pads threw you onto the High City decks from the Loop; the tower and its base were climbed by stairs.
+
+- **Up from the plaza onto the base's roof** (rules.pads.spine, measured by the bake in `spinePads`, tools/import-neon.ts):
+  four pads, one off each side of the base, in a pinwheel, each in front of a pillar of the ground floor's colonnade
+  (Milestone 411) so walking out of the hall between pillars does not throw you. Thrown straight up past the first and
+  second floors and carried over the roof's 1.2 m rail, 3 m in, as the High City pads throw you (padsolve.ts padOnto,
+  solved for the highest thing crossed from the face in: the rail).
+- **Up from the base's roof onto the top:** one pad beside the tower's east block, whose roof at 49 m is the highest
+  open-air roof below the tower's crown at 108 m: a walkway behind a parapet round a skylight's box. Thrown 39 m up and
+  carried over the parapet onto the walkway, a lookout over the north half of the centre.
+- **Back down:** a pad in the skylight box's recess, its rim 2 m over the walkway so you do not walk off your landing
+  onto it, throws you 3 m up, over the rim and the parapet, and down onto the base's roof 20 m out (padsolve.ts padOff).
+  The bake sweeps the throw with a standing body's room at every hundredth of a second. (SpeedKills has no fall stun, so
+  a jump off the top costs nothing either; the pad is the marked way.)
+- **Clear:** each pad is the pack's plate with a beam of light over it, white for the ways up (the High City pads' are
+  cyan) and red for the way down. The roof's cover is kept off every landing and the pad up to the top.
+- The bots: a pad from the plaza joins the bots' graph where its landing does; none is sent to the top.
+- The map: its files lo 78 MB, hi 139 MB, max 348 MB. **Its files are version 30.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): each pad up ridden by a player as a match throws it, landing past
+  its face on the base's roof or the top (seen failing with a pad's face moved 3 m); the way down ridden off the top,
+  landing within 1.5 m of its mark on the base's roof, and each pad on the plaza and the one up to the top walked to
+  from the plaza, each landing on the roof walked from (both seen failing with the way down's landing moved over the
+  roof's stair well). verify and rules; e2e `br`. Photographed from the plaza, the base's roof and the top, by day and
+  by night.

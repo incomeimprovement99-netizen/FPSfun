@@ -13,7 +13,7 @@
 
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { basename, dirname, join } from "node:path";
-import { padStandOff } from "../src/game/padsolve";
+import { padOff, padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
 import { inside, sdPoly, standing, storeySlab, type Grid } from "./neon-base";
 import { backFaces, boxInto, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
@@ -756,6 +756,10 @@ if (mode === "bake") {
   cfg.pads = findPads(all, cfg.rules);
   const padDraws: Array<{ d: Draw; m: M4 }> = [];
   for (const q of cfg.pads) for (const key of [cfg.rules.pads.plate, cfg.rules.pads.beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), m) })));
+  // the centre's spine (rules.pads.spine), measured the same way: the plate under each and a beam over it, white up, red down
+  cfg.spine = spinePads(all, cfg.rules);
+  for (const [list, beam] of [[cfg.spine.up, cfg.rules.pads.spine.beam], [cfg.spine.down, cfg.rules.pads.spine.downBeam]] as const)
+    for (const q of list as Array<{ pad: number[]; floor: number }>) for (const key of [cfg.rules.pads.plate, beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), m) })));
   (groups.get(groupOf("c-pads")) ?? groups.set(groupOf("c-pads"), []).get(groupOf("c-pads"))!).push(...padDraws);
   for (const [id, all] of groups) {
     const b = bake(pack, res, `neon/${id}`, "", mats, all);
@@ -763,6 +767,7 @@ if (mode === "bake") {
     console.log(`${id}: ${b?.tris ?? 0} triangles`);
   }
   console.log(`pads: ${cfg.pads.map((q: { id: string; roof: number }) => `${q.id} to ${q.roof.toFixed(1)} m`).join(", ")}`);
+  console.log(`the spine: ${cfg.spine.up.map((q: { id: string; floor: number; roof: number }) => `${q.id} ${q.floor} to ${q.roof} m`).join(", ")}; down ${cfg.spine.down.map((q: { id: string; floor: number; landY: number }) => `${q.id} ${q.floor} to ${q.landY} m`).join(", ")}`);
   const tris = baked.reduce((a, b) => a + b.tris, 0);
   console.log(`${placed} placements, ${tris} triangles, ${all.length} collision boxes (${solids.length} from rooms and props, ${solidBoxes.length} from solid buildings)`);
   const SIZES: Record<string, [number, number]> = { preview: [256, 128], lo: [512, 256], hi: [1024, 512], max: [2048, 1024] };
@@ -783,7 +788,7 @@ if (mode === "bake") {
   // only what the bake measured goes back, into the file as it is now: a bake takes minutes, and writing back the copy
   // read at its start threw away the game's sites, added to the file while one ran
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));
-  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}), ...(cfg.well?.measured ? { well: { ...now.well, measured: cfg.well.measured } } : {}) }, null, 1) + "\n");
+  if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, spine: cfg.spine, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}), ...(cfg.well?.measured ? { well: { ...now.well, measured: cfg.well.measured } } : {}) }, null, 1) + "\n");
   console.log(`unresolved materials: ${IMPORT_STATS.unresolved.size}, unmatched meshes: ${IMPORT_STATS.unmatchedMeshes.size}`);
 }
 
@@ -881,6 +886,55 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
     }
   }
   return found;
+}
+
+/**
+ * The centre's spine of pads (neonmap.json rules.pads.spine), measured in the collision. Each `up` pad: from `at` along
+ * `to` (a unit step) to the first column `face` metres high or more, a body wide (`body`), the face it throws you over;
+ * its spot `padStandOff` out of it, nothing over it but its `floor`; it lands you `land` metres past the face on what is
+ * there, level for a body, and the roof it is solved for is the highest it crosses on
+ * the way in, so the throw clears a rim before the landing. Each `down` pad: at `pad` on the roof it stands on, thrown
+ * off onto `land`, `hop` metres up first (padsolve.ts padOff, for the heights measured), the throw swept at every hundredth
+ * of a second with a standing body's room, so it clears the parapet it goes over and every face on the way down
+ */
+function spinePads(boxes: number[][], rules: any) {
+  const SP = rules.pads.spine;
+  const B = rules.pads.body;
+  const top = (x: number, z: number, h: number) => boxes.reduce((a, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h ? Math.max(a, b[5]) : a), 0);
+  const level = (x: number, z: number, y: number) => [-0.5, 0, 0.5].every((dx) => [-0.5, 0, 0.5].every((dz) => Math.abs(top(x + dx, z + dz, 0.05) - y) < 0.3));
+  const stand = padStandOff();
+  const up = (SP.up as Array<{ id: string; at: number[]; to: number[]; floor: number; face: number; land: number }>).map((q) => {
+    const at = (t: number): [number, number] => [q.at[0] + q.to[0] * t, q.at[1] + q.to[1] * t];
+    let hit = -1;
+    for (let t = 0; t < 30 && hit < 0; t += 0.05) if (top(...at(t), B) >= q.face) hit = t + B;
+    if (hit < 0) throw new Error(`spine pad ${q.id}: no face ${q.face} m high within 30 m of (${q.at.join(", ")})`);
+    const face = at(hit);
+    const pad = at(hit - stand);
+    const floor = top(...pad, 1.4);
+    if (Math.abs(floor - q.floor) > 0.3) throw new Error(`spine pad ${q.id}: something ${floor.toFixed(2)} m high over its spot (${pad.map((v) => v.toFixed(1)).join(", ")}), not its floor ${q.floor}`);
+    const L = q.land;
+    const land = at(hit + L);
+    const ground = top(...land, MOVE.radius);
+    if (!level(...land, ground)) throw new Error(`spine pad ${q.id}: its landing at (${land.map((v) => v.toFixed(1)).join(", ")}) is not level`);
+    let roof = ground;
+    // (from the face in: a rail at the roof's edge is crossed too, 1.2 m round the base's roof)
+    for (let t = hit; t <= hit + L; t += 0.25) roof = Math.max(roof, top(...at(t), MOVE.radius));
+    return { id: q.id, face: face.map((v) => +v.toFixed(2)), out: [-q.to[0], -q.to[1]], pad: pad.map((v) => +v.toFixed(2)), floor: +floor.toFixed(2), roof: +roof.toFixed(2), land: L, ground: +ground.toFixed(2) };
+  });
+  const down = (SP.down as Array<{ id: string; pad: number[]; land: number[]; hop: number }>).map((q) => {
+    const floor = top(q.pad[0], q.pad[1], 0.3);
+    const landY = top(q.land[0], q.land[1], MOVE.radius);
+    if (!level(q.land[0], q.land[1], landY)) throw new Error(`spine pad ${q.id}: its landing at (${q.land.join(", ")}) is not level`);
+    const T = padOff(q.pad[0], q.pad[1], floor, q.land[0], q.land[1], landY, q.hop);
+    const r = MOVE.radius;
+    for (let t = 0.01; t < T.t - 0.02; t += 0.01) {
+      const [x, y, z] = [q.pad[0] + T.dx * t, floor + T.up * t - (MOVE.gravity * t * t) / 2, q.pad[1] + T.dz * t];
+      const hit = boxes.find((b) => b[0] < x + r && b[1] > x - r && b[2] < z + r && b[3] > z - r && b[4] < y + MOVE.standHeight && b[5] > y + 0.02);
+      if (hit) throw new Error(`spine pad ${q.id}: its throw meets [${hit.join(", ")}] ${t.toFixed(2)} s out, at (${[x, y, z].map((v) => v.toFixed(2)).join(", ")})`);
+    }
+    return { id: q.id, pad: q.pad, floor: +floor.toFixed(2), land: q.land, landY: +landY.toFixed(2), hop: q.hop };
+  });
+  return { up, down };
 }
 
 /** the middle of a part's bounds, placed by `m` (column-major) */
