@@ -8900,3 +8900,18 @@ a 55 degree gun camera had been added to make that fit, doubling their size.
 - **Open:** the left forearm shows from the bottom of the picture to the hand on the gun's front, wider and lighter than the
   R-99's; the owner wants only the hand and wrist, as Hyper Scape's support hand shows. The hand moves back along each gun
   next.
+
+## Milestone 402 — The USSO and BOOG a little higher, between Apex's, Hyper Scape's and EMPULSE's
+
+The owner, 2026-10-01, of the guns pointing at the crosshair: "Most of the guns are slightly differently oriented and or
+like field of view is different for them ... just get the best looking like in between one because they don't look that
+much different", and "it needs to be familiar ... not seem like they're relearning something".
+
+- **Six small variations** of each gun from the live placement (6 and 10 cm closer, higher, angled more and rolled, and
+  mixes) rendered at the owner's 1920x1080 and FOV 110 beside Apex's R-99 and Sentinel, Hyper Scape's Harpy and Protocol V
+  and EMPULSE's SMG and rifle (`tools/gun-fit.ts`). Closer made the USSO nearly twice as wide as theirs; further (tried
+  before, 15 to 45 cm) put the gun out at arm's length with both arms stretched into the picture.
+- **Chosen:** each a little higher, still pointing at the crosshair, level: the USSO's muzzle 54% across and 59% down
+  (between the R-99's 61% and EMPULSE's 53%), BOOG's 55% and 54.5% with its scope in view as the Sentinel's and the
+  Protocol V's are (`packGuns look`). Every state photographed on both guns at it.
+- **Checked:** the soldier e2e's placement check holds the new muzzles; verify and rules pass.

@@ -3800,7 +3800,7 @@ async function packFrames(page: Page): Promise<void> {
   // BOOG on its Protocol V. Their edges found by machine meet at the crosshair, so each points straight at it, its cross edges
   // within 3 degrees of level; a first fit read the R-99's barrel line off the wrong edges, 25% across, and the guns lay
   // flat across the picture, their sides to the eye: the owner, "my gun is still pointing super weird and clipping through")
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.541, 0.607], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 } };
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.543, 0.59], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.55, 0.545], level: -2 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),
