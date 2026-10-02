@@ -122,7 +122,15 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 
 ### 5.1 ANAKIN (alternator_smg), SciFiSMG01_2, 86 cm
 
-- **Model:** Clip, Slide, Button; the left hand's hold ahead of the magazine, 61 cm from the butt.
+- **Model, measured 2026-10-02** (the parts' boxes in the gun's own frame, `gun-shape.ts side`, `figure-hands.ts GUNONLY
+  WHOLE=1`): 85 cm long. The **magazine is in the pistol grip** (Clip, 9.5 to 29 cm under the bore, raked back), as the
+  USSO's is; the Trigger 4.5 cm in front of the grip's top, inside a big guard whose front slopes from 14.5 cm in front at
+  the bore to 2.5 cm in front 19 cm under; the **charging handle (Slide) on the left side, 18 to 20 cm in front of the
+  trigger**, 3 to 6 cm under the bore; the magazine release (Button) on the left above the grip; a stock reaching 48 cm
+  behind the trigger. The fore-end is the receiver's flat underside, 6 cm wide, 7.5 to 8.5 cm under the bore from 16 to
+  35 cm in front of the trigger. The survey's "61 cm from the butt" was the shared default, inside the guard: the left
+  hand's hold is set at 20.5 cm in front of the trigger (69 cm from the butt), the palm's middle 1.5 cm under the
+  underside.
 - **Work:** the recipe alone; the reload's handle key at the Slide (where the left hand takes it is read off the
   guns agent's ASVal rack, as the USSO's was off the MPS5's).
 - **Expected:** its magazine group may hold the procedural magazine hidden, as the USSO's did (107 mm off): the
@@ -131,10 +139,31 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   wrist reached 94 degrees unfitted: watch the handle key's wrist.
 - **Checks:** the recipe's. It is the gun that proves G2: if any check needs editing to take ANAKIN, the list is not
   doing its job yet.
+- **Done on the soldier, 2026-10-02** (soldierhold.json guns.alternator_smg): the left hand under the receiver, the right
+  round the grip's top with the index on the trigger at its crease, the body round the gun at rest, the carries (sprint,
+  air, swap, rise), the reload's point and tilt, and the shoulder's reach (70, as BOOG's: at the shared 34 the hold slid
+  30% back aimed at a sprint). Every skfigure check passes for it (22), with two checks made fair to any gun on the way:
+  the punch's fist judged by how far it closes toward the fist from the gun's own hold (ANAKIN's hold is already curled
+  round its fore-end), and the magazine's middle measured in the magazine's own frame (a box along the world's axes round
+  a raked magazine on a gun rolled for the reload put it 9 mm off). Its reload is the magazine alone until the guns
+  agent's ANAKIN rack lands; its swap has no phase or cup until its gunfeel.json entry does.
+- **Left open, measured:** the stock in the right forearm. Behind the grip the stock is a solid slab 5.2 cm wide and up
+  to 30 cm tall, and the armoured forearm runs through it: 70 to 140 mm deep at rest (the audit's deeper look,
+  `gunCap`), 25 aimed (the butt in the shoulder armour). No place of the butt, chest turn, elbow, eye relief or hand turn
+  clears every pose (a rest carry at 47 mm made the aimed one 67 to 125). Seen from outside it reads as the forearm laid
+  along the stock, hidden from behind. The way out is the template fault's (step 0): the right arm fitted against the
+  stock through the sweep, the forearm angled out past it.
+- **Learnt:** a hand search from the shared start laid the right hand flat on the receiver's side, its fingers straight
+  (a hand can measure 2 mm and hold nothing): start a hand from a fitted gun with the same kind of grip (the USSO's,
+  carried over by each gun's trigger and grip) and grasp it there. And the audit stops at 40 mm, so a tuning grid saw no
+  change where the clash was 124 mm and getting better: tune with `gunCap`.
 
 ### 5.2 PANDA (vinson), SciFiRifle01_2, 104 cm
 
-- **Model:** Clip and Extruder only; no handle. The fore-end hold 83 cm from the butt.
+- **Model:** Clip and Extruder only; no handle. The fore-end hold 83 cm from the butt. Measured 2026-10-02 (cm, the
+  gun's own frame, from the trigger): 96.5 cm long; the magazine (Clip) 18 to 31 cm in front of the trigger, 7 to 16.5
+  under the bore; the Extruder a block under the receiver between the magazine and the trigger (8 to 18 in front, 13 to
+  16.5 under); 10.6 cm wide at most.
 - **Work:** the rack's spot is the measured one both views read (the shared plan's groundwork), never a second copy in
   soldierhold.json. The fore-end hold checked aimed on the move; if the arm comes up short, a shoulder reach of its own
   (`reach.shoulder`, as BOOG's 70) or the hold brought back along the gun, BOOG's two answers.
@@ -147,7 +176,9 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 ### 5.3 BIGANTLER (mastiff), SciFiShotGun02_2, 94 cm
 
 - **Model:** Pump, Cover (the loading gate), Bullet (one shell); no magazine. The left hand's hold is on the Pump, 71
-  cm from the butt.
+  cm from the butt. Measured 2026-10-02 (cm, from the trigger): 90 cm long, 6 wide; the Pump 26 to 45 in front, 10 to 13
+  under the bore; the gate (Cover) 16 to 27 in front, 12 to 17 under, the shell (Bullet) lying in it 19 to 24 in front:
+  the gate is under the gun just behind the pump, so the hand that feeds it works right behind the one on the pump.
 - **Work:** the pump reload (G4): the hands as the first person's KXG12 (which hand feeds the gate and which works the
   pump comes from the guns agent's reading of its clips), the same fixed count of shells from the shared key, each a
   Bullet shown in the hand (phased in, no pouch, as the magazine never came from one), pushed in at the Cover and gone;
@@ -166,7 +197,9 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 ### 5.4 REZ (shotgun), SciFiShotGun01_2, 92 cm
 
 - **Model:** Clip and Button; no handle. The furthest fore-end hold of any gun, 86 cm from the butt; it was the only
-  one still sliding (0.07) after the shoulder's reach, before any fit.
+  one still sliding (0.07) after the shoulder's reach, before any fit. Measured 2026-10-02 (cm, from the trigger): 90.5
+  long, 5.6 wide; the magazine (Clip) a long box under the fore-end, 12 to 37 in front, 12 to 16 under, so the left hand
+  holds in front of it or along it; the Button on the left side 10 to 13 in front.
 - **Work:** the fore-end checked aimed on the move first, before the rest of the fit, since it decides where the left
   hand is; the rack at the shared spot (PANDA's answer).
 - **Expected:** the pack's parts all sit at the gun's origin (paidgun.ts hingeParts finds their hinges off their
@@ -176,6 +209,9 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 ### 5.5 CHOOCH (lstar), SciFiGrenadeLauncher01_2, 124 cm
 
 - **Model:** Drum (turns a chamber a shot), sights; 24 cm wide at the drum. The fore-end hold 81 cm from the butt.
+  Measured 2026-10-02 (cm, from the trigger): 88 long; the Drum is an eight-grenade cylinder (Grenade1 to 8) 8 to 29 in
+  front of the trigger, 22 wide and 4 to 26 under the bore, so the left hand holds in front of it (29 cm and on) and the
+  drum sits right where the left forearm passes.
 - **A fault live today:** an overheat sets the gun's `reloading` (weapon-state.ts), so main.ts sends the act
   "reload" and every other player sees CHOOCH start a magazine reload on the lstar's reload time, cut off when the
   1.19 s lockout ends. The vent replaces it.
@@ -191,7 +227,10 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 
 ### 5.6 APUHTHEE (wingman, SciFiPistol02_2) and STRYDER (autopistol, SciFiPistol01_2), the pistols
 
-- **Models:** Pistol02: Clip, Slide; 25 cm. Pistol01: Button, Clip, Trigger, and **no Slide**.
+- **Models:** Pistol02: Clip, Slide; 25 cm. Pistol01: Button, Clip, Trigger, and **no Slide**. Measured 2026-10-02
+  (APUHTHEE, cm from the trigger): the Slide the whole top, 23 cm; the **magazine (Clip) is a block under the barrel,
+  ahead of the trigger** (0 to 8 in front, 7 to 19 under the bore), not in the grip: the reload's hand goes under the
+  barrel, in front of the left hand's grip.
 - **Work:** the pistol stance (G6). Its places are the figure's own, measured off the soldier as the punch's were (the
   shoulders, the arm's length, the eye): aimed, both arms out and the sight on the eye's line; at the hip, a low ready;
   lowered for the sprint and the swap as the first person's; crouched. The look turns the arms about the shoulders,
@@ -246,6 +285,10 @@ Each lands with its gun's turn, so no gun is ever without its look.
 ## 7. Faults to head off on every gun
 
 - **Between the frames**: the sweep at 1/30 s, never the 4% sheet alone.
+- **The audit's own limits**: it stops looking at 30 mm (a hand) and 40 mm (the gun), so a number at the cap is "that or
+  more"; tune past it with `gunCap` (ANAKIN's stock was 124 mm in, reading 40).
+- **A hand search's start**: start from a fitted gun with the same kind of grip, not the shared numbers (ANAKIN's right
+  hand came out flat on the receiver from the shared start).
 - **The stock in the right forearm**: BOOG's 179 bad frames; on every long gun the right arm is fitted against the stock
   through the sweep, not at rest.
 - **Hidden meshes**: measure drawn meshes only (the procedural magazine in a bought gun's magazine group).

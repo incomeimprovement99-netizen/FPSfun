@@ -276,14 +276,15 @@ Game) or `?game=legacy`, and everything below this section describes it.
   - After that you are a ghost: fast, unseen, no gun.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
-- **The soldier as others see it:** holding the USSO or BOOG the way a rifleman
+- **The soldier as others see it:** holding the USSO, BOOG or ANAKIN the way a rifleman
   does, the stock in the right shoulder, the right hand closed round the grip with
   the trigger finger through the guard, the trigger at the crease of its last
   joint, and the left under the front (BOOG's on the
   rail under its barrel, standing more side-on as a marksman does), the gun
   pointing where they look; aiming, it comes up to their eye; sprinting, it is
   carried low across the body; sliding or climbing, it stays in their right hand.
-  A melee is a strike with the gun, both hands on it. A double jump lifts their
+  A melee is your own view's punch: the gun stays in the right hand and the left
+  draws back by the chest and punches out as a fist. A double jump lifts their
   knees for a moment. Their gloved fingers are drawn a tenth smaller than the model's. A reload
   is the one you see in your own hands, on the same timeline: the left hand points
   at the magazine as it slides out and phases away, a new one phases in and seats,
@@ -292,7 +293,11 @@ Game) or `?game=legacy`, and everything below this section describes it.
   in the chamber, the shorter tactical reload, as your own view plays it. A swap
   phases the gun out and the next one in, as your own view does; when your own
   view swaps in place, theirs does too, the gun staying up while the hands open
-  round it as it goes. The Loadouts tab shows the same soldier.
+  round it as it goes. The Loadouts tab shows the same soldier. ANAKIN, the
+  first of the other eight to be fitted, reloads with the magazine alone until
+  its own first-person reload is made, and its long stock runs along the inside
+  of the right forearm (a known overlap, being worked on). The other seven are
+  held by the shared numbers until their turn.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and
@@ -1226,7 +1231,8 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/live-shots.ts [dir]` | the soldier in the game itself, not the lab: bots in an Arena Bots match given the USSO and BOOG, your own soldier in third person driven by the keys a player presses, and another player's figure over the network, each photographed a frame at a time and measured as the lab's sheets are (a double jump's flip among them). `PARTS=enemies,self,remote` picks, `ACTS=double-jump,melee` only those actions. Needs `npm run dev` and a real GPU |
 | `npx tsx tools/figure-solve.ts <gun> <stage>` | searches the soldier's rifle hold (`src/config/soldierhold.json`) against the same measures: `rest` (the pocket, the chest's turn, the elbows, the aim), `lowered`, `swap`, `air`, `reload` (`KEY=` one of its hand places, `KEYFINGERS=1` with that key's own fingers), and the older `pocket`, `hands`, `right`, `left`, `fingers`; `WRITE=1` stores what it found as that gun's own numbers |
 | `npx tsx tools/figure-fit.ts <gun>` | closes each of the soldier's hands round its hold as a hand grasps: the palm onto the gun, each finger a phalanx at a time until it touches, the thumb round the far side, the hand's place searched round a start measured off the gun, then the right index finger searched onto the trigger's face; `SCALE`, `HAND_R`/`HAND_L`, `SIDES`, `SEARCH=0`, `TRIGGER_ONLY=1`; `WRITE=1` stores it |
-| `npx tsx tools/figure-hands.ts [dir] [guns]` | each of the soldier's hands on its hold, close, from the gun's right, left and front, captioned with what is in the gun and what is off it; `POSE` another pose, `STEP` seconds into it (a reload's moment), `XRAY=1`, `TUNE` numbers to try, `GUNONLY=1` the gun alone on a centimetre grid |
+| `npx tsx tools/figure-hands.ts [dir] [guns]` | each of the soldier's hands on its hold, close, from the gun's right, left and front, captioned with what is in the gun and what is off it; `POSE` another pose, `STEP` seconds into it (a reload's moment), `XRAY=1`, `TUNE` numbers to try, `GUNONLY=1` the gun alone on a centimetre grid, with `WHOLE=1` the whole gun level from each side |
+| `npx tsx tools/figure-sweep.ts [guns]` | the soldier's hold through every motion a frame at a time (1/30 s): at rest, aimed, looking up and down, running aimed, sprinting, crouched, the reload from empty, a jump and the melee, the worst hand in the gun, gun in the body, palm off its hold and wrist of each, with when and where; `SEQ=` some only, `DETAIL=1` every bad frame with its bone and the rig's keys. Minutes a gun, where the frame sheets take hours at that step |
 | `npx tsx tools/gun-shape.ts <gun> side\|across <z...>` | a held gun's shape in its own frame: its half-thickness in each centimetre of its side view (a grip, a guard's opening, a magazine), or its cross-sections, where a hand's hold starts from |
 
 Before a push: `npm run verify`, `npm run e2e` (with `npm run dev` running in

@@ -367,7 +367,8 @@
         for (let k = 0; k < pos.count; k += 4) {
           v.set(pos.getX(k), pos.getY(k), pos.getZ(k)).applyMatrix4(pt.o.matrixWorld);
           if (!drawn(pt.o, v)) continue;
-          const d = depthIn(bg, [v.x, v.y, v.z], 0.04, 1, hit);
+          // (opts.gunCap, metres: how deep to look, 4 cm unless a tuning run needs to see past it)
+          const d = depthIn(bg, [v.x, v.y, v.z], opts.gunCap ?? 0.04, 1, hit);
           if (d > 0.01) {
             const key = `${pt.o.name || "part"}>${bodyBone[hit.t / 9]}`;
             out.gunWhere[key] = Math.max(out.gunWhere[key] ?? 0, Math.round(d * 1000));

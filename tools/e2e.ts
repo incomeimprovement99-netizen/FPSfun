@@ -8045,6 +8045,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     // (drawn back between the hand's way off the gun and the punch, and out at the punch's end: fparms.json melee's shares
     // of the game's melee time)
     const PM = (fparmsCfg as unknown as { melee: { on: number[]; punch: number[] } }).melee;
+    // (the fist's middle finger, its second joint: what the curl measures; the hold's fingers close a share of the way to it)
+    const FIST = (soldierHoldCfg as unknown as { fist: Record<string, number[]> }).fist.middle[1];
     const drawAt = ((PM.on[1] + PM.punch[0]) / 2) * soldierHoldCfg.melee.time;
     const punchAt = PM.punch[1] * soldierHoldCfg.melee.time;
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "melee" }); r.figureLabStep(${drawAt}); })()`);
@@ -8054,7 +8056,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const strike = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
     check(
       `the soldier's ${name} melee: the gun stays in the right hand where it was, and the left hand leaves it, draws back beside the chest and punches 20 cm or more forward from there, a fist`,
-      struck.shown && Math.abs(struck.z - rest.z) < 0.03 && (strike?.grip ?? 99) <= BAR.grip && struck.hand[2] > drawn.hand[2] + 0.2 && /l:punch/.test(struck.keys) && struck.curl > rest.curl + 20,
+      struck.shown && Math.abs(struck.z - rest.z) < 0.03 && (strike?.grip ?? 99) <= BAR.grip && struck.hand[2] > drawn.hand[2] + 0.2 && /l:punch/.test(struck.keys) && struck.curl - rest.curl >= 0.2 * (FIST - rest.curl),
       JSON.stringify({ rest, drawn: drawn.hand, struck, grip: strike?.grip, punch: travel(struck, drawn) })
     );
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(0.6); })()`);
@@ -8099,7 +8101,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const FR = fparmsCfg.reload;
     const rack = (fparmsCfg.packGuns as Record<string, { rack?: { grab?: { reach: number[]; pull: number[] } } }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.rack;
     type Mag = { y: number; shown: boolean; phase: number; keys: string; drops: number; radial: number; off: number } | null;
-    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; const S = f.magSweep; const mid = new window.__range.THREE.Box3(); m.traverse((o) => { if (o.isMesh) { let on = true; for (let q = o; q && q !== m; q = q.parent) on &&= q.visible; if (on) mid.expandByObject(o); } }); return m ? { y: m.position.y, shown: m.visible, phase: S.phase.value, keys: f.rifleOut?.keys ?? "", drops, radial: S.radial.value, off: Math.round(S.center.value.distanceTo(mid.getCenter(new window.__range.THREE.Vector3())) * 1000) } : null; })()`;
+    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; const S = f.magSweep; const T = window.__range.THREE; const mid = new T.Box3(); const v = new T.Vector3(); m.updateMatrixWorld(true); const inv = new T.Matrix4().copy(m.matrixWorld).invert(); m.traverse((o) => { if (o.isMesh) { let on = true; for (let q = o; q && q !== m; q = q.parent) on &&= q.visible; if (on) { const pos = o.geometry.getAttribute("position"); const to = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld); for (let i = 0; i < pos.count; i++) mid.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(to)); } } }); return m ? { y: m.position.y, shown: m.visible, phase: S.phase.value, keys: f.rifleOut?.keys ?? "", drops, radial: S.radial.value, off: Math.round(S.center.value.distanceTo(m.localToWorld(mid.getCenter(new T.Vector3()))) * 1000) } : null; })()`;
     const home = await ev<Mag>(page, mag);
     await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true })`);
     let at = 0;
