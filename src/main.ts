@@ -2035,20 +2035,20 @@ function previewFitNow(fig: Dummy): number {
   return need;
 }
 const previewBox = $("loPreview");
-function previewLoadout(now: number, dt: number): void {
+function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): void {
   const def = loadouts.current;
   // the weapon in hand too: it is a loadout, not just an outfit
   // useMannequin() is in the key so the figure is built again once the
   // mannequin has finished loading, rather than staying the robot; and the
   // bought guns' readiness, or a figure built before they came in held the
   // procedural stand-in until the loadout changed (Phase 27)
-  const key = `${def.operator}|${lookCode(def)}|${def.slot1}|${useMannequin()}|${soldierReady()}|${IS_SK && paidGunsReady()}`;
+  const key = `${def.operator}|${lookCode(def)}|${gun}|${useMannequin()}|${soldierReady()}|${IS_SK && paidGunsReady()}`;
   document.body.classList.toggle("soldierOn", IS_SK && soldierReady());
   if (key !== previewKey) {
     previewKey = key;
     previewFig?.dispose();
     previewScene.remove(previewFig?.group ?? new THREE.Object3D());
-    previewFig = new Dummy(0, 0, 0, { armed: def.slot1, respawn: false, skin: operatorWearing(def.operator, lookCode(def)), rig: true, noBase: true });
+    previewFig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode(def)), rig: true, noBase: true });
     previewFig.group.position.set(0, 0, 0);
     previewScene.add(previewFig.group);
   }
@@ -2115,16 +2115,73 @@ function drawPreview(): void {
 }
 
 /**
+ * Each foot of a posed figure turned about its ankle so its heel-to-ball line falls as it does in the model's rest
+ * pose, where it stands flat: the standing clip leaves this soldier on its heels, both toes up about 15 degrees (the
+ * owner, 2026-10-02: "his feet look really weird ... pointed up at the ankles"). The rest pose's line is read off the
+ * skeleton's bind (its up, the head over the feet), so it is measured, not typed in. Returns the turn given each foot,
+ * degrees (the probe that photographs the card reads it).
+ */
+function flattenFeet(root: THREE.Object3D): Record<string, number> {
+  const out: Record<string, number> = {};
+  let mesh: THREE.SkinnedMesh | null = null;
+  root.traverse((o) => {
+    const m = o as THREE.SkinnedMesh;
+    if (!mesh && m.isSkinnedMesh && m.skeleton.bones.some((b) => b.name === "foot_l")) mesh = m;
+  });
+  const sk = (mesh as THREE.SkinnedMesh | null)?.skeleton;
+  if (!sk) return out;
+  const bone = (name: string) => sk.bones.findIndex((b) => b.name === name);
+  const bindAt = (i: number) => new THREE.Vector3().setFromMatrixPosition(sk.boneInverses[i].clone().invert());
+  const ids = ["Head", "foot_l", "foot_r", "ball_l", "ball_r"].map(bone);
+  if (ids.some((i) => i < 0)) return out;
+  const [head, fl, fr] = ids.slice(0, 3).map(bindAt);
+  const up = head.sub(fl.clone().add(fr).multiplyScalar(0.5)).normalize();
+  root.updateMatrixWorld(true);
+  const Y = new THREE.Vector3(0, 1, 0);
+  for (const s of ["l", "r"]) {
+    const fi = bone(`foot_${s}`);
+    const bi = bone(`ball_${s}`);
+    const rest = Math.asin(THREE.MathUtils.clamp(bindAt(bi).sub(bindAt(fi)).normalize().dot(up), -1, 1));
+    const foot = sk.bones[fi];
+    const dir = sk.bones[bi].getWorldPosition(new THREE.Vector3()).sub(foot.getWorldPosition(new THREE.Vector3())).normalize();
+    const now = Math.asin(THREE.MathUtils.clamp(dir.y, -1, 1));
+    // about the foot's own side to side: a positive turn lifts the toe
+    const side = new THREE.Vector3().crossVectors(dir, Y).normalize();
+    if (!foot.parent || side.lengthSq() < 0.5) continue;
+    const turn = new THREE.Quaternion().setFromAxisAngle(side, rest - now);
+    const parent = foot.parent.getWorldQuaternion(new THREE.Quaternion()).invert();
+    foot.quaternion.copy(parent.multiply(turn.multiply(foot.getWorldQuaternion(new THREE.Quaternion()))));
+    foot.updateMatrixWorld(true);
+    out[s] = +THREE.MathUtils.radToDeg(rest - now).toFixed(1);
+  }
+  return out;
+}
+
+/**
  * Your figure in your loadout's look, with its gun, drawn into `canvas` for the battle royale's card: the loadouts
  * panel's own figure, scene and renderer, turned three-quarters to show the gun (hud.json loading.brCard), then left
  * as the panel had them (its size is set again when it is next shown).
  */
 function drawPortrait(canvas: HTMLCanvasElement): void {
+  const C = hudCfg.loading.brCard;
   const turn = previewTurn;
   const zoom = previewZoom;
-  previewTurn = hudCfg.loading.brCard.portraitTurn;
+  const held = previewHeldAt;
+  previewTurn = C.portraitTurn;
   previewZoom = 1;
-  previewLoadout(gameTime, 0);
+  // (its slow turn held still while it is posed)
+  previewHeldAt = gameTime;
+  // a gun the soldier's hold is finished for: the first of the loadout's that is, else the first of them
+  const ready = C.figureGuns as string[];
+  const gun = [loadouts.current.slot1, loadouts.current.slot2].find((g) => ready.includes(g)) ?? ready[0];
+  // Built afresh, facing you: the panel's figure had been turning, and standing still a figure's feet stay planted while
+  // its body turns (dummy.ts TURN_STEP_AT), so turned to face you its legs were twisted over feet left at the old angle,
+  // a boot turned out and its toe up. And posed for a moment before its picture: drawn after one update, the hold puts
+  // the gun in the hands from where they were the frame before, and the gun hung at its side while the hands held nothing.
+  previewKey = "";
+  for (let i = 0; i < C.settleFrames; i++) previewLoadout(gameTime + i / 60, 1 / 60, gun);
+  previewHeldAt = held;
+  if (previewFig) portraitFeet = flattenFeet(previewFig.group);
   // the canvas the size of its box on screen, so the figure is not letterboxed in it
   const box = canvas.getBoundingClientRect();
   const dpr = Math.min(2, window.devicePixelRatio);
@@ -2132,20 +2189,51 @@ function drawPortrait(canvas: HTMLCanvasElement): void {
     canvas.width = Math.round(box.width * dpr);
     canvas.height = Math.round(box.height * dpr);
   }
-  if (previewFig) {
+  const c = canvas.getContext("2d");
+  if (previewFig && c) {
+    // Framed by the picture itself: drawn with room all round (frame), the drawn pixels' box found, and that box
+    // fitted to the card with `margin` to spare. The panel's camera, set for its own wider box, cut the boots off at
+    // the card's foot, and a box of the soldier's meshes measures nothing (they are stored Z up).
+    const w = Math.round(canvas.width * C.frame.scale);
+    const h = Math.round(canvas.height * C.frame.scale);
     previewRenderer.setPixelRatio(1);
-    previewRenderer.setSize(canvas.width, canvas.height, false);
-    previewCam.aspect = canvas.width / canvas.height;
+    previewRenderer.setSize(w, h, false);
+    previewCam.aspect = w / h;
     previewCam.updateProjectionMatrix();
-    previewWhole = previewFitNow(previewFig);
-    placePreviewCam();
+    previewCam.position.set(0, C.frame.eye, C.frame.dist);
+    previewCam.lookAt(0, C.frame.eye, 0);
     previewRenderer.setClearAlpha(0);
     previewRenderer.render(previewScene, previewCam);
-    // (drawn across in the same task as the render, while the canvas still holds it)
-    const c = canvas.getContext("2d");
-    c?.clearRect(0, 0, canvas.width, canvas.height);
-    c?.drawImage(previewRenderer.domElement, 0, 0, canvas.width, canvas.height);
+    // (copied in the same task as the render, while the canvas still holds it)
+    const shot = document.createElement("canvas");
+    shot.width = w;
+    shot.height = h;
+    const s = shot.getContext("2d", { willReadFrequently: true });
+    s?.drawImage(previewRenderer.domElement, 0, 0);
     previewRenderer.setClearAlpha(1);
+    const px = s?.getImageData(0, 0, w, h).data;
+    let x0 = w;
+    let y0 = h;
+    let x1 = -1;
+    let y1 = -1;
+    if (px)
+      for (let y = 0; y < h; y++)
+        for (let x = 0; x < w; x++)
+          if (px[(y * w + x) * 4 + 3] > 8) {
+            if (x < x0) x0 = x;
+            if (x > x1) x1 = x;
+            if (y < y0) y0 = y;
+            if (y > y1) y1 = y;
+          }
+    c.clearRect(0, 0, canvas.width, canvas.height);
+    if (x1 >= x0 && y1 >= y0) {
+      const bw = x1 - x0 + 1;
+      const bh = y1 - y0 + 1;
+      const k = Math.min((canvas.width * (1 - 2 * C.margin)) / bw, (canvas.height * (1 - 2 * C.margin)) / bh);
+      const dw = bw * k;
+      const dh = bh * k;
+      c.drawImage(shot, x0, y0, bw, bh, (canvas.width - dw) / 2, (canvas.height - dh) / 2, dw, dh);
+    }
     previewRenderer.setPixelRatio(dpr);
     previewSize = "";
   }
@@ -2153,6 +2241,9 @@ function drawPortrait(canvas: HTMLCanvasElement): void {
   previewZoom = zoom;
   placePreviewCam();
 }
+
+/** the turn the card's portrait gave each foot, degrees (flattenFeet; the probe that photographs the card reads it) */
+let portraitFeet: Record<string, number> = {};
 
 /** a tip's {name} put in from the game's own numbers (hud.json loading._brCard) */
 function tipWords(say: string): string {
@@ -2193,9 +2284,18 @@ function playerCard(): PlayerCard {
     ],
     gunsHead: brStart() === "loadout" ? "LOADOUT" : "LOADOUT  ·  YOU LAND WITH NOTHING: LOOT THE CITY",
     guns: loadout.slots.filter((s) => !s.empty).map((s) => ({ name: s.weapon.name, kind: weaponKind(s.id) ?? "", level: s.fusion ?? 0 })),
+    // the hacks you drop with: your picks, at level 0, as a match sets them (resetHacks)
     hacks: (["mobility", "utility"] as const).map((slot) => {
       const h = hackDef(picks[slot]);
-      return { name: h?.name ?? picks[slot], level: 0, blurb: h?.blurb ?? "", color: slot === "mobility" ? PROFILE.identity.accent : PROFILE.identity.accent2 };
+      return {
+        slot: slot.toUpperCase(),
+        key: keyLabel(slot === "mobility" ? "ability" : "grenade"),
+        name: h?.name ?? picks[slot],
+        level: 0,
+        maxLevel: HACK.fuseLevels,
+        blurb: h?.blurb ?? "",
+        color: slot === "mobility" ? PROFILE.identity.accent : PROFILE.identity.accent2,
+      };
     }),
     tips: hudCfg.loading.tipsBr.map((t) => ({ tag: t.tag, say: tipWords(t.say) })),
     portrait: drawPortrait,
@@ -9401,6 +9501,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the figures figureLab put up, for tools that measure them (tools/soldier-hits.ts) */
   labFigures: () => labFigs.map((l) => l.f),
   /** a gun's times as the game plays them (fusion 0): its reload, empty and not, and its swap's two halves */
+  /** the turn the battle royale card's portrait gave each foot, degrees (flattenFeet) */
+  portraitFeet: () => ({ ...portraitFeet }),
   weaponTimes: (id: string) => {
     const w = resolveWeapon(id, 0);
     return { reload: w.reloadTime, reloadEmpty: w.reloadEmptyTime, deploy: w.deployTime, holster: w.holsterTime };

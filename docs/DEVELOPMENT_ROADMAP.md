@@ -9224,3 +9224,35 @@ soldier as others see it (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.1), with its groundwork
   elbow, eye relief, hand turn or the gun's size clears every pose. With the owner, with photographs.
 - **Checked:** the deepest points confirmed by rays (the USSO's false 74 mm read 0, ANAKIN's 40 read 67 and was inside
   the body mesh); the skfigure e2e (76); verify; rules.
+
+## Milestone 416 — The card's soldier faces you, gun in hand, boots flat, and your hacks as big tiles
+
+The owner, 2026-10-02, of the battle royale card (Milestone 412): "it should be like looking at the camera ... his
+feet look really weird. They're like pointed up at the ankles. It should be like the hip fire stance ... at the
+ready ... it should be the BOOG and the USSO to start ... and then add the hacks that they currently have", bigger,
+"so it's clear what they have".
+
+- **What was off, found in pictures of it:**
+  - the gun was not in his hands: the card drew a figure after one update, and the soldier's hold puts the gun in the
+    hands from where they were the frame before, so the USSO hung at his side while the hands held nothing;
+  - turned three-quarters away;
+  - his boots cut off at the card's foot: the loadouts panel's camera, set for its own wider box;
+  - both boots on their heels, toes up 16.1 degrees, measured against the model's rest pose: the standing clip's
+    ankles on this soldier (seen side on).
+- **Now** (main.ts drawPortrait):
+  - built afresh facing you and posed for 30 frames before its picture, the gun in his hands in the soldier's own
+    ready hold;
+  - holding the first of your loadout's guns the soldier's hold is finished for (hud.json brCard figureGuns, the
+    USSO and BOOG), else the USSO;
+  - each foot turned about its ankle until its heel-to-ball line falls as in the rest pose, the turn measured off the
+    skeleton's bind every time (flattenFeet; `__range.portraitFeet()` reads it: -16.1 degrees a foot);
+  - framed by its own picture: drawn with room all round, the drawn pixels' box found and fitted to the card with 5%
+    to spare. A box of the soldier's meshes measures nothing: they are stored Z up.
+  - Only the card's picture is changed: in a match a standing soldier still has the clip's ankles, which is the
+    figure's own work (the character side).
+- **The hacks as tiles:** each in its slot's colour, the HUD's hack card made big: the slot, its key, the name in
+  large type, what it does, and its level pips (0 of 4 as you drop). On a phone they stack.
+- **The level badge** a plain box: its slanted cut had cut its own border.
+- **Checked:** the brcard check (the figure holds only roster guns with the soldier's own hold, and faces you);
+  photographed front and side on, then the card at 1920x1080, 1366x768 and 412x915; verify; rules; the public build's
+  check (index.html changed).

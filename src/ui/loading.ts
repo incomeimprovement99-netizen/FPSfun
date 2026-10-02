@@ -47,7 +47,8 @@ export interface PlayerCard {
   /** the guns' heading: whether you land with them */
   gunsHead: string;
   guns: Array<{ name: string; kind: string; level: number }>;
-  hacks: Array<{ name: string; level: number; blurb: string; color: string }>;
+  /** your two hacks as tiles, the HUD's hack cards made big: the slot, its key, the name, what it does, its level */
+  hacks: Array<{ slot: string; key: string; name: string; level: number; maxLevel: number; blurb: string; color: string }>;
   /** the battle royale's tips, its numbers already in */
   tips: Array<{ tag: string; say: string }>;
   /** draws your figure into the card's canvas, a frame after the card is up (main.ts: the loadouts panel's renderer) */
@@ -268,10 +269,14 @@ export class LoadingScreen {
     fill(
       "pcHacks",
       card.hacks.map((h) => {
-        const e = el("div", "pcRow");
-        const chip = el("span", "chip");
-        chip.style.background = h.color;
-        e.append(chip, el("b", "", h.name), el("i", "", h.blurb), el("em", "", `LV ${h.level}`));
+        const e = el("div", "hk");
+        e.style.setProperty("--hc", h.color);
+        const top = el("div", "hkTop");
+        top.append(el("span", "hkSlot", h.slot), el("span", "hkKey", h.key));
+        const pips = el("div", "hkPips");
+        for (let i = 0; i < h.maxLevel; i++) pips.append(el("i", i < h.level ? "on" : ""));
+        pips.append(el("span", "", `LV ${h.level}`));
+        e.append(top, el("div", "hkName", h.name), el("div", "hkBlurb", h.blurb), pips);
         return e;
       })
     );

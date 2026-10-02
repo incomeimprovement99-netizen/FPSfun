@@ -1028,8 +1028,9 @@ damage).
   while you are put on the ship and its first frames settle (the ship waits at
   its start). A battle royale's screen is your player card, as Apex's squad
   screen shows a banner: your name, level and banner title in its colour, your
-  figure in your loadout's look with its gun, your wins, kills and most-landed
-  move, your guns and hacks as you drop and the match's setup, with the battle
+  soldier facing you in its ready hold with the USSO or BOOG (the guns its hold
+  is finished for), your wins, kills and most-landed move, your guns, your two
+  hacks as big tiles in their slots' colours and the match's setup, with the battle
   royale's own tips turning over beside it (the decay, the capture zone, fusing,
   the pads and lifts, every move; hud.json `loading.tipsBr`). Then the mode's card cuts in over it, breaks into the ship, and
   only then does the ship set off (main.ts `show`, intro.json `show`). The rain is a column every

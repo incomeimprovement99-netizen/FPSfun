@@ -57,12 +57,12 @@
       .pcard { --pc: #20e0ff; position: relative; grid-template-columns: minmax(0, 0.8fr) minmax(0, 1fr); min-height: 0; background: linear-gradient(160deg, rgba(20,28,48,.94), rgba(8,10,18,.96)); border: 1px solid rgba(255,255,255,.08); border-top: 6px solid var(--pc); clip-path: polygon(0 0, calc(100% - 34px) 0, 100% 34px, 100% 100%, 0 100%); overflow: hidden; font-family: "Rajdhani", "Segoe UI", sans-serif; color: #e8eef4; }
       .pcard .pcFig { position: relative; min-height: 0; background: radial-gradient(ellipse at 50% 38%, color-mix(in srgb, var(--pc) 22%, #0a0e13) 0%, #0a0e13 68%); }
       .pcard .pcFig canvas { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: contain; }
-      .pcard .pcFig::after { content: ""; position: absolute; inset: auto 0 0 0; height: 30%; background: linear-gradient(transparent, rgba(8,10,18,.9)); }
+      .pcard .pcFig::after { content: ""; position: absolute; inset: auto 0 0 0; height: 8%; background: linear-gradient(transparent, rgba(8,10,18,.6)); }
       .pcard .pcBody { display: flex; flex-direction: column; gap: 2.4vh; padding: 3vh 2.4vw 3vh 1.6vw; min-width: 0; overflow: hidden; }
       .pcard .pcTitle { color: var(--pc); font-weight: 700; font-size: clamp(13px, 1.25vw, 20px); letter-spacing: .22em; }
       .pcard .pcName { font-weight: 700; font-size: clamp(30px, 4.2vw, 70px); line-height: .92; letter-spacing: .02em; overflow-wrap: anywhere; }
       .pcard .pcNameRow { display: flex; align-items: center; gap: 14px; min-width: 0; }
-      .pcard .pcLevel { flex: none; border: 2px solid var(--pc); color: var(--pc); font-weight: 700; font-size: clamp(13px, 1.1vw, 18px); letter-spacing: .08em; padding: 2px 8px; clip-path: polygon(8px 0, 100% 0, calc(100% - 8px) 100%, 0 100%); }
+      .pcard .pcLevel { flex: none; border: 2px solid var(--pc); color: var(--pc); font-weight: 700; font-size: clamp(13px, 1.1vw, 18px); letter-spacing: .08em; padding: 2px 8px; }
       .pcard .pcMatch { font-weight: 700; font-size: clamp(14px, 1.2vw, 20px); letter-spacing: .1em; }
       .pcard .pcLook { color: #9aa4ad; font-weight: 600; font-size: clamp(12px, 1vw, 16px); letter-spacing: .16em; }
       .pcard .pcStats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
@@ -75,6 +75,18 @@
       .pcard .pcRow i { font-style: normal; color: #9aa4ad; font-weight: 600; font-size: clamp(11px, .85vw, 14px); letter-spacing: .1em; flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
       .pcard .pcRow em { font-style: normal; font-weight: 700; font-size: clamp(11px, .85vw, 14px); letter-spacing: .1em; color: var(--pc); }
       .pcard .pcRow .chip { width: 10px; height: 10px; flex: none; align-self: center; transform: rotate(45deg); }
+      /* the hacks as tiles, the HUD's hack cards made big, in their slot's colour */
+      .pcard .pcHacks { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+      .pcard .hk { --hc: #20e0ff; position: relative; background: linear-gradient(160deg, color-mix(in srgb, var(--hc) 16%, transparent), rgba(255,255,255,.03)); border: 2px solid var(--hc); padding: 10px 14px 12px; min-width: 0; }
+      .pcard .hkTop { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+      .pcard .hkSlot { color: var(--hc); font-weight: 700; font-size: clamp(10px, .8vw, 13px); letter-spacing: .22em; }
+      .pcard .hkKey { background: #f2f2f2; color: #101214; font-weight: 700; font-size: clamp(12px, .95vw, 16px); min-width: 1.6em; padding: 1px 6px; text-align: center; }
+      .pcard .hkName { color: #fff; font-weight: 700; font-size: clamp(26px, 2.6vw, 46px); line-height: 1.05; letter-spacing: .04em; margin-top: 4px; }
+      .pcard .hkBlurb { color: #b9c2cc; font-family: "Segoe UI", system-ui, sans-serif; font-size: clamp(12px, .85vw, 14px); line-height: 1.35; margin-top: 2px; min-height: 2.7em; }
+      .pcard .hkPips { display: flex; align-items: center; gap: 4px; margin-top: 8px; }
+      .pcard .hkPips i { flex: 1; height: 5px; background: rgba(255,255,255,.14); }
+      .pcard .hkPips i.on { background: var(--hc); }
+      .pcard .hkPips span { color: var(--hc); font-weight: 700; font-size: clamp(11px, .85vw, 14px); letter-spacing: .1em; margin-left: 6px; }
       .pcard .pcNote { color: #ffd23c; font-weight: 700; font-size: clamp(11px, .85vw, 14px); letter-spacing: .1em; }
       .ltips { flex-direction: column; gap: 12px; min-height: 0; overflow: hidden; font-family: "Rajdhani", "Segoe UI", sans-serif; }
       .ltips .lt { background: rgba(12,16,28,.86); border-left: 4px solid #ff2e9a; padding: 12px 16px; animation: ltIn .45s ease both; }
@@ -89,6 +101,7 @@
         #loading.br .bar, #loading.br .status { grid-row: auto; }
         .pcard { grid-template-columns: minmax(0, 0.7fr) minmax(0, 1fr); }
         .pcard .pcFig { min-height: 220px; }
+        .pcard .pcHacks { grid-template-columns: minmax(0, 1fr); }
       }
       #overlay.hidden { display: none; }
       .panel { width: 520px; max-width: 92vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 6px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
@@ -388,7 +401,7 @@
           <div><div class="pcTitle" id="pcTitle"></div><div class="pcNameRow"><div class="pcName" id="pcName"></div><div class="pcLevel" id="pcLevel"></div></div><div class="pcLook" id="pcLook"></div></div>
           <div class="pcStats" id="pcStats"></div>
           <div><div class="pcHead" id="pcGunsHead">LOADOUT</div><div id="pcGuns"></div></div>
-          <div><div class="pcHead">HACKS</div><div id="pcHacks"></div></div>
+          <div><div class="pcHead">HACKS</div><div class="pcHacks" id="pcHacks"></div></div>
           <div><div class="pcHead">THIS MATCH</div><div class="pcMatch" id="pcMatch"></div></div>
         </div>
       </div>

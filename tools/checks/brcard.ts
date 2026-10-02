@@ -8,6 +8,8 @@
 //
 // Run on its own: npx tsx tools/checks/brcard.ts.
 import HUD from "../../src/config/hud.json";
+import HOLD from "../../src/config/soldierhold.json";
+import SK from "../../src/config/games/speedkills.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -30,6 +32,11 @@ console.log("The battle royale's card");
   check("each tip has its own heading", new Set(tags).size === tags.length);
   check("more tips than the card shows at once, so they turn over", tips.length > HUD.loading.brCard.tipsShown, `${tips.length} for ${HUD.loading.brCard.tipsShown}`);
   check("each tip short enough to read while the bar fills (at most 40 words)", tips.every((t) => t.say.split(/\s+/).length <= 40));
+  // the figure holds only a gun the soldier's third person is finished for (the owner: "the BOOG and the USSO to start")
+  const figGuns = HUD.loading.brCard.figureGuns;
+  const held = HOLD.guns as Record<string, unknown>;
+  check("the card's figure holds only guns SpeedKills hands out that have the soldier's own hold", figGuns.length > 0 && figGuns.every((g) => (SK.roster as string[]).includes(g) && !!held[g]), figGuns.join(", "));
+  check("and faces you", HUD.loading.brCard.portraitTurn === 0);
 }
 
 console.log(fails === 0 ? "\nBR CARD PASS" : `\nBR CARD FAIL (${fails})`);
