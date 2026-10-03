@@ -279,7 +279,7 @@ it.
   - After that you are a ghost: fast, unseen, no gun.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
-- **The soldier as others see it:** holding the USSO, BOOG, ANAKIN or PANDA the way a rifleman
+- **The soldier as others see it:** holding the USSO, BOOG, ANAKIN, PANDA or BIGANTLER the way a rifleman
   does, the stock in the right shoulder, the right hand closed round the grip with
   the trigger finger through the guard, the trigger at the crease of its last
   joint, and the left under the front (BOOG's on the
@@ -296,12 +296,13 @@ it.
   in the chamber, the shorter tactical reload, as your own view plays it. A swap
   phases the gun out and the next one in, as your own view does; when your own
   view swaps in place, theirs does too, the gun staying up while the hands open
-  round it as it goes. The Loadouts tab shows the same soldier. ANAKIN and
-  PANDA, the first of the other eight to be fitted, reload with the magazine
-  alone until their own first-person reloads are made, and their long stocks
-  run along the inside of the right forearm in some poses (a known overlap,
-  being worked on). The other six are held by the shared numbers until their
-  turn.
+  round it as it goes. The Loadouts tab shows the same soldier. ANAKIN, PANDA
+  and BIGANTLER, the first of the other eight to be fitted, reload without the
+  first person's own moves until those are made (ANAKIN and PANDA the magazine
+  alone, BIGANTLER, a pump shotgun with no magazine, keeping its hands on the
+  gun), and ANAKIN's and PANDA's long stocks run along the inside of the right
+  forearm in some poses (a known overlap, being worked on). The other five are
+  held by the shared numbers until their turn.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and

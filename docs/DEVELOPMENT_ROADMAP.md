@@ -9897,3 +9897,24 @@ slow way:
   compressed) loaded after the first screen, with the city; and the courses (0.31 s) and the range's figures (0.24 s)
   built behind the first screen.
 - **Checked:** verify; rules; the fill spots old against new; the skarmory, speedkills and page e2e.
+
+## Milestone 441 — BIGANTLER on the soldier: the pump shotgun held for other players' view
+
+The third of the eight guns on the soldier others see (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.3), its hold; its pump reload
+and the pump after every shot wait on the guns agent's shape for them (groundwork G4, G5).
+
+- **Fitted** (soldierhold.json guns.mastiff): the left hand closed round the pump's middle, 24 cm ahead of the gun's
+  middle; the right on the grip behind the trigger, the index's crease 0.2 mm off the trigger; the shoulder's reach 45
+  degrees (aimed at a sprint the hold slid 14% back at the shared 34); the body and the sprint, jump, swap and rise
+  carries; the punch bowing 8 cm out and 22 cm down, clear of the pump it landed 20 mm into at the shared path.
+- **PANDA's lessons from the start:** both hands placed from the USSO's carried over by the trigger, the carries
+  keeping the hold's own left hand, and the solver counting the slide and measuring exactly. Both hands fitted at the
+  first try, and the carries are the cleanest yet: sprinting, 1 bad frame in 31 (the gun 8 mm in); a sprint jump, none
+  in 42.
+- **A check's own fault:** the magazine's middle measure (Milestone 414) read the magazine before asking if there was
+  one, and the skfigure section crashed on BIGANTLER, which has none. A gun with no magazine now skips the magazine's
+  checks; the hands coming back after its reload are still checked.
+- **Left open, measured exactly:** the butt in the shoulder armour (26 mm at rest and aimed, 52 running aimed); looking
+  40 up, 81 into the chest; the reload, none of its own yet.
+- **Checked:** the skfigure e2e (114, BIGANTLER's 14 among them); figure-sweep over every motion; frame sheets at rest,
+  aimed, sprinting, crouched and punching; verify; rules.

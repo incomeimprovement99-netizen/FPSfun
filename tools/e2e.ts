@@ -8106,8 +8106,10 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const FR = fparmsCfg.reload;
     const rack = (fparmsCfg.packGuns as Record<string, { rack?: { grab?: { reach: number[]; pull: number[] } } }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.rack;
     type Mag = { y: number; shown: boolean; phase: number; keys: string; drops: number; radial: number; off: number } | null;
-    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; const S = f.magSweep; const T = window.__range.THREE; const mid = new T.Box3(); const v = new T.Vector3(); m.updateMatrixWorld(true); const inv = new T.Matrix4().copy(m.matrixWorld).invert(); m.traverse((o) => { if (o.isMesh) { let on = true; for (let q = o; q && q !== m; q = q.parent) on &&= q.visible; if (on) { const pos = o.geometry.getAttribute("position"); const to = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld); for (let i = 0; i < pos.count; i++) mid.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(to)); } } }); return m ? { y: m.position.y, shown: m.visible, phase: S.phase.value, keys: f.rifleOut?.keys ?? "", drops, radial: S.radial.value, off: Math.round(S.center.value.distanceTo(m.localToWorld(mid.getCenter(new T.Vector3()))) * 1000) } : null; })()`;
+    const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; const S = f.magSweep; if (!m) return null; const T = window.__range.THREE; const mid = new T.Box3(); const v = new T.Vector3(); m.updateMatrixWorld(true); const inv = new T.Matrix4().copy(m.matrixWorld).invert(); m.traverse((o) => { if (o.isMesh) { let on = true; for (let q = o; q && q !== m; q = q.parent) on &&= q.visible; if (on) { const pos = o.geometry.getAttribute("position"); const to = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld); for (let i = 0; i < pos.count; i++) mid.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(to)); } } }); return m ? { y: m.position.y, shown: m.visible, phase: S.phase.value, keys: f.rifleOut?.keys ?? "", drops, radial: S.radial.value, off: Math.round(S.center.value.distanceTo(m.localToWorld(mid.getCenter(new T.Vector3()))) * 1000) } : null; })()`;
     const home = await ev<Mag>(page, mag);
+    // (a gun with no magazine, BIGANTLER's pump, has none of the magazine's checks: its own reload is to come, G4)
+    if (home) {
     await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true })`);
     let at = 0;
     const to = async (u: number): Promise<Mag> => {
@@ -8184,6 +8186,9 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       const gaps = ["thumb", "index", "middle", "ring", "pinky"].map((f) => a?.fingerGap?.[`${f}_l`] ?? 99);
       check(`the soldier's ${name} reload: at the charging handle the left hand's own fingers lie on the gun, each within 6 mm`, uKey > 0 && gaps.every((g) => g <= 6), JSON.stringify({ uKey, gaps }));
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
+    }
+    } else {
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true }); r.figureLabStep(${R}); r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
     }
     const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
     check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true), JSON.stringify(after));

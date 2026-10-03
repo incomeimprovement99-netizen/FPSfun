@@ -224,6 +224,22 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 - **Checks:** each shell reaches the gate (the Bullet at the Cover at each loop's end), the count is the shared key's,
   the Pump travels after a reload from empty and after every shot of a remote, the left hand on the Pump through its
   travel (6 mm), nothing from a pouch, the hands back after a reload stopped at its middle.
+- **Done on the soldier, 2026-10-03, the hold** (soldierhold.json guns.mastiff; the pump reload and the per-shot pump
+  wait on the guns agent's shape, G4 and G5): every skfigure check passes for it (14 of 114).
+  - The left hand under the pump's middle, 24 cm ahead of the gun's middle, closed round it; the right on the grip
+    behind the trigger, placed from the USSO's carried over by the trigger, the index's crease 0.2 mm off it. Both fitted
+    at the first try (skin 2 mm in, palms and fingers on).
+  - The shoulder reaches 45 degrees (aimed at a sprint the hold slid 14% back at the shared 34).
+  - The body and the carries solved with the exact measure and the slide counted, the carries keeping the hold's own
+    left hand (PANDA's lessons, used from the start): sprinting, 1 bad frame in 31 (the gun 8 mm in); a sprint jump,
+    none in 42.
+  - The punch bows 8 cm out and 22 cm down (its own melee.punch.clear): at the shared path the fingers landed 20 mm
+    into the pump coming back.
+  - The skfigure e2e skips the magazine's checks for a gun with none (it had crashed reading BIGANTLER's absent
+    magazine); whether the hands come back after its reload is still checked.
+- **Left open, measured exactly:** the butt in the shoulder armour, 26 mm at rest and aimed, 52 running aimed; looking
+  40 up, 81 into the chest; the reload, which has none of its own yet (the left fingers 30 mm in the gun at its start,
+  the wrist 65 degrees).
 
 ### 5.4 REZ (shotgun), SciFiShotGun01_2, 92 cm
 
