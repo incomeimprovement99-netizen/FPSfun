@@ -9426,3 +9426,16 @@ analysis and figure out where we can save the most time".
 - **Checked:** the graph's fingerprint before and after each change; the start profiled; a battle royale started as a
   player starts one (the card screen, the megabytes, the ship held until the city was ready); verify; rules; the skship,
   speedkills and skhunt e2e.
+
+## Milestone 423 — The fit test waits for the clothes, not for a fixed time
+
+apex-lobby's daily regression sweep (2026-10-02) found `npm run fit` failing on and off: in one picture five of eight
+outfits had no trousers (legs magenta from hip to foot), and which outfits changed from run to run.
+
+- **The cause:** an outfit's parts load on demand, when a figure first wears it, and the fit pictures waited a fixed 2.5
+  s of game time before counting. A busy machine (the sweep's other tests) outlasted it.
+- **The fix:** `__range.outfitsLoaded(outfits)` resolves once those outfits' parts and atlases are in (mannequin.ts
+  loadOutfit and loadTint), and the four fit pictures wait on it before dressing the figures.
+- **Proven:** `snap.ts PARTS_DELAY=4000` holds every outfit part and hair back 4 s. With it, the old fixed wait fails
+  (1.572% of the frame through the clothes, the sweep's own number, and 0.735%); the new wait passes (0.009 to 0.037%),
+  as it does without the delay.

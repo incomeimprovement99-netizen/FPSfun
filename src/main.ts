@@ -117,7 +117,7 @@ import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
-import { figuresSettled, hasClip, loadMannequin, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
+import { figuresSettled, hasClip, loadMannequin, loadOutfit, loadTint, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
@@ -9483,6 +9483,12 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     });
     return { ready: paidGunsReady(), inHand, skin };
   },
+  /**
+   * Resolves once these outfits' parts and their atlases are in (they load on demand, when a figure first wears one): a
+   * tool that photographs clothes waits on it rather than on a fixed time, which a busy machine outlasted (the fit test
+   * found five outfits without trousers in a regression sweep)
+   */
+  outfitsLoaded: (outfits: string[]) => Promise.all(outfits.flatMap((o) => [loadOutfit(o), loadTint(o)])).then(() => true),
   figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string; look?: string }> = [], dist = 4, turnDeg = 0) => {
     for (const lf of labFigs) lf.f.dispose();
     labFigs.length = 0;

@@ -838,7 +838,7 @@ export const SCENARIOS: Scenario[] = [
     magentaMax: MAGENTA_MAX,
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        const outfits = ["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(2.5), 100],
       ["window.__range.fitDebug(true)", 400],
     ],
@@ -849,7 +849,7 @@ export const SCENARIOS: Scenario[] = [
     magentaMax: MAGENTA_MAX,
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        const outfits = ["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(2.5), 100],
       ["window.__range.fitDebug(true)", 400],
     ],
@@ -860,7 +860,7 @@ export const SCENARIOS: Scenario[] = [
     magentaMax: MAGENTA_MAX,
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        const outfits = ["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(2.5), 100],
       ["window.__range.fitDebug(true)", 400],
     ],
@@ -871,7 +871,7 @@ export const SCENARIOS: Scenario[] = [
     magentaMax: MAGENTA_MAX,
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        const outfits = ["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(2.5), 100],
       ["window.__range.fitDebug(true)", 400],
     ],
@@ -1422,6 +1422,15 @@ async function main(): Promise<void> {
     for (const sc of list) {
       const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
+      // PARTS_DELAY=4000 holds every outfit part and hair back that long: a slow or busy machine, for proving a picture
+      // waits for its clothes rather than for a fixed time
+      if (process.env.PARTS_DELAY) {
+        await page.setRequestInterception(true);
+        page.on("request", (q) => {
+          if (/models\/(outfits\/parts|body\/hair)\//.test(q.url())) setTimeout(() => void q.continue(), Number(process.env.PARTS_DELAY));
+          else void q.continue();
+        });
+      }
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(String((e as Error).message ?? e)));
       page.on("console", (m) => {
