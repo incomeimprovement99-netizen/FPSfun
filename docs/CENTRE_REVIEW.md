@@ -110,4 +110,6 @@ lobby and a middle floor, with balconies up their faces; a chain of roofs with 4
 corner up to a deck; a hero prop per corner block seen from the ring (lanterns over NOODLE ROW, containers and a crane
 at MARKET, the Well's shaft lit), and the street signs and railings not repeated; THE VAULT marked from outside and its
 loot glowing; cover on the bridges; night lit by its signs and street lights; zip lines drawn as cables, walk-in doors
-framed in light, and fewer tall pad beams. The plan for each is in the centre's plan page, version 11.
+framed in light, and fewer tall pad beams. The plan for each is in the centre's plan page, version 11. *Built so far:
+Milestone 443, the streets' median and hover vans, 2 m floor numbers, the south deck's neon tower and the interiors'
+lights by preset.*

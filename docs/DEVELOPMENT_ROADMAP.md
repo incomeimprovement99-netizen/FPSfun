@@ -9918,3 +9918,50 @@ and the pump after every shot wait on the guns agent's shape for them (groundwor
   40 up, 81 into the chest; the reload, none of its own yet.
 - **Checked:** the skfigure e2e (114, BIGANTLER's 14 among them); figure-sweep over every motion; frame sheets at rest,
   aimed, sprinting, crouched and punching; verify; rules.
+
+## Milestone 443 — The streets as canyons: a concrete median and hover vans, floor numbers 2 m high, a neon tower on the south deck, and the interiors' lights by preset
+
+The centre's second fresh review (docs/CENTRE_REVIEW.md, round 2): "street cover is a lamp post and a kiosk", and it
+asked for cover every 8 to 12 m; it saw no floor numbers in the tower; and a performance pass by the lobby found the
+interiors' eight fill lights in every lit shader on every preset. The plan's street layout (the centre's plan page,
+version 11) is built here.
+
+- **A median down every street** (rules.dress.median): the pack's 5 m concrete block, 1.2 m high (chest cover, and a jump
+  or a grab to cross), every 10 m down each street's middle, turned along it, clear of the junctions, the pads, the Sky
+  Ring's stairs and the lifts as the parked cars are: 42 blocks.
+- **None that cuts the bots' street graph.** With every block down, the bots' graph lost two nodes of the south-west
+  street: a block in the middle and a car in the kerb lane boxed them in. The layout now models the graph as
+  src/game/neonmap.ts builds it (a node every 10 m on the ground the last bake's collision leaves open, joined to its
+  eight neighbours where a body walks, a body round every lamp post, car and block so far) and passes over a block that
+  would leave the ground in more pieces: 10 of them. A node a block stands on is not cut off: the game finds the
+  block's top there and makes it a raised node. The first model, on the road and pavement alone and with each lamp's
+  whole footprint in the way, passed over 29 of 52.
+- **Hover vans among the parked cars** (rules.dress.cars.vans): every third parked car is the pack's hover van, 2.4 m
+  high, whole cover where a car is half: 13 of them. The plan's bus stops are not built: the pack's is 5 m deep and
+  the pavement 2.5 m.
+- **Each floor's number 2 m high** beside the core's north and south doors (rules.tower.floors.digits.big): the pack's
+  1 m digit at twice its size, 0.5 to 2.5 m over the floor under the 2.75 m ceiling. Those doors stand by the core's west
+  end, 5.45 m from its far corner; the west face has 1.7 m, so its digit stays 1 m. A placement's scale now goes through
+  the layout's placeTurned as the corner blocks' signs carry it.
+- **A neon tower on the south deck** (rules.perches `landmark-s`): the pack's 14.3 m vertical neon sign, turned to face
+  the tower (a perch's new `face`, to the nearest right angle so its footprint stays square), in place of the cypress,
+  whose leaves (the pack's own tree shader) drew black against the sky.
+- **The interiors' lights by preset** (game.fill.byPreset): the pool is two lights on Competitive, four on Balanced and
+  eight on High; a preset change reloads the page, so the pool is sized once. Measured off the photos (mean luminance):
+
+  | | Competitive (2) | Balanced (4) | High (8) |
+  |---|---|---|---|
+  | tower, 26 m open | 0.20 | 0.27 | 0.32 |
+  | tower, 23 m maze | 0.28 | 0.34 | 0.36 |
+  | tower, 17 m rooms | 0.32 | 0.45 | 0.46 |
+  | the base's hall | 0.24 | 0.25 | 0.25 |
+  | the court | 0.44 | 0.48 | 0.51 |
+  | the station | 0.47 | 0.54 | 0.55 |
+
+  Round 1 had these between 0.03 and 0.15.
+- The map: its files lo 83 MB, hi 144 MB, max 355 MB. **Its files are version 37.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): forty median blocks and more, each solid at chest height on its
+  footprint; six hover vans and more; two 2 m digits on every new floor; the fill's pool sized by preset (each seen
+  failing with its rule taken out); the street one network with them all in it. The layout run again on the new bake
+  leaves every placement where it was. verify and rules; e2e `br`. Photographed in the streets, on the floors and the
+  south deck.

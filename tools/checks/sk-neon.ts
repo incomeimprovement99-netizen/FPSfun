@@ -20,7 +20,7 @@ const fakeEl = (): unknown => ({ width: 64, height: 64, style: {}, getContext: (
 if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS: () => fakeEl() };
 const warn = console.warn;
 console.warn = () => undefined;
-const { buildNeonMap, neonFillSpots } = await import("../../src/game/neonmap");
+const { buildNeonMap, neonFillSpots, neonFillPool } = await import("../../src/game/neonmap");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z, BR_HALF } = await import("../../src/game/br");
 const { SPIRE_TOP } = await import("../../src/game/city");
@@ -60,6 +60,10 @@ console.log("SpeedKills: the Neon City map (neonmap.ts)");
   const bare = spots.filter((q) => floorAt(q.x, q.z) > q.y - 1 || solidsIn(q.x, q.x, q.z, q.z).some((b) => q.x >= b.minX && q.x <= b.maxX && q.z >= b.minZ && q.z <= b.maxZ && b.base < q.y && b.top > q.y));
   check("the interiors' fill: lamp spots under every ceiling of the base and the tower, and over the court and the station", base.every((n) => n >= 6) && tower.every((n) => n >= 3) && court >= 8 && station >= 6, `base ${base.join("/")}, tower ${tower.join("/")}, court ${court}, station ${station}`);
   check("the interiors' fill: no spot inside something solid", bare.length === 0, `${bare.length} of ${spots.length}`);
+  // (its pool sized by the graphics preset, game.fill.byPreset: each light is in every lit shader per pixel; the checks
+  // run as Competitive, the default with no storage)
+  const FB = (cfg.game.fill as unknown as { count: number; byPreset?: Record<string, number> });
+  check("the interiors' fill: its pool sized by preset, fewer lights on Competitive and Balanced than High's", !!FB.byPreset && FB.byPreset.competitive < FB.byPreset.balanced && FB.byPreset.balanced < FB.count && neonFillPool() === FB.byPreset.competitive, `${neonFillPool()} lights here (Competitive); ${JSON.stringify(FB.byPreset ?? {})}, High ${FB.count}`);
 }
 
 // the nine places, each with its drops on the street
@@ -295,6 +299,18 @@ check("the perches: cover on the crown, the lookout and the four High City decks
   for (const q of (cfg as unknown as { zips: Array<{ a: number[] }> }).zips) spots.push([q.a[0], q.a[2], PC.zip]);
   const near = PCH.filter((p) => p.name.startsWith("deck") || p.name.startsWith("landmark")).flatMap((p) => p.at.filter(([x, , z]) => spots.some((s) => Math.hypot(s[0] - x, s[1] - z) < s[2])));
   check("the decks' cover: none within reach of a pad's landing, a lift's landing, a bridge's end or a zip's top", near.length === 0, `${near.length} too near`);
+}
+// the streets' median (rules.dress.median; the second review: "street cover is a lamp post and a kiosk"): forty blocks
+// and more down the streets' middles, each solid at chest height on its footprint (a box 1.05 to 1.35 m high from the
+// ground within a metre of its middle: the collision is built in half-metre columns, which miss a 1.2 m block's very
+// middle as often as not); the street one network checked above with them in it. And hover vans among the parked cars
+{
+  const MED = (cfg as unknown as { medians?: Array<{ at: number[] }> }).medians ?? [];
+  const soft = MED.filter(({ at: [x, z] }) => !solidsIn(x + BR_X - 1, x + BR_X + 1, z + BR_Z - 1, z + BR_Z + 1).some((b) => b.minX < x + BR_X + 1 && b.maxX > x + BR_X - 1 && b.minZ < z + BR_Z + 1 && b.maxZ > z + BR_Z - 1 && b.base < 0.3 && b.top > 1.05 && b.top < 1.35));
+  check("the streets' median: forty concrete blocks and more down the streets' middles, each solid at chest height", MED.length >= 40 && soft.length === 0, `${MED.length} blocks${soft.length ? `, ${soft.length} not solid: ${soft.slice(0, 3).map((q) => q.at.join(", ")).join("; ")}` : ""}`);
+  const VAN = (cfg.rules.dress as unknown as { cars: { vans?: { pieces: string[] } } }).cars.vans;
+  const vans = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => VAN?.pieces.some((v) => String(q[0]).endsWith(`/${v}`)) && Number(q[2]) < 2);
+  check("hover vans parked among the cars: six and more, whole cover", vans.length >= 6, `${vans.length}`);
 }
 // the decks' cover cuts no deck in two (rules.perches_clear.walk): on each High City deck's roof, its level cells a quarter
 // metre each, less a body's width round anything standing on them or off them, flooded from the deck's site; every
@@ -1413,11 +1429,16 @@ const drops = [...loot.drops.values()];
 }
 // each new floor's number beside its core doors (rules.tower.floors.digits): the right digit, two signs and more a floor
 {
-  const DG = (cfg.rules.tower.floors as unknown as { digits?: { piece: string; first: number; up: number } }).digits;
+  const DG = (cfg.rules.tower.floors as unknown as { digits?: { piece: string; first: number; up: number; big?: { scale: number; up: number } } }).digits;
   const shaft = (cfg.tower as unknown as { shaft: number[] }).shaft;
-  const signs = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place.filter((q) => String(q[0]).includes(DG?.piece ?? "LineNumber")) as Array<[string, number, number, number]>;
-  const perFloor = shaft.map((h, k) => signs.filter((q) => Math.abs(q[2] - (h + (DG?.up ?? 0))) < 0.05 && q[0].endsWith(`${(DG?.first ?? 1) + k}.prefab`)).length);
+  const signs = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place.filter((q) => String(q[0]).includes(DG?.piece ?? "LineNumber")) as Array<[string, number, number, number, number, string, unknown, unknown, number?]>;
+  const ups = [DG?.up ?? 0, DG?.big?.up ?? DG?.up ?? 0];
+  const perFloor = shaft.map((h, k) => signs.filter((q) => ups.some((u) => Math.abs(q[2] - (h + u)) < 0.05) && q[0].endsWith(`${(DG?.first ?? 1) + k}.prefab`)).length);
   check("the tower's floors numbered: the right lit digit beside each core door, 1 to 8 up the new floors", !!DG && perFloor.every((n) => n >= 2), perFloor.join("/"));
+  // (and 2 m high beside the north and south doors, rules.tower.floors.digits.big: the second review did not see the 1 m
+  // ones; two a floor)
+  const bigPer = shaft.map((h) => signs.filter((q) => (q[8] ?? 1) >= 2 && Math.abs(q[2] - (h + (DG?.big?.up ?? -99))) < 0.05).length);
+  check("the tower's floors numbered 2 m high beside the north and south doors", !!DG?.big && DG.big.scale >= 2 && bigPer.every((n) => n >= 2), bigPer.join("/"));
 }
 const over12 = drops.filter((d) => d.pos.y > 12).length;
 const over24 = drops.filter((d) => d.pos.y > 24).length;

@@ -21,6 +21,7 @@ import { MOVE } from "./movement";
 import { padOff, padOnto } from "./padsolve";
 import { emissive } from "./geo";
 import { ZIPLINES } from "./traversal";
+import { loadQuality } from "./quality";
 import neonCfg from "../config/neonmap.json";
 import SOLIDS from "../config/neon/neonmap.solids.json";
 
@@ -55,9 +56,16 @@ function lazy<T>(make: () => T): () => T {
 // up. The pool is fixed: a light added to or taken from the scene recompiles every lit shader. A tower floor's own lamps
 // light at `tower` (its storeys are low and its lamps close: at the base's strength they drew white)
 const FILL: { spots: THREE.Vector3[]; power: number[]; lights: THREE.PointLight[] } = { spots: [], power: [], lights: [] };
+// (the pool's size by the graphics preset, `byPreset`, or `count`: each light is in every lit shader, per pixel, on every
+// preset, a cost on laptops (the lobby's frame-time pass, 2026-10-03); a preset change reloads the page, so it is sized once)
+const fillCount = (F: { count: number; byPreset?: Record<string, number> }) => F.byPreset?.[loadQuality().preset] ?? F.count;
 /** the fill's spots, world coordinates (the checks count them by floor) */
 export function neonFillSpots(): THREE.Vector3[] {
   return FILL.spots;
+}
+/** how many lights the fill's pool holds on this preset (the checks: fewer on the cheaper presets) */
+export function neonFillPool(): number {
+  return FILL.lights.length;
 }
 export function updateNeonFill(eye: THREE.Vector3): void {
   if (!FILL.lights.length) return;
@@ -343,7 +351,7 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     FILL.power = FILL.spots.map((q) => (q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest ? F.tower : F.intensity));
     for (const l of FILL.lights) l.removeFromParent();
     FILL.lights.length = 0;
-    for (let k = 0; k < F.count; k++) {
+    for (let k = 0; k < fillCount(F); k++) {
       const l = new THREE.PointLight(F.colour, 0, F.distance, 2);
       l.castShadow = false;
       scene.add(l);

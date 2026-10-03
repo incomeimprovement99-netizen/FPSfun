@@ -78,12 +78,13 @@ type OBox = { c: Pt; u: Pt; v: Pt; hu: number; hv: number; top: number };
 /**
  * place a piece at any turn, the middle of its own footprint at (cx, cz), its base at y; the oriented box it covers
  */
-function placeTurned(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0, mat?: string): OBox {
+function placeTurned(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0, mat?: string, scale = 1): OBox {
   const { key, row } = piece(name);
-  const [mx, mz] = [(row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2];
+  const [mx, mz] = [((row.min![0] + row.max![0]) / 2) * scale, ((row.min![2] + row.max![2]) / 2) * scale];
   const [ox, oz] = rotY(yaw, mx, mz);
-  add(chunk, "c", (mat ? [key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), +yaw.toFixed(2), mode, mat] : [key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), +yaw.toFixed(2), mode]) as Place);
-  return { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: y + row.max![1] };
+  const head = [key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), +yaw.toFixed(2), mode];
+  add(chunk, "c", (scale !== 1 ? [...head, mat ?? null, null, scale] : mat ? [...head, mat] : head) as unknown as Place);
+  return { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: (row.size![0] / 2) * scale, hv: (row.size![2] / 2) * scale, top: y + row.max![1] * scale };
 }
 /** whether two oriented boxes, each grown by `gap`, overlap (separating axes) */
 function overlaps(a: OBox, b: OBox, gap: number): boolean {
@@ -284,7 +285,7 @@ const noGround: Array<[number, number, number, number]> = [];
       const wallBoxes = placed.slice();
       // the floor's number beside each of its core doors (rules.tower.floors.digits): the pack's lit digit, flat on the
       // core's outside face, `beside` the door's edge toward the core's far end and `up` over the floor
-      const DG = F.digits as { piece: string; first: number; up: number; beside: number; off: number } | undefined;
+      const DG = F.digits as { piece: string; first: number; up: number; beside: number; off: number; big?: { scale: number; up: number; beside: number; off: number } } | undefined;
       const shaft = T.shaft as number[];
       if (DG && shaft.includes(h)) {
         const digit = DG.first + shaft.indexOf(h);
@@ -293,8 +294,11 @@ const noGround: Array<[number, number, number, number]> = [];
         const sign = `${DG.piece}${digit}.prefab`;
         // (the w door's middle on z, the n and s doors' on x, as neon-tower.ts cuts them)
         if (doorsHere.includes("w")) placeTurned("c-tower", sign, cx0 + px - DG.off, dz + pz + dw / 2 + DG.beside, 0, "g", h + DG.up);
-        if (doorsHere.includes("n")) placeTurned("c-tower", sign, dx + px + dw / 2 + DG.beside, cz0 + pz - DG.off, 90, "g", h + DG.up);
-        if (doorsHere.includes("s")) placeTurned("c-tower", sign, dx + px + dw / 2 + DG.beside, cz1 + pz + DG.off, 90, "g", h + DG.up);
+        // (beside the north and south doors `big`: `scale` times the pack's digit, its middle `beside` the door's edge,
+        // `off` the wall, `up` over the floor)
+        const B = DG.big ?? { scale: 1, up: DG.up, beside: DG.beside, off: DG.off };
+        if (doorsHere.includes("n")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz0 + pz - B.off, 90, "g", h + B.up, undefined, B.scale);
+        if (doorsHere.includes("s")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz1 + pz + B.off, 90, "g", h + B.up, undefined, B.scale);
       }
       // inside the floor: the main body's inner faces, its round corners and the grooves down each face
       const [qx0, qx1, qz0, qz1] = F.inner;
@@ -1587,6 +1591,9 @@ const skyStairs: Pt[] = [];
 // metro's kiosks
 {
   const D = R.dress;
+  let carCount = 0;
+  // (the street's lamps and cars as they go down, for the median's model of the bots' street graph below)
+  const streetBoxes: OBox[] = [];
   const pads = ((cfg.pads ?? []) as Array<{ pad: number[] }>).map((q) => q.pad);
   const kiosks = ((cfg.court?.halls ?? []) as Array<{ route?: number[][]; x0: number; x1: number; z0: number; z1: number }>).filter((h) => h.route);
   const clear = (x: number, z: number, r: number, st: Street): boolean =>
@@ -1610,7 +1617,9 @@ const skyStairs: Pt[] = [];
         const n = normalAt(st, i);
         const [x, z] = [st.pts[i][0] + n[0] * side * (st.half + D.lamp.inset), st.pts[i][1] + n[1] * side * (st.half + D.lamp.inset)];
         if (!clear(x, z, 1, st) || onRoad(x, z) < D.lamp.inset - 0.1) continue;
-        placeTurned("c-dress", D.lamp.piece, x, z, yawToward(n[0], n[1]), "o");
+        // (only its post stands in a body's way: its arms are 5 m up)
+        const lamp = placeTurned("c-dress", D.lamp.piece, x, z, yawToward(n[0], n[1]), "o");
+        streetBoxes.push({ ...lamp, c: [x - n[0] * (lamp.hv - 0.2), z - n[1] * (lamp.hv - 0.2)], hu: 0.2, hv: 0.2 });
       }
       // the cars in the lane by the kerb, a seeded gap apart
       for (let u = 6 + rnd() * D.cars.gap[1]; u < st.pts.length * 0.5 - 6; u += D.cars.gap[0] + rnd() * (D.cars.gap[1] - D.cars.gap[0])) {
@@ -1620,10 +1629,111 @@ const skyStairs: Pt[] = [];
         const t = st.tan[i];
         const [x, z] = [st.pts[i][0] + n[0] * side * (st.half - D.cars.lane), st.pts[i][1] + n[1] * side * (st.half - D.cars.lane)];
         if (!clear(x, z, 3, st)) continue;
-        const name = D.cars.pieces[Math.floor(rnd() * D.cars.pieces.length)];
-        placeTurned("c-dress", name, x, z, yawToward(t[0], t[1]) + (rnd() < 0.5 ? 0 : 180), "o", -piece(name).row.min![1]);
+        const pick = D.cars.pieces[Math.floor(rnd() * D.cars.pieces.length)];
+        // (every `vans.every`-th car a hover van, 2.4 m high: whole cover where a parked car is half)
+        const name = D.cars.vans && ++carCount % D.cars.vans.every === 0 ? D.cars.vans.pieces[carCount % D.cars.vans.pieces.length] : pick;
+        streetBoxes.push(placeTurned("c-dress", name, x, z, yawToward(t[0], t[1]) + (rnd() < 0.5 ? 0 : 180), "o", -piece(name).row.min![1]));
       }
     }
+  // a broken median down every street (rules.dress.median; the second review: "street cover is a lamp post and a kiosk",
+  // cover every 8 to 12 m): the pack's 5 m concrete block, 1.2 m high (chest cover, and a jump or a grab to cross), every
+  // `every` metres down the road's middle, turned along it, clear of the junctions, the pads, the Sky Ring's stairs and
+  // the lifts as the cars are; the gaps between keep the street one network
+  const MD = D.median as { piece: string; every: number; offset: number } | undefined;
+  const medians: Array<{ at: number[]; yaw: number }> = [];
+  if (MD) {
+    const row = piece(MD.piece).row;
+    const len = Math.max(row.size![0], row.size![2]);
+    // (and never a block that cuts the bots' street graph, src/game/neonmap.ts: its nodes every `graph.step` metres from
+    // `cut.half - graph.margin` (city.json, game.graph), each joined to its eight neighbours where a body walks between
+    // them. Modelled here on the ground the last bake's collision leaves open (a box over a body's height and 2.5 m tall
+    // or more is a building or a wall; the street's own cars, vans and blocks are lower, and come from this run instead),
+    // a body's `perches_clear.walk` round every lamp, car and block so far; a block that leaves the ground in more
+    // separate pieces than it found it is passed over. A block in the middle with a car in the kerb lane cut two of the
+    // south-west street's nodes off from the rest. On the road and pavement alone, without the plaza and the blocks'
+    // ground round them, it passed over 29 of 52)
+    const GG = cfg.game.graph as { step: number; margin: number };
+    const CITY = JSON.parse(readFileSync(join(ROOT, "src", "config", "city.json"), "utf8")) as { cut: { half: number } };
+    const lim = CITY.cut.half - GG.margin;
+    const body = R.perches_clear.walk as number;
+    const sf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
+    const SB: number[][] = existsSync(sf) ? JSON.parse(readFileSync(sf, "utf8")).solids : [];
+    const SG = new Map<string, number[][]>();
+    for (const b of SB) {
+      if (b[4] > 1.9 || b[5] < 0.3 || b[5] - b[4] < 2.5) continue;
+      for (let i = Math.floor(b[0] / 2); i <= Math.floor(b[1] / 2); i++) for (let j = Math.floor(b[2] / 2); j <= Math.floor(b[3] / 2); j++) (SG.get(`${i},${j}`) ?? SG.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
+    }
+    const walled = (x: number, z: number) => (SG.get(`${Math.floor(x / 2)},${Math.floor(z / 2)}`) ?? []).some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3]);
+    const gn: Pt[] = [];
+    for (let x = -lim; x <= lim + 1e-6; x += GG.step) for (let z = -lim; z <= lim + 1e-6; z += GG.step) if (Math.max(Math.abs(x), Math.abs(z)) < CV.inside && !walled(x, z)) gn.push([x, z]);
+    const gi = new Map(gn.map((q, i) => [`${q[0]},${q[1]}`, i]));
+    const gl: Array<[number, number]> = [];
+    for (const [i, [x, z]] of gn.entries())
+      for (const [dx, dz] of [[GG.step, 0], [0, GG.step], [GG.step, GG.step], [GG.step, -GG.step]]) {
+        const j = gi.get(`${x + dx},${z + dz}`);
+        if (j === undefined) continue;
+        let ok = true;
+        for (let t = 0; t <= 1 && ok; t += 0.02) if (walled(x + dx * t, z + dz * t)) ok = false;
+        if (ok) gl.push([i, j]);
+      }
+    const hits = (o: OBox, a: Pt, b: Pt) => {
+      for (let t = 0; t <= 1; t += 0.02) {
+        const [px, pz] = [a[0] + (b[0] - a[0]) * t - o.c[0], a[1] + (b[1] - a[1]) * t - o.c[1]];
+        if (Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu + body && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv + body) return true;
+      }
+      return false;
+    };
+    const cut = new Set<number>();
+    // (a node a piece stands on is no street node: the game finds the piece's top there and makes it a raised one)
+    const gone = new Set<number>();
+    const covers = (o: OBox) => gn.flatMap((q, i) => {
+      const [px, pz] = [q[0] - o.c[0], q[1] - o.c[1]];
+      return !gone.has(i) && Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv ? [i] : [];
+    });
+    const cutBy = (o: OBox) => gl.flatMap(([i, j], k) => (!cut.has(k) && hits(o, gn[i], gn[j]) ? [k] : []));
+    const piecesOf = (extra: number[], under: number[]) => {
+      const up = gn.map((_, i) => i);
+      const find = (i: number): number => (up[i] === i ? i : (up[i] = find(up[i])));
+      const out = new Set([...gone, ...under]);
+      let n = gn.length - out.size;
+      const skip = new Set(extra);
+      gl.forEach(([i, j], k) => {
+        if (cut.has(k) || skip.has(k) || out.has(i) || out.has(j)) return;
+        const [a, b] = [find(i), find(j)];
+        if (a !== b) (up[a] = b), n--;
+      });
+      return n;
+    };
+    for (const o of streetBoxes) {
+      for (const i of covers(o)) gone.add(i);
+      for (const k of cutBy(o)) cut.add(k);
+    }
+    let streetPieces = piecesOf([], []);
+    let passed = 0;
+    for (const st of STREETS)
+      for (let i = Math.round(MD.offset / 0.5); i < st.pts.length; i += Math.round(MD.every / 0.5)) {
+        const [x, z] = st.pts[i];
+        if (!clear(x, z, len / 2, st)) continue;
+        const t = st.tan[i];
+        const yaw = yawToward(t[0], t[1]) + (row.size![2] >= row.size![0] ? 0 : 90);
+        const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };
+        const by = cutBy(o);
+        const under = covers(o);
+        const after = piecesOf(by, under);
+        if (after > streetPieces) {
+          passed++;
+          continue;
+        }
+        streetPieces = after;
+        for (const k of by) cut.add(k);
+        for (const i of under) gone.add(i);
+        placeTurned("c-dress", MD.piece, x, z, yaw, "o", -row.min![1]);
+        medians.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2) });
+      }
+    console.log(`the streets' median: ${passed} blocks passed over where they would cut the bots' street graph`);
+    cfg.medians = medians;
+    console.log(`the streets' median: ${medians.length} blocks`);
+  }
   // the flying cars, over the streets out of reach
   for (let k = 0; k < D.flying.count; k++) {
     const st = STREETS[Math.floor(rnd() * STREETS.length)];
@@ -1914,7 +2024,7 @@ const skyStairs: Pt[] = [];
 // superior spot" a squad can still take). On the last bake's collision: each piece's footprint level at the perch's
 // height, `edge` metres off any drop, `apart` from the others and 3 m off where a pad lands
 {
-  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number }> | undefined;
+  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string }> | undefined;
   const pf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
   if (PR && existsSync(pf)) {
     const S: number[][] = JSON.parse(readFileSync(pf, "utf8")).solids;
@@ -2037,8 +2147,10 @@ const skyStairs: Pt[] = [];
         const [x, z] = [cand.x, cand.z];
         const name = P.pieces[at.length % P.pieces.length];
         const row = piece(name).row;
-        const yaw = cand.yaw >= 0 ? cand.yaw : rnd() < 0.5 ? 0 : 90;
-        const [hx, hz] = yaw === 0 ? [row.size![0] / 2, row.size![2] / 2] : [row.size![2] / 2, row.size![0] / 2];
+        // (a piece that `face`s the middle turns its own +z there, to the nearest right angle so its footprint stays
+        // square to the grid: the south deck's tall neon sign)
+        const yaw = P.face === "middle" ? (((Math.round(yawToward(-x, -z) / 90) * 90) % 360) + 360) % 360 : cand.yaw >= 0 ? cand.yaw : rnd() < 0.5 ? 0 : 90;
+        const [hx, hz] = yaw % 180 === 0 ? [row.size![0] / 2, row.size![2] / 2] : [row.size![2] / 2, row.size![0] / 2];
         const r = Math.hypot(hx, hz);
         // (level under the whole footprint, at the perch's height)
         const under = P.y;
