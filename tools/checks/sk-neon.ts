@@ -267,8 +267,24 @@ const crown = ups.filter((u) => u.q.id.startsWith("crown") && u.q.ground > 100);
 const PCH = (cfg as unknown as { perches?: Array<{ name: string; at: number[][] }> }).perches ?? [];
 const onIt = (p: { at: number[][] }) => p.at.filter(([x, y, z]) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).some((b) => Math.abs(b.top - y) < 0.06));
 check("the crown at 109 m: two pads up to it from the base's roof, each landing on it", crown.length === 2 && crown.every((u) => u.ok), crown.map((u) => u.said).join("; "));
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : 6);
-check("the perches: cover on the crown, the lookout and the four High City decks, each piece standing on its roof", PCH.length === 6 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") ? 1 : 6);
+check("the perches: cover on the crown, the lookout and the four High City decks, a landmark on each deck, each piece standing on its roof", PCH.length === 10 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+// each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
+// at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
+// roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
+{
+  const ID = (cfg as unknown as { identity?: Array<{ block: string; at: number[]; yaw: number; scale: number; w: number; h: number }> }).identity ?? [];
+  const bad = ID.filter((q) => {
+    const [x, y, z] = q.at;
+    // (the roof under its foot: the highest top there no higher than its foot and a little, not the sign's own boxes)
+    const roof = solidsIn(x + BR_X - 0.6, x + BR_X + 0.6, z + BR_Z - 0.6, z + BR_Z + 0.6).reduce((t, b) => (b.minX < x + BR_X + 0.6 && b.maxX > x + BR_X - 0.6 && b.minZ < z + BR_Z + 0.6 && b.maxZ > z + BR_Z - 0.6 && b.top <= y + 0.6 && b.top > t ? b.top : t), 0);
+    const face = (Math.atan2(-x, -z) * 180) / Math.PI;
+    const turn = Math.abs(((q.yaw - face + 540) % 360) - 180);
+    const solid = solidsIn(x + BR_X - 1.5, x + BR_X + 1.5, z + BR_Z - 1.5, z + BR_Z + 1.5).some((b) => b.minX < x + BR_X + 1.5 && b.maxX > x + BR_X - 1.5 && b.minZ < z + BR_Z + 1.5 && b.maxZ > z + BR_Z - 1.5 && b.top > y + 2);
+    return Math.abs(roof - y) > 0.6 || q.scale < 2.5 || turn > 1 || !solid;
+  });
+  check("the corner blocks' signs: one on each block's roof, three times the pack's size or near it, its face to the middle, solid", ID.length === 4 && new Set(ID.map((q) => q.block)).size === 4 && bad.length === 0, ID.map((q) => `${q.block} ${q.w} by ${q.h} m`).join("; ") + (bad.length ? `; wrong: ${bad.map((q) => q.block).join(", ")}` : ""));
+}
 // (and the decks' cover off where a pad lands, a lift lands, a bridge ends and a zip tops out, by rules.perches_clear)
 {
   const PC = (cfg.rules as unknown as { perches_clear: { pad: number; lift: number; bridge: number; zip: number } }).perches_clear;
@@ -277,8 +293,71 @@ check("the perches: cover on the crown, the lookout and the four High City decks
   for (const q of (cfg as unknown as { lifts: Array<{ land: number[] }> }).lifts) spots.push([q.land[0], q.land[1], PC.lift]);
   for (const path of (cfg.rules as unknown as { bridges: { paths: number[][][] } }).bridges.paths) for (const e of [path[0], path[path.length - 1]]) spots.push([e[0], e[1], PC.bridge]);
   for (const q of (cfg as unknown as { zips: Array<{ a: number[] }> }).zips) spots.push([q.a[0], q.a[2], PC.zip]);
-  const near = PCH.filter((p) => p.name.startsWith("deck")).flatMap((p) => p.at.filter(([x, , z]) => spots.some((s) => Math.hypot(s[0] - x, s[1] - z) < s[2])));
+  const near = PCH.filter((p) => p.name.startsWith("deck") || p.name.startsWith("landmark")).flatMap((p) => p.at.filter(([x, , z]) => spots.some((s) => Math.hypot(s[0] - x, s[1] - z) < s[2])));
   check("the decks' cover: none within reach of a pad's landing, a lift's landing, a bridge's end or a zip's top", near.length === 0, `${near.length} too near`);
+}
+// the decks' cover cuts no deck in two (rules.perches_clear.walk): on each High City deck's roof, its level cells a quarter
+// metre each, less a body's width round anything standing on them or off them, flooded from the deck's site; every
+// arrival on the deck (where a pad lands, the lift's top, each bridge stair's foot, the zip line's top) is on that one
+// piece, within 1.5 m (a zip's top within 3 m: its rope's top hangs over the deck's rim, and a rider is set down on the
+// rim's ledge 0.15 to 0.5 m under the deck, by the zip lines' check, and steps on from there). A deck's cover at the gap
+// between two lobes walled the south deck's west lobe and its bridge off from the rest
+{
+  const W = (cfg.rules as unknown as { perches_clear: { walk: number } }).perches_clear.walk;
+  const C4 = 0.25;
+  const arrivals: Array<[string, number, number, number?]> = [];
+  for (const q of cfg.pads) arrivals.push([`pad (${q.face.join(", ")})`, q.face[0] - q.out[0] * 3, q.face[1] - q.out[1] * 3]);
+  for (const q of (cfg as unknown as { lifts: Array<{ id: string; land: number[] }> }).lifts) arrivals.push([`lift ${q.id}`, q.land[0], q.land[1]]);
+  for (const path of (cfg.rules as unknown as { bridges: { paths: number[][][] } }).bridges.paths)
+    for (const [e, f] of [[path[0], path[1]], [path.at(-1)!, path.at(-2)!]]) {
+      const l = Math.hypot(e[0] - f[0], e[1] - f[1]);
+      arrivals.push([`bridge stair (${e.join(", ")})`, e[0] + ((e[0] - f[0]) / l) * 1.5, e[1] + ((e[1] - f[1]) / l) * 1.5]);
+    }
+  for (const q of (cfg as unknown as { zips: Array<{ a: number[] }> }).zips) arrivals.push([`zip (${q.a[0]}, ${q.a[2]})`, q.a[0], q.a[2], 3]);
+  const said: string[] = [];
+  const cut: string[] = [];
+  for (const P of (cfg.rules.perches as Array<{ name: string; y: number[]; box: number[] }>).filter((q) => q.name.startsWith("deck-"))) {
+    const site = map.sites.find((q) => q.id === `${P.name.slice(5)}-deck`)!;
+    const [NI, NJ] = [Math.round((P.box[1] - P.box[0]) / C4) + 1, Math.round((P.box[3] - P.box[2]) / C4) + 1];
+    const lv = new Uint8Array(NI * NJ);
+    for (let i = 0; i < NI; i++)
+      for (let j = 0; j < NJ; j++) {
+        const [x, z] = [P.box[0] + i * C4 + BR_X, P.box[2] + j * C4 + BR_Z];
+        const t = solidsIn(x, x, z, z).reduce((m, b) => (x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ && b.top > m ? b.top : m), -Infinity);
+        lv[i * NJ + j] = t >= P.y[0] && t <= P.y[1] ? 1 : 0;
+      }
+    const k = Math.ceil(W / C4);
+    const g = new Uint8Array(NI * NJ);
+    for (let i = 0; i < NI; i++)
+      for (let j = 0; j < NJ; j++) {
+        if (!lv[i * NJ + j]) continue;
+        let ok = true;
+        for (let di = -k; di <= k && ok; di++) for (let dj = -k; dj <= k && ok; dj++) if ((di * C4) ** 2 + (dj * C4) ** 2 <= W * W && i + di >= 0 && j + dj >= 0 && i + di < NI && j + dj < NJ && !lv[(i + di) * NJ + j + dj]) ok = false;
+        g[i * NJ + j] = ok ? 1 : 0;
+      }
+    // (from the walkable cell nearest the site)
+    let s0 = -1, best = Infinity;
+    for (let c = 0; c < g.length; c++) if (g[c]) { const d = Math.hypot(P.box[0] + Math.floor(c / NJ) * C4 - (site.x - BR_X), P.box[2] + (c % NJ) * C4 - (site.z - BR_Z)); if (d < best) (best = d, s0 = c); }
+    const stack = s0 >= 0 ? [s0] : [];
+    if (s0 >= 0) g[s0] = 2;
+    let size = 0;
+    while (stack.length) {
+      const c = stack.pop()!;
+      size++;
+      const i = Math.floor(c / NJ), j = c % NJ;
+      for (const [n, okn] of [[c - NJ, i > 0], [c + NJ, i < NI - 1], [c - 1, j > 0], [c + 1, j < NJ - 1]] as Array<[number, boolean]>) if (okn && g[n] === 1) (g[n] = 2, stack.push(n));
+    }
+    const mine = arrivals.filter(([, x, z]) => x >= P.box[0] && x <= P.box[1] && z >= P.box[2] && z <= P.box[3]);
+    const reach = (x: number, z: number, r: number) => {
+      for (let i = Math.max(0, Math.floor((x - r - P.box[0]) / C4)); i <= Math.min(NI - 1, Math.ceil((x + r - P.box[0]) / C4)); i++)
+        for (let j = Math.max(0, Math.floor((z - r - P.box[2]) / C4)); j <= Math.min(NJ - 1, Math.ceil((z + r - P.box[2]) / C4)); j++)
+          if (g[i * NJ + j] === 2 && Math.hypot(P.box[0] + i * C4 - x, P.box[2] + j * C4 - z) <= r) return true;
+      return false;
+    };
+    for (const [what, x, z, r] of mine) if (!reach(x, z, r ?? 1.5)) cut.push(`${P.name}: ${what}`);
+    said.push(`${P.name} ${mine.length} arrivals, ${(size * C4 * C4).toFixed(0)} m² walked`);
+  }
+  check("the decks' cover cuts no deck in two: from each deck's site a body walks its roof to every pad landing, lift top, bridge stair and zip top on it", said.length === 4 && cut.length === 0, said.join("; ") + (cut.length ? `; cut off: ${cut.join(", ")}` : ""));
 }
 const downs = SPINE.down.map((q, k) => {
   const { p } = ride(map.pads[cfg.pads.length + SPINE.up.length + k]);

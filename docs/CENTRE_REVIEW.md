@@ -59,10 +59,55 @@ the streets) and close range too (eight tower floors, the base, the court, the m
    roofs of the corner blocks' buildings still to come.*
 6. Each tower floor a theme and a big floor number; one a vault floor with the best loot: our Red Tiger. *Done,
    Milestone 431.*
-7. The corner blocks' identities visible from the street.
-8. The four High City blocks each their own look.
+7. The corner blocks' identities visible from the street. *Done, Milestone 437: a sign each.*
+8. The four High City blocks each their own look. *Done, Milestone 437: a landmark each.*
 9. A middle roof tier you can jump between, and more pads. *Done, Milestone 432: the tier was there; Market's and the
    Well's routes up to the bridge ring added, as Motel Hill and Noodle Row had.*
 10. Buildings between the Loop and the corner blocks, so the streets are canyons.
 
 After every few of these the centre is photographed and scored again by a fresh agent, and the round is added here.
+
+## Round 2, 2026-10-03 (map version 36)
+
+The same 24 spots and the same brief, with the designer's list of what is built brought up to date (the tower's floors
+have open windows, numbers and their own finishes, THE VAULT, the roof routes, the signs and the decks' landmarks).
+
+| | Round 1 | Round 2 | Ours, round 2 |
+|---|---|---|---|
+| Looks and identity | 4 | 4.5 | 5 |
+| Readability | 4 | 5 | 5.5 |
+| Flow and getting around | 5 | 5 | 6 |
+| Fits every play style | 4 | 4.5 | 5.5 |
+| Finish and bugs | 3 | 3 | 4 |
+| Fun | 5 | 6 | 6 |
+| **Overall** | **4.5** | **4.5** | **5.5** |
+
+**What rose.** The tower is "a perfect compass" and the corner beams colour-code the quadrants; the station is the best
+space shown; a climbable tower with a vault floor, the metro under it and the bridge ring over it is "a good hot drop".
+
+**What held the overall at 4.5.** Finish stayed at 3, and three of its reasons were ours to fix at once:
+
+- The tower's floors drew white. The lights added in round 1's fixes overshot on the tower's low storeys: measured off
+  the photos, a mean luminance of 0.62 to 0.80 with up to a third of the picture clipped, where the court is 0.51 with
+  nothing clipped. *Fixed, Milestone 437:* the tower's lamps light at a fifth of the base's, chosen from four measured
+  strengths, now 0.27 to 0.51.
+- The maze's walls showed blocky noise (its grey cracked paint), and the floors still looked alike. *Fixed, Milestone
+  437:* each partitioned floor's walls one colour, green, black, orange, blue, THE VAULT's yellow alone and grey.
+- MOTEL stood in MOTEL HILL's roof yard, across its view, and drawn only, so a player walked through it. *Fixed,
+  Milestone 437:* the four signs are solid, and MOTEL stands on the yard's raised block.
+
+And one the reviewer could not see: a deck's new cover had closed the gap between the south deck's west lobe and its
+middle, so the bridge's stair there led nowhere (the bridge walk check caught it). *Fixed, Milestone 437:* no piece of
+cover may now leave a roof in more pieces than it found it, and a check walks every deck from its site to every arrival.
+
+**What the reviewer got wrong.** Photos 05 and 24 were taken from inside the east High City block's tower: the spot
+at (60, -10) stands in a solid box from the ground to 26 m, so the "transparent tower" is the camera seeing the glass
+from behind. From round 3 that spot is the street at (50, -10), open ground.
+
+**What round 2 asks for next, in its order:** each floor's number big enough to read (2 m) and the exposure fixed; the
+streets narrowed with cover every 8 to 12 m (stalls, crate yards, barriers, shelters); the High City blocks opened at a
+lobby and a middle floor, with balconies up their faces; a chain of roofs with 4 to 6 m gaps and zip lines from each
+corner up to a deck; a hero prop per corner block seen from the ring (lanterns over NOODLE ROW, containers and a crane
+at MARKET, the Well's shaft lit), and the street signs and railings not repeated; THE VAULT marked from outside and its
+loot glowing; cover on the bridges; night lit by its signs and street lights; zip lines drawn as cables, walk-in doors
+framed in light, and fewer tall pad beams. The plan for each is in the centre's plan page, version 11.

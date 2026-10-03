@@ -1379,10 +1379,10 @@ each, bridges from its first floor's corners to the Sky Ring, and its roof runs
 onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
 door onto each of its 15 storeys, eight of them new floors between 14 and 35 m,
-each laid out differently: open, rooms, halls or a maze, each numbered in lights at the stair and in its own walls
-and tiles, and loot on each; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre. Its floors and the base's upper storeys have
+each laid out differently: open, rooms, halls or a maze, each numbered in lights at the stair, its walls their own colour
+and its own tiles, and loot on each; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre. Its floors and the base's upper storeys have
 open windows, 1.25 m wide, no glass: shot through, jumped in through. Its floors, the base's storeys, the court and the
-station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill). The streets carry the pack's lamps,
+station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill), the tower's at a fifth of the others' strength. The streets carry the pack's lamps,
 parked cars as cover, flying cars and neon signs. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size
@@ -1409,7 +1409,7 @@ floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE
 ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof, and each with a beam of
-light over it in its own colour (pink, red, green, teal); NOODLE ROW has street food stalls under paper lanterns, and MARKET stacks of crates; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street; and from MOTEL HILL's and NOODLE ROW's roof yards a lit zip line runs up to a High City deck.
+light over it in its own colour (pink, red, green, teal) and a big neon sign on a roof facing the middle; NOODLE ROW has street food stalls under paper lanterns, and MARKET stacks of crates; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street; and from MOTEL HILL's and NOODLE ROW's roof yards a lit zip line runs up to a High City deck.
 `tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
 entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back and into its yard.
 

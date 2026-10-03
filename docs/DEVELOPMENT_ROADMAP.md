@@ -9828,3 +9828,50 @@ the test suite's sections that still play it are moved to SpeedKills.
 - **Checked:** the panel photographed both ways at pixel ratios 1 and 1.5, the same picture (0.07% and 0.02% of its
   values off by more than 8 of 255, at the letters' edges); verify; rules; the sklobby e2e (the keys up by default, /
   hides them, they stay hidden after a reload).
+
+## Milestone 437 — Each corner block's sign and each deck's landmark, the tower's floors lit right in their own colours, and no cover cutting a roof in two
+
+The centre's first review: "the four High City blocks are identical", and "NOODLE ROW, MARKET and THE WELL show nothing
+of their names". Its second (docs/CENTRE_REVIEW.md, round 2, the same 24 photos and brief) scored the centre 4.5 again:
+finish stayed at 3 because the tower's floors drew white, the maze's walls showed blocky noise and a player walked
+through MOTEL. All three are fixed here, with a fault the review could not see.
+
+- **A sign over each corner block** (rules.low.identity): one of the pack's neon signs at about three times its size on
+  a roof of its block, turned to the middle of the map, so the block reads from the Loop, the plaza and the decks: MOTEL
+  HILL the pack's MOTEL sign 12.3 m tall, NOODLE ROW its food sign with the eye 10.6 m across, MARKET its COOLS sign
+  9.5 m across, THE WELL its holocall sign 11.2 m across. **Solid**: drawn only, a player on MOTEL HILL's roof walked
+  through MOTEL, and it stood across the yard's view, so it stands on the yard's raised block now (its top 14.0 m,
+  measured). A placement may carry a scale (its ninth field, tools/import-neon.ts).
+- **A landmark on each deck** (rules.perches `landmark-n` to `landmark-e`): the pack's billboard frame on the north deck,
+  its flat billboard on the west, a parked flying car on the east and a cypress on the south, laid as the cover is and
+  before it, so the cover keeps off it. Each perch piece records its footprint and height, and the next layout reads the
+  last bake's boxes under that whole footprint as roof (cleared only round its middle, a billboard's own posts made its
+  spot uneven and moved it).
+- **No cover cuts a roof in two** (rules.perches_clear.walk): a deck's new cover had closed the gap between the south
+  deck's west lobe and its middle, so the bridge's stair there led nowhere. Each piece is now laid only where it leaves a
+  body no more separate pieces of roof than it found: the roof's level cells a quarter metre each, less 0.45 m round
+  anything on or off them (a body's radius, movement.json's 16 units, 0.41 m, and a margin), flooded with every piece so
+  far. The south deck keeps six pieces where it had eight, the east deck six where it had seven, the crown six where it
+  had seven: the rest stood where they cut a roof.
+- **The tower's floors lit right** (game.fill.tower): the lights that lit the insides in round 1's fixes stand a metre
+  over the eye under pale ceilings on the tower's 3 m storeys, and at the base's strength they drew white. Measured off
+  the photos, mean luminance and the share clipped to white:
+
+  | Strength | 26 m open | 23 m maze | 17 m rooms | the base's hall |
+  |---|---|---|---|---|
+  | 60 (before) | 0.68, 9.5% | 0.62, 6.5% | 0.80, 31.9% | 0.27 |
+  | 24 | 0.48 | 0.41 | 0.64 | 0.17 |
+  | 12 (now) | 0.33, 1.8% | 0.27, 0.8% | 0.51, 7.1% | 0.12 |
+  | 6 | 0.23 | 0.18 | 0.39 | 0.09 |
+
+  The court is 0.51 with nothing clipped. The tower's own lamps light at 12, the base's, the court's and the station's
+  stay at 60 (src/game/neonmap.ts, a strength a lamp spot).
+- **Each floor its colour** (rules.tower.floors.at): the partitioned floors' walls green at 17 m, black at 20, orange at
+  23, blue at 29, THE VAULT's yellow at 32 alone and grey at 35; the grey cracked paint the maze wore drew in blocks.
+- The map: its files lo 82 MB, hi 146 MB, max 362 MB. **Its files are version 36.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): a sign on each corner block's roof, scaled, its foot on the roof,
+  its face to the middle and solid (seen failing with the signs drawn only); from each deck's site a body walks its
+  roof to every pad landing, lift top, bridge stair and zip top on it (seen failing on the bake with the south deck's
+  cover in the gap, where the bridge walk failed too); a landmark on each deck off every landing. The layout run again
+  on the new bake leaves every placement where it was. verify and rules; e2e `br`. Photographed on the tower's floors,
+  the decks and the corner roofs.

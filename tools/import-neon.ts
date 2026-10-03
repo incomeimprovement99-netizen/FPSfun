@@ -328,10 +328,12 @@ if (mode === "bake") {
     mats.set(guid, { ...info, name: spec.replace(/[|#]/g, "_"), emission: [(((n >> 16) & 255) / 255) * at, (((n >> 8) & 255) / 255) * at, ((n & 255) / 255) * at], emissive: null });
     return guid;
   };
-  for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, string[]?]> }>(cfg.chunks)) {
+  for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, (string[] | null)?, number?]> }>(cfg.chunks)) {
     const all = groups.get(groupOf(id)) ?? groups.set(groupOf(id), []).get(groupOf(id))!;
-    for (const [key, x, y, z, yaw, how, mat, without] of chunk.place) {
-      const W = place(x, y, z, yaw);
+    for (const [key, x, y, z, yaw, how, mat, without, scale] of chunk.place) {
+      // (a placement may be scaled about its pivot, its ninth field: the corner blocks' signs, 2.5 to 4 m in the pack,
+      // read from the street at three times that)
+      const W = scale ? mul(place(x, y, z, yaw), [scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, 1]) : place(x, y, z, yaw);
       const matGuid = mat ? (derivedMat(mat) ?? pack.matFor(mat)) : null;
       if (mat && !matGuid) throw new Error(`no material ${mat}`);
       // (a placement may leave named parts of its prefab out: neonmap.json's rules say which and why)

@@ -52,8 +52,9 @@ function lazy<T>(make: () => T): () => T {
 // `count` point lights, none casting a shadow, stands each frame at the `count` lamp spots nearest the eye within
 // `reach` metres: the pack's ceiling lamps the layout hung under every ceiling of the base and the tower (their
 // placements, `under` the fitting), and a grid every `every` metres over the court's and the station's floors, `height`
-// up. The pool is fixed: a light added to or taken from the scene recompiles every lit shader
-const FILL: { spots: THREE.Vector3[]; lights: THREE.PointLight[] } = { spots: [], lights: [] };
+// up. The pool is fixed: a light added to or taken from the scene recompiles every lit shader. A tower floor's own lamps
+// light at `tower` (its storeys are low and its lamps close: at the base's strength they drew white)
+const FILL: { spots: THREE.Vector3[]; power: number[]; lights: THREE.PointLight[] } = { spots: [], power: [], lights: [] };
 /** the fill's spots, world coordinates (the checks count them by floor) */
 export function neonFillSpots(): THREE.Vector3[] {
   return FILL.spots;
@@ -68,7 +69,7 @@ export function updateNeonFill(eye: THREE.Vector3): void {
     const q = near[k];
     if (q) {
       l.position.copy(FILL.spots[q.i]);
-      l.intensity = F.intensity;
+      l.intensity = FILL.power[q.i];
     } else l.intensity = 0;
   });
 }
@@ -330,6 +331,10 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     const off = F.off;
     const solid = (q: THREE.Vector3) => (SOLIDS.solids as number[][]).some((b) => q.x - BR_X > b[0] - off && q.x - BR_X < b[1] + off && q.z - BR_Z > b[2] - off && q.z - BR_Z < b[3] + off && q.y > b[4] && q.y < b[5]);
     FILL.spots = FILL.spots.filter((q) => !solid(q));
+    // (a tower floor's lamp: inside the tower's square, over its lowest new floor)
+    const sq = neonCfg.tower.square as number[];
+    const lowest = Math.min(...Object.keys(neonCfg.rules.tower.floors.at).map(Number));
+    FILL.power = FILL.spots.map((q) => (q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest ? F.tower : F.intensity));
     for (const l of FILL.lights) l.removeFromParent();
     FILL.lights.length = 0;
     for (let k = 0; k < F.count; k++) {

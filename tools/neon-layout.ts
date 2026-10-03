@@ -1925,20 +1925,22 @@ const skyStairs: Pt[] = [];
         for (let j = Math.floor(b[2] / G); j <= Math.floor(b[3] / G); j++) (grid.get(`${i},${j}`) ?? grid.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
     // (the roof and what is built on it, not the cover the layout before this stood on it, which the last bake measured:
     // a crate on the roof came out as one box with the roof under it, and counting it would move this layout's pieces;
-    // under where one stood, by the last layout's own list (cfg.perches as it was), a box no taller than the cover is
-    // the roof. A beam at knee height under the roof room is nowhere a piece stood, and counts)
-    const stood = ((cfg.perches ?? []) as Array<{ at: number[][] }>).flatMap((q) => q.at.map(([x, , z]) => [x, z]));
+    // under where one stood, by the last layout's own list (cfg.perches as it was: each piece's middle, its half-extents
+    // and its height), a box no taller than that piece is the roof, over the piece's whole footprint (a 6 m billboard's
+    // own posts, cleared only round its middle, made its spot uneven and moved it the next time). A beam at knee height
+    // under the roof room is nowhere a piece stood, and counts)
+    const stood = ((cfg.perches ?? []) as Array<{ at: number[][] }>).flatMap((q) => q.at.map(([x, , z, , hx, hz, h]) => [x, z, hx ?? 1.3, hz ?? 1.3, h ?? 2.2]));
     const topAt = (x: number, z: number, floor: number[]) =>
       (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => {
         if (!(x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3])) return t;
-        const under = b[5] <= floor[1] + 2.2 && stood.some(([sx, sz]) => Math.abs(sx - x) < 1.3 && Math.abs(sz - z) < 1.3);
+        const under = stood.some(([sx, sz, hx, hz, h]) => Math.abs(sx - x) < hx + 0.3 && Math.abs(sz - z) < hz + 0.3 && b[5] <= floor[1] + h + 0.3);
         const top = under ? Math.min(b[5], (floor[0] + floor[1]) / 2) : b[5];
         return top > t ? top : t;
       }, -Infinity);
     const anyTop = (x: number, z: number, h: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h && b[5] > t ? b[5] : t), -Infinity);
     // (where each pad lands on the perches, as the bake finds it: the first column `face` metres high along its line, a
     // body wide, and `land` metres past it; or the way down's own spot)
-    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number };
+    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number };
     const lands: Array<[number, number, number]> = [];
     for (const q of (R.pads.spine?.up ?? []) as Array<{ at: number[]; to: number[]; floor: number; face: number; land: number }>) {
       if (q.floor < 10) continue;
@@ -1954,8 +1956,70 @@ const skyStairs: Pt[] = [];
     for (const path of (R.bridges?.paths ?? []) as number[][][]) for (const e of [path[0], path[path.length - 1]]) lands.push([e[0], e[1], PC.bridge]);
     for (const q of ((cfg.zips ?? []) as Array<{ a: number[] }>)) lands.push([q.a[0], q.a[2], PC.zip]);
     const perches: Array<{ name: string; at: number[][] }> = [];
+    const roofCounts: string[] = [];
+    // (every perch's pieces so far: a deck's landmark keeps off its cover as its cover keeps off itself)
+    const allPlaced: Array<{ c: Pt; r: number; hx: number; hz: number }> = [];
     for (const P of PR) {
       const rnd = seeded(P.seed);
+      // (and never a piece that cuts its roof in two: the roof's level cells, a quarter metre each, less a body's width
+      // `walk` round anything standing on them or off them, flooded with every piece laid so far; a piece that leaves
+      // more pieces of roof than there were is passed over. A deck's cover at the gap between two lobes walled the south
+      // deck's west lobe, its bridge's stair with it, off from the rest of the deck)
+      const C4 = 0.25;
+      const NI4 = Math.round((P.box[1] - P.box[0]) / C4) + 1, NJ4 = Math.round((P.box[3] - P.box[2]) / C4) + 1;
+      const clear = new Uint8Array(NI4 * NJ4);
+      {
+        const lv = new Uint8Array(NI4 * NJ4);
+        for (let i = 0; i < NI4; i++)
+          for (let j = 0; j < NJ4; j++) {
+            const t = topAt(P.box[0] + i * C4, P.box[2] + j * C4, P.y);
+            lv[i * NJ4 + j] = t >= P.y[0] && t <= P.y[1] ? 1 : 0;
+          }
+        const k = Math.ceil(PC.walk / C4);
+        for (let i = 0; i < NI4; i++)
+          for (let j = 0; j < NJ4; j++) {
+            if (!lv[i * NJ4 + j]) continue;
+            let ok = true;
+            for (let di = -k; di <= k && ok; di++)
+              for (let dj = -k; dj <= k && ok; dj++) {
+                if ((di * C4) ** 2 + (dj * C4) ** 2 > PC.walk ** 2) continue;
+                const [a, b] = [i + di, j + dj];
+                if (a >= 0 && b >= 0 && a < NI4 && b < NJ4 && !lv[a * NJ4 + b]) ok = false;
+              }
+            clear[i * NJ4 + j] = ok ? 1 : 0;
+          }
+      }
+      /** how many pieces of this perch's roof a body walks, with these pieces standing on it (a speck under a square metre
+       * is no piece) */
+      const roofPieces = (laid: Array<{ c: Pt; hx: number; hz: number }>) => {
+        const g = clear.slice();
+        for (const q of laid) {
+          const [i0, i1] = [Math.floor((q.c[0] - q.hx - PC.walk - P.box[0]) / C4), Math.ceil((q.c[0] + q.hx + PC.walk - P.box[0]) / C4)];
+          const [j0, j1] = [Math.floor((q.c[1] - q.hz - PC.walk - P.box[2]) / C4), Math.ceil((q.c[1] + q.hz + PC.walk - P.box[2]) / C4)];
+          for (let i = Math.max(0, i0); i <= Math.min(NI4 - 1, i1); i++) for (let j = Math.max(0, j0); j <= Math.min(NJ4 - 1, j1); j++) g[i * NJ4 + j] = 0;
+        }
+        let n = 0;
+        const stack: number[] = [];
+        for (let s0 = 0; s0 < g.length; s0++) {
+          if (g[s0] !== 1) continue;
+          let size = 0;
+          g[s0] = 2;
+          stack.push(s0);
+          while (stack.length) {
+            const c = stack.pop()!;
+            size++;
+            const [i, j] = [Math.floor(c / NJ4), c % NJ4];
+            if (i > 0 && g[c - NJ4] === 1) (g[c - NJ4] = 2, stack.push(c - NJ4));
+            if (i < NI4 - 1 && g[c + NJ4] === 1) (g[c + NJ4] = 2, stack.push(c + NJ4));
+            if (j > 0 && g[c - 1] === 1) (g[c - 1] = 2, stack.push(c - 1));
+            if (j < NJ4 - 1 && g[c + 1] === 1) (g[c + 1] = 2, stack.push(c + 1));
+          }
+          if (size * C4 * C4 >= 1) n++;
+        }
+        return n;
+      };
+      const inBox = (q: { c: Pt; hx: number; hz: number }) => q.c[0] + q.hx > P.box[0] && q.c[0] - q.hx < P.box[1] && q.c[1] + q.hz > P.box[2] && q.c[1] - q.hz < P.box[3];
+      let pieces = roofPieces(allPlaced.filter(inBox));
       // (a piece stays where the last layout put it while its spot is still level roof, and only a lost one is drawn
       // afresh: the last bake's collision has the last layout's pieces in it, read back as roof only roughly, and a
       // reroll from it moved a piece a time)
@@ -1966,7 +2030,7 @@ const skyStairs: Pt[] = [];
         const j = Math.floor(rnd() * (i + 1));
         [spots[i], spots[j]] = [spots[j], spots[i]];
       }
-      const mine: Array<{ c: Pt; r: number }> = [];
+      const mine: Array<{ c: Pt; r: number; hx: number; hz: number }> = [];
       const at: number[][] = [];
       for (const cand of [...kept, ...spots.map(([x, z]) => ({ x, z, yaw: -1 }))]) {
         if (at.length >= P.count) break;
@@ -1984,15 +2048,46 @@ const skyStairs: Pt[] = [];
         for (const fx of [-hx, 0, hx]) for (const fz of [-hz, 0, hz]) if (Math.abs(topAt(x + fx, z + fz, under) - y) > 0.05) ok = false;
         // (and no drop within `edge` of it: a piece by the roof's edge is a step off it)
         for (const fx of [-hx - P.edge, 0, hx + P.edge]) for (const fz of [-hz - P.edge, 0, hz + P.edge]) if (topAt(x + fx, z + fz, under) < y - 0.5) ok = false;
-        if (!ok || lands.some((l) => Math.hypot(l[0] - x, l[1] - z) < l[2] + r) || mine.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r)) continue;
+        if (!ok || lands.some((l) => Math.hypot(l[0] - x, l[1] - z) < l[2] + r) || mine.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r) || allPlaced.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r)) continue;
+        const after = roofPieces([...allPlaced.filter(inBox), ...mine, { c: [x, z], hx, hz }]);
+        if (after > pieces) continue;
+        pieces = after;
         placeTurned("c-dress", name, x, z, yaw, "o", y - row.min![1]);
-        mine.push({ c: [x, z], r });
-        at.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2), yaw]);
+        mine.push({ c: [x, z], r, hx, hz });
+        at.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2), yaw, +hx.toFixed(2), +hz.toFixed(2), +(row.max![1] - row.min![1]).toFixed(2)]);
       }
+      allPlaced.push(...mine);
       perches.push({ name: P.name, at });
+      roofCounts.push(`${P.name} ${pieces}`);
     }
     cfg.perches = perches;
-    console.log(`the perches' cover: ${perches.map((q) => `${q.name} ${q.at.length}`).join(", ")}`);
+    console.log(`the perches' cover: ${perches.map((q) => `${q.name} ${q.at.length}`).join(", ")}; the pieces of roof each leaves a body: ${roofCounts.join(", ")}`);
+  }
+}
+// (a scaled placement carries its scale as a ninth field, past what Place names: the bake reads it, tools/import-neon.ts)
+// each corner block's sign (rules.low.identity; the centre's first review: "NOODLE ROW, MARKET and THE WELL show nothing
+// of their names"): one of the pack's neon signs `scale` times its size, standing on a roof of its block at `at`, `top`
+// the roof's height, its lit face (its own +z) to the middle of the map (or `yaw`), so the block reads from the Loop,
+// the plaza and the decks, `up` over the roof; solid, as a sign standing on a roof a player reaches is (drawn only, the
+// second review walked through MOTEL HILL's in its yard)
+{
+  const ID = R.low.identity as { up: number; signs: Record<string, { piece: string; scale: number; at: number[]; top: number; yaw?: number }> } | undefined;
+  if (ID) {
+    const out: Array<{ block: string; at: number[]; yaw: number; piece: string; scale: number; w: number; h: number }> = [];
+    for (const [block, q] of Object.entries(ID.signs)) {
+      const [cx, cz] = q.at;
+      const [bx, bz] = block.split(",").map(Number);
+      const yaw = q.yaw ?? yawToward(-cx, -cz);
+      const { key, row } = piece(q.piece);
+      const chunk = `c-${bz < 0 ? "n" : "s"}${bx < 0 ? "w" : "e"}`;
+      // (its pivot, so its footprint's middle stands at `at`: the pack's signs' pivots are off their middles)
+      const [mx, mz] = rotY(yaw, ((row.min![0] + row.max![0]) / 2) * q.scale, ((row.min![2] + row.max![2]) / 2) * q.scale);
+      const y = q.top + ID.up - row.min![1] * q.scale;
+      add(chunk, "c", [key, +(cx - mx).toFixed(3), +y.toFixed(3), +(cz - mz).toFixed(3), +yaw.toFixed(2), "o", null, null, q.scale] as unknown as Place);
+      out.push({ block, at: [cx, +(q.top + ID.up).toFixed(3), cz], yaw: +yaw.toFixed(2), piece: q.piece, scale: q.scale, w: +(row.size![0] * q.scale).toFixed(2), h: +(row.size![1] * q.scale).toFixed(2) });
+    }
+    cfg.identity = out;
+    console.log(`the corner blocks' signs: ${out.map((q) => `${q.block} ${q.piece.replace(".prefab", "")} ${q.w} by ${q.h} m`).join(", ")}`);
   }
 }
 // street furniture (rules.dress.furniture; the centre's first review: "streets are wide, with only hover cars and lamps for
