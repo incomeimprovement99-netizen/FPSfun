@@ -127,6 +127,7 @@ import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
 import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, retakeReflection, updateNeonFill, warmReflection } from "./game/neonmap";
+import { programRepList, repsRoot } from "./game/programreps";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
 import { atmosphereOn, districtHere, ownAir, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
@@ -1041,7 +1042,9 @@ let cityAsked = cityIn;
 function askCity(): void {
   if (cityAsked) return;
   cityAsked = true;
-  void dressNeonMap(brMap.root, renderer, quality.cityKit).finally(() => (cityIn = true));
+  // (its unpacking on more workers than three's four: one fewer than the machine's processors, intro.json cityWorkers)
+  const workers = Math.max(4, Math.min(introCfg.show.cityWorkers, (navigator.hardwareConcurrency || 4) - 1));
+  void dressNeonMap(brMap.root, renderer, quality.cityKit, workers).finally(() => (cityIn = true));
 }
 if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
   // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
@@ -5307,9 +5310,20 @@ function showFrame(): void {
     let files = loadingScreen.filesIn;
     if (show.city && !cityReady) {
       const got = NEON_MAP.total > 0 ? NEON_MAP.got / NEON_MAP.total : 0;
-      files = cityIn ? 0.9 : 0.8 * got;
+      // its bytes in, it is unpacked (its textures counted as each is done): the screen sat on the full megabytes for
+      // two seconds and more and looked stuck (the owner, 2026-10-03)
+      const unpacking = !cityIn && NEON_MAP.total > 0 && NEON_MAP.got >= NEON_MAP.total;
+      const unpacked = NEON_MAP.textures > 0 ? NEON_MAP.unpacked / NEON_MAP.textures : 0;
+      // (its file to six tenths, unpacked to eight, its shaders built to all of it)
+      files = cityIn ? 0.8 + 0.2 * (WARM.of ? WARM.done / WARM.of : 0) : unpacking ? 0.6 + 0.2 * unpacked : 0.6 * got;
       loadingScreen.sayLine(
-        cityIn ? S.cityReady : NEON_MAP.total > 0 ? `${S.cityText}  ·  ${Math.round(NEON_MAP.got / 1048576)} OF ${Math.round(NEON_MAP.total / 1048576)} MB` : S.cityText,
+        cityIn
+          ? `${S.cityReady}${WARM.of && WARM.done < WARM.of ? `  ·  ${WARM.done} OF ${WARM.of}` : ""}`
+          : unpacking
+            ? `${S.cityUnpack}${NEON_MAP.textures > 0 ? `  ·  ${NEON_MAP.unpacked} OF ${NEON_MAP.textures}` : ""}`
+            : NEON_MAP.total > 0
+              ? `${S.cityText}  ·  ${Math.round(NEON_MAP.got / 1048576)} OF ${Math.round(NEON_MAP.total / 1048576)} MB`
+              : S.cityText,
       );
       loadingScreen.resetCalm();
     } else if (show.city) loadingScreen.sayLine("");
@@ -6513,9 +6527,11 @@ const merged = new URLSearchParams(location.search).has("nomerge")
  * a frame. Not on a ?norender page, which never draws it.
  */
 let brWarm: "no" | "going" | "done" = IS_SK && !new URLSearchParams(location.search).has("norender") ? "no" : "done";
+/** frames since the city came in: its warm starts on the second, so the screen has said so before its first, held part */
+let cityInFrames = 0;
 function brWarmed(): boolean {
   if (brWarm === "done") return true;
-  if (brWarm === "no" && cityIn) warmBrSide();
+  if (brWarm === "no" && cityIn && ++cityInFrames > 1) warmBrSide();
   return false;
 }
 /**
@@ -6556,34 +6572,58 @@ function warmMatch(): void {
   };
   requestAnimationFrame(send);
 }
+/** the city's warm, for its screen: of the objects it compiles (one a program, programreps.ts), how many are done */
+const WARM = { done: 0, of: 0 };
 function warmBrSide(): void {
   brWarm = "going";
-  // compiled as it will be drawn from the ship: the city's side shown and the range's not, so the lights each side
-  // has are the ones counted (the count is part of every shader)
-  const was = [rangeSide.visible, brSide.visible];
-  rangeSide.visible = false;
-  brSide.visible = true;
+  // What is compiled: the city's side as it will be drawn from the ship and as the roads' reflection draws it (which a
+  // change of hour takes again, neonmap.ts retakeReflection), and everything else as the range's side draws it, what is
+  // out of view included (the Gulag's room was 10 shaders compiled on its first frame, a 0.75 s freeze on the way in, a
+  // hunt 2026-09-30). One object for each program (programreps.ts).
+  const city = programRepList(brSide);
+  const rest = programRepList(...scene.children.filter((c) => c !== brSide && !(c as THREE.Light).isLight && !(c as THREE.Camera).isCamera));
+  const all = [...city, ...rest];
+  WARM.done = 0;
+  WARM.of = all.length;
   const compiling: Array<Promise<unknown>> = [];
-  try {
-    // (for the target a frame draws into: built for the canvas they were not the composer's, pipeline.compileAsync)
-    compiling.push(pipeline.compileAsync(brSide));
-    // and as the roads' reflection draws it, which a change of hour takes again (neonmap.ts retakeReflection)
-    compiling.push(warmReflection(brSide));
-    // and everything else as the range's side draws it, what is out of view included: the Gulag's room was 10 shaders
-    // compiled on its first frame, a 0.75 s freeze on the way in (a hunt, 2026-09-30)
-    rangeSide.visible = true;
-    brSide.visible = false;
-    for (const c of scene.children) if (c !== brSide && !(c as THREE.Light).isLight && !(c as THREE.Camera).isCamera) compiling.push(pipeline.compileAsync(c));
-  } catch {
-    /* a compile that throws is a frame that compiles it later, as before */
-  } finally {
-    rangeSide.visible = was[0];
-    brSide.visible = was[1];
-  }
-  const compiled = Promise.all(compiling);
+  // A slice a frame, intro.json warmSliceMs of it at the most: compiled at once they held the page over a second the
+  // frame the city came in, its screen standing still (2026-10-03)
+  let at = 0;
+  const slice = (): void => {
+    const end = performance.now() + introCfg.show.warmSliceMs;
+    const was = [rangeSide.visible, brSide.visible];
+    try {
+      while (at < all.length && performance.now() < end) {
+        const onCity = at < city.length;
+        const part = all.slice(at, Math.min(onCity ? city.length : all.length, at + 8));
+        // as its side is drawn: that side shown and the other not, so the lights it has are the ones counted (the count
+        // is part of every shader); for the target a frame draws into (pipeline.compileAsync)
+        rangeSide.visible = !onCity;
+        brSide.visible = onCity;
+        const root = repsRoot(part);
+        compiling.push(pipeline.compileAsync(root));
+        if (onCity) compiling.push(warmReflection(root));
+        at += part.length;
+      }
+    } catch {
+      // a compile that throws is a frame that compiles the rest later, as before
+      at = all.length;
+    } finally {
+      rangeSide.visible = was[0];
+      brSide.visible = was[1];
+    }
+    WARM.done = at;
+    if (at < all.length) requestAnimationFrame(slice);
+    else sendCityTextures(Promise.all(compiling), all);
+  };
+  slice();
+}
+/** the city's textures sent to the GPU a few a frame, its shaders built, then the city ready (brWarm "done") */
+function sendCityTextures(compiled: Promise<unknown>, drawn: THREE.Object3D[]): void {
   const textures: THREE.Texture[] = [];
   const seen = new Set<THREE.Texture>();
-  scene.traverse((o) => {
+  // (every material is on one of the objects compiled)
+  for (const o of drawn) {
     const mat = (o as THREE.Mesh).material;
     for (const m of mat ? (Array.isArray(mat) ? mat : [mat]) : []) {
       for (const v of Object.values(m)) {
@@ -6595,7 +6635,7 @@ function warmBrSide(): void {
         }
       }
     }
-  });
+  }
   // a few a frame: sent all at once they were a third of a second in one frame
   const send = (): void => {
     for (let i = 0; i < 40 && textures.length; i++) renderer.initTexture(textures.pop()!);

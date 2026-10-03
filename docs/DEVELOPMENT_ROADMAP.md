@@ -9965,3 +9965,32 @@ version 11) is built here.
   failing with its rule taken out); the street one network with them all in it. The layout run again on the new bake
   leaves every placement where it was. verify and rules; e2e `br`. Photographed in the streets, on the floors and the
   south deck.
+
+## Milestone 442 — No more stall at the end of "loading the city": the city unpacked in the open, its shaders built a slice a frame
+
+The owner, 2026-10-03: "it gets stuck for a long time on the end of 'loading the city' when i am loading in, any
+reason?" Timed from Start to the ship (Battle Royale, Start, as a player clicks it), the screen sat on the full
+megabytes ("139 OF 139 MB") from the file's last byte until the city was in: 3.8 s on a warm cache and 5.8 s on a
+busy machine, the bar standing still, with frozen frames of 0.5 to 1.4 s in it. Two things were behind it:
+
+- **The unpacking.** The file is 728 compressed textures (KTX2) and compressed geometry (meshopt): three's KTX2 loader
+  turned the textures into what the GPU reads on its default four workers, the geometry was decompressed on the page's
+  own thread (the decoder's workers were never turned on), and the screen said nothing of it. Now the textures are
+  turned on up to `cityWorkers` workers (intro.json: one fewer than the machine's processors, 8 at the most), the
+  geometry on the decoder's workers, and the screen says UNPACKING THE CITY with the textures done of all of them, its
+  bar moving as they are.
+- **The shaders' warm** (main.ts warmBrSide) started the frame the city came in, before the screen could say so, and
+  compiled everything in that one frame: three's compile works out the shader parameters of every object, thousands of
+  the city's meshes over a few hundred materials (getParameters 0.97 s of it). The warm now starts a frame after the
+  screen says GETTING THE CITY READY; it compiles one object for each program (programreps.ts: the material and the few
+  things about an object a program depends on, from three r170's getParameters; ?slow=reps compiles every object), and
+  a slice a frame, `warmSliceMs` (12 ms) at the most, the screen counting them. The same programs: 179 at the ship's
+  boarding with and without, and none made in the ride's first three seconds.
+- **Measured** on a warm cache (the dev build, the machine busy with other work): the longest frozen frame from the
+  file's last byte to the ship from 1.4 s to 0.34 s, and the screen moving all the way. How long the unpacking takes
+  depends on the machine's processors; the file's 139 MB (Balanced) on the connection.
+- **Checked:** verify; rules; the programs at boarding and in the ride with and without the change; a player's whole
+  way in on the Neon City (Start, the screen, the ship, the card over it and gone at 11 s); the sklobby, skship and
+  speedkills e2e on the suite's map. On the Neon City (E2E_MAP=neon) the speedkills section's checks of the city before
+  it fail as they must (its pads, its blocks), and sk order's card comes at about 60 s with or without this change: the
+  sections are moved to the Neon City with the legacy game's removal.

@@ -9,6 +9,7 @@ import { slow } from "./slow";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { programReps } from "./programreps";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { rebuildSolidGrid, solidsIn } from "./solidgrid";
 import { FLOORS, HALL_FLOORS, floorAt } from "./floors";
@@ -34,7 +35,7 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; got: number; total: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, got: 0, total: 0 };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; got: number; total: number; unpacked: number; textures: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, got: 0, total: 0, unpacked: 0, textures: 0 };
 
 const G = neonCfg.game;
 /** the map's own haze (atmosphere.ts ownAir), neonmap.json game.air */
@@ -441,7 +442,7 @@ export function warmReflection(root: THREE.Object3D): Promise<unknown> {
   let built: Promise<unknown> = Promise.resolve();
   try {
     renderer.setRenderTarget(cam.renderTarget);
-    built = renderer.compileAsync(root, cam.children[0] as THREE.Camera, scene);
+    built = renderer.compileAsync(programReps(root), cam.children[0] as THREE.Camera, scene);
   } catch {
     /* built on the retake, as before */
   } finally {
@@ -456,14 +457,27 @@ export function warmReflection(root: THREE.Object3D): Promise<unknown> {
  * meshopt-compressed, its detail maps multiplied in (detailmaps.ts), every material taught the decay, the plain floor put
  * away. How many meshes it drew; 0 where the file is not (a checkout without the bought files)
  */
-export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRenderer, size: "lo" | "hi" | "max"): Promise<number> {
+export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRenderer, size: "lo" | "hi" | "max", workers = 4): Promise<number> {
   // (?neontag=: a bake of another grouping beside this one, for measuring the two in turn: tools/import-neon.ts NEON_TAG)
   const tag = (new URLSearchParams(location.search).get("neontag") ?? "").replace(/[^a-z0-9-]/gi, "");
   const url = `models/paid/neon/neonmap-v${neonCfg.version}-${size}${tag}.glb?v=${neonCfg.version}`;
   // a HEAD first: the Vite dev server answers a missing file with its index page, not a 404
   const probe = await fetch(url, { method: "HEAD" }).catch(() => null);
   if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return 0;
-  const ktx2 = new KTX2Loader().setTranscoderPath("libs/basis/").detectSupport(renderer);
+  // Its file unpacked on more workers than three's own four (its 728 textures took 2.1 s on four after the last byte,
+  // the screen still on the full megabytes, 2026-10-03), the geometry decompressed off the page's thread too, and each
+  // texture counted as it is done, for the screen (main.ts showFrame)
+  const ktx2 = new KTX2Loader().setTranscoderPath("libs/basis/").setWorkerLimit(workers).detectSupport(renderer);
+  // (the decoder has its workers, though its types do not say so)
+  (MeshoptDecoder as unknown as { useWorkers?: (n: number) => void }).useWorkers?.(Math.max(1, Math.min(4, workers - 1)));
+  const load = ktx2.load.bind(ktx2);
+  ktx2.load = (u, onLoad, onProgress, onError) => {
+    NEON_MAP.textures++;
+    return load(u, (t) => {
+      NEON_MAP.unpacked++;
+      onLoad?.(t);
+    }, onProgress, onError);
+  };
   // (its bytes as they come: a match's screen waits for the city and draws its bar by them, main.ts showFrame)
   const gltf = await new GLTFLoader()
     .setKTX2Loader(ktx2)

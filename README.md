@@ -1334,7 +1334,10 @@ array uniform (the decay's sectors, the sun's shadow matrices) is sent only when
 value (3,225 uniform calls a frame to 1,756; `?slow=uniforms` puts back the old way, `src/game/uniformcache.ts`); the
 decay moves only the collision boxes its lines passed, not every box every frame; the boxes along a ray are tested
 without making arrays; the shots' gathering runs only while a shot is in flight; and the HUD's keys panel is drawn
-once and copied each frame (Milestone 439, `?slow=keys`). On a machine busy with other
+once and copied each frame (Milestone 439, `?slow=keys`). Going into a match on the city (Milestone 442), its file
+is unpacked on more of the processor's cores with the screen counting its textures, and its shaders are built a slice
+a frame from one object a program (`?slow=reps` compiles every object), so the screen no longer sits frozen on the full
+megabytes. On a machine busy with other
 work, the street from a median 66 fps to 80 on Balanced.
 
 **The bought city kits, and what they cost.** The centre wears about 6,300

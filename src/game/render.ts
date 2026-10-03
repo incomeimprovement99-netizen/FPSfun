@@ -27,6 +27,7 @@ import { makeGradePass, GRADE, normalised } from "./grade";
 import type { Quality } from "./quality";
 import { slow } from "./slow";
 import { cacheArrayUniforms } from "./uniformcache";
+import { programReps } from "./programreps";
 
 
 /**
@@ -288,7 +289,7 @@ export class Renderer {
     const was = this.renderer.getRenderTarget();
     try {
       this.renderer.setRenderTarget(this.composer ? this.composer.readBuffer : null);
-      return this.renderer.compileAsync(root, this.camera, targetScene);
+      return this.renderer.compileAsync(programReps(root), this.camera, targetScene);
     } finally {
       this.renderer.setRenderTarget(was);
     }
