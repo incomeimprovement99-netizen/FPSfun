@@ -186,6 +186,23 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   of the stride and not another (the USSO's was clean at one and 17 mm into the chest a few tenths later). The Extruder
   is the model's own part, not a handle.
 - **Checks:** the rack's hand at the shared spot (within 6 mm, its fingers on the gun).
+- **Done on the soldier, 2026-10-03** (soldierhold.json guns.vinson): every skfigure check passes for it (24 of 100).
+  - The left hand under the handguard 37 cm ahead of the gun's middle; the right on the grip, 1.5 mm further forward
+    than its first fit so the index's crease is on the trigger (0.1 mm; 4.1 had failed the check).
+  - The shoulder reaches 85 degrees (aimed at a sprint its hold slid 43% back at 34, 14% at 70, 3% at 85).
+  - The butt placed and the chest turned by a grid on the exact measure (the solver's own pick left the stock 68 mm in
+    the right upper arm at rest).
+  - The sprint and jump carries solved **counting the left hold's slide** (figure-solve.ts): solved without it, the
+    muzzle went 44 degrees down, the arm fell short and the hold slid back into the magazine (the left hand 30 mm in, the
+    gun 145 mm into the left forearm); now the gun is 28 mm in sprinting. The carries keep the hold's own left hand: a
+    search put it 3.6 cm up into the handguard.
+  - The punch bows 22 cm down (its own melee.punch.clear): the magazine block hangs between the hold and the chest, and at
+    the shared 15 cm the fingers dragged 22 mm through it.
+  - The reload's point and tilt solved (the left wrist 59 to 40 degrees).
+- **Left open, measured exactly:** the butt in the right shoulder armour, 18 to 26 mm, as BOOG's; looking 40 up, 65 into
+  the collarbone; crouched, the stock 115 mm into the right forearm (the template fault, step 0); the sprint jump 41
+  into the chest; the left fingers at the reload's first instant, 30 mm. Photographed at rest, aimed, sprinting and
+  crouched: from outside the crouch reads as the forearm along the stock.
 
 ### 5.3 BIGANTLER (mastiff), SciFiShotGun02_2, 94 cm
 

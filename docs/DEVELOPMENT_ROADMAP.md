@@ -9727,3 +9727,29 @@ code for what the legacy game left switched on in SpeedKills found these, none g
   shotguns REZ and BIGANTLER, snipers and marksmen BOOG and HAEFY, the pistol APUHTHEE.
 - The code goes with the legacy game's removal, after its tests are moved to SpeedKills (the next steps).
 - **Checked:** verify; rules; the duel (the Guns rule), sklobby and speedkills e2e.
+
+## Milestone 435 — PANDA on the soldier: the rifle fitted for other players' view
+
+The second of the eight guns on the soldier others see (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.2), after ANAKIN (Milestone
+414). PANDA (vinson, SciFiRifle01_2) is the longest gun yet fitted on the soldier: its hold is 44 cm ahead of the grip
+(BOOG's is 22), with a magazine and a block behind it hanging under the gun between the hold and the chest.
+
+- **Fitted** (soldierhold.json guns.vinson): the left hand under the handguard; the right on the grip, its index's crease
+  on the trigger (0.1 mm); the shoulder's reach 85 degrees, as the hold 44 cm out needs; the butt placed by a grid on the
+  exact measure; the sprint, jump, swap and rise carries; the reload's point and tilt.
+- **What it took:**
+  - **The slide counted:** when the arm falls short, the left hold slides back along the gun toward the grip, and on
+    PANDA that straight way back runs through the magazine. The solver never counted the slide, so it chose a sprint
+    carry with the muzzle 44 degrees down that the arm could not hold: the left hand 30 mm in the gun and the gun 145
+    mm into the left forearm. figure-solve.ts now weighs the slide; solved again, the gun is 28 mm in sprinting and 41
+    in a sprint jump, the left hand 4.
+  - **The carry's hand:** a search put the left hand 3.6 cm up into the handguard for the carry; it keeps the hold's own.
+  - **The punch's way round:** the left hand bows 22 cm down leaving and returning (PANDA's own melee.punch.clear), clear
+    of the magazine block it dragged 22 mm through at the shared 15.
+  - **The trigger:** the right hand 1.5 mm further forward puts the crease on the trigger with natural joints (4.1 mm at
+    the first fit); figure-fit.ts's trigger search goes down to half a degree.
+- **Left open, measured exactly:** the butt in the shoulder armour, 18 to 26 mm, as BOOG's; looking 40 up, the stock 65
+  into the collarbone; crouched, 115 into the right forearm, the stock fault ANAKIN and BOOG share; the reload's first
+  instant, the left fingers 30. Photographed, the crouch reads as the forearm along the stock.
+- **Checked:** the skfigure e2e (100, PANDA's 24 among them); figure-sweep over every motion; frame sheets at rest,
+  aimed, sprinting and crouched; verify; rules. Its reload is the magazine alone until the guns agent's PANDA rack lands.

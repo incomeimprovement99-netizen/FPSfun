@@ -258,7 +258,8 @@ async function main(): Promise<void> {
         if (c < best.c - 0.05) best = { c, J: [...v] };
       };
       for (let j1 = 0; j1 <= 80; j1 += 10) for (let j2 = 0; j2 <= 90; j2 += 10) for (const j3 of [0, 20, 40]) for (const sw of [-15, 0, 15]) await tryJ([j1, j2, j3, sw]);
-      for (const step of [5, 2.5, 1]) {
+      // (down to half a degree: PANDA's crease stopped 4.1 mm off at 1, against the check's 4)
+      for (const step of [5, 2.5, 1, 0.5]) {
         let moved = true;
         while (moved) {
           moved = false;

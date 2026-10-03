@@ -175,7 +175,7 @@ let HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l"
   // and the right hand working a bolt is off its grip)
   (f) => STAGE !== "reload" || (f.endsWith("_l") ? false : !KEY.startsWith("bolt")),
 );
-type Out = { shortL: number; shortR: number } | null;
+type Out = { shortL: number; shortR: number; slide?: number } | null;
 
 /**
  * A try's cost. Skin in the gun weighs three times a finger's gap, and each bone's depth adds to it, not only the
@@ -195,6 +195,10 @@ function cost(a: Audit | null, o: Out, reload = false): number {
     // (in a reload a hand is away from its hold on purpose: whether its arm reaches is `short`'s to say)
     (reload ? 0 : 20 * Math.max(0, (a.grip ?? 0) - 1.5) + 20 * Math.max(0, (a.support ?? 0) - 2)) +
     3000 * ((o?.shortL ?? 0) + (o?.shortR ?? 0)) +
+    // the left hold slid back along the gun because the arm fell short (mannequin.ts supportHold): its straight way back
+    // to the grip can run through a magazine (PANDA's sprint carry, its left hand 30 mm in), and a carry that needs it is
+    // one the arm cannot hold; a reload's hand is away from the hold, so it does not count there
+    (reload ? 0 : 300 * (o?.slide ?? 0)) +
     (STAGE === "pocket" ? 0 : HOLDING.reduce((s, f) => s + Math.max(0, (a.fingerGap?.[f] ?? 30) - 6), 0))
   );
 }
@@ -290,7 +294,7 @@ async function main(): Promise<void> {
             : next
               ? `r.figureLabPose(0, ${JSON.stringify({ ...next.pose, weapon: ID })}); r.figureLabStep(${next.dt});`
               : "";
-        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, then: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} return { a: window.__figureAudit(0, { pitch: ${p.pitch}, exact: ${EXACT} }), o: r.labFigures()[0].figure.rifleOut }; })()`;
+        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, then: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} const fg = r.labFigures()[0].figure; return { a: window.__figureAudit(0, { pitch: ${p.pitch}, exact: ${EXACT} }), o: fg.rifleOut && { ...fg.rifleOut, slide: fg.supportSlide } }; })()`;
         let got: { a: Audit | null; o: Out };
         try {
           got = await ev<{ a: Audit | null; o: Out }>(page, expr);
