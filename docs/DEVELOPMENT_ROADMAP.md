@@ -9587,3 +9587,38 @@ decks at 26 m were flat roofs with nothing on them but their fences.
   zip's top (seen failing with a piece moved onto a pad's landing); the street furniture on its pavement and off the road, forty
   pieces and more of six kinds and more (seen failing with the pieces put in the lane). verify and rules; e2e `br`.
   Photographed on a deck and along the Loop.
+
+## Milestone 430 — The first screen waits for what the range's first frame shows, and the rest comes in behind it
+
+The owner, 2026-10-03: "Make the initial loading screen as fast as possible, the rest can load in when we need it."
+
+- **Measured on the live site at a typical 50 Mbit/s** (a cold first visit, Chrome's own throttle): the first screen went
+  at 11.5 s, waiting for 29 MB. The range's first frame shows about a third of it. It waited for:
+  - every bought gun and its skin, 10.5 MB, with two in your hands;
+  - the first-person arms' textures, 6 MB, 4.7 of it two normal maps;
+  - the range's props, 5.4 MB of set dressing whose colliders are the range's own;
+  - the arenas', courses' and movement lab's textures, none of them in sight of the range.
+- **src/game/later.ts:** what the first screen need not wait for is queued, and runs once that screen has gone, one
+  job a frame. The test hook's loaded() waits for it all (laterSettled), so a tool still sees the page whole.
+- **Behind the screen now:**
+  - the range's props, and an arena's set dressing (arenas/build.ts);
+  - the bought guns but the two in your hands: paidgun.ts loadPaidGuns(first) and loadPaidRest. A gun not in yet is
+    the procedural one, as before. The armory dresses one stand a frame as they come, since all twenty at once was a
+    2.1 s frame;
+  - the arms' normal maps: a flat one meanwhile (fprig.ts), the same shader throughout;
+  - the arenas', courses' and lab's textures: materials.ts holdTextures gives each a neutral pixel at once (a colour
+    map its material's flat colour, a normal map a flat surface) and fetches its file into the same texture later,
+    so the shader the warm built for it is the one it keeps.
+- **The warm (Milestone 428) was building the wrong shaders,** found by profiling the first draw: still 2.2 s of
+  shaders built on it.
+  - Before the first frame both sides of the world were shown, so every shader was built for both sides' lights. The
+    warm now shows the side the first frame will (showSide) and puts the lights on the gun's layer.
+  - It ran before the sky's environment map was in, and a material lit by one is another shader. It is warmed again
+    once the sky is installed.
+  - What the first draw still costs is the textures' upload to the card.
+- **Measured** (production builds served locally, at 50 Mbit/s, before and after, alternated): the first screen went at
+  8.0 and 8.4 s before, 5.3 and 5.7 s after; the files it waits for are in by 3.6 s. On the dev server unthrottled:
+  5.0 s, from 6.1.
+- **Seen:** the range photographed the moment the screen goes and once everything is in: the USSO and the arms in place,
+  the floor textured; a concrete barrier comes in a second later.
+- **Checked:** verify; rules; the skarmory, speedkills, range and sktour e2e.

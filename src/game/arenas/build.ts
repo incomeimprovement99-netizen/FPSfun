@@ -13,6 +13,7 @@
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "../range";
 import { placeProps } from "../props";
+import { later } from "../later";
 import { dressPlan } from "../dress";
 import { PAL, bevel, emissive, flat, graffitiTexture, textPanel, worldTiledMaterial } from "../geo";
 import { material, tileBox, type MatName } from "../materials";
@@ -127,7 +128,8 @@ export function buildPlan(scene: THREE.Scene, plan: ArenaPlan, zoneRadius: numbe
   const boxes = allBoxes(plan) as PlanBox[];
   // (the city's cover is its own: no legacy prop stands in for a box there)
   const worn = city ? { instead: new Set<number>(), props: [] as ReturnType<typeof dressPlan>["props"] } : dressPlan(boxes);
-  void placeProps(root, worn.props);
+  // (after the page's first screen: an arena's set dressing is nothing the range's first frame shows, later.ts)
+  later(() => placeProps(root, worn.props));
   for (const [i, b] of boxes.entries()) {
     const y = b.y ?? 0;
     if (!worn.instead.has(i)) {

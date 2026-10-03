@@ -12,7 +12,8 @@ import { Player } from "./game/player";
 import { Loadout, type SlotSetup } from "./game/loadout";
 import type { AttachSlot } from "./game/attachments";
 import { HU, MOVE } from "./game/movement";
-import { installSky } from "./game/materials";
+import { holdTextures, installSky } from "./game/materials";
+import { firstScreenDone, later, laterSettled } from "./game/later";
 import { Renderer, VM_LAYER } from "./game/render";
 import { slow } from "./game/slow";
 import vmCfg from "./config/viewmodel.json";
@@ -118,7 +119,7 @@ import { Tour, type TourCheck } from "./game/tour";
 import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
 import { throwName } from "./config/names";
 import { figuresSettled, hasClip, loadMannequin, loadOutfit, loadTint, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
-import { loadPaidGuns, paidGunsReady, paidProp } from "./game/paidgun";
+import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
@@ -820,8 +821,11 @@ camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
 buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: IS_SK ? "city" : "warehouse", sandbox: IS_SK ? rangeCfg.sandbox : null, solids: IS_SK ? armorySolids() : undefined });
 // the 1v1 arena, east of the range, and the 1v1v1 triangle north of it (src/game/arena.ts)
+// (the arenas' textures after the page's first screen: nothing the range's first frame shows, later.ts)
+holdTextures(true);
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
+holdTextures(false);
 // the battle royale map, 500 m south (src/game/br.ts)
 // SpeedKills' city, or the legacy game's Outskirts, in the same square of the world. SpeedKills plays the map rebuilt from
 // Daelonik's Neon City (neonmap.ts, Phase 28; the owner, 2026-09-29: "make it the default"); ?map=city the city of the
@@ -875,7 +879,9 @@ function applyHour(h: Hour): void {
   hour = h;
   setHour(h, scene);
   renderer.shadowMap.needsUpdate = true;
-  void installSky(scene, renderer, h.hdr);
+  // (the shaders built again once it is in: a material lit by the sky's environment map is another shader than one
+  // without, and the first warm runs before the sky's file has come, warmScene)
+  void installSky(scene, renderer, h.hdr).then(() => warmScene());
   // (the Neon City map's roads reflect a picture of the city under this hour, not the last one's)
   retakeReflection();
 }
@@ -972,9 +978,14 @@ scene.add(rangeProps);
 // (its holograms turn)
 const armory = IS_SK && !new URLSearchParams(location.search).has("norender") ? new Armory() : null;
 if (armory) rangeProps.add(armory.root);
-void placeProps(rangeProps, PROP_PLACEMENTS).then(() => {
-  renderer.shadowMap.needsUpdate = true;
-});
+// (after the page's first screen: 5.4 MB of crates, barrels, barriers and lights it waited for, set dressing whose
+// colliders are the range's own and in place already, later.ts)
+later(() =>
+  placeProps(rangeProps, PROP_PLACEMENTS).then(() => {
+    renderer.shadowMap.needsUpdate = true;
+    warmScene();
+  }),
+);
 
 // The battle royale's field, as rock rather than boxes: its rocks, its dead
 // scrub and the faces of the cliff that walls it in, each kind drawn as one
@@ -1539,7 +1550,10 @@ const targets: Target[] = TARGET_SPECS.map((t) => {
 // layouts in src/game/courses/). Their armed pop-ups are dummies too, so
 // bullets test against them as well.
 // SpeedKills has a third, THE CHAIN: the city's chain modules at their measured distances (courses/chain.ts)
+// (their textures after the page's first screen: the courses are through the gates behind you)
+holdTextures(true);
 const courses = [new Course(scene, BASIC_COURSE), new Course(scene, ADVANCED_COURSE), ...(IS_SK ? [new Course(scene, CHAIN_COURSE)] : [])];
+holdTextures(false);
 // a course's pad (THE CHAIN's window pad) sounds as the battle royale's do
 for (const c of courses) c.onPad = () => audio.whoosh();
 const [courseBasic, courseAdvanced] = courses;
@@ -1795,16 +1809,22 @@ if (IS_SK) {
     });
 }
 // SpeedKills: the bought guns (paidgun.ts), when their files are here; the guns in hand are built again once they are in
+// The guns in your hands first, the page's first screen waiting for them; the rest (the armory's, the floor's, the
+// cases) after it, behind the range (later.ts): the screen waited for all fourteen files and their skins, 10.5 MB
 if (IS_SK)
-  void loadPaidGuns().then((ok) => {
+  void loadPaidGuns([loadouts.current.slot1, loadouts.current.slot2]).then((ok) => {
     paidSettled = true;
     if (!ok) return;
-    resetGunModels();
-    resetFloorGuns();
-    viewModel.rebuild();
-    showPaidGuns();
-    // their materials' shaders, as the range's were (warmScene)
-    warmScene();
+    const dressed = (): void => {
+      resetGunModels();
+      resetFloorGuns();
+      viewModel.rebuild();
+      showPaidGuns();
+      // their materials' shaders, as the range's were (warmScene)
+      warmScene();
+    };
+    dressed();
+    later(() => loadPaidRest().then((all) => all && dressed()));
   });
 figureSel.addEventListener("change", () => {
   setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
@@ -6726,7 +6746,10 @@ function goTo(mode: Mode): void {
 // its capture ring, which every plan draws, drawn too small to see
 if (IS_SK) {
   // on the range's side (Phase 20 A5): built after the split, it was drawn from the city too
+  // (its textures after the page's first screen: it is a mode of its own, not in sight of the range)
+  holdTextures(true);
   const lab = buildPlan(scene, MOVELAB, 0.2);
+  holdTextures(false);
   rangeSide.attach(lab.root);
 }
 
@@ -8990,8 +9013,11 @@ function step(): void {
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn
   loadingScreen.frame();
-  // and then the figures come in, behind the range (askFigures)
-  if (!figuresAsked && loadingScreen.loaded) askFigures();
+  // and then the figures come in, behind the range (askFigures), and what else waited (later.ts)
+  if (loadingScreen.loaded) {
+    if (!figuresAsked) askFigures();
+    firstScreenDone();
+  }
   // the city's shaders built once its file is in, whatever is up (it ran from the page screen's wait alone, and past
   // that screen's time limit never ran: the first ride over the city froze on them)
   if (cityAsked) brWarmed();
@@ -9075,6 +9101,11 @@ document.addEventListener("visibilitychange", () => {
  */
 function warmScene(): void {
   if (!IS_SK || NO_RENDER) return;
+  // As the next frame will be drawn: one side of the world shown, and the world's lights on the gun's layer. Before the
+  // first frame both sides were shown, every shader was built for both sides' lights, and the first frame, which shows
+  // one, built them all again on the spot (a shader is built for the lights it is lit by).
+  showSide();
+  lightsOnGun();
   warming++;
   let built: Promise<unknown> = Promise.resolve();
   try {
@@ -9317,7 +9348,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   cameraPos: () => camera.position.toArray(),
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   // (and the figures in: tools and the e2e start matches at once, and a SpeedKills page's screen no longer waits for them)
-  loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()),
+  loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()) && laterSettled(),
   /** SpeedKills' way into a match (show): its stage, or null once the match is its own (tools/e2e.ts) */
   showState: () => (show ? { stage: show.stage, br: show.br, up: loadingScreen.up, calm: loadingScreen.calm, allAsked: loadingScreen.allAsked, loaded: loadingScreen.loaded } : null),
   /** the intro card (tools/e2e.ts, tools/snap.ts): what it is doing, skip it, or hold it at one moment for a picture */

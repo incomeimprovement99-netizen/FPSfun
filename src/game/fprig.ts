@@ -15,6 +15,7 @@
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import cfg from "../config/fparms.json";
+import { later } from "./later";
 import { HU, MOVE } from "./movement";
 
 type Measured = { turn: number[]; forward: number[]; up: number[]; trigger: number[]; palm: number[]; clavicleL?: number[]; clavicleR?: number[] };
@@ -460,9 +461,32 @@ export class PackArms {
         t.flipY = false;
         return t;
       };
+      // The normal maps after the page's first screen (later.ts): 4.7 MB of the 6 MB the arms fetched, the glove's and the
+      // sleeve's 2 MB each. A flat one meanwhile, so the material's shader is the one it keeps (a map put in later, where
+      // there was none, built another).
+      const flat = new THREE.DataTexture(new Uint8Array([128, 128, 255, 255]), 1, 1);
+      flat.needsUpdate = true;
       const mat = (part: string): THREE.MeshStandardMaterial => {
         const orm = tex(`${part}_orm`, false);
-        return new THREE.MeshStandardMaterial({ map: tex(`${part}_color`, true), normalMap: tex(`${part}_normal`, false), roughnessMap: orm, metalnessMap: orm, aoMap: orm });
+        const m = new THREE.MeshStandardMaterial({ map: tex(`${part}_color`, true), normalMap: flat, roughnessMap: orm, metalnessMap: orm, aoMap: orm });
+        later(
+          () =>
+            new Promise<void>((done) => {
+              // (put on once its picture is in: before, it samples as black, a wrong normal)
+              const n = tl.load(
+                url(`${cfg.textures}${part}_normal.webp`),
+                () => {
+                  m.normalMap = n;
+                  done();
+                },
+                undefined,
+                () => done(),
+              );
+              n.colorSpace = THREE.NoColorSpace;
+              n.flipY = false;
+            }),
+        );
+        return m;
       };
       const byName: Record<string, THREE.MeshStandardMaterial> = { Glove: mat("Glove01"), Cloth: mat("Cloth01"), Hand: mat("Arm01") };
       g.scene.traverse((o) => {

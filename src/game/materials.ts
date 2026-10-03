@@ -2,6 +2,7 @@
 // Every material falls back to a plain colour if the textures are missing, so
 // the range still runs before `npm run assets` has been called.
 import * as THREE from "three";
+import { later } from "./later";
 
 export type MatName =
   | "concrete"
@@ -139,12 +140,44 @@ const FALLBACK: Record<MatName, number> = {
 };
 
 /**
+ * Textures held for after the page's first screen (holdTextures, later.ts): what is built while it is on (the arenas,
+ * the courses, the movement lab: nothing the range's first frame shows) gets a texture with a neutral pixel in it at
+ * once, and its file is fetched once that screen has gone, into the same texture. The material keeps its maps
+ * throughout, so the shader the warm built for it (main.ts warmScene) is the one it draws with.
+ */
+let holding = false;
+export function holdTextures(on: boolean): void {
+  holding = on;
+}
+/** a pixel of `rgb` (0..255 each) in a texture, until its file is fetched */
+function pixel(rgb: [number, number, number]): HTMLCanvasElement | null {
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = c.height = 1;
+  const g = c.getContext("2d");
+  if (g) {
+    g.fillStyle = `rgb(${rgb[0]},${rgb[1]},${rgb[2]})`;
+    g.fillRect(0, 0, 1, 1);
+  }
+  return c;
+}
+/** the neutral pixel each kind of map waits with: a colour map its material's flat colour, a normal map a flat surface */
+function standIn(name: MatName, map: string): HTMLCanvasElement | null {
+  if (map === "normalgl") return pixel([128, 128, 255]);
+  if (map === "roughness") return pixel([255, 255, 255]);
+  if (map === "emission") return pixel([0, 0, 0]);
+  const c = new THREE.Color(FALLBACK[name]).convertLinearToSRGB();
+  return pixel([Math.round(c.r * 255), Math.round(c.g * 255), Math.round(c.b * 255)]);
+}
+
+/**
  * Load a map. TextureLoader is asynchronous and never throws on a 404, so the
  * failure has to be handled in the error callback: an unloaded texture still
  * gets bound and samples as black, which would have made the whole range black
  * on a checkout that had not run `npm run assets`.
  */
 function load(name: MatName, map: string, srgb: boolean, onFail: () => void): THREE.Texture {
+  if (holding) return held(name, map, srgb, onFail);
   // WebP (tools/compress-assets.ts); a checkout that has not compressed its downloads has the JPEGs
   const t = loader.load(`tex/${name}/${map}.webp`, undefined, undefined, () => {
     loader.load(
@@ -161,6 +194,30 @@ function load(name: MatName, map: string, srgb: boolean, onFail: () => void): TH
   t.wrapT = THREE.RepeatWrapping;
   if (srgb) t.colorSpace = THREE.SRGBColorSpace;
   t.anisotropy = 8;
+  return t;
+}
+
+/** a map with its neutral pixel now and its file after the first screen (holdTextures) */
+function held(name: MatName, map: string, srgb: boolean, onFail: () => void): THREE.Texture {
+  const t = new THREE.Texture(standIn(name, map) ?? undefined);
+  t.needsUpdate = true;
+  t.wrapS = THREE.RepeatWrapping;
+  t.wrapT = THREE.RepeatWrapping;
+  if (srgb) t.colorSpace = THREE.SRGBColorSpace;
+  t.anisotropy = 8;
+  later(
+    () =>
+      new Promise<void>((done) => {
+        // (the pixel's texture let go first: the file is a different size, and its storage is made for the first image)
+        const put = (img: THREE.Texture): void => {
+          t.dispose();
+          t.image = img.image;
+          t.needsUpdate = true;
+          done();
+        };
+        loader.load(`tex/${name}/${map}.webp`, put, undefined, () => loader.load(`tex/${name}/${map}.jpg`, put, undefined, () => (onFail(), done())));
+      }),
+  );
   return t;
 }
 

@@ -94,27 +94,54 @@ function dotMaterial(name: string): THREE.MeshBasicMaterial {
   return m;
 }
 
-/** load every mapped gun once (SpeedKills only); true when they are in */
-export function loadPaidGuns(): Promise<boolean> {
+/** a gun's models: its own and the one its mount is taken from */
+const modelsOf = (id: string): string[] => {
+  const g = GUNS[id];
+  return g ? [g.model, ...(g.mount ? [g.mount.from] : [])] : [];
+};
+/** the files are here (the HEAD probe, asked once: a checkout without the bought files has none) */
+let present: Promise<boolean> | null = null;
+const probe = (): Promise<boolean> =>
+  (present ??= fetch(url(`${cfg.models}${Object.values(GUNS)[0].model}.glb`), { method: "HEAD" })
+    .then((r) => r.ok && !(r.headers.get("content-type") ?? "").includes("text/html"))
+    .catch(() => false));
+const gltfs = new GLTFLoader();
+/** each model's load, asked once (the rest is asked for while the guns in your hands may still be coming) */
+const asked = new Map<string, Promise<void>>();
+/** `models` loaded into `scenes` */
+function loadModels(models: string[]): Promise<unknown> {
+  return Promise.all(
+    [...new Set(models)].map((m) => {
+      let p = asked.get(m);
+      if (!p) {
+        p = gltfs.loadAsync(url(`${cfg.models}${m}.glb`)).then((g) => {
+          // the collision hulls are never drawn
+          const hulls: THREE.Object3D[] = [];
+          g.scene.traverse((o) => {
+            if (/^UCX_/.test(o.name)) hulls.push(o);
+          });
+          for (const h of hulls) h.removeFromParent();
+          scenes.set(m, g.scene);
+        });
+        asked.set(m, p);
+      }
+      return p;
+    }),
+  );
+}
+
+/**
+ * The bought guns in `first` (SpeedKills only: the guns in your hands); true when they are in. The rest, the armory's
+ * and the floor's guns and the cases, by loadPaidRest: the page's first screen waited for all fourteen files and their
+ * skins, 10.5 MB, and the range's first frame shows two (2026-10-03). A gun not in yet stays procedural (dressPaid).
+ */
+export function loadPaidGuns(first: string[] = Object.keys(GUNS)): Promise<boolean> {
   if (loading) return loading;
   loading = (async () => {
     try {
-      const first = Object.values(GUNS)[0];
-      const probe = await fetch(url(`${cfg.models}${first.model}.glb`), { method: "HEAD" });
-      if (!probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return false;
-      const loader = new GLTFLoader();
-      const models = [...new Set([...Object.values(GUNS).flatMap((g) => [g.model, ...(g.mount ? [g.mount.from] : [])]), ...Object.values(PROPS).map((p) => p.model)])];
-      const got = await Promise.all(models.map((m) => loader.loadAsync(url(`${cfg.models}${m}.glb`)).then((g) => [m, g.scene] as const)));
-      for (const [m, scene] of got) {
-        // the collision hulls are never drawn
-        const hulls: THREE.Object3D[] = [];
-        scene.traverse((o) => {
-          if (/^UCX_/.test(o.name)) hulls.push(o);
-        });
-        for (const h of hulls) h.removeFromParent();
-        scenes.set(m, scene);
-      }
-      ready = true;
+      if (!(await probe())) return false;
+      await loadModels(first.flatMap(modelsOf));
+      if (first.length >= Object.keys(GUNS).length) await loadPaidRest();
       return true;
     } catch (e) {
       console.warn("the bought guns did not load; the guns stay procedural", e);
@@ -122,6 +149,23 @@ export function loadPaidGuns(): Promise<boolean> {
     }
   })();
   return loading;
+}
+
+let rest: Promise<boolean> | null = null;
+/** every other bought gun and the props (the armory's cases, the hack cores, the bins); paidGunsReady() after */
+export function loadPaidRest(): Promise<boolean> {
+  rest ??= (async () => {
+    try {
+      if (!(await probe())) return false;
+      await loadModels([...Object.keys(GUNS).flatMap(modelsOf), ...Object.values(PROPS).map((p) => p.model)]);
+      ready = true;
+      return true;
+    } catch (e) {
+      console.warn("the bought guns did not load; the guns stay procedural", e);
+      return false;
+    }
+  })();
+  return rest;
 }
 
 /** a bought gun's skin at a fusion level, for its copy on the floor (loot.ts), or null when it wears none */

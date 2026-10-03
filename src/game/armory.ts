@@ -253,6 +253,13 @@ export class Armory {
     return s;
   }
 
+  /** there is something bought for this stand that it does not wear yet */
+  private wantsDress(s: ArmoryStation): boolean {
+    const key = s.kind === "gun" ? "armorygun" : "armoryhack";
+    if (!s.stand && paidPropReady(key)) return true;
+    return s.kind === "gun" ? paidGunsReady() && !s.dressed : !s.dressed && paidPropReady("hackcore");
+  }
+
   /** the stand's case and its hologram, the bought ones once they are in (the procedural ones until then) */
   private dress(s: ArmoryStation, level: number): void {
     const key = s.kind === "gun" ? "armorygun" : "armoryhack";
@@ -337,12 +344,17 @@ export class Armory {
 
   /** a frame: the holograms turn, and a stand whose state changed has its screen, card and skin drawn again */
   update(now: number, v: ArmoryView): void {
+    // one stand dressed a frame as the pack comes in: all twenty at once was a 2.1 s frame (each gun's floor copy merged)
+    let dressings = 1;
     for (const s of this.stations) {
       s.spin.rotation.y = now * cfg.item.spin + s.phase;
       s.spin.position.y = cfg.item.y + Math.sin(now * 1.6 + s.phase) * cfg.item.bob;
       const level = this.levelOf(s, v);
       // the bought stand or hologram, once the pack is in
-      if (!s.stand || !s.dressed) this.dress(s, level);
+      if ((!s.stand || !s.dressed) && dressings > 0 && this.wantsDress(s)) {
+        dressings--;
+        this.dress(s, level);
+      }
       const key = this.viewKey(s, v);
       if (key === s.drawn) continue;
       s.drawn = key;
