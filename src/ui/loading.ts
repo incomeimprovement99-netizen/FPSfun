@@ -108,6 +108,8 @@ export class LoadingScreen {
   private readonly tip = document.getElementById("loadingTip");
   /** the battle royale's card while it is up (setCard), or null */
   card: PlayerCard | null = null;
+  /** when the card went up, seconds (performance.now): a match holds it up a while however soon it is ready (main.ts) */
+  private cardAt = 0;
   /** the card's tips: when one last changed, and the next to show */
   private cardTipAt = 0;
   private cardTipNext = 0;
@@ -237,6 +239,7 @@ export class LoadingScreen {
     this.card = card;
     this.el?.classList.toggle("br", !!card);
     if (!card) return;
+    this.cardAt = performance.now() / 1000;
     const get = (id: string) => document.getElementById(id);
     get("pcard")?.style.setProperty("--pc", card.color);
     const put = (id: string, text: string) => {
@@ -302,6 +305,11 @@ export class LoadingScreen {
     const e = el("div", "lt");
     e.append(el("b", "", t.tag), el("span", "", t.say));
     return e;
+  }
+
+  /** seconds the card has been up (Infinity with none: nothing to hold for) */
+  get cardSeconds(): number {
+    return this.card ? performance.now() / 1000 - this.cardAt : Infinity;
   }
 
   /** every brCard.tipSeconds the oldest tip on the card makes way for the next, at the bottom */

@@ -144,6 +144,8 @@
     "cityText": "LOADING THE CITY",
     "cityReady": "GETTING THE CITY READY",
     "cityMost": 180,
+    "_cardMin": "The battle royale's player card is up at least `cardMin` seconds from Start, however soon the match is ready, the ship held at its start until then (the owner, 2026-10-03: at least 5 s; on a quick load it went by before it could be read).",
+    "cardMin": 5,
     "boardMost": 6,
     "menuGrace": 0.5,
     "paintWait": 0.08

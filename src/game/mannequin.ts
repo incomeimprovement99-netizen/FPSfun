@@ -55,7 +55,8 @@ export function setFigureStyle(s: FigureStyle): void {
   if (s === "mannequin") void loadMannequin();
 }
 export function useMannequin(): boolean {
-  return style === "mannequin" && template !== null;
+  // (SpeedKills: robots until its soldier is ready, not the legacy body it never shows, whose figures fetched its outfits)
+  return style === "mannequin" && template !== null && !soldierPending;
 }
 
 interface Template {
@@ -80,6 +81,13 @@ let loading: Promise<void> | null = null;
  */
 let soldierTemplate: Template | null = null;
 let soldierMap: Retargeter | null = null;
+/**
+ * SpeedKills' soldier is on its way: until its template is made, or its files turn out not to be here, no figure is
+ * built on the legacy body (and none of its outfits fetched). The legacy body was the first figure a SpeedKills page
+ * made and then never showed, and it and its outfits were the last 3.5 MB the page's first screen waited for
+ * (2026-10-03).
+ */
+let soldierPending = IS_SK;
 /** the clips as they came, kept so the soldier's are made from all of them whenever it arrives */
 const rawClips: THREE.AnimationClip[] = [];
 /** the soldier is what new figures are (SpeedKills with its files here) */
@@ -633,6 +641,8 @@ export function loadMannequin(): Promise<void> {
   // and the clothes hang on the bones they already hang on. It has real
   // topology, a face, and base colour, normal and roughness maps, which is
   // what the grey mannequin never had.
+  // SpeedKills' soldier asked for with the clips, not after them: it is the figure, and it waited on 4.4 MB it does not need
+  const soldier = IS_SK ? loadSoldier().catch(() => null) : null;
   loading = Promise.all([loader.loadAsync("models/mannequin/mannequin.glb"), loader.loadAsync("models/mannequin/mannequin-more.glb")])
     .then(([main, more]) => {
       const clips = new Map<string, THREE.AnimationClip>();
@@ -670,6 +680,8 @@ export function loadMannequin(): Promise<void> {
       // figure built after the body arrives is the real one.
       // (Through loadBody, the one fetch a body gets: loaded here on its own, a figure asking for the same body before it
       // came fetched its file and its seven textures a second time, and held two copies of them; a hunt, 2026-09-30.)
+      // (SpeedKills: only if its soldier is not here; the legacy body is not what a SpeedKills figure wears)
+      const upgradeBody = (): void => {
       void loadBody(DEFAULT_BODY)
         .then(() => {
           const body = bodies.get(DEFAULT_BODY);
@@ -686,14 +698,24 @@ export function loadMannequin(): Promise<void> {
           template.shoulderR = new THREE.Vector3().setFromMatrixPosition(p2.getObjectByName("upperarm_r")!.matrixWorld);
         })
         .catch(() => null);
+      };
+      if (!IS_SK) upgradeBody();
 
       template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
       // SpeedKills: the bought soldier, when its files are here (they are local only; see soldier.json)
-      if (IS_SK)
-        void loadSoldier()
-          .then((a) => (a ? makeSoldierTemplate(main.scene, a.scene) : null))
-          .catch(() => null)
-          .finally(() => (figuresDone = true));
+      if (soldier)
+        void soldier
+          .then((a) => {
+            if (a) return makeSoldierTemplate(main.scene, a.scene);
+            // no soldier here (a checkout without the bought files): the legacy body after all
+            upgradeBody();
+            return null;
+          })
+          .catch(() => upgradeBody())
+          .finally(() => {
+            soldierPending = false;
+            figuresDone = true;
+          });
       else figuresDone = true;
     })
     .catch((e) => {
@@ -2337,7 +2359,8 @@ function fingersFrom(rig: THREE.Object3D, clip: THREE.AnimationClip | undefined,
  */
 export function buildArmRig(skin: OperatorSkin): ArmRig | null {
   if (soldierTemplate) return soldierArmRig(skin);
-  if (!template) return null;
+  // (SpeedKills: no legacy body's arms, nor its outfit's sleeves fetched, while the soldier is on its way)
+  if (!template || soldierPending) return null;
   const name = bodyOf(skin.outfit, skin.body);
   const build = skin.build ?? "regular";
   const body = bodyFor(name, build);

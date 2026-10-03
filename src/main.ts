@@ -231,8 +231,9 @@ intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSe
 // SpeedKills: the loading screen, its bar and its tips, is what shows while anything loads, up to those late steps
 // too; there is no card over it, and a mode's card plays once it is done (below, and wireMatch)
 // and the city's side warmed after all that (brWarmed): drawn cold from the ship, it froze the page for seconds
-// (not the city's warm: the city is asked for when a match on it starts, askCity, and its warm waits on the match's screen)
-if (IS_SK) loadingScreen.waitFor = () => paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms);
+// (not the city's warm: the city is asked for when a match on it starts, askCity, and its warm waits on the match's screen;
+// nor the figures: asked for once this screen has gone, askFigures, and a match's screen waits for them)
+if (IS_SK) loadingScreen.waitFor = () => paidSettled;
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -1726,7 +1727,21 @@ try {
 } catch {
   /* ignore */
 }
-setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
+/**
+ * SpeedKills' figures (its soldier, and the clips it plays) are asked for once the page's own screen has gone, not with
+ * the page: the range is first person among robot dummies, and they were the last 14 MB that screen waited for, with a
+ * half-second's retargeting (2026-10-03). A match asks for them as it starts and its screen waits for them (showFrame),
+ * as do the test hook's loaded() and the battle royale card's portrait.
+ */
+let figuresAsked = !IS_SK;
+function askFigures(): void {
+  if (figuresAsked) return;
+  figuresAsked = true;
+  setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
+}
+/** the figures are in (or never coming): what a match on SpeedKills waits for */
+const figuresIn = (): boolean => figuresAsked && figuresSettled();
+if (!IS_SK) setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
 // SpeedKills: the soldier picker on the Loadouts tab (soldier.json): a kit, colours, skin and eyes, and three
 // pieces on or off; kept as the player's code, which the look carries to friends (outfit.ts lookCode)
 if (IS_SK) {
@@ -2265,7 +2280,16 @@ function playerCard(): PlayerCard {
       };
     }),
     tips: hudCfg.loading.tipsBr.map((t) => ({ tag: t.tag, say: tipWords(t.say) })),
-    portrait: drawPortrait,
+    // (drawn once the figures are in: a match asks for them as it starts, and the card goes up before)
+    portrait: (canvas) => {
+      const at = performance.now();
+      const draw = (): void => {
+        if (figuresIn() || performance.now() - at > 20000) drawPortrait(canvas);
+        else window.setTimeout(draw, 200);
+      };
+      askFigures();
+      draw();
+    },
   };
 }
 
@@ -5259,7 +5283,7 @@ function showFrame(): void {
   if (show.stage === "load") {
     // A match on the city waits for it: its file by its bytes (the bar's files are counted, and the city is two of
     // them), then its textures, then its shaders built (warmBrSide)
-    const cityReady = !show.city || (cityIn && brWarm === "done");
+    const cityReady = (!show.city || (cityIn && brWarm === "done")) && figuresIn();
     let files = loadingScreen.filesIn;
     if (show.city && !cityReady) {
       const got = NEON_MAP.total > 0 ? NEON_MAP.got / NEON_MAP.total : 0;
@@ -5293,9 +5317,12 @@ function showFrame(): void {
       return;
     }
     loadingScreen.sayLine("");
-    // the bar's last fifth: the frames on the ship steady
-    loadingScreen.step(0.8 + 0.2 * Math.min(1, loadingScreen.calm / N));
-    if ((loadingScreen.allAsked && loadingScreen.calm >= N) || now - show.at > S.boardMost) {
+    // the card up for `cardMin` seconds however soon the match is ready: on a quick load it went by before it could be
+    // read (the owner, 2026-10-03)
+    const cardLeft = show.br ? Math.max(0, S.cardMin - loadingScreen.cardSeconds) : 0;
+    // the bar's last fifth: the frames on the ship steady, and the card's time
+    loadingScreen.step(0.8 + 0.2 * Math.min(1, loadingScreen.calm / N, show.br && loadingScreen.card ? loadingScreen.cardSeconds / S.cardMin : 1));
+    if (cardLeft <= 0 && ((loadingScreen.allAsked && loadingScreen.calm >= N) || now - show.at > S.boardMost)) {
       show.stage = "card";
       show.at = now;
       showCard();
@@ -5353,6 +5380,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // a match on the city's side: the city's file asked for now (it is not loaded with the page)
   const onCity = NEON && (d instanceof BrMatch || ("arenaId" in d && (d as { arenaId: string }).arenaId === CENTRE_MAP.id));
   if (onCity) askCity();
+  // and the figures, which a match's are
+  askFigures();
   if (!NO_INTRO) {
     if (IS_SK && !document.hidden) {
       show = { stage: "load", words: modeWords(d, kind), br: d instanceof BrMatch, city: onCity, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
@@ -8954,6 +8983,8 @@ function step(): void {
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn
   loadingScreen.frame();
+  // and then the figures come in, behind the range (askFigures)
+  if (!figuresAsked && loadingScreen.loaded) askFigures();
   // the city's shaders built once its file is in, whatever is up (it ran from the page screen's wait alone, and past
   // that screen's time limit never ran: the first ride over the city froze on them)
   if (cityAsked) brWarmed();
@@ -9260,7 +9291,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   emoting: () => emoting,
   cameraPos: () => camera.position.toArray(),
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
-  loaded: () => loadingScreen.loaded,
+  // (and the figures in: tools and the e2e start matches at once, and a SpeedKills page's screen no longer waits for them)
+  loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()),
   /** SpeedKills' way into a match (show): its stage, or null once the match is its own (tools/e2e.ts) */
   showState: () => (show ? { stage: show.stage, br: show.br, up: loadingScreen.up, calm: loadingScreen.calm, allAsked: loadingScreen.allAsked, loaded: loadingScreen.loaded } : null),
   /** the intro card (tools/e2e.ts, tools/snap.ts): what it is doing, skip it, or hold it at one moment for a picture */

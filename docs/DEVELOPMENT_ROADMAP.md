@@ -9488,3 +9488,32 @@ under a slab at noon that is next to nothing.
   the court and the station (seen failing with the lamps' piece misnamed: none found), and none inside anything solid
   (seen failing before the filter: 19 of 135). verify and rules; e2e `br`. Photographed on a tower floor, in the base's
   hall and in the court, before and after.
+## Milestone 426 — The figures come in behind the range, the legacy body never comes at all, and the card is up at least 5 s
+
+The owner, 2026-10-03: "no make it 5s min display, then optimize by getting rid of legacy code and anything else that
+would help the initial load time".
+
+- **The card:** the battle royale's player card is up at least 5 s from Start however soon the match is ready, the
+  ship held at its start until then (intro.json show cardMin; it went by before it could be read). Seen holding with
+  20 s set: the match ready at 8.9 s, the card gone at 20.2 s.
+- **The figures behind the range** (main.ts askFigures): SpeedKills' soldier and the clips it plays (11 MB, and a
+  half-second's retargeting) were the last files the page's first screen waited for, after Milestone 422: the soldier
+  and the character body finishing at 6.7 s of the live site's 6.9. The range is first person among robot dummies, so
+  they are asked for as that screen goes. A match asks for them as it starts, and its screen waits for them, as do the
+  test hook's loaded() and the card's portrait.
+- **No legacy body in SpeedKills** (mannequin.ts, with the character agent's agreement):
+  - SpeedKills' soldier is asked for with the clips, not after them;
+  - until it is ready, figures are robots and arms are not built, where they had been built on the legacy body for that
+    moment, the Loadouts preview's and the first person's (FpArms asks every 500 ms), fetching its outfits;
+  - the legacy body is fetched only if the soldier's files are not here.
+  - The body and the outfits, 3.5 MB in 42 files, are no longer asked for at all; the soldier now starts as the screen
+    goes, 6.26 s on the dev server.
+- **Legacy code, measured:** a production build's start traced. Parsing and compiling the whole 5.6 MB script took about
+  150 to 200 ms of the page's thread, most of the parsing done off it while the script came in. Running its start took
+  2.47 s. Deleting the legacy game's code would save under 0.1 s and half a megabyte of the download; what costs is what
+  the start builds, and the legacy things a SpeedKills page fetched or built at the start are gone (the body and
+  outfits here, the city and the old graph's cost in Milestone 422). Every arena, the triangle and the warehouse
+  included, is reachable from SpeedKills (its maps and the Map box), so none is legacy-only.
+- **Proposed to the city agent:** the Neon City's bots' graph built on first use, 0.36 s of the start (its file).
+- **Checked:** the figures' files and when each starts, before and after; verify; rules; the skfigure and speedkills
+  e2e.
