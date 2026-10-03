@@ -177,6 +177,8 @@ function applyBrDefaults(): void {
 const loadingScreen = new LoadingScreen();
 /** SpeedKills' bought guns have loaded or found their files absent (the intro card waits for it) */
 let paidSettled = false;
+/** the scene's shaders being built off the page's thread (warmScene): the page's screen waits for none left */
+let warming = 0;
 /**
  * The intro card (src/ui/intro.ts): the page opens on it, and it plays again
  * as you drop into a match. `?nointro` turns it off, which is what the
@@ -233,7 +235,7 @@ intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSe
 // and the city's side warmed after all that (brWarmed): drawn cold from the ship, it froze the page for seconds
 // (not the city's warm: the city is asked for when a match on it starts, askCity, and its warm waits on the match's screen;
 // nor the figures: asked for once this screen has gone, askFigures, and a match's screen waits for them)
-if (IS_SK) loadingScreen.waitFor = () => paidSettled;
+if (IS_SK) loadingScreen.waitFor = () => paidSettled && warming === 0;
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -1801,6 +1803,8 @@ if (IS_SK)
     resetFloorGuns();
     viewModel.rebuild();
     showPaidGuns();
+    // their materials' shaders, as the range's were (warmScene)
+    warmScene();
   });
 figureSel.addEventListener("change", () => {
   setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
@@ -6511,7 +6515,7 @@ function warmMatch(): void {
   brSide.visible = true;
   const mine = scene.children.filter((c) => c !== rangeSide && c !== brSide && !(c as THREE.Light).isLight && !(c as THREE.Camera).isCamera);
   try {
-    for (const c of mine) void renderer.compileAsync(c, camera, scene).catch(() => undefined);
+    for (const c of mine) void pipeline.compileAsync(c).catch(() => undefined);
   } catch {
     /* a compile that throws is a frame that compiles it later, as before */
   } finally {
@@ -6545,14 +6549,15 @@ function warmBrSide(): void {
   brSide.visible = true;
   const compiling: Array<Promise<unknown>> = [];
   try {
-    compiling.push(renderer.compileAsync(brSide, camera, scene));
+    // (for the target a frame draws into: built for the canvas they were not the composer's, pipeline.compileAsync)
+    compiling.push(pipeline.compileAsync(brSide));
     // and as the roads' reflection draws it, which a change of hour takes again (neonmap.ts retakeReflection)
     compiling.push(warmReflection(brSide));
     // and everything else as the range's side draws it, what is out of view included: the Gulag's room was 10 shaders
     // compiled on its first frame, a 0.75 s freeze on the way in (a hunt, 2026-09-30)
     rangeSide.visible = true;
     brSide.visible = false;
-    for (const c of scene.children) if (c !== brSide && !(c as THREE.Light).isLight && !(c as THREE.Camera).isCamera) compiling.push(renderer.compileAsync(c, camera, scene));
+    for (const c of scene.children) if (c !== brSide && !(c as THREE.Light).isLight && !(c as THREE.Camera).isCamera) compiling.push(pipeline.compileAsync(c));
   } catch {
     /* a compile that throws is a frame that compiles it later, as before */
   } finally {
@@ -8748,7 +8753,9 @@ function step(): void {
       previewLoadout(now, dt);
       drawPreview();
     }
-    pipeline.render(now);
+    // (not while the page's screen is up and the scene's shaders are still being built: drawn, they were built on the
+    // spot, warmScene)
+    if (warming === 0 || loadingScreen.loaded) pipeline.render(now);
   }
   phases.lap("render");
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
@@ -9060,6 +9067,24 @@ document.addEventListener("visibilitychange", () => {
   tickWhileHidden(document.hidden);
   schedule();
 });
+/**
+ * The scene's shaders built off the page's thread where the browser can (three's compileAsync), as it is shown now,
+ * before they are drawn. SpeedKills only: drawn cold, its first frames built every shader of the range and the gun in
+ * hand on the spot, 2.9 s of the page's thread under the loading screen that covered them (a CPU profile, 2026-10-03).
+ * The page's screen waits for them, and frames are not drawn under it meanwhile; the rest of a frame runs.
+ */
+function warmScene(): void {
+  if (!IS_SK || NO_RENDER) return;
+  warming++;
+  let built: Promise<unknown> = Promise.resolve();
+  try {
+    built = pipeline.compileAsync(scene);
+  } catch {
+    /* built when drawn, as before */
+  }
+  void built.catch(() => undefined).finally(() => warming--);
+}
+warmScene();
 tickWhileHidden(document.hidden);
 schedule();
 // ---------- first visit, invite links ----------

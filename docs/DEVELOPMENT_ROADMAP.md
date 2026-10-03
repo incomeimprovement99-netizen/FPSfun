@@ -9531,3 +9531,31 @@ found them missing once, and a page settles on whatever figures it has for the w
   once the tries are spent.
 - **Checked:** a new skfigure check fails the model's first two downloads on purpose: the third brings the soldier
   (`gets` 3). With the retries off it never came (one download, then nothing). The skfigure e2e (78); verify; rules.
+
+## Milestone 428 — The range's shaders built while its files come in, and the friends' network library loaded only for a friends' match
+
+The owner, 2026-10-03: "optimize by getting rid of legacy code and anything else that would help the initial load
+time". After Milestone 426 the live site's screen went at 7.7 to 8.0 s, the downloads done by 5.6 s; a CPU profile of
+the start found the rest:
+
+- **PeerJS, 1.2 s:** its module builds a WebRTC connection as it loads, to test the browser, and it loaded with the
+  page. It is imported the first time a connection is made (net/link.ts), so only a friends' match pays for it; a
+  production build puts it in its own file.
+- **Every shader built on first draw, 2.9 s:** the range and the gun in hand were drawn under the loading screen and
+  each first draw built its shader on the spot. warmScene (main.ts) builds them with three's compileAsync while the
+  files come in, the browser building them in parallel where it can (KHR_parallel_shader_compile, there in Chrome on
+  this machine headless and windowed); frames are not drawn under the page's screen meanwhile, and the screen waits for
+  them. Again when the bought guns are dressed.
+- **For the target a frame draws into** (render.ts compileAsync): three builds a shader for its target's colour, the
+  canvas's sRGB and tone mapping or a render target's linear. Balanced and High draw through the composer, so shaders
+  built for the canvas were not theirs and were built again on first draw. The city's warm (warmBrSide) and a match's
+  (warmMatch) had built them for the canvas since Milestone 359; both now build for the composer's target too.
+- **Measured** (production builds served locally, before and after, two cold loads each, alternated): the screen went
+  at 9.94 and 9.92 s before, 7.54 and 7.45 s after; the script ran by 3.7 s before, 2.5 s after; the page's thread was
+  held 9.2 s before, 6.6 s after (the machine in use by the other agents: the live numbers are lower, the difference
+  the same).
+- **What is left at the start** (the next places to look): the bought guns dressed all at once for the armory (a 2.1 s
+  task once their files are in), the courses (0.3 s), the city's graph (0.4 s; its owner is taking it), and the
+  textures sent to the card (0.9 s).
+- **Checked:** the start profiled after each change; the A/B above; verify; rules; the p2p (the real PeerJS),
+  speedkills and skship e2e.

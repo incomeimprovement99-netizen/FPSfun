@@ -277,6 +277,22 @@ export class Renderer {
     this.desatDiv.style.display = v > 0.01 ? "block" : "none";
   }
 
+  /**
+   * `root`'s shaders built off the page's thread where the browser can (three's compileAsync), for the target a frame
+   * draws them into: the composer's own when there is one. three builds a shader for its target's colour (the canvas's
+   * sRGB and tone mapping, a render target's linear), and built for the canvas they were not the ones a composer's frame
+   * asked for: those were built again, on the spot, when first drawn (2026-10-03).
+   */
+  compileAsync(root: THREE.Object3D, targetScene: THREE.Scene = this.scene): Promise<unknown> {
+    const was = this.renderer.getRenderTarget();
+    try {
+      this.renderer.setRenderTarget(this.composer ? this.composer.readBuffer : null);
+      return this.renderer.compileAsync(root, this.camera, targetScene);
+    } finally {
+      this.renderer.setRenderTarget(was);
+    }
+  }
+
   render(now = 0): void {
     if (!this.composer) {
       this.renderer.render(this.scene, this.camera);

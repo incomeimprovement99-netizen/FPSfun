@@ -19,7 +19,15 @@
 // tested without the internet, and it is handy for trying it alone.
 import { pack, unpack } from "peerjs-js-binarypack";
 import netCfgFast from "../config/net.json";
-import Peer, { type DataConnection, type PeerOptions } from "peerjs";
+import type Peer from "peerjs";
+import type { DataConnection, PeerOptions } from "peerjs";
+/**
+ * PeerJS, imported the first time a connection is made, not with the page: its module builds a WebRTC connection as it
+ * loads, to test the browser, which was 1.2 s of a page's start (a CPU profile, 2026-10-03), and only a match with
+ * friends needs it
+ */
+let peerLib: Promise<typeof import("peerjs")> | null = null;
+const peerjs = (): Promise<typeof import("peerjs")> => (peerLib ??= import("peerjs"));
 import { withoutUndefined } from "./wire";
 
 /** the unordered channel for the delta packets (net.json fast) */
@@ -777,8 +785,9 @@ export function hostMatch(
   const peerOpts = peerOptions();
   const start = async (attempt: number) => {
     const o = await peerOpts;
+    const { default: PeerClass } = await peerjs();
     if (cancelled) return;
-    const p = new Peer(`${PREFIX}${code}`, o);
+    const p = new PeerClass(`${PREFIX}${code}`, o);
     peer = p;
     // "open" comes again on every reconnect, and the code is the same one: said once (a second said it
     // again, copied the invite again, and ran a handover's next step twice)
@@ -928,8 +937,9 @@ export function joinMatch(
   };
   const start = async (): Promise<void> => {
     const o = await peerOptions();
+    const { default: PeerClass } = await peerjs();
     if (cancelled || done) return;
-    const p = new Peer(o);
+    const p = new PeerClass(o);
     peer = p;
     /** this try is still the one: a try given up on still fires its closes and errors */
     const live = () => peer === p;
