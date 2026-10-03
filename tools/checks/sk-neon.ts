@@ -267,7 +267,19 @@ const crown = ups.filter((u) => u.q.id.startsWith("crown") && u.q.ground > 100);
 const PCH = (cfg as unknown as { perches?: Array<{ name: string; at: number[][] }> }).perches ?? [];
 const onIt = (p: { at: number[][] }) => p.at.filter(([x, y, z]) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).some((b) => Math.abs(b.top - y) < 0.06));
 check("the crown at 109 m: two pads up to it from the base's roof, each landing on it", crown.length === 2 && crown.every((u) => u.ok), crown.map((u) => u.said).join("; "));
-check("the perches: cover on the crown and the lookout, each piece standing on its roof", PCH.length === 2 && PCH.every((p) => p.at.length >= (p.name === "crown" ? 6 : 2) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : 6);
+check("the perches: cover on the crown, the lookout and the four High City decks, each piece standing on its roof", PCH.length === 6 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+// (and the decks' cover off where a pad lands, a lift lands, a bridge ends and a zip tops out, by rules.perches_clear)
+{
+  const PC = (cfg.rules as unknown as { perches_clear: { pad: number; lift: number; bridge: number; zip: number } }).perches_clear;
+  const spots: number[][] = [];
+  for (const q of cfg.pads) spots.push([q.face[0] - q.out[0] * 3, q.face[1] - q.out[1] * 3, PC.pad]);
+  for (const q of (cfg as unknown as { lifts: Array<{ land: number[] }> }).lifts) spots.push([q.land[0], q.land[1], PC.lift]);
+  for (const path of (cfg.rules as unknown as { bridges: { paths: number[][][] } }).bridges.paths) for (const e of [path[0], path[path.length - 1]]) spots.push([e[0], e[1], PC.bridge]);
+  for (const q of (cfg as unknown as { zips: Array<{ a: number[] }> }).zips) spots.push([q.a[0], q.a[2], PC.zip]);
+  const near = PCH.filter((p) => p.name.startsWith("deck")).flatMap((p) => p.at.filter(([x, , z]) => spots.some((s) => Math.hypot(s[0] - x, s[1] - z) < s[2])));
+  check("the decks' cover: none within reach of a pad's landing, a lift's landing, a bridge's end or a zip's top", near.length === 0, `${near.length} too near`);
+}
 const downs = SPINE.down.map((q, k) => {
   const { p } = ride(map.pads[cfg.pads.length + SPINE.up.length + k]);
   const off = Math.hypot(p.pos.x - BR_X - q.land[0], p.pos.z - BR_Z - q.land[1]);
@@ -314,6 +326,11 @@ check("each corner block named on the map over its roof yard, or the Well's over
   const MK = (cfg.rules.low as unknown as { market?: Array<{ count: number; pieces: string[]; extras: unknown[] }> }).market ?? [];
   const CR = (cfg as unknown as { crates?: Array<{ at: number[] }> }).crates ?? [];
   const sw = (cfg.chunks as Record<string, { place: unknown[][] }>)["c-sw"]?.place ?? [];
+  // the street furniture (rules.dress.furniture): along the pavements, each on a pavement (off the road, within it), plenty
+  const FUR = (cfg as unknown as { furniture?: Array<{ at: number[]; piece: string }> }).furniture ?? [];
+  const onPave = (x: number, z: number) => { const d = SFs.surface(x, z, CVs.round); return d >= 0.2 && d <= CVs.pave; };
+  const offPave = FUR.filter((q) => !onPave(q.at[0], q.at[1]));
+  check("street furniture along every pavement, each piece on its pavement and off the road", FUR.length >= 40 && offPave.length === 0 && new Set(FUR.map((q) => q.piece)).size >= 6, `${FUR.length} pieces, ${new Set(FUR.map((q) => q.piece)).size} kinds, ${offPave.length} off the pavement`);
   const stacks = CR.map((q) => ({ q, n: sw.filter((p) => /\/Crate0/.test(String(p[0])) && Math.hypot((p[1] as number) - q.at[0], (p[3] as number) - q.at[1]) < 2.5).length, street: onStreetHere(q.at[0], q.at[1]) }));
   check("MARKET: its crate stacks, three crates each, on the block's own ground off the street", MK.length > 0 && CR.length === MK.reduce((a, m) => a + m.count, 0) && stacks.every((e) => e.n >= 3 && !e.street && e.q.at[0] < 0 && e.q.at[1] > 0), stacks.map((e) => `(${e.q.at.join(", ")}) ${e.n} crates${e.street ? " ON THE STREET" : ""}`).join("; "));
 }

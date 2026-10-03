@@ -1923,14 +1923,21 @@ const skyStairs: Pt[] = [];
     const anyTop = (x: number, z: number, h: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h && b[5] > t ? b[5] : t), -Infinity);
     // (where each pad lands on the perches, as the bake finds it: the first column `face` metres high along its line, a
     // body wide, and `land` metres past it; or the way down's own spot)
-    const lands: number[][] = [];
+    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number };
+    const lands: Array<[number, number, number]> = [];
     for (const q of (R.pads.spine?.up ?? []) as Array<{ at: number[]; to: number[]; floor: number; face: number; land: number }>) {
       if (q.floor < 10) continue;
       let t = 0;
       while (t < 40 && anyTop(q.at[0] + q.to[0] * t, q.at[1] + q.to[1] * t, R.pads.body) < q.face) t += 0.05;
-      lands.push([q.at[0] + q.to[0] * (t + R.pads.body + q.land), q.at[1] + q.to[1] * (t + R.pads.body + q.land)]);
+      lands.push([q.at[0] + q.to[0] * (t + R.pads.body + q.land), q.at[1] + q.to[1] * (t + R.pads.body + q.land), PC.pad]);
     }
-    for (const q of (R.pads.spine?.down ?? []) as Array<{ pad: number[] }>) lands.push(q.pad);
+    for (const q of (R.pads.spine?.down ?? []) as Array<{ pad: number[] }>) lands.push([q.pad[0], q.pad[1], PC.pad]);
+    // (and on the High City decks: where their pads land, the lifts' landings, the bridges' ends and the zips' tops, each
+    // its own clearance: a bridge's stair runs on from its end)
+    for (const q of ((cfg.pads ?? []) as Array<{ face: number[]; out: number[] }>)) lands.push([q.face[0] - q.out[0] * 3, q.face[1] - q.out[1] * 3, PC.pad]);
+    for (const q of lifts) lands.push([q.land[0], q.land[1], PC.lift]);
+    for (const path of (R.bridges?.paths ?? []) as number[][][]) for (const e of [path[0], path[path.length - 1]]) lands.push([e[0], e[1], PC.bridge]);
+    for (const q of ((cfg.zips ?? []) as Array<{ a: number[] }>)) lands.push([q.a[0], q.a[2], PC.zip]);
     const perches: Array<{ name: string; at: number[][] }> = [];
     for (const P of PR) {
       const rnd = seeded(P.seed);
@@ -1962,7 +1969,7 @@ const skyStairs: Pt[] = [];
         for (const fx of [-hx, 0, hx]) for (const fz of [-hz, 0, hz]) if (Math.abs(topAt(x + fx, z + fz, under) - y) > 0.05) ok = false;
         // (and no drop within `edge` of it: a piece by the roof's edge is a step off it)
         for (const fx of [-hx - P.edge, 0, hx + P.edge]) for (const fz of [-hz - P.edge, 0, hz + P.edge]) if (topAt(x + fx, z + fz, under) < y - 0.5) ok = false;
-        if (!ok || lands.some((l) => Math.hypot(l[0] - x, l[1] - z) < 3 + r) || mine.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r)) continue;
+        if (!ok || lands.some((l) => Math.hypot(l[0] - x, l[1] - z) < l[2] + r) || mine.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r)) continue;
         placeTurned("c-dress", name, x, z, yaw, "o", y - row.min![1]);
         mine.push({ c: [x, z], r });
         at.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2), yaw]);
@@ -1971,6 +1978,62 @@ const skyStairs: Pt[] = [];
     }
     cfg.perches = perches;
     console.log(`the perches' cover: ${perches.map((q) => `${q.name} ${q.at.length}`).join(", ")}`);
+  }
+}
+// street furniture (rules.dress.furniture; the centre's first review: "streets are wide, with only hover cars and lamps for
+// cover"): along every street's pavements between the lamps, kiosks, planters, benches, bins and billboard panels, each
+// on the pavement `inset` in from the kerb and turned to the road, clear of everything the lamps are clear of and of the
+// lamps, the stalls, the crates, the walk-in doors and each other. Placed last, so nothing else in the layout moves
+{
+  const FU = R.dress.furniture as { every: number; offset: number; inset: number; chance: number; seed: number; apart: number; pieces: string[] } | undefined;
+  if (FU) {
+    const rndF = seeded(FU.seed);
+    const pads = ((cfg.pads ?? []) as Array<{ pad: number[] }>).map((q) => q.pad);
+    const kiosks = ((cfg.court?.halls ?? []) as Array<{ route?: number[][]; x0: number; x1: number; z0: number; z1: number }>).filter((h) => h.route);
+    const lampKey = piece(R.dress.lamp.piece).key;
+    const taken: Array<{ c: Pt; r: number }> = [];
+    for (const ch of chunks.values()) for (const q of ch.place) if (q[0] === lampKey) taken.push({ c: [q[1], q[3]], r: 0.6 });
+    for (const q of ((cfg.stalls ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 2.5 });
+    for (const q of ((cfg.crates ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 1.5 });
+    for (const q of ((cfg.walkIns ?? []) as Array<{ door: number[] }>)) taken.push({ c: [q.door[0], q.door[1]], r: 3 });
+    const clearF = (x: number, z: number, r: number, st: Street): boolean =>
+      onRoad(x, z, st) > R.dress.crossing + r &&
+      !(Math.hypot(x, z) > R.skyring.r0 - r - 1 && Math.hypot(x, z) < R.skyring.r1 + r + 1) &&
+      !skyStairs.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < r + 5) &&
+      Math.max(Math.abs(x), Math.abs(z)) < CV.inside - 3 &&
+      !pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + R.dress.padClear) &&
+      !lifts.some((q) => {
+        const [ax, az, bx, bz] = [q.ring[0], q.ring[1], q.car[0], q.car[1]];
+        const l2 = (bx - ax) ** 2 + (bz - az) ** 2;
+        const t = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / l2));
+        return Math.hypot(x - ax - (bx - ax) * t, z - az - (bz - az) * t) < r + R.lifts.clear;
+      }) &&
+      !kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r) &&
+      !taken.some((q) => Math.hypot(q.c[0] - x, q.c[1] - z) < r + q.r + FU.apart);
+    const furniture: Array<{ at: number[]; yaw: number; piece: string }> = [];
+    let k = 0;
+    for (const st of STREETS)
+      for (const side of [-1, 1])
+        for (let i = Math.round(FU.offset / 0.5); i < st.pts.length; i += Math.round(FU.every / 0.5)) {
+          if (rndF() > FU.chance) continue;
+          const name = FU.pieces[k++ % FU.pieces.length];
+          const row = piece(name).row;
+          // (its depth across the pavement is its own z; it stands `inset` off the kerb, within the pavement)
+          const depth = row.size![2];
+          if (FU.inset + depth > CV.pave) continue;
+          const n = normalAt(st, i);
+          const off = st.half + FU.inset + depth / 2;
+          const [x, z] = [st.pts[i][0] + n[0] * side * off, st.pts[i][1] + n[1] * side * off];
+          const r = Math.hypot(row.size![0], depth) / 2;
+          if (!clearF(x, z, r, st) || onRoad(x, z) < FU.inset + depth / 2 - 0.1) continue;
+          // (turned to the road: its own +z toward the kerb)
+          const yaw = yawToward(-n[0] * side, -n[1] * side);
+          placeTurned("c-dress", name, x, z, yaw, "o", -row.min![1]);
+          taken.push({ c: [x, z], r });
+          furniture.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), piece: name });
+        }
+    cfg.furniture = furniture;
+    console.log(`street furniture: ${furniture.length} pieces along the pavements`);
   }
 }
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));

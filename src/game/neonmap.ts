@@ -39,6 +39,12 @@ export const NEON_AIR = G.air;
 /** the plain floor drawn until the bundle's file is in, or where it is not */
 let standIn: THREE.Mesh | null = null;
 
+/** a value made on first use and kept */
+function lazy<T>(make: () => T): () => T {
+  let v: T | undefined;
+  return () => (v ??= make());
+}
+
 // The interiors' fill (game.fill). The tower's floors, the base's storeys, the court and the station are lit by nothing
 // but the sky's ambient, and at noon they drew near black (the centre's first review, docs/CENTRE_REVIEW.md). A pool of
 // `count` point lights, none casting a shadow, stands each frame at the `count` lamp spots nearest the eye within
@@ -135,137 +141,142 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     return out;
   };
 
-  // the bots' graph: a node every `step` metres of the street and every `raised` of the floors over it, linked to the
-  // ones round it on a floor it walks to and back (botWalk, ending at the other's height)
-  const nodes: GraphNode[] = [];
-  const at = new Map<string, number[]>();
-  const step = G.graph.step;
-  const fine = G.graph.raised;
-  const lim = BR_HALF - G.graph.margin;
-  const add = (x: number, z: number, y: number): number => {
-    nodes.push({ x: x + BR_X, z: z + BR_Z, y, poi: sectorAt(x, z)?.id, links: [] });
-    return nodes.length - 1;
-  };
-  const onStreetGrid = (v: number) => Math.abs((v + lim) / step - Math.round((v + lim) / step)) < 1e-6;
-  // (above the street or under it: the court and its halls, 7 m down, are walked at the finer step too)
-  const raised = (i: number) => Math.abs(nodes[i].y ?? 0) > MOVE.stepHeight;
-  // (the street's height inside the court is the tallest building's ground floor, a storey over the court's and walled
-  // in, not street: nodes there were an island a drop could be put on)
-  const inCourt = (x: number, z: number) => x > K.x0 && x < K.x1 && z > K.z0 && z < K.z1;
-  for (let x = -lim; x <= lim + 1e-6; x += fine)
-    for (let z = -lim; z <= lim + 1e-6; z += fine) {
-      const street = onStreetGrid(x) && onStreetGrid(z) && !inCourt(x, z);
-      const ys = floorsAt(x, z).filter((y) => street || Math.abs(y) > MOVE.stepHeight);
-      if (ys.length) at.set(`${x},${z}`, ys.map((y) => add(x, z, y)));
-    }
-  const reaches = (a: GraphNode, b: GraphNode): boolean => {
-    const w = botWalk(a.x, a.z, a.y ?? 0, b.x, b.z);
-    return w.ok && Math.abs(w.y - (b.y ?? 0)) < G.graph.level;
-  };
-  const walks = (i: number, j: number): boolean => Math.abs((nodes[i].y ?? 0) - (nodes[j].y ?? 0)) < G.graph.climb && reaches(nodes[i], nodes[j]) && reaches(nodes[j], nodes[i]);
-  const link = (i: number, j: number): void => {
-    nodes[i].links.push(j);
-    nodes[j].links.push(i);
-  };
-  for (const [k, here] of at) {
-    const [x, z] = k.split(",").map(Number);
-    for (const d of [fine, step])
-      for (const [dx, dz] of [
-        [d, 0],
-        [0, d],
-        [d, d],
-        [d, -d],
-      ])
-        for (const j of at.get(`${x + dx},${z + dz}`) ?? [])
-          for (const i of here) {
-            // the street's links a `step` apart, a raised floor's (and from it down to the street) `raised` apart
-            if ((d === step) !== !(raised(i) || raised(j))) continue;
-            if (walks(i, j)) link(i, j);
-          }
-  }
-
-  // the jump pads the bake found (neonmap.json pads), each thrown as padsolve.ts solves it: a node on its spot joined to
-  // the street round it, one way up to a node where it lands, joined to the roof round that; a bot's way up only where
-  // the landing joins the roof (High City's round islands are a player's double jump from the rest; a bot never jumps)
-  const pads: BrMap["pads"] = [];
-  /** the nodes on a floor within reach of a spot, nearest first */
-  const near = (n: number): number[] =>
-    nodes
-      .map((m, i) => ({ i, d: Math.hypot(m.x - nodes[n].x, m.z - nodes[n].z) }))
-      .filter(({ i, d }) => i !== n && d < step * 1.5 && Math.abs((nodes[i].y ?? 0) - (nodes[n].y ?? 0)) < G.graph.climb)
-      .sort((a, b) => a.d - b.d)
-      .map(({ i }) => i);
-  // (and the centre's spine, neonmap.json spine: up from the plaza onto the base's roof, and from there onto the top)
-  const SPINE = (neonCfg as unknown as { spine?: Spine }).spine ?? { up: [], down: [] };
-  for (const q of [...neonCfg.pads.map((q) => ({ ...q, land: undefined as number | undefined })), ...SPINE.up]) {
-    const { pad, land } = padOnto(q.face[0], q.face[1], q.out[0], q.out[1], q.floor, q.roof, q.land);
-    pads.push({ ...pad, x: pad.x + BR_X, z: pad.z + BR_Z });
-    const pn = add(pad.x, pad.z, pad.y);
-    const ln = add(land.x, land.z, land.y);
-    // (the pad's spot joined to the street's two nearest it walks to, the landing to the roof's three)
-    for (const [n, most] of [
-      [pn, 2],
-      [ln, 3],
-    ]) {
-      let joined = 0;
-      for (const i of near(n)) {
-        if (joined === most) break;
-        if (!walks(n, i)) continue;
-        link(n, i);
-        joined++;
+  // the bots' graph, built once on first use (a battle royale or a 1v1 on THE CENTRE reads it; the page opens on the
+  // range alone since Milestone 422, and the graph was 0.36 s of its start): a node every `step` metres of the street
+  // and every `raised` of the floors over it, linked to the ones round it on a floor it walks to and back (botWalk,
+  // ending at the other's height); the pads thrown onto it, the places and the sites
+  const graph = lazy(() => {
+    const nodes: GraphNode[] = [];
+    const at = new Map<string, number[]>();
+    const step = G.graph.step;
+    const fine = G.graph.raised;
+    const lim = BR_HALF - G.graph.margin;
+    const add = (x: number, z: number, y: number): number => {
+      nodes.push({ x: x + BR_X, z: z + BR_Z, y, poi: sectorAt(x, z)?.id, links: [] });
+      return nodes.length - 1;
+    };
+    const onStreetGrid = (v: number) => Math.abs((v + lim) / step - Math.round((v + lim) / step)) < 1e-6;
+    // (above the street or under it: the court and its halls, 7 m down, are walked at the finer step too)
+    const raised = (i: number) => Math.abs(nodes[i].y ?? 0) > MOVE.stepHeight;
+    // (the street's height inside the court is the tallest building's ground floor, a storey over the court's and walled
+    // in, not street: nodes there were an island a drop could be put on)
+    const inCourt = (x: number, z: number) => x > K.x0 && x < K.x1 && z > K.z0 && z < K.z1;
+    for (let x = -lim; x <= lim + 1e-6; x += fine)
+      for (let z = -lim; z <= lim + 1e-6; z += fine) {
+        const street = onStreetGrid(x) && onStreetGrid(z) && !inCourt(x, z);
+        const ys = floorsAt(x, z).filter((y) => street || Math.abs(y) > MOVE.stepHeight);
+        if (ys.length) at.set(`${x},${z}`, ys.map((y) => add(x, z, y)));
       }
+    const reaches = (a: GraphNode, b: GraphNode): boolean => {
+      const w = botWalk(a.x, a.z, a.y ?? 0, b.x, b.z);
+      return w.ok && Math.abs(w.y - (b.y ?? 0)) < G.graph.level;
+    };
+    const walks = (i: number, j: number): boolean => Math.abs((nodes[i].y ?? 0) - (nodes[j].y ?? 0)) < G.graph.climb && reaches(nodes[i], nodes[j]) && reaches(nodes[j], nodes[i]);
+    const link = (i: number, j: number): void => {
+      nodes[i].links.push(j);
+      nodes[j].links.push(i);
+    };
+    for (const [k, here] of at) {
+      const [x, z] = k.split(",").map(Number);
+      for (const d of [fine, step])
+        for (const [dx, dz] of [
+          [d, 0],
+          [0, d],
+          [d, d],
+          [d, -d],
+        ])
+          for (const j of at.get(`${x + dx},${z + dz}`) ?? [])
+            for (const i of here) {
+              // the street's links a `step` apart, a raised floor's (and from it down to the street) `raised` apart
+              if ((d === step) !== !(raised(i) || raised(j))) continue;
+              if (walks(i, j)) link(i, j);
+            }
     }
-    if (!nodes[ln].links.length) continue;
-    nodes[pn].pad = { to: ln, up: pad.up, dx: pad.dx, dz: pad.dz, over: pad.over };
-    (nodes[ln].padFrom ??= []).push(pn);
-  }
-  // the spine's way down: off the top, thrown out over its parapet onto the base's roof (no bot is sent up there)
-  for (const q of SPINE.down) {
-    const t = padOff(q.pad[0], q.pad[1], q.floor, q.land[0], q.land[1], q.landY, q.hop);
-    pads.push({ x: q.pad[0] + BR_X, z: q.pad[1] + BR_Z, y: q.floor, up: t.up, dx: t.dx, dz: t.dz });
-  }
 
-  // the nine places: each sector's street nodes its drops, spread across it
-  const pois: Poi[] = SECTORS.map((s) => {
-    const mine = nodes.filter((n) => n.poi === s.id && n.links.length && !n.y);
-    const mid = { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
-    mine.sort((a, b) => Math.hypot(a.x - BR_X - mid.x, a.z - BR_Z - mid.z) - Math.hypot(b.x - BR_X - mid.x, b.z - BR_Z - mid.z));
-    const every = Math.max(1, Math.floor(mine.length / G.drops));
-    const drops = mine.filter((_, i) => i % every === 0).slice(0, G.drops).map((n) => ({ x: n.x, z: n.z }));
-    return { id: s.id, name: s.name, x: mid.x + BR_X, z: mid.z + BR_Z, radius: Math.max(s.maxX - s.minX, s.maxZ - s.minZ) / 2, drops: drops.length ? drops : [{ x: mid.x + BR_X, z: mid.z + BR_Z }] };
+    // the jump pads the bake found (neonmap.json pads), each thrown as padsolve.ts solves it: a node on its spot joined to
+    // the street round it, one way up to a node where it lands, joined to the roof round that; a bot's way up only where
+    // the landing joins the roof (High City's round islands are a player's double jump from the rest; a bot never jumps)
+    const pads: BrMap["pads"] = [];
+    /** the nodes on a floor within reach of a spot, nearest first */
+    const near = (n: number): number[] =>
+      nodes
+        .map((m, i) => ({ i, d: Math.hypot(m.x - nodes[n].x, m.z - nodes[n].z) }))
+        .filter(({ i, d }) => i !== n && d < step * 1.5 && Math.abs((nodes[i].y ?? 0) - (nodes[n].y ?? 0)) < G.graph.climb)
+        .sort((a, b) => a.d - b.d)
+        .map(({ i }) => i);
+    // (and the centre's spine, neonmap.json spine: up from the plaza onto the base's roof, and from there onto the top)
+    const SPINE = (neonCfg as unknown as { spine?: Spine }).spine ?? { up: [], down: [] };
+    for (const q of [...neonCfg.pads.map((q) => ({ ...q, land: undefined as number | undefined })), ...SPINE.up]) {
+      const { pad, land } = padOnto(q.face[0], q.face[1], q.out[0], q.out[1], q.floor, q.roof, q.land);
+      pads.push({ ...pad, x: pad.x + BR_X, z: pad.z + BR_Z });
+      const pn = add(pad.x, pad.z, pad.y);
+      const ln = add(land.x, land.z, land.y);
+      // (the pad's spot joined to the street's two nearest it walks to, the landing to the roof's three)
+      for (const [n, most] of [
+        [pn, 2],
+        [ln, 3],
+      ]) {
+        let joined = 0;
+        for (const i of near(n)) {
+          if (joined === most) break;
+          if (!walks(n, i)) continue;
+          link(n, i);
+          joined++;
+        }
+      }
+      if (!nodes[ln].links.length) continue;
+      nodes[pn].pad = { to: ln, up: pad.up, dx: pad.dx, dz: pad.dz, over: pad.over };
+      (nodes[ln].padFrom ??= []).push(pn);
+    }
+    // the spine's way down: off the top, thrown out over its parapet onto the base's roof (no bot is sent up there)
+    for (const q of SPINE.down) {
+      const t = padOff(q.pad[0], q.pad[1], q.floor, q.land[0], q.land[1], q.landY, q.hop);
+      pads.push({ x: q.pad[0] + BR_X, z: q.pad[1] + BR_Z, y: q.floor, up: t.up, dx: t.dx, dz: t.dz });
+    }
+
+    // the nine places: each sector's street nodes its drops, spread across it
+    const pois: Poi[] = SECTORS.map((s) => {
+      const mine = nodes.filter((n) => n.poi === s.id && n.links.length && !n.y);
+      const mid = { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
+      mine.sort((a, b) => Math.hypot(a.x - BR_X - mid.x, a.z - BR_Z - mid.z) - Math.hypot(b.x - BR_X - mid.x, b.z - BR_Z - mid.z));
+      const every = Math.max(1, Math.floor(mine.length / G.drops));
+      const drops = mine.filter((_, i) => i % every === 0).slice(0, G.drops).map((n) => ({ x: n.x, z: n.z }));
+      return { id: s.id, name: s.name, x: mid.x + BR_X, z: mid.z + BR_Z, radius: Math.max(s.maxX - s.minX, s.maxZ - s.minZ) / 2, drops: drops.length ? drops : [{ x: mid.x + BR_X, z: mid.z + BR_Z }] };
+    });
+    const placeAt = (x: number, z: number) => {
+      const s = sectorAt(x - BR_X, z - BR_Z);
+      return s ? (pois.find((p) => p.id === s.id) ?? null) : null;
+    };
+    // the small named places, their own loot (loot.ts sites): each high city block's deck, at the middle of the nodes on
+    // its roof, and the tallest building's lobby
+    const B = neonCfg.rules.blocks;
+    const blockOf = (dir: string): [number, number, number, number] => {
+      const far = dir === "n" || dir === "w" ? [-B.outer[1], -B.outer[0]] : [B.outer[0], B.outer[1]];
+      return dir === "n" || dir === "s" ? [B.inner[0], B.inner[1], far[0], far[1]] : [far[0], far[1], B.inner[0], B.inner[1]];
+    };
+    const sites: BrMap["sites"] = [];
+    // (and each corner block's own name, the master plan's: over its rooms building's roof yard, or over the Well's middle, its
+    // loot within `reach` of there, so up the fire escape and through the building's floors)
+    const yards = (neonCfg as unknown as { yards?: Array<{ block: string; inside: number[] }> }).yards ?? [];
+    const well = (neonCfg as unknown as { well?: { hole: number[] } }).well;
+    for (const q of G.sites.list as Array<{ id: string; name: string; over: string; reach?: number }>) {
+      if (q.over === "middle") {
+        sites.push({ id: q.id, name: q.name, x: (T.x0 + T.x1) / 2 + BR_X, z: (T.z0 + T.z1) / 2 + BR_Z });
+        continue;
+      }
+      if (q.over.length === 2) {
+        const block = `${q.over[1] === "w" ? -1 : 1},${q.over[0] === "n" ? -1 : 1}`;
+        const y = yards.find((w) => w.block === block);
+        const at = y ? [(y.inside[0] + y.inside[1]) / 2, (y.inside[2] + y.inside[3]) / 2] : well && neonCfg.rules.well?.block === block ? [(well.hole[0] + well.hole[1]) / 2, (well.hole[2] + well.hole[3]) / 2] : null;
+        if (at) sites.push({ id: q.id, name: q.name, x: at[0] + BR_X, z: at[1] + BR_Z, radius: q.reach });
+        continue;
+      }
+      const [x0, x1, z0, z1] = blockOf(q.over);
+      const on = nodes.filter((n) => (n.y ?? 0) >= G.sites.roof && n.x - BR_X >= x0 && n.x - BR_X <= x1 && n.z - BR_Z >= z0 && n.z - BR_Z <= z1);
+      if (on.length) sites.push({ id: q.id, name: q.name, x: on.reduce((a, n) => a + n.x, 0) / on.length, z: on.reduce((a, n) => a + n.z, 0) / on.length });
+    }
+    return { nodes, pads, pois, placeAt, sites };
   });
-  const placeAt = (x: number, z: number) => {
-    const s = sectorAt(x - BR_X, z - BR_Z);
-    return s ? (pois.find((p) => p.id === s.id) ?? null) : null;
-  };
-  // the small named places, their own loot (loot.ts sites): each high city block's deck, at the middle of the nodes on
-  // its roof, and the tallest building's lobby
-  const B = neonCfg.rules.blocks;
-  const blockOf = (dir: string): [number, number, number, number] => {
-    const far = dir === "n" || dir === "w" ? [-B.outer[1], -B.outer[0]] : [B.outer[0], B.outer[1]];
-    return dir === "n" || dir === "s" ? [B.inner[0], B.inner[1], far[0], far[1]] : [far[0], far[1], B.inner[0], B.inner[1]];
-  };
-  const sites: BrMap["sites"] = [];
-  // (and each corner block's own name, the master plan's: over its rooms building's roof yard, or over the Well's middle, its
-  // loot within `reach` of there, so up the fire escape and through the building's floors)
-  const yards = (neonCfg as unknown as { yards?: Array<{ block: string; inside: number[] }> }).yards ?? [];
-  const well = (neonCfg as unknown as { well?: { hole: number[] } }).well;
-  for (const q of G.sites.list as Array<{ id: string; name: string; over: string; reach?: number }>) {
-    if (q.over === "middle") {
-      sites.push({ id: q.id, name: q.name, x: (T.x0 + T.x1) / 2 + BR_X, z: (T.z0 + T.z1) / 2 + BR_Z });
-      continue;
-    }
-    if (q.over.length === 2) {
-      const block = `${q.over[1] === "w" ? -1 : 1},${q.over[0] === "n" ? -1 : 1}`;
-      const y = yards.find((w) => w.block === block);
-      const at = y ? [(y.inside[0] + y.inside[1]) / 2, (y.inside[2] + y.inside[3]) / 2] : well && neonCfg.rules.well?.block === block ? [(well.hole[0] + well.hole[1]) / 2, (well.hole[2] + well.hole[3]) / 2] : null;
-      if (at) sites.push({ id: q.id, name: q.name, x: at[0] + BR_X, z: at[1] + BR_Z, radius: q.reach });
-      continue;
-    }
-    const [x0, x1, z0, z1] = blockOf(q.over);
-    const on = nodes.filter((n) => (n.y ?? 0) >= G.sites.roof && n.x - BR_X >= x0 && n.x - BR_X <= x1 && n.z - BR_Z >= z0 && n.z - BR_Z <= z1);
-    if (on.length) sites.push({ id: q.id, name: q.name, x: on.reduce((a, n) => a + n.x, 0) / on.length, z: on.reduce((a, n) => a + n.z, 0) / on.length });
-  }
   // respawn beacons at street crossings, one a side of the centre
   const beacons = (G.beacons as number[][]).map(([x, z]) => ({ x: x + BR_X, z: z + BR_Z }));
 
@@ -325,14 +336,14 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   root.updateMatrixWorld(true);
   return {
     root,
-    pois,
-    sites,
-    placeAt,
-    nodes,
+    get pois() { return graph().pois; },
+    get sites() { return graph().sites; },
+    placeAt: (x: number, z: number) => graph().placeAt(x, z),
+    get nodes() { return graph().nodes; },
     ringWall,
     towers: [],
     beacons,
-    pads,
+    get pads() { return graph().pads; },
     doors: new Doors(root, { x: BR_X, z: BR_Z }, []),
     vault: { door: -1, x: BR_X, z: BR_Z, y: 0, post: { x: BR_X, z: BR_Z } },
     scenery: { rocks: [], boxed: [], scrub: [], cliffs: [], flora: [] },

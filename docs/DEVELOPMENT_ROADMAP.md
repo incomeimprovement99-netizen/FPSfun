@@ -9559,3 +9559,31 @@ the start found the rest:
   textures sent to the card (0.9 s).
 - **Checked:** the start profiled after each change; the A/B above; verify; rules; the p2p (the real PeerJS),
   speedkills and skship e2e.
+
+
+## Milestone 429 — Cover on the High City decks, and street furniture along the pavements
+
+The centre's first review (docs/CENTRE_REVIEW.md): "mid-range cover is thin: roofs and streets are bare", "streets are
+wide, with only hover cars and lamps for cover (day-15, 18), roofs are bare (day-09, 10, 14, 17)." The four High City
+decks at 26 m were flat roofs with nothing on them but their fences.
+
+- **Eight pieces of cover on each deck** (rules.perches `deck-n` to `deck-e`, the same sticky placement as the crown's
+  and the lookout's): the pack's big air-conditioning units (2.3 m, hard cover you cannot see over), its smaller cooling
+  units, chimneys and crates, each on level roof, 1.2 m off any drop, 3 m apart, and off every way onto the deck
+  (rules.perches_clear): 4 m from where a pad or a zip line lands, 8 m from a lift's landing and 10 m from a bridge's
+  end, whose stair runs on from it. At 4 m from the bridge ends, three pieces in the strip beside the east deck's stair
+  walled the deck off from its own bridge: the bridge walk check caught it, and the clearance grew.
+- **Street furniture** (rules.dress.furniture, tools/neon-layout.ts): 41 pieces along the Loop's and the eight
+  streets' pavements, one midway between each pair of lamps where there is room: kiosks, planters, benches, bins and
+  billboard panels from the pack, each on the pavement 0.3 m in from the kerb and turned to the road, clear of the
+  crossings, the pads, the lifts' footbridges, the kiosks, the Sky Ring's stairs, the stalls, the crates and the walk-in
+  doors. Placed last in the layout, so nothing else moved.
+- Also the bots' graph is built on first use (src/game/neonmap.ts `lazy`), as the lobby agent suggested after Milestone
+  422: a battle royale or a 1v1 on THE CENTRE reads it, the page's start does not, and it was 0.36 s of that start. The
+  map's nodes, pads, places and sites are getters that build it the first time anything asks.
+- The map: its files lo 81 MB, hi 142 MB, max 352 MB. **Its files are version 34.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): cover on all six perches, each piece standing on its roof (the
+  perches check now takes the decks); none of the decks' pieces within reach of a landing, a lift, a bridge's end or a
+  zip's top (seen failing with a piece moved onto a pad's landing); the street furniture on its pavement and off the road, forty
+  pieces and more of six kinds and more (seen failing with the pieces put in the lane). verify and rules; e2e `br`.
+  Photographed on a deck and along the Loop.
