@@ -124,6 +124,8 @@ Game) or `?game=legacy`, and everything below this section describes it.
   own colours, and the game's animations carried over to its rig. Pick your
   kit, its colours, skin and eyes, and the beret, shoulders and pouches on the
   Loadouts tab; friends see it. In first person the arms are your soldier's own.
+  If its files fail to download (a deploy swapping them as the page loads), they
+  are tried again three times over 13 s before the page settles without them.
   Its hit volumes follow its body, so a headshot lands on the head you see,
   running, crouched or sliding. The bought files never enter git, so a copy
   without them (and the Pages build) shows the figures of before.

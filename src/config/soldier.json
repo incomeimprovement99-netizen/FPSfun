@@ -2,6 +2,14 @@
   "_note": "The bought soldier (Sci-Fi Modular Soldier by AC Game Assets; Phase 21, docs/OVERNIGHT_BRIEF_SOLDIER_AND_VERTICAL_CENTRE.md section 3): SpeedKills' only player character when its files are here (npm run paid makes them, locally; they never enter git), the figures of before when they are not. src/game/soldier.ts loads it and builds its materials; src/game/retarget.ts carries the game's clips over to its rig. version is added to every paid file's address, since the game server keeps /models/ for a day and a re-import would otherwise be a day late.",
   "model": "models/paid/soldier/soldier.glb",
   "textures": "models/paid/soldier/tex/",
+  "_retry": "Seconds waited before each try again at the soldier's files when one fails: a page loaded while a deploy swapped them found them missing once and settled on the old figures for the whole session (the owner, 2026-10-02: \"we are the base model again? ... i just started a game and was the old model?\"). Three more tries over 13 s outlast a deploy's swap; a page waits on the soldier before a match, so the tries are spent before anyone plays. A file missing on a local server is a checkout without the bought assets and is not tried again.",
+  "retry": {
+    "waits": [
+      1,
+      3,
+      9
+    ]
+  },
   "version": 1,
   "_rename": "Its head bone is named head; the game's figures and clips name it Head, and code looks it up by that name (mannequin.ts, outfit.ts, gear.ts, the e2e), so it is renamed as it loads.",
   "rename": {

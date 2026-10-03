@@ -126,40 +126,62 @@ export function soldierAsset(): Asset | null {
 }
 
 /** load it once; null when its files are not here, and the figures stay as they were */
+/**
+ * A page served from the machine it runs on: a soldier file missing there is a checkout without the bought assets, not
+ * a server part way through a deploy
+ */
+const LOCAL = typeof location !== "undefined" && /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+
+/**
+ * The soldier, its files fetched, tried again after each of soldier.json retry.waits when a try fails: a page loaded
+ * while a deploy swapped the files found them missing once and settled on the old figures for the whole session (the
+ * owner, 2026-10-02: "we are the base model again?"). A file missing on a local server is no try at all.
+ */
 export function loadSoldier(): Promise<Asset | null> {
   if (loading) return loading;
   loading = (async () => {
-    try {
-      // a missing file is the normal case in a checkout without the bought assets: ask first, quietly
-      const head = await fetch(url(cfg.model), { method: "HEAD" });
-      if (!head.ok || (head.headers.get("content-type") ?? "").includes("text/html")) return null;
-      const g = await new GLTFLoader().loadAsync(url(cfg.model));
-      const h = g.scene.getObjectByName(cfg.rename.from);
-      if (h) h.name = cfg.rename.to;
-      const tl = new THREE.TextureLoader();
-      const load = (name: string, srgb: boolean): Promise<THREE.Texture> =>
-        tl.loadAsync(url(`${cfg.textures}${name}.webp`)).then((t) => {
-          t.flipY = false;
-          t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
-          t.anisotropy = 4;
-          return t;
-        });
-      const names: Array<[string, boolean]> = [];
-      for (const m of ["armor", "body", "head"]) names.push([`${m}_color`, true], [`${m}_normal`, false], [`${m}_orm`, false], [`${m}_mask`, false]);
-      names.push(["eyes_normal", false], ["eyes_orm", false]);
-      const all = await Promise.all(names.map(([n, s]) => load(n, s)));
-      const tex: Record<string, THREE.Texture> = {};
-      names.forEach(([n], i) => (tex[n] = all[i]));
-      const eyes = await Promise.all(Array.from({ length: cfg.palettes.eyes }, (_, i) => load(`eyes_color_${i + 1}`, true)));
-      g.scene.scale.setScalar(cfg.scale);
-      asset = { scene: g.scene, tex, eyes };
-      return asset;
-    } catch (e) {
-      console.warn("the soldier did not load; the figures stay as they were", e);
-      return null;
+    for (let i = 0; ; i++) {
+      const got = await tryOnce(i === cfg.retry.waits.length);
+      if (got !== "again") return got;
+      if (i >= cfg.retry.waits.length) return null;
+      await new Promise((ok) => setTimeout(ok, cfg.retry.waits[i] * 1000));
     }
   })();
   return loading;
+}
+
+/** one try at the soldier's files: the soldier, null when it is not there to be had, or "again" when a try may yet */
+async function tryOnce(last: boolean): Promise<Asset | null | "again"> {
+  try {
+    // a missing file is the normal case in a checkout without the bought assets: ask first, quietly
+    const head = await fetch(url(cfg.model), { method: "HEAD" });
+    if (!head.ok || (head.headers.get("content-type") ?? "").includes("text/html")) return LOCAL || last ? null : "again";
+    const g = await new GLTFLoader().loadAsync(url(cfg.model));
+    const h = g.scene.getObjectByName(cfg.rename.from);
+    if (h) h.name = cfg.rename.to;
+    const tl = new THREE.TextureLoader();
+    const load = (name: string, srgb: boolean): Promise<THREE.Texture> =>
+      tl.loadAsync(url(`${cfg.textures}${name}.webp`)).then((t) => {
+        t.flipY = false;
+        t.colorSpace = srgb ? THREE.SRGBColorSpace : THREE.NoColorSpace;
+        t.anisotropy = 4;
+        return t;
+      });
+    const names: Array<[string, boolean]> = [];
+    for (const m of ["armor", "body", "head"]) names.push([`${m}_color`, true], [`${m}_normal`, false], [`${m}_orm`, false], [`${m}_mask`, false]);
+    names.push(["eyes_normal", false], ["eyes_orm", false]);
+    const all = await Promise.all(names.map(([n, s]) => load(n, s)));
+    const tex: Record<string, THREE.Texture> = {};
+    names.forEach(([n], i) => (tex[n] = all[i]));
+    const eyes = await Promise.all(Array.from({ length: cfg.palettes.eyes }, (_, i) => load(`eyes_color_${i + 1}`, true)));
+    g.scene.scale.setScalar(cfg.scale);
+    asset = { scene: g.scene, tex, eyes };
+    return asset;
+  } catch (e) {
+    if (!last) return "again";
+    console.warn("the soldier did not load; the figures stay as they were", e);
+    return null;
+  }
 }
 
 /** the pieces a look shows */

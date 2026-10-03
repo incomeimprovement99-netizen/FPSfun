@@ -9517,3 +9517,17 @@ would help the initial load time".
 - **Proposed to the city agent:** the Neon City's bots' graph built on first use, 0.36 s of the start (its file).
 - **Checked:** the figures' files and when each starts, before and after; verify; rules; the skfigure and speedkills
   e2e.
+
+## Milestone 427 — The soldier's files are tried again when they fail to come
+
+The owner, 2026-10-02: "we are the base model again? we dont have our normal soldier. i just started a game and was the
+old model?" The server was serving the soldier; a page loaded while one of that hour's deploys swapped the files had
+found them missing once, and a page settles on whatever figures it has for the whole session.
+
+- **The fix** (soldier.ts loadSoldier, soldier.json retry): a failed try at the soldier's files (the model or a
+  texture not coming, or the model missing on the game server) is tried again after 1, 3 and 9 s before the page
+  settles without it. A file missing on a local server is a checkout without the bought assets and is not tried again.
+  It sits inside loadSoldier, under apex-lobby's new load order (Milestone 426), so the old body's fallback runs only
+  once the tries are spent.
+- **Checked:** a new skfigure check fails the model's first two downloads on purpose: the third brings the soldier
+  (`gets` 3). With the retries off it never came (one download, then nothing). The skfigure e2e (78); verify; rules.

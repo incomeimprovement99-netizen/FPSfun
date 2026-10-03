@@ -8313,6 +8313,23 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     check(`the Loadouts tab's soldier's ${name} is whole in the panel at every turn (front, three quarters, both sides, back)`, outs.every((o) => o <= 0), JSON.stringify(outs));
   }
   check("the bought guns were there to hold (the checks above are on them)", paid);
+  // The soldier's files failing to come (a deploy swapping them as the page loaded): tried again, so the page still ends
+  // up with the soldier and not the old figures for the whole session (the owner, 2026-10-02: "we are the base model
+  // again?"). The model's first two downloads fail here; the third must bring the soldier.
+  {
+    const rp = await browser.newPage();
+    let gets = 0;
+    await rp.setRequestInterception(true);
+    rp.on("request", (q) => {
+      if (/models\/paid\/soldier\/soldier\.glb/.test(q.url()) && q.method() === "GET" && ++gets <= 2) void q.abort("failed");
+      else void q.continue();
+    });
+    await rp.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
+    await rp.goto(`${BASE}?norender&game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 90000 });
+    const came = await rp.waitForFunction("Boolean(window.__range) && window.__range.soldierReady()", { polling: 250, timeout: 60000 }).then(() => true, () => false);
+    check("the soldier's model failing to download twice is tried again: the page still gets the soldier, not the old figures", came && gets >= 3, JSON.stringify({ came, gets }));
+    await rp.close();
+  }
   await lp.close();
 }
 
