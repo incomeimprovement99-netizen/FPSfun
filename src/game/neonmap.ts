@@ -39,6 +39,32 @@ export const NEON_AIR = G.air;
 /** the plain floor drawn until the bundle's file is in, or where it is not */
 let standIn: THREE.Mesh | null = null;
 
+// The interiors' fill (game.fill). The tower's floors, the base's storeys, the court and the station are lit by nothing
+// but the sky's ambient, and at noon they drew near black (the centre's first review, docs/CENTRE_REVIEW.md). A pool of
+// `count` point lights, none casting a shadow, stands each frame at the `count` lamp spots nearest the eye within
+// `reach` metres: the pack's ceiling lamps the layout hung under every ceiling of the base and the tower (their
+// placements, `under` the fitting), and a grid every `every` metres over the court's and the station's floors, `height`
+// up. The pool is fixed: a light added to or taken from the scene recompiles every lit shader
+const FILL: { spots: THREE.Vector3[]; lights: THREE.PointLight[] } = { spots: [], lights: [] };
+/** the fill's spots, world coordinates (the checks count them by floor) */
+export function neonFillSpots(): THREE.Vector3[] {
+  return FILL.spots;
+}
+export function updateNeonFill(eye: THREE.Vector3): void {
+  if (!FILL.lights.length) return;
+  const F = G.fill;
+  // (a storey's own lamps first: height counts `tall` times over, or the pool went to the floor above's lamps, 4.6 m
+  // over the eye through a slab, and lit nothing it could see)
+  const near = FILL.spots.map((q, i) => ({ i, d: (q.x - eye.x) ** 2 + (q.z - eye.z) ** 2 + ((q.y - eye.y) * F.tall) ** 2 })).filter((q) => q.d < F.reach * F.reach).sort((a, b) => a.d - b.d);
+  FILL.lights.forEach((l, k) => {
+    const q = near[k];
+    if (q) {
+      l.position.copy(FILL.spots[q.i]);
+      l.intensity = F.intensity;
+    } else l.intensity = 0;
+  });
+}
+
 export function buildNeonMap(scene: THREE.Scene): BrMap {
   const root = new THREE.Group();
   root.name = "neon";
@@ -269,6 +295,32 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     ZIPLINES.push({ a: new THREE.Vector3(a.x + BR_X, a.y, a.z + BR_Z), b: new THREE.Vector3(b.x + BR_X, b.y, b.z + BR_Z) });
   }
 
+  // the fill lights' spots (above), and the pool
+  {
+    const F = G.fill;
+    FILL.spots.length = 0;
+    const lamps = [neonCfg.rules.base.inside.lamps.piece, neonCfg.rules.tower.floors.lamp.piece].map((k: string) => "/" + k.split("/").pop()!);
+    for (const ch of Object.values(neonCfg.chunks as Record<string, { place: unknown[][] }>))
+      for (const q of ch.place as Array<[string, number, number, number]>) if (lamps.some((k) => q[0].endsWith(k))) FILL.spots.push(new THREE.Vector3(q[1] + BR_X, q[2] - F.under, q[3] + BR_Z));
+    const over = (x0: number, x1: number, z0: number, z1: number, y: number) => {
+      for (let x = x0 + F.every / 2; x < x1; x += F.every) for (let z = z0 + F.every / 2; z < z1; z += F.every) FILL.spots.push(new THREE.Vector3(x + BR_X, y, z + BR_Z));
+    };
+    over(K.x0, K.x1, K.z0, K.z1, K.y + F.height);
+    for (const f of UG.floors as Array<{ rect: number[]; y: number; ramp?: boolean; well?: boolean }>) if (!f.ramp && !f.well) over(f.rect[0], f.rect[1], f.rect[2], f.rect[3], f.y + F.height);
+    // (none inside or within `off` of anything solid: the station's grid met platform edges and the corridors' low
+    // ceilings, and a spot on a wall's face lit one side of it only)
+    const off = F.off;
+    const solid = (q: THREE.Vector3) => (SOLIDS.solids as number[][]).some((b) => q.x - BR_X > b[0] - off && q.x - BR_X < b[1] + off && q.z - BR_Z > b[2] - off && q.z - BR_Z < b[3] + off && q.y > b[4] && q.y < b[5]);
+    FILL.spots = FILL.spots.filter((q) => !solid(q));
+    for (const l of FILL.lights) l.removeFromParent();
+    FILL.lights.length = 0;
+    for (let k = 0; k < F.count; k++) {
+      const l = new THREE.PointLight(F.colour, 0, F.distance, 2);
+      l.castShadow = false;
+      scene.add(l);
+      FILL.lights.push(l);
+    }
+  }
   holdForDecay(root, RANGE_SOLIDS.slice(first));
   root.updateMatrixWorld(true);
   return {

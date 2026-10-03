@@ -20,7 +20,7 @@ const fakeEl = (): unknown => ({ width: 64, height: 64, style: {}, getContext: (
 if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS: () => fakeEl() };
 const warn = console.warn;
 console.warn = () => undefined;
-const { buildNeonMap } = await import("../../src/game/neonmap");
+const { buildNeonMap, neonFillSpots } = await import("../../src/game/neonmap");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z, BR_HALF } = await import("../../src/game/br");
 const { SPIRE_TOP } = await import("../../src/game/city");
@@ -47,6 +47,20 @@ function check(label: string, cond: boolean, detail = ""): void {
 const idle = { held: (_a: Action) => false, pressedNow: (_a: Action) => false };
 
 console.log("SpeedKills: the Neon City map (neonmap.ts)");
+
+// the interiors' fill (game.fill): a lamp spot under every ceiling of the base's storeys and the tower's floors, and a
+// grid over the court and the station, each spot over a floor with a standing body's room under it
+{
+  const spots = neonFillSpots();
+  const floorsOf = (ys: number[], tol: number) => ys.map((y) => spots.filter((q) => Math.abs(q.y - (y + 3.5 - 0.5 - 0.3)) < tol).length);
+  const base = floorsOf((cfg.rules.base.storeys as number[]), 0.2);
+  const tower = floorsOf((cfg.tower as unknown as { shaft: number[] }).shaft.map((h) => h - 0.5), 0.2);
+  const court = spots.filter((q) => Math.abs(q.y - (cfg.court.y + cfg.game.fill.height)) < 0.1).length;
+  const station = spots.filter((q) => Math.abs(q.y - (-10 + cfg.game.fill.height)) < 0.1).length;
+  const bare = spots.filter((q) => floorAt(q.x, q.z) > q.y - 1 || solidsIn(q.x, q.x, q.z, q.z).some((b) => q.x >= b.minX && q.x <= b.maxX && q.z >= b.minZ && q.z <= b.maxZ && b.base < q.y && b.top > q.y));
+  check("the interiors' fill: lamp spots under every ceiling of the base and the tower, and over the court and the station", base.every((n) => n >= 6) && tower.every((n) => n >= 3) && court >= 8 && station >= 6, `base ${base.join("/")}, tower ${tower.join("/")}, court ${court}, station ${station}`);
+  check("the interiors' fill: no spot inside something solid", bare.length === 0, `${bare.length} of ${spots.length}`);
+}
 
 // the nine places, each with its drops on the street
 check("nine places, as the city's sectors", map.pois.length === 9, map.pois.map((p) => p.id).join(","));

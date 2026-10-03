@@ -279,6 +279,8 @@ const noGround: Array<[number, number, number, number]> = [];
           k += two ? 2 : 1;
         }
       }
+      // (the lamps keep off the partitions: on the rooms and maze floors a lamp hung in a wall)
+      const wallBoxes = placed.slice();
       // inside the floor: the main body's inner faces, its round corners and the grooves down each face
       const [qx0, qx1, qz0, qz1] = F.inner;
       const inFloor = (x: number, z: number, m: number) => {
@@ -305,8 +307,15 @@ const noGround: Array<[number, number, number, number]> = [];
       const lamp = piece(F.lamp.piece).row;
       for (let lx = qx0 + F.lamp.every / 2; lx < qx1; lx += F.lamp.every)
         for (let lz = qz0 + F.lamp.every / 2; lz < qz1; lz += F.lamp.every) {
-          if (!inFloor(lx, lz, 0.8) || overlaps({ c: [lx + px, lz + pz], u: [1, 0], v: [0, 1], hu: 0.5, hv: 1.6, top: 0 }, keepT[0], 0.2)) continue;
-          placeTurned("c-tower", F.lamp.piece, lx + px, lz + pz, 0, "g", h + 3 - T.slab - F.lamp.under - lamp.max![1]);
+          // (the fitting is 3.1 m long and the grid's lines fall on the partitions' (both are on the 2.5 m grid): where it
+          // crosses one it is moved a metre and a half aside, along or across, or turned a quarter, and skipped only if
+          // nothing fits; on the maze floors every spot crossed one)
+          const fits = [0, 1.5, -1.5].flatMap((dx) => [0, 1.5, -1.5].flatMap((dz) => [0, 90].map((yaw) => ({ dx, dz, yaw })))).find(({ dx, dz, yaw }) => {
+            const lampBox: OBox = { c: [lx + dx + px, lz + dz + pz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: lamp.size![0] / 2, hv: lamp.size![2] / 2, top: 0 };
+            return inFloor(lx + dx, lz + dz, 0.8) && !overlaps(lampBox, keepT[0], 0.2) && !wallBoxes.some((q) => overlaps(lampBox, q, 0.1));
+          });
+          if (!fits) continue;
+          placeTurned("c-tower", F.lamp.piece, lx + fits.dx + px, lz + fits.dz + pz, fits.yaw, "g", h + 3 - T.slab - F.lamp.under - lamp.max![1]);
           tLamps++;
         }
     }
@@ -1899,10 +1908,18 @@ const skyStairs: Pt[] = [];
     for (const b of S)
       for (let i = Math.floor(b[0] / G); i <= Math.floor(b[1] / G); i++)
         for (let j = Math.floor(b[2] / G); j <= Math.floor(b[3] / G); j++) (grid.get(`${i},${j}`) ?? grid.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
-    // (the roof and what is built on it, not the cover the bake before this stood on it: a box standing on the perch's
-    // own floor under 2.2 m tall is a crate or a cooling unit of the last layout's, and counting it would move this one's;
-    // a beam at knee height under the roof room starts above the floor and counts)
-    const topAt = (x: number, z: number, floor: number[]) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && !(b[4] >= floor[0] - 0.05 && b[4] <= floor[1] + 0.05 && b[5] - b[4] < 2.2) && b[5] > t ? b[5] : t), -Infinity);
+    // (the roof and what is built on it, not the cover the layout before this stood on it, which the last bake measured:
+    // a crate on the roof came out as one box with the roof under it, and counting it would move this layout's pieces;
+    // under where one stood, by the last layout's own list (cfg.perches as it was), a box no taller than the cover is
+    // the roof. A beam at knee height under the roof room is nowhere a piece stood, and counts)
+    const stood = ((cfg.perches ?? []) as Array<{ at: number[][] }>).flatMap((q) => q.at.map(([x, , z]) => [x, z]));
+    const topAt = (x: number, z: number, floor: number[]) =>
+      (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => {
+        if (!(x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3])) return t;
+        const under = b[5] <= floor[1] + 2.2 && stood.some(([sx, sz]) => Math.abs(sx - x) < 1.3 && Math.abs(sz - z) < 1.3);
+        const top = under ? Math.min(b[5], (floor[0] + floor[1]) / 2) : b[5];
+        return top > t ? top : t;
+      }, -Infinity);
     const anyTop = (x: number, z: number, h: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h && b[5] > t ? b[5] : t), -Infinity);
     // (where each pad lands on the perches, as the bake finds it: the first column `face` metres high along its line, a
     // body wide, and `land` metres past it; or the way down's own spot)
@@ -1917,6 +1934,10 @@ const skyStairs: Pt[] = [];
     const perches: Array<{ name: string; at: number[][] }> = [];
     for (const P of PR) {
       const rnd = seeded(P.seed);
+      // (a piece stays where the last layout put it while its spot is still level roof, and only a lost one is drawn
+      // afresh: the last bake's collision has the last layout's pieces in it, read back as roof only roughly, and a
+      // reroll from it moved a piece a time)
+      const kept = (((cfg.perches ?? []) as Array<{ name: string; at: number[][] }>).find((q) => q.name === P.name)?.at ?? []).map(([x, , z, yaw]) => ({ x, z, yaw: yaw ?? 0 }));
       const spots: Pt[] = [];
       for (let x = P.box[0]; x <= P.box[1]; x += 0.5) for (let z = P.box[2]; z <= P.box[3]; z += 0.5) spots.push([x, z]);
       for (let i = spots.length - 1; i > 0; i--) {
@@ -1925,11 +1946,12 @@ const skyStairs: Pt[] = [];
       }
       const mine: Array<{ c: Pt; r: number }> = [];
       const at: number[][] = [];
-      for (const [x, z] of spots) {
+      for (const cand of [...kept, ...spots.map(([x, z]) => ({ x, z, yaw: -1 }))]) {
         if (at.length >= P.count) break;
+        const [x, z] = [cand.x, cand.z];
         const name = P.pieces[at.length % P.pieces.length];
         const row = piece(name).row;
-        const yaw = rnd() < 0.5 ? 0 : 90;
+        const yaw = cand.yaw >= 0 ? cand.yaw : rnd() < 0.5 ? 0 : 90;
         const [hx, hz] = yaw === 0 ? [row.size![0] / 2, row.size![2] / 2] : [row.size![2] / 2, row.size![0] / 2];
         const r = Math.hypot(hx, hz);
         // (level under the whole footprint, at the perch's height)
@@ -1943,7 +1965,7 @@ const skyStairs: Pt[] = [];
         if (!ok || lands.some((l) => Math.hypot(l[0] - x, l[1] - z) < 3 + r) || mine.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r)) continue;
         placeTurned("c-dress", name, x, z, yaw, "o", y - row.min![1]);
         mine.push({ c: [x, z], r });
-        at.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2)]);
+        at.push([+x.toFixed(2), +y.toFixed(2), +z.toFixed(2), yaw]);
       }
       perches.push({ name: P.name, at });
     }

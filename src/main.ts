@@ -125,7 +125,7 @@ import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
-import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, retakeReflection, warmReflection } from "./game/neonmap";
+import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, retakeReflection, updateNeonFill, warmReflection } from "./game/neonmap";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
 import { atmosphereOn, districtHere, ownAir, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
@@ -7273,6 +7273,8 @@ function frame(): void {
   if (IS_SK) {
     tickAtmosphere(gameTime, camera);
     tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
+    // the Neon map's interiors lit from the lamps nearest the eye (neonmap.ts updateNeonFill)
+    if (NEON) updateNeonFill(camera.position);
     // and a district's own grade while you stand in it (citydistricts.json look grade)
     pipeline.setLook(districtHere(camera)?.look.grade ?? null);
     districtGlow(hour.id === "hazyDay" || hour.id === "goldenHour");

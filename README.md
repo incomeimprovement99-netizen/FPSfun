@@ -1367,7 +1367,8 @@ onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
 door onto each of its 15 storeys, eight of them new floors between 14 and 35 m,
 each laid out differently: open, rooms, halls or a maze, and loot on each. Its floors and the base's upper storeys have
-open windows, 1.25 m wide, no glass: shot through, jumped in through. The streets carry the pack's lamps,
+open windows, 1.25 m wide, no glass: shot through, jumped in through. Its floors, the base's storeys, the court and the
+station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill). The streets carry the pack's lamps,
 parked cars as cover, flying cars and neon signs. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size

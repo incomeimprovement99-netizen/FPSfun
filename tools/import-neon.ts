@@ -19,7 +19,7 @@ import { inside, sdPoly, standing, storeySlab, type Grid } from "./neon-base";
 import { backFaces, boxInto, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
 import { wellFlight, type Flight } from "./neon-well";
 import { MOVE } from "../src/game/movement";
-import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
+import { bake, districtSolids, IMPORT_STATS, Models, mul, Pack, readMaterial, Resolver, Textures, writePack, type Baked, type CityImportHelpers, type Draw, type M4 } from "./import-city";
 import { BasisPool } from "./basis-pool";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -240,6 +240,8 @@ if (mode === "bake") {
     return out;
   };
   const solidBoxes: number[][] = [];
+  /** every draw that collides (placed "o" or "s"): what a window may open onto, not the hanging lamps and signs ("g") */
+  const collidingDraws: Array<{ d: Draw; m: M4 }> = [];
   let placed = 0;
   // the chunks named by rules.bake.merge baked as one, a mesh a material (the centre's: its pieces share the pack's
   // materials, and baked a chunk at a time it drew 920 calls in the street, 440 as one, 2.3 ms a frame on Competitive).
@@ -310,11 +312,27 @@ if (mode === "bake") {
   };
   // (each placed draw's chunk, for naming what the bake's measures find)
   const chunkOf = new WeakMap<object, string>();
+  // a placement's material may be derived: "Base|#rrggbb|k" is the pack's Base with its emission the colour at k times
+  // its unit (MOTEL HILL's beam in pink: the pack has no plain pink light, and its pink ad light's panel texture, tiled
+  // 92 m up a beam, drew nearly black against the sky)
+  const derivedMat = (spec: string): string | null => {
+    if (!spec.includes("|")) return null;
+    const guid = `derived:${spec}`;
+    if (mats.has(guid)) return guid;
+    const [base, hex, k] = spec.split("|");
+    const bg = pack.matFor(base);
+    const info = bg ? readMaterial(pack, bg) : null;
+    if (!info) throw new Error(`no material ${base} to derive ${spec} from`);
+    const n = parseInt(hex.replace("#", ""), 16);
+    const at = Number(k || 1);
+    mats.set(guid, { ...info, name: spec.replace(/[|#]/g, "_"), emission: [(((n >> 16) & 255) / 255) * at, (((n >> 8) & 255) / 255) * at, ((n & 255) / 255) * at], emissive: null });
+    return guid;
+  };
   for (const [id, chunk] of Object.entries<{ sector: string; place: Array<[string, number, number, number, number, string, (string | null)?, string[]?]> }>(cfg.chunks)) {
     const all = groups.get(groupOf(id)) ?? groups.set(groupOf(id), []).get(groupOf(id))!;
     for (const [key, x, y, z, yaw, how, mat, without] of chunk.place) {
       const W = place(x, y, z, yaw);
-      const matGuid = mat ? pack.matFor(mat) : null;
+      const matGuid = mat ? (derivedMat(mat) ?? pack.matFor(mat)) : null;
       if (mat && !matGuid) throw new Error(`no material ${mat}`);
       // (a placement may leave named parts of its prefab out: neonmap.json's rules say which and why)
       // An entry is a model's file name (every part drawn from it) or "name@x,y,z", the one part of it whose middle is
@@ -465,6 +483,7 @@ if (mode === "bake") {
         }
       } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...drawn);
       else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
+      if (how === "o" || how === "s") collidingDraws.push(...drawn);
       placed++;
     }
   }
@@ -486,9 +505,10 @@ if (mode === "bake") {
     for (const w of windowWalls)
       for (let t = -1; t <= w.L + 1; t += CELL / 2)
         for (let o = -WIN.room - 1; o <= WIN.clear + 1; o += CELL / 2) want.add(cellOf(w.p0[0] + w.U[0] * t + w.N[0] * o, w.p0[1] + w.U[1] * t + w.N[1] * o));
+    // (of what collides: a ceiling lamp hanging just inside a window, at a standing head's height, is not what a window
+    // opens onto, and it shut eleven of the tower's)
     const nearTris = new Map<string, Array<[number[], number[], number[]]>>();
-    for (const list of groups.values())
-      for (const { d, m } of list)
+    for (const { d, m } of collidingDraws)
         for (const q of d.model.meshes[d.mesh].prims) {
           const V = (i: number) => [0, 1, 2].map((a) => m[a] * q.pos[i * 3] + m[4 + a] * q.pos[i * 3 + 1] + m[8 + a] * q.pos[i * 3 + 2] + m[12 + a]);
           for (let k = 0; k + 2 < q.idx.length; k += 3) {
@@ -1007,11 +1027,14 @@ if (mode === "bake") {
   // the jump pads, found in the collision just made (rules.pads), and the pack's plate and beam of light where each stands
   cfg.pads = findPads(all, cfg.rules);
   const padDraws: Array<{ d: Draw; m: M4 }> = [];
-  for (const q of cfg.pads) for (const key of [cfg.rules.pads.plate, cfg.rules.pads.beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), m) })));
+  // (a pad's beam `beamScale` of the pack's 92 m: at full height a dozen of them crowded the sky and the four block
+  // beams, which say where you are, were lost among them; a third marks the pad from across the plaza)
+  const shortBeam = (m: M4): M4 => mul([1, 0, 0, 0, 0, cfg.rules.pads.beamScale ?? 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], m);
+  for (const q of cfg.pads) for (const key of [cfg.rules.pads.plate, cfg.rules.pads.beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === cfg.rules.pads.beam ? shortBeam(m) : m) })));
   // the centre's spine (rules.pads.spine), measured the same way: the plate under each and a beam over it, white up, red down
   cfg.spine = spinePads(all, cfg.rules);
   for (const [list, beam] of [[cfg.spine.up, cfg.rules.pads.spine.beam], [cfg.spine.down, cfg.rules.pads.spine.downBeam]] as const)
-    for (const q of list as Array<{ pad: number[]; floor: number }>) for (const key of [cfg.rules.pads.plate, beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), m) })));
+    for (const q of list as Array<{ pad: number[]; floor: number }>) for (const key of [cfg.rules.pads.plate, beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === beam ? shortBeam(m) : m) })));
   (groups.get(groupOf("c-pads")) ?? groups.set(groupOf("c-pads"), []).get(groupOf("c-pads"))!).push(...padDraws);
   for (const [id, all] of groups) {
     const b = bake(pack, res, `neon/${id}`, "", mats, all);

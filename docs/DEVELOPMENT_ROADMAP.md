@@ -9439,3 +9439,52 @@ outfits had no trousers (legs magenta from hip to foot), and which outfits chang
 - **Proven:** `snap.ts PARTS_DELAY=4000` holds every outfit part and hair back 4 s. With it, the old fixed wait fails
   (1.572% of the frame through the clothes, the sweep's own number, and 0.735%); the new wait passes (0.009 to 0.037%),
   as it does without the delay.
+
+## Milestone 424 — The beams read: MOTEL HILL's in real pink, the pads' a third as tall
+
+The centre's first review (docs/CENTRE_REVIEW.md): "a dozen identical white beams clutter the sky" and "the NW (pink) beam
+renders black, with only a short pink band." Both were true in the pictures.
+
+- **MOTEL HILL's beam in pink** (rules.low.beam.mats, tools/import-neon.ts `derivedMat`): the pack has no plain pink
+  light; its pink ad light (ADSLight04) is a lit panel whose picture, tiled 92 m up a beam, drew nearly black against the
+  sky with a band of pink at the foot. A placement's material may now be derived from a pack material: "Light06|#f887ff|2.5"
+  is THE WELL's teal light with its emission the pink at 2.5 times its unit, the same strength as the other beams (the
+  red 2.0, the teal 2.5, the white 2.8, read off the pack). The bake makes the material from the base's own record and
+  writes it to the map's file under that name.
+- **The pads' beams a third as tall** (rules.pads.beamScale, 30 m of the pack's 92): fourteen full-height white beams
+  (eight High City pads and the centre's six) crowded the sky, and the four block beams, which say where you are, were
+  lost among them. A beam that ends a little over the High City's roofs still marks its pad from across the plaza; the
+  four block beams alone reach the sky.
+- Also the lamps: the tower's floors' lamps keep off the partitions (on the rooms and maze floors 16 of 48 hung inside
+  a wall; the fitting is 3.1 m long and the lamp grid fell on the partitions' lines, so a lamp that crosses one moves a
+  metre and a half aside or turns a quarter), 122 of them now where the grid's spots near the faces had been skipped;
+  and the base's every 5 m, as the tower's, 105 where its open ground floor had seven. Both for the interiors' fill
+  (the next milestone), which lights from the lamps. And a window opens only onto what collides: a lamp hanging just
+  inside at a standing head's height had counted as something it opened onto, and hanging signs and ads the same, so
+  the tower and the base have 230 windows open now, 129 and 101, where they had 203.
+- The map: its files lo 79 MB, hi 140 MB, max 349 MB. **Its files are version 33.**
+- **Checked:** the beam check reads the derived material's name (a beam of light over each corner block in its own
+  colour); verify and rules; e2e `br`. Photographed from the north-east aerial and from under MOTEL HILL's beam, by day
+  and by night.
+
+## Milestone 425 — The interiors lit from their lamps
+
+The centre's first review (docs/CENTRE_REVIEW.md) put lighting first: "interiors are near-black at noon (the tower's
+floors, the base's hall, the court)." The map has no lights of its own; its interiors had only the sky's ambient, and
+under a slab at noon that is next to nothing.
+
+- **A pool of eight point lights** (game.fill, src/game/neonmap.ts updateNeonFill), no shadows, stands each frame at the
+  eight lamp spots nearest the eye within 40 m. The pool is fixed: a light added to or taken from the scene recompiles
+  every lit shader, so none is; a light with no spot in reach goes dark.
+- **The spots are the lamps:** the pack's ceiling lamps the layout hung under every ceiling of the base's three storeys
+  and the tower's eight floors (240 spots in all with the rest), 0.3 m below each fitting, warm white at 60 candela
+  reaching 14 m; and a grid every 8 m over the court's and the station's floors 3 m up, where the pack's own pieces carry
+  their lamps. None within 0.3 m of anything solid (the station's grid met platform edges and the corridors' low
+  ceilings, and a spot on a wall's face lit one side of it). The lamps themselves were made denser and kept out of the
+  walls in the bake before this (Milestone 424).
+- Outdoors nothing changes: the lamps are indoors, and a light's reach ends at 14 m.
+- No new bake: the spots are read from the layout's placements when the map is built.
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): lamp spots under every ceiling of the base and the tower and over
+  the court and the station (seen failing with the lamps' piece misnamed: none found), and none inside anything solid
+  (seen failing before the filter: 19 of 135). verify and rules; e2e `br`. Photographed on a tower floor, in the base's
+  hall and in the court, before and after.
