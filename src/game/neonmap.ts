@@ -31,7 +31,7 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0 };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; got: number; total: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, got: 0, total: 0 };
 
 const G = neonCfg.game;
 /** the map's own haze (atmosphere.ts ownAir), neonmap.json game.air */
@@ -303,7 +303,8 @@ function reflectCity(map: THREE.Object3D, renderer: THREE.WebGLRenderer): void {
   cam.position.set(BR_X + R.at[0], R.at[1], BR_Z + R.at[2]);
   const mats: THREE.MeshStandardMaterial[] = [];
   reflection = { cam, scene, renderer, mats };
-  retakeReflection();
+  // (its first picture is taken once the warm has built its shaders, main.ts warmBrSide: taken here, now that it is of
+  // the city and not of nothing, it built them on the spot)
   const done = new Set<THREE.Material>();
   map.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
@@ -325,9 +326,14 @@ export function retakeReflection(): void {
   // reading the very picture it was drawn into.
   const own = mats.map((m) => m.envMap);
   for (const m of mats) m.envMap = null;
+  // (its side shown for the picture: taken from the range, with the city's side hidden, the picture was empty, and the
+  // first was always taken so, the city's file coming in while the range is shown)
+  const shown = scene.visible;
+  scene.visible = true;
   scene.add(cam);
   cam.update(renderer, scene);
   scene.remove(cam);
+  scene.visible = shown;
   mats.forEach((m, i) => (m.envMap = own[i]));
 }
 
@@ -369,7 +375,15 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
   const probe = await fetch(url, { method: "HEAD" }).catch(() => null);
   if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return 0;
   const ktx2 = new KTX2Loader().setTranscoderPath("libs/basis/").detectSupport(renderer);
-  const gltf = await new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder).loadAsync(url);
+  // (its bytes as they come: a match's screen waits for the city and draws its bar by them, main.ts showFrame)
+  const gltf = await new GLTFLoader()
+    .setKTX2Loader(ktx2)
+    .setMeshoptDecoder(MeshoptDecoder)
+    .loadAsync(url, (e) => {
+      if (!e.lengthComputable) return;
+      NEON_MAP.got = e.loaded;
+      NEON_MAP.total = e.total;
+    });
   NEON_MAP.detail = await applyDetailMaps(gltf);
   let meshes = 0;
   gltf.scene.traverse((o) => {

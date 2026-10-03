@@ -140,6 +140,10 @@
     "waitText": "WAITING FOR THE OTHERS TO BE READY",
     "loadFrames": 3,
     "loadMost": 12,
+    "_city": "A match on the Neon City waits for its file and its shaders under its screen (the city is not loaded with the page: main.ts askCity): `cityText` and the megabytes while it comes, `cityReady` while its shaders are built, and `cityMost` seconds at the most (its file is 75 to 349 MB by the preset).",
+    "cityText": "LOADING THE CITY",
+    "cityReady": "GETTING THE CITY READY",
+    "cityMost": 180,
     "boardMost": 6,
     "menuGrace": 0.5,
     "paintWait": 0.08

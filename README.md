@@ -1021,8 +1021,10 @@ damage).
 - **The intro card** (`src/ui/intro.ts`, `src/config/intro.json`): one 2D
   canvas over the page, and the loading screen while it is there. SpeedKills
   plays no card as the page opens: its loading screen and bar stay until the
-  world, the bought guns, the figures and the city's shaders are in (the city
-  drawn cold from the ship froze the page for 6.8 s). A match starts in the
+  range, the bought guns and the figures are in. The Neon City is not loaded
+  with the page: a match on it (a battle royale, a 1v1 on THE CENTRE) asks for
+  it, and its screen waits for its file, by the megabyte, and its shaders (the
+  city drawn cold from the ship froze the page for 6.8 s). A match starts in the
   owner's order: Start puts the loading screen up at once, before the match is
   built; it stays while the match's own files come in, and in a battle royale
   while you are put on the ship and its first frames settle (the ship waits at

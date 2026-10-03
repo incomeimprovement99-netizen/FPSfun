@@ -9378,6 +9378,51 @@ like sound effects. They should be easy" (SLAM's squeak was the first, Milestone
   Milestone 410 dropped the paid pack's credit written into it by hand: the credit is in the tool's template now.
 - **The card's foot fix taken out:** the figure stands flat itself since Milestone 419 (the card measured -0.1 degrees a
   foot after it), so main.ts flattenFeet went.
+- **The gun sounds' check made general:** it had held the pack-animated guns to exactly the USSO and BOOG, which would
+  have failed verify for the gun agent the day ANAKIN goes onto its pack animation. Now any gun on a pack gun's
+  animation must sound as that same pack gun (else its reload is silently the old clicks; it names the fix), and
+  where the paid files are on disk its reloads must be in them (else `npm run paid:sounds`). Seen failing with BOOG
+  given the MPS5's sounds.
 - **Checked:** the packsounds check (every hack has its layers but the two kept, every take one the tool fetches from
   the sci-fi pack, no laser, lengths and levels in range); a page: each of the ten hacks used, the eight playing their
   layers and ARMOR no longer the shield's break; verify; rules.
+
+## Milestone 422 — The page opens on the range alone: the city's graph 25 times quicker, and the city loaded when a match on it starts
+
+The owner, 2026-10-02: "how can we cut down on the loading the world loading screen? it stays at 0 then jumps to like
+90 ... can we only load the firing range at the start ... only load the rest when we select a game mode ... do a deep
+analysis and figure out where we can save the most time".
+
+- **Measured first** (a cold first visit to the live site, cache off; then Chrome's CPU profile of a start):
+  - the page's script took 14.8 s to start;
+  - the screen went at 26.0 s;
+  - 967 requests, 119 MB, 75 MB of them the Neon City's file;
+  - 21 s of the main thread in 17 long tasks, the first 14.4 s long.
+  - Why the bar sat at 0 and jumped: nothing could run, a loader's report or a frame, until that one task ended, and the
+    bar counts files, not bytes (the city's file is two of them).
+- **The 14.4 s task was the city's bots' graph** (neonmap.ts): every link of a node every few metres of every floor,
+  walked both ways (botbody.ts botWalk) at the page's start, 9.1 s of the profile (15.5 s in a Node re-run of it).
+  - A walk asked the collision grid twice every 10 cm, and each ask handed back every box of the 8 m cells it touched
+    (a median of 76, a tenth of them over 500). Now it asks once for the whole way, keeps the boxes along it, and tests
+    both rules in one pass a step: the same boxes, the same answer.
+  - The graph is the same, 3,020 nodes, 8,222 link ends, the same fingerprint before and after; the city's build 0.4 s.
+- **The collision grid's de-duplication:** a WeakMap of box to query stamp became a stamp on the box, about three
+  times quicker a query (3.8 against 1.25 microseconds, measured): every movement step, round and bot look, every
+  frame, not only at the start. The graph again the same.
+- **The Neon City is asked for when a match on its side starts** (main.ts askCity: wireMatch for a battle royale or
+  THE CENTRE, or the city's side first shown by any other way), not with the page:
+  - the page's own screen no longer waits for the city's file or its warm;
+  - the match's screen does, the battle royale's behind the player's card. Its bar is the city's bytes:
+    "LOADING THE CITY · 37 OF 75 MB", then "GETTING THE CITY READY" while its shaders are built, then the match's
+    own (intro.json show cityText, cityReady, and cityMost 180 s for the largest file);
+  - the city's warm is now checked every frame once the city is asked for. It ran from the page screen's wait alone,
+    so past that screen's 25 s limit it never ran, and the first ride over the city froze on its shaders;
+  - the roads' reflection had been taken with the city's side hidden, so its first picture was empty. It is now taken
+    with the side shown, once the warm has built its shaders.
+  - `__range.askCity()` for the tools that measure the city without a match (bench, map-stats, profile-frame).
+- **The result, the dev server on this machine:** the page's script ran 10.3 s before, 1.8 s after. Its screen went at
+  20.7 s before, 8.7 s after. A battle royale from Start: the city in, warmed, the card gone and you on the ship in
+  5.8 s.
+- **Checked:** the graph's fingerprint before and after each change; the start profiled; a battle royale started as a
+  player starts one (the card screen, the megabytes, the ship held until the city was ready); verify; rules; the skship,
+  speedkills and skhunt e2e.

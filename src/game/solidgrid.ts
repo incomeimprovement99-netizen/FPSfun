@@ -22,14 +22,18 @@ const CELL = 8;
 /** a box wider than this (either way) goes on the always-checked list rather than into the cells */
 const BIG = 96;
 
-const cells = new Map<number, Solid[]>();
-let always: Solid[] = [];
+const cells = new Map<number, Stamped[]>();
+let always: Stamped[] = [];
 let builtLen = -1;
 let builtFirst: Solid | undefined;
 let builtLast: Solid | undefined;
-/** a stamp per query, so a box in several cells is handed back once */
+/**
+ * A stamp per query, written on the box itself, so a box in several cells is handed back once. It was a WeakMap of box
+ * to stamp: about three times the cost of a query (3.8 against 1.25 microseconds, measured 2026-10-02), on every
+ * movement step, round and bot look, every frame.
+ */
 let stamp = 0;
-const seen = new WeakMap<Solid, number>();
+type Stamped = Solid & { seenAt?: number };
 
 const key = (cx: number, cz: number): number => (cx + 32768) * 65536 + (cz + 32768);
 const cellOf = (v: number): number => Math.floor(v / CELL);
@@ -82,8 +86,8 @@ export function solidsIn(minX: number, maxX: number, minZ: number, maxZ: number,
       const list = cells.get(key(cx, cz));
       if (!list) continue;
       for (const s of list) {
-        if (seen.get(s) === q) continue;
-        seen.set(s, q);
+        if (s.seenAt === q) continue;
+        s.seenAt = q;
         out.push(s);
       }
     }
@@ -106,8 +110,8 @@ export function solidsAlong(p0: THREE.Vector3, dir: THREE.Vector3, len: number, 
     const list = cells.get(key(cx, cz));
     if (!list) return;
     for (const s of list) {
-      if (seen.get(s) === q) continue;
-      seen.set(s, q);
+      if (s.seenAt === q) continue;
+      s.seenAt = q;
       out.push(s);
     }
   };

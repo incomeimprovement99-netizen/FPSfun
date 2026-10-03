@@ -199,7 +199,7 @@ let introShown = false;
  * - "card": the mode's card over all that, the screen taken down under it once it covers it, and the match (or the
  *   ship) waiting until the card has gone, introCfg.matchHold at the most.
  */
-let show: { stage: "load" | "board" | "card"; words?: { name: string; sub: string }; br: boolean; at: number; menuAt: number; then: Array<() => void> } | null = null;
+let show: { stage: "load" | "board" | "card"; words?: { name: string; sub: string }; br: boolean; city: boolean; at: number; menuAt: number; then: Array<() => void> } | null = null;
 // a tab in the background gets no animation frames, so its card would stand still and hold the match: it skips it,
 // and the whole of the way in with it
 document.addEventListener("visibilitychange", () => {
@@ -231,7 +231,8 @@ intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSe
 // SpeedKills: the loading screen, its bar and its tips, is what shows while anything loads, up to those late steps
 // too; there is no card over it, and a mode's card plays once it is done (below, and wireMatch)
 // and the city's side warmed after all that (brWarmed): drawn cold from the ship, it froze the page for seconds
-if (IS_SK) loadingScreen.waitFor = () => paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms) && brWarmed();
+// (not the city's warm: the city is asked for when a match on it starts, askCity, and its warm waits on the match's screen)
+if (IS_SK) loadingScreen.waitFor = () => paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms);
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -1021,7 +1022,19 @@ void dressKit(brMap.root, DRESSING).then((n) => {
 // takes the CPU from the e2e's fights)
 /** the Neon City map's file is in and dressed, or is not there: its side is warmed after it (warmBrSide) */
 let cityIn = !NEON || new URLSearchParams(location.search).has("norender");
-if (NEON && !new URLSearchParams(location.search).has("norender")) void dressNeonMap(brMap.root, renderer, quality.cityKit).finally(() => (cityIn = true));
+/**
+ * The Neon City's file is asked for the first time a match on its side starts (wireMatch, or the city's side first
+ * shown), not with the page. The range never draws it, and with its warm it was most of the page's first load: on a
+ * first visit 75 MB of 119 (lo; hi 139 MB, max 349 MB), and the page's screen held until it was in and its every shader
+ * built (the owner, 2026-10-02: "only load the firing range at the start ... only load the rest when we select a game
+ * mode"). A match on it now waits for it under its own screen (showFrame), the battle royale's behind the player's card.
+ */
+let cityAsked = cityIn;
+function askCity(): void {
+  if (cityAsked) return;
+  cityAsked = true;
+  void dressNeonMap(brMap.root, renderer, quality.cityKit).finally(() => (cityIn = true));
+}
 if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
   // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
   // (at the kit's lo size where the preset loads the kit's lo files)
@@ -5244,10 +5257,24 @@ function showFrame(): void {
   }
   const N = introCfg.settle.frames;
   if (show.stage === "load") {
+    // A match on the city waits for it: its file by its bytes (the bar's files are counted, and the city is two of
+    // them), then its textures, then its shaders built (warmBrSide)
+    const cityReady = !show.city || (cityIn && brWarm === "done");
+    let files = loadingScreen.filesIn;
+    if (show.city && !cityReady) {
+      const got = NEON_MAP.total > 0 ? NEON_MAP.got / NEON_MAP.total : 0;
+      files = cityIn ? 0.9 : 0.8 * got;
+      loadingScreen.sayLine(
+        cityIn ? S.cityReady : NEON_MAP.total > 0 ? `${S.cityText}  ·  ${Math.round(NEON_MAP.got / 1048576)} OF ${Math.round(NEON_MAP.total / 1048576)} MB` : S.cityText,
+      );
+      loadingScreen.resetCalm();
+    } else if (show.city) loadingScreen.sayLine("");
     // the bar: the match built (a tenth), its files in (to seven tenths), its frames steady (to eight)
-    if (loadingScreen.loaded) loadingScreen.step(0.1 + 0.6 * loadingScreen.filesIn + 0.1 * Math.min(1, loadingScreen.calm / S.loadFrames) * (loadingScreen.allAsked ? 1 : 0));
-    // everything the match asked for is in, and the page drew a few frames steadily after it
-    if ((loadingScreen.loaded && loadingScreen.allAsked && loadingScreen.calm >= S.loadFrames) || now - show.at > S.loadMost) {
+    if (loadingScreen.loaded) loadingScreen.step(0.1 + 0.6 * files + 0.1 * Math.min(1, loadingScreen.calm / S.loadFrames) * (loadingScreen.allAsked && cityReady ? 1 : 0));
+    // everything the match asked for is in, and the page drew a few frames steadily after it (a city's file can be
+    // hundreds of megabytes: its own, longer, limit)
+    if ((loadingScreen.loaded && loadingScreen.allAsked && cityReady && loadingScreen.calm >= S.loadFrames) || now - show.at > (show.city ? S.cityMost : S.loadMost)) {
+      if (show.city) loadingScreen.sayLine("");
       show.stage = show.br ? "board" : "card";
       show.at = now;
       loadingScreen.resetCalm();
@@ -5323,9 +5350,12 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // underneath it. Nothing waits for it (src/ui/intro.ts).
   // SpeedKills: the loading screen first, then the card, then the match (showFrame); not for a tab in the background,
   // which gets no frames to show it with
+  // a match on the city's side: the city's file asked for now (it is not loaded with the page)
+  const onCity = NEON && (d instanceof BrMatch || ("arenaId" in d && (d as { arenaId: string }).arenaId === CENTRE_MAP.id));
+  if (onCity) askCity();
   if (!NO_INTRO) {
     if (IS_SK && !document.hidden) {
-      show = { stage: "load", words: modeWords(d, kind), br: d instanceof BrMatch, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
+      show = { stage: "load", words: modeWords(d, kind), br: d instanceof BrMatch, city: onCity, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
       // (a battle royale's card is up already when Start put the screen up; a friend's match starting it is not)
       loadingScreen.again(introCfg.show.text, d instanceof BrMatch ? (loadingScreen.card ?? playerCard()) : null);
     } else if (!IS_SK) void intro.play("match", modeWords(d, kind));
@@ -6376,6 +6406,8 @@ function showSide(): void {
   const want = wantSide();
   if (want === sideShown) return;
   sideShown = want;
+  // (the city asked for when its side is first shown, by whatever way: a match's start asks for it sooner)
+  if (want === "br") askCity();
   rangeSide.visible = want === "range";
   brSide.visible = want === "br";
   // the static shadow map is drawn from what is shown
@@ -6518,7 +6550,12 @@ function warmBrSide(): void {
   const send = (): void => {
     for (let i = 0; i < 40 && textures.length; i++) renderer.initTexture(textures.pop()!);
     if (textures.length) requestAnimationFrame(send);
-    else void compiled.then(() => (brWarm = "done"));
+    else
+      void compiled.then(() => {
+        // the roads' first picture of the city, its shaders built by now (neonmap.ts warmReflection)
+        retakeReflection();
+        brWarm = "done";
+      });
   };
   requestAnimationFrame(send);
   // a tab in the background draws no frames to send them on: the screen does not wait for it (hud.json loading.maxSeconds)
@@ -8915,6 +8952,9 @@ function step(): void {
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn
   loadingScreen.frame();
+  // the city's shaders built once its file is in, whatever is up (it ran from the page screen's wait alone, and past
+  // that screen's time limit never ran: the first ride over the city froze on them)
+  if (cityAsked) brWarmed();
   // SpeedKills' way into a match: the screen, the ship, the card
   showFrame();
   // and the card opens the game the moment it does. It waits for that rather
@@ -9401,7 +9441,9 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   cityKit: () => ({ ...CITY_KIT }),
   cityDistricts: () => ({ ...CITY_DISTRICTS }),
   /** the Neon City map (?map=neon): what its file drew */
-  neonMap: () => ({ on: NEON, ...NEON_MAP }),
+  neonMap: () => ({ on: NEON, asked: cityAsked, ...NEON_MAP }),
+  /** the Neon City's file asked for now (a tool that measures the city without a match; a match asks for it itself) */
+  askCity: () => askCity(),
   /** the textures the scene's materials hold, and what they cost the card: a compressed one its mips' bytes, any other its
    * pixels at four bytes with a third more for mips (Phase 23.1 measures the kit's KTX2 against the WebP it replaced) */
   textureMemory: () => {

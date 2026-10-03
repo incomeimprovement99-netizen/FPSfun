@@ -11,7 +11,7 @@ import PACK from "../../src/config/packsounds.json";
 import FP from "../../src/config/fparms.json";
 import SK from "../../src/config/games/speedkills.json";
 import AUDIO from "../../src/config/audio.json";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -32,8 +32,19 @@ console.log("The pack's gun sounds");
   // a reload's sound is recorded to its pack gun's own animation: only a gun reloaded with it may have one
   const fp = FP.guns as Record<string, string>;
   const timed = Object.entries(fp).filter(([id, pack]) => guns[id]?.pack === pack);
-  check("the guns reloaded with the pack's animation are the USSO and BOOG, each with its pack gun's sounds", timed.map(([id]) => id).sort().join() === "r97,sentinel", timed.map(([id]) => id).join());
+  // A gun put on a pack gun's first-person animation (fparms.json guns) reloads with that pack gun's recorded sounds only
+  // if packsounds.json gives it the same pack gun: anything else, and its reload is silently the old clicks.
+  const mismatched = Object.entries(fp).filter(([id, pack]) => guns[id] && guns[id].pack !== pack);
+  check("every gun on a pack gun's animation sounds as that pack gun (packsounds.json guns = fparms.json guns)", mismatched.length === 0, mismatched.map(([id, pack]) => `${id}: animated as ${pack}, sounds as ${guns[id].pack}`).join("; "));
+  check("the USSO and BOOG among them", ["r97", "sentinel"].every((id) => timed.some(([g]) => g === id)), timed.map(([id]) => id).join());
   check("each of them has a tactical and an empty reload to play", timed.every(([, pack]) => !!packs[pack].reloadTac && !!packs[pack].reloadEmpty));
+  // where the paid files are on disk (the owner's machine), each one's reload written (npm run paid:sounds after a gun joins)
+  const metaFile = new URL("../../public/audio/paid/meta.json", import.meta.url);
+  if (existsSync(metaFile)) {
+    const meta = JSON.parse(readFileSync(metaFile, "utf8")) as Record<string, unknown>;
+    const stale = timed.filter(([id]) => !meta[`pack_reload_${id}_tac`] || !meta[`pack_reload_${id}_empty`]).map(([id]) => id);
+    check("public/audio/paid has each one's reloads (else: npm run paid:sounds)", stale.length === 0, stale.join(", "));
+  }
 }
 {
   // the USSO's tactical reload as measured off the pack: four sounds over 3 s, played to our 1.8 s

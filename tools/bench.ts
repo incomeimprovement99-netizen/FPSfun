@@ -240,6 +240,7 @@ async function measure(browser: import("puppeteer").Browser, preset: string, mer
   await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
   await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
   // the Neon City map's file (&map=neon, Phase 28) loads after the page says it is loaded: measured once it is drawn
+  await page.evaluate("window.__range.askCity && window.__range.askCity()");
   await page.waitForFunction("!window.__range.neonMap || !window.__range.neonMap().on || window.__range.neonMap().drawn", { timeout: 300000 });
   await page.evaluate(`document.getElementById("overlay").classList.add("hidden")`);
   if (SPOTS[SPOT]) await page.evaluate(SPOTS[SPOT]);
