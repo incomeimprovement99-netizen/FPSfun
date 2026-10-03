@@ -50,6 +50,7 @@ import { P, access } from "./palette";
 import { RING_TICK } from "./ring";
 import type { MateLife, SquadRow } from "./squadview";
 import squadCfg from "../config/squad.json";
+import { slow } from "./slow";
 
 type ModeRow = ModeHud["rows"][number];
 
@@ -1101,20 +1102,61 @@ export class Hud {
    * thing to do, its keys in the prompt's own caps, and how to put it away. Not
    * a layout box: the SpeedKills layout check holds every box to the bottom band.
    */
+  /**
+   * The keys panel, drawn into a canvas of its own and copied onto the HUD each frame: about fifty outlined texts
+   * (each a stroke and a fill) a frame for a panel that changes when a key is rebound or the window is resized, 0.15 ms
+   * of a frame (tools/profile-frame.ts, 2026-10-03). Drawn again when what it shows or its size changes.
+   */
+  private hintsCache: { key: string; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number } | null = null;
+
   private drawKeyHints(s: HudState, u: number): void {
     this.hintsBottom = 0;
     const k = s.keyHints;
     if (!k || !k.rows.length) return;
-    const c = this.ctx;
     const right = this.w - 30 * u;
     const width = 330 * u;
     const left = right - width;
     const rowH = 27 * u;
-    const cap = 22 * u;
     const top = 116 * u;
     const head = 26 * u;
     const foot = 32 * u;
     const h = head + k.rows.length * rowH + foot;
+    this.hintsBottom = top + h;
+    // (?slow=keys: drawn every frame, as before)
+    if (slow("keys")) return this.paintKeyHints(k, u, left, right, width, top, h);
+    const dpr = this.canvas.width / this.w;
+    // (the fonts' state too: drawn before the HUD's font is in, it would keep the stand-in font for good)
+    const key = `${this.w}|${dpr}|${u}|${this.layout ? 1 : 0}|${document.fonts?.status}|${k.hide}|${k.rows.map((r) => `${r.label}=${r.keys.join(",")}`).join(";")}`;
+    if (this.hintsCache?.key !== key) {
+      // its corner on a whole device pixel, so the copy is as sharp as the drawing
+      const x = Math.floor((left - 12 * u) * dpr) / dpr;
+      const y = Math.floor(top * dpr) / dpr;
+      const w = Math.ceil((right + 12 * u - x) * dpr) / dpr;
+      const hh = Math.ceil((top + h - y) * dpr) / dpr;
+      const canvas = this.hintsCache?.canvas ?? document.createElement("canvas");
+      canvas.width = Math.round(w * dpr);
+      canvas.height = Math.round(hh * dpr);
+      const own = canvas.getContext("2d")!;
+      own.setTransform(dpr, 0, 0, dpr, -x * dpr, -y * dpr);
+      const hud = this.ctx;
+      this.ctx = own;
+      try {
+        this.paintKeyHints(k, u, left, right, width, top, h);
+      } finally {
+        this.ctx = hud;
+      }
+      this.hintsCache = { key, canvas, x, y, w, h: hh };
+    }
+    const hc = this.hintsCache;
+    this.ctx.drawImage(hc.canvas, hc.x, hc.y, hc.w, hc.h);
+  }
+
+  private paintKeyHints(k: NonNullable<HudState["keyHints"]>, u: number, left: number, right: number, width: number, top: number, h: number): void {
+    const c = this.ctx;
+    const rowH = 27 * u;
+    const cap = 22 * u;
+    const head = 26 * u;
+    const foot = 32 * u;
     c.fillStyle = PANEL;
     c.fillRect(left - 12 * u, top, width + 24 * u, h);
     this.text("KEYS", left, top + 18 * u, 700, 13 * u, DIM);
@@ -1150,7 +1192,6 @@ export class Hud {
     c.fillRect(left + pw, mid - cap / 2, hw, cap);
     this.text(k.hide, left + pw + hw / 2, mid + 5 * u, 600, 13 * u, "#101214", "center");
     this.text("to hide this", left + pw + hw + 6 * u, mid + 5 * u, 600, 14 * u, "#ffd23c");
-    this.hintsBottom = top + h;
   }
 
   /** the kill feed under the FPS counter, six seconds a line (and under the keys, when they are up) */

@@ -9814,3 +9814,17 @@ the test suite's sections that still play it are moved to SpeedKills.
 - **Checked:** verify (the games check: an old choice of the legacy game does not count, the address still opens it);
   rules; the Friends tab photographed with an old choice of the legacy game stored (SpeedKills opened, no Game box, its
   own rules); the page, panel and skfriends e2e.
+
+## Milestone 439 — The HUD's keys panel drawn once, not every frame
+
+- **What it cost:** the keys panel (twenty rows of labels and key caps, each an outlined text) was drawn on every frame,
+  about fifty stroked and filled texts for a panel that changes only when a key is rebound, it is hidden or shown, or
+  the window changes. It is drawn into a canvas of its own, its corner on a whole device pixel so the copy is as sharp
+  as the drawing, and copied onto the HUD each frame (hud.ts drawKeyHints). It is drawn again when its rows, the window,
+  the pixel ratio, the outline or the fonts' loading change, so a panel first drawn before the HUD's font came in is
+  drawn again in it. `?slow=keys` draws it every frame, as before (slow.ts).
+- **Measured:** the HUD's share of a frame in the Neon street, three interleaved rounds each on Balanced: a median
+  0.67 ms to 0.49.
+- **Checked:** the panel photographed both ways at pixel ratios 1 and 1.5, the same picture (0.07% and 0.02% of its
+  values off by more than 8 of 255, at the letters' edges); verify; rules; the sklobby e2e (the keys up by default, /
+  hides them, they stay hidden after a reload).

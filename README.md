@@ -1332,7 +1332,8 @@ kind at a time in one instanced batch each, only those in view (the loot's draw 
 array uniform (the decay's sectors, the sun's shadow matrices) is sent only when it changed, as three sends a single
 value (3,225 uniform calls a frame to 1,756; `?slow=uniforms` puts back the old way, `src/game/uniformcache.ts`); the
 decay moves only the collision boxes its lines passed, not every box every frame; the boxes along a ray are tested
-without making arrays; and the shots' gathering runs only while a shot is in flight. On a machine busy with other
+without making arrays; the shots' gathering runs only while a shot is in flight; and the HUD's keys panel is drawn
+once and copied each frame (Milestone 439, `?slow=keys`). On a machine busy with other
 work, the street from a median 66 fps to 80 on Balanced.
 
 **The bought city kits, and what they cost.** The centre wears about 6,300
