@@ -57,10 +57,12 @@ the streets) and close range too (eight tower floors, the base, the court, the m
    Milestone 424.*
 5. Cover on the roofs, and mid-range cover in the streets. *Done, Milestone 429: the decks and the pavements; the
    roofs of the corner blocks' buildings still to come.*
-6. Each tower floor a theme and a big floor number; one a vault floor with the best loot: our Red Tiger.
+6. Each tower floor a theme and a big floor number; one a vault floor with the best loot: our Red Tiger. *Done,
+   Milestone 431.*
 7. The corner blocks' identities visible from the street.
 8. The four High City blocks each their own look.
-9. A middle roof tier you can jump between, and more pads.
+9. A middle roof tier you can jump between, and more pads. *Done, Milestone 432: the tier was there; Market's and the
+   Well's routes up to the bridge ring added, as Motel Hill and Noodle Row had.*
 10. Buildings between the Loop and the corner blocks, so the streets are canyons.
 
 After every few of these the centre is photographed and scored again by a fresh agent, and the round is added here.

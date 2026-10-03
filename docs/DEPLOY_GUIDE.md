@@ -83,7 +83,7 @@ they never enter git and never go to Pages:
 - **The Neon City map** (Phase 28, `?map=neon`): Daelonik's Neon City bundle, four packages (download them in Unity's
   Package Manager). `npx tsx tools/neon-layout.ts` writes the placements into `src/config/neonmap.json`, then
   `GAME=speedkills NEON=bake NEON_SIZES=lo,hi,max npx tsx tools/import-neon.ts` bakes
-  `public/models/paid/neon/neonmap-v<version>-<size>.glb` (lo 81 MB, hi 142 MB, max 352 MB; about 9 minutes on
+  `public/models/paid/neon/neonmap-v<version>-<size>.glb` (lo 81 MB, hi 142 MB, max 353 MB; about 9 minutes on
   every core with the machine idle, half an hour with it in use) and writes the collision to `src/config/neon/neonmap.solids.json` and the pads and measurements back to
   `neonmap.json`, all in git, so commit them. `NEON_SIZES=preview` (256 px) is for looking at a layout, and the gallery
   sheets under `neon/gallery/` are for choosing pieces: neither goes to the server, so copy only the three

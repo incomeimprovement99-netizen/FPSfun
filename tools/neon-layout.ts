@@ -78,11 +78,11 @@ type OBox = { c: Pt; u: Pt; v: Pt; hu: number; hv: number; top: number };
 /**
  * place a piece at any turn, the middle of its own footprint at (cx, cz), its base at y; the oriented box it covers
  */
-function placeTurned(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0): OBox {
+function placeTurned(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0, mat?: string): OBox {
   const { key, row } = piece(name);
   const [mx, mz] = [(row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2];
   const [ox, oz] = rotY(yaw, mx, mz);
-  add(chunk, "c", [key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), +yaw.toFixed(2), mode] as Place);
+  add(chunk, "c", (mat ? [key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), +yaw.toFixed(2), mode, mat] : [key, +(cx - ox).toFixed(3), +y.toFixed(3), +(cz - oz).toFixed(3), +yaw.toFixed(2), mode]) as Place);
   return { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: y + row.max![1] };
 }
 /** whether two oriented boxes, each grown by `gap`, overlap (separating axes) */
@@ -242,7 +242,7 @@ const noGround: Array<[number, number, number, number]> = [];
     const pick3 = <Q,>(a: Q[]): Q => a[Math.floor(rnd3() * a.length)];
     const lines = F.lines as Record<string, number[]>;
     let tWalls = 0, tProps = 0, tLamps = 0;
-    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[] }>)) {
+    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; mat?: string }>)) {
       const h = Number(hs);
       const plan = F.plans[P.plan] as Record<string, string>;
       const placed: OBox[] = [];
@@ -274,13 +274,28 @@ const noGround: Array<[number, number, number, number]> = [];
           const len = two ? 5 : 2.5;
           const c: Pt = [ax + d[0] * (k * 2.5 + len / 2) + px, az + d[1] * (k * 2.5 + len / 2) + pz];
           // (2 cm into the floor, its top 2 cm inside the slab over it: neither face shares a plane with a floor)
-          placed.push(placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", h - 0.02));
+          // (in the floor's own wall material, rules.tower.floors.at[h].mat: the floors looked alike)
+          placed.push(placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", h - 0.02, P.mat));
           tWalls++;
           k += two ? 2 : 1;
         }
       }
       // (the lamps keep off the partitions: on the rooms and maze floors a lamp hung in a wall)
       const wallBoxes = placed.slice();
+      // the floor's number beside each of its core doors (rules.tower.floors.digits): the pack's lit digit, flat on the
+      // core's outside face, `beside` the door's edge toward the core's far end and `up` over the floor
+      const DG = F.digits as { piece: string; first: number; up: number; beside: number; off: number } | undefined;
+      const shaft = T.shaft as number[];
+      if (DG && shaft.includes(h)) {
+        const digit = DG.first + shaft.indexOf(h);
+        const dw = C.door[0];
+        const doorsHere = ds;
+        const sign = `${DG.piece}${digit}.prefab`;
+        // (the w door's middle on z, the n and s doors' on x, as neon-tower.ts cuts them)
+        if (doorsHere.includes("w")) placeTurned("c-tower", sign, cx0 + px - DG.off, dz + pz + dw / 2 + DG.beside, 0, "g", h + DG.up);
+        if (doorsHere.includes("n")) placeTurned("c-tower", sign, dx + px + dw / 2 + DG.beside, cz0 + pz - DG.off, 90, "g", h + DG.up);
+        if (doorsHere.includes("s")) placeTurned("c-tower", sign, dx + px + dw / 2 + DG.beside, cz1 + pz + DG.off, 90, "g", h + DG.up);
+      }
       // inside the floor: the main body's inner faces, its round corners and the grooves down each face
       const [qx0, qx1, qz0, qz1] = F.inner;
       const inFloor = (x: number, z: number, m: number) => {

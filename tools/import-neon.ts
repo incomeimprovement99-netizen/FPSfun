@@ -808,7 +808,9 @@ if (mode === "bake") {
       };
       const gaps = e.out.filter((o) => !through(o));
       seal.push({ at: h, rays: e.rays, out: gaps.slice(0, 12), windows: e.out.length - gaps.length, gaps: gaps.length });
-      tri += push(`tower-${h}`, (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: TW.mats[k] })));
+      // (each floor's own tiles on top, rules.tower.floors.at[h].floorMat, where it names them)
+      const own = (cfg.rules.tower.floors.at as Record<string, { floorMat?: string }>)[String(h)]?.floorMat;
+      tri += push(`tower-${h}`, (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })));
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
@@ -1033,7 +1035,7 @@ if (mode === "bake") {
   for (const q of cfg.pads) for (const key of [cfg.rules.pads.plate, cfg.rules.pads.beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === cfg.rules.pads.beam ? shortBeam(m) : m) })));
   // the centre's spine (rules.pads.spine), measured the same way: the plate under each and a beam over it, white up, red down
   cfg.spine = spinePads(all, cfg.rules);
-  for (const [list, beam] of [[cfg.spine.up, cfg.rules.pads.spine.beam], [cfg.spine.down, cfg.rules.pads.spine.downBeam]] as const)
+  for (const [list, beam] of [[cfg.spine.up, cfg.rules.pads.spine.beam], [cfg.spine.down, cfg.rules.pads.spine.downBeam], [cfg.spine.across, cfg.rules.pads.spine.beam]] as const)
     for (const q of list as Array<{ pad: number[]; floor: number }>) for (const key of [cfg.rules.pads.plate, beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === beam ? shortBeam(m) : m) })));
   (groups.get(groupOf("c-pads")) ?? groups.set(groupOf("c-pads"), []).get(groupOf("c-pads"))!).push(...padDraws);
   for (const [id, all] of groups) {
@@ -1042,7 +1044,7 @@ if (mode === "bake") {
     console.log(`${id}: ${b?.tris ?? 0} triangles`);
   }
   console.log(`pads: ${cfg.pads.map((q: { id: string; roof: number }) => `${q.id} to ${q.roof.toFixed(1)} m`).join(", ")}`);
-  console.log(`the spine: ${cfg.spine.up.map((q: { id: string; floor: number; roof: number }) => `${q.id} ${q.floor} to ${q.roof} m`).join(", ")}; down ${cfg.spine.down.map((q: { id: string; floor: number; landY: number }) => `${q.id} ${q.floor} to ${q.landY} m`).join(", ")}`);
+  console.log(`the spine: ${cfg.spine.up.map((q: { id: string; floor: number; roof: number }) => `${q.id} ${q.floor} to ${q.roof} m`).join(", ")}; down ${cfg.spine.down.map((q: { id: string; floor: number; landY: number }) => `${q.id} ${q.floor} to ${q.landY} m`).join(", ")}; across ${cfg.spine.across.map((q: { id: string; floor: number; landY: number }) => `${q.id} ${q.floor} to ${q.landY} m`).join(", ")}`);
   const tris = baked.reduce((a, b) => a + b.tris, 0);
   console.log(`${placed} placements, ${tris} triangles, ${all.length} collision boxes (${solids.length} from rooms and props, ${solidBoxes.length} from solid buildings)`);
   const SIZES: Record<string, [number, number]> = { preview: [256, 128], lo: [512, 256], hi: [1024, 512], max: [2048, 1024] };
@@ -1196,20 +1198,24 @@ function spinePads(boxes: number[][], rules: any) {
     for (let t = hit; t <= hit + L; t += 0.25) roof = Math.max(roof, top(...at(t), MOVE.radius));
     return { id: q.id, face: face.map((v) => +v.toFixed(2)), out: [-q.to[0], -q.to[1]], pad: pad.map((v) => +v.toFixed(2)), floor: +floor.toFixed(2), roof: +roof.toFixed(2), land: L, ground: +ground.toFixed(2) };
   });
-  const down = (SP.down as Array<{ id: string; pad: number[]; land: number[]; hop: number }>).map((q) => {
+  // (a way down `hop` metres up off its roof; a pad across `over` metres over its mark at the top of its throw)
+  const thrown = (q: { id: string; pad: number[]; land: number[]; hop?: number; over?: number }) => {
     const floor = top(q.pad[0], q.pad[1], 0.3);
     const landY = top(q.land[0], q.land[1], MOVE.radius);
     if (!level(q.land[0], q.land[1], landY)) throw new Error(`spine pad ${q.id}: its landing at (${q.land.join(", ")}) is not level`);
-    const T = padOff(q.pad[0], q.pad[1], floor, q.land[0], q.land[1], landY, q.hop);
+    const hop = q.hop ?? Math.max(0, landY - floor) + (q.over ?? 2.5);
+    const T = padOff(q.pad[0], q.pad[1], floor, q.land[0], q.land[1], landY, hop);
     const r = MOVE.radius;
     for (let t = 0.01; t < T.t - 0.02; t += 0.01) {
       const [x, y, z] = [q.pad[0] + T.dx * t, floor + T.up * t - (MOVE.gravity * t * t) / 2, q.pad[1] + T.dz * t];
       const hit = boxes.find((b) => b[0] < x + r && b[1] > x - r && b[2] < z + r && b[3] > z - r && b[4] < y + MOVE.standHeight && b[5] > y + 0.02);
       if (hit) throw new Error(`spine pad ${q.id}: its throw meets [${hit.join(", ")}] ${t.toFixed(2)} s out, at (${[x, y, z].map((v) => v.toFixed(2)).join(", ")})`);
     }
-    return { id: q.id, pad: q.pad, floor: +floor.toFixed(2), land: q.land, landY: +landY.toFixed(2), hop: q.hop };
-  });
-  return { up, down };
+    return { id: q.id, pad: q.pad, floor: +floor.toFixed(2), land: q.land, landY: +landY.toFixed(2), hop: +hop.toFixed(2) };
+  };
+  const down = (SP.down as Array<{ id: string; pad: number[]; land: number[]; hop: number }>).map(thrown);
+  const across = ((SP.across ?? []) as Array<{ id: string; pad: number[]; land: number[]; over: number }>).map(thrown);
+  return { up, down, across };
 }
 
 /** the middle of a part's bounds, placed by `m` (column-major) */

@@ -28,6 +28,8 @@ import SOLIDS from "../config/neon/neonmap.solids.json";
 interface Spine {
   up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; roof: number; land: number }>;
   down: Array<{ id: string; pad: number[]; floor: number; land: number[]; landY: number; hop: number }>;
+  /** the roof routes: thrown across a gap onto a mark, as the way down is */
+  across?: Array<{ id: string; pad: number[]; floor: number; land: number[]; landY: number; hop: number }>;
 }
 
 /** what the map drew, for the page's hook and the checks */
@@ -229,7 +231,7 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
       (nodes[ln].padFrom ??= []).push(pn);
     }
     // the spine's way down: off the top, thrown out over its parapet onto the base's roof (no bot is sent up there)
-    for (const q of SPINE.down) {
+    for (const q of [...SPINE.down, ...(SPINE.across ?? [])]) {
       const t = padOff(q.pad[0], q.pad[1], q.floor, q.land[0], q.land[1], q.landY, q.hop);
       pads.push({ x: q.pad[0] + BR_X, z: q.pad[1] + BR_Z, y: q.floor, up: t.up, dx: t.dx, dz: t.dz });
     }
@@ -259,7 +261,12 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     // loot within `reach` of there, so up the fire escape and through the building's floors)
     const yards = (neonCfg as unknown as { yards?: Array<{ block: string; inside: number[] }> }).yards ?? [];
     const well = (neonCfg as unknown as { well?: { hole: number[] } }).well;
-    for (const q of G.sites.list as Array<{ id: string; name: string; over: string; reach?: number }>) {
+    for (const q of G.sites.list as Array<{ id: string; name: string; over: string; reach?: number; y?: number; at?: number[]; tier?: string }>) {
+      // (a site on one floor of the tower, THE VAULT: its loot there alone, its own tier)
+      if (q.over === "floor") {
+        sites.push({ id: q.id, name: q.name, x: q.at![0] + BR_X, z: q.at![1] + BR_Z, radius: q.reach, y: q.y, tier: q.tier });
+        continue;
+      }
       if (q.over === "middle") {
         sites.push({ id: q.id, name: q.name, x: (T.x0 + T.x1) / 2 + BR_X, z: (T.z0 + T.z1) / 2 + BR_Z });
         continue;

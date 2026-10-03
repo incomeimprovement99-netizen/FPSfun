@@ -83,8 +83,8 @@ console.log(`Loot tiers, the Hot Zone and the typed spots (src/game/loot.ts, src
 
 // ------------------------------------------------------------------ tiers
 {
-  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], site: [], hot: [] };
-  const counts: Record<PlaceTier, number[]> = { low: [], mid: [], high: [], site: [], hot: [] };
+  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], site: [], hot: [], vault: [] };
+  const counts: Record<PlaceTier, number[]> = { low: [], mid: [], high: [], site: [], hot: [], vault: [] };
   for (const m of matches) {
     for (const t of m.takes) {
       pool[t.tier].push(...t.items);
@@ -181,7 +181,7 @@ console.log(`Loot tiers, the Hot Zone and the typed spots (src/game/loot.ts, src
 
 // ------------------------------------------------------------------ the rarity mix
 {
-  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], site: [], hot: [] };
+  const pool: Record<PlaceTier, LootItem[]> = { low: [], mid: [], high: [], site: [], hot: [], vault: [] };
   for (const m of matches) for (const t of m.takes) pool[t.tier].push(...t.items.filter(rolled));
   for (const tier of Object.keys(pool) as PlaceTier[]) {
     if (!pool[tier].length) continue;

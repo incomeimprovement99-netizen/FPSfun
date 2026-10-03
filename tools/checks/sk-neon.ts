@@ -222,7 +222,7 @@ for (const h of K.halls.filter((q) => "route" in q && q.route)) {
 
 // every pad the bake found, ridden: a player stood on it thrown as a match throws it (brplay.ts), straight up and carried
 // across once above `over`, or a way down thrown out at once
-const SPINE = (cfg as unknown as { spine: { up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; roof: number; land: number; ground: number }>; down: Array<{ id: string; pad: number[]; floor: number; land: number[]; landY: number }> } }).spine;
+const SPINE = (cfg as unknown as { spine: { up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; roof: number; land: number; ground: number }>; down: Array<{ id: string; pad: number[]; floor: number; land: number[]; landY: number }>; across: Array<{ id: string; pad: number[]; floor: number; land: number[]; landY: number }> } }).spine;
 const ride = (pad: (typeof map.pads)[number]) => {
   const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
   p.teleport(pad.x, pad.y ?? 0, pad.z, 0);
@@ -245,7 +245,7 @@ const ride = (pad: (typeof map.pads)[number]) => {
   }
   return { p, high };
 };
-check("a jump pad onto each side of the four high city blocks, and the centre's", cfg.pads.length === 8 && map.pads.length === cfg.pads.length + SPINE.up.length + SPINE.down.length, `${cfg.pads.length} and ${map.pads.length - cfg.pads.length}`);
+check("a jump pad onto each side of the four high city blocks, and the centre's", cfg.pads.length === 8 && map.pads.length === cfg.pads.length + SPINE.up.length + SPINE.down.length + SPINE.across.length, `${cfg.pads.length} and ${map.pads.length - cfg.pads.length}`);
 for (const [k, pad] of map.pads.slice(0, cfg.pads.length).entries()) {
   const q = cfg.pads[k];
   const { p, high } = ride(pad);
@@ -285,6 +285,13 @@ const downs = SPINE.down.map((q, k) => {
   const off = Math.hypot(p.pos.x - BR_X - q.land[0], p.pos.z - BR_Z - q.land[1]);
   return { ok: p.onGround && Math.abs(p.pos.y - q.landY) < 0.3 && off < 1.5, said: `${q.id} from ${q.floor} m to ${p.pos.y.toFixed(2)} m, ${off.toFixed(1)} m off its mark` };
 });
+// the roof routes (rules.pads.spine.across): each pad ridden as a match throws it, onto its mark on the roof it aims at
+const acrossRides = SPINE.across.map((q, k) => {
+  const { p, high } = ride(map.pads[cfg.pads.length + SPINE.up.length + SPINE.down.length + k]);
+  const off = Math.hypot(p.pos.x - BR_X - q.land[0], p.pos.z - BR_Z - q.land[1]);
+  return { ok: p.onGround && Math.abs(p.pos.y - q.landY) < 0.3 && off < 1.5, said: `${q.id} from ${q.floor} to ${p.pos.y.toFixed(2)} m, ${off.toFixed(1)} m off its mark, top ${high.toFixed(1)}` };
+});
+check("the roof routes: each pad throws you across onto its mark, Market's to its 17.5 m roof and the bridge ring, the Well's to its domed roof and the bridge ring", acrossRides.length >= 4 && acrossRides.every((r) => r.ok), acrossRides.map((r) => r.said).join("; "));
 check("the centre's pads: the way down off the top lands you on the base's roof where it aims", downs.length >= 1 && downs.every((d) => d.ok), downs.map((d) => d.said).join("; "));
 const padNodes = map.nodes.filter((n) => n.pad);
 const stranded = padNodes.filter((n) => !map.nodes[n.pad!.to].links.length);
@@ -1314,9 +1321,25 @@ loot.generate(
   20260929,
   map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })),
   { minX: BR_X - BR_HALF, maxX: BR_X + BR_HALF, minZ: BR_Z - BR_HALF, maxZ: BR_Z + BR_HALF },
-  map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius })),
+  map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius, y: s.y, tier: s.tier })),
 );
 const drops = [...loot.drops.values()];
+// THE VAULT (game.sites `vault`): a site on the tower's 32 m floor with its own tier, its loot on that floor alone and
+// richer than a floor's share: the floor's items within its reach against the floor under it
+{
+  const v = map.sites.find((s) => s.id === "vault");
+  const near = (y: number) => drops.filter((d) => Math.abs(d.pos.y - y) < 0.6 && v && Math.hypot(d.pos.x - v.x, d.pos.z - v.z) < (v.radius ?? 9) + 1.5).length;
+  // (rich as SpeedKills counts it, by how much lies there: its guns come at a fusion level, not a rarity)
+  check("THE VAULT: a site on the tower's 32 m floor, its own tier, its loot on that floor alone and rich", !!v && v.y === 32 && v.tier === "vault" && near(32) >= near(29) + 12 && near(32) >= 2 * near(29), v ? `${near(32)} items on its floor within reach against ${near(29)} on the floor under` : "no vault site");
+}
+// each new floor's number beside its core doors (rules.tower.floors.digits): the right digit, two signs and more a floor
+{
+  const DG = (cfg.rules.tower.floors as unknown as { digits?: { piece: string; first: number; up: number } }).digits;
+  const shaft = (cfg.tower as unknown as { shaft: number[] }).shaft;
+  const signs = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place.filter((q) => String(q[0]).includes(DG?.piece ?? "LineNumber")) as Array<[string, number, number, number]>;
+  const perFloor = shaft.map((h, k) => signs.filter((q) => Math.abs(q[2] - (h + (DG?.up ?? 0))) < 0.05 && q[0].endsWith(`${(DG?.first ?? 1) + k}.prefab`)).length);
+  check("the tower's floors numbered: the right lit digit beside each core door, 1 to 8 up the new floors", !!DG && perFloor.every((n) => n >= 2), perFloor.join("/"));
+}
 const over12 = drops.filter((d) => d.pos.y > 12).length;
 const over24 = drops.filter((d) => d.pos.y > 24).length;
 check("loot over the map, 150 items and more", drops.length >= 150, `${drops.length}`);
@@ -1331,7 +1354,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
 }
 // each corner block's own loot (game.sites, its `reach`): in its rooms building or the Well, some of it up the fire escape
 {
-  const corner = map.sites.filter((q) => q.radius !== undefined);
+  // (the four corner blocks: THE VAULT has a reach too, on one floor of the tower)
+  const corner = map.sites.filter((q) => q.radius !== undefined && ["noodle", "motel", "well", "market"].includes(q.id));
   const each = corner.map((q) => {
     const near = drops.filter((d) => Math.hypot(d.pos.x - q.x, d.pos.z - q.z) <= (q.radius ?? 0) + 1.5);
     return { name: q.name, n: near.length, up: near.filter((d) => d.pos.y > 10).length };

@@ -79,6 +79,10 @@ export interface Site {
   z: number;
   /** how far its own loot is laid out, metres (else brmap.json siteRadius): a corner block's on the Neon map is its rooms building */
   radius?: number;
+  /** a site on one floor of a building (THE VAULT on the Neon tower): its loot on the floor at this height alone */
+  y?: number;
+  /** its loot's tier (loot.json tiers) where it is not loot.json's siteTier */
+  tier?: string;
 }
 
 export interface GraphNode {

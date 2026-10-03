@@ -1368,7 +1368,8 @@ each, bridges from its first floor's corners to the Sky Ring, and its roof runs
 onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
 door onto each of its 15 storeys, eight of them new floors between 14 and 35 m,
-each laid out differently: open, rooms, halls or a maze, and loot on each. Its floors and the base's upper storeys have
+each laid out differently: open, rooms, halls or a maze, each numbered in lights at the stair and in its own walls
+and tiles, and loot on each; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre. Its floors and the base's upper storeys have
 open windows, 1.25 m wide, no glass: shot through, jumped in through. Its floors, the base's storeys, the court and the
 station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill). The streets carry the pack's lamps,
 parked cars as cover, flying cars and neon signs. `tools/neon-layout.ts` places every piece
@@ -1391,7 +1392,8 @@ court too: a door in its south wall, a corridor and a ramp down to a gate into t
 station's marble hall. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
 roofs; four more with white beams throw you from the plaza onto the tower's base's roof, one from there up to a lookout
 on the tower's east block at 49 m, two more from there up to the tower's crown at 109 m, and one with a red beam back
-down off the lookout, and the four roofs are joined into a ring round the tower by the pack's
+down off the lookout; and pads in Market and by the Well throw you across onto their higher roofs and on onto the bridge
+ring, and the four roofs are joined into a ring round the tower by the pack's
 floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE

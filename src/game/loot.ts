@@ -96,6 +96,10 @@ export interface LootPlace {
   id?: string;
   /** how far the place reaches, metres (br.ts): its loot is laid out to here */
   radius?: number;
+  /** a site on one floor (THE VAULT): its loot on the floor at this height alone */
+  y?: number;
+  /** a site's own tier where it is not loot.json's siteTier */
+  tier?: string;
 }
 
 /** the match's Hot Zone, for the maps to ring and the HUD to call out */
@@ -953,12 +957,24 @@ export class LootField {
       const spots: THREE.Vector3[] = [];
       let tries = 0;
       const reach = Math.max(6, p.radius ?? 18);
-      while (spots.length < cfg.tiers[siteTier].spots && tries++ < 200) {
+      // (a site's own tier where it has one, and on its own floor alone where it names one: THE VAULT is one floor of
+      // the Neon tower, and the floors over and under it are other floors)
+      const tier = (p.tier ?? siteTier) as PlaceTier;
+      const floorY = p.y;
+      while (spots.length < cfg.tiers[tier].spots && tries++ < 200) {
         const a = rnd() * Math.PI * 2;
         const r = 2 + rnd() * (reach - 2);
-        trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
+        const [x, z] = [p.x + Math.cos(a) * r, p.z + Math.sin(a) * r];
+        if (floorY === undefined) trySpotAnyFloor(spots, x, z);
+        else {
+          // (its own floor's boxes under the spot and a standing body's room over it: the tower's floors are halls,
+          // which standingSpots leaves to the halls' own loot below)
+          const here = RANGE_SOLIDS.filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
+          const floor = here.find((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && Math.abs(s.top - floorY) < 0.3);
+          if (floor && !here.some((s) => s.base < floor.top + 1.9 - 1e-4 && s.top > floor.top + 0.05)) spots.push(new THREE.Vector3(x, floor.top + 0.01, z));
+        }
       }
-      fill(spots, siteTier);
+      fill(spots, tier);
       binSpots.push({ spots, n: BINS.perSite });
     }
     // Supply bins, last of all and on a stream of their own, so everything

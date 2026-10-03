@@ -804,7 +804,7 @@ export class BrMatch extends Duel {
         this.seed,
         map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })),
         BR_BOUNDS_WORLD,
-        map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius }))
+        map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius, y: s.y, tier: s.tier }))
       );
     }
     if (this.role === "host") {

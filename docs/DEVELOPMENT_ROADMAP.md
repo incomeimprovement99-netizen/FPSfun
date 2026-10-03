@@ -9622,3 +9622,54 @@ The owner, 2026-10-03: "Make the initial loading screen as fast as possible, the
 - **Seen:** the range photographed the moment the screen goes and once everything is in: the USSO and the arms in place,
   the floor textured; a concrete barrier comes in a second later.
 - **Checked:** verify; rules; the skarmory, speedkills, range and sktour e2e.
+
+## Milestone 431 — The tower's floors each their own: numbers, finishes, and THE VAULT
+
+The centre's first review (docs/CENTRE_REVIEW.md): "the tower floors look alike", and "make one signposted vault floor
+with top loot: your Red Tiger." Hyper Scape's central landmark is where the best loot is and everyone knows it.
+
+- **Every new floor numbered** (rules.tower.floors.digits): the pack's lit digit signs, 1 to 8 for the floors at 14 to
+  35 m, beside each of the floor's core doors on the core's outside face at eye height, so coming off the stair you
+  read where you are.
+- **Each floor its own finish** (rules.tower.floors.at[h].mat and floorMat): its partitions in their own pack wall
+  material (concrete, yellow painted panels, black plastic, grey cracked metal, cyberpunk panels, square tiles, rounded
+  plastic) and its slab in its own tiles (paving, metal planks, hex plastic, marble), the bake laying the tiles. With the
+  plans (open, rooms, halls, maze) a floor reads as itself.
+- **THE VAULT** (game.sites `vault`, src/game/loot.ts): the maze floor at 32 m is a named site on the big map with its
+  own loot tier (loot.json tiers.vault: a dozen spots, with the hot zone's rarity weights or better), its loot laid on
+  that floor alone within 9 m of the core (a site had put loot on any floor within reach, and the tower's floors stack;
+  and the tower's floors are halls, which the loot's spot finder leaves to the halls' own pass, so the vault tests its
+  own floor's boxes for a spot). It is the
+  richest floor in the centre, two pads and a stair core from the plaza, with eight windows to be shot through.
+- The open floors (14 and 26 m) have no partitions, so their tiles and number carry them.
+- The map: its files lo 81 MB, hi 142 MB, max 353 MB. **Its files are version 35**, shared with the roof routes
+  (the next milestone).
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): the right digit beside every core door of every new floor (seen
+  failing with the digits left out); THE VAULT a site on the 32 m floor with the vault tier, its floor's loot within reach
+  a dozen items and more over the floor under it and twice it (26 against 6; seen failing with its tier set to the
+  sites' plain one). SpeedKills' guns come at a fusion level, so a rich tier shows in how much lies there. verify and rules; e2e `br` and `loot`. Photographed at a core door and on the vault floor.
+  The loot tiers check (tools/checks/loot-tiers.ts) knows the new tier.
+
+## Milestone 432 — The roof routes: Market and the Well up to the bridge ring
+
+The centre's first review asked for a middle roof tier you can jump between. The plan (version 10) measured that the
+tier already stands: each corner block has its rooms roof at 10.5 m, roofs from 15 to 23 m, and the bridge ring at
+26.9 m over its corner. Motel Hill and Noodle Row already ran from the street to the bridge ring (fire escape, roof
+yard, zip line); Market and the Well did not.
+
+- **Pads across** (rules.pads.spine.across, tools/import-neon.ts `thrown`): a pad that throws you across a gap onto a
+  marked spot, the top of its throw 2.5 m over the mark, solved for the heights the bake measures and swept with a
+  standing body's room every hundredth of a second, as the lookout's way down is. Four, each with the pack's plate and
+  a short white beam:
+  - **Market**: from its rooms roof (10.5 m) onto its 17.3 m roof, 11 m north, and from there onto the bridge ring
+    (26.9 m), 8.5 m east. The roof's edge stands 5.5 m over the rooms roof and 4 m across the gap, past a double jump
+    and a grab (2.72 m up and 2.29 m more, measured), so a pad.
+  - **The Well**: from the street onto the domed roof's 23.7 m step, and from there onto the bridge ring, 14 m west.
+- Measured with the game's movement for the plan: a sprinting player (14 m/s) clears 11.4 m with one jump and 18.1 m
+  with a double jump on the level, 15.6 to 27.2 m dropping 3 to 10 m.
+- No bot is sent across (the bots keep to the street and the ways up the graph knows).
+- The map's files are version 35, shared with the tower's floors (the milestone before).
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): each pad ridden as a match throws it, landing within 1.5 m of
+  its mark at the mark's height (seen failing with a mark moved off its roof). The bake refuses a pad whose landing is
+  not level or whose throw meets anything (it caught the Well's second pad against the dome's centre column). verify
+  and rules; e2e `br`. Photographed on each route.

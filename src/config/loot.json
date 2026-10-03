@@ -25,8 +25,17 @@
     "epic": "#b04cff",
     "legendary": "#ffc12e"
   },
-  "_tiers": "Every place used to roll the same table from the same number of spots, so there was no reason to choose one place over another: you landed wherever the squad did and found the same match every time. A place has a tier now. The tier says how many spots it carries and multiplies the rarity weights above, and the result is normalised, so the owner tunes rarity in one place and the tiers stay relative to it. Ours: there is no published table to copy, but the shape (a few rich places, a lot of thin ones, one hot place a match) is what every battle royale does.",
+  "_tiers": "`vault` is THE VAULT's, a site on one floor of the Neon tower (neonmap.json game.sites): a dozen spots rolled richer than the hot zone, so one floor of the tower is worth the climb. Every place used to roll the same table from the same number of spots, so there was no reason to choose one place over another: you landed wherever the squad did and found the same match every time. A place has a tier now. The tier says how many spots it carries and multiplies the rarity weights above, and the result is normalised, so the owner tunes rarity in one place and the tiers stay relative to it. Ours: there is no published table to copy, but the shape (a few rich places, a lot of thin ones, one hot place a match) is what every battle royale does.",
   "tiers": {
+    "vault": {
+      "spots": 12,
+      "rarity": {
+        "common": 0.4,
+        "rare": 0.9,
+        "epic": 3.0,
+        "legendary": 5.0
+      }
+    },
     "low": {
       "spots": 25,
       "rarity": {
