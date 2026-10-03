@@ -29,10 +29,23 @@ export function figureDistance(at: THREE.Vector3): number {
   return view.at.distanceTo(at);
 }
 
+/** (one sphere for every test: they run for every figure and every gun on the floor, every frame) */
+const probe = new THREE.Sphere();
+
 /** is a figure at `at` (with about a metre of body over it) somewhere the camera can see */
 export function figureOnScreen(at: THREE.Vector3): boolean {
+  return inView(at.x, at.y + 1, at.z, 1.4);
+}
+
+/**
+ * Is a ball of `r` metres round a point somewhere the camera can see (true before the page has said). The view is
+ * the one the frame started with, a frame old by the time it is drawn, so `r` carries a margin for a fast turn.
+ */
+export function inView(x: number, y: number, z: number, r: number): boolean {
   if (!view.set) return true;
-  return view.frustum.intersectsSphere(new THREE.Sphere(new THREE.Vector3(at.x, at.y + 1, at.z), 1.4));
+  probe.center.set(x, y, z);
+  probe.radius = r;
+  return view.frustum.intersectsSphere(probe);
 }
 
 /**

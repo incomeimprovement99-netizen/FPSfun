@@ -26,6 +26,7 @@ import type { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js
 import { makeGradePass, GRADE, normalised } from "./grade";
 import type { Quality } from "./quality";
 import { slow } from "./slow";
+import { cacheArrayUniforms } from "./uniformcache";
 
 
 /**
@@ -294,6 +295,7 @@ export class Renderer {
   }
 
   render(now = 0): void {
+    if (!slow("uniforms")) cacheArrayUniforms(this.renderer);
     if (!this.composer) {
       this.renderer.render(this.scene, this.camera);
       if (this.vmCamera) drawViewModel(this.renderer, this.scene, this.vmCamera);

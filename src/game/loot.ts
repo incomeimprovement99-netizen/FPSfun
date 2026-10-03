@@ -36,6 +36,7 @@ import { DISTRICT_FLOORS, floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } f
 import { ammoTypeOf, STACK } from "./ammo";
 import { optionsFor, SLOTS, type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
+import { inView } from "./figlod";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 /** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
@@ -113,7 +114,9 @@ export interface HotZone {
 }
 
 const RARITY_ORDER: Rarity[] = ["common", "rare", "epic", "legendary"];
-const hexOf = (r: Rarity) => new THREE.Color(cfg.colors[r]).getHex();
+/** each rarity's colour as a number, read once (it was read from its string for every item drawn, every frame) */
+const RARITY_HEX = new Map<string, number>(Object.entries(cfg.colors).map(([r, c]) => [r, new THREE.Color(c as string).getHex()]));
+const hexOf = (r: Rarity) => RARITY_HEX.get(r) ?? new THREE.Color(cfg.colors[r]).getHex();
 
 /** a small deterministic random, the same on every browser for the same seed */
 export function seeded(seed: number): () => number {
@@ -597,10 +600,17 @@ function floorAt(x: number, z: number): number | null {
 const floorGuns = new Map<string, THREE.BufferGeometry>();
 /** the merged guns' one material: their colours are in the vertices (figure LOD borrows it for a figure's far gun) */
 export const floorGunMat = new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 0.5, metalness: 0.45 });
+/** how many times the floor guns were made again: a gun lying since before takes the new ones from the next frame */
+let floorGunsMade = 0;
 /** forget the floor guns made, so the next are made again (the bought guns have come in) */
 export function resetFloorGuns(): void {
   floorGuns.clear();
+  floorGunsMade++;
 }
+/** a gun on the floor lies on its side, a little up off it (its ring is under it) */
+const FLOOR_GUN_POSE = new THREE.Matrix4().compose(new THREE.Vector3(0, 0.06, 0), new THREE.Quaternion().setFromEuler(new THREE.Euler(0, Math.PI / 2, Math.PI / 2)), new THREE.Vector3(1, 1, 1));
+/** a floor gun is drawn while a ball this big round it is in view: about its length, and a frame's turn of margin */
+const FLOOR_GUN_VIEW_R = 1;
 
 export function floorGun(id: string): THREE.BufferGeometry {
   const hit = floorGuns.get(id);
@@ -657,6 +667,8 @@ class Batch {
   close(): void {
     this.mesh.count = this.n;
     this.mesh.instanceMatrix.needsUpdate = true;
+    // one with nothing to draw is left out of the frame: drawn empty, it still cost its program and uniforms
+    this.mesh.visible = this.n > 0;
     this.n = 0;
   }
 }
@@ -695,6 +707,23 @@ export class LootField {
     if (!b) this.batches.set(key, (b = new Batch(geo, this.mat(key, make), this.group, cfg.batchCap)));
     return b;
   }
+  /** each floor gun's batch, by the drop's key, and the making of the floor guns it was for */
+  private gunBatches = new Map<number, { made: number; batch: Batch }>();
+  /**
+   * A floor gun's batch: every copy of that gun in that skin in one draw call. Each gun on the floor was its own,
+   * about 130 a frame in the Neon City's street (2026-10-03), in a dozen kinds. Made with the drop, so the match's
+   * warm-up (main.ts warmMatch) compiles its shader with the rest, not the frame the first one comes into view.
+   */
+  private gunBatch(d: LootDrop): Batch {
+    const had = this.gunBatches.get(d.key);
+    if (had && had.made === floorGunsMade) return had.batch;
+    const geo = floorGun(d.item.id);
+    // a bought gun in its skin at the level it lies at (paidgun.ts); ours in the shared flat-colour material
+    const mat = (geo.userData.paid ? paidGunMaterial(d.item.id, d.item.fusion ?? 0) : null) ?? floorGunMat;
+    const batch = this.batch(`gun${geo.id}.${mat.id}`, geo, () => mat);
+    this.gunBatches.set(d.key, { made: floorGunsMade, batch });
+    return batch;
+  }
   private readonly tmpM = new THREE.Matrix4();
   private readonly tmpQ = new THREE.Quaternion();
   private readonly tmpE = new THREE.Euler();
@@ -725,14 +754,7 @@ export class LootField {
     const g = new THREE.Group();
     if (this.headless) return g;
     if (it.kind === "weapon") {
-      // one mesh, one draw call (floorGun); its ring on the floor is drawn with every other ring (update)
-      const geo = floorGun(it.id);
-      // a bought gun in its skin at the level it lies at (paidgun.ts); ours in the shared flat-colour material
-      const skin = geo.userData.paid ? paidGunMaterial(it.id, it.fusion ?? 0) : null;
-      const m = new THREE.Mesh(geo, skin ?? floorGunMat);
-      m.rotation.set(0, Math.PI / 2, Math.PI / 2);
-      m.position.y = 0.06;
-      g.add(m);
+      // a gun is drawn with every other of its kind and skin, as its ring is with every other ring (gunBatch)
     } else if (it.kind === "bin" && IS_SK && paidPropReady("supplybin")) {
       // SpeedKills: the pack's weapon case (paidgun.ts), its cover swung open once it is looted
       const bought = paidProp("supplybin")!;
@@ -773,6 +795,14 @@ export class LootField {
     const colour = it.mythic || it.kind === "keycard" ? MYTHIC_RED : hexOf(it.rarity);
     const p = this.tmpP;
     if (it.kind === "weapon") {
+      // the gun, when it is in view: its batch draws every copy it is given, wherever they are
+      if (inView(d.pos.x, d.pos.y + 0.1, d.pos.z, FLOOR_GUN_VIEW_R)) {
+        this.tmpM.copy(FLOOR_GUN_POSE);
+        this.tmpM.elements[12] += d.pos.x;
+        this.tmpM.elements[13] += d.pos.y;
+        this.tmpM.elements[14] += d.pos.z;
+        this.gunBatch(d).put(this.tmpM);
+      }
       p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
       this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
       this.batch(`ring${colour}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
@@ -816,7 +846,9 @@ export class LootField {
         o.updateMatrix();
         o.matrixAutoUpdate = false;
       });
-    this.drops.set(k, { key: k, item, pos: pos.clone(), obj });
+    const d = { key: k, item, pos: pos.clone(), obj };
+    this.drops.set(k, d);
+    if (item.kind === "weapon" && !this.headless) this.gunBatch(d);
     return k;
   }
 
@@ -825,6 +857,7 @@ export class LootField {
     if (!d) return null;
     d.obj.removeFromParent();
     this.drops.delete(key);
+    this.gunBatches.delete(key);
     return d.item;
   }
 

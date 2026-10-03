@@ -1,36 +1,37 @@
-# B00G Range (beta)
+# SpeedKills (beta)
 
-A browser shooter that reproduces the feel of Apex Legends' movement and guns
-from published numbers. A firing range with every tool in it, two timed
-movement courses and a guided tour; a battle royale on a 440 m map with loot,
-squads, the ring, the Gulag, Resurgence, doors, ziplines, balloons, a vault and
-a keycard; six ability kits with a tactical, a passive and an ultimate each;
-Gun Run, team deathmatch, free-for-all, Control, Crown and Search (plant and
-defuse); bots that loot, fight, ride the ropes and play the objective; and any
-of it with up to eight friends over a code, with host migration if the host's
-tab goes. Own code, own art, nothing from the game's files. It runs in a
-browser tab and has no connection of any kind to the Apex install, the EA App,
-Steam or Easy Anti-Cheat.
+A fast movement shooter and battle royale that runs in a browser tab. Thirty
+players drop into the Neon City, a city at night whose sectors decay in waves
+until one capture zone is left, and double jumps, slides, wall runs,
+superglides, jump pads and zip lines carry you onto its roofs and up its
+towers. Ten guns that fuse a level up when you take a copy, ten hacks (a
+mobility one on F, a utility one on G), a second chance in a 1v1 and a ghost
+your squad can restore. Besides the battle royale: 1v1s on THE CENTRE, team
+deathmatch, Control and free-for-all, with bots, friends or both, and the
+range, the movement lab and the Run to train in. Its own design and code
+(`docs/PHASE_18_PLAN_SPEEDKILLS.md`); the city, the soldiers and the guns wear
+art packs the owner bought.
 
-**This page is in the game.** At the far end of the range, under a lit
-**B00G'S RANGE** sign, a 16 m screen shows this README: shoot the arrow plates
-beside it to turn a page or step a section, or put a round on a section's name
-down its left side to jump there.
+**Play it: https://fpsfun.duckdns.org/** (Chrome or Edge on a PC.)
 
-**Where it is going: SpeedKills.** From 26 September 2026 the project is moving to
-SpeedKills, a fast, vertical, futuristic-city shooter and battle royale of its own
-design (`docs/PHASE_18_PLAN_SPEEDKILLS.md`). The game described here stays
-playable as the **legacy** game throughout, and is frozen whole at the git tag
-`apex-era-final`.
+**The manual is in the game.** In the range, a screen in the barrier 24 m down
+range shows `docs/MANUAL.md`, the player's manual: shoot the arrows beside it
+to turn a page or change section.
 
-**Play it: https://fpsfun.duckdns.org/**
-(Chrome or Edge on a PC; the public build names the guns "Not R-301",
-"Not Kraber" and so on.)
+**Where it came from.** SpeedKills grew out of B00G's Range, a browser
+recreation of another battle royale's movement and guns (Milestones 1 to 182,
+frozen whole at the git tag `apex-era-final`); from 26 September 2026 the
+project became SpeedKills. That game, the **legacy** game, is being removed:
+its Settings box is gone (Milestone 438), it opens only from a `?game=legacy`
+address while the test suite's sections that still play it are moved to
+SpeedKills, and then its code goes. Much of this README below the next section
+still describes it, and goes with it.
 
 ### SpeedKills, as it stands
 
-The site opens in SpeedKills. The legacy game is one setting away (Settings,
-Game) or `?game=legacy`, and everything below this section describes it.
+The site opens in SpeedKills. The legacy game opens only from a `?game=legacy`
+address (the test suite's pages), and everything below this section describes
+it.
 
 - **The menu:** PLAY (Battle Royale in solo, duos or trios; 1v1; bots; team
   deathmatch; FFA; Control) and TRAINING (the range, the movement lab, the
@@ -1221,7 +1222,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
 | `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the old city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 160 m over it; `BENCH_SPOT=neonstreet` the same match in the Neon City's street facing its tower (the most drawn from the ground) and `neonhigh` 40 m up over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced; `BENCH_VARIANTS="name=query;..."` measures several such pages in the same interleaved rounds (`&q=ao:0` changes one setting of a preset, `&slow=cull` puts back one saving of the performance pass, `src/game/slow.ts`). `BENCH_GPU=1` adds the GPU's own time a frame (timer queries), `BENCH_DPR=2` a high-density screen, `BENCH_CPU=4` a processor a quarter as fast, `BENCH_RUNS=3` three rounds and their medians |
-| `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch`, `skroof` or `brmatch`), the scene's objects by group and how many are hidden, and with `PROFILE_CALLERS=name` who calls a function. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
+| `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch`, `skroof` or `brmatch`), the scene's objects by group and how many are hidden, with `PROFILE_CALLERS=name` who calls a function (a function calling itself counted once, under its real caller), and with `PROFILE_INCLUSIVE=1` the game's own functions by the time spent in them and everything they call. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
 | `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (the static mirror) |
@@ -1325,6 +1326,14 @@ file and the loot on the floor no longer work out their unmoving matrices every 
 royale of thirty: Balanced from 182 to 278 fps and High from 97 to 154 on the owner's machine; on a processor a
 quarter as fast, Balanced from 51 to 67 and High from 18 to 34. Ambient occlusion is still High's dearest setting
 (it draws the scene again for its depth and normals), and the draw distance is what costs from the air.
+
+**A second pass on the Neon City's frame** (2026-10-03, Milestone 436). The guns lying on the floor are drawn a
+kind at a time in one instanced batch each, only those in view (the loot's draw calls 150 to 34 in the street); an
+array uniform (the decay's sectors, the sun's shadow matrices) is sent only when it changed, as three sends a single
+value (3,225 uniform calls a frame to 1,756; `?slow=uniforms` puts back the old way, `src/game/uniformcache.ts`); the
+decay moves only the collision boxes its lines passed, not every box every frame; the boxes along a ray are tested
+without making arrays; and the shots' gathering runs only while a shot is in flight. On a machine busy with other
+work, the street from a median 66 fps to 80 on Balanced.
 
 **The bought city kits, and what they cost.** The centre wears about 6,300
 pieces from the owner's city packs (`src/game/citydress.ts` places them,

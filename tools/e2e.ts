@@ -4098,15 +4098,19 @@ async function readmeTvChecks(page: Page): Promise<void> {
   await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -98, 0, 0); r.readmeTv.goto(0, 0); })()`);
   await sleep(200);
   const start = await tv();
+  // The words of the opening change as the game does (they were the legacy game's until 2026-10-03); what has to hold
+  // is that the screen shows THIS file rather than a placeholder: its first heading, and the opening words of its first
+  // paragraph, read off the file itself
+  const readme = readFileSync(new URL("../README.md", import.meta.url), "utf8");
+  const heading = (readme.match(/^# (.+)$/m)?.[1] ?? "").trim();
+  const opening = (readme.split(/\r?\n\r?\n/).find((p) => p.trim() && !p.trim().startsWith("#")) ?? "").trim().split(/\s+/).slice(0, 6).join(" ");
   check(
     "README screen: the range's own README, in sections and pages",
-    start.sections.length > 8 && start.pages >= 1 && /range/i.test(start.title),
-    `${start.sections.length} sections, "${start.title}" is ${start.pages} page(s)`
+    start.sections.length > 8 && start.pages >= 1 && !!heading && start.title === heading,
+    `${start.sections.length} sections, "${start.title}" (the file's "${heading}") is ${start.pages} page(s)`
   );
   const text = await ev<string>(page, "window.__range.readmeTv.pageText()");
-  // the words of the opening change as the game does; what has to hold is that
-  // the screen is showing THIS file rather than a placeholder
-  check("README screen: the first page is the README's own text", /browser (shooter|firing range)/i.test(text) && text.includes("Apex Legends"), text.slice(0, 80).replace(/\n/g, " "));
+  check("README screen: the first page is the README's own text", !!opening && text.replace(/\s+/g, " ").includes(opening), `"${opening}" in: ${text.slice(0, 80).replace(/\n/g, " ")}`);
 
   // the right-hand PAGE arrow
   await shootAt(`window.__range.readmeTv.buttonAt("nextPage")`);

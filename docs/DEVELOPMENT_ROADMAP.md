@@ -9753,3 +9753,64 @@ The second of the eight guns on the soldier others see (`PLAN_SOLDIER_EIGHT_GUNS
   instant, the left fingers 30. Photographed, the crouch reads as the forearm along the stock.
 - **Checked:** the skfigure e2e (100, PANDA's 24 among them); figure-sweep over every motion; frame sheets at rest,
   aimed, sprinting and crouched; verify; rules. Its reload is the magazine alone until the guns agent's PANDA rack lands.
+
+## Milestone 436 — A Neon City frame's CPU: the floor's guns batched, array uniforms cached, the decay and the shots' boxes cheaper
+
+The owner, 2026-10-03: "look for places we can optimize ... and make FPS higher in general". Measured first: a battle
+royale of thirty in the Neon City's street (bench `neonstreet`, Balanced, 1080p) ran at 125 fps, 8.0 ms a frame, with
+the GPU's own work 3.5 ms of it: the frame waits on the processor. tools/profile-frame.ts said where, and a count of the
+frame's draw calls by owner and of its uniform calls by name said what in it.
+
+- **The guns on the floor, one draw call a kind.** Each gun lying in draw distance was its own mesh and draw call: 150
+  of the frame's 690 were the floor's loot, about 130 of them guns, in a dozen kinds. A gun is drawn now with every other
+  of its kind and skin in one instanced batch, as its ring and the loot's boxes already were (loot.ts gunBatch), and only
+  while it is in view (figlod.ts inView: the batch is not culled as a whole, so each gun is tested). The batch is made
+  with the drop, so the match's warm-up compiles its shader. The loot's calls: 150 to 34.
+- **Array uniforms sent once.** three sends a single uniform only when it changed but an array on every draw: the
+  decay's three (the sectors' rectangles, lines and warnings) went 334 times a frame each and the sun's shadow matrices
+  445, 1,450 of the frame's 3,225 uniform calls, nearly all the same values again. Each program's float arrays now keep
+  what they last sent (uniformcache.ts), put in the first time three asks that program for its uniforms, so a shader
+  still compiling in the background is never finished early. 3,225 uniform calls a frame to 1,756. Photographed with
+  and without (`?slow=uniforms`) mid-decay: the same picture.
+- **The decay's collision list.** Every box of the city was looked at every frame, decaying or not (0.44 ms). Each
+  sector's boxes are sorted by their base once, and a frame moves only the boxes a line passed (city.ts cityDecay):
+  nothing when nothing decays.
+- **The boxes along a ray** (projectile.ts solidHit, every shot, every bot's sight line, the hacks' reach) made four
+  arrays for each box it tested: none now, the same answers (300,000 random rays, old against new, every distance and
+  face the same). 0.46 ms to 0.17.
+- **The shots' gathering** ran every frame of a match, shot or not: four maps made and every figure's matrices walked
+  again. Nothing in flight, nothing gathered. The loot's rarity colours are read once, not parsed for each item drawn.
+- **Measured:** on production builds, four interleaved rounds each in the street (bench `neonstreet`, Balanced) while the
+  other agents' test browsers held the processor at 99%: a median 66 fps (15.2 ms a frame) before and 80 (12.5 ms)
+  after. By phase: the shots and figures 0.68 ms to 0.03 (the gathering), the player 0.76 to 0.18 (its rays
+  through the boxes), the render 10.2 to 8.8; draw calls about 670 to 560; frames over 50 ms 10 to 5 over the four
+  runs. On a quieter machine earlier, the floor's guns alone took the street from 118 to 132.
+- **The tools:** profile-frame's callers step past a function calling itself (three's matrix walks counted their
+  recursion again at every level: 2.33 ms that was 0.6), and `PROFILE_INCLUSIVE=1` lists the game's own functions by the
+  time spent in them and everything they call.
+- **Checked:** verify; rules; the floor guns photographed close (on their rings, in their skins, a levelled one too);
+  the decay photographed with and without the uniform cache; the speedkills, loot and br e2e.
+
+## Milestone 438 — The old game's door closed: no Game box, and SpeedKills' own rules in the Friends tab
+
+The owner, 2026-10-03: "Remove any legacy stuff that we did before with the boog range / apex stuff. we need all
+reference changed to speed kills." The first step of the legacy game's removal that a player sees; its code goes once
+the test suite's sections that still play it are moved to SpeedKills.
+
+- **The Game box is gone.** Settings offered "SpeedKills, or the legacy game as it was frozen", its option "Legacy
+  (B00G's Range)". A browser that had chosen the legacy game opened in it on every visit, and with the box gone it would
+  have had no way out: that old choice no longer counts (game.ts resolveGame, and index.html's first script, which sets
+  the look before anything draws). The legacy game opens only from a `?game=legacy` address, the test suite's pages,
+  and nothing is written back, so a test page's choice stays its own. A friends' match whose host plays the other game
+  still takes a guest there, as before.
+- **The Friends tab's rules were the legacy game's:** blue shields, Gun Run, Crown, JOLT and TRIAGE, Storm Surge, care
+  packages and loadout crates. SpeedKills shows its own, every number read off its configs (speedkills.json health,
+  modes.json): the arena (THE CENTRE for a 1v1, the triangle for three, a block of the city for more; first to 3; 100
+  health and a 50 shield, the shield back 4 s after the last hit and health after 8; the circle in the middle), the team
+  modes (team deathmatch four a side to 30, Control five a side to 500, free-for-all to 20, 10 minutes), the battle
+  royale (the decay, the capture zone, the second chance, the ghost and the echo), and the hacks on F and G with
+  fusion. The legacy game's "Ability numbers" panel (JOLT, TRIAGE) is hidden in SpeedKills, and the player count's hint
+  no longer names the warehouse.
+- **Checked:** verify (the games check: an old choice of the legacy game does not count, the address still opens it);
+  rules; the Friends tab photographed with an old choice of the legacy game stored (SpeedKills opened, no Game box, its
+  own rules); the page, panel and skfriends e2e.

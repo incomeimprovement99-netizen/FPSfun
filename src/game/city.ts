@@ -3546,7 +3546,16 @@ export function buildRingWall(root: THREE.Group): THREE.Mesh {
  * again for materials that come later (a file loaded after the map is built: neonmap.ts), with `solids` null
  */
 export function holdForDecay(root: THREE.Object3D, solids: Solid[] | null): void {
-  if (solids) DECAY.solids = solids.map((s) => ({ s, sector: SECTORS.findIndex((x) => sectorContains(x, (s.minX + s.maxX) / 2 - BR_X, (s.minZ + s.maxZ) / 2 - BR_Z)) }));
+  if (solids) {
+    // each sector's boxes the decay can take (the street and what is under it stay), lowest base first
+    DECAY.bySector = SECTORS.map(() => []);
+    for (const s of solids) {
+      const sector = SECTORS.findIndex((x) => sectorContains(x, (s.minX + s.maxX) / 2 - BR_X, (s.minZ + s.maxZ) / 2 - BR_Z));
+      if (sector >= 0 && s.top > 0.001) DECAY.bySector[sector].push(s);
+    }
+    for (const list of DECAY.bySector) list.sort((a, b) => a.base - b.base);
+    DECAY.out = SECTORS.map(() => 0);
+  }
   const mats = new Set<THREE.Material>();
   root.traverse((o) => {
     const m = (o as THREE.Mesh).material;
@@ -3602,7 +3611,13 @@ const DECAY = {
   level: { value: SECTORS.map(() => -1) },
   warn: { value: SECTORS.map(() => 0) },
   time: { value: 0 },
-  solids: [] as Array<{ s: Solid; sector: number }>,
+  /**
+   * Each sector's boxes by their base, and how many of the lowest are out of the collision list: a line that rises
+   * takes the next few, one that falls or goes puts them back. Every box of the city was looked at every frame,
+   * decaying or not, 0.44 ms of a Neon City frame (tools/profile-frame.ts, 2026-10-03).
+   */
+  bySector: [] as Solid[][],
+  out: [] as number[],
   removed: new Set<Solid>(),
 };
 
@@ -3678,19 +3693,28 @@ export function cityDecay(states: Record<string, { phase: SectorPhase; k: number
     DECAY.level.value[i] = levels[i];
     DECAY.warn.value[i] = states?.[s.id]?.phase === "warning" ? 1 : 0;
   });
-  // the collision list: out below the lines, back where there is no line
+  // The collision list: out below the lines, back where there is no line. Not what is under the street (the metro,
+  // and the street's slab over it, top 0, never in bySector): the decay's damage finds you down there, and the street
+  // stays a floor.
   let changed = false;
-  for (const { s, sector } of DECAY.solids) {
-    // not what is under the street (the metro, and the street's slab over it, top 0): the decay's damage finds you
-    // down there, and the street stays a floor
-    const out = sector >= 0 && levels[sector] >= 0 && s.top > 0.001 && s.base < levels[sector];
-    if (out && !DECAY.removed.has(s)) {
-      DECAY.removed.add(s);
-      changed = true;
-    } else if (!out && DECAY.removed.has(s)) {
-      DECAY.removed.delete(s);
-      RANGE_SOLIDS.push(s);
+  for (let i = 0; i < DECAY.bySector.length; i++) {
+    const list = DECAY.bySector[i];
+    const was = DECAY.out[i];
+    let n = 0;
+    if (levels[i] >= 0) {
+      n = was;
+      while (n < list.length && list[n].base < levels[i]) n++;
+      while (n > 0 && list[n - 1].base >= levels[i]) n--;
     }
+    for (let k = was; k < n; k++) {
+      DECAY.removed.add(list[k]);
+      changed = true;
+    }
+    for (let k = n; k < was; k++) {
+      DECAY.removed.delete(list[k]);
+      RANGE_SOLIDS.push(list[k]);
+    }
+    DECAY.out[i] = n;
   }
   if (changed) {
     let j = 0;

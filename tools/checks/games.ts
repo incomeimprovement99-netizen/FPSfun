@@ -25,6 +25,9 @@ console.log("The game switch and its profiles");
 {
   check("the URL decides first", resolveGame("?game=speedkills", "legacy", "legacy") === "speedkills");
   check("then what this browser chose", resolveGame("?x=1", "speedkills", "legacy") === "speedkills");
+  // the legacy game is a test page's, by its address: a browser that chose it once is not kept there (2026-10-03)
+  check("a browser's old choice of the legacy game does not count", resolveGame("?x=1", "legacy", "speedkills") === "speedkills" && resolveGame(null, "legacy", "speedkills") === "speedkills");
+  check("the address still opens it (the test suite's pages)", resolveGame("?game=legacy", "speedkills", "speedkills") === "legacy");
   check("then the build's default", resolveGame(null, null, "legacy") === "legacy" && resolveGame("", null, "speedkills") === "speedkills");
   check("a game that does not exist is ignored, wherever it comes from", resolveGame("?game=bogus", "also-bogus", "legacy") === "legacy");
   check("outside a browser (these checks) the game is legacy, the frozen one", GAME === "legacy");

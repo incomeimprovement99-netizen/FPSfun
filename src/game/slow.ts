@@ -4,9 +4,9 @@
 
 /**
  * a saving's name: the AO prepass's shadow map, the AO pass's walks of the scene, figures culled by a sphere, one
- * skeleton a figure, static matrices
+ * skeleton a figure, static matrices; and (2026-10-03) array uniforms sent only when changed (uniformcache.ts)
  */
-export type Saving = "aoshadow" | "aowalk" | "cull" | "skeleton" | "static";
+export type Saving = "aoshadow" | "aowalk" | "cull" | "skeleton" | "static" | "uniforms";
 
 const off = new Set(
   (typeof location === "undefined" ? "" : (new URLSearchParams(location.search).get("slow") ?? ""))

@@ -586,17 +586,11 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 /** SpeedKills' health and shield, and how they come back; null in the legacy game */
 const SK_HEALTH = IS_SK ? PROFILE.health : null;
 // The game this page is (src/game/game.ts). index.html's first script set the
-// look from the same choice; this makes sure of it, and the Settings box
-// changes it with a reload, the way the graphics preset does, since the world
-// is built once for one game.
+// look from the same choice; this makes sure of it. (The Settings box that
+// switched games is gone: SpeedKills is the game, 2026-10-03.)
 document.documentElement.dataset.game = GAME;
 if (GAME === "speedkills") document.title = PROFILE.identity.title;
-{
-  const sel = $<HTMLSelectElement>("gameSel");
-  sel.value = GAME;
-  sel.addEventListener("change", () => switchGame(sel.value as GameId));
-}
-/** into the other game: remembered, the URL's own ?game= taken off (it would win), and the page reloaded */
+/** into the other game, for a friends' match whose host plays it: remembered, the URL's ?game= set, and the page reloaded */
 function switchGame(g: GameId, extra: Record<string, string> = {}): void {
   if (!(GAME_IDS as readonly string[]).includes(g)) return;
   try {

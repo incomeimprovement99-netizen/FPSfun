@@ -90,6 +90,30 @@ async function main(): Promise<void> {
     for (const [k, v] of [...byFile].sort((a, b) => b[1] - a[1]).slice(0, 12)) console.log(`  ${perFrame(v).padStart(6)}  ${k}`);
     console.log("\nBy function (ms a frame, self time):");
     for (const [k, v] of [...byFn].sort((a, b) => b[1] - a[1]).slice(0, 30)) console.log(`  ${perFrame(v).padStart(6)}  ${k}`);
+    // PROFILE_INCLUSIVE=1: the game's own functions by the time spent in them and everything they call (three's
+    // included), each counted once however deep it recurses: which of ours the library's time is spent for
+    if (process.env.PROFILE_INCLUSIVE === "1") {
+      const byId = new Map(profile.nodes.map((n) => [n.id, n]));
+      const up = new Map<number, number>();
+      for (const n of profile.nodes) for (const c of n.children ?? []) up.set(c, n.id);
+      const keyOf = (n: Node) => `${n.callFrame.functionName || "(anonymous)"}  ${(n.callFrame.url.split("/").pop() ?? "").split("?")[0]}:${n.callFrame.lineNumber + 1}`;
+      const ours = (n: Node) => /\/src\//.test(n.callFrame.url);
+      const incl = new Map<string, number>();
+      profile.samples.forEach((id, i) => {
+        // every function of ours on this sample's stack, once each
+        const seen = new Set<string>();
+        for (let at: number | undefined = id; at !== undefined; at = up.get(at)) {
+          const n = byId.get(at)!;
+          if (!ours(n)) continue;
+          const k = keyOf(n);
+          if (seen.has(k)) continue;
+          seen.add(k);
+          incl.set(k, (incl.get(k) ?? 0) + (profile.timeDeltas[i] ?? 0));
+        }
+      });
+      console.log("\nOurs, inclusive (ms a frame):");
+      for (const [k, v] of [...incl].sort((a, b) => b[1] - a[1]).slice(0, 40)) console.log(`  ${perFrame(v).padStart(6)}  ${k}`);
+    }
     // PROFILE_CALLERS=name: who calls that function, two levels up, by the time spent under it
     const want = process.env.PROFILE_CALLERS;
     if (want) {
@@ -109,7 +133,9 @@ async function main(): Promise<void> {
       const callers = new Map<string, number>();
       for (const n of profile.nodes) {
         if (n.callFrame.functionName !== want) continue;
+        // a call of itself (three's matrix walks recurse) is counted in the outermost one, under its real caller
         const p1 = parent.get(n.id);
+        if (p1 && p1.callFrame.functionName === want) continue;
         const key = `${name(p1)}  <-  ${name(p1 ? parent.get(p1.id) : undefined)}`;
         callers.set(key, (callers.get(key) ?? 0) + (under.get(n.id) ?? 0));
       }

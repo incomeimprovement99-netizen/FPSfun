@@ -19,7 +19,8 @@
       // first. The build fills in its default.
       (function () {
         var g = null;
-        try { g = new URLSearchParams(location.search).get("game") || localStorage.getItem("range.game"); } catch (e) {}
+        // (a browser's last choice counts only for SpeedKills: the legacy game is a test page's, by its address)
+        try { g = new URLSearchParams(location.search).get("game") || (localStorage.getItem("range.game") === "speedkills" ? "speedkills" : null); } catch (e) {}
         if (g !== "legacy" && g !== "speedkills") g = "__DEFAULT_GAME__";
         document.documentElement.dataset.game = g;
         if (g === "speedkills") document.title = "SpeedKills";
@@ -215,6 +216,7 @@
       .hackPicks select { background: #101628; border: 1px solid #20e0ff55; color: #e8fbff; padding: 6px 7px; border-radius: 4px; font-size: 13px; }
       [data-game="speedkills"] .skOnly { display: inline; }
       [data-game="speedkills"] .soldierPick.skOnly { display: block; }
+      [data-game="speedkills"] li.skOnly { display: list-item; }
       /* with the bought soldier in, the wardrobe dresses nobody: the soldier picker is the look */
       body.soldierOn .wardrobe { display: none; }
       /* SpeedKills with the bought guns in (paidgun.ts): no finish picker, which the bought model would hide */
@@ -500,7 +502,7 @@
             <div class="duelTitle">Play with friends: any mode, with bots</div>
             <div class="duelRow">
               <select id="duelMode" title="what to play"><option value="arena">Arena: 1v1 / 1v1v1</option><option value="gunrun">Gun Run: every kill the next gun</option><option value="tdm">Team deathmatch: together against the bots</option><option value="crown">Crown: take it, hold it</option><option value="control">Control: three zones, five a side</option><option value="ffa">Free-for-all: everyone for themselves</option><option value="search">Search: plant and defuse, one life a round</option><option value="br">Battle royale: a squad against the bots</option><option value="range">Firing range: all of you in it together</option></select>
-              <select id="duelPlayers" title="how many people (not counting bots). Two is the 1v1 arena, three the triangle, more the warehouse with a spawn each"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
+              <select id="duelPlayers" title="how many people (not counting bots). Two is the 1v1, three the triangle, more a bigger map with a spawn each"><option value="2">2 players</option><option value="3">3 players</option><option value="4">4 players</option><option value="5">5 players</option><option value="6">6 players</option><option value="7">7 players</option><option value="8">8 players</option></select>
               <select id="duelAbilities" class="legacyOnly" title="JOLT (a 10 m dash, every 3 s) or TRIAGE (heals twice as fast), picked at the countdown or the landing"><option value="0">Abilities off</option><option value="1">Abilities on</option></select>
               <button id="duelHost" type="button">Create match</button>
               <span class="or">or</span>
@@ -510,18 +512,22 @@
               <button id="duelAgain" type="button" hidden title="another match with the same friends, on what the boxes above say now: nobody needs a new code">Play again</button>
               <button id="duelLeave" type="button" class="ghost" hidden>Leave match</button>
             </div>
-            <div class="duelRow"><details class="tune"><summary>Ability numbers</summary><div class="tuneNote">What each ability is worth in this match: the host's numbers are everyone's. They apply to the bots too.</div><div class="tuneGrid"></div><button type="button" class="tuneReset">Back to the defaults</button></details></div>
+            <div class="duelRow legacyOnly"><details class="tune"><summary>Ability numbers</summary><div class="tuneNote">What each ability is worth in this match: the host's numbers are everyone's. They apply to the bots too.</div><div class="tuneGrid"></div><button type="button" class="tuneReset">Back to the defaults</button></details></div>
             <div id="duelRoster" class="calibMsg" hidden></div>
             <div id="voiceList" class="calibMsg" hidden title="voice chat: who you can hear in this match, and a mute for each"></div>
             <div id="tonight" class="calibMsg" hidden title="every match this group has played since the code was made: Play again keeps adding to it, a new code starts it over"></div>
             <div id="duelStatus" class="calibMsg">One of you makes a match and sends the invite link; the others open it. Arena: first to 3 rounds against each other. Battle royale: the same squad drops into the Neon City together against the bots set below.</div>
           </div>
           <ul class="rules">
-            <li>1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>
-            <li><b>Gun Run</b>: one kill moves you to the next gun; after the last gun comes the knife (melee, 100 a hit, 300 to the head), and a knife kill wins. Dying to a melee costs a level. 10 minutes, then the highest level wins. Health and shields come back 4 s after the last hit. <b>Team deathmatch</b>: you and your friends, filled out with bots to four, against four bots; respawns; first team to 30, or ahead at 10 minutes. <b>Crown</b>: rounds; 20 s in the crown appears in the middle, walk over it to take it, and 30 s holding it without going down takes the round (so does being the last one up). First to 3. All three play in the 1v1 arena.</li>
-            <li>20 s into a round the circle in the middle goes live. Stand in it alone for 10 s to take the round. The last one standing takes it at any time.</li>
-            <li>Abilities (a setting per match; the battle royale has them on): pick <b>JOLT</b> (a 10 m dash the way you are moving, every 3 s, key F) or <b>TRIAGE</b> (every heal twice as fast) with 5 or 6 when the card comes up: at each countdown, or when you land. In the range, 5 and 6 pick one any time to try it.</li>
-            <li><b>Battle royale</b>: pick Solo, Duos or Trios above and the bots come in whole squads of that size; you and your friends are one side whatever the size, and the host's size is everyone's. In Solo a knock is the end; in Duos the bleed-out is half a trio's. Landing with nothing, three care packages and two loadout crates come down as the rings close: a package is called before it arrives, marked on both maps, and worth fighting over for a while after it lands; stand on a crate a moment and it hands you the loadout you built, with ammo, once each, so a squad mate taking theirs costs you nothing. From the fourth ring, <b>Storm Surge</b>: if more are alive than the ring allows, whoever has dealt the least damage starts taking it wherever they stand, unless they have dealt some in the last 20 s.</li>
+            <li class="skOnly"><b>Arena</b>: two of you fight a 1v1 on THE CENTRE, the Neon City's own middle; three, the triangle, a corner each; more, a block of the city. First to 3 rounds. 100 health and a 50 shield, both coming back on their own: the shield 4 s after the last hit, health after 8. 20 s into a round the circle in the middle goes live: stand in it alone for 10 s to take the round, or be the last one standing.</li>
+            <li class="skOnly"><b>Team deathmatch</b> (four a side, first to 30), <b>Control</b> (three zones, five a side, first to 500) and <b>Free-for-all</b> (first to 20) are played in a block of the Neon City, the empty places filled with bots; you come back a few seconds after you go down, and 10 minutes ends any of them.</li>
+            <li class="skOnly"><b>Battle royale</b>: your squad drops into the Neon City together, against the bots set below. Its sectors decay in waves, each warned on the map first; when only the last is left its capture zone opens. Die once and you fight your way back in a 1v1; die again and you are a ghost your squad can restore at your echo.</li>
+            <li class="skOnly">Your hacks are on F and G (mobility and utility), found on the floor as hack cores; a gun or a hack found at a higher level is stronger (fusion).</li>
+            <li class="legacyOnly">1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>
+            <li class="legacyOnly"><b>Gun Run</b>: one kill moves you to the next gun; after the last gun comes the knife (melee, 100 a hit, 300 to the head), and a knife kill wins. Dying to a melee costs a level. 10 minutes, then the highest level wins. Health and shields come back 4 s after the last hit. <b>Team deathmatch</b>: you and your friends, filled out with bots to four, against four bots; respawns; first team to 30, or ahead at 10 minutes. <b>Crown</b>: rounds; 20 s in the crown appears in the middle, walk over it to take it, and 30 s holding it without going down takes the round (so does being the last one up). First to 3. All three play in the 1v1 arena.</li>
+            <li class="legacyOnly">20 s into a round the circle in the middle goes live. Stand in it alone for 10 s to take the round. The last one standing takes it at any time.</li>
+            <li class="legacyOnly">Abilities (a setting per match; the battle royale has them on): pick <b>JOLT</b> (a 10 m dash the way you are moving, every 3 s, key F) or <b>TRIAGE</b> (every heal twice as fast) with 5 or 6 when the card comes up: at each countdown, or when you land. In the range, 5 and 6 pick one any time to try it.</li>
+            <li class="legacyOnly"><b>Battle royale</b>: pick Solo, Duos or Trios above and the bots come in whole squads of that size; you and your friends are one side whatever the size, and the host's size is everyone's. In Solo a knock is the end; in Duos the bleed-out is half a trio's. Landing with nothing, three care packages and two loadout crates come down as the rings close: a package is called before it arrives, marked on both maps, and worth fighting over for a while after it lands; stand on a crate a moment and it hands you the loadout you built, with ammo, once each, so a squad mate taking theirs costs you nothing. From the fourth ring, <b>Storm Surge</b>: if more are alive than the ring allows, whoever has dealt the least damage starts taking it wherever they stand, unless they have dealt some in the last 20 s.</li>
             <li>You play with your selected loadout: <b id="duelLoadout"></b>. Change it on the Loadouts tab any time; weapons swap straight away.</li>
             <li>It connects your browser straight to your friends'. Most home internet works; some school, work or phone networks block it. With three, the host's connection carries the match.</li>
           </ul>
@@ -564,7 +570,6 @@
         </section>
 
         <section data-panel="settings" hidden>
-          <div class="row"><label>Game <div class="hint">SpeedKills, or the legacy game as it was frozen; changing it reloads the page</div></label><select id="gameSel"><option value="speedkills">SpeedKills</option><option value="legacy">Legacy (B00G's Range)</option></select></div>
           <div class="row"><label>Mouse DPI <div class="hint">stored on the mouse, so measure it</div></label><input id="dpi" type="number" min="100" max="32000" step="50" /></div>
           <div class="calib">
             <button id="calibStart" type="button">Measure my DPI</button>

@@ -3,10 +3,11 @@
 // moving in (docs/PHASE_18_PLAN_SPEEDKILLS.md).
 //
 // One switch, read once at startup, because the world is built once: the
-// battle royale map, the roster and the menu all follow it, and changing it
-// is a reload (the way the graphics preset changes). The order is the URL
-// (?game=speedkills), then what this browser last chose, then the build's
-// default, which stays legacy until SpeedKills is ready to be the front door.
+// battle royale map, the roster and the menu all follow it. SpeedKills is the
+// game (the owner, 2026-10-03: "Remove any legacy stuff"): the legacy game is
+// reached only by a ?game=legacy address, which the test suite's pages use
+// until their checks are moved to SpeedKills, and the Settings box that
+// switched to it is gone. A browser that chose it before is not held there.
 //
 // "legacy", never the other game's name: the public build may not carry it
 // (tools/beta-check.ts).
@@ -106,13 +107,13 @@ function buildDefault(): GameId {
 
 /**
  * The game for this page, from the URL, this browser's last choice and the
- * build's default, in that order. A URL choice is remembered, so a link that
- * says ?game=speedkills keeps the player in SpeedKills after they follow it.
+ * build's default, in that order; a last choice of the legacy game no longer
+ * counts (there is no way back out of it for a player: its Settings box is gone).
  */
 export function resolveGame(search: string | null, stored: string | null, fallback: GameId): GameId {
   const fromUrl = search ? new URLSearchParams(search).get("game") : null;
   if (isGame(fromUrl)) return fromUrl;
-  if (isGame(stored)) return stored;
+  if (stored === "speedkills") return stored;
   return fallback;
 }
 
@@ -125,13 +126,8 @@ function readGame(): GameId {
   } catch {
     /* storage refused (a private window): the URL and the default still decide */
   }
-  const g = resolveGame(search, stored, buildDefault());
-  try {
-    if (typeof localStorage !== "undefined" && isGame(new URLSearchParams(search ?? "").get("game"))) localStorage.setItem(LS_GAME, g);
-  } catch {
-    /* ignore */
-  }
-  return g;
+  // (nothing is written back: a test page's ?game=legacy is that page's alone)
+  return resolveGame(search, stored, buildDefault());
 }
 
 /** this page's game, fixed for its life */

@@ -29,45 +29,47 @@ export const lastSolidNormal = new THREE.Vector3(0, 1, 0);
 
 export function solidHit(p0: THREE.Vector3, dir: THREE.Vector3, len: number): number {
   let best = Infinity;
-  // the boxes along the ray (solidgrid.ts), not every box in the world
-  for (const s of solidsAlong(p0, dir, len, ALONG)) {
+  let bestAxis = -1;
+  // The boxes along the ray (solidgrid.ts), not every box in the world. Nothing is made a box: a frame casts hundreds
+  // of these (the bots' sight lines, the shots, the hacks' reach), and each box tested made four arrays, 0.46 ms of a
+  // Neon City frame and the garbage after it (tools/profile-frame.ts, 2026-10-03).
+  boxes: for (const s of solidsAlong(p0, dir, len, ALONG)) {
     let t0 = 0;
     let t1 = len;
     let axis = -1;
-    const axes: Array<[number, number, number, number]> = [
-      [p0.x, dir.x, s.minX, s.maxX],
-      [p0.y, dir.y, s.base, s.top],
-      [p0.z, dir.z, s.minZ, s.maxZ],
-    ];
-    let miss = false;
+    // the three slabs in turn: across x, from the box's base to its top, across z
     for (let k = 0; k < 3; k++) {
-      const [o, d, lo, hi] = axes[k];
+      const o = k === 0 ? p0.x : k === 1 ? p0.y : p0.z;
+      const d = k === 0 ? dir.x : k === 1 ? dir.y : dir.z;
+      const lo = k === 0 ? s.minX : k === 1 ? s.base : s.minZ;
+      const hi = k === 0 ? s.maxX : k === 1 ? s.top : s.maxZ;
       if (Math.abs(d) < 1e-9) {
-        if (o < lo || o > hi) {
-          miss = true;
-          break;
-        }
+        if (o < lo || o > hi) continue boxes;
         continue;
       }
       let a = (lo - o) / d;
       let b = (hi - o) / d;
-      if (a > b) [a, b] = [b, a];
+      if (a > b) {
+        const t = a;
+        a = b;
+        b = t;
+      }
       if (a > t0) {
         t0 = a;
         axis = k;
       }
-      t1 = Math.min(t1, b);
-      if (t0 > t1) {
-        miss = true;
-        break;
-      }
+      if (b < t1) t1 = b;
+      if (t0 > t1) continue boxes;
     }
-    if (!miss && t0 < best) {
+    if (t0 < best) {
       best = t0;
-      lastSolidNormal.set(0, 0, 0);
-      if (axis >= 0) lastSolidNormal.setComponent(axis, -Math.sign(axes[axis][1]) || 1);
-      else lastSolidNormal.set(0, 1, 0);
+      bestAxis = axis;
     }
+  }
+  if (best < Infinity) {
+    lastSolidNormal.set(0, 0, 0);
+    if (bestAxis >= 0) lastSolidNormal.setComponent(bestAxis, -Math.sign(bestAxis === 0 ? dir.x : bestAxis === 1 ? dir.y : dir.z) || 1);
+    else lastSolidNormal.set(0, 1, 0);
   }
   return best;
 }
@@ -301,6 +303,9 @@ export class ProjectileSystem {
   }
 
   update(dt: number, now: number, onImpact: (e: ImpactEvent) => void): void {
+    // Nothing in flight, nothing to test: the gathering made its maps and walked every figure's matrices (the frame's
+    // own walk does that before it is drawn) each frame of a match, shot or not.
+    if (!this.bullets.length) return;
     const h = dt / SUBSTEPS;
     const { meshes, owner, tOwner, sOwner } = this.gather(now);
     for (let bi = this.bullets.length - 1; bi >= 0; bi--) {
