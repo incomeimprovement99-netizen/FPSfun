@@ -43,10 +43,16 @@ const scenes = new Map<string, THREE.Object3D>();
 const skins = new Map<string, THREE.MeshStandardMaterial>();
 let loading: Promise<boolean> | null = null;
 let ready = false;
+let settled = false;
 
 /** the bought guns are in (every mapped model and its first skin) */
 export function paidGunsReady(): boolean {
   return ready;
+}
+
+/** the bought guns are in, or will not come (no files here, or a load that failed): a stand-in is wanted only then */
+export function paidGunsSettled(): boolean {
+  return settled;
 }
 
 /**
@@ -139,12 +145,16 @@ export function loadPaidGuns(first: string[] = Object.keys(GUNS)): Promise<boole
   if (loading) return loading;
   loading = (async () => {
     try {
-      if (!(await probe())) return false;
+      if (!(await probe())) {
+        settled = true;
+        return false;
+      }
       await loadModels(first.flatMap(modelsOf));
       if (first.length >= Object.keys(GUNS).length) await loadPaidRest();
       return true;
     } catch (e) {
       console.warn("the bought guns did not load; the guns stay procedural", e);
+      settled = true;
       return false;
     }
   })();
@@ -163,6 +173,8 @@ export function loadPaidRest(): Promise<boolean> {
     } catch (e) {
       console.warn("the bought guns did not load; the guns stay procedural", e);
       return false;
+    } finally {
+      settled = true;
     }
   })();
   return rest;

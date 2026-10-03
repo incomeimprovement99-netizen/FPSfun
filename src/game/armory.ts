@@ -16,7 +16,7 @@ import cfg from "../config/armory.json";
 import { PROFILE } from "./game";
 import { COURSE_GATES, type Solid } from "./range";
 import { floorGun, floorGunMat } from "./loot";
-import { paidGunMaterial, paidGunsReady, paidProp, paidPropBatch, paidPropReady, setPropOpen } from "./paidgun";
+import { paidGunMaterial, paidGunsReady, paidGunsSettled, paidProp, paidPropBatch, paidPropReady, setPropOpen } from "./paidgun";
 import { hackCard } from "./hackcast";
 import { cooldownOf, hackDef, hackSlotOf, HACK, type HackId } from "./hacks";
 import { weaponKind, weaponName } from "./weapons";
@@ -257,6 +257,8 @@ export class Armory {
   private wantsDress(s: ArmoryStation): boolean {
     const key = s.kind === "gun" ? "armorygun" : "armoryhack";
     if (!s.stand && paidPropReady(key)) return true;
+    // the bought guns will not come (dress makes no stand-in while they might): ours, one a frame
+    if (s.kind === "gun" && !s.item && paidGunsSettled() && !paidGunsReady()) return true;
     return s.kind === "gun" ? paidGunsReady() && !s.dressed : !s.dressed && paidPropReady("hackcore");
   }
 
@@ -283,7 +285,12 @@ export class Armory {
     if (s.stand) s.root.getObjectByName("armory-plinth")?.removeFromParent();
     if (s.kind === "gun") {
       const paid = paidGunsReady();
-      if (!s.item || (paid && !s.dressed)) {
+      // No stand-in while the bought guns are on their way: one was made for every stand before the page's first
+      // screen (each gun's model built and merged) and thrown away a moment later, a quarter of a second of the start
+      // (2026-10-03). The stand stands empty until they are in, then update dresses one a frame.
+      if (!paid && !paidGunsSettled()) {
+        /* waiting for them */
+      } else if (!s.item || (paid && !s.dressed)) {
         if (s.item) s.spin.remove(s.item);
         const geo = floorGun(s.id);
         const skin = geo.userData.paid ? paidGunMaterial(s.id, level) : null;

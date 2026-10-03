@@ -9875,3 +9875,25 @@ through MOTEL. All three are fixed here, with a fault the review could not see.
   cover in the gap, where the bridge walk failed too); a landmark on each deck off every landing. The layout run again
   on the new bake leaves every placement where it was. verify and rules; e2e `br`. Photographed on the tower's floors,
   the decks and the corner roofs.
+
+## Milestone 440 — The first screen sooner: no throwaway guns in the armory, the city's lamp spots through the grid
+
+The owner, 2026-10-03: "Make the initial loading screen as fast as possible, the rest can load in when we need it." A
+CPU profile of the page's start, stopped at the moment the first screen shows (not at `loaded()`, which waits for the
+work queued behind it), put the start's own script at 1.15 s, and two parts of it were work thrown away or done the
+slow way:
+
+- **The armory's stand-ins.** Every gun stand built our procedural model of its gun and merged it into one mesh before
+  the first screen (0.25 s with the models' build), and SpeedKills replaced all ten with the bought guns a moment
+  later. A stand now stands empty while the bought guns are on their way (paidgun.ts paidGunsSettled: in, or not
+  coming), and they are put on one a frame as they come in, as before; a build without the bought files, or a load that
+  failed, gets ours, one a frame (armory.ts).
+- **The Neon City's lamp spots.** The interiors' fill lights keep only the lamp spots clear of anything solid, and each
+  of the 240 spots was tested against all 71,630 of the city's boxes: 0.14 s of the start, 190 ms headless. They are
+  tested against the boxes near them from the collision grid, kept to the city's own: the same 240 spots in the same
+  order (old and new built side by side), and buildNeonMap from 261 ms to 51 headless.
+- **Measured:** production builds, three cold loads each taken in turn on this machine, unthrottled: the first screen from a median 2,752 ms to 2,577, the main thread's long tasks from a median 2.64 s to 2.48.
+- **Next, agreed with the city's agent:** the city's 71,630 collision boxes (369 KB of the first script's 1.43 MB
+  compressed) loaded after the first screen, with the city; and the courses (0.31 s) and the range's figures (0.24 s)
+  built behind the first screen.
+- **Checked:** verify; rules; the fill spots old against new; the skarmory, speedkills and page e2e.

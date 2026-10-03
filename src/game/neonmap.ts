@@ -114,6 +114,7 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   // (over the corridor only: an entrance's well is open to the street; over the station and its tunnel, the street)
   for (const { slab: [x0, x1, z0, z1] } of K.halls) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
   for (const [x0, x1, z0, z1] of UG.slabs) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
+  const neonFrom = RANGE_SOLIDS.length;
   for (const [x0, x1, z0, z1, y0, y1] of SOLIDS.solids as number[][]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
   rebuildSolidGrid();
 
@@ -329,7 +330,12 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     // (none inside or within `off` of anything solid: the station's grid met platform edges and the corridors' low
     // ceilings, and a spot on a wall's face lit one side of it only)
     const off = F.off;
-    const solid = (q: THREE.Vector3) => (SOLIDS.solids as number[][]).some((b) => q.x - BR_X > b[0] - off && q.x - BR_X < b[1] + off && q.z - BR_Z > b[2] - off && q.z - BR_Z < b[3] + off && q.y > b[4] && q.y < b[5]);
+    // (the boxes near a spot, from the grid, kept to the city's own: every spot tested against every box of the city was
+    // 0.14 s of the page's start, before the range's first frame, 2026-10-03)
+    const own = new Set(RANGE_SOLIDS.slice(neonFrom));
+    const near: Solid[] = [];
+    const solid = (q: THREE.Vector3) =>
+      solidsIn(q.x - off, q.x + off, q.z - off, q.z + off, near).some((s) => own.has(s) && q.x > s.minX - off && q.x < s.maxX + off && q.z > s.minZ - off && q.z < s.maxZ + off && q.y > s.base && q.y < s.top);
     FILL.spots = FILL.spots.filter((q) => !solid(q));
     // (a tower floor's lamp: inside the tower's square, over its lowest new floor)
     const sq = neonCfg.tower.square as number[];
