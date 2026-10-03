@@ -7007,7 +7007,8 @@ async function skIntroTest(browser: Browser): Promise<void> {
         const gone = !L || L.hidden || L.classList.contains("done");
         const st = document.getElementById("loadingStatus")?.textContent ?? "";
         if (!gone && /READY/.test(st)) window.__waitedLate = true;
-        if (gone) return ok({ everCard, bar, atHide: { loaded: R.loaded(), secs: (performance.now() - t0) / 1000, status: st, waited: !!window.__waitedLate, kind: s.kind } });
+        // (the screen's own state: loaded() waits for what comes in after it too, Milestones 426 and 430)
+        if (gone) return ok({ everCard, bar, atHide: { loaded: R.screenLoaded ? R.screenLoaded() : R.loaded(), secs: (performance.now() - t0) / 1000, status: st, waited: !!window.__waitedLate, kind: s.kind } });
         if (performance.now() - t0 > 120000) return ok({ everCard, bar, atHide: null });
         setTimeout(step, 50); };
       step(); })`

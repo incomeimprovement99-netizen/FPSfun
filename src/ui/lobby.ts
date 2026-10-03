@@ -74,7 +74,7 @@ export const LOBBY_MODES: readonly LobbyMode[] = [
   { id: "arena", go: "goArena", name: "Walk the arena", card: "The 1v1 map by yourself, to learn it.", needs: ["map", "train"], solo: true, friends: null },
   { id: "duel", go: "goDuel", name: "1v1 and 1v1v1", card: "You against a friend, or two. First to 3, with the circle.", needs: ["map", "rules", "rounds", "train"], solo: false, friends: "arena" },
   { id: "bots", go: "goBots", name: "Arena, Bots", card: "The 1v1 rules against bots, alone or with friends.", needs: ["map", "arenabots", "difficulty", "abilities", "rules", "rounds", "train"], solo: true, friends: "arena" },
-  { id: "br", go: "goBr", name: "Battle Royale", card: "Drop onto Outskirts, the ring closes, last squad standing.", needs: ["br", "difficulty", "train"], solo: true, friends: "br" },
+  { id: "br", go: "goBr", name: "Battle Royale", card: "Drop into the Neon City, the sectors decay, last squad standing.", needs: ["br", "difficulty", "train"], solo: true, friends: "br" },
   { id: "gunrun", go: "goGunRun", name: "Gun Run", card: "Every kill is the next gun; a knife kill at the end wins.", needs: ["map", "modebots", "gunrun", "difficulty", "abilities", "train"], solo: true, friends: "gunrun" },
   { id: "tdm", go: "goTdm", name: "Team Deathmatch", card: "Four a side, respawns, first team to 30.", needs: ["map", "modebots", "difficulty", "abilities", "rules", "train"], solo: true, friends: "tdm" },
   { id: "crown", go: "goCrown", name: "Crown", card: "The crown appears 20 s in: take it, hold it 30 s. First to 3 rounds.", needs: ["map", "modebots", "difficulty", "abilities", "rules", "train"], solo: true, friends: "crown" },

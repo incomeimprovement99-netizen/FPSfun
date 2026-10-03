@@ -86,7 +86,8 @@ const VARIANTS: Array<[string, string]> = (process.env.BENCH_VARIANTS ?? "")
 if (!VARIANTS.length) VARIANTS.push(["", ""]);
 /** the hitch line, ms: the plan's */
 const HITCH = 50;
-const GAME = SPOT.startsWith("sk") ? "speedkills" : "legacy";
+// (the Neon City's spots are SpeedKills' too: they ran on the legacy game's page, its match and its map, 2026-10-03)
+const GAME = SPOT.startsWith("sk") || SPOT.startsWith("neon") ? "speedkills" : "legacy";
 /** a SpeedKills match on seed 42, dropped on the Spire, fighting held, then the camera put at (x, y, z, yaw, pitch) and kept there */
 const skMatch = (x: number, y: number, z: number, yaw: number, pitch: number) => `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); r.input.lock();
     for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));

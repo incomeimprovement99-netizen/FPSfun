@@ -654,7 +654,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   scene.add(zones);
   scene.add(
     textPanel(
-      "WALLBOUNCE (the wiki's recipe)\n\nSprint at the wall. Crouch to slide, then JUMP out of the slide. Let go of W. Hit the wall at the top of the jump or just after: a slide jump peaks at 44 hu, inside the green band. Press jump. Lower in the band is a bigger bounce. A plain sprint jump peaks at 56, above the band: touch there and you get a wall push, no height. Hold W into the wall and you get the height but no distance (a wallskip). The feed on the left says what you got and why.",
+      "WALLBOUNCE (the recipe)\n\nSprint at the wall. Crouch to slide, then JUMP out of the slide. Let go of W. Hit the wall at the top of the jump or just after: a slide jump peaks at 44 hu, inside the green band. Press jump. Lower in the band is a bigger bounce. A plain sprint jump peaks at 56, above the band: touch there and you get a wall push, no height. Hold W into the wall and you get the height but no distance (a wallskip). The feed on the left says what you got and why.",
       33.48, 5.6, -19, -Math.PI / 2, 6, 3.0
     )
   );

@@ -34,6 +34,8 @@ export interface GameProfile {
   weapons: Record<string, { name: string; role: string; optic: string; kind?: string }>;
   /** the classes of guns outside the roster (the Run's pistols) */
   otherKinds?: Record<string, string>;
+  /** and their names */
+  otherNames?: Record<string, string>;
   /** the attachment slots in play (none: fusion is the upgrade) */
   attachments: string[];
   ammo: "infinite" | "typed" | string;

@@ -469,7 +469,7 @@ export class Course {
     const L = this.layout;
     // "B00G" on every wall of the course, laid on in world space so one
     // material covers walls of any size at one scale
-    const mats = L.themes.map((t) => worldTiledMaterial(graffitiTexture("B00G", t.wall), 4, 2));
+    const mats = L.themes.map((t) => worldTiledMaterial(graffitiTexture("SPEEDKILLS", t.wall), 4, 2));
     const b = this.builder(mats);
 
     // floor pad

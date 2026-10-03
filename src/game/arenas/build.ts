@@ -32,12 +32,12 @@ let shared: Record<MatKey, THREE.Material> | null = null;
 function palette(): Record<MatKey, THREE.Material> {
   if (shared) return shared;
   const wall = worldTiledMaterial(
-    graffitiTexture("B00G", { top: "#464c55", bottom: "#3a3f47", words: ["#c98a5a", "#9fb4c8", "#c7b56a", "#b48ab8", "#6fb7a8"], strength: 0.3 }),
+    graffitiTexture("SPEEDKILLS", { top: "#464c55", bottom: "#3a3f47", words: ["#c98a5a", "#9fb4c8", "#c7b56a", "#b48ab8", "#6fb7a8"], strength: 0.3 }),
     4,
     2
   );
   const slab = worldTiledMaterial(
-    graffitiTexture("B00G", { top: "#585d64", bottom: "#4a4f56", words: ["#d9d2c4", "#e0795a", "#8fc1e8", "#d9d2c4", "#b8d67a"], strength: 0.3 }),
+    graffitiTexture("SPEEDKILLS", { top: "#585d64", bottom: "#4a4f56", words: ["#d9d2c4", "#e0795a", "#8fc1e8", "#d9d2c4", "#b8d67a"], strength: 0.3 }),
     4,
     2
   );

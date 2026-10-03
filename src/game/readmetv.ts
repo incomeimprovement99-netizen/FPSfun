@@ -1,5 +1,6 @@
-// The README screen at the far end of the firing range, under a "B00G'S RANGE"
-// sign: the project's own README.md, drawn on a canvas as sections and pages.
+// The manual's screen at the far end of the firing range, under a "SPEEDKILLS" sign: the player's manual
+// (docs/MANUAL.md), drawn on a canvas as sections and pages. It showed the project's README, which described the
+// legacy game (the owner, 2026-10-03: "we need all reference changed to speed kills").
 //
 // You turn its pages by shooting: four arrow plates beside the screen (page
 // back and forward, section back and forward), and the list of sections down
@@ -8,11 +9,11 @@
 // round anywhere else on the screen is an ordinary miss, so stray fire down
 // range never moves the page.
 //
-// The text is README.md itself (readme.ts parses it), bundled at build time,
-// so the screen cannot drift from the file. The public build swaps the real
-// names for codenames first (vite.config.ts, tools/public-text.ts).
+// The text is the manual itself (readme.ts parses it), bundled at build time, so the screen cannot drift from the
+// file. The legacy game still shows the README (the public build swaps its real names first, tools/public-text.ts).
 import * as THREE from "three";
 import readmeMd from "../../README.md?raw";
+import manualMd from "../../docs/MANUAL.md?raw";
 import cfg from "../config/readme-tv.json";
 import { IS_SK } from "./game";
 import { parseReadme, type Block, type Section } from "./readme";
@@ -128,7 +129,7 @@ class Button {
 
 export class ReadmeTv implements Shootable {
   readonly root = new THREE.Group();
-  readonly sections: Section[] = parseReadme(readmeMd);
+  readonly sections: Section[] = parseReadme(IS_SK ? manualMd : readmeMd);
   section = 0;
   page = 0;
   /** a press, for the sound and the hit marker: the action and where it was */
@@ -495,7 +496,7 @@ export class ReadmeTv implements Shootable {
     g.textAlign = "left";
     g.fillText("SHOOT ◀ ▶ TO TURN A PAGE   ·   ▲ ▼ FOR THE SECTION BEFORE OR AFTER   ·   SHOOT A NAME ON THE LEFT TO JUMP", L.pad, H - 14);
     g.textAlign = "right";
-    g.fillText("README.md", W - L.pad, H - 14);
+    g.fillText(IS_SK ? "THE MANUAL" : "README.md", W - L.pad, H - 14);
     this.tex.needsUpdate = true;
   }
 }

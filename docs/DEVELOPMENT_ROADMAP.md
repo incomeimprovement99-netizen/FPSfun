@@ -9673,3 +9673,57 @@ yard, zip line); Market and the Well did not.
   its mark at the mark's height (seen failing with a mark moved off its roof). The bake refuses a pad whose landing is
   not level or whose throw meets anything (it caught the Well's second pad against the dome's centre column). verify
   and rules; e2e `br`. Photographed on each route.
+
+## Milestone 433 — SpeedKills by name everywhere a player looks: the manual on the range's screen, the walls, the menus
+
+The owner, 2026-10-03: "Remove any legacy stuff that we did before with the boog range / apex stuff. we need all
+reference changed to speed kills." The first step, what a SpeedKills player sees and hears; the legacy game itself
+goes in the steps after this (its tests first).
+
+- **Found by a read of every visible string** (index.html, the menus, the HUD, notices, configs, in-world signs and
+  textures).
+- **The range's screen** showed the whole README, the legacy game's manual: "B00G RANGE (BETA)", the Apex guns, the
+  Outskirts map. It now shows the player's manual, docs/MANUAL.md, nine sections: what SpeedKills is, the controls,
+  the moves, the ten guns and fusion, the ten hacks, the battle royale (the drop, the decay, the capture zone, the
+  second chance), the other modes, the range, the settings. Every line checked against the game's config and keys.
+- **The walls:** The Run's, the triangle's, the warehouse's and the plan arenas' graffiti said B00G; it says
+  SPEEDKILLS, each word drawn smaller where it would have run off its canvas (the wall's tiles meet at the edges).
+- **The page and menus:**
+  - the page's title, read by link previews before any script runs, "B00G's Range": SpeedKills;
+  - the welcome, "Welcome to SpeedKills";
+  - the battle royale's card and its lobby line: the Neon City, its decaying sectors and the capture zone, not
+    Outskirts, a ring and four heals; the status line on Start the same, with the bots' tier by SpeedKills' name;
+  - the tour's card: its own steps, not heal, JOLT and a grenade;
+  - the Controls tab: the hacks by name, on the keys the legacy ability and grenade had; its heal, ability-pick and
+    attachment rows gone;
+  - "Melee weapon" for the Loadouts tab's heirloom;
+  - the settings' hints that meant another game ("the game's own setting", "as Season 27's option", "1 to 8 like
+    the game", and others): the defaults said as ours; the crosshair's "Three prongs (the game's)"; the wallbounce
+    wall's "(the wiki's recipe)".
+- **Words from another game on SpeedKills' screens:** the win card's "YOU ARE THE CHAMPION" is LAST SQUAD STANDING,
+  the summary's "CHAMPIONS" VICTORY, the jumpmaster YOU LEAD THE DROP, and "RESPAWNED AT YOUR DEATH BOX" (SpeedKills'
+  restore at the echo goes through it) RESTORED AT YOUR ECHO.
+- **Names:** The Run's two pistols showed their real-world names: SIDEARM and SIDEARM 17 (speedkills.json
+  otherNames), with their class at last (otherKinds was keyed by ids no gun has). Two bots were named after another
+  game's character and gun: BOT ACE and BOT VECTOR.
+- **Checked:** the range's screen photographed with the manual; every graffiti canvas saved and looked at; verify;
+  rules; the public build's name check; the page, range and sktour e2e.
+
+## Milestone 434 — Another game's systems off in SpeedKills: Ring Consoles, Storm Surge, Resurgence, Gun Run, Crown and Search
+
+The owner, 2026-10-03: "Remove any legacy stuff that we did before with the boog range / apex stuff". A read of the
+code for what the legacy game left switched on in SpeedKills found these, none gated:
+
+- **Ring Consoles** were placed in SpeedKills' city, each showing where the ring goes next. Its city has no ring; it
+  decays. Not placed (brmatch.ts).
+- **Storm Surge**, a damaging surge over the players who sit too long, another game's event: off. The decay is the
+  pressure that keeps a match moving (brmatch.ts updateSurge).
+- **Resurgence**, another game's respawn rules, was on the battle royale row's Rules box: SpeedKills plays its own (the
+  second chance, the ghost and the echo). Gone from the box, which with one choice left is hidden (menu.ts).
+- **Gun Run, Crown and Search**, hidden from SpeedKills' lobby, were still in the Friends tab's list of modes: removed
+  there in SpeedKills (main.ts).
+- **The Guns rule** (the Friends tab's Rules row) handed out guns SpeedKills does not have, under their real-world
+  names: its classes are SpeedKills' guns now (rules.json): rifles STRYDER and PANDA, SMGs USSO and ANAKIN, CHOOCH,
+  shotguns REZ and BIGANTLER, snipers and marksmen BOOG and HAEFY, the pistol APUHTHEE.
+- The code goes with the legacy game's removal, after its tests are moved to SpeedKills (the next steps).
+- **Checked:** verify; rules; the duel (the Guns rule), sklobby and speedkills e2e.

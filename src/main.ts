@@ -479,7 +479,7 @@ function summaryView(): HudState["summary"] {
   }
   const s = L.s;
   const br = s.placement !== undefined;
-  const title = br ? (s.placement === 1 ? "CHAMPIONS" : `#${s.placement} OF ${s.players ?? "?"}`) : s.won ? "VICTORY" : "DEFEAT";
+  const title = br ? (s.placement === 1 ? "VICTORY" : `#${s.placement} OF ${s.players ?? "?"}`) : s.won ? "VICTORY" : "DEFEAT";
   const rows: Array<[string, string]> = [
     ["Kills", String(s.kills)],
     ["Damage", damageText(s.damage)],
@@ -2658,6 +2658,8 @@ const duelLeaveBtn = $<HTMLButtonElement>("duelLeave");
 const duelCode = $<HTMLInputElement>("duelCode");
 const duelPlayers = $<HTMLSelectElement>("duelPlayers");
 const duelMode = $<HTMLSelectElement>("duelMode");
+// SpeedKills: not another game's modes (Gun Run, Crown, Search) in the Friends tab's list; its lobby never offered them
+if (IS_SK) for (const v of ["gunrun", "crown", "search"]) duelMode.querySelector(`option[value="${v}"]`)?.remove();
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
 // SpeedKills: its five tiers by its own names (speedkills.json bots, botNames), Beginner first
@@ -3074,7 +3076,7 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   linkedTo = d.jumpmaster();
   const master = d.isJumpmaster();
   const say = (): void => {
-    hud.notice(master ? "YOU ARE THE JUMPMASTER: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} IS THE JUMPMASTER` : `THE SHIP PASSES ${IS_SK && SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
+    hud.notice(master ? "YOU LEAD THE DROP: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} LEADS THE DROP` : `THE SHIP PASSES ${IS_SK && SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
     if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice("M IS THE MAP  ·  SPACE JUMPS", gameTime, 2.5), 3200);
   };
   // boarded under SpeedKills' loading screen and card: said once they have gone, or it was over before anyone saw it
@@ -3179,7 +3181,7 @@ function respawnForMatch(d: MatchLike): void {
     player.setBounds(BR_BOUNDS);
     setRegion("br");
     player.teleport(boxAt.x, boxAt.y, boxAt.z, player.yaw);
-    hud.notice("RESPAWNED AT YOUR DEATH BOX", gameTime, 2.5);
+    hud.notice("RESTORED AT YOUR ECHO", gameTime, 2.5);
   } else if (d instanceof BrMatch) {
     // a battle royale starts in the sky over your drop spot once everyone is
     // in; until then the lobby is wherever you are (the arena, for a host)
@@ -5990,7 +5992,7 @@ function startBr(seed = newSeed(), poi?: string): void {
   wireMatch(d, "br");
   brHour(d);
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
-  setDuelStatus(`Battle royale on Outskirts, ${d.team.label.toLowerCase()}: you and ${bots} bots, ${diff}. Dropping onto ${d.poi.name}.`, "good");
+  setDuelStatus(`Battle royale in the Neon City, ${d.team.label.toLowerCase()}: you and ${bots} bots, ${PROFILE.botNames?.[diff] ?? diff}. Dropping onto ${d.poi.name}.`, "good");
   duelButtons();
 }
 const brStartSel = $<HTMLSelectElement>("brStart");
@@ -9349,6 +9351,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   // (and the figures in: tools and the e2e start matches at once, and a SpeedKills page's screen no longer waits for them)
   loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()) && laterSettled(),
+  /** the page's first screen has gone by itself: what it waits for is in (loaded() waits for what comes after it too) */
+  screenLoaded: () => loadingScreen.loaded,
   /** SpeedKills' way into a match (show): its stage, or null once the match is its own (tools/e2e.ts) */
   showState: () => (show ? { stage: show.stage, br: show.br, up: loadingScreen.up, calm: loadingScreen.calm, allAsked: loadingScreen.allAsked, loaded: loadingScreen.loaded } : null),
   /** the intro card (tools/e2e.ts, tools/snap.ts): what it is doing, skip it, or hold it at one moment for a picture */

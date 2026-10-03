@@ -854,8 +854,9 @@ export class BrMatch extends Duel {
     }
     // the chain: the host's own, or the same one drawn here from the seed
     this.ringPlan = this.ring ? this.ring.plan : new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases, this.decayCircle ?? undefined).plan;
-    // the consoles, where the seed puts them, lit
-    for (const spot of consoleSpots(this.seed, map.pois)) {
+    // the consoles, where the seed puts them, lit (not in SpeedKills: they show where the ring goes next, and its city
+    // has no ring, it decays)
+    for (const spot of IS_SK ? [] : consoleSpots(this.seed, map.pois)) {
       const model = buildConsole();
       model.group.position.set(spot.x, 0, spot.z);
       // the screen toward the place it belongs to
@@ -2507,7 +2508,8 @@ export class BrMatch extends Duel {
    */
   private updateSurge(now: number, tick: boolean): void {
     const ring = this.ring;
-    if (!ring) return;
+    // (not in SpeedKills: the surge is another game's, and its decay is the pressure that keeps a match moving)
+    if (!ring || IS_SK) return;
     const allowed = surgeAllowed(ring.phase, this.botCount + this.players);
     if (this.phase !== "fight" || this.aliveCount <= allowed) {
       this.surgeAt = Infinity;

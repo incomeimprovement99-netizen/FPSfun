@@ -58,27 +58,15 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["melee", "Melee"],
       ["zoomToggle", "Variable optic zoom"],
       ["fireMode", "Fire mode (where the gun has two)"],
-      ["heal", "Heal (a cell, then a syringe)"],
-      ["grenade", "Ready a grenade (again: the next kind; fire throws, aim puts it away)"],
     ],
   },
   {
-    title: "Abilities",
+    // (SpeedKills' hacks on the keys the legacy game's ability and grenade had; its heals, ability picks and
+    // attachments are gone from the list)
+    title: "Hacks",
     actions: [
-      ["ability", "Use your ability (JOLT)"],
-      ["pickAbility1", "Pick JOLT (when offered)"],
-      ["pickAbility2", "Pick TRIAGE (when offered)"],
-    ],
-  },
-  {
-    title: "Attachments",
-    actions: [
-      ["magLevel", "Magazine level"],
-      ["optic", "Optic"],
-      ["barrel", "Barrel"],
-      ["stock", "Stock"],
-      ["laser", "Laser"],
-      ["hopup", "Hop-up"],
+      ["ability", "Mobility hack"],
+      ["grenade", "Utility hack"],
     ],
   },
   {

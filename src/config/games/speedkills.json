@@ -428,7 +428,9 @@
       "Long Shot"
     ],
     "botRename": {
-      "BOT NOVA": "BOT NEXUS"
+      "BOT NOVA": "BOT NEXUS",
+      "BOT ASH": "BOT ACE",
+      "BOT VOLT": "BOT VECTOR"
     }
   },
   "_tuning": "Each gun's SpeedKills tuning over its legacy numbers, as multipliers: damage (every range), fireRate, and recoil (the kick's pitch and yaw, base and random), and mag (the magazine, before fusion: USSO's 18 became 27, since at its damage a kill took 25 rounds and a reload, 3.1 s, and a fused magazine then took the reload away, a jump the TTK check rightly refused). headshotDamage, where given, is a headshot's damage outright. Set from a measured table (tools/checks/ttk.ts): at 80% of rounds on target against 150 (100 health, 50 shield), the rifles, SMGs and CHOOCH kill in 1.3 to 1.8 s at close range (the owner's longer, Hyper Scape-like fights; the legacy numbers were about 0.9 s), the shotguns in 0.8 to 1.4 and the marksman guns in 1.2 to 2.4. Each pair keeps its identity: PANDA slower and steadier than STRYDER; USSO the fastest gun and the hardest to hold (recoil 1.6), ANAKIN the easiest (0.6). BOOG's headshot is 450: a kill through full health, full shield and an ARMOR hack's 60% cut, at any level, as the owner asked. APUHTHEE is Hyper Scape's Riot One as the guides give it (26 a shot against Hyper Scape's 120 health, half as much again to the head, six rounds, no drop-off, almost no recoil; a kill in one magazine unlevelled): the same five body hits a kill against our 150 is 32.5 a shot, the Wingman's 50 at 0.65, its five rounds at 1.2 and its kick at a quarter, its own 1.5 headshot and flat damage kept, and its own 2.8 shots a second, since the guides say only that it is slow to fire. At 80% on target that is six rounds, one magazine, 1.8 s. 26 as it stood took eight and a reload (4.6 s), and fused to a nine-round magazine lost the reload (2.1 s), the jump the TTK check refuses.",
@@ -600,8 +602,13 @@
   },
   "_kinds": "kind is each gun's two-word class, shown beside its name wherever there is room (USSO (Fast SMG)), so a beginner knows what a gun is (the owner, Phase 20 A7). Each pair reads Heavy or Steady against Fast or Auto, from its numbers (resolved at fusion 0; tools/checks/ttk.ts): PANDA 61% more a round than STRYDER and 37% slower; ANAKIN's recoil multiplier the lowest, 0.6; USSO the fastest gun at 18 a second; REZ full auto; HAEFY, the one marksman gun, is plain Marksman (the owner, 2026-09-30); APUHTHEE a Heavy Pistol, the one pistol; CHOOCH cools instead of reloading. otherKinds classes the guns the Run lends that are not in the roster.",
   "otherKinds": {
-    "p2020": "Pistol",
-    "glock": "Pistol"
+    "semipistol": "Pistol",
+    "g17": "Pistol"
+  },
+  "_otherNames": "The names of the guns outside the roster that SpeedKills still hands out: The Run's two pistols (main.ts). They showed their real-world names.",
+  "otherNames": {
+    "semipistol": "SIDEARM",
+    "g17": "SIDEARM 17"
   },
   "_familiesUse": "use is a family's one line on the loot card's Full view (Phase 20 A8): what the gun is for, for a player who does not know yet.",
   "_botSpeedScale": "SpeedKills' bots move at their tier's speed (bots.json) times botSpeedScale: 2, since the player's run and sprint doubled (Phase 20 A15); at their old speeds a bot could not keep up with a player, nor get away.",

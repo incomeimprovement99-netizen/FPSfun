@@ -243,7 +243,7 @@ export function allWeaponIds(): string[] {
 export function weaponName(id: string): string {
   if (!DATA.weapons[id] && (id === "frag" || id === "arcstar" || id === "thermite")) return throwName(id);
   // SpeedKills' guns carry their own names, the same in every build
-  const sk = IS_SK ? PROFILE.weapons[id]?.name : undefined;
+  const sk = IS_SK ? (PROFILE.weapons[id]?.name ?? PROFILE.otherNames?.[id]) : undefined;
   if (sk) return sk;
   return displayName(id, DATA.weapons[id]?.name ?? id);
 }

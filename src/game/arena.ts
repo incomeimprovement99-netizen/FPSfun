@@ -99,7 +99,7 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
   // course's, so it gives the place character without pulling the eye off a
   // fight.
   const wallMat = worldTiledMaterial(
-    graffitiTexture("B00G", {
+    graffitiTexture("SPEEDKILLS", {
       top: "#4a5059",
       bottom: "#3d424a",
       words: ["#c98a5a", "#9fb4c8", "#c7b56a", "#b48ab8", "#6fb7a8"],
@@ -109,7 +109,7 @@ export function buildArena(scene: THREE.Scene): ArenaHandles {
     2
   );
   const laneMat = worldTiledMaterial(
-    graffitiTexture("B00G", {
+    graffitiTexture("SPEEDKILLS", {
       top: "#5a5f66",
       bottom: "#4b5057",
       words: ["#d9d2c4", "#e0795a", "#8fc1e8", "#d9d2c4", "#b8d67a"],
@@ -324,7 +324,7 @@ export function buildTriArena(scene: THREE.Scene): ArenaHandles {
   };
 
   const wallMat = worldTiledMaterial(
-    graffitiTexture("B00G", {
+    graffitiTexture("SPEEDKILLS", {
       top: "#4a4f5c",
       bottom: "#3d424e",
       words: ["#c9a25a", "#8fb4c8", "#c96a5a", "#a48ab8", "#6fb79a"],
@@ -334,7 +334,7 @@ export function buildTriArena(scene: THREE.Scene): ArenaHandles {
     2
   );
   const spokeMat = worldTiledMaterial(
-    graffitiTexture("B00G", {
+    graffitiTexture("SPEEDKILLS", {
       top: "#5c5a66",
       bottom: "#4d4b57",
       words: ["#d9d2c4", "#e0a05a", "#8fc1e8", "#d9d2c4", "#b8d67a"],

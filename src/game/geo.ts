@@ -231,7 +231,7 @@ export function decal(
 }
 
 /**
- * Painted steel wall panels with "B00G" stencilled and sprayed over them, at
+ * Painted steel wall panels with "SPEEDKILLS" stencilled and sprayed over them, at
  * several sizes and angles, as one 4 m by 2 m tile. Every letter stays inside
  * the tile so it repeats without a seam. The words are redrawn once the web
  * font arrives, since the first draw may happen before it has loaded.
@@ -246,7 +246,7 @@ export interface WallTheme {
 }
 export const DEFAULT_WALL: WallTheme = { top: "#75818f", bottom: "#66717e", words: ["#e2742b", "#f1efe6", "#ffd23c", "#f1efe6", "#2fd0e8"] };
 
-export function graffitiTexture(word = "B00G", theme: WallTheme = DEFAULT_WALL): THREE.CanvasTexture {
+export function graffitiTexture(word = "SPEEDKILLS", theme: WallTheme = DEFAULT_WALL): THREE.CanvasTexture {
   const W = 1024;
   const H = 512; // 256 px per metre
   const cv = document.createElement("canvas");
@@ -262,9 +262,18 @@ export function graffitiTexture(word = "B00G", theme: WallTheme = DEFAULT_WALL):
   // only the letters and not the wall
   const stencil = (text: string, size: number, color: string, alpha: number, x: number, y: number, rot: number, drips: boolean) => {
     const c = document.createElement("canvas");
-    const font = `700 ${size}px "Rajdhani", Impact, "Arial Black", sans-serif`;
+    let font = `700 ${size}px "Rajdhani", Impact, "Arial Black", sans-serif`;
     const m = c.getContext("2d")!;
     m.font = font;
+    // a long word drawn smaller, so it stays on the canvas: the wall's tiles meet at its edges, and a word run over one
+    // was a word cut in half (none wider than three fifths of the wall, or than twice the room either side of its spot)
+    const wide = m.measureText(text).width;
+    const room = Math.min(W * 0.6, 2 * Math.min(x, W - x) - 24);
+    if (wide > room) {
+      size = Math.floor((size * room) / wide);
+      font = `700 ${size}px "Rajdhani", Impact, "Arial Black", sans-serif`;
+      m.font = font;
+    }
     const tw = Math.ceil(m.measureText(text).width) + 8;
     c.width = tw;
     c.height = Math.ceil(size * 1.5);

@@ -57,6 +57,8 @@ const BR_RULES_KEY = "range.brRules.v1";
 /** the lobby's mode, so the panel opens where it was left */
 const LOBBY_KEY = "range.lobby.mode";
 export function brRulesId(): string {
+  // SpeedKills plays its own rules (its decay, its second chance): Resurgence is another game's
+  if (IS_SK) return "br";
   const sel = document.getElementById("brRules") as HTMLSelectElement | null;
   if (sel?.value) return sel.value === "resurgence" ? "resurgence" : "br";
   try {
@@ -139,6 +141,12 @@ export class Menu {
       brRules.value = localStorage.getItem(BR_RULES_KEY) === "resurgence" ? "resurgence" : "br";
     } catch {
       brRules.value = "br";
+    }
+    // SpeedKills: no Resurgence (another game's mode), so no Rules box: one choice is no choice
+    if (IS_SK) {
+      brRules.querySelector('option[value="resurgence"]')?.remove();
+      brRules.value = "br";
+      brRules.closest("label")?.setAttribute("hidden", "");
     }
     brRules.addEventListener("change", () => {
       try {
@@ -292,11 +300,11 @@ export class Menu {
     const squads = botSquads(pick, t.size);
     const theirs = `${word(squads)} squad${squads === 1 ? "" : "s"} of ${word(t.size)}`;
     const lobby = t.size === 1 ? `${word(players)} in the match, one life each` : `${word(players)} in the match: you, and ${theirs}`;
-    $("brLobby").textContent = `${lobby[0].toUpperCase()}${lobby.slice(1)}. Friends who join are on your side. The ring closes six times, there are 4 heals, and M is the map.`;
+    $("brLobby").textContent = `${lobby[0].toUpperCase()}${lobby.slice(1)}. Friends who join are on your side. Sectors decay in waves, the capture zone opens last, and M is the map.`;
     $("brBlurb").textContent =
       t.size === 1
-        ? `Solo: drop onto Outskirts with ${word(pick)} bots, one life each, the ring closes, last one standing.`
-        : `${t.label}: drop onto Outskirts against ${theirs} bots, the ring closes, last squad standing.`;
+        ? `Solo: drop into the Neon City with ${word(pick)} bots. Sectors decay in waves: hold the capture zone or be the last one standing.`
+        : `${t.label}: drop into the Neon City against ${theirs} bots. Sectors decay in waves: hold the capture zone or be the last squad standing.`;
     if (this.picked === "br") this.renderSetup();
   }
 
