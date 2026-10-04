@@ -6608,9 +6608,9 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender&game=speedkills");
   const front = await ev<{ game: string; html: string; br: boolean; gunrun: boolean; tour: boolean; title: string }>(
     page,
-    `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; return { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: vis("goGunRun"), tour: vis("goTour"), title: document.title }; })()`
+    `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; window.__range.menu.showExtras(true); const out = { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: vis("goGunRun"), tour: vis("goTour"), title: document.title }; window.__range.menu.showExtras(false); return out; })()`
   );
-  check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING (Gun Run hidden, not gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
+  check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING behind Extra modes (Gun Run hidden, not gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
   if (!(await onNeon(page))) {
     // High City's corner (citydistricts.ts): drawn from its own file, and its opaque faces from behind too (look backs): the
     // film set is faced only toward its canyons, and from the city's streets round it only its frames showed
@@ -9267,6 +9267,41 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
   const pick = async (id: string): Promise<void> => {
     await ev(page, `document.getElementById("${LOBBY_MODES.find((m) => m.id === id)!.go}").click()`);
   };
+
+  // The owner, 2026-10-04: the battle royale the main obvious mode, the Firing Range under it, one Extra modes button
+  // for the rest; the defaults as they are, with Adjust settings on the right opening today's options.
+  const seen = (): Promise<string[]> =>
+    ev<string[]>(page, `[...document.querySelectorAll(".lobby .modes .mode")].filter((c) => c.offsetParent !== null).map((c) => c.dataset.mode)`);
+  await ev(page, `window.__range.menu.showExtras(false)`);
+  await pick("br");
+  const closed = await seen();
+  const big = await ev<{ br: number; range: number }>(page, `({ br: document.getElementById("goBr").getBoundingClientRect().height, range: document.getElementById("goRange").getBoundingClientRect().height })`);
+  await ev(page, `document.getElementById("extraModes").click()`);
+  const opened = await seen();
+  await ev(page, `document.getElementById("extraModes").click()`);
+  const shutAgain = await seen();
+  check(
+    "the play menu: the battle royale first and biggest, the Firing Range under it, and the rest only behind Extra modes",
+    closed.join() === "br,range" && big.br > big.range && opened.length > 4 && opened.slice(0, 2).join() === "br,range" && opened.includes("ffa") && shutAgain.join() === "br,range",
+    JSON.stringify({ closed, big, opened, shutAgain }),
+  );
+  await pick("ffa");
+  const extraLit = await seen();
+  await pick("br");
+  check("picking a mode among the extras keeps them open, so its card can be seen lit", extraLit.includes("ffa"), extraLit.join());
+  const settings = async (): Promise<{ more: boolean; button: boolean; squad: boolean }> =>
+    await ev(page, `({ more: !document.getElementById("setupMore").hidden, button: document.getElementById("adjustSettings").offsetParent !== null, squad: document.getElementById("brTeam").offsetParent !== null })`);
+  await ev(page, `window.__range.menu.showSettings(false)`);
+  const shut = await settings();
+  await ev(page, `document.getElementById("adjustSettings").click()`);
+  const adjusted = await settings();
+  await ev(page, `document.getElementById("adjustSettings").click()`);
+  check(
+    "the panel plays on the defaults with its options shut; Adjust settings on the right opens them, the same boxes as before",
+    !shut.more && shut.button && !shut.squad && adjusted.more && adjusted.squad,
+    JSON.stringify({ shut, adjusted }),
+  );
+  await ev(page, `window.__range.menu.showSettings(true)`);
 
   await pick("br");
   const afterPick = await ev<{ mode: string; started: boolean }>(page, `({ mode: window.__range.menu.picked, started: !!window.__range.duel() })`);

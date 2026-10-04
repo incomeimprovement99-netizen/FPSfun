@@ -10768,6 +10768,29 @@ the player's chest, making a headshot from the boog in the back almost impossibl
   without seating the palm (`SEAT=0`); figure-audit.js says which fingers have their knuckle under the gun (`below`),
   which the hold checks excuse from touching it.
 
+## Milestone 478 — The play menu round the battle royale: Extra modes, and Adjust settings
+
+The owner, 2026-10-04: "hide the rest of the modes other than battle royale (make that the main obvious mode), then
+we want firing range underneath it, then one button saying "Extra modes" and we click that and the others appear ...
+it should be defaulted to what we have it defaulted to now, but have an option saying "Adjust settings" on the right
+side that when clicked shows the same as what we have today." The Play tab's left column is now the Battle Royale,
+first and big with its line showing, the Firing Range under it, and one **Extra modes** button that opens the rest
+(1v1, Arena Bots, Free-for-all, Team Deathmatch, Control, then the Runs, the lab and the tour), in the same order as
+before, with their PLAY and TRAINING heads. Picking one of them keeps them open, so the lit card can be seen, and a
+visit that opens on one opens them. A first visit opens on the Battle Royale rather than the range (menu.ts).
+
+The right-hand panel shows the mode, its line, Start and With friends, and the loadout. Its options, the same boxes
+as before with the same values (nothing about the defaults changed), and the two hack pickers sit behind an **Adjust
+settings** button at the panel's top right; shut, the match plays on what they say. The welcome's first line says
+where things are. A box one game hides (SpeedKills' Rules) showed anyway, its label's display outranking `hidden`;
+it is hidden now.
+
+- **Checked:** tsc; verify; rules; the panel e2e (the battle royale first and biggest, the range under it, the rest
+  only behind Extra modes, an extra's card kept in view, Adjust settings shut and then open on the same boxes; every
+  earlier panel check) and speedkills (no Play mode wider than the menu at three screen sizes; the tour behind Extra
+  modes); photographs at 1280
+  and 1920 wide, shut, with the extras and with the settings open.
+
 ## Milestone 482 — STRYDER's pistol on the soldier, ahead of its roster change
 
 STRYDER moves from a rifle to the fast pistol (`PLAN_THE_EIGHT_GUNS.md` section 6), the RE-45's data (`autopistol`) on

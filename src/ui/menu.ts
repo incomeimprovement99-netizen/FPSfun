@@ -123,13 +123,16 @@ export class Menu {
       real.value = aimLobby.value;
       real.dispatchEvent(new Event("change"));
     });
-    let opened = "range";
+    // the battle royale is the game: a first visit opens on it (the owner, 2026-10-04: "the main obvious mode")
+    let opened = "br";
     try {
-      opened = localStorage.getItem(LOBBY_KEY) || "range";
+      opened = localStorage.getItem(LOBBY_KEY) || "br";
     } catch {
-      /* storage off: the range */
+      /* storage off: the battle royale */
     }
-    this.pickMode(lobbyMode(opened) ? (opened as Mode) : "range");
+    $("extraModes").addEventListener("click", () => this.showExtras(!$("modes").classList.contains("open")));
+    $("adjustSettings").addEventListener("click", () => this.showSettings($("setupMore").hidden));
+    this.pickMode(lobbyMode(opened) ? (opened as Mode) : "br");
 
     // The battle royale's lobby row: the squad size, and a bot count that
     // goes with it. The first render reads the stored count itself: the
@@ -217,12 +220,26 @@ export class Menu {
   pickMode(id: Mode): void {
     if (!lobbyMode(id)) return;
     this.picked = id;
+    // a mode among the extras keeps them open, so the card that is lit can be seen
+    if (document.getElementById(lobbyMode(id)!.go)?.classList.contains("extra")) this.showExtras(true);
     try {
       localStorage.setItem(LOBBY_KEY, id);
     } catch {
       /* storage off: it holds for the visit */
     }
     this.renderSetup();
+  }
+
+  /** the modes past the battle royale and the range, behind Extra modes */
+  showExtras(open: boolean): void {
+    $("modes").classList.toggle("open", open);
+    $("extraModes").setAttribute("aria-expanded", String(open));
+  }
+
+  /** the mode's options, behind Adjust settings: shut, the match plays on the defaults (or what was set last) */
+  showSettings(open: boolean): void {
+    $("setupMore").hidden = !open;
+    $("adjustSettings").setAttribute("aria-expanded", String(open));
   }
 
   /**
@@ -244,6 +261,8 @@ export class Menu {
     for (const g of document.querySelectorAll<HTMLElement>(".setupGroup")) {
       g.hidden = !needs.includes(g.dataset.group as never);
     }
+    // nothing to adjust (a course outside SpeedKills, whose hacks are always there to pick): no button
+    $("adjustSettings").hidden = !needs.length && !IS_SK;
     const start = $<HTMLButtonElement>("startMode");
     const friends = $<HTMLButtonElement>("playFriends");
     const shared = friendsModeFor(m.id);

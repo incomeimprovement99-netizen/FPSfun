@@ -33,9 +33,11 @@ The site opens in SpeedKills. The legacy game opens only from a `?game=legacy`
 address (the test suite's pages), and everything below this section describes
 it.
 
-- **The menu:** PLAY (Battle Royale in solo, duos or trios; 1v1; bots; team
-  deathmatch; FFA; Control) and TRAINING (the range, the movement lab, the
-  Run, the tour). The lab has climbs of 2, 4 and 8 m, a long wall to run,
+- **The menu:** the Battle Royale (solo, duos or trios) first and big, the
+  Firing Range under it, and **Extra modes** opening the rest: PLAY (1v1; bots;
+  FFA; team deathmatch; Control) and TRAINING (the Run, the movement lab, the
+  tour). The match's options are behind **Adjust settings** on the right;
+  shut, it plays on the defaults. The lab has climbs of 2, 4 and 8 m, a long wall to run,
   and gaps of 4 and 6 m a storey up.
 - **The battle royale:** thirty players in a 304 m neon city, nine
   sectors. The centre, THE SPIRE (200 m), is the biggest and the hottest drop,

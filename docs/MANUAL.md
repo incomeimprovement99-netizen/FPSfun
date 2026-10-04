@@ -79,6 +79,8 @@ a shorter cooldown each time.
 
 ## Other modes
 
+On the Play tab, behind **Extra modes**.
+
 - **1v1 and 1v1v1:** with a friend or against a bot. A 1v1 is fought on THE CENTRE, the Neon City's own middle, inside
   a circle you cannot leave.
 - **Arena, bots:** rounds against bots in an arena.
