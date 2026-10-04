@@ -12,6 +12,8 @@
 //
 // Run: npm run e2e        (needs `npm run dev` already running)
 import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
+import citySectorsCfg from "../src/config/city.json";
+import neonSectorsCfg from "../src/config/neonmap.json";
 import { HOLD } from "../src/game/hold";
 import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
 import soldierCfg from "../src/config/soldier.json";
@@ -7499,7 +7501,7 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
       page,
       `(() => { const r = window.__range; const d = r.duel(); const c = r.loadouts.current; return { drops: d.lootField ? d.lootField.drops.size : -1, hot: d.hotZone()?.name ?? null, slots: r.loadout.slots.map((s) => ({ id: s.id, empty: s.empty, fusion: s.fusion ?? 0 })), want: [c.slot1, c.slot2], bots: d.bots.length, looting: d.bots.filter((b) => b.bot.lootSource !== null).length }; })()`,
     );
-    check(`sk ${start} start: the floor has its loot, the Spire its hot zone`, land.drops > 150 && land.hot === "THE SPIRE", JSON.stringify({ drops: land.drops, hot: land.hot }));
+    check(`sk ${start} start: the floor has its loot, the centre its hot zone`, land.drops > 150 && land.hot === CENTRE_NAME, JSON.stringify({ drops: land.drops, hot: land.hot }));
     check(
       start === "loot" ? "sk loot start: you land with nothing" : "sk loadout start: you land with your loadout's two guns at level 0",
       start === "loot" ? land.slots.every((s) => s.empty) : land.slots.every((s, i) => !s.empty && s.id === land.want[i] && s.fusion === 0),
@@ -7892,7 +7894,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     page,
     `(() => { const d = window.__range.duel(); return { players: d.players, bots: d.bots.length, teams: d.bots.map((x) => x.team + (x.guard ? "g" : "")).join(","), pois: window.__range.brMap.pois.map((p) => p.name), loot: d.lootField ? d.lootField.drops.size : -1, health: d.health, shield: d.shield, shieldMax: d.shieldMax }; })()`
   );
-  check("speedkills br: a match in the city, its nine sectors the places, the Spire among them", start.pois.length === 9 && start.pois.includes("THE SPIRE"), JSON.stringify(start.pois));
+  check("speedkills br: a match in the city, its nine sectors the places, the centre among them", start.pois.length === 9 && start.pois.includes(CENTRE_NAME), JSON.stringify(start.pois));
   check("speedkills br: thirty in the match (27 bots in squads, with your squad of three)", start.bots === 27, JSON.stringify(start));
   check("speedkills br: loot on the city's floors", start.loot > 150, `${start.loot} items`);
   // no smoke and no grenades in SpeedKills (Phase 20 A10): no bot rolls a legacy kit (SMOKE was 6 to 8 of 27), none carries a frag
@@ -8663,6 +8665,9 @@ async function skSquadTest(browser: Browser): Promise<void> {
   check("squad view: the friend closes the game: LEFT THE MATCH, their row kept", left, await words(host));
   await close();
 }
+
+/** the centre sector's name on the map the run is on (E2E_MAP; the old city's by default): its places name it */
+const CENTRE_NAME = ((process.env.E2E_MAP ?? "city") === "neon" ? neonSectorsCfg.game.sectors : citySectorsCfg.sectors).find((s) => s.id === "c")!.name;
 
 /** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, p2p, mixed) */
 /**

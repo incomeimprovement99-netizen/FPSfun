@@ -39,7 +39,7 @@ import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi, type Site } 
 import cityCfg from "../config/city.json";
 import kitCfg from "../config/citykit.json";
 import chainCfg from "../config/chaincourse.json";
-import { dissolvedTo, type SectorPhase } from "./decay";
+import { dissolvedTo, useSectorRects, type SectorPhase, type SectorRect } from "./decay";
 import type { Solid } from "./range";
 
 /** a sector of the city: its rectangle (map-local), its name, its neon */
@@ -53,8 +53,19 @@ export interface Sector {
   accent: number;
 }
 
-/** the nine sectors (map-local): the centre, then the eight round it */
+/** the nine sectors (map-local): the centre, then the eight round it; the map in play's (useSectors) */
 export const SECTORS: readonly Sector[] = cityCfg.sectors.map((s) => ({ ...s, accent: parseInt(s.accent.slice(1), 16) }));
+
+/**
+ * The map in play's sectors, set as it is built: the old city's from city.json, the Neon City's its own districts
+ * (neonmap.json game.sectors). Every reader holds the same lists (SECTORS here, decay.ts SECTOR_RECTS for the plan, the
+ * match's final circle and where a spot stands), so they are filled in place, and the decay's rectangles with them
+ */
+export function useSectors(list: readonly SectorRect[]): void {
+  (SECTORS as Sector[]).splice(0, SECTORS.length, ...list.map((s) => ({ id: s.id, name: s.name, minX: s.minX, maxX: s.maxX, minZ: s.minZ, maxZ: s.maxZ, accent: parseInt(s.accent.slice(1), 16) })));
+  useSectorRects(list);
+  SECTORS.forEach((s, i) => DECAY.rect[i]?.set(s.minX + BR_X, s.minZ + BR_Z, s.maxX + BR_X, s.maxZ + BR_Z));
+}
 
 /** the sector a map-local point is in (the centre's edges belong to it) */
 export function sectorAt(x: number, z: number): Sector | null {
@@ -232,6 +243,7 @@ export const KIT_SITES: {
 
 export function buildCityMap(scene: THREE.Scene): BrMap {
   const C = cityCfg;
+  useSectors(cityCfg.sectors);
   const root = new THREE.Group();
   root.name = "br";
   root.position.set(BR_X, 0, BR_Z);

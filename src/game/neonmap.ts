@@ -16,7 +16,7 @@ import { FLOORS, HALL_FLOORS, floorAt } from "./floors";
 import { botWalk } from "./botbody";
 import { Doors } from "./doors";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi } from "./br";
-import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay } from "./city";
+import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay, useSectors } from "./city";
 import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
 import { padOff, padOnto } from "./padsolve";
@@ -115,6 +115,8 @@ export function updateNeonFill(eye: THREE.Vector3): void {
 /** `boxes`: the city's collision, for a caller that has it now (the node checks); the page's comes later (loadNeonSolids) */
 export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   BOXES.in = false;
+  // its own nine sectors, its districts (game.sectors): the old city's put the whole of it in the centre
+  useSectors(neonCfg.game.sectors);
   const root = new THREE.Group();
   root.name = "neon";
   root.position.set(BR_X, 0, BR_Z);

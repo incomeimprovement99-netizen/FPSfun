@@ -62,10 +62,9 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
-import { decayPlan, sectorPhases, captureOpens, sectorIdAt, type DecayPlan, type SectorPhase } from "./decay";
+import { decayPlan, sectorPhases, captureOpens, sectorIdAt, SECTOR_RECTS, centreOf, type DecayPlan, type SectorPhase } from "./decay";
 import { paidProp } from "./paidgun";
 import decayCfg from "../config/decay.json";
-import cityCfg from "../config/city.json";
 import { IS_SK, PROFILE } from "./game";
 import type { Seen } from "./reveal";
 import moveCfg from "../config/movement.json";
@@ -159,8 +158,6 @@ import { arenaMap } from "./arena";
 
 /** a bot squad's key in the capture zone's reckoning, apart from the players' sides */
 const CAPTURE_BOT = 100;
-/** the city's sectors, map-local (city.json) */
-const SECTOR_BOXES = cityCfg.sectors;
 
 /** the Gulag's bot, apart from the match's (theirs start at Duel.BOT_ID) */
 const GULAG_BOT_ID = 990;
@@ -789,8 +786,10 @@ export class BrMatch extends Duel {
     if (IS_SK) {
       this.decay = decayPlan(this.seed);
       this.phases = decayCfg.phases.map((p) => ({ ...p }));
-      const f = SECTOR_BOXES.find((s) => s.id === this.decay!.final)!;
-      this.decayCircle = { cx: BR_X + (f.minX + f.maxX) / 2, cz: BR_Z + (f.minZ + f.maxZ) / 2, r: Math.min(f.maxX - f.minX, f.maxZ - f.minZ) / 2 };
+      // (the sectors as the map in play has them, decay.ts SECTOR_RECTS: a sector's own middle and reach where it names them)
+      const f = SECTOR_RECTS.find((s) => s.id === this.decay!.final)!;
+      const mid = centreOf(f.id);
+      this.decayCircle = { cx: BR_X + mid.x, cz: BR_Z + mid.z, r: f.reach ?? Math.min(f.maxX - f.minX, f.maxZ - f.minZ) / 2 };
       map.ringWall.visible = false;
     }
     // The floor's loot, from the host's seed (the welcome carries it). The start decides only what you land

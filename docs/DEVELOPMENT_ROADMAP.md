@@ -10548,3 +10548,28 @@ painted sheet.
 - **Checked** (`tools/checks/sk-neon.ts`, a new check): every partitioned floor's walls in a patterned material, none of
   the pack's flat coloured plastics, each floor's its own (failing on the plastics). verify and rules; e2e `br`.
   Photographed on every floor it changed.
+
+## Milestone 470 — The Neon City's own nine sectors: the decay takes it district by district
+
+Found by the lobby agent's survey of the Neon map: the battle royale's nine sectors were the old city's (city.json), a
+200 m centre and eight 52 m bands round it. Every one of the Neon City's 68,020 decayable boxes stands in that centre, so
+in a match the first three waves decayed empty ground, the whole city went at once in the fourth, the final sector could
+be an empty band past the edge road, and eight of the nine places put their drops out there. SpeedKills plays the Neon
+City unless the address names the old one, so this was every live match.
+
+- **Each map sets its own sectors as it is built** (src/game/city.ts useSectors, src/game/decay.ts SECTOR_RECTS): the old
+  city's from city.json, the Neon City's from neonmap.json game.sectors. Every reader holds the same lists, the decay's
+  boxes and shader rectangles, the match's plan and final circle, where a spot stands, the places and the HUD, so they are
+  filled in place; the ids are the same on both maps, so the plan reads the same.
+- **The Neon City's nine are its districts**: THE TOWER inside the Loop, the four High City decks and the four corner
+  blocks (NOODLE ROW, MOTEL HILL, THE WELL, MARKET), a 3 by 3 split at ±50 m over the whole of the cut, so the empty band
+  past the edge road goes with the district beside it. Each has its own middle and reach for its final circle and the
+  capture zone, on the district (a High City block's is held from its deck: the zone has no height).
+- Measured: the collision's boxes by sector, the middle 30,665 and every other 2,455 to 7,957; none outside.
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): the sectors are the Neon City's own when it is built; each holds a
+  thousand of its boxes and more; every wave of a hundred matches' plans takes buildings; each place's drops are on its
+  own sector; each final circle stands on its district (five failing with the map's sectors left as the old city's,
+  as the survey found them: the centre 68,020 boxes, the rest none, 355 waves of empty ground). The e2e `speedkills`
+  section on the old city passes whole, and on the Neon City its decay checks now pass (the first wave's sectors decay
+  and their boxes leave the collision list; the capture zone opens on MARKET's middle); its two checks that wanted the
+  Spire by name read the centre's name from the map in play. verify and rules.

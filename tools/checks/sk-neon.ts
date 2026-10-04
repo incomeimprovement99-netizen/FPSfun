@@ -1640,6 +1640,35 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("the tower's partitioned floors' walls in patterned panels, each floor its own", parted.length >= 5 && flat.length === 0 && new Set(mats).size === mats.length && !!AT["32"], `${parted.map(([h, q]) => `${h} m ${q.mat}`).join(", ")}${flat.length ? `; flat colour: ${flat.map(([h]) => h).join(", ")}` : ""}`);
 }
 
+// the battle royale's sectors on this map (game.sectors, src/game/decay.ts SECTOR_RECTS; the lobby agent's survey,
+// 2026-10-04: city.json's put the whole of the Neon City in its centre, a match's first three waves took the empty ground
+// round it, the whole city went at once in the fourth, and eight of the nine places' drops stood out past the edge road):
+// set as the map is built, each holding a thousand of the collision's boxes and more, every wave of the plans of a hundred
+// seeds taking some, each place's drops on its own sector, and each final circle's middle on its district
+{
+  const NS = (cfg.game as unknown as { sectors: Array<{ id: string; name: string; minX: number; maxX: number; minZ: number; maxZ: number }> }).sectors;
+  const { SECTOR_RECTS, decayPlan, centreOf } = await import("../../src/game/decay");
+  const { SECTORS } = await import("../../src/game/city");
+  const inRect = (s: { minX: number; maxX: number; minZ: number; maxZ: number }, x: number, z: number) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ;
+  const set = NS.every((s, i) => SECTOR_RECTS[i]?.id === s.id && SECTORS[i]?.name === s.name && SECTORS[i]?.minX === s.minX);
+  check("the battle royale's sectors are the Neon City's own nine, set as it is built", set && SECTOR_RECTS.length === NS.length, SECTORS.map((s) => s.name).join(", "));
+  // (by the sectors in play, as the decay takes them)
+  const count = new Map<string, number>(SECTOR_RECTS.map((s) => [s.id, 0]));
+  for (const b of SOLIDS.solids as number[][]) {
+    if (b[5] <= 0.001) continue;
+    const s = SECTOR_RECTS.find((q) => inRect(q, (b[0] + b[1]) / 2, (b[2] + b[3]) / 2));
+    if (s) count.set(s.id, count.get(s.id)! + 1);
+  }
+  check("each sector holds buildings of its own, a thousand of the collision's boxes and more", [...count.values()].every((n) => n >= 1000), [...count].map(([k, n]) => `${k} ${n}`).join(", "));
+  let empty = 0;
+  for (let seed = 1; seed <= 100; seed++) for (const wave of decayPlan(seed).waves) if (wave.reduce((a, id) => a + (count.get(id) ?? 0), 0) < 1000) empty++;
+  check("every wave of a hundred matches' decay takes buildings, none only empty ground", empty === 0, `${empty} waves without`);
+  const off = map.pois.flatMap((p) => p.drops.filter((d) => !inRect(NS.find((s) => s.id === p.id)!, d.x - BR_X, d.z - BR_Z)).map(() => p.id));
+  check("each place's drops on its own sector", map.pois.length === NS.length && off.length === 0, `${off.length} off${off.length ? `: ${[...new Set(off)].join(", ")}` : ""}`);
+  const far = NS.filter((s) => { const m = centreOf(s.id); return !inRect(s, m.x, m.z) || Math.max(Math.abs(m.x), Math.abs(m.z)) > 85; });
+  check("each sector's final circle on its district, not out past the edge road", far.length === 0, far.map((s) => s.id).join(", "));
+}
+
 // the street level's exposure (rules.sightlines; the centre's third review: "no street sightline past 60 m but the Loop's",
 // "streets are wide bare plains overlooked from 27 m"): from open street ground every `step` metres (a floor within 0.3 m
 // of the ground, nothing a body would stand in from 0.3 to 1.8 m over it), a standing eye `eye` metres up looks along

@@ -40,7 +40,9 @@ it.
 - **The battle royale:** thirty players in a 304 m neon city, nine
   sectors. The centre, THE SPIRE (200 m), is the biggest and the hottest drop,
   the eight districts a ring 52 m deep round it (cut by three quarters), and
-  half the bot squads land there.
+  half the bot squads land there. On the Neon City (SpeedKills' map unless the
+  address names the old one) the nine are its own districts: THE TOWER inside
+  the Loop, the four High City decks and the four corner blocks.
   - The centre is one raised district, after Hyper Scape's Red Tiger: nine
     podiums at one height, joined by lit bridges over the streets, each with a
     public stair up. The Spire rises from it in tiers. Its loot is the best,

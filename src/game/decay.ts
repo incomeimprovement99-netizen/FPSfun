@@ -25,10 +25,33 @@ export interface DecayPlan {
   waves: string[][];
 }
 
-const SECTOR_IDS = cityCfg.sectors.map((s) => s.id);
-const centreOf = (id: string): { x: number; z: number } => {
-  const s = cityCfg.sectors.find((x) => x.id === id)!;
-  return { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
+/** a sector's rectangle (map-local), and where its final circle sits and how far it reaches, where its own middle will not do */
+export interface SectorRect {
+  id: string;
+  name: string;
+  accent: string;
+  minX: number;
+  maxX: number;
+  minZ: number;
+  maxZ: number;
+  middle?: number[];
+  reach?: number;
+}
+
+/**
+ * The sectors as the map in play has them: city.json's until a map sets its own (useSectorRects; the Neon City's are its
+ * districts, neonmap.json game.sectors: city.json's put all of it in the centre, and its first three waves took the
+ * empty ground round it). Ids the same on every map, so the plan and the waves read the same
+ */
+export const SECTOR_RECTS: SectorRect[] = cityCfg.sectors.map((s) => ({ ...s }));
+export function useSectorRects(list: readonly SectorRect[]): void {
+  SECTOR_RECTS.splice(0, SECTOR_RECTS.length, ...list.map((s) => ({ ...s })));
+}
+const sectorIds = () => SECTOR_RECTS.map((s) => s.id);
+/** a sector's middle, map-local: its own `middle` where it names one */
+export const centreOf = (id: string): { x: number; z: number } => {
+  const s = SECTOR_RECTS.find((x) => x.id === id)!;
+  return s.middle ? { x: s.middle[0], z: s.middle[1] } : { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
 };
 
 /** a seeded random (mulberry32), so every browser draws the same plan */
@@ -51,10 +74,11 @@ function seeded(seed: number): () => number {
  */
 export function decayPlan(seed: number): DecayPlan {
   const rnd = seeded(Math.imul(seed >>> 0 || 1, 2246822519) >>> 0);
-  const outer = SECTOR_IDS.filter((id) => id !== "c");
+  const ids = sectorIds();
+  const outer = ids.filter((id) => id !== "c");
   const final = rnd() < decayCfg.finalCentre ? "c" : outer[Math.floor(rnd() * outer.length)];
   const f = centreOf(final);
-  const rest = SECTOR_IDS.filter((id) => id !== final)
+  const rest = ids.filter((id) => id !== final)
     .map((id) => ({ id, d: Math.hypot(centreOf(id).x - f.x, centreOf(id).z - f.z) + rnd() * decayCfg.jitter }))
     .sort((a, b) => b.d - a.d)
     .map((x) => x.id);
@@ -75,7 +99,7 @@ export function sectorPhases(
   closeOf: (phase: number) => number
 ): Record<string, { phase: SectorPhase; k: number }> {
   const out: Record<string, { phase: SectorPhase; k: number }> = {};
-  for (const id of SECTOR_IDS) out[id] = { phase: "live", k: 0 };
+  for (const id of sectorIds()) out[id] = { phase: "live", k: 0 };
   plan.waves.forEach((wave, w) => {
     for (const id of wave) {
       if (ring.phase > w || ring.state === "closed") out[id] = { phase: "gone", k: 1 };
@@ -96,5 +120,5 @@ export const dissolvedTo = (k: number): number => k * decayCfg.height;
 
 /** the sector a map-local point is in */
 export function sectorIdAt(x: number, z: number): string | null {
-  return cityCfg.sectors.find((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ)?.id ?? null;
+  return SECTOR_RECTS.find((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ)?.id ?? null;
 }
