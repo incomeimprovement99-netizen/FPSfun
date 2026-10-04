@@ -200,6 +200,43 @@ async function lateBoxesTest(browser: Browser): Promise<void> {
   await host.close();
 }
 
+/**
+ * A code typed from a page of the other game (the invite link carries the host's game). Each is told and left where it
+ * is (Milestone 455): a SpeedKills player is never moved into the legacy game and its old name, and the move the other
+ * way never worked for a 1v1 (the page's leaving ended the host's match before it came back).
+ */
+async function crossGameTest(browser: Browser): Promise<void> {
+  const host = await open(browser, "?net=local&norender");
+  const guest = await open(browser, "?net=local&norender&game=speedkills");
+  await ev(host, `document.getElementById("duelHost").click()`);
+  const code = await host
+    .waitForSelector("#duelStatus .code", { timeout: 20000 })
+    .then(() => ev<string>(host, `document.querySelector("#duelStatus .code").textContent`), () => "");
+  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  await guest.waitForFunction(`/older version/.test(document.getElementById("duelStatus").textContent)`, { polling: 200, timeout: 15000 }).catch(() => undefined);
+  const stayed = await ev<{ status: string; search: string; duel: boolean }>(guest, `({ status: document.getElementById("duelStatus").textContent, search: location.search, duel: window.__range.duel() !== null })`);
+  check(
+    "a SpeedKills player given a legacy host's code is told its page is behind, and stays in SpeedKills",
+    !!code && /older version/.test(stayed.status) && !/game=legacy/.test(stayed.search) && !stayed.duel && !/legacy/i.test(stayed.status),
+    JSON.stringify({ code, ...stayed })
+  );
+  await host.close();
+  await guest.close();
+  const skHost = await open(browser, "?net=local&norender&game=speedkills");
+  const oldGuest = await open(browser, "?net=local&norender");
+  await ev(skHost, `document.getElementById("duelHost").click()`);
+  const code2 = await skHost
+    .waitForSelector("#duelStatus .code", { timeout: 20000 })
+    .then(() => ev<string>(skHost, `document.querySelector("#duelStatus .code").textContent`), () => "");
+  await ev(oldGuest, `(() => { document.getElementById("duelCode").value = "${code2}"; document.getElementById("duelJoin").click(); })()`);
+  await oldGuest.waitForFunction(`/That match is SpeedKills/.test(document.getElementById("duelStatus").textContent)`, { polling: 200, timeout: 15000 }).catch(() => undefined);
+  const told = await ev<{ status: string; search: string; duel: boolean }>(oldGuest, `({ status: document.getElementById("duelStatus").textContent, search: location.search, duel: window.__range.duel() !== null })`);
+  check("and a legacy page given a SpeedKills host's code is told so, and stays", !!code2 && /That match is SpeedKills/.test(told.status) && /game=legacy/.test(told.search) && !told.duel, JSON.stringify({ code2, ...told }));
+  await oldGuest.evaluate("window.__range?.duel()?.leave()").catch(() => undefined);
+  await oldGuest.close();
+  await skHost.close();
+}
+
 /** a friend opens the invite link and is in the match, with no code typed */
 async function inviteTest(browser: Browser, query: string): Promise<void> {
   const host = await open(browser, query);
@@ -9361,6 +9398,8 @@ async function main(): Promise<void> {
       await rulesTest(browser, "?net=local&norender");
       console.log("\nA 1v1 on the Neon City before the host's collision boxes are in");
       await lateBoxesTest(browser);
+      console.log("\nA code from a page of the other game");
+      await crossGameTest(browser);
     });
 
     if (want("intro")) await section("intro", async () => {

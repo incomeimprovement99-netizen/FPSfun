@@ -10258,3 +10258,21 @@ level" on the tower's floors: the skirt of the last milestone, raised on the sla
 - **Checked** (`tools/checks/sk-neon.ts`, new checks): THE VAULT's gold band round the tower at its floor and its ceiling,
   each 60 m and more (seen failing with its rule taken out). verify and rules;
   e2e `br`. Photographed from the plaza, the decks and the doors.
+
+## Milestone 455 — A SpeedKills player never moved into the legacy game by a friend's code
+
+The owner asked for every reference a player sees to say SpeedKills. A survey of what a SpeedKills player can see
+(index.html, public/, the strings main.ts, the HUD and the UI put on screen, the configs' shown values) found the old
+names hidden from SpeedKills everywhere but one path: a code from a legacy host (a page opened with ?game=legacy, or
+any page older than the game field, which counts as legacy) told the SpeedKills player "The host is playing the legacy
+game: switching..." and reloaded them into it, old logo, intro card and sign included. The move never worked for a 1v1
+either way: the page's leaving ended the host's 1v1 before the page came back, which then found no match (seen by the
+new check on the old code, both directions). Only a typed code gets there, as the invite link carries the host's game.
+Now neither page moves: a SpeedKills player is told "That match is on an older version of the game. Ask your friend to
+reload the page and send a new code.", a legacy page "That match is SpeedKills: open your friend's invite link to join
+it.", and main.ts switchGame, used by nothing else, is gone.
+
+Left as they are, for the owner: "B00G CORP" among the Neon City's holo sign brands (city.json signs, the owner's and
+friends' names by its note), the BOOG sniper's name, and "the range" for the Firing Range in SpeedKills' own text.
+
+- **Checked:** e2e duel section, crossGameTest (both directions, both failing on the old code); verify; rules; tsc.

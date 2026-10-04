@@ -3,7 +3,7 @@ import { setFigureView } from "./game/figlod";
 import { WALLS, clearWalls, putWall, stepWalls, type PutWall } from "./game/walls";
 import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
 import playerCfg from "./config/player.json";
-import { GAME, LS_GAME, PROFILE, GAME_IDS, IS_SK, type GameId } from "./game/game";
+import { GAME, PROFILE, GAME_IDS, IS_SK, type GameId } from "./game/game";
 import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
@@ -591,19 +591,6 @@ const SK_HEALTH = IS_SK ? PROFILE.health : null;
 // switched games is gone: SpeedKills is the game, 2026-10-03.)
 document.documentElement.dataset.game = GAME;
 if (GAME === "speedkills") document.title = PROFILE.identity.title;
-/** into the other game, for a friends' match whose host plays it: remembered, the URL's ?game= set, and the page reloaded */
-function switchGame(g: GameId, extra: Record<string, string> = {}): void {
-  if (!(GAME_IDS as readonly string[]).includes(g)) return;
-  try {
-    localStorage.setItem(LS_GAME, g);
-  } catch {
-    /* a private window: the URL below still carries it */
-  }
-  const q = new URLSearchParams(location.search);
-  q.set("game", g);
-  for (const [k, v] of Object.entries(extra)) q.set(k, v);
-  location.search = q.toString();
-}
 /**
  * The weapon the derived readout describes. Before the loadout exists this is
  * the default slot-1 weapon; afterwards it is whatever is in hand, with its
@@ -6347,14 +6334,18 @@ function joinCode(code: string): void {
   cancelJoin = joinMatch(
     code,
     (link, w) => {
-      // The host plays the other game: this page reloads into it and joins
-      // again, rather than playing with guns the host's hit check refuses.
-      // An older host sends no game: it is legacy.
+      // The host plays the other game (an older host sends no game: it is legacy), whose guns the host's hit check
+      // refuses. Only a typed code gets here: the invite link carries the host's game. This page used to reload into
+      // that game and join again, but its leaving had already ended the host's 1v1, so the page came back to no match,
+      // and SpeedKills is the game (Milestone 438): a player of it is never moved into the old one and its old name.
+      // Each is told, and stays (Milestone 455).
       const hostGame = (w.opts?.game ?? "legacy") as GameId;
       if (hostGame !== GAME && (GAME_IDS as readonly string[]).includes(hostGame)) {
         link.close();
-        setDuelStatusText(`The host is playing ${hostGame === "speedkills" ? "SpeedKills" : "the legacy game"}: switching...`, "live");
-        switchGame(hostGame, { join: code });
+        setDuelStatusText(
+          IS_SK ? "That match is on an older version of the game. Ask your friend to reload the page and send a new code." : "That match is SpeedKills: open your friend's invite link to join it.",
+          "bad"
+        );
         return;
       }
       // the seat's key, for getting back in if the connection drops
