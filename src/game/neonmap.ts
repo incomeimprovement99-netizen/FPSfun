@@ -10,6 +10,7 @@ import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
 import { programReps } from "./programreps";
+import { compileSafely } from "./compilesafe";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { rebuildSolidGrid, solidsIn } from "./solidgrid";
 import { FLOORS, HALL_FLOORS, floorAt } from "./floors";
@@ -491,7 +492,7 @@ export function warmReflection(root: THREE.Object3D): Promise<unknown> {
   let built: Promise<unknown> = Promise.resolve();
   try {
     renderer.setRenderTarget(cam.renderTarget);
-    built = renderer.compileAsync(programReps(root), cam.children[0] as THREE.Camera, scene);
+    built = compileSafely(renderer, programReps(root), cam.children[0] as THREE.Camera, scene);
   } catch {
     /* built on the retake, as before */
   } finally {

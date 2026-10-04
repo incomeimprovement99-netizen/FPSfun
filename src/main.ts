@@ -128,6 +128,7 @@ import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
 import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, loadNeonSolids, neonSolidsIn, retakeReflection, updateNeonFill, warmReflection } from "./game/neonmap";
 import { programRepList, repsRoot } from "./game/programreps";
+import { compileSafely } from "./game/compilesafe";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
 import { atmosphereOn, districtHere, ownAir, tickAir, wetStreets } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
@@ -1666,7 +1667,7 @@ let cycleDummyMode: () => string = () => "";
 const recorder = new Recorder();
 const killcam = new Killcam(scene, projectiles);
 // (its figures' shaders compiled off the page's thread, each figure shown once they are in: killcam.ts)
-if (!NO_RENDER) killcam.prepare = (o) => renderer.compileAsync(o, camera, scene);
+if (!NO_RENDER) killcam.prepare = (o) => compileSafely(renderer, o, camera, scene);
 /** the killer's gun in view is drawn once its shaders are compiled (killcam.ts prepare: first drawn, they froze the frame) */
 let killcamGunReady = true;
 /** which killcam's gun is being compiled: an older one's finishing does not show a newer one's */
@@ -2214,6 +2215,7 @@ function drawPortrait(canvas: HTMLCanvasElement): void {
     previewCam.lookAt(0, C.frame.eye, 0);
     previewRenderer.setClearAlpha(0);
     previewRenderer.render(previewScene, previewCam);
+    dropPortraitWarm();
     // (copied in the same task as the render, while the canvas still holds it)
     const shot = document.createElement("canvas");
     shot.width = w;
@@ -2250,6 +2252,39 @@ function drawPortrait(canvas: HTMLCanvasElement): void {
   previewTurn = turn;
   previewZoom = zoom;
   placePreviewCam();
+}
+
+/** the card's portrait's shaders are asked for (warmPortrait) */
+let portraitWarmed = false;
+/**
+ * The battle royale card's portrait is drawn in the Loadouts panel's own renderer, a second WebGL context, which built
+ * the soldier's shaders only when the card first drew it: 0.6 s of the match's start frozen on the card (2026-10-04,
+ * tools' cityload profile, drawPortrait). Asked for here instead, off the page's thread, once the figures are in: the
+ * figure posed with the gun the card gives it and its shaders built (compileAsync), which the card's own figure, built
+ * afresh, then finds made (a program is kept by what it is, not by which material asked for it).
+ *
+ * A figure of its own, in a scene of its own lit by the panel's (compileAsync's third scene), and kept until the warm is
+ * done and the card has drawn: three's warm asks each material's program whether it is ready until it is, and the
+ * panel's own figure, rebuilt and disposed as the loadout changed, left it asking a disposed one (a page error,
+ * "reading 'isReady'", in the e2e); and a figure disposed at once would have let go of the programs it was built for.
+ */
+let portraitWarm: { fig: Dummy; done: Promise<unknown> } | null = null;
+function warmPortrait(): void {
+  const ready = hudCfg.loading.brCard.figureGuns as string[];
+  const gun = [loadouts.current.slot1, loadouts.current.slot2].find((g) => ready.includes(g)) ?? ready[0];
+  const def = loadouts.current;
+  const fig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode(def)), rig: true, noBase: true });
+  const holder = new THREE.Scene();
+  holder.add(fig.group);
+  fig.group.updateMatrixWorld(true);
+  portraitWarm = { fig, done: compileSafely(previewRenderer, holder, previewCam, previewScene) };
+}
+/** the warm's figure let go once its warm is done and the card has its own (drawPortrait) */
+function dropPortraitWarm(): void {
+  const w = portraitWarm;
+  if (!w) return;
+  portraitWarm = null;
+  void w.done.then(() => w.fig.dispose());
 }
 
 /** a tip's {name} put in from the game's own numbers (hud.json loading._brCard) */
@@ -2363,8 +2398,7 @@ function onEliminated(d: MatchLike, by: number): void {
     // the killer's gun, as the view will hold it, compiled before it is shown (gunLayer's lights are the scene's)
     killcamGunReady = false;
     const gen = ++killcamGunGen;
-    void renderer
-      .compileAsync(gunModel(killcam.killerWeapon).root, vmCamera, scene)
+    void compileSafely(renderer, gunModel(killcam.killerWeapon).root, vmCamera, scene)
       .catch(() => undefined)
       .finally(() => {
         if (gen === killcamGunGen) killcamGunReady = true;
@@ -9124,6 +9158,11 @@ function step(): void {
   if (loadingScreen.loaded) {
     if (!figuresAsked) askFigures();
     firstScreenDone();
+  }
+  // the card's portrait's shaders, once the figures it is drawn from are in (warmPortrait)
+  if (IS_SK && !portraitWarmed && !NO_RENDER && figuresIn()) {
+    portraitWarmed = true;
+    warmPortrait();
   }
   // the city's shaders built once its file is in, whatever is up (it ran from the page screen's wait alone, and past
   // that screen's time limit never ran: the first ride over the city froze on them)

@@ -534,7 +534,9 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
  */
 const MAX_FLOOR = (IS_SK && PROFILE.loot?.maxFloor) || 12;
 function standingSpots(x: number, z: number): number[] {
-  const here = RANGE_SOLIDS.filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
+  // (the boxes near, from the solid grid: over all of the Neon map's 79,000, every spot a match's loot tried was most of
+  // the battle royale's 1.4 s start, 2026-10-04; the same boxes, as the test below is the same)
+  const here = solidsIn(x - 0.3, x + 0.3, z - 0.3, z + 0.3).filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
   // a top is a floor only if it is wide enough to stand on: not a parapet, a wall's top or a stair's tread
   const floorTops = here.filter((s) => s.maxX - s.minX >= cfg.minSurface && s.maxZ - s.minZ >= cfg.minSurface).map((s) => s.top);
   // SpeedKills' buildings collide by their own triangles (tools/import-city.ts districtSolids), so a room's floor is many
@@ -578,7 +580,7 @@ function acrossTops(x: number, z: number): number[] {
  */
 function underHole(x: number, z: number, y: number): number {
   if (y !== 0 || worldFloor(x, z) >= 0) return y;
-  const under = RANGE_SOLIDS.filter((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && s.top < 0.05);
+  const under = solidsIn(x, x, z, z).filter((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && s.top < 0.05);
   if (under.some((s) => Math.abs(s.top) < 0.05)) return y;
   return under.reduce((a, s) => Math.max(a, s.top), worldFloor(x, z));
 }
@@ -1002,7 +1004,7 @@ export class LootField {
         else {
           // (its own floor's boxes under the spot and a standing body's room over it: the tower's floors are halls,
           // which standingSpots leaves to the halls' own loot below)
-          const here = RANGE_SOLIDS.filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
+          const here = solidsIn(x - 0.3, x + 0.3, z - 0.3, z + 0.3).filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
           const floor = here.find((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && Math.abs(s.top - floorY) < 0.3);
           if (floor && !here.some((s) => s.base < floor.top + 1.9 - 1e-4 && s.top > floor.top + 0.05)) spots.push(new THREE.Vector3(x, floor.top + 0.01, z));
         }
@@ -1031,7 +1033,7 @@ export class LootField {
       for (let tries = 0; spots.length < M.perSide && tries < M.perSide * 20; tries++) {
         const x = f.minX + 1.5 + metroRnd() * (f.maxX - f.minX - 3);
         const z = f.minZ + 1.5 + metroRnd() * (f.maxZ - f.minZ - 3);
-        const blocked = RANGE_SOLIDS.some((s) => x > s.minX - 1 && x < s.maxX + 1 && z > s.minZ - 1 && z < s.maxZ + 1 && s.base < f.y + 1.9 && s.top > f.y + 0.05);
+        const blocked = solidsIn(x - 1, x + 1, z - 1, z + 1).some((s) => x > s.minX - 1 && x < s.maxX + 1 && z > s.minZ - 1 && z < s.maxZ + 1 && s.base < f.y + 1.9 && s.top > f.y + 0.05);
         if (!blocked) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
       }
       for (const s of spots) for (const item of rollSpot(metroRnd, M.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((metroRnd() - 0.5) * 0.8, 0, (metroRnd() - 0.5) * 0.8)));
@@ -1042,13 +1044,13 @@ export class LootField {
     const hallRnd = seeded((seed ^ 0x4a11f10a) >>> 0);
     // (with a floor under the spot: a hall need not be floored all over, the Neon tower's floors stop at the grooves down
     // its faces; the old city's halls are floored wall to wall and draw what they drew)
-    const floored = (x: number, z: number, y: number) => Math.abs(worldFloor(x, z) - y) < 0.15 || RANGE_SOLIDS.some((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && Math.abs(s.top - y) < 0.15);
+    const floored = (x: number, z: number, y: number) => Math.abs(worldFloor(x, z) - y) < 0.15 || solidsIn(x, x, z, z).some((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && Math.abs(s.top - y) < 0.15);
     for (const f of HALL_FLOORS) {
       const spots: THREE.Vector3[] = [];
       for (let tries = 0; spots.length < Hl.perHall && tries < Hl.perHall * 20; tries++) {
         const x = f.minX + 1.5 + hallRnd() * (f.maxX - f.minX - 3);
         const z = f.minZ + 1.5 + hallRnd() * (f.maxZ - f.minZ - 3);
-        const blocked = RANGE_SOLIDS.some((s) => x > s.minX - 1 && x < s.maxX + 1 && z > s.minZ - 1 && z < s.maxZ + 1 && s.base < f.y + 1.9 && s.top > f.y + 0.05);
+        const blocked = solidsIn(x - 1, x + 1, z - 1, z + 1).some((s) => x > s.minX - 1 && x < s.maxX + 1 && z > s.minZ - 1 && z < s.maxZ + 1 && s.base < f.y + 1.9 && s.top > f.y + 0.05);
         if (!blocked && floored(x, z, f.y)) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
       }
       for (const s of spots) for (const item of rollSpot(hallRnd, Hl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((hallRnd() - 0.5) * 0.8, 0, (hallRnd() - 0.5) * 0.8)));

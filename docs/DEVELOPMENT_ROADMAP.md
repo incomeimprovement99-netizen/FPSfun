@@ -10592,3 +10592,35 @@ west deck's cut-off lobe, a corner block's roof (its fire escape is a player's c
   and every street node has it (failing with THE TOWER's zone back in the tower's middle, 21.2 m off). The e2e
   `speedkills` section on the Neon City: its capture-zone bot now takes the graph's way to it (seven steps along); on the
   old city the section passes whole. verify and rules.
+
+## Milestone 469 — A battle royale's start: the loot's spots off the solid grid, the card's portrait built ahead, the warms' page error
+
+The bug hunt (tools/hunt.ts) on the Neon City found a battle royale's start freezing a frame for 1.16 s, with no
+shader, texture or geometry new on it. The start's profile (Start to aboard, the dev server) put 1.36 s in the match's
+constructor, BrMatch, and 0.72 s more in the card's portrait:
+
+- **The floor loot's spots: 0.71 s.** For every spot it tried, laying the floor's loot (loot.ts generate, standingSpots)
+  filtered all of the Neon map's 79,000 collision boxes for the few round it, and a landing spot's search
+  (brmatch.ts openGround, clearGround, overHole) did the same for up to 640 tries each. They ask the solid grid for the
+  boxes near now (solidgrid.ts solidsIn, as movement, rounds and bots already did) and test those exactly as before:
+  the grid hands back every box that may overlap, so the boxes that pass are the same.
+- **The card's portrait: 0.6 s.** It is drawn in the Loadouts panel's renderer, a second WebGL context, which built the
+  soldier's shaders the moment the card first drew it. They are built ahead now, off the page's thread, once the
+  figures are in (main.ts warmPortrait: the figure posed with the card's gun, compileAsync).
+- **And a page error on every warm.** three's compileAsync builds the shaders and asks each material every 10 ms
+  whether its program is ready; a material disposed meanwhile (a figure rebuilt, the Neon map's stand-in floor gone as
+  the city drew, a reflection's material swapped) had none, and the question threw in three's own timer, past any
+  .catch: "Cannot read properties of undefined (reading 'isReady')", in the e2e on the Neon map (the city agent's runs
+  and this one's). compilesafe.ts compileSafely asks the same of what is still there and lets the rest go; every warm
+  uses it (the pipeline's, the Neon reflection's, the killcam's figures and gun, the card's portrait).
+- **Measured:** laying five seeds' loot (node, the Neon map) 5.84 s before, 0.96 s after. The start in the page: BrMatch
+  1.36 s to 0.42 s (its loot 0.71 s to 0.03 s); the portrait 0.72 s to 0.35 s with Start pressed the moment the page is
+  up (the figures arrive as the card wants them, so its warm has only begun; a player in the menu a while gets all of
+  it); the start's longest frame 1.36 s to 0.63 s.
+- **The same, proven:** five seeds' loot byte for byte the same before and after, on the Neon map (1,206 to 1,241 items
+  each, every kind, rarity and position) and the legacy one (965 to 1,007); the four box tests changed (the
+  landing's, the clear ground's, a spot's floors, a point's floor) against the whole list on 200,000 random points over
+  the map: 0 differences.
+- **Left:** the Neon bots' graph, built on the match's first use of it (0.26 to 0.37 s), the city agent's to take.
+- **Checked:** tsc; verify; rules; the br, loot, speedkills, skship and sklobby e2e, and speedkills on the Neon map
+  (E2E_MAP=neon) with no page error.

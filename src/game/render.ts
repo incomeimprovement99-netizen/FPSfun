@@ -28,6 +28,7 @@ import type { Quality } from "./quality";
 import { slow } from "./slow";
 import { cacheArrayUniforms } from "./uniformcache";
 import { programReps } from "./programreps";
+import { compileSafely } from "./compilesafe";
 
 
 /**
@@ -289,7 +290,7 @@ export class Renderer {
     const was = this.renderer.getRenderTarget();
     try {
       this.renderer.setRenderTarget(this.composer ? this.composer.readBuffer : null);
-      return this.renderer.compileAsync(programReps(root), this.camera, targetScene);
+      return compileSafely(this.renderer, programReps(root), this.camera, targetScene);
     } finally {
       this.renderer.setRenderTarget(was);
     }

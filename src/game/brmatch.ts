@@ -82,7 +82,7 @@ import { weaponLabel } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
 import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, WIRE_TIERS, type BotKit, type BotTier } from "./bots";
 import botsCfg from "../config/bots.json";
-import { RANGE_SOLIDS } from "./range";
+import { solidsIn } from "./solidgrid";
 import { floorAt } from "./floors";
 /**
  * The nearest point to (x, z) where a body stands clear of every box at body
@@ -105,7 +105,7 @@ function overHole(px: number, pz: number): boolean {
   ]) {
     const x = px + ox;
     const z = pz + oz;
-    if (floorAt(x, z) < -0.05 && !RANGE_SOLIDS.some((s) => Math.abs(s.top) < 0.05 && x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ)) return true;
+    if (floorAt(x, z) < -0.05 && !solidsIn(x, x, z, z).some((s) => Math.abs(s.top) < 0.05 && x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ)) return true;
   }
   return false;
 }
@@ -113,7 +113,7 @@ function overHole(px: number, pz: number): boolean {
 function clearGround(x: number, z: number): { x: number; z: number } {
   const pad = 0.7;
   const blocked = (px: number, pz: number): boolean =>
-    overHole(px, pz) || RANGE_SOLIDS.some((s) => s.base < 1.8 && s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
+    overHole(px, pz) || solidsIn(px - pad, px + pad, pz - pad, pz + pad).some((s) => s.base < 1.8 && s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
   if (!blocked(x, z)) return { x, z };
   for (let r = 1; r <= 40; r += 1) {
     for (let k = 0; k < 16; k++) {
@@ -133,7 +133,9 @@ function clearGround(x: number, z: number): { x: number; z: number } {
  */
 function openGround(x: number, z: number): { x: number; z: number } {
   const pad = 0.7;
-  const covered = (px: number, pz: number): boolean => overHole(px, pz) || RANGE_SOLIDS.some((s) => s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
+  // (the boxes near, from the solid grid: up to 640 tries a landing over all of the Neon map's 79,000 boxes was a third of
+  // a second of the battle royale's start, 2026-10-04; the same boxes, as the test is the same)
+  const covered = (px: number, pz: number): boolean => overHole(px, pz) || solidsIn(px - pad, px + pad, pz - pad, pz + pad).some((s) => s.top > 0.56 && px > s.minX - pad && px < s.maxX + pad && pz > s.minZ - pad && pz < s.maxZ + pad);
   if (!covered(x, z)) return { x, z };
   for (let r = 1; r <= 40; r += 1) {
     for (let k = 0; k < 16; k++) {
