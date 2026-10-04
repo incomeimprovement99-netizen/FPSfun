@@ -312,10 +312,15 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 
 ### 5.6 APUHTHEE (wingman, SciFiPistol02_2) and STRYDER (autopistol, SciFiPistol01_2), the pistols
 
-- **Models:** Pistol02: Clip, Slide; 25 cm. Pistol01: Button, Clip, Trigger, and **no Slide**. Measured 2026-10-02
-  (APUHTHEE, cm from the trigger): the Slide the whole top, 23 cm; the **magazine (Clip) is a block under the barrel,
-  ahead of the trigger** (0 to 8 in front, 7 to 19 under the bore), not in the grip: the reload's hand goes under the
-  barrel, in front of the left hand's grip.
+- **Models:** Pistol02: Scope (a red dot), Clip, Slide, Trigger; 25 cm. Pistol01: Button, Clip, Trigger, and **no
+  Slide**. Measured again 2026-10-04 the right way round (Milestone 464: the 2026-10-02 reading was off the gun mounted
+  backwards, and had the magazine under the barrel), cm in the held gun's frame: the Slide the whole top, -5.8 to 17.5;
+  the red dot on it, 5.1 to 9.8; the Trigger 8.6 to 11, 7 to 9 under the bore, its guard's opening in front of it; the
+  **magazine (Clip) in the handle**, 10.7 to 19.2 and 7 to 19 under the bore, raked back. **The pack's origin is
+  mid-slide, not at the handle** as on the long guns: the gun's named grip point (0, -7, 6.4) is in the slide ahead of
+  the guard, about 8 cm from the handle, so the hands are placed from it by their own `at` (the hold points are the
+  palms' own targets, not the grip point), and the USSO's right hand carried over by the trigger lands 3 cm behind the
+  handle (a rifle's grip is raked back, a pistol's handle nearly upright): the right hand is searched, not carried.
 - **Work:** the pistol stance (G6). Its places are the figure's own, measured off the soldier as the punch's were (the
   shoulders, the arm's length, the eye): aimed, both arms out and the sight on the eye's line; at the hip, a low ready;
   lowered for the sprint and the swap as the first person's; crouched. The look turns the arms about the shoulders,
@@ -333,6 +338,45 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 - **Checks:** the recipe's on both, plus: no hand into the other (G7's bar, set by the fit), the sight within reach of
   the eye's line aimed, the magazine leaving the grip's bottom, the slide (APUHTHEE) going back on a reload from empty,
   and B00G FPS's figure still on its clips with a pistol.
+
+- **APUHTHEE done on the soldier, 2026-10-04** (soldierhold.json guns.wingman, `stance` "pistol"): every skfigure check
+  passes for it.
+  - **Turned the right way round first** (Milestone 464): the pack's second pistol had been mounted backwards in both
+    views, the measuring tool choosing its back as the muzzle by 2 mm.
+  - **G6, the stance:** rifle.ts pistolStance sends the soldier's pistol to the rifleman's rig (mannequin.ts setGun),
+    the legacy game's figures keeping the clips' one-handed hold. Its numbers: the gun out in front of the chest at
+    rest (`pocket`), aimed at **0.36 m from the eye** (`aim.relief`), the chest turned 10 degrees. Measured: at 0.45 the
+    right arm was straight (173 degrees) with the palm 7.4 cm short of its target, and at 0.40 still 2.5 short; at 0.36
+    it reaches with the elbow at 169, the two-handed stance's nearly straight arms.
+  - **The right hand** searched on the handle (the USSO's carried over by the trigger lands 3 cm behind it): the index's
+    crease on the trigger (0.1 mm), the fingers round the handle's front, the thumb high along the left side, the wrist
+    9 degrees. Until the arm reached, every place tried left the index 10 to 26 mm off the trigger: the search had fitted
+    a hand the arm never got to.
+  - **G7, hand on hand** (figure-audit.js `handOnHand`, `handOnHandN`, `handOnHandWhere`, `handGap`): the left hand's skin
+    in the right's, against the right hand and forearm as drawn (the rays agree point for point; 0 on every long gun and
+    with the hand moved clear). A depth alone is at most half a hand's thickness however far one goes through the
+    other (a hand 2 cm in read 16 mm), so how much is in, its skin points 4 mm or more, is the measure that grows. The
+    hold checks hold it to 8 mm and 5 points, set by the fit (5 mm at one point); the left hand put 1 cm into the right
+    reads 10 mm and 9 to 12 points, 2 cm 23 to 52.
+  - **G8, the left round the right** (figure-fit.ts): the left palm seats onto the right hand's fingers as onto the gun,
+    each left finger closes until it touches either, its skin in the right hand costs as in the gun (by the count too),
+    and on a pistol a straight left finger counts as open, as a right one does. The first fits, which knew only the
+    gun, put the left palm under the right fingers with the left middle and ring curled through them (72 skin points
+    in) or left the index and middle straight out under the slide. Searched from the fingers pointing down and forward:
+    the palm on the right fingers and the handle's left side, the middle, ring and pinky round them, the wrist 35
+    degrees; the index curled as the ring is and the thumb laid forward along the frame under the slide (its tip at the
+    guard's front), each measured against the gun and the right hand and photographed (the fit had left the index
+    straight and the thumb standing up the slide's side).
+  - **The carries solved** from the shared ones with the fitted left hand: lowered (down 32, left 11; it had taken a long
+    gun's left hand under a fore-end, 18 mm into the pistol in a swap), the swap's (the left wrist 65 degrees to 43), the
+    air's (81 to 43) and the rise's arc.
+  - **The left hand does not slide at a sprint:** a long gun's support hand slides back along the gun toward the grip
+    when the arm cannot reach; on a pistol it is at the grip already, and the slide pushed it 4 cm across into the gun
+    (17 mm in). mannequin.ts supportHold leaves a pistol's hold where it is.
+  - **The fit tool knows when a hand cannot reach:** figure-fit.ts adds a palm's distance from its target past 1 cm to
+    its cost and reports it.
+  - **Passed as they were:** the punch, the throw, the reload (the magazine down out of the handle's bottom and back,
+    the left hand pointing at it, until the first person's pistol moves are made), the Loadouts tab.
 
 ### 5.7 HAEFY (a new launcher), SciFiRocketLauncher01_2, about 1.1 m
 

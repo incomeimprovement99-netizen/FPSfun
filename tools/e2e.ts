@@ -8134,17 +8134,30 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // looking 35 degrees up): tools/figure-frames.ts's sheets hold the finer bar, 6 and 15, still to reach.
   // A hand is on its hold, too: its palm and the fingers that close round it touching the gun, `off` mm at most (a hand
   // kept out of the gun and splayed beside it measured perfect by depth alone).
-  const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40, off: 8 };
+  // (handOnHand, handOnHandN: how deep the left hand's skin is in the right's, mm, and how much of it, its skin points 4 mm
+  // or more in, where a pistol holds both on one grip: G7, figure-audit.js. A depth is at most half a hand's thickness
+  // however far one goes through the other, so the count is the measure that grows. Set by APUHTHEE's fit, 5 mm at one
+  // point; the left hand put 1 cm into the right reads 10 mm and 9 to 12 points, 2 cm 23 to 52)
+  const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40, off: 8, handOnHand: 8, handOnHandN: 5 };
   // Every gun the soldier is fitted to hold (soldierhold.json guns, in the roster's order: docs/PLAN_SOLDIER_EIGHT_GUNS.md
   // G2): each is held to every check below, so a gun joins them by its fit alone, and none is forgotten for it
   const ROSTER = skCfg.roster as string[];
-  const FITTED = Object.keys(soldierHoldCfg.guns).filter((k) => !k.startsWith("_")).sort((a, b) => ROSTER.indexOf(a) - ROSTER.indexOf(b));
+  // (FIGURE_GUNS=wingman,lstar runs these checks on those guns alone: a new gun's fit without every fitted gun's run)
+  const FIGURE_GUNS = (process.env.FIGURE_GUNS ?? "").split(",").filter(Boolean);
+  const FITTED = Object.keys(soldierHoldCfg.guns)
+    .filter((k) => !k.startsWith("_") && (!FIGURE_GUNS.length || FIGURE_GUNS.includes(k)))
+    .sort((a, b) => ROSTER.indexOf(a) - ROSTER.indexOf(b));
   const nameOf = (id: string) => (skCfg.weapons as Record<string, { name?: string }>)[id]?.name ?? id;
-  type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number> };
+  type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number>; handOnHand?: number; handOnHandN?: number; handGap?: Record<string, number> };
   const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"];
-  const on = (a: A) => Math.max(a.palmGap?.l ?? 99, a.palmGap?.r ?? 99) <= BAR.off && HOLDING.every((f) => (a.fingerGap?.[f] ?? 99) <= BAR.off);
-  const within = (a: A | null, aimed: boolean) =>
-    !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn && on(a);
+  // (the left hand round a pistol's grip holds the right hand: a left finger or palm touching it is on its hold, G8)
+  const touching = (a: A, f: string) => Math.min(a.fingerGap?.[f] ?? 99, f.endsWith("_l") ? (a.handGap?.[f] ?? 99) : 99);
+  // (on a pistol the left hand's four fingers lie over the right's three below the guard, so its pinky is past the
+  // handle's bottom, as a big hand's support pinky hangs under a magazine: APUHTHEE's 14 mm from the right pinky)
+  const holdingOf = (id: string) => ((soldierHoldCfg.guns as Record<string, { stance?: string }>)[id]?.stance === "pistol" ? HOLDING.filter((f) => f !== "pinky_l") : HOLDING);
+  const on = (a: A, id: string) => Math.max(Math.min(a.palmGap?.l ?? 99, a.handGap?.palm_l ?? 99), a.palmGap?.r ?? 99) <= BAR.off && holdingOf(id).every((f) => touching(a, f) <= BAR.off);
+  const within = (a: A | null, aimed: boolean, id: string) =>
+    !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn && (a.handOnHand ?? 0) <= BAR.handOnHand && (a.handOnHandN ?? 0) <= BAR.handOnHandN && on(a, id);
   for (const id of FITTED) {
     const name = nameOf(id);
     await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, -9); r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "${id}", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.9); })()`);
@@ -8156,7 +8169,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     ];
     for (const [label, p] of poses) {
       const a = await ev<A | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(0.3); return window.__figureAudit(0, { pitch: ${p.pitch} }); })()`);
-      check(`the soldier holding ${name}, ${label}: both palms on their holds and the fingers round them, the barrel along the look, the wrists straight enough, no hand in the gun and the gun not in the body`, within(a, true), JSON.stringify(a));
+      check(`the soldier holding ${name}, ${label}: both palms on their holds and the fingers round them, the barrel along the look, the wrists straight enough, no hand in the gun or the other hand and the gun not in the body`, within(a, true, id), JSON.stringify(a));
     }
     // Aimed on the move, as every bot fights and a player strafes: the left hand stays on its hold. The running clips
     // lean the chest forward, and the hold used to slide a third of the way back to the grip, the hand into the gun.
@@ -8350,7 +8363,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true }); r.figureLabStep(${R}); r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
     }
     const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
-    check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true), JSON.stringify(after));
+    check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true, id), JSON.stringify(after));
   }
   // A swap as the first person's (gunfeel.json guns.<id>.swap; the owner, 2026-09-30, "no resetting states, jumping UI or
   // bugging in any frame"): the USSO phases out over its holster, BOOG in over its draw from when it comes, the model

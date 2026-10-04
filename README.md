@@ -309,8 +309,13 @@ it.
   hands on the gun), and ANAKIN's and PANDA's long stocks run along the inside of
   the right forearm in some poses (a known overlap, being worked on). CHOOCH
   never reloads: when it overheats, others see it vent, the gun tipped up and
-  canted in both hands until it has cooled enough to fire, a bot's too. The other
-  three are held by the shared numbers until their turn.
+  canted in both hands until it has cooled enough to fire, a bot's too. APUHTHEE,
+  the heavy pistol, is held as a pistol is: out in front in both hands, the left
+  wrapped round the right with its thumb forward along the frame, the trigger
+  finger on the trigger, and raised to the eye with the arms nearly straight when
+  aiming; its reload is the magazine alone, down out of the handle and back, until
+  the first person's pistol moves are made. The other two are held by the shared
+  numbers until their turn.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and

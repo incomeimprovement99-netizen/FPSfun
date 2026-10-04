@@ -10624,3 +10624,37 @@ constructor, BrMatch, and 0.72 s more in the card's portrait:
 - **Left:** the Neon bots' graph, built on the match's first use of it (0.26 to 0.37 s), the city agent's to take.
 - **Checked:** tsc; verify; rules; the br, loot, speedkills, skship and sklobby e2e, and speedkills on the Neon map
   (E2E_MAP=neon) with no page error.
+
+## Milestone 472 — APUHTHEE on the soldier: the two-handed pistol stance
+
+The sixth of the eight guns on the soldier others see (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.6), and the first without a stock:
+the pistol held out in both hands and up to the eye aimed, where it had hung in the right hand on the free clips' one-handed
+hold.
+
+- **The stance (G6):** rifle.ts `pistolStance` sends a pistol marked `stance` "pistol" in soldierhold.json to the
+  rifleman's rig (mannequin.ts setGun); the legacy game's figures keep the clips' hold. APUHTHEE's numbers: out in front
+  of the chest at rest, aimed at 0.36 m from the eye, the chest turned 10 degrees. Measured: at 0.45 the right arm was
+  straight with the palm 7.4 cm short of its target; at 0.36 the elbow is at 169 degrees and the hand on its place.
+- **The hands:** the right searched on the handle, its index's crease on the trigger (0.1 mm), the fingers round the
+  handle's front, the thumb along the left side; the left round the right, its palm on the right fingers and the
+  handle's left side, its fingers wrapped over the right's, its thumb forward along the frame, the wrist 35 degrees.
+- **One hand through the other (G7):** figure-audit.js measures the left hand's skin in the right hand's: how deep
+  (`handOnHand`) and how much, its skin points 4 mm or more in (`handOnHandN`), since a depth is at most half a hand's
+  thickness however far one goes through the other. 0 on every long gun. The soldier's hold checks hold it to 8 mm and
+  5 points, set by the fit (5 mm at one point; the left hand 1 cm into the right reads 10 mm and 9 to 12 points). A left
+  finger touching the right hand counts as holding.
+- **The left hand round the right in the fit (G8):** figure-fit.ts seats the left palm on the right hand as on the gun,
+  closes each left finger onto either, costs its skin in the right hand, counts a straight left finger as open on a
+  pistol, and now costs and reports a palm short of its target. Knowing only the gun, it had curled the left middle and
+  ring through the right hand's fingers (72 skin points in); before the arm reached, it had fitted a right hand the arm
+  never got to, its index 10 to 26 mm off the trigger wherever it was tried.
+- **The carries solved** (figure-solve.ts, from the shared ones, the left hand its fitted one): the low carry for the
+  sprint (it had taken a long gun's left hand under a fore-end, 18 mm into the pistol in a swap), the swap's (the left
+  wrist 65 degrees to 43), the air's (81 to 43) and the rise's arc.
+- **No slide at a sprint:** a long gun's support hand slides back toward the grip when the arm cannot reach; a pistol's
+  is at the grip, and the slide pushed it 17 mm into the gun (the sprint check, failing until mannequin.ts supportHold
+  left a pistol's hold alone).
+- **Checked:** the skfigure e2e on APUHTHEE (`FIGURE_GUNS=wingman` runs a gun's checks alone), the punch, the throw,
+  the reload and the Loadouts tab passing as they were; verify; rules; the type check; photographs of the hands from
+  every side, the stance at rest, aimed, reloading and swapping.
+- **Next:** STRYDER onto the fast pistol (its numbers waiting on the owner), then the same stance on it.

@@ -43,9 +43,11 @@ const SHUT = [90, 100, 80];
 const FINGERS = ["index", "middle", "ring", "pinky"] as const;
 /** the fingers that close round each hold (the right index is at the trigger) */
 const HOLDING = { r: ["middle", "ring", "pinky"], l: ["index", "middle", "ring", "pinky"] } as const;
+/** the gun is held in the soldier's pistol stance (soldierhold.json guns.<id>.stance): both hands round its grip */
+const PISTOL = (JSON.parse(fs.readFileSync(path.resolve("src/config/soldierhold.json"), "utf8")).guns[process.argv[2] ?? ""]?.stance ?? "") === "pistol";
 
 type Side = "l" | "r";
-type Audit = { handWhere?: Record<string, number>; fingerGap?: Record<string, number>; palmGap?: { l: number; r: number }; wristL: number; wristR: number; thumbX: { l: number; r: number }; trigger: number | null };
+type Audit = { handWhere?: Record<string, number>; handOnHandWhere?: Record<string, number>; handOnHandN?: number; fingerGap?: Record<string, number>; palmGap?: { l: number; r: number }; handOnHand?: number; handGap?: Record<string, number>; grip?: number; support?: number; wristL: number; wristR: number; thumbX: { l: number; r: number }; trigger: number | null };
 type Hand = { at: number[]; fwd: number[]; palm: number[] };
 type Cfg = { hands: Record<Side, Hand>; fingers: Record<Side, Record<string, number[]>>; scale?: number };
 
@@ -103,10 +105,10 @@ async function main(): Promise<void> {
       );
     };
     const report = (a: Audit, label: string) =>
-      console.log(`${label}: palms off it L${a.palmGap?.l} R${a.palmGap?.r} mm, wrists ${Math.round(a.wristL)}/${Math.round(a.wristR)}, in the gun ${JSON.stringify(a.handWhere)}, fingers off it ${JSON.stringify(a.fingerGap)}`);
+      console.log(`${label}: palms off their targets L${a.support} R${a.grip} cm, palms off it L${a.palmGap?.l} R${a.palmGap?.r} mm, wrists ${Math.round(a.wristL)}/${Math.round(a.wristR)}, in the gun ${JSON.stringify(a.handWhere)}, fingers off it ${JSON.stringify(a.fingerGap)}`);
     report(await measure(), `${ID} before`);
 
-    /** the palm along the way it faces until it lies on the gun: out of it, or in onto it (at most 3 cm in, 12 mm out) */
+    /** the palm along the way it faces until it lies on the gun (or the right hand): out of it, or in onto it (at most 3 cm in, 12 mm out) */
     const seatPalm = async (side: Side): Promise<void> => {
       const H = cfg.hands[side];
       const face = norm(H.palm);
@@ -115,8 +117,11 @@ async function main(): Promise<void> {
       let last = Infinity;
       for (let i = 0; i < 10; i++) {
         const a = await measure();
-        const deep = Math.max(a.handWhere?.[`hand_${side}`] ?? 0, a.handWhere?.[`thumb_01_${side}`] ?? 0);
-        const gap = a.palmGap?.[side] ?? 0;
+        // (the left palm round a pistol's grip lies on the right hand's fingers as on the gun: seated onto the gun alone it
+        // went under them, and no left finger could curl without going through the right hand)
+        const inHand = (k: string) => (side === "l" ? (a.handOnHandWhere?.[k] ?? 0) : 0);
+        const deep = Math.max(a.handWhere?.[`hand_${side}`] ?? 0, a.handWhere?.[`thumb_01_${side}`] ?? 0, inHand("hand_l"), inHand("thumb_01_l"));
+        const gap = Math.min(a.palmGap?.[side] ?? 0, side === "l" ? (a.handGap?.palm_l ?? 30) : 30);
         const step = deep > 1 ? -(deep + 0.5) : gap > 1 ? gap - 0.5 : 0;
         if (!step) return;
         if (deep + gap >= last - 0.5) {
@@ -139,9 +144,12 @@ async function main(): Promise<void> {
       const J = cfg.fingers[side][f];
       /** joint j's greatest bend from -10 to `top` with phalanx `seg` touching and no deeper; false if it is in at -10 */
       const close = async (j: number, seg: string, top: number): Promise<boolean> => {
+        // (a left finger round a pistol's grip closes onto the right hand as onto the gun: closed by the gun alone, its
+        // middle and ring fingers curled through the right hand's)
         const depthAt = async (v: number) => {
           J[j] = v;
-          return (await measure()).handWhere?.[seg] ?? 0;
+          const a = await measure();
+          return Math.max(a.handWhere?.[seg] ?? 0, a.handOnHandWhere?.[seg] ?? 0);
         };
         if ((await depthAt(top)) <= TOUCH) return true;
         if ((await depthAt(-10)) > TOUCH) return false;
@@ -178,16 +186,28 @@ async function main(): Promise<void> {
       const inGun = Object.entries(a.handWhere ?? {}).filter(([b]) => b.endsWith(`_${side}`) && !b.startsWith("thumb"));
       const deepest = Math.max(0, ...inGun.map(([, d]) => d));
       const sum = inGun.reduce((t, [, d]) => t + d, 0);
-      const palm = a.palmGap?.[side] ?? 30;
-      const off = HOLDING[side].reduce((t, f) => t + Math.max(0, (a.fingerGap?.[`${f}_${side}`] ?? 30) - TOUCH), 0);
+      // (the left hand round a pistol's grip holds the right hand: touching it counts as touching, and its skin in the
+      // right hand is as bad as in the gun, docs/PLAN_SOLDIER_EIGHT_GUNS.md G8; a long gun's hands are apart, so this
+      // is the gun's alone there)
+      const toHand = (k: string) => (side === "l" ? (a.handGap?.[k] ?? 30) : 30);
+      const palm = Math.min(a.palmGap?.[side] ?? 30, toHand("palm_l"));
+      const off = HOLDING[side].reduce((t, f) => t + Math.max(0, Math.min(a.fingerGap?.[`${f}_${side}`] ?? 30, toHand(`${f}_l`)) - TOUCH), 0);
+      const onHand = side === "l" ? (a.handOnHand ?? 0) : 0;
+      // (how much of it is in, its skin points 4 mm or more: a depth is at most half a hand's thickness, figure-audit.js)
+      const onHandN = side === "l" ? (a.handOnHandN ?? 0) : 0;
+      // (a palm short of its target, mm: the arm cannot reach the place in this pose, so the numbers there are not where
+      // the hand is. APUHTHEE's aimed right arm was straight with the palm 7 cm short, and the search fitted the hand at
+      // the arm's end, its index 12 mm off the trigger whatever was tried)
+      const short = Math.max(0, ((side === "r" ? a.grip : a.support) ?? 0) * 10 - 10);
       // (closed round a pistol grip, a hand's fingers are curled; along the side of a fore-end or a magazine, a slab
-      // taller than they are long, they lie nearly straight, and asked to curl there they closed on the air)
-      const open = side === "l" ? 0 : HOLDING[side].reduce((t, f) => t + Math.max(0, 180 - cfg.fingers[side][f].slice(0, 3).reduce((x, y) => x + y, 0)), 0);
+      // taller than they are long, they lie nearly straight, and asked to curl there they closed on the air. A pistol's
+      // left hand is a fist round the right: left straight, its index and middle stood out under the slide)
+      const open = side === "l" && !PISTOL ? 0 : HOLDING[side].reduce((t, f) => t + Math.max(0, 180 - cfg.fingers[side][f].slice(0, 3).reduce((x, y) => x + y, 0)), 0);
       const wrist = Math.max(0, (side === "r" ? a.wristR : a.wristL) - 35);
       const th = thumbCost(a, side);
       return {
-        cost: 10 * Math.max(0, deepest - 3) + sum + 3 * palm + 2 * off + 0.1 * open + 2 * wrist + th,
-        why: `deepest ${deepest} mm, palm off ${palm} mm, fingers off ${off} mm, ${Math.round(open)} deg short of closed, wrist ${Math.round(side === "r" ? a.wristR : a.wristL)}, thumb ${th.toFixed(1)} (its last joint ${a.thumbX[side].toFixed(1)} cm across)`,
+        cost: 10 * Math.max(0, deepest - 3) + sum + 3 * palm + 2 * off + 0.1 * open + 2 * wrist + th + 10 * Math.max(0, onHand - 3) + onHand + onHandN + 5 * short,
+        why: `deepest ${deepest} mm${onHand ? `, ${onHand} mm into the right hand (${onHandN} points)` : ""}${short ? `, ${short + 10} mm short of its target` : ""}, palm off ${palm} mm, fingers off ${off} mm, ${Math.round(open)} deg short of closed, wrist ${Math.round(side === "r" ? a.wristR : a.wristL)}, thumb ${th.toFixed(1)} (its last joint ${a.thumbX[side].toFixed(1)} cm across)`,
       };
     };
     /** the four fingers closed as one along a fist's curl (SHUT times k), as far as none is deeper than touching */
@@ -199,7 +219,7 @@ async function main(): Promise<void> {
       const deep = async (k: number) => {
         set(k);
         const a = await measure();
-        return Math.max(0, ...FINGERS.flatMap((f) => [1, 2, 3].map((j) => a.handWhere?.[`${f}_0${j}_${side}`] ?? 0)));
+        return Math.max(0, ...FINGERS.flatMap((f) => [1, 2, 3].map((j) => Math.max(a.handWhere?.[`${f}_0${j}_${side}`] ?? 0, a.handOnHandWhere?.[`${f}_0${j}_${side}`] ?? 0))));
       };
       let lo = 0;
       let hi = 1;

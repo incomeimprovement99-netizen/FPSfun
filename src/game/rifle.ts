@@ -195,6 +195,16 @@ export function gunScaleOf(id: string): number {
 }
 
 /** where the soldier's left hand takes this gun, gun-local, when not where the model's own measures put it (soldierhold.json support) */
+/**
+ * A pistol the soldier holds with the rifleman's rig (soldierhold.json guns.<id>.stance "pistol"): its own numbers put the
+ * gun out in front of the chest in both hands and up to the eye aimed, so the reload, the swap's cup and the punch are
+ * the rifles' (docs/PLAN_SOLDIER_EIGHT_GUNS.md G6). A pistol without it keeps the clips' one-handed hold, as the legacy
+ * game's figures all do.
+ */
+export function pistolStance(id: string): boolean {
+  return (cfg.guns as Record<string, { stance?: string }>)[id]?.stance === "pistol";
+}
+
 export function supportOf(id: string): THREE.Vector3 | null {
   const at = (cfg.guns as Record<string, { support?: number[] }>)[id]?.support;
   return at ? new THREE.Vector3(...at) : null;

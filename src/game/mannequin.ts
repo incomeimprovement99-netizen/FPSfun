@@ -44,7 +44,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -1367,7 +1367,8 @@ export class MannequinFigure {
     });
     this.support = new THREE.Vector3(m.support.x ?? 0, m.support.u, -m.support.f);
     this.grip = new THREE.Vector3(0, m.grip.u, -m.grip.f);
-    if (m.support.kind !== "pistol" && chest) {
+    // (a pistol given the soldier's pistol stance goes the long guns' way too: the rifleman's rig holds it, rifle.ts)
+    if ((m.support.kind !== "pistol" || (this.soldier && !!this.tpl.rifle && pistolStance(id))) && chest) {
       // A long gun: its stock in the shoulder pocket, which is OUTBOARD of the
       // joint and not inboard of it, its grip below and in front. How far in
       // front is the gun's own business: a carbine needs less room behind the
@@ -1614,6 +1615,12 @@ export class MannequinFigure {
     const lo = this.bones.lowerarm_l;
     const hand = this.bones.hand_l;
     if (!up || !lo || !hand || !this.grip || !this.gun) return held;
+    // (a pistol's left hand is on the grip already, round the right: slid toward the grip it went 4 cm across into the
+    // gun at a sprint, 17 mm in, and the reach was judged to the support point, 7 cm ahead of where its palm goes)
+    if (this.rifle && this.gunId && pistolStance(this.gunId)) {
+      this.supportSlide = 0;
+      return held;
+    }
     this.root.updateMatrixWorld(true);
     const shoulder = up.getWorldPosition(v1);
     // (the soldier's rifle hold reaches further with the shoulder brought forward, rifle.ts reachWithShoulder)

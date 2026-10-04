@@ -21,6 +21,16 @@
 //   2026-09-30: "the trigger finger should be more through the hold and still touching the trigger. right now its like
 //   the very finger tip is the only thing that can press the trigger". To the trigger's front face (the bought model's
 //   own part, a mesh named Trigger), sampled over the face's triangles, anywhere on it. null for a gun with no trigger
+// - handOnHand: how deep any skin of the left hand is inside the right hand, mm, by handIn's rule against the right
+//   hand's skin as drawn, its forearm's with it so the mesh's open end is at the elbow, not by the left hand. A pistol
+//   is held in both hands on one grip, the left round the right (docs/PLAN_SOLDIER_EIGHT_GUNS.md G7), and nothing
+//   else measures one hand through the other: handIn sees only the gun. With opts.locate, handOnHandAt: the left
+//   bone it is deepest at. handGap: each left finger's (and palm_l, the palm's) nearest skin to the right hand, mm (0
+//   touching or in, 30 at most), as fingerGap is to the gun: round a pistol's grip the left fingers hold the right
+//   hand's, and the gun under them is out of their reach. handOnHandN: how many of the left hand's skin points (every
+//   second) are more than 4 mm in: a depth alone is at most half a hand's thickness however far one goes through the
+//   other (a hand 2 cm into the other read 16 mm, as a heel pressed round a grip does), so how much is in is the
+//   measure. handOnHandWhere: each left bone's deepest skin in the right hand, mm, as handWhere is in the gun
 // Never the real mouse or keyboard: it only reads the scene.
 (() => {
   const HAND = /^(hand|index|middle|ring|pinky|thumb)(_\d+)?_([lr])$/;
@@ -184,6 +194,7 @@
    * never near the legs, and skinning all of a soldier's vertices every frame was most of what a measure cost.
    */
   const LEGS = /^(pelvis|thigh|calf|foot|ball|ik_)/;
+  const RIGHT_ARM = /^(hand|index|middle|ring|pinky|thumb|lowerarm)(_twist)?(_\d+)*_r$/;
   const upper = new Map();
   function upperOf(sk) {
     let u = upper.get(sk.geometry.uuid);
@@ -196,6 +207,9 @@
     const keep = [];
     /** the hands' own vertices, for a measure of the hands alone (a hand's fit tries thousands of grasps) */
     const hands = [];
+    /** the right hand and forearm's vertices, their triangles (corner indices), and the left hand's: handOnHand's */
+    const rArm = [];
+    const lHand = [];
     for (let k = 0; k < n; k++) {
       let bi = si.getX(k);
       let bw = sw.getX(k);
@@ -207,8 +221,18 @@
       boneOf[k] = bones[bi] ? bones[bi].name : "";
       if (!LEGS.test(boneOf[k])) keep.push(k);
       if (HAND.test(boneOf[k])) hands.push(k);
+      if (RIGHT_ARM.test(boneOf[k])) rArm.push(k);
+      if (HAND.test(boneOf[k]) && boneOf[k].endsWith("_l")) lHand.push(k);
     }
-    upper.set(sk.geometry.uuid, (u = { boneOf, keep, hands }));
+    const inR = new Uint8Array(n);
+    for (const k of rArm) inR[k] = 1;
+    const idx = sk.geometry.index;
+    const rTris = [];
+    for (let t = 0; t < (idx ? idx.count : n); t += 3) {
+      const a = idx ? idx.getX(t) : t, b = idx ? idx.getX(t + 1) : t + 1, c = idx ? idx.getX(t + 2) : t + 2;
+      if (inR[a] && inR[b] && inR[c]) rTris.push(a, b, c);
+    }
+    upper.set(sk.geometry.uuid, (u = { boneOf, keep, hands, rArm, lHand, rTris }));
     return u;
   }
 
@@ -282,6 +306,8 @@
       if (o.isSkinnedMesh && shown(o) && !o.userData.hull) skins.push(o);
     });
     const handIn = { l: 0, r: 0 };
+    const rHandTris = [];
+    const lHandPts = [];
     const where = {};
     // each finger's nearest skin to the gun, mm (outside it; 0 touching or in): a finger meant to hold the gun and 2 cm
     // off it is a hand held open beside the gun, which a measure of depth alone would call perfect
@@ -299,7 +325,7 @@
     const v = V();
     for (const sk of skins) {
       const pos = sk.geometry.getAttribute("position");
-      const { boneOf, keep, hands } = upperOf(sk);
+      const { boneOf, keep, hands, rArm, lHand, rTris } = upperOf(sk);
       // a leg's vertex is never skinned: it stays at the far corner of the world, outside every box
       const world = new Float32Array(pos.count * 3).fill(1e9);
       for (const k of opts.handsOnly ? hands : keep) {
@@ -309,6 +335,17 @@
         world[k * 3 + 1] = v.y;
         world[k * 3 + 2] = v.z;
       }
+      // (a hand's fit skins the hands alone: the right forearm too, for handOnHand)
+      if (opts.handsOnly)
+        for (const k of rArm) {
+          sk.getVertexPosition(k, v);
+          v.applyMatrix4(sk.matrixWorld);
+          world[k * 3] = v.x;
+          world[k * 3 + 1] = v.y;
+          world[k * 3 + 2] = v.z;
+        }
+      for (const k of rTris) rHandTris.push(world[k * 3], world[k * 3 + 1], world[k * 3 + 2]);
+      for (const k of lHand) if (!(k % 2)) lHandPts.push([world[k * 3], world[k * 3 + 1], world[k * 3 + 2], boneOf[k]]);
       // the hands' skin into the gun (every second point)
       for (const k of hands) {
         if (k % 2) continue;
@@ -368,6 +405,37 @@
       }
     }
     out.handIn = { l: Math.round(handIn.l * 1000), r: Math.round(handIn.r * 1000) };
+    // the left hand into the right (only where the two come within reach of each other: a long gun's hands are apart)
+    let hoh = 0;
+    let hohN = 0;
+    const handGap = {};
+    const handOnHandWhere = {};
+    out.handOnHandWhere = handOnHandWhere;
+    out.handGap = handGap;
+    if (rHandTris.length && lHandPts.length) {
+      const rb = new T.Box3();
+      for (let t = 0; t < rHandTris.length; t += 3) rb.expandByPoint(v.set(rHandTris[t], rHandTris[t + 1], rHandTris[t + 2]));
+      const near = lHandPts.filter((p) => rb.containsPoint(v.set(p[0], p[1], p[2])));
+      if (near.length) {
+        const hg = gridOf(Float32Array.from(rHandTris), 0.02);
+        const reach = { d: 0 };
+        for (const p of near) {
+          const d = depthIn(hg, p, 0.03, 1, null, reach);
+          const fm = FINGER.exec(p[3]);
+          const key = fm ? `${fm[1]}_l` : p[3] === "hand_l" ? "palm_l" : null;
+          const gap = d > 0 ? 0 : Math.min(30, Math.round(reach.d * 1000));
+          if (key && (!(key in handGap) || gap < handGap[key])) handGap[key] = gap;
+          if (d > 0.004) hohN++;
+          if (d > 0.002) handOnHandWhere[p[3]] = Math.max(handOnHandWhere[p[3]] ?? 0, Math.round(d * 1000));
+          if (d > hoh) {
+            hoh = d;
+            if (opts.locate) out.handOnHandAt = p[3];
+          }
+        }
+      }
+    }
+    out.handOnHand = Math.round(hoh * 1000);
+    out.handOnHandN = hohN;
     out.fingerGap = fingerGap;
     out.palmGap = palmGap;
     out.handWhere = where;
