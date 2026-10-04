@@ -9994,3 +9994,30 @@ busy machine, the bar standing still, with frozen frames of 0.5 to 1.4 s in it. 
   speedkills e2e on the suite's map. On the Neon City (E2E_MAP=neon) the speedkills section's checks of the city before
   it fail as they must (its pads, its blocks), and sk order's card comes at about 60 s with or without this change: the
   sections are moved to the Neon City with the legacy game's removal.
+
+### Milestone 442's hotfix (2bf8030) — a match on the city loads again
+
+442 put the city's geometry decoding on MeshoptDecoder's workers. The decoder writes their script as
+`self.onmessage = workerProcess` beside its own functions' source, and the public build renames those functions: the
+workers died on their first message and the city's geometry never came back, so every match on the Neon City stuck at
+UNPACKING THE CITY 638 OF 638 until the screen's 180 s limit and then went on without the city (the owner, 2026-10-03:
+"we can't load in to a battle royale game"; reproduced on the live site). 442 had been measured on the dev build, which
+does not rename them, and the deploy's live check does not load the city. The decoder works on the page's thread again;
+the textures' extra workers, the counts on the screen and the warm a slice a frame stay. A production build (vite
+preview) loads the city to the ship: in at 9.5 s, aboard at 13.9 s. From now on a change to how files load is run from
+Start to the ship on a production build before it ships.
+
+## Milestone 444 — As many tips down the battle royale card's side as the column holds
+
+The owner, 2026-10-03: the tips on the right of the battle royale's loading screen "stops the tips at only 4, but we
+are showing more than that. allow it to go further down than just 4, we want as many things for them to read as
+possible, especially if new".
+
+- **Tips:** the card comes up with four (hud.json brCard.tipsShown), then one more a frame for as long as the next fits
+  down the side, the one that does not taken back (src/ui/loading.ts turnCardTip): nine at 1920 by 1080, more on a
+  taller window, all twelve where the screen scrolls (a narrow window). Every five seconds the oldest makes way for the
+  next as before, and a longer one takes as many off the top as it needs.
+- **The name on the card** broke in two ("STEELLURCHER6" over "4"): it stays on its one line and its size comes down
+  until it fits.
+- **Checked:** the loading screen photographed at 1920 by 1080 (nine tips to the card's foot, the name on one line);
+  verify; rules; the sklobby e2e.

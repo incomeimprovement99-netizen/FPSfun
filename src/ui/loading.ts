@@ -248,6 +248,15 @@ export class LoadingScreen {
     };
     put("pcTitle", card.title);
     put("pcName", card.name);
+    // a long name on its one line, smaller, not broken in two ("STEELLURCHER6" over "4", 2026-10-03): its size taken
+    // down until it fits, once it is laid out
+    requestAnimationFrame(() => {
+      const e = get("pcName");
+      if (!e || this.card !== card || e.clientWidth === 0) return;
+      e.style.fontSize = "";
+      let px = parseFloat(getComputedStyle(e).fontSize);
+      while (e.scrollWidth > e.clientWidth && px > 18) e.style.fontSize = `${(px -= 2)}px`;
+    });
     put("pcLevel", `LV ${card.level}`);
     put("pcLook", card.look);
     put("pcMatch", card.match);
@@ -292,6 +301,7 @@ export class LoadingScreen {
     );
     this.cardTipNext = from + n;
     this.cardTipAt = performance.now();
+    this.cardTipsFull = false;
     const canvas = get("pcFig") as HTMLCanvasElement | null;
     if (canvas && card.portrait) {
       const draw = card.portrait;
@@ -312,16 +322,35 @@ export class LoadingScreen {
     return this.card ? performance.now() / 1000 - this.cardAt : Infinity;
   }
 
-  /** every brCard.tipSeconds the oldest tip on the card makes way for the next, at the bottom */
+  /** the tips' column holds no more: it is filled, and from then on turned */
+  private cardTipsFull = false;
+
+  /**
+   * The tips down the card's side: as many as the column holds, one more a frame while the next fits (the owner,
+   * 2026-10-03: four "but we are showing more than that ... we want as many things for them to read as possible,
+   * especially if new"), the one that does not taken back; then every brCard.tipSeconds the oldest makes way for the
+   * next, at the bottom, and a longer one takes as many off the top as it needs.
+   */
   private turnCardTip(): void {
     const card = this.card;
     const box = document.getElementById("ltips");
     if (!card || !box || card.tips.length <= box.childElementCount) return;
+    const over = (): boolean => box.scrollHeight > box.clientHeight + 1;
+    if (!this.cardTipsFull && box.clientHeight > 0) {
+      const next = this.tipCard(card.tips[this.cardTipNext % card.tips.length]);
+      box.append(next);
+      if (over()) {
+        next.remove();
+        this.cardTipsFull = true;
+      } else this.cardTipNext++;
+      return;
+    }
     const now = performance.now();
     if (now - this.cardTipAt < CFG.brCard.tipSeconds * 1000) return;
     this.cardTipAt = now;
     box.firstElementChild?.remove();
     box.append(this.tipCard(card.tips[this.cardTipNext++ % card.tips.length]));
+    while (over() && box.childElementCount > 1) box.firstElementChild?.remove();
   }
 
   /**
