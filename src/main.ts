@@ -5759,7 +5759,8 @@ let hostBr: BrWelcome | null = null;
 /** the host's settings (abilities on or off), fixed at Create, in every guest's welcome */
 let hostOpts: MatchOpts | null = null;
 
-/** a friend's match: the host on its first guest, or a guest on the host's welcome (`br`: a battle royale squad) */
+/** the city's boxes were asked for and the ask is over, in or not (boxesFirst) */
+let boxesTried = false;
 /**
  * A match on the Neon City builds its bots' way about it from the city's collision boxes (neonmap.ts: the graph, made
  * on first use and kept). The boxes come after the page's first screen (Milestone 445), so a match started before they
@@ -5767,14 +5768,42 @@ let hostOpts: MatchOpts | null = null;
  * stand off its circle and its player walk out of it (2026-10-04). The start waits for them instead, a moment at most,
  * and starts once they are in; true when it may start now.
  */
-function boxesFirst(start: () => void): boolean {
-  if (!NEON || neonSolidsIn()) return true;
-  void loadNeonSolids().then(start);
+function boxesFirst(start: () => void, link?: Link): boolean {
+  if (!NEON || neonSolidsIn() || boxesTried) return true;
+  // A friend's match on the other end is already running, and counts this one gone after 10 s of silence (duel.ts
+  // SILENCE_LIMIT): a busy machine's host waited longer than that, said nothing, and its friend was told it had left
+  // (the live check, 2026-10-04). So the link is pinged as a match pings it, and what comes in on it is kept for the match.
+  const held: NetMsg[] = [];
+  let gone = false;
+  let ping: ReturnType<typeof setInterval> | undefined;
+  const closed = link?.onClose ?? null;
+  if (link) {
+    link.onMessage = (m) => void held.push(m);
+    link.onClose = () => {
+      gone = true;
+      closed?.();
+    };
+    ping = setInterval(() => link.send({ t: "ping", at: performance.now() }), 1000);
+  }
+  // a file that never came is no reason never to start: it starts without them, as before Milestone 445
+  void loadNeonSolids()
+    .catch(() => undefined)
+    .then(() => {
+      boxesTried = true;
+      clearInterval(ping);
+      if (!link) return start();
+      if (gone) return;
+      link.onMessage = null;
+      link.onClose = closed;
+      start();
+      for (const m of held) link.onMessage?.(m);
+    });
   return false;
 }
 
+/** a friend's match: the host on its first guest, or a guest on the host's welcome (`br`: a battle royale squad) */
 function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: BrWelcome, opts?: MatchOpts): void {
-  if (!boxesFirst(() => startDuel(link, players, myId, guestId, br, opts))) return;
+  if (!boxesFirst(() => startDuel(link, players, myId, guestId, br, opts), link)) return;
   // the range together: a friend who opens the invite while the group is in it comes in there
   if (hangout && myId === 0 && hangout.role === "host") {
     hangout.addGuest(link, guestId);

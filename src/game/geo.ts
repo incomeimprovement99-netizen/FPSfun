@@ -93,6 +93,54 @@ export function emissive(color: number, intensity = 2.2): THREE.MeshStandardMate
 const bevelCache = new Map<string, THREE.BufferGeometry>();
 
 /**
+ * Which of a 2-segment rounded box's 900 vertices are one (the same place, normal and texture coordinate), worked out
+ * once: the box comes in the same layout at every size, so the same ones meet. mergeVertices worked it out again for
+ * every size by hashing every vertex, 85% of a bevel's cost and most of the courses' build before the page's first
+ * screen (490 ms of 574 for 300 sizes, 2026-10-04). Each box is held to it (every vertex equal to the one it is merged
+ * into); one that is not goes to mergeVertices, as before.
+ */
+let bevelPlan: { of: Int32Array; keep: Int32Array; index: Uint32Array } | null = null;
+function indexBevel(g: THREE.BufferGeometry): THREE.BufferGeometry {
+  const names = Object.keys(g.attributes);
+  const n = g.attributes.position.count;
+  if (!bevelPlan || bevelPlan.of.length !== n) {
+    // worked out on a box of no special size (one whose sides or radius line up would have more vertices meet, and
+    // hold every other box to that): a vertex is one with the first before it equal in every attribute (to 1e-4, as
+    // mergeVertices rounds)
+    const ref = new RoundedBoxGeometry(1.37, 0.91, 0.63, 2, 0.035);
+    const of = new Int32Array(n);
+    const keep: number[] = [];
+    const seen = new Map<string, number>();
+    for (let i = 0; i < n; i++) {
+      const key = names.map((k) => Array.from((ref.attributes[k].array as Float32Array).subarray(i * ref.attributes[k].itemSize, (i + 1) * ref.attributes[k].itemSize), (v) => Math.round(v * 1e4)).join(",")).join("|");
+      let k = seen.get(key);
+      if (k === undefined) seen.set(key, (k = keep.push(i) - 1));
+      of[i] = k;
+    }
+    bevelPlan = { of, keep: Int32Array.from(keep), index: Uint32Array.from(of) };
+  }
+  const { of, keep, index } = bevelPlan;
+  // held to it: every vertex the one it is merged into, in every attribute
+  for (const k of names) {
+    const a = g.attributes[k].array as Float32Array;
+    const s = g.attributes[k].itemSize;
+    for (let i = 0; i < n; i++)
+      for (let c = 0; c < s; c++) if (Math.abs(a[i * s + c] - a[keep[of[i]] * s + c]) > 1e-4) return mergeVertices(g);
+  }
+  const out = new THREE.BufferGeometry();
+  for (const k of names) {
+    const a = g.attributes[k].array as Float32Array;
+    const s = g.attributes[k].itemSize;
+    const b = new Float32Array(keep.length * s);
+    for (let j = 0; j < keep.length; j++) for (let c = 0; c < s; c++) b[j * s + c] = a[keep[j] * s + c];
+    out.setAttribute(k, new THREE.BufferAttribute(b, s));
+  }
+  out.setIndex(new THREE.BufferAttribute(index.slice(), 1));
+  for (const gr of g.groups) out.addGroup(gr.start, gr.count, gr.materialIndex);
+  return out;
+}
+
+/**
  * A chamfered box. The radius is capped at just under half the smallest side,
  * because RoundedBoxGeometry produces degenerate faces past that and a 0.04
  * default would otherwise blow up a 5 cm trim strip.
@@ -108,7 +156,7 @@ export function bevel(w: number, h: number, d: number, radius = 0.035): THREE.Bu
   // 2 segments is enough for a chamfer read; more only costs vertices. It
   // comes with every triangle's corners its own (900 vertices a box): indexed,
   // it is 212, and it merges with the indexed plain boxes instead of apart.
-  const g = mergeVertices(new RoundedBoxGeometry(w, h, d, 2, r));
+  const g = indexBevel(new RoundedBoxGeometry(w, h, d, 2, r));
   // shared by every model that asks for this size: never dispose it
   g.userData.shared = true;
   bevelCache.set(key, g);

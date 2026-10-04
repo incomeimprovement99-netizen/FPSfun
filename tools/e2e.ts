@@ -167,6 +167,39 @@ async function pressPlay(page: Page): Promise<void> {
   await sleep(300);
 }
 
+/**
+ * A 1v1 on the Neon City with the host's collision boxes still coming in (a slow phone, or a page opened a moment ago):
+ * the match waits for them (main.ts boxesFirst), and what its friend sends meanwhile is kept for it. It was lost, and the
+ * friend was told the host had left: a match counts the other end gone after 10 s of silence (duel.ts SILENCE_LIMIT), and
+ * the host said nothing while it waited. The live check failed so on a busy machine (2026-10-04); 13 s here is past it.
+ */
+async function lateBoxesTest(browser: Browser): Promise<void> {
+  const q = "?net=local&norender&game=speedkills&map=neon";
+  const host = await open(browser, q, BASE, "window.__boxesLate = 13000");
+  const guest = await open(browser, q);
+  await guest.waitForFunction("window.__range.neonMap().boxes > 0", { polling: 200, timeout: 60000 }).catch(() => undefined);
+  await ev(host, `document.getElementById("duelHost").click()`);
+  const code = await host
+    .waitForSelector("#duelStatus .code", { timeout: 20000 })
+    .then(() => ev<string>(host, `document.querySelector("#duelStatus .code").textContent`), () => "");
+  const early = await ev<number>(host, "window.__range.neonMap().boxes");
+  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  const both = await Promise.all([host, guest].map((p) => p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 40000 }).then(() => true, () => false)));
+  // still together a while after the host's match began: the friend's hello and the host's welcome both arrived
+  await sleep(5000);
+  const after = await Promise.all(
+    [host, guest].map((p) => ev<{ in: boolean; others: number; status: string }>(p, `({ in: window.__range.duel() !== null, others: window.__range.duel()?.avatars.length ?? 0, status: document.getElementById("duelStatus").textContent.slice(0, 80) })`))
+  );
+  check(
+    "a 1v1 on the Neon City whose host's boxes are still coming in starts once they are, and both stay in it",
+    !!code && early === 0 && both.every(Boolean) && after.every((a) => a.in && a.others >= 1),
+    JSON.stringify({ code, hostBoxesAtCode: early, both, host: after[0], guest: after[1] })
+  );
+  await ev(guest, "window.__range.duel()?.leave()").catch(() => undefined);
+  await guest.close();
+  await host.close();
+}
+
 /** a friend opens the invite link and is in the match, with no code typed */
 async function inviteTest(browser: Browser, query: string): Promise<void> {
   const host = await open(browser, query);
@@ -9326,6 +9359,8 @@ async function main(): Promise<void> {
       await jitterTest(browser, "?net=local&norender&jitter=60&loss=0.15", true);
       console.log("\nCustom rules");
       await rulesTest(browser, "?net=local&norender");
+      console.log("\nA 1v1 on the Neon City before the host's collision boxes are in");
+      await lateBoxesTest(browser);
     });
 
     if (want("intro")) await section("intro", async () => {

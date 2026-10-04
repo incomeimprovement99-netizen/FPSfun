@@ -10204,3 +10204,32 @@ interchangeable at street level ("16 no stalls, 18 no crates").
   THE CENTRE's spawns and zones each with a body's room (seen failing with blocks on five spawns) (each seen failing with
   its rule taken out); the street one network with every piece in it. The layout run again on
   the new bake leaves every placement where it was. verify and rules; e2e `br`. Photographed floor by floor.
+
+## Milestone 452 — The bevelled boxes built a third the time, before the first screen
+
+The range, the courses and the arenas are built from bevelled boxes (geo.ts bevel: a rounded box at 2 segments, cached
+by size), and every new size was indexed by three's mergeVertices, which hashes each of the box's 900 vertices: 85% of a
+bevel's cost (490 ms of 574 for 300 sizes). At 2 segments the box comes in the same layout at every size, so the same
+vertices meet: which ones is worked out once, on a box of no special size, and each new box is held to it (every vertex
+equal to the one it is merged into, or it goes to mergeVertices as before) and indexed by copying. On 400 random boxes
+the same triangles in every attribute as mergeVertices gave, 90 ms against 434.
+
+- **Measured** (the page's start to its first screen, dev server, the CPU profile; three runs of each, taken in turn):
+  bevel 0.17 to 0.18 s before, 0.06 s after (its indexing 0.02 s of that); the courses' build 0.35 to 0.37 s before,
+  0.31 to 0.32 s after; the range came up 30 to 60 ms sooner after its first script.
+- **Checked:** the 400 boxes against mergeVertices; verify; rules; the page, range and duel e2e.
+
+## Milestone 453 — A friends' match on the Neon City kept while one side waits for the city's boxes
+
+The 447/448 deploy's live check failed once on the friends' 1v1: the guest was told "The host left the match." It
+passed alone twice after, so it rode on how busy the machine was. The cause was Milestone 447's wait: a match on the
+Neon City waits for the city's collision boxes before it starts (main.ts boxesFirst), and while it waited its link said
+nothing and dropped what came in. The friend's match was already running, and a match counts the other end gone after
+10 s of silence (duel.ts SILENCE_LIMIT); a busy machine's host took longer than that. Now the waiting side pings the
+link each second as a running match does, keeps what comes in on it and hands it to the match when it starts. A file
+of boxes that never comes no longer means a match that never starts: it starts without them, as before Milestone 445.
+
+- **The check** (e2e duel section, lateBoxesTest): a 1v1 on the Neon City whose host's boxes are held back 13 s (a
+  test hook, window.__boxesLate), past the silence limit. Before the fix the guest was out of the match ("The host left
+  the match."); after it both are in it with each other 5 s after the host's match began.
+- **Also:** startDuel's doc comment back on startDuel (Milestone 447 left boxesFirst between them).
