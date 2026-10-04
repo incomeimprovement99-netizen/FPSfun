@@ -464,12 +464,13 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
   // a HEAD first: the Vite dev server answers a missing file with its index page, not a 404
   const probe = await fetch(url, { method: "HEAD" }).catch(() => null);
   if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return 0;
-  // Its file unpacked on more workers than three's own four (its 728 textures took 2.1 s on four after the last byte,
-  // the screen still on the full megabytes, 2026-10-03), the geometry decompressed off the page's thread too, and each
-  // texture counted as it is done, for the screen (main.ts showFrame)
+  // Its textures unpacked on more workers than three's own four (its 728 took 2.1 s on four after the last byte, the
+  // screen still on the full megabytes, 2026-10-03), and each counted as it is done, for the screen (main.ts showFrame).
+  // Not the geometry decoder's workers (MeshoptDecoder.useWorkers): it writes their script as "self.onmessage =
+  // workerProcess" beside its own functions' source, and the public build renames those functions, so its workers died
+  // on their first message and the city's geometry never came back: every match on the city stuck at the end of its
+  // unpacking on the live site (the owner, 2026-10-03), where the unminified dev build loaded it
   const ktx2 = new KTX2Loader().setTranscoderPath("libs/basis/").setWorkerLimit(workers).detectSupport(renderer);
-  // (the decoder has its workers, though its types do not say so)
-  (MeshoptDecoder as unknown as { useWorkers?: (n: number) => void }).useWorkers?.(Math.max(1, Math.min(4, workers - 1)));
   const load = ktx2.load.bind(ktx2);
   ktx2.load = (u, onLoad, onProgress, onError) => {
     NEON_MAP.textures++;
