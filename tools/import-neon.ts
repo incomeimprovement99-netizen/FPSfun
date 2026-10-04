@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, dirname, join } from "node:path";
 import { padOff, padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
-import { inside, sdPoly, standing, storeySlab, type Grid } from "./neon-base";
+import { fillTo, flatAt, inside, sdPoly, skirtAlong, standing, storeySlab, type Grid } from "./neon-base";
 import { backFaces, boxInto, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
 import { wellFlight, type Flight } from "./neon-well";
 import { MOVE } from "../src/game/movement";
@@ -763,6 +763,7 @@ if (mode === "bake") {
     const [cx0, cx1, cz0, cz1] = C2.box;
     const coreHole: Pt[] = [[cx0, cz0], [cx1, cz0], [cx1, cz1], [cx0, cz1]];
     const areas: number[] = [];
+    const holes: number[] = [];
     // (the tower as drawn and the core's walls, triangle by triangle on the map, for the seal's rays)
     const drawnTris: Array<[number[], number[], number[]]> = [];
     for (const { d, m } of towerDrawn)
@@ -775,7 +776,23 @@ if (mode === "bake") {
     for (const h of TW.shaft as number[]) {
       // (what stands on this floor, from just over it: the glass round the storey under 14 m tops out at 13.5)
       const stood = standing(g, towerTris(), h + 0.05, h + 2);
-      const inn = inside(g, stood, TW.seed, TW.close, TW.reach);
+      const inn0 = inside(g, stood, TW.seed, TW.close, TW.reach);
+      // (and out to the building's skin at the slab's own height, `fill` metres in from the open air: at standing height
+      // the window frames and piers stand in from the skin, and a slab stopped at them left pockets behind them, a ragged
+      // crack along the floor and the ceiling with the sky and the street through it, round every floor of the tower; the
+      // cracks left open are measured as the skin's inside less the slab and what stands at its height)
+      // (the skin: the wall under the windows' sills, `skin` metres over the floor, whole round the facade; at the slab's
+      // own height the skin is open where the pack's floors met it, and the air flooded in through those very cracks)
+      const TF = cfg.rules.tower as { fill: number; skin: number[]; skirt: number };
+      const atSlab = standing(g, towerTris(), h - TW.slab, h + 0.05);
+      const skin = standing(g, towerTris(), h + TF.skin[0], h + TF.skin[1]);
+      const inCore = (x: number, z: number) => x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3;
+      // (not over a floor or ledge the pack already has at the slab's top: the two fought in one plane)
+      const ledge = flatAt(g, towerTris(), h, 0.003);
+      const filled = fillTo(g, inn0.cells, skin, Math.round(TF.fill / cell), inCore, TF.fill > 0, skin, ledge);
+      const left = fillTo(g, filled.cells, skin, Math.max(2, Math.round(TF.fill / cell)), inCore, false, atSlab);
+      const inn = { cells: filled.cells, n: filled.cells.reduce((a, v) => a + v, 0) };
+      holes.push(+left.holes.toFixed(2));
       areas.push(inn.n * cell * cell);
       // (a corner of the grid is in the floor when any cell round it is)
       const region = (x: number, z: number) => {
@@ -812,11 +829,15 @@ if (mode === "bake") {
       seal.push({ at: h, rays: e.rays, out: gaps.slice(0, 12), windows: e.out.length - gaps.length, gaps: gaps.length });
       // (each floor's own tiles on top, rules.tower.floors.at[h].floorMat, where it names them)
       const own = (cfg.rules.tower.floors.at as Record<string, { floorMat?: string }>)[String(h)]?.floorMat;
-      tri += push(`tower-${h}`, (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })));
+      // (and a skirt along its outer edge up to under the sills, `skirt` metres: the facade's panels stop short of the
+      // floor, and the city showed through the slit at its foot)
+      const skirt = skirtAlong(g, region, h, TF.skirt, TW.scale);
+      tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
-    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
+    console.log(`the tower's floors' cracks along the facade left open: ${holes.map((m, k) => `${TW.shaft[k]} m ${m} m2`).join(", ")}`);
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
     console.log(`the tower's floors sealed but for their windows: ${seal.map((q) => `${q.at} m ${q.gaps} of ${q.rays} rays out elsewhere, ${q.windows} through the windows`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
     // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a

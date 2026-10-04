@@ -1585,6 +1585,83 @@ const skyStairs: Pt[] = [];
   console.log(`the Sky Ring: ${fences} lengths of fence, ${exits.length} stairs`);
 }
 
+// The bots' street graph, modelled (src/game/neonmap.ts builds it): its nodes every `graph.step` metres from
+// `cut.half - graph.margin` (city.json, game.graph), each joined to its eight neighbours where a body walks between them,
+// on the ground the last bake's collision leaves open (a box over a body's height and 2.5 m tall or more is a building or a
+// wall; the street's own cars, vans, blocks and crates are lower, and come from this run instead), a body's
+// `perches_clear.walk` round every piece added so far. A piece that would leave the ground in more separate pieces than it
+// found it is passed over, and a node a piece stands on is no street node (the game finds the piece's top there and makes
+// it a raised one). The median's block and a car in the kerb lane cut two of the south-west street's nodes off; a crate
+// stack laid after the median, with a model of its own that never saw it, cut the same two. One model, shared by every
+// piece the streets get, in the order they go down
+function streetGraph() {
+  const GG = cfg.game.graph as { step: number; margin: number };
+  const CITY = JSON.parse(readFileSync(join(ROOT, "src", "config", "city.json"), "utf8")) as { cut: { half: number } };
+  const lim = CITY.cut.half - GG.margin;
+  // (a body round each piece, and `graphPad` more: the bake builds the collision in half-metre columns, so a piece's
+  // boxes stand up to half a cell past its mesh, and links the model left open the game found shut)
+  const body = (R.perches_clear.walk as number) + (R.dress.graphPad as number);
+  const sf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
+  const SB: number[][] = existsSync(sf) ? JSON.parse(readFileSync(sf, "utf8")).solids : [];
+  const SG = new Map<string, number[][]>();
+  for (const b of SB) {
+    if (b[4] > 1.9 || b[5] < 0.3 || b[5] - b[4] < 2.5) continue;
+    for (let i = Math.floor(b[0] / 2); i <= Math.floor(b[1] / 2); i++) for (let j = Math.floor(b[2] / 2); j <= Math.floor(b[3] / 2); j++) (SG.get(`${i},${j}`) ?? SG.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
+  }
+  const walled = (x: number, z: number) => (SG.get(`${Math.floor(x / 2)},${Math.floor(z / 2)}`) ?? []).some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3]);
+  const gn: Pt[] = [];
+  for (let x = -lim; x <= lim + 1e-6; x += GG.step) for (let z = -lim; z <= lim + 1e-6; z += GG.step) if (Math.max(Math.abs(x), Math.abs(z)) < CV.inside && !walled(x, z)) gn.push([x, z]);
+  const gi = new Map(gn.map((q, i) => [`${q[0]},${q[1]}`, i]));
+  const gl: Array<[number, number]> = [];
+  for (const [i, [x, z]] of gn.entries())
+    for (const [dx, dz] of [[GG.step, 0], [0, GG.step], [GG.step, GG.step], [GG.step, -GG.step]]) {
+      const j = gi.get(`${x + dx},${z + dz}`);
+      if (j === undefined) continue;
+      let ok = true;
+      for (let t = 0; t <= 1 && ok; t += 0.02) if (walled(x + dx * t, z + dz * t)) ok = false;
+      if (ok) gl.push([i, j]);
+    }
+  const hits = (o: OBox, a: Pt, b: Pt) => {
+    for (let t = 0; t <= 1; t += 0.02) {
+      const [px, pz] = [a[0] + (b[0] - a[0]) * t - o.c[0], a[1] + (b[1] - a[1]) * t - o.c[1]];
+      if (Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu + body && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv + body) return true;
+    }
+    return false;
+  };
+  const cut = new Set<number>();
+  const gone = new Set<number>();
+  const covers = (o: OBox) => gn.flatMap((q, i) => {
+    const [px, pz] = [q[0] - o.c[0], q[1] - o.c[1]];
+    return !gone.has(i) && Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv ? [i] : [];
+  });
+  const cutBy = (o: OBox) => gl.flatMap(([i, j], k) => (!cut.has(k) && hits(o, gn[i], gn[j]) ? [k] : []));
+  const piecesOf = (extra: number[], under: number[]) => {
+    const up = gn.map((_, i) => i);
+    const find = (i: number): number => (up[i] === i ? i : (up[i] = find(up[i])));
+    const out = new Set([...gone, ...under]);
+    let n = gn.length - out.size;
+    const skip = new Set(extra);
+    gl.forEach(([i, j], k) => {
+      if (cut.has(k) || skip.has(k) || out.has(i) || out.has(j)) return;
+      const [a, b] = [find(i), find(j)];
+      if (a !== b) (up[a] = b), n--;
+    });
+    return n;
+  };
+  let pieces = piecesOf([], []);
+  return {
+    /** a piece down on the street: its links cut, the nodes it stands on gone */
+    add(o: OBox) {
+      for (const i of covers(o)) gone.add(i);
+      for (const k of cutBy(o)) cut.add(k);
+      pieces = piecesOf([], []);
+    },
+    /** whether this piece would leave the street in more pieces */
+    splits: (o: OBox) => piecesOf(cutBy(o), covers(o)) > pieces,
+  };
+}
+let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
+
 // The centre's streets dressed with the pack's own (rules.dress): its street lamps along both kerbs, cars parked in the
 // lanes by the kerbs (crouching cover in the street), and cars flying over the streets (the store's pictures have them,
 // out of reach and so with no collision), all turned along the curves. Clear of the junctions, the jump pads and the
@@ -1594,6 +1671,8 @@ const skyStairs: Pt[] = [];
   let carCount = 0;
   // (the street's lamps and cars as they go down, for the median's model of the bots' street graph below)
   const streetBoxes: OBox[] = [];
+  // (and each lamp where it stands, its side and its normal out of the road, for NOODLE ROW's lanterns)
+  const lampsAt: Array<{ st: string; side: number; i: number; at: Pt; n: Pt }> = [];
   const pads = ((cfg.pads ?? []) as Array<{ pad: number[] }>).map((q) => q.pad);
   const kiosks = ((cfg.court?.halls ?? []) as Array<{ route?: number[][]; x0: number; x1: number; z0: number; z1: number }>).filter((h) => h.route);
   const clear = (x: number, z: number, r: number, st: Street): boolean =>
@@ -1617,9 +1696,10 @@ const skyStairs: Pt[] = [];
         const n = normalAt(st, i);
         const [x, z] = [st.pts[i][0] + n[0] * side * (st.half + D.lamp.inset), st.pts[i][1] + n[1] * side * (st.half + D.lamp.inset)];
         if (!clear(x, z, 1, st) || onRoad(x, z) < D.lamp.inset - 0.1) continue;
-        // (only its post stands in a body's way: its arms are 5 m up)
+        // (only its post stands in a body's way, in the middle of its two arms: they are 5 m up)
         const lamp = placeTurned("c-dress", D.lamp.piece, x, z, yawToward(n[0], n[1]), "o");
-        streetBoxes.push({ ...lamp, c: [x - n[0] * (lamp.hv - 0.2), z - n[1] * (lamp.hv - 0.2)], hu: 0.2, hv: 0.2 });
+        streetBoxes.push({ ...lamp, hu: 0.2, hv: 0.2 });
+        lampsAt.push({ st: st.id, side, i, at: [x, z], n: [n[0] * side, n[1] * side] });
       }
       // the cars in the lane by the kerb, a seeded gap apart
       for (let u = 6 + rnd() * D.cars.gap[1]; u < st.pts.length * 0.5 - 6; u += D.cars.gap[0] + rnd() * (D.cars.gap[1] - D.cars.gap[0])) {
@@ -1639,100 +1719,79 @@ const skyStairs: Pt[] = [];
   // cover every 8 to 12 m): the pack's 5 m concrete block, 1.2 m high (chest cover, and a jump or a grab to cross), every
   // `every` metres down the road's middle, turned along it, clear of the junctions, the pads, the Sky Ring's stairs and
   // the lifts as the cars are; the gaps between keep the street one network
-  const MD = D.median as { piece: string; every: number; offset: number } | undefined;
+  const MD = D.median as { piece: string; every: number; offset: number; keep: number } | undefined;
   const medians: Array<{ at: number[]; yaw: number }> = [];
   if (MD) {
     const row = piece(MD.piece).row;
     const len = Math.max(row.size![0], row.size![2]);
-    // (and never a block that cuts the bots' street graph, src/game/neonmap.ts: its nodes every `graph.step` metres from
-    // `cut.half - graph.margin` (city.json, game.graph), each joined to its eight neighbours where a body walks between
-    // them. Modelled here on the ground the last bake's collision leaves open (a box over a body's height and 2.5 m tall
-    // or more is a building or a wall; the street's own cars, vans and blocks are lower, and come from this run instead),
-    // a body's `perches_clear.walk` round every lamp, car and block so far; a block that leaves the ground in more
-    // separate pieces than it found it is passed over. A block in the middle with a car in the kerb lane cut two of the
-    // south-west street's nodes off from the rest. On the road and pavement alone, without the plaza and the blocks'
-    // ground round them, it passed over 29 of 52)
-    const GG = cfg.game.graph as { step: number; margin: number };
-    const CITY = JSON.parse(readFileSync(join(ROOT, "src", "config", "city.json"), "utf8")) as { cut: { half: number } };
-    const lim = CITY.cut.half - GG.margin;
-    const body = R.perches_clear.walk as number;
-    const sf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
-    const SB: number[][] = existsSync(sf) ? JSON.parse(readFileSync(sf, "utf8")).solids : [];
-    const SG = new Map<string, number[][]>();
-    for (const b of SB) {
-      if (b[4] > 1.9 || b[5] < 0.3 || b[5] - b[4] < 2.5) continue;
-      for (let i = Math.floor(b[0] / 2); i <= Math.floor(b[1] / 2); i++) for (let j = Math.floor(b[2] / 2); j <= Math.floor(b[3] / 2); j++) (SG.get(`${i},${j}`) ?? SG.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
-    }
-    const walled = (x: number, z: number) => (SG.get(`${Math.floor(x / 2)},${Math.floor(z / 2)}`) ?? []).some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3]);
-    const gn: Pt[] = [];
-    for (let x = -lim; x <= lim + 1e-6; x += GG.step) for (let z = -lim; z <= lim + 1e-6; z += GG.step) if (Math.max(Math.abs(x), Math.abs(z)) < CV.inside && !walled(x, z)) gn.push([x, z]);
-    const gi = new Map(gn.map((q, i) => [`${q[0]},${q[1]}`, i]));
-    const gl: Array<[number, number]> = [];
-    for (const [i, [x, z]] of gn.entries())
-      for (const [dx, dz] of [[GG.step, 0], [0, GG.step], [GG.step, GG.step], [GG.step, -GG.step]]) {
-        const j = gi.get(`${x + dx},${z + dz}`);
-        if (j === undefined) continue;
-        let ok = true;
-        for (let t = 0; t <= 1 && ok; t += 0.02) if (walled(x + dx * t, z + dz * t)) ok = false;
-        if (ok) gl.push([i, j]);
-      }
-    const hits = (o: OBox, a: Pt, b: Pt) => {
-      for (let t = 0; t <= 1; t += 0.02) {
-        const [px, pz] = [a[0] + (b[0] - a[0]) * t - o.c[0], a[1] + (b[1] - a[1]) * t - o.c[1]];
-        if (Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu + body && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv + body) return true;
-      }
-      return false;
-    };
-    const cut = new Set<number>();
-    // (a node a piece stands on is no street node: the game finds the piece's top there and makes it a raised one)
-    const gone = new Set<number>();
-    const covers = (o: OBox) => gn.flatMap((q, i) => {
-      const [px, pz] = [q[0] - o.c[0], q[1] - o.c[1]];
-      return !gone.has(i) && Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv ? [i] : [];
-    });
-    const cutBy = (o: OBox) => gl.flatMap(([i, j], k) => (!cut.has(k) && hits(o, gn[i], gn[j]) ? [k] : []));
-    const piecesOf = (extra: number[], under: number[]) => {
-      const up = gn.map((_, i) => i);
-      const find = (i: number): number => (up[i] === i ? i : (up[i] = find(up[i])));
-      const out = new Set([...gone, ...under]);
-      let n = gn.length - out.size;
-      const skip = new Set(extra);
-      gl.forEach(([i, j], k) => {
-        if (cut.has(k) || skip.has(k) || out.has(i) || out.has(j)) return;
-        const [a, b] = [find(i), find(j)];
-        if (a !== b) (up[a] = b), n--;
-      });
-      return n;
-    };
-    for (const o of streetBoxes) {
-      for (const i of covers(o)) gone.add(i);
-      for (const k of cutBy(o)) cut.add(k);
-    }
-    let streetPieces = piecesOf([], []);
+    // (and none within `keep` metres of THE CENTRE's spawns and zones, the 1v1 on the Loop (src/config/centre.json, world
+    // space, round its middle): they stand on the Loop's own line, and a block laid on a spawn held its bot fast)
+    // (round the map's middle: THE CENTRE's x and z are the Neon map's own middle, and its bearings and distances are from it)
+    const CEN = JSON.parse(readFileSync(join(ROOT, "src", "config", "centre.json"), "utf8")) as { spawnR: number; spawns: number[]; zone: { bearing: number; r: number }; zones: number[] };
+    const onBearing = (b: number, r: number): Pt => [Math.sin((b * Math.PI) / 180) * r, Math.cos((b * Math.PI) / 180) * r];
+    const kept: Pt[] = [...CEN.spawns.map((b) => onBearing(b, CEN.spawnR)), onBearing(CEN.zone.bearing, CEN.zone.r), ...CEN.zones.map((b) => onBearing(b, CEN.zone.r))];
+    // (and never a block that cuts the bots' street graph: streetGraph above, fed every lamp and car so far)
+    const SG = streetGraph();
+    for (const o of streetBoxes) SG.add(o);
+    STREET_GRAPH = SG;
     let passed = 0;
     for (const st of STREETS)
       for (let i = Math.round(MD.offset / 0.5); i < st.pts.length; i += Math.round(MD.every / 0.5)) {
         const [x, z] = st.pts[i];
-        if (!clear(x, z, len / 2, st)) continue;
+        if (!clear(x, z, len / 2, st) || kept.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < len / 2 + MD.keep)) continue;
         const t = st.tan[i];
         const yaw = yawToward(t[0], t[1]) + (row.size![2] >= row.size![0] ? 0 : 90);
         const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };
-        const by = cutBy(o);
-        const under = covers(o);
-        const after = piecesOf(by, under);
-        if (after > streetPieces) {
+        if (SG.splits(o)) {
           passed++;
           continue;
         }
-        streetPieces = after;
-        for (const k of by) cut.add(k);
-        for (const i of under) gone.add(i);
+        SG.add(o);
         placeTurned("c-dress", MD.piece, x, z, yaw, "o", -row.min![1]);
         medians.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2) });
       }
     console.log(`the streets' median: ${passed} blocks passed over where they would cut the bots' street graph`);
     cfg.medians = medians;
     console.log(`the streets' median: ${medians.length} blocks`);
+  }
+  // NOODLE ROW's lantern canopy (rules.low.lanterns; the second review: the corner blocks interchangeable at street
+  // level): along its `streets` where they run beside the block (`beside`, metres out along each street's own axis), a
+  // cable from each lamp's head over the road to the head of the lamp across, and on to the next pair's in an X, the pack's
+  // Chinese lanterns hung from each every `every` metres, `height` up; drawn only, over the road, so nothing below moves
+  const LN = R.low.lanterns as { block: string; streets: string[]; beside: number[]; cable: string; lanterns: string[]; height: number; every: number; head: number } | undefined;
+  if (LN) {
+    const [bx, bz] = LN.block.split(",").map(Number);
+    const chunk = `c-${bz < 0 ? "n" : "s"}${bx < 0 ? "w" : "e"}`;
+    const cable = piece(LN.cable).row;
+    const clen = Math.max(cable.size![0], cable.size![2]);
+    let hung = 0, cables = 0;
+    const string = (a: Pt, b: Pt) => {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      placeTurned(chunk, LN.cable, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, yawToward(b[0] - a[0], b[1] - a[1]), "g", LN.height, undefined, L / clen);
+      cables++;
+      for (let t = LN.every / 2; t < L; t += LN.every) {
+        placeTurned(chunk, LN.lanterns[hung % LN.lanterns.length], a[0] + ((b[0] - a[0]) * t) / L, a[1] + ((b[1] - a[1]) * t) / L, 0, "g", LN.height);
+        hung++;
+      }
+    };
+    for (const id of LN.streets) {
+      const mine = lampsAt.filter((q) => q.st === id && (() => { const v = id.endsWith("n") || id.endsWith("s") ? Math.abs(q.at[1]) : Math.abs(q.at[0]); return v > LN.beside[0] && v < LN.beside[1]; })());
+      // (each lamp's head over the road: `head` metres from its post toward the road)
+      const head = (q: (typeof mine)[number]): Pt => [q.at[0] - q.n[0] * LN.head, q.at[1] - q.n[1] * LN.head];
+      const byI = new Map<number, Record<number, (typeof mine)[number]>>();
+      for (const q of mine) (byI.get(q.i) ?? byI.set(q.i, {}).get(q.i)!)[q.side] = q;
+      const pairs = [...byI.entries()].filter(([, sides]) => sides[-1] && sides[1]).sort((a, b) => a[0] - b[0]);
+      pairs.forEach(([, sides], k) => {
+        string(head(sides[-1]), head(sides[1]));
+        const next = pairs[k + 1]?.[1];
+        if (next) {
+          string(head(sides[-1]), head(next[1]));
+          string(head(sides[1]), head(next[-1]));
+        }
+      });
+    }
+    cfg.lanterns = { cables, lanterns: hung };
+    console.log(`${LN.block}'s lantern canopy: ${cables} cables, ${hung} lanterns`);
   }
   // the flying cars, over the streets out of reach
   for (let k = 0; k < D.flying.count; k++) {
@@ -1856,6 +1915,7 @@ const skyStairs: Pt[] = [];
     lines.push({ st, sides: [Math.sign(-(n[0] * a[0] + n[1] * a[1])) || 1] });
   }
   let hung = 0;
+  const signsAt: Array<{ piece: string; at: Pt }> = [];
   for (const { st, sides } of lines)
     for (const side of sides) {
       let lastU = -Infinity;
@@ -1866,7 +1926,21 @@ const skyStairs: Pt[] = [];
         const dir: Pt = [n[0] * side, n[1] * side];
         const q: Pt = [st.pts[i][0] + dir[0] * (st.half + 1), st.pts[i][1] + dir[1] * (st.half + 1)];
         if (onRoad(q[0], q[1]) < 0.5 && st.id !== "ring") continue;
-        const name = S.pieces[Math.floor(rnd() * S.pieces.length)];
+        // (not a corner block's own sign, so MOTEL is MOTEL HILL's alone, and never one `twin` metres or nearer to the
+        // same sign: drawn at random from the pack's fifteen, the second review saw one in four places. One draw a sign,
+        // stepped on through the rest where it is too near its twin)
+        const own = new Set(Object.values((R.low.identity?.signs ?? {}) as Record<string, { piece: string }>).map((q) => q.piece));
+        const pool = (S.pieces as string[]).filter((p) => !own.has(p.split("/").pop()!));
+        const k0 = Math.floor(rnd() * pool.length);
+        // (the front's point the sign would hang on, to measure it against the others' faces; no sign where every one
+        // left has its twin near)
+        const fq: Pt = [q[0] + dir[0] * faceAt(q[0], q[1], dir[0], dir[1], S.height[0]), q[1] + dir[1] * faceAt(q[0], q[1], dir[0], dir[1], S.height[0])];
+        let name = "";
+        for (let d = 0; d < pool.length && !name; d++) {
+          const cand = pool[(k0 + d) % pool.length];
+          if (!signsAt.some((o) => o.piece === cand && Math.hypot(o.at[0] - fq[0], o.at[1] - fq[1]) < (S.twin ?? 0))) name = cand;
+        }
+        if (!name) continue;
         const row = piece(name).row;
         const w = row.size![0];
         const y = S.height[0] + rnd() * (S.height[1] - S.height[0]);
@@ -1881,6 +1955,7 @@ const skyStairs: Pt[] = [];
         const [bx, bz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, row.min![2]);
         const f: Pt = [q[0] + dir[0] * d, q[1] + dir[1] * d];
         add("c-signs", "c", [piece(name).key, +(f[0] - bx).toFixed(3), +(y - (row.min![1] + row.max![1]) / 2).toFixed(3), +(f[1] - bz).toFixed(3), +yaw.toFixed(2), "g"] as Place);
+        signsAt.push({ piece: name, at: [f[0], f[1]] });
         lastU = u;
         hung++;
       }
@@ -2218,7 +2293,7 @@ const skyStairs: Pt[] = [];
     for (const q of ((cfg.stalls ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 2.5 });
     for (const q of ((cfg.crates ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 1.5 });
     for (const q of ((cfg.walkIns ?? []) as Array<{ door: number[] }>)) taken.push({ c: [q.door[0], q.door[1]], r: 3 });
-    const clearF = (x: number, z: number, r: number, st: Street): boolean =>
+    const clearF = (x: number, z: number, r: number, st: Street, apart = FU.apart): boolean =>
       onRoad(x, z, st) > R.dress.crossing + r &&
       !(Math.hypot(x, z) > R.skyring.r0 - r - 1 && Math.hypot(x, z) < R.skyring.r1 + r + 1) &&
       !skyStairs.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < r + 5) &&
@@ -2231,7 +2306,7 @@ const skyStairs: Pt[] = [];
         return Math.hypot(x - ax - (bx - ax) * t, z - az - (bz - az) * t) < r + R.lifts.clear;
       }) &&
       !kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r) &&
-      !taken.some((q) => Math.hypot(q.c[0] - x, q.c[1] - z) < r + q.r + FU.apart);
+      !taken.some((q) => Math.hypot(q.c[0] - x, q.c[1] - z) < r + q.r + apart);
     const furniture: Array<{ at: number[]; yaw: number; piece: string }> = [];
     let k = 0;
     for (const st of STREETS)
@@ -2250,11 +2325,96 @@ const skyStairs: Pt[] = [];
           if (!clearF(x, z, r, st) || onRoad(x, z) < FU.inset + depth / 2 - 0.1) continue;
           // (turned to the road: its own +z toward the kerb)
           const yaw = yawToward(-n[0] * side, -n[1] * side);
-          placeTurned("c-dress", name, x, z, yaw, "o", -row.min![1]);
+          STREET_GRAPH?.add(placeTurned("c-dress", name, x, z, yaw, "o", -row.min![1]));
           taken.push({ c: [x, z], r });
           furniture.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), piece: name });
         }
     cfg.furniture = furniture;
+    // MARKET's crate stacks (rules.low.crateStacks; the second review: "18 no crates"): along its `streets` where they run
+    // beside the block, every `every` metres on the block's pavement, two of the pack's crates side by side and one on
+    // the first, a step from waist to head high, turned to the road and `inset` off the kerb, clear as the furniture is
+    const CR = R.low.crateStacks as { block: string; streets: string[]; beside: number[]; every: number; inset: number; piece: string; apart: number; space: number } | undefined;
+    if (CR) {
+      const [bx, bz] = CR.block.split(",").map(Number);
+      const chunk = `c-${bz < 0 ? "n" : "s"}${bx < 0 ? "w" : "e"}`;
+      const cr = piece(CR.piece).row;
+      const stacks: Array<{ at: number[]; yaw: number }> = [];
+      for (const st of STREETS.filter((q) => CR.streets.includes(q.id)))
+        for (let i = Math.round(CR.every / 2 / 0.5); i < st.pts.length; i += Math.round(CR.every / 0.5)) {
+          const p0 = st.pts[i];
+          const v = st.id.endsWith("n") || st.id.endsWith("s") ? Math.abs(p0[1]) : Math.abs(p0[0]);
+          if (v < CR.beside[0] || v > CR.beside[1]) continue;
+          const n0 = normalAt(st, i);
+          // (the block's side of the street: toward its corner)
+          const side = (bx * 73 - p0[0]) * n0[0] + (bz * 73 - p0[1]) * n0[1] > 0 ? 1 : -1;
+          const n: Pt = [n0[0] * side, n0[1] * side];
+          const depth = cr.size![2];
+          const off = st.half + CR.inset + depth / 2;
+          const [x, z] = [p0[0] + n[0] * off, p0[1] + n[1] * off];
+          const r = Math.hypot(cr.size![0], depth / 2);
+          // (`apart` off the furniture and lamps, nearer than the furniture keeps: they stand every 7.5 m along the
+          // pavement, and at the furniture's 1.5 m a stack found room once; and `space` from the other stacks)
+          if (!clearF(x, z, r, st, CR.apart) || onRoad(x, z) < CR.inset + depth / 2 - 0.1 || stacks.some((q) => Math.hypot(q.at[0] - x, q.at[1] - z) < CR.space)) continue;
+          const t = st.tan[i];
+          const yaw = yawToward(-n[0], -n[1]);
+          const half = cr.size![0] / 2 + 0.02;
+          const stackBox: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: cr.size![0] + 0.02, hv: depth / 2, top: cr.size![1] * 2 };
+          if (STREET_GRAPH?.splits(stackBox)) continue;
+          STREET_GRAPH?.add(stackBox);
+          placeTurned(chunk, CR.piece, x - t[0] * half, z - t[1] * half, yaw, "o", -cr.min![1]);
+          placeTurned(chunk, CR.piece, x + t[0] * half, z + t[1] * half, yaw, "o", -cr.min![1]);
+          placeTurned(chunk, CR.piece, x - t[0] * half, z - t[1] * half, yaw, "o", cr.size![1] - cr.min![1]);
+          taken.push({ c: [x, z], r });
+          stacks.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2) });
+        }
+      cfg.crateStacks = stacks;
+      console.log(`${CR.block}'s crate stacks: ${stacks.length}`);
+    }
+    // THE WELL's ring of lamps (rules.low.wellRing; the second review: "no shaft visible from the rim"): the street's own
+    // lamp every `every` metres round its shaft's open `edges`, `out` metres outside the hole, its two heads along the edge,
+    // on the ground there (the last bake's collision: not where a building stands, its top over `ground`), off each rope's
+    // top by `clear`, so the hole reads from the Loop and the ring, lit at night
+    const WR = R.low.wellRing as { every: number; out: number; clear: number; ground: number; edges: string[] } | undefined;
+    const WH = (cfg.well as { hole?: number[]; ropes?: Array<{ rope: number[][] }> } | undefined);
+    if (WR && WH?.hole) {
+      const sf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
+      const SB: number[][] = existsSync(sf) ? JSON.parse(readFileSync(sf, "utf8")).solids : [];
+      // (the ground: the highest top there under `ground`; a box over it wider than 1.5 m both ways is a building, and no
+      // spot; a narrower one is a post, the lamp's own from the last bake among them (its column a metre square), and the
+      // ground is its foot)
+      const here = (x: number, z: number) => SB.filter((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3]);
+      const groundAt = (x: number, z: number) => {
+        const bs = here(x, z);
+        if (bs.some((b) => b[5] >= WR.ground && b[1] - b[0] > 1.5 && b[3] - b[2] > 1.5)) return Infinity;
+        return bs.reduce((t, b) => {
+          const g = b[5] < WR.ground ? b[5] : b[4] < WR.ground ? b[4] : -Infinity;
+          return g > t ? g : t;
+        }, -Infinity);
+      };
+      const [h0, h1, h2, h3] = WH.hole;
+      const tops = (WH.ropes ?? []).map((q) => q.rope[1]);
+      const spots: Array<{ at: Pt; yaw: number }> = [];
+      const along = (a: Pt, b: Pt) => {
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        for (let t = WR.every / 2; t < L; t += WR.every) spots.push({ at: [a[0] + ((b[0] - a[0]) * t) / L, a[1] + ((b[1] - a[1]) * t) / L], yaw: yawToward(b[0] - a[0], b[1] - a[1]) });
+      };
+      const o = WR.out;
+      if (WR.edges.includes("n")) along([h0, h2 - o], [h1, h2 - o]);
+      if (WR.edges.includes("s")) along([h0, h3 + o], [h1, h3 + o]);
+      if (WR.edges.includes("e")) along([h1 + o, h2], [h1 + o, h3]);
+      if (WR.edges.includes("w")) along([h0 - o, h2], [h0 - o, h3]);
+      const ring: Array<{ at: number[] }> = [];
+      for (const q of spots) {
+        // (a lamp where the last layout put one keeps its height: its post, baked, covers the rim's box it stood on)
+        const was = ((cfg.wellRing ?? []) as Array<{ at: number[] }>).find((w) => Math.hypot(w.at[0] - q.at[0], w.at[2] - q.at[1]) < 0.05);
+        const y = was ? was.at[1] : groundAt(q.at[0], q.at[1]);
+        if (!(y > -1 && y < WR.ground) || tops.some((t) => Math.hypot(t[0] - q.at[0], t[2] - q.at[1]) < WR.clear) || taken.some((m) => Math.hypot(m.c[0] - q.at[0], m.c[1] - q.at[1]) < m.r + 1)) continue;
+        placeTurned("c-se", R.dress.lamp.piece, q.at[0], q.at[1], q.yaw, "o", y);
+        ring.push({ at: [+q.at[0].toFixed(3), +y.toFixed(3), +q.at[1].toFixed(3)] });
+      }
+      cfg.wellRing = ring;
+      console.log(`the Well's ring of lamps: ${ring.length}`);
+    }
     console.log(`street furniture: ${furniture.length} pieces along the pavements`);
   }
 }

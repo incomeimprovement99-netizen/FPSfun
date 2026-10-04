@@ -313,6 +313,42 @@ check("the perches: cover on the crown, the lookout and the four High City decks
   const vans = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => VAN?.pieces.some((v) => String(q[0]).endsWith(`/${v}`)) && Number(q[2]) < 2);
   check("hover vans parked among the cars: six and more, whole cover", vans.length >= 6, `${vans.length}`);
 }
+// each corner block its own thing at street level (the second review: "16 no stalls, 18 no crates", the corners
+// interchangeable there): NOODLE ROW's lanterns over its streets, every one 3.5 m and more over the ground it hangs above
+// and drawn only; MARKET's crate stacks, each solid over a body's height; THE WELL's ring of lamps on its rim; and the
+// shop signs none of the corner blocks' own, and none within `twin` metres of the same sign
+{
+  const LN = (cfg.rules.low as unknown as { lanterns?: { lanterns: string[]; height: number } }).lanterns;
+  const places = (chunk: string) => ((cfg.chunks as unknown as Record<string, { place: unknown[][] }>)[chunk]?.place ?? []) as Array<[string, number, number, number, number, string]>;
+  // (the canopy's, hung at its height: the stalls' own two lanterns each stand low over their counters)
+  const lan = places("c-ne").filter((q) => LN?.lanterns.some((l) => q[0].endsWith(`/${l}`)) && Math.abs(q[2] - LN.height) < 0.01);
+  const low = lan.filter((q) => q[5] !== "g" || q[2] - 1.4 - floorAt(q[1] + BR_X, q[3] + BR_Z) < 3.5);
+  check("NOODLE ROW's lantern canopy over its streets: sixty lanterns and more, each 3.5 m and more over the ground, drawn only", lan.length >= 60 && low.length === 0, `${lan.length} lanterns${low.length ? `, ${low.length} too low or solid` : ""}`);
+  const ST = (cfg as unknown as { crateStacks?: Array<{ at: number[] }> }).crateStacks ?? [];
+  const soft = ST.filter(({ at: [x, z] }) => !solidsIn(x + BR_X - 1.2, x + BR_X + 1.2, z + BR_Z - 1.2, z + BR_Z + 1.2).some((b) => b.minX < x + BR_X + 1.2 && b.maxX > x + BR_X - 1.2 && b.minZ < z + BR_Z + 1.2 && b.maxZ > z + BR_Z - 1.2 && b.top > 1.8 && b.base < 1.2));
+  check("MARKET's crate stacks along its streets: four and more, each solid to over a body's height", ST.length >= 4 && soft.length === 0, `${ST.length} stacks${soft.length ? `, ${soft.length} not solid` : ""}`);
+  const WR = (cfg as unknown as { wellRing?: Array<{ at: number[] }> }).wellRing ?? [];
+  check("THE WELL's ring of lamps round its shaft: four and more", WR.length >= 4, `${WR.length}`);
+  const S = cfg.rules.signs as unknown as { twin: number };
+  const own = new Set(Object.values((cfg.rules.low as unknown as { identity: { signs: Record<string, { piece: string }> } }).identity.signs).map((q) => q.piece));
+  const signs = places("c-signs").map((q) => ({ piece: q[0].split("/").pop()!, at: [q[1], q[3]] }));
+  const owned = signs.filter((q) => own.has(q.piece));
+  // (measured between their pivots, where the layout measures between their faces: up to half a sign's width each way,
+  // the widest 3 m, so 3 m short of `twin`)
+  const twins = signs.filter((q, i) => signs.some((o, j) => j > i && o.piece === q.piece && Math.hypot(o.at[0] - q.at[0], o.at[1] - q.at[1]) < S.twin - 3));
+  check("the shop signs: none of the corner blocks' own, none within twin distance of the same sign", signs.length > 30 && owned.length === 0 && twins.length === 0, `${signs.length} signs${owned.length ? `, ${owned.length} a corner block's own` : ""}${twins.length ? `, ${twins.length} by a twin` : ""}`);
+}
+// THE CENTRE's spawns and zones (the 1v1 on the Loop, src/config/centre.json, round the map's middle) each with a body's
+// room: nothing over the ground within a body's radius and a hand of the spot (a median block laid on a spawn held its
+// bot fast, the lobby's e2e, 2026-10-04)
+{
+  const CEN = (await import("../../src/config/centre.json")).default as { x: number; z: number; spawnR: number; spawns: number[]; zone: { bearing: number; r: number }; zones: number[] };
+  const spot = (b: number, r: number) => [CEN.x + Math.sin((b * Math.PI) / 180) * r, CEN.z + Math.cos((b * Math.PI) / 180) * r];
+  const spots = [...CEN.spawns.map((b) => ({ what: `spawn at ${b}°`, at: spot(b, CEN.spawnR) })), ...[CEN.zone.bearing, ...CEN.zones].map((b) => ({ what: `zone at ${b}°`, at: spot(b, CEN.zone.r) }))];
+  const r = MOVE.radius + 0.1;
+  const held = spots.filter(({ at: [x, z] }) => solidsIn(x - r, x + r, z - r, z + r).some((b) => b.minX < x + r && b.maxX > x - r && b.minZ < z + r && b.maxZ > z - r && b.top > 0.3 && b.base < 1.8));
+  check("THE CENTRE: its spawns and zones on the Loop each with a body's room", CEN.x === BR_X && CEN.z === BR_Z && held.length === 0, `${spots.length} spots${held.length ? `; held: ${held.map((q) => q.what).join(", ")}` : ""}`);
+}
 // the decks' cover cuts no deck in two (rules.perches_clear.walk): on each High City deck's roof, its level cells a quarter
 // metre each, less a body's width round anything standing on them or off them, flooded from the deck's site; every
 // arrival on the deck (where a pad lands, the lift's top, each bridge stair's foot, the zip line's top) is on that one
@@ -1427,6 +1463,47 @@ const drops = [...loot.drops.values()];
   const near = (y: number) => drops.filter((d) => Math.abs(d.pos.y - y) < 0.6 && v && Math.hypot(d.pos.x - v.x, d.pos.z - v.z) < (v.radius ?? 9) + 1.5).length;
   // (rich as SpeedKills counts it, by how much lies there: its guns come at a fusion level, not a rarity)
   check("THE VAULT: a site on the tower's 32 m floor, its own tier, its loot on that floor alone and rich", !!v && v.y === 32 && v.tier === "vault" && near(32) >= near(29) + 12 && near(32) >= 2 * near(29), v ? `${near(32)} items on its floor within reach against ${near(29)} on the floor under` : "no vault site");
+}
+// the tower's floors meet its facade (rules.tower.fill, skin): no crack left open along a floor's edge or its ceiling, as
+// the bake measured them (the inside of the facade's skin less the slab and what stands at its height). A slab stopped at
+// the window frames left 46 to 60 m2 a floor, the sky and the street seen through it (the owner's play test, 2026-10-04)
+{
+  const H = (cfg.tower as unknown as { measured: { holes?: number[] } }).measured.holes ?? [];
+  check("the tower's floors meet its facade: no crack along a floor's edge or its ceiling, as the bake measured", H.length === (cfg.tower as unknown as { shaft: number[] }).shaft.length && H.every((m) => m < 0.5), `${H.join("/")} m2`);
+}
+// no stair of the big building runs into a ceiling (the owner's play test, 2026-10-04: "stairs don't lead to ceilings"):
+// along every way up it, the stair core's, each of the base's stairs and the court's ways in, a quarter metre at a time,
+// the tread there (the highest top up to 0.6 m over the way's line: the line runs straight from landing to landing and a
+// flight's first tread stands up to 0.4 m over it, where a window of a quarter metre took the slab under the stair for
+// the floor and the tread for a ceiling) and the first thing over it, a standing body's height and more apart
+{
+  const routes: Array<[string, number[][]]> = [["the core", (cfg.tower as unknown as { core: { route: number[][] } }).core.route]];
+  for (const q of (cfg.base as unknown as { stairs: Array<{ at: number; top: number[]; route: number[][] }> }).stairs) routes.push([`the base's stair at ${q.at} m (${q.top.join(", ")})`, q.route]);
+  for (const h of K.halls.filter((q) => "route" in q && q.route)) routes.push([`the court's way in at (${((h.x0 + h.x1) / 2).toFixed(0)}, ${((h.z0 + h.z1) / 2).toFixed(0)})`, (h as unknown as { route: number[][] }).route]);
+  const low: string[] = [];
+  let worst = Infinity;
+  for (const [name, route] of routes) {
+    let least = Infinity, at = "";
+    for (let k = 1; k < route.length; k++) {
+      const [a, b] = [route[k - 1], route[k]];
+      // (a way's legs between storeys turn on the landings: a leg back down to the next flight's foot is the turn, walked
+      // on the landing, not a tread)
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      for (let t = 0; t <= L; t += 0.25) {
+        const f = L ? t / L : 0;
+        const [x, z, y] = [a[0] + (b[0] - a[0]) * f + BR_X, a[1] + (b[1] - a[1]) * f + BR_Z, a[2] + (b[2] - a[2]) * f];
+        const here = solidsIn(x, x, z, z).filter((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ);
+        const tread = here.reduce((m, s) => (s.top <= y + 0.6 && s.top > m ? s.top : m), -Infinity);
+        if (!Number.isFinite(tread)) continue;
+        const over = here.reduce((m, s) => (s.base > tread + 0.1 && s.base < m ? s.base : m), Infinity);
+        const head = over - tread;
+        if (head < least) (least = head), (at = `(${(x - BR_X).toFixed(1)}, ${(z - BR_Z).toFixed(1)}) at ${tread.toFixed(2)} m`);
+      }
+    }
+    worst = Math.min(worst, least);
+    if (least < MOVE.standHeight) low.push(`${name}: ${least.toFixed(2)} m at ${at}`);
+  }
+  check("no stair of the big building runs into a ceiling: a standing body's headroom over every tread of every way up", routes.length >= 14 && low.length === 0, `${routes.length} ways, the least headroom ${worst.toFixed(2)} m${low.length ? `; too low: ${low.slice(0, 4).join("; ")}` : ""}`);
 }
 // each new floor's number beside its core doors (rules.tower.floors.digits): the right digit, two signs and more a floor
 {

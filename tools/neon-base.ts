@@ -111,6 +111,107 @@ export function storeySlab(g: Grid, region: (x: number, z: number) => number, ho
 }
 
 /**
+ * A slab filled out to the building's skin: the open air flooded in from the grid's edge through every cell where the
+ * skin does not stand (`atSlab`, at a height where it is whole); every cell the air does not reach is inside it, and the slab
+ * takes it, `inset` cells in from the air (its edge hidden in the skin, not flush with the skin's outer face), with the
+ * cells `inside` besides. Returns the cells and the holes: cells the air does not reach, in from it by `inset`, that are
+ * neither in the slab nor under something at its height (`under`; `skip` the cells a hole is cut for, the core's), a crack the
+ * sky shows through along the floor's edge and the ceiling's
+ */
+export function fillTo(g: Grid, inside: Uint8Array, atSlab: Uint8Array, inset: number, skip: (x: number, z: number) => boolean, fill = true, under: Uint8Array = atSlab, keep: Uint8Array | null = null): { cells: Uint8Array; holes: number } {
+  const N = g.nx * g.nz;
+  const air = new Uint8Array(N);
+  const todo: number[] = [];
+  for (let i = 0; i < g.nx; i++) for (const j of [0, g.nz - 1]) if (!atSlab[j * g.nx + i]) (air[j * g.nx + i] = 1), todo.push(j * g.nx + i);
+  for (let j = 0; j < g.nz; j++) for (const i of [0, g.nx - 1]) if (!atSlab[j * g.nx + i] && !air[j * g.nx + i]) (air[j * g.nx + i] = 1), todo.push(j * g.nx + i);
+  while (todo.length) {
+    const k = todo.pop()!;
+    const [i, j] = [k % g.nx, Math.floor(k / g.nx)];
+    for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+      if (a < 0 || a >= g.nx || b < 0 || b >= g.nz) continue;
+      const q = b * g.nx + a;
+      if (air[q] || atSlab[q]) continue;
+      air[q] = 1;
+      todo.push(q);
+    }
+  }
+  // (in from the air by `inset` cells: the air grown, and what is left)
+  let near = air;
+  for (let t = 0; t < inset; t++) {
+    const next = near.slice();
+    for (let j = 0; j < g.nz; j++)
+      for (let i = 0; i < g.nx; i++) {
+        const k = j * g.nx + i;
+        if (near[k]) continue;
+        if ((i > 0 && near[k - 1]) || (i < g.nx - 1 && near[k + 1]) || (j > 0 && near[k - g.nx]) || (j < g.nz - 1 && near[k + g.nx])) next[k] = 1;
+      }
+    near = next;
+  }
+  const out = inside.slice();
+  let holes = 0;
+  for (let j = 0; j < g.nz; j++)
+    for (let i = 0; i < g.nx; i++) {
+      const k = j * g.nx + i;
+      if (near[k] || skip(g.x0 + (i + 0.5) * g.cell, g.z0 + (j + 0.5) * g.cell)) continue;
+      if (fill && !(keep && keep[k])) out[k] = 1;
+      else if (!inside[k] && !under[k]) holes++;
+    }
+  return { cells: out, holes: holes * g.cell * g.cell };
+}
+
+/** the cells whose middles lie in a level triangle at `y` (within `tol`): a floor or ledge already there */
+export function flatAt(g: Grid, tris: Iterable<[number[], number[], number[]]>, y: number, tol: number): Uint8Array {
+  const m = new Uint8Array(g.nx * g.nz);
+  for (const [a, b, c] of tris) {
+    if (Math.abs(a[1] - y) > tol || Math.abs(b[1] - y) > tol || Math.abs(c[1] - y) > tol) continue;
+    const side = (px: number, pz: number, q: number[], r: number[]) => (q[0] - px) * (r[2] - pz) - (r[0] - px) * (q[2] - pz);
+    const i0 = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - g.x0) / g.cell)), i1 = Math.min(g.nx - 1, Math.floor((Math.max(a[0], b[0], c[0]) - g.x0) / g.cell));
+    const j0 = Math.max(0, Math.floor((Math.min(a[2], b[2], c[2]) - g.z0) / g.cell)), j1 = Math.min(g.nz - 1, Math.floor((Math.max(a[2], b[2], c[2]) - g.z0) / g.cell));
+    for (let j = j0; j <= j1; j++)
+      for (let i = i0; i <= i1; i++) {
+        const [px, pz] = [g.x0 + (i + 0.5) * g.cell, g.z0 + (j + 0.5) * g.cell];
+        const [s1, s2, s3] = [side(px, pz, a, b), side(px, pz, b, c), side(px, pz, c, a)];
+        if ((s1 >= 0 && s2 >= 0 && s3 >= 0) || (s1 <= 0 && s2 <= 0 && s3 <= 0)) m[j * g.nx + i] = 1;
+      }
+  }
+  return m;
+}
+
+/**
+ * A skirt along a slab's outer edge: a face from its top `height` up, all round the outline of `region` that encloses the
+ * most (the core's hole and any island left out), facing in over the slab, mapped as the slab's edges are
+ */
+export function skirtAlong(g: Grid, region: (x: number, z: number) => number, top: number, height: number, scale: number): Part {
+  const [x1, z1] = [g.x0 + g.nx * g.cell, g.z0 + g.nz * g.cell];
+  const lines = contours(region, g.x0, x1, g.z0, z1, g.cell);
+  const span = (pts: Pt[]) => (Math.max(...pts.map((q) => q[0])) - Math.min(...pts.map((q) => q[0]))) * (Math.max(...pts.map((q) => q[1])) - Math.min(...pts.map((q) => q[1])));
+  const outer = lines.reduce((best, l) => (span(l.pts) > span(best.pts) ? l : best), lines[0]);
+  const p: Part = { pos: [], uv: [], nrm: [], idx: [] };
+  if (!outer) return p;
+  const pts = outer.closed ? [...outer.pts, outer.pts[0]] : outer.pts;
+  let run = 0;
+  for (let k = 1; k < pts.length; k++) {
+    const [a, b] = [pts[k - 1], pts[k]];
+    const d = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (d < 1e-6) continue;
+    let n: Pt = [(b[1] - a[1]) / d, -(b[0] - a[0]) / d];
+    const mid: Pt = [(a[0] + b[0]) / 2, (a[1] + b[1]) / 2];
+    // (toward the slab: where the region is lower, inside)
+    if (region(mid[0] + n[0] * 0.05, mid[1] + n[1] * 0.05) > region(mid[0] - n[0] * 0.05, mid[1] - n[1] * 0.05)) n = [-n[0], -n[1]];
+    const base = p.pos.length / 3;
+    for (const [q, y, u] of [[a, top, run], [b, top, run + d], [b, top + height, run + d], [a, top + height, run]] as const) {
+      p.pos.push(q[0], y, q[1]);
+      p.uv.push(u * scale, (y - top) * scale);
+      p.nrm.push(n[0], 0, n[1]);
+    }
+    const ccw = (b[0] - a[0]) * n[1] - (b[1] - a[1]) * n[0] < 0;
+    p.idx.push(...(ccw ? [base, base + 2, base + 1, base, base + 3, base + 2] : [base, base + 1, base + 2, base, base + 2, base + 3]));
+    run += d;
+  }
+  return p;
+}
+
+/**
  * The cells inside a closed outline (a building's shell, `stood`), from a seed: the shell grown by `close` cells first
  * so a gap narrower than that between two of its pieces does not let the flood out, the inside grown back by `reach`
  * cells after so it meets the shell again (and runs a cell under it). Returns the inside and how many cells it has

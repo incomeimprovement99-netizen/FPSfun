@@ -112,4 +112,5 @@ at MARKET, the Well's shaft lit), and the street signs and railings not repeated
 loot glowing; cover on the bridges; night lit by its signs and street lights; zip lines drawn as cables, walk-in doors
 framed in light, and fewer tall pad beams. The plan for each is in the centre's plan page, version 11. *Built so far:
 Milestone 443, the streets' median and hover vans, 2 m floor numbers, the south deck's neon tower and the interiors'
-lights by preset.*
+lights by preset; Milestone 451, each corner block's own thing at street level (Noodle Row's lanterns, Market's
+crates, the Well's lamps) and the tower's floors meeting its facade, the crack along them closed.*

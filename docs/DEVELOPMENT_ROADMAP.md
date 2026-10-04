@@ -10154,3 +10154,53 @@ meshes: its body, head, armour and eyes.
 - **Not done:** merging the head and armour draws of far figures, which use different textures and would need an atlas.
 - **Checked:** a new skfigure check (eyes shown near, hidden past the distance, shown again, never in the shadow pass),
   seen failing with the switch disabled; the skfigure e2e (137); verify; rules.
+
+## Milestone 451 — The big building checked floor by floor: its floors meet the facade, no stair into a ceiling; and each corner block its own thing at street level
+
+The owner's play test (2026-10-04): "start from bottom to top on the big building and ensure we can go through windows
+and stairs don't lead to ceilings, I saw that in a couple places". And the centre's second review: the corner blocks are
+interchangeable at street level ("16 no stalls, 18 no crates").
+
+- **Floor by floor, bottom to top.** Every storey of the base and the tower photographed at three of its window walls,
+  every stair of the base and the stair core at each of its storeys, and an audit over the whole centre for a stair whose
+  next tread is under a slab (a rising run of treads, a foot wide, its headroom short of a standing body's 1.83 m). The
+  windows: all 230 open ones are shot through and walked out of by a player (the checks since Milestone 417); the 61
+  still glazed open onto a wall within 3 m.
+- **The floors meet the facade** (rules.tower.fill, skin): round every floor of the tower from 14 to 35 m a ragged crack
+  ran along the floor's edge and the ceiling's, the sky and the street seen through it. Each slab was found by flooding
+  the inside of the tower's walls at standing height, where the window frames and piers stand in from the facade's skin;
+  behind them, where the pack's own floors had met the skin, nothing was left. Each slab now fills the skin, found by
+  flooding the open air in from outside against the wall under the windows' sills (0.1 to 0.4 m over the floor, whole
+  all round: the sills are 0.44 m up), and stops a quarter metre short of its outer face, never over a floor or ledge the
+  pack already has at the slab's top (the two fought in one plane). And a skirt along each slab's outer edge, 0.42 m,
+  under the sills: the facade's own panels stop short of the floor, and the city showed through a slit at their foot.
+  The cracks measured: 46 to 60 m2 a floor before, 0 now; the floors still sealed but for their windows.
+- **No stair into a ceiling.** Every way up the big building walked a quarter metre at a time, the stair core's, each of
+  the base's twelve stairs and the court's ways in, the tread there and the first thing over it: the least headroom
+  2.60 m. The audit's other finds were not stairs: a kiosk's thin wall with windows at different heights, beams high
+  in the court's side passages, a counter on the base's first floor; and one crawl gap under THE WELL's sign on a roof
+  ledge, left.
+- **NOODLE ROW's lantern canopy** (rules.low.lanterns): along its two streets beside the block, a cable from each lamp's
+  head across the road to the head opposite and on to the next pair's in an X, the pack's Chinese lanterns hung from each
+  every 1.75 m, 5.4 m up, drawn only: 14 cables, 106 lanterns.
+- **MARKET's crate stacks** (rules.low.crateStacks): two crates side by side and one on the first, a step from waist to
+  head high, on the block's pavement of its two streets: 6 stacks.
+- **THE WELL's ring of lamps** (rules.low.wellRing): the street's lamp round the shaft's open edges, off the rope's top:
+  5 lamps.
+- **The shop signs** leave out the corner blocks' own (MOTEL is MOTEL HILL's alone), and none hangs within 40 m of its
+  twin.
+- **One model of the bots' street graph for every street piece** (tools/neon-layout.ts streetGraph): the lamps, the cars,
+  the median (41 blocks), the furniture, the crate stacks, in the order they go down, a body and a quarter of a cell
+  round each (the collision is built in half-metre columns), and no piece where it would cut the graph. A crate stack laid
+  after the median, outside its model, cut the same two nodes the median once had.
+- **THE CENTRE's spawns kept clear** (rules.dress.median.keep): the 1v1 on the Loop stands its eight spawns on the Loop's
+  own line, and the median (Milestone 443) laid concrete blocks on five of them; the lobby's e2e found its bot held fast
+  there. The median keeps 3 m off every spawn and zone, read from src/config/centre.json.
+- The map: its files lo 84 MB, hi 146 MB, max 357 MB. **Its files are version 38.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): the tower's floors meet its facade, no crack (seen failing at 46
+  to 60 m2 a floor with the slab stopped at the frames); no stair of the big building runs into a ceiling (every tread of
+  every way up); NOODLE ROW's lanterns over its streets, each 3.5 m and more over the ground; MARKET's crate stacks, each
+  solid over a body's height; THE WELL's ring of lamps; the shop signs, none a corner block's own and none by a twin;
+  THE CENTRE's spawns and zones each with a body's room (seen failing with blocks on five spawns) (each seen failing with
+  its rule taken out); the street one network with every piece in it. The layout run again on
+  the new bake leaves every placement where it was. verify and rules; e2e `br`. Photographed floor by floor.
