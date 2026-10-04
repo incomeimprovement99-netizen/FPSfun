@@ -53,11 +53,11 @@ export function inView(x: number, y: number, z: number, r: number): boolean {
  * so the figures that animate every second or fourth frame do not all land on
  * the same one.
  */
-export function figureWork(at: THREE.Vector3, spread: number): { animate: boolean; shadow: boolean; fullGun: boolean; stride: number } {
+export function figureWork(at: THREE.Vector3, spread: number): { animate: boolean; shadow: boolean; fullGun: boolean; eyes: boolean; stride: number } {
   const d = figureDistance(at);
   const onScreen = figureOnScreen(at);
   const stride = d <= FIG_LOD.near ? 1 : d <= FIG_LOD.mid ? 2 : 4;
   // off screen and well away: nothing to animate until it is looked at again
   const animate = onScreen || d <= FIG_LOD.offscreen ? (view.frame + Math.abs(Math.round(spread))) % stride === 0 : false;
-  return { animate, shadow: d <= FIG_LOD.shadow, fullGun: d <= FIG_LOD.farGun, stride };
+  return { animate, shadow: d <= FIG_LOD.shadow, fullGun: d <= FIG_LOD.farGun, eyes: d <= FIG_LOD.eyes, stride };
 }

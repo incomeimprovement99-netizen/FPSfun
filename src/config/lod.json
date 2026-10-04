@@ -1,10 +1,11 @@
 {
-  "_note": "Figure LOD (docs/PLAN_LOD_DRAW_DISTANCE.md step D, src/game/figlod.ts). A battle royale's bots cost more than its map: each figure is about 13.7k triangles on 65 bones with its own materials, its gun another 11 to 15 meshes, and every one of them animates and casts a shadow every frame however far away it is. So: the animation runs every frame within `near` metres of the camera, every second frame out to `mid`, every fourth beyond that, and not at all off screen past `offscreen` metres (the mixer is given the time it missed when its turn comes, so nothing drifts). A figure casts a shadow only within `shadow` metres. Past `farGun` metres its gun is the one merged mesh the floor guns use (loot.ts), not the 11 to 15 of the full model. The distances are ours, judged by what a figure is worth on screen at each: at 30 m a figure is a target, at 80 m a shape, beyond that a dot. Nothing here changes what a bullet hits: hit boxes come from the figure's own boxes, not from the animation.",
+  "_note": "Figure LOD (docs/PLAN_LOD_DRAW_DISTANCE.md step D, src/game/figlod.ts). A battle royale's bots cost more than its map: each figure is about 13.7k triangles on 65 bones with its own materials, its gun another 11 to 15 meshes, and every one of them animates and casts a shadow every frame however far away it is. So: the animation runs every frame within `near` metres of the camera, every second frame out to `mid`, every fourth beyond that, and not at all off screen past `offscreen` metres (the mixer is given the time it missed when its turn comes, so nothing drifts). A figure casts a shadow only within `shadow` metres. Past `farGun` metres its gun is the one merged mesh the floor guns use (loot.ts), not the 11 to 15 of the full model. The distances are ours, judged by what a figure is worth on screen at each: at 30 m a figure is a target, at 80 m a shape, beyond that a dot. Nothing here changes what a bullet hits: hit boxes come from the figure's own boxes, not from the animation. A soldier's eyes are a mesh and a draw call of their own (apex-lobby counted bots at about 125 of 540 draw calls in a Neon street frame, 2026-10-04): they never cast a shadow, and past `eyes` metres they are not drawn. The head is open behind them (photographed: hidden, the sockets show what is behind the head), so not at 25 m, where the opening is still 0.8 of a pixel at 1080p and could twinkle against a bright sky, but at 60, a third of a pixel, where a figure already casts no shadow.",
   "figures": {
     "near": 30,
     "mid": 80,
     "offscreen": 20,
     "shadow": 60,
-    "farGun": 15
+    "farGun": 15,
+    "eyes": 60
   }
 }

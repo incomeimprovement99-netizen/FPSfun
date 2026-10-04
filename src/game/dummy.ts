@@ -1376,6 +1376,7 @@ export class Dummy {
   private lodAnimate = true;
   private lodShadow = true;
   private lodFullGun = true;
+  private lodEyes = true;
   private stepLod(): void {
     const w = figureWork(this.group.position, this.lodSpread);
     this.lodAnimate = w.animate;
@@ -1386,6 +1387,10 @@ export class Dummy {
     if (w.fullGun !== this.lodFullGun) {
       this.lodFullGun = w.fullGun;
       this.showFarGun(!w.fullGun);
+    }
+    if (w.eyes !== this.lodEyes) {
+      this.lodEyes = w.eyes;
+      this.mq?.showEyes(w.eyes);
     }
   }
 

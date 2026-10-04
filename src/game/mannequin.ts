@@ -1155,6 +1155,19 @@ export class MannequinFigure {
         m.userData.ownMaterial = mat;
       }
     });
+    // The soldier's eyes are a mesh of their own, a draw call a figure (apex-lobby counted 28 bots' in a Neon street
+    // frame): never in the shadow pass, where an eye's shadow is nothing, and hidden past lod.json figures.eyes (showEyes),
+    // where an eye is under a pixel
+    if (this.soldier) {
+      this.root.traverse((o) => {
+        const m = o as THREE.SkinnedMesh;
+        if (m.isSkinnedMesh && /eye/i.test(String(m.userData.soldierMaterial ?? ""))) {
+          m.castShadow = false;
+          m.userData.shadowOff = true;
+          this.eyes.push(m);
+        }
+      });
+    }
     // the soldier wears its own pieces, nothing of the figures' wardrobe; its fingers are drawn smaller than its model's
     if (skinned.length) {
       this.height = figureHeight(this.root, skinned);
@@ -1494,6 +1507,13 @@ export class MannequinFigure {
       world.premultiply(this.footT.setFromAxisAngle(side, -lift * w));
       foot.quaternion.copy(parentQ.invert().multiply(world));
     }
+  }
+
+  /** the soldier's eye meshes (see the constructor), shown only near the camera */
+  private readonly eyes: THREE.SkinnedMesh[] = [];
+  /** the eyes drawn or not: a far figure's are under a pixel (lod.json figures.eyes, the figure's level of detail) */
+  showEyes(on: boolean): void {
+    for (const m of this.eyes) m.visible = on;
   }
 
   /** how far this gun reaches behind its own grip, metres (0 for a pistol) */

@@ -15,6 +15,7 @@ import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
 import { HOLD } from "../src/game/hold";
 import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
 import soldierCfg from "../src/config/soldier.json";
+import lodCfg from "../src/config/lod.json";
 import soldierHoldCfg from "../src/config/soldierhold.json";
 import figureCfg from "../src/config/figure.json";
 import puppeteer, { type Browser, type Page } from "puppeteer";
@@ -8295,6 +8296,29 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       });
       return { toes, soles: [soles.l, soles.r].map((x) => Math.round(x * 1000)) };
     })()`,
+  );
+  // A far soldier's eyes are not drawn (lod.json figures.eyes; a draw call a figure) and never cast a shadow: shown near,
+  // hidden moved past the distance, shown again brought back
+  const eyesLod = await ev<{ n: number; near: boolean[][]; far: boolean[][]; back: boolean[][] }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 2.6, 0); r.figureLabManual(true); r.figureLabStep(0.5);
+      const f = r.labFigures()[0], mq = f.figure;
+      const eyes = () => mq.eyes.map((m) => [m.visible, m.castShadow]);
+      const near = eyes();
+      const home = f.group.position.clone();
+      const dir = r.camera.getWorldDirection(new T.Vector3()).setY(0).normalize();
+      f.group.position.copy(r.camera.getWorldPosition(new T.Vector3()).setY(home.y).addScaledVector(dir, ${lodCfg.figures.eyes + 20}));
+      r.figureLabStep(0.2); const far = eyes();
+      f.group.position.copy(home); r.figureLabStep(0.2); const back = eyes();
+      return { n: mq.eyes.length, near, far, back };
+    })()`,
+  );
+  check(
+    `a far soldier's eyes are not drawn (past ${lodCfg.figures.eyes} m) and never cast a shadow: shown near, hidden far, shown again`,
+    eyesLod.n > 0 && eyesLod.near.every(([v, sh]) => v && !sh) && eyesLod.far.every(([v, sh]) => !v && !sh) && eyesLod.back.every(([v]) => v),
+    JSON.stringify(eyesLod)
   );
   check(
     "the soldier standing still is flat on its feet: each toe no higher than its bind pose has it (2 degrees), the soles on the floor (10 mm)",
