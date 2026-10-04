@@ -10531,3 +10531,20 @@ the projectile system's figures that the start used to fill from them.
   against 1.66 s. Everything in (loaded, which waits for the jobs after the first screen) came 0.08 s later, as the
   pop-ups are made there now.
 - **Checked:** tsc; verify; rules; the page (the course runs), range and finish e2e.
+
+## Milestone 468 — The tower floors' walls in the pack's panels, each floor still its colour
+
+The centre's third review: "the tower floors' walls are flat colour with a speckle". The second review had asked for a
+dominant colour a floor, and the walls got the pack's coloured plastics: each of those is a noise texture under one flat
+colour (measured off the pack: PlasticGreen00, PlasticOrange00 and the rest all draw Noise02.png), so a wall read as a
+painted sheet.
+
+- **A derived material that tints** (tools/import-neon.ts derivedMat): "Base*#rrggbb" is the pack's material Base with
+  its own colour times the colour and its textures kept, beside "Base|#rrggbb|k", which lights one. The rooms at 17 m,
+  the halls at 20, the maze at 23 and the rooms at 29 now wear the pack's grey wall panels (pannel03) in their green,
+  black, orange and blue; THE VAULT's yellow painted panels and the halls' rounded plastic panels at 35 already had a
+  pattern of their own and stay.
+- The map: its files lo 91 MB, hi 153 MB, max 367 MB. **Its files are version 42.**
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): every partitioned floor's walls in a patterned material, none of
+  the pack's flat coloured plastics, each floor's its own (failing on the plastics). verify and rules; e2e `br`.
+  Photographed on every floor it changed.

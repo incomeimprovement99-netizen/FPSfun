@@ -153,4 +153,5 @@ hidden until the outer districts are built. The plan for each is in the centre's
 Milestone 458, the street level measured at a standing eye (exposure on the curves 8.1% to 4.5% of bearings, on the
 Loop 13.0% to 7.3%): street walls where the ground is free, boards in the median, a van every second car;
 Milestone 465, balconies a jump apart up the north and west High City blocks' Loop faces, street to deck. The void
-past the centre: the pack's fake facades tried and left out (see-through screens).*
+past the centre: the pack's fake facades tried and left out (see-through screens); Milestone 468, the tower floors' walls in the
+pack's panels, each floor its colour.*

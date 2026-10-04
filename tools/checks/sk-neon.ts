@@ -1629,6 +1629,17 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("the High City's climbs, as many as the rule lays", CB.length === ((cfg.rules.blocks as unknown as { climbs?: { at: unknown[] } }).climbs?.at.length ?? 0) && CB.length > 0, `${CB.length}`);
 }
 
+// the tower's partitioned floors' walls (rules.tower.floors.at; the centre's third review: "the tower floors' walls are
+// flat colour with a speckle"): each in a material with a pattern of its own, not one of the pack's coloured plastics
+// (a noise texture under a flat colour), and each floor's its own, THE VAULT's at 32 m among them
+{
+  const AT = (cfg.rules.tower as unknown as { floors: { at: Record<string, { plan: string; mat: string }> } }).floors.at;
+  const parted = Object.entries(AT).filter(([, q]) => q.plan !== "open");
+  const flat = parted.filter(([, q]) => /^Plastic(Green|Black|Orange|Blue|Red|White|Yellow)\d+$/.test(q.mat));
+  const mats = parted.map(([, q]) => q.mat);
+  check("the tower's partitioned floors' walls in patterned panels, each floor its own", parted.length >= 5 && flat.length === 0 && new Set(mats).size === mats.length && !!AT["32"], `${parted.map(([h, q]) => `${h} m ${q.mat}`).join(", ")}${flat.length ? `; flat colour: ${flat.map(([h]) => h).join(", ")}` : ""}`);
+}
+
 // the street level's exposure (rules.sightlines; the centre's third review: "no street sightline past 60 m but the Loop's",
 // "streets are wide bare plains overlooked from 27 m"): from open street ground every `step` metres (a floor within 0.3 m
 // of the ground, nothing a body would stand in from 0.3 to 1.8 m over it), a standing eye `eye` metres up looks along

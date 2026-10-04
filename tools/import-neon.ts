@@ -319,8 +319,22 @@ if (mode === "bake") {
   const chunkOf = new WeakMap<object, string>();
   // a placement's material may be derived: "Base|#rrggbb|k" is the pack's Base with its emission the colour at k times
   // its unit (MOTEL HILL's beam in pink: the pack has no plain pink light, and its pink ad light's panel texture, tiled
-  // 92 m up a beam, drew nearly black against the sky)
+  // 92 m up a beam, drew nearly black against the sky); "Base*#rrggbb" is Base with its own colour times the colour,
+  // its textures kept (the tower floors' walls in the pack's grey panels, each floor its colour: the pack's coloured
+  // plastics are a noise texture under a flat colour, "flat colour with a speckle", the centre's third review)
   const derivedMat = (spec: string): string | null => {
+    if (spec.includes("*#")) {
+      const guid = `derived:${spec}`;
+      if (mats.has(guid)) return guid;
+      const [base, hex] = spec.split("*");
+      const bg = pack.matFor(base);
+      const info = bg ? readMaterial(pack, bg) : null;
+      if (!info) throw new Error(`no material ${base} to derive ${spec} from`);
+      const n = parseInt(hex.replace("#", ""), 16);
+      const tint = [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+      mats.set(guid, { ...info, name: spec.replace(/[*#]/g, "_"), color: [info.color[0] * tint[0], info.color[1] * tint[1], info.color[2] * tint[2], info.color[3]] });
+      return guid;
+    }
     if (!spec.includes("|")) return null;
     const guid = `derived:${spec}`;
     if (mats.has(guid)) return guid;
