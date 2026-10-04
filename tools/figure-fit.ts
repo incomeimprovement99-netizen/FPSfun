@@ -21,7 +21,8 @@
 //
 // Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-fit.ts <gun id>   (WRITE=1 stores it as guns.<id>)
 //      SCALE=1.1 draws the gun that much bigger (soldierhold.json scale); HAND_R / HAND_L='{"at":..,"fwd":..,"palm":..}'
-//      start a hand there; SIDES=r fits only that hand; SEARCH=0 grasps where the hand is, without moving it;
+//      start a hand there; SIDES=r fits only that hand; SEARCH=0 grasps where the hand is, without moving it (SEARCH=tilt
+//      turns it in its palm's plane too; SEAT=0 keeps the palm off where it is rather than seating it on the gun);
 //      TRIGGER_ONLY=1 only puts the right index on the trigger, the hands as they are; TOGETHER=l closes that hand's four
 //      fingers as one (a fist's curl, as far as the first of them touches), for a hold narrower than the fingers are long
 //      (BOOG's rail: closed one by one, the middle finger stood straight up its side and the rest shut on the air). Each hand's numbers are printed
@@ -232,7 +233,9 @@ async function main(): Promise<void> {
       set(lo);
     };
     const grasp = async (side: Side): Promise<{ cost: number; why: string }> => {
-      await seatPalm(side);
+      // (SEAT=0 keeps the palm where it is: STRYDER's index reaches its trigger only with the palm 3 mm off the handle,
+      // and seated onto it the crease stopped 13 mm short)
+      if (process.env.SEAT !== "0") await seatPalm(side);
       if (together.includes(side)) {
         await wrapTogether(side);
         await wrap(side, "thumb");
@@ -315,6 +318,9 @@ async function main(): Promise<void> {
         return g;
       };
       if (process.env.SEARCH === "0") await tryPlace(0, 0, 0, H0);
+      // (SEARCH=tilt turns the hand in its palm's plane alone, the palm kept where it is: a raked handle's fingers follow
+      // its rake, where moving the palm loses a trigger that fits in one place only, STRYDER's)
+      else if (process.env.SEARCH === "tilt") for (const tilt of [-24, -18, -12, -6, 0, 6, 12]) await tryPlace(0, 0, tilt, H0);
       else {
         // along the hand's length (its knuckles forward of the hold or back), across its knuckles, and tilted in the
         // palm's plane: a coarse look round the start, then a finer one round the best
@@ -327,9 +333,18 @@ async function main(): Promise<void> {
       cfg.fingers[side] = best.fingers;
       console.log(`${side} hand: ${best.cost.toFixed(1)} (${best.why}) after ${n} measures`);
       // the thumb's swing again where the hand now is, and the grasp once more with it (it moves the palm's seat)
+      // (a copy: the thumb and the grasp below change the hand's finger arrays in place, the best's among them)
+      const kept = JSON.parse(JSON.stringify({ hand: cfg.hands[side], fingers: cfg.fingers[side] })) as { hand: Hand; fingers: Record<string, number[]> };
       await thumb(side);
       const last = await grasp(side);
       console.log(`${side} final: ${last.cost.toFixed(1)} (${last.why})`);
+      // (kept only if no worse: on both pistols' left hands the regrasp straightened fingers the search had closed, 133
+      // degrees short of closed to 523, and the worse one was written)
+      if (last.cost > best.cost + 0.05) {
+        cfg.hands[side] = kept.hand;
+        cfg.fingers[side] = kept.fingers;
+        console.log(`${side} final worse than the search's best: the best kept (${best.cost.toFixed(1)})`);
+      }
       // each hand as soon as it is done: a run that dies later (a page reloaded by an edit, the machine) keeps it
       console.log(`${side} fitted: ${JSON.stringify({ hand: cfg.hands[side], fingers: cfg.fingers[side] })}`);
     }

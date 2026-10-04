@@ -10713,3 +10713,33 @@ is unchanged.
 
 - **Checked:** tsc; verify (loot-tiers without its bin checks); rules; the br, loot and speedkills e2e (the vault
   stocked with its mythic gun alone; the bin checks gone).
+
+## Milestone 477 — The soldier's head held up: a headshot from behind lands
+
+The owner, 2026-10-04: with BOOG he could not headshot a soldier from behind, its head "all tucked down, like chin is to
+the player's chest, making a headshot from the boog in the back almost impossible, or visually impossible".
+
+- **Measured first** (from 30 m behind at a standing eye, every point of the drawn head aimed at and the hit volumes asked
+  what it hits, as the game's hitscan does): the clips carried the head down with the chest, its middle 43 degrees
+  forward of the neck standing, 52 to 56 aimed, 74 to 80 crouched or sprinting, and of the shots at the head the shooter
+  could see, 3 to 7 in 100 were headshots crouched and aimed, 0 to 3 sprinting, 69 to 85 running or aimed. The neck's
+  and the torso's volumes, which follow the bones, stood in front of the head volume as the head dropped.
+- **The fix** (mannequin.ts holdHeadUp, figure.json headUp): each frame the soldier's Head bone is turned about the
+  figure's left so its face looks at the look's pitch, level when not aiming, before the deliberate tilts on top (a
+  flinch, the aimed nod, the rifle rig's cheek on the stock); the face's way is the bind pose's forward, from the
+  skeleton. Not in an emote, a finisher, down or dead; the legacy figures keep their clips.
+- **After:** of the shots at the head the shooter sees from behind, 88 to 100 in 100 are headshots standing, aimed or
+  running, 75 to 88 crouched and aimed, 91 to 97 sprinting (BOOG and the USSO); the rest pass over the beret's edge,
+  outside the head volume. Photographed from behind before and after: the head up over the shoulders and the pack
+  rather than down behind them.
+- **Checked:** a new skfigure check holds the shots at the head seen from behind to 70 in 100 and the face within 20
+  degrees of level standing, aimed, crouched and aimed and sprinting (seen failing with the hold off); the skfigure e2e on
+  every fitted gun; verify; rules; the type check.
+- **Left for the owner:** crouched and aimed or sprinting the chest leans 33 to 40 degrees, and the shoulder armour and
+  the pack still hide much of the head from behind: less of it shows than of a standing soldier's (40 to 50 of the head's
+  points against 100 to 130). Holding the chest more upright in those poses would show more, and changes how the
+  soldier runs and crouches, so it is the owner's call.
+- **Also in this release (tools):** figure-fit.ts keeps a search's best grasp when its last regrasp is worse (it had
+  written the worse, the fingers straightened), turns a hand in its palm's plane alone (`SEARCH=tilt`) and can grasp
+  without seating the palm (`SEAT=0`); figure-audit.js says which fingers have their knuckle under the gun (`below`),
+  which the hold checks excuse from touching it.

@@ -39,5 +39,10 @@
     "under": 0.6,
     "rate": 10,
     "lift": 0.021
+  },
+  "_headUp": "The soldier's head held up to where it looks (the owner, 2026-10-04: from behind \"their head is all tucked down, like chin is to the player's chest, making a headshot from the boog in the back almost impossible\"). The clips carry the head down with the chest: measured, the head's middle 43 degrees forward of the neck standing, 52 to 56 aimed, 74 to 80 crouched or sprinting, and from 30 m behind at a standing eye a shot at the back of the head it showed was a headshot 66 times in 100 standing, 40 to 60 aimed and 2 to 7 crouched or sprinting (the neck's and the torso's volumes took the rest). Each frame the Head bone is turned about the figure's left so the face looks at the look's pitch, level when not aiming, `hold` of the way, never more than `most` degrees; before the deliberate tilts on top (a flinch, the aimed nod, the rifle rig's cheek on the stock). Not in an emote, a finisher, down or dead.",
+  "headUp": {
+    "hold": 1,
+    "most": 70
   }
 }

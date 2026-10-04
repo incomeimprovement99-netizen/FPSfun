@@ -8145,14 +8145,16 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     .filter((k) => !k.startsWith("_") && (!FIGURE_GUNS.length || FIGURE_GUNS.includes(k)))
     .sort((a, b) => ROSTER.indexOf(a) - ROSTER.indexOf(b));
   const nameOf = (id: string) => (skCfg.weapons as Record<string, { name?: string }>)[id]?.name ?? id;
-  type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number>; handOnHand?: number; handOnHandN?: number; handGap?: Record<string, number> };
+  type A = { armed: boolean; grip?: number; support?: number; aim?: number; wristL: number; wristR: number; handIn?: { l: number; r: number }; gunIn?: number; palmGap?: { l: number; r: number }; fingerGap?: Record<string, number>; handOnHand?: number; handOnHandN?: number; handGap?: Record<string, number>; below?: string[] };
   const HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l", "ring_l", "pinky_l"];
   // (the left hand round a pistol's grip holds the right hand: a left finger or palm touching it is on its hold, G8)
   const touching = (a: A, f: string) => Math.min(a.fingerGap?.[f] ?? 99, f.endsWith("_l") ? (a.handGap?.[f] ?? 99) : 99);
   // (on a pistol the left hand's four fingers lie over the right's three below the guard, so its pinky is past the
   // handle's bottom, as a big hand's support pinky hangs under a magazine: APUHTHEE's 14 mm from the right pinky)
   const holdingOf = (id: string) => ((soldierHoldCfg.guns as Record<string, { stance?: string }>)[id]?.stance === "pistol" ? HOLDING.filter((f) => f !== "pinky_l") : HOLDING);
-  const on = (a: A, id: string) => Math.max(Math.min(a.palmGap?.l ?? 99, a.handGap?.palm_l ?? 99), a.palmGap?.r ?? 99) <= BAR.off && holdingOf(id).every((f) => touching(a, f) <= BAR.off);
+  // (and a finger whose knuckle is under the gun's lowest point has nothing there to hold: figure-audit.js below;
+  // STRYDER's right pinky, the soldier's glove wider than its handle is long)
+  const on = (a: A, id: string) => Math.max(Math.min(a.palmGap?.l ?? 99, a.handGap?.palm_l ?? 99), a.palmGap?.r ?? 99) <= BAR.off && holdingOf(id).every((f) => (a.below ?? []).includes(f) || touching(a, f) <= BAR.off);
   const within = (a: A | null, aimed: boolean, id: string) =>
     !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn && (a.handOnHand ?? 0) <= BAR.handOnHand && (a.handOnHandN ?? 0) <= BAR.handOnHandN && on(a, id);
   for (const id of FITTED) {
@@ -8479,6 +8481,61 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       "the soldier's CHOOCH vents as others see it: the gun tipped up 10 degrees or more off its hold, the hands on it, and back after",
       vented.vent - vented.rest >= 10 && Math.abs(vented.back - vented.rest) <= 2 && (vented.a?.support ?? 99) <= BAR.support && Math.max(vented.a?.handIn?.l ?? 99, vented.a?.handIn?.r ?? 99) <= BAR.handIn,
       JSON.stringify({ rest: vented.rest, vent: vented.vent, back: vented.back, support: vented.a?.support, handIn: vented.a?.handIn })
+    );
+  }
+  // The head shot from behind (the owner, 2026-10-04: with BOOG he could not headshot a soldier from behind, its head
+  // "all tucked down, like chin is to the player's chest"): from 30 m behind at a standing eye, every point of the drawn
+  // head the shooter can see is aimed at and the hit volumes asked what it hits, as the game's hitscan does. The head
+  // held up to the look (figure.json headUp): before it, 3 to 7 in 100 were headshots crouched and aimed or sprinting,
+  // the neck's and the torso's volumes taking the rest, and the face was tipped 40 degrees and more down
+  {
+    const backPoses: Array<[string, Record<string, unknown>]> = [
+      ["standing", { speed: 0, stance: "stand", pitch: 0 }],
+      ["aimed", { speed: 0, stance: "stand", pitch: 0, ads: 1 }],
+      ["crouched and aimed", { speed: 0, stance: "crouch", pitch: 0, ads: 1 }],
+      ["sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
+    ];
+    const back: Record<string, { seen: number; head: number; face: number }> = {};
+    for (const [label, pose] of backPoses)
+      back[label] = await ev<{ seen: number; head: number; face: number }>(
+        page,
+        `(() => {
+          const r = window.__range, T = r.THREE;
+          r.player.teleport(0, 0, 0, 0, 0);
+          r.figureLabManual(false); r.figureLab([{ ...${JSON.stringify(pose)}, weapon: "sentinel", look: "S0000010" }], 6, 180); r.figureLabManual(true); r.figureLabStep(1.2);
+          const f = r.labFigures()[0], mq = f.mq; f.group.updateMatrixWorld(true);
+          const fwd = new T.Vector3(0, 0, 1).applyQuaternion(f.group.getWorldQuaternion(new T.Quaternion())).setY(0).normalize();
+          const S = f.group.position.clone().addScaledVector(fwd, -30).add(new T.Vector3(0, 1.6, 0));
+          const skins = []; mq.root.traverse((o) => { if (o.isSkinnedMesh && o.visible) skins.push(o); });
+          const ray = new T.Raycaster(); ray.far = 60;
+          const v = new T.Vector3(), nrm = new T.Vector3();
+          let seen = 0, head = 0;
+          for (const o of skins) {
+            const h = o.skeleton.bones.findIndex((x) => x.name === "Head"); if (h < 0) continue;
+            const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight, nm = o.geometry.attributes.normal;
+            for (let i = 0; i < o.geometry.attributes.position.count; i += 3) {
+              let w = 0; for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === h) w += sw.getComponent(i, c);
+              if (w < 0.5) continue;
+              o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld);
+              nrm.fromBufferAttribute(nm, i).transformDirection(o.skeleton.bones[h].matrixWorld);
+              if (nrm.dot(S.clone().sub(v).normalize()) < 0.2) continue;
+              ray.set(S, v.clone().sub(S).normalize());
+              const drawn = ray.intersectObjects(skins, false)[0];
+              if (drawn && drawn.distance < S.distanceTo(v) - 0.015) continue;
+              seen++;
+              const hit = ray.intersectObjects(f.hitMeshes, false)[0];
+              if (hit && hit.object.userData.zone === "head") head++;
+            }
+          }
+          // the face's pitch: the bind pose's forward, carried by the Head bone (mannequin.ts holdHeadUp measures it so)
+          const face = mq.faceLocal ? mq.faceLocal.clone().transformDirection(mq.boneAt("Head").matrixWorld).applyQuaternion(f.group.getWorldQuaternion(new T.Quaternion()).invert()) : new T.Vector3(0, -1, 0);
+          return { seen, head: Math.round((head / Math.max(1, seen)) * 100), face: Math.round(Math.asin(Math.max(-1, Math.min(1, face.y))) * 573) / 10 };
+        })()`,
+      );
+    check(
+      "a soldier seen from behind (BOOG, 30 m): standing, aimed, crouched and aimed or sprinting, 70 in 100 or more of the shots at the head it shows are headshots, and its face is within 20 degrees of level",
+      Object.values(back).every((x) => x.seen >= 15 && x.head >= 70 && Math.abs(x.face) <= 20),
+      JSON.stringify(back)
     );
   }
   // A far soldier's eyes are not drawn (lod.json figures.eyes; a draw call a figure) and never cast a shadow: shown near,

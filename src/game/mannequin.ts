@@ -617,6 +617,8 @@ const ATHLETIC_JUMP = figureCfg.athleticJump;
 const DOUBLE_JUMP = figureCfg.doubleJump;
 /** standing or crouched still, each foot's toe brought down to its bind pose's (figure.json flatFeet) */
 const FLAT_FEET = figureCfg.flatFeet;
+/** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
+const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
 const THROW_FOR = soldierHold.throwFor;
 /** how far the hands have come back onto a returning long gun when it shows (soldierhold.json gunBack) */
@@ -1066,6 +1068,8 @@ export class MannequinFigure {
   private liftW = 0;
   /** each foot's foot-to-ball pitch in the bind pose against the figure's up, radians, found once */
   private footRest: Record<string, number> | null = null;
+  /** the way the face looks, in the Head bone's own frame, from the bind pose (headUp); null until measured */
+  private faceLocal: THREE.Vector3 | null = null;
   private readonly footA = new THREE.Vector3();
   private readonly footB = new THREE.Vector3();
   private readonly footSide = new THREE.Vector3();
@@ -1509,6 +1513,39 @@ export class MannequinFigure {
       foot.quaternion.copy(parentQ.invert().multiply(world));
     }
   }
+
+  /**
+   * The head turned about the figure's left so its face looks at the look's pitch (level when not aiming), `hold` of
+   * the way, the turn no more than `most` degrees (figure.json headUp). The face's way in the Head bone's frame is the
+   * bind pose's forward, the figure's left crossed with its up there (the shoulders and the head over the feet).
+   */
+  private holdHeadUp(head: THREE.Object3D, fig: THREE.Object3D, pitch: number): void {
+    if (!this.faceLocal) {
+      let sk: THREE.Skeleton | null = null;
+      this.root.traverse((o) => {
+        const m = o as THREE.SkinnedMesh;
+        if (!sk && m.isSkinnedMesh && m.skeleton.bones.some((x) => x.name === "Head")) sk = m.skeleton;
+      });
+      const S = sk as THREE.Skeleton | null;
+      if (!S) return;
+      const idx = (name: string) => S.bones.findIndex((x) => x.name === name);
+      const at = (i: number) => new THREE.Vector3().setFromMatrixPosition(S.boneInverses[i].clone().invert());
+      const [h, fl, fr, ul, ur] = ["Head", "foot_l", "foot_r", "upperarm_l", "upperarm_r"].map(idx);
+      if ([h, fl, fr, ul, ur].some((i) => i < 0)) return;
+      const up = at(h).sub(at(fl).add(at(fr)).multiplyScalar(0.5)).normalize();
+      const left = at(ul).sub(at(ur));
+      const fwd = new THREE.Vector3().crossVectors(left, up).normalize();
+      this.faceLocal = fwd.transformDirection(S.boneInverses[h]);
+    }
+    head.updateWorldMatrix(true, false);
+    const face = this.headFace.copy(this.faceLocal).transformDirection(head.matrixWorld).applyQuaternion(fig.getWorldQuaternion(this.headQ).invert());
+    const now = Math.asin(THREE.MathUtils.clamp(face.y, -1, 1));
+    const most = HEAD_UP.most * DEG;
+    // (+x is the figure's left: a positive turn tips the face down)
+    turnBone(head, fig, X_AXIS, THREE.MathUtils.clamp((now - pitch) * HEAD_UP.hold, -most, most));
+  }
+  private readonly headFace = new THREE.Vector3();
+  private readonly headQ = new THREE.Quaternion();
 
   /** the soldier's eye meshes (see the constructor), shown only near the camera */
   private readonly eyes: THREE.SkinnedMesh[] = [];
@@ -2000,6 +2037,11 @@ export class MannequinFigure {
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
     if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5);
     if (b.spine_03) turnBone(b.spine_03, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5 - fx.kick * 0.1);
+    // (the soldier's head held up to the look before its deliberate tilts: the clips carried it down with the chest, the
+    // head 43 degrees forward of the neck standing, 52 to 56 aimed, 74 to 80 crouched or sprinting, chin on the chest,
+    // and from behind a shot at the back of the head it showed took the neck's or torso's volume: 2 to 7 in 100 were
+    // headshots sprinting or crouched, the owner unable to headshot one from behind with BOOG)
+    if (this.soldier && b.Head && !full && p.stance !== "downed" && !this.dead) this.holdHeadUp(b.Head, fig, pitch);
     if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -fx.flinch * 0.25 + 0.1 * fx.ads);
     // The emote, on top of everything: the arms raised and swung in figure
     // space (+x is the figure's left, +z its front), the forearms bent at the

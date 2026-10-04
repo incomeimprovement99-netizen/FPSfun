@@ -25,7 +25,7 @@
 //   hand's skin as drawn, its forearm's with it so the mesh's open end is at the elbow, not by the left hand. A pistol
 //   is held in both hands on one grip, the left round the right (docs/PLAN_SOLDIER_EIGHT_GUNS.md G7), and nothing
 //   else measures one hand through the other: handIn sees only the gun. With opts.locate, handOnHandAt: the left
-//   bone it is deepest at. handGap: each left finger's (and palm_l, the palm's) nearest skin to the right hand, mm (0
+//   bone it is deepest at. below: the fingers whose knuckle is under the gun's lowest point, with nothing to hold. handGap: each left finger's (and palm_l, the palm's) nearest skin to the right hand, mm (0
 //   touching or in, 30 at most), as fingerGap is to the gun: round a pistol's grip the left fingers hold the right
 //   hand's, and the gun under them is out of their reach. handOnHandN: how many of the left hand's skin points (every
 //   second) are more than 4 mm in: a depth alone is at most half a hand's thickness however far one goes through the
@@ -437,6 +437,19 @@
     out.handOnHand = Math.round(hoh * 1000);
     out.handOnHandN = hohN;
     out.fingerGap = fingerGap;
+    // the fingers whose knuckle is below the gun's lowest point, which have nothing there to hold: the soldier's glove
+    // is wider than STRYDER's handle is long, and its right pinky hangs under it, its knuckle 13 mm below the bottom
+    {
+      const toGun = new T.Matrix4().copy(gun.matrixWorld).invert();
+      let bottom = Infinity;
+      for (const pt of parts) {
+        const g = pt.o.geometry;
+        if (!g.boundingBox) g.computeBoundingBox();
+        const m = new T.Matrix4().multiplyMatrices(toGun, pt.o.matrixWorld);
+        bottom = Math.min(bottom, g.boundingBox.clone().applyMatrix4(m).min.y);
+      }
+      out.below = ["index", "middle", "ring", "pinky"].flatMap((f) => ["l", "r"].filter((s) => (at(`${f}_01_${s}`)?.applyMatrix4(toGun).y ?? Infinity) < bottom).map((s) => `${f}_${s}`));
+    }
     out.palmGap = palmGap;
     out.handWhere = where;
     // the gun's points against the body (every fourth vertex of each part)
