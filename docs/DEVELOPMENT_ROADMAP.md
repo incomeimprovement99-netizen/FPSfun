@@ -10395,3 +10395,27 @@ somewhere, so the measure is exposure: the share of the 48 bearings from which a
   under rules.sightlines.most (failing on version 39's bake: 8.1% and 13.0%); the median's blocks solid at chest height and
   its boards over a standing eye, 35 pieces and more. verify and rules; e2e `br`. The layout rerun after the bake
   matches it.
+
+## Milestone 461 — CHOOCH on the soldier, and its overheat vent seen by other players
+
+The fifth of the eight guns on the soldier others see (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.5), and the vent the owner asked
+for (2026-10-01: other players see CHOOCH overheat), agreed with the guns agent.
+
+- **Fitted** (soldierhold.json guns.lstar): the left hand under the barrel shroud 37 cm out, where the left forearm clears
+  the 22 cm drum (at 30 cm it ran 57 mm into it at rest, 113 sprinting); the right hand on a thumbhole stock's grip too
+  small for the soldier's glove to wrap, its index's crease on the trigger and the ring and pinky curled round the bar
+  into the guard's frame, hidden there, rather than straight out as a finger gun; the chest turned 40 degrees, the
+  shoulder's reach 70; the carries solved with the slide counted.
+- **The vent:** act code 20 (dummy.ts VENT; the heals were narrowed to 10 to 19 for it in Milestone 398). main.ts sends
+  it while the gun is overheated and a bot whose gun overheats sends it through its wait (bots.ts BotMag.venting), where
+  both had sent a reload, so others had seen a magazine come out of a gun that has none. The figure eases into a vent
+  carry of its own (soldierhold.json vent, solved by a new figure-solve.ts stage): the gun tipped up and canted in both
+  hands, held while it vents, then back. When the guns agent adds its first-person vent shares, the soldier follows them.
+- **Two checks made fair to a grip:** the punch's and the throw's hand checks hold a hand to 8 mm or 3 past its own
+  depth at rest; a deliberate grip's depth is the hold checks' to bound. Seen failing with BIGANTLER's punch bowed into
+  its gun (17 mm).
+- **Checked:** new checks for the vent through the codec (net-delta), a bot's CHOOCH venting and a magazine gun
+  reloading (bot-fire), and the soldier's CHOOCH tipping up while it vents and back after (skfigure, seen failing with
+  the vent switched off); the skfigure e2e (160) on top of Milestone 457's new robot bodies; verify; rules; the type
+  check; photographs at rest and venting.
+- **Left open:** the stock in the right forearm (the template fault, 28 to 38 mm at rest and aimed, 98 crouched).
