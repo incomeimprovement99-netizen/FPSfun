@@ -182,6 +182,13 @@ let paidSettled = false;
 /** the scene's shaders being built off the page's thread (warmScene): the page's screen waits for none left */
 let warming = 0;
 /**
+ * The first sky is in (or found missing). A material lit by the sky's environment map is another shader than one
+ * without, and the range's were built, and drawn behind the page's screen, before the sky came, then all built again
+ * with it: 34 programs twice, and 16 of them held the page's thread 3 to 41 ms each at their first draw (180 ms,
+ * tools' glprog, 2026-10-04). The first warm and the first frame wait for it instead (warmScene, step).
+ */
+let skyIn = false;
+/**
  * The intro card (src/ui/intro.ts): the page opens on it, and it plays again
  * as you drop into a match. `?nointro` turns it off, which is what the
  * benchmark and the screenshots pass: neither wants a title card in the frame.
@@ -237,7 +244,7 @@ intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSe
 // and the city's side warmed after all that (brWarmed): drawn cold from the ship, it froze the page for seconds
 // (not the city's warm: the city is asked for when a match on it starts, askCity, and its warm waits on the match's screen;
 // nor the figures: asked for once this screen has gone, askFigures, and a match's screen waits for them)
-if (IS_SK) loadingScreen.waitFor = () => paidSettled && warming === 0;
+if (IS_SK) loadingScreen.waitFor = () => paidSettled && warming === 0 && skyIn;
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -866,8 +873,11 @@ function applyHour(h: Hour): void {
   setHour(h, scene);
   renderer.shadowMap.needsUpdate = true;
   // (the shaders built again once it is in: a material lit by the sky's environment map is another shader than one
-  // without, and the first warm runs before the sky's file has come, warmScene)
-  void installSky(scene, renderer, h.hdr).then(() => warmScene());
+  // without; the page's first warm and first frame wait for the first sky, skyIn)
+  void installSky(scene, renderer, h.hdr).then(() => {
+    skyIn = true;
+    warmScene();
+  });
   // (the Neon City map's roads reflect a picture of the city under this hour, not the last one's)
   retakeReflection();
 }
@@ -1808,6 +1818,9 @@ if (IS_SK)
       resetGunModels();
       resetFloorGuns();
       viewModel.rebuild();
+      // the gun in hand built now, not at the next frame's setWeapon: the warm below has to find it in the scene. Built
+      // after it, each bought gun's shader was built at its first draw, 100 ms each (tools' glprog, 2026-10-04)
+      viewModel.setWeapon(currentWeapon());
       showPaidGuns();
       // their materials' shaders, as the range's were (warmScene)
       warmScene();
@@ -8860,7 +8873,8 @@ function step(): void {
     }
     // (not while the page's screen is up and the scene's shaders are still being built: drawn, they were built on the
     // spot, warmScene)
-    if (warming === 0 || loadingScreen.loaded) pipeline.render(now);
+    // nor before the first sky is in (skyIn)
+    if ((warming === 0 && skyIn) || loadingScreen.loaded) pipeline.render(now);
   }
   phases.lap("render");
   frameCost = { calls: renderer.info.render.calls, triangles: renderer.info.render.triangles };
@@ -9182,7 +9196,7 @@ document.addEventListener("visibilitychange", () => {
  * The page's screen waits for them, and frames are not drawn under it meanwhile; the rest of a frame runs.
  */
 function warmScene(): void {
-  if (!IS_SK || NO_RENDER) return;
+  if (!IS_SK || NO_RENDER || !skyIn) return;
   // As the next frame will be drawn: one side of the world shown, and the world's lights on the gun's layer. Before the
   // first frame both sides were shown, every shader was built for both sides' lights, and the first frame, which shows
   // one, built them all again on the spot (a shader is built for the lights it is lit by).

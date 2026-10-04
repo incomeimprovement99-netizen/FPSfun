@@ -10463,3 +10463,27 @@ pistol stance (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.6).
 - **Checked:** the paid-weapons check fails on both Pistol02 builds with the old rule put back; first-person and
   soldier photographs, standing and aimed (the barrel forward, the red dot sighted through); verify; rules; the type
   check. The guns agent had tuned nothing in the first person on the reversed gun (the pistols are sixth in its plan).
+
+## Milestone 463 — The first screen 0.2 s sooner: the sky asked for at once, every shader built once
+
+A probe of every WebGL program the page builds before its first screen (tools' glprog: each link, and each call that
+waited on a program not yet built, named by its shader's defines; on a production build) found the page building the
+range's shaders twice and waiting on them at their first draw:
+
+- **The sky came late.** installSky imported its loader (RGBELoader) on demand, a file of its own, so the sky's own file
+  was only asked for once the page's first script and first frames were done: at 1.43 s. Until then the range's
+  materials were lit without the sky's environment map, which is another shader: 34 programs built for that, drawn in
+  the frames behind the page's screen (16 of them held the page's thread 3 to 41 ms each at their first draw, 180 ms),
+  then all 34 built again with the sky. The loader is imported with the page now (a few KB), the sky's file is asked for
+  as the first script runs, and the first warm and the first frame wait for the first sky to be in (main.ts skyIn; a
+  sky that is missing counts as in), as SpeedKills' page screen does: one set of shaders, 44 programs in all, not 60.
+- **The bought guns built at their first draw.** Their arrival rebuilt the view model and warmed the scene, but the new
+  gun was only made at the next frame's setWeapon, after the warm: each bought gun's shader was built when first drawn,
+  about 100 ms each once the sky came early. dressed() builds the gun in hand at once now (viewModel.setWeapon), so the
+  warm finds it.
+
+- **Measured** (production builds, three cold loads of each taken in turn, medians): the first screen gone at 1.67 s
+  against 1.88 s; everything in (loaded) 2.64 s against 3.04 s; the main thread's long tasks 1.69 s against 2.07 s; the
+  page's script answering (__range) at 1.11 s against 1.55 s. The waits on unbuilt programs before the first screen:
+  about 190 ms against 230 ms, and the 34 thrown-away programs gone.
+- **Checked:** tsc; verify; rules; the page, intro, range, speedkills and sklobby e2e.

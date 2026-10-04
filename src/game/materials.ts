@@ -2,6 +2,10 @@
 // Every material falls back to a plain colour if the textures are missing, so
 // the range still runs before `npm run assets` has been called.
 import * as THREE from "three";
+// Here and not asked for when the sky is: a loader of its own file, it held the sky's request back until the page's
+// first script and frames were done (1.4 s on a production build, 2026-10-04), and the range's shaders were built and
+// drawn without the sky's light, then all built again with it (main.ts skyIn)
+import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { later } from "./later";
 
 export type MatName =
@@ -75,7 +79,6 @@ export async function installSky(
   file = "sky.hdr"
 ): Promise<boolean> {
   try {
-    const { RGBELoader } = await import("three/examples/jsm/loaders/RGBELoader.js");
     const loadHdr = new RGBELoader();
     const hdr = await loadHdr.loadAsync(`tex/${file}`).catch(async (err: unknown) => {
       if (file === "sky.hdr") throw err;
