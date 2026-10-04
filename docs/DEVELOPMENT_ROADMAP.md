@@ -10121,3 +10121,36 @@ hand beside the Harpy's: "your recommendation, like the harpy".
   by one at most (boardrules.mjs), so the check failed on every dry run: it counts two posted wins against one now.
 - **Checked:** the release's own server against the build (br to a browser that takes it, the plain file otherwise,
   decoded byte for byte); npm run fps dry (installs, starts, the boards, the live check, the accounts, a 1v1).
+
+## Milestone 449 — REZ on the soldier: the auto shotgun fitted for other players' view
+
+The fourth of the eight guns on the soldier others see (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.4).
+
+- **Fitted** (soldierhold.json guns.shotgun): the left hand under the fore-end 36 cm ahead of the gun's middle, ahead of
+  the long magazine flush in the fore-end's back half, so it holds the fore-end and not the magazine; the right on the
+  grip, placed from the USSO's carried over by the trigger and searched from there, the index's crease 0.1 mm off the
+  trigger; the shoulder's reach 85 degrees, the furthest hold's need (the hold slid 24 to 29% back running and
+  sprinting at the shared 34, and 8% aimed at a sprint at 70); the body and the sprint, jump, swap and rise carries; the
+  punch bowing 8 cm out; the reload's point and tilt (the left wrist 71 to 34 degrees).
+- **A measure's fault:** after a grenade throw, as the gun came back, figure-audit.js read the right ring finger 30 mm
+  inside REZ's Trigger part, from a point 3 cm under the trigger's own box: by a thin part's edge its inside rule
+  misreads. Skin now counts as in a part only inside that part's own box; the throw then reads 3 mm, as the hand is.
+- **Left open, measured exactly:** the butt in the shoulder armour (19 to 26 mm); looking 40 up, 50 into the collarbone;
+  a sprint jump, 40 into the belly; the reload's first instant, the left fingers 26.
+- **Checked:** the skfigure e2e (136, REZ's 22 among them); figure-sweep; frame sheets at rest, aimed, sprinting,
+  crouched and reloading; verify; rules.
+
+## Milestone 450 — A far soldier's eyes not drawn, and never in the shadow pass
+
+apex-lobby's draw-call count of a Neon street frame put bots at about 125 of 540 calls, each soldier four skinned
+meshes: its body, head, armour and eyes.
+
+- **The eyes** (lod.json figures.eyes, figlod.ts, mannequin.ts showEyes): never cast a shadow, and past 60 m are not
+  drawn. The head is open behind them: photographed with them hidden, the sockets show what is behind the head. So not
+  at the 25 m first proposed, where the opening is still 0.8 of a pixel at 1080p and could twinkle against a bright
+  sky, but at 60 m, a third of a pixel, where a figure already casts no shadow.
+- **Measured:** in a Neon battle royale street frame (apex-lobby's counter, two frames), the eyes' draws went from 36 to
+  none: about 18 a frame.
+- **Not done:** merging the head and armour draws of far figures, which use different textures and would need an atlas.
+- **Checked:** a new skfigure check (eyes shown near, hidden past the distance, shown again, never in the shadow pass),
+  seen failing with the switch disabled; the skfigure e2e (137); verify; rules.
