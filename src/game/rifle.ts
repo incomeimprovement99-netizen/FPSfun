@@ -163,9 +163,9 @@ function mergeInto(to: Record<string, unknown>, from: Record<string, unknown>): 
 
 type Carry = { down: number; left: number; roll: number; out: number[]; arc?: number[] };
 /** the lowered carry, the sprint's blended toward the swap's and the air's by their weights (RifleState.carry) */
-function carryOf(C: HoldCfg, w?: { swap: number; air: number }): HoldCfg["lowered"] {
+function carryOf(C: HoldCfg, w?: { swap: number; air: number; vent?: number }): HoldCfg["lowered"] {
   const L = C.lowered as HoldCfg["lowered"] & Carry;
-  if (!w || (w.swap < 1e-3 && w.air < 1e-3)) return L;
+  if (!w || (w.swap < 1e-3 && w.air < 1e-3 && (w.vent ?? 0) < 1e-3)) return L;
   const mix = (a: Carry, b: Partial<Carry>, k: number): Carry => ({
     ...a,
     down: a.down + ((b.down ?? a.down) - a.down) * k,
@@ -173,10 +173,11 @@ function carryOf(C: HoldCfg, w?: { swap: number; air: number }): HoldCfg["lowere
     roll: a.roll + ((b.roll ?? a.roll) - a.roll) * k,
     out: a.out.map((v, i) => v + ((b.out ?? a.out)[i] - v) * k),
   });
-  const cfgC = C as HoldCfg & { swap?: Partial<Carry>; air?: Partial<Carry> };
+  const cfgC = C as HoldCfg & { swap?: Partial<Carry>; air?: Partial<Carry>; vent?: Partial<Carry> };
   let out: Carry = L;
   if (w.air > 1e-3 && cfgC.air) out = mix(out, cfgC.air, w.air);
   if (w.swap > 1e-3 && cfgC.swap) out = mix(out, cfgC.swap, w.swap);
+  if ((w.vent ?? 0) > 1e-3 && cfgC.vent) out = mix(out, cfgC.vent, w.vent ?? 0);
   return out as HoldCfg["lowered"];
 }
 
@@ -483,7 +484,7 @@ export interface RifleState {
    * than the sprint's (soldierhold.json swap, air). Switched outright, a swap begun mid-sprint snapped the gun from one
    * carry to the other.
    */
-  carry?: { swap: number; air: number };
+  carry?: { swap: number; air: number; vent?: number };
   /** 0..1 the right hand on its grip, and the left on the gun */
   wR: number;
   wL: number;

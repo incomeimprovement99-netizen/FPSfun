@@ -7337,6 +7337,8 @@ function localAct(): number {
   const held = brPlay.holdKind;
   if (held) return actCode(held);
   if (loadout.swapping) return actCode("swap");
+  // (an overheated gun's lockout is a reload to its state: others see it vent, not reload)
+  if (loadout.active.state.overheated) return actCode("vent");
   if (loadout.active.state.reloading) return actCode("reload", 0, loadout.active.state.reloadEmpty);
   return 0;
 }

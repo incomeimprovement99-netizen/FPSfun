@@ -77,6 +77,11 @@ const STAGES: Record<string, Param[]> = {
   // the arc the gun swings out on between the lowered carry and the hold, measured on its way up and down (below)
   rise: [0, 1, 2].map((i) => ({ path: ["lowered", "arc", i], lo: -0.1, hi: 0.25, step: 0.02, min: 0.003 })),
   // the swap's own lowered carry (soldierhold.json swap), measured standing in a swap
+  // an overheated gun's vent (soldierhold.json vent): its own carry, measured standing as it vents
+  vent: [
+    ...["down", "left", "roll"].map((k) => ({ path: ["vent", k], lo: -70, hi: 70, step: 6, min: 1 })),
+    ...[0, 1, 2].map((i) => ({ path: ["vent", "out", i], lo: -0.1, hi: 0.25, step: 0.02, min: 0.003 })),
+  ],
   swap: [
     ...["down", "left", "roll"].map((k) => ({ path: ["swap", k], lo: -60, hi: 70, step: 6, min: 1 })),
     ...[0, 1, 2].map((i) => ({ path: ["swap", "out", i], lo: -0.1, hi: 0.25, step: 0.02, min: 0.003 })),
@@ -136,6 +141,8 @@ let POSES: Pose[] =
       ]
     : STAGE === "swap"
     ? [{ speed: 0, stance: "stand", pitch: 0, act: "swap" }]
+    : STAGE === "vent"
+    ? [{ speed: 0, stance: "stand", pitch: 0, act: "vent" }]
     : STAGE === "air"
     ? // both jumps' clips (the athletic one above 7.2 m/s: a sprint's jump is), a moment after the feet leave the ground,
       // settled in the air, and landing (the carry kept low through the landing)

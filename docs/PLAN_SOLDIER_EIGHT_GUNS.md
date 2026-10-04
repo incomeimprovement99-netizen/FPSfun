@@ -289,6 +289,27 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 - **Checks:** an overheated CHOOCH, yours and a bot's, shows the vent on another player's page (code 20 over the
   network), never a reload; an older code read as nothing; the drum clear of the forearm in every carry.
 
+- **Done on the soldier, 2026-10-04** (soldierhold.json guns.lstar, the vent): every skfigure check passes for it.
+  - The left hand under the barrel shroud 37 cm ahead of the gun's middle: at 30 cm the left forearm ran past the drum's
+    front edge (57 mm into it at rest, 113 sprinting, measured exactly); from 35 cm out it clears it. The shoulder reaches
+    70 degrees for it.
+  - The right hand on a thumbhole stock's grip: a slanted bar, the drum close in front, the finger space 5 cm deep and 8
+    tall and closed below by the guard's bar, too small for the soldier's glove to wrap (drawn 1.15 or 1.25 times as big,
+    no better). The palm sits behind the bar, the index's crease on the trigger (0.0 mm); the ring and pinky are curled
+    round the bar, 18 mm into the guard's frame where nothing outside shows it, rather than left straight out along it
+    as a finger gun (photographed both ways).
+  - The chest turned 40 degrees and the butt placed by a grid on the exact measure; the carries solved, the slide counted.
+  - **The vent** (the owner, 2026-10-01: other players see it): act code 20 (dummy.ts VENT; the heals were narrowed to 10
+    to 19 for it in M398), sent while the gun is overheated (main.ts) and by a bot whose gun overheats (bots.ts
+    BotMag.venting), where both had sent a reload. The figure eases into a carry of its own while it vents
+    (soldierhold.json vent, solved by figure-solve.ts vent): the gun tipped up and canted in both hands, then back. The
+    guns agent's first-person vent shares, when they come, are for the soldier to follow.
+  - **Two checks made fair to a grip:** the punch's and the throw's hand-in-the-gun checks hold a hand to 8 mm or 3 past
+    its own depth at rest, so a deliberate grip (CHOOCH's right) is the hold checks' to bound and what these catch is a
+    hand passing through the gun as it moves (seen failing with BIGANTLER's punch bowed into its gun, 17 mm).
+- **Left open, measured exactly:** the stock in the right forearm (28 to 38 mm at rest and aimed, 98 crouched), the
+  template fault; looking 40 up, 83 into the chest.
+
 ### 5.6 APUHTHEE (wingman, SciFiPistol02_2) and STRYDER (autopistol, SciFiPistol01_2), the pistols
 
 - **Models:** Pistol02: Clip, Slide; 25 cm. Pistol01: Button, Clip, Trigger, and **no Slide**. Measured 2026-10-02

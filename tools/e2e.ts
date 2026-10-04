@@ -8200,7 +8200,13 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const after2 = await ev<GZ>(page, gunZ);
     const back = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
     check(`the soldier's ${name} melee: and the left hand back on the gun after it`, after2.shown && Math.abs(after2.z - rest.z) < 0.02 && (back?.support ?? 99) <= BAR.support && !/punch/.test(after2.keys), JSON.stringify({ rest, after2, support: back?.support }));
-    // a string of three, through each one's whole length: no hand into the gun, the right hand on its grip, the wrists
+    // a string of three, through each one's whole length: no hand into the gun, the right hand on its grip, the wrists.
+    // A hand is held to 8 mm, or to 3 mm past its own depth at rest where a gun's grip has it deeper (CHOOCH's right
+    // fingers curled 18 mm into its guard frame on purpose, hidden there): what the check catches is a hand passing
+    // through the gun as it moves, not a grip; the grip's own depth is the hold checks' (BAR.handIn)
+    const restIn = { l: back?.handIn?.l ?? 0, r: back?.handIn?.r ?? 0 };
+    const over = (a: A | null) => Math.max((a?.handIn?.l ?? 0) - Math.max(8, restIn.l + 3), (a?.handIn?.r ?? 0) - Math.max(8, restIn.r + 3));
+    let swingOver = -99;
     let swingWorst = 0;
     let swingGrip = 0;
     let swingWrist = 0;
@@ -8208,16 +8214,18 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     for (let i = 0; i < 24; i++) {
       const a = await ev<A | null>(page, `(() => { window.__range.figureLabStep(${soldierHoldCfg.melee.time / 8}); return window.__figureAudit(0, { pitch: 0 }); })()`);
       swingWorst = Math.max(swingWorst, a?.handIn?.l ?? 0, a?.handIn?.r ?? 0);
+      swingOver = Math.max(swingOver, over(a));
       swingGrip = Math.max(swingGrip, a?.grip ?? 0);
       swingWrist = Math.max(swingWrist, a?.wristL ?? 0);
     }
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(0.5); })()`);
-    check(`the soldier's ${name} melee: through three punches in a row no hand goes into the gun (8 mm at most), the right stays on its grip and the left wrist bends 60 degrees at most`, swingWorst <= 8 && swingGrip <= BAR.grip && swingWrist <= 60, JSON.stringify({ swingWorst, swingGrip, swingWrist: Math.round(swingWrist) }));
+    check(`the soldier's ${name} melee: through three punches in a row no hand goes into the gun (8 mm at most, or 3 past its grip's own), the right stays on its grip and the left wrist bends 60 degrees at most`, swingOver <= 0 && swingGrip <= BAR.grip && swingWrist <= 60, JSON.stringify({ swingWorst, swingGrip, swingWrist: Math.round(swingWrist) }));
     // A grenade thrown: the gun away for the throw, and back only once both hands are on it (shown at once, it came
     // back through both hands, 23 to 28 mm, while they were still on their way)
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "throw" }); r.figureLabStep(0.2); })()`);
     const thrown = await ev<{ z: number; shown: boolean }>(page, gunZ);
     let worst = 0;
+    let worstOver = -99;
     let backAt = -1;
     for (let i = 1; i <= 16; i++) {
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: ${i <= 5 ? `"throw"` : "null"} }); r.figureLabStep(0.06); })()`);
@@ -8226,8 +8234,9 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       if (backAt < 0) backAt = 0.2 + i * 0.06;
       const a = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
       worst = Math.max(worst, a?.handIn?.l ?? 0, a?.handIn?.r ?? 0);
+      worstOver = Math.max(worstOver, over(a));
     }
-    check(`the soldier's ${name} throw: the gun away for it, and back within a second with no hand through it (8 mm at most)`, !thrown.shown && backAt > 0 && backAt <= 1 && worst <= 8, JSON.stringify({ thrown: thrown.shown, backAt, worst }));
+    check(`the soldier's ${name} throw: the gun away for it, and back within a second with no hand through it (8 mm at most, or 3 past its grip's own)`, !thrown.shown && backAt > 0 && backAt <= 1 && worstOver <= 0, JSON.stringify({ thrown: thrown.shown, backAt, worst, restIn }));
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
     // The reload, the first person's (the owner, 2026-09-30: "the first and third person final forms agree ... when they
     // reload"): read from the guns agent's fparms.json, as the soldier reads it, so a change there fails here. The
@@ -8421,6 +8430,29 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       return { toes, soles: [soles.l, soles.r].map((x) => Math.round(x * 1000)) };
     })()`,
   );
+  // An overheated gun venting (act 20; the owner, 2026-10-01: other players see CHOOCH's overheat): the gun tipped up
+  // in its vent carry (soldierhold.json vent), the hands on it, and back to its hold after
+  if (FITTED.includes("lstar")) {
+    const vented = await ev<{ rest: number; vent: number; back: number; a: A | null }>(
+      page,
+      `(() => {
+        const r = window.__range, T = r.THREE;
+        r.figureLabManual(false); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "lstar", look: "S0000010" }], 2.6, 30); r.figureLabManual(true); r.figureLabStep(1.2);
+        const f = r.labFigures()[0];
+        const pitch = () => { const d = new T.Vector3(0, 0, -1).applyQuaternion(f.figure.gunObject.getWorldQuaternion(new T.Quaternion())); return Math.round((Math.asin(d.y) * 1800) / Math.PI) / 10; };
+        const rest = pitch();
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "vent" }); r.figureLabStep(0.8);
+        const vent = pitch(); const a = window.__figureAudit(0, { pitch: 0 });
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2);
+        return { rest, vent, back: pitch(), a };
+      })()`,
+    );
+    check(
+      "the soldier's CHOOCH vents as others see it: the gun tipped up 10 degrees or more off its hold, the hands on it, and back after",
+      vented.vent - vented.rest >= 10 && Math.abs(vented.back - vented.rest) <= 2 && (vented.a?.support ?? 99) <= BAR.support && Math.max(vented.a?.handIn?.l ?? 99, vented.a?.handIn?.r ?? 99) <= BAR.handIn,
+      JSON.stringify({ rest: vented.rest, vent: vented.vent, back: vented.back, support: vented.a?.support, handIn: vented.a?.handIn })
+    );
+  }
   // A far soldier's eyes are not drawn (lod.json figures.eyes; a draw call a figure) and never cast a shadow: shown near,
   // hidden moved past the distance, shown again brought back
   const eyesLod = await ev<{ n: number; near: boolean[][]; far: boolean[][]; back: boolean[][] }>(

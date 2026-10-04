@@ -201,7 +201,7 @@ export interface DummyOptions {
 /** what a rigged figure is doing, from the player it stands for */
 export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "downed";
 /** what its hands are busy with: a reload, a swap, a heal, a throw, a melee swing, a revive, or holding interact on something */
-export type FigureAct = "reload" | "swap" | "heal" | "throw" | "melee" | "revive" | "interact" | "finish" | "finished" | null;
+export type FigureAct = "reload" | "swap" | "heal" | "throw" | "melee" | "revive" | "interact" | "finish" | "finished" | "vent" | null;
 export interface FigurePose {
   /** horizontal speed, m/s */
   speed: number;
@@ -240,10 +240,16 @@ const EMPTY_RELOAD = 9;
  * in play by then read it as nothing.
  */
 const HEALS = [10, 20];
-export const actCode = (a: FigureAct, healCode = 0, emptyReload = false): number => (a === "heal" ? HEALS[0] + healCode : a === "reload" && emptyReload ? EMPTY_RELOAD : Math.max(0, ACT_CODES.indexOf(a)));
+/**
+ * An overheated gun venting (CHOOCH's lockout, weapon-mechanics.json lstar.lockout): 20, the first code after the
+ * heals. The owner, 2026-10-01: other players see it. It had gone as a reload (the lockout is a reload to the gun's
+ * state), so others saw a magazine come out of a gun that has none. A page from before reads 20 as nothing.
+ */
+const VENT = 20;
+export const actCode = (a: FigureAct, healCode = 0, emptyReload = false): number => (a === "heal" ? HEALS[0] + healCode : a === "vent" ? VENT : a === "reload" && emptyReload ? EMPTY_RELOAD : Math.max(0, ACT_CODES.indexOf(a)));
 /** the heal item's code (recap.ts HEAL_CODES) in an act code, or -1 when it is not a heal */
 export const healOfCode = (c: number | undefined): number => (c !== undefined && c >= HEALS[0] && c < HEALS[1] ? c - HEALS[0] : -1);
-export const actFromCode = (c: number | undefined): FigureAct => (healOfCode(c) >= 0 ? "heal" : c === EMPTY_RELOAD ? "reload" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
+export const actFromCode = (c: number | undefined): FigureAct => (healOfCode(c) >= 0 ? "heal" : c === VENT ? "vent" : c === EMPTY_RELOAD ? "reload" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
 /** the act code is a reload from empty */
 export const emptyReloadOf = (c: number | undefined): boolean => c === EMPTY_RELOAD;
 

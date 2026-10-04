@@ -55,6 +55,16 @@ console.log("A bot's gun, and its death box");
   const last = (w.clipSize - 1) * 0.05;
   check("the last round starts a reload as long as the gun's from empty", mag.reloading(last + 0.1) && mag.reloading(last + 0.05 + w.reloadEmptyTime - 0.01) && !mag.reloading(last + 0.05 + w.reloadEmptyTime + 0.01), `${w.reloadEmptyTime} s, against ${w.reloadTime} s with a round still chambered`);
   check("and a gun it picks up comes loaded", mag.ready(last + 0.1, resolveWeapon("wingman", 2)));
+  // CHOOCH (lstar) overheats rather than reloads: its bot's figure vents through the wait (act 20), as a player's does;
+  // a magazine gun's still reloads
+  const vents = (id: string): boolean => {
+    const g = resolveWeapon(id, 2);
+    const m = new BotMag();
+    m.ready(0, g);
+    for (let i = 0; i < g.clipSize; i++) m.fired(i * 0.05, g, 0.05);
+    return m.reloading((g.clipSize - 1) * 0.05 + 0.1) && m.venting;
+  };
+  check("a bot's CHOOCH vents when its heat runs out, and a magazine gun reloads", vents("lstar") && !vents("r97"));
 }
 
 // ------------------------------------------------------------ falloff

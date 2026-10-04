@@ -1075,7 +1075,7 @@ export class MannequinFigure {
   /** the long gun is on its way back into the hands after a throw, a heal or a reach: hidden until they are on it */
   private gunComing = false;
   /** 0..1 each, eased: the lowered carry a swap's own, and a sprint jump's own (rifle.ts carryOf) */
-  private carryW = { swap: 0, air: 0 };
+  private carryW = { swap: 0, air: 0, vent: 0 };
   /** the stance and the hands' act last frame, when a slide began and when its way out ends, and which swing a melee is on */
   private lastStance = "";
   private lastAct: FigurePose["act"] = null;
@@ -2058,12 +2058,14 @@ export class MannequinFigure {
       // SpeedKills' soldier: the rifleman's hold (rifle.ts), the stance, the gun and both hands, on top of the clips
       // (a swap in place keeps the gun where it is: SWAP_CUP)
       const cup = this.cupSwap(p);
-      const low = holding && !full && !rifleMelee && ((p.act === "swap" && !cup) || upper === "Pistol_Idle_Loop") ? 1 : 0;
+      // (an overheated gun vents in a carry of its own, soldierhold.json vent, eased in and out as the act holds)
+      const low = holding && !full && !rifleMelee && ((p.act === "swap" && !cup) || p.act === "vent" || upper === "Pistol_Idle_Loop") ? 1 : 0;
       this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
       // a melee's swing: where it is, and which of a string (a string held on the act goes on from one to the next)
       const swung = rifleMelee ? (this.t - this.actAt) / soldierHold.melee.time : -1;
       const melee = swung >= 0 ? { u: swung % 1, swing: this.meleeSwing + Math.floor(swung) } : null;
       this.carryW.swap += ((p.act === "swap" && !cup ? 1 : 0) - this.carryW.swap) * Math.min(1, dt * REACH.lower);
+      this.carryW.vent += ((p.act === "vent" ? 1 : 0) - this.carryW.vent) * Math.min(1, dt * REACH.lower);
       // how far into the swap, as the first person's shares of it run: the gun going away over its holster (the first
       // half, held at its middle until the next comes), the one coming over its draw from when it came (the second)
       const SW = swapOf(this.gunId);

@@ -11,7 +11,7 @@
   },
   "_scale": "How much bigger than its own model the soldier's gun is drawn, 1 for most (a gun's own over it in guns). The soldier is a big man in armour: its gloved hand is 0.123 m from the wrist to the middle finger's knuckle and 0.094 m across the knuckles (measured, tools/checks/soldier-hold.ts), about 1.25 times a man's, and the bought guns are modelled at a man's size. A gun with an open grip takes the glove as it is (BOOG); one whose trigger guard closes round the fingers can be too small for it (the USSO's opening is 0.075 m tall, and the glove's four fingers need more), and is drawn the least bigger that its hand fits (tools/figure-fit.ts). Only the figure's gun: the one in your own hands is the first-person arms'.",
   "scale": 1,
-  "_support": "Where the left hand takes a gun, gun-local metres, when not where the model's own measures put it (a gun's own, in guns; none for most). BOOG's own is the front of its fore-end, 0.84 m in front of the butt. BOOG was held by its box magazine while the arm alone fell short of the fore-end (Milestone 342); the owner, 2026-09-30: \"the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail\". So BOOG's left hand is on the rail under its fore-end, which runs from 22 to 37 cm in front of the grip, 3 cm wide, its bottom 12 cm under the bore (tools/gun-shape.ts across), at its rear end, 22.5 cm in front of the grip: at the rail's middle (30 cm) the arm fell short at rest and the hold slid back 19%, and aimed on the move 54%, onto the magazine and 15 mm into it. There, with BOOG's shoulder let reach 70 degrees (guns.sentinel.reach; the shared 34 slid it 44% aimed at a sprint, 55 still 17), it does not slide at rest, aimed, looking 35 up or down, running or sprinting aimed, or through a melee (measured on the figure, supportSlide). The shoulder only comes forward as far as a pose needs. ANAKIN's (alternator_smg) is under its receiver ahead of the trigger guard: the receiver's flat underside, 6 cm wide, is 7.5 to 8.5 cm under the bore from 16 to 35 cm in front of the trigger, the guard's front sloping down from 14.5 cm in front, its charging handle (Slide) on the left side 18 to 20 cm in front, 3 to 6 cm under (tools/gun-shape.ts side, the parts' boxes): the palm's middle 20.5 cm in front of the trigger (69 cm from the butt), 1.5 cm under the underside. ANAKIN's shoulder reaches 70 degrees as BOOG's does: measured aimed at a sprint, its hold slid 30% back at the shared 34, 16% at 45, 4% at 55, none at 70 (supportSlide). PANDA's (vinson) is under its handguard, a box 8 to 10 cm wide whose underside is 15 to 16 cm under the bore from 16 to 46 cm in front of the gun's middle (its trigger 4 to 6.7 behind it), the magazine (Clip) inside its back half: the palm's middle 37 cm in front, 83 cm from the butt (the survey's), 1.5 cm under the underside. PANDA's shoulder reaches 85 degrees: measured aimed at a sprint its hold slid 43% back at the shared 34, 25% at 55, 14% at 70 and 3% at 85 (supportSlide), its hold 83 cm from the butt the furthest of the three. BIGANTLER's (mastiff) is under its pump (Pump, 14 to 33 cm ahead of the gun's middle, its underside 13.3 cm under the bore, 3.8 to 4.6 cm wide): the palm's middle under the pump's middle, 24 cm ahead, 1.5 cm under it. BIGANTLER's shoulder reaches 45 degrees: aimed at a sprint its hold slid 14% back at the shared 34, none at 45. REZ's (shotgun) is under its fore-end ahead of its magazine: the fore-end is one block 5 to 6 cm wide from 10 to 42 cm ahead of the gun's middle, its underside 16 cm under the bore, with the long magazine (Clip, 5 to 30.5 cm ahead) flush in its back half; the palm's middle 36 cm ahead, 1.5 cm under the underside, so the hand is on the fore-end and not on the magazine (the owner did not want BOOG's on its magazine). REZ's shoulder reaches 85 degrees: its hold slid 24 to 29% back running and sprinting at the shared 34, 6 to 11% at 55, and with its body solved still 8% aimed at a sprint at 70.",
+  "_support": "Where the left hand takes a gun, gun-local metres, when not where the model's own measures put it (a gun's own, in guns; none for most). BOOG's own is the front of its fore-end, 0.84 m in front of the butt. BOOG was held by its box magazine while the arm alone fell short of the fore-end (Milestone 342); the owner, 2026-09-30: \"the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail\". So BOOG's left hand is on the rail under its fore-end, which runs from 22 to 37 cm in front of the grip, 3 cm wide, its bottom 12 cm under the bore (tools/gun-shape.ts across), at its rear end, 22.5 cm in front of the grip: at the rail's middle (30 cm) the arm fell short at rest and the hold slid back 19%, and aimed on the move 54%, onto the magazine and 15 mm into it. There, with BOOG's shoulder let reach 70 degrees (guns.sentinel.reach; the shared 34 slid it 44% aimed at a sprint, 55 still 17), it does not slide at rest, aimed, looking 35 up or down, running or sprinting aimed, or through a melee (measured on the figure, supportSlide). The shoulder only comes forward as far as a pose needs. ANAKIN's (alternator_smg) is under its receiver ahead of the trigger guard: the receiver's flat underside, 6 cm wide, is 7.5 to 8.5 cm under the bore from 16 to 35 cm in front of the trigger, the guard's front sloping down from 14.5 cm in front, its charging handle (Slide) on the left side 18 to 20 cm in front, 3 to 6 cm under (tools/gun-shape.ts side, the parts' boxes): the palm's middle 20.5 cm in front of the trigger (69 cm from the butt), 1.5 cm under the underside. ANAKIN's shoulder reaches 70 degrees as BOOG's does: measured aimed at a sprint, its hold slid 30% back at the shared 34, 16% at 45, 4% at 55, none at 70 (supportSlide). PANDA's (vinson) is under its handguard, a box 8 to 10 cm wide whose underside is 15 to 16 cm under the bore from 16 to 46 cm in front of the gun's middle (its trigger 4 to 6.7 behind it), the magazine (Clip) inside its back half: the palm's middle 37 cm in front, 83 cm from the butt (the survey's), 1.5 cm under the underside. PANDA's shoulder reaches 85 degrees: measured aimed at a sprint its hold slid 43% back at the shared 34, 25% at 55, 14% at 70 and 3% at 85 (supportSlide), its hold 83 cm from the butt the furthest of the three. BIGANTLER's (mastiff) is under its pump (Pump, 14 to 33 cm ahead of the gun's middle, its underside 13.3 cm under the bore, 3.8 to 4.6 cm wide): the palm's middle under the pump's middle, 24 cm ahead, 1.5 cm under it. BIGANTLER's shoulder reaches 45 degrees: aimed at a sprint its hold slid 14% back at the shared 34, none at 45. REZ's (shotgun) is under its fore-end ahead of its magazine: the fore-end is one block 5 to 6 cm wide from 10 to 42 cm ahead of the gun's middle, its underside 16 cm under the bore, with the long magazine (Clip, 5 to 30.5 cm ahead) flush in its back half; the palm's middle 36 cm ahead, 1.5 cm under the underside, so the hand is on the fore-end and not on the magazine (the owner did not want BOOG's on its magazine). REZ's shoulder reaches 85 degrees: its hold slid 24 to 29% back running and sprinting at the shared 34, 6 to 11% at 55, and with its body solved still 8% aimed at a sprint at 70. CHOOCH's (lstar) is under its barrel shroud, 6 to 9 cm wide from 21 to 41 cm ahead of the gun's middle, its underside 14 cm under the bore, the drum (22 cm across) from 20 cm ahead back: the palm's middle 37 cm ahead, 1.5 cm under the shroud. At 30 cm the left forearm ran past the drum's front edge (57 mm into it at rest, 113 sprinting, measured exactly); from 35 cm out it clears it. CHOOCH's shoulder reaches 70 degrees, its hold 37 cm out.",
   "_blade": "The chest's turn to its right, so the left shoulder leads and the support hand reaches the handguard (square on, the left hand is 0.67 m from the USSO's handguard and the arm reaches 0.59): split between spine_02 and spine_03, the neck and head turned back by it so the figure still looks where it aims.",
   "blade": 32,
   "_pocket": "Where the butt sits, from the right shoulder joint in the chest's frame at rest: `in` toward the middle of the chest, `down` under the joint, `ahead` in front of it, which is the body's front there (measured, 0.092) and the armour's thickness past it. `adsUp` lifts the butt this much into the shoulder as the figure aims in, and the head leans onto the stock by `adsHead` (down, toward the gun).",
@@ -211,6 +211,17 @@
     "out": [
       0.02,
       -0.02,
+      0.1
+    ]
+  },
+  "_vent": "An overheated gun venting (CHOOCH's lockout; the owner, 2026-10-01: other players see it; act code 20): a carry of its own, as `swap` and `air` are, eased in while the vent lasts and out after it, the hands kept on the gun: the muzzle up (`down` negative, degrees), across the body (`left`), canted (`roll`), held off the chest (`out`, metres in the figure's frame). Started from the swap's carry turned muzzle up, then solved (figure-solve.ts vent) and photographed. The guns agent's first-person vent, when it comes, adds its own shares (fparms.json vent) for the soldier to follow.",
+  "vent": {
+    "down": -35,
+    "left": 20,
+    "roll": -40,
+    "out": [
+      0.02,
+      0.06,
       0.1
     ]
   },
@@ -455,7 +466,7 @@
     "cheek": 0.01,
     "side": 0.035
   },
-  "_guns": "A gun's own numbers over the ones above, where its shape needs them: its hands by tools/figure-fit.ts (each hand closed round its hold at the place searched round a start measured off the gun, tools/gun-shape.ts), its pocket, turn, elbows and aim by tools/figure-solve.ts rest, against the frame sheets. Measured, gun frame, cm: the USSO's pistol grip, its magazine inside it, hangs from 8 to 18 cm under the bore (the magazine on to 28), 3.4 cm thick and raked back 19 degrees, inside a trigger guard that closes round the fingers (an opening 7.5 cm tall and 4 cm deep, the trigger in its top), and its fore-end is a slab 2.4 to 4.2 cm wide down to 12 cm under the bore; BOOG's grip hangs from 15 to 24 cm under, 4 cm thick and raked back 25 degrees, its trigger in a small loop in front of its top, and its box magazine, 15 cm long and 3 cm wide, hangs to 18.5 cm under in front of the loop. A palm's middle is 1.5 cm inside the hand, so it sits that far off the surface it holds. ANAKIN's pistol grip holds its magazine too (Clip, 9.5 to 29 cm under the bore, raked back about 35 degrees, 3.6 to 4 cm thick where the hand is), its trigger 4.5 cm in front of the grip's top inside a guard whose front slopes from 14.5 cm in front at the bore to 2.5 cm in front 19 cm under, a stock reaching 48 cm behind the trigger. Its right hand holds the grip's top with the magazine running on below it, as an Uzi's: a search from the shared start laid the hand flat on the receiver's side with straight fingers, so it was placed from the USSO's fitted hand carried over by each gun's trigger and grip, and grasped there (figure-fit.ts SEARCH=0). PANDA's grip hangs from 6 to 22 cm under the bore behind its trigger, 4 cm thick at the top and 6 lower down, open behind it until the stock starts 25 cm back (a skeleton stock, 4 cm wide): its right hand was placed from the USSO's fitted hand carried over by the trigger and grasped there, the index 4 mm off the trigger's face; a search from there moved it 3.5 cm back and took the index 30 mm off. Its lower fingers stop on the thick grip's front rather than wrapping it. PANDA's carries: its left hand keeps the hold's own place (lowered.l): a search put it 3.6 cm up into the handguard (22 mm of skin in the gun sprinting) where the hold's own is 5. Its sprint and jump carries were solved counting the left hold's slide (figure-solve.ts): solved without it, the muzzle went 44 degrees down, the arm fell short, and the hold slid back into the magazine. BIGANTLER's grip hangs behind its trigger (the trigger 12 to 14 cm behind the gun's middle), 2 to 3 cm thick and raked back; its right hand placed from the USSO's carried over by the trigger (7 cm behind it, 3.5 under) and grasped there, the index's crease 0.2 mm off the trigger; the left closed round the pump. REZ's grip hangs behind its trigger (the trigger 6.5 to 11 cm behind the gun's middle), raked back; its right hand placed from the USSO's carried over by the trigger, then searched from there (the placed grasp's ring finger hung 12 mm off the grip), the index's crease 0.1 mm off the trigger.",
+  "_guns": "A gun's own numbers over the ones above, where its shape needs them: its hands by tools/figure-fit.ts (each hand closed round its hold at the place searched round a start measured off the gun, tools/gun-shape.ts), its pocket, turn, elbows and aim by tools/figure-solve.ts rest, against the frame sheets. Measured, gun frame, cm: the USSO's pistol grip, its magazine inside it, hangs from 8 to 18 cm under the bore (the magazine on to 28), 3.4 cm thick and raked back 19 degrees, inside a trigger guard that closes round the fingers (an opening 7.5 cm tall and 4 cm deep, the trigger in its top), and its fore-end is a slab 2.4 to 4.2 cm wide down to 12 cm under the bore; BOOG's grip hangs from 15 to 24 cm under, 4 cm thick and raked back 25 degrees, its trigger in a small loop in front of its top, and its box magazine, 15 cm long and 3 cm wide, hangs to 18.5 cm under in front of the loop. A palm's middle is 1.5 cm inside the hand, so it sits that far off the surface it holds. ANAKIN's pistol grip holds its magazine too (Clip, 9.5 to 29 cm under the bore, raked back about 35 degrees, 3.6 to 4 cm thick where the hand is), its trigger 4.5 cm in front of the grip's top inside a guard whose front slopes from 14.5 cm in front at the bore to 2.5 cm in front 19 cm under, a stock reaching 48 cm behind the trigger. Its right hand holds the grip's top with the magazine running on below it, as an Uzi's: a search from the shared start laid the hand flat on the receiver's side with straight fingers, so it was placed from the USSO's fitted hand carried over by each gun's trigger and grip, and grasped there (figure-fit.ts SEARCH=0). PANDA's grip hangs from 6 to 22 cm under the bore behind its trigger, 4 cm thick at the top and 6 lower down, open behind it until the stock starts 25 cm back (a skeleton stock, 4 cm wide): its right hand was placed from the USSO's fitted hand carried over by the trigger and grasped there, the index 4 mm off the trigger's face; a search from there moved it 3.5 cm back and took the index 30 mm off. Its lower fingers stop on the thick grip's front rather than wrapping it. PANDA's carries: its left hand keeps the hold's own place (lowered.l): a search put it 3.6 cm up into the handguard (22 mm of skin in the gun sprinting) where the hold's own is 5. Its sprint and jump carries were solved counting the left hold's slide (figure-solve.ts): solved without it, the muzzle went 44 degrees down, the arm fell short, and the hold slid back into the magazine. BIGANTLER's grip hangs behind its trigger (the trigger 12 to 14 cm behind the gun's middle), 2 to 3 cm thick and raked back; its right hand placed from the USSO's carried over by the trigger (7 cm behind it, 3.5 under) and grasped there, the index's crease 0.2 mm off the trigger; the left closed round the pump. REZ's grip hangs behind its trigger (the trigger 6.5 to 11 cm behind the gun's middle), raked back; its right hand placed from the USSO's carried over by the trigger, then searched from there (the placed grasp's ring finger hung 12 mm off the grip), the index's crease 0.1 mm off the trigger. CHOOCH's grip is a slanted bar in a thumbhole stock, the drum close in front: its finger space is 5 cm deep and 8 tall, closed below by the guard's bar, too small for the soldier's glove to wrap (drawn 1.15 or 1.25 times as big, no better). Its right palm sits behind the bar, the index's crease on the trigger (0.0 mm); a grasp left the ring and pinky straight out along the frame (3 mm in, a finger gun from the side), so they are curled round the bar instead, 18 mm into the guard's frame where nothing outside shows it (photographed from the right and the front).",
   "guns": {
     "sentinel": {
       "reload": {
@@ -2414,6 +2425,201 @@
         },
         "seatKick": 0.35,
         "seatKickFor": 0.15
+      }
+    },
+    "lstar": {
+      "support": [
+        0,
+        -0.155,
+        -0.37
+      ],
+      "hands": {
+        "r": {
+          "at": [
+            0.0716,
+            -0.0404,
+            0.147
+          ],
+          "fwd": [
+            -0.244,
+            0.109,
+            -0.964
+          ],
+          "palm": [
+            -0.968,
+            0.029,
+            0.248
+          ]
+        },
+        "l": {
+          "at": [
+            -0.0148,
+            -0.0254,
+            0.003
+          ],
+          "fwd": [
+            0.476,
+            0.14,
+            -0.868
+          ],
+          "palm": [
+            0,
+            1,
+            0
+          ]
+        }
+      },
+      "fingers": {
+        "r": {
+          "index": [
+            30,
+            35.5,
+            -7.5,
+            20
+          ],
+          "middle": [
+            63.4,
+            14.9,
+            70.9
+          ],
+          "ring": [
+            60,
+            40,
+            40
+          ],
+          "pinky": [
+            50,
+            60,
+            50
+          ],
+          "thumb": [
+            67.4,
+            -1.5,
+            -10,
+            45
+          ]
+        },
+        "l": {
+          "index": [
+            90,
+            100,
+            80
+          ],
+          "middle": [
+            65.1,
+            1.2,
+            80
+          ],
+          "ring": [
+            65.5,
+            -8,
+            -0.2
+          ],
+          "pinky": [
+            90,
+            100,
+            80
+          ],
+          "thumb": [
+            90,
+            100,
+            80,
+            60
+          ]
+        }
+      },
+      "lowered": {
+        "down": 8,
+        "left": 5,
+        "roll": -14,
+        "out": [
+          0.02,
+          0.06,
+          0.1
+        ],
+        "l": {
+          "at": [
+            -0.0148,
+            -0.0254,
+            0.003
+          ],
+          "fwd": [
+            0.476,
+            0.14,
+            -0.868
+          ],
+          "palm": [
+            0,
+            1,
+            0
+          ]
+        },
+        "arc": [
+          0.010000000000000002,
+          0.13,
+          -0.035
+        ]
+      },
+      "reach": {
+        "shoulder": 70
+      },
+      "pocket": {
+        "in": -0.04,
+        "down": 0.02,
+        "ahead": 0.2,
+        "adsUp": 0,
+        "adsHead": {
+          "down": 0,
+          "toward": 19.5
+        }
+      },
+      "blade": 40,
+      "elbows": {
+        "r": [
+          -0.75,
+          -0.55,
+          0.19999999999999998
+        ],
+        "l": [
+          0.44999999999999996,
+          5.551115123125783e-17,
+          0.2
+        ]
+      },
+      "aim": {
+        "relief": 0.085,
+        "cheek": -0.02,
+        "side": 0.08
+      },
+      "air": {
+        "down": -4,
+        "left": 11,
+        "roll": -26,
+        "out": [
+          -0.08,
+          0.21999999999999997,
+          0.08
+        ]
+      },
+      "swap": {
+        "down": 20,
+        "left": -7,
+        "roll": -21.5,
+        "out": [
+          -0.01,
+          0.04,
+          0.10500000000000001
+        ]
+      },
+      "vent": {
+        "down": -11,
+        "left": 12.5,
+        "roll": -29.5,
+        "out": [
+          -0.015,
+          0.08,
+          0.12000000000000001
+        ]
       }
     }
   }

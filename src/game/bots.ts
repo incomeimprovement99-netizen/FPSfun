@@ -1771,7 +1771,7 @@ export class Bot {
       pitch: aimPitch,
       moveDir,
       ads: target && this.knife === null && !this.healing ? 0.85 : 0,
-      act: this.healing ? "heal" : this.mag.reloading(now) ? "reload" : null,
+      act: this.healing ? "heal" : this.mag.reloading(now) ? (this.mag.venting ? "vent" : "reload") : null,
       healItem: this.healing?.item,
       // (a bot reloads only when its magazine runs out: always from empty)
       reloadEmpty: true,
@@ -1867,6 +1867,8 @@ export class BotMag {
   private left = 0;
   private of = "";
   private until = 0;
+  /** its gun overheats rather than reloads (CHOOCH): its figure vents through the wait, as a player's does */
+  venting = false;
 
   /** can it fire now: loaded, and not reloading (a new gun is loaded) */
   ready(now: number, w: { id: string; clipSize: number }): boolean {
@@ -1883,8 +1885,9 @@ export class BotMag {
    * player's from empty takes that: the magazine and then the handle racked or the bolt worked, which the bot's figure
    * shows)
    */
-  fired(now: number, w: { clipSize: number; reloadTime: number; reloadEmptyTime?: number }, interval: number): void {
+  fired(now: number, w: { clipSize: number; reloadTime: number; reloadEmptyTime?: number; mech?: { overheat?: unknown } }, interval: number): void {
     if (--this.left <= 0) {
+      this.venting = !!w.mech?.overheat;
       this.left = w.clipSize;
       this.until = now + interval + (w.reloadEmptyTime ?? w.reloadTime);
     }
