@@ -378,6 +378,13 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   - **Passed as they were:** the punch, the throw, the reload (the magazine down out of the handle's bottom and back,
     the left hand pointing at it, until the first person's pistol moves are made), the Loadouts tab.
 
+- **STRYDER's pistol done on the soldier, 2026-10-04, ahead of its roster change** (soldierhold.json guns.autopistol,
+  Milestone 482): Pistol01 mapped and measured (no slide; the magazine under the barrel ahead of the trigger; the trigger
+  in a short hook of a guard). Aimed at 0.34 m, drawn 1.1 times as big so the glove's index reaches the trigger, the
+  right palm 4 mm off the handle for it, its pinky under the handle (excused by the audit's `below`); the left round the
+  right, its thumb forward, its ring curled; carries solved; every skfigure check passes for it. The roster change waits
+  on the owner's numbers.
+
 ### 5.7 HAEFY (a new launcher), SciFiRocketLauncher01_2, about 1.1 m
 
 - **Model:** Trigger, Visor; **no rocket part**.

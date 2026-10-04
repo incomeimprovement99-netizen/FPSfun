@@ -619,6 +619,8 @@ const DOUBLE_JUMP = figureCfg.doubleJump;
 const FLAT_FEET = figureCfg.flatFeet;
 /** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
 const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
+/** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
+const CHEST_UP = figureCfg.chestUp as { most: number };
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
 const THROW_FOR = soldierHold.throwFor;
 /** how far the hands have come back onto a returning long gun when it shows (soldierhold.json gunBack) */
@@ -1544,6 +1546,25 @@ export class MannequinFigure {
     // (+x is the figure's left: a positive turn tips the face down)
     turnBone(head, fig, X_AXIS, THREE.MathUtils.clamp((now - pitch) * HEAD_UP.hold, -most, most));
   }
+  /**
+   * The chest tipped back so the upper chest (spine_03 to the neck, what stands between a shooter behind and the head)
+   * leans no more than `most` degrees forward of the figure's up (figure.json chestUp), split between spine_02 and
+   * spine_03; a lean back (a slide) is the clip's.
+   */
+  private holdChestUp(b: Record<string, THREE.Object3D>, fig: THREE.Object3D): void {
+    fig.updateWorldMatrix(true, true);
+    const toFig = this.chestQ.copy(fig.getWorldQuaternion(this.chestQ)).invert();
+    const line = b.neck_01.getWorldPosition(this.chestA).sub(b.spine_03.getWorldPosition(this.chestB)).applyQuaternion(toFig);
+    const lean = Math.atan2(line.z, line.y);
+    const over = lean - CHEST_UP.most * DEG;
+    if (over <= 0) return;
+    // (+x is the figure's left: a negative turn tips the chest back)
+    turnBone(b.spine_02, fig, X_AXIS, -over * 0.5);
+    turnBone(b.spine_03, fig, X_AXIS, -over * 0.5);
+  }
+  private readonly chestA = new THREE.Vector3();
+  private readonly chestB = new THREE.Vector3();
+  private readonly chestQ = new THREE.Quaternion();
   private readonly headFace = new THREE.Vector3();
   private readonly headQ = new THREE.Quaternion();
 
@@ -2033,6 +2054,9 @@ export class MannequinFigure {
     }
     this.scoped = aimed && !act && wantGun && !this.gunComing ? (p.ads ?? 0) * (1 - this.lowered) : 0;
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
+    // (the soldier's chest held up before the look bends it: the clips lean it 33 to 40 degrees crouched and aimed or
+    // sprinting, and from behind the shoulder armour and the pack hid the head; the owner, 2026-10-04: more upright)
+    if (this.soldier && b.spine_02 && b.spine_03 && b.neck_01 && !full && p.stance !== "downed" && !this.dead) this.holdChestUp(b, fig);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
     if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5);

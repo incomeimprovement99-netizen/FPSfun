@@ -10743,3 +10743,46 @@ the player's chest, making a headshot from the boog in the back almost impossibl
   written the worse, the fingers straightened), turns a hand in its palm's plane alone (`SEARCH=tilt`) and can grasp
   without seating the palm (`SEAT=0`); figure-audit.js says which fingers have their knuckle under the gun (`below`),
   which the hold checks excuse from touching it.
+
+## Milestone 482 — STRYDER's pistol on the soldier, ahead of its roster change
+
+STRYDER moves from a rifle to the fast pistol (`PLAN_THE_EIGHT_GUNS.md` section 6), the RE-45's data (`autopistol`) on
+the pack's first pistol, once the owner sets its numbers. The soldier's hold for it is fitted now, with the guns agent's
+agreement, so it is ready when the roster changes; no player or bot carries the gun until then.
+
+- **The model:** paidweapons.json maps `autopistol` to SciFiPistol01_2 (skins A, B, C) and paid-weapons.ts measured the
+  Pistol01 family (its origin decides the muzzle end, 6 cm clear). Its shape, measured: a body with no slide, iron
+  sights, the trigger in a short hook of a guard open underneath, the handle raked back behind it, and the magazine
+  under the barrel ahead of the trigger.
+- **The stance** (soldierhold.json guns.autopistol, `stance` "pistol"): aimed at 0.34 m from the eye, where the right
+  arm reaches (0.36 left the palm 1.2 cm short, the elbow straight); drawn 1.1 times as big on the soldier, the least
+  at which the glove's index gets into the guard onto the trigger (at 1.05 its crease stopped 14.7 mm off; the USSO is
+  drawn 1.05 for the same reason).
+- **The hands:** the right carried from APUHTHEE's by the trigger, its palm kept 4 mm off the handle where the index's
+  crease reaches the trigger (1.7 mm; seated on the handle it stopped 13 mm short); its pinky hangs under the handle's
+  bottom, its knuckle below the gun's lowest point, which the hold checks now excuse (figure-audit.js `below`). The left
+  searched round the right (the search's best kept: its last regrasp had straightened the fingers), the thumb laid
+  forward along the frame and the ring curled, each measured against the gun and the right hand.
+- **Carries solved:** lowered, swap, air, rise.
+- **The checks:** the skfigure e2e holds it as every fitted gun (`FIGURE_GUNS=autopistol`); the hand-on-hand depth bar is
+  11 mm, set by this fit (its left ring's middle segment 10 mm into the right fingers at 5 points, hidden in the clasp;
+  the count, 5 points, is the bar that catches a hand through the other: APUHTHEE's put 1 cm in reads 27); the Loadouts
+  tab's checks are for the roster's guns, which this one is not yet.
+- **Waiting on the owner:** STRYDER's numbers. The owner, 2026-10-04: every gun's time to kill about the same, a
+  close-range gun quicker up close than a rifle and a long-range one slower, as most shooters do; the game's falloff
+  (projectile.ts, near, far and very far) is flat on every gun today, so this is a proposal for the whole roster.
+
+## Milestone 483 — The soldier's chest held more upright
+
+The owner's choice (2026-10-04), after Milestone 477 held the head up: crouched and aimed or sprinting, the clips lean the
+soldier's upper chest 33 to 40 degrees forward, and from behind its shoulder armour and pack still hid much of the head.
+
+- **The fix** (mannequin.ts holdChestUp, figure.json chestUp): the upper chest (spine_03 to the neck) leans no more than
+  20 degrees forward of upright, the rest taken back through spine_02 and spine_03 before the look's own bend, so
+  aiming down still bends it; a lean back (a slide) is the clip's. Capped first along spine_01 to the neck, the upper
+  chest still leant 24 to 27, which is what stands between a shooter behind and the head.
+- **Measured from 30 m behind:** the upper chest at 20 to 21 degrees crouched and aimed, 17 to 19 sprinting; the head
+  points a shooter sees, crouched and aimed, from 51 to 86 (BOOG) and 43 to 63 (the USSO), sprinting from 38 to 80 and
+  22 to 64; of the shots at them, 74 to 100 in 100 are headshots.
+- **Checked:** the skfigure check on the head from behind now also holds the upper chest to 22 degrees (seen failing with
+  the cap off); the skfigure e2e on every fitted gun; verify; rules; the type check; photographed from behind.

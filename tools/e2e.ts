@@ -8133,9 +8133,10 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // kept out of the gun and splayed beside it measured perfect by depth alone).
   // (handOnHand, handOnHandN: how deep the left hand's skin is in the right's, mm, and how much of it, its skin points 4 mm
   // or more in, where a pistol holds both on one grip: G7, figure-audit.js. A depth is at most half a hand's thickness
-  // however far one goes through the other, so the count is the measure that grows. Set by APUHTHEE's fit, 5 mm at one
-  // point; the left hand put 1 cm into the right reads 10 mm and 9 to 12 points, 2 cm 23 to 52)
-  const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40, off: 8, handOnHand: 8, handOnHandN: 5 };
+  // however far one goes through the other, so the count is the measure that grows. Set by the pistols' fits: APUHTHEE's
+  // 5 mm at one point, STRYDER's 10 mm at five (its left ring's middle segment pressed into the right fingers, hidden in
+  // the clasp); APUHTHEE's left hand put 1 cm into the right reads 10 to 12 mm and 9 to 27 points, 2 cm 23 to 52)
+  const BAR = { grip: 3, support: 4, aim: 6, wrist: 60, handIn: 30, gunIn: 40, off: 8, handOnHand: 11, handOnHandN: 5 };
   // Every gun the soldier is fitted to hold (soldierhold.json guns, in the roster's order: docs/PLAN_SOLDIER_EIGHT_GUNS.md
   // G2): each is held to every check below, so a gun joins them by its fit alone, and none is forgotten for it
   const ROSTER = skCfg.roster as string[];
@@ -8487,7 +8488,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // "all tucked down, like chin is to the player's chest"): from 30 m behind at a standing eye, every point of the drawn
   // head the shooter can see is aimed at and the hit volumes asked what it hits, as the game's hitscan does. The head
   // held up to the look (figure.json headUp): before it, 3 to 7 in 100 were headshots crouched and aimed or sprinting,
-  // the neck's and the torso's volumes taking the rest, and the face was tipped 40 degrees and more down
+  // the neck's and the torso's volumes taking the rest, and the face was tipped 40 degrees and more down. The chest held
+  // more upright too (figure.json chestUp, the owner's choice): it leaned 33 to 40 there, the armour hiding the head
   {
     const backPoses: Array<[string, Record<string, unknown>]> = [
       ["standing", { speed: 0, stance: "stand", pitch: 0 }],
@@ -8495,9 +8497,9 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       ["crouched and aimed", { speed: 0, stance: "crouch", pitch: 0, ads: 1 }],
       ["sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
     ];
-    const back: Record<string, { seen: number; head: number; face: number }> = {};
+    const back: Record<string, { seen: number; head: number; face: number; chest: number }> = {};
     for (const [label, pose] of backPoses)
-      back[label] = await ev<{ seen: number; head: number; face: number }>(
+      back[label] = await ev<{ seen: number; head: number; face: number; chest: number }>(
         page,
         `(() => {
           const r = window.__range, T = r.THREE;
@@ -8529,12 +8531,15 @@ async function figureHoldTest(browser: Browser): Promise<void> {
           }
           // the face's pitch: the bind pose's forward, carried by the Head bone (mannequin.ts holdHeadUp measures it so)
           const face = mq.faceLocal ? mq.faceLocal.clone().transformDirection(mq.boneAt("Head").matrixWorld).applyQuaternion(f.group.getWorldQuaternion(new T.Quaternion()).invert()) : new T.Vector3(0, -1, 0);
-          return { seen, head: Math.round((head / Math.max(1, seen)) * 100), face: Math.round(Math.asin(Math.max(-1, Math.min(1, face.y))) * 573) / 10 };
+          // the upper chest's lean, spine_03 to the neck, forward of upright (figure.json chestUp)
+          const toFig = f.group.getWorldQuaternion(new T.Quaternion()).invert();
+          const line = mq.boneAt("neck_01").getWorldPosition(new T.Vector3()).sub(mq.boneAt("spine_03").getWorldPosition(new T.Vector3())).applyQuaternion(toFig);
+          return { seen, head: Math.round((head / Math.max(1, seen)) * 100), face: Math.round(Math.asin(Math.max(-1, Math.min(1, face.y))) * 573) / 10, chest: Math.round(Math.atan2(line.z, line.y) * 573) / 10 };
         })()`,
       );
     check(
-      "a soldier seen from behind (BOOG, 30 m): standing, aimed, crouched and aimed or sprinting, 70 in 100 or more of the shots at the head it shows are headshots, and its face is within 20 degrees of level",
-      Object.values(back).every((x) => x.seen >= 15 && x.head >= 70 && Math.abs(x.face) <= 20),
+      "a soldier seen from behind (BOOG, 30 m): standing, aimed, crouched and aimed or sprinting, 70 in 100 or more of the shots at the head it shows are headshots, its face within 20 degrees of level and its upper chest leaning 22 or less",
+      Object.values(back).every((x) => x.seen >= 15 && x.head >= 70 && Math.abs(x.face) <= 20 && x.chest <= 22),
       JSON.stringify(back)
     );
   }
@@ -8579,7 +8584,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // Each gun: both palms on their holds, the gun held as the soldier stands with it (not aimed in, head down on the
   // stock), and the whole gun inside the panel at every turn (BOOG, held side on, ran out of it)
   await ev(lp, `(() => { const r = window.__range; r.loadouts.copyTo({ kind: "default", index: 0 }, 0); document.getElementById("overlay").classList.remove("hidden"); document.querySelector('[data-tab="loadouts"]').click(); })()`);
-  for (const id of FITTED) {
+  // (the roster's guns: one fitted ahead of its roster change, STRYDER's pistol, has no Loadouts card yet)
+  for (const id of FITTED.filter((g) => ROSTER.includes(g))) {
     const name = nameOf(id);
     await ev(lp, `window.__range.loadouts.edit(0, { slot1: "${id}" })`);
     const shown = await lp.waitForFunction(`(window.__range.previewState().key || "").includes("|${id}|")`, { polling: 100, timeout: 15000 }).then(() => true, () => false);

@@ -44,5 +44,9 @@
   "headUp": {
     "hold": 1,
     "most": 70
+  },
+  "_chestUp": "The soldier's chest held no more than `most` degrees forward of upright, measured along the upper chest (spine_03 to the neck, what stands between a shooter behind and the head) in the figure's frame, the rest taken back through spine_02 and spine_03 before the look's own bend (the owner, 2026-10-04, choosing it: the clips lean the chest 33 to 40 degrees crouched and aimed or sprinting, and from behind the shoulder armour and the pack hid much of the head even held up, headUp). A lean back, a slide's, is the clip's. Not in an emote, a finisher, down or dead.",
+  "chestUp": {
+    "most": 20
   }
 }

@@ -99,6 +99,14 @@
         "B",
         "C"
       ]
+    },
+    "autopistol": {
+      "model": "SciFiPistol01_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ]
     }
   },
   "_sights": "The pack's own sights, which a bought gun is aimed down: a fitted optic never goes on top of them (the owner, 2026-09-27: our sights on top of the built-in ones, \"we don't want that\") and lends only its zoom and, magnified, its picture over the screen. parts: the sight parts by name, whose back the eye sits behind; a reticle dot is a part whose material is named for one (Dot), and the eye sits on its middle. ownScope: the families whose scope is one piece with the gun (the sniper's), sighted down the scope's axis. A gun with neither is sighted over its irons, the top of its rear half. Measured into paidmodels.json eye by tools/checks/paid-weapons.ts. ironsEye: how far in front of the eye a bought gun's iron sights come in the sights, metres before the view's scale (the procedural guns' 0.26): at 0.26 the hands were 20 cm from the eye and the soldier's forearms flanking them filled a quarter of the screen at 110 degrees (tools/pov-sheet.ts). dotEye: the same for a bought scope with a reticle dot (the rifle's, the steady SMG's, the launcher's): at the fitted optic's own eye relief, 7 cm, the scope's rim filled most of the screen.",
