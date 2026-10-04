@@ -1669,6 +1669,27 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("each sector's final circle on its district, not out past the edge road", far.length === 0, far.map((s) => s.id).join(", "));
 }
 
+// the bots' way to each sector's capture zone (brmatch.ts zoneTree; the lobby agent's survey, 2026-10-04: a bot in the
+// final sector had no way to the zone, start and goal the same node): the walk's end is a node a bot gets to from every
+// street node, within the zone's reach (decay.json capture.radius) of the sector's middle, so a bot that walks it stands in
+// the zone. The nearest of all was a roof only a player climbs, the court under the tower, a gallery down THE WELL
+{
+  const { navTree, reachedFrom } = await import("../../src/game/navgraph");
+  const { SECTOR_RECTS, centreOf } = await import("../../src/game/decay");
+  const R = ((await import("../../src/config/decay.json")).default as { capture: { radius: number } }).capture.radius;
+  const streetNodes = map.nodes.flatMap((n, i) => (Math.abs(n.y ?? 0) < 0.5 && n.links.length ? [i] : []));
+  const reach = reachedFrom(map.nodes, streetNodes);
+  const bad = SECTOR_RECTS.flatMap((s) => {
+    const m = centreOf(s.id);
+    const t = navTree(map.nodes, m.x + BR_X, m.z + BR_Z, { reach });
+    const n = map.nodes[t.target];
+    const off = Math.hypot(n.x - BR_X - m.x, n.z - BR_Z - m.z);
+    const cut = streetNodes.filter((i) => t.toward[i] === -2).length;
+    return off > R || cut ? [`${s.id} ${off.toFixed(1)} m off, ${cut} street nodes without a way`] : [];
+  });
+  check(`the bots' way to every sector's capture zone: from every street node, ending inside its ${R} m`, bad.length === 0, bad.join("; ") || `${SECTOR_RECTS.length} sectors`);
+}
+
 // the street level's exposure (rules.sightlines; the centre's third review: "no street sightline past 60 m but the Loop's",
 // "streets are wide bare plains overlooked from 27 m"): from open street ground every `step` metres (a floor within 0.3 m
 // of the ground, nothing a body would stand in from 0.3 to 1.8 m over it), a standing eye `eye` metres up looks along

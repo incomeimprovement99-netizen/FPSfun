@@ -10573,3 +10573,22 @@ City unless the address names the old one, so this was every live match.
   section on the old city passes whole, and on the Neon City its decay checks now pass (the first wave's sectors decay
   and their boxes leave the collision list; the capture zone opens on MARKET's middle); its two checks that wanted the
   Spire by name read the centre's name from the map in play. verify and rules.
+
+## Milestone 471 — The bots find their way to the capture zone on the Neon City
+
+Found in the lobby agent's survey and in this session's own runs of the e2e `speedkills` section on the Neon City: once
+the capture zone opened, a bot in the final sector had no way to it (its start and its goal the same node, no steps), so
+no bot ever contested the endgame. The bots' way to the zone (brmatch.ts zoneTree) aimed at the graph's node nearest the
+zone's middle at any height, and on the Neon City that node was one no bot gets to: the court 7 m under the tower, the
+west deck's cut-off lobe, a corner block's roof (its fire escape is a player's climb), a gallery down THE WELL.
+
+- **Aimed at the nearest node a bot reaches** (src/game/navgraph.ts reachedFrom): from every street node, walking a link,
+  riding a rope or thrown up a jump pad, worked out once for the match's map; the zone's way ends at the nearest of those.
+  On the north, south and east sectors that is still the deck over the zone (by the pads and lifts), on the west a lobe of
+  its deck 10 m off, on the corner blocks the street beside the rooms building, 7.6 m off.
+- **THE TOWER's zone in the base's north hall** (neonmap.json game.sectors c `middle`, 0, -22): a bot reaches none of the
+  tower's own floors, and the nearest it reached to the tower's middle was 21 m off, outside the zone's 14 m; now 6 m.
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): for every sector, the way ends inside the zone's reach of its middle
+  and every street node has it (failing with THE TOWER's zone back in the tower's middle, 21.2 m off). The e2e
+  `speedkills` section on the Neon City: its capture-zone bot now takes the graph's way to it (seven steps along); on the
+  old city the section passes whole. verify and rules.

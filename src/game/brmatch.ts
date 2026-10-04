@@ -149,7 +149,7 @@ function openGround(x: number, z: number): { x: number; z: number } {
 const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import { actCode, type Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
-import { navTree, type NavTree } from "./navgraph";
+import { navTree, reachedFrom, type NavTree } from "./navgraph";
 import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./city";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
 import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
@@ -3477,9 +3477,16 @@ export class BrMatch extends Duel {
   /** SpeedKills: the steps toward each low tower's roof, by roof node, worked out once each */
   /** the way to the capture zone's node (navgraph.ts), made once it opens */
   private zoneNav: { key: string; tree: NavTree } | null = null;
+  /** the nodes a bot reaches from the street (navgraph.ts reachedFrom), worked out once for the match's map */
+  private streetReach: Uint8Array | null = null;
   private zoneTree(z: { x: number; z: number }): NavTree {
     const key = `${z.x.toFixed(1)},${z.z.toFixed(1)}`;
-    if (!this.zoneNav || this.zoneNav.key !== key) this.zoneNav = { key, tree: navTree(this.map.nodes, z.x, z.z) };
+    // (to the nearest node a bot gets to from the street: the zone's nearest of all was a roof only a player climbs to, and
+    // a bot in the final sector had no way at all)
+    if (!this.zoneNav || this.zoneNav.key !== key) {
+      this.streetReach ??= reachedFrom(this.map.nodes, this.map.nodes.flatMap((n, i) => (Math.abs(n.y ?? 0) < 0.5 && n.links.length ? [i] : [])));
+      this.zoneNav = { key, tree: navTree(this.map.nodes, z.x, z.z, { reach: this.streetReach }) };
+    }
     return this.zoneNav.tree;
   }
   private climbTrees = new Map<number, NavTree>();

@@ -25,17 +25,42 @@ export interface NavTree {
   toward: Int32Array;
 }
 
-export function navTree(nodes: readonly NavNode[], x: number, z: number, o: { ground?: boolean; target?: number } = {}): NavTree {
+/**
+ * The nodes a bot gets to from `starts`: walking a link, riding a rope, or thrown up by a jump pad (one way). A spot's
+ * nearest node can be one no bot reaches: on the Neon City a corner block's roof (its fire escape is a player's climb),
+ * the court under the tower, a gallery down THE WELL
+ */
+export function reachedFrom(nodes: readonly NavNode[], starts: readonly number[]): Uint8Array {
+  const thrown = new Map<number, number[]>();
+  nodes.forEach((n, i) => {
+    for (const j of n.padFrom ?? []) (thrown.get(j) ?? thrown.set(j, []).get(j)!).push(i);
+  });
+  const seen = new Uint8Array(nodes.length);
+  const queue = [...starts];
+  for (const s of starts) seen[s] = 1;
+  for (let q = 0; q < queue.length; q++) {
+    const i = queue[q];
+    for (const j of [...nodes[i].links, ...(nodes[i].ropes ?? []), ...(thrown.get(i) ?? [])]) {
+      if (seen[j]) continue;
+      seen[j] = 1;
+      queue.push(j);
+    }
+  }
+  return seen;
+}
+
+export function navTree(nodes: readonly NavNode[], x: number, z: number, o: { ground?: boolean; target?: number; reach?: Uint8Array } = {}): NavTree {
   // `target`: that node itself. `ground`: the nearest on the ground only, since
   // a node up a tower's stairs can be the nearest across and is a storey up
-  // (SpeedKills' city, whose low towers' stairs are on the graph)
+  // (SpeedKills' city, whose low towers' stairs are on the graph). `reach`: only
+  // among those (reachedFrom), so the walk has a way to its end
   let target = o.target ?? 0;
   let best = Infinity;
   if (o.target === undefined)
     nodes.forEach((n, i) => {
       const d = Math.hypot(n.x - x, n.z - z);
       // (a node only a pad reaches has no links of its own, and is somewhere to go all the same)
-      if ((n.links.length || n.padFrom?.length) && d < best && !(o.ground && (n.y ?? 0) > 1.5)) {
+      if ((n.links.length || n.padFrom?.length) && d < best && !(o.ground && (n.y ?? 0) > 1.5) && (!o.reach || o.reach[i])) {
         best = d;
         target = i;
       }
