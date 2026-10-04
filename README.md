@@ -1378,7 +1378,8 @@ roads. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the
-Loop on the four axes; on each corner block a wedge building faces its junction,
+Loop on the four axes, each in its own colour (north cyan, east pink, south amber,
+west green, its lift's and its battle royale sector's); on each corner block a wedge building faces its junction,
 a row of 3 to 6 storey buildings follows each of its curved streets, and in its
 outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
 and two more up its own stairs, and its roof reached by the pack's fire escape up

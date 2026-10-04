@@ -353,8 +353,24 @@ if (mode === "bake") {
       // (a placement may be scaled about its pivot, its ninth field: the corner blocks' signs, 2.5 to 4 m in the pack,
       // read from the street at three times that)
       const W = scale ? mul(place(x, y, z, yaw), [scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, scale, 0, 0, 0, 0, 1]) : place(x, y, z, yaw);
-      const matGuid = mat ? (derivedMat(mat) ?? pack.matFor(mat)) : null;
-      if (mat && !matGuid) throw new Error(`no material ${mat}`);
+      // (a placement's material: one over all its parts, or "Name=Spec;Name2=Spec2", each part in the pack's material
+      // Name worn in Spec instead and the rest as they are: the High City's blocks each in its own colour)
+      const remap = mat && mat.includes("=") ? new Map(mat.split(";").map((p) => p.split("=") as [string, string])) : null;
+      const matGuid = mat && !remap ? (derivedMat(mat) ?? pack.matFor(mat)) : null;
+      if (mat && !remap && !matGuid) throw new Error(`no material ${mat}`);
+      const named = new Map<string, string>();
+      const used = new Set<string>();
+      const remapped = (g: string | null): string | null => {
+        if (!g) return g;
+        let name = named.get(g);
+        if (name === undefined) named.set(g, (name = readMaterial(pack, g)?.name ?? ""));
+        const to = remap!.get(name);
+        if (!to) return g;
+        used.add(name);
+        const tg = derivedMat(to) ?? pack.matFor(to);
+        if (!tg) throw new Error(`no material ${to} for ${name}`);
+        return tg;
+      };
       // (a placement may leave named parts of its prefab out: neonmap.json's rules say which and why)
       // An entry is a model's file name (every part drawn from it) or "name@x,y,z", the one part of it whose middle is
       // within half a metre of there in the prefab's own metres (the pack's plain walls are one model in many places), or
@@ -404,7 +420,8 @@ if (mode === "bake") {
         return { d: { ...d, model, mesh: 0, pre: null }, m: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] };
       };
       const shaped = cuts.length ? kept.map(({ d, m }) => (cuts.some((b) => reaches(b, d, m)) ? cutPart(d, m) : { d, m })) : kept;
-      const mine = shaped.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : d, m: mul(W, m) }));
+      const mine = shaped.map(({ d, m }) => ({ d: matGuid ? { ...d, mats: d.model.meshes[d.mesh].prims.map(() => matGuid) } : remap && d.mats ? { ...d, mats: d.mats.map(remapped) } : d, m: mul(W, m) }));
+      for (const name of remap?.keys() ?? []) if (!used.has(name)) throw new Error(`${key}: no ${name} to wear another material`);
       // the tower's one-sided shell pieces (rules.tower.backs) drawn from inside too, their triangles turned over: from
       // inside its floors the pack's "fake" walls, faced only toward the street, showed the sky through the building.
       // Worn inside as backWear says: the pack's own materials there are mostly metals, which show only what they

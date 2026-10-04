@@ -1690,6 +1690,15 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check(`the bots' way to every sector's capture zone: from every street node, ending inside its ${R} m`, bad.length === 0, bad.join("; ") || `${SECTOR_RECTS.length} sectors`);
 }
 
+// each High City block its own colour (rules.high.<dir>.looks; the centre's fourth review: "the four High City blocks are
+// the same clover-shaped glass tower copied four times"): each block's placement wears a remap of its frames and trims
+// (the bake throws on a name it finds no part in), and no two the same
+{
+  const blocks = ["n", "s", "e", "w"].map((d) => (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)[`c-${d}`]?.place.find((q) => /HighPlatform_Island/.test(String(q[0]))));
+  const looks = blocks.map((q) => (q && typeof q[6] === "string" ? (q[6] as string) : ""));
+  check("each High City block in its own colour, its frames and trims remapped", looks.every((l) => l.includes("=")) && new Set(looks).size === 4, looks.map((l, i) => `${["n", "s", "e", "w"][i]} ${l.match(/#[0-9a-f]{6}/i)?.[0] ?? "none"}`).join(", "));
+}
+
 // the street level's exposure (rules.sightlines; the centre's third review: "no street sightline past 60 m but the Loop's",
 // "streets are wide bare plains overlooked from 27 m"): from open street ground every `step` metres (a floor within 0.3 m
 // of the ground, nothing a body would stand in from 0.3 to 1.8 m over it), a standing eye `eye` metres up looks along

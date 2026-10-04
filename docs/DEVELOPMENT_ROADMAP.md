@@ -10674,3 +10674,29 @@ map the run asked for.
   102 checks, all run and passed (one earlier run lost its match to a bot between two steps and passed again alone).
 - **Left on Neon:** the bots moving through the city (9 to 17 of 27 in 6 s against 15) and, in this worktree, the
   capture zone's bot way (start 663, goal 601, no steps), both with the city agent.
+
+## Milestone 474 — Each High City block in its own colour, and the capture zone's e2e bot put on a street
+
+The centre's fourth review (docs/CENTRE_REVIEW.md): "the four High City blocks are the same clover-shaped glass tower
+copied four times", its first ask. Each block was already a different colour in its lift and its battle royale sector,
+but the building itself was the same white frame and lit trims on all four.
+
+- **A placement's materials remapped one by one** (tools/import-neon.ts): beside one material over all of a placement's
+  parts, `"Name=Spec;Name2=Spec2"` dresses each part that wears the pack's material `Name` in `Spec` (a pack material, a
+  tint `Base*#rrggbb` or a light `Base|#rrggbb|k`) and leaves the rest as they are. A name the bake finds on no part
+  throws, so a renamed pack material cannot quietly leave a block white.
+- **Each block's looks** (neonmap.json `rules.high.<dir>.looks`, placed by neon-layout.ts): its frames' rounded plastic
+  panels, white plastic, painted metal and concrete panels tinted in its colour, and its two neon trims lit in it. North
+  cyan, east pink, south amber, west green: its lift's and its sector's. The first bake tinted only the concrete panels
+  and the painted metal and the photographs showed four near-white blocks still (the frames are mostly the rounded
+  plastic panels); the second, with all four frame materials, reads from the street
+  and from the air.
+- **The capture zone's e2e bot on a street** (tools/e2e.ts): the lobby agent's two runs on THE TOWER as the final sector
+  failed the same way, start and goal the same node. The e2e put its bot down at the street's height but on the first
+  node of the sector under 0.5 m, and on the Neon City that was a node 4 m down, in the shut space between the metro
+  tunnel's roof and the street, which no bot gets in or out of. It now takes a node at the street's height, the drops'
+  own rule and the one the sk-neon zone check already walks from every node of; the game's bots were never put there.
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): every High City block's placement wears a remap and no two the
+  same, failing with the north block in the south's (`n #ffc860, s #ffc860`); all 140 of the file pass. The bake's
+  unmatched materials the same seven as version 42; the layout rerun after the bake left the config as it was. The e2e
+  `speedkills` section on the Neon City: its capture-zone bot, with THE TOWER the final sector as in the lobby agent's two failed runs, starts on a street node and takes the graph's way to the zone (30 steps, its next node the first along them); the eight old city checks that failed on the Neon map in the same run are the ones Milestone 473 now says as skipped there. verify and rules. Map version 43.

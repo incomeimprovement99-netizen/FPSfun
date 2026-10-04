@@ -367,7 +367,9 @@ const islands: number[][] = [];
     const along = dir === "n" || dir === "s";
     const sgn = dir === "n" || dir === "w" ? -1 : 1;
     const mid = sgn * (H.face + spec.depth / 2);
-    const r = placeAt(`c-${dir}`, "c", spec.piece, along ? (a + b) / 2 : mid, along ? mid : (a + b) / 2, spec.yaw, "s", { bottom: true });
+    // (each in its own colour, `looks`: its frames tinted and its neon trims lit in it, the fourth review: "the four High
+    // City blocks are the same clover-shaped glass tower copied four times")
+    const r = placeAt(`c-${dir}`, "c", spec.piece, along ? (a + b) / 2 : mid, along ? mid : (a + b) / 2, spec.yaw, "s", { bottom: true, mat: spec.looks });
     islands.push([r.x0, r.x1, r.z0, r.z1]);
   }
 }

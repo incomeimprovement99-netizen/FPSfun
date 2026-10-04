@@ -155,3 +155,41 @@ Loop 13.0% to 7.3%): street walls where the ground is free, boards in the median
 Milestone 465, balconies a jump apart up the north and west High City blocks' Loop faces, street to deck. The void
 past the centre: the pack's fake facades tried and left out (see-through screens); Milestone 468, the tower floors' walls in the
 pack's panels, each floor its colour.*
+
+## Round 4, 2026-10-04 (map version 42)
+
+The same spots and brief, the designer's list brought up to date (the street walls, the median's boards and the vans,
+THE VAULT's gold bands, the balconies up two High City blocks, the tower floors' panels).
+
+| | Round 1 | Round 2 | Round 3 | Round 4 |
+|---|---|---|---|---|
+| Looks and identity | 4 | 4.5 | 5 | 5 |
+| Readability | 4 | 5 | 5 | 5 |
+| Flow and getting around | 5 | 5 | 5 | 6 |
+| Fits every play style | 4 | 4.5 | 5 | 5 |
+| Finish and bugs | 3 | 3 | 4 | 4 |
+| Fun | 5 | 6 | 6 | 6 |
+| **Overall** | **4.5** | **4.5** | **5** | **5** |
+
+**What rose.** Flow: "the layering is genuinely good" from the metro at -10 m to the lookout at 49 m, and "the balcony
+column is a nice touch".
+
+**What holds it at 5.** The four High City blocks are one clover-shaped tower four times; nearly every facade wears one
+lit-window grid; the streets and plaza are still open with little cover in the shots (the median's boards are in none of
+them); THE VAULT reads as "a thin gold line"; the tower floors' partitions look like stage flats short of the ceiling and
+their numbers are low in contrast; the corner blocks' roofs show no way up and THE WELL cannot be identified; the
+ground is dark at noon and the night is a purple-tinted day; no loot shows anywhere.
+
+**A spot moved.** Spot 05 (and the night's 24) at (50, -10) now stands in the gap under the east lift's landing, a dark
+enclosed slab: from round 5 it is the north-east curve's street at (58, -42), looking east.
+
+**What round 4 asks for next, in its order:** each High City block its own (a crown, its corner-beam colour, a sign seen
+from the street); cover every 8 to 12 m in the streets and plaza, and low buildings in the asphalt between High City
+and the corners; THE VAULT a landmark (a gold band metres tall, signs read from every roof, glowing chests seen through
+its windows); the tower's partitions full height with framed doorways, a different layout a floor, huge high-contrast
+numbers; a roof-hopping layer at 8 to 15 m across the corner blocks with a pad on every block; cover on the bridges and a
+canopy on the lookout; each corner block read in its own picture (THE WELL's shaft and lamps, MARKET's crates); exposure
+(ground, the cars' glare) and a real night; loot that shows; walk-in doors that read.
+
+*Built since round 4: Milestone 474, each High City block in its own colour (its frames tinted and its trims lit in
+its lift's and sector's colour).*
