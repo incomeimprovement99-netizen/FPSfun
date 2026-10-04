@@ -149,4 +149,6 @@ signs each, staggered heights, a ground floor and two floors open); facade trave
 tower floors' walls in the pack's panels; stepping stones at 12 to 20 m (sign gantries, kiosk roofs, a lower roof tier,
 zip lines from the lookout to the decks); exposure in the shaded streets and yards, and a real night; THE WELL's shaft and
 MARKET's lanes seen from the street; the loot signposted; the lookout and the decks furnished; the void past the centre
-hidden until the outer districts are built.
+hidden until the outer districts are built. The plan for each is in the centre's plan page, version 12. *Built so far:
+Milestone 458, the street level measured at a standing eye (exposure on the curves 8.1% to 4.5% of bearings, on the
+Loop 13.0% to 7.3%): street walls where the ground is free, boards in the median, a van every second car.*

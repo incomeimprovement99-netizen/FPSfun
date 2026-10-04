@@ -1394,7 +1394,7 @@ each laid out differently: open, rooms, halls or a maze, each numbered in lights
 and its own tiles, and loot on each; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre, a band of gold light round the tower at its floor and ceiling. Its floors and the base's upper storeys have
 open windows, 1.25 m wide, no glass: shot through, jumped in through. Its floors, the base's storeys, the court and the
 station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill: two lights on Competitive, four on Balanced, eight on High), the tower's at a fifth of the others' strength. The streets carry the pack's lamps,
-parked cars and hover vans as cover, a broken median of concrete blocks down every street, flying cars and neon signs. `tools/neon-layout.ts` places every piece
+parked cars and hover vans as cover, a broken median of concrete blocks and tall advertising boards down every street, low buildings where the ground beside them was free, flying cars and neon signs; a check keeps how far a standing body on the streets is seen from in bounds. `tools/neon-layout.ts` places every piece
 by its measured bounds from the rules in `src/config/neonmap.json`, and
 `tools/import-neon.ts NEON=bake` bakes them into one file a texture size
 (512, 1024 and 2048 px for Competitive, Balanced and High) with the collision

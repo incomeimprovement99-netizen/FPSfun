@@ -301,14 +301,18 @@ check("the perches: cover on the crown, the lookout and the four High City decks
   const near = PCH.filter((p) => p.name.startsWith("deck") || p.name.startsWith("landmark")).flatMap((p) => p.at.filter(([x, , z]) => spots.some((s) => Math.hypot(s[0] - x, s[1] - z) < s[2])));
   check("the decks' cover: none within reach of a pad's landing, a lift's landing, a bridge's end or a zip's top", near.length === 0, `${near.length} too near`);
 }
-// the streets' median (rules.dress.median; the second review: "street cover is a lamp post and a kiosk"): forty blocks
-// and more down the streets' middles, each solid at chest height on its footprint (a box 1.05 to 1.35 m high from the
-// ground within a metre of its middle: the collision is built in half-metre columns, which miss a 1.2 m block's very
-// middle as often as not); the street one network checked above with them in it. And hover vans among the parked cars
+// the streets' median (rules.dress.median; the second review: "street cover is a lamp post and a kiosk"): thirty-five
+// pieces and more down the streets' middles, each block solid at chest height on its footprint (a box 1.05 to 1.35 m high
+// from the ground within a metre of its middle: the collision is built in half-metre columns, which miss a 1.2 m block's
+// very middle as often as not), and each of the tall boards among them (`tall`; the third review's sightlines) solid from
+// the ground to over a standing eye; the street one network checked above with them in it. And hover vans among the
+// parked cars
 {
-  const MED = (cfg as unknown as { medians?: Array<{ at: number[] }> }).medians ?? [];
-  const soft = MED.filter(({ at: [x, z] }) => !solidsIn(x + BR_X - 1, x + BR_X + 1, z + BR_Z - 1, z + BR_Z + 1).some((b) => b.minX < x + BR_X + 1 && b.maxX > x + BR_X - 1 && b.minZ < z + BR_Z + 1 && b.maxZ > z + BR_Z - 1 && b.base < 0.3 && b.top > 1.05 && b.top < 1.35));
-  check("the streets' median: forty concrete blocks and more down the streets' middles, each solid at chest height", MED.length >= 40 && soft.length === 0, `${MED.length} blocks${soft.length ? `, ${soft.length} not solid: ${soft.slice(0, 3).map((q) => q.at.join(", ")).join("; ")}` : ""}`);
+  const MED = (cfg as unknown as { medians?: Array<{ at: number[]; piece?: string }> }).medians ?? [];
+  const solidAt = ([x, z]: number[], ok: (b: { base: number; top: number }) => boolean) => solidsIn(x + BR_X - 1, x + BR_X + 1, z + BR_Z - 1, z + BR_Z + 1).some((b) => b.minX < x + BR_X + 1 && b.maxX > x + BR_X - 1 && b.minZ < z + BR_Z + 1 && b.maxZ > z + BR_Z - 1 && ok(b));
+  const soft = MED.filter((q) => !solidAt(q.at, q.piece ? (b) => b.base < 0.3 && b.top > 1.8 : (b) => b.base < 0.3 && b.top > 1.05 && b.top < 1.35));
+  const boards = MED.filter((q) => q.piece).length;
+  check("the streets' median: thirty-five blocks and boards and more down the streets' middles, the blocks solid at chest height and the boards over a standing eye", MED.length >= 35 && boards >= 8 && soft.length === 0, `${MED.length - boards} blocks and ${boards} boards${soft.length ? `, ${soft.length} not solid: ${soft.slice(0, 3).map((q) => q.at.join(", ")).join("; ")}` : ""}`);
   const VAN = (cfg.rules.dress as unknown as { cars: { vans?: { pieces: string[] } } }).cars.vans;
   const vans = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => VAN?.pieces.some((v) => String(q[0]).endsWith(`/${v}`)) && Number(q[2]) < 2);
   check("hover vans parked among the cars: six and more, whole cover", vans.length >= 6, `${vans.length}`);
@@ -569,12 +573,20 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     return Math.hypot(e[0] - q.to[0], e[1] - q.to[1]) < 0.05 && t[0] * q.out[0] + t[1] * q.out[1] > 0.999 && Math.max(Math.abs(e[0]), Math.abs(e[1])) === CV.inside && (cfg.rules.streets.centres as number[]).some((c) => Math.abs(Math.min(Math.abs(e[0]), Math.abs(e[1])) - Math.abs(c)) < 0.05);
   });
   check("each curved street meets the edge road on the outer district's straight road, heading along it", ends.every(Boolean), `${ends.filter(Boolean).length} of ${ends.length}`);
-  // (on the road a metre in from its kerb, a metre at a time: a box taller than a car standing across a body's height)
+  // (on the road a metre in from its kerb, a metre at a time: a box taller than a car standing across a body's height,
+  // but the median's boards, rules.dress.median.tall, which stand over an eye to cut the street's long sightlines)
+  const boards = ((cfg as unknown as { medians?: Array<{ at: number[]; yaw: number; half?: number[] }> }).medians ?? []).filter((q) => q.half);
+  const onBoard = (x: number, z: number) =>
+    boards.some((q) => {
+      const a = (q.yaw * Math.PI) / 180;
+      const [px, pz] = [x - q.at[0], z - q.at[1]];
+      return Math.abs(px * Math.cos(a) - pz * Math.sin(a)) < q.half![0] + 0.6 && Math.abs(px * Math.sin(a) + pz * Math.cos(a)) < q.half![1] + 0.6;
+    });
   const onRoad: string[] = [];
   let cells = 0;
   for (let x = -CV.inside + 0.5; x < CV.inside; x += 1)
     for (let z = -CV.inside + 0.5; z < CV.inside; z += 1) {
-      if (SF.surface(x, z, CV.round) > -1) continue;
+      if (SF.surface(x, z, CV.round) > -1 || onBoard(x, z)) continue;
       cells++;
       const [wx, wz] = [x + BR_X, z + BR_Z];
       if (solidsIn(wx, wx, wz, wz).some((b) => wx >= b.minX && wx <= b.maxX && wz >= b.minZ && wz <= b.maxZ && b.base < MOVE.standHeight && b.top > 2.6)) onRoad.push(`(${x}, ${z})`);
@@ -1548,6 +1560,64 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   });
   // (a site lays its four spots, each one item and more: a count over that is the seed's, and moves with the collision)
   check("each corner block's own loot about its name, an item a spot and more (4)", corner.length === 4 && each.every((q) => q.n >= 4), each.map((q) => `${q.name} ${q.n} (${q.up} on the roof)`).join(", "));
+}
+
+// the street level's exposure (rules.sightlines; the centre's third review: "no street sightline past 60 m but the Loop's",
+// "streets are wide bare plains overlooked from 27 m"): from open street ground every `step` metres (a floor within 0.3 m
+// of the ground, nothing a body would stand in from 0.3 to 1.8 m over it), a standing eye `eye` metres up looks along
+// `bearings` bearings until a box stands across that height (every half-metre cell a box touches, so a thin wall stops
+// it); the share of the bearings from which a standing body there is seen from past `long` metres, averaged over the
+// points on the curves' road and pavements and on the Loop's, each at most `most` per cent. On map version 39, before
+// the street walls, the median's boards and a van every second car: 8.1% on the curves and 13.0% on the Loop
+{
+  const SL = cfg.rules.sightlines as { long: number; eye: number; step: number; bearings: number; most: Record<string, number> };
+  const CV = cfg.rules.streets.curves as unknown as Parameters<typeof curvedStreets>[0] & { pave: number };
+  const SF = new StreetField(curvedStreets(CV));
+  const [C, X0, N] = [0.5, -100, 400];
+  const open = new Uint8Array(N * N), eye = new Uint8Array(N * N), body = new Uint8Array(N * N);
+  const floor = new Float32Array(N * N).fill(-Infinity);
+  for (const b of SOLIDS.solids as number[][]) {
+    if (b[5] < -0.5 || b[4] > 2.5) continue;
+    for (let i = Math.max(0, Math.floor((b[0] - X0) / C)); i <= Math.min(N - 1, Math.floor((b[1] - X0) / C)); i++)
+      for (let j = Math.max(0, Math.floor((b[2] - X0) / C)); j <= Math.min(N - 1, Math.floor((b[3] - X0) / C)); j++) {
+        const k = i * N + j;
+        if (b[4] < SL.eye && b[5] > SL.eye) eye[k] = 1;
+        if (b[4] < 1.8 && b[5] > 0.3) body[k] = 1;
+        if (b[5] <= 0.3 && b[5] > floor[k]) floor[k] = b[5];
+      }
+  }
+  for (let k = 0; k < N * N; k++) if (!body[k] && (floor[k] > -0.3 || !Number.isFinite(floor[k]))) open[k] = 1;
+  const zones = new Map<string, { n: number; seen: number }>();
+  const step = Math.round(SL.step / C);
+  for (let i = 0; i < N; i += step)
+    for (let j = 0; j < N; j += step) {
+      if (!open[i * N + j]) continue;
+      const [x, z] = [X0 + (i + 0.5) * C, X0 + (j + 0.5) * C];
+      const near = SF.nearest(x, z, 20);
+      if (!near || near.d > near.street.half + CV.pave || Math.max(Math.abs(x), Math.abs(z)) >= cfg.rules.low.edge) continue;
+      let seen = 0;
+      for (let d = 0; d < SL.bearings; d++) {
+        const a = (d / SL.bearings) * Math.PI * 2;
+        const [ux, uz] = [Math.sin(a), Math.cos(a)];
+        let last = 0;
+        for (let t = C; ; t += C / 2) {
+          const [ii, jj] = [Math.floor((x + ux * t - X0) / C), Math.floor((z + uz * t - X0) / C)];
+          if (ii < 0 || jj < 0 || ii >= N || jj >= N || eye[ii * N + jj]) break;
+          if (open[ii * N + jj]) last = t;
+        }
+        if (last > SL.long) seen++;
+      }
+      const zk = near.street.closed ? "loop" : "curves";
+      const zr = zones.get(zk) ?? zones.set(zk, { n: 0, seen: 0 }).get(zk)!;
+      zr.n++;
+      zr.seen += seen / SL.bearings;
+    }
+  const pct = (k: string) => ((zones.get(k)?.seen ?? 0) / (zones.get(k)?.n ?? 1)) * 100;
+  check(
+    `the street level's exposure: a standing body on the curves and the Loop seen from past ${SL.long} m along few bearings`,
+    Object.entries(SL.most).every(([k, most]) => (zones.get(k)?.n ?? 0) > 100 && pct(k) <= most),
+    Object.entries(SL.most).map(([k, most]) => `${k} ${pct(k).toFixed(1)}% of ${zones.get(k)?.n ?? 0} points, at most ${most}%`).join("; "),
+  );
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

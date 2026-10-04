@@ -240,6 +240,10 @@ if (mode === "bake") {
     return out;
   };
   const solidBoxes: number[][] = [];
+  // (the street walls' boxes, rules.low.walls, laid last by the layout: where they lie in the collision, written beside
+  // it, so the next layout's passes leave out exactly these and see the rest as the walls never stood)
+  const LAID = (cfg.rules.low.walls as { chunk?: string } | undefined)?.chunk;
+  const laid: number[][] = [];
   /** every draw that collides (placed "o" or "s"): what a window may open onto, not the hanging lamps and signs ("g") */
   const collidingDraws: Array<{ d: Draw; m: M4 }> = [];
   let placed = 0;
@@ -484,7 +488,11 @@ if (mode === "bake") {
           exactBoxes.push(...walls.values());
         }
       } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...drawn);
-      else if (how === "s") solidBoxes.push(...columnSolids(mine, C.cell, C.stick, cfg.rules.shell));
+      else if (how === "s") {
+        const boxes = columnSolids(mine, C.cell, C.stick, cfg.rules.shell);
+        if (id === LAID && boxes.length) laid.push([solidBoxes.length, solidBoxes.length + boxes.length]);
+        solidBoxes.push(...boxes);
+      }
       if (how === "o" || how === "s") collidingDraws.push(...drawn);
       placed++;
     }
@@ -1039,7 +1047,7 @@ if (mode === "bake") {
   mkdirSync(join(ROOT, "src", "config", "neon"), { recursive: true });
   if (!TAG) writeFileSync(
     join(ROOT, "src", "config", "neon", "neonmap.solids.json"),
-    JSON.stringify({ _note: "The collision of the Neon City map (src/config/neonmap.json), written by tools/import-neon.ts NEON=bake off the placed pieces' own triangles, never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres.", version: cfg.version, solids: all.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
+    JSON.stringify({ _note: "The collision of the Neon City map (src/config/neonmap.json), written by tools/import-neon.ts NEON=bake off the placed pieces' own triangles, never typed: boxes [x0, x1, z0, z1, y0, y1], map-local metres; `laid`, the street walls' boxes (rules.low.walls), each run of them [first, past the last] in `solids`.", version: cfg.version, laid: laid.map(([a, b]) => [a + solids.length, b + solids.length]), solids: all.map((q) => q.map((v) => +v.toFixed(2))) }) + "\n",
   );
   // the centre's curved streets (rules.streets.curves, tools/neon-streets.ts): their surface in the pack's asphalt over the
   // pavement tiles, traced from the same curves the layout laid their kerbs by. Mapped a tenth of the texture a metre,

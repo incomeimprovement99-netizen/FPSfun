@@ -107,6 +107,20 @@ const rim = (o: OBox): Pt[] => {
 };
 const boxOf = (r: number[]): OBox => ({ c: [(r[0] + r[1]) / 2, (r[2] + r[3]) / 2], u: [1, 0], v: [0, 1], hu: (r[1] - r[0]) / 2, hv: (r[3] - r[2]) / 2, top: 0 });
 
+// The last bake's collision (src/config/neon/neonmap.solids.json), as the passes that read it see it: without the street
+// walls the last run laid (rules.low.walls, laid last), whose boxes the bake lists beside the rest (`laid`). Each such
+// pass then decides as it did before the walls stood, and the walls pass lays them again on the same ground, so the run
+// after a bake lays the city the run before it laid. Told apart by what they are, not where they stand: a wall's
+// footprint, grown by a margin, took in a corner block's fire escape beside it, and the wall moved at every bake
+const SOLIDS_FILE = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
+let LAST_SOLIDS: number[][] | undefined;
+function lastSolids(): number[][] {
+  if (LAST_SOLIDS) return LAST_SOLIDS;
+  const file: { solids: number[][]; laid?: number[][] } = existsSync(SOLIDS_FILE) ? JSON.parse(readFileSync(SOLIDS_FILE, "utf8")) : { solids: [] };
+  const laid = file.laid ?? [];
+  return (LAST_SOLIDS = laid.length ? file.solids.filter((_, i) => !laid.some(([a, b]) => i >= a && i < b)) : file.solids);
+}
+
 /**
  * place a piece so its turned footprint's middle is at (cx, cz) and its base (its measured bottom, or `base`) at y; with
  * `snap`, its pivot moved onto the nearest of that grid's lines and its middle with it
@@ -1601,16 +1615,36 @@ function streetGraph() {
   // (a body round each piece, and `graphPad` more: the bake builds the collision in half-metre columns, so a piece's
   // boxes stand up to half a cell past its mesh, and links the model left open the game found shut)
   const body = (R.perches_clear.walk as number) + (R.dress.graphPad as number);
-  const sf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
-  const SB: number[][] = existsSync(sf) ? JSON.parse(readFileSync(sf, "utf8")).solids : [];
+  const SB = lastSolids();
+  // (and every lower box of it a body cannot step onto, from a step's height to under a standing body's (movement.json),
+  // but those of the last layout's own low street pieces, laid again by this run and added as they go: every chunk's
+  // pieces that stand under 4 m on a footprint under 8 m, each grown half a metre. A platform 0.6 m high beside MARKET's
+  // kerb, a step too high for a bot, was no wall to the model, and a crate stack shut two street nodes in against it)
+  const STAND = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).standHeight * 0.0254;
+  const lowOld: OBox[] = Object.values((cfg.chunks ?? {}) as Record<string, { place: Place[] }>).flatMap((ch) => ch.place).flatMap((q) => {
+    const r = byName.get(q[0]);
+    if (!r?.size || q[2] > 1 || q[2] + r.max![1] > 4 || r.size[1] < MOVE_STEP || Math.max(r.size[0], r.size[2]) > 8) return [];
+    const [ox, oz] = rotY(q[4], (r.min![0] + r.max![0]) / 2, (r.min![2] + r.max![2]) / 2);
+    return [{ c: [q[1] + ox, q[3] + oz] as Pt, u: rotY(q[4], 1, 0), v: rotY(q[4], 0, 1), hu: r.size[0] / 2 + 0.5, hv: r.size[2] / 2 + 0.5, top: 0 }];
+  });
+  const ofOld = (b: number[]) => {
+    const [x, z] = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2];
+    return lowOld.some((o) => Math.abs((x - o.c[0]) * o.u[0] + (z - o.c[1]) * o.u[1]) < o.hu && Math.abs((x - o.c[0]) * o.v[0] + (z - o.c[1]) * o.v[1]) < o.hv);
+  };
   const SG = new Map<string, number[][]>();
+  const W = R.perches_clear.walk as number;
   for (const b of SB) {
-    if (b[4] > 1.9 || b[5] < 0.3 || b[5] - b[4] < 2.5) continue;
-    for (let i = Math.floor(b[0] / 2); i <= Math.floor(b[1] / 2); i++) for (let j = Math.floor(b[2] / 2); j <= Math.floor(b[3] / 2); j++) (SG.get(`${i},${j}`) ?? SG.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
+    const tall = b[4] <= 1.9 && b[5] >= 0.3 && b[5] - b[4] >= 2.5;
+    if (!tall && !(b[5] > MOVE_STEP && b[4] < STAND && b[5] - b[4] > 0.05 && !ofOld(b))) continue;
+    for (let i = Math.floor((b[0] - W) / 2); i <= Math.floor((b[1] + W) / 2); i++) for (let j = Math.floor((b[2] - W) / 2); j <= Math.floor((b[3] + W) / 2); j++) (SG.get(`${i},${j}`) ?? SG.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
   }
-  const walled = (x: number, z: number) => (SG.get(`${Math.floor(x / 2)},${Math.floor(z / 2)}`) ?? []).some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3]);
+  // (each box a body's half-width proud, `perches_clear.walk`: the game walks a body from node to node, and a diagonal
+  // that slipped 0.35 m past a building's corner was a link to the model and none to the game)
+  const walled = (x: number, z: number) => (SG.get(`${Math.floor(x / 2)},${Math.floor(z / 2)}`) ?? []).some((b) => x >= b[0] - W && x <= b[1] + W && z >= b[2] - W && z <= b[3] + W);
   const gn: Pt[] = [];
-  for (let x = -lim; x <= lim + 1e-6; x += GG.step) for (let z = -lim; z <= lim + 1e-6; z += GG.step) if (Math.max(Math.abs(x), Math.abs(z)) < CV.inside && !walled(x, z)) gn.push([x, z]);
+  // (all the bots' grid, the edge road's and the plain districts' past it among them: a piece on the edge road cuts nodes
+  // standing past the centre)
+  for (let x = -lim; x <= lim + 1e-6; x += GG.step) for (let z = -lim; z <= lim + 1e-6; z += GG.step) if (!walled(x, z)) gn.push([x, z]);
   const gi = new Map(gn.map((q, i) => [`${q[0]},${q[1]}`, i]));
   const gl: Array<[number, number]> = [];
   for (const [i, [x, z]] of gn.entries())
@@ -1658,6 +1692,13 @@ function streetGraph() {
     },
     /** whether this piece would leave the street in more pieces */
     splits: (o: OBox) => piecesOf(cutBy(o), covers(o)) > pieces,
+    /** (a debugging aid) the links the model holds from the node at (x, z), and whether that node is still a street node */
+    linksAt: (x: number, z: number) => {
+      const i = gi.get(`${x},${z}`);
+      if (i === undefined) return "no node";
+      if (gone.has(i)) return "gone";
+      return gl.flatMap(([a, b], k) => (cut.has(k) || gone.has(a) || gone.has(b) || (a !== i && b !== i) ? [] : [gn[a === i ? b : a].join(",")])).join(" ") || "no links";
+    },
   };
 }
 let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
@@ -1669,8 +1710,11 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 {
   const D = R.dress;
   let carCount = 0;
-  // (the street's lamps and cars as they go down, for the median's model of the bots' street graph below)
-  const streetBoxes: OBox[] = [];
+  // (the bots' street graph modelled from the start, streetGraph above, fed every lamp and car as it goes down: a van
+  // that would cut the street a car parks instead. Two vans in MARKET's kerb lane, when every second car became one, cut
+  // two street nodes off between them, the block's buildings and the median)
+  const SG = streetGraph();
+  STREET_GRAPH = SG;
   // (and each lamp where it stands, its side and its normal out of the road, for NOODLE ROW's lanterns)
   const lampsAt: Array<{ st: string; side: number; i: number; at: Pt; n: Pt }> = [];
   const pads = ((cfg.pads ?? []) as Array<{ pad: number[] }>).map((q) => q.pad);
@@ -1698,7 +1742,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         if (!clear(x, z, 1, st) || onRoad(x, z) < D.lamp.inset - 0.1) continue;
         // (only its post stands in a body's way, in the middle of its two arms: they are 5 m up)
         const lamp = placeTurned("c-dress", D.lamp.piece, x, z, yawToward(n[0], n[1]), "o");
-        streetBoxes.push({ ...lamp, hu: 0.2, hv: 0.2 });
+        SG.add({ ...lamp, hu: 0.2, hv: 0.2 });
         lampsAt.push({ st: st.id, side, i, at: [x, z], n: [n[0] * side, n[1] * side] });
       }
       // the cars in the lane by the kerb, a seeded gap apart
@@ -1711,44 +1755,47 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         if (!clear(x, z, 3, st)) continue;
         const pick = D.cars.pieces[Math.floor(rnd() * D.cars.pieces.length)];
         // (every `vans.every`-th car a hover van, 2.4 m high: whole cover where a parked car is half)
-        const name = D.cars.vans && ++carCount % D.cars.vans.every === 0 ? D.cars.vans.pieces[carCount % D.cars.vans.pieces.length] : pick;
-        streetBoxes.push(placeTurned("c-dress", name, x, z, yawToward(t[0], t[1]) + (rnd() < 0.5 ? 0 : 180), "o", -piece(name).row.min![1]));
+        const van = D.cars.vans && ++carCount % D.cars.vans.every === 0 ? D.cars.vans.pieces[carCount % D.cars.vans.pieces.length] : null;
+        const yaw = yawToward(t[0], t[1]) + (rnd() < 0.5 ? 0 : 180);
+        const vr = van ? piece(van).row : null;
+        const name = van && vr && !SG.splits({ c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: vr.size![0] / 2, hv: vr.size![2] / 2, top: vr.size![1] }) ? van : pick;
+        SG.add(placeTurned("c-dress", name, x, z, yaw, "o", -piece(name).row.min![1]));
       }
     }
   // a broken median down every street (rules.dress.median; the second review: "street cover is a lamp post and a kiosk",
   // cover every 8 to 12 m): the pack's 5 m concrete block, 1.2 m high (chest cover, and a jump or a grab to cross), every
   // `every` metres down the road's middle, turned along it, clear of the junctions, the pads, the Sky Ring's stairs and
   // the lifts as the cars are; the gaps between keep the street one network
-  const MD = D.median as { piece: string; every: number; offset: number; keep: number } | undefined;
-  const medians: Array<{ at: number[]; yaw: number }> = [];
+  const MD = D.median as { piece: string; every: number; offset: number; keep: number; tall?: { piece: string; every: number } } | undefined;
+  const medians: Array<{ at: number[]; yaw: number; piece?: string; half?: number[] }> = [];
   if (MD) {
-    const row = piece(MD.piece).row;
-    const len = Math.max(row.size![0], row.size![2]);
     // (and none within `keep` metres of THE CENTRE's spawns and zones, the 1v1 on the Loop (src/config/centre.json, world
     // space, round its middle): they stand on the Loop's own line, and a block laid on a spawn held its bot fast)
     // (round the map's middle: THE CENTRE's x and z are the Neon map's own middle, and its bearings and distances are from it)
     const CEN = JSON.parse(readFileSync(join(ROOT, "src", "config", "centre.json"), "utf8")) as { spawnR: number; spawns: number[]; zone: { bearing: number; r: number }; zones: number[] };
     const onBearing = (b: number, r: number): Pt => [Math.sin((b * Math.PI) / 180) * r, Math.cos((b * Math.PI) / 180) * r];
     const kept: Pt[] = [...CEN.spawns.map((b) => onBearing(b, CEN.spawnR)), onBearing(CEN.zone.bearing, CEN.zone.r), ...CEN.zones.map((b) => onBearing(b, CEN.zone.r))];
-    // (and never a block that cuts the bots' street graph: streetGraph above, fed every lamp and car so far)
-    const SG = streetGraph();
-    for (const o of streetBoxes) SG.add(o);
-    STREET_GRAPH = SG;
+    // (and never a block that cuts the bots' street graph: the model above, fed every lamp and car so far)
     let passed = 0;
     for (const st of STREETS)
       for (let i = Math.round(MD.offset / 0.5); i < st.pts.length; i += Math.round(MD.every / 0.5)) {
         const [x, z] = st.pts[i];
-        if (!clear(x, z, len / 2, st) || kept.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < len / 2 + MD.keep)) continue;
+        // (every `tall.every`-th of them a tall piece, over a standing eye: the third review saw street sightlines past
+        // 60 m, and a block 1.2 m high stops none)
+        const name = MD.tall && medians.length % MD.tall.every === MD.tall.every - 1 ? MD.tall.piece : MD.piece;
+        const pr = piece(name).row;
+        const plen = Math.max(pr.size![0], pr.size![2]);
+        if (!clear(x, z, plen / 2, st) || kept.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < plen / 2 + MD.keep)) continue;
         const t = st.tan[i];
-        const yaw = yawToward(t[0], t[1]) + (row.size![2] >= row.size![0] ? 0 : 90);
-        const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };
+        const yaw = yawToward(t[0], t[1]) + (pr.size![2] >= pr.size![0] ? 0 : 90);
+        const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: pr.size![0] / 2, hv: pr.size![2] / 2, top: pr.size![1] };
         if (SG.splits(o)) {
           passed++;
           continue;
         }
         SG.add(o);
-        placeTurned("c-dress", MD.piece, x, z, yaw, "o", -row.min![1]);
-        medians.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2) });
+        placeTurned("c-dress", name, x, z, yaw, "o", -pr.min![1]);
+        medians.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), ...(name !== MD.piece ? { piece: name, half: [+(pr.size![0] / 2).toFixed(3), +(pr.size![2] / 2).toFixed(3)] } : {}) });
       }
     console.log(`the streets' median: ${passed} blocks passed over where they would cut the bots' street graph`);
     cfg.medians = medians;
@@ -1792,6 +1839,44 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     }
     cfg.lanterns = { cables, lanterns: hung };
     console.log(`${LN.block}'s lantern canopy: ${cables} cables, ${hung} lanterns`);
+  }
+  // the edge road's parked cars (rules.dress.edge; the third review: "streets end on flat plain and the boundary fence"):
+  // its four straight sides, cars by both kerbs a seeded gap apart (every `vans.every`-th a hover van) as on the curves,
+  // none within `junction` metres of a street joining it or of a corner, nor by a jump pad as the curves' cars are not
+  // (one parked on the north deck's outer pad moved the pad 20 m at the bake), and never where they would cut the bots'
+  // graph.
+  // No median: the bots' graph has one row of nodes down its middle, the boundary's fence beyond, and every block there
+  // cut it
+  const ED = D.edge as { junction: number; seed: number } | undefined;
+  if (ED) {
+    const rndE = seeded(ED.seed);
+    const mid = (R.ring[0] + R.ring[1]) / 2, half = (R.ring[1] - R.ring[0]) / 2;
+    const ends: Pt[] = (CV.spokes as Array<{ to: Pt }>).map((q) => q.to);
+    let edgeCars = 0;
+    for (const [a, b] of [[[-mid, -mid], [mid, -mid]], [[mid, -mid], [mid, mid]], [[mid, mid], [-mid, mid]], [[-mid, mid], [-mid, -mid]]] as Array<[Pt, Pt]>) {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const tan: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      const nrm: Pt = [-tan[1], tan[0]];
+      const at = (u: number): Pt => [a[0] + tan[0] * u, a[1] + tan[1] * u];
+      const free = (q: Pt, r: number) => ends.every((e) => Math.hypot(e[0] - q[0], e[1] - q[1]) > ED.junction + r) && Math.hypot(q[0] - a[0], q[1] - a[1]) > ED.junction + half && Math.hypot(q[0] - b[0], q[1] - b[1]) > ED.junction + half;
+      for (const side of [-1, 1])
+        for (let u = 6 + rndE() * D.cars.gap[1]; u < L - 6; u += D.cars.gap[0] + rndE() * (D.cars.gap[1] - D.cars.gap[0])) {
+          if (rndE() > D.cars.chance) continue;
+          const c0 = at(u);
+          const q: Pt = [c0[0] + nrm[0] * side * (half - D.cars.lane), c0[1] + nrm[1] * side * (half - D.cars.lane)];
+          if (!free(q, 3) || pads.some(([px, pz]) => Math.hypot(px - q[0], pz - q[1]) < 3 + D.padClear)) continue;
+          const pick = D.cars.pieces[Math.floor(rndE() * D.cars.pieces.length)];
+          const name = D.cars.vans && ++carCount % D.cars.vans.every === 0 ? D.cars.vans.pieces[carCount % D.cars.vans.pieces.length] : pick;
+          const crow = piece(name).row;
+          const yaw = yawToward(tan[0], tan[1]) + (rndE() < 0.5 ? 0 : 180);
+          const o: OBox = { c: q, u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: crow.size![0] / 2, hv: crow.size![2] / 2, top: crow.size![1] };
+          if (STREET_GRAPH?.splits(o)) continue;
+          STREET_GRAPH?.add(o);
+          placeTurned("c-dress", name, q[0], q[1], yaw, "o", -crow.min![1]);
+          edgeCars++;
+        }
+    }
+    console.log(`the edge road: ${edgeCars} parked cars`);
   }
   // the flying cars, over the streets out of reach
   for (let k = 0; k < D.flying.count; k++) {
@@ -1882,8 +1967,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 // mirrored in bare metal), so it hangs with that side to the street; it collides with nothing
 {
   const S = R.signs;
-  const solidsFile = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
-  const boxes: number[][] = existsSync(solidsFile) ? JSON.parse(readFileSync(solidsFile, "utf8")).solids : [];
+  const boxes = lastSolids();
   /** how far from (x, z) along the unit (dx, dz) the first box standing across height y is, within `reach` */
   const faceAt = (x: number, z: number, dx: number, dz: number, y: number): number => {
     let best = Infinity;
@@ -2028,9 +2112,8 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 // along it, within `reach` metres; ridden as any zipline is, up or down (src/game/neonmap.ts draws it)
 {
   const Z = R.low.zip as { over: number; reach: number; run: number; decks: Record<string, string[]>; colours: Record<string, string> } | undefined;
-  const zf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
-  if (Z && existsSync(zf)) {
-    const S: number[][] = JSON.parse(readFileSync(zf, "utf8")).solids;
+  if (Z && existsSync(SOLIDS_FILE)) {
+    const S = lastSolids();
     const MV = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8"));
     const [hang, rad] = [MV.ziplineHang * 0.0254, MV.radius * 0.0254];
     const B = R.blocks;
@@ -2100,9 +2183,8 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 // height, `edge` metres off any drop, `apart` from the others and 3 m off where a pad lands
 {
   const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string }> | undefined;
-  const pf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
-  if (PR && existsSync(pf)) {
-    const S: number[][] = JSON.parse(readFileSync(pf, "utf8")).solids;
+  if (PR && existsSync(SOLIDS_FILE)) {
+    const S = lastSolids();
     const G = 2;
     const grid = new Map<string, number[][]>();
     for (const b of S)
@@ -2377,8 +2459,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     const WR = R.low.wellRing as { every: number; out: number; clear: number; ground: number; edges: string[] } | undefined;
     const WH = (cfg.well as { hole?: number[]; ropes?: Array<{ rope: number[][] }> } | undefined);
     if (WR && WH?.hole) {
-      const sf = join(ROOT, "src", "config", "neon", "neonmap.solids.json");
-      const SB: number[][] = existsSync(sf) ? JSON.parse(readFileSync(sf, "utf8")).solids : [];
+      const SB = lastSolids();
       // (the ground: the highest top there under `ground`; a box over it wider than 1.5 m both ways is a building, and no
       // spot; a narrower one is a post, the lamp's own from the last bake among them (its column a metre square), and the
       // ground is its foot)
@@ -2416,6 +2497,124 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       console.log(`the Well's ring of lamps: ${ring.length}`);
     }
     console.log(`street furniture: ${furniture.length} pieces along the pavements`);
+  }
+}
+// The street walls (rules.low.walls; the centre's third review: "streets are wide bare plains overlooked from 27 m", "no
+// street sightline past 60 m but the Loop's"). On the last bake, from 90% of the open street ground a standing body could
+// be seen past 60 m (tools/.scratch/sightlines.mts), and only 9 buildings stood along the eight curves, all on their
+// corner sides: the sides toward the High City and the Loop's outer side stood open to the bridges' feet. Along both sides
+// of every curve and the Loop's outer side, a row of the pack's low buildings (`pool`), each its front (its own +z) to the
+// street, `setback` metres off the pavement and as little more as it needs (up to `slide`), `gap` metres apart and an
+// alley `wide` metres every `alley` metres; on ground the last bake's collision leaves open (`clear` metres off it), clear
+// of the pads, the lifts' footbridges, the Well and the zip lines' ropes (a hanging body's room under them), of the
+// bridges if taller than rules.low.underBridge, and never one that would cut the bots' street graph. Laid last with a
+// seed of its own, so nothing else in the layout moves
+{
+  const W = R.low.walls as { chunk: string; pool: string[]; setback: number; slide: number; gap: number[]; alley: { every: number; wide: number }; from: number; clear: number; seed: number } | undefined;
+  if (W) {
+    const rndW = seeded(W.seed);
+    const L = R.low;
+    // (the collision from the street up past the tallest of the pool, a 2 m grid of it: a wall keeps `clear` metres off
+    // every box under its own top, what stands over the street as well as in it; laid against the street's collision
+    // alone, one stood up into a corner block's)
+    const reach = Math.max(...W.pool.map((n) => piece(n).row.max![1])) + W.clear;
+    const SG = new Map<string, number[][]>();
+    for (const b of lastSolids()) {
+      if (b[4] > reach || b[5] < 0.5) continue;
+      for (let i = Math.floor(b[0] / 2); i <= Math.floor(b[1] / 2); i++) for (let j = Math.floor(b[2] / 2); j <= Math.floor(b[3] / 2); j++) (SG.get(`${i},${j}`) ?? SG.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
+    }
+    const onSolid = (o: OBox) => {
+      const r = Math.hypot(o.hu, o.hv) + W.clear;
+      const seen = new Set<number[]>();
+      for (let i = Math.floor((o.c[0] - r) / 2); i <= Math.floor((o.c[0] + r) / 2); i++)
+        for (let j = Math.floor((o.c[1] - r) / 2); j <= Math.floor((o.c[1] + r) / 2); j++)
+          for (const b of SG.get(`${i},${j}`) ?? []) {
+            if (seen.has(b)) continue;
+            seen.add(b);
+            if (b[4] < o.top + W.clear && overlaps(o, boxOf(b), W.clear)) return true;
+          }
+      return false;
+    };
+    const seg = (q: Pt, a: number[], b: number[]) => {
+      const l2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+      const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1])) / l2));
+      return Math.hypot(q[0] - a[0] - (b[0] - a[0]) * t, q[1] - a[1] - (b[1] - a[1]) * t);
+    };
+    const pads: Pt[] = [...((cfg.pads ?? []) as Array<{ pad: Pt }>).map((q) => q.pad), ...((cfg.spine?.up ?? []) as Array<{ pad: Pt }>).map((q) => q.pad)];
+    const bridgeLines = (R.bridges.paths as number[][][]).flatMap((p) => p.slice(1).map((q, i) => [p[i], q]));
+    const foot = (cfg.well?.foot ?? null) as number[] | null;
+    const MV = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8"));
+    const under = MV.ziplineHang * 0.0254 + MV.radius * 0.0254 + W.clear;
+    const ropes = ((cfg.zips ?? []) as Array<{ a: number[]; b: number[] }>).map((z) => Array.from({ length: 101 }, (_, k) => [z.a[0] + ((z.b[0] - z.a[0]) * k) / 100, z.a[1] + ((z.b[1] - z.a[1]) * k) / 100, z.a[2] + ((z.b[2] - z.a[2]) * k) / 100]));
+    const walls: Array<{ piece: string; street: string; c: Pt; yaw: number; hu: number; hv: number; top: number }> = [];
+    const boxes: OBox[] = [];
+    const why = new Map<string, number>();
+    const fitsW = (o: OBox): boolean => {
+      const r = rim(o);
+      const inside = (q: number[], m: number) => {
+        const [px, pz] = [q[0] - o.c[0], q[q.length === 3 ? 2 : 1] - o.c[1]];
+        return Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu + m && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv + m;
+      };
+      const k = !r.every(([x, z]) => onRoad(x, z) >= CV.pave) ? "road"
+        : !r.every(([x, z]) => Math.max(Math.abs(x), Math.abs(z)) <= L.edge) ? "edge"
+        : boxes.some((q) => overlaps(o, q, L.gap)) ? "placed"
+        : pads.some((q) => inside(q, W.clear + 2)) ? "pad"
+        : lifts.some((q) => seg(o.c, q.ring, q.foot) < Math.hypot(o.hu, o.hv) + R.lifts.clear && r.some((p) => seg(p, q.ring, q.foot) < R.lifts.clear)) ? "lift"
+        : foot && overlaps(o, boxOf(foot), W.clear * 2) ? "well"
+        : ropes.some((rope) => rope.some((q) => inside(q, under) && q[1] - under < o.top)) ? "zip"
+        : o.top > L.underBridge && bridgeLines.some(([a, b]) => r.some((p) => seg(p, a, b) < L.bridgeClear)) ? "bridge"
+        : onSolid(o) ? "solid"
+        : STREET_GRAPH?.splits(o) ? "graph"
+        : "ok";
+      why.set(k, (why.get(k) ?? 0) + 1);
+      return k === "ok";
+    };
+    for (const st of STREETS)
+      for (const side of st.closed ? [0] : [-1, 1]) {
+        const length = (st.pts.length - (st.closed ? 0 : 1)) * 0.5;
+        let freeAt = st.closed ? 0 : W.from;
+        let alleyAt = freeAt;
+        const at = (u: number) => (st.closed ? ((Math.round(u / 0.5) % st.pts.length) + st.pts.length) % st.pts.length : Math.round(u / 0.5));
+        while (freeAt < length) {
+          let done = false;
+          for (const name of [...W.pool].sort(() => rndW() - 0.5)) {
+            const row = piece(name).row;
+            const [w, d] = [row.size![0], row.size![2]];
+            if (!st.closed && freeAt + w > length) continue;
+            const i = at(freeAt + w / 2);
+            const [x, z] = st.pts[i];
+            const n = normalAt(st, i);
+            // (the Loop's outer side: away from the middle)
+            const sd = st.closed ? Math.sign(n[0] * x + n[1] * z) : side;
+            const out: Pt = [n[0] * sd, n[1] * sd];
+            const turnedYaw = yawToward(-out[0], -out[1]);
+            for (const yaw of [turnedYaw, Math.round(turnedYaw / 90) * 90]) {
+              for (let extra = 0; extra <= W.slide && !done; extra += 0.5) {
+                const back = st.half + CV.pave + W.setback + extra + d / 2;
+                const c: Pt = [x + out[0] * back, z + out[1] * back];
+                const o: OBox = { c, u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: w / 2, hv: d / 2, top: row.max![1] };
+                if (!fitsW(o)) continue;
+                const b = placeTurned(W.chunk, name, c[0], c[1], yaw, "s");
+                boxes.push(b);
+                STREET_GRAPH?.add(b);
+                walls.push({ piece: name, street: `${st.id}${st.closed ? "" : side < 0 ? "-l" : "-r"}`, c: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), hu: +(w / 2).toFixed(3), hv: +(d / 2).toFixed(3), top: +row.max![1].toFixed(2) });
+                freeAt += w + W.gap[0] + rndW() * (W.gap[1] - W.gap[0]);
+                // (an alley every `alley.every` metres: a way through to the block's yard behind)
+                if (freeAt - alleyAt >= W.alley.every) (freeAt += W.alley.wide), (alleyAt = freeAt);
+                done = true;
+              }
+              if (done) break;
+            }
+            if (done) break;
+          }
+          if (!done) freeAt += 1;
+        }
+      }
+    cfg.streetWalls = walls;
+    const by = new Map<string, number>();
+    for (const q of walls) by.set(q.street, (by.get(q.street) ?? 0) + 1);
+    const tris = walls.reduce((a, q) => a + piece(q.piece).row.tris, 0);
+    console.log(`the street walls: ${walls.length} buildings, ${(tris / 1000).toFixed(0)}k triangles (${[...by].map(([k, v]) => `${k} ${v}`).join(", ")}; ${JSON.stringify(Object.fromEntries(why))} tried)`);
   }
 }
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));

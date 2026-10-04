@@ -10348,3 +10348,50 @@ And two tools that say more when they fail:
 - **The live check**, when the host gets no code or the two do not connect, prints each page's asks for net.json and
   the broker, with when they started and ended, and the page's age (Milestone 459's cause was a slow net.json, and only
   after a deploy).
+
+## Milestone 458 — The street level measured at a standing eye, and its long lines cut
+
+The centre's third review asked for "no street sightline past 60 m but the Loop's" and saw "wide bare plains overlooked
+from 27 m". Nothing measured that, so a tool now does (tools/.scratch/sightlines.mts, and the check below): from open
+street ground every 2 m, a standing eye at 1.6 m looks along 48 bearings until a box stands across that height, every
+half-metre cell a box touches counted so a thin wall stops it. On map version 39, 90% of the street points saw a standing
+body past 60 m along some bearing.
+
+What it found was not empty blocks. Behind the pavements the ground is mostly taken: the High City blocks come to within
+a few metres of the curves and the corner blocks' sides carry their buildings; about 6,600 m² is free, the corner
+blocks' yards and the strips beside the High City blocks. The long lines run down the carriageways: each curve's S swings
+less than the road is wide, so a curve, the Loop's side and the opposite curve make one 200 m straight; and along the edge
+road's straight sides and across the base's open ground-floor hall. Nearly every street point has one long line
+somewhere, so the measure is exposure: the share of the 48 bearings from which a standing body there is seen from past
+60 m.
+
+- **The street walls** (rules.low.walls, laid last with a seed of their own so nothing else moves): along both sides of
+  every curve and the Loop's outer side, the pack's low buildings (7.8 to 19.2 m) fronting the street, 1 m off the
+  pavement and up to 4 m more, an alley every 30 m; 1 m off every box of the last bake's collision under its top (the
+  first try kept off the street's collision alone, and one wall stood up into a corner block's fire escape), clear of the
+  pads, the lifts' footbridges, the Well, the zip ropes' hanging room and the bridges, never cutting the bots' street
+  graph: 8 buildings, 136k triangles. The bake lists the walls' own boxes beside the collision
+  (neonmap.solids.json `laid`) and every layout pass that reads it leaves exactly those out (lastSolids), so the run
+  after a bake lays the city the run before it laid: telling them apart by their footprints took in the fire escape and
+  the halls under three walls, and a wall moved at every bake.
+- **Boards in the median** (rules.dress.median.tall): every third median slot the pack's 7 m advertising board, 3.1 m
+  tall, where a 1.2 m block stops no eye: 12 boards.
+- **A hover van every second parked car** (rules.dress.cars.vans.every 2, from 3): 2.4 m, over a standing eye; where a
+  van would cut the bots' street graph a car parks instead, the graph modelled from the first lamp on.
+- **The bots' street graph modelled as the game builds it** (streetGraph): the last bake's boxes a body's half-width
+  proud (a diagonal slipped 0.35 m past a building's corner, a link to the model and none to the game), and its low
+  boxes a bot cannot step onto counted as walls, the last layout's own low street pieces left out (a 0.6 m platform beside
+  MARKET's kerb was nothing to the model). The first bake of this milestone had two street nodes shut in by MARKET's crate
+  stacks; the check caught it.
+- **The edge road's parked cars** (rules.dress.edge): by both kerbs of its four sides, as on the curves, and off the
+  jump pads (one parked on the north deck's outer pad, and the bake moved the pad 20 m).
+- Tried and left out, each measured: islands of cover round the plaza (the band between the base and the Loop is 5 to
+  6 m and holds the Sky Ring's stairs, the base's gates every 5 m and the pads: none fitted), and a median down the edge
+  road (the bots' graph has one row of nodes down its middle, the boundary fence beyond, and every block cut it).
+- **Exposure**, on the bake: on the curves 8.1% of bearings to 4.5%, on the Loop 13.0% to 7.3%; street points
+  seeing a standing body past 60 m along some bearing, 90% to 79%.
+- The map: its files lo 91 MB, hi 153 MB, max 366 MB. **Its files are version 40.**
+- **Checked** (`tools/checks/sk-neon.ts`, new and changed checks): the street level's exposure on the curves and the Loop
+  under rules.sightlines.most (failing on version 39's bake: 8.1% and 13.0%); the median's blocks solid at chest height and
+  its boards over a standing eye, 35 pieces and more. verify and rules; e2e `br`. The layout rerun after the bake
+  matches it.
