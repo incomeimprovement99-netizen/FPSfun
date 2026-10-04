@@ -10516,3 +10516,18 @@ out 13 m apart.
   moves, from the street up six balconies onto the deck, twelve legs, each from a stop on its take-off spot (failing on
   the bake with the kerb, the climber stopped under the first balcony's solid edge); as many climbs as the rule lays.
   verify and rules; e2e `br`. The layout rerun after the bake matches it.
+
+## Milestone 466 — The courses' pop-ups made after the first screen
+
+The two movement courses' fifty armed pop-up figures were made by the page's first script, before its first screen:
+about 70 ms of it (1.4 ms each warm, most of that now the gun each holds, Milestone 457 having shared the bodies), and
+none is shown before a run, since a pop-up is hidden until its room triggers. The course makes them later now
+(course.ts makeEnemies): after the page's first screen, a course a frame (later.ts), or at a run's start if that comes
+first, and it tells the page as they are made (onEnemies), which adds them to the range's targets, the threat list and
+the projectile system's figures that the start used to fill from them.
+
+- **Measured** (production builds, three cold loads of each taken in turn, medians): DOMContentLoaded (after the first
+  script) 0.49 s against 0.61 s; the first screen gone 1.60 s against 1.66 s; the main thread's long tasks 1.60 s
+  against 1.66 s. Everything in (loaded, which waits for the jobs after the first screen) came 0.08 s later, as the
+  pop-ups are made there now.
+- **Checked:** tsc; verify; rules; the page (the course runs), range and finish e2e.

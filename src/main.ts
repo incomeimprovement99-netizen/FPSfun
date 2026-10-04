@@ -1558,9 +1558,8 @@ for (const c of courses) c.onPad = () => audio.whoosh();
 const [courseBasic, courseAdvanced] = courses;
 /** the course a run is going on, or the one you are standing in, or the basic one */
 const activeCourse = (): Course => courses.find((c) => c.running) ?? courses.find((c) => c.hud(gameTime)) ?? courseBasic;
-const courseEnemies = courses.flatMap((c) => c.enemies);
 /** every figure outside a match: the range's dummies and the courses' pop-ups (hidden ones are skipped where it matters) */
-const rangeTargets: Dummy[] = [...dummies, ...courseEnemies];
+const rangeTargets: Dummy[] = [...dummies];
 // a copy: the projectile system adds and removes match figures in its own list
 const projectiles = new ProjectileSystem(scene, [...rangeTargets], targets, 0);
 const aimAssist = new AimAssist();
@@ -2380,7 +2379,19 @@ function newLife(d: MatchLike): void {
   dlog.clear(d.id);
 }
 /** everything a Digital Threat optic can light up */
-const threatTargets = [...dummies, ...courseEnemies];
+const threatTargets = [...dummies];
+// the courses' pop-ups, made after the page's first screen, a course a frame (Course.makeEnemies): into the range's
+// targets, the threat list and the rounds' as they come
+for (const c of courses) {
+  c.onEnemies = (made) => {
+    for (const d of made) {
+      rangeTargets.push(d);
+      threatTargets.push(d);
+      projectiles.addDummy(d);
+    }
+  };
+  later(() => c.makeEnemies());
+}
 
 // ---------- matches: 1v1, 1v1v1 (src/game/duel.ts, src/net/link.ts), bots (src/game/bots.ts) ----------
 let duel: MatchLike | null = null;

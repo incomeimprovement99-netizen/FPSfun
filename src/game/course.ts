@@ -336,6 +336,10 @@ function structure(L: CourseLayout, b: CourseBuilder): void {
 
 export class Course {
   readonly enemies: Dummy[] = [];
+  /** the pop-ups are made (makeEnemies) */
+  private enemiesMade = false;
+  /** the page told of the pop-ups as they are made: its targets and its rounds' (main.ts) */
+  onEnemies: ((made: Dummy[]) => void) | null = null;
   private readonly roomEnemies: Dummy[][] = [];
   private readonly roomTriggered: boolean[] = [];
   private readonly baseX = new Map<Dummy, number>();
@@ -518,23 +522,38 @@ export class Course {
     // --- the tips, on each room's entry wall, facing into the room
     L.rooms.forEach((room) => this.panel(room.tip, room.tipX, 2.6, room.entryZ + 0.51, 0, 7, 3.2));
 
-    // --- enemies, hidden until their room triggers. Dummies live in world
-    // space, so they are placed at the course's offset.
+    // --- enemies, hidden until their room triggers: made after the page's first screen (makeEnemies)
+    L.rooms.forEach((_, ri) => {
+      this.roomEnemies[ri] = [];
+      this.roomTriggered[ri] = false;
+    });
+  }
+
+  /**
+   * The pop-ups, hidden until their room triggers. Fifty armed figures across the two courses were about 70 ms of the
+   * page's first script before its first screen (1.4 ms each warm, 2026-10-04), and none is shown before a run: they are
+   * made after that screen (main.ts, later.ts) or at a run's start, whichever comes first, and the page told of them
+   * (onEnemies) for its targets and its rounds. Dummies live in world space, so they are placed at the course's offset.
+   */
+  makeEnemies(): void {
+    if (this.enemiesMade) return;
+    this.enemiesMade = true;
+    const L = this.layout;
+    const made: Dummy[] = [];
     L.rooms.forEach((room, ri) => {
-      const list: Dummy[] = [];
       for (const e of room.enemies) {
         const d = new Dummy(e.x + L.x, e.z, 0, { armed: e.gun, oneHit: true, respawn: false });
         d.group.position.y = e.y ?? 0;
         d.hide();
         this.scene.add(d.group);
         this.enemies.push(d);
-        list.push(d);
+        this.roomEnemies[ri].push(d);
         this.baseX.set(d, e.x + L.x);
         this.sway.set(d, e.sway ?? 0);
+        made.push(d);
       }
-      this.roomEnemies[ri] = list;
-      this.roomTriggered[ri] = false;
     });
+    this.onEnemies?.(made);
   }
 
   /**
@@ -752,6 +771,7 @@ export class Course {
   }
 
   private start(now: number): void {
+    this.makeEnemies();
     this.reset();
     this.running = true;
     this.startedAt = now;
