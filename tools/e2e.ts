@@ -3569,13 +3569,17 @@ async function packFrames(page: Page): Promise<void> {
     })()`,
   );
   const pf = <T>(js: string) => ev<T>(page, `(async () => { const r = window.__range; const H = window.__pf; ${js} })()`);
-  // the gun camera's field of view at the hip with a gun the view's own arms hold (ANAKIN), to hold the bought arms' to
-  // (the owner, 2026-09-28: "like the view angle isn't how it was originally": they had drawn at the pack's 80 degrees)
-  const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("alternator_smg"); await H.gameWait(0.4); return r.gunFov().gun;`);
+  // the gun camera's field of view at the hip with a gun the view's own arms hold, to hold the bought arms' to (the
+  // owner, 2026-09-28: "like the view angle isn't how it was originally": they had drawn at the pack's 80 degrees);
+  // the first SpeedKills gun not yet in the bought arms (it had been ANAKIN, until ANAKIN went into them)
+  const packIds = Object.keys(fparmsCfg.guns);
+  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman"].find((id) => !packIds.includes(id)) ?? "wingman";
+  const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("${plainGun}"); await H.gameWait(0.4); return r.gunFov().gun;`);
   // and the length of an inspect in the view's own arms
   const plainInspect = await pf<number>(`return r.packArms().inspectTime;`);
-  for (const id of ["r97", "sentinel"]) {
-    const other = id === "r97" ? "sentinel" : "r97";
+  // (every gun in the bought arms, fparms.json guns: a gun is added to the checks by adding it there)
+  for (const id of packIds) {
+    const other = packIds[(packIds.indexOf(id) + 1) % packIds.length];
     const o = { through: {} as Record<string, number> } as Frames;
     await pf(`r.debugView.inspect = -1; H.clear(); await H.hold(${JSON.stringify(id)}); window.__pf.first = H.fingers();`);
     // drawn, away, and drawn again: fitted the same (the second draw's fit had come out as no tilt), and the grip's
@@ -3596,8 +3600,10 @@ async function packFrames(page: Page): Promise<void> {
     o.pitch = await pf<number>(`await H.gameWait(0.3); return H.pitch();`);
     o.pitchWant = await pf<number>(`const T = r.THREE; const L = r.packRig().hipLook; const q = new T.Quaternion().setFromEuler(new T.Euler(L.turn[0], L.turn[1], L.turn[2] ?? 0, "YXZ")).multiply(new T.Quaternion().setFromEuler(new T.Euler(${fparmsCfg.hipPitch}, 0.05, 0))); const d = new T.Vector3(0, 0, -1).applyQuaternion(q); return (Math.atan2(d.y, Math.hypot(d.x, d.z)) * 180) / Math.PI;`);
     // the rest hold at the gun's own place: where it is and how it is turned at rest, and aimed with and without the move
+    // (the idle's breath held still while it measures: packRig debugStill)
     o.own = await pf<Frames["own"]>(`
       const T = r.THREE;
+      r.packRig().debugStill = true;
       await H.gameWait(0.3);
       const s = r.packArms();
       // (and moved by the gun's look on top, out of the bottom right corner: fparms.json packGuns look, hipLook)
@@ -3612,6 +3618,7 @@ async function packFrames(page: Page): Promise<void> {
       await H.gameWait(0.35);
       const a0 = r.packArms();
       r.packRig().debugHipOwn = null;
+      r.packRig().debugStill = false;
       H.clear();
       await H.gameWait(0.3);
       return { off, turn, aimed: Math.hypot(...a1.poseAt.map((v, i) => v - a0.poseAt[i])) + new T.Quaternion().fromArray(a1.poseTurn).angleTo(new T.Quaternion().fromArray(a0.poseTurn)) };`);
@@ -3693,7 +3700,7 @@ async function packFrames(page: Page): Promise<void> {
     // turn in round its middle, "like the streetfighter haduken"; through it the most the gun's middle moves, the deepest
     // seen skin in the gun, the most an arm falls short, and with the hands cupped (held 0.6 s of game time to settle) how
     // far they are off their holds, how far each palm is turned from the gun's middle, the fingers' bend, the phase's shape
-    const swap = await pf<Frames["swap"]>(`const root = r.viewModelRoot(); const T = r.THREE; let gun = null; root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; }); const at = () => root.worldToLocal(new T.Box3().setFromObject(gun).getCenter(new T.Vector3())); H.clear(); await H.gameWait(0.2); const p0 = at(); let moved = 0, deep = 0, short = 0; for (let u = 0.04; u < 0.97; u += 0.04) { r.debugView.raise = u; await H.gameWait(0.1); moved = Math.max(moved, at().distanceTo(p0)); const a = window.__packAudit(0.004); deep = Math.max(deep, a ? a.seenDeepest * 1000 : 0); const s = r.packArms(); short = Math.max(short, s.reachShort, s.reachShortR); } r.debugView.raise = 0.4; await H.gameWait(0.6); const c = r.packArms(); const radial = r.gunFeel().radial; H.clear(); await H.gameWait(0.3); return { moved, deep, short, off: c.cupOff, face: c.cupFace, curl: Math.min(c.curlL, c.curlR), radial };`);
+    const swap = await pf<Frames["swap"]>(`r.packRig().debugStill = true; const root = r.viewModelRoot(); const T = r.THREE; let gun = null; root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; }); const at = () => root.worldToLocal(new T.Box3().setFromObject(gun).getCenter(new T.Vector3())); H.clear(); await H.gameWait(0.2); const p0 = at(); let moved = 0, deep = 0, short = 0; for (let u = 0.04; u < 0.97; u += 0.04) { r.debugView.raise = u; await H.gameWait(0.1); moved = Math.max(moved, at().distanceTo(p0)); const a = window.__packAudit(0.004); deep = Math.max(deep, a ? a.seenDeepest * 1000 : 0); const s = r.packArms(); short = Math.max(short, s.reachShort, s.reachShortR); } r.debugView.raise = 0.4; await H.gameWait(0.6); const c = r.packArms(); const radial = r.gunFeel().radial; r.packRig().debugStill = false; H.clear(); await H.gameWait(0.3); return { moved, deep, short, off: c.cupOff, face: c.cupFace, curl: Math.min(c.curlL, c.curlR), radial };`);
     o.swap = swap;
     const pick = await pf<string[]>(`r.packPickupAt(0.4); await H.gameWait(0.2); const a = r.packArms().lead; r.packPickupAt(null); await H.gameWait(0.3); const b = r.packArms().lead; r.debugView.inspect = null; return [a, b];`);
     o.pickLead = pick[0];

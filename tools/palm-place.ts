@@ -14,7 +14,7 @@ import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
 
 const URL = process.env.SHOT_URL ?? "http://localhost:5196/";
-const IDS = process.argv.length > 2 ? process.argv.slice(2) : ["r97", "sentinel"];
+const IDS = process.argv.length > 2 ? process.argv.slice(2) : Object.keys(JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "config", "fparms.json"), "utf8")).guns);
 const WRITE = process.env.WRITE === "1";
 const LEFT = (process.env.LEFT ?? "0,0.02,0.04,0.06,0.08,0.1").split(",").map(Number);
 const UP = (process.env.UP ?? "0,0.02,0.04,0.06,0.08,0.1,0.12").split(",").map(Number);

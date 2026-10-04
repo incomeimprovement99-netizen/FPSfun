@@ -65,7 +65,8 @@ const ADS_SHOULDER = (cfg as unknown as { adsShoulder?: number }).adsShoulder ??
 const CAMERA = (cfg as unknown as { camera: number[] }).camera;
 /** the pack gun's magazine and charging handle, by the names its models give them */
 const MAG_NODE = "Mag";
-const HANDLE_NODES = ["ActiveCharging", "ChargingHandle", "Charger"];
+// (last, the ASVal's: its handle is its Bolt, which its empty reload pulls; the MPS5 has a Bolt too, behind its ChargingHandle)
+const HANDLE_NODES = ["ActiveCharging", "ChargingHandle", "Charger", "Bolt"];
 
 /** a moving clip's own motion of the gun, read off the pack's .anim curves (tools/import-fparms.ts additive.json) */
 interface AddTrack {
@@ -441,6 +442,9 @@ export class PackArms {
   private pickWhole = false;
   /** where each elbow is held at rest, tried in place of the pack gun's own (view metres from the hand: x right, y up, z back) */
   debugHoldElbow: { l?: number[]; r?: number[] } | null = null;
+  /** the moving clips' motion held still (the checks: the idle's breath moved the gun 1 to 4 cm over a swap's measure,
+   * and failed a check of where the gun is held by whatever moment of it the measure fell on) */
+  debugStill = false;
   /** shoulders tried in place of the pack gun's own (tools/pack-fit.ts wrists) */
   debugShoulders: Shoulders | null = null;
   /** how much the left hand held the gun last frame, 0..1: the left shoulder's hold fit fades with it */
@@ -688,6 +692,7 @@ export class PackArms {
   locomotion(dt: number, speed: number, sprint: number, air: boolean, ads: number, pos: THREE.Vector3, quat: THREE.Quaternion): void {
     pos.set(0, 0, 0);
     quat.identity();
+    if (this.debugStill) return;
     const A = this.additive;
     if (!A || !A.A_FP_Idle) return;
     const run = MOVE.speed * HU;
@@ -994,7 +999,7 @@ export class PackArms {
     for (const side of ["l", "r"] as const) {
       const fit = hold?.[side];
       if (!fit || holdW[side] <= 0.001) continue;
-      for (const [finger, open] of Object.entries(fit.open)) {
+      for (const [finger, open] of Object.entries(fit.open ?? {})) {
         for (const k of ["01", "02", "03"]) {
           const b = this.bones[`${finger}_${k}_${side}`];
           const bind = b ? this.bind.get(b) : undefined;
@@ -1417,13 +1422,15 @@ export class PackArms {
         // (off the gun over `moveAt` of the hand's way, turned and bent over `shape`: turned and bent in place, the fingers went 8 mm into the gun at the start)
         pos.lerp(cupAt, THREE.MathUtils.smoothstep(cupW, SWAP_CUP.moveAt[side][0], SWAP_CUP.moveAt[side][1]));
         quat.slerp(cupQ, cupShape[side]);
-        // (the second half from where the first left it: the next gun's holds are elsewhere, and the hand would jump)
-        const viewQ = this.group.getWorldQuaternion(new THREE.Quaternion());
+        // (the second half from where the first left it: the next gun's holds are elsewhere, and the hand would jump. Kept
+        // on the holder, which both guns are held in, so the hands breathe with the gun: kept in the view, the idle's
+        // breath swayed BOOG 5.8 mm into the cupped fingers)
+        const holderQ = holder.getWorldQuaternion(new THREE.Quaternion());
         const kept = this.cupHeld[side];
-        if (f.cup.half === 0) this.cupHeld[side] = { at: this.group.worldToLocal(pos.clone()), q: viewQ.clone().invert().multiply(quat) };
+        if (f.cup.half === 0) this.cupHeld[side] = { at: pos.clone().applyMatrix4(new THREE.Matrix4().copy(holder.matrixWorld).invert()), q: holderQ.clone().invert().multiply(quat) };
         else if (kept && f.cup.carry < 1) {
-          pos.copy(this.group.localToWorld(kept.at.clone()).lerp(pos, f.cup.carry));
-          quat.copy(viewQ.clone().multiply(kept.q).slerp(quat, f.cup.carry));
+          pos.copy(kept.at.clone().applyMatrix4(holder.matrixWorld).lerp(pos, f.cup.carry));
+          quat.copy(holderQ.clone().multiply(kept.q).slerp(quat, f.cup.carry));
         }
         this.seen.cupOff = Math.max(this.seen.cupOff, pos.distanceTo(held) / gsW);
         // (how far the palm is from facing the middle across the forearm, as it is turned: BOOG's middle is far ahead along

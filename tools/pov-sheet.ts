@@ -3,11 +3,14 @@
 // are judged where the owner sees them. Headless, never the real mouse or keyboard.
 //
 // Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pov-sheet.ts [out prefix] [ids...]
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import puppeteer from "puppeteer";
 
 const URL = process.env.SHOT_URL ?? "http://localhost:5196/";
 const OUT = process.argv[2] ?? "docs/updates/pov";
-const IDS = process.argv.length > 3 ? process.argv.slice(3) : ["r97", "sentinel"];
+const IDS = process.argv.length > 3 ? process.argv.slice(3) : Object.keys(JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "config", "fparms.json"), "utf8")).guns);
 const FOV = Number(process.env.FOV ?? 1.571);
 // ONLY=stand,aim takes just those of the poses
 const ONLY = process.env.ONLY ? process.env.ONLY.split(",") : null;

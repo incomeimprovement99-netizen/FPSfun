@@ -15,7 +15,7 @@ import sharp from "sharp";
 
 const URL = process.env.SHOT_URL ?? "http://localhost:5196/";
 const OUT = process.argv[2] ?? "pack-frames";
-const IDS = process.argv.length > 3 ? process.argv.slice(3) : ["r97", "sentinel"];
+const IDS = process.argv.length > 3 ? process.argv.slice(3) : Object.keys(JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "config", "fparms.json"), "utf8")).guns);
 const SEQ = (process.env.SEQ ?? "reload,swap").split(",");
 const STEP = Number(process.env.STEP ?? 0.04);
 /** FROM= and TO=: only that stretch of each sequence (shares of it) */

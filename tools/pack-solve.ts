@@ -24,7 +24,7 @@ import puppeteer, { type Page } from "puppeteer";
 
 const URL = process.env.SHOT_URL ?? "http://localhost:5196/";
 const STAGE = process.argv[2] ?? "all";
-const IDS = process.argv.length > 3 ? process.argv.slice(3) : ["r97", "sentinel"];
+const IDS = process.argv.length > 3 ? process.argv.slice(3) : Object.keys(JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "config", "fparms.json"), "utf8")).guns);
 const WRITE = process.env.WRITE === "1";
 /** skin this deep in the gun is touching it, mm (a grip presses the glove) */
 const DEEP = 3.5;

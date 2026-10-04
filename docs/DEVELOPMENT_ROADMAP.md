@@ -10424,3 +10424,24 @@ for (2026-10-01: other players see CHOOCH overheat), agreed with the guns agent.
   the vent switched off); the skfigure e2e (160) on top of Milestone 457's new robot bodies; verify; rules; the type
   check; photographs at rest and venting.
 - **Left open:** the stock in the right forearm (the template fault, 28 to 38 mm at rest and aimed, 98 crouched).
+
+## Milestone 462 — The swap's hands breathe with the gun, and the hold checks measured with the breath held still
+
+The daily sweep of 2026-10-04 (Milestone 460) failed two of the soldier e2e's pack-frame checks on the USSO and BOOG:
+at rest 2.06 and 2.3 mm off their holds (2 mm the bar), and BOOG's gun 3.8 cm off its place in a swap (1 cm) with a
+hand 5.2 mm into it. Rerun alone on a quiet machine they failed again, and the same scan on Milestone 446's own commit
+moved 2.4 and 1.9 cm while main's moved 0.8 and 0.2: not the code, but the moment.
+
+- **The cause:** the pack's idle breath (its A_FP_Idle clip, the gun's motion added each frame, fprig.ts locomotion)
+  moves the gun 1 to 4 cm over the 2.4 s of game time the swap's measure takes, and the rest measure fell on whatever
+  moment of it came. The arms now hold it still on a switch the checks set (packRig debugStill): the swap's gun moved
+  0.0 and 0.1 cm on two runs, the rest hold 0.22 and 0.38 mm off.
+- **A real clip with it:** in a swap's second half the hands are carried from where the first half left them, and that
+  place was kept in the view while the gun went on breathing: BOOG swayed into the cupped fingers, 5.2 to 5.8 mm. It is
+  kept on the gun's holder now, which both guns are held in, so the hands breathe with the gun.
+- **The tools over every gun:** the fitting and sheet tools (pack-fit, pack-solve, pack-frames, palm-place, pov-sheet)
+  and the soldier e2e's pack frames run over every gun in fparms.json `guns`, not the USSO and BOOG by name, so ANAKIN
+  and the rest join the checks by being added there (`PLAN_THE_EIGHT_GUNS.md` section 4); the e2e's plain-arms
+  baseline takes the first gun not yet in the bought arms. tools/pack-solve.ts keeps the hand still on KEEP_HAND=1.
+- **Checked:** the soldier e2e passes (the rest hold 0.22 and 0.38 mm, the swap 0.1 and 0 cm, no hand in either gun);
+  verify; rules; tsc.

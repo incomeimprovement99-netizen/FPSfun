@@ -5,7 +5,7 @@
 // of the gun, as far as its deepest point is in (and `MARGIN` more); then each finger still in the gun tried
 // from curled tighter to opened, and the one that leaves it least through (`DEEP` or less is touching). WRITE=1 writes the fit into fparms.json (packGuns hold).
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-fit.ts [ids...]   (r97 and sentinel by default)
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-fit.ts [ids...]   (every gun in fparms.json guns by default)
 // Headless, never the real mouse or keyboard.
 import fs from "node:fs";
 import path from "node:path";
@@ -14,7 +14,7 @@ import puppeteer from "puppeteer";
 
 const URL = process.env.SHOT_URL ?? "http://localhost:5196/";
 const IDS =
-  process.argv.length > 2 ? process.argv.slice(2) : ["r97", "sentinel"];
+  process.argv.length > 2 ? process.argv.slice(2) : Object.keys(JSON.parse(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), "..", "src", "config", "fparms.json"), "utf8")).guns);
 const WRITE = process.env.WRITE === "1";
 /** the owner's field of view setting (tools/pack-frames.ts looks at the same) */
 const FOV = Number(process.env.FOV ?? 1.571);
