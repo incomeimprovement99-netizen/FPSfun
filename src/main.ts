@@ -5796,7 +5796,8 @@ function boxesFirst(start: () => void, link?: Link): boolean {
       link.onMessage = null;
       link.onClose = closed;
       start();
-      for (const m of held) link.onMessage?.(m);
+      // (the match's own, which start just set: the null above hid it from the type check)
+      for (const m of held) (link.onMessage as Link["onMessage"])?.(m);
     });
   return false;
 }
