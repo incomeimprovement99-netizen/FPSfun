@@ -10658,6 +10658,7 @@ hold.
   the reload and the Loadouts tab passing as they were; verify; rules; the type check; photographs of the hands from
   every side, the stance at rest, aimed, reloading and swapping.
 - **Next:** STRYDER onto the fast pistol (its numbers waiting on the owner), then the same stance on it.
+
 ## Milestone 473 — The e2e on the Neon City: the old city's checks said as skipped there, not failed
 
 The live game is on the Neon City, and the e2e's SpeedKills pages are on the city before it unless E2E_MAP=neon. Run on
