@@ -126,7 +126,7 @@ import { dressKit } from "./game/kitdress";
 import { cityKitPlaces } from "./game/citydress";
 import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
 import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
-import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, retakeReflection, updateNeonFill, warmReflection } from "./game/neonmap";
+import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, loadNeonSolids, neonSolidsIn, retakeReflection, updateNeonFill, warmReflection } from "./game/neonmap";
 import { programRepList, repsRoot } from "./game/programreps";
 import { buildAtmosphere, tickAtmosphere } from "./game/steam";
 import { atmosphereOn, districtHere, ownAir, tickAir, wetStreets } from "./game/atmosphere";
@@ -827,6 +827,8 @@ holdTextures(false);
 // ILranch packs before it, kept to compare and to come back to
 const NEON = IS_SK && new URLSearchParams(location.search).get("map") !== "city";
 const brMap = IS_SK ? (NEON ? buildNeonMap(scene) : buildCityMap(scene)) : buildBrMap(scene);
+// the Neon City's collision boxes after the page's first screen, not in its first script (neonmap.ts loadNeonSolids)
+if (NEON) later(() => void loadNeonSolids());
 // a door opening or shutting, heard where it hangs (whoever did it)
 brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || what === "kick" ? "kick" : what);
 /**
@@ -868,7 +870,9 @@ const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== are
 // nothing is rebuilt, so changing it mid-game costs a frame.
 // SpeedKills offers its own hours (speedkills.json identity.skies): the neon night by default, golden hour the other
 const SK_SKIES = PROFILE.identity.skies ?? [PROFILE.identity.sky];
-const gameHour = (): Hour => (IS_SK ? loadSkHour(SK_SKIES, PROFILE.identity.sky) : loadHour());
+// (?sky=id: this page's hour whatever the Settings box says, for measuring one sky against another: tools/bench.ts)
+const SKY_ASKED = new URLSearchParams(location.search).get("sky");
+const gameHour = (): Hour => (SKY_ASKED && SKY_ASKED in HOURS ? hourFor(SKY_ASKED) : IS_SK ? loadSkHour(SK_SKIES, PROFILE.identity.sky) : loadHour());
 let hour = gameHour();
 function applyHour(h: Hour): void {
   hour = h;
@@ -1044,7 +1048,8 @@ function askCity(): void {
   cityAsked = true;
   // (its unpacking on more workers than three's four: one fewer than the machine's processors, intro.json cityWorkers)
   const workers = Math.max(4, Math.min(introCfg.show.cityWorkers, (navigator.hardwareConcurrency || 4) - 1));
-  void dressNeonMap(brMap.root, renderer, quality.cityKit, workers).finally(() => (cityIn = true));
+  // (and the city's boxes, which a match on it cannot do without: neonmap.ts loadNeonSolids)
+  void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(() => (cityIn = true));
 }
 if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
   // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
@@ -9384,7 +9389,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   cameraPos: () => camera.position.toArray(),
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   // (and the figures in: tools and the e2e start matches at once, and a SpeedKills page's screen no longer waits for them)
-  loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()) && laterSettled(),
+  loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()) && laterSettled() && (!NEON || neonSolidsIn()),
   /** the page's first screen has gone by itself: what it waits for is in (loaded() waits for what comes after it too) */
   screenLoaded: () => loadingScreen.loaded,
   /** SpeedKills' way into a match (show): its stage, or null once the match is its own (tools/e2e.ts) */

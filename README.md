@@ -1337,7 +1337,9 @@ without making arrays; the shots' gathering runs only while a shot is in flight;
 once and copied each frame (Milestone 439, `?slow=keys`). Going into a match on the city (Milestone 442), its file
 is unpacked on more of the processor's cores with the screen counting its textures, and its shaders are built a slice
 a frame from one object a program (`?slow=reps` compiles every object), so the screen no longer sits frozen on the full
-megabytes. On a machine busy with other
+megabytes. The city's file is kept in the browser's Cache Storage between visits (Chrome's own cache dropped a
+file that big, so every visit downloaded it again), and its collision boxes load after the first screen, not in the
+page's first script (Milestone 445). `?sky=id` opens a page under one hour, for measuring one sky against another. On a machine busy with other
 work, the street from a median 66 fps to 80 on Balanced.
 
 **The bought city kits, and what they cost.** The centre wears about 6,300

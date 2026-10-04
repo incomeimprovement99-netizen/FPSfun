@@ -10021,3 +10021,31 @@ possible, especially if new".
   until it fits.
 - **Checked:** the loading screen photographed at 1920 by 1080 (nine tips to the card's foot, the name on one line);
   verify; rules; the sklobby e2e.
+
+## Milestone 445 — The city kept between visits, and its collision out of the first download
+
+The owner, 2026-10-04: "rank the next steps ... to double check that we aren't doing anything really stupid
+performance wise / load time wise". The check that found something:
+
+- **The city's file was downloaded again on every visit.** Two visits with one browser profile on the live site: the
+  second sent everything from Chrome's cache but the city's file, 78.8 MB over the network again (the lo set; Balanced's
+  is 137 MB): Chrome's own cache does not keep a file this big. So every first match of every visit waited for the whole
+  file, 13 to 22 s on a 50 Mbit/s line. It is kept in the browser's Cache Storage now (neonmap.ts cityBytes): read from
+  there when a visit before kept it, downloaded and kept otherwise, the copy written to disk behind the match (the city
+  does not wait for it), one version at a time (the ones before are let go first), and a kept copy that does not read
+  downloaded again. On a production build, two visits with one profile: the first 128.6 MB over the network and aboard
+  7.7 s after Start, the copy kept 1.2 s after; the second 0.1 MB, aboard 6.3 s.
+- **The city's collision boxes** (src/config/neon/neonmap.solids.json, 71,630 boxes) were a quarter of the page's
+  first script and were parsed and put in the world before the range's first frame, which never uses them. They are a
+  file of their own now, asked for after the first screen and with the city (neonmap.ts loadNeonSolids); the city's
+  screen and the page's loaded() wait for them, and a node check hands them to buildNeonMap itself (tools/checks/sk-neon.ts).
+  The fill lights' spots are kept clear of them, and the decay holds them, once they are in. The first script from
+  1,455 KB to 1,070 KB compressed (26% less), and 56 ms of the start's work gone (15 ms parsing them, 41 ms putting them
+  in the world).
+- **`?sky=id`** opens a page under one hour whatever the Settings box says, for measuring one sky against another
+  (`BENCH_VARIANTS="night=&sky=neonNight;golden=&sky=goldenHour;hazy=&sky=hazyDay"`). Measured: the neon night 103 fps
+  (the GPU 3.37 ms a frame), golden hour 104 (3.41), the hazy day 98 (3.59), Balanced in the Neon street, medians of
+  three rounds each in turn: the hour costs at most about 5%, and the night, the default, is as cheap as any.
+- **Checked:** the two visits on a production build (the city drawn both times, its 73,860 boxes in, the second from the
+  cache); verify (the Neon checks with the boxes handed in); rules; the sklobby and skship e2e on the suite's map, and
+  skship on the Neon City.

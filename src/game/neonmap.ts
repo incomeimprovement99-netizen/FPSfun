@@ -24,7 +24,6 @@ import { emissive } from "./geo";
 import { ZIPLINES } from "./traversal";
 import { loadQuality } from "./quality";
 import neonCfg from "../config/neonmap.json";
-import SOLIDS from "../config/neon/neonmap.solids.json";
 
 /** the centre's spine of pads as the bake measured it (tools/import-neon.ts spinePads) */
 interface Spine {
@@ -35,7 +34,32 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; got: number; total: number; unpacked: number; textures: number } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, got: 0, total: 0, unpacked: 0, textures: 0 };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false };
+
+/**
+ * The city's collision boxes (src/config/neon/neonmap.solids.json, measured off the pieces at the bake): a file of their
+ * own, not the page's first script. 71,630 boxes, 369 KB of the first script's 1.43 MB compressed (2026-10-03), parsed
+ * and put in the world before the range's first frame, which never uses them. They are asked for after the first
+ * screen and with the city (main.ts), and the city's screen and the page's loaded() wait for them (neonSolidsIn). A node
+ * check hands them to buildNeonMap itself.
+ */
+const BOXES: { add: ((boxes: number[][]) => void) | null; in: boolean; loading: Promise<void> | null } = { add: null, in: false, loading: null };
+/** the city's collision boxes are in the world */
+export function neonSolidsIn(): boolean {
+  return BOXES.in;
+}
+/** the boxes' file, asked for once, and put in the world when it is in */
+export function loadNeonSolids(): Promise<void> {
+  return (BOXES.loading ??= import("../config/neon/neonmap.solids.json").then((m) => addNeonSolids(m.default.solids as number[][])));
+}
+/** the boxes into the world: the collision, the fill lights' spots clear of them, the decay's hold on them */
+export function addNeonSolids(boxes: number[][]): void {
+  if (BOXES.in || !BOXES.add) return;
+  BOXES.add(boxes);
+  BOXES.add = null;
+  BOXES.in = true;
+  NEON_MAP.boxes = boxes.length;
+}
 
 const G = neonCfg.game;
 /** the map's own haze (atmosphere.ts ownAir), neonmap.json game.air */
@@ -83,7 +107,9 @@ export function updateNeonFill(eye: THREE.Vector3): void {
   });
 }
 
-export function buildNeonMap(scene: THREE.Scene): BrMap {
+/** `boxes`: the city's collision, for a caller that has it now (the node checks); the page's comes later (loadNeonSolids) */
+export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
+  BOXES.in = false;
   const root = new THREE.Group();
   root.name = "neon";
   root.position.set(BR_X, 0, BR_Z);
@@ -123,8 +149,8 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
   // (over the corridor only: an entrance's well is open to the street; over the station and its tunnel, the street)
   for (const { slab: [x0, x1, z0, z1] } of K.halls) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
   for (const [x0, x1, z0, z1] of UG.slabs) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: -G.slab, top: 0 });
-  const neonFrom = RANGE_SOLIDS.length;
-  for (const [x0, x1, z0, z1, y0, y1] of SOLIDS.solids as number[][]) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
+  const slabs = RANGE_SOLIDS.slice(first);
+  // (and the boxes the bake measured, when they are in: addNeonSolids)
   rebuildSolidGrid();
 
   buildEdgeFence(root);
@@ -324,7 +350,8 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     ZIPLINES.push({ a: new THREE.Vector3(a.x + BR_X, a.y, a.z + BR_Z), b: new THREE.Vector3(b.x + BR_X, b.y, b.z + BR_Z) });
   }
 
-  // the fill lights' spots (above), and the pool
+  // the fill lights' spots (above), and the pool; the spots kept once the boxes are in (placeFill)
+  let placeFill: (own: Set<Solid>) => void = () => undefined;
   {
     const F = G.fill;
     FILL.spots.length = 0;
@@ -339,17 +366,21 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
     // (none inside or within `off` of anything solid: the station's grid met platform edges and the corridors' low
     // ceilings, and a spot on a wall's face lit one side of it only)
     const off = F.off;
-    // (the boxes near a spot, from the grid, kept to the city's own: every spot tested against every box of the city was
-    // 0.14 s of the page's start, before the range's first frame, 2026-10-03)
-    const own = new Set(RANGE_SOLIDS.slice(neonFrom));
-    const near: Solid[] = [];
-    const solid = (q: THREE.Vector3) =>
-      solidsIn(q.x - off, q.x + off, q.z - off, q.z + off, near).some((s) => own.has(s) && q.x > s.minX - off && q.x < s.maxX + off && q.z > s.minZ - off && q.z < s.maxZ + off && q.y > s.base && q.y < s.top);
-    FILL.spots = FILL.spots.filter((q) => !solid(q));
-    // (a tower floor's lamp: inside the tower's square, over its lowest new floor)
-    const sq = neonCfg.tower.square as number[];
-    const lowest = Math.min(...Object.keys(neonCfg.rules.tower.floors.at).map(Number));
-    FILL.power = FILL.spots.map((q) => (q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest ? F.tower : F.intensity));
+    const raw = FILL.spots;
+    FILL.spots = [];
+    FILL.power = [];
+    placeFill = (own) => {
+      // (the boxes near a spot, from the grid, kept to the city's own: every spot tested against every box of the city
+      // was 0.14 s of the page's start, before the range's first frame, 2026-10-03)
+      const near: Solid[] = [];
+      const solid = (q: THREE.Vector3) =>
+        solidsIn(q.x - off, q.x + off, q.z - off, q.z + off, near).some((s) => own.has(s) && q.x > s.minX - off && q.x < s.maxX + off && q.z > s.minZ - off && q.z < s.maxZ + off && q.y > s.base && q.y < s.top);
+      FILL.spots = raw.filter((q) => !solid(q));
+      // (a tower floor's lamp: inside the tower's square, over its lowest new floor)
+      const sq = neonCfg.tower.square as number[];
+      const lowest = Math.min(...Object.keys(neonCfg.rules.tower.floors.at).map(Number));
+      FILL.power = FILL.spots.map((q) => (q.x - BR_X > sq[0] && q.x - BR_X < sq[1] && q.z - BR_Z > sq[2] && q.z - BR_Z < sq[3] && q.y > lowest ? F.tower : F.intensity));
+    };
     for (const l of FILL.lights) l.removeFromParent();
     FILL.lights.length = 0;
     for (let k = 0; k < fillCount(F); k++) {
@@ -359,7 +390,17 @@ export function buildNeonMap(scene: THREE.Scene): BrMap {
       FILL.lights.push(l);
     }
   }
-  holdForDecay(root, RANGE_SOLIDS.slice(first));
+  // the decay taught to the map's materials, and holding the slabs; the boxes join it when they are in
+  holdForDecay(root, slabs);
+  BOXES.add = (list) => {
+    const from = RANGE_SOLIDS.length;
+    for (const [x0, x1, z0, z1, y0, y1] of list) RANGE_SOLIDS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, base: y0, top: y1 });
+    const own = RANGE_SOLIDS.slice(from);
+    rebuildSolidGrid();
+    placeFill(new Set(own));
+    holdForDecay(root, [...slabs, ...own]);
+  };
+  if (boxes) addNeonSolids(boxes);
   root.updateMatrixWorld(true);
   return {
     root,
@@ -457,13 +498,71 @@ export function warmReflection(root: THREE.Object3D): Promise<unknown> {
  * meshopt-compressed, its detail maps multiplied in (detailmaps.ts), every material taught the decay, the plain floor put
  * away. How many meshes it drew; 0 where the file is not (a checkout without the bought files)
  */
+/** where the city's file is kept between visits (Cache Storage), one version at a time */
+const CITY_CACHE = "sk-city";
+
+/**
+ * The city's file, from the browser's Cache Storage when a visit before kept it, or downloaded and kept there for the
+ * next. Chrome's own cache does not keep a file this big: a return visit downloaded it again in full (78.8 MB of the
+ * lo set over the network on the second of two visits with one profile, 2026-10-04), every first match of every visit.
+ * Its bytes are counted as they come, for the screen; the versions kept before are let go first (up to 349 MB each).
+ * Null where the file is not (a checkout without the bought files).
+ */
+async function cityBytes(url: string, fresh = false): Promise<ArrayBuffer | null> {
+  const abs = new URL(url, location.href).href;
+  let cache: Cache | null = null;
+  try {
+    cache = typeof caches === "undefined" ? null : await caches.open(CITY_CACHE);
+  } catch {
+    cache = null;
+  }
+  const kept = cache && !fresh ? await cache.match(abs).catch(() => undefined) : undefined;
+  if (kept) {
+    const buf = await kept.arrayBuffer();
+    NEON_MAP.got = NEON_MAP.total = buf.byteLength;
+    NEON_MAP.fromCache = true;
+    return buf;
+  }
+  // a HEAD first: the Vite dev server answers a missing file with its index page, not a 404
+  const probe = await fetch(abs, { method: "HEAD" }).catch(() => null);
+  if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return null;
+  const res = await fetch(abs);
+  if (!res.ok || !res.body) throw new Error(`the city's file: ${res.status}`);
+  const total = Number(res.headers.get("content-length") ?? 0);
+  // one copy into the cache as it streams, the other counted for the screen and read whole
+  const [toKeep, toRead] = res.body.tee();
+  let got = 0;
+  const counted = toRead.pipeThrough(
+    new TransformStream<Uint8Array, Uint8Array>({
+      transform(chunk, out) {
+        got += chunk.byteLength;
+        NEON_MAP.got = got;
+        NEON_MAP.total = Math.max(total, got);
+        out.enqueue(chunk);
+      },
+    })
+  );
+  const keep = (async () => {
+    if (!cache) return void (await toKeep.cancel());
+    try {
+      for (const k of await cache.keys()) if (k.url !== abs) await cache.delete(k);
+      await cache.put(abs, new Response(toKeep, { headers: { "content-type": "model/gltf-binary" } }));
+      NEON_MAP.kept = true;
+    } catch {
+      /* no room: the next visit downloads it again, as before */
+    }
+  })();
+  // (the copy is kept on disk behind the match: the city does not wait for it)
+  void keep;
+  return new Response(counted).arrayBuffer();
+}
+
 export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRenderer, size: "lo" | "hi" | "max", workers = 4): Promise<number> {
   // (?neontag=: a bake of another grouping beside this one, for measuring the two in turn: tools/import-neon.ts NEON_TAG)
   const tag = (new URLSearchParams(location.search).get("neontag") ?? "").replace(/[^a-z0-9-]/gi, "");
   const url = `models/paid/neon/neonmap-v${neonCfg.version}-${size}${tag}.glb?v=${neonCfg.version}`;
-  // a HEAD first: the Vite dev server answers a missing file with its index page, not a 404
-  const probe = await fetch(url, { method: "HEAD" }).catch(() => null);
-  if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return 0;
+  let bytes = await cityBytes(url);
+  if (!bytes) return 0;
   // Its textures unpacked on more workers than three's own four (its 728 took 2.1 s on four after the last byte, the
   // screen still on the full megabytes, 2026-10-03), and each counted as it is done, for the screen (main.ts showFrame).
   // Not the geometry decoder's workers (MeshoptDecoder.useWorkers): it writes their script as "self.onmessage =
@@ -479,15 +578,19 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
       onLoad?.(t);
     }, onProgress, onError);
   };
-  // (its bytes as they come: a match's screen waits for the city and draws its bar by them, main.ts showFrame)
-  const gltf = await new GLTFLoader()
-    .setKTX2Loader(ktx2)
-    .setMeshoptDecoder(MeshoptDecoder)
-    .loadAsync(url, (e) => {
-      if (!e.lengthComputable) return;
-      NEON_MAP.got = e.loaded;
-      NEON_MAP.total = e.total;
-    });
+  // (its bytes counted as they came, cityBytes: a match's screen waits for the city and draws its bar by them)
+  const parse = (b: ArrayBuffer) => new GLTFLoader().setKTX2Loader(ktx2).setMeshoptDecoder(MeshoptDecoder).parseAsync(b, "");
+  let gltf: Awaited<ReturnType<typeof parse>>;
+  try {
+    gltf = await parse(bytes);
+  } catch (e) {
+    // a kept copy that does not read: let go of it and download it again, once
+    if (!NEON_MAP.fromCache) throw e;
+    NEON_MAP.fromCache = false;
+    NEON_MAP.textures = NEON_MAP.unpacked = 0;
+    bytes = (await cityBytes(url, true)) ?? bytes;
+    gltf = await parse(bytes);
+  }
   NEON_MAP.detail = await applyDetailMaps(gltf);
   let meshes = 0;
   gltf.scene.traverse((o) => {

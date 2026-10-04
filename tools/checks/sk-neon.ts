@@ -34,7 +34,8 @@ const { streets: curvedStreets, StreetField } = await import("../neon-streets");
 const cfg = (await import("../../src/config/neonmap.json")).default;
 const SOLIDS = (await import("../../src/config/neon/neonmap.solids.json")).default;
 const firstSolid = RANGE_SOLIDS.length;
-const map = buildNeonMap(new THREE.Scene());
+// (the page asks for the boxes after its first screen, neonmap.ts loadNeonSolids; a check has them now)
+const map = buildNeonMap(new THREE.Scene(), (SOLIDS as { solids: number[][] }).solids);
 console.warn = warn;
 if (!hadDocument) delete g.document;
 
