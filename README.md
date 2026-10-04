@@ -962,7 +962,8 @@ damage).
 - **Multiplayer** (`src/net/link.ts`, `src/game/duel.ts`) is a star: the
   player who creates the match is the host, guests connect to it by code
   through the PeerJS broker (the site's own when `/net.json` names one, with
-  TURN credentials for the relay; else the public one), and in a 1v1v1 the host relays between the
+  TURN credentials for the relay, a slow answer asked again for up to 20 s so
+  both ends find the same broker; else the public one), and in a 1v1v1 the host relays between the
   guests. State packets go 30 times a second with position, look, weapon,
   health and whether you are in the game; shots and hits are messages; the
   shooter decides hits. The host runs the round clock, the circle and the

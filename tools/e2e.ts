@@ -237,6 +237,53 @@ async function crossGameTest(browser: Browser): Promise<void> {
   await skHost.close();
 }
 
+/**
+ * A slow answer from the site about its broker (net.json) is waited for, not taken for none. A host whose answer came
+ * after 3 s went to the public broker while its friend went to the site's, and the friend found no match with that
+ * code: the live check, for 8 minutes after a deploy (2026-10-04). Here the page's net.json comes 4 s late and names a
+ * broker path of its own; the host's broker socket has to go there. (That path's socket is a stand-in that never
+ * opens: nothing connects, and nothing fails into the run's error count.)
+ */
+async function brokerWaitTest(browser: Browser): Promise<void> {
+  const page = await open(
+    browser,
+    "?norender",
+    BASE,
+    `(() => {
+      window.__ws = [];
+      const W = window.WebSocket;
+      const Stand = function (u, p) {
+        if (/peerjs\\?key=/.test(String(u))) window.__ws.push(String(u));
+        if (String(u).includes("/broker-probe/")) {
+          const t = new EventTarget();
+          t.readyState = 0;
+          t.send = () => undefined;
+          t.close = () => undefined;
+          return t;
+        }
+        return new W(u, p);
+      };
+      Stand.prototype = W.prototype;
+      Object.assign(Stand, { CONNECTING: 0, OPEN: 1, CLOSING: 2, CLOSED: 3 });
+      window.WebSocket = Stand;
+    })()`
+  );
+  await page.setRequestInterception(true);
+  page.on("request", (r) => {
+    if (/\/net\.json/.test(r.url())) setTimeout(() => void r.respond({ status: 200, contentType: "application/json", body: JSON.stringify({ v: 1, peer: { path: "/broker-probe/", key: "probe" }, iceServers: [] }) }), 4000);
+    else void r.continue();
+  });
+  await ev(page, `document.getElementById("duelHost").click()`);
+  await page.waitForFunction("window.__ws.length > 0", { polling: 200, timeout: 25000 }).catch(() => undefined);
+  const ws = await ev<string[]>(page, "window.__ws");
+  check(
+    "a slow answer about the site's broker is waited for: the host goes to the site's broker, not the public one",
+    ws.length > 0 && ws.every((u) => u.includes("/broker-probe/")),
+    ws.map((u) => u.replace(/[?].*$/, "")).join(" ") || "no broker socket in 25 s"
+  );
+  await page.close();
+}
+
 /** a friend opens the invite link and is in the match, with no code typed */
 async function inviteTest(browser: Browser, query: string): Promise<void> {
   const host = await open(browser, query);
@@ -9400,6 +9447,8 @@ async function main(): Promise<void> {
       await lateBoxesTest(browser);
       console.log("\nA code from a page of the other game");
       await crossGameTest(browser);
+      console.log("\nThe site's broker asked for slowly");
+      await brokerWaitTest(browser);
     });
 
     if (want("intro")) await section("intro", async () => {

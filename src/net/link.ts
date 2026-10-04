@@ -620,30 +620,41 @@ const useLocal = (): boolean => new URLSearchParams(location.search).get("net") 
  * (GitHub Pages, the dev server) has no such file, and the public PeerJS
  * broker with the library's default relays is used. Fetched per match so the
  * credentials are never stale. `?broker=public` forces the public one.
+ *
+ * A slow answer is not a missing one. A page whose ask took over 3 s went to the public broker while its friend's went
+ * to the site's, and the friend was told there was no match with that code: the live check, for 8 minutes after a
+ * deploy (2026-10-04), and the same at once with only the host's net.json held back 4 s. So a timeout, a dropped
+ * request or a server error (a restart's 502) is asked again, for net.json broker.ask seconds in all; only an answer
+ * that says there is no broker (not found, or the dev server's page) means the public one.
  */
 async function peerOptions(): Promise<PeerOptions> {
   if (new URLSearchParams(location.search).get("broker") === "public") return {};
-  const ctl = new AbortController();
-  const timer = setTimeout(() => ctl.abort(), 3000);
-  try {
-    const r = await fetch("./net.json", { cache: "no-store", signal: ctl.signal });
-    // the dev server answers any path with the game page, so check the type
-    if (!r.ok || !(r.headers.get("content-type") ?? "").includes("json")) return {};
-    const j = (await r.json()) as { peer?: { path?: string; key?: string }; iceServers?: RTCIceServer[] };
-    if (!j.peer?.path) return {};
-    const secure = location.protocol === "https:";
-    return {
-      host: location.hostname,
-      port: location.port ? Number(location.port) : secure ? 443 : 80,
-      path: j.peer.path,
-      key: j.peer.key ?? "peerjs",
-      secure,
-      config: { iceServers: j.iceServers ?? [] },
-    };
-  } catch {
-    return {};
-  } finally {
-    clearTimeout(timer);
+  const until = performance.now() + BROKER.ask * 1000;
+  for (;;) {
+    const ctl = new AbortController();
+    const timer = setTimeout(() => ctl.abort(), Math.max(1000, Math.min(8000, until - performance.now())));
+    try {
+      const r = await fetch("./net.json", { cache: "no-store", signal: ctl.signal });
+      if (r.status >= 500) throw new Error(`net.json ${r.status}`);
+      // the dev server answers any path with the game page, so check the type
+      if (!r.ok || !(r.headers.get("content-type") ?? "").includes("json")) return {};
+      const j = (await r.json()) as { peer?: { path?: string; key?: string }; iceServers?: RTCIceServer[] };
+      if (!j.peer?.path) return {};
+      const secure = location.protocol === "https:";
+      return {
+        host: location.hostname,
+        port: location.port ? Number(location.port) : secure ? 443 : 80,
+        path: j.peer.path,
+        key: j.peer.key ?? "peerjs",
+        secure,
+        config: { iceServers: j.iceServers ?? [] },
+      };
+    } catch {
+      if (performance.now() >= until) return {};
+      await new Promise((r) => setTimeout(r, 1000));
+    } finally {
+      clearTimeout(timer);
+    }
   }
 }
 

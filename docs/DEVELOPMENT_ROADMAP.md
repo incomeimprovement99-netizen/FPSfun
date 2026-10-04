@@ -10302,3 +10302,23 @@ soldier, outfit and face are not in the key: only the mannequin wears them, and 
 - **Also:** the live check's count of textures and props asked for (tools/live-check.ts) waits for them, up to 30 s:
   most come after the first screen (Milestone 440), it counted the moment the page was up, and Milestone 454's deploy
   failed once on "2 asset requests" (8 on the rerun).
+
+## Milestone 459 — Host and friend always on the same broker: the "No match" after a deploy
+
+Three deploys' live checks (2026-09-28, 09-29 and Milestone 457's today) failed the friends' 1v1 with "No match with
+that code": the host had its code, the friend was told no match had it. Today it lasted about 8 minutes after the
+restart (the deploy's check with its retry, a rerun 2 minutes later, and a two-page probe whose host took 24 s to show
+its code), then cleared by itself, while the server, pm2 and the broker answered normally throughout.
+
+The cause: a page asks the site which broker is its own (net.json) when it hosts or joins, and gave up after 3 s and
+took PeerJS's public broker instead (link.ts peerOptions). A host whose ask was slow (a page busy loading, a server
+just restarted) registered its code on the public broker, its friend's ask came back in time and looked for the code
+on ours, and found nothing. Holding back only the host's net.json 4 s on the live site gave the same "No match" at
+once. Now a timeout, a dropped request or a server error (a restart's 502) is asked again, up to net.json broker.ask
+(20 s, as long as a deploy's restart may take); only an answer that says there is no broker (not found, or the dev
+server's page) means the public one, as before.
+
+- **The check** (e2e duel section, brokerWaitTest): the page's net.json answered 4 s late with a broker path of its
+  own, and the host's broker socket recorded. Before the fix it went to wss://0.peerjs.com (failed); after it, to the
+  site's path (passes). The whole duel section passes.
+- **Docs:** README's multiplayer paragraph; net.json's broker note.
