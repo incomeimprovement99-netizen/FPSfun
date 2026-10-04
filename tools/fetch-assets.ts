@@ -6,6 +6,7 @@
 // Run: npm run assets
 // Downloaded files are gitignored; this script is the source of truth.
 import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { shrinkSky } from "./hdr";
 import { compressAssets } from "./compress-assets";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -187,8 +188,10 @@ async function main(): Promise<void> {
   process.stdout.write(`  ${HDRI.id} -> ${HDRI.file} ... `);
   try {
     const hdr = await download(HDRI.url);
-    writeFileSync(join(OUT, HDRI.file), hdr);
-    console.log(`${(hdr.length / 1024).toFixed(0)} KB`);
+    // (at no more than 512 across: tools/hdr.ts says why)
+    const small = shrinkSky(hdr);
+    writeFileSync(join(OUT, HDRI.file), small);
+    console.log(`${(small.length / 1024).toFixed(0)} KB`);
     lines.push(`| \`${HDRI.file}\` | Poly Haven ${HDRI.id} (CC0) | sky, reflections and ambient light |`);
   } catch (err) {
     console.log(`FAILED: ${(err as Error).message}`);
@@ -199,8 +202,9 @@ async function main(): Promise<void> {
     process.stdout.write(`  ${sky.id} -> ${sky.file} ... `);
     try {
       const hdr = await download(skyUrl(sky.id));
-      writeFileSync(join(OUT, sky.file), hdr);
-      console.log(`${(hdr.length / 1024).toFixed(0)} KB`);
+      const small = shrinkSky(hdr);
+      writeFileSync(join(OUT, sky.file), small);
+      console.log(`${(small.length / 1024).toFixed(0)} KB`);
       lines.push(`| \`${sky.file}\` | Poly Haven ${sky.id} (CC0) | ${sky.note} |`);
     } catch (err) {
       console.log(`FAILED: ${(err as Error).message}`);

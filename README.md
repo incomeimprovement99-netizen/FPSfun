@@ -1,7 +1,7 @@
 # SpeedKills (beta)
 
 A fast movement shooter and battle royale that runs in a browser tab. Thirty
-players drop into the Neon City, a city at night whose sectors decay in waves
+players drop into the Neon City, a neon city whose sectors decay in waves
 until one capture zone is left, and double jumps, slides, wall runs,
 superglides, jump pads and zip lines carry you onto its roofs and up its
 towers. Ten guns that fuse a level up when you take a copy, ten hacks (a
@@ -37,7 +37,7 @@ it.
   deathmatch; FFA; Control) and TRAINING (the range, the movement lab, the
   Run, the tour). The lab has climbs of 2, 4 and 8 m, a long wall to run,
   and gaps of 4 and 6 m a storey up.
-- **The battle royale:** thirty players in a 304 m neon city at night, nine
+- **The battle royale:** thirty players in a 304 m neon city, nine
   sectors. The centre, THE SPIRE (200 m), is the biggest and the hottest drop,
   the eight districts a ring 52 m deep round it (cut by three quarters), and
   half the bot squads land there.
@@ -528,7 +528,7 @@ See [Troubleshooting](#troubleshooting) when it will not connect.
 
 ```
 npm install
-npm run assets     # CC0 textures (ambientCG, Poly Haven), not kept in git
+npm run assets     # CC0 textures (ambientCG, Poly Haven), not kept in git; the skies kept at 512 wide (tools/hdr.ts)
 npm run models     # CC0 props (Poly Haven), not kept in git
 npm run dev        # http://localhost:5173
 ```
@@ -748,7 +748,7 @@ The Settings tab, all remembered in this browser:
 | Volume | master, effects, hits |
 | The range's ammo | endless, or counted like a match |
 | Mantle boost cue | the ring on the crosshair in the last frames of a mantle, where a superglide is possible |
-| Time of day | seven hours, morning to moonlight: the sky, the sun, the light and the fog, applied at once with no reload. In SpeedKills, its own three: the neon night (the default), golden hour or a hazy day, kept apart from the legacy game's; **F8** flips between the neon night and the hazy day in play |
+| Time of day | seven hours, morning to moonlight: the sky, the sun, the light and the fog, applied at once with no reload. In SpeedKills, its own three: golden hour (the default since 2026-10-04), the neon night or a hazy day, kept apart from the legacy game's; **F8** flips between golden hour and the hazy day in play |
 | Battle royale sky | the match's hour (the default: each battle royale draws its own hour from its seed, the same for the whole squad, dusk and moonlight rarer), or always your time of day |
 | Accessibility | a colour vision mode (normal, deuteranopia, protanopia, tritanopia) that moves the enemy and ally colours on pings, the kill feed, name plates and the damage arcs to a pair you can tell apart; and a HUD size, 80% to 140% |
 | Crosshair | five styles (the game's three prongs, cross, T, circle, dot), six colours, length, thickness, gap, centre dot, outline, whether it opens with spread, opacity; a live preview, and Reset for the game's own |

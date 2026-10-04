@@ -10084,3 +10084,40 @@ hand beside the Harpy's: "your recommendation, like the harpy".
 - **Checked:** both guns at rest beside the Harpy and the Protocol V, every state photographed; the pack audit through
   every move (swap, melee, inspect, reload, tactical reload, first draw, pickup) no seen skin over 4 mm in the gun;
   verify; rules; the soldier e2e.
+
+## Milestone 447 — Golden hour by default, and skies a fifth the size
+
+- **Golden hour** is the hour a SpeedKills visit starts at until the player picks another (the owner, 2026-10-04: "do
+  golden hour for default version"; it was the neon night): first in the Settings box, and F8 flips it with the hazy
+  day. A player who picked an hour keeps theirs. The three cost within about 5% of each other (Milestone 445).
+- **The skies** were Poly Haven's smallest, 1024 by 512, 1.1 to 1.4 MB each, sent as they are (the server compresses
+  text, not these), and the page's first screen waited for one. They light the world only through the environment map
+  three makes of them (the dome is drawn from sky.json's colours), so they are kept at 512 by 256: a fifth of the bytes
+  (the golden hour's 1,116 KB to 227 KB), each pixel the mean of four in linear light and the whole sky's light within
+  0.12% (tools/hdr.ts). The range and the Neon street photographed the same with either. tools/fetch-assets.ts shrinks
+  them as it fetches them, and tools/shrink-skies.ts the ones fetched before (the main checkout's, which the deploy
+  builds from, are done).
+- **Milestone 445's boxes, waited for.** A match on the Neon City builds its bots' way about it from the city's
+  collision boxes, once, on first use, and since 445 the boxes come after the page's first screen: a match started
+  before they were in made its graph without them for good. The e2e's 1v1 on THE CENTRE, started the moment its page
+  answered, had its bot stand 65 m off the circle and its player walk out of it. A battle royale, a 1v1, a mode or a
+  friends' match on the city now waits for the boxes when they are not yet in (main.ts boxesFirst), a moment at most,
+  and starts once they are; a page that waited for loaded() never needed to.
+- **Checked:** the sky check (golden hour the start, its hours real ones); verify; rules; the speedkills e2e (its sky:
+  golden hour, the neon night and the hazy day, applied at once and kept), all but THE CENTRE's bot check: since the
+  map's version 37 (Milestone 443) the bot at its spawn north of the tower never moves. The code from before these
+  changes fails it the same way at version 37 and passes it at version 36 (the bot at the circle in 10 game seconds),
+  so it is the map's: reported to the map's agent with the steps.
+
+## Milestone 448 — The page's scripts sent brotli-compressed, a quarter smaller
+
+- The server's Caddy compresses on the fly with zstd or gzip at a fast setting: the page's first script came over at
+  1.49 MB (2026-10-04). The build now writes each script and style beside itself brotli-compressed at its strongest
+  (tools/precompress.ts, the last step of npm run build:beta), and the game's server sends that copy to a browser that
+  takes brotli (server/game/serve.mjs), the same cache headers, Caddy passing it through as it is. The first script
+  3.67 MB to 811 KB, against about 1.07 MB as zstd (24% less), and it decodes to the file byte for byte; a browser
+  without brotli gets the plain file and Caddy's compression, as before.
+- **The dry run's board check** expected a post of 7 wins to count as 7; since 2026-09-19 a post raises a name's wins
+  by one at most (boardrules.mjs), so the check failed on every dry run: it counts two posted wins against one now.
+- **Checked:** the release's own server against the build (br to a browser that takes it, the plain file otherwise,
+  decoded byte for byte); npm run fps dry (installs, starts, the boards, the live check, the accounts, a 1v1).

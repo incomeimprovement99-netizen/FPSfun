@@ -7740,13 +7740,13 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     await page.close();
     return;
   }
-  // its sky (speedkills.json identity.skies): the neon night it starts at, golden hour, and the hazy day to see the city by
-  // (Milestone 288), applied at once
+  // its sky (speedkills.json identity.skies): golden hour it starts at (the owner's, 2026-10-04), the neon night, and the
+  // hazy day to see the city by (Milestone 288), applied at once
   const sky = await ev<{ options: string[]; start: string; night: number; golden: number; kept: string | null }>(
     page,
-    `(() => { const s = document.getElementById("skyHour"); const sc = window.__range.scene; const start = s.value; const night = sc.environmentIntensity; s.value = "goldenHour"; s.dispatchEvent(new Event("change")); const golden = sc.environmentIntensity; const kept = localStorage.getItem("range.sky.hour.sk"); s.value = start; s.dispatchEvent(new Event("change")); return { options: [...s.options].map((o) => o.value), start, night, golden, kept }; })()`,
+    `(() => { const s = document.getElementById("skyHour"); const sc = window.__range.scene; const start = s.value; const golden = sc.environmentIntensity; s.value = "neonNight"; s.dispatchEvent(new Event("change")); const night = sc.environmentIntensity; const kept = localStorage.getItem("range.sky.hour.sk"); s.value = start; s.dispatchEvent(new Event("change")); return { options: [...s.options].map((o) => o.value), start, night, golden, kept }; })()`,
   );
-  check("speedkills: its sky is the neon night, with golden hour and the hazy day the others, applied at once and kept as its own", sky.options.join(",") === "neonNight,goldenHour,hazyDay" && sky.start === "neonNight" && sky.golden > sky.night && sky.kept === "goldenHour", JSON.stringify(sky));
+  check("speedkills: its sky is golden hour, with the neon night and the hazy day the others, applied at once and kept as its own", sky.options.join(",") === "goldenHour,neonNight,hazyDay" && sky.start === "goldenHour" && sky.golden > sky.night && sky.kept === "neonNight", JSON.stringify(sky));
   const start = await ev<{ players: number; bots: number; pois: string[]; loot: number; health: number; shield: number; shieldMax: number }>(
     page,
     `(() => { const d = window.__range.duel(); return { players: d.players, bots: d.bots.length, teams: d.bots.map((x) => x.team + (x.guard ? "g" : "")).join(","), pois: window.__range.brMap.pois.map((p) => p.name), loot: d.lootField ? d.lootField.drops.size : -1, health: d.health, shield: d.shield, shieldMax: d.shieldMax }; })()`

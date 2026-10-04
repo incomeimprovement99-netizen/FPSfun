@@ -359,10 +359,11 @@
     "title": "SpeedKills",
     "accent": "#20e0ff",
     "accent2": "#ff2e9a",
-    "sky": "neonNight",
+    "_sky": "The hour a visit starts at, until the player picks another (Settings, Time of day; F8 flips it with the hazy day): golden hour (the owner, 2026-10-04: 'do golden hour for default'; it was the neon night). The three cost within about 5% of each other, Balanced in the Neon street (Milestone 445).",
+    "sky": "goldenHour",
     "skies": [
-      "neonNight",
       "goldenHour",
+      "neonNight",
       "hazyDay"
     ]
   },

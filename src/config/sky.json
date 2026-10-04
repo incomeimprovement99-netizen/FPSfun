@@ -90,7 +90,7 @@
       ]
     },
     "goldenHour": {
-      "label": "Golden hour",
+      "label": "Golden hour (SpeedKills' default)",
       "hdr": "sky-afternoon.hdr",
       "zenith": "3a6ea8",
       "horizon": "eec79a",
@@ -150,7 +150,7 @@
       ]
     },
     "neonNight": {
-      "label": "Neon night (default)",
+      "label": "Neon night",
       "hdr": "sky-night.hdr",
       "zenith": "05060f",
       "horizon": "22122f",

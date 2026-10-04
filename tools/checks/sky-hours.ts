@@ -90,7 +90,7 @@ check(
 {
   // SpeedKills' hours (speedkills.json identity.skies): real hours, its own among them, and it starts on one of them
   const skies = skCfg.identity.skies ?? [];
-  check("SpeedKills' hours are real ones, and it starts at one of them (its neon night)", skies.length >= 2 && skies.every((id) => id in HOURS) && skies.includes(skCfg.identity.sky) && skCfg.identity.sky === "neonNight", skies.join(", "));
+  check("SpeedKills' hours are real ones, and it starts at one of them (golden hour, the owner's, 2026-10-04)", skies.length >= 2 && skies.every((id) => id in HOURS) && skies.includes(skCfg.identity.sky) && skCfg.identity.sky === "goldenHour", skies.join(", "));
   const n = HOURS.neonNight;
   check("the neon night is darker than the moonlight it replaced, its lit things carrying the picture", !!n && n.intensity < HOURS.night.intensity && n.env <= HOURS.night.env, n ? `${n.intensity} / ${n.env}` : "none");
 }

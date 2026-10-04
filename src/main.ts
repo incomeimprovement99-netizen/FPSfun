@@ -5760,7 +5760,21 @@ let hostBr: BrWelcome | null = null;
 let hostOpts: MatchOpts | null = null;
 
 /** a friend's match: the host on its first guest, or a guest on the host's welcome (`br`: a battle royale squad) */
+/**
+ * A match on the Neon City builds its bots' way about it from the city's collision boxes (neonmap.ts: the graph, made
+ * on first use and kept). The boxes come after the page's first screen (Milestone 445), so a match started before they
+ * are in would make its graph without them, for good: an e2e page that started a 1v1 on THE CENTRE at once had its bot
+ * stand off its circle and its player walk out of it (2026-10-04). The start waits for them instead, a moment at most,
+ * and starts once they are in; true when it may start now.
+ */
+function boxesFirst(start: () => void): boolean {
+  if (!NEON || neonSolidsIn()) return true;
+  void loadNeonSolids().then(start);
+  return false;
+}
+
 function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: BrWelcome, opts?: MatchOpts): void {
+  if (!boxesFirst(() => startDuel(link, players, myId, guestId, br, opts))) return;
   // the range together: a friend who opens the invite while the group is in it comes in there
   if (hangout && myId === 0 && hangout.role === "host") {
     hangout.addGuest(link, guestId);
@@ -5941,6 +5955,7 @@ function nextFromHost(d: Duel, w: Extract<NetMsg, { t: "welcome" }>): void {
 }
 /** the offline match against bots */
 function startBots(): void {
+  if (!boxesFirst(() => startBots())) return;
   if (duel) return;
   hosting?.cancel();
   hosting = null;
@@ -5972,6 +5987,7 @@ function modeGoal(d: ArenaMode): string {
 }
 /** an arena mode alone, against bots */
 function startMode(kind: ModeKind): void {
+  if (!boxesFirst(() => startMode(kind))) return;
   if (duel) return;
   hosting?.cancel();
   hosting = null;
@@ -5992,6 +6008,7 @@ function startMode(kind: ModeKind): void {
 }
 /** the battle royale against bots, on Outskirts */
 function startBr(seed = newSeed(), poi?: string): void {
+  if (!boxesFirst(() => startBr(seed, poi))) return;
   if (duel) return;
   hosting?.cancel();
   hosting = null;
@@ -7691,7 +7708,8 @@ function step(): void {
       if (pick !== null) playEmote(pick, now);
     }
     if (input.pressedNow("map")) mapOpen = !mapOpen;
-    // F8: the neon night or the hazy day, the city both ways (the owner's toggle); kept as the chosen hour, as the menu keeps it
+    // F8: the default hour (golden hour) or the hazy day, the city both ways (the owner's toggle); kept as the chosen hour,
+    // as the menu keeps it
     if (IS_SK && input.pressedNow("dayNight")) {
       const next = hour.id === "hazyDay" ? PROFILE.identity.sky : "hazyDay";
       saveSkHour(next);

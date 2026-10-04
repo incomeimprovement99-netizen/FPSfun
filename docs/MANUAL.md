@@ -100,7 +100,7 @@ a shorter cooldown each time.
 
 - **Graphics:** Competitive is the fastest, Balanced adds the city's full detail, High adds everything. The FPS counter
   is in the top right.
-- **Time of day:** the neon night, golden hour or a hazy day (F8 swaps the night and the day).
+- **Time of day:** golden hour (the start), the neon night or a hazy day (F8 swaps golden hour and the hazy day).
 - **Your soldier and loadouts:** the Loadouts tab: your soldier's colours and pieces, your guns, your hacks and your
   melee weapon.
 - **Your banner:** an icon, a frame and a title, shown to whoever you eliminate and when your squad wins.

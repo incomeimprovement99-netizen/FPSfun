@@ -409,6 +409,21 @@ app.post("/api/seen", express.text({ type: "*/*", limit: "1kb" }), (req, res) =>
   res.status(204).end();
 });
 
+// The built scripts and styles brotli-compressed at the build, at its strongest (tools/precompress.ts), to a browser
+// that takes brotli: about a fifth smaller than Caddy's on-the-fly zstd or gzip (2026-10-04). Caddy passes a response
+// already encoded through as it is; anything else falls through to the plain file below.
+app.use((req, res, next) => {
+  if ((req.method !== "GET" && req.method !== "HEAD") || !/^\/assets\/[^/]+\.(js|css)$/.test(req.path)) return next();
+  if (!/\bbr\b/.test(String(req.headers["accept-encoding"] ?? ""))) return next();
+  const file = join(DIST, `${req.path}.br`);
+  if (!existsSync(file)) return next();
+  res.setHeader("Content-Encoding", "br");
+  res.setHeader("Content-Type", req.path.endsWith(".js") ? "text/javascript; charset=utf-8" : "text/css; charset=utf-8");
+  res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+  res.setHeader("Vary", "Accept-Encoding");
+  res.sendFile(file);
+});
+
 // the built site: file names under assets/ carry a content hash, so they can be
 // cached for good; everything else is revalidated so a deploy shows at once
 app.use(

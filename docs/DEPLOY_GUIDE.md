@@ -229,7 +229,7 @@ Make changes, run the checks, commit to `main`, then:
 npm run verify
 npm run e2e          # needs npm run dev running in another terminal (about twelve minutes;
                      # E2E_ONLY=page,br,... runs only some sections)
-npm run build:beta   # the public build and its real-name check
+npm run build:beta   # the public build, its real-name check, and its scripts brotli-compressed (tools/precompress.ts)
 git add -A && git commit -m "..."
 git push
 npm run deploy

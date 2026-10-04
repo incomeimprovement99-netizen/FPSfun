@@ -165,9 +165,13 @@ async function boardCheck(origin: string): Promise<void> {
   await post({ board: "course:basic", name: "DRY A", value: 70 }); // worse: kept at 61.5
   const t = await top("course:basic");
   expect("lower is better, one entry per name, the best kept", t[0]?.name === "DRY B" && t[1]?.name === "DRY A" && t[1]?.value === 61.5);
-  await post({ board: "duel:wins", name: "DRY A", value: 3 });
-  await post({ board: "duel:wins", name: "DRY B", value: 7 });
-  expect("higher is better for wins", (await top("duel:wins"))[0]?.name === "DRY B");
+  // (a post raises a name's wins by one at most, boardrules.mjs: two wins posted one after the other beat one; a post of
+  // 7 at once is counted as one, which this check did not know and failed on since 2026-09-19)
+  await post({ board: "duel:wins", name: "DRY A", value: 1 });
+  await post({ board: "duel:wins", name: "DRY B", value: 1 });
+  await post({ board: "duel:wins", name: "DRY B", value: 2 });
+  const wins = await top("duel:wins");
+  expect("higher is better for wins, counted a win a post", wins[0]?.name === "DRY B" && wins[0]?.value === 2 && wins[1]?.value === 1);
   expect("an unknown board is refused", (await post({ board: "course:nope", name: "DRY A", value: 60 })).status === 400);
   expect("a name with markup is refused", (await post({ board: "course:basic", name: "<img src=x>", value: 60 })).status === 400);
   expect("a 2 s course time is refused", (await post({ board: "course:basic", name: "DRY C", value: 2 })).status === 400);
