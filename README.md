@@ -1384,7 +1384,8 @@ gallery to the metro station's concourse. A walkway one floor up, the Sky
 Ring, circles the tower's plaza inside the Loop, glass-railed, with a stair up
 from the plaza on each side, and a footbridge from it to a glass lift beside each
 High City island: interact facing its rope and it carries you up the island's side
-to a landing onto the roof, or back down. The tower stands on a wide base filling the plaza,
+to a landing onto the roof, or back down; up the north and west islands' Loop faces, balconies a double jump apart
+climb from the street to the roof. The tower stands on a wide base filling the plaza,
 built of the tower's own pieces (`tools/neon-base.ts` bakes its floors to meet
 the tower's on every storey): three storeys and a roof, an open hall behind a
 colonnade on the ground floor (open to the plaza all round), offices on the first, a warehouse hall on the second, four stairs between

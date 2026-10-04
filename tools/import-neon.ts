@@ -240,9 +240,10 @@ if (mode === "bake") {
     return out;
   };
   const solidBoxes: number[][] = [];
-  // (the street walls' boxes, rules.low.walls, laid last by the layout: where they lie in the collision, written beside
-  // it, so the next layout's passes leave out exactly these and see the rest as the walls never stood)
-  const LAID = (cfg.rules.low.walls as { chunk?: string } | undefined)?.chunk;
+  // (the boxes of what the layout lays last, the street walls and the High City's climbs (rules.low.walls,
+  // rules.blocks.climbs): where they lie in the collision, written beside it, so the next layout's passes leave out
+  // exactly these and see the rest as they never stood)
+  const LAID = [cfg.rules.low.walls, (cfg.rules.blocks as { climbs?: unknown }).climbs].map((q) => (q as { chunk?: string } | undefined)?.chunk).filter(Boolean);
   const laid: number[][] = [];
   /** every draw that collides (placed "o" or "s"): what a window may open onto, not the hanging lamps and signs ("g") */
   const collidingDraws: Array<{ d: Draw; m: M4 }> = [];
@@ -490,7 +491,7 @@ if (mode === "bake") {
       } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...drawn);
       else if (how === "s") {
         const boxes = columnSolids(mine, C.cell, C.stick, cfg.rules.shell);
-        if (id === LAID && boxes.length) laid.push([solidBoxes.length, solidBoxes.length + boxes.length]);
+        if (LAID.includes(id) && boxes.length) laid.push([solidBoxes.length, solidBoxes.length + boxes.length]);
         solidBoxes.push(...boxes);
       }
       if (how === "o" || how === "s") collidingDraws.push(...drawn);

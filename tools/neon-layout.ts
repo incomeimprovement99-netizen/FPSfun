@@ -2499,6 +2499,69 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     console.log(`street furniture: ${furniture.length} pieces along the pavements`);
   }
 }
+/** the High City's climbs' balconies, laid before the street walls, which keep clear of them */
+const CLIMB_BOXES: OBox[] = [];
+// The High City's climbs (rules.blocks.climbs; the centre's third review: "nothing to climb on the facades between 10.5
+// and 26.9 m", "facade traversal"): up a straight face of a block (`at`, a point on the face at street level, `along` it
+// and `out` of it; measured off the collision at 10 m: only the north and west blocks' Loop faces run straight 20 m, the
+// others' are round lobes a few metres across), the pack's round balcony from `first` metres up and every `every`
+// metres, by turns `shift` metres either side along the face, its back `inset` off the face found at its height, until
+// the deck's edge (its fence where one stands) is within `reach` of the last. Each a double jump and a grab from the end
+// of the one under it, the next one's end a metre along. Clear by `clear` of the lifts' cars and landings, the pads and
+// the street's signs, and of the bridges at the top, where a climber comes up onto the deck; laid before the street walls, which keep clear of it; solid (its own boxes, listed
+// by the bake beside the rest as the walls' are), so nothing laid before it moves. A player climbs each,
+// tools/checks/sk-neon.ts
+{
+  const CL = (R.blocks as { climbs?: { chunk: string; piece: string; without: string[]; first: number; every: number; shift: number; inset: number; reach: number; clear: number; at: Array<{ block: string; at: Pt; along: Pt; out: Pt; side?: number }> } }).climbs;
+  if (CL) {
+    const S = lastSolids();
+    const G = 2;
+    const grid = new Map<string, number[][]>();
+    for (const b of S) for (let i = Math.floor(b[0] / G); i <= Math.floor(b[1] / G); i++) for (let j = Math.floor(b[2] / G); j <= Math.floor(b[3] / G); j++) (grid.get(`${i},${j}`) ?? grid.set(`${i},${j}`, []).get(`${i},${j}`)!).push(b);
+    const inside = (x: number, z: number, y: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && b[4] < y && b[5] > y);
+    const topAt = (x: number, z: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && b[5] > t && b[5] < 40 ? b[5] : t), -Infinity);
+    const row = piece(CL.piece).row;
+    // (what a balcony keeps clear of: each lift's car and landing, the pads, the signs, the bridges' lines)
+    const spots: Pt[] = [...lifts.flatMap((q) => [q.car as Pt, q.land as Pt]), ...((cfg.pads ?? []) as Array<{ pad: Pt }>).map((q) => q.pad), ...(chunks.get("c-signs")?.place ?? []).map((q) => [q[1], q[3]] as Pt)];
+    const bridgeLines = (R.bridges.paths as number[][][]).flatMap((p) => p.slice(1).map((q, i) => [p[i], q]));
+    const climbs: Array<{ block: string; deck: number[]; balconies: Array<{ at: number[]; y: number; yaw: number; ends: number[][] }> }> = [];
+    for (const A of CL.at) {
+      const yaw = yawToward(-A.out[0], -A.out[1]);
+      const balconies: Array<{ at: number[]; y: number; yaw: number; ends: number[][] }> = [];
+      let deck: number[] = [];
+      for (let k = 0, y = CL.first; k < 12; k++, y += CL.every) {
+        // (the first `side` of `at` along the face, and by turns: the top one kept off where a bridge lands)
+        const sh = (k % 2 ? -1 : 1) * (A.side ?? -1) * CL.shift;
+        const p0: Pt = [A.at[0] + A.along[0] * sh, A.at[1] + A.along[1] * sh];
+        // (the face at this height: in from 3 m out until the block stands)
+        let f: Pt | null = null;
+        for (let t = -3; t < 3 && !f; t += 0.05) if (inside(p0[0] - A.out[0] * t, p0[1] - A.out[1] * t, y + 0.5)) f = [p0[0] - A.out[0] * t, p0[1] - A.out[1] * t];
+        if (!f) throw new Error(`the ${A.block} block's climb: no face at ${y} m`);
+        const [px, pz] = [f[0] + A.out[0] * CL.inset, f[1] + A.out[1] * CL.inset];
+        const [cx, cz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2);
+        const box: OBox = { c: [px + cx, pz + cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: y + 0.5 };
+        const why = spots.some((q) => Math.hypot(q[0] - box.c[0], q[1] - box.c[1]) < row.size![0] / 2 + CL.clear + 1.5) ? "a lift, pad or sign" : y > R.bridges.deck - CL.reach && bridgeLines.some(([a, b]) => { const l2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2; const t = Math.max(0, Math.min(1, ((box.c[0] - a[0]) * (b[0] - a[0]) + (box.c[1] - a[1]) * (b[1] - a[1])) / l2)); return Math.hypot(box.c[0] - a[0] - (b[0] - a[0]) * t, box.c[1] - a[1] - (b[1] - a[1]) * t) < row.size![0] / 2 + R.low.bridgeClear; }) ? "a bridge" : "";
+        if (why) throw new Error(`the ${A.block} block's climb: its ${y} m balcony against ${why}`);
+        CLIMB_BOXES.push(box);
+        // (its floor at y: the kerb round its edge left out (`without`), or the bake's solid shell stood a climber on the
+        // kerb's top, half a metre over the floor drawn)
+        add(CL.chunk, "c", [piece(CL.piece).key, +px.toFixed(3), +y.toFixed(3), +pz.toFixed(3), +yaw.toFixed(2), "s", null, CL.without] as Place);
+        // (its two ends, a metre in from each, half its depth out: where a climber stands and jumps from)
+        const ends = [-1, 1].map((e) => [+(box.c[0] + box.u[0] * e * (box.hu - 1)).toFixed(3), +(box.c[1] + box.u[1] * e * (box.hu - 1)).toFixed(3)]);
+        balconies.push({ at: [+box.c[0].toFixed(3), +box.c[1].toFixed(3)], y, yaw: +yaw.toFixed(2), ends });
+        // (the deck's edge over the face here: its top a metre in)
+        const edge = topAt(f[0] - A.out[0], f[1] - A.out[1]);
+        if (edge - y <= CL.reach) {
+          deck = [+(f[0] - A.out[0] * 2).toFixed(3), +(f[1] - A.out[1] * 2).toFixed(3), +edge.toFixed(2)];
+          break;
+        }
+      }
+      climbs.push({ block: A.block, deck, balconies });
+    }
+    cfg.climbs = climbs;
+    console.log(`the High City's climbs: ${climbs.map((c) => `${c.block} ${c.balconies.length} balconies to the deck at ${c.deck[2]} m`).join(", ")}`);
+  }
+}
 // The street walls (rules.low.walls; the centre's third review: "streets are wide bare plains overlooked from 27 m", "no
 // street sightline past 60 m but the Loop's"). On the last bake, from 90% of the open street ground a standing body could
 // be seen past 60 m (tools/.scratch/sightlines.mts), and only 9 buildings stood along the eight curves, all on their
@@ -2506,9 +2569,9 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 // of every curve and the Loop's outer side, a row of the pack's low buildings (`pool`), each its front (its own +z) to the
 // street, `setback` metres off the pavement and as little more as it needs (up to `slide`), `gap` metres apart and an
 // alley `wide` metres every `alley` metres; on ground the last bake's collision leaves open (`clear` metres off it), clear
-// of the pads, the lifts' footbridges, the Well and the zip lines' ropes (a hanging body's room under them), of the
-// bridges if taller than rules.low.underBridge, and never one that would cut the bots' street graph. Laid last with a
-// seed of its own, so nothing else in the layout moves
+// of the pads, the lifts' footbridges, the Well, the zip lines' ropes (a hanging body's room under them) and the High
+// City's climbs, of the bridges if taller than rules.low.underBridge, and never one that would cut the bots' street
+// graph. Laid last with a seed of its own, so nothing else in the layout moves
 {
   const W = R.low.walls as { chunk: string; pool: string[]; setback: number; slide: number; gap: number[]; alley: { every: number; wide: number }; from: number; clear: number; seed: number } | undefined;
   if (W) {
@@ -2561,6 +2624,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         : pads.some((q) => inside(q, W.clear + 2)) ? "pad"
         : lifts.some((q) => seg(o.c, q.ring, q.foot) < Math.hypot(o.hu, o.hv) + R.lifts.clear && r.some((p) => seg(p, q.ring, q.foot) < R.lifts.clear)) ? "lift"
         : foot && overlaps(o, boxOf(foot), W.clear * 2) ? "well"
+        : CLIMB_BOXES.some((q) => q.top - 4 < o.top && overlaps(o, q, W.clear)) ? "climb"
         : ropes.some((rope) => rope.some((q) => inside(q, under) && q[1] - under < o.top)) ? "zip"
         : o.top > L.underBridge && bridgeLines.some(([a, b]) => r.some((p) => seg(p, a, b) < L.bridgeClear)) ? "bridge"
         : onSolid(o) ? "solid"

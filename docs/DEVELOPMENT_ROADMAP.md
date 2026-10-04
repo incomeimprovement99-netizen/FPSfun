@@ -10487,3 +10487,32 @@ range's shaders twice and waiting on them at their first draw:
   page's script answering (__range) at 1.11 s against 1.55 s. The waits on unbuilt programs before the first screen:
   about 190 ms against 230 ms, and the 34 thrown-away programs gone.
 - **Checked:** tsc; verify; rules; the page, intro, range, speedkills and sklobby e2e.
+
+## Milestone 465 — The High City climbed from the street: balconies up the north and west blocks' Loop faces
+
+The centre's third review saw the facades "sheer, with nothing to climb between 10.5 and 26.9 m", the High City's decks
+reached by lift and pad alone. Measured off the collision at 10 m, only the north and west blocks (one model, turned)
+have a face that runs straight long enough to climb: the Loop face of their east and south arms, 20.5 m, upright to the
+deck at 26.85 m. The others' faces are round lobes a few metres across, where balconies a jump apart along the face came
+out 13 m apart.
+
+- **The climbs** (rules.blocks.climbs): up each of those faces, between its lift and the bridge's landing, the pack's
+  round balcony every 4 m from 4 m to 24 m, by turns 3 m either side along the face, so each is a jump straight up from
+  the end of the one under it, held through its rise, a double jump at the top and the grab onto the next one's end a
+  metre along; from the last, onto the deck. Each found on the face at its own height, clear of the lifts, the pads and
+  the street's signs, and the top one of the bridge landing where a climber comes up onto the deck.
+- **The balconies' kerb left out** (`without`): the bake's solid shell filled each balcony up to its kerb, and a climber
+  stood half a metre over the floor drawn. Without it the floor collides where it is drawn, and each is a plain ledge.
+- **Laid before the street walls**, which keep clear of them (two of the eight gave way: 6 now), and laid like
+  them: their boxes listed by the bake beside the collision (neonmap.solids.json `laid`) so the next layout's passes
+  leave out exactly those, and the run after a bake lays the city the run before it laid.
+- **Exposure** with the two walls gone: on the curves 4.7% of bearings, on the Loop 7.7% (rules.sightlines.most
+  5 and 8; version 39 had 8.1 and 13.0).
+- **Tried and left out:** the edge road's far side closed by the pack's fake facades, to hide the void past the centre:
+  they are perforated concrete screens made to stand before a building, and alone they read as floating frames and fins
+  with the sky through every hole. The void waits for the outer districts.
+- The map: its files lo 91 MB, hi 153 MB, max 365 MB. **Its files are version 41.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): each climb climbed by a player's own movement with SpeedKills'
+  moves, from the street up six balconies onto the deck, twelve legs, each from a stop on its take-off spot (failing on
+  the bake with the kerb, the climber stopped under the first balcony's solid edge); as many climbs as the rule lays.
+  verify and rules; e2e `br`. The layout rerun after the bake matches it.

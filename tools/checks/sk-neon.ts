@@ -1562,6 +1562,73 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("each corner block's own loot about its name, an item a spot and more (4)", corner.length === 4 && each.every((q) => q.n >= 4), each.map((q) => `${q.name} ${q.n} (${q.up} on the roof)`).join(", "));
 }
 
+// the High City's climbs (rules.blocks.climbs, the layout's climbs; the centre's third review: "nothing to climb on the
+// facades between 10.5 and 26.9 m"): each climbed by a player's own movement with SpeedKills' moves, from the street onto
+// the first balcony, up each by a jump held through its rise, the double jump at its top and the grab, from the end of
+// one nearer the next onto the next one's nearer end, and from the last one's back onto the deck. Each leg from a stop on
+// its take-off spot: a run-up carries a climber on under the balcony it jumps for
+{
+  const CB = (cfg as unknown as { climbs?: Array<{ block: string; deck: number[]; balconies: Array<{ at: number[]; y: number; yaw: number; ends: number[][] }> }> }).climbs ?? [];
+  const climb = (start: number[], legs: Array<{ to: number[]; takeoff?: number[] }>): { k: number; at: string } => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.sprintMode = "auto";
+    p.extraMoves = true;
+    p.teleport(start[0] + BR_X, start[2] + 0.05, start[1] + BR_Z, 0);
+    let t = 1000, k = 0, phase = 0, jumpedAt = -1, legTime = 0, holdTo = 0;
+    for (let i = 0; i < 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+    for (let i = 0; i < 90 * 144 && k < legs.length; i++) {
+      const L = legs[k];
+      const [tx, tz, ty] = L.to;
+      legTime += 1 / 144;
+      if (legTime > 15) break;
+      const here = [p.pos.x - BR_X, p.pos.z - BR_Z];
+      if (Math.hypot(tx - here[0], tz - here[1]) < 0.7 && Math.abs(p.pos.y - ty) < 0.4 && p.onGround) {
+        k++, (phase = 0), (jumpedAt = -1), (legTime = 0);
+        for (let j = 0; j < 36; j++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+        continue;
+      }
+      let goal = [tx, tz], fwd = true, press: Action | null = null;
+      const speed = Math.hypot(p.vel.x, p.vel.z);
+      if (L.takeoff) {
+        if (phase === 0) {
+          goal = L.takeoff;
+          const d = Math.hypot(goal[0] - here[0], goal[1] - here[1]);
+          fwd = d > 1.2 ? true : speed > 1.5 ? false : d > 0.15;
+          if (d < 0.25 && speed < 0.3 && p.onGround) (phase = 1), (fwd = false);
+        }
+        if (phase === 1) {
+          fwd = false;
+          if (jumpedAt < 0 && p.onGround) (press = "jump"), (jumpedAt = t), (holdTo = t + 0.35);
+          else if (jumpedAt > 0 && t - jumpedAt > 0.38) (press = "jump"), (phase = 2), (holdTo = t + 0.35);
+        } else if (phase === 2) fwd = p.pos.y > ty - 1.7;
+      }
+      const [dx, dz] = [goal[0] - here[0], goal[1] - here[1]];
+      p.yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+      p.update(1 / 144, (t += 1 / 144), { held: (a: Action) => (fwd && a === "forward") || (a === "jump" && t < holdTo), pressedNow: (a: Action) => a === press }, 0, 1, false);
+    }
+    return { k, at: `(${(p.pos.x - BR_X).toFixed(1)}, ${p.pos.y.toFixed(2)}, ${(p.pos.z - BR_Z).toFixed(1)})` };
+  };
+  for (const c of CB) {
+    const B = c.balconies;
+    const a = (B[0].yaw * Math.PI) / 180;
+    const out = [-Math.sin(a), -Math.cos(a)];
+    const near = (ends: number[][], to: number[]) => ends.reduce((m, e) => (Math.hypot(e[0] - to[0], e[1] - to[1]) < Math.hypot(m[0] - to[0], m[1] - to[1]) ? e : m));
+    // (the first from 2.6 m out of the balcony's middle: its collision stands half a metre past its slab, and a body's
+    // breadth more)
+    const legs: Array<{ to: number[]; takeoff?: number[] }> = [{ to: [B[0].at[0] - out[0] * 0.3, B[0].at[1] - out[1] * 0.3, B[0].y], takeoff: [B[0].at[0] + out[0] * 2.6, B[0].at[1] + out[1] * 2.6] }];
+    for (let i = 1; i < B.length; i++) {
+      const from = near(B[i - 1].ends, B[i].at), onto = near(B[i].ends, B[i - 1].at);
+      const L = Math.hypot(onto[0] - from[0], onto[1] - from[1]);
+      legs.push({ to: [from[0], from[1], B[i - 1].y] }, { to: [onto[0], onto[1], B[i].y], takeoff: [from[0] + ((onto[0] - from[0]) / L) * 0.6, from[1] + ((onto[1] - from[1]) / L) * 0.6] });
+    }
+    const top = B[B.length - 1];
+    legs.push({ to: c.deck, takeoff: [top.at[0] - out[0] * 0.5, top.at[1] - out[1] * 0.5] });
+    const r = climb([B[0].at[0] + out[0] * 4, B[0].at[1] + out[1] * 4, 0], legs);
+    check(`the ${c.block} block's climb: from the street up ${B.length} balconies onto the deck at ${c.deck[2]} m, by a player`, r.k === legs.length, `${r.k} of ${legs.length} legs, at ${r.at}`);
+  }
+  check("the High City's climbs, as many as the rule lays", CB.length === ((cfg.rules.blocks as unknown as { climbs?: { at: unknown[] } }).climbs?.at.length ?? 0) && CB.length > 0, `${CB.length}`);
+}
+
 // the street level's exposure (rules.sightlines; the centre's third review: "no street sightline past 60 m but the Loop's",
 // "streets are wide bare plains overlooked from 27 m"): from open street ground every `step` metres (a floor within 0.3 m
 // of the ground, nothing a body would stand in from 0.3 to 1.8 m over it), a standing eye `eye` metres up looks along
