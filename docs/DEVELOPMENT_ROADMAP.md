@@ -10276,3 +10276,29 @@ Left as they are, for the owner: "B00G CORP" among the Neon City's holo sign bra
 friends' names by its note), the BOOG sniper's name, and "the range" for the Firing Range in SpeedKills' own text.
 
 - **Checked:** e2e duel section, crossGameTest (both directions, both failing on the old code); verify; rules; tsc.
+
+## Milestone 457 — The robot figures built once per kind and shared: the first screen 0.13 s sooner
+
+Every robot figure (dummy.ts Dummy: the range's dummies, the courses' pop-ups, a bot's figure, the killcam's and the
+lobby's) built its body from scratch: some forty capsules, spheres, lathes and boxes, then merged per material, the
+same shapes for every figure of its kind. The page's first script builds the range's and the courses' figures before
+the first screen, and a match builds one for every bot. Now the body is built once per kind (the operator's colours,
+its add-ons and kit, armed or not, rigged or not: dummy.ts figureBody) with stand-in materials, and each figure takes a
+clone of it with its own shell, head, accent and vest materials in place of the stand-ins (the ones a hit flashes and
+the armour tier colours). The geometry is shared and marked so, and a figure's dispose keeps it. A SpeedKills bot's
+soldier, outfit and face are not in the key: only the mannequin wears them, and each bot has a soldier of its own.
+
+- **Measured:** a figure (20 of each, warm): a range dummy 2.1 ms before, 0.13 ms after; a course pop-up 3.0 to 1.1 ms; a
+  bot's rigged figure 3.6 to 1.1 ms (what is left is the gun's clone). The page's start (dev server, the CPU profile,
+  three of each taken in turn): Dummy 0.29 to 0.30 s before, 0.13 s after; the courses' build 0.29 to 0.31 s before,
+  0.17 to 0.18 s after. A production build, three cold loads of each taken in turn: the first screen gone at 1.92 s
+  (median) against 2.05 s, DOMContentLoaded (after the first script, which builds the range) 0.70 s against 0.83 s, and
+  the main thread's long tasks 2.05 s against 2.22 s.
+- **Checked:** 22 figures of 11 kinds (a range dummy, a course pop-up, a bot, a SpeedKills bot with a soldier, an
+  unarmed rigged one, and each operator armed) built both ways, two of each: every mesh's geometry, material, shadow
+  flags and world matrix the same; only the parts' lookup names are new. tsc; verify; rules; the range, bots, duel and
+  skfigure e2e (the bots section's mannequin check failed once with the machine busy, its model not in before the
+  bot's figure was made, as on 2026-10-01, and passed alone).
+- **Also:** the live check's count of textures and props asked for (tools/live-check.ts) waits for them, up to 30 s:
+  most come after the first screen (Milestone 440), it counted the moment the page was up, and Milestone 454's deploy
+  failed once on "2 asset requests" (8 on the rerun).

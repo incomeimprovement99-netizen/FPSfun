@@ -89,7 +89,11 @@ async function main(): Promise<void> {
     // the public build names a gun "Not" its real name (phase 13); a bare real name is the failure
     const bare = names.filter((n) => !/^Not /.test(n) && /R-301|Wingman|Glock|Kraber|Flatline|Peacekeeper/i.test(n));
     check('weapon names are the public build\'s ("Not R-301"), never bare', bare.length === 0, names.join(", "));
-    const tex = await ev<number>(host, "performance.getEntriesByType('resource').filter((r) => /tex\\/|models\\//.test(r.name)).length");
+    // Most of them come after the first screen (Milestone 440, src/game/later.ts), and this ran the moment the page
+    // was up: it counted 2 once and 8 on the rerun (2026-10-04). It waits for them, as long as a slow link needs.
+    const TEX = "performance.getEntriesByType('resource').filter((r) => /tex\\/|models\\//.test(r.name)).length";
+    await host.waitForFunction(`${TEX} > 5`, { polling: 250, timeout: 30000 }).catch(() => undefined);
+    const tex = await ev<number>(host, TEX);
     check("textures and props were requested from the site", tex > 5, `${tex} asset requests`);
     if (process.env.BROKER === "own") {
       // read-only: the Stats tab finds the site's board (nothing is posted to a live board)

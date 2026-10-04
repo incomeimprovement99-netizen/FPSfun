@@ -332,6 +332,299 @@ const FB_X = new THREE.Vector3();
 const FB_Y = new THREE.Vector3();
 const FB_Z = new THREE.Vector3();
 
+/**
+ * The robot's body, one per kind (its operator's shape and colours, armed or not, rigged or not): built once and cloned
+ * for each figure, the geometry shared. Built afresh, a figure cost 2.6 to 4.2 ms (2026-10-04: a range dummy, a course
+ * pop-up, a bot's rigged one), all of it making the same capsules, spheres and lathes and merging them again, for every
+ * figure of the range and the courses at each start and every bot of a match. Built with the stand-in materials
+ * (ROLE), which each figure swaps for its own (Dummy's constructor); the kit's are the template's, shared, as the
+ * joints' already were.
+ */
+const ROLE = {
+  shell: new THREE.MeshBasicMaterial(),
+  head: new THREE.MeshBasicMaterial(),
+  accent: new THREE.MeshBasicMaterial(),
+  vest: new THREE.MeshBasicMaterial(),
+};
+const bodies = new Map<string, THREE.Group>();
+
+/** a figure's body: its own clone of its kind's, and the parts a rigged one turns */
+function figureBody(skin: OperatorSkin, armed: boolean, rig: boolean): { root: THREE.Group; vest: THREE.Mesh; rig: Rig | null } {
+  // what shapes it: the operator's colours (the kit's materials), its add-ons and kit, the pose and the rig. Not the
+  // soldier, outfit or face, which only the mannequin wears (every SpeedKills bot has a soldier of its own)
+  const key = JSON.stringify([skin.id, skin.shell, skin.head, skin.accent, skin.joint, skin.visor, skin.eye, skin.extras, armed, rig]);
+  let made = bodies.get(key);
+  if (!made) {
+    made = buildBody(skin, armed, rig);
+    made.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (m.isMesh && m.geometry.userData.baked) m.geometry.userData.shared = true;
+    });
+    bodies.set(key, made);
+  }
+  const root = made.clone(true);
+  const part = (name: string) => root.getObjectByName(name) as THREE.Group;
+  return {
+    root,
+    vest: root.getObjectByName("vest") as THREE.Mesh,
+    rig: rig
+      ? {
+          pelvis: part("rig:pelvis"),
+          torso: part("rig:torso"),
+          head: part("rig:head"),
+          arms: part("rig:arms"),
+          armL: armed ? null : part("rig:armL"),
+          armR: armed ? null : part("rig:armR"),
+          thighL: part("rig:thighL"),
+          shinL: part("rig:shinL"),
+          thighR: part("rig:thighR"),
+          shinR: part("rig:shinR"),
+        }
+      : null,
+  };
+}
+
+function buildBody(skin: OperatorSkin, armed: boolean, rig: boolean): THREE.Group {
+  const { joint: jointMat, visor: visorMat, eye: eyeMat } = skinMaterials(skin);
+  const S = ROLE.shell;
+  const A = ROLE.accent;
+  // Every piece is built in figure space (origin at the feet) and sorted
+  // into the part it belongs to. A merged dummy bakes all the parts into
+  // one body; a rigged one bakes each part about its own pivot.
+  const P = { head: [] as THREE.Object3D[], torso: [] as THREE.Object3D[], armL: [] as THREE.Object3D[], armR: [] as THREE.Object3D[], thighL: [] as THREE.Object3D[], shinL: [] as THREE.Object3D[], thighR: [] as THREE.Object3D[], shinR: [] as THREE.Object3D[] };
+
+  // head: a slightly tall ovoid with a wraparound visor and a lit eye strip
+  const headY = H - 0.15;
+  const skull = new THREE.Mesh(new THREE.SphereGeometry(0.118, 28, 20), ROLE.head);
+  skull.scale.set(1, 1.1, 1.02);
+  skull.position.y = headY;
+  P.head.push(skull);
+  const visor = new THREE.Mesh(new THREE.SphereGeometry(0.1215, 28, 8, Math.PI / 2 - 0.95, 1.9, Math.PI / 2 - 0.32, 0.46), visorMat);
+  visor.scale.set(1, 1.1, 1.02);
+  visor.position.y = headY;
+  P.head.push(visor);
+  const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1222, 28, 3, Math.PI / 2 - 0.7, 1.4, Math.PI / 2 - 0.13, 0.05), eyeMat);
+  eye.scale.set(1, 1.1, 1.02);
+  eye.position.y = headY;
+  P.head.push(eye);
+  for (const sx of [-1, 1]) {
+    const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.03, 18), A);
+    pod.rotation.z = Math.PI / 2;
+    pod.position.set(sx * 0.118, headY + 0.005, -0.005);
+    P.head.push(pod);
+  }
+  // neck: a ribbed joint
+  P.torso.push(limb(v(0, 1.5, 0), v(0, 1.585, 0), 0.05, jointMat));
+  for (const y of [1.52, 1.55]) {
+    const rib = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.006, 6, 18), seamMat);
+    rib.rotation.x = Math.PI / 2;
+    rib.position.y = y;
+    P.torso.push(rib);
+  }
+
+  // torso, waist joint and pelvis
+  torsoGeo ??= torsoGeometry();
+  P.torso.push(new THREE.Mesh(torsoGeo, S));
+  const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.138, 0.06, 24), jointMat);
+  waist.scale.z = 0.68;
+  waist.position.y = 1.06;
+  P.torso.push(waist);
+  const pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.165, 24, 14, 0, Math.PI * 2, Math.PI / 2 - 0.2, Math.PI / 2), S);
+  pelvis.scale.set(1, 0.9, 0.66);
+  pelvis.position.y = 0.99;
+  P.torso.push(pelvis);
+  // chest panel with a status light, and a seam down the sternum
+  const panel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.02), A);
+  panel.position.set(0, 1.34, 0.13);
+  panel.rotation.x = -0.12;
+  P.torso.push(panel);
+  const light = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.012, 0.01), eyeMat);
+  light.position.set(0.05, 1.37, 0.142);
+  light.rotation.x = -0.12;
+  P.torso.push(light);
+  const seam = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.2, 0.01), seamMat);
+  seam.position.set(0, 1.18, 0.105);
+  P.torso.push(seam);
+  // armour vest in the tier colour
+  vestGeo ??= vestGeometry();
+  const vest = new THREE.Mesh(vestGeo, ROLE.vest);
+  vest.name = "vest";
+  P.torso.push(vest);
+
+  // arms, hanging slightly out from the body so they sit inside the arm zones
+  for (const sx of [-1, 1]) {
+    const arm = sx < 0 ? P.armL : P.armR;
+    const sh = v(sx * 0.225, 1.44, 0);
+    // Armed: both arms forward to the gun, right hand on the grip and the
+    // left supporting it. Unarmed: hanging slightly out from the body.
+    const el = armed ? v(sx * 0.21, 1.3, 0.22) : v(sx * 0.3, 1.17, 0.01);
+    const wr = armed ? (sx > 0 ? v(0.07, 1.36, 0.43) : v(-0.01, 1.34, 0.47)) : v(sx * 0.32, 0.93, 0.03);
+    const pad = new THREE.Mesh(new THREE.SphereGeometry(0.078, 18, 12), S);
+    pad.scale.set(1, 0.85, 0.95);
+    pad.position.copy(sh);
+    P.torso.push(pad);
+    const band = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.008, 6, 18), A);
+    band.position.set(sh.x, sh.y - 0.04, sh.z);
+    band.rotation.x = Math.PI / 2;
+    P.torso.push(band);
+    arm.push(limb(sh, el, 0.046, S));
+    arm.push(ball(el, 0.045, jointMat));
+    arm.push(limb(el, wr, 0.04, S));
+    const hand = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.05, 4, 10), jointMat);
+    hand.scale.set(0.75, 1, 1);
+    if (armed) hand.position.set(wr.x, wr.y - 0.03, wr.z + 0.02);
+    else hand.position.set(wr.x + sx * 0.004, wr.y - 0.07, wr.z);
+    arm.push(hand);
+  }
+
+  // legs
+  for (const sx of [-1, 1]) {
+    const thigh = sx < 0 ? P.thighL : P.thighR;
+    const shin = sx < 0 ? P.shinL : P.shinR;
+    const hip = v(sx * 0.098, PELVIS_Y, 0);
+    const knee = v(sx * 0.108, 0.49, 0.012);
+    const ankle = v(sx * 0.108, 0.1, 0);
+    thigh.push(ball(hip, 0.066, jointMat));
+    thigh.push(limb(hip, knee, 0.07, S));
+    shin.push(ball(knee, 0.056, jointMat));
+    const cap = new THREE.Mesh(new THREE.SphereGeometry(0.042, 14, 10), A);
+    cap.scale.set(1, 1.2, 0.6);
+    cap.position.set(knee.x, knee.y, knee.z + 0.045);
+    shin.push(cap);
+    shin.push(limb(knee, ankle, 0.056, S));
+    shin.push(ball(ankle, 0.042, jointMat));
+    const foot = new THREE.Mesh(new THREE.CapsuleGeometry(0.042, 0.13, 4, 10), jointMat);
+    foot.rotation.x = Math.PI / 2;
+    foot.scale.set(1.1, 1, 0.75);
+    foot.position.set(ankle.x, 0.035, 0.03);
+    shin.push(foot);
+  }
+
+  // The operator's kit (src/game/gear.ts), the same pieces the mannequin
+  // wears, dropped into the parts they belong to. The robot's own parts are
+  // built in the figure's space rather than a bone's, so each piece is moved
+  // to the anchor its bone would have been at.
+  {
+    const anchor: Record<string, { at: THREE.Vector3; into: THREE.Object3D[]; flip?: boolean }> = {
+      Head: { at: v(0, H - 0.15, 0), into: P.head },
+      spine_03: { at: v(0, CHEST_Y - 0.05, 0), into: P.torso },
+      pelvis: { at: v(0, PELVIS_Y, 0), into: P.torso },
+      upperarm_r: { at: v(0.235, 1.45, 0), into: P.armR },
+      upperarm_l: { at: v(-0.235, 1.45, 0), into: P.armL },
+      thigh_r: { at: v(0.098, PELVIS_Y, 0), into: P.thighR },
+      thigh_l: { at: v(-0.098, PELVIS_Y, 0), into: P.thighL },
+      calf_r: { at: v(0.108, 0.49, 0), into: P.shinR },
+      calf_l: { at: v(-0.108, 0.49, 0), into: P.shinL },
+    };
+    for (const piece of buildGear(skin)) {
+      const a = anchor[piece.bone];
+      if (!a) continue;
+      piece.group.position.add(a.at);
+      a.into.push(piece.group);
+    }
+  }
+
+  // the robot's own add-ons, which are its and not a person's kit
+  const ex = skin.extras;
+  if (ex.crest) {
+    const crest = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.09, 0.2), A);
+    crest.position.set(0, headY + 0.13, -0.01);
+    crest.rotation.x = -0.25;
+    P.head.push(crest);
+  }
+  if (ex.antenna) {
+    P.head.push(limb(v(0.07, headY + 0.08, 0.02), v(0.1, headY + 0.34, -0.03), 0.006, jointMat));
+    P.head.push(ball(v(0.1, headY + 0.35, -0.03), 0.016, eyeMat));
+  }
+  if (ex.brim) {
+    const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.012, 28), A);
+    brim.position.set(0, headY + 0.07, 0);
+    P.head.push(brim);
+    const hood = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), A);
+    hood.scale.set(1, 0.8, 1);
+    hood.position.set(0, headY + 0.07, 0);
+    P.head.push(hood);
+  }
+  if (ex.mask) {
+    const mask = new THREE.Mesh(new THREE.SphereGeometry(0.124, 20, 8, Math.PI / 2 - 0.9, 1.8, Math.PI / 2 + 0.15, 0.55), A);
+    mask.scale.set(1, 1.1, 1.05);
+    mask.position.y = headY;
+    P.head.push(mask);
+  }
+  if (ex.shoulders) {
+    for (const sx of [-1, 1]) {
+      const plate = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), A);
+      plate.scale.set(1.05, 0.75, 1.1);
+      plate.position.set(sx * 0.235, 1.45, 0);
+      plate.rotation.z = sx * -0.35;
+      P.torso.push(plate);
+    }
+  }
+
+  let root: THREE.Group;
+  vest.castShadow = true;
+  const keep = new Set<THREE.Object3D>([vest]);
+  if (rig) {
+    // pivots: the pelvis at the hips, the torso on it, the head at the neck,
+    // the arms at the chest (with the gun, which the hands hold), each
+    // thigh at its hip and each shin at its knee
+    const pelvisG = new THREE.Group();
+    pelvisG.position.y = PELVIS_Y;
+    const torso = bakePart(P.torso, v(0, PELVIS_Y, 0), keep);
+    torso.position.set(0, 0, 0);
+    const head = bakePart(P.head, v(0, 1.58, 0), keep);
+    head.position.set(0, 1.58 - PELVIS_Y, 0);
+    const chest = v(0, CHEST_Y, 0);
+    const arms = new THREE.Group();
+    arms.position.set(0, chest.y - PELVIS_Y, 0);
+    // the torso turns back against the hips (a strafe), then leans
+    torso.rotation.order = "YXZ";
+    let armL: THREE.Group | null = null;
+    let armR: THREE.Group | null = null;
+    if (armed) {
+      const both = bakePart([...P.armL, ...P.armR], chest, keep);
+      both.position.set(0, 0, 0);
+      arms.add(both);
+    } else {
+      armL = bakePart(P.armL, v(-0.225, 1.44, 0), keep);
+      armL.position.set(-0.225, 0, 0);
+      armR = bakePart(P.armR, v(0.225, 1.44, 0), keep);
+      armR.position.set(0.225, 0, 0);
+      arms.add(armL, armR);
+    }
+    const leg = (thighParts: THREE.Object3D[], shinParts: THREE.Object3D[], sx: number) => {
+      const thigh = bakePart(thighParts, v(sx * 0.098, PELVIS_Y, 0), keep);
+      thigh.position.set(sx * 0.098, 0, 0);
+      const shin = bakePart(shinParts, v(sx * 0.108, 0.49, 0.012), keep);
+      shin.position.set(sx * 0.01, 0.49 - PELVIS_Y, 0.012);
+      thigh.add(shin);
+      return { thigh, shin };
+    };
+    const L = leg(P.thighL, P.shinL, -1);
+    const R = leg(P.thighR, P.shinR, 1);
+    torso.add(head, arms);
+    pelvisG.add(torso, L.thigh, R.thigh);
+    // only the torso and head throw a shadow: half the draw calls of a rig
+    for (const part of [L.thigh, L.shin, R.thigh, R.shin, arms]) part.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).castShadow = false) : undefined));
+    pelvisG.name = "rig:pelvis";
+    torso.name = "rig:torso";
+    head.name = "rig:head";
+    arms.name = "rig:arms";
+    if (armL) armL.name = "rig:armL";
+    if (armR) armR.name = "rig:armR";
+    L.thigh.name = "rig:thighL";
+    L.shin.name = "rig:shinL";
+    R.thigh.name = "rig:thighR";
+    R.shin.name = "rig:shinR";
+    root = pelvisG;
+  } else {
+    const b = new THREE.Group();
+    for (const list of Object.values(P)) for (const o of list) b.add(o);
+    root = bake(b, keep);
+  }
+  return root;
+}
+
 export class Dummy {
   readonly group = new THREE.Group();
   readonly hitMeshes: THREE.Mesh[] = [];
@@ -370,7 +663,7 @@ export class Dummy {
   private readonly vest: THREE.Mesh;
   private readonly vestMat: THREE.MeshStandardMaterial;
   private readonly ringMat: THREE.MeshStandardMaterial;
-  /** the merged robot body: its geometry is this dummy's own (every part, rigged) */
+  /** the merged robot body (every part, rigged): this figure's clone of its kind's, the geometry shared (figureBody) */
   private readonly baked: THREE.Group;
   private readonly rig: Rig | null = null;
   /** the hit zones, scaled down for a crouch */
@@ -454,7 +747,6 @@ export class Dummy {
     this.armedWith = armed;
     const skin = opts.skin ?? OPERATORS[0];
     this.skin = skin;
-    const { joint: jointMat, visor: visorMat, eye: eyeMat } = skinMaterials(skin);
 
     // ---------------- hit zones: unchanged dimensions, invisible
     // legs: 0..0.92 m
@@ -499,179 +791,15 @@ export class Dummy {
     this.headShell = new THREE.MeshStandardMaterial({ color: skin.head, roughness: 0.4, metalness: 0.08 });
     this.accent = new THREE.MeshStandardMaterial({ color: skin.accent, roughness: 0.55, metalness: 0.1 });
     this.vestMat = new THREE.MeshStandardMaterial({ color: ARMOR_COLOR[1], roughness: 0.35, metalness: 0.3, emissive: ARMOR_COLOR[1], emissiveIntensity: 0.25 });
-    const S = this.shell;
-    const A = this.accent;
-    // Every piece is built in figure space (origin at the feet) and sorted
-    // into the part it belongs to. A merged dummy bakes all the parts into
-    // one body; a rigged one bakes each part about its own pivot.
-    const P = { head: [] as THREE.Object3D[], torso: [] as THREE.Object3D[], armL: [] as THREE.Object3D[], armR: [] as THREE.Object3D[], thighL: [] as THREE.Object3D[], shinL: [] as THREE.Object3D[], thighR: [] as THREE.Object3D[], shinR: [] as THREE.Object3D[] };
-
-    // head: a slightly tall ovoid with a wraparound visor and a lit eye strip
-    const headY = H - 0.15;
-    const skull = new THREE.Mesh(new THREE.SphereGeometry(0.118, 28, 20), this.headShell);
-    skull.scale.set(1, 1.1, 1.02);
-    skull.position.y = headY;
-    P.head.push(skull);
-    const visor = new THREE.Mesh(new THREE.SphereGeometry(0.1215, 28, 8, Math.PI / 2 - 0.95, 1.9, Math.PI / 2 - 0.32, 0.46), visorMat);
-    visor.scale.set(1, 1.1, 1.02);
-    visor.position.y = headY;
-    P.head.push(visor);
-    const eye = new THREE.Mesh(new THREE.SphereGeometry(0.1222, 28, 3, Math.PI / 2 - 0.7, 1.4, Math.PI / 2 - 0.13, 0.05), eyeMat);
-    eye.scale.set(1, 1.1, 1.02);
-    eye.position.y = headY;
-    P.head.push(eye);
-    for (const sx of [-1, 1]) {
-      const pod = new THREE.Mesh(new THREE.CylinderGeometry(0.036, 0.04, 0.03, 18), A);
-      pod.rotation.z = Math.PI / 2;
-      pod.position.set(sx * 0.118, headY + 0.005, -0.005);
-      P.head.push(pod);
-    }
-    // neck: a ribbed joint
-    P.torso.push(limb(v(0, 1.5, 0), v(0, 1.585, 0), 0.05, jointMat));
-    for (const y of [1.52, 1.55]) {
-      const rib = new THREE.Mesh(new THREE.TorusGeometry(0.052, 0.006, 6, 18), seamMat);
-      rib.rotation.x = Math.PI / 2;
-      rib.position.y = y;
-      P.torso.push(rib);
-    }
-
-    // torso, waist joint and pelvis
-    torsoGeo ??= torsoGeometry();
-    P.torso.push(new THREE.Mesh(torsoGeo, S));
-    const waist = new THREE.Mesh(new THREE.CylinderGeometry(0.128, 0.138, 0.06, 24), jointMat);
-    waist.scale.z = 0.68;
-    waist.position.y = 1.06;
-    P.torso.push(waist);
-    const pelvis = new THREE.Mesh(new THREE.SphereGeometry(0.165, 24, 14, 0, Math.PI * 2, Math.PI / 2 - 0.2, Math.PI / 2), S);
-    pelvis.scale.set(1, 0.9, 0.66);
-    pelvis.position.y = 0.99;
-    P.torso.push(pelvis);
-    // chest panel with a status light, and a seam down the sternum
-    const panel = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.12, 0.02), A);
-    panel.position.set(0, 1.34, 0.13);
-    panel.rotation.x = -0.12;
-    P.torso.push(panel);
-    const light = new THREE.Mesh(new THREE.BoxGeometry(0.04, 0.012, 0.01), eyeMat);
-    light.position.set(0.05, 1.37, 0.142);
-    light.rotation.x = -0.12;
-    P.torso.push(light);
-    const seam = new THREE.Mesh(new THREE.BoxGeometry(0.006, 0.2, 0.01), seamMat);
-    seam.position.set(0, 1.18, 0.105);
-    P.torso.push(seam);
-    // armour vest in the tier colour
-    vestGeo ??= vestGeometry();
-    this.vest = new THREE.Mesh(vestGeo, this.vestMat);
-    P.torso.push(this.vest);
-
-    // arms, hanging slightly out from the body so they sit inside the arm zones
-    for (const sx of [-1, 1]) {
-      const arm = sx < 0 ? P.armL : P.armR;
-      const sh = v(sx * 0.225, 1.44, 0);
-      // Armed: both arms forward to the gun, right hand on the grip and the
-      // left supporting it. Unarmed: hanging slightly out from the body.
-      const el = armed ? v(sx * 0.21, 1.3, 0.22) : v(sx * 0.3, 1.17, 0.01);
-      const wr = armed ? (sx > 0 ? v(0.07, 1.36, 0.43) : v(-0.01, 1.34, 0.47)) : v(sx * 0.32, 0.93, 0.03);
-      const pad = new THREE.Mesh(new THREE.SphereGeometry(0.078, 18, 12), S);
-      pad.scale.set(1, 0.85, 0.95);
-      pad.position.copy(sh);
-      P.torso.push(pad);
-      const band = new THREE.Mesh(new THREE.TorusGeometry(0.06, 0.008, 6, 18), A);
-      band.position.set(sh.x, sh.y - 0.04, sh.z);
-      band.rotation.x = Math.PI / 2;
-      P.torso.push(band);
-      arm.push(limb(sh, el, 0.046, S));
-      arm.push(ball(el, 0.045, jointMat));
-      arm.push(limb(el, wr, 0.04, S));
-      const hand = new THREE.Mesh(new THREE.CapsuleGeometry(0.03, 0.05, 4, 10), jointMat);
-      hand.scale.set(0.75, 1, 1);
-      if (armed) hand.position.set(wr.x, wr.y - 0.03, wr.z + 0.02);
-      else hand.position.set(wr.x + sx * 0.004, wr.y - 0.07, wr.z);
-      arm.push(hand);
-    }
-
-    // legs
-    for (const sx of [-1, 1]) {
-      const thigh = sx < 0 ? P.thighL : P.thighR;
-      const shin = sx < 0 ? P.shinL : P.shinR;
-      const hip = v(sx * 0.098, PELVIS_Y, 0);
-      const knee = v(sx * 0.108, 0.49, 0.012);
-      const ankle = v(sx * 0.108, 0.1, 0);
-      thigh.push(ball(hip, 0.066, jointMat));
-      thigh.push(limb(hip, knee, 0.07, S));
-      shin.push(ball(knee, 0.056, jointMat));
-      const cap = new THREE.Mesh(new THREE.SphereGeometry(0.042, 14, 10), A);
-      cap.scale.set(1, 1.2, 0.6);
-      cap.position.set(knee.x, knee.y, knee.z + 0.045);
-      shin.push(cap);
-      shin.push(limb(knee, ankle, 0.056, S));
-      shin.push(ball(ankle, 0.042, jointMat));
-      const foot = new THREE.Mesh(new THREE.CapsuleGeometry(0.042, 0.13, 4, 10), jointMat);
-      foot.rotation.x = Math.PI / 2;
-      foot.scale.set(1.1, 1, 0.75);
-      foot.position.set(ankle.x, 0.035, 0.03);
-      shin.push(foot);
-    }
-
-    // The operator's kit (src/game/gear.ts), the same pieces the mannequin
-    // wears, dropped into the parts they belong to. The robot's own parts are
-    // built in the figure's space rather than a bone's, so each piece is moved
-    // to the anchor its bone would have been at.
-    {
-      const anchor: Record<string, { at: THREE.Vector3; into: THREE.Object3D[]; flip?: boolean }> = {
-        Head: { at: v(0, H - 0.15, 0), into: P.head },
-        spine_03: { at: v(0, CHEST_Y - 0.05, 0), into: P.torso },
-        pelvis: { at: v(0, PELVIS_Y, 0), into: P.torso },
-        upperarm_r: { at: v(0.235, 1.45, 0), into: P.armR },
-        upperarm_l: { at: v(-0.235, 1.45, 0), into: P.armL },
-        thigh_r: { at: v(0.098, PELVIS_Y, 0), into: P.thighR },
-        thigh_l: { at: v(-0.098, PELVIS_Y, 0), into: P.thighL },
-        calf_r: { at: v(0.108, 0.49, 0), into: P.shinR },
-        calf_l: { at: v(-0.108, 0.49, 0), into: P.shinL },
-      };
-      for (const piece of buildGear(skin)) {
-        const a = anchor[piece.bone];
-        if (!a) continue;
-        piece.group.position.add(a.at);
-        a.into.push(piece.group);
-      }
-    }
-
-    // the robot's own add-ons, which are its and not a person's kit
-    const ex = skin.extras;
-    if (ex.crest) {
-      const crest = new THREE.Mesh(new THREE.BoxGeometry(0.025, 0.09, 0.2), A);
-      crest.position.set(0, headY + 0.13, -0.01);
-      crest.rotation.x = -0.25;
-      P.head.push(crest);
-    }
-    if (ex.antenna) {
-      P.head.push(limb(v(0.07, headY + 0.08, 0.02), v(0.1, headY + 0.34, -0.03), 0.006, jointMat));
-      P.head.push(ball(v(0.1, headY + 0.35, -0.03), 0.016, eyeMat));
-    }
-    if (ex.brim) {
-      const brim = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 0.012, 28), A);
-      brim.position.set(0, headY + 0.07, 0);
-      P.head.push(brim);
-      const hood = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 10, 0, Math.PI * 2, 0, Math.PI / 2), A);
-      hood.scale.set(1, 0.8, 1);
-      hood.position.set(0, headY + 0.07, 0);
-      P.head.push(hood);
-    }
-    if (ex.mask) {
-      const mask = new THREE.Mesh(new THREE.SphereGeometry(0.124, 20, 8, Math.PI / 2 - 0.9, 1.8, Math.PI / 2 + 0.15, 0.55), A);
-      mask.scale.set(1, 1.1, 1.05);
-      mask.position.y = headY;
-      P.head.push(mask);
-    }
-    if (ex.shoulders) {
-      for (const sx of [-1, 1]) {
-        const plate = new THREE.Mesh(new THREE.SphereGeometry(0.11, 18, 10, 0, Math.PI * 2, 0, Math.PI / 2), A);
-        plate.scale.set(1.05, 0.75, 1.1);
-        plate.position.set(sx * 0.235, 1.45, 0);
-        plate.rotation.z = sx * -0.35;
-        P.torso.push(plate);
-      }
-    }
+    const body = figureBody(skin, armed !== null, !!opts.rig);
+    // this figure's own materials for the stand-ins its kind was built with
+    body.root.traverse((o) => {
+      const m = o as THREE.Mesh;
+      if (!m.isMesh) return;
+      const own = m.material === ROLE.shell ? this.shell : m.material === ROLE.head ? this.headShell : m.material === ROLE.accent ? this.accent : m.material === ROLE.vest ? this.vestMat : null;
+      if (own) m.material = own;
+    });
+    this.vest = body.vest;
 
     // The gun, pointing the way the robot faces (+z). Model space has the
     // muzzle down -z, so it turns half round, and it is placed so its grip
@@ -691,69 +819,27 @@ export class Dummy {
       this.gun = gun;
     }
 
-    this.vest.castShadow = true;
-    const keep = new Set<THREE.Object3D>([this.vest]);
-    if (opts.rig) {
-      // pivots: the pelvis at the hips, the torso on it, the head at the neck,
-      // the arms at the chest (with the gun, which the hands hold), each
-      // thigh at its hip and each shin at its knee
-      const pelvisG = new THREE.Group();
-      pelvisG.position.y = PELVIS_Y;
-      const torso = bakePart(P.torso, v(0, PELVIS_Y, 0), keep);
-      torso.position.set(0, 0, 0);
-      const head = bakePart(P.head, v(0, 1.58, 0), keep);
-      head.position.set(0, 1.58 - PELVIS_Y, 0);
-      const chest = v(0, CHEST_Y, 0);
-      const arms = new THREE.Group();
-      arms.position.set(0, chest.y - PELVIS_Y, 0);
-      this.armsBase.copy(arms.position);
-      // the torso turns back against the hips (a strafe), then leans
-      torso.rotation.order = "YXZ";
-      let armL: THREE.Group | null = null;
-      let armR: THREE.Group | null = null;
-      if (armed) {
-        const both = bakePart([...P.armL, ...P.armR], chest, keep);
-        both.position.set(0, 0, 0);
-        arms.add(both);
-        if (gun) {
-          gun.position.sub(chest);
-          arms.add(gun);
-        }
-      } else {
-        armL = bakePart(P.armL, v(-0.225, 1.44, 0), keep);
-        armL.position.set(-0.225, 0, 0);
-        armR = bakePart(P.armR, v(0.225, 1.44, 0), keep);
-        armR.position.set(0.225, 0, 0);
-        arms.add(armL, armR);
+    if (body.rig) {
+      const r = body.rig;
+      this.armsBase.copy(r.arms.position);
+      if (gun) {
+        gun.position.sub(v(0, CHEST_Y, 0));
+        r.arms.add(gun);
+        // only the torso and head throw a shadow (buildBody): the gun goes with the arms
+        gun.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).castShadow = false) : undefined));
       }
-      const leg = (thighParts: THREE.Object3D[], shinParts: THREE.Object3D[], sx: number) => {
-        const thigh = bakePart(thighParts, v(sx * 0.098, PELVIS_Y, 0), keep);
-        thigh.position.set(sx * 0.098, 0, 0);
-        const shin = bakePart(shinParts, v(sx * 0.108, 0.49, 0.012), keep);
-        shin.position.set(sx * 0.01, 0.49 - PELVIS_Y, 0.012);
-        thigh.add(shin);
-        return { thigh, shin };
-      };
-      const L = leg(P.thighL, P.shinL, -1);
-      const R = leg(P.thighR, P.shinR, 1);
-      torso.add(head, arms);
-      pelvisG.add(torso, L.thigh, R.thigh);
-      // only the torso and head throw a shadow: half the draw calls of a rig
-      for (const part of [L.thigh, L.shin, R.thigh, R.shin, arms]) part.traverse((o) => ((o as THREE.Mesh).isMesh ? ((o as THREE.Mesh).castShadow = false) : undefined));
-      this.baked = pelvisG;
-      this.rig = { pelvis: pelvisG, torso, head, arms, armL, armR, thighL: L.thigh, shinL: L.shin, thighR: R.thigh, shinR: R.shin };
-      this.group.add(pelvisG);
+      this.baked = r.pelvis;
+      this.rig = r;
+      this.group.add(r.pelvis);
       // the mannequin instead, when Settings says so and it has loaded: the
       // robot's parts stay (hidden) and still take the pose, so nothing else changes
       if (useMannequin()) {
         this.mq = new MannequinFigure(skin, armed);
-        pelvisG.visible = false;
+        r.pelvis.visible = false;
         this.group.add(this.mq.root);
       }
     } else {
-      const b = new THREE.Group();
-      for (const list of Object.values(P)) for (const o of list) b.add(o);
-      this.baked = bake(b, keep);
+      this.baked = body.root;
       this.group.add(this.baked);
       if (gun) this.group.add(gun);
     }
@@ -886,8 +972,8 @@ export class Dummy {
     this.group.removeFromParent();
     this.baked.traverse((o) => {
       const m = o as THREE.Mesh;
-      // the gun's geometry is the gun model's, shared; a baked part's is this figure's own
-      if (m.isMesh && m !== this.vest && !m.name.startsWith("gun") && m.geometry.userData.baked) m.geometry.dispose();
+      // the gun's geometry is the gun model's, shared, and so is the body's (figureBody): kept for the next figure
+      if (m.isMesh && m !== this.vest && !m.name.startsWith("gun") && m.geometry.userData.baked && !m.geometry.userData.shared) m.geometry.dispose();
     });
     for (const m of this.hitMeshes) m.geometry.dispose();
     for (const mat of [this.shell, this.headShell, this.accent, this.vestMat, this.ringMat]) mat.dispose();
