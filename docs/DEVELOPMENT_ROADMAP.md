@@ -10658,3 +10658,18 @@ hold.
   the reload and the Loadouts tab passing as they were; verify; rules; the type check; photographs of the hands from
   every side, the stance at rest, aimed, reloading and swapping.
 - **Next:** STRYDER onto the fast pistol (its numbers waiting on the owner), then the same stance on it.
+## Milestone 473 — The e2e on the Neon City: the old city's checks said as skipped there, not failed
+
+The live game is on the Neon City, and the e2e's SpeedKills pages are on the city before it unless E2E_MAP=neon. Run on
+Neon (2026-10-04), 16 of the SpeedKills sections' checks failed: two the decay's sectors (the city agent's Milestones 470
+and 471 fixed them with the Neon City's own nine), and the rest checks of things the Neon City does not have. Those are
+skipped on the Neon map now, each saying so ("--  ...: the city before the Neon City's, skipped on the Neon map"): High
+City's corner drawn from its own file, an arena match in NEON BLOCK, a bot thrown up a jump pad onto its roof, a bot up
+a low tower's stairs with the street's, the road's and the terrace's jump pads, and the district hold. On the old city
+every one of them runs as before. A page on the Neon map is told by the page itself (tools/e2e.ts onNeon), whichever
+map the run asked for.
+
+- **Checked:** E2E_MAP=neon E2E_ONLY=speedkills: the six skips said, no page error; E2E_ONLY=speedkills on the old city:
+  102 checks, all run and passed (one earlier run lost its match to a bot between two steps and passed again alone).
+- **Left on Neon:** the bots moving through the city (9 to 17 of 27 in 6 s against 15) and, in this worktree, the
+  capture zone's bot way (start 663, goal 601, no steps), both with the city agent.
