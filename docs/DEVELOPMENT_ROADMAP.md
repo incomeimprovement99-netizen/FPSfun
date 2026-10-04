@@ -10049,3 +10049,38 @@ performance wise / load time wise". The check that found something:
 - **Checked:** the two visits on a production build (the city drawn both times, its 73,860 boxes in, the second from the
   cache); verify (the Neon checks with the boxes handed in); rules; the sklobby and skship e2e on the suite's map, and
   skship on the Neon City.
+
+## Milestone 446 — The USSO and BOOG held as the owner picked, the USSO's left hand as Hyper Scape's Harpy holds it
+
+The owner, 2026-10-02, of twenty placements photographed beside Apex's, Hyper Scape's and EMPULSE's: "we need to pull back
+towards the camera a little ... point at the crosshair ... rotate it left so the front goes right a little bit ... the left
+arm is not sticking out anywhere near as much ... shoulder to elbow going down, elbow to wrist going up ... closest match I
+could see for that arm seems to be number 16 ... Closest match for the gun ... maybe number 13"; then "change where the
+second hand grips realistically ... very minimal left hand slash arm wrist showing"; and, 2026-10-03, of the USSO's left
+hand beside the Harpy's: "your recommendation, like the harpy".
+
+- **The placement:** the USSO's look p01 and BOOG's #13 (fparms.json packGuns look), each still pointing at the
+  crosshair, nearer the eye and turned so its front goes right.
+- **The USSO's left hand as the Harpy's:** low, just ahead of the trigger guard (the USSO's magazine is in its grip),
+  the fingers round the gun's underside and the back of the hand to the eye, the hand at the bottom of the picture and a
+  fifth of the forearm in it (half and more before). Eighteen places on the gun searched, each with its elbow and
+  shoulder solved for the least sleeve and forearm in the picture; the thumb then laid along the side
+  (tools/pack-flush.ts) and the fingers on the gun (tools/pack-solve.ts, now with HOLD and KEEP_HAND).
+- **BOOG's left arm, #16:** the upper arm down out of the picture, the forearm up to the hand on the fore-end, the palm
+  2.6 cm ahead of the magazine (the owner, 2026-09-28: "for the boog, the support hand is holding the mag"), every
+  finger on the gun.
+- **Every move off the gun kept working:** the inspect's open hand, the punch, the point, the pickup and the first draw
+  were made with the arm as it was. As the hand leaves the gun, and while the gun is framed as before the refit, the
+  left elbow and shoulder go to those they had (packGuns beforeArm, beforeFrame offArm), the grip staying the new one.
+  Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 as a reload
+  began; now 31 in a punch, 24 at an inspect's end and 17 as a reload begins.
+- **The swap's cup and the pickup on the new grips:** each gun's own left cup move (cupMove: the USSO's 2 cm out to the
+  left, BOOG's 3 cm down and 2 back; moved the shared way, fingertips went 13 and 4 mm into the guns), each its own
+  pickup fit (pick: the USSO's 1 cm ahead, BOOG's 1 cm lower; with the hold's own, fingertips went 12 and 6 mm in);
+  BOOG's punch leaves the fore-end straight down (meleeClearWay, meleeClear: out to the left, 12 to 14 mm in), and the
+  hand turns to the punch after it has left the gun (melee turn).
+- **The tests:** tools/e2e.ts pack frames' FIT at the new looks; the hand ahead of the magazine checked on BOOG alone;
+  the USSO's thumb along its side and its palm on the gun.
+- **Checked:** both guns at rest beside the Harpy and the Protocol V, every state photographed; the pack audit through
+  every move (swap, melee, inspect, reload, tactical reload, first draw, pickup) no seen skin over 4 mm in the gun;
+  verify; rules; the soldier e2e.

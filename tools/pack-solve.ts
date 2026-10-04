@@ -15,7 +15,7 @@
 // tools/pack-thumb.ts searches a finger's joints over their whole range for that. A Levenberg-Marquardt solve of a
 // whole hand at once was tried here too and dropped: two minutes a step in the page, and it stalled where this did. WRITE=1 writes the result into fparms.json (packGuns hold joint and shift, shoulders, point).
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30)
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30, HOLD=index,middle,ring,pinky, KEEP_HAND=1)
 // Headless, never the real mouse or keyboard.
 import fs from "node:fs";
 import path from "node:path";
@@ -100,7 +100,8 @@ async function joints(page: Page, id: string, name: string): Promise<void> {
   for (const side of (process.env.SIDES ?? "l,r").split(",") as Array<"l" | "r">) {
     const on = (a: Audit, f: string) => Math.min(...["01", "02", "03"].map((j) => a.boneGap[`${f}_${j}_${side}`] ?? Infinity));
     // the fingers holding the gun as the fit left it: those within 3 mm of it (they must stay on it)
-    const holding = FINGERS.filter((f) => on(start, f) <= 3);
+    // (HOLD=index,middle,... names the fingers to bring onto the gun whatever their start, for a hand moved to a new grip)
+    const holding = process.env.HOLD ? process.env.HOLD.split(",") : FINGERS.filter((f) => on(start, f) <= 3);
     const mine = (a: Audit, re: RegExp) => Object.entries(a.bones).filter(([k]) => re.test(k));
     const deepest = (a: Audit, re: RegExp) => Math.max(0, ...mine(a, re).map(([, v]) => v));
     // every bone's depth past touching, summed: by the deepest alone, four fingers each 10 to 12 mm into the USSO's
@@ -129,8 +130,12 @@ async function joints(page: Page, id: string, name: string): Promise<void> {
         steps: [-0.16, -0.08, -0.04, 0.04, 0.08, 0.16],
       })),
     ];
-    let res = await descend(hold, shiftKeys, handScore, ROUNDS, (s) => s < 0.3, (s) => console.log(`  ${id} ${side} hand ${s.toFixed(2)}`));
-    hold[side] = res.best[side];
+    // (KEEP_HAND=1 leaves the hand where it is and lays only the fingers: a hand laid flush by tools/pack-flush.ts was
+    // moved 4.5 mm back here, and its palm came 1 mm off the gun's side)
+    if (process.env.KEEP_HAND !== "1") {
+      const res = await descend(hold, shiftKeys, handScore, ROUNDS, (s) => s < 0.3, (s) => console.log(`  ${id} ${side} hand ${s.toFixed(2)}`));
+      hold[side] = res.best[side];
+    }
     // then each finger in the gun, its three joints each about its three axes
     for (let pass = 0; pass < 2; pass++) {
       const now = await measure(hold, { side });
@@ -155,8 +160,8 @@ async function joints(page: Page, id: string, name: string): Promise<void> {
             steps: JOINT_STEPS,
           })),
         );
-        res = await descend(hold, keys, fscore, ROUNDS, (s) => s < 0.2, () => {});
-        hold[side] = res.best[side];
+        const fres = await descend(hold, keys, fscore, ROUNDS, (s) => s < 0.2, () => {});
+        hold[side] = fres.best[side];
         const a = await measure(hold, { side, bones });
         console.log(`  ${id} ${side} ${f}: deepest ${deepest(a, re)} mm, gap ${on(a, f)} mm`);
       }

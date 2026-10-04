@@ -104,55 +104,117 @@
       "hold": {
         "l": {
           "shift": [
-            -0.0125,
-            0.001,
-            -0.0223
+            -0.006,
+            -0.104,
+            0.1137
           ],
           "open": {
             "middle": -0.4,
             "ring": -0.2
           },
           "rot": [
-            0.3177,
-            -0.0811,
-            -0.027
+            0.348,
+            0.361,
+            -0.125
           ],
           "joint": {
             "thumb_01": [
-              0.6227,
-              -0.1274,
-              0.0129
+              -0.106,
+              0.46,
+              -0.074
             ],
             "thumb_02": [
-              0.5341,
-              0.4749,
-              -0.0992
+              0.392,
+              -0.251,
+              0.344
             ],
             "thumb_03": [
-              0.1814,
-              -0.0271,
-              0.0289
+              0.394,
+              0.066,
+              -0.112
             ],
             "index_01": [
-              -0.48,
+              -0.6,
               0.12,
               0
             ],
             "pinky_01": [
-              -0.24,
+              -0.36,
               0,
               0
+            ],
+            "middle_01": [
+              0,
+              0,
+              -0.06
+            ],
+            "ring_01": [
+              -0.12,
+              0.48,
+              0
+            ],
+            "middle_02": [
+              0,
+              0,
+              -0.12
             ]
           },
           "pick": {
             "shift": [
-              -0.0223,
-              -0.0142,
-              -0.0028
+              -0.006,
+              -0.104,
+              0.1037
             ],
             "open": {
               "middle": -0.4,
               "ring": -0.2
+            },
+            "rot": [
+              0.348,
+              0.361,
+              -0.125
+            ],
+            "joint": {
+              "thumb_01": [
+                -0.106,
+                0.46,
+                -0.074
+              ],
+              "thumb_02": [
+                0.392,
+                -0.251,
+                0.344
+              ],
+              "thumb_03": [
+                0.394,
+                0.066,
+                -0.112
+              ],
+              "index_01": [
+                -0.6,
+                0.12,
+                0
+              ],
+              "pinky_01": [
+                -0.36,
+                0,
+                0
+              ],
+              "middle_01": [
+                0,
+                0,
+                -0.06
+              ],
+              "ring_01": [
+                -0.12,
+                0.48,
+                0
+              ],
+              "middle_02": [
+                0,
+                0,
+                -0.12
+              ]
             }
           }
         },
@@ -226,13 +288,13 @@
           ]
         }
       },
-      "_hold": "Fitted by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts joints and tools/pack-thumb.ts, 2026-09-28. The fit alone left the right hand's seen skin up to 8 mm into the grip and its thumb 12 mm in, lying over the receiver where no small turn moved it; now no seen skin is more than 4 mm in, held, pointing, racking, aimed, swapping or picking up (tools/e2e.ts pack frames; tools/pack-frames.ts flags no frame of the reload, swap, aim or pickup).",
-      "_solve": "tools/pack-solve.ts, 2026-09-30: l after: deepest 0 mm, palm 0.0 mm, fingers thumb 0 index 0 middle 0 ring 0 pinky 0.",
+      "_hold": "Fitted by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts joints and tools/pack-thumb.ts, 2026-09-28. The fit alone left the right hand's seen skin up to 8 mm into the grip and its thumb 12 mm in, lying over the receiver where no small turn moved it; now no seen skin is more than 4 mm in, held, pointing, racking, aimed, swapping or picking up (tools/e2e.ts pack frames; tools/pack-frames.ts flags no frame of the reload, swap, aim or pickup). The left hand regripped 2026-10-03 as Hyper Scape's Harpy is held (the owner, of a grip up the front by the sight: \"your recommendation, like the harpy\"): low ahead of the trigger guard, the USSO's magazine being in its grip, the fingers round the gun's underside and the back of the hand to the eye, the upper arm down out of the picture and a fifth of the forearm in it (it had been half and more). Searched over eighteen places on the gun, each with its elbow (`holdElbow`) and shoulder (`shoulders` l) solved for the least sleeve and forearm in the picture, the grip on the gun, the wrist straight; then its thumb laid along the side (tools/pack-flush.ts) and its fingers on the gun (tools/pack-solve.ts KEEP_HAND). Its pickup has its own fit (`pick`, 1 cm further ahead): with the hold's own the ring fingertip went 12 mm into the gun as the hand came back.",
+      "_solve": "tools/pack-solve.ts, 2026-10-03: l after: deepest 0 mm, palm 0.0 mm, fingers thumb 0 index 0 middle 1.3 ring 0 pinky 0.",
       "shoulders": {
         "l": [
-          0.01,
-          0,
-          -0.04
+          0.0566,
+          0.0044,
+          -0.1486
         ],
         "r": [
           -0.08,
@@ -266,16 +328,16 @@
       ],
       "holdElbow": {
         "l": [
-          0.05,
-          -0.45,
-          0.1
+          0.286,
+          -0.5318,
+          0.1526
         ]
       },
       "look": {
         "shift": [
-          -0.0555,
-          0.0475,
-          0.243
+          0.0255,
+          -0.0012,
+          0.143
         ],
         "turn": [
           0.0197,
@@ -294,7 +356,27 @@
           0.281,
           -0.21
         ]
-      }
+      },
+      "cupMove": {
+        "l": [
+          -0.02,
+          0,
+          0
+        ]
+      },
+      "beforeArm": {
+        "elbow": [
+          0.05,
+          -0.45,
+          0.1
+        ],
+        "shoulder": [
+          0.01,
+          0,
+          -0.04
+        ]
+      },
+      "_beforeArm": "The left elbow hint and shoulder the arm had before the 2026-10-02 refit (packGuns holdElbow l and shoulders l then), where the moves off the gun (the inspect's open hand, the punch, the point, the pickup) were fitted: the arm goes to them as the hand leaves the gun and while the gun is framed as before the refit (beforeFrame offArm). Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 at a reload's start, against 21, 42 and 18 before; the grip itself stays the new one, as mixed between the two the USSO's fingers went 18 mm into its front in a first draw."
     },
     "Striker-V": {
       "model": "SKM_Striker-V",
@@ -389,8 +471,8 @@
       "hold": {
         "l": {
           "shift": [
-            0.0219,
-            -0.0028,
+            0.0264,
+            -0.0222,
             -0.1382
           ],
           "open": {
@@ -398,16 +480,58 @@
           },
           "joint": {
             "pinky_01": [
+              -0.84,
+              0.06,
+              0
+            ],
+            "ring_01": [
               -0.24,
+              0,
+              0
+            ],
+            "index_01": [
+              0.12,
               0,
               0
             ]
           },
           "rot": [
-            -0.397,
-            0.143,
-            0.38
-          ]
+            -0.4101,
+            0.3135,
+            0.4764
+          ],
+          "pick": {
+            "shift": [
+              0.0264,
+              -0.0322,
+              -0.1382
+            ],
+            "open": {
+              "pinky": 0.1
+            },
+            "rot": [
+              -0.4101,
+              0.3135,
+              0.4764
+            ],
+            "joint": {
+              "pinky_01": [
+                -0.84,
+                0.06,
+                0
+              ],
+              "ring_01": [
+                -0.24,
+                0,
+                0
+              ],
+              "index_01": [
+                0.12,
+                0,
+                0
+              ]
+            }
+          }
         },
         "r": {
           "shift": [
@@ -502,13 +626,13 @@
           ]
         }
       },
-      "_hold": "Fitted by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts joints and tools/pack-thumb.ts (the right thumb and middle finger), 2026-09-28. The left hand then moved off the magazine onto the fore-end (the owner, 2026-09-28: \"for the boog, the support hand is holding the mag\"): BOOG's magazine is further ahead of its trigger than the L96X's, and the pack's hold put the palm's middle 10.4 cm back from its front (fprig.ts palmAhead). Moved 14 cm ahead the pack's grip, made for a thicker fore-end, lay flat against BOOG's side with its fingers 5 to 10 cm off it, so tools/pack-grip.ts searched the hand's move and turn for a grip there: the palm on the gun 2.7 cm ahead of the magazine, the index, middle and little fingers and the thumb on it (the ring finger 4 cm off it: a search of its joints over their whole range found no turn onto it short of a contorted finger), none of it in the gun, the wrist 18 degrees.",
-      "_solve": "tools/pack-solve.ts wrists, 2026-09-28, with the left hand on the fore-end: the shoulders where the wrists are straightest with the arm reaching it (the pack's own shoulders left it 1.7 cm and more short past 6 cm ahead), and the pointing arm. Wrists left and right 12 and 20 degrees at rest, 46 and 23 aimed, pointing 49. The left arm now reaches along the gun into the picture (36% of the arms' skin in it at rest, none before), as a rifleman's does with the hand out on the fore-end. The left shoulder then 4 cm further forward than that search put it: at rest the arm was straight, at all of its reach, and the bolt worked after a shot pushes the gun 5 cm ahead, which left it 1.9 cm short and the hand back on the magazine.",
+      "_hold": "Fitted by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts joints and tools/pack-thumb.ts (the right thumb and middle finger), 2026-09-28. The left hand then moved off the magazine onto the fore-end (the owner, 2026-09-28: \"for the boog, the support hand is holding the mag\"): BOOG's magazine is further ahead of its trigger than the L96X's, and the pack's hold put the palm's middle 10.4 cm back from its front (fprig.ts palmAhead). Moved 14 cm ahead the pack's grip, made for a thicker fore-end, lay flat against BOOG's side with its fingers 5 to 10 cm off it, so tools/pack-grip.ts searched the hand's move and turn for a grip there: the palm on the gun 2.7 cm ahead of the magazine, the index, middle and little fingers and the thumb on it (the ring finger 4 cm off it: a search of its joints over their whole range found no turn onto it short of a contorted finger), none of it in the gun, the wrist 18 degrees. The left arm refitted 2026-10-02 to the owner's pick of twenty, #16: \"the left arm is not sticking out anywhere near as much ... shoulder to elbow going down, elbow to wrist going up\"; the hand on the fore-end as before, its joints solved again (pack-solve below). Its punch leaves the fore-end straight down (`meleeClearWay`, `meleeClear`, the gun's own frame): bowed the shared way, out to the left, the fingers wrapped under it went 12 to 14 mm into it. Its pickup has its own fit (`pick`, 1 cm lower): with the hold's own, the thumb's tip went 6 mm into the fore-end as the hand left it.",
+      "_solve": "tools/pack-solve.ts, 2026-10-03: l after: deepest 0 mm, palm 0.0 mm, fingers thumb 1.1 index 0 middle 0 ring 1.1 pinky 1.4.",
       "shoulders": {
         "l": [
-          0.08,
-          -0.04,
-          0.08
+          0.1113,
+          -0.2429,
+          0.1969
         ],
         "r": [
           -0.04,
@@ -533,16 +657,16 @@
       ],
       "holdElbow": {
         "l": [
-          -0.1,
-          -0.45,
-          -0.25
+          0.5654,
+          -0.0463,
+          -0.5745
         ]
       },
       "look": {
         "shift": [
           -0.0193,
           0.1593,
-          0.1
+          0.14
         ],
         "turn": [
           -0.0176,
@@ -561,7 +685,33 @@
           0.3,
           -0.3
         ]
-      }
+      },
+      "meleeClearWay": [
+        0,
+        -1,
+        0
+      ],
+      "meleeClear": 0.2,
+      "cupMove": {
+        "l": [
+          0,
+          -0.03,
+          0.02
+        ]
+      },
+      "beforeArm": {
+        "elbow": [
+          -0.1,
+          -0.45,
+          -0.25
+        ],
+        "shoulder": [
+          0.08,
+          -0.04,
+          0.08
+        ]
+      },
+      "_beforeArm": "The left elbow hint and shoulder the arm had before the 2026-10-02 refit (packGuns holdElbow l and shoulders l then), where the moves off the gun (the inspect's open hand, the punch, the point, the pickup) were fitted: the arm goes to them as the hand leaves the gun and while the gun is framed as before the refit (beforeFrame offArm). Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 at a reload's start, against 21, 42 and 18 before; the grip itself stays the new one, as mixed between the two the USSO's fingers went 18 mm into its front in a first draw."
     }
   },
   "guns": {
@@ -580,7 +730,7 @@
   "hipPitch": 0,
   "_hipOwn": "How far the rest hold goes, gun and arms as one, from where the pack holds the gun to where the gun's own hold has it (gunfeel.json hip on the model's hip, turned only its 3 degrees in toward the crosshair): 1 all the way, 0 the pack's hold. The view moves the whole of it by one matrix, the one a swap carries the arms by, so the hands stay on the gun as fitted and every move the pack makes on top (a reload, an inspect, a pickup) is carried with it; none of it is left in the sights. The owner, 2026-09-30: \"when we melee currently, the gun goes to a different spot, which actually looks smaller and placed at a more natural angle and looks more like other shooters ... we want it defaulted there at that spot, have all our animations and frame inspects based off of that\" (a melee lets the bought arms go, and the gun alone went back to its own hold). An eyed move before it, 5 cm right and turned 4.6 degrees back in, was not what the owner had asked for.",
   "hipOwn": 1,
-  "_hipLook": "The look on top of the gun's own place (viewmodel.ts, after hipOwn, the arms carried with it as by it): `shift` view metres (x right, y up, z back) and `turn` radians (up, left, roll) about the gun's origin, none of it in the sights; a pack gun's own (packGuns look) over this. The owner, 2026-09-30: \"remember we want less of the arms showing, all of the other games the support arm barely shows and the gun is angled out of the bottom right corner\", then \"compare the angle of our gun on a Hyperscape sniper and a empulse sniper and smgs like our two. I want it to look exactly like that, minimal arm showing and from the corner and angled exactly like they have theirs. Ours looks cheap in comparison\", and \"Do the grid stuff with apex as well and see what the best combination of them are\". Their frames gridded (Hyper Scape's Protocol twice, EMPULSE's SMG and rifle, Apex's CAR and Sentinel), the combined framing at 1920 by 1080: an SMG's muzzle 55% across and 57% down, its bottom leaving the bottom edge about 59% across (only the support hand there), its top edge leaving the right side about 84% down, the gun covering about 15% of the screen; a sniper's muzzle 54% and 56%, 59%, 78%, and 19%. Ours had the angle but covered 10.5% (the USSO) and 6.9% (BOOG): too small and too far out. Fitted to those by the gun's own vertices through the gun camera (the tip, the edges and the screen share it covers) and chosen by the photographs beside theirs: the USSO 11.5 cm right, 6 down and 19 nearer, turned 7 degrees up, 16 left and rolled 12, covering 13.5%; BOOG 12 right, 2 down, 20 nearer, 11 up, 17 left, rolled 17. Then, 2026-10-01, each gun fitted to one game's own gun at rest in its weapon showcase (a still camera): the owner, \"the exact match on the harpy and r99 from their respective games ... Same with the boog for the apex and Hyperscape snipers\". The reference's edges found by machine (Canny and Hough lines): the R-99's top rail, the Sentinel's and the Protocol V's body edges all meet at the crosshair, so each gun points straight at it, and its cross edges (the R-99's ammo panel, the Protocol V's scope) lie within 3 degrees of level. tools/gun-fit.ts turns our gun until its barrel's line meets the screen there and its across axis is as level as theirs, then moves it until the muzzle sits on theirs (the USSO's on the R-99's, 54% across and 61% down; BOOG's on the Sentinel's and the Protocol V's, 55% and 57%), at the world's own field of view, the distance chosen by laying our gun's outline over their frame. A first fit read the R-99's barrel line from the wrong edges, 25% across the screen: the guns lay flat across the picture, their sides to the eye, drawn at a 55 degree gun camera to make it fit (the owner, of it live: \"my gun is still pointing super weird and clipping through\"); that camera is gone.",
+  "_hipLook": "The look on top of the gun's own place (viewmodel.ts, after hipOwn, the arms carried with it as by it): `shift` view metres (x right, y up, z back) and `turn` radians (up, left, roll) about the gun's origin, none of it in the sights; a pack gun's own (packGuns look) over this. The owner, 2026-09-30: \"remember we want less of the arms showing, all of the other games the support arm barely shows and the gun is angled out of the bottom right corner\", then \"compare the angle of our gun on a Hyperscape sniper and a empulse sniper and smgs like our two. I want it to look exactly like that, minimal arm showing and from the corner and angled exactly like they have theirs. Ours looks cheap in comparison\", and \"Do the grid stuff with apex as well and see what the best combination of them are\". Their frames gridded (Hyper Scape's Protocol twice, EMPULSE's SMG and rifle, Apex's CAR and Sentinel), the combined framing at 1920 by 1080: an SMG's muzzle 55% across and 57% down, its bottom leaving the bottom edge about 59% across (only the support hand there), its top edge leaving the right side about 84% down, the gun covering about 15% of the screen; a sniper's muzzle 54% and 56%, 59%, 78%, and 19%. Ours had the angle but covered 10.5% (the USSO) and 6.9% (BOOG): too small and too far out. Fitted to those by the gun's own vertices through the gun camera (the tip, the edges and the screen share it covers) and chosen by the photographs beside theirs: the USSO 11.5 cm right, 6 down and 19 nearer, turned 7 degrees up, 16 left and rolled 12, covering 13.5%; BOOG 12 right, 2 down, 20 nearer, 11 up, 17 left, rolled 17. Then, 2026-10-01, each gun fitted to one game's own gun at rest in its weapon showcase (a still camera): the owner, \"the exact match on the harpy and r99 from their respective games ... Same with the boog for the apex and Hyperscape snipers\". The reference's edges found by machine (Canny and Hough lines): the R-99's top rail, the Sentinel's and the Protocol V's body edges all meet at the crosshair, so each gun points straight at it, and its cross edges (the R-99's ammo panel, the Protocol V's scope) lie within 3 degrees of level. tools/gun-fit.ts turns our gun until its barrel's line meets the screen there and its across axis is as level as theirs, then moves it until the muzzle sits on theirs (the USSO's on the R-99's, 54% across and 61% down; BOOG's on the Sentinel's and the Protocol V's, 55% and 57%), at the world's own field of view, the distance chosen by laying our gun's outline over their frame. A first fit read the R-99's barrel line from the wrong edges, 25% across the screen: the guns lay flat across the picture, their sides to the eye, drawn at a 55 degree gun camera to make it fit (the owner, of it live: \"my gun is still pointing super weird and clipping through\"); that camera is gone. Then, 2026-10-02, twenty placements round that fit photographed beside the references and the owner chose by eye: \"we need to pull back towards the camera a little ... point at the crosshair ... rotate it left so the front goes right a little bit\", the USSO's look p01 and BOOG's #13 (each pack gun's own `look`), both still pointing at the crosshair.",
   "hipLook": {
     "shift": [
       0.115,
@@ -593,7 +743,7 @@
       -0.21
     ]
   },
-  "_melee": "A melee with the bought arms holding the gun (fprig.ts punch, viewmodel.ts punchFrame): the right hand keeps the gun, and the left leaves it over `on` of the swing, comes down and out round the gun (`clear` view metres at the most, as the inspect's palm does: straight off, the USSO's fingers went 9 mm into it), goes back to `chest` beside the body with its elbow at `chestElbow`, punches out to `out` with the elbow at `outElbow` over `punch` (view metres, x right, y up, z back), and comes back onto the gun over `off`; the knuckles run on along the forearm, from the elbow through the hand (given a way of their own, the wrist bent 133 degrees), the palm turning from `palmChest` (a vertical fist, drawn back) to `palmOut` (flat, the punch landed), the fingers closed to a fist over `fist` of the hand's way off the gun (closed on it, they went into it). Drawn back to the chest in front of the eye, the upper arm and its sleeve filled a third of the picture: the elbow is held low and out beside the body. The hit lands a third of the way through the swing (main.ts meleeHitAt), as the fist goes out. The owner, 2026-09-29: \"THE MELEE IS BROKE, THE GUN SHOULD JUST DISAPPEAR WHILE WE PUNCH FOR NOW. REVISIT THE MELEE IF NEEDED, IT SHOULD JUST BE LIKE THIS INSTEAD: HOLD THE WEAPON WITH THE RIGHT ARM, SWING AT THEM WITH THE LEFT ARM, LEFT ARM SHOULD GO FROM SUPPORTING THE GUN, BACK A BIT TOWARDS THE PLAYERS CHEST, THEN SWING OUT. ENSURE THE MELEE ACTUALLY WORKS AND DOES DAMAGE, WE SHOULDN'T BE ABLE TO SHOOT WITH MELEEING\"; before it the view let the bought arms go and put up its own fists, and the gun jumped to its own place.",
+  "_melee": "A melee with the bought arms holding the gun (fprig.ts punch, viewmodel.ts punchFrame): the right hand keeps the gun, and the left leaves it over `on` of the swing, comes down and out round the gun (`clear` view metres at the most, as the inspect's palm does: straight off, the USSO's fingers went 9 mm into it), goes back to `chest` beside the body with its elbow at `chestElbow`, punches out to `out` with the elbow at `outElbow` over `punch` (view metres, x right, y up, z back), and comes back onto the gun over `off`; the knuckles run on along the forearm, from the elbow through the hand (given a way of their own, the wrist bent 133 degrees), the palm turning from `palmChest` (a vertical fist, drawn back) to `palmOut` (flat, the punch landed), the fingers closed to a fist over `fist` of the hand's way off the gun (closed on it, they went into it). Drawn back to the chest in front of the eye, the upper arm and its sleeve filled a third of the picture: the elbow is held low and out beside the body. The hit lands a third of the way through the swing (main.ts meleeHitAt), as the fist goes out. The owner, 2026-09-29: \"THE MELEE IS BROKE, THE GUN SHOULD JUST DISAPPEAR WHILE WE PUNCH FOR NOW. REVISIT THE MELEE IF NEEDED, IT SHOULD JUST BE LIKE THIS INSTEAD: HOLD THE WEAPON WITH THE RIGHT ARM, SWING AT THEM WITH THE LEFT ARM, LEFT ARM SHOULD GO FROM SUPPORTING THE GUN, BACK A BIT TOWARDS THE PLAYERS CHEST, THEN SWING OUT. ENSURE THE MELEE ACTUALLY WORKS AND DOES DAMAGE, WE SHOULDN'T BE ABLE TO SHOOT WITH MELEEING\"; before it the view let the bought arms go and put up its own fists, and the gun jumped to its own place. The hand turns to the punch's palm over `turn` of its way off the gun (smoothstep), not as it moves: turning as it left, BOOG's fingers, wrapped under its fore-end since 2026-10-02, swung 15 mm into it in the first frames.",
   "melee": {
     "on": [
       0,
@@ -641,7 +791,11 @@
       0.25,
       0.7
     ],
-    "clear": 0.09
+    "clear": 0.09,
+    "turn": [
+      0.15,
+      0.75
+    ]
   },
   "_sprint": "The pack's sprint on the gun (fprig.ts locomotion): its swing, 51 degrees across the body, comes in over `easeIn` s while sprinting and goes over `easeOut` s the moment you fire, aim or reload, and comes back `fireHold` s after the last shot. SpeedKills sprints whenever you move forward, firing included, and with the sprint on by speed alone the owner fired from a gun swung across the body, the tracers nowhere near the crosshair (2026-09-27, the live server). In the sights none of the pack's walk or sprint is kept. `swing` is how much of the pack's sprint (its tactical carry, the gun swung across the chest and rolled on its side) is used: none. SpeedKills sprints whenever you move, and with it on the owner saw the gun \"crossed and inverted\" the whole time he moved (2026-09-27); the run keeps the ready hold, the walk's bob carried on at a run.",
   "sprint": {
@@ -724,7 +878,7 @@
     "at": 0.15,
     "clear": 0.1
   },
-  "_swap": "On a swap or holster the arms drop out of the picture as the gun phases out, and come back up to take the next one as it phases in (the owner: \"the guns fly in and out but the arms stay in a weird position\"): at the phase's bottom the whole rig is `drop` m lower, `back` m nearer and pitched `pitch` radians down, about the eye. With `clips` of the pack's own swap on top (fprig.ts swapMotion, its Rifle_Unequip and Rifle_Equip, measured: the gun swung 29 cm across, 34 cm in to the chest and turned 58 degrees, the hands on it all the way), the one into the other over `cross` of the swap either side of its middle, where the guns change; the owner, 2026-09-28: \"look for more things we can do with it, especially when we swap guns, what the hands and arms can do\". The arms drop only from `dropFrom` of the way out of the picture (the gun all but gone): from the start they left the gun flying on its own while the pack's swap carried it. `style`: \"throw\" (the owner, 2026-09-28: \"have the character throw it up and out ... the weapon phases out and the new one phases in in its place and then animates towards the user's hands ... make a note of how it is now in case we need to revert\") or \"drop\", the pack's own swap as above (tagged swap-drop in git, docs/PLAN_GUNS_IN_HAND.md). Thrown (viewmodel.ts throwGun), over the swap's first half and back again over its second: the hands lift the gun `lift` view metres over `liftAt` of the swap (up, not ahead: pushed 10 cm ahead, the arms, near their reach at rest, fell short; lifted 6 cm, BOOG's right wrist bent 61 degrees), and from `fly[0]` it goes on alone, straight up out of the hands first (along the grip) and on ahead and to the side as the square of its way, `to` view metres (x right, y up, z back) by the swap's middle, `slide` ahead a metre up, turning `turn` radians about its middle from `clear` of its way and lifted `arc` (ahead or turning at once, the grip went into the right hand's fingers and the magazine swung back through them). Each hand (`hands`) backs off `off` view metres in the gun's frame over `leave`, its fingertips relaxing `relax` of the way to straight, and opens its fingers over `open`, once the gun is clear of it (opened round it, the straightening fingers went into the USSO's magazine and front); the arms drop out of the picture over `drop`, and come back up to catch the next, which lands in them the same way run backwards. Each gun phases out and in over its own swap timing (gunfeel.json swap), in the air. tools/throw-release.ts searches the let-go's settings. And \"cup\", the swap in place (the owner, 2026-09-30: \"keep the hands where they are while the weapon phases / disintegrates from the outside going in and gets replaced by the new weapon ... then the new weapon should materialize from the inside out\", and of the hands, \"close and open around the phasing out/in of the weapon, like the streetfighter haduken ... slightly come off of where they were originally ... slowly turn both hands inwards to that like ball type motion with the fingers bent in ... doesn't need to be too close to the center\"; fprig.ts cup, viewmodel.ts cupFrame, phase.ts radial): the gun stays where it is, no drop, no dip, no spin, and phases out from its edges in and the next in from its middle out; each hand comes `lift` view metres off its hold square to the gun's length and `gather` toward its middle along it (straight away from the middle, the left hand at the handguard went along the barrel, 19 mm into the USSO's silencer; the right hand's fingers are round the grip, so it comes further off and not along: drawn along and 1.5 cm off, they went 15 mm into the USSO's magazine), over `off` of the swap, off the gun over `moveAt` of its way and turned and bent over `shape`, each hand in its own order: the right's fingers open before it leaves the grip (leaving closed, they went 15 mm into the USSO's grip and magazine), the left leaves the handguard before its fingers bend (opened there, they went 9 mm into the silencer), turned on its forearm `turn` of the way to face the middle (the least turn bent the USSO's right wrist to 63 degrees) with its fingers bent `curl` of the way from open to a fist (0.3: at 0.45 the USSO's right middle fingertip passed 5.8 mm through its grip as the hand came back to it, seen when the guns were placed afresh, 2026-10-01; bent 62 to 70 degrees now); the model changes at the swap's middle, and over `carry` the hands go from where the last gun left them to the next one's cup, then onto its holds over `back`.",
+  "_swap": "On a swap or holster the arms drop out of the picture as the gun phases out, and come back up to take the next one as it phases in (the owner: \"the guns fly in and out but the arms stay in a weird position\"): at the phase's bottom the whole rig is `drop` m lower, `back` m nearer and pitched `pitch` radians down, about the eye. With `clips` of the pack's own swap on top (fprig.ts swapMotion, its Rifle_Unequip and Rifle_Equip, measured: the gun swung 29 cm across, 34 cm in to the chest and turned 58 degrees, the hands on it all the way), the one into the other over `cross` of the swap either side of its middle, where the guns change; the owner, 2026-09-28: \"look for more things we can do with it, especially when we swap guns, what the hands and arms can do\". The arms drop only from `dropFrom` of the way out of the picture (the gun all but gone): from the start they left the gun flying on its own while the pack's swap carried it. `style`: \"throw\" (the owner, 2026-09-28: \"have the character throw it up and out ... the weapon phases out and the new one phases in in its place and then animates towards the user's hands ... make a note of how it is now in case we need to revert\") or \"drop\", the pack's own swap as above (tagged swap-drop in git, docs/PLAN_GUNS_IN_HAND.md). Thrown (viewmodel.ts throwGun), over the swap's first half and back again over its second: the hands lift the gun `lift` view metres over `liftAt` of the swap (up, not ahead: pushed 10 cm ahead, the arms, near their reach at rest, fell short; lifted 6 cm, BOOG's right wrist bent 61 degrees), and from `fly[0]` it goes on alone, straight up out of the hands first (along the grip) and on ahead and to the side as the square of its way, `to` view metres (x right, y up, z back) by the swap's middle, `slide` ahead a metre up, turning `turn` radians about its middle from `clear` of its way and lifted `arc` (ahead or turning at once, the grip went into the right hand's fingers and the magazine swung back through them). Each hand (`hands`) backs off `off` view metres in the gun's frame over `leave`, its fingertips relaxing `relax` of the way to straight, and opens its fingers over `open`, once the gun is clear of it (opened round it, the straightening fingers went into the USSO's magazine and front); the arms drop out of the picture over `drop`, and come back up to catch the next, which lands in them the same way run backwards. Each gun phases out and in over its own swap timing (gunfeel.json swap), in the air. tools/throw-release.ts searches the let-go's settings. And \"cup\", the swap in place (the owner, 2026-09-30: \"keep the hands where they are while the weapon phases / disintegrates from the outside going in and gets replaced by the new weapon ... then the new weapon should materialize from the inside out\", and of the hands, \"close and open around the phasing out/in of the weapon, like the streetfighter haduken ... slightly come off of where they were originally ... slowly turn both hands inwards to that like ball type motion with the fingers bent in ... doesn't need to be too close to the center\"; fprig.ts cup, viewmodel.ts cupFrame, phase.ts radial): the gun stays where it is, no drop, no dip, no spin, and phases out from its edges in and the next in from its middle out; each hand comes `lift` view metres off its hold square to the gun's length and `gather` toward its middle along it (straight away from the middle, the left hand at the handguard went along the barrel, 19 mm into the USSO's silencer; the right hand's fingers are round the grip, so it comes further off and not along: drawn along and 1.5 cm off, they went 15 mm into the USSO's magazine), over `off` of the swap, off the gun over `moveAt` of its way and turned and bent over `shape`, each hand in its own order: the right's fingers open before it leaves the grip (leaving closed, they went 15 mm into the USSO's grip and magazine), the left leaves the handguard before its fingers bend (opened there, they went 9 mm into the silencer), turned on its forearm `turn` of the way to face the middle (the least turn bent the USSO's right wrist to 63 degrees) with its fingers bent `curl` of the way from open to a fist (0.3: at 0.45 the USSO's right middle fingertip passed 5.8 mm through its grip as the hand came back to it, seen when the guns were placed afresh, 2026-10-01; bent 62 to 70 degrees now); the model changes at the swap's middle, and over `carry` the hands go from where the last gun left them to the next one's cup, then onto its holds over `back`. A pack gun's own `cupMove` l replaces the shared left move: the USSO's left hand, low under its front since 2026-10-03, moved the shared way curled its ring fingertip 13 mm into the gun; 2 cm out to the left it is clear all through and 3.2 cm off the gun (a move 11 cm off had cleared an earlier grip too but broke \"slightly come off of where they were\"). BOOG's hand under its fore-end goes 3 cm down and 2 back (its thumb was 4.3 mm in).",
   "swap": {
     "drop": 0.35,
     "back": 0.12,
@@ -1084,7 +1238,7 @@
     ],
     "flourish": 0.36
   },
-  "_beforeFrame": "The moves made with the guns at the look they had before they were fitted to the other games' resting frames (2026-10-01) are framed with that look while they play: each pack gun's `inspectLook`, the gun and arms eased to it and back. An inspect over `inspect` in and out (shares of it: in as the gun rolls to show its left side, out as it settles; the owner, 2026-09-29: \"The hack inspect is perfect though\"); a first draw's flick over `flourish`; a melee as the left hand leaves and comes back (melee on and off); a reload by its own turn (reload twist and the rack pose, viewmodel.ts reloadFrameW). At the new look the reload's turn swung the USSO into the eye, filling the picture, the first draw put the gun up against it, and the punch drew the sleeve across the picture. A melee's places and the inspect's open hand, set under that look too, are carried by the look's change (viewmodel.ts beforeLook).",
+  "_beforeFrame": "The moves made with the guns at the look they had before they were fitted to the other games' resting frames (2026-10-01) are framed with that look while they play: each pack gun's `inspectLook`, the gun and arms eased to it and back. An inspect over `inspect` in and out (shares of it: in as the gun rolls to show its left side, out as it settles; the owner, 2026-09-29: \"The hack inspect is perfect though\"); a first draw's flick over `flourish`; a melee as the left hand leaves and comes back (melee on and off); a reload by its own turn (reload twist and the rack pose, viewmodel.ts reloadFrameW). At the new look the reload's turn swung the USSO into the eye, filling the picture, the first draw put the gun up against it, and the punch drew the sleeve across the picture. A melee's places and the inspect's open hand, set under that look too, are carried by the look's change (viewmodel.ts beforeLook). `offArm`: the left arm wholly at the elbow and shoulder its moves were fitted with (packGuns beforeArm) by a third of the hand's way off the gun: at a share of 1, BOOG's wrist still bent 68 degrees as an inspect began and 65 as it ended (against 32 and 26 at 3); at 6, the punch's return bent it 29.",
   "beforeFrame": {
     "inspect": {
       "in": [
@@ -1105,6 +1259,7 @@
         0.8,
         1
       ]
-    }
+    },
+    "offArm": 3
   }
 }

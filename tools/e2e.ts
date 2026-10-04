@@ -3358,7 +3358,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; thumb: number; mr: number; rp: number }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[]; inspectLen: { time: number; at44: boolean; at56: boolean; e44: number; e56: number }; meleeWorks: { swung: boolean; hurt: number; during: number; after: number; meleeing: boolean } } = { guns: {}, jump: [], inspectLen: { time: 0, at44: false, at56: true, e44: 0, e56: 0 }, meleeWorks: { swung: false, hurt: 0, during: 0, after: 0, meleeing: false } };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3524,7 +3524,7 @@ async function packFrames(page: Page): Promise<void> {
     o.hook = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const h = r.packArms().hookMiss; H.clear(); await H.gameWait(0.3); return Number.isFinite(h) ? h : ${id === "r97" ? 99 : 0};`);
     // the hands at rest: how much of the left palm and thumb lie on the gun (mm off it of the palm's nearest tenth of skin
     // and the thumb's nearest quarter), and the right hand's last three fingertips' spacing, mm
-    o.handFit = await pf<Frames["handFit"]>(`H.clear(); await H.gameWait(0.3); const T = r.THREE; const a = window.__packAudit(0.004, false, { side: "l", gapList: true }); const pct = (xs, q) => { const s = (xs || []).slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 99; }; const g = r.packRig().group; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const s = g.getWorldScale(new T.Vector3()).x; const d = (p, q) => (at(p).distanceTo(at(q)) / s) * 1000; return { palm: pct(a.gapList.hand_l, 0.1), thumb: Math.max(pct(a.gapList.thumb_02_l, 0.25), pct(a.gapList.thumb_03_l, 0.25)), mr: d("middle_03_r", "ring_03_r"), rp: d("ring_03_r", "pinky_03_r") };`);
+    o.handFit = await pf<Frames["handFit"]>(`H.clear(); await H.gameWait(0.3); const T = r.THREE; const a = window.__packAudit(0.004, false, { side: "l", gapList: true }); const pct = (xs, q) => { const s = (xs || []).slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 99; }; const g = r.packRig().group; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const s = g.getWorldScale(new T.Vector3()).x; const d = (p, q) => (at(p).distanceTo(at(q)) / s) * 1000; return { palm: pct(a.gapList.hand_l, 0.1), palmTouch: (a.palmGap.l ?? 1) * 1000, thumb: Math.max(pct(a.gapList.thumb_02_l, 0.25), pct(a.gapList.thumb_03_l, 0.25)), mr: d("middle_03_r", "ring_03_r"), rp: d("ring_03_r", "pinky_03_r") };`);
     // and the forefinger closed round it, degrees
     o.rackCurl = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const c = r.packArms().rackCurl; H.clear(); await H.gameWait(0.3); return c;`);
     // the pointing finger against the magazine, shares of the slide: a quarter into the phase out and halfway into the in
@@ -3745,19 +3745,23 @@ async function packFrames(page: Page): Promise<void> {
     `${plainFov.toFixed(1)}: ${show((x) => +x.fov.toFixed(1))}`,
   );
   // (the owner, 2026-09-28: "for the boog, the support hand is holding the mag": its palm was 10 cm back from the
-  // magazine's front, the pack's L96X's fore-end being where BOOG's magazine is)
+  // magazine's front, the pack's L96X's fore-end being where BOOG's magazine is. The USSO's left hand is on its magazine
+  // well, as Hyper Scape's Harpy is held, coming up from the bottom of the picture: the owner, 2026-10-03, "your
+  // recommendation, like the harpy")
   check(
-    "pack frames: at rest the support hand holds the USSO and BOOG ahead of the magazine, not on it (its palm's middle 1 cm and more ahead of the magazine's front)",
-    g.every((x) => x.palmAhead >= 0.01),
+    "pack frames: at rest the support hand holds BOOG ahead of the magazine, not on it (its palm's middle 1 cm and more ahead of the magazine's front)",
+    res.guns.sentinel?.palmAhead >= 0.01,
     show((x) => +(x.palmAhead * 100).toFixed(1)),
   );
   // (the owner, 2026-09-29: "THE THUMB AND THE PALM OF THE LEFT ARM ARE NOT EXACTLY FLUSH UP WITH THE USSO ON THE GUNS
   // LEFT SIDE, SEE THE GAP?": the palm touched at one point of its heel and its nearest tenth of skin stood 18.6 mm off,
-  // the thumb's quarter 21 to 28 mm)
+  // the thumb's quarter 21 to 28 mm. Since 2026-10-03 the hand holds the USSO low ahead of its trigger guard as Hyper
+  // Scape's Harpy is held, its fingers round the gun's underside and the back of the hand to the eye, the palm turned
+  // away: the thumb lies along the side and the palm touches, its nearest tenth 18 mm off where no gap is seen)
   check(
-    "pack frames: at rest the USSO's left palm and thumb lie along its left side (the palm's nearest tenth of skin within 13 mm, the thumb's quarter within 9)",
-    res.guns.r97?.handFit.palm <= 13 && res.guns.r97?.handFit.thumb <= 9,
-    show((x) => ({ palm: +x.handFit.palm.toFixed(1), thumb: +x.handFit.thumb.toFixed(1) })),
+    "pack frames: at rest the USSO's left thumb lies along its left side (the thumb's quarter within 9 mm) and its palm is on the gun (touching, 1.5 mm)",
+    res.guns.r97?.handFit.palmTouch <= 1.5 && res.guns.r97?.handFit.thumb <= 9,
+    show((x) => ({ palm: +x.handFit.palmTouch.toFixed(1), thumb: +x.handFit.thumb.toFixed(1) })),
   );
   // (and of the right: "why is the middle finger so separated from the bottom two? the 3 should be next to each other":
   // its tip 36 mm from the ring finger's, the ring's 25 from the little finger's)
@@ -3800,7 +3804,10 @@ async function packFrames(page: Page): Promise<void> {
   // BOOG on its Protocol V. Their edges found by machine meet at the crosshair, so each points straight at it, its cross edges
   // within 3 degrees of level; a first fit read the R-99's barrel line off the wrong edges, 25% across, and the guns lay
   // flat across the picture, their sides to the eye: the owner, "my gun is still pointing super weird and clipping through")
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.541, 0.607], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 } };
+  // (then, 2026-10-02, the owner's pick of twenty placements round that fit, "pull back towards the camera a little ...
+  // point at the crosshair ... rotate it left so the front goes right a little bit": the USSO's muzzle 2.4% further right
+  // and 1.8% lower, both guns still pointing at the crosshair)
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),

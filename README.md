@@ -190,8 +190,11 @@ it.
   The USSO and BOOG are held by real first-person arms (a bought pack's, where
   its files are): an SMG hold and a sniper hold, fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
-  a pickup (every frame of each photographed and measured); the USSO's left palm
-  and thumb lie flat along its side, and on both guns the right hand's lower three
+  a pickup (every frame of each photographed and measured); the USSO's left hand
+  holds it low, just ahead of its trigger guard, as Hyper Scape's Harpy is held:
+  it comes up from the bottom of the picture with a fifth of the forearm showing,
+  the thumb along the gun's side; BOOG's left forearm comes up from below to its
+  fore-end, the hand ahead of the magazine; and on both guns the right hand's lower three
   fingers sit together round the grip with the forefinger's tip on the trigger; and
   the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,
@@ -206,9 +209,10 @@ it.
   soldier's reload runs to the same beats, from the same settings). At rest the
   USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V:
   pointing at the crosshair from the bottom right, level, the muzzle where theirs
-  is (each fitted to the game's own resting frame, `tools/gun-fit.ts`); a reload,
-  melee, first draw or inspect eases back to the placement it was made in while it
-  plays. An inspect in these
+  is (each fitted to the game's own resting frame, `tools/gun-fit.ts`), then
+  placed by the owner's pick of twenty, a little nearer the eye with the front
+  turned right; a reload, melee, first draw or inspect eases back to the placement
+  it was made in while it plays, the left elbow and shoulder with it. An inspect in these
   arms lasts 5.2 s, a beat held after each turn of the gun: the left hand comes
   up from below, palm up, with the hacks you carry floating over it, each card
   glowing and showing its level as the HUD's pips do, and near the end tosses

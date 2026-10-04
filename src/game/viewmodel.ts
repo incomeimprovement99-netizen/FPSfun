@@ -1896,7 +1896,7 @@ export class ViewModel {
     // the bought arms: the clips to this frame's state, the rig under the holder, our magazine and handle moved
     if (packOn) {
       this.pack.update(
-        { dt, reload: f.reloading ? this.packRP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F && SWAP_THROW.style !== "throw" && SWAP_THROW.style !== "cup" ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.levelAt, swing: this.swapArms, rollR: this.rollR, release: this.throwRelease, open: this.throwOpen, leave: this.throwLeave, cup: this.cupFrame(f, m), punch: this.punchFrame(mp >= 0 && mp < 1 ? mp : -1) },
+        { dt, reload: f.reloading ? this.packRP : null, empty: this.reloadEmpty, sinceShot: this.t - this.lastShotAt, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval), ads, adsDamp: RELOAD_ADS, away: F && SWAP_THROW.style !== "throw" && SWAP_THROW.style !== "cup" ? 1 - this.swapPhase : 0, pickup: this.pickupShare(), palm: this.palmFrame(f), level: this.levelBy, levelAt: this.levelAt, swing: this.swapArms, rollR: this.rollR, release: this.throwRelease, open: this.throwOpen, leave: this.throwLeave, cup: this.cupFrame(f, m), punch: this.punchFrame(mp >= 0 && mp < 1 ? mp : -1), before: this.beforeW },
         this.holder,
         m.mag,
         m.bolt,

@@ -51,7 +51,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; beforeArm?: { elbow?: number[]; shoulder?: number[] } };
 const MEASURED = (cfg as unknown as { measured: Record<string, Measured> }).measured;
 const PACK = cfg.packGuns as unknown as Record<string, PackGun>;
 const GUNS = cfg.guns as Record<string, string>;
@@ -125,7 +125,7 @@ export const SWAP_CUP = (cfg as unknown as { swap: { cup: { off: number[]; back:
  * `chestElbow` to `outElbow`, its palm turning from `palmChest` to `palmOut`, a fist over `fist` of its way, round the gun
  * by `clear`: fparms.json _melee
  */
-export const PACK_MELEE = (cfg as unknown as { melee: { on: number[]; off: number[]; punch: number[]; chest: number[]; chestElbow: number[]; out: number[]; outElbow: number[]; palmChest: number[]; palmOut: number[]; fist: number[]; clear: number } }).melee;
+export const PACK_MELEE = (cfg as unknown as { melee: { on: number[]; off: number[]; punch: number[]; chest: number[]; chestElbow: number[]; out: number[]; outElbow: number[]; palmChest: number[]; palmOut: number[]; fist: number[]; clear: number; turn: number[] } }).melee;
 /** the pack's pickup: its clip, how long it takes, and when in it the hand reaches the ground (fparms.json pickup) */
 export const PICKUP = (cfg as unknown as { pickup: { clip: string; seconds: number; ease: number; gunKeep: number } }).pickup;
 const ss = THREE.MathUtils.smoothstep;
@@ -163,7 +163,7 @@ const HIP_OWN = (cfg as unknown as { hipOwn: number }).hipOwn;
  * with it (fparms.json hipLook) */
 const HIP_LOOK = (cfg as unknown as { hipLook: { shift: number[]; turn: number[] } }).hipLook;
 /** the moves made under the look before the refit that are framed with it (fparms.json beforeFrame): an inspect's and a first draw's shares */
-export const BEFORE_FRAME = (cfg as unknown as { beforeFrame: { inspect: { in: number[]; out: number[] }; flourish: { in: number[]; out: number[] } } }).beforeFrame;
+export const BEFORE_FRAME = (cfg as unknown as { beforeFrame: { inspect: { in: number[]; out: number[] }; flourish: { in: number[]; out: number[] }; offArm: number } }).beforeFrame;
 
 const url = (p: string): string => `${p}?v=${cfg.version}`;
 const loader = new GLTFLoader();
@@ -277,6 +277,9 @@ export interface PackArmsFrame {
    * Null outside one
    */
   punch: { w: number; at: THREE.Vector3; elbow: THREE.Vector3; palm: THREE.Vector3 } | null;
+  /** 0..1 how far the gun is framed as it was before the refit while a move made there plays (viewmodel beforeW): the
+   * left elbow and shoulder go with it to those they had there (packGuns beforeArm) */
+  before?: number;
 }
 
 /** a hand off any gun: its wrist at `at` (world), its knuckles along `along` and its palm facing `palm` (both in the
@@ -440,6 +443,10 @@ export class PackArms {
   debugHoldElbow: { l?: number[]; r?: number[] } | null = null;
   /** shoulders tried in place of the pack gun's own (tools/pack-fit.ts wrists) */
   debugShoulders: Shoulders | null = null;
+  /** how much the left hand held the gun last frame, 0..1: the left shoulder's hold fit fades with it */
+  private holdLW = 1;
+  /** how far the gun was framed as before the refit last frame, 0..1 (PackArmsFrame before) */
+  private beforeArmW = 0;
   /** each finger joint as a fist has it (from the pack's grip, bent further along the same axis), once its clips are in */
   private readonly fistQ = new Map<THREE.Object3D, THREE.Quaternion>();
   /** the handle's knob this frame, where the grab's fingers close on it (the checks) */
@@ -949,6 +956,15 @@ export class PackArms {
     // (in a pickup, a hold's own `pick` fit for the left hand, blended back into the hold as the pickup lets go: the USSO's
     // left hand, moved and turned to lie flush on its side, was out of the arm's reach where the pickup's clip carries the
     // gun, and came back 10 mm into it; its fit from before, made where the clip carries it, is clean there)
+    // (the left elbow and shoulder go to those the moves off the gun were made with, packGuns beforeArm, while the gun is
+    // framed as it was before the refit and as the hand leaves the gun, wholly a `offArm` share of the way off: kept where
+    // the new grip has them, BOOG's left wrist bent 97 degrees early in a punch and 84 at an inspect's end, against 21
+    // and 42 before the refit. The grip itself stays the new one: mixed between the two, the USSO's fingers went 18 mm
+    // into its front in a first draw)
+    const BA = PACK[this.active!]?.beforeArm;
+    const offNow = 1 - (1 - pointW) * (1 - grabW) * (1 - (f.palm?.w ?? 0)) * (1 - (f.punch?.w ?? 0));
+    const bw = BA && !this.debugHold ? Math.min(1, Math.max(0, f.before ?? 0, BEFORE_FRAME.offArm * offNow)) : 0;
+    this.beforeArmW = bw;
     const baseHold = this.debugHold ?? PACK[this.active!]?.hold;
     const hold = this.lead === "pickup" && baseHold?.l?.pick ? { ...baseHold, l: mixFit(baseHold.l, baseHold.l.pick, leadW) } : baseHold;
     const palmW = f.palm?.w ?? 0;
@@ -974,6 +990,7 @@ export class PackArms {
     const leftClip = this.lead === "fire" ? 0 : leadW;
     const punchW = f.punch?.w ?? 0;
     const holdW = { r: 1 - leadW + pickHold.r, l: (1 - leftClip + pickHold.l) * (1 - pointW) * (1 - grabW) * (1 - palmW) * (1 - punchW) };
+    this.holdLW = Math.min(1, Math.max(0, holdW.l));
     for (const side of ["l", "r"] as const) {
       const fit = hold?.[side];
       if (!fit || holdW[side] <= 0.001) continue;
@@ -1385,7 +1402,9 @@ export class PackArms {
         // (each hand its own way off the gun, view metres in the gun's frame: straight away from the middle, the left hand at
         // the handguard went along the barrel, 19 mm into the USSO's silencer, and the right, its fingers round the grip,
         // went 15 mm into the magazine drawn along the gun and 16 mm pulled down and out square to it)
-        const move = new THREE.Vector3().fromArray(SWAP_CUP.move[side]);
+        // (a pack gun's own cup move for a hand replaces the shared one: the USSO's left hand, under its front, curled its
+        // middle fingertip 17 mm into the gun moved the shared way)
+        const move = new THREE.Vector3().fromArray(PACK[this.active!]?.cupMove?.[side] ?? SWAP_CUP.move[side]);
         const cupAt = move.lengthSq() > 0 ? pos.clone().add(move.clone().applyMatrix3(toWorldDir).normalize().multiplyScalar(move.length() * gsW)) : pos.clone();
         // (turned on the forearm alone, as a wrist turns a palm over: the least turn from the palm to the middle bent the
         // USSO's right wrist to 63 degrees)
@@ -1420,10 +1439,14 @@ export class PackArms {
         // bent 133 degrees drawn back)
         const viewInv = this.group.getWorldQuaternion(new THREE.Quaternion()).invert();
         const along = f.punch.at.clone().sub(f.punch.elbow).applyQuaternion(viewInv).normalize();
-        quat.slerp(this.handTurn("l", along, f.punch.palm), punchW);
+        // (the hand turns over `turn` of its way, after it has left the gun and before it is back on it: turning as it
+        // moved, BOOG's fingers, wrapped under its fore-end, swung 15 mm into it in the first frames)
+        quat.slerp(this.handTurn("l", along, f.punch.palm), THREE.MathUtils.smoothstep(punchW, PACK_MELEE.turn[0], PACK_MELEE.turn[1]));
         // (down and out round the gun on the way off it and back, the most near it: straight, the USSO's fingers went 9
         // mm into it)
-        pos.add(new THREE.Vector3(-1, -1, 0).applyMatrix3(toWorldDir).normalize().multiplyScalar(6.75 * punchW * (1 - punchW) ** 2 * PACK_MELEE.clear * gsW));
+        // (a pack gun's own way off the gun for the punch, in the gun's frame: BOOG's hand under its fore-end bowed out to
+        // the left through it, 14 mm, leaving and coming back)
+        pos.add(new THREE.Vector3().fromArray(PACK[this.active!]?.meleeClearWay ?? [-1, -1, 0]).applyMatrix3(toWorldDir).normalize().multiplyScalar(6.75 * punchW * (1 - punchW) ** 2 * (PACK[this.active!]?.meleeClear ?? PACK_MELEE.clear) * gsW));
       }
       if (side === "l") this.seen.offHold = pos.distanceTo(heldL) / gsW;
       // off the gun as the fingers open to let a thrown one go (opened in place, they went 12 mm into the USSO's front and
@@ -1443,7 +1466,8 @@ export class PackArms {
       // up from under the gun as Hyper Scape's, Apex's and EMPULSE's do (the owner, 2026-09-30: "the support arm is much
       // less pronounced than ours"; bent the clip's way, the USSO's left forearm crossed the lower left of the picture and
       // its upper arm filled the corner)
-      const HE = (this.debugHoldElbow ?? PACK[this.active!]?.holdElbow)?.[side];
+      const ownHE = (this.debugHoldElbow ?? PACK[this.active!]?.holdElbow)?.[side];
+      const HE = side === "l" && ownHE && BA?.elbow && bw > 0.001 ? ownHE.map((v, i) => v + (BA.elbow![i] - v) * bw) : ownHE;
       const heW = holdW[side] * (1 - f.ads);
       if (HE && heW > 0.001) {
         // (turned with the arms' swing, the rest look's turn with it, so it holds wherever the look puts the gun)
@@ -1522,7 +1546,14 @@ export class PackArms {
       const d = aimed ?? [0, 0, 0];
       return [0, 1, 2].map((i) => b[i] + a[i] * (1 - ads) + d[i] * ads - (i === 2 ? k : 0));
     };
-    const l = add(me.clavicleL, S.l, S.adsL, back);
+    // (the left shoulder's rest fit is the hold's: searched with the hand on the gun so the forearm comes up from under
+    // the picture, and 25 cm from where the point, the open palm and the punch were fitted, it put those out of the arm's
+    // reach, 31 mm short in the USSO's punch. As the hand leaves the gun, or the gun is framed as before the refit, it
+    // goes to the shoulder those were fitted with (packGuns beforeArm), a frame behind: faded to none, BOOG's pickup fell
+    // 51 mm short)
+    const was = PACK[this.active!]?.beforeArm?.shoulder ?? [0, 0, 0];
+    const lw = this.holdLW * (1 - this.beforeArmW);
+    const l = add(me.clavicleL, S.l?.map((v, i) => was[i] + (v - was[i]) * lw), S.adsL, back);
     const r = add(me.clavicleR, S.r, S.adsR, back);
     for (const [side, off] of [["l", l], ["r", r]] as const) {
       if (!off || (off[0] === 0 && off[1] === 0 && off[2] === 0)) continue;
