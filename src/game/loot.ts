@@ -25,7 +25,7 @@ import { slow } from "./slow";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
-import { paidGunMaterial, paidProp, paidPropBatch } from "./paidgun";
+import { paidGunMaterial, paidPropBatch } from "./paidgun";
 import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
@@ -42,11 +42,11 @@ export type Rarity = "common" | "rare" | "epic" | "legendary";
 /** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
 const CORE_DETAIL2 = cfg.coreDetail ** 2;
 
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "keycard" | "hack";
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "echo" | "grenade" | "backpack" | "knockdown" | "keycard" | "hack";
 
 export interface LootItem {
   kind: LootKind;
-  /** weapon id, ammo type, heal item, mod name ("mag:N" for a magazine), helmet kind, a banner's player id */
+  /** weapon id, ammo type, heal item, mod name ("mag:N" for a magazine), helmet kind, an echo's player id */
   id: string;
   n: number;
   rarity: Rarity;
@@ -55,7 +55,7 @@ export interface LootItem {
   attach?: Attachments;
   /** the vault's gun: a legendary drawn red and called mythic (an older build sees a legendary) */
   mythic?: boolean;
-  /** a banner: whose, and their name */
+  /** an echo (where a squad mate died, for their restore): whose, and their name */
   owner?: number;
   ownerName?: string;
   /** from a care package (its number): the package's EVO, once */
@@ -156,10 +156,8 @@ export function lootLabel(it: LootItem): string {
       return `${(KNOCK_SHIELDS[it.id as KnockTier]?.name ?? it.id).toUpperCase()}`;
     case "grenade":
       return `${throwName(it.id)}${it.n > 1 ? ` x${it.n}` : ""}`;
-    case "banner":
-      return `${it.ownerName ?? "A SQUAD MATE"}'S BANNER`;
-    default:
-      return "DEATH BOX";
+    case "echo":
+      return `${it.ownerName ?? "A SQUAD MATE"}'S ECHO`;
   }
 }
 
@@ -284,20 +282,14 @@ export interface DeadBotKit {
 }
 
 /**
- * A bot's death box, from what it looted: its gun at the grade it found
- * (with its magazine), every fitting and hop-up it took, its frags, two
- * stacks of its gun's ammo, and its heals (never fewer than loot.json's
- * deathBox, so a box is always worth the walk). It used to be a rare gun and
- * the same heals whatever the bot had picked up, so killing a bot that had
- * looted a legendary handed you a rare. `fallbackGun` is the gun a bot held
- * without looting one (a match that starts with loadouts); null when it had
- * none.
+ * What a bot drops where it dies, from what it looted: its gun at the grade it found (with its magazine), every
+ * fitting and hop-up it took, its frags, two stacks of its gun's ammo, and its heals (never fewer than loot.json's
+ * deathDrop). `fallbackGun` is the gun a bot held without looting one (a match that starts with loadouts); null when it
+ * had none. They lie loose on the floor: there are no death boxes (the owner, 2026-10-04).
  *
- * SpeedKills' box is its gun at the level it had fused it to, and nothing
- * else: its floor is guns and hack cores, and the legacy ammo, cells and
- * syringes a box added are nothing a SpeedKills player can use.
+ * SpeedKills' is its gun at the level it had fused it to, and nothing else: its floor is guns and hack cores.
  */
-export function deathBoxOf(kit: DeadBotKit | null, fallbackGun: string | null): LootItem[] {
+export function deathDropOf(kit: DeadBotKit | null, fallbackGun: string | null): LootItem[] {
   const items: LootItem[] = [];
   const grade = (rank: number): Rarity => RARITY_ORDER[Math.max(0, Math.min(3, rank - 1))];
   const gun = kit?.gunId ?? fallbackGun;
@@ -309,7 +301,7 @@ export function deathBoxOf(kit: DeadBotKit | null, fallbackGun: string | null): 
   if (gun) {
     items.push({ kind: "weapon", id: gun, n: 1, rarity: kit?.gunId ? grade(kit.gun) : "rare", mag: kit?.mag || undefined });
     const type = ammoTypeOf(gun);
-    if (type !== "energy") items.push({ kind: "ammo", id: type, n: cfg.deathBox.stacks * STACK[type], rarity: "common" });
+    if (type !== "energy") items.push({ kind: "ammo", id: type, n: cfg.deathDrop.stacks * STACK[type], rarity: "common" });
   }
   if (kit) {
     const magRarity = (Object.entries(cfg.magLevel) as Array<[Rarity, number]>).find(([, lv]) => lv === kit.mag)?.[0];
@@ -317,8 +309,8 @@ export function deathBoxOf(kit: DeadBotKit | null, fallbackGun: string | null): 
     for (const [slot, m] of Object.entries(kit.mods)) items.push({ kind: slot === "hopup" ? "hopup" : "attach", id: m.id, n: 1, rarity: grade(m.rank) });
     if (kit.frags > 0) items.push({ kind: "grenade", id: "frag", n: kit.frags, rarity: "rare" });
   }
-  items.push({ kind: "heal", id: "cell", n: Math.max(cfg.deathBox.cells, kit?.cells ?? 0), rarity: "common" });
-  items.push({ kind: "heal", id: "syringe", n: Math.max(cfg.deathBox.syringes, kit?.syringes ?? 0), rarity: "common" });
+  items.push({ kind: "heal", id: "cell", n: Math.max(cfg.deathDrop.cells, kit?.cells ?? 0), rarity: "common" });
+  items.push({ kind: "heal", id: "syringe", n: Math.max(cfg.deathDrop.syringes, kit?.syringes ?? 0), rarity: "common" });
   return items;
 }
 
@@ -684,7 +676,7 @@ export class LootField {
   }
   private beamGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6, 1, true);
   private boxGeo = new THREE.BoxGeometry(0.34, 0.2, 0.34);
-  /** a gun's ring on the floor and a death box, shared by every one (not one geometry each) */
+  /** a gun's ring on the floor , shared by every one (not one geometry each) */
   private ringGeo = new THREE.RingGeometry(0.34, 0.42, 20);
   private crateGeo = new THREE.BoxGeometry(0.9, 0.55, 0.6);
   private mats = new Map<string, THREE.Material>();
@@ -743,15 +735,6 @@ export class LootField {
     if (this.headless) return g;
     if (it.kind === "weapon") {
       // a gun is drawn with every other of its kind and skin, as its ring is with every other ring (gunBatch)
-    } else if (it.kind === "box") {
-      // SpeedKills: the pack's storage case when it is in (paidgun.ts); our crate otherwise
-      const bought = IS_SK ? paidProp("deathbox") : null;
-      if (bought) g.add(bought);
-      else {
-        const crate = new THREE.Mesh(this.crateGeo, this.mat("deathbox", () => new THREE.MeshStandardMaterial({ color: 0x2b2f35, emissive: 0xff5a3a, emissiveIntensity: 0.25, roughness: 0.6 })));
-        crate.position.y = 0.28;
-        g.add(crate);
-      }
     }
     // an item's box, a gun's ring and a rare one's beam are drawn in batches (update), not here
     return g;
@@ -775,9 +758,9 @@ export class LootField {
       p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
       this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
       this.batch(`ring${colour}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
-    } else if (it.kind !== "box") {
+    } else {
       // a hack core in its slot's colour (mobility cyan, utility magenta)
-      const col = it.kind === "banner" ? 0x7ddc8a : it.kind === "hack" ? (hackSlotOf(it.id) === "mobility" ? 0x20e0ff : 0xff2e9a) : colour;
+      const col = it.kind === "echo" ? 0x7ddc8a : it.kind === "hack" ? (hackSlotOf(it.id) === "mobility" ? 0x20e0ff : 0xff2e9a) : colour;
       // the items turn slowly
       this.tmpQ.setFromEuler(this.tmpE.set(0, now * 0.8 + d.key, 0));
       // SpeedKills: a hack core is the pack's canister standing, glowing in its slot's colour (paidgun.ts)
@@ -795,10 +778,10 @@ export class LootField {
         this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
       }
     }
-    if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "banner" || it.kind === "keycard") {
+    if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "echo" || it.kind === "keycard") {
       p.set(d.pos.x, d.pos.y + 1.2, d.pos.z);
       this.tmpQ.identity();
-      this.batch(`beam${colour}`, this.beamGeo, () => new THREE.MeshBasicMaterial({ color: it.kind === "banner" ? 0x7ddc8a : colour, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+      this.batch(`beam${colour}`, this.beamGeo, () => new THREE.MeshBasicMaterial({ color: it.kind === "echo" ? 0x7ddc8a : colour, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
     }
   }
 
@@ -1063,7 +1046,7 @@ export class LootField {
     let bestScore = Infinity;
     const to = new THREE.Vector3();
     for (const d of this.drops.values()) {
-      if (d.item.kind === "box") continue;
+      if (d.item.kind === "echo") continue;
       to.copy(d.pos).setY(d.pos.y + 0.15).sub(eye);
       const dist = to.length();
       if (dist > reach + 1.2) continue;

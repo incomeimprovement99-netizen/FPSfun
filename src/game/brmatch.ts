@@ -177,7 +177,7 @@ import { HEAL_CODES } from "./recap";
 import brmapCfg from "../config/brmap.json";
 /** bot squads acting as squads (bots.json squads) */
 const SQUADS = botsCfg.squads;
-import { LootField, LOOT, deathBoxOf, kittedAttach, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
+import { LootField, LOOT, deathDropOf, kittedAttach, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
 import { causeName, EDGE_ID } from "./causes";
 import { EDGE } from "./edge";
@@ -295,7 +295,7 @@ const VAULT_MARK = -900;
 const VAULT = brCfg.vault;
 /** the vault's news, by the code the host sends it as */
 const vaultSays = (code: 0 | 1 | 2, _opener = ""): string =>
-  code === 0 ? `${VAULT.guardName} IS DOWN  ·  THE VAULT KEYCARD IS IN HIS BOX` : code === 1 ? "THE VAULT KEYCARD IS ON THE FLOOR" : "THE VAULT IS OPEN";
+  code === 0 ? `${VAULT.guardName} IS DOWN  ·  HE DROPPED THE VAULT KEYCARD` : code === 1 ? "THE VAULT KEYCARD IS ON THE FLOOR" : "THE VAULT IS OPEN";
 
 /**
  * How many may still be alive in this ring phase before Storm Surge starts.
@@ -411,9 +411,8 @@ export interface BrHud {
   team: number;
   squads: number;
   squadsTotal: number;
-  /** jump towers, respawn beacons, care packages, for the maps */
+  /** jump towers, care packages, for the maps */
   towers: Array<{ x: number; z: number }>;
-  beacons: Array<{ x: number; z: number }>;
   /** the Ring Consoles, lit while they have something to show this round */
   consoles: Array<{ x: number; z: number; ready: boolean }>;
   /** `loadout` is a loadout crate rather than a care package; `hot` is still worth contesting */
@@ -561,7 +560,7 @@ const PUFF_GEO = new THREE.SphereGeometry(brCfg.pod.trail.radius, 8, 6);
 const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
 const RARITIES = ["common", "rare", "epic", "legendary"];
 // every kind loot.ts can make: backpacks and knockdown shields were left out, so a dropped one sent over the wire was thrown away
-const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "banner", "box", "grenade", "keycard", "backpack", "knockdown", "hack"];
+const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "echo", "grenade", "keycard", "backpack", "knockdown", "hack"];
 
 /** a loot item from another browser, checked field by field */
 function wireItem(x: unknown): LootItem | null {
@@ -624,7 +623,7 @@ export class BrMatch extends Duel {
 
   /**
    * SpeedKills' restore rule, for the squad mate holding interact at a
-   * ghost's echo (its death box): the full restore takes reviveSeconds, and
+   * ghost's echo (where it fell): the full restore takes reviveSeconds, and
    * fills at a third of the pace (awaySlowdown) while the ghost is further
    * than followRadius from the one restoring it: stay with your teammate to
    * be restored faster.
@@ -696,7 +695,7 @@ export class BrMatch extends Duel {
   /** this browser's flight along the line, from the start of its drop */
   ship: ShipRun | null = null;
   private shipModel: { group: THREE.Group; setDoors(open: boolean): void } | null = null;
-  /** the ship is handed to main once, at the start of the drop: a beacon's respawn drops straight in */
+  /** the ship is handed to main once, at the start of the drop: a Resurgence redeploy drops straight in */
   private boardingTaken = false;
   private botsLaunched = false;
   /** the ring's whole chain, the same on every browser (the host's ring's, or one made from the seed) */
@@ -897,7 +896,7 @@ export class BrMatch extends Duel {
           // climb, so an item on the floor above can be a metre away across
           // the ground and still out of reach for ever: it stood under one,
           // gave it up, picked the next one up there, and never moved.
-          near: (at, r) => [...field.drops.values()].filter((d) => d.item.kind !== "box" && Math.abs(d.pos.y - at.y) <= BOT_LOOT_FLOOR && d.pos.distanceTo(at) <= r),
+          near: (at, r) => [...field.drops.values()].filter((d) => d.item.kind !== "echo" && Math.abs(d.pos.y - at.y) <= BOT_LOOT_FLOOR && d.pos.distanceTo(at) <= r),
           take: (key) => {
             const it = field.remove(key);
             // the squad's fields drop an item only on this message, so
@@ -979,7 +978,7 @@ export class BrMatch extends Duel {
     return this.revealed === this.ringPhase + 1 ? { ...this.ringPlan[this.revealed] } : null;
   }
 
-  /** a Deathbox Respawn's beam and hum: "high risk", heard twice as far as a shot */
+  /** a restore's beam and hum: "high risk", heard twice as far as a shot */
   hearBeam(at: THREE.Vector3): void {
     if (this.role !== "host") return;
     const now = wallClock();
@@ -1056,9 +1055,9 @@ export class BrMatch extends Duel {
     }
   }
 
-  /** a Deathbox Respawn under way (during onRespawn): the box's spot, height included */
-  get boxRespawnAt(): THREE.Vector3 | null {
-    return this.respawnOnBox && this.respawnPoint ? this.respawnPoint.clone() : null;
+  /** a restore under way (during onRespawn): the echo's spot, height included */
+  get echoRespawnAt(): THREE.Vector3 | null {
+    return this.respawnOnEcho && this.respawnPoint ? this.respawnPoint.clone() : null;
   }
 
   /** your drop spot: one per squad member at the squad's place */
@@ -1115,7 +1114,7 @@ export class BrMatch extends Duel {
 
   // ------------------------------------------------------------ loot
 
-  /** the floor's loot, death boxes and care packages (null only in the legacy game's loadout start) */
+  /** the floor's loot, echoes and care packages (null only in the legacy game's loadout start) */
   lootField: LootField | null = null;
   /** true: you land with nothing (the bots land unarmed and loot); false: you land with your loadout and the bots with their guns */
   readonly startLoot: boolean;
@@ -1154,7 +1153,7 @@ export class BrMatch extends Duel {
     } else if (f.drops.has(key)) this.hostLink?.send({ t: "loot", op: "take", key });
   }
 
-  /** put an item down (a swapped gun, a death box's contents): the host keys it and tells the squad */
+  /** put an item down (a swapped gun, what someone had when they died): the host keys it and tells the squad */
   dropLoot(item: LootItem, at: THREE.Vector3): void {
     const f = this.lootField;
     if (!f) return;
@@ -1164,13 +1163,34 @@ export class BrMatch extends Duel {
     } else this.hostLink?.send({ t: "loot", op: "drop", item, at: [at.x, at.y, at.z] });
   }
 
-  /** a death box at `at`: the box itself and its items spread round it */
-  dropBox(items: LootItem[], at: THREE.Vector3): void {
-    this.dropLoot({ kind: "box", id: "box", n: 1, rarity: "common" }, at);
+  /**
+   * What someone had, loose on the floor where they died, spread round the spot, and a squad mate's echo on the spot
+   * itself for their restore. There are no death boxes (the owner, 2026-10-04): the box was a marker the items lay round.
+   */
+  dropDeath(items: LootItem[], at: THREE.Vector3): void {
     items.forEach((it, i) => {
+      if (it.kind === "echo") return void this.dropLoot(it, at);
       const a = (i / Math.max(1, items.length)) * Math.PI * 2;
       this.dropLoot(it, at.clone().add(new THREE.Vector3(Math.cos(a) * 0.9, 0, Math.sin(a) * 0.9)));
     });
+  }
+
+  /** keys this page asked to take only to clear them away (discardLoot): into nobody's pack when the host says so */
+  private discarding = new Set<number>();
+  /**
+   * An item off the floor and into nobody's pack: what a restore clears from where its player died, the guns it
+   * gives back from the player's own record and the echo (main.ts). Taken as an item is, each gun would have gone on
+   * top of the same gun given back, and in SpeedKills a gun taken onto the same gun fuses it a level.
+   */
+  discardLoot(key: number): void {
+    const f = this.lootField;
+    if (!f) return;
+    if (this.role === "host") {
+      if (f.remove(key)) this.broadcast({ t: "loot", op: "gone", key, by: this.id });
+    } else if (f.drops.has(key)) {
+      this.discarding.add(key);
+      this.hostLink?.send({ t: "loot", op: "take", key });
+    }
   }
 
   /**
@@ -1395,7 +1415,7 @@ export class BrMatch extends Duel {
     }
   }
 
-  /** the map's towers, beacons and pads (brplay.ts) */
+  /** the map's towers and pads (brplay.ts) */
   /** the map's doors (doors.ts) */
   get doors(): Doors {
     return this.map.doors;
@@ -1469,7 +1489,7 @@ export class BrMatch extends Duel {
     return out;
   }
 
-  get mapInfo(): { towers: Array<{ x: number; z: number; y: number }>; beacons: Array<{ x: number; z: number }>; pads: BrMap["pads"] } {
+  get mapInfo(): { towers: Array<{ x: number; z: number; y: number }>; pads: BrMap["pads"] } {
     return this.map;
   }
 
@@ -1825,13 +1845,13 @@ export class BrMatch extends Duel {
     r.alive = false;
     const mine = by === this.id;
     if (mine) this.kills++;
-    // its death box: what it had looted (loot.ts deathBoxOf), or its gun and the basics
+    // what it had looted (loot.ts deathDropOf), or its gun and the basics, loose where it fell
     if (this.lootField && this.role === "host") {
       const armed = this.botArmed(b, wallClock());
       const kit = b.bot.lootKit;
-      const items = deathBoxOf(kit.gunId ? kit : null, armed ? r.avatarWeapon : null);
+      const items = deathDropOf(kit.gunId ? kit : null, armed ? r.avatarWeapon : null);
       if (b.guard) items.push({ kind: "keycard", id: "vault", n: 1, rarity: "legendary" });
-      this.dropBox(items, b.bot.pos.clone());
+      this.dropDeath(items, b.bot.pos.clone());
       if (b.guard) this.vaultNews(0);
     }
     const who = this.whoDid(by);
@@ -1979,19 +1999,19 @@ export class BrMatch extends Duel {
     return this.gulagIds.has(id);
   }
 
-  /** out, or up in the Gulag's room: a squad mate's beacon or box brings you back from either */
+  /** out, or up in the Gulag's room: a squad mate's restore at your echo brings you back from either */
   protected override canBeRespawned(): boolean {
     return !this.alive || this.gulag !== null;
   }
 
-  /** this player's last death was a Gulag lost: out, with the box of the first death the only one (main.ts onEliminated) */
+  /** this player's last death was a Gulag lost: out, with the echo of the first death the only one (main.ts onEliminated) */
   diedInGulag = false;
 
   /**
-   * A squad mate brought you back (a beacon, your death box) while you were on
+   * A squad mate brought you back (at your echo) while you were on
    * your way to the Gulag or in it: that is your way back, and the trip is over.
    */
-  protected override respawnHere(at: THREE.Vector3, box = false): void {
+  protected override respawnHere(at: THREE.Vector3, echo = false): void {
     // SpeedKills: a ghost has two restores a match; after them a death is final
     if (this.decay && !this.gulag) {
       if (this.restores >= PROFILE.life.ghostRevives) return;
@@ -2006,7 +2026,7 @@ export class BrMatch extends Duel {
       this.noteGulag(this.id, 2);
       this.alive = false;
     }
-    super.respawnHere(at, box);
+    super.respawnHere(at, echo);
   }
 
   /** the side is out: nobody of it up, nobody of it in the Gulag, and a side of one not on its way back */
@@ -2195,7 +2215,7 @@ export class BrMatch extends Duel {
       this.finalSaid = true;
       this.onNotice?.("RESURGENCE IS OVER: EVERY DEATH IS FINAL NOW");
     }
-    // brought back some other way (a squad mate at a beacon or the box): the wait is over
+    // brought back some other way (a squad mate at your echo): the wait is over
     if (this.alive) {
       this.selfRedeploy = null;
       return;
@@ -2411,8 +2431,8 @@ export class BrMatch extends Duel {
   }
 
   /**
-   * Every frame. The host stocks the vault as the fight starts (two supply
-   * bins and a mythic gun on its floor) and drops a keycard where its holder
+   * Every frame. The host stocks the vault as the fight starts (a mythic
+   * gun on its floor) and drops a keycard where its holder
    * fell; the holder's page keeps the way to the vault marked.
    */
   private stepVault(now: number, local: LocalState): void {
@@ -2853,7 +2873,7 @@ export class BrMatch extends Duel {
         }
       } else if (m.op === "gone") {
         const it = f.remove(key);
-        if (it && m.by === this.id) this.onLootTaken?.(it);
+        if (it && m.by === this.id && !this.discarding.delete(key)) this.onLootTaken?.(it);
       } else if (m.op === "add" && at) {
         const it = wireItem(m.item);
         if (it) f.add(it, at, key);
@@ -2975,8 +2995,8 @@ export class BrMatch extends Duel {
 
   /**
    * Main asks at the start of the drop whether to board the ship rather than
-   * drop straight in. Once: a beacon's respawn later in the match drops
-   * straight in over the beacon.
+   * drop straight in. Once: a Resurgence redeploy later in the match drops
+   * straight in.
    */
   takeBoarding(): ShipRun | null {
     if (this.boardingTaken || !this.ship || this.respawnPoint || this.ship.gone(wallClock())) return null;
@@ -3561,7 +3581,6 @@ export class BrMatch extends Duel {
       squads: this.squadsAlive,
       squadsTotal: this.squadsTotal,
       towers: this.map.towers,
-      beacons: this.map.beacons,
       consoles: this.consoles.map((c, i) => ({ x: c.x, z: c.z, ready: this.consoleReady(i) })),
       pods: this.podSpots,
       // your squad on the map: friends on another side (solo with friends,

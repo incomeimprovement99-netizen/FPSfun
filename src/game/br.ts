@@ -136,8 +136,6 @@ export interface BrMap {
   ringWall: THREE.Mesh;
   /** jump towers: a balloon to ride up and drop again from (world space), and the height of the floor it is ridden from (the Mast's is its roof) */
   towers: Array<{ x: number; z: number; y: number }>;
-  /** respawn beacons: bring back a squad mate whose banner you carry (world space) */
-  beacons: Array<{ x: number; z: number }>;
   /**
    * launch pads: step on and be thrown along (dx, dz) and up (world space). A
    * jump pad (SpeedKills' city) stands on a floor `y` up and throws you `up`
@@ -2854,7 +2852,6 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     nodes,
     ringWall,
     towers: towerSpots.map(([x, z, foot]) => ({ ...P(x, z), y: foot })),
-    beacons: beaconSpots.map(([x, z]) => P(x, z)),
     pads: padSpots.map(([x, z, dx, dz]) => ({ ...P(x, z), dx, dz })),
     doors: new Doors(root, { x: BR_X, z: BR_Z }, DOORWAYS),
     vault: { door: vaultDoor, ...P(-100, 24), y: groundTop(-100, 24), post: P(-100, 20.5 - brCfg.vault.post) },

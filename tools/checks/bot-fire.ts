@@ -1,4 +1,4 @@
-// A bot's gun plays by the players' rules, and its death box holds what it had.
+// A bot's gun plays by the players' rules, and it drops what it had where it dies.
 //
 // The gap pass found three ways a bot's gun was not a player's gun: it never
 // reloaded (an R-99 bot outdamaged a player with the same gun about two and a
@@ -7,14 +7,14 @@
 // box was a rare gun and the same heals whatever it had looted.
 //
 // Pure node: the magazine (BotMag), the damage falloff, the body test
-// (hitsBody) and the death box (deathBoxOf) are free of the scene.
+// (hitsBody) and what it drops (deathDropOf) are free of the scene.
 //
 // Run on its own: npx tsx tools/checks/bot-fire.ts.
 import * as THREE from "three";
 import lootCfg from "../../src/config/loot.json";
 import { BODY_TOP, BOT_WEAPONS, BotMag, CROUCH_TOP, hitsBody } from "../../src/game/bots";
 import { falloff } from "../../src/game/projectile";
-import { deathBoxOf } from "../../src/game/loot";
+import { deathDropOf } from "../../src/game/loot";
 import { resolveWeapon } from "../../src/game/weapons";
 
 let fails = 0;
@@ -23,7 +23,7 @@ function check(label: string, cond: boolean, detail = ""): void {
   console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
 }
 
-console.log("A bot's gun, and its death box");
+console.log("A bot's gun, and what it drops");
 
 // ------------------------------------------------------------ the magazine
 {
@@ -93,20 +93,20 @@ console.log("A bot's gun, and its death box");
   check("the same round hits it standing", hitsBody(from, over, feet, BODY_TOP));
 }
 
-// ------------------------------------------------------------ the death box
+// ------------------------------------------------------------ what it drops
 {
   const kit = { gunId: "r97", gun: 3, mag: 3, mods: { barrel: { id: "barrel_2", rank: 2 }, hopup: { id: "hopup_x", rank: 4 } }, cells: 5, syringes: 0, frags: 2 };
-  const box = deathBoxOf(kit, "r97");
+  const box = deathDropOf(kit, "r97");
   const gun = box.find((i) => i.kind === "weapon");
   check("a bot that looted an epic gun drops it epic, with its magazine", gun?.id === "r97" && gun.rarity === "epic" && gun.mag === 3, JSON.stringify(gun));
   check("its magazine, its fittings and its hop-up come out as it had them", box.some((i) => i.id === "mag:3" && i.rarity === "epic") && box.some((i) => i.id === "barrel_2" && i.rarity === "rare") && box.some((i) => i.kind === "hopup" && i.rarity === "legendary"));
   check("its frags too", box.some((i) => i.kind === "grenade" && i.n === 2));
   const cells = box.find((i) => i.id === "cell")?.n ?? 0;
   const syr = box.find((i) => i.id === "syringe")?.n ?? 0;
-  check("its heals, never fewer than a box always held", cells === 5 && syr === lootCfg.deathBox.syringes, `${cells} cells, ${syr} syringes`);
-  const plain = deathBoxOf(null, "wingman");
+  check("its heals, never fewer than a bot always drops", cells === 5 && syr === lootCfg.deathDrop.syringes, `${cells} cells, ${syr} syringes`);
+  const plain = deathDropOf(null, "wingman");
   check("a bot that looted nothing still drops its gun, rare, and the basics", plain.some((i) => i.kind === "weapon" && i.rarity === "rare") && plain.some((i) => i.id === "cell"));
-  check("and an unarmed one drops no gun", !deathBoxOf(null, null).some((i) => i.kind === "weapon"));
+  check("and an unarmed one drops no gun", !deathDropOf(null, null).some((i) => i.kind === "weapon"));
 }
 
 console.log(fails === 0 ? "\nBOT FIRE PASS" : `\nBOT FIRE FAIL (${fails})`);

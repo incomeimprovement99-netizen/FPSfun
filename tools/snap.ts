@@ -1197,7 +1197,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "br-map-icons",
-    note: "the full map: jump towers, respawn beacons, a care package falling, pings, the rings",
+    note: "the full map: jump towers, a care package falling, pings, the rings",
     steps: [
       [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],

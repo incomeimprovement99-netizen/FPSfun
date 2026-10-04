@@ -1,7 +1,7 @@
 // Emotes: a wave, a cheer, a point, a salute, a shrug and a dance, for
 // friends between fights.
 //
-// This is what a group does at a landing, over a death box or on the
+// This is what a group does at a landing, over a fallen squad mate or on the
 // champion screen, and the game had nothing for it. A wheel on the emote key
 // (7) picks one; your figure plays it for everyone, and your own view steps
 // back to third person to watch it. Moving, jumping or firing ends it early.

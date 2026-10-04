@@ -10714,6 +10714,30 @@ is unchanged.
 - **Checked:** tsc; verify (loot-tiers without its bin checks); rules; the br, loot and speedkills e2e (the vault
   stocked with its mythic gun alone; the bin checks gone).
 
+## Milestone 476 — No death boxes: what you had goes down loose, and a squad mate brings you back at your echo
+
+The owner: "there should be no supply bins or death boxes, remove code for that" (2026-10-04), and on how a death plays
+without them, the two recommended answers: guns **drop loose**, and the restore is an **echo marker**. A death in a
+battle royale (yours, a squad mate's or a bot's) puts what was carried on the floor loose, 0.9 m round where it fell
+(brmatch.ts dropDeath), where anyone may take it. In a squad a player also leaves an echo on the spot, a glowing marker
+that is not loot (it is never in the pick-up list, loot.ts nearest, brplay.ts reachRows): a squad mate holds E at it for
+7 s (squad.json `echoRespawn`, the old box respawn's numbers and lockout) and the player stands up there at 20 health
+(SpeedKills' ghost whole), holding what they died with: the page keeps its own record of it at the death (main.ts
+`deathKit`), the owner's "kept with you", so what someone took off the floor meanwhile is not lost. The restore starts
+from nothing in both games and both starts and gives the record back, then clears its floor copies near the echo, and the
+echo, into nobody's pack (brmatch.ts discardLoot: taken as items are, each gun would have gone down in a swap, and in
+SpeedKills fused a level, as the box's restore once did).
+
+Gone with the box: the banner (tap to carry it), the respawn beacons on every map and the map's beacon icons, the box's
+model and look (paidweapons.json `deathbox`; the case model stays in the pack bake), the walk-over pickup's box margin
+(hud.json `boxClear`), and the `banner` and `box` loot kinds. loot.json's `deathBox` is `deathDrop`. The vault guard
+drops the keycard loose, and the news says so.
+
+- **Checked:** tsc; verify; rules; pickup-reach and bot-fire; the speedkills (a bot's drop is its gun alone, yours your
+  guns at their levels, the ghost restore at the echo), sksquad, squad (the echo on the host's floor, the restore's
+  prompt, beam, 20 health, the cells given back, the floor cleared), loot (no box), br (the vault keycard) and gulag (a
+  restore at the echo takes a mate out of the Gulag) e2e.
+
 ## Milestone 477 — The soldier's head held up: a headshot from behind lands
 
 The owner, 2026-10-04: with BOOG he could not headshot a soldier from behind, its head "all tucked down, like chin is to

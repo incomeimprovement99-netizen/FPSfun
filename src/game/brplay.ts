@@ -1,6 +1,6 @@
 // The battle royale from the player's side: what E does where you stand (take
 // the item the prompt names, hold it to empty a loot spot, to revive a downed
-// squad mate or to bring one back at a respawn beacon, ride a jump tower), the
+// squad mate or to bring one back at their echo, ride a jump tower), the
 // launch pads on the roads, and pings (the middle mouse button: an enemy, an
 // item, or a place, shown to the squad).
 //
@@ -106,7 +106,6 @@ export interface BrPlayHud {
   prompt: { key: string; text: string } | null;
   hold: { label: string; progress: number } | null;
   markers: Array<{ k: Marker["k"]; at: THREE.Vector3; label: string; mine: boolean }>;
-  banner: { name: string; left: number } | null;
   /** what lies at your feet this frame, for the HUD's list */
   reach: ReachHud;
 }
@@ -157,17 +156,15 @@ export function nothingToGain(item: LootItem, carry: CarryState | null): boolean
 
 /**
  * Everything lying within reach of your feet, nearest first, at most
- * `listMax` rows. Death boxes are the box itself rather than a thing to take,
+ * `listMax` rows. A squad mate's echo is not a thing to take,
  * and anything a floor above or below you is out of reach however close it is
  * on the map. Equal distances go to the lower key, so the list holds still
  * under the cursor instead of shuffling while you stand there.
  */
-export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, carry: CarryState | null, ours: (owner: number) => boolean = () => true): ReachRow[] {
+export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, carry: CarryState | null): ReachRow[] {
   const rows: ReachRow[] = [];
   for (const d of drops) {
-    if (d.item.kind === "box") continue;
-    // another squad's banner is not yours to carry (squads of friends)
-    if (d.item.kind === "banner" && d.item.owner !== undefined && !ours(d.item.owner)) continue;
+    if (d.item.kind === "echo") continue;
     if (Math.abs(d.pos.y - at.y) > LOOTING.floorGap) continue;
     const dist = Math.hypot(d.pos.x - at.x, d.pos.z - at.z);
     if (dist > LOOTING.reach) continue;
@@ -194,18 +191,16 @@ interface Deps {
   onEnemyPing?: () => void;
   /** a revive of yours finished (EVO) */
   onRevive?: () => void;
-  /** a Deathbox Respawn's beam: on at a place, or off */
+  /** a restore's beam: on at a place, or off */
   beam?: (at: THREE.Vector3 | null) => void;
   /** a Ring Console scan of yours finished (EVO) */
   onScan?: () => void;
 }
 
-/** seconds to hold for a revive and a beacon (Season 30), a banner's life, the pads (src/config/squad.json) */
+/** seconds to hold for a revive (Season 30) and at a squad mate's echo, the pads (src/config/squad.json) */
 const REVIVE_TIME = squad.reviveTime;
 const REVIVE_CONFIRM = squad.reviveConfirm;
-const BOX = squad.boxRespawn;
-const BEACON_TIME = squad.beaconTime;
-const BANNER_LIFE = squad.bannerLife;
+const ECHO = squad.echoRespawn;
 const PAD_SPEED = squad.pad.speed;
 const PAD_UP = squad.pad.up;
 
@@ -234,8 +229,6 @@ export function pingPickAt(dx: number, dy: number, deadzone = 40): number | null
 
 export class BrPlay {
   markers: Marker[] = [];
-  /** a squad mate's banner you carry to a beacon */
-  carried: { owner: number; name: string; until: number } | null = null;
   /**
    * A revive you finished, waiting for the one you revived to say they are
    * up: the credit (the notice, the sound, the EVO) is given then, and not if
@@ -246,20 +239,18 @@ export class BrPlay {
   private revived: { id: number; name: string; at: number } | null = null;
   /** a jump pad's throw on its way up: the push over the roof's edge, given once above `over` */
   private padCarry: { vx: number; vz: number; over: number } | null = null;
-  private hold: { kind: "revive" | "beacon" | "box" | "console"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
+  private hold: { kind: "revive" | "echo" | "console"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
   /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
   get holdKind(): "revive" | "interact" | null {
     return this.hold ? (this.hold.kind === "revive" ? "revive" : "interact") : null;
   }
-  /** interact went down at a squad mate's banner, and when (a tap takes it, a hold respawns them) */
-  private eDownAt: number | null = null;
   private padAt = -Infinity;
   /** the Sky Lobby's window pads, as the course engine takes them, and one player's throw on them */
   private windowPads: CoursePad[] = [];
   private windowPadsOf: unknown = null;
   private windowPad: PadState = { at: -Infinity, carry: null };
   /** what the frame's prompt and hold are */
-  private out: BrPlayHud = { prompt: null, hold: null, markers: [], banner: null, reach: { rows: [], pick: -1, cycleKey: "" } };
+  private out: BrPlayHud = { prompt: null, hold: null, markers: [], reach: { rows: [], pick: -1, cycleKey: "" } };
   /**
    * What you carry, asked once a frame. The walk-over pickup and the grey-out
    * both need it and both stay off until something sets it, so main.ts wires
@@ -302,7 +293,6 @@ export class BrPlay {
 
   reset(): void {
     this.markers = [];
-    this.carried = null;
     this.hold = null;
     this.stopTaking();
     this.asked.clear();
@@ -341,13 +331,6 @@ export class BrPlay {
   private inFlight(key: number, now: number): boolean {
     const asked = this.asked.get(key);
     return asked !== undefined && now - asked < LOOTING.askAgain;
-  }
-
-  /** a banner picked up */
-  carry(item: LootItem, now: number): void {
-    if (item.owner === undefined) return;
-    this.carried = { owner: item.owner, name: item.ownerName ?? "A SQUAD MATE", until: now + BANNER_LIFE };
-    this.deps.notice(`${this.carried.name}'S BANNER: TAKE IT TO A RESPAWN BEACON`);
   }
 
   /** a ping arrived from the squad, or is yours */
@@ -438,7 +421,7 @@ export class BrPlay {
 
   /**
    * One frame: the launch pads, the walk-over sweep, then what E would do
-   * here, in order: a revive, a beacon with a banner, a jump tower, an item.
+   * here, in order: a revive, a squad mate's echo, a jump tower, an item.
    * Returns the prompt, any hold in progress and the reach list for the HUD.
    */
   update(
@@ -450,7 +433,7 @@ export class BrPlay {
     fwd: THREE.Vector3,
     ctx: { alive: boolean; downed: boolean; playing: boolean; myId: number }
   ): BrPlayHud {
-    const out: BrPlayHud = { prompt: null, hold: null, markers: [], banner: null, reach: { rows: [], pick: -1, cycleKey: "" } };
+    const out: BrPlayHud = { prompt: null, hold: null, markers: [], reach: { rows: [], pick: -1, cycleKey: "" } };
     // a revive you finished: credited once they say they are up
     if (this.revived) {
       const up = match.memberStanding(this.revived.id);
@@ -470,11 +453,6 @@ export class BrPlay {
       }
       out.markers.push({ k: m.k, at: m.at.clone().setY(m.at.y + (m.k === "enemy" ? 2.2 : 0.4)), label: m.label, mine: m.from === ctx.myId });
     }
-    if (this.carried && now >= this.carried.until) {
-      this.deps.notice(`${this.carried.name}'S BANNER HAS EXPIRED`);
-      this.carried = null;
-    }
-    if (this.carried) out.banner = { name: this.carried.name, left: this.carried.until - now };
     if (!ctx.alive || !ctx.playing) {
       this.cancelHold(match);
       this.stopTaking();
@@ -531,18 +509,10 @@ export class BrPlay {
     // the loop would meet that remainder, weigh it against the same
     // frame-old carry, take it, put it back, and never leave the loop.
     if (carry && match.lootField) {
-      // Never out of a death box. The box's things lie spread round it, and a
-      // squad mate standing on it to bring the owner back (a Deathbox
-      // Respawn) swept up the ammo and heals the owner was meant to get back,
-      // so they came back with nothing. A box is opened on purpose, with the
-      // key, like everywhere else in the genre.
-      const boxes: Array<{ x: number; z: number }> = [];
-      for (const d of match.lootField.drops.values()) if (d.item.kind === "box") boxes.push({ x: d.pos.x, z: d.pos.z });
       const sweep: number[] = [];
       for (const d of match.lootField.drops.values()) {
         if (Math.abs(d.pos.y - p.y) > LOOTING.floorGap) continue;
         if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > LOOTING.sweep) continue;
-        if (boxes.some((b) => Math.hypot(d.pos.x - b.x, d.pos.z - b.z) < LOOTING.boxClear)) continue;
         if (autoTakes(d.item, carry)) sweep.push(d.key);
       }
       for (const k of sweep) this.take(match, k, now);
@@ -551,10 +521,7 @@ export class BrPlay {
     const holdingE = input.held("interact");
     // a revive: a downed squad mate within reach
     const mate = match.downedMateNear(p, squad.reviveReach);
-    const boxDrop = mate ? null : this.boxHere(match, p, eye, fwd, now);
-    if (!boxDrop) this.eDownAt = null;
-    // a beacon, carrying a banner
-    const beacon = this.carried ? match.mapInfo.beacons.find((b) => Math.hypot(p.x - b.x, p.z - b.z) < squad.beaconReach) : undefined;
+    const echo = mate ? null : this.echoHere(match, p, eye, fwd, now);
     // a Ring Console at your feet
     const rc = player.onGround ? match.consoleNear(p, CONSOLE.reach) : null;
     if (mate) {
@@ -563,51 +530,34 @@ export class BrPlay {
         match.sendRevive(mate.id, "done");
         this.revived = { id: mate.id, name: mate.name, at: now };
       });
-    } else if (boxDrop) {
-      // a dead squad mate's death box: a tap takes the banner, a hold of 7 s respawns them on it
-      const d = boxDrop;
-      const owner = d.item.owner!;
-      const name = d.item.ownerName ?? "A SQUAD MATE";
+    } else if (echo) {
+      // a dead squad mate's echo, where they fell: a hold brings them back on it
+      const owner = echo.item.owner!;
+      const name = echo.item.ownerName ?? "A SQUAD MATE";
       const lock = match.boxLockout(owner);
-      // SpeedKills: this box is the ghost's echo; the restore is quicker with the ghost beside you
+      // SpeedKills: the ghost's restore, quicker with the ghost beside you
       const sk = match.decay ? match.ghostNear(owner, p) : null;
-      const need = sk ? sk.need : BOX.time;
+      const need = sk ? sk.need : ECHO.time;
       const rate = sk ? sk.rate : 1;
       out.prompt = !Number.isFinite(lock)
         ? { key, text: `${name} HAS NO RESTORES LEFT` }
         : lock > 0
-          ? { key, text: `TAKE ${name}'S BANNER  ·  RESPAWN HERE IN ${Math.ceil(lock)} S` }
+          ? { key, text: `${name} CAN BE BROUGHT BACK HERE IN ${Math.ceil(lock)} S` }
           : sk
             ? { key: `HOLD ${key}`, text: `RESTORE ${name}${sk.near ? "  ·  THEIR GHOST IS WITH YOU" : "  ·  THEIR GHOST IS AWAY: 3X SLOWER"}` }
-            : { key: `${key} / HOLD`, text: `TAKE ${name}'S BANNER  ·  HOLD: RESPAWN ${name} HERE` };
-      if (holdingE) {
-        if (this.eDownAt === null) this.eDownAt = now;
-        if (lock <= 0 && now - this.eDownAt >= BOX.tapTime) {
-          const at = d.pos.clone();
-          const fresh = !this.hold || this.hold.kind !== "box";
-          this.runHold("box", owner, sk ? `RESTORING ${name}${sk.near ? "" : "  ·  GHOST AWAY"}` : `RESPAWNING ${name}`, need, true, now, match, () => {
-            match.sendRespawn(owner, at, true);
-            this.deps.notice(`${name} IS BACK`);
-            this.deps.beam?.(null);
-            // (until their first packet says they are up, the box is not offered again)
-            this.boxDone = { owner, at: now };
-            this.eDownAt = null;
-          }, rate);
-          if (fresh && this.hold?.kind === "box") this.deps.beam?.(at);
-        }
-      } else {
-        if (this.eDownAt !== null && now - this.eDownAt < BOX.tapTime) match.takeLoot(d.key);
-        this.eDownAt = null;
-        this.cancelHold(match);
-      }
-    } else if (beacon && this.carried) {
-      const who = this.carried;
-      out.prompt = { key: `HOLD ${key}`, text: `RESPAWN ${who.name}` };
-      this.runHold("beacon", who.owner, `CALLING IN ${who.name}`, BEACON_TIME, holdingE, now, match, () => {
-        match.sendRespawn(who.owner, new THREE.Vector3(beacon.x, 0, beacon.z));
-        this.deps.notice(`${who.name} IS DROPPING IN`);
-        this.carried = null;
-      });
+            : { key: `HOLD ${key}`, text: `BRING ${name} BACK HERE` };
+      if (holdingE && lock <= 0) {
+        const at = echo.pos.clone();
+        const fresh = !this.hold || this.hold.kind !== "echo";
+        this.runHold("echo", owner, sk ? `RESTORING ${name}${sk.near ? "" : "  ·  GHOST AWAY"}` : `BRINGING ${name} BACK`, need, true, now, match, () => {
+          match.sendRespawn(owner, at, true);
+          this.deps.notice(`${name} IS BACK`);
+          this.deps.beam?.(null);
+          // (until their first packet says they are up, the echo is not offered again)
+          this.echoDone = { owner, at: now };
+        }, rate);
+        if (fresh && this.hold?.kind === "echo") this.deps.beam?.(at);
+      } else this.cancelHold(match);
     } else if (rc) {
       // a Ring Console: hold to put the circle after next on the squad's map
       if (!rc.ready) {
@@ -647,7 +597,7 @@ export class BrPlay {
       } else this.stopTaking();
     }
     if (this.hold) out.hold = { label: this.hold.label, progress: Math.min(1, this.hold.filled / this.hold.need) };
-    // the key belonged to a revive, a beacon or a tower this frame, or there
+    // the key belonged to a revive, an echo or a tower this frame, or there
     // is nothing at your feet: either way any hold at a spot is over
     if (!out.reach.rows.length) this.stopTaking();
     this.publish(out.reach);
@@ -684,7 +634,7 @@ export class BrPlay {
       const d = f.drops.get(key);
       return !!d && Math.hypot(d.pos.x - this.gunTakenFrom.x, d.pos.z - this.gunTakenFrom.z) < 0.5;
     };
-    const rows = reachRows(f.drops.values(), p, carry, (o) => o === match.id || match.isAlly(o)).filter((r) => !letGo(r.key));
+    const rows = reachRows(f.drops.values(), p, carry).filter((r) => !letGo(r.key));
     if (!rows.length) {
       this.stopTaking();
       return;
@@ -769,7 +719,7 @@ export class BrPlay {
    * can change as it goes (SpeedKills' restore, a third as fast while the
    * ghost is away from you).
    */
-  private runHold(kind: "revive" | "beacon" | "box" | "console", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
+  private runHold(kind: "revive" | "echo" | "console", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
     if (!holding) {
       this.cancelHold(match);
       return;
@@ -790,28 +740,26 @@ export class BrPlay {
 
   private cancelHold(match: BrMatch): void {
     if (this.hold?.kind === "revive") match.sendRevive(this.hold.target, "stop");
-    if (this.hold?.kind === "box") this.deps.beam?.(null);
+    if (this.hold?.kind === "echo") this.deps.beam?.(null);
     this.hold = null;
   }
 
   /** a hold at a box just finished: that mate is on their way back */
-  private boxDone: { owner: number; at: number } | null = null;
+  private echoDone: { owner: number; at: number } | null = null;
 
   /**
-   * A dead squad mate's banner lying within reach (their death box), when you
-   * look at it or at no other item: an item under the crosshair (a gun in
-   * the box) is taken as any item is.
+   * A dead squad mate's echo within reach, when you look at no item: an item under the crosshair (a gun they dropped)
+   * is taken as any item is.
    */
-  private boxHere(match: BrMatch, p: THREE.Vector3, eye: THREE.Vector3, fwd: THREE.Vector3, now: number): LootDrop | null {
+  private echoHere(match: BrMatch, p: THREE.Vector3, eye: THREE.Vector3, fwd: THREE.Vector3, now: number): LootDrop | null {
     const f = match.lootField;
     if (!f) return null;
-    const aimed = f.nearest(eye, fwd);
-    if (aimed && aimed.item.kind !== "banner") return null;
+    if (f.nearest(eye, fwd)) return null;
     for (const d of f.drops.values()) {
-      if (d.item.kind !== "banner" || d.item.owner === undefined || d.item.owner === match.id || !match.isAlly(d.item.owner)) continue;
-      if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > BOX.reach || Math.abs(d.pos.y - p.y) > 2.5) continue;
+      if (d.item.kind !== "echo" || d.item.owner === undefined || d.item.owner === match.id || !match.isAlly(d.item.owner)) continue;
+      if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > ECHO.reach || Math.abs(d.pos.y - p.y) > 2.5) continue;
       if (match.memberAlive(d.item.owner) !== false) continue;
-      if (this.boxDone && this.boxDone.owner === d.item.owner && now - this.boxDone.at < 3) continue;
+      if (this.echoDone && this.echoDone.owner === d.item.owner && now - this.echoDone.at < 3) continue;
       return d;
     }
     return null;

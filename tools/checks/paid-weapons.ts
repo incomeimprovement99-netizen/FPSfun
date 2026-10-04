@@ -258,7 +258,7 @@ for (const [key, p] of Object.entries(props)) {
   const colour = `public/${cfg.textures}${p.model.replace(/_\d+$/, "")}${p.skin}_color.webp`;
   check(`the ${key} prop: its model ${p.model} and its skin ${p.skin} are here`, existsSync(`${dir}${p.model}.glb`) && existsSync(colour), colour);
 }
-// every skin's four maps, its glow's too: paidgun.ts asks for all four, and the storage cases (the death box, the supply
+// every skin's four maps, its glow's too: paidgun.ts asks for all four, and the storage cases (the old death box and supply
 // bin), whose pack has no glow for them, were a 404 each time one was drawn (the live site, 2026-09-28)
 // (the 2048 set too, where it is here: the gun in your hands wears it on High)
 for (const dirKey of ["textures", "textures2k"] as const) {

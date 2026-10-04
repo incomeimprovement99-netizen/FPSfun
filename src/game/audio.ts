@@ -1100,7 +1100,7 @@ export class GameAudio {
     this.tone(v.input, v.t, 0.09, "square", urgent ? 1760 : 1320, urgent ? 1760 : 1320, 0.16);
   }
 
-  /** a respawn beacon working, and a squad mate's banner going in */
+  /** an ult going up: a zipline anchored, a scout's sweep */
   beacon(at: Vec): void {
     const v = this.voice(at, 0.7, "fx", 0, 0.5);
     if (!v) return;
@@ -1297,7 +1297,7 @@ export class GameAudio {
     this.tone(v.input, v.t + 0.08, 0.25, "sine", 1320, 1320, 0.18);
   }
 
-  /** a Deathbox Respawn under way: a hum rising over its 7 s, heard a long way off */
+  /** a restore at an echo under way: a hum rising over its 7 s, heard a long way off */
   beamHum(at: Vec, seconds: number): (() => void) | null {
     const v = this.voice(at, seconds + 0.4, "fx", 2, 1.2);
     if (!v) return null;

@@ -4,7 +4,7 @@
 // docs/RESEARCH_PHASE_12.md section 1):
 //   left stick move, right stick look, RT fire, LT aim, A jump, B crouch,
 //   X reload (and interact: a zipline in reach, an item, held for a revive or
-//   a beacon), Y swap weapon (hold: holster), L3 sprint, R3 melee, LB the
+//   a restore), Y swap weapon (hold: holster), L3 sprint, R3 melee, LB the
 //   ability (the game's tactical), RB ping (twice: an enemy there), D-pad up
 //   heal (tap: the quick heal; hold: the wheel), D-pad right a grenade (again:
 //   the next kind), D-pad left fire mode (hold: inspect), D-pad down the

@@ -322,12 +322,10 @@ export interface HudState {
   ordnance?: { counts: Record<string, number> | null; readied: string | null; ready: boolean; key: string; fire: string; cancel: string } | null;
   /** the guided tour's step, or its finish card */
   tour?: TourHud | null;
-  /** a hold-E action in progress (a revive, a beacon): its label and 0..1 */
+  /** a hold-E action in progress (a revive, a restore): its label and 0..1 */
   brHold?: { label: string; progress: number } | null;
   /** pings in the world: an enemy (red), an item (its colour), a place (yellow) */
   markers?: Array<{ k: "enemy" | "loot" | "go"; at: THREE.Vector3; label: string; mine: boolean }> | null;
-  /** a squad mate's banner you carry, and how long it lasts */
-  banner?: { name: string; left: number } | null;
   /** you are down: the bleed-out clock, and who is reviving you */
   downed?: {
     left: number;
@@ -799,7 +797,7 @@ export class Hud {
 
   /**
    * The squad's overlays: down (the bleed-out clock, a red edge, who is
-   * reviving you), a revive or beacon hold's bar, the banner you carry, and
+   * reviving you), a revive or restore hold's bar, and
    * whose eyes you are watching through.
    */
   private drawSquad(now: number, s: HudState, u: number): void {
@@ -847,9 +845,6 @@ export class Hud {
       c.fillStyle = "#7ddc8a";
       c.fillRect(cx - bw / 2, y, bw * s.brHold.progress, 12 * u);
       this.text(s.brHold.label, cx, y - 9 * u, 700, 16 * u, WHITE, "center");
-    }
-    if (s.banner) {
-      this.text(`${s.banner.name}'S BANNER  ·  ${Math.ceil(s.banner.left)} S  ·  TAKE IT TO A RESPAWN BEACON`, cx, this.h - 150 * u, 700, 15 * u, "#7ddc8a", "center");
     }
     if (s.voice && (s.voice.me || s.voice.talking.length)) {
       // who is talking: you first, then the others, down the left above the vitals
@@ -2474,8 +2469,8 @@ export class Hud {
   }
 
   /**
-   * The battle royale's map icons: jump towers (a balloon), respawn beacons (a
-   * green mast), care packages (a blue box, falling or down), pings, and the
+   * The battle royale's map icons: jump towers (a balloon), care
+   * packages (a blue box, falling or down), pings, and the
    * squad mates. `yaw` turns the labels back upright on the rotating minimap.
    */
   private drawMapIcons(s: HudState, toX: (x: number) => number, toZ: (z: number) => number, u: number, yaw: number): void {
@@ -2513,18 +2508,6 @@ export class Hud {
         c.strokeRect(-5 * u, -4 * u, 10 * u, 8 * u);
         c.fillStyle = "rgba(0,0,0,0.8)";
         c.fillRect(-3 * u, -2 * u, 6 * u, 1.5 * u);
-      });
-    }
-    for (const b of br.beacons) {
-      upright(b.x, b.z, () => {
-        c.fillStyle = "#3ddc84";
-        c.beginPath();
-        c.moveTo(0, -7 * u);
-        c.lineTo(5 * u, 5 * u);
-        c.lineTo(-5 * u, 5 * u);
-        c.closePath();
-        c.fill();
-        c.stroke();
       });
     }
     // a care package blue and a loadout crate gold: faint while it is only

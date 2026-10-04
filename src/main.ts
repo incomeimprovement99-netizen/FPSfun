@@ -2418,25 +2418,30 @@ killcamSel.addEventListener("change", () => {
   }
 });
 /** you are out: the recap is written now, and the killcam starts if there is a killer to watch */
+/** what you had when you last died in a battle royale: a restore at your echo gives it back (onEliminated, respawnForMatch) */
+let deathKit: LootItem[] = [];
 function onEliminated(d: MatchLike, by: number): void {
   const t = realNow();
-  // a loot battle royale: your death box, with your banner for the squad (one: a Gulag lost is not a second)
+  // a loot battle royale: what you had, loose where you fell, and your echo for the squad (one: a Gulag lost is not a
+  // second). There are no death boxes (the owner, 2026-10-04).
   if (d instanceof BrMatch && d.lootField && !d.diedInGulag) {
     const items: LootItem[] = [];
-    // SpeedKills: each gun at the level you fused it to (the box put every gun down at level 0)
+    // SpeedKills: each gun at the level you fused it to
     for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: IS_SK ? levelRarity(s.fusion ?? 0) : "rare", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}), ...(IS_SK ? { fusion: s.fusion ?? 0 } : {}) });
-    // SpeedKills' box is your guns: its reserve is endless, it has no heals or helmets, and its floor is guns
-    // and hack cores. A loadout start carries the match's ammo kit and grenades, which went down as clutter.
+    // SpeedKills' is your guns: its reserve is endless, it has no heals or helmets, and its floor is guns and hack
+    // cores. A loadout start carries the match's ammo kit and grenades, which went down as clutter.
     if (!IS_SK) {
       for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
       for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
       if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
       for (const [g, n] of Object.entries(ordnance.counts)) if (n > 0) items.push({ kind: "grenade", id: g, n, rarity: "rare" });
     }
-    // a banner only where there is a squad to carry it: in solo the others are opponents
-    if (d.players > 1 && d.team.size > 1) items.push({ kind: "banner", id: "banner", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
-    // an out-of-bounds death leaves its box where you last stood in the city, so a restore is never out there
-    d.dropBox(items, by === EDGE_ID ? edgeInside.clone() : player.pos.clone());
+    // what a restore at your echo gives back: kept here, not taken off the floor, where anyone may have it by then
+    deathKit = items.map((it) => ({ ...it }));
+    // an echo only where there is a squad to bring you back: in solo the others are opponents
+    if (d.players > 1 && d.team.size > 1) items.push({ kind: "echo", id: "echo", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
+    // an out-of-bounds death leaves it where you last stood in the city, so a restore is never out there
+    d.dropDeath(items, by === EDGE_ID ? edgeInside.clone() : player.pos.clone());
   }
   if (by === EDGE_ID) player.teleport(edgeInside.x, edgeInside.y, edgeInside.z, player.yaw);
   recap = dlog.recap(t, by, (id) => d.nameFor(id), (id) => d.vitalsFor(id));
@@ -3260,7 +3265,7 @@ function respawnForMatch(d: MatchLike): void {
   edge.reset();
   const sp = d.spawn;
   newLife(d);
-  const boxAt = d instanceof BrMatch && d.respawnOnBox ? d.boxRespawnAt : null;
+  const echoAt = d instanceof BrMatch && d.respawnOnEcho ? d.echoRespawnAt : null;
   // the Gulag: this respawn is into its room
   const gulagIn = d instanceof BrMatch ? d.takeGulagEntry() : null;
   if (gulagIn) {
@@ -3270,11 +3275,11 @@ function respawnForMatch(d: MatchLike): void {
     // facing open floor, as every arena spawn does, not the wall a metre off
     player.teleport(gulagIn.x, 0, gulagIn.z, openYaw(gulagIn.x, gulagIn.z, gulagIn.yaw));
     hud.notice("THE GULAG: WIN AND YOU ARE BACK IN", gameTime, 3);
-  } else if (d instanceof BrMatch && boxAt) {
-    // a squad mate held at your death box: you stand up on it, at its height
+  } else if (d instanceof BrMatch && echoAt) {
+    // a squad mate held at your echo: you stand up on it, at its height
     player.setBounds(BR_BOUNDS);
     setRegion("br");
-    player.teleport(boxAt.x, boxAt.y, boxAt.z, player.yaw);
+    player.teleport(echoAt.x, echoAt.y, echoAt.z, player.yaw);
     hud.notice("RESTORED AT YOUR ECHO", gameTime, 2.5);
   } else if (d instanceof BrMatch) {
     // a battle royale starts in the sky over your drop spot once everyone is
@@ -3283,7 +3288,7 @@ function respawnForMatch(d: MatchLike): void {
       player.setBounds(BR_BOUNDS);
       setRegion("br");
       warmMatch();
-      // the start of the match is the ship; a beacon's respawn (and the tests) drop straight in
+      // the start of the match is the ship; a Resurgence redeploy (and the tests) drop straight in
       const run = d.takeBoarding();
       if (run) boardShip(d, run);
       else {
@@ -3306,10 +3311,10 @@ function respawnForMatch(d: MatchLike): void {
     pendingSlots = null;
   }
   // SpeedKills' loadout start (its floor has loot either way): every landing, the drop and a Resurgence
-  // redeploy, is your loadout, fresh and at fusion level 0. What you carried went into your death box:
+  // redeploy, is your loadout, fresh and at fusion level 0. What you carried went down where you fell:
   // keeping it as well put a second copy of each gun on the floor, and a level tried on the range's
   // fusion key rode into the match.
-  if (d instanceof BrMatch && d.lootField && !d.startLoot && !boxAt) [loadouts.current.slot1, loadouts.current.slot2].forEach((id, i) => loadout.give(i, id));
+  if (d instanceof BrMatch && d.lootField && !d.startLoot && !echoAt) [loadouts.current.slot1, loadouts.current.slot2].forEach((id, i) => loadout.give(i, id));
   // full magazines, settled spread and recoil, gun out, a full heal kit, and
   // the match's ammo: counted, two stacks of each gun's, full energy stockpiles
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
@@ -3328,17 +3333,17 @@ function respawnForMatch(d: MatchLike): void {
   // no knockdown shield, no regen carried over from the last life
   kd.reset();
   execRegen = null;
-  boxRegen = null;
+  echoRegen = null;
   // grenades: the match's kit each life (Gun Run is guns and the knife: none)
   ordnance.endless = false;
   ordnance.readied = null;
   // (SpeedKills carries none: G is its utility hack; Phase 20 A10)
   ordnance.fill(IS_SK || (d instanceof ArenaMode && d.modeKind === "gunrun") ? "empty" : "kit");
   player.arcSlowUntil = 0;
-  // land with nothing and loot: fists, no heals, no ammo, no grenades. A Deathbox Respawn (SpeedKills'
-  // restore) starts from nothing whatever the start: the box holds what you had, and taking it back onto
-  // the same guns still in hand fused each one a level for the price of a death.
-  if (d instanceof BrMatch && (d.startLoot || (IS_SK && boxAt))) {
+  // land with nothing and loot: fists, no heals, no ammo, no grenades. A restore at your echo starts from nothing
+  // whatever the start or the game: what you had is given back below, and given onto the guns still in hand each would
+  // have gone down in a swap, or in SpeedKills fused a level for the price of a death.
+  if (d instanceof BrMatch && (d.startLoot || echoAt)) {
     loadout.clearSlot(0);
     loadout.clearSlot(1);
     loadout.ammo.empty();
@@ -3352,21 +3357,31 @@ function respawnForMatch(d: MatchLike): void {
   if (SK_HEALTH) d.health = SK_HEALTH.health;
   heal = null;
   player.healSlow = 1;
-  // A Deathbox Respawn, last (after the life's kit and armour above, so nothing of the box is cleared
-  // again): 20 health, the shield back over a few seconds, and what is left in the box put on (the
-  // box's items lie 0.9 m round its own spot, near the banner the mate held at)
-  if (d instanceof BrMatch && boxAt) {
+  // Brought back at your echo, last (after the life's kit and armour above, so nothing given back is cleared again):
+  // 20 health, the shield back over a few seconds, and what you had when you died given back, the owner's "kept with
+  // you": from this page's own record, not off the floor, where anyone may have taken it. What of it still lies round
+  // the echo (0.9 m round its spot), and the echo, are cleared away into nobody's pack, so none of it is there twice.
+  if (d instanceof BrMatch && echoAt) {
     // SpeedKills: a restored ghost stands up whole (speedkills.json life)
-    d.health = IS_SK ? (PROFILE.life.restoreHealth ?? squadCfg.boxRespawn.health) : squadCfg.boxRespawn.health;
+    d.health = IS_SK ? (PROFILE.life.restoreHealth ?? squadCfg.echoRespawn.health) : squadCfg.echoRespawn.health;
     d.shield = 0;
-    boxRegen = { rate: d.shieldMax / squadCfg.boxRespawn.shieldRegen };
+    echoRegen = { rate: d.shieldMax / squadCfg.echoRespawn.shieldRegen };
+    // a death after this one drops what you have then (a Gulag lost before it had said: no second drop)
+    d.diedInGulag = false;
     const f = d.lootField;
     if (f) {
-      const drops = [...f.drops.values()];
-      const box = drops.filter((x) => x.item.kind === "box").sort((a, b) => a.pos.distanceTo(boxAt) - b.pos.distanceTo(boxAt))[0];
-      const at = box && box.pos.distanceTo(boxAt) < 2 ? box.pos : boxAt;
-      for (const drop of drops) if (drop.item.kind !== "box" && Math.hypot(drop.pos.x - at.x, drop.pos.z - at.z) < 1.3) d.takeLoot(drop.key);
+      const left = deathKit.slice();
+      for (const drop of [...f.drops.values()]) {
+        if (Math.hypot(drop.pos.x - echoAt.x, drop.pos.z - echoAt.z) > 1.3 || Math.abs(drop.pos.y - echoAt.y) > 1.5) continue;
+        const i = left.findIndex((k) => k.kind === drop.item.kind && k.id === drop.item.id && k.n === drop.item.n && (k.fusion ?? 0) === (drop.item.fusion ?? 0));
+        if (drop.item.kind === "echo" ? drop.item.owner === d.id : i >= 0) {
+          if (i >= 0) left.splice(i, 1);
+          d.discardLoot(drop.key);
+        }
+      }
     }
+    for (const it of deathKit) applyLoot(it);
+    deathKit = [];
   }
   // The Gulag: in, the fight's two guns and their ammo; won, the same guns
   // back as you drop in again. The killcam of the death that sent you gives way.
@@ -3618,8 +3633,8 @@ function shatterOf(w: ResolvedWeapon): ResolvedWeapon {
 }
 /** Executioner's shield after a knock: what is left to give, and how fast */
 let execRegen: { left: number; rate: number } | null = null;
-/** a Deathbox Respawn: the shield comes back over a few seconds */
-let boxRegen: { rate: number } | null = null;
+/** brought back at your echo: the shield comes back over a few seconds */
+let echoRegen: { rate: number } | null = null;
 /** the knockdown shield (squad.json kdShield): what it has left, raised or not, and the knock it belongs to */
 // The knockdown shield (src/game/kit.ts): its size comes from your EVO level,
 // or a better one you looted, and a gold one carries a self-revive.
@@ -3627,7 +3642,7 @@ const kd = new Knockdown();
 /** your bleed-out last frame while down, so the self-revive can tell a hit landed */
 let selfReviveHp = 0;
 let kdPane: THREE.Mesh | null = null;
-/** the Deathbox Respawn beams in the world, by who is holding (your own is -1) */
+/** the restore beams in the world, by who is holding (your own is -1) */
 const beams = new Map<number, { obj: THREE.Mesh; until: number; hum: (() => void) | null }>();
 function setBeam(key: number, at: THREE.Vector3 | null): void {
   const old = beams.get(key);
@@ -3642,7 +3657,7 @@ function setBeam(key: number, at: THREE.Vector3 | null): void {
   const obj = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 180, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0x5dff7a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
   obj.position.set(at.x, at.y + 90, at.z);
   scene.add(obj);
-  beams.set(key, { obj, until: gameTime + squadCfg.boxRespawn.time + 1, hum: audio.beamHum(at, squadCfg.boxRespawn.time) });
+  beams.set(key, { obj, until: gameTime + squadCfg.echoRespawn.time + 1, hum: audio.beamHum(at, squadCfg.echoRespawn.time) });
 }
 
 // a dropped gun's clatter on the floor; the menu's clicks
@@ -5293,11 +5308,6 @@ function applyLoot(it: LootItem): void {
       hud.notice("VAULT KEYCARD  ·  THE VAULT IS AT THE WELL", gameTime, 3);
       audio.pickup?.();
       break;
-    case "banner":
-      // your own (back from your box after a Deathbox Respawn): nothing to carry
-      if (d && it.owner === d.id) return;
-      brPlay.carry(it, gameTime);
-      return;
     case "grenade": {
       if (!isThrowKind(it.id)) return;
       const put = ordnance.add(it.id, it.n);
@@ -5824,7 +5834,7 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
     fx.jolt(a, b, gameTime);
     audio.joltAt(a);
   }
-  // a squad mate's Deathbox Respawn: the beam while it runs
+  // a squad mate's restore at an echo: the beam while it runs
   if (k === "beam") {
     setBeam(from, n === 1 && a ? a : null);
     if (n === 1 && a && duel instanceof BrMatch) duel.hearBeam(a);
@@ -8114,7 +8124,7 @@ function step(): void {
     kdPane.rotation.y = player.yaw * DEG + Math.PI;
   }
   selfFig?.setKnockShield(kd.up);
-  // Executioner's shield after a knock, a Deathbox Respawn's shield: coming back a bit each frame
+  // Executioner's shield after a knock, a restore's shield: coming back a bit each frame
   if (execRegen && (!duel || !duel.alive)) execRegen = null;
   if (duel && duel.alive && !(duel instanceof Duel && duel.downed)) {
     if (execRegen) {
@@ -8123,9 +8133,9 @@ function step(): void {
       execRegen.left -= execRegen.rate * dt;
       if (execRegen.left <= 0) execRegen = null;
     }
-    if (boxRegen && duel instanceof BrMatch) {
-      duel.shield = Math.min(duel.shieldMax, duel.shield + boxRegen.rate * dt);
-      if (duel.shield >= duel.shieldMax) boxRegen = null;
+    if (echoRegen && duel instanceof BrMatch) {
+      duel.shield = Math.min(duel.shieldMax, duel.shield + echoRegen.rate * dt);
+      if (duel.shield >= duel.shieldMax) echoRegen = null;
     }
   }
   // the beams burn out on their own (a holder who left, a message lost)
@@ -9121,7 +9131,6 @@ function step(): void {
       cancel: keyLabel("ads"),
     },
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
-    banner: duel instanceof BrMatch ? brPlay.hud.banner : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
     captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
     pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), pick: pingPick } : null,
@@ -9588,7 +9597,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     return true;
   },
   /** the knockdown shield and the regens (tools/e2e.ts) */
-  kdState: () => ({ ...kd, exec: execRegen ? { ...execRegen } : null, box: boxRegen ? { ...boxRegen } : null }),
+  kdState: () => ({ ...kd, exec: execRegen ? { ...execRegen } : null, echo: echoRegen ? { ...echoRegen } : null }),
   closeRecap: () => (recap = null),
   remoteFxLog,
   audio,

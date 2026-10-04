@@ -491,9 +491,9 @@ export class Duel implements MatchLike {
   downedBlock: ((amount: number, from: number) => number) | null = null;
   /** the knockdown shield is raised: the others see it (the state packet's dn is 2) */
   kdUp = false;
-  /** the last respawn was a squad mate's hold at your death box, not a beacon's drop */
-  respawnOnBox = false;
-  /** each squad member's deaths since their lockout reset, the last one's time, and when they were last back in (Deathbox Respawn's lockout) */
+  /** the last respawn was a squad mate's hold at your echo, not a Resurgence drop */
+  respawnOnEcho = false;
+  /** each squad member's deaths since their lockout reset, the last one's time, and when they were last back in (the echo restore's lockout) */
   private boxDeaths = new Map<number, { n: number; at: number; backAt: number }>();
   /** a squad mate got you back up */
   onRevived: ((by: number) => void) | null = null;
@@ -1727,7 +1727,7 @@ export class Duel implements MatchLike {
     this.onEliminated?.(from);
     const who = causeName(from) ?? this.nameOf(from) ?? "SOMEONE";
     this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : from === EDGE_ID ? `${this.myName || "YOU"} went OUT OF BOUNDS` : `${who} eliminated ${this.myName || "YOU"}`, false);
-    // this player's own count of their deaths goes with it: the Deathbox Respawn lockout grows with it, and
+    // this player's own count of their deaths goes with it: the restore lockout grows with it, and
     // each squad mate counted only the downs it heard, so one missed made its lockout shorter (plan 12, item 6)
     this.noteDeath(this.id);
     this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp(), bn: this.boxDeaths.get(this.id)?.n });
@@ -1752,11 +1752,11 @@ export class Duel implements MatchLike {
     return !this.alive;
   }
 
-  /** a squad member's death: the Deathbox Respawn lockout grows (reset after long enough alive) */
+  /** a squad member's death: the restore lockout grows (reset after long enough alive) */
   protected noteDeath(id: number): void {
     const now = wallClock();
     const b = this.boxDeaths.get(id) ?? { n: 0, at: -Infinity, backAt: -Infinity };
-    if (b.n > 0 && Number.isFinite(b.backAt) && now - b.backAt >= squadCfg.boxRespawn.resetAfter) b.n = 0;
+    if (b.n > 0 && Number.isFinite(b.backAt) && now - b.backAt >= squadCfg.echoRespawn.resetAfter) b.n = 0;
     b.n++;
     b.at = now;
     this.boxDeaths.set(id, b);
@@ -1783,13 +1783,13 @@ export class Duel implements MatchLike {
     if (IS_SK) return (this as unknown as { noRestores?: Set<number> }).noRestores?.has(id) ? Infinity : 0;
     const b = this.boxDeaths.get(id);
     if (!b || b.n <= 0) return 0;
-    const L = squadCfg.boxRespawn.lockout;
+    const L = squadCfg.echoRespawn.lockout;
     return Math.max(0, b.at + L[Math.min(b.n - 1, L.length - 1)] - wallClock());
   }
 
-  /** a respawn of an eliminated squad mate: at a beacon (they drop in), or held at their death box (`box`: they stand up on it) */
-  sendRespawn(to: number, at: THREE.Vector3, box = false): void {
-    const m: NetMsg = { t: "respawn", to, at: [at.x, at.y, at.z], ...(box ? { bx: 1 } : {}) };
+  /** a respawn of an eliminated squad mate: held at their echo (`echo`: they stand up on it) */
+  sendRespawn(to: number, at: THREE.Vector3, echo = false): void {
+    const m: NetMsg = { t: "respawn", to, at: [at.x, at.y, at.z], ...(echo ? { bx: 1 } : {}) };
     if (this.role === "host") this.links.get(to)?.send({ ...m, from: this.id });
     else this.hostLink?.send(m);
   }
@@ -1801,19 +1801,19 @@ export class Duel implements MatchLike {
 
   /** where a respawn drops you in; the battle royale's own spawn otherwise */
   protected respawnPoint: THREE.Vector3 | null = null;
-  /** a beacon brought you back: up, full health, dropping in over it; or a hold at your death box: up on it at 20 health */
-  protected respawnHere(at: THREE.Vector3, box = false): void {
+  /** a redeploy brought you back: up, full health, dropping in; or a hold at your echo: up on it at 20 health */
+  protected respawnHere(at: THREE.Vector3, echo = false): void {
     if (this.alive) return;
     this.respawnPoint = at.clone();
-    this.respawnOnBox = box;
+    this.respawnOnEcho = echo;
     this.alive = true;
     this.downed = false;
-    this.health = box ? squadCfg.boxRespawn.health : HEALTH_MAX;
-    this.shield = box ? 0 : this.shieldMax;
+    this.health = echo ? squadCfg.echoRespawn.health : HEALTH_MAX;
+    this.shield = echo ? 0 : this.shieldMax;
     this.noteBack(this.id);
     this.onRespawn?.();
     this.respawnPoint = null;
-    this.respawnOnBox = false;
+    this.respawnOnEcho = false;
   }
 
   /** the squad's messages: downs, revives, respawns, pings; loot and pods go to the subclass */

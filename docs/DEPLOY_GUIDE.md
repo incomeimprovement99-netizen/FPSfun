@@ -215,9 +215,9 @@ modes' rules, so the host's connection is the one that matters.
 
 In a battle royale squad: a knock with a squad mate still up puts you down,
 not out (they hold E for 5 s to revive you, and you can hold fire for your
-knockdown shield); out, your banner goes in your death box, and a squad mate
-can take it to a respawn beacon or hold E for 7 s at the box to bring you
-back on it; the middle mouse button pings for the squad (twice for an enemy).
+knockdown shield); out, what you had goes down loose where you fell with your
+echo beside it, and a squad mate can hold E for 7 s at the echo to bring you
+back there with what you died with; the middle mouse button pings for the squad (twice for an enemy).
 All of it works on the Pages link (it is the same peer-to-peer connection).
 Accounts do not: they need the game's own server (`docs/SERVER_GUIDE.md`).
 

@@ -1192,7 +1192,7 @@ const scene = new THREE.Scene();
 }
 
 {
-  // The Deathbox Respawn lockout (plan section 12, item 6): it grows with a
+  // The echo restore's lockout (plan section 12, item 6): it grows with a
   // player's deaths, and each squad mate counted only the downs it heard. The
   // guest's first down is lost on the way; the second still says how many.
   const wire = new Wire();

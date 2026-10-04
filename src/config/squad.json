@@ -1,5 +1,5 @@
 {
-  "_note": "A battle royale squad's systems, Season 30 where Apex publishes a number (docs/RESEARCH_PHASE_11.md section 6): the bleed-out clock per knock, a revive's 5 s and the 20 health it gives back, the banner's 90 s, a beacon's 5 s. The crawl speed, the reach and the launch pad's throw are ours.",
+  "_note": "A battle royale squad's systems, Season 30 where Apex publishes a number (docs/RESEARCH_PHASE_11.md section 6): the bleed-out clock per knock, a revive's 5 s and the 20 health it gives back. The crawl speed, the reach and the launch pad's throw are ours.",
   "_bleedOut": "seconds on the floor for the first, second, third and later knocks of a life. It is a trio's clock: the battle royale multiplies it by its squad size's `bleed` (src/config/br.json), so a duo has half of it and a solo has no down at all.",
   "bleedOut": [
     90,
@@ -13,9 +13,6 @@
   "reviveReach": 2.4,
   "_reviveConfirm": "Seconds a reviver waits for the one they revived to say they are up before the revive's credit (its notice, sound and EVO) is given (brplay.ts); no word by then, or word that they are out, and there is none. A state packet takes a tenth of a second; three is for a bad connection.",
   "reviveConfirm": 3,
-  "bannerLife": 90,
-  "beaconTime": 5,
-  "beaconReach": 2.8,
   "_crawl": "down, you crawl at this fraction of the crouch walk (ours)",
   "crawl": 0.65,
   "_pad": "a launch pad on a road: along it and up, m/s (ours; about 33 m along and 6.7 m up)",
@@ -97,8 +94,8 @@
     "arc": 70,
     "crawlScale": 0.55
   },
-  "_boxRespawn": "Deathbox Respawn (Season 29 on, research 2.1): hold interact 7 s at a dead squad mate's box (a tap still takes their banner); a green beam and a hum for everyone while it runs; they come back on the box with 20 health, their shield regenerating (ours: to full over 6 s), with what is left in the box. Each death adds a lockout before the next such respawn (ours: 30, 60, 120 s; Apex has not published its values), reset after 3 minutes alive.",
-  "boxRespawn": {
+  "_echoRespawn": "A squad mate brought back where they died (ours, after Apex's Deathbox Respawn, Season 29, research 2.1; there are no death boxes now, the owner 2026-10-04): hold interact `time` seconds within `reach` of their echo, the marker that stands where they fell; a green beam and a hum for everyone while it runs; they stand up on it at `health`, the shield back over `shieldRegen` seconds, holding what they died with. In the legacy game each respawn of the same player locks the next out longer (`lockout`, seconds, the last repeating), back to none after `resetAfter` seconds alive; SpeedKills has its own count of restores (speedkills.json life).",
+  "echoRespawn": {
     "time": 7,
     "reach": 2.2,
     "health": 20,
@@ -108,8 +105,7 @@
       60,
       120
     ],
-    "resetAfter": 180,
-    "tapTime": 0.3
+    "resetAfter": 180
   },
   "_pingWheel": "Apex's ping wheel (src/game/brplay.ts PING_INTENTS, src/main.ts): a tap of the ping key marks what you are looking at, and HOLDING it opens a wheel of what the mark MEANS. A squad without voice is legible or it is not, and one mark that says only 'here' is not. The lives are how long each stays up: a plan outlives a warning, because a warning is about this second and a plan is about the next minute.",
   "pingWheel": {

@@ -252,7 +252,7 @@ export class Input {
 
   held(action: Action): boolean {
     if (this.playing && this.pad.held(action)) return true;
-    // the pad's X held: a revive or a beacon (the game decides by the prompt)
+    // the pad's X held: a revive or a restore (the game decides by the prompt)
     if (this.playing && action === "interact" && this.pad.held("reload")) return true;
     for (const b of BINDS[action] ?? []) {
       if (isWheel(b)) {

@@ -522,7 +522,8 @@
     "altfire_double_tap",
     "selectfire"
   ],
-  "deathBox": {
+  "_deathDrop": "deathDrop: what a bot leaves where it dies (loot.ts deathDropOf), loose on the floor; there are no death boxes (the owner, 2026-10-04). Never fewer than `cells` and `syringes` heals, and `stacks` stacks of its gun's ammo (the legacy game; SpeedKills' is its gun alone). Ours.",
+  "deathDrop": {
     "stacks": 2,
     "cells": 2,
     "syringes": 1

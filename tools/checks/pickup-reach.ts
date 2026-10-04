@@ -28,7 +28,7 @@ const ammo = (id: string, n = 60): LootItem => ({ kind: "ammo", id, n, rarity: "
 const heal = (id: string, n: number): LootItem => ({ kind: "heal", id, n, rarity: "common" });
 const mag = (level: number): LootItem => ({ kind: "attach", id: `mag:${level}`, n: 1, rarity: "rare" });
 const gun = (id: string): LootItem => ({ kind: "weapon", id, n: 1, rarity: "rare" });
-const deathBox: LootItem = { kind: "box", id: "box", n: 1, rarity: "common" };
+const echo: LootItem = { kind: "echo", id: "echo", n: 1, rarity: "common", owner: 1 };
 const at = (key: number, item: LootItem, x: number, z: number, y = 0): ReachDrop => ({ key, item, pos: { x, y, z } });
 const HERE = { x: 0, y: 0, z: 0 };
 const keysOf = (rows: Array<{ key: number }>): string => rows.map((r) => r.key).join(",");
@@ -53,14 +53,10 @@ console.log("\nThe reach list: what is at your feet, nearest first (src/game/brp
   const upstairs = reachRows([at(1, ammo("light"), 0.2, 0, L.floorGap + 0.5)], HERE, null);
   check("loot on the floor above is out of reach however close on the map", upstairs.length === 0, `${L.floorGap} m floor gap`);
 
-  const boxed = reachRows([at(1, deathBox, 0.4, 0), at(2, ammo("light"), 0.6, 0)], HERE, null);
-  check("a death box is the box, not a row", keysOf(boxed) === "2", `keys ${keysOf(boxed)}`);
+  const echoed = reachRows([at(1, echo, 0.4, 0), at(2, ammo("light"), 0.6, 0)], HERE, null);
+  check("a squad mate's echo is not a thing to take, not a row", keysOf(echoed) === "2", `keys ${keysOf(echoed)}`);
 
   const crowd = Array.from({ length: L.listMax + 3 }, (_, i) => at(i + 1, ammo("light"), 0.2 + i * 0.1, 0));
-  // another squad's banner (squads of friends) is left out; a squad mate's is listed
-  const banner = (owner: number) => ({ kind: "banner", id: "banner", n: 1, rarity: "common", owner }) as never;
-  const theirs = reachRows([at(1, banner(3), 0.4, 0), at(2, banner(1), 0.6, 0)], HERE, null, (o) => o === 1);
-  check("another squad's banner is not in the list; a squad mate's is", keysOf(theirs) === "2", keysOf(theirs));
   check("a pile longer than the list is cut to listMax", reachRows(crowd, HERE, null).length === L.listMax, `${L.listMax} rows`);
   check("and the rows it keeps are the nearest ones", keysOf(reachRows(crowd, HERE, null)) === Array.from({ length: L.listMax }, (_, i) => i + 1).join(","));
 }

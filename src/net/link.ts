@@ -131,7 +131,7 @@ export type NetMsg =
   | { t: "fx"; from?: number; k: string; a?: [number, number, number]; b?: [number, number, number]; n?: number }
   /**
    * Battle royale loot, the host's to decide: a guest asks to `take` an item
-   * or `drop` one (a swapped gun, its death box); the host says an item is
+   * or `drop` one (a swapped gun, what someone had when they died); the host says an item is
    * `gone` (and who took it) or that one was `add`ed, with its key.
    */
   | { t: "loot"; from?: number; op: "take" | "gone" | "add" | "drop"; key?: number; by?: number; item?: LootItemWire; at?: [number, number, number] }
@@ -139,7 +139,7 @@ export type NetMsg =
   | { t: "dnd"; from?: number; by: number }
   /** a revive on `to`: started, given up, or done */
   | { t: "rev"; from?: number; to: number; op: "start" | "stop" | "done" }
-  /** `to` comes back, dropping in over `at` (a respawn beacon) */
+  /** `to` comes back, on `at` (`bx`: held at their echo) */
   | { t: "respawn"; from?: number; to: number; at: [number, number, number]; bx?: number }
   /** a ping for the squad: what (`k`), where, a label, a figure's id when it is on one */
   | { t: "mark"; from?: number; k: string; at: [number, number, number]; label?: string; target?: number }

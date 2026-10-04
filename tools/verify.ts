@@ -1620,8 +1620,8 @@ console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mec
   eq("the knockdown shield by EVO level", squadJson.kdShield.hp.join(" "), "200 450 750");
   eq("the phoenix kit's name comes from names.ts (a codename, Nova kit, on a public build)", HEALS.phoenix.name, "Phoenix kit");
   near("behind it you crawl 45% slower", 1 - squadJson.kdShield.crawlScale, 0.45, 1e-9);
-  eq("Deathbox Respawn: a 7 s hold, back at 20 health", [squadJson.boxRespawn.time, squadJson.boxRespawn.health].join(" "), "7 20");
-  eq("the lockout grows with each death (ours), reset after 3 minutes alive", `${squadJson.boxRespawn.lockout.join(" ")} / ${squadJson.boxRespawn.resetAfter}`, "30 60 120 / 180");
+  eq("brought back at an echo: a 7 s hold, back at 20 health", [squadJson.echoRespawn.time, squadJson.echoRespawn.health].join(" "), "7 20");
+  eq("the lockout grows with each death (ours), reset after 3 minutes alive", `${squadJson.echoRespawn.lockout.join(" ")} / ${squadJson.echoRespawn.resetAfter}`, "30 60 120 / 180");
   eq("Executioner is the Peacekeeper's and the Mastiff's", LOCKED_HOPUPS.hopup_executioner.guns.join(" "), "energy_shotgun mastiff");
   eq("50 shield over 5 s after a knock, unlocked at 275", [LOCKED_HOPUPS.hopup_executioner.shield, LOCKED_HOPUPS.hopup_executioner.over, LOCKED_HOPUPS.hopup_executioner.unlock].join(" "), "50 5 275");
   eq("Shattercaps: the 30-30's hip fire as 7 pellets of 8, heads x1.25", [lockedHopupFor("3030"), LOCKED_HOPUPS.hopup_shattercaps.pellets, LOCKED_HOPUPS.hopup_shattercaps.damage, LOCKED_HOPUPS.hopup_shattercaps.headshot].join(" "), "hopup_shattercaps 7 8 1.25");

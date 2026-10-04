@@ -329,8 +329,6 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     }
     return { nodes, pads, pois, placeAt, sites };
   });
-  // respawn beacons at street crossings, one a side of the centre
-  const beacons = (G.beacons as number[][]).map(([x, z]) => ({ x: x + BR_X, z: z + BR_Z }));
 
   // the glass lifts (neon-layout.ts rules.lifts): each a vertical rope up out of its glass car over the Sky Ring's
   // footbridge to over its island's landing, ridden as any zipline is (interact, up or down), lit in its island's colour
@@ -419,7 +417,6 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     get nodes() { return graph().nodes; },
     ringWall,
     towers: [],
-    beacons,
     get pads() { return graph().pads; },
     doors: new Doors(root, { x: BR_X, z: BR_Z }, []),
     vault: { door: -1, x: BR_X, z: BR_Z, y: 0, post: { x: BR_X, z: BR_Z } },

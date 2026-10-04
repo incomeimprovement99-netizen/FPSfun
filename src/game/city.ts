@@ -2992,7 +2992,7 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     }
   }
 
-  // the jump towers in the plazas, the launch pads at the crossings, the beacons
+  // the jump towers in the plazas, the launch pads at the crossings
   // (the districts' plazas only: the Spire's own took none before the cut, when the outer ring's came first)
   const outerPlazas = plazas.filter((p) => Math.abs(p.x) > kitCfg.dress.centre || Math.abs(p.z) > kitCfg.dress.centre);
   const towerSpots = outerPlazas.slice(0, C.jumpTowers).map((p) => ({ ...P(p.x, p.z), y: PAVE_H }));
@@ -3113,7 +3113,6 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     ring.rotation.x = Math.PI / 2;
     put(ring, x, top, z);
   }
-  const beacons = outerPlazas.slice(C.jumpTowers, C.jumpTowers + C.beacons).map((p) => P(p.x, p.z));
 
   // ---------------------------------------------------------------- the fire escapes (city.json fireEscape)
   // Last, once every window, pad, door and bridge is where it is, so one goes only where none of them are. Each tower
@@ -3463,7 +3462,6 @@ export function buildCityMap(scene: THREE.Scene): BrMap {
     nodes,
     ringWall,
     towers: towerSpots,
-    beacons,
     pads,
     doors: new Doors(root, { x: BR_X, z: BR_Z }, DOORWAYS),
     // no vault in the city (SpeedKills' loot is guns and hacks)

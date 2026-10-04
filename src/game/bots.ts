@@ -470,7 +470,7 @@ export class BotLooter {
         // it only ever throws a frag (GRENADE above), so an arc star is someone else's
         return item.id === "frag" && k.frags < GRENADE.count;
       default:
-        // ammo, a banner, a death box: nothing a bot keeps track of
+        // ammo, an echo: nothing a bot keeps track of
         return false;
     }
   }

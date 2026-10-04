@@ -249,7 +249,7 @@ it.
   green. Anyone's HEAL looks the same and heals whoever stands in it, an
   enemy's included. Hack cores on the floor are the pack's
   canister, glowing in their slot's colour over a ring the same colour. The
-  MINE hack's mine, death boxes, care packages and the med kit in a HEAL area
+  MINE hack's mine, care packages and the med kit in a HEAL area
   are the pack's too.
 - **The centre, from the bought city kits:** on the game server the Spire
   sector (the middle 200 m) wears the five city packs the owner bought. Each
@@ -288,8 +288,8 @@ it.
   for a hack. The HUD shows each gun's level as pips.
 - **Loot:** guns and hack cores on every floor, whichever start you pick.
   "Land with your loadout" changes only what you land holding: your two guns
-  at level 0 rather than nothing, and the bots land armed. Your death box
-  keeps each gun's level. A care package holds a gun at level 3 to 5 and two
+  at level 0 rather than nothing, and the bots land armed. What you die with
+  goes down loose, each gun at its level; a squad mate brings you back at your echo with it. A care package holds a gun at level 3 to 5 and two
   hack cores at 2 to 4. There are no loadout crates.
 - **Ten hacks, two carried:** a move on F or LB (Dash, Slam, Leap, Grapple)
   and a tool on G or D-pad right (Heal, Armor, Wall, Invisibility, Reveal,
@@ -695,7 +695,7 @@ defaults puts `binds.json` back.
 |---|---|---|---|
 | W A S D | move | Shift | sprint (press, like the game; hold in Settings). SpeedKills always sprints, whichever way you move, firing and aiming too, and has no sprint setting |
 | Space, scroll up | jump (scroll makes superjumps and bunny hops easy); off the dropship | Ctrl, C | crouch, slide (see Ctrl + W under limits; toggle in Settings); break off from the jumpmaster |
-| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a beacon, skip a tour step; down with a gold knockdown shield, hold to self-revive |
+| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a restore at an echo, skip a tour step; down with a gold knockdown shield, hold to self-revive |
 | Enter, then 1 to 6 | quick chat: a line (GG, Nice shot!, Thanks!, On my way, Wait for me, Rematch?) to everyone in the match, in their kill feed | 7 | emotes: hold for the wheel (wave, cheer, over there, salute, shrug, dance), move to one and let go; a tap plays the last again. Your view steps round in front to watch, everyone sees it, and a step ends it |
 | 8 | your spray on the wall you look at (within 5 m): everyone in the match sees it, a new one replaces your last, and it fades after two minutes; pick yours in Settings | | |
 | Left mouse | fire | Right mouse | aim down sights (toggle in Settings) |
@@ -729,7 +729,7 @@ also brings the menu back). The layout is the game's **Default** preset
 | Left stick | move (auto sprint when pushed all the way, by default) | Right stick | look |
 | RT | fire | LT | aim down sights |
 | A | jump | B | crouch, slide |
-| X | reload; interact where there is a prompt (a zipline, an item); hold for a revive, a beacon, a respawn at a box, a tour skip | Y | swap weapon; **hold** to holster |
+| X | reload; interact where there is a prompt (a zipline, an item); hold for a revive, a restore at an echo, a tour skip | Y | swap weapon; **hold** to holster |
 | LB | your ability (JOLT, the game's tactical) | RB | ping; **twice** for an enemy there |
 | L3 | sprint (when auto sprint is off) | R3 | melee |
 | D-pad up | heal: a tap is the quick heal, **hold** for the wheel (the right stick picks) | D-pad down | variable optic zoom (ours: the game has a character action there) |
@@ -1034,7 +1034,7 @@ damage).
 - **The battle royale's floor** (`src/game/loot.ts`, `brplay.ts`): the items
   come from a seed in the host's welcome, so every browser lays out the same
   items under the same keys; taking one is asked of the host (first come,
-  first served). Downs, revives, banners, beacons and pings are messages on
+  first served). Downs, revives, restores and pings are messages on
   the same links.
 - **Throwables** (`src/game/throwables.ts`): a throw is a body under gravity
   against the world's boxes, one axis at a time; the flight is deterministic,
@@ -1139,10 +1139,10 @@ src/game/
   courses/chain.ts         The Chain (SpeedKills): the city's gaps and a chimney at their measured widths
   duel.ts                  the match: rounds, scores, the circle, remotes, spectate, downs and revives
   bots.ts                  the bot controller and the offline match
-  br.ts                    the battle royale map: Outskirts, its ground, places, roads, towers, beacons, pads
+  br.ts                    the battle royale map: Outskirts, its ground, places, roads, towers, pads
   ring.ts                  the ring: six phases, the tick, the next circle
   brmatch.ts               the battle royale match, alone or as a squad, on the Duel
-  brplay.ts                the battle royale from your side: E, revives, beacons, pads, pings
+  brplay.ts                the battle royale from your side: E, revives, restores at an echo, pads, pings
   loot.ts                  the floor's loot: the seeded layout, rarities, labels
   modes.ts, modematch.ts   Gun Run, team deathmatch, Crown: the rules and the match
   abilities.ts             the kits: JOLT, TRIAGE, PATCH, the ultimate's meter
@@ -1218,7 +1218,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/bots.json` | the bot tiers (reaction, aim lag and error, aim point, dodging, hearing, frags, cover, crouching), mixed's weights |
 | `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
 | `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, the shotguns' blast patterns, hop-ups (and the locked ones of Seasons 29 and 30), fire modes |
-| `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, banners, beacons, pads, pings, EVO's sources, knockdown shields, Deathbox Respawn |
+| `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, pads, pings, EVO's sources, knockdown shields, the restore at an echo |
 | `src/config/br.json` | the battle royale's match rules: solo, duos and trios (the bot counts each offers, the bleed-out it scales), the care package's arrival, the loadout crate, Storm Surge, the vault (its guard's name, tier, gun and range) |
 | `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, free-for-all's kill limit and clock, Crown's times, Control's zones and numbers, the arena's spawns |
 | `src/config/net.json` | the delta state packets: on or off, their version, the rounding of position, look and health, the keyframe interval, how often an ack goes |
