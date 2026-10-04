@@ -10333,8 +10333,13 @@ alone. fit passed. What failed, and why:
   rightly fires before the rest, so it asks screenLoaded() now. The bug hunt's "the soldier's body texture is fetched
   once" counted the legacy body's texture (T_Superhero_Male_Dark), which SpeedKills pages no longer load at all (0); it
   counts SpeedKills' own soldier's (/soldier/tex/body_color, 1) now. Both pass run alone.
-- **Known since 10-02, still failing:** host migration in a battle royale, the squad's death box banner, and the squad
-  section's TypeError "Cannot read properties of null (reading 'drops')", which is also a page error.
+- **Known since 10-02, found and fixed:** host migration in a battle royale (four bots never armed), the squad's
+  death box banner, and the squad section's TypeError "Cannot read properties of null (reading 'drops')", also a page
+  error. All three passed alone and failed in a batch: the pages share one browser's storage, and the first SpeedKills
+  page moves it onto SpeedKills' defaults (main.ts brDefaults), landing with the loadout, so a legacy battle royale after
+  it had no floor loot at all (brmatch.ts makes a loot field only for a loot start, outside SpeedKills): no box to hold
+  a banner, no guns for the bots to find, a null loot field. The two tests set their own loot start on the host's page
+  now (e2e LOOT_START, saving nothing for the pages after), and pass with the SpeedKills lobby section run before them.
 - **The gun agent's:** two pack-frames checks on the USSO and BOOG holds (just over 2 mm at rest; BOOG 3.8 cm in a
   swap), handed to it.
 - **Load only** (the machine at 99 to 100% CPU from four agents; each passed alone or in the other run): the bot

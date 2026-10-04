@@ -405,6 +405,13 @@ const NAV_PROBE = String.raw`(() => {
  * the row offers, and every page of a run shares one browser's storage, so a
  * test that leaves it to the last test's choice is testing that test.
  */
+/**
+ * A battle royale that lands with nothing and loots, set on the host's page for its own match only (no change event,
+ * so nothing is saved for the pages after). The pages share one browser's storage, and any SpeedKills page moves it
+ * onto SpeedKills' defaults once, landing with the loadout (main.ts brDefaults): a legacy match after that had no
+ * floor loot at all, so the squad's death box and the bots' found guns were never there (failing since 2026-10-02).
+ */
+const LOOT_START = `(() => { document.getElementById("brStart").value = "loot"; })()`;
 const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
   `(() => { const t = document.getElementById("brTeam"); t.value = "${team}"; t.dispatchEvent(new Event("change")); const b = document.getElementById("brBots"); b.value = "${bots}"; b.dispatchEvent(new Event("change")); const r = document.getElementById("brRules"); if (r) { r.value = "br"; r.dispatchEvent(new Event("change")); } })()`;
 
@@ -1918,6 +1925,7 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const host = await open(browser, query);
   const guest = await open(browser, query);
   await ev(host, brRow("duo", 4));
+  await ev(host, LOOT_START);
   await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
   let code = "";
   try {
@@ -4997,6 +5005,7 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
     for (const p of pages) if (!p.isClosed()) await p.close();
   };
   await ev(host, brRow("trio", 6));
+  await ev(host, LOOT_START);
   await ev(host, `(() => { document.getElementById("brSides").value = "together"; document.getElementById("botDifficulty").value = "mixed"; document.getElementById("duelMode").value = "br"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
   // which of the waits below gave out, so a failure says where it stopped (docs/TEST_AUDIT.md: this check
   // failed about one run in two for weeks with nothing to say which step it was)
