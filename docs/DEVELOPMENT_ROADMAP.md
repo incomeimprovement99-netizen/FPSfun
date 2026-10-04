@@ -10322,3 +10322,29 @@ server's page) means the public one, as before.
   own, and the host's broker socket recorded. Before the fix it went to wss://0.peerjs.com (failed); after it, to the
   site's path (passes). The whole duel section passes.
 - **Docs:** README's multiplayer paragraph; net.json's broker note.
+
+## Milestone 460 — The daily sweep of 2026-10-04, and the checks it found asking the wrong thing
+
+The full e2e batches and fit (apex-net on de97e5f, the first sweep since 10-02), each failing section then run again
+alone. fit passed. What failed, and why:
+
+- **Two checks asking the wrong thing, fixed.** The intro's "the shot waits for the world to be in" asked loaded(),
+  which since Milestone 440 also waits for the loads after the first screen; the card covers that first screen and
+  rightly fires before the rest, so it asks screenLoaded() now. The bug hunt's "the soldier's body texture is fetched
+  once" counted the legacy body's texture (T_Superhero_Male_Dark), which SpeedKills pages no longer load at all (0); it
+  counts SpeedKills' own soldier's (/soldier/tex/body_color, 1) now. Both pass run alone.
+- **Known since 10-02, still failing:** host migration in a battle royale, the squad's death box banner, and the squad
+  section's TypeError "Cannot read properties of null (reading 'drops')", which is also a page error.
+- **The gun agent's:** two pack-frames checks on the USSO and BOOG holds (just over 2 mm at rest; BOOG 3.8 cm in a
+  swap), handed to it.
+- **Load only** (the machine at 99 to 100% CPU from four agents; each passed alone or in the other run): the bot
+  mannequin's spin, throwables' slow, the ship's jump, the SpeedKills tour (stuck at DOUBLE JUMP, the rest after it),
+  the friends' battle royale code, the squad view's shield, the group's late friend.
+
+And two tools that say more when they fail:
+
+- **e2e page errors** carry the line of ours they were thrown from (the first /src/ frame of the stack): the squad's
+  "reading 'drops'" had said nothing of where.
+- **The live check**, when the host gets no code or the two do not connect, prints each page's asks for net.json and
+  the broker, with when they started and ended, and the page's age (Milestone 459's cause was a slow net.json, and only
+  after a deploy).

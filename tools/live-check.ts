@@ -22,6 +22,17 @@ const errors: string[] = [];
 /** the broker's id requests: our own server's /peerjs/, or the public 0.peerjs.com */
 const brokerHits = new Set<string>();
 
+/**
+ * A page's asks of the site for its broker (net.json) and the broker itself, each as [path, start, end] in ms from the
+ * page's start, and the page's age: when hosting or joining fails, which step was slow (Milestone 459: a slow net.json
+ * had sent a host to the public broker, and only after a deploy).
+ */
+const askedNet = (page: Page): Promise<string> =>
+  ev<string>(
+    page,
+    `JSON.stringify({ age: Math.round(performance.now()), asked: performance.getEntriesByType("resource").filter((e) => /net\\.json|peerjs/.test(e.name)).map((e) => [e.name.replace(/^https?:..[^/]+/, "").slice(0, 40), Math.round(e.startTime), Math.round(e.responseEnd)]) })`
+  ).catch(() => "(the page did not answer)");
+
 async function open(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
   page.on("pageerror", (e) => errors.push(String(e)));
@@ -115,7 +126,7 @@ async function main(): Promise<void> {
       code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
       check("the host gets a match code from the broker", /^[A-Z0-9]{5}$/.test(code), code);
     } catch {
-      check("the host gets a match code from the broker", false, await ev<string>(host, `document.getElementById("duelStatus").textContent`));
+      check("the host gets a match code from the broker", false, `${await ev<string>(host, `document.getElementById("duelStatus").textContent`)}; host ${await askedNet(host)}`);
       return;
     }
     await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
@@ -143,7 +154,7 @@ async function main(): Promise<void> {
       if (want === "own" || want === "public") check(`the match went through ${want === "own" ? "our own" : "the public"} broker`, own === (want === "own"), which);
       else console.log(`  --  broker: ${which}`);
     } catch {
-      check("both sides connect over the internet", false, await ev<string>(guest, `document.getElementById("duelStatus").textContent`));
+      check("both sides connect over the internet", false, `${await ev<string>(guest, `document.getElementById("duelStatus").textContent`)}; host ${await askedNet(host)}; guest ${await askedNet(guest)}`);
       return;
     }
     // round 1 waits for everyone to click Play. Host and Join take a page in

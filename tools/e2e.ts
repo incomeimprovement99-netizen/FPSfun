@@ -78,7 +78,12 @@ const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mous
 async function open(browser: Browser, query: string, base = BASE, init?: string): Promise<Page> {
   const page = await browser.newPage();
   await page.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
-  page.on("pageerror", (e) => errors.push(`pageerror: ${String((e as Error).message ?? e)}`));
+  // with where it was thrown, the first line of ours in its stack: "reading 'phase'" of null, said alone, left the
+  // 2026-10-04 sweep's error with nowhere to look
+  page.on("pageerror", (e) => {
+    const at = /\/src\/[^\s)?]+(?:\?[^\s):]*)?:\d+:\d+/.exec(String((e as Error).stack ?? ""))?.[0].replace(/\?[^:]*/, "");
+    errors.push(`pageerror: ${String((e as Error).message ?? e)}${at ? ` (at ${at})` : ""}`);
+  });
   page.on("dialog", (d) => void d.accept());
   page.on("console", (m) => {
     if (m.type() === "error") errors.push(`console: ${m.text()}`);
@@ -6955,7 +6960,9 @@ async function skHuntTest(browser: Browser): Promise<void> {
   // drawn: the soldier's body and textures fetched once, and the city's loop not fetched at all while the music is at nothing
   const arena = await open(browser, "?game=speedkills");
   await arena.waitForFunction("window.__range.loaded()", { polling: 250, timeout: 120000 }).catch(() => undefined);
-  const body = await ev<number>(arena, `performance.getEntriesByType("resource").filter((e) => /T_Superhero_Male_Dark/.test(e.name)).length`);
+  // (SpeedKills' own soldier's: its pages stopped loading the legacy body, T_Superhero_Male_Dark, which counted 0 here in
+  // the 2026-10-04 sweep: not fetched twice, but not this check's figure any more)
+  const body = await ev<number>(arena, `performance.getEntriesByType("resource").filter((e) => /\\/soldier\\/tex\\/body_color/.test(e.name)).length`);
   check("hunt: the soldier's body texture is fetched once (it was twice: the body loaded on its own and again for a figure)", body === 1, String(body));
   // the hands' pickup clip fetched once, with the second gun's hands loaded too (each gun's set of clips fetched it
   // again: a hunt, 2026-10-01)
@@ -8635,11 +8642,13 @@ async function introTest(browser: Browser): Promise<void> {
     `(() => { const l = document.getElementById("loading"); const s = window.__range.intro.state(); return { loadingHidden: !!l && l.hidden, at: s.at, shot: s.beats.shot, loaded: window.__range.loaded() }; })()`
   );
   check("it stands in for the loading screen, which is off the page while it plays", cover.loadingHidden, JSON.stringify(cover));
-  // and it waits on the rain for the world rather than firing into a page that is still loading
+  // and it waits on the rain for the world rather than firing into a page that is still loading: the first screen's
+  // world (screenLoaded), which is what the card covers. loaded() waits for the loads after that screen too (Milestone
+  // 440), and the shot rightly does not, so asked of loaded() this failed from 2026-10-03.
   const held = await ev<{ waited: number; at: number; loaded: boolean }>(
     page,
     `new Promise((ok) => { const R = window.__range; const t0 = performance.now();
-      const step = () => { const s = R.intro.state(); if (s.kind === null || s.at > s.beats.shot + 0.05 || performance.now() - t0 > 20000) ok({ waited: s.waited, at: s.at, loaded: R.loaded() }); else requestAnimationFrame(step); };
+      const step = () => { const s = R.intro.state(); if (s.kind === null || s.at > s.beats.shot + 0.05 || performance.now() - t0 > 20000) ok({ waited: s.waited, at: s.at, loaded: R.screenLoaded() }); else requestAnimationFrame(step); };
       step(); })`
   );
   check("the shot waits for the world to be in, so the card covers loading instead of following it", held.loaded, JSON.stringify(held));
