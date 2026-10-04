@@ -15,8 +15,9 @@ art packs the owner bought.
 **Play it: https://fpsfun.duckdns.org/** (Chrome or Edge on a PC.)
 
 **The manual is in the game.** In the range, a screen in the barrier 24 m down
-range shows `docs/MANUAL.md`, the player's manual: shoot the arrows beside it
-to turn a page or change section.
+range shows `docs/MANUAL.md`, the player's manual: shoot it to open it (its
+text is fetched then, not with the page), and the arrows beside it to turn a
+page or change section.
 
 **Where it came from.** SpeedKills grew out of B00G's Range, a browser
 recreation of another battle royale's movement and guns (Milestones 1 to 182,
@@ -1096,7 +1097,8 @@ damage).
   picture. It holds nothing up: the match starts underneath it, the canvas
   takes no clicks, and it takes itself off the page when it is done.
 - **The README screen** (`src/game/readme.ts`, `readmetv.ts`): this file is
-  bundled with the build (`README.md?raw`), parsed into sections and blocks,
+  a chunk of the build of its own (`README.md?raw`, imported the first time
+  the screen is shot; a cover until then), parsed into sections and blocks,
   and laid out on a canvas by measuring the text, so it paginates itself and
   follows every edit to the file. Its arrow plates are `Shootable`s in the
   projectile system (`addShootable`), which any bullet, pellet, arrow or

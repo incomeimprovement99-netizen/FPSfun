@@ -10791,6 +10791,22 @@ it is hidden now.
   modes); photographs at 1280
   and 1920 wide, shut, with the extras and with the settings open.
 
+## Milestone 479 — The range's screen loads its text when it is used
+
+The owner, 2026-10-04: "Can we keep the readme and stuff in the TV but have it lazy load, like only load it all when
+the user interacts with it?" The screen at the end of the range shows a cover, its name (THE MANUAL in SpeedKills,
+README.md in the legacy game) and how to open it, in letters read from the firing line, until someone shoots it: an
+arrow plate, or anywhere on the screen. Then its text is fetched (a dynamic import, readmetv.ts `load`) and it opens
+at its first page; the arrows page it from there as before. A failed fetch (offline) leaves the cover up, and the next
+shot asks again. The page's first script no longer carries either text: in a production build they are chunks of
+their own, the README 152 KB (59 KB gzipped) and the manual 5.7 KB (2.7 KB), 158 KB raw out of the first script, and a
+SpeedKills player who shoots the screen downloads the manual's 2.7 KB. The public build's README is still the
+scrubbed one (vite.config.ts scrubReadme), and its name check passes.
+
+- **Checked:** tsc; verify; rules; build:beta with its name check; the range e2e (a cover until used, and a round on
+  an arrow loads the text at its start, then every earlier screen check); photographs of the cover and the
+  opened manual in SpeedKills, the manual fetched only after the shot.
+
 ## Milestone 482 — STRYDER's pistol on the soldier, ahead of its roster change
 
 STRYDER moves from a rifle to the fast pistol (`PLAN_THE_EIGHT_GUNS.md` section 6), the RE-45's data (`autopistol`) on

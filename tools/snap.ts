@@ -95,7 +95,7 @@ export const SCENARIOS: Scenario[] = [
     name: "readme-tv-page",
     note: "the same screen a few pages in: a section jumped to, then two pages on",
     steps: [
-      [`(() => { ${hideMenu}; const r = window.__range; r.player.teleport(0, 0, -99.5, 0, 5); r.readmeTv.goto(3, 0); r.readmeTv.press("nextPage"); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; r.player.teleport(0, 0, -99.5, 0, 5); await r.readmeTv.load(); r.readmeTv.goto(3, 0); r.readmeTv.press("nextPage"); })()`, 0],
       [gameSeconds(0.8), 200],
     ],
   },

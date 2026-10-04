@@ -4395,6 +4395,14 @@ async function readmeTvChecks(page: Page): Promise<void> {
     await ev(page, padSet(6, false));
     await sleep(150);
   };
+  // the text comes when the screen is used (the owner, 2026-10-04): a cover until then, and a round on an arrow opens it
+  const cover = await ev<{ loaded: boolean; sections: number }>(page, "({ loaded: window.__range.readmeTv.loaded, sections: window.__range.readmeTv.sections.length })");
+  await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -98, 0, 0); })()`);
+  await shootAt(`window.__range.readmeTv.buttonAt("nextPage")`);
+  const opened = await page.waitForFunction("window.__range.readmeTv.loaded", { polling: 100, timeout: 8000 }).then(() => true, () => false);
+  const first = await tv();
+  // (at its first section: the pull fires more than one round, and one landing after the text is in turns a page, as an arrow does)
+  check("README screen: a cover until it is used, and a round on an arrow loads the text at its start", !cover.loaded && cover.sections === 1 && opened && first.section === 0 && first.sections.length > 1, JSON.stringify({ cover, opened, at: [first.section, first.page] }));
   await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -98, 0, 0); r.readmeTv.goto(0, 0); })()`);
   await sleep(200);
   const start = await tv();

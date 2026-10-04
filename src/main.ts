@@ -1647,7 +1647,7 @@ const sprayWall = new SprayWall(scene);
 const readmeTv = new ReadmeTv(scene);
 readmeTv.onPress = (action, at) => {
   audio.ui("click");
-  hud.notice(action === "jump" ? readmeTv.state().title.toUpperCase() : `${readmeTv.state().title.toUpperCase()}  ·  PAGE ${readmeTv.page + 1}/${readmeTv.pageCount}`, gameTime, 2);
+  if (readmeTv.loaded) hud.notice(action === "jump" ? readmeTv.state().title.toUpperCase() : `${readmeTv.state().title.toUpperCase()}  ·  PAGE ${readmeTv.page + 1}/${readmeTv.pageCount}`, gameTime, 2);
   void at;
 };
 projectiles.addShootable(readmeTv);

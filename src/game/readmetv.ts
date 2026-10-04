@@ -9,14 +9,14 @@
 // round anywhere else on the screen is an ordinary miss, so stray fire down
 // range never moves the page.
 //
-// The text is the manual itself (readme.ts parses it), bundled at build time, so the screen cannot drift from the
-// file. The legacy game still shows the README (the public build swaps its real names first, tools/public-text.ts).
+// The text is the manual itself (readme.ts parses it), so the screen cannot drift from the file. It is fetched the
+// first time someone shoots the screen (the owner, 2026-10-04: "only load it all when the user interacts with it"):
+// until then the screen is a cover, and the page's first script carries none of it. The legacy game shows the README
+// (the public build swaps its real names first, tools/public-text.ts), 150 KB that every SpeedKills page carried too.
 import * as THREE from "three";
-import readmeMd from "../../README.md?raw";
-import manualMd from "../../docs/MANUAL.md?raw";
 import cfg from "../config/readme-tv.json";
 import { IS_SK } from "./game";
-import { parseReadme, type Block, type Section } from "./readme";
+import { parseReadme, spansOf, type Block, type Section } from "./readme";
 import type { Shootable } from "./projectile";
 
 // SpeedKills hangs it in its range's barrier, 24 m down range, at three quarters of the size (readme-tv.json speedkills)
@@ -26,6 +26,9 @@ const BTN = IS_SK ? { ...cfg.buttons, ...cfg.speedkills.buttons } : cfg.buttons;
 const L = cfg.layout;
 
 export type TvAction = "prevPage" | "nextPage" | "prevSection" | "nextSection";
+
+/** the screen before its text is asked for: one section saying how to open it */
+const COVER: Section[] = [{ title: IS_SK ? "The manual" : "README.md", blocks: [{ kind: "para", spans: spansOf("Shoot an arrow, or this screen, to open it.") }] }];
 
 const FACE = '500 %spx "Rajdhani", "Segoe UI", sans-serif';
 const BOLD = '700 %spx "Rajdhani", "Segoe UI", sans-serif';
@@ -129,7 +132,10 @@ class Button {
 
 export class ReadmeTv implements Shootable {
   readonly root = new THREE.Group();
-  readonly sections: Section[] = parseReadme(IS_SK ? manualMd : readmeMd);
+  sections: Section[] = COVER;
+  /** the text is in (load) */
+  loaded = false;
+  private loading: Promise<void> | null = null;
   section = 0;
   page = 0;
   /** a press, for the sound and the hit marker: the action and where it was */
@@ -206,6 +212,12 @@ export class ReadmeTv implements Shootable {
     const px = (point.x - (SCREEN.x - SCREEN.width / 2)) * SCREEN.px;
     const py = (SCREEN.y + SCREEN.height / 2 - point.y) * SCREEN.px;
     if (px < 0 || px > this.cv.width || py < 0 || py > this.cv.height) return false;
+    // the cover: a round anywhere on it opens the text
+    if (!this.loaded) {
+      void this.load();
+      this.onPress?.("jump", point.clone());
+      return true;
+    }
     if (px > L.sidebar) return false;
     const i = this.entries.findIndex((e) => py >= e.top && py <= e.bottom);
     if (i < 0) return false;
@@ -216,7 +228,36 @@ export class ReadmeTv implements Shootable {
 
   // ---------- paging ----------
 
+  /**
+   * Fetch the text and show its first page: the first shot at the screen, or a test. A failed fetch (offline) leaves
+   * the cover up, and the next shot asks again.
+   */
+  load(): Promise<void> {
+    this.loading ??= (IS_SK ? import("../../docs/MANUAL.md?raw") : import("../../README.md?raw")).then(
+      (m) => {
+        this.sections = parseReadme(m.default);
+        this.pages = this.sections.map(() => null);
+        this.loaded = true;
+        this.goto(0, 0);
+      },
+      () => {
+        this.loading = null;
+      },
+    );
+    return this.loading;
+  }
+
   press(action: TvAction): void {
+    // on the cover an arrow opens the text at its first page; the arrows page it from there
+    if (!this.loaded) {
+      void this.load();
+      const btn = this.buttons.find((b) => b.action === action);
+      if (btn) {
+        btn.flash(this.lastNow);
+        this.onPress?.(action, btn.plate.position.clone());
+      }
+      return;
+    }
     const n = this.sections.length;
     // the page is set first and drawn once at the end: a redraw is a whole
     // texture upload
@@ -425,6 +466,24 @@ export class ReadmeTv implements Shootable {
     const g = this.g;
     const W = this.cv.width;
     const H = this.cv.height;
+    // the cover, read from the firing line: its name and how to open it, large, and nothing to page through
+    if (!this.loaded) {
+      this.entries = [];
+      g.fillStyle = "#0b0e12";
+      g.fillRect(0, 0, W, H);
+      g.fillStyle = "#d4712a";
+      g.fillRect(0, 0, W, 10);
+      g.fillRect(0, H - 10, W, 10);
+      g.textAlign = "center";
+      g.font = BOLD.replace("%s", String(Math.round(H * 0.16)));
+      g.fillStyle = "#ffd23c";
+      g.fillText(IS_SK ? "THE MANUAL" : "README.md", W / 2, H * 0.47);
+      g.font = FACE.replace("%s", String(Math.round(H * 0.07)));
+      g.fillStyle = "#dbe4ec";
+      g.fillText("SHOOT AN ARROW OR THIS SCREEN TO OPEN IT", W / 2, H * 0.64);
+      this.tex.needsUpdate = true;
+      return;
+    }
     const pages = this.laidOut(this.section);
     if (this.page >= pages.length) this.page = pages.length - 1;
     const section = this.sections[this.section];
