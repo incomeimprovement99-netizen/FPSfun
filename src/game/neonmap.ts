@@ -347,7 +347,8 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // between its ends lit in its block's colour, ridden up or down
   for (const q of (neonCfg as unknown as { zips?: Array<{ a: number[]; b: number[]; colour: string }> }).zips ?? []) {
     const [a, b] = [new THREE.Vector3(...(q.a as [number, number, number])), new THREE.Vector3(...(q.b as [number, number, number]))];
-    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, a.distanceTo(b), 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));
+    // (`zipRope` thick and `zipGlow` bright: at 3 cm the second review read them as thin dotted lines)
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(G.zipRope, G.zipRope, a.distanceTo(b), 8), emissive(new THREE.Color(q.colour).getHex(), G.zipGlow));
     rope.position.copy(a).add(b).multiplyScalar(0.5);
     rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
     rope.name = "neon:zip";

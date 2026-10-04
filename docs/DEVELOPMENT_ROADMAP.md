@@ -10233,3 +10233,28 @@ of boxes that never comes no longer means a match that never starts: it starts w
   test hook, window.__boxesLate), past the silence limit. Before the fix the guest was out of the match ("The host left
   the match."); after it both are in it with each other 5 s after the host's match began.
 - **Also:** startDuel's doc comment back on startDuel (Milestone 447 left boxesFirst between them).
+
+## Milestone 454 — THE VAULT marked from outside, thicker zip lines, and the floors' skirt straightened
+
+The centre's third fresh review (docs/CENTRE_REVIEW.md, round 3, the same 24 photos and brief): 5 of 10, up from 4.5. It
+asked for THE VAULT marked from outside, doors you can find and zip lines you can see, and it saw "jagged rubble at floor
+level" on the tower's floors: the skirt of the last milestone, raised on the slab's outline as the grid stepped it.
+
+- **THE VAULT from outside** (rules.tower.vaultBand): a band of gold light round the tower's facade at the slab line of
+  the vault storey's floor (32 m) and the one over it (35 m), 0.06 m proud of the skin and 0.3 m tall, in the pack's
+  light at a gold, three times its unit: 101.4 m of band a floor, following the facade's grooves round its three free
+  faces. The band's outline is traced where the facade's skin stands under the sills, every piece of it 4 m and more
+  across (the tower runs on into its east block past the grid, and its outline comes in open pieces: the largest alone
+  banded 41 m of it).
+- **The walk-in doors not yet framed**: round 3 could not find a door; a neon bar either side of each was tried, but the
+  pack's piece is a sign whose letters run sideways, and the two overlapped into one doubled sign across the door. Left
+  for a piece measured to stand upright.
+- **The zip lines' ropes twice as thick and brighter** (game.zipRope, zipGlow): 6 cm and twice the glow, where at 3 cm
+  round 2 read them as "thin red dotted lines".
+- **The floors' skirt straightened** (tools/neon-base.ts straighten): the outline a skirt or a band is raised on is
+  straightened first, no point of it off the grid's contour by more than 0.2 m, so the skirt is a kickboard along the
+  facade and not a run of steps.
+- The map: its files lo 84 MB, hi 146 MB, max 356 MB. **Its files are version 39.**
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): THE VAULT's gold band round the tower at its floor and its ceiling,
+  each 60 m and more (seen failing with its rule taken out). verify and rules;
+  e2e `br`. Photographed from the plaza, the decks and the doors.

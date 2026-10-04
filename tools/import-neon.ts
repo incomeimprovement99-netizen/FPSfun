@@ -15,7 +15,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 
 import { basename, dirname, join } from "node:path";
 import { padOff, padStandOff } from "../src/game/padsolve";
 import { streets, StreetField, fieldSurface, ringSlab, type Pt } from "./neon-streets";
-import { fillTo, flatAt, inside, sdPoly, skirtAlong, standing, storeySlab, type Grid } from "./neon-base";
+import { bandAlong, fillTo, flatAt, inside, sdPoly, skinRegion, skirtAlong, standing, storeySlab, type Grid } from "./neon-base";
 import { backFaces, boxInto, coplanar, cutOut, escapes, settle, stairCore, type Box3 } from "./neon-tower";
 import { wellFlight, type Flight } from "./neon-well";
 import { MOVE } from "../src/game/movement";
@@ -710,7 +710,7 @@ if (mode === "bake") {
     const push = (name: string, parts: Array<{ part: { pos: number[]; nrm: number[]; uv: number[]; idx: number[] }; mat: string }>) => {
       const prims = parts.filter((q) => q.part.idx.length).map((q) => ({ pos: new Float32Array(q.part.pos), nrm: new Float32Array(q.part.nrm), uv: new Float32Array(q.part.uv), idx: new Uint32Array(q.part.idx), material: q.mat }));
       const mats = prims.map((p) => {
-        const mg = pack.matFor(p.material);
+        const mg = derivedMat(p.material) ?? pack.matFor(p.material);
         if (!mg) throw new Error(`no material ${p.material}`);
         return mg;
       });
@@ -764,6 +764,7 @@ if (mode === "bake") {
     const coreHole: Pt[] = [[cx0, cz0], [cx1, cz0], [cx1, cz1], [cx0, cz1]];
     const areas: number[] = [];
     const holes: number[] = [];
+    const bands: Array<{ at: number; length: number }> = [];
     // (the tower as drawn and the core's walls, triangle by triangle on the map, for the seal's rays)
     const drawnTris: Array<[number[], number[], number[]]> = [];
     for (const { d, m } of towerDrawn)
@@ -832,12 +833,23 @@ if (mode === "bake") {
       // (and a skirt along its outer edge up to under the sills, `skirt` metres: the facade's panels stop short of the
       // floor, and the city showed through the slit at its foot)
       const skirt = skirtAlong(g, region, h, TF.skirt, TW.scale);
+      // THE VAULT from outside (rules.tower.vaultBand; the second review: "mark THE VAULT from outside"): a band of gold
+      // light round the facade's skin at the slab line of each floor in `at`, the vault storey's floor and the one over
+      // it, `out` proud of the skin and `high` tall up to `top` over the floor, so the storey reads from the plaza, the
+      // decks and the air
+      const VB = cfg.rules.tower.vaultBand as { at: number[]; out: number; high: number; top: number; mat: string } | undefined;
+      if (VB && VB.at.includes(h)) {
+        const band = bandAlong(g, skinRegion(g, skin), h + VB.top - VB.high, h + VB.top, VB.out, TW.scale);
+        tri += push(`vault-band-${h}`, [{ part: band.part, mat: VB.mat }]);
+        bands.push({ at: h, length: +band.length.toFixed(1) });
+      }
       tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
     console.log(`the tower's floors' cracks along the facade left open: ${holes.map((m, k) => `${TW.shaft[k]} m ${m} m2`).join(", ")}`);
-    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
+    if (bands.length) console.log(`THE VAULT's gold bands: ${bands.map((b) => `${b.at} m ${b.length} m long`).join(", ")}`);
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
     console.log(`the tower's floors sealed but for their windows: ${seal.map((q) => `${q.at} m ${q.gaps} of ${q.rays} rays out elsewhere, ${q.windows} through the windows`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
     // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a

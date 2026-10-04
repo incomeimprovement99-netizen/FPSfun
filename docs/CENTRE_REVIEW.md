@@ -114,3 +114,39 @@ framed in light, and fewer tall pad beams. The plan for each is in the centre's 
 Milestone 443, the streets' median and hover vans, 2 m floor numbers, the south deck's neon tower and the interiors'
 lights by preset; Milestone 451, each corner block's own thing at street level (Noodle Row's lanterns, Market's
 crates, the Well's lamps) and the tower's floors meeting its facade, the crack along them closed.*
+
+## Round 3, 2026-10-04 (map version 38)
+
+The same spots and brief; the east street's photo taken from the street at (50, -10), out of the tower it stood in. The
+designer's list brought up to date (the median, the hover vans, the lanterns, the crate stacks, the Well's lamps, the
+floors' colours and numbers).
+
+| | Round 1 | Round 2 | Round 3 |
+|---|---|---|---|
+| Looks and identity | 4 | 4.5 | 5 |
+| Readability | 4 | 5 | 5 |
+| Flow and getting around | 5 | 5 | 5 |
+| Fits every play style | 4 | 4.5 | 5 |
+| Finish and bugs | 3 | 3 | 4 |
+| Fun | 5 | 6 | 6 |
+| **Overall** | **4.5** | **4.5** | **5** |
+
+**What rose.** "An ambitious, competent prototype with a few finished corners": NOODLE ROW's lanterns, the MOTEL sign and
+the metro have real character; the tower floors are numbered; the levels stack from the metro to the lookout.
+
+**What holds it at 5.** The streets are wide and bare under the 27 m bridges, so "whoever holds the bridges wins the
+street-level rifle fights"; the four High City blocks are one model four times; the facades are sheer, with nothing to
+climb between 10.5 and 26.9 m; MARKET and THE WELL show no identity from the street; the tower floors' walls are flat
+colour with a speckle; night looks like day through a filter.
+
+**Fixed at once** (Milestone 454): the tower floors' skirt, raised on the slab's stepped outline, read as rubble
+along the floor; it and the vault's gold bands now stand on the outline straightened. THE VAULT marked from outside, the
+zip lines' ropes twice as thick (the walk-in doors' light left for a piece that stands upright).
+
+**What round 3 asks for next, in its order:** the streets densified (taller corner blocks, the paved voids filled, cover
+every 10 to 15 m, no street sightline past 60 m but the Loop's); the High City blocks made different (a tint, a crown and
+signs each, staggered heights, a ground floor and two floors open); facade traversal (ledges, balconies, AC units); the
+tower floors' walls in the pack's panels; stepping stones at 12 to 20 m (sign gantries, kiosk roofs, a lower roof tier,
+zip lines from the lookout to the decks); exposure in the shaded streets and yards, and a real night; THE WELL's shaft and
+MARKET's lanes seen from the street; the loot signposted; the lookout and the decks furnished; the void past the centre
+hidden until the outer districts are built.

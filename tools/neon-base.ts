@@ -159,6 +159,121 @@ export function fillTo(g: Grid, inside: Uint8Array, atSlab: Uint8Array, inset: n
   return { cells: out, holes: holes * g.cell * g.cell };
 }
 
+/**
+ * A closed outline straightened (Douglas and Peucker): no point off it by more than `tol`. A contour of a grid's cells
+ * steps a cell at a time along every slant and curve, and a skirt or a band raised on it read as rubble along the floor
+ * (the centre's third review)
+ */
+export function straighten(pts: Pt[], tol: number): Pt[] {
+  if (pts.length < 4) return pts;
+  const keep = new Uint8Array(pts.length);
+  const off = (p: Pt, a: Pt, b: Pt) => {
+    const [dx, dz] = [b[0] - a[0], b[1] - a[1]];
+    const L = Math.hypot(dx, dz);
+    return L < 1e-9 ? Math.hypot(p[0] - a[0], p[1] - a[1]) : Math.abs((p[0] - a[0]) * dz - (p[1] - a[1]) * dx) / L;
+  };
+  const run = (i: number, j: number) => {
+    let far = 0, at = -1;
+    for (let k = i + 1; k < j; k++) {
+      const d = off(pts[k], pts[i], pts[j]);
+      if (d > far) (far = d), (at = k);
+    }
+    if (far > tol && at > 0) {
+      keep[at] = 1;
+      run(i, at);
+      run(at, j);
+    }
+  };
+  // (closed: from the point farthest from the first, both ways round)
+  let far = 0, opp = 0;
+  for (let k = 1; k < pts.length; k++) {
+    const d = Math.hypot(pts[k][0] - pts[0][0], pts[k][1] - pts[0][1]);
+    if (d > far) (far = d), (opp = k);
+  }
+  keep[0] = keep[opp] = 1;
+  run(0, opp);
+  const ring = [...pts, pts[0]];
+  const keep2 = new Uint8Array(ring.length);
+  keep2.set(keep);
+  keep2[ring.length - 1] = 1;
+  const run2 = (i: number, j: number) => {
+    let f = 0, a = -1;
+    for (let k = i + 1; k < j; k++) {
+      const d = off(ring[k], ring[i], ring[j]);
+      if (d > f) (f = d), (a = k);
+    }
+    if (f > tol && a > 0) {
+      keep2[a] = 1;
+      run2(i, a);
+      run2(a, j);
+    }
+  };
+  run2(opp, ring.length - 1);
+  return ring.filter((_, k) => keep2[k] && k < ring.length - 1);
+}
+
+/**
+ * A building's outline where its skin stands (`skin`, at a height where it is whole): the open air flooded in from the
+ * grid's edge through every other cell; negative inside, as storeySlab's regions are
+ */
+export function skinRegion(g: Grid, skin: Uint8Array): (x: number, z: number) => number {
+  const air = new Uint8Array(g.nx * g.nz);
+  const todo: number[] = [];
+  const seed = (i: number, j: number) => {
+    const k = j * g.nx + i;
+    if (!skin[k] && !air[k]) (air[k] = 1), todo.push(k);
+  };
+  for (let i = 0; i < g.nx; i++) seed(i, 0), seed(i, g.nz - 1);
+  for (let j = 0; j < g.nz; j++) seed(0, j), seed(g.nx - 1, j);
+  while (todo.length) {
+    const k = todo.pop()!;
+    const [i, j] = [k % g.nx, Math.floor(k / g.nx)];
+    for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) if (a >= 0 && a < g.nx && b >= 0 && b < g.nz) seed(a, b);
+  }
+  return (x: number, z: number) => {
+    const i = Math.round((x - g.x0) / g.cell), j = Math.round((z - g.z0) / g.cell);
+    const c = (a: number, b: number) => a >= 0 && a < g.nx && b >= 0 && b < g.nz && !air[b * g.nx + a];
+    return c(i - 1, j - 1) || c(i, j - 1) || c(i - 1, j) || c(i, j) ? -g.cell / 2 : g.cell / 2;
+  };
+}
+
+/**
+ * A band round a building's outline (`region`, its largest contour), `out` metres proud of it, from `y0` to `y1`, facing
+ * out: a light band on its facade
+ */
+export function bandAlong(g: Grid, region: (x: number, z: number) => number, y0: number, y1: number, out: number, scale: number): { part: Part; length: number } {
+  const [x1, z1] = [g.x0 + g.nx * g.cell, g.z0 + g.nz * g.cell];
+  // (every piece of the outline 4 m and more across: where the building runs on past the grid's edge, as the tower runs
+  // into its east block, its outline comes in open pieces, and the largest alone banded two of its three free faces)
+  const lines = contours(region, g.x0, x1, g.z0, z1, g.cell).filter((l) => Math.max(...l.pts.map((q) => q[0])) - Math.min(...l.pts.map((q) => q[0])) >= 4 || Math.max(...l.pts.map((q) => q[1])) - Math.min(...l.pts.map((q) => q[1])) >= 4);
+  const p: Part = { pos: [], uv: [], nrm: [], idx: [] };
+  let run = 0;
+  for (const line of lines) {
+    const st = line.closed ? straighten(line.pts, 0.2) : line.pts;
+    const pts = line.closed ? [...st, st[0]] : st;
+    for (let k = 1; k < pts.length; k++) {
+      const [a0, b0] = [pts[k - 1], pts[k]];
+      const d = Math.hypot(b0[0] - a0[0], b0[1] - a0[1]);
+      if (d < 1e-6) continue;
+      let n: Pt = [(b0[1] - a0[1]) / d, -(b0[0] - a0[0]) / d];
+      const mid: Pt = [(a0[0] + b0[0]) / 2, (a0[1] + b0[1]) / 2];
+      // (away from the building: where the region is higher, outside)
+      if (region(mid[0] + n[0] * 0.05, mid[1] + n[1] * 0.05) < region(mid[0] - n[0] * 0.05, mid[1] - n[1] * 0.05)) n = [-n[0], -n[1]];
+      const [a, b]: Pt[] = [[a0[0] + n[0] * out, a0[1] + n[1] * out], [b0[0] + n[0] * out, b0[1] + n[1] * out]];
+      const base = p.pos.length / 3;
+      for (const [q, y, u] of [[a, y1, run], [b, y1, run + d], [b, y0, run + d], [a, y0, run]] as const) {
+        p.pos.push(q[0], y, q[1]);
+        p.uv.push(u * scale, (y1 - y) * scale);
+        p.nrm.push(n[0], 0, n[1]);
+      }
+      const ccw = (b[0] - a[0]) * n[1] - (b[1] - a[1]) * n[0] < 0;
+      p.idx.push(...(ccw ? [base, base + 1, base + 2, base, base + 2, base + 3] : [base, base + 2, base + 1, base, base + 3, base + 2]));
+      run += d;
+    }
+  }
+  return { part: p, length: run };
+}
+
 /** the cells whose middles lie in a level triangle at `y` (within `tol`): a floor or ledge already there */
 export function flatAt(g: Grid, tris: Iterable<[number[], number[], number[]]>, y: number, tol: number): Uint8Array {
   const m = new Uint8Array(g.nx * g.nz);
@@ -188,7 +303,8 @@ export function skirtAlong(g: Grid, region: (x: number, z: number) => number, to
   const outer = lines.reduce((best, l) => (span(l.pts) > span(best.pts) ? l : best), lines[0]);
   const p: Part = { pos: [], uv: [], nrm: [], idx: [] };
   if (!outer) return p;
-  const pts = outer.closed ? [...outer.pts, outer.pts[0]] : outer.pts;
+  const st = outer.closed ? straighten(outer.pts, 0.2) : outer.pts;
+  const pts = outer.closed ? [...st, st[0]] : st;
   let run = 0;
   for (let k = 1; k < pts.length; k++) {
     const [a, b] = [pts[k - 1], pts[k]];

@@ -1471,6 +1471,14 @@ const drops = [...loot.drops.values()];
   const H = (cfg.tower as unknown as { measured: { holes?: number[] } }).measured.holes ?? [];
   check("the tower's floors meet its facade: no crack along a floor's edge or its ceiling, as the bake measured", H.length === (cfg.tower as unknown as { shaft: number[] }).shaft.length && H.every((m) => m < 0.5), `${H.join("/")} m2`);
 }
+// THE VAULT marked from outside (rules.tower.vaultBand): a gold band round the facade at each floor `at`, the vault
+// storey's floor and the one over it, as the bake laid them, each most of the way round (the tower's skin is 70 m and more
+// round outside the east block it leans on)
+{
+  const VB = (cfg.rules.tower as unknown as { vaultBand?: { at: number[] } }).vaultBand;
+  const B = (cfg.tower as unknown as { measured: { bands?: Array<{ at: number; length: number }> } }).measured.bands ?? [];
+  check("THE VAULT marked from outside: a gold band round the tower at its floor and its ceiling", !!VB && VB.at.every((h) => B.some((b) => b.at === h && b.length > 60)), B.map((b) => `${b.at} m ${b.length} m`).join(", ") || "no bands");
+}
 // no stair of the big building runs into a ceiling (the owner's play test, 2026-10-04: "stairs don't lead to ceilings"):
 // along every way up it, the stair core's, each of the base's stairs and the court's ways in, a quarter metre at a time,
 // the tread there (the highest top up to 0.6 m over the way's line: the line runs straight from landing to landing and a
