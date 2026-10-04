@@ -253,6 +253,23 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   geometry): the magazine's sweep box from drawn meshes, checked. The Button is not a handle.
 - **Checks:** the slide aimed at a sprint is the one that matters; the recipe's otherwise.
 
+- **Done on the soldier, 2026-10-04** (soldierhold.json guns.shotgun): every skfigure check passes for it (22 of 136).
+  - The left hand under the fore-end 36 cm ahead of the gun's middle, ahead of the long magazine flush in the fore-end's
+    back half, so it holds the fore-end and not the magazine; the right on the grip, placed from the USSO's carried over
+    by the trigger and searched from there (the placed grasp's ring finger hung 12 mm off), the index's crease 0.1 mm off
+    the trigger.
+  - The shoulder reaches 85 degrees, the furthest hold's need: at the shared 34 the hold slid 24 to 29% back running and
+    sprinting, and with the body solved 8% aimed at a sprint at 70.
+  - The body and carries solved with the exact measure and the slide counted, the carries keeping the hold's own left
+    hand; the punch bows 8 cm out (its fingers caught the fore-end, 10 mm); the reload's point and tilt solved (the
+    left wrist 71 to 34 degrees).
+  - **A measure's fault found:** after a grenade throw, as the gun came back, the audit read the right ring finger 30 mm
+    inside REZ's Trigger part, from a point 3 cm under the trigger's own box: by a thin part's edge the inside rule
+    misreads. figure-audit.js now counts skin in a part only inside that part's own box (3 mm there after, as the hand
+    is).
+- **Left open, measured exactly:** the butt in the shoulder armour (19 to 26 mm); looking 40 up, 50 into the collarbone;
+  a sprint jump, 40 into the belly; the reload's first instant, the left fingers 26.
+
 ### 5.5 CHOOCH (lstar), SciFiGrenadeLauncher01_2, 124 cm
 
 - **Model:** Drum (turns a chamber a shot), sights; 24 cm wide at the drum. The fore-end hold 81 cm from the butt.

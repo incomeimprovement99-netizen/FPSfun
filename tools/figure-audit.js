@@ -273,7 +273,7 @@
       let g = grids.get(o.geometry.uuid);
       if (!g) grids.set(o.geometry.uuid, (g = gridOf(localTris(o.geometry), CELL)));
       // (its box, out by the 3 cm a depth looks: a point outside it has no face of this part within reach)
-      parts.push({ o, g, box: new T.Box3().setFromObject(o).expandByScalar(0.03), inv: new T.Matrix4().copy(o.matrixWorld).invert(), scale: o.getWorldScale(V()).x, flip: o.matrixWorld.determinant() < 0 ? -1 : 1 });
+      parts.push({ o, g, box: new T.Box3().setFromObject(o).expandByScalar(0.03), tight: new T.Box3().setFromObject(o).expandByScalar(0.001), inv: new T.Matrix4().copy(o.matrixWorld).invert(), scale: o.getWorldScale(V()).x, flip: o.matrixWorld.determinant() < 0 ? -1 : 1 });
     });
 
     // the figure's skin, skinned as drawn this frame, world space; each vertex's bone the one weighted most
@@ -320,7 +320,10 @@
           if (!pt.box.containsPoint(wp) || !drawn(pt.o, wp)) continue;
           const lp = wp.clone().applyMatrix4(pt.inv);
           far.d = Infinity;
-          const d = depthIn(pt.g, [lp.x, lp.y, lp.z], 0.03 / pt.scale, pt.flip, null, far) * pt.scale;
+          let d = depthIn(pt.g, [lp.x, lp.y, lp.z], 0.03 / pt.scale, pt.flip, null, far) * pt.scale;
+          // a point outside a part's own box is not in it: by a thin part's edge the rule above read skin 3 cm under
+          // REZ's trigger as 30 mm inside it (the throw's return, 2026-10-04)
+          if (d > 0 && !pt.tight.containsPoint(wp)) d = 0;
           // the palm's nearest skin to the gun, the same way: a palm held off its grip is as wrong as one through it
           if (boneOf[k] === `hand_${m[3]}`) {
             const gap = d > 0 ? 0 : Math.min(30, far.d * pt.scale * 1000);
