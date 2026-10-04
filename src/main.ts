@@ -135,7 +135,7 @@ import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
-import { BINS, levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/loot";
+import { levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/loot";
 import type { AmmoType } from "./game/weapons";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
@@ -5095,9 +5095,6 @@ function applyLoot(it: LootItem): void {
   const putBack = (x: LootItem) => d?.dropLoot(x, here);
   const label = lootLabel(it);
   switch (it.kind) {
-    // a supply bin: opening it is taking it, and what it held is on the floor now; nothing goes in the pack
-    case "bin":
-      return;
     case "hack": {
       // SpeedKills: a hack core fuses the hack you hold (a level up, or to its
       // level) or swaps in for the other of its slot, which goes down where you stand
@@ -5549,7 +5546,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // a team mate's SCOUT scan, in the modes (a battle royale's marks go through onMark below)
   if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, KITS.scout.tactical.seconds));
   if (d instanceof BrMatch) {
-    d.onBinOpened = (at) => audio.bin(at, true);
     d.onWiped = () => announcer.say("wiped", realNow());
     d.onKnockSeen = (victim, by) => {
       evoForKnock(victim, by);
@@ -7490,8 +7486,6 @@ function frame(): void {
 }
 
 let rosterAt = 0;
-/** when the nearest supply bin last hummed */
-let binHumAt = 0;
 function step(): void {
   // the host's lobby list changes as friends click Play and pings come back: redrawn twice a second while it waits
   if (performance.now() - rosterAt > 500) {
@@ -8806,21 +8800,6 @@ function step(): void {
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
     const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    // a closed supply bin near you hums, every couple of seconds, the nearest one
-    if (now - binHumAt > 1.8 && duel.lootField) {
-      binHumAt = now;
-      let best: THREE.Vector3 | null = null;
-      let bestD: number = BINS.humHear;
-      for (const b of duel.lootField.drops.values()) {
-        if (b.item.kind !== "bin" || b.item.id !== "closed") continue;
-        const dd = b.pos.distanceTo(player.pos);
-        if (dd < bestD) {
-          bestD = dd;
-          best = b.pos;
-        }
-      }
-      if (best) audio.binHum(best);
-    }
     // what the backpack lets you carry of each ammo type (ammo.json carry)
     loadout.ammo.packTier = PACK_ORDER.indexOf(kit.pack);
     brPlay.update(now, duel, player, scriptInput ?? input, camera.position.clone(), f, { alive: duel.alive, downed: downedNow, playing: input.playing || !!scriptInput, myId: duel.id });

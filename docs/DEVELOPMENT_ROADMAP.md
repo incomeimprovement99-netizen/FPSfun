@@ -10700,3 +10700,16 @@ but the building itself was the same white frame and lit trims on all four.
   same, failing with the north block in the south's (`n #ffc860, s #ffc860`); all 140 of the file pass. The bake's
   unmatched materials the same seven as version 42; the layout rerun after the bake left the config as it was. The e2e
   `speedkills` section on the Neon City: its capture-zone bot, with THE TOWER the final sector as in the lobby agent's two failed runs, starts on a street node and takes the graph's way to the zone (30 steps, its next node the first along them); the eight old city checks that failed on the Neon map in the same run are the ones Milestone 473 now says as skipped there. verify and rules. Map version 43.
+
+## Milestone 475 — No supply bins
+
+The owner: "there should be no supply bins or death boxes, remove code for that" (2026-10-04). Supply bins are gone from
+both games: their spots beside each place's and site's loot (loot.ts generate, on a random stream of their own, so the
+rest of the floor is the same item for item), what one threw out when opened (binContents, brmatch.ts spillBin), the
+hold to open one and its prompt (brplay.ts), the hum that led you to one and the lid's sound (main.ts, audio.ts), their
+look (the pack's weapon case, or our crate), their kind on the wire, the vault's two, their caption, and loot.json's
+`bins` and paidweapons.json's `supplybin` (the case's model stays: the armory's stands wear it). The floor's other loot
+is unchanged.
+
+- **Checked:** tsc; verify (loot-tiers without its bin checks); rules; the br, loot and speedkills e2e (the vault
+  stocked with its mythic gun alone; the bin checks gone).

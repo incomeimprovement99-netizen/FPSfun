@@ -22,7 +22,7 @@ import type { Dummy } from "./dummy";
 import type { Action } from "./input";
 import type { MoveInput, Player } from "./player";
 import { solidHit } from "./projectile";
-import { BINS, lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
+import { lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
 import { DROP_HEIGHT } from "./brmatch";
 import squad from "../config/squad.json";
 import chainCfg from "../config/chaincourse.json";
@@ -165,7 +165,7 @@ export function nothingToGain(item: LootItem, carry: CarryState | null): boolean
 export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, carry: CarryState | null, ours: (owner: number) => boolean = () => true): ReachRow[] {
   const rows: ReachRow[] = [];
   for (const d of drops) {
-    if (d.item.kind === "box" || d.item.kind === "bin") continue;
+    if (d.item.kind === "box") continue;
     // another squad's banner is not yours to carry (squads of friends)
     if (d.item.kind === "banner" && d.item.owner !== undefined && !ours(d.item.owner)) continue;
     if (Math.abs(d.pos.y - at.y) > LOOTING.floorGap) continue;
@@ -246,7 +246,7 @@ export class BrPlay {
   private revived: { id: number; name: string; at: number } | null = null;
   /** a jump pad's throw on its way up: the push over the roof's edge, given once above `over` */
   private padCarry: { vx: number; vz: number; over: number } | null = null;
-  private hold: { kind: "revive" | "beacon" | "box" | "console" | "bin"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
+  private hold: { kind: "revive" | "beacon" | "box" | "console"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
   /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
   get holdKind(): "revive" | "interact" | null {
     return this.hold ? (this.hold.kind === "revive" ? "revive" : "interact") : null;
@@ -557,15 +557,6 @@ export class BrPlay {
     const beacon = this.carried ? match.mapInfo.beacons.find((b) => Math.hypot(p.x - b.x, p.z - b.z) < squad.beaconReach) : undefined;
     // a Ring Console at your feet
     const rc = player.onGround ? match.consoleNear(p, CONSOLE.reach) : null;
-    // a closed supply bin within reach, on your floor, and nothing solid between you and it: a bin just
-    // inside the vault was offered through its locked door (the release run's vault checks, on a seed
-    // that stood one by the door). The line may stop at the bin's own box, 0.6 m short of its middle.
-    const clearTo = (at: THREE.Vector3): boolean => {
-      const dir = new THREE.Vector3(at.x - eye.x, at.y + 0.4 - eye.y, at.z - eye.z);
-      const len = dir.length();
-      return len < 0.6 || solidHit(eye, dir.divideScalar(len), len) >= len - 0.6;
-    };
-    const bin = player.onGround && match.lootField ? [...match.lootField.drops.values()].find((d) => d.item.kind === "bin" && d.item.id === "closed" && Math.hypot(d.pos.x - p.x, d.pos.z - p.z) < LOOTING.reach && Math.abs(d.pos.y - p.y) < LOOTING.floorGap && clearTo(d.pos)) : undefined;
     if (mate) {
       out.prompt = { key: `HOLD ${key}`, text: `REVIVE ${mate.name}` };
       this.runHold("revive", mate.id, `REVIVING ${mate.name}`, REVIVE_TIME, holdingE, now, match, () => {
@@ -631,12 +622,6 @@ export class BrPlay {
           this.deps.onScan?.();
         });
       }
-    } else if (bin) {
-      // a supply bin: hold to open it (whoever is first gets it open), and what was in it comes out round it
-      out.prompt = { key: `HOLD ${key}`, text: "OPEN THE SUPPLY BIN" };
-      this.runHold("bin", bin.key, "OPENING THE SUPPLY BIN", BINS.hold, holdingE, now, match, () => {
-        match.takeLoot(bin.key);
-      });
     } else {
       this.cancelHold(match);
       // on the tower's own floor: the Mast's balloon is on its roof, not in the hall 28 m under it
@@ -784,7 +769,7 @@ export class BrPlay {
    * can change as it goes (SpeedKills' restore, a third as fast while the
    * ghost is away from you).
    */
-  private runHold(kind: "revive" | "beacon" | "box" | "console" | "bin", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
+  private runHold(kind: "revive" | "beacon" | "box" | "console", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
     if (!holding) {
       this.cancelHold(match);
       return;

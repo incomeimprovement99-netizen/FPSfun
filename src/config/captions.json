@@ -6,7 +6,6 @@
     "step": "FOOTSTEPS",
     "land": "SOMEONE LANDED",
     "door": "DOOR",
-    "bin": "SUPPLY BIN",
     "reload": "RELOAD",
     "heal": "HEALING",
     "revive": "REVIVE",
@@ -19,7 +18,7 @@
     "knock": "KNOCKDOWN",
     "hit": "HIT"
   },
-  "important": ["gun", "blast", "step", "land", "door", "bin", "reload", "heal", "revive", "zip", "knock"],
+  "important": ["gun", "blast", "step", "land", "door", "reload", "heal", "revive", "zip", "knock"],
   "cone": {
     "ahead": 45,
     "behind": 45

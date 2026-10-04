@@ -90,7 +90,7 @@ console.log("Sound captions");
   only.mode = "important";
   only.heard("pickup", 1, "AHEAD", "CLOSE");
   check("the important list is the short one: a pickup is captioned only on everything", all.live(1).length === 1 && only.live(1).length === 0);
-  check("every sound the game cues has a word for it", ["gun", "blast", "step", "land", "door", "bin", "reload", "knock"].every((id) => !!CAPTION_WORDS[id]), CAPTION_IDS.length + " sounds");
+  check("every sound the game cues has a word for it", ["gun", "blast", "step", "land", "door", "reload", "knock"].every((id) => !!CAPTION_WORDS[id]), CAPTION_IDS.length + " sounds");
 }
 
 

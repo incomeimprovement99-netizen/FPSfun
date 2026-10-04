@@ -429,7 +429,7 @@ const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
 /**
  * The vault (br.json vault): the Well's small building, sealed, its door
  * locked. Its guard stands at its post on no side and is not counted among
- * those left; the vault is stocked with two supply bins and a mythic gun as
+ * those left; the vault is stocked with a mythic gun as
  * the fight starts; the door will not open without the keycard, which is in
  * the guard's death box; its holder is shown the way and opens the door,
  * which uses the card.
@@ -451,11 +451,11 @@ async function vaultTest(browser: Browser, query: string): Promise<void> {
     "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.guard); if (!b) return null; return { name: b.bot.remote.name, tier: b.bot.diff.name, team: b.team, at: Math.hypot(b.bot.pos.x - b.guard.x, b.bot.pos.z - b.guard.z), alive: b.bot.alive, aboard: b.bot.aboard, left: d.aliveCount, bots: d.bots.filter((x) => !x.guard).length, vault: d.vault }; })()"
   );
   check("vault: its guard, THE WARDEN, elite and on no side, stands at his post (not on the ship), and is not counted among those left", !!g && g.name === "THE WARDEN" && g.tier === "elite" && g.team === -1 && g.at < 2 && g.alive && !g.aboard && g.left === 1 + g.bots && !!g.vault?.locked, JSON.stringify(g));
-  const stock = await ev<{ mythic: string[]; bins: number }>(
+  const stock = await ev<{ mythic: string[] }>(
     page,
-    "(() => { const d = window.__range.duel(); const v = d.vault; const near = [...d.lootField.drops.values()].filter((x) => Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); return { mythic: near.filter((x) => x.item.kind === 'weapon' && x.item.mythic).map((x) => x.item.id + ':' + x.item.mag), bins: near.filter((x) => x.item.kind === 'bin' && x.item.id === 'closed').length }; })()"
+    "(() => { const d = window.__range.duel(); const v = d.vault; const near = [...d.lootField.drops.values()].filter((x) => Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); return { mythic: near.filter((x) => x.item.kind === 'weapon' && x.item.mythic).map((x) => x.item.id + ':' + x.item.mag) }; })()"
   );
-  check("vault: stocked as the fight starts: a mythic gun at gold mag and two supply bins inside", stock.mythic.length === 1 && stock.mythic[0].endsWith(":4") && stock.bins === 2, JSON.stringify(stock));
+  check("vault: stocked as the fight starts: a mythic gun at gold mag inside", stock.mythic.length === 1 && stock.mythic[0].endsWith(":4"), JSON.stringify(stock));
   // at the door without the card: it says so, and the door stays shut
   await ev(page, "(() => { const d = window.__range.duel(); const door = window.__range.brMap.doors.list[d.vault.door]; window.__range.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z - 2.2, 180, 0); })()");
   await gameSleep(page, 0.5);
@@ -467,13 +467,6 @@ async function vaultTest(browser: Browser, query: string): Promise<void> {
   await sleep(300);
   const shut = await ev<{ open: boolean; locked: boolean; kicked: string | null }>(page, "(() => { const d = window.__range.duel(); const ds = window.__range.brMap.doors; return { open: ds.list[d.vault.door].open, locked: d.vault.locked, kicked: ds.kick(d.vault.door) }; })()");
   check("vault: without the keycard the door says so, stays shut to interact and cannot be kicked in", /LOCKED/.test(lockedPrompt) && !shut.open && shut.locked && shut.kicked === null, JSON.stringify({ lockedPrompt, shut }));
-  // one of its bins just inside the shut door, 2.7 m from you and within a bin's 3 m reach: the door is
-  // between, so it is not offered (a seed that stood a bin there once offered it through the door)
-  const through = await ev<string>(
-    page,
-    `new Promise((ok) => { const d = window.__range.duel(); const v = d.vault; const door = window.__range.brMap.doors.list[v.door]; const b = [...d.lootField.drops.values()].find((x) => x.item.kind === "bin" && x.item.id === "closed" && Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); const was = b.pos.clone(); b.pos.set(door.centre.x, b.pos.y, door.centre.z + 0.5); const t0 = window.__range.gameTime(); const read = () => { if (window.__range.gameTime() < t0 + 0.4) return void setTimeout(read, 50); const said = window.__range.brPlay.hud?.prompt?.text ?? ""; b.pos.copy(was); ok(said); }; read(); })`
-  );
-  check("vault: a bin just inside its shut door is not offered through it", !/SUPPLY BIN/.test(through), through);
   // the guard down: his death box holds the keycard
   await ev(page, "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.guard); d.botDown(b, d.id); })()");
   await sleep(400);
@@ -925,22 +918,6 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
       return { name: h.name, x: h.x, z: h.z, radius: h.radius, poi, kitted }; })()`
   );
   check("the hot zone: this match kitted one of the places out, and the map can say which", !!hot && hot.poi && hot.radius > 10 && hot.kitted >= 1, JSON.stringify(hot));
-  // A supply bin: go to one, hold E, and it opens, what it held thrown out round
-  // it; it is never in the reach list, and it is gone for whoever comes next.
-  const bin = await ev<{ key: number; x: number; y: number; z: number; n: number } | null>(page, `(() => { const f = window.__range.duel().lootField; const all = [...f.drops.values()].filter((d) => d.item.kind === "bin" && d.item.id === "closed"); const b = all[0]; return b ? { key: b.key, x: b.pos.x, y: b.pos.y, z: b.pos.z, n: f.drops.size } : null; })()`);
-  if (!bin) check("bins: the match has supply bins", false);
-  else {
-    await ev(page, `(() => { const r = window.__range; r.player.teleport(${bin.x} - 0.8, ${bin.y}, ${bin.z}, 90, -30); })()`);
-    await sleep(400);
-    const rows = await ev<number[] | null>(page, `window.__range.brPlay.hud?.reach?.rows?.map((r) => r.key) ?? null`);
-    const listed = rows === null || rows.includes(bin.key);
-    // held, never pressed again: a press on each frame would take what the bin throws out
-    await ev(page, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
-    await sleep(1200);
-    await ev(page, "window.__range.setScript(null)");
-    const after = await ev<{ closed: boolean; open: boolean; round: number }>(page, `(() => { const f = window.__range.duel().lootField; const at = (d, r) => Math.hypot(d.pos.x - ${bin.x}, d.pos.z - ${bin.z}) < r; const ds = [...f.drops.values()]; return { closed: f.drops.has(${bin.key}), open: ds.some((d) => d.item.kind === "bin" && d.item.id === "open" && at(d, 0.2)), round: ds.filter((d) => d.item.kind !== "bin" && Math.abs(Math.hypot(d.pos.x - ${bin.x}, d.pos.z - ${bin.z}) - 1.1) < 0.15).length }; })()`);
-    check("bins: hold E at a supply bin and it opens, what it held thrown out round it (and it is not in the reach list)", !listed && !after.closed && after.open && after.round >= 3, JSON.stringify({ listed, ...after }));
-  }
   // A bot lands with nothing and LOOTS its gun off the floor, so one that came
   // down a few seconds before you may already have one. What must never
   // happen is a bot holding a gun it did not find.
@@ -8029,7 +8006,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       for (const x of d.lootField.drops.values()) { kinds.add(x.item.kind); const p = m.placeAt(x.pos.x, x.pos.z); if (p && p.id === "c") spire++; else other++; if (x.item.kind === "weapon") levels[x.item.fusion ?? 0]++; }
       return { kinds: [...kinds], spire, other, levels }; })()`
   );
-  check("speedkills br: the floor is guns and hack cores, nothing else to sort", floor.kinds.every((k) => ["weapon", "hack", "bin", "box"].includes(k)) && floor.kinds.includes("hack"), JSON.stringify(floor.kinds));
+  check("speedkills br: the floor is guns and hack cores, nothing else to sort", floor.kinds.every((k) => ["weapon", "hack", "box"].includes(k)) && floor.kinds.includes("hack"), JSON.stringify(floor.kinds));
   check("speedkills br: the Spire is the richest sector (the hot drop)", floor.spire > floor.other / 8 * 1.5, JSON.stringify({ spire: floor.spire, other: floor.other }));
   // The centre's loot comes back (speedkills.json loot.restock, as Red Tiger's did): take most of the hot
   // zone's guns and hack cores away, as a crowd landing there would, and the host puts some back.

@@ -1079,28 +1079,11 @@ export class GameAudio {
     }
   }
 
-  /** a supply bin's lid, the same tell as a door but shorter */
-  bin(at: Vec, open: boolean): void {
-    this.cue("bin", at);
-    // an opening carries across a place (loot.json bins openHear): somebody got there first
-    const v = this.voice(at, 0.5, "fx", open ? 1 : 0, 0.4, open ? 12 : cfg.distance.ref.default);
-    if (!v) return;
-    if (!this.sample(v.input, v.t, open ? "bin_open" : "bin_close", 0.7)) this.tone(v.input, v.t, 0.12, "square", 300, 180, 0.18);
-  }
-
   /** a spray can: a short hiss where it was used */
   spray(at: Vec | null): void {
     const v = this.voice(at, 0.5, "fx", 1, 0.2);
     if (!v) return;
     this.noise(v.input, v.t, 0.4, "highpass", 5200, 0.7, 0.16, 0.02);
-  }
-
-  /** a closed supply bin nearby: a low electric hum, so you find it by ear before you see it */
-  binHum(at: Vec): void {
-    const v = this.voice(at, 0.5, "fx", 0, 0.2, 4);
-    if (!v) return;
-    this.tone(v.input, v.t, 0.45, "sine", 110, 110, 0.05, 0.08);
-    this.tone(v.input, v.t, 0.45, "sine", 220, 220, 0.02, 0.08);
   }
 
   /** an item going into the pack: the player's own, so it is not placed in the world */

@@ -25,7 +25,7 @@ import { slow } from "./slow";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
-import { paidGunMaterial, paidProp, paidPropBatch, paidPropReady, setPropOpen } from "./paidgun";
+import { paidGunMaterial, paidProp, paidPropBatch } from "./paidgun";
 import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName, throwName } from "../config/names";
@@ -42,21 +42,7 @@ export type Rarity = "common" | "rare" | "epic" | "legendary";
 /** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
 const CORE_DETAIL2 = cfg.coreDetail ** 2;
 
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "bin" | "keycard" | "hack";
-
-/** supply bins (loot.json bins): where they may stand, how often, and what one throws out */
-export const BINS = cfg.bins;
-
-/** a supply bin, closed (id "closed", to be opened) or open (id "open", spent): not an item anyone carries */
-export const isBin = (it: { kind: string }): boolean => it.kind === "bin";
-
-/** what a bin throws out when it opens: its tier's rolls, from the match seed and the bin's own key */
-export function binContents(seed: number, key: number): LootItem[] {
-  const rnd = seeded(((seed ^ Math.imul(key + 1, 2654435761)) >>> 0) || 1);
-  const out: LootItem[] = [];
-  for (let i = 0; i < BINS.spots; i++) out.push(...rollSpot(rnd, BINS.tier as PlaceTier));
-  return out;
-}
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "banner" | "box" | "grenade" | "backpack" | "knockdown" | "keycard" | "hack";
 
 export interface LootItem {
   kind: LootKind;
@@ -757,25 +743,6 @@ export class LootField {
     if (this.headless) return g;
     if (it.kind === "weapon") {
       // a gun is drawn with every other of its kind and skin, as its ring is with every other ring (gunBatch)
-    } else if (it.kind === "bin" && IS_SK && paidPropReady("supplybin")) {
-      // SpeedKills: the pack's weapon case (paidgun.ts), its cover swung open once it is looted
-      const bought = paidProp("supplybin")!;
-      setPropOpen(bought, "supplybin", it.id === "open");
-      g.add(bought);
-    } else if (it.kind === "bin") {
-      // a supply bin: a squat crate with a lit seam; open, its lid stands up behind it
-      const open = it.id === "open";
-      const body = new THREE.Mesh(this.crateGeo, this.mat("bin", () => new THREE.MeshStandardMaterial({ color: 0x33434a, emissive: 0x3fd0c8, emissiveIntensity: 0.3, roughness: 0.55, metalness: 0.3 })));
-      body.scale.set(1.2, open ? 0.8 : 0.9, 0.8);
-      body.position.y = 0.25;
-      g.add(body);
-      const lid = new THREE.Mesh(this.crateGeo, this.mat("binlid", () => new THREE.MeshStandardMaterial({ color: 0x26343a, roughness: 0.6, metalness: 0.3 })));
-      lid.scale.set(1.25, 0.12, 0.85);
-      if (open) {
-        lid.rotation.x = -1.3;
-        lid.position.set(0, 0.7, -0.4);
-      } else lid.position.y = 0.52;
-      g.add(lid);
     } else if (it.kind === "box") {
       // SpeedKills: the pack's storage case when it is in (paidgun.ts); our crate otherwise
       const bought = IS_SK ? paidProp("deathbox") : null;
@@ -808,7 +775,7 @@ export class LootField {
       p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
       this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
       this.batch(`ring${colour}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
-    } else if (it.kind !== "bin" && it.kind !== "box") {
+    } else if (it.kind !== "box") {
       // a hack core in its slot's colour (mobility cyan, utility magenta)
       const col = it.kind === "banner" ? 0x7ddc8a : it.kind === "hack" ? (hackSlotOf(it.id) === "mobility" ? 0x20e0ff : 0xff2e9a) : colour;
       // the items turn slowly
@@ -947,8 +914,6 @@ export class LootField {
       }
     };
     let hotSpots: THREE.Vector3[] = [];
-    /** each place's and site's spots, for the supply bins placed last */
-    const binSpots: Array<{ spots: THREE.Vector3[]; n: number }> = [];
     for (let i = 0; i < places.length; i++) {
       const p = places[i];
       const hot = this.hotZone?.index === i;
@@ -964,7 +929,6 @@ export class LootField {
         trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
       }
       if (hot) hotSpots = spots;
-      binSpots.push({ spots, n: BINS.perPlace });
       fill(spots, tier);
       if (hot) {
         this.hotSpots = spots.map((s) => s.clone());
@@ -1010,18 +974,6 @@ export class LootField {
         }
       }
       fill(spots, tier);
-      binSpots.push({ spots, n: BINS.perSite });
-    }
-    // Supply bins, last of all and on a stream of their own, so everything
-    // above draws what it drew before: beside the first spots of each place
-    // and site, each there with the chance, from the seed.
-    const binRnd = seeded((seed ^ 0x51b1a5e5) >>> 0);
-    for (const { spots, n } of binSpots) {
-      for (let i = 0; i < Math.min(n, spots.length); i++) {
-        if (binRnd() >= BINS.chance) continue;
-        const at = spots[i].clone().add(new THREE.Vector3(1.1, 0, 0.3));
-        this.add({ kind: "bin", id: "closed", n: 1, rarity: "rare" }, at);
-      }
     }
     // The metro under SpeedKills' centre (floors.ts), after everything and on a stream of its own, so everything above
     // draws what it drew before there was one: spots down every side of the tunnel on its floor, clear of its train
@@ -1136,11 +1088,6 @@ export class LootField {
       const v = d.pos.distanceToSquared(cam) < far2;
       d.obj.visible = v;
       if (!v) continue;
-      // a bin of ours turns; the pack's case stands still, as a case does
-      if (d.item.kind === "bin" && !(IS_SK && paidPropReady("supplybin"))) {
-        d.obj.rotation.y = now * 0.8 + d.key;
-        d.obj.updateMatrix();
-      }
       this.drawBatched(d, now, d.pos.distanceToSquared(cam) < CORE_DETAIL2);
     }
     for (const b of this.batches.values()) b.close();
