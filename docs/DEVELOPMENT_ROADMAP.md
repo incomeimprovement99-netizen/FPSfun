@@ -10445,3 +10445,21 @@ moved 2.4 and 1.9 cm while main's moved 0.8 and 0.2: not the code, but the momen
   baseline takes the first gun not yet in the bought arms. tools/pack-solve.ts keeps the hand still on KEEP_HAND=1.
 - **Checked:** the soldier e2e passes (the rest hold 0.22 and 0.38 mm, the swap 0.1 and 0 cm, no hand in either gun);
   verify; rules; tsc.
+
+## Milestone 464 — APUHTHEE the right way round
+
+APUHTHEE (the heavy pistol, the pack's SciFiPistol02_2) was held backwards on the live site, in the first person and
+on every soldier: aimed, you looked down its bore, and the hand held the front of its slide. Found fitting the soldier's
+pistol stance (`PLAN_SOLDIER_EIGHT_GUNS.md` 5.6).
+
+- **Why:** `tools/checks/paid-weapons.ts` takes the muzzle as the end farther from the model's origin, which the pack
+  puts at the grip on its long guns. Pistol02's origin sits mid-slide, its ends 2 mm apart (z -0.128 and +0.126), so the
+  back was chosen, `muzzleEnd` -1, and paidgun.ts never gave it the half turn the others get.
+- **The fix:** the origin's answer stands wherever its ends differ by 1 cm or more (every long gun clears that by 4 cm
+  or more); under that, the muzzle is the end farther from the grip's foot, the gun's lowest point. Neither of the two
+  other rules tried would do alone: the lowest point is the grenade launcher's front, and the first SMG's trigger is
+  forward of its middle. Remeasured (`WRITE=1`): only the two Pistol02 builds change, their muzzle to the slide's front
+  and the red dot's back to -0.034.
+- **Checked:** the paid-weapons check fails on both Pistol02 builds with the old rule put back; first-person and
+  soldier photographs, standing and aimed (the barrel forward, the red dot sighted through); verify; rules; the type
+  check. The guns agent had tuned nothing in the first person on the reversed gun (the pistols are sixth in its plan).

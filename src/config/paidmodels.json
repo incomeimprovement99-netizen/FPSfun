@@ -330,17 +330,17 @@
     "SciFiPistol02_1": {
       "measured": {
         "length": 0.254,
-        "muzzleEnd": -1,
+        "muzzleEnd": 1,
         "muzzle": [
           0,
-          -0.03,
-          -0.128
+          0.008,
+          0.126
         ],
-        "sightTop": 0.063,
-        "sightZ": 0.107,
+        "sightTop": 0.064,
+        "sightZ": -0.08,
         "eye": {
-          "y": 0.063,
-          "back": 0.107,
+          "y": 0.064,
+          "back": -0.08,
           "sight": "irons"
         }
       }
@@ -348,17 +348,17 @@
     "SciFiPistol02_2": {
       "measured": {
         "length": 0.254,
-        "muzzleEnd": -1,
+        "muzzleEnd": 1,
         "muzzle": [
           0,
-          -0.03,
-          -0.128
+          0.008,
+          0.126
         ],
-        "sightTop": 0.08,
-        "sightZ": 0.008,
+        "sightTop": 0.064,
+        "sightZ": -0.08,
         "eye": {
           "y": 0.071,
-          "back": 0.013,
+          "back": -0.034,
           "sight": "dot"
         }
       }

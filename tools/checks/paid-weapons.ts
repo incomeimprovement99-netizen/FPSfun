@@ -1,7 +1,8 @@
 // The bought guns, measured (Phase 21 W2, docs/PHASE_21_OVERNIGHT_PLAN.md): for each gun src/config/paidweapons.json
 // maps to a model, off the model itself: its length, which end of it is the muzzle (the end farther from the model's
 // origin, which the pack puts at the grip: +Z on every long gun, Unity's forward; the narrower end was tried first
-// and chose the stock on four of ten, whose skeletal stocks are thinner than their shrouded barrels), where the
+// and chose the stock on four of ten, whose skeletal stocks are thinner than their shrouded barrels; where the origin
+// sits mid-gun, as on the second pistol, the end farther from the grip's foot), where the
 // muzzle is, and the top of its sights over the rear half. paidweapons.json carries these beside its numbers and this fails when they part. The collision
 // hulls (UCX_*) are never counted. Without the paid files (they are local only) it is skipped with a note.
 //
@@ -96,7 +97,13 @@ async function measure(file: string): Promise<Measured> {
   };
   const hi = section(true);
   const lo = section(false);
-  const end = box.max.z >= -box.min.z ? 1 : -1;
+  // The end farther from the origin, the pack's grip, is the muzzle; where the two ends are within 1 cm of the origin
+  // it no longer tells (the second pistol's sits mid-slide: 2 mm apart, the back chosen, and APUHTHEE was held
+  // backwards in both views), so the end farther from the grip's foot, the gun's lowest point. That alone is wrong on
+  // the launcher, whose lowest point is its front, and the trigger on the first SMG, whose trigger is forward of its
+  // middle; every long gun clears the 1 cm by 4 cm or more
+  const low = pts.reduce((a, p) => (p.y < a.y ? p : a), pts[0]);
+  const end = Math.abs(box.max.z + box.min.z) >= 0.01 ? (box.max.z >= -box.min.z ? 1 : -1) : box.max.z - low.z >= low.z - box.min.z ? 1 : -1;
   const tip = end > 0 ? hi.centre.setZ(box.max.z) : lo.centre.setZ(box.min.z);
   const mid = (box.max.z + box.min.z) / 2;
   const rear = pts.filter((p) => (end > 0 ? p.z < mid : p.z > mid));
