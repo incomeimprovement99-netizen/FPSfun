@@ -40,7 +40,7 @@ export interface Award {
 }
 
 const KEY = "range.progress.v1";
-const MODE_KINDS = new Set(["gunrun", "tdm", "crown", "control", "ffa"]);
+const MODE_KINDS = new Set(["tdm", "control", "ffa"]);
 
 /** what one level to the next costs: level n to n + 1 */
 export function levelCost(n: number): number {

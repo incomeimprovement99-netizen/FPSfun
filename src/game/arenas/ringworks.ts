@@ -125,5 +125,5 @@ export const RINGWORKS: ArenaPlan = {
     { ax: -9, ay: 4.0, az: -9, bx: 9, by: 4.0, bz: 9, floorA: RING, floorB: RING },
     { ax: 9, ay: 4.7, az: -9, bx: -9, by: 4.7, bz: 9, floorA: RING, floorB: RING },
   ],
-  bestFor: ["ffa", "gunrun", "crown"],
+  bestFor: ["ffa"],
 };

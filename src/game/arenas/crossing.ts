@@ -167,5 +167,5 @@ export const CROSSING: ArenaPlan = {
     { ax: -9, ay: 5.4, az: -21.5, bx: -19.5, by: 4.0, bz: -2.5, floorA: DECK, floorB: 2.6 },
     { ax: 9, ay: 5.4, az: 21.5, bx: 19.5, by: 4.0, bz: 2.5, floorA: DECK, floorB: 2.6 },
   ],
-  bestFor: ["tdm", "control", "crown"],
+  bestFor: ["tdm", "control"],
 };

@@ -1,12 +1,11 @@
 // Host migration, phase 3 (docs/PLAN_HOST_MIGRATION.md): the heir builds
-// the crown and Control's zones again from what its copy of the match saw
-// (modes.ts Crown.restore, Control.restore), and they carry on exactly as
-// the host's would have: the crown's hold keeps counting to its win, a zone
-// held keeps scoring, the bonus comes when the snapshot said, and a lockout
+// Control's zones again from what its copy of the match saw
+// (modes.ts Control.restore), and they carry on exactly as the host's would
+// have: a zone held keeps scoring, the bonus comes when the snapshot said, and a lockout
 // keeps its clock.
 //
 // Run on its own: npx tsx tools/checks/mode-restore.ts.
-import { Control, Crown, MODES } from "../../src/game/modes";
+import { Control } from "../../src/game/modes";
 import { Ring } from "../../src/game/ring";
 import { seeded } from "../../src/game/loot";
 
@@ -16,30 +15,7 @@ function check(label: string, cond: boolean, detail = ""): void {
   console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
 }
 
-console.log("Host migration: the crown and Control rebuilt");
-{
-  // the host's crown, carried by player 2 for 3 s; the heir's, from the view
-  const host = new Crown(0, 0, 0);
-  const at = { id: 2, x: 0, z: 0, alive: true };
-  let t = MODES.crown.appearsAfter + 0.1;
-  host.update(t, 0.1, [at]);
-  host.update(t + 0.1, 0.1, [at]);
-  for (let i = 0; i < 30; i++) host.update((t += 0.1), 0.1, [at]);
-  const heir = new Crown(0, 0, t);
-  heir.restore({ phase: host.phase, x: host.x, z: host.z, carrier: host.carrier, held: host.held }, 0);
-  let hw: number | null = null;
-  let ew: number | null = null;
-  for (let i = 0; i < 400 && (hw === null || ew === null); i++) {
-    t += 0.1;
-    hw ??= host.update(t, 0.1, [at]).winner;
-    ew ??= heir.update(t, 0.1, [at]).winner;
-  }
-  check("the crown: carried when the heir took over, the hold keeps counting to the same win", heir.phase === "carried" && hw === 2 && ew === 2, JSON.stringify({ hw, ew }));
-  // one still waiting to appear: it appears when the snapshot said
-  const w = new Crown(0, 0, 100);
-  w.restore({ phase: "waiting", x: 0, z: 0, carrier: -1, held: 0 }, 107);
-  check("the crown: still waiting, it appears when the snapshot said", w.update(106.9, 0.1, []).event === null && w.update(107.1, 0.1, []).event === "appears");
-}
+console.log("Host migration: Control rebuilt");
 {
   const zones: Array<readonly [string, number, number]> = [
     ["A", -30, 0],

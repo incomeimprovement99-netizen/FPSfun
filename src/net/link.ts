@@ -148,11 +148,10 @@ export type NetMsg =
   /**
    * The arena modes' state from the host, four times a second and on every
    * change (modematch.ts): seconds left on the clock; a row per player and bot
-   * [id, level, kills, deaths, team]; the teams' scores; the crown [phase (0
-   * waiting, 1 on the ground, 2 carried), x, z, carrier, held]; the winner
+   * [id, kills, deaths, team]; the teams' scores; Control's zones; the winner
    * (an id, or a team as -10 - team) once it is decided.
    */
-  | { t: "mode"; left: number; rows: Array<[number, number, number, number, number]>; tm?: [number, number]; cr?: [number, number, number, number, number]; ct?: number[]; win?: number; sr?: number[] }
+  | { t: "mode"; left: number; rows: Array<[number, number, number, number]>; tm?: [number, number]; ct?: number[]; win?: number }
   | { t: "bye"; from?: number }
   /** the host took this guest out of the lobby */
   | { t: "kick" }
@@ -295,7 +294,6 @@ export interface ModeWelcome {
   kind: string;
   bots: number;
   difficulty: string;
-  list?: "short" | "full";
   /** the gun every bot carries, the host's choice; unset is the mixed list */
   botWeapon?: string | null;
   /** the arena the mode is played on; unset is the warehouse */

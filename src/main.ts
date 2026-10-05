@@ -85,7 +85,7 @@ import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
-import { buildArena, buildCentreMarks, buildTriArena, ARENA_BOUNDS, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
+import { buildArena, buildCentreMarks, buildTriArena, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { CENTRE, CENTRE_MAP } from "./game/arenas/centre";
 import { CircleNav } from "./game/centrenav";
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
@@ -2747,8 +2747,6 @@ const duelLeaveBtn = $<HTMLButtonElement>("duelLeave");
 const duelCode = $<HTMLInputElement>("duelCode");
 const duelPlayers = $<HTMLSelectElement>("duelPlayers");
 const duelMode = $<HTMLSelectElement>("duelMode");
-// SpeedKills: not another game's modes (Gun Run, Crown, Search) in the Friends tab's list; its lobby never offered them
-if (IS_SK) for (const v of ["gunrun", "crown", "search"]) duelMode.querySelector(`option[value="${v}"]`)?.remove();
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
 // SpeedKills: its five tiers by its own names (speedkills.json bots, botNames), Beginner first
@@ -2775,10 +2773,8 @@ if (IS_SK) {
 }
 const brBots = $<HTMLSelectElement>("brBots");
 const modeBots = $<HTMLSelectElement>("modeBots");
-const gunRunList = $<HTMLSelectElement>("gunRunList");
 for (const [sel, key] of [
   [modeBots, "range.mode.bots"],
-  [gunRunList, "range.mode.list"],
 ] as const) {
   try {
     const v = localStorage.getItem(key);
@@ -2795,7 +2791,6 @@ for (const [sel, key] of [
   });
 }
 const modeBotCount = (): number => Math.max(0, Math.min(MODES.maxBots, Number(modeBots.value) || 0));
-const modeList = (): "short" | "full" => (gunRunList.value === "full" ? "full" : "short");
 // What the bots carry: mixed (the built-in list) or one gun for all of them.
 const botWeaponSel = $<HTMLSelectElement>("botWeapon");
 for (const id of weaponIds()) {
@@ -3395,31 +3390,11 @@ function respawnForMatch(d: MatchLike): void {
     killcam.stop();
     recap = null;
   }
-  if (d instanceof ArenaMode) {
-    // Gun Run: the level's gun, one slot, endless reserve (the guns change with every kill)
-    if (d.modeKind === "gunrun") {
-      loadout.ammo.infinite = true;
-      applyModeGun(d.currentGun);
-    }
-    // back in after going down: the killcam and the recap give way
-    if (d.respawns && d.phase === "fight") {
-      killcam.stop();
-      recap = null;
-    }
+  // an arena mode: back in after going down, the killcam and the recap give way
+  if (d instanceof ArenaMode && d.phase === "fight") {
+    killcam.stop();
+    recap = null;
   }
-}
-
-/** Gun Run: the gun for your level in hand (the other slot empty), or the knife (fists) */
-function applyModeGun(id: string | null): void {
-  if (id === null) {
-    loadout.clearSlot(0);
-    loadout.clearSlot(1);
-    return;
-  }
-  loadout.give(loadout.activeIndex, id);
-  loadout.clearSlot(1 - loadout.activeIndex);
-  loadout.raise(gameTime);
-  refreshDerived();
 }
 
 // ---------- healing ----------
@@ -5307,7 +5282,7 @@ function showFrame(): void {
 }
 
 /** the lobby's modes that start a match (goTo), the ones SpeedKills puts its loading screen up for as Start is clicked */
-const MATCH_MODES: ReadonlySet<Mode> = new Set<Mode>(["bots", "br", "gunrun", "tdm", "crown", "control", "ffa", "search"]);
+const MATCH_MODES: ReadonlySet<Mode> = new Set<Mode>(["bots", "br", "tdm", "control", "ffa"]);
 
 /**
  * `f` once the page has drawn what is on it now and the screen shows it: two animation frames on, and a moment more
@@ -5424,12 +5399,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   };
   d.onHealSeen = (id, item) => dlog.heal({ t: realNow(), id, item });
   brPlay.reset();
-  if (d instanceof ArenaMode) d.onGun = (id) => {
-    applyModeGun(id);
-    if (d.alive) audio.swap();
-  };
-  // Search's bomb, beeping where it lies (quicker, and higher in its last ten seconds)
-  if (d instanceof ArenaMode) d.onBeep = (at, left) => audio.bombBeep(at, left < 10);
   // a team mate's SCOUT scan, in the modes (a battle royale's marks go through onMark below)
   if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, KITS.scout.tactical.seconds));
   if (d instanceof BrMatch) {
@@ -5769,7 +5738,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   const modeOpts = myId === 0 ? hostOpts?.mode : opts?.mode;
   if (modeOpts && isModeKind(modeOpts.kind)) {
     const diff: BotDifficulty = asDifficulty(modeOpts.difficulty);
-    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, list: modeOpts.list === "full" ? "full" : "short", map: arenaFromWire(modeOpts.map), split: modeOpts.split === true });
+    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, map: arenaFromWire(modeOpts.map), split: modeOpts.split === true });
     duel = d;
     // the walls of the map this match is on, which is not always the warehouse now
     player.setBounds(d.arenaBounds);
@@ -5933,12 +5902,9 @@ function startBots(): void {
 }
 /** what a mode is played to, for the status line */
 function modeGoal(d: ArenaMode): string {
-  if (d.modeKind === "gunrun") return `${d.ladder.guns.length} guns then the knife, ${Math.round(MODES.gunRun.timeLimit / 60)} minutes.`;
   if (d.modeKind === "tdm") return `teams of ${MODES.tdm.teamSize}, first to ${MODES.tdm.scoreLimit}.`;
   if (d.modeKind === "control") return `teams of ${MODES.control.teamSize} over zones A, B and C, a point a second a zone, first to ${MODES.control.scoreLimit}.`;
-  if (d.modeKind === "search") return `teams of ${MODES.search.teamSize}, one life a round: plant on A or B, or stop them; sides swap after ${MODES.search.swapAt} rounds, first to ${MODES.search.roundsToWin}.`;
-  if (d.modeKind === "ffa") return `everyone for themselves, first to ${MODES.ffa.scoreLimit} kills or the most at ${Math.round(MODES.ffa.timeLimit / 60)} minutes.`;
-  return `hold the crown ${MODES.crown.hold} s, first to ${MODES.crown.roundsToWin} rounds.`;
+  return `everyone for themselves, first to ${MODES.ffa.scoreLimit} kills or the most at ${Math.round(MODES.ffa.timeLimit / 60)} minutes.`;
 }
 /** an arena mode alone, against bots */
 function startMode(kind: ModeKind): void {
@@ -5953,7 +5919,7 @@ function startMode(kind: ModeKind): void {
   // the bots you picked are the ones you face, in every mode; a team mode
   // fills your side to match (modematch.ts)
   const bots = Math.max(1, modeBotCount());
-  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, list: modeList(), botWeapon: botWeaponChoice(), map: arenaMapChoice(kind, 1 + bots) });
+  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, botWeapon: botWeaponChoice(), map: arenaMapChoice(kind, 1 + bots) });
   duel = d;
   player.setBounds(d.arenaBounds);
   wireMatch(d, kind);
@@ -6072,7 +6038,6 @@ function endMatch(reason: string): void {
     pendingSlots = null;
   }
   kit.fill("kit");
-  const wasGunRun = duel instanceof ArenaMode && duel.modeKind === "gunrun";
   duel?.dispose();
   duel = null;
   bannerSentAt = -Infinity;
@@ -6092,12 +6057,6 @@ function endMatch(reason: string): void {
   recorder.clear();
   heal = null;
   mapOpen = false;
-  if (wasGunRun) {
-    for (let i = 0; i < loadout.slots.length; i++) if (loadout.slots[i].empty) loadout.give(i, [loadouts.current.slot1, loadouts.current.slot2][i]);
-    applyLoadout(loadouts.current);
-    loadout.setWeaponId(0, loadouts.current.slot1);
-    loadout.setWeaponId(1, loadouts.current.slot2);
-  }
   if (wasBr) {
     setRegion("range");
     // the owner's own hour again, if the match had its own
@@ -6148,7 +6107,7 @@ function readHostSettings(): void {
   hostOpts = {
     game: GAME,
     abilities: abilitySetting(duelKind()),
-    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), list: modeList(), botWeapon: botWeaponChoice() ?? (mk !== "gunrun" ? classGun : null), map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
+    mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), botWeapon: botWeaponChoice() ?? classGun, map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
     map: arenaMapChoice("duel", 2),
     rules,
     ...(duelMode.value === "range" ? { range: true } : {}),
@@ -6171,8 +6130,7 @@ function applyRules(d: Duel, r: MatchRules | undefined): void {
   if (!r) return;
   if (typeof r.rounds === "number" && rulesCfg.rounds.includes(r.rounds)) d.roundsToWin = r.rounds;
   d.friendlyFire = r.ff === true;
-  const gunRun = d instanceof ArenaMode && d.modeKind === "gunrun";
-  if (typeof r.guns === "string" && r.guns in rulesCfg.classes && !(d instanceof BrMatch) && !gunRun) matchGuns = r.guns as keyof typeof rulesCfg.classes;
+  if (typeof r.guns === "string" && r.guns in rulesCfg.classes && !(d instanceof BrMatch)) matchGuns = r.guns as keyof typeof rulesCfg.classes;
 }
 /** every frame of such a match: a gun of another class in hand (the start, a respawn, the Loadouts tab) becomes one of the class's */
 function enforceGuns(): void {
@@ -6203,8 +6161,7 @@ duelHostBtn.addEventListener("click", () => {
   // SpeedKills: you wait in the range, doing what you like there, with the code
   // on the HUD, and the match starts as it always has once the others are in
   // (the owner, 2026-09-29: waiting in a small map for a friend was a waste).
-  // The legacy game's lobby is still the arena itself.
-  goTo(IS_SK || duelMode.value === "range" ? "range" : "arena");
+  goTo("range");
   if (!calibrating) {
     readSettings();
     void input.lock();
@@ -6320,7 +6277,7 @@ function onHandover(d: Duel, m: Extract<NetMsg, { t: "host" }>, from: number): v
       d.tell(0, { t: "host", op: "code", code });
       if (duel === d) d.leave();
       takingOver = false;
-      goTo("arena");
+      goTo("range");
       setDuelStatusText(`You are the host now. Your code is ${code}: the others are on their way.`);
       duelButtons();
     });
@@ -6697,9 +6654,9 @@ function applyLoadout(def: LoadoutDef): void {
   refreshDerived();
 }
 
-/** go somewhere to play, from the menu: the range, the course start, or the arena alone */
 /** the modes played on the range's side of the world: the range together goes on through them */
-const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "tour", "lab", "run", "runAdvanced", "arena"]);
+const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "tour", "lab", "run", "runAdvanced"]);
+/** go somewhere to play, from the menu: the range, a course's start, the lab, or a match */
 function goTo(mode: Mode): void {
   if (mode === "duel") return;
   // anything else, on your own, is leaving the group (its host starts the group's matches: Start for everyone)
@@ -6723,7 +6680,7 @@ function goTo(mode: Mode): void {
     startBr();
     return;
   }
-  if (mode === "gunrun" || mode === "tdm" || mode === "crown" || mode === "control" || mode === "ffa" || mode === "search") {
+  if (mode === "tdm" || mode === "control" || mode === "ffa") {
     startMode(mode);
     return;
   }
@@ -6740,10 +6697,6 @@ function goTo(mode: Mode): void {
   } else if (mode === "run" || mode === "runAdvanced") {
     player.setBounds(RANGE_PLAY);
     const sp = (mode === "run" ? courseBasic : courseAdvanced).startPose;
-    player.teleport(sp.x, 0, sp.z, sp.yaw);
-  } else if (mode === "arena") {
-    player.setBounds(ARENA_BOUNDS);
-    const sp = ARENA_SPAWNS.host;
     player.teleport(sp.x, 0, sp.z, sp.yaw);
   } else if (mode === "lab") {
     // SpeedKills' movement lab (arenas/movelab.ts), built with the page
@@ -7161,8 +7114,8 @@ let finisher: { r: Remote; at: number; vitals: number; blows: number } | null = 
 let finishesDone = 0;
 
 /**
- * SpeedKills' movement trails (trails.ts): every other player on its side's colour, the crown's carrier in gold; a
- * player hidden (invisible, out, the replay's) leaves theirs to fade
+ * SpeedKills' movement trails (trails.ts): every other player on its side's colour; a player hidden (invisible, out,
+ * the replay's) leaves theirs to fade
  */
 function stepTrails(now: number): void {
   if (!IS_SK) return;
@@ -7171,12 +7124,11 @@ function stepTrails(now: number): void {
     trails.clear();
     return;
   }
-  const crown = d instanceof ArenaMode ? d.crownCarrierId : null;
   const list: Parameters<typeof trails.update>[2] = [];
   for (const a of d.avatars) {
     const r = d.remoteOf(a);
     if (!r) continue;
-    list.push({ key: r.id, feet: a.group.position, side: r.id === crown ? "crown" : d.isAlly(r.id) ? "ally" : "enemy", live: r.alive && a.group.visible, airJumps: a.currentPose.airJumps });
+    list.push({ key: r.id, feet: a.group.position, side: d.isAlly(r.id) ? "ally" : "enemy", live: r.alive && a.group.visible, airJumps: a.currentPose.airJumps });
   }
   trails.update(now, camera.position, list);
 }
@@ -8440,9 +8392,7 @@ function step(): void {
     // a swing is an attack for the accuracy readout, as a hit with it counts
     stats.shots++;
     const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(player.orientationAt(aimYaw, aimPitch, 0, 0));
-    // Gun Run's last level: the knife (100 a hit, 300 to the head)
-    const knife = duel instanceof ArenaMode && duel.knifeNow;
-    projectiles.melee(eye, dir, MELEE_RANGE, knife ? MODES.gunRun.knifeDamage : MELEE_DAMAGE, now, handleImpact, knife ? MODES.gunRun.knifeHeadDamage : MELEE_DAMAGE);
+    projectiles.melee(eye, dir, MELEE_RANGE, MELEE_DAMAGE, now, handleImpact, MELEE_DAMAGE);
     // a shut door in front of the swing takes the kick (doors.json kicks break it)
     if (duel instanceof BrMatch) {
       const door = brMap.doors.aimedAt(eye, dir);
@@ -8582,8 +8532,6 @@ function step(): void {
       lf.f.update(now, dt);
     }
 
-  // Search: interact held is a plant on a site, or a defuse beside the bomb
-  if (duel instanceof ArenaMode) duel.holding = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("interact") : input.held("interact"));
   const local: Parameters<Duel["update"]>[0] = {
     x: player.pos.x,
     y: player.pos.y,
@@ -9109,7 +9057,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   profile,
   startBots,
   startMode,
-  applyModeGun,
   menu,
   loadouts,
   /** screenshots: the five operators in a row, in front of the arena's first spawn */

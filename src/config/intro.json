@@ -99,10 +99,6 @@
       "name": "VS BOTS",
       "sub": "PROVE IT ON THEM FIRST"
     },
-    "gunrun": {
-      "name": "GUN RUN",
-      "sub": "EVERY KILL A NEW GUN"
-    },
     "tdm": {
       "name": "TEAM DEATHMATCH",
       "sub": "FIRST TEAM TO THE SCORE"
@@ -111,17 +107,9 @@
       "name": "FREE FOR ALL",
       "sub": "EVERYONE IS THE ENEMY"
     },
-    "crown": {
-      "name": "CROWN",
-      "sub": "TAKE IT AND HOLD IT"
-    },
     "control": {
       "name": "CONTROL",
       "sub": "HOLD THE ZONES"
-    },
-    "search": {
-      "name": "SEARCH",
-      "sub": "PLANT IT OR STOP IT"
     }
   },
   "_speedkills": "SpeedKills' own card (src/game/game.ts): its name as the big line, its line under it, and the rain in its two neon colours instead of the green.",

@@ -17,9 +17,9 @@ const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Applic
 const URL = process.env.SHOT_URL ?? "http://localhost:5173/";
 const OUT = process.env.OUT ?? "shots/hunt";
 const QUERY = process.env.QUERY ?? "?game=speedkills";
-const SCENES = (process.env.SCENES ?? "range,br,bots,gunrun,tdm,crown,control,ffa,search,run,tour,lab,arena").split(",");
-const SECS: Record<string, number> = { range: 40, br: 240, bots: 70, gunrun: 70, tdm: 70, crown: 70, control: 70, ffa: 70, search: 70, run: 25, tour: 20, lab: 20, arena: 20 };
-const GO: Record<string, string> = { range: "goRange", br: "goBr", bots: "goBots", gunrun: "goGunRun", tdm: "goTdm", crown: "goCrown", control: "goControl", ffa: "goFfa", search: "goSearch", run: "goRun", tour: "goTour", lab: "goLab", arena: "goArena" };
+const SCENES = (process.env.SCENES ?? "range,br,bots,tdm,control,ffa,run,tour,lab").split(",");
+const SECS: Record<string, number> = { range: 40, br: 240, bots: 70, tdm: 70, control: 70, ffa: 70, run: 25, tour: 20, lab: 20 };
+const GO: Record<string, string> = { range: "goRange", br: "goBr", bots: "goBots", tdm: "goTdm", control: "goControl", ffa: "goFfa", run: "goRun", tour: "goTour", lab: "goLab" };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 const INSTALL = `(() => {

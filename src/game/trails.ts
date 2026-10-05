@@ -1,6 +1,6 @@
 /**
  * Movement trails (Hyper Scape's: "the red trail of the enemies and the blue trail of your teammates ... something that
- * every player has", the crown's carrier's in gold; docs/HYPERSCAPE_GAP_ANALYSIS.md). Behind every other player a
+ * every player has"; docs/HYPERSCAPE_GAP_ANALYSIS.md). Behind every other player a
  * ribbon of light along the way their feet went, fading over its seconds, turned to face the eye at every point so it
  * reads from any side, drawn only near enough to matter. Numbers: src/config/hud.json trails.
  */
@@ -10,7 +10,7 @@ import cfg from "../config/hud.json";
 export const TRAILS = cfg.trails;
 /** a double jump's tracer (hud.json jumpTracers) */
 export const TRACERS = cfg.jumpTracers;
-export type TrailSide = "enemy" | "ally" | "crown";
+export type TrailSide = "enemy" | "ally";
 
 interface Trail {
   /** the samples, oldest first: where the feet were and when */
@@ -52,7 +52,7 @@ export class Trails {
 
   constructor(private readonly scene: THREE.Scene | null) {
     this.mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false, fog: false });
-    this.colours = { enemy: new THREE.Color(TRAILS.colors.enemy), ally: new THREE.Color(TRAILS.colors.ally), crown: new THREE.Color(TRAILS.colors.crown) };
+    this.colours = { enemy: new THREE.Color(TRAILS.colors.enemy), ally: new THREE.Color(TRAILS.colors.ally) };
   }
 
   /** how many trails are drawn now (tools, the checks) */

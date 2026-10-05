@@ -103,7 +103,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-middle",
     note: "the 1v1 arena's new middle building over the capture circle, from a spawn: two storeys, the roof, the ziplines onto it",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.player.teleport(90, 0, -58, 180, 6); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -112,7 +112,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-vault",
     note: "the Vault, the small two-storey arena for 1v1 and free-for-all, from a spawn at one end",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: -86, maxX: -58, minZ: -64, maxZ: -32 }); r.player.teleport(-72, 0, -60.5, 180, 4); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -121,7 +121,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-crossing",
     note: "the Crossing, the wide symmetric team arena, from one team's end",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: -125, maxX: -67, minZ: -1, maxZ: 69 }); r.player.teleport(-96, 0, 2.5, 180, 4); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -141,7 +141,7 @@ export const SCENARIOS: Scenario[] = [
     note: "SpeedKills' NEON BLOCK: a city crossing at night, from the south street's end: the decks, the skybridge, the cars",
     query: "?game=speedkills",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: 73, maxX: 119, minZ: 93, maxZ: 143 }); r.player.teleport(96, 0, 95.5, 180, 6); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -151,7 +151,7 @@ export const SCENARIOS: Scenario[] = [
     note: "NEON BLOCK from the south-west deck, a storey up, across the crossing to the far decks and their towers",
     query: "?game=speedkills",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: 73, maxX: 119, minZ: 93, maxZ: 143 }); r.player.teleport(85, 4.05, 107, 215, -4); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -160,7 +160,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-ringworks",
     note: "the Ringworks, the open-sky free-for-all arena, from a spawn on its edge",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: -95, maxX: -49, minZ: 89, maxZ: 135 }); r.player.teleport(-72, 0, 93, 180, 4); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -169,7 +169,7 @@ export const SCENARIOS: Scenario[] = [
     name: "arena-middle-roof",
     note: "the middle building from the side, at roof height: the two storeys, the roof lip and the ziplines",
     steps: [
-      [`(() => { ${hideMenu}; document.getElementById("goArena").click(); document.getElementById("startMode").click(); })()`, 600],
+      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.setThirdPerson(true); r.player.teleport(90 - 15.5, 4.2, -48, -90, -2); })()`, 0],
       [gameSeconds(1), 250],
     ],
@@ -1263,18 +1263,6 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "mode-gunrun",
-    note: "Gun Run against bots: your level and gun, the next one, the clock, the scoreboard",
-    steps: [
-      [fakePad, 600],
-      [`(() => { document.getElementById("modeBots").value = "3"; window.__range.startMode("gunrun"); })()`, 400],
-      [padButton(9, true), 300],
-      [padButton(9, false), 300],
-      [untilFight, 300],
-      [`(() => { const d = window.__range.duel(); d.holdFire = true; const a = d.avatars[0]; const r = d.remoteOf(a); a.hit(0, "body", 900, 1, 1, a.group.position); d.localHit(r, 900, false, "rspn101", 9); })()`, 1400],
-    ],
-  },
-  {
     name: "mode-tdm",
     note: "team deathmatch: the teams' score, team mates' green plates",
     steps: [
@@ -1284,19 +1272,6 @@ export const SCENARIOS: Scenario[] = [
       [padButton(9, false), 300],
       [untilFight, 300],
       [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; d.teams.score[0] = 12; d.teams.score[1] = 9; r.player.teleport(90, 0, -60, 180); })()`, 1500],
-    ],
-  },
-  {
-    name: "mode-crown",
-    note: "Crown: a bot has the crown, its marker and the hold bar",
-    steps: [
-      [fakePad, 600],
-      [`(() => { document.getElementById("modeBots").value = "2"; window.__range.startMode("crown"); })()`, 400],
-      [padButton(9, true), 300],
-      [padButton(9, false), 300],
-      [untilFight, 300],
-      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; d.crown.appearsAt = 0; r.player.teleport(90, 0, -62, 180); })()`, 300],
-      [`(() => { const d = window.__range.duel(); const b = d.bots[0].bot; b.pos.set(90, 0, -40); d.crown.phase = "ground"; d.crown.x = 90; d.crown.z = -40; })()`, 1200],
     ],
   },
   {
@@ -1337,7 +1312,7 @@ export const SCENARIOS: Scenario[] = [
     note: "the figures: a strafe aimed down sights, a backpedal reloading, a heal, a swap (left to right)",
     steps: [
       [fakePad, 600],
-      [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("crown"); })()`, 400],
+      [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("ffa"); })()`, 400],
       [padButton(9, true), 300],
       [padButton(9, false), 300],
       [untilFight, 300],
@@ -1360,7 +1335,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [fakePad, 600],
       [`(() => { window.__range.setFigureStyle("mannequin"); return window.__range.loadMannequin(); })()`, 200],
-      [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("crown"); })()`, 400],
+      [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("ffa"); })()`, 400],
       [padButton(9, true), 300],
       [padButton(9, false), 300],
       [untilFight, 300],

@@ -493,7 +493,7 @@ const WAREHOUSE_MAP: ArenaMapInfo = {
   },
   zones: MODES.control.zones.map((z) => ({ id: String(z[0]), x: ARENA_X + Number(z[1]), z: ARENA_Z + Number(z[2]) })),
   crown: { x: ARENA_X, z: ARENA_Z },
-  bestFor: ["duel", "tdm", "gunrun"],
+  bestFor: ["duel", "tdm"],
   plan: null,
 };
 
@@ -548,9 +548,7 @@ export function mapFor(mode: string, players: number): ArenaMapId {
   // a 1v1 wants the small two-storey room, where a round is a fight
   if (mode === "duel") return "vault";
   // the modes where everybody fights everybody want a map with no back line
-  if (mode === "ffa" || mode === "crown") return "ringworks";
-  // Gun Run is a race through weapons, so the smallest map wins
-  if (mode === "gunrun") return "vault";
+  if (mode === "ffa") return "ringworks";
   // teams want the wide map: high ground each, and three points worth holding
   if (mode === "tdm" || mode === "control") return "crossing";
   return "warehouse";

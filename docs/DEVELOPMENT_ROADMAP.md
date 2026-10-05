@@ -10879,6 +10879,25 @@ soldier's upper chest 33 to 40 degrees forward, and from behind its shoulder arm
 - **Checked:** the skfigure check on the head from behind now also holds the upper chest to 22 degrees (seen failing with
   the cap off); the skfigure e2e on every fitted gun; verify; rules; the type check; photographed from behind.
 
+## Milestone 485 — The legacy game's own modes out: Walk the arena, Gun Run, Crown and Search
+
+The owner, 2026-10-04: "remove all legacy stuff except the tv ... hide the rest of the modes other than battle royale".
+Four modes only the legacy game offered (SpeedKills never showed them) are gone, with their code and their tests: Walk
+the arena (the 1v1 map alone), Gun Run (its gun ladder, the knife, its regen, its list picker), Crown (the crown, its
+rounds, its marker and model, the gold trail behind its carrier) and Search (plant and defuse, its sites, bomb, beep,
+the guest's hold on the wire). What is left of the arena's modes is team deathmatch, free-for-all and Control, each one
+long fight with respawns: modes.ts went from 548 to 287 lines and modematch.ts from 1,661 to 1,103. Gun Run's ladder,
+which every mode used as its score table, is a plain `Scoreboard` of kills and deaths now, the `mode` message's rows
+are [id, kills, deaths, team], and the host-migration snapshot drops the crown's clock. A host in the legacy game waits
+for friends in the range, as SpeedKills' hosts already did. The arenas' plans keep their `crown` point: it is each
+map's middle, where the 1v1 circle is drawn. Resurgence, the battle royale's other rules, goes next on its own.
+
+- **What it saves:** the first script 24 KB smaller raw (3,656.6 to 3,632.4 KB), 7.7 KB gzipped (1,005.2 to 997.6 KB).
+- **Checked:** tsc; verify (the Gun Run ladder and Crown blocks gone, the board's kills and leaver checked instead;
+  the Search and Crown host-migration checks gone with them); rules; the modes, panel, owner, migrate, intro and
+  speedkills e2e (Gun Run, Crown and Search's own checks gone; the friends' mode test a free-for-all, the group's Play
+  again a team deathmatch, the mannequin and map checks on a free-for-all).
+
 ## Milestone 480 — Cover down the streets, and street pieces that look like what they collide as
 
 The centre's fourth review (docs/CENTRE_REVIEW.md): "cover every 8 to 12 m in the streets and plaza"; its shots showed

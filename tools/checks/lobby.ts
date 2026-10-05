@@ -45,7 +45,7 @@ console.log("The lobby");
 {
   // the whole point: one place to set a match up. Every control that used to
   // be on the Friends tab is in the panel, once.
-  const moved = ["arenaMap", "botCount", "botDifficulty", "botAbilities", "modeBots", "modeSides", "botWeapon", "gunRunList", "ruleGuns", "ruleRounds", "ruleFF", "brTeam", "brRules", "brSides", "brBots", "brPace", "brAbilities", "brStart", "dummyMode", "dummySpeed", "dummyShoot"];
+  const moved = ["arenaMap", "botCount", "botDifficulty", "botAbilities", "modeBots", "modeSides", "botWeapon", "ruleGuns", "ruleRounds", "ruleFF", "brTeam", "brRules", "brSides", "brBots", "brPace", "brAbilities", "brStart", "dummyMode", "dummySpeed", "dummyShoot"];
   check("every option that used to be on another tab is in the panel", moved.every(inPanel), `${moved.length} controls`);
   check("and none of them is on the page twice, which would be two answers to one question", moved.every((id) => has(id) === 1), moved.filter((id) => has(id) !== 1).join(", ") || "all once");
   check("the panel starts the match itself, alone or with friends", inPanel("startMode") && inPanel("playFriends"));
@@ -64,8 +64,7 @@ console.log("The lobby");
   // a mode only shows what it obeys: the old panel showed everything at once
   check("the range asks about its dummies and nothing about bots or a ring", setupFor("range").includes("range") && !setupFor("range").includes("br") && !setupFor("range").includes("difficulty"));
   check("the battle royale asks about the squad, the bots and the ring, and nothing about an arena", setupFor("br").includes("br") && setupFor("br").includes("difficulty") && !setupFor("br").includes("map") && !setupFor("br").includes("range"), setupFor("br").join(", "));
-  check("Gun Run asks about its ladder, and no other mode does", setupFor("gunrun").includes("gunrun") && LOBBY_MODES.filter((m) => m.id !== "gunrun").every((m) => !m.needs.includes("gunrun")));
-  check("every mode with bots in it asks how good they are", ["bots", "br", "gunrun", "tdm", "crown", "control", "ffa", "search"].every((id) => setupFor(id).includes("difficulty")));
+  check("every mode with bots in it asks how good they are", ["bots", "br", "tdm", "control", "ffa"].every((id) => setupFor(id).includes("difficulty")));
   check("the courses and the tour ask nothing: they are one button each", setupFor("run").length === 0 && setupFor("runAdvanced").length === 0 && setupFor("tour").length === 0);
   check("the aim bot is offered wherever there is something to aim at", ["range", "bots", "br", "tdm"].every((id) => setupFor(id).includes("train")));
 }

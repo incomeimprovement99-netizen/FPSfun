@@ -62,7 +62,6 @@ import { hitcheckFails } from "./checks/hitcheck";
 import { rulesFails } from "./checks/rules";
 import { finishesFails } from "./checks/finishes";
 import { modeRestoreFails } from "./checks/mode-restore";
-import { searchFails } from "./checks/search";
 import { kitsFails } from "./checks/kits";
 import { smokeFails } from "./checks/smoke";
 import { wallsFails } from "./checks/walls";
@@ -98,9 +97,7 @@ import { withoutClashes } from "../src/ui/binds";
 import { withoutUndefined } from "../src/net/link";
 import { FramePhases } from "../src/game/framephase";
 import modesCfg from "../src/config/modes.json";
-import { Control, Crown, GunLadder, MODES as MODES_CFG, TeamScore, gunList, isModeKind, killLeader, pickSpawn, teamMode, yawToMiddle } from "../src/game/modes";
-/** every gun the game has but the course's own pistol */
-const DATA_IDS_NO_COURSE = weaponIds().filter((id) => id !== "g17");
+import { Control, MODES as MODES_CFG, Scoreboard, TeamScore, isModeKind, killLeader, pickSpawn, teamMode, yawToMiddle } from "../src/game/modes";
 
 let fails = 0;
 const eq = (label: string, got: unknown, want: unknown) => {
@@ -1438,52 +1435,18 @@ console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
 console.log("");
 console.log("The arena's modes (src/game/modes.ts, src/config/modes.json)");
 {
-  const guns = new Set(weaponIds());
-  const bad = [...modesCfg.gunRun.short, ...modesCfg.gunRun.full].filter((id) => !guns.has(id));
-  eq("every gun on Gun Run's lists is in the game", bad.join(",") || "none", "none");
-  eq("the short list: 10 guns", gunList("short").length, 10);
-  eq("the full list: every gun but the course's pistol (29), each once", new Set(gunList("full")).size === gunList("full").length && gunList("full").length === DATA_IDS_NO_COURSE.length, true);
-  const l = new GunLadder(gunList("short"));
-  eq("a kill moves the killer on", (l.kill(0, 1, false), l.level(0)), 1);
-  eq("and costs the victim nothing", l.level(1), 0);
-  l.row(1).level = 5;
-  l.kill(0, 1, true);
-  eq("a melee death costs a level (6 to 5)", l.level(1), 4);
-  eq("the ring or yourself moves nobody on (two kills: level 2)", (l.kill(-1, 0, false), l.kill(0, 0, false), l.level(0)), 2);
-  eq("the gun at level 2: the third on the list", l.gunFor(0), "vinson");
-  l.row(0).level = 10;
-  eq("after the last gun, the knife", l.gunFor(0), null);
-  eq("at the knife, a grenade's kill wins nothing", l.kill(0, 3, false), false);
-  eq("and moves nobody past the knife", l.gunFor(0), null);
-  eq("a kill with the knife wins", l.kill(0, 2, true), true);
-  l.row(9).level = 12;
+  const l = new Scoreboard();
+  l.kill(0, 1);
+  eq("a kill counts for the killer and against the victim", `${l.row(0).kills}/${l.row(1).deaths}`, "1/1");
+  eq("the ring or yourself scores nobody's kill", (l.kill(-1, 0), l.kill(0, 0), l.row(0).kills), 1);
+  l.row(9).kills = 12;
   l.remove(9);
-  eq("a player who left is off the ladder (no win on time)", l.sorted.some((r) => r.id === 9), false);
-  eq("the leader: the highest level", l.leader?.id, 0);
+  eq("a player who left is off the board (no win on time)", l.sorted.some((r) => r.id === 9), false);
+  eq("the board's leader: the most kills", l.sorted[0]?.id, 0);
   const tm = new TeamScore(3);
   eq("team deathmatch: two kills, no winner", (tm.kill(0), tm.kill(0)), null);
   eq("the third wins it", tm.kill(0), 0);
   eq("ahead at the time limit", tm.ahead, 0);
-  const cr = new Crown(0, 0, 100);
-  eq("the crown waits 20 s", cr.update(119.9, 0.1, []).event, null);
-  eq("then appears in the middle", cr.update(120, 0.1, []).event, "appears");
-  const fs = [
-    { id: 1, x: 1.2, z: 0, alive: true },
-    { id: 2, x: 0.5, z: 0, alive: true },
-    { id: 3, x: 0.1, z: 0, alive: false },
-  ];
-  eq("the nearest one up within reach takes it", (cr.update(121, 0.1, fs), cr.carrier), 2);
-  let won: number | null = null;
-  for (let t = 0; t < 29.9 && won === null; t += 0.1) won = cr.update(121 + t, 0.1, fs).winner;
-  eq("29.9 s held: not yet", won, null);
-  eq("30 s held takes the round", cr.update(151, 0.2, fs).winner, 2);
-  const cr2 = new Crown(0, 0, 0);
-  cr2.update(20, 0.1, []);
-  cr2.update(21, 0.1, fs);
-  cr2.update(22, 10, fs);
-  cr2.drop(5, 5);
-  eq("a carrier who goes down drops it where they fell", `${cr2.phase} ${cr2.x},${cr2.z}`, "ground 5,5");
-  eq("and the hold starts over", cr2.held, 0);
   eq("a respawn is the spawn farthest from the enemies", pickSpawn([[0, -29], [0, 29]], [{ x: 0, z: -20 }]).join(","), "0,29");
   near("a spawn at the -z end faces the middle (yaw 180)", yawToMiddle(0, -29), 180, 1e-9);
   near("a spawn on the -x side faces +x (yaw -90)", yawToMiddle(-16, 0), -90, 1e-9);
@@ -1539,7 +1502,7 @@ console.log("Control (src/game/modes.ts, src/config/modes.json control; RESEARCH
   const onA = (team: 0 | 1, n = 1) => Array.from({ length: n }, () => ({ x: Number(A[1]), z: Number(A[2]), team, alive: true }));
   const c = new Control(0, () => 0);
   eq("three zones, all neutral", c.zones.map((z) => `${z.id}${z.owner}`).join(" "), "A-1 B-1 C-1");
-  eq("Control and team deathmatch are the team modes", teamMode("control") && teamMode("tdm") && !teamMode("crown"), true);
+  eq("Control and team deathmatch are the team modes", teamMode("control") && teamMode("tdm") && !teamMode("ffa"), true);
   // free-for-all: a mode kind with no teams; the leader is the most kills, the fewest deaths on a tie, nobody when level
   eq("free-for-all is a mode kind and not a team mode", isModeKind("ffa") && !teamMode("ffa"), true);
   eq("ffa: first to 20 kills, 10 minutes, a 4 s respawn", [MODES_CFG.ffa.scoreLimit, MODES_CFG.ffa.timeLimit, MODES_CFG.ffa.respawn].join(","), "20,600,4");
@@ -1790,7 +1753,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

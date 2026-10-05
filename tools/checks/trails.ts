@@ -20,7 +20,7 @@ const eye = new THREE.Vector3(0, 1.7, 30);
 const feet = new THREE.Vector3(0, 0, 0);
 let now = 0;
 const dt = 1 / 60;
-const frame = (live = true, side: "enemy" | "ally" | "crown" = "enemy") => {
+const frame = (live = true, side: "enemy" | "ally" = "enemy") => {
   now += dt;
   tr.update(now, eye, [{ key: 1, feet, side, live }]);
 };

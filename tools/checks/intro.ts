@@ -100,7 +100,7 @@ console.log("The intro card");
   // later without one would play the boot card's words, which says nothing
   // about what is starting. The kinds are stats.ts MatchKind's (every bot
   // difficulty is one card) and Resurgence, a battle royale's rules.
-  const kinds = ["duel", "triple", "bots", "br", "resurgence", "gunrun", "tdm", "crown", "control", "ffa", "search"];
+  const kinds = ["duel", "triple", "bots", "br", "resurgence", "tdm", "control", "ffa"];
   const modes = INTRO_CFG.modes as Record<string, { name: string; sub: string }>;
   const missing = kinds.filter((k) => !modes[k] || modes[k].name.length < 3 || modes[k].sub.length < 3);
   check("every kind of match has its own card, its name and a line under it", missing.length === 0, missing.length ? `missing ${missing.join(", ")}` : `${kinds.length} cards`);

@@ -121,5 +121,5 @@ export const VAULT: ArenaPlan = {
     { ax: -6, ay: 4.6, az: -7.5, bx: 6, by: 4.6, bz: 7.5, floorA: F1, floorB: F1 },
     { ax: 6, ay: 5.3, az: -7.5, bx: -6, by: 5.3, bz: 7.5, floorA: F1, floorB: F1 },
   ],
-  bestFor: ["duel", "ffa", "gunrun"],
+  bestFor: ["duel", "ffa"],
 };

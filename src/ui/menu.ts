@@ -12,7 +12,7 @@ import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 import { LOBBY_MODES, lobbyMode, setupFor, friendsModeFor } from "./lobby";
 
-export type Mode = "range" | "run" | "runAdvanced" | "duel" | "arena" | "bots" | "br" | "gunrun" | "tdm" | "crown" | "control" | "ffa" | "search" | "tour" | "lab";
+export type Mode = "range" | "run" | "runAdvanced" | "duel" | "bots" | "br" | "tdm" | "control" | "ffa" | "tour" | "lab";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controls";
 
 export interface MenuOptions {
@@ -382,12 +382,9 @@ export class Menu {
       matchCard("1v1v1 with friends", ["triple"]),
       matchCard("Arena, Bots", ["bots:easy", "bots:normal", "bots:hard", "bots:elite", "bots:mixed"]),
       matchCard("Battle Royale (bots)", ["br"]),
-      matchCard("Gun Run", ["gunrun"]),
       matchCard("Team Deathmatch", ["tdm"]),
-      matchCard("Crown", ["crown"]),
       matchCard("Control", ["control"]),
       matchCard("Free-for-all", ["ffa"]),
-      matchCard("Search", ["search"]),
       courseCard("basic", "The Run (Basic)"),
       courseCard("advanced", "The Run (Advanced)"),
       courseCard("drill", "Flick drill (30 targets)"),
@@ -604,7 +601,7 @@ export class Menu {
 }
 
 /** the lobby's modes played with your loadout, whose play panel shows it */
-const LOADOUT_MODES = new Set(["br", "tdm", "ffa", "control", "crown", "search", "bots", "duel", "arena"]);
+const LOADOUT_MODES = new Set(["br", "tdm", "ffa", "control", "bots", "duel"]);
 
 function esc(s: string): string {
   return s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);

@@ -1,19 +1,17 @@
-// The arena's modes, played: Gun Run, team deathmatch and Crown (modes.ts
-// has the rules, src/config/modes.json the numbers), in the 1v1 arena,
-// against friends, bots, or both.
+// The arena's modes, played: team deathmatch, free-for-all and Control
+// (modes.ts has the rules, src/config/modes.json the numbers), in the 1v1
+// arena, against friends, bots, or both.
 //
 // Built on the 1v1's Duel, the way the battle royale is (brmatch.ts): the
 // same links, figures, hits and downs. The host runs the bots and the rules
 // and tells the guests: bots go out as ordinary state packets with ids from
-// 100 up; the rules' state (levels, kills, team scores, the crown, the clock,
-// the winner) goes out as a `mode` message four times a second and on every
+// 100 up; the rules' state (kills, team scores, the zones, the clock, the
+// winner) goes out as a `mode` message four times a second and on every
 // change. Alone it is the same class with no links.
 //
-//   Gun Run and team deathmatch are one long fight: a player who goes down
-//   comes back a few seconds later at the spawn farthest from the enemies,
-//   until someone (or a team) reaches the end, or the clock runs out.
-//   Crown is played in rounds like the 1v1: down is out until the next round;
-//   the crown, or being the last one up, takes the round; first to 3.
+//   Every mode is one long fight: a player who goes down comes back a few
+//   seconds later at the spawn farthest from the enemies, until someone (or a
+//   team) reaches the end, or the clock runs out.
 //   Control (modes.ts Control) is team deathmatch's teams over three zones:
 //   a point a second for each zone held, first to 500; you come back on the
 //   most forward zone your team holds in a line from its base.
@@ -21,7 +19,7 @@
 // Who is on whose side: in team deathmatch the players (the humans) are one
 // team, filled out with bots to the team size, against a team of bots. Team
 // mates cannot hurt each other and their bullets pass through each other.
-// Gun Run and Crown are every player for themselves.
+// A free-for-all is every player for themselves.
 import type { Seen } from "./reveal";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
@@ -34,8 +32,7 @@ import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
 import { HEAL_CODES } from "./recap";
-import { Control, Crown, GunLadder, MODES, MODE_TITLE, TeamScore, controlSpawnZone, gunList, killLeader, pickSpawn, teamMode, yawToMiddle, type CrownPhase, type ModeKind, Search, searchAttackers, type SearchPhase } from "./modes";
-import { weaponName } from "./weapons";
+import { Control, MODES, MODE_TITLE, Scoreboard, TeamScore, controlSpawnZone, killLeader, pickSpawn, teamMode, yawToMiddle, type ModeKind } from "./modes";
 
 const wallClock = (): number => performance.now() / 1000;
 /** bot states go out this often (the humans' own go at 30 Hz) */
@@ -48,16 +45,12 @@ const TEAM_WIN = (team: 0 | 1): number => -10 - team;
 export interface ModeHud {
   kind: ModeKind;
   title: string;
-  /** seconds on the clock (Gun Run, team deathmatch); Crown: until the crown appears, else null */
+  /** seconds on the clock, else null */
   left: number | null;
   /** everyone, for the scoreboard, leader first */
-  rows: Array<{ name: string; level: number; kills: number; deaths: number; you: boolean; team: 0 | 1; ally: boolean; alive: boolean; wins: number }>;
-  /** Gun Run: your level, its gun, the next one */
-  gun?: { level: number; of: number; name: string; next: string | null; knife: boolean };
+  rows: Array<{ name: string; kills: number; deaths: number; you: boolean; team: 0 | 1; ally: boolean; alive: boolean }>;
   /** team deathmatch: your team's score, theirs, the limit */
   teams?: { you: number; them: number; limit: number };
-  /** Crown: where it is, who has it, how long they have held it */
-  crown?: { phase: CrownPhase; carrier: string | null; mine: boolean; held: number; need: number; at: THREE.Vector3; wins: number; roundsToWin: number };
   /** Control: the zones (owner from your side: "you", "them" or null; how far toward your side, -1..1), the scores, the bonus and a lockout */
   control?: {
     zones: Array<{ id: string; owner: "you" | "them" | null; v: number; bonus: boolean; at: THREE.Vector3; here: boolean }>;
@@ -69,24 +62,7 @@ export interface ModeHud {
   };
   /** free-for-all: your kills, the best of the others, the limit */
   ffa?: { you: number; best: number; limit: number };
-  /**
-   * Search: the rounds, your side's job this round, the clock (the round's or
-   * the bomb's), the bomb's site, a plant or defuse under way (whose, how
-   * far), what E would do where you stand, and the sites in the world
-   */
-  search?: {
-    you: number;
-    them: number;
-    limit: number;
-    attacking: boolean;
-    phase: SearchPhase;
-    left: number;
-    site: string | null;
-    work: { kind: "plant" | "defuse"; mine: boolean; ally: boolean; k: number } | null;
-    prompt: string | null;
-    sites: Array<{ id: string; at: THREE.Vector3; here: boolean; bomb: boolean }>;
-  };
-  /** down in a mode with respawns: seconds until you are back */
+  /** down: seconds until you are back */
   respawnIn: number | null;
   /** once decided: who won ("YOU", a name, "YOUR TEAM", "THE OTHER TEAM") */
   winner: string | null;
@@ -100,9 +76,6 @@ interface ModeBot {
   respawnAt: number;
   /** its roaming waypoint */
   goal: number;
-  /** for Gun Run's regen: the last time it was hurt, and what it had */
-  hurtAt: number;
-  vital: number;
 }
 
 export interface ArenaModeOpts {
@@ -120,8 +93,6 @@ export interface ArenaModeOpts {
   difficulty: BotDifficulty;
   /** the gun every bot carries; unset is the mixed list */
   botWeapon?: string | null;
-  /** Gun Run's list */
-  list?: "short" | "full";
   /**
    * Team modes: the friends split into two sides against each other, the
    * humans alternating, and bots filling whichever side is short. Unset, every
@@ -151,8 +122,6 @@ interface ModeLayout {
   order: number[][];
   /** Control's three points: id, x, z */
   zones: Array<[string, number, number]>;
-  /** where the crown drops, world space */
-  crown: { x: number; z: number };
 }
 
 function layoutFor(map: ArenaMapId | null | undefined): ModeLayout {
@@ -168,7 +137,6 @@ function layoutFor(map: ArenaMapId | null | undefined): ModeLayout {
       // all eighteen points, ends and middle alternating
       order: [S.a[0], S.b[0], S.mid[0], S.mid[1], S.a[1], S.b[2], S.mid[2], S.mid[3], S.a[2], S.b[1], S.a[3], S.b[4], S.mid[4], S.mid[5], S.a[4], S.b[3], S.a[5], S.b[5]],
       zones: MODES.control.zones.map(([id, x, z]) => [String(id), Number(x), Number(z)] as [string, number, number]),
-      crown: { x: ARENA_X, z: ARENA_Z },
     };
   }
   const local = (q: { x: number; z: number }): number[] => [q.x - m.center.x, q.z - m.center.z];
@@ -183,14 +151,12 @@ function layoutFor(map: ArenaMapId | null | undefined): ModeLayout {
     mid: m.spawns.map(local),
     order: m.spawns.map(local),
     zones: m.zones.map((z) => [z.id.toUpperCase(), z.x - m.center.x, z.z - m.center.z] as [string, number, number]),
-    crown: { x: m.crown.x, z: m.crown.z },
   };
 }
 
-/** the heir's snapshot of an arena match (ArenaMode.snapshotMode): bots [index, tier, team, respawn in s or -1, waypoint, gun], the crown's appearance in s, Control's next bonus in s (-1: none) */
+/** the heir's snapshot of an arena match (ArenaMode.snapshotMode): bots [index, tier, team, respawn in s or -1, waypoint, gun], Control's next bonus in s (-1: none) */
 interface ArenaSnap {
   b: Array<[number, number, 0 | 1, number, number, string]>;
-  ca: number;
   nb: number;
 }
 
@@ -202,7 +168,7 @@ function readArenaSnap(v: unknown): ArenaSnap | null {
   const b = Array.isArray(o.b)
     ? o.b.filter((r): r is ArenaSnap["b"][number] => Array.isArray(r) && r.length === 6 && num(r[0]) && r[0] >= 0 && r[0] < 64 && num(r[1]) && (r[2] === 0 || r[2] === 1) && num(r[3]) && num(r[4]) && typeof r[5] === "string")
     : [];
-  return { b, ca: num(o.ca) ? o.ca : -1, nb: num(o.nb) ? o.nb : -1 };
+  return { b, nb: num(o.nb) ? o.nb : -1 };
 }
 
 export class ArenaMode extends Duel {
@@ -218,8 +184,7 @@ export class ArenaMode extends Duel {
   }
   readonly modeKind: ModeKind;
   readonly difficulty: BotDifficulty;
-  readonly list: "short" | "full";
-  readonly ladder: GunLadder;
+  readonly board = new Scoreboard();
   readonly teams = new TeamScore();
   private bots: ModeBot[] = [];
   /** team by id (team deathmatch); everyone is team 0 on their own otherwise */
@@ -230,27 +195,6 @@ export class ArenaMode extends Duel {
   private control: Control | null = null;
   private controlView: { v: number[]; owner: number[]; score: [number, number]; bonus: number; bonusLeft: number; lockTeam: number; lockLeft: number } | null = null;
   private zoneModels: Array<{ root: THREE.Group; ring: THREE.Mesh; fill: THREE.Mesh; pole: THREE.Mesh }> = [];
-  /** the round's crown (the host's; a guest mirrors it in `crownView`) */
-  private crown: Crown | null = null;
-  private crownView: { phase: CrownPhase; x: number; z: number; carrier: number; held: number } | null = null;
-  private crownModel: THREE.Group;
-  /** Crown's round wins by id */
-  private roundWins = new Map<number, number>();
-  /** Search's round (the host's; a guest mirrors it in `searchView`), its sites on the floor and its bomb */
-  private search: Search | null = null;
-  private searchView: { phase: SearchPhase; left: number; at: number; site: number; bx: number; bz: number; work: { id: number; t: number; kind: "plant" | "defuse" } | null; attackers: 0 | 1 } | null = null;
-  private siteModels: THREE.Group[] = [];
-  private bombModel: THREE.Group | null = null;
-  /** Search: this player is holding interact (the page sets it each frame) */
-  holding = false;
-  /** the host: when each guest last said it was holding interact */
-  private holders = new Map<number, number>();
-  /** a guest: what it last told the host, and when */
-  private holdSent = false;
-  private holdSentAt = -Infinity;
-  private beepAt = 0;
-  /** Search: the bomb's beep, where it is (the page plays it) */
-  onBeep: ((at: THREE.Vector3, left: number) => void) | null = null;
   /** the clock: when the fight's time runs out (the host's), and what a guest was told */
   private timeEndsAt = Infinity;
   private leftAt = 0;
@@ -261,30 +205,20 @@ export class ArenaMode extends Duel {
   private spawnPick: Spawn | null = null;
   private modeSendNext = 0;
   private botSendNext = 0;
-  private hurtAt = -Infinity;
   private lastLocal: LocalState | null = null;
-  private myGun: string | null | undefined = undefined;
   /** the tests: the bots hold their fire (they still move and see) */
   holdFire = false;
-  /** Gun Run: this player's gun changed (null: the knife); the game puts it in hand */
-  onGun: ((id: string | null) => void) | null = null;
 
   constructor(scene: THREE.Scene, projectiles: ProjectileSystem, opts: ArenaModeOpts) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "arena", abilities: opts.abilities, map: opts.map ?? null });
     this.modeKind = opts.kind;
     this.difficulty = opts.difficulty;
-    this.list = opts.list === "full" ? "full" : "short";
-    this.ladder = new GunLadder(gunList(this.list));
     const tdm = teamMode(this.modeKind);
     // the humans: team 0 in a team mode, or alternating when the friends are split
     const split = tdm && !!opts.split && this.players > 1;
     this.split = split;
     for (let id = 0; id < this.players; id++) this.teamOf.set(id, split ? ((id % 2) as 0 | 1) : 0);
-    this.crownModel = makeCrown();
-    this.crownModel.visible = false;
-    scene.add(this.crownModel);
     if (this.modeKind === "control") this.buildZones(scene);
-    if (this.modeKind === "search") this.buildSites(scene);
     if (this.role !== "host") return;
     // The bots you asked for are the ones you face. A team mode then fills
     // your side with ally bots so the sides are even, which is what "3 bots"
@@ -304,11 +238,11 @@ export class ArenaMode extends Duel {
     for (let i = 0; i < allies + foes; i++) {
       const team: 0 | 1 = tdm && i >= allies ? 1 : 0;
       const id = Duel.BOT_ID + i;
-      const gun = this.modeKind === "gunrun" ? this.ladder.guns[0] : (opts.botWeapon || BOT_WEAPONS[i % BOT_WEAPONS.length]);
+      const gun = opts.botWeapon || BOT_WEAPONS[i % BOT_WEAPONS.length];
       // each its own tier ("mixed" draws one per bot)
       this.makeBot(i, team, tierFor(this.difficulty), gun, this.startSpawn(id, team));
     }
-    for (let id = 0; id < this.players; id++) this.ladder.row(id);
+    for (let id = 0; id < this.players; id++) this.board.row(id);
   }
 
   /** one of the match's bots: the host's, at the start, or the heir's, in place of the figure it saw (host migration) */
@@ -330,8 +264,8 @@ export class ArenaMode extends Duel {
       };
       bot.onRocket = (at, travelled, w) => this.botBurst(id, rocketBurst(w, at, travelled), w.id);
       this.teamOf.set(id, team);
-      this.ladder.row(id);
-      const mb: ModeBot = { bot, team, respawnAt: Infinity, goal: Math.floor(Math.random() * 12), hurtAt: -Infinity, vital: 0 };
+      this.board.row(id);
+      const mb: ModeBot = { bot, team, respawnAt: Infinity, goal: Math.floor(Math.random() * 12) };
       this.bots.push(mb);
       // a team mate's bullets pass through it (it is not a target for this side's guns)
       if (tdm && team === 0) projectiles.removeDummy(bot.dummy);
@@ -358,20 +292,6 @@ export class ArenaMode extends Duel {
 
   private teamFor(id: number): 0 | 1 {
     return this.teamOf.get(id) ?? 0;
-  }
-
-  get respawns(): boolean {
-    return this.modeKind !== "crown" && this.modeKind !== "search";
-  }
-
-  /** Gun Run's knife level for this player: melee is the throwing knife */
-  get knifeNow(): boolean {
-    return this.modeKind === "gunrun" && this.ladder.level(this.id) >= this.ladder.knifeLevel;
-  }
-
-  /** the gun this player should have (Gun Run), null for the knife */
-  get currentGun(): string | null {
-    return this.ladder.gunFor(this.id);
   }
 
   override get avatars(): Dummy[] {
@@ -503,40 +423,30 @@ export class ArenaMode extends Duel {
     this.onFeed?.(`${who} knocked ${r.name}`, mine, !mine);
     this.broadcast({ t: "down", from: r.id, by, m: melee ? 1 : undefined });
     if (mine) this.onNotice?.(`${r.name} DOWN`);
-    if (this.respawns) b.respawnAt = now + this.respawnDelay;
+    b.respawnAt = now + this.respawnDelay;
     this.scoreDown(r.id, by, melee, b.bot.pos.x, b.bot.pos.z);
   }
 
   private get respawnDelay(): number {
-    return this.modeKind === "gunrun" ? MODES.gunRun.respawn : this.modeKind === "control" ? MODES.control.respawn : this.modeKind === "ffa" ? MODES.ffa.respawn : MODES.tdm.respawn;
+    return this.modeKind === "control" ? MODES.control.respawn : this.modeKind === "ffa" ? MODES.ffa.respawn : MODES.tdm.respawn;
   }
 
   /** a human went down (this player, or a guest's `down`): a respawn to come, and the score */
   protected override onSomeoneDown(id: number, by: number, melee = false): void {
-    if (id === this.id && this.respawns) this.respawnAt = wallClock() + this.respawnDelay;
+    if (id === this.id) this.respawnAt = wallClock() + this.respawnDelay;
     if (this.role !== "host") return;
     const f = this.fighters().find((x) => x.id === id);
     this.scoreDown(id, by, melee, f?.x ?? 0, f?.z ?? 0);
   }
 
-  /**
-   * The host: `victim` went down to `by` (-1 nobody). Gun Run moves the
-   * killer on (a knife kill wins it); team deathmatch scores for the killer's
-   * team; Crown drops the crown if they had it and checks who is left.
-   */
-  private scoreDown(victim: number, by: number, melee: boolean, x: number, z: number): void {
+  /** the host: `victim` went down to `by` (-1 nobody): the board, and team deathmatch's score for the killer's team */
+  private scoreDown(victim: number, by: number, _melee: boolean, _x: number, _z: number): void {
     if (this.phase !== "fight" || this.winner !== null) return;
     const killer = by >= 0 && !this.sameSide(by, victim) ? by : -1;
     for (const b of this.bots) b.bot.forget(victim);
-    const won = this.ladder.kill(killer, victim, melee && this.modeKind === "gunrun");
+    this.board.kill(killer, victim);
     const now = wallClock();
-    if (this.modeKind === "gunrun") {
-      this.gunsChanged();
-      if (won) {
-        this.endMatch(killer, now);
-        return;
-      }
-    } else if (this.modeKind === "tdm") {
+    if (this.modeKind === "tdm") {
       if (killer >= 0) {
         const done = this.teams.kill(this.teamFor(killer));
         if (done !== null) {
@@ -546,168 +456,12 @@ export class ArenaMode extends Duel {
       }
     } else if (this.modeKind === "ffa") {
       // everyone for themselves: the killer's own count, first to the limit
-      if (killer >= 0 && this.ladder.row(killer).kills >= MODES.ffa.scoreLimit) {
+      if (killer >= 0 && this.board.row(killer).kills >= MODES.ffa.scoreLimit) {
         this.endMatch(killer, now);
         return;
       }
-    } else if (this.crown) {
-      if (this.crown.carrier === victim) {
-        this.crown.drop(x, z);
-        this.onNotice?.("THE CROWN IS DOWN");
-      }
-      this.checkLastUp(now);
     }
     this.sendMode(now);
-  }
-
-  /** Gun Run: every bot's gun from its level, and this player's */
-  private gunsChanged(): void {
-    if (this.modeKind !== "gunrun") return;
-    const knife = MODES.gunRun.knifeDamage;
-    for (const b of this.bots) {
-      const g = this.ladder.gunFor(b.bot.remote.id);
-      if (g === null) b.bot.setKnife(knife);
-      else {
-        b.bot.setKnife(null);
-        b.bot.setWeapon(g);
-      }
-    }
-    this.syncMyGun();
-  }
-
-  private syncMyGun(): void {
-    if (this.modeKind !== "gunrun") return;
-    const g = this.ladder.gunFor(this.id);
-    if (g === this.myGun) return;
-    const first = this.myGun === undefined;
-    this.myGun = g;
-    if (!first) this.onNotice?.(g === null ? "THE KNIFE: A MELEE KILL WINS" : `NEXT GUN: ${weaponName(g).toUpperCase()}`);
-    this.onGun?.(g);
-  }
-
-  /** Crown: one (or nobody) left up takes the round */
-  private checkLastUp(now: number): void {
-    if (this.modeKind !== "crown" || this.phase !== "fight") return;
-    const up = this.fighters().filter((f) => f.alive);
-    if (up.length <= 1) this.roundWon(up[0]?.id ?? -1, now);
-  }
-
-  /** Crown: a round to `id` (-1 nobody); the match at three */
-  private roundWon(id: number, now: number): void {
-    if (this.phase !== "fight") return;
-    if (id >= 0) this.roundWins.set(id, (this.roundWins.get(id) ?? 0) + 1);
-    this.crown = null;
-    const wins = id >= 0 ? (this.roundWins.get(id) ?? 0) : 0;
-    this.lastWinner = id;
-    if (wins >= MODES.crown.roundsToWin) {
-      this.endMatch(id, now);
-      return;
-    }
-    // the rounds' counts ride in the round message's scores, in id order of the rows
-    this.sendMode(now);
-    this.enter("roundEnd", now, MODES.roundEnd, id);
-  }
-
-  /** Search: a round to `team`; the match at roundsToWin */
-  private searchRoundWon(team: 0 | 1, now: number): void {
-    if (this.phase !== "fight") return;
-    this.teams.score[team]++;
-    this.lastWinner = TEAM_WIN(team);
-    if (this.teams.score[team] >= MODES.search.roundsToWin) {
-      this.endMatch(TEAM_WIN(team), now);
-      return;
-    }
-    this.sendMode(now);
-    this.enter("roundEnd", now, MODES.roundEnd, TEAM_WIN(team));
-  }
-
-  /** Search's two sites, in the arena's own coordinates: Control's zones A and C, called A and B */
-  private searchSites(): Array<{ id: string; x: number; z: number }> {
-    const z = this.layout.zones;
-    const a = z[0];
-    const b = z[z.length - 1];
-    return [
-      { id: "A", x: Number(a[1]), z: Number(a[2]) },
-      { id: "B", x: Number(b[1]), z: Number(b[2]) },
-    ];
-  }
-
-  /** Search as this side sees it: the host's round, or what a guest was told (its clock run on since) */
-  private searchNow(now: number): { phase: SearchPhase; left: number; site: number; bx: number; bz: number; work: { id: number; t: number; kind: "plant" | "defuse" } | null; attackers: 0 | 1 } | null {
-    const S = this.search;
-    if (S) return { phase: S.phase, left: S.left(now), site: S.bomb?.site ?? -1, bx: S.bomb?.x ?? 0, bz: S.bomb?.z ?? 0, work: S.work ? { ...S.work } : null, attackers: S.attackers };
-    const v = this.searchView;
-    if (!v) return null;
-    return { ...v, left: Math.max(0, v.left - (now - v.at)) };
-  }
-
-  /** a bot of the round doing its job: an attacker on a site with nobody planting, a defender at the planted bomb */
-  private botHolding(id: number): boolean {
-    const S = this.search;
-    const b = this.bots.find((x) => x.bot.remote.id === id);
-    if (!S || !b || !b.bot.alive) return false;
-    const x = b.bot.pos.x - this.layout.ox;
-    const z = b.bot.pos.z - this.layout.oz;
-    if (S.phase === "live") return b.team === S.attackers && S.siteAt(x, z) >= 0;
-    if (S.phase === "planted" && S.bomb) return b.team === S.defenders && Math.hypot(S.bomb.x - x, S.bomb.z - z) <= MODES.search.defuseReach * 0.8;
-    return false;
-  }
-
-  /** Search: where a bot goes this round. Attackers take the round's site together; defenders split between the two; once it is planted, everyone to the bomb */
-  private searchGoal(b: ModeBot): THREE.Vector3 | null {
-    const S = this.search;
-    if (!S) return null;
-    let p: { x: number; z: number };
-    if (S.phase === "planted" && S.bomb) {
-      // the attackers guard it from a few metres off, the defenders go for it
-      const off = b.team === S.attackers ? 3.5 : 0.6;
-      const a = b.bot.index * 2.1;
-      p = { x: S.bomb.x + Math.cos(a) * off, z: S.bomb.z + Math.sin(a) * off };
-    } else {
-      const site = b.team === S.attackers ? S.sites[this.round % 2] : S.sites[b.bot.index % 2];
-      const a = b.bot.index * 2.4;
-      const r = b.team === S.attackers ? 1.2 : 2.5;
-      p = { x: site.x + Math.cos(a) * r, z: site.z + Math.sin(a) * r };
-    }
-    const w = this.world([p.x, p.z]);
-    return new THREE.Vector3(w.x, 0, w.z);
-  }
-
-  /** the host hears a guest's Search "hold" (1 holding, 0 let go) */
-  protected override onFx(k: string, from: number, n: number | undefined): boolean {
-    if (k !== "hold") return false;
-    if (this.role === "host") this.holders.set(from, n === 1 ? wallClock() : -Infinity);
-    return true;
-  }
-
-  /** Search's two sites on the floor, and its bomb */
-  private buildSites(scene: THREE.Scene): void {
-    if (this.siteModels.length) return;
-    const R = MODES.search.siteRadius;
-    for (const site of this.searchSites()) {
-      const root = new THREE.Group();
-      const w = this.world([site.x, site.z]);
-      root.position.set(w.x, 0.03, w.z);
-      const ring = new THREE.Mesh(new THREE.RingGeometry(R - 0.2, R, 48), new THREE.MeshBasicMaterial({ color: 0xffa23c, transparent: true, opacity: 0.9, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
-      ring.rotation.x = -Math.PI / 2;
-      const fill = new THREE.Mesh(new THREE.CircleGeometry(R - 0.2, 48), new THREE.MeshBasicMaterial({ color: 0xffa23c, transparent: true, opacity: 0.12, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false }));
-      fill.rotation.x = -Math.PI / 2;
-      fill.position.y = 0.01;
-      root.add(ring, fill);
-      scene.add(root);
-      this.siteModels.push(root);
-    }
-    // the bomb: a squat case with a light that blinks with the beep
-    const bomb = new THREE.Group();
-    const body = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.22, 0.34), new THREE.MeshStandardMaterial({ color: 0x2b2f33, roughness: 0.6, metalness: 0.4 }));
-    body.position.y = 0.11;
-    const light = new THREE.Mesh(new THREE.SphereGeometry(0.05, 10, 8), new THREE.MeshBasicMaterial({ color: 0xff3020 }));
-    light.position.set(0.12, 0.24, 0);
-    light.name = "light";
-    bomb.add(body, light);
-    bomb.visible = false;
-    scene.add(bomb);
-    this.bombModel = bomb;
   }
 
   /** the host: it is decided */
@@ -717,12 +471,10 @@ export class ArenaMode extends Duel {
     this.enter("matchEnd", now, MODES.matchEnd, winner);
   }
 
-  /** the damage this player takes: Gun Run's regen waits 4 s after it */
+  /** the damage this player takes, and whether a melee did it (a melee down is a melee kill) */
   protected override takeHit(amount: number, from: number, head = false, weapon = "", dist: number | null = null): void {
-    const before = this.health + this.shield;
     this.lastHitMelee = weapon === "melee";
     super.takeHit(amount, from, head, weapon, dist);
-    if (this.health + this.shield < before) this.hurtAt = wallClock();
   }
 
   // ------------------------------------------------------------ rounds
@@ -731,8 +483,7 @@ export class ArenaMode extends Duel {
     super.respawn();
     this.respawnAt = Infinity;
     this.spawnPick = null;
-    this.hurtAt = -Infinity;
-    // a new round (Crown) or a new match: everyone at their start; the bots too
+    // a new match: everyone at their start; the bots too
     for (const b of this.bots) {
       b.bot.respawnAt(this.startSpawn(b.bot.remote.id, b.team));
       b.bot.remote.alive = true;
@@ -740,7 +491,7 @@ export class ArenaMode extends Duel {
     }
   }
 
-  /** back in after going down (Gun Run, team deathmatch): at the spawn farthest from the enemies */
+  /** back in after going down: at the spawn farthest from the enemies */
   private respawnMe(): void {
     this.spawnPick = this.respawnSpawn(this.id);
     this.respawnAt = Infinity;
@@ -748,22 +499,18 @@ export class ArenaMode extends Duel {
     this.shield = this.shieldMax;
     this.alive = true;
     this.downed = false;
-    this.hurtAt = -Infinity;
     this.onRespawn?.();
   }
 
   protected override summarise(): void {
     if (this.summarised) return;
     this.summarised = true;
-    const me = this.ladder.row(this.id);
+    const me = this.board.row(this.id);
     const myTeam = this.teamFor(this.id);
     const won = this.winner !== null && (this.winner === this.id || (teamMode(this.modeKind) && this.winner === TEAM_WIN(myTeam)));
     let roundsWon = 0;
     let roundsLost = 0;
-    if (this.modeKind === "crown") {
-      roundsWon = this.roundWins.get(this.id) ?? 0;
-      for (const [id, n] of this.roundWins) if (id !== this.id) roundsLost += n;
-    } else if (this.modeKind === "tdm") {
+    if (this.modeKind === "tdm") {
       roundsWon = this.teams.score[myTeam];
       roundsLost = this.teams.score[myTeam === 0 ? 1 : 0];
     } else if (this.modeKind === "control") {
@@ -773,8 +520,8 @@ export class ArenaMode extends Duel {
     } else if (this.modeKind === "ffa") {
       // your kills against the best of the others
       roundsWon = me.kills;
-      roundsLost = Math.max(0, ...this.ladder.sorted.filter((r) => r.id !== this.id).map((r) => r.kills));
-    } else roundsWon = me.level;
+      roundsLost = Math.max(0, ...this.board.sorted.filter((r) => r.id !== this.id).map((r) => r.kills));
+    }
     this.lastSummary = { won, roundsWon, roundsLost, kills: me.kills, deaths: me.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
     this.onMatchEnd?.(this.lastSummary);
     this.kills = 0;
@@ -909,33 +656,28 @@ export class ArenaMode extends Duel {
     if (this.role !== "host") return;
     this.modeSendNext = now + MODE_SEND_EVERY;
     if (!this.links.size) return;
-    const rows: Array<[number, number, number, number, number]> = [];
+    // each row: id, kills, deaths, team
+    const rows: Array<[number, number, number, number]> = [];
     const ids = [this.id, ...[...this.remotes.keys()].filter((id) => id < Duel.BOT_ID), ...this.bots.map((b) => b.bot.remote.id)];
     for (const id of ids) {
-      const r = this.ladder.row(id);
-      const wins = this.roundWins.get(id) ?? 0;
-      rows.push([id, this.modeKind === "crown" ? wins : r.level, r.kills, r.deaths, this.teamFor(id)]);
+      const r = this.board.row(id);
+      rows.push([id, r.kills, r.deaths, this.teamFor(id)]);
     }
-    const c = this.crown;
     this.broadcast({
       t: "mode",
       left: Math.max(0, this.clockLeft(now) ?? 0),
       rows,
-      tm: this.modeKind === "tdm" || this.modeKind === "search" ? [this.teams.score[0], this.teams.score[1]] : undefined,
-      // Search: phase (0 live, 1 planted, 2 over), the clock, the bomb's site and place, a plant or defuse (0 none, 1 plant, 2 defuse; whose; how far), who attacks
-      sr: this.search ? this.searchPacket(now) : undefined,
-      cr: c ? [c.phase === "waiting" ? 0 : c.phase === "ground" ? 1 : 2, c.x, c.z, c.carrier, c.held] : undefined,
+      tm: this.modeKind === "tdm" ? [this.teams.score[0], this.teams.score[1]] : undefined,
       ct: this.control ? this.controlPacket(now) : undefined,
       win: this.winner ?? undefined,
     });
   }
 
   /**
-   * Host migration: every mode. A guest's copy holds the ladder's rows, the
-   * teams, the clock, the winner, and where the crown and Control's zones
-   * stand; the snapshot adds what only the host has: each bot's tier, team,
-   * gun, respawn and waypoint, when the crown appears, and when Control's
-   * next bonus comes.
+   * Host migration: every mode. A guest's copy holds the board's rows, the
+   * teams, the clock, the winner, and where Control's zones stand; the
+   * snapshot adds what only the host has: each bot's tier, team, gun, respawn
+   * and waypoint, and when Control's next bonus comes.
    */
   protected override canMigrate(): boolean {
     return true;
@@ -944,7 +686,6 @@ export class ArenaMode extends Duel {
   protected override snapshotMode(now: number): ArenaSnap {
     return {
       b: this.bots.map((b) => [b.bot.index, Math.max(0, WIRE_TIERS.indexOf(b.bot.diff.name as BotTier)), b.team, Number.isFinite(b.respawnAt) ? Math.max(0, b.respawnAt - now) : -1, b.goal, b.bot.remote.avatarWeapon]),
-      ca: this.crown && this.crown.phase === "waiting" ? Math.max(0, this.crown.appearsIn - now) : -1,
       nb: this.control ? this.control.nextBonus - now : -1,
     };
   }
@@ -952,12 +693,11 @@ export class ArenaMode extends Duel {
   /**
    * The heir, now the host: the clock from what the last "mode" said, the old
    * host off the board as a leaver is, the bots made again where this page
-   * last saw them (their figures give way to them, so nothing jumps), the
-   * crown and Control's zones as they stood, and everyone told at once.
+   * last saw them (their figures give way to them, so nothing jumps),
+   * Control's zones as they stood, and everyone told at once.
    */
   protected override restoreAsHost(now: number, oldHost: number, mode: unknown): void {
-    this.ladder.remove(oldHost);
-    this.roundWins.delete(oldHost);
+    this.board.remove(oldHost);
     const left = this.leftSeen === null ? null : Math.max(0, this.leftSeen - (now - this.leftAt));
     if (left !== null && this.phase === "fight") this.timeEndsAt = now + left;
     this.leftSeen = null;
@@ -979,67 +719,14 @@ export class ArenaMode extends Duel {
         }
       }
       mb.respawnAt = respawnIn >= 0 ? now + respawnIn : !mb.bot.alive ? now + this.respawnDelay : Infinity;
-      mb.vital = mb.bot.dummy.health + mb.bot.dummy.shield;
       this.dropFigure(id);
-    }
-    if (this.crownView && this.phase === "fight" && this.modeKind === "crown") {
-      this.crown = new Crown(this.layout.crown.x, this.layout.crown.z, now);
-      this.crown.restore(this.crownView, now + Math.max(0, snap?.ca ?? left ?? 0));
     }
     if (this.controlView && this.modeKind === "control") {
       this.control = new Control(now, Math.random, this.layout.zones);
       this.control.restore(this.controlView, now, now + (snap && snap.nb >= 0 ? snap.nb : MODES.control.bonus.every));
     }
-    // Search: the round as this page last saw it, the bomb and any plant or defuse with it
-    const sv = this.searchNow(now);
-    if (this.modeKind === "search" && sv && this.phase === "fight") {
-      this.search = new Search(now, this.searchSites(), sv.attackers);
-      this.search.restore(sv, now);
-      this.searchView = null;
-    }
-    if (this.modeKind === "gunrun") this.gunsChanged();
     this.modeSendNext = 0;
     this.botSendNext = 0;
-  }
-
-  /** Search for the HUD, from this side */
-  private searchHud(now: number, myTeam: 0 | 1): NonNullable<ModeHud["search"]> {
-    const v = this.searchNow(now);
-    const sites = this.searchSites();
-    const me = this.lastLocal;
-    const mx = (me?.x ?? 0) - this.layout.ox;
-    const mz = (me?.z ?? 0) - this.layout.oz;
-    const hereAt = sites.findIndex((q) => Math.hypot(q.x - mx, q.z - mz) <= MODES.search.siteRadius);
-    const attacking = !!v && v.attackers === myTeam;
-    const phase = v?.phase ?? "live";
-    const w = v?.work ?? null;
-    const need = w?.kind === "defuse" ? MODES.search.defuseTime : MODES.search.plantTime;
-    let prompt: string | null = null;
-    if (v && this.alive && this.phase === "fight") {
-      if (phase === "live" && attacking && hereAt >= 0) prompt = `HOLD E TO PLANT ON ${sites[hereAt].id}`;
-      else if (phase === "planted" && !attacking && Math.hypot(v.bx - mx, v.bz - mz) <= MODES.search.defuseReach) prompt = "HOLD E TO DEFUSE";
-    }
-    return {
-      you: this.teams.score[myTeam],
-      them: this.teams.score[myTeam === 0 ? 1 : 0],
-      limit: MODES.search.roundsToWin,
-      attacking,
-      phase,
-      left: v?.left ?? MODES.search.roundTime,
-      site: v && v.site >= 0 ? sites[v.site]?.id ?? null : null,
-      work: w ? { kind: w.kind, mine: w.id === this.id, ally: this.sameSide(w.id, this.id), k: Math.min(1, w.t / need) } : null,
-      prompt,
-      sites: sites.map((q, i) => {
-        const at = this.world([q.x, q.z]);
-        return { id: q.id, at: new THREE.Vector3(at.x, 0, at.z), here: i === hereAt, bomb: !!v && v.phase === "planted" && v.site === i };
-      }),
-    };
-  }
-
-  private searchPacket(now: number): number[] {
-    const S = this.search as Search;
-    const w = S.work;
-    return [S.phase === "planted" ? 1 : S.phase === "over" ? 2 : 0, S.left(now), S.bomb?.site ?? -1, S.bomb?.x ?? 0, S.bomb?.z ?? 0, w ? (w.kind === "plant" ? 1 : 2) : 0, w?.id ?? -1, w?.t ?? 0, S.attackers];
   }
 
   /** a guest: the host's state */
@@ -1047,38 +734,23 @@ export class ArenaMode extends Duel {
     if (m.t !== "mode" || this.role === "host") return;
     const fin = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
     if (!Array.isArray(m.rows) || !fin(m.left)) return;
-    const rows = m.rows.filter((r) => Array.isArray(r) && r.length === 5 && r.every(fin));
-    this.ladder.set(rows.map(([id, level, kills, deaths]) => ({ id, level: this.modeKind === "crown" ? 0 : level, kills, deaths })));
-    if (this.modeKind === "crown") {
-      this.roundWins.clear();
-      for (const [id, wins] of rows) this.roundWins.set(id, wins);
-    }
-    for (const [id, , , , team] of rows) this.teamOf.set(id, team === 1 ? 1 : 0);
+    const rows = m.rows.filter((r) => Array.isArray(r) && r.length === 4 && r.every(fin));
+    this.board.set(rows.map(([id, kills, deaths]) => ({ id, kills, deaths })));
+    for (const [id, , , team] of rows) this.teamOf.set(id, team === 1 ? 1 : 0);
     if (Array.isArray(m.tm) && m.tm.length === 2 && m.tm.every(fin)) this.teams.score = [m.tm[0], m.tm[1]];
     // Control: v A B C, owners A B C, the two scores, the bonus zone and its time, the lockout's team and time
     if (Array.isArray(m.ct) && m.ct.length === 12 && m.ct.every(fin)) {
       const c = m.ct;
       this.controlView = { v: [c[0], c[1], c[2]], owner: [c[3], c[4], c[5]], score: [c[6], c[7]], bonus: c[8], bonusLeft: c[9], lockTeam: c[10], lockLeft: c[11] };
     } else this.controlView = null;
-    if (Array.isArray(m.cr) && m.cr.length === 5 && m.cr.every(fin)) {
-      const [ph, x, z, carrier, held] = m.cr;
-      this.crownView = { phase: ph === 2 ? "carried" : ph === 1 ? "ground" : "waiting", x, z, carrier, held };
-    } else this.crownView = null;
-    if (Array.isArray(m.sr) && m.sr.length === 9 && m.sr.every(fin)) {
-      const [ph, left, site, bx, bz, wk, wid, wt, atk] = m.sr;
-      this.searchView = { phase: ph === 1 ? "planted" : ph === 2 ? "over" : "live", left, at: wallClock(), site, bx, bz, work: wk === 1 || wk === 2 ? { id: wid, t: wt, kind: wk === 1 ? "plant" : "defuse" } : null, attackers: atk === 1 ? 1 : 0 };
-    } else this.searchView = null;
     this.leftSeen = m.left;
     this.leftAt = wallClock();
     this.winner = fin(m.win) ? m.win : null;
-    this.syncMyGun();
   }
 
-  /** seconds on the clock: the fight's time, or Crown's wait for the crown */
+  /** seconds on the clock */
   private clockLeft(now: number): number | null {
     if (this.role !== "host") return this.leftSeen === null ? null : Math.max(0, this.leftSeen - (now - this.leftAt));
-    if (this.modeKind === "crown") return this.crown && this.crown.phase === "waiting" ? this.crown.appearsIn - now : null;
-    if (this.modeKind === "search") return this.search ? this.search.left(now) : null;
     // (Control's clock is the same as team deathmatch's)
     return Number.isFinite(this.timeEndsAt) ? this.timeEndsAt - now : null;
   }
@@ -1090,38 +762,12 @@ export class ArenaMode extends Duel {
     super.update(local);
     if (this.ended) return;
     const now = wallClock();
-    const dt = Math.min(0.1, Math.max(0, now - this.lastFrame));
-    this.lastFrame = now;
-    // down in a mode with respawns: back in after the delay
-    if (this.respawns && this.phase === "fight" && !this.alive && now >= this.respawnAt) this.respawnMe();
-    // Gun Run: health and shields come back 4 s after the last damage
-    if (this.modeKind === "gunrun" && this.alive && this.phase === "fight" && now - this.hurtAt >= MODES.gunRun.regenAfter) {
-      let heal = MODES.gunRun.regenRate * dt;
-      const toShield = Math.min(heal, this.shieldMax - this.shield);
-      this.shield += toShield;
-      heal -= toShield;
-      this.health = Math.min(HEALTH_MAX, this.health + heal);
-    }
+    // down: back in after the delay
+    if (this.phase === "fight" && !this.alive && now >= this.respawnAt) this.respawnMe();
     // Control: the zones in the arena, in the colour of whoever holds them
     if (this.modeKind === "control") this.drawZones(now);
-    if (this.modeKind === "search") this.stepSearch(now, local);
     // team deathmatch: a team mate's figure is no target for this side's bullets
     if (teamMode(this.modeKind)) for (const r of this.remotes.values()) if (this.friendly(r.id)) this.projectiles.removeDummy(r.avatar);
-    // the crown: over its carrier's head, or turning on the floor
-    const cv = this.crownState();
-    this.crownModel.visible = !!cv && cv.phase !== "waiting" && this.phase === "fight";
-    if (cv && this.crownModel.visible) {
-      let y = 0.35;
-      if (cv.phase === "carried") {
-        const f = cv.carrier === this.id ? local : this.figureAt(cv.carrier);
-        if (f) {
-          this.crownModel.position.set(f.x, f.y + 2.35, f.z);
-          y = -1;
-        }
-      }
-      if (y >= 0) this.crownModel.position.set(cv.x, y + 0.15 * Math.sin(now * 2.5), cv.z);
-      this.crownModel.rotation.y = now * 1.4;
-    }
     // the bots, for this side's figures and plates
     for (const b of this.bots) {
       const s = b.bot.remote.samples;
@@ -1129,93 +775,25 @@ export class ArenaMode extends Duel {
       s.push({ at: now, x: b.bot.pos.x, y: b.bot.pos.y, z: b.bot.pos.z, yaw: 0, pitch: 0, crouch: false, stance: "stand", speed: 0, ads: 0, act: null });
     }
   }
-  private lastFrame = wallClock();
-
-  /**
-   * Search, every frame on every page: a guest tells the host when it holds
-   * interact or lets go (and again now and then while it holds); the host
-   * sends the round more often while a plant or defuse is under way, so the
-   * bar moves on every screen; the bomb sits where it was planted and beeps,
-   * quicker as it runs down.
-   */
-  private stepSearch(now: number, _local: LocalState): void {
-    const want = this.holding && this.alive && this.phase === "fight";
-    if (this.role === "guest" && (want !== this.holdSent || (want && now - this.holdSentAt > 0.3))) {
-      this.holdSent = want;
-      this.holdSentAt = now;
-      this.localFx("hold", undefined, undefined, want ? 1 : 0);
-    }
-    if (this.role === "host" && this.search?.work && now + MODE_SEND_EVERY - this.modeSendNext > 0.1) this.sendMode(now);
-    const v = this.searchNow(now);
-    const bomb = this.bombModel;
-    if (!bomb) return;
-    const planted = !!v && v.phase === "planted" && v.site >= 0 && this.phase === "fight";
-    bomb.visible = planted;
-    if (!planted || !v) return;
-    const w = this.world([v.bx, v.bz]);
-    bomb.position.set(w.x, 0, w.z);
-    if (now >= this.beepAt) {
-      this.beepAt = now + Search.beepGap(v.left);
-      this.onBeep?.(bomb.position.clone(), v.left);
-      const light = bomb.getObjectByName("light");
-      if (light) light.visible = true;
-    } else {
-      const light = bomb.getObjectByName("light");
-      if (light) light.visible = this.beepAt - now > Search.beepGap(v.left) * 0.5;
-    }
-  }
-
-  /** a figure's feet by id (a guest's last state, a bot) */
-  private figureAt(id: number): { x: number; y: number; z: number } | null {
-    const b = this.bots.find((x) => x.bot.remote.id === id);
-    if (b) return b.bot.pos;
-    const r = this.remotes.get(id);
-    return r ? r.avatar.group.position : null;
-  }
-
-  /** the crown's carrier's id, or null (trails.ts draws theirs in gold) */
-  get crownCarrierId(): number | null {
-    const c = this.crownState();
-    return c && c.phase === "carried" ? c.carrier : null;
-  }
-
-  private crownState(): { phase: CrownPhase; x: number; z: number; carrier: number; held: number } | null {
-    if (this.role !== "host") return this.crownView;
-    const c = this.crown;
-    return c ? { phase: c.phase, x: c.x, z: c.z, carrier: c.carrier, held: c.held } : null;
-  }
 
   /** the host: the phases, the rules, the bots */
   protected override tick(now: number, dt: number, local: LocalState): void {
     this.lastLocal = local;
     if (this.phase === "countdown" && now >= this.phaseEndsAt) {
       this.enter("fight", now, 0);
-      this.onNotice?.(this.modeKind === "crown" ? "FIGHT  ·  THE CROWN IN 20 S" : "FIGHT");
-      if (this.modeKind === "crown") this.crown = new Crown(this.layout.crown.x, this.layout.crown.z, now);
-      else if (!Number.isFinite(this.timeEndsAt)) this.timeEndsAt = now + (this.modeKind === "gunrun" ? MODES.gunRun.timeLimit : this.modeKind === "control" ? MODES.control.timeLimit : this.modeKind === "ffa" ? MODES.ffa.timeLimit : MODES.tdm.timeLimit);
+      this.onNotice?.("FIGHT");
+      if (!Number.isFinite(this.timeEndsAt)) this.timeEndsAt = now + (this.modeKind === "control" ? MODES.control.timeLimit : this.modeKind === "ffa" ? MODES.ffa.timeLimit : MODES.tdm.timeLimit);
       if (this.modeKind === "control" && !this.control) this.control = new Control(now, Math.random, this.layout.zones);
-      if (this.modeKind === "search") {
-        this.search = new Search(now, this.searchSites(), searchAttackers(this.round));
-        this.holders.clear();
-        this.onNotice?.(this.teamFor(this.id) === this.search.attackers ? "ATTACK  ·  PLANT ON A OR B" : "DEFEND  ·  HOLD A AND B");
-      }
-      this.gunsChanged();
       this.sendMode(now);
-    } else if (this.phase === "roundEnd" && now >= this.phaseEndsAt) {
-      this.round++;
-      this.enter("countdown", now, MODES.countdown);
     } else if (this.phase === "matchEnd" && now >= this.phaseEndsAt) {
       // straight into a rematch
-      this.ladder.clear();
+      this.board.clear();
       this.teams.clear();
-      this.roundWins.clear();
       this.control = null;
-      this.search = null;
       this.winner = null;
       this.timeEndsAt = Infinity;
       this.round = 1;
       this.summarised = false;
-      this.gunsChanged();
       this.enter("countdown", now, MODES.countdown);
       this.sendMode(now);
     }
@@ -1224,17 +802,13 @@ export class ArenaMode extends Duel {
     if (now >= this.modeSendNext) this.sendMode(now);
   }
 
-  /** the host, in the fight: the clock, the crown, the bots' respawns, minds and shots */
+  /** the host, in the fight: the clock, the zones, the bots' respawns, minds and shots */
   private fight(now: number, dt: number, local: LocalState): void {
     if (now >= this.timeEndsAt) {
       // the clock ran out: the leader, or the team ahead (a draw: nobody)
-      if (this.modeKind === "gunrun") {
-        const [a, b] = this.ladder.sorted;
-        const tie = !!a && !!b && a.level === b.level && a.kills === b.kills && a.deaths === b.deaths;
-        this.endMatch(!a || tie ? -1 : a.id, now);
-      } else if (this.modeKind === "ffa") {
+      if (this.modeKind === "ffa") {
         // the most kills, the fewest deaths on a tie; level on both is a draw
-        const lead = killLeader(this.ladder.sorted.map((r) => ({ id: r.id, kills: r.kills, deaths: r.deaths })));
+        const lead = killLeader(this.board.sorted);
         this.endMatch(lead ?? -1, now);
       } else {
         const ahead = this.modeKind === "control" && this.control ? this.control.ahead : this.teams.ahead;
@@ -1243,32 +817,6 @@ export class ArenaMode extends Duel {
       return;
     }
     const fighters = this.fighters();
-    // Search: the plant, the defuse, the bomb and the round
-    if (this.search && this.search.phase !== "over") {
-      const S = this.search;
-      const heldAt = now - 0.6;
-      const r = S.update(
-        now,
-        dt,
-        fighters.map((f) => ({
-          id: f.id,
-          x: f.x - this.layout.ox,
-          z: f.z - this.layout.oz,
-          team: this.teamFor(f.id),
-          alive: f.alive,
-          holding: f.id === this.id ? this.holding : f.id >= Duel.BOT_ID ? this.botHolding(f.id) : (this.holders.get(f.id) ?? -Infinity) > heldAt,
-        }))
-      );
-      const mine = this.teamFor(this.id);
-      if (r.event === "planted") this.onNotice?.(mine === S.attackers ? `BOMB PLANTED ON ${S.sites[S.bomb?.site ?? 0].id}  ·  DEFEND IT` : `BOMB PLANTED ON ${S.sites[S.bomb?.site ?? 0].id}  ·  DEFUSE IT`);
-      if (r.event) this.sendMode(now);
-      if (r.winner !== null) {
-        const why = r.event === "defused" ? "BOMB DEFUSED" : r.event === "exploded" ? "THE BOMB WENT OFF" : r.event === "time" ? "TIME" : "TEAM ELIMINATED";
-        this.onNotice?.(`${why}  ·  ${r.winner === mine ? "ROUND WON" : "ROUND LOST"}`);
-        this.searchRoundWon(r.winner, now);
-        return;
-      }
-    }
     // Control: the zones, the points, the bonus and the lockout
     if (this.control) {
       const r = this.control.update(now, dt, fighters.map((f) => ({ x: f.x - this.layout.ox, z: f.z - this.layout.oz, team: this.teamFor(f.id), alive: f.alive })));
@@ -1286,22 +834,6 @@ export class ArenaMode extends Duel {
         return;
       }
     }
-    if (this.crown) {
-      const r = this.crown.update(now, dt, fighters);
-      if (r.event === "appears") {
-        this.onNotice?.("THE CROWN IS UP  ·  TAKE IT AND HOLD IT");
-        this.sendMode(now);
-      } else if (r.event === "taken") {
-        const c = this.crown.carrier;
-        this.onNotice?.(c === this.id ? "YOU HAVE THE CROWN: STAY UP" : `${this.nameOf(c) ?? "SOMEONE"} HAS THE CROWN`);
-        this.sendMode(now);
-      }
-      if (r.winner !== null) {
-        this.onNotice?.(r.winner === this.id ? "YOU HELD THE CROWN" : `${this.nameOf(r.winner) ?? "SOMEONE"} HELD THE CROWN`);
-        this.roundWon(r.winner, now);
-        return;
-      }
-    }
     const feet = new THREE.Vector3(local.x, local.y, local.z);
     for (const b of this.bots) {
       const bot = b.bot;
@@ -1310,21 +842,6 @@ export class ArenaMode extends Duel {
         b.respawnAt = Infinity;
         bot.respawnAt(this.respawnSpawn(bot.remote.id));
         bot.remote.alive = true;
-        b.hurtAt = -Infinity;
-        b.vital = bot.dummy.health + bot.dummy.shield;
-      }
-      // Gun Run's regen, the bots' too
-      if (bot.alive) {
-        const v = bot.dummy.health + bot.dummy.shield;
-        if (v < b.vital - 1e-6) b.hurtAt = now;
-        if (this.modeKind === "gunrun" && now - b.hurtAt >= MODES.gunRun.regenAfter) {
-          let heal = MODES.gunRun.regenRate * dt;
-          const toShield = Math.min(heal, bot.dummy.shieldMax - bot.dummy.shield);
-          bot.dummy.shield += toShield;
-          heal -= toShield;
-          bot.dummy.health = Math.min(HEALTH_MAX, bot.dummy.health + heal);
-        }
-        b.vital = bot.dummy.health + bot.dummy.shield;
       }
       const wasAlive = bot.alive;
       const sense = bot.alive ? this.sense(b, fighters) : { target: null, targetId: -1, goal: null, canShoot: false };
@@ -1429,21 +946,17 @@ export class ArenaMode extends Duel {
     }
   }
 
-  /** what a bot sees and where it goes: the nearest enemy in sight; the crown, its carrier, or a roam */
+  /** what a bot sees and where it goes: the nearest enemy in sight; a zone, or a roam */
   private sense(b: ModeBot, fighters: Array<{ id: number; x: number; y: number; z: number; alive: boolean }>): BotSense {
     const bot = b.bot;
     const me = bot.remote.id;
     let target: THREE.Vector3 | null = null;
     let targetId = -1;
     let best = Infinity;
-    // Search: a bot on the objective (an attacker before the plant, a defender after it) makes for it, and turns only on an enemy close by
-    const S = this.search;
-    const objective = !!S && ((S.phase === "live" && b.team === S.attackers) || (S.phase === "planted" && b.team === S.defenders));
     for (const f of fighters) {
       if (!f.alive || f.id === me || this.sameSide(f.id, me)) continue;
       const p = new THREE.Vector3(f.x, f.y, f.z);
       const d = bot.pos.distanceTo(p);
-      if (objective && d > MODES.search.engage) continue;
       if (d < best && bot.sees(p)) {
         best = d;
         target = p;
@@ -1451,15 +964,8 @@ export class ArenaMode extends Duel {
       }
     }
     let goal: THREE.Vector3 | null = null;
-    const c = this.crown;
     if (this.modeKind === "control") goal = this.controlGoal(b);
-    else if (this.modeKind === "search") goal = this.searchGoal(b);
-    else if (c && c.phase === "ground") goal = new THREE.Vector3(c.x, 0, c.z);
-    else if (c && c.phase === "carried" && c.carrier !== me) goal = new THREE.Vector3(c.x, 0, c.z);
-    else if (c && c.carrier === me) {
-      const s = this.respawnSpawn(me);
-      goal = new THREE.Vector3(s.x, 0, s.z);
-    } else {
+    else {
       // a roam over the spawns and the middle, a new point on arrival
       const pts = [...this.layout.a, ...this.layout.b, ...this.layout.mid];
       const g = this.world(pts[b.goal % pts.length]);
@@ -1467,7 +973,7 @@ export class ArenaMode extends Duel {
       const n = this.world(pts[b.goal % pts.length]);
       goal = new THREE.Vector3(n.x, 0, n.z);
     }
-    return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire, urgent: objective || undefined };
+    return { target, targetId, goal, canShoot: this.phase === "fight" && !this.holdFire };
   }
 
   /** the bots, to the guests, as state packets */
@@ -1499,15 +1005,11 @@ export class ArenaMode extends Duel {
     }
   }
 
-  /** a guest left: Crown checks who is left, and the crown drops if they had it */
+  /** a guest left: off the board */
   protected override guestLeft(id: number): void {
-    const f = this.fighters().find((x) => x.id === id);
     super.guestLeft(id);
     if (this.ended || this.role !== "host") return;
-    this.ladder.remove(id);
-    this.roundWins.delete(id);
-    if (this.crown?.carrier === id) this.crown.drop(f?.x ?? this.layout.crown.x, f?.z ?? this.layout.crown.z);
-    this.checkLastUp(wallClock());
+    this.board.remove(id);
   }
 
   // ------------------------------------------------------------ the HUD
@@ -1517,18 +1019,15 @@ export class ArenaMode extends Duel {
     const now = wallClock();
     const names = (id: number): string => (id === this.id ? this.myName || "YOU" : (this.nameOf(id) ?? `PLAYER ${id + 1}`));
     const aliveOf = (id: number): boolean => (id === this.id ? this.alive : (this.bots.find((b) => b.bot.remote.id === id)?.bot.alive ?? this.remotes.get(id)?.alive ?? false));
-    const rows = this.ladder.sorted.map((r) => ({
+    const rows = this.board.sorted.map((r) => ({
       name: names(r.id),
-      level: r.level,
       kills: r.kills,
       deaths: r.deaths,
       you: r.id === this.id,
       team: this.teamFor(r.id),
       ally: r.id !== this.id && this.sameSide(r.id, this.id),
       alive: aliveOf(r.id),
-      wins: this.roundWins.get(r.id) ?? 0,
     }));
-    if (this.modeKind === "crown") rows.sort((a, b) => b.wins - a.wins || b.kills - a.kills);
     const myTeam = this.teamFor(this.id);
     if (teamMode(this.modeKind)) rows.sort((a, b) => a.team - b.team || b.kills - a.kills);
     if (this.modeKind === "ffa") rows.sort((a, b) => b.kills - a.kills || a.deaths - b.deaths);
@@ -1550,46 +1049,26 @@ export class ArenaMode extends Duel {
       title: MODE_TITLE[this.modeKind],
       left: this.clockLeft(now),
       rows,
-      respawnIn: this.respawns && !this.alive && this.phase === "fight" && Number.isFinite(this.respawnAt) ? Math.max(0, this.respawnAt - now) : null,
+      respawnIn: !this.alive && this.phase === "fight" && Number.isFinite(this.respawnAt) ? Math.max(0, this.respawnAt - now) : null,
       winner: winnerName,
       won,
     };
-    if (this.modeKind === "gunrun") {
-      const level = this.ladder.level(this.id);
-      const guns = this.ladder.guns;
-      const gun = this.ladder.gunFor(this.id);
-      const next = level + 1 < guns.length ? guns[level + 1] : level + 1 === guns.length ? null : null;
-      mode.gun = { level: level + 1, of: guns.length + 1, name: gun === null ? "THE KNIFE" : weaponName(gun).toUpperCase(), next: gun === null ? null : next === null ? "THE KNIFE" : weaponName(next).toUpperCase(), knife: gun === null };
-    } else if (this.modeKind === "tdm") {
+    if (this.modeKind === "tdm") {
       mode.teams = { you: this.teams.score[myTeam], them: this.teams.score[myTeam === 0 ? 1 : 0], limit: this.teams.limit };
     } else if (this.modeKind === "control") {
       mode.control = this.controlHud(now);
-    } else if (this.modeKind === "search") {
-      mode.search = this.searchHud(now, myTeam);
-    } else if (this.modeKind === "ffa") {
-      const me = this.ladder.row(this.id);
-      mode.ffa = { you: me.kills, best: Math.max(0, ...rows.filter((r) => !r.you).map((r) => r.kills)), limit: MODES.ffa.scoreLimit };
     } else {
-      const cv = this.crownState();
-      mode.crown = {
-        phase: cv?.phase ?? "waiting",
-        carrier: cv && cv.phase === "carried" ? names(cv.carrier) : null,
-        mine: !!cv && cv.phase === "carried" && cv.carrier === this.id,
-        held: cv?.held ?? 0,
-        need: MODES.crown.hold,
-        at: this.crownModel.position.clone(),
-        wins: this.roundWins.get(this.id) ?? 0,
-        roundsToWin: MODES.crown.roundsToWin,
-      };
+      const me = this.board.row(this.id);
+      mode.ffa = { you: me.kills, best: Math.max(0, ...rows.filter((r) => !r.you).map((r) => r.kills)), limit: MODES.ffa.scoreLimit };
     }
     const decided = this.phase === "roundEnd" || this.phase === "matchEnd";
     return {
       ...base,
-      you: this.modeKind === "tdm" || this.modeKind === "search" ? this.teams.score[myTeam] : this.modeKind === "control" ? Math.floor(this.controlScore()[myTeam]) : this.modeKind === "crown" ? (this.roundWins.get(this.id) ?? 0) : this.modeKind === "ffa" ? this.ladder.row(this.id).kills : this.ladder.level(this.id),
+      you: this.modeKind === "tdm" ? this.teams.score[myTeam] : this.modeKind === "control" ? Math.floor(this.controlScore()[myTeam]) : this.board.row(this.id).kills,
       them: 0,
-      youWonRound: decided && this.phase === "roundEnd" ? this.lastWinner === this.id || (this.modeKind === "search" && this.lastWinner === TEAM_WIN(myTeam)) : base.youWonRound,
+      youWonRound: decided && this.phase === "roundEnd" ? this.lastWinner === this.id : base.youWonRound,
       youWonMatch: this.phase === "matchEnd" ? won : null,
-      players: rows.map((r) => ({ name: r.name, score: this.modeKind === "crown" ? r.wins : this.modeKind === "gunrun" ? r.level : r.kills, alive: r.alive, you: r.you, kills: r.kills, deaths: r.deaths, ally: r.ally || r.you })),
+      players: rows.map((r) => ({ name: r.name, score: r.kills, alive: r.alive, you: r.you, kills: r.kills, deaths: r.deaths, ally: r.ally || r.you })),
       mode,
     };
   }
@@ -1609,20 +1088,13 @@ export class ArenaMode extends Duel {
     return b ? { shield: b.bot.dummy.shield, health: b.bot.dummy.health } : super.vitalsFor(id);
   }
 
-  /** Crown: out for the round, watch someone still up (a player first, then a bot) */
+  /** every arena mode respawns: down is a few seconds' wait, nobody to watch */
   override spectateTarget(): Dummy | null {
-    return this.spectateList()[0]?.figure ?? null;
+    return null;
   }
 
-  /** out of a round: the others still up, your own side first, then the bots */
   override spectateList(): Array<{ figure: Dummy; name: string; friend: boolean }> {
-    if (this.alive || this.phase !== "fight" || this.respawns) return [];
-    const out = super.spectateList();
-    for (const b of this.bots) {
-      if (!b.bot.alive) continue;
-      out.push({ figure: b.bot.dummy, name: b.bot.remote.name || "BOT", friend: this.isFriend(b.bot.remote.id) });
-    }
-    return out.sort((a, b) => Number(b.friend) - Number(a.friend));
+    return [];
   }
 
   /** a bot of this match where it stands, for the hit check */
@@ -1654,41 +1126,6 @@ export class ArenaMode extends Duel {
       });
     }
     this.zoneModels = [];
-    this.crownModel.removeFromParent();
-    this.crownModel.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh) {
-        m.geometry.dispose();
-        (m.material as THREE.Material).dispose();
-      }
-    });
     super.dispose();
   }
-}
-
-/** the crown: a gold band with points, drawn in code, and a beam so it is seen across the arena */
-function makeCrown(): THREE.Group {
-  const g = new THREE.Group();
-  g.name = "crown";
-  const gold = new THREE.MeshStandardMaterial({ color: 0xffc12e, emissive: 0xffa000, emissiveIntensity: 0.6, metalness: 0.8, roughness: 0.3 });
-  const band = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.24, 0.12, 20, 1, true), gold);
-  band.material.side = THREE.DoubleSide;
-  g.add(band);
-  for (let i = 0; i < 5; i++) {
-    const a = (i / 5) * Math.PI * 2;
-    const p = new THREE.Mesh(new THREE.ConeGeometry(0.05, 0.16, 6), gold);
-    p.position.set(Math.cos(a) * 0.22, 0.13, Math.sin(a) * 0.22);
-    g.add(p);
-    const gem = new THREE.Mesh(new THREE.SphereGeometry(0.025, 8, 6), new THREE.MeshBasicMaterial({ color: 0xff3b3b }));
-    gem.position.set(Math.cos(a) * 0.23, 0.02, Math.sin(a) * 0.23);
-    g.add(gem);
-  }
-  const beam = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.06, 0.06, 10, 8, 1, true),
-    new THREE.MeshBasicMaterial({ color: 0xffd23c, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })
-  );
-  beam.position.y = 5.1;
-  g.add(beam);
-  g.scale.setScalar(1.3);
-  return g;
 }
