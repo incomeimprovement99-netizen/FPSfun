@@ -302,17 +302,31 @@ check("the perches: cover on the crown, the lookout and the four High City decks
   check("the decks' cover: none within reach of a pad's landing, a lift's landing, a bridge's end or a zip's top", near.length === 0, `${near.length} too near`);
 }
 // the streets' median (rules.dress.median; the second review: "street cover is a lamp post and a kiosk"): thirty-five
-// pieces and more down the streets' middles, each block solid at chest height on its footprint (a box 1.05 to 1.35 m high
-// from the ground within a metre of its middle: the collision is built in half-metre columns, which miss a 1.2 m block's
-// very middle as often as not), and each of the tall boards among them (`tall`; the third review's sightlines) solid from
-// the ground to over a standing eye; the street one network checked above with them in it. And hover vans among the
-// parked cars
+// pieces and more down the streets' middles, each planter solid from the ground past a crouched head on its footprint (a
+// box from under 0.3 m to over 1 m within a metre of its middle: the collision is built in half-metre columns, which miss
+// a piece's very middle as often as not), and each of the tall boards among them (`tall`; the third review's sightlines)
+// solid from the ground to over a standing eye; the street one network checked above with them in it. And hover vans
+// among the parked cars
 {
   const MED = (cfg as unknown as { medians?: Array<{ at: number[]; piece?: string }> }).medians ?? [];
   const solidAt = ([x, z]: number[], ok: (b: { base: number; top: number }) => boolean) => solidsIn(x + BR_X - 1, x + BR_X + 1, z + BR_Z - 1, z + BR_Z + 1).some((b) => b.minX < x + BR_X + 1 && b.maxX > x + BR_X - 1 && b.minZ < z + BR_Z + 1 && b.maxZ > z + BR_Z - 1 && ok(b));
-  const soft = MED.filter((q) => !solidAt(q.at, q.piece ? (b) => b.base < 0.3 && b.top > 1.8 : (b) => b.base < 0.3 && b.top > 1.05 && b.top < 1.35));
+  const soft = MED.filter((q) => !solidAt(q.at, q.piece ? (b) => b.base < 0.3 && b.top > 1.8 : (b) => b.base < 0.3 && b.top > 1));
   const boards = MED.filter((q) => q.piece).length;
-  check("the streets' median: thirty-five blocks and boards and more down the streets' middles, the blocks solid at chest height and the boards over a standing eye", MED.length >= 35 && boards >= 8 && soft.length === 0, `${MED.length - boards} blocks and ${boards} boards${soft.length ? `, ${soft.length} not solid: ${soft.slice(0, 3).map((q) => q.at.join(", ")).join("; ")}` : ""}`);
+  check("the streets' median: thirty-five planters and boards and more down the streets' middles, the planters solid past a crouched head and the boards over a standing eye", MED.length >= 35 && boards >= 8 && soft.length === 0, `${MED.length - boards} planters and ${boards} boards${soft.length ? `, ${soft.length} not solid: ${soft.slice(0, 3).map((q) => q.at.join(", ")).join("; ")}` : ""}`);
+  // (and what stands in the street looks like what it collides as: no barred railing, solid to a shot and a bot's eye,
+  // in the median or the cover, and every one-sided board with its drawn twin turned about, a face to each side)
+  const FACED = (cfg.rules.dress as unknown as { twoFaced: string[]; seeThrough: string[] });
+  const all = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place);
+  const barred = [...((cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-cover"]?.place ?? []), ...MED.map((q) => [q.piece ?? cfg.rules.dress.median.piece])].filter((q) => FACED.seeThrough.some((n) => String(q[0]).endsWith(n)));
+  const boardsAll = all.filter((q) => FACED.twoFaced.some((n) => String(q[0]).endsWith(n)));
+  const faced = boardsAll.filter((q) => q[5] !== "g");
+  // (each board the layout lists, by its footprint's middle: a twin turned about has its pivot mirrored through that
+  // middle, so the two pivots add up to twice it)
+  const listed = [...MED.filter((q) => q.piece).map((q) => q.at), ...((cfg as unknown as { streetCover?: Array<{ c: number[]; half?: number[] }> }).streetCover ?? []).filter((q) => q.half).map((q) => q.c)];
+  const pairOf = ([cx, cz]: number[]) =>
+    faced.some((q) => boardsAll.some((t) => t[5] === "g" && t[0] === q[0] && Math.abs(Number(q[1]) + Number(t[1]) - 2 * cx) < 0.02 && Math.abs(Number(q[3]) + Number(t[3]) - 2 * cz) < 0.02 && Math.abs((((Number(t[4]) - Number(q[4])) % 360) + 360) % 360 - 180) < 0.1));
+  const lone = listed.filter((c) => !pairOf(c));
+  check("the street's cover looks like what it collides as: no barred railing in the median or the cover, every one-sided board with its twin", barred.length === 0 && faced.length > 0 && listed.length === faced.length && lone.length === 0, `${barred.length} railings, ${listed.length - lone.length} of ${faced.length} boards twinned`);
   const VAN = (cfg.rules.dress as unknown as { cars: { vans?: { pieces: string[] } } }).cars.vans;
   const vans = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => VAN?.pieces.some((v) => String(q[0]).endsWith(`/${v}`)) && Number(q[2]) < 2);
   check("hover vans parked among the cars: six and more, whole cover", vans.length >= 6, `${vans.length}`);
@@ -574,13 +588,19 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   });
   check("each curved street meets the edge road on the outer district's straight road, heading along it", ends.every(Boolean), `${ends.filter(Boolean).length} of ${ends.length}`);
   // (on the road a metre in from its kerb, a metre at a time: a box taller than a car standing across a body's height,
-  // but the median's boards, rules.dress.median.tall, which stand over an eye to cut the street's long sightlines)
-  const boards = ((cfg as unknown as { medians?: Array<{ at: number[]; yaw: number; half?: number[] }> }).medians ?? []).filter((q) => q.half);
+  // but the median's boards, rules.dress.median.tall, and the street cover's, rules.dress.cover.tall, which stand over an
+  // eye to cut the street's long sightlines)
+  const boards = [
+    ...((cfg as unknown as { medians?: Array<{ at: number[]; yaw: number; half?: number[] }> }).medians ?? []),
+    ...((cfg as unknown as { streetCover?: Array<{ c: number[]; yaw: number; half?: number[] }> }).streetCover ?? []).map((q) => ({ at: q.c, yaw: q.yaw, half: q.half })),
+  ].filter((q) => q.half);
+  // (its own boxes, the collision's half-metre columns: a column a turned board's face crosses reaches a cell's diagonal,
+  // 0.71 m, past it; a cover board turned 56 degrees blocked the road 0.77 m off its middle line)
   const onBoard = (x: number, z: number) =>
     boards.some((q) => {
       const a = (q.yaw * Math.PI) / 180;
       const [px, pz] = [x - q.at[0], z - q.at[1]];
-      return Math.abs(px * Math.cos(a) - pz * Math.sin(a)) < q.half![0] + 0.6 && Math.abs(px * Math.sin(a) + pz * Math.cos(a)) < q.half![1] + 0.6;
+      return Math.abs(px * Math.cos(a) - pz * Math.sin(a)) < q.half![0] + 0.75 && Math.abs(px * Math.sin(a) + pz * Math.cos(a)) < q.half![1] + 0.75;
     });
   const onRoad: string[] = [];
   let cells = 0;
@@ -1754,6 +1774,59 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     `the street level's exposure: a standing body on the curves and the Loop seen from past ${SL.long} m along few bearings`,
     Object.entries(SL.most).every(([k, most]) => (zones.get(k)?.n ?? 0) > 100 && pct(k) <= most),
     Object.entries(SL.most).map(([k, most]) => `${k} ${pct(k).toFixed(1)}% of ${zones.get(k)?.n ?? 0} points, at most ${most}%`).join("; "),
+  );
+}
+
+// the streets' cover (rules.dress.cover; the centre's fourth review: "cover every 8 to 12 m in the streets and plaza"):
+// from every open half-metre of the streets (a curve's or the Loop's road and pavements and the ring road from its inner
+// pavement out, open as the exposure's above), the distance to the nearest box standing from the ground (under 0.5 m) past
+// a crouched head (1 m); at most `left` per cent of them over `far` metres, and none over `farthest`
+{
+  const CO = cfg.rules.dress.cover as { far: number; left: number; farthest: number };
+  const CV = cfg.rules.streets.curves as unknown as Parameters<typeof curvedStreets>[0] & { pave: number; round: number };
+  const SF = new StreetField(curvedStreets(CV));
+  const H = (cfg.rules.ring as number[])[1];
+  const C = 0.5, N = Math.round((2 * H) / C);
+  const body = new Uint8Array(N * N), cover = new Uint8Array(N * N);
+  const floor = new Float32Array(N * N).fill(-Infinity);
+  for (const b of SOLIDS.solids as number[][]) {
+    if (b[5] < -0.5 || b[4] > 2.5 || b[1] < -H || b[0] > H || b[3] < -H || b[2] > H) continue;
+    for (let i = Math.max(0, Math.floor((b[0] + H) / C)); i <= Math.min(N - 1, Math.floor((b[1] + H) / C)); i++)
+      for (let j = Math.max(0, Math.floor((b[2] + H) / C)); j <= Math.min(N - 1, Math.floor((b[3] + H) / C)); j++) {
+        const k = i * N + j;
+        if (b[4] < 1.8 && b[5] > 0.3) body[k] = 1;
+        if (b[4] < 0.5 && b[5] > 1) cover[k] = 1;
+        if (b[5] <= 0.3 && b[5] > floor[k]) floor[k] = b[5];
+      }
+  }
+  const D = new Float32Array(N * N);
+  for (let k = 0; k < D.length; k++) D[k] = cover[k] ? 0 : 1e9;
+  for (let i = 0; i < N; i++)
+    for (let j = 0; j < N; j++) {
+      const k = i * N + j;
+      if (i > 0) D[k] = Math.min(D[k], D[k - N] + 1, j > 0 ? D[k - N - 1] + Math.SQRT2 : 1e9, j < N - 1 ? D[k - N + 1] + Math.SQRT2 : 1e9);
+      if (j > 0) D[k] = Math.min(D[k], D[k - 1] + 1);
+    }
+  for (let i = N - 1; i >= 0; i--)
+    for (let j = N - 1; j >= 0; j--) {
+      const k = i * N + j;
+      if (i < N - 1) D[k] = Math.min(D[k], D[k + N] + 1, j < N - 1 ? D[k + N + 1] + Math.SQRT2 : 1e9, j > 0 ? D[k + N - 1] + Math.SQRT2 : 1e9);
+      if (j < N - 1) D[k] = Math.min(D[k], D[k + 1] + 1);
+    }
+  let n = 0, far = 0, farthest = 0, at = [0, 0];
+  for (let k = 0; k < N * N; k++) {
+    if (body[k] || !(floor[k] > -0.3 || !Number.isFinite(floor[k]))) continue;
+    const [x, z] = [-H + (Math.floor(k / N) + 0.5) * C, -H + ((k % N) + 0.5) * C];
+    if (!(SF.surface(x, z, CV.round) < CV.pave || Math.max(Math.abs(x), Math.abs(z)) >= cfg.rules.low.edge)) continue;
+    n++;
+    const d = D[k] * C;
+    if (d > CO.far) far++;
+    if (d > farthest) (farthest = d), (at = [x, z]);
+  }
+  check(
+    `the streets' cover: from the curves, the Loop and the ring road, something to crouch behind within ${CO.far} m`,
+    n > 10000 && (far / n) * 100 <= CO.left && farthest <= CO.farthest,
+    `${((far / n) * 100).toFixed(1)}% of ${n} points over ${CO.far} m, at most ${CO.left}%; the farthest ${farthest.toFixed(1)} m at (${at[0].toFixed(1)}, ${at[1].toFixed(1)}), at most ${CO.farthest} m`,
   );
 }
 

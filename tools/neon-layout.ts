@@ -86,6 +86,15 @@ function placeTurned(chunk: string, name: string, cx: number, cz: number, yaw: n
   add(chunk, "c", (scale !== 1 ? [...head, mat ?? null, null, scale] : mat ? [...head, mat] : head) as unknown as Place);
   return { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: (row.size![0] / 2) * scale, hv: (row.size![2] / 2) * scale, top: y + row.max![1] * scale };
 }
+/**
+ * a one-sided piece (rules.dress.twoFaced: the pack's tall poster board is posters on one face, an empty frame from
+ * behind round what collides as a solid box) with a drawn twin turned about on the same footprint, a face to each side
+ */
+function placeFaced(chunk: string, name: string, cx: number, cz: number, yaw: number, mode: Place[5], y = 0): OBox {
+  const b = placeTurned(chunk, name, cx, cz, yaw, mode, y);
+  if (((R.dress.twoFaced ?? []) as string[]).includes(name)) placeTurned(chunk, name, cx, cz, yaw + 180, "g", y);
+  return b;
+}
 /** whether two oriented boxes, each grown by `gap`, overlap (separating axes) */
 function overlaps(a: OBox, b: OBox, gap: number): boolean {
   for (const ax of [a.u, a.v, b.u, b.v]) {
@@ -1623,7 +1632,10 @@ function streetGraph() {
   // pieces that stand under 4 m on a footprint under 8 m, each grown half a metre. A platform 0.6 m high beside MARKET's
   // kerb, a step too high for a bot, was no wall to the model, and a crate stack shut two street nodes in against it)
   const STAND = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).standHeight * 0.0254;
-  const lowOld: OBox[] = Object.values((cfg.chunks ?? {}) as Record<string, { place: Place[] }>).flatMap((ch) => ch.place).flatMap((q) => {
+  // (not the chunks laid last, the street walls, the climbs and the street cover: the bake lists their boxes in `laid`
+  // and lastSolids leaves them out already, and their footprints took a parked car's boxes beside them out by turns)
+  const laidLast = [R.low.walls?.chunk, R.blocks?.climbs?.chunk, R.dress?.cover?.chunk].filter(Boolean) as string[];
+  const lowOld: OBox[] = Object.entries((cfg.chunks ?? {}) as Record<string, { place: Place[] }>).flatMap(([k, ch]) => (laidLast.includes(k) ? [] : ch.place)).flatMap((q) => {
     const r = byName.get(q[0]);
     if (!r?.size || q[2] > 1 || q[2] + r.max![1] > 4 || r.size[1] < MOVE_STEP || Math.max(r.size[0], r.size[2]) > 8) return [];
     const [ox, oz] = rotY(q[4], (r.min![0] + r.max![0]) / 2, (r.min![2] + r.max![2]) / 2);
@@ -1685,15 +1697,39 @@ function streetGraph() {
     return n;
   };
   let pieces = piecesOf([], []);
+  const held: OBox[] = [];
   return {
     /** a piece down on the street: its links cut, the nodes it stands on gone */
     add(o: OBox) {
       for (const i of covers(o)) gone.add(i);
       for (const k of cutBy(o)) cut.add(k);
       pieces = piecesOf([], []);
+      held.push(o);
     },
+    /** every piece added, in order (the street cover measures the street with this run's pieces, not the last bake's) */
+    held,
     /** whether this piece would leave the street in more pieces */
     splits: (o: OBox) => piecesOf(cutBy(o), covers(o)) > pieces,
+    /**
+     * whether this piece would stand across any link, cut or not, of a street node the model has off the main network,
+     * or on such a node: the model's guess at a link is wrong both ways, and a pair it took for cut off was joined in
+     * the game by a link it held cut, which a kiosk then stood across
+     */
+    strands: (o: OBox) => {
+      const up = gn.map((_, i) => i);
+      const find = (i: number): number => (up[i] === i ? i : (up[i] = find(up[i])));
+      gl.forEach(([i, j], k) => {
+        if (!cut.has(k) && !gone.has(i) && !gone.has(j)) up[find(i)] = find(j);
+      });
+      const size = new Map<number, number>();
+      gn.forEach((_, i) => !gone.has(i) && size.set(find(i), (size.get(find(i)) ?? 0) + 1));
+      const main = [...size].sort((a, b) => b[1] - a[1])[0]?.[0];
+      const off = (i: number) => !gone.has(i) && find(i) !== main;
+      return gl.some(([i, j]) => (off(i) || off(j)) && hits(o, gn[i], gn[j])) || gn.some((q, i) => {
+        const [px, pz] = [q[0] - o.c[0], q[1] - o.c[1]];
+        return off(i) && Math.abs(px * o.u[0] + pz * o.u[1]) < o.hu && Math.abs(px * o.v[0] + pz * o.v[1]) < o.hv;
+      });
+    },
     /** (a debugging aid) the links the model holds from the node at (x, z), and whether that node is still a street node */
     linksAt: (x: number, z: number) => {
       const i = gi.get(`${x},${z}`);
@@ -1796,7 +1832,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
           continue;
         }
         SG.add(o);
-        placeTurned("c-dress", name, x, z, yaw, "o", -pr.min![1]);
+        placeFaced("c-dress", name, x, z, yaw, "o", -pr.min![1]);
         medians.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), ...(name !== MD.piece ? { piece: name, half: [+(pr.size![0] / 2).toFixed(3), +(pr.size![2] / 2).toFixed(3)] } : {}) });
       }
     console.log(`the streets' median: ${passed} blocks passed over where they would cut the bots' street graph`);
@@ -2574,6 +2610,8 @@ const CLIMB_BOXES: OBox[] = [];
 // of the pads, the lifts' footbridges, the Well, the zip lines' ropes (a hanging body's room under them) and the High
 // City's climbs, of the bridges if taller than rules.low.underBridge, and never one that would cut the bots' street
 // graph. Laid last with a seed of its own, so nothing else in the layout moves
+// (their boxes kept for the street cover below, which measures the street with them in)
+const STREET_WALL_BOXES: OBox[] = [];
 {
   const W = R.low.walls as { chunk: string; pool: string[]; setback: number; slide: number; gap: number[]; alley: { every: number; wide: number }; from: number; clear: number; seed: number } | undefined;
   if (W) {
@@ -2662,6 +2700,7 @@ const CLIMB_BOXES: OBox[] = [];
                 if (!fitsW(o)) continue;
                 const b = placeTurned(W.chunk, name, c[0], c[1], yaw, "s");
                 boxes.push(b);
+                STREET_WALL_BOXES.push(b);
                 STREET_GRAPH?.add(b);
                 walls.push({ piece: name, street: `${st.id}${st.closed ? "" : side < 0 ? "-l" : "-r"}`, c: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), hu: +(w / 2).toFixed(3), hv: +(d / 2).toFixed(3), top: +row.max![1].toFixed(2) });
                 freeAt += w + W.gap[0] + rndW() * (W.gap[1] - W.gap[0]);
@@ -2681,6 +2720,185 @@ const CLIMB_BOXES: OBox[] = [];
     for (const q of walls) by.set(q.street, (by.get(q.street) ?? 0) + 1);
     const tris = walls.reduce((a, q) => a + piece(q.piece).row.tris, 0);
     console.log(`the street walls: ${walls.length} buildings, ${(tris / 1000).toFixed(0)}k triangles (${[...by].map(([k, v]) => `${k} ${v}`).join(", ")}; ${JSON.stringify(Object.fromEntries(why))} tried)`);
+  }
+}
+// Cover down the streets (rules.dress.cover; the centre's fourth review: "cover every 8 to 12 m in the streets and
+// plaza", its shots of the streets open with little in them). From every open point of the streets, a curve's or the
+// Loop's road and pavements and the ring road from its inner pavement out, something a crouched body hides behind within
+// `far` metres: anything standing from the ground (under 0.5 m) past 1 m. The point farthest from it takes a piece within
+// `near` metres of it: one of `road` on a carriageway (every `tall.every`-th the tall board, over a standing eye), one of
+// `pave` on a pavement, its long side along the street, `clear` metres off everything a body stands in so every way past
+// it stays a body's width, clear of the pads, the lifts' footbridges, the Sky Ring's stairs, the metro's kiosks, the
+// Well's stairwell, the walk-ins' doors and THE CENTRE's spawns, `headroom` metres under anything over it (a tall board
+// stood 0.45 m under the Sky Ring's deck), and never one that cuts the bots' street graph or stands across a link of a
+// node it has cut off already; then the
+// next farthest, until every point has cover or no piece fits by it. Measured on the last bake's collision and the
+// street walls above, and laid last (the bake lists its boxes in `laid`), so the next run measures the same streets
+{
+  const CO = (R.dress as { cover?: { chunk: string; far: number; near: number; clear: number; headroom: number; road: string[]; pave: string[]; tall: { piece: string; every: number }; most: number; seed: number } }).cover;
+  if (CO) {
+    const rndC = seeded(CO.seed);
+    const L = R.low;
+    const C = 0.5, H = R.ring[1] as number;
+    const N = Math.round((2 * H) / C);
+    const mid = (k: number): Pt => [-H + (Math.floor(k / N) + 0.5) * C, -H + ((k % N) + 0.5) * C];
+    const body = new Uint8Array(N * N), cover = new Uint8Array(N * N);
+    const floor = new Float32Array(N * N).fill(-Infinity);
+    // (and the lowest thing over each cell, above a standing body)
+    const STAND = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).standHeight * 0.0254;
+    const over = new Float32Array(N * N).fill(Infinity);
+    // (the last layout's own street pieces, those the dress block lays again, under 4 m on a footprint under 8 m and each
+    // grown half a metre, as the street graph leaves them out: their boxes are the last bake's, not this run's)
+    const oldDress: OBox[] = (((cfg.chunks ?? {}) as Record<string, { place: Place[] }>)["c-dress"]?.place ?? []).flatMap((q) => {
+      const r = byName.get(q[0]);
+      if (!r?.size || q[2] > 1 || q[2] + r.max![1] > 4 || Math.max(r.size[0], r.size[2]) > 8) return [];
+      const [ox, oz] = rotY(q[4], (r.min![0] + r.max![0]) / 2, (r.min![2] + r.max![2]) / 2);
+      return [{ c: [q[1] + ox, q[3] + oz] as Pt, u: rotY(q[4], 1, 0), v: rotY(q[4], 0, 1), hu: r.size[0] / 2 + 0.5, hv: r.size[2] / 2 + 0.5, top: 0 }];
+    });
+    const ofOldDress = (b: number[]) => {
+      if (b[5] <= 0.3 || b[5] > 4.5) return false;
+      const [x, z] = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2];
+      return oldDress.some((o) => Math.abs((x - o.c[0]) * o.u[0] + (z - o.c[1]) * o.u[1]) < o.hu && Math.abs((x - o.c[0]) * o.v[0] + (z - o.c[1]) * o.v[1]) < o.hv);
+    };
+    for (const b of lastSolids()) {
+      if (ofOldDress(b)) continue;
+      if (b[4] >= STAND && b[4] < 12 && !(b[1] < -H || b[0] > H || b[3] < -H || b[2] > H))
+        for (let i = Math.max(0, Math.floor((b[0] + H) / C)); i <= Math.min(N - 1, Math.floor((b[1] + H) / C)); i++)
+          for (let j = Math.max(0, Math.floor((b[2] + H) / C)); j <= Math.min(N - 1, Math.floor((b[3] + H) / C)); j++) over[i * N + j] = Math.min(over[i * N + j], b[4]);
+      if (b[5] < -0.5 || b[4] > 2.5 || b[1] < -H || b[0] > H || b[3] < -H || b[2] > H) continue;
+      for (let i = Math.max(0, Math.floor((b[0] + H) / C)); i <= Math.min(N - 1, Math.floor((b[1] + H) / C)); i++)
+        for (let j = Math.max(0, Math.floor((b[2] + H) / C)); j <= Math.min(N - 1, Math.floor((b[3] + H) / C)); j++) {
+          const k = i * N + j;
+          if (b[4] < 1.8 && b[5] > 0.3) body[k] = 1;
+          if (b[4] < 0.5 && b[5] > 1) cover[k] = 1;
+          if (b[5] <= 0.3 && b[5] > floor[k]) floor[k] = b[5];
+        }
+    }
+    // (the cells an oriented box touches, grown by `grow`)
+    const cellsOf = (o: OBox, grow = 0): number[] => {
+      const r = Math.hypot(o.hu, o.hv) + grow + C;
+      const out: number[] = [];
+      for (let i = Math.max(0, Math.floor((o.c[0] - r + H) / C)); i <= Math.min(N - 1, Math.floor((o.c[0] + r + H) / C)); i++)
+        for (let j = Math.max(0, Math.floor((o.c[1] - r + H) / C)); j <= Math.min(N - 1, Math.floor((o.c[1] + r + H) / C)); j++) {
+          const [px, pz] = [-H + (i + 0.5) * C - o.c[0], -H + (j + 0.5) * C - o.c[1]];
+          if (Math.abs(px * o.u[0] + pz * o.u[1]) <= o.hu + grow + C / 2 && Math.abs(px * o.v[0] + pz * o.v[1]) <= o.hv + grow + C / 2) out.push(i * N + j);
+        }
+      return out;
+    };
+    for (const o of STREET_WALL_BOXES) for (const k of cellsOf(o)) body[k] = cover[k] = 1;
+    // (this run's street pieces as the street graph was given them, each its own height; the last bake's of them were
+    // left out above, so a piece the dress block changes is measured where and as it now stands)
+    for (const o of STREET_GRAPH?.held ?? []) for (const k of cellsOf(o)) (o.top > 0.3 && (body[k] = 1), o.top > 1 && (cover[k] = 1));
+    const open = (k: number) => !body[k] && (floor[k] > -0.3 || !Number.isFinite(floor[k]));
+    const street = new Uint8Array(N * N);
+    for (let k = 0; k < N * N; k++) {
+      const [x, z] = mid(k);
+      if (onRoad(x, z) < CV.pave || Math.max(Math.abs(x), Math.abs(z)) >= L.edge) street[k] = 1;
+    }
+    // (each cell's distance to cover, two passes of a chamfer in cells)
+    const D = new Float32Array(N * N);
+    const field = () => {
+      for (let k = 0; k < D.length; k++) D[k] = cover[k] ? 0 : 1e9;
+      for (let i = 0; i < N; i++)
+        for (let j = 0; j < N; j++) {
+          const k = i * N + j;
+          if (i > 0) D[k] = Math.min(D[k], D[k - N] + 1, j > 0 ? D[k - N - 1] + Math.SQRT2 : 1e9, j < N - 1 ? D[k - N + 1] + Math.SQRT2 : 1e9);
+          if (j > 0) D[k] = Math.min(D[k], D[k - 1] + 1);
+        }
+      for (let i = N - 1; i >= 0; i--)
+        for (let j = N - 1; j >= 0; j--) {
+          const k = i * N + j;
+          if (i < N - 1) D[k] = Math.min(D[k], D[k + N] + 1, j < N - 1 ? D[k + N + 1] + Math.SQRT2 : 1e9, j > 0 ? D[k + N - 1] + Math.SQRT2 : 1e9);
+          if (j < N - 1) D[k] = Math.min(D[k], D[k + 1] + 1);
+        }
+    };
+    const CEN = JSON.parse(readFileSync(join(ROOT, "src", "config", "centre.json"), "utf8")) as { spawnR: number; spawns: number[]; zone: { bearing: number; r: number }; zones: number[] };
+    const onBearing = (b: number, r: number): Pt => [Math.sin((b * Math.PI) / 180) * r, Math.cos((b * Math.PI) / 180) * r];
+    const kept: Pt[] = [...CEN.spawns.map((b) => onBearing(b, CEN.spawnR)), onBearing(CEN.zone.bearing, CEN.zone.r), ...CEN.zones.map((b) => onBearing(b, CEN.zone.r))];
+    const pads: Pt[] = [...((cfg.pads ?? []) as Array<{ pad: Pt }>).map((q) => q.pad), ...((cfg.spine?.up ?? []) as Array<{ pad: Pt }>).map((q) => q.pad)];
+    const kiosks = ((cfg.court?.halls ?? []) as Array<{ route?: number[][]; x0: number; x1: number; z0: number; z1: number }>).filter((h) => h.route);
+    const foot = (cfg.well?.foot ?? null) as number[] | null;
+    const seg = (q: Pt, a: number[], b: number[]) => {
+      const l2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+      const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1])) / l2));
+      return Math.hypot(q[0] - a[0] - (b[0] - a[0]) * t, q[1] - a[1] - (b[1] - a[1]) * t);
+    };
+    const why = new Map<string, number>();
+    const fits = (o: OBox): boolean => {
+      const r = Math.hypot(o.hu, o.hv);
+      const [x, z] = o.c;
+      const k = !cellsOf(o).every((c) => street[c] && open(c)) ? "street"
+        : cellsOf(o, CO.clear).some((c) => body[c]) ? "clear"
+        : cellsOf(o).some((c) => over[c] < o.top + CO.headroom) ? "under"
+        : pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + R.dress.padClear) ? "pad"
+        : lifts.some((q) => seg(o.c, q.ring, q.car) < r + R.lifts.clear) ? "lift"
+        : skyStairs.some(([sx, sz]) => Math.hypot(sx - x, sz - z) < r + 5) ? "stairs"
+        : kiosks.some((h) => x > h.x0 - r && x < h.x1 + r && z > h.z0 - r && z < h.z1 + r) ? "kiosk"
+        : foot && overlaps(o, boxOf(foot), CO.clear * 2) ? "well"
+        : walkIns.some((q) => Math.hypot(q.door[0] - x, q.door[1] - z) < r + 3) ? "door"
+        : kept.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < r + R.dress.median.keep) ? "spawn"
+        // (nor across a link of a node the model has off the main network: its guess at a link is wrong both ways, and a
+        // kiosk it took to cut nothing shut two street nodes in at the bake)
+        : STREET_GRAPH?.splits(o) || STREET_GRAPH?.strands(o) ? "graph"
+        : "ok";
+      why.set(k, (why.get(k) ?? 0) + 1);
+      return k === "ok";
+    };
+    const placed: Array<{ piece: string; c: Pt; yaw: number; half?: number[] }> = [];
+    const tried = new Uint8Array(N * N);
+    let left = 0;
+    for (let n = 0; n < CO.most; n++) {
+      field();
+      let best = -1;
+      for (let k = 0; k < N * N; k++) if (street[k] && open(k) && !tried[k] && (best < 0 || D[k] > D[best])) best = k;
+      if (best < 0 || D[best] * C <= CO.far) break;
+      const [bx, bz] = mid(best);
+      // the far point first, then rings round it out to `near`
+      const spots: Pt[] = [[bx, bz]];
+      for (let r = C; r <= CO.near + 1e-6; r += C) for (let a = 0; a < 16; a++) spots.push([bx + r * Math.sin((a * Math.PI) / 8), bz + r * Math.cos((a * Math.PI) / 8)]);
+      let done = false;
+      for (const [x, z] of spots) {
+        const m = Math.max(Math.abs(x), Math.abs(z));
+        const ns = SF.nearest(x, z, 20);
+        // (the street's way here: along its curve or the Loop, or along the ring road's side)
+        const ring = m >= L.edge && (!ns || ns.d > ns.street.half + CV.pave);
+        const t: Pt = ring ? (Math.abs(x) > Math.abs(z) ? [0, 1] : [1, 0]) : ns ? ns.t : [1, 0];
+        const carriage = onRoad(x, z) < 0 || m >= R.ring[0];
+        const pool = carriage ? (placed.length % CO.tall.every === CO.tall.every - 1 ? [CO.tall.piece, ...CO.road] : [...CO.road].sort(() => rndC() - 0.5)) : [...CO.pave].sort(() => rndC() - 0.5);
+        for (const name of pool) {
+          const row = piece(name).row;
+          const along = yawToward(t[0], t[1]) + (row.size![2] >= row.size![0] ? 0 : 90);
+          for (const yaw of [along, along + 90]) {
+            // (its height from its foot: a board's own zero is 1.97 m up it)
+            const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };
+            if (!fits(o)) continue;
+            // (solid, "s", as the street walls: the bake lists a solid placement's boxes in `laid`, an open one's it merges)
+            const b = placeFaced(CO.chunk, name, x, z, yaw, "s", -row.min![1]);
+            STREET_GRAPH?.add(b);
+            for (const c of cellsOf(b)) body[c] = cover[c] = 1;
+            // (the tall boards with their half sizes, as the median's: the road check knows them by these)
+            placed.push({ piece: name, c: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), ...(name === CO.tall.piece ? { half: [+(row.size![0] / 2).toFixed(3), +(row.size![2] / 2).toFixed(3)] } : {}) });
+            done = true;
+            break;
+          }
+          if (done) break;
+        }
+        if (done) break;
+      }
+      // (no piece fits by it: the far point and its square metre left)
+      if (!done) for (const c of cellsOf({ c: [bx, bz], u: [1, 0], v: [0, 1], hu: 0.5, hv: 0.5, top: 0 })) tried[c] = 1;
+    }
+    field();
+    let streetN = 0, farthest = 0;
+    for (let k = 0; k < N * N; k++)
+      if (street[k] && open(k)) {
+        streetN++;
+        if (D[k] * C > CO.far) left++;
+        farthest = Math.max(farthest, D[k] * C);
+      }
+    cfg.streetCover = placed;
+    const tris = placed.reduce((a, q) => a + piece(q.piece).row.tris, 0);
+    console.log(`the street cover: ${placed.length} pieces, ${(tris / 1000).toFixed(0)}k triangles; ${((left / streetN) * 100).toFixed(1)}% of the open street over ${CO.far} m from cover, the farthest ${farthest.toFixed(1)} m (${JSON.stringify(Object.fromEntries(why))} tried)`);
   }
 }
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));

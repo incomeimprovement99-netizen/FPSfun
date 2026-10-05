@@ -192,4 +192,5 @@ canopy on the lookout; each corner block read in its own picture (THE WELL's sha
 (ground, the cars' glare) and a real night; loot that shows; walk-in doors that read.
 
 *Built since round 4: Milestone 474, each High City block in its own colour (its frames tinted and its trims lit in
-its lift's and sector's colour).*
+its lift's and sector's colour); Milestone 480, cover within 6 m of every street point (planters, boards with a face
+each side, kiosks), the median's see-through railings replaced by planters.*
