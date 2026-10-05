@@ -385,6 +385,20 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   right, its thumb forward, its ring curled; carries solved; every skfigure check passes for it. The roster change waits
   on the owner's numbers.
 
+- **The stock in the right arm, studied 2026-10-05 (ANAKIN):** measured exactly, the gun 64 mm into the right forearm at
+  rest, 67 sprinting, 63 crouched (26 aimed, at the collarbone where the butt sits). ANAKIN's gun is laid out as a
+  bullpup's: the magazine (Clip) hangs behind the pistol grip (z 0 to 14 cm) and the body runs 39 cm back from the grip
+  to the shoulder pocket, and the forearm leaves the wrist straight back through it, 12 cm behind the grip. Nothing in
+  the shoulder hold moves it: the right elbow's direction over a grid, 62 to 76 mm (the elbow only swings round the line
+  from the shoulder to the wrist, which runs along the gun); the hand turned on the grip to put the wrist further out,
+  the clash moves into the upper arm (58 to 61) and the index leaves the trigger; the butt moved in toward the chest's
+  middle or the chest turned 10 to 20 degrees more, 59 to 76; the butt moved out and down toward the armpit (a low
+  ready), 68 to 86 and the wrists bent further. With the gun along the look, its body behind the grip is where the arm
+  must be: a fix is a different kind of hold for this gun, the owner's to choose.
+- **BOOG's deep spots, located 2026-10-05:** running aimed (as every bot fights), the heel of its tall butt 33 to 36 mm
+  into the chest and collarbones (the bar 40); standing aimed within it. Seen in the live enemy photographs, it reads as
+  the butt plate against the armour.
+
 ### 5.7 HAEFY (a new launcher), SciFiRocketLauncher01_2, about 1.1 m
 
 - **Model:** Trigger, Visor; **no rocket part**.
