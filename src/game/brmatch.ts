@@ -76,7 +76,6 @@ import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
 import brCfg from "../config/br.json";
-import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { weaponLabel } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
@@ -442,7 +441,7 @@ interface BrSnap {
     as: boolean;
     al: boolean;
     k: BotKit;
-    c: { cell: number; syringe: number; frags: number };
+    c: { cell: number; syringe: number };
     rd: number;
     dn: [number, number] | null;
     rv: number;
@@ -474,7 +473,7 @@ function readBrSnap(v: unknown): BrSnap | null {
     const c = x.c as Record<string, unknown> | null;
     return num(x.i) && x.i >= 0 && x.i < 64 && num(x.t) && num(x.tm) && num(x.sl) && num(x.n) && num(x.g) && numOrNull(x.ar) && typeof x.as === "boolean" && typeof x.al === "boolean"
       && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.mag) && num(k.armor) && !!k.mods && typeof k.mods === "object"
-      && !!c && num(c.cell) && num(c.syringe) && num(c.frags) && num(x.rd) && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
+      && !!c && num(c.cell) && num(c.syringe) && num(x.rd) && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
       && Array.isArray(x.dt) && x.dt.length === 2 && x.dt.every(num);
   }).map((r) => {
     const g = (r as { gd?: unknown }).gd;
@@ -560,7 +559,7 @@ const PUFF_GEO = new THREE.SphereGeometry(brCfg.pod.trail.radius, 8, 6);
 const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
 const RARITIES = ["common", "rare", "epic", "legendary"];
 // every kind loot.ts can make: backpacks and knockdown shields were left out, so a dropped one sent over the wire was thrown away
-const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "echo", "grenade", "keycard", "backpack", "knockdown", "hack"];
+const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "echo", "keycard", "backpack", "knockdown", "hack"];
 
 /** a loot item from another browser, checked field by field */
 function wireItem(x: unknown): LootItem | null {
@@ -992,24 +991,10 @@ export class BrMatch extends Duel {
     for (const b of this.bots) b.bot.hear(at, now);
   }
 
-  /**
-   * A bot's frag went off (the host's page drew its flight): everyone in reach
-   * and in its sight takes the damage, the squad as from the bot's bullets,
-   * other bots on their figures.
-   */
   /** a bot has a gun in its hands: past the landing grace, and with loot on, one it has actually found */
   private botArmed(b: { bot: Bot; armedAt: number }, now: number): boolean {
     if (b.armedAt > now) return false;
     return !this.startLoot || b.bot.lootKit.gunId !== null;
-  }
-
-  /** a bot's frag went off (the host's page drew it and hands the blast back) */
-  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
-    this.botBurst(owner, (feet) => {
-      const chest = feet.clone().setY(feet.y + 1.1);
-      const dmg = blastDamage(kind, chest.distanceTo(at));
-      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
-    }, kind);
   }
 
   /** a bot's burst (its frag's, its rocket's): everyone it reaches but its own squad takes what `hurts` says, from gun `w` */
@@ -2376,7 +2361,7 @@ export class BrMatch extends Duel {
     const v = this.map.vault;
     const spawn: Spawn = { x: v.post.x, z: v.post.z, yaw: 180 };
     const bot = this.makeBot(i, VAULT.guardTier as BotTier, spawn, Math.random, VAULT.guardName);
-    bot.restoreKit({ gunId: VAULT.guardGun, gun: 3, mag: 3, mods: {}, armor: 3, cells: 2, syringes: 2, frags: 1, taken: 0 }, { cell: 2, syringe: 2, frags: 1 });
+    bot.restoreKit({ gunId: VAULT.guardGun, gun: 3, mag: 3, mods: {}, armor: 3, cells: 2, syringes: 2, taken: 0 }, { cell: 2, syringe: 2 });
     bot.dummy.setGunVisible(true);
     const node = this.nearestNode(spawn.x, spawn.z);
     this.bots.push({ bot, node, goal: node, armedAt: 0, armedShown: true, landed: true, team: -1, slot: 0, dropTo: { x: spawn.x, z: spawn.z }, jumpAt: Infinity, redeploy: null, down: null, reviving: 0, guard: { x: spawn.x, z: spawn.z } });
@@ -3227,12 +3212,6 @@ export class BrMatch extends Duel {
         bot.dummy.group.position.copy(bot.pos);
       }
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id);
-      // a frag: drawn here and on the squad's screens; the blast comes back through botBlast
-      const th = bot.takeThrow();
-      if (th) {
-        this.onRemoteFx?.("throw", bot.remote.id, th.from, th.vel, throwCode(th.kind));
-        this.broadcast({ t: "fx", from: bot.remote.id, k: "throw", a: [th.from.x, th.from.y, th.from.z], b: [th.vel.x, th.vel.y, th.vel.z], n: throwCode(th.kind) });
-      }
       // SMOKE's cloud or WARD's wall: drawn here and on every squad's screen
       const put = bot.takePutUp();
       if (put) {

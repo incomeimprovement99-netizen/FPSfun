@@ -140,7 +140,7 @@
       "hopup": []
     }
   },
-  "_spots": "A spot is a place with a purpose, not a handful of independent dice. Every item used to roll on its own off the kinds table below, so a room could be four shield cells and nothing else and the next one two helmets: nothing read like a room. A spot picks one of these kinds and fills it. A gun rack holds a gun, a stack of the ammo THAT gun takes and a magazine; a med shelf holds heals; a bench holds attachments; an ordnance crate holds throwables; an ammo crate holds loose stacks. An energy gun carries its own magazines, so its rack holds another attachment where the ammo would be. The counts are [fewest, most] and include both ends, the chances are per spot, and the weights are per tier: a richer place leans towards racks and benches, a thin one towards shelves and crates.",
+  "_spots": "A spot is a place with a purpose, not a handful of independent dice. Every item used to roll on its own off the kinds table below, so a room could be four shield cells and nothing else and the next one two helmets: nothing read like a room. A spot picks one of these kinds and fills it. A gun rack holds a gun, a stack of the ammo THAT gun takes and a magazine; a med shelf holds heals; a bench holds attachments; an ammo crate holds loose stacks. An energy gun carries its own magazines, so its rack holds another attachment where the ammo would be. The counts are [fewest, most] and include both ends, the chances are per spot, and the weights are per tier: a richer place leans towards racks and benches, a thin one towards shelves and crates.",
   "spotKinds": [
     {
       "id": "gunRack",
@@ -168,10 +168,6 @@
         1
       ],
       "heal": [
-        0,
-        0
-      ],
-      "throwables": [
         0,
         0
       ],
@@ -209,10 +205,6 @@
         2,
         3
       ],
-      "throwables": [
-        0,
-        0
-      ],
       "hopupChance": 0,
       "helmetChance": 0,
       "backpackChance": 0.18,
@@ -247,52 +239,10 @@
         0,
         0
       ],
-      "throwables": [
-        0,
-        0
-      ],
       "hopupChance": 0.38,
       "helmetChance": 0.16,
       "backpackChance": 0,
       "knockdownChance": 0.12
-    },
-    {
-      "id": "ordnance",
-      "weight": {
-        "low": 16,
-        "mid": 16,
-        "site": 16,
-        "high": 16,
-        "hot": 14
-      },
-      "gun": [
-        0,
-        0
-      ],
-      "ammo": [
-        0,
-        0
-      ],
-      "mag": [
-        0,
-        0
-      ],
-      "attach": [
-        0,
-        0
-      ],
-      "heal": [
-        0,
-        1
-      ],
-      "throwables": [
-        1,
-        2
-      ],
-      "hopupChance": 0,
-      "helmetChance": 0,
-      "backpackChance": 0,
-      "knockdownChance": 0
     },
     {
       "id": "ammoCrate",
@@ -323,17 +273,13 @@
         0,
         1
       ],
-      "throwables": [
-        0,
-        0
-      ],
       "hopupChance": 0,
       "helmetChance": 0,
       "backpackChance": 0,
       "knockdownChance": 0
     }
   ],
-  "_density_targets": "What the whole floor should hold in one match, counted over sixty seeds in tools/checks/loot-tiers.ts. These exist because the move to typed spots re-tuned the floor without anyone noticing: guns fell 57 per cent, helmets 80, hop-ups 69, and magazines went up eight times, so the commonest object on the map after a heal was a magazine, most of them worse than the one already fitted. Every check passed, because they all asked whether a place hands you a gun and none asked how many. The numbers below are what the floor held before typed spots, with guns and the total a little higher because the owner asked for more of both. A spot kind's weights are free to move inside them; a change that takes the floor outside one is a balance decision and should be made on purpose.",
+  "_density_targets": "What the whole floor should hold in one match, counted over sixty seeds in tools/checks/loot-tiers.ts. These exist because the move to typed spots re-tuned the floor without anyone noticing: guns fell 57 per cent, helmets 80, hop-ups 69, and magazines went up eight times, so the commonest object on the map after a heal was a magazine, most of them worse than the one already fitted. Every check passed, because they all asked whether a place hands you a gun and none asked how many. The numbers below are what the floor held before typed spots, with guns and the total a little higher because the owner asked for more of both. A spot kind's weights are free to move inside them; a change that takes the floor outside one is a balance decision and should be made on purpose. With no grenades (the owner, 2026-10-04) the ordnance crate went: its eighth of the spots (16 of 128 by weight) now roll the other kinds, which hold more, so the total was put at 880 to 1060 (1012 measured); every kind inside it is where it was.",
   "densityTargets": {
     "weapon": [
       200,
@@ -355,17 +301,13 @@
       28,
       54
     ],
-    "grenade": [
-      45,
-      82
-    ],
     "mag": [
       16,
       52
     ],
     "total": [
-      820,
-      980
+      880,
+      1060
     ]
   },
   "_kinds": "The single-item roll, which the floor no longer uses: the spot kinds above lay the floor out. It still says what one loose item is when something needs one on its own, and tools/verify.ts holds the rarity table to account through it. Weapon is weighted up because landing with no gun while three bots land near you was the whole of a match.",
@@ -375,8 +317,7 @@
     "heal": 24,
     "attach": 16,
     "helmet": 2,
-    "hopup": 5,
-    "grenade": 8
+    "hopup": 5
   },
   "_mags": "a magazine that comes out of a rack or a bench matches the rarity it rolled: white 1, blue 2, purple 3, gold 4. gunMag is the magazine a gun is already wearing when you find it, which is why the good ones are worth picking up off the floor as they lie.",
   "magLevel": {
@@ -399,17 +340,6 @@
     "heavy",
     "sniper",
     "shotgun"
-  ],
-  "grenades": [
-    "frag",
-    "frag",
-    "arcstar",
-    "thermite",
-    "shockwave",
-    "rift",
-    "speedpaint",
-    "speedpaint",
-    "jumppaint"
   ],
   "weapons": {
     "common": [

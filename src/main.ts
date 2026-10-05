@@ -17,7 +17,6 @@ import { firstScreenDone, later, laterSettled } from "./game/later";
 import { Renderer, VM_LAYER } from "./game/render";
 import { slow } from "./game/slow";
 import vmCfg from "./config/viewmodel.json";
-import figureCfg from "./config/figure.json";
 import introCfg from "./config/intro.json";
 import netCfg from "./config/net.json";
 import doorsCfg from "./config/doors.json";
@@ -117,8 +116,6 @@ import { LS_LOOT_CARD, gunOutcome, hackOutcome, lootCardView, type LootCardMode,
 import { Armory, armorySolids, type ArmoryStation, type ArmoryView } from "./game/armory";
 import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
-import { Ordnance, Throwables, THROWABLES, PAINT, arcSlowFor, blastDamage, isPaintThrow, isThrowKind, paintUnder, throwCode, throwFromCode, type FireStrip, type ThrowKind, type ThrowTarget, type Thrown } from "./game/throwables";
-import { throwName } from "./config/names";
 import { figuresSettled, hasClip, loadMannequin, loadOutfit, loadTint, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
@@ -152,7 +149,7 @@ import { Intro } from "./ui/intro";
 import { setMuzzleViewer } from "./game/muzzle";
 import { SPRAYS, SprayLayer } from "./game/sprays";
 import { BANNERS, BANNER_ICONS, bannerCode, bannerOf } from "./game/banners";
-import { ImpactLayer, IMPACTS, blastShakeDeg } from "./game/impacts";
+import { ImpactLayer, IMPACTS } from "./game/impacts";
 import { EMOTES, EMOTE_STOP } from "./game/emotes";
 import emotesCfg from "./config/emotes.json";
 import keyHintsCfg from "./config/keyhints.json";
@@ -1291,9 +1288,8 @@ let sprintShake = 0;
 let strideT = 0;
 let sprintRoll = 0;
 const FORWARD_AXIS = new THREE.Vector3(0, 0, 1);
-/** the camera's own up and right, for the lurch kick and the boost's pull (src/config/player.json `feel`) */
+/** the camera's own up, for the lurch kick (src/config/player.json `feel`) */
 const UP_AXIS = new THREE.Vector3(0, 1, 0);
-const RIGHT_AXIS = new THREE.Vector3(1, 0, 0);
 const LS_SHAKE = "range.sprintShake";
 try {
   const sm = localStorage.getItem(LS_SHAKE);
@@ -1345,7 +1341,6 @@ let slideLean = 0;
 let airLean = 0;
 /** the wall run's lean, -1 to 1 (player.json feel wallRoll) */
 let wallLean = 0;
-let boostFeel = 0;
 /** which way a slide is carrying you, to the right of where you are looking, -1 to 1 */
 function slideLeanSide(): number {
   const yawR = player.yaw * DEG;
@@ -2429,12 +2424,11 @@ function onEliminated(d: MatchLike, by: number): void {
     // SpeedKills: each gun at the level you fused it to
     for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: IS_SK ? levelRarity(s.fusion ?? 0) : "rare", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}), ...(IS_SK ? { fusion: s.fusion ?? 0 } : {}) });
     // SpeedKills' is your guns: its reserve is endless, it has no heals or helmets, and its floor is guns and hack
-    // cores. A loadout start carries the match's ammo kit and grenades, which went down as clutter.
+    // cores. A loadout start carries the match's ammo kit, which went down as clutter.
     if (!IS_SK) {
       for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
       for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
       if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
-      for (const [g, n] of Object.entries(ordnance.counts)) if (n > 0) items.push({ kind: "grenade", id: g, n, rarity: "rare" });
     }
     // what a restore at your echo gives back: kept here, not taken off the floor, where anyone may have it by then
     deathKit = items.map((it) => ({ ...it }));
@@ -2717,10 +2711,6 @@ let cancelJoin: (() => void) | null = null;
 const NO_INPUT: MoveInput = { held: () => false, pressedNow: () => false };
 /** toggle ADS's state: in until the next press (or a sprint, a swap) */
 let adsLatch = false;
-/** a throw took this press of fire: the gun waits for the button to come up */
-let fireLockedToRelease = false;
-/** this frame's ADS press put a grenade away (it does not also aim) */
-let adsPressUsed = false;
 /** an inspect: when it began, and since when reload has been held with a full magazine */
 let inspectAt = -Infinity;
 let reloadHeldAt = -Infinity;
@@ -3334,13 +3324,7 @@ function respawnForMatch(d: MatchLike): void {
   kd.reset();
   execRegen = null;
   echoRegen = null;
-  // grenades: the match's kit each life (Gun Run is guns and the knife: none)
-  ordnance.endless = false;
-  ordnance.readied = null;
-  // (SpeedKills carries none: G is its utility hack; Phase 20 A10)
-  ordnance.fill(IS_SK || (d instanceof ArenaMode && d.modeKind === "gunrun") ? "empty" : "kit");
-  player.arcSlowUntil = 0;
-  // land with nothing and loot: fists, no heals, no ammo, no grenades. A restore at your echo starts from nothing
+  // land with nothing and loot: fists, no heals, no ammo. A restore at your echo starts from nothing
   // whatever the start or the game: what you had is given back below, and given onto the guns still in hand each would
   // have gone down in a swap, or in SpeedKills fused a level for the price of a death.
   if (d instanceof BrMatch && (d.startLoot || echoAt)) {
@@ -3348,7 +3332,6 @@ function respawnForMatch(d: MatchLike): void {
     loadout.clearSlot(1);
     loadout.ammo.empty();
     kit.fill("empty");
-    ordnance.fill("empty");
   }
   armor.reset(br ? 1 : 2);
   // SpeedKills: one shield for everyone, no EVO and no armour to find (speedkills.json health)
@@ -4151,8 +4134,7 @@ let joltFov = 0;
 const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : (tour?.healVitals ?? null));
 /** the guided tour of the range (tour.ts): it watches, the steps move on when you do each thing */
 const tour = new Tour(scene);
-/** throws made (the tour's grenade step) and whether a JOLT has gone this step */
-let throwsMade = 0;
+/** whether a JOLT has gone this step (the tour) */
 let joltedAt = -Infinity;
 
 // ---------------------------------------------------------------- SpeedKills' hacks
@@ -4802,7 +4784,6 @@ function tourCheck(now: number): TourCheck {
     swapping: loadout.swapping,
     healing: heal !== null,
     joltUsed: now - joltedAt < 0.5,
-    thrown: throwsMade,
     now,
     hackUses,
     fusion: loadout.active.fusion ?? 0,
@@ -4822,14 +4803,9 @@ tour.onDone = () => {
   }
 };
 
-// ---------- throwables: the frag, the arc star, thermite ----------
-/** what you carry, and the one readied (the range never runs out) */
-const ordnance = new Ordnance();
-/** the bullets' impact handler for this frame (the frame makes it): a blast's hits go through it too */
+// ---------- hits taken, and the figures by id ----------
+/** the bullets' impact handler for this frame (the frame makes it) */
 let impactSink: ((e: ImpactEvent) => void) | null = null;
-/** figures burning after leaving the fire: by figure, how much is left and when the next bit lands */
-const afterburns = new Map<string, { left: number; next: number; per: number }>();
-/** a figure by its throwables id: a match's player or bot by its id, a range dummy by -2 - its index */
 /**
  * Where the recent hits on you came from, for the HUD's damage direction arcs.
  * A position rather than an angle, because you keep turning after the hit and
@@ -4874,151 +4850,21 @@ function damageDirs(): Array<{ angle: number; alpha: number }> {
   return out;
 }
 
+/** a figure by its id: a match's player or bot by its id, a range dummy by -2 - its index */
 function figureById(id: number): Dummy | null {
   if (duel) return duel.avatars.find((a) => duel!.remoteOf(a)?.id === id) ?? null;
   if (hangout) return hangout.avatarOf(id);
   return id <= -2 ? (dummies[-2 - id] ?? null) : null;
 }
-/** the figures a throw can reach: the match's (and you, for the others' throws), or the range's dummies */
-function throwTargets(): ThrowTarget[] {
-  const out: ThrowTarget[] = [];
-  if (duel) {
-    for (const a of duel.avatars) {
-      const r = duel.remoteOf(a);
-      if (r && a.group.visible && !a.knocked) out.push({ id: r.id, feet: a.group.position });
-    }
-    if (duel.alive) out.push({ id: duel.id, feet: player.pos });
-  } else dummies.forEach((d, i) => d.group.visible && !d.knocked && out.push({ id: -2 - i, feet: d.group.position }));
-  return out;
-}
-/** your throw's damage to a figure: through the bullets' path (the numbers, the marker, the match's hit) */
-function throwHit(id: number, amount: number, kind: ThrowKind, from: THREE.Vector3): void {
-  const a = figureById(id);
-  if (!a || amount <= 0 || a.knocked) return;
-  // a fire or a late frag outside the fight (a countdown, a round's end) hurts nobody
-  if (duel && duel.phase !== "fight") return;
-  if (duel && (duel instanceof Duel ? duel.isAlly(id) : false)) return;
-  const point = a.group.position.clone().setY(a.group.position.y + 1.2);
-  const report = a.hit(gameTime, "body", amount, 1, 1, point);
-  impactSink?.({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: point.distanceTo(from), weapon: kind });
-}
-const throwables = new Throwables(scene, {
-  onStrike: (t: Thrown, target: number) => {
-    if (!t.mine) return;
-    if (t.kind === "frag") throwHit(target, THROWABLES.frag.direct, "frag", t.pos);
-    else if (t.kind === "arcstar") throwHit(target, THROWABLES.arcstar.stick, "arcstar", t.pos);
-  },
-  onBlast: (t: Thrown, at: THREE.Vector3) => {
-    if (t.kind !== "frag" && t.kind !== "arcstar") return;
-    // someone else's: if it was a bot's, the side running the bots works out its damage
-    if (!t.mine) {
-      duel?.botBlast?.(t.owner, at, t.kind);
-      return;
-    }
-    // everyone in reach and in sight of it (you are not hurt by your own)
-    for (const tg of throwTargets()) {
-      if (duel && tg.id === duel.id) continue;
-      const chest = tg.feet.clone().setY(tg.feet.y + 1.1);
-      const dist = chest.distanceTo(at);
-      const dmg = blastDamage(t.kind, dist);
-      if (dmg > 0 && Throwables.inSight(at, chest)) throwHit(tg.id, dmg, t.kind, at);
-    }
-  },
-  onFireTick: (f: FireStrip) => {
-    if (!f.mine) return;
-    const now = gameTime;
-    for (const tg of throwTargets()) {
-      if (duel && tg.id === duel.id) continue;
-      const key = String(tg.id);
-      if (Throwables.inFire(f, tg.feet)) {
-        throwHit(tg.id, THROWABLES.thermite.tickDamage, "thermite", f.a.clone().lerp(f.b, 0.5));
-        // the afterburn starts over each time they are in it
-        const ticks = Math.round(THROWABLES.thermite.afterburnTime / THROWABLES.thermite.tick);
-        afterburns.set(key, { left: ticks, next: now + THROWABLES.thermite.tick, per: THROWABLES.thermite.afterburn / ticks });
-      }
-    }
-  },
-  onSound: (kind, at, what) => {
-    if (kind === "blast") {
-      audio.blast(what === "arcstar" ? "arcstar" : "frag", at);
-      feelBlast(at);
-    }
-    else audio.throwNoise(kind, at);
-  },
-});
-/** the highest floor under a point, at or below it: where a blast's scorch lies */
+/** the highest floor under a point, at or below it (the SLAM ring lies on it) */
 function floorUnder(at: THREE.Vector3): number {
   let y = floorAt(at.x, at.z);
   for (const s of RANGE_SOLIDS) if (at.x >= s.minX && at.x <= s.maxX && at.z >= s.minZ && at.z <= s.maxZ && s.top <= at.y + 0.3 && s.top > y) y = s.top;
   return y;
 }
-/** a blast's shake, how hard and since when (hud.json blasts) */
-let blastShake = 0;
-let blastShakeAt = -Infinity;
-/**
- * A grenade gone off, felt: the view shakes within its radius (falling off
- * with the square of the distance; the screen-shake setting scales it, and
- * Off turns it off), your ears ring close to it, and it leaves a scorch and a
- * column of smoke. It used to be a ball and a ring for half a second.
- */
-function feelBlast(at: THREE.Vector3): void {
-  const B = hudCfg.blasts;
-  const d = at.distanceTo(player.eyePosition());
-  if (d < B.shakeRadius) {
-    blastShake = Math.max(gameTime - blastShakeAt < B.shakeTime ? blastShake : 0, blastShakeDeg(d));
-    blastShakeAt = gameTime;
-  }
-  if (d < B.ringRadius) audio.ringing(B.ringTime * (1 - d / B.ringRadius / 2), B.ringHz);
-  impacts.blast(at, floorUnder(at), gameTime);
-}
-/** the afterburn: out of the fire, the rest of the burn lands a bit at a time */
-function updateAfterburns(now: number): void {
-  for (const [key, b] of afterburns) {
-    if (now < b.next) continue;
-    const f = throwables.fires.find((x) => x.mine && Throwables.inFire(x, figureById(Number(key))?.group.position ?? new THREE.Vector3(1e9, 0, 1e9)));
-    // still in a fire of yours: the fire's own ticks do it
-    if (f) {
-      b.next = now + THROWABLES.thermite.tick;
-      continue;
-    }
-    throwHit(Number(key), b.per, "thermite", figureById(Number(key))?.group.position ?? player.pos);
-    b.left--;
-    b.next = now + THROWABLES.thermite.tick;
-    if (b.left <= 0) afterburns.delete(key);
-  }
-}
-/** when the arc preview is next worked out */
-let previewNextAt = 0;
-const THROWABLES_ANY = (): boolean => ordnance.endless || Object.values(ordnance.counts).some((n) => n > 0);
-/** throw what is readied, the way you look, a little up, with some of your own speed */
-/** when the last grenade left the hand and the last melee swing began, for your figure's motion */
-let thrownAt = -Infinity;
+/** when the last melee swing began, for your figure's motion */
 let swungAt = -Infinity;
-function throwReadied(now: number): void {
-  const kind = ordnance.spend(now);
-  if (!kind) return;
-  thrownAt = now;
-  const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-  const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-  const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
-  const vel = throwVelocity(kind, fwd);
-  throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime, player.pos);
-  duel?.localFx("throw", from, vel, throwCode(kind));
-  gunRow(kind).shots++;
-  throwsMade++;
-  audio.whoosh();
-  void now;
-}
-function throwVelocity(kind: ThrowKind, fwd: THREE.Vector3): THREE.Vector3 {
-  // a paint bomb is thrown at the ground in front of you, so it leaves the
-  // hand a little slower than a frag (src/config/paint.json)
-  const speed = isPaintThrow(kind) ? PAINT.throw.speed : (THROWABLES as unknown as Record<string, { speed: number }>)[kind].speed;
-  return fwd
-    .clone()
-    .multiplyScalar(speed)
-    .add(new THREE.Vector3(0, 2.2, 0))
-    .addScaledVector(player.vel, 0.6);
-}
+
 
 /** the battle royale from your side: E, the pads, pings (brplay.ts) */
 const brPlay = new BrPlay({
@@ -5308,17 +5154,6 @@ function applyLoot(it: LootItem): void {
       hud.notice("VAULT KEYCARD  ·  THE VAULT IS AT THE WELL", gameTime, 3);
       audio.pickup?.();
       break;
-    case "grenade": {
-      if (!isThrowKind(it.id)) return;
-      const put = ordnance.add(it.id, it.n);
-      if (put < it.n) {
-        putBack({ ...it, n: it.n - put });
-        hud.notice(put ? `${label}: ${put} TAKEN, THE REST IS FULL` : `${label}: FULL`, gameTime, 1.4);
-        return;
-      }
-      audio.throwNoise("pin", null);
-      break;
-    }
   }
   hud.notice(label, gameTime, 1);
 }
@@ -5573,11 +5408,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onDamaged = (from, amount, head, weapon, dist) => {
     dlog.hit({ t: realNow(), from, to: d.id, amount, head, weapon, dist });
     noteDamageFrom(from);
-    // an arc star: slowed, for longer the more it did
-    if (weapon === "arcstar") {
-      player.arcSlowUntil = Math.max(player.arcSlowUntil, gameTime + arcSlowFor(amount));
-      player.arcSlowScale = THROWABLES.arcstar.slowScale;
-    }
     if (from === -1) audio.ringTick();
   };
   d.onEliminated = (by) => onEliminated(d, by);
@@ -5827,9 +5657,6 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
     following = from;
     return;
   }
-  // someone's throw: its flight, bounce and blast here too (their side sends the damage)
-  const tk = throwFromCode(n);
-  if (k === "throw" && a && b && tk) throwables.throw(tk, a, b, from, false, gameTime);
   if (k === "jolt" && a && b) {
     fx.jolt(a, b, gameTime);
     audio.joltAt(a);
@@ -6245,12 +6072,6 @@ function endMatch(reason: string): void {
     pendingSlots = null;
   }
   kit.fill("kit");
-  // the range: grenades without end; nothing in the air
-  ordnance.endless = true;
-  ordnance.readied = null;
-  throwables.clear();
-  afterburns.clear();
-  player.arcSlowUntil = 0;
   const wasGunRun = duel instanceof ArenaMode && duel.modeKind === "gunrun";
   duel?.dispose();
   duel = null;
@@ -7442,8 +7263,7 @@ let selfFigKey = "";
 function localAct(): number {
   if (finisher) return actCode("finish");
   if (heal) return actCode("heal", Math.max(0, HEAL_CODES.indexOf(heal.item)));
-  // a throw and a swing are short, and win over anything else the hands were doing
-  if (gameTime - thrownAt < figureCfg.throwShown) return actCode("throw");
+  // a swing is short, and wins over anything else the hands were doing
   if (gameTime - swungAt < MELEE_TIME) return actCode("melee");
   const held = brPlay.holdKind;
   if (held) return actCode(held);
@@ -7646,41 +7466,19 @@ function step(): void {
       holsterAt = now;
     }
     const armed = holster === "out" && !knockedOut && !downedNow && !emptyHand;
-    // a throw (or putting one away) uses that press of the button: the gun does not fire, the aim does not toggle
-    if (fireLockedToRelease && !input.held("fire")) fireLockedToRelease = false;
-    adsPressUsed = false;
     // Fists or the heirloom out: the fire button swings, the way the melee key
     // does. That is the empty hand of Gun Run's knife level AND the gun put
-    // away on 3, where clicking used to do nothing at all. Not with a grenade
-    // in hand: that press throws it.
+    // away on 3, where clicking used to do nothing at all.
     const handsOut = emptyHand || holster === "away";
-    if (handsOut && !downedNow && !knockedOut && !player.aboard && !ordnance.readied && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
+    if (handsOut && !downedNow && !knockedOut && !player.aboard && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       swungAt = now;
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
-    // G: a grenade in hand (again: the next kind you have; after the last, the gun again).
-    // SpeedKills carries no grenades: G (a pad's RB) is the utility hack
-    if (IS_SK) {
-      if (input.pressedNow("grenade") && !knockedOut) useHack("utility", now);
-    } else if (input.pressedNow("grenade") && !downedNow && !knockedOut && !player.aboard && !heal && holster === "out" && !loadout.swapping && (!duel || duel.alive)) {
-      const k = ordnance.cycle(now, downedNow);
-      if (k) {
-        hud.notice(`${throwName(k)}  ·  ${keyLabel("fire")} THROWS, ${keyLabel("ads")} PUTS IT AWAY`, now, 1.6);
-        audio.throwNoise("pin", null);
-      } else if (!THROWABLES_ANY()) hud.notice("NO GRENADES", now, 1);
-    }
-    if (ordnance.readied) {
-      if (input.pressedNow("ads")) {
-        ordnance.readied = null;
-        adsPressUsed = true;
-      } else if (loadout.swapping || downedNow || knockedOut || heal) ordnance.readied = null;
-      else if (input.pressedNow("fire") && now >= ordnance.readied.readyAt && (!duel || duel.canFire)) {
-        throwReadied(now);
-        fireLockedToRelease = true;
-      }
-    }
+    // G (a pad's RB, the "grenade" action, kept by that name so saved keys hold): SpeedKills' utility hack. There are
+    // no grenades (the owner, 2026-10-04).
+    if (IS_SK && input.pressedNow("grenade") && !knockedOut) useHack("utility", now);
     // The middle mouse button (RB): a TAP pings what you are looking at, twice
     // quickly an enemy there, and HOLDING it opens the wheel of what the mark
     // means (src/game/brplay.ts PING_INTENTS). A squad without voice is
@@ -8042,19 +7840,19 @@ function step(): void {
   // interact and the movement already do): a magazine held on the spray wall
   // is a thing worth being able to ask for without a fake pad. Not while a melee swings (the owner, 2026-09-29: "WE
   // SHOULDN'T BE ABLE TO SHOOT WITH MELEEING")
-  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !ordnance.readied && !fireLockedToRelease && !finisher && gameTime - swungAt >= MELEE_TIME;
+  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !finisher && gameTime - swungAt >= MELEE_TIME;
   // a burst fires on without the trigger: knocked, or the round decided, it stops
   if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
   // toggle ADS: a press goes in, the next comes out; a sprint, a swap or a holster comes out too
   if (settings.adsToggle) {
     if (!input.playing || loadout.swapping || holster !== "out" || knockedOut || downedNow) adsLatch = false;
-    else if (input.pressedNow("ads") && !adsPressUsed && !ordnance.readied && !loadout.active.empty) adsLatch = !adsLatch;
+    else if (input.pressedNow("ads") && !loadout.active.empty) adsLatch = !adsLatch;
     else if (input.pressedNow("sprint")) adsLatch = false;
   } else adsLatch = false;
   // a test's script aims as it fires (the trigger below), so a check can read the view aimed for real
   const adsIn = scriptInput ? scriptInput.held("ads") : settings.adsToggle ? adsLatch : input.held("ads");
-  const adsHeld = (input.playing || !!scriptInput) && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !ordnance.readied && !finisher;
+  const adsHeld = (input.playing || !!scriptInput) && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !finisher;
   // inspect: hold reload with a full magazine; anything that uses the gun ends it
   {
     const slot = loadout.active;
@@ -8067,7 +7865,7 @@ function step(): void {
     // its own button too (the pad's D-pad left, held): any magazine
     if (input.playing && input.pressedNow("chat") && duel) quickOpenUntil = gameTime < quickOpenUntil ? 0 : gameTime + QUICK.open;
     if (input.playing && input.pressedNow("inspect") && !slot.empty && !loadout.swapping && holster === "out" && now - inspectAt > viewModel.inspectTime) inspectAt = now;
-    if (trigger || adsHeld || loadout.swapping || player.sprinting || holster !== "out" || ordnance.readied || knockedOut) inspectAt = -Infinity;
+    if (trigger || adsHeld || loadout.swapping || player.sprinting || holster !== "out" || knockedOut) inspectAt = -Infinity;
     // a new gun's first time out (a pickup, Gun Run's next gun): the flourish, once it is up
     if (slot.firstDraw && !loadout.swapping && !slot.empty) {
       slot.firstDraw = false;
@@ -8330,19 +8128,6 @@ function step(): void {
       const env = Math.sin((1 - sinceLurch / f.lurchTime) * Math.PI);
       camera.quaternion.multiply(tmpQ.setFromAxisAngle(UP_AXIS, -player.lurchSide * f.lurchKick * env * DEG * k));
     }
-    // a paint boost pulls the view forward and opens it a little, so speed
-    // reads on the screen and not only on the ground under you
-    const boost = Math.max(0, Math.min(1, (player.paintSpeed(gameTime) - 1) / Math.max(0.001, PAINT.speed.mul - 1)));
-    boostFeel += (boost - boostFeel) * Math.min(1, dt / f.boostEase);
-    if (boostFeel > 0.001 && k > 0) {
-      camera.quaternion.multiply(tmpQ.setFromAxisAngle(RIGHT_AXIS, -f.boostPitch * boostFeel * DEG * k));
-    }
-  }
-  // a blast close by shakes the view, dying away; the aim is not moved (hud.json blasts)
-  {
-    const t = gameTime - blastShakeAt;
-    const k = t < hudCfg.blasts.shakeTime ? blastShake * (1 - t / hudCfg.blasts.shakeTime) * SPRINT_SHAKE[sprintShakeMode] : 0;
-    if (k > 0) camera.quaternion.multiply(tmpQ.setFromEuler(new THREE.Euler((Math.random() - 0.5) * 2 * k * DEG, (Math.random() - 0.5) * 2 * k * DEG, 0)));
   }
   // the shots leave from the eye whichever camera is on
   eye.copy(camera.position);
@@ -8431,7 +8216,7 @@ function step(): void {
   // a JOLT: the view widens by its kick at once, and settles as the dash hands over to the run
   joltFov += ((player.jolting ? JOLT.feel.fov / hipV : 0) - joltFov) * Math.min(1, dt / (player.jolting ? JOLT.feel.rollIn : JOLT.feel.rollOut));
   // and a paint boost opens it a touch too, the same way the slide does
-  const speedFov = (player.slideFov + joltFov + boostFeel * playerCfg.feel.boostFov * SPRINT_SHAKE[sprintShakeMode]) * (1 - ws.adsFrac);
+  const speedFov = (player.slideFov + joltFov) * (1 - ws.adsFrac);
   camera.fov = shotFov ?? (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
   // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
@@ -8647,40 +8432,7 @@ function step(): void {
   rocketBursts.update(dt);
   // the guided tour: its marker and the check for the step
   tourHud = !duel ? tour.update(now, tourCheck(now), input.playing && input.held("interact"), (a) => keyLabel(a as Parameters<typeof keyLabel>[0])) : null;
-  // throwables: their flights, fuses and fires; a blast's hits go the bullets' way
   impactSink = handleImpact;
-  throwables.update(now, dt, throwTargets());
-  // the paint under your feet this frame: the boost itself is the player's,
-  // and it outlives the ground it came from (src/config/paint.json)
-  {
-    const p = player.onGround ? paintUnder(throwables.paints, player.pos) : null;
-    player.onPaint(p ? p.kind : null, now);
-  }
-  // The carried charges move whoever is standing on or in them. Throws replay
-  // on every client already, so every client has the same pads and the same
-  // rifts and moves only its own player: an enemy is thrown and carried with
-  // no new packet at all.
-  {
-    const me = { id: duel ? duel.id : -1, feet: player.pos, downed: downedNow };
-    const launch = throwables.launchFor(me, now);
-    if (launch) player.impulse(launch.x, launch.y, launch.z);
-    const out = throwables.riftFor(me, now);
-    if (out) player.teleport(out.x, out.y, out.z, player.yaw, player.pitch);
-  }
-  updateAfterburns(now);
-  if (ordnance.readied && now >= ordnance.readied.readyAt && !third) {
-    // the path is 90 steps against every box in the world: ten times a second is plenty to aim by
-    if (now >= previewNextAt) {
-      previewNextAt = now + 0.1;
-      const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-      const right = new THREE.Vector3(1, 0, 0).applyQuaternion(camera.quaternion);
-      const from = player.eyePosition().addScaledVector(fwd, 0.45).addScaledVector(right, 0.18).add(new THREE.Vector3(0, -0.12, 0));
-      throwables.preview(from, throwVelocity(ordnance.readied.kind, fwd));
-    }
-  } else {
-    previewNextAt = 0;
-    throwables.preview(null, null);
-  }
   updateFinisher(now);
   // the melee swing lands a third of the way through
   if (now >= meleeHitAt) {
@@ -8805,7 +8557,7 @@ function step(): void {
     lookYaw,
     lookPitch,
     landDip: player.viewDip,
-    lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) || ordnance.readied ? 1 : lowered),
+    lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) ? 1 : lowered),
     downed: downedNow || debugView.downed ? 1 : 0,
     inspect: debugView.inspect ?? (now - inspectAt < viewModel.inspectTime ? (now - inspectAt) / viewModel.inspectTime : undefined),
     hacks: (["mobility", "utility"] as const).flatMap((slot) => { const h = hacks.get(slot); return h ? [{ id: String(h.id), level: h.level, of: HACK.fuseLevels, slot }] : []; }),
@@ -9046,7 +8798,6 @@ function step(): void {
     coneDeg: ws.spread.cone(),
     adsFrac: ws.adsFrac,
     thirdPerson,
-    boost: player.paintSpeed(now) > 1.001 ? "speed" : player.paintJump(now) > 1.001 ? "jump" : null,
     vFovDeg: camera.fov,
     stats,
     armorName: ARMOR_NAME[armorTier],
@@ -9094,11 +8845,6 @@ function step(): void {
             inHand: i === loadout.activeIndex,
           })),
           heals: HEAL_ORDER.filter((k) => (kit.items[k] ?? 0) > 0).map((k) => ({ name: HEAL_ITEMS[k].name, n: kit.items[k] })),
-          nades: IS_SK
-            ? []
-            : Object.entries(ordnance.counts)
-                .filter(([, n]) => n > 0)
-                .map(([k, n]) => ({ name: throwName(k), n })),
           ammo: Object.entries(loadout.ammo.stock)
             .filter(([, n]) => n > 0)
             .map(([k, n]) => ({ name: k.toUpperCase(), n })),
@@ -9122,14 +8868,6 @@ function step(): void {
     brHold: duel instanceof BrMatch ? (brPlay.hud.hold ?? (duelHud?.br?.crate != null ? { label: "LOADOUT CRATE  ·  STAY ON IT", progress: duelHud.br.crate } : null)) : null,
     tour: tourHud,
     healKey: keyLabel("heal"),
-    ordnance: {
-      counts: ordnance.endless ? null : { ...ordnance.counts },
-      readied: ordnance.readied ? throwName(ordnance.readied.kind) : null,
-      ready: !!ordnance.readied && now >= ordnance.readied.readyAt,
-      key: keyLabel("grenade"),
-      fire: keyLabel("fire"),
-      cancel: keyLabel("ads"),
-    },
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
     captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
@@ -9450,7 +9188,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     return { on: phases.on, line: phases.line, means: phases.means(), hitches: phases.hitches.slice() };
   },
   /** each thing that holds the trigger (the frame's trigger line): a check whose gun fired nothing says which */
-  triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, readied: !!ordnance.readied, lockedToRelease: fireLockedToRelease, finisher: !!finisher, meleeing: gameTime - swungAt < MELEE_TIME, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
+  triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, finisher: !!finisher, meleeing: gameTime - swungAt < MELEE_TIME, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
   setLootCard: (m: LootCardMode) => (lootCardMode = m),
   /** a gun as a beginner reads it, with its class (Phase 20 A7) */
   weaponLabel,
@@ -9603,14 +9341,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   audio,
   brPlay,
   applyLoot,
-  ordnance,
-  throwables,
-  /** a throw now, of `kind`, from `from` with `vel` (tools/e2e.ts); yours */
-  throwAt: (kind: ThrowKind, from: THREE.Vector3, vel: THREE.Vector3) => {
-    throwsMade++;
-    throwables.throw(kind, from, vel, duel ? duel.id : -1, true, gameTime);
-    duel?.localFx("throw", from, vel, throwCode(kind));
-  },
   THREE,
   tour,
   opticAdsMult,
@@ -9636,7 +9366,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   leaveMatch: () => duelLeaveBtn.click(),
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** how the camera is moving with the body (tools/e2e.ts): the slide's lean, the boost's pull, and the angles the shot uses */
-  feelState: () => ({ lean: slideLean, air: airLean, boost: boostFeel, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
+  feelState: () => ({ lean: slideLean, air: airLean, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
   /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
   joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
   /** the gun camera's near plane, metres (tools/e2e.ts: nothing of a held gun comes inside it) */
@@ -9987,8 +9717,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** HAEFY's rocket bursts showing (rocket.ts) */
   rocketBursts: () => rocketBursts.count,
   rocketLast: () => rocketBursts.last,
-  /** blasts marked on the level (scorch and smoke) since the page opened */
-  blasts: () => impacts.blasts,
   /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */
   // (`visual`: as someone else's shot, the one a shot message redraws: drawn, stopped, hurting nobody here)
   fireRound: (dir: [number, number, number], visual = false) => {

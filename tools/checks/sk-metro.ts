@@ -25,7 +25,6 @@ const { floorAt } = await import("../../src/game/floors");
 const { BR_X, BR_Z } = await import("../../src/game/br");
 const { ProjectileSystem } = await import("../../src/game/projectile");
 const { resolveWeapon } = await import("../../src/game/weapons");
-const { throwPath } = await import("../../src/game/throwables");
 const { botGroundAt } = await import("../../src/game/botbody");
 const { surfaceUnder } = await import("../../src/game/dropship");
 const { RANGE_SOLIDS } = await import("../../src/game/range");
@@ -164,10 +163,10 @@ check("what a drop lands on over it is the street, and down in it the floor", Ma
 }
 {
   const from = new THREE.Vector3(lane.x, METRO.floor + 1.5, lane.z);
-  const vel = along ? new THREE.Vector3(9, 3, 0) : new THREE.Vector3(0, 3, 9);
-  const path = throwPath(from, vel);
-  const end = path[path.length - 1];
-  check("a grenade thrown down the tunnel flies and lands on its floor", path.length > 5 && end.distanceTo(from) > 4 && Math.abs(end.y - METRO.floor) < 0.3, `${path.length} steps, ${end.distanceTo(from).toFixed(1)} m, ends at ${end.y.toFixed(2)} m`);
+  // (a grenade thrown down it was the check until there were none, the owner 2026-10-04: a drop further along stands in)
+  const at = from.clone().add(along ? new THREE.Vector3(6, 0, 0) : new THREE.Vector3(0, 0, 6));
+  const lands = surfaceUnder(at.x, at.z, at.y);
+  check("something dropped 6 m down the tunnel lands on its floor", Math.abs(lands - METRO.floor) < 0.01, `lands at ${lands.toFixed(2)}, the floor at ${METRO.floor}`);
 }
 // loot of its own down there, drawn after everything and on its own stream: the loot above is the same item for item
 // with the metro and without it (putting the tunnel's floor in the field's own spots moved every item after them)

@@ -125,7 +125,7 @@ export type NetMsg =
   | { t: "brend"; won: boolean; placement: number }
   /**
    * Something the others should see or hear that is not a shot: a JOLT (from
-   * a to b), and later pings, throwables and the like. `k` names it; bots'
+   * a to b), and later pings, hacks and the like. `k` names it; bots'
    * effects carry the bot's id in `from`.
    */
   | { t: "fx"; from?: number; k: string; a?: [number, number, number]; b?: [number, number, number]; n?: number }

@@ -372,19 +372,8 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "paint",
-    note: "PAINT down the range: orange to run over, blue to jump from, and the speed readout in the colour of what you are carrying",
-    steps: [
-      [`(() => { ${hideMenu}; const r = window.__range; r.input.locked = true; r.player.teleport(0, 0, 6, 180); })()`, 400],
-      [`(() => { const r = window.__range;
-        r.throwAt("speedpaint", new r.THREE.Vector3(0, 0.4, -2), new r.THREE.Vector3(0, -1, 0));
-        r.throwAt("jumppaint", new r.THREE.Vector3(4, 0.4, -7), new r.THREE.Vector3(0, -1, 0)); })()`, 900],
-      [`new Promise((ok) => { const r = window.__range; const t = setInterval(() => { const p = r.throwables.paints[0]; if (!p) return; clearInterval(t); r.player.teleport(p.at.x - 1, p.at.y, p.at.z + 5, 0, -16); ok(0); }, 100); setTimeout(() => { clearInterval(t); ok(0); }, 20000); })`, 600],
-    ],
-  },
-  {
     name: "inventory",
-    note: "the pack held open on Tab: both guns with the build in hand, the heals, the grenades, the ammo and the armour",
+    note: "the pack held open on Tab: both guns with the build in hand, the heals, the ammo and the armour",
     steps: [
       [`(() => { ${hideMenu}; const r = window.__range; r.input.locked = true; r.player.teleport(0, 0, 6, 0); })()`, 300],
       ["(() => { window.__range.input.down.add('Tab'); })()", 500],
@@ -1387,14 +1376,6 @@ export const SCENARIOS: Scenario[] = [
         })()`,
         1500,
       ],
-    ],
-  },
-  {
-    name: "throw-preview",
-    note: "a frag in hand: the arc it would take and where it lands; thermite burning ahead",
-    steps: [
-      [hideMenu, 300],
-      [`(() => { const r = window.__range; r.player.teleport(0, 0, -6, 0, 8); r.throwAt("thermite", new r.THREE.Vector3(-1.5, 1.2, -12), new r.THREE.Vector3(0, -1, -4)); r.ordnance.readied = { kind: "frag", readyAt: 0 }; })()`, 1400],
     ],
   },
   {

@@ -6,7 +6,7 @@
 // easy, normal, hard, elite) is more than its aim: how fast it reacts, how far
 // behind a moving target its aim lags, an aim error that starts wide and
 // settles while it keeps you in view, where on the body it aims, whether it
-// dodges when shot, hears shots, throws a frag at someone camping or hiding,
+// dodges when shot, hears shots,
 // breaks line of sight to heal and peeks back, and crouches while it fires. It cannot jump, climb or slide: it walks up steps and
 // off edges, and walls it meets it slides along. Its bullets are tracers with
 // a hit test against your body; yours hit it like any dummy. When the circle
@@ -47,9 +47,7 @@ import items from "../config/items.json";
 import botsCfg from "../config/bots.json";
 import type { CircleNav } from "./centrenav";
 import lootCfg from "../config/loot.json";
-import throwCfg from "../config/throwables.json";
 import { asDifficulty } from "./stats";
-import { Throwables, blastDamage, throwCode } from "./throwables";
 import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
 import squadCfg from "../config/squad.json";
 import { glideStep } from "./dropship";
@@ -92,8 +90,6 @@ export interface Difficulty {
   /** chances: to dodge when hurt, to hear a shot in earshot */
   dodge: number;
   hearing: number;
-  /** a frag at a target standing still in view this long, s (null: no grenades) */
-  grenadeAfter: number | null;
   /** it heals after this long with nobody in its sights, s */
   healAfter: number;
   /** breaks line of sight to heal, then peeks back */
@@ -204,7 +200,8 @@ export function scopedGun(w: Pick<ResolvedWeapon, "optic" | "integralOptic" | "d
   return o !== null && SIGHT.scopes.some((p) => o.startsWith(p));
 }
 
-const GRENADE = botsCfg.grenade;
+/** how long a bot remembers where it last saw its target, s */
+const SEEN_MEMORY = botsCfg.seenMemory;
 /** a crouched bot's eye, m */
 const CROUCH_EYE = 0.95;
 const COVER = botsCfg.cover;
@@ -217,57 +214,6 @@ function lineOfSight(a: THREE.Vector3, b: THREE.Vector3, eye = 1.4): boolean {
   const len = d.length();
   if (len < 1e-3) return true;
   return solidHit(from, d.divideScalar(len), len) >= len;
-}
-/** a frag's launch from `from` to land at `to` in about `flight` seconds (the throw's own gravity) */
-export function lobVelocity(from: THREE.Vector3, to: THREE.Vector3, flight: number): THREE.Vector3 {
-  const g = throwCfg.gravity;
-  const t = Math.max(0.3, flight);
-  return new THREE.Vector3((to.x - from.x) / t, (to.y - from.y + 0.5 * g * t * t) / t, (to.z - from.z) / t);
-}
-
-/**
- * Where a lob first meets the world: traced as a chain of short segments
- * against the same boxes the bullets use, until it strikes something or comes
- * down to the target's height past the target. A bot that threw without
- * looking put frags into roofs and walls between it and you.
- */
-export function lobContact(from: THREE.Vector3, vel: THREE.Vector3, to: THREE.Vector3): THREE.Vector3 {
-  const g = throwCfg.gravity;
-  const p = from.clone();
-  const v = vel.clone();
-  const dir = new THREE.Vector3();
-  const h = 0.03;
-  for (let i = 0; i < 400; i++) {
-    const next = p.clone().addScaledVector(v, h);
-    next.y -= 0.5 * g * h * h;
-    v.y -= g * h;
-    dir.subVectors(next, p);
-    const len = dir.length();
-    if (len > 1e-6) {
-      dir.divideScalar(len);
-      const hit = solidHit(p, dir, len);
-      if (hit < len) return p.addScaledVector(dir, hit);
-    }
-    // coming down at or below the target's feet: that is where it lands
-    if (v.y < 0 && next.y <= to.y) return next;
-    p.copy(next);
-  }
-  return p;
-}
-
-/**
- * The lob a bot should throw at `to`, or null when every arc it tries would
- * strike something well short of it (bots.json grenade.arcTries, arcSlack).
- */
-export function clearLob(from: THREE.Vector3, to: THREE.Vector3, flight: number): THREE.Vector3 | null {
-  for (const k of GRENADE.arcTries) {
-    const vel = lobVelocity(from, to, flight * k);
-    const at = lobContact(from, vel, to);
-    // near across AND near in height: on the roof right over the target is
-    // close across and a floor away, and the roof takes the blast
-    if (Math.hypot(at.x - to.x, at.z - to.z) <= GRENADE.arcSlack && Math.abs(at.y - to.y) <= GRENADE.arcRise) return vel;
-  }
-  return null;
 }
 /** what bots carry, one per bot in order */
 export const BOT_WEAPONS: string[] = IS_SK && PROFILE.lists ? [...PROFILE.lists.botWeapons] : ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
@@ -322,11 +268,11 @@ export interface BotSense {
 
 /** one thing on the floor, as much of it as a bot needs to know */
 export interface BotLootItem {
-  /** "weapon", "attach", "hopup", "heal", "helmet", "grenade", "ammo": src/game/loot.ts's kinds */
+  /** "weapon", "attach", "hopup", "heal", "helmet", "ammo": src/game/loot.ts's kinds */
   kind: string;
   id: string;
   rarity: string;
-  /** how many (a heal stack, a pair of frags) */
+  /** how many (a heal stack) */
   n?: number;
   /** a gun off the floor keeps the magazine it was found with */
   mag?: number;
@@ -357,7 +303,6 @@ export interface BotKit {
   armor: number;
   cells: number;
   syringes: number;
-  frags: number;
   /** how many things it has taken off the floor */
   taken: number;
 }
@@ -386,7 +331,7 @@ const BOT_SEARCH = lootCfg.botSearch as Record<string, number>;
  * it straight.
  */
 export class BotLooter {
-  readonly kit: BotKit = { gunId: null, gun: 0, mag: LOOTING.startMag, mods: {}, armor: LOOTING.startArmor, cells: 0, syringes: 0, frags: 0, taken: 0 };
+  readonly kit: BotKit = { gunId: null, gun: 0, mag: LOOTING.startMag, mods: {}, armor: LOOTING.startArmor, cells: 0, syringes: 0, taken: 0 };
   /** the drop it is walking to, when it started walking, and when its rummage there is up */
   private mark: { key: number; pos: THREE.Vector3; since: number; gun: boolean; best: number; bestAt: number } | null = null;
   private holdUntil = Infinity;
@@ -424,7 +369,7 @@ export class BotLooter {
   get score(): number {
     const s = LOOTING.score;
     const k = this.kit;
-    return k.gun * s.gun + Object.keys(k.mods).length * s.mod + k.armor * s.armor + (k.cells + k.syringes) * s.heal + k.frags * s.frag;
+    return k.gun * s.gun + Object.keys(k.mods).length * s.mod + k.armor * s.armor + (k.cells + k.syringes) * s.heal;
   }
   /**
    * Kitted out, or its time is up and it has something to fight with.
@@ -466,9 +411,6 @@ export class BotLooter {
         return k.cells + k.syringes < LOOTING.maxHeals;
       case "helmet":
         return (HELMET_TIER[item.id] ?? 0) > k.armor;
-      case "grenade":
-        // it only ever throws a frag (GRENADE above), so an arc star is someone else's
-        return item.id === "frag" && k.frags < GRENADE.count;
       default:
         // ammo, an echo: nothing a bot keeps track of
         return false;
@@ -504,9 +446,6 @@ export class BotLooter {
         break;
       case "helmet":
         k.armor = Math.max(k.armor, HELMET_TIER[item.id] ?? k.armor);
-        break;
-      case "grenade":
-        k.frags = Math.min(GRENADE.count, k.frags + (item.n ?? 1));
         break;
       default:
         break;
@@ -568,7 +507,7 @@ export class BotLooter {
     if (now < this.scanAt) return null;
     this.scanAt = now + LOOTING.rescan;
     // The nearest thing it wants, and with no gun the nearest gun first. It took
-    // whatever was nearest, and a heal, a helmet or a frag is a rummage each
+    // whatever was nearest, and a heal or a helmet is a rummage each
     // (4 s for a normal bot) and sometimes a spot it cannot reach (10 s to give
     // up on): in real battle royales, 60 s in, a bot in four landed with a gun
     // on its floor 2 to 17 m off and still had none (the host migration check).
@@ -587,7 +526,7 @@ export class BotLooter {
     };
     // Armed, the fittings come last: they fit the gun it has, and nearest-first
     // they filled its kit to `enough` before it walked to a better gun across
-    // the room. A better gun, a heal, a helmet or a frag, whichever is nearest.
+    // the room. A better gun, a heal or a helmet, whichever is nearest.
     const gunKind = (k: string) => k === "weapon";
     const notFitting = (k: string) => k !== "attach" && k !== "hopup";
     const any = () => true;
@@ -717,9 +656,6 @@ export class Bot {
   private aimSet = false;
   /** the last place and time it saw its target, and who */
   lastSeen: { pos: THREE.Vector3; at: number; id: number } | null = null;
-  /** the target standing still: since when, and where */
-  private stillSince = 0;
-  private stillAt = new THREE.Vector3();
   /** a shot it heard: go and look */
   heard: { pos: THREE.Vector3; until: number } | null = null;
   /** a dodge: the strafe reversed and harder, until then */
@@ -761,13 +697,6 @@ export class Bot {
   private wedgeAt = new THREE.Vector3();
   private wedgeTime = -Infinity;
   private wedgeFor = 0;
-  /** frags left, when it may throw the next, and one thrown this frame (for the match) */
-  /** frags left: SpeedKills carries no grenades, so a SpeedKills bot never has one to throw (Phase 20 A10) */
-  frags: number = IS_SK ? 0 : GRENADE.count;
-  private nextThrowAt = 0;
-  private thrown: { kind: "frag"; from: THREE.Vector3; vel: THREE.Vector3 } | null = null;
-  /** the mode allows grenades (Gun Run does not) */
-  grenadesAllowed = true;
   /** JOLT or TRIAGE when the match has abilities on (abilities.ts) */
   ability: AbilityId | null = null;
   private joltLeft = 0;
@@ -902,20 +831,16 @@ export class Bot {
     this.downedAt = null;
     this.kneel = false;
     this.dodgeUntil = -Infinity;
-    this.frags = IS_SK ? 0 : GRENADE.count;
-    this.nextThrowAt = 0;
-    this.thrown = null;
   }
 
-  /** someone it was after went down: no hunting them, no frag at where they were */
+  /** someone it was after went down: no hunting them */
   forget(id: number): void {
     if (this.lastSeen?.id === id) this.lastSeen = null;
   }
 
-  /** a frag it threw this frame, once (the match shows it, sends it, and the blast is the match's) */
   /**
    * The cover it just put up (SMOKE's cloud or WARD's wall), for the match to
-   * raise as an effect the way it raises a thrown frag. One at a time, taken
+   * raise as an effect. One at a time, taken
    * the frame it is made (src/config/abilities.json `bots`).
    */
   private putUp: { k: "smoke" | "wall"; from: THREE.Vector3; to: THREE.Vector3 } | null = null;
@@ -940,12 +865,6 @@ export class Bot {
     if (!put) return;
     this.coverAt = now;
     this.putUp = put;
-  }
-
-  takeThrow(): { kind: "frag"; from: THREE.Vector3; vel: THREE.Vector3 } | null {
-    const t = this.thrown;
-    this.thrown = null;
-    return t;
   }
 
   /** a shot went off at `pos`: in earshot, by the tier's chance, it goes to look */
@@ -1395,9 +1314,9 @@ export class Bot {
     return this.looter.kit;
   }
 
-  /** the heals and frags it still carries (host migration: the heir's snapshot) */
-  get carried(): { cell: number; syringe: number; frags: number } {
-    return { cell: this.kit.cell, syringe: this.kit.syringe, frags: this.frags };
+  /** the heals it still carries (host migration: the heir's snapshot) */
+  get carried(): { cell: number; syringe: number } {
+    return { cell: this.kit.cell, syringe: this.kit.syringe };
   }
 
   /**
@@ -1405,12 +1324,11 @@ export class Bot {
    * still carries, and its gun and shield tier put on, as a bot that had
    * looted them. Its health and shield are the caller's to set after.
    */
-  restoreKit(kit: BotKit, carried: { cell: number; syringe: number; frags: number }): void {
+  restoreKit(kit: BotKit, carried: { cell: number; syringe: number }): void {
     Object.assign(this.looter.kit, kit, { mods: { ...kit.mods } });
     this.lootStarted = true;
     this.kit.cell = carried.cell;
     this.kit.syringe = carried.syringe;
-    this.frags = carried.frags;
     this.setArmor(kit.armor);
     this.refit();
   }
@@ -1432,7 +1350,6 @@ export class Bot {
       this.lootStarted = true;
       this.kit.cell = 0;
       this.kit.syringe = 0;
-      this.frags = 0;
       this.setArmor(this.looter.kit.armor);
       this.dummy.setGunVisible(false);
     }
@@ -1460,7 +1377,7 @@ export class Bot {
   /**
    * Something off the floor, onto the bot. What it picked up is ADDED to what
    * it is carrying: the looter's kit counts what it has found, and the bot's
-   * counts what it still has, so a heal it drank or a frag it threw is not
+   * counts what it still has, so a heal it drank is not
    * handed back the next time it picks one up.
    */
   private equip(item: BotLootItem): void {
@@ -1470,7 +1387,7 @@ export class Bot {
       const n = item.n ?? 1;
       if (SHIELD_HEALS.includes(item.id)) this.kit.cell = Math.min(k.cells, this.kit.cell + n);
       else this.kit.syringe = Math.min(k.syringes, this.kit.syringe + n);
-    } else if (item.kind === "grenade") this.frags = Math.min(k.frags, this.frags + (item.n ?? 1));
+    }
     this.setArmor(k.armor);
   }
 
@@ -1551,18 +1468,10 @@ export class Bot {
     this.sawLast = sees;
     if (sees) {
       this.lastTargetAt = now;
-      if (!this.lastSeen || this.lastSeen.pos.distanceTo(target) > 1.5 || this.lastSeen.id !== sense.targetId) {
-        this.stillSince = now;
-        this.stillAt.copy(target);
-      }
-      if (this.stillAt.distanceTo(target) > 1.5) {
-        this.stillSince = now;
-        this.stillAt.copy(target);
-      }
       this.lastSeen = { pos: target.clone(), at: now, id: sense.targetId };
       this.heard = null;
     }
-    if (this.lastSeen && now - this.lastSeen.at > GRENADE.forgetAfter) this.lastSeen = null;
+    if (this.lastSeen && now - this.lastSeen.at > SEEN_MEMORY) this.lastSeen = null;
     if (this.heard && now > this.heard.until) this.heard = null;
     // hurt this frame (any source: bullets, the ring): a JOLT bot dodges, and by its tier it reverses its strafe
     const vital = this.dummy.health + this.dummy.shield;
@@ -1804,25 +1713,6 @@ export class Bot {
         this.aimSet = true;
       }
       this.aimPoint.lerp(want3, Math.min(1, dt / Math.max(1e-3, aimLagOf(tier))));
-    }
-    // a frag: at where a target was hiding, or at one that has stood still in view too long
-    if (tier.grenadeAfter !== null && this.grenadesAllowed && this.frags > 0 && now >= this.nextThrowAt && this.lastSeen && !this.healing && !this.cover && sense.canShoot && this.knife === null) {
-      const hidden = !sees && now - this.lastSeen.at > GRENADE.hiddenAfter;
-      const camping = sees && now - this.stillSince > tier.grenadeAfter;
-      const at = this.lastSeen.pos;
-      const d = Math.hypot(at.x - this.pos.x, at.z - this.pos.z);
-      if ((hidden || camping) && d >= GRENADE.minRange && d <= GRENADE.maxRange) {
-        const from = this.pos.clone().setY(this.pos.y + 1.6);
-        // only an arc that lands near the target: a frag into a roof is wasted
-        const vel = clearLob(from, at, GRENADE.flight * (0.7 + d / 40));
-        if (vel) {
-          this.thrown = { kind: "frag", from, vel };
-          this.frags--;
-          this.nextThrowAt = now + GRENADE.cooldown;
-          this.stillSince = now;
-          this.dummy.kick();
-        } else this.nextThrowAt = now + 1; // no clear arc from here: look again in a moment
-      }
     }
 
     // shooting: after the reaction time, at the weapon's rate, with an aim
@@ -2120,15 +2010,6 @@ export class BotMatch implements MatchLike {
     this.takeHit(dmg, b, w, Math.round(b.pos.distanceTo(this.lastFeet) * 10) / 10);
   }
 
-  /** a bot's frag went off (the page drew it and hands the blast back) */
-  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
-    this.botBurst(owner, (feet) => {
-      const chest = feet.clone().setY(feet.y + 1.1);
-      const dmg = blastDamage(kind, chest.distanceTo(at));
-      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
-    }, kind);
-  }
-
   /** nobody to tell: the bots are here */
   localFx(): void {}
 
@@ -2265,10 +2146,7 @@ export class BotMatch implements MatchLike {
       // (on THE CENTRE by the city's graph, round the tower's podium and up its stairs, not straight into them)
       const goal = this.nav ? this.nav.step(b.pos, center, new THREE.Vector3()) : center;
       const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal, canShoot: this.phase === "fight" && !this.holdFire });
-      // a frag: its flight is drawn by the page, which hands the blast back (botBlast)
-      const th = b.takeThrow();
-      if (th) this.onRemoteFx?.("throw", b.remote.id, th.from, th.vel, throwCode(th.kind));
-      // SMOKE's cloud or WARD's wall, raised the same way a thrown frag is
+      // SMOKE's cloud or WARD's wall: drawn by the page
       const put = b.takePutUp();
       if (put) this.onRemoteFx?.(put.k, b.remote.id, put.from, put.to, 0);
       let d = 0;

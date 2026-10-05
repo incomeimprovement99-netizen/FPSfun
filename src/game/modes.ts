@@ -75,7 +75,7 @@ export class GunLadder {
     if (killer < 0 || killer === victim) return false;
     const k = this.row(killer);
     k.kills++;
-    // the knife level: a knife kill wins it; any other kill (a grenade) counts, but wins nothing
+    // the knife level: a knife kill wins it; any other kill counts, but wins nothing
     if (k.level >= this.guns.length) return melee;
     k.level++;
     return false;

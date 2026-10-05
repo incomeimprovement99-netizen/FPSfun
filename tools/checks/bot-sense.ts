@@ -160,7 +160,6 @@ class Floor implements BotLootSource {
 const gun = (id: string, rarity: string): BotLootItem => ({ kind: "weapon", id, rarity, n: 1 });
 const mod = (id: string, rarity: string): BotLootItem => ({ kind: "attach", id, rarity, n: 1 });
 const heal = (id: string): BotLootItem => ({ kind: "heal", id, rarity: "common", n: 2 });
-const frag = (): BotLootItem => ({ kind: "grenade", id: "frag", rarity: "rare", n: 1 });
 const ammo = (): BotLootItem => ({ kind: "ammo", id: "light", rarity: "common", n: 60 });
 
 /** a place: plenty on the floor and all of it close together, like a room with loot in it */
@@ -177,8 +176,8 @@ function richFloor(): Floor {
     heal("cell"),
     heal("syringe"),
     heal("battery"),
-    frag(),
-    frag(),
+    ammo(),
+    ammo(),
     ammo(),
     { kind: "helmet", id: "gold", rarity: "legendary", n: 1 },
   ];
@@ -240,9 +239,9 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   check("it is better armed at the end than at the start", rich.scores[rich.scores.length - 1] > rich.scores[0], `${rich.scores[0]} -> ${rich.scores[rich.scores.length - 1]}`);
   check("it kits up a shield as it goes", rich.looter.kit.armor > LOOTING.startArmor, `tier ${rich.looter.kit.armor}`);
   check("it carries heals it found", rich.looter.kit.cells + rich.looter.kit.syringes > 0, `${rich.looter.kit.cells} cells, ${rich.looter.kit.syringes} syringes`);
-  // As it was, the nearest first, it took a syringe, a battery, both frags and the
-  // helmet round it before its first gun, 29 s in; it reaches `enough` at the same
-  // time either way, and the frags were only ever in that set by being nearest.
+  // As it was, the nearest first, it took a syringe, a battery, two frags (there were
+  // grenades then) and the helmet round it before its first gun, 29 s in; it reaches
+  // `enough` at the same time either way.
   const firstGun = (() => {
     const l = new BotLooter("normal");
     const f = richFloor();
@@ -259,10 +258,10 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const withGun = (() => {
     const f = new Floor();
     f.add(3, 0, gun("r97", "common"));
-    f.add(-4, 0, frag());
+    f.add(-4, 0, heal("cell"));
     return loot("normal", f, 20).looter;
   })();
-  check("and armed it still picks up a frag near it", withGun.armed && withGun.kit.frags > 0, `${withGun.kit.frags}`);
+  check("and armed it still picks up a heal near it", withGun.armed && withGun.kit.cells > 0, `${withGun.kit.cells}`);
   check(
     "the one that landed in a field is worse off for it",
     rich.looter.score > poor.looter.score,
@@ -299,7 +298,7 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const junkFirst = (): Floor => {
     const f = new Floor();
     f.add(2, 0, heal("cell"));
-    f.add(0, 3, frag());
+    f.add(0, 3, heal("syringe"));
     f.add(-3, 1, { kind: "helmet", id: "gold", rarity: "legendary", n: 1 });
     f.add(12, 0, gun("r97", "common"));
     return f;
@@ -314,7 +313,7 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
     const g = first.goal;
     if (g && !first.holding) at1.lerp(g, Math.min(1, (DIFFICULTY.normal.speed * 0.05) / Math.max(1e-6, at1.distanceTo(g))));
   }
-  check("with no gun, a gun first: past a heal, a frag and a helmet nearer to it", took[0] === "weapon", took.join(", ") || "nothing");
+  check("with no gun, a gun first: past two heals and a helmet nearer to it", took[0] === "weapon", took.join(", ") || "nothing");
   const armedNext = loot("normal", junkFirst(), 30);
   check("and with one, the rest of the floor as before", armedNext.looter.armed && armedNext.looter.kit.cells > 0, `${armedNext.looter.kit.taken} taken`);
 
@@ -390,7 +389,6 @@ console.log("\nWhat a bot would rather have (bots.ts BotLooter.wants)");
   check("and never down", !l.wants(gun("r97", "common")));
   check("now it has a gun it wants a magazine", l.wants(mod("mag:2", "rare")));
   check("a helmet is worth a shield tier", l.wants({ kind: "helmet", id: "gold", rarity: "legendary", n: 1 }));
-  check("an arc star is not: it only ever throws a frag", !l.wants({ kind: "grenade", id: "arcstar", rarity: "rare", n: 1 }));
   const before = l.kit.taken;
   const gone = new Floor();
   const key = gone.add(0, 0, heal("cell"));

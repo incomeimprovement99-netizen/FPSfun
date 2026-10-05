@@ -161,8 +161,6 @@ export interface HudState {
   reloadProgress: number;
   coneDeg: number;
   adsFrac: number;
-  /** a paint boost is on (src/config/paint.json): the speed readout says so, because a boost you cannot see is a boost nobody chains */
-  boost?: "speed" | "jump" | null;
   /**
    * The camera is behind the shoulder. Aiming takes the crosshair away in
    * first person because the gun's own sights replace it, and in third person
@@ -236,14 +234,13 @@ export interface HudState {
   pingWheel?: { items: string[]; pick: number | null } | null;
   /**
    * What you are carrying, held open on Tab: the two guns with their builds,
-   * the pack, the grenades, the ammo by kind and the armour. A battle royale
+   * the pack, the ammo by kind and the armour. A battle royale
    * hands you a dozen decisions a minute and the HUD could only answer them
    * one line at a time.
    */
   inventory?: {
     guns: Array<{ name: string; clip: number; size: number; ammo: string; attach: string[]; inHand: boolean }>;
     heals: Array<{ name: string; n: number }>;
-    nades: Array<{ name: string; n: number }>;
     ammo: Array<{ name: string; n: number }>;
     armor: string;
     helmet: string;
@@ -318,8 +315,6 @@ export interface HudState {
   mantleCue?: boolean;
   /** the heal key's label, for the kit line */
   healKey?: string;
-  /** grenades: how many of each (null: the range, no count), the one in hand, its keys */
-  ordnance?: { counts: Record<string, number> | null; readied: string | null; ready: boolean; key: string; fire: string; cancel: string } | null;
   /** the guided tour's step, or its finish card */
   tour?: TourHud | null;
   /** a hold-E action in progress (a revive, a restore): its label and 0..1 */
@@ -3158,7 +3153,7 @@ export class Hud {
 
   /** the heal kit, bottom left over the bars: what is left of each */
   private drawKit(s: HudState, u: number): void {
-    // SpeedKills carries no heals and no grenades (G is the utility hack): no rows for them, only the wheels,
+    // SpeedKills carries no heals: no rows for them, only the wheels,
     // the inventory and the captions, which the legacy path left undrawn while alive in a match (Phase 20 A6)
     if (this.layout) {
       this.drawHealWheel(s, u);
@@ -3169,7 +3164,6 @@ export class Hud {
       return;
     }
     if (!s.kit) {
-      this.drawOrdnance(s, u, 384 * u, this.h - 52 * u);
       this.drawHealWheel(s, u);
     this.drawEmoteWheel(s, u);
     this.drawPingWheel(s, u);
@@ -3183,45 +3177,7 @@ export class Hud {
     const parts = ["cell", "battery", "syringe", "medkit", "phoenix"].filter((k) => (s.kit?.[k] ?? 0) > 0 || k === "cell" || k === "syringe").map((k) => `${short[k]} ${s.kit?.[k] ?? 0}`);
     const any = Object.values(s.kit).some((n) => n > 0);
     this.text(`${s.healKey ?? "4"}  ${parts.join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
-    this.drawOrdnance(s, u, x, y - 18 * u);
     this.drawHealWheel(s, u);
-  }
-
-  /** the grenades you carry, over the heals, and the one in hand under the crosshair */
-  private drawOrdnance(s: HudState, u: number, x: number, y: number): void {
-    const o = s.ordnance;
-    if (!o) return;
-    if (o.counts) {
-      const short: Record<string, string> = { frag: "FRAG", arcstar: "STAR", thermite: "THERM", shockwave: "WAVE", rift: "RIFT" };
-      const any = Object.values(o.counts).some((n) => n > 0);
-      const color = any ? DIM : "rgba(154,164,173,0.4)";
-      // An icon and a count read faster than five words, and at a glance the
-      // shapes are what you actually recognise. Every icon that is not here
-      // yet falls back to the word it replaced, so a checkout that has not
-      // run npm run icons looks exactly like the old row and nothing leaves
-      // a hole while the files load.
-      const size = 15 * u;
-      let cx = x;
-      this.text(o.key, cx, y, 700, 13 * u, color);
-      cx += this.ctx.measureText(o.key).width + 10 * u;
-      for (const [k, n] of Object.entries(o.counts)) {
-        if (drawIcon(this.ctx, k, cx + size / 2, y - 4 * u, size, color)) cx += size + 3 * u;
-        else {
-          const word = short[k] ?? k;
-          this.text(word, cx, y, 700, 13 * u, color);
-          cx += this.ctx.measureText(word).width + 3 * u;
-        }
-        const count = String(n);
-        this.text(count, cx, y, 700, 13 * u, color);
-        cx += this.ctx.measureText(count).width + 10 * u;
-      }
-    }
-    if (o.readied) {
-      const cx = this.w / 2;
-      const y0 = this.h * 0.64;
-      this.text(o.readied, cx, y0, 700, 18 * u, o.ready ? "#ffd27a" : DIM, "center");
-      this.text(o.ready ? `${o.fire} THROW  ·  ${o.cancel} PUT AWAY  ·  ${o.key} NEXT` : "PULLING THE PIN", cx, y0 + 18 * u, 600, 12 * u, DIM, "center");
-    }
   }
 
   /** the heal wheel: the five heals round the crosshair, the one pointed at lit, a count on each */
@@ -3320,8 +3276,7 @@ export class Hud {
       }
     };
     col("HEALS", inv.heals, x0 + 24 * u);
-    col("GRENADES", inv.nades, x0 + 24 * u + 200 * u);
-    col("AMMO", inv.ammo, x0 + 24 * u + 400 * u);
+    col("AMMO", inv.ammo, x0 + 24 * u + 200 * u);
     this.text("HOLD TAB", this.w / 2, y0 + h - 18 * u, 700, 12 * u, DIM, "center");
   }
 
@@ -3530,7 +3485,7 @@ export class Hud {
     const yS = yH - (L.shield.gap + L.shield.h) * u;
     const base = yS - L.speed.gap * u;
     const stanceColor = s.stance === "slide" ? "#ffd27a" : s.stance === "air" ? "#8fc7ff" : s.stance === "climb" ? "#7ddc8a" : WHITE;
-    const speedColor = s.boost === "speed" ? "#ff9a3c" : s.boost === "jump" ? "#5cc0ff" : WHITE;
+    const speedColor = WHITE;
     const sp = `${s.speedHu.toFixed(0)}`;
     this.text(sp, x0, base, 700, L.speed.font * u, speedColor);
     this.textBox("speed", sp, x0, base, 700, L.speed.font * u, "left");
@@ -3836,9 +3791,7 @@ export class Hud {
     const yHealth = this.h - 50 * u;
     // speed and stance, which movement players actually read
     const stanceColor = s.stance === "slide" ? "#ffd27a" : s.stance === "air" ? "#8fc7ff" : s.stance === "climb" ? "#7ddc8a" : WHITE;
-    // the number goes the colour of the paint you are carrying, so a boost is
-    // something you can see spending itself
-    const speedColor = s.boost === "speed" ? "#ff9a3c" : s.boost === "jump" ? "#5cc0ff" : WHITE;
+    const speedColor = WHITE;
     this.text(`${s.speedHu.toFixed(0)}`, x0, yShield - 26 * u, 700, 34 * u, speedColor);
     this.text(`HU/S   ${s.stance.toUpperCase()}${s.holstered ? "   HOLSTERED" : ""}`, x0 + 72 * u, yShield - 30 * u, 700, 15 * u, stanceColor);
     // shield: segmented in 25s like the game. Real values in a 1v1 (blue

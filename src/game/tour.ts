@@ -31,7 +31,6 @@ export interface TourCheck {
   swapping: boolean;
   healing: boolean;
   joltUsed: boolean;
-  thrown: number;
   /** the game's clock (a step held for a time counts it) */
   now: number;
   /** SpeedKills: each hack slot's uses so far, and the gun in hand's fusion level */
@@ -53,9 +52,8 @@ interface Step {
 }
 
 interface StepState {
-  /** the counters when the step began (hits, throws) */
+  /** the counters when the step began (hits) */
   hits0: number;
-  thrown0: number;
   /** the marker has been reached */
   there: boolean;
   /** a tech name the feed reported during the step */
@@ -84,7 +82,6 @@ const LEGACY_STEPS: Step[] = [
   { id: "swap", title: "SWAP", text: "Swap guns with {swapWeapon}, or {slot1} and {slot2}.", done: (c) => c.swapping },
   { id: "heal", title: "HEAL", text: "Your shield is down: press {heal} for a shield cell (hold it for the wheel of every heal).", done: (c) => c.healing },
   { id: "ability", title: "ABILITY", text: "Pick JOLT with {pickAbility1}, then press {ability} to dash.", done: (c) => c.joltUsed },
-  { id: "grenade", title: "GRENADE", text: "Press {grenade} for a grenade (again for the next kind), {fire} throws it.", done: (c, s) => c.thrown > s.thrown0 },
 ];
 
 const SK_STEPS: Step[] = [
@@ -147,7 +144,7 @@ const SKIP_HOLD = 1.2;
 
 export class Tour {
   private index = -1;
-  private state: StepState = { hits0: 0, thrown0: 0, there: false, tech: new Set(), sprinted: false, hacks0: { mobility: 0, utility: 0 }, fusion0: 0, climbed: false, inSince: null };
+  private state: StepState = { hits0: 0, there: false, tech: new Set(), sprinted: false, hacks0: { mobility: 0, utility: 0 }, fusion0: 0, climbed: false, inSince: null };
   private skipFrom = -Infinity;
   private doneAt = -Infinity;
   readonly group = new THREE.Group();
@@ -208,7 +205,7 @@ export class Tour {
   }
 
   private begin(c: TourCheck): void {
-    this.state = { hits0: c.hits, thrown0: c.thrown, there: false, tech: new Set(), sprinted: false, hacks0: { ...c.hackUses }, fusion0: c.fusion, climbed: false, inSince: null };
+    this.state = { hits0: c.hits, there: false, tech: new Set(), sprinted: false, hacks0: { ...c.hackUses }, fusion0: c.fusion, climbed: false, inSince: null };
     if (STEPS[this.index]?.id === "heal") {
       this.vitals.shield = 25;
       this.vitals.health = 100;

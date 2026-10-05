@@ -11,7 +11,7 @@
     "rideGain": 30,
     "towerGain": 110
   },
-  "_note": "Bot difficulty tiers (src/game/bots.ts). The shape follows how Counter-Strike 2's shipped bot profile and Valve's published Team Fortress 2 bot code grade their bots (docs/RESEARCH_PHASE_12.md section 4): a reaction time to a newly seen enemy, an aim that re-settles on an interval (here, how far behind a moving target the aim lags), a starting aim error that shrinks while it keeps the target (errStart degrees, errDecay = the fraction of the extra error left after one second, errFloor what it settles to), where on the body it aims (height in m above the feet), the chance to dodge when shot, the chance to hear a shot within earshot, grenades, cover and a crouch while firing. Reaction and the error's start and decay are CS2's values where its tiers line up (Easy, Normal, Hard, Expert); the rest are ours, tuned so each tier plays differently rather than only aiming differently.",
+  "_note": "Bot difficulty tiers (src/game/bots.ts). The shape follows how Counter-Strike 2's shipped bot profile and Valve's published Team Fortress 2 bot code grade their bots (docs/RESEARCH_PHASE_12.md section 4): a reaction time to a newly seen enemy, an aim that re-settles on an interval (here, how far behind a moving target the aim lags), a starting aim error that shrinks while it keeps the target (errStart degrees, errDecay = the fraction of the extra error left after one second, errFloor what it settles to), where on the body it aims (height in m above the feet), the chance to dodge when shot, the chance to hear a shot within earshot, cover and a crouch while firing. Reaction and the error's start and decay are CS2's values where its tiers line up (Easy, Normal, Hard, Expert); the rest are ours, tuned so each tier plays differently rather than only aiming differently.",
   "tiers": {
     "beginner": {
       "speed": 3.6,
@@ -27,7 +27,6 @@
       "strafeRate": 0,
       "dodge": 0,
       "hearing": 0.1,
-      "grenadeAfter": null,
       "healAfter": 5,
       "cover": true,
       "crouchPeek": 0,
@@ -48,7 +47,6 @@
       "strafeRate": 1.2,
       "dodge": 0,
       "hearing": 0.2,
-      "grenadeAfter": null,
       "healAfter": 4,
       "cover": false,
       "crouchPeek": 0,
@@ -69,7 +67,6 @@
       "strafeRate": 1.7,
       "dodge": 0.5,
       "hearing": 0.5,
-      "grenadeAfter": 8,
       "healAfter": 3,
       "cover": true,
       "crouchPeek": 0.1,
@@ -90,7 +87,6 @@
       "strafeRate": 2.2,
       "dodge": 1,
       "hearing": 0.9,
-      "grenadeAfter": 5,
       "healAfter": 2,
       "cover": true,
       "crouchPeek": 0.3,
@@ -111,7 +107,6 @@
       "strafeRate": 2.8,
       "dodge": 1,
       "hearing": 1,
-      "grenadeAfter": 4,
       "healAfter": 1.5,
       "cover": true,
       "crouchPeek": 0.45,
@@ -127,23 +122,8 @@
     "hard": 0.25,
     "elite": 0.1
   },
-  "_grenade": "a bot's frags: how many it carries, the least time between two, the range it throws over (m), and how long a target must have stood still in view (grenadeAfter, per tier) or been out of sight behind cover (hiddenAfter) before it throws at where it was",
-  "grenade": {
-    "count": 2,
-    "cooldown": 14,
-    "minRange": 7,
-    "maxRange": 32,
-    "hiddenAfter": 1.5,
-    "forgetAfter": 6,
-    "flight": 1.15,
-    "arcSlack": 3,
-    "arcTries": [
-      1,
-      1.35,
-      1.75
-    ],
-    "arcRise": 1.5
-  },
+  "_seenMemory": "how long a bot remembers where it last saw its target, s: where it hunts and pre-aims, and whether it is still in a fight (bots.ts). It was the frags' memory until there were no grenades (the owner, 2026-10-04); ours.",
+  "seenMemory": 6,
   "_cover": "a bot with cover on, hurt below this fraction of its shield and health, looks for a spot within these metres out of the target's sight to heal, then peeks back",
   "cover": {
     "below": 0.55,
@@ -229,15 +209,13 @@
       "gun": 4,
       "mod": 1,
       "armor": 2,
-      "heal": 0.5,
-      "frag": 0.5
+      "heal": 0.5
     },
     "_overtime": "how many of its own search windows a bot that still has NO gun may spend before it gives up and fights unarmed. The window alone used to end the search, so a bot that landed badly stopped looking and stayed unarmed, held its fire for the whole match and walked the ring as a free kill. Ours.",
     "overtime": 2.5,
     "_floor": "how far above or below its feet, in metres, an item may be for a bot to go for it. A bot cannot jump or climb, so an item on the floor above can be a metre away across the ground and out of reach for ever: in a probe, one stood under loot on an upper floor for the whole 40 s, unarmed. A storey here is 3.4 m, so 1.2 keeps a bot to its own floor with room for a crate top. Ours.",
     "floor": 1.2
   },
-  "_arc": "grenade.arcSlack and arcTries: before a bot throws, it traces its lob against the world. The first arc it tries is the flight the throw has always used; if that would strike something more than arcSlack metres short of where it is aiming (a roof, a wall, the building over the circle), it tries the steeper lobs in arcTries, and if none lands within arcSlack across and arcRise up or down it keeps the frag for later: a frag on the roof right over your head is close across and a floor away. A probe of the tiers test caught an elite bot's frag going off 14 m from its target one run in two, into whatever stood in the arc's way. Ours.",
   "_beginner": "SpeedKills' fifth tier, below easy (plan section 7.12, the owner's five): walks rather than strafes, reacts in 0.9 s, misses wide and settles loose, fires a third as often, and takes cover when hurt, so a new player can learn to fight one. Ours.",
   "_skHacks": "SpeedKills: the hacks a bot carries by its tier, and when it uses them (bots.ts stepSk). Heal (hacks.json heal: health back over its seconds) once its health and shield are under healBelow of full; Dash (hacks.json dash: its distance over its seconds, across the line of fire, stopped by walls) when hit within dashWhenHitWithin seconds with a target in view. Cooldowns are the hacks' own at fusion level 0. A beginner uses none, so it can be learned on. Ours.",
   "skHacks": {

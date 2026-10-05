@@ -1,16 +1,4 @@
 {
-  "_blasts": "A grenade going off, felt (main.ts, impacts.ts, audio.ts). Ours, after Apex and Warzone: within shakeRadius metres the view shakes by up to shakeDeg degrees, falling off with the square of the distance and dying away over shakeTime seconds (the screen-shake setting scales it, and Off turns it off); within ringRadius metres your ears ring for ringTime seconds, the world muffled to ringHz; a column of smokes grey sprites rises for smokeTime seconds, and a scorch scorchSize metres across stays on the ground as long as a bullet hole.",
-  "blasts": {
-    "shakeRadius": 20,
-    "shakeDeg": 1.2,
-    "shakeTime": 0.4,
-    "ringRadius": 6,
-    "ringTime": 1.5,
-    "ringHz": 800,
-    "smokes": 6,
-    "smokeTime": 3,
-    "scorchSize": 1.6
-  },
   "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres. ownOpacity: how bright your own rounds' streaks are (additive, 0 to 1): at 0.9, as everyone else's are, a USSO spray at 18 rounds a second was a sheet of light over the target (the owner, 2026-09-28: \"the tracers ... are a bit obnoxious ... we should make the tracers much less visible\"). Others' rounds keep 0.9, so fire coming at you still reads; a signature gun's own tracer (gunfeel.json tracer, BOOG's) keeps its own.",
   "tracers": {
     "maxLen": 6,

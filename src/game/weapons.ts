@@ -2,7 +2,7 @@
 // simulation consumes. Everything gameplay-relevant comes from here.
 import { IS_SK, PROFILE } from "./game";
 import raw from "../../data/weapons.json";
-import { displayName, throwName } from "../config/names";
+import { displayName } from "../config/names";
 import mechCfg from "../config/weapon-mechanics.json";
 import ammoCfg from "../config/ammo.json";
 import rocketCfg from "../config/rocket.json";
@@ -267,7 +267,6 @@ export function allWeaponIds(): string[] {
   return Object.keys(DATA.weapons);
 }
 export function weaponName(id: string): string {
-  if (!DATA.weapons[id] && (id === "frag" || id === "arcstar" || id === "thermite")) return throwName(id);
   // SpeedKills' guns carry their own names, the same in every build
   const sk = IS_SK ? (PROFILE.weapons[id]?.name ?? PROFILE.otherNames?.[id]) : undefined;
   if (sk) return sk;

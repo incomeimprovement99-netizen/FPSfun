@@ -338,11 +338,6 @@ export interface MatchLike {
   onHealSeen: ((id: number, item: string) => void) | null;
   /** someone else's effect (a player's, or a bot's): draw and play it */
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null;
-  /**
-   * A bot's frag went off at `at` (the throw's flight is the page's): the side
-   * that runs the bots works out who it hurt, as it does for their bullets.
-   */
-  botBlast?(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void;
 }
 
 export class Duel implements MatchLike {

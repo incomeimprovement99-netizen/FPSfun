@@ -95,12 +95,11 @@ console.log("A bot's gun, and what it drops");
 
 // ------------------------------------------------------------ what it drops
 {
-  const kit = { gunId: "r97", gun: 3, mag: 3, mods: { barrel: { id: "barrel_2", rank: 2 }, hopup: { id: "hopup_x", rank: 4 } }, cells: 5, syringes: 0, frags: 2 };
+  const kit = { gunId: "r97", gun: 3, mag: 3, mods: { barrel: { id: "barrel_2", rank: 2 }, hopup: { id: "hopup_x", rank: 4 } }, cells: 5, syringes: 0 };
   const box = deathDropOf(kit, "r97");
   const gun = box.find((i) => i.kind === "weapon");
   check("a bot that looted an epic gun drops it epic, with its magazine", gun?.id === "r97" && gun.rarity === "epic" && gun.mag === 3, JSON.stringify(gun));
   check("its magazine, its fittings and its hop-up come out as it had them", box.some((i) => i.id === "mag:3" && i.rarity === "epic") && box.some((i) => i.id === "barrel_2" && i.rarity === "rare") && box.some((i) => i.kind === "hopup" && i.rarity === "legendary"));
-  check("its frags too", box.some((i) => i.kind === "grenade" && i.n === 2));
   const cells = box.find((i) => i.id === "cell")?.n ?? 0;
   const syr = box.find((i) => i.id === "syringe")?.n ?? 0;
   check("its heals, never fewer than a bot always drops", cells === 5 && syr === lootCfg.deathDrop.syringes, `${cells} cells, ${syr} syringes`);

@@ -15,8 +15,7 @@ import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
 import { RANGE_SOLIDS } from "../src/game/range";
 import { Dummy, TURN_STEP_AT } from "../src/game/dummy";
 import * as THREE from "three";
-import { BOT_TIERS, WIRE_TIERS, DIFFICULTY, aimError, lobVelocity, tierFor } from "../src/game/bots";
-import throwablesCfg from "../src/config/throwables.json";
+import { BOT_TIERS, WIRE_TIERS, DIFFICULTY, aimError, tierFor } from "../src/game/bots";
 import { MODELLED_IDS } from "../src/game/gunmodels";
 import { movesimFails } from "./movesim";
 // The check modules under tools/checks/. Each prints its own section and
@@ -37,8 +36,6 @@ import { arenasFails } from "./checks/arenas";
 import { reticleFails } from "./checks/reticle";
 import { progressFails } from "./checks/progress";
 import { accessFails } from "./checks/access";
-import { throwStepsFails } from "./checks/throw-steps";
-import { mobilityFails } from "./checks/mobility";
 import { brRulesFails } from "./checks/br-rules";
 import { netDeltaFails } from "./checks/net-delta";
 import { audioOcclusionFails } from "./checks/audio-occlusion";
@@ -80,7 +77,6 @@ import { brCardFails } from "./checks/brcard";
 import { gamesFails } from "./checks/games";
 import { hacksFails } from "./checks/hacks";
 import { solidGridFails } from "./checks/solidgrid";
-import { paintFails } from "./checks/paint";
 import { pingWheelFails } from "./checks/pingwheel";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
 import { Abilities, JOLT, abilityCode, abilityFromCode } from "../src/game/abilities";
@@ -92,7 +88,6 @@ import lootCfg from "../src/config/loot.json";
 import { LootField, rollItem, seeded } from "../src/game/loot";
 import { Duel, moveDirOf } from "../src/game/duel";
 import { actCode, actFromCode } from "../src/game/dummy";
-import { Ordnance, Throwables, arcSlowFor, blastDamage } from "../src/game/throwables";
 import { medalFor, roomPars } from "../src/game/course";
 import { BASIC_COURSE } from "../src/game/courses/basic";
 import { ADVANCED_COURSE } from "../src/game/courses/advanced";
@@ -1646,7 +1641,7 @@ console.log("Bot tiers (src/config/bots.json, docs/RESEARCH_PHASE_12.md section 
   near("and settles at its floor", aimError(DIFFICULTY.easy, 60), 5, 1e-6);
   eq("each tier settles tighter than the one below", BOT_TIERS.every((t, i) => i === 0 || DIFFICULTY[t].errFloor < DIFFICULTY[BOT_TIERS[i - 1]].errFloor), true);
   eq("each tier's aim lags a moving target less", BOT_TIERS.every((t, i) => i === 0 || DIFFICULTY[t].aimLag < DIFFICULTY[BOT_TIERS[i - 1]].aimLag), true);
-  eq("easy never dodges, throws no frags, takes no cover (TF2: easy bots never dodge)", [DIFFICULTY.easy.dodge, DIFFICULTY.easy.grenadeAfter, DIFFICULTY.easy.cover].join(" "), "0  false");
+  eq("easy never dodges and takes no cover (TF2: easy bots never dodge)", [DIFFICULTY.easy.dodge, DIFFICULTY.easy.cover].join(" "), "0 false");
   eq("hard and elite always dodge", DIFFICULTY.hard.dodge === 1 && DIFFICULTY.elite.dodge === 1, true);
   eq("only elite pre-aims", BOT_TIERS.filter((t) => DIFFICULTY[t].preAim).join(" "), "elite");
   eq("a named tier is itself", tierFor("hard"), "hard");
@@ -1655,97 +1650,6 @@ console.log("Bot tiers (src/config/bots.json, docs/RESEARCH_PHASE_12.md section 
   const counts: Record<string, number> = { easy: 0, normal: 0, hard: 0, elite: 0 };
   for (let i = 0; i < 1000; i++) counts[tierFor("mixed", () => (i + 0.5) / 1000)]++;
   eq("mixed draws by weight (20 / 45 / 25 / 10 in a thousand)", [counts.easy, counts.normal, counts.hard, counts.elite].join(" "), "200 450 250 100");
-  // a frag's lob lands where it was aimed: integrate the throw's own gravity
-  const from = new THREE.Vector3(0, 1.6, 0);
-  const to = new THREE.Vector3(12, 0, -9);
-  const v = lobVelocity(from, to, 1.2);
-  const p = from.clone();
-  const vv = v.clone();
-  for (let t = 0; t < 1.2 - 1e-9; t += 0.001) {
-    vv.y -= throwablesCfg.gravity * 0.001;
-    p.addScaledVector(vv, 0.001);
-  }
-  near("a bot's lob lands on the spot it aimed at, m", p.distanceTo(to), 0, 0.05);
-}
-
-console.log("");
-console.log("Throwables (src/game/throwables.ts, src/config/throwables.json, Season 30)");
-{
-  eq("a frag inside 2.4 m: 100", blastDamage("frag", 2.4), 100);
-  eq("at 8 m: nothing", blastDamage("frag", 8), 0);
-  eq("half way out (5.2 m): 50", blastDamage("frag", 5.2), 50);
-  eq("an arc star inside 1.8 m: 75", blastDamage("arcstar", 1), 75);
-  eq("past 8.75 m: nothing", blastDamage("arcstar", 9), 0);
-  near("its full 75 slows for 5 s", arcSlowFor(75), 5, 1e-9);
-  near("30 of it, 2 s", arcSlowFor(30), 2, 1e-9);
-  // flights on the floor alone (verify has no range built: the floor is all there is)
-  const events: string[] = [];
-  let blastAt = -1;
-  let fireTicks = 0;
-  const T = new Throwables(new THREE.Scene(), {
-    onBlast: (t, at) => {
-      events.push(`blast:${t.kind}`);
-      blastAt = at.y;
-    },
-    onStrike: (t, id) => events.push(`strike:${t.kind}:${id}`),
-    onFireTick: () => fireTicks++,
-    onSound: () => undefined,
-  });
-  const run = (seconds: number, t0: number, targets: Array<{ id: number; feet: THREE.Vector3 }> = []) => {
-    let now = t0;
-    for (let i = 0; i < seconds * 60; i++) {
-      now += 1 / 60;
-      T.update(now, 1 / 60, targets);
-    }
-    return now;
-  };
-  T.throw("frag", new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, 2, -12), -1, true, 0);
-  run(3.9, 0);
-  eq("a frag has not gone off at 3.9 s", events.includes("blast:frag"), false);
-  run(0.2, 3.9);
-  eq("it goes off on its 4 s fuse", events.includes("blast:frag"), true);
-  eq("having come to rest on the floor", blastAt >= 0 && blastAt < 0.2, true);
-  events.length = 0;
-  T.throw("arcstar", new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, 0, -20), -1, true, 10);
-  let now = run(0.6, 10);
-  const stuck = T.live[0]?.stuck !== null;
-  eq("an arc star sticks where it lands", stuck, true);
-  const fuse = (T.live[0]?.fuseAt ?? 0) - now;
-  eq("and goes off 2.8 s after that", fuse > 2.2 && fuse <= 2.8, true);
-  run(2.9, now);
-  eq("it did", events.includes("blast:arcstar"), true);
-  events.length = 0;
-  const bot = { id: 7, feet: new THREE.Vector3(0, 0, -6) };
-  T.throw("arcstar", new THREE.Vector3(0, 1.2, 0), new THREE.Vector3(0, 0, -18), -1, true, 20);
-  now = run(0.5, 20, [bot]);
-  eq("thrown at a figure, it sticks to them", events.includes("strike:arcstar:7") && T.live[0]?.stuck?.target === 7, true);
-  bot.feet.set(3, 0, -6);
-  run(0.2, now, [bot]);
-  eq("and goes where they go", Math.abs((T.live[0]?.pos.x ?? 0) - 3) < 0.4, true);
-  T.clear();
-  T.throw("thermite", new THREE.Vector3(0, 1.5, 0), new THREE.Vector3(0, 1, -10), -1, true, 40);
-  now = run(1.2, 40);
-  eq("thermite lands as a line of fire", T.fires.length, 1);
-  const f = T.fires[0];
-  near("6 m long", f.a.distanceTo(f.b), 6, 1e-6);
-  eq("across the throw (the line runs along x for a throw down -z)", Math.abs(f.a.z - f.b.z) < 1e-6, true);
-  eq("the middle of it burns", Throwables.inFire(f, f.a.clone().lerp(f.b, 0.5)), true);
-  eq("a metre to the side does not", Throwables.inFire(f, f.a.clone().lerp(f.b, 0.5).add(new THREE.Vector3(0, 0, 1))), false);
-  run(8.5, now);
-  eq("8 s of fire, a tick every half second: 16 ticks (17 counting the one it lands with)", fireTicks >= 16 && fireTicks <= 17, true);
-  eq("and then it is out", T.fires.length, 0);
-  const o = new Ordnance();
-  o.endless = false;
-  o.fill("kit");
-  eq("the arena kit: one of each", `${o.counts.frag}/${o.counts.arcstar}/${o.counts.thermite}/${o.counts.speedpaint}/${o.counts.jumppaint}`, "1/1/1/1/1");
-  eq("G readies the first you have", o.cycle(0), "frag");
-  eq("again: the next", o.cycle(0), "arcstar");
-  eq("and round the kit, back to the gun at the end", [o.cycle(0), o.cycle(0), o.cycle(0), o.cycle(0)].join(","), "thermite,speedpaint,jumppaint,");
-  o.cycle(0);
-  eq("a throw spends one", (o.spend(), o.counts.frag), 0);
-  eq("with none left G skips it", o.cycle(0), "arcstar");
-  eq("a stack holds two", o.add("thermite", 5), 1);
-  eq("and a paint stack two as well", o.add("speedpaint", 5), 1);
 }
 
 console.log("");
@@ -1886,7 +1790,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + mobilityFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + throwStepsFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + paintFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + resurgenceFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + searchFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

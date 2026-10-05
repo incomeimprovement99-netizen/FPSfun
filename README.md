@@ -591,11 +591,11 @@ optics and hop-ups.
 | Mode | What it is |
 |---|---|
 | Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses (three in SpeedKills: THE CHAIN, in the middle, has the city's run gap, double gap, wall gap and chimney at the widths its movement is built to), and the README screen stands at the far end, 107 m down range, under the **B00G'S RANGE** sign. In SpeedKills the back wall either side of the gates is the armory: the ten guns left of THE CHAIN and the ten hacks right of it, each turning as a hologram over its own open case, with a screen behind it giving its numbers at your level and the next and how to fuse it; E at a stand takes it, and E again fuses it a level up (to 5 for a gun, 4 for a hack), as a second copy does in a match. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
-| Guided tour | Thirteen steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal, JOLT, a grenade. It watches what you do and moves on; hold E (X on a controller) to skip a step. In SpeedKills it is eight: move; double jump, wall run and climb; shoot; both hacks; fusion; a hit from high ground; five seconds in a capture ring; and a walk to a squad mate's echo while it says how the Gulag and the ghost work. |
+| Guided tour | Twelve steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal, JOLT. It watches what you do and moves on; hold E (X on a controller) to skip a step. In SpeedKills it is eight: move; double jump, wall run and climb; shoot; both hacks; fusion; a hit from high ground; five seconds in a capture ring; and a walk to a squad mate's echo while it says how the Gulag and the ghost work. |
 | The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a gold, silver or bronze medal per room against its par, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
 | The Run (Advanced) | The back-right corner: nine rooms, 200 m, 30 pop-ups, the techniques chained. Every gate needs its move: a 7 m gap only a superglide clears, pads only a lurch reaches, a platform only a zipline superjump gets on, two vents, a bounce slalom, a drop slide, a shooting zip, a flow room. Its own bests, splits, ghost and TV. |
 | 1v1 and 1v1v1 | One player makes a match (2 or 3 players) and gets a 5-letter code; the others type it. 1v1: a three-lane warehouse arena. 1v1v1: a triangle, a corner each, spokes between the corners. First to 3 rounds, blue shields and 100 health. 20 s into a round a circle lights up in the middle; stand in it alone for 10 s to take the round. The last one standing takes it any time. |
-| Arena, Bots | The 1v1 rules against one or two bots, offline. **Easy, Normal, Hard, Elite or Mixed** (each bot its own tier), graded the way CS2's and TF2's bots are: reaction time, how far their aim lags a moving target, an aim error that settles the longer they keep you in view, and where they aim. The tiers also play differently: normal and up dodge when hit, hear your shots and come to look, hunt where they last saw you, throw a frag at you camping or hiding, and break line of sight to heal before peeking back; hard and up crouch in fights; elite comes round a corner already aimed where it lost you. |
+| Arena, Bots | The 1v1 rules against one or two bots, offline. **Easy, Normal, Hard, Elite or Mixed** (each bot its own tier), graded the way CS2's and TF2's bots are: reaction time, how far their aim lags a moving target, an aim error that settles the longer they keep you in view, and where they aim. The tiers also play differently: normal and up dodge when hit, hear your shots and come to look, hunt where they last saw you, and break line of sight to heal before peeking back; hard and up crouch in fights; elite comes round a corner already aimed where it lost you. |
 | Gun Run | Every kill moves you to the next gun and puts it in your hands at once; after the last gun comes the knife (melee, 100 a hit, 300 to the head), and a knife kill wins. A melee death costs a level. 10 minutes, then the highest level wins. Health and shields come back 4 s after the last hit; you are back in 3 s after going down. Ten guns or every gun. Against bots (Play tab), with friends and bots (Friends tab). |
 | Team Deathmatch | You and your friends, filled out with bots to four, against four bots in the 1v1 arena; respawns after 4 s at your end; first team to 30, or ahead at 10 minutes. Team mates cannot hurt each other and their plates are green. |
 | Crown | Rounds like the 1v1: 20 s in, a crown appears in the middle; walk over it to take it; 30 s held without going down takes the round (so does being the last one up). Everyone sees who has it. First to 3. |
@@ -706,11 +706,11 @@ defaults puts `binds.json` back.
 | I | inspect the gun | / | the keys on screen, up or away (up for everyone at first, on the right under the FPS; remembered) |
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
 | 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
-| G | a grenade in hand (again: the next kind); fire throws, aim puts it away | F | your kit's tactical (JOLT, PATCH) |
+| G | SpeedKills' utility hack (there are no grenades) | F | your kit's tactical (JOLT, PATCH) |
 | 5 to 0 | pick RUNNER, MEDIC, SCOUT, HOOK, SMOKE or WARD when the card is up | Z | your kit's ultimate, when its meter is full |
 | B | fire mode (where a gun has two) | | |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
-| Tab (hold) | what you are carrying: both guns with the build in hand, the heals, the grenades, the ammo by kind and the armour | | |
+| Tab (hold) | what you are carrying: both guns with the build in hand, the heals, the ammo by kind and the armour | | |
 | U | magazine level | O | cycle optic |
 | J, N, H | barrel, stock, laser | L | hop-up |
 | Z | variable optic zoom | T | dummy armour tier |
@@ -736,7 +736,7 @@ also brings the menu back). The layout is the game's **Default** preset
 | LB | your ability (JOLT, the game's tactical) | RB | ping; **twice** for an enemy there |
 | L3 | sprint (when auto sprint is off) | R3 | melee |
 | D-pad up | heal: a tap is the quick heal, **hold** for the wheel (the right stick picks) | D-pad down | variable optic zoom (ours: the game has a character action there) |
-| D-pad left | fire mode; **hold** to inspect the gun | D-pad right | a grenade in hand (again: the next kind) |
+| D-pad left | fire mode; **hold** to inspect the gun | D-pad right | the utility hack |
 | Back | the full map | Start | play / menu |
 
 While the ability card is up, D-pad left and right pick JOLT or TRIAGE and do
@@ -847,14 +847,6 @@ Take's three in a row. The data's own scales size them (the Mastiff and the
 Mozambique tighten to half when aimed); the spread stat deviates the whole
 blast once a pull. A pull's pellets read as one damage number on the HUD, so
 a full Mastiff blast says 95, not five 19s.
-
-**Throwables** (G): the frag grenade (100 inside 2.4 m falling to nothing at
-8 m, a 4 s fuse, it bounces and rolls), the arc star (sticks to the first
-thing it touches, a wall or a player, and goes off 2.8 s later: 75 and a slow
-of up to 5 s), thermite (a 6 m line of fire across the throw for 8 s, 8 a
-second inside it and 25 more after). A dotted arc shows where it will land.
-One of each per life in a match; the battle royale's floor has them; the
-range never runs out.
 
 The view model is built in code: each gun with its grip at the hand, gloved
 hands in your operator's colours, and animations for sprint, slide, climb,
@@ -1039,10 +1031,6 @@ damage).
   items under the same keys; taking one is asked of the host (first come,
   first served). Downs, revives, restores and pings are messages on
   the same links.
-- **Throwables** (`src/game/throwables.ts`): a throw is a body under gravity
-  against the world's boxes, one axis at a time; the flight is deterministic,
-  so the others replay it from one message, and the thrower decides the
-  damage the way the shooter decides a bullet's.
 - **The killcam** (`src/game/killcam.ts`) records every figure 30 times a
   second and replays the last seconds from the killer's eye. Its figures come
   in one a frame (yours first, then the nearest the killer), each shown once
@@ -1151,7 +1139,6 @@ src/game/
   modes.ts, modematch.ts   Gun Run, team deathmatch, Crown: the rules and the match
   abilities.ts             the kits: JOLT, TRIAGE, PATCH, the ultimate's meter
   killcam.ts, recap.ts     the killcam's recording and replay; the death recap
-  throwables.ts            the frag, the arc star, thermite; what you carry
   kit.ts                   the heals and the armour (shield cores, helmets)
   ammo.ts                  counted ammo and energy stockpiles
   rangetools.ts, trainer.ts  dummy behaviours, shoot-back, the spray wall, the flick drill; the superglide trainer
@@ -1219,14 +1206,13 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/game/loadouts.ts` | the five default loadouts |
 | `src/game/courses/*.ts` | the course rooms (and a room's par, if it should not be its share of the S time); the sim proves the gates |
 | `src/config/abilities.json` | JOLT's distance, time, charges and recharge, gap, exit speed and feel; TRIAGE's speed; what the bots do with them |
-| `src/config/bots.json` | the bot tiers (reaction, aim lag and error, aim point, dodging, hearing, frags, cover, crouching), mixed's weights |
+| `src/config/bots.json` | the bot tiers (reaction, aim lag and error, aim point, dodging, hearing, cover, crouching), mixed's weights |
 | `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
 | `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, the shotguns' blast patterns, hop-ups (and the locked ones of Seasons 29 and 30), fire modes |
 | `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, pads, pings, EVO's sources, knockdown shields, the restore at an echo |
 | `src/config/br.json` | the battle royale's match rules: solo, duos and trios (the bot counts each offers, the bleed-out it scales), the care package's arrival, the loadout crate, Storm Surge, the vault (its guard's name, tier, gun and range) |
 | `src/config/modes.json` | Gun Run's lists and rules, team deathmatch's score and size, free-for-all's kill limit and clock, Crown's times, Control's zones and numbers, the arena's spawns |
 | `src/config/net.json` | the delta state packets: on or off, their version, the rounding of position, look and health, the keyframe interval, how often an ack goes |
-| `src/config/throwables.json` | the frag, the arc star, thermite |
 | `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes, the sound's distances, and how much a wall takes off a sound it is between you and; the range's tools |
 | `src/config/readme-tv.json` | the README screen at the far end of the range: where it stands, its size, its arrow plates and the layout of its pages |
 | `src/config/hud.json` | the plates over the others (how long after a hit an enemy's shows, how far away it is drawn), and the looting reach: the walk-over radius, what comes up with no press, the hold cadence and the reach list |
@@ -1498,21 +1484,9 @@ so Competitive really does less work rather than only seeing less far: a third
 fewer triangles than Balanced from the map's corner, with the boxed rock the map
 already drew standing in beyond 126 m.
 
-**PAINT: the chain.** Two bombs in the grenade slots (G cycles to them, or
-pick them up in a battle royale) that splash a patch of paint over whatever
-they land on. **Orange** makes you faster and gets you there faster while your
-feet are on it; **blue** sends a jump that leaves from it half again as high.
-The point is not the patch, it is what you carry off it: the speed boost
-decays over 1.2 s after you leave, so a run over the orange into a slide into a
-jump into a lurch is one movement instead of four, and the speed readout turns
-the colour of what you are carrying. Anybody can use anybody's paint, it lasts
-25 s, and it changes nothing about the movement when none is down: every Apex
-number in `docs/MOVEMENT_AUDIT.md` is measured with a bare floor. Empulse's
-P.A.I.N.T. bombs are where the idea comes from.
-
 **The camera moves with the body.** A slide leans the view into the way it is
 carrying you, a running landing rolls it, a lurch kicks it round a touch and
-settles, and a paint boost pulls it forward and opens it a little. None of it
+settles. None of it
 moves your aim: every piece is the camera's own roll, pitch offset and field of
 view, and the shot leaves along your own angles, so a round fired mid-slide
 goes exactly where the crosshair was. Settings' **Sprint view shake** is the
@@ -1582,7 +1556,7 @@ Sound Library, CC0: a Walther PPQ and a 1911, an AR-15 and an AK-47, a Mosin
 Nagant, a Benelli Nova and more, recorded near and at mid distance, so a shot
 far off is a far recording rather than a near one turned down (`npm run
 guns`). Footsteps are recorded on concrete, grass, gravel and metal, and
-Kenney's CC0 recordings cover landings, falls, punches, reloads, a frag's
+Kenney's CC0 recordings cover landings, falls, punches, reloads, a blast's
 crunch, the menu's clicks and the hacks (a thruster's burst for DASH, LEAP and
 SLAM, a force field for HEAL, ARMOR and WALL, a clank for WALL and MINE, a scan
 for REVEAL; `npm run sounds`, which also fetches the drop theme). Where the bought animation pack's own recordings are on the server

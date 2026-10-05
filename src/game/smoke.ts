@@ -6,8 +6,7 @@
 // see through it because it is opaque. Bullets go through it, as they do in
 // the game this follows: smoke hides, it does not stop.
 //
-// The clouds are a list here rather than part of throwables.ts, because they
-// are not a carried grenade: they are a kit's, thrown by it, and every page
+// The clouds are a kit's, thrown by it, and every page
 // blooms its own from the two points the effect carries, so they stand in the
 // same places on every screen without anything more on the wire.
 import * as THREE from "three";

@@ -28,7 +28,6 @@ import type { Solid } from "./range";
 import { floorAt } from "./floors";
 import { ZIPLINES, type Zipline } from "./traversal";
 import squadCfg from "../config/squad.json";
-import PAINT from "../config/paint.json";
 
 const DEG = Math.PI / 180;
 /** the skydive: terminal speed and steering, m/s (ours; the game's dive is its own system) */
@@ -163,18 +162,6 @@ export class Player {
   healSlow = 1;
   /** a SpeedKills hack's hold on your speed (ARMOR: slower while it lasts); 1 is none */
   hackSlow = 1;
-  /** an arc star's slow: this much of the speed until then (throwables.ts) */
-  arcSlowUntil = 0;
-  arcSlowScale = 1;
-  /**
-   * PAINT (src/config/paint.json, docs/PLAN_MOVEMENT_CHAIN.md): the last time
-   * each colour was under your feet. What matters is not standing on it, it is
-   * what you carry off it: the speed boost decays over `carry` seconds after
-   * you leave, so a run over the orange into a slide into a jump is one
-   * movement, and a jump within `grace` of the blue still goes high.
-   */
-  paintSpeedAt = -Infinity;
-  paintJumpAt = -Infinity;
   /**
    * What the camera leans on (src/config/player.json `feel`, applied in
    * main.ts). None of it touches the aim: these are things that happened, and
@@ -1075,31 +1062,7 @@ export class Player {
     // land on consecutive frames.
     const stacking = coyote && this.vel.y > 0;
     if (stacking && now - this.zipExitAt < MOVE.jumpGracePeriod) this.tech("SUPERJUMP", `+${Math.round(height / HU)} hu on the zip jump`);
-    // the blue: a jump that leaves from it goes higher. It multiplies the
-    // height rather than adding to it, so jump fatigue and the hop penalty
-    // still say exactly what they said (docs/MOVEMENT_AUDIT.md).
-    this.launch(now, height * this.paintJump(now), stacking);
-  }
-
-  /** the paint under your feet this frame, from the page (throwables.ts paintUnder) */
-  onPaint(kind: "speed" | "jump" | null, now: number): void {
-    if (kind === "speed") this.paintSpeedAt = now;
-    else if (kind === "jump") this.paintJumpAt = now;
-  }
-
-  /**
-   * What the orange is worth right now: its full multiplier while you are on
-   * it, easing to nothing over `carry` seconds after you leave. This is the
-   * chain: the boost outlives the ground it came from.
-   */
-  paintSpeed(now: number): number {
-    const k = 1 - Math.min(1, (now - this.paintSpeedAt) / PAINT.speed.carry);
-    return k <= 0 ? 1 : 1 + (PAINT.speed.mul - 1) * k;
-  }
-
-  /** what the blue is worth to a jump leaving the ground now (it is all or nothing, inside its grace) */
-  paintJump(now: number): number {
-    return now - this.paintJumpAt <= PAINT.jump.grace ? PAINT.jump.mul : 1;
+    this.launch(now, height, stacking);
   }
 
   /** set the jump velocity and open the lurch window */
@@ -1771,10 +1734,6 @@ export class Player {
     let target = (this.crouched ? MOVE.crouchSpeed : this.sprinting ? MOVE.sprintSpeed : MOVE.speed) * hb;
     target *= 1 + (adsMoveScale - 1) * adsFrac;
     target *= this.healSlow * this.hackSlow;
-    if (now < this.arcSlowUntil) target *= this.arcSlowScale;
-    // the orange: faster, and faster to get there (src/config/paint.json)
-    const paint = this.paintSpeed(now);
-    target *= paint;
     // Fall stun slows acceleration while it lasts. How much is not published.
     const stun = now < this.stunUntil ? 1 - this.stunStrength * (1 - MOVE.fallstunAccelScale) : 1;
 
@@ -1830,7 +1789,7 @@ export class Player {
         const band = MOVE.sprintBandStart * hb;
         const accel = v < low ? MOVE.lowAcceleration : v < band ? MOVE.acceleration : MOVE.sprintAcceleration;
         const top = v < low ? low : v < band ? band : Infinity;
-        const rate = accel * stun * armed * (paint > 1 ? PAINT.speed.accel : 1);
+        const rate = accel * stun * armed;
         const edge = Math.min(target, top);
         const tn = (edge - v) / rate;
         if (tn >= rem) {

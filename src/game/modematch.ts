@@ -25,7 +25,6 @@
 import type { Seen } from "./reveal";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
-import { Throwables, blastDamage, throwCode } from "./throwables";
 import { Bot, botName, WIRE_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, rocketBurst, tierFor, type BotSense, type BotTier, type BurstHurts } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
@@ -320,8 +319,6 @@ export class ArenaMode extends Duel {
     const id = Duel.BOT_ID + i;
     {
       const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, id, gun, botName(i));
-      // Gun Run is guns and the knife: no frags
-      bot.grenadesAllowed = this.modeKind !== "gunrun";
       bot.setAbilities(this.abilities);
       bot.onJolt = (a, b) => {
         this.onRemoteFx?.("jolt", bot.remote.id, a, b);
@@ -1332,12 +1329,6 @@ export class ArenaMode extends Duel {
       const wasAlive = bot.alive;
       const sense = bot.alive ? this.sense(b, fighters) : { target: null, targetId: -1, goal: null, canShoot: false };
       const shots = bot.update(now, dt, sense);
-      // a frag: drawn here and on the others' screens; the blast comes back through botBlast
-      const th = bot.takeThrow();
-      if (th) {
-        this.onRemoteFx?.("throw", bot.remote.id, th.from, th.vel, throwCode(th.kind));
-        this.broadcast({ t: "fx", from: bot.remote.id, k: "throw", a: [th.from.x, th.from.y, th.from.z], b: [th.vel.x, th.vel.y, th.vel.z], n: throwCode(th.kind) });
-      }
       // SMOKE's cloud or WARD's wall: drawn here and on the others' screens
       const put = bot.takePutUp();
       if (put) {
@@ -1396,15 +1387,6 @@ export class ArenaMode extends Duel {
         if (o.bot.dummy.knocked) this.botDown(o, owner, false);
       }
     }
-  }
-
-  /** a bot's frag went off (the host's page drew it and hands the blast back) */
-  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
-    this.botBurst(owner, (feet) => {
-      const chest = feet.clone().setY(feet.y + 1.1);
-      const dmg = blastDamage(kind, chest.distanceTo(at));
-      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
-    }, kind);
   }
 
   /** a bot's shots at its target: this player, a guest (as a hit message), or another bot */

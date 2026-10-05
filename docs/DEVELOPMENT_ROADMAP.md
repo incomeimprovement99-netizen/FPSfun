@@ -10807,6 +10807,35 @@ scrubbed one (vite.config.ts scrubReadme), and its name check passes.
   an arrow loads the text at its start, then every earlier screen check); photographs of the cover and the
   opened manual in SpeedKills, the manual fetched only after the shot.
 
+## Milestone 481 — No grenades
+
+The owner, 2026-10-04: "remove the grenades". SpeedKills never had any (G is its utility hack, Phase 20 A10), but it
+ran their code: the throw module was built at startup, stepped every frame (flights, fires, paint underfoot, the two
+carried charges, an arc preview), refilled every life, and its HUD state built every frame; every bot kept a frag
+count and was asked each frame for a throw. All of it is gone, from both games: `throwables.ts` (the frag, the arc
+star, thermite, the shockwave and rift charges, and the PAINT bombs, 1,017 lines) with `throwables.json` and
+`paint.json`; the grenade inventory and its G cycle, throw, arc preview, HUD count, readied line and inventory column;
+the blasts' shake, ringing, scorch and smoke (impacts.ts, hud.json `blasts`); the arc star's slow and the paint's
+speed and jump on the player; a bot's frags, lobs and blast damage in every match (bots.ts, brmatch.ts, modematch.ts),
+with `frags` off the host-migration snapshot; the grenade loot kind, the ordnance crate spot and grenades in a bot's
+drop (loot.ts, loot.json); the legacy tour's GRENADE step. bots.json's `grenade` block is gone; how long a bot
+remembers where it last saw you, which lived in it, is `seenMemory` (6 s, as it was).
+
+Kept, because SpeedKills uses them: the "grenade" input action (its utility hack's key, by that name so saved keys
+hold), the blast and bounce sounds (the MINE hack's), the figure's "throw" act and its wire code (the character agent
+retires the pose), and the sprays' frag icon. The legacy floor's total rose with the ordnance crate's eighth of the
+spots rolling richer kinds (1012 items, every kind still inside its target); its total target is 880 to 1060 now.
+
+- **What it saves:** the first script 36 KB smaller raw (3,692.9 to 3,656.6 KB) and 12.5 KB gzipped (1,017.8 to
+  1,005.2 KB), and the throw module's work every frame and every life.
+- **Checked:** tsc; verify (the lob and throwables blocks, the mobility, paint and throw-steps checks and the blast
+  shake check gone with what they tested; the metro's grenade check is a drop 6 m down the tunnel landing on its
+  floor, agreed with the city agent); rules; the bots, pad, finish, br, loot, range, migrate and speedkills e2e
+  (the throw section gone, the tiers without a frag, the legacy tour ending at its ability step). Three checks missed
+  once each on a loaded machine and passed alone (the arena bot out of the lane's box, the screen's up arrow taking
+  two rounds, the ghost's restore in the loadout start); SpeedKills' own-death drop is now waited for rather than
+  looked for after a fixed half second, which a late frame missed once.
+
 ## Milestone 482 — STRYDER's pistol on the soldier, ahead of its roster change
 
 STRYDER moves from a rifle to the fast pistol (`PLAN_THE_EIGHT_GUNS.md` section 6), the RE-45's data (`autopistol`) on

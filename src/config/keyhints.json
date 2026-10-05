@@ -15,7 +15,6 @@
     { "label": "Mobility hack", "actions": ["ability"], "games": ["speedkills"] },
     { "label": "Utility hack", "actions": ["grenade"], "games": ["speedkills"] },
     { "label": "Ability", "actions": ["ability"], "games": ["legacy"] },
-    { "label": "Grenade", "actions": ["grenade"], "games": ["legacy"] },
     { "label": "Heal", "actions": ["heal"], "games": ["legacy"] },
     { "label": "Pick up, use", "actions": ["interact"] },
     { "label": "Melee", "actions": ["melee"] },

@@ -6,8 +6,8 @@
 //   X reload (and interact: a zipline in reach, an item, held for a revive or
 //   a restore), Y swap weapon (hold: holster), L3 sprint, R3 melee, LB the
 //   ability (the game's tactical), RB ping (twice: an enemy there), D-pad up
-//   heal (tap: the quick heal; hold: the wheel), D-pad right a grenade (again:
-//   the next kind), D-pad left fire mode (hold: inspect), D-pad down the
+//   heal (tap: the quick heal; hold: the wheel), D-pad right the utility hack,
+//   D-pad left fire mode (hold: inspect), D-pad down the
 //   variable zoom (ours: the game puts a character action there), Back the
 //   map, Start the menu. While the ability card is up, D-pad left and right
 //   pick one instead. The game's other presets are here too, and "Range",

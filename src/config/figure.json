@@ -24,8 +24,6 @@
     "support": 10,
     "lower": 8
   },
-  "_throwShown": "How long, s, a figure shows a grenade throw after it leaves the hand (src/main.ts localAct): the overhand throw clip is 1.1 s and plays at 1.3x, so this is its arm coming over and through, and a throw reads on other players' screens as a throw rather than a gun lowered for a moment.",
-  "throwShown": 0.7,
   "_athleticJump": "Horizontal speed, m/s, above which a figure in the air plays the athletic jump (the free library's NinjaJump_Idle_Loop, legs tucked) instead of the plain one. Sprint is 6.6 m/s (260 hu/s), so this is faster than a sprint: a slide jump, a pad, a hop chain, not a jump from a standing start or a walk.",
   "athleticJump": 7.2,
   "_doubleJump": "A double jump seen on a figure: its knees come up and go back down as it jumps again, over `time` seconds, the thighs raised `raise` degrees and the knees bent `bend` more at the top, eased (up then down), the body upright. The owner, 2026-09-30, first \"there should be an animation for when we double jump for sure\", then, of the front flip it first was: \"I don't like the flip for double jump. People will double jump all the time and that's hard to hit I assume. Can we just have the legs raise a bit at the same time as the double jump, so there's something there?\" SpeedKills' double jump rises for 0.39 s (movement.speedkills.json: sqrt(2 x 52 / 690)), so the knees are down again before its top. A figure first seen with a count of them does not lift for it. Ours.",

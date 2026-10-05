@@ -16,7 +16,7 @@
 // one place a match is the HOT ZONE, which rolls the richest tier and holds a
 // gun that is already kitted. That is the whole reason to pick one place over
 // another. And a spot is a KIND, not a handful of separate dice: a gun rack, a
-// med shelf, a bench, an ordnance crate, an ammo crate, so a room reads as a
+// med shelf, a bench, an ammo crate, so a room reads as a
 // room instead of coming out four shield cells and nothing else.
 import { IS_SK, PROFILE } from "./game";
 import { HACK_IDS, hackDef, hackSlotOf } from "./hacks";
@@ -28,7 +28,7 @@ import { displayGunModel } from "./gunmodels";
 import { paidGunMaterial, paidPropBatch } from "./paidgun";
 import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
-import { hopupName, opticName, throwName } from "../config/names";
+import { hopupName, opticName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
 import { solidsIn } from "./solidgrid";
 // the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
@@ -42,7 +42,7 @@ export type Rarity = "common" | "rare" | "epic" | "legendary";
 /** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
 const CORE_DETAIL2 = cfg.coreDetail ** 2;
 
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "echo" | "grenade" | "backpack" | "knockdown" | "keycard" | "hack";
+export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "echo" | "backpack" | "knockdown" | "keycard" | "hack";
 
 export interface LootItem {
   kind: LootKind;
@@ -154,8 +154,6 @@ export function lootLabel(it: LootItem): string {
       return `${(BACKPACKS[it.id as BackTier]?.name ?? it.id).toUpperCase()}`;
     case "knockdown":
       return `${(KNOCK_SHIELDS[it.id as KnockTier]?.name ?? it.id).toUpperCase()}`;
-    case "grenade":
-      return `${throwName(it.id)}${it.n > 1 ? ` x${it.n}` : ""}`;
     case "echo":
       return `${it.ownerName ?? "A SQUAD MATE"}'S ECHO`;
   }
@@ -201,7 +199,6 @@ const makeAttach = (rnd: () => number, rarity: Rarity): LootItem => ({ kind: "at
 const makeMag = (rarity: Rarity): LootItem => ({ kind: "attach", id: `mag:${(cfg.magLevel as Record<Rarity, number>)[rarity]}`, n: 1, rarity });
 const makeHopup = (rnd: () => number): LootItem => ({ kind: "hopup", id: pick(rnd, cfg.hopups), n: 1, rarity: "epic" });
 const makeHelmet = (rnd: () => number): LootItem => ({ kind: "helmet", id: rnd() < cfg.helmetGold ? "gold" : "red", n: 1, rarity: "legendary" });
-const makeGrenade = (rnd: () => number): LootItem => ({ kind: "grenade", id: pick(rnd, cfg.grenades), n: 1, rarity: "rare" });
 /** a stack of one type: the gun's own where a rack names one, otherwise whatever lies about */
 const makeAmmo = (rnd: () => number, type: AmmoType | null): LootItem => {
   const t = type ?? (pick(rnd, cfg.ammoTypes) as AmmoType);
@@ -238,8 +235,6 @@ export function rollItem(rnd: () => number, tier: PlaceTier | null = null): Loot
       return makeHopup(rnd);
     case "helmet":
       return makeHelmet(rnd);
-    case "grenade":
-      return makeGrenade(rnd);
     default:
       return makeAmmo(rnd, null);
   }
@@ -253,7 +248,6 @@ interface SpotKind {
   mag: number[];
   attach: number[];
   heal: number[];
-  throwables: number[];
   hopupChance: number;
   helmetChance: number;
   /** a backpack and a knockdown shield on top, now and then (loot.json _packs) */
@@ -278,12 +272,11 @@ export interface DeadBotKit {
   mods: Record<string, { id: string; rank: number }>;
   cells: number;
   syringes: number;
-  frags: number;
 }
 
 /**
  * What a bot drops where it dies, from what it looted: its gun at the grade it found (with its magazine), every
- * fitting and hop-up it took, its frags, two stacks of its gun's ammo, and its heals (never fewer than loot.json's
+ * fitting and hop-up it took, two stacks of its gun's ammo, and its heals (never fewer than loot.json's
  * deathDrop). `fallbackGun` is the gun a bot held without looting one (a match that starts with loadouts); null when it
  * had none. They lie loose on the floor: there are no death boxes (the owner, 2026-10-04).
  *
@@ -307,7 +300,6 @@ export function deathDropOf(kit: DeadBotKit | null, fallbackGun: string | null):
     const magRarity = (Object.entries(cfg.magLevel) as Array<[Rarity, number]>).find(([, lv]) => lv === kit.mag)?.[0];
     if (kit.mag > 0 && magRarity) items.push({ kind: "attach", id: `mag:${kit.mag}`, n: 1, rarity: magRarity });
     for (const [slot, m] of Object.entries(kit.mods)) items.push({ kind: slot === "hopup" ? "hopup" : "attach", id: m.id, n: 1, rarity: grade(m.rank) });
-    if (kit.frags > 0) items.push({ kind: "grenade", id: "frag", n: kit.frags, rarity: "rare" });
   }
   items.push({ kind: "heal", id: "cell", n: Math.max(cfg.deathDrop.cells, kit?.cells ?? 0), rarity: "common" });
   items.push({ kind: "heal", id: "syringe", n: Math.max(cfg.deathDrop.syringes, kit?.syringes ?? 0), rarity: "common" });
@@ -463,7 +455,6 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
   const mags = count(spot.mag);
   let attach = count(spot.attach);
   const heals = count(spot.heal);
-  const throwables = count(spot.throwables);
   const out: LootItem[] = [];
   // A rack used to remember only the LAST gun's ammo type, so a rack holding
   // two guns left one of them with a stack it could not use. Each gun's type
@@ -488,7 +479,6 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
   for (let i = 0; i < mags; i++) out.push(makeMag(rollRarity(rnd, tier)));
   for (let i = 0; i < attach; i++) out.push(makeAttach(rnd, rollRarity(rnd, tier)));
   for (let i = 0; i < heals; i++) out.push(makeHeal(rnd, rollRarity(rnd, tier)));
-  for (let i = 0; i < throwables; i++) out.push(makeGrenade(rnd));
   if (rnd() < spot.hopupChance) out.push(makeHopup(rnd));
   if (rnd() < spot.helmetChance) out.push(makeHelmet(rnd));
   // the two drawn after everything else, so adding them moved none of the

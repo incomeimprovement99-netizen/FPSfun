@@ -149,7 +149,7 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
       aimed: (t) => t > 1.5,
     },
     {
-      // a grenade thrown (the figure shows a throw for figure.json throwShown, 0.7 s), then back to the hold
+      // a grenade thrown (the throw pose for 0.7 s; nothing in the game throws now), then back to the hold
       name: "throw",
       settle: stand,
       at: (t) => ({ ...stand, act: t < 0.7 ? "throw" : null }),
