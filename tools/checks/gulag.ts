@@ -17,10 +17,9 @@ function check(label: string, cond: boolean, detail = ""): void {
 
 console.log("Who goes to the Gulag");
 {
-  check("a first death, early, in the battle royale", gulagFor("br", 0, false) && gulagFor("br", GULAG.untilPhase - 1, false));
-  check("not a second: one trip a match", !gulagFor("br", 0, true));
-  check(`not from ring ${GULAG.untilPhase + 1} on: the late game is final`, !gulagFor("br", GULAG.untilPhase, false));
-  check("not in Resurgence, which has its own way back", !gulagFor("resurgence", 0, false));
+  check("a first death, early, in the battle royale", gulagFor(0, false) && gulagFor(GULAG.untilPhase - 1, false));
+  check("not a second: one trip a match", !gulagFor(0, true));
+  check(`not from ring ${GULAG.untilPhase + 1} on: the late game is final`, !gulagFor(GULAG.untilPhase, false));
 }
 
 console.log("\nThe guns");

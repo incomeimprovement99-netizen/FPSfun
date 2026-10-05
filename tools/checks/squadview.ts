@@ -76,7 +76,6 @@ console.log("\nA teammate's state");
     ["a ghost (lf 2)", { ...up, alive: false, lf: LIFE_WIRE.ghost }, "ghost"],
     ["out (lf 3)", { ...up, alive: false, lf: LIFE_WIRE.out }, "out"],
     ["dead, saying nothing (a build from before)", { ...up, alive: false }, "out"],
-    ["waiting to redeploy (lf 4)", { ...up, alive: false, lf: LIFE_WIRE.redeploy }, "redeploy"],
     ["knocked down (the legacy game)", { ...up, downed: true }, "down"],
     [`silent past ${squadCfg.mates.quiet} s`, { ...up, quietFor: squadCfg.mates.quiet + 0.1 }, "quiet"],
     ["silent, but only for a keyframe's gap across the relay (5 s)", { ...up, quietFor: 5 }, "up"],
@@ -96,7 +95,7 @@ console.log("\nThe news");
 {
   const say = (was: MateLife, now: MateLife) => mateNews("Ana", was, now);
   const cues = new Set(Object.keys(announcerCfg.lines));
-  const all: MateLife[] = ["up", "down", "gulag", "ghost", "out", "redeploy", "quiet", "left"];
+  const all: MateLife[] = ["up", "down", "gulag", "ghost", "out", "quiet", "left"];
   let unsaid = 0;
   for (const a of all) for (const b of all) {
     const n = mateNews("Ana", a, b);

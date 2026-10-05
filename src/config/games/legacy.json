@@ -167,7 +167,7 @@
       }
     ]
   },
-  "_life": "Knockdowns with a bleed-out and a squad revive, the Gulag for a first death before the fourth ring, Deathbox Respawn and beacons, Resurgence as its own rules (squad.json, br.json). No ghosts.",
+  "_life": "Knockdowns with a bleed-out and a squad revive, the Gulag for a first death before the fourth ring, a squad mate restored at your echo (squad.json). No ghosts.",
   "life": {
     "knockdowns": true,
     "gulag": true,

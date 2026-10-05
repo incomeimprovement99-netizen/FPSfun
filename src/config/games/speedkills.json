@@ -367,11 +367,10 @@
       "hazyDay"
     ]
   },
-  "_brDefaults": "The battle royale row as everyone starts it (the owner, 2026-09-29): duos, battle royale rules, friends as one squad (the row's first choice, never stored), 28 bots, the ring at its normal pace, landing with your loadout, and Casual bots. The owner asked for 27 bots; duos come in whole pairs, so the row offers 20, 28 and 34, and 28 is the nearest (29 in the match, 30 with a friend). A browser that has not seen `tag` has these written over what it had, once (main.ts applyBrDefaults), so a choice made after that is kept.",
+  "_brDefaults": "The battle royale row as everyone starts it (the owner, 2026-09-29): duos, friends as one squad (the row's first choice, never stored), 28 bots, the ring at its normal pace, landing with your loadout, and Casual bots. The owner asked for 27 bots; duos come in whole pairs, so the row offers 20, 28 and 34, and 28 is the nearest (29 in the match, 30 with a friend). A browser that has not seen `tag` has these written over what it had, once (main.ts applyBrDefaults), so a choice made after that is kept.",
   "brDefaults": {
     "tag": "2026-09-29",
     "team": "duo",
-    "rules": "br",
     "bots": 28,
     "pace": "normal",
     "start": "loadout",

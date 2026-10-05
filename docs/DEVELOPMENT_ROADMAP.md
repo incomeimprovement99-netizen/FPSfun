@@ -10898,6 +10898,24 @@ map's middle, where the 1v1 circle is drawn. Resurgence, the battle royale's oth
   speedkills e2e (Gun Run, Crown and Search's own checks gone; the friends' mode test a free-for-all, the group's Play
   again a team deathmatch, the mannequin and map checks on a free-for-all).
 
+## Milestone 486 — Resurgence out: the legacy battle royale's other rules
+
+The owner, 2026-10-04: "remove all legacy stuff except the tv". Resurgence, the legacy battle royale's second set of
+rules (the dead redeploy from the sky after a wait the side's kills cut, on a quarter of the map with a faster ring),
+was the legacy game's alone: SpeedKills hid its Rules box and has its own second chance, the ghost restored at its
+echo. It is gone with its code: resurgence.ts, the Rules box and its stored choice, the match's `rules` (the welcome
+and the lobby defaults no longer carry one), the redeploys of players and bots, the kit a redeploy handed over, the
+side's kill cutting the wait, its HUD lines and countdown, the squad panel's REDEPLOYING row (life code 4 is unused),
+the host-migration snapshot's wait per bot, br.json's `resurgence` block, its intro card, its tip, its check and its
+e2e section. One piece served the Gulag too: a won Gulag drops you back 8 m or more from a squad mate who is up,
+the spot Resurgence's redeploys used, so it stays as the Gulag's own (`dropBackSpot`), its 30 m spread moved to
+br.json `gulag.landSpread`, and `gulagFor` no longer asks which rules are on.
+
+- **What it saves:** the first script 7 KB smaller raw (3,632.4 to 3,625.3 KB), 2.2 KB gzipped (997.6 to 995.3 KB).
+- **Checked:** tsc; verify (the Resurgence checks gone; the Gulag's who-goes check without the rules; the lobby's
+  controls without the Rules box; the intro's cards without Resurgence's); rules; the br, squad, gulag, migrate,
+  sksquad, sklobby, intro and panel e2e.
+
 ## Milestone 480 — Cover down the streets, and street pieces that look like what they collide as
 
 The centre's fourth review (docs/CENTRE_REVIEW.md): "cover every 8 to 12 m in the streets and plaza"; its shots showed

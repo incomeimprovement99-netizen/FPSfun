@@ -18,7 +18,6 @@
 import { readFileSync } from "node:fs";
 import { LOBBY_MODES, SETUP_GROUPS, setupFor, friendsModeFor, lobbyMode } from "../../src/ui/lobby";
 import { RING_PHASES, RING_PACE, ringPace } from "../../src/game/ring";
-import { resurgencePhases } from "../../src/game/resurgence";
 import squad from "../../src/config/squad.json";
 
 let fails = 0;
@@ -45,7 +44,7 @@ console.log("The lobby");
 {
   // the whole point: one place to set a match up. Every control that used to
   // be on the Friends tab is in the panel, once.
-  const moved = ["arenaMap", "botCount", "botDifficulty", "botAbilities", "modeBots", "modeSides", "botWeapon", "ruleGuns", "ruleRounds", "ruleFF", "brTeam", "brRules", "brSides", "brBots", "brPace", "brAbilities", "brStart", "dummyMode", "dummySpeed", "dummyShoot"];
+  const moved = ["arenaMap", "botCount", "botDifficulty", "botAbilities", "modeBots", "modeSides", "botWeapon", "ruleGuns", "ruleRounds", "ruleFF", "brTeam", "brSides", "brBots", "brPace", "brAbilities", "brStart", "dummyMode", "dummySpeed", "dummyShoot"];
   check("every option that used to be on another tab is in the panel", moved.every(inPanel), `${moved.length} controls`);
   check("and none of them is on the page twice, which would be two answers to one question", moved.every((id) => has(id) === 1), moved.filter((id) => has(id) !== 1).join(", ") || "all once");
   check("the panel starts the match itself, alone or with friends", inPanel("startMode") && inPanel("playFriends"));
@@ -79,15 +78,13 @@ console.log("\nThe ring's pace");
   check("the normal pace changes nothing at all", JSON.stringify(same) === JSON.stringify(RING_PHASES));
   check("and no pace moves a circle or a damage number: the map was built around those", [slow, fast].every((ps) => ps.every((p, i) => p.radius === RING_PHASES[i].radius && p.damage === RING_PHASES[i].damage)));
   check("every round still closes, so no pace can leave a ring waiting for ever", [slow, fast].every((ps) => ps.every((p) => p.wait > 0 && p.close > 0)));
-  const res = resurgencePhases(fast, 1);
-  check("Resurgence's own clock multiplies on top of the pace, rather than replacing it", total(res) < total(fast), `${total(res)} s against ${total(fast)} s`);
   const unknown = ringPace(RING_PHASES, "whatever an older host sent");
   check("a pace this build does not know is the normal one, so an old host cannot stop the ring", JSON.stringify(unknown) === JSON.stringify(RING_PHASES));
 }
 console.log("\nThe drop");
 {
   check("boarding the ship no longer throws the map over the first thing you see of a match", squad.dive.mapOnBoard === false);
-  check("a redeploy straight into the sky still gets its glance at the map", squad.dive.mapSeconds > 0, `${squad.dive.mapSeconds} s`);
+  check("a drop straight into the sky still gets its glance at the map", squad.dive.mapSeconds > 0, `${squad.dive.mapSeconds} s`);
 }
 
 console.log(fails === 0 ? "\nLOBBY PASS" : `\nLOBBY FAIL (${fails})`);

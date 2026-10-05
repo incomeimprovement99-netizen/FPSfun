@@ -77,15 +77,11 @@
     "keepOut": 0.42,
     "flashAlpha": 0.375
   },
-  "_modes": "The card that plays as a match starts is the same animation with the mode's own words: `name` is the big line, the mode's name, and `sub` the line under it. The game's own name goes small above them, so every card is still ours. The key is the kind of match (src/game/stats.ts MatchKind; every bot difficulty is `bots`), and a battle royale on Resurgence rules is `resurgence`. A kind not listed plays the boot card's words.",
+  "_modes": "The card that plays as a match starts is the same animation with the mode's own words: `name` is the big line, the mode's name, and `sub` the line under it. The game's own name goes small above them, so every card is still ours. The key is the kind of match (src/game/stats.ts MatchKind; every bot difficulty is `bots`). A kind not listed plays the boot card's words.",
   "modes": {
     "br": {
       "name": "BATTLE ROYALE",
       "sub": "LAST SQUAD STANDING"
-    },
-    "resurgence": {
-      "name": "RESURGENCE",
-      "sub": "FALL AND COME BACK"
     },
     "duel": {
       "name": "1V1",

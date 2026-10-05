@@ -486,7 +486,7 @@ export class Duel implements MatchLike {
   downedBlock: ((amount: number, from: number) => number) | null = null;
   /** the knockdown shield is raised: the others see it (the state packet's dn is 2) */
   kdUp = false;
-  /** the last respawn was a squad mate's hold at your echo, not a Resurgence drop */
+  /** the last respawn was a squad mate's hold at your echo, not a drop */
   respawnOnEcho = false;
   /** each squad member's deaths since their lockout reset, the last one's time, and when they were last back in (the echo restore's lockout) */
   private boxDeaths = new Map<number, { n: number; at: number; backAt: number }>();
@@ -1796,7 +1796,7 @@ export class Duel implements MatchLike {
 
   /** where a respawn drops you in; the battle royale's own spawn otherwise */
   protected respawnPoint: THREE.Vector3 | null = null;
-  /** a redeploy brought you back: up, full health, dropping in; or a hold at your echo: up on it at 20 health */
+  /** a won Gulag brought you back: up, full health, dropping in; or a hold at your echo: up on it at 20 health */
   protected respawnHere(at: THREE.Vector3, echo = false): void {
     if (this.alive) return;
     this.respawnPoint = at.clone();

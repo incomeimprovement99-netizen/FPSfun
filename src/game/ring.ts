@@ -106,7 +106,7 @@ export class Ring {
     private readonly rng: () => number = Math.random,
     /** what the late circles lean toward; pass [] for a ring that ignores the map */
     private readonly attractors: readonly Attractor[] = RING_ATTRACTORS,
-    /** the rounds: their waits, closes, radii and damage (Resurgence runs a faster clock over the same circles) */
+    /** the rounds: their waits, closes, radii and damage */
     private readonly phases: readonly RingPhase[] = RING_PHASES,
     /**
      * Every round closes to this one circle (SpeedKills: its final sector,

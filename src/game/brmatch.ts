@@ -45,11 +45,6 @@
 //                    (gulag.ts): win and you drop back in, lose and you are
 //                    out. The host only hears you are in it, so your squad
 //                    is not out and its bots leave you be.
-//   Resurgence       a choice beside the squad size (resurgence.ts): the
-//                    dead redeploy from the sky after a wait that the side's
-//                    kills cut, until a set round of the ring; a side all
-//                    dead at once is out. The host runs the bots' waits, and
-//                    every browser its own player's.
 //   Ring Consoles    terminals by four of the places (ringconsole.ts): a
 //                    scan puts the circle after next on the squad's map.
 //                    The ring's chain is drawn from the seed at the start,
@@ -153,7 +148,6 @@ import type { ProjectileSystem } from "./projectile";
 import { navTree, reachedFrom, type NavTree } from "./navgraph";
 import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./city";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
-import { RESURGENCE, Redeploy, asRules, comesBack, redeployWait, resurgenceLive, resurgencePhases, resurgenceArea, secondsToFinal, type BrRules } from "./resurgence";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
 import { arenaMap } from "./arena";
 
@@ -422,8 +416,6 @@ export interface BrHud {
   surge: (SurgeView & { safe: boolean }) | null;
   /** standing in a loadout crate: how far through the claim you are, 0 to 1 */
   crate: number | null;
-  /** Resurgence: still on (and for how long), and your wait while you are on your way back */
-  resurgence: { live: boolean; toFinal: number; redeployIn: number | null } | null;
   /** the Gulag, while you are in it or on your way: the phase, its clock, your opponent, and the flag's two counts in overtime */
   gulag: { phase: string; clock: number; opponent: string; capMe: number; capThem: number; capture: number } | null;
 }
@@ -442,7 +434,6 @@ interface BrSnap {
     al: boolean;
     k: BotKit;
     c: { cell: number; syringe: number };
-    rd: number;
     dn: [number, number] | null;
     rv: number;
     dt: [number, number];
@@ -473,7 +464,7 @@ function readBrSnap(v: unknown): BrSnap | null {
     const c = x.c as Record<string, unknown> | null;
     return num(x.i) && x.i >= 0 && x.i < 64 && num(x.t) && num(x.tm) && num(x.sl) && num(x.n) && num(x.g) && numOrNull(x.ar) && typeof x.as === "boolean" && typeof x.al === "boolean"
       && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.mag) && num(k.armor) && !!k.mods && typeof k.mods === "object"
-      && !!c && num(c.cell) && num(c.syringe) && num(x.rd) && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
+      && !!c && num(c.cell) && num(c.syringe) && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
       && Array.isArray(x.dt) && x.dt.length === 2 && x.dt.every(num);
   }).map((r) => {
     const g = (r as { gd?: unknown }).gd;
@@ -515,8 +506,6 @@ interface BrBot {
   jumpAt: number;
   /** where it came down (the tests: a glide lands on its place) */
   landedAt?: { x: number; z: number };
-  /** Resurgence: dead, and on its way back */
-  redeploy: Redeploy | null;
   /** down, not out (duos and trios): who knocked it, and the seconds of bleed-out left */
   down: { by: number; bleed: number } | null;
   /** its revive of a downed squad mate so far, s (0 while it is not reviving) */
@@ -694,7 +683,7 @@ export class BrMatch extends Duel {
   /** this browser's flight along the line, from the start of its drop */
   ship: ShipRun | null = null;
   private shipModel: { group: THREE.Group; setDoors(open: boolean): void } | null = null;
-  /** the ship is handed to main once, at the start of the drop: a Resurgence redeploy drops straight in */
+  /** the ship is handed to main once, at the start of the drop */
   private boardingTaken = false;
   private botsLaunched = false;
   /** the ring's whole chain, the same on every browser (the host's ring's, or one made from the seed) */
@@ -703,16 +692,8 @@ export class BrMatch extends Duel {
   readonly consoles: Array<{ x: number; z: number; place: string; usedPhase: number; model: ReturnType<typeof buildConsole> }> = [];
   /** the furthest circle of the plan a console has shown the squad (-1: none) */
   private revealed = -1;
-  /** the battle royale or Resurgence: the host's, for everyone */
-  readonly rules: BrRules;
-  /** the ring's rounds as this match runs them (Resurgence's clock is faster) */
+  /** the ring's rounds as this match runs them */
   readonly phases: readonly RingPhase[];
-  /** Resurgence: this player is dead and on the way back */
-  selfRedeploy: Redeploy | null = null;
-  /** the redeploy that just brought this player back, for main to hand over the kit (taken once) */
-  private redeployKit = false;
-  /** the cut to final deaths has been announced */
-  private finalSaid = false;
   /** the Gulag, from your death to your way back or out (gulag.ts); null when you are not in it */
   gulag: Gulag | null = null;
   /** your opponent in it: a bot of your own that nobody else sees */
@@ -735,7 +716,7 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; rules?: string; pace?: string; gulag?: boolean; split?: boolean; vault?: boolean },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; pace?: string; gulag?: boolean; split?: boolean; vault?: boolean },
     rng: () => number = Math.random
   ) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
@@ -750,21 +731,14 @@ export class BrMatch extends Duel {
     this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players, this.split);
     this.squadsSeen = this.squadsTotal;
     this.seed = opts.seed ?? 1;
-    // the rules first: Resurgence is played on a quarter of the map
-    this.rules = asRules(opts.rules);
-    const full = { cx: BR_CENTER.x, cz: BR_CENTER.z, r: BR_HALF * 1.35 };
-    const spokes = map.pois.filter((p) => ["north", "south", "east", "west"].includes(p.id));
-    const area = this.rules === "resurgence" ? resurgenceArea(this.seed, BR_CENTER, spokes) : full;
+    const area = { cx: BR_CENTER.x, cz: BR_CENTER.z, r: BR_HALF * 1.35 };
     this.area = area;
     // no vault in SpeedKills' city: its loot is guns and hacks
     this.vaultAllowed = opts.vault !== false && !IS_SK;
     // every door shut, as a match starts
     map.doors.reset();
-    // the squad drops on one place: the host's pick, told to the guests; in
-    // Resurgence one inside the area (the nearest to the pick, the same on
-    // every browser)
-    let poi = (opts.poi && map.pois.find((p) => p.id === opts.poi)) || map.pois[Math.floor(rng() * map.pois.length)];
-    if (!this.inArea(poi)) poi = [...map.pois].filter((p) => this.inArea(p)).sort((a, b) => Math.hypot(a.x - poi.x, a.z - poi.z) - Math.hypot(b.x - poi.x, b.z - poi.z))[0] ?? poi;
+    // the squad drops on one place: the host's pick, told to the guests
+    const poi = (opts.poi && map.pois.find((p) => p.id === opts.poi)) || map.pois[Math.floor(rng() * map.pois.length)];
     this.poi = poi;
     // the ship's line passes over it, and every browser draws the same one
     // SpeedKills' ship always passes the Spire, near enough to glide onto its crown (the owner, 2026-09-27: "the drop
@@ -777,11 +751,8 @@ export class BrMatch extends Duel {
     const start = area;
     // the tests of the plain death switch it off; a real match always has it
     this.gulagOn = opts.gulag !== false;
-    // the ring's clock that goes with the rules, its circles shrunk to the area
-    // the pace is the lobby's own setting, applied on top: Resurgence's
-    // faster clock is a rule of the mode, this is how long a match should be
-    const paced = ringPace(RING_PHASES, opts.pace ?? "normal");
-    this.phases = this.rules === "resurgence" ? resurgencePhases(paced, area.r / full.r) : paced;
+    // the ring's clock at the lobby's own pace: how long a match should be
+    this.phases = ringPace(RING_PHASES, opts.pace ?? "normal");
     // SpeedKills: the decay's waves are the rounds, and every round closes to the final sector's middle
     if (IS_SK) {
       this.decay = decayPlan(this.seed);
@@ -842,7 +813,7 @@ export class BrMatch extends Duel {
         const node = this.nearestNode(spawn.x, spawn.z);
         // it comes down from the sky, so it lands somewhere with no roof over it
         const dropTo = openGround(spawn.x, spawn.z);
-        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity, redeploy: null, down: null, reviving: 0 });
+        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity, down: null, reviving: 0 });
       }
       if (this.vaultOn) this.makeGuard(this.botCount);
       this.ring = new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases, this.decayCircle ?? undefined);
@@ -1651,7 +1622,6 @@ export class BrMatch extends Duel {
     this.broadcast({ t: "dnd", from: r.id, by });
     this.onKnockSeen?.(r.id, by);
     if (by === this.id) this.onNotice?.(`${r.name} KNOCKED`);
-    this.cutBotWaits(by, "knock");
   }
 
   /** a downed bot picked up by `by`, one of its squad */
@@ -1855,64 +1825,17 @@ export class BrMatch extends Duel {
       this.onWiped?.();
     }
     else this.onNotice?.(mine ? `${r.name} DOWN  ·  ${left} LEFT` : `${left} LEFT`);
-    if (this.rules === "resurgence") {
-      // it comes back if its squad has someone up (a bot on its own always does, while the rules are on)
-      const up = this.bots.filter((o) => o.team === b.team && o.bot.alive).length;
-      if (!b.guard && comesBack(this.ringPhase, this.team.size, up)) b.redeploy = new Redeploy(r.id, redeployWait(this.ringPhase));
-      // the killer's squad: a kill cuts the wait of its own dead
-      this.cutBotWaits(by, "kill");
-    }
     if (this.manySides) this.judgeSides();
-    else if (this.bots.every((x) => x.guard || (!x.bot.alive && !x.redeploy)) && this.humansAlive > 0) this.endBr(true);
+    else if (this.bots.every((x) => x.guard || !x.bot.alive) && this.humansAlive > 0) this.endBr(true);
   }
 
-  /** Resurgence: a knock or a kill by a bot cuts the wait of its squad's dead */
-  private cutBotWaits(by: number, kind: "knock" | "kill"): void {
-    if (this.rules !== "resurgence" || by < Duel.BOT_ID) return;
-    const killer = this.bots.find((x) => x.bot.remote.id === by);
-    if (!killer) return;
-    for (const o of this.bots) if (o.team === killer.team && o.redeploy) o.redeploy.cut(kind);
-  }
-
-  /**
-   * Resurgence, the host: a bot whose wait is over comes back from the sky
-   * near a squad mate who is up (on its own, somewhere in the ring), unless
-   * its whole squad went down meanwhile, which puts the squad out.
-   */
-  private redeployBots(dt: number): void {
-    if (this.rules !== "resurgence") return;
-    for (const b of this.bots) {
-      if (!b.redeploy || b.bot.alive) continue;
-      if (!b.redeploy.tick(dt)) continue;
-      b.redeploy = null;
-      // a mate still coming down from its own redeploy is up: it is alive and on its way
-      const mates = this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.down);
-      if (this.team.size > 1 && mates.length === 0) continue;
-      const near = mates.length ? mates[Math.floor(Math.random() * mates.length)].bot.pos : null;
-      const at = this.redeploySpot(near);
-      b.bot.redeployAt(at.x, at.z, DROP_HEIGHT * (0.8 + Math.random() * 0.4));
-      if (this.startLoot) b.bot.dummy.setGunVisible(false);
-      b.landed = false;
-      b.armedAt = Infinity;
-      b.armedShown = false;
-      b.landedAt = undefined;
-      b.node = this.nearestNode(at.x, at.z);
-      b.goal = b.node;
-      b.bot.remote.shieldMax = b.bot.dummy.shieldMax;
-      this.onFeed?.(`${b.bot.remote.name} redeployed`, false, true);
-    }
-    // nobody left to fight and nobody coming back: the squad has won
-    if (this.manySides) this.judgeSides();
-    else if (this.phase === "fight" && this.humansAlive > 0 && this.bots.every((x) => x.guard || (!x.bot.alive && !x.redeploy))) this.endBr(true);
-  }
-
-  /** where a redeploy comes down: 8 m or more from a squad mate who is up, else anywhere well inside the ring, on open ground */
-  private redeploySpot(near: THREE.Vector3 | null): { x: number; z: number } {
+  /** where a won Gulag drops you back: 8 m or more from a squad mate who is up, else anywhere well inside the ring, on open ground */
+  private dropBackSpot(near: THREE.Vector3 | null): { x: number; z: number } {
     const a = Math.random() * Math.PI * 2;
     let x: number;
     let z: number;
     if (near) {
-      const r = 8 + Math.random() * Math.max(0, RESURGENCE.spread - 8);
+      const r = 8 + Math.random() * Math.max(0, GULAG.landSpread - 8);
       x = near.x + Math.cos(a) * r;
       z = near.z + Math.sin(a) * r;
     } else {
@@ -1926,18 +1849,8 @@ export class BrMatch extends Duel {
     return openGround(x, z);
   }
 
-  /** your side, besides you, still up: squad mates alive and not down */
-  private get matesUp(): number {
-    let n = 0;
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && this.standing(r)) n++;
-    return n;
-  }
 
-  /**
-   * Out (a solo knock, a finish, a bleed-out): under Resurgence the wait
-   * starts here, before the squad's end is judged, so a side of one that is
-   * coming back is not out.
-   */
+  /** out (a solo knock, a finish, a bleed-out): the Gulag decided here, before the squad's end is judged */
   protected override eliminate(from: number, how: "knocked" | "finished" | "bled out"): void {
     if (!this.alive) return;
     // A death in the Gulag is the end of a trip the match has already counted:
@@ -1956,9 +1869,8 @@ export class BrMatch extends Duel {
       this.leaveGulag(false);
       return;
     }
-    if (this.rules === "resurgence" && comesBack(this.ringPhase, this.players, this.matesUp)) this.selfRedeploy = new Redeploy(this.id, redeployWait(this.ringPhase));
     // a first death, early, goes to the Gulag; decided before the squad is judged, so it is not out meanwhile
-    else if (this.gulagOn && this.phase === "fight" && gulagFor(this.rules, this.ringPhase, this.gulagUsed) && (from !== EDGE_ID || EDGE.gulag)) {
+    if (this.gulagOn && this.phase === "fight" && gulagFor(this.ringPhase, this.gulagUsed) && (from !== EDGE_ID || EDGE.gulag)) {
       this.gulag = new Gulag(wallClock());
       this.gulagUsed = true;
       this.noteGulag(this.id, 1);
@@ -1968,14 +1880,13 @@ export class BrMatch extends Duel {
 
   /**
    * Where you are in the match's lives, for your squad's panel (squadview.ts):
-   * on the way to the Gulag or in it, a ghost waiting for a restore, waiting
-   * to redeploy (Resurgence), or out. Up says nothing.
+   * on the way to the Gulag or in it, a ghost waiting for a restore, or out.
+   * Up says nothing.
    */
   protected override lifeWire(): number | undefined {
     if (this.gulag) return LIFE_WIRE.gulag;
     if (this.alive || this.phase !== "fight") return undefined;
     if (this.ghost) return LIFE_WIRE.ghost;
-    if (this.selfRedeploy) return LIFE_WIRE.redeploy;
     return LIFE_WIRE.out;
   }
 
@@ -2014,9 +1925,9 @@ export class BrMatch extends Duel {
     super.respawnHere(at, echo);
   }
 
-  /** the side is out: nobody of it up, nobody of it in the Gulag, and a side of one not on its way back */
+  /** the side is out: nobody of it up, nobody of it in the Gulag */
   private get sideOut(): boolean {
-    return this.humansAlive === 0 && this.gulagIds.size === 0 && !(this.players === 1 && this.selfRedeploy);
+    return this.humansAlive === 0 && this.gulagIds.size === 0;
   }
 
   /** someone of the side went to the Gulag (1), came back from it (2) or lost it (0): the host keeps count, and yours is told to everyone */
@@ -2130,7 +2041,7 @@ export class BrMatch extends Duel {
       const s = r.samples[r.samples.length - 1];
       if (s) mates.push(new THREE.Vector3(s.x, 0, s.z));
     }
-    const at = this.redeploySpot(mates.length ? mates[Math.floor(Math.random() * mates.length)] : null);
+    const at = this.dropBackSpot(mates.length ? mates[Math.floor(Math.random() * mates.length)] : null);
     this.gulagKit = g.guns;
     this.respawnPoint = new THREE.Vector3(at.x, 0, at.z);
     this.onRespawn?.();
@@ -2172,55 +2083,6 @@ export class BrMatch extends Duel {
     this.gulagFlag = g;
   }
 
-  /** your side knocked or finished someone (main hears every down): the wait of yours is cut. The seconds cut */
-
-  /** your side knocked or finished someone (main hears every down): the wait of yours is cut. The seconds cut */
-  sideKill(victim: number, by: number): number {
-    if (this.rules !== "resurgence" || !this.selfRedeploy || this.alive) return 0;
-    if (by < 0 || by >= Duel.BOT_ID || victim < Duel.BOT_ID) return 0;
-    return this.selfRedeploy.cut("kill");
-  }
-
-  /** the kit a redeploy hands over, once (main) */
-  takeRedeployKit(): boolean {
-    const k = this.redeployKit;
-    this.redeployKit = false;
-    return k;
-  }
-
-  /** this player is on the way back into the match: main says so rather than "dropping into" */
-  get redeploying(): boolean {
-    return this.redeployKit;
-  }
-
-  /** Resurgence, every browser: your wait, your way back, and the cut to final deaths said once */
-  private resurgenceFrame(dt: number): void {
-    if (this.rules !== "resurgence") return;
-    if (!this.finalSaid && this.phase === "fight" && !resurgenceLive(this.ringPhase)) {
-      this.finalSaid = true;
-      this.onNotice?.("RESURGENCE IS OVER: EVERY DEATH IS FINAL NOW");
-    }
-    // brought back some other way (a squad mate at your echo): the wait is over
-    if (this.alive) {
-      this.selfRedeploy = null;
-      return;
-    }
-    const w = this.selfRedeploy;
-    if (!w || this.brOver || !w.tick(dt)) return;
-    this.selfRedeploy = null;
-    // nobody of yours is up any more: the squad is out, and the host has said so
-    if (this.players > 1 && this.matesUp === 0) return;
-    const mates: THREE.Vector3[] = [];
-    for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || r.downed) continue;
-      const s = r.samples[r.samples.length - 1];
-      if (s) mates.push(new THREE.Vector3(s.x, 0, s.z));
-    }
-    const at = this.redeploySpot(mates.length ? mates[Math.floor(Math.random() * mates.length)] : null);
-    this.redeployKit = true;
-    this.respawnHere(new THREE.Vector3(at.x, 0, at.z));
-  }
-
   // ------------------------------------------------------------ host migration
 
   /**
@@ -2235,7 +2097,7 @@ export class BrMatch extends Duel {
   /**
    * What only the host has, for the heir: each bot's tier, squad, waypoints,
    * kit and what it still carries, whether it is up, down (who knocked it,
-   * the bleed-out left) or waiting to redeploy; the damage the surge ranks
+   * the bleed-out left); the damage the surge ranks
    * on and its clock; the care packages called; the placings; and the loot
    * field's next key. The ring is not in it: every browser draws its plan
    * from the seed, and a guest's view says where along it the ring is.
@@ -2255,7 +2117,6 @@ export class BrMatch extends Duel {
         al: b.bot.alive,
         k: { ...b.bot.lootKit, mods: { ...b.bot.lootKit.mods } },
         c: b.bot.carried,
-        rd: b.redeploy ? b.redeploy.left : -1,
         dn: b.down ? [b.down.by, b.down.bleed] : null,
         rv: b.reviving,
         dt: [b.dropTo.x, b.dropTo.z],
@@ -2299,7 +2160,7 @@ export class BrMatch extends Duel {
       if (last) bot.pos.y = last.y;
       bot.restoreKit(row.k, row.c);
       if (!this.startLoot || row.as) bot.dummy.setGunVisible(true);
-      const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity, redeploy: row.rd >= 0 ? new Redeploy(id, row.rd) : null, down: null, reviving: row.rv, guard: row.gd ? { x: row.gd[0], z: row.gd[1] } : undefined };
+      const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity, down: null, reviving: row.rv, guard: row.gd ? { x: row.gd[0], z: row.gd[1] } : undefined };
       if (r) {
         bot.dummy.health = r.health;
         bot.dummy.shield = Math.min(r.shield, bot.dummy.shieldMax);
@@ -2334,7 +2195,7 @@ export class BrMatch extends Duel {
 
   // ------------------------------------------------------------ the vault
 
-  /** the vault is in this match (on, and inside Resurgence's area when that is the rules) */
+  /** the vault is in this match (on, and inside the match's area) */
   get vaultOn(): boolean {
     const v = this.map.vault;
     return VAULT.on && this.vaultAllowed && v.door >= 0 && Math.hypot(v.x - this.area.cx, v.z - this.area.cz) <= this.area.r * 0.9;
@@ -2364,7 +2225,7 @@ export class BrMatch extends Duel {
     bot.restoreKit({ gunId: VAULT.guardGun, gun: 3, mag: 3, mods: {}, armor: 3, cells: 2, syringes: 2, taken: 0 }, { cell: 2, syringe: 2 });
     bot.dummy.setGunVisible(true);
     const node = this.nearestNode(spawn.x, spawn.z);
-    this.bots.push({ bot, node, goal: node, armedAt: 0, armedShown: true, landed: true, team: -1, slot: 0, dropTo: { x: spawn.x, z: spawn.z }, jumpAt: Infinity, redeploy: null, down: null, reviving: 0, guard: { x: spawn.x, z: spawn.z } });
+    this.bots.push({ bot, node, goal: node, armedAt: 0, armedShown: true, landed: true, team: -1, slot: 0, dropTo: { x: spawn.x, z: spawn.z }, jumpAt: Infinity, down: null, reviving: 0, guard: { x: spawn.x, z: spawn.z } });
   }
 
   /** the guard: whoever comes within its range and in its sight, else back to its post */
@@ -2566,7 +2427,7 @@ export class BrMatch extends Duel {
   /** a squad of bots wiped out, the last of it by anyone (announcer.ts) */
   onWiped: (() => void) | null = null;
 
-  /** where the match is played: the whole map, or Resurgence's quarter of it */
+  /** where the match is played: the whole map */
   readonly area: { cx: number; cz: number; r: number };
 
   /** a place well inside the area, and every spot a squad drops on there too (a drop can be 30 m from the middle) */
@@ -2640,7 +2501,7 @@ export class BrMatch extends Duel {
     };
     const sides = [...new Set(humans.map((id) => this.sideOf(id)))];
     const standing = sides.filter((s) => humans.some((id) => this.sideOf(id) === s && up(id)));
-    const botSides = this.botSquadsAlive + new Set(this.bots.filter((b) => !b.bot.alive && b.redeploy).map((b) => b.team)).size;
+    const botSides = this.botSquadsAlive;
     for (const s of sides) {
       if (standing.includes(s)) this.placedAt.delete(s);
       // out now: behind every side still standing
@@ -2704,8 +2565,6 @@ export class BrMatch extends Duel {
       const now = wallClock();
       this.bleedUntil = now + (this.bleedUntil - now) * this.team.bleed;
     }
-    // a bot's knock of one of yours cuts its squad's waits (Resurgence)
-    if (_by >= Duel.BOT_ID) this.cutBotWaits(_by, (_id === this.id ? this.downed : !!this.remotes.get(_id)?.downed) ? "knock" : "kill");
     if (this.manySides) this.judgeSides();
     else if (this.role === "host" && this.sideOut) this.endBr(false);
   }
@@ -2922,8 +2781,6 @@ export class BrMatch extends Duel {
     // the ship flies on every browser, on its own clock, from when this page has shown the match
     if (local.shipHeld) this.holdShip(now);
     this.placeShip(now);
-    // Resurgence: your wait and your way back
-    this.resurgenceFrame(frameDt);
     // the Gulag: your first death's way back
     this.gulagFrame(now, frameDt, local);
     // the consoles: lit while they have something to show this round, their rings turning
@@ -2980,8 +2837,7 @@ export class BrMatch extends Duel {
 
   /**
    * Main asks at the start of the drop whether to board the ship rather than
-   * drop straight in. Once: a Resurgence redeploy later in the match drops
-   * straight in.
+   * drop straight in. Once.
    */
   takeBoarding(): ShipRun | null {
     if (this.boardingTaken || !this.ship || this.respawnPoint || this.ship.gone(wallClock())) return null;
@@ -3173,9 +3029,6 @@ export class BrMatch extends Duel {
       const low = !!last && (last.stance === "crouch" || last.stance === "slide");
       if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) }, down: r.downed });
     }
-
-    // Resurgence: the bots whose wait is over come back
-    this.redeployBots(dt);
 
     // the ship: a bot leaves it as it passes nearest the bot's place, and
     // nobody is still aboard past the far edge
@@ -3574,10 +3427,6 @@ export class BrMatch extends Duel {
       surge: this.surge && this.phase !== "matchEnd" ? { ...this.surge, safe: !this.surgeMine } : null,
       crate: this.crateProgress,
       gulag: this.gulag ? { phase: this.gulag.phase, clock: this.gulag.clock(now), opponent: this.gulagBot?.remote.name ?? "", capMe: this.gulag.capMe, capThem: this.gulag.capThem, capture: GULAG.capture } : null,
-      resurgence:
-        this.rules === "resurgence"
-          ? { live: resurgenceLive(v.phase), toFinal: secondsToFinal(this.phases, Math.min(v.phase, this.phases.length - 1), v.state === "closing", v.timeLeft), redeployIn: this.selfRedeploy && !this.alive ? this.selfRedeploy.left : null }
-          : null,
     };
     return {
       ...base,

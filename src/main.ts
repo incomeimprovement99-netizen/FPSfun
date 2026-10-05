@@ -92,7 +92,7 @@ import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, operatorWearing, OPERATORS } from "./game/operators";
 import { lookCode } from "./game/outfit";
 import { setArmColors } from "./game/arms";
-import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
+import { Menu, brTeamId, type Mode } from "./ui/menu";
 import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
@@ -163,7 +163,6 @@ function applyBrDefaults(): void {
   try {
     if (localStorage.getItem("range.brDefaults") === D.tag) return;
     localStorage.setItem("range.br.team.sk", D.team);
-    localStorage.setItem("range.brRules.v1", D.rules);
     localStorage.setItem("range.br.bots.sk", String(D.bots));
     localStorage.setItem("range.br.pace", D.pace);
     localStorage.setItem("range.br.start", D.start);
@@ -3273,21 +3272,19 @@ function respawnForMatch(d: MatchLike): void {
       player.setBounds(BR_BOUNDS);
       setRegion("br");
       warmMatch();
-      // the start of the match is the ship; a Resurgence redeploy (and the tests) drop straight in
+      // the start of the match is the ship; the tests drop straight in
       const run = d.takeBoarding();
       if (run) boardShip(d, run);
       else {
-        const at = DROP_AT && !d.redeploying ? { x: DROP_AT.x + BR_X, z: DROP_AT.z + BR_Z } : sp;
+        const at = DROP_AT ? { x: DROP_AT.x + BR_X, z: DROP_AT.z + BR_Z } : sp;
         player.beginDrop(at.x, DROP_HEIGHT, at.z, sp.yaw);
         mapOpen = false;
         dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
-        hud.notice(d.redeploying ? "REDEPLOYED: BACK INTO THE FIGHT" : `DROPPING INTO ${d.poi.name}`, gameTime, 3);
+        hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
         // and the hot zone, so the match's own decision is one everybody has:
         // kitted guns in one named place, and everyone told where
-        if (!d.redeploying) {
-          const hot = d.hotZone();
-          if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  KITTED GUNS, AND EVERYONE KNOWS`, gameTime, 4), 1200);
-        }
+        const hot = d.hotZone();
+        if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  KITTED GUNS, AND EVERYONE KNOWS`, gameTime, 4), 1200);
       }
     }
   } else player.teleport(sp.x, 0, sp.z, openYaw(sp.x, sp.z, sp.yaw));
@@ -3295,8 +3292,8 @@ function respawnForMatch(d: MatchLike): void {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
     pendingSlots = null;
   }
-  // SpeedKills' loadout start (its floor has loot either way): every landing, the drop and a Resurgence
-  // redeploy, is your loadout, fresh and at fusion level 0. What you carried went down where you fell:
+  // SpeedKills' loadout start (its floor has loot either way): every landing is your loadout, fresh and at fusion
+  // level 0. What you carried went down where you fell:
   // keeping it as well put a second copy of each gun on the floor, and a level tried on the range's
   // fusion key rode into the match.
   if (d instanceof BrMatch && d.lootField && !d.startLoot && !echoAt) [loadouts.current.slot1, loadouts.current.slot2].forEach((id, i) => loadout.give(i, id));
@@ -3372,20 +3369,6 @@ function respawnForMatch(d: MatchLike): void {
       applyLoot({ kind: "weapon", id: gun, n: 1, rarity: "common" });
       const type = ammoTypeOf(gun);
       if (type !== "energy") applyLoot({ kind: "ammo", id: type, n: STACK[type] * GULAG.kitStacks, rarity: "common" });
-    }
-    killcam.stop();
-    recap = null;
-  }
-  // Resurgence: back from the sky with a sidearm, some of its ammo and a few heals
-  // (a match that lands with loadouts already has them), and the killcam gives way
-  if (d instanceof BrMatch && d.takeRedeployKit()) {
-    if (d.startLoot) {
-      const R = brCfg.resurgence;
-      const gun = R.kit[Math.floor(Math.random() * R.kit.length)];
-      applyLoot({ kind: "weapon", id: gun, n: 1, rarity: "common" });
-      const type = ammoTypeOf(gun);
-      if (type !== "energy") applyLoot({ kind: "ammo", id: type, n: STACK[type] * R.kitStacks, rarity: "common" });
-      for (const [h, n] of Object.entries(R.heals)) applyLoot({ kind: "heal", id: h, n, rarity: "common" });
     }
     killcam.stop();
     recap = null;
@@ -5182,11 +5165,10 @@ const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__
 const noVault = (): boolean => (window as unknown as { __noVault?: boolean }).__noVault === true;
 /**
  * The words on a match's card: the mode's name and its line (intro.json
- * modes). Every bot difficulty is one card, and a battle royale on
- * Resurgence rules is its own.
+ * modes). Every bot difficulty is one card.
  */
-function modeWords(d: MatchLike, kind: MatchKind): { name: string; sub: string } | undefined {
-  const key = kind.startsWith("bots:") ? "bots" : d instanceof BrMatch && d.rules === "resurgence" ? "resurgence" : kind;
+function modeWords(kind: MatchKind): { name: string; sub: string } | undefined {
+  const key = kind.startsWith("bots:") ? "bots" : kind;
   return (introCfg.modes as Record<string, { name: string; sub: string }>)[key];
 }
 
@@ -5332,10 +5314,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   askFigures();
   if (!NO_INTRO) {
     if (IS_SK && !document.hidden) {
-      show = { stage: "load", words: modeWords(d, kind), br: d instanceof BrMatch, city: onCity, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
+      show = { stage: "load", words: modeWords(kind), br: d instanceof BrMatch, city: onCity, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
       // (a battle royale's card is up already when Start put the screen up; a friend's match starting it is not)
       loadingScreen.again(introCfg.show.text, d instanceof BrMatch ? (loadingScreen.card ?? playerCard()) : null);
-    } else if (!IS_SK) void intro.play("match", modeWords(d, kind));
+    } else if (!IS_SK) void intro.play("match", modeWords(kind));
   }
   note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
   d.onRespawn = () => respawnForMatch(d);
@@ -5406,11 +5388,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     d.onKnockSeen = (victim, by) => {
       evoForKnock(victim, by);
       if (d.isFriend(victim)) announcer.say("mateDown", realNow());
-      // Resurgence: a knock by your side cuts your wait to come back
-      if (d instanceof BrMatch) {
-        const cut = d.sideKill(victim, by);
-        if (cut > 0) hud.notice(`-${cut} S TO YOUR REDEPLOY  ·  ${d.nameFor(by)} GOT ONE`, gameTime, 1.6);
-      }
     };
     revivesDone = 0;
     podsPaid.clear();
@@ -5747,7 +5724,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), rules: squad.rules, pace: squad.pace, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
+    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), pace: squad.pace, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
     d = br;
     duel = d;
     wireMatch(d, "br");
@@ -5938,7 +5915,7 @@ function startBr(seed = newSeed(), poi?: string): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), rules: brRulesId(), pace: brPace(), gulag: !noGulag(), vault: !noVault() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), pace: brPace(), gulag: !noGulag(), vault: !noVault() });
   duel = d;
   wireMatch(d, "br");
   brHour(d);
@@ -6095,7 +6072,7 @@ function endMatch(reason: string): void {
 function readHostSettings(): void {
   // a battle royale squad: the place, the bots, the difficulty and the squad
   // size are fixed now so every guest is told the same
-  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), rules: brRulesId(), pace: brPace(), split: $<HTMLSelectElement>("brSides").value === "split" } : null;
+  hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), pace: brPace(), split: $<HTMLSelectElement>("brSides").value === "split" } : null;
   const mk = duelModeKind();
   // the custom rules (the Rules row), for everyone
   const guns = $<HTMLSelectElement>("ruleGuns").value;

@@ -373,8 +373,6 @@ function squadState(life: MateLife): { text: string; color: string } | null {
       return { text: "CONNECTION LOST", color: "#ffb13d" };
     case "left":
       return { text: "LEFT THE MATCH", color: DIM };
-    case "redeploy":
-      return { text: "REDEPLOYING", color: "#7ddc8a" };
     default:
       return null;
   }
@@ -2710,20 +2708,6 @@ export class Hud {
           c.fillStyle = col;
           c.fillRect(x0, y + 40 * u, w * Math.min(1, v / gl.capture), 8 * u);
         }
-      }
-    }
-    // Resurgence: how long the dead still come back, and your own wait while you are out
-    if (br.resurgence) {
-      const rs = br.resurgence;
-      const m = Math.floor(rs.toFinal / 60);
-      const sec = Math.floor(rs.toFinal % 60);
-      // under the squads count (132) and Storm Surge's line (150), so all three can be up at once
-      this.text(rs.live ? `RESURGENCE  ·  DEATHS FINAL IN ${m}:${sec.toString().padStart(2, "0")}` : "RESURGENCE OVER  ·  EVERY DEATH IS FINAL", cx, 170 * u, 700, 13 * u, rs.live ? "#7ddc8a" : "#ff7a1a", "center");
-      if (rs.redeployIn !== null) {
-        c.fillStyle = PANEL;
-        c.fillRect(cx - 200 * u, this.h * 0.36 - 44 * u, 400 * u, 84 * u);
-        this.text(`REDEPLOYING IN ${Math.ceil(rs.redeployIn)}`, cx, this.h * 0.36, 700, 34 * u, "#7ddc8a", "center");
-        this.text("EVERY KILL BY YOUR SIDE CUTS THE WAIT", cx, this.h * 0.36 + 26 * u, 600, 13 * u, DIM, "center");
       }
     }
     this.text(s.zoneLabel ?? (ringDone ? "RING CLOSED" : br.ring.closing ? "RING CLOSING" : `RING ${br.ring.phase} CLOSES IN`), cx, 80 * u, 700, 13 * u, br.ring.closing ? "#ff2e9a" : DIM, "center");

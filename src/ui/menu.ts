@@ -52,22 +52,8 @@ const word = (n: number): string => COUNT_WORDS[n] ?? String(n);
  * truth for the same choice. A match played alone reads the same store for
  * itself (brmatch.ts savedTeamId).
  */
-/** the battle royale's rules, the row's choice, kept between visits: the host's goes in the welcome */
-const BR_RULES_KEY = "range.brRules.v1";
 /** the lobby's mode, so the panel opens where it was left */
 const LOBBY_KEY = "range.lobby.mode";
-export function brRulesId(): string {
-  // SpeedKills plays its own rules (its decay, its second chance): Resurgence is another game's
-  if (IS_SK) return "br";
-  const sel = document.getElementById("brRules") as HTMLSelectElement | null;
-  if (sel?.value) return sel.value === "resurgence" ? "resurgence" : "br";
-  try {
-    return localStorage.getItem(BR_RULES_KEY) === "resurgence" ? "resurgence" : "br";
-  } catch {
-    return "br";
-  }
-}
-
 export function brTeamId(): string {
   const sel = document.getElementById("brTeam") as HTMLSelectElement | null;
   return sel?.value ? teamFor(sel.value).id : savedTeamId();
@@ -139,25 +125,6 @@ export class Menu {
     // page's own options are not every size's, so a count restored against
     // them (main.ts does, before this runs) could be dropped for one the size
     // never offered.
-    const brRules = $<HTMLSelectElement>("brRules");
-    try {
-      brRules.value = localStorage.getItem(BR_RULES_KEY) === "resurgence" ? "resurgence" : "br";
-    } catch {
-      brRules.value = "br";
-    }
-    // SpeedKills: no Resurgence (another game's mode), so no Rules box: one choice is no choice
-    if (IS_SK) {
-      brRules.querySelector('option[value="resurgence"]')?.remove();
-      brRules.value = "br";
-      brRules.closest("label")?.setAttribute("hidden", "");
-    }
-    brRules.addEventListener("change", () => {
-      try {
-        localStorage.setItem(BR_RULES_KEY, brRules.value);
-      } catch {
-        // storage off: the choice holds for the visit
-      }
-    });
     const brTeam = $<HTMLSelectElement>("brTeam");
     brTeam.value = savedTeamId();
     brTeam.addEventListener("change", () => {

@@ -61,7 +61,7 @@
   "_defaultTeam": "what the lobby opens on, and what a match whose host sent no size (an older build) is",
   "defaultTeam": "trio",
   "_pod": "The care package's arrival (item 32). It used to appear at 120 m with a dim beam, fall in silence and print one line of text. Now it is called first: a notice and a ping name the place it is coming down on, `announce` seconds before it appears, so everyone can start moving. It falls under a canopy trailing smoke, thumps down in a ring of dust, and stays lit and marked for `contest` seconds, which is the window the fight over it happens in. `height` is where it comes in from, unchanged. The fall time itself is loot.json's podFall, which the package already had. `phases` are the ring phases, counted from 0, whose close calls one, and `inset` is how far from the next circle's centre it can land as a fraction of that circle's radius: both were written into the code as rounds 2 to 4 and 0.6 before they came here. Apex announces its packages 4:05 before the ring closes and lands them 2:30 before (docs/RESEARCH_PHASE_11.md section 15); ours is that shape scaled to a ten-minute match, and every number below is ours.",
-  "_vault": "The vault (ours; Apex's vaults open with a vault key found on the map): the small building in the Well's yard, sealed, its one door locked. Its guard, guardName, a bot of guardTier on its own side, stands guardRange metres from the door and fights whoever comes within that; it carries guardGun and the vault keycard, which its death box drops. Whoever holds the keycard opens the vault door with interact, which uses the card. Inside: a mythic gun from the care package's list, at gold mag with every attachment, drawn red. A keycard's holder is shown the way to the vault, a marker renewed every markEvery seconds; a holder who is killed drops it where they fell. Off in Resurgence when its smaller area leaves the Well out.",
+  "_vault": "The vault (ours; Apex's vaults open with a vault key found on the map): the small building in the Well's yard, sealed, its one door locked. Its guard, guardName, a bot of guardTier on its own side, stands guardRange metres from the door and fights whoever comes within that; it carries guardGun and the vault keycard, which its death box drops. Whoever holds the keycard opens the vault door with interact, which uses the card. Inside: a mythic gun from the care package's list, at gold mag with every attachment, drawn red. A keycard's holder is shown the way to the vault, a marker renewed every markEvery seconds; a holder who is killed drops it where they fell.",
   "vault": {
     "on": true,
     "guardName": "THE WARDEN",
@@ -153,39 +153,7 @@
     "reach": 2.2,
     "evo": 100
   },
-  "_resurgence": "Resurgence (src/game/resurgence.ts), Warzone's rules over this battle royale. While they are on, the dead redeploy from the sky after redeploy[round] seconds (15 early and 39 late, the NEXT_STEPS item's numbers); each knock by your side takes knockCut and each kill killCut off the wait of everyone of yours who is dead, never below `floor`. A side whose every member is down or dead at once is out. From ring round endPhase + 1 every death is final; a wait already running then still finishes. The ring's waits and closes run at ringScale of the battle royale's, the circles and damage the same. A redeploy lands you 8 to `spread` metres from a squad mate who is up, or alone somewhere inside the ring, and in a match that lands with nothing it comes with one of `kit`, kitStacks stacks of its ammo and the heals in `heals`. Ours, except the 15 and 39.",
-  "resurgence": {
-    "redeploy": [
-      15,
-      20,
-      25,
-      30,
-      39,
-      39
-    ],
-    "killCut": 5,
-    "knockCut": 2,
-    "floor": 3,
-    "endPhase": 4,
-    "ringScale": 0.6,
-    "_area": "Resurgence is played on a quarter of Outskirts, as Apex plays it on a part of a map: the first circle is radius metres across the hub, leaning lean metres toward one of the four big places round it (from the match seed), which takes in the hub, that place and the two compounds beside it. The squad and the bots drop on places inside it, and every round's circle shrinks with it.",
-    "area": {
-      "radius": 130,
-      "lean": 55
-    },
-    "spread": 30,
-    "kit": [
-      "semipistol",
-      "autopistol",
-      "shotgun_pistol"
-    ],
-    "kitStacks": 2,
-    "heals": {
-      "cell": 2,
-      "syringe": 2
-    }
-  },
-  "_gulag": "The Gulag (src/game/gulag.ts), under the battle royale's own rules (Resurgence has its redeploys instead). A first death before ring round untilPhase + 1 sends you, `delay` seconds later, to the arena `map` against a bot of tier `tier`, the two of you on two of `guns` drawn for the fight; a countdown of `countdown` seconds, then `fight` seconds, then overtime: a flag `flagRadius` metres across in the room's middle, won by `capture` seconds on it alone. Win and you drop back into the match `after` seconds later with those guns and kitStacks stacks of their ammo; lose and you are out. One trip a match. Ours: Warzone's Gulag is the idea, and none of its numbers carry over to a map this size.",
+  "_gulag": "The Gulag (src/game/gulag.ts), under the battle royale's own rules. A first death before ring round untilPhase + 1 sends you, `delay` seconds later, to the arena `map` against a bot of tier `tier`, the two of you on two of `guns` drawn for the fight; a countdown of `countdown` seconds, then `fight` seconds, then overtime: a flag `flagRadius` metres across in the room's middle, won by `capture` seconds on it alone. Win and you drop back into the match `after` seconds later with those guns and kitStacks stacks of their ammo; lose and you are out. One trip a match. Ours: Warzone's Gulag is the idea, and none of its numbers carry over to a map this size. A win drops you back in 8 to landSpread metres from a squad mate who is up, or alone somewhere well inside the ring (it was Resurgence's redeploy spread, 30, ours).",
   "gulag": {
     "enabled": true,
     "untilPhase": 3,
@@ -208,7 +176,8 @@
       "wingman",
       "semipistol"
     ],
-    "kitStacks": 2
+    "kitStacks": 2,
+    "landSpread": 30
   },
   "_fusion": "Weapon fusion (Hyper Scape's, docs/AAA_GAP.md step 4): walking onto the gun you already carry does not give you a second copy to juggle; it fuses into the one you have. Its magazine goes up a level (to `maxMag`, gold), any attachment slot it has empty is filled from the copy you found, and `ammoStacks` stacks of its ammo come with it. The copy is used up. A player with two of the same gun is a player who found a better one, not a spare.",
   "fusion": {

@@ -13,14 +13,14 @@ import netCfg from "../config/net.json";
 import squadCfg from "../config/squad.json";
 
 /** a teammate as the squad panel shows them */
-export type MateLife = "up" | "down" | "gulag" | "ghost" | "out" | "redeploy" | "quiet" | "left";
+export type MateLife = "up" | "down" | "gulag" | "ghost" | "out" | "quiet" | "left";
 
 /**
  * The stage of a battle royale life a player says of themself (state.ts `lf`).
  * Up goes as nothing at all, so a build from before, which sends none, reads
  * as up, which is all it could ever say.
  */
-export const LIFE_WIRE = { up: 0, gulag: 1, ghost: 2, out: 3, redeploy: 4 } as const;
+export const LIFE_WIRE = { up: 0, gulag: 1, ghost: 2, out: 3 } as const;
 
 export interface SquadColor {
   name: string;
@@ -72,9 +72,7 @@ export function mateLife(f: MateFacts, quiet = squadCfg.mates.quiet): MateLife {
       ? "gulag"
       : f.lf === LIFE_WIRE.ghost
         ? "ghost"
-        : f.lf === LIFE_WIRE.redeploy
-          ? "redeploy"
-          : f.lf === LIFE_WIRE.out || !f.alive
+        : f.lf === LIFE_WIRE.out || !f.alive
             ? "out"
             : f.downed
               ? "down"
@@ -97,7 +95,7 @@ export interface MateNews {
  * The news of one change. A teammate going down, to the Gulag or to a ghost
  * says so here once; the announcer's "Teammate down!" is already said by the
  * death itself (main.ts onKnockSeen), so it is not said twice. The legacy
- * game's knockdowns and redeploys have their own notices and have none here.
+ * game's knockdowns have their own notices and have none here.
  */
 export function mateNews(name: string, was: MateLife, now: MateLife): MateNews | null {
   if (was === now) return null;
