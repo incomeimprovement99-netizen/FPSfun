@@ -259,11 +259,15 @@ it.
 - **Steam and neon:** from Balanced up, steam drifts out of the metro's
   stairwells, the street drains and the roof plant, and a few signs flicker
   (never more than three flashes a second). Light only: it never hides anyone.
-- **Ten guns**, most named for the owner's friends: two rifles, two SMGs, two
-  shotguns, a marksman gun (HAEFY), a sniper (BOOG, which kills with one
-  headshot), a heavy pistol (APUHTHEE, a heavy semi-automatic with six rounds, no
-  drop-off and almost no recoil: five body hits a kill) and CHOOCH, which cools
-  instead of reloading. Ammo is infinite; the magazine is not.
+- **Ten guns**, most named for the owner's friends: a rifle (PANDA), two SMGs,
+  two shotguns, a marksman gun (HAEFY), a sniper (BOOG, which kills with one
+  headshot), two pistols (STRYDER, a fast automatic, and APUHTHEE, a heavy
+  semi-automatic with six rounds and almost no recoil: five body hits a kill) and
+  CHOOCH, which cools instead of reloading. Ammo is infinite; the magazine is not.
+  Every gun kills in about the same time where it is meant to be used, about one
+  and a half seconds with most rounds on target: the SMGs and pistols quicker up
+  close and losing damage with range, so that at 60 m they take twice as long or
+  more, the rifle and CHOOCH nearly as strong far as near.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
   level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
   for a hack. The HUD shows each gun's level as pips.
@@ -313,8 +317,9 @@ it.
   wrapped round the right with its thumb forward along the frame, the trigger
   finger on the trigger, and raised to the eye with the arms nearly straight when
   aiming; its reload is the magazine alone, down out of the handle and back, until
-  the first person's pistol moves are made. The other two are held by the shared
-  numbers until their turn.
+  the first person's pistol moves are made. STRYDER, the fast pistol, is held the
+  same way. HAEFY, on BOOG's model, is held as BOOG is: every gun on the soldier
+  is fitted.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and

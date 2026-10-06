@@ -45,11 +45,13 @@ console.log("The host's check on a claimed hit");
   check("a whole magazine at the gun's fastest, every pellet a headshot, passes", bad.length === 0, [...new Set(bad)].join(", "));
   // the gun as the host holds a claim up to it: at SpeedKills' top fusion level, the most a real one can carry (the
   // legacy game has no levels and ignores it)
-  const r301 = resolveWeapon("rspn101", 0, [], 5);
+  // (a gun both games hand out: the judge knows only the roster's guns, and STRYDER's old rifle left SpeedKills')
+  const SAMPLE = "vinson";
+  const r301 = resolveWeapon(SAMPLE, 0, [], 5);
   const h = new HitCheck();
-  check("a round's worth more than the gun can do is refused", h.judge({ from: 1, amount: maxRound(r301) + 1, weapon: "rspn101", dist: 10 }, 10, 9.9, 10) !== null);
-  check("a gun's hit with no shot heard lately is refused", h.judge({ from: 2, amount: 10, weapon: "rspn101", dist: 10 }, 10, 10 - C.shotWindow - 0.1, 10) !== null && h.judge({ from: 3, amount: 10, weapon: "rspn101", dist: 10 }, 10, undefined, 10) !== null);
-  check("a claim from 100 m by two players 10 m apart is refused; a round trip's drift is not", h.judge({ from: 4, amount: 10, weapon: "rspn101", dist: 100 }, 10, 9.9, 10) !== null && h.judge({ from: 5, amount: 10, weapon: "rspn101", dist: 18 }, 10, 9.9, 10) === null);
+  check("a round's worth more than the gun can do is refused", h.judge({ from: 1, amount: maxRound(r301) + 1, weapon: SAMPLE, dist: 10 }, 10, 9.9, 10) !== null);
+  check("a gun's hit with no shot heard lately is refused", h.judge({ from: 2, amount: 10, weapon: SAMPLE, dist: 10 }, 10, 10 - C.shotWindow - 0.1, 10) !== null && h.judge({ from: 3, amount: 10, weapon: SAMPLE, dist: 10 }, 10, undefined, 10) !== null);
+  check("a claim from 100 m by two players 10 m apart is refused; a round trip's drift is not", h.judge({ from: 4, amount: 10, weapon: SAMPLE, dist: 100 }, 10, 9.9, 10) !== null && h.judge({ from: 5, amount: 10, weapon: SAMPLE, dist: 18 }, 10, 9.9, 10) === null);
   check(`a swing from 20 m is refused, one from 2 m passes (up to ${C.meleeMax})`, h.judge({ from: 6, amount: 30, weapon: "melee", dist: null }, 10, undefined, 20) !== null && h.judge({ from: 7, amount: 300, weapon: "melee", dist: null }, 10, undefined, 2) === null);
   if (IS_SK) {
     // SpeedKills' speeds (Phase 20 A15): a real swing on a target at the top speed, seen as late as the jitter
@@ -65,7 +67,7 @@ console.log("The host's check on a claimed hit");
     const drift = TOP_SPEED * STALE;
     check(
       `speedkills: a gun's claim from 3 m on a target at the top speed seen late passes (the host has them ${(3 + drift).toFixed(1)} m apart)`,
-      hs.judge({ from: 13, amount: 10, weapon: "rspn101", dist: 3 }, 10, 9.9, 3 + drift) === null,
+      hs.judge({ from: 13, amount: 10, weapon: SAMPLE, dist: 3 }, 10, 9.9, 3 + drift) === null,
     );
   }
   // a stream faster than the gun fires: one second's worth, then one more
@@ -73,7 +75,7 @@ console.log("The host's check on a claimed hit");
   const per = maxPerSecond(r301);
   const round = maxRound(r301) / C.margin;
   let passed = 0;
-  for (let i = 0; i < Math.ceil(per / round) + 5; i++) if (fast.judge({ from: 8, amount: round, weapon: "rspn101", dist: 10 }, 10 + i * 0.001, 10, 10) === null) passed++;
+  for (let i = 0; i < Math.ceil(per / round) + 5; i++) if (fast.judge({ from: 8, amount: round, weapon: SAMPLE, dist: 10 }, 10 + i * 0.001, 10, 10) === null) passed++;
   check("claims faster than the gun fires are refused once a second's worth is in", passed * round <= per && passed * round > per - round - 1e-6, `${passed} passed of ${Math.round(per)} a second`);
   check("the refused are kept for the tests, with why", fast.refused.length > 0 && /faster/.test(fast.refused[0].why));
 }

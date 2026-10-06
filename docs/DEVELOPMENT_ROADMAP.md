@@ -10829,3 +10829,52 @@ the plaza and the ground off the streets already had it (3% and 5% over 6 m).
   boards left out of its exemption; the median's planters solid past a crouched head; the Sky Ring's room under it,
   2.70 m. The layout run again on the bake leaves the config as it was. The e2e `speedkills` section on the Neon City:
   every check passes but "the bots land and move through the city", which wants 15 of the 27 bots 3 m on in the 6 s after the landing: 19 in the first run, 13 and 11 in two reruns with the machine at 93% CPU from the owner's own use (a game-time wait, as the machine notes say); the same start (trios of 27, no render) in a page of its own moved 23, 20 and 23 of 27, the few left standing nowhere near the cover. The ghost restore's "none left in the box" failed once (one item 1.3 m out) and passed in both reruns. verify and rules. The map: its files lo 93 MB, hi 157 MB, max 378 MB. **Its files are version 46.**
+
+## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
+
+The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
+THOSE BEFORE YOU CONTINUE ON. (SEE IF ITS ON THE 3RD PERSON TOO)". The first person is the guns agent's, told the same
+hour; this is the soldier others see, and the last of its guns.
+
+- **Swept:** the left palm's and each holding finger's nearest skin to the gun (or, on a pistol, to the right hand), on
+  every fitted gun in ten poses (at rest, aimed, walking and running aimed, running, crouched, crouched and aimed, looking
+  35 up and down, sprinting). Aimed and at rest every left palm touched its gun. **The gaps were in the low carry**, the
+  running and sprinting hold, which has a left hand of its own (soldierhold.json lowered.l): PANDA's palm 11 mm off its
+  fore-end and two fingers 14 and 18, ANAKIN's palm 7 and its index 19. Each now takes the fitted left hand and its carry
+  was solved again (figure-solve.ts lowered): 0 in every pose.
+- **How flat:** figure-audit.js `palmFlush`, the nearest tenth of a palm's skin to the gun (the guns agent's measure in
+  the first person, where the palms touched with a sliver, 18 to 27 mm): 7 to 16 mm on the long guns, the glove's palm
+  cupped under a fore-end. BOOG's left hand pressed 9 mm onto its rail, 12 to 5 mm; pressing the USSO's or CHOOCH's only
+  sank it into the gun (10 to 8 mm with the palm 9 mm in), so they stay.
+- **Checked:** a new skfigure check, each gun carried low running and sprinting with the left palm and holding fingers
+  on it (8 mm at most), seen failing on PANDA and ANAKIN before; photographed close.
+- **HAEFY** (`3030`) wears BOOG's bought model in its own skins, so it is held as BOOG is: a copy of BOOG's fitted
+  numbers, its hand on the same rail, held to every skfigure check as its own gun. With it every gun on the roster is
+  fitted on the soldier. If HAEFY becomes the launcher (`PLAN_THE_EIGHT_GUNS.md` 5.7, the owner to approve the blast),
+  it is fitted from scratch then.
+
+## Milestone 501 — STRYDER is the fast pistol, and every gun falls off with range
+
+Both approved by the owner on 2026-10-05: STRYDER's move from the rifle to the fast automatic pistol (`PLAN_THE_EIGHT_GUNS.md`
+section 6) and the time-to-kill table: "all around the same but if it's closer range more dps vs rifles. If longer range,
+less dps ... vary depending on the guns type ... All games do this pretty much".
+
+- **The roster:** `autopistol` (the RE-45's data) in `rspn101`'s place everywhere SpeedKills lists it: the roster, the
+  families (STRYDER joins APUHTHEE under Pistols; Rifle is PANDA's alone), the bots' guns, the default loadouts, the
+  Gulag's, the armory's stands. Its bought model is the pack's first pistol (Milestone 482), drawn 1.1 times as big on
+  the soldier; its shots for now the SMG's, a little quieter (packsounds.json, the guns agent's to change).
+- **A choice follows the name:** speedkills.json `renamed` maps rspn101 to autopistol, and loadouts.ts valid() applies
+  it, so a saved loadout naming STRYDER keeps STRYDER rather than falling to the default (checked, seen failing without).
+- **Fall-off with range:** speedkills.json tuning `far` and `veryFar`, each gun's damage at its data's far and very far
+  distances as a share of its near damage (weapons.ts; projectile.ts eases between them). Every gun had been flat. At 80%
+  on target against 150, at 10 / 30 / 60 m: the USSO 1.33 / 1.39 / 3.52, ANAKIN 1.40 / 1.50 / 3.70, STRYDER 1.38 / 1.46 /
+  3.42, APUHTHEE 1.79 / 1.79 / 4.24, PANDA 1.53 / 1.53 / 1.65, CHOOCH 1.50 / 1.50 / 1.60, HAEFY 1.72, BOOG and the
+  shotguns as they were. HAEFY had been the quickest kill up close outside the shotguns (1.29) and PANDA level with the
+  SMGs; both brought to their kind's place.
+- **Fusion kept within a tenth:** at the table's first damages a fully fused PANDA or HAEFY dropped a whole shot (16 and
+  25% quicker, the TTK check refusing it), so PANDA's damage is 0.70, CHOOCH's 0.60 (it sat on a shot's edge) and HAEFY's
+  0.823; each time as approved.
+- **Checks:** tools/checks/ttk.ts holds the rule (no gun quicker far than near; the SMGs and pistols at least twice as
+  long at 60 m; the rifle and CHOOCH within a fifth; up close the SMGs and the fast pistol no slower than the rifle), each
+  seen failing with the fall-off taken out; two hit-check cases that used STRYDER's old rifle as their sample now use a
+  gun both games have. verify; rules; the type check; e2e speedkills, soldier, skarmory and skfigure.

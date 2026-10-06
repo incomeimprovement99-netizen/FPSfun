@@ -5974,7 +5974,7 @@ async function soldierTest(browser: Browser): Promise<void> {
       }
       await gameWait(0.3);
       const end = r.gunFeel();
-      r.loadout.give(0, "rspn101");
+      r.loadout.give(0, "autopistol");
       r.loadout.requestSwap(0, r.gameTime());
       t0 = performance.now();
       while (r.loadout.swapping && performance.now() - t0 < 30000) await wait(20);
@@ -8178,6 +8178,14 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       `(() => { const r = window.__range; r.figureLabPose(0, { speed: 14, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return { slide: r.labFigures()[0].figure.supportSlide, a: window.__figureAudit(0, { pitch: 0 }) }; })()`,
     );
     check(`the soldier holding ${name}, aimed at a sprint: the left hand on its hold, not slid back along the gun and into it`, moving.slide < 0.01 && (moving.a?.handIn?.l ?? 99) <= 8, JSON.stringify({ slide: moving.slide, handIn: moving.a?.handIn }));
+    // Carried low running and sprinting (the lowered carry, soldierhold.json lowered.l): the left palm and the holding
+    // fingers on the gun as at rest. The owner, 2026-10-05, of a support hand off its gun ("WOW THE LEFT SUPPORT HAND ON
+    // THE USSO HAS A GAP"): swept on every gun, PANDA's left palm was 11 mm off its fore-end and two fingers 14 and 18
+    // in the low carry, ANAKIN's palm 7 and its index 19, the carry's own left hand a different place from the fitted one
+    for (const [label, speed] of [["running", 6.3], ["sprinting", 9.5]] as const) {
+      const low = await ev<A | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: ${speed}, stance: "stand", pitch: 0 }); r.figureLabStep(0.9); return window.__figureAudit(0, { pitch: 0 }); })()`);
+      check(`the soldier holding ${name}, carried low ${label}: the left palm and its holding fingers on the gun (8 mm at most)`, !!low && on(low, id), JSON.stringify({ palmGap: low?.palmGap, fingerGap: low?.fingerGap, handGap: low?.handGap }));
+    }
     // The right index on the trigger, not laid along the frame (the owner, 2026-09-30: the gun fires on a click, and a
     // straight finger read as not firing): aimed in, the tip of its last joint on the trigger's face, 4 mm at most
     const trig = await ev<number | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return window.__triggerGap(0); })()`);
@@ -8195,11 +8203,12 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
       check(`${name}'s scope glints only while the soldier looks down it: aimed in, not through a reload or a swap, not at the hip`, glints.aimed === true && glints.reloading === false && glints.swapping === false && glints.hip === false && glints.again === true, JSON.stringify(glints));
     }
-    if (id === "sentinel") {
+    // (HAEFY wears BOOG's model, so its hand is on the same rail)
+    if (id === "sentinel" || id === "3030") {
       // BOOG's left hand on the rail under its fore-end, not the magazine (which ends 20 cm in front of the grip): the
       // owner, 2026-09-30, "the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail"
       const rail = await ev<{ z: number; y: number; slide: number }>(page, `(() => { const f = window.__range.labFigures()[0].figure, g = f.gunObject, h = f.holdPoints(); const at = g.worldToLocal(h.support.clone()); return { z: Math.round(at.z * 1000) / 1000, y: Math.round(at.y * 1000) / 1000, slide: f.supportSlide }; })()`);
-      check("the soldier holding BOOG: the left hand on the rail under the fore-end, 22 cm or more in front of the grip, not on the magazine", rail.z <= -0.22 && rail.slide < 0.01, JSON.stringify(rail));
+      check(`the soldier holding ${name}: the left hand on the rail under the fore-end, 22 cm or more in front of the grip, not on the magazine`, rail.z <= -0.22 && rail.slide < 0.01, JSON.stringify(rail));
     }
     // A melee as the first person's (fparms.json melee; the owner, 2026-09-29: "HOLD THE WEAPON WITH THE RIGHT ARM, SWING
     // AT THEM WITH THE LEFT ARM, LEFT ARM SHOULD GO FROM SUPPORTING THE GUN, BACK A BIT TOWARDS THE PLAYERS CHEST, THEN SWING

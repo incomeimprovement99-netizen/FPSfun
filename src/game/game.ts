@@ -74,7 +74,9 @@ export interface GameProfile {
   /** the dropship over squad.json's (doorsIn: the seconds before a jump is allowed) */
   ship?: { doorsIn: number; centre?: { near: number; far: number } };
   /** each gun's tuning over its legacy numbers (multipliers; headshotDamage outright) */
-  tuning?: Record<string, { damage: number; fireRate: number; recoil: number; mag?: number; headshotDamage?: number }>;
+  tuning?: Record<string, { damage: number; fireRate: number; recoil: number; mag?: number; headshotDamage?: number; far?: number; veryFar?: number }>;
+  /** an id the roster no longer has, to the one that took its name (loadouts.ts valid) */
+  renamed?: Record<string, string>;
 }
 
 /** the hot zone's loot coming back (speedkills.json loot.restock): seconds, a share, spots, metres */

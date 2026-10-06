@@ -324,7 +324,8 @@ function speedkillsTuned(r: ResolvedWeapon, fusion: number): ResolvedWeapon {
   const kick = (t?.recoil ?? 1) * f.recoil;
   const rate = t?.fireRate ?? 1;
   const d = r.damage;
-  const damage = { ...d, near: d.near * dmg, far: d.far * dmg, veryFar: d.veryFar * dmg };
+  // (far and veryFar: the gun's own fall-off with range, as shares of its near damage; flat where not given)
+  const damage = { ...d, near: d.near * dmg, far: d.far * dmg * (t?.far ?? 1), veryFar: d.veryFar * dmg * (t?.veryFar ?? 1) };
   // a headshot's damage outright (BOOG): the multiplier that gives it from the near damage
   if (t?.headshotDamage && damage.near > 0) damage.headshot = t.headshotDamage / damage.near;
   const vk = r.viewkick;

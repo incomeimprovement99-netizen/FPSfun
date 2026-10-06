@@ -246,6 +246,27 @@ character agent's), and what to look out for. Everything not named here is as th
   are the owner's to approve.
 - **Look out for:** the launcher's length on the shoulder against the head and the left arm in every carry; others must
   see the rocket in flight, not only its burst.
+- **The owner's go-ahead, 2026-10-06:** "yes i want that, it shouldn't hurt the shooter, but it should do more damage the
+  further it travels, so a point blank or very close does like 10 damage and then it scales like that, the skybreaker
+  is the reference for hyperscape".
+- **The Skybreaker, as sourced** (Ubisoft's patch notes, v1.0, August 2020): 40 a rocket at full range at level 1 against
+  Hyper Scape's 120 health (a third of a kill, three rockets), and "Min Range for Full Damage & Full Explosion AoE: 20m":
+  both its damage and its blast's reach grow until the rocket has flown 20 m. No self-damage found in any source. Its
+  blast radius, rocket speed, fire rate and reload were never published.
+- **HAEFY's numbers, from those ratios:**
+  - **Damage by travel:** 10 a rocket up to 2 m flown, rising evenly to 50 at 20 m and on (50 is the Skybreaker's third
+    of a kill against our 150), the damage at the blast's middle; the blast's reach grows with it, from 1.5 m to 3 m,
+    full damage within the inner 0.6 m and none at its edge. No headshot (a blast).
+  - **No self-damage:** the shooter is never hurt by their own rocket (nor a teammate).
+  - **The gun:** 4 rockets a magazine, one every 0.55 s, a 2.6 s reload; the rocket 55 m/s with no drop, gone after 3 s.
+    At 80% on target: about 1.65 s to kill from 20 m on, far longer up close (a point blank rocket does a fifth of a
+    far one), the reverse of the SMGs.
+  - **Seen by others:** the rocket model in flight (one model, also the round loaded on a reload in both views) and its
+    burst, on every page.
+  - **Bots** fire it too, its burst settled where the rocket would land.
+- **Order:** the gameplay and the rocket (a new gun id, `launcher`, replacing `3030` in the roster, a saved HAEFY following
+  it), the soldier's shoulder stance, then the guns agent's first-person hold and reload.
+
 
 ## 6. Done, for a gun
 

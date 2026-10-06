@@ -93,6 +93,9 @@ const DRESSED = OUTFIT_IDS.filter((id) => ((outfitCfg.sets as Record<string, { p
 /** a stored loadout made safe to use: anything unknown falls back (exported for tools/checks/outfit.ts) */
 export function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): LoadoutDef {
   const ids = weaponIds();
+  // (a gun that left the roster for another id keeps its holder's choice: STRYDER's rifle is its pistol now)
+  const named = (id?: string) => (id ? (PROFILE.renamed?.[id] ?? id) : id);
+  if (d) d = { ...d, slot1: named(d.slot1), slot2: named(d.slot2) };
   return {
     name: typeof d?.name === "string" && d.name.trim() ? d.name.trim().slice(0, 24) : fallback.name,
     operator: OPERATORS.some((o) => o.id === d?.operator) ? d!.operator! : fallback.operator,

@@ -3,20 +3,83 @@
   "z": 6.4,
   "_spacing": "2.4 m, not the run's full share: seven stands fill the 17.5 m between two gates with 0.35 m spare at each end, so the screens (2.2 m) keep clear of the gates' lit posts, which stand 0.1 m out from the gate, and of the sign over the middle gate (4.6 m wide, from 3.8 m up).",
   "spacing": 2.4,
-  "item": { "y": 1.2, "spin": 0.6, "bob": 0.05, "gunScale": 1.25, "coreScale": 1.4 },
+  "item": {
+    "y": 1.2,
+    "spin": 0.6,
+    "bob": 0.05,
+    "gunScale": 1.25,
+    "coreScale": 1.4
+  },
   "_card": "The card's top stays under 2.1 m: from where E reaches a stand (2.2 m out) an eye at 1.5 m sees the screen's foot (2.55 m) over it.",
-  "card": { "w": 0.6, "h": 0.48, "y": 1.86 },
-  "tv": { "w": 2.2, "h": 1.6, "y": 3.35, "z": 7.92, "px": 896 },
+  "card": {
+    "w": 0.6,
+    "h": 0.48,
+    "y": 1.86
+  },
+  "tv": {
+    "w": 2.2,
+    "h": 1.6,
+    "y": 3.35,
+    "z": 7.92,
+    "px": 896
+  },
   "_screen": "The screen's type, in canvas pixels (896 across 2.2 m: about 2.5 mm a pixel). Sized so the rows read from where E reaches: a 38 px row is about 9 cm of type, 12 px on a 720-line screen at the game's field of view from 3 m. `rowH` the table's line pitch, `band` the lit strip along the foot that says how to take and fuse.",
-  "screen": { "name": 92, "sub": 36, "status": 30, "label": 28, "row": 38, "big": 52, "rowH": 44, "now": 40, "more": 28, "band": 112 },
-  "beam": { "radius": 0.42, "height": 1.7, "opacity": 0.1 },
+  "screen": {
+    "name": 92,
+    "sub": 36,
+    "status": 30,
+    "label": 28,
+    "row": 38,
+    "big": 52,
+    "rowH": 44,
+    "now": 40,
+    "more": 28,
+    "band": 112
+  },
+  "beam": {
+    "radius": 0.42,
+    "height": 1.7,
+    "opacity": 0.1
+  },
   "_solid": "A stand's case as the player collides with it, about the stand's middle on the floor (x along the wall, z toward it): its box as it stands with its cover open, MEASURED off the loaded case (__range.armory() stands[].box, armory.ts caseBox; 2026-10-01: 1.224 m across, 0.970 m to the open cover's top, 0.342 m in front of the middle to 0.531 m behind it, the same for the gun's white case and the hack's black one). The skarmory check holds every stand to it, within 3 cm. Without it you walked through the cases and stood in the hologram.",
-  "solid": { "minX": -0.612, "maxX": 0.612, "minZ": -0.342, "maxZ": 0.531, "top": 0.97 },
+  "solid": {
+    "minX": -0.612,
+    "maxX": 0.612,
+    "minZ": -0.342,
+    "maxZ": 0.531,
+    "top": 0.97
+  },
   "reach": 2.2,
   "facing": 0.35,
   "_colors": "The gun's amber is the hack card's own (hackcast.ts), so a gun's card and a hack's read as one set; a hack wears its slot's colour as its core does on a match's floor (loot.ts: mobility cyan, utility magenta).",
-  "colors": { "gun": "#ffb347", "mobility": "#20e0ff", "utility": "#ff2e9a" },
+  "colors": {
+    "gun": "#ffb347",
+    "mobility": "#20e0ff",
+    "utility": "#ff2e9a"
+  },
   "_order": "Left to right. The guns' run goes from the side wall in to the middle gate, the most played nearest the spawn; the hacks' run goes out from the gate, the mobility hacks first.",
-  "guns": ["lstar", "sentinel", "3030", "wingman", "shotgun", "mastiff", "vinson", "rspn101", "alternator_smg", "r97"],
-  "hacks": ["dash", "slam", "leap", "grapple", "heal", "armor", "wall", "invis", "reveal", "mine"]
+  "guns": [
+    "lstar",
+    "sentinel",
+    "3030",
+    "wingman",
+    "shotgun",
+    "mastiff",
+    "vinson",
+    "autopistol",
+    "alternator_smg",
+    "r97"
+  ],
+  "hacks": [
+    "dash",
+    "slam",
+    "leap",
+    "grapple",
+    "heal",
+    "armor",
+    "wall",
+    "invis",
+    "reveal",
+    "mine"
+  ]
 }

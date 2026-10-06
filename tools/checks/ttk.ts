@@ -11,6 +11,7 @@
 import { resolveWeapon, type ResolvedWeapon } from "../../src/game/weapons";
 import { GAME, PROFILE } from "../../src/game/game";
 import { Dummy } from "../../src/game/dummy";
+import { valid, type LoadoutDef } from "../../src/game/loadouts";
 import * as THREE from "three";
 
 let fails = 0;
@@ -123,6 +124,43 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
   // "i think our swaps are too quick for how we wanted it"): 0.9 of the legacy time as found, 0.675 at level 5
   const legacyDraw = 0.6;
   check("a gun draws in 0.9 of the legacy time as found and 0.675 at level 5, quicker each level", Math.abs(a.deployTime / legacyDraw - 0.9) < 0.01 && Math.abs(b.deployTime / legacyDraw - 0.675) < 0.01 && [0, 1, 2, 3, 4].every((l) => resolveWeapon("rspn101", 0, [], l + 1).deployTime < resolveWeapon("rspn101", 0, [], l).deployTime), `${a.deployTime.toFixed(2)} s to ${b.deployTime.toFixed(2)} s`);
+}
+
+// The owner's rule for range (2026-10-05: "all around the same but if it's closer range more dps vs rifles. If longer
+// range, less dps ... vary depending on the guns type"), approved as a table: the time to kill at 10, 30 and 60 m with each
+// gun's own fall-off (speedkills.json tuning far and veryFar, eased between its data's distances as projectile.ts does).
+// The close-range guns (the SMGs and the pistols) quickest up close and slow at 60 m, past a magazine there; a rifle and
+// CHOOCH within a fifth of their close time at 60 m; none quicker far than near; and up close the close-range guns no
+// slower than the rifle
+{
+  const at = (d: ResolvedWeapon["damage"], m: number): number => {
+    const l = (a: number, b: number, t: number) => a + (b - a) * t;
+    if (m <= d.nearDist) return d.near;
+    if (m <= d.farDist) return l(d.near, d.far, (m - d.nearDist) / (d.farDist - d.nearDist));
+    if (m <= d.veryFarDist) return l(d.far, d.veryFar, (m - d.farDist) / (d.veryFarDist - d.farDist));
+    return d.veryFar;
+  };
+  const time = (id: string, m: number): number => {
+    const w = resolveWeapon(id, 0, [], 0);
+    return ttk({ ...w, damage: { ...w.damage, near: at(w.damage, m) } });
+  };
+  const fam = (f: string): string[] => (PROFILE.families as Record<string, { guns: string[] }>)[f]?.guns ?? [];
+  const close = [...fam("smg"), ...fam("pistol")];
+  const steady = [...fam("rifle"), ...fam("special")];
+  const row = (id: string) => `${PROFILE.weapons[id].name} ${[10, 30, 60].map((m) => time(id, m).toFixed(2)).join("/")}`;
+  check("no gun kills quicker far than near (10, 30 and 60 m)", PROFILE.roster.every((id) => time(id, 30) >= time(id, 10) - 1e-9 && time(id, 60) >= time(id, 30) - 1e-9), PROFILE.roster.map(row).join(", "));
+  check("the close-range guns (SMGs, pistols) take at least twice as long at 60 m as at 10", close.length > 0 && close.every((id) => time(id, 60) >= 2 * time(id, 10)), close.map(row).join(", "));
+  check("the rifle and CHOOCH within a fifth of their close time at 60 m", steady.length > 0 && steady.every((id) => time(id, 60) <= 1.2 * time(id, 10)), steady.map(row).join(", "));
+  const rifle10 = Math.min(...fam("rifle").map((id) => time(id, 10)));
+  check("up close the SMGs and the fast pistol kill no slower than the rifle", [...fam("smg"), "autopistol"].filter((id) => PROFILE.roster.includes(id)).every((id) => time(id, 10) <= rifle10), `rifle ${rifle10.toFixed(2)} s`);
+}
+
+// STRYDER left the rifle (rspn101) for the fast pistol (autopistol): a saved loadout naming the rifle is given the pistol,
+// not the default (speedkills.json renamed; loadouts.ts valid)
+{
+  const fb = { name: "x", operator: "vanguard", outfit: "fatigues", build: "regular", face: "", slot1: "r97", slot2: "vinson", heirloom: "fists" } as unknown as LoadoutDef;
+  const got = valid({ ...fb, slot1: "rspn101", slot2: "wingman" }, fb);
+  check("a saved loadout naming STRYDER's old rifle holds STRYDER's pistol", GAME !== "speedkills" || (got.slot1 === "autopistol" && got.slot2 === "wingman"), `${got.slot1}, ${got.slot2}`);
 }
 
 console.log(fails === 0 ? "\nTTK PASS" : `\nTTK FAIL (${fails})`);

@@ -21,6 +21,7 @@
 //   2026-09-30: "the trigger finger should be more through the hold and still touching the trigger. right now its like
 //   the very finger tip is the only thing that can press the trigger". To the trigger's front face (the bought model's
 //   own part, a mesh named Trigger), sampled over the face's triangles, anywhere on it. null for a gun with no trigger
+// - palmFlush: the nearest tenth of each palm's skin to the gun, mm: laid on its hold, a few; touching with a sliver, 15+
 // - handOnHand: how deep any skin of the left hand is inside the right hand, mm, by handIn's rule against the right
 //   hand's skin as drawn, its forearm's with it so the mesh's open end is at the elbow, not by the left hand. A pistol
 //   is held in both hands on one grip, the left round the right (docs/PLAN_SOLDIER_EIGHT_GUNS.md G7), and nothing
@@ -313,6 +314,8 @@
     // off it is a hand held open beside the gun, which a measure of depth alone would call perfect
     const fingerGap = {};
     const palmGap = { l: 30, r: 30 };
+    /** each palm skin point's nearest gap to the gun, mm (30 past reach), for palmFlush */
+    const palmPts = { l: [], r: [] };
     const far = { d: 0 };
     const FINGER = /^(index|middle|ring|pinky|thumb)_0([23])_([lr])$/;
     const bodyTris = [];
@@ -351,8 +354,13 @@
         if (k % 2) continue;
         const m = HAND.exec(boneOf[k]);
         const wp = new T.Vector3(world[k * 3], world[k * 3 + 1], world[k * 3 + 2]);
-        if (!gunBox.containsPoint(wp)) continue;
+        const isPalm = boneOf[k] === `hand_${m[3]}`;
+        if (!gunBox.containsPoint(wp)) {
+          if (isPalm) palmPts[m[3]].push(30);
+          continue;
+        }
         const fm = FINGER.exec(boneOf[k]);
+        let pointGap = 30;
         for (const pt of parts) {
           if (!pt.box.containsPoint(wp) || !drawn(pt.o, wp)) continue;
           const lp = wp.clone().applyMatrix4(pt.inv);
@@ -365,6 +373,7 @@
           if (boneOf[k] === `hand_${m[3]}`) {
             const gap = d > 0 ? 0 : Math.min(30, far.d * pt.scale * 1000);
             palmGap[m[3]] = Math.min(palmGap[m[3]], Math.round(gap));
+            pointGap = Math.min(pointGap, gap);
           }
           if (fm) {
             const key = `${fm[1]}_${fm[3]}`;
@@ -380,6 +389,7 @@
             (out.whereAt ??= {})[boneOf[k]] = [cm(g.x), cm(g.y), cm(g.z), pt.o.name];
           }
         }
+        if (isPalm) palmPts[m[3]].push(pointGap);
       }
       // the rest of the body near the gun, for the gun's points against it (handsOnly: a hand's fit, which has no use for it)
       if (opts.handsOnly) continue;
@@ -451,6 +461,13 @@
       out.below = ["index", "middle", "ring", "pinky"].flatMap((f) => ["l", "r"].filter((s) => (at(`${f}_01_${s}`)?.applyMatrix4(toGun).y ?? Infinity) < bottom).map((s) => `${f}_${s}`));
     }
     out.palmGap = palmGap;
+    // the nearest tenth of each palm's skin to the gun, mm: a palm laid on its hold has a tenth of its skin on it, and one
+    // touching it with a sliver reads 15 mm and more (the owner, 2026-10-05: "the left support hand on the USSO has a gap
+    // between it and the gun"; the guns agent's measure in the first person)
+    out.palmFlush = Object.fromEntries(["l", "r"].map((side) => {
+      const g = palmPts[side].slice().sort((x, y) => x - y);
+      return [side, g.length ? Math.round(g[Math.floor(g.length * 0.1)]) : 30];
+    }));
     out.handWhere = where;
     // the gun's points against the body (every fourth vertex of each part)
     let gunIn = 0;
