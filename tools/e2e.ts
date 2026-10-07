@@ -48,6 +48,13 @@ import districtsCfg from "../src/config/citydistricts.json";
 import { BR_X, BR_Z } from "../src/game/br";
 import { readFileSync } from "node:fs";
 
+/**
+ * A test of the legacy game alone, pinned to it until the code it tests goes (docs/PLAN_LEGACY_REMOVAL.md, 490): the
+ * suite runs SpeedKills by default, and a test that holds the legacy game's own map, loot, abilities, knockdowns or
+ * arenas names it with this.
+ */
+const LEGACY = "&game=legacy";
+
 const BASE = process.env.SHOT_URL ?? "http://localhost:5173/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
 
@@ -112,9 +119,9 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   if (throttle > 1) await (await page.createCDPSession()).send("Emulation.setCPUThrottlingRate", { rate: throttle });
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
   const q0 = query.includes("intro=on") ? query : query.startsWith("?") ? `${query}&nointro` : "?nointro";
-  // The suite is the legacy game's regression net (docs/PHASE_18_PLAN_SPEEDKILLS.md section 9): a page is
-  // legacy unless its query or E2E_GAME names a game, now that a page with no word opens in SpeedKills.
-  const q1 = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "legacy"}`;
+  // A page is SpeedKills unless its query or E2E_GAME names a game: the suite was the legacy game's regression net
+  // until that game was being removed (the owner, 2026-10-04), and a check of the legacy game alone names it.
+  const q1 = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "speedkills"}`;
   // SpeedKills opens on the Neon City map now (Phase 28); the suite's city tests are the ILranch city's, which ?map=city
   // keeps, so a SpeedKills page is on it unless its query names a map (E2E_MAP=neon puts every one on the new map)
   const q = q1.includes("game=speedkills") && !q1.includes("map=") ? `${q1}&map=${process.env.E2E_MAP ?? "city"}` : q1;
@@ -214,7 +221,7 @@ async function lateBoxesTest(browser: Browser): Promise<void> {
  * way never worked for a 1v1 (the page's leaving ended the host's match before it came back).
  */
 async function crossGameTest(browser: Browser): Promise<void> {
-  const host = await open(browser, "?net=local&norender");
+  const host = await open(browser, "?net=local&norender" + LEGACY);
   const guest = await open(browser, "?net=local&norender&game=speedkills");
   await ev(host, `document.getElementById("duelHost").click()`);
   const code = await host
@@ -231,7 +238,7 @@ async function crossGameTest(browser: Browser): Promise<void> {
   await host.close();
   await guest.close();
   const skHost = await open(browser, "?net=local&norender&game=speedkills");
-  const oldGuest = await open(browser, "?net=local&norender");
+  const oldGuest = await open(browser, "?net=local&norender" + LEGACY);
   await ev(skHost, `document.getElementById("duelHost").click()`);
   const code2 = await skHost
     .waitForSelector("#duelStatus .code", { timeout: 20000 })
@@ -1049,8 +1056,8 @@ async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
     { map: "vault", button: "goFfa", want: "vault", bots: "3" },
     { map: "crossing", button: "goControl", want: "crossing", bots: "3" },
     { map: "ringworks", button: "goFfa", want: "ringworks", bots: "3" },
-    // "picked for the mode": a free-for-all is drawn for the ringworks
-    { map: "auto", button: "goFfa", want: "ringworks", bots: "2" },
+    // "picked for the mode": SpeedKills plays its free-for-all in NEON BLOCK, its city's own arena
+    { map: "auto", button: "goFfa", want: "neonblock", bots: "2" },
   ];
   for (const c of cases) {
     const page = await startModePage(browser, query, c.button, `document.getElementById("modeBots").value = "${c.bots}"; document.getElementById("arenaMap").value = "${c.map}"`);
@@ -1214,7 +1221,7 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ct.close();
 
   // ---- SCOUT: PULSE shows the enemies in front, SWEEP everyone around
-  const sc = await startModePage(browser, query, "goFfa", `document.getElementById("modeBots").value = "2"; const ab = document.getElementById("botAbilities"); ab.value = "1"; ab.dispatchEvent(new Event("change"))`);
+  const sc = await startModePage(browser, query + LEGACY, "goFfa", `document.getElementById("modeBots").value = "2"; const ab = document.getElementById("botAbilities"); ab.value = "1"; ab.dispatchEvent(new Event("change"))`);
   await ev(sc, `window.__range.pickAbility("scout")`);
   // one bot 20 m in front of you, the other 45 m behind
   const put = await ev<{ front: number; back: number } | null>(
@@ -1243,7 +1250,7 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await sc.close();
 
   // ---- the motion-captured figures (a setting): they load, a match's figures are mannequins and animate
-  const mq = await open(browser, query);
+  const mq = await open(browser, query + LEGACY);
   await ev(mq, `(() => { const s = document.getElementById("figureStyle"); const def = s.value; s.value = "mannequin"; s.dispatchEvent(new Event("change")); window.__mqDefault = def; return window.__range.loadMannequin(); })()`);
   check("figures: the mannequin is the default figure", (await ev<string>(mq, "window.__mqDefault")) === "mannequin");
   await ev(mq, `(() => { document.getElementById("modeBots").value = "2"; document.getElementById("goFfa").click(); document.getElementById("startMode").click(); })()`);
@@ -8721,7 +8728,7 @@ const CENTRE_NAME = ((process.env.E2E_MAP ?? "city") === "neon" ? neonSectorsCfg
  */
 async function introTest(browser: Browser): Promise<void> {
   // the one page in the suite that opens with the card on
-  const page = await open(browser, "?intro=on");
+  const page = await open(browser, "?intro=on" + LEGACY);
   const up = await page
     .waitForFunction(`(() => { const s = window.__range.intro.state(); return s.kind === "boot" && s.shown; })()`, { polling: 20, timeout: 20000 })
     .then(() => true, () => false);
@@ -8925,7 +8932,7 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
  * tracer starts there.
  */
 async function holdTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&nointro");
+  const page = await open(browser, "?norender&nointro" + LEGACY);
   await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 40000 });
   const ok = await ev<boolean>(page, "window.__range.loadMannequin().then(() => true, () => false)");
   if (!ok) {
@@ -8989,7 +8996,7 @@ async function holdTest(browser: Browser): Promise<void> {
  * still, and compare where the rounds landed with the line the wall drew.
  */
 async function sprayTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&nointro");
+  const page = await open(browser, "?norender&nointro" + LEGACY);
   await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 40000 });
   await ev(page, `(() => { const r = window.__range; r.player.teleport(13.45, 0, -64, -90); r.player.pitch = 1.2; r.sprayWall.clear(); })()`);
   // aimed in and holding the trigger, with nothing else touching the view
@@ -9167,9 +9174,9 @@ async function ownerTest(browser: Browser): Promise<void> {
   );
   check("the kit card offers every kit and says what each one does", !card || (card.n >= 2 && card.wide), JSON.stringify(card));
 
-  // the movement: Apex's unless a match asks for more
-  const moves = await ev<{ on: boolean; box: string }>(page, `({ on: window.__range.player.extraMoves, box: document.getElementById("extraMoves").value })`);
-  check("the double jump and the wall run are off unless the lobby asks for them", !moves.on && moves.box === "0", JSON.stringify(moves));
+  // the movement: SpeedKills' own, the double jump and the wall run always on
+  const moves = await ev<{ on: boolean }>(page, `({ on: window.__range.player.extraMoves })`);
+  check("the double jump and the wall run are on, as SpeedKills always has them", moves.on, JSON.stringify(moves));
   await ev(page, `(() => { const s = document.getElementById("extraMoves"); s.value = "1"; s.dispatchEvent(new Event("change")); })()`);
   await start("goRange");
   const armed = await ev<boolean>(page, `window.__range.player.extraMoves`);
@@ -9486,24 +9493,8 @@ async function main(): Promise<void> {
     const extras = ["Slide_Start", "Slide_Exit", "OverhandThrow", "Melee_Hook", "Punch_Cross", "Hit_Head", "NinjaJump_Idle_Loop", "Fixing_Kneeling", "Interact", "Dance_Loop", "Yes", "Idle_FoldArms_Loop"];
     const clipsIn = await ev<string[]>(page, `new Promise((ok) => { const want = ${JSON.stringify(extras)}; const t0 = performance.now(); const w = () => { const miss = want.filter((c) => !window.__range.hasClip(c)); if (!miss.length || performance.now() - t0 > 10000) ok(miss); else setTimeout(w, 100); }; w(); })`);
     check("the extra clips (a slide's way in and out, a throw, three swings, a revive, emotes) load after the figures", clipsIn.length === 0, clipsIn.length ? `missing ${clipsIn.join(", ")}` : `${extras.length} clips`);
-    // the battle royale's buildings dressed from the kit (kitdress.ts), drawn once the pieces are in
-    const dressed = await ev<number>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.kitDressed() > 0 || performance.now() - t0 > 15000 ? ok(window.__range.kitDressed()) : setTimeout(w, 200)); w(); })`);
-    check("the battle royale's buildings are dressed from the kit: cornices, corner columns, bands, door frames, roof units", dressed > 200, `${dressed} pieces`);
-    // The field's scenery is drawn near you and not far off (props.ts). Its
-    // cells were once measured in the map's own space against a camera in the
-    // world's, 500 m apart, so the rock scans showed boxes nearly everywhere
-    // and nothing that grows showed at all, with every other check green.
-    const kitGrowth = await ev<string[]>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => { const d = window.__range.sceneryDrawn(); if (d.some((n) => n.startsWith("kit/nature/")) || performance.now() - t0 > 15000) ok(d); else setTimeout(w, 200); }; w(); })`);
-    check("what grows on the sand is drawn: dead trees, bushes, grass, pebbles from the kit", ["DeadTree_1", "Bush_Common", "Grass_Wispy_Short"].every((n) => kitGrowth.includes(`kit/nature/${n}`)), kitGrowth.filter((n) => n.startsWith("kit/")).join(", "));
-    const cellsAt = async (x: number, z: number) => {
-      await ev(page, `(() => { const r = window.__range; r.player.setBounds({ minX: -400, maxX: 400, minZ: -400, maxZ: 800 }); r.player.teleport(${x}, 3, ${z}, 0, 0); r.player.vel.set(0, 0, 0); })()`);
-      await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-      return ev<{ drawn: number; of: number; nearestDrawn: boolean; nearest: number; tooFar: number }>(page, "window.__range.sceneryCells()");
-    };
-    const inBr = await cellsAt(0, 500 - 90);
-    const inRange = await cellsAt(0, 6);
-    check("the field's scenery is drawn where you stand in the battle royale: the nearest cell is drawn, none past its distance", inBr.nearestDrawn && inBr.tooFar === 0 && inBr.drawn > 0, JSON.stringify(inBr));
-    check("and none of it is drawn from the range, 500 m off", inRange.drawn === 0, JSON.stringify(inRange));
+    // (the Outskirts' kit dressing and its scenery were checked here: the legacy game's map, which SpeedKills never
+    // draws; the code goes with the map, docs/PLAN_LEGACY_REMOVAL.md 496)
     await ev(page, "window.__range.player.teleport(0, 0, 6, 0)");
     // the gun has its own camera: the FOV setting widens the world, not the gun
     const fovAt = async (v: string) => {
@@ -9546,7 +9537,8 @@ async function main(): Promise<void> {
     // pick the Close Quarters default: its weapons go in the slots
     await ev(page, `[...document.querySelectorAll("#loadoutList button")].find((b) => b.textContent.startsWith("Close Quarters")).click()`);
     const w = await ev<string[]>(page, "window.__range.loadout.slots.map((s) => s.weapon.id)");
-    check("choosing a loadout puts its weapons in the slots", w[0] === "r97" && w[1] === "mastiff", w.join(","));
+    const def = await ev<string[]>(page, "[window.__range.loadouts.current.slot1, window.__range.loadouts.current.slot2]");
+    check("choosing a loadout puts its weapons in the slots", w.join() === def.join() && def[0] !== def[1], `${w.join(",")} for ${def.join(",")}`);
     const locked = await ev<boolean>(page, `document.getElementById("slot0").disabled`);
     check("a default loadout cannot be edited", locked);
     // copy it into custom slot 2, rename it, change slot 1
@@ -9575,11 +9567,11 @@ async function main(): Promise<void> {
 
     if (want("duel")) await section("duel", async () => {
       console.log("\n1v1 over the local transport (two tabs)");
-      await duelTest(browser, "?net=local&norender", "local");
+      await duelTest(browser, "?net=local&norender" + LEGACY, "local");
       console.log("\nA friend's figure over a jittery connection");
-      await jitterTest(browser, "?net=local&norender&jitter=60");
+      await jitterTest(browser, "?net=local&norender&jitter=60" + LEGACY);
       console.log("\nA friend's figure with state packets lost and out of order");
-      await jitterTest(browser, "?net=local&norender&jitter=60&loss=0.15", true);
+      await jitterTest(browser, "?net=local&norender&jitter=60&loss=0.15" + LEGACY, true);
       console.log("\nCustom rules");
       await rulesTest(browser, "?net=local&norender");
       console.log("\nA 1v1 on the Neon City before the host's collision boxes are in");
@@ -9619,16 +9611,16 @@ async function main(): Promise<void> {
 
     if (want("bots")) await section("bots", async () => {
       console.log("\nArena, Bots");
-      await botsTest(browser, "?norender");
+      await botsTest(browser, "?norender" + LEGACY);
       console.log("\nBot tiers");
-      await botTiersTest(browser, "?norender");
+      await botTiersTest(browser, "?norender" + LEGACY);
       console.log("\nWhere you are being shot from");
       await damageDirTest(browser, "?norender");
     });
 
     if (want("pad")) await section("pad", async () => {
       console.log("\nController");
-      await padTest(browser, "?norender");
+      await padTest(browser, "?norender" + LEGACY);
     });
 
     if (want("panel")) await section("panel", async () => {
@@ -9654,11 +9646,11 @@ async function main(): Promise<void> {
     });
     if (want("range")) await section("range", async () => {
       console.log("\nThe range's tooling");
-      await rangeTest(browser, "?norender");
+      await rangeTest(browser, "?norender" + LEGACY);
     });
     if (want("br")) await section("br", async () => {
       console.log("\nBattle royale against bots");
-      await brTest(browser, "?norender");
+      await brTest(browser, "?norender" + LEGACY);
       console.log("\nDoors");
       await doorTest(browser, "?norender");
       console.log("\nThe vault");
@@ -9667,17 +9659,17 @@ async function main(): Promise<void> {
 
     if (want("loot")) await section("loot", async () => {
       console.log("\nBattle royale: landing with nothing, the loot");
-      await brLootTest(browser, "?norender");
+      await brLootTest(browser, "?norender" + LEGACY);
     });
 
     if (want("ship")) await section("ship", async () => {
       console.log("\nThe dropship: the ride, the jump, the end of the line, the bots, the jumpmaster");
-      await shipTest(browser, "?norender", "?net=local&norender");
+      await shipTest(browser, "?norender" + LEGACY, "?net=local&norender" + LEGACY);
     });
 
     if (want("console")) await section("console", async () => {
       console.log("\nRing Consoles: the scan, the circle after next, the squad");
-      await consoleTest(browser, "?norender", "?net=local&norender");
+      await consoleTest(browser, "?norender" + LEGACY, "?net=local&norender" + LEGACY);
     });
 
     if (want("gulag")) await section("gulag", async () => {
@@ -9687,7 +9679,7 @@ async function main(): Promise<void> {
 
     if (want("finish")) await section("finish", async () => {
       console.log("\nThe finishing touches: toggles, per-optic ADS, the controller, inspect, the first draw, the tour");
-      await finishTest(browser, "?norender");
+      await finishTest(browser, "?norender" + LEGACY);
     });
 
     if (want("modes")) await section("modes", async () => {
@@ -9696,10 +9688,10 @@ async function main(): Promise<void> {
       console.log("\nThe new arenas: the Vault, the Crossing, the Ringworks");
       await arenaMapsTest(browser, "?norender");
       console.log("\nA free-for-all with a friend (two tabs, the local transport)");
-      await modesFriendsTest(browser, "?net=local&norender");
+      await modesFriendsTest(browser, "?net=local&norender" + LEGACY);
       await modesSplitTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");
-      await kitsFriendsTest(browser, "?net=local&norender");
+      await kitsFriendsTest(browser, "?net=local&norender" + LEGACY);
       await lobbyTest(browser, "?net=local&norender");
       await lobbyShortTest(browser, "?net=local&norender");
     });
@@ -9784,14 +9776,14 @@ async function main(): Promise<void> {
 
     if (want("botsquads")) await section("botsquads", async () => {
       console.log("\nBot squads: a trio of bots keeps together");
-      await botSquadsTest(browser, "?norender");
+      await botSquadsTest(browser, "?norender" + LEGACY);
     });
 
     if (want("brsolo")) await section("brsolo", async () => {
       console.log("\nSolo with a friend: everyone against everyone, each placed on their own");
-      await brSoloTest(browser, "?net=local&norender");
+      await brSoloTest(browser, "?net=local&norender" + LEGACY);
       console.log("\nSquads of friends: two duos against each other");
-      await brSquadsTest(browser, "?net=local&norender");
+      await brSquadsTest(browser, "?net=local&norender" + LEGACY);
       console.log("\nGetting back in after a dropped connection");
       await rejoinTest(browser, "?net=local&norender");
     });
@@ -9804,17 +9796,17 @@ async function main(): Promise<void> {
       console.log("\nHost migration in Control, with bots");
       await migrateTest(browser, "?net=local&norender", "host migration (control)", "control", 3);
       console.log("\nHost migration in a battle royale");
-      await brMigrateTest(browser, "?net=local&norender");
+      await brMigrateTest(browser, "?net=local&norender" + LEGACY);
     });
 
     if (want("squad")) await section("squad", async () => {
       console.log("\nBattle royale as a squad (two tabs, the local transport)");
-      await brSquadTest(browser, "?net=local&norender");
+      await brSquadTest(browser, "?net=local&norender" + LEGACY);
     });
 
     if (want("p2p")) await section("p2p", async () => {
       console.log("\n1v1 over peer to peer (the public broker)");
-      const ran = await duelTest(browser, "?norender", "p2p");
+      const ran = await duelTest(browser, "?norender" + LEGACY, "p2p");
       if (!ran) console.log("  --  skipped: the broker or the internet was not reachable");
       else {
         console.log("\nGetting back in after a dropped connection, over peer to peer");

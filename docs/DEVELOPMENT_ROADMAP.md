@@ -10916,6 +10916,34 @@ br.json `gulag.landSpread`, and `gulagFor` no longer asks which rules are on.
   controls without the Rules box; the intro's cards without Resurgence's); rules; the br, squad, gulag, migrate,
   sksquad, sklobby, intro and panel e2e.
 
+## Milestone 490 — The e2e on SpeedKills, and the Ring pace that did nothing there
+
+The first step of the legacy game's removal (docs/PLAN_LEGACY_REMOVAL.md): the e2e suite opened every page in the
+legacy game unless its query named one, so 28 of its sections, many on systems both games share, were testing a
+game nobody plays. The default is SpeedKills now (`e2e.ts` open). Every section was run on SpeedKills and sorted:
+
+- **SpeedKills tests from now on, unchanged:** emote, invite, triple, ping, gulag, hidden and mixed pass whole on
+  SpeedKills, and so do most of page, panel, owner, modes and migrate.
+- **Adapted to SpeedKills:** the owner's movement check (the double jump and the wall run are always on, as
+  SpeedKills has them), the Loadouts tab's default loadout (its guns are the loadout's own, not the legacy R-99 and
+  Mastiff), the arena modes' map picked for a free-for-all (NEON BLOCK, SpeedKills' city arena).
+- **Pinned to the legacy game** (`LEGACY` in e2e.ts), each to go or be ported with the code it holds: the 1v1 over the
+  local transport and peer to peer (the warehouse's spawns and shields), jitter and loss, the legacy intro card, the
+  arena bots and their tiers, the controller's pass, the figures' holds, the spray wall, the range's pass (its README,
+  JOLT's dash, the plates' backstop), the Outskirts battle royale, its loot, ship and consoles, the finishing touches and
+  the legacy tour, SCOUT, the mannequin figures, a mode with a friend, kits with a friend, bot squads' knocks and
+  finishers, solo and squads of friends, a battle royale's host migration and its squad. The cross-game test keeps its
+  legacy page by design until the switch goes.
+- **Dropped:** the Outskirts' kit dressing and scenery checks on the page section's page, which is SpeedKills' now and
+  never draws them; the map and its code go in 496.
+
+The sort found one SpeedKills bug: the panel's Ring pace, under Adjust settings and on the loading card, did nothing in
+SpeedKills, whose decay waves replaced the paced ring as they stood. The pace now applies to the waves (brmatch.ts),
+so Slow and Fast make the decay take longer or shorter, as the box says. The Node checks keep the legacy default until
+the switch (498): about 160 of them hold the legacy game's own numbers and go with the code they test.
+
+- **Checked:** tsc; verify; rules; all 28 sections that ran legacy pages, on SpeedKills with the pins.
+
 ## Milestone 480 — Cover down the streets, and street pieces that look like what they collide as
 
 The centre's fourth review (docs/CENTRE_REVIEW.md): "cover every 8 to 12 m in the streets and plaza"; its shots showed

@@ -753,10 +753,12 @@ export class BrMatch extends Duel {
     this.gulagOn = opts.gulag !== false;
     // the ring's clock at the lobby's own pace: how long a match should be
     this.phases = ringPace(RING_PHASES, opts.pace ?? "normal");
-    // SpeedKills: the decay's waves are the rounds, and every round closes to the final sector's middle
+    // SpeedKills: the decay's waves are the rounds, and every round closes to the final sector's middle. At the lobby's
+    // pace too: the Ring box under Adjust settings, and the pace on the loading card, changed nothing here when the
+    // waves were taken as they stood (found 2026-10-05, when the e2e moved onto SpeedKills)
     if (IS_SK) {
       this.decay = decayPlan(this.seed);
-      this.phases = decayCfg.phases.map((p) => ({ ...p }));
+      this.phases = ringPace(decayCfg.phases, opts.pace ?? "normal");
       // (the sectors as the map in play has them, decay.ts SECTOR_RECTS: a sector's own middle and reach where it names them)
       const f = SECTOR_RECTS.find((s) => s.id === this.decay!.final)!;
       const mid = centreOf(f.id);

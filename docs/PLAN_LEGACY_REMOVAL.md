@@ -40,11 +40,37 @@ agent's (apex-city) and the legacy guns' data the guns agent's (apex-soldier), e
 
 ## 4. The legacy game
 
-- The `game=legacy` profile and every branch that only it takes (`IS_SK` false): its modes (Walk the arena, Gun Run,
-  Crown, Search), Resurgence, the Outskirts map, its loot (ammo, attachments, hop-ups, helmets, backpacks, knockdown
-  shields, heal items, EVO armour), its HUD paths, its menu options, and its tests.
-- The abilities stay, loaded at startup.
-- The README stays in the repo, and on the TV only if the owner wants it there beside the manual.
+Done so far: no supply bins (475), no death boxes (476), no grenades (481), the legacy-only modes (485), Resurgence
+(486). What is left, surveyed 2026-10-04, one milestone each (490 to 499 reserved), lowest risk first:
+
+- **490, the e2e on SpeedKills.** The e2e pages run the legacy game unless told otherwise (`e2e.ts` E2E_GAME); 28
+  sections do, many of them on shared systems (the network, host migration, the killcam, the recap, the controller,
+  the lobby, the arena modes, the range's tools, the Gulag). The default becomes SpeedKills with no change to the
+  game, and every check is sorted: one that passes is a SpeedKills test from now on; one that tests the legacy game
+  alone names it (`game=legacy`) and goes with its code. The Node checks stay on the legacy default until the switch
+  (498): run on SpeedKills, about 160 of them fail because they hold the legacy game's own numbers (Apex's movement
+  constants, its guns' stats, its loot tables and ring), and each goes with the code it tests, as the grenades' did.
+- **491, the UI's crumbs:** the `legacyOnly` controls, the legacy tour's steps, the README branch of the screen (the
+  TV and the manual stay), the legacy intro card and tips, the cross-game join message. About 300 lines.
+- **492, abilities and kits** (JOLT, TRIAGE, MEDIC, SCOUT, HOOK, SMOKE, WARD): SpeedKills turns them off and runs its
+  hacks, which load at startup for the range and stay, with what they borrow (walls.ts and the ward's numbers,
+  reveal.ts, healarea.ts, DASH's look and sound). About 1,600 lines.
+- **493, attachments, mag levels and hop-ups;** SpeedKills keeps one fixed optic per gun and fusion. About 350 lines.
+- **494, the legacy loot and the battle royale's side rules:** ammo, attachment, heal, helmet, backpack and
+  knockdown-shield loot, the vault, the Ring Consoles, Storm Surge, the loadout crate, EVO. About 1,700 lines.
+- **495, heals, armour and EVO** (kit.ts, items.json, the heal wheel): SpeedKills' health comes back on its own.
+  About 550 lines.
+- **496, the Outskirts map** (br.ts's builder, its scenery and about 15 MB of its assets); the shared types stay.
+  About 3,050 lines.
+- **497, knockdowns, bleed-out, revives, finishers, the knockdown shield** (SpeedKills has none: `noKnocks`). The
+  Gulag, the echo restore and the figure's death fall stay. About 1,000 lines; the character agent told first.
+- **498, the game switch itself:** `game=legacy`, legacy.json, every `IS_SK` branch folded (the SpeedKills storage
+  keys kept, so nobody loses a setting). About 400 lines.
+- **The legacy guns' data** (18 guns not in SpeedKills' roster) is the guns agent's; the old ILranch city the city
+  agent's, once nothing of SpeedKills reads it.
+
+About 9,500 to 10,000 lines of code, 1,500 of config and 5,000 of tests in all, and about 15 MB of assets.
+
 
 ## 5. The extra modes on the range or the city
 
