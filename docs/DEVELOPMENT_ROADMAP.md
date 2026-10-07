@@ -10807,6 +10807,49 @@ scrubbed one (vite.config.ts scrubReadme), and its name check passes.
   an arrow loads the text at its start, then every earlier screen check); photographs of the cover and the
   opened manual in SpeedKills, the manual fetched only after the shot.
 
+## Milestone 480 — Cover down the streets, and street pieces that look like what they collide as
+
+The centre's fourth review (docs/CENTRE_REVIEW.md): "cover every 8 to 12 m in the streets and plaza"; its shots showed
+the streets open, the median's boards in none of them. Measured first (`tools/.scratch/covermap.mts`): from every open
+half-metre of the streets, the distance to the nearest thing a crouched body hides behind, anything standing from the
+ground (under 0.5 m) past 1 m. On map version 43, 33.4% of the curves', the Loop's and the ring road's open ground was
+over 6 m from it, the farthest 20.4 m: the Loop's four junctions under the bridges and its east side, and the ring road;
+the plaza and the ground off the streets already had it (3% and 5% over 6 m).
+
+- **The farthest point takes a piece** (neonmap.json `rules.dress.cover`, tools/neon-layout.ts): the street point
+  farthest from cover takes a piece within 3 m of it, then the next farthest, until every point has cover within 6 m or
+  no piece fits by it. On a carriageway the pack's planter (1.85 m to its leaves), every third the tall poster board the
+  median uses (3.08 m, over a standing eye, to cut the long lines); on a pavement a kiosk or a planter; each with its
+  long side along the street. 133 pieces: 84 planters, 32 boards, 17 kiosks, 59k triangles.
+- **Where none goes**: 1.5 m clear of anything a body stands in, so every way past one is a body's width; a metre under
+  anything over it (a board stood 0.45 m under the Sky Ring's deck at the first bake: its own zero is 1.97 m up it, and
+  its height read from there); off the pads, the lifts' footbridges, the Sky Ring's stairs, the metro's kiosks, the
+  Well's stairwell, the walk-ins' doors and THE CENTRE's spawns; never one that cuts the bots' street graph, nor one
+  across any link of a node the graph's model already has cut off (its guess at a link is wrong both ways: a pair of
+  street nodes it took for cut off was joined in the game by one link, and a kiosk on that link shut them in at the
+  v45 bake).
+- **What stands in the street looks like what it collides as** (`dress.seeThrough`, `dress.twoFaced`): photographed up
+  close, the pack's street fence blocks, the median's since Milestone 443 and the first bake's cover, are barred
+  railings: seen through, and to a shot and a bot's eye solid half-metre columns, so a player saw a body through the bars
+  and their shots stopped at nothing. The median is the pack's planter now (26 of them and its 12 boards), and the cover
+  uses no railing. And the tall poster board is posters on one face, an empty frame from behind round a solid box: each
+  of the 44 is laid with a drawn twin turned about on the same footprint, a face to each side.
+- **Measured on this run's own pieces, laid last and solid**: the cover leaves out the last bake's boxes of the street
+  pieces the dress block lays again (as the bots' street graph does) and stamps those this run laid, so a changed median
+  is measured where it now stands; and the bake lists a solid placement's boxes in `laid` (an open one's it merges with
+  the rest), so the next run measures the streets without the cover and lays the same. The bots' street graph's model
+  leaves out the boxes under the last layout's low pieces but now not those of the chunks laid last, whose boxes `laid`
+  already drops: their footprints took a parked car's boxes beside them out by turns, and the rerun laid differently.
+- **The road check** (nothing taller than a parked car on the roads) knows the cover's boards as it knows the median's,
+  with the reach of the collision's half-metre columns past a turned board's face (0.75 m, from 0.6: a board turned 56
+  degrees filled a column 0.77 m off its middle line).
+- **Checked** (`tools/checks/sk-neon.ts`, new checks): at most 1% of the open street over 6 m from cover and none over
+  8 m: 0.4% and 7.5 m now, failing on map version 43 (33.4%, 20.4 m); no railing in the median or the cover and every one-sided
+  board twinned, failing with the railings and lone boards of map version 44. The road check fails with the cover's
+  boards left out of its exemption; the median's planters solid past a crouched head; the Sky Ring's room under it,
+  2.70 m. The layout run again on the bake leaves the config as it was. The e2e `speedkills` section on the Neon City:
+  every check passes but "the bots land and move through the city", which wants 15 of the 27 bots 3 m on in the 6 s after the landing: 19 in the first run, 13 and 11 in two reruns with the machine at 93% CPU from the owner's own use (a game-time wait, as the machine notes say); the same start (trios of 27, no render) in a page of its own moved 23, 20 and 23 of 27, the few left standing nowhere near the cover. The ghost restore's "none left in the box" failed once (one item 1.3 m out) and passed in both reruns. verify and rules. The map: its files lo 93 MB, hi 157 MB, max 378 MB. **Its files are version 46.**
+
 ## Milestone 481 — No grenades
 
 The owner, 2026-10-04: "remove the grenades". SpeedKills never had any (G is its utility hack, Phase 20 A10), but it
@@ -10943,49 +10986,6 @@ so Slow and Fast make the decay take longer or shorter, as the box says. The Nod
 the switch (498): about 160 of them hold the legacy game's own numbers and go with the code they test.
 
 - **Checked:** tsc; verify; rules; all 28 sections that ran legacy pages, on SpeedKills with the pins.
-
-## Milestone 480 — Cover down the streets, and street pieces that look like what they collide as
-
-The centre's fourth review (docs/CENTRE_REVIEW.md): "cover every 8 to 12 m in the streets and plaza"; its shots showed
-the streets open, the median's boards in none of them. Measured first (`tools/.scratch/covermap.mts`): from every open
-half-metre of the streets, the distance to the nearest thing a crouched body hides behind, anything standing from the
-ground (under 0.5 m) past 1 m. On map version 43, 33.4% of the curves', the Loop's and the ring road's open ground was
-over 6 m from it, the farthest 20.4 m: the Loop's four junctions under the bridges and its east side, and the ring road;
-the plaza and the ground off the streets already had it (3% and 5% over 6 m).
-
-- **The farthest point takes a piece** (neonmap.json `rules.dress.cover`, tools/neon-layout.ts): the street point
-  farthest from cover takes a piece within 3 m of it, then the next farthest, until every point has cover within 6 m or
-  no piece fits by it. On a carriageway the pack's planter (1.85 m to its leaves), every third the tall poster board the
-  median uses (3.08 m, over a standing eye, to cut the long lines); on a pavement a kiosk or a planter; each with its
-  long side along the street. 133 pieces: 84 planters, 32 boards, 17 kiosks, 59k triangles.
-- **Where none goes**: 1.5 m clear of anything a body stands in, so every way past one is a body's width; a metre under
-  anything over it (a board stood 0.45 m under the Sky Ring's deck at the first bake: its own zero is 1.97 m up it, and
-  its height read from there); off the pads, the lifts' footbridges, the Sky Ring's stairs, the metro's kiosks, the
-  Well's stairwell, the walk-ins' doors and THE CENTRE's spawns; never one that cuts the bots' street graph, nor one
-  across any link of a node the graph's model already has cut off (its guess at a link is wrong both ways: a pair of
-  street nodes it took for cut off was joined in the game by one link, and a kiosk on that link shut them in at the
-  v45 bake).
-- **What stands in the street looks like what it collides as** (`dress.seeThrough`, `dress.twoFaced`): photographed up
-  close, the pack's street fence blocks, the median's since Milestone 443 and the first bake's cover, are barred
-  railings: seen through, and to a shot and a bot's eye solid half-metre columns, so a player saw a body through the bars
-  and their shots stopped at nothing. The median is the pack's planter now (26 of them and its 12 boards), and the cover
-  uses no railing. And the tall poster board is posters on one face, an empty frame from behind round a solid box: each
-  of the 44 is laid with a drawn twin turned about on the same footprint, a face to each side.
-- **Measured on this run's own pieces, laid last and solid**: the cover leaves out the last bake's boxes of the street
-  pieces the dress block lays again (as the bots' street graph does) and stamps those this run laid, so a changed median
-  is measured where it now stands; and the bake lists a solid placement's boxes in `laid` (an open one's it merges with
-  the rest), so the next run measures the streets without the cover and lays the same. The bots' street graph's model
-  leaves out the boxes under the last layout's low pieces but now not those of the chunks laid last, whose boxes `laid`
-  already drops: their footprints took a parked car's boxes beside them out by turns, and the rerun laid differently.
-- **The road check** (nothing taller than a parked car on the roads) knows the cover's boards as it knows the median's,
-  with the reach of the collision's half-metre columns past a turned board's face (0.75 m, from 0.6: a board turned 56
-  degrees filled a column 0.77 m off its middle line).
-- **Checked** (`tools/checks/sk-neon.ts`, new checks): at most 1% of the open street over 6 m from cover and none over
-  8 m: 0.4% and 7.5 m now, failing on map version 43 (33.4%, 20.4 m); no railing in the median or the cover and every one-sided
-  board twinned, failing with the railings and lone boards of map version 44. The road check fails with the cover's
-  boards left out of its exemption; the median's planters solid past a crouched head; the Sky Ring's room under it,
-  2.70 m. The layout run again on the bake leaves the config as it was. The e2e `speedkills` section on the Neon City:
-  every check passes but "the bots land and move through the city", which wants 15 of the 27 bots 3 m on in the 6 s after the landing: 19 in the first run, 13 and 11 in two reruns with the machine at 93% CPU from the owner's own use (a game-time wait, as the machine notes say); the same start (trios of 27, no render) in a page of its own moved 23, 20 and 23 of 27, the few left standing nowhere near the cover. The ghost restore's "none left in the box" failed once (one item 1.3 m out) and passed in both reruns. verify and rules. The map: its files lo 93 MB, hi 157 MB, max 378 MB. **Its files are version 46.**
 
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
