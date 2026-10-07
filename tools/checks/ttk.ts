@@ -40,9 +40,11 @@ const BAND: Record<string, [number, number]> = { rifle: [1.3, 1.8], smg: [1.3, 1
 const rows: string[] = [];
 for (const [fam, f] of Object.entries(PROFILE.families)) {
   const band = BAND[fam];
+  // (the launcher at its full range: up close it is meant to be weak, the owner's rule, and is held to that below)
+  const at = (w: ResolvedWeapon): ResolvedWeapon => (fam === "launcher" ? { ...w, damage: { ...w.damage, near: w.damage.far } } : w);
   for (const id of f.guns) {
-    const t0 = ttk(resolveWeapon(id, 0, [], 0));
-    const t5 = ttk(resolveWeapon(id, 0, [], 5));
+    const t0 = ttk(at(resolveWeapon(id, 0, [], 0)));
+    const t5 = ttk(at(resolveWeapon(id, 0, [], 5)));
     rows.push(`${PROFILE.weapons[id].name.padEnd(12)} ${t0.toFixed(2)} s, fused ${t5.toFixed(2)} s`);
     if (band) check(`${PROFILE.weapons[id].name} (${fam}) kills in ${band[0]} to ${band[1]} s as found`, t0 >= band[0] - 1e-9 && t0 <= band[1] + 1e-9, `${t0.toFixed(2)} s`);
     // better, not decisive (the owner's 2% a level): never more than 10% quicker at level 5
@@ -133,7 +135,7 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
 // CHOOCH within a fifth of their close time at 60 m; none quicker far than near; and up close the close-range guns no
 // slower than the rifle
 {
-  const at = (d: ResolvedWeapon["damage"], m: number): number => {
+  const falloffAt = (d: ResolvedWeapon["damage"], m: number): number => {
     const l = (a: number, b: number, t: number) => a + (b - a) * t;
     if (m <= d.nearDist) return d.near;
     if (m <= d.farDist) return l(d.near, d.far, (m - d.nearDist) / (d.farDist - d.nearDist));
@@ -142,13 +144,22 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
   };
   const time = (id: string, m: number): number => {
     const w = resolveWeapon(id, 0, [], 0);
-    return ttk({ ...w, damage: { ...w.damage, near: at(w.damage, m) } });
+    return ttk({ ...w, damage: { ...w.damage, near: falloffAt(w.damage, m) } });
   };
   const fam = (f: string): string[] => (PROFILE.families as Record<string, { guns: string[] }>)[f]?.guns ?? [];
   const close = [...fam("smg"), ...fam("pistol")];
   const steady = [...fam("rifle"), ...fam("special")];
   const row = (id: string) => `${PROFILE.weapons[id].name} ${[10, 30, 60].map((m) => time(id, m).toFixed(2)).join("/")}`;
-  check("no gun kills quicker far than near (10, 30 and 60 m)", PROFILE.roster.every((id) => time(id, 30) >= time(id, 10) - 1e-9 && time(id, 60) >= time(id, 30) - 1e-9), PROFILE.roster.map(row).join(", "));
+  // (but the launcher, whose rocket does more the further it flies: the owner, 2026-10-06)
+  const notLauncher = PROFILE.roster.filter((id) => !fam("launcher").includes(id));
+  check("no gun kills quicker far than near (10, 30 and 60 m), but the launcher", notLauncher.every((id) => time(id, 30) >= time(id, 10) - 1e-9 && time(id, 60) >= time(id, 30) - 1e-9), notLauncher.map(row).join(", "));
+  // HAEFY's rocket (the owner, 2026-10-06: "more damage the further it travels, so a point blank or very close does like 10
+  // damage"): about 10 a rocket point blank, a kill in about the others' time from 20 m on, and no quicker near than far
+  for (const id of fam("launcher")) {
+    const w = resolveWeapon(id, 0, [], 0);
+    const pointBlank = falloffAt(w.damage, 1);
+    check(`${PROFILE.weapons[id].name}'s rocket does about 10 point blank and its full damage from 20 m, a kill there in 1.3 to 1.9 s`, Math.abs(pointBlank - 10) <= 1 && time(id, 25) >= 1.3 && time(id, 25) <= 1.9 && time(id, 1) >= 3 * time(id, 25), `${pointBlank.toFixed(1)} a rocket point blank; ${row(id)}; point blank ${time(id, 1).toFixed(2)} s`);
+  }
   check("the close-range guns (SMGs, pistols) take at least twice as long at 60 m as at 10", close.length > 0 && close.every((id) => time(id, 60) >= 2 * time(id, 10)), close.map(row).join(", "));
   check("the rifle and CHOOCH within a fifth of their close time at 60 m", steady.length > 0 && steady.every((id) => time(id, 60) <= 1.2 * time(id, 10)), steady.map(row).join(", "));
   const rifle10 = Math.min(...fam("rifle").map((id) => time(id, 10)));

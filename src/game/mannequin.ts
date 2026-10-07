@@ -1455,7 +1455,7 @@ export class MannequinFigure {
         }
         phaseMeshes(gun, (mesh) => (under(mesh, mag) ? this.magSweep : paid && under(mesh, paid) ? this.gunSweep : null));
       }
-      this.sight = new THREE.Vector3(0, m.sightY, -m.rearF);
+      this.sight = new THREE.Vector3(m.sightX ?? 0, m.sightY, -m.rearF);
       return;
     }
     this.reloadParts = null;

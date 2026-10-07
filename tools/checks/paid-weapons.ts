@@ -45,7 +45,7 @@ export interface Measured {
    * scope in one piece with the gun (paidweapons.json sights.ownScope), its axis (its top less its half width, a round
    * tube) behind its back end; irons: the top of the rear half, behind it
    */
-  eye: { y: number; back: number; sight: "dot" | "scope" | "irons" };
+  eye: { x?: number; y: number; back: number; sight: "dot" | "scope" | "irons" | "visor" };
   /**
    * where the support hand holds it (paidgun.ts support): z from paidweapons.json support, and the gun's underside
    * there, within 20 mm along it and 30 mm of its centre line, not counting its magazine, trigger, drum, sights and
@@ -65,6 +65,8 @@ async function measure(file: string): Promise<Measured> {
   // the pack's own sight parts (with their children), and its reticle dots
   const sight: THREE.Vector3[] = [];
   const dots: THREE.Vector3[] = [];
+  // a sight beside the gun, looked through (the launcher's Visor)
+  const visor: THREE.Vector3[] = [];
   // the gun's body alone, for where the support hand holds it: not its magazine, trigger, drum, sights or moving parts
   const bodyPts: THREE.Vector3[] = [];
   const notBody = /^(Clip|Trigger|Drum|Grenade|Scope|FrontSight|RearSight|SightImage|Button|Bullet|Cover|Extruder)/;
@@ -72,9 +74,11 @@ async function measure(file: string): Promise<Measured> {
     const m = o as THREE.Mesh;
     if (!m.isMesh || /^UCX_/.test(m.name)) return;
     let part = false;
+    let isVisor = false;
     let body = true;
     for (let q: THREE.Object3D | null = m; q; q = q.parent) {
       if (sightPart.test(q.name)) part = true;
+      if (/^Visor/.test(q.name)) isVisor = true;
       if (notBody.test(q.name)) body = false;
     }
     const dot = /Dot/i.test((m.material as THREE.Material).name);
@@ -83,6 +87,7 @@ async function measure(file: string): Promise<Measured> {
       const v = new THREE.Vector3().fromBufferAttribute(p, i).applyMatrix4(m.matrixWorld);
       pts.push(v);
       if (part) sight.push(v);
+      if (isVisor) visor.push(v);
       if (dot) dots.push(v);
       if (body) bodyPts.push(v);
     }
@@ -103,7 +108,9 @@ async function measure(file: string): Promise<Measured> {
   // the launcher, whose lowest point is its front, and the trigger on the first SMG, whose trigger is forward of its
   // middle; every long gun clears the 1 cm by 4 cm or more
   const low = pts.reduce((a, p) => (p.y < a.y ? p : a), pts[0]);
-  const end = Math.abs(box.max.z + box.min.z) >= 0.01 ? (box.max.z >= -box.min.z ? 1 : -1) : box.max.z - low.z >= low.z - box.min.z ? 1 : -1;
+  // (a family whose front no rule here reads, given with the measurement that says it: paidweapons.json fronts)
+  const front = (cfg as unknown as { fronts?: Record<string, number> }).fronts?.[file.replace(/^.*[\/]/, "").replace(/_\d+\.glb$/, "")];
+  const end = front ?? (Math.abs(box.max.z + box.min.z) >= 0.01 ? (box.max.z >= -box.min.z ? 1 : -1) : box.max.z - low.z >= low.z - box.min.z ? 1 : -1);
   const tip = end > 0 ? hi.centre.setZ(box.max.z) : lo.centre.setZ(box.min.z);
   const mid = (box.max.z + box.min.z) / 2;
   const rear = pts.filter((p) => (end > 0 ? p.z < mid : p.z > mid));
@@ -117,6 +124,10 @@ async function measure(file: string): Promise<Measured> {
   if (dots.length) {
     const db = new THREE.Box3().setFromPoints(dots);
     eye = { y: r((db.min.y + db.max.y) / 2), back: r(backOf(sight)), sight: "dot" };
+  } else if (visor.length) {
+    // looked through, beside the gun: the eye on its middle, across as well as up, behind its back
+    const vb = new THREE.Box3().setFromPoints(visor);
+    eye = { x: r((vb.min.x + vb.max.x) / 2), y: r((vb.min.y + vb.max.y) / 2), back: r(backOf(visor)), sight: "visor" };
   } else if (SIGHTS.ownScope.includes(family)) {
     const upper = pts.filter((p) => p.y > sightTop - 0.03);
     const axis = sightTop - upper.reduce((a, p) => Math.max(a, Math.abs(p.x)), 0);
@@ -131,7 +142,7 @@ async function measure(file: string): Promise<Measured> {
   return out;
 }
 
-const guns = cfg.guns as unknown as Record<string, { model: string }>;
+const guns = cfg.guns as unknown as Record<string, { model: string; round?: string }>;
 const MODELS = "src/config/paidmodels.json";
 const table: Record<string, { measured: Measured }> = existsSync(MODELS) ? JSON.parse(readFileSync(MODELS, "utf8")).models : {};
 const familyOf = (model: string) => model.replace(/_\d+$/, "");
@@ -166,6 +177,7 @@ for (const [name, entry] of Object.entries(table)) {
       Math.abs((want.sightZ ?? NaN) - m.sightZ) < 0.002 &&
       Math.abs((want.eye?.y ?? NaN) - m.eye.y) < 0.002 &&
       Math.abs((want.eye?.back ?? NaN) - m.eye.back) < 0.002 &&
+      Math.abs((want.eye?.x ?? 0) - (m.eye.x ?? 0)) < 0.002 &&
       want.eye?.sight === m.eye.sight &&
       JSON.stringify(want.support ?? null) === JSON.stringify(m.support ?? null) &&
       want.muzzle.every((v, i) => Math.abs(v - m.muzzle[i]) < 0.002),
@@ -180,7 +192,8 @@ for (const [id, g] of Object.entries(guns)) {
 // every gun's model is a split build (its magazine, slide or pump a part of its own, which a reload or a shot moves)
 // and a gun, not a part: the pack's _1 of a family is the same gun in one piece, and three guns that wore one kept
 // their magazines in on a reload; SciFiGrenadeLauncher01_3 is the launcher's round, 0.18 m, and the shortest gun is
-// APUHTHEE's pistol, 0.254 m, so a gun is anything over 0.22 m
+// APUHTHEE's pistol, 0.254 m, so a gun is anything over 0.22 m. A gun whose round is drawn on its own (HAEFY's launcher:
+// paidweapons.json `round`, the rocket rocket.ts draws) has its moving part there, not in the model
 {
   const partsOf = async (name: string): Promise<string[]> => {
     const b = readFileSync(`${dir}${name}.glb`);
@@ -196,7 +209,7 @@ for (const [id, g] of Object.entries(guns)) {
     for (const name of [guns[id].model]) {
       const parts = await partsOf(name);
       const len = table[name]?.measured.length ?? 0;
-      if (!parts.length || len < 0.22) bad.push(`${id}: ${name}${parts.length ? "" : " (in one piece)"}${len < 0.22 ? ` (${len} m long)` : ""}`);
+      if ((!parts.length && !guns[id].round) || len < 0.22) bad.push(`${id}: ${name}${parts.length ? "" : " (in one piece)"}${len < 0.22 ? ` (${len} m long)` : ""}`);
     }
   }
   check("every gun's model is a split build with moving parts, and a gun", bad.length === 0, bad.join("; ") || "all");

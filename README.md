@@ -260,14 +260,17 @@ it.
   stairwells, the street drains and the roof plant, and a few signs flicker
   (never more than three flashes a second). Light only: it never hides anyone.
 - **Ten guns**, most named for the owner's friends: a rifle (PANDA), two SMGs,
-  two shotguns, a marksman gun (HAEFY), a sniper (BOOG, which kills with one
+  two shotguns, a rocket launcher (HAEFY), a sniper (BOOG, which kills with one
   headshot), two pistols (STRYDER, a fast automatic, and APUHTHEE, a heavy
   semi-automatic with six rounds and almost no recoil: five body hits a kill) and
   CHOOCH, which cools instead of reloading. Ammo is infinite; the magazine is not.
   Every gun kills in about the same time where it is meant to be used, about one
   and a half seconds with most rounds on target: the SMGs and pistols quicker up
   close and losing damage with range, so that at 60 m they take twice as long or
-  more, the rifle and CHOOCH nearly as strong far as near.
+  more, the rifle and CHOOCH nearly as strong far as near. HAEFY works the other
+  way: its rockets fly slowly enough to see and burst where they land, about 10
+  up close and harder the further they fly, 50 from 20 m on, with a bigger burst
+  too; your own rockets never hurt you or your team.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
   level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
   for a hack. The HUD shows each gun's level as pips.
@@ -318,8 +321,9 @@ it.
   finger on the trigger, and raised to the eye with the arms nearly straight when
   aiming; its reload is the magazine alone, down out of the handle and back, until
   the first person's pistol moves are made. STRYDER, the fast pistol, is held the
-  same way. HAEFY, on BOOG's model, is held as BOOG is: every gun on the soldier
-  is fitted.
+  same way. HAEFY, the rocket launcher, rides on the right shoulder, its tubes
+  running back past the head, the eye at its side sight when aiming: every gun on
+  the soldier is fitted.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and

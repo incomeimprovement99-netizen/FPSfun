@@ -10878,3 +10878,50 @@ less dps ... vary depending on the guns type ... All games do this pretty much".
   long at 60 m; the rifle and CHOOCH within a fifth; up close the SMGs and the fast pistol no slower than the rifle), each
   seen failing with the fall-off taken out; two hit-check cases that used STRYDER's old rifle as their sample now use a
   gun both games have. verify; rules; the type check; e2e speedkills, soldier, skarmory and skfigure.
+
+## Milestone 510 — HAEFY is a rocket launcher
+
+The owner, 2026-10-06: "yes i want that, it shouldn't hurt the shooter, but it should do more damage the further it travels,
+so a point blank or very close does like 10 damage and then it scales like that, the skybreaker is the reference for
+hyperscape" (`PLAN_THE_EIGHT_GUNS.md` 5.7).
+
+- **The Skybreaker, as sourced** (Ubisoft's patch notes, v1.0): 40 a rocket at full range against Hyper Scape's 120
+  health, a third of a kill, and "Min Range for Full Damage & Full Explosion AoE: 20m". Its blast radius, rocket speed,
+  fire rate and reload were never published.
+- **HAEFY's numbers** (src/config/rocket.json): 10 a rocket up to 2 m flown, rising evenly to 50 at 20 m and on; the
+  burst's reach growing with it from 1.5 to 3 m, full within 0.6 m, none at its edge; no headshot. Four rockets a
+  magazine, one every 0.55 s, a 2.6 s reload; the rocket 55 m/s with no drop. At 80% on target: 1.65 s to kill from 20 m
+  on, 5.9 s at 10 m, 20 s point blank. tools/checks/ttk.ts holds it to the rule (judged at its full range for fusion).
+- **The gameplay** (src/game/rocket.ts, new): the round flies as every gun's does (projectile.ts) and is drawn as the
+  rocket model; where it stops (a figure, a wall, the floor, or spent) it bursts, and the burst does the damage:
+  rocketDamage(how far it flew) at its middle, less out to its reach, a wall between the burst and a chest taking it. The
+  shooter's page decides, as for a round, and claims the distance from the shooter (net/hitcheck.ts); never the shooter,
+  never a teammate. The host lets one burst's hits on up to four through (net.json blastVictims). Others see the rocket
+  fly and burst (the shot message redraws it; someone else's rocket stops at a figure too, and hurts nobody there).
+  Its own copies of the blast helpers: the grenades' are going (the lobby agent's Milestone 481). Bots carry it, a bot's
+  rocket settled as a hit on its target (no splash from a bot's near miss yet).
+- **The roster:** `launcher` (the 30-30's handling with the rocket's numbers, weapons.ts; SpeedKills' alone, never in the
+  legacy game's catalogue) replaces `3030`; Marksman becomes Launcher; a saved HAEFY follows it (speedkills.json
+  renamed). Its bought model is the pack's rocket launcher (paidweapons.json, `round` "rocket").
+- **The model's front and sight, measured:** the end farther from its origin is the back of its twin tubes, which run
+  65 cm behind the pistol grip over the shoulder; its trigger is in front of the grip only with +Z forward
+  (paidweapons.json `fronts`). Its sight is the Visor beside the tube, measured as an eye across from the gun's middle as
+  well as up (paid-weapons.ts `x`; paidgun.ts sightX, which the soldier aims through).
+- **On the soldier** (soldierhold.json guns.launcher): a shoulder launcher, its butt 30 cm behind and 8 cm above the
+  shoulder joint so the tubes rest on the right shoulder and run back past the head; aimed, the eye at the visor (the
+  rig aims through the measured sight, now across as well). The right hand searched onto its pistol grip, the index's
+  crease on the trigger (0.3 mm); the left onto its vertical foregrip from the side; the right elbow turned up
+  ([-1.3, -0.3, -0.4]: the right wrist 21 degrees aimed and 44 looking 35 down, from 40 and 63); the shoulder's reach
+  70 (aimed at a sprint the left hand had slid 13% back into the gun); the punch bowed out ([0.25, -0.1, 0.12]: a hand
+  had passed 16 to 18 mm through the tubes); the carries solved. Every skfigure check passes for it (24).
+- **The Loadouts panel** fits a held gun's height as well as its width (main.ts previewFitNow): the launcher over the
+  shoulder ran 6% out of the top.
+- **Checked:** tools/checks/rocket.ts (new, in verify: the ramp, the reach, the fall-off, the wall, the gun's numbers,
+  the host passing one burst's four hits and no more; seen failing with point blank set to 40); an e2e in the speedkills
+  section (a real rocket at a range dummy from 25 m does 50, from 3 m about 13, drawn as a rocket and its burst seen;
+  someone else's does nothing here); the skfigure e2e on the launcher; ttk; verify; rules; the type check; photographs.
+- **Tests that named the 30-30 for HAEFY** now use the launcher (the armory's stand, the loot card) or BOOG (the
+  magnified scope that hides the frozen arms). One check, the loot start's death box holding your guns, failed in two
+  long combined runs and passed both times run alone (the box never appeared at all, not a gun missing: timing under
+  load).
+- **For the guns agent:** the first-person hold and reload, with buildRocket(false) as the round loaded.

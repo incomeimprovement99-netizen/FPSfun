@@ -5,6 +5,7 @@ import raw from "../../data/weapons.json";
 import { displayName, throwName } from "../config/names";
 import mechCfg from "../config/weapon-mechanics.json";
 import ammoCfg from "../config/ammo.json";
+import rocketCfg from "../config/rocket.json";
 
 export type AmmoType = "light" | "heavy" | "energy" | "sniper" | "shotgun" | "arrows";
 
@@ -122,6 +123,27 @@ addDerived(
   (m) => m.startsWith("optic_")
 );
 
+// HAEFY's rocket launcher (src/game/rocket.ts, rocket.json), SpeedKills' alone (weaponIds leaves it out of the legacy
+// game's catalogue, which is the data's whole): no gun in the data fires a rocket, so the 30-30's handling
+// with the rocket's own numbers; its damage by distance is how far the rocket has flown to its burst (10 point blank to
+// 50 from 20 m), the curve every gun's damage takes, here rising; no headshot; the burst does the damage (rocket_blast)
+addDerived(
+  "launcher",
+  "3030",
+  "Launcher",
+  Array(5).fill(rocketCfg.magazine),
+  {
+    damage_near_value: rocketCfg.damage.pointBlank, damage_far_value: rocketCfg.damage.full, damage_very_far_value: rocketCfg.damage.full,
+    damage_near_distance: rocketCfg.damage.from / 0.0254, damage_far_distance: rocketCfg.damage.fullFrom / 0.0254, damage_very_far_distance: (rocketCfg.damage.fullFrom + 10) / 0.0254,
+    damage_headshot_scale: 1, damage_leg_scale: 1, headshot_distance: 0,
+    fire_rate: rocketCfg.fireRate, is_semi_auto: 1, rechamber_time: 0,
+    reload_time: rocketCfg.reload, reloadempty_time: rocketCfg.reload,
+    projectile_launch_speed: rocketCfg.speed / 0.0254, projectile_gravity_scale: 0, bolt_gravity_enabled: 0, projectile_lifetime: rocketCfg.lifetime,
+    rocket_blast: 1,
+  },
+  (m) => m.startsWith("optic_")
+);
+
 /** metres per engine unit (1 unit = 1 inch) */
 export const U = 0.0254;
 /** engine world gravity, units/s^2 (Titanfall-family default) */
@@ -191,6 +213,8 @@ export interface ResolvedWeapon {
   threatRange: [number, number] | null;
   adsMoveScale: number;
   projectile: { speed: number; gravity: number; lifetime: number }; // m/s, m/s^2, s
+  /** its round bursts where it stops, and the burst does the damage (HAEFY's rocket, rocket.ts) */
+  blast?: boolean;
   spread: {
     standHip: number; runHip: number; sprintHip: number; crouchHip: number; airHip: number;
     standAds: number; crouchAds: number; airAds: number;
@@ -233,8 +257,10 @@ export function weaponClass(id: string): string {
  * catalogue in the legacy game, SpeedKills' ten in SpeedKills. The pickers,
  * a loadout's check and the network's hit check all follow it.
  */
+/** the guns only SpeedKills has: the legacy game, frozen with the data's catalogue, never lists them */
+export const SK_ONLY = ["launcher"];
 export function weaponIds(): string[] {
-  return IS_SK ? [...PROFILE.roster] : Object.keys(DATA.weapons);
+  return IS_SK ? [...PROFILE.roster] : Object.keys(DATA.weapons).filter((id) => !SK_ONLY.includes(id));
 }
 /** every gun the engine can make, whatever game is on */
 export function allWeaponIds(): string[] {
@@ -443,6 +469,7 @@ function resolveBase(id: string, magLevel: number, attach: string[]): ResolvedWe
       gravity: ENGINE_GRAVITY_U * gravScale * U,
       lifetime: n(s, "projectile_lifetime", 5),
     },
+    blast: n(s, "rocket_blast", 0) === 1,
     spread: {
       standHip: n(s, "spread_stand_hip"),
       runHip: n(s, "spread_stand_hip_run", n(s, "spread_stand_hip")),

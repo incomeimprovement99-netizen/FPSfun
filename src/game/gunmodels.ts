@@ -63,6 +63,8 @@ export interface GunModel {
   /** height of the sight line and the forward position of the rear sight */
   sightY: number;
   rearF: number;
+  /** across from the gun's middle, where its sight is beside it (a bought launcher's Visor, paidgun.ts); 0 where absent */
+  sightX?: number;
   /**
    * Iron sights that come off when an optic is fitted, or null where the
    * sights are low enough to sit under an optic's sight line (the pistols)
@@ -1677,6 +1679,8 @@ const ROSTER: Record<string, Family> = {
   lstar: { kind: "rifle", spec: { ...LMG, body: 0x33373b, accent: 0x3fd1e8, mag: "energy", magLen: 0.1, muzzle: "energy", energy: true, shell: null, cycle: "none", bipod: false } },
   // marksman and snipers
   g2: { kind: "rifle", spec: { ...MARKSMAN, body: 0x4a3b2c, accent: 0x9a6a3a, grip: 0x5b3a24 } },
+  // HAEFY's rocket launcher: drawn by the bought model in SpeedKills (paidweapons.json); this only where the paid files are not
+  launcher: { kind: "rifle", spec: { ...MARKSMAN, body: 0x4a4f55, accent: 0xd8582a, stock: "solid", mag: "none", muzzle: "none" } },
   "3030": { kind: "rifle", spec: { ...MARKSMAN, body: 0x3d3833, accent: 0xa07a4a, grip: 0x6a4428, stock: "solid", mag: "none", tubeMag: true, cycle: "bolt", muzzle: "none" } },
   dmr: { kind: "rifle", spec: { ...MARKSMAN, body: 0x33373d, accent: 0x4f7fa0, stock: "skeleton", barrelLen: 0.26, bipod: true } },
   doubletake: { kind: "rifle", spec: { ...MARKSMAN, body: 0x3a3f3a, accent: 0x9fd23a, mag: "energy", muzzle: "energy", energy: true, shell: null, cycle: "bolt", triple: true, stock: "solid" } },

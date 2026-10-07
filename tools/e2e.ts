@@ -6587,15 +6587,16 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await ev(lab, "window.__range.setScript(null)");
   check("speedkills: in the lab, the storey block is climbed to its top (4 m)", topped, JSON.stringify(await ev(lab, "({ y: window.__range.player.pos.y, z: window.__range.player.pos.z })")));
   await lab.close();
-  // The arms in the sights (Phase 20 A3): aimed through HAEFY's 3x scope the gun is hidden for the scope picture,
+  // The arms in the sights (Phase 20 A3): aimed through a magnified scope (BOOG's; HAEFY's 3x went with the 30-30 when
+  // HAEFY became the launcher) the gun is hidden for the scope picture,
   // and the arms, which are not under the gun, stayed drawn frozen and filled the scope. With a red dot (USSO) the
   // arms stay, as they should.
   const sight = await open(browser, "?game=speedkills");
   const arms = await ev<{ scoped: boolean; dot: boolean; ready: boolean }>(
     sight,
-    `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "3030"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); const t1 = performance.now(); while (!r.realArmsShown() && !r.packArms().on && performance.now() - t1 < 4000) await wait(100); const dot = r.realArmsShown() || r.packArms().on; r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
+    `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "sentinel"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); const t1 = performance.now(); while (!r.realArmsShown() && !r.packArms().on && performance.now() - t1 < 4000) await wait(100); const dot = r.realArmsShown() || r.packArms().on; r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
   );
-  check("speedkills sights: aimed through a 3x scope the frozen arms are hidden; through a red dot they stay", arms.ready && !arms.scoped && arms.dot, JSON.stringify(arms));
+  check("speedkills sights: aimed through a magnified scope (BOOG's) the frozen arms are hidden; through a red dot they stay", arms.ready && !arms.scoped && arms.dot, JSON.stringify(arms));
   // every gun named with its class for a beginner (Phase 20 A7): USSO (Fast SMG) in the label and in the loadout pickers
   const names = await ev<{ usso: string; picker: string[] }>(sight, `({ usso: window.__range.weaponLabel("r97"), picker: [...document.querySelectorAll("#slot0 option")].map((o) => o.textContent) })`);
   check("speedkills names: every gun carries its class, USSO (Fast SMG), in the label and the loadout picker", names.usso === "USSO (Fast SMG)" && names.picker.length >= 10 && names.picker.every((t) => /\(.+\)$/.test(t ?? "")), JSON.stringify(names));
@@ -6666,6 +6667,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await speedkillsEdgeTest(browser);
   await speedkillsGhostTest(browser, "loot");
   await speedkillsGhostTest(browser, "loadout");
+  await skLauncherTest(browser);
 }
 
 /**
@@ -7078,7 +7080,7 @@ async function skArmoryTest(browser: Browser): Promise<void> {
       `(() => { const r = window.__range; const a = r.armory(); return { held: r.loadout.slots.map((s) => s.empty ? null : s.id + ":" + (s.fusion ?? 0)), prompt: r.prompt()?.text ?? null, near: a.near(), redraws: a.redraws, stand: a.stands.find((s) => s.id === "${id}"), hack: r.sk.hacks().find((h) => h.slot === "mobility").held }; })()`,
     );
   // a gun not carried (a new player holds the USSO and the BOOG): looked at, the prompt offers it; E takes it
-  const GUN = "3030";
+  const GUN = "launcher";
   const TOP = skCfg.fusion.levels;
   await go(GUN);
   await gameSleep(page, 0.2);
@@ -7527,7 +7529,7 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
     // The loot card (Phase 20 A8), looked at before it is taken: a copy of the gun in slot 1 says it fuses, in Full
     // with its numbers and in Compact as the short verdict; a gun you do not carry says it swaps for the one in hand
     if (start === "loadout") {
-      const other = ["sentinel", "lstar", "3030", "mastiff"].find((id) => !a.slots.some((sl) => sl.id === id))!;
+      const other = ["sentinel", "lstar", "launcher", "mastiff"].find((id) => !a.slots.some((sl) => sl.id === id))!;
       const card = await ev<{ full: { say: string; rows: unknown[]; notes: string[] } | null; compact: { say: string; rows: unknown[] } | null; swap: { say: string; rows: Array<{ label: string }> } | null }>(
         page,
         `(() => new Promise((ok) => { const r = window.__range; const put = (id) => { ${clear}; r.duel().lootField.add({ kind: "weapon", id, n: 1, rarity: "common", fusion: 0 }, new r.THREE.Vector3(${S.x}, 0, ${S.z} - 1.6)); }; r.player.teleport(${S.x}, 0, ${S.z}, 0, -45); put("${a.slots[0].id}");
@@ -7614,6 +7616,49 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
  * both starts: a loadout start has a floor and a box since Phase 20 A1, and
  * a restore there must not fuse the box's guns onto the same guns in hand.
  */
+/**
+ * HAEFY's rocket launcher (rocket.ts; the owner, 2026-10-06: "it shouldn't hurt the shooter, but it should do more damage
+ * the further it travels, so a point blank or very close does like 10 damage and then it scales like that"): a real
+ * rocket fired at a range dummy where it stands, from 25 m and from 3 m: drawn as a rocket in flight, its burst seen,
+ * the dummy taking the burst's damage for how far the rocket flew. Someone else's rocket (as a shot message redraws it)
+ * flies and bursts on this page too and hurts nobody here.
+ */
+async function skLauncherTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&game=speedkills");
+  await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 90000 }).catch(() => undefined);
+  await ev(page, `(() => { const r = window.__range; const l = r.loadout; l.give(0, "launcher"); l.requestSwap(0, r.gameTime()); })()`);
+  await page.waitForFunction("window.__range.loadout.active.weapon.id === 'launcher' && !window.__range.loadout.swapping", { polling: 100, timeout: 15000 }).catch(() => undefined);
+  type Shot = { took: number; travelled: number; rocketDrawn: boolean; bursts: number };
+  const shoot = (dist: number, visual: boolean) =>
+    ev<Shot>(
+      page,
+      `(async () => {
+        const r = window.__range, T = r.THREE; const d = r.dummies[1];
+        d.health = d.healthMax ?? d.health; if ("shield" in d) d.shield = d.shieldCap ?? d.shield;
+        const home = d.group.position.clone();
+        r.player.teleport(home.x, 0, home.z + ${dist}, 0, 0);
+        await new Promise((ok) => setTimeout(ok, 300));
+        const eye = r.player.eyePosition(); const feet = d.group.position.clone();
+        const aim = feet.clone().setY(feet.y + 1.1).sub(eye);
+        const before = (d.health ?? 0) + (d.shield ?? 0); const b0 = r.rocketBursts();
+        r.fireRound([aim.x, aim.y, aim.z], ${visual});
+        // (the rocket in flight is drawn as the rocket model, not a streak)
+        await new Promise((ok) => setTimeout(ok, 40));
+        const rocketDrawn = !!r.scene.getObjectByName("rocket");
+        let bursts = 0; const t0 = performance.now();
+        while (performance.now() - t0 < 1500) { bursts = Math.max(bursts, r.rocketBursts() - b0); await new Promise((ok) => setTimeout(ok, 16)); }
+        return { took: Math.round((before - (d.health ?? 0) - (d.shield ?? 0)) * 10) / 10, travelled: r.rocketLast()?.travelled ?? -1, rocketDrawn, bursts };
+      })()`,
+    );
+  const far = await shoot(25, false);
+  check("HAEFY: a rocket at a dummy from 25 m is drawn as a rocket, bursts, and the dummy takes its full 50", far.rocketDrawn && far.bursts >= 1 && Math.abs(far.took - 50) <= 1 && far.travelled > 20, JSON.stringify(far));
+  const near = await shoot(3, false);
+  check("HAEFY: from 3 m the same rocket does about 10 to 14 (point blank about 10, more the further it flies)", near.bursts >= 1 && near.took >= 9 && near.took <= 14, JSON.stringify(near));
+  const theirs = await shoot(25, true);
+  check("HAEFY: someone else's rocket (a shot message's) flies and bursts here too, and does no damage on this page", theirs.rocketDrawn && theirs.bursts >= 1 && theirs.took === 0, JSON.stringify(theirs));
+  await page.close();
+}
+
 async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"): Promise<void> {
   const tag = start === "loot" ? "speedkills ghost" : "speedkills ghost, loadout start";
   const q = "?net=local&norender&game=speedkills";

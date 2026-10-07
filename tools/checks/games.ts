@@ -10,7 +10,7 @@
 //
 // Run on its own: npx tsx tools/checks/games.ts.
 import { GAME, GAME_IDS, profileOf, resolveGame } from "../../src/game/game";
-import { weaponIds, weaponMods } from "../../src/game/weapons";
+import { weaponIds, allWeaponIds, weaponMods } from "../../src/game/weapons";
 import { optionsFor } from "../../src/game/attachments";
 import { ABILITY_IDS } from "../../src/game/abilities";
 import binds from "../../src/config/binds.json";
@@ -39,7 +39,8 @@ console.log("The game switch and its profiles");
     const p = profileOf(id);
     const tag = `${id}:`;
     check(`${tag} the profile is the game it is filed as`, p.id === id);
-    const unknown = p.roster.filter((g) => !catalogue.has(g));
+    // (against every gun the engine can make: SpeedKills' own, the launcher, is in no legacy catalogue)
+    const unknown = p.roster.filter((g) => !allWeaponIds().includes(g));
     check(`${tag} every gun on the roster exists`, unknown.length === 0, unknown.join(", "));
     const inFamilies = Object.values(p.families).flatMap((f) => f.guns);
     const twice = inFamilies.filter((g, i) => inFamilies.indexOf(g) !== i);

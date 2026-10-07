@@ -10,6 +10,7 @@ import type { Dummy, HitReport, Zone } from "./dummy";
 import type { Target } from "./targets";
 import type { ResolvedWeapon } from "./weapons";
 import { IS_SK } from "./game";
+import { buildRocket } from "./rocket";
 
 
 /**
@@ -79,7 +80,10 @@ interface Bullet {
   vel: THREE.Vector3;
   origin: THREE.Vector3;
   age: number;
-  mesh: THREE.Mesh;
+  /** its tracer, or a rocket's model */
+  mesh: THREE.Object3D;
+  /** a rocket (HAEFY's, rocket.ts): drawn as itself, and bursting where it stops, which does its damage */
+  rocket: boolean;
   /** where the streak is drawn from (the muzzle) less where the round really left (the eye): blended out over the first metres */
   drawOffset: THREE.Vector3 | null;
   weapon: ResolvedWeapon;
@@ -162,10 +166,12 @@ export class ProjectileSystem {
    * real path over the first TRACER.blend metres.
    */
   fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1, drawFrom: THREE.Vector3 | null = null, style: { color: string; width: number } | null = null): void {
-    const mesh = new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : style ? tracerMatFor(style.color) : tracerMat);
+    const rocket = !!w.blast;
+    const mesh: THREE.Object3D = rocket ? buildRocket() : new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : style ? tracerMatFor(style.color) : tracerMat);
     mesh.userData.width = style && !visual ? style.width : 1;
     mesh.position.copy(drawFrom ?? origin);
-    mesh.scale.setScalar(0.001);
+    if (rocket) mesh.quaternion.setFromUnitVectors(Z, dir.clone().normalize());
+    else mesh.scale.setScalar(0.001);
     mesh.renderOrder = 5;
     this.scene.add(mesh);
     this.bullets.push({
@@ -179,6 +185,7 @@ export class ProjectileSystem {
       visual,
       whizzed: false,
       dmgScale,
+      rocket,
     });
   }
 
@@ -186,7 +193,7 @@ export class ProjectileSystem {
   get tracers(): Array<{ len: number; width: number; off: number; travelled: number; opacity: number }> {
     return this.bullets.map((b) => {
       const head = b.mesh.position.clone().addScaledVector(b.vel.clone().normalize(), b.mesh.scale.z / 2);
-      return { len: b.mesh.scale.z, width: b.mesh.scale.x, off: head.distanceTo(b.pos), travelled: b.pos.distanceTo(b.origin), opacity: (b.mesh.material as THREE.MeshBasicMaterial).opacity };
+      return { len: b.mesh.scale.z, width: b.mesh.scale.x, off: head.distanceTo(b.pos), travelled: b.pos.distanceTo(b.origin), opacity: ((b.mesh as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined)?.opacity ?? 1 };
     });
   }
 
@@ -196,6 +203,13 @@ export class ProjectileSystem {
     if (speed < 1e-6) return;
     td.copy(b.vel).divideScalar(speed);
     const travelled = b.pos.distanceTo(b.origin);
+    // a rocket is drawn as itself, where it is, nose along its flight (from the muzzle onto its real path, as a streak)
+    if (b.rocket) {
+      b.mesh.position.copy(b.pos);
+      if (b.drawOffset) b.mesh.position.addScaledVector(b.drawOffset, Math.max(0, 1 - travelled / TRACER.blend));
+      b.mesh.quaternion.setFromUnitVectors(Z, td);
+      return;
+    }
     const len = Math.min(TRACER.maxLen, speed * Math.max(dt, 1 / 60), travelled + 0.05);
     tv.copy(b.pos);
     if (b.drawOffset) tv.addScaledVector(b.drawOffset, Math.max(0, 1 - travelled / TRACER.blend));
@@ -212,6 +226,8 @@ export class ProjectileSystem {
   onWhiz: ((at: THREE.Vector3) => void) | null = null;
   /** someone else's round stopped against the level (where, the face, the gun): the page marks it */
   onVisualImpact: ((at: THREE.Vector3, normal: THREE.Vector3, weapon: string) => void) | null = null;
+  /** a rocket burst where it stopped (where, how far it flew, its gun, and whether it was someone else's): the page does the rest (main.ts) */
+  onBurst: ((at: THREE.Vector3, travelled: number, w: ResolvedWeapon, visual: boolean) => void) | null = null;
 
   /** add something bullets can hit after construction (the 1v1 opponent) */
   addDummy(d: Dummy): void {
@@ -332,6 +348,26 @@ export class ProjectileSystem {
             b.whizzed = true;
             this.onWhiz?.(new THREE.Vector3(cx, cy, cz));
           }
+        }
+        if (b.rocket) {
+          // a rocket stops at the first figure, wall or floor in its way, or when it is spent, and bursts there; it does no
+          // damage itself (someone else's stops at a figure too, for its burst to be drawn on them, and hurts nobody)
+          let stop: THREE.Vector3 | null = null;
+          if (len > 0 && meshes.length) {
+            this.ray.set(prev, unit);
+            this.ray.far = Math.min(len, wallAt);
+            const hit = this.ray.intersectObjects(meshes, false)[0];
+            if (hit) stop = hit.point.clone();
+          }
+          if (!stop && wallAt < Infinity) stop = prev.clone().addScaledVector(unit, Math.max(0, wallAt - 0.02));
+          const ground = this.floorY + floorAt(b.pos.x, b.pos.z);
+          if (!stop && b.pos.y <= ground) stop = b.pos.clone().setY(ground + 0.02);
+          if (!stop && b.age > b.weapon.projectile.lifetime) stop = b.pos.clone();
+          if (stop) {
+            this.onBurst?.(stop, stop.distanceTo(b.origin), b.weapon, b.visual);
+            dead = true;
+          }
+          continue;
         }
         if (b.visual) {
           // someone else's shot: it only needs to stop where it would

@@ -98,7 +98,8 @@ export class HitCheck {
       if (c.dist !== null && Math.abs(apart - c.dist) > C.rangeSlack + apart * C.rangeShare) return `claimed from ${c.dist.toFixed(0)} m, but ${apart.toFixed(0)} m apart`;
     }
     const list = (this.recent.get(c.from) ?? []).filter((h) => now - h.at < 1);
-    const perSecond = gun ? maxPerSecond(gun) : (melee ? C.meleeMax : C.otherMax) * 2;
+    // (a rocket's burst hits everyone in its reach with one round: blastVictims of them a round)
+    const perSecond = gun ? maxPerSecond(gun) * (gun.blast ? C.blastVictims : 1) : (melee ? C.meleeMax : C.otherMax) * 2;
     const sum = list.reduce((a, h) => a + h.amount, 0);
     if (sum + c.amount > perSecond) {
       this.recent.set(c.from, list);

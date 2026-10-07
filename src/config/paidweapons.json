@@ -76,6 +76,15 @@
         "A"
       ]
     },
+    "launcher": {
+      "model": "SciFiRocketLauncher01_2",
+      "skins": [
+        "A",
+        "B",
+        "C"
+      ],
+      "round": "rocket"
+    },
     "sentinel": {
       "model": "SciFiSniperRifle01_2",
       "skins": [
@@ -109,14 +118,18 @@
       ]
     }
   },
-  "_sights": "The pack's own sights, which a bought gun is aimed down: a fitted optic never goes on top of them (the owner, 2026-09-27: our sights on top of the built-in ones, \"we don't want that\") and lends only its zoom and, magnified, its picture over the screen. parts: the sight parts by name, whose back the eye sits behind; a reticle dot is a part whose material is named for one (Dot), and the eye sits on its middle. ownScope: the families whose scope is one piece with the gun (the sniper's), sighted down the scope's axis. A gun with neither is sighted over its irons, the top of its rear half. Measured into paidmodels.json eye by tools/checks/paid-weapons.ts. ironsEye: how far in front of the eye a bought gun's iron sights come in the sights, metres before the view's scale (the procedural guns' 0.26): at 0.26 the hands were 20 cm from the eye and the soldier's forearms flanking them filled a quarter of the screen at 110 degrees (tools/pov-sheet.ts). dotEye: the same for a bought scope with a reticle dot (the rifle's, the steady SMG's, the launcher's): at the fitted optic's own eye relief, 7 cm, the scope's rim filled most of the screen.",
+  "_sights": "The pack's own sights, which a bought gun is aimed down: a fitted optic never goes on top of them (the owner, 2026-09-27: our sights on top of the built-in ones, \"we don't want that\") and lends only its zoom and, magnified, its picture over the screen. parts: the sight parts by name, whose back the eye sits behind; a reticle dot is a part whose material is named for one (Dot), and the eye sits on its middle. ownScope: the families whose scope is one piece with the gun (the sniper's), sighted down the scope's axis. A gun with neither is sighted over its irons, the top of its rear half. Measured into paidmodels.json eye by tools/checks/paid-weapons.ts. ironsEye: how far in front of the eye a bought gun's iron sights come in the sights, metres before the view's scale (the procedural guns' 0.26): at 0.26 the hands were 20 cm from the eye and the soldier's forearms flanking them filled a quarter of the screen at 110 degrees (tools/pov-sheet.ts). dotEye: the same for a bought scope with a reticle dot (the rifle's, the steady SMG's, the launcher's): at the fitted optic's own eye relief, 7 cm, the scope's rim filled most of the screen. The launcher's sight is its Visor, a sight part too.",
   "sights": {
-    "parts": "^(Scope|FrontSight|RearSight|SightImage)",
+    "parts": "^(Scope|FrontSight|RearSight|SightImage|Visor)",
     "ownScope": [
       "SciFiSniperRifle01"
     ],
     "ironsEye": 0.34,
     "dotEye": 0.16
+  },
+  "_fronts": "A family whose front the measuring rules read wrong, and which end it is (1 its +Z end, -1 its -Z): the rocket launcher (SciFiRocketLauncher01, HAEFY's) has its twin tubes running 65 cm back from its pistol grip over the shoulder and 41 cm ahead, so the end farther from its origin is its back; measured, its trigger (z 0.4 to 2 cm) is in front of its pistol grip (z -9 to -1, 16 cm deep) only with +Z forward, and its foregrip (z 20 to 28) and its sight (the Visor, z 17 to 20) are ahead of the trigger then; the -Z end's two round openings are the tubes' back vents. Drawn the other way it fired from the vents.",
+  "fronts": {
+    "SciFiRocketLauncher01": 1
   },
   "_support": "Where along each bought gun the support hand holds it, by family: the model's z (its grip at 0, the muzzle forward), chosen off the gun's underside profile (tools/checks/paid-weapons.ts measures the underside there, paidmodels.json support): the front of the receiver or the handguard ahead of the magazine, the pump on the pump gun, ahead of the drum on the launcher. The hand was where the procedural gun's handguard had been: on the USSO over the top of the bought gun, and in the sights beside its rear sight, a hand and forearm by the eye (the owner: the left arm out of place and covering the weapons). Ours, by eye against the profile.",
   "support": {

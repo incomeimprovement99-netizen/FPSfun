@@ -1,0 +1,16 @@
+{
+  "_note": "HAEFY's rocket launcher (src/game/rocket.ts; docs/PLAN_THE_EIGHT_GUNS.md 5.7). The owner, 2026-10-06: \"it shouldn't hurt the shooter, but it should do more damage the further it travels, so a point blank or very close does like 10 damage and then it scales like that, the skybreaker is the reference for hyperscape\". The Skybreaker as Ubisoft's patch notes give it (v1.0, August 2020): 40 a rocket at full range at level 1 against Hyper Scape's 120 health, a third of a kill, and 'Min Range for Full Damage & Full Explosion AoE: 20m'. Its blast radius, rocket speed, fire rate and reload were never published; ours are below.",
+  "_flight": "speed m/s and lifetime s: the rocket flies straight, no drop, slow enough to see and dodge at range (165 m before it is gone).",
+  "speed": 55,
+  "lifetime": 3,
+  "_gun": "magazine rockets, fireRate a second, reload s: at 80% on target, four rockets kill from 20 m on in about 1.65 s, as the other guns' times hover (the owner, 2026-10-05), and one magazine is a kill.",
+  "magazine": 4,
+  "fireRate": 1.82,
+  "reload": 2.6,
+  "_damage": "The damage at the burst's middle by how far the rocket flew, metres: pointBlank up to `from`, rising evenly to `full` at `fullFrom` and on. full is the Skybreaker's third of a kill against our 150 (40 of 120); pointBlank the owner's 'like 10'. No headshot: it is a burst.",
+  "damage": { "pointBlank": 10, "from": 2, "full": 50, "fullFrom": 20 },
+  "_blast": "The burst's reach, metres, growing with the flight as the damage does: reachPointBlank to reach at fullFrom. Full damage within `inner`, falling evenly to none at the reach's edge; a wall between the burst and a chest takes it. Never the shooter or a teammate.",
+  "blast": { "inner": 0.6, "reachPointBlank": 1.5, "reach": 3 },
+  "_model": "The rocket model, metres: one model the shot in flight, the soldier's reload and the first person's reload all draw (rocket.ts buildRocket). Sized to the launcher's bore, about 9 cm across.",
+  "model": { "length": 0.42, "radius": 0.04, "nose": 0.12, "fin": 0.05 }
+}

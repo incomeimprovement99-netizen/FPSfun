@@ -97,6 +97,7 @@ import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
 import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
+import { blastAt, blastSees, RocketBursts } from "./game/rocket";
 import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, ABILITY_IDS, ABILITY_KNOBS, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, tuneAbilities, tuningChanges, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
@@ -1583,6 +1584,38 @@ speedLines.style.cssText =
 projectiles.listener = camera.position;
 projectiles.onWhiz = (p) => audio.whiz(p);
 projectiles.onVisualImpact = (at, normal) => markImpact(at, normal);
+// HAEFY's rockets (rocket.ts): every burst is seen and heard; your own does its damage (rocketBlast)
+const rocketBursts = new RocketBursts(scene);
+projectiles.onBurst = (at, travelled, w, visual) => {
+  rocketBursts.add(at, travelled);
+  audio.blast("frag", at);
+  if (!visual) rocketBlast(at, travelled, w);
+};
+/**
+ * Your rocket's burst (rocket.ts): everyone in its reach and in sight of it takes its damage, through the rounds' path
+ * (the numbers, the marker, the match's hit), your page deciding as it does a round's. Never you (you are not among the
+ * figures here), never a teammate, and only in the fight. The distance claimed is from you, as a round's is (the
+ * host's check measures it so, net/hitcheck.ts).
+ */
+function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon): void {
+  if (duel && duel.phase !== "fight") return;
+  const figs: Dummy[] = [];
+  if (duel) {
+    for (const a of duel.avatars) {
+      const r = duel.remoteOf(a);
+      if (r && a.group.visible && !a.knocked && !(duel instanceof Duel && duel.isAlly(r.id))) figs.push(a);
+    }
+  } else for (const d of dummies) if (d.group.visible && !d.knocked) figs.push(d);
+  for (const a of figs) {
+    const feet = a.group.position;
+    const chest = feet.clone().setY(feet.y + 1.1);
+    const dmg = blastAt(travelled, chest.distanceTo(at));
+    if (dmg <= 0 || !blastSees(at, chest, solidHit)) continue;
+    const point = feet.clone().setY(feet.y + 1.2);
+    const report = a.hit(gameTime, "body", dmg, 1, 1, point, w.damage.shieldScale, w.damage.unshieldedScale);
+    impactSink?.({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: point.distanceTo(player.pos), weapon: w.id });
+  }
+}
 
 // ---------- the range's tooling (rangetools.ts, trainer.ts) ----------
 const dummyBehaviour = new DummyBehaviour(dummies);
@@ -2063,8 +2096,10 @@ function previewFitNow(fig: Dummy): number {
   if (!gun || !gun.visible) return 3.15;
   fig.group.updateMatrixWorld(true);
   const c = fig.group.getWorldPosition(new THREE.Vector3());
-  // a point x across and z toward the camera stays in the panel while x / (D - z) <= k
+  // a point x across and z toward the camera stays in the panel while x / (D - z) <= k; y up from the camera's aim
+  // (0.95) while y / (D - z) <= kv: HAEFY's launcher, on the shoulder and over the head, ran out of the top
   const k = (Math.tan((previewCam.fov * Math.PI) / 360) * previewCam.aspect) / 1.08;
+  const kv = Math.tan((previewCam.fov * Math.PI) / 360) / 1.08;
   let need = 3.15;
   const v = new THREE.Vector3();
   gun.traverse((o) => {
@@ -2083,7 +2118,7 @@ function previewFitNow(fig: Dummy): number {
     }
     for (let j = 0; j < pts.length; j += 3) {
       v.set(pts[j], pts[j + 1], pts[j + 2]).applyMatrix4(m.matrixWorld);
-      need = Math.max(need, v.z - c.z + Math.abs(v.x - c.x) / k);
+      need = Math.max(need, v.z - c.z + Math.abs(v.x - c.x) / k, v.z - c.z + Math.abs(v.y - c.y - 0.95) / kv);
     }
   });
   return need;
@@ -8587,6 +8622,7 @@ function step(): void {
   };
   phases.lap("aim and shots");
   projectiles.update(dt, now, handleImpact);
+  rocketBursts.update(dt);
   // the guided tour: its marker and the check for the step
   tourHud = !duel ? tour.update(now, tourCheck(now), input.playing && input.held("interact"), (a) => keyLabel(a as Parameters<typeof keyLabel>[0])) : null;
   // throwables: their flights, fuses and fires; a blast's hits go the bullets' way
@@ -9925,12 +9961,16 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   sprays: () => ({ count: sprays.count, owners: sprays.owners() }),
   /** bullet impacts marked on the level since the page opened */
   impacts: () => impacts.count,
+  /** HAEFY's rocket bursts showing (rocket.ts) */
+  rocketBursts: () => rocketBursts.count,
+  rocketLast: () => rocketBursts.last,
   /** blasts marked on the level (scorch and smoke) since the page opened */
   blasts: () => impacts.blasts,
   /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */
-  fireRound: (dir: [number, number, number]) => {
+  // (`visual`: as someone else's shot, the one a shot message redraws: drawn, stopped, hurting nobody here)
+  fireRound: (dir: [number, number, number], visual = false) => {
     const w = loadout.active.weapon;
-    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, false, 1, 1, onScreenAsWorld(viewModel.muzzleWorld()));
+    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, visual, 1, 1, onScreenAsWorld(viewModel.muzzleWorld()));
   },
   /** the last frame's draw calls and triangles over every pass (tools/bench.ts) */
   frameCost: () => ({ ...frameCost }),

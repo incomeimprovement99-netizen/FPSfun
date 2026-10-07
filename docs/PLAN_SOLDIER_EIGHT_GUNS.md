@@ -401,6 +401,13 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 
 ### 5.7 HAEFY (a new launcher), SciFiRocketLauncher01_2, about 1.1 m
 
+- **Done on the soldier, 2026-10-06 (Milestone 510):** the gameplay and the roster change first (rocket.ts; `launcher`
+  replaces `3030`). Measured, the model's front is its +Z end (its trigger in front of its pistol grip; the far end's
+  round openings are the tubes' back vents) and its sight is the Visor beside the tube (an eye across as well as up).
+  Held on the rifleman's rig with its butt 30 cm behind and 8 cm above the shoulder joint, so the tubes lie on the right
+  shoulder: no launcher stance of its own was needed. Hands searched onto its pistol grip and vertical foregrip, the
+  elbow, the reach, the punch and the carries set; every skfigure check passes for it.
+
 - **Model:** Trigger, Visor; **no rocket part**.
 - **Work, after its gameplay (section 6):** the launcher stance (G6): the tube's rest on the top of the right shoulder
   (a point on the tube and one on the armour, both measured), the right hand on the rear grip, the left on the front,

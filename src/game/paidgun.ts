@@ -28,7 +28,7 @@ const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
 const MEASURED = measuredCfg.models as Record<
   string,
-  { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number; eye: { y: number; back: number; sight: string }; support?: { y: number; z: number } } }
+  { measured: { length: number; muzzleEnd: number; muzzle: number[]; sightTop: number; sightZ: number; eye: { x?: number; y: number; back: number; sight: string }; support?: { y: number; z: number } } }
 >;
 /** how far in front of the eye a bought gun's iron sights come when aimed (paidweapons.json sights) */
 export const IRONS_EYE: number = cfg.sights.ironsEye;
@@ -308,7 +308,9 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   // scope, or its irons. A fitted optic never goes on top of them (viewmodel fitOptic): ours on top stood over the
   // rifle's and the steady SMG's scopes, the launcher's sights and USSO's irons, and made two scopes of the sniper's
   const own = mounted ?? size.eye;
-  const eye = new THREE.Vector3(0, own.y, own.back).applyMatrix4(place.matrix);
+  // (a sight beside the gun, the launcher's Visor, is across from its middle as well: `x`)
+  const eye = new THREE.Vector3((own as { x?: number }).x ?? 0, own.y, own.back).applyMatrix4(place.matrix);
+  m.sightX = eye.x;
   m.sightY = m.railY = eye.y;
   m.rearF = m.opticF = -eye.z;
   m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: own.sight === "irons", dot: own.sight === "dot" };

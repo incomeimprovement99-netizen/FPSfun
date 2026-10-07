@@ -265,6 +265,43 @@
         }
       }
     },
+    "SciFiRocketLauncher01_1": {
+      "measured": {
+        "length": 1.115,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0.028,
+          0.087,
+          0.42
+        ],
+        "sightTop": 0.203,
+        "sightZ": -0.483,
+        "eye": {
+          "y": 0.203,
+          "back": -0.483,
+          "sight": "irons"
+        }
+      }
+    },
+    "SciFiRocketLauncher01_2": {
+      "measured": {
+        "length": 1.102,
+        "muzzleEnd": 1,
+        "muzzle": [
+          0.028,
+          0.087,
+          0.407
+        ],
+        "sightTop": 0.203,
+        "sightZ": -0.483,
+        "eye": {
+          "x": 0.191,
+          "y": 0.112,
+          "back": 0.126,
+          "sight": "visor"
+        }
+      }
+    },
     "SciFiGrenadeLauncher01_1": {
       "measured": {
         "length": 0.879,
