@@ -2123,9 +2123,9 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
     return false;
   }
   check(`${label}: the host gets a 5-letter code`, /^[A-Z0-9]{5}$/.test(code), code);
-  // the lobby is the arena: the host is in it, with the code on the HUD, before anyone joins
+  // the lobby is the range (every host's since Milestone 485): the host is in it, with the code on the HUD, before anyone joins
   const lobby = await ev<{ x: number; z: number; lobby: string | null }>(host, `(() => { const p = window.__range.player.pos; return { x: p.x, z: p.z, lobby: window.__range.lobbyCode() }; })()`);
-  check(`${label}: the host waits in the arena with the code on the HUD`, Math.abs(lobby.x - 90) < 0.5 && Math.abs(lobby.z + 69) < 0.5 && lobby.lobby === code, JSON.stringify(lobby));
+  check(`${label}: the host waits in the range with the code on the HUD`, Math.hypot(lobby.x, lobby.z) < 1 && lobby.lobby === code, JSON.stringify(lobby));
   // Create and a connect take the players straight in (a scripted page gets the
   // lock too); back to the menu here, so the Play gate below is what is tested
   await toMenu(host);
@@ -9233,7 +9233,9 @@ async function main(): Promise<void> {
     const inWorld = await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 30000 }).then(() => true, () => false);
     await sleep(500);
     const ls = await ev<{ hidden: boolean; status: string; fill: string }>(page, `(() => { const e = document.getElementById("loading"); return { hidden: e.hidden, status: document.getElementById("loadingStatus").textContent, fill: document.getElementById("loadingFill").style.width }; })()`);
-    check("the loading screen counts the world in and goes once it is", inWorld && ls.hidden && /\d+ OF \d+/.test(ls.status) && ls.fill === "100%", JSON.stringify(ls));
+    // (SpeedKills' screen goes as soon as the range is drawn, the last few files still on their way: the first screen
+    // sooner, Milestones 452 to 469, so its bar need not reach the end)
+    check("the loading screen counts the world in and goes once it is", inWorld && ls.hidden && /\d+ OF \d+/.test(ls.status), JSON.stringify(ls));
     // A test page must never take the real locks: headless Chrome has a real,
     // invisible window, and pointer lock pinned the owner's cursor inside it
     // (a small square in a monitor's corner) while Keyboard Lock held the keys.
@@ -9560,8 +9562,8 @@ async function main(): Promise<void> {
     await ev(page, `document.getElementById("goRunAdvanced").click(); document.getElementById("startMode").click()`);
     const adv = await ev<{ x: number; z: number; yaw: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw })`);
     check("The Run (Advanced) button: at the advanced course start", Math.abs(adv.x - 21.5) < 0.5 && Math.abs(adv.z - 10.2) < 0.5 && adv.yaw === 180, JSON.stringify(adv));
-    // put the default back for the 1v1 pages
-    await ev(page, `[...document.querySelectorAll("#loadoutList button")].find((b) => b.textContent.startsWith("Assault")).click()`);
+    // put the first default back for the 1v1 pages (SpeedKills' defaults have their own names)
+    await ev(page, `document.querySelector("#loadoutList button").click()`);
     await page.close();
     }
 
@@ -9652,9 +9654,9 @@ async function main(): Promise<void> {
       console.log("\nBattle royale against bots");
       await brTest(browser, "?norender" + LEGACY);
       console.log("\nDoors");
-      await doorTest(browser, "?norender");
+      await doorTest(browser, "?norender" + LEGACY);
       console.log("\nThe vault");
-      await vaultTest(browser, "?norender");
+      await vaultTest(browser, "?norender" + LEGACY);
     });
 
     if (want("loot")) await section("loot", async () => {

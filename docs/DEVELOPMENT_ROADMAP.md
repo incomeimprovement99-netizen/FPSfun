@@ -10969,13 +10969,17 @@ game nobody plays. The default is SpeedKills now (`e2e.ts` open). Every section 
   SpeedKills, and so do most of page, panel, owner, modes and migrate.
 - **Adapted to SpeedKills:** the owner's movement check (the double jump and the wall run are always on, as
   SpeedKills has them), the Loadouts tab's default loadout (its guns are the loadout's own, not the legacy R-99 and
-  Mastiff), the arena modes' map picked for a free-for-all (NEON BLOCK, SpeedKills' city arena).
+  Mastiff), the arena modes' map picked for a free-for-all (NEON BLOCK, SpeedKills' city arena), the loading screen
+  (SpeedKills' goes once the range is drawn, the last files still streaming, so its bar need not reach the end), and
+  the 1v1's host waiting for friends in the range, every host's lobby since Milestone 485 (the check still asked for
+  the arena, and failed on the legacy pages too).
 - **Pinned to the legacy game** (`LEGACY` in e2e.ts), each to go or be ported with the code it holds: the 1v1 over the
   local transport and peer to peer (the warehouse's spawns and shields), jitter and loss, the legacy intro card, the
   arena bots and their tiers, the controller's pass, the figures' holds, the spray wall, the range's pass (its README,
   JOLT's dash, the plates' backstop), the Outskirts battle royale, its loot, ship and consoles, the finishing touches and
   the legacy tour, SCOUT, the mannequin figures, a mode with a friend, kits with a friend, bot squads' knocks and
-  finishers, solo and squads of friends, a battle royale's host migration and its squad. The cross-game test keeps its
+  finishers, solo and squads of friends, a battle royale's host migration and its squad, the Outskirts' doors and
+  traversal, and the legacy vault. The cross-game test keeps its
   legacy page by design until the switch goes.
 - **Dropped:** the Outskirts' kit dressing and scenery checks on the page section's page, which is SpeedKills' now and
   never draws them; the map and its code go in 496.
