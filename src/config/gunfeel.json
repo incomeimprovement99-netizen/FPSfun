@@ -203,6 +203,87 @@
         "yaw": 0.15,
         "y": 0.02
       }
+    },
+    "alternator_smg": {
+      "swap": {
+        "out": [
+          0.03,
+          0.47
+        ],
+        "in": [
+          0.53,
+          0.95
+        ],
+        "move": 0.12,
+        "rise": 0.03,
+        "roll": 0.3
+      },
+      "holster": {
+        "out": [
+          0,
+          0.46
+        ]
+      },
+      "kick": {
+        "impulse": 16,
+        "spring": 900,
+        "damp": 46,
+        "back": 0.014,
+        "up": 0.03,
+        "yaw": 0.012,
+        "roll": 0.03
+      },
+      "buzz": {
+        "amp": 0.0008,
+        "hz": 29
+      },
+      "pulse": {
+        "glow": 1.8,
+        "decay": 0.05
+      },
+      "reload": {
+        "magOut": [
+          0.12,
+          0.3
+        ],
+        "magIn": [
+          0.46,
+          0.66
+        ],
+        "seat": 0.78,
+        "snap": 9,
+        "pulse": 1,
+        "drop": 0.03,
+        "twist": {
+          "roll": -0.75,
+          "yaw": 0.2,
+          "pitch": 0.18,
+          "x": -0.1,
+          "y": 0.1,
+          "z": 0.03
+        }
+      },
+      "flash": {
+        "color": "#ffc46a",
+        "scale": 0.8,
+        "life": 0.03,
+        "ring": 0
+      },
+      "shell": "cell",
+      "rack": [
+        0.84,
+        0.96
+      ],
+      "scan": {
+        "inspect": 2,
+        "fusion": 0.6
+      },
+      "ads": 0.45,
+      "lowAmmo": 0.2,
+      "rackHand": [
+        0.05,
+        0.04
+      ]
     }
   },
   "_spin": "The draw's spin (viewmodel.ts), after Hyper Scape's: PC Gamer, \"switching between weapons spins the gun ahead of you like a fractured boomerang, materialising your secondary weapon before your eyes and returning it fully-formed back into your hand\". While a signature gun phases in or out it turns `turns` times flat, like a thrown boomerang, about its own middle, `ahead` metres further out and `up` higher than the hand, and comes back into the grip as it comes whole. fuse: a fusion floods the gun (its phase dips to `dip` and comes back over `seconds`), Hyper Scape's gold pixel flood as a gun fused up.",

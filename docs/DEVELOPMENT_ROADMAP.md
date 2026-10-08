@@ -10965,3 +10965,37 @@ of skin stood 18 mm off.
   that gun is. The owner, on the e2e runs: "it seems like it wastes a lot of time". A gun's change is checked alone;
   the whole soldier section runs once before a release.
 - **Third person:** the soldier's hands are the character agent's (its Milestone 500 laid every left hand on its gun).
+
+## Milestone 488 — ANAKIN in the bought arms
+
+ANAKIN, the steady SMG (alternator_smg, SciFiSMG01_2), is the third gun held by the first person's bought arms, after
+the USSO and BOOG (`PLAN_THE_EIGHT_GUNS.md` 5.1), on the pack's AS Val (its pose, its tactical and empty reloads, its
+gun's own reload clips). The owner on its placement, 2026-10-04: "Seems like A is good, but obviously needs the usso
+treatment, closer to the pov and the same treatment for the off hand".
+
+- **Placed:** fitted to Apex's Alternator at rest (`tools/gun-fit.ts`: its barrel edges meeting 49% across and 47% down,
+  4.3 degrees off level), then the USSO's move from the fit on top (its muzzle 2.4% right and 1.8% lower), pointing at
+  the crosshair; the off hand low, coming up from the bottom of the picture with the hand and a little wrist showing.
+- **Drawn smaller in your hands:** the bought arms are a real person's, and ANAKIN's model is fat for them: its grip,
+  4.1 cm wide at 86 cm long, took the right palm 15 mm in wherever the hand went. A bought gun's first-person view scale
+  (fparms.json packGuns `gunScale`, paidgun.ts viewScale; 0.73 for ANAKIN) draws it smaller in your own hands only;
+  other players' soldiers carry it whole.
+- **The hands:** both laid on the gun joint by joint (`tools/pack-solve.ts`), the left searched for the daylight the
+  eye sees (Milestone 487: 0 holes, 3 crack pixels); wrists 29 and 7 degrees at rest, 10 and 33 aimed.
+- **Every move to the bar:** an inspect's off-gun arm of its own (`beforeArm`: the left wrist had bent 68 degrees as the
+  hand left the gun, now 42 at most); a pickup's own fit for the left hand (its forefinger's knuckle 5 mm into the gun,
+  now none); the right thumb's base turned 0.12 rad out of the grip.
+- **A swap's cup of its own:** ANAKIN's left hand wraps under the gun, its thumb along one side and its fingers round
+  the other, and the shared cup (fparms.json swap cup) swung the thumb and knuckles 6 to 7 mm into it whichever way the
+  hand moved off. A pack gun can now carry its own `cup` (turn, curl, shape, moveAt) over the shared one (fprig.ts
+  cupFor), searched against the e2e's own measures: nothing in the gun through the swap, the palms 43 degrees from
+  facing its middle; with its left shoulder 3 cm higher the wrist early in the swap is 51 degrees (66 without), no more
+  of the sleeve in the picture.
+- **Sound:** the pack's own AS Val recordings (packsounds.json ASVal: four shots and both reloads, cut to the clips), in
+  place of the Striker-V's it had borrowed.
+- **The checks:** the soldier e2e's pack frames over all three guns (`E2E_GUNS=alternator_smg` while it was fitted);
+  its racking look is now from an empty magazine, so it is the rack on every run (the clip the checks before it left had
+  made it a tactical reload on one run, a rack 7 mm into ANAKIN on another). Its gunfeel.json entry is the USSO's less
+  its screen and hip offset.
+- **The tuning tool:** `tools/pack-tune.ts <gun> [swap pickup inspect melee shoulders]` measures a gun as the pack frames
+  do and searches the keys behind a failing move live in the page (WRITE=1 writes them), for the guns after it.

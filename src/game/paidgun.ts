@@ -17,6 +17,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import cfg from "../config/paidweapons.json";
 import measuredCfg from "../config/paidmodels.json";
 import type { GunModel, PaidParts } from "./gunmodels";
+import fparmsCfg from "../config/fparms.json";
 
 interface Gun {
   model: string;
@@ -267,7 +268,18 @@ const tl = new THREE.TextureLoader();
  * the bought model in their place, and the gun's muzzle and sight line moved to the bought model's. One model a gun
  * (paidweapons.json guns), its skin its fusion level's.
  */
-export function dressPaid(m: GunModel, level = 0): boolean {
+/**
+ * How much smaller a bought gun is drawn in your own hands than its model (fparms.json packGuns gunScale): the bought
+ * arms are a real person's, and a model drawn bigger than a real gun of its kind sinks into them (ANAKIN's grip, 4.1 cm
+ * wide at 86 cm long, took the right palm 15 mm in wherever the hand was put). Figures in the world wear it whole.
+ */
+function viewScale(id: string): number {
+  const f = fparmsCfg as unknown as { guns: Record<string, string>; packGuns: Record<string, { gunScale?: number }> };
+  const pack = f.guns[id];
+  return (pack && f.packGuns[pack]?.gunScale) || 1;
+}
+
+export function dressPaid(m: GunModel, level = 0, view = false): boolean {
   const g = GUNS[m.id];
   const name = g?.model ?? null;
   const src = name ? scenes.get(name) : undefined;
@@ -298,6 +310,8 @@ export function dressPaid(m: GunModel, level = 0): boolean {
   place.name = "paid";
   if (size.muzzleEnd > 0) place.rotation.y = Math.PI;
   place.position.set(m.grip.x ?? 0, m.grip.u, -m.grip.f);
+  // (in your own hands, at its view scale; every measure below goes through `place` and takes it with it)
+  if (view) place.scale.setScalar(viewScale(m.id));
   place.add(model);
   m.root.add(place);
   place.updateMatrixWorld(true);

@@ -3677,13 +3677,15 @@ async function packFrames(page: Page): Promise<void> {
       ["held", ""],
       ["pointing", "r.debugView.reload = 0.28;"],
       ["new magazine in", "r.debugView.reload = 0.46;"],
-      ["racking", "r.debugView.reload = 0.78;"],
+      // (from empty, so it is the rack: the clip left by the checks before had made it a tactical reload on one run and
+      // an empty one on the next)
+      ["racking", "r.loadout.active.state.clip = 0; r.debugView.reload = 0.78;"],
       ["swap out", "r.debugView.raise = 0.12;"],
       ["swap in", "r.debugView.raise = 0.88;"],
       ["pickup", "r.packPickupAt(0.6);"],
       ...(id === "r97" ? ([["aimed", "r.debugView.ads = 1;"]] as Array<[string, string]>) : []),
     ];
-    for (const [name, set] of states) o.through[name] = await pf<number>(`${set} await H.gameWait(0.35); const d = await H.through(); H.clear(); await H.gameWait(0.3); return d;`);
+    for (const [name, set] of states) o.through[name] = await pf<number>(`${set} await H.gameWait(0.35); const d = await H.through(); H.clear(); r.loadout.active.state.clip = r.loadout.active.weapon.clipSize; await H.gameWait(0.3); return d;`);
     // the swap: the gun stays where it is while it phases out from its edges in and the next phases in from its middle
     // out (the owner, 2026-09-30: "keep the hands where they are while the weapon phases / disintegrates from the outside
     // going in ... then the new weapon should materialize from the inside out"), and the hands come a little off it and

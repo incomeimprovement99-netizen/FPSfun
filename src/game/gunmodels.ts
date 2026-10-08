@@ -1705,7 +1705,7 @@ const ROSTER: Record<string, Family> = {
 const built = new Map<string, GunModel>();
 const display = new Map<string, GunModel>();
 
-function buildModel(id: string): GunModel {
+function buildModel(id: string, view = false): GunModel {
   const fam = ROSTER[id] ?? { kind: "rifle", spec: {} };
   let m: GunModel;
   if (fam.kind === "pistol") m = buildPistol(id, fam.spec);
@@ -1717,7 +1717,7 @@ function buildModel(id: string): GunModel {
   // remember the plate's own colour so a mag level of 0 can restore it
   if (m.magPlate) m.magPlate.userData.base = m.magPlate.material;
   // SpeedKills: the bought gun over it, when it is in (paidgun.ts)
-  if (IS_SK) dressPaid(m);
+  if (IS_SK) dressPaid(m, 0, view);
   return m;
 }
 
@@ -1730,7 +1730,7 @@ export function resetGunModels(): void {
 /** build (once) and return the model for a weapon id: the one in your hands, which the viewmodel changes */
 export function gunModel(id: string): GunModel {
   let m = built.get(id);
-  if (!m) built.set(id, (m = buildModel(id)));
+  if (!m) built.set(id, (m = buildModel(id, true)));
   return m;
 }
 
