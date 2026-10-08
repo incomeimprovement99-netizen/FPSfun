@@ -1,0 +1,52 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="-162 -162 324 324" width="720" height="720" font-family="Arial, Helvetica, sans-serif">
+  <title>The Neon City master plan: the centre, the ring road and the eight outer districts, to scale</title>
+  <rect x="-162" y="-162" width="324" height="324" fill="#15131c"/>
+  <g fill-opacity="0.24" stroke-width="1.2">
+    <path d="M-50 -152H50V-100H-50Z" fill="#2ee6ff" stroke="#2ee6ff"/>
+    <path d="M100 -50H152V50H100Z" fill="#ff3df0" stroke="#ff3df0"/>
+    <path d="M-50 100H50V152H-50Z" fill="#ffb020" stroke="#ffb020"/>
+    <path d="M-152 -50H-100V50H-152Z" fill="#3dff7a" stroke="#3dff7a"/>
+    <path d="M50 -152H152V-50H100V-100H50Z" fill="#ff4a4a" stroke="#ff4a4a"/>
+    <path d="M-152 -152H-50V-100H-100V-50H-152Z" fill="#f887ff" stroke="#f887ff"/>
+    <path d="M100 50H152V152H50V100H100Z" fill="#2effc0" stroke="#2effc0"/>
+    <path d="M-152 50H-100V100H-50V152H-152Z" fill="#c4ff3d" stroke="#c4ff3d"/>
+  </g>
+  <rect x="-100" y="-100" width="200" height="200" fill="#211e2b"/>
+  <g stroke="#ece9f4" stroke-opacity="0.28" stroke-dasharray="2 3" stroke-width="0.8">
+    <line x1="-50" y1="-152" x2="-50" y2="152"/><line x1="50" y1="-152" x2="50" y2="152"/>
+    <line x1="-152" y1="-50" x2="152" y2="-50"/><line x1="-152" y1="50" x2="152" y2="50"/>
+  </g>
+  <g fill="none" stroke="#3a3648">
+    <rect x="-95" y="-95" width="190" height="190" stroke-width="10"/>
+    <circle cx="0" cy="0" r="45" stroke-width="10"/>
+    <path d="M-35 -100V-152M35 -100V-152M-35 100V152M35 100V152M-100 -35H-152M-100 35H-152M100 -35H152M100 35H152" stroke-width="10"/>
+  </g>
+  <g fill="#3a3648">
+    <rect x="-24" y="-87.5" width="48" height="35" rx="11"/><rect x="-24" y="52.5" width="48" height="30" rx="11"/>
+    <rect x="-87.5" y="-24" width="35" height="48" rx="11"/><rect x="52.5" y="-24" width="30" height="48" rx="11"/>
+    <rect x="-87" y="-87" width="20" height="19"/><rect x="67" y="-87" width="20" height="19"/><rect x="-87" y="68" width="20" height="19"/>
+    <circle cx="77" cy="77" r="9" fill="none" stroke="#3a3648" stroke-width="3"/>
+  </g>
+  <path d="M-17.5 -30.5H17.5L25 -23V23L17.5 30.5H-17.5L-25 23V-23Z" fill="#3a3648" fill-opacity="0.7"/>
+  <rect x="-18.7" y="-10.25" width="22.5" height="20.5" fill="#b083ff"/>
+  <rect x="4" y="-13" width="15" height="14.5" fill="#b083ff" fill-opacity="0.65"/>
+  <rect x="-152" y="-152" width="304" height="304" fill="none" stroke="#ff4a4a" stroke-dasharray="4 3" stroke-width="1"/>
+  <g font-size="7.2" font-weight="bold" text-anchor="middle" fill="#ece9f4">
+    <text x="0" y="-123">GLASS HEIGHTS</text>
+    <text x="126" y="2" transform="rotate(90 126 0)">THE STRIP</text>
+    <text x="0" y="129">THE TERMINAL</text>
+    <text x="-126" y="2" transform="rotate(-90 -126 0)">THE TERRACES</text>
+    <text x="101" y="-123">LANTERN ALLEYS</text>
+    <text x="-101" y="-123">THE STACKS</text>
+    <text x="101" y="129">THE WORKS</text>
+    <text x="-101" y="129">THE CANYON</text>
+  </g>
+  <g font-size="5" text-anchor="middle" fill="#a39fb2">
+    <text x="0" y="-66">NORTH DECK</text><text x="0" y="71">SOUTH DECK</text>
+    <text x="-70" y="2">WEST</text><text x="68" y="2">EAST</text>
+    <text x="-77" y="-60">MOTEL HILL</text><text x="77" y="-60">NOODLE ROW</text>
+    <text x="-77" y="64">MARKET</text><text x="77" y="64">THE WELL</text>
+    <text x="0" y="22" fill="#ece9f4">THE TOWER</text>
+  </g>
+  <text x="-158" y="-155" font-size="4.4" font-family="Consolas, monospace" fill="#a39fb2">N up · the map is 304 m edge to edge · sector lines dashed at 50 m</text>
+</svg>
