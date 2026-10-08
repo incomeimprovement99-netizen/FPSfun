@@ -104,39 +104,39 @@
       "hold": {
         "l": {
           "shift": [
-            -0.006,
-            -0.104,
-            0.1137
+            -0.0029,
+            -0.0808,
+            0.0984
           ],
           "open": {
             "middle": -0.4,
             "ring": -0.2
           },
           "rot": [
-            0.348,
-            0.361,
-            -0.125
+            0.286,
+            0.222,
+            -0.165
           ],
           "joint": {
             "thumb_01": [
-              -0.106,
-              0.46,
-              -0.074
+              0.21,
+              0.345,
+              -0.11
             ],
             "thumb_02": [
-              0.392,
-              -0.251,
-              0.344
+              -0.088,
+              -0.011,
+              0.104
             ],
             "thumb_03": [
-              0.394,
+              -0.086,
               0.066,
-              -0.112
+              0.008
             ],
             "index_01": [
-              -0.6,
-              0.12,
-              0
+              -0.405,
+              0.058,
+              0.102
             ],
             "pinky_01": [
               -0.36,
@@ -144,9 +144,9 @@
               0
             ],
             "middle_01": [
-              0,
-              0,
-              -0.06
+              0.114,
+              0.602,
+              -0.421
             ],
             "ring_01": [
               -0.12,
@@ -157,28 +157,33 @@
               0,
               0,
               -0.12
+            ],
+            "index_02": [
+              0.259,
+              0.317,
+              0.154
             ]
           },
           "pick": {
             "shift": [
-              -0.006,
-              -0.104,
-              0.1037
+              -0.0029,
+              -0.0808,
+              0.0884
             ],
             "open": {
               "middle": -0.4,
               "ring": -0.2
             },
             "rot": [
-              0.348,
-              0.361,
-              -0.125
+              0.286,
+              0.222,
+              -0.165
             ],
             "joint": {
               "thumb_01": [
-                -0.106,
-                0.46,
-                -0.074
+                0.09,
+                0.585,
+                -0.35
               ],
               "thumb_02": [
                 0.392,
@@ -191,9 +196,9 @@
                 -0.112
               ],
               "index_01": [
-                -0.6,
-                0.12,
-                0
+                -0.405,
+                0.058,
+                0.102
               ],
               "pinky_01": [
                 -0.36,
@@ -201,9 +206,9 @@
                 0
               ],
               "middle_01": [
-                0,
-                0,
-                -0.06
+                0.114,
+                0.602,
+                -0.421
               ],
               "ring_01": [
                 -0.12,
@@ -214,6 +219,11 @@
                 0,
                 0,
                 -0.12
+              ],
+              "index_02": [
+                0.259,
+                0.317,
+                0.154
               ]
             }
           }
@@ -289,7 +299,7 @@
         }
       },
       "_hold": "Fitted by tools/pack-fit.ts, then joint by joint by tools/pack-solve.ts joints and tools/pack-thumb.ts, 2026-09-28. The fit alone left the right hand's seen skin up to 8 mm into the grip and its thumb 12 mm in, lying over the receiver where no small turn moved it; now no seen skin is more than 4 mm in, held, pointing, racking, aimed, swapping or picking up (tools/e2e.ts pack frames; tools/pack-frames.ts flags no frame of the reload, swap, aim or pickup). The left hand regripped 2026-10-03 as Hyper Scape's Harpy is held (the owner, of a grip up the front by the sight: \"your recommendation, like the harpy\"): low ahead of the trigger guard, the USSO's magazine being in its grip, the fingers round the gun's underside and the back of the hand to the eye, the upper arm down out of the picture and a fifth of the forearm in it (it had been half and more). Searched over eighteen places on the gun, each with its elbow (`holdElbow`) and shoulder (`shoulders` l) solved for the least sleeve and forearm in the picture, the grip on the gun, the wrist straight; then its thumb laid along the side (tools/pack-flush.ts) and its fingers on the gun (tools/pack-solve.ts KEEP_HAND). Its pickup has its own fit (`pick`, 1 cm further ahead): with the hold's own the ring fingertip went 12 mm into the gun as the hand came back.",
-      "_solve": "tools/pack-solve.ts, 2026-10-03: l after: deepest 0 mm, palm 0.0 mm, fingers thumb 0 index 0 middle 1.3 ring 0 pinky 0.",
+      "_solve": "tools/pack-solve.ts, 2026-10-07: rest wrists: before L 18 R 21, after L 18 R 21; arms in the picture 29.4% then 29.6% (shoulders {\"l\":[0.0566,0.0044,-0.1486],\"r\":[-0.08,0.12,0],\"adsL\":[0,0.04,0],\"adsR\":[-0.16,0.16,-0.16]}); aimed wrists: before L 53 R 21, after L 49 R 21; arms in the picture 5.3% then 5.3% (shoulders {\"l\":[0.0566,0.0044,-0.1486],\"r\":[-0.08,0.12,0],\"adsL\":[0,0.06999999999999999,0],\"adsR\":[-0.16,0.16,-0.16]}); pointing wrist: before 76, after 72 (tip 0.0 cm, 8 deg; arms in the picture 0.0% then 0.0%; elbow -0.45,-1.30,-0.30, reach 0.27, aimAt 0.85).",
       "shoulders": {
         "l": [
           0.0566,
@@ -302,9 +312,9 @@
           0
         ],
         "adsL": [
-          0,
-          0.04,
-          0
+          0.03,
+          0.1,
+          -0.03
         ],
         "adsR": [
           -0.16,
@@ -360,7 +370,7 @@
       "cupMove": {
         "l": [
           -0.02,
-          0,
+          -0.01,
           0
         ]
       },

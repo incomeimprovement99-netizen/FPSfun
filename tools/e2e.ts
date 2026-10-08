@@ -3473,7 +3473,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string };
   // (a page call a gun and one for the jump: in one call they ran past a page call's 120 s)
   const res: { guns: Record<string, Frames>; jump: string[]; inspectLen: { time: number; at44: boolean; at56: boolean; e44: number; e56: number }; meleeWorks: { swung: boolean; hurt: number; during: number; after: number; meleeing: boolean } } = { guns: {}, jump: [], inspectLen: { time: 0, at44: false, at56: true, e44: 0, e56: 0 }, meleeWorks: { swung: false, hurt: 0, during: 0, after: 0, meleeing: false } };
   // (the page's helpers once, then one short page call a measure: the e2e draws in software, a few frames a second, and
@@ -3556,14 +3556,19 @@ async function packFrames(page: Page): Promise<void> {
   // the gun camera's field of view at the hip with a gun the view's own arms hold, to hold the bought arms' to (the
   // owner, 2026-09-28: "like the view angle isn't how it was originally": they had drawn at the pack's 80 degrees);
   // the first SpeedKills gun not yet in the bought arms (it had been ANAKIN, until ANAKIN went into them)
-  const packIds = Object.keys(fparmsCfg.guns);
-  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman"].find((id) => !packIds.includes(id)) ?? "wingman";
+  // (E2E_GUNS=alternator_smg narrows the frames to the guns named, for a change to one gun's hold: the sweeps of every
+  // move take minutes a gun; a check of one named gun is left out when that gun is, and a swap's other gun is still the
+  // next in the whole list)
+  const allPack = Object.keys(fparmsCfg.guns);
+  const packIds = allPack.filter((id) => !E2E_GUNS.length || E2E_GUNS.includes(id));
+  const has = (...ids: string[]) => ids.every((id) => packIds.includes(id));
+  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman"].find((id) => !allPack.includes(id)) ?? "wingman";
   const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("${plainGun}"); await H.gameWait(0.4); return r.gunFov().gun;`);
   // and the length of an inspect in the view's own arms
   const plainInspect = await pf<number>(`return r.packArms().inspectTime;`);
   // (every gun in the bought arms, fparms.json guns: a gun is added to the checks by adding it there)
   for (const id of packIds) {
-    const other = packIds[(packIds.indexOf(id) + 1) % packIds.length];
+    const other = allPack[(allPack.indexOf(id) + 1) % allPack.length];
     const o = { through: {} as Record<string, number> } as Frames;
     await pf(`r.debugView.inspect = -1; H.clear(); await H.hold(${JSON.stringify(id)}); window.__pf.first = H.fingers();`);
     // drawn, away, and drawn again: fitted the same (the second draw's fit had come out as no tilt), and the grip's
@@ -3634,9 +3639,10 @@ async function packFrames(page: Page): Promise<void> {
     // where the support hand holds the gun at rest against its magazine
     o.palmAhead = await pf<number>(`H.clear(); await H.gameWait(0.3); return r.packArms().palmAhead;`);
     o.fov = await pf<number>(`H.clear(); await H.gameWait(0.3); return r.gunFov().gun;`);
-    // aimed in and firing a burst: how far the gun's nearest part stays outside the gun camera's near plane, view units
-    // (below 0, cut open by it)
-    o.adsNear = await pf<number>(`r.loadout.active.state.clip = r.loadout.active.weapon.clipSize; const T = r.THREE; const root = r.viewModelRoot(); let gun = null; root.traverse((x) => { if (x.userData && x.userData.paid && !gun) gun = x; }); const shown = (x) => { for (let q = x; q; q = q.parent) if (!q.visible) return false; return true; }; const near = () => { const inv = new T.Matrix4().copy(root.matrixWorld).invert(); let n = Infinity; const v = new T.Vector3(); gun.traverse((x) => { if (!x.isMesh || !shown(x)) return; const m = new T.Matrix4().multiplyMatrices(inv, x.matrixWorld); const pos = x.geometry.attributes.position; for (let i = 0; i < pos.count; i += 3) { v.fromBufferAttribute(pos, i).applyMatrix4(m); n = Math.min(n, -v.z); } }); return n; }; r.debugView.ads = 1; await H.gameWait(0.4); let least = near(); r.setScript({ held: (a) => a === "ads" || a === "fire", pressedNow: () => false }); for (let k = 0; k < 10; k++) { await H.gameWait(0.1); least = Math.min(least, near()); } r.setScript(null); r.debugView.ads = null; H.clear(); await H.gameWait(0.4); r.loadout.active.state.clip = 0; return least - r.vmCameraNear() / root.getWorldScale(new T.Vector3()).x;`);
+    // aimed in and firing a burst: how far the gun's nearest part in the picture stays outside the gun camera's near plane,
+    // view units (below 0, cut open by it); a stock reaching back past the cheek, behind the eye, is out of the picture
+    // and counts for nothing (ANAKIN's ran 19 cm behind it, nothing of it seen)
+    o.adsNear = await pf<number>(`r.loadout.active.state.clip = r.loadout.active.weapon.clipSize; const T = r.THREE; const root = r.viewModelRoot(); let gun = null; root.traverse((x) => { if (x.userData && x.userData.paid && !gun) gun = x; }); const shown = (x) => { for (let q = x; q; q = q.parent) if (!q.visible) return false; return true; }; const tv = Math.tan((r.gunFov().gun / 2) * Math.PI / 180); const th = (tv * innerWidth) / innerHeight; const near = () => { const inv = new T.Matrix4().copy(root.matrixWorld).invert(); let n = Infinity; const v = new T.Vector3(); gun.traverse((x) => { if (!x.isMesh || !shown(x)) return; const m = new T.Matrix4().multiplyMatrices(inv, x.matrixWorld); const pos = x.geometry.attributes.position; for (let i = 0; i < pos.count; i += 3) { v.fromBufferAttribute(pos, i).applyMatrix4(m); if (-v.z > 0 && Math.abs(v.x / -v.z) < th && Math.abs(v.y / -v.z) < tv) n = Math.min(n, -v.z); } }); return n; }; r.debugView.ads = 1; await H.gameWait(0.4); let least = near(); r.setScript({ held: (a) => a === "ads" || a === "fire", pressedNow: () => false }); for (let k = 0; k < 10; k++) { await H.gameWait(0.1); least = Math.min(least, near()); } r.setScript(null); r.debugView.ads = null; H.clear(); await H.gameWait(0.4); r.loadout.active.state.clip = 0; return least - r.vmCameraNear() / root.getWorldScale(new T.Vector3()).x;`);
     // from the magazine seated to the grab on the handle, how near the left hand comes to its place on the gun (the
     // USSO's: it goes from the point straight to the handle)
     const grabbed = RL.rack[0] + (fparmsCfg.packGuns.MPS5.rack.grab?.reach[1] ?? 0) * (RL.rack[1] - RL.rack[0]);
@@ -3646,7 +3652,7 @@ async function packFrames(page: Page): Promise<void> {
     o.hook = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const h = r.packArms().hookMiss; H.clear(); await H.gameWait(0.3); return Number.isFinite(h) ? h : ${id === "r97" ? 99 : 0};`);
     // the hands at rest: how much of the left palm and thumb lie on the gun (mm off it of the palm's nearest tenth of skin
     // and the thumb's nearest quarter), and the right hand's last three fingertips' spacing, mm
-    o.handFit = await pf<Frames["handFit"]>(`H.clear(); await H.gameWait(0.3); const T = r.THREE; const a = window.__packAudit(0.004, false, { side: "l", gapList: true }); const pct = (xs, q) => { const s = (xs || []).slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 99; }; const g = r.packRig().group; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const s = g.getWorldScale(new T.Vector3()).x; const d = (p, q) => (at(p).distanceTo(at(q)) / s) * 1000; return { palm: pct(a.gapList.hand_l, 0.1), palmTouch: (a.palmGap.l ?? 1) * 1000, thumb: Math.max(pct(a.gapList.thumb_02_l, 0.25), pct(a.gapList.thumb_03_l, 0.25)), mr: d("middle_03_r", "ring_03_r"), rp: d("ring_03_r", "pinky_03_r") };`);
+    o.handFit = await pf<Frames["handFit"]>(`r.packRig().debugStill = true; H.clear(); await H.gameWait(0.3); const T = r.THREE; const a = window.__packAudit(0.004, false, { side: "l", gapList: true }); const pct = (xs, q) => { const s = (xs || []).slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 99; }; const g = r.packRig().group; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const s = g.getWorldScale(new T.Vector3()).x; const d = (p, q) => (at(p).distanceTo(at(q)) / s) * 1000; const seen = (side) => { const x = window.__packSeenGap(side); return x ? { holes: x.holes, cracks: x.cracks } : { holes: 99, cracks: 99 }; }; const out = { palm: pct(a.gapList.hand_l, 0.1), palmTouch: (a.palmGap.l ?? 1) * 1000, thumb: Math.max(pct(a.gapList.thumb_02_l, 0.25), pct(a.gapList.thumb_03_l, 0.25)), mr: d("middle_03_r", "ring_03_r"), rp: d("ring_03_r", "pinky_03_r"), seen: { l: seen("l"), r: seen("r") } }; r.packRig().debugStill = false; return out;`);
     // and the forefinger closed round it, degrees
     o.rackCurl = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const c = r.packArms().rackCurl; H.clear(); await H.gameWait(0.3); return c;`);
     // the pointing finger against the magazine, shares of the slide: a quarter into the phase out and halfway into the in
@@ -3825,9 +3831,17 @@ async function packFrames(page: Page): Promise<void> {
   await page.bringToFront();
   const g = Object.values(res.guns);
   const show = (f: (x: Frames) => unknown) => JSON.stringify(Object.fromEntries(Object.entries(res.guns).map(([k, x]) => [k, f(x)])));
+  /**
+   * daylight the eye may see shut between a hand and its gun, pixels of tools/pack-audit.js __packSeenGap's 960 wide
+   * picture (about a millimetre each at a support hand): no hole through a hand at all, and cracks along its edge as thin
+   * as the antialiasing leaves
+   */
+  const SEEN_HOLES = 5;
+  const SEEN_CRACKS = 40;
   check(
     "pack frames: the USSO and BOOG are fitted into the bought hands the same on every draw (it had been only the first)",
-    g.length === 2 && g.every((x) => x.tilt[0] > 0.05 && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
+    // (tilted either way: ANAKIN's grip into the palm is 6 degrees nose down)
+    g.length === packIds.length && g.every((x) => Math.abs(x.tilt[0]) > 0.05 && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
     show((x) => x.tilt.map((v) => +((v * 180) / Math.PI).toFixed(2))),
   );
   // (a cached gun keeps the place its last throw or draw's spin gave it, and its middle measured there moved with it:
@@ -3870,7 +3884,7 @@ async function packFrames(page: Page): Promise<void> {
   // magazine's front, the pack's L96X's fore-end being where BOOG's magazine is. The USSO's left hand is on its magazine
   // well, as Hyper Scape's Harpy is held, coming up from the bottom of the picture: the owner, 2026-10-03, "your
   // recommendation, like the harpy")
-  check(
+  if (has("sentinel")) check(
     "pack frames: at rest the support hand holds BOOG ahead of the magazine, not on it (its palm's middle 1 cm and more ahead of the magazine's front)",
     res.guns.sentinel?.palmAhead >= 0.01,
     show((x) => +(x.palmAhead * 100).toFixed(1)),
@@ -3879,27 +3893,37 @@ async function packFrames(page: Page): Promise<void> {
   // LEFT SIDE, SEE THE GAP?": the palm touched at one point of its heel and its nearest tenth of skin stood 18.6 mm off,
   // the thumb's quarter 21 to 28 mm. Since 2026-10-03 the hand holds the USSO low ahead of its trigger guard as Hyper
   // Scape's Harpy is held, its fingers round the gun's underside and the back of the hand to the eye, the palm turned
-  // away: the thumb lies along the side and the palm touches, its nearest tenth 18 mm off where no gap is seen)
-  check(
+  // away: the thumb lies along the side)
+  if (has("r97")) check(
     "pack frames: at rest the USSO's left thumb lies along its left side (the thumb's quarter within 9 mm) and its palm is on the gun (touching, 1.5 mm)",
     res.guns.r97?.handFit.palmTouch <= 1.5 && res.guns.r97?.handFit.thumb <= 9,
     show((x) => ({ palm: +x.handFit.palmTouch.toFixed(1), thumb: +x.handFit.thumb.toFixed(1) })),
   );
+  // (the owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY
+  // MORE OF THOSE": the USSO's left forefinger curled round to its thumb ahead of the gun, and the eye saw the range
+  // through the ring, 80 pixels; ANAKIN's fingertips stood off its front, 70, and BOOG's palm edge showed a sliver along
+  // the forend, 88. Every check of skin against the gun passed: the palm touched at one point. This counts what the eye
+  // sees)
+  check(
+    `pack frames: at rest no gun shows daylight between a hand and the gun (no hole through a hand over ${SEEN_HOLES} pixels, a pinhole under 8 not a hole, cracks along it under ${SEEN_CRACKS}, of a 960 wide picture)`,
+    g.length === packIds.length && g.every((x) => (["l", "r"] as const).every((k) => x.handFit.seen[k].holes <= SEEN_HOLES && x.handFit.seen[k].cracks <= SEEN_CRACKS)),
+    show((x) => `l ${x.handFit.seen.l.holes}/${x.handFit.seen.l.cracks}, r ${x.handFit.seen.r.holes}/${x.handFit.seen.r.cracks}`),
+  );
   // (and of the right: "why is the middle finger so separated from the bottom two? the 3 should be next to each other":
   // its tip 36 mm from the ring finger's, the ring's 25 from the little finger's)
-  check(
+  if (has("r97")) check(
     "pack frames: at rest the USSO's right middle, ring and little fingers lie together on the grip (the middle's gap to the ring within a quarter of the ring's to the little finger)",
     Math.abs(res.guns.r97?.handFit.mr - res.guns.r97?.handFit.rp) <= 0.25 * res.guns.r97?.handFit.rp,
     show((x) => ({ middleRing: +x.handFit.mr.toFixed(1), ringLittle: +x.handFit.rp.toFixed(1) })),
   );
   // (the owner, 2026-09-28: "the hand goes back to the grip in between pointing at the mag and hitting the charging
   // handle": it came within 4 cm of its place, the point let go as the magazine seated and the grab not yet reaching)
-  check(
+  if (has("r97")) check(
     "pack frames: reloading the USSO, the left hand goes from pointing at the magazine straight to its handle, never back onto the gun between (15 cm off its place at least)",
     res.guns.r97?.handover >= 0.15,
     show((x) => +(x.handover * 100).toFixed(1)),
   );
-  check(
+  if (has("r97")) check(
     "pack frames: racking the USSO, the left thumb and forefinger pinch its handle (their tips within 2 cm of the knob)",
     res.guns.r97?.hook < 0.02,
     show((x) => +(x.hook * 100).toFixed(1)),
@@ -3907,7 +3931,7 @@ async function packFrames(page: Page): Promise<void> {
   // (the owner, 2026-09-29: "the left hand when doing the charging handle on the usso doesn't like close its
   // joints/fingers around the charging handle ... it kind of keeps its same position from the pointing": the forefinger
   // lay straight up the gun's side, curled 13 degrees)
-  check(
+  if (has("r97")) check(
     "pack frames: racking the USSO, the left forefinger closes round its handle (curled 100 degrees and more)",
     res.guns.r97?.rackCurl >= 100,
     show((x) => Math.round(x.rackCurl)),
@@ -3928,8 +3952,10 @@ async function packFrames(page: Page): Promise<void> {
   // flat across the picture, their sides to the eye: the owner, "my gun is still pointing super weird and clipping through")
   // (then, 2026-10-02, the owner's pick of twenty placements round that fit, "pull back towards the camera a little ...
   // point at the crosshair ... rotate it left so the front goes right a little bit": the USSO's muzzle 2.4% further right
-  // and 1.8% lower, both guns still pointing at the crosshair)
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 } };
+  // and 1.8% lower, both guns still pointing at the crosshair. ANAKIN (2026-10-04) on Apex's Alternator at rest, its barrel
+  // edges meeting at 49% across and 47% down, 4.3 degrees off level, and the USSO's move from the fit on top, its muzzle
+  // 2.4% right and 1.8% lower: the owner, "A is good, but obviously needs the usso treatment")
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),
@@ -4055,7 +4081,7 @@ async function packFrames(page: Page): Promise<void> {
   );
   const TU = res.guns.r97?.tactical;
   const TB = res.guns.sentinel?.tactical;
-  check(
+  if (has("r97", "sentinel")) check(
     "pack frames: a reload from empty racks (the USSO's handle back, BOOG's bolt worked) and one with a round still chambered does not, the hands back on the gun",
     !!TU && !!TB && TU.empty.handle > 0.3 && TB.empty.lead === "fire" && TU.tactical.handle < 0.02 && TU.tactical.lead === "pose" && TB.tactical.handle < 0.02 && TB.tactical.lead === "pose",
     JSON.stringify({ usso: TU, boog: TB }),
@@ -8796,7 +8822,7 @@ async function skSquadTest(browser: Browser): Promise<void> {
 /** the centre sector's name on the map the run is on (E2E_MAP; the old city's by default): its places name it */
 const CENTRE_NAME = ((process.env.E2E_MAP ?? "city") === "neon" ? neonSectorsCfg.game.sectors : citySectorsCfg.sectors).find((s) => s.id === "c")!.name;
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, p2p, mixed) */
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, skship, br, loot, ship, console, resurgence, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -9228,6 +9254,8 @@ async function ownerTest(browser: Browser): Promise<void> {
 }
 
 const ONLY = (process.env.E2E_ONLY ?? "").split(",").filter(Boolean);
+/** E2E_GUNS=alternator_smg narrows the bought arms' frames (the soldier and skpack sections) to those guns */
+const E2E_GUNS = (process.env.E2E_GUNS ?? "").split(",").filter(Boolean);
 const want = (k: string): boolean => !ONLY.length || ONLY.includes(k);
 /**
  * One section, run so that a throw in it (a wait that timed out) is a failed check and the sections after it still run: a
@@ -9781,6 +9809,17 @@ async function main(): Promise<void> {
       console.log("\nSpeedKills: the slam, alone");
       await speedkillsSlamTest(browser);
     }
+
+    // (the bought arms' frames alone, named only: the soldier section's longest part without the rest of it, on a page of
+    // its own, for a change to a gun's hold; E2E_GUNS narrows it to those guns)
+    if (ONLY.includes("skpack")) await section("skpack", async () => {
+      console.log(`\nSpeedKills' bought arms: their frames alone${E2E_GUNS.length ? ` (${E2E_GUNS.join(", ")})` : ""}`);
+      const page = await open(browser, "?game=speedkills");
+      const ready = await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 180000 }).then(() => true, () => false);
+      check("skpack: the bought guns and arms load", ready);
+      if (ready) await packFrames(page);
+      await page.close();
+    });
 
     if (want("soldier")) await section("soldier", async () => {
       console.log("\nSpeedKills' soldier: it renders, its hit volumes, bots' kits and the fallback");

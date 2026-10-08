@@ -10925,3 +10925,43 @@ hyperscape" (`PLAN_THE_EIGHT_GUNS.md` 5.7).
   long combined runs and passed both times run alone (the box never appeared at all, not a gun missing: timing under
   load).
 - **For the guns agent:** the first-person hold and reload, with buildRocket(false) as the round loaded.
+
+## Milestone 487 — The USSO's left hand holds the gun, and daylight between a hand and its gun is checked as the eye sees it
+
+The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY
+MORE OF THOSE". The USSO's left hand (the Harpy's low grip, Milestone 446) hung under the gun ahead of its trigger guard
+with only the forefinger on it: the forefinger curled round to the thumb, and the eye saw the range through the ring.
+Every check of skin against the gun passed, since the palm touched the gun at one point of its heel; its nearest tenth
+of skin stood 18 mm off.
+
+- **What the eye sees, measured:** tools/pack-audit.js `__packSeenGap(side)` draws the arms and the gun from the view's
+  own camera as two flat colours into a 960 wide picture (a pixel is about a millimetre at a support hand) and counts
+  the background a hand shuts in against the gun: holes (shut in on every side) the gun alone does not make, so a
+  trigger guard's opening is not counted, and cracks up to 8 pixels wide between hand and gun that neither makes alone,
+  so the gaps between fingers are not counted. A pixel is the hand's when its nearest point on the picture is one of
+  that hand's finger joints or its palm's middle, not its wrist, its forearm or the other hand: daylight between a
+  forearm and the gun is the arm's way up to it. No crack is counted at the picture's edge, which cuts both.
+- **Double checked, every gun:** the USSO's left hand 51 pixels of hole at the e2e's view (80 at the owner's); BOOG's
+  hands 0 holes and 6 crack pixels, its palm along the fore-end's side, so BOOG's hold is unchanged; ANAKIN (not yet
+  shipped) 70, fixed with it in its own milestone; both right hands round their grips.
+- **The USSO's hold searched against it:** tools/pack-flush.ts scores it (`SEEN=`, on the owner's 1920 by 1080 page at
+  FOV 1.571) and holds the idle's breath still while it searches. A search that laid the palm flush by skin alone moved
+  the hand 1.4 cm up and left the ring open (98 pixels): the skin measure was not what the owner saw. Searched for
+  daylight, with the forefinger, middle finger and thumb free and depth counted from 3 mm, the hand sits 2.3 cm higher
+  and 1.5 cm along the gun, round its lower front, then laid back on by tools/pack-solve.ts with the hand kept: 0
+  holes, 15 crack pixels, nothing of it more than 3 mm into the gun, the wrist 18 degrees. The pickup's own fit moved
+  with it.
+- **What the move changed elsewhere, put right:** aimed, the left wrist bent 53 degrees (50 the bar); the aimed left
+  shoulder moved 3 to 6 cm (`shoulders.adsL`, searched) brings it to 32 with no more of the sleeve in the picture. In a
+  swap the cupped ring fingertip went 5 mm into the gun at 84% through; the swap's cup 1 cm lower (`cupMove.l`) takes it
+  out. A move tried for BOOG closed its sliver but put its palm 6 mm into the gun in the first draw's flick: BOOG kept
+  its hold.
+- **The check:** the soldier e2e's pack frames, at rest with the idle's breath held still, for every gun in fparms.json
+  `guns` and both hands: no hole over 5 pixels and cracks under 40. A hole is 8 pixels and more in one piece: a pinhole
+  where a fingertip meets the gun is the antialiasing's (the USSO's right hand, 2 to 6 pixels as the idle breathed),
+  counted apart as specks. Proved by putting the USSO's old hold back: the check fails alone, 51 pixels.
+- **The checks a gun at a time:** `E2E_ONLY=skpack` runs the bought arms' frames alone on a page of their own, and
+  `E2E_GUNS=r97` narrows them (and the soldier section's) to the guns named; a check of one named gun is left out when
+  that gun is. The owner, on the e2e runs: "it seems like it wastes a lot of time". A gun's change is checked alone;
+  the whole soldier section runs once before a release.
+- **Third person:** the soldier's hands are the character agent's (its Milestone 500 laid every left hand on its gun).

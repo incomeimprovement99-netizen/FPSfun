@@ -380,3 +380,183 @@ window.__cardOverGun = () => {
   });
   return out;
 };
+
+// Daylight between a hand and the gun, as the eye sees it (the owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO
+// HAS A GAP BETWEEN IT AND THE GUN"). The audit above measured skin against the gun's surface, and a palm touching at one
+// point passed while the eye saw background through the hand: a ring of forefinger and thumb closed ahead of the gun,
+// the palm under it. Here the view's own camera draws the arms and the gun as two flat colours into a small picture, and
+// the background the hand closes off is counted: holes (background shut in on every side) that the gun alone does not
+// shut in (a trigger guard's opening is the gun's own), and cracks narrower than `r` pixels between hand and gun that
+// neither has alone (the gaps between fingers are the hand's own). Only round the one hand: its bones' box on the
+// picture. `w` is the picture's width (960); a pixel there is about a millimetre at a support hand's distance.
+window.__packSeenGap = (side, o) => {
+  o = o || {};
+  const r = window.__range;
+  const T = r.THREE;
+  const R = r.renderer;
+  const root = r.viewModelRoot();
+  const cam = root.parent;
+  let scene = root;
+  while (scene.parent) scene = scene.parent;
+  let rig = null, gun = null;
+  root.traverse((x) => {
+    if (x.name === "pack-arms") rig = x;
+    if (!gun && x.userData && x.userData.paid) gun = x;
+  });
+  if (!rig || !rig.visible || !gun) return null;
+  const under = (x, a) => { for (let p = x; p; p = p.parent) if (p === a) return true; return false; };
+  const W = o.w || 960, H = Math.round((W * innerHeight) / innerWidth), RAD = o.r || 4;
+  root.updateMatrixWorld(true);
+  const red = new T.MeshBasicMaterial({ color: 0xff0000, fog: false, toneMapped: false, side: T.DoubleSide });
+  const green = new T.MeshBasicMaterial({ color: 0x00ff00, fog: false, toneMapped: false, side: T.DoubleSide });
+  const saved = [];
+  scene.traverse((x) => {
+    if (!(x.isMesh || x.isPoints || x.isLine || x.isSprite) || !x.layers.test(cam.layers)) return;
+    saved.push([x, x.material, x.visible]);
+    if (under(x, rig)) x.material = red;
+    else if (under(x, gun) && !x.isSprite && !x.isPoints) x.material = green;
+    else x.visible = false;
+  });
+  const rt = new T.WebGLRenderTarget(W, H);
+  const bg = scene.background, was = R.getRenderTarget(), cc = R.getClearColor(new T.Color()), ca = R.getClearAlpha();
+  const buf = new Uint8Array(W * H * 4);
+  try {
+    scene.background = null;
+    R.setRenderTarget(rt);
+    R.setClearColor(0x000000, 1);
+    R.clear(true, true, true);
+    R.render(scene, cam);
+    R.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+  } finally {
+    R.setRenderTarget(was);
+    R.setClearColor(cc, ca);
+    scene.background = bg;
+    for (const [x, m, v] of saved) { x.material = m; x.visible = v; }
+    rt.dispose(); red.dispose(); green.dispose();
+  }
+  // rows from the top, as the picture is seen
+  const hand = new Uint8Array(W * H), gunM = new Uint8Array(W * H);
+  for (let y = 0; y < H; y++)
+    for (let x = 0; x < W; x++) {
+      const k = ((H - 1 - y) * W + x) * 4;
+      if (buf[k] > 128 && buf[k + 1] < 128) hand[y * W + x] = 1;
+      else if (buf[k + 1] > 128) gunM[y * W + x] = 1;
+    }
+  const both = new Uint8Array(W * H);
+  for (let i = 0; i < W * H; i++) both[i] = hand[i] | gunM[i];
+  // background reached from the picture's edge; what is not reached is shut in
+  const shutIn = (m) => {
+    const seen = new Uint8Array(W * H), st = [];
+    const push = (i) => { if (!m[i] && !seen[i]) { seen[i] = 1; st.push(i); } };
+    for (let x = 0; x < W; x++) { push(x); push((H - 1) * W + x); }
+    for (let y = 0; y < H; y++) { push(y * W); push(y * W + W - 1); }
+    while (st.length) {
+      const i = st.pop(), x = i % W, y = (i - x) / W;
+      if (x > 0) push(i - 1);
+      if (x < W - 1) push(i + 1);
+      if (y > 0) push(i - W);
+      if (y < H - 1) push(i + W);
+    }
+    const out = new Uint8Array(W * H);
+    for (let i = 0; i < W * H; i++) out[i] = !m[i] && !seen[i] ? 1 : 0;
+    return out;
+  };
+  // a closing (grown then shrunk by a square `RAD` pixels round), separably
+  const grow = (m, keep) => {
+    const a = new Uint8Array(W * H), b = new Uint8Array(W * H);
+    for (let y = 0; y < H; y++) {
+      let run = -1e9;
+      for (let x = 0; x < W; x++) { if (m[y * W + x] === keep) run = x; a[y * W + x] = x - run <= RAD ? keep : 1 - keep; }
+      run = 1e9;
+      for (let x = W - 1; x >= 0; x--) { if (m[y * W + x] === keep) run = x; if (run - x <= RAD) a[y * W + x] = keep; }
+    }
+    for (let x = 0; x < W; x++) {
+      let run = -1e9;
+      for (let y = 0; y < H; y++) { if (a[y * W + x] === keep) run = y; b[y * W + x] = y - run <= RAD ? keep : 1 - keep; }
+      run = 1e9;
+      for (let y = H - 1; y >= 0; y--) { if (a[y * W + x] === keep) run = y; if (run - y <= RAD) b[y * W + x] = keep; }
+    }
+    return b;
+  };
+  const close = (m) => grow(grow(m, 1), 0);
+  const holeBoth = shutIn(both), holeGun = shutIn(gunM);
+  const cBoth = close(both), cGun = close(gunM), cHand = close(hand);
+  // the hand's box on the picture: its own bones, and a fingertip's length past them; a pixel there is the hand's when
+  // its nearest point on the picture is one of this hand's: its fingers' joints and its palm's middle, and not its
+  // wrist or forearm (daylight between a forearm and the gun is the arm's way up to it, not a gap: BOOG's wrist leaves
+  // the fore-end below the glove's cuff), nor the other hand (the right hand's box at the hip reaches over the left)
+  const bones = [];
+  const at = (n) => { const b = rig.getObjectByName(n); return b ? b.getWorldPosition(new T.Vector3()) : null; };
+  const put = (v, own, hand) => { if (!v) return; const p = v.clone().project(cam); bones.push({ x: (p.x * 0.5 + 0.5) * W, y: (0.5 - p.y * 0.5) * H, own, hand }); };
+  for (const s of ["l", "r"]) {
+    const own = s === side;
+    rig.traverse((x) => { if (x.isBone && /^(thumb|index|middle|ring|pinky)_0[123]_[lr]$/.test(x.name) && x.name.endsWith("_" + s)) put(x.getWorldPosition(new T.Vector3()), own, true); });
+    const wrist = at("hand_" + s), knuckle = at("middle_01_" + s), elbow = at("lowerarm_" + s);
+    if (wrist && knuckle) put(wrist.clone().lerp(knuckle, 0.5), own, true);
+    put(wrist, false, false);
+    if (wrist && elbow) for (const t of [0.25, 0.5, 0.75]) put(wrist.clone().lerp(elbow, t), false, false);
+  }
+  const pts = bones.filter((b) => b.own && b.hand);
+  if (!pts.length) return null;
+  const xs = pts.map((p) => p.x), ys = pts.map((p) => p.y);
+  const pad = 0.35 * Math.max(Math.max(...xs) - Math.min(...xs), Math.max(...ys) - Math.min(...ys));
+  const x0 = Math.max(0, Math.floor(Math.min(...xs) - pad)), x1 = Math.min(W - 1, Math.ceil(Math.max(...xs) + pad));
+  const y0 = Math.max(0, Math.floor(Math.min(...ys) - pad)), y1 = Math.min(H - 1, Math.ceil(Math.max(...ys) + pad));
+  const ours = (x, y) => {
+    let d = Infinity, own = false;
+    for (const b of bones) { const e = (b.x - x) ** 2 + (b.y - y) ** 2; if (e < d) { d = e; own = b.own; } }
+    return own;
+  };
+  let holes = 0, cracks = 0, handPx = 0;
+  const gap = new Uint8Array(W * H);
+  for (let y = y0; y <= y1; y++)
+    for (let x = x0; x <= x1; x++) {
+      const i = y * W + x;
+      if (hand[i]) handPx++;
+      if (both[i]) continue;
+      // (no crack at the picture's edge: the edge cuts the hand and the gun, and a closing there reads the cut as a gap)
+      const edge = x < 2 * RAD || y < 2 * RAD || x >= W - 2 * RAD || y >= H - 2 * RAD;
+      const hole = holeBoth[i] && !holeGun[i], crack = !hole && !edge && cBoth[i] && !cGun[i] && !cHand[i];
+      if ((!hole && !crack) || !ours(x, y)) continue;
+      if (hole) { holes++; gap[i] = 1; } else { cracks++; gap[i] = 2; }
+    }
+  // a hole is one the eye sees: 8 pixels and more in one piece; a pinhole where a fingertip meets the gun is the
+  // antialiasing's (2 to 6 pixels, the USSO's right hand), counted apart as specks
+  let specks = 0;
+  {
+    const seen = new Uint8Array(W * H);
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        const i0 = y * W + x;
+        if (gap[i0] !== 1 || seen[i0]) continue;
+        const st = [i0];
+        seen[i0] = 1;
+        let n = 0;
+        while (st.length) {
+          const i = st.pop(), px = i % W, py = (i - px) / W;
+          n++;
+          for (const [qx, qy] of [[px - 1, py], [px + 1, py], [px, py - 1], [px, py + 1]]) {
+            if (qx < x0 || qx > x1 || qy < y0 || qy > y1) continue;
+            const q = qy * W + qx;
+            if (gap[q] === 1 && !seen[q]) { seen[q] = 1; st.push(q); }
+          }
+        }
+        if (n < (o.minHole || 8)) { specks += n; holes -= n; }
+      }
+  }
+  const res = { holes, specks, cracks, handPx, share: handPx ? +((100 * (holes + cracks)) / handPx).toFixed(2) : 0, box: [x0, y0, x1, y1], w: W, h: H };
+  if (o.image) {
+    const cv = document.createElement("canvas");
+    cv.width = x1 - x0 + 1; cv.height = y1 - y0 + 1;
+    const cx = cv.getContext("2d"), im = cx.createImageData(cv.width, cv.height);
+    for (let y = y0; y <= y1; y++)
+      for (let x = x0; x <= x1; x++) {
+        const i = y * W + x, k = ((y - y0) * cv.width + (x - x0)) * 4;
+        const c = gap[i] === 1 ? [255, 220, 0] : gap[i] === 2 ? [255, 120, 0] : hand[i] ? [200, 60, 60] : gunM[i] ? [90, 170, 90] : [30, 30, 40];
+        im.data[k] = c[0]; im.data[k + 1] = c[1]; im.data[k + 2] = c[2]; im.data[k + 3] = 255;
+      }
+    cx.putImageData(im, 0, 0);
+    res.image = cv.toDataURL("image/png");
+  }
+  return res;
+};

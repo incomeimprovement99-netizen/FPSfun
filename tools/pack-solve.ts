@@ -15,7 +15,7 @@
 // tools/pack-thumb.ts searches a finger's joints over their whole range for that. A Levenberg-Marquardt solve of a
 // whole hand at once was tried here too and dropped: two minutes a step in the page, and it stalled where this did. WRITE=1 writes the result into fparms.json (packGuns hold joint and shift, shoulders, point).
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30, HOLD=index,middle,ring,pinky, KEEP_HAND=1)
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30, HOLD=index,middle,ring,pinky, KEEP_HAND=1, WRIST_SIDES=r or a shoulder key, adsL)
 // Headless, never the real mouse or keyboard.
 import fs from "node:fs";
 import path from "node:path";
@@ -215,7 +215,10 @@ async function wrists(page: Page, id: string, name: string): Promise<void> {
   // from the pack's own shoulders (no fit of ours), and never with more of the arms in the picture than those put there:
   // the first search raised the USSO's left shoulder 16 cm and its sleeve filled the bottom of the picture aimed
   // (POINT_ONLY=1: the shoulders written, the pointing arm alone)
-  const sh: Shoulders = process.env.POINT_ONLY === "1" ? structuredClone(cfg.packGuns[name].shoulders ?? {}) : {};
+  // (WRIST_SIDES=r moves only that side's shoulder, from the saved ones: searched from none, ANAKIN's left shoulder, placed
+  // so its forearm comes up from below the picture, went back where the clip has it)
+  const wristSides = (process.env.WRIST_SIDES ?? "l,r").split(",");
+  const sh: Shoulders = process.env.POINT_ONLY === "1" || process.env.WRIST_SIDES ? structuredClone(cfg.packGuns[name].shoulders ?? {}) : {};
   const state = async (js: string) => {
     await page.evaluate(`(() => { const r = window.__range; r.debugView.ads = null; r.debugView.reload = null; ${js} })()`);
     await wait(700);
@@ -240,7 +243,7 @@ async function wrists(page: Page, id: string, name: string): Promise<void> {
       const b = await read();
       return Math.max(0, b.l - WRIST) + Math.max(0, b.r - WRIST) + (b.l + b.r) * 0.02 + b.short * 1000 + Math.max(0, b.cover - before.cover) * 5;
     };
-    const keys = keysOf.flatMap((k) => [0, 1, 2].map((i) => ({ get: (t: Shoulders) => t[k]?.[i] ?? 0, set: (t: Shoulders, v: number) => { const c = t[k] ?? [0, 0, 0]; c[i] = v; t[k] = c; }, steps: SHOULDER_STEPS })));
+    const keys = keysOf.filter((k) => wristSides.includes(k) || wristSides.includes(k.slice(-1).toLowerCase())).flatMap((k) => [0, 1, 2].map((i) => ({ get: (t: Shoulders) => t[k]?.[i] ?? 0, set: (t: Shoulders, v: number) => { const c = t[k] ?? [0, 0, 0]; c[i] = v; t[k] = c; }, steps: SHOULDER_STEPS })));
     const res = await descend(sh, keys, score, ROUNDS, () => false, () => {});
     Object.assign(sh, res.best);
     await page.evaluate(`window.__range.packRig().debugShoulders = ${JSON.stringify(sh)}`);
