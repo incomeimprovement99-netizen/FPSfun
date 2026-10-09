@@ -41,15 +41,15 @@ agent's (apex-city) and the legacy guns' data the guns agent's (apex-soldier), e
 ## 4. The legacy game
 
 Done so far: no supply bins (475), no death boxes (476), no grenades (481), the legacy-only modes (485), Resurgence
-(486), the e2e on SpeedKills (490), the abilities and kits (491). What is left, surveyed 2026-10-04, one milestone each
-(490 to 499 reserved; each takes the next number as it starts, the heaviest in SpeedKills' first script first):
+(486), the e2e on SpeedKills (494), the abilities and kits (491). What is left, surveyed 2026-10-04, one milestone each
+(the new-stuff agent's numbers are 494 to 499, the guns agent having taken 490, 492 and 493 on 2026-10-09; each takes the next number as it starts, the heaviest in SpeedKills' first script first):
 
-- **490, the e2e on SpeedKills (done).** The e2e pages run the legacy game unless told otherwise (`e2e.ts` E2E_GAME); 28
+- **494, the e2e on SpeedKills (done).** The e2e pages run the legacy game unless told otherwise (`e2e.ts` E2E_GAME); 28
   sections do, many of them on shared systems (the network, host migration, the killcam, the recap, the controller,
   the lobby, the arena modes, the range's tools, the Gulag). The default becomes SpeedKills with no change to the
   game, and every check is sorted: one that passes is a SpeedKills test from now on; one that tests the legacy game
   alone names it (`game=legacy`) and goes with its code. The Node checks stay on the legacy default until the switch
-  (498): run on SpeedKills, about 160 of them fail because they hold the legacy game's own numbers (Apex's movement
+  (the last step): run on SpeedKills, about 160 of them fail because they hold the legacy game's own numbers (Apex's movement
   constants, its guns' stats, its loot tables and ring), and each goes with the code it tests, as the grenades' did.
 - **Later, the UI's crumbs:** the `legacyOnly` controls, the legacy tour's steps, the README branch of the screen (the
   TV and the manual stay), the legacy intro card and tips, the cross-game join message. About 300 lines.

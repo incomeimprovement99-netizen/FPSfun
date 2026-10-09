@@ -49,7 +49,7 @@ import { BR_X, BR_Z } from "../src/game/br";
 import { readFileSync } from "node:fs";
 
 /**
- * A test of the legacy game alone, pinned to it until the code it tests goes (docs/PLAN_LEGACY_REMOVAL.md, 490): the
+ * A test of the legacy game alone, pinned to it until the code it tests goes (docs/PLAN_LEGACY_REMOVAL.md, 494): the
  * suite runs SpeedKills by default, and a test that holds the legacy game's own map, loot, abilities, knockdowns or
  * arenas names it with this.
  */

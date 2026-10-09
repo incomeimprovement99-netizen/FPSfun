@@ -10959,7 +10959,7 @@ br.json `gulag.landSpread`, and `gulagFor` no longer asks which rules are on.
   controls without the Rules box; the intro's cards without Resurgence's); rules; the br, squad, gulag, migrate,
   sksquad, sklobby, intro and panel e2e.
 
-## Milestone 490 — The e2e on SpeedKills, and the Ring pace that did nothing there
+## Milestone 494 — The e2e on SpeedKills, and the Ring pace that did nothing there
 
 The first step of the legacy game's removal (docs/PLAN_LEGACY_REMOVAL.md): the e2e suite opened every page in the
 legacy game unless its query named one, so 28 of its sections, many on systems both games share, were testing a
@@ -11030,7 +11030,7 @@ SpeedKills turned them off and plays its ten hacks, which stay and load at start
 - **Checked:** tsc; verify; rules; movesim; e2e owner, duel, bots, pad, range, finish, speedkills, br, loot, squad,
   modes and sksquad (the four fails of the first run fixed and rerun alone: range, finish and br pass whole).
 
-## Milestone 492 — The start screen, the hack pick before play, and a bot strafe that can be followed
+## Milestone 495 — The start screen, the hack pick before play, and a bot strafe that can be followed
 
 The owner, 2026-10-09: "the main screen should be like MUCH more simple ... two sections, one on left that is Training
 -> Firing Range and the other is Play -> Battle Royale and then a third option in the middle at the lower part should
