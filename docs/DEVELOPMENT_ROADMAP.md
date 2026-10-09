@@ -11367,3 +11367,19 @@ cools when it overheats.
   the magazine guns, and a vent check of its own: the gun turned mid-vent and back by its ends, no clip of the pack's
   playing, no hand in the gun, the wrists 60 degrees or less; seen failing with the vent's turn taken out. A real
   overheat, the trigger held till the gun locks, vents with the hands on it and nothing pointing.
+
+## Milestone 514 — CHOOCH's vent on the soldier on the first person's beats
+
+The guns agent's Milestone 493 made CHOOCH's overheat a vent in the bought arms, on shares of the overheat's lockout
+(fparms.json packGuns.MGX5.vent: into it over the first fifth, held, back over the last quarter). The soldier other
+players see already vented CHOOCH in a carry of its own (soldierhold.json vent), but eased into it at the carry's own
+rate for as long as the act held, on a clock of its own: still tipped all the way up as the first person's gun was back
+in its hold and able to fire.
+
+- **Now** (mannequin.ts, rifle.ts ventOf): the soldier reads the same shares at run time, as its reload reads the first
+  person's, of the gun's own lockout (weapons.ts mech.overheat, CHOOCH's 1.19 s) from the act's start: into the vent
+  carry from wherever the gun was, held, and back at its hold by the lockout's end. Its turn stays its own: the first
+  person's roll, yaw and pitch are the view's.
+- **Checked:** a new skfigure check, the gun on its way back at the middle of `out` (6.4 degrees of 11) and at its hold
+  by the lockout's end (0), seen failing with the old easing (still 11 at the end); every skfigure check on CHOOCH;
+  verify; rules; the type check. The page's weaponTimes hook gives the lockout.

@@ -237,7 +237,16 @@ export function tuneRifle(patch: Record<string, unknown>): void {
  */
 const FPR = (fp as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; rackBlend: number; slide: number; lead: number; follow: number; slideIn?: number; rackOut?: number[]; tipBack?: number[]; tactical?: { rack: boolean; back: number[] } } }).reload;
 type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[] };
-const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<string, { rack?: { clip: string; window: number[]; grab?: Grab }; tacticalRack?: boolean; reload?: ShellReload }> };
+const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<string, { rack?: { clip: string; window: number[]; grab?: Grab }; tacticalRack?: boolean; reload?: ShellReload; vent?: { in: number[]; out: number[] } }> };
+
+/**
+ * An overheated gun's vent as the first person's (fparms.json packGuns.<gun>.vent, CHOOCH's, the guns agent's Milestone
+ * 493): shares of the overheat's lockout, the gun turned into it over `in`, held, and back over `out`, both hands on it.
+ * The turn itself is the soldier's own (soldierhold.json vent): the first person's numbers are the view's.
+ */
+export function ventOf(id: string): { in: number[]; out: number[] } | null {
+  return PACKS.packGuns[PACKS.guns[id] ?? ""]?.vent ?? null;
+}
 
 /**
  * A reload a shell at a time (fparms.json packGuns.<gun>.reload, style "shells": BIGANTLER's, the guns agent's Milestone

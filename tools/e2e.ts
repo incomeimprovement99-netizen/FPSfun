@@ -8873,9 +8873,14 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     })()`,
   );
   // An overheated gun venting (act 20; the owner, 2026-10-01: other players see CHOOCH's overheat): the gun tipped up
-  // in its vent carry (soldierhold.json vent), the hands on it, and back to its hold after
+  // in its vent carry (soldierhold.json vent), the hands on it, and back to its hold after. On the first person's beats
+  // (fparms.json packGuns.<gun>.vent, shares of the lockout): on its way back by `out`'s middle, and back at its hold by
+  // the lockout's end, as the first person's is, whether or not the figure has been told the vent is over
   if (FITTED.includes("lstar")) {
-    const vented = await ev<{ rest: number; vent: number; back: number; a: A | null }>(
+    const L = (await ev<{ lockout: number | null }>(page, `window.__range.weaponTimes("lstar")`)).lockout ?? 1;
+    const VO = (fparmsCfg.packGuns as unknown as Record<string, { vent?: { in: number[]; out: number[] } }>)[(fparmsCfg.guns as Record<string, string>).lstar]?.vent;
+    const outMid = VO ? (VO.out[0] + VO.out[1]) / 2 : 0.875;
+    const vented = await ev<{ rest: number; vent: number; leaving: number; done: number; back: number; a: A | null }>(
       page,
       `(() => {
         const r = window.__range, T = r.THREE;
@@ -8883,16 +8888,23 @@ async function figureHoldTest(browser: Browser): Promise<void> {
         const f = r.labFigures()[0];
         const pitch = () => { const d = new T.Vector3(0, 0, -1).applyQuaternion(f.figure.gunObject.getWorldQuaternion(new T.Quaternion())); return Math.round((Math.asin(d.y) * 1800) / Math.PI) / 10; };
         const rest = pitch();
-        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "vent" }); r.figureLabStep(0.8);
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "vent" }); r.figureLabStep(${0.5 * L});
         const vent = pitch(); const a = window.__figureAudit(0, { pitch: 0 });
+        r.figureLabStep(${(outMid - 0.5) * L}); const leaving = pitch();
+        r.figureLabStep(${(1.05 - outMid) * L}); const done = pitch();
         r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2);
-        return { rest, vent, back: pitch(), a };
+        return { rest, vent, leaving, done, back: pitch(), a };
       })()`,
     );
     check(
       "the soldier's CHOOCH vents as others see it: the gun tipped up 10 degrees or more off its hold, the hands on it, and back after",
       vented.vent - vented.rest >= 10 && Math.abs(vented.back - vented.rest) <= 2 && (vented.a?.support ?? 99) <= BAR.support && Math.max(vented.a?.handIn?.l ?? 99, vented.a?.handIn?.r ?? 99) <= BAR.handIn,
       JSON.stringify({ rest: vented.rest, vent: vented.vent, back: vented.back, support: vented.a?.support, handIn: vented.a?.handIn })
+    );
+    check(
+      `the soldier's CHOOCH vents on the first person's beats: on its way back by the middle of its \`out\` (${outMid.toFixed(3)} of the ${L} s lockout) and at its hold by the lockout's end`,
+      !!VO && vented.leaving - vented.rest > 1 && vented.leaving < vented.vent - 1 && Math.abs(vented.done - vented.rest) <= 2,
+      JSON.stringify({ rest: vented.rest, vent: vented.vent, leaving: vented.leaving, done: vented.done, lockout: L, out: VO?.out })
     );
   }
   // The head shot from behind (the owner, 2026-10-04: with BOOG he could not headshot a soldier from behind, its head

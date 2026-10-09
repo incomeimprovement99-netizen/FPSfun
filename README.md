@@ -329,7 +329,8 @@ it.
   shot; and ANAKIN's and PANDA's long stocks run along the inside of
   the right forearm in some poses (a known overlap, being worked on). CHOOCH
   never reloads: when it overheats, others see it vent, the gun tipped up and
-  canted in both hands until it has cooled enough to fire, a bot's too. APUHTHEE,
+  canted in both hands on the same beats as your own view's, back in hand as it
+  can fire again, a bot's too. APUHTHEE,
   the heavy pistol, is held as a pistol is: out in front in both hands, the left
   wrapped round the right with its thumb forward along the frame, the trigger
   finger on the trigger, and raised to the eye with the arms nearly straight when

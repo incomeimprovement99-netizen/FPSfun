@@ -44,7 +44,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shellParts, shellsOf, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shellParts, shellsOf, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, ventOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -804,6 +804,21 @@ function rechamberSeconds(id: string): number {
   return t;
 }
 
+/** an overheated gun's lockout, seconds (weapons.ts mech.overheat, fusion 0): what the vent's shares are of (ventOf) */
+const lockoutTimes = new Map<string, number>();
+function lockoutSeconds(id: string): number {
+  let t = lockoutTimes.get(id);
+  if (t === undefined) {
+    try {
+      t = resolveWeapon(id, 0).mech.overheat?.lockout ?? 1;
+    } catch {
+      t = 1;
+    }
+    lockoutTimes.set(id, (t = Math.max(0.2, t)));
+  }
+  return t;
+}
+
 /** the first person's magazine phases round its own middle (fparms.json reload.magPhase), not along it */
 const MAG_RADIAL = (FIRST_PERSON_RELOAD as { magPhase?: string }).magPhase === "radial";
 
@@ -1100,6 +1115,8 @@ export class MannequinFigure {
   private gunComing = false;
   /** 0..1 each, eased: the lowered carry a swap's own, and a sprint jump's own (rifle.ts carryOf) */
   private carryW = { swap: 0, air: 0, vent: 0 };
+  /** how far lowered the gun was as a vent began */
+  private ventFrom = 0;
   /** the stance and the hands' act last frame, when a slide began and when its way out ends, and which swing a melee is on */
   private lastStance = "";
   private lastAct: FigurePose["act"] = null;
@@ -1912,6 +1929,8 @@ export class MannequinFigure {
       if (act === "melee") this.meleeSwing = (this.meleeSwing + 1) % MELEE_SWINGS.length;
       this.lastAct = act;
       this.actAt = this.t;
+      // (a vent goes into its carry from wherever the gun was)
+      if (act === "vent") this.ventFrom = this.lowered;
     }
     // the soldier's throw is over once the grenade has gone (soldierhold.json throwFor), and the hands go back for the
     // gun: held to the act's own time, its arms hung empty for 0.35 s after the release
@@ -2158,14 +2177,21 @@ export class MannequinFigure {
       // SpeedKills' soldier: the rifleman's hold (rifle.ts), the stance, the gun and both hands, on top of the clips
       // (a swap in place keeps the gun where it is: SWAP_CUP)
       const cup = this.cupSwap(p);
-      // (an overheated gun vents in a carry of its own, soldierhold.json vent, eased in and out as the act holds)
-      const low = holding && !full && !rifleMelee && ((p.act === "swap" && !cup) || p.act === "vent" || upper === "Pistol_Idle_Loop") ? 1 : 0;
-      this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
+      // An overheated gun vents in a carry of its own (soldierhold.json vent) on the first person's beats (rifle.ts ventOf):
+      // into it from wherever the gun was over `in` of the lockout, held, and back over `out`, the act's own start the
+      // overheat's. Eased at the carry's own rate as the act held, it ran on a clock of its own, not the first person's.
+      const V = p.act === "vent" && holding && !full && !rifleMelee ? ventOf(this.gunId) : null;
+      const ventU = V ? (this.t - this.actAt) / lockoutSeconds(this.gunId) : 0;
+      const low = holding && !full && !rifleMelee && ((p.act === "swap" && !cup) || (p.act === "vent" && !V) || upper === "Pistol_Idle_Loop") ? 1 : 0;
+      if (V) this.lowered = (this.ventFrom + (1 - this.ventFrom) * smooth(V.in[0], V.in[1], ventU)) * (1 - smooth(V.out[0], V.out[1], ventU));
+      else this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
       // a melee's swing: where it is, and which of a string (a string held on the act goes on from one to the next)
       const swung = rifleMelee ? (this.t - this.actAt) / soldierHold.melee.time : -1;
       const melee = swung >= 0 ? { u: swung % 1, swing: this.meleeSwing + Math.floor(swung) } : null;
       this.carryW.swap += ((p.act === "swap" && !cup ? 1 : 0) - this.carryW.swap) * Math.min(1, dt * REACH.lower);
-      this.carryW.vent += ((p.act === "vent" ? 1 : 0) - this.carryW.vent) * Math.min(1, dt * REACH.lower);
+      // (the carry's shape the vent's as the gun goes into it, and kept until it is back)
+      if (V) this.carryW.vent = Math.max(this.carryW.vent, smooth(V.in[0], V.in[1], ventU));
+      else this.carryW.vent += ((p.act === "vent" ? 1 : 0) - this.carryW.vent) * Math.min(1, dt * REACH.lower);
       // how far into the swap, as the first person's shares of it run: the gun going away over its holster (the first
       // half, held at its middle until the next comes), the one coming over its draw from when it came (the second)
       const SW = swapOf(this.gunId);
