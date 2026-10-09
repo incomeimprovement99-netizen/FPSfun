@@ -162,7 +162,7 @@ async function main(): Promise<void> {
   await p.evaluate(INSTALL);
   const holds: Array<Record<string, unknown>> = [];
   const hold = async (label: string) => holds.push({ after: label, ...((await p.evaluate(`(() => { const R = window.__range; const m = R.renderer.info.memory; let objs = 0; R.scene.traverse(() => objs++);
-    return { geometries: m.geometries, textures: m.textures, programs: R.renderer.info.programs?.length ?? null, objects: objs, heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, fx: R.fxCount?.(), smoke: R.smokeCount?.(), walls: R.wallCount?.(), ziplines: R.ziplineCount?.(), maxCalls: window.__hunt.maxCalls }; })()`)) as object) });
+    return { geometries: m.geometries, textures: m.textures, programs: R.renderer.info.programs?.length ?? null, objects: objs, heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null, fx: R.fxCount?.(), walls: R.wallCount?.(), maxCalls: window.__hunt.maxCalls }; })()`)) as object) });
   await hold("boot");
   for (const s of SCENES) {
     scene = s;

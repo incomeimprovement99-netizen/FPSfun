@@ -716,10 +716,10 @@ export class BrMatch extends Duel {
     private readonly map: BrMap,
     difficulty: BotDifficulty,
     botCount: number,
-    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; abilities?: boolean; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; pace?: string; gulag?: boolean; split?: boolean; vault?: boolean },
+    opts: { players: number; myId: number; link: Link | null; guestId?: number; poi?: string; seed?: number; start?: "loot" | "loadout"; team?: string; ship?: boolean; pace?: string; gulag?: boolean; split?: boolean; vault?: boolean },
     rng: () => number = Math.random
   ) {
-    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br", abilities: opts.abilities ?? true });
+    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "br" });
     this.difficulty = difficulty;
     this.botCount = Math.max(1, Math.min(MOST_BOTS, botCount));
     // The squad size is the host's for everyone: a guest that ran its own
@@ -811,7 +811,7 @@ export class BrMatch extends Duel {
         const clear = clearGround(drop.x + Math.cos(a) * r, drop.z + Math.sin(a) * r);
         const spawn = { x: clear.x, z: clear.z, yaw: rng() * 360 };
         // each its own tier: "mixed" draws one per bot
-        const bot = this.makeBot(i, tierFor(difficulty, rng), spawn, rng);
+        const bot = this.makeBot(i, tierFor(difficulty, rng), spawn);
         const node = this.nearestNode(spawn.x, spawn.z);
         // it comes down from the sky, so it lands somewhere with no roof over it
         const dropTo = openGround(spawn.x, spawn.z);
@@ -842,7 +842,7 @@ export class BrMatch extends Duel {
   }
 
   /** one of the match's bots: the host's, at the start, or the heir's, in place of the figure it saw (host migration) */
-  private makeBot(i: number, tier: BotTier, spawn: Spawn, rng: () => number = Math.random, name = botName(i)): Bot {
+  private makeBot(i: number, tier: BotTier, spawn: Spawn, name = botName(i)): Bot {
     const scene = this.scene;
     const projectiles = this.projectiles;
     const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], name);
@@ -879,7 +879,6 @@ export class BrMatch extends Duel {
         };
       }
     }
-    bot.setAbilities(this.abilities, rng);
     // a bot's JOLT: drawn here and sent to the squad
     bot.onJolt = (a, b) => {
       this.onRemoteFx?.("jolt", bot.remote.id, a, b);
@@ -2158,7 +2157,7 @@ export class BrMatch extends Duel {
       const r = this.remotes.get(id);
       const last = r?.samples[r.samples.length - 1];
       const spawn: Spawn = last ? { x: last.x, z: last.z, yaw: last.yaw } : { x: row.dt[0], z: row.dt[1], yaw: 0 };
-      const bot = this.makeBot(row.i, WIRE_TIERS[row.t] ?? "normal", spawn, Math.random, row.gd ? VAULT.guardName : undefined);
+      const bot = this.makeBot(row.i, WIRE_TIERS[row.t] ?? "normal", spawn, row.gd ? VAULT.guardName : undefined);
       if (last) bot.pos.y = last.y;
       bot.restoreKit(row.k, row.c);
       if (!this.startLoot || row.as) bot.dummy.setGunVisible(true);
@@ -2223,7 +2222,7 @@ export class BrMatch extends Duel {
   private makeGuard(i: number): void {
     const v = this.map.vault;
     const spawn: Spawn = { x: v.post.x, z: v.post.z, yaw: 180 };
-    const bot = this.makeBot(i, VAULT.guardTier as BotTier, spawn, Math.random, VAULT.guardName);
+    const bot = this.makeBot(i, VAULT.guardTier as BotTier, spawn, VAULT.guardName);
     bot.restoreKit({ gunId: VAULT.guardGun, gun: 3, mag: 3, mods: {}, armor: 3, cells: 2, syringes: 2, taken: 0 }, { cell: 2, syringe: 2 });
     bot.dummy.setGunVisible(true);
     const node = this.nearestNode(spawn.x, spawn.z);
@@ -3067,12 +3066,6 @@ export class BrMatch extends Duel {
         bot.dummy.group.position.copy(bot.pos);
       }
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id);
-      // SMOKE's cloud or WARD's wall: drawn here and on every squad's screen
-      const put = bot.takePutUp();
-      if (put) {
-        this.onRemoteFx?.(put.k, bot.remote.id, put.from, put.to, 0);
-        this.broadcast({ t: "fx", from: bot.remote.id, k: put.k, a: [put.from.x, put.from.y, put.from.z], b: [put.to.x, put.to.y, put.to.z], n: 0 });
-      }
       // its own heals show on its plate
       if (bot.alive) {
         bot.remote.health = bot.dummy.health;

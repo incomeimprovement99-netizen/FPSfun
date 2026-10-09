@@ -674,11 +674,6 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   check("landing: no bot drops on your place, so the nearest is a long way off", landing.nearest > 60, `${landing.nearest.toFixed(0)} m to the nearest bot at ${landing.poi}`);
 
   await sleep(300);
-  const card = await ev<{ on: boolean; choosing: boolean; picked: string | null }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing, picked: window.__range.abilities.picked })");
-  check("abilities: the battle royale has them on, and the card is up on landing", card.on && card.choosing && card.picked === null, JSON.stringify(card));
-  await ev(page, `window.__range.pickAbility("triage")`);
-  const picked = await ev<{ choosing: boolean; picked: string | null }>(page, "({ choosing: window.__range.abilities.choosing, picked: window.__range.abilities.picked })");
-  check("abilities: picking TRIAGE takes the card down", !picked.choosing && picked.picked === "triage", JSON.stringify(picked));
   const bots = await ev<{ n: number; onGround: boolean; feet: number }>(page, `(() => { const d = window.__range.duel(); const a = d.avatars; return { n: a.length, onGround: a.every((x) => x.group.position.y < 20), feet: window.__range.player.pos.y }; })()`);
   check("five bots dropped in and are on the map", bots.n === 5 && bots.onGround, JSON.stringify(bots));
   check("no fall stun off the drop: you are standing on something", bots.feet >= 0 && bots.feet < 20, `${bots.feet.toFixed(1)} m`);
@@ -856,15 +851,15 @@ async function brTest(browser: Browser, query: string): Promise<void> {
   check("solo: a knock is the end: out rather than down, the match over, placed behind every bot still up", !!soloEnd && !soloEnd.downed && !soloEnd.alive && soloEnd.phase === "matchEnd" && soloEnd.placement === soloEnd.bots + 1 && soloEnd.squads === 4, JSON.stringify(soloEnd));
   await ev(ringPage, "window.__range.duel()?.leave()");
   await ringPage.close();
-  // a heal: a cell brings the shield up by 25 in 2.5 s, 1.25 s with TRIAGE, and costs one of four
+  // a heal: a cell brings the shield up by 25 in 2.5 s of the game's time, and costs one of four
   await ev(page, "(() => { window.__range.duel().holdFire = true; window.__range.player.teleport(0, 0, 500, 0); })()");
   await sleep(300);
   const cellsBefore = await ev<number>(page, "window.__range.kit.items.cell");
   await ev(page, "window.__range.startHeal()");
   const shieldBefore = await ev<number>(page, "window.__range.duel().shield");
-  await sleep(1700);
+  await page.waitForFunction(`window.__range.kit.items.cell < ${cellsBefore}`, { polling: 100, timeout: 10000 }).catch(() => undefined);
   const healed = await ev<{ shield: number; cells: number; max: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.items.cell, max: window.__range.duel().shieldMax })");
-  check("a shield cell heals 25 shield and is spent, in half its time with TRIAGE", healed.shield === Math.min(healed.max, shieldBefore + 25) && healed.cells === cellsBefore - 1, JSON.stringify({ shieldBefore, cellsBefore, ...healed }));
+  check("a shield cell heals 25 shield and is spent", healed.shield === Math.min(healed.max, shieldBefore + 25) && healed.cells === cellsBefore - 1, JSON.stringify({ shieldBefore, cellsBefore, ...healed }));
   // the controller's Default: RB twice pings an enemy there; D-pad up heals
   await pressPlay(page);
   await padTap(page, 5, 60);
@@ -899,7 +894,7 @@ async function brLootTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 });
   await sleep(300);
-  await ev(page, `(() => { window.__range.duel().holdFire = true; window.__range.pickAbility("jolt"); })()`);
+  await ev(page, "window.__range.duel().holdFire = true");
   const start = await ev<{ empty: boolean; kit: number; field: number; light: number; weapon: string; botsArmed: number; looted: number; sight: number[] }>(
     page,
     `(() => { const r = window.__range; const d = r.duel(); return { empty: r.loadout.slots.every((s) => s.empty), kit: r.kit.total, field: d.lootField ? d.lootField.count : 0, light: r.loadout.ammo.stock.light, weapon: r.hud.last?.weaponName ?? "", botsArmed: d.bots.filter((b) => b.armedShown).length, looted: d.bots.filter((b) => b.armedShown && b.bot.lootKit.gunId !== null && b.bot.lootKit.taken > 0).length, sight: d.bots.map((b) => Math.round(b.bot.sight)) }; })()`
@@ -1220,35 +1215,6 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(ct, "window.__range.duel()?.leave()");
   await ct.close();
 
-  // ---- SCOUT: PULSE shows the enemies in front, SWEEP everyone around
-  const sc = await startModePage(browser, query + LEGACY, "goFfa", `document.getElementById("modeBots").value = "2"; const ab = document.getElementById("botAbilities"); ab.value = "1"; ab.dispatchEvent(new Event("change"))`);
-  await ev(sc, `window.__range.pickAbility("scout")`);
-  // one bot 20 m in front of you, the other 45 m behind
-  const put = await ev<{ front: number; back: number } | null>(
-    sc,
-    `(() => { const r = window.__range; const d = r.duel(); if (d.bots.length < 2) return null; d.holdFire = true; d.bots.forEach((b) => { b.bot.update = () => []; }); const p = r.player.pos; r.player.yaw = 0; const f = d.bots[0].bot, b2 = d.bots[1].bot; f.pos.set(p.x, p.y, p.z - 20); f.dummy.group.position.copy(f.pos); b2.pos.set(p.x, p.y, p.z + 45); b2.dummy.group.position.copy(b2.pos); return { front: f.remote.id, back: b2.remote.id }; })()`
-  );
-  await sleep(300);
-  await ev(sc, "window.__range.useAbility()");
-  await sleep(200);
-  const pulsed = await ev<{ front: number; back: number; said: string; left: number }>(
-    sc,
-    `(() => { const r = window.__range; const d = r.duel(); const at = (id) => d.bots.find((b) => b.bot.remote.id === id)?.bot.dummy.threat ?? -1; return { front: at(${put?.front ?? -1}), back: at(${put?.back ?? -1}), said: r.hud.noticeNow, left: r.abilities.pulseLeft(r.gameTime()) }; })()`
-  );
-  await sleep(2200);
-  const faded = await ev<number>(sc, `(() => { const d = window.__range.duel(); return d.bots.find((b) => b.bot.remote.id === ${put?.front ?? -1})?.bot.dummy.threat ?? -1; })()`);
-  check("scout: PULSE shows the enemy in front (not the one behind) for its seconds, then they fade, and it waits out its cooldown", !!put && pulsed.front === 1 && pulsed.back === 0 && /PULSE: 1 ENEMY/.test(pulsed.said) && pulsed.left > 10 && faded === 0, JSON.stringify({ put, pulsed, faded }));
-  await ev(sc, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
-  await sleep(200);
-  const swept = await ev<{ front: number; back: number; said: string }>(
-    sc,
-    `(() => { const r = window.__range; const d = r.duel(); const at = (id) => d.bots.find((b) => b.bot.remote.id === id)?.bot.dummy.threat ?? -1; return { front: at(${put?.front ?? -1}), back: at(${put?.back ?? -1}), said: r.hud.noticeNow }; })()`
-  );
-  check("scout: SWEEP shows everyone around, the one behind included", swept.front === 1 && swept.back === 1 && /SWEEP: 2 ENEMY CONTACTS/.test(swept.said), JSON.stringify(swept));
-  await ev(sc, "window.__range.duel()?.leave()");
-  await ev(sc, `(() => { const ab = document.getElementById("botAbilities"); ab.value = "0"; ab.dispatchEvent(new Event("change")); })()`);
-  await sc.close();
-
   // ---- the motion-captured figures (a setting): they load, a match's figures are mannequins and animate
   const mq = await open(browser, query + LEGACY);
   await ev(mq, `(() => { const s = document.getElementById("figureStyle"); const def = s.value; s.value = "mannequin"; s.dispatchEvent(new Event("change")); window.__mqDefault = def; return window.__range.loadMannequin(); })()`);
@@ -1267,42 +1233,6 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   check("figures: a mannequin's rifle hangs off its chest with the right hand on the grip", shouldered.length > 0 && shouldered.every((s) => s.mount && s.grip > 0.5), JSON.stringify(shouldered));
   await ev(mq, `(() => { window.__range.duel()?.leave(); localStorage.removeItem("range.figures"); })()`);
   await mq.close();
-}
-
-/**
- * A MEDIC's FIELD HEAL between friends: the guest's ultimate goes to the host
- * as an effect, and the host's page, a team mate within its reach, heals its
- * own player.
- */
-async function kitsFriendsTest(browser: Browser, query: string): Promise<void> {
-  const host = await open(browser, query);
-  const guest = await open(browser, query);
-  await ev(host, `(() => { document.getElementById("duelMode").value = "tdm"; document.getElementById("modeBots").value = "1"; document.getElementById("modeSides").value = "together"; const a = document.getElementById("duelAbilities"); a.value = "1"; a.dispatchEvent(new Event("change")); document.getElementById("duelHost").click(); })()`);
-  try {
-    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
-    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
-    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
-    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
-    for (const p of [host, guest]) await pressPlay(p);
-    for (const p of [host, guest]) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 30000 });
-  } catch {
-    check("kits with a friend: the two start", false);
-    await host.close();
-    await guest.close();
-    return;
-  }
-  await ev(host, "(() => { const d = window.__range.duel(); d.holdFire = true; d.bots.forEach((b) => { b.bot.update = () => []; }); })()");
-  // side by side, the host hurt, the guest a MEDIC with a full meter
-  await ev(guest, `(() => { const r = window.__range; r.pickAbility("triage"); r.abilities.ult = 1; })()`);
-  const at = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
-  await ev(host, `(() => { const r = window.__range; r.player.teleport(${at.x + 3}, 0, ${at.z}, 0); r.duel().health = 35; })()`);
-  await sleep(600);
-  await ev(guest, "window.__range.useUltimate()");
-  const healed = await host.waitForFunction("window.__range.duel().health > 90", { polling: 200, timeout: 8000 }).then(() => true, () => false);
-  const hp = await ev<number>(host, "window.__range.duel().health");
-  check("kits with a friend: a MEDIC's FIELD HEAL reaches a team mate close by, whose page heals them", healed, hp.toFixed(1));
-  await host.close();
-  await guest.close();
 }
 
 async function friendsModesTest(browser: Browser, query: string): Promise<void> {
@@ -1585,48 +1515,6 @@ async function rulesTest(browser: Browser, query: string): Promise<void> {
   check("rules: friendly fire on: the host's round hurts its team mate", ally && hurt, JSON.stringify({ ally, before, hurt }));
   await h2.close();
   await g2.close();
-
-  // The ability numbers the host set, on the guest's page (abilities.ts
-  // ABILITY_KNOBS, carried in the welcome as MatchRules.abil). Six dashes and
-  // a twelve-metre one is nothing like the game's own two and ten, so if the
-  // guest is playing by its own numbers this says so.
-  //
-  // Both pages are given their OWN numbers, and they differ: two tabs of one
-  // browser share a localStorage, so a guest opened with none would simply
-  // read the host's and prove nothing. The guest's own are three dashes of
-  // eight metres, which is what it has to be back on once the match is over.
-  const tune = (t: string) => `localStorage.setItem("range.abilityTune.v1", JSON.stringify(${t}))`;
-  const hostTuned = await open(browser, query, BASE, tune(`{ jolt: { charges: 6, distance: 12 }, smoke: { radius: 9 } }`));
-  const guestPlain = await open(browser, query, BASE, tune(`{ jolt: { charges: 3, distance: 8 } }`));
-  await ev(hostTuned, `(() => { ${set("duelMode", "arena")}; ${set("duelPlayers", "2")}; document.getElementById("duelHost").click(); })()`);
-  let tuned: { charges: number; distance: number; radius: number } | null = null;
-  let mine: { charges: number; distance: number } | null = null;
-  try {
-    await hostTuned.waitForSelector("#duelStatus .code", { timeout: 20000 });
-    const code = await ev<string>(hostTuned, `document.querySelector("#duelStatus .code").textContent`);
-    await ev(guestPlain, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
-    for (const p of [hostTuned, guestPlain]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
-    await sleep(600);
-    tuned = await ev(guestPlain, `(() => { const r = window.__range; return { charges: r.jolt().charges, distance: r.jolt().distance, radius: r.kits.smoke.radius }; })()`);
-    // and when the match is over, the guest has its own numbers back
-    await ev(guestPlain, `window.__range.leaveMatch()`);
-    await guestPlain.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 10000 });
-    mine = await ev(guestPlain, `(() => { const r = window.__range; return { charges: r.jolt().charges, distance: r.jolt().distance }; })()`);
-  } catch {
-    /* reported by the checks below */
-  }
-  check(
-    "rules: the host's ability numbers are the match's: the guest gets six dashes of twelve metres and a nine metre cloud",
-    !!tuned && tuned.charges === 6 && tuned.distance === 12 && tuned.radius === 9,
-    JSON.stringify(tuned)
-  );
-  check("rules: and leaving the match gives the guest its own numbers back, not the game's", !!mine && mine.charges === 3 && mine.distance === 8, JSON.stringify(mine));
-  // Put the store back, because every page in this browser shares it: a
-  // tuning left behind here is three dashes on every page opened after it,
-  // and the checks that come later count on the game's own two.
-  for (const p of [hostTuned, guestPlain]) await ev(p, `localStorage.removeItem("range.abilityTune.v1")`);
-  await hostTuned.close();
-  await guestPlain.close();
 }
 
 /** a lobby bigger than three: everyone gets their own spawn, nobody stacks */
@@ -1806,11 +1694,6 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const wrong = await ev<number>(guest, `(() => { const ds = window.__range.brMap.doors; const d = ds.list.find((x) => !x.open && x.i !== ${doorI}); ds.set(d.i, true); return d.i; })()`);
   const putRight = await guest.waitForFunction(`!window.__range.brMap.doors.list[${wrong}].open`, { polling: 100, timeout: 3000 }).then(() => true, () => false);
   check("squad: doors: the guest opens one and the host sees it, the host shuts it and the guest sees that, and a door the guest had wrong is put right by the host", hostSawOpen && guestSawShut && putRight, JSON.stringify({ doorI, hostSawOpen, guestSawShut, wrong, putRight }));
-  // abilities are on in a squad by default: the guest picks JOLT on landing and the host sees it
-  await ev(guest, `window.__range.pickAbility("jolt")`);
-  await ev(guest, "window.__range.useAbility()");
-  const seenJolt = await host.waitForFunction("window.__range.remoteFxLog.some((e) => e.k === 'jolt' && e.from === 1)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
-  check("squad: the guest's JOLT reaches the host", seenJolt, JSON.stringify(await ev(host, "window.__range.remoteFxLog")));
   // the guest knocks a bot: the hit goes to the host, the down comes back to both
   await ev(guest, guestRounds("x.id >= 100 && x.alive", 12));
   await sleep(1200);
@@ -2505,8 +2388,6 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   if (spin) check("figures: a still mannequin's chest and head hold their yaw on the aim (no endless upper-body spin)", spin.chest < 30 && spin.head < 30, `over 1.2 s the chest moved ${spin.chest.toFixed(1)} deg, the head ${spin.head.toFixed(1)} (the planted pelvis ${spin.pelvis.toFixed(1)})`);
   else check("figures: the bot is a mannequin (the spin check needs one)", false, "no spine_03 bone on the figure");
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
-  const offAb = await ev<{ on: boolean; choosing: boolean }>(page, "({ on: window.__range.abilities.enabled, choosing: window.__range.abilities.choosing })");
-  check("bots: abilities are off by default, no card", !offAb.on && !offAb.choosing, JSON.stringify(offAb));
   // the bot hunts you down the middle lane and shoots: the shield drops. From the inside of the lane wall at x 94, which
   // ends in the 1.4 m box of the mantle chain with its step crate 0.2 m off: a bot that came in there walked into the
   // box for the whole match, its detour back up the lane leading it straight back in (2026-10-01, three runs of five).
@@ -2544,174 +2425,6 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await ev(page, "window.__range.duel().leave()");
   const gone = await ev<boolean>(page, "window.__range.duel() === null");
   check("bots: leaving ends the match", gone);
-  // the same with abilities on: the card at the countdown, JOLT, the bots have theirs
-  await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); window.__range.startBots(); })()`);
-  const cardUp = await page.waitForFunction("window.__range.abilities.choosing === true", { polling: 100, timeout: 5000 }).then(() => true, () => false);
-  check("bots with abilities: the card is up at the countdown", cardUp);
-  const botAb = await ev<string[]>(page, "window.__range.duel().bots.map((b) => String(b.ability))");
-  check("bots with abilities: the bot has one too, from the four a bot plays", botAb.every((a) => a === "jolt" || a === "triage" || a === "smoke" || a === "ward"), botAb.join(","));
-  await ev(page, `window.__range.pickAbility("jolt")`);
-  await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
-  const p0 = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
-  // third person, where your own streak is drawn (in first person you are inside it)
-  await ev(page, "window.__range.setThirdPerson(true)");
-  await ev(page, "window.__range.useAbility()");
-  const streak = await ev<number>(page, "window.__range.fxCount()");
-  await ev(page, "window.__range.setThirdPerson(false)");
-  check("bots with abilities: JOLT leaves its streak (third person)", streak > 0, `${streak} effects`);
-  await sleep(500);
-  const j = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
-  const moved = Math.hypot(j.x - p0.x, j.z - p0.z);
-  check("bots with abilities: JOLT dashes you (up to 10 m, a wall can stop it short)", moved > 3 && moved < 14, `${moved.toFixed(2)} m (the dash, then its exit speed running down)`);
-  const ch1 = await ev<{ charges: number; nextIn: number }>(page, "window.__range.abilities.charge(window.__range.gameTime())");
-  check("bots with abilities: one of JOLT's two charges spent, coming back", ch1.charges === 1 && ch1.nextIn > 2.5 && ch1.nextIn < 4, JSON.stringify(ch1));
-  // back the way you came (the first may have run you up to a wall), then the second, sideways (D held): the view leans into it
-  await ev(page, "window.__range.player.yaw += 180");
-  await ev(page, `window.__range.setScript({ held: (a) => a === "right", pressedNow: () => false })`);
-  await sleep(100);
-  await ev(page, "window.__range.useAbility()");
-  const rolled = await page.waitForFunction("window.__range.joltFeel().roll > 1.2 && window.__range.joltFeel().fov > 0.03", { polling: 10, timeout: 1500 }).then(() => true, () => false);
-  await sleep(300);
-  await ev(page, "window.__range.setScript(null)");
-  check("bots with abilities: a sideways JOLT rolls the view toward it and widens it", rolled);
-  const j2 = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
-  const cd = await ev<number>(page, "window.__range.abilities.cooldownLeft(window.__range.gameTime())");
-  check("bots with abilities: the second charge dashes again", Math.hypot(j2.x - j.x, j2.z - j.z) > 2, `${Math.hypot(j2.x - j.x, j2.z - j.z).toFixed(2)} m`);
-  check("bots with abilities: then both are spent until the first is back (4 s)", cd > 2 && cd < 4, cd.toFixed(2));
-  const hudAb = await ev<{ charges?: number; max?: number } | null>(page, "window.__range.hud.last.ability");
-  check("bots with abilities: the HUD shows the charges", hudAb?.charges === 0 && hudAb?.max === 2, JSON.stringify(hudAb));
-  // the kit's ultimate: the meter fills in the match; full, RUNNER's OVERDRIVE is faster moving and JOLT refilled
-  await ev(page, "(() => { const d = window.__range.duel(); d.holdFire = true; })()");
-  const k0 = await ev<number>(page, "window.__range.abilities.ult");
-  await ev(page, "window.__range.abilities.ult = 1");
-  await ev(page, "window.__range.useUltimate()");
-  await sleep(300);
-  const od = await ev<{ boost: number; charges: number; ult: { name: string; live: number; k: number } | null }>(page, "(() => { const r = window.__range; return { boost: r.player.holsterBoost, charges: r.abilities.charge(r.gameTime()).charges, ult: r.hud.last.ability?.ult ?? null }; })()");
-  check("kits: the ultimate's meter fills in a match; full, RUNNER's OVERDRIVE makes you faster for 8 s, JOLT refilled, the meter spent", k0 > 0 && od.boost >= 1.24 && od.charges === 2 && !!od.ult && od.ult.name === "OVERDRIVE" && od.ult.live > 7 && od.ult.k < 0.05, JSON.stringify({ k0, od }));
-  // MEDIC: PATCH gives 25 health over 3 s; FIELD HEAL 60 over 5
-  await ev(page, `window.__range.pickAbility("triage")`);
-  await ev(page, "(() => { window.__range.duel().health = 50; window.__range.useAbility(); })()");
-  await sleep(3400);
-  const patched = await ev<{ hp: number; left: number; name: string }>(page, "(() => { const r = window.__range; return { hp: r.duel().health, left: r.abilities.patchLeft(r.gameTime()), name: r.hud.last.ability?.name ?? '' }; })()");
-  check("kits: MEDIC's PATCH gives back 25 health over 3 s, then waits out its cooldown", Math.abs(patched.hp - 75) < 2.5 && patched.left > 12 && patched.name === "PATCH", JSON.stringify(patched));
-  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.duel().health = 30; r.useUltimate(); })()");
-  await sleep(5400);
-  const healed = await ev<number>(page, "window.__range.duel().health");
-  check("kits: MEDIC's FIELD HEAL gives 60 health over 5 s", Math.abs(healed - 90) < 2.5, healed.toFixed(1));
-  await ev(page, "window.__range.clearKitStuff()");
-  // WARD: a wall in front of you stops a bot's line to you, and HARD SHELL gives the shield back out of a fight
-  await ev(page, `window.__range.pickAbility("ward")`);
-  const ward0 = await ev<{ walls: number; sees: boolean } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; d.holdFire = true; b.update = () => []; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 0; r.player.pitch = 0; b.lastSeen = { pos: p.clone(), at: b.clock, id: 0 }; d.shield = 10; return { walls: r.wallCount(), sees: b.sees(p) }; })()`
-  ).catch(() => null);
-  await ev(page, "window.__range.useAbility()");
-  await sleep(300);
-  const walled = await ev<{ walls: number; sees: boolean; left: number; name: string }>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; return { walls: r.wallCount(), sees: b.sees(r.player.pos), left: r.abilities.wallLeft(r.gameTime()), name: r.hud.last.ability?.name ?? "" }; })()`
-  );
-  check("kits: WARD's WALL stands in front of you and takes the bot's line to you away, then waits out its cooldown", !!ward0 && ward0.sees && walled.walls === (ward0.walls ?? 0) + 1 && !walled.sees && walled.left > 12 && walled.name === "WALL", JSON.stringify({ ward0, walled }));
-  // the shield comes back after the quiet, and the ultimate puts up its horseshoe
-  const shield0 = await ev<number>(page, "window.__range.duel().shield");
-  await sleep(7000);
-  const shield1 = await ev<number>(page, "window.__range.duel().shield");
-  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
-  await sleep(300);
-  const bastion = await ev<number>(page, "window.__range.wallCount()");
-  check("kits: WARD's HARD SHELL gives the shield back once nothing has hurt you, and BASTION puts up its horseshoe", shield1 > shield0 + 5 && bastion === walled.walls + 3, JSON.stringify({ shield0, shield1, walls: walled.walls, bastion }));
-  await ev(page, `window.__range.pickAbility("smoke")`);
-
-  await ev(page, "window.__range.clearKitStuff()");
-  // a bot's own ultimate: a RUNNER bot with a full meter and someone in front of it goes quicker for its seconds
-  const botUlt = await ev<{ base: number; speed: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; delete b.update; b.ability = "jolt"; b.ultAt = 0; b.lastSeen = { pos: r.player.pos.clone(), at: b.clock, id: 0 }; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 180; return { base: b.diff.speed, speed: b.speedNow }; })()`
-  );
-  await sleep(900);
-  const botAfter = await ev<{ base: number; speed: number } | null>(page, "(() => { const b = window.__range.duel().bots[0]; return b ? { base: b.diff.speed, speed: b.speedNow } : null; })()");
-  await ev(page, "window.__range.clearKitStuff()");
-  // HOOK: a line at what you look at pulls you to it, and its ultimate puts up a zipline
-  await ev(page, `window.__range.pickAbility("hook")`);
-  await sleep(200);
-  const climb = await ev<number>(page, "window.__range.player.climbBoost");
-  // a wall to take hold of: each way round until the line finds one (a miss costs no cooldown)
-  let pulled = { speed: 0, left: 0, name: "", said: "" };
-  for (const yaw of [0, 90, 180, 270]) {
-    await ev(page, `(() => { const p = window.__range.player; p.yaw = ${yaw}; p.pitch = 0; p.vel.set(0, 0, 0); })()`);
-    await sleep(150);
-    await ev(page, "window.__range.useAbility()");
-    await sleep(150);
-    pulled = await ev<{ speed: number; left: number; name: string; said: string }>(page, "(() => { const r = window.__range; return { speed: r.player.speed, left: r.abilities.grappleLeft(r.gameTime()), name: r.hud.last.ability?.name ?? '', said: r.hud.noticeNow }; })()");
-    if (pulled.speed > 6) break;
-  }
-  check("kits: HOOK's STRONG ARMS gives half again the climb, and GRAPPLE pulls you at what you look at, then waits out its cooldown", Math.abs(climb - 1.5) < 1e-9 && pulled.speed > 6 && pulled.left > 8 && pulled.name === "GRAPPLE", JSON.stringify({ climb, pulled }));
-  await ev(page, "window.__range.clearKitStuff()");
-  // SMOKE: a canister blinds a bot through it, your own cloud shows an enemy standing in it, and SCREEN throws three
-  await ev(page, `window.__range.pickAbility("smoke")`);
-  const smoke = await ev<{ before: boolean; id: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; if (!b) return null; d.holdFire = true; b.update = () => []; const p = r.player.pos; b.pos.set(p.x, p.y, p.z - 8); b.dummy.group.position.copy(b.pos); r.player.yaw = 0; r.player.pitch = -11.3; b.lastSeen = { pos: r.player.pos.clone(), at: b.clock, id: 0 }; return { before: b.sees(r.player.pos), id: b.remote.id }; })()`
-  ).catch(() => null);
-  const smoke0 = await ev<number>(page, "window.__range.smokeCount()");
-  await ev(page, "window.__range.useAbility()");
-  await sleep(1400);
-  const smoked = await ev<{ clouds: number; sees: boolean; threat: number; spots?: unknown; me?: unknown; bot?: unknown }>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const b = d.bots[0]; return { clouds: r.smokeCount(), sees: b.sees(r.player.pos), threat: b.dummy.threat, spots: r.smokeSpots(), me: { x: r.player.pos.x, z: r.player.pos.z }, bot: { x: b.pos.x, z: b.pos.z } }; })()`
-  );
-  check("kits: SMOKE's canister blooms a cloud that blinds a bot through it, and THERMAL shows an enemy standing in it", !!smoke && smoke.before && smoked.clouds === smoke0 + 1 && !smoked.sees && smoked.threat === 1, JSON.stringify({ smoke, smoke0, smoked }));
-  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
-  await sleep(300);
-  const screen = await ev<number>(page, "window.__range.smokeCount()");
-  check("kits: SMOKE's SCREEN throws three clouds in a line", screen === smoked.clouds + 3, `${smoked.clouds} then ${screen}`);
-  // a bot's own kit: hurt it, stand where it can see you, and its SMOKE or its
-  // WARD goes up between the two of you (src/game/bots.ts coverPlan)
-  {
-    const put = await ev<{ kind: string; clouds: number; walls: number }>(
-      page,
-      `new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots[0];
-        delete b.update;
-        d.holdFire = false;
-        b.ability = "smoke";
-        b.dummy.health = 40;
-        // it decides from where it is and where you are: stand 12 m off, in the open
-        r.player.teleport(b.pos.x, 0, b.pos.z + 12, 180);
-        const c0 = r.smokeCount(); const w0 = r.wallCount();
-        setTimeout(() => ok({ kind: "smoke", clouds: r.smokeCount() - c0, walls: r.wallCount() - w0 }), 1200); })`
-    );
-    check("kits: a hurt bot playing SMOKE puts a cloud up between the two of you", put.clouds >= 1, JSON.stringify(put));
-    await ev(page, "window.__range.clearKitStuff()");
-    // A hurt bot goes for cover the moment it is hurt, so by the time it would
-    // put a wall up it is usually behind something with nobody in sight. The
-    // decision itself is checked in tools/checks/kits.ts; what is checked here
-    // is the rest of the chain: that what a bot puts up reaches the world.
-    const wall = await ev<{ walls: number }>(
-      page,
-      `new Promise((ok) => { const r = window.__range; const b = r.duel().bots[0];
-        b.ability = "ward";
-        const w0 = r.wallCount();
-        b.putUp = { k: "wall", from: new r.THREE.Vector3(b.pos.x, b.pos.y, b.pos.z + 2), to: new r.THREE.Vector3(0, 0, 0) };
-        setTimeout(() => ok({ walls: r.wallCount() - w0 }), 600); })`
-    );
-    check("kits: and what a bot playing WARD puts up reaches the world as a wall", wall.walls >= 1, JSON.stringify(wall));
-    await ev(page, "window.__range.clearKitStuff()");
-  }
-  await ev(page, `window.__range.pickAbility("hook")`);
-  const zip0 = await ev<number>(page, "window.__range.ziplineCount()");
-  await ev(page, "(() => { const r = window.__range; r.abilities.ult = 1; r.useUltimate(); })()");
-  await sleep(200);
-  const zip1 = await ev<number>(page, "window.__range.ziplineCount()");
-  await ev(page, "window.__range.duel().leave()");
-  await sleep(300);
-  const zip2 = await ev<number>(page, "window.__range.ziplineCount()");
-  check("kits: HOOK's ZIP LINE puts a rope up in play, and it comes down with the match", zip1 === zip0 + 1 && zip2 === zip0, JSON.stringify({ zip0, zip1, zip2 }));
-  await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); window.__range.startBots(); })()`);
-  await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
-  await ev(page, "(() => { const d = window.__range.duel(); if (d) d.holdFire = true; })()");
-  check("kits: a bot with a full meter and someone to fight uses its own ultimate (RUNNER: it moves faster)", !!botUlt && botUlt.speed === botUlt.base && !!botAfter && botAfter.speed > botAfter.base * 1.2, JSON.stringify({ botUlt, botAfter }));
-  await ev(page, "window.__range.duel().leave()");
-  await ev(page, `(() => { const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
 
   // eliminated by the bot: the killcam from its eyes, then the recap with both sides
   await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "hard"; window.__range.startBots(); })()`);
@@ -2949,7 +2662,7 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   // the same, with a press of `again` every third of a second (a jump when you reach a wall)
   const holdRepeat = (keys: string[], again: string) =>
     `(() => { const K = ${JSON.stringify(keys)}; let f = 0; window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => (K.includes(a) && f <= 1) || (a === ${JSON.stringify(again)} && f % 20 === 0) }, () => { f++; }); })()`;
-  const ORDER = ["move", "sprint", "slide", "jump", "mantle", "climb", "superglide", "shoot", "reload", "swap", "heal", "ability"];
+  const ORDER = ["move", "sprint", "slide", "jump", "mantle", "climb", "superglide", "shoot", "reload", "swap", "heal"];
   // the tour moved from this step to the very next one (not merely "somewhere else")
   const stepTo = async (id: string, timeout = 6000) => {
     const next = ORDER[ORDER.indexOf(id) + 1] ?? null;
@@ -3034,9 +2747,6 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   // heal: the tour's own shield is down; the heal key
   await ev(t, "window.__range.startHeal()");
   check("tour: HEAL done (the tour lends a shield to heal)", await stepTo("heal"), String(await step()));
-  // the ability, the last step (there are no grenades, the owner 2026-10-04)
-  await ev(t, `(() => { window.__range.pickAbility("jolt"); window.__range.useAbility(); })()`);
-  check("tour: ABILITY done with a JOLT", await stepTo("ability"), String(await step()));
   const finished = await t.waitForFunction("window.__range.tour.stepId === null && localStorage.getItem('range.tour.done') === '1'", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   check("tour: and the tour is complete (remembered)", finished, String(await step()));
   await t.close();
@@ -3109,9 +2819,13 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
   await shotgunChecks(page);
   await aimbotChecks(page);
-  await dashChecks(page);
-  // the plates' line-of-sight test, on known geometry: the backstop is at z -106.75
-  const los = await ev<{ open: boolean; wall: boolean }>(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); const T = r.THREE; return { open: r.clearTo(new T.Vector3(0, 1.2, -50)), wall: r.clearTo(new T.Vector3(0, 1.2, -110)) }; })()`);
+  // the plates' line-of-sight test, on known geometry: the backstop is at z -106.75. One line from the firing line
+  // rising to 4 m, over the 1.5 m wall at z -34 and the 2.2 m block at z -78, to just short of it and just past it.
+  // (It looks from the camera, which is at a teleport's spot only once a frame has put it there: it once read from
+  // wherever the check before it had left you, and passed on a line that is blocked at z -34.)
+  await ev(page, "window.__range.player.teleport(0, 0, 0, 0, 0)");
+  await sleep(200);
+  const los = await ev<{ open: boolean; wall: boolean }>(page, `(() => { const r = window.__range; const T = r.THREE; return { open: r.clearTo(new T.Vector3(0, 4, -100)), wall: r.clearTo(new T.Vector3(0, 4, -110)) }; })()`);
   check("plates: the line of sight is clear down the range and blocked through the backstop", los.open && !los.wall, JSON.stringify(los));
   await readmeTvChecks(page);
   await page.close();
@@ -3948,26 +3662,6 @@ async function aimbotChecks(page: Page): Promise<void> {
   check("aim bot: with nothing in sight it leaves your view alone", blind < 1, `${blind.toFixed(2)} deg`);
 }
 
-/** the dash's settings reach the dash itself, and the card stops claiming the old numbers */
-async function dashChecks(page: Page): Promise<void> {
-  const set = await ev<{ distance: number; charges: number; blurb: string }>(
-    page,
-    `(() => { const r = window.__range; r.setJolt({ distance: 22, duration: 0.1, charges: 3, recharge: 9 }); const j = r.jolt(); return { distance: j.distance, charges: j.charges, blurb: j.blurb }; })()`
-  );
-  check("dash: the settings reach the dash", set.distance === 22 && set.charges === 3, JSON.stringify({ d: set.distance, c: set.charges }));
-  check("dash: the ability card stops claiming numbers the dash no longer has", /22 m/.test(set.blurb) && /3 charges/.test(set.blurb) && /9 s/.test(set.blurb), set.blurb);
-  // across the open floor past the last target bank, so nothing caps the reach
-  const went = async (d: number): Promise<number> => {
-    await ev(page, `(() => { const r = window.__range; r.setJolt({ distance: ${d}, duration: 0.14, charges: 2, recharge: 4 }); r.player.teleport(-25, 0, -95, -90, 0); r.abilities.fill(); r.pickAbility("jolt"); r.useAbility(); })()`);
-    await sleep(400);
-    return Math.abs((await ev<number>(page, "window.__range.player.pos.x")) + 25);
-  };
-  const short = await went(6);
-  const long = await went(20);
-  check("dash: a 20 m dash goes further than a 6 m one", long > short + 6, `${short.toFixed(1)} m then ${long.toFixed(1)} m`);
-  await ev(page, "window.__range.setJolt({ distance: 10, duration: 0.14, charges: 2, recharge: 4 })");
-}
-
 /**
  * A shotgun's blast at a dummy from 4 m: every pellet leaves, they land in a
  * pattern rather than down one line, and the HUD sums the pull into one
@@ -4166,16 +3860,6 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   const df = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0], b[5], b[12], b[15]]; })()");
   check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, ping, heal, grenade)", bj.join() === "jump,ability" && df.join() === "ability,jump,ping,heal,grenade", `${bj} / ${df}`);
   await page.close();
-  // the ability card takes D-pad left and right while it is up: left picks JOLT, and changes no fire mode
-  const cp = await open(browser, query);
-  await pressPlay(cp);
-  await ev(cp, `(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); document.getElementById("botCount").value = "1"; window.__range.startBots(); })()`);
-  await cp.waitForFunction("window.__range.abilities.choosing === true", { polling: 100, timeout: 5000 });
-  await padTap(cp, 14);
-  const cardPick = await ev<{ picked: string | null }>(cp, "({ picked: window.__range.abilities.picked })");
-  check("pad: with the card up, D-pad left picks JOLT (and nothing else)", cardPick.picked === "jolt", JSON.stringify(cardPick));
-  await ev(cp, `(() => { window.__range.duel()?.leave(); const s = document.getElementById("botAbilities"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
-  await cp.close();
 }
 
 /**
@@ -7754,9 +7438,6 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills br: a match in the city, its nine sectors the places, the centre among them", start.pois.length === 9 && start.pois.includes(CENTRE_NAME), JSON.stringify(start.pois));
   check("speedkills br: thirty in the match (27 bots in squads, with your squad of three)", start.bots === 27, JSON.stringify(start));
   check("speedkills br: loot on the city's floors", start.loot > 150, `${start.loot} items`);
-  // no smoke and no grenades in SpeedKills (Phase 20 A10): no bot rolls a legacy kit (SMOKE was 6 to 8 of 27)
-  const kits = await ev<{ kits: number }>(page, "(() => { const d = window.__range.duel(); return { kits: d.bots.filter((b) => b.bot.ability).length }; })()");
-  check("speedkills br: no bot carries a legacy kit (smoke)", kits.kits === 0, JSON.stringify(kits));
   // and up on the roofs, where the fights are (speedkills.json loot maxFloor): it stopped at 12 m, under most of the city's roofs
   const high = await ev<{ over12: number; over24: number }>(page, "(() => { const ds = [...window.__range.duel().lootField.drops.values()]; return { over12: ds.filter((x) => x.pos.y > 12).length, over24: ds.filter((x) => x.pos.y > 24).length }; })()");
   check("speedkills br: loot on the roofs too, a dozen storeys and more up", high.over12 >= 40 && high.over24 >= 10, JSON.stringify(high));
@@ -9167,13 +8848,6 @@ async function ownerTest(browser: Browser): Promise<void> {
   const call = await ev<string | null>(page, `(() => { const r = window.__range; r.player.teleport(r.player.pos.x, 0, r.player.pos.z, 0); return r.hud.last?.callout ?? null; })()`);
   check("the arena says which part of it you are standing in", !!call && /MID|NORTH|SOUTH|EAST|WEST/.test(call), String(call));
 
-  // the kit card: six kits, on the screen
-  const card = await ev<{ n: number; wide: boolean } | null>(
-    page,
-    `(() => { const s = window.__range.hud.last; const k = s?.abilityCard; if (!k) return null; return { n: k.options.length, wide: k.options.every((o) => !!o.tactical && !!o.ult && !!o.passive) }; })()`
-  );
-  check("the kit card offers every kit and says what each one does", !card || (card.n >= 2 && card.wide), JSON.stringify(card));
-
   // the movement: SpeedKills' own, the double jump and the wall run always on
   const moves = await ev<{ on: boolean }>(page, `({ on: window.__range.player.extraMoves })`);
   check("the double jump and the wall run are on, as SpeedKills always has them", moves.on, JSON.stringify(moves));
@@ -9693,7 +9367,6 @@ async function main(): Promise<void> {
       await modesFriendsTest(browser, "?net=local&norender" + LEGACY);
       await modesSplitTest(browser, "?net=local&norender");
       await friendsModesTest(browser, "?net=local&norender");
-      await kitsFriendsTest(browser, "?net=local&norender" + LEGACY);
       await lobbyTest(browser, "?net=local&norender");
       await lobbyShortTest(browser, "?net=local&norender");
     });

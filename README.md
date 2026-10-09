@@ -544,8 +544,8 @@ host leaving ends it.
 **Other modes with friends**: pick the mode in the lobby and press With
 friends, which carries it across: the arena 1v1 / 1v1v1, team deathmatch
 (you and your friends against the bots), Control, free-for-all, or the battle
-royale as a squad. The host's choice (and the bots, their difficulty and
-whether abilities are on) goes to everyone who joins.
+royale as a squad. The host's choice (and the bots and their difficulty)
+goes to everyone who joins.
 
 **Your name** for the kill feed and the scoreboard: the Stats tab.
 **Loadouts**: the Loadouts tab, before or during a match (mid-fight, the new
@@ -590,7 +590,7 @@ optics and hop-ups.
 | Mode | What it is |
 |---|---|
 | Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses (three in SpeedKills: THE CHAIN, in the middle, has the city's run gap, double gap, wall gap and chimney at the widths its movement is built to), and the README screen stands at the far end, 107 m down range, under the **B00G'S RANGE** sign. In SpeedKills the back wall either side of the gates is the armory: the ten guns left of THE CHAIN and the ten hacks right of it, each turning as a hologram over its own open case, with a screen behind it giving its numbers at your level and the next and how to fuse it; E at a stand takes it, and E again fuses it a level up (to 5 for a gun, 4 for a hack), as a second copy does in a match. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
-| Guided tour | Twelve steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal, JOLT. It watches what you do and moves on; hold E (X on a controller) to skip a step. In SpeedKills it is eight: move; double jump, wall run and climb; shoot; both hacks; fusion; a hit from high ground; five seconds in a capture ring; and a walk to a squad mate's echo while it says how the Gulag and the ghost work. |
+| Guided tour | Eleven steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal. It watches what you do and moves on; hold E (X on a controller) to skip a step. In SpeedKills it is eight: move; double jump, wall run and climb; shoot; both hacks; fusion; a hit from high ground; five seconds in a capture ring; and a walk to a squad mate's echo while it says how the Gulag and the ghost work. |
 | The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a gold, silver or bronze medal per room against its par, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
 | The Run (Advanced) | The back-right corner: nine rooms, 200 m, 30 pop-ups, the techniques chained. Every gate needs its move: a 7 m gap only a superglide clears, pads only a lurch reaches, a platform only a zipline superjump gets on, two vents, a bounce slalom, a drop slide, a shooting zip, a flow room. Its own bests, splits, ghost and TV. |
 | 1v1 and 1v1v1 | One player makes a match (2 or 3 players) and gets a 5-letter code; the others type it. 1v1: a three-lane warehouse arena. 1v1v1: a triangle, a corner each, spokes between the corners. First to 3 rounds, blue shields and 100 health. 20 s into a round a circle lights up in the middle; stand in it alone for 10 s to take the round. The last one standing takes it any time. |
@@ -610,43 +610,6 @@ you are outside. **An enemy's name and bars** show only after you have hurt
 them (for 6 s from the last hit) and only while your eye has a clear line to
 their chest, so a bar never gives away someone behind cover; a team mate's
 green plate always shows.
-
-**Kits.** Pick a kit with 5 to 0 when the card comes up: at each countdown
-in the arena, the modes and the bots, or when you land in a battle royale.
-Each kit has a tactical (F), a passive that is always on, and an **ultimate**
-(Z) whose meter (the gold ring beside the ability) fills over about two and a
-half minutes of a match, faster with the damage you deal, and is spent whole.
-**RUNNER**: JOLT as its tactical; SURE FOOTING, no stun from a hard landing;
-OVERDRIVE, 8 s of moving 25% faster with JOLT's charges refilled. **MEDIC**:
-PATCH, 25 health back over 3 s every 18 s; TRIAGE, every heal twice as fast;
-FIELD HEAL, 60 health over 5 s for you and every team or squad mate within
-10 m. **SCOUT**: PULSE, every enemy within 40 m in front of you shown in red
-for 2 s (and marked for your squad), every 12 s; SHARP EARS, an enemy firing
-within 45 m shown the same way; SWEEP, every enemy within 60 m, whichever way
-they are, for 6 s. **HOOK**: GRAPPLE, a line at whatever you look at within
-30 m and a pull to it, every 10 s (a line that finds nothing costs nothing);
-STRONG ARMS, half again as much climb, so a climb reaches higher; ZIP LINE, a
-zipline up to 45 m from where you stand to where you look, which anyone can
-ride for 90 s. **SMOKE**: CANISTER, a cloud 11 m across at what you look at
-within 30 m that stands 18 s and nobody sees through (bullets still go
-through it), every 14 s; THERMAL, an enemy standing in your own smoke is
-shown to you; SCREEN, three of them in a line across your view. **WARD**:
-WALL, a 4.2 m wall up on the ground in front of you for 14 s that stops
-bullets, bodies and sight like any other wall, every 16 s; HARD SHELL, 5
-shield a second once nothing has hurt you for 6 s; BASTION, three of them in
-a horseshoe round you for 22 s. JOLT (F) is a 10 m dash the way you are moving, over
-0.14 s on an ease-out (most of the distance in the first half), leaving you
-at 400 hu/s so a sprint, slide or jump carries it on; it has **two charges**,
-and a spent one comes back 4 s after the one before it (8 s for both). The
-HUD shows a pip per charge; a sideways dash rolls the view into it, and a pad
-rumbles. A setting per kind of match turns abilities on or off (the battle
-royale's is on). Bots take one of the four kits they can play and use
-it: with a full meter and someone to fight, a RUNNER bot goes quicker for 8 s
-and a MEDIC bot heals itself, and, hurt with someone shooting at them from a
-sensible distance, a SMOKE bot throws a cloud between the two of you and a WARD
-bot puts a wall up in front of itself before moving. Not SCOUT, whose whole kit
-is sight their eyes already are, and not HOOK, whose grapple is a route to plan
-rather than a button to press.
 
 **The killcam and the death recap.** Eliminated, you see the last 4 s from
 your killer's eyes (Space skips; a setting turns it off), then a card: for
@@ -701,8 +664,7 @@ defaults puts `binds.json` back.
 | I | inspect the gun | / | the keys on screen, up or away (up for everyone at first, on the right under the FPS; remembered) |
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
 | 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
-| G | SpeedKills' utility hack (there are no grenades) | F | your kit's tactical (JOLT, PATCH) |
-| 5 to 0 | pick RUNNER, MEDIC, SCOUT, HOOK, SMOKE or WARD when the card is up | Z | your kit's ultimate, when its meter is full |
+| G | SpeedKills' utility hack (there are no grenades) | F | SpeedKills' mobility hack |
 | B | fire mode (where a gun has two) | | |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
 | Tab (hold) | what you are carrying: both guns with the build in hand, the heals, the ammo by kind and the armour | | |
@@ -728,14 +690,13 @@ also brings the menu back). The layout is the game's **Default** preset
 | RT | fire | LT | aim down sights |
 | A | jump | B | crouch, slide |
 | X | reload; interact where there is a prompt (a zipline, an item); hold for a revive, a restore at an echo, a tour skip | Y | swap weapon; **hold** to holster |
-| LB | your ability (JOLT, the game's tactical) | RB | ping; **twice** for an enemy there |
+| LB | SpeedKills' mobility hack | RB | ping; **twice** for an enemy there |
 | L3 | sprint (when auto sprint is off) | R3 | melee |
 | D-pad up | heal: a tap is the quick heal, **hold** for the wheel (the right stick picks) | D-pad down | variable optic zoom (ours: the game has a character action there) |
 | D-pad left | fire mode; **hold** to inspect the gun | D-pad right | the utility hack |
 | Back | the full map | Start | play / menu |
 
-While the ability card is up, D-pad left and right pick JOLT or TRIAGE and do
-nothing else. **Presets** on the Controls tab: Default, Bumper Jumper, Button
+**Presets** on the Controls tab: Default, Bumper Jumper, Button
 Puncher, Evolved, Grenadier and Ninja (the game's), and Range (the optic, the
 magazine level and the weapon slots on the D-pad, for trying guns). **Every
 button but Start can also be moved** one at a time.
@@ -1132,7 +1093,6 @@ src/game/
   brplay.ts                the battle royale from your side: E, revives, restores at an echo, pads, pings
   loot.ts                  the floor's loot: the seeded layout, rarities, labels
   modes.ts, modematch.ts   team deathmatch, free-for-all, Control: the rules and the match
-  abilities.ts             the kits: JOLT, TRIAGE, PATCH, the ultimate's meter
   killcam.ts, recap.ts     the killcam's recording and replay; the death recap
   kit.ts                   the heals and the armour (shield cores, helmets)
   ammo.ts                  counted ammo and energy stockpiles
@@ -1141,7 +1101,7 @@ src/game/
   blast.ts                 the shotguns' blast patterns: each pellet's place round the blast
   tour.ts                  the guided tour
   mannequin.ts             the motion-captured figure (a setting)
-  fx.ts                    effects drawn in the world (a JOLT's streak)
+  fx.ts                    effects drawn in the world (a dash's streak)
   soundscape.ts            footsteps, surfaces, the loops
   stats.ts                 the profile: matches, courses, tech, in localStorage
   leaderboard.ts           the online board client (finds the board through /net.json)
@@ -1200,7 +1160,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/names.ts` | the public build's name for each weapon ("Not R-301") and the generic labels for the optics, hop-ups and the one heal |
 | `src/game/loadouts.ts` | the five default loadouts |
 | `src/game/courses/*.ts` | the course rooms (and a room's par, if it should not be its share of the S time); the sim proves the gates |
-| `src/config/abilities.json` | JOLT's distance, time, charges and recharge, gap, exit speed and feel; TRIAGE's speed; what the bots do with them |
+| `src/config/wall.json` | the WALL hack's wall: its panel's width, height and thickness, and how far ahead of you it goes |
 | `src/config/bots.json` | the bot tiers (reaction, aim lag and error, aim point, dodging, hearing, cover, crouching), mixed's weights |
 | `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
 | `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, the shotguns' blast patterns, hop-ups (and the locked ones of Seasons 29 and 30), fire modes |

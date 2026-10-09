@@ -30,7 +30,6 @@ export interface TourCheck {
   reloading: boolean;
   swapping: boolean;
   healing: boolean;
-  joltUsed: boolean;
   /** the game's clock (a step held for a time counts it) */
   now: number;
   /** SpeedKills: each hack slot's uses so far, and the gun in hand's fusion level */
@@ -81,7 +80,6 @@ const LEGACY_STEPS: Step[] = [
   { id: "reload", title: "RELOAD", text: "Press {reload}.", done: (c) => c.reloading },
   { id: "swap", title: "SWAP", text: "Swap guns with {swapWeapon}, or {slot1} and {slot2}.", done: (c) => c.swapping },
   { id: "heal", title: "HEAL", text: "Your shield is down: press {heal} for a shield cell (hold it for the wheel of every heal).", done: (c) => c.healing },
-  { id: "ability", title: "ABILITY", text: "Pick JOLT with {pickAbility1}, then press {ability} to dash.", done: (c) => c.joltUsed },
 ];
 
 const SK_STEPS: Step[] = [

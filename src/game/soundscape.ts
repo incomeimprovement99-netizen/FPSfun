@@ -66,7 +66,7 @@ export class Soundscape {
     }
     // ---- your feet
     const surface = surfaceAt(p.pos.y, f.outdoors);
-    if (p.onGround && !p.sliding && !p.jolting && p.speed > 0.5 && f.alive) {
+    if (p.onGround && !p.sliding && p.speed > 0.5 && f.alive) {
       this.stepAcc += p.speed * f.dt;
       const st = cfg.footsteps;
       const stride = p.crouched ? st.crouchStride : p.sprinting ? st.sprintStride : st.walkStride;

@@ -941,27 +941,6 @@ export const SCENARIOS: Scenario[] = [
     steps: [[lab("mannequin"), 0], [gameSeconds(3), 100]],
   },
   {
-    name: "ability-range",
-    note: "the range: the compact ability line; then JOLT picked, the slot with its key",
-    steps: [
-      [hideMenu, 300],
-      [`window.__range.pickAbility("jolt")`, 200],
-      [`window.__range.useAbility()`, 120],
-    ],
-  },
-  {
-    name: "ability-range-card",
-    note: "the range before any pick: the one-line card",
-    steps: [[hideMenu, 400]],
-  },
-  {
-    name: "ability-bots-card",
-    note: "a bot match with abilities on: the full card at the countdown",
-    steps: [
-      [`(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); ${hideMenu}; window.__range.startBots(); })()`, 900],
-    ],
-  },
-  {
     name: "killcam",
     note: "eliminated by a bot: the replay from its eyes",
     steps: [
@@ -1096,14 +1075,6 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`document.getElementById("goDrill").click()`, 0], [hideMenu, 4200]],
   },
   {
-    name: "ability-triage",
-    note: "TRIAGE picked in a bot match: the passive slot",
-    steps: [
-      [`(() => { const s = document.getElementById("botAbilities"); s.value = "1"; s.dispatchEvent(new Event("change")); ${hideMenu}; window.__range.startBots(); })()`, 600],
-      [`window.__range.pickAbility("triage")`, 3200],
-    ],
-  },
-  {
     name: "tracers",
     note: "a burst down the range, caught in flight: streaks from the muzzle joining the line of sight, not dots",
     steps: [
@@ -1117,7 +1088,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
-      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); r.input.locked = true; r.player.teleport(24, 0, 500 - 36, 0, 6);
+      [`(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.input.locked = true; r.player.teleport(24, 0, 500 - 36, 0, 6);
         for (let i = 0; i < 14; i++) setTimeout(() => r.fireRound([(Math.random() - 0.5) * 0.12, 0.02 + (Math.random() - 0.5) * 0.1, -1]), i * 30); })()`, 520],
     ],
   },
@@ -1128,7 +1099,7 @@ export const SCENARIOS: Scenario[] = [
       [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
-        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const f = d.lootField; const bins = [...f.drops.values()].filter((x) => x.item.kind === "bin");
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const f = d.lootField; const bins = [...f.drops.values()].filter((x) => x.item.kind === "bin");
           const a = bins[0]; if (!a) return; d.takeLoot(a.key);
           const p = a.pos; r.player.teleport(p.x - 3.2, p.y, p.z + 1.2, 110, -22); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
         900,
@@ -1149,7 +1120,7 @@ export const SCENARIOS: Scenario[] = [
       [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
-        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, -28); const f = d.lootField; const V = (x, z) => new r.THREE.Vector3(s.x + x, 0, s.z + z);
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, -28); const f = d.lootField; const V = (x, z) => new r.THREE.Vector3(s.x + x, 0, s.z + z);
           f.add({ kind: "weapon", id: "r97", n: 1, rarity: "rare" }, V(0, -1.7));
           f.add({ kind: "weapon", id: "bocek", n: 1, rarity: "epic", mag: 2 }, V(-1.6, -4));
           f.add({ kind: "heal", id: "battery", n: 1, rarity: "rare" }, V(1.4, -3.2));
@@ -1167,7 +1138,7 @@ export const SCENARIOS: Scenario[] = [
       [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
-        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("triage"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.brPlay.addMarker("go", new r.THREE.Vector3(s.x + 6, 0, s.z - 30), "GOING HERE", 1, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.brPlay.addMarker("go", new r.THREE.Vector3(s.x + 6, 0, s.z - 30), "GOING HERE", 1, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
         900,
       ],
     ],
@@ -1179,7 +1150,7 @@ export const SCENARIOS: Scenario[] = [
       [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
-        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("triage"); const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.setThirdPerson(true); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.setThirdPerson(true); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
         1400,
       ],
     ],
@@ -1191,7 +1162,7 @@ export const SCENARIOS: Scenario[] = [
       [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
       [untilFightLong, 400],
       [
-        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; r.pickAbility("jolt"); const p = r.player.pos; d.addPod(new r.THREE.Vector3(p.x + 40, 0, p.z - 30), 30); r.brPlay.addMarker("enemy", new r.THREE.Vector3(p.x - 30, 0, p.z - 50), "ENEMY", 0, -1, r.gameTime()); r.brPlay.addMarker("loot", new r.THREE.Vector3(p.x + 15, 0, p.z + 20), "LOOT", 0, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); r.setMapOpen(true); })()`,
+        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const p = r.player.pos; d.addPod(new r.THREE.Vector3(p.x + 40, 0, p.z - 30), 30); r.brPlay.addMarker("enemy", new r.THREE.Vector3(p.x - 30, 0, p.z - 50), "ENEMY", 0, -1, r.gameTime()); r.brPlay.addMarker("loot", new r.THREE.Vector3(p.x + 15, 0, p.z + 20), "LOOT", 0, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); r.setMapOpen(true); })()`,
         700,
       ],
     ],

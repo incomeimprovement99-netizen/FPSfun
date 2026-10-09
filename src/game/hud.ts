@@ -255,21 +255,6 @@ export interface HudState {
   squad?: { me: { slot: number; color: string } | null; rows: SquadRow[]; tags: MateTag[] } | null;
   /** real shield and health (a 1v1); the bars are decorative without it */
   vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
-  /** your ability (abilities.ts): name, key, its cooldown and what is left of it (0: ready); a passive one has no key */
-  ability?: {
-    name: string;
-    key: string;
-    cooldown: number;
-    left: number;
-    passive: boolean;
-    charges?: number;
-    max?: number;
-    nextIn?: number;
-    /** the square's icon: a dash's chevrons, a heal's cross, a scan's eye, or a grapple's hook */
-    icon?: "dash" | "cross" | "eye" | "hook" | "cloud" | "wall";
-    /** the kit's ultimate: its name and key, the meter (0..1), and the seconds it still runs once used */
-    ult?: { name: string; key: string; k: number; live: number };
-  } | null;
   /**
    * SpeedKills' two hacks (src/game/hacks.ts), mobility then utility: the
    * name, the key, how much of the cooldown is still to go (0 ready), the
@@ -292,7 +277,6 @@ export interface HudState {
   edge?: { left: number | null } | null;
   /** the city and the wall round it, for the maps */
   edgeZone?: { inner: { minX: number; maxX: number; minZ: number; maxZ: number }; outer: { minX: number; maxX: number; minZ: number; maxZ: number } } | null;
-  /** the ability card: the two options with their keys; compact is the one-line form */
   /**
    * Where you are standing, in the words a squad uses (src/game/callouts.ts).
    * The battle royale has named places; the arenas had nothing, so "he is
@@ -300,7 +284,6 @@ export interface HudState {
    * where you look to say where you are.
    */
   callout?: string | null;
-  abilityCard?: { options: Array<{ key: string; name: string; blurb: string; tactical: string; ult: string; passive: string; picked: boolean }>; age: number; compact: boolean } | null;
   /** the killcam is playing: whose eyes, their gun, how far through, the skip key */
   killcam?: { name: string; weapon: string; progress: number; left: number; skipKey: string } | null;
   /** the death recap, after the killcam: how long it has been up, the close key */
@@ -631,9 +614,7 @@ export class Hud {
     this.drawDive(s, u);
     this.drawShip(s, u);
     this.drawKit(s, u);
-    this.drawAbility(now, s, u);
     this.drawHacks(s, u);
-    this.drawAbilityCard(s, u);
     this.drawLobby(s, u);
     this.drawFeed(now, u);
     this.drawSummary(s, u);
@@ -2769,13 +2750,8 @@ export class Hud {
   }
 
   /**
-   * The ability, bottom left beside the bars: a square with its key, a dark
-   * sweep for the cooldown and the seconds left, a bright edge when ready.
-   * TRIAGE is passive: a cross and "HEALS x2".
-   */
-  /**
-   * SpeedKills' hacks, bottom left beside the bars, where the ability square
-   * is in the legacy game: a square each, the mobility hack in cyan and the
+   * SpeedKills' hacks, bottom left beside the bars, where the legacy game's ability
+   * square was: a square each, the mobility hack in cyan and the
    * utility one in magenta, its name, its key, a dark sweep while it comes
    * back with the seconds on it, and its fusion level as pips along the foot.
    */
@@ -2818,224 +2794,6 @@ export class Hud {
       }
       c.textAlign = "left";
     });
-  }
-
-  private drawAbility(now: number, s: HudState, u: number): void {
-    const a = s.ability;
-    if (!a) return;
-    const c = this.ctx;
-    const size = 54 * u;
-    const x = 384 * u;
-    const y = this.h - 76 * u - size;
-    c.fillStyle = PANEL;
-    c.fillRect(x, y, size, size);
-    const ready = a.passive || a.left <= 0;
-    // the icon: a chevron for JOLT, a cross for TRIAGE
-    c.save();
-    c.translate(x + size / 2, y + size / 2);
-    c.strokeStyle = ready ? "#8fd8ff" : "rgba(143,216,255,0.45)";
-    c.fillStyle = c.strokeStyle;
-    c.lineWidth = 4 * u;
-    if (a.icon === "wall") {
-      // a wall: a slab with a lip on the ground
-      c.fillRect(-13 * u, -10 * u, 26 * u, 16 * u);
-      c.fillRect(-16 * u, 8 * u, 32 * u, 4 * u);
-    } else if (a.icon === "cloud") {
-      // a cloud: three rounds in a row
-      for (const [dx, dy, rr] of [
-        [-7, 2, 6],
-        [2, -2, 8],
-        [10, 3, 5],
-      ] as const) {
-        c.beginPath();
-        c.arc(dx * u, dy * u, rr * u, 0, Math.PI * 2);
-        c.fill();
-      }
-    } else if (a.icon === "hook") {
-      // a hook: a line with a curl at its end
-      c.beginPath();
-      c.moveTo(-12 * u, -12 * u);
-      c.lineTo(2 * u, 2 * u);
-      c.stroke();
-      c.beginPath();
-      c.arc(4 * u, 8 * u, 6 * u, -Math.PI / 2, Math.PI * 0.75);
-      c.stroke();
-    } else if (a.icon === "eye") {
-      // a scan: two rings out from a dot
-      c.beginPath();
-      c.arc(0, 0, 3.5 * u, 0, Math.PI * 2);
-      c.fill();
-      for (const rr of [8, 13]) {
-        c.beginPath();
-        c.arc(0, 0, rr * u, -0.9, 0.9);
-        c.stroke();
-        c.beginPath();
-        c.arc(0, 0, rr * u, Math.PI - 0.9, Math.PI + 0.9);
-        c.stroke();
-      }
-    } else if (a.passive || a.icon === "cross") {
-      c.fillRect(-4 * u, -14 * u, 8 * u, 28 * u);
-      c.fillRect(-14 * u, -4 * u, 28 * u, 8 * u);
-    } else {
-      for (const dx of [-8, 4]) {
-        c.beginPath();
-        c.moveTo((dx - 5) * u, -12 * u);
-        c.lineTo((dx + 7) * u, 0);
-        c.lineTo((dx - 5) * u, 12 * u);
-        c.stroke();
-      }
-    }
-    c.restore();
-    if (!ready) {
-      // the cooldown: a dark pie over what is still to come, the seconds on top
-      const frac = Math.max(0, Math.min(1, a.left / Math.max(1e-3, a.cooldown)));
-      c.fillStyle = "rgba(0,0,0,0.62)";
-      c.save();
-      c.beginPath();
-      c.rect(x, y, size, size);
-      c.clip();
-      c.beginPath();
-      c.moveTo(x + size / 2, y + size / 2);
-      c.arc(x + size / 2, y + size / 2, size * 0.72, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * frac);
-      c.closePath();
-      c.fill();
-      c.restore();
-      this.text(a.left.toFixed(1), x + size / 2, y + size / 2 + 7 * u, 700, 18 * u, WHITE, "center");
-    } else {
-      c.strokeStyle = `rgba(143,216,255,${0.55 + 0.25 * Math.sin(now * 4)})`;
-      c.lineWidth = 2 * u;
-      c.strokeRect(x + 1, y + 1, size - 2, size - 2);
-    }
-    // the key cap, top left, and the name under the square
-    if (!a.passive) {
-      c.fillStyle = "#f2f2f2";
-      c.fillRect(x - 6 * u, y - 6 * u, 20 * u, 18 * u);
-      this.text(a.key, x + 4 * u, y + 8 * u, 700, 12 * u, "#101214", "center");
-    }
-    // the charges: a pip each under the square, full when there, the next one filling as it comes back
-    let nameY = y + size + 16 * u;
-    if (!a.passive && (a.max ?? 0) > 1) {
-      const n = a.max!;
-      const have = a.charges ?? 0;
-      const gapPx = 4 * u;
-      const pw = (size - gapPx * (n - 1)) / n;
-      const py = y + size + 4 * u;
-      const fill = 1 - Math.max(0, Math.min(1, (a.nextIn ?? 0) / Math.max(1e-3, a.cooldown)));
-      for (let i = 0; i < n; i++) {
-        const px = x + i * (pw + gapPx);
-        c.fillStyle = "rgba(0,0,0,0.55)";
-        c.fillRect(px, py, pw, 5 * u);
-        const f = i < have ? 1 : i === have ? fill : 0;
-        if (f > 0) {
-          c.fillStyle = i < have ? "#8fd8ff" : "rgba(143,216,255,0.5)";
-          c.fillRect(px, py, pw * f, 5 * u);
-        }
-      }
-      nameY += 8 * u;
-    }
-    this.text(a.passive ? `${a.name}  HEALS x2` : a.name, x + size / 2, nameY, 700, 13 * u, ready ? WHITE : DIM, "center");
-    if (a.ult) this.drawUlt(now, a.ult, x + size + 16 * u, y, size, u);
-  }
-
-  /**
-   * The ultimate, beside the ability: a ring that fills as the meter does, its
-   * key in the middle and the percentage under it; full, it glows and says
-   * READY; while it runs, the seconds left.
-   */
-  private drawUlt(now: number, ult: { name: string; key: string; k: number; live: number }, x: number, y: number, size: number, u: number): void {
-    const c = this.ctx;
-    const r = size / 2;
-    const cx = x + r;
-    const cy = y + r;
-    const GOLD = "#ffd23c";
-    const full = ult.k >= 1;
-    c.fillStyle = PANEL;
-    c.beginPath();
-    c.arc(cx, cy, r, 0, Math.PI * 2);
-    c.fill();
-    c.lineWidth = 5 * u;
-    c.strokeStyle = "rgba(255,255,255,0.12)";
-    c.beginPath();
-    c.arc(cx, cy, r - 4 * u, 0, Math.PI * 2);
-    c.stroke();
-    c.strokeStyle = full ? `rgba(255,210,60,${0.7 + 0.3 * Math.sin(now * 5)})` : GOLD;
-    c.beginPath();
-    c.arc(cx, cy, r - 4 * u, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, ult.k));
-    c.stroke();
-    this.text(ult.key, cx, cy + 7 * u, 700, 20 * u, full ? GOLD : WHITE, "center");
-    const line = ult.live > 0 ? `${ult.name}  ${Math.ceil(ult.live)} S` : full ? `${ult.name}  READY` : `${ult.name}  ${Math.floor(ult.k * 100)}%`;
-    this.text(line, cx, y + size + 16 * u, 700, 12 * u, full || ult.live > 0 ? GOLD : DIM, "center");
-  }
-
-  /**
-   * The ability card. Full: a panel low in the middle, "CHOOSE YOUR ABILITY",
-   * the two options side by side with their keys. Compact: one line over the
-   * ability square, for when it has been up a while or you are in the range.
-   */
-  /**
-   * The card you pick a kit from. It used to lay every option out in one row
-   * of two: with two kits that was a card, and with six it was six tiles
-   * across a 620 px box, running off the card and off the screen, with a
-   * sentence in each too long to read. It is a grid now, as many columns as
-   * fit and as many rows as it takes, and each tile says what the kit gives
-   * you rather than only what it is called: the tactical on its key, the
-   * ultimate, and the passive that is always on.
-   */
-  private drawAbilityCard(s: HudState, u: number): void {
-    const k = s.abilityCard;
-    if (!k || !k.options.length) return;
-    const c = this.ctx;
-    if (k.compact) {
-      const line = k.options.map((o) => `[${o.key}] ${o.name}`).join("   ");
-      this.text(`ABILITY   ${line}`, 384 * u, this.h - 150 * u, 700, 14 * u, "#8fd8ff");
-      return;
-    }
-    const n = k.options.length;
-    // the grid: never more than three across, and never wider than the screen
-    const cols = Math.min(3, Math.max(1, Math.min(n, Math.floor((this.w * 0.92) / (300 * u)))));
-    const rows = Math.ceil(n / cols);
-    const tw = Math.min(300 * u, (this.w * 0.92) / cols);
-    const th = 104 * u;
-    const pad = 10 * u;
-    const head = 32 * u;
-    const w = cols * tw + pad * 2;
-    const h = rows * th + head + pad;
-    const cx = this.w / 2;
-    const y0 = Math.max(60 * u, this.h * 0.78 - h);
-    // slides up over the first quarter second
-    const rise = Math.max(0, 1 - k.age / 0.25) * 30 * u;
-    c.save();
-    c.globalAlpha = Math.min(1, k.age / 0.2);
-    c.fillStyle = "rgba(8,10,12,0.86)";
-    c.fillRect(cx - w / 2, y0 + rise, w, h);
-    c.fillStyle = "#8fd8ff";
-    c.fillRect(cx - w / 2, y0 + rise, w, 3 * u);
-    this.text("CHOOSE YOUR KIT", cx, y0 + rise + 22 * u, 700, 15 * u, "#8fd8ff", "center");
-    k.options.forEach((o, i) => {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const bx = cx - w / 2 + pad + col * tw;
-      const by = y0 + rise + head + row * th;
-      c.fillStyle = o.picked ? "rgba(143,216,255,0.18)" : "rgba(255,255,255,0.05)";
-      c.fillRect(bx + 2 * u, by + 2 * u, tw - 4 * u, th - 4 * u);
-      // the key you press, in a chip
-      c.fillStyle = "#f2f2f2";
-      c.fillRect(bx + 10 * u, by + 10 * u, 26 * u, 26 * u);
-      this.text(o.key, bx + 23 * u, by + 29 * u, 700, 16 * u, "#101214", "center");
-      this.text(o.name, bx + 44 * u, by + 30 * u, 700, 21 * u, o.picked ? "#8fd8ff" : WHITE);
-      // what it gives you: the two you press and the one that is always on
-      const line = (label: string, value: string, dy: number): void => {
-        this.text(label, bx + 12 * u, by + dy, 700, 11 * u, "#6f7a86");
-        this.text(value, bx + 62 * u, by + dy, 600, 12 * u, DIM);
-      };
-      line("TACTICAL", o.tactical, 54 * u);
-      line("ULTIMATE", o.ult, 70 * u);
-      line("PASSIVE", o.passive, 86 * u);
-    });
-    // and the whole sentence for the one under the cursor, under the grid
-    const picked = k.options.find((o) => o.picked);
-    if (picked) this.text(picked.blurb, cx, y0 + rise + h + 16 * u, 600, 13 * u, DIM, "center");
-    c.restore();
   }
 
   /** the heal kit, bottom left over the bars: what is left of each */

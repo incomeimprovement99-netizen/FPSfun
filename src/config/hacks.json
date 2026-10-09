@@ -72,6 +72,7 @@
     ]
   },
   "_healArea": "How HEAL's area looks (src/game/healarea.ts), after Hyper Scape's: a ring on the ground with arcs turning inside it (one turn in `spin` s, at `arcs` shares of the radius), a low wall of light `wall` m tall fading up at `opacity` (everyone's the same), and `plus` signs rising round it (how many, their size in metres, how high they rise and a rise's seconds). While you stand in one and it heals you, `screen` of the view's edges glows green and the \"+\" rises there too (hud.ts drawHealing). Ours, by eye.",
+  "_reveal": "shareSeconds: how long a squad mate's screen shows each enemy your REVEAL found (the scan mark, duel.ts reveal). It was SCOUT's PULSE time until the legacy kits went (Milestone 491), and is kept as it played; your own screen shows them for `seconds`.",
   "healArea": {
     "wall": 0.7,
     "opacity": 0.22,
@@ -136,7 +137,8 @@
       9,
       7
     ],
-    "cone": 50
+    "cone": 50,
+    "shareSeconds": 2
   },
   "mine": {
     "cooldown": 14,

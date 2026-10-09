@@ -115,7 +115,7 @@
     "abilityLevels": 0,
     "cooldownStep": 0
   },
-  "_abilities": "Six kits of a tactical, a passive and an ultimate (kits.json), one kit a player.",
+  "_abilities": "Six kits of a tactical, a passive and an ultimate one kit a player. The kits went in Milestone 491; the set stays as names until the game switch takes this profile.",
   "abilities": {
     "slots": [
       "kit"

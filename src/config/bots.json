@@ -30,8 +30,7 @@
       "healAfter": 5,
       "cover": true,
       "crouchPeek": 0,
-      "preAim": false,
-      "jolt": false
+      "preAim": false
     },
     "easy": {
       "speed": 4.2,
@@ -50,8 +49,7 @@
       "healAfter": 4,
       "cover": false,
       "crouchPeek": 0,
-      "preAim": false,
-      "jolt": false
+      "preAim": false
     },
     "normal": {
       "speed": 5.4,
@@ -70,8 +68,7 @@
       "healAfter": 3,
       "cover": true,
       "crouchPeek": 0.1,
-      "preAim": false,
-      "jolt": true
+      "preAim": false
     },
     "hard": {
       "speed": 6.6,
@@ -90,8 +87,7 @@
       "healAfter": 2,
       "cover": true,
       "crouchPeek": 0.3,
-      "preAim": false,
-      "jolt": true
+      "preAim": false
     },
     "elite": {
       "speed": 6.6,
@@ -110,8 +106,7 @@
       "healAfter": 1.5,
       "cover": true,
       "crouchPeek": 0.45,
-      "preAim": true,
-      "jolt": true
+      "preAim": true
     }
   },
   "_mixed": "a battle royale's 'mixed' lobby: each bot's tier drawn with these weights",

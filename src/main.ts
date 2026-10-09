@@ -1,7 +1,6 @@
 import * as THREE from "three";
 import { setFigureView } from "./game/figlod";
-import { WALLS, clearWalls, putWall, stepWalls, type PutWall } from "./game/walls";
-import { SMOKES, clearSmoke, smokeAt, stepSmoke, throwSmoke } from "./game/smoke";
+import { WALL, WALLS, clearWalls, putWall, stepWalls, type PutWall } from "./game/walls";
 import playerCfg from "./config/player.json";
 import { GAME, PROFILE, GAME_IDS, IS_SK, type GameId } from "./game/game";
 import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
@@ -53,7 +52,7 @@ import { Hud, type HudState } from "./game/hud";
 import { damageText } from "./game/damagetext";
 import { FramePhases } from "./game/framephase";
 import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
-import { ZIPLINES, ladderAhead, deployZipline } from "./game/traversal";
+import { ZIPLINES, ladderAhead } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName, hopupName } from "./config/names";
@@ -98,7 +97,6 @@ import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
 import { blastSees, blastShare, bodySight, meshGap, RocketBursts } from "./game/rocket";
 import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
-import { Abilities, ABILITIES, ABILITY_IDS, ABILITY_KNOBS, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, tuneAbilities, tuningChanges, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
@@ -1412,10 +1410,7 @@ const sounds = new Soundscape(audio);
 const lastShotSound = new Map<number, number>();
 const SHIELD_TIER: Record<number, HitTier> = { 1: "white", 2: "blue", 3: "purple", 4: "red" };
 const hud = new Hud($<HTMLCanvasElement>("hud"));
-/** JOLT and TRIAGE (abilities.ts): the pick, the cooldown; the match (or the range) switches them on */
-const abilities = new Abilities();
-abilities.enabled = !IS_SK; // the range lets you practise either (SpeedKills: its hacks instead, hacks.ts)
-/** short-lived world effects: JOLT streaks (fx.ts) */
+/** short-lived world effects: the dash's streaks (fx.ts) */
 const fx = new FxLayer(scene);
 // everyone's sprays on the walls (sprays.ts)
 const sprays = new SprayLayer(scene);
@@ -1893,132 +1888,6 @@ aimbotSel.addEventListener("change", () => {
     /* ignore */
   }
 });
-
-// The dash, from Settings: distance, how long it takes, how many charges and
-// how long each takes to come back. They are the same numbers the bots use.
-const dashInputs = {
-  distance: $<HTMLInputElement>("dashDistance"),
-  duration: $<HTMLInputElement>("dashTime"),
-  charges: $<HTMLInputElement>("dashCharges"),
-  recharge: $<HTMLInputElement>("dashRecharge"),
-};
-const LS_DASH = "range.dash.v1";
-function showDash(): void {
-  dashInputs.distance.value = String(JOLT.distance);
-  dashInputs.duration.value = String(JOLT.duration);
-  dashInputs.charges.value = String(JOLT.charges);
-  dashInputs.recharge.value = String(JOLT.recharge);
-}
-try {
-  const raw = localStorage.getItem(LS_DASH);
-  if (raw) setJolt(JSON.parse(raw) as Partial<typeof JOLT_DEFAULTS>);
-} catch {
-  /* ignore */
-}
-showDash();
-for (const [key, el] of Object.entries(dashInputs)) {
-  el.addEventListener("change", () => {
-    setJolt({ [key]: Number(el.value) } as Partial<typeof JOLT_DEFAULTS>);
-    // a charge count change takes effect on the next fill
-    abilities.fill();
-    showDash();
-    try {
-      localStorage.setItem(LS_DASH, JSON.stringify({ distance: JOLT.distance, duration: JOLT.duration, charges: JOLT.charges, recharge: JOLT.recharge }));
-    } catch {
-      /* ignore */
-    }
-  });
-}
-
-/**
- * The ability numbers, as the match that is being made will have them.
- *
- * This is the lobby's, not Settings': what a dash is worth is a property of
- * the game being played, the way the gun class and the rounds to win are, so
- * two friends setting up a 1v1 can agree six dashes and a short recharge where
- * they pick the mode. The host's numbers go out in the welcome (MatchRules
- * `abil`) and are everyone's; the bots read the same objects, so they play by
- * them too. An older build has never heard of the field and plays its own.
- *
- * The four dash boxes in Settings write the same store, because they are the
- * same four numbers and two places that disagree would be worse than either.
- */
-const LS_TUNE = "range.abilityTune.v1";
-let myTuning: Record<string, Record<string, number>> = {};
-function saveTuning(): void {
-  try {
-    const changed = tuningChanges();
-    if (changed) localStorage.setItem(LS_TUNE, JSON.stringify(changed));
-    else localStorage.removeItem(LS_TUNE);
-  } catch {
-    /* ignore */
-  }
-  myTuning = tuningChanges() ?? {};
-}
-/** the panel, in the lobby's Abilities group and in the Friends row that makes a match */
-function showTuning(): void {
-  for (const grid of document.querySelectorAll<HTMLElement>(".tuneGrid")) {
-    grid.innerHTML = "";
-    for (const id of ABILITY_IDS) {
-      const box = document.createElement("div");
-      box.className = "tuneKit";
-      const name = document.createElement("b");
-      name.textContent = kitOf(id).kit;
-      box.appendChild(name);
-      for (const k of ABILITY_KNOBS[id]) {
-        const row = document.createElement("label");
-        row.className = "tuneKnob";
-        const label = document.createElement("span");
-        label.textContent = k.label;
-        const input = document.createElement("input");
-        input.type = "number";
-        input.min = String(k.min);
-        input.max = String(k.max);
-        input.step = String(k.step);
-        input.value = String(k.read());
-        input.dataset.ability = id;
-        input.dataset.knob = k.id;
-        input.addEventListener("change", () => {
-          k.write(Number(input.value));
-          // a charge count only takes effect on the next fill
-          abilities.fill();
-          saveTuning();
-          showTuning();
-          showDash();
-        });
-        row.append(label, input);
-        if (k.unit) {
-          const unit = document.createElement("span");
-          unit.textContent = k.unit;
-          row.appendChild(unit);
-        }
-        box.appendChild(row);
-      }
-      grid.appendChild(box);
-    }
-  }
-}
-for (const b of document.querySelectorAll<HTMLButtonElement>(".tuneReset")) {
-  b.addEventListener("click", () => {
-    tuneAbilities({});
-    abilities.fill();
-    saveTuning();
-    showTuning();
-    showDash();
-  });
-}
-try {
-  const raw = localStorage.getItem(LS_TUNE);
-  // the dash's own four moved in here; a page that only has the old store keeps them
-  const old = localStorage.getItem(LS_DASH);
-  const start = raw ? (JSON.parse(raw) as Record<string, Record<string, number>>) : old ? { jolt: JSON.parse(old) as Record<string, number> } : {};
-  tuneAbilities(start);
-} catch {
-  /* ignore */
-}
-myTuning = tuningChanges() ?? {};
-showTuning();
-showDash();
 
 /**
  * The Loadouts tab's figure: what you look like, while you are choosing it.
@@ -2853,51 +2722,8 @@ const arenaMapChoice = (kind: string, players: number): ArenaMapId => {
 };
 /** a map id from the wire, which may be from an older build or not a map at all */
 const arenaFromWire = (id: string | undefined): ArenaMapId | null => (id ? (arenaMap(id).id as ArenaMapId) : null);
-// Abilities on or off, per kind of match, remembered: the friends' arena and
-// the bots off by default, the battle royale on. The friends' select follows
-// the mode picked beside it (a squad BR shows the BR's setting).
-const duelAbilities = $<HTMLSelectElement>("duelAbilities");
-const botAbilities = $<HTMLSelectElement>("botAbilities");
-const brAbilities = $<HTMLSelectElement>("brAbilities");
-const ABILITY_DEFAULTS: Record<"arena" | "bots" | "br", "0" | "1"> = { arena: "0", bots: "0", br: "1" };
-const abilitySetting = (kind: "arena" | "bots" | "br"): boolean => {
-  // the legacy kits are not SpeedKills' (its hacks are), and these keys are shared with the legacy menus: an "on"
-  // stored there must not bring SMOKE in (Phase 20 A10)
-  if (IS_SK) return false;
-  try {
-    const v = localStorage.getItem(`range.abilities.${kind}`);
-    return (v === "0" || v === "1" ? v : ABILITY_DEFAULTS[kind]) === "1";
-  } catch {
-    return ABILITY_DEFAULTS[kind] === "1";
-  }
-};
-const setAbilitySetting = (kind: "arena" | "bots" | "br", on: boolean): void => {
-  try {
-    localStorage.setItem(`range.abilities.${kind}`, on ? "1" : "0");
-  } catch {
-    /* ignore */
-  }
-};
-const duelKind = (): "arena" | "br" => (duelMode.value === "br" ? "br" : "arena");
 /** the friends' row's mode, when it is one of the arena's modes */
 const duelModeKind = (): ModeKind | null => (isModeKind(duelMode.value) ? duelMode.value : null);
-const showAbilitySettings = (): void => {
-  duelAbilities.value = abilitySetting(duelKind()) ? "1" : "0";
-  botAbilities.value = abilitySetting("bots") ? "1" : "0";
-  brAbilities.value = abilitySetting("br") ? "1" : "0";
-};
-showAbilitySettings();
-duelAbilities.addEventListener("change", () => {
-  setAbilitySetting(duelKind(), duelAbilities.value === "1");
-  showAbilitySettings();
-});
-botAbilities.addEventListener("change", () => setAbilitySetting("bots", botAbilities.value === "1"));
-brAbilities.addEventListener("change", () => {
-  setAbilitySetting("br", brAbilities.value === "1");
-  showAbilitySettings();
-});
-// choosing the battle royale on the friends' row shows its own setting (on unless you turned it off)
-duelMode.addEventListener("change", showAbilitySettings);
 for (const id of ["duelMode", "brTeam", "brSides"]) document.getElementById(id)?.addEventListener("change", brPlayersDefault);
 /** the battle royale's bot count, each game its own (the menu keeps the same key, menu.ts BR_BOTS_KEY) */
 const BR_BOTS_STORE = IS_SK ? "range.br.bots.sk" : "range.br.bots";
@@ -3040,7 +2866,7 @@ function groupNow(): { host: boolean; size: number } | null {
 /** the range together's settings: nothing but the range itself */
 function rangeSettings(): void {
   hostBr = null;
-  hostOpts = { game: GAME, abilities: false, range: true };
+  hostOpts = { game: GAME, range: true };
 }
 /** a move to the group's next match is under way: the end of the last one must not start the range as well (endMatch) */
 let groupMoving = false;
@@ -3310,8 +3136,6 @@ function respawnForMatch(d: MatchLike): void {
   const br = d instanceof BrMatch;
   // SpeedKills carries no heals: health and shield come back on their own (speedkills.json health)
   kit.fill(IS_SK ? "empty" : br ? "brStart" : "kit");
-  // JOLT's two charges, both there for every life and every round
-  abilities.fill();
   // no knockdown shield, no regen carried over from the last life
   kd.reset();
   execRegen = null;
@@ -3625,7 +3449,7 @@ function startHeal(now: number, want: HealItem | null = null): void {
     return;
   }
   // a gold backpack takes a quarter off every heal (kit.healTime)
-  heal = { item, startedAt: now, duration: kit.healTime(item) / abilities.healScale };
+  heal = { item, startedAt: now, duration: kit.healTime(item) };
   // walking pace, no sprint, while it runs
   player.healSlow = itemsCfg.healSlow;
 }
@@ -3699,7 +3523,7 @@ function updateHeal(now: number, cancel: boolean): void {
   duel?.localFx("heal", undefined, undefined, HEAL_CODES.indexOf(heal.item));
   heal = null;
 }
-// ---------- abilities: JOLT and TRIAGE ----------
+// ---------- the keys, as the HUD names them ----------
 /** the key an action is on, as the HUD shows it */
 const keyLabel = (a: Action): string => bindName(currentBinds()[a]?.[0] ?? "?").toUpperCase();
 /**
@@ -3754,95 +3578,28 @@ function hearReload(now: number): void {
     reloadHeard = { ws, until: now + ws.reloadSeconds };
   }
 }
-function pickAbility(id: AbilityId, now: number): void {
-  if (!abilities.enabled) return;
-  abilities.pick(id);
-  const k = kitOf(id);
-  hud.notice(`${k.kit}: ${k.tactical} (${keyLabel("ability")}), ${k.passive}, ${k.ult} (${keyLabel("ultimate")})`, now, 2.6);
-  audio.reload();
-}
-
 /**
- * Health given back over time (MEDIC's PATCH and FIELD HEAL): so much a
- * second until it is done, in a match, while you are up. A second one while
- * one runs takes whichever gives more.
- */
-let regen: { perSec: number; until: number } | null = null;
-function startRegen(health: number, seconds: number, now: number): void {
-  const perSec = health / Math.max(0.1, seconds);
-  if (regen && now < regen.until && regen.perSec * (regen.until - now) >= health) return;
-  regen = { perSec, until: now + seconds };
-}
-function stepRegen(now: number, dt: number): void {
-  if (!regen) return;
-  if (now >= regen.until) {
-    regen = null;
-    return;
-  }
-  // any kind of match with a health bar (a 1v1, the modes, a bot match, a battle royale), while you are up
-  const d = duel as unknown as { health?: number; alive?: boolean; downed?: boolean } | null;
-  if (!d || typeof d.health !== "number" || d.alive === false || d.downed === true) return;
-  d.health = Math.min(HEALTH_MAX, d.health + regen.perSec * dt);
-}
-/**
- * HOOK's ultimate: a zipline put up in play, on every page (the one who used
- * it, and the others through its effect). They come down when their time is up
- * or the match ends.
- */
-let ziplines: Array<{ until: number; take: () => void }> = [];
-function putUpZipline(from: THREE.Vector3, to: THREE.Vector3, now: number): void {
-  const a = from.clone().setY(from.y - 0.4);
-  const take = deployZipline(scene, a, to.clone());
-  ziplines.push({ until: now + KITS.hook.ult.seconds, take });
-  audio.beacon(a);
-}
-function stepZiplines(now: number): void {
-  if (!ziplines.length) return;
-  const keep: typeof ziplines = [];
-  for (const z of ziplines) {
-    if (now < z.until) keep.push(z);
-    else z.take();
-  }
-  ziplines = keep;
-}
-/** the match is over: every zipline anyone put up comes down */
-function clearZiplines(): void {
-  for (const z of ziplines) z.take();
-  ziplines = [];
-}
-/**
- * The match's kit sight (SCOUT's scans, SMOKE's passive): every kind of match
- * has it, the ones built on Duel and the offline bot practice, so the page
- * asks for it rather than for a class.
+ * The match's sight (the REVEAL hack, a ghost's look round): every kind of
+ * match has it, the ones built on Duel and the offline bot practice, so the
+ * page asks for it rather than for a class.
  */
 function kitSight(): { reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number): number; revealWhere(where: (at: THREE.Vector3) => boolean, seconds: number): number; revealOne(id: number, seconds: number): void; shown: ReadonlySet<Dummy> } | null {
   const d = duel as unknown as { reveal?: unknown; shown?: unknown } | null;
   return d && typeof d.reveal === "function" && d.shown instanceof Set ? (d as never) : null;
 }
 
-/** when something last hurt this player (WARD's HARD SHELL waits this out) */
+/** when something last hurt this player (SpeedKills' shield and health wait this out) */
 let lastHurtAt = -Infinity;
 
-/** where WARD's wall goes: a few metres in front of you on the ground, square to the way you face */
+/** where the WALL hack's wall goes: a few metres in front of you on the ground, square to the way you face */
 function wallSpot(): { x: number; y: number; z: number; deg: number } {
   const yaw = player.yaw;
   const r = yaw * DEG;
-  const reach = KITS.ward.tactical.reach;
+  const reach = WALL.reach;
   const fx = -Math.sin(r);
   const fz = -Math.cos(r);
   const ahead = Math.max(1.2, Math.min(reach, solidHit(player.pos.clone().setY(player.pos.y + 1), new THREE.Vector3(fx, 0, fz), reach) - 0.4));
   return { x: player.pos.x + fx * ahead, y: player.pos.y, z: player.pos.z + fz * ahead, deg: yaw };
-}
-
-/** WARD's ultimate: a horseshoe of walls round a point, open the way you came from */
-function putBastion(at: THREE.Vector3, yaw: number, now: number): void {
-  const u = KITS.ward.ult;
-  for (let i = 0; i < u.count; i++) {
-    // spread across the way you face: the middle one ahead, the others round the sides
-    const deg = yaw + (i - (u.count - 1) / 2) * (120 / Math.max(1, u.count));
-    const r = deg * DEG;
-    putWall(scene, at.x - Math.sin(r) * u.radius, at.y, at.z - Math.cos(r) * u.radius, deg, now, u.seconds);
-  }
 }
 
 /** where a throw of this reach lands: what you look at, or the far end of it */
@@ -3856,244 +3613,14 @@ function aimPoint(reach: number): THREE.Vector3 {
   return at.setY(Math.max(floorAt(at.x, at.z), at.y - (t >= reach ? 1.4 : 0)));
 }
 
-/** SMOKE's clouds a step on, and its passive: an enemy standing in one of them is shown to you */
-function stepSmokeKit(now: number, dt: number): void {
-  stepSmoke(now, dt);
-  if (!SMOKES.length || abilities.picked !== "smoke") return;
-  kitSight()?.revealWhere((at) => !!smokeAt(at, now), 0.4);
-}
-
-/** RUNNER's OVERDRIVE: every move speed up until this time (game clock) */
-let overdriveUntil = -Infinity;
-/** the damage this player had dealt last frame, for the ultimate's meter */
-let ultDamageSeen = 0;
-
-/**
- * The ultimate key. A full meter spends itself on the kit's ultimate:
- * RUNNER's OVERDRIVE (faster, JOLT refilled), MEDIC's FIELD HEAL (health
- * over time for you and every mate close by, their pages healing them).
- */
-function useUltimate(now: number): void {
-  if (!abilities.enabled) return;
-  if (!abilities.picked) {
-    hud.notice(abilities.choosing ? "PICK A KIT FIRST" : "NO ABILITIES IN THIS MATCH", now, 1.4);
-    return;
-  }
-  const k = kitOf(abilities.picked);
-  if (abilities.ult < 1) {
-    hud.notice(`${k.ult}: ${Math.floor(abilities.ult * 100)}%`, now, 0.8);
-    return;
-  }
-  if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
-  if (!abilities.tryUlt()) return;
-  // (the meter starts filling again at once, so the HUD shows it near empty rather than exactly 0)
-  const at = player.pos.clone();
-  if (abilities.picked === "jolt") {
-    overdriveUntil = now + KITS.runner.ult.seconds;
-    abilities.fill();
-    audio.jolt(1);
-    duel?.localFx("ult", at, undefined, 1);
-  } else if (abilities.picked === "ward") {
-    const u = KITS.ward.ult;
-    putBastion(player.pos.clone(), player.yaw, now);
-    audio.clatter(player.pos);
-    duel?.localFx("ult", player.pos.clone(), new THREE.Vector3(player.yaw, 0, 0), 6);
-    hud.notice(`${u.name}: ${u.count} WALLS`, now, 1.6);
-    return;
-  } else if (abilities.picked === "smoke") {
-    const u = KITS.smoke.ult;
-    const from = camera.position.clone();
-    const to = aimPoint(KITS.smoke.tactical.range);
-    // across your view: the middle one where you look, the others either side of it
-    const across = new THREE.Vector3(0, 1, 0).cross(to.clone().sub(from).setY(0).normalize()).normalize();
-    for (let i = 0; i < u.count; i++) {
-      const off = (i - (u.count - 1) / 2) * u.spread;
-      throwSmoke(scene, from, to.clone().addScaledVector(across, off), now);
-    }
-    audio.throwNoise("bounce", to);
-    duel?.localFx("ult", from, to, 5);
-    hud.notice(`${u.name}: ${u.count} CLOUDS`, now, 1.6);
-    return;
-  } else if (abilities.picked === "hook") {
-    const u = KITS.hook.ult;
-    const eye = camera.position.clone();
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const reach = Math.min(u.length, solidHit(eye, fwd, u.length));
-    const to = eye.clone().addScaledVector(fwd, Math.max(6, reach - 0.5));
-    putUpZipline(eye, to, now);
-    duel?.localFx("ult", eye, to, 4);
-    hud.notice(`${u.name}: RIDE IT`, now, 1.6);
-    return;
-  } else if (abilities.picked === "scout") {
-    const u = KITS.scout.ult;
-    const n = kitSight()?.reveal(player.pos, null, u.range, 360, u.seconds) ?? 0;
-    audio.beacon(player.pos);
-    duel?.localFx("ult", at, undefined, 3);
-    hud.notice(`${u.name}: ${n} ENEMY CONTACT${n === 1 ? "" : "S"}`, now, 1.8);
-    return;
-  } else {
-    const u = KITS.medic.ult;
-    startRegen(u.health, u.seconds, now);
-    audio.reload();
-    duel?.localFx("ult", at, undefined, 2);
-  }
-  hud.notice(k.ult, now, 1.6);
-}
-/**
- * The ability key. JOLT dashes the way the movement keys point (forward with
- * none); the streak and the sound go to the others. TRIAGE has nothing to
- * press: it says so.
- */
-function useAbility(now: number): void {
-  if (!abilities.enabled) return;
-  if (!abilities.picked) {
-    hud.notice(abilities.choosing ? `PICK AN ABILITY FIRST: ${keyLabel("pickAbility1")} JOLT, ${keyLabel("pickAbility2")} TRIAGE` : "NO ABILITY IN THIS MATCH", now, 1.4);
-    return;
-  }
-  // WARD's tactical: a wall on the ground in front of you
-  if (abilities.picked === "ward") {
-    if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
-    const left = abilities.wallLeft(now);
-    if (left > 0) {
-      hud.notice(`WALL: BACK IN ${left.toFixed(1)} S`, now, 0.6);
-      return;
-    }
-    if (!abilities.tryWall(now)) return;
-    const spot = wallSpot();
-    putWall(scene, spot.x, spot.y, spot.z, spot.deg, now);
-    audio.clatter(new THREE.Vector3(spot.x, spot.y, spot.z));
-    duel?.localFx("wall", new THREE.Vector3(spot.x, spot.y, spot.z), new THREE.Vector3(spot.deg, 0, 0));
-    return;
-  }
-  // SMOKE's tactical: a canister at what you look at, and a cloud where it lands
-  if (abilities.picked === "smoke") {
-    if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
-    const left = abilities.canisterLeft(now);
-    if (left > 0) {
-      hud.notice(`CANISTER: BACK IN ${left.toFixed(1)} S`, now, 0.6);
-      return;
-    }
-    if (!abilities.tryCanister(now)) return;
-    const to = aimPoint(KITS.smoke.tactical.range);
-    const from = camera.position.clone();
-    throwSmoke(scene, from, to, now);
-    audio.throwNoise("bounce", to);
-    duel?.localFx("smoke", from, to);
-    return;
-  }
-  // HOOK's tactical: GRAPPLE, a line at what you look at and a pull to it
-  if (abilities.picked === "hook") {
-    if (player.dropping || (duel instanceof Duel && (duel.downed || !duel.alive))) return;
-    const left = abilities.grappleLeft(now);
-    if (left > 0) {
-      hud.notice(`GRAPPLE: BACK IN ${left.toFixed(1)} S`, now, 0.6);
-      return;
-    }
-    if (!abilities.tryGrapple(now)) return;
-    const t = KITS.hook.tactical;
-    const eye = camera.position.clone();
-    const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    const hit = solidHit(eye, fwd, t.range);
-    if (!Number.isFinite(hit) || hit >= t.range) {
-      // nothing in reach: the line comes back and so does the cooldown
-      abilities.refundGrapple();
-      hud.notice("GRAPPLE: NOTHING IN REACH", now, 0.8);
-      return;
-    }
-    const to = eye.clone().addScaledVector(fwd, hit);
-    const pull = to.clone().sub(player.pos).normalize();
-    player.impulse(pull.x * t.speed, Math.max(pull.y, 0) * t.speed + t.lift * t.speed, pull.z * t.speed);
-    fx.jolt(player.pos.clone(), to, now);
-    audio.zipOn(player.pos);
-    duel?.localFx("grap", player.pos.clone(), to);
-    if (input.pad.active) input.pad.rumble(0.3, 0.5, 100);
-    return;
-  }
-  // SCOUT's tactical: PULSE, the enemies in front shown
-  if (abilities.picked === "scout") {
-    if (duel instanceof Duel && (duel.downed || !duel.alive)) return;
-    const left = abilities.pulseLeft(now);
-    if (left > 0) {
-      hud.notice(`PULSE: BACK IN ${left.toFixed(1)} S`, now, 0.6);
-      return;
-    }
-    if (!abilities.tryPulse(now)) return;
-    const t = KITS.scout.tactical;
-    const n = kitSight()?.reveal(player.pos, new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion), t.range, t.cone, t.seconds) ?? 0;
-    audio.pingTick();
-    hud.notice(n > 0 ? `PULSE: ${n} ENEMY${n > 1 ? " CONTACTS" : ""}` : "PULSE: NOBODY IN FRONT", now, 1.4);
-    return;
-  }
-  // MEDIC's tactical: PATCH, health back over a few seconds
-  if (abilities.picked === "triage") {
-    if (duel instanceof Duel && (duel.downed || !duel.alive)) return;
-    const left = abilities.patchLeft(now);
-    if (left > 0) {
-      hud.notice(`PATCH: BACK IN ${left.toFixed(1)} S`, now, 0.6);
-      return;
-    }
-    if (!abilities.tryPatch(now)) return;
-    const t = KITS.medic.tactical;
-    startRegen(t.health, t.seconds, now);
-    audio.reload();
-    duel?.localFx("patch", player.pos.clone());
-    return;
-  }
-  if (player.dropping) return;
-  // down (a battle royale squad): no dash
-  if (duel instanceof Duel && duel.downed) return;
-  const left = abilities.cooldownLeft(now);
-  if (left > 0) {
-    // a dash just gone: the second waits out the gap quietly; empty: when the next is back
-    if (abilities.charge(now).charges === 0) hud.notice(`JOLT: NEXT CHARGE IN ${left.toFixed(1)} S`, now, 0.6);
-    return;
-  }
-  const d = player.moveDir(scriptInput ?? input);
-  const from = player.pos.clone();
-  if (!abilities.tryJolt(now)) return;
-  if (!player.jolt(d.x, d.z, JOLT.distance, JOLT.duration, JOLT.exitSpeedHu * HU)) {
-    abilities.refund();
-    return;
-  }
-  // where it will end: a wall ahead stops it
-  const dir = new THREE.Vector3(d.x, 0, d.z);
-  const reach = Math.max(0, Math.min(JOLT.distance, solidHit(from.clone().setY(from.y + 1), dir, JOLT.distance) - MOVE.radius));
-  const to = from.clone().addScaledVector(dir, reach);
-  // your own streak only from behind: in first person you are inside it
-  if (thirdPerson) fx.jolt(from, to, now);
-  audio.jolt(1);
-  duel?.localFx("jolt", from, to);
-  selfFig?.jolt();
-  joltedAt = gameTime;
-  // the feel: the view rolls toward a sideways dash (none for straight ahead or back), the pad kicks
-  const yawR = player.yaw * DEG;
-  const lateral = d.x * Math.cos(yawR) - d.z * Math.sin(yawR);
-  joltRollSide = Math.abs(lateral) > 0.3 ? Math.sign(lateral) * Math.min(1, Math.abs(lateral)) : 0;
-  if (input.pad.active) input.pad.rumble(JOLT.feel.rumble[0], JOLT.feel.rumble[1], JOLT.feel.rumble[2]);
-}
-/** a JOLT's roll: which side (+1 right), and the envelope from joltedAt */
-let joltRollSide = 0;
-function joltRoll(now: number): number {
-  const t = now - joltedAt;
-  const f = JOLT.feel;
-  const env = t < 0 ? 0 : t < f.rollIn ? t / f.rollIn : Math.max(0, 1 - (t - f.rollIn) / f.rollOut);
-  return env * f.roll * joltRollSide;
-}
 /** a ping twice within this long is an enemy ping (the game's double tap), and when the last went */
 const PING_DOUBLE = 0.35;
 let lastPingAt = -Infinity;
-/** the match's phase last frame, and whether you were in the drop: the card comes up on a change */
-let lastMatchPhase: string | null = null;
-let wasDropping = false;
-/** extra field of view through a JOLT, eased */
-let joltFov = 0;
 
 /** the vitals heals work on: the match's, or the range's when the dummies shoot back */
 const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : (tour?.healVitals ?? null));
 /** the guided tour of the range (tour.ts): it watches, the steps move on when you do each thing */
 const tour = new Tour(scene);
-/** whether a JOLT has gone this step (the tour) */
-let joltedAt = -Infinity;
 
 // ---------------------------------------------------------------- SpeedKills' hacks
 // (hacks.ts holds what you carry; this is what each one does. The keys: the
@@ -4327,7 +3854,6 @@ function useHack(slot: HackSlot, now: number): void {
       audio.hackSound("dash");
       sendFx("jolt", from, to);
       selfFig?.jolt();
-      joltedAt = gameTime;
       break;
     }
     case "slam": {
@@ -4741,7 +4267,6 @@ function tourCheck(now: number): TourCheck {
     reloading: loadout.active.state.reloading,
     swapping: loadout.swapping,
     healing: heal !== null,
-    joltUsed: now - joltedAt < 0.5,
     now,
     hackUses,
     fusion: loadout.active.fusion ?? 0,
@@ -5344,10 +4869,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
   d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? P.feedAlly : P.feedEnemy);
-  // someone else's JOLT, hack, emote, spray: remoteFx
+  // someone else's dash, hack, emote, spray: remoteFx
   d.onRemoteFx = (k, from, a, b, n) => remoteFx(d, k, from, a, b, n);
-  // abilities are the match's: on or off, nothing picked yet (the card comes at the countdown or the landing)
-  abilities.reset(d.abilities && !IS_SK);
   // SpeedKills: your two picked hacks, ready
   resetHacks();
   edge.reset();
@@ -5371,8 +4894,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onShotFired = (id, o, dir, w) => {
     recorder.shot(realNow(), id, o, dir, w);
     if (id === d.id) return;
-    // SCOUT's SHARP EARS: an enemy firing within earshot shows itself
-    if (abilities.enabled && abilities.picked === "scout" && !(d instanceof Duel && d.isFriend(id)) && player.pos.distanceTo(o) <= KITS.scout.hearing) kitSight()?.revealOne(id, KITS.scout.tactical.seconds);
     const t = realNow();
     if (t - (lastShotSound.get(id) ?? -1) > 0.03) {
       lastShotSound.set(id, t);
@@ -5382,7 +4903,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onHealSeen = (id, item) => dlog.heal({ t: realNow(), id, item });
   brPlay.reset();
   // a team mate's SCOUT scan, in the modes (a battle royale's marks go through onMark below)
-  if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, KITS.scout.tactical.seconds));
+  if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, H.reveal.shareSeconds));
   if (d instanceof BrMatch) {
     d.onWiped = () => announcer.say("wiped", realNow());
     d.onKnockSeen = (victim, by) => {
@@ -5436,9 +4957,9 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       audio.swap();
     };
     d.onMark = (k, from, at, label, target) => {
-      // a squad mate's PULSE or SWEEP: the same enemies shown here
+      // a squad mate's REVEAL: the same enemies shown here
       if (k === "scan") {
-        if (target >= 0) d.revealOne(target, KITS.scout.tactical.seconds);
+        if (target >= 0) d.revealOne(target, H.reveal.shareSeconds);
         return;
       }
       brPlay.addMarker(k, at, label, from, target, gameTime);
@@ -5498,8 +5019,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
 function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void {
   remoteFxLog.push({ k, from });
   if (remoteFxLog.length > 20) remoteFxLog.shift();
-  // SpeedKills has no smoke (Phase 20 A10): a cloud from an older build's SMOKE bot is not drawn here either
-  if (IS_SK && (k === "smoke" || (k === "ult" && n === 5))) return;
+  // an older build's kit effects (a cloud, an ultimate, a patch): the kits went in Milestone 491, nothing to draw
+  if (k === "smoke" || k === "ult" || k === "patch") return;
   // (an older build's edge laser on someone past the city's edge: drawn no more, the owner took it out)
   if (k === "edge") return;
   // a SpeedKills hack of someone else's
@@ -5507,48 +5028,18 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
     remoteHack(from, n, a, b);
     return;
   }
-  // a MEDIC mate's FIELD HEAL: close enough, and it is health over time for this player too
-  if (k === "ult" && n === 2 && a && d instanceof Duel && d.isFriend(from)) {
-    if (player.pos.distanceTo(a) <= KITS.medic.ult.radius) {
-      startRegen(KITS.medic.ult.health, KITS.medic.ult.seconds, gameTime);
-      hud.notice(`${KITS.medic.ult.name} FROM ${d.nameFor(from) ?? "A MATE"}`, gameTime, 1.4);
-    }
-    return;
-  }
-  // someone else's GRAPPLE: the line where it went; their ZIP LINE: the same rope here
+  // someone else's GRAPPLE: the line where it went
   if (k === "grap" && a && b) {
     fx.jolt(a, b, gameTime);
     audio.zipOn(a);
     return;
   }
-  if (k === "ult" && n === 4 && a && b) {
-    putUpZipline(a, b, gameTime);
-    return;
-  }
-  // someone else's canister, or their screen of three: the same clouds here
+  // someone else's WALL: the same wall here
   if (k === "wall" && a && b) {
-    putWall(scene, a.x, a.y, a.z, b.x, gameTime, IS_SK ? H.wall.seconds : undefined);
+    putWall(scene, a.x, a.y, a.z, b.x, gameTime, H.wall.seconds);
     audio.clatter(a);
     return;
   }
-  if (k === "ult" && n === 6 && a && b) {
-    putBastion(a, b.x, gameTime);
-    audio.clatter(a);
-    return;
-  }
-  if (k === "smoke" && a && b) {
-    throwSmoke(scene, a, b, gameTime);
-    audio.throwNoise("bounce", b);
-    return;
-  }
-  if (k === "ult" && n === 5 && a && b) {
-    const u = KITS.smoke.ult;
-    const across = new THREE.Vector3(0, 1, 0).cross(b.clone().sub(a).setY(0).normalize()).normalize();
-    for (let i = 0; i < u.count; i++) throwSmoke(scene, a, b.clone().addScaledVector(across, (i - (u.count - 1) / 2) * u.spread), gameTime);
-    audio.throwNoise("bounce", b);
-    return;
-  }
-  if (k === "ult" || k === "patch") return;
   // a quick chat line: its number, said in the feed under their name
   if (k === "chat" && typeof n === "number") {
     sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
@@ -5709,13 +5200,11 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   cancelJoin = null;
   for (const c of courses) c.leave();
   const squad = myId === 0 ? hostBr : (br ?? null);
-  // the host's own choice, or what the host's welcome said (an older host sends none: off)
-  const withAbilities = myId === 0 ? (hostOpts?.abilities ?? false) : (opts?.abilities ?? false);
   let d: Duel;
   const modeOpts = myId === 0 ? hostOpts?.mode : opts?.mode;
   if (modeOpts && isModeKind(modeOpts.kind)) {
     const diff: BotDifficulty = asDifficulty(modeOpts.difficulty);
-    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, map: arenaFromWire(modeOpts.map), split: modeOpts.split === true });
+    d = new ArenaMode(scene, projectiles, { players, myId, link, guestId, kind: modeOpts.kind, bots: modeOpts.bots, difficulty: diff, botWeapon: modeOpts.botWeapon ?? null, map: arenaFromWire(modeOpts.map), split: modeOpts.split === true });
     duel = d;
     // the walls of the map this match is on, which is not always the warehouse now
     player.setBounds(d.arenaBounds);
@@ -5724,7 +5213,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, abilities: withAbilities, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), pace: squad.pace, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
+    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), pace: squad.pace, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
     d = br;
     duel = d;
     wireMatch(d, "br");
@@ -5734,7 +5223,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     // three is still the triangle, the only map with three corners; two play
     // on the host's pick
     const wireMap = myId === 0 ? hostOpts?.map : opts?.map;
-    d = new Duel(scene, projectiles, { players, myId, link, guestId, abilities: withAbilities, map: players >= 3 ? null : arenaFromWire(wireMap) });
+    d = new Duel(scene, projectiles, { players, myId, link, guestId, map: players >= 3 ? null : arenaFromWire(wireMap) });
     duel = d;
     player.setBounds(players >= 3 ? TRI_BOUNDS : d.arenaBounds);
     wireMatch(d, players >= 3 ? "triple" : "duel");
@@ -5868,7 +5357,7 @@ function startBots(): void {
   // five and the match made one or two whatever it said
   const count = Math.max(1, Math.min(MOST_BOTS, Number(botCount.value) || 1));
   // the Map picker covers the 1v1 against bots too; the warehouse is still the default
-  const d = new BotMatch(scene, projectiles, diff, count, abilitySetting("bots"), arenaMapChoice("duel", 2));
+  const d = new BotMatch(scene, projectiles, diff, count, arenaMapChoice("duel", 2));
   if (d.arenaId === CENTRE_MAP.id) d.nav = centreNav ??= new CircleNav(brMap.nodes, CENTRE_MAP.bounds.circle!);
   duel = d;
   player.setBounds(d.arenaBounds);
@@ -5896,7 +5385,7 @@ function startMode(kind: ModeKind): void {
   // the bots you picked are the ones you face, in every mode; a team mode
   // fills your side to match (modematch.ts)
   const bots = Math.max(1, modeBotCount());
-  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, abilities: abilitySetting("bots"), kind, bots, difficulty: diff, botWeapon: botWeaponChoice(), map: arenaMapChoice(kind, 1 + bots) });
+  const d = new ArenaMode(scene, projectiles, { players: 1, myId: 0, link: null, kind, bots, difficulty: diff, botWeapon: botWeaponChoice(), map: arenaMapChoice(kind, 1 + bots) });
   duel = d;
   player.setBounds(d.arenaBounds);
   wireMatch(d, kind);
@@ -5915,7 +5404,7 @@ function startBr(seed = newSeed(), poi?: string): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, abilities: abilitySetting("br"), seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), pace: brPace(), gulag: !noGulag(), vault: !noVault() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), pace: brPace(), gulag: !noGulag(), vault: !noVault() });
   duel = d;
   wireMatch(d, "br");
   brHour(d);
@@ -5991,17 +5480,10 @@ function endMatch(reason: string): void {
   // a match over while it was still being shown (left from the menu over the loading screen): the screen goes with it,
   // and nothing it put off is said
   if (show) endShow(false);
-  // any zipline HOOK put up, and any cloud SMOKE left, go with the match
-  clearZiplines();
-  clearSmoke();
+  // any wall the WALL hack put up goes with the match
   clearWalls();
   voiceStop();
   matchGuns = null;
-  // the host's ability numbers went with the match: back to this page's own
-  tuneAbilities(myTuning);
-  abilities.fill();
-  showTuning();
-  showDash();
   flushTally();
   // a match that ran to its end keeps the group: its links, handed back open (leaving closed them)
   if (duel instanceof Duel && duel.phase === "matchEnd" && !duel.left) {
@@ -6026,8 +5508,7 @@ function endMatch(reason: string): void {
   sprays.clear();
   // and out of a battle royale nothing limits the ammo you carry
   loadout.ammo.packTier = null;
-  // back in the range: either ability to practise, nothing picked; ammo as Settings says
-  abilities.reset(!IS_SK);
+  // back in the range: ammo as Settings says
   loadout.ammo.infinite = !rangeAmmoCounted;
   killcam.stop();
   recap = null;
@@ -6078,12 +5559,11 @@ function readHostSettings(): void {
   const guns = $<HTMLSelectElement>("ruleGuns").value;
   // and the ability numbers as the panel has them: only what is not the
   // config's own, so a match that changed nothing carries nothing
-  const rules: MatchRules = { guns: guns in rulesCfg.classes ? guns : "any", rounds: Number($<HTMLSelectElement>("ruleRounds").value) || 3, ff: $<HTMLSelectElement>("ruleFF").value === "on", abil: tuningChanges() };
+  const rules: MatchRules = { guns: guns in rulesCfg.classes ? guns : "any", rounds: Number($<HTMLSelectElement>("ruleRounds").value) || 3, ff: $<HTMLSelectElement>("ruleFF").value === "on" };
   // a class of guns arms the bots with its first, unless the Bot guns box already picked one
   const classGun = rules.guns !== "any" ? rulesCfg.classes[rules.guns as keyof typeof rulesCfg.classes].guns[0] : null;
   hostOpts = {
     game: GAME,
-    abilities: abilitySetting(duelKind()),
     mode: mk ? { kind: mk, bots: modeBotCount(), difficulty: brDifficulty(), botWeapon: botWeaponChoice() ?? classGun, map: arenaMapChoice(mk, 8), split: $<HTMLSelectElement>("modeSides").value === "split" } : undefined,
     map: arenaMapChoice("duel", 2),
     rules,
@@ -6096,14 +5576,6 @@ let matchGuns: keyof typeof rulesCfg.classes | null = null;
 /** a match's custom rules, as the host set them (this page's, or the welcome's): rounds, friendly fire, guns */
 function applyRules(d: Duel, r: MatchRules | undefined): void {
   matchGuns = null;
-  // The ability numbers: the host's, or this page's own when there is no host
-  // to say (a match on your own, or an older host that sends none). Always set
-  // from a whole tuning rather than laid over the last match's, so leaving a
-  // match with six dashes in it does not leave six dashes behind.
-  tuneAbilities(r?.abil ?? myTuning);
-  abilities.fill();
-  showTuning();
-  showDash();
   if (!r) return;
   if (typeof r.rounds === "number" && rulesCfg.rounds.includes(r.rounds)) d.roundsToWin = r.rounds;
   d.friendlyFire = r.ff === true;
@@ -7321,7 +6793,6 @@ function step(): void {
   // The controller: read once here so every key check below sees it. Start
   // toggles the menu; with a pad in use no pointer lock is needed to play.
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
-  input.pad.cardOpen = abilities.choosing;
   const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac, opticAdsMult());
   if (input.pad.menuPressed) {
     if (input.locked) input.unlock();
@@ -7576,24 +7047,8 @@ function step(): void {
       applyHour(hourFor(next));
       hud.notice(`${HOURS[next].label} (F8 flips it)`, now, 2);
     }
-    // 5 and 6 pick an ability while its card is up (any time in the range);
-    // on a controller the d-pad's left and right pick while the card is up
-    if (abilities.enabled && (abilities.choosing || !duel)) {
-      // (the pad's D-pad left and right are these while the card is up: gamepad.ts)
-      if (input.pressedNow("pickAbility1")) pickAbility("jolt", now);
-      else if (input.pressedNow("pickAbility2")) pickAbility("triage", now);
-      else if (input.pressedNow("pickAbility3")) pickAbility("scout", now);
-      else if (input.pressedNow("pickAbility4")) pickAbility("hook", now);
-      else if (input.pressedNow("pickAbility5")) pickAbility("smoke", now);
-      else if (input.pressedNow("pickAbility6")) pickAbility("ward", now);
-    }
-    // F: the ability; Z: the ultimate. SpeedKills: F (a pad's LB) is the mobility hack, and G (RB) the utility one, below
-    if (IS_SK) {
-      if (input.pressedNow("ability") && !knockedOut) useHack("mobility", now);
-    } else {
-      if (input.pressedNow("ability") && !knockedOut) useAbility(now);
-      if (input.pressedNow("ultimate") && !knockedOut) useUltimate(now);
-    }
+    // F (a pad's LB): SpeedKills' mobility hack; G (RB) the utility one, below
+    if (IS_SK && input.pressedNow("ability") && !knockedOut) useHack("mobility", now);
     // K: race your best run's ghost, or not
     if (input.pressedNow("ghost")) {
       const course = activeCourse();
@@ -7731,12 +7186,7 @@ function step(): void {
           : 0;
   // Holstered you move 15% faster: walk 199.5, sprint 299, crouch 92, and the
   // slide boost and cap scale with it.
-  player.holsterBoost = (holster === "away" ? MOVE.holsterBoost : 1) * (gameTime < overdriveUntil ? KITS.runner.ult.speed : 1);
-  // the kit: RUNNER's passive, the ultimate's meter (time, and the damage dealt since last frame), MEDIC's heals over time
-  player.sureFooting = abilities.enabled && abilities.picked === "jolt";
-  player.climbBoost = abilities.enabled && abilities.picked === "hook" ? KITS.hook.climbSpace : 1;
-  stepZiplines(gameTime);
-  stepSmokeKit(gameTime, dt);
+  player.holsterBoost = holster === "away" ? MOVE.holsterBoost : 1;
   stepWalls(gameTime);
   stepHacks(gameTime, dt);
   stepDecay(gameTime);
@@ -7750,18 +7200,6 @@ function step(): void {
       if (quiet >= SK_HEALTH.healthDelay) d.health = Math.min(SK_HEALTH.health, d.health + SK_HEALTH.healthRegen * dt);
     }
   }
-  // WARD's HARD SHELL: shield back once nothing has hurt you for a while
-  {
-    const regen = abilities.shieldRegen;
-    const d = duel as unknown as { shield?: number; shieldMax?: number; alive?: boolean } | null;
-    if (regen > 0 && d && typeof d.shield === "number" && typeof d.shieldMax === "number" && d.alive !== false && gameTime - lastHurtAt >= KITS.ward.quiet) d.shield = Math.min(d.shieldMax, d.shield + regen * dt);
-  }
-  {
-    const dealt = duel instanceof Duel ? duel.damageDealt : 0;
-    abilities.chargeUlt(duel ? dt : 0, Math.max(0, dealt - ultDamageSeen));
-    ultDamageSeen = dealt;
-  }
-  stepRegen(gameTime, dt);
 
   // A weapon being raised, lowered or holstered cannot fire or aim.
   // In a 1v1, firing is held during the countdown and after a round is decided.
@@ -7995,9 +7433,6 @@ function step(): void {
   }
   camera.quaternion.copy(player.orientation(off.pitchUp, off.yawLeft));
   if (sprintRoll !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, sprintRoll));
-  // a sideways JOLT leans the view into it
-  const jr = joltRoll(gameTime);
-  if (jr !== 0) camera.quaternion.multiply(tmpQ.setFromAxisAngle(FORWARD_AXIS, -jr * DEG));
   // The camera moves with the body (src/config/player.json `feel`): a lean
   // into a slide, a roll on a running landing, a kick out of a lurch, and a
   // pull forward while a paint boost is on. None of it touches the aim: the
@@ -8142,13 +7577,11 @@ function step(): void {
   const adsV = verticalFovFrom43(adsH);
   // Sliding widens the view by slideFovScale (an engine value). Sprint does
   // not: the sprint FOV kick that was here was ours, and Apex has none.
-  // a JOLT: the view widens by its kick at once, and settles as the dash hands over to the run
-  joltFov += ((player.jolting ? JOLT.feel.fov / hipV : 0) - joltFov) * Math.min(1, dt / (player.jolting ? JOLT.feel.rollIn : JOLT.feel.rollOut));
   // and a paint boost opens it a touch too, the same way the slide does
-  const speedFov = (player.slideFov + joltFov) * (1 - ws.adsFrac);
+  const speedFov = player.slideFov * (1 - ws.adsFrac);
   camera.fov = shotFov ?? (hipV + (adsV - hipV) * ws.adsFrac) * (1 + speedFov);
   camera.updateProjectionMatrix();
-  // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide or JOLT in it
+  // the gun's FOV: the same blend at viewmodel.json's scale, not yours, and no slide in it
   // (a held aim, debugView.ads, aims the gun camera too: the picture as aimed, not the aimed pose at the hip's FOV)
   vmCamera.fov = debugView.gunFov ?? gunFov(hipH, adsH, debugView.ads ?? ws.adsFrac, settings.fovScale, vmCfg.fovScale);
   vmCamera.aspect = camera.aspect;
@@ -8551,18 +7984,6 @@ function step(): void {
     ]);
   }
 
-  // the ability card: at each countdown of an arena or bot match, and on
-  // landing from a battle royale's drop; a re-offer (a pick already made)
-  // goes away by itself when the fight starts
-  if (duel && duel.abilities) {
-    const ph = duel.phase;
-    if (duel instanceof BrMatch) {
-      if (wasDropping && !player.dropping && duel.alive && !abilities.picked) abilities.offer(now);
-    } else if (ph === "countdown" && lastMatchPhase !== "countdown") abilities.offer(now);
-    else if (ph === "fight" && lastMatchPhase === "countdown" && abilities.picked) abilities.choosing = false;
-    lastMatchPhase = ph;
-  } else lastMatchPhase = null;
-  wasDropping = player.dropping;
 
   // THE CENTRE's wall and capture circle, while a match is played on it
   {
@@ -8593,7 +8014,7 @@ function step(): void {
     const range = drawn.threatRange;
     const aim = Math.max(0, Math.min(1, ((debugView.ads ?? ws.adsFrac) - 0.6) / 0.3));
     for (const d of duel ? [...threatTargets, ...duel.avatars] : threatTargets) {
-      // SCOUT's PULSE or SWEEP (or a squad mate's) shows an enemy whatever the optic
+      // a REVEAL shows an enemy whatever the optic
       let t = kitSight()?.shown.has(d) ? 1 : 0;
       if (range && aim > 0 && d.group.visible && !d.knocked) {
         const dist = d.group.position.distanceTo(camera.position);
@@ -8817,29 +8238,6 @@ function step(): void {
           return [{ name: hackDef(h.id)?.name ?? h.id, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), frac: hacks.fraction(slot, now), left: hacks.left(slot, now), level: h.level, maxLevel: HACK.fuseLevels, slot }];
         })
       : null,
-    ability:
-      abilities.enabled && abilities.picked
-        ? (() => {
-            const c = abilities.charge(now);
-            const k = kitOf(abilities.picked!);
-            const ult = { name: k.ult, key: keyLabel("ultimate"), k: abilities.ult, live: abilities.picked === "jolt" ? Math.max(0, overdriveUntil - now) : regen ? Math.max(0, regen.until - now) : 0 };
-            if (abilities.picked === "ward") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.ward.tactical.cooldown, left: abilities.wallLeft(now), passive: false, icon: "wall" as const, ult };
-    if (abilities.picked === "smoke") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.smoke.tactical.cooldown, left: abilities.canisterLeft(now), passive: false, icon: "cloud" as const, ult };
-    if (abilities.picked === "hook") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.hook.tactical.cooldown, left: abilities.grappleLeft(now), passive: false, icon: "hook" as const, ult };
-    if (abilities.picked === "scout") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.scout.tactical.cooldown, left: abilities.pulseLeft(now), passive: false, icon: "eye" as const, ult };
-    if (abilities.picked === "triage") return { name: k.tactical, key: keyLabel("ability"), cooldown: KITS.medic.tactical.cooldown, left: abilities.patchLeft(now), passive: false, icon: "cross" as const, ult };
-            return { name: ABILITIES[abilities.picked!].name, key: keyLabel("ability"), cooldown: c.recharge, left: c.charges > 0 ? 0 : c.nextIn, passive: false, charges: c.charges, max: c.max, nextIn: c.nextIn, icon: "dash" as const, ult };
-          })()
-        : null,
-    // the card: full when it has just come up in a match, one line after 6 s or in the range
-    abilityCard:
-      abilities.enabled && (abilities.choosing || (!duel && !abilities.picked))
-        ? {
-            options: (["jolt", "triage", "scout", "hook", "smoke", "ward"] as const).map((id, i) => { const k = kitOf(id); return { key: keyLabel((["pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5", "pickAbility6"] as const)[i]), name: k.kit, blurb: k.blurb, tactical: k.tactical, ult: k.ult, passive: k.passive, picked: abilities.picked === id }; }),
-            age: now - abilities.offeredAt,
-            compact: !duel || !abilities.choosing || now - abilities.offeredAt > 6,
-          }
-        : null,
     callout: calloutNow,
     // the squad before the plates: a teammate the squad shows has its name tag, not a plate
     squad: (lastSquad = IS_SK && duel instanceof BrMatch && !killcam.active ? squadNow(duel, now) : (clearSquadRings(), null)),
@@ -9209,26 +8607,11 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the dropship: this match's flight, and who you are linked to or following */
   ship: () => (duel instanceof BrMatch ? duel.ship : null),
   shipState: () => ({ aboard: player.aboard, linkedTo, following, leash: player.leash ? player.leash.toArray() : null }),
-  /** abilities (tools/e2e.ts): the state, a pick, a use */
-  abilities,
-  pickAbility: (id: AbilityId) => pickAbility(id, gameTime),
-  useAbility: () => useAbility(gameTime),
-  useUltimate: () => useUltimate(gameTime),
   fxCount: () => fx.count,
-  /** the ziplines in the world now, HOOK's put up among them (the checks count them) */
-  ziplineCount: () => ZIPLINES.length,
-  /** the clouds standing now (the checks count them) */
-  smokeCount: () => SMOKES.length,
-  /** the walls WARD put up, standing now (the checks count them) */
+  /** the walls the WALL hack put up, standing now (the checks count them) */
   wallCount: () => WALLS.length,
-  /** the checks: everything the kits have put up (walls, clouds, ziplines) taken away between them */
-  clearKitStuff: () => {
-    clearWalls();
-    clearSmoke();
-    clearZiplines();
-  },
-  /** where each cloud stands (the checks look) */
-  smokeSpots: () => SMOKES.map((c) => ({ x: c.at.x, y: c.at.y, z: c.at.z, r: c.r })),
+  /** the checks: the walls taken away between them */
+  clearKitStuff: () => clearWalls(),
   gameTime: () => gameTime,
   /** the killcam and the recap (tools/e2e.ts) */
   killcamState: () => ({ active: killcam.active, killer: killcam.killerName, killerId: killcam.killerId, weapon: killcam.killerWeapon, progress: killcam.progress, frames: recorder.frames.length, span: recorder.span, shots: recorder.shots.length, ghosts: killcam.ghostIds }),
@@ -9279,20 +8662,13 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the level's ziplines and collision boxes (tools/e2e.ts) */
   ziplines: ZIPLINES,
   solids: RANGE_SOLIDS,
-  /** the practice aim bot and the dash's settings (tools/e2e.ts) */
+  /** the practice aim bot (tools/e2e.ts) */
   aimbot,
-  jolt: () => ({ ...JOLT }),
-  setJolt,
-  /** every kit's live numbers, and the ones this match is playing by (tools/e2e.ts) */
-  kits: KITS,
-  tuning: () => tuningChanges(),
   /** leave the match the way the button does (tools/e2e.ts) */
   leaveMatch: () => duelLeaveBtn.click(),
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** how the camera is moving with the body (tools/e2e.ts): the slide's lean, the boost's pull, and the angles the shot uses */
   feelState: () => ({ lean: slideLean, air: airLean, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
-  /** a JOLT's view: the roll in degrees and the FOV fraction now (tools/e2e.ts) */
-  joltFeel: () => ({ roll: joltRoll(gameTime), fov: joltFov }),
   /** the gun camera's near plane, metres (tools/e2e.ts: nothing of a held gun comes inside it) */
   vmCameraNear: () => vmCamera.near,
   /** an inspect begun now, as its button begins one (tools/e2e.ts times it) */

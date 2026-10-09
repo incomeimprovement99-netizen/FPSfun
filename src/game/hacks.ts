@@ -1,7 +1,7 @@
 // SpeedKills' hacks (docs/PHASE_18_PLAN_SPEEDKILLS.md 7.7): two slots, one
 // mobility and one utility, each holding one hack at a fusion level with its
-// own cooldown. The legacy game's kits (abilities.ts) are untouched; this is
-// the SpeedKills side, and it holds only the state: what you carry, how long
+// own cooldown. The legacy game's kits went in Milestone 491; this holds only
+// the state: what you carry, how long
 // until each is back, what a found copy does. What a hack does when it fires
 // is main.ts's, beside the rest of the player's effects.
 //

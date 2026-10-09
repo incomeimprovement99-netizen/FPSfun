@@ -9,8 +9,7 @@
 //   heal (tap: the quick heal; hold: the wheel), D-pad right the utility hack,
 //   D-pad left fire mode (hold: inspect), D-pad down the
 //   variable zoom (ours: the game puts a character action there), Back the
-//   map, Start the menu. While the ability card is up, D-pad left and right
-//   pick one instead. The game's other presets are here too, and "Range",
+//   map, Start the menu. The game's other presets are here too, and "Range",
 //   the layout with the optic and magazine on the D-pad for trying guns.
 //
 // Look: a deadzone, a response curve (the game's Classic is a steeper curve
@@ -205,8 +204,6 @@ export class GamepadInput {
   /** a button with a hold: when it went down, and whether its hold has gone */
   private holdStart: Array<number | null> = [];
   private holdFired: boolean[] = [];
-  /** the ability card is up: the D-pad's left and right pick (the game does it with the same buttons) */
-  cardOpen = false;
 
   constructor() {
     window.addEventListener("gamepadconnected", (e) => {
@@ -263,11 +260,9 @@ export class GamepadInput {
       if (on) touched = true;
       const was = !!this.prevButtons[i];
       this.prevButtons[i] = on;
-      // the card up: left and right on the D-pad pick an ability, nothing else
-      const card = this.cardOpen && (i === 14 || i === 15);
-      const action: Action | "menu" | undefined = card ? (i === 14 ? "pickAbility1" : "pickAbility2") : BUTTON[i];
+      const action: Action | "menu" | undefined = BUTTON[i];
       if (!action) return;
-      const hold = card || action === "menu" ? undefined : PAD_HOLDS[action];
+      const hold = action === "menu" ? undefined : PAD_HOLDS[action];
       if (hold) {
         // a tap goes as it comes up; the hold once it has been down HOLD_TIME, and is held after
         if (on && !was) {

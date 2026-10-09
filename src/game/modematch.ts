@@ -83,7 +83,6 @@ export interface ArenaModeOpts {
   myId: number;
   link: Link | null;
   guestId?: number;
-  abilities?: boolean;
   kind: ModeKind;
   /**
    * The bots you face. In a team mode your side is filled with ally bots to
@@ -210,7 +209,7 @@ export class ArenaMode extends Duel {
   holdFire = false;
 
   constructor(scene: THREE.Scene, projectiles: ProjectileSystem, opts: ArenaModeOpts) {
-    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "arena", abilities: opts.abilities, map: opts.map ?? null });
+    super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "arena", map: opts.map ?? null });
     this.modeKind = opts.kind;
     this.difficulty = opts.difficulty;
     const tdm = teamMode(this.modeKind);
@@ -253,7 +252,6 @@ export class ArenaMode extends Duel {
     const id = Duel.BOT_ID + i;
     {
       const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, id, gun, botName(i));
-      bot.setAbilities(this.abilities);
       bot.onJolt = (a, b) => {
         this.onRemoteFx?.("jolt", bot.remote.id, a, b);
         this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
@@ -846,12 +844,6 @@ export class ArenaMode extends Duel {
       const wasAlive = bot.alive;
       const sense = bot.alive ? this.sense(b, fighters) : { target: null, targetId: -1, goal: null, canShoot: false };
       const shots = bot.update(now, dt, sense);
-      // SMOKE's cloud or WARD's wall: drawn here and on the others' screens
-      const put = bot.takePutUp();
-      if (put) {
-        this.onRemoteFx?.(put.k, bot.remote.id, put.from, put.to, 0);
-        this.broadcast({ t: "fx", from: bot.remote.id, k: put.k, a: [put.from.x, put.from.y, put.from.z], b: [put.to.x, put.to.y, put.to.z], n: 0 });
-      }
       // knocked by something that did not come through a hit (this player's melee)
       if (wasAlive && !bot.alive && bot.remote.alive) this.botDown(b, this.id, true);
       if (bot.alive) {

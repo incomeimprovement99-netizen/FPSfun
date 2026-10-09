@@ -29,8 +29,6 @@ export type SetupGroup =
   | "modebots"
   /** how good the bots are */
   | "difficulty"
-  /** whether anyone in an arena or a mode match has an ability */
-  | "abilities"
   /** which guns the match allows, and friendly fire */
   | "rules"
   /** rounds to win, which only a 1v1 counts */
@@ -70,11 +68,11 @@ export const LOBBY_MODES: readonly LobbyMode[] = [
   { id: "run", go: "goRun", name: "The Run (Basic)", card: "Seven rooms, one technique each, twenty pop-ups.", needs: [], solo: true, friends: null },
   { id: "runAdvanced", go: "goRunAdvanced", name: "The Run (Advanced)", card: "Nine rooms, 200 m, the techniques chained. Thirty pop-ups.", needs: [], solo: true, friends: null },
   { id: "duel", go: "goDuel", name: "1v1 and 1v1v1", card: "You against a friend, or two. First to 3, with the circle.", needs: ["map", "rules", "rounds", "train"], solo: false, friends: "arena" },
-  { id: "bots", go: "goBots", name: "Arena, Bots", card: "The 1v1 rules against bots, alone or with friends.", needs: ["map", "arenabots", "difficulty", "abilities", "rules", "rounds", "train"], solo: true, friends: "arena" },
+  { id: "bots", go: "goBots", name: "Arena, Bots", card: "The 1v1 rules against bots, alone or with friends.", needs: ["map", "arenabots", "difficulty", "rules", "rounds", "train"], solo: true, friends: "arena" },
   { id: "br", go: "goBr", name: "Battle Royale", card: "Drop into the Neon City, the sectors decay, last squad standing.", needs: ["br", "difficulty", "train"], solo: true, friends: "br" },
-  { id: "tdm", go: "goTdm", name: "Team Deathmatch", card: "Four a side, respawns, first team to 30.", needs: ["map", "modebots", "difficulty", "abilities", "rules", "train"], solo: true, friends: "tdm" },
-  { id: "control", go: "goControl", name: "Control", card: "Five a side over three zones, A B C. A point a second for each, first to 500.", needs: ["map", "modebots", "difficulty", "abilities", "rules", "train"], solo: true, friends: "control" },
-  { id: "ffa", go: "goFfa", name: "Free-for-all", card: "Everyone for themselves, respawns, first to 20 kills.", needs: ["map", "modebots", "difficulty", "abilities", "rules", "train"], solo: true, friends: "ffa" },
+  { id: "tdm", go: "goTdm", name: "Team Deathmatch", card: "Four a side, respawns, first team to 30.", needs: ["map", "modebots", "difficulty", "rules", "train"], solo: true, friends: "tdm" },
+  { id: "control", go: "goControl", name: "Control", card: "Five a side over three zones, A B C. A point a second for each, first to 500.", needs: ["map", "modebots", "difficulty", "rules", "train"], solo: true, friends: "control" },
+  { id: "ffa", go: "goFfa", name: "Free-for-all", card: "Everyone for themselves, respawns, first to 20 kills.", needs: ["map", "modebots", "difficulty", "rules", "train"], solo: true, friends: "ffa" },
 ];
 
 /** the mode by its id */

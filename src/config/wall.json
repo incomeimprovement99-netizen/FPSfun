@@ -1,0 +1,7 @@
+{
+  "_note": "The wall the WALL hack puts up (src/game/walls.ts): its panel and how far ahead of you it goes, in metres. These were WARD's in the legacy game's kits.json, which went in Milestone 491 with the kits; the hack kept them. How long it stands, its cooldown and how many stand at once are the hack's own (hacks.json wall).",
+  "width": 4.2,
+  "height": 2.4,
+  "thick": 0.35,
+  "reach": 4
+}

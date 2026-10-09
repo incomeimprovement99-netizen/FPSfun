@@ -12,7 +12,6 @@
 import { GAME, GAME_IDS, profileOf, resolveGame } from "../../src/game/game";
 import { weaponIds, allWeaponIds, weaponMods } from "../../src/game/weapons";
 import { optionsFor } from "../../src/game/attachments";
-import { ABILITY_IDS } from "../../src/game/abilities";
 import binds from "../../src/config/binds.json";
 
 let fails = 0;
@@ -33,7 +32,6 @@ console.log("The game switch and its profiles");
   check("outside a browser (these checks) the game is legacy, the frozen one", GAME === "legacy");
 
   const catalogue = new Set(weaponIds());
-  const abilityCode = new Set<string>(ABILITY_IDS);
   const MAPS = new Set(["outskirts", "city"]);
   for (const id of GAME_IDS) {
     const p = profileOf(id);
@@ -49,8 +47,6 @@ console.log("The game switch and its profiles");
     check(`${tag} every named gun is on the roster`, named.every(([g]) => p.roster.includes(g)));
     const badOptic = named.filter(([g, w]) => !optionsFor("optic", weaponMods(g), g).some((o) => o.mod === w.optic)).map(([g, w]) => `${g}:${w.optic}`);
     check(`${tag} every fixed optic is one the gun can take`, badOptic.length === 0, badOptic.join(", "));
-    const noCode = p.abilities.set.filter((a) => a.from !== null && !abilityCode.has(a.from)).map((a) => a.id);
-    check(`${tag} every ability is built on one that exists (or says it is new)`, noCode.length === 0, noCode.join(", "));
     check(`${tag} every ability sits in one of the game's slots, and every slot has a choice`, p.abilities.set.every((a) => p.abilities.slots.includes(a.slot)) && p.abilities.slots.every((s) => p.abilities.set.some((a) => a.slot === s)));
     check(`${tag} the battle royale map is one there is`, MAPS.has(p.map), p.map);
     check(`${tag} its name and line carry no other game's name`, !/apex|hyper ?scape|ubisoft|neo arcadia/i.test(`${p.name} ${p.tagline} ${p.identity.title}`));
@@ -59,7 +55,6 @@ console.log("The game switch and its profiles");
   // legacy: the catalogue it froze with, nothing left out
   const legacy = profileOf("legacy");
   check("legacy: its roster is the whole catalogue", legacy.roster.length === catalogue.size && [...catalogue].every((g) => legacy.roster.includes(g)), `${legacy.roster.length} of ${catalogue.size}`);
-  check("legacy: its six kits are the six there are", legacy.abilities.set.length === ABILITY_IDS.length);
 
   // SpeedKills: the brief's shape
   const sk = profileOf("speedkills");
@@ -92,14 +87,12 @@ console.log("The game switch and its profiles");
 
 console.log("\nSpeedKills' keys");
 {
-  // The legacy kit's ultimate and its card's picks share keys with the zoom,
-  // the emote and the spray (plan section 12, items 9 and 10). SpeedKills turns
-  // the kit off (main.ts: abilities.enabled = !IS_SK), so those actions never
-  // fire there, and every key it does use must do one thing only.
-  const unused = new Set(["ultimate", "pickAbility1", "pickAbility2", "pickAbility3", "pickAbility4", "pickAbility5", "pickAbility6"]);
+  // every key SpeedKills uses does one thing only (the legacy kit's ultimate and
+  // card picks, which shared keys with the zoom, the emote and the spray, went
+  // with the kits in Milestone 491)
   const byKey = new Map<string, string[]>();
   for (const [action, keys] of Object.entries(binds as Record<string, unknown>)) {
-    if (action.startsWith("_") || unused.has(action)) continue;
+    if (action.startsWith("_")) continue;
     for (const k of Array.isArray(keys) ? keys : [keys]) if (typeof k === "string") byKey.set(k, [...(byKey.get(k) ?? []), action]);
   }
   const shared = [...byKey].filter(([, a]) => a.length > 1).map(([k, a]) => `${k}: ${a.join(", ")}`);

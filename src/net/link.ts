@@ -252,8 +252,6 @@ export interface MatchOpts {
    * check refuses a gun it does not know. An older host sends none: legacy.
    */
   game?: string;
-  /** JOLT and TRIAGE are on (abilities.ts) */
-  abilities: boolean;
   /** an arena mode (modematch.ts): which, how many bots and how good, Gun Run's list */
   mode?: ModeWelcome;
   /**
@@ -278,13 +276,6 @@ export interface MatchRules {
   guns?: string;
   rounds?: number;
   ff?: boolean;
-  /**
-   * The ability numbers this match plays by (abilities.ts ABILITY_KNOBS),
-   * by ability and knob: { jolt: { charges: 6 }, smoke: { radius: 9 } }. Only
-   * what the host changed is sent, so most matches carry nothing. An older
-   * build has never heard of the field and plays its own numbers.
-   */
-  abil?: Record<string, Record<string, number>>;
 }
 
 /** what a guest needs to play the host's arena mode */

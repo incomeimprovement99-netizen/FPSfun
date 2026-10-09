@@ -316,8 +316,6 @@ export interface MatchLike {
    * until they are out rather than being handed somebody new every frame.
    */
   spectateList(): Array<{ figure: Dummy; name: string; friend: boolean }>;
-  /** JOLT and TRIAGE are on in this match (the host's setting) */
-  readonly abilities: boolean;
   /** this player's id in the match (the recap's "you") */
   readonly id: number;
   /** you took damage: who, how much, a headshot, their gun and the distance when known */
@@ -523,8 +521,6 @@ export class Duel implements MatchLike {
   static readonly BLEED = squadCfg.bleedOut;
   /** the health a revive gives back */
   static readonly REVIVE_HEALTH = squadCfg.reviveHealth;
-  /** JOLT and TRIAGE are on (the host's setting, told to the guests in the welcome) */
-  readonly abilities: boolean;
 
   /**
    * A host passes its guests' links as they arrive (`addGuest` for the
@@ -546,11 +542,10 @@ export class Duel implements MatchLike {
   constructor(
     protected scene: THREE.Scene,
     protected projectiles: ProjectileSystem,
-    opts: { players: number; myId: number; hostId?: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena" | "range"; abilities?: boolean; map?: ArenaMapId | null }
+    opts: { players: number; myId: number; hostId?: number; link: Link | null; guestId?: number; mode?: "duel" | "br" | "arena" | "range"; map?: ArenaMapId | null }
   ) {
     const now = wallClock();
     this.mode = opts.mode ?? "duel";
-    this.abilities = opts.abilities ?? false;
     this.players = this.mode === "duel" ? Math.max(2, Math.min(MAX_PLAYERS, opts.players)) : Math.max(1, Math.min(MAX_PLAYERS, opts.players));
     this.id = opts.myId;
     this.hostId = opts.hostId ?? 0;
@@ -599,7 +594,7 @@ export class Duel implements MatchLike {
   /** the ids the humans use; bots are 100 up */
   static readonly BOT_ID = 100;
   /** on this player's side: no damage either way (a battle royale's squad; a team in the modes) */
-  /** SCOUT and SMOKE (kits.json): the enemies shown now, which the page draws in the threat highlight */
+  /** REVEAL (hacks.json) and a ghost's look: the enemies shown now, which the page draws in the threat highlight */
   private readonly shownKit = new Revealed();
   get shown(): ReadonlySet<Dummy> {
     return this.shownKit.figures;

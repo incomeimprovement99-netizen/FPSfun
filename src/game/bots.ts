@@ -26,7 +26,6 @@ import { IS_SK, PROFILE } from "./game";
 import { botSoldierCode } from "./soldier";
 import hackCfg from "../config/hacks.json";
 import { cooldownOf } from "./hacks";
-import { smokeBlocks } from "./smoke";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
 import { Dummy } from "./dummy";
@@ -41,7 +40,6 @@ import type { Bounds } from "./player";
 import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
-import { BOT_ABILITY, BOT_ABILITY_IDS, JOLT, KITS, TRIAGE, type AbilityId } from "./abilities";
 import type { ActorState } from "./killcam";
 import items from "../config/items.json";
 import botsCfg from "../config/bots.json";
@@ -98,8 +96,6 @@ export interface Difficulty {
   crouchPeek: number;
   /** comes back round a corner already aimed where it last saw you */
   preAim: boolean;
-  /** uses a JOLT to dodge (when the match has abilities on) */
-  jolt: boolean;
 }
 export const DIFFICULTY: Record<BotTier, Difficulty> = Object.fromEntries(
   BOT_TIERS.map((t) => [t, { name: t, ...(botsCfg.tiers[t] as Omit<Difficulty, "name">) }])
@@ -576,40 +572,6 @@ const FLING_GRAVITY = moveCfg.gravity * 0.0254;
 /** a zipline rider's feet under their hands, m (the ropes in br.ts are hung for this) */
 const ZIP_HANG = 2.13;
 
-/**
- * What a SMOKE or WARD bot puts up, or null for "not now". Hurt (under
- * `coverAtHealth` of its health), with whoever is shooting it between 4 m and
- * `coverRange` away, and not inside `coverGap` seconds of the last one: a
- * cloud lands between the two of them, nearer its own end, and a wall goes up
- * a couple of metres in front of it across that line. It is breaking a line of
- * sight it is already losing, which is what those kits are for and what makes
- * a fight read from the other end (src/config/abilities.json `bots`).
- */
-export function coverPlan(
-  kind: "smoke" | "ward",
-  self: THREE.Vector3,
-  target: THREE.Vector3,
-  healthFrac: number,
-  sinceLast: number
-): { k: "smoke" | "wall"; from: THREE.Vector3; to: THREE.Vector3 } | null {
-  if (sinceLast < BOT_ABILITY.coverGap) return null;
-  if (healthFrac > BOT_ABILITY.coverAtHealth) return null;
-  const from = self.clone();
-  from.y += 1.2;
-  const away = target.clone().setY(from.y).sub(from);
-  const dist = away.length();
-  if (dist < 4 || dist > BOT_ABILITY.coverRange) return null;
-  away.multiplyScalar(1 / dist);
-  if (kind === "smoke") {
-    const to = from.clone().addScaledVector(away, Math.min(dist * 0.45, 9));
-    to.y = self.y;
-    return { k: "smoke", from, to };
-  }
-  const at = self.clone().addScaledVector(away, 2.2);
-  const deg = (Math.atan2(away.x, away.z) * 180) / Math.PI;
-  return { k: "wall", from: at, to: new THREE.Vector3(deg, 0, 0) };
-}
-
 export class Bot {
   readonly dummy: Dummy;
   readonly remote: Remote;
@@ -697,11 +659,9 @@ export class Bot {
   private wedgeAt = new THREE.Vector3();
   private wedgeTime = -Infinity;
   private wedgeFor = 0;
-  /** JOLT or TRIAGE when the match has abilities on (abilities.ts) */
-  ability: AbilityId | null = null;
+  /** the DASH hack in progress (SpeedKills): its seconds left and its metres a second */
   private joltLeft = 0;
-  /** metres a second of the dash in progress: JOLT's, or SpeedKills' Dash hack */
-  private joltSpeed = JOLT.distance / JOLT.duration;
+  private joltSpeed = hackCfg.dash.distance / hackCfg.dash.seconds;
   /** SpeedKills: when its Heal and Dash hacks are next ready, and the heal running until */
   private skHealAt = -Infinity;
   private skDashAt = -Infinity;
@@ -712,22 +672,10 @@ export class Bot {
   }
   /** SpeedKills: the hacks it has used this life, for the tests and the recap */
   skUsed = { heal: 0, dash: 0 };
-  /**
-   * Its kit's ultimate (kits.json): when its meter is full (a bot's fills with
-   * time alone), how long RUNNER's OVERDRIVE still has, and MEDIC's FIELD
-   * HEAL as health over time. A bot uses it the moment it has one and a target.
-   */
-  private ultAt = Infinity;
-  private boostUntil = -Infinity;
-  private botRegen: { perSec: number; until: number } | null = null;
-  /** its move speed now: its tier's, times OVERDRIVE while that runs */
+  /** its move speed now: its tier's */
   get speedNow(): number {
-    return tierSpeed(this.diff.name) * (this.clock < this.boostUntil ? KITS.runner.ult.speed : 1);
+    return tierSpeed(this.diff.name);
   }
-  /** JOLT's charges (the player's rules: two, one back every 4 s) and when the next is back */
-  private joltCharges: number = JOLT.charges;
-  private joltRechargeAt = Infinity;
-  private joltLastAt = -Infinity;
   private readonly joltDir = new THREE.Vector2();
   private readonly joltFrom = new THREE.Vector3();
   /** the last time its shield or health went down, and what they were */
@@ -809,10 +757,6 @@ export class Bot {
     this.aboard = false;
     this.dropTarget = null;
     this.joltLeft = 0;
-    this.joltSpeed = JOLT.distance / JOLT.duration;
-    this.joltCharges = JOLT.charges;
-    this.joltRechargeAt = Infinity;
-    this.joltLastAt = -Infinity;
     this.skHealAt = -Infinity;
     this.skDashAt = -Infinity;
     this.skHealUntil = -Infinity;
@@ -836,35 +780,6 @@ export class Bot {
   /** someone it was after went down: no hunting them */
   forget(id: number): void {
     if (this.lastSeen?.id === id) this.lastSeen = null;
-  }
-
-  /**
-   * The cover it just put up (SMOKE's cloud or WARD's wall), for the match to
-   * raise as an effect. One at a time, taken
-   * the frame it is made (src/config/abilities.json `bots`).
-   */
-  private putUp: { k: "smoke" | "wall"; from: THREE.Vector3; to: THREE.Vector3 } | null = null;
-  takePutUp(): { k: "smoke" | "wall"; from: THREE.Vector3; to: THREE.Vector3 } | null {
-    const c = this.putUp;
-    this.putUp = null;
-    return c;
-  }
-  /** when it last put cover up, so it does not fence itself in */
-  coverAt = -Infinity;
-
-  /**
-   * SMOKE and WARD, from a bot's side: hurt, with someone shooting at it from
-   * a distance where a cloud or a wall is worth anything, it puts one between
-   * the two of them and then moves. The decision is `coverPlan` below, which
-   * is free of the scene so the checks can ask it directly.
-   */
-  private stepCover(now: number, target: THREE.Vector3 | null): void {
-    if (this.ability !== "smoke" && this.ability !== "ward") return;
-    if (!this.alive || !target) return;
-    const put = coverPlan(this.ability, this.pos, target, this.dummy.health / HEALTH_MAX, now - this.coverAt);
-    if (!put) return;
-    this.coverAt = now;
-    this.putUp = put;
   }
 
   /** a shot went off at `pos`: in earshot, by the tier's chance, it goes to look */
@@ -949,39 +864,7 @@ export class Bot {
     this.dummy.setGunVisible(this.knife === null);
   }
 
-  /**
-   * Its ultimate (kits.json): a bot's meter is time alone, and it spends it
-   * the first moment it has a target. RUNNER's OVERDRIVE makes it quicker for
-   * its seconds; MEDIC's FIELD HEAL gives it health back over time.
-   */
-  private stepUlt(now: number, dt: number, hasTarget: boolean): void {
-    if (!this.ability) return;
-    if (this.ultAt === Infinity) this.ultAt = now + KITS.ultimate.fullAfter;
-    const r = this.botRegen;
-    if (r) {
-      if (now >= r.until) this.botRegen = null;
-      else this.dummy.health = Math.min(HEALTH_MAX, this.dummy.health + r.perSec * dt);
-    }
-    if (!hasTarget || now < this.ultAt || !this.alive) return;
-    this.ultAt = now + KITS.ultimate.fullAfter;
-    if (this.ability === "jolt") {
-      this.boostUntil = now + KITS.runner.ult.seconds;
-      this.joltCharges = JOLT.charges;
-      this.joltRechargeAt = Infinity;
-    } else if (this.ability === "triage") {
-      const u = KITS.medic.ult;
-      this.botRegen = { perSec: u.health / u.seconds, until: now + u.seconds };
-    }
-  }
-
   /** a random ability when the match has them on; none otherwise */
-  setAbilities(on: boolean, rng: () => number = Math.random): void {
-    // Never in SpeedKills: its bots carry its hacks (bots.json skHacks), and the legacy SMOKE kit rolled here was
-    // the smoke grenade the owner took out of it (Phase 20 A10: 6 to 8 of 27 bots threw smoke)
-    this.ability = on && !IS_SK ? BOT_ABILITY_IDS[Math.floor(rng() * BOT_ABILITY_IDS.length)] : null;
-    this.ultAt = Infinity;
-  }
-
   /** the heal it is doing, if its time is up: applied; a target in sight cancels it */
   private stepHeal(now: number, hasTarget: boolean): void {
     const d = this.dummy;
@@ -989,10 +872,9 @@ export class Bot {
       this.healing = null;
       return;
     }
-    const scale = this.ability === "triage" ? TRIAGE.healSpeed : 1;
     if (this.healing) {
       const it = items.heals[this.healing.item];
-      if (now - this.healing.startedAt >= it.time / scale) {
+      if (now - this.healing.startedAt >= it.time) {
         d.shield = Math.min(d.shieldMax, d.shield + it.shield);
         d.health = Math.min(HEALTH_MAX, d.health + it.health);
         this.kit[this.healing.item]--;
@@ -1049,7 +931,7 @@ export class Bot {
     this.prevVital = d.health + d.shield;
   }
 
-  /** a JOLT in progress: across its line of fire at the dash speed, stopped by walls */
+  /** a DASH in progress: across its line of fire at the dash speed, stopped by walls */
   private stepJolt(dt: number): void {
     const use = Math.min(dt, this.joltLeft);
     let left = this.joltSpeed * use;
@@ -1284,8 +1166,6 @@ export class Bot {
     if (!fighting && !inCone(this.dummy.group.rotation.y, dx, dz)) return false;
     // crouched (behind low cover) it looks from lower down
     const from = this.pos.clone().setY(eye);
-    // a cloud of smoke in the way: it sees nothing through one (SMOKE's kit)
-    if (this.inSmoke(from, new THREE.Vector3(target.x, target.y + 1.2, target.z))) return false;
     if (key !== undefined) {
       const said = this.sightSaid.get(key);
       if (said && this.clock - said.at < SIGHT.recheck && this.clock >= said.at) return said.clear;
@@ -1298,10 +1178,6 @@ export class Bot {
   }
 
   /** a cloud of smoke between it and what it is looking at (SMOKE's kit): it sees nothing through one */
-  private inSmoke(from: THREE.Vector3, to: THREE.Vector3): boolean {
-    return smokeBlocks(from, to, this.clock);
-  }
-
   /** what it has looted so far: the match's plate, the recap and the checks read it */
   get lootKit(): Readonly<BotKit> {
     return this.looter.kit;
@@ -1466,7 +1342,7 @@ export class Bot {
     }
     if (this.lastSeen && now - this.lastSeen.at > SEEN_MEMORY) this.lastSeen = null;
     if (this.heard && now > this.heard.until) this.heard = null;
-    // hurt this frame (any source: bullets, the ring): a JOLT bot dodges, and by its tier it reverses its strafe
+    // hurt this frame (any source: bullets, the ring): by its tier it reverses its strafe
     const vital = this.dummy.health + this.dummy.shield;
     const hurt = vital < this.prevVital - 1e-6;
     if (hurt) {
@@ -1498,28 +1374,7 @@ export class Bot {
     }
     if (this.cover && (now > this.cover.until || (!this.healing && hurtFrac >= 0.95) || !canRecover)) this.cover = null;
     this.stepHeal(now, sees);
-    this.stepUlt(now, dt, !!target);
-    // SMOKE and WARD: cover between it and whoever is shooting it
-    this.stepCover(now, target);
-    while (this.joltCharges < JOLT.charges && now >= this.joltRechargeAt) {
-      this.joltCharges++;
-      this.joltRechargeAt = this.joltCharges < JOLT.charges ? this.joltRechargeAt + JOLT.recharge : Infinity;
-    }
     if (IS_SK) this.stepSk(now, dt, target);
-    if (this.ability === "jolt" && tier.jolt && this.joltLeft <= 0 && target && this.joltCharges > 0 && now - this.joltLastAt >= JOLT.gap && now - this.lastHurtAt < BOT_ABILITY.joltWhenHitWithin) {
-      const tx = target.x - this.pos.x;
-      const tz = target.z - this.pos.z;
-      const tl = Math.hypot(tx, tz) || 1;
-      const side = Math.random() < 0.5 ? 1 : -1;
-      this.joltDir.set((-tz / tl) * side, (tx / tl) * side);
-      this.joltLeft = JOLT.duration;
-      this.joltSpeed = JOLT.distance / JOLT.duration;
-      this.joltCharges--;
-      if (!Number.isFinite(this.joltRechargeAt)) this.joltRechargeAt = now + JOLT.recharge;
-      this.joltLastAt = now;
-      this.dummy.jolt();
-      this.joltFrom.copy(this.pos);
-    }
 
     // loot: a landed bot with a floor under it goes and kits itself out. It
     // comes before hunting and before the match's goal, because the first
@@ -1919,8 +1774,6 @@ export class BotMatch implements MatchLike {
     projectiles: ProjectileSystem,
     readonly difficulty: BotDifficulty,
     count: number,
-    /** JOLT and TRIAGE on: you pick one, each bot takes one at random */
-    readonly abilities = false,
     /** the arena; none is the warehouse, as it always was */
     map: ArenaMapId | null = null
   ) {
@@ -1960,7 +1813,6 @@ export class BotMatch implements MatchLike {
             };
       const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
       b.ring = drawn?.bounds.circle ?? null;
-      b.setAbilities(abilities);
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
       b.onRocket = (at, travelled, w) => this.botBurst(b.remote.id, rocketBurst(w, at, travelled), w.id);
       b.onHealed = (item) => this.onHealSeen?.(b.remote.id, item);
@@ -2139,9 +1991,6 @@ export class BotMatch implements MatchLike {
       // (on THE CENTRE by the city's graph, round the tower's podium and up its stairs, not straight into them)
       const goal = this.nav ? this.nav.step(b.pos, center, new THREE.Vector3()) : center;
       const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal, canShoot: this.phase === "fight" && !this.holdFire });
-      // SMOKE's cloud or WARD's wall: drawn by the page
-      const put = b.takePutUp();
-      if (put) this.onRemoteFx?.(put.k, b.remote.id, put.from, put.to, 0);
       let d = 0;
       for (const s of shots) {
         this.onShotFired?.(b.remote.id, s.from, s.dir, s.weapon);

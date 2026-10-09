@@ -1,6 +1,6 @@
-// Enemies shown (SCOUT's PULSE and SWEEP, SMOKE's THERMAL; src/config/kits.json).
+// Enemies shown (SpeedKills' REVEAL hack and a ghost's look round, src/config/hacks.json).
 //
-// A kit shows an enemy for a few seconds: their figure glows (the threat
+// A scan shows an enemy for a few seconds: their figure glows (the threat
 // highlight main.ts draws, so this only says which figures are shown) and, in
 // a squad, a mark goes out so a friend sees the same contact.
 //

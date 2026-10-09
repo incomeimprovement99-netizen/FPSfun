@@ -151,10 +151,6 @@ export class Player {
 
   /** 1.15 while holstered; scales walk, sprint, crouch and the slide boost */
   holsterBoost = 1;
-  /** RUNNER's SURE FOOTING (kits.json): a hard landing does not stun */
-  sureFooting = false;
-  /** HOOK's STRONG ARMS (kits.json): the climb space, times this */
-  climbBoost = 1;
   /**
    * Healing: you move this much of your speed (Season 30: 40% slower) and
    * cannot sprint. 1 when not healing.
@@ -350,87 +346,7 @@ export class Player {
     return { started: mt.started, duration: mt.duration, window: mt.sprint ? MOVE.superglideWindow : MOVE.superglideWalkWindow, remaining: mt.started + mt.duration - this.lastNow };
   }
 
-  // ----- JOLT (abilities.ts): a level dash -----
-  private joltLeft = 0;
-  private joltDirX = 0;
-  private joltDirZ = 0;
-  private joltDist = 0;
-  private joltDur = 0;
-  private joltExit = 0;
-  /** mid-JOLT: the dash owns the horizontal velocity and holds you level */
-  get jolting(): boolean {
-    return this.joltLeft > 0;
-  }
-
-  /**
-   * JOLT: `distance` metres along (dirX, dirZ) over `duration` seconds, level
-   * (no gravity during it), through the normal collision so a wall stops it,
-   * leaving at `exitSpeed` m/s in the same direction. It ends a slide, and
-   * cannot start on a zipline, in a mantle or climb, or in the drop. Returns
-   * whether it started.
-   */
-  jolt(dirX: number, dirZ: number, distance: number, duration: number, exitSpeed: number): boolean {
-    if (this.zip || this.mantle || this.climbing || this.dropping || this.aboard || this.joltLeft > 0) return false;
-    const l = Math.hypot(dirX, dirZ);
-    if (l < 1e-6 || duration <= 0) return false;
-    this.joltDirX = dirX / l;
-    this.joltDirZ = dirZ / l;
-    this.joltLeft = duration;
-    this.joltDur = duration;
-    this.joltDist = distance;
-    this.joltExit = exitSpeed;
-    this.endSlide();
-    this.vel.y = 0;
-    return true;
-  }
-
-  /**
-   * How far through its distance a JOLT is at fraction `u` of its time: an
-   * ease-out (a pop, not a slide: 70% of the way in the first half) that
-   * ends moving at the exit speed, so it hands over to it without a jolt.
-   */
-  static joltCurve(u: number, distance: number, duration: number, exit: number): number {
-    const a = Math.min(1, (exit * duration) / Math.max(1e-6, distance));
-    const t = Math.max(0, Math.min(1, u));
-    return a * t + (1 - a) * (1 - (1 - t) * (1 - t));
-  }
-
-  /** one frame of a JOLT: the curve's speed for what is left of it, the exit speed for the rest of the frame */
-  private stepJolt(dt: number, now: number): void {
-    const use = Math.min(dt, this.joltLeft);
-    const t0 = this.joltDur - this.joltLeft;
-    const along = this.joltDist * (Player.joltCurve((t0 + use) / this.joltDur, this.joltDist, this.joltDur, this.joltExit) - Player.joltCurve(t0 / this.joltDur, this.joltDist, this.joltDur, this.joltExit));
-    const sp = dt > 1e-9 ? (along + this.joltExit * (dt - use)) / dt : this.joltExit;
-    // in steps of at most 0.3 m: the collision tests where a step ends, and the
-    // dash's peak (over 2 m a frame at 60 fps) would otherwise pass a 1 m wall
-    const steps = Math.max(1, Math.ceil((sp * dt) / 0.3));
-    for (let i = 0; i < steps; i++) {
-      // a wall hit earlier in the dash zeroed that component: it stays zeroed
-      this.vel.x = this.joltBlockedX ? 0 : this.joltDirX * sp;
-      this.vel.z = this.joltBlockedZ ? 0 : this.joltDirZ * sp;
-      this.vel.y = 0;
-      const wantX = this.vel.x;
-      const wantZ = this.vel.z;
-      this.integrate(dt / steps, now, 0);
-      if (wantX !== 0 && this.vel.x === 0) this.joltBlockedX = true;
-      if (wantZ !== 0 && this.vel.z === 0) this.joltBlockedZ = true;
-    }
-    this.joltLeft -= dt;
-    if (this.joltLeft <= 0) {
-      this.joltLeft = 0;
-      this.joltBlockedX = false;
-      this.joltBlockedZ = false;
-      const h = this.hSpeed();
-      if (h > this.joltExit && h > 1e-6) {
-        this.vel.x *= this.joltExit / h;
-        this.vel.z *= this.joltExit / h;
-      }
-    }
-  }
-  private joltBlockedX = false;
-  private joltBlockedZ = false;
-
-  /** the way the movement keys point, flattened (forward with none held): JOLT goes this way */
+  /** the way the movement keys point, flattened (forward with none held) */
   moveDir(input: MoveInput): { x: number; z: number } {
     let fwd = 0;
     let side = 0;
@@ -490,9 +406,6 @@ export class Player {
     this.lastSlideEnterAt = -Infinity;
     this.sgJumpFrame = -10;
     this.zipExitAt = -Infinity;
-    this.joltLeft = 0;
-    this.joltBlockedX = false;
-    this.joltBlockedZ = false;
   }
 
   /**
@@ -711,15 +624,6 @@ export class Player {
       }
     }
 
-    if (this.joltLeft > 0) {
-      this.zipPrompt = false;
-      this.stepJolt(dt, now);
-      this.updateHeights(dt);
-      this.speed = this.hSpeed();
-      this.descentRate = 0;
-      this.updateView(dt);
-      return;
-    }
 
     // ----- inputs: the wish direction combines every held direction -----
     let fwd = 0;
@@ -1137,7 +1041,7 @@ export class Player {
     const inputInto = wl > 0 ? -(wx * n.nx + wz * n.nz) : 0;
     const velInto = -(this.vel.x * n.nx + this.vel.z * n.nz);
     if (inputInto <= 0.05 && velInto <= 0.05) return;
-    if (this.pos.y >= this.climbBaseline + MOVE.climbSpaceHeight * this.climbBoost) return;
+    if (this.pos.y >= this.climbBaseline + MOVE.climbSpaceHeight) return;
     const same = this.lastAttachNormal && this.lastAttachNormal.nx === n.nx && this.lastAttachNormal.nz === n.nz;
     if (same && this.pos.y >= this.lastAttachY - 1e-4) return;
     // off the ground into a climb: the climb's space is measured from here
@@ -2059,8 +1963,7 @@ export class Player {
 
     // Fall stun: none below the speed of a 300 hu fall, a full 1 s and all
     // horizontal speed lost at the speed of an 800 hu fall, quadratic between.
-    // RUNNER's passive (kits.json): no stun from a hard landing
-    if (impact > MOVE.fallstunMinSpeed && !this.sureFooting) {
+    if (impact > MOVE.fallstunMinSpeed) {
       const x = Math.min(1, (impact - MOVE.fallstunMinSpeed) / (MOVE.fallstunMaxSpeed - MOVE.fallstunMinSpeed));
       const s = x * x;
       this.stunStrength = s;

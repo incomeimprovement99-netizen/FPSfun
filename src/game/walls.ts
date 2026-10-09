@@ -1,4 +1,4 @@
-// WARD's walls (src/config/kits.json ward).
+// The WALL hack's walls (src/config/wall.json, hacks.json wall).
 //
 // A wall put up in play is a real solid (range.ts RANGE_SOLIDS) with a panel
 // to look at, so everything that already asks the world a question gets the
@@ -6,13 +6,14 @@
 // round it, and a figure behind it is out of sight. It stands for its seconds
 // and then goes.
 //
-// Kept apart from the kits so both the wall and the ultimate's horseshoe are
-// one piece of code, and so the checks can put one up without a match.
+// Kept apart from main.ts so the checks can put one up without a match.
 import * as THREE from "three";
-import kits from "../config/kits.json";
+import wallCfg from "../config/wall.json";
 import { RANGE_SOLIDS, type Solid } from "./range";
 
-const CFG = kits.ward;
+/** the wall's panel and its reach (wall.json) */
+export const WALL = wallCfg;
+const CFG = wallCfg;
 
 export interface PutWall {
   solid: Solid;
@@ -30,7 +31,7 @@ let wallMat: THREE.MeshStandardMaterial | null = null;
  * A wall standing on the ground at (x, z), `deg` degrees round, `seconds`
  * long. Its solid is the box it fills, so it stops what any wall stops.
  */
-export function putWall(parent: THREE.Object3D, x: number, y: number, z: number, deg: number, now: number, seconds = CFG.tactical.seconds): PutWall {
+export function putWall(parent: THREE.Object3D, x: number, y: number, z: number, deg: number, now: number, seconds: number): PutWall {
   wallGeo ??= new THREE.BoxGeometry(CFG.width, CFG.height, CFG.thick);
   wallMat ??= new THREE.MeshStandardMaterial({ color: 0x3fa7ff, emissive: 0x1b4f7a, emissiveIntensity: 0.6, transparent: true, opacity: 0.85, roughness: 0.4, metalness: 0.2 });
   const mesh = new THREE.Mesh(wallGeo, wallMat);

@@ -10991,6 +10991,45 @@ the switch (498): about 160 of them hold the legacy game's own numbers and go wi
 
 - **Checked:** tsc; verify; rules; all 28 sections that ran legacy pages, on SpeedKills with the pins.
 
+## Milestone 491 — The legacy game's abilities and kits out
+
+The next step of the legacy game's removal (docs/PLAN_LEGACY_REMOVAL.md, 491): the six kits (RUNNER with JOLT, MEDIC
+with PATCH and TRIAGE, SCOUT, HOOK, SMOKE and WARD), their passives and ultimates, and everything only they used.
+SpeedKills turned them off and plays its ten hacks, which stay and load at startup for the range, as the owner asked
+(2026-10-04); nothing a SpeedKills player sees or does changes.
+
+- **Gone:** abilities.ts (the pick, JOLT's charges, the ultimate's meter, the lobby's ability numbers) with
+  abilities.json and kits.json; smoke.ts (SMOKE's clouds, and a bot's sight blocked by one); the ability card at a
+  countdown or a landing, its 5-to-0 picks, the controller's D-pad picks and the Z ultimate key; the HUD's ability
+  square, ultimate ring and card; JOLT's level dash in the movement, its view roll and FOV kick, and its four Settings
+  boxes; MEDIC's health over time; HOOK's grapple, its put-up zipline and STRONG ARMS; RUNNER's SURE FOOTING and
+  OVERDRIVE; WARD's HARD SHELL and BASTION; SCOUT's PULSE, SWEEP and SHARP EARS; the Abilities boxes in the panel, on
+  the Friends row and in the lobby's options; the ability fields on the wire (the welcome's `abilities`, MatchRules
+  `abil`); a bot's kit, its JOLT dodge, its ultimate and its cover (a SMOKE cloud or a WARD wall); the legacy tour's
+  ABILITY step.
+- **Their tests, gone with them:** tools/checks/kits.ts and smoke.ts, verify's JOLT and TRIAGE, the movement sim's
+  JOLT, the walls check's horseshoe; in the e2e, the bot match with abilities on, SCOUT in the modes, a MEDIC between
+  friends, the host's ability numbers, JOLT in a squad, the controller's card, the dash's Settings, the kit card, and
+  the check that no SpeedKills bot rolls a kit (there is none to roll); the photo tool's four ability shots.
+- **Kept for SpeedKills:** WALL's walls (walls.ts) with WARD's panel and reach, now in their own wall.json; REVEAL's
+  sight (reveal.ts, the scan marks a squad shares, the threat glow); HEAL's area; DASH's streak, sound and figure lean
+  (fx.ts, audio.ts, the figures' `jolt`), the "jolt", "grap" and "wall" effects on the wire, and a bot's DASH, its
+  speed now from hacks.json alone; the throw point MINE aims with; when you were last hurt, which SpeedKills' shield
+  and health wait out.
+- **One number moved, not changed:** a squad mate's REVEAL shows each enemy on your screen for 2 s, the time it
+  borrowed from SCOUT's PULSE; it is hacks.json `reveal.shareSeconds` now, with a note. Your own screen shows them for
+  REVEAL's 8 s, as before.
+- An older build's kit effect (a cloud, an ultimate, a patch) that arrives is ignored, as is a stored ability setting,
+  tuning or key binding.
+- **What it saves:** the first script 39.6 KB smaller raw (3,655.9 to 3,616.3 KB) and 12.4 KB gzipped (1,001.4 to
+  989.0 KB), and a frame no longer steps the kit, its clouds, its ziplines and the ultimate's meter.
+- **Three tests that leaned on the kits, mended:** the battle royale's shield cell waited TRIAGE's half time (it waits
+  for the cell now); the legacy tour's step list still ended in ABILITY; and the range's plates check read its line of
+  sight from the camera before a frame had moved it to the teleport, so it had been looking from wherever the dash
+  check left you, on a line that is blocked at z -34. It waits a frame and looks over the range's low walls now.
+- **Checked:** tsc; verify; rules; movesim; e2e owner, duel, bots, pad, range, finish, speedkills, br, loot, squad,
+  modes and sksquad (the four fails of the first run fixed and rerun alone: range, finish and br pass whole).
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

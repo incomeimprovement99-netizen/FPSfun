@@ -61,8 +61,6 @@ import { hitcheckFails } from "./checks/hitcheck";
 import { rulesFails } from "./checks/rules";
 import { finishesFails } from "./checks/finishes";
 import { modeRestoreFails } from "./checks/mode-restore";
-import { kitsFails } from "./checks/kits";
-import { smokeFails } from "./checks/smoke";
 import { wallsFails } from "./checks/walls";
 import { figLodFails } from "./checks/figlod";
 import { sceneryFails } from "./checks/scenery";
@@ -77,8 +75,6 @@ import { hacksFails } from "./checks/hacks";
 import { solidGridFails } from "./checks/solidgrid";
 import { pingWheelFails } from "./checks/pingwheel";
 import { HU, MOVE, jumpVelocityFor, slideBreakEvenAngle, SLIDE_RAMP_ANGLE } from "../src/game/movement";
-import { Abilities, JOLT, abilityCode, abilityFromCode } from "../src/game/abilities";
-import itemsCfg from "../src/config/items.json";
 import { DamageLog } from "../src/game/recap";
 import { Armor, HEALS, Kit } from "../src/game/kit";
 import audioCfg from "../src/config/audio.json";
@@ -1145,48 +1141,6 @@ console.log("Apex movement constants (apexmovement.tech; engine values where not
 }
 
 console.log("");
-console.log("Abilities: JOLT and TRIAGE (src/config/abilities.json)");
-{
-  const a = new Abilities();
-  a.reset(true);
-  eq("nothing picked at the start", a.picked, null);
-  eq("JOLT refused before a pick", a.tryJolt(10), false);
-  a.offer(10);
-  eq("the card goes up when offered", a.choosing, true);
-  a.pick("jolt");
-  eq("a pick takes the card down", a.choosing, false);
-  eq("JOLT holds two charges (the owner's number)", a.charge(10).charges, 2);
-  eq("JOLT goes", a.tryJolt(10), true);
-  eq("one charge left", a.charge(10).charges, 1);
-  near("the spent one is back in 4 s (the owner's number)", a.charge(10).nextIn, 4, 1e-9);
-  eq("not inside the first dash's gap", a.tryJolt(10.1), false);
-  eq("the second goes right after", a.tryJolt(10 + JOLT.gap), true);
-  eq("then none", a.charge(10.3).charges, 0);
-  near("the first back 4 s after the first dash", a.cooldownLeft(10.3), 3.7, 1e-9);
-  eq("refused at 13.9", a.tryJolt(13.9), false);
-  eq("one back at 14", a.charge(14).charges, 1);
-  near("the second 4 s after that (one at a time: 8 s for both)", a.charge(14).nextIn, 4, 1e-9);
-  eq("both back at 18", a.charge(18).charges, 2);
-  eq("and a pick that changes fills them", (a.tryJolt(20), a.pick("triage"), a.pick("jolt"), a.charge(20).charges), 2);
-  eq("a refused dash is refunded", (a.tryJolt(30), a.refund(), a.charge(30).charges), 2);
-  eq("the ability's config: 10 m in 0.14 s, out at 400 hu/s, 0.25 s between", [JOLT.distance, JOLT.duration, JOLT.exitSpeedHu, JOLT.gap].join(" "), "10 0.14 400 0.25");
-  eq("JOLT's heal scale is 1", a.healScale, 1);
-  a.pick("triage");
-  eq("TRIAGE: heals twice as fast", a.healScale, 2);
-  near("a shield cell with TRIAGE, s", itemsCfg.heals.cell.time / a.healScale, 1.25, 1e-9);
-  near("a syringe with TRIAGE, s", itemsCfg.heals.syringe.time / a.healScale, 2, 1e-9);
-  eq("TRIAGE is not a dash", a.tryJolt(100), false);
-  const off = new Abilities();
-  off.reset(false);
-  off.offer(0);
-  eq("abilities off: no card", off.choosing, false);
-  off.pick("triage");
-  eq("abilities off: no pick, no scale", off.healScale, 1);
-  eq("network codes round-trip", abilityFromCode(abilityCode("triage")), "triage");
-  eq("a bad code is none", abilityFromCode(9), null);
-}
-
-console.log("");
 console.log("Guns that are not a plain trigger (src/config/weapon-mechanics.json)");
 {
   const FDT = 1 / 144;
@@ -1752,7 +1706,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + kitsFails + smokeFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + ringPlaceFails + lootTiersFails + pickupReachFails + botSenseFails + viewmodelArmsFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + ringConsoleFails + gulagFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + botWalkFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + sceneryFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);
