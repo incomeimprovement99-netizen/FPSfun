@@ -695,6 +695,8 @@ export class Dummy {
   private headAt = -Infinity;
   /** short-lived motions: a shot's kick, a hit's flinch, a JOLT's lean (1 at their start, decaying) */
   private kickAmt = 0;
+  /** shots fired, for the figure (a pump gun's pump after each: MannequinImpulses.shots) */
+  private shots = 0;
   private flinchAmt = 0;
   private joltAmt = 0;
   /** the arms' resting place on the torso (the ADS and the kick move them from it) */
@@ -1082,6 +1084,7 @@ export class Dummy {
   /** a shot: the gun kicks back into the shoulder, and its muzzle flashes */
   kick(): void {
     this.kickAmt = 1;
+    this.shots++;
     this.flashLeft = MUZZLE.life;
     this.flashSpin = Math.random() * Math.PI * 2;
   }
@@ -1404,7 +1407,7 @@ export class Dummy {
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps }, this.lodAnimate);
+    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps, shots: this.shots }, this.lodAnimate);
     // a scoped figure glints (muzzle.ts, Hyper Scape's lens flare) only while it is looking down its scope (mannequin.ts
     // scoped): not while its gun is away, and not for an aim held through a reload, a swap, a throw or a strike
     if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown && !downed ? this.mq.scoped : 0, this.glintT += dt);

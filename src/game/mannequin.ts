@@ -44,7 +44,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shellParts, shellsOf, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -788,6 +788,22 @@ function reloadSeconds(id: string, empty: boolean): number {
   return t;
 }
 
+/** a gun's rechamber, seconds, as the first person's pump runs over it (viewmodel.ts: at least 0.4) */
+const rechamberTimes = new Map<string, number>();
+function rechamberSeconds(id: string): number {
+  let t = rechamberTimes.get(id);
+  if (t === undefined) {
+    try {
+      const w = resolveWeapon(id, 0);
+      t = Math.max(0.4, w.rechamberTime || w.shotInterval);
+    } catch {
+      t = 0.4;
+    }
+    rechamberTimes.set(id, t);
+  }
+  return t;
+}
+
 /** the first person's magazine phases round its own middle (fparms.json reload.magPhase), not along it */
 const MAG_RADIAL = (FIRST_PERSON_RELOAD as { magPhase?: string }).magPhase === "radial";
 
@@ -838,6 +854,8 @@ export interface MannequinImpulses {
   headHit?: number;
   /** how many double jumps it has made (FigurePose.airJumps): a change is a new one, and its knee lift */
   airJumps?: number;
+  /** how many shots it has fired (dummy.ts kick): a change is a new one, and a pump gun's pump after it */
+  shots?: number;
   /** an emote in progress (emotes.ts): its angles, already eased */
   emote?: EmotePose | null;
 }
@@ -1101,6 +1119,9 @@ export class MannequinFigure {
   /** the double jumps seen so far (null until the first count arrives), and when the last one's knee lift began */
   private airJumpsSeen: number | null = null;
   private liftAt = -Infinity;
+  /** the shots seen so far, and when the last was fired: a pump gun's pump runs over the rechamber after it */
+  private shotsSeen: number | null = null;
+  private shotAt = -Infinity;
   /** the gun is in the hand and showing this frame */
   gunInHand = false;
 
@@ -1405,7 +1426,7 @@ export class MannequinFigure {
       this.butt = this.rifle ? buttOf(gun) : null;
       // the magazine group the reload takes out (gunmodels.ts builds it as "mag"), where it sits, and the handle
       const mag = gun.getObjectByName("mag") ?? null;
-      this.reloadParts = this.rifle ? { mag, magHome: mag ? mag.position.clone() : new THREE.Vector3(), magHomeQ: mag ? mag.quaternion.clone() : new THREE.Quaternion(), magBottom: m.magBottom.clone(), handle: m.boltGrip ? m.boltGrip.clone() : null } : null;
+      this.reloadParts = this.rifle ? { mag, magHome: mag ? mag.position.clone() : new THREE.Vector3(), magHomeQ: mag ? mag.quaternion.clone() : new THREE.Quaternion(), magBottom: m.magBottom.clone(), handle: m.boltGrip ? m.boltGrip.clone() : null, shells: shellsOf(id) ? shellParts(gun, m.parts?.end ?? 1) : null } : null;
       if (this.rifle && mag) {
         // the magazine's top and bottom in its own frame, for its sweep; its meshes onto this figure's phased copies
         mag.updateMatrixWorld(true);
@@ -1853,6 +1874,11 @@ export class MannequinFigure {
       if (this.airJumpsSeen !== null && air) this.liftAt = this.t;
       this.airJumpsSeen = fx.airJumps;
     }
+    // a shot (the first count is where it starts, as the double jumps')
+    if (fx.shots !== undefined && fx.shots !== this.shotsSeen) {
+      if (this.shotsSeen !== null) this.shotAt = this.t;
+      this.shotsSeen = fx.shots;
+    }
     const lift = air ? (this.t - this.liftAt) / DOUBLE_JUMP.time : 1;
     // the head was hit: the head snaps back, once
     if (fx.headHit !== undefined && fx.headHit !== this.headSeen && Number.isFinite(fx.headHit)) {
@@ -2171,6 +2197,8 @@ export class MannequinFigure {
         stance: this.gripW,
         reload,
         reloadTactical: tactical,
+        sinceShot: this.t - this.shotAt,
+        rechamber: rechamberSeconds(this.gunId),
         lastReload: this.lastReload,
         // a seat's kick, as the first person's slap of the magazine home (soldierhold.json reload.seatKick)
         kick: Math.max(fx.kick, this.seatKick * soldierHold.reload.seatKick),

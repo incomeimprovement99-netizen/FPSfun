@@ -2112,6 +2112,366 @@
             0.06
           ]
         }
+      },
+      "pump": {
+        "_ride": "Measured by tools/figure-pump.ts, 2026-10-09: the first person's pump along the gun after a shot (metres in the gun's own frame, + back toward the butt), at 0, 1/20, ... 1 of the shot's rechamber; the soldier's pump and left hand ride it, and over the empty reload's pump (fparms.json packGuns reload.pump) as the first person's clip does. Measure again when the guns agent changes the pump (pumpScale, the Pump clip).",
+        "ride": [
+          0,
+          0.01189,
+          0.0263,
+          0.035,
+          0.03659,
+          0.03645,
+          0.03647,
+          0.03674,
+          0.03224,
+          0.02091,
+          0.00368,
+          0.00053,
+          -0.0001,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0,
+          0
+        ]
+      },
+      "reload": {
+        "tilt": {
+          "roll": 28,
+          "down": 10
+        },
+        "keys": {
+          "handle": {
+            "from": "handle",
+            "at": [
+              0,
+              0.025,
+              0
+            ],
+            "fwd": [
+              1,
+              0,
+              0
+            ],
+            "palm": [
+              0,
+              -1,
+              0
+            ]
+          },
+          "handleBack": {
+            "from": "handle",
+            "at": [
+              0,
+              0.025,
+              0.06
+            ],
+            "fwd": [
+              1,
+              0,
+              0
+            ],
+            "palm": [
+              0,
+              -1,
+              0
+            ]
+          },
+          "bolt": {
+            "from": "handle",
+            "at": [
+              0.03,
+              0.005,
+              0
+            ],
+            "fwd": [
+              0,
+              -0.3,
+              -1
+            ],
+            "palm": [
+              -1,
+              0,
+              0
+            ]
+          },
+          "boltUp": {
+            "from": "handle",
+            "at": [
+              0.03,
+              0.03,
+              0
+            ],
+            "fwd": [
+              0,
+              -0.3,
+              -1
+            ],
+            "palm": [
+              -1,
+              0,
+              0
+            ]
+          },
+          "boltBack": {
+            "from": "handle",
+            "at": [
+              0.03,
+              0.03,
+              0.08
+            ],
+            "fwd": [
+              0,
+              -0.3,
+              -1
+            ],
+            "palm": [
+              -1,
+              0,
+              0
+            ]
+          },
+          "point": {
+            "from": "mag",
+            "at": [
+              -0.154,
+              0.018,
+              0.055
+            ],
+            "fwd": [
+              1,
+              0.2,
+              -0.6
+            ],
+            "palm": [
+              0,
+              -1,
+              0
+            ]
+          },
+          "shellLow": {
+            "from": "round",
+            "feed": "low",
+            "at": [
+              0.01,
+              -0.065,
+              0.05
+            ],
+            "fwd": [
+              0.895,
+              0.29,
+              -0.123
+            ],
+            "palm": [
+              -0.45,
+              0.7,
+              -0.15
+            ],
+            "fingers": {
+              "index": [
+                72,
+                54,
+                20
+              ],
+              "middle": [
+                70,
+                60,
+                40
+              ],
+              "ring": [
+                80,
+                70,
+                50
+              ],
+              "pinky": [
+                85,
+                75,
+                60
+              ],
+              "thumb": [
+                60,
+                44,
+                10,
+                60
+              ]
+            }
+          },
+          "shellUnder": {
+            "from": "round",
+            "feed": "under",
+            "at": [
+              0.01,
+              -0.09,
+              0.02
+            ],
+            "fwd": [
+              0.595,
+              0.29,
+              -0.573
+            ],
+            "palm": [
+              0.15,
+              0.85,
+              0.15
+            ],
+            "fingers": {
+              "index": [
+                32,
+                54,
+                20
+              ],
+              "middle": [
+                70,
+                60,
+                40
+              ],
+              "ring": [
+                80,
+                70,
+                50
+              ],
+              "pinky": [
+                85,
+                75,
+                60
+              ],
+              "thumb": [
+                44,
+                36,
+                10,
+                60
+              ]
+            }
+          },
+          "shellIn": {
+            "from": "round",
+            "feed": "in",
+            "at": [
+              0.03,
+              -0.08,
+              0.02
+            ],
+            "fwd": [
+              0.595,
+              0.29,
+              -0.423
+            ],
+            "palm": [
+              0.15,
+              1.3,
+              0.15
+            ],
+            "fingers": {
+              "index": [
+                64,
+                46,
+                20
+              ],
+              "middle": [
+                62,
+                60,
+                40
+              ],
+              "ring": [
+                80,
+                70,
+                50
+              ],
+              "pinky": [
+                85,
+                75,
+                60
+              ],
+              "thumb": [
+                28,
+                36,
+                10,
+                60
+              ]
+            }
+          },
+          "pumpUnder": {
+            "from": "hold",
+            "at": [
+              0,
+              -0.05,
+              0
+            ],
+            "fwd": [
+              0.895,
+              0.14,
+              -0.423
+            ],
+            "palm": [
+              0,
+              1,
+              0
+            ],
+            "fingers": {
+              "index": [
+                5,
+                5,
+                5
+              ],
+              "middle": [
+                5,
+                5,
+                5
+              ],
+              "ring": [
+                5,
+                5,
+                5
+              ],
+              "pinky": [
+                5,
+                5,
+                5
+              ],
+              "thumb": [
+                10,
+                10,
+                5,
+                40
+              ]
+            }
+          }
+        },
+        "pointFingers": {
+          "index": [
+            0,
+            0,
+            0
+          ],
+          "middle": [
+            90,
+            100,
+            80
+          ],
+          "ring": [
+            90,
+            100,
+            80
+          ],
+          "pinky": [
+            90,
+            100,
+            80
+          ],
+          "thumb": [
+            40,
+            60,
+            40,
+            -60
+          ]
+        },
+        "seatKick": 0.35,
+        "seatKickFor": 0.15,
+        "_keys": "BIGANTLER's shell feed (rifle.ts keyTarget, `from` round): the left hand holding a shell at the bottom of its way (`low`), under the gate (`under`), pushed home (`in`), and on its way back under the pump, fingers open, before it takes it (`pumpUnder`, off the hold), as the first person's feed has it (fparms.json packGuns.KXG12.reload); `at` the palm off the pinch's place, searched with its turn and fingers by tools/figure-solve.ts reload KEY=<key> KEYFINGERS=1 (the pinch held to the shell)."
       }
     },
     "shotgun": {

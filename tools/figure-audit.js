@@ -291,8 +291,14 @@
     // the gun's parts, each with its triangles in its own frame
     const parts = [];
     gun.updateMatrixWorld(true);
+    // (a shell in the hand, being fed into a gate, is held, not a part of the gun the hand could be in: rifle.ts marks it
+    // `inHand`, as the first person's does for tools/pack-audit.js)
+    const held = (o) => {
+      for (let p = o; p && p !== gun; p = p.parent) if (p.userData && p.userData.inHand) return true;
+      return false;
+    };
     gun.traverse((o) => {
-      if (!o.isMesh || o.isSkinnedMesh || !shown(o) || o.userData.hull) return;
+      if (!o.isMesh || o.isSkinnedMesh || !shown(o) || o.userData.hull || held(o)) return;
       const m = Array.isArray(o.material) ? o.material[0] : o.material;
       if (m && m.transparent) return;
       let g = grids.get(o.geometry.uuid);

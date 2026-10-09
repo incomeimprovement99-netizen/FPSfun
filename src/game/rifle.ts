@@ -18,6 +18,7 @@
 import * as THREE from "three";
 import fp from "../config/fparms.json";
 import cfg from "../config/soldierhold.json";
+import paidCfg from "../config/paidweapons.json";
 
 export type Side = "l" | "r";
 const SIDES: Side[] = ["l", "r"];
@@ -236,7 +237,62 @@ export function tuneRifle(patch: Record<string, unknown>): void {
  */
 const FPR = (fp as unknown as { reload: { point: number[]; phaseOut: number[]; phaseIn: number[]; seat: number; rack: number[]; rackBlend: number; slide: number; lead: number; follow: number; slideIn?: number; rackOut?: number[]; tipBack?: number[]; tactical?: { rack: boolean; back: number[] } } }).reload;
 type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[] };
-const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<string, { rack?: { clip: string; window: number[]; grab?: Grab }; tacticalRack?: boolean }> };
+const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<string, { rack?: { clip: string; window: number[]; grab?: Grab }; tacticalRack?: boolean; reload?: ShellReload }> };
+
+/**
+ * A reload a shell at a time (fparms.json packGuns.<gun>.reload, style "shells": BIGANTLER's, the guns agent's Milestone
+ * 490), which the soldier follows as the first person's (fprig.ts feed): the left hand off the pump over `leave`, `count`
+ * shells fed up through the gate (the pack model's Cover) over `feed`, each pushed home over `push` of its own share, back
+ * on the pump over `back`, and from empty the pump over `pump`. The shell rides `drop` under its rest in the gate, the
+ * hand `dip` lower between shells and never nearer the gate than `clear` (the thumb pushes the shell home), and `bow` out
+ * round the gun's underside on its way off the pump and back. Its distances are in the gun's own frame, the first
+ * person's and this figure's alike: the KXG12 has no gunScale of its own.
+ */
+type ShellReload = { style: string; count: number; leave: number[]; feed: number[]; push: number[]; back: number[]; pump: number[]; drop: number; clear: number; dip: number[]; bow: number[] };
+export function shellsOf(id: string): ShellReload | null {
+  const R = PACKS.packGuns[PACKS.guns[id] ?? ""]?.reload;
+  return R?.style === "shells" ? R : null;
+}
+
+/**
+ * Where a shell reload is at share `u` of the empty reload, as the first person's (fprig.ts update, its feed): how far
+ * the hand is off the pump (`w`), how open the gate is (0..1), and where the shell is in the gun (null: at its rest). The
+ * gate opens as each shell is pushed and shuts once the hand is down off it; between shells the one pushed in stays in
+ * the gate while the hand goes down empty, and the next is in the hand from the bottom of its way.
+ */
+export function feedAt(SR: ShellReload, u: number, rest: THREE.Vector3): { w: number; gate: number; shell: THREE.Vector3 | null; pinch: THREE.Vector3 } {
+  const w = smooth(u, SR.leave[0], SR.leave[1]) * (1 - smooth(u, SR.back[0], SR.back[1]));
+  const k = Math.max(0, Math.min(1, (u - SR.feed[0]) / (SR.feed[1] - SR.feed[0]))) * SR.count;
+  const n = Math.min(SR.count - 1, Math.floor(k));
+  const phi = k - n;
+  const last = n === SR.count - 1;
+  const push = u < SR.feed[0] ? 0 : smooth(phi, SR.push[0], SR.push[1]);
+  const dip = phi < SR.push[0] ? 1 - smooth(phi, 0, SR.push[0]) : last ? 0 : smooth(phi, SR.push[1], 1);
+  const empty = !last && phi > SR.push[1] && phi < SR.push[1] + 0.6 * (1 - SR.push[1]);
+  const DIP = new THREE.Vector3(...SR.dip);
+  // After a push, down for the next shell from where the hand stopped under the gate to the bottom of its way, where the
+  // next shell's share starts, as its keys take it (shellIn to shellLow). (A dip at the push's own height, as the first
+  // person's feed first had it, drops the hand and the shell by `drop`, 7 cm, at the next shell's start, in one frame.)
+  const spot =
+    !last && phi > SR.push[1]
+      ? rest.clone().setY(rest.y - SR.clear).lerp(rest.clone().add(new THREE.Vector3(0, -SR.drop, 0)).add(DIP), smooth(phi, SR.push[1], 1))
+      : rest.clone().add(new THREE.Vector3(0, -SR.drop * (1 - push), 0)).addScaledVector(DIP, dip);
+  const gate = u < SR.feed[0] ? 0 : smooth(phi, SR.push[0] - 0.1, SR.push[0]) * (1 - smooth(phi, SR.push[1] + 0.1, SR.push[1] + 0.25)) * (1 - smooth(u, SR.back[0], SR.back[1]));
+  // (the shell in the hand once the hand is off the pump and at it, not on its way: at the first person's half way it
+  // showed 8 cm from the soldier's hand, which goes round under the pump; the hand's pinch at the shell, but never nearer
+  // the gate than `clear`)
+  return { w, gate, shell: empty || w < 0.999 ? null : spot, pinch: spot.clone().setY(Math.min(spot.y, rest.y - SR.clear)) };
+}
+
+/** how far a gun's loading gate swings open, radians (paidweapons.json motion.cover: the view's, the same gate) */
+const GATE_OPEN = (paidCfg as unknown as { motion: { cover: number } }).motion.cover;
+
+/** the pump's way back along the gun at share `x` of its stroke, from the samples (soldierhold.json guns.<id>.pump.ride) */
+function rideAt(ride: number[], x: number): number {
+  const f = Math.max(0, Math.min(1, x)) * (ride.length - 1);
+  const i = Math.min(ride.length - 2, Math.floor(f));
+  return ride[i] + (ride[i + 1] - ride[i]) * (f - i);
+}
 
 /**
  * A tactical reload (a round still chambered) as the first person's: the empty reload's beats in seconds, so the
@@ -246,6 +302,9 @@ const PACKS = fp as unknown as { guns: Record<string, string>; packGuns: Record<
  * then both play the empty one, each over its own time.
  */
 export function tacticalOf(id: string): { back: number[] } | null {
+  // (a shell gun's tactical is its own: the empty one's feed in seconds, ending as the hand is back on the pump)
+  const SR = shellsOf(id);
+  if (SR) return { back: SR.back };
   const T = FPR.tactical;
   if (!T || T.rack || PACKS.packGuns[PACKS.guns[id] ?? ""]?.tacticalRack) return null;
   return { back: T.back };
@@ -295,6 +354,29 @@ export function reloadPlanOf(id: string, tactical = false): ReloadPlan {
   const had = plans.get(key);
   if (had) return had;
   const R = FPR;
+  // A shell at a time: off the pump to under the gate, and for each shell up to it, pushed in and down for the next, as
+  // the first person's feed (feedAt) moves its hand; then back on the pump. The gun is not turned: the first person's is
+  // not. A tactical one is the same, ending there; the pump from empty is the hold's own, riding the pump (holdRifle).
+  const SR = shellsOf(id);
+  if (SR) {
+    const span = (SR.feed[1] - SR.feed[0]) / SR.count;
+    // (off the pump and back by way of under it, its fingers open: straight to the shell or back, they swept through it)
+    const left: Array<[number, string]> = [
+      [0, "hold"],
+      [SR.leave[0], "hold"],
+      [SR.leave[0] + 0.4 * (SR.leave[1] - SR.leave[0]), "pumpUnder"],
+      [SR.leave[1], "shellLow"],
+    ];
+    for (let i = 0; i < SR.count; i++) {
+      const a = SR.feed[0] + i * span;
+      left.push([a + SR.push[0] * span, "shellUnder"], [a + SR.push[1] * span, "shellIn"]);
+      if (i < SR.count - 1) left.push([a + span, "shellLow"]);
+    }
+    left.push([SR.back[0], "shellIn"], [SR.back[0] + 0.6 * (SR.back[1] - SR.back[0]), "pumpUnder"], [SR.back[1], "hold"]);
+    const plan: ReloadPlan = { left, right: [], tiltIn: [0, 0], tiltOut: [0, 0] };
+    plans.set(key, plan);
+    return plan;
+  }
   const tac = tactical ? tacticalOf(id) : null;
   if (tac) {
     // the tactical: the point, the magazine out and in, and the hand back to the fore-end, the gun's turn out with it
@@ -502,6 +584,9 @@ export interface RifleState {
   stance: number;
   /** a reload's progress 0..1 on the empty reload's timeline (a tactical one's already mapped onto it), or null */
   reload: number | null;
+  /** seconds since its last shot, and the gun's rechamber (a pump gun's pump rides over it: soldierhold.json pump.ride) */
+  sinceShot?: number;
+  rechamber?: number;
   /** the reload is a tactical one (its own plan: no rack, no bolt; tacticalOf) */
   reloadTactical?: boolean;
   /** a shot's kick, 1 as it fires and fading (dummy.ts kick) */
@@ -532,6 +617,39 @@ export interface ReloadParts {
   magHomeQ: THREE.Quaternion;
   magBottom: THREE.Vector3;
   handle: THREE.Vector3 | null;
+  /** a gun loaded a shell at a time (shellsOf): its moving parts, from shellParts */
+  shells?: ShellParts | null;
+}
+
+/**
+ * A shell gun's moving parts on this figure's copy of it (the bought model's, put in pivots by paidgun.ts hingeParts and
+ * found again on the copy by name): the shell (Bullet) and its rest, in its pivot's parent and in the gun, the gate
+ * (Cover) and which way it opens (the model's front end, as the view's), and the pump (the procedural group the bought
+ * Pump rides in) and its rest along the gun.
+ */
+export interface ShellParts {
+  round: THREE.Object3D | null;
+  roundHome: THREE.Vector3;
+  roundAt: THREE.Vector3;
+  cover: THREE.Object3D | null;
+  coverEnd: number;
+  pump: THREE.Object3D | null;
+  pumpZ: number;
+}
+export function shellParts(gun: THREE.Object3D, end: number): ShellParts {
+  gun.updateMatrixWorld(true);
+  const round = gun.getObjectByName("Bullet")?.parent ?? null;
+  const cover = gun.getObjectByName("Cover")?.parent ?? null;
+  const pump = gun.getObjectByName("pump") ?? null;
+  return {
+    round,
+    roundHome: round ? round.position.clone() : new THREE.Vector3(),
+    roundAt: round ? gun.worldToLocal(round.getWorldPosition(new THREE.Vector3())) : new THREE.Vector3(),
+    cover,
+    coverEnd: end,
+    pump,
+    pumpZ: pump ? pump.position.z : 0,
+  };
 }
 
 export interface RifleGun {
@@ -563,6 +681,11 @@ export interface RifleOut {
   keys?: string;
   /** where each palm was meant to be this frame, world (MannequinFigure.holdPoints) */
   palm?: { r?: THREE.Vector3; l?: THREE.Vector3 };
+  /** a shell gun: the shell being fed, world (null: none in the hand), where the left hand's pinch is meant to be (null:
+   * on the pump), and the pump's way back along the gun, gun-local m */
+  shell?: THREE.Vector3 | null;
+  pinchAt?: THREE.Vector3 | null;
+  pump?: number;
 }
 
 /**
@@ -599,6 +722,17 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const R = C.reload;
   const u = s.reload;
   const plan = u === null ? null : reloadPlanOf(g.id, !!s.reloadTactical);
+  // A shell gun (shellsOf): its pump's way back along the gun this frame, gun-local metres, as the first person's (the
+  // samples measured off it, soldierhold.json pump.ride): over a shot's rechamber after each shot, and from empty over the
+  // reload's own pump. The left hand on the pump rides it.
+  const SR = shellsOf(g.id);
+  const ride = (C as { pump?: { ride?: number[] } }).pump?.ride;
+  let pumpDz = 0;
+  if (SR && ride) {
+    if (u !== null) {
+      if (!s.reloadTactical && u > SR.pump[0] && u < SR.pump[1]) pumpDz = rideAt(ride, (u - SR.pump[0]) / (SR.pump[1] - SR.pump[0]));
+    } else if (s.sinceShot !== undefined && s.rechamber && s.sinceShot >= 0 && s.sinceShot < s.rechamber) pumpDz = rideAt(ride, s.sinceShot / s.rechamber);
+  }
   const tilt = u === null || !plan ? 0 : smooth(u, plan.tiltIn[0], plan.tiltIn[1]) * (1 - smooth(u, plan.tiltOut[0], plan.tiltOut[1]));
   // the magazine's own way down (its group's -y) and how far along it the hand's keys off the magazine are: the pointing
   // finger leads the magazine by `lead` (fparms.json), as the first person's does
@@ -716,6 +850,13 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     }
     const reloadAt = u !== null && g.parts && plan ? reloadTarget(side === "l" ? plan.left : plan.right, u, C, g, gunQ, b, figQ, handDrop) : null;
     const { at: palmAt, fwd, face } = reloadAt ?? aimAt;
+    // a shell gun's left hand bowed out round the gun's underside on its way off the pump and back, most half way (the
+    // first person's `bow`: its straight way went through the gun), and riding the pump while it holds it
+    if (side === "l" && SR && u !== null && reloadAt) {
+      const off = u < SR.back[0] ? smooth(u, SR.leave[0], SR.leave[1]) : 1 - smooth(u, SR.back[0], SR.back[1]);
+      palmAt.add(new THREE.Vector3(...SR.bow).multiplyScalar(4 * off * (1 - off) * gunScale).applyQuaternion(gunQ));
+    }
+    if (side === "l" && pumpDz !== 0 && (!reloadAt || reloadAt.key === "hold")) palmAt.add(new THREE.Vector3(0, 0, pumpDz * gunScale).applyQuaternion(gunQ));
     // A swap in place: the hand comes off its hold `move` (the gun's frame, metres: soldierhold.json swapCup), its palm
     // turned toward the gun's middle; the gun coming takes the hands on from where the last one's cup left them
     let cupK = 0;
@@ -823,6 +964,26 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       out.seated = u >= FPR.seat && (s.lastReload ?? -1) < FPR.seat;
     }
   }
+  // A shell gun's parts as the first person's (fprig.ts feed, viewmodel.ts): the shell in the hand's pinch while held, and
+  // at its rest otherwise; the gate swung up into the receiver as each is pushed; the pump at its way (pumpDz). A shell in
+  // the hand is held, not the gun (`inHand`: tools/figure-audit.js leaves it out of the gun the hands are measured against).
+  const SP = parts?.shells;
+  if (SP && SR) {
+    const f = u === null ? null : feedAt(SR, u, SP.roundAt);
+    if (SP.cover) SP.cover.rotation.x = f ? SP.coverEnd * GATE_OPEN * f.gate : 0;
+    if (SP.round) {
+      const r = SP.round;
+      if (f?.shell && r.parent) {
+        r.parent.updateWorldMatrix(true, false);
+        r.position.copy(r.parent.worldToLocal(g.gun.localToWorld(f.shell.clone())));
+      } else r.position.copy(SP.roundHome);
+      r.userData.inHand = !!f?.shell && f.shell.y <= SP.roundAt.y - SR.clear;
+      out.shell = f?.shell ? g.gun.localToWorld(f.shell.clone()) : null;
+      out.pinchAt = f && f.w > 0.999 ? g.gun.localToWorld(f.pinch.clone()) : null;
+    }
+    if (SP.pump) SP.pump.position.z = SP.pumpZ + pumpDz;
+    out.pump = pumpDz;
+  }
   (b.spine_02 ?? fig).updateWorldMatrix(false, true);
   return out;
 }
@@ -846,8 +1007,27 @@ function keyTarget(key: string, C: HoldCfg, g: RifleGun, gunQ: THREE.Quaternion,
     const hold = key === "grip" ? g.grip : g.support;
     return { at: g.gun.localToWorld(hold.clone().add(new THREE.Vector3(...H.at))), fwd: new THREE.Vector3(...H.fwd).normalize().applyQuaternion(gunQ), face: new THREE.Vector3(...H.palm).normalize().applyQuaternion(gunQ), key };
   }
-  const K = (C.reload.keys as Record<string, { from: string; at: number[]; fwd: number[]; palm: number[] }>)[key];
+  const K = (C.reload.keys as Record<string, { from: string; at: number[]; fwd: number[]; palm: number[]; feed?: string }>)[key];
   const parts = g.parts!;
+  // a place off the left hand's own hold (`at` from it, in the gun's frame), turned as the key says
+  if (K.from === "hold") {
+    const H = C.hands.l;
+    return { at: g.gun.localToWorld(g.support.clone().add(new THREE.Vector3(...H.at)).add(new THREE.Vector3(...K.at))), fwd: new THREE.Vector3(...K.fwd).normalize().applyQuaternion(gunQ), face: new THREE.Vector3(...K.palm).normalize().applyQuaternion(gunQ), key };
+  }
+  // A shell gun's feed: off the shell's place as the first person's hand has it (feedAt), `low` at the bottom of its way
+  // (the shell `drop` under its rest and the hand `dip` lower), `under` (just under the gate) and `in` (pushed home, the
+  // hand stopping `clear` under the rest); the key's `at` puts the palm where its pinch is at that place
+  if (K.from === "round") {
+    const SR = shellsOf(g.id);
+    const rest = parts.shells?.roundAt ?? g.support;
+    const spot = rest.clone();
+    if (SR) {
+      if (K.feed !== "in") spot.y -= SR.drop;
+      if (K.feed === "low") spot.add(new THREE.Vector3(...SR.dip));
+      spot.y = Math.min(spot.y, rest.y - SR.clear);
+    }
+    return { at: g.gun.localToWorld(spot.add(new THREE.Vector3(...K.at))), fwd: new THREE.Vector3(...K.fwd).normalize().applyQuaternion(gunQ), face: new THREE.Vector3(...K.palm).normalize().applyQuaternion(gunQ), key };
+  }
   if (K.from === "hips") {
     const pelvis = b.pelvis;
     const at = (pelvis ? pelvis.getWorldPosition(new THREE.Vector3()) : g.gun.getWorldPosition(new THREE.Vector3())).add(new THREE.Vector3(...K.at).applyQuaternion(figQ));

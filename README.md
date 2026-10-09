@@ -320,8 +320,10 @@ it.
   round it as it goes. The Loadouts tab shows the same soldier. ANAKIN, PANDA,
   BIGANTLER, REZ and CHOOCH, the first of the other eight to be fitted, reload
   without the first person's own moves until those are made (ANAKIN, PANDA and
-  REZ the magazine alone, BIGANTLER, a pump shotgun with no magazine, keeping its
-  hands on the gun), and ANAKIN's and PANDA's long stocks run along the inside of
+  REZ the magazine alone), but for BIGANTLER, the pump shotgun, which others see
+  loaded as you load it, a shell at a time up into the gate under the gun as it
+  swings open and then the pump, its left hand working the pump after every
+  shot; and ANAKIN's and PANDA's long stocks run along the inside of
   the right forearm in some poses (a known overlap, being worked on). CHOOCH
   never reloads: when it overheats, others see it vent, the gun tipped up and
   canted in both hands until it has cooled enough to fire, a bot's too. APUHTHEE,

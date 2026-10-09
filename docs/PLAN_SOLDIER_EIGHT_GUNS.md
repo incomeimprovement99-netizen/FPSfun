@@ -214,6 +214,10 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   pump comes from the guns agent's reading of its clips), the same fixed count of shells from the shared key, each a
   Bullet shown in the hand (phased in, no pouch, as the magazine never came from one), pushed in at the Cover and gone;
   then the pump, from empty only (a shell chambered: the loop alone, the tactical rule). The pump after every shot (G5).
+- **Done on the soldier, 2026-10-09 (Milestone 513):** the guns agent's shared keys (fparms.json packGuns.KXG12.reload),
+  followed on the figure's own copy of the gun: the left hand leaves the pump by way of under it, three shells held at its
+  pinch and pushed up through the gate as it swings open, back by way of under the pump, from empty the pump. The pump
+  after every shot rides the first person's measured stroke (tools/figure-pump.ts). G4 and G5 done for this gun.
   **The left hand's hold moves with the Pump**: today a hold is fixed to the gun; here it is in the Pump's own frame,
   so the hand rides the part.
 - **Expected:** a hand fixed to the gun while the Pump slides goes through it or off it (the hold in the part's frame

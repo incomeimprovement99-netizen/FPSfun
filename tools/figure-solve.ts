@@ -182,7 +182,9 @@ let HOLDING = ["middle_r", "ring_r", "pinky_r", "thumb_r", "index_l", "middle_l"
   // and the right hand working a bolt is off its grip)
   (f) => STAGE !== "reload" || (f.endsWith("_l") ? false : !KEY.startsWith("bolt")),
 );
-type Out = { shortL: number; shortR: number; slide?: number } | null;
+type Out = { shortL: number; shortR: number; slide?: number; pinch?: number } | null;
+/** a shell gun's feed key (rifle.ts keyTarget, `from` "round"): the hand holds a shell in its pinch, not the gun */
+let SHELL_KEY = false;
 
 /**
  * A try's cost. Skin in the gun weighs three times a finger's gap, and each bone's depth adds to it, not only the
@@ -206,6 +208,8 @@ function cost(a: Audit | null, o: Out, reload = false): number {
     // to the grip can run through a magazine (PANDA's sprint carry, its left hand 30 mm in), and a carry that needs it is
     // one the arm cannot hold; a reload's hand is away from the hold, so it does not count there
     (reload ? 0 : 300 * (o?.slide ?? 0)) +
+    // a shell key's pinch (the index's and the thumb's last joints between them) off where the shell is held, past 3 mm
+    (SHELL_KEY ? 3 * Math.max(0, (o?.pinch ?? 50) - 3) : 0) +
     (STAGE === "pocket" ? 0 : HOLDING.reduce((s, f) => s + Math.max(0, (a.fingerGap?.[f] ?? 30) - 6), 0))
   );
 }
@@ -265,6 +269,8 @@ async function main(): Promise<void> {
       const R = await ev<{ left: [number, string][]; right: [number, string][] }>(page, `window.__range.rifleReloadPlan(${JSON.stringify(ID)}, false)`);
       const at: number[] = [];
       for (const seq of [R.left, R.right]) seq.forEach(([u, k], i) => k === KEY && at.push(seq[i + 1]?.[1] === KEY ? (u + seq[i + 1][0]) / 2 : u));
+      // a shell key: its fingers hold the shell, so none of them is held to the gun; its pinch is held to the shell
+      SHELL_KEY = (cur.reload as { keys: Record<string, { from?: string }> }).keys[KEY]?.from === "round";
       // the key's own fingers searched: they start as the hold's, and each of them should lie on the gun
       if (process.env.KEYFINGERS === "1") {
         const side = R.left.some(([, k]) => k === KEY) ? "l" : "r";
@@ -273,6 +279,7 @@ async function main(): Promise<void> {
         keys[KEY].fingers ??= Object.fromEntries(["index", "middle", "ring", "pinky", "thumb"].map((f) => [f, hold[f].slice(0, 3)]));
         HOLDING = ["index", "middle", "ring", "pinky", "thumb"].map((f) => `${f}_${side}`);
       }
+      if (SHELL_KEY) HOLDING = [];
       POSES = (KEY === "tilt" ? [0.2, 0.45, 0.7] : at.length ? at : [0.5]).map((u) => ({ speed: 0, stance: "stand", pitch: 0, reloadAt: u }));
       reloadTime = await ev<number>(page, `window.__range.weaponTimes(${JSON.stringify(ID)}).reloadEmpty`);
       console.log(`${ID} reload ${KEY}: measured at ${POSES.map((p) => p.reloadAt).join(", ")} of its ${reloadTime} s`);
@@ -301,7 +308,7 @@ async function main(): Promise<void> {
             : next
               ? `r.figureLabPose(0, ${JSON.stringify({ ...next.pose, weapon: ID })}); r.figureLabStep(${next.dt});`
               : "";
-        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, then: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} const fg = r.labFigures()[0].figure; return { a: window.__figureAudit(0, { pitch: ${p.pitch}, exact: ${EXACT} }), o: fg.rifleOut && { ...fg.rifleOut, slide: fg.supportSlide } }; })()`;
+        const expr = `(() => { const r = window.__range; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSES[0], reloadAt: undefined, then: undefined, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabPose(0, ${JSON.stringify({ ...pose, weapon: ID })}); r.figureLabStep(0.8); ${then} const fg = r.labFigures()[0].figure; const L = r.labFigures()[0].group; const W = (n) => L.getObjectByName(n).getWorldPosition(new r.THREE.Vector3()); const at = fg.rifleOut && fg.rifleOut.pinchAt; return { a: window.__figureAudit(0, { pitch: ${p.pitch}, exact: ${EXACT} }), o: fg.rifleOut && { ...fg.rifleOut, slide: fg.supportSlide, pinch: at ? W("index_03_l").add(W("thumb_03_l")).multiplyScalar(0.5).distanceTo(at) * 1000 : undefined } }; })()`;
         let got: { a: Audit | null; o: Out };
         try {
           got = await ev<{ a: Audit | null; o: Out }>(page, expr);

@@ -8565,7 +8565,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     type Mag = { y: number; shown: boolean; phase: number; keys: string; drops: number; radial: number; off: number } | null;
     const mag = `(() => { const f = window.__range.labFigures()[0].figure; const m = f.gunObject.getObjectByName("mag"); const drops = window.__range.scene.children.filter((o) => o.name === "mag").length; const S = f.magSweep; if (!m) return null; const T = window.__range.THREE; const mid = new T.Box3(); const v = new T.Vector3(); m.updateMatrixWorld(true); const inv = new T.Matrix4().copy(m.matrixWorld).invert(); m.traverse((o) => { if (o.isMesh) { let on = true; for (let q = o; q && q !== m; q = q.parent) on &&= q.visible; if (on) { const pos = o.geometry.getAttribute("position"); const to = new T.Matrix4().multiplyMatrices(inv, o.matrixWorld); for (let i = 0; i < pos.count; i++) mid.expandByPoint(v.fromBufferAttribute(pos, i).applyMatrix4(to)); } } }); return m ? { y: m.position.y, shown: m.visible, phase: S.phase.value, keys: f.rifleOut?.keys ?? "", drops, radial: S.radial.value, off: Math.round(S.center.value.distanceTo(m.localToWorld(mid.getCenter(new T.Vector3()))) * 1000) } : null; })()`;
     const home = await ev<Mag>(page, mag);
-    // (a gun with no magazine, BIGANTLER's pump, has none of the magazine's checks: its own reload is to come, G4)
+    // (a gun with no magazine, BIGANTLER's pump, has none of the magazine's checks: its shells' are below)
     if (home) {
     await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true })`);
     let at = 0;
@@ -8644,6 +8644,83 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       check(`the soldier's ${name} reload: at the charging handle the left hand's own fingers lie on the gun, each within 6 mm`, uKey > 0 && gaps.every((g) => g <= 6), JSON.stringify({ uKey, gaps }));
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
     }
+    } else if ((fparmsCfg.packGuns as Record<string, { reload?: { style?: string } }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.reload?.style === "shells") {
+      // BIGANTLER's reload, a shell at a time, as the first person's (fparms.json packGuns.<gun>.reload, which the soldier
+      // reads: rifle.ts feedAt): the left hand off the pump, each shell held at its pinch and pushed up through the gate as
+      // it swings open, back on the pump, and from empty the pump worked; one with a shell chambered ends on the pump. And
+      // after a shot the left hand rides the pump (soldierhold.json pump.ride, measured off the first person's)
+      const SR = (fparmsCfg.packGuns as unknown as Record<string, { reload: { count: number; feed: number[]; back: number[]; pump: number[] } }>)[(fparmsCfg.guns as Record<string, string>)[id]].reload;
+      type Fed = { keys: string; pinch: number | null; gate: number; handIn: number; wrist: number; seated: number; pump: number; palm: number };
+      const fed = `(() => { const r = window.__range, T = r.THREE; const f = r.labFigures()[0]; const fg = f.figure; const g = fg.gunObject; const W = (o) => o.getWorldPosition(new T.Vector3());
+        const pinch = W(f.group.getObjectByName("index_03_l")).add(W(f.group.getObjectByName("thumb_03_l"))).multiplyScalar(0.5);
+        const shell = g.getObjectByName("Bullet")?.parent; const gate = g.getObjectByName("Cover")?.parent; const home = fg.reloadParts?.shells?.roundHome;
+        const o = fg.rifleOut || {}; const a = window.__figureAudit(0, { pitch: 0 });
+        return { keys: o.keys || "", pinch: shell && shell.userData.inHand ? pinch.distanceTo(W(shell)) * 100 : null, gate: gate ? Math.abs(gate.rotation.x) : -1, handIn: a?.handIn?.l ?? 99, wrist: a?.wristL ?? 99,
+          seated: shell && home ? shell.position.distanceTo(home) * 100 : 99, pump: (o.pump ?? 0) * 100, palm: a?.palmGap?.l ?? 99 }; })()`;
+      await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true })`);
+      let at = 0;
+      const to = async (u: number): Promise<Fed> => {
+        await ev(page, `window.__range.figureLabStep(${Math.max(0, u - at) * R})`);
+        at = u;
+        return ev<Fed>(page, fed);
+      };
+      // (24 moments over the feed: a shell's gate is open a third of its share)
+      const feed = { pinch: 0, held: 0, gates: [] as number[], deep: 0, wrist: 0 };
+      let slot = 0;
+      let gateMax = 0;
+      for (let i = 0; i < 24; i++) {
+        const u = SR.feed[0] + ((SR.feed[1] - SR.feed[0]) * (i + 0.5)) / 24;
+        const x = await to(u);
+        const k = Math.min(SR.count - 1, Math.floor(((u - SR.feed[0]) / (SR.feed[1] - SR.feed[0])) * SR.count));
+        if (k !== slot) {
+          feed.gates.push(gateMax);
+          gateMax = 0;
+          slot = k;
+        }
+        gateMax = Math.max(gateMax, x.gate);
+        if (x.pinch !== null) {
+          feed.held++;
+          feed.pinch = Math.max(feed.pinch, x.pinch);
+        }
+        feed.deep = Math.max(feed.deep, x.handIn);
+        feed.wrist = Math.max(feed.wrist, x.wrist);
+      }
+      feed.gates.push(gateMax);
+      const home = await to((SR.back[0] + SR.back[1]) / 2);
+      check(
+        `the soldier's ${name} reload is the first person's, a shell at a time: each of ${SR.count} held at the left hand's pinch (within 1.5 cm), the gate swung open as it goes in (30 degrees and more), the last one home, no hand in the gun (8 mm), the left wrist 60 degrees or less`,
+        feed.held >= 6 && feed.pinch <= 1.5 && feed.gates.length === SR.count && feed.gates.every((a) => a > 0.52) && home.seated < 0.2 && feed.deep <= 8 && feed.wrist <= 60,
+        JSON.stringify({ ...feed, pinch: +feed.pinch.toFixed(2), gates: feed.gates.map((a) => Math.round((a * 180) / Math.PI)), seated: +home.seated.toFixed(2) }),
+      );
+      // (the stroke over the pump's window, as the first person's clip runs it: back early, home by its middle)
+      let pumped = await to(SR.pump[0] + 0.05 * (SR.pump[1] - SR.pump[0]));
+      for (let k = 2; k <= 10; k++) {
+        const x = await to(SR.pump[0] + (k / 20) * (SR.pump[1] - SR.pump[0]));
+        if (x.pump > pumped.pump) pumped = x;
+      }
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
+      // (with a shell chambered: the empty one's beats in seconds, ending on the pump, no pump worked)
+      await ev(page, `window.__range.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload" })`);
+      let tacPump = 0;
+      for (let k = 1; k <= 12; k++) {
+        await ev(page, `window.__range.figureLabStep(${RT.reload / 12})`);
+        tacPump = Math.max(tacPump, Math.abs((await ev<Fed>(page, fed)).pump));
+      }
+      check(
+        `the soldier's ${name} reload from empty ends with the pump, back 3 cm and more with the left hand on it (8 mm); one with a shell chambered does not pump`,
+        pumped.pump > 3 && pumped.palm <= 8 && pumped.handIn <= 8 && tacPump < 0.1,
+        JSON.stringify({ pump: +pumped.pump.toFixed(1), palm: pumped.palm, handIn: pumped.handIn, keys: pumped.keys, tactical: +tacPump.toFixed(2) }),
+      );
+      // after a shot (the figure's kick, as a remote shot gives it): the pump and the left hand back together
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); r.labFigures()[0].kick(); })()`);
+      let ride = { pump: 0, palm: 99, handIn: 99 };
+      for (let k = 0; k < 8; k++) {
+        await ev(page, `window.__range.figureLabStep(0.05)`);
+        const x = await ev<Fed>(page, fed);
+        if (x.pump > ride.pump) ride = { pump: x.pump, palm: x.palm, handIn: x.handIn };
+      }
+      check(`the soldier's ${name}: after a shot the left hand rides the pump back 3 cm and more, on it (8 mm), no hand in the gun (8 mm)`, ride.pump > 3 && ride.palm <= 8 && ride.handIn <= 8, JSON.stringify({ ...ride, pump: +ride.pump.toFixed(1) }));
+      await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
     } else {
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true }); r.figureLabStep(${R}); r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
     }

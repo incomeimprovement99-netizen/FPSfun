@@ -11181,3 +11181,34 @@ reload. It brings the one new kind of reload the plan named, in the shared keys 
   it goes in, the last one home, no hand in the gun) and the pump (pump and hand together within 5 mm, a stroke of 3 cm and
   more, a reload from empty ending with it and a tactical one not). tools/pack-audit.js leaves a shell in the hand out of
   the gun it measures.
+
+## Milestone 513 — BIGANTLER on the soldier: a shell at a time, and the pump after every shot
+
+The guns agent's Milestone 490 put BIGANTLER in the bought arms: a pump after every shot, and a reload a shell at a
+time in shared keys the soldier reads (fparms.json packGuns.KXG12.reload). The soldier other players see now does both,
+on the first person's beats (`docs/PLAN_SOLDIER_EIGHT_GUNS.md` 5.3, G4 and G5).
+
+- **The reload** (rifle.ts feedAt, reloadPlanOf): the left hand leaves the pump, takes three shells one at a time up
+  through the gate under the gun as it swings open (the model's Cover, turned as the view turns it, paidweapons.json
+  motion.cover), goes back onto the pump, and from empty works the pump; with a shell chambered it ends on the pump. The
+  shell, the gate and the pump are the figure's own copy's, found on it by name (rifle.ts shellParts); a shell in the
+  hand is held, not the gun (`inHand`, which tools/figure-audit.js now leaves out of the gun, as pack-audit does).
+- **The hand's places** (soldierhold.json guns.mastiff.reload.keys): `shellLow`, `shellUnder` and `shellIn` off the
+  shell's place, searched by tools/figure-solve.ts with a new term for shell keys, the pinch (the index's and the thumb's
+  last joints) held to the shell (start 702 to 965 a key, end 146 to 203, most of it the stock in the right arm the gun
+  already had); `pumpUnder`, off the pump and back by way of under it, its fingers open: straight to the shell and
+  back, the closing fingers swept 15 to 22 mm through the pump (0 now, searched over the way back).
+- **Continuous between shells:** the first person's feed held the push's height through the hand's dip and dropped the
+  hand and the shell 7 cm in one frame at each shell's start; found here, and the guns agent took the fix. The
+  soldier's dip runs from where the hand stopped under the gate to the next shell's low point, as its keys take it, and
+  shows the shell only once the hand is off the pump (at the first person's half way it sat 8 cm from the hand).
+- **The pump after a shot:** no config holds the first person's stroke, the KXG12's Pump clip at pumpScale 0.4 makes it,
+  so tools/figure-pump.ts (new) samples it with the shot held at each share of its rechamber: 36.7 mm back over the first
+  half of the 1.0 s rechamber, home by 55%, the hand on the pump throughout. The samples are in soldierhold.json
+  guns.mastiff.pump.ride; the figure counts its shots (dummy.ts kick, MannequinImpulses.shots) and rides the curve after
+  each, the left hand with the pump, and over the empty reload's own pump.
+- **Checked:** three new skfigure checks on a shell gun: the feed (each shell at the pinch within 1.5 cm, 1.28; the gate
+  63 degrees open for each of the three; the last one home; no hand in the gun; the left wrist 42 degrees at most), the
+  pump from empty (3.7 cm with the left hand on it, none with a shell chambered) and after a shot (3.7 cm); all three
+  seen failing with the shell reload switched off. Every skfigure check on all ten guns; verify; rules; the type check;
+  photographs of a push, its end, the low point and the pump.
