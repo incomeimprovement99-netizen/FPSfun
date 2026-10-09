@@ -11067,6 +11067,19 @@ start with the default settings, also, make the bots a little bit easier to hit,
   The page section's loading check missed its 30 s twice, alone too, with the machine at 91% and six other e2e runs
   going (a rendered page took over three minutes to boot): load, not this change, and it is rerun on a quiet machine.
 
+## Milestone 496 — The loading screen holds from Start to the card on the Neon City
+
+The city agent's e2e runs on the Neon City (E2E_MAP=neon), where every player is, found "sk order: from Start to the
+card the loading screen is up the whole time" failing: between Start and the battle royale's card the loading screen
+went down, and the player saw the range. A battle royale on the Neon City waits for the city's collision boxes before
+it is built (main.ts boxesFirst, Milestone 445's late boxes), and Start's handler, finding no match yet, took the
+screen down as it does for a mode that made none. A start waiting on the boxes is marked now (boxesWaiting), and the
+screen stays up through the wait.
+
+- **Checked:** tsc; e2e sklobby on E2E_MAP=neon: the screen up the whole way, where with the old close put back it went
+  bare at 2.5 s ("LOADING THE WORLD"). The card's own timing checks there missed their 60 s window with the machine at
+  99% (the match itself was ready at 56.9 s), so they are rerun on a quiet machine.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

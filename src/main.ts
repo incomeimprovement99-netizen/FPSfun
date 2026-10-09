@@ -5124,6 +5124,8 @@ let hostOpts: MatchOpts | null = null;
 
 /** the city's boxes were asked for and the ask is over, in or not (boxesFirst) */
 let boxesTried = false;
+/** a start is waiting on them (boxesFirst): the loading screen Start put up stays up until it starts */
+let boxesWaiting = false;
 /**
  * A match on the Neon City builds its bots' way about it from the city's collision boxes (neonmap.ts: the graph, made
  * on first use and kept). The boxes come after the page's first screen (Milestone 445), so a match started before they
@@ -5149,10 +5151,12 @@ function boxesFirst(start: () => void, link?: Link): boolean {
     ping = setInterval(() => link.send({ t: "ping", at: performance.now() }), 1000);
   }
   // a file that never came is no reason never to start: it starts without them, as before Milestone 445
+  boxesWaiting = true;
   void loadNeonSolids()
     .catch(() => undefined)
     .then(() => {
       boxesTried = true;
+      boxesWaiting = false;
       clearInterval(ping);
       if (!link) return start();
       if (gone) return;
@@ -6186,8 +6190,9 @@ const menu = new Menu(loadouts, profile, {
       afterPaint(() => {
         goTo(mode);
         refreshDerived();
-        // (no match came of it: the screen goes again)
-        if (!show) loadingScreen.close();
+        // (no match came of it: the screen goes again; but a battle royale waiting on the Neon City's boxes is still
+        // coming, and dropping the screen for that wait showed the range between Start and the card)
+        if (!show && !boxesWaiting) loadingScreen.close();
       });
       return;
     }
