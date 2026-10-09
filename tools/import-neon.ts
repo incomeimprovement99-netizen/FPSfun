@@ -814,9 +814,15 @@ if (mode === "bake") {
       }
     for (let k = 0; k + 2 < core.walls.idx.length; k += 3) drawnTris.push([0, 1, 2].map((j) => core.walls.pos.slice(core.walls.idx[k + j] * 3, core.walls.idx[k + j] * 3 + 3)) as [number[], number[], number[]]);
     const seal: Array<{ at: number; rays: number; out: number[][]; windows: number; gaps: number }> = [];
-    for (const h of TW.shaft as number[]) {
+    // (and after the new floors the lid over the top storey, rules.tower.lid: a slab as a floor's is, over the core too,
+    // which stops under it, and nothing measured; its inside found in the facade's solid band round it, `band`, the glass
+    // rows over it being the hollow's)
+    const LID = TW.lid as { at: number; slab: number; band: number[] } | undefined;
+    const levels = [...(TW.shaft as number[]).map((h) => ({ h, kind: "floor" })), ...(LID ? [{ h: LID.at, kind: "lid" }] : [])];
+    let lidArea = 0;
+    for (const { h, kind } of levels) {
       // (what stands on this floor, from just over it: the glass round the storey under 14 m tops out at 13.5)
-      const stood = standing(g, towerTris(), h + 0.05, h + 2);
+      const stood = kind === "lid" ? standing(g, towerTris(), LID!.band[0], LID!.band[1]) : standing(g, towerTris(), h + 0.05, h + 2);
       const inn0 = inside(g, stood, TW.seed, TW.close, TW.reach);
       // (and out to the building's skin at the slab's own height, `fill` metres in from the open air: at standing height
       // the window frames and piers stand in from the skin, and a slab stopped at them left pockets behind them, a ragged
@@ -833,15 +839,22 @@ if (mode === "bake") {
       const filled = fillTo(g, inn0.cells, skin, Math.round(TF.fill / cell), inCore, TF.fill > 0, skin, ledge);
       const left = fillTo(g, filled.cells, skin, Math.max(2, Math.round(TF.fill / cell)), inCore, false, atSlab);
       const inn = { cells: filled.cells, n: filled.cells.reduce((a, v) => a + v, 0) };
-      holes.push(+left.holes.toFixed(2));
-      areas.push(inn.n * cell * cell);
+      if (kind === "floor") {
+        holes.push(+left.holes.toFixed(2));
+        areas.push(inn.n * cell * cell);
+      }
       // (a corner of the grid is in the floor when any cell round it is)
       const region = (x: number, z: number) => {
         const i = Math.round((x - g.x0) / cell), j = Math.round((z - g.z0) / cell);
         const c = (a: number, b: number) => a >= 0 && a < g.nx && b >= 0 && b < g.nz && inn.cells[b * g.nx + a] === 1;
         return c(i - 1, j - 1) || c(i, j - 1) || c(i - 1, j) || c(i, j) ? -cell / 2 : cell / 2;
       };
-      const parts = storeySlab(g, region, [coreHole], null, h, TW.slab, TW.scale);
+      const parts = storeySlab(g, region, kind === "lid" ? [] : [coreHole], null, h, kind === "lid" ? LID!.slab : TW.slab, TW.scale);
+      if (kind === "lid") {
+        lidArea = inn.n * cell * cell;
+        tri += push("tower-lid", (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: TW.mats[k] })));
+        continue;
+      }
       // is it sealed: from points a few metres apart over its floor, out of the core, a fan of rays at eye height each
       // meeting a face turned toward it (tools/neon-tower.ts escapes)
       const pts: number[][] = [];
@@ -887,9 +900,11 @@ if (mode === "bake") {
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
+    if (lidArea > (sx1 - sx0) * (sz1 - sz0)) throw new Error(`the tower's lid came out bigger than the tower: ${lidArea.toFixed(0)} m2`);
+    if (LID) console.log(`the tower's lid over its top storey at ${LID.at} m: ${lidArea.toFixed(0)} m2`);
     console.log(`the tower's floors' cracks along the facade left open: ${holes.map((m, k) => `${TW.shaft[k]} m ${m} m2`).join(", ")}`);
     if (bands.length) console.log(`THE VAULT's gold bands: ${bands.map((b) => `${b.at} m ${b.length} m long`).join(", ")}`);
-    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, ...(LID ? { lid: +lidArea.toFixed(1) } : {}), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
     console.log(`the tower's floors sealed but for their windows: ${seal.map((q) => `${q.at} m ${q.gaps} of ${q.rays} rays out elsewhere, ${q.windows} through the windows`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
     // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a

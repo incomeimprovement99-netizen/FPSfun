@@ -979,27 +979,69 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
       }
     }
   }
-  // a storey's floor out of the core: what of it a body stands on, what of that it walked to
+  // a storey's floor out of the core: what of it a body stands on, what of that it walked to, and the same for each of
+  // the eight rooms of the ring round the core (north, south, east and west of it and the four corners, as the
+  // partitions' lines part them)
   const storey = (y: number) => {
     let [of, got] = [0, 0];
+    const rooms = Array.from({ length: 9 }, () => ({ of: 0, got: 0 }));
     spots.forEach((s, k) => {
       const [x, z] = [X0 + (s.i + 0.5) * C, Z0 + (s.j + 0.5) * C];
       if (Math.abs(s.y - y) > 0.1 || x < sx0 || x > sx1 || z < sz0 || z > sz1 || (x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3)) return;
+      const room = rooms[(z < cz0 ? 0 : z > cz1 ? 2 : 1) * 3 + (x < cx0 ? 0 : x > cx1 ? 2 : 1)];
       of++;
-      if (seen[k]) got++;
+      room.of++;
+      if (seen[k]) (got++, room.got++);
     });
-    return { y, of: of * C * C, got: got * C * C };
+    return { y, of: of * C * C, got: got * C * C, rooms: rooms.filter((_, i) => i !== 4) };
   };
   const all = TW.core.storeys.map(storey);
   check("the tower: every storey its core serves walked to from the plaza, beyond the core's doors", all.every((q) => q.got > 30), all.map((q) => `${q.y} m ${q.got.toFixed(0)} m2`).join("; "));
-  const shaft = all.filter((q) => TW.shaft.includes(q.y));
-  check("the tower: its new floors walked over, most of each", shaft.length === TW.shaft.length && shaft.every((q) => q.of > 100 && q.got / q.of > 0.9), shaft.map((q) => `${q.y} m ${((q.got / q.of) * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2`).join("; "));
+  // (and the sky floors over them, rules.tower.sky, partitioned as they are: most of each floor, and two-fifths of every
+  // room of it, so a room walled off by cover is caught however small: on the bunkers floor two crates walled the east
+  // room off, 12% of it walked, and the floor was still 94% walked. The sky floors 85%: each face's groove holds a
+  // balcony of the pack's behind its glass, walked to from nowhere before they were partitioned, 94% of 277 m2 on 38.5
+  // and 42 m, and half the west room there, 53 to 54% of it walked)
+  const SKYW = (TW as unknown as { sky?: number[] }).sky ?? [];
+  const laid = all.filter((q) => TW.shaft.includes(q.y) || SKYW.includes(q.y));
+  const roomsOk = (q: (typeof laid)[number]) => q.rooms.every((r) => r.of * C * C < 4 || r.got / r.of > 0.4);
+  check(
+    "the tower: its new floors and its sky floors walked over, most of each and every room of it",
+    laid.length === TW.shaft.length + SKYW.length && laid.every((q) => q.of > 100 && q.got / q.of > (SKYW.includes(q.y) ? 0.85 : 0.9) && roomsOk(q)),
+    laid.map((q) => `${q.y} m ${((q.got / q.of) * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2${roomsOk(q) ? "" : ` (a room ${Math.min(...q.rooms.filter((r) => r.of * C * C >= 4).map((r) => (r.got / r.of) * 100)).toFixed(0)}%)`}`).join("; "),
+  );
   // (measured by the bake: a layout run since without a bake leaves none)
   const F = TW.measured?.floors ?? [];
   check("the tower: its new floors each the inside of its shell, the same on every storey", F.length === TW.shaft.length && Math.min(...F) > 300 && Math.max(...F) - Math.min(...F) < 0.05 * Math.max(...F), `${F.join(", ")} m2`);
   const S = (TW.measured?.seal ?? []) as Array<{ at: number; rays: number; out: number; windows?: number }>;
   // (but through its windows, open since the owner asked: a ray out anywhere else is a gap in its shell)
   check("the tower: its new floors not seen through but by their windows, every other ray from each meets a wall", S.length === TW.shaft.length && S.every((q) => q.rays > 500 && q.out === 0 && (q.windows ?? 0) > 0), S.map((q) => `${q.at} m ${q.out} of ${q.rays} out elsewhere, ${q.windows ?? 0} through windows`).join("; "));
+  // (the sky floors over them, rules.tower.sky, the pack's own storeys)
+  const SKY = (TW as unknown as { sky?: number[] }).sky ?? [];
+  // A ceiling over every storey from the new floors up (the lid over the top one, rules.tower.lid): over each spot a
+  // body stands on inside the main body, out of the core, a box within the storey's height. The top storey had none
+  // over most of it, and a body there looked 60 m up into the tower's hollow upper half
+  {
+    const LID = (TW as unknown as { lid?: { at: number; slab: number } }).lid;
+    const ST = TW.core.storeys;
+    const slab = (cfg.rules.tower as unknown as { slab: number }).slab;
+    const open = ST.filter((h) => h >= TW.shaft[0]).map((h) => {
+      const i = ST.indexOf(h);
+      const ceiling = i === ST.length - 1 ? (LID ? LID.at - LID.slab : h + 3) : ST[i + 1] - slab;
+      let [stood, bare] = [0, 0];
+      for (let x = sx0 + 0.5; x < sx1 - 0.5; x += C)
+        for (let z = sz0 + 0.5; z < sz1 - 0.5; z += C) {
+          if (x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3) continue;
+          const [wx, wz] = [x + BR_X, z + BR_Z];
+          const here = solidsIn(wx, wx, wz, wz).filter((b) => b.minX <= wx && b.maxX >= wx && b.minZ <= wz && b.maxZ >= wz);
+          if (![floorAt(wx, wz), ...here.map((b) => b.top)].some((t) => Math.abs(t - h) < 0.1) || here.some((b) => b.base < h + MOVE.standHeight && b.top > h + MOVE.stepHeight)) continue;
+          stood++;
+          if (!here.some((b) => b.base > h + MOVE.standHeight && b.base < ceiling + 0.3)) bare++;
+        }
+      return { h, stood: stood * C * C, bare: bare * C * C };
+    });
+    check("the tower: a ceiling over every storey from its new floors up, the top one under its lid", !!LID && open.length === TW.shaft.length + SKY.length && open.every((q) => q.stood > 100 && q.bare <= 2), open.map((q) => `${q.h} m ${q.bare.toFixed(0)} of ${q.stood.toFixed(0)} m2 open`).join("; "));
+  }
   // nothing drawn face up over another material in the same plane over the base and the tower (the bake's measure,
   // tools/neon-tower.ts coplanar): two such fight for the same pixels, a sawtooth of the two by turns as the view moves
   const CP = (TW as unknown as { coplanar: { most: number }; measured?: { coplanar?: Array<{ y: number; m2: number; at: number[] }> } });
@@ -1551,14 +1593,33 @@ const drops = [...loot.drops.values()];
 // each new floor's number beside its core doors (rules.tower.floors.digits): the right digit, two signs and more a floor
 {
   const DG = (cfg.rules.tower.floors as unknown as { digits?: { piece: string; first: number; up: number; big?: { scale: number; up: number } } }).digits;
-  const shaft = (cfg.tower as unknown as { shaft: number[] }).shaft;
+  const TWn = cfg.tower as unknown as { shaft: number[]; sky?: number[] };
+  // (the new floors 1 to 8, the sky floors over them 9 to 11)
+  const floors = [...TWn.shaft, ...(TWn.sky ?? [])];
   const signs = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place.filter((q) => String(q[0]).includes(DG?.piece ?? "LineNumber")) as Array<[string, number, number, number, number, string, unknown, unknown, number?]>;
   const ups = [DG?.up ?? 0, DG?.big?.up ?? DG?.up ?? 0];
-  const perFloor = shaft.map((h, k) => signs.filter((q) => ups.some((u) => Math.abs(q[2] - (h + u)) < 0.05) && q[0].endsWith(`${(DG?.first ?? 1) + k}.prefab`)).length);
-  check("the tower's floors numbered: the right lit digit beside each core door, 1 to 8 up the new floors", !!DG && perFloor.every((n) => n >= 2), perFloor.join("/"));
+  const figure = (q: (typeof signs)[number]) => q[0].slice(-8, -7);
+  // each floor's signs at a door: its number's figures and no other, read left to right from outside the core (the w
+  // door's on its face along z, the n and s doors' along x; seen from the north, x runs right to left)
+  const box = (cfg.tower as unknown as { core: { box: number[] } }).core.box;
+  const midZ = (box[2] + box[3]) / 2;
+  const along = { w: (q: (typeof signs)[number]) => q[3], n: (q: (typeof signs)[number]) => -q[1], s: (q: (typeof signs)[number]) => q[1] };
+  const wrong: string[] = [];
+  const perFloor = floors.map((h, k) => {
+    const num = String((DG?.first ?? 1) + k);
+    const byFace = { w: [] as (typeof signs)[number][], n: [] as (typeof signs)[number][], s: [] as (typeof signs)[number][] };
+    for (const q of signs.filter((o) => ups.some((u) => Math.abs(o[2] - (h + u)) < 0.05))) byFace[q[4] === 0 ? "w" : q[3] < midZ ? "n" : "s"].push(q);
+    const faces = (Object.keys(byFace) as Array<keyof typeof byFace>).filter((f) => byFace[f].length);
+    for (const f of faces) {
+      const read = [...byFace[f]].sort((a, b) => along[f](a) - along[f](b)).map(figure).join("");
+      if (read !== num) wrong.push(`${h} m ${f} reads ${read}`);
+    }
+    return faces.length;
+  });
+  check("the tower's floors numbered: the right lit figures beside each core door, read in order, 1 to 11 up the new floors and the sky floors", !!DG && floors.length === 11 && perFloor.every((n) => n >= 3) && wrong.length === 0, `${perFloor.join("/")} doors${wrong.length ? `; ${wrong.join(", ")}` : ""}`);
   // (and 2 m high beside the north and south doors, rules.tower.floors.digits.big: the second review did not see the 1 m
-  // ones; two a floor)
-  const bigPer = shaft.map((h) => signs.filter((q) => (q[8] ?? 1) >= 2 && Math.abs(q[2] - (h + (DG?.big?.up ?? -99))) < 0.05).length);
+  // ones; two a floor and more)
+  const bigPer = floors.map((h) => signs.filter((q) => (q[8] ?? 1) >= 2 && Math.abs(q[2] - (h + (DG?.big?.up ?? -99))) < 0.05).length);
   check("the tower's floors numbered 2 m high beside the north and south doors", !!DG?.big && DG.big.scale >= 2 && bigPer.every((n) => n >= 2), bigPer.join("/"));
 }
 const over12 = drops.filter((d) => d.pos.y > 12).length;
@@ -1840,7 +1901,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
 // it is; and every floor number's plate black
 {
   const F = cfg.rules.tower.floors as unknown as { gate: string; frame: { door: string; head: number; faces: string[] }; plans: Record<string, Record<string, string>>; at: Record<string, { plan: string; mat?: string }>; digits: { piece: string; mat: string } };
-  const TWc = cfg.tower as unknown as { core: { storeys: number[] } };
+  const TWc = cfg.tower as unknown as { core: { storeys: number[] }; lid?: { at: number; slab: number } };
   const slab = (cfg.rules.tower as unknown as { slab: number }).slab;
   const place = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place;
   const bad: string[] = [];
@@ -1849,8 +1910,9 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     const h = Number(hs);
     const plan = F.plans[P.plan];
     const want = { door: Object.values(plan).filter((v) => v === "door").length, gate: Object.values(plan).filter((v) => v === "gate").length };
-    const next = TWc.core.storeys[TWc.core.storeys.indexOf(h) + 1];
-    const ceiling = next - slab;
+    // (over the top storey, its lid)
+    const i = TWc.core.storeys.indexOf(h);
+    const ceiling = i === TWc.core.storeys.length - 1 && TWc.lid ? TWc.lid.at - TWc.lid.slab : TWc.core.storeys[i + 1] - slab;
     for (const [kind, name] of [["door", F.frame.door], ["gate", F.gate]] as const) {
       const got = place.filter((q) => String(q[0]).endsWith(name) && Math.abs(Number(q[2]) - h) < 1);
       const ok = got.filter((q) => {

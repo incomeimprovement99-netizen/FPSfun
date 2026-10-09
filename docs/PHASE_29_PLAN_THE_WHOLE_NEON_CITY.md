@@ -94,10 +94,10 @@ first.
 1. **Framed doorways and floor numbers on black** (Milestone 484, built). Every doorway on the rooms and maze floors in
    the pack's steel door frame, the halls' gates too, sunk to show their heads under the 2.5 m ceilings. Every door
    measured open 1.2 to 1.5 m, the floors 98 to 99% walked.
-2. **The sky floors at 38.5, 42 and 45.5 m.** Walkable today, with 35 open windows and loot, but no theme, no number and
-   no seal check. Each gets its number (9 to 11), its walls and floor, and a plan of its own: the eight floors under them
-   use four plans twice, and with three more no two of the eleven are alike. Numbers 3 m high. The 45.5 m storey may
-   have no collision ceiling: checked and closed first.
+2. **The sky floors at 38.5, 42 and 45.5 m** (Milestone 503, built). The 45.5 m storey had no ceiling, the tower's
+   hollow upper half open over it: closed by a lid at 48.5 m. Each numbered (9 to 11, the pack's signs two side by side
+   for 10 and 11, 2 m high, the storeys being too low for 3 m), in its own panels, and laid out to a plan none of the
+   floors under it use: a loop, two halves, corner bunkers. Their floors are still the pack's own tiles.
 3. **THE VAULT reads from outside.** It reads today as "a thin gold line" (0.3 m bands): a gold band from sill to
    ceiling round the 32 m storey, its name in lights on each face, the loot's glow at its windows.
 4. **The empty upper half, 47.5 to 108 m** (a decision). Measured off the bake: above the sky floors the tower is a hollow

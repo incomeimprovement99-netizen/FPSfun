@@ -12,6 +12,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { streets, StreetField, contours, along, type Pt, type Street } from "./neon-streets";
 import { stairCore } from "./neon-tower";
 import { measure, wellFlight, type Flight } from "./neon-well";
+import { MOVE } from "../src/game/movement";
 import { join } from "node:path";
 
 const ROOT = join(import.meta.dirname, "..");
@@ -242,6 +243,8 @@ const noGround: Array<[number, number, number, number]> = [];
       backWear: T.backWear,
       coplanar: T.coplanar,
       core: { box: [...on(C.box[0], C.box[2]), ...on(C.box[1], C.box[3])], storeys: C.storeys, top: C.top, wall: C.wall, landing: C.landing, divider: C.divider, tread: C.tread, riser: C.riser, stepDepth: C.stepDepth, slab: C.slab, door: C.door, doors, mats: C.mats, scale: C.scale },
+      ...(T.sky ? { sky: T.sky } : {}),
+      ...(T.lid ? { lid: T.lid } : {}),
     };
     // (as x0, x1, z0, z1 on the map)
     const [ax, az, bx, bz] = cfg.tower.core.box;
@@ -262,14 +265,30 @@ const noGround: Array<[number, number, number, number]> = [];
     // each); the pack's half-metre wall stood in each, a storey at a time
     for (const h of T.shaft as number[]) for (const [sx, sz] of T.slots.at as number[][]) placeTurned("c-tower", T.slots.piece, sx + px, sz + pz, 0, "o", h - 0.02);
     const F = T.floors;
+    // (a storey's ceiling: the slab under the storey over it, and over the top storey the lid, rules.tower.lid)
+    const lid = T.lid as { at: number; slab: number } | undefined;
+    const ceilingOf = (h: number): number => {
+      const S = C.storeys as number[];
+      const i = S.indexOf(h);
+      return i === S.length - 1 && lid ? lid.at - lid.slab : S[i + 1] - T.slab;
+    };
+    // (the floors numbered up from the first laid out: the new floors 1 to 8, the sky floors over them 9 to 11)
+    const numbered = Object.keys(F.at).map(Number).sort((a, b) => a - b);
     const rnd3 = seeded(F.seed);
     const pick3 = <Q,>(a: Q[]): Q => a[Math.floor(rnd3() * a.length)];
     const lines = F.lines as Record<string, number[]>;
     let tWalls = 0, tProps = 0, tLamps = 0;
+    const wayLog: string[] = [];
     for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; mat?: string }>)) {
       const h = Number(hs);
       const plan = F.plans[P.plan] as Record<string, string>;
       const placed: OBox[] = [];
+      // (the partitions as a body meets them: each piece, and the width open through it, a doorway's or a gate's)
+      const bars: Array<{ o: OBox; open: number; pad: number }> = [];
+      // (the walls' and the gates' collision column; a doorway and its half-metre wall beside it as drawn, the way a body
+      // was walked through every one of them)
+      const padOf = (name: string) => (name === F.frame?.door || name === F.frame?.fill ? 0 : (F.way as { column: number }).column);
+      const FW = F.way as { cell: number; door: number; gate: number; column: number; corner: number };
       // the core and the way out of each of its doors, kept clear
       const [cx0, cx1, cz0, cz1] = C.box;
       const keepT: OBox[] = [boxOf([cx0 + px - 0.3, cx1 + px + 0.3, cz0 + pz - 0.3, cz1 + pz + 0.3])];
@@ -300,7 +319,7 @@ const noGround: Array<[number, number, number, number]> = [];
         // 0.81 m; scaled, each face stands 7.5 mm off the line in its jamb's own column, its ends a centimetre into the
         // walls beside it)
         const FR = F.frame as { door: string; fill: string; faces: string[]; scale: number } | undefined;
-        const ceiling = (C.storeys as number[])[(C.storeys as number[]).indexOf(h) + 1] - T.slab;
+        const ceiling = ceilingOf(h);
         const sunk = (name: string, k = 1) => Math.min(h - 0.02, ceiling + 0.02 - piece(name).row.size![1] * k);
         const framed = (name: string): string | undefined => {
           if (!FR || !P.mat) return P.mat;
@@ -314,9 +333,16 @@ const noGround: Array<[number, number, number, number]> = [];
               // (the door 2 m wide, the slot's last half-metre at the core's corner a wall)
               const at = (u: number): Pt => [ax + d[0] * u + px, az + d[1] * u + pz];
               const [fx, fz] = at(k * 2.5 + 1);
-              placed.push(placeTurned("c-tower", FR.door, fx, fz, yaw, "o", sunk(FR.door, FR.scale), framed(FR.door), FR.scale));
+              const db = placeTurned("c-tower", FR.door, fx, fz, yaw, "o", sunk(FR.door, FR.scale), framed(FR.door), FR.scale);
+              placed.push(db);
+              bars.push({ o: db, open: FW.door, pad: padOf(FR.door) });
+              // (and the way through it kept clear of cover `clear` metres either side, as the core's doors are: on the
+              // 45.5 m floor a crate a door's width inside the east room's door walled the room off)
+              keepT.push({ c: [fx, fz], u: [d[0], d[1]], v: [-d[1], d[0]], hu: 1, hv: F.clear, top: 0 });
               const [wx, wz] = at(k * 2.5 + 2.25);
-              placed.push(placeTurned("c-tower", FR.fill, wx, wz, yaw, "o", h - 0.02, P.mat));
+              const fb = placeTurned("c-tower", FR.fill, wx, wz, yaw, "o", h - 0.02, P.mat);
+              placed.push(fb);
+              bars.push({ o: fb, open: 0, pad: padOf(FR.fill) });
               tWalls += 2;
             }
             k++;
@@ -330,7 +356,10 @@ const noGround: Array<[number, number, number, number]> = [];
           // (2 cm into the floor, its top 2 cm inside the slab over it: neither face shares a plane with a floor)
           // (in the floor's own wall material, rules.tower.floors.at[h].mat: the floors looked alike)
           const isGate = k === gate && !!FR;
-          placed.push(placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", isGate ? sunk(F.gate) : h - 0.02, isGate ? framed(F.gate) : P.mat));
+          const wb = placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", isGate ? sunk(F.gate) : h - 0.02, isGate ? framed(F.gate) : P.mat);
+          placed.push(wb);
+          bars.push({ o: wb, open: isGate ? FW.gate : 0, pad: padOf(two ? piece5 : F.walls["2.5"]) });
+          if (isGate) keepT.push({ c, u: [d[0], d[1]], v: [-d[1], d[0]], hu: 2.5, hv: F.clear, top: 0 });
           tWalls++;
           k += two ? 2 : 1;
         }
@@ -340,20 +369,33 @@ const noGround: Array<[number, number, number, number]> = [];
       // the floor's number beside each of its core doors (rules.tower.floors.digits): the pack's lit digit, flat on the
       // core's outside face, `beside` the door's edge toward the core's far end and `up` over the floor
       const DG = F.digits as { piece: string; first: number; up: number; beside: number; off: number; mat?: string; big?: { scale: number; up: number; beside: number; off: number } } | undefined;
-      const shaft = T.shaft as number[];
-      if (DG && shaft.includes(h)) {
-        const digit = DG.first + shaft.indexOf(h);
+      if (DG && numbered.includes(h)) {
+        const num = String(DG.first + numbered.indexOf(h));
         const dw = C.door[0];
         const doorsHere = ds;
-        const sign = `${DG.piece}${digit}.prefab`;
+        // (a number of two figures, 10 and 11, is two of the pack's signs side by side: it has signs for 0 to 9 alone. A
+        // sign's plate is its height square, its bracket out past it on its own +z to the whole of its depth (a metre and
+        // 1.21 m, measured off the model); two stand a plate and a bracket apart, the bracket between them, from the same
+        // gap off the door's edge as one sign, and smaller where the wall to the core's corner is short for two: the west
+        // door's 1.7 m)
+        const one = piece(`${DG.piece}${num[0]}.prefab`).row;
+        const [plate, pitch] = [one.size![1], one.size![2]];
+        const row = (k: number, beside: number, room: number) => {
+          const gap = beside - (plate * k) / 2;
+          const s = num.length === 1 ? k : Math.min(k, (room - gap - 0.05) / (num.length * pitch));
+          return [...num].map((_, i) => ({ a: gap + (plate * s) / 2 + i * pitch * s, s }));
+        };
         // (the w door's middle on z, the n and s doors' on x, as neon-tower.ts cuts them)
         // (in `mat`: the plate black under the lit digit, the fourth review's "high-contrast numerals")
-        if (doorsHere.includes("w")) placeTurned("c-tower", sign, cx0 + px - DG.off, dz + pz + dw / 2 + DG.beside, 0, "g", h + DG.up, DG.mat);
+        // (read from outside the core, left to right: beside the w and s doors the first figure is the one by the door,
+        // beside the n door the far one)
+        if (doorsHere.includes("w")) for (const [i, q] of row(1, DG.beside, cz1 - (dz + dw / 2)).entries()) placeTurned("c-tower", `${DG.piece}${num[i]}.prefab`, cx0 + px - DG.off, dz + pz + dw / 2 + q.a, 0, "g", h + DG.up, DG.mat, q.s === 1 ? undefined : q.s);
         // (beside the north and south doors `big`: `scale` times the pack's digit, its middle `beside` the door's edge,
         // `off` the wall, `up` over the floor)
         const B = DG.big ?? { scale: 1, up: DG.up, beside: DG.beside, off: DG.off };
-        if (doorsHere.includes("n")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz0 + pz - B.off, 90, "g", h + B.up, DG.mat, B.scale);
-        if (doorsHere.includes("s")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz1 + pz + B.off, 90, "g", h + B.up, DG.mat, B.scale);
+        const big = row(B.scale, B.beside, cx1 - (dx + dw / 2));
+        if (doorsHere.includes("n")) for (const [i, q] of big.entries()) placeTurned("c-tower", `${DG.piece}${num[num.length - 1 - i]}.prefab`, dx + px + dw / 2 + q.a, cz0 + pz - B.off, 90, "g", h + B.up, DG.mat, q.s);
+        if (doorsHere.includes("s")) for (const [i, q] of big.entries()) placeTurned("c-tower", `${DG.piece}${num[i]}.prefab`, dx + px + dw / 2 + q.a, cz1 + pz + B.off, 90, "g", h + B.up, DG.mat, q.s);
       }
       // inside the floor: the main body's inner faces, its round corners and the grooves down each face
       const [qx0, qx1, qz0, qz1] = F.inner;
@@ -363,6 +405,57 @@ const noGround: Array<[number, number, number, number]> = [];
         for (const [ox, oz, r] of F.corners as number[][]) if ((x - ox) * Math.sign(ox - (qx0 + qx1) / 2) > 0 && (z - oz) * Math.sign(oz - (qz0 + qz1) / 2) > 0 && Math.hypot(x - ox, z - oz) > r - m) return false;
         return true;
       };
+      // The way round the floor (rules.tower.floors.way): on a grid of `cell` metres, every spot of it a body's radius
+      // off the faces and their grooves (each partition runs out to a groove, whose facade shuts its end), the core and the
+      // partitions, through their doorways and gates, reached from the core's doors; a piece of cover that would leave
+      // more of it unreached than a dead corner is not laid. Kept off the walls and the doorways, the cover still walled
+      // rooms off: on the bunkers floor two crates in its east room, 5 m across with its one door at an end, left half of
+      // it unreached (the walk check's map of the floor)
+      const R0 = MOVE.radius;
+      const [wn, wm] = [Math.ceil((qx1 - qx0) / FW.cell), Math.ceil((qz1 - qz0) / FW.cell)];
+      const wxz = (k: number): Pt => [qx0 + ((k % wn) + 0.5) * FW.cell, qz0 + (Math.floor(k / wn) + 0.5) * FW.cell];
+      // (a body's radius off a piece and a collision column more: its boxes are built in columns and stand up to one past
+      // its drawn bounds; with only the bounds counted, a vending machine and the wall beside its room's door, the way
+      // between them open by the bounds and shut by the columns, walled the bunkers floor's east room off)
+      const hits = (q: OBox, x: number, z: number, open = 0, pad = 0) => {
+        const [ex, ez] = [x + px - q.c[0], z + pz - q.c[1]];
+        const [a, b] = [ex * q.u[0] + ez * q.u[1], ex * q.v[0] + ez * q.v[1]];
+        if (Math.hypot(Math.max(Math.abs(a) - q.hu, 0), Math.max(Math.abs(b) - q.hv, 0)) > R0 + pad) return false;
+        return !(open > 0 && Math.abs(a) < open / 2 - R0);
+      };
+      const free = new Uint8Array(wn * wm);
+      for (let k = 0; k < free.length; k++) {
+        const [x, z] = wxz(k);
+        const inCore = x > cx0 - R0 && x < cx1 + R0 && z > cz0 - R0 && z < cz1 + R0;
+        free[k] = inFloor(x, z, R0) && !inCore && !bars.some((q) => hits(q.o, x, z, q.open, q.pad)) ? 1 : 0;
+      }
+      const seeds = ds.map((s) => (s === "w" ? [cx0 - R0 - FW.cell, dz] : s === "n" ? [dx, cz0 - R0 - FW.cell] : [dx, cz1 + R0 + FW.cell])).map(([x, z]) => Math.floor((z - qz0) / FW.cell) * wn + Math.floor((x - qx0) / FW.cell)).filter((k) => free[k]);
+      if (!seeds.length) throw new Error(`the tower's ${h} m floor: no way out of the core's doors onto it`);
+      // (how much of the floor is unreached with the cells in `shut` taken)
+      const lost = (shut: Uint8Array) => {
+        const seen = new Uint8Array(free.length);
+        const todo = seeds.filter((k) => !shut[k]);
+        for (const k of todo) seen[k] = 1;
+        let n = todo.length;
+        while (todo.length) {
+          const k = todo.pop()!;
+          const [i, j] = [k % wn, Math.floor(k / wn)];
+          for (const [a, b] of [[i + 1, j], [i - 1, j], [i, j + 1], [i, j - 1]]) {
+            const q = b * wn + a;
+            if (a < 0 || a >= wn || b < 0 || b >= wm || seen[q] || !free[q] || shut[q]) continue;
+            seen[q] = 1;
+            n++;
+            todo.push(q);
+          }
+        }
+        let all = 0;
+        for (let k = 0; k < free.length; k++) if (free[k] && !shut[k]) all++;
+        return all - n;
+      };
+      let shut = new Uint8Array(free.length);
+      let unreached = lost(shut);
+      const wayAll = free.reduce((a, v) => a + v, 0);
+      wayLog.push(`${h} m ${(wayAll * FW.cell * FW.cell).toFixed(0)} m2${unreached ? ` (${(unreached * FW.cell * FW.cell).toFixed(1)} out of reach before its cover)` : ""}`);
       const names = (P.pieces ?? F.cover) as string[];
       for (let t = 0, got = 0; t < P.cover * 40 && got < P.cover; t++) {
         const name = pick3(names);
@@ -372,6 +465,13 @@ const noGround: Array<[number, number, number, number]> = [];
         const o: OBox = { c: [lx + px, lz + pz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: 0 };
         const reach = Math.hypot(o.hu, o.hv);
         if (!inFloor(lx, lz, reach + 0.3) || keepT.some((q) => overlaps(o, q, 0.3)) || placed.some((q) => overlaps(o, q, F.apart))) continue;
+        const next = shut.slice();
+        for (let k = 0; k < free.length; k++) if (free[k] && !next[k] && hits(o, ...wxz(k), 0, FW.column)) next[k] = 1;
+        // (a dead corner behind it, `corner` square metres, is let be: refused outright, a crate a body's width off a
+        // wall's end cost the maze floors half their cover)
+        const u = lost(next);
+        if ((u - unreached) * FW.cell * FW.cell > FW.corner) continue;
+        [shut, unreached] = [next, u];
         placeTurned("c-tower", name, lx + px, lz + pz, yaw, "o", h - row.min![1]);
         placed.push(o);
         tProps++;
@@ -391,11 +491,12 @@ const noGround: Array<[number, number, number, number]> = [];
           if (!fits) continue;
           // (under the floor's own ceiling: the halls at 35 m are a 3.5 m storey, and lamps hung for a 3 m one floated half a
           // metre under theirs)
-          placeTurned("c-tower", F.lamp.piece, lx + fits.dx + px, lz + fits.dz + pz, fits.yaw, "g", (C.storeys as number[])[(C.storeys as number[]).indexOf(h) + 1] - T.slab - F.lamp.under - lamp.max![1]);
+          placeTurned("c-tower", F.lamp.piece, lx + fits.dx + px, lz + fits.dz + pz, fits.yaw, "g", ceilingOf(h) - F.lamp.under - lamp.max![1]);
           tLamps++;
         }
     }
     console.log(`the tower's floors: ${tWalls} lengths of wall, ${tProps} pieces of cover, ${tLamps} lamps`);
+    console.log(`the tower's floors' way round each, kept whole by the cover: ${wayLog.join("; ")}`);
   }
 }
 

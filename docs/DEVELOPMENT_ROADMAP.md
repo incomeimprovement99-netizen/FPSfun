@@ -11218,3 +11218,49 @@ on the first person's beats (`docs/PLAN_SOLDIER_EIGHT_GUNS.md` 5.3, G4 and G5).
   pump from empty (3.7 cm with the left hand on it, none with a shell chambered) and after a shot (3.7 cm); all three
   seen failing with the shell reload switched off. Every skfigure check on all ten guns; verify; rules; the type check;
   photographs of a push, its end, the low point and the pump.
+
+## Milestone 503 — The tower's sky floors: closed over, numbered 9 to 11, each laid out its own way
+
+The plan's next item in the middle building (docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md, item 2): the three storeys over
+the new floors, the pack's own at 38.5, 42 and 45.5 m, walkable with loot and open windows but plain, unnumbered, and
+the top one perhaps without a ceiling. Measured first, off the collision and then off the model:
+
+- **The top storey had no ceiling.** Over 45.5 m, 329 of the 414 m2 a body stands on had nothing within 8 m over it,
+  and photographed from there the tower's hollow upper half rose 60 m overhead, the backs of its facade and their
+  floating balcony brackets in view. The pack's storeys at 38.5 and 42 m have their own 0.5 m slabs over them
+  (undersides at 41.5 and 45 m); over 45.5 m it has none, only a 32 m2 ledge at 48.5 m.
+- **The lid** (`rules.tower.lid`, tools/import-neon.ts): a slab as the new floors' are, its underside at 48.1 m, clear of
+  the storey's glass (45.94 to 48.06 m; the next row from 48.92), so the storey has a 2.6 m ceiling, over the core too,
+  which stops under it at 47.9 m. Its top is 5 cm under the facade's next floor line, 48.45 m: at 48.5 it lay in one plane
+  with a 1.6 m2 ledge of the pack's in the west face's groove (the coplanar check found it). Its inside is found in the
+  facade's solid band round it (48.12 to 48.9 m): above that the facade is the hollow's glass. 425 m2.
+- **Each its own** (`rules.tower.floors.at`, `plans`): three plans none of the four below use. 38.5 m, a loop: the north
+  and south doors joined by a corridor of four doors round the east side, the west door's room with a dead end either
+  side. 42 m, two halves: a north hall and a south hall joined through the east side by wide gates, the west door's room
+  closed off from both. 45.5 m, bunkers: each corner room shut off from one of its neighbours, three of them dead ends.
+  Each in its own panels (violet, teal, red), strewn with cover and lit under its own ceiling, the top one's the lid's.
+- **The cover walls no room off** (`floors.clear`, `floors.way`): on the bunkers floor two crates in its east room, 5 m
+  across with its one door at an end, left half of it unreached (12% of it walked, found on the walk check's map of the
+  floor), and the floor was still 94% walked. Cover now keeps 1.5 m clear either side of every door and gate, as of the
+  core's doors, and the layout walks each floor before laying a piece: on a quarter-metre grid every spot a body's
+  radius off the faces, their grooves, the core and the partitions (each a collision column more, half a metre, the way
+  its boxes are built; the doors as drawn, the way bodies were walked through them all), reached from the core's doors.
+  A piece that would leave more than a square metre unreached is not laid. It took a piece or two off most floors
+  under them as well (THE VAULT has 3 of the 4 it had), each a pocket's or a corner's cover. The modelling took four
+  bakes to match the collision: by the drawn bounds alone the cover passed, and by the floor without its grooves a way
+  round each partition's end through the groove opened that the facade shuts. The corner stubs the maze floors have were
+  tried on the new plans and left out.
+- **Numbered 9 to 11**: the pack has signs for 0 to 9 alone, so 10 and 11 are two side by side, a plate and its bracket
+  apart, read left to right from outside the core; 2 m high beside the north and south doors as on the floors under them,
+  and two-thirds size beside the west door, where 1.7 m of wall to the core's corner is short for two. The plan's "3 m
+  high" was dropped: the storeys are 2.6 to 3 m tall.
+- **Not measured for a seal** as the new floors are: the sky floors' balconies open out of the shell at standing height,
+  the way onto them, and the bake's seal flood went out through them (its first run here stopped on it).
+- **Checked** (tools/checks/sk-neon.ts): a new check wants a ceiling over every storey from 14 m up, a box within the
+  storey's height over each spot a body stands on inside the tower; on the map before the lid it failed with 339 of
+  365 m2 open at 45.5 m. The walk check now takes the sky floors too, and wants two-fifths of every room of the ring
+  round the core walked as well as most of each floor (85% on the sky floors, whose grooves hold balconies of the pack's
+  behind its glass, unreached before they were partitioned): on the bake with the east room walled off it failed at 12%.
+  The numbering check reads every door's figures in order, 1 to 11. The doorway check finds the sky floors' 11 doors
+  and 2 gates with their heads under each ceiling. The e2e `speedkills` section on the Neon City: every check passes (97), 27 of 27 bots on the move; its first run failed the ghost restore twice, the host set a metre from the death box of a random drop and offered nothing, and passed whole when run again. verify and
+  rules. The map: its files lo 95 MB, hi 159 MB, max 381 MB. **Its files are version 48.**
