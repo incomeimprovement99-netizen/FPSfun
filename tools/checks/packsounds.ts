@@ -31,7 +31,10 @@ console.log("The pack's gun sounds");
   check("every gun's level is a level, not a typo (0.5 to 2)", Object.values(guns).every((g) => g.level >= 0.5 && g.level <= 2));
   // a reload's sound is recorded to its pack gun's own animation: only a gun reloaded with it may have one
   const fp = FP.guns as Record<string, string>;
+  // (a gun that never reloads, venting its heat instead, has no reload to sound: CHOOCH's, fparms.json packGuns vent)
+  const vents = (pack: string) => !!(FP.packGuns as Record<string, { vent?: unknown }>)[pack]?.vent;
   const timed = Object.entries(fp).filter(([id, pack]) => guns[id]?.pack === pack);
+  const reloads = timed.filter(([, pack]) => !vents(pack));
   // A gun put on a pack gun's first-person animation (fparms.json guns) reloads with that pack gun's recorded sounds only
   // if packsounds.json gives it the same pack gun: anything else, and its reload is silently the old clicks.
   const mismatched = Object.entries(fp).filter(([id, pack]) => guns[id] && guns[id].pack !== pack);
@@ -39,12 +42,12 @@ console.log("The pack's gun sounds");
   check("the USSO and BOOG among them", ["r97", "sentinel"].every((id) => timed.some(([g]) => g === id)), timed.map(([id]) => id).join());
   // (or, reloaded a shell at a time, the pieces its reloads are laid out of: BIGANTLER's, tools/import-pack-sounds.ts)
   const shells = (pack: string) => (packs[pack] as { shells?: Record<string, string> }).shells;
-  check("each of them has a tactical and an empty reload to play", timed.every(([, pack]) => (!!packs[pack].reloadTac && !!packs[pack].reloadEmpty) || ["start", "insert", "end", "pump"].every((k) => !!shells(pack)?.[k])));
+  check("each of them that reloads has a tactical and an empty reload to play", reloads.every(([, pack]) => (!!packs[pack].reloadTac && !!packs[pack].reloadEmpty) || ["start", "insert", "end", "pump"].every((k) => !!shells(pack)?.[k])));
   // where the paid files are on disk (the owner's machine), each one's reload written (npm run paid:sounds after a gun joins)
   const metaFile = new URL("../../public/audio/paid/meta.json", import.meta.url);
   if (existsSync(metaFile)) {
     const meta = JSON.parse(readFileSync(metaFile, "utf8")) as Record<string, unknown>;
-    const stale = timed.filter(([id]) => !meta[`pack_reload_${id}_tac`] || !meta[`pack_reload_${id}_empty`]).map(([id]) => id);
+    const stale = reloads.filter(([id]) => !meta[`pack_reload_${id}_tac`] || !meta[`pack_reload_${id}_empty`]).map(([id]) => id);
     check("public/audio/paid has each one's reloads (else: npm run paid:sounds)", stale.length === 0, stale.join(", "));
   }
 }

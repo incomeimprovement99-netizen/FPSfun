@@ -1174,6 +1174,8 @@ const debugView: {
   weapon: string | null;
   ads: number | null;
   reload: number | null;
+  /** hold an overheat's vent at a point in its run, 0..1, for a picture or a check */
+  vent: number | null;
   optic: string | null;
   lowered: number | null;
   onZip: boolean | null;
@@ -1199,6 +1201,7 @@ const debugView: {
   ads: null,
   inspect: null,
   reload: null,
+  vent: null,
   optic: null,
   lowered: null,
   onZip: null,
@@ -8785,7 +8788,9 @@ function step(): void {
     clipFrac: onScreen.weapon.clipSize > 0 ? onScreen.state.clip / onScreen.weapon.clipSize : 1,
     clip: onScreen.state.clip,
     vy: player.vel.y,
-    reloading: debugView.reload !== null || onScreen.state.reloading,
+    // (an overheated gun's lockout is a vent to the view, not a reload: CHOOCH's hands stay on it, fparms.json packGuns vent)
+    reloading: debugView.reload !== null || (onScreen.state.reloading && !onScreen.state.overheated),
+    vent: debugView.vent ?? (onScreen.state.overheated && onScreen.state.reloading ? onScreen.state.reloadProgress(now) : undefined),
     reloadProgress: debugView.reload ?? (onScreen.state.reloading ? onScreen.state.reloadProgress(now) : 0),
     lookYaw,
     lookPitch,

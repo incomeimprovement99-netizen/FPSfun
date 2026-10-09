@@ -51,7 +51,13 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; reload?: ShellReload; pumpScale?: number };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent };
+/**
+ * An overheat's vent (fparms.json packGuns vent, CHOOCH's): the gun tipped up and canted in both hands over `in` of the
+ * lockout and back over `out`, by `roll`, `yaw` and `pitch` (radians) and `x`, `y`, `z` (view metres), the soldier's on the
+ * same shares
+ */
+type Vent = Twist & { in: number[]; out: number[] };
 /**
  * A reload a shell at a time (fparms.json packGuns reload, BIGANTLER's): shares of the empty reload's time, the left hand
  * off the pump over `leave`, `count` shells fed into the gate over `feed` (each pushed in over `push` of its own share),
@@ -323,6 +329,10 @@ export class PackArms {
   /** how the gun turns while the hand points at its magazine: the pack gun's own, else the reload's (fparms.json) */
   get twist(): Twist {
     return this.debugTwist ?? ((this.active && PACK[this.active]?.twist) || PACK_RELOAD.twist);
+  }
+  /** how the gun is turned while it vents an overheat (fparms.json packGuns vent), none if it never does */
+  get vent(): Vent | null {
+    return (this.active && PACK[this.active]?.vent) || null;
   }
   /** a reload's turn tried in place of the pack gun's own (searched by the picture it makes) */
   debugTwist: Twist | null = null;

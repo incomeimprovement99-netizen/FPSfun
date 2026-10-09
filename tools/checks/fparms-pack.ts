@@ -84,8 +84,10 @@ for (const [name, g] of Object.entries(cfg.packGuns)) {
   gun.scene.traverse((o) => {
     if (!trig && /^Trigger\d*$/.test(o.name)) trig = o;
   });
-  check(`${name}: the pack gun has a Trigger part`, !!trig);
-  if (!trig) continue;
+  // (a pack gun with no trigger part, the MGX5's: its trigger is where the pose's right forefinger lies, at its last
+  // joint, and it stands upright in the hands, its own up the rig's)
+  check(`${name}: the pack gun has a Trigger part, or the forefinger stands for one`, !!trig || !!bone("index_03_r"));
+  const trigAt = (): THREE.Vector3 => (trig ? world(trig) : world(bone("index_03_r")!));
   // the turn: ahead (its length along the rig's z, the muzzle in front) and the trigger nearest the index finger
   let best: { e: THREE.Euler; d: number } | null = null;
   const index = world(bone("index_03_r")!);
@@ -106,10 +108,10 @@ for (const [name, g] of Object.entries(cfg.packGuns)) {
     const box = boxOf();
     const s = box.getSize(new THREE.Vector3());
     if (s.z < Math.max(s.x, s.y) || box.max.z - gunBoneAt.z < gunBoneAt.z - box.min.z) continue;
-    const d = world(trig).distanceTo(index);
+    const d = trig ? world(trig).distanceTo(index) : -new THREE.Vector3(0, 1, 0).applyQuaternion(gun.scene.getWorldQuaternion(new THREE.Quaternion())).y;
     if (!best || d < best.d - 1e-6) best = { e: e.clone(), d };
   }
-  check(`${name}: a turn stands it ahead in the hands with its trigger under the index finger`, !!best && best.d < 0.06, best ? `${(best.d * 100).toFixed(1)} cm` : "none");
+  check(`${name}: a turn stands it ahead in the hands with its trigger under the index finger`, !!best && best.d < 0.06, !best ? "none" : trig ? `${(best.d * 100).toFixed(1)} cm` : "upright, the forefinger its trigger");
   if (!best) continue;
   holder.quaternion.setFromEuler(best.e);
   arms.scene.updateMatrixWorld(true);
@@ -117,7 +119,9 @@ for (const [name, g] of Object.entries(cfg.packGuns)) {
   const rot = new THREE.Matrix3().setFromMatrix4(holder.matrixWorld).invert();
   const forward = snap(new THREE.Vector3(0, 0, 1).applyMatrix3(rot).normalize());
   const up = snap(new THREE.Vector3(0, 1, 0).applyMatrix3(rot).normalize());
-  const trigger = world(trig).applyMatrix4(inv);
+  // (the forefinger lies beside a trigger, not on the gun's middle: a stand-in one is put on its middle)
+  const trigger = trigAt().applyMatrix4(inv);
+  if (!trig) trigger.sub(new THREE.Vector3().copy(forward).cross(up).normalize().multiplyScalar(trigger.dot(new THREE.Vector3().copy(forward).cross(up).normalize())));
   // the palm: between the wrist and the middle knuckle, along the gun; the underside under it, 22 mm up
   const palmW = world(bone("hand_l")!).lerp(world(bone("middle_01_l")!), 0.55);
   const palm = palmW.clone().applyMatrix4(inv);

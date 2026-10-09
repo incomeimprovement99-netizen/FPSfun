@@ -3473,7 +3473,10 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
+/** an overheat's vent (CHOOCH's): its turn's weight mid-vent and at its ends, which clip leads mid-vent, the deepest seen
+ * skin in the gun through it, mm, and the worst wrist, degrees */
+type Vent = { mid: number; ends: number; lead: string; deep: number; wrist: number };
 /** a reload a shell at a time (BIGANTLER's): through the feed, the most the hand's pinch is off the shell it holds, cm, the
  * gate's most opening at each push, radians, the deepest seen skin in the gun, mm, the most the arm falls short, cm, the
  * worst wrist, degrees, how far the last shell is from its rest once in, cm, and the most the hand or the shell moves across
@@ -3522,6 +3525,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
       };
       H.clear = () => {
         r.debugView.reload = null;
+        r.debugView.vent = null;
         r.debugView.raise = null;
         r.debugView.ads = null;
         r.debugView.lowered = null;
@@ -3624,7 +3628,12 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     await pf(`r.loadout.active.state.clip = 0;`);
     // the wrists: at rest and aimed, pointing, and early in a swap as the pack's unequip swings the gun
     const wr = (js: string) => pf<number[]>(`${js} await H.gameWait(0.35); const s = r.packArms(); H.clear(); await H.gameWait(0.3); return [s.wristL, s.wristR];`);
-    o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: (await wr("r.debugView.reload = 0.28;"))[0], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
+    // (a gun reloaded a shell at a time has no magazine, and one that vents its heat never reloads: neither points or racks)
+    const packOf = (fparmsCfg.packGuns as Record<string, { reload?: unknown; vent?: unknown }>)[(fparmsCfg.guns as Record<string, string>)[id]];
+    const shells = !!packOf?.reload;
+    const vents = !!packOf?.vent;
+    const noMag = shells || vents;
+    o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: vents ? 0 : (await wr("r.debugView.reload = 0.28;"))[0], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
     // at rest, as fitted to the other games' resting frames (fparms.json packGuns look, tools/gun-fit.ts): where the barrel's
     // line meets the screen and where the muzzle is (shares of the screen, from the left and the top), and the gun's across
     // axis on the screen, degrees off level; and how much of the left upper arm is in the picture through a melee (carried by
@@ -3635,14 +3644,13 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // and how high in the picture the pointing wrist is (-1 its bottom edge, the gun camera's), -9 behind the eye
     o.pointHand = await pf<number>(`r.debugView.reload = 0.28; await H.gameWait(0.35); const T = r.THREE; const root = r.viewModelRoot(); const inv = new T.Matrix4().copy(root.matrixWorld).invert(); const tanV = Math.tan(((r.gunFov().gun / 2) * Math.PI) / 180); const v = r.packRig().group.getObjectByName("hand_l").getWorldPosition(new T.Vector3()).applyMatrix4(inv); H.clear(); await H.gameWait(0.3); return v.z < 0 ? v.y / -v.z / tanV : -9;`);
     // the magazine as the old one goes (just before its phase out ends), and part way into the new one's phase in: out, and seated
-    const shells = !!(fparmsCfg.packGuns as Record<string, { reload?: unknown }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.reload;
-    o.slid = shells ? 0 : await pf<number>(`const rest = H.magAt(); r.debugView.reload = ${RL.phaseOut[1] - 0.005}; await H.gameWait(0.2); const d = H.magAt().distanceTo(rest); H.clear(); await H.gameWait(0.2); return d;`);
-    o.slidIn = shells ? 0 : await pf<number>(`const rest = H.magAt(); r.debugView.reload = ${RL.phaseIn[0] + (RL.phaseIn[1] - RL.phaseIn[0]) / 4}; await H.gameWait(0.2); const d = H.magAt().distanceTo(rest); H.clear(); await H.gameWait(0.2); return d;`);
+    o.slid = noMag ? 0 : await pf<number>(`const rest = H.magAt(); r.debugView.reload = ${RL.phaseOut[1] - 0.005}; await H.gameWait(0.2); const d = H.magAt().distanceTo(rest); H.clear(); await H.gameWait(0.2); return d;`);
+    o.slidIn = noMag ? 0 : await pf<number>(`const rest = H.magAt(); r.debugView.reload = ${RL.phaseIn[0] + (RL.phaseIn[1] - RL.phaseIn[0]) / 4}; await H.gameWait(0.2); const d = H.magAt().distanceTo(rest); H.clear(); await H.gameWait(0.2); return d;`);
     // the magazine's phase in the middle of each: out from its middle (fparms.json reload magPhase), how far the phase's
     // middle is from the magazine's own, view metres (what is drawn of it: its node also holds the old magazine, hidden,
     // which put the middle of the whole 107 mm off the USSO's)
-    o.magPhase = shells ? { radial: [], off: [] } : await pf<Frames["magPhase"]>(`const T = r.THREE; const out = { radial: [], off: [] }; for (const u of [${(RL.phaseOut[0] + RL.phaseOut[1]) / 2}, ${(RL.phaseIn[0] + RL.phaseIn[1]) / 2}]) { r.debugView.reload = u; await H.gameWait(0.2); let m = null; r.viewModelRoot().traverse((x) => { if (x.name === "mag" && !m) m = x; }); const f = r.gunFeel(); out.radial.push(f.magRadial); const seen = new T.Box3(); if (m) m.traverse((x) => { if (x.isMesh && x.visible) seen.expandByObject(x); }); out.off.push(m ? seen.getCenter(new T.Vector3()).distanceTo(new T.Vector3().fromArray(f.magCenter)) / r.packRig().group.getWorldScale(new T.Vector3()).x : 99); } H.clear(); await H.gameWait(0.2); return out;`);
-    const point = shells ? { miss: 0, off: 0 } : await pf<{ miss: number; off: number }>(`r.debugView.reload = 0.28; await H.gameWait(0.2); const s = r.packArms(); H.clear(); await H.gameWait(0.2); return { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, off: s.pointOff };`);
+    o.magPhase = noMag ? { radial: [], off: [] } : await pf<Frames["magPhase"]>(`const T = r.THREE; const out = { radial: [], off: [] }; for (const u of [${(RL.phaseOut[0] + RL.phaseOut[1]) / 2}, ${(RL.phaseIn[0] + RL.phaseIn[1]) / 2}]) { r.debugView.reload = u; await H.gameWait(0.2); let m = null; r.viewModelRoot().traverse((x) => { if (x.name === "mag" && !m) m = x; }); const f = r.gunFeel(); out.radial.push(f.magRadial); const seen = new T.Box3(); if (m) m.traverse((x) => { if (x.isMesh && x.visible) seen.expandByObject(x); }); out.off.push(m ? seen.getCenter(new T.Vector3()).distanceTo(new T.Vector3().fromArray(f.magCenter)) / r.packRig().group.getWorldScale(new T.Vector3()).x : 99); } H.clear(); await H.gameWait(0.2); return out;`);
+    const point = noMag ? { miss: 0, off: 0 } : await pf<{ miss: number; off: number }>(`r.debugView.reload = 0.28; await H.gameWait(0.2); const s = r.packArms(); H.clear(); await H.gameWait(0.2); return { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, off: s.pointOff };`);
     o.miss = point.miss;
     o.off = point.off;
     // where the support hand holds the gun at rest against its magazine
@@ -3667,7 +3675,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // the pointing finger against the magazine, shares of the slide: a quarter into the phase out and halfway into the in
     const outAt = RL.phaseOut[0] + (RL.phaseOut[1] - RL.phaseOut[0]) / 4;
     const inAt = (RL.phaseIn[0] + RL.phaseIn[1]) / 2;
-    o.lead = shells ? { out: [], into: [] } : await pf<Frames["lead"]>(`const at = async (u) => { r.debugView.reload = u; await H.gameWait(0.15); const s = r.packArms(); return [s.tipSlid, s.magSlid]; }; const out = await at(${outAt}); const into = await at(${inAt}); H.clear(); await H.gameWait(0.3); return { out, into };`);
+    o.lead = noMag ? { out: [], into: [] } : await pf<Frames["lead"]>(`const at = async (u) => { r.debugView.reload = u; await H.gameWait(0.15); const s = r.packArms(); return [s.tipSlid, s.magSlid]; }; const out = await at(${outAt}); const into = await at(${inAt}); H.clear(); await H.gameWait(0.3); return { out, into };`);
     // the hands off the gun: the bought arms' fists
     o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const s = r.packArms(); const f = { free: s.free, twist: [s.twistL, s.twistR], curl: [s.curlL, s.curlR], thumb: [s.thumbL, s.thumbR] }; H.clear(); await H.gameWait(0.8); return f;`);
     // an inspect: the open left palm with the hack over it
@@ -3684,11 +3692,15 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // no skin through the gun where it is seen, in each state
     const states: Array<[string, string]> = [
       ["held", ""],
-      ["pointing", "r.debugView.reload = 0.28;"],
-      ["new magazine in", "r.debugView.reload = 0.46;"],
-      // (from empty, so it is the rack: the clip left by the checks before had made it a tactical reload on one run and
-      // an empty one on the next)
-      ["racking", "r.loadout.active.state.clip = 0; r.debugView.reload = 0.78;"],
+      ...((vents
+        ? [["venting", "r.debugView.vent = 0.5;"]]
+        : [
+            ["pointing", "r.debugView.reload = 0.28;"],
+            ["new magazine in", "r.debugView.reload = 0.46;"],
+            // (from empty, so it is the rack: the clip left by the checks before had made it a tactical reload on one run and
+            // an empty one on the next)
+            ["racking", "r.loadout.active.state.clip = 0; r.debugView.reload = 0.78;"],
+          ]) as Array<[string, string]>),
       ["swap out", "r.debugView.raise = 0.12;"],
       ["swap in", "r.debugView.raise = 0.88;"],
       ["pickup", "r.packPickupAt(0.6);"],
@@ -3712,6 +3724,22 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // a reload with a round still chambered against one from empty (the owner, 2026-09-30: "we need a reload differentiator
     // for empty mag vs still 1 in the chamber"): late in each, where the empty one racks (its handle back, BOOG's bolt
     // clip leading), and the tactical one's last share, which on the empty one's timeline falls in its rack
+    // a venting gun's vent: the gun turned in both hands and back, no clip of the pack's playing
+    if (vents) {
+      o.vent = await pf<Vent>(`
+        r.packRig().debugStill = true; H.clear(); await H.gameWait(0.2);
+        const out = { mid: 0, ends: 0, lead: "", deep: 0, wrist: 0 };
+        for (const u of [0.1, 0.3, 0.5, 0.7, 0.9]) {
+          r.debugView.vent = u; await H.gameWait(0.15);
+          const s = r.packArms();
+          if (u === 0.5) { out.mid = s.vent; out.lead = s.lead; }
+          out.deep = Math.max(out.deep, (window.__packAudit(0.004)?.seenDeepest ?? 0) * 1000);
+          out.wrist = Math.max(out.wrist, s.wristL, s.wristR);
+        }
+        for (const u of [0.001, 0.999]) { r.debugView.vent = u; await H.gameWait(0.12); out.ends = Math.max(out.ends, r.packArms().vent); }
+        r.packRig().debugStill = false; H.clear(); await H.gameWait(0.3);
+        return out;`);
+    }
     // a shell gun's feed through its reload from empty, and its pump after a shot and at the end of that reload
     if (shells) {
       const SR = (fparmsCfg.packGuns as Record<string, { reload?: { feed: number[]; count: number; push: number[]; back: number[]; pump: number[] } }>)[(fparmsCfg.guns as Record<string, string>)[id]].reload!;
@@ -3910,7 +3938,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   await page.bringToFront();
   const g = Object.values(res.guns);
   // (a gun reloaded a shell at a time has no magazine to slide, phase or point at, and is checked on its feed and its pump)
-  const gm = g.filter((x) => !x.feed);
+  const gm = g.filter((x) => !x.feed && !x.vent);
   const gsh = Object.entries(res.guns).filter(([, x]) => !!x.feed);
   const show = (f: (x: Frames) => unknown) => JSON.stringify(Object.fromEntries(Object.entries(res.guns).map(([k, x]) => [k, f(x)])));
   /**
@@ -4042,8 +4070,9 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // (BIGANTLER, 2026-10-09, on Apex's Mastiff at rest: Apex holds it canted across the picture, its rail's edges near
   // parallel, so only its muzzle is taken, 53.5% across and 57.5% down, with the USSO's move on top; its barrel's line at
   // the crosshair, as the others' are, 5 degrees off level; REZ the same way on Apex's EVA-8, its muzzle 55.5% across and
-  // 56.5% down)
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 }, shotgun: { vanish: [0.47, 0.47], muzzle: [0.579, 0.583], level: -5 } };
+  // 56.5% down; CHOOCH on Apex's Devotion, there being no L-STAR at rest in the frames, its muzzle 54.5% across and 58%
+  // down)
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 }, shotgun: { vanish: [0.47, 0.47], muzzle: [0.579, 0.583], level: -5 }, lstar: { vanish: [0.47, 0.47], muzzle: [0.569, 0.598], level: -5 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),
@@ -4188,6 +4217,15 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
       "pack frames: after a shot the left hand works the pump, the two moving together (within 5 mm), the pump back 3 cm and more, no hand through the gun (4 mm); a shell reload from empty ends with the pump and one with a shell chambered does not",
       gsh.every(([, x]) => x.pump!.apart < 0.5 && x.pump!.stroke > 3 && x.pump!.deep <= 4 && x.pump!.empty === "fire" && x.pump!.tactical === "pose"),
       showS((x) => ({ apart: +x.pump!.apart.toFixed(2), stroke: +x.pump!.stroke.toFixed(1), deep: +x.pump!.deep.toFixed(1), empty: x.pump!.empty, tactical: x.pump!.tactical })),
+    );
+  }
+  // CHOOCH's overheat (fparms.json packGuns vent): its hands stay on it while it turns up and canted and back
+  const gv = Object.entries(res.guns).filter(([, x]) => !!x.vent);
+  if (gv.length) {
+    check(
+      "pack frames: an overheat vents: the gun turned up and canted in both hands mid-vent and back by its ends, no clip of the pack's playing, no hand through the gun (4 mm) and the wrists 60 degrees or less",
+      gv.every(([, x]) => x.vent!.mid > 0.9 && x.vent!.ends < 0.05 && x.vent!.lead === "pose" && x.vent!.deep <= 4 && x.vent!.wrist <= 60),
+      JSON.stringify(Object.fromEntries(gv.map(([k, x]) => [k, { mid: +x.vent!.mid.toFixed(2), ends: +x.vent!.ends.toFixed(2), lead: x.vent!.lead, deep: +x.vent!.deep.toFixed(1), wrist: Math.round(x.vent!.wrist) }]))),
     );
   }
   const MW = res.meleeWorks;

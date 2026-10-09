@@ -11339,3 +11339,31 @@ round it ("zip lines from the lookout to the decks: there are none").
   wants a ride up to the lookout to end on it and one down to a deck within 6 m and a metre of its end; the lifts, the
   perches and the decks' cover checks pass with the new ends. The e2e `speedkills` section on the Neon City: every check passes (101); its first run failed the capture zone's win once, the player dropped onto the centre's zone and the squad out within 3.5 s, and passed whole when run again with the same zone.
   verify and rules. The map: its files lo 95 MB, hi 159 MB, max 381 MB. **Its files are version 50.**
+
+## Milestone 493 — CHOOCH in the bought arms, and its overheat a vent
+
+CHOOCH, the energy LMG (lstar, the grenade launcher's body with an eight-chamber drum), is the seventh gun the first
+person's bought arms hold (`PLAN_THE_EIGHT_GUNS.md` 5.5), on the pack's MGX5, its hold only: CHOOCH never reloads, it
+cools when it overheats.
+
+- **The MGX5 has no trigger part:** tools/checks/fparms-pack.ts takes the pose's right forefinger, at its last joint, as
+  a pack gun's trigger where it has none, put on the gun's middle (the finger lies beside a trigger), and stands it
+  upright in the hands; it measured the MGX5 at the turn the other pack guns take.
+- **Placed as Apex holds its Devotion** (there is no L-STAR at rest in the frames): its muzzle (54.5% across, 58% down)
+  with the USSO's move on top, its barrel's line at the crosshair (`FIT`).
+- **Its left hand ahead of the drum:** the drum is 22 cm wide right in front of the trigger, so the hand is under the
+  barrel shroud 37 cm ahead of the gun's middle, as the soldier holds it, the left shoulder 30 cm forward so the arm
+  reaches it (at 20 cm it fell 4 cm short), and 22 cm forward off the gun, where a first draw's flourish needs it (at 15
+  the arm fell 3 cm short, at 30 the wrist bent 72). Aimed outright, palm up under the shroud, then searched with the palm
+  free and the fingers on: none of it seen in the gun, no daylight, the wrist 27 degrees. The right hand on the thumbhole
+  stock's slanted grip (234 mm of it in the grip summed, 5 after), then its shoulder and the hand together against rest,
+  aimed, an inspect, a swap's return and the flourish: in an inspect the wrist bent 77 degrees and the palm went 7 mm in,
+  coming back from a swap 19 mm; none after, the wrist 29 at rest, 18 aimed and 54 in an inspect.
+- **The overheat is a vent, not a reload:** an overheated gun's lockout went to the view as a reload, and the bought
+  arms would have pointed at a magazine CHOOCH does not have. It is now its own share (main.ts, the view's `vent`), and the
+  gun tips up and cants in both hands over the vent's first fifth and back over its last quarter (fparms.json packGuns
+  MGX5 vent, the shares and turn the soldier's vent can follow), the hands on it all through.
+- **Checked:** the soldier e2e's pack frames for CHOOCH (`E2E_ONLY=skpack E2E_GUNS=lstar`), the magazine's checks left to
+  the magazine guns, and a vent check of its own: the gun turned mid-vent and back by its ends, no clip of the pack's
+  playing, no hand in the gun, the wrists 60 degrees or less; seen failing with the vent's turn taken out. A real
+  overheat, the trigger held till the gun locks, vents with the hands on it and nothing pointing.
