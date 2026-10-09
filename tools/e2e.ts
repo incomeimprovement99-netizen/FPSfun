@@ -3957,7 +3957,9 @@ async function packFrames(page: Page): Promise<void> {
   // and 1.8% lower, both guns still pointing at the crosshair. ANAKIN (2026-10-04) on Apex's Alternator at rest, its barrel
   // edges meeting at 49% across and 47% down, 4.3 degrees off level, and the USSO's move from the fit on top, its muzzle
   // 2.4% right and 1.8% lower: the owner, "A is good, but obviously needs the usso treatment")
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 } };
+  // (PANDA, 2026-10-08, on Apex's Flatline at rest, its rail's edges meeting at 46.5% across and 46.3% down, 5 degrees
+  // off level, and the USSO's move from the fit on top, its muzzle 2.4% right and 1.8% lower)
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),

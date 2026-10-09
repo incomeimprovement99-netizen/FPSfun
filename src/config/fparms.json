@@ -1058,12 +1058,287 @@
           ]
         }
       }
+    },
+    "G3": {
+      "model": "G3",
+      "arms": {
+        "pose": "A_FP_G3_Idle",
+        "reloadTac": "A_FP_G3_Reload_Tac",
+        "reloadEmpty": "A_FP_G3_Reload_Empty"
+      },
+      "gun": {
+        "reloadTac": "A_W_G3_Reload_Tac",
+        "reloadEmpty": "A_W_G3_Reload_Empty"
+      },
+      "hold": {
+        "l": {
+          "shift": [
+            -0.0392,
+            0.012,
+            -0.1391
+          ],
+          "rot": [
+            0.574,
+            0.964,
+            0.014
+          ],
+          "joint": {
+            "index_01": [
+              0.391,
+              -0.326,
+              -0.415
+            ],
+            "middle_01": [
+              0.463,
+              0.438,
+              0.002
+            ],
+            "ring_01": [
+              -0.723,
+              -0.292,
+              -0.189
+            ],
+            "pinky_01": [
+              0.249,
+              0.694,
+              -0.203
+            ],
+            "thumb_01": [
+              -0.413,
+              0.367,
+              -0.422
+            ],
+            "thumb_02": [
+              0.111,
+              0.252,
+              -0.315
+            ]
+          },
+          "open": {},
+          "pick": {
+            "shift": [
+              -0.0729,
+              0.019,
+              -0.1364
+            ],
+            "rot": [
+              0.574,
+              0.964,
+              0.014
+            ],
+            "joint": {
+              "index_01": [
+                0.391,
+                -0.326,
+                -0.415
+              ],
+              "middle_01": [
+                0.463,
+                0.438,
+                0.002
+              ],
+              "ring_01": [
+                -0.723,
+                -0.292,
+                -0.189
+              ],
+              "pinky_01": [
+                0.249,
+                0.694,
+                -0.203
+              ],
+              "thumb_01": [
+                -0.413,
+                0.367,
+                -0.422
+              ],
+              "thumb_02": [
+                0.111,
+                0.252,
+                -0.315
+              ]
+            },
+            "open": {}
+          }
+        },
+        "r": {
+          "shift": [
+            0.0261,
+            -0.0326,
+            -0.001
+          ],
+          "rot": [
+            0.039,
+            0.184,
+            -0.013
+          ],
+          "joint": {
+            "thumb_01": [
+              -0.33,
+              0.46,
+              0
+            ],
+            "thumb_02": [
+              0,
+              -0.12,
+              0
+            ],
+            "thumb_03": [
+              -0.48,
+              0.12,
+              0
+            ],
+            "index_01": [
+              0.56,
+              -0.1,
+              0
+            ],
+            "middle_01": [
+              -0.96,
+              0.12,
+              -0.48
+            ],
+            "middle_02": [
+              -0.36,
+              0,
+              0.48
+            ],
+            "ring_01": [
+              -0.36,
+              0.48,
+              -0.48
+            ],
+            "ring_02": [
+              -0.36,
+              0.48,
+              0
+            ],
+            "pinky_01": [
+              -0.36,
+              0.48,
+              0.48
+            ],
+            "pinky_02": [
+              0.06,
+              0.48,
+              0
+            ]
+          },
+          "open": {}
+        }
+      },
+      "_solve": "tools/pack-solve.ts, 2026-10-08: l after: deepest 8 mm, palm 0.0 mm, fingers thumb 0 middle 0 ring 0.",
+      "shoulders": {
+        "r": [
+          -0.04,
+          -0.01,
+          -0.08
+        ],
+        "l": [
+          0.04,
+          0.03,
+          0.08
+        ],
+        "adsL": [
+          0.06,
+          -0.06,
+          0.05
+        ],
+        "adsR": [
+          -0.12,
+          0.04,
+          -0.12
+        ]
+      },
+      "point": {
+        "elbow": [
+          -0.6,
+          -1,
+          0
+        ],
+        "reach": 0.18,
+        "aimAt": 0.85
+      },
+      "gunScale": 0.8,
+      "cupMove": {
+        "l": [
+          -0.0192,
+          -0.0019,
+          0.0151
+        ],
+        "r": [
+          0.0185,
+          0.0048,
+          0.0337
+        ]
+      },
+      "cup": {
+        "turn": 0.5561,
+        "curl": 0.2424,
+        "shape": {
+          "l": [
+            0.0605,
+            0.5599
+          ],
+          "r": [
+            0.257,
+            0.8259
+          ]
+        },
+        "moveAt": {
+          "l": [
+            0.2176,
+            0.6589
+          ],
+          "r": [
+            0.0362,
+            0.5666
+          ]
+        }
+      },
+      "look": {
+        "shift": [
+          0.0895,
+          0.1285,
+          0.153
+        ],
+        "turn": [
+          0.073,
+          0.0755,
+          -0.0903
+        ]
+      },
+      "beforeArm": {
+        "elbow": [
+          -0.4001,
+          -0.2069,
+          -0.2284
+        ],
+        "shoulder": [
+          0.007,
+          -0.092,
+          0.1092
+        ]
+      },
+      "meleeClearWay": [
+        -0.9785,
+        -1.5,
+        0.5794
+      ],
+      "meleeClear": 0.3784,
+      "meleeShoulder": [
+        0.062,
+        -0.1022,
+        -0.2
+      ],
+      "_moves": "Found by tools/pack-tune.ts against the e2e's own pack-frame measures, 2026-10-08: the swap's cup (`cup`, `cupMove`: with the shared one a hand went 6.4 mm into the gun), the arm off the gun (`beforeArm`) and the punch (`meleeClearWay`, `meleeClear`, `meleeShoulder`). PANDA's hold brings the left shoulder 8 cm forward (`shoulders` l) so the hand reaches past the magazine, and the first draw's flourish keeps it forward (with it 12 cm back the arm fell 7 to 19 cm short and the hand went 10 to 13 mm into the gun); from there the punching upper arm filled 11 to 58% of the picture, so the punch has its own shoulder, 20 cm back and 10 down: none of it."
     }
   },
   "guns": {
     "r97": "MPS5",
     "sentinel": "L96X",
-    "alternator_smg": "ASVal"
+    "alternator_smg": "ASVal",
+    "vinson": "G3"
   },
   "_camera": "Where the pack's camera sits in its rig, metres, the rig facing +z: its FPSPlayer prefab's Camera (field of view 80, near 0.01) at 0.012, 1.654, 0.06, 9 cm over the head bone. fprig.ts puts it on our eye, so the arms' shoulders stay where the pack made them, just out of the picture; the gun goes where our view puts it and both hands reach it (KINEMATION's own rig: the gun on its weapon bone, the hands on it by IK). Hung off our gun instead, the arms' shoulders and sleeves came into the view and filled a third of it.",
   "camera": [
@@ -1586,6 +1861,43 @@
         0,
         -0.035,
         0.142
+      ],
+      "clavicleL": [
+        0,
+        0,
+        0
+      ],
+      "clavicleR": [
+        0,
+        0,
+        0
+      ]
+    },
+    "G3": {
+      "turn": [
+        90,
+        0,
+        0
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ],
+      "trigger": [
+        0,
+        -0.051,
+        -0.087
+      ],
+      "palm": [
+        0,
+        0.004,
+        0.177
       ],
       "clavicleL": [
         0,

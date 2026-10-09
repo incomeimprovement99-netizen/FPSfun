@@ -51,7 +51,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] } };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[] };
 const MEASURED = (cfg as unknown as { measured: Record<string, Measured> }).measured;
 const PACK = cfg.packGuns as unknown as Record<string, PackGun>;
 const GUNS = cfg.guns as Record<string, string>;
@@ -461,6 +461,8 @@ export class PackArms {
   private holdLW = 1;
   /** how far the gun was framed as before the refit last frame, 0..1 (PackArmsFrame before) */
   private beforeArmW = 0;
+  /** how far into a punch this frame, 0..1: the left shoulder goes to the gun's melee one by as much */
+  private punchW = 0;
   /** each finger joint as a fist has it (from the pack's grip, bent further along the same axis), once its clips are in */
   private readonly fistQ = new Map<THREE.Object3D, THREE.Quaternion>();
   /** the handle's knob this frame, where the grab's fingers close on it (the checks) */
@@ -934,6 +936,7 @@ export class PackArms {
     }
     this.mixer.update(0);
     for (const b of (this.mixer as unknown as { _bindings: Array<{ buffer: { fill(v: number, from: number, to: number): unknown }; valueSize: number }> })._bindings) b.buffer.fill(NaN, b.valueSize, 3 * b.valueSize);
+    this.punchW = f.punch?.w ?? 0;
     this.moveShoulders(f.ads);
     // (the bolt worked is the right hand's: the left holds the gun as at rest, its fingers too; the pack's clip moved it
     // on its own gun's fore-end, and with BOOG's hand out ahead of the magazine that took the arm past its reach)
@@ -1569,7 +1572,12 @@ export class PackArms {
     // reach, 31 mm short in the USSO's punch. As the hand leaves the gun, or the gun is framed as before the refit, it
     // goes to the shoulder those were fitted with (packGuns beforeArm), a frame behind: faded to none, BOOG's pickup fell
     // 51 mm short)
-    const was = PACK[this.active!]?.beforeArm?.shoulder ?? [0, 0, 0];
+    // (and in a punch to the gun's own melee shoulder, where it has one: PANDA's hold brings its left shoulder 8 cm
+    // forward and its flourish needs it forward too, and from one shoulder for both the punching upper arm filled 11 to
+    // 58% of the picture; its own, 20 cm back and 10 down, none)
+    const was0 = PACK[this.active!]?.beforeArm?.shoulder ?? [0, 0, 0];
+    const MS = PACK[this.active!]?.meleeShoulder;
+    const was = MS ? was0.map((v, i) => v + (MS[i] - v) * this.punchW) : was0;
     const lw = this.holdLW * (1 - this.beforeArmW);
     const l = add(me.clavicleL, S.l?.map((v, i) => was[i] + (v - was[i]) * lw), S.adsL, back);
     const r = add(me.clavicleR, S.r, S.adsR, back);

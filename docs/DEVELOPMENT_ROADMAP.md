@@ -10999,3 +10999,30 @@ treatment, closer to the pov and the same treatment for the off hand".
   its screen and hip offset.
 - **The tuning tool:** `tools/pack-tune.ts <gun> [swap pickup inspect melee shoulders]` measures a gun as the pack frames
   do and searches the keys behind a failing move live in the page (WRITE=1 writes them), for the guns after it.
+
+## Milestone 489 — PANDA in the bought arms
+
+PANDA, the rifle (vinson, SciFiRifle01_2), is the fourth gun the first person's bought arms hold (`PLAN_THE_EIGHT_GUNS.md`
+5.2), placed as Apex holds its Flatline at rest with the USSO's move on top, on the pack's G3: its pose, its tactical and
+empty reloads and the G3's own recorded shots and reloads. The plan had named the AK first, but the pack's AK-200 has no
+Trigger part to fit our trigger to.
+
+- **Its left hand ahead of the magazine:** our rifle's magazine sits 20 cm ahead of its trigger, where a G3's handguard
+  is, and the G3's left hand closed on the magazine, 12 mm into it (the bar: on the handguard ahead of the magazine,
+  never on it, as the soldier holds PANDA 83 cm from the butt). The hand is moved past it, onto the handguard's left side
+  in a C-clamp, the fingers over the top; the left shoulder 8 cm further forward so the arm reaches it. Searched for no
+  daylight between hand and gun (Milestone 487) and laid back on joint by joint; a hand turned palm-up under the
+  handguard had read as touching it with its back while the fingers held nothing, so every placement was looked at from
+  four sides before it was kept.
+- **Drawn a little smaller in your hands** (gunScale 0.8, as ANAKIN's 0.73): its handguard is 9.4 cm wide, wider than a
+  hand closes round; and placed again after the scale to the Flatline's barrel line and muzzle (`FIT`).
+- **Every move by the new tool:** `tools/pack-tune.ts vinson swap inspect melee` found the swap's cup (a hand 6.4 mm
+  into the gun with the shared one, none after), the arm off the gun and the punch against the e2e's own measures. The
+  forward shoulder the hold needs, the first draw's flourish needs too (12 cm back, the arm fell 7 to 19 cm short and
+  the hand went 10 to 13 mm into the gun), and from there the punching upper arm filled 11 to 58% of the picture
+  (bar 10%). So a gun can now give its punch a shoulder of its own (fparms.json packGuns `meleeShoulder`, fprig.ts): PANDA's
+  is 20 cm back and 10 down, and none of the arm is in the picture. The tool now also scores the flourish's reach, and
+  searches the punch's shoulder with its way round the gun.
+- **Checked:** the soldier e2e's pack frames for PANDA (`E2E_ONLY=skpack E2E_GUNS=vinson`), its placement against the
+  Flatline's; its gunfeel.json entry is the USSO's less its screen and hip offset, and its packsounds.json set the
+  G3's.

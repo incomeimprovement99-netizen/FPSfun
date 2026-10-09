@@ -67,7 +67,21 @@ const PAGE = `(async () => {
     for (const u of [0.04, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.96]) { r.debugView[knob] = u; await gw(0.12); const s = r.packArms(); w.deep = Math.max(w.deep, seen()); w.wrist = Math.max(w.wrist, s.wristL, s.wristR); w.wrung = Math.max(w.wrung, s.skinL, s.skinR); w.short = Math.max(w.short, s.reachShort, s.reachShortR); }
     await T.clear(); return w;
   };
-  T.melee = async () => { r.meleeAt(0.4); await gw(0.3); const s = r.packArms(); const d = await through(); await T.clear(); return { on: s.on, free: s.free, off: s.offHold, curl: s.curlL, deep: d }; };
+  // (and how much of the left upper arm is in the picture through the punch, as the e2e's fit check counts it: PANDA's
+  // shoulder brought forward for its reach filled 80% of the picture with sleeve)
+  T.upperIn = () => {
+    const root = r.viewModelRoot(); const inv = new r.THREE.Matrix4().copy(root.matrixWorld).invert();
+    const tv = Math.tan(((r.gunFov().gun / 2) * Math.PI) / 180), th = (tv * innerWidth) / innerHeight;
+    let n = 0, k = 0;
+    rig.group.traverse((m) => { if (!m.isSkinnedMesh) return; const g = m.geometry; const pos = g.attributes.position, sk = g.attributes.skinIndex, sw = g.attributes.skinWeight; const v = new r.THREE.Vector3(); for (let i = 0; i < pos.count; i += 2) { let up = 0; for (let j = 0; j < 4; j++) if (sw.getComponent(i, j) > 0.5 && /^upperarm.*_l$/.test(m.skeleton.bones[sk.getComponent(i, j)].name)) up = 1; if (!up) continue; n++; v.fromBufferAttribute(pos, i); m.applyBoneTransform(i, v); v.applyMatrix4(m.matrixWorld).applyMatrix4(inv); if (v.z < 0 && Math.abs(v.x / -v.z / th) < 1 && Math.abs(v.y / -v.z / tv) < 1) k++; } });
+    return n ? k / n : 0;
+  };
+  T.melee = async () => {
+    let upper = 0;
+    for (const u of [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]) { r.meleeAt(u); await gw(0.15); upper = Math.max(upper, T.upperIn()); }
+    r.meleeAt(0.4); await gw(0.3); const s = r.packArms(); const d = await through(); await T.clear();
+    return { on: s.on, free: s.free, off: s.offHold, curl: s.curlL, deep: d, upper };
+  };
   // a seeded jitter, for searches that repeat
   let seed = 1;
   T.seed = (s) => { seed = s; };
@@ -98,6 +112,7 @@ function faults(m: Report): string[] {
   }
   const M = m.melee;
   if (!M.on || M.free || (M.off as number) <= 0.12 || (M.curl as number) < 120 || (M.deep as number) > 4) f.push(`melee off ${((M.off as number) * 100).toFixed(1)} cm curl ${Math.round(M.curl as number)} deep ${(M.deep as number).toFixed(1)}`);
+  if ((M.upper as number) >= 0.1) f.push(`melee upper arm ${Math.round((M.upper as number) * 100)}% in the picture (10)`);
   return f;
 }
 
@@ -149,14 +164,14 @@ try {
         get = () => JSON.parse(JSON.stringify(P.beforeArm ?? { elbow: [0, -0.45, 0.1], shoulder: [0, 0, 0] }));
         set = (x) => { P.beforeArm = x; };
         measure = async () => ({ ins: await T.moves("inspect"), fl: await T.moves("flourish"), mel: await T.melee() });
-        score = (m) => Math.max(0, m.ins.wrist - 56) * 3 + Math.max(0, m.ins.deep - 3.5) * 10 + Math.max(0, m.ins.wrung - 85) + Math.max(0, m.fl.wrist - 56) * 3 + Math.max(0, m.fl.deep - 3.5) * 10 + Math.max(0, m.mel.deep - 3.5) * 10 + m.ins.short * 1000;
+        score = (m) => Math.max(0, m.ins.wrist - 56) * 3 + Math.max(0, m.ins.deep - 3.5) * 10 + Math.max(0, m.ins.wrung - 85) + Math.max(0, m.fl.wrist - 56) * 3 + Math.max(0, m.fl.deep - 3.5) * 10 + Math.max(0, m.mel.deep - 3.5) * 10 + Math.max(0, m.mel.upper - 0.08) * 300 + (m.ins.short + m.fl.short) * 1000;
         T.jitter = (b, k) => ({ elbow: b.elbow.map((v) => jit(v, 0.3, k, -1.5, 1.5)), shoulder: b.shoulder.map((v) => jit(v, 0.04, k, -0.15, 0.15)) });
       } else if (stage === "melee") {
-        get = () => ({ way: P.meleeClearWay ?? [-1, -1, 0], clear: P.meleeClear ?? mod.melee?.clear ?? 1 });
-        set = (x) => { P.meleeClearWay = x.way; P.meleeClear = x.clear; };
+        get = () => ({ way: P.meleeClearWay ?? [-1, -1, 0], clear: P.meleeClear ?? mod.melee?.clear ?? 1, shoulder: P.meleeShoulder ?? P.beforeArm?.shoulder ?? [0, 0, 0] });
+        set = (x) => { P.meleeClearWay = x.way; P.meleeClear = x.clear; P.meleeShoulder = x.shoulder; };
         measure = () => T.melee();
-        score = (m) => Math.max(0, m.deep - 3.5) * 10 + Math.max(0, 0.125 - m.off) * 500 + Math.max(0, 122 - m.curl);
-        T.jitter = (b, k) => ({ way: b.way.map((v) => jit(v, 0.6, k, -1.5, 1.5)), clear: jit(b.clear, 0.6, k, 0, 3) });
+        score = (m) => Math.max(0, m.deep - 3.5) * 10 + Math.max(0, 0.125 - m.off) * 500 + Math.max(0, 122 - m.curl) + Math.max(0, m.upper - 0.08) * 300;
+        T.jitter = (b, k) => ({ way: b.way.map((v) => jit(v, 0.6, k, -1.5, 1.5)), clear: jit(b.clear, 0.6, k, 0, 3), shoulder: b.shoulder.map((v) => jit(v, 0.05, k, -0.2, 0.2)) });
       } else if (stage === "shoulders") {
         get = () => JSON.parse(JSON.stringify(P.shoulders));
         set = (x) => { P.shoulders = x; };
@@ -195,7 +210,7 @@ try {
       if (x.swap) { P.cupMove = x.swap.move; P.cup = x.swap.cup; }
       if (x.pickup) { const H = P.hold.l; H.pick = { shift: H.shift.map((v: number, i: number) => +(v + x.pickup.d[i]).toFixed(4)), rot: (H.rot ?? [0, 0, 0]).slice(), joint: structuredClone(H.joint ?? {}), open: structuredClone(H.open ?? {}) }; }
       if (x.inspect) P.beforeArm = x.inspect;
-      if (x.melee) { P.meleeClearWay = x.melee.way; P.meleeClear = x.melee.clear; }
+      if (x.melee) { P.meleeClearWay = x.melee.way; P.meleeClear = x.melee.clear; P.meleeShoulder = x.melee.shoulder; }
       if (x.shoulders) P.shoulders = x.shoulders;
       fs.writeFileSync(CFG, (JSON.stringify(d, null, 2) + "\n").replace(/\n/g, raw.includes("\r\n") ? "\r\n" : "\n"));
       console.log(`wrote ${packName}: ${Object.keys(keep).join(", ")}`);

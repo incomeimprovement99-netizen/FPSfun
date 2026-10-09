@@ -189,8 +189,8 @@ it.
   for squad mates, gold for the crown's carrier; a double jump that turns them
   leaves a streak of the same light through the air along the turn. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
-  The USSO, BOOG and ANAKIN are held by real first-person arms (a bought pack's,
-  where its files are): two SMG holds and a sniper hold, fitted to our guns' grips joint
+  The USSO, BOOG, ANAKIN and PANDA are held by real first-person arms (a bought pack's,
+  where its files are): two SMG holds, a sniper hold and a rifle hold, fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
   a pickup (every frame of each photographed and measured); the USSO's left hand
   holds it low, round the gun's lower front just ahead of its trigger guard, as
@@ -199,7 +199,9 @@ it.
   between hand and gun (the e2e counts what the eye sees there, every gun); BOOG's left forearm comes up from below to its
   fore-end, the hand ahead of the magazine; ANAKIN, placed as Apex holds its Alternator
   and drawn a little smaller in your hands than on a soldier (a real hand closes round
-  it), is held under its front with the thumb along its side; and on every gun the right hand's lower three
+  it), is held under its front with the thumb along its side; PANDA, placed as Apex
+  holds its Flatline, is held on the handguard ahead of its magazine, the fingers over
+  the top; and on every gun the right hand's lower three
   fingers sit together round the grip with the forefinger's tip on the trigger; and
   the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,
