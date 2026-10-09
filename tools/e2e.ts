@@ -3476,8 +3476,9 @@ async function packFrames(page: Page): Promise<void> {
   type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump };
 /** a reload a shell at a time (BIGANTLER's): through the feed, the most the hand's pinch is off the shell it holds, cm, the
  * gate's most opening at each push, radians, the deepest seen skin in the gun, mm, the most the arm falls short, cm, the
- * worst wrist, degrees, and how far the last shell is from its rest once in, cm */
-type Feed = { pinch: number; gates: number[]; deep: number; short: number; wrist: number; seated: number };
+ * worst wrist, degrees, how far the last shell is from its rest once in, cm, and the most the hand or the shell moves across
+ * a shell's start (a moment either side of it), cm */
+type Feed = { pinch: number; gates: number[]; deep: number; short: number; wrist: number; seated: number; jump: number };
 /** after a shot: the most the pump and the hand moved apart, cm, the pump's stroke, cm, the deepest seen skin, mm; and which
  * clip leads late in a reload from empty and one with a shell chambered */
 type Pump = { apart: number; stroke: number; deep: number; empty: string; tactical: string };
@@ -3723,7 +3724,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
         let bullet = null, cover = null; gun.traverse((x) => { if (!bullet && /^Bullet$/.test(x.name)) bullet = x; if (!cover && /^Cover$/.test(x.name)) cover = x; });
         const W = (o) => o.getWorldPosition(new T.Vector3());
         const pinch = () => W(g.getObjectByName("index_03_l")).add(W(g.getObjectByName("thumb_03_l"))).multiplyScalar(0.5);
-        const out = { pinch: 0, gates: [], deep: 0, short: 0, wrist: 0, seated: 0 };
+        const out = { pinch: 0, gates: [], deep: 0, short: 0, wrist: 0, seated: 0, jump: 0 };
         let gate = 0, slot = 0;
         for (const u of ${JSON.stringify(at)}) {
           r.debugView.reload = u; await H.gameWait(0.12);
@@ -3736,6 +3737,15 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
           out.wrist = Math.max(out.wrist, r.packArms().wristL);
         }
         out.gates.push(gate);
+        // (the hand and the shell either side of each shell's start: nothing jumps there)
+        out.jump = 0;
+        for (let k = 1; k < ${SR.count}; k++) {
+          const b = ${SR.feed[0]} + (k * ${SR.feed[1] - SR.feed[0]}) / ${SR.count};
+          const at = async (u) => { r.debugView.reload = u; await H.gameWait(0.08); return [pinch(), W(bullet)]; };
+          const [p0, s0] = await at(b - 0.002);
+          const [p1, s1] = await at(b + 0.002);
+          out.jump = Math.max(out.jump, p0.distanceTo(p1) / gs * 100, s0.distanceTo(s1) / gs * 100);
+        }
         // (the last shell in, at its rest in the gate as the hand goes back to the pump)
         r.debugView.reload = ${(SR.back[0] + SR.back[1]) / 2}; await H.gameWait(0.2);
         const base = bullet.parent.userData.base; out.seated = base ? bullet.parent.position.distanceTo(base) / gs * 100 : 99;
@@ -4169,9 +4179,9 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   if (gsh.length) {
     const showS = (f: (x: Frames) => unknown) => JSON.stringify(Object.fromEntries(gsh.map(([k, x]) => [k, f(x)])));
     check(
-      "pack frames: a shell reload feeds every shell into the gate: each held at the hand's pinch (within 1 cm), the gate open as it goes in (30 degrees and more), the last one home, no hand through the gun (4 mm), the arm reaching and the wrist 60 degrees or less",
-      gsh.every(([, x]) => x.feed!.pinch < 1 && x.feed!.gates.length >= 2 && x.feed!.gates.every((a) => a > 0.52) && x.feed!.seated < 0.2 && x.feed!.deep <= 4 && x.feed!.short < 1 && x.feed!.wrist <= 60),
-      showS((x) => ({ pinch: +x.feed!.pinch.toFixed(1), gates: x.feed!.gates.map((a) => Math.round((a * 180) / Math.PI)), seated: +x.feed!.seated.toFixed(2), deep: +x.feed!.deep.toFixed(1), short: +x.feed!.short.toFixed(1), wrist: Math.round(x.feed!.wrist) })),
+      "pack frames: a shell reload feeds every shell into the gate: each held at the hand's pinch (within 1 cm), the gate open as it goes in (30 degrees and more), the last one home, nothing jumping from one shell to the next (1 cm), no hand through the gun (4 mm), the arm reaching and the wrist 60 degrees or less",
+      gsh.every(([, x]) => x.feed!.pinch < 1 && x.feed!.gates.length >= 2 && x.feed!.gates.every((a) => a > 0.52) && x.feed!.seated < 0.2 && x.feed!.jump < 1 && x.feed!.deep <= 4 && x.feed!.short < 1 && x.feed!.wrist <= 60),
+      showS((x) => ({ pinch: +x.feed!.pinch.toFixed(1), gates: x.feed!.gates.map((a) => Math.round((a * 180) / Math.PI)), seated: +x.feed!.seated.toFixed(2), jump: +x.feed!.jump.toFixed(1), deep: +x.feed!.deep.toFixed(1), short: +x.feed!.short.toFixed(1), wrist: Math.round(x.feed!.wrist) })),
     );
     check(
       "pack frames: after a shot the left hand works the pump, the two moving together (within 5 mm), the pump back 3 cm and more, no hand through the gun (4 mm); a shell reload from empty ends with the pump and one with a shell chambered does not",

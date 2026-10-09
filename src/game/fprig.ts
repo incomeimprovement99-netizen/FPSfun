@@ -920,11 +920,17 @@ export class PackArms {
       const dip = phi < SR.push[0] ? 1 - ss(phi, 0, SR.push[0]) : last ? 0 : ss(phi, SR.push[1], 1);
       // (the shell pushed in stays in the gate while the hand goes down empty, and the next is in it from the bottom of its way)
       const empty = !last && phi > SR.push[1] && phi < SR.push[1] + 0.6 * (1 - SR.push[1]);
-      const spot = this.roundRestO.clone().add(new THREE.Vector3(0, -SR.drop * (1 - push), 0)).addScaledVector(new THREE.Vector3().fromArray(SR.dip), dip);
+      // (and its drop back over the hand's way down for the next, so the next shell starts where this one's hand left off:
+      // back at the full drop only at the next shell's start, the hand and the shell jumped 7 cm in a frame twice a reload,
+      // the character agent's reading of it)
+      const lower = !last && phi > SR.push[1] ? ss(phi, SR.push[1], 1) : 0;
+      const spot = this.roundRestO.clone().add(new THREE.Vector3(0, -SR.drop * (1 - push + lower), 0)).addScaledVector(new THREE.Vector3().fromArray(SR.dip), dip);
       // (the hand's own spot stops `clear` under the gate: at the shell's, the fingers went 21 mm into the gun at the top)
       this.feedSpotO.copy(spot).setY(Math.min(spot.y, this.roundRestO.y - SR.clear));
       this.feed.w = feedW;
-      this.feed.shellO = empty || feedW < 0.5 ? null : spot;
+      // (once the hand is off the pump: from halfway there, the shell sat ahead of the hand on its way, 8 cm off it on the
+      // soldier's)
+      this.feed.shellO = empty || feedW < 0.98 ? null : spot;
       // (in the hand, not yet pushed on past it by the thumb)
       this.feed.held = !!this.feed.shellO && spot.y <= this.roundRestO.y - SR.clear;
       // (shut again once the hand is down off it: shut as the push ended, it closed on the fingers under it, 7 to 11 mm in)

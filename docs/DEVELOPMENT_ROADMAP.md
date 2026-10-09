@@ -11181,6 +11181,12 @@ reload. It brings the one new kind of reload the plan named, in the shared keys 
   it goes in, the last one home, no hand in the gun) and the pump (pump and hand together within 5 mm, a stroke of 3 cm and
   more, a reload from empty ending with it and a tactical one not). tools/pack-audit.js leaves a shell in the hand out of
   the gun it measures.
+- **Fixed the same day, a snap between shells:** after each push the shell's drop stayed off while the hand went down for
+  the next, and came back whole at the next shell's start, so the hand and the shell jumped 7 cm in a frame, twice a
+  reload (the character agent's reading, building the soldier's). The drop now comes back over the hand's way down; the
+  feed check also looks a moment either side of each shell's start (nothing moves more than 1 cm there), which the
+  20 evenly spaced moments it had looked at had all missed. Put back, it fails at 7 cm. And the first shell shows only
+  once the hand is off the pump: from halfway there it sat ahead of the hand on its way.
 
 ## Milestone 513 — BIGANTLER on the soldier: a shell at a time, and the pump after every shot
 
