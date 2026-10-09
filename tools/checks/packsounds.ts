@@ -37,7 +37,9 @@ console.log("The pack's gun sounds");
   const mismatched = Object.entries(fp).filter(([id, pack]) => guns[id] && guns[id].pack !== pack);
   check("every gun on a pack gun's animation sounds as that pack gun (packsounds.json guns = fparms.json guns)", mismatched.length === 0, mismatched.map(([id, pack]) => `${id}: animated as ${pack}, sounds as ${guns[id].pack}`).join("; "));
   check("the USSO and BOOG among them", ["r97", "sentinel"].every((id) => timed.some(([g]) => g === id)), timed.map(([id]) => id).join());
-  check("each of them has a tactical and an empty reload to play", timed.every(([, pack]) => !!packs[pack].reloadTac && !!packs[pack].reloadEmpty));
+  // (or, reloaded a shell at a time, the pieces its reloads are laid out of: BIGANTLER's, tools/import-pack-sounds.ts)
+  const shells = (pack: string) => (packs[pack] as { shells?: Record<string, string> }).shells;
+  check("each of them has a tactical and an empty reload to play", timed.every(([, pack]) => (!!packs[pack].reloadTac && !!packs[pack].reloadEmpty) || ["start", "insert", "end", "pump"].every((k) => !!shells(pack)?.[k])));
   // where the paid files are on disk (the owner's machine), each one's reload written (npm run paid:sounds after a gun joins)
   const metaFile = new URL("../../public/audio/paid/meta.json", import.meta.url);
   if (existsSync(metaFile)) {

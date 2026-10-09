@@ -782,7 +782,10 @@ export class ViewModel {
     const keep2 = [m.root.position.clone(), m.root.quaternion.clone()] as const;
     m.root.position.set(0, 0, 0);
     m.root.quaternion.identity();
-    const ready = this.pack.useGun(id, m.root, trigger, m.mag, m.bolt, m.travel, m.boltGrip ?? null);
+    // (and our shell where it rests in the gate, and our pump's rest: a shell reload and a pump in the bought arms' hands)
+    const round = m.parts?.round;
+    const roundAt = round?.parent ? m.root.worldToLocal(round.parent.localToWorld((round.userData.base as THREE.Vector3).clone())) : null;
+    const ready = this.pack.useGun(id, m.root, trigger, m.mag, m.bolt, m.travel, m.boltGrip ?? null, roundAt, this.pumpBase.z);
     m.root.position.copy(keep2[0]);
     m.root.quaternion.copy(keep2[1]);
     void ready.then((ok) => {
@@ -1473,7 +1476,9 @@ export class ViewModel {
     const o = this.optic;
     const adsPos = o
       ? this.tmp.set(0, -(m.railY + o.lineH), m.opticF + o.backF - o.info.relief)
-      : this.tmp.set(0, -m.sightY, m.rearF - ADS_EYE);
+      : // (across from the gun's middle by its sight's own `sightX`: HAEFY's Visor is beside its tube, and aimed through
+        // the middle the eye sat inside the gun)
+        this.tmp.set(-(m.sightX ?? 0), -m.sightY, m.rearF - ADS_EYE);
     const p = this.tmp3.copy(hip).lerp(adsPos, ads);
     const sprintPos = this.tmp2.set(hip.x + 0.11, hip.y - 0.13, hip.z + 0.1);
     p.lerp(sprintPos, sp);
@@ -1900,7 +1905,22 @@ export class ViewModel {
         this.holder,
         m.mag,
         m.bolt,
+        m.pump,
       );
+      // a shell fed into the gate where the rig has the hand holding it, and the gate open as it goes in
+      const fd = this.pack.feed;
+      const k = m.parts;
+      if (k && fd.w > 0) {
+        // (pushed up into the gun by the shell, as a loading gate is: swung down as the pump swings it, it met the rising hand,
+        // 12 mm into it)
+        if (k.cover) k.cover.rotation.x = k.end * PAID_MOTION.cover * fd.gate;
+        if (k.round?.parent) {
+          k.round.position.copy(fd.shellO ? k.round.parent.worldToLocal(m.root.localToWorld(fd.shellO.clone())) : (k.round.userData.base as THREE.Vector3));
+          k.round.visible = true;
+        }
+      }
+      // (held, not a part of the gun, while the hand has it: tools/pack-audit.js)
+      if (k?.round) k.round.userData.inHand = fd.w > 0 && !!fd.shellO;
       // the magazine's sweep where the rig has just put it (it slides out and in): set before, it trailed it a frame
       if (F && m.mag) this.aimMagSweep(m);
       // the right forearm's line at rest, for an inspect to roll the gun about
@@ -2273,7 +2293,8 @@ export class ViewModel {
       });
     }
     // the shell reload's reach to the port, as animateReload has it
-    const toPort = reloading && m.reload === "shells" ? smooth(0.08, 0.18, p) * (1 - smooth(0.82, 0.92, p)) : 0;
+    // (the bought arms feed the shells themselves: fprig.ts feed)
+    const toPort = reloading && m.reload === "shells" && !this.packOn ? smooth(0.08, 0.18, p) * (1 - smooth(0.82, 0.92, p)) : 0;
     if (k.cover) {
       const pumped = m.pump && m.travel > 0 ? clamp((m.pump.position.z - this.pumpBase.z) / m.travel, 0, 1) : 0;
       k.cover.rotation.x = -k.end * mo.cover * Math.max(toPort, pumped);

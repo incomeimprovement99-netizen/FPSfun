@@ -17,6 +17,7 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import DATA from "../data/weapons.json";
 import CFG from "../src/config/packsounds.json";
 import FP from "../src/config/fparms.json";
 
@@ -46,6 +47,11 @@ function packFiles(): Map<string, string> {
   }
   return files;
 }
+
+/** the pack's sounds for a reload a shell at a time (packsounds.json packs shells) */
+type Shells = { start: string; insert: string; end: string; pump: string };
+/** its beats, shares of the empty reload's time (fparms.json packGuns reload) */
+type ShellReload = { style: string; count: number; leave: number[]; feed: number[]; push: number[]; back: number[]; pump: number[] };
 
 /** a PCM WAV (16 or 24 bit, any channels) folded to mono, -1..1 */
 function readWav(path: string): { data: Float32Array; rate: number } {
@@ -174,9 +180,9 @@ function main(): void {
   mkdirSync(OUT, { recursive: true });
   const index: Record<string, string[]> = {};
   const meta: Record<string, { clip: number; cuts: number[] }> = {};
-  const packs = CFG.packs as Record<string, { fire: string[]; reloadTac?: string; reloadEmpty?: string; foley?: string }>;
+  const packs = CFG.packs as Record<string, { fire: string[]; reloadTac?: string; reloadEmpty?: string; foley?: string; shells?: Shells }>;
   const fpGuns = FP.guns as Record<string, string>;
-  const fpPacks = FP.packGuns as Record<string, { arms: { reloadTac?: string; reloadEmpty?: string; fire?: string } }>;
+  const fpPacks = FP.packGuns as unknown as Record<string, { arms: { reloadTac?: string; reloadEmpty?: string; fire?: string }; reload?: ShellReload }>;
   let bytes = 0;
   const write = (name: string, pcm: Int16Array) => {
     const buf = wav(pcm);
@@ -212,6 +218,32 @@ function main(): void {
       index[key] = [name];
       meta[key] = { clip: +clipSeconds(clip).toFixed(3), cuts: cuts(x) };
       console.log(`${key}: ${(x.length / RATE).toFixed(2)} s of sound to a ${meta[key].clip} s clip, ${meta[key].cuts.length} pieces`);
+    }
+    // a reload a shell at a time (BIGANTLER's): no clip of the pack's plays it, so its sound is laid out here on its own
+    // beats (fparms.json packGuns reload), the pack's start, a shell going in at each push, the end, and from empty the
+    // pump; the gun's own reload time is the "clip" the pieces are timed to, so each plays at its own speed
+    const R = fpPacks[g.pack]?.reload;
+    if (p.shells && R?.style === "shells") {
+      const stats = (DATA as unknown as { weapons: Record<string, { stats: { reload_time: number; reloadempty_time: number } }> }).weapons[id].stats;
+      for (const empty of [false, true]) {
+        // (a tactical reload is read onto the empty one's timeline and ends where its hand is back on the pump)
+        const span = empty ? 1 : R.back[1];
+        const seconds = empty ? stats.reloadempty_time : stats.reload_time;
+        const at: Array<[number, string]> = [[R.leave[0], p.shells.start]];
+        for (let k = 0; k < R.count; k++) at.push([R.feed[0] + ((k + R.push[0]) / R.count) * (R.feed[1] - R.feed[0]), p.shells.insert]);
+        at.push([R.back[0], p.shells.end]);
+        if (empty) at.push([R.pump[0], p.shells.pump]);
+        const parts = at.map(([share, path]) => ({ from: Math.round((share / span) * seconds * RATE), x: src(path) }));
+        const x = new Float32Array(Math.max(...parts.map((q) => q.from + q.x.length)));
+        // (each piece cut short where the next starts: they are played as pieces, each to the next one's start)
+        parts.forEach((q, i) => x.set(q.x.subarray(0, Math.min(q.x.length, (parts[i + 1]?.from ?? x.length) - q.from)), q.from));
+        const key = `pack_reload_${id}_${empty ? "empty" : "tac"}`;
+        const name = `${key.slice(5)}.wav`;
+        write(name, finish(x, false));
+        index[key] = [name];
+        meta[key] = { clip: seconds, cuts: parts.map((q) => +(q.from / RATE).toFixed(3)) };
+        console.log(`${key}: ${parts.length} pieces laid on a ${seconds} s reload`);
+      }
     }
   }
   writeFileSync(join(OUT, "index.json"), JSON.stringify(index, null, 1));

@@ -28,9 +28,15 @@ window.__packAudit = (deep, keep, only) => {
     for (let p = o; p; p = p.parent) if (p === a) return true;
     return false;
   };
+  // (a shell in the hand, being fed into a gate, is held, not a part of the gun the hand could be in: BIGANTLER's fingers
+  // round it read 7 to 12 mm into the gun)
+  const held = (o) => {
+    for (let p = o; p; p = p.parent) if (p.userData && p.userData.inHand) return true;
+    return false;
+  };
   const parts = [];
   root.traverse((o) => {
-    if (!o.isMesh || o.isSkinnedMesh || under(o, rig) || !shown(o)) return;
+    if (!o.isMesh || o.isSkinnedMesh || under(o, rig) || !shown(o) || held(o)) return;
     const m = Array.isArray(o.material) ? o.material[0] : o.material;
     if (m && m.transparent) return;
     // (a part mirrored in the scene winds its faces the other way in its own frame: three.js turns them round to draw it)

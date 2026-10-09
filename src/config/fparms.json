@@ -1332,13 +1332,238 @@
         -0.2
       ],
       "_moves": "Found by tools/pack-tune.ts against the e2e's own pack-frame measures, 2026-10-08: the swap's cup (`cup`, `cupMove`: with the shared one a hand went 6.4 mm into the gun), the arm off the gun (`beforeArm`) and the punch (`meleeClearWay`, `meleeClear`, `meleeShoulder`). PANDA's hold brings the left shoulder 8 cm forward (`shoulders` l) so the hand reaches past the magazine, and the first draw's flourish keeps it forward (with it 12 cm back the arm fell 7 to 19 cm short and the hand went 10 to 13 mm into the gun); from there the punching upper arm filled 11 to 58% of the picture, so the punch has its own shoulder, 20 cm back and 10 down: none of it."
+    },
+    "KXG12": {
+      "model": "KXG12",
+      "arms": {
+        "pose": "A_FP_KXG12_Pose",
+        "fire": "A_FP_KXG12_Pump",
+        "shell": "A_FP_KXG12_Pump_Empty"
+      },
+      "gun": {
+        "fire": "A_W_KXG12_Pump"
+      },
+      "reload": {
+        "style": "shells",
+        "count": 3,
+        "leave": [
+          0,
+          0.06
+        ],
+        "feed": [
+          0.06,
+          0.6
+        ],
+        "push": [
+          0.45,
+          0.7
+        ],
+        "back": [
+          0.6,
+          0.667
+        ],
+        "pump": [
+          0.68,
+          0.92
+        ],
+        "drop": 0.07,
+        "dip": [
+          -0.03,
+          -0.1,
+          0.02
+        ],
+        "turn": [
+          0,
+          0,
+          0
+        ],
+        "shellAt": 0.4,
+        "clear": 0.05,
+        "bow": [
+          -0.02,
+          -0.04,
+          0
+        ]
+      },
+      "look": {
+        "shift": [
+          0.0058,
+          0.1566,
+          0.193
+        ],
+        "turn": [
+          0.0583,
+          0.0617,
+          -0.0887
+        ]
+      },
+      "hold": {
+        "l": {
+          "shift": [
+            0.0338,
+            0.0883,
+            -0.1885
+          ],
+          "rot": [
+            0.481,
+            0.418,
+            0.084
+          ],
+          "joint": {
+            "index_01": [
+              0.399,
+              -0.4,
+              0.099
+            ],
+            "middle_01": [
+              0.285,
+              0.471,
+              0.524
+            ],
+            "ring_01": [
+              -0.137,
+              -0.291,
+              0.561
+            ],
+            "pinky_01": [
+              0.379,
+              0.194,
+              0.02
+            ],
+            "thumb_01": [
+              0.03,
+              0.349,
+              0.532
+            ],
+            "thumb_02": [
+              -0.316,
+              0.327,
+              -0.091
+            ]
+          },
+          "pick": {
+            "shift": [
+              -0.0259,
+              0.0459,
+              -0.1734
+            ],
+            "rot": [
+              0.481,
+              0.418,
+              0.084
+            ],
+            "joint": {
+              "index_01": [
+                0.399,
+                -0.4,
+                0.099
+              ],
+              "middle_01": [
+                0.285,
+                0.471,
+                0.524
+              ],
+              "ring_01": [
+                -0.137,
+                -0.291,
+                0.561
+              ],
+              "pinky_01": [
+                0.379,
+                0.194,
+                0.02
+              ],
+              "thumb_01": [
+                0.03,
+                0.349,
+                0.532
+              ],
+              "thumb_02": [
+                -0.316,
+                0.327,
+                -0.091
+              ]
+            },
+            "open": {}
+          }
+        },
+        "r": {
+          "shift": [
+            -0.003,
+            -0.009,
+            -0.009
+          ],
+          "rot": [
+            0.12,
+            -0.36,
+            0.24
+          ],
+          "joint": {
+            "thumb_01": [
+              0,
+              0,
+              0.36
+            ],
+            "index_01": [
+              0.12,
+              0,
+              0
+            ],
+            "middle_01": [
+              0.24,
+              0,
+              -0.36
+            ],
+            "ring_01": [
+              -1.02,
+              -0.72,
+              0.12
+            ]
+          }
+        }
+      },
+      "shoulders": {
+        "l": [
+          0.03,
+          0.05,
+          0.14
+        ],
+        "r": [
+          -0.1,
+          0.18,
+          -0.18
+        ],
+        "adsR": [
+          0.16,
+          0.16,
+          -0.16
+        ]
+      },
+      "pumpScale": 0.4,
+      "_solve": "tools/pack-solve.ts, 2026-10-09: l after: deepest 14 mm, palm 0.0 mm, fingers thumb 0 middle 0 ring 0 pinky 0; r after: deepest 14 mm, palm 0.0 mm, fingers thumb 0 index 0 middle 0 ring 0 pinky 0.",
+      "beforeArm": {
+        "elbow": [
+          -0.0971,
+          -0.6303,
+          -0.2378
+        ],
+        "shoulder": [
+          0.0366,
+          -0.0415,
+          0.1423
+        ]
+      },
+      "_reload": "BIGANTLER's reload, a shell at a time (fprig.ts ShellReload), in shares of its empty reload (3.0 s; the tactical 2.0 s is read onto it and ends at `back`'s end), which the soldier reads too (the character agent's rifle.ts): the left hand off the pump over `leave`, `count` shells fed into the gate (Cover) over `feed`, each pushed in over `push` of its own share, back on the pump over `back`, and from empty only the KXG12's pump over `pump`. The KXG12 is a bullpup whose own reload feeds a port under the butt with the right hand; our gate is under the receiver behind the pump, so the left hand feeds it, procedurally. The shell (Bullet) rides at the hand's pinch `drop` under the gate and is pushed home; the hand stops `clear` under the shell's rest (at 3 cm the closing gate met the fingers, 7 to 11 mm in), drops by `dip` (our gun's frame) for the next, is turned `turn` off the hold and bowed out by `bow` on its way off the pump and back (straight, it went 7 mm through the gun's underside); its fingers are the KXG12's empty pump's at `shellAt` of it, where that hand holds a shell. The sound is laid on the same beats (packsounds.json KXG12 shells).",
+      "_pump": "After every shot the KXG12's Pump clip leads over the rechamber (`arms` fire), the left hand keeping its hold and sliding with the clip's stroke, our pump (Pump) with it: `pumpScale` of the KXG12's stroke, as our loading gate is close behind the pump and the whole stroke took the hand 23 mm into it.",
+      "_hold": "The KXG12's left hand is on its pump close in front of its grip; ours is 27 to 47 cm ahead of the trigger, so the hand is moved 19 cm forward and the left shoulder 14 cm (`shoulders` l), then searched on the pump's middle with the pump's back position scored too: laid flush by tools/pack-flush.ts alone it crept to the pump's rear end, its heel 14 mm into the receiver's bracket. The right shoulder is the straightest wrist on our raked grip (the KXG12's stands upright) at rest, in an inspect and aimed: 93 to 30 degrees at rest, 101 to 40 aimed, 65 to 37 in an inspect. Its pickup fit (`pick`) is 3 cm out and down: the pack's pickup brings the hand back 9 cm off the KXG12's hold, and with the hold's move on it the fingers went 11 mm into the pump."
     }
   },
   "guns": {
     "r97": "MPS5",
     "sentinel": "L96X",
     "alternator_smg": "ASVal",
-    "vinson": "G3"
+    "vinson": "G3",
+    "mastiff": "KXG12"
   },
   "_camera": "Where the pack's camera sits in its rig, metres, the rig facing +z: its FPSPlayer prefab's Camera (field of view 80, near 0.01) at 0.012, 1.654, 0.06, 9 cm over the head bone. fprig.ts puts it on our eye, so the arms' shoulders stay where the pack made them, just out of the picture; the gun goes where our view puts it and both hands reach it (KINEMATION's own rig: the gun on its weapon bone, the hands on it by IK). Hung off our gun instead, the arms' shoulders and sleeves came into the view and filled a third of it.",
   "camera": [
@@ -1898,6 +2123,43 @@
         0,
         0.004,
         0.177
+      ],
+      "clavicleL": [
+        0,
+        0,
+        0
+      ],
+      "clavicleR": [
+        0,
+        0,
+        0
+      ]
+    },
+    "KXG12": {
+      "turn": [
+        90,
+        180,
+        0
+      ],
+      "forward": [
+        0,
+        0,
+        -1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ],
+      "trigger": [
+        0,
+        -0.051,
+        -0.016
+      ],
+      "palm": [
+        0,
+        0.015,
+        -0.205
       ],
       "clavicleL": [
         0,

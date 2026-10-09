@@ -264,11 +264,6 @@ function skinFor(id: string, level: number): string {
 const tl = new THREE.TextureLoader();
 
 /**
- * Dress a procedural gun model in its bought one, when there is one and it is in: the procedural meshes hidden,
- * the bought model in their place, and the gun's muzzle and sight line moved to the bought model's. One model a gun
- * (paidweapons.json guns), its skin its fusion level's.
- */
-/**
  * How much smaller a bought gun is drawn in your own hands than its model (fparms.json packGuns gunScale): the bought
  * arms are a real person's, and a model drawn bigger than a real gun of its kind sinks into them (ANAKIN's grip, 4.1 cm
  * wide at 86 cm long, took the right palm 15 mm in wherever the hand was put). Figures in the world wear it whole.
@@ -279,6 +274,11 @@ function viewScale(id: string): number {
   return (pack && f.packGuns[pack]?.gunScale) || 1;
 }
 
+/**
+ * Dress a procedural gun model in its bought one, when there is one and it is in: the procedural meshes hidden,
+ * the bought model in their place, and the gun's muzzle and sight line moved to the bought model's. One model a gun
+ * (paidweapons.json guns), its skin its fusion level's.
+ */
 export function dressPaid(m: GunModel, level = 0, view = false): boolean {
   const g = GUNS[m.id];
   const name = g?.model ?? null;

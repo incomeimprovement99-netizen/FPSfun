@@ -11142,3 +11142,42 @@ your domain here". The soldier's hold code read as sound; the faults were in the
   does its 50; a bot with the launcher, placed in the open, bursts its rockets on you and you take nothing but with a
   burst; a rocket fired from inside a still bot toward its head goes out through it as its own, 3 to 9 m, and bursts on
   it at 0.2 m as nobody's); skfigure; bots; verify; rules; the type check.
+
+## Milestone 490 — BIGANTLER in the bought arms: a pump after every shot, a shell at a time
+
+BIGANTLER, the pump shotgun (mastiff, SciFiShotGun02_2), is the fifth gun the first person's bought arms hold
+(`PLAN_THE_EIGHT_GUNS.md` 5.3), on the pack's KXG12: its pose, its pump and the KXG12's own recorded shots, pump and
+reload. It brings the one new kind of reload the plan named, in the shared keys both views read.
+
+- **Turned the right way round:** the KXG12 is the one pack gun made looking down -z, as ours are, and the rig turned
+  every pack gun half round to put ours in its place, so BIGANTLER came out back to front, its pump against the chest.
+  The turn now follows each pack gun's measured `forward` (fprig.ts useGun).
+- **Placed as Apex holds its Mastiff:** Apex holds it canted across the picture, its rail's edges near parallel, so its
+  muzzle is taken (53.5% across, 57.5% down) with the USSO's move on top, its barrel's line at the crosshair as the other
+  guns' are (`FIT`).
+- **Its left hand on the middle of its pump:** the KXG12 is a bullpup, its pump close in front of its grip, and ours is
+  27 to 47 cm ahead of the trigger: the hand moved 19 cm forward and the shoulder 14 cm, then searched on the pump's middle
+  with the pump's back position scored too (laid flush, it had crept back to the pump's rear end, its heel 14 mm into the
+  receiver's bracket): no skin in the gun at rest or with the pump back, the palm touching, the wrist 34 degrees. The right
+  shoulder found for the straightest wrist on our raked grip (the KXG12's stands upright), at rest, aimed and through an
+  inspect, which rolls the gun about the right forearm: 93 to 30 degrees at rest, 101 to 40 aimed, 65 to 37 in an inspect.
+  Its pickup has its own fit, 3 cm out and down: the pack's pickup brings the hand back 9 cm off the KXG12's hold, and with
+  the hold's move on it the fingers went 11 mm into the pump.
+- **The pump after every shot:** the KXG12's Pump clip leads over the rechamber, as BOOG's bolt does; the left hand keeps
+  its hold and slides with the clip's stroke along our pump's own line, and our pump with it (along the KXG12's, which runs
+  a little off ours as ours is tilted to fit, the hand left the pump by 8 mm). Only 0.4 of the KXG12's stroke
+  (`pumpScale`): our loading gate is close behind the pump, and the whole stroke took the hand 23 mm into it.
+- **A shell at a time:** the KXG12's own reload is a bullpup's, the right hand feeding a port under the butt, which our
+  gun does not have; so the left hand feeds ours, procedurally, on shares of the reload in the shared keys
+  (fparms.json packGuns.KXG12.reload): off the pump, three shells, back on the pump, and from empty the pump (the tactical
+  rule). The fingers hold a shell as the KXG12's empty pump has them hold one; the hand is placed by its pinch, between the
+  forefinger's and thumb's tips, on our gun's own shell (Bullet), which rides up into the gate as the gate (Cover) swings
+  up into the receiver, pushed by it (swung down, as the pump swings it, it met the rising hand); the hand stops 5 cm under
+  the shell (a thumb's push), drops 10 cm for the next (at 7 its thumb's tip met the gate's underside) and comes back up
+  with it, its way off the pump and back bowed out round the gun's underside. Its sound is the KXG12's start, a
+  shell going in at each push, its end and from empty its pump, laid on those beats (tools/import-pack-sounds.ts).
+- **Checked:** the soldier e2e's pack frames for BIGANTLER (`E2E_ONLY=skpack E2E_GUNS=mastiff`), its magazine checks
+  left to the magazine guns, and two of its own: the feed (each shell at the pinch within 1 cm while held, the gate open as
+  it goes in, the last one home, no hand in the gun) and the pump (pump and hand together within 5 mm, a stroke of 3 cm and
+  more, a reload from empty ending with it and a tactical one not). tools/pack-audit.js leaves a shell in the hand out of
+  the gun it measures.
