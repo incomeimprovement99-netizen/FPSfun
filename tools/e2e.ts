@@ -8245,6 +8245,13 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     for (const [label, p] of poses) {
       const a = await ev<A | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(0.3); return window.__figureAudit(0, { pitch: ${p.pitch} }); })()`);
       check(`the soldier holding ${name}, ${label}: both palms on their holds and the fingers round them, the barrel along the look, the wrists straight enough, no hand in the gun or the other hand and the gun not in the body`, within(a, true, id), JSON.stringify(a));
+      // An arm through the gun, measured exactly (the hold check's measure stops at 4 cm, so an arm 15 cm inside read 4):
+      // BOOG's left forearm looking up ran 149 mm through it (2026-10-09, found looking at every gun). ANAKIN's stock along
+      // the right arm, 60 to 70 mm, is the owner's to keep ("accept stock in arm", 2026-10-05)
+      const arms = await ev<Record<string, number>>(page, `(() => { const a = window.__figureAudit(0, { pitch: ${p.pitch}, exact: true }); return Object.fromEntries(Object.entries(a.gunWhere ?? {}).filter(([k]) => /(lowerarm|upperarm)_[lr]$/.test(k))); })()`);
+      const accepted = (k: string) => id === "alternator_smg" && /(lowerarm|upperarm)_r$/.test(k);
+      const armDeep = Math.max(0, ...Object.entries(arms).filter(([k]) => !accepted(k)).map(([, d]) => d));
+      check(`the soldier holding ${name}, ${label}: no arm through the gun, measured exactly (40 mm at most)`, armDeep <= 40, JSON.stringify(arms));
     }
     // Aimed on the move, as every bot fights and a player strafes: the left hand stays on its hold. The running clips
     // lean the chest forward, and the hold used to slide a third of the way back to the grip, the hand into the gun.

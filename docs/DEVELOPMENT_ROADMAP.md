@@ -11026,3 +11026,31 @@ Trigger part to fit our trigger to.
 - **Checked:** the soldier e2e's pack frames for PANDA (`E2E_ONLY=skpack E2E_GUNS=vinson`), its placement against the
   Flatline's; its gunfeel.json entry is the USSO's less its screen and hip offset, and its packsounds.json set the
   G3's.
+
+## Milestone 511 — Every gun on the soldier looked at again, and an arm through a gun caught
+
+The owner, 2026-10-09: "look back on each gun to ensure they all fit nicely in third and enemies views". All ten, on the
+soldier other players see, in twelve poses each (at rest, aimed, looking 35 up and down, walking and running aimed,
+running, sprinting, crouched, crouched and aimed, crouch-walking, mid-swap), measured exactly against the soldier
+checks' bars, then photographed: four states of each gun from two sides, and every flagged pose close.
+
+- **Found and fixed:** looking 35 degrees up, BOOG's left forearm ran 149 mm through its magazine (the elbow followed
+  the gun up); its left elbow turned out and down ([1, -0.4, -0.4]), now 0, its left wrist 33 degrees aimed. Mid-swap,
+  PANDA's left forearm had been 115 mm inside the gun through the whole swap carry; with the guns agent's PANDA in the
+  bought arms (Milestone 489) it swaps in place, the gun staying up, and it is 0. HAEFY's launcher swap carry re-solved
+  (62 mm into the left forearm to 0).
+- **Looked at and left:** the butts in the shoulder armour, 44 to 79 mm by the exact measure (CHOOCH and PANDA looking
+  up, BIGANTLER crouched and aimed or running aimed, BOOG's tall heel looking up), read as a stock in the shoulder from
+  every side; HAEFY's tubes resting over the shoulder crouched (50 mm into the upper back's armour) read as a shoulder
+  launcher's; ANAKIN's stock along the right forearm, which the owner accepted on 2026-10-05.
+- **Why the checks had missed it:** the soldier's hold check measures the gun in the body only 4 cm deep, so an arm 15 cm
+  inside read 4 and passed. A new skfigure check measures each hold pose exactly and holds every arm to 40 mm in the
+  gun (ANAKIN's accepted forearm excepted); seen failing on BOOG's old elbow (its magazine 150 mm in the left forearm).
+- **ANAKIN's rack:** the guns agent's ANAKIN in the bought arms (Milestone 488) gave its reload a charging-handle rack on
+  the shared timeline, which the soldier follows, and the soldier's left hand at the handle had two fingers 30 mm off
+  it; the handle's hand searched (figure-solve.ts reload KEY=handle KEYFINGERS=1) and its index curled [30, 80, 60]:
+  every finger on it. ANAKIN's accepted stock reaches the right upper arm too (59 mm), excepted as the forearm is.
+- **As enemies see them:** a live bot match of ten bots, each given one of the ten guns, photographed as it fights,
+  sprints, reloads and vents (tools/live-shots.ts `ENEMY_GUNS`, which hands the bots any guns now, the USSO and BOOG by
+  default; it had asked the bot menu for nine, a count the menu does not offer, and got one bot): every gun held as
+  fitted.

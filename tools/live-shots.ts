@@ -13,7 +13,8 @@
 //
 // Each sheet is a row of frames, captioned with what the figure was doing and, measured by tools/figure-audit.js, the
 // same faults as the lab's sheets. Run: SHOT_URL=http://localhost:5198/ npx tsx tools/live-shots.ts [out dir]
-// PARTS=enemies,self picks, and ACTS=double-jump,melee only those of self's and remote's actions (needs the dev server
+// PARTS=enemies,self picks, and ACTS=double-jump,melee only those of self's and remote's actions; ENEMY_GUNS=a,b,c the
+// bots' guns, one each in turn (needs the dev server
 // and a real GPU; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
@@ -27,6 +28,10 @@ const PARTS = (process.env.PARTS ?? "enemies,self,remote").split(",");
 const ACTS = process.env.ACTS ? process.env.ACTS.split(",") : null;
 /** how far the camera stands off another player's figure, metres (REMOTE_DIST): further to see a double jump's tracer */
 const REMOTE_DIST = Number(process.env.REMOTE_DIST ?? 4.5);
+// (ENEMY_GUNS=wingman,launcher hands the bots those guns, one each in turn; the USSO and BOOG by default)
+const ENEMY_GUNS = (process.env.ENEMY_GUNS ?? "r97,sentinel").split(",");
+// (the menu's own counts: one it does not offer leaves the match at one bot)
+const BOT_COUNT = [4, 5, 6, 8, 10].find((c) => c >= ENEMY_GUNS.length) ?? 10;
 const W = 1600;
 const H = 1000;
 const TILE = { w: 360, h: 420 };
@@ -98,9 +103,9 @@ const auditOf = (figExpr: string, pitch = 0) =>
   `(() => { const r = window.__range, f = ${figExpr}; if (!f) return null; const keep = r.labFigures; r.labFigures = () => [f]; try { return window.__figureAudit(0, { pitch: ${pitch} }); } finally { r.labFigures = keep; } })()`;
 
 async function enemies(page: Page): Promise<void> {
-  await ev(page, `(() => { document.getElementById("botCount").value = "4"; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`);
+  await ev(page, `(() => { document.getElementById("botCount").value = "${BOT_COUNT}"; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`);
   await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).catch(() => console.log("the bot match did not start fighting"));
-  await ev(page, `(() => { const d = window.__range.duel(); d.bots.forEach((b, i) => b.setWeapon(i % 2 ? "sentinel" : "r97")); })()`);
+  await ev(page, `(() => { const d = window.__range.duel(); const g = ${JSON.stringify(ENEMY_GUNS)}; d.bots.forEach((b, i) => b.setWeapon(g[i % g.length])); })()`);
   await wait(1500);
   // (the menu stays over the game in a scripted page, which has no click to take the lock: it is put away by hand)
   await ev(page, `(() => { const r = window.__range; document.getElementById("overlay").classList.add("hidden"); r.input.locked = true; r.hideViewModel(true); r.shotFov(45); document.getElementById("hud")?.style.setProperty("visibility", "hidden"); })()`);
