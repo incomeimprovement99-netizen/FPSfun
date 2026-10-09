@@ -2665,7 +2665,16 @@
     "loop": 8
    }
   },
-  "_perchesRing": "The bridge ring's cover (rules.perches ring-*): a perch over each of the four bridges round the tower, its box the bridge's path and its heights the decks' own 26.9 m (the islands' roofs are at 26.0 and the fences' pillars too small to stand a piece on), three low pieces each, 8 m apart: the fourth review asked for cover on the bridge ring, 27 m up over the street crossings with nothing on its 56 decks to fight round."
+  "_perchesRing": "The bridge ring's cover (rules.perches ring-*): a perch over each of the four bridges round the tower, its box the bridge's path and its heights the decks' own 26.9 m (the islands' roofs are at 26.0 and the fences' pillars too small to stand a piece on), three low pieces each, 8 m apart: the fourth review asked for cover on the bridge ring, 27 m up over the street crossings with nothing on its 56 decks to fight round.",
+  "_collision": "How the bake builds the map's collision boxes from its drawn pieces (tools/import-neon.ts, tools/import-city.ts districtSolids): `cell` metres a column, faces within `stick` of a column's edge counted in it, nothing below `floor`, columns within `merge` of a height joined, a face thinner than `thin` thickened, and no box topping out under `minTop`. It was citydistricts.json's, the old city's districts', the Neon City's bake took them from (moved 2026-10-09).",
+  "collision": {
+   "cell": 0.5,
+   "stick": 0.15,
+   "floor": -0.3,
+   "merge": 0.25,
+   "thin": 0.3,
+   "minTop": 0.35
+  }
  },
  "tallest": {
   "x0": -21.275,

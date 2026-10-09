@@ -40,83 +40,20 @@ it.
   tour). The match's options are behind **Adjust settings** on the right;
   shut, it plays on the defaults. The lab has climbs of 2, 4 and 8 m, a long wall to run,
   and gaps of 4 and 6 m a storey up.
-- **The battle royale:** thirty players in a 304 m neon city, nine
-  sectors. The centre, THE SPIRE (200 m), is the biggest and the hottest drop,
-  the eight districts a ring 52 m deep round it (cut by three quarters), and
-  half the bot squads land there. On the Neon City (SpeedKills' map unless the
-  address names the old one) the nine are its own districts: THE TOWER inside
-  the Loop, the four High City decks and the four corner blocks.
-  - The centre is one raised district, after Hyper Scape's Red Tiger: nine
-    podiums at one height, joined by lit bridges over the streets, each with a
-    public stair up. The Spire rises from it in tiers. Its loot is the best,
-    and it comes back as it is taken.
-  - Round it, mid-rise blocks of buildings you enter from the street and climb
-    by their stairs, with loot on every floor. A player who lands with nothing
-    can reach the roofs without a pad.
-  - Every district has a landmark: a ringed holo tower, a round lit tower,
-    silos, a nave, a stadium, garden terraces, cranes, a station on stilts.
-  - A rooftop highway loops the core six storeys up, and gold jump pads on
-    every block throw you onto the roofs.
-  - Streets with parked cars for cover, zebra crossings and lit pavements.
-  - The dropship starts off the map and flies 6 s before its doors open. It
-    always passes the Spire, from any side, close enough that a level glide
-    lands you on its crown.
-  - Sectors decay in four waves of two toward a final one; standing in the
-    decay hurts.
+- **The battle royale:** thirty players in a 304 m neon city, the Neon City (made of Daelonik's Neon City bundle; the
+  map in detail under "The Neon City map" below), nine sectors: THE TOWER inside the Loop, the four High City decks
+  and the four corner blocks, MOTEL HILL, NOODLE ROW, MARKET and THE WELL.
+  - The centre's tower rises from a wide base round a lobby, eleven floors of rooms, halls and mazes numbered by its
+    stair, THE VAULT among them with the best loot, a lookout at 49 m and a crown at 109.
+  - Round it the Sky Ring walkway, the four High City islands on their decks at 26 m joined by a ring of bridges, glass
+    lifts up to them, zip lines from the lookout and the roof yards, jump pads, and a station under the plaza.
+  - The streets curve round the Loop, with cover within 6 m of every point of them.
+  - The dropship starts off the map and flies 6 s before its doors open. It always passes the tower, from any side,
+    close enough that a level glide lands you on its crown.
+  - Sectors decay in four waves of two toward a final one; standing in the decay hurts.
   - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
   - A lit red fence marks the city's edge. Past it you have 5 s to come back, or it is OUT OF BOUNDS.
   - A match runs 6 to 7 minutes.
-- **The vertical centre:** the middle of the map is its tallest part. Round
-  the Spire the towers stand 64 to 80 m, the twins either side of each chimney
-  about 100 m, and the Spire climbs in four tiers to a deck at 140 m, a pad up
-  each tier, its mast to 180.
-- **The Sky Lobby:** the downtown towers are open at 32 m, one storey with a
-  window in every face, and window pads on the podiums throw you through them.
-  Across a canyon it is a sprint jump from window to window; across a street a
-  bridge runs from one lobby into the next.
-- **The Sky Park:** 64 m up, 17 of the towers have the same open floor, joined
-  the same way (a jump across each canyon, a bridge across a street), and the
-  Spire's first tier ends there as a terrace, four bridges running onto it
-  from the twin towers.
-- **The metro:** under the four streets round the Spire, a loop of tunnel 6 m
-  below the street, 288 m round: stairs down from every street, a parked train
-  on each side to fight round, the fast covered way round the centre.
-- **The halls:** the eight podiums round the Spire are halls at street level,
-  about 50 by 45 m and 7.4 m tall, with doors off every street: columns,
-  waist-high counters and food-stand kiosks to fight round, a gallery round the
-  walls a storey up with two stairs to it, the packs' shop fronts along the
-  walls, loot of their own, and the roofs above walked on as before.
-- **Neon Alley:** the street in front of the Spire's north face, dressed at full
-  density from the bought kits: neon stacked up the towers, a web of cables,
-  lamps, and food stalls on the pavement that are real cover.
-- **High City's corner:** the map's south-east corner is High City's own demo
-  street, whole, as the bought pack's artist built it: its buildings, walkways,
-  signs and parked flying cars, in its own grey-green haze. Its canyons meet
-  the city's streets at the ends of two arms, five pads throw you up to the
-  walkways 7.75 m above them and two of High City's own fire escapes climb to
-  the north arm's east walkway, its buildings are solid behind their faces, its
-  arms' ends are buildings in High City's own brick fronts where they meet the
-  city's streets (no invisible walls), it has loot of its own, half of it up on
-  the walkways, and the bots come into it too, now and then riding a pad up to
-  hold a walkway.
-  `?dropat=high-corner` drops a solo battle royale straight onto its
-  crossroads. The game server alone has its file (a bought one).
-- **The chimneys:** four slots between twin towers, 3 m wide, climbed by wall
-  runs and kicks from wall to wall, ten legs of 5.5 m from the podium to 63 m,
-  turning at each end; windows off the stack into the Sky Lobby and the Sky
-  Park, and back out onto it.
-- **The drop:** a shaft down inside the Spire from the terrace at 128 m to the
-  concourse, with a way in from the Sky Park too: 120 m in four seconds, no fall
-  damage, out onto the podium.
-- **Stairs inside the towers:** a door on the concourse in every downtown
-  tower, and a staircase up through two open floors to the Sky Lobby, on to the
-  Sky Park in the tall ones: every level with no pad and no ability.
-- **Fire escapes:** up a street face of 18 of High City's and Kyber's towers,
-  in their own packs' pieces: climb the drop ladder from the promenade, walk
-  the steep flights landing to landing, and climb the last storey onto the
-  roof. Solid to stand and fight on all the way up, with a door into every open
-  floor it passes. Two more of High City's go up High City's corner, from its
-  street to a walkway.
 - **Movement for roofs:** double jump, wall run and kick (the view leans off
   the wall and streaks run down that side of the screen), slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
@@ -254,25 +191,8 @@ it.
   canister, glowing in their slot's colour over a ring the same colour. The
   MINE hack's mine, care packages and the med kit in a HEAL area
   are the pack's too.
-- **The centre, from the bought city kits:** on the game server the Spire
-  sector (the middle 200 m) wears the five city packs the owner bought. Each
-  block has its own style: Kyber's concrete on the corners, High City's
-  brownstone north and south, Cyber City's classic windows east and west, Glass
-  on the Spire. Every storey and bay has its module, the podiums have shop
-  fronts, signs, blade signs and billboards, the roofs their gear, cables cross
-  the streets, and the skyline past the edge is lit windows. It is looks only:
-  you run, climb and collide with the city's own boxes, as tuned, and a face you
-  wall run along wears its modules pressed flat (a plain panel on Competitive,
-  and past a pad). The graphics preset
-  picks the texture size and how much is drawn (Competitive the lightest modules
-  at 512 px; Balanced 1024; High 2048 and pipes, cornices and street props), the
-  textures GPU-compressed so High's 2K fits in less memory than 1K once took.
-  The packs' window walls keep the furnished rooms behind their glass, inside
-  the towers, where the towers' own faces step aside for them. A copy without the
-  files, and Pages, shows the city of before.
-- **Steam and neon:** from Balanced up, steam drifts out of the metro's
-  stairwells, the street drains and the roof plant, and a few signs flicker
-  (never more than three flashes a second). Light only: it never hides anyone.
+- **The city's pieces:** on the game server every piece of the Neon City is the bundle the owner bought, at the
+  texture size the graphics preset picks; a copy without the files draws nothing of the city.
 - **Ten guns**, most named for the owner's friends: a rifle (PANDA), two SMGs,
   two shotguns, a rocket launcher (HAEFY), a sniper (BOOG, which kills with one
   headshot), two pistols (STRYDER, a fast automatic, and APUHTHEE, a heavy
@@ -354,11 +274,9 @@ it.
   screen and your character's voice say it whenever one goes to the Gulag,
   loses it, comes back, is out or drops.
 - **Bots** in five tiers (Beginner, Casual, Skilled, Advanced, Extreme), on a
-  player's health, with Heal and Dash by tier. The better ones now and then
-  take the high ground: up a low tower's stairs to its roof, held a while.
-  They climb the centre's stairs, cross its bridges and ride its jump pads,
-  and once the capture zone opens the squads near it go for it, up the Spire
-  if that is where it is.
+  player's health, with Heal and Dash by tier. They walk the city's graph, up
+  its stairs and its jump pads, and once the capture zone opens the squads
+  near it go for it.
 - **The fight's feel:** the enemy under your crosshair is outlined in a thin red
   line, the same thickness on the screen at any range or zoom, and
   streaks at the screen's edge show when you are going faster than a sprint. The rim is the same width round the gun in their hands as round
@@ -1304,8 +1222,7 @@ one pass now, and refracting glass is plain glass. On Competitive, Balanced and
 High the city went from 133, 118 and 71 fps to 200, 196 and 97 in the street,
 and from 96, 156 and 85 to 213, 208 and 102 over the Spire; the legacy match
 went from 250, 196 and 110 to 345, 312 and 149, its Balanced draw calls halved.
-`tools/checks/city-budget.ts` holds the city's meshes and triangles, and the
-e2e holds that no material in a match is the rebuilding kind.
+The e2e holds that no material in a match is the rebuilding kind.
 
 **A performance pass, and High at what Balanced cost.** Measured on the Neon City (2026-10-01, `npm run bench`
 with the GPU's own time, the screen's density and a slowed processor, and `npm run profile`), the game is CPU-bound
@@ -1334,23 +1251,10 @@ file that big, so every visit downloaded it again), and its collision boxes load
 page's first script (Milestone 445). `?sky=id` opens a page under one hour, for measuring one sky against another. On a machine busy with other
 work, the street from a median 66 fps to 80 on Balanced.
 
-**The bought city kits, and what they cost.** The centre wears about 6,300
-pieces from the owner's city packs (`src/game/citydress.ts` places them,
-`citykit.ts` draws them), one instanced mesh per piece's mesh. From Balanced up,
-44% of its towers' street faces are the packs' own building faces, cut out of
-their demo streets with their balconies, fire escapes, pipes and signs
-(`tools/import-city.ts` cutFacades, 232 placed), the rest the packs' wall
-modules. Their triangles are counted per preset off the measured pieces
-(`tools/checks/citykit.ts`, in verify, so it holds on a machine without the
-files): Competitive wears the lightest module of each style; Balanced 2,786k,
-High 2,889k. In the street of a match on the owner's RX 9070 XT that costs about
-1.8 ms a frame on Balanced (137 fps, from 182) and 3.7 ms on High (67 fps, from
-89), which draws the city again for its shadows and ambient occlusion.
-
 **The Neon City map.** SpeedKills' city (Phase 28,
 `docs/PHASE_28_PLAN_THE_CENTRE_FROM_NEON_CITY.md`) is made of Daelonik's Neon
-City bundle alone, nothing drawn by hand; `?map=city` in the address plays the
-ILranch city it replaced.
+City bundle alone, nothing drawn by hand; the ILranch city it replaced went on
+2026-10-09.
 The same nine districts, the eight round the centre plain for now with straight
 roads. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight

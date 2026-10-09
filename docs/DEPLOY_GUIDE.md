@@ -56,31 +56,17 @@ minute.
 
 ## 2b. The bought assets (the soldier, the guns, the city)
 
-The owner's Unity Asset Store purchases (the Sci-Fi Modular Soldier, the Sci-Fi Battle Weapons, and the five city
-packs: Cyber City, its first-person props, Glass, High City and Kyber) are licensed to the owner, not the public, so
-they never enter git and never go to Pages:
+The owner's Unity Asset Store purchases (the Sci-Fi Modular Soldier, the Sci-Fi Battle Weapons and Daelonik's Neon City
+bundle) are licensed to the owner, not the public, so they never enter git and never go to Pages. (The five ILranch city
+packs the city before the Neon City was dressed in went with it on 2026-10-09; their bakes are kept outside the game,
+in `speedkills-paid\old-city\`.)
 
 - **Where they come from:** Unity keeps each download as a `.unitypackage` under
   `%APPDATA%\Unity\Asset Store-5.x\` (download them in Unity's Package Manager, My Assets).
-- **Making what the game loads:** `npm run paid` (or `PAID_ONLY=soldier`, `weapons` or `city npm run paid`)
-  unpacks them into `C:\Users\jwilb\Downloads\speedkills-paid\` and writes `public/models/paid/`, which git
-  ignores; `npm run rules` fails if any of it is ever tracked. The city step takes about half an hour (it encodes every
-  texture as KTX2, GPU-compressed, on every core; the encoder, Basis Universal's WebAssembly build, is fetched once into
-  `speedkills-paid\tools\basis\`) and writes `public/models/paid/city/`, each pack three times, with only the pieces
-  the dressing names: `<pack>-vN-max.glb` (2048 px, 338 MB in all at v8) for High, `<pack>-vN.glb` (1024 px, 114 MB)
-  for Balanced, `<pack>-vN-lo.glb` (512 px, 37 MB; from v8 every file's geometry is meshopt-compressed) for Competitive. The demo streets' facade strips (Phase 24.3) and
-  their own materials more than tripled High's and Balanced's from v4's 119 and 40 MB; Competitive never places a
-  strip, so its file leaves them out. It also rewrites the pieces' measurements and the list
-  of pieces baked in `src/config/citykit.json`, which are in git, so commit that file if a re-import changed it; a
-  piece added to the dressing needs a re-import (`citykit.ts` fails until it is in the packs).
-- **The districts** (Phase 25, `src/config/citydistricts.json`): a pack's demo street baked whole into the map, one
-  file each, `public/models/paid/city/<id>-v<version>.glb` (High City's corner, `high-corner-v5.glb`, 32 MB, its geometry
-  meshopt-compressed; `high-corner-v5-lo.glb`, 25 MB, for the presets that load the kit's lo files). `PAID_ONLY=city CITY_PACK=high CITY_DISTRICTS=1 npx tsx tools/import-paid.ts` bakes it in about 70 s
-  and writes its collision (with its backs closed and their fronts, Phase 26.4) to `src/config/districts/<id>.solids.json`
-  and its measurements back to the config, both in git, so commit them; raise `version` there for the server to hand out
-  a new file at once. A deploy builds from `apex-range`: a worktree's bake goes into its `public/models/paid/city/` first.
-  `DISTRICT_PARTS=<file>` with `CITY_PACK` writes every part a district keeps and where it stands, baking nothing.
-- **The Neon City map** (Phase 28, `?map=neon`): Daelonik's Neon City bundle, four packages (download them in Unity's
+- **Making what the game loads:** `npm run paid` (or `PAID_ONLY=soldier` or `weapons npm run paid`) unpacks them into
+  `C:\Users\jwilb\Downloads\speedkills-paid\` and writes `public/models/paid/`, which git ignores; `npm run rules` fails
+  if any of it is ever tracked.
+- **The Neon City map** (Phase 28): Daelonik's Neon City bundle, four packages (download them in Unity's
   Package Manager). `npx tsx tools/neon-layout.ts` writes the placements into `src/config/neonmap.json`, then
   `GAME=speedkills NEON=bake NEON_SIZES=lo,hi,max npx tsx tools/import-neon.ts` bakes
   `public/models/paid/neon/neonmap-v<version>-<size>.glb` (lo 95 MB, hi 160 MB, max 381 MB; about 9 minutes on
@@ -101,12 +87,10 @@ they never enter git and never go to Pages:
   High (`paidweapons.json` textures2k).
 - **Shipping them:** `npm run fps deploy` carries `public/models/paid/` to the game server, so **run it from a copy
   that has the files** (run `npm run paid` there, or copy the folder in: a re-import in a worktree lands only in that
-  worktree's `public/`, and a deploy of the code without the files it names leaves the city bare). `npm run deploy` (Pages) takes them out of
+  worktree's `public/`, and a deploy of the code without the files it names leaves the city undrawn). `npm run deploy` (Pages) takes them out of
   its build and refuses to push if any are left, so Pages shows the figures and guns of before.
 - **A re-import** is seen at once only if `version` in `src/config/soldier.json` (or `paidweapons.json`, or
-  `citykit.json`) goes up: the server keeps `/models/` for a day.
-- **A player on a slow line** loads the city packs once the match is up: the city is drawn from its boxes first
-  and the kit arrives over it, so nothing waits on the download.
+  `neonmap.json`) goes up: the server keeps `/models/` for a day.
 
 ## 3. Pages is on (done)
 

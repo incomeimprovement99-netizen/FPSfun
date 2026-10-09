@@ -17,7 +17,7 @@ import { later } from "../later";
 import { dressPlan } from "../dress";
 import { PAL, bevel, emissive, flat, graffitiTexture, textPanel, worldTiledMaterial } from "../geo";
 import { material, tileBox, type MatName } from "../materials";
-import cityCfg from "../../config/city.json";
+import worldCfg from "../../config/world.json";
 import { warehouseRoof } from "../warehouse";
 import { ZIPLINES } from "../traversal";
 import type { ArenaHandles } from "../arena";
@@ -73,7 +73,7 @@ function cityPalette(): { mats: Record<MatKey, THREE.Material>; tile: Map<THREE.
   cityShared = {
     tile,
     mats: {
-      wall: tex("skNight2", cityCfg.facadeTile, { color: 0xb8c4dc, roughness: 0.5, metalness: 0.35, glow: cityCfg.windowGlow }),
+      wall: tex("skNight2", worldCfg.arenaLook.facadeTile, { color: 0xb8c4dc, roughness: 0.5, metalness: 0.35, glow: worldCfg.arenaLook.windowGlow }),
       slab: tex("skConcrete", 4, { color: 0x6a6e76, roughness: 0.9, metalness: 0.02 }),
       crate: tex("skConcrete", 4, { color: 0x4a4e56, roughness: 0.9, metalness: 0.02 }),
       // parked cars: dark paint, one cold and one warm
@@ -82,7 +82,7 @@ function cityPalette(): { mats: Record<MatKey, THREE.Material>; tile: Map<THREE.
       cover: metal,
       // a street's fixtures (a shelter, a kiosk): lighter than the trim, so one reads at night against the street
       steel: tex("skMetal", 3, { color: 0xd0d8e8, roughness: 0.4, metalness: 0.6 }),
-      neon: emissive(0x3cf2ff, cityCfg.neonGlow),
+      neon: emissive(0x3cf2ff, worldCfg.neonGlow),
     },
   };
   return cityShared;

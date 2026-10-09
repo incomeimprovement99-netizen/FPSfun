@@ -12,7 +12,6 @@
 //
 // Run: npm run e2e        (needs `npm run dev` already running)
 import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
-import citySectorsCfg from "../src/config/city.json";
 import neonSectorsCfg from "../src/config/neonmap.json";
 import { HOLD } from "../src/game/hold";
 import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
@@ -43,9 +42,6 @@ import hudCfgE2e from "../src/config/hud.json";
 import fparmsCfg from "../src/config/fparms.json";
 import gunfeelCfg from "../src/config/gunfeel.json";
 import squadCfg from "../src/config/squad.json";
-import cityCfgE2e from "../src/config/city.json";
-import districtsCfg from "../src/config/citydistricts.json";
-import { BR_X, BR_Z } from "../src/game/br";
 import { readFileSync } from "node:fs";
 
 /**
@@ -122,11 +118,9 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   // A page is SpeedKills unless its query or E2E_GAME names a game: the suite was the legacy game's regression net
   // until that game was being removed (the owner, 2026-10-04), and a check of the legacy game alone names it.
   const q1 = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "speedkills"}`;
-  // SpeedKills opens on the Neon City map now (Phase 28); the suite's city tests are the ILranch city's, which ?map=city
-  // keeps, so a SpeedKills page is on it unless its query names a map (E2E_MAP=neon puts every one on the new map)
-  const q2 = q1.includes("game=speedkills") && !q1.includes("map=") ? `${q1}&map=${process.env.E2E_MAP ?? "city"}` : q1;
+  // (SpeedKills is on the Neon City, its one city since the ILranch city before it went, 2026-10-09)
   // and on the menu, as the checks of it expect: the start screen in front of it is startScreenTest's (src/ui/start.ts)
-  const q = q2.includes("home=") ? q2 : `${q2}&nohome`;
+  const q = q1.includes("home=") ? q1 : `${q1}&nohome`;
   const url = base.includes("?") ? `${base}&${q.slice(1)}` : base + q;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
@@ -135,11 +129,6 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
 
 /** evaluate an expression string in the page (tsx mangles function sources) */
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
-/** the page is on the Neon City map (the default since Phase 28: the suite's SpeedKills pages are on the city before it
- * unless E2E_MAP=neon) */
-const onNeon = (page: Page): Promise<boolean> => ev<boolean>(page, "!!window.__range.neonMap?.().on");
-/** a check of the city before the Neon City, which the Neon map has nothing of: said as skipped there, not failed */
-const oldCityOnly = (what: string): void => console.log(`  --  ${what}: the city before the Neon City's, skipped on the Neon map`);
 
 /**
  * Waits until the page's game clock has moved on `secs`. A cooldown, a prompt or a door's swing runs on game time,
@@ -5846,18 +5835,6 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; window.__range.menu.showExtras(true); const out = { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: !!document.getElementById("goGunRun"), tour: vis("goTour"), title: document.title }; window.__range.menu.showExtras(false); return out; })()`
   );
   check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING behind Extra modes (Gun Run gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
-  if (!(await onNeon(page))) {
-    // High City's corner (citydistricts.ts): drawn from its own file, and its opaque faces from behind too (look backs): the
-    // film set is faced only toward its canyons, and from the city's streets round it only its frames showed
-    type Dist = { drawn: string[]; triangles: number; opaque: number; both: number };
-    const dist = await page
-      .waitForFunction("window.__range.cityDistricts().drawn.length > 0", { polling: 250, timeout: 90000 })
-      .then(
-        () => ev<Dist>(page, `(() => { const r = window.__range; let opaque = 0, both = 0; r.scene.getObjectByName("district:high-corner")?.traverse((o) => { if (o.isMesh) for (const m of [].concat(o.material)) if (!m.transparent) { opaque++; if (m.side === 2) both++; } }); return { ...r.cityDistricts(), opaque, both }; })()`),
-        () => null,
-      );
-    check("speedkills: High City's corner is drawn from its own file, its faces from behind too (no film set's frames to see through)", !!dist && dist.drawn.includes("high-corner") && dist.triangles > 500000 && dist.opaque > 20 && dist.both === dist.opaque, JSON.stringify(dist));
-  } else oldCityOnly("High City's corner drawn from its own file");
   // the guns: ten of its own, named, the owner's friends among them
   const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
   check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "HAEFY", "APUHTHEE", "BOOG", "CHOOCH"].includes(n)), JSON.stringify(guns));
@@ -5926,16 +5903,11 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await skWholeNumbers(page);
   await skHitsLand(page);
   await page.close();
-  // an arena match in SpeedKills on the city before the Neon City (?map=city, the suite's) is fought in its block:
-  // NEON BLOCK (arenas/neonblock.ts), its bounds 74..118 by 94..142 (THE CENTRE is the Neon City's middle: below)
+  // a bot match in SpeedKills, a 1v1: on THE CENTRE, the Neon City's middle (below)
   const arena = await open(browser, "?game=speedkills");
   await ev(arena, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
   await arena.waitForFunction("window.__range.duel()?.phase === 'fight' || window.__range.duel()?.phase === 'countdown'", { polling: 200, timeout: 20000 }).catch(() => undefined);
   await sleep(500);
-  const where = await ev<{ x: number; z: number; phase: string | null }>(arena, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, phase: window.__range.duel()?.phase ?? null })");
-  if (!(await onNeon(arena))) {
-    check("speedkills: an arena match is fought in NEON BLOCK, the city's crossing", where.x > 74 && where.x < 118 && where.z > 94 && where.z < 142, JSON.stringify(where));
-  } else oldCityOnly("an arena match fought in NEON BLOCK");
   // SpeedKills' 1v1 on the Neon City is fought on THE CENTRE (arenas/centre.ts, the owner, 2026-10-01): the city's
   // own middle, inside a circle you cannot leave; its bot from the spawn north of the tower reaches the 1v1's circle by
   // the city's graph (walking straight at it from there, it was 40 m off after 45 s: measured from each spawn)
@@ -6788,100 +6760,6 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
   await page.close();
 }
 
-/**
- * A bot takes High City's corner's walkway as high ground (city.ts DISTRICT_HOLDS, brmatch.ts roofFor, Phase 26.4): in a
- * match none went up, which only a wander that happened onto a pad reached. A bot on a canyon node beside a pad, sent
- * for the walkway the pad lands on, with nobody in sight, rides the pad and stands up there holding it
- */
-async function speedkillsDistrictHoldTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&game=speedkills");
-  if (await onNeon(page)) {
-    oldCityOnly("district hold: a bot sent to its pad's walkway");
-    await page.close();
-    return;
-  }
-  await ev(page, brRow("solo", 9));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  const landed = await page
-    .waitForFunction(`window.__range.duel()?.phase === "fight" && window.__range.player.onGround && !window.__range.player.dropping && window.__range.duel().bots.some((b) => b.landed && b.bot.alive)`, { polling: 100, timeout: 90000 })
-    .then(() => true, () => false);
-  if (!landed) {
-    check("district hold: a match starts and a bot lands", false);
-    await page.close();
-    return;
-  }
-  // (every bot down first: one still falling into sight was a target, and a bot with a target does not walk its way)
-  await page.waitForFunction("window.__range.duel().bots.every((b) => !b.bot.alive || (b.landed && !b.bot.dropping))", { polling: 100, timeout: 60000 }).catch(() => undefined);
-  const d0 = districtsCfg.districts[0];
-  const [w0] = d0.fill.walkway;
-  const set = await ev<{ hold: number; roof: number; from: number; bot: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true;
-      const nodes = r.brMap.nodes;
-      const inCorner = (n) => n.x - ${BR_X} > ${d0.hole[0][0]} && n.z - ${BR_Z} > ${d0.hole[0][1]};
-      const hold = nodes.findIndex((n) => n.padFrom && (n.y ?? 0) >= ${w0} && inCorner(n));
-      if (hold < 0) return null;
-      const pad = nodes[hold].padFrom[0];
-      let from = -1, best = Infinity;
-      nodes.forEach((n, i) => { if (i === pad || (n.y ?? 0) > 1 || !n.links.includes(pad)) return; const dd = Math.hypot(n.x - nodes[pad].x, n.z - nodes[pad].z); if (dd < best) { best = dd; from = i; } });
-      if (from < 0) return null;
-      // (the sectors it passes through live the while: a bot in a sector the decay warns runs from it, and drops any
-      // climb, as it should; the pad stands on the line between two of them)
-      const sectors = ${JSON.stringify(cityCfgE2e.sectors.map((q) => ({ id: q.id, minX: q.minX, maxX: q.maxX, minZ: q.minZ, maxZ: q.maxZ })))};
-      const pts = [nodes[from], nodes[pad], nodes[hold]].map((n) => [n.x - ${BR_X}, n.z - ${BR_Z}]);
-      const keep = sectors.filter((q) => pts.some(([x, z]) => x > q.minX - 5 && x < q.maxX + 5 && z > q.minZ - 5 && z < q.maxZ + 5)).map((q) => q.id).filter((id) => d.decay && id !== d.decay.final);
-      if (d.decay && keep.length) {
-        d.decay.waves = d.decay.waves.map((w) => w.filter((id) => !keep.includes(id))).filter((w) => w.length);
-        d.decay.waves.push(keep);
-      }
-      // the player far off on the far side of the map, and every other bot too, so nothing is in sight
-      const far = nodes.find((n) => (n.y ?? 0) === 0 && n.x - ${BR_X} < -60 && n.z - ${BR_Z} < -60);
-      if (far) r.player.teleport(far.x, 0, far.z, 0);
-      const bs = d.bots.filter((b) => b.landed && b.bot.alive && !b.down);
-      const b = bs[0];
-      // (off any ride it was on: a launch pad's throw or a rope carried it on past the move)
-      for (const o of d.bots) if (o !== b && far) { o.bot.travel = null; o.bot.pos.set(far.x + 5, 0, far.z + 5); o.bot.dummy.group.position.copy(o.bot.pos); }
-      // (and nobody in its memory: a bot hunts where it last saw an enemy, which was where it landed)
-      b.bot.travel = null;
-      b.bot.lastSeen = null;
-      b.ropeTo = null;
-      b.bot.pos.set(nodes[from].x, 0, nodes[from].z);
-      b.bot.dummy.group.position.copy(b.bot.pos);
-      b.node = from;
-      b.goal = from;
-      // the high ground the match gives it (roofFor), its tier's chance made a yes: the walkway beside it, before any
-      // low tower's roof
-      const rnd = Math.random;
-      Math.random = () => 0;
-      const roof = d.roofFor(b);
-      Math.random = rnd;
-      b.climb = roof >= 0 ? { roof, holdUntil: null } : null;
-      window.__holdBot = b;
-      return { hold, roof, from, bot: b.bot.remote.id }; })()`,
-  );
-  if (!set) {
-    check("district hold: a bot, a pad and its walkway's landing to send it to", false);
-    await page.close();
-    return;
-  }
-  let at = { x: 0, y: 0, z: 0, holding: false };
-  for (let i = 0; i < 30 && at.y < w0 - 0.3; i++) {
-    await gameSleep(page, 1);
-    at = await ev(page, `(() => { const b = window.__holdBot; return { x: b.bot.pos.x - ${BR_X}, y: b.bot.pos.y, z: b.bot.pos.z - ${BR_Z}, holding: !!(b.climb && b.climb.holdUntil !== null) }; })()`);
-  }
-  let held = { y: 0, holding: false };
-  for (let i = 0; i < 6 && !held.holding; i++) {
-    await gameSleep(page, 1);
-    held = await ev<{ y: number; holding: boolean }>(page, `(() => { const b = window.__holdBot; return { y: b.bot.pos.y, holding: !!(b.climb && b.climb.holdUntil !== null) || b.node === ${set.hold} }; })()`);
-  }
-  check(
-    "district hold: a bot sent for High City's corner's walkway rides its pad up and holds it",
-    set.roof === set.hold && at.y >= w0 - 0.3 && held.y >= w0 - 0.3 && held.holding,
-    JSON.stringify({ ...set, at: { x: +at.x.toFixed(1), y: +at.y.toFixed(2), z: +at.z.toFixed(1) }, held }),
-  );
-  await page.close();
-}
-
 async function speedkillsStartsTest(browser: Browser): Promise<void> {
   type Slot = { id: string; empty: boolean; fusion: number };
   type Here = { slots: Slot[]; active: number; fused: number; down: string[] };
@@ -7356,9 +7234,13 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
   // what holds the trigger, read while the script pulls it (read after, the script is gone)
   await sleep(700);
   const during = await ev(t, "({ why: window.__range.triggerWhy(), shots: window.__range.stats().shots, pos: window.__range.player.pos.toArray().map((v) => +v.toFixed(2)), yaw: +window.__range.player.yaw.toFixed(1), pitch: +window.__range.player.pitch.toFixed(1) })");
-  const high = await stepTo("high", 3300);
+  // (6 s, as every other step waits: a first shot that misses leaves the hit to the next pull, and twice on 2026-10-09,
+  // with every SpeedKills page on the Neon City, the step moved on just after 3.3 s; `took` says how long it was)
+  const highFrom = Date.now();
+  const high = await stepTo("high", 6000);
+  const highTook = (Date.now() - highFrom) / 1000;
   await stop();
-  check("sk tour: HIGH GROUND done with a hit from the stairs, 2.6 m up", high, JSON.stringify(await ev(t, `({ during: ${JSON.stringify(during)}, target: ${JSON.stringify(target)}, step: window.__range.tour.stepId, y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })`)));
+  check("sk tour: HIGH GROUND done with a hit from the stairs, 2.6 m up", high, JSON.stringify(await ev(t, `({ took: ${highTook}, during: ${JSON.stringify(during)}, target: ${JSON.stringify(target)}, step: window.__range.tour.stepId, y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })`)));
   // the ring: five seconds in it
   await tp(6, 0, -14, 0);
   // (five seconds of the game's time: a slow page runs fewer of them to the wall's second)
@@ -7444,23 +7326,6 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   // and up on the roofs, where the fights are (speedkills.json loot maxFloor): it stopped at 12 m, under most of the city's roofs
   const high = await ev<{ over12: number; over24: number }>(page, "(() => { const ds = [...window.__range.duel().lootField.drops.values()]; return { over12: ds.filter((x) => x.pos.y > 12).length, over24: ds.filter((x) => x.pos.y > 24).length }; })()");
   check("speedkills br: loot on the roofs too, a dozen storeys and more up", high.over12 >= 40 && high.over24 >= 10, JSON.stringify(high));
-  if (!(await onNeon(page))) {
-    // A bot whose way goes up a jump pad is thrown by it (city.ts, a graph node's `pad`; bots.ts jumpPad): one stood
-    // on the Spire's pad up to its second tier, its next step the tier's roof. Early in the fight with the ring held,
-    // before the first wave's 50 s warning is out: the centre goes early in some matches (half of them end
-    // elsewhere), and one run's bot fell through a Spire already dissolved. The bot is put back as it was after.
-    await page.waitForFunction("window.__range.duel().bots.some((b) => b.landed && b.bot.alive && !b.bot.dropping && !b.down && !b.guard)", { polling: 200, timeout: 30000 }).catch(() => undefined);
-    const rode = await ev<{ from: number; y: number; want: number; end: number; phase: string } | null>(
-      page,
-      `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const nodes = d.map.nodes; const i = nodes.findIndex((n) => n.pad && (n.y ?? 0) > 20 && (nodes[n.pad.to].y ?? 0) > (n.y ?? 0) + 10); const b = d.bots.find((x) => x.landed && x.bot.alive && !x.bot.dropping && !x.guard && !x.down); if (i < 0 || !b) return ok(null); const n = nodes[i];
-        const held = { fire: d.holdFire, ring: d.ring.timeLeft, sees: b.bot.sees }; d.holdFire = true; d.ring.timeLeft = 1e6; b.bot.sees = () => false; b.bot.pos.set(n.x, n.y, n.z); b.bot.dummy.group.position.copy(b.bot.pos); b.node = i; b.goal = n.pad.to;
-        const phase = r.sk.decay()?.states?.[n.poi]?.phase ?? "none";
-        // the highest it got, and where it is after: its way can go on from that roof (the next tier's pad stands
-        // 0.1 m from where this one lands you, and a bot on a roof's climb takes it within a frame)
-        let y = n.y; const want = nodes[n.pad.to].y; const t0 = performance.now(); const tick = () => { y = Math.max(y, b.bot.pos.y); if (performance.now() - t0 < 5000) return void setTimeout(tick, 30); d.holdFire = held.fire; d.ring.timeLeft = held.ring; b.bot.sees = held.sees; ok({ from: n.y, y, want, end: b.bot.pos.y, phase }); }; tick(); }))()`,
-    );
-    check("speedkills bots: a bot whose way goes up a jump pad is thrown onto the roof it leads to", !!rode && rode.y >= rode.want - 0.6 && rode.end >= rode.want - 0.6, JSON.stringify(rode));
-  } else oldCityOnly("a bot thrown up a jump pad onto its roof");
   check("speedkills br: 100 health and 50 shield", start.health === 100 && start.shieldMax === 50, JSON.stringify(start));
   const spireBots = await ev<number>(page, `(() => { const d = window.__range.duel(); const m = window.__range.brMap; return d.bots.filter((b) => b.dropTo && m.placeAt(b.dropTo.x, b.dropTo.z)?.id === "c").length; })()`);
   check("speedkills br: the bots drop on the Spire the most (every other squad)", spireBots >= 12, `${spireBots} of 27`);
@@ -7477,42 +7342,6 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   );
   const moved = far.filter((d) => d > 3).length;
   check("speedkills br: the bots land and move through the city", moved >= 22, `${moved} of ${far.length} moved 3 m in 12 s of game time`);
-  if (!(await onNeon(page))) {
-    // the high ground: a bot sent up a low tower's stairs (bots.json skRoofs, city.ts ROOF_ROUTES) walks them to the
-    // roof with its own movement. The match takes the choice by chance; the test makes it, and watches the walk.
-    // The bot is made blind for it: someone in sight comes before a climb, as it should, and one run's bot chased
-    // whoever it saw straight past its stair.
-    const climb = await ev<{ id: number; roofY: number } | null>(
-      page,
-      `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; window.__heldRing = d.ring.timeLeft; d.ring.timeLeft = 1e6; const early = new Set(d.decay.waves[0] ?? []); const route = r.roofRoutes().find((x) => x.street >= 0 && [x.street, ...x.nodes].every((i) => !early.has(d.map.nodes[i].poi))); if (!route) return null; const n = d.map.nodes; const roof = route.nodes[route.nodes.length - 1]; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.dropping); if (!b) return null; const s = n[route.street]; b.bot.pos.set(s.x, 0, s.z); b.node = route.street; b.goal = route.street; b.climb = { roof, holdUntil: null }; b.bot.sees = () => false; return { id: b.bot.remote.id, roofY: n[roof].y }; })()`
-    );
-    const g0 = await ev<number>(page, "window.__range.gameTime()");
-    const roofed = climb
-      ? await page.waitForFunction(`(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${climb.id}); return !!b && b.bot.pos.y > ${climb.roofY} - 0.5 || window.__range.gameTime() - ${g0} > 90; })()`, { polling: 250, timeout: 180000 }).then(() => true, () => false)
-      : false;
-    const top = climb ? await ev<{ y: number; goal: number; climb: unknown }>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${climb.id}); return { y: b.bot.pos.y, goal: b.goal, climb: b.climb }; })()`) : null;
-    // the downtown's jump pads (city.ts downtownBlock): one on the street throws you onto its podium, one on a
-    // podium's terrace up onto a tower's roof. Stood on, each lands you a storey or more up.
-    const padRide = async (pick: string): Promise<{ from: number; to: number; x: number; z: number } | null> => {
-      const pad = await ev<{ x: number; y: number; z: number } | null>(page, `(() => { const p = window.__range.duel().map.pads.filter((q) => q.up !== undefined).find(${pick}); return p ? { x: p.x, y: p.y ?? 0, z: p.z } : null; })()`);
-      if (!pad) return null;
-      await ev(page, `window.__range.player.teleport(${pad.x}, ${pad.y + 0.05}, ${pad.z}, 0)`);
-      const g0 = await ev<number>(page, "window.__range.gameTime()");
-      await page.waitForFunction(`window.__range.gameTime() - ${g0} > 4 && window.__range.player.onGround`, { polling: 100, timeout: 30000 }).catch(() => undefined);
-      const at = await ev<{ y: number; x: number; z: number }>(page, "({ y: window.__range.player.pos.y, x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
-      return { from: pad.y, to: at.y, x: at.x, z: at.z };
-    };
-    await ev(page, "window.__range.duel().holdFire = true");
-    // a podium's pad stands on the pavement (a kerb up); the highway's stand in the road
-    const street = await padRide("(q) => (q.y ?? 0) > 0.1 && (q.y ?? 0) < 1 && Math.hypot(q.x, q.z - 500) > 60");
-    check("speedkills city: a street's jump pad throws you onto its podium, a storey or two up", !!street && street.to > street.from + 3.5, JSON.stringify(street));
-    const highway = await padRide("(q) => (q.y ?? 0) === 0 && q.over > 20");
-    check("speedkills city: a pad in the road throws you onto the rooftop highway, six storeys up", !!highway && Math.abs(highway.to - 24) < 0.5, JSON.stringify(highway));
-    const terrace = await padRide("(q) => (q.y ?? 0) > 3 && Math.hypot(q.x, q.z - 500) > 60");
-    check("speedkills city: a terrace's jump pad throws you onto a tower's roof", !!terrace && terrace.to > terrace.from + 10, JSON.stringify(terrace));
-    check("speedkills br: a bot sent up a low tower walks its stairs to the roof", !!climb && roofed && !!top && top.y > climb.roofY - 0.5, JSON.stringify({ climb, top }));
-    await ev(page, "(() => { const d = window.__range.duel(); d.holdFire = false; d.ring.timeLeft = window.__heldRing; })()");
-  } else oldCityOnly("a bot up a low tower's stairs, and the street, road and terrace jump pads");
   // the bots play by a player's health and carry their tier's hacks (bots.json skHacks)
   const kit = await ev<{ shields: number[]; hacks: string[]; tier: string }>(
     page,
@@ -8444,8 +8273,8 @@ async function skSquadTest(browser: Browser): Promise<void> {
   await close();
 }
 
-/** the centre sector's name on the map the run is on (E2E_MAP; the old city's by default): its places name it */
-const CENTRE_NAME = ((process.env.E2E_MAP ?? "city") === "neon" ? neonSectorsCfg.game.sectors : citySectorsCfg.sectors).find((s) => s.id === "c")!.name;
+/** the centre sector's name (the Neon City's): its places name it */
+const CENTRE_NAME = neonSectorsCfg.game.sectors.find((s) => s.id === "c")!.name;
 
 /**
  * The start screen and the hack pick before play (src/ui/start.ts; the owner, 2026-10-09: "the main screen should be
@@ -9545,7 +9374,6 @@ async function main(): Promise<void> {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
       await speedkillsSlamTest(browser);
-      await speedkillsDistrictHoldTest(browser);
     });
     // (the slam alone, named only: a rerun of the one check that failed, as a flaky one is rerun)
     if (ONLY.includes("skslam")) {

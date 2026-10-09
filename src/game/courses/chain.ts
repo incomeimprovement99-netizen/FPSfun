@@ -14,14 +14,13 @@ import type { CourseLayout, CoursePad } from "../course";
 import { MOVE } from "../movement";
 import reach from "../../config/reach.json";
 import cfg from "../../config/chaincourse.json";
-import cityCfg from "../../config/city.json";
 
 /** where the course's x = 0 is in the world: the middle of the range's back wall */
 export const CHAIN_X = 0;
 /** its walls' inner faces; the other two courses' walls stand 0.5 m beyond each */
 const X0 = -7;
 const X1 = 7;
-const Ch = cityCfg.chimneys;
+const Ch = cfg.chimney;
 /** the chimney's top, two rises up */
 const TOP = Ch.rise * 2;
 const WALL_H = TOP + 4;

@@ -13,7 +13,7 @@
 // same decay from the match seed and the ring's clock (brmatch.ts carries the
 // clock to every guest already) and nothing new goes over the wire. A wave is
 // one of the ring's phases: its wait is the warning, its close the decay.
-import cityCfg from "../config/city.json";
+import neonCfg from "../config/neonmap.json";
 import decayCfg from "../config/decay.json";
 
 export type SectorPhase = "live" | "warning" | "decaying" | "gone";
@@ -39,11 +39,10 @@ export interface SectorRect {
 }
 
 /**
- * The sectors as the map in play has them: city.json's until a map sets its own (useSectorRects; the Neon City's are its
- * districts, neonmap.json game.sectors: city.json's put all of it in the centre, and its first three waves took the
- * empty ground round it). Ids the same on every map, so the plan and the waves read the same
+ * The sectors as the map in play has them: the Neon City's districts (neonmap.json game.sectors), set again as a map
+ * sets its own (useSectorRects). Ids the same on every map, so the plan and the waves read the same
  */
-export const SECTOR_RECTS: SectorRect[] = cityCfg.sectors.map((s) => ({ ...s }));
+export const SECTOR_RECTS: SectorRect[] = (neonCfg.game.sectors as SectorRect[]).map((s) => ({ ...s }));
 export function useSectorRects(list: readonly SectorRect[]): void {
   SECTOR_RECTS.splice(0, SECTOR_RECTS.length, ...list.map((s) => ({ ...s })));
 }

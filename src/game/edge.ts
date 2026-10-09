@@ -10,11 +10,11 @@
 // The clock is the page's game time, the one the player's own movement runs
 // on: on a slow page both stretch together, so nobody dies for a walk their
 // own frames made slow.
-import cityCfg from "../config/city.json";
+import worldCfg from "../config/world.json";
 import { BR_BOUNDS } from "./br";
 import type { Bounds } from "./player";
 
-export const EDGE = cityCfg.edge;
+export const EDGE = worldCfg.edge;
 /** the wall a landed body stops at: the city and the margin round it */
 export const EDGE_BOUNDS: Bounds = {
   minX: BR_BOUNDS.minX - EDGE.margin,

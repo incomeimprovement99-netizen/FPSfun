@@ -17,7 +17,7 @@ import { FLOORS, HALL_FLOORS, floorAt } from "./floors";
 import { botWalk } from "./botbody";
 import { Doors } from "./doors";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi } from "./br";
-import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay, useSectors } from "./city";
+import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay, useSectors } from "./world";
 import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
 import { padOff, padOnto } from "./padsolve";

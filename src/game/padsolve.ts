@@ -1,9 +1,9 @@
-// A jump pad onto a roof, solved (city.json padSolve): shared by the old city (city.ts) and the Neon City map
-// (neonmap.ts, and tools/import-neon.ts, which stands the pack's plate and beam where the pad is).
+// A jump pad onto a roof, solved (world.json padSolve): the Neon City map's (neonmap.ts, and tools/import-neon.ts, which
+// stands the pack's plate and beam where the pad is).
 import { MOVE } from "./movement";
-import cityCfg from "../config/city.json";
+import worldCfg from "../config/world.json";
 
-const S = cityCfg.padSolve;
+const S = worldCfg.padSolve;
 
 /** how far out from the face a pad stands: a body and a little, so the throw straight up clears the wall */
 export function padStandOff(): number {

@@ -101,13 +101,15 @@ console.log("\nThe bounds and the cover points against src/game/br.ts");
   check("bounds centre x matches BR_X", num("BR_X") === RING_BOUNDS.centerX, `br.ts ${num("BR_X")}, ring.json ${RING_BOUNDS.centerX}`);
   check("bounds centre z matches BR_Z", num("BR_Z") === RING_BOUNDS.centerZ, `br.ts ${num("BR_Z")}, ring.json ${RING_BOUNDS.centerZ}`);
   check("bounds half-side matches BR_HALF", num("BR_HALF") === RING_BOUNDS.half, `br.ts ${num("BR_HALF")}, ring.json ${RING_BOUNDS.half}`);
-  // SpeedKills' side: the city's cut (city.json cut, Phase 23.3), its ring's square and its sectors' edge, one size
+  // SpeedKills' side: the map's cut (world.json cut, Phase 23.3), its ring's square and its sectors' edge (the Neon City's,
+  // neonmap.json game.sectors), one size
   {
-    const cityCfg = JSON.parse(readFileSync(new URL("../../src/config/city.json", import.meta.url), "utf8"));
+    const worldCfg = JSON.parse(readFileSync(new URL("../../src/config/world.json", import.meta.url), "utf8"));
+    const neonCfg = JSON.parse(readFileSync(new URL("../../src/config/neonmap.json", import.meta.url), "utf8"));
     const ringCfg = JSON.parse(readFileSync(new URL("../../src/config/ring.json", import.meta.url), "utf8"));
-    const sk = src.includes("IS_SK ? cityCfg.cut.half :");
-    const edge = Math.max(...cityCfg.sectors.flatMap((s: { maxX: number; maxZ: number }) => [s.maxX, s.maxZ]));
-    check("SpeedKills' half-side: br.ts takes the city's cut, and the ring's square and the sectors' edge are the same", sk && ringCfg.speedkills.half === cityCfg.cut.half && edge === cityCfg.cut.half, `cut ${cityCfg.cut.half}, ring ${ringCfg.speedkills.half}, sectors to ${edge}`);
+    const sk = src.includes("IS_SK ? worldCfg.cut.half :");
+    const edge = Math.max(...neonCfg.game.sectors.flatMap((s: { maxX: number; maxZ: number }) => [s.maxX, s.maxZ]));
+    check("SpeedKills' half-side: br.ts takes the map's cut, and the ring's square and the sectors' edge are the same", sk && ringCfg.speedkills.half === worldCfg.cut.half && edge === worldCfg.cut.half, `cut ${worldCfg.cut.half}, ring ${ringCfg.speedkills.half}, sectors to ${edge}`);
   }
 
   // the poi list: { id: "hub", name: "THE HUB", ...P(0, 0), drops: [...] }

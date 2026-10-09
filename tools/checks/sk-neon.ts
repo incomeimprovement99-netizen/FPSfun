@@ -23,7 +23,7 @@ console.warn = () => undefined;
 const { buildNeonMap, neonFillSpots, neonFillPool } = await import("../../src/game/neonmap");
 const { Player } = await import("../../src/game/player");
 const { BR_X, BR_Z, BR_HALF } = await import("../../src/game/br");
-const { SPIRE_TOP } = await import("../../src/game/city");
+const { SPIRE_TOP } = await import("../../src/game/world");
 const { LootField } = await import("../../src/game/loot");
 const brmapCfg = (await import("../../src/config/brmap.json")).default;
 const { RANGE_SOLIDS } = await import("../../src/game/range");
@@ -1752,7 +1752,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
 {
   const NS = (cfg.game as unknown as { sectors: Array<{ id: string; name: string; minX: number; maxX: number; minZ: number; maxZ: number }> }).sectors;
   const { SECTOR_RECTS, decayPlan, centreOf } = await import("../../src/game/decay");
-  const { SECTORS } = await import("../../src/game/city");
+  const { SECTORS } = await import("../../src/game/world");
   const inRect = (s: { minX: number; maxX: number; minZ: number; maxZ: number }, x: number, z: number) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ;
   const set = NS.every((s, i) => SECTOR_RECTS[i]?.id === s.id && SECTORS[i]?.name === s.name && SECTORS[i]?.minX === s.minX);
   check("the battle royale's sectors are the Neon City's own nine, set as it is built", set && SECTOR_RECTS.length === NS.length, SECTORS.map((s) => s.name).join(", "));

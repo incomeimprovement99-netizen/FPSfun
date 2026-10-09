@@ -146,7 +146,7 @@ const BOT_LOOT_FLOOR = botsCfg.loot.floor;
 import { actCode, type Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, reachedFrom, type NavTree } from "./navgraph";
-import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./city";
+import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./world";
 import { Ring, RING_ATTRACTORS, RING_PHASES, RING_TICK, ringPace, type Circle, type RingPhase } from "./ring";
 import { GULAG, Gulag, gulagFor, type GulagEvent } from "./gulag";
 import { arenaMap } from "./arena";

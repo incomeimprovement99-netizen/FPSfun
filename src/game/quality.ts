@@ -46,15 +46,13 @@ export interface Quality {
    */
   drawDistance: number;
   /**
-   * The city bundle's pictures (citykit.json sizes): "lo" its 512 textures, "hi" its 1024, "max" its 2048 (High),
-   * all GPU-compressed (KTX2), so even the 2K bake costs the card about what the 1K WebP did. Looks only, like
-   * everything the bundle draws: collision and play are the same in every preset.
+   * The Neon City's file (neonmap-v<version>-<size>.glb): "lo" its 512 textures, "hi" its 1024, "max" its 2048 (High),
+   * all GPU-compressed (KTX2). Looks only, like everything the bundle draws: collision and play are the same in every
+   * preset.
    */
   cityKit: "lo" | "hi" | "max";
   /**
-   * How much of the bundle the centre wears (citykit.json dress tiers): 0 the buildings, shop fronts, parapets,
-   * billboards and skyline; 1 adds the signs, posters, AC units, roof gear, antennas and lamps; 2 adds the cables,
-   * pipes, wires and street clutter.
+   * The city's air by the preset: 0 the clear air of Competitive, from 1 the map's haze (atmosphere.ts).
    */
   cityDetail: 0 | 1 | 2;
 }

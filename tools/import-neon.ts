@@ -199,7 +199,7 @@ if (mode === "bake") {
     // column-major: turned about y (as three.js's rotation.y), then moved
     return [c, 0, -s, 0, 0, 1, 0, 0, s, 0, c, 0, x, y, z, 1];
   };
-  const C = JSON.parse(readFileSync(join(ROOT, "src", "config", "citydistricts.json"), "utf8")).collision;
+  const C = cfg.rules.collision;
   const mats = new Map();
   const baked: Baked[] = [];
   const open: Array<{ d: Draw; m: M4 }> = [];

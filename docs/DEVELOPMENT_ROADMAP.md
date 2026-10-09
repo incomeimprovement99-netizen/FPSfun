@@ -11668,3 +11668,31 @@ rechamber, its right hand on the bolt over the clip's rack window (fparms.json p
   no deeper than 30 mm, the left on its hold, both back after), seen failing with it switched off; the reload's bolt
   check now measures depth as well; every skfigure check on all ten guns (297); verify; rules; the type check. The
   page's weaponTimes hook gives the rechamber.
+
+## Milestone 507 — The old ILranch city taken out: the Neon City SpeedKills' one city
+
+The owner, 2026-10-09: "remove ILranch city completely, remake a small 1v1 maps similar to what we had. 2 1v1 maps,
+1 centre destrict map, 1 br map, all new neon stuff, the 1v1 maps are supposed to be super basic." This is the first
+part: the city before the Neon City, dressed in the five ILranch packs and played since Phase 28 only from a `?map=city`
+address and in the e2e suite (whose SpeedKills pages opened on it unless told otherwise), is gone from the game, its
+checks and its tools. The new 1v1 maps are the next milestone.
+
+- **What the Neon City kept of it** (`src/game/world.ts`, new): the map's sectors and the decay that dissolves them, the
+  edge's fence, the legacy ring's wall, the Spire top the dropship passes and the bots' roof routes lived in city.ts
+  with the old city's builder; they are their own module now, seeded from the Neon City's own sectors. The numbers it
+  and four other modules read from city.json (the map's 152 m half side, the edge, the pad solver, the neon's glow, the
+  air's margin and ease, NEON BLOCK's facade) are `src/config/world.json`; THE CHAIN's chimney measurements are
+  chaincourse.json's; and the collision settings the Neon bake borrowed from citydistricts.json are neonmap.json's
+  `rules.collision`, the same numbers.
+- **What went:** city.ts's builder (3,700 lines), the city kit's dressing and drawing, the steam and flicker, the
+  demo-scene districts and their solids, city.json, citykit.json and citydistricts.json; fourteen checks of the old city
+  (its budget, levels, kit, roofs, roof runs, chimneys, lobbies, metro, halls, drop, stairs, fire escapes, atmosphere and
+  districts) and twelve tools that measured or pictured it; main.ts's `?map=city`, `?nocitykit`, `?nosteam` and
+  `?dropat=`, and its districts' light and grade; the paid import's city step. atmosphere.ts keeps only a map's own haze.
+  The e2e opens SpeedKills pages on the Neon City, and its five checks of the old city alone went with it (High City's
+  corner's file, a match in NEON BLOCK on the old city, the district hold, a bot's ride up a Spire pad, the low towers'
+  stairs and the downtown's pads); THE CENTRE, the battle royale and every other check run on the Neon City as they did
+  under E2E_MAP=neon.
+- **Its bought files** (575 MB of the old city's kits in apex-range's public/models/paid/city, which every deploy
+  copied into its build and uploaded) moved out of the game to speedkills-paid/old-city/.
+- **Checked**: verify and rules, the type check, and the e2e: the speedkills section, 100 checks, none failed; the sktour, skship, sksquad, skfigure, sklobby, skhunt, skarmory and skfriends sections 376 passed and one failed, the tour's HIGH GROUND, which then failed alone too: its first shot missed and the next hit came just after the check's 3.3 s, so it now waits 6 s as every other step does and says how long the hit took (0.02 s on the rerun, 11 of 11). The guns' frame audit (skpack) was left out: the arms on the range are not the city's.

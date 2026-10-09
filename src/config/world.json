@@ -1,0 +1,41 @@
+{
+ "_note": "The SpeedKills world's own numbers, whatever map it is on (src/game/world.ts, br.ts, edge.ts, padsolve.ts, atmosphere.ts): they lived in city.json with the old ILranch city's, which the owner had taken out on 2026-10-09 (\"remove ILranch city completely\"). The Neon City sets its sectors, its Spire top and its own air as it is built (neonmap.json game).",
+ "_cut": "The map's half width, metres (br.ts BR_HALF on SpeedKills): 152 since Phase 23.3, the owner's cut of the outer districts by about three quarters (\"CUT DOWN ON THE OTSIDE DISTRICTS TOO BY LIKE 75% BC WE WANT IT TO BE FOCUSED IN THE MIDDLE NOW\"), the 304 m the Neon City is laid out to.",
+ "cut": {
+  "half": 152
+ },
+ "_edge": "The city's edge (Phase 20 A4; src/game/edge.ts, city.ts, main.ts edgeFrame). margin: how far past the edge a body can go before a wall stops it, metres: the owner's about 40, held to 38 because the range's covered lane ends 39 to 40 m north of the city (its back wall at world z 210 to 211, measured off the range's solids in a match), which keeps a body a metre off it. countdown: the owner's 5 s outside before the death; a step back in stops it and the next time out starts from 5 again. gulag: an out-of-bounds first death goes to the Gulag as a ring death does. There was a red laser down on whoever stayed, with a red ring on the ground round them, on every screen; the owner took it out, 2026-09-28 (\"remove the laser stuff completely and just have the user die with the explanation\"): a red circle kept being seen round enemies, and this was the one thing in the game that drew one on a figure.",
+ "edge": {
+  "margin": 38,
+  "countdown": 5,
+  "gulag": true,
+  "fence": {
+   "height": 14,
+   "postGap": 20,
+   "color": "#ff2e4a",
+   "opacity": 0.16,
+   "nearOpacity": 0.45,
+   "nearAt": 12,
+   "scroll": 0.35
+  }
+ },
+ "_padSolve": "A jump pad onto a roof (city.ts padOnto), in metres: it stands standOff past a body's radius from the face, throws you straight up to peakOver above the roof, and once you are clear above the edge carries you across to land landInside past it. Ours, so a pad lands you on the roof with no steering; holding forward in the air still carries you further.",
+ "padSolve": {
+  "peakOver": 3,
+  "clear": 1.2,
+  "standOff": 1.4,
+  "landInside": 3
+ },
+ "_neonGlow": "How bright the edge fence's posts and strips burn (world.ts buildEdgeFence), and the arenas' neon (arenas/build.ts): an emissive's intensity.",
+ "neonGlow": 2.2,
+ "_atmosphere": "The air over the map (atmosphere.ts): `margin` metres past the map's edge it still holds, `ease` seconds to blend to its colour. Its colours, near and far are the map's own (neonmap.json game.air).",
+ "atmosphere": {
+  "margin": 40,
+  "ease": 1.2
+ },
+ "_arenaLook": "NEON BLOCK's walls (arenas/build.ts look \"city\"): the night facade texture's tile, metres, and its windows' glow.",
+ "arenaLook": {
+  "facadeTile": 16,
+  "windowGlow": 1.4
+ }
+}

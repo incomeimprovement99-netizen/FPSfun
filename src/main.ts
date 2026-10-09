@@ -63,7 +63,7 @@ import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
 import { LIFE_WIRE, SquadWatch, type MateNow } from "./game/squadview";
 import { reloadPlanOf, rifleConfig, tuneRifle } from "./game/rifle";
-import { buildCityMap, buildRingWall, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP, CITY_GROUND } from "./game/city";
+import { buildRingWall, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP } from "./game/world";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
 import { healArea } from "./game/healarea";
@@ -120,14 +120,10 @@ import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paid
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
-import { cityKitPlaces } from "./game/citydress";
-import { CITY_KIT, dressCityKit, tickCityKit } from "./game/citykit";
-import { CITY_DISTRICTS, districtAt, districtGlow, dressDistricts } from "./game/citydistricts";
 import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, loadNeonSolids, neonSolidsIn, retakeReflection, updateNeonFill, warmReflection } from "./game/neonmap";
 import { programRepList, repsRoot } from "./game/programreps";
 import { compileSafely } from "./game/compilesafe";
-import { buildAtmosphere, tickAtmosphere } from "./game/steam";
-import { atmosphereOn, districtHere, ownAir, tickAir, wetStreets } from "./game/atmosphere";
+import { atmosphereOn, ownAir, tickAir } from "./game/atmosphere";
 import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
@@ -814,10 +810,10 @@ const triArena = buildTriArena(scene);
 holdTextures(false);
 // the battle royale map, 500 m south (src/game/br.ts)
 // SpeedKills' city, or the legacy game's Outskirts, in the same square of the world. SpeedKills plays the map rebuilt from
-// Daelonik's Neon City (neonmap.ts, Phase 28; the owner, 2026-09-29: "make it the default"); ?map=city the city of the
-// ILranch packs before it, kept to compare and to come back to
-const NEON = IS_SK && new URLSearchParams(location.search).get("map") !== "city";
-const brMap = IS_SK ? (NEON ? buildNeonMap(scene) : buildCityMap(scene)) : buildBrMap(scene);
+// Daelonik's Neon City (neonmap.ts, Phase 28); the city of the ILranch packs before it went on 2026-10-09 (the owner:
+// "remove ILranch city completely")
+const NEON = IS_SK;
+const brMap = IS_SK ? buildNeonMap(scene) : buildBrMap(scene);
 // the Neon City's collision boxes after the page's first screen, not in its first script (neonmap.ts loadNeonSolids)
 if (NEON) later(() => void loadNeonSolids());
 // a door opening or shutting, heard where it hangs (whoever did it)
@@ -1021,12 +1017,9 @@ void dressKit(brMap.root, DRESSING).then((n) => {
   kitDressed = n;
   renderer.shadowMap.needsUpdate = true;
 });
-// SpeedKills' centre in the city bundle the owner bought (citydress.ts places it, citykit.ts draws it): as much of it
-// as the graphics preset asks for, and nothing where the bought files are not there (the public build, a checkout).
-// ?nocitykit leaves it off, for a before-and-after from the same spots (tools/city-sheet.ts)
-// (the Neon City map draws the bundle's pieces alone, at the preset's texture size)
-// (not on a ?norender page, which never draws it: decoding and dressing its million and a half triangles there only
-// takes the CPU from the e2e's fights)
+// The Neon City map draws the bundle's pieces, at the preset's texture size, and nothing where the bought files are not
+// there (the public build, a checkout); not on a ?norender page, which never draws it: decoding and dressing its million
+// and a half triangles there only takes the CPU from the e2e's fights
 /** the Neon City map's file is in and dressed, or is not there: its side is warmed after it (warmBrSide) */
 let cityIn = !NEON || new URLSearchParams(location.search).has("norender");
 /**
@@ -1045,22 +1038,8 @@ function askCity(): void {
   // (and the city's boxes, which a match on it cannot do without: neonmap.ts loadNeonSolids)
   void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(() => (cityIn = true));
 }
-if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
-  // the districts made of the packs' own demo scenes (citydistricts.ts, Phase 25), every preset: they are the district
-  // (at the kit's lo size where the preset loads the kit's lo files)
-  void dressDistricts(brMap.root, renderer, quality.cityKit === "lo");
-if (IS_SK && !NEON && !new URLSearchParams(location.search).has("nocitykit"))
-  void dressCityKit(brMap.root, cityKitPlaces(brMap.pads, quality.cityDetail === 0), quality, renderer).then((n) => {
-    if (n) renderer.shadowMap.needsUpdate = true;
-    // the streets wet, reflecting the city the kit has just dressed (atmosphere.ts)
-    if (n) wetStreets(renderer, scene, CITY_GROUND);
-  });
-// The centre's steam and flickering signs (steam.ts, city.json steam and flicker): looks only, from Balanced up, and
-// with or without the bought files, since both are the city's own. ?nosteam leaves them off, to measure what they cost
-if (IS_SK) buildAtmosphere(scene, quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("nosteam"));
-// and the city's haze and wet streets (atmosphere.ts), from Balanced up; ?noair leaves them off, to compare
+// the city's haze (atmosphere.ts, the Neon City map's own), from Balanced up; ?noair leaves it off, to compare
 atmosphereOn(IS_SK && quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("noair"));
-// (the Neon City map's own haze, not the ILranch city's blocks')
 if (NEON) ownAir(NEON_AIR);
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
@@ -2717,9 +2696,7 @@ arenaMapSel.addEventListener("change", () => {
 });
 /** the arena for a mode (or "duel"), from the picker */
 const arenaMapChoice = (kind: string, players: number): ArenaMapId => {
-  const id = arenaMapSel.value === "auto" ? mapFor(kind, players) : (arenaMap(arenaMapSel.value).id as ArenaMapId);
-  // THE CENTRE is the Neon City's middle: on the city before it (?map=city) a 1v1 is in the city block, as it was
-  return id === CENTRE_MAP.id && !NEON ? "neonblock" : id;
+  return arenaMapSel.value === "auto" ? mapFor(kind, players) : (arenaMap(arenaMapSel.value).id as ArenaMapId);
 };
 /** a map id from the wire, which may be from an older build or not a map at all */
 const arenaFromWire = (id: string | undefined): ArenaMapId | null => (id ? (arenaMap(id).id as ArenaMapId) : null);
@@ -3103,8 +3080,7 @@ function respawnForMatch(d: MatchLike): void {
       const run = d.takeBoarding();
       if (run) boardShip(d, run);
       else {
-        const at = DROP_AT ? { x: DROP_AT.x + BR_X, z: DROP_AT.z + BR_Z } : sp;
-        player.beginDrop(at.x, DROP_HEIGHT, at.z, sp.yaw);
+        player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
         mapOpen = false;
         dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
         hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
@@ -4142,7 +4118,6 @@ function edgeNear(): number {
 
 function stepDecay(now: number): void {
   if (!IS_SK) return;
-  tickCityKit(now);
   cityEdge(now, edgeNear());
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const states = d ? d.sectorStates() : null;
@@ -4678,13 +4653,7 @@ const leashAt = new THREE.Vector3();
  * straight onto the squad's place, as it did before the ship, for the checks
  * that are about what happens after a landing and not about the ship.
  */
-/**
- * ?dropat=<district id> (citydistricts.json): the battle royale drops you straight onto that district of a pack's own
- * demo scene, no ship, so it can be tried as soon as a match starts (the owner, 2026-09-28: "til it's playable so I can
- * test it")
- */
-const DROP_AT = districtAt(new URLSearchParams(location.search).get("dropat"));
-const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true || DROP_AT !== null;
+const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true;
 /** the tests' other switch: no Gulag, for the checks of what a plain death does (the Gulag's own section turns it back on) */
 const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__noGulag === true;
 /** and no vault (its guard is a bot more on the map), for the checks that count the bots; the vault's own section turns it back on */
@@ -6768,16 +6737,12 @@ function frame(): void {
   setFigureView(camera.position, lodFrustum, framesRun);
   // the field's rock and scrub: only the cells near enough to be worth drawing
   stepInstanced(camera.position);
-  // SpeedKills' steam, signs and haze every frame, played or not (a menu, a picture of the city): looks only, and the
-  // haze eases by the wall's clock, since game time stands still when nothing is being played
+  // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
+  // clock, since game time stands still when nothing is being played
   if (IS_SK) {
-    tickAtmosphere(gameTime, camera);
     tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
     // the Neon map's interiors lit from the lamps nearest the eye (neonmap.ts updateNeonFill)
     if (NEON) updateNeonFill(camera.position);
-    // and a district's own grade while you stand in it (citydistricts.json look grade)
-    pipeline.setLook(districtHere(camera)?.look.grade ?? null);
-    districtGlow(hour.id === "hazyDay" || hour.id === "goldenHour");
   }
   phases.lap("view");
   try {
@@ -8774,9 +8739,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
       opticShown: optic ? optic.group.visible : null,
     };
   },
-  /** the city bundle on SpeedKills' centre (citykit.ts): what is drawn, 0 until it is in or when the files are not there */
-  cityKit: () => ({ ...CITY_KIT }),
-  cityDistricts: () => ({ ...CITY_DISTRICTS }),
   /** the Neon City map (?map=neon): what its file drew */
   neonMap: () => ({ on: NEON, asked: cityAsked, ...NEON_MAP }),
   /** the Neon City's file asked for now (a tool that measures the city without a match; a match asks for it itself) */
