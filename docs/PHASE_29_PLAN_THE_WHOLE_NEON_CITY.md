@@ -91,9 +91,9 @@ first.
 
 ### The middle building
 
-1. **Framed doorways and floor numbers on black** (Milestone 484, in hand). Every doorway on the rooms and maze floors in
+1. **Framed doorways and floor numbers on black** (Milestone 484, built). Every doorway on the rooms and maze floors in
    the pack's steel door frame, the halls' gates too, sunk to show their heads under the 2.5 m ceilings. Every door
-   measured open 1.2 to 1.5 m, the floors 98 to 99% walked. Baked to lo; hi and max, checks and the deploy are left.
+   measured open 1.2 to 1.5 m, the floors 98 to 99% walked.
 2. **The sky floors at 38.5, 42 and 45.5 m.** Walkable today, with 35 open windows and loot, but no theme, no number and
    no seal check. Each gets its number (9 to 11), its walls and floor, and a plan of its own: the eight floors under them
    use four plans twice, and with three more no two of the eleven are alike. Numbers 3 m high. The 45.5 m storey may

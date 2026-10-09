@@ -289,9 +289,39 @@ const noGround: Array<[number, number, number, number]> = [];
         // corners crowded each one to less than a body's way through)
         const door = how === "door" ? n - 1 : -1;
         const gate = how === "gate" ? n - 2 : -1;
+        // (a doorway and a gate in their own frames, rules.tower.floors.frame; the fourth review: "partitions look like
+        // stage flats short of the ceiling", a 2.5 m gap open to the ceiling. The pack's door and gate are 3 m tall with
+        // their heads at 2.9 m, over these storeys' 2.5 m ceilings: each down until its top is 2 cm into the slab over
+        // it, its foot inside the floor's, so its head shows, and never with its foot over the floor (the halls at 35 m
+        // are a 3.5 m storey, and there it stands as the walls do); its faces in the floor's own wall, its steel frame
+        // as it is)
+        // (the door `scale`d a hundredth: the collision's columns take a face on a grid line into both columns beside
+        // it, and with its jambs' inner faces on the quarter-metre lines 0.95 m of its 1.5 m opening was open, a body
+        // 0.81 m; scaled, each face stands 7.5 mm off the line in its jamb's own column, its ends a centimetre into the
+        // walls beside it)
+        const FR = F.frame as { door: string; fill: string; faces: string[]; scale: number } | undefined;
+        const ceiling = (C.storeys as number[])[(C.storeys as number[]).indexOf(h) + 1] - T.slab;
+        const sunk = (name: string, k = 1) => Math.min(h - 0.02, ceiling + 0.02 - piece(name).row.size![1] * k);
+        const framed = (name: string): string | undefined => {
+          if (!FR || !P.mat) return P.mat;
+          const has = new Set(piece(name).row.materials ?? []);
+          return FR.faces.filter((f) => has.has(f)).map((f) => `${f}=${P.mat}`).join(";") || P.mat;
+        };
         let k = 0;
         while (k < n) {
-          if (k === door) { k++; continue; }
+          if (k === door) {
+            if (FR) {
+              // (the door 2 m wide, the slot's last half-metre at the core's corner a wall)
+              const at = (u: number): Pt => [ax + d[0] * u + px, az + d[1] * u + pz];
+              const [fx, fz] = at(k * 2.5 + 1);
+              placed.push(placeTurned("c-tower", FR.door, fx, fz, yaw, "o", sunk(FR.door, FR.scale), framed(FR.door), FR.scale));
+              const [wx, wz] = at(k * 2.5 + 2.25);
+              placed.push(placeTurned("c-tower", FR.fill, wx, wz, yaw, "o", h - 0.02, P.mat));
+              tWalls += 2;
+            }
+            k++;
+            continue;
+          }
           // (a 5 m piece over this slot and the next, but where the next begins the gate: a 2.5 m one first)
           const two = k === gate || (k + 1 < n && k + 1 !== door && k + 1 !== gate);
           const piece5 = k === gate ? F.gate : F.walls["5"];
@@ -299,7 +329,8 @@ const noGround: Array<[number, number, number, number]> = [];
           const c: Pt = [ax + d[0] * (k * 2.5 + len / 2) + px, az + d[1] * (k * 2.5 + len / 2) + pz];
           // (2 cm into the floor, its top 2 cm inside the slab over it: neither face shares a plane with a floor)
           // (in the floor's own wall material, rules.tower.floors.at[h].mat: the floors looked alike)
-          placed.push(placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", h - 0.02, P.mat));
+          const isGate = k === gate && !!FR;
+          placed.push(placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", isGate ? sunk(F.gate) : h - 0.02, isGate ? framed(F.gate) : P.mat));
           tWalls++;
           k += two ? 2 : 1;
         }
@@ -308,7 +339,7 @@ const noGround: Array<[number, number, number, number]> = [];
       const wallBoxes = placed.slice();
       // the floor's number beside each of its core doors (rules.tower.floors.digits): the pack's lit digit, flat on the
       // core's outside face, `beside` the door's edge toward the core's far end and `up` over the floor
-      const DG = F.digits as { piece: string; first: number; up: number; beside: number; off: number; big?: { scale: number; up: number; beside: number; off: number } } | undefined;
+      const DG = F.digits as { piece: string; first: number; up: number; beside: number; off: number; mat?: string; big?: { scale: number; up: number; beside: number; off: number } } | undefined;
       const shaft = T.shaft as number[];
       if (DG && shaft.includes(h)) {
         const digit = DG.first + shaft.indexOf(h);
@@ -316,12 +347,13 @@ const noGround: Array<[number, number, number, number]> = [];
         const doorsHere = ds;
         const sign = `${DG.piece}${digit}.prefab`;
         // (the w door's middle on z, the n and s doors' on x, as neon-tower.ts cuts them)
-        if (doorsHere.includes("w")) placeTurned("c-tower", sign, cx0 + px - DG.off, dz + pz + dw / 2 + DG.beside, 0, "g", h + DG.up);
+        // (in `mat`: the plate black under the lit digit, the fourth review's "high-contrast numerals")
+        if (doorsHere.includes("w")) placeTurned("c-tower", sign, cx0 + px - DG.off, dz + pz + dw / 2 + DG.beside, 0, "g", h + DG.up, DG.mat);
         // (beside the north and south doors `big`: `scale` times the pack's digit, its middle `beside` the door's edge,
         // `off` the wall, `up` over the floor)
         const B = DG.big ?? { scale: 1, up: DG.up, beside: DG.beside, off: DG.off };
-        if (doorsHere.includes("n")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz0 + pz - B.off, 90, "g", h + B.up, undefined, B.scale);
-        if (doorsHere.includes("s")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz1 + pz + B.off, 90, "g", h + B.up, undefined, B.scale);
+        if (doorsHere.includes("n")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz0 + pz - B.off, 90, "g", h + B.up, DG.mat, B.scale);
+        if (doorsHere.includes("s")) placeTurned("c-tower", sign, dx + px + dw / 2 + B.beside, cz1 + pz + B.off, 90, "g", h + B.up, DG.mat, B.scale);
       }
       // inside the floor: the main body's inner faces, its round corners and the grooves down each face
       const [qx0, qx1, qz0, qz1] = F.inner;
@@ -357,7 +389,9 @@ const noGround: Array<[number, number, number, number]> = [];
             return inFloor(lx + dx, lz + dz, 0.8) && !overlaps(lampBox, keepT[0], 0.2) && !wallBoxes.some((q) => overlaps(lampBox, q, 0.1));
           });
           if (!fits) continue;
-          placeTurned("c-tower", F.lamp.piece, lx + fits.dx + px, lz + fits.dz + pz, fits.yaw, "g", h + 3 - T.slab - F.lamp.under - lamp.max![1]);
+          // (under the floor's own ceiling: the halls at 35 m are a 3.5 m storey, and lamps hung for a 3 m one floated half a
+          // metre under theirs)
+          placeTurned("c-tower", F.lamp.piece, lx + fits.dx + px, lz + fits.dz + pz, fits.yaw, "g", (C.storeys as number[])[(C.storeys as number[]).indexOf(h) + 1] - T.slab - F.lamp.under - lamp.max![1]);
           tLamps++;
         }
     }

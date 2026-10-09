@@ -1414,7 +1414,7 @@ each, bridges from its first floor's corners to the Sky Ring, and its roof runs
 onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
 door onto each of its 15 storeys, eight of them new floors between 14 and 35 m,
-each laid out differently: open, rooms, halls or a maze, each numbered in lights at the stair (2 m high beside two of its doors), its walls their own colour
+each laid out differently: open, rooms, halls or a maze, each numbered in lights on black at the stair (2 m high beside two of its doors), its doorways in steel frames, its walls their own colour
 and its own tiles, and loot on each; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre, a band of gold light round the tower at its floor and ceiling. Its floors and the base's upper storeys have
 open windows, 1.25 m wide, no glass: shot through, jumped in through. Its floors, the base's storeys, the court and the
 station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill: two lights on Competitive, four on Balanced, eight on High), the tower's at a fifth of the others' strength. The streets carry the pack's lamps,

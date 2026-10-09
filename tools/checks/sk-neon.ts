@@ -55,7 +55,10 @@ console.log("SpeedKills: the Neon City map (neonmap.ts)");
   const spots = neonFillSpots();
   const floorsOf = (ys: number[], tol: number) => ys.map((y) => spots.filter((q) => Math.abs(q.y - (y + 3.5 - 0.5 - 0.3)) < tol).length);
   const base = floorsOf((cfg.rules.base.storeys as number[]), 0.2);
-  const tower = floorsOf((cfg.tower as unknown as { shaft: number[] }).shaft.map((h) => h - 0.5), 0.2);
+  // (each tower floor under its own ceiling, the storey over it less the slab: the halls at 35 m are a 3.5 m storey, and
+  // their lamps hung for a 3 m one floated half a metre under it)
+  const ST = (cfg.rules.tower as unknown as { core: { storeys: number[] } }).core.storeys;
+  const tower = (cfg.tower as unknown as { shaft: number[] }).shaft.map((h) => spots.filter((q) => Math.abs(q.y - (ST[ST.indexOf(h) + 1] - 0.5 - 0.3)) < 0.2).length);
   const court = spots.filter((q) => Math.abs(q.y - (cfg.court.y + cfg.game.fill.height)) < 0.1).length;
   const station = spots.filter((q) => Math.abs(q.y - (-10 + cfg.game.fill.height)) < 0.1).length;
   const bare = spots.filter((q) => floorAt(q.x, q.z) > q.y - 1 || solidsIn(q.x, q.x, q.z, q.z).some((b) => q.x >= b.minX && q.x <= b.maxX && q.z >= b.minZ && q.z <= b.maxZ && b.base < q.y && b.top > q.y));
@@ -1827,6 +1830,44 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     `the streets' cover: from the curves, the Loop and the ring road, something to crouch behind within ${CO.far} m`,
     n > 10000 && (far / n) * 100 <= CO.left && farthest <= CO.farthest,
     `${((far / n) * 100).toFixed(1)}% of ${n} points over ${CO.far} m, at most ${CO.left}%; the farthest ${farthest.toFixed(1)} m at (${at[0].toFixed(1)}, ${at[1].toFixed(1)}), at most ${CO.farthest} m`,
+  );
+}
+
+// the tower floors' doorways framed (rules.tower.floors.frame; the centre's fourth review: "partitions look like stage
+// flats short of the ceiling"): on every floor whose plan opens a line with a doorway or a gate, the pack's door or gate
+// in each, its top at the ceiling or into the slab over it (within 3 cm under it) and its foot not over the floor, and its
+// head (`head`, measured off the model) showing under the ceiling, its faces in the floor's wall and its frame left as
+// it is; and every floor number's plate black
+{
+  const F = cfg.rules.tower.floors as unknown as { gate: string; frame: { door: string; head: number; faces: string[] }; plans: Record<string, Record<string, string>>; at: Record<string, { plan: string; mat?: string }>; digits: { piece: string; mat: string } };
+  const TWc = cfg.tower as unknown as { core: { storeys: number[] } };
+  const slab = (cfg.rules.tower as unknown as { slab: number }).slab;
+  const place = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place;
+  const bad: string[] = [];
+  let doors = 0, gates = 0;
+  for (const [hs, P] of Object.entries(F.at)) {
+    const h = Number(hs);
+    const plan = F.plans[P.plan];
+    const want = { door: Object.values(plan).filter((v) => v === "door").length, gate: Object.values(plan).filter((v) => v === "gate").length };
+    const next = TWc.core.storeys[TWc.core.storeys.indexOf(h) + 1];
+    const ceiling = next - slab;
+    for (const [kind, name] of [["door", F.frame.door], ["gate", F.gate]] as const) {
+      const got = place.filter((q) => String(q[0]).endsWith(name) && Math.abs(Number(q[2]) - h) < 1);
+      const ok = got.filter((q) => {
+        const y = Number(q[2]);
+        return y <= h && y + 3 > ceiling - 0.03 && y + F.frame.head < ceiling - 0.03 && String(q[6] ?? "").includes("=") && !/BareSteel|MetalBare|MetalPanel/.test(String(q[6] ?? ""));
+      });
+      if (got.length !== want[kind] || ok.length !== want[kind]) bad.push(`${h} m ${kind}s ${ok.length} of ${want[kind]} (${got.length} placed)`);
+      if (kind === "door") doors += ok.length;
+      else gates += ok.length;
+    }
+  }
+  const signs = place.filter((q) => String(q[0]).includes(F.digits.piece));
+  const dark = signs.filter((q) => q[6] === F.digits.mat).length;
+  check(
+    "the tower floors' doorways framed: a door or gate in each, its head under the ceiling, its frame its own; the floor numbers on black",
+    bad.length === 0 && doors > 0 && gates > 0 && signs.length > 0 && dark === signs.length,
+    `${doors} doors, ${gates} gates${bad.length ? `; ${bad.join(", ")}` : ""}; ${dark} of ${signs.length} numbers on black`,
   );
 }
 

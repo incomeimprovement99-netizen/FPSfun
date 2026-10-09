@@ -11054,3 +11054,36 @@ checks' bars, then photographed: four states of each gun from two sides, and eve
   sprints, reloads and vents (tools/live-shots.ts `ENEMY_GUNS`, which hands the bots any guns now, the USSO and BOOG by
   default; it had asked the bot menu for nine, a count the menu does not offer, and got one bot): every gun held as
   fitted.
+
+## Milestone 484 — The tower's doorways framed, its floor numbers on black, and the 35 m halls lit under their own ceiling
+
+The centre's fourth review: the tower floors' partitions "look like stage flats short of the ceiling", and it asked for
+"full-height partitions with framed doorways" and "high-contrast numerals". Measured first: the partitions already reach
+the ceiling (3 m walls from 2 cm under the floor, their tops in the 0.5 m slab over a 3 m storey). What read as stage
+flats was each doorway: a 2.5 m gap open to the ceiling, no frame and no head over it, so each wall stood as a panel.
+
+- **Framed doorways** (neonmap.json `rules.tower.floors.frame`, tools/neon-layout.ts): each doorway the pack's door (a
+  1.5 m opening in a steel frame, its head at 2.9 m, measured off the model) with a half-metre wall beside it at the
+  core; each of the halls' gates (a 3.3 m opening, its head at 2.9 m) the same. These storeys' ceilings are 2.5 m and the
+  pack's pieces are made for 3 m, so each goes down until its top is 2 cm into the slab over it (0.48 m on a 3 m
+  storey, its foot inside the floor's slab) and never with its foot over the floor: its head shows under the ceiling.
+  Its plaster and panel faces wear the floor's own wall, its steel frame is left as it is (a placement remap). 32 doors
+  on the rooms and maze floors, 8 gates on the halls.
+- **Doorways a body walks through**: the collision is built in half-metre columns, and a face on a grid line goes into
+  both columns beside it. The door's jambs' inner faces stood on the lines, so of its 1.5 m opening 0.5 m was open, and
+  the rooms and maze floors were 26 to 30% walked (the walk check, a 0.81 m body). In `fine.pieces` its collision is in
+  quarter-metre columns (64% walked, four of a floor's eight doors 0.95 m open, their faces on the quarter-metre lines
+  too), and scaled 1.01 each face stands 7.5 mm off the line in its jamb's own column: every door 1.2 to 1.5 m open, the
+  floors 98 to 99% walked. Its ends sit a centimetre into the walls beside it.
+- **The floor numbers on black** (`rules.tower.floors.digits.mat`): the pack's line-number sign is a blue plastic plate
+  under its lit digit; the plate is the pack's black plastic now and the digit as it was, on all 24.
+- **The halls at 35 m are a 3.5 m storey**: their lamps were hung for a 3 m one, half a metre under the ceiling, and now
+  hang under the floor's own; its gates stand as its walls do (sunk as on the 3 m storeys they stopped half a metre
+  under its ceiling, the doorway check's first find). The interiors' fill check measures each floor against its own
+  ceiling.
+- **Checked** (`tools/checks/sk-neon.ts`, a new check): a door or gate in every doorway of every partitioned floor, its
+  top at the ceiling or into the slab and its head under it, its frame its own, and every number on black (failing with the 17 m floor's doors left out: 17 m doors 0 of 8).
+  The fill check fails with the 35 m lamps back at the 3 m height. The tower's walk check found the narrow doorways, and
+  passes with every floor 93% walked or more. The layout run again on the bake leaves the config as
+  it was. The e2e `speedkills` section on the Neon City: every check passes (97), 27 of 27 bots on the move by the bots' check measured past their first rummage (Milestone 502). verify and rules. The map: its files lo 93 MB, hi 158
+  MB, max 378 MB. **Its files are version 47.**
