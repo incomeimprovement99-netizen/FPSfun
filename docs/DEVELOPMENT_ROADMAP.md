@@ -11291,3 +11291,23 @@ its model has no handle.
   now plays a reload given as pieces one after the other.
 - **Checked:** the soldier e2e's pack frames for REZ (`E2E_ONLY=skpack E2E_GUNS=shotgun`); its gunfeel.json entry is
   PANDA's with an auto shotgun's kick.
+
+## Milestone 504 — THE VAULT a gold storey from outside
+
+The plan's next item in the middle building (docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md, item 3): the fourth review read
+THE VAULT from outside as "a thin gold line". Photographed from the decks and the air, it was two 0.3 m lines of gold
+round the tower at the 32 m storey's floor and ceiling, lost against the facade's rows.
+
+- **The window row framed in gold** (`rules.tower.vaultBand.spans`, tools/import-neon.ts): each band now fills the solid
+  strip of the facade beside the storey's windows, measured off the bake's windows. The lower runs from the slab's edge at
+  31.75 m to 32.42 m, under the sills at 32.44. The upper runs from 34.58 m, over the windows' tops at 34.56, to 35.42 m,
+  under the next row's sills at 35.44. Every window, the open ones too, is 2 cm clear of the gold.
+- **Its lamps burn gold** (`floors.at[32].lampMat`, a placement remap of the pack's lamp's two lights): the room is
+  as gold inside as its bands are outside. Photographed from 14 m off at night, their light does not carry out through
+  its windows: the bands are what marks it from afar.
+- **Its name in lights** (the plan's third part) is left for its own milestone: the pack has no letter set, and lettering
+  needs the map to draw words of its own.
+- **Checked** (tools/checks/sk-neon.ts): the band check wants each band 0.6 m high or more as well as most of the way round
+  (both 0.84 m and 0.67 m now; the bake before recorded no height, its bands 0.3 m); a new check wants every lamp of the
+  vault storey gold (failing with the gold taken off: 0 of 15 lamps gold). The e2e `speedkills` section on the Neon City: every check passes (101). verify and rules. The map: its files
+  lo 95 MB, hi 159 MB, max 381 MB. **Its files are version 49.**

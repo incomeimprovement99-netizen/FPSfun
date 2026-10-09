@@ -279,7 +279,7 @@ const noGround: Array<[number, number, number, number]> = [];
     const lines = F.lines as Record<string, number[]>;
     let tWalls = 0, tProps = 0, tLamps = 0;
     const wayLog: string[] = [];
-    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; mat?: string }>)) {
+    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; mat?: string; lampMat?: string }>)) {
       const h = Number(hs);
       const plan = F.plans[P.plan] as Record<string, string>;
       const placed: OBox[] = [];
@@ -490,8 +490,8 @@ const noGround: Array<[number, number, number, number]> = [];
           });
           if (!fits) continue;
           // (under the floor's own ceiling: the halls at 35 m are a 3.5 m storey, and lamps hung for a 3 m one floated half a
-          // metre under theirs)
-          placeTurned("c-tower", F.lamp.piece, lx + fits.dx + px, lz + fits.dz + pz, fits.yaw, "g", ceilingOf(h) - F.lamp.under - lamp.max![1]);
+          // metre under theirs; their light in the floor's `lampMat` where it names one, THE VAULT's gold)
+          placeTurned("c-tower", F.lamp.piece, lx + fits.dx + px, lz + fits.dz + pz, fits.yaw, "g", ceilingOf(h) - F.lamp.under - lamp.max![1], P.lampMat);
           tLamps++;
         }
     }

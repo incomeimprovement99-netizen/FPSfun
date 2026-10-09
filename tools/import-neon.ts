@@ -804,7 +804,7 @@ if (mode === "bake") {
     const coreHole: Pt[] = [[cx0, cz0], [cx1, cz0], [cx1, cz1], [cx0, cz1]];
     const areas: number[] = [];
     const holes: number[] = [];
-    const bands: Array<{ at: number; length: number }> = [];
+    const bands: Array<{ at: number; length: number; high: number }> = [];
     // (the tower as drawn and the core's walls, triangle by triangle on the map, for the seal's rays)
     const drawnTris: Array<[number[], number[], number[]]> = [];
     for (const { d, m } of towerDrawn)
@@ -886,15 +886,16 @@ if (mode === "bake") {
       // (and a skirt along its outer edge up to under the sills, `skirt` metres: the facade's panels stop short of the
       // floor, and the city showed through the slit at its foot)
       const skirt = skirtAlong(g, region, h, TF.skirt, TW.scale);
-      // THE VAULT from outside (rules.tower.vaultBand; the second review: "mark THE VAULT from outside"): a band of gold
-      // light round the facade's skin at the slab line of each floor in `at`, the vault storey's floor and the one over
-      // it, `out` proud of the skin and `high` tall up to `top` over the floor, so the storey reads from the plaza, the
-      // decks and the air
-      const VB = cfg.rules.tower.vaultBand as { at: number[]; out: number; high: number; top: number; mat: string } | undefined;
+      // THE VAULT from outside (rules.tower.vaultBand; the second review: "mark THE VAULT from outside", the fourth: "a thin
+      // gold line"): a band of gold light round the facade's skin at each floor in `at`, the vault storey's floor and the
+      // one over it, `out` proud of the skin, from and to its `spans` over the floor: the solid strips under and over the
+      // storey's windows, so the gold frames its window row top and bottom from the plaza, the decks and the air
+      const VB = cfg.rules.tower.vaultBand as { at: number[]; out: number; spans: Record<string, number[]>; mat: string } | undefined;
       if (VB && VB.at.includes(h)) {
-        const band = bandAlong(g, skinRegion(g, skin), h + VB.top - VB.high, h + VB.top, VB.out, TW.scale);
+        const [lo, hi] = VB.spans[String(h)];
+        const band = bandAlong(g, skinRegion(g, skin), h + lo, h + hi, VB.out, TW.scale);
         tri += push(`vault-band-${h}`, [{ part: band.part, mat: VB.mat }]);
-        bands.push({ at: h, length: +band.length.toFixed(1) });
+        bands.push({ at: h, length: +band.length.toFixed(1), high: +(hi - lo).toFixed(2) });
       }
       tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
     }

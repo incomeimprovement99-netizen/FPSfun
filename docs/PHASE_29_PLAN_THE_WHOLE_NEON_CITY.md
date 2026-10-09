@@ -98,8 +98,9 @@ first.
    hollow upper half open over it: closed by a lid at 48.5 m. Each numbered (9 to 11, the pack's signs two side by side
    for 10 and 11, 2 m high, the storeys being too low for 3 m), in its own panels, and laid out to a plan none of the
    floors under it use: a loop, two halves, corner bunkers. Their floors are still the pack's own tiles.
-3. **THE VAULT reads from outside.** It reads today as "a thin gold line" (0.3 m bands): a gold band from sill to
-   ceiling round the 32 m storey, its name in lights on each face, the loot's glow at its windows.
+3. **THE VAULT reads from outside** (Milestone 504, built in part). Its window row framed in gold from the slab's
+   edge to the sills and from the windows' tops to the next sills, its lamps gold. Its name in lights on each face is
+   left: the pack has no letter set, so it needs the map to draw words of its own. The loot's glow is item 11's.
 4. **The empty upper half, 47.5 to 108 m** (a decision). Measured off the bake: above the sky floors the tower is a hollow
    shell for 60 m, with no floors, no stairs and no windows that open; the crown at 109 m is reached only by pad from
    outside. Proposal: the pack's elevator as an express lift from the lobby to three new levels (a sky lobby at about

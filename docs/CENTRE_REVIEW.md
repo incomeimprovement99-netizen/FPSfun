@@ -195,4 +195,5 @@ canopy on the lookout; each corner block read in its own picture (THE WELL's sha
 its lift's and sector's colour); Milestone 480, cover within 6 m of every street point (planters, boards with a face
 each side, kiosks), the median's see-through railings replaced by planters; Milestone 484, the tower's doorways
 framed in steel with a head under the ceiling, its floor numbers on black; Milestone 503, the sky floors closed
-over (the top one looked up into the tower's hollow), numbered 9 to 11 and each laid out its own way.*
+over (the top one looked up into the tower's hollow), numbered 9 to 11 and each laid out its own way; Milestone 504, THE VAULT's window row
+framed in gold and its lamps gold.*

@@ -1550,11 +1550,16 @@ const drops = [...loot.drops.values()];
 }
 // THE VAULT marked from outside (rules.tower.vaultBand): a gold band round the facade at each floor `at`, the vault
 // storey's floor and the one over it, as the bake laid them, each most of the way round (the tower's skin is 70 m and more
-// round outside the east block it leans on)
+// round outside the east block it leans on) and filling the solid strip under or over the storey's windows, not a line
+// (the fourth review: "a thin gold line", 0.3 m bands); and the storey's lamps gold inside
 {
   const VB = (cfg.rules.tower as unknown as { vaultBand?: { at: number[] } }).vaultBand;
-  const B = (cfg.tower as unknown as { measured: { bands?: Array<{ at: number; length: number }> } }).measured.bands ?? [];
-  check("THE VAULT marked from outside: a gold band round the tower at its floor and its ceiling", !!VB && VB.at.every((h) => B.some((b) => b.at === h && b.length > 60)), B.map((b) => `${b.at} m ${b.length} m`).join(", ") || "no bands");
+  const B = (cfg.tower as unknown as { measured: { bands?: Array<{ at: number; length: number; high?: number }> } }).measured.bands ?? [];
+  check("THE VAULT marked from outside: a gold band round the tower filling the strip under its windows and the strip over them", !!VB && VB.at.every((h) => B.some((b) => b.at === h && b.length > 60 && (b.high ?? 0) >= 0.6)), B.map((b) => `${b.at} m ${b.length} m long, ${b.high ?? "?"} m high`).join(", ") || "no bands");
+  const FA = (cfg.rules.tower as unknown as { floors: { lamp: { piece: string }; at: Record<string, { lampMat?: string }> } }).floors;
+  const vaultLamps = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place.filter((q) => String(q[0]).endsWith(FA.lamp.piece) && Math.abs(Number(q[2]) - 34.4) < 0.6);
+  const gold = vaultLamps.filter((q) => /#ffb020/.test(String(q[6] ?? ""))).length;
+  check("THE VAULT's lamps burn gold", !!FA.at["32"]?.lampMat && vaultLamps.length >= 6 && gold === vaultLamps.length, `${gold} of ${vaultLamps.length} lamps gold`);
 }
 // no stair of the big building runs into a ceiling (the owner's play test, 2026-10-04: "stairs don't lead to ceilings"):
 // along every way up it, the stair core's, each of the base's stairs and the court's ways in, a quarter metre at a time,
