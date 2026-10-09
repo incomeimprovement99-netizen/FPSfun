@@ -11383,3 +11383,18 @@ in its hold and able to fire.
 - **Checked:** a new skfigure check, the gun on its way back at the middle of `out` (6.4 degrees of 11) and at its hold
   by the lockout's end (0), seen failing with the old easing (still 11 at the end); every skfigure check on CHOOCH;
   verify; rules; the type check. The page's weaponTimes hook gives the lockout.
+
+## Milestone 506 — Cover on the bridge ring round the tower
+
+The plan's item 5, its next part: the fourth review asked for cover on the bridge ring, the four bridges of the pack's
+floating deck that join the High City islands' roofs round the tower at 27 m (Milestone 354). Their 56 decks had nothing
+on them to fight round, over the street crossings.
+
+- **Three pieces a bridge** (`rules.perches`, ring-ne to ring-nw): a perch over each bridge, its box the bridge's path and
+  its heights the decks' own 26.9 m. The islands' roofs at 26.0 m fall outside that, and the fences' pillars (26.86 m) are
+  too small to stand a piece on. The pieces are the decks' low crates and cooling boxes, 8 m apart, 1.2 m off any drop,
+  each leaving a body's way past it, laid on the last bake's collision as the decks' cover is.
+- **Checked** (tools/checks/sk-neon.ts): the perches check counts the four bridges, two pieces and more on each, standing
+  on its deck (failing with the ring's perches taken out); every bridge is still walked on foot both ways island to island. The e2e `speedkills` section
+  on the Neon City: every check passes (101). verify and rules. The map: its files lo 95 MB, hi 160 MB, max 381 MB. **Its files are
+  version 51.**

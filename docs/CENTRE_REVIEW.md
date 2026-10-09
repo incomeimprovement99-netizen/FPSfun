@@ -197,4 +197,4 @@ each side, kiosks), the median's see-through railings replaced by planters; Mile
 framed in steel with a head under the ceiling, its floor numbers on black; Milestone 503, the sky floors closed
 over (the top one looked up into the tower's hollow), numbered 9 to 11 and each laid out its own way; Milestone 504, THE VAULT's window row
 framed in gold and its lamps gold; Milestone 505, zip lines from the tower's lookout to the north, east and south
-decks.*
+decks; Milestone 506, cover on the bridge ring.*

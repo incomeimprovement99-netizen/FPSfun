@@ -275,8 +275,9 @@ const crown = ups.filter((u) => u.q.id.startsWith("crown") && u.q.ground > 100);
 const PCH = (cfg as unknown as { perches?: Array<{ name: string; at: number[][] }> }).perches ?? [];
 const onIt = (p: { at: number[][] }) => p.at.filter(([x, y, z]) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).some((b) => Math.abs(b.top - y) < 0.06));
 check("the crown at 109 m: two pads up to it from the base's roof, each landing on it", crown.length === 2 && crown.every((u) => u.ok), crown.map((u) => u.said).join("; "));
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") ? 1 : 6);
-check("the perches: cover on the crown, the lookout and the four High City decks, a landmark on each deck, each piece standing on its roof", PCH.length === 10 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+// (and on the four bridges of the ring round the tower, two pieces and more each: the fourth review asked for cover there)
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") ? 1 : name.startsWith("ring") ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks and the four bridges round the tower, a landmark on each deck, each piece standing on its roof", PCH.length === 14 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
