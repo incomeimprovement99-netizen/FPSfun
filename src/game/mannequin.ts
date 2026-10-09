@@ -1552,7 +1552,8 @@ export class MannequinFigure {
    * spine_03; a lean back (a slide) is the clip's.
    */
   private holdChestUp(b: Record<string, THREE.Object3D>, fig: THREE.Object3D): void {
-    fig.updateWorldMatrix(true, true);
+    // (each world read brings its own bone's chain up to date: the whole figure, every bone and mesh, was updated here
+    // a frame for two bones' positions)
     const toFig = this.chestQ.copy(fig.getWorldQuaternion(this.chestQ)).invert();
     const line = b.neck_01.getWorldPosition(this.chestA).sub(b.spine_03.getWorldPosition(this.chestB)).applyQuaternion(toFig);
     const lean = Math.atan2(line.z, line.y);

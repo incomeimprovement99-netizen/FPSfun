@@ -65,6 +65,11 @@ export function maxPerSecond(w: ResolvedWeapon): number {
   return maxRound(w) * Math.max(1, w.pellets) * shots * C.rateMargin;
 }
 
+/** how long after a shot its hit may come, s: a round's flight and a round trip, and a burst's whole flight on top */
+export function shotWindow(w: ResolvedWeapon): number {
+  return C.shotWindow + (w.blast ? w.projectile.lifetime : 0);
+}
+
 export class HitCheck {
   /** each shooter's claims in the last second, for the rate */
   private recent = new Map<number, Array<{ at: number; amount: number }>>();
@@ -91,8 +96,9 @@ export class HitCheck {
     const gun = melee ? null : gunOf(c.weapon);
     const cap = gun ? maxRound(gun) : melee ? C.meleeMax : C.otherMax;
     if (c.amount > cap) return `more than one ${melee ? "swing" : "round"} can do (${Math.round(c.amount)} over ${Math.round(cap)})`;
-    // a round lands after the shot that fired it: a gun's hit with no shot heard lately is made up
-    if (gun && (lastShotAt === undefined || now - lastShotAt > C.shotWindow)) return "no shot fired";
+    // a round lands after the shot that fired it: a gun's hit with no shot heard lately is made up (a rocket's burst comes
+    // as late as its whole flight, 3 s, past the window a bullet's needs)
+    if (gun && (lastShotAt === undefined || now - lastShotAt > shotWindow(gun))) return "no shot fired";
     if (apart !== null) {
       if (melee && apart > MELEE_APART) return `a swing from ${apart.toFixed(1)} m away`;
       if (c.dist !== null && Math.abs(apart - c.dist) > C.rangeSlack + apart * C.rangeShare) return `claimed from ${c.dist.toFixed(0)} m, but ${apart.toFixed(0)} m apart`;

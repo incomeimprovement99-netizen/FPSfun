@@ -10,7 +10,7 @@ import type { Dummy, HitReport, Zone } from "./dummy";
 import type { Target } from "./targets";
 import type { ResolvedWeapon } from "./weapons";
 import { IS_SK } from "./game";
-import { buildRocket } from "./rocket";
+import { bodyAlong, bodyGap, buildRocket } from "./rocket";
 
 
 /**
@@ -93,6 +93,18 @@ interface Bullet {
   whizzed: boolean;
   /** its damage scale (a charged 30-30 round) */
   dmgScale: number;
+  /** who fired it, when it matters (a rocket) */
+  firer: Firer | null;
+}
+
+/**
+ * Who fired a round, for a rocket: it never bursts on its shooter's own figure (it leaves from inside it: a bot's eye is
+ * in its chest volume, and a bot's rocket up a stair went out through its own head), and its burst goes back to them
+ * (a bot's match settles a bot's rocket, bots.ts onRocket).
+ */
+export interface Firer {
+  figure?: Dummy | null;
+  onBurst?: (at: THREE.Vector3, travelled: number) => void;
 }
 
 export interface ImpactEvent {
@@ -165,7 +177,7 @@ export class ProjectileSystem {
    * line of sight and was never seen; drawn from the muzzle, it joins the
    * real path over the first TRACER.blend metres.
    */
-  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1, drawFrom: THREE.Vector3 | null = null, style: { color: string; width: number } | null = null): void {
+  fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1, drawFrom: THREE.Vector3 | null = null, style: { color: string; width: number } | null = null, firer: Firer | null = null): void {
     const rocket = !!w.blast;
     const mesh: THREE.Object3D = rocket ? buildRocket() : new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : style ? tracerMatFor(style.color) : tracerMat);
     mesh.userData.width = style && !visual ? style.width : 1;
@@ -186,6 +198,7 @@ export class ProjectileSystem {
       whizzed: false,
       dmgScale,
       rocket,
+      firer,
     });
   }
 
@@ -226,8 +239,13 @@ export class ProjectileSystem {
   onWhiz: ((at: THREE.Vector3) => void) | null = null;
   /** someone else's round stopped against the level (where, the face, the gun): the page marks it */
   onVisualImpact: ((at: THREE.Vector3, normal: THREE.Vector3, weapon: string) => void) | null = null;
-  /** a rocket burst where it stopped (where, how far it flew, its gun, and whether it was someone else's): the page does the rest (main.ts) */
-  onBurst: ((at: THREE.Vector3, travelled: number, w: ResolvedWeapon, visual: boolean) => void) | null = null;
+  /**
+   * A rocket burst where it stopped (where, how far it flew, its gun, whether it was someone else's, and the frame's
+   * impact handler, which your own burst's hits go through): the page does the rest (main.ts).
+   */
+  onBurst: ((at: THREE.Vector3, travelled: number, w: ResolvedWeapon, visual: boolean, onImpact: (e: ImpactEvent) => void) => void) | null = null;
+  /** your own body, which someone else's rocket stops on (you are no figure on your own page), or null when it cannot be hit */
+  self: (() => { feet: THREE.Vector3; low: boolean } | null) | null = null;
 
   /** add something bullets can hit after construction (the 1v1 opponent) */
   addDummy(d: Dummy): void {
@@ -351,20 +369,34 @@ export class ProjectileSystem {
         }
         if (b.rocket) {
           // a rocket stops at the first figure, wall or floor in its way, or when it is spent, and bursts there; it does no
-          // damage itself (someone else's stops at a figure too, for its burst to be drawn on them, and hurts nobody)
+          // damage itself (someone else's stops at a figure too, for its burst to be drawn on them, and hurts nobody); never
+          // on its own shooter (Firer)
           let stop: THREE.Vector3 | null = null;
+          const far = Math.min(len, wallAt);
           if (len > 0 && meshes.length) {
             this.ray.set(prev, unit);
-            this.ray.far = Math.min(len, wallAt);
-            const hit = this.ray.intersectObjects(meshes, false)[0];
-            if (hit) stop = hit.point.clone();
+            this.ray.far = far;
+            for (const hit of this.ray.intersectObjects(meshes, false)) {
+              if (b.firer?.figure && owner.get(hit.object) === b.firer.figure) continue;
+              stop = hit.point.clone();
+              break;
+            }
+          }
+          // Someone else's stops on you too: you are no figure here, and it had flown through you to burst behind you (a
+          // bot's, on the host's page, did its damage there). Not one that left from inside you (a test's, as if not yours).
+          const me = b.visual && !stop && len > 0 ? (this.self?.() ?? null) : null;
+          if (me && bodyGap(b.origin, me.feet, me.low) > 0) {
+            const k = bodyAlong(prev, unit, far, me.feet, me.low);
+            if (k < Infinity) stop = prev.clone().addScaledVector(unit, k);
           }
           if (!stop && wallAt < Infinity) stop = prev.clone().addScaledVector(unit, Math.max(0, wallAt - 0.02));
           const ground = this.floorY + floorAt(b.pos.x, b.pos.z);
           if (!stop && b.pos.y <= ground) stop = b.pos.clone().setY(ground + 0.02);
           if (!stop && b.age > b.weapon.projectile.lifetime) stop = b.pos.clone();
           if (stop) {
-            this.onBurst?.(stop, stop.distanceTo(b.origin), b.weapon, b.visual);
+            const travelled = stop.distanceTo(b.origin);
+            this.onBurst?.(stop, travelled, b.weapon, b.visual, onImpact);
+            b.firer?.onBurst?.(stop, travelled);
             dead = true;
           }
           continue;

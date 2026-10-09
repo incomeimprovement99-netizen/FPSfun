@@ -32,6 +32,7 @@ import * as THREE from "three";
 import { Dummy } from "./dummy";
 
 import { falloff, solidHit, type ProjectileSystem } from "./projectile";
+import { rocketHurts } from "./rocket";
 import moveCfg from "../config/movement.json";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import { OPERATORS } from "./operators";
@@ -614,6 +615,17 @@ export interface BotShot {
   weapon: string;
   /** a knife: it lands on whoever is within reach, no bullet */
   melee?: boolean;
+  /** a rocket: it does nothing as a shot (damage 0), its burst does it where it stops (Bot.onRocket) */
+  blast?: boolean;
+}
+
+/** what a burst does to a body at `feet` (crouched or not): a frag's or a rocket's, for a match to deal to everyone it reaches */
+export type BurstHurts = (feet: THREE.Vector3, low?: boolean) => number;
+
+/** what a bot's rocket bursting at `at`, `travelled` metres from where it left, does to a body (rocket.ts) */
+export function rocketBurst(w: ResolvedWeapon, at: THREE.Vector3, travelled: number): BurstHurts {
+  const full = falloff(w, travelled);
+  return (feet, low = false) => rocketHurts(full, at, travelled, feet, low, solidHit);
 }
 
 /** a bot's knife reaches this far, m, and swings this often, s (the player's melee) */
@@ -801,6 +813,12 @@ export class Bot {
   onJolt: ((a: THREE.Vector3, b: THREE.Vector3) => void) | null = null;
   /** a heal finished, for the death recap */
   onHealed: ((item: "cell" | "syringe") => void) | null = null;
+  /**
+   * Its rocket burst (where, how far it flew, the gun): the match deals the burst (botBurst with rocketBurst). Until a
+   * bot's rocket burst where it stopped, it was settled as a bullet the moment it left, its damage landing before the
+   * rocket did and never in reach of a miss.
+   */
+  onRocket: ((at: THREE.Vector3, travelled: number, w: ResolvedWeapon) => void) | null = null;
 
   constructor(
     readonly index: number,
@@ -1841,10 +1859,12 @@ export class Bot {
         if (this.weapon.pellets > 1) {
           pd.applyAxisAngle(new THREE.Vector3(0, 1, 0), ((Math.random() * 2 - 1) * 2 * Math.PI) / 180).applyAxisAngle(side, ((Math.random() * 2 - 1) * 2 * Math.PI) / 180);
         }
-        this.projectiles.fire(from, pd, this.weapon, true, 1, 1, this.dummy.muzzleWorld());
+        // a rocket never bursts on the bot that fired it, and its burst goes to the match (onRocket)
+        const w = this.weapon;
+        this.projectiles.fire(from, pd, w, true, 1, 1, this.dummy.muzzleWorld(), null, w.blast ? { figure: this.dummy, onBurst: (at, travelled) => this.onRocket?.(at, travelled, w) } : null);
         if (p === 0) this.dummy.kick();
-        // the damage a player's round does at that range, not always the near value
-        shots.push({ from, dir: pd, damage: falloff(this.weapon, from.distanceTo(target)), weapon: this.weapon.id });
+        // the damage a player's round does at that range, not always the near value; a rocket's comes with its burst
+        shots.push({ from, dir: pd, damage: w.blast ? 0 : falloff(w, from.distanceTo(target)), weapon: w.id, blast: w.blast || undefined });
       }
     }
     return shots;
@@ -2059,6 +2079,7 @@ export class BotMatch implements MatchLike {
       b.ring = drawn?.bounds.circle ?? null;
       b.setAbilities(abilities);
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
+      b.onRocket = (at, travelled, w) => this.botBurst(b.remote.id, rocketBurst(w, at, travelled), w.id);
       b.onHealed = (item) => this.onHealSeen?.(b.remote.id, item);
       this.bots.push(b);
     }
@@ -2085,18 +2106,27 @@ export class BotMatch implements MatchLike {
     if (origin) for (const b of this.bots) b.hear(origin, wallClock());
   }
 
-  /** where you stood last frame (a bot's frag works out its damage against it) */
+  /** where you stood last frame, and crouched or not (a bot's frag or rocket works out its damage against it) */
   private lastFeet = new THREE.Vector3();
+  private lastLow = false;
 
-  /** a bot's frag went off: you, in reach and in its sight, take its damage */
-  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+  /** a bot's burst (its frag's, its rocket's): you, in reach and in its sight, take what `hurts` says, from gun `w` */
+  botBurst(owner: number, hurts: BurstHurts, w: string): void {
     const b = this.bots.find((x) => x.remote.id === owner);
     if (!b || !this.alive || this.phase !== "fight") return;
-    const chest = this.lastFeet.clone().setY(this.lastFeet.y + 1.1);
-    const dmg = blastDamage(kind, chest.distanceTo(at));
-    if (dmg <= 0 || !Throwables.inSight(at, chest)) return;
+    const dmg = hurts(this.lastFeet, this.lastLow);
+    if (dmg <= 0) return;
     this.lastHitBy = b;
-    this.takeHit(dmg, b, kind, Math.round(b.pos.distanceTo(this.lastFeet) * 10) / 10);
+    this.takeHit(dmg, b, w, Math.round(b.pos.distanceTo(this.lastFeet) * 10) / 10);
+  }
+
+  /** a bot's frag went off (the page drew it and hands the blast back) */
+  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+    this.botBurst(owner, (feet) => {
+      const chest = feet.clone().setY(feet.y + 1.1);
+      const dmg = blastDamage(kind, chest.distanceTo(at));
+      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
+    }, kind);
   }
 
   /** nobody to tell: the bots are here */
@@ -2194,6 +2224,7 @@ export class BotMatch implements MatchLike {
     if (this.ended) return;
     const feet = new THREE.Vector3(local.x, local.y, local.z);
     this.lastFeet.copy(feet);
+    this.lastLow = local.crouch;
     const center = this.center;
     // the first countdown waits for the mode's card to end, as a match's start does (duel.ts LocalState.held)
     if (local.held && this.phase === "countdown" && this.round === 1) this.phaseEndsAt = Math.max(this.phaseEndsAt, now + COUNTDOWN);

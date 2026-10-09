@@ -5,7 +5,12 @@
 // distance it flew) at the burst's middle, less with distance from it out to its reach, which grows with the flight too
 // (the Skybreaker's "Min Range for Full Damage & Full Explosion AoE: 20m"). Who decides the damage is the shooter, as a
 // bullet's: their page finds who is in reach and in sight and claims each hit (main.ts). Never the shooter, never a
-// teammate. Others see the rocket fly (the shot message redraws it, projectile.ts) and its burst where it stops.
+// teammate. Others see the rocket fly (the shot message redraws it, projectile.ts) and its burst where it stops. A bot's
+// rocket is the same: drawn, it bursts where it stops, and the bot's match settles the burst (bots.ts onRocket).
+//
+// The damage at the middle is the gun's own for the distance flown (projectile.ts falloff on the launcher, which
+// weapons.ts builds from rocket.json's ramp), so whatever changes a gun's damage changes the rocket's; rocketDamage is the
+// ramp as rocket.json gives it, for the checks.
 //
 // The rocket model is one model: the shot in flight, the soldier's reload and the first person's reload all draw it.
 import * as THREE from "three";
@@ -19,6 +24,7 @@ export const ROCKET = cfg as {
   reload: number;
   damage: { pointBlank: number; from: number; full: number; fullFrom: number };
   blast: { inner: number; reachPointBlank: number; reach: number };
+  body: { radius: number; top: number; crouch: number; sight: number };
   model: { length: number; radius: number; nose: number; fin: number };
 };
 
@@ -35,12 +41,16 @@ export function blastReach(travelled: number): number {
   return ROCKET.blast.reachPointBlank + (ROCKET.blast.reach - ROCKET.blast.reachPointBlank) * ramp(travelled);
 }
 
-/** the damage `dist` metres from the burst's middle: full within the inner reach, none at its edge */
-export function blastAt(travelled: number, dist: number): number {
+/** the share of the middle's damage a body takes `gap` metres from the burst (from its skin): all within the inner reach, none at its edge */
+export function blastShare(travelled: number, gap: number): number {
   const reach = blastReach(travelled);
-  if (dist >= reach) return 0;
-  const k = dist <= ROCKET.blast.inner ? 1 : 1 - (dist - ROCKET.blast.inner) / Math.max(1e-6, reach - ROCKET.blast.inner);
-  return rocketDamage(travelled) * k;
+  if (gap >= reach) return 0;
+  return gap <= ROCKET.blast.inner ? 1 : 1 - (gap - ROCKET.blast.inner) / Math.max(1e-6, reach - ROCKET.blast.inner);
+}
+
+/** the damage `gap` metres from the burst, on rocket.json's ramp */
+export function blastAt(travelled: number, gap: number): number {
+  return rocketDamage(travelled) * blastShare(travelled, gap);
 }
 
 /** the burst can reach a chest only through open air: a wall between them takes it (`solid`: projectile.ts solidHit) */
@@ -51,6 +61,71 @@ export function blastSees(at: THREE.Vector3, chest: THREE.Vector3, solidHit: (fr
   // (from a hair off the face it burst on, or the face itself would block)
   const from = at.clone().addScaledVector(d, 0.05 / len);
   return solidHit(from, d.divideScalar(len), Math.max(0, len - 0.05)) === Infinity;
+}
+
+/** how tall a body stands, metres, crouched or not (rocket.json body: the hit volumes' own) */
+export function bodyTop(low: boolean): number {
+  return ROCKET.body.top * (low ? ROCKET.body.crouch : 1);
+}
+
+/** the point of a body standing at `feet` that a burst must see (its chest) */
+export function bodySight(feet: THREE.Vector3, low: boolean): THREE.Vector3 {
+  return feet.clone().setY(feet.y + bodyTop(low) * ROCKET.body.sight);
+}
+
+/**
+ * How far a burst at `at` is from the skin of a body standing at `feet`, 0 inside it: a body with no figure to measure,
+ * known by its feet alone (you on your own page, a bot's rocket's victims on the host's). Measured to the skin, not to a
+ * chest point: a rocket at someone's feet is a rocket on them, and to a chest 1.1 m up it had been at the inner reach's
+ * edge.
+ */
+export function bodyGap(at: THREE.Vector3, feet: THREE.Vector3, low = false): number {
+  const r = ROCKET.body.radius;
+  const y = Math.max(feet.y + r, Math.min(feet.y + bodyTop(low) - r, at.y));
+  return Math.max(0, Math.hypot(at.x - feet.x, at.y - y, at.z - feet.z) - r);
+}
+
+const along = new THREE.Vector3();
+/** where along a rocket's step (from `p0` along `unit`, `len` metres) it first touches a body at `feet`, or Infinity */
+export function bodyAlong(p0: THREE.Vector3, unit: THREE.Vector3, len: number, feet: THREE.Vector3, low = false): number {
+  if (Math.hypot(p0.x - feet.x, p0.z - feet.z) > len + ROCKET.body.radius) return Infinity;
+  // in steps finer than the body is wide, so none passes through it
+  const n = Math.max(1, Math.ceil(len / (ROCKET.body.radius / 4)));
+  for (let i = 0; i <= n; i++) {
+    const k = (len * i) / n;
+    if (bodyGap(along.copy(p0).addScaledVector(unit, k), feet, low) <= 0) return k;
+  }
+  return Infinity;
+}
+
+const local = new THREE.Vector3();
+const near = new THREE.Vector3();
+/**
+ * How far a burst at `at` is from a figure's skin as its hit volumes give it, as posed this frame: each volume's own box
+ * (a box's exactly, the head's and neck's round ones by the box round them), 0 inside one. The volumes are what a round
+ * hits, so a rocket's burst measures to the body a round would have found.
+ */
+export function meshGap(at: THREE.Vector3, meshes: readonly THREE.Mesh[]): number {
+  let best = Infinity;
+  for (const m of meshes) {
+    if (!m.visible) continue;
+    const g = m.geometry;
+    if (!g.boundingBox) g.computeBoundingBox();
+    m.updateWorldMatrix(true, false);
+    m.worldToLocal(local.copy(at));
+    g.boundingBox!.clampPoint(local, local);
+    best = Math.min(best, m.localToWorld(near.copy(local)).distanceTo(at));
+  }
+  return best;
+}
+
+/**
+ * A burst's damage to a body known by its feet alone (bodyGap): `full` at the middle (the gun's damage for the distance
+ * flown), its share for the gap to the skin, none through a wall.
+ */
+export function rocketHurts(full: number, at: THREE.Vector3, travelled: number, feet: THREE.Vector3, low: boolean, solidHit: (from: THREE.Vector3, dir: THREE.Vector3, len: number) => number): number {
+  const k = blastShare(travelled, bodyGap(at, feet, low));
+  return k > 0 && blastSees(at, bodySight(feet, low), solidHit) ? full * k : 0;
 }
 
 const BODY = new THREE.MeshStandardMaterial({ color: 0xc9ccd1, roughness: 0.45, metalness: 0.6 });
@@ -98,11 +173,13 @@ export function buildRocket(lit = true): THREE.Group {
   return r;
 }
 
-/** a burst's look: a flash, a fireball that swells and fades, and a light for a moment */
+/**
+ * A burst's look: a fireball that swells and fades. No light: a light put in the scene for a moment rebuilt the shader of
+ * every lit material in view (a shader is built for the lights it is lit by), a hitch on every burst, and one kept in it
+ * for good would cost every lit pixel of every frame for a sight seen now and then. The frags' flashes are meshes too.
+ */
 interface Burst {
-  group: THREE.Group;
   ball: THREE.Mesh;
-  flash: THREE.PointLight;
   age: number;
   reach: number;
 }
@@ -120,15 +197,11 @@ export class RocketBursts {
   /** a rocket's burst at `at`, as big as its reach for a rocket that flew `travelled` metres */
   add(at: THREE.Vector3, travelled: number): void {
     this.last = { at: [at.x, at.y, at.z], travelled };
-    const group = new THREE.Group();
-    group.position.copy(at);
     const ball = new THREE.Mesh(ballGeo, BALL.clone());
+    ball.position.copy(at);
     ball.scale.setScalar(0.01);
-    group.add(ball);
-    const flash = new THREE.PointLight(0xffa050, 6, blastReach(travelled) * 4, 2);
-    group.add(flash);
-    this.scene.add(group);
-    this.live.push({ group, ball, flash, age: 0, reach: blastReach(travelled) });
+    this.scene.add(ball);
+    this.live.push({ ball, age: 0, reach: blastReach(travelled) });
   }
 
   update(dt: number): void {
@@ -137,7 +210,7 @@ export class RocketBursts {
       b.age += dt;
       const t = b.age / BURST_FOR;
       if (t >= 1) {
-        this.scene.remove(b.group);
+        this.scene.remove(b.ball);
         (b.ball.material as THREE.Material).dispose();
         this.live.splice(i, 1);
         continue;
@@ -145,7 +218,6 @@ export class RocketBursts {
       // swells fast to the reach, then fades
       b.ball.scale.setScalar(Math.max(0.01, b.reach * Math.min(1, t * 4)));
       (b.ball.material as THREE.MeshBasicMaterial).opacity = 0.85 * (1 - t);
-      b.flash.intensity = 6 * Math.max(0, 1 - t * 2.5);
     }
   }
 

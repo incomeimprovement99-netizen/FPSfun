@@ -7651,7 +7651,10 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
  * the further it travels, so a point blank or very close does like 10 damage and then it scales like that"): a real
  * rocket fired at a range dummy where it stands, from 25 m and from 3 m: drawn as a rocket in flight, its burst seen,
  * the dummy taking the burst's damage for how far the rocket flew. Someone else's rocket (as a shot message redraws it)
- * flies and bursts on this page too and hurts nobody here.
+ * flies and bursts on this page too and hurts nobody here. A rocket into the floor at a dummy's toes is on it (full
+ * damage: the gap is to the body, not a chest point), and one on a range target counts on the target. A bot with the
+ * launcher: its rockets stop on you and their damage comes with the burst, and a rocket never bursts on the figure that
+ * fired it (the same rocket fired as nobody's does, on its own head).
  */
 async function skLauncherTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender&game=speedkills");
@@ -7659,7 +7662,8 @@ async function skLauncherTest(browser: Browser): Promise<void> {
   await ev(page, `(() => { const r = window.__range; const l = r.loadout; l.give(0, "launcher"); l.requestSwap(0, r.gameTime()); })()`);
   await page.waitForFunction("window.__range.loadout.active.weapon.id === 'launcher' && !window.__range.loadout.swapping", { polling: 100, timeout: 15000 }).catch(() => undefined);
   type Shot = { took: number; travelled: number; rocketDrawn: boolean; bursts: number };
-  const shoot = (dist: number, visual: boolean) =>
+  // (`aimAt`: where at the dummy, from its feet)
+  const shoot = (dist: number, visual: boolean, aimAt = "feet.clone().setY(feet.y + 1.1)") =>
     ev<Shot>(
       page,
       `(async () => {
@@ -7669,7 +7673,7 @@ async function skLauncherTest(browser: Browser): Promise<void> {
         r.player.teleport(home.x, 0, home.z + ${dist}, 0, 0);
         await new Promise((ok) => setTimeout(ok, 300));
         const eye = r.player.eyePosition(); const feet = d.group.position.clone();
-        const aim = feet.clone().setY(feet.y + 1.1).sub(eye);
+        const aim = (${aimAt}).sub(eye);
         const before = (d.health ?? 0) + (d.shield ?? 0); const b0 = r.rocketBursts();
         r.fireRound([aim.x, aim.y, aim.z], ${visual});
         // (the rocket in flight is drawn as the rocket model, not a streak)
@@ -7686,7 +7690,102 @@ async function skLauncherTest(browser: Browser): Promise<void> {
   check("HAEFY: from 3 m the same rocket does about 10 to 14 (point blank about 10, more the further it flies)", near.bursts >= 1 && near.took >= 9 && near.took <= 14, JSON.stringify(near));
   const theirs = await shoot(25, true);
   check("HAEFY: someone else's rocket (a shot message's) flies and bursts here too, and does no damage on this page", theirs.rocketDrawn && theirs.bursts >= 1 && theirs.took === 0, JSON.stringify(theirs));
+  // Into the floor a hand beside a dummy's feet, from 10 m to its side (in front of it a low wall takes a floor shot):
+  // on it, the full damage for the rocket's flight (to a chest point 1.1 m up it had been four fifths of it)
+  const toes = await ev<{ took: number; travelled: number; want: number }>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE; const d = r.dummies[1];
+      d.health = d.healthMax ?? d.health; if ("shield" in d) d.shield = d.shieldCap ?? d.shield;
+      const feet = d.group.position.clone();
+      r.player.teleport(feet.x + 10, 0, feet.z, 0, 0);
+      await new Promise((ok) => setTimeout(ok, 300));
+      const before = (d.health ?? 0) + (d.shield ?? 0); const L0 = r.rocketLast();
+      const aim = feet.clone().add(new T.Vector3(0.35, 0, 0)).sub(r.player.eyePosition());
+      r.fireRound([aim.x, aim.y, aim.z]);
+      const t0 = performance.now(); while (r.rocketLast() === L0 && performance.now() - t0 < 1500) await new Promise((ok) => setTimeout(ok, 16));
+      await new Promise((ok) => setTimeout(ok, 100));
+      const travelled = r.rocketLast() === L0 ? -1 : r.rocketLast().travelled;
+      // the launcher's damage for that flight (rocket.json: 10 to 2 m, 50 from 20 m)
+      const want = 10 + 40 * Math.max(0, Math.min(1, (travelled - 2) / 18));
+      return { took: Math.round((before - (d.health ?? 0) - (d.shield ?? 0)) * 10) / 10, travelled: Math.round(travelled * 10) / 10, want: Math.round(want * 10) / 10 };
+    })()`,
+  );
+  check("HAEFY: a rocket into the floor a hand from a dummy's feet is on it: the full damage for its flight", toes.travelled > 0 && Math.abs(toes.took - toes.want) <= 1, JSON.stringify(toes));
+  // a range target: a rocket's burst counts on it as a round does (only the figures took one before); aimed at its middle
+  const board = await ev<{ took: number; burst: boolean; off: number | null } | null>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE; const now = r.gameTime();
+      const t = r.targets.find((x) => x.kind === "board" && x.isLive(now) && x.group.visible); if (!t) return null;
+      const c = new T.Box3().setFromObject(t.hitMeshes[0]).getCenter(new T.Vector3());
+      let took = 0; const orig = t.hit; t.hit = (n, h, dmg) => { took += dmg; return orig.call(t, n, h, dmg); };
+      r.player.teleport(c.x, 0, c.z + 25, 0, 0);
+      await new Promise((ok) => setTimeout(ok, 300));
+      const aim = c.clone().sub(r.player.eyePosition()); const L0 = r.rocketLast();
+      r.fireRound([aim.x, aim.y, aim.z]);
+      const t0 = performance.now(); while (performance.now() - t0 < 1500 && !took) await new Promise((ok) => setTimeout(ok, 16));
+      t.hit = orig;
+      // (rocketBursts() counts the bursts still showing: the last check's can fade out under this one)
+      const L = r.rocketLast();
+      return { took: Math.round(took * 10) / 10, burst: L !== L0, off: L !== L0 ? Math.round(new T.Vector3(...L.at).distanceTo(c) * 100) / 100 : null };
+    })()`,
+  );
+  check("HAEFY: a rocket on a range target bursts on it and counts on it, its full 50 from 25 m", !!board && board.burst && (board.off ?? 9) < 0.2 && Math.abs(board.took - 50) <= 1, JSON.stringify(board));
   await page.close();
+  // A bot with the launcher, on a page of its own, in the open 7 to 15 m from you. Held and still: a rocket from inside it toward
+  // its own head, fired as its own and as nobody's. Then firing: its rockets stop on you (you are no figure on your own
+  // page; they had flown through you to burst behind) and what you take comes with a burst (a bot's rocket had been
+  // settled as a bullet the moment it left).
+  const bp = await open(browser, "?norender&game=speedkills");
+  await ev(bp, `document.getElementById("overlay").classList.add("hidden")`);
+  await ev(bp, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "elite"; window.__range.startBots(); })()`);
+  const fought = await bp.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  type BotRockets = { spot: boolean; own: number | null; nobody: number | null; onMe: number; bursts: number; took: number; unexplained: number };
+  const bot = fought
+    ? await ev<BotRockets>(
+        bp,
+        `(async () => {
+          const r = window.__range, T = r.THREE; const d = r.duel(); const b = d.bots[0];
+          d.holdFire = true; b.grenadesAllowed = false; b.setWeapon("launcher");
+          // a spot with a clear line to you, 7 to 15 m off (15 m in front of the city's spawn is behind a wall)
+          const me = r.player.pos; let spot = null;
+          for (const dist of [15, 11, 7]) for (let k = 0; k < 8 && !spot; k++) {
+            const q = me.clone().add(new T.Vector3(Math.sin((k * Math.PI) / 4) * dist, 0, Math.cos((k * Math.PI) / 4) * dist));
+            if (r.clearTo(q.clone().setY(me.y + 1.2)) && r.clearTo(q.clone().setY(me.y + 0.4))) spot = q;
+          }
+          if (spot) { b.pos.copy(spot); b.dummy.group.position.copy(b.pos); }
+          await new Promise((ok) => setTimeout(ok, 100));
+          // still while its own rockets fly: a bot runs sideways at up to 10 m/s, out of the line it was fired along
+          const upd = b.update; b.update = () => [];
+          const fire = async (firer) => {
+            const eye = b.pos.clone().setY(b.pos.y + 1.35);
+            const head = b.dummy.hitMeshes.find((m) => m.userData.zone === "head").getWorldPosition(new T.Vector3());
+            const before = r.rocketLast();
+            b.projectiles.fire(eye, head.sub(eye).normalize(), b.weapon, true, 1, 1, null, null, firer);
+            const t1 = performance.now(); while (r.rocketLast() === before && performance.now() - t1 < 4000) await new Promise((ok) => setTimeout(ok, 16));
+            return r.rocketLast() === before ? null : Math.round(r.rocketLast().travelled * 100) / 100;
+          };
+          const own = await fire({ figure: b.dummy });
+          const nobody = await fire(null);
+          b.update = upd; d.holdFire = false;
+          const h0 = d.health + d.shield; let last = r.rocketLast(); let took = 0; let onMe = 0, bursts = 0, unexplained = 0;
+          const t0 = performance.now();
+          while (performance.now() - t0 < 8000 && onMe < 3 && d.alive) {
+            const L = r.rocketLast(); const now = h0 - d.health - d.shield;
+            const fresh = !!L && L !== last;
+            if (fresh) { last = L; bursts++; if (Math.hypot(L.at[0] - me.x, L.at[2] - me.z) < 0.5 && L.at[1] > me.y && L.at[1] < me.y + 2) onMe++; }
+            if (now > took + 1e-6 && !fresh) unexplained++;
+            took = now;
+            await new Promise((ok) => setTimeout(ok, 16));
+          }
+          return { spot: !!spot, own, nobody, onMe, bursts, took: Math.round(took * 10) / 10, unexplained };
+        })()`,
+      )
+    : null;
+  check("HAEFY: a rocket never bursts on the figure that fired it (the same one fired as nobody's bursts on it)", !!bot && (bot.own === null || bot.own > 1) && bot.nobody !== null && bot.nobody < 0.6, JSON.stringify(bot));
+  check("HAEFY: a bot's rockets burst on you, and you take their damage with the burst, never before it", !!bot && bot.onMe >= 1 && bot.took > 0 && bot.unexplained === 0, JSON.stringify(bot));
+  await bp.close();
 }
 
 async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"): Promise<void> {

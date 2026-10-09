@@ -33,7 +33,7 @@ import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { CHAIN_COURSE } from "./game/courses/chain";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, sceneryFar } from "./game/quality";
-import { lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
+import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
@@ -97,7 +97,7 @@ import { Menu, brRulesId, brTeamId, type Mode } from "./ui/menu";
 import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
-import { blastAt, blastSees, RocketBursts } from "./game/rocket";
+import { blastSees, blastShare, bodySight, meshGap, RocketBursts } from "./game/rocket";
 import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { Abilities, ABILITIES, ABILITY_IDS, ABILITY_KNOBS, JOLT, JOLT_DEFAULTS, KITS, kitOf, setJolt, tuneAbilities, tuningChanges, type AbilityId } from "./game/abilities";
 import { currentBinds, type Action } from "./game/input";
@@ -1586,34 +1586,41 @@ projectiles.onWhiz = (p) => audio.whiz(p);
 projectiles.onVisualImpact = (at, normal) => markImpact(at, normal);
 // HAEFY's rockets (rocket.ts): every burst is seen and heard; your own does its damage (rocketBlast)
 const rocketBursts = new RocketBursts(scene);
-projectiles.onBurst = (at, travelled, w, visual) => {
+projectiles.onBurst = (at, travelled, w, visual, onImpact) => {
   rocketBursts.add(at, travelled);
   audio.blast("frag", at);
-  if (!visual) rocketBlast(at, travelled, w);
+  if (!visual) rocketBlast(at, travelled, w, onImpact);
 };
+// someone else's rocket stops on you, in a match you are alive in (you are no figure on your own page)
+projectiles.self = () => (duel && duel.alive ? { feet: player.pos, low: player.crouched } : null);
 /**
  * Your rocket's burst (rocket.ts): everyone in its reach and in sight of it takes its damage, through the rounds' path
- * (the numbers, the marker, the match's hit), your page deciding as it does a round's. Never you (you are not among the
- * figures here), never a teammate, and only in the fight. The distance claimed is from you, as a round's is (the
- * host's check measures it so, net/hitcheck.ts).
+ * (`onImpact`: the numbers, the marker, the match's hit), your page deciding as it does a round's. Never you (you are not
+ * among the figures here), never a teammate, and only in the fight. The middle's damage is the gun's own for the
+ * distance flown, as a round's is for its range (its fusion level counts); a body's share is by the gap to its hit
+ * volumes. Outside a match, everything a round could hit: the range's dummies, the courses' pop-ups and the targets. The
+ * distance claimed is from you, as a round's is (the host's check measures it so, net/hitcheck.ts).
  */
-function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon): void {
+function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon, onImpact: (e: ImpactEvent) => void): void {
   if (duel && duel.phase !== "fight") return;
-  const figs: Dummy[] = [];
-  if (duel) {
-    for (const a of duel.avatars) {
-      const r = duel.remoteOf(a);
-      if (r && a.group.visible && !a.knocked && !(duel instanceof Duel && duel.isAlly(r.id))) figs.push(a);
-    }
-  } else for (const d of dummies) if (d.group.visible && !d.knocked) figs.push(d);
+  const full = falloff(w, travelled);
+  const figs = duel ? duel.avatars.filter((a) => !!duel!.remoteOf(a) && !isAllyFigure(a)) : rangeTargets;
   for (const a of figs) {
-    const feet = a.group.position;
-    const chest = feet.clone().setY(feet.y + 1.1);
-    const dmg = blastAt(travelled, chest.distanceTo(at));
-    if (dmg <= 0 || !blastSees(at, chest, solidHit)) continue;
-    const point = feet.clone().setY(feet.y + 1.2);
-    const report = a.hit(gameTime, "body", dmg, 1, 1, point, w.damage.shieldScale, w.damage.unshieldedScale);
-    impactSink?.({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: point.distanceTo(player.pos), weapon: w.id });
+    if (!a.group.visible || a.knocked) continue;
+    const k = blastShare(travelled, meshGap(at, a.hitMeshes));
+    const point = bodySight(a.group.position, a.crouchAmount > 0.5);
+    if (k <= 0 || !blastSees(at, point, solidHit)) continue;
+    const report = a.hit(gameTime, "body", full * k, 1, 1, point, w.damage.shieldScale, w.damage.unshieldedScale);
+    onImpact({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: point.distanceTo(player.pos), weapon: w.id });
+  }
+  if (duel) return;
+  for (const t of targets) {
+    if (!t.isLive(gameTime) || !t.group.visible) continue;
+    const k = blastShare(travelled, meshGap(at, t.hitMeshes));
+    const point = t.group.getWorldPosition(new THREE.Vector3());
+    if (k <= 0 || !blastSees(at, point, solidHit)) continue;
+    t.hit(gameTime, false, full * k);
+    onImpact({ dummy: null, report: null, target: t, targetHead: false, damage: full * k, point, distance: point.distanceTo(player.pos), weapon: w.id });
   }
 }
 
@@ -2027,11 +2034,13 @@ showDash();
  */
 const previewScene = new THREE.Scene();
 const previewCam = new THREE.PerspectiveCamera(32, 0.7, 0.1, 12);
+/** the height the panel's camera looks at, zoomed out: the figure's middle */
+const PREVIEW_AIM = 0.95;
 {
   // head to boots in a tall box: 32 degrees of vertical view at 3.15 m covers
   // 1.8 m, which is the figure
   previewCam.position.set(0, 1.12, 3.15);
-  previewCam.lookAt(0, 0.95, 0);
+  previewCam.lookAt(0, PREVIEW_AIM, 0);
   // head to boots at 1, the head alone at 0.35
   const box = $("loPreview");
   box.addEventListener("pointerdown", (e) => {
@@ -2084,7 +2093,7 @@ let previewZoom = 1;
 let previewWhole = 3.15;
 /** the camera for the zoom and the gun: at zoom 1 the whole figure and the whole gun, nearer as the wheel zooms in */
 function placePreviewCam(): void {
-  const y = 0.95 + (1 - previewZoom) * 0.55;
+  const y = PREVIEW_AIM + (1 - previewZoom) * 0.55;
   previewCam.position.set(0, y + 0.17, 0.5 + (previewWhole - 0.5) * previewZoom);
   previewCam.lookAt(0, y, 0);
 }
@@ -2097,7 +2106,7 @@ function previewFitNow(fig: Dummy): number {
   fig.group.updateMatrixWorld(true);
   const c = fig.group.getWorldPosition(new THREE.Vector3());
   // a point x across and z toward the camera stays in the panel while x / (D - z) <= k; y up from the camera's aim
-  // (0.95) while y / (D - z) <= kv: HAEFY's launcher, on the shoulder and over the head, ran out of the top
+  // while y / (D - z) <= kv: HAEFY's launcher, on the shoulder and over the head, ran out of the top
   const k = (Math.tan((previewCam.fov * Math.PI) / 360) * previewCam.aspect) / 1.08;
   const kv = Math.tan((previewCam.fov * Math.PI) / 360) / 1.08;
   let need = 3.15;
@@ -2118,7 +2127,7 @@ function previewFitNow(fig: Dummy): number {
     }
     for (let j = 0; j < pts.length; j += 3) {
       v.set(pts[j], pts[j + 1], pts[j + 2]).applyMatrix4(m.matrixWorld);
-      need = Math.max(need, v.z - c.z + Math.abs(v.x - c.x) / k, v.z - c.z + Math.abs(v.y - c.y - 0.95) / kv);
+      need = Math.max(need, v.z - c.z + Math.abs(v.x - c.x) / k, v.z - c.z + Math.abs(v.y - c.y - PREVIEW_AIM) / kv);
     }
   });
   return need;

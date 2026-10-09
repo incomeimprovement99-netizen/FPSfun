@@ -26,7 +26,7 @@ import type { Seen } from "./reveal";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import { Throwables, blastDamage, throwCode } from "./throwables";
-import { Bot, botName, WIRE_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, tierFor, type BotSense, type BotTier } from "./bots";
+import { Bot, botName, WIRE_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, rocketBurst, tierFor, type BotSense, type BotTier, type BurstHurts } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
@@ -331,6 +331,7 @@ export class ArenaMode extends Duel {
         this.onHealSeen?.(bot.remote.id, item);
         this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
       };
+      bot.onRocket = (at, travelled, w) => this.botBurst(id, rocketBurst(w, at, travelled), w.id);
       this.teamOf.set(id, team);
       this.ladder.row(id);
       const mb: ModeBot = { bot, team, respawnAt: Infinity, goal: Math.floor(Math.random() * 12), hurtAt: -Infinity, vital: 0 };
@@ -1365,8 +1366,8 @@ export class ArenaMode extends Duel {
     for (const b of this.bots) b.bot.hear(at, now);
   }
 
-  /** a bot's frag went off (the host's page drew it): its enemies in reach and in its sight take the damage */
-  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+  /** a bot's burst (its frag's, its rocket's; the host's page drew it): its enemies take what `hurts` says, from gun `w` */
+  botBurst(owner: number, hurts: BurstHurts, w: string): void {
     if (this.role !== "host" || this.phase !== "fight") return;
     const thrower = this.bots.find((x) => x.bot.remote.id === owner);
     if (!thrower) return;
@@ -1374,13 +1375,12 @@ export class ArenaMode extends Duel {
     for (const f of this.fighters()) {
       if (!f.alive || f.id === owner || this.sameSide(f.id, owner)) continue;
       const feet = new THREE.Vector3(f.x, f.y, f.z);
-      const chest = feet.clone().setY(feet.y + 1.1);
-      const dmg = blastDamage(kind, chest.distanceTo(at));
-      if (dmg <= 0 || !Throwables.inSight(at, chest)) continue;
+      const dmg = hurts(feet, f.low);
+      if (dmg <= 0) continue;
       const dist = Math.round(thrower.bot.pos.distanceTo(feet) * 10) / 10;
-      if (f.id === this.id) this.takeHit(dmg, owner, false, kind, dist);
+      if (f.id === this.id) this.takeHit(dmg, owner, false, w, dist);
       else if (f.id < Duel.BOT_ID) {
-        this.links.get(f.id)?.send({ t: "hit", to: f.id, amount: dmg, head: false, from: owner, w: kind, d: dist });
+        this.links.get(f.id)?.send({ t: "hit", to: f.id, amount: dmg, head: false, from: owner, w, d: dist });
         const r = this.remotes.get(f.id);
         if (r) {
           const toShield = Math.min(r.shield, dmg);
@@ -1396,6 +1396,15 @@ export class ArenaMode extends Duel {
         if (o.bot.dummy.knocked) this.botDown(o, owner, false);
       }
     }
+  }
+
+  /** a bot's frag went off (the host's page drew it and hands the blast back) */
+  botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+    this.botBurst(owner, (feet) => {
+      const chest = feet.clone().setY(feet.y + 1.1);
+      const dmg = blastDamage(kind, chest.distanceTo(at));
+      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
+    }, kind);
   }
 
   /** a bot's shots at its target: this player, a guest (as a hit message), or another bot */
@@ -1426,7 +1435,8 @@ export class ArenaMode extends Duel {
     if (!other || !other.bot.alive) return;
     for (const s of shots) {
       const hit = melee ? s.from.distanceTo(other.bot.pos.clone().setY(other.bot.pos.y + 1.2)) < 2.1 : hitsBody(s.from, s.dir, other.bot.pos);
-      if (!hit) continue;
+      // (a rocket's shot does nothing: its burst does, botBurst)
+      if (!hit || s.damage <= 0) continue;
       other.bot.dummy.hit(now, "body", s.damage, 1, 1, other.bot.pos.clone().setY(other.bot.pos.y + 1.2));
       other.bot.remote.health = other.bot.dummy.health;
       other.bot.remote.shield = other.bot.dummy.shield;

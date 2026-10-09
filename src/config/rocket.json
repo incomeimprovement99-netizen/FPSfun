@@ -11,6 +11,8 @@
   "damage": { "pointBlank": 10, "from": 2, "full": 50, "fullFrom": 20 },
   "_blast": "The burst's reach, metres, growing with the flight as the damage does: reachPointBlank to reach at fullFrom. Full damage within `inner`, falling evenly to none at the reach's edge; a wall between the burst and a chest takes it. Never the shooter or a teammate.",
   "blast": { "inner": 0.6, "reachPointBlank": 1.5, "reach": 3 },
+  "_body": "A body the burst measures to when it has no figure to measure (rocket.ts bodyGap: you on your own page, a bot's rocket's victims on the host's), metres, from a figure's hit volumes (dummy.ts): `top` the head sphere's top (72 in less 0.15 plus its 0.13 radius, 1.809), `radius` the torso box's half width (0.5 / 2), `crouch` the share of it left crouched (the volumes' 1 - 0.34), `sight` the share of its height a burst must see (its chest, 1.09 m standing, where it looked before). A figure that is drawn is measured by its own volumes (rocket.ts meshGap).",
+  "body": { "radius": 0.25, "top": 1.81, "crouch": 0.66, "sight": 0.6 },
   "_model": "The rocket model, metres: one model the shot in flight, the soldier's reload and the first person's reload all draw (rocket.ts buildRocket). Sized to the launcher's bore, about 9 cm across.",
   "model": { "length": 0.42, "radius": 0.04, "nose": 0.12, "fin": 0.05 }
 }

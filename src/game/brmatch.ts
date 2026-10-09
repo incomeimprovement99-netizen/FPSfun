@@ -80,7 +80,7 @@ import { Throwables, blastDamage, throwCode } from "./throwables";
 import { lockedHopupFor } from "./attachments";
 import { weaponLabel } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
-import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, tierFor, type BotSense, type SightCue, WIRE_TIERS, type BotKit, type BotTier } from "./bots";
+import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, rocketBurst, tierFor, type BotSense, type SightCue, WIRE_TIERS, type BotKit, type BotTier, type BurstHurts } from "./bots";
 import botsCfg from "../config/bots.json";
 import { solidsIn } from "./solidgrid";
 import { floorAt } from "./floors";
@@ -875,6 +875,7 @@ export class BrMatch extends Duel {
     const scene = this.scene;
     const projectiles = this.projectiles;
     const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, Duel.BOT_ID + i, BOT_WEAPONS[i % BOT_WEAPONS.length], name);
+    bot.onRocket = (at, travelled, w) => this.botBurst(bot.remote.id, rocketBurst(w, at, travelled), w.id);
     // Its eyes are the battle royale's. A bot nobody tells keeps the arena's
     // 55 to 70 m, which was right for a 40 m room and blind on a map
     // 440 m across (bots.ts sightRange, src/config/bots.json sight).
@@ -1003,23 +1004,28 @@ export class BrMatch extends Duel {
     return !this.startLoot || b.bot.lootKit.gunId !== null;
   }
 
+  /** a bot's frag went off (the host's page drew it and hands the blast back) */
   botBlast(owner: number, at: THREE.Vector3, kind: "frag" | "arcstar"): void {
+    this.botBurst(owner, (feet) => {
+      const chest = feet.clone().setY(feet.y + 1.1);
+      const dmg = blastDamage(kind, chest.distanceTo(at));
+      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
+    }, kind);
+  }
+
+  /** a bot's burst (its frag's, its rocket's): everyone it reaches but its own squad takes what `hurts` says, from gun `w` */
+  botBurst(owner: number, hurts: BurstHurts, w: string): void {
     if (this.role !== "host" || this.phase !== "fight") return;
     const thrower = this.bots.find((x) => x.bot.remote.id === owner);
     if (!thrower) return;
     const now = wallClock();
-    const hurts = (feet: THREE.Vector3): number => {
-      const chest = feet.clone().setY(feet.y + 1.1);
-      const dmg = blastDamage(kind, chest.distanceTo(at));
-      return dmg > 0 && Throwables.inSight(at, chest) ? dmg : 0;
-    };
     // the squad: this player, and the guests by their last state
     if (this.alive && this.lastLocal) {
       const f = new THREE.Vector3(this.lastLocal.x, this.lastLocal.y, this.lastLocal.z);
-      const d = hurts(f);
+      const d = hurts(f, this.lastLocal.crouch);
       if (d > 0) {
         this.noteDamage(owner, d);
-        this.hurt(d, owner, kind, Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10);
+        this.hurt(d, owner, w, Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10);
       }
     }
     for (const r of this.remotes.values()) {
@@ -1027,11 +1033,11 @@ export class BrMatch extends Duel {
       const s = r.samples[r.samples.length - 1];
       if (!s) continue;
       const f = new THREE.Vector3(s.x, s.y, s.z);
-      const d = hurts(f);
+      const d = hurts(f, s.stance === "crouch" || s.stance === "slide");
       if (d <= 0) continue;
       this.noteDamage(owner, d);
       const dist = Math.round(thrower.bot.pos.distanceTo(f) * 10) / 10;
-      this.links.get(r.id)?.send({ t: "hit", to: r.id, amount: d, head: false, from: owner, w: kind, d: dist });
+      this.links.get(r.id)?.send({ t: "hit", to: r.id, amount: d, head: false, from: owner, w, d: dist });
       const toShield = Math.min(r.shield, d);
       r.shield -= toShield;
       r.health = Math.max(0, r.health - (d - toShield));
@@ -1040,7 +1046,7 @@ export class BrMatch extends Duel {
     // landed with turned every bot trio into a suicide pact
     for (const o of this.bots) {
       if (o === thrower || o.team === thrower.team || !o.bot.alive || o.bot.dropping) continue;
-      const d = hurts(o.bot.pos);
+      const d = hurts(o.bot.pos, !!o.down);
       if (d <= 0) continue;
       this.noteDamage(owner, d);
       o.bot.dummy.hit(now, "body", d, 1, 1, o.bot.pos.clone().setY(o.bot.pos.y + 1.2));
@@ -3246,7 +3252,8 @@ export class BrMatch extends Duel {
         const other = this.bots.find((x) => x.bot.remote.id === sense.targetId);
         if (!other || !other.bot.alive) continue;
         for (const s of shots) {
-          if (!hitsBody(s.from, s.dir, other.bot.pos, other.down ? CROUCH_TOP : BODY_TOP)) continue;
+          // (a rocket's shot does nothing: its burst does, botBurst)
+          if (s.damage <= 0 || !hitsBody(s.from, s.dir, other.bot.pos, other.down ? CROUCH_TOP : BODY_TOP)) continue;
           this.noteDamage(bot.remote.id, s.damage);
           other.bot.dummy.hit(now, "body", s.damage, 1, 1, other.bot.pos.clone().setY(other.bot.pos.y + 1.2));
           other.bot.remote.health = other.bot.dummy.health;

@@ -11104,3 +11104,41 @@ timing the first rummage, and the check passed or failed by when the checks befo
   line instead (brmatch.ts). Measured 15 s after the landing over 10 s, three matches each way: no living bot stuck with
   it, one without, and that one wedged in a fight, which the fix leaves alone. Not worth its code.
 - **Checked**: the e2e `speedkills` section on the Neon City: every check passes (97), 27 of 27 bots 3 m on. verify, rules and tsc.
+
+## Milestone 512 — A review of the soldier and HAEFY's rocket: what the rocket hit, and what the host let through
+
+The owner, 2026-10-09: "any other next steps here? we did a lot so make sure its all good, basically do a code review on
+your domain here". The soldier's hold code read as sound; the faults were in the rocket (Milestone 510), and are fixed:
+
+- **Bots' rockets were bullets.** A bot's rocket was settled the moment it left, as a round would be: its damage landed
+  before the rocket did, and a near miss did nothing. Now it bursts where it stops and the bot's match deals the burst to
+  everyone it reaches but the bot's own side, as a bot's frag already was (bots.ts Bot.onRocket and rocketBurst; each
+  match's botBurst, of which botBlast, the frag's, is now a wrapper). Seen in a live bot match: an elite bot 5 to 15 m
+  off, its rockets on you, 17 to 28 a rocket by how far each flew, and nothing taken but with a burst.
+- **Someone else's rocket flew through you.** You are no figure on your own page, so a remote player's or a bot's rocket
+  went through you and burst behind you. It stops on your body now (projectile.ts `self`, a body measured from the hit
+  volumes: rocket.json `body`).
+- **A rocket could burst on whoever fired it.** It leaves from inside its shooter (a bot's eye is in its chest volume),
+  and one fired up through the shooter's own head burst there. A rocket now never stops on the figure that fired it
+  (projectile.ts Firer: a bot's own, and a remote player's redrawn shot, duel.ts).
+- **The host refused far hits.** A hit had to come within 2.5 s of the shot that fired it; a rocket flies for 3, so a hit
+  from past about 135 m was dropped as "no shot fired". A burst gets its rocket's flight on top (net/hitcheck.ts
+  shotWindow).
+- **The burst measured to a chest point, 1.1 m up.** A rocket into the floor at someone's toes did 39 of its 50: it is
+  measured to the body now, a drawn figure by its own hit volumes as posed (rocket.ts meshGap), a body known by its feet
+  by a body the size of those volumes (bodyGap). It reaches the courses' pop-ups and the range's targets too; only the
+  range's dummies took it before.
+- **The burst ignored the gun's own damage.** It read rocket.json's ramp, not the launcher's damage by distance, so a
+  fused launcher (+2% a level) burst as an unfused one. The burst's middle is now the gun's own damage for the distance
+  flown, as a round's is for its range.
+- **Every burst rebuilt the scene's shaders.** Each one put a light in the scene for a moment, and a light changes the
+  shader of every lit material in view, a hitch on each shot. The fireball is the burst now, as the frags' flashes are.
+- **The soldier:** the chest held up (Milestone 477) updated the whole figure's matrices every frame for two bones'
+  positions; each read updates its own chain, so that went. A doc comment in rifle.ts sat over the wrong function.
+- **Checked:** tools/checks/rocket.ts (the share by gap, the gap to a body and to a turned hit volume, a step through a
+  body, the gun's curve as the burst's middle, the host taking a rocket's hit 2.9 s late and a rifle's not; that last
+  seen failing with the old window); e2e speedkills (a rocket into the floor beside a dummy's feet does the full damage
+  for its flight, 27.6 at 9.9 m, where the chest point gave four fifths; a rocket on a range target bursts on it and
+  does its 50; a bot with the launcher, placed in the open, bursts its rockets on you and you take nothing but with a
+  burst; a rocket fired from inside a still bot toward its head goes out through it as its own, 3 to 9 m, and bursts on
+  it at 0.2 m as nobody's); skfigure; bots; verify; rules; the type check.

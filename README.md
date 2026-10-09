@@ -153,8 +153,8 @@ it.
 - **The bought guns and props:** on the game server every gun is a Sci-Fi Battle
   Weapons model, in first person, in hands and on the floor, and a fused gun
   changes skin and glows brighter each level. One model a gun, by its class:
-  the two SMGs and the two shotguns one each, the two rifles the rifle,
-  HAEFY and BOOG the sniper, APUHTHEE the second pistol, CHOOCH the launcher. The
+  the two SMGs, the two shotguns and the two pistols one each, PANDA the rifle,
+  BOOG the sniper, HAEFY the rocket launcher, CHOOCH the drum launcher. The
   pack's own parts move:
   triggers, CHOOCH's drum a chamber a shot, the sniper's wheels, the heavy
   shotgun's loading gate, the magazine releases. Every gun is aimed down its
@@ -275,7 +275,8 @@ it.
   more, the rifle and CHOOCH nearly as strong far as near. HAEFY works the other
   way: its rockets fly slowly enough to see and burst where they land, about 10
   up close and harder the further they fly, 50 from 20 m on, with a bigger burst
-  too; your own rockets never hurt you or your team.
+  too; your own rockets never hurt you or your team. A bot carries it the same
+  way: its rockets hurt where they burst.
 - **Fusion:** a copy of your gun or hack, picked up, fuses it a level, to
   level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
   for a hack. The HUD shows each gun's level as pips.
