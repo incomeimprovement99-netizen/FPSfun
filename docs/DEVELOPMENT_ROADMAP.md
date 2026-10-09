@@ -11087,3 +11087,20 @@ flats was each doorway: a 2.5 m gap open to the ceiling, no frame and no head ov
   passes with every floor 93% walked or more. The layout run again on the bake leaves the config as
   it was. The e2e `speedkills` section on the Neon City: every check passes (97), 27 of 27 bots on the move by the bots' check measured past their first rummage (Milestone 502). verify and rules. The map: its files lo 93 MB, hi 158
   MB, max 378 MB. **Its files are version 47.**
+
+## Milestone 502 — The bots' walk measured past their first rummage
+
+Milestone 484's e2e on the Neon City failed one check, "the bots land and move through the city": it wants 15 of the 27
+bots 3 m on in the 6 s after the landing, and 8 to 13 were. Each bot was looked at in those 6 s (a probe of the same
+match): the ones that had not moved were standing over the first thing they found, rummaging, and none was stuck. A bot
+stands over each item 1.5 to 9 s by its tier (bots.json loot perItem), and on the Neon City a gun lies within reach of
+most landings. The same probe on the commit before the street cover (Milestone 480) gave 3 to 6 of 28: the 6 s had been
+timing the first rummage, and the check passed or failed by when the checks before it let its window start.
+
+- **The check** (tools/e2e.ts): each bot's farthest from where it stood once all had landed, over 12 s of game time
+  rather than 6 of the wall's, with 22 of the 27 wanted 3 m on. Four probe matches: 26 to 28 of 28. It fails with each
+  rummage seven times as long (2 of 27 moved, each rummage at a perItem of 1.5).
+- **A fix not made**: a bot that comes no nearer its node for 1.5 s taking the nearest node it walks to in a straight
+  line instead (brmatch.ts). Measured 15 s after the landing over 10 s, three matches each way: no living bot stuck with
+  it, one without, and that one wedged in a fight, which the fix leaves alone. Not worth its code.
+- **Checked**: the e2e `speedkills` section on the Neon City: every check passes (97), 27 of 27 bots 3 m on. verify, rules and tsc.

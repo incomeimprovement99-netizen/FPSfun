@@ -7989,13 +7989,19 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills br: 100 health and 50 shield", start.health === 100 && start.shieldMax === 50, JSON.stringify(start));
   const spireBots = await ev<number>(page, `(() => { const d = window.__range.duel(); const m = window.__range.brMap; return d.bots.filter((b) => b.dropTo && m.placeAt(b.dropTo.x, b.dropTo.z)?.id === "c").length; })()`);
   check("speedkills br: the bots drop on the Spire the most (every other squad)", spireBots >= 12, `${spireBots} of 27`);
-  // the bots land and walk the streets
+  // The bots land and walk the streets: each one's farthest from where it stood once all had landed, over 12 s of game
+  // time. Where it stood after 6 s of the wall's counted the first rummage: on the Neon City a gun lies within reach of
+  // most landings, a bot stands over it 1.5 to 9 s by its tier (bots.json loot perItem), and 8 to 13 of 28 had moved
+  // 3 m when the 6 s were up, the same before the street cover as after it; by 12 s 26 to 28 of 28 had, none of the
+  // rest stuck (a probe of seven matches, 2026-10-09).
   await page.waitForFunction("window.__range.duel().bots.every((b) => b.landed)", { polling: 500, timeout: 60000 }).catch(() => undefined);
-  const before = await ev<number[][]>(page, "window.__range.duel().bots.map((b) => [b.bot.pos.x, b.bot.pos.z])");
-  await sleep(6000);
-  const after = await ev<number[][]>(page, "window.__range.duel().bots.map((b) => [b.bot.pos.x, b.bot.pos.z])");
-  const moved = after.filter((p, i) => before[i] && Math.hypot(p[0] - before[i][0], p[1] - before[i][1]) > 3).length;
-  check("speedkills br: the bots land and move through the city", moved >= 15, `${moved} of ${after.length} moved in 6 s`);
+  const far = await ev<number[]>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const bots = r.duel().bots; const from = bots.map((b) => [b.bot.pos.x, b.bot.pos.z]); const far = bots.map(() => 0); const g0 = r.gameTime(); const t0 = performance.now();
+      const tick = () => { bots.forEach((b, i) => (far[i] = Math.max(far[i], Math.hypot(b.bot.pos.x - from[i][0], b.bot.pos.z - from[i][1])))); if (r.gameTime() - g0 < 12 && performance.now() - t0 < 240000) return void setTimeout(tick, 250); ok(far); }; tick(); }))()`,
+  );
+  const moved = far.filter((d) => d > 3).length;
+  check("speedkills br: the bots land and move through the city", moved >= 22, `${moved} of ${far.length} moved 3 m in 12 s of game time`);
   if (!(await onNeon(page))) {
     // the high ground: a bot sent up a low tower's stairs (bots.json skRoofs, city.ts ROOF_ROUTES) walks them to the
     // roof with its own movement. The match takes the choice by chance; the test makes it, and watches the walk.
