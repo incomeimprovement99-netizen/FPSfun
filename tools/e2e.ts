@@ -4041,8 +4041,9 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // off level, and the USSO's move from the fit on top, its muzzle 2.4% right and 1.8% lower)
   // (BIGANTLER, 2026-10-09, on Apex's Mastiff at rest: Apex holds it canted across the picture, its rail's edges near
   // parallel, so only its muzzle is taken, 53.5% across and 57.5% down, with the USSO's move on top; its barrel's line at
-  // the crosshair, as the others' are, 5 degrees off level)
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 } };
+  // the crosshair, as the others' are, 5 degrees off level; REZ the same way on Apex's EVA-8, its muzzle 55.5% across and
+  // 56.5% down)
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 }, shotgun: { vanish: [0.47, 0.47], muzzle: [0.579, 0.583], level: -5 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),

@@ -11264,3 +11264,30 @@ the top one perhaps without a ceiling. Measured first, off the collision and the
   The numbering check reads every door's figures in order, 1 to 11. The doorway check finds the sky floors' 11 doors
   and 2 gates with their heads under each ceiling. The e2e `speedkills` section on the Neon City: every check passes (97), 27 of 27 bots on the move; its first run failed the ghost restore twice, the host set a metre from the death box of a random drop and offered nothing, and passed whole when run again. verify and
   rules. The map: its files lo 95 MB, hi 159 MB, max 381 MB. **Its files are version 48.**
+
+## Milestone 492 — REZ in the bought arms
+
+REZ, the auto shotgun (shotgun, SciFiShotGun01_2), is the sixth gun the first person's bought arms hold
+(`PLAN_THE_EIGHT_GUNS.md` 5.4), on the pack's Drake-12: its pose and reloads, and the Drake-12's own recorded shots and
+reloads. It reloads by the shared point and phase, its long magazine under the fore-end, and racks nothing: like PANDA's,
+its model has no handle.
+
+- **The Drake-12's trigger is `Trigger1`:** tools/checks/fparms-pack.ts now takes a numbered trigger, and measured it 2.2 cm
+  from the index finger.
+- **Placed as Apex holds its EVA-8:** its muzzle (55.5% across, 56.5% down) with the USSO's move on top, its barrel's line
+  at the crosshair (`FIT`), drawn at 0.85 in your hands (`gunScale`): its fore-end is a flat-bottomed block 5.6 cm wide,
+  wider than the pack's hand closes round, and at full size every fit left the palm 20 to 25 mm in it.
+- **The furthest hold of any gun:** the left hand on the fore-end ahead of the magazine, 36 cm ahead of the gun's middle as
+  the soldier holds it. Every search from the Drake-12's own hand, grip, flush or joint by joint, left the palm or the
+  thumb's root 14 to 25 mm in the block (the pack's hand meets it edge on, and the searches that keep the palm touching
+  sank it in), so the hand was first aimed outright, its palm up under the block and its knuckles round its right side,
+  and then searched with the palm free to stand off and the fingers on: none of it seen in the gun, no daylight, the wrist
+  32 degrees.
+- **Aimed, the left shoulder 40 cm forward** (`shoulders` adsL): REZ's irons are over the gun's middle, so aimed its
+  fore-end is over 40 cm out from the eye and the arm fell 35 cm short; aimed, the left arm is out of the picture but its
+  hand. The right shoulder up and back for our raked grip, through an inspect, which rolls the gun about the right forearm:
+  147 to 22 degrees at rest, 105 to 46 in an inspect.
+- **Its sounds:** the Drake-12's tactical reload comes in three recordings (start, insert, end): tools/import-pack-sounds.ts
+  now plays a reload given as pieces one after the other.
+- **Checked:** the soldier e2e's pack frames for REZ (`E2E_ONLY=skpack E2E_GUNS=shotgun`); its gunfeel.json entry is
+  PANDA's with an auto shotgun's kick.

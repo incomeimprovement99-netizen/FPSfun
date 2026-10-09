@@ -189,8 +189,8 @@ it.
   for squad mates, gold for the crown's carrier; a double jump that turns them
   leaves a streak of the same light through the air along the turn. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
-  The USSO, BOOG, ANAKIN, PANDA and BIGANTLER are held by real first-person arms (a bought pack's,
-  where its files are): two SMG holds, a sniper hold, a rifle hold and a pump shotgun's, fitted to our guns' grips joint
+  The USSO, BOOG, ANAKIN, PANDA, BIGANTLER and REZ are held by real first-person arms (a bought pack's,
+  where its files are): two SMG holds, a sniper hold, a rifle hold and two shotguns', fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
   a pickup (every frame of each photographed and measured); the USSO's left hand
   holds it low, round the gun's lower front just ahead of its trigger guard, as
@@ -204,7 +204,8 @@ it.
   the top; BIGANTLER, the pump shotgun, is held round the middle of its pump, which the
   hand works after every shot, and is reloaded a shell at a time, the left hand
   pushing three up through the loading gate under the receiver, then pumping if it was
-  empty; and on every gun the right hand's lower three
+  empty; REZ, the auto shotgun, placed as Apex holds its EVA-8, is held furthest out of
+  all, palm up under its fore-end ahead of the long magazine; and on every gun the right hand's lower three
   fingers sit together round the grip with the forefinger's tip on the trigger; and
   the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,

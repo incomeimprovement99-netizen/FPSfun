@@ -22,7 +22,7 @@ function check(label: string, cond: boolean, detail = ""): void {
 console.log("The pack's gun sounds");
 {
   const guns = PACK.guns as Record<string, { pack: string; level: number }>;
-  const packs = PACK.packs as Record<string, { fire: string[]; reloadTac?: string; reloadEmpty?: string; foley?: string }>;
+  const packs = PACK.packs as unknown as Record<string, { fire: string[]; reloadTac?: string | string[]; reloadEmpty?: string | string[]; foley?: string }>;
   const roster = SK.roster as string[];
   const without = roster.filter((id) => !guns[id]);
   check("every gun SpeedKills hands out has a pack gun's shots", without.length === 0, without.join(", "));

@@ -94,7 +94,13 @@
         "Drake-12/S_Drake-12_02_Sounds.WAV",
         "Drake-12/S_Drake-12_03_Sounds.WAV",
         "Drake-12/S_Drake-12_04_Sounds.WAV"
-      ]
+      ],
+      "reloadTac": [
+        "Drake-12/S_Drake-12_Reload_Wet_Start.WAV",
+        "Drake-12/S_Drake-12_Reload_Wet_Insert.WAV",
+        "Drake-12/S_Drake-12_Reload_Wet_End.WAV"
+      ],
+      "reloadEmpty": "Drake-12/S_Drake-12_Reload_Dry_Full.WAV"
     },
     "Mk14EBR": {
       "fire": [

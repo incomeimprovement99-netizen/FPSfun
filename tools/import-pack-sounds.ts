@@ -53,6 +53,17 @@ type Shells = { start: string; insert: string; end: string; pump: string };
 /** its beats, shares of the empty reload's time (fparms.json packGuns reload) */
 type ShellReload = { style: string; count: number; leave: number[]; feed: number[]; push: number[]; back: number[]; pump: number[] };
 
+/** recordings one after the other */
+function inOrder(parts: Float32Array[]): Float32Array {
+  const out = new Float32Array(parts.reduce((n, p) => n + p.length, 0));
+  let at = 0;
+  for (const p of parts) {
+    out.set(p, at);
+    at += p.length;
+  }
+  return out;
+}
+
 /** a PCM WAV (16 or 24 bit, any channels) folded to mono, -1..1 */
 function readWav(path: string): { data: Float32Array; rate: number } {
   const b = readFileSync(path);
@@ -180,7 +191,7 @@ function main(): void {
   mkdirSync(OUT, { recursive: true });
   const index: Record<string, string[]> = {};
   const meta: Record<string, { clip: number; cuts: number[] }> = {};
-  const packs = CFG.packs as Record<string, { fire: string[]; reloadTac?: string; reloadEmpty?: string; foley?: string; shells?: Shells }>;
+  const packs = CFG.packs as unknown as Record<string, { fire: string[]; reloadTac?: string | string[]; reloadEmpty?: string | string[]; foley?: string; shells?: Shells }>;
   const fpGuns = FP.guns as Record<string, string>;
   const fpPacks = FP.packGuns as unknown as Record<string, { arms: { reloadTac?: string; reloadEmpty?: string; fire?: string }; reload?: ShellReload }>;
   let bytes = 0;
@@ -205,14 +216,15 @@ function main(): void {
     // a reload or a rechamber only where it is the pack gun's own animation: its sound was recorded to that clip
     if (fpGuns[id] !== g.pack) continue;
     const arms = fpPacks[g.pack]?.arms ?? {};
-    const timed: Array<[string, string | undefined, string | undefined]> = [
+    const timed: Array<[string, string | string[] | undefined, string | undefined]> = [
       [`pack_reload_${id}_tac`, p.reloadTac, arms.reloadTac],
       [`pack_reload_${id}_empty`, p.reloadEmpty, arms.reloadEmpty],
       [`pack_foley_${id}`, p.foley, arms.fire],
     ];
     for (const [key, path, clip] of timed) {
       if (!path || !clip) continue;
-      const x = src(path);
+      // (a reload recorded in pieces, the Drake-12's tactical one's start, insert and end, played one after the other)
+      const x = Array.isArray(path) ? inOrder(path.map(src)) : src(path);
       const name = `${key.slice(5)}.wav`;
       write(name, finish(x, false));
       index[key] = [name];

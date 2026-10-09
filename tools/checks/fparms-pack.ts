@@ -79,7 +79,11 @@ for (const [name, g] of Object.entries(cfg.packGuns)) {
   const holder = new THREE.Group();
   bone("ik_hand_gun")!.add(holder);
   holder.add(gun.scene);
-  const trig = gun.scene.getObjectByName("Trigger");
+  // (the Drake-12's is Trigger1)
+  let trig: THREE.Object3D | undefined;
+  gun.scene.traverse((o) => {
+    if (!trig && /^Trigger\d*$/.test(o.name)) trig = o;
+  });
   check(`${name}: the pack gun has a Trigger part`, !!trig);
   if (!trig) continue;
   // the turn: ahead (its length along the rig's z, the muzzle in front) and the trigger nearest the index finger
