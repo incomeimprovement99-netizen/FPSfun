@@ -92,6 +92,7 @@ import { operatorById, operatorWearing, OPERATORS } from "./game/operators";
 import { lookCode } from "./game/outfit";
 import { setArmColors } from "./game/arms";
 import { Menu, brTeamId, type Mode } from "./ui/menu";
+import { StartScreen } from "./ui/start";
 import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
 import type { ImpactEvent } from "./game/projectile";
@@ -6350,6 +6351,7 @@ window.addEventListener("keydown", (e) => {
   e.preventDefault();
   menuEscapes++;
   wantResume = false;
+  if (startScreen.escape()) return;
   resumeFromMenu();
   // refused (Chrome's cooldown after the Esc that let the mouse go): the next
   // thing the player does takes it, and the hint says so
@@ -6486,6 +6488,28 @@ try {
   for (const el of inputs.values()) el.addEventListener("change", saveAdv);
 }
 const playBtn = $<HTMLButtonElement>("play");
+// The start screen (src/ui/start.ts): two ways in, each through the hack pick, and More for this menu; Esc in a match
+// still opens the menu, where Leave is. A test page asks for the menu (?nohome), as it asks for no intro.
+const startScreen = new StartScreen(
+  {
+    go: (way, picks) => {
+      for (const slot of ["mobility", "utility"] as const) {
+        const sel = $<HTMLSelectElement>(slot === "mobility" ? "hackMobility" : "hackUtility");
+        if (sel.value === picks[slot]) continue;
+        sel.value = picks[slot];
+        sel.dispatchEvent(new Event("change"));
+      }
+      // the menu's own Start, on the panel's settings: the defaults, or what was set under More
+      menu.pickMode(way);
+      $<HTMLButtonElement>("startMode").click();
+    },
+    resume: () => resumeFromMenu(),
+    canResume: () => !playBtn.hidden,
+    keys: () => ({ mobility: keyLabel("ability"), utility: keyLabel("grenade") }),
+  },
+  IS_SK && !new URLSearchParams(location.search).has("nohome")
+);
+startScreen.opened(false);
 const playHint = $("playHint");
 const PLAY_HINT = playHint.textContent ?? "";
 // Refused (Chrome waits about a second after Esc before it locks again; an
@@ -6507,6 +6531,7 @@ input.onLockChange = (locked) => {
     playHint.textContent = PLAY_HINT;
   }
   if (!locked) {
+    startScreen.opened(duel !== null || hangout !== null);
     menu.setRunBest(courseBasic.best, courseAdvanced.best);
     profile.flush();
     menu.renderStats();
@@ -8378,6 +8403,7 @@ initWelcome();
   }
   note("open", { invite: invite.length === 5, code: invite.length === 5 ? invite : undefined });
   if (invite.length === 5) {
+    startScreen.more();
     menu.show("duel");
     duelCode.value = invite;
     duelJoinBtn.click();

@@ -541,6 +541,9 @@ export function tierSpeed(tier: BotTier): number {
   return DIFFICULTY[tier].speed * (IS_SK ? (PROFILE.botSpeedScale ?? 1) * (PROFILE.botTierSpeed?.[tier] ?? 1) : 1);
 }
 
+/** SpeedKills: a fighting bot's sideways share, times this (speedkills.json botStrafe) */
+const STRAFE_SCALE = IS_SK ? (PROFILE.botStrafe ?? 1) : 1;
+
 /** a shot a bot fired that may have hit an enemy: for the match to apply */
 export interface BotShot {
   from: THREE.Vector3;
@@ -1414,8 +1417,11 @@ export class Bot {
       const hold = this.scoped ? Math.max(tier.keep, Math.min(this.sight * SIGHT.holdFrac, td)) : tier.keep;
       const keep = this.knife !== null ? 0.9 : hold;
       const advance = td > keep + 1 ? 1 : td < keep - 1 ? -0.6 : 0;
-      want = want.multiplyScalar(advance).addScaledVector(side, strafe * tier.strafe);
-      if (want.length() > 1e-3) want.normalize();
+      want = want.multiplyScalar(advance).addScaledVector(side, strafe * tier.strafe * STRAFE_SCALE);
+      // capped at its whole speed, not stretched to it: holding its distance, a bot strafes at its share of its speed
+      // and slows into each turn as the sine does. Stretched, every bot ran sideways at the whole of it and reversed at
+      // full speed (a Skilled SpeedKills bot 10.8 m/s, about every 1.5 s; the owner, 2026-10-09: "wild")
+      if (want.length() > 1) want.normalize();
     } else if (dist < (this.cover ? 0.6 : sense.exact && !target ? 0.3 : 1.5) || (this.cover && !sees)) want.set(0, 0);
     // standing over a drop, rummaging through it: it does not walk while it does that
     if (this.looter.holding) want.set(0, 0);

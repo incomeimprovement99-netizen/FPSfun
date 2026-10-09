@@ -124,7 +124,9 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   const q1 = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "speedkills"}`;
   // SpeedKills opens on the Neon City map now (Phase 28); the suite's city tests are the ILranch city's, which ?map=city
   // keeps, so a SpeedKills page is on it unless its query names a map (E2E_MAP=neon puts every one on the new map)
-  const q = q1.includes("game=speedkills") && !q1.includes("map=") ? `${q1}&map=${process.env.E2E_MAP ?? "city"}` : q1;
+  const q2 = q1.includes("game=speedkills") && !q1.includes("map=") ? `${q1}&map=${process.env.E2E_MAP ?? "city"}` : q1;
+  // and on the menu, as the checks of it expect: the start screen in front of it is startScreenTest's (src/ui/start.ts)
+  const q = q2.includes("home=") ? q2 : `${q2}&nohome`;
   const url = base.includes("?") ? `${base}&${q.slice(1)}` : base + q;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
@@ -6111,8 +6113,9 @@ async function skLoadoutTest(browser: Browser): Promise<void> {
   await ev(back, `[...document.querySelectorAll("#loadoutList button")].find((x) => x.textContent.startsWith("Marksman")).click()`);
   await back.reload({ waitUntil: "domcontentloaded" });
   await back.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
-  const c = await ev<{ name: string; want: string[] }>(back, read);
-  check("a pick made after the move is kept over a reload", c.name === "Marksman" && c.want.join() === "3030,vinson", JSON.stringify(c));
+  const c = await ev<{ name: string; want: string[]; held: string[] }>(back, read);
+  // (its own guns in hand, whatever they are now: HAEFY's id changed with its launcher, Milestone 510)
+  check("a pick made after the move is kept over a reload", c.name === "Marksman" && c.held.join() === c.want.join() && c.want.join() !== "r97,sentinel", JSON.stringify(c));
   // put the first back for the pages after this one (they share the browser's storage)
   await ev(back, `[...document.querySelectorAll("#loadoutList button")].find((x) => x.textContent.startsWith("USSO and BOOG")).click()`);
   await back.close();
@@ -8400,7 +8403,125 @@ async function skSquadTest(browser: Browser): Promise<void> {
 /** the centre sector's name on the map the run is on (E2E_MAP; the old city's by default): its places name it */
 const CENTRE_NAME = ((process.env.E2E_MAP ?? "city") === "neon" ? neonSectorsCfg.game.sectors : citySectorsCfg.sectors).find((s) => s.id === "c")!.name;
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, skship, br, loot, ship, console, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, p2p, mixed) */
+/**
+ * The start screen and the hack pick before play (src/ui/start.ts; the owner, 2026-10-09: "the main screen should be
+ * like MUCH more simple"): two ways in and More; either way in asks for the hacks for ten seconds, on your last picks
+ * (DASH and HEAL for someone new), and goes in by itself when the time is up.
+ */
+async function startScreenTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&home=on");
+  await page
+    .waitForFunction(`(() => { const L = document.getElementById("loading"); return !L || L.hidden || L.classList.contains("done"); })()`, { polling: 250, timeout: 180000 })
+    .catch(() => undefined);
+  // this browser's own picks and difficulty, put back at the end: every page after this one shares them
+  const kept = await ev<{ hacks: string | null; diff: string | null }>(page, `({ hacks: localStorage.getItem("range.sk.hacks"), diff: localStorage.getItem("range.bots.difficulty") })`);
+  await ev(page, `localStorage.removeItem("range.sk.hacks")`);
+  type Views = { start: boolean; pick: boolean; click: boolean; menu: boolean; overlay: boolean };
+  const views = `({ start: !document.getElementById("start").hidden, pick: !document.getElementById("pick").hidden, click: !document.getElementById("clickPlay").hidden, menu: !document.querySelector("#overlay .menu").hidden, overlay: !document.getElementById("overlay").classList.contains("hidden") })`;
+  const first = await ev<Views>(page, views);
+  check("start: a page opens on the start screen, not the menu", first.overlay && first.start && !first.menu && !first.pick, JSON.stringify(first));
+  const ways = await ev<string[]>(page, `[...document.querySelectorAll("#start .startWay b, #startMore")].map((e) => e.firstChild.textContent.trim())`);
+  check("start: two ways in, the Firing Range and the Battle Royale, and More", ways.join("|") === "Firing Range|Battle Royale|More", ways.join("|"));
+  // More: the menu as it was, and Back to here
+  await ev(page, `document.getElementById("startMore").click()`);
+  const more = await ev<Views & { back: boolean }>(page, `(() => ({ ...${views}, back: !document.getElementById("startBack").hidden }))()`);
+  await ev(page, `document.getElementById("startBack").click()`);
+  const back = await ev<Views>(page, views);
+  check("start: More opens the menu, and its Back comes here again", more.menu && !more.start && more.back && back.start && !back.menu, JSON.stringify({ more, back }));
+  // the Firing Range: the hacks first, DASH and HEAL for someone new, with the clock running
+  await ev(page, `document.getElementById("startRange").click()`);
+  const pick = await ev<Views & { on: string[]; left: string; way: string }>(
+    page,
+    `(() => ({ ...${views}, on: [...document.querySelectorAll("#pick .pickCard.on")].map((c) => c.dataset.hack), left: document.getElementById("pickLeft").textContent, way: document.getElementById("pickFor").textContent }))()`
+  );
+  check("start: a way in asks for the hacks first, on DASH and HEAL, ten seconds on the clock", pick.pick && !pick.start && pick.on.join() === "dash,heal" && /Starting in (10|9)$/.test(pick.left) && pick.way === "Firing Range", JSON.stringify(pick));
+  // Esc in the pick is Back, not Resume
+  await page.keyboard.press("Escape");
+  const esc = await ev<Views & { locked: boolean }>(page, `(() => ({ ...${views}, locked: window.__range.input.locked }))()`);
+  check("start: Esc in the pick goes back to the start screen, and does not go in", esc.start && !esc.pick && !esc.locked, JSON.stringify(esc));
+  // GRAPPLE and WALL, and in at once
+  await ev(page, `document.getElementById("startRange").click()`);
+  await ev(page, `(() => { document.querySelector('#pickMobility [data-hack="grapple"]').click(); document.querySelector('#pickUtility [data-hack="wall"]').click(); document.getElementById("pickGo").click(); })()`);
+  await sleep(500);
+  const inRange = await ev<{ locked: boolean; duel: boolean; saved: string | null; held: string[] }>(
+    page,
+    `({ locked: window.__range.input.locked, duel: !!window.__range.duel(), saved: localStorage.getItem("range.sk.hacks"), held: [document.getElementById("hackMobility").value, document.getElementById("hackUtility").value] })`
+  );
+  check("start: Start now goes into the range with the hacks picked, kept for next time", inRange.locked && !inRange.duel && inRange.held.join() === "grapple,wall" && /grapple/.test(inRange.saved ?? "") && /wall/.test(inRange.saved ?? ""), JSON.stringify(inRange));
+  // out of the range: the start screen again, with Resume
+  await ev(page, "window.__range.input.unlock()");
+  await sleep(200);
+  const out = await ev<Views & { resume: boolean }>(page, `(() => ({ ...${views}, resume: !document.getElementById("startResume").hidden }))()`);
+  check("start: Esc out of the range is the start screen again, with Resume", out.start && out.resume, JSON.stringify(out));
+  // the Battle Royale: the last picks kept, and with nothing clicked it goes in by itself when the ten seconds are up
+  await ev(page, `document.getElementById("startBr").click()`);
+  const br0 = await ev<{ on: string[]; t: number }>(page, `({ on: [...document.querySelectorAll("#pick .pickCard.on")].map((c) => c.dataset.hack), t: performance.now() })`);
+  const went = await page.waitForFunction(`window.__range.duel()?.constructor.name === "BrMatch"`, { polling: 100, timeout: 30000 }).then(() => true, () => false);
+  const waited = ((await ev<number>(page, "performance.now()")) - br0.t) / 1000;
+  check("start: the pick opens on the last picks", br0.on.join() === "grapple,wall", br0.on.join());
+  check("start: with nothing clicked, the battle royale starts by itself when the ten seconds are up", went && waited >= 9.5 && waited < 20, `${waited.toFixed(1)} s`);
+  // in a match, Esc is the menu (Leave is there), with no way back to the start screen from it
+  await sleep(500);
+  await ev(page, "window.__range.input.unlock()");
+  await sleep(200);
+  const inMatch = await ev<Views & { back: boolean }>(page, `(() => ({ ...${views}, back: !document.getElementById("startBack").hidden }))()`);
+  check("start: Esc in a match opens the menu, with no Back to the start screen", inMatch.menu && !inMatch.start && !inMatch.back, JSON.stringify(inMatch));
+  await ev(page, "window.__range.duel()?.leave()");
+  await ev(page, `(() => { const k = ${JSON.stringify(kept)}; if (k.hacks === null) localStorage.removeItem("range.sk.hacks"); else localStorage.setItem("range.sk.hacks", k.hacks); if (k.diff !== null) localStorage.setItem("range.bots.difficulty", k.diff); })()`);
+  await page.close();
+}
+
+/**
+ * A bot's strafe in a fight (bots.ts, speedkills.json botStrafe; the owner, 2026-10-09: "make the bots a little bit
+ * easier to hit, their strafing is wild right now"). A Skilled bot in sight of you, 20 samples a second: it strafes at
+ * its share of its speed and slows into each turn. It ran sideways at the whole of its speed before, 8.6 m/s on
+ * average and 10.8 in its fastest tenth, and reversed at full speed.
+ */
+async function botStrafeTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender");
+  const kept = await ev<string | null>(page, `localStorage.getItem("range.bots.difficulty")`);
+  await ev(page, `(() => { const s = document.getElementById("botDifficulty"); s.value = "normal"; s.dispatchEvent(new Event("change")); document.getElementById("botCount").value = "1"; window.__range.startBots(); })()`);
+  await ev(page, "window.__range.input.lock()");
+  const fighting = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
+  const got = await ev<{ placed: boolean; seen: number; mean: number; p90: number } | null>(
+    page,
+    `new Promise((ok) => {
+      const r = window.__range; const d = r.duel(); const b = d?.bots[0]; if (!b) return ok(null);
+      const p = r.player.pos;
+      // you, out in the open 14 m from it and in its sight (its own spawn is behind the arena's buildings)
+      let placed = false;
+      for (let a = 0; a < 360 && !placed; a += 20) {
+        const rr = (a * Math.PI) / 180; const o = r.openGround(b.pos.x + Math.sin(rr) * 14, b.pos.z + Math.cos(rr) * 14, 1.5);
+        if (!o || Math.hypot(o.x - b.pos.x, o.z - b.pos.z) < 9) continue;
+        r.player.teleport(o.x, 0, o.z, 0, 0); placed = b.sees(p.clone());
+      }
+      const lat = []; let seen = 0; let prev = null; const t0 = performance.now();
+      const step = () => {
+        d.health = 100; d.shield = d.shieldMax;
+        const now = { t: r.gameTime(), x: b.pos.x, z: b.pos.z };
+        if (b.sees(p.clone())) {
+          seen++;
+          if (prev && now.t > prev.t) { const tx = p.x - now.x, tz = p.z - now.z, tl = Math.hypot(tx, tz) || 1; lat.push(Math.abs(((now.x - prev.x) * -tz + (now.z - prev.z) * tx) / tl / (now.t - prev.t))); }
+          prev = now;
+        } else prev = null;
+        if (performance.now() - t0 < 12000) return void setTimeout(step, 50);
+        ok({ placed, seen, mean: lat.reduce((s, v) => s + v, 0) / Math.max(1, lat.length), p90: lat.length ? lat.slice().sort((x, y) => x - y)[Math.floor(lat.length * 0.9)] : 0 });
+      };
+      step();
+    })`
+  );
+  check("bots: the strafe check found a fight to watch (a Skilled bot in sight of you)", fighting && !!got && got.placed && got.seen > 100, JSON.stringify(got));
+  if (got && got.seen > 100) {
+    // (the 90th percentile, not the single fastest sample: a frame that comes late reads as a jump in speed)
+    check("bots: a Skilled bot strafes, at its share of its speed and not the whole of it (it was 8.6 m/s on average, 10.8 in its fastest tenth)", got.mean > 2 && got.mean < 6 && got.p90 < 8.5, `${got.mean.toFixed(1)} m/s on average, ${got.p90.toFixed(1)} in its fastest tenth`);
+  }
+  await ev(page, "window.__range.duel()?.leave()");
+  await ev(page, `(() => { const k = ${JSON.stringify(kept)}; if (k !== null) localStorage.setItem("range.bots.difficulty", k); })()`);
+  await page.close();
+}
+
+
+/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, skship, br, loot, ship, console, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
 /**
  * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
  * plays on the page's own clock and takes itself away, a key or a click takes
@@ -9427,6 +9548,16 @@ async function main(): Promise<void> {
     if (want("skfriends")) await section("skfriends", async () => {
       console.log("\nSpeedKills with friends: two friends into one battle royale");
       await brFriendsJoinTest(browser);
+    });
+
+    if (want("start")) await section("start", async () => {
+      console.log("\nThe start screen: two ways in and More, and the hacks picked on a timer before play");
+      await startScreenTest(browser);
+    });
+
+    if (want("skbots")) await section("skbots", async () => {
+      console.log("\nSpeedKills' bots in a fight: a strafe that can be followed");
+      await botStrafeTest(browser);
     });
 
     if (want("skfigure")) await section("skfigure", async () => {

@@ -105,6 +105,65 @@
         .pcard .pcHacks { grid-template-columns: minmax(0, 1fr); }
       }
       #overlay.hidden { display: none; }
+      /* the start screen (src/ui/start.ts): two ways in, More under them; then the hacks, picked on a timer */
+      .start, .pick, .clickPlay { font-family: "Rajdhani", "Segoe UI", sans-serif; color: #e8fbff; }
+      .start[hidden], .pick[hidden], .clickPlay[hidden], .menu[hidden] { display: none; }
+      .start { display: flex; flex-direction: column; align-items: center; gap: 26px; width: min(1080px, 94vw); max-height: 96vh; overflow-y: auto; }
+      .startBrand { display: flex; align-items: baseline; gap: 14px; }
+      .startBrand .logo, .startBrand .title { font-weight: 700; font-style: italic; font-size: clamp(44px, 7vw, 84px); letter-spacing: .06em; line-height: 1; }
+      .startBrand .logo { color: #20e0ff; text-shadow: 0 0 22px rgba(32, 224, 255, .55); }
+      .startBrand .title { color: #ff2e9a; text-shadow: 0 0 22px rgba(255, 46, 154, .5); }
+      .startBrand .beta { align-self: center; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: #fff; background: #ff2e9a; padding: 2px 8px; border-radius: 3px; }
+      .startResume { padding: 10px 44px; border-radius: 8px; border: 2px solid #20e0ff; background: #0f5a6e; color: #e8fbff; font: 700 20px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+      .startResume:hover { background: #137690; }
+      .startWays { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; width: 100%; }
+      .startWay { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 8px; min-height: 250px; padding: 28px 30px; box-sizing: border-box; text-align: left; border-radius: 10px; border: 2px solid #1d2a44; background: linear-gradient(160deg, #0f1a33, #0a0e1c); color: #e8fbff; font: inherit; cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
+      .startWay small { font-size: 15px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; }
+      .startWay b { font-size: clamp(32px, 4.4vw, 50px); font-weight: 700; letter-spacing: .03em; line-height: 1.02; }
+      .startWay span { font-size: 17px; line-height: 1.4; color: #9aa7b8; max-width: 36ch; }
+      .startWay.training small { color: #20e0ff; }
+      .startWay.play { border-color: #ff2e9a77; background: linear-gradient(160deg, #1d1033, #0c0a1c); }
+      .startWay.play small { color: #ff2e9a; }
+      .startWay.training:hover, .startWay.training:focus-visible { border-color: #20e0ff; box-shadow: 0 0 0 1px rgba(32, 224, 255, .35), 0 0 36px rgba(32, 224, 255, .2); transform: translateY(-2px); outline: none; }
+      .startWay.play:hover, .startWay.play:focus-visible { border-color: #ff2e9a; box-shadow: 0 0 0 1px rgba(255, 46, 154, .35), 0 0 36px rgba(255, 46, 154, .2); transform: translateY(-2px); outline: none; }
+      .startMore { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 40px; border-radius: 8px; border: 1px solid #2a3a55; background: rgba(11, 14, 24, .7); color: #e8fbff; font: 700 21px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
+      .startMore span { font-size: 13px; font-weight: 600; letter-spacing: .05em; text-transform: none; color: #7d8aa0; }
+      .startMore:hover, .startMore:focus-visible { border-color: #20e0ff; outline: none; }
+      .startBack { margin-left: 4px; padding: 3px 10px; border-radius: 4px; border: 1px solid #2a3a55; background: transparent; color: #9aa7b8; font: 700 12px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; align-self: center; }
+      .startBack[hidden] { display: none; }
+      .startBack:hover { color: #e8fbff; border-color: #20e0ff; }
+      .pick { display: flex; flex-direction: column; gap: 18px; width: min(1000px, 94vw); max-height: 94vh; overflow-y: auto; box-sizing: border-box; padding: 26px 28px 22px; border-radius: 12px; background: #0b0e18; border: 1px solid #1d2a44; box-shadow: 0 0 0 1px rgba(32, 224, 255, .12), 0 24px 80px rgba(0, 0, 0, .7); }
+      .pickHead { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+      .pickHead b { font-size: 32px; font-style: italic; letter-spacing: .06em; text-transform: uppercase; }
+      .pickHead span { font-size: 15px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; color: #7d8aa0; }
+      .pickRow { display: flex; flex-direction: column; gap: 8px; }
+      .pickLabel { font-size: 14px; font-weight: 700; letter-spacing: .2em; text-transform: uppercase; }
+      .pickRow.mobility .pickLabel { color: #20e0ff; }
+      .pickRow.utility .pickLabel { color: #ff2e9a; }
+      .pickLabel kbd { margin-left: 8px; padding: 0 6px; border-radius: 3px; border: 1px solid currentColor; font: 700 12px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .06em; }
+      .pickCards { display: grid; grid-template-columns: repeat(auto-fit, minmax(138px, 1fr)); gap: 10px; }
+      .pickCard { display: flex; flex-direction: column; gap: 4px; min-height: 86px; padding: 12px 14px; box-sizing: border-box; text-align: left; border-radius: 8px; border: 2px solid #1d2a44; background: #101628; color: #e8fbff; font: inherit; cursor: pointer; }
+      .pickCard b { font-size: 20px; letter-spacing: .05em; }
+      .pickCard span { font-size: 13.5px; line-height: 1.3; color: #9aa7b8; }
+      .pickCard:hover { border-color: #3a4c6e; }
+      .pickRow.mobility .pickCard.on { border-color: #20e0ff; background: #0e2236; box-shadow: 0 0 18px rgba(32, 224, 255, .25); }
+      .pickRow.utility .pickCard.on { border-color: #ff2e9a; background: #2a0f26; box-shadow: 0 0 18px rgba(255, 46, 154, .22); }
+      .pickFoot { display: flex; align-items: center; gap: 14px; }
+      .pickTime { flex: 1; height: 6px; border-radius: 3px; background: #1a2236; overflow: hidden; }
+      .pickTime i { display: block; width: 100%; height: 100%; background: linear-gradient(90deg, #20e0ff, #ff2e9a); transform-origin: left; }
+      .pickLeft { min-width: 10ch; text-align: right; font-size: 16px; font-weight: 700; letter-spacing: .08em; color: #9aa7b8; font-variant-numeric: tabular-nums; }
+      .pickBack { padding: 9px 18px; border-radius: 6px; border: 1px solid #2a3a55; background: transparent; color: #9aa7b8; font: 700 16px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+      .pickBack:hover { color: #e8fbff; border-color: #3a4c6e; }
+      .pickGo { padding: 9px 30px; border-radius: 6px; border: 2px solid #20e0ff; background: #0f5a6e; color: #e8fbff; font: 700 18px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; }
+      .pickGo:hover { background: #137690; }
+      .clickPlay { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 36px 64px; border-radius: 12px; border: 2px solid #20e0ff; background: #0b0e18; box-shadow: 0 0 40px rgba(32, 224, 255, .25); cursor: pointer; font: inherit; color: #e8fbff; }
+      .clickPlay b { font-size: 40px; font-style: italic; letter-spacing: .08em; text-transform: uppercase; }
+      .clickPlay span { font-size: 16px; color: #9aa7b8; }
+      @media (max-width: 720px) {
+        .startWays { grid-template-columns: 1fr; }
+        .startWay { min-height: 150px; padding: 20px 22px; }
+        .pickFoot { flex-wrap: wrap; }
+      }
       .panel { width: 520px; max-width: 92vw; max-height: 94vh; overflow-y: auto; box-sizing: border-box; background: #14181d; border: 1px solid #2a323b; border-radius: 6px; padding: 22px 26px; box-shadow: 0 20px 60px rgba(0,0,0,.6); }
       .panel h1 { font-size: 20px; margin: 0 0 4px; letter-spacing: .04em; text-transform: uppercase; color: #f0f0f0; }
       .panel .sub { color: #8b96a3; font-size: 13px; margin-bottom: 18px; }
@@ -420,9 +479,25 @@
     <div id="app"></div>
     <canvas id="hud"></canvas>
     <div id="overlay">
+      <div class="start" id="start" hidden>
+        <div class="startBrand"><span class="logo">SPEED</span><span class="title">KILLS</span><span class="beta">BETA</span></div>
+        <button type="button" class="startResume" id="startResume" hidden>Resume</button>
+        <div class="startWays">
+          <button type="button" class="startWay training" id="startRange"><small>Training</small><b>Firing Range</b><span>Every gun and both of your hacks, at your own pace.</span></button>
+          <button type="button" class="startWay play" id="startBr"><small>Play</small><b>Battle Royale</b><span>Drop into the Neon City with a squad mate. Last squad standing wins.</span></button>
+        </div>
+        <button type="button" class="startMore" id="startMore">More<span>Friends, loadouts, other modes and settings</span></button>
+      </div>
+      <div class="pick" id="pick" role="dialog" aria-modal="true" aria-labelledby="pickTitle" hidden>
+        <div class="pickHead"><b id="pickTitle">Pick your hacks</b><span id="pickFor"></span></div>
+        <div class="pickRow mobility"><div class="pickLabel">Mobility<kbd id="pickKeyMobility">F</kbd></div><div class="pickCards" id="pickMobility"></div></div>
+        <div class="pickRow utility"><div class="pickLabel">Utility<kbd id="pickKeyUtility">G</kbd></div><div class="pickCards" id="pickUtility"></div></div>
+        <div class="pickFoot"><div class="pickTime"><i id="pickBar"></i></div><span class="pickLeft" id="pickLeft"></span><button type="button" class="pickBack" id="pickBack">Back</button><button type="button" class="pickGo" id="pickGo">Start now</button></div>
+      </div>
+      <button type="button" class="clickPlay" id="clickPlay" hidden><b>Click to play</b><span>The game takes your mouse. Esc gives it back.</span></button>
       <div class="menu">
         <header class="brand">
-          <span class="logo legacyOnly">B00G's</span><span class="title legacyOnly">RANGE</span><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span><span class="beta">BETA</span>
+          <span class="logo legacyOnly">B00G's</span><span class="title legacyOnly">RANGE</span><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span><span class="beta">BETA</span><button type="button" class="startBack" id="startBack" hidden>Back</button>
           <span class="loadoutChip" id="loadoutChip"></span>
         </header>
         <nav class="tabs" id="tabs">

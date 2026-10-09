@@ -413,12 +413,21 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    under it has stopped stuttering, so the rain runs smooth. A key or a click takes the rest of it, `?nointro` in the address turns
    it off for good, and a machine set to less movement gets a shorter one with
    no shake and no falling glass.
-3. The menu is up, with a short welcome on a first visit (and a warning on a
-   phone, a tablet or Safari, which cannot play). **The lobby is the Play
-   tab**: the modes down the left, and the one you pick opens its own options
-   on the right. Firing Range is the place to start. Press the green button;
-   the browser locks the mouse and goes fullscreen (Settings can turn that
-   off). **Esc** brings the menu back; **Resume** goes back in.
+3. The start screen is up: **Firing Range** on the left (Training, the place to
+   start) and **Battle Royale** on the right (Play), with **More** under them
+   for the menu. Either way in asks for your two hacks first, one mobility and
+   one utility, for ten seconds: DASH and HEAL to begin with, then whatever you
+   picked last. **Start now** goes straight in; left alone it goes in by itself
+   when the time is up and asks for one click, which the browser needs before
+   the game can take the mouse. The battle royale plays on the default
+   settings, or on what you set under More. The browser locks the mouse and
+   goes fullscreen (Settings can turn that off). **Esc** brings back the start
+   screen, or the menu in a match; **Resume** goes back in.
+   **More** is the menu, with a short welcome on a first visit (and a warning
+   on a phone, a tablet or Safari, which cannot play), and **Back** to the
+   start screen. **The lobby is its Play tab**: the modes down the left, and
+   the one you pick opens its own options on the right; the green button
+   starts it.
 4. Everything is in that one list: the guided tour (start here if you are new:
    it walks you through every move and key), the two courses, the arena
    against bots, the battle royale, team deathmatch, free-for-all and
@@ -440,7 +449,7 @@ two visits from one place can be told apart without it being written down.
 
 ## 1v1 a friend
 
-1. You: **Play tab**, pick **1v1 and 1v1v1**, set the map and the rules beside
+1. You: **More**, then the **Play tab**, pick **1v1 and 1v1v1**, set the map and the rules beside
    it, then **With friends**. A 5-letter code appears with an **invite link**,
    copied to your clipboard. Send the link (Discord, a text).
 2. Friend: open the link (on a PC, in Chrome or Edge). It joins your match by

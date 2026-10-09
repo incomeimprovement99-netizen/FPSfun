@@ -11030,6 +11030,43 @@ SpeedKills turned them off and plays its ten hacks, which stay and load at start
 - **Checked:** tsc; verify; rules; movesim; e2e owner, duel, bots, pad, range, finish, speedkills, br, loot, squad,
   modes and sksquad (the four fails of the first run fixed and rerun alone: range, finish and br pass whole).
 
+## Milestone 492 — The start screen, the hack pick before play, and a bot strafe that can be followed
+
+The owner, 2026-10-09: "the main screen should be like MUCH more simple ... two sections, one on left that is Training
+-> Firing Range and the other is Play -> Battle Royale and then a third option in the middle at the lower part should
+be something like More", and between the click and play "a super simple page/popup/modal that asks for their hack
+selection. Make it 10 seconds only and have it default to dash and heal", with a button to skip; "the BR should still
+start with the default settings, also, make the bots a little bit easier to hit, their strafing is wild right now".
+
+- **The start screen** (src/ui/start.ts, index.html): the overlay opens on SPEED KILLS and two ways in, Training's
+  Firing Range on the left and Play's Battle Royale on the right, with More low in the middle for the menu as it was
+  (the lobby, Friends, Loadouts, Stats, Settings, Controls); the menu's header has Back. It is what Esc shows out of the
+  range too, with Resume over the two ways in; in a match Esc still opens the menu, where Leave is, and an invite link
+  opens on the Friends tab as before.
+- **The hack pick:** either way in asks for one mobility and one utility hack, the ten as cards in the HUD's cyan and
+  magenta, on your last picks (DASH and HEAL until you choose others), with a bar and "Starting in" counting
+  start.json pickSeconds (10). Start now (or Enter) goes in at once; Back (or Esc) returns. Going in is the menu's own
+  Start on the panel's settings, so the battle royale starts on the defaults unless they were changed under More.
+- **The timer and the mouse:** the browser lets the game take the mouse only just after a click, which a timer
+  running out is not. A pick that times out starts the game and leaves one button up, Click to play, rather than the
+  whole menu over a match that has begun.
+- **The bots' strafe** (bots.ts, speedkills.json botStrafe): holding its distance, a bot's wanted direction was its
+  strafe alone, stretched to full length, so the sine's size never mattered: every bot ran sideways at the whole of its
+  speed, which SpeedKills doubles, and reversed at full speed. Measured in a bot match (a bot in sight of you, 20
+  samples a second for 19 s): a Skilled bot 8.6 m/s sideways on average and 11.0 at most, 13 reversals; Advanced 9.4
+  and 13.5. The strafe now follows its sine at its tier's share, capped at full speed rather than stretched to it, and
+  SpeedKills takes 0.75 of that share: Skilled 4.2 and 7.4, Advanced 5.6 and 10.0, each slowing into its turns.
+  Casual, which stood and shot while holding its distance, now sways gently (1.5 m/s on average).
+- **Tests:** the e2e's `start` section (the screen, More and Back, the pick's defaults and its clock, Esc in the pick,
+  Start now into the range with the picks kept, Resume, the battle royale going in by itself after ten seconds, Esc in
+  a match) and `skbots` (a Skilled bot's sideways speed: under 6 m/s on average and 8.5 in its fastest tenth; with the
+  stretch put back it read 10.0 and failed). Every other page asks for the menu (`nohome`), as it asks for no intro.
+- **Mended on the way:** sklobby's check that a Marksman pick is kept over a reload still held HAEFY's gun id from
+  before its launcher (Milestone 510) and failed on main too; it checks the loadout's own guns in hand now.
+- **Checked:** tsc; verify; rules; e2e start, skbots, page, panel, owner, pad, sklobby, speedkills, bots, skhunt, br.
+  The page section's loading check missed its 30 s twice, alone too, with the machine at 91% and six other e2e runs
+  going (a rendered page took over three minutes to boot): load, not this change, and it is rerun on a quiet machine.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

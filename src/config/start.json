@@ -1,0 +1,4 @@
+{
+  "_note": "The start screen and the hack pick before play (src/ui/start.ts). The owner, 2026-10-09: the main screen should be \"MUCH more simple\": two ways in, Training's Firing Range on the left and Play's Battle Royale on the right, and \"More\" low in the middle for the menu as it was; and between the click and play \"a super simple page/popup/modal that asks for their hack selection. Make it 10 seconds only and have it default to dash and heal\", with a button to skip the wait. pickSeconds is that wait; the picks start on your last ones, DASH and HEAL until you choose others (hacks.ts savedPicks).",
+  "pickSeconds": 10
+}

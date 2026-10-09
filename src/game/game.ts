@@ -63,6 +63,8 @@ export interface GameProfile {
   botSpeedScale?: number;
   /** and a tier's own on top of it (speedkills.json botTierSpeed: Casual slower) */
   botTierSpeed?: Record<string, number>;
+  /** a fighting bot's sideways share times this (speedkills.json botStrafe) */
+  botStrafe?: number;
   /** the battle royale row as everyone starts it, written once over what a browser had (main.ts applyBrDefaults) */
   brDefaults?: { tag: string; team: string; bots: number; pace: string; start: string; difficulty: string };
   /** a bot's tier aim lag times this (speedkills.json botAimLagScale; Phase 20 A18) */
