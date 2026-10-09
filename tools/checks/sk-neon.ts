@@ -535,13 +535,16 @@ check("each corner block named on the map over its roof yard, or the Well's over
 // back up from the yard onto the deck, by a player: stood under its end facing along it, interact, and left to ride)
 {
   const ZS = (cfg as unknown as { zips?: Array<{ block: string; a: number[]; b: number[] }> }).zips ?? [];
-  const zipRide = (from: number[], to: number[]) => {
+  // (and from the tower's lookout to its decks, rules.low.zip.lookout, its end at the lookout `over` its roof)
+  const ZR = cfg.rules.low as unknown as { zip: { over: number; decks: object; lookout?: { decks: string[]; over: number } } };
+  const overOf = (q: { block: string; b: number[] }, end: number[]) => (q.block.startsWith("lookout") && end === q.b ? ZR.zip.lookout!.over : ZR.zip.over);
+  const zipRide = (from: number[], to: number[], over: number) => {
     const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
     const [dx, dz] = [to[0] - from[0], to[2] - from[2]];
     const l = Math.hypot(dx, dz);
     // (0.6 m along it from its end, on what is under there)
     const [sx, sz] = [from[0] + (dx / l) * 0.6, from[2] + (dz / l) * 0.6];
-    p.teleport(sx + BR_X, from[1] - 2.3, sz + BR_Z, (Math.atan2(-dx, -dz) * 180) / Math.PI);
+    p.teleport(sx + BR_X, from[1] - over + 0.05, sz + BR_Z, (Math.atan2(-dx, -dz) * 180) / Math.PI);
     p.pitch = 15;
     let [t, tap] = [1000, false];
     const input = { held: (_a: Action) => false, pressedNow: (a: Action) => tap && a === "interact" };
@@ -555,9 +558,20 @@ check("each corner block named on the map over its roof yard, or the Well's over
     for (let i = 0; i < 144 * 2; i++) step();
     return { rode, x: p.pos.x - BR_X, y: p.pos.y, z: p.pos.z - BR_Z };
   };
-  const rides = ZS.map((q) => ({ q, down: zipRide(q.a, q.b), up: zipRide(q.b, q.a) }));
-  const ok = (r: { rode: boolean; x: number; y: number; z: number }, end: number[]) => r.rode && Math.hypot(r.x - end[0], r.z - end[2]) < 4 && Math.abs(r.y - (end[1] - 2.35)) < 0.6;
-  check("the zip lines: from the roof yards to the High City decks (rules.low.zip.decks), ridden down onto the yard and back up onto the deck, by a player", ZS.length === Object.keys((cfg.rules.low as unknown as { zip?: { decks: object } }).zip?.decks ?? {}).length && ZS.length > 0 && rides.every((r) => ok(r.down, r.q.b) && ok(r.up, r.q.a)), rides.map((r) => `${r.q.block}: down ${r.down.rode ? "rode" : "no grab"} to (${r.down.x.toFixed(1)}, ${r.down.y.toFixed(2)}, ${r.down.z.toFixed(1)}), up ${r.up.rode ? "rode" : "no grab"} to (${r.up.x.toFixed(1)}, ${r.up.y.toFixed(2)}, ${r.up.z.toFixed(1)})`).join("; "));
+  const rides = ZS.map((q) => ({ q, down: zipRide(q.a, q.b, overOf(q, q.a)), up: zipRide(q.b, q.a, overOf(q, q.b)) }));
+  // (ridden up to the lookout, anywhere on its roof: a rider comes off a rope's top end at its speed, up to 15 m/s along
+  // it, and is carried 8 to 14 m, across the lookout's middle or against the tower's wall; ridden down one onto its deck,
+  // within 6 m of its end and a metre of its height, carried on 2 to 5 m and onto the deck's lower parts; on the roof
+  // yards' ropes it stops by the end)
+  const look = (cfg.rules.perches as unknown as Array<{ name: string; box: number[]; y: number[] }>).find((p) => p.name === "lookout");
+  const onLookout = (r: { x: number; y: number; z: number }) => !!look && r.x > look.box[0] && r.x < look.box[1] && r.z > look.box[2] && r.z < look.box[3] && r.y > look.y[0] - 0.2;
+  const ok = (r: { rode: boolean; x: number; y: number; z: number }, q: { block: string; b: number[] }, end: number[]) =>
+    r.rode && (q.block.startsWith("lookout") && end === q.b ? onLookout(r) : Math.hypot(r.x - end[0], r.z - end[2]) < (q.block.startsWith("lookout") ? 6 : 4) && Math.abs(r.y - (end[1] - overOf(q, end))) < (q.block.startsWith("lookout") ? 1 : 0.6));
+  check(
+    "the zip lines: from the roof yards to the High City decks (rules.low.zip.decks) and from the tower's lookout to its decks, each ridden from end to end both ways by a player",
+    ZS.length === Object.keys(ZR.zip.decks).length + (ZR.zip.lookout?.decks.length ?? 0) && ZS.length > 0 && rides.every((r) => ok(r.down, r.q, r.q.b) && ok(r.up, r.q, r.q.a)),
+    rides.map((r) => `${r.q.block}: ${r.down.rode ? "rode" : "no grab"} to (${r.down.x.toFixed(1)}, ${r.down.y.toFixed(2)}, ${r.down.z.toFixed(1)}), back ${r.up.rode ? "rode" : "no grab"} to (${r.up.x.toFixed(1)}, ${r.up.y.toFixed(2)}, ${r.up.z.toFixed(1)})`).join("; "),
+  );
 }
 check("the high city decks, the lobby and the corner blocks as the map's named sites", map.sites.length === cfg.game.sites.list.length, map.sites.map((s) => s.name).join(", "));
 

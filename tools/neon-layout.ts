@@ -2284,7 +2284,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 // body's room (movement.json ziplineHang under it, a body's radius round it) clear of the last bake's collision all
 // along it, within `reach` metres; ridden as any zipline is, up or down (src/game/neonmap.ts draws it)
 {
-  const Z = R.low.zip as { over: number; reach: number; run: number; decks: Record<string, string[]>; colours: Record<string, string> } | undefined;
+  const Z = R.low.zip as { over: number; reach: number; run: number; decks: Record<string, string[]>; colours: Record<string, string>; lookout?: { perch: string; decks: string[]; colour: string; over: number; inset: number; raised: number; apart: number; clear: number } } | undefined;
   if (Z && existsSync(SOLIDS_FILE)) {
     const S = lastSolids();
     const MV = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8"));
@@ -2334,6 +2334,82 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         continue;
       }
       zips.push({ block: y.block, a: best.a.map((v) => +v.toFixed(3)), b: b.map((v) => +v.toFixed(3)), colour: Z.colours[y.block] });
+    }
+    // (and from the tower's lookout, `lookout`: the roof of its east block at 49 m, the perch of that name, reached only by
+    // a pad, down to each High City deck named: the fourth review found no way between the two ("zip lines from the
+    // lookout to the decks: there are none"). Its end on the deck is `a`, as the others' are, on flat floor (a rail's top
+    // in the deck's heights dropped the first rider through to the street), and at the lookout `b`, on the lookout's side
+    // facing the deck, `inset` in, `over` the highest of its roof under it: the roof is broken by raised parts and a
+    // parapet `raised` over its floor, and a rider hangs 2.13 m under a rope, so one ended over the floor high enough to
+    // clear them dropped off its end and was thrown 10 to 22 m, off the far side; ended over the parapet the rider touches
+    // down at the end as on the decks. The shortest rope clear from its start on (of the roof under that end), with roof
+    // on past each end)
+    const LK = Z.lookout;
+    const PCH = LK ? ((R.perches ?? []) as Array<{ name: string; y: number[]; box: number[] }>).find((q) => q.name === LK.perch) : undefined;
+    if (LK && !PCH) throw new Error(`no perch ${LK.perch} for the lookout's zip lines`);
+    if (LK && PCH) {
+      const [lx0, lx1, lz0, lz1] = PCH.box;
+      const roofAt = (x: number, z: number) => {
+        let t = -Infinity;
+        for (const q of S) if (x >= q[0] && x <= q[1] && z >= q[2] && z <= q[3] && q[5] >= PCH.y[0] - 0.3 && q[5] <= PCH.y[1] + LK.raised && q[5] > t) t = q[5];
+        return t;
+      };
+      for (const d of LK.decks) {
+        const [x0, x1, z0, z1] = deck(d);
+        const side: number[][] = [];
+        const n0 = LK.inset;
+        for (let u = 1.5; u <= (d === "n" || d === "s" ? lx1 - lx0 : lz1 - lz0) - 1.5; u += 1)
+          side.push(d === "n" ? [lx0 + u, lz0 + n0] : d === "s" ? [lx0 + u, lz1 - n0] : d === "e" ? [lx1 - n0, lz0 + u] : [lx0 + n0, lz0 + u]);
+        const flat = (x: number, z: number, t: number) => [[0.5, 0], [-0.5, 0], [0, 0.5], [0, -0.5]].every(([dx, dz]) => Math.abs(topAt(x + dx, z + dz) - t) < 0.05);
+        const clearFrom = (b: number[], a: number[], roof: number) => {
+          const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+          for (let t = 0.3; t < L - 2; t += 0.25) {
+            const [x, y, z] = [0, 1, 2].map((k) => b[k] + ((a[k] - b[k]) * t) / L);
+            for (const q of S) if (q[5] > roof + 0.05 && q[0] < x + rad && q[1] > x - rad && q[2] < z + rad && q[3] > z - rad && q[4] < y + 0.2 && q[5] > y - hang - 0.1) return false;
+          }
+          return true;
+        };
+        // (its deck end `apart` metres from every other way on or off the deck: a rider grabs the nearest rope in reach, and
+        // ends on the inner edges facing the tower stood at the glass lifts' landings, so the lifts' riders went up to the
+        // lookout instead of down to their cars)
+        const ways: number[][] = [
+          ...lifts.flatMap((q) => [q.land, [q.rope[1][0], q.rope[1][2]]]),
+          ...((cfg.pads ?? []) as Array<{ face: number[]; pad: number[] }>).flatMap((q) => [q.face, q.pad]),
+          ...((R.bridges?.paths ?? []) as number[][][]).flatMap((p) => [p[0], p[p.length - 1]]),
+          ...zips.flatMap((q) => [[q.a[0], q.a[2]], [q.b[0], q.b[2]]]),
+        ];
+        const apart = (x: number, z: number) => ways.every((w) => Math.hypot(w[0] - x, w[1] - z) >= LK.apart);
+        let best: { a: number[]; b: number[]; L: number } | null = null;
+        for (const [bx, bz] of side) {
+          const top = roofAt(bx, bz);
+          if (top === -Infinity) continue;
+          const b = [bx, top + LK.over, bz];
+          const cand: Array<{ a: number[]; L: number }> = [];
+          for (let x = x0 + 1; x < x1; x += 1)
+            for (let z = z0 + 1; z < z1; z += 1) {
+              const t2 = topAt(x, z);
+              if (t2 === -Infinity || !flat(x, z, t2) || !apart(x, z)) continue;
+              const L = Math.hypot(x - bx, z - bz);
+              if (L <= Z.reach) cand.push({ a: [x, t2 + Z.over, z], L });
+            }
+          cand.sort((p, q) => p.L - q.L);
+          for (const { a, L } of cand) {
+            if (best && L >= best.L) break;
+            // (roof on past both ends along the rope: a rider is thrown on off either)
+            const [ux, uz] = [(a[0] - bx) / L, (a[2] - bz) / L];
+            let roofed = true;
+            for (let k = 1; k <= Z.run && roofed; k += 1) if (topAt(a[0] + ux * k, a[2] + uz * k) < a[1] - Z.over - 1 || roofAt(bx - ux * k, bz - uz * k) < top - 1) roofed = false;
+            if (!roofed || !clearFrom(b, a, top)) continue;
+            best = { a, b, L };
+            break;
+          }
+        }
+        if (!best) {
+          console.log(`no clear zip line from the lookout to the ${d} deck within ${Z.reach} m`);
+          continue;
+        }
+        zips.push({ block: `lookout-${d}`, a: best.a.map((v) => +v.toFixed(3)), b: best.b.map((v) => +v.toFixed(3)), colour: LK.colour });
+      }
     }
     cfg.zips = zips;
     console.log(`zip lines: ${zips.map((q) => `${q.block} ${Math.hypot(q.a[0] - q.b[0], q.a[2] - q.b[2]).toFixed(1)} m`).join(", ")}`);
@@ -2395,6 +2471,9 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     for (const q of lifts) lands.push([q.land[0], q.land[1], PC.lift]);
     for (const path of (R.bridges?.paths ?? []) as number[][][]) for (const e of [path[0], path[path.length - 1]]) lands.push([e[0], e[1], PC.bridge]);
     for (const q of ((cfg.zips ?? []) as Array<{ a: number[] }>)) lands.push([q.a[0], q.a[2], PC.zip]);
+    // (and the lookout's zip lines' ends on it, a grab's room round each: a rider comes off one at speed and is carried
+    // 8 to 14 m whatever stands there, and at the decks' 4 m three ends left the lookout one crate)
+    for (const q of ((cfg.zips ?? []) as Array<{ block: string; b: number[] }>).filter((z) => z.block.startsWith("lookout"))) lands.push([q.b[0], q.b[2], (R.low.zip.lookout as { clear: number }).clear]);
     const perches: Array<{ name: string; at: number[][] }> = [];
     const roofCounts: string[] = [];
     // (every perch's pieces so far: a deck's landmark keeps off its cover as its cover keeps off itself)

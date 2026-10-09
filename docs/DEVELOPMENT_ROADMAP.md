@@ -11311,3 +11311,31 @@ round the tower at the 32 m storey's floor and ceiling, lost against the facade'
   (both 0.84 m and 0.67 m now; the bake before recorded no height, its bands 0.3 m); a new check wants every lamp of the
   vault storey gold (failing with the gold taken off: 0 of 15 lamps gold). The e2e `speedkills` section on the Neon City: every check passes (101). verify and rules. The map: its files
   lo 95 MB, hi 159 MB, max 381 MB. **Its files are version 49.**
+
+## Milestone 505 — Zip lines from the tower's lookout to three of the High City decks
+
+The plan's next item in the middle building (docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md, item 5): the fourth review found
+no way between the tower's lookout, the roof of its east block at 49 m that only a pad reached, and the High City decks
+round it ("zip lines from the lookout to the decks: there are none").
+
+- **Three ropes** (`rules.low.zip.lookout`, tools/neon-layout.ts): from the lookout down to the north deck (46.1 m), the
+  east (39.8 m) and the south (57.7 m), lit in the tower's violet and ridden up or down as the roof yards' two are. The
+  layout takes the shortest clear rope from the lookout's side facing each deck.
+- **Its ends at the lookout over its parapet.** Measured off the bake's collision, the lookout's roof is broken: a 49 m
+  floor, raised parts and a parapet at 49.5 m, plant boxes to 51.5 m, and a rider hangs 2.13 m under a rope. Ended
+  2.35 m over the floor, as the others' ends are over their decks, the first ride up stopped at once against the raised
+  parts. Ended 3.5 m over it, the rider dropped off the end and was thrown 10 to 22 m, the south rope's rider off the
+  lookout's far side to 38 m. Ended at the roof's edge 2.35 m over the parapet, the rider touches down at the end and is
+  carried 8 to 14 m on (the game's zip exit, up to 15 m/s along the rope), across the lookout's middle or against the
+  tower's own wall. From the floor each rope is 2.85 m up, within reach.
+- **Its ends on the decks clear of the other ways.** On flat floor (a rail's top in the decks' heights dropped the first
+  rider through to the street), and 6 m from every other way on or off a deck: the first ends, on the decks' inner edges
+  facing the tower, stood at the glass lifts' landings, and the lift check found the lifts' riders grabbing the new rope
+  and riding up to the lookout instead of down to their cars. The decks' cover moved to keep its 4 m off the new ends,
+  and the lookout's crates keep 1.5 m off theirs (at the decks' 4 m the three ends left the lookout one crate of its two).
+- **Left of the item**: the lookout's canopy and third crate, cover on the bridge ring, the gangway from a deck to the
+  tower's 26 m windows. The west deck has no rope: the tower stands between it and the lookout.
+- **Checked** (tools/checks/sk-neon.ts): the zip check rides all five ropes both ways with a player's own movement, and
+  wants a ride up to the lookout to end on it and one down to a deck within 6 m and a metre of its end; the lifts, the
+  perches and the decks' cover checks pass with the new ends. The e2e `speedkills` section on the Neon City: every check passes (101); its first run failed the capture zone's win once, the player dropped onto the centre's zone and the squad out within 3.5 s, and passed whole when run again with the same zone.
+  verify and rules. The map: its files lo 95 MB, hi 159 MB, max 381 MB. **Its files are version 50.**
