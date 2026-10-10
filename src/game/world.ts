@@ -3,6 +3,7 @@
 // legacy ring's wall, the Spire top the dropship flies past, and the bots' roof routes. The Neon City sets the sectors and
 // the Spire top as it is built (neonmap.ts); the numbers are world.json's.
 import * as THREE from "three";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { emissive } from "./geo";
 import { BR_X, BR_Z, BR_HALF } from "./br";
@@ -108,16 +109,22 @@ export function buildEdgeFence(root: THREE.Group): void {
   }
   posts.name = "edgePosts";
   root.add(posts);
-  for (const [w, d, x, z] of [
-    [BR_HALF * 2, 0.5, 0, -BR_HALF],
-    [BR_HALF * 2, 0.5, 0, BR_HALF],
-    [0.5, BR_HALF * 2, -BR_HALF, 0],
-    [0.5, BR_HALF * 2, BR_HALF, 0],
-  ] as const) {
-    const strip = new THREE.Mesh(new THREE.BoxGeometry(w, 0.04, d), postMat);
-    strip.position.set(x, 0.05, z);
-    root.add(strip);
-  }
+  // the strips on the ground, one mesh of the four, named and left out of the page's merge (staticmerge.ts) so a match on
+  // a Neon arena can hide it (neonmap.ts showNeonPart): merged with the city's other meshes, it ran across the arenas' sky
+  const strips = new THREE.Mesh(
+    mergeGeometries(
+      ([
+        [BR_HALF * 2, 0.5, 0, -BR_HALF],
+        [BR_HALF * 2, 0.5, 0, BR_HALF],
+        [0.5, BR_HALF * 2, -BR_HALF, 0],
+        [0.5, BR_HALF * 2, BR_HALF, 0],
+      ] as const).map(([w, d, x, z]) => new THREE.BoxGeometry(w, 0.04, d).translate(x, 0.05, z))
+    ),
+    postMat
+  );
+  strips.name = "edgeStrips";
+  strips.userData.dynamic = true;
+  root.add(strips);
   FENCE = { mat, tex, base: F.opacity };
 }
 

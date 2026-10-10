@@ -11696,3 +11696,36 @@ checks and its tools. The new 1v1 maps are the next milestone.
 - **Its bought files** (575 MB of the old city's kits in apex-range's public/models/paid/city, which every deploy
   copied into its build and uploaded) moved out of the game to speedkills-paid/old-city/.
 - **Checked**: verify and rules, the type check, and the e2e: the speedkills section, 100 checks, none failed; the sktour, skship, sksquad, skfigure, sklobby, skhunt, skarmory and skfriends sections 376 passed and one failed, the tour's HIGH GROUND, which then failed alone too: its first shot missed and the next hit came just after the check's 3.3 s, so it now waits 6 s as every other step does and says how long the hit took (0.02 s on the rerun, 11 of 11). The guns' frame audit (skpack) was left out: the arms on the range are not the city's.
+
+## Milestone 508 — NEON YARD and NEON HALL: SpeedKills' two 1v1 maps, of the Neon City's own pieces
+
+The owner, 2026-10-09: "remake a small 1v1 maps similar to what we had. 2 1v1 maps, 1 centre destrict map, 1 br map, all
+new neon stuff, the 1v1 maps are supposed to be super basic." The second part of that, after the old city went
+(Milestone 507): SpeedKills now plays on four maps, all the Neon City bundle's: NEON YARD and NEON HALL for a 1v1, THE
+CENTRE (the city's middle) for everything with more players, and the Neon City for the battle royale.
+
+- **Two plain rooms** (neon-layout.ts `rules.arenas`), laid by the city's layout out past its square at map-local z 270,
+  where nothing of the city stands, each a chunk of its own: NEON YARD, 30 by 40 m under the sky inside the pack's 7 m
+  concrete street walls, and NEON HALL, 25 by 30 m inside two rows of its 3 m panel walls under a 6 m roof of its floor
+  slabs, windows along the top row of its long sides. Their cover is the pack's crates, cool boxes, panel walls and (in
+  the hall) six two-storey pillars, every piece laid twice, the second half a turn about the middle, so neither end is
+  the better. A wall breaks the line between each pair of opposite spawns at least 6 m in front of each (a spawn faces
+  open floor, the arenas' rule), and nothing stands within 4.7 m of the middle, where the 1v1's circle is. The hall
+  hangs the base's ceiling lamp, so the interiors' fill lights stand under it. Lamps and a neon sign at each end.
+  The pack's street wall is drawn from one side only and its panels are concrete one side and plaster the other, so
+  each side's pieces are turned to face the room (`walls.front`): turned alike, the first bake's yard had one long wall
+  and one end wall missing from inside, and the hall two plaster walls.
+- **Drawn alone.** The bake keeps a chunk not named "c-" as its own node of the city's file. A match on an arena shows
+  its node alone, with none of the city, its edge's fence and strips or its ropes (neonmap.ts `showNeonPart`): a 7 m wall
+  is no screen against a 144 m tower. Neither arena is drawn in a battle royale. The sun's shadow box sits over the
+  arena. The first photographs found the ropes and the edge's ground strips still in the yard's sky: the page's static
+  merge had folded them into the city's other meshes of their colour, where nothing could hide them, so the ropes are
+  built merged a colour each in a group of their own and the strips as one named mesh, both left out of it (as few draws
+  as before). The battle royale's ring wall starts hidden on the Neon map: SpeedKills' decay hides it as a match begins,
+  and before any match it stood at its unit size in the tower's middle, a 120 m line in the yard's sky.
+- **Picked:** a 1v1 opens on NEON YARD (arena.ts `mapFor`), NEON HALL and THE CENTRE in the Map box beside it; the
+  free-for-all, team deathmatch, Control and the three-player 1v1 play THE CENTRE, which has spawns for eight. SpeedKills'
+  Map box offers its Neon maps alone: NEON BLOCK, the warehouse and the drawn arenas are the legacy game's.
+- **Also:** the layout read the map's half side from city.json, which Milestone 507 took out; it reads world.json now.
+- **Checked** (tools/checks/sk-neon.ts): eleven new checks, all passing, each proven by putting its bug back in a copy of the config (a pair of spawns moved inside their walls: in sight; a spawn 1.25 m from its wall: 1.0 m of open floor; the hall read 1 m wider than its walls: 118 gaps; its roof read at 8 m: 750 m2 open); the layout rerun after the bake left the config unchanged. The e2e: the speedkills and modes sections, every arena check passing (a 1v1 opening on NEON YARD with the city's file showing the yard alone; NEON HALL and THE CENTRE picked; a free-for-all on NEON YARD and Control on NEON HALL with everyone inside the walls and each spawn facing open floor; the free-for-all picked for the mode on THE CENTRE), 154 passed and 3 failed, the ghost's restore in a two-tab battle royale, which passed on the speedkills section's rerun alone (101 of 101). verify, rules and the type check. The look: photographed in the game from both ends, the sides, above and under the hall's lamps: the yard's four walls seen from inside, the hall concrete all round and lit by its lamps, and nothing of the city in either's sky.
+  The map: its files lo 96 MB, hi 160 MB, max 382 MB. **Its files are version 52.**

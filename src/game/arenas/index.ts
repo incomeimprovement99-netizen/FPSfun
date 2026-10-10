@@ -37,6 +37,8 @@ export interface ArenaMapInfo {
   plan: ArenaPlan | null;
   /** played on the battle royale's city, not on an arena of its own (THE CENTRE, arenas/centre.ts) */
   city?: boolean;
+  /** the city file's own piece it is drawn in, shown alone while it is played, the city hidden (arenas/neonarenas.ts) */
+  chunk?: string;
 }
 
 /** a plan, as the rest of the game wants to read it */

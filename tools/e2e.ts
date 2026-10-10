@@ -1038,12 +1038,12 @@ async function startModePage(browser: Browser, query: string, button: string, se
  * reach the fight, so the positions are what is checked.
  */
 async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
+  // SpeedKills' own maps, the Neon ones (the owner, 2026-10-09: "2 1v1 maps, 1 centre destrict map, 1 br map, all new neon
+  // stuff"): its two arenas from the picker, and "picked for the mode", a free-for-all on THE CENTRE
   const cases: Array<{ map: string; button: string; want: string; bots: string }> = [
-    { map: "vault", button: "goFfa", want: "vault", bots: "3" },
-    { map: "crossing", button: "goControl", want: "crossing", bots: "3" },
-    { map: "ringworks", button: "goFfa", want: "ringworks", bots: "3" },
-    // "picked for the mode": SpeedKills plays its free-for-all in NEON BLOCK, its city's own arena
-    { map: "auto", button: "goFfa", want: "neonblock", bots: "2" },
+    { map: "yard", button: "goFfa", want: "yard", bots: "3" },
+    { map: "hall", button: "goControl", want: "hall", bots: "3" },
+    { map: "auto", button: "goFfa", want: "centre", bots: "2" },
   ];
   for (const c of cases) {
     const page = await startModePage(browser, query, c.button, `document.getElementById("modeBots").value = "${c.bots}"; document.getElementById("arenaMap").value = "${c.map}"`);
@@ -1071,13 +1071,14 @@ async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
           if (R.solids.some((s) => x > s.minX && x < s.maxX && z > s.minZ && z < s.maxZ && s.base < 1.6 && s.top > 1.6)) break; }
         return d; })()`
     );
-    check(`maps: on ${r.id} you spawn facing open floor, not a box`, view >= 6, `${view.toFixed(1)} m clear ahead`);
+    // (THE CENTRE's spawns face its tower, across the ring road: open floor is the arenas' rule)
+    if (r.id !== "centre") check(`maps: on ${r.id} you spawn facing open floor, not a box`, view >= 6, `${view.toFixed(1)} m clear ahead`);
     if (r.kind === "control") check(`maps: Control's three zones are on ${r.id}, not in the warehouse`, r.zones === 3 && r.zonesIn === 3, `${r.zonesIn} of ${r.zones}`);
     await page.close();
   }
   // the 1v1 against bots, alone, which is where a 1v1 on a small map is played
-  // most: the same picker, the Vault
-  const page = await startModePage(browser, query, "goBots", `document.getElementById("botCount").value = "1"; document.getElementById("arenaMap").value = "vault"`);
+  // most: the same picker, NEON HALL
+  const page = await startModePage(browser, query, "goBots", `document.getElementById("botCount").value = "1"; document.getElementById("arenaMap").value = "hall"`);
   await sleep(1500);
   const v = await ev<{ id: string; me: boolean; bots: number; botsIn: number; phase: string }>(
     page,
@@ -1088,7 +1089,7 @@ async function arenaMapsTest(browser: Browser, query: string): Promise<void> {
       return { id: d.arenaId, phase: d.phase, me: inside(p.x, p.z), bots: figs.length, botsIn: figs.filter((q) => inside(q.x, q.z)).length };
     })()`
   );
-  check("maps: the 1v1 against a bot plays on the Vault when it is picked, you and the bot inside it", v.id === "vault" && v.me && v.bots === 1 && v.botsIn === 1, JSON.stringify(v));
+  check("maps: the 1v1 against a bot plays on NEON HALL when it is picked, you and the bot inside it", v.id === "hall" && v.me && v.bots === 1 && v.botsIn === 1, JSON.stringify(v));
   await page.close();
 }
 
@@ -5903,17 +5904,37 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await skWholeNumbers(page);
   await skHitsLand(page);
   await page.close();
-  // a bot match in SpeedKills, a 1v1: on THE CENTRE, the Neon City's middle (below)
+  // a bot match in SpeedKills, a 1v1: on NEON YARD by default, THE CENTRE picked (below)
   const arena = await open(browser, "?game=speedkills");
   await ev(arena, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
   await arena.waitForFunction("window.__range.duel()?.phase === 'fight' || window.__range.duel()?.phase === 'countdown'", { polling: 200, timeout: 20000 }).catch(() => undefined);
   await sleep(500);
-  // SpeedKills' 1v1 on the Neon City is fought on THE CENTRE (arenas/centre.ts, the owner, 2026-10-01): the city's
-  // own middle, inside a circle you cannot leave; its bot from the spawn north of the tower reaches the 1v1's circle by
-  // the city's graph (walking straight at it from there, it was 40 m off after 45 s: measured from each spawn)
+  // SpeedKills' 1v1 against a bot opens on NEON YARD (arenas/neonarenas.ts; the owner, 2026-10-09: "2 1v1 maps ... the 1v1
+  // maps are supposed to be super basic"): you and the bot inside its walls, and the city's file showing the yard alone,
+  // none of the city, its fence or its ropes (a 7 m wall is no screen against a 144 m tower)
+  {
+    const page = await open(browser, "?game=speedkills");
+    await ev(page, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
+    await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 200, timeout: 60000 }).catch(() => undefined);
+    await page.waitForFunction("window.__range.neonMap().drawn", { polling: 500, timeout: 120000 }).catch(() => undefined);
+    const y = await ev<{ map: string; me: boolean; bot: boolean; drawn: boolean; part: { shown: string | null; nodes: string[]; extras: boolean } }>(
+      page,
+      `(() => { const R = window.__range; const d = R.duel(); const b = d.arenaBounds; const inside = (q) => q.x > b.minX && q.x < b.maxX && q.z > b.minZ && q.z < b.maxZ;
+        return { map: d.arenaId, me: inside(R.player.pos), bot: inside(d.bots[0].pos), drawn: R.neonMap().drawn, part: R.neonMap().part }; })()`,
+    );
+    check(
+      "speedkills: a 1v1 against a bot opens on NEON YARD, you and the bot inside its walls, the city's file showing the yard alone",
+      y.map === "yard" && y.me && y.bot && y.drawn && y.part.shown === "a-yard" && y.part.nodes.join() === "a-yard" && !y.part.extras,
+      JSON.stringify(y),
+    );
+    await page.close();
+  }
+  // THE CENTRE, picked (arenas/centre.ts, the owner, 2026-10-01): the city's own middle, inside a circle you cannot leave;
+  // its bot from the spawn north of the tower reaches the 1v1's circle by the city's graph (walking straight at it from
+  // there, it was 40 m off after 45 s: measured from each spawn)
   {
     const page = await open(browser, "?norender&game=speedkills&map=neon");
-    await ev(page, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
+    await ev(page, `(() => { document.getElementById("arenaMap").value = "centre"; document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
     await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 200, timeout: 30000 }).catch(() => undefined);
     const at = await ev<{ x: number; z: number; map: string | null; bot: number[] }>(
       page,
@@ -5921,7 +5942,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     );
     const circle = CENTRE_MAP.bounds.circle!;
     const fromMiddle = (p: { x: number; z: number }) => Math.hypot(p.x - circle.x, p.z - circle.z);
-    check("speedkills: a 1v1 against a bot on the Neon City is fought on THE CENTRE, the city's middle, inside its circle", at.map === "centre" && fromMiddle(at) < circle.r, JSON.stringify({ ...at, r: +fromMiddle(at).toFixed(1) }));
+    check("speedkills: a 1v1 against a bot on THE CENTRE, picked, is fought in the city's middle, inside its circle", at.map === "centre" && fromMiddle(at) < circle.r, JSON.stringify({ ...at, r: +fromMiddle(at).toFixed(1) }));
     // walked out of it, you are back on its edge
     await ev(page, `(() => { const R = window.__range; R.input.locked = true; R.player.teleport(${circle.x}, 0, ${circle.z + circle.r + 12}, 0, 0); })()`);
     await gameSleep(page, 0.4);

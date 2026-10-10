@@ -6,9 +6,9 @@ until one capture zone is left, and double jumps, slides, wall runs,
 superglides, jump pads and zip lines carry you onto its roofs and up its
 towers. Ten guns that fuse a level up when you take a copy, ten hacks (a
 mobility one on F, a utility one on G), a second chance in a 1v1 and a ghost
-your squad can restore. Besides the battle royale: 1v1s on THE CENTRE, team
-deathmatch, Control and free-for-all, with bots, friends or both, and the
-range, the movement lab and the Run to train in. Its own design and code
+your squad can restore. Besides the battle royale: 1v1s in two small Neon
+arenas and on THE CENTRE, the city's middle, where team deathmatch, Control
+and free-for-all are played too, with bots, friends or both, and the range, the movement lab and the Run to train in. Its own design and code
 (`docs/PHASE_18_PLAN_SPEEDKILLS.md`); the city, the soldiers and the guns wear
 art packs the owner bought.
 
@@ -281,11 +281,15 @@ it.
   line, the same thickness on the screen at any range or zoom, and
   streaks at the screen's edge show when you are going faster than a sprint. The rim is the same width round the gun in their hands as round
   them (the gun's parts are scaled up a hundredfold, and it had swollen into a red ball).
-- **Arenas** in the city: THE CENTRE, the 1v1's map, is the Neon City's own
-  middle (its tower, the tower's podium and the Sky Ring) inside a circle you
-  cannot leave; NEON BLOCK, a crossing with four decks a storey up and
-  skybridges between them, for FFA, team deathmatch and Control (and the 1v1
-  in the Map box).
+- **Arenas** of the city's own pieces: the 1v1's two maps, small, flat and
+  plain, each drawn alone with none of the city round it: NEON YARD, a yard
+  under the sky inside 7 m concrete walls, its cover crates, cool boxes and a
+  wall across each end; and NEON HALL, a closed concrete hall under a 6 m roof,
+  six pillars, crates and a wall before each end, lit by its ceiling lamps.
+  Neither spawn is the better one, and neither looks at the other. THE CENTRE,
+  the Neon City's own middle (its tower, the tower's podium and the Sky Ring)
+  inside a circle you cannot leave, plays FFA, team deathmatch and Control
+  (and the 1v1 in the Map box).
 - **A controller** with an outer deadzone, a curve strength, per-optic ADS and
   aim assist that fades with distance and never snaps between targets.
 - **The tour:** eight steps, each done for real in the range.
@@ -351,9 +355,8 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    it walks you through every move and key), the two courses, the arena
    against bots, the battle royale, team deathmatch, free-for-all and
    Control. Whatever you pick, the panel beside it asks the
-   questions that mode actually has: which of the five arenas (their cover is
-   dressed in CC0 crates, barriers and racks standing in the exact space the
-   collision box does, so what you hide behind is what you see), how many bots
+   questions that mode actually has: which map (NEON YARD, NEON HALL or THE
+   CENTRE, or the one picked for the mode), how many bots
    and how good they are, the squad size and the ring's pace for a battle
    royale, whether you land with a loadout, whether the aim bot is on for
    practice. Then **Start**, or **With friends**, which makes the match on

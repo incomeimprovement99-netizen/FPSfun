@@ -1953,5 +1953,67 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// The two Neon 1v1 arenas (rules.arenas, arenas/neonarenas.ts; the owner, 2026-10-09: "2 1v1 maps ... super basic"), off
+// the bake's collision as the game has it: each out past the battle royale's edge and every sector, so no ring, decay or
+// drop reaches it; baked as its own node of the file; a wall the height of the room standing along every side; every
+// spawn and point with a body's room, on the ground, inside the walls; the line between each pair of opposite spawns
+// broken at eye height (a 1v1 that starts with both players in each other's sight is decided by who loads first), each
+// spawn facing open floor all the same; and
+// the hall's roof over all of its floor
+{
+  const { YARD_MAP, HALL_MAP } = await import("../../src/game/arenas/neonarenas");
+  const A = (cfg as unknown as { arenas: Record<string, { chunk: string; at: number[]; half: number[]; roof: number | null }> }).arenas;
+  const rules = (cfg.rules as unknown as { arenas: { list: Array<{ id: string; walls: { top: number } }> } }).arenas.list;
+  const baked = cfg.baked.chunks as Record<string, { min: number[]; max: number[] }>;
+  const r = MOVE.radius + 0.1;
+  const eye = MOVE.standHeight - 0.1;
+  const solidAt = (x: number, z: number, y: number) => solidsIn(x, x, z, z).some((b) => b.minX <= x && b.maxX >= x && b.minZ <= z && b.maxZ >= z && b.base <= y && b.top >= y);
+  for (const m of [YARD_MAP, HALL_MAP]) {
+    const L = A[m.id];
+    const W = rules.find((q) => q.id === m.id)!.walls;
+    const high = W.top - 0.3;
+    const b = m.bounds;
+    const sectors = cfg.game.sectors as Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
+    const lx = [b.minX - BR_X, b.maxX - BR_X];
+    const lz = [b.minZ - BR_Z, b.maxZ - BR_Z];
+    const apart = lz[0] > BR_HALF || lz[1] < -BR_HALF || lx[0] > BR_HALF || lx[1] < -BR_HALF;
+    const inSector = sectors.some((s) => lx[0] < s.maxX && lx[1] > s.minX && lz[0] < s.maxZ && lz[1] > s.minZ);
+    const node = baked[L.chunk];
+    const drawn = !!node && node.min[0] < lx[0] && node.max[0] > lx[1] && node.min[2] < lz[0] && node.max[2] > lz[1];
+    check(`${m.name}: past the battle royale's edge and every sector, baked as its own node round its room`, apart && !inSector && drawn, `x ${lx.map((v) => v.toFixed(0)).join(" to ")}, z ${lz.map((v) => v.toFixed(0)).join(" to ")}${node ? `; its node x ${node.min[0].toFixed(0)} to ${node.max[0].toFixed(0)}, z ${node.min[2].toFixed(0)} to ${node.max[2].toFixed(0)}` : "; not baked"}`);
+    // (a quarter metre outside each inner face, every half metre along it, solid from a body's foot to the room's top)
+    const gaps: string[] = [];
+    for (let x = b.minX + 0.25; x < b.maxX; x += 0.5) for (const z of [b.minZ - 0.25, b.maxZ + 0.25]) if (![0.4, eye, high].every((y) => solidAt(x, z, y))) gaps.push(`${(x - BR_X).toFixed(1)}, ${(z - BR_Z).toFixed(1)}`);
+    for (let z = b.minZ + 0.25; z < b.maxZ; z += 0.5) for (const x of [b.minX - 0.25, b.maxX + 0.25]) if (![0.4, eye, high].every((y) => solidAt(x, z, y))) gaps.push(`${(x - BR_X).toFixed(1)}, ${(z - BR_Z).toFixed(1)}`);
+    check(`${m.name}: a wall ${high.toFixed(1)} m high along every side`, gaps.length === 0, gaps.length ? `${gaps.length} gaps, first at ${gaps.slice(0, 3).join("; ")}` : `${(2 * (b.maxX - b.minX + b.maxZ - b.minZ)).toFixed(0)} m of wall`);
+    const spots = [...m.spawns.map((s, i) => ({ what: `spawn ${i + 1}`, x: s.x, z: s.z })), ...m.zones.map((q) => ({ what: `point ${q.id}`, x: q.x, z: q.z }))];
+    const held = spots.filter(({ x, z }) => x < b.minX + r || x > b.maxX - r || z < b.minZ + r || z > b.maxZ - r || floorAt(x, z) !== 0 || solidsIn(x - r, x + r, z - r, z + r).some((q) => q.minX < x + r && q.maxX > x - r && q.minZ < z + r && q.maxZ > z - r && q.top > 0.3 && q.base < 1.8));
+    check(`${m.name}: its spawns and points each with a body's room, on the ground, inside its walls`, m.spawns.length >= 4 && m.zones.length === 3 && held.length === 0, `${spots.length} spots${held.length ? `; held: ${held.map((q) => q.what).join(", ")}` : ""}`);
+    const open: string[] = [];
+    for (let i = 0; i + 1 < m.spawns.length; i += 2) {
+      const [p, q] = [m.spawns[i], m.spawns[i + 1]];
+      const n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / 0.25);
+      let cut = false;
+      for (let k = 1; k < n && !cut; k++) cut = solidAt(p.x + ((q.x - p.x) * k) / n, p.z + ((q.z - p.z) * k) / n, eye);
+      if (!cut) open.push(`${i + 1} and ${i + 2}`);
+    }
+    check(`${m.name}: no pair of opposite spawns in each other's sight at eye height`, open.length === 0, open.length ? `in sight: ${open.join(", ")}` : `${m.spawns.length / 2} pairs`);
+    // (and each spawn faces open floor: 6 m clear ahead at eye height, the e2e's rule for every arena, arenaMapsTest)
+    const ahead = m.spawns.map((s) => {
+      const y = (s.yaw * Math.PI) / 180;
+      let d = 0;
+      while (d < 30 && !solidAt(s.x - Math.sin(y) * d, s.z - Math.cos(y) * d, eye)) d += 0.25;
+      return d;
+    });
+    check(`${m.name}: every spawn faces at least 6 m of open floor`, ahead.every((d) => d >= 6), ahead.map((d) => `${d.toFixed(1)} m`).join(", "));
+    if (L.roof !== null) {
+      let under = 0;
+      let bare = 0;
+      for (let x = b.minX + 0.5; x < b.maxX; x += 1) for (let z = b.minZ + 0.5; z < b.maxZ; z += 1) solidAt(x, z, L.roof + 0.2) ? under++ : bare++;
+      check(`${m.name}: its roof over all of its floor at ${L.roof} m`, bare === 0, `${under} m2 roofed${bare ? `, ${bare} open` : ""}`);
+    }
+  }
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

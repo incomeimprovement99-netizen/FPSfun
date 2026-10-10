@@ -162,7 +162,8 @@ to the review set.
 
 *Answered 2026-10-09: the owner took the recommendations ("make your best assumptions and go for it"), the tower's
 upper half with express lifts and three levels "with multiple ways to get up"; and the old ILranch city is taken out
-completely, the maps two very basic Neon 1v1 arenas, THE CENTRE and the Neon City (Milestone 507 on).*
+completely, the maps two very basic Neon 1v1 arenas, THE CENTRE and the Neon City (Milestone 507 on). The two
+arenas are NEON YARD and NEON HALL (Milestone 508).*
 
 1. **District edges on the sector lines.** Recommended: on the decay sectors' ±50 m lines, so a sector is its centre
    block and its district, one colour, decayed together. Otherwise the old straight roads at ±35 m as the edges, which

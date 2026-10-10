@@ -4,7 +4,7 @@
 // footprint, never its pivot: High City's towers hang 26 m under theirs, and the realistic buildings' pivots are at a
 // corner of their basement.
 //
-// Map-local metres, x east and z south, the ground at y 0, the map to 152 either way (city.json sectors). Every number
+// Map-local metres, x east and z south, the ground at y 0, the map to 152 either way (world.json cut, neonmap.json game.sectors). Every number
 // that shapes the map is in the config's `rules`, read here; this file only applies them.
 //
 // Run: npx tsx tools/neon-layout.ts   (needs the catalogue: NEON=catalogue npx tsx tools/import-neon.ts)
@@ -1746,7 +1746,7 @@ const skyStairs: Pt[] = [];
 }
 
 // The bots' street graph, modelled (src/game/neonmap.ts builds it): its nodes every `graph.step` metres from
-// `cut.half - graph.margin` (city.json, game.graph), each joined to its eight neighbours where a body walks between them,
+// `cut.half - graph.margin` (world.json, game.graph), each joined to its eight neighbours where a body walks between them,
 // on the ground the last bake's collision leaves open (a box over a body's height and 2.5 m tall or more is a building or a
 // wall; the street's own cars, vans, blocks and crates are lower, and come from this run instead), a body's
 // `perches_clear.walk` round every piece added so far. A piece that would leave the ground in more separate pieces than it
@@ -1756,8 +1756,8 @@ const skyStairs: Pt[] = [];
 // piece the streets get, in the order they go down
 function streetGraph() {
   const GG = cfg.game.graph as { step: number; margin: number };
-  const CITY = JSON.parse(readFileSync(join(ROOT, "src", "config", "city.json"), "utf8")) as { cut: { half: number } };
-  const lim = CITY.cut.half - GG.margin;
+  const WORLD = JSON.parse(readFileSync(join(ROOT, "src", "config", "world.json"), "utf8")) as { cut: { half: number } };
+  const lim = WORLD.cut.half - GG.margin;
   // (a body round each piece, and `graphPad` more: the bake builds the collision in half-metre columns, so a piece's
   // boxes stand up to half a cell past its mesh, and links the model left open the game found shut)
   const body = (R.perches_clear.walk as number) + (R.dress.graphPad as number);
@@ -3113,6 +3113,101 @@ const STREET_WALL_BOXES: OBox[] = [];
     cfg.streetCover = placed;
     const tris = placed.reduce((a, q) => a + piece(q.piece).row.tris, 0);
     console.log(`the street cover: ${placed.length} pieces, ${(tris / 1000).toFixed(0)}k triangles; ${((left / streetN) * 100).toFixed(1)}% of the open street over ${CO.far} m from cover, the farthest ${farthest.toFixed(1)} m (${JSON.stringify(Object.fromEntries(why))} tried)`);
+  }
+}
+// the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
+// basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
+// each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of
+// the city, and neither of them in a battle royale). Every piece of cover is laid twice, the second turned half about the
+// arena's middle, so neither end's spawn is the better one; what the game reads (where it is, its walls, its spawns and
+// its points) is written to cfg.arenas
+{
+  type ArenaRule = {
+    id: string;
+    chunk: string;
+    at: number[];
+    half: number[];
+    floor: { piece: string; size: number[] };
+    walls: { piece: string; long: number; thick: number; rows: number[]; top: number; front?: number[]; windows?: { piece: string; row: number; sides: string[]; at: number[] } };
+    roof?: { piece: string; size: number[]; y: number };
+    lamps?: { piece: string; y: number; yaw: number; at: number[][] };
+    signs?: Array<[string, number, number, number]>;
+    pillars?: { piece: string; rows: number[]; at: number[][] };
+    cover: Array<[string, number, number, number, number?]>;
+    spawns: number[][];
+    zones: number[][];
+    clear: number;
+    shadow: number;
+  };
+  const AR = R.arenas as { list: ArenaRule[] } | undefined;
+  if (AR) {
+    const out: Record<string, unknown> = {};
+    for (const A of AR.list) {
+      const [ax, az] = A.at;
+      const [hx, hz] = A.half;
+      const put = (name: string, x: number, z: number, yaw: number, mode: Place[5], y = 0) => placeAt(A.chunk, "arena", name, ax + x, az + z, ((yaw % 360) + 360) % 360, mode, { y });
+      // the floor, tiled over the room (drawn only: the world's floor is the ground at 0 everywhere)
+      const [fw, fd] = A.floor.size;
+      for (let x = -hx + fw / 2; x < hx; x += fw) for (let z = -hz + fd / 2; z < hz; z += fd) put(A.floor.piece, x, z, 0, "g");
+      // the walls, each side a row of panels centred on it and long enough to close the corners (a side's last panel
+      // runs on past the corner, behind the next side's wall, where nobody stands)
+      const W = A.walls;
+      const sides: Array<{ id: string; c: number[]; along: "x" | "z"; len: number; inward: Pt }> = [
+        { id: "n", c: [0, -hz - W.thick / 2], along: "x", len: 2 * (hx + W.thick), inward: [0, 1] },
+        { id: "s", c: [0, hz + W.thick / 2], along: "x", len: 2 * (hx + W.thick), inward: [0, -1] },
+        { id: "w", c: [-hx - W.thick / 2, 0], along: "z", len: 2 * hz, inward: [1, 0] },
+        { id: "e", c: [hx + W.thick / 2, 0], along: "z", len: 2 * hz, inward: [-1, 0] },
+      ];
+      // (`front` the way the face wanted inside looks unturned, each side's panels turned so it looks into the room: the pack's
+      // street wall is drawn from one side only, its panels concrete one side and plaster the other)
+      const facing = (s: { inward: Pt }) => [0, 90, 180, 270].find((y) => {
+        const [fx, fz] = rotY(y, W.front![0], W.front![1]);
+        return fx * s.inward[0] + fz * s.inward[1] > 0.99;
+      })!;
+      // (the panel's own long axis: the pack's wall panels are long in x, its street wall long in z)
+      const own = piece(W.piece).row.size!;
+      // (and its rows reach the room's top: the page's checks read `top`)
+      if (Math.abs(W.rows[W.rows.length - 1] + own[1] - W.top) > 0.05) throw new Error(`the ${A.id} arena's walls reach ${W.rows[W.rows.length - 1] + own[1]} m, not their top ${W.top}`);
+      const longX = own[0] >= own[2];
+      for (const s of sides) {
+        const n = Math.ceil(s.len / W.long - 1e-6);
+        for (let i = 0; i < n; i++) {
+          const t = -((n - 1) * W.long) / 2 + i * W.long;
+          const [x, z] = s.along === "x" ? [t, s.c[1]] : [s.c[0], t];
+          const yaw = W.front ? facing(s) : (s.along === "x") === longX ? 0 : 90;
+          W.rows.forEach((y, row) => {
+            const win = W.windows && W.windows.row === row && W.windows.sides.includes(s.id) && W.windows.at.includes(i);
+            put(win ? W.windows!.piece : W.piece, x, z, yaw, "o", y);
+          });
+        }
+      }
+      // the roof, tiled over the room as the floor is, its underside at `y`: a hall's ceiling
+      if (A.roof) {
+        const [rw, rd] = A.roof.size;
+        const r = piece(A.roof.piece).row;
+        for (let x = -hx + rw / 2; x < hx; x += rw) for (let z = -hz + rd / 2; z < hz; z += rd) put(A.roof.piece, x, z, 0, "o", A.roof.y - r.min![1]);
+      }
+      // the lamps (a hall's are the base's own ceiling lamp, so the page's fill lights stand under them: neonmap.ts
+      // FILL) and the signs on the walls, turned to the middle
+      if (A.lamps) for (const [x, z] of A.lamps.at) put(A.lamps.piece, x, z, A.lamps.yaw, "g", A.lamps.y);
+      for (const [name, x, z, y] of A.signs ?? []) put(name, x, z, Math.round(yawToward(-x, -z) / 90) * 90, "g", y);
+      // the cover and the pillars, each laid twice, the second half a turn about the middle
+      const cover: Array<{ x0: number; x1: number; z0: number; z1: number; top: number }> = [];
+      for (const [x, z] of A.pillars?.at ?? []) for (const k of [1, -1]) A.pillars!.rows.forEach((y) => cover.push(put(A.pillars!.piece, k * x, k * z, 0, "o", y)));
+      for (const [name, x, z, yaw, y] of A.cover) for (const k of [1, -1]) cover.push(put(name, k * x, k * z, yaw + (k < 0 ? 180 : 0), "o", y ?? 0));
+      // the spawns in opposite pairs, each facing the middle (a yaw of b faces back along the bearing b, arenas/centre.ts),
+      // and none of them, nor the middle's circle, within `clear` of the cover
+      const spawns = A.spawns.flatMap(([x, z]) => [[x, z], [-x, -z]]).map(([x, z]) => [ax + x, az + z, +((Math.atan2(x, z) * 180) / Math.PI).toFixed(1)]);
+      const near = (x: number, z: number, r: number) => cover.find((b) => x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r);
+      for (const [x, z] of [...spawns, [ax, az]]) {
+        const r = x === ax && z === az ? A.clear + 3.5 : A.clear;
+        const hit = near(x, z, r);
+        if (hit) throw new Error(`the ${A.id} arena's ${x === ax && z === az ? "middle" : `spawn at ${(x - ax).toFixed(1)}, ${(z - az).toFixed(1)}`} is within ${r} m of its cover at x ${(hit.x0 - ax).toFixed(1)} to ${(hit.x1 - ax).toFixed(1)}, z ${(hit.z0 - az).toFixed(1)} to ${(hit.z1 - az).toFixed(1)}`);
+      }
+      out[A.id] = { chunk: A.chunk, at: A.at, half: A.half, roof: A.roof?.y ?? null, shadow: A.shadow, spawns, zones: A.zones.map(([x, z]) => [ax + x, az + z]) };
+      console.log(`the ${A.id} arena at ${ax}, ${az}: ${2 * hx} by ${2 * hz} m, ${chunks.get(A.chunk)!.place.length} pieces, ${cover.length} of them cover, ${spawns.length} spawns`);
+    }
+    cfg.arenas = out;
   }
 }
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));

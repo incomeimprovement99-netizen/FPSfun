@@ -9,6 +9,7 @@ import { slow } from "./slow";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { KTX2Loader } from "three/examples/jsm/loaders/KTX2Loader.js";
 import { MeshoptDecoder } from "three/examples/jsm/libs/meshopt_decoder.module.js";
+import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { programReps } from "./programreps";
 import { compileSafely } from "./compilesafe";
 import { RANGE_SOLIDS, type Solid } from "./range";
@@ -113,6 +114,42 @@ export function updateNeonFill(eye: THREE.Vector3): void {
   });
 }
 
+/**
+ * Which of the city file's own pieces is drawn: the city (null), or one Neon arena's alone (neon-layout.ts rules.arenas),
+ * with none of the city, its edge's fence or its ropes in view (a 7 m yard wall is no screen against a 144 m tower). The
+ * arenas' own nodes are hidden with the city shown. Kept, and put on the file when it comes in.
+ */
+const PART: { shown: string | null; root: THREE.Object3D | null } = { shown: null, root: null };
+const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes"]);
+export function showNeonPart(chunk: string | null): void {
+  if (PART.shown === chunk) return;
+  PART.shown = chunk;
+  applyPart();
+}
+function applyPart(): void {
+  const root = PART.root;
+  if (!root) return;
+  const city = PART.shown === null;
+  for (const o of root.children) {
+    if (CITY_EXTRAS.has(o.name)) o.visible = city;
+    if (o.name !== "neon:map") continue;
+    // (a node is its chunk's name, "neon/a-yard"; the loader may drop the slash)
+    for (const n of o.children) {
+      const id = n.name.replace(/^neon\/?/, "");
+      n.visible = id.startsWith("a-") ? id === PART.shown : city;
+    }
+  }
+}
+/** what of the file is drawn (the e2e): the piece shown, the file's nodes drawn, and whether the city's fence and ropes are */
+export function neonPart(): { shown: string | null; nodes: string[]; extras: boolean } {
+  const map = PART.root?.children.find((o) => o.name === "neon:map");
+  return {
+    shown: PART.shown,
+    nodes: (map?.children ?? []).filter((n) => n.visible).map((n) => n.name.replace(/^neon\/?/, "")),
+    extras: !!PART.root?.children.some((o) => CITY_EXTRAS.has(o.name) && o.visible),
+  };
+}
+
 /** `boxes`: the city's collision, for a caller that has it now (the node checks); the page's comes later (loadNeonSolids) */
 export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   BOXES.in = false;
@@ -122,6 +159,7 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   root.name = "neon";
   root.position.set(BR_X, 0, BR_Z);
   scene.add(root);
+  PART.root = root;
 
   standIn = new THREE.Mesh(new THREE.PlaneGeometry(BR_HALF * 2 + 16, BR_HALF * 2 + 16).rotateX(-Math.PI / 2), new THREE.MeshStandardMaterial({ color: 0x2c2e33, roughness: 0.95 }));
   standIn.position.y = -0.02;
@@ -163,6 +201,9 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
 
   buildEdgeFence(root);
   const ringWall = buildRingWall(root);
+  // (hidden from the start: SpeedKills' battle royale is the decay's, which hides it as it begins, and before any match it
+  // stood at its unit size in the tower's middle, a 120 m line in a Neon arena's sky with the city hidden)
+  ringWall.visible = false;
 
   // the tallest building's top: the ship passes it, as it passed the Spire
   const T = neonCfg.tallest;
@@ -335,13 +376,13 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // from the car's floor to just over the rope's top
   // (and the Well's rope, neon-layout.ts rules.well: up its light-well from the bottom to the ground ring)
   const ropeCfg = neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }>; well?: { ropes: Array<{ rope: number[][]; floor: number; colour: string }> } };
+  const ropes: THREE.Mesh[] = [];
   for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? [])]) {
     const [a, b] = q.rope;
     const top = b[1] + 0.3;
     const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, top - q.floor, 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));
     rope.position.set(a[0], (q.floor + top) / 2, a[2]);
-    rope.name = "neon:lift";
-    root.add(rope);
+    ropes.push(rope);
     ZIPLINES.push({ a: new THREE.Vector3(a[0] + BR_X, a[1], a[2] + BR_Z), b: new THREE.Vector3(b[0] + BR_X, b[1], b[2] + BR_Z) });
   }
   // the zip lines (neon-layout.ts rules.low.zip): from each rooms building's roof yard up to a High City deck, a rope
@@ -352,9 +393,27 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     const rope = new THREE.Mesh(new THREE.CylinderGeometry(G.zipRope, G.zipRope, a.distanceTo(b), 8), emissive(new THREE.Color(q.colour).getHex(), G.zipGlow));
     rope.position.copy(a).add(b).multiplyScalar(0.5);
     rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-    rope.name = "neon:zip";
-    root.add(rope);
+    ropes.push(rope);
     ZIPLINES.push({ a: new THREE.Vector3(a.x + BR_X, a.y, a.z + BR_Z), b: new THREE.Vector3(b.x + BR_X, b.y, b.z + BR_Z) });
+  }
+  // the ropes merged a colour each, one draw a colour as the page's merge made them (staticmerge.ts), in a group of their
+  // own that the merge leaves alone, so a match on a Neon arena hides them by name (showNeonPart): merged into the city's
+  // other meshes of their colour, they hung in the arenas' sky
+  {
+    const byMat = new Map<THREE.Material, THREE.BufferGeometry[]>();
+    for (const r of ropes) {
+      r.updateMatrix();
+      const list = byMat.get(r.material as THREE.Material) ?? byMat.set(r.material as THREE.Material, []).get(r.material as THREE.Material)!;
+      list.push(r.geometry.clone().applyMatrix4(r.matrix));
+    }
+    const group = new THREE.Group();
+    group.name = "neon:ropes";
+    for (const [mat, list] of byMat) {
+      const mesh = new THREE.Mesh(mergeGeometries(list), mat);
+      mesh.userData.dynamic = true;
+      group.add(mesh);
+    }
+    root.add(group);
   }
 
   // the fill lights' spots (above), and the pool; the spots kept once the boxes are in (placeFill)
@@ -620,6 +679,8 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
   });
   gltf.scene.name = "neon:map";
   root.add(gltf.scene);
+  PART.root = root;
+  applyPart();
   // nothing in the file moves (its decay is its materials' own), so its matrices are worked out once and not every
   // frame (?slow=static: every frame, as before)
   if (!slow("static"))

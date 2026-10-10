@@ -24,6 +24,7 @@ import { ZIPLINES } from "./traversal";
 import { buildPlan } from "./arenas/build";
 import { PLAN_MAPS, type ArenaMapInfo } from "./arenas";
 import { CENTRE_MAP } from "./arenas/centre";
+import { YARD_MAP, HALL_MAP } from "./arenas/neonarenas";
 import { IS_SK } from "./game";
 import type { Bounds } from "./player";
 
@@ -477,7 +478,7 @@ function arenaZip(root: THREE.Group, a: THREE.Vector3, b: THREE.Vector3, floorA:
 // choosing is duel.ts's arenaFor, and what a mode would pick if nobody says
 // otherwise is `mapFor`.
 
-export type ArenaMapId = "warehouse" | "triangle" | "vault" | "crossing" | "ringworks" | "neonblock" | "centre";
+export type ArenaMapId = "warehouse" | "triangle" | "vault" | "crossing" | "ringworks" | "neonblock" | "centre" | "yard" | "hall";
 
 /** the 1v1 warehouse as the list sees it; its Control points are the ones in src/config/modes.json */
 const WAREHOUSE_MAP: ArenaMapInfo = {
@@ -522,7 +523,7 @@ const TRIANGLE_MAP: ArenaMapInfo = {
  */
 export const ARENA_GABLE = { rise: 3.2, steps: 7 };
 
-export const ARENA_MAPS: ArenaMapInfo[] = [WAREHOUSE_MAP, TRIANGLE_MAP, ...PLAN_MAPS, CENTRE_MAP];
+export const ARENA_MAPS: ArenaMapInfo[] = [WAREHOUSE_MAP, TRIANGLE_MAP, ...PLAN_MAPS, YARD_MAP, HALL_MAP, CENTRE_MAP];
 
 /** a map by id, falling back to the warehouse so a stale saved id can never leave a match without an arena */
 export function arenaMap(id: string | null | undefined): ArenaMapInfo {
@@ -537,11 +538,11 @@ export function arenaMap(id: string | null | undefined): ArenaMapInfo {
  * has to keep landing in the warehouse it lands in today.
  */
 export function mapFor(mode: string, players: number): ArenaMapId {
-  // SpeedKills fights its arenas in the city: a 1v1 in the city's own middle (THE CENTRE, the owner, 2026-10-01),
-  // everyone against everyone, teams and Control in its block (plan section 7.14); three players keep the triangle,
-  // the only map with three corners
-  if (IS_SK && mode === "duel" && players === 2) return "centre";
-  if (IS_SK && !(mode === "duel" && players === 3) && (mode === "duel" || mode === "ffa" || mode === "tdm" || mode === "control")) return "neonblock";
+  // SpeedKills fights on its four Neon maps (the owner, 2026-10-09: "2 1v1 maps, 1 centre destrict map, 1 br map, all
+  // new neon stuff"): a 1v1 in NEON YARD (NEON HALL the picker's other), and everything with more than two players, the
+  // free-for-all, teams and Control, on THE CENTRE, the city's middle, which has spawns for eight
+  if (IS_SK && mode === "duel" && players === 2) return "yard";
+  if (IS_SK) return "centre";
   // three players is still the triangle: it is the only map with three
   // corners and no fourth side to be caught from
   if (mode === "duel" && players === 3) return "triangle";
@@ -555,14 +556,15 @@ export function mapFor(mode: string, players: number): ArenaMapId {
 }
 
 /**
- * THE CENTRE's capture circle, the same one every arena has (a ring on the floor, a faint disc, a column of light while
- * the match's circle is live), on the city's side of the world: it has no arena of its own to stand in.
+ * A city map's capture circle, the same one every arena has (a ring on the floor, a faint disc, a column of light while
+ * the match's circle is live), on the city's side of the world: THE CENTRE and the two Neon arenas are drawn in the
+ * city's file, which has none.
  */
-export function buildCentreMarks(parent: THREE.Object3D): ArenaHandles {
+export function buildCityMarks(parent: THREE.Object3D, m: ArenaMapInfo): ArenaHandles {
   const root = new THREE.Group();
-  root.name = "arena:centre";
+  root.name = `arena:${m.id}`;
   parent.add(root);
-  const { x, z } = CENTRE_MAP.center;
+  const { x, z } = m.center;
   const ringMat = new THREE.MeshStandardMaterial({ color: 0x0a0d10, emissive: 0xffd23c, emissiveIntensity: 1.2, roughness: 0.4 });
   const ring = new THREE.Mesh(new THREE.RingGeometry(ZONE_RADIUS - 0.18, ZONE_RADIUS, 48), ringMat);
   ring.rotation.x = -Math.PI / 2;
@@ -584,7 +586,7 @@ export function buildCentreMarks(parent: THREE.Object3D): ArenaHandles {
   // (shown only while a match is played on it: the city is the battle royale's the rest of the time)
   root.visible = false;
   const handles: ArenaHandles = { root, zone: { ring, column, disc } };
-  ARENA_HANDLES.set("centre", handles);
+  ARENA_HANDLES.set(m.id, handles);
   return handles;
 }
 

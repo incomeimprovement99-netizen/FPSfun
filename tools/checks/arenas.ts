@@ -266,8 +266,9 @@ function meshCount(plan: ArenaPlan): number {
 
 check("four drawn arenas: three for the modes, and SpeedKills' city block", ARENA_PLANS.length === 4 && ARENA_PLANS.some((p) => p.id === "neonblock" && p.look === "city"), ARENA_PLANS.map((p) => p.id).join(", "));
 check(
-  "the menu's list holds the old two, the drawn four and THE CENTRE",
-  ARENA_MAPS.length === 7 && ARENA_MAPS[0].id === "warehouse" && ARENA_MAPS[1].id === "triangle" && ARENA_MAPS[6].id === "centre" && !!ARENA_MAPS[6].city,
+  "the menu's list holds the old two, the drawn four, the Neon City's two arenas (each its own piece of the city's file) and THE CENTRE",
+  ARENA_MAPS.length === 9 && ARENA_MAPS[0].id === "warehouse" && ARENA_MAPS[1].id === "triangle" &&
+    ARENA_MAPS.slice(6, 8).every((m, i) => m.id === ["yard", "hall"][i] && !!m.city && m.chunk === `a-${m.id}`) && ARENA_MAPS[8].id === "centre" && !!ARENA_MAPS[8].city,
   ARENA_MAPS.map((m) => m.id).join(", ")
 );
 // THE CENTRE (arenas/centre.ts): the city's own middle inside a circle. Its spawns, its 1v1 circle and Control's

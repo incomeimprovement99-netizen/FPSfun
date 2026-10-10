@@ -84,8 +84,9 @@ import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
-import { buildArena, buildCentreMarks, buildTriArena, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
+import { buildArena, buildCityMarks, buildTriArena, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { CENTRE, CENTRE_MAP } from "./game/arenas/centre";
+import { arenaShadow } from "./game/arenas/neonarenas";
 import { CircleNav } from "./game/centrenav";
 import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, operatorWearing, OPERATORS } from "./game/operators";
@@ -120,7 +121,8 @@ import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paid
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
 import { dressKit } from "./game/kitdress";
-import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, loadNeonSolids, neonSolidsIn, retakeReflection, updateNeonFill, warmReflection } from "./game/neonmap";
+import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, loadNeonSolids, neonSolidsIn, neonPart, retakeReflection, showNeonPart, updateNeonFill, warmReflection } from "./game/neonmap";
+import type { ArenaMapInfo } from "./game/arenas";
 import { programRepList, repsRoot } from "./game/programreps";
 import { compileSafely } from "./game/compilesafe";
 import { atmosphereOn, ownAir, tickAir } from "./game/atmosphere";
@@ -2668,9 +2670,10 @@ const botWeaponChoice = (): string | null => botWeaponSel.value || null;
 const arenaMapSel = $<HTMLSelectElement>("arenaMap");
 for (const [value, label] of [
   // the box wears the word MAP in the lobby, so the options do not repeat it
-  ["warehouse", "The warehouse"],
+  // (SpeedKills offers its own maps alone, the Neon ones: the legacy game's warehouse and drawn arenas are not its places)
+  ...(NEON ? [] : [["warehouse", "The warehouse"]]),
   ["auto", "Picked for the mode"],
-  ...ARENA_MAPS.filter((m) => m.plan || (NEON && m.city)).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
+  ...ARENA_MAPS.filter((m) => (NEON ? m.city : m.plan)).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
 ] as Array<[string, string]>) {
   const o = document.createElement("option");
   o.value = value;
@@ -4803,7 +4806,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // SpeedKills: the loading screen first, then the card, then the match (showFrame); not for a tab in the background,
   // which gets no frames to show it with
   // a match on the city's side: the city's file asked for now (it is not loaded with the page)
-  const onCity = NEON && (d instanceof BrMatch || ("arenaId" in d && (d as { arenaId: string }).arenaId === CENTRE_MAP.id));
+  const onCity = NEON && (d instanceof BrMatch || ("arenaId" in d && !!arenaMap((d as { arenaId: string }).arenaId).city));
   if (onCity) askCity();
   // and the figures, which a match's are
   askFigures();
@@ -5833,13 +5836,19 @@ function showSide(): void {
   // and the light, the fog and the sound go with the side (a match on the city that is not a battle royale, THE
   // CENTRE, set none of them: the battle royale, its Gulag and its end set their own and still do)
   if (want !== regionNow) setRegion(want);
-  // THE CENTRE: the sun's shadows over its circle, sharper than over the whole city
-  if (want === "br" && onCentre()) setShadowRegion(new THREE.Vector3(CENTRE.x, 0, CENTRE.z), CENTRE.shadow);
+  // a match on a city map: the sun's shadows over it, sharper than over the whole city
+  if (want === "br") shadowOverCityMap();
 }
 
-/** a match on THE CENTRE (arenas/centre.ts): the city's own middle, not a battle royale */
-function onCentre(): boolean {
-  return !!duel && !(duel instanceof BrMatch) && "arenaId" in duel && (duel as { arenaId: string }).arenaId === CENTRE_MAP.id;
+/** a match on one of the city's maps, THE CENTRE or a Neon arena (arenas/centre.ts, arenas/neonarenas.ts), not a battle royale; null otherwise */
+function cityMap(): ArenaMapInfo | null {
+  if (!duel || duel instanceof BrMatch || !("arenaId" in duel)) return null;
+  const m = arenaMap((duel as { arenaId: string }).arenaId);
+  return m.city ? m : null;
+}
+function shadowOverCityMap(): void {
+  const m = cityMap();
+  if (m) setShadowRegion(new THREE.Vector3(m.center.x, 0, m.center.z), m.id === CENTRE_MAP.id ? CENTRE.shadow : arenaShadow(m));
 }
 // THE CENTRE's wall where its circle is, and its capture circle, shown while a match is played on it (frame below)
 const centreWall = buildRingWall(brMap.root);
@@ -5848,7 +5857,9 @@ centreWall.scale.set(CENTRE.radius, CENTRE.wall.height / (centreWall.geometry as
 centreWall.position.y = CENTRE.wall.height / 2;
 (centreWall.material as THREE.MeshBasicMaterial).opacity = CENTRE.wall.opacity;
 centreWall.visible = false;
-const centreMarks = buildCentreMarks(brSide);
+const cityMarks = ARENA_MAPS.filter((m) => m.city).map((m) => buildCityMarks(brSide, m));
+/** the city map whose piece of the file is shown (showNeonPart), so the change is made once */
+let partFor: string | null = null;
 /** the city's graph cut to THE CENTRE's circle, made the first time bots are fought on it */
 let centreNav: CircleNav | null = null;
 // The range and the course are several hundred static meshes. Merged by
@@ -7980,11 +7991,17 @@ function step(): void {
   }
 
 
-  // THE CENTRE's wall and capture circle, while a match is played on it
+  // THE CENTRE's wall, and a city map's capture circle, while a match is played on it; a Neon arena drawn alone
   {
-    const on = onCentre();
-    centreWall.visible = on;
-    centreMarks.root.visible = on;
+    const m = cityMap();
+    centreWall.visible = m?.id === CENTRE_MAP.id;
+    for (const h of cityMarks) h.root.visible = h.root.name === `arena:${m?.id}`;
+    if ((m?.id ?? null) !== partFor) {
+      partFor = m?.id ?? null;
+      showNeonPart(m?.chunk ?? null);
+      shadowOverCityMap();
+      renderer.shadowMap.needsUpdate = true;
+    }
   }
   // the arena circles: a column of light once the match's is live
   {
@@ -8740,7 +8757,9 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     };
   },
   /** the Neon City map (?map=neon): what its file drew */
-  neonMap: () => ({ on: NEON, asked: cityAsked, ...NEON_MAP }),
+  neonMap: () => ({ on: NEON, asked: cityAsked, ...NEON_MAP, part: neonPart() }),
+  // (a photo of a Neon arena with no match on it: its piece of the file shown by hand)
+  neonShow: (chunk: string | null) => showNeonPart(chunk),
   /** the Neon City's file asked for now (a tool that measures the city without a match; a match asks for it itself) */
   askCity: () => askCity(),
   /** the textures the scene's materials hold, and what they cost the card: a compressed one its mips' bytes, any other its
