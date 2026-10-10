@@ -11648,3 +11648,23 @@ on them to fight round, over the street crossings.
   on its deck (failing with the ring's perches taken out); every bridge is still walked on foot both ways island to island. The e2e `speedkills` section
   on the Neon City: every check passes (101). verify and rules. The map: its files lo 95 MB, hi 160 MB, max 381 MB. **Its files are
   version 51.**
+
+## Milestone 515 — BOOG's bolt after every shot on the soldier
+
+In your own hands BOOG works its bolt after every shot: the bought arms play the pack's L96X fire clip over the
+rechamber, its right hand on the bolt over the clip's rack window (fparms.json packGuns.L96X.rack, clip "fire", 0.22 to
+0.56). The soldier other players see worked the bolt only in a reload; after a shot it only kicked. This was the rest of
+`docs/PLAN_SOLDIER_EIGHT_GUNS.md` G5 (BOOG's cant, which the first person had before the bought arms, is now this bolt).
+
+- **Now** (rifle.ts shotCycleOf): after each shot, out of a reload, the soldier's right hand goes to the bolt, works it
+  and comes back to its grip on its reload's own bolt keys (soldierhold.json reload.bolt), laid over the same window of
+  the gun's rechamber (BOOG's 1.62 s), read at run time. The figure's shot count (Milestone 513) starts it, so a bot's,
+  a remote player's and your own third person's all do it.
+- **The bolt keys re-solved:** measured for the first time, the right hand at the bolt went 20 to 29 mm into the receiver,
+  in the reload too, where the check had only read which key the hand was at. figure-solve (KEY=bolt and boltBack, the
+  fingers held to the gun) brought them to 23 and 14 mm after a shot (28 at the deepest of the reload): a gloved fist
+  round the bolt's short knob meets the receiver's side, and photographed from outside it reads as a hand on the knob.
+- **Checked:** a new skfigure check after a shot (the right hand at the bolt in the middle of the window, round its knob
+  no deeper than 30 mm, the left on its hold, both back after), seen failing with it switched off; the reload's bolt
+  check now measures depth as well; every skfigure check on all ten guns (297); verify; rules; the type check. The
+  page's weaponTimes hook gives the rechamber.

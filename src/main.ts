@@ -8852,7 +8852,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** a gun's times as the game plays them (fusion 0): its reload, empty and not, and its swap's two halves */
   weaponTimes: (id: string) => {
     const w = resolveWeapon(id, 0);
-    return { reload: w.reloadTime, reloadEmpty: w.reloadEmptyTime, deploy: w.deployTime, holster: w.holsterTime, lockout: w.mech.overheat?.lockout ?? null };
+    return { reload: w.reloadTime, reloadEmpty: w.reloadEmptyTime, deploy: w.deployTime, holster: w.holsterTime, lockout: w.mech.overheat?.lockout ?? null, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval) };
   },
   /** the soldier's rifle hold's numbers changed live, and read back (rifle.ts; tools/figure-solve.ts) */
   rifleTune: (patch: Record<string, unknown>) => tuneRifle(patch),

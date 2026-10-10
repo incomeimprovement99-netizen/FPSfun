@@ -99,6 +99,9 @@ The soldier's own work on the USSO and BOOG, no new gun involved:
 | G7 | **Hand on hand in the audit**: the left hand's skin into the right hand's | the pistols hold both hands on one grip, and nothing measures one hand through the other today | tools/figure-audit.js |
 | G8 | **figure-fit's left search with the right hand in place** | the left hand's grasp on a pistol is round the right hand, not only the gun | tools/figure-fit.ts |
 
+G5 done, 2026-10-09: BIGANTLER's pump (Milestone 513) and BOOG's bolt after every shot (Milestone 515); BOOG's cant went
+with the bought arms, whose fire clip works the bolt instead, and the soldier follows that.
+
 G1, G2 and G3 are small and go first; G4 and G5 are agreed with the guns agent before they are built (section 4 of the
 shared plan); G6 to G8 land with the pistols.
 

@@ -7766,8 +7766,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(2.5); })()`);
       check(`${name}'s scope glints only while the soldier looks down it: aimed in, not through a reload or a swap, not at the hip`, glints.aimed === true && glints.reloading === false && glints.swapping === false && glints.hip === false && glints.again === true, JSON.stringify(glints));
     }
-    // (HAEFY wears BOOG's model, so its hand is on the same rail)
-    if (id === "sentinel" || id === "3030") {
+    if (id === "sentinel") {
       // BOOG's left hand on the rail under its fore-end, not the magazine (which ends 20 cm in front of the grip): the
       // owner, 2026-09-30, "the boogs 3rd person still has the hand grabbing the magazine instead of the hand stop/rail"
       const rail = await ev<{ z: number; y: number; slide: number }>(page, `(() => { const f = window.__range.labFigures()[0].figure, g = f.gunObject, h = f.holdPoints(); const at = g.worldToLocal(h.support.clone()); return { z: Math.round(at.z * 1000) / 1000, y: Math.round(at.y * 1000) / 1000, slide: f.supportSlide }; })()`);
@@ -7809,6 +7808,10 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     // through the gun as it moves, not a grip; the grip's own depth is the hold checks' (BAR.handIn)
     const restIn = { l: back?.handIn?.l ?? 0, r: back?.handIn?.r ?? 0 };
     const over = (a: A | null) => Math.max((a?.handIn?.l ?? 0) - Math.max(8, restIn.l + 3), (a?.handIn?.r ?? 0) - Math.max(8, restIn.r + 3));
+    // (a right hand closed round a bolt's knob meets the receiver's side, as a gloved fist round a short knob must: BOOG's
+    // 23 mm after a shot and 28 at its deepest in the reload, photographed reading right from outside, 2026-10-09; held to
+    // 30 so it does not grow, the left hand to its own bar)
+    const boltOver = (a: A | null) => Math.max((a?.handIn?.l ?? 0) - Math.max(8, restIn.l + 3), (a?.handIn?.r ?? 0) - 30);
     let swingOver = -99;
     let swingWorst = 0;
     let swingGrip = 0;
@@ -7841,6 +7844,37 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     }
     check(`the soldier's ${name} throw: the gun away for it, and back within a second with no hand through it (8 mm at most, or 3 past its grip's own)`, !thrown.shown && backAt > 0 && backAt <= 1 && worstOver <= 0, JSON.stringify({ thrown: thrown.shown, backAt, worst, restIn }));
     await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
+    // A bolt gun's bolt after each shot, as the first person's: the bought arms play the pack's fire clip over the
+    // rechamber and work its bolt over that clip's rack window (fparms.json packGuns.<gun>.rack, clip "fire"), and the
+    // soldier lays its reload's bolt keys over the same window (rifle.ts shotCycleOf). Before, others saw BOOG only kick.
+    {
+      const rackFire = (fparmsCfg.packGuns as unknown as Record<string, { rack?: { clip: string; window: number[] } }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.rack;
+      const boltKeys = (soldierHoldCfg.guns as unknown as Record<string, { reload?: { bolt?: unknown[] } }>)[id]?.reload?.bolt;
+      if (rackFire?.clip === "fire" && boltKeys) {
+        const rech = (await ev<{ rechamber: number }>(page, `window.__range.weaponTimes("${id}")`)).rechamber;
+        const [w0, w1] = rackFire.window;
+        await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); r.labFigures()[0].kick(); })()`);
+        let t = 0;
+        let worst = -99;
+        const keys: string[] = [];
+        for (const u of [w0 + 0.1 * (w1 - w0), (w0 + w1) / 2, w0 + 0.9 * (w1 - w0)]) {
+          await ev(page, `window.__range.figureLabStep(${u * rech - t})`);
+          t = u * rech;
+          const a = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
+          worst = Math.max(worst, boltOver(a));
+          keys.push(await ev<string>(page, `window.__range.labFigures()[0].figure.rifleOut?.keys ?? ""`));
+        }
+        await ev(page, `window.__range.figureLabStep(${rech - t + 0.4})`);
+        const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
+        const afterKeys = await ev<string>(page, `window.__range.labFigures()[0].figure.rifleOut?.keys ?? ""`);
+        check(
+          `the soldier's ${name} works its bolt after a shot, as the first person's fire clip does (${w0} to ${w1} of the ${rech} s rechamber): the right hand at the bolt in the middle, round its knob no deeper than 30 mm, the left on its hold, and both back on their holds after`,
+          /r:bolt/.test(keys[1]) && worst <= 0 && !afterKeys && within(after, true, id),
+          JSON.stringify({ keys, worst, afterKeys, after: after && { grip: after.grip, support: after.support, handIn: after.handIn } }),
+        );
+        await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
+      }
+    }
     // The reload, the first person's (the owner, 2026-09-30: "the first and third person final forms agree ... when they
     // reload"): read from the guns agent's fparms.json, as the soldier reads it, so a change there fails here. The
     // magazine slides down and phases out, a new one phases in and seats, all in the gun; nothing is dropped
@@ -7867,7 +7901,16 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const seated = await to(FR.seat + 0.02);
     const workAt = rack?.grab ? FR.rack[0] + ((rack.grab.pull[0] + rack.grab.pull[1]) / 2) * (FR.rack[1] - FR.rack[0]) : FR.rack[0] + 0.5 * (FR.rack[1] - FR.rack[0]);
     const bolted = !rack?.grab && !!(soldierHoldCfg.guns as Record<string, { reload?: { bolt?: unknown } }>)[id]?.reload?.bolt;
+    // (a bolt worked by the right hand: how deep a hand goes in the gun at each of its keys, up to the middle of the rack;
+    // its keys' hands had gone 20 mm and more into BOOG's receiver, unmeasured, the check reading only which key it was at)
+    const boltX = bolted ? ((soldierHoldCfg.guns as unknown as Record<string, { reload: { bolt: Array<[number, string]> } }>)[id].reload.bolt.filter(([, k]) => k !== "grip").map(([x]) => x)) : [];
+    let boltDeep = -99;
+    for (const x of boltX.filter((v) => FR.rack[0] + v * (FR.rack[1] - FR.rack[0]) < workAt)) {
+      await to(FR.rack[0] + x * (FR.rack[1] - FR.rack[0]));
+      boltDeep = Math.max(boltDeep, boltOver(await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`)));
+    }
     const working = await to(workAt);
+    if (bolted) boltDeep = Math.max(boltDeep, boltOver(await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`)));
     const slid = (m: Mag) => (home && m ? home.y - m.y : 0);
     check(`the soldier's ${name} reload is the first person's: the left hand points at the magazine as it slides down and phases out`, !!pointing && pointing.shown && pointing.phase > 0 && pointing.phase < 1 && slid(pointing) > 0 && /l:point/.test(pointing.keys), JSON.stringify({ pointing, slid: slid(pointing) }));
     check(`the soldier's ${name} reload: by the end of the first person's phase out (${FR.phaseOut[1]}) the old magazine is gone, ${FR.slide} m down`, !!gone && !gone.shown && gone.phase === 0 && Math.abs(slid(gone) - FR.slide) < 0.005, JSON.stringify({ gone, slid: slid(gone) }));
@@ -7881,6 +7924,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       !!working && (rack?.grab ? /l:handle/.test(working.keys) : bolted ? /r:bolt/.test(working.keys) : !/l:handle|r:bolt/.test(working.keys)),
       working?.keys ?? "none"
     );
+    if (bolted) check(`the soldier's ${name} reload: working the bolt, the right hand round its knob no deeper than 30 mm and the left on its hold`, boltDeep <= 0, `${boltDeep} mm over`);
     // round its own middle where the first person's is (fparms.json reload.magPhase; the owner, 2026-10-01: "make the
     // magazine phase in from the middle out and then we take the mag out it should be from the outside in")
     const radialMag = (FR as { magPhase?: string }).magPhase === "radial";

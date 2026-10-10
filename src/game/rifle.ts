@@ -358,6 +358,23 @@ const plans = new Map<string, ReloadPlan>();
  * rack (soldierhold.json reload.bolt, shares of it). The gun turns in while the hand points and out as the first
  * person's does: with a rack pose, at the rack's end; without, as the rack begins.
  */
+/**
+ * A bolt gun's right hand after each shot, as the first person's (BOOG's: the bought arms play the pack's fire clip over
+ * the rechamber and work its bolt over that clip's rack window, fparms.json packGuns.<gun>.rack with clip "fire"): the
+ * reload's own bolt keys (soldierhold.json reload.bolt) laid over the same window, in shares of the rechamber. Null for a
+ * gun with no bolt worked after a shot. Until this, other players saw a sniper only kick, its bolt never worked.
+ */
+export function shotCycleOf(id: string): Array<[number, string]> | null {
+  const key = `${id}|shot`;
+  const had = plans.get(key);
+  if (had) return had.right.length ? had.right : null;
+  const rack = PACKS.packGuns[PACKS.guns[id] ?? ""]?.rack;
+  const bolt = (cfgFor(id).reload as { bolt?: Array<[number, string]> }).bolt;
+  const right: Array<[number, string]> = rack?.clip === "fire" && bolt ? bolt.map(([x, k]) => [rack.window[0] + x * (rack.window[1] - rack.window[0]), k]) : [];
+  plans.set(key, { left: [], right, tiltIn: [0, 0], tiltOut: [0, 0] });
+  return right.length ? right : null;
+}
+
 export function reloadPlanOf(id: string, tactical = false): ReloadPlan {
   const key = `${id}|${tactical}`;
   const had = plans.get(key);
@@ -731,6 +748,8 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   const R = C.reload;
   const u = s.reload;
   const plan = u === null ? null : reloadPlanOf(g.id, !!s.reloadTactical);
+  // a bolt gun's cycle after a shot (shotCycleOf), while the rechamber runs and no reload does
+  const shotCycle = u === null && s.sinceShot !== undefined && s.rechamber && s.sinceShot >= 0 && s.sinceShot < s.rechamber ? shotCycleOf(g.id) : null;
   // A shell gun (shellsOf): its pump's way back along the gun this frame, gun-local metres, as the first person's (the
   // samples measured off it, soldierhold.json pump.ride): over a shot's rechamber after each shot, and from empty over the
   // reload's own pump. The left hand on the pump rides it.
@@ -857,7 +876,13 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
       aimAt.fwd.lerp(LL.fwd, lo).normalize();
       aimAt.face.lerp(LL.face, lo).normalize();
     }
-    const reloadAt = u !== null && g.parts && plan ? reloadTarget(side === "l" ? plan.left : plan.right, u, C, g, gunQ, b, figQ, handDrop) : null;
+    const reloadAt =
+      u !== null && g.parts && plan
+        ? reloadTarget(side === "l" ? plan.left : plan.right, u, C, g, gunQ, b, figQ, handDrop)
+        : // (a bolt gun's bolt after a shot, out of a reload: shotCycleOf)
+          side === "r" && shotCycle && g.parts
+          ? reloadTarget(shotCycle, s.sinceShot! / s.rechamber!, C, g, gunQ, b, figQ, null)
+          : null;
     const { at: palmAt, fwd, face } = reloadAt ?? aimAt;
     // a shell gun's left hand bowed out round the gun's underside on its way off the pump and back, most half way (the
     // first person's `bow`: its straight way went through the gun), and riding the pump while it holds it

@@ -318,7 +318,8 @@ it.
   knees for a moment. Their gloved fingers are drawn a tenth smaller than the model's. A reload
   is the one you see in your own hands, on the same timeline: the left hand points
   at the magazine as it slides out and phases away, a new one phases in and seats,
-  then the handle is racked or the bolt worked, in the gun's own reload time.
+  then the handle is racked or the bolt worked, in the gun's own reload time; and
+  BOOG's bolt is worked after every shot, as in your own hands.
   Others see which reload it is: from empty, that whole one; with a round still
   in the chamber, the shorter tactical reload, as your own view plays it. A swap
   phases the gun out and the next one in, as your own view does; when your own
