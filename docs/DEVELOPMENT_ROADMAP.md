@@ -11775,3 +11775,26 @@ deck at 109 m was reached only by two pads from outside.
   taking 70% left more than 60% of it and none came back (loot.ts counts it once everything is down: 411 items, not 178).
 - **Checked** (tools/checks/sk-neon.ts): the stair walked by a player from the lobby to the crown and back; every floor up to the crown walked to from the plaza (60.5 m 242 m2, 75.5 m 242, 90.5 m 213, the crown 95) and the levels walked over 100%; a ceiling over each; loot on each; the crown's six crates on its deck; and two new checks, each proven by putting its bug back: each rope's column clear from its foot to its top with floor round its holes, and each rope ridden by a player up from the 45.5 m floor onto the penthouse 2.8 m out past its barrier, down from the penthouse to the 45.5 m floor and up from each level between; the coplanar measure back to 18.8 m2; the layout rerun after the bake unchanged. The e2e: the speedkills and skship sections, 106 passed and one failed, the centre's loot restock (its stock counted before the tower's floors were stocked), which with that fixed passed in the speedkills section alone, 101 of 101. verify, rules and the type check. The look: photographed inside each level, up the rope's shaft, on the crown and from outside: the levels enclosed, their round windows open over the city, the ropes and their barriers, the stair's hut on the crown among the spire's ring.
   The map: its files lo 99 MB, hi 163 MB, max 386 MB. **Its files are version 53.**
+
+## Milestone 570 — The street pieces: poster walls that stand on something, planters shot over
+
+The plan's item 9, "street pieces that look right", from the fourth review and the round 4 survey.
+
+- **Poster walls** (`rules.dress.board`): the street's tall cover, every third piece of the cover and of the median, was
+  the pack's loose wall posters (AdvertBlock02), made to be pasted on a wall and standing in the street with nothing
+  behind them: posters hanging in the air, solid from the ground. Each is now the pack's 5 by 3 m concrete panel, which
+  collides as it looks, with the pack's poster sheet pasted on each face, drawn only. 42 boards; the street still has
+  cover within 6 m of all but 0.1% of it.
+- **Planters** (`rules.collision.caps`): the median's and the pavements' planters collided as their whole fern, solid
+  to 2.3 m, so a shot through the leaves stopped. Each now collides as a box over its brick planter's own parts
+  (Box045, 0.5 m, measured off the model) up to a crouched body's 1.19 m (movement.json crouchHeight): the median's
+  crouch cover as Milestone 480 meant, the fern over it shot through. The street cover's planter boxes are listed with
+  the rest of the cover in the bake's laid-last boxes: the first bake left them out, and the layout's run after it found
+  the last run's planters standing in the street as cover already there and laid 69 pieces where the run before laid 134.
+- **Surveyed, nothing to fix:** the ad screens the plan listed as drawing blank (the street furniture, posters and
+  signs photographed at night, all drawing their pictures; the pack's stand-up ad, Neon017, is placed nowhere, and its
+  white in the contact sheet was the sheet's own light), and the walk-in buildings' doors, which stand in the buildings'
+  own steel frames. The bake now names the materials it cannot resolve (seven, the interiors' props and one street ad
+  slot, none of them on the street's pieces).
+- **Checked** (tools/checks/sk-neon.ts): the street's planters solid no higher than a crouched head with their fern shot through, every tall board a panel with a poster sheet on each face, and the street cover's planters listed in the bake's laid-last boxes, three new checks each proven by putting its bug back; all 160 pass, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: the poster walls in the median and by the edge road and the planters, photographed at night and at noon.
+  The map: its files lo 99 MB, hi 163 MB, max 386 MB. **Its files are version 54.**

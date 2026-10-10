@@ -207,6 +207,7 @@ if (mode === "bake") {
    * glass sides, left no room for a body between sides widened to half a metre each */
   const openFine: Array<{ d: Draw; m: M4 }> = [];
   /** the pieces that collide as their own faces (rules.fine.exact), each where it stands */
+  const CAPS = (cfg.rules.collision as { caps?: { pieces: string[]; parts: string[]; top: number } }).caps;
   const EXACT = (cfg.rules.fine as { exact?: { pieces: string[]; parts: Record<string, "floor" | "flight" | "rail">; plate: number; slice: number; room: number[] } }).exact;
   const exactAt: Array<{ x: number; y: number; z: number; yaw: number }> = [];
   const exactBoxes: number[][] = [];
@@ -526,6 +527,22 @@ if (mode === "bake") {
             if (!up.some((g) => g[5] > f[5] + 0.01 && g[5] < f[5] + 0.6 && f[6] >= g[0] && f[6] <= g[1] && f[7] >= g[2] && f[7] <= g[3])) exactBoxes.push(f.slice(0, 6));
           exactBoxes.push(...walls.values());
         }
+      } else if ((how === "o" || how === "s") && CAPS?.pieces.some((f) => key.endsWith(`/${f}`))) {
+        // a planter collides as a box over its brick box's parts up to a crouched head (rules.collision.caps), not as its
+        // fern and fronds, which stood solid to 2.3 m and stopped shots through their leaves
+        const b = [Infinity, -Infinity, Infinity, -Infinity];
+        let foot = Infinity;
+        for (const { d, m } of mine) {
+          if (!CAPS.parts.includes(d.model.meshes[d.mesh].name)) continue;
+          const [lo, hi] = partBounds(d, m);
+          [b[0], b[1], b[2], b[3]] = [Math.min(b[0], lo[0]), Math.max(b[1], hi[0]), Math.min(b[2], lo[2]), Math.max(b[3], hi[2])];
+          foot = Math.min(foot, lo[1]);
+        }
+        if (!Number.isFinite(foot)) throw new Error(`${key}: none of rules.collision.caps' parts in it`);
+        // (listed in `laid` with its chunk's: the street cover's planters, left out of it, stood in the next layout's
+        // street as cover already there, and the rerun laid 69 pieces of cover where the run before it laid 134)
+        if (LAID.includes(id)) laid.push([solidBoxes.length, solidBoxes.length + 1]);
+        solidBoxes.push([b[0], b[1], b[2], b[3], foot, foot + CAPS.top]);
       } else if (how === "o") ((cfg.rules.fine.pieces as string[]).some((f) => key.endsWith(`/${f}`)) ? openFine : open).push(...drawn);
       else if (how === "s") {
         const boxes = columnSolids(mine, C.cell, C.stick, cfg.rules.shell);
@@ -1219,6 +1236,10 @@ if (mode === "bake") {
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));
   if (!TAG) writeFileSync(cfgFile, JSON.stringify({ ...now, baked: cfg.baked, pads: cfg.pads, spine: cfg.spine, windows: cfg.windows, ...(cfg.tower ? { tower: { ...now.tower, measured: cfg.tower.measured } } : {}), ...(cfg.well?.measured ? { well: { ...now.well, measured: cfg.well.measured } } : {}) }, null, 1) + "\n");
   console.log(`unresolved materials: ${IMPORT_STATS.unresolved.size}, unmatched meshes: ${IMPORT_STATS.unmatchedMeshes.size}`);
+  // (and which: a material left unresolved draws blank, as the pack's ad stands' screens did)
+  const most = (m: Map<string, number>) => [...m].sort((x, y) => y[1] - x[1]).slice(0, 12).map(([k, v]) => `${k} (${Math.round(v)})`).join("; ");
+  if (IMPORT_STATS.unresolved.size) console.log("unresolved:", most(IMPORT_STATS.unresolved));
+  if (IMPORT_STATS.unmatchedMeshes.size) console.log("unmatched meshes:", most(IMPORT_STATS.unmatchedMeshes));
 }
 
 /**

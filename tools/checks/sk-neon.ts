@@ -317,20 +317,34 @@ check("the perches: cover on the crown, the lookout, the four High City decks an
   const soft = MED.filter((q) => !solidAt(q.at, q.piece ? (b) => b.base < 0.3 && b.top > 1.8 : (b) => b.base < 0.3 && b.top > 1));
   const boards = MED.filter((q) => q.piece).length;
   check("the streets' median: thirty-five planters and boards and more down the streets' middles, the planters solid past a crouched head and the boards over a standing eye", MED.length >= 35 && boards >= 8 && soft.length === 0, `${MED.length - boards} planters and ${boards} boards${soft.length ? `, ${soft.length} not solid: ${soft.slice(0, 3).map((q) => q.at.join(", ")).join("; ")}` : ""}`);
+  // (and the planters solid no higher than a crouched head, rules.collision.caps: their fern and fronds over it, which
+  // stood solid to 2.3 m, shot through)
+  const tallPlanters = MED.filter((q) => !q.piece).filter(({ at: [x, z] }) => solidsIn(x + BR_X - 0.3, x + BR_X + 0.3, z + BR_Z - 0.3, z + BR_Z + 0.3).some((b) => b.minX < x + BR_X + 0.3 && b.maxX > x + BR_X - 0.3 && b.minZ < z + BR_Z + 0.3 && b.maxZ > z + BR_Z - 0.3 && b.base < 1.4 && b.top > 1.5));
+  check("the streets' median: its planters solid no higher than a crouched head, their fern over it shot through", tallPlanters.length === 0, tallPlanters.length ? `${tallPlanters.length} solid past 1.5 m, first at ${tallPlanters[0].at.join(", ")}` : `${MED.filter((q) => !q.piece).length} planters`);
   // (and what stands in the street looks like what it collides as: no barred railing, solid to a shot and a bot's eye,
-  // in the median or the cover, and every one-sided board with its drawn twin turned about, a face to each side)
-  const FACED = (cfg.rules.dress as unknown as { twoFaced: string[]; seeThrough: string[] });
+  // in the median or the cover; and every tall board the pack's concrete panel with its poster sheet on each face,
+  // rules.dress.board: the pack's loose wall posters stood there before, hanging in the air with nothing behind them)
+  const FACED = (cfg.rules.dress as unknown as { seeThrough: string[]; board: { piece: string } });
   const all = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place);
   const barred = [...((cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-cover"]?.place ?? []), ...MED.map((q) => [q.piece ?? cfg.rules.dress.median.piece])].filter((q) => FACED.seeThrough.some((n) => String(q[0]).endsWith(n)));
-  const boardsAll = all.filter((q) => FACED.twoFaced.some((n) => String(q[0]).endsWith(n)));
-  const faced = boardsAll.filter((q) => q[5] !== "g");
-  // (each board the layout lists, by its footprint's middle: a twin turned about has its pivot mirrored through that
-  // middle, so the two pivots add up to twice it)
+  const sheets = all.filter((q) => String(q[0]).endsWith(`/${FACED.board.piece}`) && q[5] === "g");
+  // (each board the layout lists, by its footprint's middle: a sheet on each face within its half length, turned about)
   const listed = [...MED.filter((q) => q.piece).map((q) => q.at), ...((cfg as unknown as { streetCover?: Array<{ c: number[]; half?: number[] }> }).streetCover ?? []).filter((q) => q.half).map((q) => q.c)];
-  const pairOf = ([cx, cz]: number[]) =>
-    faced.some((q) => boardsAll.some((t) => t[5] === "g" && t[0] === q[0] && Math.abs(Number(q[1]) + Number(t[1]) - 2 * cx) < 0.02 && Math.abs(Number(q[3]) + Number(t[3]) - 2 * cz) < 0.02 && Math.abs((((Number(t[4]) - Number(q[4])) % 360) + 360) % 360 - 180) < 0.1));
-  const lone = listed.filter((c) => !pairOf(c));
-  check("the street's cover looks like what it collides as: no barred railing in the median or the cover, every one-sided board with its twin", barred.length === 0 && faced.length > 0 && listed.length === faced.length && lone.length === 0, `${barred.length} railings, ${listed.length - lone.length} of ${faced.length} boards twinned`);
+  const dressed = ([cx, cz]: number[]) => {
+    const near = sheets.filter((q) => Math.hypot(Number(q[1]) - cx, Number(q[3]) - cz) < 2.5);
+    return near.some((a) => near.some((b) => Math.abs((((Number(b[4]) - Number(a[4])) % 360) + 360) % 360 - 180) < 0.1));
+  };
+  const bare = listed.filter((c) => !dressed(c));
+  check("the street's cover looks like what it collides as: no barred railing in the median or the cover, every tall board a panel with a poster sheet on each face", barred.length === 0 && listed.length > 0 && bare.length === 0, `${barred.length} railings, ${listed.length - bare.length} of ${listed.length} boards dressed${bare.length ? `; bare at ${bare.slice(0, 3).map((c) => c.join(", ")).join("; ")}` : ""}`);
+  // (and the street cover's planters, each colliding as a box of its own, listed with the rest of the cover in the
+  // bake's `laid`: left out, the layout's next run found the last run's planters standing in the street as cover already
+  // there and laid 69 pieces where the run before it laid 134, so the city would change at every bake)
+  const CAPS = (cfg.rules.collision as unknown as { caps: { pieces: string[]; top: number } }).caps;
+  const LAIDR = (SOLIDS as { laid?: number[][] }).laid ?? [];
+  const S = (SOLIDS as { solids: number[][] }).solids;
+  const capped = ((cfg as unknown as { streetCover?: Array<{ piece: string; c: number[] }> }).streetCover ?? []).filter((q) => CAPS.pieces.includes(q.piece));
+  const unlisted = capped.filter(({ c: [x, z] }) => !S.some((b, i) => b[0] < x && b[1] > x && b[2] < z && b[3] > z && Math.abs(b[5] - b[4] - CAPS.top) < 0.01 && LAIDR.some(([a, e]) => i >= a && i < e)));
+  check("the street cover's planters laid again by the layout's next run: each one's box listed in the bake's laid-last boxes", capped.length > 0 && unlisted.length === 0, `${capped.length - unlisted.length} of ${capped.length} listed${unlisted.length ? `; first unlisted at ${unlisted[0].c.join(", ")}` : ""}`);
   const VAN = (cfg.rules.dress as unknown as { cars: { vans?: { pieces: string[] } } }).cars.vans;
   const vans = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => VAN?.pieces.some((v) => String(q[0]).endsWith(`/${v}`)) && Number(q[2]) < 2);
   check("hover vans parked among the cars: six and more, whole cover", vans.length >= 6, `${vans.length}`);

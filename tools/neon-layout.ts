@@ -96,6 +96,20 @@ function placeFaced(chunk: string, name: string, cx: number, cz: number, yaw: nu
   if (((R.dress.twoFaced ?? []) as string[]).includes(name)) placeTurned(chunk, name, cx, cz, yaw + 180, "g", y);
   return b;
 }
+/**
+ * the street's tall cover dressed (rules.dress.board): the pack's poster sheet on each face of the concrete panel just
+ * placed, `up` over its foot and `gap` off each face, drawn only. The panel's own thin side is its z
+ */
+function dressBoard(chunk: string, name: string, x: number, z: number, yaw: number, foot: number): void {
+  const B = R.dress.board as { piece: string; up: number; gap: number } | undefined;
+  if (!B) return;
+  const wall = piece(name).row, sheet = piece(B.piece).row;
+  const d = wall.size![2] / 2 + sheet.size![2] / 2 + B.gap;
+  const [nx, nz] = rotY(yaw, 0, 1);
+  const y = foot + B.up - sheet.min![1];
+  placeTurned(chunk, B.piece, x + nx * d, z + nz * d, yaw, "g", y);
+  placeTurned(chunk, B.piece, x - nx * d, z - nz * d, yaw + 180, "g", y);
+}
 /** whether two oriented boxes, each grown by `gap`, overlap (separating axes) */
 function overlaps(a: OBox, b: OBox, gap: number): boolean {
   for (const ax of [a.u, a.v, b.u, b.v]) {
@@ -2010,6 +2024,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         }
         SG.add(o);
         placeFaced("c-dress", name, x, z, yaw, "o", -pr.min![1]);
+        if (name === MD.tall?.piece) dressBoard("c-dress", name, x, z, yaw, 0);
         medians.push({ at: [+x.toFixed(3), +z.toFixed(3)], yaw: +yaw.toFixed(2), ...(name !== MD.piece ? { piece: name, half: [+(pr.size![0] / 2).toFixed(3), +(pr.size![2] / 2).toFixed(3)] } : {}) });
       }
     console.log(`the streets' median: ${passed} blocks passed over where they would cut the bots' street graph`);
@@ -3138,6 +3153,7 @@ const STREET_WALL_BOXES: OBox[] = [];
             if (!fits(o)) continue;
             // (solid, "s", as the street walls: the bake lists a solid placement's boxes in `laid`, an open one's it merges)
             const b = placeFaced(CO.chunk, name, x, z, yaw, "s", -row.min![1]);
+            if (name === CO.tall.piece) dressBoard(CO.chunk, name, x, z, yaw, 0);
             STREET_GRAPH?.add(b);
             for (const c of cellsOf(b)) body[c] = cover[c] = 1;
             // (the tall boards with their half sizes, as the median's: the road check knows them by these)

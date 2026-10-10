@@ -121,7 +121,8 @@ first.
 8. **The corner blocks:** a roof-hopping layer at 8 to 15 m from the railed roof decks, a pad up on every block, cover on
    the roofs; a big neon front on THE WELL and on MARKET, which round 4 still could not tell apart; their sector colours
    fixed (THE WELL's is violet against a teal beam, MARKET's blue against a green one).
-9. **Street pieces that look right:** the tall poster boards are posters hanging in the air, solid from the ground, so
+9. **Street pieces that look right** (built, Milestone 570: the poster boards are concrete panels with posters on both
+   faces, the planters collide to a crouched head; the blank screens and the walk-in doors surveyed, nothing to fix): the tall poster boards are posters hanging in the air, solid from the ground, so
    they become the pack's holo ads on stands; the planters' fronds collide as solid; the ad screens still drawing blank
    white get their pictures; walk-in doors framed with the pack's exterior gates.
 10. **Light:** a real night (today "a purple-tinted day", the range's sky fill still lighting the city), and noon on the
