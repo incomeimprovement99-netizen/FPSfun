@@ -213,7 +213,12 @@ const noGround: Array<[number, number, number, number]> = [];
   // the lobby's floor under the core stays)
   // (and the way from the base's roof onto the tower's terrace at 10.5 m and in through its glass waist: the terrace's
   // curb, 0.75 m, a wall to a walk, left out in front of each of the waist's two doors, and the doors themselves, shut)
-  const without = T ? [...(T.lobbyArch as string[]), ...((T.terraceWay ?? []) as string[]), `*#${T.strip.join(",")}`, `*#${T.floorStrip.join(",")}~FloorBasic00`, `*|${[C.box[0] - C.cutPast, C.box[1] + C.cutPast, C.storeys[0], C.top, C.box[2] - C.cutPast, C.box[3] + C.cutPast].join(",")}`] : [];
+  // (and the building's own triangles cut out over each express rope where it passes them, rules.tower.express `cut`, 2 cm past
+  // the hole each way: the collision's columns take a face on a grid line into both columns beside it, and cut on the hole's
+  // own lines the crown's deck kept a half-metre strip of each hole shut. Up to the penthouse the ropes pass none)
+  const EX = T?.express as { at: number[][]; from: number; to: number; hole: number; hang: number; over: number; colour: string; cut?: number[] } | undefined;
+  const ropeCuts = EX?.cut ? EX.at.map(([ex, ez]) => `*|${[ex - EX.hole / 2 - 0.02, ex + EX.hole / 2 + 0.02, EX.cut![0], EX.cut![1], ez - EX.hole / 2 - 0.02, ez + EX.hole / 2 + 0.02].join(",")}`) : [];
+  const without = T ? [...(T.lobbyArch as string[]), ...((T.terraceWay ?? []) as string[]), `*#${T.strip.join(",")}`, `*#${T.floorStrip.join(",")}~FloorBasic00`, `*|${[C.box[0] - C.cutPast, C.box[1] + C.cutPast, C.storeys[0], C.top, C.box[2] - C.cutPast, C.box[3] + C.cutPast].join(",")}`, ...ropeCuts] : [];
   const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o", T ? { without } : {});
   noGround.push([b.x0, b.x1, b.z0, b.z1]);
   cfg.tallest = { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, top: +b.top.toFixed(2), foot: +piece(M.building).row.min![1].toFixed(2) };
@@ -240,12 +245,39 @@ const noGround: Array<[number, number, number, number]> = [];
       mats: T.mats,
       scale: T.scale,
       backs: T.backs,
+      ...(T.backsUp ? { backsUp: T.backsUp } : {}),
       backWear: T.backWear,
       coplanar: T.coplanar,
       core: { box: [...on(C.box[0], C.box[2]), ...on(C.box[1], C.box[3])], storeys: C.storeys, top: C.top, wall: C.wall, landing: C.landing, divider: C.divider, tread: C.tread, riser: C.riser, stepDepth: C.stepDepth, slab: C.slab, door: C.door, doors, mats: C.mats, scale: C.scale },
       ...(T.sky ? { sky: T.sky } : {}),
       ...(T.lid ? { lid: T.lid } : {}),
+      ...(T.levels ? { levels: T.levels } : {}),
+      ...(EX ? { express: { at: EX.at.map(([ex, ez]) => on(ex, ez)), from: EX.from, to: EX.to, hole: EX.hole } } : {}),
     };
+    // the express ropes for the game (src/game/neonmap.ts draws them as it draws the glass lifts' and rides them the same)
+    if (EX) cfg.express = EX.at.map(([ex, ez]) => { const [x, z] = on(ex, ez); return { rope: [[x, +(EX.from + EX.hang).toFixed(3), z], [x, +(EX.to + EX.over).toFixed(3), z]], floor: EX.from, colour: EX.colour }; });
+    // a low barrier round each rope's hole at each floor it passes and on the crown (rules.tower.express `rail`): too high to
+    // step over, so a body walking the floor is not dropped down the shaft, and low enough that a rider put forward off the
+    // rope's top (3.7 m on, rising 0.7 m) or jumping off at a level clears it; each side `off` from the rope, its inner face
+    // past the hole's own grid line so its collision does not close the hole
+    const RL = (EX as unknown as { rail?: { piece: string; off: number; at: number[] } } | undefined)?.rail;
+    if (EX && RL) {
+      const row = piece(RL.piece).row;
+      const [long, thick] = [Math.max(row.size![0], row.size![2]), Math.min(row.size![0], row.size![2])];
+      // (the piece's own long axis: turned so it runs along the side)
+      const alongZ = row.size![2] >= row.size![0];
+      const d = RL.off + thick / 2;
+      for (const [ex, ez] of EX.at) {
+        const [x, z] = on(ex, ez);
+        for (const y of RL.at)
+          for (const k of [-0.5, 0.5]) {
+            placeTurned("c-tower", RL.piece, x - d, z + k * long, alongZ ? 0 : 90, "o", y);
+            placeTurned("c-tower", RL.piece, x + d, z + k * long, alongZ ? 0 : 90, "o", y);
+            placeTurned("c-tower", RL.piece, x + k * long, z - d, alongZ ? 90 : 0, "o", y);
+            placeTurned("c-tower", RL.piece, x + k * long, z + d, alongZ ? 90 : 0, "o", y);
+          }
+      }
+    }
     // (as x0, x1, z0, z1 on the map)
     const [ax, az, bx, bz] = cfg.tower.core.box;
     cfg.tower.core.box = [ax, bx, az, bz];
@@ -265,14 +297,22 @@ const noGround: Array<[number, number, number, number]> = [];
     // each); the pack's half-metre wall stood in each, a storey at a time
     for (const h of T.shaft as number[]) for (const [sx, sz] of T.slots.at as number[][]) placeTurned("c-tower", T.slots.piece, sx + px, sz + pz, 0, "o", h - 0.02);
     const F = T.floors;
-    // (a storey's ceiling: the slab under the storey over it, and over the top storey the lid, rules.tower.lid)
+    // (a storey's ceiling: the slab under the storey over it, or a slab of its own as high, the lid over the sky floors and
+    // each level's ceiling, rules.tower.lid and levels: with the core carried on up past it the storey over the 45.5 m floor
+    // is the stair's 48.5, and its doors and lamps measured from that stood 10 cm short of the lid)
     const lid = T.lid as { at: number; slab: number } | undefined;
+    const levelsT = (T.levels ?? []) as Array<{ floor: { at: number }; ceiling: { at: number; slab: number } }>;
+    const ownCeilings = [...(lid ? [lid] : []), ...levelsT.map((q) => q.ceiling)];
     const ceilingOf = (h: number): number => {
+      // (a level's own ceiling first, the penthouse's two storeys up)
+      const lv = levelsT.find((q) => q.floor.at === h);
+      if (lv) return lv.ceiling.at - lv.ceiling.slab;
       const S = C.storeys as number[];
-      const i = S.indexOf(h);
-      return i === S.length - 1 && lid ? lid.at - lid.slab : S[i + 1] - T.slab;
+      const next = S[S.indexOf(h) + 1];
+      const own = ownCeilings.find((q) => q.at > h && (next === undefined || q.at <= next + 0.1));
+      return own ? own.at - own.slab : next - T.slab;
     };
-    // (the floors numbered up from the first laid out: the new floors 1 to 8, the sky floors over them 9 to 11)
+    // (the floors numbered up from the first laid out: the new floors 1 to 8, the sky floors over them 9 to 11, the levels 12 to 14)
     const numbered = Object.keys(F.at).map(Number).sort((a, b) => a - b);
     const rnd3 = seeded(F.seed);
     const pick3 = <Q,>(a: Q[]): Q => a[Math.floor(rnd3() * a.length)];
@@ -297,6 +337,8 @@ const noGround: Array<[number, number, number, number]> = [];
       if (ds.includes("w")) keepT.push(boxOf([cx0 + px - 3, cx0 + px, dz + pz - 1.5, dz + pz + 1.5]));
       if (ds.includes("n")) keepT.push(boxOf([dx + px - 1.5, dx + px + 1.5, cz0 + pz - 3, cz0 + pz]));
       if (ds.includes("s")) keepT.push(boxOf([dx + px - 1.5, dx + px + 1.5, cz1 + pz, cz1 + pz + 3]));
+      // (and the express ropes on every floor they pass or start from, their holes and `clear` round them: the way on and off)
+      if (EX && h >= EX.from && h <= EX.to) for (const [ex, ez] of EX.at) keepT.push(boxOf([ex + px - EX.hole / 2 - F.clear, ex + px + EX.hole / 2 + F.clear, ez + pz - EX.hole / 2 - F.clear, ez + pz + EX.hole / 2 + F.clear]));
       // the partitions: a line from a to b (its own metres), opened as the plan says
       for (const [name, how] of Object.entries(plan)) {
         const [ax, az, bx, bz] = lines[name] ?? F.extra[name];
@@ -2456,7 +2498,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     const anyTop = (x: number, z: number, h: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h && b[5] > t ? b[5] : t), -Infinity);
     // (where each pad lands on the perches, as the bake finds it: the first column `face` metres high along its line, a
     // body wide, and `land` metres past it; or the way down's own spot)
-    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number };
+    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number; stairDoor: number };
     const lands: Array<[number, number, number]> = [];
     for (const q of (R.pads.spine?.up ?? []) as Array<{ at: number[]; to: number[]; floor: number; face: number; land: number }>) {
       if (q.floor < 10) continue;
@@ -2474,6 +2516,14 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     // (and the lookout's zip lines' ends on it, a grab's room round each: a rider comes off one at speed and is carried
     // 8 to 14 m whatever stands there, and at the decks' 4 m three ends left the lookout one crate)
     for (const q of ((cfg.zips ?? []) as Array<{ block: string; b: number[] }>).filter((z) => z.block.startsWith("lookout"))) lands.push([q.b[0], q.b[2], (R.low.zip.lookout as { clear: number }).clear]);
+    // (and on the crown the stair's doors out onto it: a crate laid before the stair came up stood before its west door)
+    const TWc = cfg.tower as { core: { box: number[]; storeys: number[]; doors: string[][]; wall: number; landing: number } } | undefined;
+    if (TWc) {
+      const [cx0, cx1, cz0, cz1] = TWc.core.box;
+      const dx = cx0 + TWc.core.wall + TWc.core.landing / 2;
+      const out: Record<string, Pt> = { w: [cx0 - 0.5, (cz0 + cz1) / 2], n: [dx, cz0 - 0.5], s: [dx, cz1 + 0.5], e: [cx1 + 0.5, (cz0 + cz1) / 2] };
+      for (const d of TWc.core.doors[TWc.core.storeys.length - 1] ?? []) lands.push([out[d][0], out[d][1], PC.stairDoor]);
+    }
     const perches: Array<{ name: string; at: number[][] }> = [];
     const roofCounts: string[] = [];
     // (every perch's pieces so far: a deck's landmark keeps off its cover as its cover keeps off itself)

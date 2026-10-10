@@ -44,7 +44,8 @@ it.
   map in detail under "The Neon City map" below), nine sectors: THE TOWER inside the Loop, the four High City decks
   and the four corner blocks, MOTEL HILL, NOODLE ROW, MARKET and THE WELL.
   - The centre's tower rises from a wide base round a lobby, eleven floors of rooms, halls and mazes numbered by its
-    stair, THE VAULT among them with the best loot, a lookout at 49 m and a crown at 109.
+    stair, THE VAULT among them with the best loot, a lookout at 49 m, and over them a sky lobby, a machine hall and a
+    penthouse (60, 75 and 90 m) reached by two express ropes and the stair, which climbs on to the crown at 109.
   - Round it the Sky Ring walkway, the four High City islands on their decks at 26 m joined by a ring of bridges, glass
     lifts up to them, zip lines from the lookout and the roof yards, jump pads, and a station under the plaza.
   - The streets curve round the Loop, with cover within 6 m of every point of them.
@@ -1287,7 +1288,7 @@ onto the tower's terrace and in through its glass waist. A stair core runs
 up the tower's middle from its lobby to its top floor (`tools/neon-tower.ts`), a
 door onto each of its 15 storeys, eight of them new floors between 14 and 35 m and the pack's three over them,
 each laid out differently: open, rooms, halls, a maze, a loop, two halves or corner bunkers, each numbered 1 to 11 in lights on black at the stair (2 m high beside two of its doors), its doorways in steel frames, its walls their own colour
-and its own tiles, and loot on each; the top storey is closed over by a lid under the tower's hollow upper half; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre, its row of windows framed in gold light round the tower and its lamps burning gold. Its floors and the base's upper storeys have
+and its own tiles, and loot on each; the top storey is closed over by a lid, and over it the stair climbs on through the hollow upper half to three levels, a sky lobby at 60.5 m (open, its windows at eye height over the city), a machine hall at 75.5 (rusted metal behind gates) and a penthouse at 90.5 (an open loft two storeys tall, in gold), numbered 12 to 14, and out onto the crown at 109 m; two express ropes in gold run non-stop from the 45.5 m floor up through the levels to the penthouse, ridden up or down and grabbed from each level over the low barrier round its shaft; the maze floor at 32 m is THE VAULT, named on the map, the richest loot in the centre, its row of windows framed in gold light round the tower and its lamps burning gold. Its floors and the base's upper storeys have
 open windows, 1.25 m wide, no glass: shot through, jumped in through. Its floors, the base's storeys, the court and the
 station are lit from their lamps by a pool of lights that follows you (neonmap.json game.fill: two lights on Competitive, four on Balanced, eight on High), the tower's at a fifth of the others' strength. The streets carry the pack's lamps,
 parked cars and hover vans as cover, a broken median of planters and tall advertising boards down every street, more planters, boards and kiosks so that no point of a street is more than 6 m from something to crouch behind, low buildings where the ground beside them was free, flying cars and neon signs; a check keeps how far a standing body on the streets is seen from in bounds. `tools/neon-layout.ts` places every piece

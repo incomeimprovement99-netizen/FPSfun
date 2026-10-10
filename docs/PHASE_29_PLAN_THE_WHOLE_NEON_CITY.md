@@ -101,7 +101,8 @@ first.
 3. **THE VAULT reads from outside** (Milestone 504, built in part). Its window row framed in gold from the slab's
    edge to the sills and from the windows' tops to the next sills, its lamps gold. Its name in lights on each face is
    left: the pack has no letter set, so it needs the map to draw words of its own. The loot's glow is item 11's.
-4. **The empty upper half, 47.5 to 108 m** (a decision). Measured off the bake: above the sky floors the tower is a hollow
+4. **The empty upper half, 47.5 to 108 m** (built, Milestone 509: the stair carried on to the crown, three levels at
+   60.5, 75.5 and 90.5 m, two express ropes from the 45.5 m floor to the penthouse). Measured off the bake: above the sky floors the tower is a hollow
    shell for 60 m, with no floors, no stairs and no windows that open; the crown at 109 m is reached only by pad from
    outside. Proposal: the pack's elevator as an express lift from the lobby to three new levels (a sky lobby at about
    60 m with the long shots over the city, a machine hall at about 75 m in the rust family's metal, a penthouse at about

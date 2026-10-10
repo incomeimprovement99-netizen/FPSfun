@@ -1025,6 +1025,11 @@ export class LootField {
       }
       for (const s of spots) for (const item of rollSpot(districtRnd, Dl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((districtRnd() - 0.5) * 0.8, 0, (districtRnd() - 0.5) * 0.8)));
     }
+    // (the hot zone's stock counted again once everything is down: the tower's floors are halls, filled after the hot
+    // place's own spots and inside its circle, and counted only among what it holds, a restock waited for less than 60% of
+    // what it started with plus all of theirs; with the tower's three levels and its crown the e2e's crowd, taking 70%,
+    // left more than that and none came back)
+    if (this.hotZone) this.hotStock = this.hotHeld().length;
   }
 
   /**

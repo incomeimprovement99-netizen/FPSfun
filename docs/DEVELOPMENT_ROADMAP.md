@@ -11729,3 +11729,49 @@ CENTRE (the city's middle) for everything with more players, and the Neon City f
 - **Also:** the layout read the map's half side from city.json, which Milestone 507 took out; it reads world.json now.
 - **Checked** (tools/checks/sk-neon.ts): eleven new checks, all passing, each proven by putting its bug back in a copy of the config (a pair of spawns moved inside their walls: in sight; a spawn 1.25 m from its wall: 1.0 m of open floor; the hall read 1 m wider than its walls: 118 gaps; its roof read at 8 m: 750 m2 open); the layout rerun after the bake left the config unchanged. The e2e: the speedkills and modes sections, every arena check passing (a 1v1 opening on NEON YARD with the city's file showing the yard alone; NEON HALL and THE CENTRE picked; a free-for-all on NEON YARD and Control on NEON HALL with everyone inside the walls and each spawn facing open floor; the free-for-all picked for the mode on THE CENTRE), 154 passed and 3 failed, the ghost's restore in a two-tab battle royale, which passed on the speedkills section's rerun alone (101 of 101). verify, rules and the type check. The look: photographed in the game from both ends, the sides, above and under the hall's lamps: the yard's four walls seen from inside, the hall concrete all round and lit by its lamps, and nothing of the city in either's sky.
   The map: its files lo 96 MB, hi 160 MB, max 382 MB. **Its files are version 52.**
+
+## Milestone 509 — The tower's upper half: its stair to the crown, three levels and two express lifts
+
+The owner, 2026-10-09: "yeah we want express lifts and three new levels up to the crown, with multiple ways to get up."
+The plan's item 4. Measured off the bake: over the sky floors' lid at 48.45 m the tower was a hollow shell 60 m tall, its
+facade a solid band every 3 m (59.75 to 61.1 m, and so on up) with open windows between (61.25 to 62.6), and the crown's
+deck at 109 m was reached only by two pads from outside.
+
+- **The stair to the crown** (`rules.tower.core`): the core carried on up from the 45.5 m sky floor through the lid, a
+  landing every 3 m on the facade's own storey lines to 105.5 m and a 3.5 m storey to the crown's deck, doors at the three
+  levels and out onto the crown only, its hut 2.6 m over the deck. The tower is climbed from its lobby to its crown inside.
+  The lid now has the core's hole; the crown's cover keeps 2.5 m off the stair's doors (`perches_clear.stairDoor`).
+- **Three levels** (`rules.tower.levels`), each a floor and a ceiling, built by the bake as the lid is, inside the facade's
+  solid band round each, so its windows are at a standing eye: the sky lobby at 60.5 m (open, white panels, marble), the
+  machine hall at 75.5 (halls behind gates, rusted panels, metal planks, amber lamps), each a 3 m storey, and the penthouse
+  at 90.5, an open loft two storeys tall in gold, its ceiling at 96.5 (a rider put off the express rope's top hops 0.7 m,
+  and under a 3 m ceiling their head met it and they came down on the rope's barrier). Numbered 12 to 14 at the stair's doors, lit from their lamps by the interiors' fill, their
+  cover kept off every doorway and the ropes. On a grid 3 m wider than the square (the shell up there bulges 1.4 m past its
+  east face, which a slab on the square's grid left open), and to the facade's inner face alone, off the pack's ledges: a
+  pilaster on the west face has level faces at every storey line, and the slabs met them in one plane.
+- **Two express lifts** (`rules.tower.express`): vertical ropes in gold, non-stop from the 45.5 m floor through the lid,
+  the sky lobby, the machine hall and their ceilings to the penthouse, ridden as the glass lifts are and put off at the
+  top onto its floor; from a level a body grabs the rope over its barrier and rides up or down. A 2 m hole round each
+  through every slab, and a low barrier round each hole on each level, the pack's street fence (0.54 m over the floor, past a body's
+  step), so a body walking a level is not dropped down the shaft and a rider coming off clears it. The ropes stand in their
+  rooms' middles, 3 m and more from every wall (the first south-east one, 2 m from a wall, bounced its rider back onto its
+  barrier). Two first designs the ride check turned down: ropes to the crown (a rope's top end throws a rider 3.7 m on whichever way they face, and between
+  the crown's 0.9 m parapet and the spire's ring round the stair there was no spot that kept every arrival on it: riders
+  facing the near edge went over it), and stepping off at a level on the way (riding at 12 m/s there is under 0.2 s between
+  clearing the barrier and the head meeting the ceiling, whose hole then lifted the body onto the ceiling's top in the
+  sealed hollow over the level; riding up, the jump keeps the rope's 12 m/s climb and does the same).
+- **Seen from inside** (`rules.tower.backs`): the pack draws the shell's trims and its round windows' walls from outside
+  only, and on the floors under the lid the slabs and the rebuilt window walls hide that; in the levels the photographs
+  showed the sky through the walls. The trims are drawn from inside now too, and over the side block's roof at 49 m the
+  round windows of the west face and the north and south bays, 1.25 to 2.5 m past the main body's square, which the
+  filter for the main body's own shell had left out. The levels look out through the shell's round windows, open and
+  shot through (61.25 to 62.6 m on the sky lobby, at a standing eye); the dark-glass window panels stay shut, their sills
+  0.44 m over a level's floor, which a body would walk out of.
+- **Found on the way:** the layout measured a floor's ceiling from the next storey, which with the core carried on put the
+  45.5 m floor's doors and lamps 10 cm short of the lid (now the nearest slab over the floor); the loot's hall floors are the
+  storeys with doors, not every landing (they would have hung loot in the hollow); a hole's edges on the collision's grid
+  lines kept a strip of it shut, the reason for the 2 m holes and the 2 cm margins; and the centre's loot restock counted
+  its stock before the tower's floors were stocked, inside its circle, so with four more floors to the crown the e2e's crowd
+  taking 70% left more than 60% of it and none came back (loot.ts counts it once everything is down: 411 items, not 178).
+- **Checked** (tools/checks/sk-neon.ts): the stair walked by a player from the lobby to the crown and back; every floor up to the crown walked to from the plaza (60.5 m 242 m2, 75.5 m 242, 90.5 m 213, the crown 95) and the levels walked over 100%; a ceiling over each; loot on each; the crown's six crates on its deck; and two new checks, each proven by putting its bug back: each rope's column clear from its foot to its top with floor round its holes, and each rope ridden by a player up from the 45.5 m floor onto the penthouse 2.8 m out past its barrier, down from the penthouse to the 45.5 m floor and up from each level between; the coplanar measure back to 18.8 m2; the layout rerun after the bake unchanged. The e2e: the speedkills and skship sections, 106 passed and one failed, the centre's loot restock (its stock counted before the tower's floors were stocked), which with that fixed passed in the speedkills section alone, 101 of 101. verify, rules and the type check. The look: photographed inside each level, up the rope's shaft, on the crown and from outside: the levels enclosed, their round windows open over the city, the ropes and their barriers, the stair's hut on the crown among the spire's ring.
+  The map: its files lo 99 MB, hi 163 MB, max 386 MB. **Its files are version 53.**

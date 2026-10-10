@@ -923,8 +923,12 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
 // those floors each the inside of the tower's shell, the same on every storey; and none of them seen through: the
 // bake's fan of rays from all over each floor at eye height meets a face turned toward it every time
 {
-  const TW = (cfg as unknown as { tower: { square: number[]; shaft: number[]; core: { box: number[]; storeys: number[]; route: number[][] }; measured: { floors: number[]; seal: Array<{ at: number; rays: number; out: number }> } } }).tower;
+  const TW = (cfg as unknown as { tower: { square: number[]; shaft: number[]; levels?: Array<{ floor: { at: number }; ceiling: { at: number; slab: number } }>; core: { box: number[]; storeys: number[]; doors: string[][]; route: number[][] }; measured: { floors: number[]; seal: Array<{ at: number; rays: number; out: number }> } } }).tower;
   const [cx0, cx1, cz0, cz1] = TW.core.box;
+  // (the storeys with a floor, the ones the core has doors on: from the sky floors to the crown it climbs the hollow with
+  // closed landings every 3 m between the three levels, rules.tower.levels)
+  const FLOORED = TW.core.storeys.filter((_, k) => TW.core.doors[k]?.length);
+  const LVL = (TW.levels ?? []).map((q) => q.floor.at);
   // (from the lobby a metre and a half out of its west door, through the door's middle)
   const route = [[cx0 - 1.5, (cz0 + cz1) / 2, TW.core.storeys[0]], [cx0 + 0.75, (cz0 + cz1) / 2, TW.core.storeys[0]], ...TW.core.route];
   // (a longer walk than an entrance's: fourteen storeys up a switchback)
@@ -934,7 +938,8 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     const go = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
     let t = 1000;
     let k = 1;
-    for (let i = 0; i < 240 * 144 && k < pts.length; i++) {
+    // (to the crown since Milestone 509: thirty-five storeys)
+    for (let i = 0; i < 600 * 144 && k < pts.length; i++) {
       const [tx, tz, ty] = pts[k];
       const dx = tx - (p.pos.x - BR_X), dz = tz - (p.pos.z - BR_Z);
       if (Math.hypot(dx, dz) < 0.3 && Math.abs(p.pos.y - ty) < 0.6) {
@@ -964,7 +969,8 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
       const here = solidsIn(x - H, x + H, z - H, z + H).filter((b) => b.minX < x + H && b.maxX > x - H && b.minZ < z + H && b.maxZ > z - H);
       boxesAt.set(i * NJ + j, here);
       const ys = new Set<number>([floorAt(x, z)]);
-      for (const b of here) if (b.minX <= x && b.maxX >= x && b.minZ <= z && b.maxZ >= z && b.top < 50) ys.add(b.top);
+      // (up to the crown since Milestone 509: the three levels and the crown's deck are floors the core serves)
+      for (const b of here) if (b.minX <= x && b.maxX >= x && b.minZ <= z && b.maxZ >= z && b.top < TW.core.storeys[TW.core.storeys.length - 1] + 0.5) ys.add(b.top);
       const list = [...ys].filter((y) => !here.some((b) => b.base < y + MOVE.standHeight && b.top > y + MOVE.stepHeight));
       if (list.length) at.set(i * NJ + j, list.map((y) => (spots.push({ i, j, y }), spots.length - 1)));
     }
@@ -1010,7 +1016,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     });
     return { y, of: of * C * C, got: got * C * C, rooms: rooms.filter((_, i) => i !== 4) };
   };
-  const all = TW.core.storeys.map(storey);
+  const all = FLOORED.map(storey);
   check("the tower: every storey its core serves walked to from the plaza, beyond the core's doors", all.every((q) => q.got > 30), all.map((q) => `${q.y} m ${q.got.toFixed(0)} m2`).join("; "));
   // (and the sky floors over them, rules.tower.sky, partitioned as they are: most of each floor, and two-fifths of every
   // room of it, so a room walled off by cover is caught however small: on the bunkers floor two crates walled the east
@@ -1018,11 +1024,12 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // balcony of the pack's behind its glass, walked to from nowhere before they were partitioned, 94% of 277 m2 on 38.5
   // and 42 m, and half the west room there, 53 to 54% of it walked)
   const SKYW = (TW as unknown as { sky?: number[] }).sky ?? [];
-  const laid = all.filter((q) => TW.shaft.includes(q.y) || SKYW.includes(q.y));
+  // (and the three levels over them, rules.tower.levels, as the sky floors are)
+  const laid = all.filter((q) => TW.shaft.includes(q.y) || SKYW.includes(q.y) || LVL.includes(q.y));
   const roomsOk = (q: (typeof laid)[number]) => q.rooms.every((r) => r.of * C * C < 4 || r.got / r.of > 0.4);
   check(
-    "the tower: its new floors and its sky floors walked over, most of each and every room of it",
-    laid.length === TW.shaft.length + SKYW.length && laid.every((q) => q.of > 100 && q.got / q.of > (SKYW.includes(q.y) ? 0.85 : 0.9) && roomsOk(q)),
+    "the tower: its new floors, its sky floors and its three levels walked over, most of each and every room of it",
+    laid.length === TW.shaft.length + SKYW.length + LVL.length && laid.every((q) => q.of > 100 && q.got / q.of > (SKYW.includes(q.y) || LVL.includes(q.y) ? 0.85 : 0.9) && roomsOk(q)),
     laid.map((q) => `${q.y} m ${((q.got / q.of) * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2${roomsOk(q) ? "" : ` (a room ${Math.min(...q.rooms.filter((r) => r.of * C * C >= 4).map((r) => (r.got / r.of) * 100)).toFixed(0)}%)`}`).join("; "),
   );
   // (measured by the bake: a layout run since without a bake leaves none)
@@ -1040,13 +1047,21 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     const LID = (TW as unknown as { lid?: { at: number; slab: number } }).lid;
     const ST = TW.core.storeys;
     const slab = (cfg.rules.tower as unknown as { slab: number }).slab;
-    const open = ST.filter((h) => h >= TW.shaft[0]).map((h) => {
+    // (each floor's ceiling the nearest slab over it: the storey over it's, or the lid's or a level's own, as the layout has
+    // it; the crown, the core's top storey, is open to the sky)
+    const own = [...(LID ? [LID] : []), ...(TW.levels ?? []).map((q) => q.ceiling)];
+    const open = FLOORED.filter((h) => h >= TW.shaft[0] && h < ST[ST.length - 1]).map((h) => {
       const i = ST.indexOf(h);
-      const ceiling = i === ST.length - 1 ? (LID ? LID.at - LID.slab : h + 3) : ST[i + 1] - slab;
+      const mine = (TW.levels ?? []).find((q) => q.floor.at === h)?.ceiling ?? own.find((q) => q.at > h && q.at <= ST[i + 1] + 0.1);
+      const ceiling = mine ? mine.at - mine.slab : ST[i + 1] - slab;
       let [stood, bare] = [0, 0];
+      // (and the express ropes' shafts, open over the 45.5 m floor where they start: rules.tower.express)
+      const EXs = (TW as unknown as { express?: { at: number[][]; hole: number; to: number } }).express;
+      const inShaft = (x: number, z: number) => !!EXs && h < EXs.to && EXs.at.some(([ex, ez]) => Math.abs(x - ex) < EXs.hole / 2 + 0.3 && Math.abs(z - ez) < EXs.hole / 2 + 0.3);
       for (let x = sx0 + 0.5; x < sx1 - 0.5; x += C)
         for (let z = sz0 + 0.5; z < sz1 - 0.5; z += C) {
           if (x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3) continue;
+          if (inShaft(x, z)) continue;
           const [wx, wz] = [x + BR_X, z + BR_Z];
           const here = solidsIn(wx, wx, wz, wz).filter((b) => b.minX <= wx && b.maxX >= wx && b.minZ <= wz && b.maxZ >= wz);
           if (![floorAt(wx, wz), ...here.map((b) => b.top)].some((t) => Math.abs(t - h) < 0.1) || here.some((b) => b.base < h + MOVE.standHeight && b.top > h + MOVE.stepHeight)) continue;
@@ -1055,7 +1070,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
         }
       return { h, stood: stood * C * C, bare: bare * C * C };
     });
-    check("the tower: a ceiling over every storey from its new floors up, the top one under its lid", !!LID && open.length === TW.shaft.length + SKY.length && open.every((q) => q.stood > 100 && q.bare <= 2), open.map((q) => `${q.h} m ${q.bare.toFixed(0)} of ${q.stood.toFixed(0)} m2 open`).join("; "));
+    check("the tower: a ceiling over every floor from its new floors up, the sky floors' top one under its lid and each level under its own", !!LID && open.length === TW.shaft.length + SKY.length + LVL.length && open.every((q) => q.stood > 100 && q.bare <= 2), open.map((q) => `${q.h} m ${q.bare.toFixed(0)} of ${q.stood.toFixed(0)} m2 open`).join("; "));
   }
   // nothing drawn face up over another material in the same plane over the base and the tower (the bake's measure,
   // tools/neon-tower.ts coplanar): two such fight for the same pixels, a sawtooth of the two by turns as the view moves
@@ -1649,9 +1664,10 @@ check("loot over the map, 150 items and more", drops.length >= 150, `${drops.len
 check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40 && over24 >= 10, `${over12} over 12 m, ${over24} over 24 m, of ${drops.length}`);
 // every floor of the tower its core serves over the lobby stocked (src/game/neonmap.ts: each a hall's for the loot)
 {
-  const TW = (cfg as unknown as { tower: { square: number[]; shaft: number[]; core: { storeys: number[] } } }).tower;
+  const TW = (cfg as unknown as { tower: { square: number[]; shaft: number[]; core: { storeys: number[]; doors: string[][] } } }).tower;
   const [sx0, sx1, sz0, sz1] = TW.square;
-  const per = TW.core.storeys.slice(1).map((h) => ({ h, n: drops.filter((d) => Math.abs(d.pos.y - h) < 0.2 && d.pos.x - BR_X > sx0 && d.pos.x - BR_X < sx1 && d.pos.z - BR_Z > sz0 && d.pos.z - BR_Z < sz1).length }));
+  // (every storey with a floor, the ones the core has doors on: neonmap.ts HALL_FLOORS)
+  const per = TW.core.storeys.slice(1).filter((_, k) => TW.core.doors[k + 1]?.length).map((h) => ({ h, n: drops.filter((d) => Math.abs(d.pos.y - h) < 0.2 && d.pos.x - BR_X > sx0 && d.pos.x - BR_X < sx1 && d.pos.z - BR_Z > sz0 && d.pos.z - BR_Z < sz1).length }));
   check("loot on every floor of the tower over its lobby, 5 items and more each", per.every((q) => q.n >= 5), per.map((q) => `${q.h} m ${q.n}`).join(", "));
 }
 // each corner block's own loot (game.sites, its `reach`): in its rooms building or the Well, some of it up the fire escape
@@ -1931,8 +1947,11 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     const plan = F.plans[P.plan];
     const want = { door: Object.values(plan).filter((v) => v === "door").length, gate: Object.values(plan).filter((v) => v === "gate").length };
     // (over the top storey, its lid)
+    // (the nearest slab over it, as the layout's ceilingOf: the storey over it's, or the lid's or a level's own)
     const i = TWc.core.storeys.indexOf(h);
-    const ceiling = i === TWc.core.storeys.length - 1 && TWc.lid ? TWc.lid.at - TWc.lid.slab : TWc.core.storeys[i + 1] - slab;
+    const lvC = (TWc as unknown as { levels?: Array<{ floor: { at: number }; ceiling: { at: number; slab: number } }> }).levels ?? [];
+    const ownC = lvC.find((q) => q.floor.at === h)?.ceiling ?? [...(TWc.lid ? [TWc.lid] : []), ...lvC.map((q) => q.ceiling)].find((q) => q.at > h && q.at <= TWc.core.storeys[i + 1] + 0.1);
+    const ceiling = ownC ? ownC.at - ownC.slab : TWc.core.storeys[i + 1] - slab;
     for (const [kind, name] of [["door", F.frame.door], ["gate", F.gate]] as const) {
       const got = place.filter((q) => String(q[0]).endsWith(name) && Math.abs(Number(q[2]) - h) < 1);
       const ok = got.filter((q) => {
@@ -2013,6 +2032,80 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       check(`${m.name}: its roof over all of its floor at ${L.roof} m`, bare === 0, `${under} m2 roofed${bare ? `, ${bare} open` : ""}`);
     }
   }
+}
+
+// The tower's express lifts (rules.tower.express; the owner, 2026-10-09: "express lifts and three new levels up to the
+// crown, with multiple ways to get up"), off the bake's collision: each rope's column, a rider's radius and a hand round
+// its line, clear of every box from over the 45.5 m floor to its top (a rider meeting anything is thrown off the rope, and
+// a hole closed in the collision is a ceiling to them); the floor under its foot; floor all round its hole at each level
+// to step off onto, a metre out from the hole; and its top over the penthouse's floor by a lift's height
+{
+  const TWx = (cfg as unknown as { tower: { express?: { at: number[][]; from: number; to: number; hole: number }; levels?: Array<{ floor: { at: number } }> } }).tower;
+  const EX = TWx.express;
+  const ropes = ((cfg as unknown as { express?: Array<{ rope: number[][] }> }).express ?? []);
+  const r = MOVE.radius + 0.1;
+  const boxesAt = (x: number, z: number, h: number) => solidsIn(x + BR_X - h, x + BR_X + h, z + BR_Z - h, z + BR_Z + h).filter((b) => b.minX < x + BR_X + h && b.maxX > x + BR_X - h && b.minZ < z + BR_Z + h && b.maxZ > z + BR_Z - h);
+  const each = (EX?.at ?? []).map(([x, z], i) => {
+    const rope = ropes[i];
+    const y0 = EX!.from + 0.2, y1 = rope ? rope.rope[1][1] : 0;
+    const inWay = boxesAt(x, z, r).filter((b) => b.top > y0 && b.base < y1);
+    const foot = boxesAt(x, z, 0.05).some((b) => Math.abs(b.top - EX!.from) < 0.1) || Math.abs(floorAt(x + BR_X, z + BR_Z) - EX!.from) < 0.1;
+    const out = EX!.hole / 2 + 1;
+    const ringAt = (y: number) => [[x - out, z], [x + out, z], [x, z - out], [x, z + out]].filter(([qx, qz]) => boxesAt(qx, qz, 0.05).some((b) => Math.abs(b.top - y) < 0.1)).length;
+    const rings = (TWx.levels ?? []).map((q) => ringAt(q.floor.at));
+    const crown = ringAt(EX!.to);
+    const over = rope ? rope.rope[1][1] - EX!.to : 0;
+    return { x, z, inWay: inWay.map((b) => `${(b.base).toFixed(2)} to ${b.top.toFixed(2)}`), foot, rings, crown, over: +over.toFixed(2) };
+  });
+  check(
+    "the tower's express lifts: each rope's column clear from its foot on the 45.5 m floor to its top, floor round its hole on every level, its top a lift's height over the penthouse's floor",
+    !!EX && each.length === 2 && ropes.length === 2 && each.every((q) => q.inWay.length === 0 && q.foot && q.rings.length === 3 && q.rings.every((n) => n >= 3) && q.over > 2.3 && q.over < 2.7),
+    each.map((q) => `(${q.x}, ${q.z}): ${q.inWay.length ? `in the way ${q.inWay.slice(0, 3).join(", ")}` : "clear"}, foot ${q.foot}, round its holes ${q.rings.join("/")} of 4, top ${q.over} m over the penthouse`).join("; "),
+  );
+}
+
+// The express lifts ridden by a player's own movement, non-stop between the 45.5 m sky floor and the penthouse: from the
+// 45.5 m floor, facing the rope a metre off it, interact, ridden up the whole way and put off onto the penthouse's floor
+// past its barrier; from the penthouse, from outside the barrier looking at the rope level, ridden down and let off at its
+// foot on the 45.5 m floor; and from each level between, from outside its barrier looking a little up, ridden up to the
+// penthouse (jumping off at a level on the way, riding at 12 m/s, has under 0.2 s between clearing the barrier and the
+// head meeting the ceiling, whose hole then lifted the body onto the ceiling's top in the hollow over the level)
+{
+  const EXr = (cfg as unknown as { tower: { express?: { at: number[][]; from: number; to: number }; levels?: Array<{ floor: { at: number } }> } }).tower;
+  const between = (EXr.levels ?? []).map((q) => q.floor.at).filter((h) => h < EXr.express!.to);
+  const ride = (x: number, z: number, off: number[], from: number, pitch: number) => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(x + off[0] + BR_X, from + 0.05, z + off[1] + BR_Z, (Math.atan2(off[0], off[1]) * 180) / Math.PI);
+    p.pitch = pitch;
+    let [t, tap] = [1000, false];
+    const input = { held: (_a: Action) => false, pressedNow: (a: Action) => tap && a === "interact" };
+    const step = () => p.update(1 / 144, (t += 1 / 144), input, 0, 1, false);
+    for (let i = 0; i < 36; i++) step();
+    tap = true;
+    step();
+    tap = false;
+    const rode = p.stance === "zip";
+    for (let i = 0; i < 144 * 12 && p.stance === "zip"; i++) step();
+    for (let i = 0; i < 144 * 3; i++) step();
+    return { rode, y: p.pos.y, d: Math.hypot(p.pos.x - BR_X - x, p.pos.z - BR_Z - z) };
+  };
+  // (from the side away from the room's faces, the NW rope's east and the SE rope's west: a metre off it on the 45.5 m floor,
+  // which has no barrier, and 2.2 m off from outside the barrier on the levels)
+  const sides = [[1, 0], [-1, 0]];
+  const runs = (EXr.express?.at ?? []).map(([x, z], i) => {
+    const [ox, oz] = sides[i];
+    return {
+      up: ride(x, z, [ox, oz], EXr.express!.from, 0),
+      down: ride(x, z, [ox * 2.2, oz * 2.2], EXr.express!.to, 0),
+      ons: between.map((h) => ({ h, r: ride(x, z, [ox * 2.2, oz * 2.2], h, 20) })),
+    };
+  });
+  const top = EXr.express!.to, foot = EXr.express!.from;
+  check(
+    "the tower's express lifts: each ridden up from the 45.5 m floor and put off onto the penthouse's floor past its barrier, down from the penthouse to the 45.5 m floor, and up from each level between, by a player",
+    runs.length === 2 && between.length === 2 && runs.every((q) => q.up.rode && Math.abs(q.up.y - top) < 0.15 && q.up.d > 1.7 && q.down.rode && Math.abs(q.down.y - foot) < 0.15 && q.ons.every((l) => l.r.rode && Math.abs(l.r.y - top) < 0.15 && l.r.d > 1.7)),
+    runs.map((q, i) => `rope ${i + 1}: up ${q.up.rode ? "rode" : "no grab"}, off at ${q.up.y.toFixed(2)} m ${q.up.d.toFixed(1)} m out; down ${q.down.rode ? "rode" : "no grab"}, off at ${q.down.y.toFixed(2)} m; ${q.ons.map((l) => `from ${l.h} m ${l.r.rode ? "rode" : "no grab"}, off at ${l.r.y.toFixed(2)}`).join(", ")}`).join("; "),
+  );
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

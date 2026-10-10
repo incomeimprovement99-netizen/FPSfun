@@ -428,11 +428,18 @@ if (mode === "bake") {
       // reflect, and inside, with nothing lit to reflect, they drew black; glass (backWear.keep) stays glass
       if (id === "c-middle" && cfg.tower?.backs)
         for (const { d, m } of mine) {
-          if (!(cfg.tower.backs as string[]).includes(basename(pack.guidPath.get(d.modelGuid) ?? ""))) continue;
-          // (only the main body's own shell: the side core's round glass corners are seen from outside alone)
+          const model = basename(pack.guidPath.get(d.modelGuid) ?? "");
+          // (and `backsUp`'s only over the side block's roof: the levels' trims, not the floors' under it)
+          const up = ((cfg.tower.backsUp ?? []) as string[]).includes(model);
+          if (!(cfg.tower.backs as string[]).includes(model) && !up) continue;
+          // (only the main body's own shell: the side core's round glass corners are seen from outside alone. Over the side
+          // block's roof at 49 m the shell is the main body's alone, and its round windows on the west face and in the north and
+          // south bays stand 1.25 to 2.5 m past the square: kept out, they showed the sky into the levels)
           const [lo, hi] = partBounds(d, m);
           const [qx0, qx1, qz0, qz1] = cfg.tower.square as number[];
-          if ((lo[0] + hi[0]) / 2 < qx0 - 0.1 || (lo[0] + hi[0]) / 2 > qx1 + 0.1 || (lo[2] + hi[2]) / 2 < qz0 - 0.1 || (lo[2] + hi[2]) / 2 > qz1 + 0.1) continue;
+          const past = lo[1] > 48.5 ? 2.6 : 0.1;
+          if (up && lo[1] <= 48.5) continue;
+          if ((lo[0] + hi[0]) / 2 < qx0 - past || (lo[0] + hi[0]) / 2 > qx1 + past || (lo[2] + hi[2]) / 2 < qz0 - past || (lo[2] + hi[2]) / 2 > qz1 + past) continue;
           const BW = cfg.tower.backWear as { mat: string; scale: number; keep: string[]; upright: number };
           const wear = pack.matFor(BW.mat);
           if (!wear) throw new Error(`no material ${BW.mat}`);
@@ -799,7 +806,7 @@ if (mode === "bake") {
     };
     const [sx0, sx1, sz0, sz1] = TW.square;
     const cell = TW.cell;
-    const g: Grid = { x0: sx0 - 1, z0: sz0 - 1, cell, nx: Math.ceil((sx1 - sx0 + 2) / cell), nz: Math.ceil((sz1 - sz0 + 2) / cell) };
+    const g0: Grid = { x0: sx0 - 1, z0: sz0 - 1, cell, nx: Math.ceil((sx1 - sx0 + 2) / cell), nz: Math.ceil((sz1 - sz0 + 2) / cell) };
     const [cx0, cx1, cz0, cz1] = C2.box;
     const coreHole: Pt[] = [[cx0, cz0], [cx1, cz0], [cx1, cz1], [cx0, cz1]];
     const areas: number[] = [];
@@ -818,11 +825,31 @@ if (mode === "bake") {
     // which stops under it, and nothing measured; its inside found in the facade's solid band round it, `band`, the glass
     // rows over it being the hollow's)
     const LID = TW.lid as { at: number; slab: number; band: number[] } | undefined;
-    const levels = [...(TW.shaft as number[]).map((h) => ({ h, kind: "floor" })), ...(LID ? [{ h: LID.at, kind: "lid" }] : [])];
+    // (and the three levels in the hollow over it, rules.tower.levels: a floor and a ceiling each built as the lid is, the
+    // core's hole and the express ropes' cut out of all of them and of the lid, which the core now passes through; on a grid
+    // `levelPad` metres wider than the square: the shell up there bulges 1.4 m past the square's east face, and a slab on the
+    // square's grid left that strip open to the hollow under it)
+    type Banded = { at: number; slab: number; band: number[] };
+    const LV = (TW.levels ?? []) as Array<{ floor: Banded; ceiling: Banded }>;
+    const EXH = TW.express as { at: number[][]; hole: number } | undefined;
+    const ropeHoles: Pt[][] = (EXH?.at ?? []).map(([x, z]) => {
+      const r = EXH!.hole / 2;
+      return [[x - r, z - r], [x + r, z - r], [x + r, z + r], [x - r, z + r]];
+    });
+    const levelPad = 3;
+    const gL: Grid = { x0: sx0 - levelPad, z0: sz0 - levelPad, cell, nx: Math.ceil((sx1 - sx0 + 2 * levelPad) / cell), nz: Math.ceil((sz1 - sz0 + 2 * levelPad) / cell) };
+    const levels: Array<{ h: number; kind: string; spec?: Banded }> = [
+      ...(TW.shaft as number[]).map((h) => ({ h, kind: "floor" })),
+      ...(LID ? [{ h: LID.at, kind: "lid", spec: LID }] : []),
+      ...LV.flatMap((q) => [{ h: q.floor.at, kind: "level", spec: q.floor }, { h: q.ceiling.at, kind: "ceiling", spec: q.ceiling }]),
+    ];
     let lidArea = 0;
-    for (const { h, kind } of levels) {
+    const levelAreas: Array<{ at: number; kind: string; area: number }> = [];
+    for (const { h, kind, spec } of levels) {
+      const banded = kind !== "floor";
+      const g = banded && kind !== "lid" ? gL : g0;
       // (what stands on this floor, from just over it: the glass round the storey under 14 m tops out at 13.5)
-      const stood = kind === "lid" ? standing(g, towerTris(), LID!.band[0], LID!.band[1]) : standing(g, towerTris(), h + 0.05, h + 2);
+      const stood = banded ? standing(g, towerTris(), spec!.band[0], spec!.band[1]) : standing(g, towerTris(), h + 0.05, h + 2);
       const inn0 = inside(g, stood, TW.seed, TW.close, TW.reach);
       // (and out to the building's skin at the slab's own height, `fill` metres in from the open air: at standing height
       // the window frames and piers stand in from the skin, and a slab stopped at them left pockets behind them, a ragged
@@ -835,9 +862,25 @@ if (mode === "bake") {
       const skin = standing(g, towerTris(), h + TF.skin[0], h + TF.skin[1]);
       const inCore = (x: number, z: number) => x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3;
       // (not over a floor or ledge the pack already has at the slab's top: the two fought in one plane)
-      const ledge = flatAt(g, towerTris(), h, 0.003);
-      const filled = fillTo(g, inn0.cells, skin, Math.round(TF.fill / cell), inCore, TF.fill > 0, skin, ledge);
+      // (a centimetre for the levels: the facade's ledge ring at 90.5 m stands a few millimetres off the floor's line and still
+      // met it in one plane by the coplanar measure's tolerance)
+      const ledge = flatAt(g, towerTris(), h, banded ? 0.01 : 0.003);
+      // (the levels and their ceilings to the inner face alone: they lie in the facade's solid band, which closes them with no
+      // crack, and filled out into the skin they met a pilaster's level faces at every storey line in one plane, the west
+      // face's middle, 4.5 m2 of the coplanar measure's 20)
+      const toSkin = TF.fill > 0 && !(kind === "level" || kind === "ceiling");
+      const filled = fillTo(g, inn0.cells, skin, Math.round(TF.fill / cell), inCore, toSkin, skin, ledge);
       const left = fillTo(g, filled.cells, skin, Math.max(2, Math.round(TF.fill / cell)), inCore, false, atSlab);
+      // (a level's slab off the pack's own ledge at its top too, which is floor there already: inside the facade's ledge ring
+      // at a level's floor height the two met in one plane by the west face's middle, the coplanar measure)
+      // (and a cell round it: the west face's pilaster has level faces at every storey line too narrow to cover a cell's
+      // middle, and the slab met them in slivers, 4.5 m2 of the coplanar measure's 20 over the three levels)
+      if (banded)
+        for (let k = 0; k < filled.cells.length; k++) {
+          const [i, j] = [k % g.nx, Math.floor(k / g.nx)];
+          const near = [[0, 0], [1, 0], [-1, 0], [0, 1], [0, -1]].some(([di, dj]) => i + di >= 0 && i + di < g.nx && j + dj >= 0 && j + dj < g.nz && ledge[(j + dj) * g.nx + i + di]);
+          if (near) filled.cells[k] = 0;
+        }
       const inn = { cells: filled.cells, n: filled.cells.reduce((a, v) => a + v, 0) };
       if (kind === "floor") {
         holes.push(+left.holes.toFixed(2));
@@ -849,10 +892,24 @@ if (mode === "bake") {
         const c = (a: number, b: number) => a >= 0 && a < g.nx && b >= 0 && b < g.nz && inn.cells[b * g.nx + a] === 1;
         return c(i - 1, j - 1) || c(i, j - 1) || c(i - 1, j) || c(i, j) ? -cell / 2 : cell / 2;
       };
-      const parts = storeySlab(g, region, kind === "lid" ? [] : [coreHole], null, h, kind === "lid" ? LID!.slab : TW.slab, TW.scale);
+      // (the ropes' holes in each slab they pass, up to the penthouse's floor: not its ceiling)
+      const ropesHere = EXH && h <= (EXH as unknown as { to: number }).to + 0.01 ? ropeHoles : [];
+      const parts = storeySlab(g, region, banded ? [coreHole, ...ropesHere] : [coreHole], null, h, banded ? spec!.slab : TW.slab, TW.scale);
       if (kind === "lid") {
         lidArea = inn.n * cell * cell;
         tri += push("tower-lid", (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: TW.mats[k] })));
+        continue;
+      }
+      if (banded) {
+        // (a level's floor in its own tiles, rules.tower.floors.at[h].floorMat)
+        const own = kind === "level" ? (cfg.rules.tower.floors.at as Record<string, { floorMat?: string }>)[String(h)]?.floorMat : undefined;
+        levelAreas.push({ at: h, kind, area: +(inn.n * cell * cell).toFixed(1) });
+        // (and a level's own inside wall in bands round its edge, `skirts` metres over its floor, between its window rows: the
+        // pack's shell is drawn from outside, and between its trims and frames the photographs showed slivers of sky at the
+        // floor's foot, under the ceiling and between the loft's two rows; the rows themselves left open)
+        const SKR = (spec as Banded & { skirts?: number[][] }).skirts ?? [];
+        const bands = SKR.map(([a, b]) => ({ part: skirtAlong(g, region, h + a, b - a, TW.scale), mat: TW.mats.edge }));
+        tri += push(`tower-${kind}-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })), ...bands]);
         continue;
       }
       // is it sealed: from points a few metres apart over its floor, out of the core, a fan of rays at eye height each
@@ -903,9 +960,13 @@ if (mode === "bake") {
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
     if (lidArea > (sx1 - sx0) * (sz1 - sz0)) throw new Error(`the tower's lid came out bigger than the tower: ${lidArea.toFixed(0)} m2`);
     if (LID) console.log(`the tower's lid over its top storey at ${LID.at} m: ${lidArea.toFixed(0)} m2`);
+    // (a level's slab got out through a gap in the shell if it is bigger than its grid less the pad's ring)
+    const levelMost = (sx1 - sx0 + levelPad) * (sz1 - sz0 + levelPad);
+    if (levelAreas.some((q) => q.area > levelMost)) throw new Error(`a tower level came out bigger than its shell: ${levelAreas.map((q) => `${q.at} m ${q.area} m2`).join(", ")}`);
+    if (levelAreas.length) console.log(`the tower's levels: ${levelAreas.map((q) => `${q.kind} at ${q.at} m ${q.area} m2`).join(", ")}`);
     console.log(`the tower's floors' cracks along the facade left open: ${holes.map((m, k) => `${TW.shaft[k]} m ${m} m2`).join(", ")}`);
     if (bands.length) console.log(`THE VAULT's gold bands: ${bands.map((b) => `${b.at} m ${b.length} m long`).join(", ")}`);
-    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, ...(LID ? { lid: +lidArea.toFixed(1) } : {}), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, ...(LID ? { lid: +lidArea.toFixed(1) } : {}), ...(levelAreas.length ? { levels: levelAreas } : {}), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
     console.log(`the tower's floors sealed but for their windows: ${seal.map((q) => `${q.at} m ${q.gaps} of ${q.rays} rays out elsewhere, ${q.windows} through the windows`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
     // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a

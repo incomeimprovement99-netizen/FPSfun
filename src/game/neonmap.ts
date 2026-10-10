@@ -182,11 +182,13 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // their own a floor, and the field's loot kept off them. Spread over every floor at random they held half an item a
   // floor, and they are the centre's fight
   HALL_FLOORS.length = 0;
-  const TW = (neonCfg as unknown as { tower?: { square: number[]; slab: number; core: { storeys: number[] } } }).tower;
+  // (only the storeys with a floor, the ones the core has doors on: from the sky floors up to the crown it passes through
+  // the hollow with closed landings every 3 m, and loot spread on those would hang in the air)
+  const TW = (neonCfg as unknown as { tower?: { square: number[]; slab: number; core: { storeys: number[]; doors: string[][] } } }).tower;
   if (TW) {
     const [sx0, sx1, sz0, sz1] = TW.square;
     const S = TW.core.storeys;
-    for (let k = 1; k < S.length; k++) HALL_FLOORS.push({ minX: sx0 + BR_X, maxX: sx1 + BR_X, minZ: sz0 + BR_Z, maxZ: sz1 + BR_Z, y: S[k], top: (S[k + 1] ?? S[k] + 3) - TW.slab });
+    for (let k = 1; k < S.length; k++) if (TW.core.doors[k]?.length) HALL_FLOORS.push({ minX: sx0 + BR_X, maxX: sx1 + BR_X, minZ: sz0 + BR_Z, maxZ: sz1 + BR_Z, y: S[k], top: (S[k + 1] ?? S[k] + 3) - TW.slab });
   }
   for (const { rect: [x0, x1, z0, z1], y } of UG.floors) FLOORS.push({ minX: x0 + BR_X, maxX: x1 + BR_X, minZ: z0 + BR_Z, maxZ: z1 + BR_Z, y });
 
@@ -375,9 +377,11 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // footbridge to over its island's landing, ridden as any zipline is (interact, up or down), lit in its island's colour
   // from the car's floor to just over the rope's top
   // (and the Well's rope, neon-layout.ts rules.well: up its light-well from the bottom to the ground ring)
-  const ropeCfg = neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }>; well?: { ropes: Array<{ rope: number[][]; floor: number; colour: string }> } };
+  // (and the tower's express lifts, rules.tower.express: from the 45.5 m sky floor up through its three levels to over the
+  // crown's deck, stepped off at any level on the way)
+  const ropeCfg = neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }>; well?: { ropes: Array<{ rope: number[][]; floor: number; colour: string }> }; express?: Array<{ rope: number[][]; floor: number; colour: string }> };
   const ropes: THREE.Mesh[] = [];
-  for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? [])]) {
+  for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? []), ...(ropeCfg.express ?? [])]) {
     const [a, b] = q.rope;
     const top = b[1] + 0.3;
     const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, top - q.floor, 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));
