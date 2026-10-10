@@ -11798,3 +11798,36 @@ The plan's item 9, "street pieces that look right", from the fourth review and t
   slot, none of them on the street's pieces).
 - **Checked** (tools/checks/sk-neon.ts): the street's planters solid no higher than a crouched head with their fern shot through, every tall board a panel with a poster sheet on each face, and the street cover's planters listed in the bake's laid-last boxes, three new checks each proven by putting its bug back; all 160 pass, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: the poster walls in the median and by the edge road and the planters, photographed at night and at noon.
   The map: its files lo 99 MB, hi 163 MB, max 386 MB. **Its files are version 54.**
+
+## Milestone 516 — APUHTHEE and STRYDER in the bought arms
+
+The two pistols, APUHTHEE (wingman, SciFiPistol02_2) and STRYDER (autopistol, SciFiPistol01_2), are the eighth and ninth
+guns the first person's bought arms hold (`PLAN_THE_EIGHT_GUNS.md` 5.6): APUHTHEE on the pack's DGL50, STRYDER on its X18,
+each with that pistol's pose and reloads and its own recorded shots and reloads.
+
+- **Placed as Apex holds its Wingman at rest:** the sights' line meeting the screen at 48% across and down, the muzzle at
+  62% across and 56% down, 5 degrees off level, held further off than a rifle (`FIT`).
+- **A pistol's left hand is on the right one:** the long guns' fit tilts our gun about its trigger until its underside
+  meets the left palm and moves the left hand onto its middle and underside. A pistol's left palm is 11 cm under the
+  trigger by the grip's foot, wrapped round the right hand: fitted to it, APUHTHEE's grip was turned 12 degrees into the
+  right palm, the left hand pushed into the grip's side, and the eye saw 57 pixels of daylight through the left hand. Pack
+  guns marked `leftOnHand` (fparms.json) are now fitted by the trigger alone: the daylight went to none.
+- **Drawn smaller in your hands** (`gunScale`, APUHTHEE 0.85, STRYDER 0.8): the pack's hands are made round grips whose back
+  is 6 to 8.5 cm behind the trigger (measured off the DGL50 and X18), ours 8.7 to 9.9, so with the triggers together our
+  grips' backs stood 10 to 14 mm into the palms. The grips are as thick as the pack's.
+- **The hands:** searched joint by joint (tools/pack-solve.ts), then the right hand with its palm free to stand off the grip, the lower
+  three fingers on it and the forefinger's tip scored onto the trigger (tools/pack-flush.ts): the hold's turn about the
+  wrist, taking the palm out of the grip, had swung the forefinger 2 to 5 cm off the trigger. STRYDER's tip had then gone
+  7 mm into the trigger, hidden at rest but seen when a reload or an inspect turned the gun, 4 to 6 mm; a pass of the
+  forefinger alone took it to 2. At rest no skin is seen in either gun, no daylight through a hand, and the wrists bend 11
+  to 19 degrees.
+- **The moves** (tools/pack-tune.ts against the e2e's measures): the swap's cup, from 12.7 and 11.7 mm in the gun to none,
+  and the punch, its upper arm from 69 and 85% of the picture to 1; no move leaves a hand in either gun.
+- **Its sounds:** the DGL50's and the X18's own shots and reloads (packsounds.json); APUHTHEE had the Viper-357 revolver's
+  shots and STRYDER the MPS5 SMG's, neither a reload.
+- **Checked:** the soldier e2e's pack frames for both (`E2E_ONLY=skpack E2E_GUNS=wingman,autopistol`), 32 of 33: STRYDER's
+  hand read 6 mm in the gun at the swap's end once, run after APUHTHEE, and STRYDER's run alone passed every check, the
+  same moment at 0 (the machine under load, its game-time waits short). The fit's check takes an untilted pistol. The section now also waits for the arms themselves (a checkout with the paid guns but not
+  the arms had gone on into the frames and stopped on a TypeError, the city agent's run, 2026-10-09); seen failing as a
+  plain "the bought guns and arms load" with arms.glb moved away. gunfeel.json entries: APUHTHEE a magnum's slow heavy
+  kick, STRYDER a fast pistol's light one, buzzing.

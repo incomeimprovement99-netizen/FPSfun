@@ -130,8 +130,8 @@ it.
   for squad mates; a double jump that turns them
   leaves a streak of the same light through the air along the turn. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
-  The USSO, BOOG, ANAKIN, PANDA, BIGANTLER, REZ and CHOOCH are held by real first-person arms (a bought pack's,
-  where its files are): two SMG holds, a sniper hold, a rifle hold, two shotguns' and an LMG's, fitted to our guns' grips joint
+  The USSO, BOOG, ANAKIN, PANDA, BIGANTLER, REZ, CHOOCH, APUHTHEE and STRYDER are held by real first-person arms (a bought pack's,
+  where its files are): two SMG holds, a sniper hold, a rifle hold, two shotguns', an LMG's and two pistols', fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
   a pickup (every frame of each photographed and measured); the USSO's left hand
   holds it low, round the gun's lower front just ahead of its trigger guard, as
@@ -148,7 +148,8 @@ it.
   empty; REZ, the auto shotgun, placed as Apex holds its EVA-8, is held furthest out of
   all, palm up under its fore-end ahead of the long magazine; CHOOCH, the LMG, is held
   under its barrel past its drum and vents its overheat in both hands, tipped up and
-  canted, rather than reloading; and on every gun the right hand's lower three
+  canted, rather than reloading; APUHTHEE and STRYDER, the pistols, are held out in both
+  hands, the left wrapped round the right on the grip, the forefinger on the trigger; and on every gun the right hand's lower three
   fingers sit together round the grip with the forefinger's tip on the trigger; and
   the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,

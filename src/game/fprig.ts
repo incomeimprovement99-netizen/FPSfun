@@ -51,7 +51,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent; leftOnHand?: boolean };
 /**
  * An overheat's vent (fparms.json packGuns vent, CHOOCH's): the gun tipped up and canted in both hands over `in` of the
  * lockout and back over `out`, by `roll`, `yaw` and `pitch` (radians) and `x`, `y`, `z` (view metres), the soldier's on the
@@ -646,8 +646,12 @@ export class PackArms {
     // underside under the left palm is where the pack gun's was, 22 mm under the palm. Moving the hand onto our gun
     // instead bent the arm: to our old support point, BOOG's 40 cm out, it ran out of reach and the hand hung in the
     // air; down onto BOOG's deeper underside, the elbow came up into the view
+    // (not a pistol's, fparms.json packGuns leftOnHand: its left hand wraps the right round the grip, its palm 11 cm under
+    // the trigger by the grip's foot, and fitted to it the wingman's grip was turned 12 degrees into the right palm and the
+    // left hand pushed into the grip's side)
+    const onHand = !!PACK[name]?.leftOnHand;
     const palm = new THREE.Vector3().fromArray(me.palm).applyMatrix4(new THREE.Matrix4().copy(place).invert());
-    const under = underside(gunRoot, palm);
+    const under = onHand ? null : underside(gunRoot, palm);
     const along = Math.abs(palm.z - trigger.z);
     const tilt = under === null || along < 0.05 ? 0 : THREE.MathUtils.clamp(Math.atan2(palm.y - (under + 0.022), along), -TILT_MOST, TILT_MOST);
     const pivot = new THREE.Matrix4().makeTranslation(trigger.x, trigger.y, trigger.z).multiply(new THREE.Matrix4().makeRotationX(tilt)).multiply(new THREE.Matrix4().makeTranslation(-trigger.x, -trigger.y, -trigger.z));
@@ -655,7 +659,7 @@ export class PackArms {
     const boneInOur = new THREE.Matrix4().copy(ourInBone).invert();
     // what the tilt, at most TILT_MOST, left between the pack's underside and ours under the palm: the hand is moved by it
     const palmO = new THREE.Vector3().fromArray(me.palm).applyMatrix4(boneInOur.clone().multiply(turn));
-    const underT = underside(gunRoot, palmO);
+    const underT = onHand ? null : underside(gunRoot, palmO);
     const residual = underT === null ? 0 : underT + 0.022 - palmO.y;
     // our moving parts at rest, in our frame
     gunRoot.updateWorldMatrix(true, true);
@@ -678,7 +682,8 @@ export class PackArms {
     this.boneInOur.copy(boneInOur);
     this.packToOur.copy(boneInOur).multiply(turn);
     this.ourToPack.copy(this.packToOur).invert();
-    this.palmShift.set(-palmO.x, residual, 0);
+    if (onHand) this.palmShift.set(0, 0, 0);
+    else this.palmShift.set(-palmO.x, residual, 0);
     this.tilt = tilt;
     this.magRestO = magRestO;
     this.magParentInv = magParentInv;

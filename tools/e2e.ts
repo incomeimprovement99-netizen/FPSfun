@@ -2939,7 +2939,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const allPack = Object.keys(fparmsCfg.guns);
   const packIds = allPack.filter((id) => !E2E_GUNS.length || E2E_GUNS.includes(id));
   const has = (...ids: string[]) => ids.every((id) => packIds.includes(id));
-  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman"].find((id) => !allPack.includes(id)) ?? "wingman";
+  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman", "autopistol", "launcher"].find((id) => !allPack.includes(id)) ?? "launcher";
   const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("${plainGun}"); await H.gameWait(0.4); return r.gunFov().gun;`);
   // and the length of an inspect in the view's own arms
   const plainInspect = await pf<number>(`return r.packArms().inspectTime;`);
@@ -3306,6 +3306,8 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const gm = g.filter((x) => !x.feed && !x.vent);
   const gsh = Object.entries(res.guns).filter(([, x]) => !!x.feed);
   const show = (f: (x: Frames) => unknown) => JSON.stringify(Object.fromEntries(Object.entries(res.guns).map(([k, x]) => [k, f(x)])));
+  /** a pistol: its left hand wraps the right round the grip, and the long guns' fit to a left palm is not made (fparms.json packGuns leftOnHand) */
+  const onHand = (id: string) => !!(fparmsCfg.packGuns as Record<string, { leftOnHand?: boolean }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.leftOnHand;
   /**
    * daylight the eye may see shut between a hand and its gun, pixels of tools/pack-audit.js __packSeenGap's 960 wide
    * picture (about a millimetre each at a support hand): no hole through a hand at all, and cracks along its edge as thin
@@ -3315,8 +3317,9 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const SEEN_CRACKS = 40;
   check(
     "pack frames: the USSO and BOOG are fitted into the bought hands the same on every draw (it had been only the first)",
-    // (tilted either way: ANAKIN's grip into the palm is 6 degrees nose down)
-    g.length === packIds.length && g.every((x) => Math.abs(x.tilt[0]) > 0.05 && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
+    // (tilted either way: ANAKIN's grip into the palm is 6 degrees nose down; a pistol not at all, its left hand on the
+    // right, fparms.json packGuns leftOnHand)
+    g.length === packIds.length && g.every((x, i) => (onHand(Object.keys(res.guns)[i]) ? Math.abs(x.tilt[0]) < 1e-6 : Math.abs(x.tilt[0]) > 0.05) && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
     show((x) => x.tilt.map((v) => +((v * 180) / Math.PI).toFixed(2))),
   );
   // (a cached gun keeps the place its last throw or draw's spin gave it, and its middle measured there moved with it:
@@ -3436,8 +3439,9 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // parallel, so only its muzzle is taken, 53.5% across and 57.5% down, with the USSO's move on top; its barrel's line at
   // the crosshair, as the others' are, 5 degrees off level; REZ the same way on Apex's EVA-8, its muzzle 55.5% across and
   // 56.5% down; CHOOCH on Apex's Devotion, there being no L-STAR at rest in the frames, its muzzle 54.5% across and 58%
-  // down)
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 }, shotgun: { vanish: [0.47, 0.47], muzzle: [0.579, 0.583], level: -5 }, lstar: { vanish: [0.47, 0.47], muzzle: [0.569, 0.598], level: -5 } };
+  // down; APUHTHEE and STRYDER on Apex's Wingman at rest, its sights' line meeting at 48% across and down, its muzzle
+  // 62% across and 56% down, held further off than a rifle as a pistol is, 5 degrees off level)
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 }, shotgun: { vanish: [0.47, 0.47], muzzle: [0.579, 0.583], level: -5 }, lstar: { vanish: [0.47, 0.47], muzzle: [0.569, 0.598], level: -5 }, wingman: { vanish: [0.48, 0.48], muzzle: [0.62, 0.56], level: -5 }, autopistol: { vanish: [0.48, 0.48], muzzle: [0.62, 0.56], level: -5 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),
@@ -9407,8 +9411,10 @@ async function main(): Promise<void> {
     if (ONLY.includes("skpack")) await section("skpack", async () => {
       console.log(`\nSpeedKills' bought arms: their frames alone${E2E_GUNS.length ? ` (${E2E_GUNS.join(", ")})` : ""}`);
       const page = await open(browser, "?game=speedkills");
-      const ready = await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 180000 }).then(() => true, () => false);
-      check("skpack: the bought guns and arms load", ready);
+      // (the arms too: a checkout with the paid guns but not the arms, public/models/paid/arms, had gone on into the frames
+      // and stopped on a rig that never loaded, a TypeError, 2026-10-09)
+      const ready = await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady() && window.__range.packRig().ready", { polling: 250, timeout: 180000 }).then(() => true, () => false);
+      check("skpack: the bought guns and arms load (public/models/paid/arms)", ready);
       if (ready) await packFrames(page);
       await page.close();
     });
