@@ -646,6 +646,8 @@ const yards: Array<{ block: string; inside: number[]; y: number }> = [];
 const walkIns: Array<{ chunk: string; piece: string; at: number[]; yaw: number; door: number[] }> = [];
 /** each corner block's light (rules.low.beam): where it rises from */
 const beams: Array<{ chunk: string; block: string; x: number; y: number; z: number }> = [];
+/** each corner block's wedge (below): its fork, the way out along its bisector, its width and top, for its name */
+const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }> = [];
 {
   const L = R.low;
   const placed: OBox[] = [];
@@ -705,6 +707,7 @@ const beams: Array<{ chunk: string; block: string; x: number; y: number; z: numb
         const o: OBox = { c, u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.max![1] };
         if (!fits(o)) continue;
         placed.push(placeTurned(chunk, name, c[0], c[1], yaw, "s"));
+        wedges.push({ block: `${sx},${sz}`, fork: fork as Pt, out: b, w: row.size![0], top: row.max![1] });
         wedge = name;
         break;
       }
@@ -2289,6 +2292,11 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
   }
   let hung = 0;
   const signsAt: Array<{ piece: string; at: Pt }> = [];
+  // (and off the High City climbs' columns, rules.blocks.climbs, as far as the climbs keep their balconies off a sign:
+  // laid after the signs, the climbs refuse one there, and a reshuffle of the signs once hung one on a balcony's spot)
+  const CLs = (R.blocks as { climbs?: { piece: string; shift: number; clear: number; at: Array<{ at: Pt; along: Pt }> } }).climbs;
+  const climbSpots: Pt[] = CLs ? CLs.at.flatMap((A) => [-1, 1].map((k) => [A.at[0] + A.along[0] * k * CLs.shift, A.at[1] + A.along[1] * k * CLs.shift] as Pt)) : [];
+  const climbR = CLs ? piece(CLs.piece).row.size![0] / 2 + CLs.clear + 1.5 : 0;
   for (const { st, sides } of lines)
     for (const side of sides) {
       let lastU = -Infinity;
@@ -2302,7 +2310,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         // (not a corner block's own sign, so MOTEL is MOTEL HILL's alone, and never one `twin` metres or nearer to the
         // same sign: drawn at random from the pack's fifteen, the second review saw one in four places. One draw a sign,
         // stepped on through the rest where it is too near its twin)
-        const own = new Set(Object.values((R.low.identity?.signs ?? {}) as Record<string, { piece: string }>).map((q) => q.piece));
+        const own = new Set([...Object.values((R.low.identity?.signs ?? {}) as Record<string, { piece: string }>), ...Object.values((R.high.signs ?? {}) as Record<string, { piece?: string }>)].map((q) => q.piece).filter(Boolean));
         const pool = (S.pieces as string[]).filter((p) => !own.has(p.split("/").pop()!));
         const k0 = Math.floor(rnd() * pool.length);
         // (the front's point the sign would hang on, to measure it against the others' faces; no sign where every one
@@ -2327,6 +2335,10 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         const yaw = yawToward(-dir[0], -dir[1]);
         const [bx, bz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, row.min![2]);
         const f: Pt = [q[0] + dir[0] * d, q[1] + dir[1] * d];
+        if (climbSpots.some((c) => Math.hypot(c[0] - f[0], c[1] - f[1]) < climbR + w / 2 + 1)) continue;
+        // (and its twin rule again where it hangs: drawn by the front at the lowest sign's height, it can hang metres
+        // from there at its own, and one did within the twin's distance of its twin)
+        if (signsAt.some((o) => o.piece === name && Math.hypot(o.at[0] - f[0], o.at[1] - f[1]) < (S.twin ?? 0))) continue;
         add("c-signs", "c", [piece(name).key, +(f[0] - bx).toFixed(3), +(y - (row.min![1] + row.max![1]) / 2).toFixed(3), +(f[1] - bz).toFixed(3), +yaw.toFixed(2), "g"] as Place);
         signsAt.push({ piece: name, at: [f[0], f[1]] });
         lastU = u;
@@ -2334,6 +2346,52 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       }
     }
   console.log(`signs: ${hung} hung on the fronts`);
+}
+
+// The corner blocks' names (rules.low.names; the master plan's item 8: the fourth review "could not tell THE WELL and
+// MARKET apart" from the Loop): each name in neon letters standing on the roof of its block's wedge, the building on the
+// bisector that faces the junction, `lift` over its roof at its front (where the last bake measures it from the fork,
+// a metre under the roof), `over` metres wider than it and `h` high, lit in its sector's colour (game.sectors' accent).
+// Drawn by the page (src/game/neonmap.ts), colliding with nothing. On the front itself it came out under 5 m wide: the
+// wedges are 6.3 m buildings of two storeys. The pack has no letters that spell them
+{
+  const NM = R.low.names as { lift: number; h: number; over: number } & Record<string, { text: string }> | undefined;
+  if (NM) {
+    const boxes = lastSolids();
+    const sectorOf: Record<string, string> = { "-1,-1": "nw", "1,-1": "ne", "-1,1": "sw", "1,1": "se" };
+    const out: Array<{ block: string; text: string; at: number[]; yaw: number; w: number; h: number; colour: string }> = [];
+    for (const [block, q] of Object.entries(NM)) {
+      if (typeof q !== "object") continue;
+      const wd = wedges.find((x) => x.block === block);
+      if (!wd) throw new Error(`no wedge on the ${block} block for its name`);
+      const y = wd.top - 1;
+      // (from the fork out along the bisector, the first box standing a metre under the roof)
+      let d = Infinity;
+      for (const [x0, x1, z0, z1, y0, y1] of boxes) {
+        if (y0 > y || y1 < y) continue;
+        let t0 = 0, t1 = 40;
+        for (const [o, dd, lo, hi] of [[wd.fork[0], wd.out[0], x0, x1], [wd.fork[1], wd.out[1], z0, z1]]) {
+          let [a, b] = [(lo - o) / dd, (hi - o) / dd];
+          if (a > b) [a, b] = [b, a];
+          t0 = Math.max(t0, a);
+          t1 = Math.min(t1, b);
+        }
+        if (t0 <= t1 && t0 < d) d = t0;
+      }
+      if (!Number.isFinite(d)) throw new Error(`the ${block} block's wedge: no front found from its fork`);
+      const colour = ((cfg.game?.sectors ?? []) as Array<{ id: string; accent: string }>).find((s) => s.id === sectorOf[block])?.accent;
+      if (!colour) throw new Error(`no sector colour for the ${block} block`);
+      // (its roof: the collision's top 2 m in behind the front, not the piece's own top, which its roof's fittings
+      // raise 0.65 m over it: there the name stood 0.85 m off its roof)
+      const [rx, rz] = [wd.fork[0] + wd.out[0] * (d + 2), wd.fork[1] + wd.out[1] * (d + 2)];
+      const roof = boxes.reduce((t, b) => (rx >= b[0] && rx <= b[1] && rz >= b[2] && rz <= b[3] && b[5] < wd.top + 1 && b[5] > t ? b[5] : t), -Infinity);
+      if (!Number.isFinite(roof)) throw new Error(`the ${block} block's wedge: no roof behind its front`);
+      const w = wd.w + NM.over;
+      out.push({ block, text: q.text, at: [+(wd.fork[0] + wd.out[0] * (d - 0.15)).toFixed(3), +(roof + NM.lift + NM.h / 2).toFixed(3), +(wd.fork[1] + wd.out[1] * (d - 0.15)).toFixed(3)], yaw: +yawToward(-wd.out[0], -wd.out[1]).toFixed(2), w: +w.toFixed(2), h: NM.h, colour });
+    }
+    cfg.names = out;
+    console.log(`the corner blocks' names: ${out.map((q) => `${q.text} ${q.w} by ${q.h} m at ${q.at[1]} m, ${q.colour}`).join(", ")}`);
+  }
 }
 
 // High City's signs (rules.high.signs; the master plan's item 7, "a sign seen from the street" on each block): one of the

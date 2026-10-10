@@ -120,7 +120,7 @@ export function updateNeonFill(eye: THREE.Vector3): void {
  * arenas' own nodes are hidden with the city shown. Kept, and put on the file when it comes in.
  */
 const PART: { shown: string | null; root: THREE.Object3D | null } = { shown: null, root: null };
-const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes"]);
+const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names"]);
 export function showNeonPart(chunk: string | null): void {
   if (PART.shown === chunk) return;
   PART.shown = chunk;
@@ -148,6 +148,41 @@ export function neonPart(): { shown: string | null; nodes: string[]; extras: boo
     nodes: (map?.children ?? []).filter((n) => n.visible).map((n) => n.name.replace(/^neon\/?/, "")),
     extras: !!PART.root?.children.some((o) => CITY_EXTRAS.has(o.name) && o.visible),
   };
+}
+
+/**
+ * A name in neon letters (the corner blocks' names): each letter a tube, its glow in the colour round it and its core
+ * near white, on nothing, sized to fill the panel's width or its height, whichever binds first
+ */
+function neonLetters(text: string, colour: string, w: number, h: number): THREE.CanvasTexture {
+  const PX = 96;
+  const cv = document.createElement("canvas");
+  cv.width = Math.round(w * PX);
+  cv.height = Math.round(h * PX);
+  const g = cv.getContext("2d")!;
+  const font = (size: number) => `700 ${size}px "Rajdhani", "Segoe UI", sans-serif`;
+  let size = cv.height * 0.62;
+  g.font = font(size);
+  size *= Math.min(1, (cv.width * 0.9) / g.measureText(text).width);
+  g.font = font(size);
+  g.textAlign = "center";
+  g.textBaseline = "middle";
+  g.lineJoin = "round";
+  const [x, y] = [cv.width / 2, cv.height / 2];
+  g.shadowColor = colour;
+  g.shadowBlur = size * 0.35;
+  g.strokeStyle = colour;
+  g.lineWidth = size * 0.09;
+  g.strokeText(text, x, y);
+  g.strokeText(text, x, y);
+  g.shadowBlur = size * 0.1;
+  g.strokeStyle = new THREE.Color(colour).lerp(new THREE.Color(0xffffff), 0.65).getStyle();
+  g.lineWidth = size * 0.035;
+  g.strokeText(text, x, y);
+  const tex = new THREE.CanvasTexture(cv);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  tex.anisotropy = 8;
+  return tex;
 }
 
 /** `boxes`: the city's collision, for a caller that has it now (the node checks); the page's comes later (loadNeonSolids) */
@@ -414,6 +449,21 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     group.name = "neon:ropes";
     for (const [mat, list] of byMat) {
       const mesh = new THREE.Mesh(mergeGeometries(list), mat);
+      mesh.userData.dynamic = true;
+      group.add(mesh);
+    }
+    root.add(group);
+  }
+  // the corner blocks' names (neon-layout.ts rules.low.names, the layout's names): each in neon letters on its block's
+  // wedge, lit in its sector's colour, in a group of their own as the ropes are, hidden on the arenas. Drawn on a canvas,
+  // so not where there is none (the node checks)
+  if (typeof document !== "undefined") {
+    const group = new THREE.Group();
+    group.name = "neon:names";
+    for (const q of (neonCfg as unknown as { names?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string }> }).names ?? []) {
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.h), new THREE.MeshBasicMaterial({ map: neonLetters(q.text, q.colour, q.w, q.h), transparent: true, depthWrite: false, toneMapped: false }));
+      mesh.position.set(q.at[0], q.at[1], q.at[2]);
+      mesh.rotation.y = (q.yaw * Math.PI) / 180;
       mesh.userData.dynamic = true;
       group.add(mesh);
     }

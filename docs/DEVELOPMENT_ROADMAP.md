@@ -11873,3 +11873,25 @@ put them up the north and west blocks), so the pack's exterior stairs go up thei
   two cypresses now, 15.5 and 11.2 m: the third had room until the escape stepped on beside them.
 - **Checked** (tools/checks/sk-neon.ts): two climbs, each by a player from the street onto its deck and back down, and a fire escape up each round-lobed block, the climb proven by the real fault it found first (the top landing's far end meets the lobe's lip) and the count by taking one out; all 166 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: each escape from the street, from beside it, from its foot and from the deck, at noon and at night.
   The map: its files lo 100 MB, hi 167 MB, max 395 MB. **Its files are version 56.**
+
+## Milestone 573 — THE WELL and MARKET told apart: their names in neon, their beams in their colours
+
+The plan's item 8, its first two asks: the fourth review could not tell THE WELL and MARKET apart from the Loop, and
+their beams were teal and green against their sectors' violet and blue. The roof layer over the corner blocks follows.
+
+- **Their names** (`rules.low.names`): THE WELL and MARKET in neon letters, 9.3 by 3 m, standing on the roof of each
+  block's wedge, the building on the bisector facing its junction, at its front 0.2 m over its roof (the roof's top
+  measured off the bake 2 m in: the piece's own top, raised by its roof's fittings, stood the names 0.85 m off it), lit in
+  its sector's accent (game.sectors, the HUD's and the map's colour). The pack has no letters that spell
+  them, so the page draws them (src/game/neonmap.ts): a glow in the colour round each letter and a core near white, on
+  nothing, colliding with nothing, hidden with the city's fence and ropes on the arenas. On the wedge's front they came
+  out under 5 m wide: the wedges are 6.3 m buildings of two storeys.
+- **Their beams** (`rules.low.beam.mats`): THE WELL's tinted violet and MARKET's blue, their sectors' accents, as MOTEL
+  HILL's was tinted its pink.
+- **The street's signs:** none of High City's four sign pieces among them now (MOVIE also hung on a low building down
+  the street from the north block), and they keep off the High City climbs' columns as the climbs keep off a sign: the
+  climbs are laid after the signs and refuse one where a balcony goes, and the reshuffle hung one there.
+  Each sign's twin rule is tested again where it hangs: it is drawn by the front at the lowest sign's height, and one
+  hung within the twin's distance of its twin at its own.
+- **Checked** (tools/checks/sk-neon.ts): three new checks each proven by putting its bug back (the names on their wedges' roofs in their sectors' colours, with the beams the same colours; none of High City's signs among the street's; a name taken off its colour and a beam off its tint both caught), the names' roof test catching the names standing 0.85 m off their roofs; all 168 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: the names from the Loop and the Sky Ring at night and at noon.
+  The map: its files lo 100 MB, hi 167 MB, max 395 MB. **Its files are version 57.**

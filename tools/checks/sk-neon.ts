@@ -324,6 +324,33 @@ check("the perches: cover on the crown, the lookout, the four High City decks an
   });
   check("High City's signs: one on each island's face to the Loop, hung on it and lit to the Loop, none a corner block's own sign", HS.length === 4 && new Set(HS.map((q) => q.block)).size === 4 && bad.length === 0, HS.map((q) => `${q.block} ${q.piece.replace(".prefab", "")} ${q.w} by ${q.h} m`).join("; ") + (bad.length ? `; wrong: ${bad.map((q) => q.block).join(", ")}` : ""));
 }
+// (and none of those four in the street's own signs, as none of the corner blocks' is: MOVIE hung on a low building
+// down the street from the north block that it names)
+{
+  const HSP = new Set(((cfg as unknown as { highSigns?: Array<{ piece: string }> }).highSigns ?? []).map((q) => q.piece));
+  const twins = ((cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-signs"]?.place ?? []).filter((q) => HSP.has(String(q[0]).split("/").pop()!));
+  check("the street's signs: none of High City's own among them", HSP.size === 4 && twins.length === 0, `${twins.length} of them${twins.length ? `: ${twins.slice(0, 3).map((q) => String(q[0]).split("/").pop()).join(", ")}` : ""}`);
+}
+// THE WELL's and MARKET's names (rules.low.names, the master plan's item 8: the fourth review could not tell them apart
+// from the Loop): each standing on its wedge's roof at its front (the roof's top under its foot, a metre behind it),
+// lit in its sector's accent; and each block's beam tinted the same, where it was teal and green against violet and blue
+{
+  const NMS = (cfg as unknown as { names?: Array<{ block: string; text: string; at: number[]; yaw: number; h: number; colour: string }> }).names ?? [];
+  const SEC: Record<string, string> = { "-1,1": "sw", "1,1": "se" };
+  const accent = (b: string) => (cfg.game.sectors as Array<{ id: string; accent: string }>).find((s) => s.id === SEC[b])?.accent;
+  const lift = (cfg.rules.low as unknown as { names: { lift: number } }).names.lift;
+  const bad = NMS.filter((q) => {
+    const a = (q.yaw * Math.PI) / 180;
+    // (a metre behind it, the way its back faces)
+    const [bx, bz] = [q.at[0] - Math.sin(a) * 1 + BR_X, q.at[2] - Math.cos(a) * 1 + BR_Z];
+    const foot = q.at[1] - q.h / 2 - lift;
+    const roof = solidsIn(bx - 0.1, bx + 0.1, bz - 0.1, bz + 0.1).some((b) => b.minX <= bx && b.maxX >= bx && b.minZ <= bz && b.maxZ >= bz && Math.abs(b.top - foot) < 0.3);
+    return !roof || q.colour !== accent(q.block);
+  });
+  const beams = (cfg as unknown as { beams?: Array<{ block: string; mat: string }> }).beams ?? [];
+  const off = Object.keys(SEC).filter((b) => !beams.find((q) => q.block === b)?.mat.includes(accent(b) ?? "none"));
+  check("THE WELL's and MARKET's names on their wedges' roofs, lit in their sectors' colours, and their beams the same colours", NMS.length === 2 && bad.length === 0 && off.length === 0, NMS.map((q) => `${q.text} ${q.colour}`).join("; ") + (bad.length ? `; wrong: ${bad.map((q) => q.text).join(", ")}` : "") + (off.length ? `; beams off: ${off.join(", ")}` : ""));
+}
 // no piece the map must not show (rules.banned): the pack's letter sign that spells "free sex" in Korean stood in the
 // street seven times and 14 m tall on the south deck until Milestone 571
 {
