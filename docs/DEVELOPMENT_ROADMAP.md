@@ -11080,6 +11080,35 @@ screen stays up through the wait.
   bare at 2.5 s ("LOADING THE WORLD"). The card's own timing checks there missed their 60 s window with the machine at
   99% (the match itself was ready at 56.9 s), so they are rerun on a quiet machine.
 
+## Milestone 497 — The Node checks on SpeedKills, and a custom rule that handed out a gun the game lacks
+
+Outside a browser the game was the legacy one (game.ts buildDefault), so `npm run verify` and movesim checked a game
+nobody plays; SpeedKills' own tools ran beside them with GAME=speedkills. The default is SpeedKills now, and each of the
+148 checks that failed so (93 in verify and its checks, 55 in movesim) was sorted, none passed by loosening it alone:
+
+- **Pointed at SpeedKills' config:** the ground, sprint, crouch and holstered speeds, the slide's boost cap and its
+  second-slide rule, the climb's peaks (attach offset and climb space, each plus the end boost) and speed, the wall
+  push's height, the superglide's speed (the slide's cap), the hop penalty (200 hu/s over the sprint loses 100), the
+  reversal at 30 and 60 fps (against 144's), the Gulag's cut-off (decay.json's capture round) and guns
+  (speedkills.json's), a bot's drop (its gun at its fusion level), the dive off the ship (its height over the dive's
+  fall: SpeedKills' ship flies at 175 m) and the ship's crossing (no longer than the map is wide), and a loadout's
+  optic (each gun's fixed one).
+- **Measured for SpeedKills:** the frame-rate runs' tolerances, its worst on SpeedKills plus a fifth (a slide 17 cm
+  apart at 30 fps against 144, 3.4 in the legacy game: twice the speed on twice the rates).
+- **The legacy game's own, gone:** Apex's movement constants and the wiki's timings that SpeedKills changes on
+  purpose, the fall stun, the old guns' damage, kill times and mag levels, the stock's speeds, the attachments, the
+  bleed-out by squad size, the death box's contents, the legacy profile's catalogue; and The Run's gap, glide, strafe
+  and zip-against-ladder checks, rooms built for the legacy game's speeds (at SpeedKills' the slide jumps overshoot, a
+  plain jump clears the 7 m superglide gap and the ladder beats the zip: the owner's to retune or leave).
+- **Run as the legacy game until their code goes:** tools/checks/loot-tiers.ts and ring-place.ts, the Outskirts' loot
+  tiers and the legacy ring's circles, in a process of their own as SpeedKills' tools run as SpeedKills.
+- **A SpeedKills bug found:** the custom rules' classes (rules.json) still named the rifle the roster dropped and
+  HAEFY's old id, first in their lists, so "Rifles only" or "Snipers" in an arena mode handed you a gun SpeedKills
+  does not have. Rifles are PANDA now, snipers BOOG, and pistols APUHTHEE and STRYDER (STRYDER was missing).
+- **Found, not changed (the owner's call):** in SpeedKills a walk crouched into slides, because its walk (347 hu/s) is
+  over the slide's start speed (200); crouched first, a walk is the 80 hu/s crouch walk.
+- **Checked:** tsc; verify (2,699 checks, as SpeedKills); rules; movesim; e2e duel.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

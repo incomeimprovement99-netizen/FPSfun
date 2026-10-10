@@ -11,7 +11,6 @@
 //
 // Run on its own: npx tsx tools/checks/bot-fire.ts.
 import * as THREE from "three";
-import lootCfg from "../../src/config/loot.json";
 import { BODY_TOP, BOT_WEAPONS, BotMag, CROUCH_TOP, hitsBody } from "../../src/game/bots";
 import { falloff } from "../../src/game/projectile";
 import { deathDropOf } from "../../src/game/loot";
@@ -95,17 +94,15 @@ console.log("A bot's gun, and what it drops");
 
 // ------------------------------------------------------------ what it drops
 {
-  const kit = { gunId: "r97", gun: 3, mag: 3, mods: { barrel: { id: "barrel_2", rank: 2 }, hopup: { id: "hopup_x", rank: 4 } }, cells: 5, syringes: 0 };
-  const box = deathDropOf(kit, "r97");
-  const gun = box.find((i) => i.kind === "weapon");
-  check("a bot that looted an epic gun drops it epic, with its magazine", gun?.id === "r97" && gun.rarity === "epic" && gun.mag === 3, JSON.stringify(gun));
-  check("its magazine, its fittings and its hop-up come out as it had them", box.some((i) => i.id === "mag:3" && i.rarity === "epic") && box.some((i) => i.id === "barrel_2" && i.rarity === "rare") && box.some((i) => i.kind === "hopup" && i.rarity === "legendary"));
-  const cells = box.find((i) => i.id === "cell")?.n ?? 0;
-  const syr = box.find((i) => i.id === "syringe")?.n ?? 0;
-  check("its heals, never fewer than a bot always drops", cells === 5 && syr === lootCfg.deathDrop.syringes, `${cells} cells, ${syr} syringes`);
+  // SpeedKills: a looting bot's rank is its gun's fusion level plus one (bots.ts), and what it drops is that gun at that
+  // level, nothing else (the legacy game's box of ammo, fittings and heals went with the death boxes, Milestone 476)
+  const kit = { gunId: "r97", gun: 3, mag: 0, mods: {}, cells: 0, syringes: 0 };
+  const drop = deathDropOf(kit, "r97");
+  const gun = drop.find((i) => i.kind === "weapon");
+  check("a bot that looted a gun to fusion level 2 drops that gun at level 2", drop.length === 1 && gun?.id === "r97" && gun.fusion === 2, JSON.stringify(drop));
   const plain = deathDropOf(null, "wingman");
-  check("a bot that looted nothing still drops its gun, rare, and the basics", plain.some((i) => i.kind === "weapon" && i.rarity === "rare") && plain.some((i) => i.id === "cell"));
-  check("and an unarmed one drops no gun", !deathDropOf(null, null).some((i) => i.kind === "weapon"));
+  check("a bot that looted nothing drops the gun it landed with, at level 0", plain.length === 1 && plain[0].id === "wingman" && plain[0].fusion === 0, JSON.stringify(plain));
+  check("and an unarmed one drops nothing", deathDropOf(null, null).length === 0);
 }
 
 console.log(fails === 0 ? "\nBOT FIRE PASS" : `\nBOT FIRE FAIL (${fails})`);

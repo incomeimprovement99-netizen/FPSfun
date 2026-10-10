@@ -69,14 +69,8 @@ check("an unknown size falls back to the default", teamFor("six-a-side").id === 
 // throw on the way into a match.
 check("with no browser storage at all, the size is still the default", savedTeamId() === brCfg.defaultTeam, savedTeamId());
 
-const solo = teamFor("solo");
-const duo = teamFor("duo");
-const trio = teamFor("trio");
-check(
-  "solo has no bleed-out, duos have half a trio's",
-  solo.bleed === 0 && duo.bleed > 0 && duo.bleed < trio.bleed && trio.bleed === 1,
-  `${solo.bleed} / ${duo.bleed} / ${trio.bleed}`
-);
+// (the bleed-out by squad size, solo none and duos half a trio's, was the legacy game's: SpeedKills has no knockdowns,
+// so none bleeds out; it goes with the knockdowns, docs/PLAN_LEGACY_REMOVAL.md)
 
 check(
   "the bots divide into squads the way the row says, a part-full one counted",

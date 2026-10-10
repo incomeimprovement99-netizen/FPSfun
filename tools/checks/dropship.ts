@@ -23,6 +23,11 @@ function check(label: string, cond: boolean, detail = ""): void {
 }
 
 const DIVE = squadCfg.dive;
+/**
+ * The shortest line that is still a crossing: the ship's minLine, or nearly the map's width where the map is narrower
+ * than that (SpeedKills' city, about 304 m across against the Outskirts' 440, whose minLine it was set for).
+ */
+const CROSSING = Math.min(SHIP.minLine, 0.95 * (BR_BOUNDS.maxX - BR_BOUNDS.minX));
 const B = BR_BOUNDS;
 /** metres from (x, z) to the nearest side of the map's square */
 const toEdge = (x: number, z: number) => Math.min(Math.abs(x - B.minX), Math.abs(x - B.maxX), Math.abs(z - B.minZ), Math.abs(z - B.maxZ));
@@ -50,7 +55,7 @@ console.log("The line across the map (dropship.ts shipLine)");
       if (offLine(l, p.x, p.z) > SHIP.pass + 0.01) farFromPlace++;
       // the place is ahead: the point the line was drawn through is at least half-way along
       if (alongNearest(l, p.x, p.z) < l.length / 2 - SHIP.pass - 0.01) behind++;
-      if (l.length < SHIP.minLine) short++;
+      if (l.length < CROSSING) short++;
       shortest = Math.min(shortest, l.length);
       longest = Math.max(longest, l.length);
       octants.add(Math.floor(((Math.atan2(l.dz, l.dx) + Math.PI) / (Math.PI * 2)) * 8) % 8);
@@ -60,7 +65,7 @@ console.log("The line across the map (dropship.ts shipLine)");
   check("every line starts and ends on the map's edge", offEdge === 0, `${offEdge} of ${n}`);
   check(`every line passes within ${SHIP.pass} m of the squad's place`, farFromPlace === 0, `${farFromPlace} of ${n}`);
   check("and comes in from the far side, so the place is ahead of the ship", behind === 0, `${behind} of ${n}`);
-  check(`every line is a crossing, ${SHIP.minLine} m or more, even through a place in a corner`, short === 0, `${short} of ${n}; ${shortest.toFixed(0)} to ${longest.toFixed(0)} m`);
+  check(`every line is a crossing, ${CROSSING.toFixed(0)} m or more, even through a place in a corner`, short === 0, `${short} of ${n}; ${shortest.toFixed(0)} to ${longest.toFixed(0)} m`);
   check("lines go every which way", octants.size === 8, `${octants.size} of 8 directions`);
   check("a different match flies a different line over the same place", firsts.size >= 115, `${firsts.size} distinct lines in 120 matches`);
   const a = shipLine(424242, { x: 30, z: 480 }, B);
@@ -120,7 +125,9 @@ console.log("\nA bot's glide off the ship (glideStep)");
   };
   const reach = ((SHIP.height - SHIP.exit) / DIVE.glideFall) * DIVE.glideSpeed;
   const near = fly(0);
-  check("a place under the ship: it dives, on the ground in under 5 s", near.miss < 0.1 && near.t < 5, `${near.t.toFixed(1)} s`);
+  // (as long as the ship is high over the dive's fall, and a little: SpeedKills' ship flies at 175 m, the legacy game's 140)
+  const diveFor = (SHIP.height - SHIP.exit) / DIVE.diveFall + 0.4;
+  check(`a place under the ship: it dives, on the ground in under ${diveFor.toFixed(1)} s`, near.miss < 0.1 && near.t < diveFor, `${near.t.toFixed(1)} s`);
   const mid = fly(80);
   check("a place 80 m off the line: it lands on it", mid.miss < 1, `${mid.miss.toFixed(2)} m off, ${mid.t.toFixed(1)} s`);
   const edge = fly(reach - 2);

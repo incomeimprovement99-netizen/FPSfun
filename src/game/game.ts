@@ -101,11 +101,11 @@ const PROFILES: Record<GameId, GameProfile> = { legacy, speedkills };
 
 const isGame = (v: unknown): v is GameId => typeof v === "string" && (GAME_IDS as readonly string[]).includes(v);
 
-/** the build's default: vite sets it (vite.config.ts); anywhere else (the node checks) it is legacy */
+/** the build's default: vite sets it (vite.config.ts); anywhere else (the node checks) it is SpeedKills, the one game */
 function buildDefault(): GameId {
   // a node tool may name its game (GAME=speedkills npx tsx tools/sk-movesim.ts); a page never has `process`
   const env = typeof process !== "undefined" ? process.env?.GAME : undefined;
-  const d = env ?? (typeof __DEFAULT_GAME__ !== "undefined" ? __DEFAULT_GAME__ : "legacy");
+  const d = env ?? (typeof __DEFAULT_GAME__ !== "undefined" ? __DEFAULT_GAME__ : "speedkills");
   return isGame(d) ? d : "legacy";
 }
 

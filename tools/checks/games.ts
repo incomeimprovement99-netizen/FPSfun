@@ -10,7 +10,7 @@
 //
 // Run on its own: npx tsx tools/checks/games.ts.
 import { GAME, GAME_IDS, profileOf, resolveGame } from "../../src/game/game";
-import { weaponIds, allWeaponIds, weaponMods } from "../../src/game/weapons";
+import { allWeaponIds, weaponMods } from "../../src/game/weapons";
 import { optionsFor } from "../../src/game/attachments";
 import binds from "../../src/config/binds.json";
 
@@ -29,9 +29,8 @@ console.log("The game switch and its profiles");
   check("the address still opens it (the test suite's pages)", resolveGame("?game=legacy", "speedkills", "speedkills") === "legacy");
   check("then the build's default", resolveGame(null, null, "legacy") === "legacy" && resolveGame("", null, "speedkills") === "speedkills");
   check("a game that does not exist is ignored, wherever it comes from", resolveGame("?game=bogus", "also-bogus", "legacy") === "legacy");
-  check("outside a browser (these checks) the game is legacy, the frozen one", GAME === "legacy");
+  check("outside a browser (these checks) the game is SpeedKills, the one game", GAME === "speedkills");
 
-  const catalogue = new Set(weaponIds());
   const MAPS = new Set(["outskirts", "city"]);
   for (const id of GAME_IDS) {
     const p = profileOf(id);
@@ -52,9 +51,7 @@ console.log("The game switch and its profiles");
     check(`${tag} its name and line carry no other game's name`, !/apex|hyper ?scape|ubisoft|neo arcadia/i.test(`${p.name} ${p.tagline} ${p.identity.title}`));
   }
 
-  // legacy: the catalogue it froze with, nothing left out
-  const legacy = profileOf("legacy");
-  check("legacy: its roster is the whole catalogue", legacy.roster.length === catalogue.size && [...catalogue].every((g) => legacy.roster.includes(g)), `${legacy.roster.length} of ${catalogue.size}`);
+  // (that the legacy roster was the whole catalogue held while the catalogue was the legacy game's; it is SpeedKills' ten now)
 
   // SpeedKills: the brief's shape
   const sk = profileOf("speedkills");

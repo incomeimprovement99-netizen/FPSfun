@@ -6,8 +6,15 @@
 // match's (brmatch.ts) and the e2e gulag section plays them.
 //
 // Run on its own: npx tsx tools/checks/gulag.ts.
+import decayCfg from "../../src/config/decay.json";
+import { PROFILE } from "../../src/game/game";
 import { GULAG, Gulag, gulagFor } from "../../src/game/gulag";
 import { seeded } from "../../src/game/loot";
+
+/** the round from which a death is final: the capture zone's, decay.json's last (gulag.ts gulagFor) */
+const UNTIL = decayCfg.phases.length - 1;
+/** the guns the fight hands out: SpeedKills' own list (speedkills.json lists.gulagGuns) */
+const GUNS = PROFILE.lists?.gulagGuns ?? GULAG.guns;
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -17,9 +24,9 @@ function check(label: string, cond: boolean, detail = ""): void {
 
 console.log("Who goes to the Gulag");
 {
-  check("a first death, early, in the battle royale", gulagFor(0, false) && gulagFor(GULAG.untilPhase - 1, false));
+  check("a first death, early, in the battle royale", gulagFor(0, false) && gulagFor(UNTIL - 1, false));
   check("not a second: one trip a match", !gulagFor(0, true));
-  check(`not from ring ${GULAG.untilPhase + 1} on: the late game is final`, !gulagFor(GULAG.untilPhase, false));
+  check(`not from round ${UNTIL + 1} on, the capture zone's: the late game is final`, !gulagFor(UNTIL, false));
 }
 
 console.log("\nThe guns");
@@ -30,12 +37,14 @@ console.log("\nThe guns");
   for (let s = 1; s <= 400; s++) {
     const g = new Gulag(0, seeded(s * 97));
     if (g.guns[0] === g.guns[1]) same++;
-    if (!GULAG.guns.includes(g.guns[0]) || !GULAG.guns.includes(g.guns[1])) outside++;
+    if (!GUNS.includes(g.guns[0]) || !GUNS.includes(g.guns[1])) outside++;
     pairs.add([...g.guns].sort().join("+"));
   }
   check("two different guns, every time", same === 0, `${same} of 400 the same gun twice`);
   check("both from the Gulag's list", outside === 0);
-  check("and the pair changes from fight to fight", pairs.size >= 20, `${pairs.size} pairs in 400`);
+  // (every pair the list can make, up to 20: six guns make fifteen)
+  const most = Math.min(20, (GUNS.length * (GUNS.length - 1)) / 2);
+  check("and the pair changes from fight to fight", pairs.size >= most, `${pairs.size} pairs in 400, of ${most}`);
 }
 
 console.log("\nThe clock");

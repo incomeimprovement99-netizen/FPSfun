@@ -48,9 +48,17 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   sections do, many of them on shared systems (the network, host migration, the killcam, the recap, the controller,
   the lobby, the arena modes, the range's tools, the Gulag). The default becomes SpeedKills with no change to the
   game, and every check is sorted: one that passes is a SpeedKills test from now on; one that tests the legacy game
-  alone names it (`game=legacy`) and goes with its code. The Node checks stay on the legacy default until the switch
-  (the last step): run on SpeedKills, about 160 of them fail because they hold the legacy game's own numbers (Apex's movement
-  constants, its guns' stats, its loot tables and ring), and each goes with the code it tests, as the grenades' did.
+  alone names it (`game=legacy`) and goes with its code.
+- **497, the Node checks on SpeedKills (done).** Outside a browser the game is SpeedKills now (game.ts buildDefault):
+  verify and movesim run as the game people play. Each of the 148 checks that failed so was sorted: the legacy game's
+  own numbers went (Apex's movement constants and timings, the old guns' stats, mag levels, attachments, the bleed-out),
+  shared physics was pointed at SpeedKills' own config, and the legacy battle royale's whole files (loot tiers, the
+  ring's circles) run as the legacy game in a process of their own until their code goes. It found one SpeedKills bug,
+  the custom rules handing out guns the game does not have.
+- **The owner, 2026-10-09: retire all of it.** "i am fine with retiring all old apex-range stuff, don't break speed
+  hack. can remove old guns and old abilities that we don't use." Next: the game switch (`game=legacy` gone, IS_SK
+  folded), after the city agent's old-city removal lands; then the dead code below, the 18 old guns with it (the guns
+  agent asked for that), the knockdowns with the character agent taking the figure's downed side.
 - **Later, the UI's crumbs:** the `legacyOnly` controls, the legacy tour's steps, the README branch of the screen (the
   TV and the manual stay), the legacy intro card and tips, the cross-game join message. About 300 lines.
 - **491, abilities and kits (done)** (JOLT, TRIAGE, MEDIC, SCOUT, HOOK, SMOKE, WARD): SpeedKills turns them off and runs its
