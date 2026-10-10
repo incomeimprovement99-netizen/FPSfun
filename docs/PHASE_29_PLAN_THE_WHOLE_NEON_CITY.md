@@ -118,7 +118,7 @@ first.
 7. **High City** (built: the crowns and signs, Milestone 571, and the fire escapes up the south and east blocks, Milestone 572): a crown and a street-facing sign on each block (the colours are built, Milestone 474); the pack's
    exterior stairs and fire escape up the south and east blocks' flat faces, where balconies do not fit their round
    lobes.
-8. **The corner blocks** (built: THE WELL's and MARKET's names and their beams' colours, Milestone 573, a pad up onto every block and cover on the roofs, Milestone 574; the bridges between the roofs to come): a roof-hopping layer at 8 to 15 m from the railed roof decks, a pad up on every block, cover on
+8. **The corner blocks** (built: THE WELL's and MARKET's names and their beams' colours, Milestone 573, a pad up onto every block and cover on the roofs, Milestone 574, and footbridges between the roofs, Milestone 575): a roof-hopping layer at 8 to 15 m from the railed roof decks, a pad up on every block, cover on
    the roofs; a big neon front on THE WELL and on MARKET, which round 4 still could not tell apart; their sector colours
    fixed (THE WELL's is violet against a teal beam, MARKET's blue against a green one).
 9. **Street pieces that look right** (built, Milestone 570: the poster boards are concrete panels with posters on both

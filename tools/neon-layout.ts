@@ -2652,6 +2652,41 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     cfg.beams = beams.map((b) => ({ block: b.block, at: [+b.x.toFixed(3), b.y, +b.z.toFixed(3)], mat: BM.mats[b.block] }));
   }
 }
+// The corner blocks' roof bridges (rules.low.roofs; the master plan's item 8, "a roof-hopping layer"): the pack's
+// footbridge from a rooms building's roof to the roof beside it, `at` its middle and `along` its way across, its deck at
+// `y` (the rooms roof's parapet top), and a crate (`step`) on the low roof past its low end, a step down off the deck's
+// drop and a step up on the way back. All measured off the bake and written in the rules: once baked, a bridge filled
+// its own gap and a measure of the gap would find none
+const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number; step: number[] | null }> = [];
+{
+  const RB = R.low.roofs as { clear: number; bridges: Array<{ block: string; piece: string; at: Pt; along: Pt; y: number; step?: { piece: string; at: Pt; y: number } }> } | undefined;
+  for (const q of RB?.bridges ?? []) {
+    const [bx, bz] = q.block.split(",").map(Number);
+    const chunk = `c-${bz < 0 ? "n" : "s"}${bx < 0 ? "w" : "e"}`;
+    const row = piece(q.piece).row;
+    // (its own +x across, as the lifts' footbridges are laid)
+    const yaw = (Math.atan2(-q.along[1], q.along[0]) * 180) / Math.PI;
+    placeTurned(chunk, q.piece, q.at[0], q.at[1], yaw, "o", q.y - row.min![1]);
+    const half = row.size![0] / 2;
+    let step: number[] | null = null;
+    if (q.step) {
+      const sr = piece(q.step.piece).row;
+      placeTurned(chunk, q.step.piece, q.step.at[0], q.step.at[1], yaw, "o", q.step.y - sr.min![1]);
+      step = [q.step.at[0], +(q.step.y + sr.size![1]).toFixed(3), q.step.at[1]];
+    }
+    // (the way across, for tools/checks/sk-neon.ts to walk: from a metre and a half onto the high roof past its high
+    // end to 2 m past the step's middle on the low roof, clear of its collision, which reaches half a metre past it)
+    const end = q.step ? [q.step.at[0] + q.along[0] * 2, q.step.at[1] + q.along[1] * 2] : [q.at[0] + q.along[0] * (half + 1.5), q.at[1] + q.along[1] * (half + 1.5)];
+    // (the high roof's floor where the way starts, off the last bake: the deck stands on the parapet over it)
+    const start = [q.at[0] - q.along[0] * (half + 1.5), q.at[1] - q.along[1] * (half + 1.5)];
+    const floor = lastSolids().reduce((t, b) => (start[0] >= b[0] && start[0] <= b[1] && start[1] >= b[2] && start[1] <= b[3] && b[5] <= q.y + 0.05 && b[5] > t ? b[5] : t), 0);
+    roofBridges.push({ block: q.block, a: [+start[0].toFixed(3), +floor.toFixed(3), +start[1].toFixed(3)], b: [+end[0].toFixed(3), q.step?.y ?? q.y, +end[1].toFixed(3)], deck: q.y, step });
+  }
+  if (RB) {
+    cfg.roofBridges = roofBridges;
+    console.log(`the corner blocks' roof bridges: ${roofBridges.map((q) => `${q.block} at ${q.deck} m${q.step ? ", a step down" : ""}`).join("; ")}`);
+  }
+}
 // cover on the high perches (rules.perches): the tower's crown at 109 m and its east block's lookout at 49 m, each reached
 // by a pad, with a few of the pack's cooling units and crates to fight round (the owner, 2026-10-02: a high spot "a super
 // superior spot" a squad can still take). On the last bake's collision: each piece's footprint level at the perch's
@@ -2725,6 +2760,8 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       lands.push([f.at[0] + Math.cos(a) * -1.5 + Math.sin(a) * -4.2, f.at[1] - Math.sin(a) * -1.5 + Math.cos(a) * -4.2, PC.fire]);
     }
     for (const q of ((cfg.zips ?? []) as Array<{ block: string; b: number[] }>).filter((z) => !z.block.startsWith("lookout"))) lands.push([q.b[0], q.b[2], PC.zip]);
+    // (and each roof bridge's ends and its step, rules.low.roofs `clear`)
+    for (const q of roofBridges) for (const p of [q.a, q.b, ...(q.step ? [q.step] : [])]) lands.push([p[0], p[2], (R.low.roofs as { clear: number }).clear]);
     const perches: Array<{ name: string; at: number[][] }> = [];
     const roofCounts: string[] = [];
     // (every perch's pieces so far: a deck's landmark keeps off its cover as its cover keeps off itself)

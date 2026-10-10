@@ -11928,3 +11928,19 @@ follow as Milestone 575.
     City's, and the new north-east and south-west ones), where a squad was thrown off as it landed. Drops keep 3 m off.
 - **Checked** (tools/checks/sk-neon.ts): a pad up onto each corner block ridden onto its roof, the squads' drops none by a pad and each with room round it, and the perches counted from the rules, each new check proven by putting its bug back (a pad taken out, a roof's cover taken out, the drops' pad and room filters taken out, which left four drops on pads and fifteen crowded); all 170 passing, the layout's rerun after the bake unchanged. The e2e: the speedkills section, 101 of 101, after three runs failed the ghost restore (the reproduction run sixteen times then passing every time). verify, rules and the type check. The look: the pads at dusk from the edge road.
   The map: its files lo 100 MB, hi 167 MB, max 396 MB. **Its files are version 58.**
+
+## Milestone 575 — Footbridges over the corner blocks' roofs
+
+The plan's item 8, its roof layer finished: "a roof-hopping layer at 8 to 15 m from the railed roof decks".
+
+- **The bridges** (`rules.low.roofs`): the pack's 7.6 m footbridge from MOTEL HILL's and MARKET's rooms building's roof
+  to the roof east of it, over the 6 m gap between them, its deck at the rooms roof's parapet top (11 m, a 0.5 m step up
+  off the roof's floor), 0.8 m onto each roof; and past its low end a crate on the low roof (8.45 and 8.3 m), a 1 m step
+  down from the deck's 2.6 m drop, so the way back is a 1 m mantle and a 1.6 m one, under the 2.03 m a body mantles.
+  Measured off the bake (the parapet's outer edge at x -66.75, the low roofs from x -60.75 and -61) and written in the
+  rules: once baked, a bridge fills its own gap, and a measure of the gap made each run would find none.
+- **Not bridged:** NOODLE ROW's rooms building's annex is 1.7 to 2.1 m off its neighbour's roof and a step down, a jump
+  as it stands; THE WELL's roofs differ by 4.5 m.
+- **Kept clear:** the roofs' cover keeps 1.5 m off each bridge's ends and its step.
+- **Checked** (tools/checks/sk-neon.ts): each bridge walked by a player from its rooms building's roof over the bridge, down its step onto the roof beside it and back, and one on MOTEL HILL and MARKET, the walk proven by moving its line 3.5 m off the bridge (it falls at the first leg); all 173 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: each bridge from beside it, from its deck and from the low roof, at noon.
+  The map: its files lo 100 MB, hi 167 MB, max 396 MB. **Its files are version 59.**

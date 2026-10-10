@@ -1361,6 +1361,45 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     check(what, u.k === up.length && d.k === up.length && Math.abs(u.y - f.roof) < 0.1 && d.y < 0.1, `up ${u.k - 1} of ${up.length - 1} legs, at ${u.y.toFixed(2)} m (${u.x.toFixed(1)}, ${u.z.toFixed(1)}); down ${d.k - 1}, at ${d.y.toFixed(2)} m`);
   }
   check("a fire escape up each round-lobed High City block, the south and the east", HFI.length === 2 && ["s", "e"].every((b) => HFI.some((f) => f.block === b)), HFI.map((f) => `${f.block} ${f.flights} flights`).join("; "));
+  // the corner blocks' roof bridges (rules.low.roofs, the layout's roofBridges): each walked by a player from the rooms
+  // building's roof over its footbridge, down its step onto the roof beside it, and back up, a jump at each leg more
+  // than a step higher (onto the step, onto the deck, over the parapet)
+  const RBS = (cfg as unknown as { roofBridges?: Array<{ block: string; a: number[]; b: number[]; deck: number; step: number[] | null }> }).roofBridges ?? [];
+  const walkLegs = (pts: number[][]): { k: number; x: number; y: number; z: number } => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.sprintMode = "auto";
+    p.teleport(pts[0][0] + BR_X, pts[0][1] + 0.05, pts[0][2] + BR_Z, 0);
+    let t = 2000, k = 1, jumped = -1, endY = NaN;
+    for (let i = 0; i < 40 * 144 && k < pts.length; i++) {
+      const [tx, ty, tz] = pts[k];
+      const dx = tx - (p.pos.x - BR_X), dz = tz - (p.pos.z - BR_Z);
+      if (Math.hypot(dx, dz) < 0.35 && Math.abs(p.pos.y - ty) < 1) {
+        // (its height on reaching the last, once it lands: run on idle after it, a sprint carried it 2.5 m onto a roof's
+        // crate, and reached in the drop off a step it was still in the air)
+        if (++k === pts.length) {
+          for (let n = 0; n < 144 && !p.onGround; n++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+          endY = p.pos.y;
+        }
+        continue;
+      }
+      const jump = jumped !== k && ty > p.pos.y + 0.4 && Math.hypot(dx, dz) < 1.6;
+      if (jump) jumped = k;
+      p.yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+      p.update(1 / 144, (t += 1 / 144), { held: (a: Action) => a === "forward", pressedNow: (a: Action) => jump && a === "jump" }, 0, 1, false);
+    }
+    return { k, x: p.pos.x - BR_X, y: endY, z: p.pos.z - BR_Z };
+  };
+  for (const q of RBS) {
+    const L = Math.hypot(q.b[0] - q.a[0], q.b[2] - q.a[2]);
+    const u = [(q.b[0] - q.a[0]) / L, (q.b[2] - q.a[2]) / L];
+    // (on its deck a metre and a half in from each end: its ends are 1.5 m past the roofs' edges)
+    const deckAt = (d: number) => [q.a[0] + u[0] * d, q.deck, q.a[2] + u[1] * d];
+    const across = [q.a, deckAt(2.2), deckAt(L - (q.step ? 3.2 : 2.2)), ...(q.step ? [q.step] : []), q.b];
+    const there = walkLegs(across);
+    const back = walkLegs([...across].reverse());
+    check(`the ${q.block} block's roof bridge: walked over by a player from its rooms building's roof onto the roof beside it and back`, there.k === across.length && back.k === across.length && Math.abs(there.y - q.b[1]) < 0.2 && Math.abs(back.y - q.a[1]) < 0.2, `there ${there.k - 1} of ${across.length - 1} legs, at ${there.y.toFixed(2)} m (${there.x.toFixed(1)}, ${there.z.toFixed(1)}); back ${back.k - 1}, at ${back.y.toFixed(2)} m (${back.x.toFixed(1)}, ${back.z.toFixed(1)})`);
+  }
+  check("a roof bridge on MOTEL HILL and on MARKET", RBS.length === 2 && ["-1,-1", "-1,1"].every((b) => RBS.some((q) => q.block === b)), RBS.map((q) => q.block).join("; "));
   check("a fire escape on each rooms building", FI.length === Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k) && blockOf(k) !== wellBlock).length, `${FI.length}`);
   // and its walled yard (rules.low.yard, the layout's yards): on each rooms building's roof, its inside reached from
   // where the fire escape steps over the parapet, a body's square a quarter metre at a time over the collision at the
