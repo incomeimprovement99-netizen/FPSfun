@@ -1269,7 +1269,8 @@ Loop on the four axes, each in its own colour (north cyan, east pink, south ambe
 west green, its lift's and its battle royale sector's), each crowned (a roof tank 17 m
 tall with masts on the north, three cypresses on the south, a billboard and neon gas
 pipes on the west, a parked flying car under two masts on the east) and a big neon
-sign on its face to the Loop; on each corner block a wedge building faces its junction,
+sign on its face to the Loop, the south and east blocks with a fire escape up their outer
+faces from the street to the deck; on each corner block a wedge building faces its junction,
 a row of 3 to 6 storey buildings follows each of its curved streets, and in its
 outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
 and two more up its own stairs, and its roof reached by the pack's fire escape up

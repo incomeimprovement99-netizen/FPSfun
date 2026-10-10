@@ -1294,23 +1294,29 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     for (let i = 0; i < 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
     return { k, x: p.pos.x - BR_X, z: p.pos.z - BR_Z, y: p.pos.y };
   };
-  for (const f of FI) {
+  // (and High City's, rules.high.fire: up the south and east islands' outer faces from the street to the deck, its lowest
+  // stair's foot on the pavement, so walked onto from 1.2 m past its +z end, where the lobe beside it leaves room; and
+  // off onto the deck from its top landing's middle, its far end meeting the lobe's 0.85 m lip)
+  const HFI = (cfg as unknown as { highFires?: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> }).highFires ?? [];
+  for (const [f, high] of [...FI.map((q) => [q, false] as const), ...HFI.map((q) => [q, true] as const)]) {
     const on = (x: number, z: number, y: number) => {
       const a = (f.yaw * Math.PI) / 180;
       return [f.at[0] + Math.cos(a) * x + Math.sin(a) * z, f.at[1] - Math.sin(a) * x + Math.cos(a) * z, y];
     };
-    const up: number[][] = [on(1.75, 2.5, 0), on(1.75, -1.6, f.roof - f.flights * f.rise + 0.6)];
+    const up: number[][] = [on(1.75, high ? 1.2 : 2.5, 0), on(1.75, -1.6, f.roof - f.flights * f.rise + 0.6)];
     for (let n = f.flights - 1; n >= 0; n--) {
       const y = f.roof - n * f.rise;
       up.push(on(1.75, -4.2, y), on(0.5, -4.2, y));
       if (n) up.push(on(0.5, -0.5, y), [...on(1.75, -0.7, y), 0.1]);
     }
-    up.push(on(-1.5, -4.2, f.roof));
+    up.push(...(high ? [on(0.5, -2.5, f.roof), on(-1.5, -2.5, f.roof)] : [on(-1.5, -4.2, f.roof)]));
     const u = climb(up, 1);
     // (the way down at the walking tolerance: lining up on a flight's middle is for the way up)
     const d = climb([...up].reverse().map((q) => q.slice(0, 3)), -1);
-    check(`the fire escape on the ${f.block} block's rooms building: climbed from the street onto its roof and back down, by a player`, u.k === up.length && d.k === up.length && Math.abs(u.y - f.roof) < 0.1 && d.y < 0.1, `up ${u.k - 1} of ${up.length - 1} legs, at ${u.y.toFixed(2)} m (${u.x.toFixed(1)}, ${u.z.toFixed(1)}); down ${d.k - 1}, at ${d.y.toFixed(2)} m`);
+    const what = high ? `the fire escape up High City's ${f.block} block: climbed from the street onto its deck and back down, by a player` : `the fire escape on the ${f.block} block's rooms building: climbed from the street onto its roof and back down, by a player`;
+    check(what, u.k === up.length && d.k === up.length && Math.abs(u.y - f.roof) < 0.1 && d.y < 0.1, `up ${u.k - 1} of ${up.length - 1} legs, at ${u.y.toFixed(2)} m (${u.x.toFixed(1)}, ${u.z.toFixed(1)}); down ${d.k - 1}, at ${d.y.toFixed(2)} m`);
   }
+  check("a fire escape up each round-lobed High City block, the south and the east", HFI.length === 2 && ["s", "e"].every((b) => HFI.some((f) => f.block === b)), HFI.map((f) => `${f.block} ${f.flights} flights`).join("; "));
   check("a fire escape on each rooms building", FI.length === Object.keys(chunks).filter((k) => /^c-[ns][ew]$/.test(k) && blockOf(k) !== wellBlock).length, `${FI.length}`);
   // and its walled yard (rules.low.yard, the layout's yards): on each rooms building's roof, its inside reached from
   // where the fire escape steps over the parapet, a body's square a quarter metre at a time over the collision at the

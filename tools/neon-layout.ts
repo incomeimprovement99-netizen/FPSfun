@@ -577,6 +577,62 @@ const islands: number[][] = [];
   }
 }
 
+// High City's fire escapes (rules.high.fire; the master plan's item 7: balconies do not fit the round lobes of the south
+// and east blocks, 13 m apart, so the pack's exterior stairs go up their flat faces): the corner blocks' flights
+// (rules.low.fire's piece, its wall side at its own x 0, 5 m along its -z) stacked from the street to the deck, `flights`
+// of them `top` / `flights` apart (the pack stacks them 3 m apart; 26 m in nine puts the lowest stair's foot on the
+// pavement, each stair's foot 0.11 m under the next landing, a step), on the outer face where the deck's edge has no
+// parapet and nothing stands in the street. Its back on the face's outermost point across its length at every flight's
+// height, measured off the last bake, so no flight cuts into the glass
+const highFires: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> = [];
+{
+  const HF = R.high.fire as { top: number; flights: number; reach: number } & Record<string, { along: number }> | undefined;
+  if (HF) {
+    const fp = piece(R.low.fire.piece);
+    const boxes = lastSolids();
+    const rise = HF.top / HF.flights;
+    for (const dir of ["n", "s", "w", "e"] as const) {
+      const q = HF[dir];
+      if (!q) continue;
+      // (outward from the island's outer face; its own +x turned to it, its own z along the face)
+      const out: Pt = dir === "n" ? [0, -1] : dir === "s" ? [0, 1] : dir === "w" ? [-1, 0] : [1, 0];
+      const yaw = (Math.atan2(-out[1], out[0]) * 180) / Math.PI;
+      const alongDir = rotY(yaw, 0, 1);
+      const far = R.high.face + R.high[dir].depth + HF.reach;
+      // (the face's outermost point: from `reach` past the island's outer side straight in, at each flight's height and
+      // every half metre of its length; not the last layout's own flights, which the last bake measured: each box wholly
+      // in their band, from their back 2.75 m out, is theirs. Counted, the face came out at their front, 2.55 m out)
+      const prev = ((cfg.highFires ?? []) as Array<{ block: string; at: number[] }>).find((f) => f.block === dir);
+      const prevN = prev ? (out[0] ? out[0] * prev.at[0] : out[1] * prev.at[1]) : undefined;
+      const theirs = (lo: number, hi: number) => prevN !== undefined && lo >= prevN - 0.05 && hi <= prevN + 2.75;
+      let face = -Infinity;
+      for (let k = 0; k < HF.flights; k++)
+        for (let t = -fp.row.size![2]; t <= 1e-6; t += 0.5) {
+          const y = HF.top - k * rise + 0.5;
+          const ox = out[0] ? out[0] * far : q.along + alongDir[0] * t;
+          const oz = out[1] ? out[1] * far : q.along + alongDir[1] * t;
+          let best = Infinity;
+          for (const [x0, x1, z0, z1, y0, y1] of boxes) {
+            const [c, lo, hi] = out[0] ? [oz, z0, z1] : [ox, x0, x1];
+            if (y0 > y || y1 < y || c < lo - 1e-6 || c > hi + 1e-6) continue;
+            // (its extent along the way out, as the band measures it)
+            const [n0, n1] = out[0] ? (out[0] > 0 ? [x0, x1] : [-x1, -x0]) : out[1] > 0 ? [z0, z1] : [-z1, -z0];
+            if (theirs(n0, n1)) continue;
+            const d = out[0] ? out[0] * ox - (out[0] > 0 ? x1 : -x0) : out[1] * oz - (out[1] > 0 ? z1 : -z0);
+            if (d >= 0 && d < best) best = d;
+          }
+          if (best > HF.reach + R.high[dir].depth) throw new Error(`High City's ${dir} fire escape: no face at ${t} along, ${y.toFixed(1)} m`);
+          face = Math.max(face, far - best);
+        }
+      const at: Pt = out[0] ? [out[0] * face, q.along] : [q.along, out[1] * face];
+      for (let k = 0; k < HF.flights; k++) add(`c-${dir}`, "c", [fp.key, +at[0].toFixed(3), +(HF.top - k * rise).toFixed(3), +at[1].toFixed(3), +yaw.toFixed(2), "o"] as Place);
+      highFires.push({ block: dir, at: [+at[0].toFixed(3), +at[1].toFixed(3)], yaw: +yaw.toFixed(2), roof: HF.top, rise: +rise.toFixed(4), flights: HF.flights });
+    }
+    cfg.highFires = highFires;
+    console.log(`High City's fire escapes: ${highFires.map((f) => `${f.block} at ${f.at.join(", ")}, ${f.flights} flights`).join("; ")}`);
+  }
+}
+
 // ---------------------------------------------------------------- the low city: the four corner blocks
 // Each corner block lies between two of the curved streets and the edge road. Its rooms building (rules.low.rooms, the
 // realistic building with its floors and stairs) toward its outer corner, and along both its streets a row of the low
@@ -2568,7 +2624,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     const anyTop = (x: number, z: number, h: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h && b[5] > t ? b[5] : t), -Infinity);
     // (where each pad lands on the perches, as the bake finds it: the first column `face` metres high along its line, a
     // body wide, and `land` metres past it; or the way down's own spot)
-    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number; stairDoor: number };
+    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number; stairDoor: number; fire: number };
     const lands: Array<[number, number, number]> = [];
     for (const q of (R.pads.spine?.up ?? []) as Array<{ at: number[]; to: number[]; floor: number; face: number; land: number }>) {
       if (q.floor < 10) continue;
@@ -2593,6 +2649,13 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       const dx = cx0 + TWc.core.wall + TWc.core.landing / 2;
       const out: Record<string, Pt> = { w: [cx0 - 0.5, (cz0 + cz1) / 2], n: [dx, cz0 - 0.5], s: [dx, cz1 + 0.5], e: [cx1 + 0.5, (cz0 + cz1) / 2] };
       for (const d of TWc.core.doors[TWc.core.storeys.length - 1] ?? []) lands.push([out[d][0], out[d][1], PC.stairDoor]);
+    }
+    // (and on the south and east decks where their fire escapes step on: off its top landing's middle, 2.5 m along it,
+    // 1.5 m in over the deck's edge (its far end, where its stair comes up, meets the lobe's 0.85 m lip), `fire` round
+    // it, a body's step off; the crown's doors' 2.5 m there moved a crate onto the east deck's crown)
+    for (const f of highFires) {
+      const a = (f.yaw * Math.PI) / 180;
+      lands.push([f.at[0] + Math.cos(a) * -1.5 + Math.sin(a) * -2.5, f.at[1] - Math.sin(a) * -1.5 + Math.cos(a) * -2.5, PC.fire]);
     }
     const perches: Array<{ name: string; at: number[][] }> = [];
     const roofCounts: string[] = [];

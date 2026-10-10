@@ -11855,3 +11855,21 @@ The plan's item 7, the crowns and the signs; the climbs up the south and east bl
 - **Also:** a perch's piece kept from the last layout is drawn afresh when its spot is outside the perch's box.
 - **Checked** (tools/checks/sk-neon.ts): three new checks each proven by putting its bug back (each deck's whole crown, together and 9.5 m and more tall; a sign on each island's face, hung on it, lit to the Loop and none a corner block's own; no banned piece anywhere), all 163 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 97 of 101 with four of the ghost's restore checks failing while another agent deployed, then 101 of 101 run alone. verify, rules and the type check. The look: the crowns from outside the centre and from above the plaza, the signs from the Sky Ring, at noon and at night.
   The map: its files lo 100 MB, hi 166 MB, max 395 MB. **Its files are version 55.**
+
+## Milestone 572 — Fire escapes up the south and east High City blocks
+
+The plan's item 7, its climbs: balconies do not fit the south and east blocks' round lobes, 13 m apart (Milestone 465
+put them up the north and west blocks), so the pack's exterior stairs go up their flat faces.
+
+- **The fire escapes** (`rules.high.fire`): the corner blocks' flights (FireEscape001) stacked nine high from the street
+  to the deck at 26 m on each block's outer face, in the recess between two lobes that stand 5 m further out: x 5 to 10
+  on the south, z -10 to -5 on the east. There the face is flat, the deck's edge has no parapet and nothing stands in the
+  street. Nine flights 2.89 m apart (the pack stacks them 3 m apart) put the lowest stair's foot on the pavement, each
+  stair's foot 0.11 m under the next landing; the back of every flight on the face's outermost point across it, measured
+  off the bake, so none cuts into the glass. A metre nearer the central lobe, its flank stood across the way onto the
+  lowest stair.
+- **The decks round their tops** (`perches_clear.fire`): the decks' cover keeps 1.5 m off where each escape steps on, a
+  body's step off (the crown's doors' 2.5 m there moved a crate onto the east deck's crown). The south deck's crown is
+  two cypresses now, 15.5 and 11.2 m: the third had room until the escape stepped on beside them.
+- **Checked** (tools/checks/sk-neon.ts): two climbs, each by a player from the street onto its deck and back down, and a fire escape up each round-lobed block, the climb proven by the real fault it found first (the top landing's far end meets the lobe's lip) and the count by taking one out; all 166 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: each escape from the street, from beside it, from its foot and from the deck, at noon and at night.
+  The map: its files lo 100 MB, hi 167 MB, max 395 MB. **Its files are version 56.**
