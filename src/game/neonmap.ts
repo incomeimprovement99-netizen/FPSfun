@@ -361,7 +361,14 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
 
     // the nine places: each sector's street nodes its drops, spread across it
     const pois: Poi[] = SECTORS.map((s) => {
-      const mine = nodes.filter((n) => n.poi === s.id && n.links.length && !n.y);
+      // (none on or by a jump pad, game.dropClear: four drops stood on a pad's own node, and a squad dropped there was
+      // thrown off as it landed; and each with room round it, game.dropRoom: nothing over a step's height that near, a
+      // roof over it or a stair beside it. A drop falls onto the first floor under it: the rooms buildings' ground floors,
+      // street nodes indoors, put a squad on their roofs at 11 m, and a node by the Sky Ring's stair put one on the stair at
+      // 3.6 m; each time the e2e's ghost restore sent the mate beside the echo and it fell off, out of the echo's reach)
+      const r = G.dropRoom;
+      const crowded = (n: GraphNode) => solidsIn(n.x - r, n.x + r, n.z - r, n.z + r).some((q: Solid) => q.minX < n.x + r && q.maxX > n.x - r && q.minZ < n.z + r && q.maxZ > n.z - r && q.top > (n.y ?? 0) + MOVE.stepHeight);
+      const mine = nodes.filter((n) => n.poi === s.id && n.links.length && !n.y && !pads.some((q) => Math.hypot(q.x - n.x, q.z - n.z) < G.dropClear) && !crowded(n));
       const mid = { x: (s.minX + s.maxX) / 2, z: (s.minZ + s.maxZ) / 2 };
       mine.sort((a, b) => Math.hypot(a.x - BR_X - mid.x, a.z - BR_Z - mid.z) - Math.hypot(b.x - BR_X - mid.x, b.z - BR_Z - mid.z));
       const every = Math.max(1, Math.floor(mine.length / G.drops));

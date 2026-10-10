@@ -2670,12 +2670,14 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     // under where one stood, by the last layout's own list (cfg.perches as it was: each piece's middle, its half-extents
     // and its height), a box no taller than that piece is the roof, over the piece's whole footprint (a 6 m billboard's
     // own posts, cleared only round its middle, made its spot uneven and moved it the next time). A beam at knee height
-    // under the roof room is nowhere a piece stood, and counts)
+    // under the roof room is nowhere a piece stood, and counts). Over its footprint and 0.55 m round it: the collision's
+    // half-metre cells take a piece's faces up to half a metre past it, and at 0.3 m those cells stood as an obstacle
+    // beside the piece, and a crate by a roof's housing seemed to cut the roof in two and moved the next time
     const stood = ((cfg.perches ?? []) as Array<{ at: number[][] }>).flatMap((q) => q.at.map(([x, , z, , hx, hz, h]) => [x, z, hx ?? 1.3, hz ?? 1.3, h ?? 2.2]));
     const topAt = (x: number, z: number, floor: number[]) =>
       (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => {
         if (!(x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3])) return t;
-        const under = stood.some(([sx, sz, hx, hz, h]) => Math.abs(sx - x) < hx + 0.3 && Math.abs(sz - z) < hz + 0.3 && b[5] <= floor[1] + h + 0.3);
+        const under = stood.some(([sx, sz, hx, hz, h]) => Math.abs(sx - x) < hx + 0.55 && Math.abs(sz - z) < hz + 0.55 && b[5] <= floor[1] + h + 0.3);
         const top = under ? Math.min(b[5], (floor[0] + floor[1]) / 2) : b[5];
         return top > t ? top : t;
       }, -Infinity);
@@ -2684,8 +2686,9 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     // body wide, and `land` metres past it; or the way down's own spot)
     const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number; stairDoor: number; fire: number };
     const lands: Array<[number, number, number]> = [];
+    // (every one: the corner blocks' pads go up from the street, Milestone 574, where those from the plaza landed where
+    // no cover stood and were passed over)
     for (const q of (R.pads.spine?.up ?? []) as Array<{ at: number[]; to: number[]; floor: number; face: number; land: number }>) {
-      if (q.floor < 10) continue;
       let t = 0;
       while (t < 40 && anyTop(q.at[0] + q.to[0] * t, q.at[1] + q.to[1] * t, R.pads.body) < q.face) t += 0.05;
       lands.push([q.at[0] + q.to[0] * (t + R.pads.body + q.land), q.at[1] + q.to[1] * (t + R.pads.body + q.land), PC.pad]);
@@ -2715,6 +2718,13 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       const a = (f.yaw * Math.PI) / 180;
       lands.push([f.at[0] + Math.cos(a) * -1.5 + Math.sin(a) * -2.5, f.at[1] - Math.sin(a) * -1.5 + Math.cos(a) * -2.5, PC.fire]);
     }
+    // (and on the corner blocks' roofs: where each rooms building's fire escape steps over its parapet, its top landing's
+    // end 1.5 m in, and where the roof yards' zip lines end: the roofs' cover, Milestone 574, keeps off both)
+    for (const f of fires) {
+      const a = (f.yaw * Math.PI) / 180;
+      lands.push([f.at[0] + Math.cos(a) * -1.5 + Math.sin(a) * -4.2, f.at[1] - Math.sin(a) * -1.5 + Math.cos(a) * -4.2, PC.fire]);
+    }
+    for (const q of ((cfg.zips ?? []) as Array<{ block: string; b: number[] }>).filter((z) => !z.block.startsWith("lookout"))) lands.push([q.b[0], q.b[2], PC.zip]);
     const perches: Array<{ name: string; at: number[][] }> = [];
     const roofCounts: string[] = [];
     // (every perch's pieces so far: a deck's landmark keeps off its cover as its cover keeps off itself)

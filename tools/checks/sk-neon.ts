@@ -275,9 +275,23 @@ const crown = ups.filter((u) => u.q.id.startsWith("crown") && u.q.ground > 100);
 const PCH = (cfg as unknown as { perches?: Array<{ name: string; at: number[][] }> }).perches ?? [];
 const onIt = (p: { at: number[][] }) => p.at.filter(([x, y, z]) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).some((b) => Math.abs(b.top - y) < 0.06));
 check("the crown at 109 m: two pads up to it from the base's roof, each landing on it", crown.length === 2 && crown.every((u) => u.ok), crown.map((u) => u.said).join("; "));
+// (and a pad up onto each corner block's roof from the edge road, rules.pads.spine's corner-*, the master plan's item 8:
+// onto the rooms buildings' roofs at 10.5 m and THE WELL's at 7.5 m)
+const corners = ups.filter((u) => u.q.id.startsWith("corner-"));
+check("a pad up onto each corner block's roof from the street, each landing on it", corners.length === 4 && corners.every((u) => u.ok && u.q.ground > 7), corners.map((u) => u.said).join("; "));
+// (and no squad dropped on or by a pad, game.dropClear: four drops stood on a pad's own street node, a squad dropped
+// there thrown off as it landed)
+{
+  const near = map.pois.flatMap((p) => p.drops.filter((d) => map.pads.some((q) => Math.hypot(q.x - d.x, q.z - d.z) < (cfg.game as unknown as { dropClear: number }).dropClear)).map((d) => `${p.id} (${(d.x - BR_X).toFixed(1)}, ${(d.z - BR_Z).toFixed(1)})`));
+  // (and each with room round it, game.dropRoom: a drop falls onto the first floor under it, and drops in the rooms
+  // buildings' ground floors put the squad on their roofs at 11 m, one by the Sky Ring's stair on the stair at 3.6 m)
+  const R = (cfg.game as unknown as { dropRoom: number }).dropRoom;
+  const crowded = map.pois.flatMap((p) => p.drops.filter((d) => solidsIn(d.x - R, d.x + R, d.z - R, d.z + R).some((b) => b.minX < d.x + R && b.maxX > d.x - R && b.minZ < d.z + R && b.maxZ > d.z - R && b.top > 0.46)).map((d) => `${p.id} (${(d.x - BR_X).toFixed(1)}, ${(d.z - BR_Z).toFixed(1)})`));
+  check("the squads' drops: none on or by a jump pad, each with room round it (no roof over it, nothing beside it over a step)", near.length === 0 && crowded.length === 0 && map.pois.every((p) => p.drops.length > 0), `${map.pois.reduce((n, p) => n + p.drops.length, 0)} drops${near.length ? `; by a pad: ${near.join(", ")}` : ""}${crowded.length ? `; crowded: ${crowded.join(", ")}` : ""}`);
+}
 // (and on the four bridges of the ring round the tower, two pieces and more each: the fourth review asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") ? 1 : name.startsWith("ring") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks and the four bridges round the tower, a landmark on each deck, each piece standing on its roof", PCH.length === 14 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("ring") ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower and the corner blocks' roofs, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 18 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
@@ -952,9 +966,12 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // the centre's pads joined on foot: each pad on the plaza and the pad up to the top walked to from the plaza, each landing
   // on the base's roof (from the plaza, and the way down's) walked from there
   const SPN = (cfg as unknown as { spine: { up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; land: number; ground: number }>; down: Array<{ id: string; land: number[]; landY: number }> } }).spine;
+  // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
+  // is ridden by its own check)
+  const SPU = SPN.up.filter((q) => !q.id.startsWith("corner-"));
   const stops = [
-    ...SPN.up.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
-    ...SPN.up.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
+    ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
+    ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
     ...SPN.down.map((q) => ({ id: `${q.id}'s landing`, x: q.land[0], z: q.land[1], y: q.landY })),
   ];
   const astray = stops.filter((q) => !reachedAt(q.x, q.z, q.y));

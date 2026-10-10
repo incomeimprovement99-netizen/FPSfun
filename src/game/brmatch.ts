@@ -1125,10 +1125,17 @@ export class BrMatch extends Duel {
    * itself for their restore. There are no death boxes (the owner, 2026-10-04): the box was a marker the items lay round.
    */
   dropDeath(items: LootItem[], at: THREE.Vector3): void {
+    // (each on the floor under its spot: the highest top there at or under it, or the ground. A player killed in the air,
+    // falling from the drop or mid-jump, left it all hanging where they died, the echo out of a mate's reach below it)
+    const floored = (p: THREE.Vector3): THREE.Vector3 => {
+      let y = floorAt(p.x, p.z);
+      for (const s of solidsIn(p.x, p.x, p.z, p.z)) if (s.minX <= p.x && s.maxX >= p.x && s.minZ <= p.z && s.maxZ >= p.z && s.top <= p.y + 0.05 && s.top > y) y = s.top;
+      return new THREE.Vector3(p.x, Math.min(p.y, y), p.z);
+    };
     items.forEach((it, i) => {
-      if (it.kind === "echo") return void this.dropLoot(it, at);
+      if (it.kind === "echo") return void this.dropLoot(it, floored(at));
       const a = (i / Math.max(1, items.length)) * Math.PI * 2;
-      this.dropLoot(it, at.clone().add(new THREE.Vector3(Math.cos(a) * 0.9, 0, Math.sin(a) * 0.9)));
+      this.dropLoot(it, floored(at.clone().add(new THREE.Vector3(Math.cos(a) * 0.9, 0, Math.sin(a) * 0.9))));
     });
   }
 

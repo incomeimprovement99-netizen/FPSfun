@@ -11895,3 +11895,36 @@ their beams were teal and green against their sectors' violet and blue. The roof
   hung within the twin's distance of its twin at its own.
 - **Checked** (tools/checks/sk-neon.ts): three new checks each proven by putting its bug back (the names on their wedges' roofs in their sectors' colours, with the beams the same colours; none of High City's signs among the street's; a name taken off its colour and a beam off its tint both caught), the names' roof test catching the names standing 0.85 m off their roofs; all 168 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: the names from the Loop and the Sky Ring at night and at noon.
   The map: its files lo 100 MB, hi 167 MB, max 395 MB. **Its files are version 57.**
+
+## Milestone 574 — A pad up onto every corner block, and cover on their roofs
+
+The plan's item 8, its roof layer begun: "a pad up on every block, cover on the roofs". The bridges between the roofs
+follow as Milestone 575.
+
+- **The pads** (`rules.pads.spine`'s corner-*): one on each corner block, from the edge road's pavement up the outer
+  face of its rooms building onto its roof at 10.5 m, and THE WELL's (it has no rooms building, and its 12 m building's
+  roof steps from 11.7 to 17.4 m) onto its 7.5 m roof. Each spot found by measuring it as the bake measures a pad (a
+  face 8 m high, nothing over the pad, a level landing 3 m in), clear of the roof yard and the roof's housing, and the
+  south-west one a metre along to keep off the street's poster wall by its pad clearance. Thrown as the centre's
+  spine pads are, and joined to the bots' street graph where the roof has nodes.
+- **Cover on the roofs** (`rules.perches`' roof-*): four crates and cool boxes on each rooms building's roof (its
+  parapet ring at 11 m and its yard's walls are not level at its height, so none stands on them), one on THE WELL's
+  small roof beside its pad's landing; off where the pads land, where each fire escape steps over the parapet and where
+  the roof yards' zip lines end. The perch layout passed over every pad from under 10 m, which once only landed where
+  nothing stood: it takes them all now.
+- **The perches kept where they stood:** the last layout's cover is read as roof over its footprint and 0.55 m round it
+  (it was 0.3 m): the collision's half-metre cells take a piece's faces up to half a metre past it, and a roof crate by
+  the rooms building's housing seemed to cut the roof in two on the run after the bake and moved.
+- **The e2e's ghost restore, failing on and off since Milestone 571, fixed at its causes:** a reproduction of it run
+  sixteen times at a go found three faults, none of them the test's.
+  - **A death in the air** (src/game/brmatch.ts dropDeath): what someone had and their echo were laid where they died,
+    and a player killed falling from the drop or mid-jump left them hanging there, the echo out of a mate's reach below
+    it. Each now lies on the floor under its spot.
+  - **Drops indoors and by stairs** (`game.dropRoom`, src/game/neonmap.ts): each sector's drops are its street nodes,
+    and a drop falls onto the first floor under it. Six stood under a roof (four in the rooms buildings' ground floors,
+    which put a squad on their roofs at 11 m, two inside the tower's base) and one by the Sky Ring's stair, which put a
+    squad on the stair. Each drop now has 1.5 m of room round it, nothing over a step's height.
+  - **Drops on pads** (`game.dropClear`): every pad's spot is a street node, and four drops stood on one (two of High
+    City's, and the new north-east and south-west ones), where a squad was thrown off as it landed. Drops keep 3 m off.
+- **Checked** (tools/checks/sk-neon.ts): a pad up onto each corner block ridden onto its roof, the squads' drops none by a pad and each with room round it, and the perches counted from the rules, each new check proven by putting its bug back (a pad taken out, a roof's cover taken out, the drops' pad and room filters taken out, which left four drops on pads and fifteen crowded); all 170 passing, the layout's rerun after the bake unchanged. The e2e: the speedkills section, 101 of 101, after three runs failed the ghost restore (the reproduction run sixteen times then passing every time). verify, rules and the type check. The look: the pads at dusk from the edge road.
+  The map: its files lo 100 MB, hi 167 MB, max 396 MB. **Its files are version 58.**

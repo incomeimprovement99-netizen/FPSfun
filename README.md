@@ -1275,7 +1275,8 @@ a row of 3 to 6 storey buildings follows each of its curved streets, and in its
 outer corner the pack's Neon Building 04, rooms to fight in: its ground floor
 and two more up its own stairs, and its roof reached by the pack's fire escape up
 its outside, a drop stair over the street to jump onto and three flights (each
-colliding as its own faces, so a body fits it) to a walled yard on top. In the south-east block's corner
+colliding as its own faces, so a body fits it) to a walled yard on top, and a jump pad up onto it
+from the edge road, crates on it to fight from. In the south-east block's corner
 instead, the Well: the pack's inverted building, a light-well with galleries of
 shops 3.5 m apart down to 10 m under the street, a stair down every storey from
 a stairwell in the street, a rope up its middle, and a corridor from its lowest
