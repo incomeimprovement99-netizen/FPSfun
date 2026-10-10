@@ -11831,3 +11831,27 @@ each with that pistol's pose and reloads and its own recorded shots and reloads.
   the arms had gone on into the frames and stopped on a TypeError, the city agent's run, 2026-10-09); seen failing as a
   plain "the bought guns and arms load" with arms.glb moved away. gunfeel.json entries: APUHTHEE a magnum's slow heavy
   kick, STRYDER a fast pistol's light one, buzzing.
+
+## Milestone 571 — High City's crowns and signs, and a sign that said "free sex" taken out
+
+The plan's item 7, the crowns and the signs; the climbs up the south and east blocks follow as Milestone 572.
+
+- **The sign taken out** (`rules.banned`): the pack's letter sign Neon008, and its 14 m version Neon008b, spell 무료섹스,
+  "free sex" in Korean. Seven hung on the street fronts and the larger stood on the south deck as its landmark. Both
+  are banned (with Neon008c, the same family in Korean letters not read): the layout refuses to place them, and the
+  street signs draw the pack's 로봇 ("robot") in their place.
+- **Crowns** (the decks' landmarks in `rules.perches`): before, one piece each, a billboard whose screen drew black on the
+  north, the sign on the south, a billboard on the west and one parked car on the east that showed from nowhere off the
+  deck. Now each deck's crown is three pieces standing together (`near`): the north a roof tank 17.2 m tall and two masts
+  9.9 m, the west its billboard (turned to the middle) and two neon gas pipes 12.8 m, the south a stand of three cypresses
+  10.9 to 15.5 m, the east a parked flying car under two masts. The round-lobed south and east decks lose half their
+  roof to the bridges' ends, so their crowns are laid after their six crates, on the room the crates leave; the decks'
+  crates stand 2.5 m apart (they were 3), and the north and west decks keep 7 and 8.
+- **Signs** (`rules.high.signs`): one of the pack's neon signs, scaled 1.8 to 3.2 times, on each island's face to the
+  Loop at 18 m, hung where the face is flat across it (measured off the bake: the faces between the lobes stand 59.5 m
+  out), clear of the pads up the lobes and the glass lifts up the flats: MOVIE on the north, Gamatha resto-bar on the
+  south, artika robotics on the west, neon future city on the east, none of them a corner block's own sign. The south
+  and east islands' flats carry their lifts, so their signs hang on a lobe, their ends up to 1.5 m off its curve.
+- **Also:** a perch's piece kept from the last layout is drawn afresh when its spot is outside the perch's box.
+- **Checked** (tools/checks/sk-neon.ts): three new checks each proven by putting its bug back (each deck's whole crown, together and 9.5 m and more tall; a sign on each island's face, hung on it, lit to the Loop and none a corner block's own; no banned piece anywhere), all 163 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 97 of 101 with four of the ghost's restore checks failing while another agent deployed, then 101 of 101 run alone. verify, rules and the type check. The look: the crowns from outside the centre and from above the plaza, the signs from the Sky Ring, at noon and at night.
+  The map: its files lo 100 MB, hi 166 MB, max 395 MB. **Its files are version 55.**

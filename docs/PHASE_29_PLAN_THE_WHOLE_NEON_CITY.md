@@ -115,7 +115,7 @@ first.
 
 ### The rest of the centre
 
-7. **High City:** a crown and a street-facing sign on each block (the colours are built, Milestone 474); the pack's
+7. **High City** (the crowns and signs built, Milestone 571; the climbs to come): a crown and a street-facing sign on each block (the colours are built, Milestone 474); the pack's
    exterior stairs and fire escape up the south and east blocks' flat faces, where balconies do not fit their round
    lobes.
 8. **The corner blocks:** a roof-hopping layer at 8 to 15 m from the railed roof decks, a pad up on every block, cover on

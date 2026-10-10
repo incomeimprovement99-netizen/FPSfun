@@ -294,6 +294,43 @@ check("the perches: cover on the crown, the lookout, the four High City decks an
   });
   check("the corner blocks' signs: one on each block's roof, three times the pack's size or near it, its face to the middle, solid", ID.length === 4 && new Set(ID.map((q) => q.block)).size === 4 && bad.length === 0, ID.map((q) => `${q.block} ${q.w} by ${q.h} m`).join("; ") + (bad.length ? `; wrong: ${bad.map((q) => q.block).join(", ")}` : ""));
 }
+// High City's crowns (the decks' landmarks, the master plan's item 7): each deck's whole crown, its pieces together
+// (each within the perch's `near` of its first) and its tallest 9.5 m and more, so it shows over the deck's edge from
+// the Loop and across the city (a single parked car, the east deck's landmark before, showed from nowhere off it)
+{
+  const RP = (cfg.rules.perches as unknown as Array<{ name: string; count: number; near?: number }>).filter((q) => q.name.startsWith("landmark"));
+  const r = (a: number[]) => Math.hypot(a[4], a[5]);
+  const of = (name: string) => PCH.find((p) => p.name === name)?.at ?? [];
+  const bad = RP.filter((q) => {
+    const at = of(q.name);
+    return at.length !== q.count || at.some((a) => Math.hypot(a[0] - at[0][0], a[2] - at[0][2]) > (q.near ?? 0) + r(a) + r(at[0]) + 0.01) || Math.max(...at.map((a) => a[6])) < 9.5;
+  });
+  check("High City's crowns: each deck's whole crown, its pieces together and its tallest 9.5 m and more", RP.length === 4 && bad.length === 0, RP.map((q) => `${q.name} ${of(q.name).length} of ${q.count}, ${Math.max(0, ...of(q.name).map((a) => a[6]))} m`).join("; "));
+}
+// High City's signs (rules.high.signs): one on each island's face to the Loop, the face standing right behind its
+// middle (the collision a hand past its back, across its height), lit to the Loop, and none of them a corner block's own
+// sign, which names its block alone
+{
+  const HS = (cfg as unknown as { highSigns?: Array<{ block: string; at: number[]; yaw: number; piece: string; w: number; h: number }> }).highSigns ?? [];
+  const own = new Set(((cfg as unknown as { identity?: Array<{ piece: string }> }).identity ?? []).map((q) => q.piece));
+  const inward: Record<string, number[]> = { n: [0, -1], s: [0, 1], w: [-1, 0], e: [1, 0] };
+  const bad = HS.filter((q) => {
+    const [x, y, z] = q.at;
+    const [dx, dz] = inward[q.block];
+    const [bx, bz] = [x + BR_X + dx * 0.3, z + BR_Z + dz * 0.3];
+    const behind = solidsIn(bx - 0.1, bx + 0.1, bz - 0.1, bz + 0.1).some((b) => b.minX <= bx && b.maxX >= bx && b.minZ <= bz && b.maxZ >= bz && b.base < y && b.top > y);
+    const lit = Math.abs(((q.yaw - (Math.atan2(-dx, -dz) * 180) / Math.PI + 540) % 360) - 180) < 1;
+    return !behind || !lit || own.has(q.piece);
+  });
+  check("High City's signs: one on each island's face to the Loop, hung on it and lit to the Loop, none a corner block's own sign", HS.length === 4 && new Set(HS.map((q) => q.block)).size === 4 && bad.length === 0, HS.map((q) => `${q.block} ${q.piece.replace(".prefab", "")} ${q.w} by ${q.h} m`).join("; ") + (bad.length ? `; wrong: ${bad.map((q) => q.block).join(", ")}` : ""));
+}
+// no piece the map must not show (rules.banned): the pack's letter sign that spells "free sex" in Korean stood in the
+// street seven times and 14 m tall on the south deck until Milestone 571
+{
+  const BAN = (cfg.rules as unknown as { banned: { pieces: string[] } }).banned.pieces;
+  const shown = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => BAN.some((b) => String(q[0]).endsWith(`/${b}`)));
+  check("no piece the map must not show: none of rules.banned placed anywhere", BAN.length > 0 && shown.length === 0, `${shown.length} placed${shown.length ? `: ${shown.slice(0, 3).map((q) => q[0]).join("; ")}` : ""}`);
+}
 // (and the decks' cover off where a pad lands, a lift lands, a bridge ends and a zip tops out, by rules.perches_clear)
 {
   const PC = (cfg.rules as unknown as { perches_clear: { pad: number; lift: number; bridge: number; zip: number } }).perches_clear;

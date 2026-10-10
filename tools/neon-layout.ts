@@ -40,6 +40,9 @@ function piece(name: string): { key: string; row: Row } {
 type Place = [string, number, number, number, number, "g" | "s" | "o", (string | null)?, string[]?];
 const chunks = new Map<string, { sector: string; place: Place[] }>();
 const add = (chunk: string, sector: string, p: Place) => {
+  // (never a piece the map must not show, rules.banned: the pack's letter sign Neon008 spells "free sex" in Korean, and
+  // stood in the street and as the south deck's 14 m landmark until Milestone 571)
+  if ((R.banned?.pieces as string[] | undefined)?.some((b) => p[0].endsWith(`/${b}`))) throw new Error(`${p[0]}: in rules.banned`);
   const c = chunks.get(chunk) ?? chunks.set(chunk, { sector, place: [] }).get(chunk)!;
   c.place.push(p);
 };
@@ -2277,6 +2280,58 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
   console.log(`signs: ${hung} hung on the fronts`);
 }
 
+// High City's signs (rules.high.signs; the master plan's item 7, "a sign seen from the street" on each block): one of the
+// pack's neon signs `scale` times its size on each island's face to the Loop, `up` over the street, hung on the face at
+// `at` along it, where the face is flat across the sign's width (measured off the last bake: the faces between the lobes
+// stand at 59.5 m, the pads launch up the lobes and the glass lifts ride the flats beside them). The deck's own edge has
+// no room for one, its pad, lift, zip and bridges' clearances taking all of it. Drawn only: it hangs out of reach
+{
+  const HS = R.high.signs as { up: number; flat: number; reach: number } & Record<string, { piece: string; scale: number; at: number; flat?: number }> | undefined;
+  if (HS) {
+    const boxes = lastSolids();
+    const faceAt = (x: number, z: number, dx: number, dz: number, y: number): number => {
+      let best = Infinity;
+      for (const [x0, x1, z0, z1, y0, y1] of boxes) {
+        if (y0 > y || y1 < y) continue;
+        let t0 = 0, t1 = HS.reach;
+        for (const [o, d, lo, hi] of [[x, dx, x0, x1], [z, dz, z0, z1]]) {
+          if (Math.abs(d) < 1e-9) { if (o < lo || o > hi) t0 = Infinity; continue; }
+          let [a, b] = [(lo - o) / d, (hi - o) / d];
+          if (a > b) [a, b] = [b, a];
+          t0 = Math.max(t0, a);
+          t1 = Math.min(t1, b);
+        }
+        if (t0 <= t1 && t0 < best) best = t0;
+      }
+      return best;
+    };
+    const out: Array<{ block: string; at: number[]; yaw: number; piece: string; w: number; h: number }> = [];
+    for (const dir of ["n", "s", "w", "e"] as const) {
+      const q = HS[dir];
+      if (!q) continue;
+      // (toward the island from the Loop, and along its face)
+      const inward: Pt = dir === "n" ? [0, -1] : dir === "s" ? [0, 1] : dir === "w" ? [-1, 0] : [1, 0];
+      const along: Pt = [Math.abs(inward[1]), Math.abs(inward[0])];
+      const from = R.high.face - HS.reach / 2;
+      const o: Pt = [along[0] * q.at + inward[0] * from, along[1] * q.at + inward[1] * from];
+      const { key, row } = piece(q.piece);
+      const [w, h] = [row.size![0] * q.scale, row.size![1] * q.scale];
+      const d = faceAt(o[0], o[1], inward[0], inward[1], HS.up);
+      const ends = [-w / 2, w / 2].flatMap((e) => [HS.up - h / 2, HS.up + h / 2].map((y) => faceAt(o[0] + along[0] * e, o[1] + along[1] * e, inward[0], inward[1], y)));
+      if (!Number.isFinite(d) || ends.some((f) => Math.abs(f - d) > (q.flat ?? HS.flat))) throw new Error(`High City's ${dir} sign: the face is not flat across it at ${q.at} (${d.toFixed(2)}; ${ends.map((f) => f.toFixed(2)).join(", ")})`);
+      // (hung with its lit +z to the Loop, the middle of its back on the face, its middle `up` high)
+      const yaw = yawToward(-inward[0], -inward[1]);
+      const [bx, bz] = rotY(yaw, ((row.min![0] + row.max![0]) / 2) * q.scale, row.min![2] * q.scale);
+      const f: Pt = [o[0] + inward[0] * d, o[1] + inward[1] * d];
+      const y = HS.up - ((row.min![1] + row.max![1]) / 2) * q.scale;
+      add(`c-${dir}`, "c", [key, +(f[0] - bx).toFixed(3), +y.toFixed(3), +(f[1] - bz).toFixed(3), +yaw.toFixed(2), "g", null, null, q.scale] as unknown as Place);
+      out.push({ block: dir, at: [+f[0].toFixed(2), HS.up, +f[1].toFixed(2)], yaw: +yaw.toFixed(2), piece: q.piece, w: +w.toFixed(2), h: +h.toFixed(2) });
+    }
+    cfg.highSigns = out;
+    console.log(`High City's signs: ${out.map((q) => `${q.block} ${q.piece.replace(".prefab", "")} ${q.w} by ${q.h} m`).join(", ")}`);
+  }
+}
+
 // The kerbs along the roads' edges and the dashed lines down their middles. In the centre the edge is traced where the
 // curved roads' surface ends (its rounded junctions too), a kerb every piece's length, its body on the pavement side;
 // outside it, along the outer districts' straight roads as before
@@ -2488,7 +2543,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 // superior spot" a squad can still take). On the last bake's collision: each piece's footprint level at the perch's
 // height, `edge` metres off any drop, `apart` from the others and 3 m off where a pad lands
 {
-  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string }> | undefined;
+  const PR = R.perches as Array<{ name: string; y: number[]; box: number[]; count: number; pieces: string[]; edge: number; apart: number; seed: number; face?: string; near?: number }> | undefined;
   if (PR && existsSync(SOLIDS_FILE)) {
     const S = lastSolids();
     const G = 2;
@@ -2607,7 +2662,8 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       // (a piece stays where the last layout put it while its spot is still level roof, and only a lost one is drawn
       // afresh: the last bake's collision has the last layout's pieces in it, read back as roof only roughly, and a
       // reroll from it moved a piece a time)
-      const kept = (((cfg.perches ?? []) as Array<{ name: string; at: number[][] }>).find((q) => q.name === P.name)?.at ?? []).map(([x, , z, yaw]) => ({ x, z, yaw: yaw ?? 0 }));
+      // (and one outside the perch's box, which has moved since, is drawn afresh too)
+      const kept = (((cfg.perches ?? []) as Array<{ name: string; at: number[][] }>).find((q) => q.name === P.name)?.at ?? []).map(([x, , z, yaw]) => ({ x, z, yaw: yaw ?? 0 })).filter((q) => q.x >= P.box[0] && q.x <= P.box[1] && q.z >= P.box[2] && q.z <= P.box[3]);
       const spots: Pt[] = [];
       for (let x = P.box[0]; x <= P.box[1]; x += 0.5) for (let z = P.box[2]; z <= P.box[3]; z += 0.5) spots.push([x, z]);
       for (let i = spots.length - 1; i > 0; i--) {
@@ -2635,6 +2691,9 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         // (and no drop within `edge` of it: a piece by the roof's edge is a step off it)
         for (const fx of [-hx - P.edge, 0, hx + P.edge]) for (const fz of [-hz - P.edge, 0, hz + P.edge]) if (topAt(x + fx, z + fz, under) < y - 0.5) ok = false;
         if (!ok || lands.some((l) => Math.hypot(l[0] - x, l[1] - z) < l[2] + r) || mine.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r) || allPlaced.some((m) => Math.hypot(m.c[0] - x, m.c[1] - z) < P.apart + m.r + r)) continue;
+        // (a crown's pieces stand together, each within `near` of its first: a High City deck's crown is one thing seen from
+        // across the city, a tank and its masts or a stand of trees, not its pieces strewn over the deck)
+        if (P.near && mine.length && Math.hypot(mine[0].c[0] - x, mine[0].c[1] - z) > P.near + mine[0].r + r) continue;
         const after = roofPieces([...allPlaced.filter(inBox), ...mine, { c: [x, z], hx, hz }]);
         if (after > pieces) continue;
         pieces = after;
