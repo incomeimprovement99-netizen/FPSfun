@@ -93,6 +93,14 @@ check(
   check("SpeedKills' hours are real ones, and it starts at one of them (golden hour, the owner's, 2026-10-04)", skies.length >= 2 && skies.every((id) => id in HOURS) && skies.includes(skCfg.identity.sky) && skCfg.identity.sky === "goldenHour", skies.join(", "));
   const n = HOURS.neonNight;
   check("the neon night is darker than the moonlight it replaced, its lit things carrying the picture", !!n && n.intensity < HOURS.night.intensity && n.env <= HOURS.night.env, n ? `${n.intensity} / ${n.env}` : "none");
+  // (and its sky fill and rim light, an hour's own since Milestone 576: they were the day's at every hour, and the Neon
+  // City's fourth review called the night "a purple-tinted day")
+  const g = HOURS.goldenHour;
+  check("the neon night's sky fill under half the golden hour's, its rim light under the day's too", !!n && n.fill <= g.fill / 2 && n.rim < g.rim, n ? `fill ${n.fill} of ${g.fill}, rim ${n.rim} of ${g.rim}` : "none");
+}
+{
+  const bad = Object.entries(HOURS).filter(([, h]) => !(h.fill > 0 && h.fill <= 2) || !(h.rim >= 0 && h.rim <= 1)).map(([id]) => id);
+  check("every hour's sky fill lit and under 2, its rim light 0 to 1, and the afternoon's the range's own 0.75 and 0.3", bad.length === 0 && HOURS.afternoon.fill === 0.75 && HOURS.afternoon.rim === 0.3, bad.join(", ") || `afternoon ${HOURS.afternoon.fill} / ${HOURS.afternoon.rim}`);
 }
 check("an unknown hour falls back to the default", hourFor("nineteen-eighty-four").id === DEFAULT_HOUR && hourFor(null).id === DEFAULT_HOUR);
 

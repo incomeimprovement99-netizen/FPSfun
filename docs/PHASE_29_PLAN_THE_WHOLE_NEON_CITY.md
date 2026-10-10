@@ -125,7 +125,7 @@ first.
    faces, the planters collide to a crouched head; the blank screens and the walk-in doors surveyed, nothing to fix): the tall poster boards are posters hanging in the air, solid from the ground, so
    they become the pack's holo ads on stands; the planters' fronds collide as solid; the ad screens still drawing blank
    white get their pictures; walk-in doors framed with the pack's exterior gates.
-10. **Light:** a real night (today "a purple-tinted day", the range's sky fill still lighting the city), and noon on the
+10. **Light** (built, Milestone 576: the night's sky fill an hour's own; noon looked at and left, SpeedKills' own day reading): a real night (today "a purple-tinted day", the range's sky fill still lighting the city), and noon on the
     ground (too dark, the parked cars glaring).
 11. **Loot you can see:** game code (the loot's glow), so a hand-off to the lobby agent, the map giving light at each
     loot spot.

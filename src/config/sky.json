@@ -162,12 +162,14 @@
         0.82,
         0.49
       ],
-      "intensity": 0.55,
-      "env": 0.5,
+      "intensity": 0.45,
+      "env": 0.35,
       "fog": [
         35,
         220
-      ]
+      ],
+      "fill": 0.32,
+      "rim": 0.08
     },
     "night": {
       "label": "Moonlight",
@@ -210,5 +212,6 @@
       ]
     }
   },
-  "_hazyDay": "SpeedKills' daytime (speedkills.json identity.skies; F8 flips it with the neon night): the bought city's own pictures, High City's store shots, are a hazy bright day, warm sun high and raking down its streets and haze from 30 m, so this is that, on the noon sky's picture with a paler dome and a nearer fog. Asked for by the owner to see the difference (2026-09-28); tuned by eye against the store's pictures."
+  "_hazyDay": "SpeedKills' daytime (speedkills.json identity.skies; F8 flips it with the neon night): the bought city's own pictures, High City's store shots, are a hazy bright day, warm sun high and raking down its streets and haze from 30 m, so this is that, on the noon sky's picture with a paler dome and a nearer fog. Asked for by the owner to see the difference (2026-09-28); tuned by eye against the store's pictures.",
+  "_fillRim": "An hour's `fill` and `rim` (Milestone 576): the range's sky fill, its hemisphere light, and its rim light's strengths, 0.75 and 0.3 where an hour gives none, as they were at every hour before. The neon night's are low, with its environment light and its moon, so the city's own lights carry it: lit at the day's fill, the Neon City's fourth review called it \"a purple-tinted day\"."
 }

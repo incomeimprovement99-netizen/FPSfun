@@ -11944,3 +11944,20 @@ The plan's item 8, its roof layer finished: "a roof-hopping layer at 8 to 15 m f
 - **Kept clear:** the roofs' cover keeps 1.5 m off each bridge's ends and its step.
 - **Checked** (tools/checks/sk-neon.ts): each bridge walked by a player from its rooms building's roof over the bridge, down its step onto the roof beside it and back, and one on MOTEL HILL and MARKET, the walk proven by moving its line 3.5 m off the bridge (it falls at the first leg); all 173 passing, and the layout's rerun after the bake leaves the config unchanged. The e2e: the speedkills section, 101 of 101. verify, rules and the type check. The look: each bridge from beside it, from its deck and from the low roof, at noon.
   The map: its files lo 100 MB, hi 167 MB, max 396 MB. **Its files are version 59.**
+
+## Milestone 576 — A real night: the sky fill an hour's own
+
+The plan's item 10, the light: the fourth review called the neon night "a purple-tinted day".
+
+- **The cause:** the range's sky fill (its hemisphere light, 0.75) and its rim light (0.3) were constants, set once when
+  the range is built, while each hour set only its sun and its environment light. At night they still lit the city as
+  they light the day.
+- **The fix** (src/game/range.ts setHour, src/game/sky.ts, sky.json `fill` and `rim`): each hour sets both, 0.75 and
+  0.3 where it gives none (as every hour had). The neon night's are 0.32 and 0.08, with its environment light from 0.5
+  to 0.35 and its moon from 0.55 to 0.45, so the city's signs, windows and lamps carry the picture. The street at night
+  measured half as bright as it was (the lower half of the pictures, mean luma 24 to 27 then, 12 to 14 now); a first try
+  at 0.2 and 0.05 left the near street black (9 to 12), too dark to see a body on.
+- **Noon:** looked at and left. The review saw the legacy game's hard noon, which SpeedKills does not offer; its own day,
+  the hazy day, reads (the street at luma 70 to 79), and its parked cars are as bright as the pack paints them.
+- **Checked** (tools/checks/sky-hours.ts, in npm run verify): two new checks (the neon night's sky fill under half the golden hour's and its rim under the day's, proven by putting the day's 0.75 and 0.3 back; every hour's fill and rim in range, the afternoon the range's own). The e2e: the speedkills section, 101 of 101. verify, rules and the type
+  check. The look: three streets at night before, at a first try and as set, and the hazy day, golden hour and hard noon's parked cars. No map files change.

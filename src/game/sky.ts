@@ -112,6 +112,12 @@ export interface Hour {
   /** the directional light's strength, and scene.environmentIntensity */
   intensity: number;
   env: number;
+  /**
+   * The range's sky fill (its hemisphere light) and its rim light's strengths: they were constants, 0.75 and 0.3, at
+   * every hour, and at night they lit the city as a violet day (the Neon City's fourth review: "a purple-tinted day")
+   */
+  fill: number;
+  rim: number;
   /** the range's fog, in metres; the battle royale scales both up */
   fog: [number, number];
 }
@@ -130,6 +136,8 @@ export const HOURS: Record<string, Hour> = Object.fromEntries(
       dir: new THREE.Vector3(h.dir[0], h.dir[1], h.dir[2]).normalize(),
       intensity: h.intensity,
       env: h.env,
+      fill: (h as { fill?: number }).fill ?? 0.75,
+      rim: (h as { rim?: number }).rim ?? 0.3,
       fog: [h.fog[0], h.fog[1]] as [number, number],
     },
   ])

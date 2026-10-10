@@ -40,6 +40,9 @@ export const COURSE_GATES = IS_SK ? [COURSE_GATE, COURSE_GATE_C, COURSE_GATE_R] 
 export const SUN_DIR = new THREE.Vector3(0.56, 0.66, 0.50).normalize();
 
 let sunLight: THREE.DirectionalLight | null = null;
+/** the sky fill and the rim light, each hour's own strength (setHour) */
+let fillLight: THREE.HemisphereLight | null = null;
+let rimLight: THREE.DirectionalLight | null = null;
 /** the sun the hour lights the world with, for what stages a place's own light over it (atmosphere.ts districts) */
 export const sunNow = (): THREE.DirectionalLight | null => sunLight;
 /** the sun, for the debug handle */
@@ -90,6 +93,8 @@ export function setHour(h: Hour, scene: THREE.Scene): void {
     sun.intensity = h.intensity;
   }
   scene.environmentIntensity = h.env;
+  if (fillLight) fillLight.intensity = h.fill;
+  if (rimLight) rimLight.intensity = h.rim;
 }
 
 /** Axis-aligned solid the player collides with and can stand on. */
@@ -898,11 +903,13 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // sells outdoor light.
   const bounce = new THREE.HemisphereLight(0xb4d2f5, 0xc0a074, 0.75);
   scene.add(bounce);
+  fillLight = bounce;
 
   // A cool rim from behind the range, so silhouettes separate from the sky.
   const rim = new THREE.DirectionalLight(0xbcd6f5, 0.3);
   rim.position.set(-50, 30, -140);
   scene.add(rim);
+  rimLight = rim;
 }
 
 /**
