@@ -687,7 +687,19 @@ if (mode === "bake") {
         // (from the floor up: the cells under a sill reached half a metre into the room, a 0.44 m step where a standing
         // head met the ceiling, 2.2 m over the tower's floors, and was pushed off it; the sill stands as its own box,
         // the wall's depth)
-        windowCuts.push(box(t0, t1, -WIN.carve, WIN.carve, w.base + 0.05, y1));
+        // (a window a gangway runs into, rules.bridges.into, on its floor, cut on its gangway's side through the wall's
+        // depth only: the carve's 1.2 m took the gangway's deck with the cells, a 0.85 m step back up onto it. The room's
+        // side is cut as every window's, the wall's cells spilling half a metre in from it standing across the opening)
+        const BR = cfg.rules.bridges as { roof: number; into?: number[][]; paths: number[][][] };
+        let out = 0;
+        if (Math.abs(w.base - BR.roof) < 0.1)
+          for (const p of BR.paths)
+            for (const [e, f] of [[p[0], p[1]], [p[p.length - 1], p[p.length - 2]]]) {
+              if (!(BR.into ?? []).some((q) => q[0] === e[0] && q[1] === e[1])) continue;
+              const t = (e[0] - w.p0[0]) * w.U[0] + (e[1] - w.p0[1]) * w.U[1], n = (e[0] - w.p0[0]) * w.N[0] + (e[1] - w.p0[1]) * w.N[1];
+              if (t >= t0 && t <= t1 && Math.abs(n) <= WIN.carve) out = Math.sign((f[0] - e[0]) * w.N[0] + (f[1] - e[1]) * w.N[1]);
+            }
+        windowCuts.push(box(t0, t1, out < 0 ? -WIN.thick / 2 : -WIN.carve, out > 0 ? WIN.thick / 2 : WIN.carve, w.base + 0.05, y1));
         windowBoxes.push(box(t0, t1, -T, T, w.base, y0));
         const c = P((t0 + t1) / 2, 0, (y0 + y1) / 2);
         const sign = (c[0] - mid[0]) * w.N[0] + (c[2] - mid[1]) * w.N[1] > 0 ? 1 : -1;

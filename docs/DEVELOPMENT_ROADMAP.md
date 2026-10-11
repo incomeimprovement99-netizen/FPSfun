@@ -12280,3 +12280,38 @@ Day 1's second item of the districts and decay plan.
   bake's collision: a body on it under the line by the close's end, and not more than a metre past that. Proven with
   the fixed 80 m put back (the tower short of its 144 m box, every other sector climbing empty air). The e2e: the speedkills section 101 of 102; its one failure (the bots' drops on the tower, 11 of 27 against 12, their spots walked out to open ground at a random angle, 13 to 18 in the thirteen runs before) passed on a rerun of the battle royale alone, a new named-only section skbr (E2E_ONLY=skbr): 29 of 29. verify, rules
   and the type check. The look: wave 1 dissolving at k 0.35 and 0.7 from the edges of MARKET and THE WELL (the line at the corner blocks' roofs in MARKET's blue and THE WELL's violet, both gone by 0.7) and wave 2 warned, the north deck pulsing cyan and the west deck green. No map files change.
+
+## Milestone 579 — A gangway from the tower's 26 m storey onto the east deck
+
+The plan's item 5, its last: "one gangway from a deck to the tower's 26 m windows", planned in Milestone 354. Parked
+on 2026-10-10 with four checks failing; each traced to its cause here.
+
+- **The gangway** (`rules.bridges`' fifth path): the pack's floating bridge decks out of the tower's east window at
+  z 6.125 on its 26 m storey (1.25 m wide, its sill at 26.44 m), 52.5 m east over the plaza and the Loop, then 7.5 m
+  north onto the east deck's west lobe, its stair down onto the lobe's floor. Laid straight on at z 6.125 it ended over
+  the notch between the deck's lobes, 10 m short of its neck, its stair standing on nothing; the only other window on
+  that face at 26 m (z -4.375) looks out between the lookout block's columns. A path's end legs run whole 5 m cells and
+  a half, its middle legs whole cells, which is why the jog is 7.5 m. Clear of every pad's spot by more than its 1.4 m
+  and 2 m off the lookout's block.
+- **No stair at the window, and its first cell at the sill** (`into`): from the tower's 26 m floor the sill is 0.44 m
+  up, inside a body's 0.56 m step (movement.json stepHeight); the stair first put inside stood in the window. On the
+  deck's 26.9 m a body's head met the window's head (28.56 m), 1.66 m over it, so the cell at the window is laid at the
+  window's sill as the bake measured it (cfg.windows, 26.44 m), and the step up to the rest of the deck, 5 m out, is
+  0.46 m.
+- **The window's collision cut** (tools/import-neon.ts): each window cuts the cells' collision 1.2 m either side of its
+  glass, from the floor to its head, and at the gangway's window that took the deck outside it: a body coming out met a
+  0.85 m step back up and never reached the bridge. That window is cut on the gangway's side only through the wall's
+  depth, and on the room's side as every window is (the wall's half-metre cells otherwise stand across the opening).
+- **The lookout's east zip line** (tools/neon-layout.ts): its search for a deck end took the whole deck's box, and the
+  gangway, nearer the lookout than any of the deck's own floor, took the rope. Its ends now keep off every bridge's deck
+  by half the pack's bridge piece and a hand; the east one lands on the deck's west rim.
+- **The east deck's pad and lift:** the e-in pad's landing, 3 m onto that lobe, stood on the gangway's end; the bake
+  moved it 3 m north, as it moves a blocked pad. Its lift follows it along the face (`rules.lifts.at`), and 3 m south
+  it stood on the north-east bridge's end, its landing's stair coming down on that bridge's rail at 27.75 m; e-in's
+  `side` is 9.5 now (12.5), keeping the lift where it stood. The street cover and walls round its foot settled after
+  the lift came back: six bakes in all, the last one's layout run changing nothing.
+- **Kept clear:** the tower floor's cover keeps 3.5 m on in from the window, and the gangway's tower end is left out of
+  the decks' cover clearances: each spot there is flat, and on the north side, tried first, its 10 m cleared three
+  crates off the tower's crown 80 m over it.
+- **Checked** (tools/checks/sk-neon.ts): the bridge walked on foot both ways (33,442 spots, 10,068 on the bridge; the walk's start may touch a stair's first tread, 0.1 m up), its climbs (at the tower the window's own storey's sill, not the first window found over it), railed both sides (the window cell's rails at its own waist), the lookout's zip lines ridden both ways, no deck cut in two by its cover; 179 of 179. The e2e: the speedkills section 101 of 102; its one failure, standing in a decaying sector hurts (health and shield rose 117 to 125), sampled before the decay's first tick while a part-empty shield refilled at 17 a second: it samples from after the first tick now. The bots' drops on the tower (10 of 27 on one run) count within 10 m of the centre's edge, where open ground put two to five of the fifteen that aim for it. The battle royale's part alone (skbr): 29 of 29. verify, rules and the type check. The look: inside the tower out of the window, from the sill (the cell at the sill and the step up), at the corner, the stair on the lobe, from the plaza and from above, by day and at night.
+  The map: its files lo 100.8 MB, hi 167.3 MB, max 395.9 MB. **Its files are version 60.**

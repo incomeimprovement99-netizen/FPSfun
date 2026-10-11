@@ -6019,7 +6019,9 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const high = await ev<{ over12: number; over24: number }>(page, "(() => { const ds = [...window.__range.duel().lootField.drops.values()]; return { over12: ds.filter((x) => x.pos.y > 12).length, over24: ds.filter((x) => x.pos.y > 24).length }; })()");
   check("speedkills br: loot on the roofs too, a dozen storeys and more up", high.over12 >= 40 && high.over24 >= 10, JSON.stringify(high));
   check("speedkills br: 100 health and 50 shield", start.health === 100 && start.shieldMax === 50, JSON.stringify(start));
-  const spireBots = await ev<number>(page, `(() => { const d = window.__range.duel(); const m = window.__range.brMap; return d.bots.filter((b) => b.dropTo && m.placeAt(b.dropTo.x, b.dropTo.z)?.id === "c").length; })()`);
+  const spireBots = await ev<number>(page, `(() => { const d = window.__range.duel(); const m = window.__range.brMap; const c = m.pois.find((p) => p.id === "c"); return d.bots.filter((b) => b.dropTo && (m.placeAt(b.dropTo.x, b.dropTo.z)?.id === "c" || (c && Math.max(Math.abs(b.dropTo.x - c.x), Math.abs(b.dropTo.z - c.z)) <= 60))).length; })()`);
+  // (at the Spire: in the centre's sector or within 10 m of its edge, the street round it: each one's spot is walked out to
+  // open ground clear of the drops' room, and of the fifteen that aim for it two to five came down just over the line)
   check("speedkills br: the bots drop on the Spire the most (every other squad)", spireBots >= 12, `${spireBots} of 27`);
   // The bots land and walk the streets: each one's farthest from where it stood once all had landed, over 12 s of game
   // time. Where it stood after 6 s of the wall's counted the first rummage: on the Neon City a gun lies within reach of
@@ -6155,10 +6157,11 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const dec = await ev<Decay>(page, "window.__range.sk.decay()");
   const first = decay0.plan.waves[0];
   check("speedkills decay: the first wave's sectors decay, from the ground up, and their boxes leave the collision list", first.every((id) => dec.states[id].phase === "decaying") && dec.held > 0, JSON.stringify({ states: first.map((id) => dec.states[id]), held: dec.held }));
-  // standing in a decaying sector hurts
+  // standing in a decaying sector hurts (from after its first tick: until one lands a part-empty shield refills at its own
+  // rate, 17 a second, and outran the first two ticks)
   const hurt = await ev<{ before: number; after: number }>(
     page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const s = r.brMap.pois.find((p) => p.id === "${first[0]}"); r.player.teleport(s.x, 0.3, s.z, 0); const before = d.health + d.shield; setTimeout(() => ok({ before, after: d.health + d.shield }), 3500); }))()`
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const s = r.brMap.pois.find((p) => p.id === "${first[0]}"); r.player.teleport(s.x, 0.3, s.z, 0); setTimeout(() => { const before = d.health + d.shield; setTimeout(() => ok({ before, after: d.health + d.shield }), 3500); }, 1600); }))()`
   );
   check("speedkills decay: standing in a decaying sector hurts", hurt.after < hurt.before, JSON.stringify(hurt));
   // on through the waves to the endgame

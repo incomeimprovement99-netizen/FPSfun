@@ -354,6 +354,15 @@ const noGround: Array<[number, number, number, number]> = [];
       if (ds.includes("w")) keepT.push(boxOf([cx0 + px - 3, cx0 + px, dz + pz - 1.5, dz + pz + 1.5]));
       if (ds.includes("n")) keepT.push(boxOf([dx + px - 1.5, dx + px + 1.5, cz0 + pz - 3, cz0 + pz]));
       if (ds.includes("s")) keepT.push(boxOf([dx + px - 1.5, dx + px + 1.5, cz1 + pz, cz1 + pz + 3]));
+      // (and where a gangway comes in through a window onto this floor, rules.bridges.into: a body's way in from it, 3.5 m
+      // on in from the window and 3 m across)
+      for (const path of (R.bridges?.paths ?? []) as number[][][])
+        for (const [e, n] of [[path[0], path[1]], [path[path.length - 1], path[path.length - 2]]]) {
+          if (Math.abs(R.bridges.roof - h) > 0.1 || !((R.bridges.into ?? []) as number[][]).some((q) => q[0] === e[0] && q[1] === e[1])) continue;
+          const l = Math.hypot(e[0] - n[0], e[1] - n[1]);
+          const inward: Pt = [(e[0] - n[0]) / l, (e[1] - n[1]) / l];
+          keepT.push({ c: [e[0] + inward[0] * 1.75, e[1] + inward[1] * 1.75], u: inward, v: [-inward[1], inward[0]], hu: 1.75, hv: 1.5, top: 0 });
+        }
       // (and the express ropes on every floor they pass or start from, their holes and `clear` round them: the way on and off)
       if (EX && h >= EX.from && h <= EX.to) for (const [ex, ez] of EX.at) keepT.push(boxOf([ex + px - EX.hole / 2 - F.clear, ex + px + EX.hole / 2 + F.clear, ez + pz - EX.hole / 2 - F.clear, ez + pz + EX.hole / 2 + F.clear]));
       // the partitions: a line from a to b (its own metres), opened as the plan says
@@ -2219,6 +2228,14 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
   // (the stair's ramp tops out under its cheeks: its climb is measured, rules.bridges.stairs.rise, not its bounds)
   if (B.deck - B.roof - B.stairs.rise > B.stairs.step) throw new Error(`the stair climbs ${B.stairs.rise} m and the deck is ${(B.deck - B.roof).toFixed(2)} m over the roof: a step of more than ${B.stairs.step} m at its top`);
   let decks = 0;
+  let stairs = 0;
+  /** the sill of the window an end runs into (rules.bridges.into), as the last bake measured it (cfg.windows); null elsewhere */
+  const sillAt = (e: number[]): number | null => {
+    if (!((B.into ?? []) as number[][]).some((q) => q[0] === e[0] && q[1] === e[1])) return null;
+    const w = ((cfg.windows ?? []) as Array<{ at: number[]; sill: number }>).find((q) => Math.hypot(q.at[0] - e[0], q.at[2] - e[1]) < 0.5 && q.sill > B.roof && q.sill < B.deck);
+    if (!w) throw new Error(`no window measured where the bridge runs in at (${e.join(", ")})`);
+    return w.sill;
+  };
   for (const path of B.paths as number[][][]) {
     for (let i = 0; i + 1 < path.length; i++) {
       const [a, b] = [path[i], path[i + 1]];
@@ -2227,7 +2244,13 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       const yaw = Math.abs(d[0]) > 0.5 ? 0 : 90;
       const from = i === 0 ? cell / 2 : cell;
       const to = i + 2 === path.length ? len - cell / 2 : len - cell;
-      for (let t = from; t <= to + 1e-6; t += cell) (put(B.straight.piece, B.deck - B.straight.deck, yaw, [a[0] + d[0] * t, a[1] + d[1] * t], sMid), decks++);
+      for (let t = from; t <= to + 1e-6; t += cell) {
+        // (the cell at an end that runs into a building at its window's sill: on the deck's height a body's head met the
+        // window's head, 1.66 m over it; the step up to the rest is the sill's 0.46 m under the deck)
+        const low = (i === 0 && t === from ? sillAt(a) : null) ?? (i + 2 === path.length && t + cell > to + 1e-6 ? sillAt(b) : null);
+        put(B.straight.piece, (low ?? B.deck) - B.straight.deck, yaw, [a[0] + d[0] * t, a[1] + d[1] * t], sMid);
+        decks++;
+      }
       // the corner at the far end of every leg but the last, its open sides toward this leg and the next
       if (i + 2 < path.length) {
         const c = path[i + 2];
@@ -2241,15 +2264,19 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
         decks++;
       }
     }
-    // a stair at each end, on the roof, climbing toward the deck, its top edge at the deck's end
+    // a stair at each end, on the roof, climbing toward the deck, its top edge at the deck's end. None at an end that runs
+    // into a building (rules.bridges.into): from the tower's 26 m floor its window's sill is 0.44 m up and the deck 0.46 m
+    // over that, each inside a body's 0.56 m step (movement.json stepHeight), and a stair inside stood in the window
     for (const [e, n] of [[path[0], path[1]], [path[path.length - 1], path[path.length - 2]]]) {
+      if (((B.into ?? []) as number[][]).some((q) => q[0] === e[0] && q[1] === e[1])) continue;
+      stairs++;
       const l = Math.hypot(n[0] - e[0], n[1] - e[1]);
       const toward = [(n[0] - e[0]) / l, (n[1] - e[1]) / l];
       const syaw = [0, 90, 180, 270].find((y) => same(rot(y, up[0], up[1]), toward))!;
       put(B.stairs.piece, B.roof - stair.min![1], syaw, e, tMid);
     }
   }
-  console.log(`bridges: ${decks} decks on ${B.paths.length} paths, a stair at each of their ${B.paths.length * 2} ends`);
+  console.log(`bridges: ${decks} decks on ${B.paths.length} paths, ${stairs} stairs at their ends`);
 }
 
 // The fronts along the centre's streets and its ring hung with the pack's neon signs (rules.signs): found in the last
@@ -2605,6 +2632,14 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
           ...zips.flatMap((q) => [[q.a[0], q.a[2]], [q.b[0], q.b[2]]]),
         ];
         const apart = (x: number, z: number) => ways.every((w) => Math.hypot(w[0] - x, w[1] - z) >= LK.apart);
+        // (and off the bridges' decks, half the pack's bridge piece and a hand either side of each line: the gangway into
+        // the tower crosses the east deck's box nearer the lookout than any of the deck's own floor, and took its rope)
+        const half = piece(R.bridges.straight.piece).row.size![0] / 2 + 0.5;
+        const onBridge = (x: number, z: number) => ((R.bridges?.paths ?? []) as number[][][]).some((p) => p.slice(1).some((q, i) => {
+          const [ax, az, bx, bz] = [p[i][0], p[i][1], q[0], q[1]];
+          const u = Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (z - az) * (bz - az)) / ((bx - ax) ** 2 + (bz - az) ** 2)));
+          return Math.hypot(x - ax - (bx - ax) * u, z - az - (bz - az) * u) < half;
+        }));
         let best: { a: number[]; b: number[]; L: number } | null = null;
         for (const [bx, bz] of side) {
           const top = roofAt(bx, bz);
@@ -2614,7 +2649,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
           for (let x = x0 + 1; x < x1; x += 1)
             for (let z = z0 + 1; z < z1; z += 1) {
               const t2 = topAt(x, z);
-              if (t2 === -Infinity || !flat(x, z, t2) || !apart(x, z)) continue;
+              if (t2 === -Infinity || onBridge(x, z) || !flat(x, z, t2) || !apart(x, z)) continue;
               const L = Math.hypot(x - bx, z - bz);
               if (L <= Z.reach) cand.push({ a: [x, t2 + Z.over, z], L });
             }
@@ -2733,7 +2768,10 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     // its own clearance: a bridge's stair runs on from its end)
     for (const q of ((cfg.pads ?? []) as Array<{ face: number[]; out: number[] }>)) lands.push([q.face[0] - q.out[0] * 3, q.face[1] - q.out[1] * 3, PC.pad]);
     for (const q of lifts) lands.push([q.land[0], q.land[1], PC.lift]);
-    for (const path of (R.bridges?.paths ?? []) as number[][][]) for (const e of [path[0], path[path.length - 1]]) lands.push([e[0], e[1], PC.bridge]);
+    // (not an end that runs into a building, rules.bridges.into: it has no stair, and its spot, flat as every spot here
+    // is, cleared the tower's crown 80 m over the gangway's end)
+    for (const path of (R.bridges?.paths ?? []) as number[][][])
+      for (const e of [path[0], path[path.length - 1]]) if (!((R.bridges.into ?? []) as number[][]).some((q) => q[0] === e[0] && q[1] === e[1])) lands.push([e[0], e[1], PC.bridge]);
     for (const q of ((cfg.zips ?? []) as Array<{ a: number[] }>)) lands.push([q.a[0], q.a[2], PC.zip]);
     // (and the lookout's zip lines' ends on it, a grab's room round each: a rider comes off one at speed and is carried
     // 8 to 14 m whatever stands there, and at the decks' 4 m three ends left the lookout one crate)

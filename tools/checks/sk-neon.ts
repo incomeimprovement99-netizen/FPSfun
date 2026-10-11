@@ -1595,7 +1595,10 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     const past = (p: number[], q: number[], by: number) => { const l = Math.hypot(p[0] - q[0], p[1] - q[1]); return [p[0] + ((p[0] - q[0]) / l) * by, p[1] + ((p[1] - q[1]) / l) * by]; };
     // the foot of each end's stair: a metre and a half past the deck's end, on the roof
     const feet = [past(path[0], path[1], 1.5), past(path.at(-1)!, path.at(-2)!, 1.5)];
-    const sites = [nearest(path[0]), nearest(path.at(-1)!)];
+    // (an end that runs into a building, rules.bridges.into, the gangway's into the tower: its goal the foot of its stair
+    // on the floor inside, there being no island's deck at that end)
+    const into = (e: number[]) => ((cfg.rules.bridges as unknown as { into?: number[][] }).into ?? []).some((q) => q[0] === e[0] && q[1] === e[1]);
+    const sites = [path[0], path.at(-1)!].map((e, w) => (into(e) ? feet[w] : nearest(e)));
     const pts = [sites[0], feet[0], ...path, feet[1], sites[1]];
     const M = 8;
     const [X0, X1, Z0, Z1] = [Math.min(...pts.map((p) => p[0])) - M, Math.max(...pts.map((p) => p[0])) + M, Math.min(...pts.map((p) => p[1])) - M, Math.max(...pts.map((p) => p[1])) + M];
@@ -1623,7 +1626,8 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
       const [si, sj] = cell(feet[way]);
       const start = floorFor(si, sj, B.roof);
       const todo: number[] = [];
-      if (start !== null && Math.abs(start - B.roof) < 0.1) (seen.set(si * NJ + sj, start), todo.push(si * NJ + sj));
+      // (on the roof: a body at the foot may touch the stair's first tread, 0.1 m up)
+      if (start !== null && start > B.roof - 0.1 && start < B.roof + 0.15) (seen.set(si * NJ + sj, start), todo.push(si * NJ + sj));
       while (todo.length) {
         const k = todo.pop()!;
         const [i, j, y] = [Math.floor(k / NJ), k % NJ, seen.get(k)!];
@@ -1655,18 +1659,23 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
         if (f === null || f < y - 0.05) return `stopped ${t.toFixed(2)} m on at ${y.toFixed(2)} m`;
         y = f;
       }
-      return Math.abs(y - B.deck) < 0.05 ? "" : `ends at ${y.toFixed(2)} m`;
+      // (into a building, rules.bridges.into: onto the cell the layout lays at its window's sill)
+      const want = into(end) ? ((cfg as unknown as { windows: Array<{ at: number[]; sill: number }> }).windows.find((q) => Math.hypot(q.at[0] - end[0], q.at[2] - end[1]) < 0.5 && q.sill > B.roof && q.sill < B.deck)?.sill ?? B.deck) : B.deck;
+      return Math.abs(y - want) < 0.05 ? "" : `ends at ${y.toFixed(2)} m`;
     });
-    check(`High City's bridge ${name}: the stair at each end climbed straight up its middle, roof to deck`, climbs.every((c) => c === ""), climbs.map((c, w) => `${w ? "far" : "near"} ${c || "climbed"}`).join(", "));
+    check(`High City's bridge ${name}: the stair at each end (at a window it runs into, the sill) climbed straight up its middle, roof to deck`, climbs.every((c) => c === ""), climbs.map((c, w) => `${w ? "far" : "near"} ${c || "climbed"}`).join(", "));
     // its rails: a look from p toward d (along x or z) at the waist, a box standing across that height within `far`
-    const waist = B.deck + 0.5;
+    const width = 5;
+    // (the cell at a window it runs into lies at the window's sill, the layout's, and its rails with it)
+    const sillOf = (e: number[]) => (cfg as unknown as { windows: Array<{ at: number[]; sill: number }> }).windows.find((q) => Math.hypot(q.at[0] - e[0], q.at[2] - e[1]) < 0.5 && q.sill > B.roof && q.sill < B.deck)?.sill;
+    const waistAt = (p: number[]) => [path[0], path.at(-1)!].reduce((w, e) => (into(e) && Math.hypot(p[0] - e[0], p[1] - e[1]) < width ? (sillOf(e) ?? B.deck) + 0.5 : w), B.deck + 0.5);
     const railed = (p: number[], d: number[], far: number): boolean => {
       const [x0, x1, z0, z1] = [Math.min(p[0], p[0] + d[0] * far) + BR_X, Math.max(p[0], p[0] + d[0] * far) + BR_X, Math.min(p[1], p[1] + d[1] * far) + BR_Z, Math.max(p[1], p[1] + d[1] * far) + BR_Z];
+      const waist = waistAt(p);
       return solidsIn(x0, x1, z0, z1).some((s) => s.minX <= x1 && s.maxX >= x0 && s.minZ <= z1 && s.maxZ >= z0 && s.base < waist && s.top > waist);
     };
     const open: string[] = [];
     let looks = 0;
-    const width = 5;
     for (let i = 0; i + 1 < path.length; i++) {
       const [a, b] = [path[i], path[i + 1]];
       const len = Math.hypot(b[0] - a[0], b[1] - a[1]);

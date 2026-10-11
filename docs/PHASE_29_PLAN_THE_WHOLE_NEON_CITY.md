@@ -107,7 +107,7 @@ first.
    outside. Proposal: the pack's elevator as an express lift from the lobby to three new levels (a sky lobby at about
    60 m with the long shots over the city, a machine hall at about 75 m in the rust family's metal, a penthouse at about
    90 m with lounges and bars), then stairs up into the crown: the tower climbable from inside, bottom to top.
-5. **The lookout and the ways between the tower and the decks** (Milestone 505, built in part). Zip lines from the
+5. **The lookout and the ways between the tower and the decks** (built: Milestones 505, 506 and 579, the gangway; the lookout's canopy and third crate looked at and left, the zip lines' landing taking it). Zip lines from the
    lookout to the north, east and south decks, built. Cover on the bridge ring, built (Milestone 506). Left: a canopy and a
    third crate on the 49 m lookout; one gangway from a deck to the tower's 26 m windows (planned in Milestone 354, never built).
 6. **The deep station at −24 m**, with THE TERMINAL: the pack's underground demo has a second station there with two
