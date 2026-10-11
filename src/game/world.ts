@@ -9,7 +9,7 @@ import { emissive } from "./geo";
 import { BR_X, BR_Z, BR_HALF } from "./br";
 import worldCfg from "../config/world.json";
 import neonCfg from "../config/neonmap.json";
-import { dissolvedTo, useSectorRects, type SectorPhase, type SectorRect } from "./decay";
+import { dissolveTop, useSectorRects, type SectorPhase, type SectorRect } from "./decay";
 
 /** a sector of the city: its rectangle (map-local), its name, its neon */
 export interface Sector {
@@ -33,7 +33,10 @@ export const SECTORS: readonly Sector[] = (neonCfg.game.sectors as SectorRect[])
 export function useSectors(list: readonly SectorRect[]): void {
   (SECTORS as Sector[]).splice(0, SECTORS.length, ...list.map((s) => ({ id: s.id, name: s.name, minX: s.minX, maxX: s.maxX, minZ: s.minZ, maxZ: s.maxZ, accent: parseInt(s.accent.slice(1), 16) })));
   useSectorRects(list);
-  SECTORS.forEach((s, i) => DECAY.rect[i]?.set(s.minX + BR_X, s.minZ + BR_Z, s.maxX + BR_X, s.maxZ + BR_Z));
+  SECTORS.forEach((s, i) => {
+    DECAY.rect[i]?.set(s.minX + BR_X, s.minZ + BR_Z, s.maxX + BR_X, s.maxZ + BR_Z);
+    DECAY.tint.value[i]?.copy(skTint(s.accent));
+  });
 }
 
 /** the sector a map-local point is in (the centre's edges belong to it) */
@@ -156,6 +159,7 @@ export function holdForDecay(root: THREE.Object3D, solids: Solid[] | null): void
     }
     for (const list of DECAY.bySector) list.sort((a, b) => a.base - b.base);
     DECAY.out = SECTORS.map(() => 0);
+    DECAY.top = DECAY.bySector.map((list) => dissolveTop(list.map((s) => s.top)));
   }
   const mats = new Set<THREE.Material>();
   root.traverse((o) => {
@@ -184,8 +188,21 @@ export function cityEdge(now: number, near: number): void {
   FENCE.mat.opacity = F.opacity + (F.nearOpacity - F.opacity) * Math.max(0, 1 - near / F.nearAt);
 }
 
+/** the band's old magenta, 1.0 + 0.18 + 0.6: each sector's own colour glows at its strength */
+const GLOW_SUM = 1.78;
+
+/** a sector's accent as its glow (linear): the hue its own, its strength the old magenta's, so a white sector's band blooms no harder than a red one's */
+function skTint(accent: number): THREE.Vector3 {
+  const c = new THREE.Color(accent);
+  const k = GLOW_SUM / Math.max(1e-3, c.r + c.g + c.b);
+  return new THREE.Vector3(c.r * k, c.g * k, c.b * k);
+}
+
 const DECAY = {
   rect: SECTORS.map((s) => new THREE.Vector4(s.minX + BR_X, s.minZ + BR_Z, s.maxX + BR_X, s.maxZ + BR_Z)),
+  tint: { value: SECTORS.map((s) => skTint(s.accent)) },
+  /** each sector's dissolve top, metres (decay.ts dissolveTop over its own boxes, once the map's boxes are held) */
+  top: SECTORS.map(() => dissolveTop([])),
   level: { value: SECTORS.map(() => -1) },
   warn: { value: SECTORS.map(() => 0) },
   time: { value: 0 },
@@ -201,8 +218,9 @@ const DECAY = {
 
 /**
  * A material that dissolves where the decay has reached: under a decaying
- * sector's line it is not drawn, a band just above the line glows magenta,
- * and a warned sector's surfaces pulse. One patch, shared by every city
+ * sector's line it is not drawn, a band just above the line glows in the
+ * sector's own colour, and a warned sector's surfaces pulse in it, its beam
+ * into the sky with them, so the two going are told apart across the city. One patch, shared by every city
  * material, so the whole city dissolves as one thing.
  */
 function teachDecay(m: THREE.Material): void {
@@ -214,6 +232,7 @@ function teachDecay(m: THREE.Material): void {
     shader.uniforms.uSkRect = { value: DECAY.rect };
     shader.uniforms.uSkLevel = DECAY.level;
     shader.uniforms.uSkWarn = DECAY.warn;
+    shader.uniforms.uSkTint = DECAY.tint;
     shader.uniforms.uSkTime = DECAY.time;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vSkWorld;")
@@ -227,6 +246,7 @@ varying vec3 vSkWorld;
 uniform vec4 uSkRect[${n}];
 uniform float uSkLevel[${n}];
 uniform float uSkWarn[${n}];
+uniform vec3 uSkTint[${n}];
 uniform float uSkTime;
 vec3 skGlow = vec3(0.0);`
       )
@@ -241,8 +261,8 @@ vec3 skGlow = vec3(0.0);`
     // the ground stays, corrupted red: it is where you still stand while the decay hurts you
     if (uSkLevel[i] >= 0.0 && vSkWorld.y <= 0.25) { skGlow += vec3(0.55, 0.02, 0.12); continue; }
     if (uSkLevel[i] >= 0.0 && vSkWorld.y < line) discard;
-    if (uSkLevel[i] >= 0.0 && vSkWorld.y < line + 1.6) skGlow += vec3(1.0, 0.18, 0.6) * (1.0 - (vSkWorld.y - line) / 1.6) * 3.0;
-    if (uSkWarn[i] > 0.0) skGlow += vec3(1.0, 0.18, 0.6) * (0.25 + 0.25 * sin(uSkTime * 6.0)) * uSkWarn[i];
+    if (uSkLevel[i] >= 0.0 && vSkWorld.y < line + 1.6) skGlow += uSkTint[i] * (1.0 - (vSkWorld.y - line) / 1.6) * 3.0;
+    if (uSkWarn[i] > 0.0) skGlow += uSkTint[i] * (0.25 + 0.25 * sin(uSkTime * 6.0)) * uSkWarn[i];
   }`
       )
       .replace("#include <emissivemap_fragment>", "#include <emissivemap_fragment>\ntotalEmissiveRadiance += skGlow;");
@@ -253,6 +273,9 @@ vec3 skGlow = vec3(0.0);`
   m.needsUpdate = true;
 }
 
+/** each sector's dissolve top as the map in play measured it, metres, in SECTORS' order (for the checks) */
+export const decayTops = (): readonly number[] => DECAY.top;
+
 /**
  * The city as the decay has it now (decay.ts sectorPhases, by sector id):
  * a decaying sector dissolved up to its line, a gone one entirely, a warned
@@ -262,10 +285,10 @@ vec3 skGlow = vec3(0.0);`
  */
 export function cityDecay(states: Record<string, { phase: SectorPhase; k: number }> | null, now: number): number {
   DECAY.time.value = now;
-  const levels = SECTORS.map((s) => {
+  const levels = SECTORS.map((s, i) => {
     const st = states?.[s.id];
     if (!st || st.phase === "live" || st.phase === "warning") return -1;
-    return st.phase === "gone" ? dissolvedTo(1) + 100 : dissolvedTo(st.k);
+    return st.phase === "gone" ? DECAY.top[i] + 100 : st.k * DECAY.top[i];
   });
   SECTORS.forEach((s, i) => {
     DECAY.level.value[i] = levels[i];

@@ -12258,3 +12258,25 @@ Day 1's first item of the districts and decay plan.
   as it did, each fails with a sector flagged at 0.0 s. The e2e's speedkills section gained a check of the game's own
   states (the ring just short of wave 1's warning flags nothing, just past it warns wave 1's sectors): the speedkills section, 102 of 102. verify,
   rules and the type check. No map files change.
+
+## Milestone 578 — Each sector dissolves to its own top, in its own colour
+
+Day 1's second item of the districts and decay plan.
+
+- **Before:** every decaying sector's line climbed a fixed 80 m over its 20 s close (decay.json `height`, written when
+  the old Spire was 72 m). The tower's roofs now stand to 132 m and its mast's box to 144 m, so a player up there was
+  never reached until the sector was gone, and a corner block's roofs (10.5 m, its highest box 28 m) were dissolved in
+  a few seconds, the rest of the close spent on empty air.
+- **Its own top** (src/game/world.ts holdForDecay, src/game/decay.ts dissolveTop, decay.json `headroom`): measured off
+  the map in play as its boxes are held, each sector's highest box plus 3.5 m, a body standing on it (1.83 m) and the
+  line's jag (up to 1.4 m) both under the line by the close's end. Each line spends its whole close on its own floors:
+  the tower to 147.9 m (its mast's box tops out at 144.4 m, over its roofs at 132 m), the High City decks 39.4 to 46.7 m, the corner blocks 31.3 m.
+- **Its own colour** (world.ts teachDecay, `uSkTint`): the glowing band at the line and a warned sector's pulse take the
+  sector's accent (NOODLE ROW's red, THE WELL's violet, the north deck's cyan and so on) instead of one magenta for all,
+  at the magenta's strength so a white or cyan sector blooms no harder. The pulse lights everything a warned sector
+  draws, its beams into the sky with it, so the two going are told apart from across the city. The ground of a decayed
+  sector stays the one red: it is the colour of standing where the decay hurts.
+- **Checked:** tools/checks/sk-neon.ts, each sector's top as the game measured it against its highest box read off the
+  bake's collision: a body on it under the line by the close's end, and not more than a metre past that. Proven with
+  the fixed 80 m put back (the tower short of its 144 m box, every other sector climbing empty air). The e2e: the speedkills section 101 of 102; its one failure (the bots' drops on the tower, 11 of 27 against 12, their spots walked out to open ground at a random angle, 13 to 18 in the thirteen runs before) passed on a rerun of the battle royale alone, a new named-only section skbr (E2E_ONLY=skbr): 29 of 29. verify, rules
+  and the type check. The look: wave 1 dissolving at k 0.35 and 0.7 from the edges of MARKET and THE WELL (the line at the corner blocks' roofs in MARKET's blue and THE WELL's violet, both gone by 0.7) and wave 2 warned, the north deck pulsing cyan and the west deck green. No map files change.

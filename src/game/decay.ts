@@ -129,8 +129,11 @@ export function sectorPhases(
 /** the wave the capture zone opens after: every sector but the final one gone */
 export const captureOpens = (plan: DecayPlan, ringPhase: number): boolean => ringPhase >= plan.waves.length;
 
-/** the height up to which a decaying sector has dissolved, metres: the ground floors first */
-export const dissolvedTo = (k: number): number => k * decayCfg.height;
+/**
+ * How high a decaying sector dissolves to, metres, off the tops of its own boxes: its highest standing spot with a body
+ * on it under the line by the close's end. The line rises k of the way, so the ground floors go first.
+ */
+export const dissolveTop = (tops: readonly number[]): number => tops.reduce((a, t) => Math.max(a, t), 0) + decayCfg.headroom;
 
 /** the sector a map-local point is in */
 export function sectorIdAt(x: number, z: number): string | null {

@@ -7958,6 +7958,12 @@ async function main(): Promise<void> {
       console.log("\nSpeedKills: the slam, alone");
       await speedkillsSlamTest(browser);
     }
+    // (the battle royale's part alone, named only: a rerun of one of its checks, the decay's among them, without the
+    // menus and guns before it)
+    if (ONLY.includes("skbr")) {
+      console.log("\nSpeedKills: the battle royale, alone");
+      await speedkillsBrTest(browser);
+    }
 
     // (the bought arms' frames alone, named only: the soldier section's longest part without the rest of it, on a page of
     // its own, for a change to a gun's hold; E2E_GUNS narrows it to those guns)

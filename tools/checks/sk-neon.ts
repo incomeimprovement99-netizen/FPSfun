@@ -1936,6 +1936,28 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("each sector's final circle on its district, not out past the edge road", far.length === 0, far.map((s) => s.id).join(", "));
 }
 
+// each sector's dissolve top (src/game/world.ts holdForDecay, decay.ts dissolveTop), as the game measured it building this
+// map: a decaying sector's line reaches a body standing on its highest box by the close's end (under the line's jag, up
+// to 1.4 m, world.ts teachDecay), and spends the close on its own floors, not on empty air over them. A fixed 80 m never
+// reached the tower's top (its roofs at 132 m, its mast's box at 144 m), and had a corner block's roofs gone in a
+// few seconds of its 20
+{
+  const { SECTORS, decayTops } = await import("../../src/game/world");
+  const tops = decayTops();
+  const JAG = 1.4;
+  const high = SECTORS.map((s) => (SOLIDS.solids as number[][]).reduce((a, b) => {
+    const x = (b[0] + b[1]) / 2, z = (b[2] + b[3]) / 2;
+    return x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ ? Math.max(a, b[5]) : a;
+  }, 0));
+  const short = SECTORS.filter((_, i) => tops[i] - JAG < high[i] + MOVE.standHeight);
+  const air = SECTORS.filter((_, i) => tops[i] > high[i] + MOVE.standHeight + JAG + 1);
+  check(
+    "each sector dissolves to its own top: a body on its highest box under the line by the close's end, and not past it",
+    tops.length === SECTORS.length && short.length === 0 && air.length === 0,
+    SECTORS.map((s, i) => `${s.id} ${high[i].toFixed(1)} to ${tops[i].toFixed(1)} m`).join(", "),
+  );
+}
+
 // the bots' way to each sector's capture zone (brmatch.ts zoneTree; the lobby agent's survey, 2026-10-04: a bot in the
 // final sector had no way to the zone, start and goal the same node): the walk's end is a node a bot gets to from every
 // street node, within the zone's reach (decay.json capture.radius) of the sector's middle, so a bot that walks it stands in

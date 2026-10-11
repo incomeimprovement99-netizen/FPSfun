@@ -51,7 +51,8 @@ describes the retired legacy game, and goes with its code.
   - The dropship starts off the map and flies 6 s before its doors open. It always passes the tower, from any side,
     close enough that a level glide lands you on its crown.
   - Sectors decay in four waves of two toward a final one; standing in the decay hurts. Nothing is marked or
-    hurts for the first minute after the dropship, so a squad can loot first.
+    hurts for the first minute after the dropship, so a squad can loot first. A decaying sector dissolves from
+    the ground up to its own highest roof, its line and its warning in its own colour.
   - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
   - A lit red fence marks the city's edge. Past it you have 5 s to come back, or it is OUT OF BOUNDS.
   - A match runs 6 to 7 minutes.
