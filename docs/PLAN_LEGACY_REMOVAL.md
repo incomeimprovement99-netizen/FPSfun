@@ -55,6 +55,9 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   shared physics was pointed at SpeedKills' own config, and the legacy battle royale's whole files (loot tiers, the
   ring's circles) run as the legacy game in a process of their own until their code goes. It found one SpeedKills bug,
   the custom rules handing out guns the game does not have.
+- **498, the shared e2e tests on SpeedKills (done).** Nine of the tests 494 left pinned test systems SpeedKills shares
+  (the network, jitter and loss, the bots and their tiers, the killcam and recap, the range's tools, the jump pads):
+  they run on SpeedKills now. 21 tests of the legacy game alone stay pinned until their code goes.
 - **The owner, 2026-10-09: retire all of it.** "i am fine with retiring all old apex-range stuff, don't break speed
   hack. can remove old guns and old abilities that we don't use." Next: the game switch (`game=legacy` gone, IS_SK
   folded), after the city agent's old-city removal lands; then the dead code below, the 18 old guns with it (the guns

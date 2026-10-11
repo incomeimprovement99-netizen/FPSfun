@@ -11109,6 +11109,34 @@ nobody plays; SpeedKills' own tools ran beside them with GAME=speedkills. The de
   over the slide's start speed (200); crouched first, a walk is the 80 hu/s crouch walk.
 - **Checked:** tsc; verify (2,699 checks, as SpeedKills); rules; movesim; e2e duel.
 
+## Milestone 498 — The shared e2e tests on SpeedKills
+
+Milestone 494 made the e2e pages SpeedKills by default and pinned the tests that still failed there to the legacy game
+(`game=legacy`). Nine of those test shared systems SpeedKills uses: the network, the killcam and recap, the bots, the
+range's tools and the jump pads. They run on SpeedKills now, each failure sorted as in 497:
+
+- **The network (duel, local and p2p):** your look reaches the other player as SpeedKills sends it, the soldier's
+  look code (`S` and seven digits) in the state's fifth field, not the legacy figure's outfit; the spawns, the full
+  shield (50) and the zone's middle are read from the match, not typed in.
+- **Jitter and loss:** the guest's run is now a 6 m/s circle set from its own clock each frame, the clock its states
+  are stamped with. A run held on the keys was the legacy check's; SpeedKills sprints by itself and its own speed,
+  frame to frame, varied 35% before any network, and its spawn on THE CENTRE stood at the map's edge, which the circle
+  slid along. Placed by send time the figure's speed now varies 1.7%, against 87% placed by arrival.
+- **Bots, their tiers and the killcam:** the killer's name, gun and shield are read from the match (the legacy check
+  named BOT ASH and the R-301); you are placed where the bot can see you; the replay's aim is sampled across the whole
+  replay, since a SpeedKills bot that sees you kills you in about a second; a bot heals with its HEAL hack where it
+  stands, not behind cover; the per-optic check aims HAEFY's fixed 3x.
+- **The range:** the slide check goes through the game's own input (holding Shift turned SpeedKills' sprint off); the
+  TV is checked against the manual it shows (docs/MANUAL.md), not the README.
+- **Gone with the legacy game:** the legacy guided tour (sktour plays SpeedKills' own), the jump pad's Shattercaps
+  step, and the mannequin's spin check (SpeedKills' figure is the soldier, checked in skfigure).
+- **Found, not changed (the owner's call):** the spray wall and its yellow mark stand 40 m past the SpeedKills
+  sandbox's edge (range.json edgeZ -24), where no player can reach them, so its check went too.
+- **Left pinned:** 21 tests of the legacy game alone (the Outskirts battle royale, its ship, vault, consoles and
+  doors, the squads on it, the intro card, the cross-game join), to go with their code in 499.
+- **Checked:** tsc; verify; rules; e2e duel, bots, pad, range and finish.
+
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
