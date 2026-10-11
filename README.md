@@ -112,7 +112,8 @@ it.
   their own feel in the hands: on a swap they break up into dark pixel cubes
   behind a sweeping amber band and build back out of them, as Hyper Scape's
   did, kick on their own spring (the USSO tight and
-  buzzing, BOOG a heavy punch and a recharge you can see), and a reload rolls
+  buzzing, BOOG a heavy punch and a recharge you can see; every gun by its kind, the magnum and the pump shotgun
+  snapping up hard and the SMGs ticking), and a reload rolls
   the gun's underside toward you and brings it up while the magazine phases out
   and a new one in. From empty the USSO's support hand goes to its charging
   handle and racks it; BOOG cants over after each shot while its wheels turn. Their shots throw light, not brass (glowing

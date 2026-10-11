@@ -12,6 +12,7 @@
     "cube": "#0b0f14"
   },
   "_guns": "Per gun. swap: the outgoing gun phases out over `out` of the swap and the incoming one in over `in` (the model changes at the swap's middle), and `move` is how much of the old drop out of the frame is kept (none would hide nothing from a player's eye; all of it would hide the phase); as it phases in it rises `rise` and unrolls `roll`. holster: the same over the holster's own fraction. kick: the recoil, a spring of its own (`spring` stiffness and `damp` damping, a shot adding `impulse` to its speed), moving the gun `back` and turning it `up`, `yaw` and `roll` a unit of it; buzz: a shake while firing, `amp` metres at `hz`. pulse: the glow jumps by `glow` times on a shot and falls back over `decay` s. charge (BOOG): over the rechamber the glow drains to `drained` and builds back, with a flash of `ready` as it is ready again. reload: the magazine drops `drop` (the plain reload's 0.32 took it out of the frame, and its phase with it) and phases out over `magOut`, the new one in over `magIn`, and it seats at `seat` with a snap of `snap` on the kick spring and a pulse. flash: the muzzle's own flash, its colour, its size against the plain one, how long it lasts (s) and a shockwave ring off the muzzle (0 none, 1 BOOG's). shell: `cell`, a glowing energy casing that shrinks away as it falls, for brass. rack (USSO): on a reload from empty the charging handle goes back and forward over that share of it, after the seat. scan: a lit band passing along the whole gun, `inspect` passes over an inspect and `fusion` seconds when the gun fuses up. ads: the glow's pulse going into the sights. lowAmmo: below that share of the magazine the glow flickers, a tell that it is nearly out. scope (BOOG): its magnified picture powers on over `boot` s, a scan line drawing the reticle top to bottom, and a ring round the picture fills as the gun recharges. hip: moves the gun's hip pose (x right, y up, z back, metres before the view's scale): the USSO's sat low in the right corner at 1920 by 1080 and 110 degrees, half under the HUD's gun panel (the owner: too far down to see its animations), and 45 mm higher again (\"the USSO seems so low still\"; its magazine was below the screen's edge, found with the part tinted), and 35 mm more once the owner had played it. The USSO's reload drop is 3 cm and BOOG's 4: at 10 the magazine phased in down at the hand, not at the gun. reload.twist (USSO, BOOG): through a reload the gun turns its underside toward you and comes in and up, `roll`, `yaw` and `pitch` radians and `x`, `y`, `z` metres at the reload's full pose, so the magazine's phase is seen; the plain magazine reload's roll turned the top toward you and hid the magazine under the gun (the owner, 2026-09-27: \"rotate the gun when reloading so that the bottom is more facing the left so the mag is more obviously being morphed into the gun ... both USSO and BOOG should twist in a bit when reloading\"). rackHand (USSO): the support hand goes to the charging handle over that share of the reload before the rack and back to the gun over that share after it (the handle measured off the pack's Slider, paidgun.ts boltGrip). cycle (BOOG): over `at` of the rechamber after a shot, at the hip, the gun cants `roll` and `yaw` and rises `y` and back, its wheels turning: the pack's sniper has no charging handle, and the owner asked to see it work.",
+  "_kick": "Each gun's kick a shot at the hip, measured in the page off the pose (2026-10-11, tools: the turn and the move of the gun a shot fires): the owner, 'multiple guns have like no recoil'. All but BOOG had been given the USSO's SMG kick when they went into the bought arms, under a degree a shot: APUHTHEE's magnum 0.5, BIGANTLER's pump 1.1, STRYDER's 0.1. Now each by its kind, against BOOG's 7.9 degrees: the magnum 10 and 3 cm, the pump 9 and 4 cm, the auto shotgun 6, the rifle 2.5, the SMGs, LMG and fast pistol 1.5 to 2 on a stiff spring so a burst climbs and settles; `up` and `back` are the turn and the move over the spring's own peak (spring.ts), the heavy guns on softer springs so the kick reads as weight.",
   "guns": {
     "r97": {
       "swap": {
@@ -37,10 +38,10 @@
         "impulse": 16,
         "spring": 900,
         "damp": 46,
-        "back": 0.014,
-        "up": 0.03,
-        "yaw": 0.012,
-        "roll": 0.03
+        "back": 0.0521,
+        "up": 0.1364,
+        "yaw": 0.0546,
+        "roll": 0.1364
       },
       "buzz": {
         "amp": 0.0008,
@@ -228,10 +229,10 @@
         "impulse": 16,
         "spring": 900,
         "damp": 46,
-        "back": 0.014,
-        "up": 0.03,
-        "yaw": 0.012,
-        "roll": 0.03
+        "back": 0.0625,
+        "up": 0.1819,
+        "yaw": 0.0728,
+        "roll": 0.1819
       },
       "buzz": {
         "amp": 0.0008,
@@ -307,12 +308,12 @@
       },
       "kick": {
         "impulse": 16,
-        "spring": 900,
-        "damp": 46,
-        "back": 0.014,
-        "up": 0.03,
-        "yaw": 0.012,
-        "roll": 0.03
+        "spring": 800,
+        "damp": 42,
+        "back": 0.071,
+        "up": 0.2065,
+        "yaw": 0.0826,
+        "roll": 0.2065
       },
       "buzz": {
         "amp": 0.0008,
@@ -388,12 +389,12 @@
       },
       "kick": {
         "impulse": 24,
-        "spring": 700,
-        "damp": 40,
-        "back": 0.03,
-        "up": 0.06,
-        "yaw": 0.015,
-        "roll": 0.04
+        "spring": 400,
+        "damp": 26,
+        "back": 0.0772,
+        "up": 0.303,
+        "yaw": 0.0757,
+        "roll": 0.202
       },
       "buzz": {
         "amp": 0.0008,
@@ -460,13 +461,13 @@
         ]
       },
       "kick": {
-        "impulse": 18,
-        "spring": 800,
-        "damp": 44,
-        "back": 0.02,
-        "up": 0.045,
-        "yaw": 0.013,
-        "roll": 0.035
+        "impulse": 20,
+        "spring": 500,
+        "damp": 30,
+        "back": 0.0804,
+        "up": 0.2806,
+        "yaw": 0.0811,
+        "roll": 0.2182
       },
       "buzz": {
         "amp": 0.0008,
@@ -536,10 +537,10 @@
         "impulse": 14,
         "spring": 900,
         "damp": 46,
-        "back": 0.012,
-        "up": 0.022,
-        "yaw": 0.012,
-        "roll": 0.025
+        "back": 0.0595,
+        "up": 0.1559,
+        "yaw": 0.078,
+        "roll": 0.1559
       },
       "buzz": {
         "amp": 0.0008,
@@ -607,12 +608,12 @@
       },
       "kick": {
         "impulse": 18,
-        "spring": 900,
-        "damp": 46,
-        "back": 0.016,
-        "up": 0.045,
-        "yaw": 0.014,
-        "roll": 0.035
+        "spring": 350,
+        "damp": 24,
+        "back": 0.0711,
+        "up": 0.4134,
+        "yaw": 0.1286,
+        "roll": 0.3215
       },
       "buzz": {
         "amp": 0.0008,
@@ -682,10 +683,10 @@
         "impulse": 10,
         "spring": 900,
         "damp": 46,
-        "back": 0.008,
-        "up": 0.014,
-        "yaw": 0.01,
-        "roll": 0.015
+        "back": 0.0667,
+        "up": 0.2182,
+        "yaw": 0.1091,
+        "roll": 0.2182
       },
       "buzz": {
         "amp": 0.0006,

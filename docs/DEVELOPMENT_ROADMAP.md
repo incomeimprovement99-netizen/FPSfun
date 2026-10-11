@@ -12015,3 +12015,21 @@ box reached half its length past a bent arm's shoulder.
   check now finds the merge moves only the collar, and only down; every skfigure check on all ten guns (303); verify;
   rules; the type check. Photographed: HAEFY's carry from six sides standing and sprinting, the aim down, the crouched aim
   and the sprint from the side at each chest lean tried, the slide.
+
+## Milestone 518 — Every gun's kick sized to its kind
+
+The owner, 2026-10-11: "multiple guns have like no recoil". Measured in the page, a shot at the hip, how far each gun
+turns and moves in the bought arms: all but BOOG had been given the USSO's SMG kick when they went into the arms, under a
+degree a shot (PANDA 0.4, APUHTHEE's magnum 0.5, REZ 0.7, BIGANTLER's pump 1.1, STRYDER 0.1), against BOOG's 7.9 degrees.
+The aim's own kick (recoil.ts, the camera's) was there all along, the USSO's climbing 15 degrees in a burst; it is the gun in
+the hands that barely moved.
+
+- **Each by its kind** (gunfeel.json kick, a shot at the hip): APUHTHEE's magnum 10 degrees and 3 cm, BIGANTLER's pump 9 and
+  4 cm, REZ 6 and 3 cm, PANDA 2.5 and 1.5 cm, ANAKIN 2, the USSO, CHOOCH and STRYDER 1.5, on a stiff spring so a burst climbs
+  2 to 3 degrees and settles; the heavy guns on softer springs, so the kick reads as weight. `up` and `back` are the turn
+  and the move over the spring's own peak (spring.ts, simulated as the game steps it); measured after, each within half a
+  degree of its target. BOOG's is as it was. The hands go with the gun: photographed at the kick's peak, nothing leaves the
+  picture or goes through it.
+- **Not changed:** APUHTHEE's aim kicks 0.6 degrees a shot, the lightest of any gun (speedkills.json tuning recoil, the
+  gameplay's, left as it is).
+- **Checked:** npm run verify (its spring check runs every gun's kick at 30 to 240 frames a second), rules and the type check.
