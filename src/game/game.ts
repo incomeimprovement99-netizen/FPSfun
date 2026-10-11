@@ -1,26 +1,17 @@
-// Which game this page is: the legacy game (Milestones 1 to 182, frozen at
-// the git tag apex-era-final) or SpeedKills, the direction the project is
-// moving in (docs/PHASE_18_PLAN_SPEEDKILLS.md).
+// Which game this page is: SpeedKills, the one game (docs/PHASE_18_PLAN_SPEEDKILLS.md).
 //
-// One switch, read once at startup, because the world is built once: the
-// battle royale map, the roster and the menu all follow it. SpeedKills is the
-// game (the owner, 2026-10-03: "Remove any legacy stuff"): the legacy game is
-// reached only by a ?game=legacy address, which the test suite's pages use
-// until their checks are moved to SpeedKills, and the Settings box that
-// switched to it is gone. A browser that chose it before is not held there.
-//
-// "legacy", never the other game's name: the public build may not carry it
-// (tools/beta-check.ts).
+// The legacy game (Milestones 1 to 182, frozen at the git tag apex-era-final)
+// was a second game on the same code until Milestone 520, reached by a
+// ?game=legacy address for the tests that still ran it; the owner retired it
+// (2026-10-09: "i am fine with retiring all old apex-range stuff"), and its
+// profile, its switch and those tests went. Its code goes milestone by
+// milestone after it (docs/PLAN_LEGACY_REMOVAL.md): until then IS_SK is a
+// constant, and a `!IS_SK` branch is the legacy game's, never run.
 //
 // Pure: no three.js and no DOM work at import, so the node checks load it.
-import legacy from "../config/games/legacy.json";
 import speedkills from "../config/games/speedkills.json";
 
-export type GameId = "legacy" | "speedkills";
-export const GAME_IDS: readonly GameId[] = ["legacy", "speedkills"];
-
-/** where this browser keeps its choice */
-export const LS_GAME = "range.game";
+export type GameId = "speedkills";
 
 /** a game's profile, src/config/games/<id>.json; the notes there say what each part means */
 export interface GameProfile {
@@ -97,53 +88,11 @@ export interface CarePackage {
   hackOdds: number[];
 }
 
-const PROFILES: Record<GameId, GameProfile> = { legacy, speedkills };
+/** this page's game */
+export const GAME: GameId = "speedkills";
 
-const isGame = (v: unknown): v is GameId => typeof v === "string" && (GAME_IDS as readonly string[]).includes(v);
+/** its profile (src/config/games/speedkills.json): what is in play, and the design that differs */
+export const PROFILE: GameProfile = speedkills;
 
-/** the build's default: vite sets it (vite.config.ts); anywhere else (the node checks) it is SpeedKills, the one game */
-function buildDefault(): GameId {
-  // a node tool may name its game (GAME=speedkills npx tsx tools/sk-movesim.ts); a page never has `process`
-  const env = typeof process !== "undefined" ? process.env?.GAME : undefined;
-  const d = env ?? (typeof __DEFAULT_GAME__ !== "undefined" ? __DEFAULT_GAME__ : "speedkills");
-  return isGame(d) ? d : "legacy";
-}
-
-/**
- * The game for this page, from the URL, this browser's last choice and the
- * build's default, in that order; a last choice of the legacy game no longer
- * counts (there is no way back out of it for a player: its Settings box is gone).
- */
-export function resolveGame(search: string | null, stored: string | null, fallback: GameId): GameId {
-  const fromUrl = search ? new URLSearchParams(search).get("game") : null;
-  if (isGame(fromUrl)) return fromUrl;
-  if (stored === "speedkills") return stored;
-  return fallback;
-}
-
-function readGame(): GameId {
-  let search: string | null = null;
-  let stored: string | null = null;
-  try {
-    if (typeof location !== "undefined") search = location.search;
-    if (typeof localStorage !== "undefined") stored = localStorage.getItem(LS_GAME);
-  } catch {
-    /* storage refused (a private window): the URL and the default still decide */
-  }
-  // (nothing is written back: a test page's ?game=legacy is that page's alone)
-  return resolveGame(search, stored, buildDefault());
-}
-
-/** this page's game, fixed for its life */
-export const GAME: GameId = readGame();
-
-/** a game's profile (src/config/games/*.json): what is in play, and the design that differs */
-export function profileOf(id: GameId): GameProfile {
-  return PROFILES[id];
-}
-
-/** this page's profile */
-export const PROFILE: GameProfile = profileOf(GAME);
-
-/** this page is SpeedKills: the one test most code needs */
-export const IS_SK: boolean = GAME === "speedkills";
+/** this page is SpeedKills: always, since Milestone 520; the branches on it fold as the legacy code goes */
+export const IS_SK: boolean = true;

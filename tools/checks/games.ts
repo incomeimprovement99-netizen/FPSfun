@@ -1,18 +1,23 @@
-// The game switch and the two games' profiles (src/game/game.ts,
-// src/config/games/*.json, docs/PHASE_18_PLAN_SPEEDKILLS.md section 4).
+// SpeedKills' profile (src/game/game.ts, src/config/games/speedkills.json,
+// docs/PHASE_18_PLAN_SPEEDKILLS.md section 4); the switch to the legacy game
+// went with it (Milestone 499).
 //
 // A profile only says which things are in play, so the danger is a profile
 // naming something that is not there: a gun id with a typo, an optic the gun
 // cannot take, an ability with no code behind it. Each would fail quietly in
 // a match. These checks fail loudly here instead. They also hold SpeedKills to
-// the brief's shape (about two guns a family, six to eight abilities, fusion
-// that is better and not decisive) and legacy to the catalogue it froze with.
+// the brief's shape (about two guns a family, ten hacks, fusion that is
+// better and not decisive).
 //
 // Run on its own: npx tsx tools/checks/games.ts.
-import { GAME, GAME_IDS, profileOf, resolveGame } from "../../src/game/game";
+import { GAME, IS_SK, PROFILE } from "../../src/game/game";
 import { allWeaponIds, weaponMods } from "../../src/game/weapons";
 import { optionsFor } from "../../src/game/attachments";
 import binds from "../../src/config/binds.json";
+import worldCfg from "../../src/config/world.json";
+import neonCfg from "../../src/config/neonmap.json";
+import ringCfg from "../../src/config/ring.json";
+import { readFileSync } from "node:fs";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -20,22 +25,15 @@ function check(label: string, cond: boolean, detail = ""): void {
   console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
 }
 
-console.log("The game switch and its profiles");
+console.log("SpeedKills, the one game, and its profile");
 {
-  check("the URL decides first", resolveGame("?game=speedkills", "legacy", "legacy") === "speedkills");
-  check("then what this browser chose", resolveGame("?x=1", "speedkills", "legacy") === "speedkills");
-  // the legacy game is a test page's, by its address: a browser that chose it once is not kept there (2026-10-03)
-  check("a browser's old choice of the legacy game does not count", resolveGame("?x=1", "legacy", "speedkills") === "speedkills" && resolveGame(null, "legacy", "speedkills") === "speedkills");
-  check("the address still opens it (the test suite's pages)", resolveGame("?game=legacy", "speedkills", "speedkills") === "legacy");
-  check("then the build's default", resolveGame(null, null, "legacy") === "legacy" && resolveGame("", null, "speedkills") === "speedkills");
-  check("a game that does not exist is ignored, wherever it comes from", resolveGame("?game=bogus", "also-bogus", "legacy") === "legacy");
-  check("outside a browser (these checks) the game is SpeedKills, the one game", GAME === "speedkills");
+  // (the URL, a browser's old choice and the build's default chose between two games until Milestone 499)
+  check("the game is SpeedKills, the one game", GAME === "speedkills" && IS_SK && PROFILE.id === "speedkills");
 
-  const MAPS = new Set(["outskirts", "city"]);
-  for (const id of GAME_IDS) {
-    const p = profileOf(id);
-    const tag = `${id}:`;
-    check(`${tag} the profile is the game it is filed as`, p.id === id);
+  const MAPS = new Set(["city"]);
+  {
+    const p = PROFILE;
+    const tag = "speedkills:";
     // (against every gun the engine can make: SpeedKills' own, the launcher, is in no legacy catalogue)
     const unknown = p.roster.filter((g) => !allWeaponIds().includes(g));
     check(`${tag} every gun on the roster exists`, unknown.length === 0, unknown.join(", "));
@@ -54,7 +52,7 @@ console.log("The game switch and its profiles");
   // (that the legacy roster was the whole catalogue held while the catalogue was the legacy game's; it is SpeedKills' ten now)
 
   // SpeedKills: the brief's shape
-  const sk = profileOf("speedkills");
+  const sk = PROFILE;
   const sizes = Object.values(sk.families).map((f) => f.guns.length);
   check("speedkills: no family has more than two guns (fewer guns, stronger identities)", sizes.every((n) => n >= 1 && n <= 2), sizes.join(","));
   check("speedkills: every gun has its own name, a role and a fixed optic", sk.roster.every((g) => sk.weapons[g]?.name && sk.weapons[g]?.optic));
@@ -94,6 +92,16 @@ console.log("\nSpeedKills' keys");
   }
   const shared = [...byKey].filter(([, a]) => a.length > 1).map(([k, a]) => `${k}: ${a.join(", ")}`);
   check("speedkills: no key does two things", shared.length === 0, shared.join("; "));
+}
+
+// the map's size, one number everywhere: the battle royale's cut (world.json cut, Phase 23.3), the square its rounds
+// live in and the Neon City's sectors' edge (neonmap.json game.sectors). From ring-place.ts, whose other checks were
+// the legacy game's ring and went with it (Milestone 520)
+{
+  const br = readFileSync(new URL("../../src/game/br.ts", import.meta.url), "utf8");
+  const cut = /BR_HALF = (?:IS_SK \? )?worldCfg\.cut\.half/.test(br);
+  const edge = Math.max(...neonCfg.game.sectors.flatMap((s: { maxX: number; maxZ: number }) => [s.maxX, s.maxZ]));
+  check("speedkills: the map's half-side: br.ts takes the map's cut, and the rounds' square and the sectors' edge are the same", cut && ringCfg.speedkills.half === worldCfg.cut.half && edge === worldCfg.cut.half, `cut ${worldCfg.cut.half}, ring ${ringCfg.speedkills.half}, sectors to ${edge}`);
 }
 
 console.log(fails === 0 ? "\nGAMES PASS" : `\nGAMES FAIL (${fails})`);

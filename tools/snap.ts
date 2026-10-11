@@ -1356,8 +1356,8 @@ async function main(): Promise<void> {
       // the real mouse reaches a pointer-locked headless page: none of it here, or whoever moves it turns the picture
       await page.evaluateOnNewDocument(`for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`);
       const q0 = sc.query ? `${sc.query}&nointro` : "?nointro";
-      // legacy unless the scenario or SNAP_GAME names a game (a page with no word opens in SpeedKills)
-      const q = q0.includes("game=") ? q0 : `${q0}&game=${process.env.SNAP_GAME ?? "legacy"}`;
+      // (SpeedKills, the one game: the scenarios of the legacy game's maps go with their code)
+      const q = q0;
       await page.goto(BASE.includes("?") ? `${BASE}&${q.slice(1)}` : BASE + q, { waitUntil: "domcontentloaded", timeout: 60000 });
       await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
       // the loading screen is over everything until the world is in

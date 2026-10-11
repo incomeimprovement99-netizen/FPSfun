@@ -11172,6 +11172,33 @@ of them) rather than the legacy match's five or six bots.
   switch.
 - **Checked:** tsc; verify; rules; e2e modes, botsquads, brsolo, migrate, squad and duel.
 
+## Milestone 520 — The game switch gone: SpeedKills, the one game
+
+The legacy game still opened from a `?game=legacy` address, for the tests that played it; the owner retired it
+(2026-10-09: "i am fine with retiring all old apex-range stuff, don't break speed hack"). 497 to 499 moved every test of
+a system SpeedKills shares onto SpeedKills, so what was left on the address tested the legacy game alone.
+
+- **The switch:** src/game/game.ts fixes the game to SpeedKills (`GAME`, `PROFILE`, and `IS_SK` a constant until the
+  legacy branches fold, milestone by milestone). Gone: legacy.json, the choice from the address, the browser's storage
+  and the build's default (`resolveGame`, `range.game`, `DEFAULT_GAME`, `__DEFAULT_GAME__`), index.html's first script
+  (the page carries `data-game` on its html tag), the game in an invite link, and the key hints that only showed in the
+  legacy game. A code from a tab still on the legacy game is told it is an older version, as since Milestone 455.
+- **Tests gone with it:** the 11 e2e tests of the legacy game alone (the Outskirts battle royale, its doors, vault,
+  loot, ship and Ring Consoles, the intro card, the hold and spray pictures, the mannequin figures, the cross-game
+  code), about 1,240 lines with their sections (br, loot, ship, console, intro, hold, spray) and the Outskirts' bot
+  graph probe; and the two Node checks verify ran as the legacy game, loot-tiers.ts (the Outskirts' loot tiers,
+  kinds and racks) and ring-place.ts (the ring's draw, which SpeedKills never makes: its rounds close on the final
+  sector). Its one SpeedKills check, the map's half-side the same in br.ts, ring.json and the sectors, moved to
+  games.ts.
+- **Tools:** bench's and profile-frame's legacy spots (br, brcorner, brmatch) gone; snap and the e2e's pages name no
+  game.
+- **The page's loading check** waited 30 s for the world; with the machine at 94% under other runs it came in 31 s on
+  (a quiet machine takes 4), and the check failed with nothing wrong. It waits 90 s, as it is no speed check, and a
+  page that never loads now says which of loaded()'s parts it waits on (`loadedParts`: the first screen, the figures,
+  the later files, the Neon City's collision).
+- About 2,300 lines out in all.
+- **Checked:** tsc; verify; rules; build:beta (its check of the built page); e2e page, invite, duel and start.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

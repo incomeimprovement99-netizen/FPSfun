@@ -22,17 +22,16 @@ page or change section.
 **Where it came from.** SpeedKills grew out of B00G's Range, a browser
 recreation of another battle royale's movement and guns (Milestones 1 to 182,
 frozen whole at the git tag `apex-era-final`); from 26 September 2026 the
-project became SpeedKills. That game, the **legacy** game, is being removed:
-its Settings box is gone (Milestone 438), it opens only from a `?game=legacy`
-address while the test suite's sections that still play it are moved to
-SpeedKills, and then its code goes. Much of this README below the next section
-still describes it, and goes with it.
+project became SpeedKills. That game, the **legacy** game, is retired: its
+Settings box went in Milestone 438 and its `?game=legacy` address, with the
+tests that still played it, in Milestone 520, so the site is SpeedKills alone.
+Its code goes next, a milestone at a time (docs/PLAN_LEGACY_REMOVAL.md). Much
+of this README below the next section still describes it, and goes with it.
 
 ### SpeedKills, as it stands
 
-The site opens in SpeedKills. The legacy game opens only from a `?game=legacy`
-address (the test suite's pages), and everything below this section describes
-it.
+The site is SpeedKills, the one game. Much of what is below this section
+describes the retired legacy game, and goes with its code.
 
 - **The menu:** the Battle Royale (solo, duos or trios) first and big, the
   Firing Range under it, and **Extra modes** opening the rest: PLAY (1v1; bots;
@@ -1145,8 +1144,8 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
 | `npm run measure` | what each technique reaches on the real controller (needs `npm run dev`) |
-| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=br` measures from the Mast's roof across the whole battle royale map, `BENCH_SPOT=brcorner` from one corner of it looking diagonally across the lot (the longest sightline there is), `BENCH_SPOT=brmatch` inside a real match on seed 42 at the hub, bots and loot in view. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the old city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 160 m over it; `BENCH_SPOT=neonstreet` the same match in the Neon City's street facing its tower (the most drawn from the ground) and `neonhigh` 40 m up over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced; `BENCH_VARIANTS="name=query;..."` measures several such pages in the same interleaved rounds (`&q=ao:0` changes one setting of a preset, `&slow=cull` puts back one saving of the performance pass, `src/game/slow.ts`). `BENCH_GPU=1` adds the GPU's own time a frame (timer queries), `BENCH_DPR=2` a high-density screen, `BENCH_CPU=4` a processor a quarter as fast, `BENCH_RUNS=3` three rounds and their medians |
-| `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch`, `skroof` or `brmatch`), the scene's objects by group and how many are hidden, with `PROFILE_CALLERS=name` who calls a function (a function calling itself counted once, under its real caller), and with `PROFILE_INCLUSIVE=1` the game's own functions by the time spent in them and everything they call. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
+| `npm run bench` | frame rate per graphics preset on your GPU (needs `npm run dev`): the median, 95th and 99th percentile frame, and each frame's draw calls and triangles over every pass. `BENCH_SPOT=skmatch` is SpeedKills' thirty in the old city, in the street facing the Spire, and `BENCH_SPOT=skroof` the same match from 160 m over it; `BENCH_SPOT=neonstreet` the same match in the Neon City's street facing its tower (the most drawn from the ground) and `neonhigh` 40 m up over it. `BENCH_QUERY=&noskip` loads the page with a switch, here the old matrix walk, so a change is measured against what it replaced; `BENCH_VARIANTS="name=query;..."` measures several such pages in the same interleaved rounds (`&q=ao:0` changes one setting of a preset, `&slow=cull` puts back one saving of the performance pass, `src/game/slow.ts`). `BENCH_GPU=1` adds the GPU's own time a frame (timer queries), `BENCH_DPR=2` a high-density screen, `BENCH_CPU=4` a processor a quarter as fast, `BENCH_RUNS=3` three rounds and their medians |
+| `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch` or `skroof`), the scene's objects by group and how many are hidden, with `PROFILE_CALLERS=name` who calls a function (a function calling itself counted once, under its real caller), and with `PROFILE_INCLUSIVE=1` the game's own functions by the time spent in them and everything they call. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
 | `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (the static mirror) |
@@ -1218,7 +1217,7 @@ gun is the one merged mesh the floor guns use rather than the full model's
 eleven to fifteen. None of it changes what a bullet hits: hit boxes come from
 the figure's own boxes, not the animation. In a battle royale with ten bots
 round the hub that took High from 799 draw calls to 599, 2.39M triangles to
-1.99M, and 167 to 185 fps (`npm run bench BENCH_SPOT=brmatch`).
+1.99M, and 167 to 185 fps (`npm run bench BENCH_SPOT=brmatch`, the legacy game's spot, gone with it in Milestone 520).
 
 **Thirty in the city, measured and then made cheaper.** A CPU profile of a
 SpeedKills match (`npm run profile`) found three costs, none of them the

@@ -14,7 +14,6 @@
 import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
 import neonSectorsCfg from "../src/config/neonmap.json";
 import soldierCfg from "../src/config/soldier.json";
-import { HOLD } from "../src/game/hold";
 import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
 import lodCfg from "../src/config/lod.json";
 import soldierHoldCfg from "../src/config/soldierhold.json";
@@ -29,8 +28,6 @@ import netCfg from "../src/config/net.json";
  * (host migration's botFlow read 1.50 and 1.57 s, alone and in batches).
  */
 const HEARD = netCfg.keyframe.seconds + netCfg.keyframe.spread + 0.5;
-import ammoCfg from "../src/config/ammo.json";
-import lootCfg from "../src/config/loot.json";
 import skCfg from "../src/config/games/speedkills.json";
 import armoryCfg from "../src/config/armory.json";
 import hacksCfg from "../src/config/hacks.json";
@@ -42,13 +39,6 @@ import fparmsCfg from "../src/config/fparms.json";
 import gunfeelCfg from "../src/config/gunfeel.json";
 import squadCfg from "../src/config/squad.json";
 import { readFileSync } from "node:fs";
-
-/**
- * A test of the legacy game alone, pinned to it until the code it tests goes (docs/PLAN_LEGACY_REMOVAL.md, 494): the
- * suite runs SpeedKills by default, and a test that holds the legacy game's own map, loot, abilities, knockdowns or
- * arenas names it with this.
- */
-const LEGACY = "&game=legacy";
 
 const BASE = process.env.SHOT_URL ?? "http://localhost:5173/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -114,12 +104,10 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   if (throttle > 1) await (await page.createCDPSession()).send("Emulation.setCPUThrottlingRate", { rate: throttle });
   // a base with a query of its own (OLD_URL=https://the.site/?broker=public) keeps it
   const q0 = query.includes("intro=on") ? query : query.startsWith("?") ? `${query}&nointro` : "?nointro";
-  // A page is SpeedKills unless its query or E2E_GAME names a game: the suite was the legacy game's regression net
-  // until that game was being removed (the owner, 2026-10-04), and a check of the legacy game alone names it.
-  const q1 = q0.includes("game=") ? q0 : `${q0}&game=${process.env.E2E_GAME ?? "speedkills"}`;
-  // (SpeedKills is on the Neon City, its one city since the ILranch city before it went, 2026-10-09)
-  // and on the menu, as the checks of it expect: the start screen in front of it is startScreenTest's (src/ui/start.ts)
-  const q = q1.includes("home=") ? q1 : `${q1}&nohome`;
+  // (a page named its game, E2E_GAME or the query's own, until Milestone 520: SpeedKills is the one game, on the Neon
+  // City, its one city since the ILranch city before it went, 2026-10-09)
+  // on the menu, as the checks of it expect: the start screen in front of it is startScreenTest's (src/ui/start.ts)
+  const q = q0.includes("home=") ? q0 : `${q0}&nohome`;
   const url = base.includes("?") ? `${base}&${q.slice(1)}` : base + q;
   await page.goto(url, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
@@ -179,7 +167,7 @@ async function pressPlay(page: Page): Promise<void> {
  * the host said nothing while it waited. The live check failed so on a busy machine (2026-10-04); 13 s here is past it.
  */
 async function lateBoxesTest(browser: Browser): Promise<void> {
-  const q = "?net=local&norender&game=speedkills&map=neon";
+  const q = "?net=local&norender&map=neon";
   const host = await open(browser, q, BASE, "window.__boxesLate = 13000");
   const guest = await open(browser, q);
   await guest.waitForFunction("window.__range.neonMap().boxes > 0", { polling: 200, timeout: 60000 }).catch(() => undefined);
@@ -203,43 +191,6 @@ async function lateBoxesTest(browser: Browser): Promise<void> {
   await ev(guest, "window.__range.duel()?.leave()").catch(() => undefined);
   await guest.close();
   await host.close();
-}
-
-/**
- * A code typed from a page of the other game (the invite link carries the host's game). Each is told and left where it
- * is (Milestone 455): a SpeedKills player is never moved into the legacy game and its old name, and the move the other
- * way never worked for a 1v1 (the page's leaving ended the host's match before it came back).
- */
-async function crossGameTest(browser: Browser): Promise<void> {
-  const host = await open(browser, "?net=local&norender" + LEGACY);
-  const guest = await open(browser, "?net=local&norender&game=speedkills");
-  await ev(host, `document.getElementById("duelHost").click()`);
-  const code = await host
-    .waitForSelector("#duelStatus .code", { timeout: 20000 })
-    .then(() => ev<string>(host, `document.querySelector("#duelStatus .code").textContent`), () => "");
-  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
-  await guest.waitForFunction(`/older version/.test(document.getElementById("duelStatus").textContent)`, { polling: 200, timeout: 15000 }).catch(() => undefined);
-  const stayed = await ev<{ status: string; search: string; duel: boolean }>(guest, `({ status: document.getElementById("duelStatus").textContent, search: location.search, duel: window.__range.duel() !== null })`);
-  check(
-    "a SpeedKills player given a legacy host's code is told its page is behind, and stays in SpeedKills",
-    !!code && /older version/.test(stayed.status) && !/game=legacy/.test(stayed.search) && !stayed.duel && !/legacy/i.test(stayed.status),
-    JSON.stringify({ code, ...stayed })
-  );
-  await host.close();
-  await guest.close();
-  const skHost = await open(browser, "?net=local&norender&game=speedkills");
-  const oldGuest = await open(browser, "?net=local&norender" + LEGACY);
-  await ev(skHost, `document.getElementById("duelHost").click()`);
-  const code2 = await skHost
-    .waitForSelector("#duelStatus .code", { timeout: 20000 })
-    .then(() => ev<string>(skHost, `document.querySelector("#duelStatus .code").textContent`), () => "");
-  await ev(oldGuest, `(() => { document.getElementById("duelCode").value = "${code2}"; document.getElementById("duelJoin").click(); })()`);
-  await oldGuest.waitForFunction(`/That match is SpeedKills/.test(document.getElementById("duelStatus").textContent)`, { polling: 200, timeout: 15000 }).catch(() => undefined);
-  const told = await ev<{ status: string; search: string; duel: boolean }>(oldGuest, `({ status: document.getElementById("duelStatus").textContent, search: location.search, duel: window.__range.duel() !== null })`);
-  check("and a legacy page given a SpeedKills host's code is told so, and stays", !!code2 && /That match is SpeedKills/.test(told.status) && /game=legacy/.test(told.search) && !told.duel, JSON.stringify({ code2, ...told }));
-  await oldGuest.evaluate("window.__range?.duel()?.leave()").catch(() => undefined);
-  await oldGuest.close();
-  await skHost.close();
 }
 
 /**
@@ -308,97 +259,6 @@ async function inviteTest(browser: Browser, query: string): Promise<void> {
   await host.close();
 }
 
-/** the battle royale: the drop, the landing, a knock, the ring's damage, a heal, leaving */
-/** the battle royale's bot graph: every node a bot can actually walk to */
-async function navChecks(page: Page): Promise<void> {
-  const nav = await ev<{ nodes: number; pois: number; cells: number; bad: Array<Record<string, unknown>> }>(page, NAV_PROBE);
-  check(
-    "the map's bot graph: every node, link and drop is somewhere a bot can walk to",
-    nav.bad.length === 0 && nav.nodes > 12 && nav.pois === 9,
-    nav.bad.length ? JSON.stringify(nav.bad).slice(0, 400) : nav.nodes + " nodes, " + nav.pois + " places, " + nav.cells + " walkable half-metre cells"
-  );
-}
-
-const NAV_PROBE = String.raw`(() => {
-  // Can a bot walk the battle royale's graph? Floods the map on a half-metre
-  // grid using the bot's own rules from src/game/bots.ts (0.41 m radius,
-  // 0.56 m step, 1.83 m standing room) and reports any node the flood never
-  // reaches. A node it cannot reach is a bot stuck for a whole match.
-  const S = window.__range.solids, map = window.__range.brMap;
-  const R = 0.406, STEP = 0.5588, STAND = 1.83;
-  const X0 = -224, Z0 = 276, SIDE = 448, C = 0.5, N = Math.ceil(SIDE / C);
-  // solids bucketed 8 m, so a cell looks at a dozen boxes and not two thousand
-  const B = 8, BN = Math.ceil(SIDE / B), bucket = new Array(BN * BN);
-  for (const s of S) {
-    // a door is a way through: the bots open the ones they walk into
-    if (s.top <= 0.01 || s.door) continue;
-    const i0 = Math.max(0, Math.floor((s.minX - R - X0) / B)), i1 = Math.min(BN - 1, Math.floor((s.maxX + R - X0) / B));
-    const j0 = Math.max(0, Math.floor((s.minZ - R - Z0) / B)), j1 = Math.min(BN - 1, Math.floor((s.maxZ + R - Z0) / B));
-    for (let i = i0; i <= i1; i++) for (let j = j0; j <= j1; j++) (bucket[i * BN + j] ??= []).push(s);
-  }
-  const at = (x, z) => bucket[Math.min(BN - 1, Math.max(0, Math.floor((x - X0) / B))) * BN + Math.min(BN - 1, Math.max(0, Math.floor((z - Z0) / B)))] ?? [];
-  // the highest floor a body at height y can step up onto, and -1 if a wall is in the way
-  const stand = (x, z, y) => {
-    let floor = 0;
-    const near = at(x, z);
-    for (const s of near) if (x + R > s.minX && x - R < s.maxX && z + R > s.minZ && z - R < s.maxZ && s.top <= y + STEP + 1e-4 && s.top > floor) floor = s.top;
-    for (const s of near) if (x + R > s.minX && x - R < s.maxX && z + R > s.minZ && z - R < s.maxZ && s.top > floor + STEP + 1e-4 && s.base < floor + STAND - 1e-4) return -1;
-    return floor;
-  };
-  const best = new Float32Array(N * N).fill(-2);
-  const start = map.nodes[5];
-  const si = Math.round((start.x - X0) / C), sj = Math.round((start.z - Z0) / C);
-  const y0 = stand(start.x, start.z, 40);
-  best[si * N + sj] = y0;
-  let queue = [si * N + sj], reached = 1;
-  while (queue.length) {
-    const next = [];
-    for (const k of queue) {
-      const i = (k / N) | 0, j = k % N, y = best[k];
-      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-        const ni = i + di, nj = j + dj;
-        if (ni < 0 || nj < 0 || ni >= N || nj >= N) continue;
-        const nk = ni * N + nj, was = best[nk];
-        const ny = stand(X0 + ni * C, Z0 + nj * C, y);
-        if (ny < 0 || ny <= was + 1e-4) continue;
-        if (was < -1) reached++;
-        best[nk] = ny;
-        next.push(nk);
-      }
-    }
-    queue = next;
-  }
-  const reachable = (x, z) => { const k = Math.round((x - X0) / C) * N + Math.round((z - Z0) / C); return k >= 0 && k < N * N && best[k] > -1; };
-  // the nearest spot the flood did reach, so a report says where to move to
-  const nearestFree = (x, z) => {
-    for (let r = 1; r < 40; r++) for (let a = -r; a <= r; a++) for (const [dx, dz] of [[a, -r], [a, r], [-r, a], [r, a]]) {
-      const px = x + dx * C, pz = z + dz * C;
-      if (reachable(px, pz)) return { x: Math.round(px), z: Math.round(pz - 500), away: +(r * C).toFixed(1) };
-    }
-    return null;
-  };
-  const bad = [];
-  map.nodes.forEach((n, i) => {
-    if (!reachable(n.x, n.z)) bad.push({ kind: "node-cut-off", i, x: Math.round(n.x), z: Math.round(n.z - 500) });
-    // a node on a crest, a deck or a roof says so, and the flood has to stand
-    // there: a bot sent to it counts as arrived only on that floor
-    else if (n.y !== undefined) {
-      const k = Math.round((n.x - X0) / C) * N + Math.round((n.z - Z0) / C);
-      if (Math.abs(best[k] - n.y) > 1) bad.push({ kind: "node-wrong-floor", i, y: n.y, flood: +best[k].toFixed(2) });
-    }
-    for (const j of n.links) {
-      if (!map.nodes[j]) { bad.push({ kind: "link-missing", i, j }); continue; }
-      if (!map.nodes[j].links.includes(i)) bad.push({ kind: "link-one-way", i, j });
-    }
-    if (!n.links.length) bad.push({ kind: "node-no-links", i });
-  });
-  // every place has to be reachable too, and every spot a squad drops on
-  map.pois.forEach((p) => {
-    p.drops.forEach((d, k) => { if (!reachable(d.x, d.z)) bad.push({ kind: "drop-cut-off", id: p.id, k, x: Math.round(d.x), z: Math.round(d.z - 500), nearest: nearestFree(d.x, d.z) }); });
-  });
-  return { nodes: map.nodes.length, pois: map.pois.length, cells: reached, bad };
-})()`;
-
 /**
  * The battle royale row's squad size, then its bot count, the way a click on
  * each would set them. The size goes first because it decides which counts
@@ -419,603 +279,6 @@ const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
  * Doors: a shut door stops you, E opens the one you look at and you walk
  * through, and a bot that walks into a shut door opens it.
  */
-/**
- * The vault (br.json vault): the Well's small building, sealed, its door
- * locked. Its guard stands at its post on no side and is not counted among
- * those left; the vault is stocked with a mythic gun as
- * the fight starts; the door will not open without the keycard, which is in
- * dropped where the guard falls; its holder is shown the way and opens the door,
- * which uses the card.
- */
-async function vaultTest(browser: Browser, query: string): Promise<void> {
-  const page = await open(browser, query);
-  await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { window.__noVault = false; document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
-  if (!fought) {
-    check("vault: the match starts", false);
-    await page.close();
-    return;
-  }
-  await ev(page, "(() => { const d = window.__range.duel(); d.holdFire = true; window.__notices = []; const say = d.onNotice; d.onNotice = (t) => { window.__notices.push(t); say?.(t); }; })()");
-  await sleep(1500);
-  const g = await ev<{ name: string; tier: string; team: number; at: number; alive: boolean; aboard: boolean; left: number; bots: number; vault: { door: number; x: number; z: number; locked: boolean } | null } | null>(
-    page,
-    "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.guard); if (!b) return null; return { name: b.bot.remote.name, tier: b.bot.diff.name, team: b.team, at: Math.hypot(b.bot.pos.x - b.guard.x, b.bot.pos.z - b.guard.z), alive: b.bot.alive, aboard: b.bot.aboard, left: d.aliveCount, bots: d.bots.filter((x) => !x.guard).length, vault: d.vault }; })()"
-  );
-  check("vault: its guard, THE WARDEN, elite and on no side, stands at his post (not on the ship), and is not counted among those left", !!g && g.name === "THE WARDEN" && g.tier === "elite" && g.team === -1 && g.at < 2 && g.alive && !g.aboard && g.left === 1 + g.bots && !!g.vault?.locked, JSON.stringify(g));
-  const stock = await ev<{ mythic: string[] }>(
-    page,
-    "(() => { const d = window.__range.duel(); const v = d.vault; const near = [...d.lootField.drops.values()].filter((x) => Math.hypot(x.pos.x - v.x, x.pos.z - v.z) < 4.5); return { mythic: near.filter((x) => x.item.kind === 'weapon' && x.item.mythic).map((x) => x.item.id + ':' + x.item.mag) }; })()"
-  );
-  check("vault: stocked as the fight starts: a mythic gun at gold mag inside", stock.mythic.length === 1 && stock.mythic[0].endsWith(":4"), JSON.stringify(stock));
-  // at the door without the card: it says so, and the door stays shut
-  await ev(page, "(() => { const d = window.__range.duel(); const door = window.__range.brMap.doors.list[d.vault.door]; window.__range.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z - 2.2, 180, 0); })()");
-  await gameSleep(page, 0.5);
-  const lockedPrompt = await ev<string>(page, "window.__range.brPlay.hud?.prompt?.text ?? ''");
-  await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
-  await sleep(300);
-  await ev(page, "window.__range.setScript(null)");
-  await ev(page, "(() => { const d = window.__range.duel(); d.useDoor(d.vault.door, true); })()");
-  await sleep(300);
-  const shut = await ev<{ open: boolean; locked: boolean; kicked: string | null }>(page, "(() => { const d = window.__range.duel(); const ds = window.__range.brMap.doors; return { open: ds.list[d.vault.door].open, locked: d.vault.locked, kicked: ds.kick(d.vault.door) }; })()");
-  check("vault: without the keycard the door says so, stays shut to interact and cannot be kicked in", /LOCKED/.test(lockedPrompt) && !shut.open && shut.locked && shut.kicked === null, JSON.stringify({ lockedPrompt, shut }));
-  // the guard down: he drops the keycard
-  await ev(page, "(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.guard); d.botDown(b, d.id); })()");
-  await sleep(400);
-  const card = await ev<{ key: number | null; said: boolean; left: number }>(page, "(() => { const d = window.__range.duel(); const k = [...d.lootField.drops.values()].find((x) => x.item.kind === 'keycard'); return { key: k ? k.key : null, said: window.__notices.some((t) => t.includes('DROPPED THE VAULT KEYCARD')), left: d.aliveCount }; })()");
-  check("vault: the guard down, he drops the vault keycard, and everyone is told", card.key !== null && card.said, JSON.stringify(card));
-  // taken: the holder is shown the way, and the door offers to open
-  await ev(page, `window.__range.duel().takeLoot(${card.key ?? -1})`);
-  await gameSleep(page, 0.7);
-  const held = await ev<{ mine: boolean; mark: boolean; prompt: string }>(page, "(() => { const d = window.__range.duel(); return { mine: d.myKey, mark: window.__range.brPlay.markers.some((m) => m.label === 'THE VAULT'), prompt: window.__range.brPlay.hud?.prompt?.text ?? '' }; })()");
-  check("vault: holding the keycard, the way to the vault is marked and the door offers to open", held.mine && held.mark && /OPEN THE VAULT/.test(held.prompt), JSON.stringify(held));
-  await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
-  const opened = await page.waitForFunction("(() => { const d = window.__range.duel(); return !d.vault.locked && window.__range.brMap.doors.list[d.vault.door].open; })()", { polling: 100, timeout: 4000 }).then(() => true, () => false);
-  await ev(page, "window.__range.setScript(null)");
-  const after = await ev<{ mine: boolean; said: boolean }>(page, "({ mine: window.__range.duel().myKey, said: window.__notices.some((t) => t === 'THE VAULT IS OPEN') })");
-  check("vault: interact with the keycard opens the vault, which uses the card", opened && !after.mine && after.said, JSON.stringify({ opened, after }));
-  await page.close();
-}
-
-async function doorTest(browser: Browser, query: string): Promise<void> {
-  const page = await open(browser, query);
-  await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  // on the ship, before anyone has landed: every door shut
-  await page.waitForFunction(`window.__range.duel()?.phase === "countdown"`, { polling: 100, timeout: 20000 }).catch(() => undefined);
-  const openAtStart = await ev<number>(page, "window.__range.brMap.doors.openList().length");
-  const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
-  if (!fought) {
-    check("doors: the match starts", false);
-    await page.close();
-    return;
-  }
-  // the ring off the doors' way, the bots held, every door shut
-  const info = await ev<{ count: number; open: number; i: number; z: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const ds = r.brMap.doors; const door = ds.list.find((x) => x.side === "s" && x.centre.y < 3 && !ds.list.some((y) => y !== x && Math.hypot(y.centre.x - x.centre.x, y.centre.z - x.centre.z) < 8)); if (!door) return null; for (const b of d.bots) b.bot.pos.set(door.centre.x + 60, 0, door.centre.z + 60); r.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z + 2.5, 0, 0); return { count: ds.list.length, open: ds.openList().length, i: door.i, z: door.centre.z }; })()`
-  );
-  if (!info) {
-    check("doors: a door to test on", false);
-    await page.close();
-    return;
-  }
-  check(`doors: a door in every ground-floor doorway, all shut as the match starts (${info.count})`, info.count > 50 && openAtStart === 0, JSON.stringify({ ...info, openAtStart }));
-  // walk into it shut: stopped outside
-  await ev(page, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false })`);
-  await sleep(1500);
-  const stopped = await ev<number>(page, "window.__range.player.pos.z");
-  // look at it and press E: it opens, and the walk carries on inside
-  await ev(page, "window.__range.setScript({ held: () => false, pressedNow: () => false })");
-  await sleep(300);
-  const prompt = await ev<string>(page, "window.__range.brPlay.hud?.prompt?.text ?? ''");
-  // E for one frame (held, the door would open and shut every frame)
-  await ev(page, `(() => { const s = { k: 0, held: () => false, pressedNow: (a) => a === "interact" && s.k === 2 }; window.__range.setScript(s, () => { s.k++; }); })()`);
-  await sleep(300);
-  await ev(page, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false })`);
-  await sleep(1500);
-  const through = await ev<{ z: number; open: boolean }>(page, `({ z: window.__range.player.pos.z, open: window.__range.brMap.doors.list[${info.i}].open })`);
-  await ev(page, "window.__range.setScript(null)");
-  check("doors: a shut door stops you; E opens the one you look at, and you walk through it", stopped > info.z + 0.3 && prompt === "OPEN THE DOOR" && through.open && through.z < info.z - 1, JSON.stringify({ doorZ: info.z, stopped, prompt, through }));
-  // a bot walking into a shut door opens it
-  const other = await ev<{ i: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const ds = r.brMap.doors; const door = ds.list.find((x) => !x.open && x.centre.y < 3 && x.i !== ${info.i}); if (!door) return null; const b = d.bots.find((x) => x.bot.alive); b.bot.pos.set(door.centre.x, door.centre.y - 1.3, door.centre.z + (door.side === "s" ? 1 : door.side === "n" ? -1 : 0)); if (door.side === "e") b.bot.pos.x += 1; if (door.side === "w") b.bot.pos.x -= 1; return { i: door.i }; })()`
-  );
-  const botOpened = !!other && (await page.waitForFunction(`window.__range.brMap.doors.list[${other?.i ?? 0}].open`, { polling: 100, timeout: 3000 }).then(() => true, () => false));
-  check("doors: a bot that walks into a shut door opens it", botOpened, JSON.stringify(other));
-  // two swings into a shut door kick it in: gone from the doorway, nothing left to bump into
-  const kicked = await ev<{ i: number } | null>(
-    page,
-    `(() => { const r = window.__range; const ds = r.brMap.doors; const door = ds.list.find((x) => !x.open && x.side === "s" && x.centre.y < 3 && x.i !== ${info.i} && x.i !== ${other?.i ?? -1}); if (!door) return null; r.player.teleport(door.centre.x, door.centre.y - 1.3, door.centre.z + 1.3, 0, 0); return { i: door.i }; })()`
-  );
-  const swing = "window.__range.swing()";
-  await gameSleep(page, 0.4);
-  await ev(page, swing);
-  await gameSleep(page, 0.9);
-  const afterOne = kicked ? await ev<{ hits: number; open: boolean }>(page, `(() => { const d = window.__range.brMap.doors.list[${kicked.i}]; return { hits: d.hits, open: d.open }; })()`) : null;
-  await ev(page, swing);
-  await gameSleep(page, 0.9);
-  await ev(page, "window.__range.setScript(null)");
-  const afterTwo = kicked ? await ev<{ broken: boolean; flat: boolean; shown: boolean }>(page, `(() => { const d = window.__range.brMap.doors.list[${kicked.i}]; return { broken: d.broken, flat: d.solid.top === d.solid.base, shown: d.pivot.visible }; })()`) : null;
-  check("doors: one swing into a shut door shakes it, the second kicks it in: gone from the doorway for the match", !!afterOne && afterOne.hits === 1 && !afterOne.open && !!afterTwo && afterTwo.broken && afterTwo.flat && !afterTwo.shown, JSON.stringify({ kicked, afterOne, afterTwo }));
-  // the traversal: a bot put on a launch pad is thrown along it
-  const pad = await ev<{ id: number; x: number; z: number; dx: number; dz: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const p = r.brMap.pads[0]; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.travel); if (!b) return null; b.bot.pos.set(p.x, 0, p.z); return { id: b.bot.remote.id, x: p.x, z: p.z, dx: p.dx, dz: p.dz }; })()`
-  );
-  const flew = !!pad && (await page.waitForFunction(`window.__range.duel().bots.find((x) => x.bot.remote.id === ${pad?.id ?? -1})?.bot.travel?.kind === "fling"`, { polling: 50, timeout: 2000 }).then(() => true, () => false));
-  if (pad) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${pad.id})?.bot.travel`, { polling: 100, timeout: 8000 }).catch(() => undefined);
-  const landed = pad ? await ev<{ x: number; z: number }>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${pad.id}); return { x: b.bot.pos.x, z: b.bot.pos.z }; })()`) : null;
-  const along = pad && landed ? (landed.x - pad.x) * pad.dx + (landed.z - pad.z) * pad.dz : 0;
-  check("traversal: a bot that steps on a launch pad is thrown along it", flew && along > 20, JSON.stringify({ pad, landed, along: Math.round(along) }));
-  // a bot at a rope's end, going somewhere nearer the far end, rides the rope there
-  const rope = await ev<{ id: number; far: number[] } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const zs = r.ziplines.filter((q) => q.a.z > 250).map((q) => ({ a: [q.a.x, q.a.y, q.a.z], b: [q.b.x, q.b.y, q.b.z] })); const z = zs.find((q) => q.a[1] < 12) ?? zs[0]; if (!z) return null; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.travel); if (!b) return null;
-      const nodes = r.brMap.nodes; let best = 0, bd = Infinity; nodes.forEach((n, i) => { const dd = Math.hypot(n.x - z.b[0], n.z - z.b[2]); if (dd < bd) { bd = dd; best = i; } });
-      b.bot.pos.set(z.a[0], z.a[1] - 2.13, z.a[2]); b.goal = best; b.node = best; for (const o of d.bots) if (o !== b) o.bot.pos.set(z.a[0] + 150, 0, z.a[2] + 150); return { id: b.bot.remote.id, far: z.b }; })()`
-  );
-  const rode = !!rope && (await page.waitForFunction(`window.__range.duel().bots.find((x) => x.bot.remote.id === ${rope?.id ?? -1})?.bot.travel?.kind === "zip"`, { polling: 50, timeout: 3000 }).then(() => true, () => false));
-  if (rope) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${rope.id})?.bot.travel`, { polling: 100, timeout: 20000 }).catch(() => undefined);
-  const at = rope ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${rope.id}); return Math.hypot(b.bot.pos.x - ${rope.far[0]}, b.bot.pos.z - ${rope.far[2]}); })()`) : -1;
-  check("traversal: a bot at a zipline's end, going somewhere nearer its far end, rides it there", rode && at >= 0 && at < 4, JSON.stringify({ rope, rode, at: +at.toFixed(1) }));
-  // and a rope its route says to take: it rides that one whichever way its goal lies (br.ts rope steps on the graph)
-  const planned = await ev<{ id: number; far: number[]; goal: number[] } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const nodes = r.brMap.nodes; const from = nodes.findIndex((n) => (n.ropes ?? []).length); if (from < 0) return null; const to = nodes[from].ropes[0];
-      const z = r.ziplines.find((q) => (Math.hypot(q.a.x - nodes[from].x, q.a.z - nodes[from].z) < 22 && Math.hypot(q.b.x - nodes[to].x, q.b.z - nodes[to].z) < 22) || (Math.hypot(q.b.x - nodes[from].x, q.b.z - nodes[from].z) < 22 && Math.hypot(q.a.x - nodes[to].x, q.a.z - nodes[to].z) < 22));
-      if (!z) return null; const near = Math.hypot(z.a.x - nodes[from].x, z.a.z - nodes[from].z) < 22 ? z.a : z.b; const far = near === z.a ? z.b : z.a;
-      const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.travel); if (!b) return null;
-      b.bot.pos.set(near.x, near.y - 2.13, near.z); b.node = from; b.goal = to; b.ropeTo = { x: nodes[to].x, z: nodes[to].z };
-      for (const o of d.bots) if (o !== b) o.bot.pos.set(near.x + 150, 0, near.z + 150);
-      return { id: b.bot.remote.id, far: [far.x, far.y, far.z], goal: [nodes[to].x, nodes[to].z] }; })()`
-  );
-  const rodePlan = !!planned && (await page.waitForFunction(`window.__range.duel().bots.find((x) => x.bot.remote.id === ${planned?.id ?? -1})?.bot.travel?.kind === "zip"`, { polling: 50, timeout: 3000 }).then(() => true, () => false));
-  if (planned) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${planned.id})?.bot.travel`, { polling: 100, timeout: 20000 }).catch(() => undefined);
-  const atPlan = planned ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${planned.id}); return Math.hypot(b.bot.pos.x - ${planned.far[0]}, b.bot.pos.z - ${planned.far[2]}); })()`) : -1;
-  check("traversal: a rope its route plans through is ridden, not walked round", rodePlan && atPlan >= 0 && atPlan < 5, JSON.stringify({ planned, rodePlan, at: +atPlan.toFixed(1) }));
-  // a jump tower: a bot at one with a long way to go rides it and glides for its goal
-  const tower = await ev<{ id: number; goal: number[]; x: number; z: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const t = r.brMap.towers[0]; if (!t) return null; const b = d.bots.find((x) => x.bot.alive && !x.down && !x.bot.travel && !x.bot.dropping); if (!b) return null;
-      b.bot.pos.set(t.x, t.y ?? 0, t.z); b.bot.dummy.group.position.copy(b.bot.pos); b.bot.travel = null;
-      const far = { x: t.x + 150, z: t.z + 60 }; const nodes = r.brMap.nodes; let best = 0, bd = Infinity; nodes.forEach((n, i) => { const dd = Math.hypot(n.x - far.x, n.z - far.z); if (dd < bd) { bd = dd; best = i; } });
-      b.node = best; b.goal = best; b.ropeTo = null;
-      for (const o of d.bots) if (o !== b) o.bot.pos.set(t.x + 220, 0, t.z + 220);
-      return { id: b.bot.remote.id, goal: [nodes[best].x, nodes[best].z], x: t.x, z: t.z }; })()`
-  );
-  const rode2 = !!tower && (await page.waitForFunction(`window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower?.id ?? -1})?.bot.dropping === true`, { polling: 50, timeout: 4000 }).then(() => true, () => false));
-  const up = tower ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower.id}); return b.bot.pos.y; })()`) : -1;
-  if (tower) await page.waitForFunction(`!window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower.id})?.bot.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined);
-  const went = tower ? await ev<number>(page, `(() => { const b = window.__range.duel().bots.find((x) => x.bot.remote.id === ${tower.id}); return Math.hypot(b.bot.pos.x - ${tower.x}, b.bot.pos.z - ${tower.z}); })()`) : -1;
-  check("traversal: a bot at a jump tower with a long way to go rides it and glides on", rode2 && up > 40 && went > 40, JSON.stringify({ tower, rode2, up: +up.toFixed(1), went: +went.toFixed(1) }));
-  await ev(page, "window.__range.duel()?.leave()");
-  await page.waitForFunction("window.__range.duel() === null", { polling: 100, timeout: 5000 }).catch(() => undefined);
-  const afterOpen = await ev<number>(page, "window.__range.brMap.doors.openList().length");
-  check("doors: leaving the match shuts every door again, for the next", afterOpen === 0, `${afterOpen} open`);
-  await page.close();
-}
-
-async function brTest(browser: Browser, query: string): Promise<void> {
-  const page = await open(browser, query);
-  await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  await sleep(400);
-  const drop = await ev<{ y: number; phase: string; dropping: boolean; poi: string; alive: number; bounds: boolean }>(
-    page,
-    `(() => { const d = window.__range.duel(); const h = d.hud().br; const p = window.__range.player.pos; return { y: p.y, phase: d.phase, dropping: h.dropping, poi: h.poi, alive: h.alive, bounds: p.z > 280 && p.z < 720 }; })()`
-  );
-  check("the drop starts high over one of the nine places, six in the match", drop.y > 40 && drop.dropping && /HUB|YARD|DEPOT|RIDGE|TOWN|FARM|STORE|PENS|WORKS/.test(drop.poi) && drop.alive === 6 && drop.bounds, JSON.stringify(drop));
-  // the match's own hour, from its seed; "always my time of day" keeps yours, and back
-  const sky = await ev<{ id: string; want: string; mine: string; back: string }>(
-    page,
-    `(() => { const R = window.__range; const want = R.sky.matchFor(R.duel().seed); const id = R.sky.id; const sel = document.getElementById("skyBr");
-      // your own hour, one the match did not draw, so keeping it shows
-      localStorage.setItem("range.sky.hour", R.sky.ids.find((h) => h !== want));
-      sel.value = "mine"; sel.dispatchEvent(new Event("change")); const mine = R.sky.id;
-      sel.value = "match"; sel.dispatchEvent(new Event("change")); return { id, want, mine, back: R.sky.id }; })()`
-  );
-  const own = await ev<string>(page, `localStorage.getItem("range.sky.hour")`);
-  check("the sky: the match is played at its seed's hour; 'always my time of day' keeps yours", sky.id === sky.want && sky.mine === own && own !== sky.want && sky.back === sky.want, JSON.stringify({ ...sky, own }));
-  const early = await ev<number>(page, `(() => { const d = window.__range.duel(); const now = performance.now() / 1000; return d.bots.filter((b) => b.armedAt <= now).length; })()`);
-  check("landing: nobody's gun works while the drop is still coming down", early === 0, `${early} armed`);
-  // the skydive's two states in the page: after its first moments the drop's
-  // map steps aside, and where you look is the trade between falling and travelling
-  const glideAt = await ev<{ map: boolean; k: number; fall: number; air: boolean }>(
-    page,
-    `new Promise((ok) => { const R = window.__range; R.player.pitch = 0; setTimeout(() => ok({ map: !!R.hud.last?.mapOpen, k: R.hud.last?.dive?.k ?? -1, fall: -R.player.vel.y, air: R.player.dropping }), 2800); })`
-  );
-  check("the skydive: the map steps aside after the drop's first moments, and looking level glides (12 m/s down)", !glideAt.map && glideAt.k === 0 && glideAt.air && Math.abs(glideAt.fall - 12) < 0.6, JSON.stringify(glideAt));
-  const diveAt = await ev<{ k: number; fall: number; air: boolean }>(
-    page,
-    `new Promise((ok) => { const R = window.__range; R.player.pitch = -89; setTimeout(() => ok({ k: R.hud.last?.dive?.k ?? -1, fall: -R.player.vel.y, air: R.player.dropping }), 1200); })`
-  );
-  check("and looking down dives (30 m/s)", diveAt.k === 1 && (!diveAt.air || diveAt.fall > 27), JSON.stringify(diveAt));
-  const landed = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 }).then(() => true, () => false);
-  check("the fight starts when you land", landed, await ev<string>(page, "String(window.__range.duel()?.phase)"));
-  // the owner landed beside bots and died before the drop finished. They take
-  // the OTHER places now, and a bot's gun does not work for the first seconds
-  // after ITS landing, taken here the moment you touch down.
-  const landing = await ev<{ nearest: number; poi: string }>(
-    page,
-    `(() => { const d = window.__range.duel(); const me = window.__range.player.pos;
-      let nearest = Infinity;
-      for (const a of d.avatars) nearest = Math.min(nearest, Math.hypot(a.group.position.x - me.x, a.group.position.z - me.z));
-      return { nearest, poi: d.hud().br.poi }; })()`,
-  );
-  // the map itself: nine places, ziplines out of each, towers to ride up
-  const shape = await ev<{ pois: number; zips: number; towers: number; pads: number }>(
-    page,
-    `(() => { const m = window.__range.brMap; return { pois: m.pois.length, zips: window.__range.ziplines.filter((z) => z.a.z > 280 && z.a.z < 720).length, towers: m.towers.length, pads: m.pads.length }; })()`
-  );
-  check("the map: nine places, ziplines off them, jump towers and launch pads", shape.pois === 9 && shape.zips >= 8 && shape.towers >= 3 && shape.pads >= 2, JSON.stringify(shape));  // how far the open map is drawn: the fog ends where this preset draws, and
-  // the camera's far plane sits beyond it. It used to be a fixed 400 m while
-  // the fog reached 680, so a ridge in clear air was cut off at the seam.
-  // the sky is the range's to build and everyone's to stand under: it sat on
-  // the range's side of the world, so the battle royale was played under a
-  // black sky from Milestone 100 until a picture of the map's corner showed it
-  const dome = await ev<{ there: boolean; visible: boolean; under: string; shown: string }>(page, "window.__range.skyDome()");
-  check("the sky is over the battle royale too, not left behind with the range", dome.there && dome.visible && dome.under !== "range-side" && dome.shown !== "range", JSON.stringify(dome));
-  const view = await ev<{ near: number; far: number; camFar: number; draws: number }>(page, "window.__range.viewRange()");
-  check("the open map is drawn as far as the preset says, and the far plane is beyond the fog", view.far === Math.min(680, view.draws) && view.camFar > view.far && view.near > 20, JSON.stringify(view));
-  await navChecks(page);
-  check("landing: no bot drops on your place, so the nearest is a long way off", landing.nearest > 60, `${landing.nearest.toFixed(0)} m to the nearest bot at ${landing.poi}`);
-
-  await sleep(300);
-  const bots = await ev<{ n: number; onGround: boolean; feet: number }>(page, `(() => { const d = window.__range.duel(); const a = d.avatars; return { n: a.length, onGround: a.every((x) => x.group.position.y < 20), feet: window.__range.player.pos.y }; })()`);
-  check("five bots dropped in and are on the map", bots.n === 5 && bots.onGround, JSON.stringify(bots));
-  check("no fall stun off the drop: you are standing on something", bots.feet >= 0 && bots.feet < 20, `${bots.feet.toFixed(1)} m`);
-
-  // ---- the match rules (src/config/br.json): solo, the care package's
-  // arrival, the loadout crate, Storm Surge. Every notice from here on is
-  // kept, because the HUD shows one at a time and the next can replace one
-  // before it is read. The bots hold their fire, so what hurts you is the rule.
-  await ev(page, `(() => { const d = window.__range.duel(); const say = d.onNotice; window.__notices = []; d.onNotice = (t) => { window.__notices.push(t); say?.(t); }; const end = d.onEnd; d.onEnd = (why) => { window.__ended = why + " (" + d.phase + ", alive " + d.alive + ")"; end?.(why); }; d.holdFire = true; })()`);
-  const solo = await ev<{ id: string; team: number; squads: number; total: number }>(page, `(() => { const d = window.__range.duel(); const h = d.hud().br; return { id: d.team.id, team: h.team, squads: h.squadsTotal, total: h.total }; })()`);
-  check("solo: the row's size is the match's, a squad of one, and a placement is out of everyone", solo.id === "solo" && solo.team === 1 && solo.squads === 6 && solo.total === 6, JSON.stringify(solo));
-  // A care package is called before it can be seen: the notice names the
-  // place, a ping of its own marks it without taking yours, the horn goes to
-  // the page's audio, and it is on the maps while the sky is still empty.
-  const called = await ev<{ notice: string; marks: Array<{ label: string; mine: boolean }>; horn: boolean; onMap: boolean; inSky: boolean }>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const p = r.player.pos;
-      r.brPlay.addMarker("go", p.clone(), "GOING HERE", d.id, -1, r.gameTime());
-      const fx = r.remoteFxLog.length;
-      d.addPod(new r.THREE.Vector3(p.x + 30, 0, p.z), ${brCfg.pod.announce + lootCfg.podFall});
-      return { notice: window.__notices.at(-1) ?? "", marks: r.brPlay.markers.map((m) => ({ label: m.label, mine: m.from === d.id })), horn: r.remoteFxLog.slice(fx).some((e) => e.k === "pod"), onMap: d.hud().br.pods.some((x) => !x.landed && !x.loadout), inSky: d.pods.at(-1).obj.visible }; })()`
-  );
-  check(
-    "care package: called before it is seen: the place named, pinged beside your own ping, the horn, on the map, the sky still empty",
-    /^CARE PACKAGE INBOUND  ·  [A-Z]/.test(called.notice) && called.marks.some((m) => m.label === "CARE PACKAGE" && !m.mine) && called.marks.some((m) => m.label === "GOING HERE" && m.mine) && called.horn && called.onMap && !called.inSky,
-    JSON.stringify(called)
-  );
-  await sleep(400);
-  const seenEarly = await ev<boolean>(page, "window.__range.duel().pods.at(-1).obj.visible");
-  // the announce brought to its end: into the sky, under its canopy, smoke behind it
-  await ev(page, `(() => { const p = window.__range.duel().pods.at(-1); p.landsAt = performance.now() / 1000 + p.fallFor * 0.6; })()`);
-  await sleep(400);
-  const falling = await ev<{ inSky: boolean; y: number; canopy: boolean; puffs: number }>(page, `(() => { const p = window.__range.duel().pods.at(-1); return { inSky: p.obj.visible, y: p.obj.position.y, canopy: p.canopy.visible, puffs: p.trail.children.length }; })()`);
-  check("care package: then it is in the sky, falling under a canopy with smoke behind it", !seenEarly && falling.inSky && falling.y > 1 && falling.y < brCfg.pod.height && falling.canopy && falling.puffs > 0, JSON.stringify({ seenEarly, ...falling }));
-  const fx1 = await ev<number>(page, "window.__range.remoteFxLog.length");
-  await ev(page, `(() => { const p = window.__range.duel().pods.at(-1); p.landsAt = performance.now() / 1000 + 0.1; })()`);
-  await sleep(500);
-  const down = await ev<{ landed: boolean; hot: boolean; canopy: boolean; dust: boolean; thump: boolean; said: boolean }>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const p = d.pods.at(-1); const h = d.hud().br.pods.find((x) => !x.loadout); return { landed: !!h?.landed, hot: !!h?.hot, canopy: p.canopy.visible, dust: !!p.dust, thump: r.remoteFxLog.slice(${fx1}).some((e) => e.k === "pod"), said: window.__notices.some((t) => /^CARE PACKAGE DOWN/.test(t)) }; })()`
-  );
-  check("care package: it lands in a ring of dust, the canopy cut loose, with a thump, and stays lit to be fought over", down.landed && down.hot && !down.canopy && down.dust && down.thump && down.said, JSON.stringify(down));
-  // The loadout crate hands you the loadout you built: the saved one (Heavy
-  // here), both guns kitted a magazine up, into your two slots, with ammo.
-  const pickedBefore = await ev<{ kind: string; index: number }>(page, "window.__range.loadouts.selected");
-  const cratePos = (await ev<{ x: number; z: number } | null>(page, "window.__range.openGround(window.__range.player.pos.x, window.__range.player.pos.z, 3)")) ?? { x: 0, z: 500 };
-  // what you had, and how much more of each would fit: a crate can only hand
-  // over what the pouch has room for, and a spawn kit can already fill it
-  const { stock: ammo0, room: room0 } = await ev<{ stock: Record<string, number>; room: Record<string, number> }>(
-    page,
-    `(() => { const r = window.__range; r.loadouts.select({ kind: "default", index: 3 }); r.player.teleport(${cratePos.x}, 0, ${cratePos.z}, 0); r.duel().addPod(new r.THREE.Vector3(${cratePos.x}, 0, ${cratePos.z}), 0.2, "loadout"); const a = r.loadout.ammo; return { stock: { ...a.stock }, room: Object.fromEntries(Object.keys(a.stock).map((t) => [t, a.room(t)])) }; })()`
-  );
-  await sleep(1300);
-  const claiming = await ev<{ hold: { label: string; progress: number } | null; crate: number | null }>(page, "({ hold: window.__range.hud.last?.brHold ?? null, crate: window.__range.duel().hud().br.crate })");
-  check("loadout crate: stood on, the claim fills in the HUD's hold bar", !!claiming.hold && /LOADOUT CRATE/.test(claiming.hold.label) && claiming.crate !== null && claiming.crate > 0 && claiming.crate < 1, JSON.stringify(claiming));
-  await sleep(2200);
-  const got = await ev<{ want: string[]; ids: string[]; empty: boolean[]; mags: number[]; fitted: number[]; ammo: Record<string, number> }>(
-    page,
-    `(() => { const r = window.__range; const def = r.loadouts.current; return { want: [def.slot1, def.slot2], ids: r.loadout.slots.map((s) => s.id), empty: r.loadout.slots.map((s) => s.empty), mags: r.loadout.slots.map((s) => s.magLevel), fitted: r.loadout.slots.map((s) => Object.keys(s.attach).length), ammo: { ...r.loadout.ammo.stock } }; })()`
-  );
-  const types = [...new Set(got.want.map((id) => (ammoCfg.types as Record<string, string>)[id] ?? "light"))].filter((t) => t !== "energy");
-  const stacks = ammoCfg.stacks as Record<string, number>;
-  const ammoOk = types.every((t) => got.ammo[t] - ammo0[t] === Math.min(room0[t], t === "arrows" ? stacks.arrows : stacks[t] * brCfg.loadoutPod.stacks));
-  check(
-    "loadout crate: it hands you your saved loadout's two guns, kitted and a magazine up, with their ammo",
-    got.ids.join() === got.want.join() && got.empty.every((e) => !e) && got.mags.every((m) => m === brCfg.loadoutPod.mag) && got.fitted.every((n) => n > 0) && ammoOk,
-    JSON.stringify({ ...got, before: ammo0, room: room0, types })
-  );
-  await ev(page, `window.__range.loadout.give(0, "r97")`);
-  await sleep(2800);
-  const once = await ev<{ id0: string; crate: number | null; match: boolean; ended: string | null }>(page, "({ id0: window.__range.loadout.slots[0].id, crate: window.__range.duel()?.hud().br.crate ?? null, match: !!window.__range.duel(), ended: window.__ended ?? null })");
-  check("loadout crate: once each: standing on it after the claim hands nothing more", once.match && once.id0 === "r97" && once.crate === null, JSON.stringify(once));
-  if (!once.match) {
-    await page.close();
-    return;
-  }
-  await ev(page, `window.__range.loadouts.select(${JSON.stringify(pickedBefore)})`);
-  // Storm Surge. The ring held in its fourth round (its circle does not
-  // move), and six alive where three are allowed: it is called with a
-  // countdown first.
-  await ev(page, `(() => { const r = window.__range.duel().ring; window.__ringWas = { phase: r.phase, state: r.state, timeLeft: r.timeLeft }; r.phase = ${brCfg.surge.fromPhase}; r.state = "waiting"; r.timeLeft = 1e6; })()`);
-  await sleep(400);
-  const warned = await ev<{ surge: { live: boolean; startsIn: number } | null; said: boolean }>(page, `({ surge: window.__range.duel().hud().br.surge, said: window.__notices.some((t) => t.startsWith("STORM SURGE IN ${brCfg.surge.warn}")) })`);
-  check("storm surge: late, with more alive than the ring allows, it is called with a countdown before it bites", !!warned.surge && !warned.surge.live && warned.surge.startsIn > brCfg.surge.warn - 2 && warned.surge.startsIn <= brCfg.surge.warn && warned.said, JSON.stringify(warned));
-  // You have dealt nothing and every bot something: you are below the line.
-  // The countdown skipped, it goes live and takes its tick wherever you stand.
-  await ev(page, "(() => { const d = window.__range.duel(); d.dealt.clear(); for (const b of d.bots) d.dealt.set(b.bot.remote.id, { total: 999, at: -1e9 }); d.surgeAt = performance.now() / 1000; })()");
-  await sleep(300);
-  const hp0 = await ev<{ hp: number; surge: { live: boolean; safe: boolean; below: number } | null }>(page, "(() => { const d = window.__range.duel(); return { hp: d.shield + d.health, surge: d.hud().br.surge }; })()");
-  await sleep(1800);
-  const hp1 = await ev<number>(page, "(() => { const d = window.__range.duel(); return d.shield + d.health; })()");
-  check("storm surge: live, whoever has dealt the least takes a tick wherever they stand, and the HUD says it is you", !!hp0.surge && hp0.surge.live && !hp0.surge.safe && hp0.surge.below >= 1 && hp0.hp - hp1 >= brCfg.surge.damage[0], JSON.stringify({ ...hp0, after: hp1 }));
-  // back to the ring's own round: it no longer applies, so it ends and says so
-  await ev(page, "Object.assign(window.__range.duel().ring, window.__ringWas)");
-  await sleep(400);
-  const ended = await ev<{ surge: unknown; said: boolean }>(page, `({ surge: window.__range.duel().hud().br.surge, said: window.__notices.includes("STORM SURGE OVER") })`);
-  check("storm surge: once it no longer applies it ends, and says so", ended.surge === null && ended.said, JSON.stringify(ended));
-
-  // a knock: the bot's own hit() takes the damage, localHit credits it
-  await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => !x.knocked); const r = d.remoteOf(a); a.hit(0, "body", 500, 1, 1, a.group.position); d.localHit(r, 500, false); })()`);
-  const afterKill = await ev<{ kills: number; alive: number }>(page, `(() => { const h = window.__range.duel().hud().br; return { kills: h.kills, alive: h.alive }; })()`);
-  check("a knock counts and the alive count drops", afterKill.kills === 1 && afterKill.alive === 5, JSON.stringify(afterKill));
-  // EVO the way Season 30 counts it: a knock through the bullets' own path is its damage plus 150
-  await ev(page, "window.__range.duel().holdFire = true");
-  const alive = () => ev<number[]>(page, "(() => { const d = window.__range.duel(); return d.avatars.filter((a) => !a.knocked).map((a) => d.remoteOf(a).id); })()");
-  let ids = await alive();
-  const evo0 = await ev<number>(page, "window.__range.armor.evo");
-  await ev(page, `window.__range.hitThrough(${ids[0]}, 500)`);
-  const evo1 = await ev<number>(page, "window.__range.armor.evo");
-  check("EVO: a knock earns 150 on top of the damage dealt", evo1 - evo0 >= 150 + 50, `${evo0} -> ${evo1}`);
-  // a bot's knock is its death: the kill marker (not a hit's), and the feed says eliminated
-  const kill = await ev<{ mark: string; feed: string[] }>(page, "({ mark: window.__range.hud.hitMarkerKindNow, feed: window.__range.hud.feedText })");
-  check("a kill confirms as one: the kill marker, and 'eliminated' in the feed", kill.mark === "kill" && kill.feed.some((t) => /eliminated BOT/.test(t)), JSON.stringify({ mark: kill.mark, feed: kill.feed.slice(0, 3) }));
-  // a care package's loot: 100 once a package
-  await ev(page, `window.__range.applyLoot({ kind: "heal", id: "cell", n: 1, rarity: "common", pod: 77 })`);
-  await ev(page, `window.__range.applyLoot({ kind: "heal", id: "syringe", n: 1, rarity: "common", pod: 77 })`);
-  const evo2 = await ev<number>(page, "window.__range.armor.evo");
-  check("EVO: a care package's loot earns 100, once a package", evo2 - evo1 === 100, `${evo1} -> ${evo2}`);
-  // Executioner: a knock with the Mastiff that has it brings 50 shield back over 5 s
-  ids = await alive();
-  await ev(page, `(() => { const l = window.__range.loadout; l.give(l.activeIndex, "mastiff", 0, { hopup: "hopup_executioner" }); window.__range.duel().shield = 0; })()`);
-  await ev(page, `window.__range.hitThrough(${ids[0]}, 500)`);
-  await sleep(2200);
-  const exec = await ev<{ shield: number }>(page, "({ shield: window.__range.duel().shield })");
-  check("Executioner: a knock with the Mastiff brings shield back (10 a second)", exec.shield >= 12 && exec.shield <= 40, JSON.stringify(exec));
-  // a Peacekeeper off the floor: Executioner fitted but locked, unlocking with the damage done with it
-  await ev(page, `window.__range.applyLoot({ kind: "weapon", id: "energy_shotgun", n: 1, rarity: "rare" })`);
-  const lock = await ev<{ mod: string; need: number } | null>(page, "window.__range.loadout.active.hopLock ?? null");
-  check("a Peacekeeper off the floor comes with Executioner locked until 275 damage", lock?.mod === "hopup_executioner" && lock.need === 275, JSON.stringify(lock));
-  ids = await alive();
-  await ev(page, "window.__range.loadout.active.hopLock.need = 150");
-  await ev(page, `window.__range.hitThrough(${ids[0]}, 100)`);
-  await ev(page, `window.__range.hitThrough(${ids[0]}, 100)`);
-  const unlocked = await ev<{ lock: unknown; hop: string | null }>(page, "({ lock: window.__range.loadout.active.hopLock ?? null, hop: window.__range.loadout.active.attach.hopup ?? null })");
-  check("and once the damage is done it unlocks, fitted", unlocked.lock === null && unlocked.hop === "hopup_executioner", JSON.stringify(unlocked));
-  // Fusion (br.json fusion): the R-301 you carry, found again, is a better R-301, not a second one
-  const fuse0 = await ev<{ ids: string[]; mag: number; light: number; fused: number }>(
-    page,
-    `(() => { const r = window.__range; const l = r.loadout; l.give(l.activeIndex, "rspn101", 0, {}); l.ammo.stock.light = 0; return { ids: l.slots.map((s) => s.id), mag: l.active.magLevel, light: l.ammo.stock.light, fused: r.fused() }; })()`
-  );
-  await ev(page, `window.__range.applyLoot({ kind: "weapon", id: "rspn101", n: 1, rarity: "rare", mag: 0, attach: { optic: "optic_cq_hcog_classic" } })`);
-  const fuse1 = await ev<{ ids: string[]; mag: number; light: number; fused: number; optic: string | null }>(
-    page,
-    `(() => { const r = window.__range; const l = r.loadout; return { ids: l.slots.map((s) => s.id), mag: l.active.magLevel, light: l.ammo.stock.light, fused: r.fused(), optic: l.active.attach.optic ?? null }; })()`
-  );
-  check(
-    "fusion: picking up the gun you carry makes it better (a magazine level, the attachment it lacked, a stack of ammo) instead of a second copy",
-    fuse1.ids.join() === fuse0.ids.join() && fuse1.mag === fuse0.mag + 1 && fuse1.light > fuse0.light && fuse1.fused === fuse0.fused + 1 && fuse1.optic === "optic_cq_hcog_classic",
-    JSON.stringify({ before: fuse0, after: fuse1 })
-  );
-  // (Executioner's shield done coming back before the ring's damage is measured)
-  await page.waitForFunction("!window.__range.kdState().exec", { polling: 100, timeout: 8000 }).catch(() => undefined);
-  // outside the ring: a corner of the map is outside ring 1
-  await ev(page, "window.__range.player.teleport(215, 0, 715, 0)");
-  const before = await ev<number>(page, "window.__range.duel().shield + window.__range.duel().health");
-  await sleep(3500);
-  const outside = await ev<{ hp: number; out: boolean }>(page, `(() => { const d = window.__range.duel(); return { hp: d.shield + d.health, out: d.hud().br.ring.outside }; })()`);
-  check("outside the ring you take its damage", outside.out && outside.hp < before, `${before} -> ${outside.hp}`);
-  // eliminated by the ring: no killcam (nobody to watch), a recap that says so
-  const ringPage = await open(browser, query);
-  await ev(ringPage, brRow("solo", 3));
-  await ev(ringPage, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  await ringPage.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 });
-  await ev(ringPage, "(() => { window.__range.player.teleport(215, 0, 715, 0); const d = window.__range.duel(); d.shield = 0; d.health = 1; })()");
-  const ringOut = await ringPage.waitForFunction("!window.__range.duel()?.alive", { polling: 200, timeout: 8000 }).then(() => true, () => false);
-  const ringRc = await ev<{ byRing: boolean; killerName: string } | null>(ringPage, "window.__range.recap()");
-  const ringKc = await ev<{ active: boolean }>(ringPage, "window.__range.killcamState()");
-  check("recap: out to the ring: no killcam, the recap says the ring", ringOut && !!ringRc?.byRing && !ringKc.active, JSON.stringify({ ringRc, ringKc }));
-  // solo: that knock was the end, not a down: out, the match over at once,
-  // placed behind every bot still up, out of everyone
-  const soloEnd = await ev<{ downed: boolean; alive: boolean; phase: string; placement: number | null; squads: number; bots: number } | null>(
-    ringPage,
-    `(() => { const d = window.__range.duel(); if (!d) return null; const h = d.hud().br; return { downed: d.downed, alive: d.alive, phase: d.phase, placement: h.placement, squads: h.squadsTotal, bots: d.bots.filter((b) => b.bot.alive).length }; })()`
-  );
-  check("solo: a knock is the end: out rather than down, the match over, placed behind every bot still up", !!soloEnd && !soloEnd.downed && !soloEnd.alive && soloEnd.phase === "matchEnd" && soloEnd.placement === soloEnd.bots + 1 && soloEnd.squads === 4, JSON.stringify(soloEnd));
-  await ev(ringPage, "window.__range.duel()?.leave()");
-  await ringPage.close();
-  // a heal: a cell brings the shield up by 25 in 2.5 s of the game's time, and costs one of four
-  await ev(page, "(() => { window.__range.duel().holdFire = true; window.__range.player.teleport(0, 0, 500, 0); })()");
-  await sleep(300);
-  const cellsBefore = await ev<number>(page, "window.__range.kit.items.cell");
-  await ev(page, "window.__range.startHeal()");
-  const shieldBefore = await ev<number>(page, "window.__range.duel().shield");
-  await page.waitForFunction(`window.__range.kit.items.cell < ${cellsBefore}`, { polling: 100, timeout: 10000 }).catch(() => undefined);
-  const healed = await ev<{ shield: number; cells: number; max: number }>(page, "({ shield: window.__range.duel().shield, cells: window.__range.kit.items.cell, max: window.__range.duel().shieldMax })");
-  check("a shield cell heals 25 shield and is spent", healed.shield === Math.min(healed.max, shieldBefore + 25) && healed.cells === cellsBefore - 1, JSON.stringify({ shieldBefore, cellsBefore, ...healed }));
-  // the controller's Default: RB twice pings an enemy there; D-pad up heals
-  await pressPlay(page);
-  await padTap(page, 5, 60);
-  await padTap(page, 5, 60);
-  const enemyPing = await ev<boolean>(page, "window.__range.brPlay.markers.some((m) => m.k === 'enemy' && m.label === 'ENEMY HERE' && m.from === window.__range.duel().id)");
-  check("pad: RB twice quickly is an enemy ping where you look (the game's double tap)", enemyPing, JSON.stringify(await ev(page, "window.__range.brPlay.markers.map((m) => m.label)")));
-  await ev(page, "window.__range.duel().shield = 0");
-  await padTap(page, 12, 80);
-  const padHeal = await ev<string | null>(page, "window.__range.hud.last?.heal?.item ?? null");
-  check("pad: D-pad up (a tap) is the quick heal", padHeal !== null, String(padHeal));
-  await sleep(1500);
-  await ev(page, "window.__range.duel().leave()");
-  await sleep(300);
-  check("leaving ends the battle royale", (await ev<boolean>(page, "window.__range.duel() === null")));
-  check("and the sky is your own hour again", (await ev<string>(page, "window.__range.sky.id")) === own, await ev<string>(page, "window.__range.sky.id"));
-  // the pages share one browser's storage: no later page starts on this hour
-  await ev(page, `localStorage.removeItem("range.sky.hour")`);
-  await page.close();
-}
-
-/**
- * A battle royale that starts with nothing: two empty slots and fists, the
- * floor's loot laid out, E takes the item under the crosshair, a second gun
- * fills the other slot, a third goes in place of the one in hand (which goes
- * down where you stand), ammo, a heal past its stack, a mag onto the gun that
- * takes it, a helmet; what you had, loose where you fall; the bots search before they are armed.
- */
-async function brLootTest(browser: Browser, query: string): Promise<void> {
-  const page = await open(browser, query);
-  // trios, the default size: the three bots are one squad of three
-  await ev(page, brRow("trio", 3));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 40000 });
-  await sleep(300);
-  await ev(page, "window.__range.duel().holdFire = true");
-  const start = await ev<{ empty: boolean; kit: number; field: number; light: number; weapon: string; botsArmed: number; looted: number; sight: number[] }>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); return { empty: r.loadout.slots.every((s) => s.empty), kit: r.kit.total, field: d.lootField ? d.lootField.count : 0, light: r.loadout.ammo.stock.light, weapon: r.hud.last?.weaponName ?? "", botsArmed: d.bots.filter((b) => b.armedShown).length, looted: d.bots.filter((b) => b.armedShown && b.bot.lootKit.gunId !== null && b.bot.lootKit.taken > 0).length, sight: d.bots.map((b) => Math.round(b.bot.sight)) }; })()`
-  );
-  check("loot: you land with nothing (two empty slots, fists, no heals, no ammo) on a floor of items", start.empty && start.kit === 0 && start.light === 0 && start.field > 100 && start.weapon === "FISTS", JSON.stringify(start));
-  // the hot zone: the place this match kitted out, which nothing showed before
-  const hot = await ev<{ name: string; x: number; z: number; radius: number; poi: boolean; kitted: number } | null>(
-    page,
-    `(() => { const r = window.__range; const d = r.duel(); const h = d.hud().br.hot; if (!h) return null;
-      const poi = r.brMap.pois.some((p) => p.name === h.name);
-      // the guns lying in it that came built, which is what makes it hot
-      const drops = d.lootField ? [...d.lootField.drops.values()] : [];
-      const near = drops.filter((x) => x.item.kind === "weapon" && Math.hypot(x.pos.x - h.x, x.pos.z - h.z) < h.radius);
-      const kitted = near.filter((x) => (x.item.attach && Object.keys(x.item.attach).length > 0) || (x.item.mag ?? 0) > 0).length;
-      return { name: h.name, x: h.x, z: h.z, radius: h.radius, poi, kitted }; })()`
-  );
-  check("the hot zone: this match kitted one of the places out, and the map can say which", !!hot && hot.poi && hot.radius > 10 && hot.kitted >= 1, JSON.stringify(hot));
-  // A bot lands with nothing and LOOTS its gun off the floor, so one that came
-  // down a few seconds before you may already have one. What must never
-  // happen is a bot holding a gun it did not find.
-  check("loot: the bots land unarmed and search first: any bot with a gun looted it", start.botsArmed === start.looted, JSON.stringify({ armed: start.botsArmed, looted: start.looted }));
-  check("loot: the bots see with the battle royale's range, not the arena's 60 m", start.sight.length > 0 && start.sight.every((m) => m >= 60) && start.sight.some((m) => m > 70), JSON.stringify(start.sight));
-  // The places are buildings now, so the loot has to be IN them: a spot picks
-  // any floor at that point with headroom, which is what puts items upstairs
-  // and on roofs. Before the buildings, a spot under anything was refused
-  // outright and every item ended up outdoors.
-  const spread = await ev<{ total: number; upstairs: number; guns: number }>(
-    page,
-    `(() => { const lf = window.__range.duel().lootField; const all = [...lf.drops.values()];
-      const y = (d) => (d.at ? d.at.y : d.pos ? d.pos.y : 0);
-      return { total: all.length, upstairs: all.filter((d) => y(d) > 1.5).length, guns: all.filter((d) => (d.item?.kind ?? d.kind) === "weapon").length }; })()`
-  );
-  check("loot: the map carries hundreds of items, a couple of hundred of them guns", spread.total > 500 && spread.guns > 120, JSON.stringify(spread));
-  check("loot: a good share of it is upstairs and on roofs, not all on the sand", spread.upstairs > 80, `${spread.upstairs} of ${spread.total} above ground`);
-  // an R-97 on the ground in front, looked at; E takes it (through the game's own E)
-  // open ground to stand on, the item 1.6 m ahead, looked at from 45 degrees down
-  const spot = await ev<{ x: number; z: number } | null>(page, "window.__range.openGround(window.__range.player.pos.x, window.__range.player.pos.z)");
-  check("loot: there is open ground near the landing", spot !== null, JSON.stringify(spot));
-  const S = spot ?? { x: 0, z: 500 };
-  const place = (item: string) => `(() => {
-      const r = window.__range; const f = r.duel().lootField;
-      r.player.teleport(${S.x}, 0, ${S.z}, 0, -45);
-      for (const k of [...f.drops.keys()]) { const x = f.drops.get(k); if (x && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 6) f.remove(k); }
-      f.add(${item}, new r.THREE.Vector3(${S.x}, 0, ${S.z} - 1.6));
-    })()`;
-  const take = async (item: string): Promise<void> => {
-    await ev(page, place(item));
-    await sleep(150);
-    await ev(page, `window.__range.setScript({ held: () => false, pressedNow: (a) => a === "interact" })`);
-    await sleep(250);
-    await ev(page, "window.__range.setScript(null)");
-    await sleep(100);
-  };
-  await ev(page, place(`{ kind: "weapon", id: "r97", n: 1, rarity: "rare" }`));
-  await ev(page, "window.__range.setScript({ held: () => false, pressedNow: () => false })");
-  await sleep(200);
-  const prompt = await ev<string>(page, "JSON.stringify(window.__range.brPlay.hud.prompt)");
-  check("loot: looking at an item gives the TAKE prompt", /TAKE/.test(prompt), prompt);
-  await ev(page, "window.__range.setScript(null)");
-  await take(`{ kind: "weapon", id: "r97", n: 1, rarity: "rare" }`);
-  const one = await ev<{ ids: string[]; empty: boolean[]; weapon: string }>(page, "(() => { const r = window.__range; return { ids: r.loadout.slots.map((s) => s.id), empty: r.loadout.slots.map((s) => s.empty), weapon: r.hud.last?.weaponName ?? '' }; })()");
-  check("loot: E takes the gun into an empty slot, and it is in hand", one.empty.filter((e) => !e).length === 1 && one.ids.includes("r97") && one.weapon !== "FISTS", JSON.stringify(one));
-  await take(`{ kind: "weapon", id: "hemlok", n: 1, rarity: "rare" }`);
-  await sleep(700);
-  await take(`{ kind: "weapon", id: "wingman", n: 1, rarity: "rare" }`);
-  const three = await ev<{ ids: string[]; dropped: boolean }>(page, `(() => { const r = window.__range; const f = r.duel().lootField; return { ids: r.loadout.slots.map((s) => s.id), dropped: [...f.drops.values()].some((x) => x.item.kind === "weapon" && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 3) }; })()`);
-  check("loot: a second gun fills the other slot, a third goes in place of the one in hand, which goes down", three.ids.includes("wingman") && three.ids.filter((i) => i === "r97" || i === "hemlok").length === 1 && three.dropped, JSON.stringify(three));
-  await ev(page, `window.__range.applyLoot({ kind: "ammo", id: "heavy", n: 60, rarity: "common" })`);
-  await ev(page, `window.__range.applyLoot({ kind: "heal", id: "battery", n: 3, rarity: "rare" })`);
-  const packed = await ev<{ heavy: number; batts: number; putBack: boolean }>(page, `(() => { const r = window.__range; const f = r.duel().lootField; return { heavy: r.loadout.ammo.stock.heavy, batts: r.kit.items.battery, putBack: [...f.drops.values()].some((x) => x.item.kind === "heal" && x.item.id === "battery" && x.item.n === 1) }; })()`);
-  check("loot: ammo into the pack; three batteries where two fit: two taken, one back on the ground", packed.heavy === 60 && packed.batts === 2 && packed.putBack, JSON.stringify(packed));
-  await ev(page, `window.__range.applyLoot({ kind: "helmet", id: "gold", n: 1, rarity: "legendary" })`);
-  const helm = await ev<string | null>(page, "window.__range.armor.helmet");
-  check("loot: a helmet goes on", helm === "gold", String(helm));
-  // A backpack: more room for every heal, and a worse one stays on the floor.
-  const packs = await ev<{ before: number; after: number; pack: string; kept: string }>(
-    page,
-    `(() => { const r = window.__range; const before = r.kit.room.battery + r.kit.items.battery;
-      r.applyLoot({ kind: "backpack", id: "gold", n: 1, rarity: "legendary" });
-      const after = r.kit.room.battery + r.kit.items.battery; const pack = r.kit.pack;
-      r.applyLoot({ kind: "backpack", id: "blue", n: 1, rarity: "rare" });
-      return { before, after, pack, kept: r.kit.pack }; })()`
-  );
-  check("loot: a gold backpack fits more batteries, and a blue one after it stays down", packs.pack === "gold" && packs.after > packs.before && packs.kept === "gold", JSON.stringify(packs));
-  // A knockdown shield off the floor: a gold one carries a self-revive.
-  const kdGold = await ev<{ self: boolean; looted: string | null }>(
-    page,
-    `(() => { const r = window.__range; r.applyLoot({ kind: "knockdown", id: "gold", n: 1, rarity: "legendary" }); return { self: r.kd.canSelfRevive, looted: r.kd.looted }; })()`
-  );
-  check("loot: a gold knockdown shield is taken and carries its self-revive", kdGold.self && kdGold.looted === "gold", JSON.stringify(kdGold));
-  // The walk-over pickup. It shipped with its carry hook never set, so in a
-  // real match it took nothing: ammo for a gun you carry, dropped at your
-  // feet, has to come up with no press at all.
-  const walk = await ev<{ light: number }>(
-    page,
-    `(() => { const r = window.__range; const f = r.duel().lootField;
-      r.player.teleport(${S.x}, 0, ${S.z}, 0, -45);
-      for (const k of [...f.drops.keys()]) { const x = f.drops.get(k); if (x && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 6) f.remove(k); }
-      const light = r.loadout.ammo.stock.light;
-      f.add({ kind: "ammo", id: "light", n: 60, rarity: "common" }, new r.THREE.Vector3(${S.x} + 0.6, 0, ${S.z}));
-      return { light }; })()`
-  );
-  await sleep(1200);
-  const walked = await ev<{ light: number; left: boolean }>(
-    page,
-    `(() => { const r = window.__range; const f = r.duel().lootField; return { light: r.loadout.ammo.stock.light, left: [...f.drops.values()].some((x) => x.item.kind === "ammo" && x.item.id === "light" && Math.hypot(x.pos.x - ${S.x}, x.pos.z - ${S.z}) < 2) }; })()`
-  );
-  check("loot: ammo for the gun you carry comes up as you stand over it, no key pressed", walked.light > walk.light && !walked.left, JSON.stringify({ before: walk.light, after: walked.light, stillThere: walked.left }));
-  // a care package: on the maps while it falls, then its gold gun and extras around it
-  await ev(page, `(() => { const d = window.__range.duel(); const f = d.lootField; for (const k of [...f.drops.keys()]) { const x = f.drops.get(k); if (x && Math.hypot(x.pos.x - (${S.x} + 12), x.pos.z - ${S.z}) < 4) f.remove(k); } d.addPod(new window.__range.THREE.Vector3(${S.x} + 12, 0, ${S.z}), 1.2); })()`);
-  const falling = await ev<number>(page, "window.__range.duel().hud().br.pods.filter((p) => !p.landed).length");
-  await sleep(1800);
-  const pod = await ev<{ landed: boolean; items: Array<{ kind: string; id: string; rarity: string }> }>(
-    page,
-    `(() => { const d = window.__range.duel(); const at = { x: ${S.x} + 12, z: ${S.z} }; return { landed: d.hud().br.pods.some((p) => p.landed), items: [...d.lootField.drops.values()].filter((x) => Math.hypot(x.pos.x - at.x, x.pos.z - at.z) < 2).map((x) => ({ kind: x.item.kind, id: x.item.id, rarity: x.item.rarity })) }; })()`
-  );
-  const podGun = pod.items.find((i) => i.kind === "weapon");
-  check("loot: a care package shows on the map as it falls, then lands with a gold care-package gun and two more", falling === 1 && pod.landed && pod.items.length === 3 && !!podGun && ["sniper", "3030", "lstar"].includes(podGun.id) && podGun.rarity === "legendary", JSON.stringify({ falling, ...pod }));
-  // out: what you had goes down loose where you fell, no box round it
-  const before = await ev<number>(page, "window.__range.duel().lootField.count");
-  await ev(page, "window.__range.duel().takeHit(500, 100)");
-  await sleep(300);
-  const box = await ev<{ alive: boolean; boxes: number; added: number }>(page, `(() => { const d = window.__range.duel(); const f = d.lootField; return { alive: d.alive, boxes: [...f.drops.values()].filter((x) => x.item.kind === "box").length, added: f.count }; })()`);
-  check("loot: out, and your guns, ammo, heals and helmet go down loose where you fell, with no death box", !box.alive && box.boxes === 0 && box.added - before >= 5, JSON.stringify({ before, ...box }));
-  await ev(page, "window.__range.duel()?.leave()");
-  await sleep(300);
-  const back = await ev<{ empty: boolean[] }>(page, "({ empty: window.__range.loadout.slots.map((s) => s.empty) })");
-  check("loot: leaving gives you your own loadout back", back.empty.every((e) => !e), JSON.stringify(back));
-  await page.close();
-}
-
 /** a mode alone from the Play tab's button: in the game (the pad's Start), the fight on */
 async function startModePage(browser: Browser, query: string, button: string, setup = ""): Promise<Page> {
   const page = await open(browser, query);
@@ -1206,25 +469,6 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   check("control: down, you come back on your team's zone A", backIn && where < 4.5, `${where.toFixed(1)} m from A`);
   await ev(ct, "window.__range.duel()?.leave()");
   await ct.close();
-
-  // ---- the motion-captured figures (a setting): they load, a match's figures are mannequins and animate
-  const mq = await open(browser, query + LEGACY);
-  await ev(mq, `(() => { const s = document.getElementById("figureStyle"); const def = s.value; s.value = "mannequin"; s.dispatchEvent(new Event("change")); window.__mqDefault = def; return window.__range.loadMannequin(); })()`);
-  check("figures: the mannequin is the default figure", (await ev<string>(mq, "window.__mqDefault")) === "mannequin");
-  await ev(mq, `(() => { document.getElementById("modeBots").value = "2"; document.getElementById("goFfa").click(); document.getElementById("startMode").click(); })()`);
-  await pressPlay(mq);
-  await mq.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 20000 }).catch(() => undefined);
-  await sleep(800);
-  const figs = await ev<{ n: number; mannequins: number; moved: boolean }>(
-    mq,
-    `(() => { const d = window.__range.duel(); const a = d.avatars; const m = a.map((x) => x.group.getObjectByName("mannequin")).filter(Boolean); let moved = false; m[0]?.traverse((o) => { if (o.name === "thigh_l") moved = Math.abs(o.quaternion.x) + Math.abs(o.quaternion.y) + Math.abs(o.quaternion.z) > 0.01; }); return { n: a.length, mannequins: m.length, moved }; })()`
-  );
-  check("figures: with the setting on the bots are mannequins, and their clips are playing", figs.n === 2 && figs.mannequins === 2 && figs.moved, JSON.stringify(figs));
-  // a long gun is shouldered: it hangs off the chest (not the hand), the right hand on the grip
-  const shouldered = await ev<Array<{ mount: boolean; grip: number }>>(mq, `window.__range.duel().avatars.filter((a) => a.mq && a.mq.gunObject).map((a) => ({ mount: a.mq.gunObject.parent?.name === "gunMount", grip: a.mq.gripReach }))`);
-  check("figures: a mannequin's rifle hangs off its chest with the right hand on the grip", shouldered.length > 0 && shouldered.every((s) => s.mount && s.grip > 0.5), JSON.stringify(shouldered));
-  await ev(mq, `(() => { window.__range.duel()?.leave(); localStorage.removeItem("range.figures"); })()`);
-  await mq.close();
 }
 
 async function friendsModesTest(browser: Browser, query: string): Promise<void> {
@@ -2969,7 +2213,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   res.inspectLen = await pf<typeof res.inspectLen>(`r.debugView.inspect = null; H.clear(); await H.gameWait(0.3); const time = r.packArms().inspectTime; const t0 = r.gameTime(); r.inspectNow(); const until = async (s) => { const w0 = performance.now(); while (r.gameTime() - t0 < s && performance.now() - w0 < 100000) await new Promise((ok) => setTimeout(ok, 20)); return r.gameTime() - t0; }; const e44 = await until(4.4); const at44 = r.vmState().inspecting; const e56 = await until(5.6); const at56 = r.vmState().inspecting; return { time, at44, at56, e44, e56 };`);
   // (the jump in a page of its own: in the section's, after the checks before it, the player left the ground and was
   // never stepped again, where a fresh page jumps, loops and lands)
-  const jumpPage = await open(page.browser(), "?game=speedkills");
+  const jumpPage = await open(page.browser(), "?");
   await jumpPage.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 120000 });
   await jumpPage.bringToFront();
   res.jump = await ev<string[]>(
@@ -3596,236 +2840,6 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   const df = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0], b[5], b[12], b[15]]; })()");
   check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, ping, heal, grenade)", bj.join() === "jump,ability" && df.join() === "ability,jump,ping,heal,grenade", `${bj} / ${df}`);
   await page.close();
-}
-
-/**
- * The dropship (src/game/dropship.ts): the battle royale starts on a ship
- * flying a line across the map. Alone: aboard with the map up and the doors
- * shut, the bots riding out of sight, the jump refused until the doors open
- * and taken the moment they do, and every bot leaving the ship as it passes
- * its place and gliding onto it. Then the end of the line, which puts out
- * whoever is still aboard. Then a squad: the host is the jumpmaster, the
- * guest is linked, the host's jump takes the guest along in formation, and
- * the guest's break key lets go.
- */
-async function shipTest(browser: Browser, query: string, squadQuery: string): Promise<void> {
-  const page = await open(browser, query);
-  await ev(page, "window.__straightDrop = false");
-  await ev(page, brRow("solo", 5));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  await sleep(400);
-  // the bots hold their fire: this is about the ride, and an idle rider on the ground is easy prey
-  await ev(page, "window.__range.duel().holdFire = true");
-  const on = await ev<{ aboard: boolean; y: number; map: boolean; doorsIn: number; hud: boolean; hidden: number; bots: number; edge: number[]; off: number; ahead: boolean; hands: boolean }>(
-    page,
-    `(() => { const R = window.__range; const d = R.duel(); const run = R.ship(); const h = R.hud.last; const L = run.line;
-      const B = { minX: -220, maxX: 220, minZ: 280, maxZ: 720 };
-      const edge = (x, z) => Math.min(Math.abs(x - B.minX), Math.abs(x - B.maxX), Math.abs(z - B.minZ), Math.abs(z - B.maxZ));
-      const along = Math.max(0, Math.min(L.length, (d.poi.x - L.ax) * L.dx + (d.poi.z - L.az) * L.dz));
-      const off = Math.hypot(d.poi.x - (L.ax + L.dx * along), d.poi.z - (L.az + L.dz * along));
-      return { aboard: R.shipState().aboard, y: R.player.pos.y, map: !!h?.mapOpen, doorsIn: h?.ship?.doorsIn ?? -1, hud: !!h?.ship,
-        hidden: d.bots.filter((b) => b.bot.aboard && !b.bot.dummy.group.visible).length, bots: d.bots.length,
-        edge: [edge(L.ax, L.az), edge(L.bx, L.bz)], off, ahead: along >= L.length / 2 - 30, hands: R.viewModelVisible() }; })()`
-  );
-  // the map used to be thrown up over all of this, so the first thing anyone
-  // saw of a match was a map with the ship, the sky and the island behind it
-  check("the ship: the battle royale starts aboard it, at its height, the ride in view, the doors still shut", on.aboard && Math.abs(on.y - 138.4) < 0.6 && !on.map && on.hud && on.doorsIn > 0, JSON.stringify(on));
-  await ev(page, `window.__range.setMapOpen(true)`);
-  // hud.last is the frame that has been drawn, so the map opens on the next one
-  await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-  const byHand = await ev<boolean>(page, `!!window.__range.hud.last.mapOpen`);
-  await ev(page, `window.__range.setMapOpen(false)`);
-  check("the ship: and the map is there for the asking, rather than in the way", byHand);
-  check("the ship: the five bots ride it too, out of sight", on.bots === 5 && on.hidden === 5, `${on.hidden} of ${on.bots} hidden aboard`);
-  check("the ship: its line crosses the map edge to edge, over the squad's place, with the place ahead", on.edge.every((e) => e < 0.05) && on.off <= 30.01 && on.ahead, JSON.stringify({ edge: on.edge, off: on.off, ahead: on.ahead }));
-  check("the ship: no hands in the view aboard", !on.hands);
-  // the match's voice says the drop, and the drop theme is on (announcer.ts, audio.ts music)
-  const voiced = await ev<{ spoken: string[]; music: { on: boolean } }>(page, "(() => ({ spoken: window.__range.spoken(), music: window.__range.music() }))()");
-  check("the ship: the announcer says the drop and the drop theme plays", voiced.spoken.includes("drop") && voiced.music.on, JSON.stringify(voiced));
-  // the ship carries you: two readings of where you are a second apart
-  const pace = await ev<number>(page, `new Promise((ok) => { const R = window.__range; const a = R.player.pos.clone(); const t0 = performance.now(); setTimeout(() => { const b = R.player.pos; ok(Math.hypot(b.x - a.x, b.z - a.z) / ((performance.now() - t0) / 1000)); }, 500); })`);
-  check("the ship: it carries you along its line at 26 m/s", Math.abs(pace - 26) < 4, `${pace.toFixed(1)} m/s`);
-  // the jump key held from here: refused while the doors are shut, taken as they open
-  await ev(page, `window.__range.setScript({ held: (a) => a === "jump", pressedNow: (a) => a === "jump", playing: true, endFrame: () => {} })`);
-  await sleep(150);
-  const shut = await ev<{ aboard: boolean; doorsIn: number }>(page, `(() => { const R = window.__range; return { aboard: R.shipState().aboard, doorsIn: R.ship().doorsIn(performance.now() / 1000) }; })()`);
-  check("the ship: the jump is refused while the doors are shut", shut.aboard && shut.doorsIn > 0, JSON.stringify(shut));
-  // The first ring's wait starts once the ship has flown its line: the ride
-  // used to eat into round one's wait, leaving about 25 s to loot.
-  const clock = async () => ev<{ left: number; flying: boolean }>(page, `(() => { const d = window.__range.duel(); return { left: d.view ? d.view.timeLeft : -1, flying: !d.ship.gone(performance.now() / 1000) }; })()`);
-  const c0 = await clock();
-  await sleep(1500);
-  const c1 = await clock();
-  check("the ship: the first ring's clock waits while the ship flies", c0.flying && c1.flying && c0.left > 0 && Math.abs(c0.left - c1.left) < 0.05, JSON.stringify({ c0, c1 }));
-  const out = await page.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 6000 }).then(() => true, () => false);
-  const left = await ev<{ dropping: boolean; map: boolean; along: number; inside: boolean }>(
-    page,
-    `(() => { const R = window.__range; const L = R.ship().line; const p = R.player.pos;
-      return { dropping: R.player.dropping, map: !!R.hud.last?.mapOpen, along: (p.x - L.ax) * L.dx + (p.z - L.az) * L.dz, inside: p.x > -220 && p.x < 220 && p.z > 280 && p.z < 720 }; })()`
-  );
-  check("the ship: and taken the moment they open, into the skydive over the map's edge, the map out of the way", out && left.dropping && !left.map && left.inside && left.along >= -1 && left.along < 30, JSON.stringify(left));
-  await ev(page, "window.__range.setScript(null)");
-  const fight = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).then(() => true, () => false);
-  check("the ship: the fight starts when you land", fight, await ev<string>(page, "String(window.__range.duel()?.phase)"));
-  // the bots leave as the ship passes their places and glide down onto them
-  const allOff = await page.waitForFunction("window.__range.duel().bots.every((b) => !b.bot.aboard)", { polling: 250, timeout: 30000 }).then(() => true, () => false);
-  const down = await page.waitForFunction("window.__range.duel().bots.every((b) => !b.bot.dropping)", { polling: 250, timeout: 20000 }).then(() => true, () => false);
-  const bots = await ev<Array<{ miss: number; off: number; y: number }>>(
-    page,
-    `(() => { const R = window.__range; const run = R.ship(); if (!run) return []; const L = run.line; return R.duel().bots.map((b) => {
-      const t = b.dropTo; const s = Math.max(0, Math.min(L.length, (t.x - L.ax) * L.dx + (t.z - L.az) * L.dz));
-      const at = b.landedAt;
-      const miss = at ? Math.hypot(at.x - t.x, at.z - t.z) : -1;
-      const off = Math.hypot(t.x - (L.ax + L.dx * s), t.z - (L.az + L.dz * s));
-      return { miss, off: Number.isFinite(off) ? off : -1, y: b.bot.pos.y }; }); })()`
-  );
-  // a bot still in the air (miss -1) is not one that landed off its place
-  const inReach = bots.filter((b) => b.off >= 0 && b.off < 140 && b.miss >= 0);
-  // Within 8 m: the landforms and the tall buildings stand in some glide
-  // paths, and a bot that meets one slides along it and comes down beside it
-  // (5.5 m once, beside a mound).
-  check("the ship: every bot leaves it and lands", allOff && down && bots.length === 5, JSON.stringify({ allOff, down, bots: bots.length }));
-  // down on the ground, the drop theme fades: the fight has its own sounds
-  const onFoot = await page.waitForFunction("(() => { const p = window.__range.player; return !p.dropping && !p.aboard && p.onGround; })()", { polling: 250, timeout: 40000 }).then(() => true, () => false);
-  const quiet = await ev<{ on: boolean }>(page, "window.__range.music()");
-  check("the ship: landed, the drop theme is off", onFoot && !quiet.on, JSON.stringify({ onFoot, quiet }));
-  check(
-    "the ship: a bot whose place is in a glide's reach lands on it",
-    inReach.length > 0 && inReach.every((b) => b.miss < 8),
-    JSON.stringify(bots.map((b) => [b.miss < 0 ? "in the air" : b.miss.toFixed(1), b.off < 0 ? "?" : b.off.toFixed(0)]))
-  );
-  await page.close();
-
-  // ---- the end of the line: whoever is still aboard is put out
-  const late = await open(browser, query);
-  await ev(late, "window.__straightDrop = false");
-  await ev(late, brRow("solo", 2));
-  await ev(late, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  await sleep(400);
-  await ev(late, "window.__range.ship().startAt -= 60");
-  const put = await late.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 3000 }).then(() => true, () => false);
-  const lastOut = await ev<{ dropping: boolean; bots: number }>(late, "(() => { const R = window.__range; return { dropping: R.player.dropping, bots: R.duel().bots.filter((b) => b.bot.aboard).length }; })()");
-  check("the ship: at the far edge it puts out whoever is still aboard, you and the bots", put && lastOut.dropping && lastOut.bots === 0, JSON.stringify(lastOut));
-  await late.close();
-
-  // ---- a squad: the jumpmaster's jump is the squad's
-  const host = await open(browser, squadQuery);
-  const guest = await open(browser, squadQuery);
-  for (const p of [host, guest]) await ev(p, "window.__straightDrop = false");
-  await ev(host, brRow("duo", 2));
-  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
-  let code = "";
-  try {
-    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
-    code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
-    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
-    for (const p of [host, guest]) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
-  } catch {
-    check("the ship: a squad connects", false, code);
-    await host.close();
-    await guest.close();
-    return;
-  }
-  for (const p of [host, guest]) await pressPlay(p);
-  const both = await Promise.all([host, guest].map((p) => p.waitForFunction("window.__range.shipState().aboard", { polling: 100, timeout: 15000 }).then(() => true, () => false)));
-  const roles = await Promise.all(
-    [host, guest].map((p) => ev<{ linkedTo: number | null; master: boolean; linkedName: string | null }>(p, "(() => { const R = window.__range; const h = R.hud.last?.ship; return { linkedTo: R.shipState().linkedTo, master: !!h?.master, linkedName: h?.linkedTo ?? null }; })()"))
-  );
-  check("the ship: a squad boards together, the host the jumpmaster and the guest linked to them", both[0] && both[1] && roles[0].master && roles[0].linkedTo === null && roles[1].linkedTo === 0 && !!roles[1].linkedName, JSON.stringify(roles));
-  await host.waitForFunction("window.__range.ship().doorsOpen(performance.now() / 1000)", { polling: 100, timeout: 8000 }).catch(() => undefined);
-  await ev(host, `window.__range.setScript({ held: (a) => a === "jump", pressedNow: (a) => a === "jump", playing: true, endFrame: () => {} })`);
-  const hostOut = await host.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 4000 }).then(() => true, () => false);
-  await ev(host, "window.__range.setScript(null)");
-  const guestOut = await guest.waitForFunction("!window.__range.shipState().aboard", { polling: 50, timeout: 4000 }).then(() => true, () => false);
-  const gs = await ev<{ following: number | null; dropping: boolean }>(guest, "(() => { const R = window.__range; return { following: R.shipState().following, dropping: R.player.dropping }; })()");
-  check("the ship: the jumpmaster's jump takes the linked guest out with them", hostOut && guestOut && gs.following === 0 && gs.dropping, JSON.stringify({ hostOut, guestOut, gs }));
-  await sleep(2000);
-  const gap = await ev<{ gap: number; following: number | null; hint: string | null }>(
-    guest,
-    `(() => { const R = window.__range; const f = R.duel().figureOf(0); const p = R.player.pos; const g = f ? f.group.position : null;
-      return { gap: g ? Math.hypot(p.x - g.x, p.y - g.y, p.z - g.z) : -1, following: R.shipState().following, hint: R.hud.last?.dive?.following ?? null }; })()`
-  );
-  check("the ship: the guest flies in formation behind the jumpmaster, and the dive readout says whom it follows", gap.following === 0 && gap.gap > 2 && gap.gap < 12 && !!gap.hint, JSON.stringify(gap));
-  await ev(guest, `window.__range.setScript({ held: (a) => a === "crouch", pressedNow: (a) => a === "crouch", playing: true, endFrame: () => {} })`);
-  await sleep(300);
-  await ev(guest, "window.__range.setScript(null)");
-  const broke = await ev<{ following: number | null; leash: unknown; dropping: boolean }>(guest, "(() => { const R = window.__range; const s = R.shipState(); return { following: s.following, leash: s.leash, dropping: R.player.dropping }; })()");
-  check("the ship: the break key lets go, and the guest flies themself", broke.following === null && broke.leash === null && broke.dropping, JSON.stringify(broke));
-  const landed = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel().phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).then(() => true, () => false)));
-  check("the ship: both land and the fight is on", landed[0] && landed[1], JSON.stringify(landed));
-  await host.close();
-  await guest.close();
-}
-
-/**
- * Ring Consoles (src/game/ringconsole.ts): four by the map's places, lit.
- * Alone: the prompt at one, a scan that takes its hold and shows nothing
- * until it is done, then the circle after next on the map (the very circle
- * the ring's chain holds for that round), the console spent and saying so,
- * and the EVO paid. As a squad: a guest's scan reaches the host's map.
- */
-async function consoleTest(browser: Browser, query: string, squadQuery: string): Promise<void> {
-  const page = await open(browser, query);
-  await ev(page, brRow("solo", 3));
-  await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-  await sleep(400);
-  await ev(page, "window.__range.duel().holdFire = true");
-  const fight = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 30000 }).then(() => true, () => false);
-  const setup = await ev<{ n: number; lit: number; icons: number; plan: number; ahead: unknown; places: number }>(
-    page,
-    `(() => { const d = window.__range.duel(); const br = d.hud().br; return { n: d.consoles.length, lit: br.consoles.filter((c) => c.ready).length, icons: br.consoles.length, plan: d.ringPlan.length, ahead: br.ring.ahead, places: new Set(d.consoles.map((c) => c.place)).size }; })()`
-  );
-  check("ring console: four by four different places, lit and on the map; the ring's six circles known from the start; nothing ahead shown yet", fight && setup.n === 4 && setup.places === 4 && setup.lit === 4 && setup.icons === 4 && setup.plan === 6 && setup.ahead === null, JSON.stringify(setup));
-  await ev(page, `(() => { const R = window.__range; const c = R.duel().consoles[0]; R.player.teleport(c.x + 1.2, 0, c.z, 0); })()`);
-  await sleep(300);
-  const prompt = await ev<string>(page, "JSON.stringify(window.__range.brPlay.hud.prompt)");
-  check("ring console: standing at one, the prompt offers the scan", /SCAN THE RING CONSOLE/.test(prompt), prompt);
-  const evo0 = await ev<number>(page, "window.__range.armor.evo");
-  await ev(page, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: (a) => a === "interact" })`);
-  await sleep(3000);
-  const half = await ev<{ hold: number; ahead: unknown }>(page, "(() => { const R = window.__range; return { hold: R.hud.last?.brHold?.progress ?? -1, ahead: R.duel().hud().br.ring.ahead }; })()");
-  check("ring console: the scan is a hold, and shows nothing until it is done", half.hold > 0.2 && half.hold < 0.8 && half.ahead === null, JSON.stringify(half));
-  const done = await page.waitForFunction("window.__range.duel().hud().br.ring.ahead !== null", { polling: 100, timeout: 8000 }).then(() => true, () => false);
-  await ev(page, "window.__range.setScript(null)");
-  await sleep(200);
-  const after = await ev<{ ahead: { cx: number; cz: number; r: number } | null; want: { cx: number; cz: number; r: number }; ready: boolean; evo: number; prompt: string }>(
-    page,
-    `(() => { const R = window.__range; const d = R.duel(); const br = d.hud().br; return { ahead: br.ring.ahead, want: d.ringPlan[br.ring.phase], ready: br.consoles[0].ready, evo: R.armor.evo, prompt: JSON.stringify(R.brPlay.hud.prompt) }; })()`
-  );
-  const match = !!after.ahead && Math.abs(after.ahead.cx - after.want.cx) < 1e-6 && Math.abs(after.ahead.cz - after.want.cz) < 1e-6 && Math.abs(after.ahead.r - after.want.r) < 1e-6;
-  check("ring console: done, the circle after next is on the map, the one the ring's chain holds for that round", done && match, JSON.stringify({ ahead: after.ahead, want: after.want }));
-  check("ring console: spent for the round, and it says it reboots when the ring closes", !after.ready && /REBOOTS/.test(after.prompt), after.prompt);
-  check("ring console: the scan pays 100 EVO", after.evo - evo0 === 100, `${evo0} -> ${after.evo}`);
-  await page.close();
-
-  // ---- a squad mate's scan reaches the host
-  const host = await open(browser, squadQuery);
-  const guest = await open(browser, squadQuery);
-  await ev(host, brRow("duo", 2));
-  await ev(host, `(() => { document.getElementById("duelMode").value = "br"; document.getElementById("duelHost").click(); })()`);
-  try {
-    await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
-    const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
-    await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
-    for (const pg of [host, guest]) await pg.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 });
-  } catch {
-    check("ring console: a squad connects", false);
-    await host.close();
-    await guest.close();
-    return;
-  }
-  for (const pg of [host, guest]) await pressPlay(pg);
-  await ev(host, "window.__range.duel().holdFire = true");
-  const landed = await Promise.all([host, guest].map((pg) => pg.waitForFunction(`window.__range.duel().phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).then(() => true, () => false)));
-  const plans = await Promise.all([host, guest].map((pg) => ev<string>(pg, "JSON.stringify({ plan: window.__range.duel().ringPlan, spots: window.__range.duel().consoles.map((c) => [c.x, c.z]) })")));
-  check("ring console: host and guest know the same chain and the same consoles", landed[0] && landed[1] && plans[0] === plans[1], plans[0] === plans[1] ? "" : `${plans[0].slice(0, 120)} / ${plans[1].slice(0, 120)}`);
-  await ev(guest, `(() => { const R = window.__range; const c = R.duel().consoles[1]; R.player.teleport(c.x + 1.2, 0, c.z, 0); R.setScript({ held: (a) => a === "interact", pressedNow: (a) => a === "interact" }); })()`);
-  const seen = await host.waitForFunction("window.__range.duel().hud().br.ring.ahead !== null", { polling: 100, timeout: 12000 }).then(() => true, () => false);
-  await ev(guest, "window.__range.setScript(null)");
-  const hostView = await ev<{ ready: boolean[]; ahead: unknown }>(host, "(() => { const br = window.__range.duel().hud().br; return { ready: br.consoles.map((c) => c.ready), ahead: br.ring.ahead }; })()");
-  check("ring console: the guest's scan puts the circle after next on the host's map too, and the host sees that console spent", seen && hostView.ready[1] === false && hostView.ready.filter(Boolean).length === 3, JSON.stringify(hostView));
-  await host.close();
-  await guest.close();
 }
 
 /**
@@ -4785,7 +3799,7 @@ async function skHitsLand(page: Page): Promise<void> {
 /**
  * SpeedKills (docs/PHASE_18_PLAN_SPEEDKILLS.md), on a page that asks for it:
  * the front door, the ten guns, fusion, the health model, and every hack doing
- * what its card says. The rest of the suite is the legacy game's.
+ * what its card says. The rest of the suite tests SpeedKills' shared systems.
  */
 /**
  * SpeedKills' soldier (Phase 21 S8), with the bought files here (they are local only; without them this is skipped
@@ -4800,7 +3814,7 @@ async function skHitsLand(page: Page): Promise<void> {
 async function heldTexTest(browser: Browser): Promise<void> {
   const sizes: Record<string, number> = {};
   for (const preset of ["high", "balanced"]) {
-    const page = await open(browser, "?game=speedkills", BASE, `try { localStorage.setItem("range.quality", "${preset}"); } catch {}`);
+    const page = await open(browser, "?", BASE, `try { localStorage.setItem("range.quality", "${preset}"); } catch {}`);
     const ready = await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready", { polling: 250, timeout: 120000 }).then(() => true, () => false);
     if (!ready) {
       console.log("  --  the bought guns are not here, so the texture check is skipped");
@@ -4831,7 +3845,7 @@ async function heldTexTest(browser: Browser): Promise<void> {
 }
 
 async function soldierTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?game=speedkills");
+  const page = await open(browser, "?");
   const here = await ev<boolean>(page, `fetch(${JSON.stringify(soldierCfg.model)}, { method: "HEAD" }).then((r) => r.ok && !(r.headers.get("content-type") ?? "").includes("text/html"), () => false)`);
   const ready = await page.waitForFunction("window.__range.soldierReady()", { polling: 250, timeout: 120000 }).then(() => true, () => false);
   if (!here && !ready) {
@@ -5468,7 +4482,7 @@ async function soldierTest(browser: Browser): Promise<void> {
   bare.on("pageerror", (e) => errors.push(`pageerror: ${String((e as Error).message ?? e)}`));
   await bare.evaluateOnNewDocument(NO_REAL_MOUSE);
   await bare.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
-  await bare.goto(`${BASE}?game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await bare.goto(`${BASE}?nointro`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await bare.waitForFunction("Boolean(window.__range) && window.__range.loaded()", { polling: 250, timeout: 60000 }).catch(() => undefined);
   await ev(bare, "window.__range.loadMannequin()").catch(() => undefined);
   await ev(bare, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.figureLab([{ speed: 0, stance: "stand", pitch: 0 }], 4, 0); })()`);
@@ -5485,7 +4499,7 @@ async function soldierTest(browser: Browser): Promise<void> {
 }
 
 async function speedkillsTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&game=speedkills");
+  const page = await open(browser, "?norender");
   const front = await ev<{ game: string; html: string; br: boolean; gunrun: boolean; tour: boolean; title: string }>(
     page,
     `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; window.__range.menu.showExtras(true); const out = { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: !!document.getElementById("goGunRun"), tour: vis("goTour"), title: document.title }; window.__range.menu.showExtras(false); return out; })()`
@@ -5560,7 +4574,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await skHitsLand(page);
   await page.close();
   // a bot match in SpeedKills, a 1v1: on NEON YARD by default, THE CENTRE picked (below)
-  const arena = await open(browser, "?game=speedkills");
+  const arena = await open(browser, "?");
   await ev(arena, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
   await arena.waitForFunction("window.__range.duel()?.phase === 'fight' || window.__range.duel()?.phase === 'countdown'", { polling: 200, timeout: 20000 }).catch(() => undefined);
   await sleep(500);
@@ -5568,7 +4582,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   // maps are supposed to be super basic"): you and the bot inside its walls, and the city's file showing the yard alone,
   // none of the city, its fence or its ropes (a 7 m wall is no screen against a 144 m tower)
   {
-    const page = await open(browser, "?game=speedkills");
+    const page = await open(browser, "?");
     await ev(page, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
     await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 200, timeout: 60000 }).catch(() => undefined);
     await page.waitForFunction("window.__range.neonMap().drawn", { polling: 500, timeout: 120000 }).catch(() => undefined);
@@ -5588,7 +4602,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   // its bot from the spawn north of the tower reaches the 1v1's circle by the city's graph (walking straight at it from
   // there, it was 40 m off after 45 s: measured from each spawn)
   {
-    const page = await open(browser, "?norender&game=speedkills&map=neon");
+    const page = await open(browser, "?norender&map=neon");
     await ev(page, `(() => { document.getElementById("arenaMap").value = "centre"; document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
     await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 200, timeout: 30000 }).catch(() => undefined);
     const at = await ev<{ x: number; z: number; map: string | null; bot: number[] }>(
@@ -5628,7 +4642,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await arena.close();
   // the movement lab, from TRAINING: in its bounds, and its storey block climbed for real (arenas/movelab.ts:
   // the lab at x 74..122, z -121..-79; the 4 m block's south face at x 83, z -112)
-  const lab = await open(browser, "?game=speedkills");
+  const lab = await open(browser, "?");
   await ev(lab, `(() => { document.getElementById("goLab").click(); document.getElementById("startMode").click(); })()`);
   await sleep(800);
   const inLab = await ev<{ x: number; z: number }>(lab, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
@@ -5645,7 +4659,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   // HAEFY became the launcher) the gun is hidden for the scope picture,
   // and the arms, which are not under the gun, stayed drawn frozen and filled the scope. With a red dot (USSO) the
   // arms stay, as they should.
-  const sight = await open(browser, "?game=speedkills");
+  const sight = await open(browser, "?");
   const arms = await ev<{ scoped: boolean; dot: boolean; ready: boolean }>(
     sight,
     `(async () => { const r = window.__range; await r.loadMannequin(); const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const t0 = performance.now(); while (!r.realArms() && performance.now() - t0 < 8000) await wait(100); r.loadout.setWeaponId(0, "sentinel"); r.debugView.ads = 1; await wait(1200); const scoped = r.realArmsShown(); r.loadout.setWeaponId(0, "r97"); const t1 = performance.now(); while (!r.realArmsShown() && !r.packArms().on && performance.now() - t1 < 4000) await wait(100); const dot = r.realArmsShown() || r.packArms().on; r.debugView.ads = null; return { scoped, dot, ready: r.realArms() }; })()`,
@@ -5748,13 +4762,13 @@ async function speedkillsTest(browser: Browser): Promise<void> {
 async function skLoadoutTest(browser: Browser): Promise<void> {
   const read = `(() => { const r = window.__range; const c = r.loadouts.current; const s = JSON.parse(localStorage.getItem("range.loadouts.sk.v1") ?? "null"); return { name: c.name, want: [c.slot1, c.slot2], held: r.loadout.slots.map((x) => x.id), pick: s?.pick ?? null, sel: s?.selected ?? null }; })()`;
   // a new player: nothing stored
-  const fresh = await open(browser, "?game=speedkills&norender", BASE, `if (!sessionStorage.getItem("e2e.fresh")) { sessionStorage.setItem("e2e.fresh", "1"); localStorage.removeItem("range.loadouts.sk.v1"); }`);
+  const fresh = await open(browser, "?norender", BASE, `if (!sessionStorage.getItem("e2e.fresh")) { sessionStorage.setItem("e2e.fresh", "1"); localStorage.removeItem("range.loadouts.sk.v1"); }`);
   const a = await ev<{ name: string; want: string[]; held: string[]; pick: string | null }>(fresh, read);
   check("a new player's loadout is the USSO and BOOG, in hand", a.want.join() === "r97,sentinel" && a.held.join() === "r97,sentinel" && a.name === "USSO and BOOG", JSON.stringify(a));
   await fresh.close();
   // a returning player on Marksman from before, the store with no pick in it
   const OLD = `{"selected":{"kind":"default","index":2},"custom":[]}`;
-  const back = await open(browser, "?game=speedkills&norender", BASE, `if (!sessionStorage.getItem("e2e.back")) { sessionStorage.setItem("e2e.back", "1"); localStorage.setItem("range.loadouts.sk.v1", '${OLD}'); }`);
+  const back = await open(browser, "?norender", BASE, `if (!sessionStorage.getItem("e2e.back")) { sessionStorage.setItem("e2e.back", "1"); localStorage.setItem("range.loadouts.sk.v1", '${OLD}'); }`);
   const b = await ev<{ want: string[]; held: string[]; pick: string | null; sel: { kind: string; index: number } | null }>(back, read);
   check("a returning player is moved onto the USSO and BOOG once, and the store says so", b.want.join() === "r97,sentinel" && b.held.join() === "r97,sentinel" && b.pick === "usso-boog" && b.sel?.index === 0, JSON.stringify(b));
   // they pick Marksman again: after a reload it is still theirs
@@ -5776,7 +4790,7 @@ async function skLoadoutTest(browser: Browser): Promise<void> {
  * always was; the host then moves both into the range together, into a battle royale and back mid-match, with no new
  * code; a friend who opens the same link later lands in the range with them; one who leaves is gone from it.
  */
-async function skGroupTest(browser: Browser, Q = "?game=speedkills&net=local&norender"): Promise<void> {
+async function skGroupTest(browser: Browser, Q = "?net=local&norender"): Promise<void> {
   const host = await open(browser, Q);
   await ev(host, `(() => { const s = document.getElementById("duelMode"); s.value = "arena"; s.dispatchEvent(new Event("change")); document.getElementById("duelPlayers").value = "2"; document.getElementById("duelHost").click(); })()`);
   const got = await host.waitForSelector("#inviteLink", { timeout: 20000 }).then(() => true, () => false);
@@ -5856,7 +4870,7 @@ async function skGroupTest(browser: Browser, Q = "?game=speedkills&net=local&nor
  * at 0.75 of their speed; I inspects; and the keys on screen, up until / hides them.
  */
 async function skDefaultsTest(browser: Browser): Promise<void> {
-  const Q = "?game=speedkills&norender";
+  const Q = "?norender";
   const row = `(() => ({ team: document.getElementById("brTeam").value, sides: document.getElementById("brSides").value, bots: document.getElementById("brBots").value, pace: document.getElementById("brPace").value, start: document.getElementById("brStart").value, difficulty: document.getElementById("botDifficulty").value, music: window.__range.audio.volumes.music }))()`;
   const want = JSON.stringify({ team: "duo", sides: "together", bots: "28", pace: "normal", start: "loadout", difficulty: "easy", music: 0 });
   // a new player: nothing stored
@@ -5919,7 +4933,7 @@ async function skDefaultsTest(browser: Browser): Promise<void> {
  * red ball metres wide round a bot. Every hull must stand out the width asked for, the scale-100 parts too.
  */
 async function skOutlineTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?game=speedkills&norender");
+  const page = await open(browser, "?norender");
   // the bought soldier and guns in first: a figure made before them keeps its stand-in body and gun for the match
   await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 120000 }).catch(() => undefined);
   await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "normal"; window.__range.startBots(); })()`);
@@ -5947,7 +4961,7 @@ async function skOutlineTest(browser: Browser): Promise<void> {
  */
 async function skHuntTest(browser: Browser): Promise<void> {
   // the Neon City's graph (its decks, the court 7 m down): a battle royale on it, bots landed
-  const page = await open(browser, "?norender&game=speedkills&map=neon");
+  const page = await open(browser, "?norender&map=neon");
   await ev(page, brRow("solo", 9));
   await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   const landed = await page.waitForFunction(`window.__range.duel()?.phase === "fight" && window.__range.duel().bots.some((b) => b.landed && b.bot.alive && !b.guard)`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
@@ -6019,7 +5033,7 @@ async function skHuntTest(browser: Browser): Promise<void> {
   );
   await page.close();
   // drawn: the soldier's body and textures fetched once, and the city's loop not fetched at all while the music is at nothing
-  const arena = await open(browser, "?game=speedkills");
+  const arena = await open(browser, "?");
   await arena.waitForFunction("window.__range.loaded()", { polling: 250, timeout: 120000 }).catch(() => undefined);
   // (SpeedKills' own soldier's: its pages stopped loading the legacy body, T_Superhero_Male_Dark, which counted 0 here in
   // the 2026-10-04 sweep: not fetched twice, but not this check's figure any more)
@@ -6079,7 +5093,7 @@ async function skHuntTest(browser: Browser): Promise<void> {
  */
 async function skArmoryTest(browser: Browser): Promise<void> {
   // drawn: a ?norender page builds no armory (its screens are for a player to read)
-  const page = await open(browser, "?game=speedkills");
+  const page = await open(browser, "?");
   await ev(page, "window.__range.input.locked = true");
   type Stand = { kind: string; id: string; x: number; z: number; drawn: string; stand: boolean; dressed: boolean; skin: string; box: number[] | null };
   const ready = await page
@@ -6195,7 +5209,7 @@ async function skArmoryTest(browser: Browser): Promise<void> {
 async function skIntroTest(browser: Browser): Promise<void> {
   // drawn: a ?norender page never builds the first-person arms, one of the late steps the loading screen waits on.
   // The ship on (open() drops straight in): the way in is the ship's to hold.
-  const page = await open(browser, "?game=speedkills&intro=on", BASE, "window.__straightDrop = false");
+  const page = await open(browser, "?intro=on", BASE, "window.__straightDrop = false");
   // while it loads: the loading screen, its bar, and no card; and it goes only once everything the card waits on is in
   const boot = await ev<{ everCard: boolean; bar: boolean; atHide: { loaded: boolean; secs: number; status: string; waited: boolean; kind: string | null } | null }>(
     page,
@@ -6283,10 +5297,10 @@ const FRIEND_SOLDIER = "S3343041";
 async function brFriendsJoinTest(browser: Browser): Promise<void> {
   // each page wears FRIEND_SOLDIER from its first frame (pages share one localStorage; the saved one goes back after)
   const wear = `window.__savedSoldier = localStorage.getItem("range.sk.soldier"); localStorage.setItem("range.sk.soldier", "${FRIEND_SOLDIER}")`;
-  const host = await open(browser, "?norender&game=speedkills", BASE, wear);
+  const host = await open(browser, "?norender", BASE, wear);
   const saved = await ev<string | null>(host, "window.__savedSoldier");
-  const g1 = await open(browser, "?norender&game=speedkills", BASE, wear);
-  const g2 = await open(browser, "?norender&game=speedkills", BASE, wear);
+  const g1 = await open(browser, "?norender", BASE, wear);
+  const g2 = await open(browser, "?norender", BASE, wear);
   const pages = [host, g1, g2];
   const closeAll = async () => {
     await ev(host, saved === null ? `localStorage.removeItem("range.sk.soldier")` : `localStorage.setItem("range.sk.soldier", ${JSON.stringify(saved)})`);
@@ -6331,7 +5345,7 @@ async function brFriendsJoinTest(browser: Browser): Promise<void> {
  */
 async function speedkillsEdgeTest(browser: Browser): Promise<void> {
   // the Gulag back on (open() turns it off): where an out-of-bounds first death goes is part of the check
-  const page = await open(browser, "?norender&game=speedkills", BASE, "window.__noGulag = false");
+  const page = await open(browser, "?norender", BASE, "window.__noGulag = false");
   await ev(page, brRow("solo", 9));
   await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   const fought = await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).then(() => true, () => false);
@@ -6385,7 +5399,7 @@ async function speedkillsEdgeTest(browser: Browser): Promise<void> {
  * first takes the damage, its number shown; the other two take nothing.
  */
 async function speedkillsSlamTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&game=speedkills");
+  const page = await open(browser, "?norender");
   await ev(page, brRow("solo", 9));
   await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   const landed = await page
@@ -6440,7 +5454,7 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
   type Slot = { id: string; empty: boolean; fusion: number };
   type Here = { slots: Slot[]; active: number; fused: number; down: string[] };
   for (const start of ["loot", "loadout"] as const) {
-    const page = await open(browser, "?norender&game=speedkills");
+    const page = await open(browser, "?norender");
     await ev(page, "window.__range.sk.setFusion(0, 3)");
     await ev(page, brRow("solo", 9));
     await ev(page, `(() => { document.getElementById("brStart").value = "${start}"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
@@ -6590,7 +5604,7 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
  * fired it (the same rocket fired as nobody's does, on its own head).
  */
 async function skLauncherTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&game=speedkills");
+  const page = await open(browser, "?norender");
   await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 90000 }).catch(() => undefined);
   await ev(page, `(() => { const r = window.__range; const l = r.loadout; l.give(0, "launcher"); l.requestSwap(0, r.gameTime()); })()`);
   await page.waitForFunction("window.__range.loadout.active.weapon.id === 'launcher' && !window.__range.loadout.swapping", { polling: 100, timeout: 15000 }).catch(() => undefined);
@@ -6670,7 +5684,7 @@ async function skLauncherTest(browser: Browser): Promise<void> {
   // its own head, fired as its own and as nobody's. Then firing: its rockets stop on you (you are no figure on your own
   // page; they had flown through you to burst behind) and what you take comes with a burst (a bot's rocket had been
   // settled as a bullet the moment it left).
-  const bp = await open(browser, "?norender&game=speedkills");
+  const bp = await open(browser, "?norender");
   await ev(bp, `document.getElementById("overlay").classList.add("hidden")`);
   await ev(bp, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "elite"; window.__range.startBots(); })()`);
   const fought = await bp.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 100, timeout: 30000 }).then(() => true, () => false);
@@ -6723,7 +5737,7 @@ async function skLauncherTest(browser: Browser): Promise<void> {
 
 async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"): Promise<void> {
   const tag = start === "loot" ? "speedkills ghost" : "speedkills ghost, loadout start";
-  const q = "?net=local&norender&game=speedkills";
+  const q = "?net=local&norender";
   const host = await open(browser, q);
   const guest = await open(browser, q);
   const close = async () => {
@@ -6815,7 +5829,7 @@ async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"):
  * the walk to the echo.
  */
 async function speedkillsTourTest(browser: Browser): Promise<void> {
-  const t = await open(browser, "?game=speedkills");
+  const t = await open(browser, "?");
   await ev(t, `document.getElementById("goTour").click(); document.getElementById("startMode").click()`);
   await pressPlay(t);
   const step = () => ev<string | null>(t, "window.__range.tour.stepId");
@@ -6937,7 +5951,7 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
  * lands in the city. The city is the square 250 m either side of (0, 500).
  */
 async function speedkillsShipTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&game=speedkills");
+  const page = await open(browser, "?norender");
   await ev(page, "window.__straightDrop = false");
   await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
   await page.waitForFunction("window.__range.duel() && window.__range.shipState().aboard", { polling: 100, timeout: 20000 }).catch(() => undefined);
@@ -6975,7 +5989,7 @@ async function speedkillsShipTest(browser: Browser): Promise<void> {
 
 /** a SpeedKills battle royale in the city: it starts, 30 in it, bots on the streets, loot on the floors */
 async function speedkillsBrTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&game=speedkills");
+  const page = await open(browser, "?norender");
   // the row set to what this checks (trios, 27 bots), not left to its defaults: those are duos and 28 since Milestone 341
   await ev(page, brRow("trio", 27));
   await ev(page, `(() => { document.getElementById("brStart").value = "loot"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
@@ -7176,7 +6190,7 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
  * with its hands on the gun it shows. The frame sheets are tools/figure-frames.ts's.
  */
 async function figureHoldTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&game=speedkills");
+  const page = await open(browser, "?norender");
   const ready = await page.waitForFunction("window.__range.loaded() && window.__range.soldierReady()", { polling: 250, timeout: 90000 }).then(() => true, () => false);
   if (!ready) {
     check("the soldier: loaded", false);
@@ -7905,7 +6919,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // the Loadouts tab's soldier holding the USSO: the same hold, its palms on their holds (on a page that draws: the
   // preview is built and posed by the drawing, which ?norender has none of)
   // (the first visit's welcome screen covers the menu, and a panel under it is never drawn)
-  const lp = await open(browser, "?game=speedkills", BASE, `localStorage.setItem("range.welcomed", "1")`);
+  const lp = await open(browser, "?", BASE, `localStorage.setItem("range.welcomed", "1")`);
   // (the tab shows its soldier only on a window wide enough for it: at the suite's 800 it is laid out of sight)
   await lp.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
   await lp.waitForFunction("window.__range.loaded() && window.__range.soldierReady()", { polling: 250, timeout: 90000 }).catch(() => undefined);
@@ -7942,7 +6956,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       else void q.continue();
     });
     await rp.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
-    await rp.goto(`${BASE}?norender&game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 90000 });
+    await rp.goto(`${BASE}?norender&nointro`, { waitUntil: "domcontentloaded", timeout: 90000 });
     const came = await rp.waitForFunction("Boolean(window.__range) && window.__range.soldierReady()", { polling: 250, timeout: 60000 }).then(() => true, () => false);
     check("the soldier's model failing to download twice is tried again: the page still gets the soldier, not the old figures", came && gets >= 3, JSON.stringify({ came, gets }));
     await rp.close();
@@ -7959,7 +6973,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
  * fight, out, and gone. The pictures of it are tools/squad-shots.ts's.
  */
 async function skSquadTest(browser: Browser): Promise<void> {
-  const q = "?net=local&norender&game=speedkills";
+  const q = "?net=local&norender";
   const host = await open(browser, q);
   const guest = await open(browser, q);
   const close = async () => {
@@ -8189,89 +7203,7 @@ async function botStrafeTest(browser: Browser): Promise<void> {
 }
 
 
-/** E2E_ONLY=bots,br runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, skship, br, loot, ship, console, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
-/**
- * The intro card (src/ui/intro.ts). What has to hold: the page opens on it, it
- * plays on the page's own clock and takes itself away, a key or a click takes
- * the rest of it, the game underneath is never held up or blocked by it, one
- * plays again as a match starts, and `?nointro` means none at all.
- */
-async function introTest(browser: Browser): Promise<void> {
-  // the one page in the suite that opens with the card on
-  const page = await open(browser, "?intro=on" + LEGACY);
-  const up = await page
-    .waitForFunction(`(() => { const s = window.__range.intro.state(); return s.kind === "boot" && s.shown; })()`, { polling: 20, timeout: 20000 })
-    .then(() => true, () => false);
-  const early = await ev<{ at: number; beats: { title: number; shot: number; out: number; end: number }; text: string; clicks: boolean }>(
-    page,
-    `(() => { const s = window.__range.intro.state(); const c = document.getElementById("intro");
-      return { at: s.at, beats: s.beats, text: document.getElementById("introSay").textContent, clicks: getComputedStyle(c).pointerEvents !== "none" }; })()`
-  );
-  check("the page opens on the intro card, and it says the game's name for a reader too", up && /FULL POWER SURGE/.test(early.text), JSON.stringify({ up, text: early.text }));
-  // the card is the loading screen now: the bar and the tip are off the page
-  // while it plays, and the fraction is the line under the name instead
-  const cover = await ev<{ loadingHidden: boolean; at: number; shot: number; loaded: boolean }>(
-    page,
-    `(() => { const l = document.getElementById("loading"); const s = window.__range.intro.state(); return { loadingHidden: !!l && l.hidden, at: s.at, shot: s.beats.shot, loaded: window.__range.loaded() }; })()`
-  );
-  check("it stands in for the loading screen, which is off the page while it plays", cover.loadingHidden, JSON.stringify(cover));
-  // and it waits on the rain for the world rather than firing into a page that is still loading: the first screen's
-  // world (screenLoaded), which is what the card covers. loaded() waits for the loads after that screen too (Milestone
-  // 440), and the shot rightly does not, so asked of loaded() this failed from 2026-10-03.
-  const held = await ev<{ waited: number; at: number; loaded: boolean }>(
-    page,
-    `new Promise((ok) => { const R = window.__range; const t0 = performance.now();
-      const step = () => { const s = R.intro.state(); if (s.kind === null || s.at > s.beats.shot + 0.05 || performance.now() - t0 > 20000) ok({ waited: s.waited, at: s.at, loaded: R.screenLoaded() }); else requestAnimationFrame(step); };
-      step(); })`
-  );
-  check("the shot waits for the world to be in, so the card covers loading instead of following it", held.loaded, JSON.stringify(held));
-  check("the card takes no clicks: everything under it is still there to be used", !early.clicks);
-  // the menu underneath is live while the card plays: the card is a picture, not a gate
-  const live = await ev<boolean>(page, `(() => { const b = document.getElementById("goRange"); return !!b && !b.disabled; })()`);
-  check("the game underneath it is not held up: the menu is there and live while the card plays", live);
-  // the glass breaks and the card takes itself off the page, on its own clock
-  const gone = await page
-    .waitForFunction(`window.__range.intro.state().kind === null`, { polling: 50, timeout: 20000 })
-    .then(() => true, () => false);
-  const after = await ev<{ shown: boolean; played: number; say: string }>(page, `(() => ({ shown: window.__range.intro.state().shown, played: window.__range.intro.state().played, say: document.getElementById("introSay").textContent }))()`);
-  check("it ends by itself, takes the canvas off the page and stops saying its name", gone && !after.shown && after.say === "", JSON.stringify(after));
-  // a key takes the rest of it away
-  await ev(page, `(() => { window.__range.intro.play("boot"); return true; })()`);
-  await sleep(250);
-  const before = await ev<boolean>(page, `window.__range.intro.state().kind !== null`);
-  await page.keyboard.press("Space");
-  await sleep(120);
-  const skipped = await ev<{ kind: string | null; shown: boolean }>(page, `(() => { const s = window.__range.intro.state(); return { kind: s.kind, shown: s.shown }; })()`);
-  check("a key takes the rest of it: nobody watches a title card twice", before && skipped.kind === null && !skipped.shown, JSON.stringify(skipped));
-  // and one plays again as a match starts, the short one
-  const played = await ev<number>(page, `window.__range.intro.state().played`);
-  await ev(page, `window.__range.startBots()`);
-  await sleep(200);
-  const onMatch = await ev<{ kind: string | null; played: number; end: number; inGame: boolean }>(
-    page,
-    `(() => { const s = window.__range.intro.state(); return { kind: s.kind, played: s.played, end: s.beats.end, inGame: !!window.__range.duel() }; })()`
-  );
-  check("dropping into a match plays the short card, over a match that has already started", onMatch.kind === "match" && onMatch.played === played + 1 && onMatch.end < 2.5 && onMatch.inGame, JSON.stringify(onMatch));
-  await ev(page, `window.__range.intro.skip()`);
-  await toMenu(page);
-  // and for someone whose machine is set to less movement: a shorter card, no
-  // shake, no falling glass
-  await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "reduce" }]);
-  await ev(page, `(() => { window.__range.intro.play("boot"); return true; })()`);
-  await sleep(150);
-  const quiet = await ev<{ reduced: boolean; end: number; kind: string | null; blast: number }>(page, `(() => { const s = window.__range.intro.state(); return { reduced: s.reduced, end: s.beats.end, kind: s.kind, blast: s.beats.blast }; })()`);
-  check("a machine asking for less movement gets a shorter card with no shake and no falling glass", quiet.reduced && quiet.kind === "boot" && quiet.end < 2 && quiet.blast >= quiet.end, JSON.stringify(quiet));
-  await ev(page, `window.__range.intro.skip()`);
-  await page.emulateMediaFeatures([{ name: "prefers-reduced-motion", value: "no-preference" }]);
-  // and the tools' pages have none of it
-  const off = await open(browser, "?norender");
-  await sleep(600);
-  const none = await ev<{ kind: string | null; played: number }>(off, `(() => { const s = window.__range.intro.state(); return { kind: s.kind, played: s.played }; })()`);
-  check("?nointro means no card at all, which is how every other page in this suite opens", none.kind === null && none.played === 0, JSON.stringify(none));
-  await off.close();
-  await page.close();
-}
-
+/** E2E_ONLY=bots,brsolo runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, skship, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
 /**
  * The lobby (src/ui/lobby.ts, the Play tab's panel). What has to hold: a card
  * picks a mode rather than starting one, the panel then shows that mode's own
@@ -8382,141 +7314,6 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
   const friends = await ev<{ tab: string; mode: string }>(page, `({ tab: window.__range.menu.tab, mode: document.getElementById("duelMode").value })`);
   check("With friends carries the mode across, which nobody should have to do by hand", friends.mode === "arena" && friends.tab === "duel", JSON.stringify(friends));
   await ev(page, `(() => { const b = document.getElementById("duelLeave"); if (b && !b.hidden) b.click(); })()`);
-  await page.close();
-}
-
-/**
- * How a figure holds its gun, and where its shots come from (src/game/hold.ts,
- * src/game/muzzle.ts, src/game/mannequin.ts).
- *
- * Two things the owner reported, measured rather than looked at. Guns went
- * through people: the animation library has no rifle clips, so a long gun
- * hangs off the chest at a point we choose, and that point put the stock
- * beside the neck. And tracers did not start at the barrel: a figure's muzzle
- * marker was looked for by a name only the first-person view model's own
- * flash has, so no figure in the game had a muzzle at all, and every bot and
- * every friend fired from the middle of their chest.
- *
- * So: for a gun of every length, the stock clears the body, both hands are on
- * their holds, the muzzle marker is at the end of the barrel, and a shot's
- * tracer starts there.
- */
-async function holdTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&nointro" + LEGACY);
-  await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 40000 });
-  const ok = await ev<boolean>(page, "window.__range.loadMannequin().then(() => true, () => false)");
-  if (!ok) {
-    check("figures: the mannequin loads", false);
-    await page.close();
-    return;
-  }
-  await ev(page, `window.__range.setFigureStyle("mannequin")`);
-  // one of each length: a pistol, two SMGs, a rifle, a shotgun, an LMG, the
-  // longest gun in the game, and the bow, which is held like none of them
-  const GUNS = ["autopistol", "volt_smg", "r97", "rspn101", "mastiff", "esaw", "sniper", "bocek"];
-  await ev(page, `(() => { const r = window.__range; const s = r.openGround(0, 40, 8); r.player.teleport(s.x, 0, s.z, 0, 0);
-    window.__labFigs = r.figureLab(${JSON.stringify(GUNS.map((w) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: w })))}, 4, 90); })()`);
-  await ev(page, "new Promise((r) => setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(r)), 900))");
-
-  const held = await ev<Array<{ gun: string; gaps: { stock: number; grip: number; support: number; slide: number } | null; muzzle: number[] | null; chest: number[]; far: number }>>(
-    page,
-    `(() => { const r = window.__range; return window.__labFigs.map((f, i) => {
-       const mq = f.mq;
-       const m = f.muzzleWorld();
-       const chest = f.group.getWorldPosition(new r.THREE.Vector3());
-       const box = mq && mq.gunObject ? new r.THREE.Box3().setFromObject(mq.gunObject) : null;
-       return { gun: ${JSON.stringify(GUNS)}[i], gaps: mq ? mq.holdGaps() : null, muzzle: m ? [m.x, m.y, m.z] : null, chest: [chest.x, chest.y, chest.z], far: box ? box.max.distanceTo(box.min) : 0 };
-     }); })()`
-  );
-  check("figures: every gun a figure can hold has a muzzle at the end of its barrel", held.length === GUNS.length && held.every((h) => h.muzzle !== null), held.filter((h) => !h.muzzle).map((h) => h.gun).join(", ") || "all of them");
-  const away = held.filter((h) => h.muzzle).map((h) => Math.hypot(h.muzzle![0] - h.chest[0], h.muzzle![2] - h.chest[2]));
-  check("and it is out in front of the figure rather than inside it", away.every((d) => d > 0.25), away.map((d) => d.toFixed(2)).join(", "));
-  const gaps = held.map((h) => h.gaps).filter(Boolean) as Array<{ stock: number; grip: number; support: number; slide: number }>;
-  check("figures: no gun's stock sits further into the body than a stock goes", gaps.every((g) => g.stock <= HOLD.stockAllow + 0.001), gaps.map((g) => g.stock.toFixed(3)).join(", "));
-  check("figures: the firing hand is on the grip, not near it", gaps.every((g) => g.grip < 0.09), gaps.map((g) => g.grip.toFixed(3)).join(", "));
-  check("figures: and the support hand is on the gun, so no hand floats", gaps.every((g) => g.support < 0.08), gaps.map((g) => g.support.toFixed(3)).join(", "));
-  check("figures: a hand that cannot reach the handguard slides back along the gun rather than hanging in the air", gaps.every((g) => g.slide >= 0 && g.slide <= 1), gaps.map((g) => g.slide.toFixed(2)).join(", "));
-
-  // a shot from a bot: its tracer is drawn from its barrel, not its chest
-  await ev(page, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode")?.click(); })()`);
-  await page.waitForFunction("!!window.__range.duel()", { polling: 100, timeout: 20000 });
-  await sleep(2500);
-  const shot = await ev<{ from: number[]; muzzle: number[] | null; eye: number[] } | null>(
-    page,
-    `(() => { const d = window.__range.duel(); const b = d.avatars && d.avatars[0]; if (!b) return null;
-       const m = b.muzzleWorld(); const e = b.group.getWorldPosition(new window.__range.THREE.Vector3());
-       return { from: m ? [m.x, m.y, m.z] : [0, 0, 0], muzzle: m ? [m.x, m.y, m.z] : null, eye: [e.x, e.y + 1.6, e.z] }; })()`
-  );
-  check("bots: a bot's gun has a muzzle too, so its tracers leave the barrel", !!shot && shot.muzzle !== null, JSON.stringify(shot?.muzzle));
-  await ev(page, "window.__range.toMenu()");
-  await page.close();
-}
-
-/**
- * The spray, measured against what the range draws of it (src/game/rangetools.ts
- * SprayWall, src/game/recoil.ts).
- *
- * The owner said the spray looks off. The pattern itself is simulated and
- * checked frame by frame, but nothing has ever checked the claim the range
- * makes about it: the wall draws a gold line of where the gun sends a
- * magazine and white marks where your rounds went, and if those two disagree
- * the gun is lying to whoever is standing at the mark trying to learn it.
- *
- * So: stand on the mark, hold the trigger for a magazine with the mouse
- * still, and compare where the rounds landed with the line the wall drew.
- */
-async function sprayTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&nointro" + LEGACY);
-  await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 40000 });
-  await ev(page, `(() => { const r = window.__range; r.player.teleport(13.45, 0, -64, -90); r.player.pitch = 1.2; r.sprayWall.clear(); })()`);
-  // aimed in and holding the trigger, with nothing else touching the view
-  await ev(page, `(() => { const r = window.__range; r.setScript({ held: (a) => a === "fire" || a === "ads", pressedNow: () => false }); })()`);
-  const fired = await page
-    .waitForFunction(`window.__range.sprayWall.shown.hits.length >= 12`, { polling: 100, timeout: 20000 })
-    .then(() => true, () => false);
-  await ev(page, `window.__range.setScript(null)`);
-  const board = await ev<{ hits: Array<{ u: number; v: number }>; want: Array<{ u: number; v: number }>; marks: number; cone: number; band: number[] }>(
-    page,
-    `(() => { const w = window.__range.sprayWall; return { hits: w.shown.hits, want: w.shown.want, marks: w.marks, cone: w.shown.cone, band: w.shown.band }; })()`
-  );
-  check("spray: a magazine held on the wall lands on the wall", fired && board.hits.length >= 12, `${board.hits.length} of ${board.marks} marks on the board`);
-  check("spray: and the wall drew the gun's own pattern beside them", board.want.length >= board.hits.length, `${board.want.length} drawn`);
-  if (board.hits.length >= 12 && board.want.length >= board.hits.length) {
-    // the wall is 5 m across and 3.5 m high, so a board unit is metres/5 and
-    // metres/3.5: a miss of 0.04 across is 20 cm at 20 m, which is a hit or a
-    // miss on a head
-    // How far each round landed from the LINE the wall drew, not from the dot
-    // with its own number on it: the gold line is the path the gun walks, and
-    // a round is thrown into a cone around wherever on that path the gun had
-    // got to. Asking a round to land on its own dot would be asking the random
-    // part of the kick not to exist.
-    const near = (h: { u: number; v: number }): number => {
-      let best = Infinity;
-      for (let i = 0; i < board.want.length - 1; i++) {
-        const a = board.want[i];
-        const b = board.want[i + 1];
-        const vx = (b.u - a.u) * 5;
-        const vy = (b.v - a.v) * 3.5;
-        const wx = (h.u - a.u) * 5;
-        const wy = (h.v - a.v) * 3.5;
-        const len = vx * vx + vy * vy;
-        const t = len < 1e-9 ? 0 : Math.max(0, Math.min(1, (wx * vx + wy * vy) / len));
-        best = Math.min(best, Math.hypot(wx - vx * t, wy - vy * t));
-      }
-      return best;
-    };
-    const off = board.hits.map(near);
-    const worst = Math.max(...off);
-    const mid = off.slice().sort((a, b) => a - b)[Math.floor(off.length / 2)];
-    // the band the wall draws round the path: the gun's cone plus how far the
-    // pattern itself wanders from one magazine to the next
-    const ring = Math.max(...board.band) * 5;
-    const inside = off.filter((d) => d <= ring).length;
-    check("spray: the rounds land along the line the wall draws, inside the band it draws round it", inside >= off.length - 1, `${inside} of ${off.length} inside a ${(ring * 100).toFixed(0)} cm band, ${(mid * 100).toFixed(0)} cm off the line in the middle, ${(worst * 100).toFixed(0)} at worst`);
-    // and the pattern climbs: a gun that does not climb is not a gun
-    const climb = (board.hits[board.hits.length - 1].v - board.hits[0].v) * 3.5;
-    check("spray: and it climbs up the wall as the magazine goes on", climb < -0.3, `${(-climb * 100).toFixed(0)} cm up over ${board.hits.length} rounds`);
-  }
   await page.close();
 }
 
@@ -8693,12 +7490,16 @@ async function main(): Promise<void> {
     const f = await ev<{ merged: { meshes: number; after: number } | null; calls: number }>(page, "({ merged: window.__range.merged, calls: window.__range.drawCalls() })");
     check("loads with the static merge done", f.merged !== null && f.merged.after < f.merged.meshes, f.merged ? `${f.merged.meshes} -> ${f.merged.after} meshes` : "none");
     // the loading screen counts the models and textures in, and goes once they are and a frame is drawn
-    const inWorld = await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 30000 }).then(() => true, () => false);
+    // (90 s, not 30: the first page of a run compiles every module of the dev server's, and with the machine at 94% under
+    // other runs the world was in 31 s on, every part of it, where a quiet machine takes 4; this is not a speed check)
+    const inWorld = await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 90000 }).then(() => true, () => false);
     await sleep(500);
     const ls = await ev<{ hidden: boolean; status: string; fill: string }>(page, `(() => { const e = document.getElementById("loading"); return { hidden: e.hidden, status: document.getElementById("loadingStatus").textContent, fill: document.getElementById("loadingFill").style.width }; })()`);
     // (SpeedKills' screen goes as soon as the range is drawn, the last few files still on their way: the first screen
     // sooner, Milestones 452 to 469, so its bar need not reach the end)
-    check("the loading screen counts the world in and goes once it is", inWorld && ls.hidden && /\d+ OF \d+/.test(ls.status), JSON.stringify(ls));
+    // (and when the world is not in, which of loaded()'s parts it is still waiting on)
+    const parts = inWorld ? null : await ev<Record<string, boolean>>(page, "window.__range.loadedParts()");
+    check("the loading screen counts the world in and goes once it is", inWorld && ls.hidden && /\d+ OF \d+/.test(ls.status), JSON.stringify({ ...ls, parts }));
     // A test page must never take the real locks: headless Chrome has a real,
     // invisible window, and pointer lock pinned the owner's cursor inside it
     // (a small square in a monitor's corner) while Keyboard Lock held the keys.
@@ -9041,16 +7842,10 @@ async function main(): Promise<void> {
       await rulesTest(browser, "?net=local&norender");
       console.log("\nA 1v1 on the Neon City before the host's collision boxes are in");
       await lateBoxesTest(browser);
-      console.log("\nA code from a page of the other game");
-      await crossGameTest(browser);
       console.log("\nThe site's broker asked for slowly");
       await brokerWaitTest(browser);
     });
 
-    if (want("intro")) await section("intro", async () => {
-      console.log("\nThe intro card: the name, the shot through the screen, and out of the way");
-      await introTest(browser);
-    });
 
     if (want("emote")) await section("emote", async () => {
       console.log("\nEmotes: yours, the camera, a step to end it, a 1v1's host's on the guest's screen");
@@ -9092,14 +7887,6 @@ async function main(): Promise<void> {
       console.log("\nThe lobby");
       await lobbyPanelTest(browser);
     });
-    if (want("hold")) await section("hold", async () => {
-      console.log("\nHow a figure holds a gun");
-      await holdTest(browser);
-    });
-    if (want("spray")) await section("spray", async () => {
-      console.log("\nThe spray, against what the range draws of it");
-      await sprayTest(browser);
-    });
     if (want("ping")) await section("ping", async () => {
       console.log("\nA match at a real ping");
       await pingTest(browser, 30);
@@ -9113,29 +7900,9 @@ async function main(): Promise<void> {
       console.log("\nThe range's tooling");
       await rangeTest(browser, "?norender");
     });
-    if (want("br")) await section("br", async () => {
-      console.log("\nBattle royale against bots");
-      await brTest(browser, "?norender" + LEGACY);
-      console.log("\nDoors");
-      await doorTest(browser, "?norender" + LEGACY);
-      console.log("\nThe vault");
-      await vaultTest(browser, "?norender" + LEGACY);
-    });
 
-    if (want("loot")) await section("loot", async () => {
-      console.log("\nBattle royale: landing with nothing, the loot");
-      await brLootTest(browser, "?norender" + LEGACY);
-    });
 
-    if (want("ship")) await section("ship", async () => {
-      console.log("\nThe dropship: the ride, the jump, the end of the line, the bots, the jumpmaster");
-      await shipTest(browser, "?norender" + LEGACY, "?net=local&norender" + LEGACY);
-    });
 
-    if (want("console")) await section("console", async () => {
-      console.log("\nRing Consoles: the scan, the circle after next, the squad");
-      await consoleTest(browser, "?norender" + LEGACY, "?net=local&norender" + LEGACY);
-    });
 
     if (want("gulag")) await section("gulag", async () => {
       console.log("\nThe Gulag: in, the fight, the way back, one trip, overtime, a squad mate");
@@ -9180,7 +7947,7 @@ async function main(): Promise<void> {
     // its own, for a change to a gun's hold; E2E_GUNS narrows it to those guns)
     if (ONLY.includes("skpack")) await section("skpack", async () => {
       console.log(`\nSpeedKills' bought arms: their frames alone${E2E_GUNS.length ? ` (${E2E_GUNS.join(", ")})` : ""}`);
-      const page = await open(browser, "?game=speedkills");
+      const page = await open(browser, "?");
       // (the arms too: a checkout with the paid guns but not the arms, public/models/paid/arms, had gone on into the frames
       // and stopped on a rig that never loaded, a TypeError, 2026-10-09)
       const ready = await page.waitForFunction("window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady() && window.__range.packRig().ready", { polling: 250, timeout: 180000 }).then(() => true, () => false);
@@ -9295,7 +8062,7 @@ async function main(): Promise<void> {
         console.log("\nThe broker gone for a moment in the middle of a Join, over peer to peer");
         for (const ms of [50, 300]) await brokerBlipTest(browser, "?norender", ms);
         console.log("\nThe group from match to match, over peer to peer (a welcome mid-match, packed the way PeerJS packs it)");
-        await skGroupTest(browser, "?game=speedkills&norender");
+        await skGroupTest(browser, "?norender");
       }
     });
 

@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { setFigureView } from "./game/figlod";
 import { WALL, WALLS, clearWalls, putWall, stepWalls, type PutWall } from "./game/walls";
 import playerCfg from "./config/player.json";
-import { GAME, PROFILE, GAME_IDS, IS_SK, type GameId } from "./game/game";
+import { GAME, PROFILE, IS_SK } from "./game/game";
 import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
@@ -589,11 +589,10 @@ const reticle: Reticle = loadReticle();
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 /** SpeedKills' health and shield, and how they come back; null in the legacy game */
 const SK_HEALTH = IS_SK ? PROFILE.health : null;
-// The game this page is (src/game/game.ts). index.html's first script set the
-// look from the same choice; this makes sure of it. (The Settings box that
-// switched games is gone: SpeedKills is the game, 2026-10-03.)
+// The game this page is (src/game/game.ts), its look keyed off index.html's
+// data-game; set again here so nothing that drew the page can lose it.
 document.documentElement.dataset.game = GAME;
-if (GAME === "speedkills") document.title = PROFILE.identity.title;
+document.title = PROFILE.identity.title;
 /**
  * The weapon the derived readout describes. Before the loadout exists this is
  * the default slot-1 weapon; afterwards it is whatever is in hand, with its
@@ -3530,8 +3529,7 @@ function keyHintsNow(now: number): HudState["keyHints"] {
   const named = (b: string): boolean => !b.startsWith("wheel") && !/Right$/.test(b);
   const first = (a: string, n: number): string[] => (binds[a as Action] ?? []).filter(named).slice(0, n).map((b) => bindName(b));
   const rows: Array<{ label: string; keys: string[] }> = [];
-  for (const r of keyHintsCfg.rows as ReadonlyArray<{ label: string; actions: string[]; games?: string[]; when?: string }>) {
-    if (r.games && !r.games.includes(GAME)) continue;
+  for (const r of keyHintsCfg.rows as ReadonlyArray<{ label: string; actions: string[]; when?: string }>) {
     if (r.when === "range" && !inRange) continue;
     if (r.when === "friends" && !friends) continue;
     const keys = r.actions.length > 1 ? r.actions.flatMap((a) => first(a, 1)) : first(r.actions[0], keyHintsCfg.keysPerAction);
@@ -5573,8 +5571,8 @@ function enforceGuns(): void {
 function inviteLink(code: string): string {
   const q = new URLSearchParams(location.search);
   q.set("join", code);
-  // the host's game rides along, so the friend opens the same one
-  q.set("game", GAME);
+  // (the host's game rode along until Milestone 520, so the friend opened the same one: there is one now)
+  q.delete("game");
   return `${location.origin}${location.pathname}?${q.toString()}`;
 }
 duelHostBtn.addEventListener("click", () => {
@@ -5650,18 +5648,11 @@ function joinCode(code: string): void {
   cancelJoin = joinMatch(
     code,
     (link, w) => {
-      // The host plays the other game (an older host sends no game: it is legacy), whose guns the host's hit check
-      // refuses. Only a typed code gets here: the invite link carries the host's game. This page used to reload into
-      // that game and join again, but its leaving had already ended the host's 1v1, so the page came back to no match,
-      // and SpeedKills is the game (Milestone 438): a player of it is never moved into the old one and its old name.
-      // Each is told, and stays (Milestone 455).
-      const hostGame = (w.opts?.game ?? "legacy") as GameId;
-      if (hostGame !== GAME && (GAME_IDS as readonly string[]).includes(hostGame)) {
+      // A host on the legacy game (an older host sends no game: it was the legacy one), whose guns this page's hit
+      // check refuses, from a tab opened before Milestone 520 retired it: this page is told, and stays (Milestone 455).
+      if ((w.opts?.game ?? "legacy") !== GAME) {
         link.close();
-        setDuelStatusText(
-          IS_SK ? "That match is on an older version of the game. Ask your friend to reload the page and send a new code." : "That match is SpeedKills: open your friend's invite link to join it.",
-          "bad"
-        );
+        setDuelStatusText("That match is on an older version of the game. Ask your friend to reload the page and send a new code.", "bad");
         return;
       }
       // the seat's key, for getting back in if the connection drops
@@ -8607,6 +8598,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   // (and the figures in: tools and the e2e start matches at once, and a SpeedKills page's screen no longer waits for them)
   loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()) && laterSettled() && (!NEON || neonSolidsIn()),
+  /** loaded()'s parts, so a page that never loads says which part it is waiting on (tools/e2e.ts) */
+  loadedParts: () => ({ screen: loadingScreen.loaded, figures: !IS_SK || figuresIn(), later: laterSettled(), solids: !NEON || neonSolidsIn() }),
   /** the page's first screen has gone by itself: what it waits for is in (loaded() waits for what comes after it too) */
   screenLoaded: () => loadingScreen.loaded,
   /** SpeedKills' way into a match (show): its stage, or null once the match is its own (tools/e2e.ts) */

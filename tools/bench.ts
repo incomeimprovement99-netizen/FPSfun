@@ -15,20 +15,11 @@
 // which flattered every number taken on it before 2026-09-19.
 //
 // BENCH_SPOT picks where the camera stands: "range" (the default, the firing
-// range as the page opens), or "br", the battle royale map's worst view, from
-// the Mast's roof across the whole of Outskirts, with every place in frame,
-// or "brmatch", a real solo battle royale on seed 42 dropped onto the hub,
-// standing in the middle of it once landed: the loot on the floor and the
-// eleven bots are in the frame, which the empty map leaves out.
-// "brcorner" is the map's longest sightline, one corner to the other, where a
-// preset's draw distance shows most.
-//
-// The SpeedKills spots: "skmatch", a real battle royale of thirty in the
-// city on seed 42, standing in the street south of the Spire looking up at
-// it, with the Spire's drop (every other bot squad) around it; "skroof", the
-// same match from 160 m up over the Spire, the whole city and its neon in frame.
-// Every other spot is the legacy game's, and the page is told which (the
-// site opens in SpeedKills otherwise, and a legacy spot would measure the city).
+// range as the page opens), or a battle royale's: "skmatch", a real battle
+// royale of thirty in the city on seed 42, standing in the street south of
+// the middle looking up at it; "skroof", the same match from 160 m up, the
+// whole city and its neon in frame. (The legacy game's spots on the Outskirts,
+// br, brcorner and brmatch, went with that game, Milestone 499.)
 //
 // BENCH_QUERY is added to the page's address as it is, for a switch the page
 // reads as it loads: "&noskip" keeps hidden objects in the per-frame matrix
@@ -86,8 +77,6 @@ const VARIANTS: Array<[string, string]> = (process.env.BENCH_VARIANTS ?? "")
 if (!VARIANTS.length) VARIANTS.push(["", ""]);
 /** the hitch line, ms: the plan's */
 const HITCH = 50;
-// (the Neon City's spots are SpeedKills' too: they ran on the legacy game's page, its match and its map, 2026-10-03)
-const GAME = SPOT.startsWith("sk") || SPOT.startsWith("neon") ? "speedkills" : "legacy";
 /** a SpeedKills match on seed 42, dropped on the Spire, fighting held, then the camera put at (x, y, z, yaw, pitch) and kept there */
 const skMatch = (x: number, y: number, z: number, yaw: number, pitch: number) => `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); r.input.lock();
     for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
@@ -105,24 +94,6 @@ const skRun = (x: number, y: number, z0: number, speed: number) => `(async () =>
 /** where each spot puts the camera: x, y, z, yaw, pitch (the BR map's world coordinates) */
 const SPOTS: Record<string, string> = {
   range: "",
-  br: `(() => { const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 }); r.player.teleport(0, 28.2, 500, 45, -8); r.setRegion("br"); })()`,
-  // the longest sightline there is: one corner of the map looking diagonally
-  // across to the other, 622 m away, which is where the old fixed far plane
-  // cut the world off in clear air (docs/PLAN_LOD_DRAW_DISTANCE.md step E)
-  brcorner: `(() => { const r = window.__range; r.player.setBounds({ minX: -220, maxX: 220, minZ: 280, maxZ: 720 });
-    // nothing to stand on above the corner, so the camera is put back where it
-    // belongs each frame: the view is the same in every sample, which is what a
-    // benchmark wants anyway
-    const hold = () => r.player.teleport(-196, 36, 304, -135, -4);
-    hold();
-    setInterval(hold, 50);
-    r.setRegion("br"); })()`,
-  // (the lock is what a click on the menu's button takes: the match waits for everyone in the game, this page included,
-  // and without it this spot measured the range's edge with the match still waiting)
-  brmatch: `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "hub" }); r.input.lock();
-    for (let i = 0; i < 400 && r.duel()?.phase !== "fight"; i++) await new Promise((ok) => setTimeout(ok, 100));
-    const d = r.duel(); if (d) d.holdFire = true;
-    r.player.teleport(0, 0, 530, 0, -2); })()`,
   skmatch: skMatch(0, 0.3, 590, 0, 12),
   // 160 m, over the Spire's crown deck (140 m) and south of its mast: at 100 m, where it was, it stood in the Spire's third tier
   skroof: skMatch(0, 160, 520, 30, -18),
@@ -189,7 +160,7 @@ async function main(): Promise<void> {
           `${(RUNS > 1 ? `${l} #${round + 1}` : l).padEnd(26)} ${(1000 / out.med).toFixed(0).padStart(5)} fps median   ` +
             `${out.med.toFixed(2)} ms   p95 ${out.p95.toFixed(2)}   p99 ${out.p99.toFixed(2)} ms   ${out.hitches} over ${HITCH} ms (worst ${out.worst.toFixed(0)})   ` +
             `${String(out.calls).padStart(5)} draw calls   ${(out.tris / 1000).toFixed(0).padStart(5)}k triangles` +
-            (SPOT === "brmatch" || GAME === "speedkills" ? `   ${out.bots} bots` : "") +
+            (SPOT !== "range" ? `   ${out.bots} bots` : "") +
             (out.merged ? `   (static meshes ${out.merged.meshes} -> ${out.merged.after})` : "") +
             (out.gpuMs ? `   GPU ${out.gpuMs.med.toFixed(2)} ms (p95 ${out.gpuMs.p95.toFixed(2)})` : "") +
             `   GPU: ${out.gpu}`
@@ -237,7 +208,7 @@ async function measure(browser: import("puppeteer").Browser, preset: string, mer
   // one hour for every run (a battle royale draws its own from the seed otherwise)
   await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
   if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
-  await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + `&game=${GAME}` + (PHASES ? "&perf" : "") + (process.env.BENCH_QUERY ?? "") + query, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + (PHASES ? "&perf" : "") + (process.env.BENCH_QUERY ?? "") + query, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });
   await page.waitForFunction("window.__range.loaded()", { timeout: 60000 });
   // the Neon City map's file (&map=neon, Phase 28) loads after the page says it is loaded: measured once it is drawn

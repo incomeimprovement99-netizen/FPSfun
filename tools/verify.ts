@@ -1602,19 +1602,6 @@ fails += movesimFails;
   }
 }
 
-// The legacy game's battle royale on the Outskirts, its loot tiers and its ring's circles: run as that game, in a
-// process of its own as SpeedKills' tools above run as SpeedKills, until their code goes with the legacy game
-// (docs/PLAN_LEGACY_REMOVAL.md)
-{
-  const { spawnSync } = await import("node:child_process");
-  for (const tool of ["tools/checks/loot-tiers.ts", "tools/checks/ring-place.ts"]) {
-    const r = spawnSync(`npx tsx ${tool}`, { shell: true, encoding: "utf8", env: { ...process.env, GAME: "legacy" } });
-    process.stdout.write(r.stdout ?? "");
-    if (r.status !== 0) fails++;
-  }
-}
-
-
 console.log("");
 console.log("Frame phases");
 {

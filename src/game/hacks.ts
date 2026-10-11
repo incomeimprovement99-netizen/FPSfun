@@ -7,9 +7,7 @@
 //
 // Pure: no three.js and no DOM, so tools/checks/hacks.ts loads it.
 import cfg from "../config/hacks.json";
-import { profileOf } from "./game";
-
-const PROFILE = profileOf("speedkills");
+import { PROFILE } from "./game";
 
 export type HackSlot = "mobility" | "utility";
 export type HackId = "dash" | "slam" | "leap" | "grapple" | "heal" | "armor" | "wall" | "invis" | "reveal" | "mine";

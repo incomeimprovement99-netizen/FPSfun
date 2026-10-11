@@ -62,7 +62,7 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   friend, bot squads, solo with a friend, split squads, a battle royale's host migration, a squad of two) run on
   SpeedKills, and found three SpeedKills bugs: a ghost left with only opponents up, legacy guns on the city's floor,
   and a forged hit naming no gun that the host let through. 11 tests of the legacy game alone stay pinned.
-- **520, the game switch (next).** `game=legacy` and legacy.json gone, the 11 pinned tests with them, and the two Node
+- **520, the game switch (done).** `game=legacy` and legacy.json gone, the 11 pinned tests with them, and the two Node
   checks that ran as the legacy game (loot-tiers.ts, the Outskirts' loot; ring-place.ts, the ring SpeedKills never
   draws).
 - **The owner, 2026-10-09: retire all of it.** "i am fine with retiring all old apex-range stuff, don't break speed
@@ -83,10 +83,11 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   About 3,050 lines.
 - **Later, knockdowns, bleed-out, revives, finishers, the knockdown shield** (SpeedKills has none: `noKnocks`). The
   Gulag, the echo restore and the figure's death fall stay. About 1,000 lines; the character agent told first.
-- **Last, the game switch itself:** `game=legacy`, legacy.json, every `IS_SK` branch folded (the SpeedKills storage
-  keys kept, so nobody loses a setting). About 400 lines.
-- **The legacy guns' data** (18 guns not in SpeedKills' roster) is the guns agent's; the old ILranch city the city
-  agent's, once nothing of SpeedKills reads it.
+- **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
+  every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
+- **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,
+  2026-10-09), once the guns agent's packFrames reads its field of view from the settings rather than off the old
+  R-301. The old ILranch city went with the city agent's 507.
 
 About 9,500 to 10,000 lines of code, 1,500 of config and 5,000 of tests in all, and about 15 MB of assets.
 

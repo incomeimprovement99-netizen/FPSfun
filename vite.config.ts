@@ -64,14 +64,11 @@ function scrubForPublic(): Plugin {
 
 export default defineConfig(({ mode }) => {
   const beta = mode === "beta";
-  // the game a page opens in when neither its URL nor the browser says
-  // (src/game/game.ts); index.html's first script reads the same default
-  const defaultGame = process.env.DEFAULT_GAME === "legacy" ? "legacy" : "speedkills";
-  const gameInHtml = { name: "default-game", transformIndexHtml: (html: string) => html.replace("__DEFAULT_GAME__", defaultGame) };
+  // (DEFAULT_GAME picked the game a page opened in until Milestone 520: SpeedKills is the one game)
   return {
     base: "./",
-    define: { __PUBLIC_BUILD__: JSON.stringify(beta), __DEFAULT_GAME__: JSON.stringify(defaultGame) },
-    plugins: beta ? [gameInHtml, scrubForPublic(), scrubReadme()] : [gameInHtml],
+    define: { __PUBLIC_BUILD__: JSON.stringify(beta) },
+    plugins: beta ? [scrubForPublic(), scrubReadme()] : [],
     build: { chunkSizeWarningLimit: 2000 },
     // `npm run fps backup` writes the server's accounts into server-backup/ while the dev server runs, and the
     // watcher, opening a file still being written, died of EBUSY and took the dev server with it
