@@ -133,6 +133,43 @@ const wp = (root: THREE.Object3D, n: string) => root.getObjectByName(n)!.getWorl
     if ((o as THREE.SkinnedMesh).isSkinnedMesh) mm.push(o as THREE.SkinnedMesh);
   });
   check("VANGUARD, every piece on, is four skinned meshes, one a material slot", mm.length === 4 && mm.every((m) => m.name.startsWith("soldier:")), mm.map((m) => m.name).join(", "));
+  const pieces: THREE.SkinnedMesh[] = [];
+  soldier.scene.traverse((o) => {
+    if ((o as THREE.SkinnedMesh).isSkinnedMesh) pieces.push(o as THREE.SkinnedMesh);
+  });
+  const va = new THREE.Vector3();
+  const vb = new THREE.Vector3();
+  // each merged vertex against its piece's, every seventh, in the pose they are both in
+  const each = (f: (m: THREE.SkinnedMesh, key: string) => void): void => {
+    for (const m of mm) {
+      const slot = m.userData.soldierMaterial as string;
+      let at = 0;
+      for (const p of pieces.filter((x) => (x.material as THREE.Material).name === slot)) {
+        const n = p.geometry.getAttribute("position").count;
+        for (let i = 0; i < n; i += 7) {
+          p.getVertexPosition(i, va).applyMatrix4(p.matrixWorld);
+          m.getVertexPosition(at + i, vb).applyMatrix4(m.matrixWorld);
+          f(m, `${m.name}:${at + i}`);
+        }
+        at += n;
+      }
+    }
+  };
+  // The collar behind the head is brought down in the merge (soldier.ts collarLowering, soldier.json collar): in the bind
+  // pose those vertices are where the lowering put them, straight down from their piece's, and they are left out below
+  for (const m of [...pieces, ...mm]) m.skeleton.pose();
+  soldier.scene.updateMatrixWorld(true);
+  merged.updateMatrixWorld(true);
+  const lowered = new Set<string>();
+  let sideways = 0;
+  let rose = 0;
+  each((_m, key) => {
+    if (va.distanceTo(vb) < 1e-4) return;
+    lowered.add(key);
+    sideways = Math.max(sideways, Math.hypot(vb.x - va.x, vb.z - va.z) * 1000);
+    rose = Math.max(rose, (vb.y - va.y) * 1000);
+  });
+  check("the merge moves only the collar behind the head, and only down (soldier.json collar), in the bind pose", lowered.size > 0 && lowered.size < 400 && sideways < 30 && rose <= 0, `${lowered.size} vertices, most sideways ${sideways.toFixed(1)} mm, most up ${rose.toFixed(1)} mm`);
   const sprint = retargetClip(r, all.find((c) => c.name === "Sprint_Loop")!);
   const a1 = new THREE.AnimationMixer(soldier.scene);
   const a2 = new THREE.AnimationMixer(merged);
@@ -142,29 +179,14 @@ const wp = (root: THREE.Object3D, n: string) => root.getObjectByName(n)!.getWorl
   a2.setTime(sprint.duration * 0.3);
   soldier.scene.updateMatrixWorld(true);
   merged.updateMatrixWorld(true);
-  const pieces: THREE.SkinnedMesh[] = [];
-  soldier.scene.traverse((o) => {
-    if ((o as THREE.SkinnedMesh).isSkinnedMesh) pieces.push(o as THREE.SkinnedMesh);
-  });
   let worstMm = 0;
   let compared = 0;
-  const va = new THREE.Vector3();
-  const vb = new THREE.Vector3();
-  for (const m of mm) {
-    const slot = m.userData.soldierMaterial as string;
-    let at = 0;
-    for (const p of pieces.filter((x) => (x.material as THREE.Material).name === slot)) {
-      const n = p.geometry.getAttribute("position").count;
-      for (let i = 0; i < n; i += 7) {
-        p.getVertexPosition(i, va).applyMatrix4(p.matrixWorld);
-        m.getVertexPosition(at + i, vb).applyMatrix4(m.matrixWorld);
-        worstMm = Math.max(worstMm, va.distanceTo(vb) * 1000);
-        compared++;
-      }
-      at += n;
-    }
-  }
-  check("and mid-sprint every merged vertex is where its piece's is, within a millimetre", compared > 1000 && worstMm < 1, `${compared} vertices, worst ${worstMm.toFixed(3)} mm`);
+  each((_m, key) => {
+    if (lowered.has(key)) return;
+    worstMm = Math.max(worstMm, va.distanceTo(vb) * 1000);
+    compared++;
+  });
+  check("and mid-sprint every other merged vertex is where its piece's is, within a millimetre", compared > 1000 && worstMm < 1, `${compared} vertices, worst ${worstMm.toFixed(3)} mm`);
 }
 
 console.log(fails === 0 ? "\nSOLDIER PASS" : `\nSOLDIER FAIL (${fails})`);

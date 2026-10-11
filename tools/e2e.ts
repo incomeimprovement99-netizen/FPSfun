@@ -7566,6 +7566,8 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // (and a finger whose knuckle is under the gun's lowest point has nothing there to hold: figure-audit.js below;
   // STRYDER's right pinky, the soldier's glove wider than its handle is long)
   const on = (a: A, id: string) => Math.max(Math.min(a.palmGap?.l ?? 99, a.handGap?.palm_l ?? 99), a.palmGap?.r ?? 99) <= BAR.off && holdingOf(id).every((f) => (a.below ?? []).includes(f) || touching(a, f) <= BAR.off);
+  // (a gun carried low unless aimed, HAEFY's tube, soldierhold.json carryLow: at rest its barrel is not along the look)
+  const carriedLow = (id: string) => !!(soldierHoldCfg.guns as Record<string, { carryLow?: unknown }>)[id]?.carryLow;
   const within = (a: A | null, aimed: boolean, id: string) =>
     !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn && (a.handOnHand ?? 0) <= BAR.handOnHand && (a.handOnHandN ?? 0) <= BAR.handOnHandN && on(a, id);
   for (const id of FITTED) {
@@ -7579,7 +7581,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     ];
     for (const [label, p] of poses) {
       const a = await ev<A | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, ${JSON.stringify(p)}); r.figureLabStep(0.3); return window.__figureAudit(0, { pitch: ${p.pitch} }); })()`);
-      check(`the soldier holding ${name}, ${label}: both palms on their holds and the fingers round them, the barrel along the look, the wrists straight enough, no hand in the gun or the other hand and the gun not in the body`, within(a, true, id), JSON.stringify(a));
+      check(`the soldier holding ${name}, ${label}: both palms on their holds and the fingers round them, the barrel along the look${label === "at rest" && carriedLow(id) ? " (carried low, not along it)" : ""}, the wrists straight enough, no hand in the gun or the other hand and the gun not in the body`, within(a, !(label === "at rest" && carriedLow(id)), id), JSON.stringify(a));
       // An arm through the gun, measured exactly (the hold check's measure stops at 4 cm, so an arm 15 cm inside read 4):
       // BOOG's left forearm looking up ran 149 mm through it (2026-10-09, found looking at every gun). ANAKIN's stock along
       // the right arm, 60 to 70 mm, is the owner's to keep ("accept stock in arm", 2026-10-05)
@@ -7910,7 +7912,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       await ev(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true }); r.figureLabStep(${R}); r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 }); r.figureLabStep(1.2); })()`);
     }
     const after = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
-    check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, true, id), JSON.stringify(after));
+    check(`the soldier's ${name} reload: after it, the hands are back on the gun`, within(after, !carriedLow(id), id), JSON.stringify(after));
   }
   // A swap as the first person's (gunfeel.json guns.<id>.swap; the owner, 2026-09-30, "no resetting states, jumping UI or
   // bugging in any frame"): the USSO phases out over its holster, BOOG in over its draw from when it comes, the model
@@ -8043,63 +8045,117 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       JSON.stringify({ rest: vented.rest, vent: vented.vent, leaving: vented.leaving, done: vented.done, lockout: L, out: VO?.out })
     );
   }
-  // The head shot from behind (the owner, 2026-10-04: with BOOG he could not headshot a soldier from behind, its head
-  // "all tucked down, like chin is to the player's chest"): from 30 m behind at a standing eye, every point of the drawn
-  // head the shooter can see is aimed at and the hit volumes asked what it hits, as the game's hitscan does. The head
-  // held up to the look (figure.json headUp): before it, 3 to 7 in 100 were headshots crouched and aimed or sprinting,
-  // the neck's and the torso's volumes taking the rest, and the face was tipped 40 degrees and more down. The chest held
-  // more upright too (figure.json chestUp, the owner's choice): it leaned 33 to 40 there, the armour hiding the head
+  // The head from behind (the owner, 2026-10-04: with BOOG he could not headshot a soldier from behind, its head "all
+  // tucked down, like chin is to the player's chest"; 2026-10-11: "ensure 100% of the head is visible from the back, i
+  // want to always be able to clearly snipe hs someone from the back"). Shooters 30 m behind, straight and 30 degrees off
+  // each way at a standing eye, and straight behind 10 m up; every point of the drawn head turned to one is looked at:
+  // what of the soldier is in front of it (its own head and neck skin aside), and a shot at it asked of the hit volumes
+  // as the game's own shot asks them (hitpick.ts). The skull is the head over its lowest 6 cm (the jaw and the nape, which
+  // the neck and the collar meet). Every shot at the head it shows takes the head; nothing but the soldier's own head and
+  // neck hides the skull, save looking 30 degrees down, where the raised right arm and BOOG's stock still hide some of it.
+  // Before: the collar hid 36 in 100 of a standing soldier's head from straight behind; HAEFY's tube, carried on the
+  // shoulder, 54 to 95 in 100 from 30 degrees off; and 2 to 7 in 100 shots at a sprinting or crouched soldier's head were
+  // headshots before the head was held up (figure.json headUp), the chest held up (chestUp), the torso's volume split at
+  // spine_02 and each arm's made two cylinders (dummy.ts followBones)
   {
-    const backPoses: Array<[string, Record<string, unknown>]> = [
-      ["standing", { speed: 0, stance: "stand", pitch: 0 }],
-      ["aimed", { speed: 0, stance: "stand", pitch: 0, ads: 1 }],
-      ["crouched and aimed", { speed: 0, stance: "crouch", pitch: 0, ads: 1 }],
-      ["sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
+    const backPoses: Array<[string, string, Record<string, unknown>]> = [
+      ["BOOG", "standing", { speed: 0, stance: "stand", pitch: 0 }],
+      ["BOOG", "walking", { speed: 3, stance: "stand", pitch: 0 }],
+      ["BOOG", "sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
+      ["BOOG", "crouched", { speed: 0, stance: "crouch", pitch: 0 }],
+      ["BOOG", "aimed", { speed: 0, stance: "stand", pitch: 0, ads: 1 }],
+      ["BOOG", "crouched and aimed", { speed: 0, stance: "crouch", pitch: 0, ads: 1 }],
+      ["BOOG", "aimed 30 down", { speed: 0, stance: "stand", pitch: -30, ads: 1 }],
+      ["HAEFY", "standing", { speed: 0, stance: "stand", pitch: 0 }],
+      ["HAEFY", "walking", { speed: 3, stance: "stand", pitch: 0 }],
+      ["HAEFY", "sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
     ];
-    const back: Record<string, { seen: number; head: number; face: number; chest: number }> = {};
-    for (const [label, pose] of backPoses)
-      back[label] = await ev<{ seen: number; head: number; face: number; chest: number }>(
-        page,
-        `(() => {
-          const r = window.__range, T = r.THREE;
-          r.player.teleport(0, 0, 0, 0, 0);
-          r.figureLabManual(false); r.figureLab([{ ...${JSON.stringify(pose)}, weapon: "sentinel", look: "S0000010" }], 6, 180); r.figureLabManual(true); r.figureLabStep(1.2);
-          const f = r.labFigures()[0], mq = f.mq; f.group.updateMatrixWorld(true);
-          const fwd = new T.Vector3(0, 0, 1).applyQuaternion(f.group.getWorldQuaternion(new T.Quaternion())).setY(0).normalize();
-          const S = f.group.position.clone().addScaledVector(fwd, -30).add(new T.Vector3(0, 1.6, 0));
-          const skins = []; mq.root.traverse((o) => { if (o.isSkinnedMesh && o.visible) skins.push(o); });
-          const ray = new T.Raycaster(); ray.far = 60;
-          const v = new T.Vector3(), nrm = new T.Vector3();
-          let seen = 0, head = 0;
-          for (const o of skins) {
-            const h = o.skeleton.bones.findIndex((x) => x.name === "Head"); if (h < 0) continue;
-            const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight, nm = o.geometry.attributes.normal;
-            for (let i = 0; i < o.geometry.attributes.position.count; i += 3) {
-              let w = 0; for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === h) w += sw.getComponent(i, c);
-              if (w < 0.5) continue;
-              o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld);
-              nrm.fromBufferAttribute(nm, i).transformDirection(o.skeleton.bones[h].matrixWorld);
-              if (nrm.dot(S.clone().sub(v).normalize()) < 0.2) continue;
-              ray.set(S, v.clone().sub(S).normalize());
-              const drawn = ray.intersectObjects(skins, false)[0];
-              if (drawn && drawn.distance < S.distanceTo(v) - 0.015) continue;
-              seen++;
-              const hit = ray.intersectObjects(f.hitMeshes, false)[0];
-              if (hit && hit.object.userData.zone === "head") head++;
+    const gunOf: Record<string, string> = { BOOG: "sentinel", HAEFY: "launcher" };
+    type Back = { seen: number; head: number; skullSeen: number; skullHead: number; skull: number; skullHid: number; face: number; chest: number };
+    const back: Record<string, Back> = {};
+    for (const [look, kit] of [["S0000010", "VANGUARD"], ["S3000010", "RUNNER"]] as const)
+      for (const [gun, label, pose] of backPoses)
+        back[`${kit} ${gun} ${label}`] = await ev<Back>(
+          page,
+          `(() => {
+            const r = window.__range, T = r.THREE;
+            r.player.teleport(0, 0, 0, 0, 0);
+            r.figureLabManual(false); r.figureLab([{ ...${JSON.stringify(pose)}, weapon: "${gunOf[gun]}", look: "${look}" }], 6, 180); r.figureLabManual(true); r.figureLabStep(1.2);
+            const f = r.labFigures()[0], mq = f.mq; f.group.updateMatrixWorld(true);
+            const figQ = f.group.getWorldQuaternion(new T.Quaternion());
+            const fwd = new T.Vector3(0, 0, 1).applyQuaternion(figQ).setY(0).normalize(), side = new T.Vector3(-fwd.z, 0, fwd.x);
+            const feet = f.group.position.clone();
+            // everything drawn near the head, posed once into plain triangles (a ray at a skinned mesh skins every
+            // triangle it tries), each marked as the head's own (its corners weighted half and more to Head), the rest of
+            // the soldier's skin (its neck), or kit (the collar, the armour, an arm, the gun)
+            const head = mq.boneAt("Head"), neck = mq.boneAt("neck_01");
+            const hc = head.getWorldPosition(new T.Vector3());
+            const P = [], own = [], pts = [], v = new T.Vector3(), nrm = new T.Vector3();
+            const hitSet = new Set(f.hitMeshes);
+            f.group.traverse((o) => {
+              if (!o.isMesh || hitSet.has(o) || !o.visible || o.material?.visible === false) return;
+              const g = o.geometry, n = g.attributes.position.count, idx = g.index;
+              const W = new Float32Array(n * 3);
+              for (let i = 0; i < n; i++) { if (o.isSkinnedMesh) o.getVertexPosition(i, v); else v.fromBufferAttribute(g.attributes.position, i); v.applyMatrix4(o.matrixWorld); W[3 * i] = v.x; W[3 * i + 1] = v.y; W[3 * i + 2] = v.z; }
+              const h = o.isSkinnedMesh ? o.skeleton.bones.findIndex((x) => x.name === "Head") : -1;
+              const si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+              const wOf = (i, b) => { let w = 0; if (b >= 0) for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === b) w += sw.getComponent(i, c); return w; };
+              const skin = o.isSkinnedMesh && o.material?.name === "M_head";
+              for (let t = 0; t < (idx ? idx.count : n); t += 3) {
+                const tri = idx ? [idx.getX(t), idx.getX(t + 1), idx.getX(t + 2)] : [t, t + 1, t + 2];
+                if (!tri.some((k) => (W[3 * k] - hc.x) ** 2 + (W[3 * k + 1] - hc.y) ** 2 + (W[3 * k + 2] - hc.z) ** 2 < 0.64)) continue;
+                for (const k of tri) P.push(W[3 * k], W[3 * k + 1], W[3 * k + 2]);
+                own.push((wOf(tri[0], h) + wOf(tri[1], h) + wOf(tri[2], h)) / 3 >= 0.5 ? 2 : skin ? 1 : 0);
+              }
+              if (h < 0) return;
+              for (let i = 0; i < n; i += 2) if (wOf(i, h) >= 0.5) pts.push({ p: new T.Vector3(W[3 * i], W[3 * i + 1], W[3 * i + 2]), n: nrm.fromBufferAttribute(g.attributes.normal, i).transformDirection(o.skeleton.bones[h].matrixWorld).clone() });
+            });
+            const bg = new T.BufferGeometry(); bg.setAttribute("position", new T.Float32BufferAttribute(P, 3)); bg.computeBoundingSphere();
+            const drawn = new T.Mesh(bg, new T.MeshBasicMaterial({ side: T.DoubleSide }));
+            const nc = neck.getWorldPosition(new T.Vector3()), up = hc.clone().sub(nc).normalize();
+            const lows = pts.map((q) => q.p.clone().sub(nc).dot(up)), low = Math.min(...lows);
+            const ray = new T.Raycaster();
+            let seen = 0, hd = 0, skullSeen = 0, skullHead = 0, skull = 0, skullHid = 0;
+            for (const [az, rise] of [[0, 0], [-30, 0], [30, 0], [0, 10]]) {
+              const a = (az * Math.PI) / 180, dir = fwd.clone().multiplyScalar(-Math.cos(a)).addScaledVector(side, Math.sin(a));
+              const S = feet.clone().addScaledVector(dir, 30).add(new T.Vector3(0, 1.6 + rise, 0));
+              pts.forEach((q, k) => {
+                const d = q.p.clone().sub(S), len = d.length(); d.divideScalar(len);
+                if (q.n.dot(d) > -0.1) return;
+                const isSkull = lows[k] > low + 0.06;
+                ray.set(S, d); ray.far = len - 0.012;
+                const block = ray.intersectObject(drawn, false).find((x) => own[x.faceIndex] !== 2);
+                if (isSkull) { skull++; if (block && own[block.faceIndex] === 0) skullHid++; }
+                if (block) return;
+                seen++; if (isSkull) skullSeen++;
+                ray.far = 80;
+                const hit = r.takenHit(ray.intersectObjects(f.hitMeshes, false));
+                if (hit && hit.object.userData.zone === "head") { hd++; if (isSkull) skullHead++; }
+              });
             }
-          }
-          // the face's pitch: the bind pose's forward, carried by the Head bone (mannequin.ts holdHeadUp measures it so)
-          const face = mq.faceLocal ? mq.faceLocal.clone().transformDirection(mq.boneAt("Head").matrixWorld).applyQuaternion(f.group.getWorldQuaternion(new T.Quaternion()).invert()) : new T.Vector3(0, -1, 0);
-          // the upper chest's lean, spine_03 to the neck, forward of upright (figure.json chestUp)
-          const toFig = f.group.getWorldQuaternion(new T.Quaternion()).invert();
-          const line = mq.boneAt("neck_01").getWorldPosition(new T.Vector3()).sub(mq.boneAt("spine_03").getWorldPosition(new T.Vector3())).applyQuaternion(toFig);
-          return { seen, head: Math.round((head / Math.max(1, seen)) * 100), face: Math.round(Math.asin(Math.max(-1, Math.min(1, face.y))) * 573) / 10, chest: Math.round(Math.atan2(line.z, line.y) * 573) / 10 };
-        })()`,
-      );
+            // the face's pitch: the bind pose's forward, carried by the Head bone (mannequin.ts holdHeadUp measures it so)
+            const face = mq.faceLocal ? mq.faceLocal.clone().transformDirection(head.matrixWorld).applyQuaternion(figQ.clone().invert()) : new T.Vector3(0, -1, 0);
+            // the upper chest's lean, spine_03 to the neck, forward of upright (figure.json chestUp)
+            const line = nc.clone().sub(mq.boneAt("spine_03").getWorldPosition(new T.Vector3())).applyQuaternion(figQ.clone().invert());
+            const pc = (x, y) => Math.round((x / Math.max(1, y)) * 1000) / 10;
+            return { seen, head: pc(hd, seen), skullSeen, skullHead: pc(skullHead, skullSeen), skull, skullHid: pc(skullHid, skull), face: Math.round(Math.asin(Math.max(-1, Math.min(1, face.y))) * 573) / 10, chest: Math.round(Math.atan2(line.z, line.y) * 573) / 10 };
+          })()`,
+        );
+    const down = (k: string) => k.endsWith("30 down");
     check(
-      "a soldier seen from behind (BOOG, 30 m): standing, aimed, crouched and aimed or sprinting, 70 in 100 or more of the shots at the head it shows are headshots, its face within 20 degrees of level and its upper chest leaning 22 or less",
-      Object.values(back).every((x) => x.seen >= 15 && x.head >= 70 && Math.abs(x.face) <= 20 && x.chest <= 22),
-      JSON.stringify(back)
+      "a soldier seen from behind (VANGUARD and RUNNER, 30 m back, straight and 30 degrees off, level and 10 m up; BOOG standing, walking, sprinting, crouched, aimed, crouched and aimed, aimed 30 down; HAEFY carried standing, walking, sprinting): every shot at the skull it shows is a headshot, and 99 in 100 at the whole head it shows (the jaw and the nape where they meet the collar too)",
+      Object.values(back).every((x) => x.skullSeen >= 100 && x.skullHead === 100 && x.head >= 99),
+      JSON.stringify(Object.fromEntries(Object.entries(back).map(([k, x]) => [k, { seen: x.seen, head: x.head, skull: x.skullHead }])))
+    );
+    check(
+      "nothing but the soldier's own head and neck hides its skull from behind (its collar, its armour, its arms or its gun: none of it), except looking 30 degrees down, where its raised right arm and BOOG's stock hide 30 in 100 or less",
+      Object.entries(back).every(([k, x]) => x.skull >= 100 && x.skullHid <= (down(k) ? 30 : 0.5)),
+      JSON.stringify(Object.fromEntries(Object.entries(back).map(([k, x]) => [k, x.skullHid])))
+    );
+    check(
+      "and its face within 20 degrees of where it looks (level, or 30 down), its upper chest leaning no more than 12 degrees forward (figure.json chestUp 8: crouched it leans 11)",
+      Object.entries(back).every(([k, x]) => Math.abs(x.face - (down(k) ? -30 : 0)) <= 20 && x.chest <= 12),
+      JSON.stringify(Object.fromEntries(Object.entries(back).map(([k, x]) => [k, { face: x.face, chest: x.chest }])))
     );
   }
   // A far soldier's eyes are not drawn (lod.json figures.eyes; a draw call a figure) and never cast a shadow: shown near,

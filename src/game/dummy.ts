@@ -27,6 +27,7 @@ import { MannequinFigure, useMannequin } from "./mannequin";
 import { MateOutline, Outline } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import { IS_SK } from "./game";
+import figureCfg from "../config/figure.json";
 
 export type Zone = "head" | "body" | "legs";
 export type ArmorTier = 0 | 1 | 2 | 3 | 4;
@@ -337,6 +338,57 @@ const FB_Q = new THREE.Quaternion();
 const FB_X = new THREE.Vector3();
 const FB_Y = new THREE.Vector3();
 const FB_Z = new THREE.Vector3();
+const FB_Q2 = new THREE.Quaternion();
+const FB_S = new THREE.Vector3();
+const FB_M2 = new THREE.Matrix4();
+const FB_A = new THREE.Vector3();
+const FB_C = new THREE.Vector3();
+/** the head volume's sphere, metres round, and the neck's height (the volumes as made); the soldier's follow its own (followBones) */
+const HEAD_R = 0.13;
+const NECK_H = 0.1;
+/**
+ * The torso's volume, 0.5 across, 0.63 high and 0.32 deep, its top following the shoulders down from the neck
+ * (figure.json torsoTop): a box with a flat top stood over the shoulders and in front of the side of the head. From
+ * `bottom` up (the soldier's chest is its top half alone, from spine_02: followBones).
+ */
+const torsoVolGeo = new Map<number, THREE.BufferGeometry>();
+function torsoVolume(bottom = -0.315): THREE.BufferGeometry {
+  const made = torsoVolGeo.get(bottom);
+  if (made) return made.clone();
+  const top = (figureCfg as { torsoTop?: number[][] }).torsoTop ?? [[0, 0], [0.25, 0]];
+  const s = new THREE.Shape();
+  s.moveTo(-0.25, bottom);
+  s.lineTo(0.25, bottom);
+  // up the left side and across the top along the profile, then down the right side
+  for (let i = top.length - 1; i >= 0; i--) s.lineTo(top[i][0], 0.315 - top[i][1]);
+  for (let i = 1; i < top.length; i++) s.lineTo(-top[i][0], 0.315 - top[i][1]);
+  s.lineTo(-0.25, bottom);
+  // in a centimetre's steps front to back, each step's top brought down to the back's and the chest's line (torsoBack)
+  const g = new THREE.ExtrudeGeometry(s, { depth: 0.32, steps: 32, bevelEnabled: false });
+  g.translate(0, 0, -0.16);
+  const back = (figureCfg as { torsoBack?: number[][] }).torsoBack ?? [];
+  const downAt = (z: number): number => {
+    if (!back.length) return 0;
+    if (z <= back[0][0]) return back[0][1];
+    for (let i = 1; i < back.length; i++) if (z <= back[i][0]) return back[i - 1][1] + ((back[i][1] - back[i - 1][1]) * (z - back[i - 1][0])) / (back[i][0] - back[i - 1][0]);
+    return back[back.length - 1][1];
+  };
+  const pos = g.attributes.position as THREE.BufferAttribute;
+  for (let i = 0; i < pos.count; i++) pos.setY(i, Math.min(pos.getY(i), 0.315 - downAt(pos.getZ(i))));
+  g.computeVertexNormals();
+  g.computeBoundingBox();
+  g.computeBoundingSphere();
+  torsoVolGeo.set(bottom, g);
+  return g.clone();
+}
+
+/** the neck's volume at its top, metres round: the drawn neck's thinnest under the skull (figure.json headVolume) */
+const NECK_TOP = (figureCfg as { headVolume?: { neckTop: number } }).headVolume?.neckTop ?? 0.07;
+const NECK_FOOT = (figureCfg as { headVolume?: { neckFoot: number } }).headVolume?.neckFoot ?? 0.09;
+/** the soldier's arm volumes, round its upper arms and its forearms (figure.json armVolume) */
+const ARM = (figureCfg as { armVolume?: { upper: number[]; fore: number[]; hand: number } }).armVolume ?? { upper: [0.11, 0.08], fore: [0.075, 0.062], hand: 0.1 };
+/** how far under the neck bone the soldier's neck volume reaches (figure.json neckBelow) */
+const NECK_BELOW = (figureCfg as { neckBelow?: number }).neckBelow ?? 0.0275;
 
 /**
  * The robot's body, one per kind (its operator's shape and colours, armed or not, rigged or not): built once and cloned
@@ -717,7 +769,7 @@ export class Dummy {
   /** the motion-captured mannequin in place of the robot (mannequin.ts, a setting) */
   private mq: MannequinFigure | null = null;
   /** the hit volumes by part, for SpeedKills' soldier, whose volumes follow its bones (followBones) */
-  private vols: { legs: THREE.Mesh; torso: THREE.Mesh; armL: THREE.Mesh; armR: THREE.Mesh; neck: THREE.Mesh; head: THREE.Mesh; plate: THREE.Mesh };
+  private vols: { legs: THREE.Mesh; torso: THREE.Mesh; armL: THREE.Mesh; armR: THREE.Mesh; neck: THREE.Mesh; head: THREE.Mesh; plate: THREE.Mesh; foreL?: THREE.Mesh; foreR?: THREE.Mesh; belly?: THREE.Mesh };
   readonly distanceLabel: number;
   /** the operator this figure wears */
   readonly skin: OperatorSkin;
@@ -763,7 +815,7 @@ export class Dummy {
     legs.userData.zone = "legs";
     // torso: 0.92..1.55 m. The top must reach the head sphere's bottom
     // (1.5488) or a round through the neck registers no hit at all.
-    const torso = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.63, 0.32), HITBOX);
+    const torso = new THREE.Mesh(torsoVolume(), HITBOX);
     torso.position.y = 1.235;
     torso.userData.zone = "body";
     const armL = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.6, 0.14), HITBOX);
@@ -771,11 +823,11 @@ export class Dummy {
     armL.userData.zone = "body";
     const armR = armL.clone();
     armR.position.x = 0.33;
-    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.07, 0.09, 0.1, 10), HITBOX);
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(NECK_TOP, NECK_FOOT, NECK_H, 10), HITBOX);
     neck.position.y = 1.58;
     neck.userData.zone = "body";
     // head: sphere r 0.13 at 1.68 m (total ~1.83 m)
-    const head = new THREE.Mesh(new THREE.SphereGeometry(0.13, 20, 14), HITBOX);
+    const head = new THREE.Mesh(new THREE.SphereGeometry(HEAD_R, 20, 14), HITBOX);
     head.position.y = H - 0.15;
     head.userData.zone = "head";
     // armour plate: visibility still switches it off at tier 0
@@ -1426,12 +1478,12 @@ export class Dummy {
   private followBones(): void {
     const mq = this.mq;
     if (!mq?.soldier) return;
-    const names = ["Head", "neck_01", "pelvis", "upperarm_l", "upperarm_r", "hand_l", "hand_r", "thigh_l", "thigh_r", "foot_l", "foot_r"] as const;
+    const names = ["Head", "neck_01", "pelvis", "upperarm_l", "upperarm_r", "hand_l", "hand_r", "thigh_l", "thigh_r", "foot_l", "foot_r", "lowerarm_l", "lowerarm_r", "spine_02"] as const;
     const b = names.map((n) => mq.bone(n));
     const mid = mq.headMiddle();
     if (!mid || b.some((x) => !x)) return;
     this.group.updateMatrixWorld(true);
-    const [head, neck, pelvis, shL, shR, haL, haR, thL, thR, ftL, ftR] = b.map((x) => new THREE.Vector3().setFromMatrixPosition(x!.matrixWorld));
+    const [head, neck, pelvis, shL, shR, haL, haR, thL, thR, ftL, ftR, elL, elR, sp2] = b.map((x) => new THREE.Vector3().setFromMatrixPosition(x!.matrixWorld));
     const toHits = FB_M.copy(this.hits.matrixWorld).invert();
     const hitsQ = this.hits.getWorldQuaternion(FB_Q).invert();
     // a volume's own frame: up along a bone line, across as near the figure's left as that allows, forward from the two
@@ -1443,21 +1495,100 @@ export class Dummy {
       m.quaternion.setFromRotationMatrix(FB_B.makeBasis(x, y, z)).premultiply(hitsQ);
     };
     const V = this.vols;
+    if (!V.foreL || !V.belly) this.soldierVolumes();
     const left = shL.clone().sub(shR);
-    const spine = neck.clone().sub(pelvis);
-    put(V.torso, pelvis.clone().lerp(neck, 0.5), spine, left);
+    // The torso's volume in two, both from spine_02 (where the box's middle was, standing): the chest up along the upper
+    // chest to the neck, the belly down to the pelvis. One box along the pelvis to the neck leant with the whole back,
+    // 26 degrees forward sprinting where the upper chest leans 17, and its top's back corner stood up behind the head:
+    // from behind, 40 of every 499 shots at the head it showed went into it, sprinting, and 28 crouched.
+    put(V.torso, sp2, neck.clone().sub(sp2), left);
+    if (V.belly) put(V.belly, sp2, sp2.clone().sub(pelvis), left);
     // the plate where it sat on the column, above the torso's middle and in front of it, now in the torso's frame
     V.plate.position.copy(V.torso.position).add(FB_Y.set(0, 1.28 - 1.235, 0.19).applyQuaternion(V.torso.quaternion));
     V.plate.quaternion.copy(V.torso.quaternion);
-    put(V.neck, neck.clone().lerp(head, 0.5), head.clone().sub(neck), left);
     V.head.position.copy(mid).applyMatrix4(b[0]!.matrixWorld).applyMatrix4(toHits);
-    // armL stands on the column's -x, the figure's right as it faces +z; armR on its left
-    put(V.armL, shR.clone().lerp(haR, 0.5), shR.clone().sub(haR), left);
-    put(V.armR, shL.clone().lerp(haL, 0.5), shL.clone().sub(haL), left);
+    // the head's volume its drawn head's own ellipsoid, turned with it (mannequin.ts headShape): the sphere before it
+    // left the bottom of the back of the head out, and a shot there went through to the neck's volume
+    const shape = mq.headShape();
+    if (shape) {
+      V.head.position.copy(shape.mid).applyMatrix4(b[0]!.matrixWorld).applyMatrix4(toHits);
+      V.head.quaternion.copy(hitsQ).multiply(b[0]!.getWorldQuaternion(FB_Q2)).multiply(shape.turn);
+      const k = b[0]!.getWorldScale(FB_S).x / this.hits.getWorldScale(FB_S).x / HEAD_R;
+      V.head.scale.set(shape.half.x * k, shape.half.y * k, shape.half.z * k);
+    }
+    // The neck's volume from down at the torso's lowered back (figure.json neckBelow) up to where the neck's line goes
+    // into the head's volume, and no further: the head takes the top of the neck its drawn head reaches down over. Up to
+    // the Head bone, the two overlapped, and a shot at the top of the neck under the jaw from 30 degrees behind took the
+    // neck, 5 of every 100 at the head shown there.
+    const neckLine = head.clone().sub(neck).normalize();
+    const neckFoot = neck.clone().addScaledVector(neckLine, -NECK_BELOW);
+    let neckTop = head;
+    if (shape) {
+      // the line in the head volume's own frame, where it is the unit sphere: its first way in
+      V.head.updateMatrix();
+      const toUnit = FB_M2.copy(this.hits.matrixWorld).multiply(V.head.matrix).invert();
+      const o = FB_A.copy(neckFoot).applyMatrix4(toUnit);
+      const d = FB_C.copy(head).applyMatrix4(toUnit).sub(o);
+      const r = HEAD_R;
+      const qa = d.dot(d);
+      const qb = 2 * o.dot(d);
+      const qc = o.dot(o) - r * r;
+      const disc = qb * qb - 4 * qa * qc;
+      if (disc >= 0) {
+        const t = (-qb - Math.sqrt(disc)) / (2 * qa);
+        if (t > 0 && t < 1) neckTop = neckFoot.clone().lerp(head, t);
+      }
+    }
+    put(V.neck, neckFoot.clone().lerp(neckTop, 0.5), neckLine, left);
+    V.neck.scale.y = Math.max(1e-3, neckFoot.distanceTo(neckTop)) / NECK_H;
+    // armL stands on the column's -x, the figure's right as it faces +z; armR on its left. Each arm two volumes round its
+    // drawn arm (figure.json armVolume), shoulder to elbow and elbow to past the wrist: one 0.6 m box from the shoulder
+    // to the hand stood half its length past a bent arm's shoulder, behind it and beside the head, and from 30 degrees
+    // behind a shot at the head it showed went into it
+    const limb = (m: THREE.Mesh | undefined, from: THREE.Vector3, to: THREE.Vector3): void => {
+      if (!m) return;
+      put(m, from.clone().lerp(to, 0.5), from.clone().sub(to), left);
+      m.scale.y = Math.max(1e-3, from.distanceTo(to));
+    };
+    const past = (hand: THREE.Vector3, elbow: THREE.Vector3) => hand.clone().addScaledVector(hand.clone().sub(elbow).normalize(), ARM.hand);
+    limb(V.armL, shR, elR);
+    limb(V.foreL, elR, past(haR, elR));
+    limb(V.armR, shL, elL);
+    limb(V.foreR, elL, past(haL, elL));
     const feet = ftL.clone().lerp(ftR, 0.5);
     put(V.legs, pelvis.clone().lerp(feet, 0.5), pelvis.clone().sub(feet), thL.clone().sub(thR));
     V.legs.scale.y = pelvis.distanceTo(feet) / (V.legs.geometry as THREE.BoxGeometry).parameters.height;
     this.hits.updateMatrixWorld(true);
+  }
+
+  /**
+   * The soldier's own volumes, made the first time its volumes follow its bones: the torso's box becomes its chest
+   * (its top half, from spine_02) and a belly under it, the upper arms' boxes become cylinders round the drawn upper
+   * arms, and each arm gets a forearm (figure.json armVolume). The robot keeps its boxes.
+   */
+  private soldierVolumes(): void {
+    const V = this.vols;
+    V.torso.geometry.dispose();
+    V.torso.geometry = torsoVolume(0);
+    const belly = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.315, 0.32).translate(0, -0.1575, 0), HITBOX);
+    belly.userData.zone = "body";
+    belly.castShadow = false;
+    this.hits.add(belly);
+    this.hitMeshes.push(belly);
+    V.belly = belly;
+    const cyl = (r: number[]) => new THREE.CylinderGeometry(r[0], r[1], 1, 10);
+    for (const m of [V.armL, V.armR]) {
+      m.geometry.dispose();
+      m.geometry = cyl(ARM.upper);
+    }
+    for (const k of ["foreL", "foreR"] as const) {
+      const m = new THREE.Mesh(cyl(ARM.fore), HITBOX);
+      m.userData.zone = "body";
+      m.castShadow = false;
+      this.hits.add(m);
+      this.hitMeshes.push(m);
+      V[k] = m;
+    }
   }
 
   /**

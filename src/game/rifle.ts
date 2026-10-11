@@ -205,6 +205,15 @@ export function pistolStance(id: string): boolean {
   return (cfg.guns as Record<string, { stance?: string }>)[id]?.stance === "pistol";
 }
 
+/**
+ * A gun the soldier carries low across the body whenever it is not aimed in (soldierhold.json guns.<id>.carryLow), as
+ * every gun is sprinting, except for `after` seconds after a shot and through a reload: HAEFY's tube, up on the shoulder,
+ * lay its back half beside and behind the head, and from 30 degrees behind it hid 54 to 95 of every 100 points of it.
+ */
+export function carryLowOf(id: string): { after: number } | null {
+  return (cfg.guns as Record<string, { carryLow?: { after: number } }>)[id]?.carryLow ?? null;
+}
+
 /** where the soldier's left hand takes this gun, gun-local, when not where the model's own measures put it (soldierhold.json support) */
 export function supportOf(id: string): THREE.Vector3 | null {
   const at = (cfg.guns as Record<string, { support?: number[] }>)[id]?.support;

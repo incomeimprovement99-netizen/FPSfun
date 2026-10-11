@@ -11,6 +11,7 @@ import type { Target } from "./targets";
 import type { ResolvedWeapon } from "./weapons";
 import { IS_SK } from "./game";
 import { bodyAlong, bodyGap, buildRocket } from "./rocket";
+import { takenHit } from "./hitpick";
 
 
 /**
@@ -272,7 +273,7 @@ export class ProjectileSystem {
     const unit = dir.clone().normalize();
     this.ray.set(origin, unit);
     this.ray.far = Math.min(range, solidHit(origin, unit, range));
-    const hit = meshes.length ? this.ray.intersectObjects(meshes, false)[0] : undefined;
+    const hit = meshes.length ? takenHit(this.ray.intersectObjects(meshes, false)) : undefined;
     if (!hit) return false;
     const d = owner.get(hit.object);
     const dist = hit.distance;
@@ -414,7 +415,8 @@ export class ProjectileSystem {
           this.ray.far = Math.min(len, wallAt);
           const hits = this.ray.intersectObjects(meshes, false);
           if (hits.length) {
-            const hit = hits[0];
+            // (the nearest, but a shot into the body that reaches the head just past it takes the head: hitpick.ts)
+            const hit = takenHit(hits)!;
             const dist = hit.point.distanceTo(b.origin);
             const dmg = falloff(b.weapon, dist) * b.dmgScale;
             const zone = (hit.object.userData.zone as Zone) ?? "body";

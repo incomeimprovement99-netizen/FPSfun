@@ -466,7 +466,7 @@
     "cheek": 0.01,
     "side": 0.035
   },
-  "_guns": "A gun's own numbers over the ones above, where its shape needs them: its hands by tools/figure-fit.ts (each hand closed round its hold at the place searched round a start measured off the gun, tools/gun-shape.ts), its pocket, turn, elbows and aim by tools/figure-solve.ts rest, against the frame sheets. Measured, gun frame, cm: the USSO's pistol grip, its magazine inside it, hangs from 8 to 18 cm under the bore (the magazine on to 28), 3.4 cm thick and raked back 19 degrees, inside a trigger guard that closes round the fingers (an opening 7.5 cm tall and 4 cm deep, the trigger in its top), and its fore-end is a slab 2.4 to 4.2 cm wide down to 12 cm under the bore; BOOG's grip hangs from 15 to 24 cm under, 4 cm thick and raked back 25 degrees, its trigger in a small loop in front of its top, and its box magazine, 15 cm long and 3 cm wide, hangs to 18.5 cm under in front of the loop. A palm's middle is 1.5 cm inside the hand, so it sits that far off the surface it holds. ANAKIN's pistol grip holds its magazine too (Clip, 9.5 to 29 cm under the bore, raked back about 35 degrees, 3.6 to 4 cm thick where the hand is), its trigger 4.5 cm in front of the grip's top inside a guard whose front slopes from 14.5 cm in front at the bore to 2.5 cm in front 19 cm under, a stock reaching 48 cm behind the trigger. Its right hand holds the grip's top with the magazine running on below it, as an Uzi's: a search from the shared start laid the hand flat on the receiver's side with straight fingers, so it was placed from the USSO's fitted hand carried over by each gun's trigger and grip, and grasped there (figure-fit.ts SEARCH=0). PANDA's grip hangs from 6 to 22 cm under the bore behind its trigger, 4 cm thick at the top and 6 lower down, open behind it until the stock starts 25 cm back (a skeleton stock, 4 cm wide): its right hand was placed from the USSO's fitted hand carried over by the trigger and grasped there, the index 4 mm off the trigger's face; a search from there moved it 3.5 cm back and took the index 30 mm off. Its lower fingers stop on the thick grip's front rather than wrapping it. PANDA's carries: its left hand keeps the hold's own place (lowered.l): a search put it 3.6 cm up into the handguard (22 mm of skin in the gun sprinting) where the hold's own is 5. Its sprint and jump carries were solved counting the left hold's slide (figure-solve.ts): solved without it, the muzzle went 44 degrees down, the arm fell short, and the hold slid back into the magazine. BIGANTLER's grip hangs behind its trigger (the trigger 12 to 14 cm behind the gun's middle), 2 to 3 cm thick and raked back; its right hand placed from the USSO's carried over by the trigger (7 cm behind it, 3.5 under) and grasped there, the index's crease 0.2 mm off the trigger; the left closed round the pump. REZ's grip hangs behind its trigger (the trigger 6.5 to 11 cm behind the gun's middle), raked back; its right hand placed from the USSO's carried over by the trigger, then searched from there (the placed grasp's ring finger hung 12 mm off the grip), the index's crease 0.1 mm off the trigger. CHOOCH's grip is a slanted bar in a thumbhole stock, the drum close in front: its finger space is 5 cm deep and 8 tall, closed below by the guard's bar, too small for the soldier's glove to wrap (drawn 1.15 or 1.25 times as big, no better). Its right palm sits behind the bar, the index's crease on the trigger (0.0 mm); a grasp left the ring and pinky straight out along the frame (3 mm in, a finger gun from the side), so they are curled round the bar instead, 18 mm into the guard's frame where nothing outside shows it (photographed from the right and the front). A pistol joins the rig with `stance` \"pistol\" (rifle.ts pistolStance): its `pocket` is not the shoulder's but in front of the chest at the arms' reach, its `aim.relief` the arms' length from the eye (APUHTHEE 0.36, measured: at 0.45 the right arm was straight with the palm 7.4 cm short of its place, at 0.40 still 2.5 short; at 0.36 the elbow is at 169 degrees and the hand on it), the chest turned less (`blade`), the head not down onto a stock (`adsHead`), and its own low carry (`lowered`). APUHTHEE's hands (Milestone 472): the right searched on the handle, the index's crease on the trigger; the left round the right, its palm on the right fingers, its fingers over them and its thumb forward along the frame under the slide (the index curled and the thumb laid by hand, each measured against the gun and the right hand, figure-audit.js handOnHand: the fit had left the index straight out and the thumb up the slide's side). STRYDER's pistol (`autopistol`, Milestone 482, fitted ahead of its roster change): aimed at 0.34 m (at 0.36 the palm was 1.2 cm short, the elbow straight), drawn 1.1 times as big (the least at which the glove's index gets into its hook of a guard onto the trigger: at 1.05 its crease stopped 14.7 mm off), the right palm kept 4 mm off the handle where the index reaches the trigger (seated on it, 13 mm short), its pinky under the handle's bottom. The left palms (the owner, 2026-10-05: \"the left support hand on the USSO has a gap\"): each palm touches its hold, its nearest tenth 7 to 16 mm off (figure-audit.js palmFlush), the glove's palm cupped under a fore-end; BOOG's pressed 9 mm onto its rail (12 to 5 mm), where pressing the USSO's or CHOOCH's only sank it in. The low carries' own left hands, PANDA's 11 mm and ANAKIN's 7 off their guns, are the fitted ones now. HAEFY (`3030`, Milestone 500) wears BOOG's bought model in its own skins (paidweapons.json), so it is held as BOOG is, a copy of BOOG's fitted numbers, held to every skfigure check as its own gun; if HAEFY becomes the launcher (docs/PLAN_THE_EIGHT_GUNS.md 5.7) it is fitted from scratch then.",
+  "_guns": "A gun's own numbers over the ones above, where its shape needs them: its hands by tools/figure-fit.ts (each hand closed round its hold at the place searched round a start measured off the gun, tools/gun-shape.ts), its pocket, turn, elbows and aim by tools/figure-solve.ts rest, against the frame sheets. Measured, gun frame, cm: the USSO's pistol grip, its magazine inside it, hangs from 8 to 18 cm under the bore (the magazine on to 28), 3.4 cm thick and raked back 19 degrees, inside a trigger guard that closes round the fingers (an opening 7.5 cm tall and 4 cm deep, the trigger in its top), and its fore-end is a slab 2.4 to 4.2 cm wide down to 12 cm under the bore; BOOG's grip hangs from 15 to 24 cm under, 4 cm thick and raked back 25 degrees, its trigger in a small loop in front of its top, and its box magazine, 15 cm long and 3 cm wide, hangs to 18.5 cm under in front of the loop. A palm's middle is 1.5 cm inside the hand, so it sits that far off the surface it holds. ANAKIN's pistol grip holds its magazine too (Clip, 9.5 to 29 cm under the bore, raked back about 35 degrees, 3.6 to 4 cm thick where the hand is), its trigger 4.5 cm in front of the grip's top inside a guard whose front slopes from 14.5 cm in front at the bore to 2.5 cm in front 19 cm under, a stock reaching 48 cm behind the trigger. Its right hand holds the grip's top with the magazine running on below it, as an Uzi's: a search from the shared start laid the hand flat on the receiver's side with straight fingers, so it was placed from the USSO's fitted hand carried over by each gun's trigger and grip, and grasped there (figure-fit.ts SEARCH=0). PANDA's grip hangs from 6 to 22 cm under the bore behind its trigger, 4 cm thick at the top and 6 lower down, open behind it until the stock starts 25 cm back (a skeleton stock, 4 cm wide): its right hand was placed from the USSO's fitted hand carried over by the trigger and grasped there, the index 4 mm off the trigger's face; a search from there moved it 3.5 cm back and took the index 30 mm off. Its lower fingers stop on the thick grip's front rather than wrapping it. PANDA's carries: its left hand keeps the hold's own place (lowered.l): a search put it 3.6 cm up into the handguard (22 mm of skin in the gun sprinting) where the hold's own is 5. Its sprint and jump carries were solved counting the left hold's slide (figure-solve.ts): solved without it, the muzzle went 44 degrees down, the arm fell short, and the hold slid back into the magazine. BIGANTLER's grip hangs behind its trigger (the trigger 12 to 14 cm behind the gun's middle), 2 to 3 cm thick and raked back; its right hand placed from the USSO's carried over by the trigger (7 cm behind it, 3.5 under) and grasped there, the index's crease 0.2 mm off the trigger; the left closed round the pump. REZ's grip hangs behind its trigger (the trigger 6.5 to 11 cm behind the gun's middle), raked back; its right hand placed from the USSO's carried over by the trigger, then searched from there (the placed grasp's ring finger hung 12 mm off the grip), the index's crease 0.1 mm off the trigger. CHOOCH's grip is a slanted bar in a thumbhole stock, the drum close in front: its finger space is 5 cm deep and 8 tall, closed below by the guard's bar, too small for the soldier's glove to wrap (drawn 1.15 or 1.25 times as big, no better). Its right palm sits behind the bar, the index's crease on the trigger (0.0 mm); a grasp left the ring and pinky straight out along the frame (3 mm in, a finger gun from the side), so they are curled round the bar instead, 18 mm into the guard's frame where nothing outside shows it (photographed from the right and the front). A pistol joins the rig with `stance` \"pistol\" (rifle.ts pistolStance): its `pocket` is not the shoulder's but in front of the chest at the arms' reach, its `aim.relief` the arms' length from the eye (APUHTHEE 0.36, measured: at 0.45 the right arm was straight with the palm 7.4 cm short of its place, at 0.40 still 2.5 short; at 0.36 the elbow is at 169 degrees and the hand on it), the chest turned less (`blade`), the head not down onto a stock (`adsHead`), and its own low carry (`lowered`). APUHTHEE's hands (Milestone 472): the right searched on the handle, the index's crease on the trigger; the left round the right, its palm on the right fingers, its fingers over them and its thumb forward along the frame under the slide (the index curled and the thumb laid by hand, each measured against the gun and the right hand, figure-audit.js handOnHand: the fit had left the index straight out and the thumb up the slide's side). STRYDER's pistol (`autopistol`, Milestone 482, fitted ahead of its roster change): aimed at 0.34 m (at 0.36 the palm was 1.2 cm short, the elbow straight), drawn 1.1 times as big (the least at which the glove's index gets into its hook of a guard onto the trigger: at 1.05 its crease stopped 14.7 mm off), the right palm kept 4 mm off the handle where the index reaches the trigger (seated on it, 13 mm short), its pinky under the handle's bottom. The left palms (the owner, 2026-10-05: \"the left support hand on the USSO has a gap\"): each palm touches its hold, its nearest tenth 7 to 16 mm off (figure-audit.js palmFlush), the glove's palm cupped under a fore-end; BOOG's pressed 9 mm onto its rail (12 to 5 mm), where pressing the USSO's or CHOOCH's only sank it in. The low carries' own left hands, PANDA's 11 mm and ANAKIN's 7 off their guns, are the fitted ones now. HAEFY is the rocket launcher (`launcher`, docs/PLAN_THE_EIGHT_GUNS.md 5.7). Up on the right shoulder its tube's back half, 65 cm behind its grip, lay beside and behind the head, and from 30 m behind and 30 degrees off it hid 54 to 95 of every 100 points of the head standing, walking, running, crouched or jumping (the owner, 2026-10-11: \"i want to always be able to clearly snipe hs someone from the back\"), so it is carried low unless aimed (`carryLow`, rifle.ts carryLowOf: every gun is, sprinting), except for `after` seconds after a shot and through a reload, and its lowered, air and swap carries were searched with the head counted (tools/figure-solve.ts HEAD=3, then 8, LOWALL=1 for the lowered): muzzle up across the right shoulder, the tube's back down behind it, the tube hiding none of the head from those six shooters standing, crouched, walking, running, sprinting or jumping (the sweep, 2026-10-11), the gun 2 mm into the body at most and the wrists at most 43 degrees bent; turned about its butt alone, which is the tube's back end, no carry moved it off the head (each 15 to 18 of every 100 hidden), so it is held out and down (`out`). A punch keeps the low carry, the right hand holding the tube where it was; the left hand leaving the tube's front, up by the left shoulder there, clears it 10 cm to the figure's left, 10 down and 25 forward (`melee.punch.clear`, searched over the skfigure check's string of three: at the rifles' 25, 10 and 12 the left wrist bent 67 degrees leaving and coming back, at these 51). Aimed in, it is on the shoulder, and from 30 degrees behind on its side the tube hides 70 to 88 of every 100 points of the skull: its back is level with the eye there.",
   "guns": {
     "sentinel": {
       "reload": {
@@ -3409,6 +3409,9 @@
       }
     },
     "launcher": {
+      "carryLow": {
+        "after": 1
+      },
       "pocket": {
         "in": 0.045,
         "down": -0.08,
@@ -3515,13 +3518,13 @@
         }
       },
       "lowered": {
-        "down": 20,
-        "left": 23,
-        "roll": 22,
+        "down": -27,
+        "left": 13,
+        "roll": 46,
         "out": [
-          0.06,
-          0.08,
-          -6.938893903907228e-18
+          0.16,
+          -0.27,
+          -0.06
         ],
         "l": {
           "at": [
@@ -3532,7 +3535,7 @@
           "fwd": [
             0.237,
             0.212,
-            -0.948
+            -1.098
           ],
           "palm": [
             0.968,
@@ -3565,23 +3568,23 @@
         "side": 0.025
       },
       "swap": {
-        "down": 32,
+        "down": 26,
         "left": 23,
         "roll": -8,
         "out": [
           0.02,
-          -0.02,
-          0.10500000000000001
+          -0.01,
+          0.105
         ]
       },
       "air": {
-        "down": 32,
-        "left": 11,
-        "roll": 2.5,
+        "down": 8,
+        "left": -1,
+        "roll": 26.5,
         "out": [
-          0.02,
-          -0.02,
-          0.1
+          0.1,
+          0.1,
+          0.08
         ]
       },
       "reach": {
@@ -3590,9 +3593,9 @@
       "melee": {
         "punch": {
           "clear": [
-            0.25,
+            0.1,
             -0.1,
-            0.12
+            0.25
           ]
         }
       }

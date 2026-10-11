@@ -11961,3 +11961,57 @@ The plan's item 10, the light: the fourth review called the neon night "a purple
   the hazy day, reads (the street at luma 70 to 79), and its parked cars are as bright as the pack paints them.
 - **Checked** (tools/checks/sky-hours.ts, in npm run verify): two new checks (the neon night's sky fill under half the golden hour's and its rim under the day's, proven by putting the day's 0.75 and 0.3 back; every hour's fill and rim in range, the afternoon the range's own). The e2e: the speedkills section, 101 of 101. verify, rules and the type
   check. The look: three streets at night before, at a first try and as set, and the hazy day, golden hour and hard noon's parked cars. No map files change.
+
+## Milestone 560 — The head from behind: what a sniper sees of it, a shot at it takes
+
+The owner, 2026-10-11: "ensure 100% of the head is visible from the back, i want to always be able to clearly snipe hs
+someone from the back". Measured from shooters 30 m behind a soldier (straight, 30 degrees off each way, at a standing
+eye and 10 m up), at every point of the drawn head turned to each: what hides it, and whether a shot at a point it shows
+is a headshot, in 117 states (VANGUARD, RECON and RUNNER; BOOG, HAEFY and APUHTHEE; standing, walking, running,
+sprinting, crouched, crouch-walking, aimed, aimed walking, crouched and aimed, aimed 30 up and 30 down, jumping,
+sliding). The skull is the head over its lowest 6 cm (the jaw and the nape, which the neck and the collar meet).
+
+**Before:** the armour's collar hid 36 of every 100 points of a standing soldier's head from straight behind (85 from
+30 degrees off); HAEFY's tube, carried on the shoulder, 54 to 95 standing, walking, running or crouched; aiming 30 degrees
+down, the shoulders, the back armour and the raised arm 56 to 84. And of the shots at the head a soldier did show, the
+neck's, the torso's and the arms' volumes took up to 1 in 4: the head's sphere left the bottom of the back of the head out,
+the torso's one box leant with the whole back and stood up behind the head sprinting and crouched, and each arm's 0.6 m
+box reached half its length past a bent arm's shoulder.
+
+- **What hides the head:**
+  - The collar behind the head brought down in the merge (soldier.ts collarLowering, soldier.json collar): the armour's
+    and the suit's collars over the head's lowest point behind and round the sides of the neck, the front left as it is.
+  - The chest held more upright (figure.json chestUp, 20 to 8 degrees): crouched and aimed, the raised right shoulder hid
+    12 to 22 of every 100 points of the skull; now none.
+  - Looking down, the soldier bends as little as its gun's hold allows (figure.json aimBend): 0.3 of the look at the
+    waist, BIGANTLER, REZ, STRYDER and HAEFY 0.5 and CHOOCH 0.9, each the least at which its hold looking 35 down keeps
+    the skfigure bar; it was 0.9 at the chest for every gun.
+  - HAEFY carried low unless aimed (soldierhold.json carryLow, rifle.ts carryLowOf): muzzle up across the right
+    shoulder, the tube's back down behind it, through a punch too; its low, jump and swap carries searched with the head
+    counted (tools/figure-solve.ts HEAD=n, the gun's share of the head hidden from the six shooters a cost; GRID= measures
+    a list of numbers without a search; LOWALL=1 measures the low carry standing, crouched and walking).
+- **What a shot at it takes:**
+  - The head's volume the drawn head's own smallest ellipsoid, a hat with it, turned with its Head bone (mannequin.ts
+    headShape, Khachiyan's method, one fit a kit).
+  - The neck's from under the neck bone to where its line goes into the head's, 3 cm round at its top.
+  - The torso's in two from spine_02: the chest along the upper chest, its top profiled across and front to back
+    (figure.json torsoTop, torsoBack), and the belly to the pelvis.
+  - Each arm two cylinders, shoulder to elbow and elbow to past the wrist, measured round the drawn arm (figure.json
+    armVolume). Shots at the drawn arms that went into an arm's volume within 6 cm: 23 to 32 in 100 before, 38 to 45 now.
+  - The seam (src/game/hitpick.ts, figure.json headSeam): a shot into a body volume that goes on into the same figure's
+    head volume within 6 cm takes the head. Where the head meets the neck and the shoulders the volumes cannot follow the
+    drawn body exactly; the shots it gives the head were all at its lowest 6 cm.
+- **After** (the same 117 states): every shot at the skull a soldier shows is a headshot in 115 of them and 99 in 100 in
+  the other two (RECON's and RUNNER's HAEFY aimed 30 down); at the whole head, the jaw and the nape too, every shot in 109
+  and 92 in 100 at the worst. Nothing of the soldier's kit hides its skull in 90 of them: every pose not aimed down with
+  BOOG and APUHTHEE but the slide, and HAEFY carried.
+- **Left:** HAEFY aimed in is on the shoulder, and from 30 degrees behind on its side its tube hides 70 to 88 of every 100
+  points of the skull; its back is level with the eye there. Looking 30 degrees down, BOOG's stock and the raised right
+  arm hide 23 to 28 of every 100 points of the skull, APUHTHEE's 3 to 9; sliding, the collar 1 to 4.
+- **Checked:** the skfigure check of the head from behind rewritten (VANGUARD and RUNNER, BOOG in seven poses and HAEFY
+  carried in three, four shooters; every shot at the skull it shows a headshot and 99 in 100 at the whole head, nothing
+  but its own head and neck hiding its skull except looking 30 down, 30 in 100 at most there, the face and the chest),
+  seen failing with the seam taken out, the chest let lean 20 and HAEFY carried on the shoulder; the hold checks for a gun carried low (at rest and after a reload, its barrel not along the look); verify's merge
+  check now finds the merge moves only the collar, and only down; every skfigure check on all ten guns (303); verify;
+  rules; the type check. Photographed: HAEFY's carry from six sides standing and sprinting, the aim down, the crouched aim
+  and the sprint from the side at each chest lean tried, the slide.

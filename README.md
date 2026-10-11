@@ -71,7 +71,10 @@ it.
   If its files fail to download (a deploy swapping them as the page loads), they
   are tried again three times over 13 s before the page settles without them.
   Its hit volumes follow its body, so a headshot lands on the head you see,
-  running, crouched or sliding. The bought files never enter git, so a copy
+  running, crouched or sliding, and from behind nothing of its kit hides its
+  head: the collar sits below it, the chest stays upright, HAEFY is carried
+  muzzle up until it is aimed, and a shot that clips the neck or a shoulder on
+  its way into the head is a headshot. The bought files never enter git, so a copy
   without them (and the Pages build) shows the figures of before.
 - **Playing with friends:** pick a mode and **With friends**: the invite link
   is copied and you wait in the range, with the code on your screen, until your

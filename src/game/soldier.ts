@@ -219,6 +219,75 @@ export function soldierScene(look: SoldierLook): THREE.Object3D | null {
   return root;
 }
 
+/**
+ * The collar behind the head brought down (soldier.json collar), as a function that edits a piece's geometry in the
+ * body's bind space: measured off this model, so it holds for the soldier as loaded. Its frame is the bind pose's: up
+ * from the pelvis to the head, left from the right shoulder to the left, forward from the two. The cut is `below` under
+ * the head's lowest point behind the neck; above it a piece keeps `keep` of its height, all round the back and the
+ * sides of the neck and not at its front (`front`, the cosine of the way out from the neck's line against straight
+ * ahead). Null when a bone it measures by is missing.
+ */
+export function collarLowering(meshes: THREE.SkinnedMesh[], body: THREE.SkinnedMesh): ((g: THREE.BufferGeometry) => void) | null {
+  const C = cfg.collar;
+  const skel = body.skeleton;
+  const toBody = body.bindMatrix.clone().invert();
+  const at = (name: string): THREE.Vector3 | null => {
+    const i = skel.bones.findIndex((b) => b.name === name);
+    return i < 0 ? null : new THREE.Vector3().setFromMatrixPosition(toBody.clone().multiply(skel.boneInverses[i].clone().invert()));
+  };
+  const [pelvis, neck, head, ul, ur] = ["pelvis", "neck_01", "Head", "upperarm_l", "upperarm_r"].map(at);
+  if (!pelvis || !neck || !head || !ul || !ur) return null;
+  const up = head.clone().sub(pelvis).normalize();
+  const left = ul.clone().sub(ur);
+  left.addScaledVector(up, -left.dot(up)).normalize();
+  const fwd = new THREE.Vector3().crossVectors(left, up).normalize();
+  const neckZ = neck.clone().sub(pelvis).dot(fwd);
+  const neckX = neck.clone().sub(pelvis).dot(left);
+  // how far round toward the front of the neck a place is: the cosine of its way out from the neck's line against
+  // straight ahead, -1 behind, 0 at the sides, 1 at the front
+  const round = (d: THREE.Vector3): number => {
+    const hx = d.dot(left) - neckX;
+    const hz = d.dot(fwd) - neckZ;
+    return hz / Math.max(1e-6, Math.hypot(hx, hz));
+  };
+  // the head's lowest point round the back and the sides (as far round as the collar is lowered): its own vertices,
+  // weighted half and more to the Head bone. Behind the neck alone, the cut left the collar's sides over the bottom of
+  // the head under the ear, seen from 30 degrees to a side
+  let low = Infinity;
+  const v = new THREE.Vector3();
+  for (const m of meshes) {
+    if (partOf(m) !== "head_eyes") continue;
+    const h = m.skeleton.bones.findIndex((b) => b.name === "Head");
+    if (h < 0) continue;
+    const pos = m.geometry.attributes.position as THREE.BufferAttribute;
+    const si = m.geometry.attributes.skinIndex as THREE.BufferAttribute;
+    const sw = m.geometry.attributes.skinWeight as THREE.BufferAttribute;
+    const toB = toBody.clone().multiply(m.bindMatrix);
+    for (let i = 0; i < pos.count; i++) {
+      let w = 0;
+      for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === h) w += sw.getComponent(i, c);
+      if (w < 0.5) continue;
+      const d = v.fromBufferAttribute(pos, i).applyMatrix4(toB).sub(pelvis);
+      if (round(d) <= C.front[1]) low = Math.min(low, d.dot(up));
+    }
+  }
+  if (!Number.isFinite(low)) return null;
+  const cut = low - C.below;
+  return (g) => {
+    const pos = g.attributes.position as THREE.BufferAttribute;
+    for (let i = 0; i < pos.count; i++) {
+      const d = v.fromBufferAttribute(pos, i).sub(pelvis);
+      const y = d.dot(up);
+      if (y <= cut) continue;
+      const t = Math.max(0, Math.min(1, (round(d) - C.front[0]) / (C.front[1] - C.front[0])));
+      const k = 1 - (1 - t * t * (3 - 2 * t)) * (1 - C.keep);
+      v.addScaledVector(up, cut + (y - cut) * k - y).add(pelvis);
+      pos.setXYZ(i, v.x, v.y, v.z);
+    }
+    pos.needsUpdate = true;
+  };
+}
+
 /** the merge itself, on any loaded soldier (tools/checks/soldier.ts runs it in node) */
 export function mergeSoldier(src: THREE.Object3D, look: SoldierLook): THREE.Object3D {
   const want = shown(look);
@@ -233,6 +302,8 @@ export function mergeSoldier(src: THREE.Object3D, look: SoldierLook): THREE.Obje
   const byMat = new Map<string, THREE.BufferGeometry[]>();
   const kept: THREE.SkinnedMesh[] = [];
   const m4 = new THREE.Matrix4();
+  // the collar behind the head brought down, so the whole back of the head shows (soldier.json collar)
+  const lowerCollar = collarLowering(meshes, body);
   for (const m of meshes) {
     if (!want.has(partOf(m))) continue;
     const mat = (m.material as THREE.Material).name;
@@ -255,6 +326,7 @@ export function mergeSoldier(src: THREE.Object3D, look: SoldierLook): THREE.Obje
     }
     const g = m.geometry.clone();
     g.applyMatrix4(body.bindMatrix.clone().invert().multiply(x).multiply(m.bindMatrix));
+    if (lowerCollar && cfg.collar.parts.includes(partOf(m))) lowerCollar(g);
     const si = g.getAttribute("skinIndex");
     for (let v = 0; v < si.count; v++) for (let c = 0; c < 4; c++) si.setComponent(v, c, index.get(m.skeleton.bones[si.getComponent(v, c)].name) ?? 0);
     for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv", "skinIndex", "skinWeight"].includes(a)) g.deleteAttribute(a);

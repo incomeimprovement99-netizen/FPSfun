@@ -32,6 +32,7 @@ import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { CHAIN_COURSE } from "./game/courses/chain";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, sceneryFar } from "./game/quality";
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
+import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
 import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
@@ -8830,6 +8831,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   },
   /** the figures figureLab put up, for tools that measure them (tools/soldier-hits.ts) */
   labFigures: () => labFigs.map((l) => l.f),
+  /** which of a shot's hits it takes, nearest first, as a shot does (hitpick.ts): the tests aim at heads with it */
+  takenHit: (hits: THREE.Intersection[]) => takenHit(hits),
   /** a gun's times as the game plays them (fusion 0): its reload, empty and not, and its swap's two halves */
   weaponTimes: (id: string) => {
     const w = resolveWeapon(id, 0);

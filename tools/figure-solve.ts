@@ -16,6 +16,9 @@
 // KEYFINGERS=1 (the reload stage) searches the key's own fingers too, each of which should lie on the gun
 // START='{...}' starts the search from those numbers over the gun's own (a restart out of a local minimum)
 // WRITE=1 writes what it found into soldierhold.json as that gun's own numbers (guns.<id>).
+// HEAD=n adds n a percent of the head the gun hides from behind, each pose (below); GRID='[{...}, ...]' measures each of
+// those numbers over the gun's own, a line each, and searches nothing; LOWALL=1 measures the lowered stage standing,
+// crouched and walking too, for a gun carried low unless aimed (soldierhold.json carryLow).
 import fs from "node:fs";
 import path from "node:path";
 import puppeteer, { type Page } from "puppeteer";
@@ -28,6 +31,43 @@ const MAX = Number(process.env.EVALS ?? 160);
 // the gun in the body by the audit's exact look (15 cm in, confirmed by rays): its plain 4 cm look reads a gun deeper in
 // than that as outside, and a search on it walked ANAKIN's sprint jump 150 mm into the belly unseen (EXACT=0 for the plain)
 const EXACT = process.env.EXACT !== "0";
+// HEAD=n: each pose also costs n a percent of the head the gun hides from behind (six shooters 30 m back, straight and 30
+// degrees off each way, level and 10 m up: the owner, 2026-10-11, "i want to always be able to clearly snipe hs someone
+// from the back"; HAEFY's tube, carried on the shoulder, hid 54 to 95 percent of the head from one side)
+const HEAD = Number(process.env.HEAD ?? 0);
+const HEAD_HID = `window.__gunHidesHead = () => {
+  const r = window.__range, T = r.THREE, f = r.labFigures()[0], mq = f.mq;
+  f.group.updateMatrixWorld(true);
+  const fwd = new T.Vector3(0, 0, 1).applyQuaternion(f.group.getWorldQuaternion(new T.Quaternion())).setY(0).normalize();
+  const side = new T.Vector3(-fwd.z, 0, fwd.x), feet = f.group.position.clone();
+  const skins = [], gun = [];
+  mq.root.traverse((o) => { if (o.isSkinnedMesh && o.visible) skins.push(o); });
+  const hitSet = new Set(f.hitMeshes);
+  f.group.traverse((o) => { if (o.isMesh && !o.isSkinnedMesh && o.visible && !hitSet.has(o)) gun.push(o); });
+  const pts = [], v = new T.Vector3(), nrm = new T.Vector3();
+  for (const o of skins) {
+    const h = o.skeleton.bones.findIndex((x) => x.name === "Head"); if (h < 0) continue;
+    const si = o.geometry.attributes.skinIndex, sw = o.geometry.attributes.skinWeight, nm = o.geometry.attributes.normal;
+    for (let i = 0; i < o.geometry.attributes.position.count; i += 3) {
+      let w = 0; for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === h) w += sw.getComponent(i, c);
+      if (w < 0.5) continue;
+      o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld);
+      pts.push({ p: v.clone(), n: nrm.fromBufferAttribute(nm, i).transformDirection(o.skeleton.bones[h].matrixWorld).clone() });
+    }
+  }
+  const ray = new T.Raycaster(); let cand = 0, hid = 0;
+  for (const az of [0, -30, 30]) for (const up of [0, 10]) {
+    const a = (az * Math.PI) / 180, dir = fwd.clone().multiplyScalar(-Math.cos(a)).addScaledVector(side, Math.sin(a));
+    const S = feet.clone().addScaledVector(dir, 30).add(new T.Vector3(0, 1.6 + up, 0));
+    for (const { p, n } of pts) {
+      const d = p.clone().sub(S), len = d.length(); d.divideScalar(len);
+      if (n.dot(d) > -0.1) continue;
+      cand++; ray.set(S, d); ray.far = len - 0.012;
+      if (ray.intersectObjects(gun, false).length) hid++;
+    }
+  }
+  return cand ? (100 * hid) / cand : 0;
+};`;
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 
@@ -167,6 +207,14 @@ let POSES: Pose[] =
       [
         ...[0, 0.15, 0.3, 0.45].map((dt) => ({ speed: 14, stance: "stand", pitch: 0, then: { pose: { speed: 14, stance: "stand", pitch: 0 }, dt } })),
         ...[0, 0.25].map((dt) => ({ speed: 7, stance: "stand", pitch: 0, then: { pose: { speed: 7, stance: "stand", pitch: 0 }, dt } })),
+        // a gun carried low unless aimed (soldierhold.json carryLow, LOWALL=1) carries it so standing, crouched and walking too
+        ...(process.env.LOWALL === "1"
+          ? [
+              { speed: 0, stance: "stand", pitch: 0 },
+              { speed: 0, stance: "crouch", pitch: 0 },
+              { speed: 3, stance: "stand", pitch: 0, then: { pose: { speed: 3, stance: "stand", pitch: 0 }, dt: 0.4 } },
+            ]
+          : []),
       ]
     : [
         { speed: 0, stance: "stand", pitch: 0 },
@@ -244,6 +292,7 @@ async function main(): Promise<void> {
     await page.waitForFunction("window.__range.soldierReady()", { polling: 250, timeout: 60000 });
     await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).catch(() => console.log("the bought guns did not load"));
     await page.addScriptTag({ path: path.resolve("tools/figure-audit.js") });
+    if (HEAD) await page.addScriptTag({ content: HEAD_HID });
     await ev(page, `(() => { const r = window.__range; document.getElementById("overlay").classList.add("hidden"); r.player.teleport(0, 0, 0, 0, -9); r.figureLab([${JSON.stringify({ ...POSES[0], weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.8); })()`);
     };
     await openPage();
@@ -288,6 +337,8 @@ async function main(): Promise<void> {
     const tops = [...new Set(params.map((p) => p.path[0] as string))];
     const patchOf = (c: Record<string, unknown>) => Object.fromEntries(tops.map((k) => [k, c[k]]));
     let evals = 0;
+    /** each pose's percent of the head the gun hid, the last try (HEAD) */
+    const heads: number[] = [];
     const measure = async (c: Record<string, unknown>): Promise<{ cost: number; worst: Audit | null; per: number[] }> => {
       if (evals > 0 && evals % 50 === 0) await openPage();
       evals++;
@@ -319,7 +370,9 @@ async function main(): Promise<void> {
           await ev(page, `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: ${JSON.stringify(patchOf(c))} } })`);
           got = await ev<{ a: Audit | null; o: Out }>(page, expr);
         }
-        const c1 = cost(got.a, got.o, reloadAt !== undefined);
+        const hid = HEAD ? await ev<number>(page, "window.__gunHidesHead()") : 0;
+        heads.push(Math.round(hid));
+        const c1 = cost(got.a, got.o, reloadAt !== undefined) + HEAD * hid;
         per.push(Math.round(c1));
         total += c1;
         if (c1 > worstCost) {
@@ -329,6 +382,18 @@ async function main(): Promise<void> {
       }
       return { cost: total, worst, per };
     };
+    // GRID='[{...}, ...]': each of those over the gun's own numbers measured, a line each, and no search: a coarse look
+    // over a wide space, which a descent from one start does not make (HAEFY's carry stopped 30 mm from where it began)
+    if (process.env.GRID) {
+      for (const g of JSON.parse(process.env.GRID) as Record<string, unknown>[]) {
+        const c = JSON.parse(JSON.stringify(cur)) as Record<string, unknown>;
+        mergeInto(c, g);
+        heads.length = 0;
+        const m = await measure(c);
+        console.log(`grid ${JSON.stringify(g)} ${m.cost.toFixed(1)} per pose ${m.per.join("/")} head hidden ${heads.join("/")} gun in ${m.worst?.gunIn ?? "?"} wrists ${m.worst?.wristL ?? "?"}/${m.worst?.wristR ?? "?"}`);
+      }
+      return;
+    }
     let best = await measure(cur);
     console.log(`${ID} ${STAGE}: start ${best.cost.toFixed(1)} per pose ${best.per.join("/")} ${JSON.stringify(best.worst)}`);
     const steps = params.map((p) => p.step);

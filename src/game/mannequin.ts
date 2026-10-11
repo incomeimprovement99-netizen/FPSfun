@@ -44,7 +44,7 @@ import type { EmotePose } from "./emotes";
 import { IS_SK, PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
-import { buttOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shellParts, shellsOf, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, ventOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
+import { buttOf, carryLowOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shellParts, shellsOf, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, ventOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
 export type FigureStyle = "robot" | "mannequin";
@@ -621,6 +621,8 @@ const FLAT_FEET = figureCfg.flatFeet;
 const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
 const CHEST_UP = figureCfg.chestUp as { most: number };
+/** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
+const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
 const THROW_FOR = soldierHold.throwFor;
 /** how far the hands have come back onto a returning long gun when it shows (soldierhold.json gunBack) */
@@ -906,6 +908,123 @@ function rearOfGrip(gun: THREE.Object3D, gripF: number): number {
   return Math.max(0, box.max.z + gripF);
 }
 
+/** each merged geometry's head points in the Head bone's rest frame, x y z a point (MannequinFigure.headShape) */
+const headPoints = new WeakMap<THREE.BufferGeometry, Float32Array>();
+/** the drawn head's ellipsoid in its Head bone's rest frame: its middle, its turn and its half sizes along its own axes */
+export interface HeadShape {
+  mid: THREE.Vector3;
+  turn: THREE.Quaternion;
+  half: THREE.Vector3;
+}
+/** each kit's head ellipsoid, by the head geometries it is drawn with (one fit a kit, not a figure: a match makes 27 bots) */
+const headShapes = new Map<string, HeadShape>();
+
+/**
+ * The smallest ellipsoid holding every point (Khachiyan's method), as a middle, a turn and half sizes: the head's hit
+ * volume as near the drawn head as one ellipsoid can be. A box round the points grown until it held them all was a
+ * third again as big, and a shot beside the head took it.
+ */
+function enclosingEllipsoid(pts: Float32Array): HeadShape {
+  const n = pts.length / 3;
+  const u = new Float64Array(n).fill(1 / n);
+  const X = new THREE.Matrix4();
+  const Xi = new THREE.Matrix4();
+  for (let it = 0; it < 400; it++) {
+    // X = sum u q q^T over the lifted points q = (p, 1)
+    const e = new Array(16).fill(0);
+    for (let i = 0; i < n; i++) {
+      const p = [pts[3 * i], pts[3 * i + 1], pts[3 * i + 2], 1];
+      for (let r = 0; r < 4; r++) for (let c = 0; c < 4; c++) e[c * 4 + r] += u[i] * p[r] * p[c];
+    }
+    X.fromArray(e);
+    const k = Xi.copy(X).invert().elements;
+    let best = 0;
+    let at = 0;
+    for (let i = 0; i < n; i++) {
+      const x = pts[3 * i];
+      const y = pts[3 * i + 1];
+      const z = pts[3 * i + 2];
+      // q^T X^-1 q for q = (x, y, z, 1), the matrix column-major
+      const m =
+        x * (k[0] * x + k[4] * y + k[8] * z + k[12]) +
+        y * (k[1] * x + k[5] * y + k[9] * z + k[13]) +
+        z * (k[2] * x + k[6] * y + k[10] * z + k[14]) +
+        (k[3] * x + k[7] * y + k[11] * z + k[15]);
+      if (m > best) {
+        best = m;
+        at = i;
+      }
+    }
+    const step = (best - 4) / (4 * (best - 1));
+    if (step < 1e-4) break;
+    for (let i = 0; i < n; i++) u[i] *= 1 - step;
+    u[at] += step;
+  }
+  // its middle and its shape matrix: A = inverse(sum u p p^T - c c^T) / 3
+  const c = new THREE.Vector3();
+  for (let i = 0; i < n; i++) c.x += u[i] * pts[3 * i], c.y += u[i] * pts[3 * i + 1], c.z += u[i] * pts[3 * i + 2];
+  const S = [0, 0, 0, 0, 0, 0, 0, 0, 0];
+  for (let i = 0; i < n; i++) {
+    const d = [pts[3 * i], pts[3 * i + 1], pts[3 * i + 2]];
+    for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) S[r * 3 + k] += u[i] * d[r] * d[k];
+  }
+  const cc = [c.x, c.y, c.z];
+  for (let r = 0; r < 3; r++) for (let k = 0; k < 3; k++) S[r * 3 + k] -= cc[r] * cc[k];
+  // the axes and their lengths from S itself (A's eigenvectors are S's, its lengths sqrt(3 x S's eigenvalues))
+  const { vecs, vals } = symmetricEigen(S);
+  const half = new THREE.Vector3(...vals.map((v) => Math.sqrt(Math.max(1e-8, 3 * v))));
+  const basis = new THREE.Matrix4().makeBasis(vecs[0], vecs[1], vecs[2]);
+  if (basis.determinant() < 0) {
+    vecs[2].negate();
+    basis.makeBasis(vecs[0], vecs[1], vecs[2]);
+  }
+  const turn = new THREE.Quaternion().setFromRotationMatrix(basis);
+  // (the method stops a hair short of holding them all: grown to)
+  const inv = turn.clone().invert();
+  const d = new THREE.Vector3();
+  let s = 0;
+  for (let i = 0; i < n; i++) {
+    d.set(pts[3 * i] - c.x, pts[3 * i + 1] - c.y, pts[3 * i + 2] - c.z).applyQuaternion(inv);
+    s = Math.max(s, Math.hypot(d.x / half.x, d.y / half.y, d.z / half.z));
+  }
+  return { mid: c, turn, half: half.multiplyScalar(Math.max(1, s)) };
+}
+
+/** a 3x3 symmetric matrix's eigenvectors and eigenvalues (Jacobi rotations), row-major in */
+function symmetricEigen(m: number[]): { vecs: THREE.Vector3[]; vals: number[] } {
+  const a = [[m[0], m[1], m[2]], [m[3], m[4], m[5]], [m[6], m[7], m[8]]];
+  const v = [[1, 0, 0], [0, 1, 0], [0, 0, 1]];
+  for (let sweep = 0; sweep < 50; sweep++) {
+    const off = a[0][1] ** 2 + a[0][2] ** 2 + a[1][2] ** 2;
+    if (off < 1e-18) break;
+    for (const [p, r] of [[0, 1], [0, 2], [1, 2]]) {
+      if (Math.abs(a[p][r]) < 1e-14) continue;
+      const th = (a[r][r] - a[p][p]) / (2 * a[p][r]);
+      const t = Math.sign(th || 1) / (Math.abs(th) + Math.sqrt(th * th + 1));
+      const cs = 1 / Math.sqrt(t * t + 1);
+      const sn = t * cs;
+      for (let k = 0; k < 3; k++) {
+        const akp = a[k][p];
+        const akr = a[k][r];
+        a[k][p] = cs * akp - sn * akr;
+        a[k][r] = sn * akp + cs * akr;
+      }
+      for (let k = 0; k < 3; k++) {
+        const apk = a[p][k];
+        const ark = a[r][k];
+        a[p][k] = cs * apk - sn * ark;
+        a[r][k] = sn * apk + cs * ark;
+      }
+      for (let k = 0; k < 3; k++) {
+        const vkp = v[k][p];
+        const vkr = v[k][r];
+        v[k][p] = cs * vkp - sn * vkr;
+        v[k][r] = sn * vkp + cs * vkr;
+      }
+    }
+  }
+  return { vecs: [0, 1, 2].map((j) => new THREE.Vector3(v[0][j], v[1][j], v[2][j])), vals: [a[0][0], a[1][1], a[2][2]] };
+}
 /** each merged geometry's head: the sum of its Head vertices in the Head bone's rest frame, and how many (MannequinFigure.headMiddle) */
 const headSums = new WeakMap<THREE.BufferGeometry, { sum: THREE.Vector3; n: number }>();
 
@@ -976,6 +1095,7 @@ function shareSkeletons(root: THREE.Object3D): void {
 export class MannequinFigure {
   readonly root: THREE.Object3D;
   private headMid: THREE.Vector3 | null = null;
+  private headShapeC: HeadShape | null = null;
   private mixer: THREE.AnimationMixer;
   private lower: THREE.AnimationAction | null = null;
   private upper: THREE.AnimationAction | null = null;
@@ -1043,6 +1163,59 @@ export class MannequinFigure {
       n += got.n;
     });
     return n ? (this.headMid = sum.divideScalar(n)) : null;
+  }
+  /**
+   * The drawn head as an ellipsoid in its Head bone's own space, for the head's hit volume (dummy.ts followBones,
+   * figure.json headVolume): its middle (headMiddle) and its half sizes along the bone's axes, the head's own spread
+   * grown until every point drawn weighted half and more to Head, a hat with it, is inside. Off the geometry, so a kit
+   * with a hat is hit on its hat and one without on its bare head; null before the figure has a head.
+   */
+  headShape(): HeadShape | null {
+    if (this.headShapeC) return this.headShapeC;
+    const lists: Float32Array[] = [];
+    const keys: string[] = [];
+    this.root.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (!m.isSkinnedMesh || !m.visible) return;
+      const h = m.skeleton.bones.findIndex((b) => b.name === "Head");
+      if (h < 0) return;
+      let got = headPoints.get(m.geometry);
+      if (!got) {
+        const toBone = m.skeleton.boneInverses[h].clone().multiply(m.bindMatrix);
+        const pos = m.geometry.attributes.position as THREE.BufferAttribute;
+        const si = m.geometry.attributes.skinIndex as THREE.BufferAttribute;
+        const sw = m.geometry.attributes.skinWeight as THREE.BufferAttribute;
+        const out: number[] = [];
+        const p = new THREE.Vector3();
+        for (let i = 0; i < pos.count; i++) {
+          let w = 0;
+          for (let c = 0; c < 4; c++) if (si.getComponent(i, c) === h) w += sw.getComponent(i, c);
+          if (w < 0.5) continue;
+          p.fromBufferAttribute(pos, i).applyMatrix4(toBone);
+          out.push(p.x, p.y, p.z);
+        }
+        headPoints.set(m.geometry, (got = new Float32Array(out)));
+      }
+      lists.push(got);
+      keys.push(m.geometry.uuid);
+    });
+    const n = lists.reduce((s, L) => s + L.length, 0);
+    if (!n) return null;
+    const key = keys.sort().join(",");
+    let shape = headShapes.get(key);
+    if (!shape) {
+      const all = new Float32Array(n);
+      let at = 0;
+      for (const L of lists) {
+        all.set(L, at);
+        at += L.length;
+      }
+      const fit = enclosingEllipsoid(all);
+      const margin = (figureCfg as { headVolume?: { margin: number } }).headVolume?.margin ?? 0;
+      fit.half.addScalar(margin);
+      headShapes.set(key, (shape = fit));
+    }
+    return (this.headShapeC = shape);
   }
   private restoreClipPose(): void {
     for (const [b, q] of this.clipPose) b.quaternion.copy(q);
@@ -2105,8 +2278,12 @@ export class MannequinFigure {
     if (this.soldier && b.spine_02 && b.spine_03 && b.neck_01 && !full && p.stance !== "downed" && !this.dead) this.holdChestUp(b, fig);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
-    if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5);
-    if (b.spine_03) turnBone(b.spine_03, fig, new THREE.Vector3(1, 0, 0), -pitch * 0.45 + lean * 0.5 - fx.kick * 0.1);
+    // (the soldier looking down bends only as far as its gun's hold needs, at the waist, and its head goes down onto the
+    // stock for the rest: bent as far as a look up, the head went down between the shoulders and from behind they hid it)
+    const bend = this.soldier && pitch < 0 ? (AIM_BEND.downByGun[this.gunId] ?? AIM_BEND.down) : AIM_BEND.up;
+    if (b.spine_01 && bend[0]) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[0]);
+    if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[1] + lean * 0.5);
+    if (b.spine_03) turnBone(b.spine_03, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[2] + lean * 0.5 - fx.kick * 0.1);
     // (the soldier's head held up to the look before its deliberate tilts: the clips carried it down with the chest, the
     // head 43 degrees forward of the neck standing, 52 to 56 aimed, 74 to 80 crouched or sprinting, chin on the chest,
     // and from behind a shot at the back of the head it showed took the neck's or torso's volume: 2 to 7 in 100 were
@@ -2182,7 +2359,12 @@ export class MannequinFigure {
       // overheat's. Eased at the carry's own rate as the act held, it ran on a clock of its own, not the first person's.
       const V = p.act === "vent" && holding && !full && !rifleMelee ? ventOf(this.gunId) : null;
       const ventU = V ? (this.t - this.actAt) / lockoutSeconds(this.gunId) : 0;
-      const low = holding && !full && !rifleMelee && ((p.act === "swap" && !cup) || (p.act === "vent" && !V) || upper === "Pistol_Idle_Loop") ? 1 : 0;
+      // (and a gun carried low unless aimed in, HAEFY's tube, whose back half up on the shoulder hid the head from behind)
+      const CL = carryLowOf(this.gunId);
+      const carriedLow = !!CL && (p.ads ?? 0) < 0.3 && p.act !== "reload" && this.t - this.shotAt > CL.after;
+      // (and through a punch, the right hand keeping the gun where it was: brought up to the shoulder for it and down
+      // again, it swept the left wrist past 70 degrees)
+      const low = holding && !full && (carriedLow || (!rifleMelee && ((p.act === "swap" && !cup) || (p.act === "vent" && !V) || upper === "Pistol_Idle_Loop"))) ? 1 : 0;
       if (V) this.lowered = (this.ventFrom + (1 - this.ventFrom) * smooth(V.in[0], V.in[1], ventU)) * (1 - smooth(V.out[0], V.out[1], ventU));
       else this.lowered += (low - this.lowered) * Math.min(1, dt * REACH.lower);
       // a melee's swing: where it is, and which of a string (a string held on the act goes on from one to the next)
