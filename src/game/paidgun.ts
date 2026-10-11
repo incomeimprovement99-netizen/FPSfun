@@ -18,12 +18,16 @@ import cfg from "../config/paidweapons.json";
 import measuredCfg from "../config/paidmodels.json";
 import type { GunModel, PaidParts } from "./gunmodels";
 import fparmsCfg from "../config/fparms.json";
+import { buildRocket, ROCKET } from "./rocket";
 
 interface Gun {
   model: string;
   skins: string[];
   /** a sight from another model of the pack (paidweapons.json _mount) */
   mount?: { from: string; part: string; z: number };
+  /** the round a reload loads, where the model has none of its own: HAEFY's rocket (rocket.ts), and how far its tip stands out of the muzzle, metres */
+  round?: string;
+  roundOut?: number;
 }
 const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
@@ -374,6 +378,7 @@ export function dressPaid(m: GunModel, level = 0, view = false): boolean {
   mover(/^(Slide|Slider)$/, m.bolt);
   mover(/^Pump$/, m.pump);
   m.parts = hingeParts(model, size.muzzleEnd);
+  if (g.round === "rocket" && !m.mag) m.mag = rocketMag(m, place, size.muzzle, g.roundOut ?? 0);
   if (m.irons) m.irons.visible = false;
   m.root.userData.paid = name;
   m.root.userData.paidLevel = level;
@@ -436,6 +441,32 @@ export function hingeParts(model: THREE.Object3D, end: number): PaidParts {
     buttonIn: -Math.sign(buttonX),
     extruder: hinge(find(/^Extruder$/)[0], (_b, c) => c),
   };
+}
+
+/**
+ * HAEFY's magazine, the launcher's model having none: the rocket the shot flies as (rocket.ts), unlit, seated in the tube
+ * with its warhead `out` past the muzzle (paidweapons.json roundOut), as a loaded RPG's stands out of its tube. A reload
+ * phases it out and a new one in where it sits, the finger pointing at it, as every gun's magazine (a rocket fed by the
+ * hand into the tube's front was out of the left arm's reach on the shoulder, fparms.json packGuns RPG _reload)
+ */
+function rocketMag(m: GunModel, place: THREE.Object3D, muzzle: number[], out: number): THREE.Group {
+  const mag = new THREE.Group();
+  mag.name = "mag";
+  mag.userData.rocket = true;
+  m.root.add(mag);
+  m.reload = "mag";
+  const rocket = buildRocket(false);
+  place.updateMatrix();
+  // (along the model's ahead, its nose's tip `out` past the muzzle: placed in the model's frame, then into the gun's)
+  const tip = new THREE.Vector3(muzzle[0], muzzle[1], muzzle[2] + out);
+  rocket.position.copy(tip).add(new THREE.Vector3(0, 0, -ROCKET.model.length / 2 - ROCKET.model.nose)).applyMatrix4(place.matrix);
+  rocket.quaternion.copy(place.quaternion);
+  rocket.scale.copy(place.scale);
+  mag.add(rocket);
+  // the view's own support hand under it, as under a magazine's bottom
+  const box = new THREE.Box3().setFromObject(rocket);
+  m.magBottom.set((box.min.x + box.max.x) / 2, box.min.y, (box.min.z + box.max.z) / 2);
+  return mag;
 }
 
 const glassless = new Map<THREE.BufferGeometry, THREE.BufferGeometry>();

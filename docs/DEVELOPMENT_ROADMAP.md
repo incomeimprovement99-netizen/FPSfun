@@ -12144,3 +12144,51 @@ where they aimed, and 58 to 80 into none at all (standing, walking, sprinting, c
 - **Checked:** a new skfigure check (shots at the drawn legs from 8 ways, standing, walking, sprinting and crouched:
   55 in 100 or more within 6 cm, 25 or fewer into none), seen failing with the old box put back; every skfigure check
   (304 of 304); verify; rules; the type check.
+
+## Milestone 517 — HAEFY in the bought arms, on the shoulder
+
+HAEFY, the rocket launcher (launcher, SciFiRocketLauncher01_2), is the tenth and last SpeedKills gun the first person's
+bought arms hold (`PLAN_THE_EIGHT_GUNS.md` 5.7), on the pack's RPG: its pose, and the RPG's own recorded launch and
+reload. Every SpeedKills gun is now held by them.
+
+- **On the shoulder, as Battlefield Hardline holds its RPG-7 at rest** (Apex has no launcher): the tube's line at the
+  middle of the picture, its front 57% across and 55% down, 5 degrees off level (`FIT`). The launcher is 111 cm long, its
+  tube running 70 cm back over the shoulder, its sight (the Visor) beside the tube on its left, by the eye.
+- **Aimed through the Visor, not through the launcher:** the Visor lends a magnified scope, and with an optic the aim
+  took no account of a sight beside the gun (viewmodel.ts, the `sightX` the irons already used): from a half aim the eye
+  came in down the tube's middle, through the launcher's body, until the scope's picture covered it. It now comes in
+  along the Visor's line and ends 5 cm behind it. This was so on the live game with either arms.
+- **The left hand on the foregrip,** 23 cm ahead of the trigger and 5.5 cm under it, where the soldier holds it (the RPG's
+  own is 24 cm behind its trigger, under the tube): aimed onto the grip outright, then searched with the palm free and
+  the fingers on. The right hand is on a trigger grip 4.2 cm thick, the RPG's 2.2 to 2.7, and
+  the pack's hand made for the thin one was 20 mm into it: solved joint by joint, then searched with the palm free to stand
+  off, the fingers on the grip and the forefinger's tip scored onto the trigger (from 112 mm off), the left thumb's root and
+  the right fingertip then lifted out on their own. No skin seen in the gun, no daylight through a hand, the wrists 47 and
+  16 degrees at rest, 35 and 12 aimed, the aimed shoulders searched again once the aim came along the Visor's line.
+- **The moves** (tools/pack-tune.ts against the e2e's measures, and probes where its searches stalled): the swap's cup
+  holds the hands 4.9 cm off the grips, past the 4 they had been held to, since nearer they went 12 to 20 mm into them (the
+  check's band is now 1 to 5 cm); a pickup's left fit 7 cm left and down, its fingers had closed 13 mm into the foregrip
+  coming back; the flourish's left shoulder 12 cm forward, the arm had fallen 12 cm short; a punch lands 12 cm further left
+  (`meleeOut`, a pack gun's own place for the fist), it had struck the Visor, which stands out of the tube's left side by
+  the middle of the picture; and the reload's finger points at the tube 30 cm back from the rocket's middle, across and up
+  (`point` `along` and `aim`), the rocket's middle being out of the arm's reach.
+- **Its reload is every gun's, the rocket its magazine:** the launcher's model has no magazine, so the rocket the shot
+  flies as is seated in the tube with its warhead 20 cm out of the front (paidweapons.json `round`, `roundOut`), and a
+  reload points at the tube while the new one phases in, as every gun's magazine does; fired empty, none stands out of
+  the tube and none phases out. Two ways of feeding it by hand were built and taken out: the RPG's own reload, its hand
+  carried onto our tube, and BIGANTLER's feed a round at a time pushed in along the tube. On the shoulder the tube's front
+  is out of the left arm's reach, by 15 to 57 cm however the launcher was turned, or it swung out of the picture and back
+  across the face. From the eye the Visor stands between the eye and the tube's front, so the new rocket is seen phase
+  in from the side and by others; the eye has the point, the turn, the RPG's recorded reload and the gun's glow pulsing as
+  the rocket seats.
+- **No brass:** built on the marksman rifle's procedural model, HAEFY threw a cartridge case after every rocket.
+- **Its feel and sounds:** a launcher's heavy kick, 6 degrees and 5 cm a rocket on a soft spring (Milestone 518's measure),
+  a bigger flash (gunfeel.json), the RPG's launch and reload (packsounds.json; it had the Drake-12's shots).
+- **The plain gun:** every SpeedKills gun is now in the bought arms, so the check that they draw at the gun camera's own
+  field of view compares them with the old R-301, the last gun the view's own arms hold.
+- **Checked:** the soldier e2e's pack frames for HAEFY with the USSO (`E2E_ONLY=skpack
+  E2E_GUNS=launcher,r97`), 38 of 38. Two checks measured it wrong and were set right: the fit's tilt, held over 3 degrees
+  to show the fit was made at all (the second draw's had once come out as none), is HAEFY's 1.8 and now held over 0.6; and
+  a magazine's phase was centred on the middle of its box over the world's axes, which for a rocket 54 cm long rolled with
+  the reload's turn lay 12 mm off its own middle: measured in the magazine's own frame, as the view takes it, both guns'
+  phases are centred to the millimetre. npm run verify, rules and the type check.

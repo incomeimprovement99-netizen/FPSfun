@@ -20,7 +20,9 @@ import { HU, MOVE } from "./movement";
 
 type Measured = { turn: number[]; forward: number[]; up: number[]; trigger: number[]; palm: number[]; clavicleL?: number[]; clavicleR?: number[] };
 type Twist = { roll: number; yaw: number; pitch: number; x: number; y: number; z: number };
-type PointAt = { face: number[]; at: number; aim: number[]; elbow?: number[]; reach?: number; aimAt?: number; clearWay?: number[]; clear?: number };
+/** where the left forefinger points in a reload (fparms.json reload, a pack gun's `point`): `along` moves its spot back down the
+ * gun from the magazine's middle, metres (HAEFY's rocket stands at the tube's front, out of the arm's reach) */
+type PointAt = { face: number[]; at: number; aim: number[]; elbow?: number[]; reach?: number; aimAt?: number; clearWay?: number[]; clear?: number; along?: number };
 /** the rack done by our own timing with the pack's grip on its handle: shares of the rack for each part of it */
 type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[]; clear: number; curl: number; thumbOpen: number; hook: number[]; roll?: number; along?: number[]; palm?: number[]; pinch?: boolean; close?: { index: number; thumb: number } };
 const FINGER_L = /^(index|middle|ring|pinky|thumb)_0[123]_l$/;
@@ -51,7 +53,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent; leftOnHand?: boolean };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; meleeOut?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent; leftOnHand?: boolean };
 /**
  * An overheat's vent (fparms.json packGuns vent, CHOOCH's): the gun tipped up and canted in both hands over `in` of the
  * lockout and back over `out`, by `roll`, `yaw` and `pitch` (radians) and `x`, `y`, `z` (view metres), the soldier's on the
@@ -329,6 +331,10 @@ export class PackArms {
   /** how the gun turns while the hand points at its magazine: the pack gun's own, else the reload's (fparms.json) */
   get twist(): Twist {
     return this.debugTwist ?? ((this.active && PACK[this.active]?.twist) || PACK_RELOAD.twist);
+  }
+  /** where a pack gun's punch lands off the shared one (fparms.json packGuns meleeOut, view metres): HAEFY's, past its Visor */
+  get meleeOut(): number[] | null {
+    return (this.active && PACK[this.active]?.meleeOut) || null;
   }
   /** how the gun is turned while it vents an overheat (fparms.json packGuns vent), none if it never does */
   get vent(): Vent | null {
@@ -1382,7 +1388,7 @@ export class PackArms {
           const spotO = new THREE.Vector3(
             mc.x + P.face[0] * (mh.x + RL.gap),
             P.face[1] ? mc.y + P.face[1] * (mh.y + RL.gap) : mb.min.y + 2 * mh.y * P.at,
-            mc.z + P.face[2] * (mh.z + RL.gap),
+            mc.z + P.face[2] * (mh.z + RL.gap) + (P.along ?? 0),
           );
           // what it points at, where the finger has the magazine going, and the fingertip `shift` view metres off it, left
           // and down (the owner: the finger "down and left more on both, not by too much")

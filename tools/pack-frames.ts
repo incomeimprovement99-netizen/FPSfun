@@ -74,7 +74,7 @@ try {
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   await page.evaluateOnNewDocument(`try { const k = "range.settings.v1"; const s = JSON.parse(localStorage.getItem(k) || "{}"); s.fovScale = ${FOV}; localStorage.setItem(k, JSON.stringify(s)); } catch {}`);
   page.on("pageerror", (e) => console.log("pageerror:", String(e)));
-  await page.goto(`${URL}?game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 60000 });
+  await page.goto(`${URL}?game=speedkills&nointro&nohome`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range) && window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 90000 });
   await page.evaluate(`document.getElementById("overlay").classList.add("hidden"); window.__range.input.locked = true; ${AUDIT}`);
   const report: string[] = [];

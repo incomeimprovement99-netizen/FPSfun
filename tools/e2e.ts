@@ -2682,7 +2682,9 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const allPack = Object.keys(fparmsCfg.guns);
   const packIds = allPack.filter((id) => !E2E_GUNS.length || E2E_GUNS.includes(id));
   const has = (...ids: string[]) => ids.every((id) => packIds.includes(id));
-  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman", "autopistol", "launcher"].find((id) => !allPack.includes(id)) ?? "launcher";
+  // (every SpeedKills gun is in the bought arms since HAEFY, 2026-10-10: the last a view's own arms hold is the old R-301, kept
+  // in data/weapons.json; the gun camera's field of view is the settings', not a gun's, so any plain gun shows it)
+  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman", "autopistol", "launcher", "rspn101"].find((id) => !allPack.includes(id)) ?? "rspn101";
   const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("${plainGun}"); await H.gameWait(0.4); return r.gunFov().gun;`);
   // and the length of an inspect in the view's own arms
   const plainInspect = await pf<number>(`return r.packArms().inspectTime;`);
@@ -2737,8 +2739,8 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // the wrists: at rest and aimed, pointing, and early in a swap as the pack's unequip swings the gun
     const wr = (js: string) => pf<number[]>(`${js} await H.gameWait(0.35); const s = r.packArms(); H.clear(); await H.gameWait(0.3); return [s.wristL, s.wristR];`);
     // (a gun reloaded a shell at a time has no magazine, and one that vents its heat never reloads: neither points or racks)
-    const packOf = (fparmsCfg.packGuns as Record<string, { reload?: unknown; vent?: unknown }>)[(fparmsCfg.guns as Record<string, string>)[id]];
-    const shells = !!packOf?.reload;
+    const packOf = (fparmsCfg.packGuns as Record<string, { reload?: { style?: string }; vent?: unknown }>)[(fparmsCfg.guns as Record<string, string>)[id]];
+    const shells = packOf?.reload?.style === "shells";
     const vents = !!packOf?.vent;
     const noMag = shells || vents;
     o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: vents ? 0 : (await wr("r.debugView.reload = 0.28;"))[0], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
@@ -2757,7 +2759,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // the magazine's phase in the middle of each: out from its middle (fparms.json reload magPhase), how far the phase's
     // middle is from the magazine's own, view metres (what is drawn of it: its node also holds the old magazine, hidden,
     // which put the middle of the whole 107 mm off the USSO's)
-    o.magPhase = noMag ? { radial: [], off: [] } : await pf<Frames["magPhase"]>(`const T = r.THREE; const out = { radial: [], off: [] }; for (const u of [${(RL.phaseOut[0] + RL.phaseOut[1]) / 2}, ${(RL.phaseIn[0] + RL.phaseIn[1]) / 2}]) { r.debugView.reload = u; await H.gameWait(0.2); let m = null; r.viewModelRoot().traverse((x) => { if (x.name === "mag" && !m) m = x; }); const f = r.gunFeel(); out.radial.push(f.magRadial); const seen = new T.Box3(); if (m) m.traverse((x) => { if (x.isMesh && x.visible) seen.expandByObject(x); }); out.off.push(m ? seen.getCenter(new T.Vector3()).distanceTo(new T.Vector3().fromArray(f.magCenter)) / r.packRig().group.getWorldScale(new T.Vector3()).x : 99); } H.clear(); await H.gameWait(0.2); return out;`);
+    o.magPhase = noMag ? { radial: [], off: [] } : await pf<Frames["magPhase"]>(`const T = r.THREE; const out = { radial: [], off: [] }; for (const u of [${(RL.phaseOut[0] + RL.phaseOut[1]) / 2}, ${(RL.phaseIn[0] + RL.phaseIn[1]) / 2}]) { r.debugView.reload = u; await H.gameWait(0.2); let m = null; r.viewModelRoot().traverse((x) => { if (x.name === "mag" && !m) m = x; }); const f = r.gunFeel(); out.radial.push(f.magRadial); const seen = new T.Box3(); if (m) { m.updateWorldMatrix(true, true); const inv = new T.Matrix4().copy(m.matrixWorld).invert(); m.traverse((x) => { if (x.isMesh && x.visible) { x.geometry.computeBoundingBox(); seen.union(x.geometry.boundingBox.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(inv, x.matrixWorld))); } }); } out.off.push(m ? m.localToWorld(seen.getCenter(new T.Vector3())).distanceTo(new T.Vector3().fromArray(f.magCenter)) / r.packRig().group.getWorldScale(new T.Vector3()).x : 99); } H.clear(); await H.gameWait(0.2); return out;`);
     const point = noMag ? { miss: 0, off: 0 } : await pf<{ miss: number; off: number }>(`r.debugView.reload = 0.28; await H.gameWait(0.2); const s = r.packArms(); H.clear(); await H.gameWait(0.2); return { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, off: s.pointOff };`);
     o.miss = point.miss;
     o.off = point.off;
@@ -2850,7 +2852,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     }
     // a shell gun's feed through its reload from empty, and its pump after a shot and at the end of that reload
     if (shells) {
-      const SR = (fparmsCfg.packGuns as Record<string, { reload?: { feed: number[]; count: number; push: number[]; back: number[]; pump: number[] } }>)[(fparmsCfg.guns as Record<string, string>)[id]].reload!;
+      const SR = (fparmsCfg.packGuns as unknown as Record<string, { reload?: { feed: number[]; count: number; push: number[]; back: number[]; pump: number[] } }>)[(fparmsCfg.guns as Record<string, string>)[id]].reload!;
       // (20 moments, a look each: three looks at 40 ran past the page's two minutes a step)
       const at = Array.from({ length: 20 }, (_, i) => SR.feed[0] + ((SR.feed[1] - SR.feed[0]) * (i + 0.5)) / 20);
       o.feed = await pf<Feed>(`
@@ -3060,9 +3062,9 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const SEEN_CRACKS = 40;
   check(
     "pack frames: the USSO and BOOG are fitted into the bought hands the same on every draw (it had been only the first)",
-    // (tilted either way: ANAKIN's grip into the palm is 6 degrees nose down; a pistol not at all, its left hand on the
-    // right, fparms.json packGuns leftOnHand)
-    g.length === packIds.length && g.every((x, i) => (onHand(Object.keys(res.guns)[i]) ? Math.abs(x.tilt[0]) < 1e-6 : Math.abs(x.tilt[0]) > 0.05) && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
+    // (tilted either way: ANAKIN's grip into the palm is 6 degrees nose down, HAEFY's 1.8 up, the second draw's had come out
+    // as none at all; a pistol not at all, its left hand on the right, fparms.json packGuns leftOnHand)
+    g.length === packIds.length && g.every((x, i) => (onHand(Object.keys(res.guns)[i]) ? Math.abs(x.tilt[0]) < 1e-6 : Math.abs(x.tilt[0]) > 0.01) && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
     show((x) => x.tilt.map((v) => +((v * 180) / Math.PI).toFixed(2))),
   );
   // (a cached gun keeps the place its last throw or draw's spin gave it, and its middle measured there moved with it:
@@ -3183,8 +3185,10 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // the crosshair, as the others' are, 5 degrees off level; REZ the same way on Apex's EVA-8, its muzzle 55.5% across and
   // 56.5% down; CHOOCH on Apex's Devotion, there being no L-STAR at rest in the frames, its muzzle 54.5% across and 58%
   // down; APUHTHEE and STRYDER on Apex's Wingman at rest, its sights' line meeting at 48% across and down, its muzzle
-  // 62% across and 56% down, held further off than a rifle as a pistol is, 5 degrees off level)
-  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 }, shotgun: { vanish: [0.47, 0.47], muzzle: [0.579, 0.583], level: -5 }, lstar: { vanish: [0.47, 0.47], muzzle: [0.569, 0.598], level: -5 }, wingman: { vanish: [0.48, 0.48], muzzle: [0.62, 0.56], level: -5 }, autopistol: { vanish: [0.48, 0.48], muzzle: [0.62, 0.56], level: -5 } };
+  // 62% across and 56% down, held further off than a rifle as a pistol is, 5 degrees off level; HAEFY on the shoulder as
+  // Battlefield Hardline holds its RPG-7 at rest, Apex having no launcher, its tube's line at the middle, its warhead's tip
+  // 57% across and 55% down)
+  const FIT: Record<string, { vanish: number[]; muzzle: number[]; level: number }> = { r97: { vanish: [0.5, 0.49], muzzle: [0.565, 0.625], level: -3 }, sentinel: { vanish: [0.5, 0.508], muzzle: [0.5465, 0.57], level: -2 }, alternator_smg: { vanish: [0.49, 0.472], muzzle: [0.593, 0.607], level: -4.3 }, vinson: { vanish: [0.465, 0.463], muzzle: [0.589, 0.574], level: -5 }, mastiff: { vanish: [0.47, 0.47], muzzle: [0.559, 0.593], level: -5 }, shotgun: { vanish: [0.47, 0.47], muzzle: [0.579, 0.583], level: -5 }, lstar: { vanish: [0.47, 0.47], muzzle: [0.569, 0.598], level: -5 }, wingman: { vanish: [0.48, 0.48], muzzle: [0.62, 0.56], level: -5 }, autopistol: { vanish: [0.48, 0.48], muzzle: [0.62, 0.56], level: -5 }, launcher: { vanish: [0.5, 0.5], muzzle: [0.57, 0.55], level: -5 } };
   check(
     "pack frames: at rest the USSO is held as Apex's R-99 and BOOG as its Sentinel and Hyper Scape's Protocol V: pointing at the crosshair (the barrel's line meeting the screen within 2% of theirs), level as theirs (within 2 degrees), the muzzle on theirs (within 2%)",
     g.every((x, i) => { const f = FIT[Object.keys(res.guns)[i]]; return !!f && x.fit.vanish.every((v, j) => Math.abs(v - f.vanish[j]) < 0.02) && x.fit.muzzle.every((v, j) => Math.abs(v - f.muzzle[j]) < 0.02) && Math.abs(x.fit.across - f.level) < 2; }),
@@ -3281,6 +3285,8 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // the outside in", as the guns phase on a swap)
   check(
     "pack frames: the old magazine phases out from its edges in and the new one in from its middle out (the phase radial round the magazine's own middle, within 5 mm)",
+    // (its middle in its own frame, as the view takes it: over the world's axes HAEFY's rocket, 54 cm long and rolled with
+    // the reload's turn, came out 12 mm off its own middle)
     gm.every((x) => x.magPhase.radial.every((v) => v === 1) && x.magPhase.off.every((d) => d < 0.005)),
     show((x) => ({ radial: x.magPhase.radial, mm: x.magPhase.off.map((d) => Math.round(d * 1000)) })),
   );
@@ -3297,8 +3303,10 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     show((x) => Object.fromEntries(Object.entries(x.through).map(([k, d]) => [k, Math.round(d * 1000)]))),
   );
   check(
-    "pack frames: a swap keeps the gun where it is (its middle within 1 cm) as it phases out from its edges in and the next from its middle out; the hands come 1 to 4 cm off their holds and turn in round its middle (each palm within 50 degrees of facing it across its forearm, the fingers bent 45 degrees and more), no hand through the gun (4 mm) and both arms reaching all through it",
-    g.every((x) => x.swap.moved < 0.01 && x.swap.radial === 1 && x.swap.off > 0.01 && x.swap.off < 0.04 && x.swap.face < 50 && x.swap.curl >= 45 && x.swap.deep <= 4 && x.swap.short < 0.01),
+    // (to 5 cm since HAEFY: its grips are 4.2 cm thick, and its hands need 4.9 cm off them to clear them in the cup; at 3.9 they
+    // went 12 mm in)
+    "pack frames: a swap keeps the gun where it is (its middle within 1 cm) as it phases out from its edges in and the next from its middle out; the hands come 1 to 5 cm off their holds and turn in round its middle (each palm within 50 degrees of facing it across its forearm, the fingers bent 45 degrees and more), no hand through the gun (4 mm) and both arms reaching all through it",
+    g.every((x) => x.swap.moved < 0.01 && x.swap.radial === 1 && x.swap.off > 0.01 && x.swap.off < 0.05 && x.swap.face < 50 && x.swap.curl >= 45 && x.swap.deep <= 4 && x.swap.short < 0.01),
     // (a measure that is no number comes out of the page as null, and is shown as that: a NaN finger had crashed the report)
     show((x) => { const k = (v: number | null, f: number, d: number) => (typeof v === "number" ? +(v * f).toFixed(d) : v); return { moved: k(x.swap.moved, 100, 1), radial: x.swap.radial, off: k(x.swap.off, 100, 1), face: k(x.swap.face, 1, 0), curl: k(x.swap.curl, 1, 0), deep: k(x.swap.deep, 1, 1), short: k(x.swap.short, 100, 1) }; }),
   );

@@ -828,8 +828,12 @@ export class ViewModel {
     if (!this.packOn || mp < 0 || mp >= 1) return null;
     const M = PACK_MELEE;
     const k = smooth(M.punch[0], M.punch[1], mp);
-    const at = new THREE.Vector3().fromArray(M.chest).lerp(new THREE.Vector3().fromArray(M.out), k);
-    const elbow = new THREE.Vector3().fromArray(M.chestElbow).lerp(new THREE.Vector3().fromArray(M.outElbow), k);
+    // (out past a gun's own way where it is in the shared punch's: HAEFY's Visor stands out of its tube's left side, by the
+    // middle of the picture, and the fist went 10 mm into it; fparms.json packGuns meleeOut)
+    const out = new THREE.Vector3().fromArray(M.out).add(new THREE.Vector3().fromArray(this.pack.meleeOut ?? [0, 0, 0]));
+    const outElbow = new THREE.Vector3().fromArray(M.outElbow).add(new THREE.Vector3().fromArray(this.pack.meleeOut ?? [0, 0, 0]));
+    const at = new THREE.Vector3().fromArray(M.chest).lerp(out, k);
+    const elbow = new THREE.Vector3().fromArray(M.chestElbow).lerp(outElbow, k);
     // (carried with the arms, as the rest look carries them: left in the view, the arm moved 19 cm nearer with the USSO
     // fell short of the punch)
     at.applyMatrix4(this.swapArms).applyMatrix4(this.beforeLook);
@@ -1190,6 +1194,8 @@ export class ViewModel {
       const rp = PR ? this.packRP : reloadP;
       const lastRp = PR ? this.lastPackRP : this.lastReloadP;
       mp = Math.min(phase, rp < mid ? 1 - smooth(magOut[0], magOut[1], rp) : smooth(magIn[0], magIn[1], rp));
+      // (HAEFY's rocket, its magazine: fired empty there is none in the tube to phase out, only the new one in)
+      if (m.mag?.userData.rocket && this.reloadEmpty && rp < mid) mp = 0;
       // the seat: a slap into the hands and a pulse
       if (lastRp < seat && rp >= seat) {
         this.feelKickVel += R.snap;
@@ -1206,6 +1212,8 @@ export class ViewModel {
       this.aimMagSweep(m);
       // the phase draws it in and out; the plain reload's hiding it while "empty" would cut the sweep off
       if (reloading) m.mag.visible = mp > 0;
+      // (and none standing out of the tube once the last is fired)
+      else if (m.mag.userData.rocket) m.mag.visible = !f.clipEmpty;
     }
     // the glow
     if (this.lastPhase < 1 && phase >= 1) this.pulse = Math.max(this.pulse, 0.8);
@@ -1478,11 +1486,12 @@ export class ViewModel {
     // a signature gun's own hip pose (gunfeel.json hip), else the gun's
     const hip = packOn ? this.pack.hip.position : this.feel?.hip ? this.hipFeel.copy(m.hip).add(this.tmp2.fromArray(this.feel.hip)) : m.hip;
     const o = this.optic;
+    // (across from the gun's middle by its sight's own `sightX`: HAEFY's Visor is beside its tube, and aimed through the
+    // middle the eye sat inside the gun. With an optic too: HAEFY's visor lends a magnified one, and through it the eye
+    // came in down the tube's middle, through the launcher's body from a half aim until the scope's picture took over)
     const adsPos = o
-      ? this.tmp.set(0, -(m.railY + o.lineH), m.opticF + o.backF - o.info.relief)
-      : // (across from the gun's middle by its sight's own `sightX`: HAEFY's Visor is beside its tube, and aimed through
-        // the middle the eye sat inside the gun)
-        this.tmp.set(-(m.sightX ?? 0), -m.sightY, m.rearF - ADS_EYE);
+      ? this.tmp.set(-(m.sightX ?? 0), -(m.railY + o.lineH), m.opticF + o.backF - o.info.relief)
+      : this.tmp.set(-(m.sightX ?? 0), -m.sightY, m.rearF - ADS_EYE);
     const p = this.tmp3.copy(hip).lerp(adsPos, ads);
     const sprintPos = this.tmp2.set(hip.x + 0.11, hip.y - 0.13, hip.z + 0.1);
     p.lerp(sprintPos, sp);

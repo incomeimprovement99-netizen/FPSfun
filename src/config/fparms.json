@@ -2238,6 +2238,272 @@
         -0.1476,
         -0.1971
       ]
+    },
+    "RPG": {
+      "model": "RPG7",
+      "arms": {
+        "pose": "A_FP_RPG7_Pose",
+        "reloadTac": "A_FP_RPG7_Reload_Empty",
+        "reloadEmpty": "A_FP_RPG7_Reload_Empty"
+      },
+      "gun": {
+        "reloadTac": "A_W_RPG7_Reload",
+        "reloadEmpty": "A_W_RPG7_Reload"
+      },
+      "look": {
+        "shift": [
+          0.0668,
+          0.1592,
+          0.193
+        ],
+        "turn": [
+          -0.0032,
+          -0.0473,
+          -0.087
+        ]
+      },
+      "hold": {
+        "l": {
+          "shift": [
+            -0.04,
+            0.0269,
+            -0.456
+          ],
+          "rot": [
+            0.176,
+            -0.757,
+            -0.188
+          ],
+          "joint": {
+            "index_01": [
+              -0.341,
+              0.179,
+              -0.097
+            ],
+            "middle_01": [
+              -0.248,
+              -0.445,
+              -0.123
+            ],
+            "ring_01": [
+              -0.007,
+              0.187,
+              0.045
+            ],
+            "pinky_01": [
+              0.362,
+              0.319,
+              0.148
+            ],
+            "thumb_01": [
+              -0.062,
+              -0.284,
+              0.751
+            ],
+            "thumb_02": [
+              0.012,
+              0.029,
+              0.074
+            ]
+          },
+          "pick": {
+            "shift": [
+              -0.0928,
+              -0.067,
+              -0.4948
+            ],
+            "rot": [
+              0.176,
+              -0.757,
+              -0.188
+            ],
+            "joint": {
+              "index_01": [
+                -0.341,
+                0.179,
+                -0.097
+              ],
+              "middle_01": [
+                -0.248,
+                -0.445,
+                -0.123
+              ],
+              "ring_01": [
+                -0.007,
+                0.187,
+                0.045
+              ],
+              "pinky_01": [
+                0.362,
+                0.319,
+                0.148
+              ],
+              "thumb_01": [
+                -0.062,
+                -0.284,
+                0.751
+              ],
+              "thumb_02": [
+                0.012,
+                0.029,
+                0.074
+              ]
+            },
+            "open": {}
+          }
+        },
+        "r": {
+          "shift": [
+            0.0161,
+            0.006,
+            -0.0192
+          ],
+          "rot": [
+            -0.268,
+            0.245,
+            -0.133
+          ],
+          "joint": {
+            "index_01": [
+              0.126,
+              -1.21,
+              0.413
+            ],
+            "index_02": [
+              -0.137,
+              0.34,
+              0.065
+            ],
+            "index_03": [
+              0.323,
+              0.715,
+              -0.328
+            ],
+            "middle_01": [
+              -0.069,
+              -0.26,
+              -0.614
+            ],
+            "ring_01": [
+              0.489,
+              0.484,
+              -0.444
+            ],
+            "pinky_01": [
+              -0.301,
+              0.143,
+              0.246
+            ],
+            "thumb_01": [
+              -0.524,
+              0.472,
+              -0.314
+            ]
+          }
+        }
+      },
+      "shoulders": {
+        "l": [
+          0.13,
+          0.09,
+          0.16
+        ],
+        "r": [
+          -0.12,
+          0.02,
+          -0.04
+        ],
+        "adsL": [
+          0.3,
+          0.4,
+          0
+        ],
+        "adsR": [
+          -0.2,
+          0,
+          -0.4
+        ]
+      },
+      "point": {
+        "elbow": [
+          -0.45,
+          -1,
+          0
+        ],
+        "reach": 0.24,
+        "aimAt": 0.68,
+        "along": 0.3,
+        "aim": [
+          1,
+          0.8,
+          0
+        ]
+      },
+      "_solve": "tools/pack-solve.ts, 2026-10-10: pointing wrist: before 47, after 50 (tip 0.0 cm, 9 deg; arms in the picture 0.0% then 0.0%; elbow -0.45,-1.00,0.00, reach 0.24, aimAt 0.68).",
+      "cupMove": {
+        "l": [
+          -0.0253,
+          -0.0341,
+          0.024
+        ],
+        "r": [
+          0.0362,
+          0.0009,
+          0.0326
+        ]
+      },
+      "cup": {
+        "turn": 0.6296,
+        "curl": 0.2344,
+        "shape": {
+          "l": [
+            0.2368,
+            0.6678
+          ],
+          "r": [
+            0.3401,
+            0.3421
+          ]
+        },
+        "moveAt": {
+          "l": [
+            0.2472,
+            0.4509
+          ],
+          "r": [
+            0.2032,
+            0.9556
+          ]
+        }
+      },
+      "beforeArm": {
+        "elbow": [
+          -0.1516,
+          -0.2692,
+          0.2712
+        ],
+        "shoulder": [
+          0.0677,
+          0.04,
+          0.12
+        ]
+      },
+      "meleeClearWay": [
+        -1.5,
+        -1.1871,
+        0.4027
+      ],
+      "meleeClear": 0.3855,
+      "meleeShoulder": [
+        0.0634,
+        -0.0009,
+        0.0713
+      ],
+      "meleeOut": [
+        -0.12,
+        0,
+        0
+      ]
     }
   },
   "guns": {
@@ -2249,7 +2515,8 @@
     "shotgun": "Drake-12",
     "lstar": "MGX5",
     "wingman": "DGL50",
-    "autopistol": "X18"
+    "autopistol": "X18",
+    "launcher": "RPG"
   },
   "_camera": "Where the pack's camera sits in its rig, metres, the rig facing +z: its FPSPlayer prefab's Camera (field of view 80, near 0.01) at 0.012, 1.654, 0.06, 9 cm over the head bone. fprig.ts puts it on our eye, so the arms' shoulders stay where the pack made them, just out of the picture; the gun goes where our view puts it and both hands reach it (KINEMATION's own rig: the gun on its weapon bone, the hands on it by IK). Hung off our gun instead, the arms' shoulders and sleeves came into the view and filled a third of it.",
   "camera": [
@@ -2994,6 +3261,43 @@
         0,
         -0.106,
         -0.043
+      ],
+      "clavicleL": [
+        0,
+        0,
+        0
+      ],
+      "clavicleR": [
+        0,
+        0,
+        0
+      ]
+    },
+    "RPG": {
+      "turn": [
+        90,
+        0,
+        0
+      ],
+      "forward": [
+        0,
+        0,
+        1
+      ],
+      "up": [
+        0,
+        1,
+        0
+      ],
+      "trigger": [
+        0,
+        -0.071,
+        0.196
+      ],
+      "palm": [
+        0,
+        -0.034,
+        -0.048
       ],
       "clavicleL": [
         0,

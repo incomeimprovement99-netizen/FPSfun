@@ -88,7 +88,7 @@ try {
     `try { const k = "range.settings.v1"; const s = JSON.parse(localStorage.getItem(k) || "{}"); s.fovScale = ${FOV}; localStorage.setItem(k, JSON.stringify(s)); } catch {}`,
   );
   page.on("pageerror", (e) => console.log("pageerror:", String(e)));
-  await page.goto(`${URL}?game=speedkills&nointro`, {
+  await page.goto(`${URL}?game=speedkills&nointro&nohome`, {
     waitUntil: "domcontentloaded",
     timeout: 60000,
   });

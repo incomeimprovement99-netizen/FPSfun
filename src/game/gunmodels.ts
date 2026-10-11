@@ -1680,7 +1680,8 @@ const ROSTER: Record<string, Family> = {
   // marksman and snipers
   g2: { kind: "rifle", spec: { ...MARKSMAN, body: 0x4a3b2c, accent: 0x9a6a3a, grip: 0x5b3a24 } },
   // HAEFY's rocket launcher: drawn by the bought model in SpeedKills (paidweapons.json); this only where the paid files are not
-  launcher: { kind: "rifle", spec: { ...MARKSMAN, body: 0x4a4f55, accent: 0xd8582a, stock: "solid", mag: "none", muzzle: "none" } },
+  // (no casing: built on the marksman rifle's, it threw brass after every rocket)
+  launcher: { kind: "rifle", spec: { ...MARKSMAN, body: 0x4a4f55, accent: 0xd8582a, stock: "solid", mag: "none", muzzle: "none", shell: null } },
   "3030": { kind: "rifle", spec: { ...MARKSMAN, body: 0x3d3833, accent: 0xa07a4a, grip: 0x6a4428, stock: "solid", mag: "none", tubeMag: true, cycle: "bolt", muzzle: "none" } },
   dmr: { kind: "rifle", spec: { ...MARKSMAN, body: 0x33373d, accent: 0x4f7fa0, stock: "skeleton", barrelLen: 0.26, bipod: true } },
   doubletake: { kind: "rifle", spec: { ...MARKSMAN, body: 0x3a3f3a, accent: 0x9fd23a, mag: "energy", muzzle: "energy", energy: true, shell: null, cycle: "bolt", triple: true, stock: "solid" } },

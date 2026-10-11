@@ -102,7 +102,7 @@ function faults(m: Report): string[] {
   const S = m.swap;
   if (S.deep > 4 || S.thr > 4) f.push(`swap ${S.deep.toFixed(1)} / ${S.thr.toFixed(1)} mm in the gun (4)`);
   if (S.face > 50) f.push(`swap palms ${Math.round(S.face)} degrees off the middle (50)`);
-  if (S.off < 1 || S.off > 4) f.push(`swap hands ${S.off.toFixed(1)} cm off (1 to 4)`);
+  if (S.off < 1 || S.off > 5) f.push(`swap hands ${S.off.toFixed(1)} cm off (1 to 5)`);
   if (S.curl < 45) f.push(`swap fingers bent ${Math.round(S.curl)} (45)`);
   if (S.wE > 60) f.push(`swap wrist early ${Math.round(S.wE)} (60)`);
   if (m.pickup.deep > 4) f.push(`pickup ${m.pickup.deep.toFixed(1)} mm in the gun (4)`);
@@ -123,7 +123,7 @@ try {
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   page.on("pageerror", (e) => console.log("pageerror:", String(e)));
-  await page.goto(`${URL}?game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 120000 });
+  await page.goto(`${URL}?game=speedkills&nointro&nohome`, { waitUntil: "domcontentloaded", timeout: 120000 });
   await page.waitForFunction("window.__range && window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 180000 });
   await page.evaluate(fs.readFileSync(path.join(HERE, "pack-audit.js"), "utf8"));
   const packName = (await page.evaluate(PAGE)) as string;

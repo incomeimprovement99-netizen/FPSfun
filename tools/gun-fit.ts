@@ -45,7 +45,7 @@ try {
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   // the owner's view (FOV 110) and the key list off, as the reference frames have none
   await page.evaluateOnNewDocument(`try { const k = "range.settings.v1"; const s = JSON.parse(localStorage.getItem(k) || "{}"); s.fovScale = 1.571; localStorage.setItem(k, JSON.stringify(s)); localStorage.setItem("range.quality", "high"); localStorage.setItem("range.keyHints", "off"); } catch {}`);
-  await page.goto(`${process.env.SHOT_URL ?? "http://localhost:5196/"}?game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 180000 });
+  await page.goto(`${process.env.SHOT_URL ?? "http://localhost:5196/"}?game=speedkills&nointro&nohome`, { waitUntil: "domcontentloaded", timeout: 180000 });
   await page.waitForFunction("window.__range && window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 180000 });
   await page.evaluate(`(() => { const r = window.__range; document.getElementById("overlay").classList.add("hidden"); r.input.locked = true; r.player.teleport(0, 0, 0, 0, 0); r.debugView.inspect = -1; r.debugView.flourish = -1; r.loadout.give(0, "${ID}"); r.loadout.requestSwap(0, r.gameTime()); })()`);
   await wait(3500);
