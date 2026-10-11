@@ -12315,3 +12315,28 @@ on 2026-10-10 with four checks failing; each traced to its cause here.
   crates off the tower's crown 80 m over it.
 - **Checked** (tools/checks/sk-neon.ts): the bridge walked on foot both ways (33,442 spots, 10,068 on the bridge; the walk's start may touch a stair's first tread, 0.1 m up), its climbs (at the tower the window's own storey's sill, not the first window found over it), railed both sides (the window cell's rails at its own waist), the lookout's zip lines ridden both ways, no deck cut in two by its cover; 179 of 179. The e2e: the speedkills section 101 of 102; its one failure, standing in a decaying sector hurts (health and shield rose 117 to 125), sampled before the decay's first tick while a part-empty shield refilled at 17 a second: it samples from after the first tick now. The bots' drops on the tower (10 of 27 on one run) count within 10 m of the centre's edge, where open ground put two to five of the fifteen that aim for it. The battle royale's part alone (skbr): 29 of 29. verify, rules and the type check. The look: inside the tower out of the window, from the sill (the cell at the sill and the step up), at the corner, the stair on the lobe, from the plaza and from above, by day and at night.
   The map: its files lo 100.8 MB, hi 167.3 MB, max 395.9 MB. **Its files are version 60.**
+
+## Milestone 580 — The fifth review, and its first fixes: the cars' glare, the beams, the zip ropes, the gangway's cover
+
+The centre's fifth fresh review (docs/CENTRE_REVIEW.md, round 5): 5.5 of 10, up from 5. Shot for the first time at
+SpeedKills' own hours, golden hour and its neon night (rounds 1 to 4 were at the legacy game's noon and night, which it
+never offers), from the same 24 spots and three new ones (the gangway, MOTEL HILL's roof footbridge, a High City fire
+escape). The first of its asks done here, those that are finish:
+
+- **The parked cars' glare** (`rules.dress.cars`): "glowing white parked cars blow out a quarter of the frame", the fourth
+  review's ask too. Probed in the page (a ray through the car's pixel): their bodies are the pack's Light03, a white light
+  material at an emission of 1.3, the same material as the bridges' light strips and the lamps and merged with them, so
+  it cannot be dimmed on the cars alone. The parked cars are UrbanCar00c and 00d now, white plastic; the two light-bodied
+  models are out. (A cap on the car trims' LightWall03_03 was tried first and measured: it changed the picture by
+  nothing, 209.3 of luma in the car either way.)
+- **The white beam spikes** (`rules.pads.beamScale`): each pad's beam a third of the pack's 92 m beam, some thirty white
+  spikes 30 m over the plaza that the review read as "floating glass shards". 0.18 now, 17 m: still a pad's mark from
+  across the plaza. The corner blocks' tall beams, each its block's colour, stay.
+- **The zip ropes** (`game.zipGlow`): "thick pink lasers, not cables". Lit at 1, not 2; 6 cm thick still, since at 3 cm
+  the second review read them as thin dotted lines.
+- **Cover on the gangway** (`rules.perches`' gangway): three crates and cool boxes on its long leg, as on the bridge ring.
+- **Looked at and left:** "a tan block stuck into the van's roof" (27) is the pack's own hover truck, FloatingCar00, and
+  its wooden cargo crate.
+- **Checked:** sk-neon all passed, its perches' check counting the gangway's cover, held to the bridge ring's two pieces and more. The e2e: the speedkills section 102 of 102, run alone (a first run with the map checks beside it lost its player to the bots and ended its match early, 48 of 56). verify, rules and the type check. The look: the east street's parked car by golden hour (white plastic and shaded, no glow), the aerial from the north-east (the pads' beams half as tall), the gangway's cover and the lookout's zip ropes reading as cables, by day and at night. The map: its files lo
+  100.9 MB, hi 167.4 MB, max 396.0 MB. **Its files are version 61**, the version moved on before baking: version 60 is live
+  and kept in browsers by its name.

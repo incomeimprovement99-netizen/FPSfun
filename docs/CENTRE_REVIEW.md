@@ -197,4 +197,55 @@ each side, kiosks), the median's see-through railings replaced by planters; Mile
 framed in steel with a head under the ceiling, its floor numbers on black; Milestone 503, the sky floors closed
 over (the top one looked up into the tower's hollow), numbered 9 to 11 and each laid out its own way; Milestone 504, THE VAULT's window row
 framed in gold and its lamps gold; Milestone 505, zip lines from the tower's lookout to the north, east and south
-decks; Milestone 506, cover on the bridge ring.*
+decks; Milestone 506, cover on the bridge ring; Milestone 509, the tower's upper half (its stair to the crown, three
+levels, two express lifts); Milestone 570, the street's poster walls standing on something; Milestone 571, High City's
+crowns and signs; Milestone 572, fire escapes up the south and east High City blocks; Milestone 573, THE WELL's and
+MARKET's names in neon and their beams in their colours; Milestone 574, a pad up onto every corner block and cover on
+their roofs; Milestone 575, footbridges over the corner blocks' roofs; Milestone 576, a real night; Milestone 579, a
+gangway from the tower's 26 m storey onto the east deck.*
+
+## Round 5, 2026-10-11 (map version 60)
+
+The same 22 day spots and 2 night spots, plus three new ones (25 on the gangway, 26 on MOTEL HILL's roof at its
+footbridge, 27 the east High City block's fire escape from the street); the designer's list brought up to date. **The
+light changed:** rounds 1 to 4 were shot at the legacy game's hard noon and its night, which SpeedKills never offers;
+round 5 at its own default, golden hour, and its neon night. Spot 27 was first shot from under the block's own face
+and moved to the edge road.
+
+| | Round 1 | Round 2 | Round 3 | Round 4 | Round 5 |
+|---|---|---|---|---|---|
+| Looks and identity | 4 | 4.5 | 5 | 5 | 5 |
+| Readability | 4 | 5 | 5 | 5 | 6 |
+| Flow and getting around | 5 | 5 | 5 | 6 | 6 |
+| Fits every play style | 4 | 4.5 | 5 | 5 | 5 |
+| Finish and bugs | 3 | 3 | 4 | 4 | 4 |
+| Fun | 5 | 6 | 6 | 6 | 6 |
+| **Overall** | **4.5** | **4.5** | **5** | **5** | **5.5** |
+
+**What rose.** Readability: the tower "works as a compass from every street and roof", and the four High City blocks
+read apart now, each in its own colour with a crown. The lantern streets and MOTEL HILL's sign are "the best moments";
+the bridge ring, balconies, fire escapes, zip lines, Sky Ring and gangway make the verticality "real".
+
+**What holds it at 5.5.** From above the centre is mostly open paving; the corner blocks are thin rows of 2 to 3 storey
+fronts and their streets end in plain ground; MARKET and THE WELL cannot be told in their own pictures; play sits at a
+few fixed heights (3.5, 10 to 12, 26.9 and 49 m) joined by long flat slabs, nothing at 14 to 20 m; the High City roofs,
+the lookout and the gangway are bare; one green clover rail everywhere; the white beam spikes read as floating shards;
+finish: the parked cars' glare blows out a quarter of a frame, ceiling lights bloom, low-resolution court and roof
+textures, a tan block in a van's roof (27), no door on the walk-in (22), the base hall dark and empty; the night a flat
+lavender haze from above; no loot shows.
+
+**Two spots moved.** Spot 18 (MARKET) stood east of the block looking south-east, away from it: from round 6 it is at
+(-38, 1.7, 48) looking west along MARKET's crate stacks to its name. Spot 19 (THE WELL) looked past the shaft's east
+edge from street height: from round 6 it stands on the shaft's south rim at (81.25, 1.8, 63.5), looking down into it.
+Both reviews' "MARKET and THE WELL cannot be told" came partly from where these two cameras stood.
+
+**What round 5 asks for next, in its order:** buildings you enter on the open paving (about 60% built, no street sight
+line over 60 m); cover on every flat roof (High City, the lookout, the base roof, the corner roofs) every 8 to 12 m;
+cover and rails on the gangway and the bridge ring; MARKET a maze of crates and stalls under awnings, THE WELL's shaft
+and lit rim seen from 50 m, NOODLE ROW built on its outer side too; THE VAULT clad in gold with a sign seen from every
+High City roof; each tower floor its own ceiling and theme, a double-height atrium, the base hall filled and lit; fewer,
+shorter white beams and a rail per district; an exposure pass (the cars, the ceiling lights, shadow resolution, the
+court's and roofs' textures); a middle layer (awnings, balconies and ledges at 3 to 8 m, platforms at 14 to 20 m, roofs
+a jump apart); a darker night.
+
+*Built since round 5: Milestone 580, the parked cars without their light-bodied models (Light03 bodies glowed white by day), the pads' beams 17 m (were 30), the zip ropes lit at half, cover on the gangway. Looked at and left: the "tan block stuck into the van's roof" (27) is the pack's hover truck and its cargo crate.*

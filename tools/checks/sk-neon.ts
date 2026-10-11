@@ -289,9 +289,10 @@ check("a pad up onto each corner block's roof from the street, each landing on i
   const crowded = map.pois.flatMap((p) => p.drops.filter((d) => solidsIn(d.x - R, d.x + R, d.z - R, d.z + R).some((b) => b.minX < d.x + R && b.maxX > d.x - R && b.minZ < d.z + R && b.maxZ > d.z - R && b.top > 0.46)).map((d) => `${p.id} (${(d.x - BR_X).toFixed(1)}, ${(d.z - BR_Z).toFixed(1)})`));
   check("the squads' drops: none on or by a jump pad, each with room round it (no roof over it, nothing beside it over a step)", near.length === 0 && crowded.length === 0 && map.pois.every((p) => p.drops.length > 0), `${map.pois.reduce((n, p) => n + p.drops.length, 0)} drops${near.length ? `; by a pad: ${near.join(", ")}` : ""}${crowded.length ? `; crowded: ${crowded.join(", ")}` : ""}`);
 }
-// (and on the four bridges of the ring round the tower, two pieces and more each: the fourth review asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("ring") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower and the corner blocks' roofs, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 18 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+// (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
+// reviews asked for cover there)
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway and the corner blocks' roofs, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 19 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
