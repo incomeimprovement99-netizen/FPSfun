@@ -14,6 +14,8 @@
 import { LOBBY_MODES, setupFor } from "../src/ui/lobby";
 import neonSectorsCfg from "../src/config/neonmap.json";
 import soldierCfg from "../src/config/soldier.json";
+import { hipFov43, verticalFovFrom43 } from "../src/game/sens";
+import vmCfgE2e from "../src/config/viewmodel.json";
 import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
 import lodCfg from "../src/config/lod.json";
 import soldierHoldCfg from "../src/config/soldierhold.json";
@@ -1926,12 +1928,12 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const allPack = Object.keys(fparmsCfg.guns);
   const packIds = allPack.filter((id) => !E2E_GUNS.length || E2E_GUNS.includes(id));
   const has = (...ids: string[]) => ids.every((id) => packIds.includes(id));
-  // (every SpeedKills gun is in the bought arms since HAEFY, 2026-10-10: the last a view's own arms hold is the old R-301, kept
-  // in data/weapons.json; the gun camera's field of view is the settings', not a gun's, so any plain gun shows it)
-  const plainGun = ["alternator_smg", "vinson", "mastiff", "shotgun", "lstar", "wingman", "autopistol", "launcher", "rspn101"].find((id) => !allPack.includes(id)) ?? "rspn101";
-  const plainFov = await pf<number>(`r.debugView.inspect = -1; H.clear(); await H.hold("${plainGun}"); await H.gameWait(0.4); return r.gunFov().gun;`);
-  // and the length of an inspect in the view's own arms
-  const plainInspect = await pf<number>(`return r.packArms().inspectTime;`);
+  // (as the settings give it, sens.ts gunFov: the world's 4:3 hip view at viewmodel.json's own scale, the player's own
+  // cancelling out; it had been read off the first SpeedKills gun not yet in the bought arms, and since HAEFY, 2026-10-11,
+  // none is left)
+  const plainFov = verticalFovFrom43(hipFov43(vmCfgE2e.fovScale));
+  // and the length of an inspect in the view's own arms (viewmodel.ts INSPECT_TIME, as the page has it)
+  const plainInspect = await pf<number>(`return r.packArms().plainInspect;`);
   // (every gun in the bought arms, fparms.json guns: a gun is added to the checks by adding it there)
   for (const id of packIds) {
     const other = allPack[(allPack.indexOf(id) + 1) % allPack.length];

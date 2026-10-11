@@ -12219,3 +12219,15 @@ reload. Every SpeedKills gun is now held by them.
   a magazine's phase was centred on the middle of its box over the world's axes, which for a rocket 54 cm long rolled with
   the reload's turn lay 12 mm off its own middle: measured in the magazine's own frame, as the view takes it, both guns'
   phases are centred to the millimetre. npm run verify, rules and the type check.
+
+## Milestone 519 — The bought arms' field of view checked against the settings
+
+The skpack check that the bought arms' guns are drawn at the gun camera's own field of view compared them with the first
+SpeedKills gun the view's own arms still held. Since HAEFY (Milestone 517) none is left, and the last gun it could have
+borrowed, the old R-301, is going with the legacy guns (the new-stuff agent's sweep). The field of view at the hip is the
+settings', not a gun's: sens.ts gunFov is the world's 4:3 hip view at viewmodel.json's own scale, the player's own cancelling
+out, so the check now takes that, and the view's own inspect length from the page (packArms plainInspect, viewmodel.ts
+INSPECT_TIME).
+
+- **Checked:** `E2E_ONLY=skpack E2E_GUNS=r97`, 92.3 degrees expected and drawn; seen failing with the expected value a
+  degree off (93.3 against 92.3). npm run verify, rules and the type check.
