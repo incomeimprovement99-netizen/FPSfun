@@ -12444,3 +12444,26 @@ every district card was checked against the pack before this (the plan page's ta
   centre's street walls leave them out for the same reason. That check now names any node it finds cut off.
 - **Checked** (tools/checks/sk-neon.ts): LANTERN ALLEYS' 17 houses in the band, none overlapping or on an alley; both main alleys walked end to end and the four cross alleys through; 415 lanterns; the street one network, 798 of 798; sk-neon all passed. The e2e: the speedkills section 102 of 102. verify, rules and the type check. The look: the east and north alleys and the courtyard, its name and its lantern web, by golden hour and at night, and from the air.
   The map: its files lo 113.8 MB, hi 180.4 MB, max 409.0 MB. **Its files are version 62.**
+
+## Milestone 562 — The hands as they are hit
+
+Measured with Milestone 561's legs: of the shots at a soldier's drawn arms from all round, 22 to 26 in 100 went into no
+volume at all, most of them at the left hand's fingers closed round the fore-end, out in front of the body where no
+torso stands behind them to stop the shot.
+
+- **Now** (dummy.ts followBones and soldierVolumes, figure.json handVolume): each hand a sphere 0.08 m round, its middle
+  halfway from the hand bone to the middle finger's second joint, so it follows the fingers as they close round each
+  gun. Measured holding BOOG, USSO, APUHTHEE, HAEFY and CHOOCH, at the hip and aimed: 95 in 100 of the hand's skin within
+  0.077 to 0.086 of that middle.
+- **After:** shots at the drawn arms within 6 cm of where they aimed 54 to 60 in 100 (32 to 45 before), into nothing
+  10 to 16 (22 to 26). No shot at a head a soldier shows from behind goes into a hand.
+- **Not done:** VANGUARD's and BREACHER's shoulder armour, half of whose shots go past the upper arm's cylinder (a
+  quarter into nothing). A sphere round it, fitted to each kit's armour skin (0.117 m, 90 in 100 of it), is mostly air
+  round a curved plate, and from 30 degrees behind it took 88 to 98 of every 500 shots at the head a soldier showed,
+  aiming; it needs a volume the plate's own shape.
+- **Checked:** the skfigure limbs check now holds the arms too (a shot at them within 6 cm 50 in 100 or more, into
+  nothing 19 or fewer), seen failing with the hands' spheres shrunk to nothing (into nothing 22 to 25). HAEFY joined
+  the swap checks with Milestone 517's swap of its own: carried low, it goes out of an in-place swap from its carry and
+  the next gun comes in at its own, the carry changed while neither shows (mannequin.ts setGun). Every skfigure check
+  (315 of 315); verify;
+  rules; the type check.

@@ -389,6 +389,8 @@ const NECK_FOOT = (figureCfg as { headVolume?: { neckFoot: number } }).headVolum
 const ARM = (figureCfg as { armVolume?: { upper: number[]; fore: number[]; hand: number } }).armVolume ?? { upper: [0.11, 0.08], fore: [0.075, 0.062], hand: 0.1 };
 /** the soldier's leg volumes, round its thighs, calves and boots (figure.json legVolume) */
 const LEG = (figureCfg as { legVolume?: { thigh: number[]; calf: number[]; foot: { size: number[]; mid: number[] } } }).legVolume ?? { thigh: [0.15, 0.11], calf: [0.12, 0.1], foot: { size: [0.15, 0.17, 0.34], mid: [0, -0.09, 0.09] } };
+/** the soldier's hands as they are hit (figure.json handVolume) */
+const HAND = (figureCfg as { handVolume?: { r: number; at: number } }).handVolume ?? { r: 0.08, at: 0.5 };
 /** how far under the neck bone the soldier's neck volume reaches (figure.json neckBelow) */
 const NECK_BELOW = (figureCfg as { neckBelow?: number }).neckBelow ?? 0.0275;
 
@@ -787,6 +789,8 @@ export class Dummy {
     calfL?: THREE.Mesh;
     footR?: THREE.Mesh;
     footL?: THREE.Mesh;
+    handL?: THREE.Mesh;
+    handR?: THREE.Mesh;
   };
   readonly distanceLabel: number;
   /** the operator this figure wears */
@@ -1513,7 +1517,7 @@ export class Dummy {
       m.quaternion.setFromRotationMatrix(FB_B.makeBasis(x, y, z)).premultiply(hitsQ);
     };
     const V = this.vols;
-    if (!V.foreL || !V.belly) this.soldierVolumes();
+    if (!V.foreL || !V.belly || !V.handL) this.soldierVolumes();
     const left = shL.clone().sub(shR);
     // The torso's volume in two, both from spine_02 (where the box's middle was, standing): the chest up along the upper
     // chest to the neck, the belly down to the pelvis. One box along the pelvis to the neck leant with the whole back,
@@ -1590,6 +1594,16 @@ export class Dummy {
     };
     boot(V.footR, ftR, knR, baR);
     boot(V.footL, ftL, knL, baL);
+    // Each hand a sphere round the fist as it closes on the gun (figure.json handVolume): with none, a shot at a hand,
+    // the left round the fore-end out in front of the body above all, went through it into nothing
+    const s = this.hits.getWorldScale(FB_S).x;
+    for (const [m, side] of [[V.handL, "r"], [V.handR, "l"]] as const) {
+      const wrist = mq.bone(`hand_${side}`);
+      const knuckle = mq.bone(`middle_02_${side}`);
+      if (!m || !wrist || !knuckle) continue;
+      m.position.setFromMatrixPosition(wrist.matrixWorld).lerp(FB_A.setFromMatrixPosition(knuckle.matrixWorld), HAND.at).applyMatrix4(toHits);
+      m.scale.setScalar(HAND.r / s);
+    }
     this.hits.updateMatrixWorld(true);
   }
 
@@ -1613,7 +1627,7 @@ export class Dummy {
       m.geometry.dispose();
       m.geometry = cyl(ARM.upper);
     }
-    const add = (k: "foreL" | "foreR" | "thighL" | "calfR" | "calfL" | "footR" | "footL", g: THREE.BufferGeometry, zone: string): void => {
+    const add = (k: "foreL" | "foreR" | "thighL" | "calfR" | "calfL" | "footR" | "footL" | "handL" | "handR", g: THREE.BufferGeometry, zone: string): void => {
       const m = new THREE.Mesh(g, HITBOX);
       m.userData.zone = zone;
       m.castShadow = false;
@@ -1630,6 +1644,8 @@ export class Dummy {
     const [fx, fy, fz] = LEG.foot.size;
     const [mx, my, mz] = LEG.foot.mid;
     for (const k of ["footR", "footL"] as const) add(k, new THREE.BoxGeometry(fx, fy, fz).translate(mx, my, mz), "legs");
+    // the hands: unit spheres, sized as they follow the bones
+    for (const k of ["handL", "handR"] as const) add(k, new THREE.SphereGeometry(1, 12, 8), "body");
   }
 
   /**
