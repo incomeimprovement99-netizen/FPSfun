@@ -387,6 +387,8 @@ const NECK_TOP = (figureCfg as { headVolume?: { neckTop: number } }).headVolume?
 const NECK_FOOT = (figureCfg as { headVolume?: { neckFoot: number } }).headVolume?.neckFoot ?? 0.09;
 /** the soldier's arm volumes, round its upper arms and its forearms (figure.json armVolume) */
 const ARM = (figureCfg as { armVolume?: { upper: number[]; fore: number[]; hand: number } }).armVolume ?? { upper: [0.11, 0.08], fore: [0.075, 0.062], hand: 0.1 };
+/** the soldier's leg volumes, round its thighs, calves and boots (figure.json legVolume) */
+const LEG = (figureCfg as { legVolume?: { thigh: number[]; calf: number[]; foot: { size: number[]; mid: number[] } } }).legVolume ?? { thigh: [0.15, 0.11], calf: [0.12, 0.1], foot: { size: [0.15, 0.17, 0.34], mid: [0, -0.09, 0.09] } };
 /** how far under the neck bone the soldier's neck volume reaches (figure.json neckBelow) */
 const NECK_BELOW = (figureCfg as { neckBelow?: number }).neckBelow ?? 0.0275;
 
@@ -769,7 +771,23 @@ export class Dummy {
   /** the motion-captured mannequin in place of the robot (mannequin.ts, a setting) */
   private mq: MannequinFigure | null = null;
   /** the hit volumes by part, for SpeedKills' soldier, whose volumes follow its bones (followBones) */
-  private vols: { legs: THREE.Mesh; torso: THREE.Mesh; armL: THREE.Mesh; armR: THREE.Mesh; neck: THREE.Mesh; head: THREE.Mesh; plate: THREE.Mesh; foreL?: THREE.Mesh; foreR?: THREE.Mesh; belly?: THREE.Mesh };
+  private vols: {
+    legs: THREE.Mesh;
+    torso: THREE.Mesh;
+    armL: THREE.Mesh;
+    armR: THREE.Mesh;
+    neck: THREE.Mesh;
+    head: THREE.Mesh;
+    plate: THREE.Mesh;
+    foreL?: THREE.Mesh;
+    foreR?: THREE.Mesh;
+    belly?: THREE.Mesh;
+    thighL?: THREE.Mesh;
+    calfR?: THREE.Mesh;
+    calfL?: THREE.Mesh;
+    footR?: THREE.Mesh;
+    footL?: THREE.Mesh;
+  };
   readonly distanceLabel: number;
   /** the operator this figure wears */
   readonly skin: OperatorSkin;
@@ -1478,12 +1496,12 @@ export class Dummy {
   private followBones(): void {
     const mq = this.mq;
     if (!mq?.soldier) return;
-    const names = ["Head", "neck_01", "pelvis", "upperarm_l", "upperarm_r", "hand_l", "hand_r", "thigh_l", "thigh_r", "foot_l", "foot_r", "lowerarm_l", "lowerarm_r", "spine_02"] as const;
+    const names = ["Head", "neck_01", "pelvis", "upperarm_l", "upperarm_r", "hand_l", "hand_r", "thigh_l", "thigh_r", "foot_l", "foot_r", "lowerarm_l", "lowerarm_r", "spine_02", "calf_l", "calf_r", "ball_l", "ball_r"] as const;
     const b = names.map((n) => mq.bone(n));
     const mid = mq.headMiddle();
     if (!mid || b.some((x) => !x)) return;
     this.group.updateMatrixWorld(true);
-    const [head, neck, pelvis, shL, shR, haL, haR, thL, thR, ftL, ftR, elL, elR, sp2] = b.map((x) => new THREE.Vector3().setFromMatrixPosition(x!.matrixWorld));
+    const [head, neck, pelvis, shL, shR, haL, haR, thL, thR, ftL, ftR, elL, elR, sp2, knL, knR, baL, baR] = b.map((x) => new THREE.Vector3().setFromMatrixPosition(x!.matrixWorld));
     const toHits = FB_M.copy(this.hits.matrixWorld).invert();
     const hitsQ = this.hits.getWorldQuaternion(FB_Q).invert();
     // a volume's own frame: up along a bone line, across as near the figure's left as that allows, forward from the two
@@ -1555,9 +1573,23 @@ export class Dummy {
     limb(V.foreL, elR, past(haR, elR));
     limb(V.armR, shL, elL);
     limb(V.foreR, elL, past(haL, elL));
-    const feet = ftL.clone().lerp(ftR, 0.5);
-    put(V.legs, pelvis.clone().lerp(feet, 0.5), pelvis.clone().sub(feet), thL.clone().sub(thR));
-    V.legs.scale.y = pelvis.distanceTo(feet) / (V.legs.geometry as THREE.BoxGeometry).parameters.height;
+    // Each leg a thigh and a calf round its bones and a box round its boot (figure.json legVolume), the right thigh in the
+    // legs' own volume: one box from the pelvis to the feet stood between the legs and missed a leg a stride swung out
+    // of it, and of the shots at a drawn leg 58 to 80 in 100 went into nothing
+    limb(V.legs, thR, knR);
+    limb(V.thighL, thL, knL);
+    limb(V.calfR, knR, ftR);
+    limb(V.calfL, knL, ftL);
+    // the boot along its sole (the ankle to the ball, square to the calf) and up its calf
+    const boot = (m: THREE.Mesh | undefined, ankle: THREE.Vector3, knee: THREE.Vector3, ball: THREE.Vector3): void => {
+      if (!m) return;
+      const up = knee.clone().sub(ankle).normalize();
+      const sole = ball.clone().sub(ankle);
+      sole.addScaledVector(up, -sole.dot(up));
+      put(m, ankle, up, up.clone().cross(sole));
+    };
+    boot(V.footR, ftR, knR, baR);
+    boot(V.footL, ftL, knL, baL);
     this.hits.updateMatrixWorld(true);
   }
 
@@ -1581,14 +1613,23 @@ export class Dummy {
       m.geometry.dispose();
       m.geometry = cyl(ARM.upper);
     }
-    for (const k of ["foreL", "foreR"] as const) {
-      const m = new THREE.Mesh(cyl(ARM.fore), HITBOX);
-      m.userData.zone = "body";
+    const add = (k: "foreL" | "foreR" | "thighL" | "calfR" | "calfL" | "footR" | "footL", g: THREE.BufferGeometry, zone: string): void => {
+      const m = new THREE.Mesh(g, HITBOX);
+      m.userData.zone = zone;
       m.castShadow = false;
       this.hits.add(m);
       this.hitMeshes.push(m);
       V[k] = m;
-    }
+    };
+    for (const k of ["foreL", "foreR"] as const) add(k, cyl(ARM.fore), "body");
+    // the legs: the right thigh in the legs' own volume (it keeps its place among the hit meshes), the rest added
+    V.legs.geometry.dispose();
+    V.legs.geometry = cyl(LEG.thigh);
+    add("thighL", cyl(LEG.thigh), "legs");
+    for (const k of ["calfR", "calfL"] as const) add(k, cyl(LEG.calf), "legs");
+    const [fx, fy, fz] = LEG.foot.size;
+    const [mx, my, mz] = LEG.foot.mid;
+    for (const k of ["footR", "footL"] as const) add(k, new THREE.BoxGeometry(fx, fy, fz).translate(mx, my, mz), "legs");
   }
 
   /**

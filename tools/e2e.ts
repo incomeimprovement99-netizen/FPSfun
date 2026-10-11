@@ -8082,6 +8082,69 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       JSON.stringify(Object.fromEntries(Object.entries(back).map(([k, x]) => [k, { face: x.face, chest: x.chest }])))
     );
   }
+  // The legs as they are hit (figure.json legVolume): shooters 30 m off all round (8 ways, at a chest's height) aim at
+  // points of the drawn legs they can see, and a shot goes into a volume within 6 cm of the point, either side, or into
+  // none until 6 cm past it. One box from the pelvis to the feet stood between the legs and missed a leg a stride swung
+  // out of it: 9 to 23 in 100 went in within 6 cm, 58 to 80 into none (standing, walking, sprinting, crouched)
+  {
+    const legPoses: Array<[string, Record<string, unknown>]> = [
+      ["standing", { speed: 0, stance: "stand", pitch: 0 }],
+      ["walking", { speed: 3, stance: "stand", pitch: 0 }],
+      ["sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
+      ["crouched", { speed: 0, stance: "crouch", pitch: 0 }],
+    ];
+    const legs: Record<string, { n: number; fit: number; none: number }> = {};
+    for (const [label, pose] of legPoses)
+      legs[label] = await ev<{ n: number; fit: number; none: number }>(
+        page,
+        `(() => {
+          const r = window.__range, T = r.THREE;
+          r.player.teleport(0, 0, 0, 0, 0);
+          r.figureLabManual(false); r.figureLab([{ ...${JSON.stringify(pose)}, weapon: "sentinel", look: "S0000010" }], 6, 180); r.figureLabManual(true); r.figureLabStep(1.2);
+          const f = r.labFigures()[0], mq = f.mq; f.group.updateMatrixWorld(true);
+          const figQ = f.group.getWorldQuaternion(new T.Quaternion());
+          const fwd = new T.Vector3(0, 0, 1).applyQuaternion(figQ).setY(0).normalize(), side = new T.Vector3(-fwd.z, 0, fwd.x);
+          // the drawn skin posed once into plain triangles, and every fifth point of it weighted most to a leg bone
+          const P = [], pts = [], v = new T.Vector3();
+          mq.root.traverse((o) => {
+            if (!o.isSkinnedMesh || !o.visible) return;
+            const g = o.geometry, n = g.attributes.position.count, idx = g.index, si = g.attributes.skinIndex, sw = g.attributes.skinWeight;
+            const W = new Float32Array(n * 3);
+            for (let i = 0; i < n; i++) { o.getVertexPosition(i, v); v.applyMatrix4(o.matrixWorld); W[3 * i] = v.x; W[3 * i + 1] = v.y; W[3 * i + 2] = v.z; }
+            for (let t = 0; t < (idx ? idx.count : n); t++) { const k = idx ? idx.getX(t) : t; P.push(W[3 * k], W[3 * k + 1], W[3 * k + 2]); }
+            for (let i = 0; i < n; i += 5) {
+              let bi = -1, bw = -1; for (let c = 0; c < 4; c++) if (sw.getComponent(i, c) > bw) { bw = sw.getComponent(i, c); bi = si.getComponent(i, c); }
+              if (/^(thigh|calf|foot|ball)/.test(o.skeleton.bones[bi]?.name ?? "")) pts.push(new T.Vector3(W[3 * i], W[3 * i + 1], W[3 * i + 2]));
+            }
+          });
+          const bg = new T.BufferGeometry(); bg.setAttribute("position", new T.Float32BufferAttribute(P, 3)); bg.computeBoundingSphere();
+          const drawn = new T.Mesh(bg, new T.MeshBasicMaterial({ side: T.DoubleSide }));
+          const ray = new T.Raycaster();
+          let n = 0, fit = 0, none = 0;
+          for (let az = 0; az < 360; az += 45) {
+            const a = (az * Math.PI) / 180, dir = fwd.clone().multiplyScalar(Math.cos(a)).addScaledVector(side, Math.sin(a));
+            const S = f.group.position.clone().addScaledVector(dir, 30).add(new T.Vector3(0, 1.2, 0));
+            for (const p of pts) {
+              const d = p.clone().sub(S), len = d.length(); d.divideScalar(len);
+              ray.set(S, d); ray.far = len + 0.5;
+              const first = ray.intersectObject(drawn, false)[0];
+              if (!first || first.distance < len - 0.015) continue;
+              n++;
+              ray.far = len + 0.06;
+              const hit = ray.intersectObjects(f.hitMeshes, false)[0];
+              if (!hit) none++;
+              else if (hit.distance >= len - 0.06) fit++;
+            }
+          }
+          return { n, fit: Math.round((fit / Math.max(1, n)) * 1000) / 10, none: Math.round((none / Math.max(1, n)) * 1000) / 10 };
+        })()`,
+      );
+    check(
+      "a shot at the soldier's drawn legs from any side, standing, walking, sprinting or crouched (VANGUARD, 30 m off all round) goes into a volume within 6 cm of where it aimed 55 in 100 times or more, and into none 25 in 100 or fewer",
+      Object.values(legs).every((x) => x.n >= 500 && x.fit >= 55 && x.none <= 25),
+      JSON.stringify(legs)
+    );
+  }
   // A far soldier's eyes are not drawn (lod.json figures.eyes; a draw call a figure) and never cast a shadow: shown near,
   // hidden moved past the distance, shown again brought back
   const eyesLod = await ev<{ n: number; near: boolean[][]; far: boolean[][]; back: boolean[][] }>(

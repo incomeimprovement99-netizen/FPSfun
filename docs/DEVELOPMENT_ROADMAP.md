@@ -12090,3 +12090,22 @@ the hands that barely moved.
 - **Not changed:** APUHTHEE's aim kicks 0.6 degrees a shot, the lightest of any gun (speedkills.json tuning recoil, the
   gameplay's, left as it is).
 - **Checked:** npm run verify (its spring check runs every gun's kick at 30 to 240 frames a second), rules and the type check.
+
+## Milestone 561 — The legs as they are hit: each leg its own
+
+Found measuring the hit volumes' fit for Milestone 560 (node_modules/.scratch/bodycover.mts: shooters 30 m off all
+round, 8 ways at a chest's height and 10 m up, aiming at points of the drawn body they can see). The soldier's legs were
+one box, 0.42 across, 0.92 long and 0.3 deep, from the pelvis to the feet: it stood in the air between the legs and
+missed any leg a stride swung out of it. Of the shots at a drawn leg, 9 to 23 in 100 went into a volume within 6 cm of
+where they aimed, and 58 to 80 into none at all (standing, walking, sprinting, crouched, jumping, sliding).
+
+- **Now** (dummy.ts followBones and soldierVolumes, figure.json legVolume): each leg a cylinder round the thigh from the
+  hip to the knee, one round the calf from the knee to the ankle, and a box round the boot along its sole, all zone legs,
+  sized to the drawn legs measured round their bones (the thigh 0.15 at the hip to 0.11 at the knee, the calf 0.12 to
+  0.10, the boot 0.34 heel to toe, 0.17 high, 0.15 wide). The right thigh is the legs' own volume, so the hit meshes keep
+  their order; the robot keeps its box.
+- **After:** 59 to 80 in 100 within 6 cm, 8 to 21 into none, in the same poses. A shot's raycast against 27 soldiers'
+  volumes (405 of them now) takes 0.03 ms.
+- **Checked:** a new skfigure check (shots at the drawn legs from 8 ways, standing, walking, sprinting and crouched:
+  55 in 100 or more within 6 cm, 25 or fewer into none), seen failing with the old box put back; every skfigure check
+  (304 of 304); verify; rules; the type check.
