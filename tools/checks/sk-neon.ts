@@ -1703,6 +1703,13 @@ loot.generate(
   map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius, y: s.y, tier: s.tier })),
 );
 const drops = [...loot.drops.values()];
+// every gun on the floor one of SpeedKills' own: the Hot Zone's kitted prize was drawn off the legacy game's epic list
+// until Milestone 499, and a bot was seen carrying the legacy bow
+{
+  const { PROFILE } = await import("../../src/game/game");
+  const strays = drops.filter((d) => d.item.kind === "weapon" && !PROFILE.roster.includes(d.item.id)).map((d) => d.item.id);
+  check("every gun a match lays on the city's floor is on SpeedKills' roster", strays.length === 0, strays.length ? strays.join(", ") : `${drops.filter((d) => d.item.kind === "weapon").length} guns`);
+}
 // THE VAULT (game.sites `vault`): a site on the tower's 32 m floor with its own tier, its loot on that floor alone and
 // richer than a floor's share: the floor's items within its reach against the floor under it
 {

@@ -7,7 +7,7 @@
 // gun fires are each refused.
 //
 // Run on its own: npx tsx tools/checks/hitcheck.ts (and with GAME=speedkills for SpeedKills' own: verify runs both).
-import { HitCheck, MELEE_APART, STALE, TOP_SPEED, maxPerSecond, maxRound } from "../../src/net/hitcheck";
+import { HACK_MAX, HitCheck, MELEE_APART, STALE, TOP_SPEED, maxPerSecond, maxRound } from "../../src/net/hitcheck";
 import { IS_SK } from "../../src/game/game";
 import { resolveWeapon, weaponIds } from "../../src/game/weapons";
 import netCfg from "../../src/config/net.json";
@@ -78,6 +78,18 @@ console.log("The host's check on a claimed hit");
   for (let i = 0; i < Math.ceil(per / round) + 5; i++) if (fast.judge({ from: 8, amount: round, weapon: SAMPLE, dist: 10 }, 10 + i * 0.001, 10, 10) === null) passed++;
   check("claims faster than the gun fires are refused once a second's worth is in", passed * round <= per && passed * round > per - round - 1e-6, `${passed} passed of ${Math.round(per)} a second`);
   check("the refused are kept for the tests, with why", fast.refused.length > 0 && /faster/.test(fast.refused[0].why));
+}
+
+// SpeedKills: a claim names a gun of its roster, a swing or a hack that hurts. Any other name passed as an older build's
+// claim, with no shot behind it, at up to 250 a claim: one forged hit took a player out (Milestone 499)
+if (IS_SK) {
+  const h = new HitCheck();
+  const refused = ["rspn101", "anything", ""].filter((w, i) => h.judge({ from: 20 + i, amount: 20, weapon: w, dist: 10 }, 10, undefined, 10) !== null);
+  check("SpeedKills: a claim naming a gun off its roster, a made-up name or none is refused, however small", refused.length === 3, `${refused.length} of 3 refused`);
+  const hacks = Object.entries(HACK_MAX);
+  const fair = hacks.filter(([id, top], i) => h.judge({ from: 30 + i, amount: top, weapon: id, dist: 3 }, 10, undefined, 3) === null);
+  const over = hacks.filter(([id, top], i) => h.judge({ from: 40 + i, amount: top * C.margin + 1, weapon: id, dist: 3 }, 10, undefined, 3) !== null);
+  check("SpeedKills: a hack's hit, which no shot comes before, passes at its top level's damage and is refused past it", hacks.length >= 2 && fair.length === hacks.length && over.length === hacks.length, hacks.map(([id, top]) => `${id} ${top}`).join(", "));
 }
 
 console.log(fails === 0 ? "\nHITCHECK PASS" : `\nHITCHECK FAIL (${fails})`);

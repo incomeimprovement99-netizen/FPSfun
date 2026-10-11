@@ -58,6 +58,13 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
 - **498, the shared e2e tests on SpeedKills (done).** Nine of the tests 494 left pinned test systems SpeedKills shares
   (the network, jitter and loss, the bots and their tiers, the killcam and recap, the range's tools, the jump pads):
   they run on SpeedKills now. 21 tests of the legacy game alone stay pinned until their code goes.
+- **499, the battle royale with friends tested on SpeedKills (done).** Six more pinned tests (an arena mode with a
+  friend, bot squads, solo with a friend, split squads, a battle royale's host migration, a squad of two) run on
+  SpeedKills, and found three SpeedKills bugs: a ghost left with only opponents up, legacy guns on the city's floor,
+  and a forged hit naming no gun that the host let through. 11 tests of the legacy game alone stay pinned.
+- **520, the game switch (next).** `game=legacy` and legacy.json gone, the 11 pinned tests with them, and the two Node
+  checks that ran as the legacy game (loot-tiers.ts, the Outskirts' loot; ring-place.ts, the ring SpeedKills never
+  draws).
 - **The owner, 2026-10-09: retire all of it.** "i am fine with retiring all old apex-range stuff, don't break speed
   hack. can remove old guns and old abilities that we don't use." Next: the game switch (`game=legacy` gone, IS_SK
   folded), after the city agent's old-city removal lands; then the dead code below, the 18 old guns with it (the guns

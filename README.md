@@ -229,7 +229,9 @@ it.
 - **Health:** 100 health and a 50 shield, both coming back on their own.
 - **Dying:**
   - Your first death is the Gulag, until the capture zone opens.
-  - After that you are a ghost: fast, unseen, no gun.
+  - After that you are a ghost: fast, unseen, no gun, while a squad mate is
+    still up. In solo, or with only other squads left standing, you are out
+    and watch them instead.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
 - **The soldier as others see it:** holding the USSO, BOOG, ANAKIN, PANDA, BIGANTLER, REZ or CHOOCH the way a rifleman

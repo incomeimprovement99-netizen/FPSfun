@@ -11137,6 +11137,41 @@ range's tools and the jump pads. They run on SpeedKills now, each failure sorted
 - **Checked:** tsc; verify; rules; e2e duel, bots, pad, range and finish.
 
 
+## Milestone 499 — The battle royale with friends tested on SpeedKills, and three bugs it found
+
+Six more of the tests 494 left pinned to the legacy game test systems SpeedKills shares: an arena mode with a friend,
+bot squads, solo with a friend, friends split into squads, host migration in a battle royale, and a squad of two
+playing one. They run on SpeedKills now, with the counts read from the match (its bots, its squads, the placement out
+of them) rather than the legacy match's five or six bots.
+
+- **A SpeedKills bug: a ghost nobody could restore.** A player out with a squad mate still up is a ghost, to be
+  restored at their echo. "A squad mate" counted any human still up, so in solo with a friend, or with friends split
+  into squads, a player out with only an opponent standing was left a ghost instead of out and watching the others.
+  The rule now asks for one of your own side (brmatch.ts `ghost`, through `squadUp`, the rule a knock already used).
+  Checked in the solo test, seen failing with the old rule.
+- **A SpeedKills bug: legacy guns on the city's floor.** The Hot Zone's prize, a gun with every attachment, was drawn
+  off the legacy game's epic list in SpeedKills too, so a match could lay the legacy bow, the Defender or the Dragon
+  LMG, none of them on the roster (the migration test caught a bot carrying the bow). SpeedKills lays no prize
+  (loot.ts); a new check in sk-neon.ts holds every gun a match lays to the roster, seen failing with the old code.
+- **A SpeedKills security hole: a forged hit with no shot.** The host checks every hit a friend's page claims (hitcheck.ts):
+  no more than one round of the gun, only after a shot from that player. A claim naming no gun of the game was taken
+  as an older build's, held to 250 and no shot asked for, and SpeedKills' list of guns is its ten: a page could name
+  the legacy R-301, or any made-up word, and take a player out with one forged claim. In SpeedKills a claim now names
+  a gun of its roster, a swing or a hack that hurts (SLAM and MINE, held to their top level's damage, 30 and 60);
+  anything else is refused. Checked in tools/checks/hitcheck.ts, seen failing on the old check. (The tests' own shots
+  from a friend named the R-301 too; they name BOOG now.)
+- **Gone with the legacy game:** a bot's knock, its revive and a finisher on it; a player down and bleeding out,
+  crawling, the knockdown shield, the revive and the gold shield's self-revive; the ring's tick, the care package and
+  loadout crate on the ring's late rounds, and Storm Surge; the squad's one sky drawn from the seed (SpeedKills plays
+  under each player's own hour); a shield cell in the hand of a friend's figure. SpeedKills has no knockdown, decays
+  its city instead of drawing a ring, and its echo restore with a friend is speedkillsGhostTest's.
+- **Found, not changed:** SpeedKills never draws a ring: every round closes on the final sector (decay.ts), so
+  ring.ts's draw and its pull toward the map's places are the legacy game's alone, and go with it.
+- **Left pinned:** 11 tests of the legacy game alone (the Outskirts battle royale, its ship, vault, consoles, doors and
+  loot, the intro card, the hold and spray pictures, the mannequin's modes, the cross-game join), to go with the game
+  switch.
+- **Checked:** tsc; verify; rules; e2e modes, botsquads, brsolo, migrate, squad and duel.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

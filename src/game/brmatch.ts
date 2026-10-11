@@ -604,9 +604,13 @@ export class BrMatch extends Duel {
    * SpeedKills: this player is a ghost: out, with a squad mate still up, not
    * in the Gulag, and a restore left (PROFILE.life). A ghost moves, pings and
    * sees; it does not shoot, pick up or use hacks, and enemies do not see it.
+   * The mate is squadUp's, one of your own side: any human still up counted
+   * before, so in solo with a friend, or with friends split into squads, a
+   * player out with only an opponent standing was left a ghost nobody could
+   * restore, instead of out and watching.
    */
   get ghost(): boolean {
-    return !!this.decay && !this.alive && !this.gulag && this.phase === "fight" && this.restores < PROFILE.life.ghostRevives && this.humansAlive > 0;
+    return !!this.decay && !this.alive && !this.gulag && this.phase === "fight" && this.restores < PROFILE.life.ghostRevives && this.squadUp();
   }
 
   /**

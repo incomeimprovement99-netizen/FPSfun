@@ -916,7 +916,9 @@ export class LootField {
     // as often as the rest of that place's loot is. Not every match has one:
     // a Hot Zone you can see is worth crossing for even when the prize is not
     // in it, and a guaranteed prize would make it the only place to land.
-    if (hotSpots.length && rnd() < cfg.hotZone.kittedChance) {
+    // Not in SpeedKills: its prize was drawn off the legacy game's epic list, so a match there could lay a gun that is
+    // not on its roster, kitted with attachments it has none of (a bot was seen carrying the legacy bow, Milestone 499).
+    if (!IS_SK && hotSpots.length && rnd() < cfg.hotZone.kittedChance) {
       const at = hotSpots[Math.floor(rnd() * hotSpots.length)];
       this.add(kittedGun(rnd), at.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.2, 0, (rnd() - 0.5) * 1.2)));
     }
