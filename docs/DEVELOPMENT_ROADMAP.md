@@ -12231,3 +12231,30 @@ INSPECT_TIME).
 
 - **Checked:** `E2E_ONLY=skpack E2E_GUNS=r97`, 92.3 degrees expected and drawn; seen failing with the expected value a
   degree off (93.3 against 92.3). npm run verify, rules and the type check.
+
+## Milestone 577 — The quiet minute: no decay until a minute in
+
+The owner, 2026-10-11: "don't have any decay until a 1 min into the game, i don't want anything to decay at the start.
+if people want to loot for a couple mins then that's their choice and should be able to without fearing the zonepull".
+Day 1's first item of the districts and decay plan.
+
+- **Before:** the ring's clock starts when the dropship has flown its line, and wave 1's 50 s warning started with it:
+  two sectors were flagged the moment a squad landed (their beams, the map's colour, DECAY INCOMING) and the first
+  dissolved under a minute after the ship.
+- **The quiet minute** (decay.json `grace`, 60 s; src/game/decay.ts decayRounds): wave 1's round now waits the grace and
+  its own warning, and only the warning shows, so for the first minute no sector is flagged, beamed or hurting. The
+  grace is added after the lobby's pace, so a fast match keeps the whole minute too. The first sector dissolves 110 s
+  after the ship at the normal pace, about 2.5 minutes into a match.
+- **The later waves warned 45 s** (was 50): the minute added and five seconds off each of waves 2 to 4 make the ring's
+  start to a held capture 370 s, about 6.8 minutes with the ship, inside the owner's 6 to 7.
+- **The HUD** (src/main.ts skZoneLabel): through the quiet minute its clock reads THE DECAY BEGINS IN, counting to the
+  first dissolve, as the plan showed it; SECTOR DECAY IN once a wave is warned.
+- **sectorPhases takes the whole round** (src/game/ring.ts RingPhase `warn`, the last seconds of a wait that warn; the
+  whole wait without one), not only its close, so no caller can pass the close and leave the quiet minute out.
+- **Checked:** tools/checks/decay-clock.ts, new in npm run verify, runs the real Ring on a match's rounds at the slow,
+  normal and fast paces over three seeds and reads the sectors as brmatch.ts does: none flagged and no decay tick in the
+  first 60 s, wave 1 warned its whole warning and every later wave its whole wait, the first dissolve no sooner than
+  110 s, and the match's length. Proven twice: with the grace at 0, and with sectorPhases warning through the whole wait
+  as it did, each fails with a sector flagged at 0.0 s. The e2e's speedkills section gained a check of the game's own
+  states (the ring just short of wave 1's warning flags nothing, just past it warns wave 1's sectors): the speedkills section, 102 of 102. verify,
+  rules and the type check. No map files change.

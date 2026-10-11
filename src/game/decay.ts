@@ -15,6 +15,7 @@
 // one of the ring's phases: its wait is the warning, its close the decay.
 import neonCfg from "../config/neonmap.json";
 import decayCfg from "../config/decay.json";
+import { ringPace, type RingPhase } from "./ring";
 
 export type SectorPhase = "live" | "warning" | "decaying" | "gone";
 
@@ -87,15 +88,29 @@ export function decayPlan(seed: number): DecayPlan {
 }
 
 /**
+ * The decay's waves as the ring's rounds at the lobby's pace, the quiet
+ * minute ahead of the first: wave 1 waits the grace and its own warning, and
+ * only the warning is shown (sectorPhases). The grace is added after
+ * the pace, so a fast match still opens on a whole minute of looting.
+ */
+export function decayRounds(pace: string): RingPhase[] {
+  const out = ringPace(decayCfg.phases, pace);
+  out[0] = { ...out[0], warn: out[0].wait, wait: out[0].wait + decayCfg.grace };
+  return out;
+}
+
+/**
  * Where every sector stands, from the ring's round and clock: a wave's
- * sectors are warned through its round's wait and decay through its close
- * (k from 0 to 1), and are gone after; everything later is live, and the
- * final sector is never anything but live.
+ * sectors are warned through the last `warn` seconds of its round's wait
+ * (all of it without one) and decay through its close (k from 0 to 1), and
+ * are gone after; everything later is live, and the final sector is never
+ * anything but live. It takes the whole round so no caller can pass the
+ * close and leave the quiet minute out.
  */
 export function sectorPhases(
   plan: DecayPlan,
   ring: { phase: number; state: "waiting" | "closing" | "closed"; timeLeft: number },
-  closeOf: (phase: number) => number
+  roundOf: (phase: number) => Pick<RingPhase, "close" | "warn">
 ): Record<string, { phase: SectorPhase; k: number }> {
   const out: Record<string, { phase: SectorPhase; k: number }> = {};
   for (const id of sectorIds()) out[id] = { phase: "live", k: 0 };
@@ -103,9 +118,9 @@ export function sectorPhases(
     for (const id of wave) {
       if (ring.phase > w || ring.state === "closed") out[id] = { phase: "gone", k: 1 };
       else if (ring.phase === w && ring.state === "closing") {
-        const close = Math.max(1e-6, closeOf(w));
+        const close = Math.max(1e-6, roundOf(w).close);
         out[id] = { phase: "decaying", k: Math.max(0, Math.min(1, 1 - ring.timeLeft / close)) };
-      } else if (ring.phase === w) out[id] = { phase: "warning", k: 0 };
+      } else if (ring.phase === w && ring.timeLeft <= (roundOf(w).warn ?? Infinity)) out[id] = { phase: "warning", k: 0 };
     }
   });
   return out;

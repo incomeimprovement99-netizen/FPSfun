@@ -27,6 +27,8 @@ import cfg from "../config/ring.json";
 export interface RingPhase {
   /** seconds before this round starts closing */
   wait: number;
+  /** the last seconds of the wait that warn of the close (SpeedKills' decay: the quiet minute is the rest of wave 1's wait); the whole wait when absent */
+  warn?: number;
   /** seconds the close takes */
   close: number;
   /** the radius it closes to, metres */

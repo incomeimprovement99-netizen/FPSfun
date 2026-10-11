@@ -470,8 +470,9 @@ walkways.
 **The waves.**
 - A seeded plan picks the final sector (the centre half the time, else one of the eight) and the order of
   decay: the outer sectors in four waves of two, then whatever is left but the final sector.
-- **The match runs about 6 to 7 minutes:** the first wave about 60 s after the landing, then one every
-  60 s or so, with the capture zone opening at about 5 minutes.
+- **The match runs about 6 to 7 minutes:** a quiet minute after the ship with no sector marked (the owner,
+  2026-10-11, Milestone 577), the first wave warned 50 s and dissolving about 2.5 minutes in, then one every
+  65 s, with the capture zone opening at about 6 minutes.
 - Each wave is announced with its sectors marked on the map and in the world (a colour wash and a sound),
   about 30 s ahead.
 

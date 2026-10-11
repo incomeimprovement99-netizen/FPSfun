@@ -6136,6 +6136,20 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   const decay0 = await ev<Decay>(page, "window.__range.sk.decay()");
   check("speedkills decay: a plan of four waves of two toward a final sector, every sector live at the start", decay0.plan.waves.length === 4 && decay0.plan.waves.every((w) => w.length === 2) && Object.values(decay0.states).every((s) => s.phase === "live" || s.phase === "warning"), JSON.stringify(decay0.plan));
   const push = (secs: number) => ev(page, `(() => { const r = window.__range.duel().ring; r.timeLeft = Math.min(r.timeLeft, ${secs}); })()`);
+  // the quiet minute (decay.json grace, the owner's 2026-10-11 rule): the ring set just short of wave 1's warning flags
+  // nothing, and just past it warns wave 1's two sectors (their beams and the map's colour read these states)
+  const warnLen = await ev<number>(page, "window.__range.duel().phases[0].warn ?? 0");
+  await push(warnLen + 3);
+  await sleep(400);
+  const calm = await ev<Decay>(page, "window.__range.sk.decay()");
+  await push(warnLen - 3);
+  await sleep(400);
+  const warned = await ev<Decay>(page, "window.__range.sk.decay()");
+  check(
+    "speedkills decay: the quiet minute, no sector flagged before wave 1's warning, then its sectors warned",
+    warnLen > 0 && Object.values(calm.states).every((s) => s.phase === "live") && decay0.plan.waves[0].every((id) => warned.states[id].phase === "warning"),
+    JSON.stringify({ warnLen, calm: Object.values(calm.states).filter((s) => s.phase !== "live").length, warned: decay0.plan.waves[0].map((id) => warned.states[id].phase) }),
+  );
   await push(0.05);
   await sleep(1200);
   const dec = await ev<Decay>(page, "window.__range.sk.decay()");

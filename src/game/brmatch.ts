@@ -57,7 +57,7 @@
 //                    The host ranks everyone, because every hit on a bot
 //                    comes to it, and the ring packet carries the line, so a
 //                    guest takes its own tick the way it takes the ring's.
-import { decayPlan, sectorPhases, captureOpens, sectorIdAt, SECTOR_RECTS, centreOf, type DecayPlan, type SectorPhase } from "./decay";
+import { decayPlan, decayRounds, sectorPhases, captureOpens, sectorIdAt, SECTOR_RECTS, centreOf, type DecayPlan, type SectorPhase } from "./decay";
 import { paidProp } from "./paidgun";
 import decayCfg from "../config/decay.json";
 import { IS_SK, PROFILE } from "./game";
@@ -631,7 +631,7 @@ export class BrMatch extends Duel {
   /** where every sector stands, from the ring as this page has it */
   sectorStates(): Record<string, { phase: SectorPhase; k: number }> {
     if (!this.decay) return {};
-    return sectorPhases(this.decay, this.view, (p) => this.phases[Math.min(p, this.phases.length - 1)].close);
+    return sectorPhases(this.decay, this.view, (p) => this.phases[Math.min(p, this.phases.length - 1)]);
   }
 
   /** a spot the decay has reached (world space): a decaying or decayed sector; the legacy game's ring otherwise */
@@ -762,7 +762,7 @@ export class BrMatch extends Duel {
     // waves were taken as they stood (found 2026-10-05, when the e2e moved onto SpeedKills)
     if (IS_SK) {
       this.decay = decayPlan(this.seed);
-      this.phases = ringPace(decayCfg.phases, opts.pace ?? "normal");
+      this.phases = decayRounds(opts.pace ?? "normal");
       // (the sectors as the map in play has them, decay.ts SECTOR_RECTS: a sector's own middle and reach where it names them)
       const f = SECTOR_RECTS.find((s) => s.id === this.decay!.final)!;
       const mid = centreOf(f.id);

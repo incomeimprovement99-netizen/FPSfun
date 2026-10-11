@@ -4140,7 +4140,7 @@ function stepDecay(now: number): void {
   }
   if (warned.length) {
     hud.notice(`DECAY INCOMING  ·  ${warned.join(", ")}`, now, 3);
-    // the first wave is warned while the ship is still boarding: the notice shows where not to land, a voice there only talked over the drop
+    // a late jumper can still be falling when wave 1 is warned after the quiet minute: a voice in the air only talked over the drop
     if (!player.aboard && !player.dropping) announcer.say("decayWarn", realNow());
   }
   if (decaying.length) hud.notice(`DECAYING  ·  ${decaying.join(", ")}  ·  GET OUT`, now, 3);
@@ -4168,7 +4168,9 @@ function skCaptureHud(d: BrMatch): HudState["capture"] {
 function skZoneLabel(d: BrMatch): string {
   const states = d.sectorStates();
   if (d.captureZone()) return "CAPTURE ZONE OPEN";
-  return Object.values(states).some((s) => s.phase === "decaying") ? "SECTORS DECAYING" : "SECTOR DECAY IN";
+  if (Object.values(states).some((s) => s.phase === "decaying")) return "SECTORS DECAYING";
+  // the quiet minute (decay.json grace): nothing is warned yet, and the clock runs to the first dissolve
+  return Object.values(states).every((s) => s.phase === "live") ? "THE DECAY BEGINS IN" : "SECTOR DECAY IN";
 }
 
 /** someone else's hack, as their page told everyone (the kinds by number: 1 slam, 2 leap, 3 heal, 4 armour, 5 invisibility, 6 a mine, 7 a slam's landing, 8 a mine going off) */

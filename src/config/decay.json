@@ -4,12 +4,14 @@
   "perWave": 2,
   "jitter": 40,
   "height": 80,
-  "_phases": "The waves as the ring's rounds (ring.ts): wait is the warning, close the decay, damage what a tick does to anyone standing in a decaying or decayed sector. Four waves take eight sectors; the fifth round is the endgame, the capture zone's, whose wait is its length before the ring stops. With a dropship of about 40 s, four waves of 70 s and a capture of 45 s the match is 6 to 7 minutes, the owner's number.",
+  "_grace": "The quiet minute (the owner, 2026-10-11: \"don't have any decay until a 1 min into the game ... if people want to loot for a couple mins then that's their choice and should be able to without fearing the zonepull\"): grace seconds from the ring's start (the dropship gone) before wave 1's warning, with no sector flagged, beamed or hurting through it. It sits ahead of wave 1's wait and is not scaled by the lobby's pace, so the fast clock keeps the whole minute too.",
+  "grace": 60,
+  "_phases": "The waves as the ring's rounds (ring.ts): wait is the warning, close the decay, damage what a tick does to anyone standing in a decaying or decayed sector. Four waves take eight sectors; the fifth round is the endgame, the capture zone's, whose wait is its length before the ring stops. Wave 1 is warned 50 s, after the quiet minute; the later waves 45 s, which keeps the match near its length with the minute added: a dropship of about 40 s, the grace's 60 s, wave 1's 70 s, three waves of 65 s and a capture held 45 s make 6.8 minutes, inside the owner's 6 to 7. The first sector dissolves about 2.5 minutes in.",
   "phases": [
     { "wait": 50, "close": 20, "radius": 70, "damage": 6 },
-    { "wait": 50, "close": 20, "radius": 70, "damage": 8 },
-    { "wait": 50, "close": 20, "radius": 70, "damage": 10 },
-    { "wait": 50, "close": 20, "radius": 70, "damage": 12 },
+    { "wait": 45, "close": 20, "radius": 70, "damage": 8 },
+    { "wait": 45, "close": 20, "radius": 70, "damage": 10 },
+    { "wait": 45, "close": 20, "radius": 70, "damage": 12 },
     { "wait": 120, "close": 1, "radius": 70, "damage": 15 }
   ],
   "_capture": "The capture zone in the final sector, once every other sector is gone: a circle of radius metres at the sector's middle. A squad alone in it fills its meter; hold seconds of it wins the match outright (Hyper Scape's crown was held 45 s, in Ubisoft's own words at launch; the owner chose a zone for it). Two squads in it at once and neither fills.",
