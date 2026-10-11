@@ -1747,6 +1747,24 @@ const drops = [...loot.drops.values()];
   const vaultLamps = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-tower"].place.filter((q) => String(q[0]).endsWith(FA.lamp.piece) && Math.abs(Number(q[2]) - 34.4) < 0.6);
   const gold = vaultLamps.filter((q) => /#ffb020/.test(String(q[6] ?? ""))).length;
   check("THE VAULT's lamps burn gold", !!FA.at["32"]?.lampMat && vaultLamps.length >= 6 && gold === vaultLamps.length, `${gold} of ${vaultLamps.length} lamps gold`);
+  // and its name on each face (rules.tower.vaultSign, drawn in src/game/neonmap.ts off the tower's square): within the
+  // storey, and seen, a clear line 30 m out from its middle and near both its ends at the letters' height (the east
+  // face's first stood behind the lookout's block, the fifth review having asked for a sign seen from every roof)
+  const VS = (cfg.rules.tower as unknown as { vaultSign?: { y: number; h: number; faces: Array<[string, number, number, number]> } }).vaultSign;
+  const [sx0, sx1, sz0, sz1] = (cfg.tower as unknown as { square: number[] }).square;
+  const hidden: string[] = [];
+  for (const [side, w, out, along] of VS?.faces ?? []) {
+    const [xc, zc] = [(sx0 + sx1) / 2, (sz0 + sz1) / 2];
+    const [nx, nz] = side === "e" ? [1, 0] : side === "w" ? [-1, 0] : side === "n" ? [0, -1] : [0, 1];
+    const [cx, cz] = side === "e" ? [sx1 + out, zc + along] : side === "w" ? [sx0 - out, zc + along] : side === "n" ? [xc + along, sz0 - out] : [xc + along, sz1 + out];
+    for (const t of [-w / 2 + 0.3, 0, w / 2 - 0.3]) {
+      const [px, pz] = [cx + Math.abs(nz) * t, cz + Math.abs(nx) * t];
+      const [ax, bx] = [Math.min(px + nx * 0.05, px + nx * 30) + BR_X, Math.max(px + nx * 0.05, px + nx * 30) + BR_X];
+      const [az, bz] = [Math.min(pz + nz * 0.05, pz + nz * 30) + BR_Z, Math.max(pz + nz * 0.05, pz + nz * 30) + BR_Z];
+      if (solidsIn(ax, bx, az, bz).some((q) => q.minX <= bx && q.maxX >= ax && q.minZ <= bz && q.maxZ >= az && q.base < VS!.y && q.top > VS!.y)) hidden.push(`${side} at ${t.toFixed(1)} m`);
+    }
+  }
+  check("THE VAULT's name on each of the tower's four faces, within its storey, seen from 30 m out along all its width", !!VS && VS.faces.length === 4 && VS.y - VS.h / 2 >= 31.9 && VS.y + VS.h / 2 <= 35.1 && hidden.length === 0, hidden.length ? `hidden: ${hidden.join(", ")}` : `${VS?.faces.length ?? 0} faces`);
 }
 // no stair of the big building runs into a ceiling (the owner's play test, 2026-10-04: "stairs don't lead to ceilings"):
 // along every way up it, the stair core's, each of the base's stairs and the court's ways in, a quarter metre at a time,

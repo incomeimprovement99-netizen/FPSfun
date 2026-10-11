@@ -154,12 +154,17 @@ export function neonPart(): { shown: string | null; nodes: string[]; extras: boo
  * A name in neon letters (the corner blocks' names): each letter a tube, its glow in the colour round it and its core
  * near white, on nothing, sized to fill the panel's width or its height, whichever binds first
  */
-function neonLetters(text: string, colour: string, w: number, h: number): THREE.CanvasTexture {
+function neonLetters(text: string, colour: string, w: number, h: number, opts: { back?: string; fill?: boolean } = {}): THREE.CanvasTexture {
   const PX = 96;
   const cv = document.createElement("canvas");
   cv.width = Math.round(w * PX);
   cv.height = Math.round(h * PX);
   const g = cv.getContext("2d")!;
+  // (a plate behind them where asked: the vault's lit outlines on its own gold band and windows did not read from a roof)
+  if (opts.back) {
+    g.fillStyle = opts.back;
+    g.fillRect(0, 0, cv.width, cv.height);
+  }
   const font = (size: number) => `700 ${size}px "Rajdhani", "Segoe UI", sans-serif`;
   let size = cv.height * 0.62;
   g.font = font(size);
@@ -179,6 +184,12 @@ function neonLetters(text: string, colour: string, w: number, h: number): THREE.
   g.strokeStyle = new THREE.Color(colour).lerp(new THREE.Color(0xffffff), 0.65).getStyle();
   g.lineWidth = size * 0.035;
   g.strokeText(text, x, y);
+  // (and filled where asked: a tube's outline is a hairline 50 m off)
+  if (opts.fill) {
+    g.shadowBlur = size * 0.05;
+    g.fillStyle = new THREE.Color(colour).lerp(new THREE.Color(0xffffff), 0.45).getStyle();
+    g.fillText(text, x, y);
+  }
   const tex = new THREE.CanvasTexture(cv);
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
@@ -473,6 +484,23 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       mesh.rotation.y = (q.yaw * Math.PI) / 180;
       mesh.userData.dynamic = true;
       group.add(mesh);
+    }
+    // and THE VAULT's on the tower's four faces across its storey (rules.tower.vaultSign), placed off the tower's measured
+    // square: the reviews read the vault as "a thin gold line" from the roofs round it
+    const VS = (neonCfg.rules as unknown as { tower?: { vaultSign?: { text: string; colour: string; y: number; h: number; back?: string; fill?: boolean; faces: Array<[string, number, number, number]> } } }).tower?.vaultSign;
+    const SQ = (neonCfg as unknown as { tower?: { square?: number[] } }).tower?.square;
+    if (VS && SQ) {
+      const [x0, x1, z0, z1] = SQ;
+      const [xc, zc] = [(x0 + x1) / 2, (z0 + z1) / 2];
+      for (const [side, w, out, along] of VS.faces) {
+        // (a plane faces +z; turned by yaw its face is (sin yaw, cos yaw): out of the tower on each side)
+        const [x, z, yaw] = side === "e" ? [x1 + out, zc + along, 90] : side === "w" ? [x0 - out, zc + along, -90] : side === "n" ? [xc + along, z0 - out, 180] : [xc + along, z1 + out, 0];
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(w, VS.h), new THREE.MeshBasicMaterial({ map: neonLetters(VS.text, VS.colour, w, VS.h, { back: VS.back, fill: VS.fill }), transparent: true, depthWrite: false, toneMapped: false }));
+        mesh.position.set(x, VS.y, z);
+        mesh.rotation.y = (yaw * Math.PI) / 180;
+        mesh.userData.dynamic = true;
+        group.add(mesh);
+      }
     }
     root.add(group);
   }

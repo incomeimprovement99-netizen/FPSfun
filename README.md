@@ -43,7 +43,7 @@ describes the retired legacy game, and goes with its code.
   map in detail under "The Neon City map" below), nine sectors: THE TOWER inside the Loop, the four High City decks
   and the four corner blocks, MOTEL HILL, NOODLE ROW, MARKET and THE WELL.
   - The centre's tower rises from a wide base round a lobby, eleven floors of rooms, halls and mazes numbered by its
-    stair, THE VAULT among them with the best loot, a lookout at 49 m, and over them a sky lobby, a machine hall and a
+    stair, THE VAULT among them with the best loot (its name in gold neon on all four faces), a lookout at 49 m, and over them a sky lobby, a machine hall and a
     penthouse (60, 75 and 90 m) reached by two express ropes and the stair, which climbs on to the crown at 109.
   - Round it the Sky Ring walkway, the four High City islands on their decks at 26 m joined by a ring of bridges and the east one to the tower's 26 m storey by a gangway, glass
     lifts up to them, zip lines from the lookout and the roof yards, jump pads, and a station under the plaza.

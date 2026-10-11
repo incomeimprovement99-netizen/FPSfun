@@ -235,8 +235,9 @@ textures, a tan block in a van's roof (27), no door on the walk-in (22), the bas
 lavender haze from above; no loot shows.
 
 **Two spots moved.** Spot 18 (MARKET) stood east of the block looking south-east, away from it: from round 6 it is at
-(-38, 1.7, 48) looking west along MARKET's crate stacks to its name. Spot 19 (THE WELL) looked past the shaft's east
-edge from street height: from round 6 it stands on the shaft's south rim at (81.25, 1.8, 63.5), looking down into it.
+(-34, 1.7, 52) looking west into MARKET's street to its name. Spot 19 (THE WELL) looked past the shaft's east edge
+from street height, where the shaft hides behind its own rim: from round 6 it stands at the shaft's south railing,
+(81.25, 2.4, 66.8), looking down it to the upside-down building's floors.
 Both reviews' "MARKET and THE WELL cannot be told" came partly from where these two cameras stood.
 
 **What round 5 asks for next, in its order:** buildings you enter on the open paving (about 60% built, no street sight
@@ -248,4 +249,4 @@ shorter white beams and a rail per district; an exposure pass (the cars, the cei
 court's and roofs' textures); a middle layer (awnings, balconies and ledges at 3 to 8 m, platforms at 14 to 20 m, roofs
 a jump apart); a darker night.
 
-*Built since round 5: Milestone 580, the parked cars without their light-bodied models (Light03 bodies glowed white by day), the pads' beams 17 m (were 30), the zip ropes lit at half, cover on the gangway. Looked at and left: the "tan block stuck into the van's roof" (27) is the pack's hover truck and its cargo crate.*
+*Built since round 5: Milestone 580, the parked cars without their light-bodied models (Light03 bodies glowed white by day), the pads' beams 17 m (were 30), the zip ropes lit at half, cover on the gangway; Milestone 581, THE VAULT named in gold neon on the tower's four faces. Looked at and left: the "tan block stuck into the van's roof" (27) is the pack's hover truck and its cargo crate.*

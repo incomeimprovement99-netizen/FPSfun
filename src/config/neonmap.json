@@ -3160,7 +3160,42 @@
    "_backs_up": "`backsUp` (Milestone 509): the pack's trims between and over the window rows drawn from inside too, over the side block's roof alone (48.5 m): one-sided as its fake walls are, they showed the sky from inside the levels; under it the floors' slabs and rebuilt window walls hide them, and turned over there they closed the floors' open windows from inside (the seal's rays out through them, 0)",
    "backsUp": [
     "CityBasics00.FBX"
-   ]
+   ],
+   "vaultSign": {
+    "text": "THE VAULT",
+    "colour": "#ffb020",
+    "y": 33.5,
+    "h": 3.0,
+    "faces": [
+     [
+      "e",
+      8,
+      0.6,
+      5.9
+     ],
+     [
+      "w",
+      16,
+      0.6,
+      0
+     ],
+     [
+      "n",
+      7.8,
+      0.6,
+      7.1
+     ],
+     [
+      "s",
+      7.8,
+      0.6,
+      7.1
+     ]
+    ],
+    "back": "rgba(18,10,0,0.72)",
+    "fill": true
+   },
+   "_vaultSign": "THE VAULT's name in neon letters on the tower's four faces across its storey (src/game/neonmap.ts), in its gold, drawn on a canvas and colliding with nothing: the fourth and fifth reviews read the vault as 'a thin gold line' and asked for a sign seen from every High City roof. Each face [side, width, metres out, metres along from its middle toward +x or +z]; 0.6 m out, proud of the facade's ribs (they stand 0.35 m off the tower's square from 14 m to the top, and hid the names' ends at 0.15 m); the north and south faces carry two fins standing a metre out at x -10.5 and -4.5, so their names sit on the clear 8 m east of the fins, and the lookout's block stands before the east face from z -13 to 1.5, so its name is on the 8.75 m south of it. Across the whole storey, 32 to 35 m, the letters filled and on a dark plate (`back`): first drawn as lit outlines 1.6 m tall in the window band, they were a hairline on the gold band from the north deck, 45 m off."
   },
   "perches_clear": {
    "pad": 4,

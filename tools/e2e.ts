@@ -5814,10 +5814,11 @@ async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"):
   await guest.waitForFunction(`window.__range.loadout.slots.filter((s) => !s.empty).length >= ${count}`, { polling: 100, timeout: 6000 }).catch(() => undefined);
   await sleep(600);
   const heldAfter = await ev<string>(guest, `window.__range.loadout.slots.filter((s) => !s.empty).map((s) => s.id + ":" + (s.fusion ?? 0)).sort().join()`);
-  // (its guns lay 0.9 m round the echo; the restore clears what lies within 1.3 m of it, and the echo itself)
+  // (its guns lay 0.9 m round the echo; the restore clears what lies within 1.3 m of it, and the echo itself. Only the guns
+  // it held: the city's own floor loot can lie there, and a launcher in reach failed the loot start, which lands unarmed)
   const leftThere = await ev<string[]>(
     host,
-    `[...window.__range.duel().lootField.drops.values()].filter((x) => x.item.kind === "echo" ? x.item.owner === 1 : x.item.kind === "weapon" && Math.hypot(x.pos.x - ${spot.x}, x.pos.z - ${spot.z}) < 1.3).map((x) => x.item.kind + ":" + x.item.id)`,
+    `[...window.__range.duel().lootField.drops.values()].filter((x) => x.item.kind === "echo" ? x.item.owner === 1 : x.item.kind === "weapon" && ${JSON.stringify(heldBefore ? heldBefore.split(",").map((h) => h.split(":")[0]) : [])}.includes(x.item.id) && Math.hypot(x.pos.x - ${spot.x}, x.pos.z - ${spot.z}) < 1.3).map((x) => x.item.kind + ":" + x.item.id)`,
   );
   check(`${tag}: the restored guest holds the guns it died with, at their levels, and neither they nor the echo are left on the floor`, heldAfter === heldBefore && leftThere.length === 0, JSON.stringify({ heldBefore, heldAfter, leftThere }));
   await close();

@@ -12340,3 +12340,22 @@ escape). The first of its asks done here, those that are finish:
 - **Checked:** sk-neon all passed, its perches' check counting the gangway's cover, held to the bridge ring's two pieces and more. The e2e: the speedkills section 102 of 102, run alone (a first run with the map checks beside it lost its player to the bots and ended its match early, 48 of 56). verify, rules and the type check. The look: the east street's parked car by golden hour (white plastic and shaded, no glow), the aerial from the north-east (the pads' beams half as tall), the gangway's cover and the lookout's zip ropes reading as cables, by day and at night. The map: its files lo
   100.9 MB, hi 167.4 MB, max 396.0 MB. **Its files are version 61**, the version moved on before baking: version 60 is live
   and kept in browsers by its name.
+
+## Milestone 581 — THE VAULT named in gold on the tower's four faces
+
+The fourth and fifth reviews' ask: THE VAULT read as "a thin gold line" (round 4) and "two neon stripes" (round 5), and
+round 5 asked for "a VAULT sign that can be seen from every High City roof".
+
+- **Its name** (`rules.tower.vaultSign`, src/game/neonmap.ts): THE VAULT in gold neon letters across the vault storey,
+  32 to 35 m, on each of the tower's four faces, placed off the tower's measured square. The letters are filled over
+  their glow and stand on a dark plate. First drawn as outlines 1.6 m tall in the window band, they were a hairline on
+  the gold band from the north deck, 45 m off. The north and south faces carry two fins standing a metre out, so their
+  names sit on the clear 8 m east of the fins. The lookout's block stands before the east face from z -13 to 1.5, so the
+  east name is on the 8.75 m south of it. All four stand 0.6 m out, proud of the facade's ribs. They collide with
+  nothing. They are drawn at run time like THE WELL's and MARKET's names, so no map files change.
+- **The shared letters** (`neonLetters`): an optional plate behind and filled letters over the outlines, for a name read
+  from far off.
+- **Checked** (tools/checks/sk-neon.ts): each face's name within the storey and seen from 30 m out along all its width
+  at the letters' height (three sight lines a face). Proven with the east name put back behind the lookout's block. The
+  e2e: the speedkills section 102 of 102 on its rerun. Its first run's one failure, the ghost's restore in the loot start, counted the city's own floor loot lying within reach of the death (a launcher) as a gun left behind, though that start lands unarmed; it counts only the guns the guest held now. verify, rules and the type check. The look: the north and east decks by golden hour and at night, the name
+  read from 45 m.
