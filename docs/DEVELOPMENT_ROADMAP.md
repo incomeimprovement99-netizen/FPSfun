@@ -12501,3 +12501,20 @@ layers over the related apex and hyperscape gun in third and first person". ANAK
 - **Checked:** every skfigure check on the three guns (315 of 315 on all ten guns), verify, rules and the type check. Photographed: each
   pistol and REZ at rest, aimed, sprinting, crouched and aimed, from the front, the side and behind, and through the
   game's own third-person camera.
+
+## Milestone 583 — LANTERN ALLEYS, its roofs: pads up, and cover on top
+
+The district's third stage, the roofs.
+
+- **The pads** (`rules.pads.spine`'s lantern-*): one from each main alley onto the tallest house beside it, and one
+  from each back lane onto a house's back, measured as every spine pad is (a face 8 m high, nothing over the pad's
+  spot, a level landing): lantern-a onto row A's 12.5 m block at 11.65 m, lantern-b onto row B's at 11.25, lantern-c onto row D's at 11.4, lantern-d onto row D's at 11.5, each landing 3 m in. Row C's rounded house was the north alley's first target, but its ground floor is a
+  shopfront 4 m deep, and the bake found its upper floor 5.45 m over the pad's spot and refused it. The pad now throws
+  onto row D's 12.5 m block across the alley. The pack's exterior stairs are wall ladders, 0.37 m deep, and the game
+  has no ladders, so pads are the way up, as on the corner blocks.
+- **The way across:** each row's roofs, 7.8 to 12.5 m and 0.5 to 2 m apart, a sprint and a double jump from one to the
+  next.
+- **Cover on the roofs** (`rules.perches`' lantern-e and lantern-n): the pack's AC boxes and crates on the houses' flat
+  roofs, as many as find room (the rounded houses' roofs at 10.5 m take them; the decorative blocks' tops are not flat).
+- **Checked:** LANTERN ALLEYS' pads each landing on a house's roof (new, proven with a landing put on the street), its roof cover standing on its roofs; the centre's pads' walk check keeps to the centre's own, as it does without the corner blocks'; sk-neon all passed. The e2e: the speedkills section 102 of 102. verify, rules and the type check. The look: from pad a's landing, along the east and north arms' roofs over the lantern lines, by golden hour and at night. The map: its files lo 113.8 MB,
+  hi 180.4 MB, max 409.0 MB. **Its files are version 63.**

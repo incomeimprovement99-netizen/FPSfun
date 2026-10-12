@@ -279,6 +279,9 @@ check("the crown at 109 m: two pads up to it from the base's roof, each landing 
 // onto the rooms buildings' roofs at 10.5 m and THE WELL's at 7.5 m)
 const corners = ups.filter((u) => u.q.id.startsWith("corner-"));
 check("a pad up onto each corner block's roof from the street, each landing on it", corners.length === 4 && corners.every((u) => u.ok && u.q.ground > 7), corners.map((u) => u.said).join("; "));
+// (and LANTERN ALLEYS' four, rules.pads.spine's lantern-*: from its alleys and back lanes onto its houses' roofs)
+const lanternPads = ups.filter((u) => u.q.id.startsWith("lantern-"));
+check("LANTERN ALLEYS: a pad up onto a house from each main alley and each back lane, each landing on its roof", lanternPads.length === 4 && lanternPads.every((u) => u.ok && u.q.ground > 7), lanternPads.map((u) => u.said).join("; "));
 // (and no squad dropped on or by a pad, game.dropClear: four drops stood on a pad's own street node, a squad dropped
 // there thrown off as it landed)
 {
@@ -291,8 +294,8 @@ check("a pad up onto each corner block's roof from the street, each landing on i
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("ring") || name === "gangway" || name.startsWith("lantern") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway and the corner blocks' roofs, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 19 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway and the corner blocks' roofs, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 21 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
@@ -969,7 +972,8 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   const SPN = (cfg as unknown as { spine: { up: Array<{ id: string; face: number[]; out: number[]; pad: number[]; floor: number; land: number; ground: number }>; down: Array<{ id: string; land: number[]; landY: number }> } }).spine;
   // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
   // is ridden by its own check)
-  const SPU = SPN.up.filter((q) => !q.id.startsWith("corner-"));
+  // (the centre's own: not the corner blocks' or the districts' pads, out on their streets and alleys)
+  const SPU = SPN.up.filter((q) => !q.id.startsWith("corner-") && !q.id.startsWith("lantern-"));
   const stops = [
     ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
     ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
