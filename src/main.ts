@@ -29,7 +29,7 @@ import { Course } from "./game/course";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { CHAIN_COURSE } from "./game/courses/chain";
-import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, sceneryFar } from "./game/quality";
+import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange } from "./game/quality";
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
@@ -38,12 +38,12 @@ import { buildRange, rangeBounds, skyFollow, setShadowRegion, setHour, getSun, R
 import { floorAt } from "./game/floors";
 import rangeCfg from "./config/range.json";
 import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, loadSkHour, saveSkHour, type Hour } from "./game/sky";
-import { buildBrMap, BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
+import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
 import { BrMatch, DROP_HEIGHT, teamFor } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import { GULAG } from "./game/gulag";
 import brCfg from "./config/br.json";
-import { instancedDrawn, placeProps, placeInstanced, stepInstanced } from "./game/props";
+import { placeProps } from "./game/props";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
@@ -119,13 +119,11 @@ import { figuresSettled, hasClip, loadMannequin, loadOutfit, loadTint, setFigure
 import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
-import { dressKit } from "./game/kitdress";
 import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, loadNeonSolids, neonSolidsIn, neonPart, retakeReflection, showNeonPart, updateNeonFill, warmReflection } from "./game/neonmap";
 import type { ArenaMapInfo } from "./game/arenas";
 import { programRepList, repsRoot } from "./game/programreps";
 import { compileSafely } from "./game/compilesafe";
 import { atmosphereOn, ownAir, tickAir } from "./game/atmosphere";
-import { DRESSING } from "./game/brpoi";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
@@ -802,7 +800,7 @@ holdTextures(false);
 // Daelonik's Neon City (neonmap.ts, Phase 28); the city of the ILranch packs before it went on 2026-10-09 (the owner:
 // "remove ILranch city completely")
 const NEON = IS_SK;
-const brMap = IS_SK ? buildNeonMap(scene) : buildBrMap(scene);
+const brMap = buildNeonMap(scene);
 // the Neon City's collision boxes after the page's first screen, not in its first script (neonmap.ts loadNeonSolids)
 if (NEON) later(() => void loadNeonSolids());
 // a door opening or shutting, heard where it hangs (whoever did it)
@@ -965,47 +963,6 @@ later(() =>
   }),
 );
 
-// The battle royale's field, as rock rather than boxes: its rocks, its dead
-// scrub and the faces of the cliff that walls it in, each kind drawn as one
-// instanced mesh per mesh of its model. The colliders are the map's own boxes,
-// so movement is the same whether or not these arrive; the boxed shapes it
-// drew stay until they do (a checkout without `npm run models` looks as it
-// did). The scrub and the faces carry no collider at all: they are to look at.
-// how far each kind is drawn, the tuned distance scaled by the preset's draw
-// distance (quality.ts sceneryFar): the preset that sees further sees more
-const far = (base: number): number => sceneryFar(base, quality);
-void placeInstanced(brMap.root, [
-  { prop: "namaqualand_boulder_04", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 0), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 0), far: far(170) },
-  { prop: "namaqualand_boulder_06", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 1), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 1), far: far(170) },
-  { prop: "namaqualand_boulders_01", at: brMap.scenery.rocks.filter((_, i) => i % 3 === 2), standIn: brMap.scenery.boxed.filter((_, i) => i % 3 === 2), far: far(170) },
-  { prop: "dead_quiver_trunk", at: brMap.scenery.scrub.filter((s) => s.kind === "trunk"), shadows: false, far: far(150) },
-  { prop: "dead_quiver_branch_02", at: brMap.scenery.scrub.filter((s) => s.kind === "branch"), shadows: false, far: far(150) },
-  { prop: "dry_branches_medium_01", at: brMap.scenery.scrub.filter((s) => s.kind === "twigs"), shadows: false, far: far(150) },
-  { prop: "rock_face_02", at: brMap.scenery.cliffs, shadows: false, far: far(260) },
-  // what grows on the sand, from the world kit (br.ts flora): dead trees seen from a way off, the small things only close;
-  // the kit's green grass and bushes are tinted to the dry straw and olive of this ground
-  { prop: "kit/nature/DeadTree_1", at: brMap.scenery.flora.filter((f) => f.kind === "tree1"), far: far(220) },
-  { prop: "kit/nature/DeadTree_2", at: brMap.scenery.flora.filter((f) => f.kind === "tree2"), far: far(220) },
-  { prop: "kit/nature/DeadTree_3", at: brMap.scenery.flora.filter((f) => f.kind === "tree3"), far: far(220) },
-  { prop: "kit/nature/Bush_Common", at: brMap.scenery.flora.filter((f) => f.kind === "bush"), shadows: false, far: far(110), tint: 0xb8a878 },
-  { prop: "kit/nature/Grass_Wispy_Short", at: brMap.scenery.flora.filter((f) => f.kind === "grass"), shadows: false, far: far(70), tint: 0xe0c890 },
-  { prop: "kit/nature/Grass_Wispy_Tall", at: brMap.scenery.flora.filter((f) => f.kind === "grassTall"), shadows: false, far: far(80), tint: 0xd8bc80 },
-  { prop: "kit/nature/Pebble_Round_1", at: brMap.scenery.flora.filter((f) => f.kind === "pebble"), shadows: false, far: far(50) },
-]).then((drawn) => {
-  sceneryDrawn = drawn;
-  // every boulder kind in: the boxed rocks give way to them, and come back
-  // beyond the distance a scan is worth drawing (props.ts stepInstanced)
-  if (["namaqualand_boulder_04", "namaqualand_boulder_06", "namaqualand_boulders_01"].every((n) => drawn.includes(n as never))) for (const m of brMap.scenery.boxed) m.visible = false;
-  renderer.shadowMap.needsUpdate = true;
-});
-
-// The battle royale's buildings dressed from the kit (kitdress.ts): cornices,
-// corner columns, floor bands, door frames and roof units, drawn once the
-// pieces are in. The boxes underneath are the collision either way.
-void dressKit(brMap.root, DRESSING).then((n) => {
-  kitDressed = n;
-  renderer.shadowMap.needsUpdate = true;
-});
 // The Neon City map draws the bundle's pieces, at the preset's texture size, and nothing where the bought files are not
 // there (the public build, a checkout); not on a ?norender page, which never draws it: decoding and dressing its million
 // and a half triangles there only takes the CPU from the e2e's fights
@@ -1076,12 +1033,8 @@ viewModel.onFeel = (k, seconds) => {
 };
 viewModel.onCastTap = () => audio.holoTap();
 let snapNoGun = false;
-/** kit pieces drawn on the battle royale's buildings (kitdress.ts) */
-let kitDressed = 0;
 /** guns fused this page (br.json fusion), for the tests */
 let fusedCount = 0;
-/** the field's scenery that is drawn (props.ts placeInstanced), for the tests */
-let sceneryDrawn: string[] = [];
 vmCamera.add(viewModel.group);
 /**
  * Everything of the gun on the gun's layer, every frame (a new gun or optic
@@ -6413,8 +6366,6 @@ function frame(): void {
   camera.updateMatrixWorld();
   lodFrustum.setFromProjectionMatrix(lodMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
   setFigureView(camera.position, lodFrustum, framesRun);
-  // the field's rock and scrub: only the cells near enough to be worth drawing
-  stepInstanced(camera.position);
   // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
   // clock, since game time stands still when nothing is being played
   if (IS_SK) {
@@ -8030,7 +7981,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the gun in the hands and the arms, for a picture to find a part by name (tools/gunfeel-sheet.ts) */
   viewModelRoot: () => viewModel.group,
   /** how many kit pieces dress the battle royale's buildings (kitdress.ts), 0 until they are in */
-  kitDressed: () => kitDressed,
   /** the fit test: every figure's clothed body painted flat magenta, so a picture can count what shows through (mannequin.ts) */
   fitDebug: (on: boolean) => setFitDebug(on),
   /** how many guns have been fused into one already carried (br.json fusion) */
@@ -8045,9 +7995,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
       near: () => armory.near(player.pos, player.yaw)?.id ?? null,
     },
   /** which of the field's scenery props are drawn: rocks, scrub, cliff faces, and what grows (br.ts flora) */
-  sceneryDrawn: () => sceneryDrawn.slice(),
   /** how many cells of the field's scenery are drawn where you stand, of how many (props.ts) */
-  sceneryCells: () => instancedDrawn(camera.position),
   /** the first-person arms are the player's own rather than the drawn gloves */
   realArms: () => viewModel.realArms,
   realArmsShown: () => viewModel.realArmsShown,

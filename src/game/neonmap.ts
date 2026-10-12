@@ -576,7 +576,6 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     towers: [],
     get pads() { return graph().pads; },
     doors: new Doors(root, { x: BR_X, z: BR_Z }, []),
-    scenery: { rocks: [], boxed: [], scrub: [], cliffs: [], flora: [] },
   };
 }
 

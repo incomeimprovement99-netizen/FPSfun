@@ -11366,6 +11366,29 @@ legacy battle royale's armour went with what fed it:
 - About 210 lines out, 25 in.
 - **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate and speedkills.
 
+## Milestone 528 — The Outskirts map out
+
+The legacy battle royale's map, OUTSKIRTS, was still built on every page that was not SpeedKills' (`IS_SK ?
+buildNeonMap(scene) : buildBrMap(scene)`), which since Milestone 520 is none. It went whole:
+
+- **The map:** br.ts's builder, about 2,770 lines (the nine places, the sites, the landforms, the roads, the towers,
+  pads and ropes, the doors, the field's rocks and scrub), and brpoi.ts, the building and cover helpers only it used.
+  br.ts keeps the shared shape every map is made of (its places, sites, graph, towers, pads and doors) and where the
+  map sits in the world.
+- **Its scenery and kit:** the instanced rocks, scrub and cliff faces and the cells they were drawn by (props.ts
+  placeInstanced, the page's step and its test hook), the kit dressing of its buildings (kitdress.ts and its list),
+  the preset's scenery distance (quality.ts sceneryFar), the world kit (public/models/kit, 75 files, kept in git) and
+  its fetcher (tools/fetch-kits.ts), and the eight scans tools/fetch-models.ts fetched for the field, about 13 MB.
+- **Config:** brmap.json keeps the sites' radius; the places' went (the Neon map's places carry their own).
+- **Checks:** scenery.ts went with the scenery. solidgrid.ts checks the grid on the Neon City's own collision (built
+  as sk-neon.ts builds it) and passes there; bot-walk.ts's sight checks moved into bot-sense.ts, and its walks over
+  the Outskirts graph and its ropes went (the Neon graph's are sk-neon.ts's, and the owner has its bots pathing low
+  on the list). render-budget.ts keeps the draw distance; its mesh budget was the Outskirts' (the Neon City's looks
+  are its bake, which node never loads: 25 meshes there).
+- **The README's** battle royale row describes SpeedKills' battle royale.
+- About 9,500 lines out (the kit's models among them), 70 in.
+- **Checked:** tsc; verify; rules; e2e page, range, brsolo, squad and speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -25,6 +25,7 @@ import {
   BotLooter,
   DIFFICULTY,
   aimError,
+  inCone,
   scopedGun,
   sightRange,
   sightScale,
@@ -74,6 +75,17 @@ console.log("How far a bot sees, per mode and per tier (src/config/bots.json sig
   check("the map's 165 m sightline is inside an elite's range", sightRange("elite", "br") >= 165, m(sightRange("elite", "br")));
   check("and outside an easy one's, so it still has to come down off the ridge", sightRange("easy", "br") < 165, m(sightRange("easy", "br")));
   check("the default mode is the arena, so a bot nobody told is the bot we had", sightRange("hard") === sightRange("hard", "arena"));
+}
+
+// out of a fight a bot sees only in front of it, where it used to see behind itself too (from bot-walk.ts, whose
+// walks over the Outskirts graph went with that map in Milestone 528)
+console.log("\nWhich way a bot sees (bots.ts inCone)");
+{
+  const min = SIGHT.min;
+  // facing +z (yaw 0): ahead is +z
+  check("a bot sees what is in front of it", inCone(0, 0, 60) && inCone(0, 30, 60));
+  check("but not behind it, or far to its side, out of a fight", !inCone(0, 0, -60) && !inCone(0, 60, -5));
+  check(`within ${min} m it notices you whichever way it faces`, inCone(0, 0, -(min - 1)));
 }
 
 console.log("\nA long gun in its hands (bots.ts scopedGun)");

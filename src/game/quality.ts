@@ -68,18 +68,6 @@ export function drawRange(regionFog: { near: number; far: number }, q: { drawDis
   return { near: Math.max(20, regionFog.near * k), far, camFar: far + beyond };
 }
 
-/**
- * A distance something is drawn to, scaled by the preset. The distances in the
- * world were tuned on Balanced (a rock's scan is worth drawing to 170 m, a
- * cliff face to 260, a dead branch to 150), so Balanced is 1 and the other two
- * are its ratio: without this the draw distance would only move the fog, since
- * the map itself is merged into meshes that span the whole of it and nothing
- * culls by how far you asked to see.
- */
-export function sceneryFar(base: number, q: { drawDistance: number }): number {
-  return Math.round((base * q.drawDistance) / 620);
-}
-
 export const PRESETS: Record<Preset, Quality> = {
   competitive: {
     preset: "competitive",

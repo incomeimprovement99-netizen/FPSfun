@@ -85,16 +85,16 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   floor's heals and backpacks, the walk-over's small heals and the recap's "healed recently". The battle royale's ammo
   limit stays the white pack's. The figure's heal pose and its act codes are the character agent's (told). Armour and
   EVO go with the loot below.
-- **Later, the Outskirts map** (br.ts's builder, its scenery and about 15 MB of its assets); the shared types stay.
-  About 3,050 lines.
+- **528, the Outskirts map (done):** br.ts's builder, brpoi.ts, its scenery and kit dressing, the world kit and the
+  field's scans; the shared types stay. About 9,500 lines with the kit's files.
 - **Later, knockdowns, bleed-out, revives, finishers, the knockdown shield** (SpeedKills has none: `noKnocks`). The
   Gulag, the echo restore and the figure's death fall stay. About 1,000 lines; the character agent told first.
 - **521, the legacy guns (done):** fifteen of the data's guns, the Nemesis and the Bocek, with their models, sounds
   lists, loot, mechanics entries and checks; the R-301 goes with 522.
 - **522, the attachments, magazine levels, hop-ups and fire modes, the old guns' mechanics and the R-301 (done).**
   SpeedKills keeps each gun's fixed optic, fusion, the L-STAR's heat and the shotguns' blast patterns.
-- **Next:** the Outskirts map, then the match side of the
-  knockdowns (the character agent takes the figure's).
+- **Next:** the match side of the knockdowns (the character agent takes the figure's), then the `IS_SK`
+  branches that are left.
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
 - **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,

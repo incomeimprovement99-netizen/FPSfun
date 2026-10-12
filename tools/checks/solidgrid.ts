@@ -4,7 +4,7 @@
 // real battle royale map, with random rectangles and random rays, a door
 // swung across a cell, and a box added and taken away (a hack's wall).
 //
-// Builds the real map in node, as bot-walk.ts does. Run on its own:
+// Builds the Neon City with its collision in node, as sk-neon.ts does. Run on its own:
 // npx tsx tools/checks/solidgrid.ts
 import * as THREE from "three";
 
@@ -20,10 +20,13 @@ const fakeEl = (): unknown => ({ width: 64, height: 64, style: {}, getContext: (
 if (!hadDocument) g.document = { createElement: () => fakeEl(), createElementNS: () => fakeEl() };
 const warn = console.warn;
 console.warn = () => undefined;
-const { buildBrMap } = await import("../../src/game/br");
+const { buildNeonMap } = await import("../../src/game/neonmap");
 const { RANGE_SOLIDS } = await import("../../src/game/range");
 const { solidsIn, solidsAlong } = await import("../../src/game/solidgrid");
-buildBrMap(new THREE.Scene());
+// the Neon City with its collision (the page asks for the boxes after its first screen, neonmap.ts loadNeonSolids;
+// a check has them now, as sk-neon.ts does)
+const SOLIDS = (await import("../../src/config/neon/neonmap.solids.json")).default;
+buildNeonMap(new THREE.Scene(), (SOLIDS as { solids: number[][] }).solids);
 console.warn = warn;
 
 let fails = 0;
