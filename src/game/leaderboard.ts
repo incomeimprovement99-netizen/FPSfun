@@ -1,7 +1,7 @@
 // The online leaderboard client. The board is found at run time: on our own
 // server (server/game/serve.mjs) /net.json names it, and a build made with
 // VITE_LEADERBOARD_URL (the Cloudflare Worker, server/leaderboard/worker.ts)
-// uses that. On a site with neither (GitHub Pages) every call is a no-op and
+// uses that. On a page with neither (the dev server) every call is a no-op and
 // the boards stay in the browser.
 //
 // Results are posted after the fact and never block the game; a failed post

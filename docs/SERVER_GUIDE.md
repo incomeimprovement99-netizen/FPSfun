@@ -1,26 +1,25 @@
 # Server Guide: the game on its own server, like Algonomics
 
 The do-it-now guide for putting the game on a real server with its own
-address (for example **https://fpsfun.duckdns.org**) instead of the
-GitHub Pages link. Cost: $0. Time: about twenty minutes the first time, one
+address (for example **https://fpsfun.duckdns.org**), where it lives. Cost: $0. Time: about twenty minutes the first time, one
 command after that.
 
 It is the same setup Algonomics runs on: an Oracle Always Free VM, the app
 under **pm2**, **Caddy** in front for HTTPS, a free **DuckDNS** name.
 
-## 0. What the server gives you over GitHub Pages
+## 0. What the server gives you
 
-| | GitHub Pages (today) | Own server |
-|---|---|---|
-| Address | a static mirror's own URL | **https://fpsfun.duckdns.org/** (or any domain you buy) |
-| Matchmaking (the 5-letter codes) | the free public PeerJS broker, which is sometimes down or rate-limited | **our own broker** on the server |
-| Friends on strict networks (school, office, hotspot, VPN) | often "Lost the connection" | **our own TURN relay** carries the match when a direct connection is blocked |
-| Online leaderboards | none | **on**: best course times, the flick drill, and win counts by name for every mode (1v1, 1v1v1, the bots by tier, the battle royale, Gun Run, team deathmatch, Crown, Control), in the Stats tab |
-| Accounts | none: everything stays in the browser | **optional accounts** on the Stats tab: a name and a password (a salted scrypt hash on the box, nothing third-party), and your settings, keys, loadouts and stats in every browser you sign in on |
-| Deploy | `npm run deploy` | `npm run deploy:server` (builds, ships, plays a test 1v1 on the live site) |
+| | |
+|---|---|
+| Address | **https://fpsfun.duckdns.org/** (or any domain you buy) |
+| Matchmaking (the 5-letter codes) | **our own broker** on the server |
+| Friends on strict networks (school, office, hotspot, VPN) | **our own TURN relay** carries the match when a direct connection is blocked |
+| Online leaderboards | best course times, the flick drill, and win counts by name for every mode (1v1, 1v1v1, the bots by tier, the battle royale, Gun Run, team deathmatch, Crown, Control), in the Stats tab |
+| Accounts | **optional accounts** on the Stats tab: a name and a password (a salted scrypt hash on the box, nothing third-party), and your settings, keys, loadouts and stats in every browser you sign in on |
+| Deploy | `npm run fps deploy` (builds, ships, plays a test 1v1 on the live site: `docs/DEPLOY_GUIDE.md`) |
 
-The build is the same for both. On Pages the game falls back to the public
-broker by itself, so the Pages link keeps working as a backup.
+The game's pages still run where there is no server behind them (`npm run dev`): no boards and no accounts there, and
+the matches go through the public PeerJS broker.
 
 ## 1. Where to put it (your choice)
 

@@ -5,7 +5,7 @@
 // traffic goes straight between them, or through a TURN relay when a network
 // blocks the direct path. The broker is our own when the site is served by
 // server/game/serve.mjs (it answers /net.json), else the free public one, so
-// the same build works on GitHub Pages too.
+// the same build works without the server too (the dev server).
 //
 // A match code is 5 letters. The player who makes the match registers as
 // `PREFIX + code` with the broker; the others connect to that name. The host
@@ -600,7 +600,7 @@ const useLocal = (): boolean => new URLSearchParams(location.search).get("net") 
 /**
  * Where the broker is and which relays to use. Our own server answers
  * /net.json with its broker path and fresh TURN credentials; a site without it
- * (GitHub Pages, the dev server) has no such file, and the public PeerJS
+ * (the dev server) has no such file, and the public PeerJS
  * broker with the library's default relays is used. Fetched per match so the
  * credentials are never stale. `?broker=public` forces the public one.
  *

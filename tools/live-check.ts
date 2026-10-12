@@ -5,8 +5,9 @@
 //
 // Run: npx tsx tools/live-check.ts   (LIVE_URL overrides the default)
 // On our own server (server/game/serve.mjs) the match must go through the
-// site's own broker; on GitHub Pages through the public one. BROKER=own or
-// BROKER=public makes that a check; without it the line is informational.
+// site's own broker; a page without the server behind it uses the public one.
+// BROKER=own or BROKER=public makes that a check; without it the line is
+// informational.
 import puppeteer, { type Browser, type Page } from "puppeteer";
 
 const CHROME = process.env.CHROME ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";

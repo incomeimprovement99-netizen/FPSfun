@@ -1,7 +1,7 @@
 // Optional accounts, on the game's own server (server/game/serve.mjs,
 // /api/account): a name and a password, and the player's saved data synced
-// between browsers. Nobody needs one to play; on a site without the server
-// (GitHub Pages) there is nothing to sign in to, and the game says so.
+// between browsers. Nobody needs one to play; on a page without the server
+// (the dev server) there is nothing to sign in to, and the game says so.
 //
 // The "profile" is this browser's own saved data: every localStorage key the
 // game writes (range.*) but the session itself and the graphics quality (a

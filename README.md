@@ -500,7 +500,7 @@ under the Start and With friends buttons, with a button to change it.
 
 Codes never contain 0, O, 1, I or L, so they can be read out loud. The
 connection is browser to browser (WebRTC); a PeerJS broker only introduces
-the two (our own on the game's server, the free public one on a static mirror),
+the two (our own on the game's server, the free public one under `npm run dev`),
 and a TURN relay carries the match when a network blocks the direct path.
 See [Troubleshooting](#troubleshooting) when it will not connect.
 
@@ -813,7 +813,7 @@ tech landed or called out as a miss.
 the Stats tab with a name and a password, and your settings, keys, loadouts
 and stats follow you to any browser you sign in on. The password is kept
 only as a salted scrypt hash on our server; nothing is shared with anyone.
-Playing never needs one, and a static mirror has no server to sign in to.
+Playing never needs one.
 
 **Online boards** come with the game's own server (`server/game/serve.mjs`,
 [Deploy](#deploy)): every course run and every win is posted under the
@@ -822,8 +822,8 @@ and most damage in one match, the two boards that reward a good night rather
 than a long one). The Stats tab shows the top 15 of each board with you
 highlighted, and the HUD says your place after a run, a win, or a match in the
 top ten for kills or damage. The game
-finds the board by itself (`/net.json`); a static mirror has none and
-everything stays local. `server/leaderboard/` is the same boards as a
+finds the board by itself (`/net.json`); without the server (`npm run dev`)
+there is none and everything stays local. `server/leaderboard/` is the same boards as a
 Cloudflare Worker, for a build made with `VITE_LEADERBOARD_URL`. Either way
 it trusts the game, so it is a board for friends, not a ranked ladder: a wins
 board counts the posts rather than the total anyone claims, and a best-of-a-
@@ -1116,7 +1116,6 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run profile` | where a frame's CPU time goes, by function (needs `npm run dev`): a CPU profile of a battle royale (`PROFILE_SPOT=skmatch` or `skroof`), the scene's objects by group and how many are hidden, with `PROFILE_CALLERS=name` who calls a function (a function calling itself counted once, under its real caller), and with `PROFILE_INCLUSIVE=1` the game's own functions by the time spent in them and everything they call. The test tools never take your mouse or keyboard: under them the game's lock is pretend |
 | `npm run shot` | screenshots of every view into `shots/` (needs `npm run dev`) |
 | `npm run rules` | nothing in the repo references the game's install or its files |
-| `npm run deploy` | `build:beta`, then publish `dist/` as the `gh-pages` branch (the static mirror) |
 | `npm run deploy:server` | `build:beta`, ship it to the game's own server, reload, check, and play a 1v1 there (`-- dry` does it all on this PC, the boards and the accounts included, `-- setup`, `-- health`, `-- logs`, `-- rollback`; `docs/SERVER_GUIDE.md`) |
 | `npm run fps <verb>` | the same tool, Algonomics `npm run prod` style; on its own it is `health`. `check` probes DNS, ssh, every firewall rule and a real datagram through the relay from this PC; `backup` brings the boards and accounts down; `ssh`, `restart`, `dns`, `run "<cmd>"` |
 | `npm run server` | run the game's server here on :4100 (after `build:beta`) |
@@ -1153,24 +1152,14 @@ npm run fps backup   # the boards and accounts down to server-backup/ first
 npm run fps seen     # who played in the last 3 days (`seen 7` for a week, `seen 3 all` with the test browsers)
 ```
 
-**A static mirror** could be published beside it with `npm run deploy` (the
-built `dist/` on a `gh-pages` branch), but it no longer is: the game lives only
-at https://fpsfun.duckdns.org/ (the owner's call, 2026-09-27). A mirror used the
-free public broker and had no relay, boards or accounts. Players need a reload after either (the file names carry
-a hash, so a plain reload is enough).
-
-`dist/` is a static site and would work on Netlify, Cloudflare Pages or any
-web host. It must be served over HTTPS (browsers only allow peer connections
-and raw mouse input on secure pages). Paths are relative, so it works from a
-sub-folder. Run `npm run assets`, `npm run models`, `npm run sounds` and
-`npm run guns` before building, or the textures, props, recorded sounds and
-gunshots will be missing. The
-source (which holds the reference data with the real names) is not what is
-served: only `dist/` goes to a host.
+Players need a reload after a release (the file names carry a hash, so a plain reload is enough). The game lives only
+at https://fpsfun.duckdns.org/: the GitHub Pages mirror that stood beside it went in Milestone 600 (the owner's call).
+The source (which holds the reference data with the real names) is never what is served: only the public build goes
+to the server.
 
 `dist/` is about 22 MB: 1.9 MB of code (505 KB compressed), 3 MB of textures
 and 17 MB of props (their textures as WebP since Phase 12: the textures went
-from 30.5 MB to 5.8 MB), 4.3 MB for the mannequin and 0.4 MB of recorded
+from 30.5 MB to 5.8 MB), 2.2 MB for the figures' clips and 0.4 MB of recorded
 sounds. The range is playable before the props finish loading. The props'
 geometry (about 11 MB) is the next thing to compress.
 
@@ -1382,8 +1371,6 @@ in code from measured holds (`src/config/soldierhold.json`).
 - The browsers connect directly (WebRTC). On the game's own server our own
   broker introduces them and a TURN relay carries the match when a strict
   network (some offices, schools, mobile carriers) blocks the direct path.
-  On a static mirror the free public broker does the introducing (no uptime
-  promise) and only PeerJS's shared public relay is there.
 - The shooter decides hits. It feels right on your screen and is fine between
   friends; it is trivially cheatable. There is no anti-cheat, no matchmaking,
   no voice; accounts are optional and only on the game's own server.
@@ -1456,7 +1443,7 @@ guns are built with their grips at the hand for that.
 |---|---|
 | Nothing works on a phone or tablet | it is a PC game (keyboard and mouse, or a controller); the menu says so on a phone. Open the link on a PC in Chrome or Edge. |
 | Clicking Play does nothing | the menu now says why: Chrome waits about a second after Esc before it locks the mouse again; click again. A DPI measurement in progress also holds the lock. |
-| "Could not reach the matchmaking server" | on https://fpsfun.duckdns.org/ the server is down (`npm run fps health`); on a static mirror it means the free public broker is down or rate-limited, so try again in a minute or use the address above. |
+| "Could not reach the matchmaking server" | on https://fpsfun.duckdns.org/ the server is down (`npm run fps health`); under `npm run dev` it means the free public broker is down or rate-limited, so try again in a minute. |
 | "No match with that code" | a typo (codes never contain 0, O, 1, I or L) or the host closed the tab. Make a new match. The page has already tried a second time by itself (a moment without the matchmaking server mid-join is ridden over), so it is not a blip. |
 | "Found the match but could not connect to the host" (after 20 s) | one of you is on a network that blocks direct peer connections (offices, schools, university halls, phone hotspots, VPNs) and no relay got through. On our server, check the relay (SERVER_GUIDE section 8). Try home wifi, or with the VPN off. |
 | "WAITING FOR EVERYONE TO CLICK PLAY" | someone is still on the menu; every player clicks Play (or presses Start) before round 1. |
@@ -1473,7 +1460,7 @@ guns are built with their grips at the hand for that.
 | Doc | What it is |
 |---|---|
 | `docs/SERVER_GUIDE.md` | the game on its own server like Algonomics: a DuckDNS name, the Oracle firewall rules, one-time setup, `npm run deploy:server`, day to day, troubleshooting |
-| `docs/DEPLOY_GUIDE.md` | the static mirror: publish, play, update, troubleshoot |
+| `docs/DEPLOY_GUIDE.md` | shipping a release to the game's server, playing with a friend, troubleshooting |
 | `docs/DEVELOPMENT_ROADMAP.md` | a milestone for every feature shipped, newest last, with what it does and how it was tested |
 | `docs/updates/` | one file a working day (`YYYY-MM-DD.md`): what shipped that day, what it cost, what was found on the way and what is next. The diary beside the roadmap, for reading back a week later |
 | `docs/PHASE_14_PLAN_ESC_SHOTGUNS_PLATES_FFA_AND_THE_SPIN.md`, `docs/PHASE_14_ESC_SHOTGUNS_PLATES_FFA_AND_THE_SPIN.md` | phase 14's plan and its results: Esc as Resume, the shotguns' blast patterns, enemy plates only after a hit and in sight, free-for-all, and how the mannequin's upper-body spin was found and fixed |

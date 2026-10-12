@@ -17,7 +17,7 @@
 //      when a friend played; addresses are hashed, never written down.
 //
 // The game reads /net.json when a match is made or joined (src/net/link.ts). On
-// a host without this server (GitHub Pages) the file is missing and the game
+// a page without this server (the dev server) the file is missing and the game
 // falls back to the public broker, so the same build works on both.
 //
 // Behind Caddy for HTTPS (docs/SERVER_GUIDE.md). Plain JavaScript on purpose:

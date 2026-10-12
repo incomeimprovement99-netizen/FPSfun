@@ -13059,3 +13059,18 @@ target is either the soldier or a bullseye whose middle is the crit damage. So:
   the soldier, wear it once it is in and the drill's target is a board, seen failing with the dressing stopped, and that a
   threat lights the soldier red and goes again, seen failing with the highlight left out of setFlash; the planted turn
   still holds without a robot; verify, rules, the type check, the range and skfigure e2e sections.
+
+## Milestone 600 — GitHub Pages gone
+
+The game lives only at https://fpsfun.duckdns.org/, and the owner stopped the GitHub Pages deploys on 2026-09-27; the
+mirror's site, its branch and its tool were still there, the site serving a build from that day. The owner
+(2026-10-12): "GitHub pages should no longer be a thing." So:
+
+- **The tool:** tools/deploy-pages.ts and `npm run deploy` out.
+- **The site:** the repo's `gh-pages` branch deleted, which unpublishes the Pages site (it is kept as a bundle in
+  `server-backup/gh-pages-2026-10-12.bundle`, not in git).
+- **The docs:** docs/DEPLOY_GUIDE.md is the guide to shipping to the game's own server and playing on it (its Pages
+  setup, its failed-build emails, its private-source and other-host sections out); docs/SERVER_GUIDE.md says what the
+  server gives without the comparison with Pages; the README loses the static mirror. The code's comments say a page
+  without the server behind it is the dev server, which is what still falls back to the public broker and keeps its
+  boards in the browser: that fallback stays.

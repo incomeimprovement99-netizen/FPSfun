@@ -9,8 +9,8 @@
 //     config files (they cite sources by name) is dropped.
 //   `tools/beta-check.ts` then fails if any real weapon name is left in dist/.
 //
-// `base: "./"` makes every path relative, so dist/ works from any folder of
-// any static host (GitHub Pages serves a project from /<repo>/).
+// `base: "./"` makes every path relative, so dist/ works from whatever folder
+// it is served from.
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { defineConfig, type Plugin } from "vite";

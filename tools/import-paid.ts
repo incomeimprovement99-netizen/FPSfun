@@ -4,9 +4,9 @@
 // Paid files are licensed to the owner, not to the public: their sources never
 // enter git, and what the game loads is written to public/models/paid/, which
 // .gitignore keeps out and `npm run rules` refuses if it is ever tracked. They
-// ship only with the game server (`npm run fps deploy`); the Pages build drops
-// them (tools/deploy-pages.ts). A checkout without them runs as before, because
-// every paid model has a free fallback in the game.
+// ship only with the game server (`npm run fps deploy`). A checkout without
+// them runs, the figures as their hit volumes alone and the guns as the free
+// models.
 //
 // Only local tools touch the files: tar, FBX2glTF, glTF-Transform and sharp.
 // Nothing here uploads them anywhere.
