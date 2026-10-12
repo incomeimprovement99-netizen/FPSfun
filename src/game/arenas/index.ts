@@ -58,7 +58,3 @@ export function infoOf(plan: ArenaPlan): ArenaMapInfo {
 
 /** the drawn arenas, as the rest of the game reads them */
 export const PLAN_MAPS: ArenaMapInfo[] = ARENA_PLANS.map(infoOf);
-
-export function planById(id: string): ArenaPlan | null {
-  return ARENA_PLANS.find((p) => p.id === id) ?? null;
-}

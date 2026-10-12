@@ -785,7 +785,7 @@ const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.inne
 vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
-buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: "city", sandbox: rangeCfg.sandbox, solids: armorySolids() });
+buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, sandbox: rangeCfg.sandbox, solids: armorySolids() });
 // the Gulag's room, the Vault (src/game/arena.ts), merged with the range
 // (its textures after the page's first screen: nothing the range's first frame shows, later.ts)
 holdTextures(true);

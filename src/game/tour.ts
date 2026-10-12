@@ -234,5 +234,4 @@ export class Tour {
   }
 }
 
-export const TOUR_STEPS = STEPS.map((s) => s.id);
 export { SK_STEPS };

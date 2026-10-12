@@ -11511,6 +11511,24 @@ battle royale), but the legacy game's arenas were still built on every page load
   city's bake), the friends' 1v1s run straight after page failed to connect once and the jitter checks' smoothness
   failed once; duel and ping passed alone, and none of those 1v1s changes map (two play NEON YARD before and after).
 
+## Milestone 534 — What the legacy left unused: the range's warehouse look, the hop-ups' names, the Outskirts' rocks
+
+A scan for exports that nothing else in src/ or tools/ names (a scratch tool over the TypeScript syntax tree) found
+what the legacy removals had left behind, used by nothing:
+
+- **The range's warehouse look:** range.ts built its floor, walls and trim in the legacy game's sunlit warehouse
+  colours unless told `look: "city"`, which main.ts always was. The option and the other palette are gone.
+- **The hop-ups' names** (names.ts, with their real names for a private build), **the Outskirts' rocks** (geo.ts
+  rockGeometry), **floor decals** (geo.ts decal), **the doorway list** the old map's buildings filled (doors.ts
+  DOORWAYS), **planById** (arenas) and **TOUR_STEPS** (the tour).
+- **Left alone:** what the scan found that is not the legacy's: the icons' test helpers, sens.ts's
+  horizontalFovAtAspect, wire.ts's wireBytes, range.ts's sunNow, and the character agent's figlod.ts and soldier.ts.
+- **And a verify check a busy machine tripped:** "frame phases" wanted exactly one hitch kept, and a release gate at
+  99% (the city agent's, 2026-10-12) stalled the quick frame past the 50 ms line too. Keeping it was right, so the
+  check is now that the slow frame is kept and no frame under the line; put back, a timer keeping every frame fails it.
+- About 110 lines out.
+- **Checked:** tsc; verify; rules; e2e range.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

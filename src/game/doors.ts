@@ -35,9 +35,6 @@ export interface Doorway {
   h: number;
 }
 
-/** every doorway the map's buildings made, in the order they were built (brpoi.ts adds to it; the map reads it once) */
-export const DOORWAYS: Doorway[] = [];
-
 export interface Door {
   readonly i: number;
   /** the middle of the doorway, in the world, at half the door's height */

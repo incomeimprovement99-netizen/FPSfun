@@ -193,8 +193,7 @@ export interface RangeOptions {
   /** point lights cost every lit pixel; Competitive and Balanced drop them */
   pointLights: boolean;
   shadowSize: number;
-  /** SpeedKills: the city's night look, and the sandbox's edge (range.json; Phase 20 A12) */
-  look?: "warehouse" | "city";
+  /** SpeedKills: the sandbox's edge (range.json; Phase 20 A12) */
   sandbox?: typeof rangeCfg.sandbox | null;
   /** boxes of things other modules stand in the range (SpeedKills' armory's cases, armory.ts), pushed with its own */
   solids?: Solid[];
@@ -272,10 +271,10 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // These colours MULTIPLY the texture, whose own mid-grey is around 0.5, so
   // tinting at the final colour you want lands about half as bright as you
   // wanted. Both are set roughly a stop up from the target sand.
-  // SpeedKills (Phase 20 A12): the city's own pavement and street under a night palette, and its neon for the glow
-  const city = opts.look === "city";
-  const concrete = city ? material("skPave", { color: 0x8a8e96, roughness: 0.9, metalness: 0.02 }) : material("concrete", { color: 0xe6d5b8, roughness: 0.95, metalness: 0.02 });
-  const ground = city ? material("skStreet", { color: 0x9aa0aa, roughness: 0.95, metalness: 0.02 }) : material("ground", { color: 0xcabfa8, roughness: 1, metalness: 0 });
+  // SpeedKills (Phase 20 A12): the city's own pavement and street under a night palette, and its neon for the glow (the
+  // legacy game's sunlit warehouse colours went in Milestone 534)
+  const concrete = material("skPave", { color: 0x8a8e96, roughness: 0.9, metalness: 0.02 });
+  const ground = material("skStreet", { color: 0x9aa0aa, roughness: 0.95, metalness: 0.02 });
   // METALNESS IS A PHYSICAL CLAIM, NOT A GLOSS DIAL. A metal has no diffuse
   // response at all: it shows only what it reflects. With a blue sky as the
   // only environment, the 0.72-metal roof reflected nothing but blue sky, so
@@ -285,11 +284,11 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   //
   // Painted structural steel is a dielectric with a thin metal flake at most.
   // These are the values for painted metal, not for a mirror.
-  const wall = city ? flat(0x252b3a, 0.7, 0.1) : flat(PAL.steel, 0.62, 0.08);
-  const catwalk = city ? flat(0x3a4256, 0.55, 0.2) : flat(PAL.steelLight, 0.55, 0.14);
-  const panel = city ? flat(0x161b27, 0.6, 0.12) : flat(PAL.steelDark, 0.55, 0.12);
-  const trim = city ? flat(0x0c0e14, 0.6, 0.4) : flat(PAL.orange, 0.55, 0.25);
-  const glow = city ? emissive(0xff2e9a, 2.6) : emissive(PAL.cyan, 2.6);
+  const wall = flat(0x252b3a, 0.7, 0.1);
+  const catwalk = flat(0x3a4256, 0.55, 0.2);
+  const panel = flat(0x161b27, 0.6, 0.12);
+  const trim = flat(0x0c0e14, 0.6, 0.4);
+  const glow = emissive(0xff2e9a, 2.6);
   if (opts.sandbox) buildSandboxEdge(scene, opts.sandbox);
 
   // ---------- sky and fog ----------

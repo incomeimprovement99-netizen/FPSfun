@@ -75,7 +75,7 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
 - **491, abilities and kits (done)** (JOLT, TRIAGE, MEDIC, SCOUT, HOOK, SMOKE, WARD): SpeedKills turns them off and runs its
   hacks, which load at startup for the range and stay, with what they borrow (walls.ts and the ward's numbers,
   reveal.ts, healarea.ts, DASH's look and sound). About 1,600 lines.
-- **Later, attachments, mag levels and hop-ups;** SpeedKills keeps one fixed optic per gun and fusion. About 350 lines.
+- **Attachments, mag levels and hop-ups (done, 522);** SpeedKills keeps one fixed optic per gun and fusion.
 - **524, the battle royale's side rules (done):** the keycard vault and its guard, the Ring Consoles, Storm Surge and
   the loadout crate, each switched off in SpeedKills by its own guard. About 1,260 lines.
 - **526, the legacy floor (done):** ammo, attachment, hop-up, helmet and knockdown-shield loot, the floor's spot kinds
@@ -100,7 +100,9 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
 - **532, the page's crumbs (done):** the legacy brand, rules list and the lobby's hidden practice row.
 - **533, the legacy arenas (done):** the Warehouse, the Triangle, the Crossing, the Ringworks and NEON BLOCK; the
   Vault stays for the Gulag. Section 5 below is done with it.
-- **Next:** the range's legacy look (range.ts `look: "warehouse"`), then what the guns and character agents' folds leave.
+- **534, what the legacy left unused (done):** the range's warehouse look, the hop-ups' names, the Outskirts' rocks,
+  floor decals and doorway list, planById and TOUR_STEPS, found by a scan for exports nothing names.
+- **Next:** `IS_SK` out of game.ts once the guns and character agents' folds land.
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
 - **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,

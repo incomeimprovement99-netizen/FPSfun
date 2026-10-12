@@ -54,27 +54,6 @@ const CODENAMES: Record<string, string> = {
   bocek: "Not Bocek",
 };
 
-/**
- * hop-ups: the game's names while private, generic ones on a public build.
- * Each is its own ternary on the build flag, so the minifier drops the name
- * the build does not use (a table of both shipped both).
- */
-const HOPUP_NAMES: Record<string, string> = {
-  hopup_turbocharger: PUBLIC_BUILD ? "spin-up kit" : "Turbocharger",
-  hopup_headshot_dmg: PUBLIC_BUILD ? "head rounds" : "Skullpiercer",
-  hopup_unshielded_dmg: PUBLIC_BUILD ? "hollow points" : "Hammerpoint",
-  hopup_shield_breaker: PUBLIC_BUILD ? "shield rounds" : "Disruptor",
-  hopup_energy_choke: PUBLIC_BUILD ? "choke" : "Precision choke",
-  altfire_double_tap: PUBLIC_BUILD ? "double shot" : "Double tap",
-  selectfire: PUBLIC_BUILD ? "mode switch" : "Selectfire",
-  hopup_executioner: PUBLIC_BUILD ? "knock recharge" : "Executioner",
-  hopup_shattercaps: PUBLIC_BUILD ? "split rounds" : "Shattercaps",
-  hopup_redline: PUBLIC_BUILD ? "hot bolts" : "Redline",
-};
-export function hopupName(mod: string): string {
-  return HOPUP_NAMES[mod] ?? mod;
-}
-
 /** optic labels, by attachment mod name */
 const OPTIC_CODENAMES: Record<string, string> = {
   optic_cq_holosight: "1x ring sight",
