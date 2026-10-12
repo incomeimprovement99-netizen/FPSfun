@@ -2541,5 +2541,54 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE TERRACES: six rooms in its tiers' street walls, two a tier, each walked into from the tier before it and back out by a player", TR.length === 6 && new Set(TR.map((q) => q[2])).size === 3 && shut.length === 0, shut.join("; ") || `${TR.length} rooms`);
 }
 
+// THE TERMINAL (rules.districts.terminal, the south district): its halls in a row in the south band past the ring road
+// and its pavement, between the two roads; in each a body dropped by its north arcade stands on its floor at the street,
+// and a player walks into each from the forecourt through the arcade and back out; its name over the arcade seen from
+// the ring road
+{
+  type HRule = { name: { at: number[]; w: number; h: number } };
+  const TH = (cfg.rules as unknown as { districts?: { terminal?: HRule } }).districts?.terminal;
+  const TO = (cfg as unknown as { terminal?: { halls: number[][]; box: number[] } }).terminal;
+  const ring = (cfg.rules as unknown as { ring: number[] }).ring[1] + 2.5;
+  const [X0, X1, Z0, Z1] = TO?.box ?? [0, 0, 0, 0];
+  check("THE TERMINAL: six halls in a row in the south band past the ring road, between the two roads", (TO?.halls.length ?? 0) === 6 && X0 >= -30 && X1 <= 30 && Z0 >= ring && Z1 <= 152, `x ${X0} to ${X1}, z ${Z0} to ${Z1}`);
+  const off: string[] = [];
+  const shut: string[] = [];
+  for (const [hx0, hx1, hz0] of TO?.halls ?? []) {
+    const cx = (hx0 + hx1) / 2;
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(cx + BR_X, 2, hz0 + 2.5 + BR_Z, 0);
+    let t = 1000;
+    for (let i = 0; i < 2 * 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+    if (Math.abs(p.pos.y) > 0.1) off.push(`(${cx}, ${hz0 + 2.5}) at ${p.pos.y.toFixed(2)} m`);
+    const route = [[cx, hz0 - 6, 0], [cx, hz0 + 3, 0]];
+    const inn = along(route);
+    const out = along([...route].reverse());
+    if (inn.k !== route.length || out.k !== route.length) shut.push(`at x ${cx}: in to (${inn.x.toFixed(1)}, ${inn.z.toFixed(1)}), out to (${out.x.toFixed(1)}, ${out.z.toFixed(1)})`);
+  }
+  check("THE TERMINAL: in each hall a body stands on its floor at the street, and a player walks in from the forecourt through the arcade and back out", (TO?.halls.length ?? 0) === 6 && off.length === 0 && shut.length === 0, [...off, ...shut].join("; ") || `${TO?.halls.length} halls`);
+  // its name: from the middle of the ring road's south side at a standing eye, a clear line to the plate's middle and near
+  // both ends
+  const N = TH?.name;
+  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
+  const blocked: string[] = [];
+  const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
+  for (const ex of [-10, 0, 10])
+    for (const t of N ? [-N.w / 2 + 0.5, 0, N.w / 2 - 0.5] : []) {
+      const [a, b] = [[ex, 1.7, roadMid], [N!.at[0] + t, N!.at[1], N!.at[2] - 0.3]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+        if (inBox(p[0], p[1], p[2])) {
+          blocked.push(`from x ${ex} to ${t.toFixed(1)} at (${p.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "terminal");
+  check("THE TERMINAL: its name over the arcade, seen from the ring road", named && !!N && blocked.length === 0, blocked.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

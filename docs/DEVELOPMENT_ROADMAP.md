@@ -13074,3 +13074,24 @@ mirror's site, its branch and its tool were still there, the site serving a buil
   server gives without the comparison with Pages; the README loses the static mirror. The code's comments say a page
   without the server behind it is the dev server, which is what still falls back to the public broker and keeps its
   boards in the browser: that fallback stays.
+
+## Milestone 587 — THE TERMINAL, its station: the glass-roofed hall brought up to the street
+
+The districts plan's third district, the south sector's band between the ring road and the edge, between the two
+straight roads, empty pavement until now. Its plan is on the plan page.
+
+- **The station** (`rules.districts.terminal`, tools/neon-layout.ts): six of the pack's glass-roofed halls in a row,
+  42 m along the band and 21.5 m deep. It is the hall Centre Station sinks under the plaza, its floor 10 m under the
+  street and its vaults over it. Here it is lifted 10 m, so its marble floor is the street's (measured off the
+  collision: the floor's top at 0) and its vaults stand 12 to 16 m up. Each is turned so the halls join arch to arch:
+  an arcade of arches along both long sides, a grand front of three arches under a lantern at each end, and the
+  escalators up to the glass-railed bridge under the vaults.
+- **How it was chosen:** a test bake laid two halls side by side, lo size only, and photographed them: their arcades
+  join cleanly and their ends close as fronts, so a row reads as one building.
+- **The forecourt:** a taxi rank of the pack's white urban cars nosed to the station, clear of the bots' street nodes.
+- **The name:** THE TERMINAL in the sector's amber over the arcade on the north face, seen from the ring road.
+- **Collision:** the halls collide as their own faces, as the centre's does. The bots' street nodes inside stay joined
+  to the street through the arcades.
+- **Checked** (tools/checks/sk-neon.ts): six halls in a row in the south band between the roads; in each a body stands on its floor at the street and a player walks in from the forecourt through the arcade and back out; the name over the arcade seen from the ring road on nine sight lines; the street network still whole with the halls' nodes. The new checks were proven failing with their faults put back: a wall across one hall's arcade, and the name moved inside the hall. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: the ring road, the forecourt, inside the arcade and along the halls, the east front and the centre's south street, by golden hour and at night.
+  The map: its files lo 117.4 MB, hi 184.0 MB, max 412.6 MB.
+  **Its files are version 67.**

@@ -3876,6 +3876,46 @@ const STREET_WALL_BOXES: OBox[] = [];
     console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps, ${blocks.length} blocks on the top tier with ${balconies} balconies`);
   }
 }
+// THE TERMINAL (rules.districts.terminal; the districts plan's south district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
+// the south band past the ring road, its station: the pack's glass-roofed hall (the one Centre Station sinks under the
+// plaza, its floor 10 m under the street and its vaults over it) lifted `lift` metres so its marble floor is the street's,
+// `count` of them in a row along the band, each turned `yaw` so the row runs east and west: an arcade of arches along
+// both long sides, a grand front of three under a lantern at each end, the escalators up to the glass-railed bridge under
+// the vaults. Each placed by its pivot, as the centre's is: turned 90 degrees its own z (7 m, the way the halls join,
+// arch to arch) runs along x and its own x (21.5 m) along z, so hall k covers x from its pivot less 1 to its pivot plus
+// 6 and z from its pivot less 1 to its pivot plus 20.5. A taxi rank of the pack's urban cars on the forecourt, the
+// district's name over the arcade on the north face. Colliding as their own faces, as the centre's hall does
+{
+  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
+  if (TM) {
+    const H = TM.hall;
+    const hr = piece(H.piece).row;
+    const [lz0, lz1] = [hr.min![2], hr.max![2]];
+    const [lx0, lx1] = [hr.min![0], hr.max![0]];
+    const along = lz1 - lz0;
+    if (H.yaw !== 90) throw new Error("THE TERMINAL: the halls are laid turned 90 degrees, their own z along x");
+    // (turned 90, own (x, z) lands at (z, -x) from the pivot: x from the pivot plus own z's least, z from the pivot less
+    // own x's most)
+    const pz = H.front + lx1;
+    const halls: number[][] = [];
+    for (let k = 0; k < H.count; k++) {
+      const px = H.x0 - lz0 + along * k;
+      add(TM.chunk, "c", [piece(H.piece).key, +px.toFixed(3), H.lift, +pz.toFixed(3), H.yaw, "o"] as Place);
+      halls.push([+(px + lz0).toFixed(3), +(px + lz1).toFixed(3), +(pz - lx1).toFixed(3), +(pz - lx0).toFixed(3)]);
+    }
+    // the taxi rank: the pack's urban cars nose to the station along the forecourt
+    const RK = TM.rank;
+    const rndM = seeded(TM.seed);
+    for (const x of RK.x) {
+      const name = RK.pieces[Math.floor(rndM() * RK.pieces.length)];
+      placeTurned(TM.chunk, name, x, RK.z, RK.yaw, "o", -piece(name).row.min![1]);
+    }
+    cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terminal"), { district: "terminal", ...TM.name }];
+    const [X0, X1, Z0, Z1] = [Math.min(...halls.map((h) => h[0])), Math.max(...halls.map((h) => h[1])), Math.min(...halls.map((h) => h[2])), Math.max(...halls.map((h) => h[3]))];
+    cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length };
+    console.log(`THE TERMINAL: ${halls.length} halls, x ${X0} to ${X1}, z ${Z0} to ${Z1}; ${RK.x.length} cars in the rank`);
+  }
+}
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
 // basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
 // each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of
