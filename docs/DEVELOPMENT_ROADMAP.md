@@ -13299,3 +13299,19 @@ frames.
   with a full skin audit at each step, took up to 85 s in one call; with other runs loading the machine they passed the
   page's 120 s limit, and the character agent's soldier section, which runs them, looked hung. They now make a page call
   a step.
+
+## Milestone 601 — The grey mannequin's body out of the clip file
+
+The first clip file, mannequin.glb, still carried Quaternius's grey mannequin: its mesh, its two materials and its skin's
+weights, 604,592 bytes of a body nothing has drawn since the old body went (Milestone 568) and the soldier became every
+figure (569). What the soldier takes from that file is the library's rig, which its clips are carried over from
+(retarget.ts rigOf reads its bones at rest), and the clips.
+
+- **tools/trim-glb.ts --skeleton:** the file keeps its skin's joint list and nothing else of the body (no mesh, no
+  materials, no inverse bind matrices): three marks a node a bone by a skin's joints, not by a mesh, so the rig still
+  loads as bones and rigOf reads it as before. fetch-clips.ts makes the first file that way (`rig: true`).
+- **What it comes to:** mannequin.glb from 1,397,296 bytes to 792,704; the four clip files 1,571,488 bytes, from
+  6,486,960 this morning. Every clip of it compared key by key with the file before: no difference at all.
+- **Checked:** tools/checks/clips.ts now also holds that no clip file carries a body and that the rig file's joints load
+  as bones, seen failing on the file before; tools/checks/soldier.ts (the soldier carried over from this rig) passes on
+  it; verify, rules, the type check, and the skfigure and page e2e sections.

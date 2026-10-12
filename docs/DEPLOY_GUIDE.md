@@ -156,7 +156,7 @@ npm run live         # optional: plays a 1v1 on the live site again
 
 The full e2e and its batches are the once-a-day regression sweep, not every release.
 
-The mannequin's animation files (`public/models/mannequin/`, 2.1 MB, CC0)
+The figures' animation files (`public/models/mannequin/`, 1.6 MB, CC0)
 are in git and in every build; every figure plays their clips (SpeedKills'
 soldier through them carried over to its rig), so every player downloads them
 (a figure is its hit volumes until they have loaded). `npm run clips` remakes them from

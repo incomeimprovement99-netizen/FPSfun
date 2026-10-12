@@ -3,10 +3,13 @@
 // Universal Animation Library, CC0) goes into public/models/ at a fraction of
 // its size. Meshes, skins, materials and images are kept as they are.
 //
-//   npx tsx tools/trim-glb.ts <in.glb> <out.glb> [--no-mesh] Clip_A Clip_B ...
+//   npx tsx tools/trim-glb.ts <in.glb> <out.glb> [--no-mesh | --skeleton] Clip_A Clip_B ...
 //
 // --no-mesh keeps only the skeleton's nodes and the animations (a file of
-// clips for a skeleton another file already brings).
+// clips for a skeleton another file already brings). --skeleton keeps its skin
+// as well, its joints and nothing else, so a loader reads its nodes as bones
+// (three marks a node a bone by a skin's joints, not by a mesh) with no body
+// to draw: the rig the clips are carried over from (retarget.ts rigOf).
 //
 // A bone a clip holds still keeps two keys, its first and its last, rather
 // than one a frame: the library keys every bone's position, rotation and
@@ -147,10 +150,11 @@ function packKeys(json: Gltf, bin: Buffer): { bin: Buffer; held: number; of: num
 
 function main(): void {
   const args = process.argv.slice(2);
-  const noMesh = args.includes("--no-mesh");
-  const [inPath, outPath, ...names] = args.filter((a) => a !== "--no-mesh");
+  const skeleton = args.includes("--skeleton");
+  const noMesh = skeleton || args.includes("--no-mesh");
+  const [inPath, outPath, ...names] = args.filter((a) => a !== "--no-mesh" && a !== "--skeleton");
   if (!inPath || !outPath || !names.length) {
-    console.error("usage: trim-glb <in.glb> <out.glb> [--no-mesh] Clip ...");
+    console.error("usage: trim-glb <in.glb> <out.glb> [--no-mesh | --skeleton] Clip ...");
     process.exit(2);
   }
   const { json, bin } = readGlb(inPath);
@@ -170,7 +174,8 @@ function main(): void {
       delete n.skin;
     }
     delete json.meshes;
-    delete json.skins;
+    if (skeleton) for (const sk of json.skins ?? []) delete sk.inverseBindMatrices;
+    else delete json.skins;
     delete json.materials;
     delete json.textures;
     delete json.images;

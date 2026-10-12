@@ -1,6 +1,6 @@
 // The figures' clip files (public/models/mannequin, made by tools/fetch-clips.ts): each holds the clips its list names
 // and no others, every clip in them is one the game plays, every clip the game asks for by name is in them, and no
-// bone a clip holds still is keyed every frame (tools/trim-glb.ts).
+// bone a clip holds still is keyed every frame (tools/trim-glb.ts), and none carries a body to draw.
 //
 // Why: nine clips nothing played rode in the files for a release after the old game's heals, knockdowns and revives
 // went, and three quarters of every file was keys for bones that never move (Milestone 566). Both go unseen: a clip
@@ -24,12 +24,17 @@ const WIDTH: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
 const inFiles = new Map<string, string>();
 const wrong: string[] = [];
 const keyedStill: string[] = [];
+const bodies: string[] = [];
 for (const f of FILES) {
   const { json, bin } = readGlb(f.out);
   const names = (json.animations ?? []).map((a) => a.name ?? "");
   for (const n of names) inFiles.set(n, f.out);
   const want = [...f.clips].sort().join(" ");
   if (names.slice().sort().join(" ") !== want) wrong.push(`${f.out}: has ${names.length}, its list ${f.clips.length}`);
+  // no body in any of them (the grey mannequin's went in Milestone 601: nothing drew it), and the rig file's joints kept
+  // as a skin, so they load as bones (retarget.ts rigOf)
+  if (json.meshes?.length || json.images?.length) bodies.push(`${f.out}: ${json.meshes?.length ?? 0} meshes, ${json.images?.length ?? 0} images`);
+  if (f.rig && !json.skins?.length) bodies.push(`${f.out}: no skin, so no bones to carry the clips from`);
   for (const a of json.animations ?? [])
     for (const s of a.samplers) {
       const out = floatsOf(json, bin, s.output);
@@ -38,6 +43,7 @@ for (const f of FILES) {
     }
 }
 check("each clip file holds the clips its list names (tools/fetch-clips.ts) and no others", wrong.length === 0, wrong.join("; "));
+check("no body in the clip files, and the rig file's joints load as bones", bodies.length === 0, bodies.join("; "));
 check("no bone a clip holds still is keyed every frame: two keys each", keyedStill.length === 0, keyedStill.length ? `${keyedStill.length} channels, in ${[...new Set(keyedStill)].slice(0, 6).join(", ")}` : "");
 
 // The game's source, comments out, so a clip only mentioned in passing does not count as played

@@ -1194,7 +1194,7 @@ to the server.
 
 `dist/` is about 22 MB: 1.9 MB of code (505 KB compressed), 3 MB of textures
 and 17 MB of props (their textures as WebP since Phase 12: the textures went
-from 30.5 MB to 5.8 MB), 2.2 MB for the figures' clips and 0.4 MB of recorded
+from 30.5 MB to 5.8 MB), 1.6 MB for the figures' clips and 0.4 MB of recorded
 sounds. The range is playable before the props finish loading. The props'
 geometry (about 11 MB) is the next thing to compress.
 
