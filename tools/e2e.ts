@@ -2853,7 +2853,9 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
     await ev(page, "window.__noGulag = false");
     await ev(page, brRow("solo", 3));
     await ev(page, `(() => { document.getElementById("brStart").value = "loadout"; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`);
-    await sleep(400);
+    // the match is there once the city's side is ready, which took 1.6 s on a quiet machine: a fixed 400 ms wait read it
+    // before it was made, and the section ended there under load
+    await page.waitForFunction("window.__range.duel() !== null", { polling: 100, timeout: 30000 }).catch(() => undefined);
     await ev(page, "window.__range.duel().holdFire = true");
     await page.waitForFunction(`window.__range.duel()?.phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined);
     return page;
@@ -2940,10 +2942,9 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   for (const pg of [host, guest]) await pressPlay(pg);
   await ev(host, "window.__range.duel().holdFire = true");
   await Promise.all([host, guest].map((pg) => pg.waitForFunction(`window.__range.duel().phase === "fight" && !window.__range.player.dropping`, { polling: 200, timeout: 30000 }).catch(() => undefined)));
-  // the guest goes down and bleeds out
+  // the guest is taken out (there are no knocks: at zero it is out)
   await ev(guest, "(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()");
   await sleep(400);
-  await ev(guest, "(() => { const d = window.__range.duel(); d.bleedUntil = performance.now() / 1000; })()");
   const heard = await host.waitForFunction("window.__range.duel().gulagIds.has(1)", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   const gIn = await guest.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase !== 'wait'", { polling: 100, timeout: (G.delay + 4) * 1000 }).then(() => true, () => false);
   check("the Gulag: a squad mate's trip reaches the host, and they go in", heard && gIn, JSON.stringify({ heard, gIn }));
@@ -2951,7 +2952,7 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   // (plan section 12, item 2: they counted as standing, and a knock went down to bleed out with nobody to come)
   await sleep(1500);
   const standing = await ev<boolean>(host, "window.__range.duel().squadUp()");
-  check("the Gulag: a squad mate in the Gulag is not one standing to revive you", standing === false, String(standing));
+  check("the Gulag: a squad mate in the Gulag is not one standing", standing === false, String(standing));
   // the host brings them back at their echo meanwhile: that is their way back, and the trip is over
   await ev(host, `(() => { const r = window.__range; const d = r.duel(); const e = d.lootField ? [...d.lootField.drops.values()].find((x) => x.item.kind === "echo" && x.item.owner === 1) : undefined; d.sendRespawn(1, e ? e.pos.clone() : new r.THREE.Vector3(0, 0, 500), true); })()`);
   const rescued = await guest.waitForFunction("!window.__range.duel().gulag && window.__range.duel().alive", { polling: 100, timeout: 5000 }).then(() => true, () => false);
@@ -3410,7 +3411,7 @@ async function brSquadsTest(browser: Browser, query: string): Promise<void> {
   // the host takes out player 2: player 3, its mate, is up, so 2 is a ghost to be restored (SpeedKills has no knockdown)
   const hit = (to: number) => ev(host, `(() => { const d = window.__range.duel(); const r = d.remotes.get(${to}); d.localHit(r, 250, true); })()`);
   await hit(2);
-  const ghost2 = await by(2).waitForFunction("!window.__range.duel().alive && !window.__range.duel().downed && window.__range.duel().ghost", { polling: 100, timeout: 5000 }).then(() => true, () => false);
+  const ghost2 = await by(2).waitForFunction("!window.__range.duel().alive && window.__range.duel().ghost", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   check("squads of friends: the host's shots hurt the other duo, and one of it is a ghost with its mate up", ghost2, `the host's map shows ${mapped} mate(s)`);
   check("squads of friends: the map shows your duo only", mapped === 1, `${mapped}`);
   // then 3: nobody of that duo is up, so 3 is out, and 2, a ghost, goes with it (the duo still standing is the other side)
@@ -5716,6 +5717,8 @@ async function skLauncherTest(browser: Browser): Promise<void> {
             const t1 = performance.now(); while (r.rocketLast() === before && performance.now() - t1 < 4000) await new Promise((ok) => setTimeout(ok, 16));
             return r.rocketLast() === before ? null : Math.round(r.rocketLast().travelled * 100) / 100;
           };
+          // where the bot and its head were, for a failure's detail (twice under load at 91% CPU both rockets flew 165 m)
+          const dbgHead = b.dummy.hitMeshes.find((m) => m.userData.zone === "head").getWorldPosition(new T.Vector3()); const dbg = { pos: b.pos.toArray().map((v) => +v.toFixed(2)), head: dbgHead.toArray().map((v) => +v.toFixed(2)), alive: b.alive, knocked: b.dummy.knocked, visible: b.dummy.group.visible, inList: b.projectiles.dummies.includes(b.dummy), me: [+me.x.toFixed(2), +me.y.toFixed(2), +me.z.toFixed(2)], bots: d.bots.length };
           const own = await fire({ figure: b.dummy });
           const nobody = await fire(null);
           b.update = upd; d.holdFire = false;
@@ -5729,7 +5732,7 @@ async function skLauncherTest(browser: Browser): Promise<void> {
             took = now;
             await new Promise((ok) => setTimeout(ok, 16));
           }
-          return { spot: !!spot, own, nobody, onMe, bursts, took: Math.round(took * 10) / 10, unexplained };
+          return { spot: !!spot, own, nobody, onMe, bursts, took: Math.round(took * 10) / 10, unexplained, dbg };
         })()`,
       )
     : null;
@@ -5767,8 +5770,8 @@ async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"):
   // the guest's Gulag already spent: this death makes a ghost
   await ev(guest, `(() => { const d = window.__range.duel(); d.gulagUsed = true; d.takeHit(500, 100); })()`);
   await sleep(800);
-  const g1 = await ev<{ alive: boolean; downed: boolean; ghost: boolean }>(guest, "(() => { const d = window.__range.duel(); return { alive: d.alive, downed: d.downed, ghost: d.ghost }; })()");
-  check(`${tag}: no knockdown: at zero the guest is out, and a ghost (its squad mate is up)`, !g1.alive && !g1.downed && g1.ghost, JSON.stringify(g1));
+  const g1 = await ev<{ alive: boolean; ghost: boolean }>(guest, "(() => { const d = window.__range.duel(); return { alive: d.alive, ghost: d.ghost }; })()");
+  check(`${tag}: no knockdown: at zero the guest is out, and a ghost (its squad mate is up)`, !g1.alive && g1.ghost, JSON.stringify(g1));
   // the ghost moves
   const p0 = await ev<{ x: number; z: number }>(guest, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
   // forward, turning to each side in turn: where the squad lands is the drop's, and one run faced a wall 2 m off

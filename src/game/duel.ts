@@ -195,8 +195,6 @@ export interface Remote {
   /** their armour's size (a battle royale's shield core), from their state packets */
   shieldMax: number;
   alive: boolean;
-  /** a battle royale squad member down, not out: a squad mate can revive them */
-  downed: boolean;
   /** off the menu, in the game */
   ready: boolean;
   /** the practice aim bot is on for them: everyone is shown it */
@@ -306,7 +304,7 @@ export interface MatchLike {
   onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null;
   /** the match end card wants your win streak from the profile */
   streak: number;
-  /** knocked with others still standing: a figure to watch, or null */
+  /** out with others still standing: a figure to watch, or null */
   spectateTarget(): Dummy | null;
   /**
    * Out, with others still standing: everyone worth watching, friends first.
@@ -469,55 +467,12 @@ export class Duel implements MatchLike {
   onShotFired: ((id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string) => void) | null = null;
   /** a squad member pinged something: what, where, the label, the figure it is on */
   onMark: ((k: string, from: number, at: THREE.Vector3, label: string, target: number) => void) | null = null;
-  /** you went down (not out): the HUD's bleed-out clock starts */
-  onDowned: (() => void) | null = null;
   /** someone went down or out that this side saw (a bot knocked, a player downed): the announcer's "mate down" */
   onKnockSeen: ((victim: number, by: number) => void) | null = null;
-  /**
-   * Down with the knockdown shield raised: what a hit from `from` leaves after
-   * the shield has taken what it could (main.ts decides: the shield's arc and
-   * what it has left). Null: nothing in the way.
-   */
-  downedBlock: ((amount: number, from: number) => number) | null = null;
-  /** the knockdown shield is raised: the others see it (the state packet's dn is 2) */
-  kdUp = false;
   /** the last respawn was a squad mate's hold at your echo, not a drop */
   respawnOnEcho = false;
   /** each squad member's deaths since their lockout reset, the last one's time, and when they were last back in (the echo restore's lockout) */
   private boxDeaths = new Map<number, { n: number; at: number; backAt: number }>();
-  /** a squad mate got you back up */
-  onRevived: ((by: number) => void) | null = null;
-
-  // ---- down, not out (a battle royale squad; Season 30's numbers)
-  downed = false;
-  private bleedHp = 0;
-  /** what is left of the bleed-out while down: a hit lands here, not on health (a gold shield's self-revive watches it) */
-  get bleedLeft(): number {
-    return this.bleedHp;
-  }
-  bleedUntil = 0;
-  /** the knocks this life (the bleed-out shortens each time; the knockdown shield is per knock) */
-  knockCount = 0;
-  private downBy = -1;
-  /**
-   * The squad mates reviving you, while they are at it. Two can be at once,
-   * and one letting go leaves the other still holding (it cleared both; plan
-   * section 12, item 4). `revivedBy` is the first of them, for the HUD, and
-   * setting it replaces them all (null: nobody).
-   */
-  private revivers = new Set<number>();
-  get revivedBy(): number | null {
-    for (const id of this.revivers) return id;
-    return null;
-  }
-  set revivedBy(id: number | null) {
-    this.revivers.clear();
-    if (id !== null) this.revivers.add(id);
-  }
-  /** bleed-out seconds for the first, second, third and later knocks */
-  static readonly BLEED = squadCfg.bleedOut;
-  /** the health a revive gives back */
-  static readonly REVIVE_HEALTH = squadCfg.reviveHealth;
 
   /**
    * A host passes its guests' links as they arrive (`addGuest` for the
@@ -1005,7 +960,6 @@ export class Duel implements MatchLike {
       shield: SHIELD_MAX,
       shieldMax: SHIELD_MAX,
       alive: true,
-      downed: false,
       ready: false,
       lastHeard: wallClock(),
       link: this.hostLink ?? (this.links.get(id) as Link),
@@ -1329,7 +1283,6 @@ export class Duel implements MatchLike {
         // would find them already marked dead), and the host scores the round
         // if one is left
         r.alive = false;
-        r.downed = false;
         r.avatar.fallDown();
         // when, on their clock: their stamp unwrapped against the last state's (an older build sends none)
         if (typeof m.tm === "number" && r.clock) {
@@ -1340,7 +1293,7 @@ export class Duel implements MatchLike {
         {
           const by = m.by === this.id ? this.myName || "YOU" : (causeName(m.by) ?? this.nameOf(m.by) ?? `PLAYER ${m.by + 1}`);
           const mine = m.by === this.id;
-          // a `down` is the end of them (a knock is a `dnd`): the feed says so
+          // a `down` is the end of them: the feed says so
           this.onFeed?.(m.by === EDGE_ID ? `${r.name} went OUT OF BOUNDS` : `${by} eliminated ${r.name}`, mine, !mine && this.mode !== "duel");
           if (mine) this.kills++;
         }
@@ -1349,7 +1302,6 @@ export class Duel implements MatchLike {
           if (this.mode === "duel") this.checkLastStanding(now);
         }
         this.onKnockSeen?.(from, m.by);
-        this.outWithSquad();
         if (from < Duel.BOT_ID) {
           this.noteDeath(from);
           // their own count, where they sent it (an older build does not)
@@ -1472,8 +1424,6 @@ export class Duel implements MatchLike {
     if (typeof m.ready === "boolean") r.ready = m.ready;
     r.aimbot = m.bot === 1;
     if (typeof m.shm === "number" && Number.isFinite(m.shm) && m.shm >= 0 && m.shm <= 200) r.shieldMax = m.shm;
-    r.downed = alive && (m.dn === 1 || m.dn === 2);
-    r.avatar.setKnockShield(r.downed && m.dn === 2);
     // back in (a respawn): the lockout's "alive since"
     if (alive && !r.alive) this.noteBack(from);
     this.setAvatarLook(r, m.w, m.op, typeof m.lk === "string" ? m.lk : undefined);
@@ -1521,7 +1471,6 @@ export class Duel implements MatchLike {
 
   /** one of three is gone: their figure goes, the match carries on as a 1v1 */
   protected playerGone(id: number, notice: string): void {
-    this.revivers.delete(id);
     if (this.dropFigure(id)) this.onNotice?.(notice.toUpperCase());
   }
 
@@ -1612,15 +1561,11 @@ export class Duel implements MatchLike {
     this.health = HEALTH_MAX;
     this.shield = this.shieldMax;
     this.alive = true;
-    this.downed = false;
-    this.knockCount = 0;
-    this.revivedBy = null;
     // every figure stands back up here, not on the next state packet: the
     // round message beats that packet, so the alive transition was never seen
     // and a knocked figure lay on the floor, unhittable, for the rest of the match
     for (const r of this.remotes.values()) {
       r.alive = true;
-      r.downed = false;
       r.health = HEALTH_MAX;
       r.shield = r.shieldMax;
       r.avatar.reset();
@@ -1646,12 +1591,6 @@ export class Duel implements MatchLike {
   /** another player's bullet hit this player (in a battle royale the humans are a squad: only bots and the ring, -1, hurt) */
   /** what reaches you of a hit: SpeedKills' ARMOR hack takes most of it away while it lasts (main.ts) */
   incomingScale = 1;
-  /**
-   * No knockdowns: at zero health you are out (to the Gulag, then a ghost),
-   * whether a squad mate is up or not. SpeedKills' rule; the legacy game's
-   * squads go down first.
-   */
-  noKnocks = IS_SK;
   /** players nearly unseen (SpeedKills' INVISIBILITY), until when on the page's wall clock: the bots do not see them */
   readonly hiddenUntil = new Map<number, number>();
 
@@ -1659,84 +1598,36 @@ export class Duel implements MatchLike {
     if (!this.alive || this.phase !== "fight") return;
     if (!this.friendlyFire && this.friendly(from)) return;
     amount *= this.incomingScale;
-    if (this.downed) {
-      // the knockdown shield, raised and facing it, takes what it can
-      if (this.downedBlock) amount = this.downedBlock(amount, from);
-      if (amount <= 0) return;
-      // down: what is left is the bleed-out's 100, and it can be finished
-      this.bleedHp -= amount;
-      this.onHurt?.(amount);
-      this.onDamaged?.(from, amount, head, weapon, dist);
-      if (this.bleedHp <= 0) this.eliminate(from, "finished");
-      return;
-    }
     const toShield = Math.min(this.shield, amount);
     this.shield -= toShield;
     this.health = Math.max(0, this.health - (amount - toShield));
     this.onHurt?.(amount);
     this.onDamaged?.(from, amount, head, weapon, dist);
-    if (this.health <= 0) {
-      // a squad with someone still up: down, not out; alone, out
-      if (this.mode === "br" && !this.noKnocks && this.squadUp()) this.goDown(from);
-      else this.eliminate(from, "knocked");
-    }
+    // no knockdowns: at zero health you are out (in a battle royale to the Gulag, then a ghost), whether a squad mate is
+    // up or not (the legacy game's squads went down first; Milestone 529)
+    if (this.health <= 0) this.eliminate(from, "knocked");
   }
 
-  /** a squad mate still standing (up and not down) */
+  /** a squad mate still standing */
   protected squadUp(): boolean {
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && r.alive && !r.downed) return true;
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.friendly(r.id) && r.alive) return true;
     return false;
-  }
-
-  /** a player down goes out with their squad when it has nobody up (squads of friends; with one side the match ends instead) */
-  protected wipesWithSquad(): boolean {
-    return false;
-  }
-
-  /** down with nobody of your squad left up: out, on whoever knocked you */
-  protected outWithSquad(): void {
-    if (this.wipesWithSquad() && this.alive && this.downed && !this.squadUp()) this.eliminate(this.downBy, "finished");
-  }
-
-  /** down, not out: the bleed-out clock (90, 60, 30, then 15 s a knock), the squad told */
-  private goDown(from: number): void {
-    this.downed = true;
-    this.bleedHp = squadCfg.bleedHealth;
-    this.bleedUntil = wallClock() + Duel.BLEED[Math.min(this.knockCount, Duel.BLEED.length - 1)];
-    this.knockCount++;
-    this.downBy = from;
-    this.revivedBy = null;
-    this.onFeed?.(`${from === -1 ? "THE RING" : (this.nameOf(from) ?? "SOMEONE")} knocked ${this.myName || "YOU"}`, false);
-    this.broadcast({ t: "dnd", by: from });
-    this.onDowned?.();
-    this.onKnockSeen?.(this.id, from);
-    this.onSomeoneDown(this.id, from);
   }
 
   /** out: the elimination (the killcam, the recap, the squad told) */
-  protected eliminate(from: number, how: "knocked" | "finished" | "bled out"): void {
+  protected eliminate(from: number, _how: "knocked" | "finished"): void {
     if (!this.alive) return;
     this.alive = false;
-    this.downed = false;
-    // nobody is reviving someone who is out (it stayed set, and the next knock began "being revived"; item 8)
-    this.revivedBy = null;
     this.deaths++;
     this.onEliminated?.(from);
     const who = causeName(from) ?? this.nameOf(from) ?? "SOMEONE";
-    this.onFeed?.(how === "bled out" ? `${this.myName || "YOU"} bled out` : from === EDGE_ID ? `${this.myName || "YOU"} went OUT OF BOUNDS` : `${who} eliminated ${this.myName || "YOU"}`, false);
+    this.onFeed?.(from === EDGE_ID ? `${this.myName || "YOU"} went OUT OF BOUNDS` : `${who} eliminated ${this.myName || "YOU"}`, false);
     // this player's own count of their deaths goes with it: the restore lockout grows with it, and
     // each squad mate counted only the downs it heard, so one missed made its lockout shorter (plan 12, item 6)
     this.noteDeath(this.id);
     this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp(), bn: this.boxDeaths.get(this.id)?.n });
     if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
     this.onSomeoneDown(this.id, from, this.lastHitMelee);
-  }
-
-  /** a revive of a downed squad mate: started, given up, or done (the reviver's side) */
-  sendRevive(to: number, op: "start" | "stop" | "done"): void {
-    const m: NetMsg = { t: "rev", to, op };
-    if (this.role === "host") this.links.get(to)?.send({ ...m, from: this.id });
-    else this.hostLink?.send(m);
   }
 
   /** where this player is in a battle royale's lives, for the squad (squadview.ts LIFE_WIRE); nothing while up, and nothing outside one */
@@ -1762,13 +1653,7 @@ export class Duel implements MatchLike {
     const b = this.boxDeaths.get(id);
     if (b) b.backAt = wallClock();
   }
-  /** is this player standing: alive and not down, by their own last word? null when not known */
-  memberStanding(id: number): boolean | null {
-    const r = this.remotes.get(id);
-    return r ? r.alive && !r.downed : null;
-  }
-
-  /** is this player in the match up (alive, maybe down)? null when not known */
+  /** is this player in the match up? null when not known */
   memberAlive(id: number): boolean | null {
     const r = this.remotes.get(id);
     return r ? r.alive : null;
@@ -1804,7 +1689,6 @@ export class Duel implements MatchLike {
     this.respawnPoint = at.clone();
     this.respawnOnEcho = echo;
     this.alive = true;
-    this.downed = false;
     this.health = echo ? squadCfg.echoRespawn.health : HEALTH_MAX;
     this.shield = echo ? 0 : this.shieldMax;
     this.noteBack(this.id);
@@ -1813,48 +1697,19 @@ export class Duel implements MatchLike {
     this.respawnOnEcho = false;
   }
 
-  /** the squad's messages: downs, revives, respawns, pings; loot and pods go to the subclass */
+  /** the squad's messages: respawns, pings; loot and pods go to the subclass */
   private receiveSquad(m: NetMsg, from: number, via: number): void {
     const known = this.remotes.get(from);
     if (known) known.lastHeard = wallClock();
     switch (m.t) {
-      case "dnd": {
-        if (!finite(m.by)) return;
-        const r = this.remote(from);
-        r.downed = true;
-        const by = m.by === this.id ? this.myName || "YOU" : m.by === -1 ? "THE RING" : (this.nameOf(m.by) ?? "SOMEONE");
-        this.onFeed?.(`${by} knocked ${r.name}`, m.by === this.id, m.by !== this.id);
-        this.relay(m, from);
-        this.onKnockSeen?.(from, m.by);
-        if (from < Duel.BOT_ID) this.onSomeoneDown(from, m.by);
-        this.outWithSquad();
-        break;
-      }
-      case "rev":
       case "respawn": {
         if (!finite(m.to)) return;
         if (m.to === this.id) {
-          // Only a squad mate revives or respawns you, and a respawn only brings back someone who is out:
-          // either was taken from anyone at all, an opponent's included (plan section 12, item 7).
-          if (!this.friendly(from)) return;
-          if (m.t === "respawn" && !this.canBeRespawned()) return;
-          if (m.t === "rev") {
-            if (m.op === "done" && this.downed && this.alive) {
-              this.downed = false;
-              this.health = Duel.REVIVE_HEALTH;
-              this.revivedBy = null;
-              this.onRevived?.(from);
-              this.onFeed?.(`${this.nameOf(from) ?? "A SQUAD MATE"} revived ${this.myName || "YOU"}`, true);
-            } else if (m.op === "start") this.revivers.add(from);
-            else if (m.op === "stop") this.revivers.delete(from);
-          } else if (vec3(m.at)) this.respawnHere(new THREE.Vector3(...m.at), m.bx === 1);
+          // Only a squad mate respawns you, and only when you are out: it was taken from anyone at all, an
+          // opponent's included (plan section 12, item 7).
+          if (!this.friendly(from) || !this.canBeRespawned()) return;
+          if (vec3(m.at)) this.respawnHere(new THREE.Vector3(...m.at), m.bx === 1);
         } else if (this.role === "host") this.links.get(m.to)?.send({ ...m, from });
-        else if (m.t === "rev" && m.op === "done" && m.to >= Duel.BOT_ID) {
-          // a bot picked up by its squad (the host's bots): the feed says so here too
-          const r = this.remotes.get(m.to);
-          if (r) r.downed = false;
-          this.onFeed?.(`${this.nameOf(from) ?? "A BOT"} revived ${this.nameOf(m.to) ?? "A BOT"}`, false, false);
-        }
         break;
       }
       case "mark":
@@ -2018,8 +1873,6 @@ export class Duel implements MatchLike {
       }
     }
 
-    // down too long: bled out
-    if (this.downed && this.alive && now >= this.bleedUntil) this.eliminate(this.downBy, "bled out");
     if (this.ended) return;
 
     // host: advance the rounds (a battle royale drives its own phases after the drop)
@@ -2067,7 +1920,6 @@ export class Duel implements MatchLike {
         st: stanceCode(local.stance),
         sp: Math.round(local.speed * 10),
         shm: this.shieldMax,
-        dn: this.downed ? (this.kdUp ? 2 : 1) : 0,
         ad: local.ads ? Math.round(local.ads * 10) : undefined,
         ac: local.act || undefined,
         dj: local.airJumps ? local.airJumps & 0xff : undefined,

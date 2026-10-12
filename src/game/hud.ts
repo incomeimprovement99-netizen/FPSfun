@@ -281,18 +281,10 @@ export interface HudState {
   mantleCue?: boolean;
   /** the guided tour's step, or its finish card */
   tour?: TourHud | null;
-  /** a hold-E action in progress (a revive, a restore): its label and 0..1 */
+  /** a hold-E action in progress (a restore at an echo): its label and 0..1 */
   brHold?: { label: string; progress: number } | null;
   /** pings in the world: an enemy (red), an item (its colour), a place (yellow) */
   markers?: Array<{ k: "enemy" | "loot" | "go"; at: THREE.Vector3; label: string; mine: boolean }> | null;
-  /** you are down: the bleed-out clock, and who is reviving you */
-  downed?: {
-    left: number;
-    revivedBy: string | null;
-    kd?: { hp: number; max: number; up: boolean; key: string } | null;
-    /** a gold knockdown shield's self-revive: the key to hold, and how far the channel has run (null while it is not) */
-    self?: { key: string; progress: number | null } | null;
-  } | null;
   /** out, watching a squad mate (or a bot): whose eyes, and first person or not */
   spectating?: { name: string; first: boolean; of?: number; at?: number } | null;
   /** voice chat: you are talking, and who else is */
@@ -751,47 +743,13 @@ export class Hud {
   }
 
   /**
-   * The squad's overlays: down (the bleed-out clock, a red edge, who is
-   * reviving you), a revive or restore hold's bar, and
-   * whose eyes you are watching through.
+   * The squad's overlays: a restore hold's bar, and whose eyes you are
+   * watching through. (Being down, its bleed-out, revives and the knockdown
+   * shield went with the knockdowns in Milestone 529.)
    */
-  private drawSquad(now: number, s: HudState, u: number): void {
+  private drawSquad(_now: number, s: HudState, u: number): void {
     const c = this.ctx;
     const cx = this.w / 2;
-    if (s.downed) {
-      const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.3, cx, this.h / 2, this.h * 0.85);
-      g.addColorStop(0, "rgba(160,0,0,0)");
-      g.addColorStop(1, `rgba(160,0,0,${0.45 + 0.08 * Math.sin(now * 3)})`);
-      c.fillStyle = g;
-      c.fillRect(0, 0, this.w, this.h);
-      this.text("DOWN", cx, this.h * 0.3, 700, 52 * u, "#ff4b3e", "center");
-      this.text(s.downed.revivedBy ? `${s.downed.revivedBy} IS REVIVING YOU` : `BLEEDING OUT  ·  ${Math.ceil(s.downed.left)} S`, cx, this.h * 0.3 + 34 * u, 700, 20 * u, s.downed.revivedBy ? "#7ddc8a" : WHITE, "center");
-      this.text("CRAWL TO COVER: A SQUAD MATE CAN REVIVE YOU", cx, this.h * 0.3 + 60 * u, 600, 14 * u, DIM, "center");
-      // the knockdown shield: what it has left, and how to raise it
-      const kd = s.downed.kd;
-      if (kd) {
-        const bw = 220 * u;
-        const y = this.h * 0.3 + 76 * u;
-        c.fillStyle = "rgba(0,0,0,0.55)";
-        c.fillRect(cx - bw / 2, y, bw, 8 * u);
-        c.fillStyle = kd.hp <= 0 ? "#5a5f66" : kd.up ? "#6fd3ff" : "rgba(111,211,255,0.55)";
-        c.fillRect(cx - bw / 2, y, bw * Math.max(0, kd.hp / kd.max), 8 * u);
-        this.text(kd.hp <= 0 ? "KNOCKDOWN SHIELD BROKEN" : kd.up ? `KNOCKDOWN SHIELD UP  ·  ${Math.ceil(kd.hp)}` : `HOLD ${kd.key}: KNOCKDOWN SHIELD (${Math.ceil(kd.hp)})`, cx, y + 24 * u, 700, 13 * u, kd.hp <= 0 ? DIM : "#bfe9ff", "center");
-      }
-      // a gold shield's self-revive: the prompt, and the channel's bar while it runs
-      const self = s.downed.self;
-      if (self) {
-        const y = this.h * 0.3 + 116 * u;
-        if (self.progress !== null) {
-          const bw = 220 * u;
-          c.fillStyle = "rgba(0,0,0,0.55)";
-          c.fillRect(cx - bw / 2, y, bw, 8 * u);
-          c.fillStyle = "#ffc12e";
-          c.fillRect(cx - bw / 2, y, bw * self.progress, 8 * u);
-        }
-        this.text(self.progress !== null ? "SELF-REVIVING  ·  DO NOT GET HIT" : `HOLD ${self.key}: SELF-REVIVE (GOLD SHIELD)`, cx, y + 24 * u, 700, 13 * u, "#ffd27a", "center");
-      }
-    }
     if (s.brHold) {
       const bw = 300 * u;
       const y = this.h * 0.58;
@@ -2361,12 +2319,12 @@ export class Hud {
       const ghost = row?.life === "ghost";
       if (!m.alive && !ghost) continue;
       if (!row) {
-        dot(m.x, m.z, 5, m.downed ? "#ff4b3e" : "#3ddc84");
+        dot(m.x, m.z, 5, "#3ddc84");
         c.stroke();
         continue;
       }
       c.globalAlpha = ghost ? 0.55 : 1;
-      dot(m.x, m.z, 6, m.downed ? RED : row.color);
+      dot(m.x, m.z, 6, row.color);
       c.stroke();
       upright(m.x, m.z, () => {
         c.fillStyle = "#0b0e12";

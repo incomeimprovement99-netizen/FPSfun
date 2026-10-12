@@ -1,6 +1,6 @@
 // The battle royale from the player's side: what E does where you stand (take
-// the item the prompt names, hold it to empty a loot spot, to revive a downed
-// squad mate or to bring one back at their echo, ride a jump tower), the
+// the item the prompt names, hold it to empty a loot spot or to bring a squad
+// mate back at their echo, ride a jump tower), the
 // launch pads on the roads, and pings (the middle mouse button: an enemy, an
 // item, or a place, shown to the squad).
 //
@@ -136,16 +136,14 @@ export function holdDue(now: number, downAt: number, lastAt: number): boolean {
 interface Deps {
   keyLabel: (a: Action) => string;
   notice: (text: string) => void;
-  sound: (kind: "ping" | "tower" | "pad" | "revive") => void;
+  sound: (kind: "ping" | "tower" | "pad") => void;
   /** an enemy ping, yours or a squad mate's: someone says so (announcer.ts) */
   onEnemyPing?: () => void;
   /** a restore's beam: on at a place, or off */
   beam?: (at: THREE.Vector3 | null) => void;
 }
 
-/** seconds to hold for a revive (Season 30) and at a squad mate's echo, the pads (src/config/squad.json) */
-const REVIVE_TIME = squad.reviveTime;
-const REVIVE_CONFIRM = squad.reviveConfirm;
+/** the hold at a squad mate's echo, and the pads (src/config/squad.json) */
 const ECHO = squad.echoRespawn;
 const PAD_SPEED = squad.pad.speed;
 const PAD_UP = squad.pad.up;
@@ -175,20 +173,12 @@ export function pingPickAt(dx: number, dy: number, deadzone = 40): number | null
 
 export class BrPlay {
   markers: Marker[] = [];
-  /**
-   * A revive you finished, waiting for the one you revived to say they are
-   * up: the credit (the notice, the sound) is given then, and not if
-   * they are out instead or say nothing for revive.confirm seconds. It was
-   * given the moment the hold ended, even to a revive that never happened (plan
-   * section 12, item 5).
-   */
-  private revived: { id: number; name: string; at: number } | null = null;
   /** a jump pad's throw on its way up: the push over the roof's edge, given once above `over` */
   private padCarry: { vx: number; vz: number; over: number } | null = null;
-  private hold: { kind: "revive" | "echo"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
-  /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
-  get holdKind(): "revive" | "interact" | null {
-    return this.hold ? (this.hold.kind === "revive" ? "revive" : "interact") : null;
+  private hold: { kind: "echo"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
+  /** what the player is holding interact on, for their figure (the restore at an echo), or nothing */
+  get holdKind(): "interact" | null {
+    return this.hold ? "interact" : null;
   }
   private padAt = -Infinity;
   /** the Sky Lobby's window pads, as the course engine takes them, and one player's throw on them */
@@ -359,7 +349,7 @@ export class BrPlay {
 
   /**
    * One frame: the launch pads, the walk-over sweep, then what E would do
-   * here, in order: a revive, a squad mate's echo, a jump tower, an item.
+   * here, in order: a squad mate's echo, a jump tower, an item.
    * Returns the prompt, any hold in progress and the reach list for the HUD.
    */
   update(
@@ -369,18 +359,9 @@ export class BrPlay {
     input: MoveInput,
     eye: THREE.Vector3,
     fwd: THREE.Vector3,
-    ctx: { alive: boolean; downed: boolean; playing: boolean; myId: number }
+    ctx: { alive: boolean; playing: boolean; myId: number }
   ): BrPlayHud {
     const out: BrPlayHud = { prompt: null, hold: null, markers: [], reach: { rows: [], pick: -1, cycleKey: "" } };
-    // a revive you finished: credited once they say they are up
-    if (this.revived) {
-      const up = match.memberStanding(this.revived.id);
-      if (up) {
-        this.deps.notice(`${this.revived.name} IS BACK UP`);
-        this.deps.sound("revive");
-        this.revived = null;
-      } else if (up === null || !match.memberAlive(this.revived.id) || now - this.revived.at > REVIVE_CONFIRM) this.revived = null;
-    }
     this.markers = this.markers.filter((m) => now < m.until);
     for (const m of this.markers) {
       // an enemy ping follows its figure
@@ -391,7 +372,7 @@ export class BrPlay {
       out.markers.push({ k: m.k, at: m.at.clone().setY(m.at.y + (m.k === "enemy" ? 2.2 : 0.4)), label: m.label, mine: m.from === ctx.myId });
     }
     if (!ctx.alive || !ctx.playing) {
-      this.cancelHold(match);
+      this.cancelHold();
       this.stopTaking();
       this.publish(out.reach);
       this.out = out;
@@ -412,9 +393,9 @@ export class BrPlay {
       this.windowPadsOf = match.mapInfo;
       this.windowPads = match.mapInfo.pads.filter((q) => q.hold !== undefined).map((q) => ({ x: q.x, z: q.z, y: q.y ?? 0, reach: chainCfg.window.reach, up: q.up ?? 0, vx: q.dx, vz: q.dz, over: q.over ?? 0, hold: q.hold ?? 0 }));
     }
-    if (!ctx.downed && this.windowPads.length && stepPads(this.windowPads, 0, this.windowPad, player, now)) this.deps.sound("pad");
+    if (this.windowPads.length && stepPads(this.windowPads, 0, this.windowPad, player, now)) this.deps.sound("pad");
     // launch pads: step on one and be thrown along the road and up
-    if (!ctx.downed && player.onGround && now - this.padAt > 1) {
+    if (player.onGround && now - this.padAt > 1) {
       for (const pad of match.mapInfo.pads) {
         if (pad.hold !== undefined) continue;
         if (Math.hypot(p.x - pad.x, p.z - pad.z) < squad.pad.reach && Math.abs(p.y - (pad.y ?? 0)) < 0.5) {
@@ -429,26 +410,11 @@ export class BrPlay {
         }
       }
     }
-    if (ctx.downed) {
-      this.cancelHold(match);
-      this.stopTaking();
-      this.publish(out.reach);
-      this.out = out;
-      return out;
-    }
     const carry = this.carrying?.() ?? null;
     const key = this.deps.keyLabel("interact");
     const holdingE = input.held("interact");
-    // a revive: a downed squad mate within reach
-    const mate = match.downedMateNear(p, squad.reviveReach);
-    const echo = mate ? null : this.echoHere(match, p, eye, fwd, now);
-    if (mate) {
-      out.prompt = { key: `HOLD ${key}`, text: `REVIVE ${mate.name}` };
-      this.runHold("revive", mate.id, `REVIVING ${mate.name}`, REVIVE_TIME, holdingE, now, match, () => {
-        match.sendRevive(mate.id, "done");
-        this.revived = { id: mate.id, name: mate.name, at: now };
-      });
-    } else if (echo) {
+    const echo = this.echoHere(match, p, eye, fwd, now);
+    if (echo) {
       // a dead squad mate's echo, where they fell: a hold brings them back on it
       const owner = echo.item.owner!;
       const name = echo.item.ownerName ?? "A SQUAD MATE";
@@ -467,7 +433,7 @@ export class BrPlay {
       if (holdingE && lock <= 0) {
         const at = echo.pos.clone();
         const fresh = !this.hold || this.hold.kind !== "echo";
-        this.runHold("echo", owner, sk ? `RESTORING ${name}${sk.near ? "" : "  ·  GHOST AWAY"}` : `BRINGING ${name} BACK`, need, true, now, match, () => {
+        this.runHold("echo", owner, sk ? `RESTORING ${name}${sk.near ? "" : "  ·  GHOST AWAY"}` : `BRINGING ${name} BACK`, need, true, now, () => {
           match.sendRespawn(owner, at, true);
           this.deps.notice(`${name} IS BACK`);
           this.deps.beam?.(null);
@@ -475,9 +441,9 @@ export class BrPlay {
           this.echoDone = { owner, at: now };
         }, rate);
         if (fresh && this.hold?.kind === "echo") this.deps.beam?.(at);
-      } else this.cancelHold(match);
+      } else this.cancelHold();
     } else {
-      this.cancelHold(match);
+      this.cancelHold();
       // on the tower's own floor: the Mast's balloon is on its roof, not in the hall 28 m under it
       // a door you look at, unless there is loot under the crosshair (that is what you meant)
       const aimedLoot = match.lootField?.nearest(eye, fwd) ?? null;
@@ -499,7 +465,7 @@ export class BrPlay {
       } else this.stopTaking();
     }
     if (this.hold) out.hold = { label: this.hold.label, progress: Math.min(1, this.hold.filled / this.hold.need) };
-    // the key belonged to a revive, an echo or a tower this frame, or there
+    // the key belonged to an echo or a tower this frame, or there
     // is nothing at your feet: either way any hold at a spot is over
     if (!out.reach.rows.length) this.stopTaking();
     this.publish(out.reach);
@@ -621,15 +587,14 @@ export class BrPlay {
    * can change as it goes (SpeedKills' restore, a third as fast while the
    * ghost is away from you).
    */
-  private runHold(kind: "revive" | "echo", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
+  private runHold(kind: "echo", target: number, label: string, need: number, holding: boolean, now: number, done: () => void, rate = 1): void {
     if (!holding) {
-      this.cancelHold(match);
+      this.cancelHold();
       return;
     }
     if (!this.hold || this.hold.kind !== kind || this.hold.target !== target) {
-      this.cancelHold(match);
+      this.cancelHold();
       this.hold = { kind, target, label, start: now, need, filled: 0, last: now };
-      if (kind === "revive") match.sendRevive(target, "start");
     }
     this.hold.filled += Math.max(0, now - this.hold.last) * rate;
     this.hold.last = now;
@@ -640,8 +605,7 @@ export class BrPlay {
     }
   }
 
-  private cancelHold(match: BrMatch): void {
-    if (this.hold?.kind === "revive") match.sendRevive(this.hold.target, "stop");
+  private cancelHold(): void {
     if (this.hold?.kind === "echo") this.deps.beam?.(null);
     this.hold = null;
   }

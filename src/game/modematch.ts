@@ -491,7 +491,6 @@ export class ArenaMode extends Duel {
     this.health = HEALTH_MAX;
     this.shield = this.shieldMax;
     this.alive = true;
-    this.downed = false;
     this.onRespawn?.();
   }
 

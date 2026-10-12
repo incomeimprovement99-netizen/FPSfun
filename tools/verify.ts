@@ -29,7 +29,6 @@ import { skyHoursFails } from "./checks/sky-hours";
 import { pickupReachFails } from "./checks/pickup-reach";
 import { botSenseFails } from "./checks/bot-sense";
 import { viewmodelArmsFails } from "./checks/viewmodel-arms";
-import { knockdownFails } from "./checks/knockdown";
 import { arenasFails } from "./checks/arenas";
 import { reticleFails } from "./checks/reticle";
 import { progressFails } from "./checks/progress";
@@ -62,7 +61,6 @@ import { wallsFails } from "./checks/walls";
 import { figLodFails } from "./checks/figlod";
 import { renderBudgetFails } from "./checks/render-budget";
 import { introFails } from "./checks/intro";
-import { finisherFails } from "./checks/finisher";
 import { announcerFails } from "./checks/announcer";
 import { packSoundsFails } from "./checks/packsounds";
 import { brCardFails } from "./checks/brcard";
@@ -75,7 +73,7 @@ import { PROFILE } from "../src/game/game";
 import { DamageLog } from "../src/game/recap";
 import audioCfg from "../src/config/audio.json";
 import { LootField } from "../src/game/loot";
-import { Duel, moveDirOf } from "../src/game/duel";
+import { moveDirOf } from "../src/game/duel";
 import { actCode, actFromCode } from "../src/game/dummy";
 import { medalFor, roomPars } from "../src/game/course";
 import { BASIC_COURSE } from "../src/game/courses/basic";
@@ -1028,9 +1026,6 @@ console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
   eq("cleared: both slots empty, the first free is 0", lo.emptySlot, 0);
   lo.give(0, "r97");
   eq("a gun into slot 0; the next free is 1", lo.emptySlot, 1);
-  // down, not out: the bleed-out clock per knock (Season 30)
-  eq("bleed-out: 90, 60, 30, 15 s", Duel.BLEED.join(","), "90,60,30,15");
-  eq("a revive gives 20 health", Duel.REVIVE_HEALTH, 20);
 }
 
 console.log("");
@@ -1167,8 +1162,6 @@ console.log("Control (src/game/modes.ts, src/config/modes.json control; RESEARCH
 console.log("");
 console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mechanics.json, RESEARCH_PHASE_12 section 2)");
 {
-  eq("the knockdown shield by EVO level", squadJson.kdShield.hp.join(" "), "200 450 750");
-  near("behind it you crawl 45% slower", 1 - squadJson.kdShield.crawlScale, 0.45, 1e-9);
   eq("brought back at an echo: a 7 s hold, back at 20 health", [squadJson.echoRespawn.time, squadJson.echoRespawn.health].join(" "), "7 20");
   eq("the lockout grows with each death (ours), reset after 3 minutes alive", `${squadJson.echoRespawn.lockout.join(" ")} / ${squadJson.echoRespawn.resetAfter}`, "30 60 120 / 180");
 }
@@ -1330,7 +1323,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + knockdownFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + finisherFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

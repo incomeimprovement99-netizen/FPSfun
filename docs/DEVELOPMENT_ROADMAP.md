@@ -11389,6 +11389,32 @@ buildNeonMap(scene) : buildBrMap(scene)`), which since Milestone 520 is none. It
 - About 9,500 lines out (the kit's models among them), 70 in.
 - **Checked:** tsc; verify; rules; e2e page, range, brsolo, squad and speedkills.
 
+## Milestone 529 — The knockdowns out: downs, bleed-outs, revives, the knockdown shield and finishers
+
+SpeedKills has no knockdowns: at zero health you are out, to the Gulag and then a ghost (`noKnocks = IS_SK`, so the
+battle royale never called its down). Everything that only a knock used went:
+
+- **The player:** Duel's down state (downed, the bleed-out and its clock, the knock count, who knocked you, who is
+  reviving you), the knock and revive messages ("dnd", "rev") and the state packet's `dn`, the crawl and its input,
+  the down overlay on the HUD, a squad mate's revive hold and its confirm (brplay.ts), and the emote, fire, aim and
+  melee guards on being down.
+- **The knockdown shield:** kit.ts (the last of it), items.json, squad.json's kdShield and crawl, the pane in front of
+  you, its arc and its self-revive.
+- **Finishers:** finisher.ts, the hold and the camera that went round you, its prompt and its test hook. finisher.json
+  stays while the figure's finisher act reads it (the character agent's to retire).
+- **The bots:** a squad's bot knocked with a mate up, its crawl, its bleed-out and its revive by a mate, and what a
+  downed target counted for in their sight; a bot at zero health is out.
+- **A fix it brought:** a human shot to zero in a squad match was marked and called KNOCKED DOWN until their own "down"
+  came back, though they were already out. Zero health is the kill now.
+- **The e2e:** the gulag test read the match 400 ms after its start, which takes 1.6 s even on a quiet machine (the
+  committed code measured the same), and the section ended there under load; it waits for the match now. The HAEFY
+  check of a bot's own rocket failed twice at 91% CPU with both rockets flying 165 m and passed alone; it reports the
+  bot's state now, so a failure says why.
+- **Kept:** the figure's API (its downed stance, crawl and finisher poses, setKnockShield) for the character agent to
+  retire, and the squad view's `downed` fact, which the match sends as false.
+- About 1,300 lines out, 150 in.
+- **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate, speedkills, gulag and sksquad.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

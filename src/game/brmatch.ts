@@ -21,8 +21,7 @@
 // The match rules that are not the ring's live in src/config/br.json:
 //
 //   the squad size   solo, duos or trios, the host's for everyone (the
-//                    welcome carries it). It decides whether a knock is a
-//                    down or an elimination, how long the bleed-out is, and
+//                    welcome carries it). It decides who is on your side and
 //                    how the bots are grouped, so a solo match is a lobby of
 //                    singles rather than a trio match with gaps in it. The
 //                    humans are always one side whatever the size: it is
@@ -168,11 +167,9 @@ export interface TeamMode {
   /** the bot counts the lobby offers in this size, each a whole number of bot squads */
   bots: readonly number[];
   defaultBots: number;
-  /** what the bleed-out clock is multiplied by (0 = no downs at all) */
-  bleed: number;
 }
 
-// SpeedKills' own sizes: up to 30 in a match, and no knockdowns (bleed 0)
+// SpeedKills' own sizes: up to 30 in a match
 export const TEAMS: readonly TeamMode[] = IS_SK && PROFILE.match.teams ? PROFILE.match.teams : brCfg.teams;
 
 /** the size a lobby or a welcome packet names, and the default when it names none we know */
@@ -283,7 +280,7 @@ export interface BrHud {
   /** the care packages; `hot` is still worth contesting */
   pods: Array<{ x: number; z: number; landed: boolean; hot: boolean }>;
   /** the squad mates, for the maps: where, their name, down or out */
-  mates: Array<{ id: number; x: number; z: number; name: string; downed: boolean; alive: boolean }>;
+  mates: Array<{ id: number; x: number; z: number; name: string; alive: boolean }>;
   /** the Gulag, while you are in it or on your way: the phase, its clock, your opponent, and the flag's two counts in overtime */
   gulag: { phase: string; clock: number; opponent: string; capMe: number; capThem: number; capture: number } | null;
 }
@@ -301,8 +298,6 @@ interface BrSnap {
     as: boolean;
     al: boolean;
     k: BotKit;
-    dn: [number, number] | null;
-    rv: number;
     dt: [number, number];
   }>;
   ps: number;
@@ -323,9 +318,8 @@ function readBrSnap(v: unknown): BrSnap | null {
     const k = x.k as Record<string, unknown> | null;
     return num(x.i) && x.i >= 0 && x.i < 64 && num(x.t) && num(x.tm) && num(x.sl) && num(x.n) && num(x.g) && numOrNull(x.ar) && typeof x.as === "boolean" && typeof x.al === "boolean"
       && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.armor)
-      && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
       && Array.isArray(x.dt) && x.dt.length === 2 && x.dt.every(num);
-  }).map((r) => ({ ...r, ar: r.ar ?? null, dn: r.dn ?? null }));
+  }).map((r) => ({ ...r, ar: r.ar ?? null }));
   const pairs = (Array.isArray(o.pl) ? o.pl : []).filter((r): r is [number, number] => Array.isArray(r) && r.length === 2 && r.every(num));
   return {
     b,
@@ -355,10 +349,6 @@ interface BrBot {
   jumpAt: number;
   /** where it came down (the tests: a glide lands on its place) */
   landedAt?: { x: number; z: number };
-  /** down, not out (duos and trios): who knocked it, and the seconds of bleed-out left */
-  down: { by: number; bleed: number } | null;
-  /** its revive of a downed squad mate so far, s (0 while it is not reviving) */
-  reviving: number;
   /** the route's next step is a rope to here (br.ts node ropes): the bot rides rather than walks it */
   ropeTo?: { x: number; z: number } | null;
   /** the care packages it has been to once they were down (podToContest): contested, and not walked back to */
@@ -646,7 +636,7 @@ export class BrMatch extends Duel {
         const node = this.nearestNode(spawn.x, spawn.z);
         // it comes down from the sky, so it lands somewhere with no roof over it
         const dropTo = openGround(spawn.x, spawn.z);
-        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity, down: null, reviving: 0 });
+        this.bots.push({ bot, node, goal: node, armedAt: Infinity, landed: false, team: squad, slot: i % this.team.size, dropTo, jumpAt: Infinity });
       }
       this.ring = new Ring(start, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases, this.decayCircle ?? undefined);
       this.view = { phase: 0, state: "waiting", timeLeft: this.phases[0].wait, current: { ...this.ring.current }, next: { ...this.ring.next } };
@@ -758,11 +748,11 @@ export class BrMatch extends Duel {
       r.shield -= toShield;
       r.health = Math.max(0, r.health - (d - toShield));
     }
-    // the other bots, its own squad excepted: a frag that knocked the two it
+    // the other bots, its own squad excepted: a frag that killed the two it
     // landed with turned every bot trio into a suicide pact
     for (const o of this.bots) {
       if (o === thrower || o.team === thrower.team || !o.bot.alive || o.bot.dropping) continue;
-      const d = hurts(o.bot.pos, !!o.down);
+      const d = hurts(o.bot.pos, false);
       if (d <= 0) continue;
       o.bot.dummy.hit(now, "body", d, 1, 1, o.bot.pos.clone().setY(o.bot.pos.y + 1.2));
       o.bot.remote.health = o.bot.dummy.health;
@@ -805,9 +795,9 @@ export class BrMatch extends Duel {
     for (const b of this.bots) if (b.bot.alive) n++;
     return n;
   }
-  /** the squad still standing: up and not down (all of it down is the squad out) */
+  /** the squad still standing (one in the Gulag is not, here) */
   private get humansAlive(): number {
-    let n = this.alive && !this.downed && !this.gulag ? 1 : 0;
+    let n = this.alive && !this.gulag ? 1 : 0;
     for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && this.standing(r)) n++;
     return n;
   }
@@ -822,8 +812,8 @@ export class BrMatch extends Duel {
     if (this.role !== "host") return this.squadsSeen;
     // the humans' sides with someone up: each their own in solo, each squad when split, else one
     const up = new Set<number>();
-    if (this.alive && !this.downed) up.add(this.sideOf(this.id));
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive && !r.downed) up.add(this.sideOf(r.id));
+    if (this.alive) up.add(this.sideOf(this.id));
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive) up.add(this.sideOf(r.id));
     const mine = up.size;
     return this.botSquadsAlive + mine;
   }
@@ -1102,16 +1092,6 @@ export class BrMatch extends Duel {
     return this.map;
   }
 
-  /** a downed squad mate within reach, to revive */
-  downedMateNear(p: THREE.Vector3, reach: number): { id: number; name: string } | null {
-    for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || !r.downed) continue;
-      const g = r.avatar.group.position;
-      if (Math.hypot(g.x - p.x, g.z - p.z) <= reach && Math.abs(g.y - p.y) < 1.5) return { id: r.id, name: r.name };
-    }
-    return null;
-  }
-
   /** where care packages are and will land, for the maps */
   get podSpots(): Array<{ x: number; z: number; landed: boolean; hot: boolean }> {
     const now = wallClock();
@@ -1247,97 +1227,6 @@ export class BrMatch extends Duel {
     return causeName(by) ?? (by === this.id ? this.myName || "YOU" : (this.remotes.get(by)?.name ?? this.bots.find((x) => x.bot.remote.id === by)?.bot.remote.name ?? "SOMEONE"));
   }
 
-  /** a squad's bot can be knocked (not killed) while one of its squad still stands; in solo, and against friends in solo, a knock is the end */
-  private canKnockBot(b: BrBot): boolean {
-    return !this.noKnocks && this.team.size > 1 && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.aboard);
-  }
-
-  /**
-   * A bot of a duo or a trio knocked with a mate still up: on the floor, as
-   * a player would be. It bleeds out on the players' clock, crawls toward its
-   * squad, can be finished off, and a mate out of a fight walks over and
-   * picks it up. Before this every bot's knock was its death, so a bot squad
-   * was three solos walking together.
-   */
-  private knockBot(b: BrBot, by: number): void {
-    const bot = b.bot;
-    const r = bot.remote;
-    b.down = { by, bleed: squadCfg.bleedOut[0] * this.team.bleed };
-    bot.goDown(wallClock(), squadCfg.bleedHealth, bot.diff.speed * SQUADS.crouchWalk * squadCfg.crawl);
-    r.health = bot.dummy.health;
-    r.shield = 0;
-    r.downed = true;
-    this.onFeed?.(`${this.whoDid(by)} knocked ${r.name}`, by === this.id, by !== this.id);
-    // the bots after it turn to whoever is still up
-    for (const o of this.bots) o.bot.forget(r.id);
-    this.broadcast({ t: "dnd", from: r.id, by });
-    this.onKnockSeen?.(r.id, by);
-    if (by === this.id) this.onNotice?.(`${r.name} KNOCKED`);
-  }
-
-  /** a downed bot picked up by `by`, one of its squad */
-  private reviveBot(o: BrBot, by: BrBot): void {
-    o.down = null;
-    o.bot.standUp(squadCfg.reviveHealth);
-    o.bot.remote.health = o.bot.dummy.health;
-    o.bot.remote.shield = 0;
-    o.bot.remote.downed = false;
-    this.onFeed?.(`${by.bot.remote.name} revived ${o.bot.remote.name}`, false, false);
-    this.broadcast({ t: "rev", op: "done", to: o.bot.remote.id, from: by.bot.remote.id });
-  }
-
-  /**
-   * The host, each frame: a downed bot's bleed-out runs, and a standing bot
-   * with nothing in sight goes to a downed mate within reach of its squad
-   * and kneels over it for the revive's 5 s. A target breaks the revive off
-   * and it starts over. The ring pushing it on keeps it from walking back for
-   * one, but not from picking up one it is already beside.
-   */
-  private botCare(b: BrBot, sense: BotSense, dt: number): void {
-    const bot = b.bot;
-    bot.kneel = false;
-    if (b.down) {
-      b.down.bleed -= dt;
-      if (b.down.bleed <= 0) this.finishDowned(b);
-      return;
-    }
-    if (!bot.alive || bot.dropping || this.team.size < 2 || sense.target) {
-      b.reviving = 0;
-      return;
-    }
-    let mate: BrBot | null = null;
-    let best: number = SQUADS.reviveRange;
-    for (const o of this.bots) {
-      if (o === b || o.team !== b.team || !o.down) continue;
-      const d = o.bot.pos.distanceTo(bot.pos);
-      if (d < best) {
-        best = d;
-        mate = o;
-      }
-    }
-    if (!mate) {
-      b.reviving = 0;
-      return;
-    }
-    if (best > squadCfg.reviveReach * 0.8) {
-      if (sense.urgent) {
-        b.reviving = 0;
-        return;
-      }
-      sense.goal = mate.bot.pos.clone();
-      b.reviving = 0;
-      return;
-    }
-    sense.goal = null;
-    bot.kneel = true;
-    b.reviving += dt;
-    if (b.reviving >= squadCfg.reviveTime) {
-      b.reviving = 0;
-      bot.kneel = false;
-      this.reviveBot(mate, b);
-    }
-  }
-
   /**
    * The traversal, taken as a player passing by would take it. A bot that
    * steps onto a launch pad is thrown by it; a bot out of a fight standing at
@@ -1351,7 +1240,7 @@ export class BrMatch extends Duel {
     // A squad goes as one: its first bot takes a pad or a rope where it will,
     // and the others only toward it (a follower thrown down the road away from
     // its squad split it, and the squads' test caught it).
-    const lead = this.team.size > 1 ? this.bots.filter((o) => o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping).reduce<BrBot | null>((a, o) => (!a || o.slot < a.slot ? o : a), null) : null;
+    const lead = this.team.size > 1 ? this.bots.filter((o) => o.team === b.team && o.bot.alive && !o.bot.dropping).reduce<BrBot | null>((a, o) => (!a || o.slot < a.slot ? o : a), null) : null;
     const follower = !!lead && lead !== b;
     const P = squadCfg.pad;
     for (const p of this.map.pads) {
@@ -1405,7 +1294,7 @@ export class BrMatch extends Duel {
     }
     if (sense.target || !sense.goal) return;
     // a rope is a choice: a lead takes one only with its squad about it
-    if (lead === b && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping && o.bot.pos.distanceTo(bot.pos) > SQUADS.follow)) return;
+    if (lead === b && this.bots.some((o) => o !== b && o.team === b.team && o.bot.alive && !o.bot.dropping && o.bot.pos.distanceTo(bot.pos) > SQUADS.follow)) return;
     // a follower heads for its lead
     const goal = follower && lead ? lead.bot.pos : sense.goal;
     const here = Math.hypot(goal.x - bot.pos.x, goal.z - bot.pos.z);
@@ -1425,27 +1314,10 @@ export class BrMatch extends Duel {
     }
   }
 
-  /** a downed bot's end without a last shot (bled out, or its squad gone): on its knocker */
-  private finishDowned(b: BrBot): void {
-    const by = b.down?.by ?? -1;
-    b.bot.dummy.fallDown();
-    this.botDown(b, by);
-  }
-
-  /** a bot went down, knocked by `by` (a human id, a bot id, or -1 for the ring) */
+  /** a bot out, by `by` (a human id, a bot id, or -1 for the ring): at zero health it is out, there being no knocks */
   private botDown(b: BrBot, by: number): void {
-    // (SpeedKills has no knockdowns: canKnockBot says no, and a bot at zero health is out)
     const r = b.bot.remote;
     if (!r.alive) return;
-    if (!b.down && this.canKnockBot(b)) {
-      this.knockBot(b, by);
-      return;
-    }
-    b.down = null;
-    b.reviving = 0;
-    b.bot.downedAt = null;
-    b.bot.kneel = false;
-    r.downed = false;
     r.alive = false;
     const mine = by === this.id;
     if (mine) this.kills++;
@@ -1462,8 +1334,6 @@ export class BrMatch extends Duel {
     for (const o of this.bots) o.bot.forget(r.id);
     this.broadcast({ t: "down", from: r.id, by });
     this.onKnockSeen?.(r.id, by);
-    // nobody of its squad left standing: its downed are finished with it, as a squad of players is
-    if (this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive && !o.down)) for (const o of this.bots) if (o.team === b.team && o.down) this.finishDowned(o);
     const left = this.aliveCount;
     // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one)
     const wiped = this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive);
@@ -1497,8 +1367,8 @@ export class BrMatch extends Duel {
   }
 
 
-  /** out (a solo knock, a finish, a bleed-out): the Gulag decided here, before the squad's end is judged */
-  protected override eliminate(from: number, how: "knocked" | "finished" | "bled out"): void {
+  /** out (shot down, or the Gulag lost): the Gulag decided here, before the squad's end is judged */
+  protected override eliminate(from: number, how: "knocked" | "finished"): void {
     if (!this.alive) return;
     // A death in the Gulag is the end of a trip the match has already counted:
     // the first death went out, dropped its box and made its feed line. So
@@ -1510,7 +1380,6 @@ export class BrMatch extends Duel {
       this.gulag.lost(wallClock());
       this.diedInGulag = true;
       this.alive = false;
-      this.downed = false;
       this.onFeed?.(`${this.gulagBot?.remote.name ?? "THE GULAG"} won the Gulag against ${this.myName || "YOU"}`, false);
       this.onEliminated?.(from);
       this.leaveGulag(false);
@@ -1661,7 +1530,6 @@ export class BrMatch extends Duel {
     bot.remote.name = name;
     this.gulagBot = bot;
     this.alive = true;
-    this.downed = false;
     this.health = HEALTH_MAX;
     this.gulagEntry = { x: mine.x, z: mine.z, yaw: mine.yaw, guns: g.guns };
     this.onRespawn?.();
@@ -1684,7 +1552,7 @@ export class BrMatch extends Duel {
     if (!won || !g) return;
     const mates: THREE.Vector3[] = [];
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || r.downed || this.gulagIds.has(r.id)) continue;
+      if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || this.gulagIds.has(r.id)) continue;
       const s = r.samples[r.samples.length - 1];
       if (s) mates.push(new THREE.Vector3(s.x, 0, s.z));
     }
@@ -1743,8 +1611,7 @@ export class BrMatch extends Duel {
 
   /**
    * What only the host has, for the heir: each bot's tier, squad, waypoints,
-   * kit, whether it is up, down (who knocked it, the bleed-out left); the
-   * care packages called; the placings; and the loot
+   * kit, whether it is up; the care packages called; the placings; and the loot
    * field's next key. The ring is not in it: every browser draws its plan
    * from the seed, and a guest's view says where along it the ring is.
    */
@@ -1762,8 +1629,6 @@ export class BrMatch extends Duel {
         as: !!b.armedShown,
         al: b.bot.alive,
         k: { ...b.bot.lootKit },
-        dn: b.down ? [b.down.by, b.down.bleed] : null,
-        rv: b.reviving,
         dt: [b.dropTo.x, b.dropTo.z],
       })),
       ps: this.podSeq,
@@ -1777,8 +1642,7 @@ export class BrMatch extends Duel {
    * The heir, now the host: the ring from its seeded plan where this page
    * last saw it, and each bot made again where this page last saw its figure
    * (which then gives way to it, so nothing jumps), with its kit, its health
-   * and whatever it was in the middle of: down and bleeding, or waiting to
-   * redeploy. Then the packages, the placings and the
+   * and whatever it was in the middle of. Then the packages, the placings and the
    * loot keys as the host had them.
    */
   protected override restoreAsHost(now: number, _oldHost: number, mode: unknown): void {
@@ -1798,7 +1662,7 @@ export class BrMatch extends Duel {
       if (last) bot.pos.y = last.y;
       bot.restoreKit(row.k);
       if (!this.startLoot || row.as) bot.dummy.setGunVisible(true);
-      const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity, down: null, reviving: row.rv };
+      const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity };
       if (r) {
         bot.dummy.health = r.health;
         bot.dummy.shield = Math.min(r.shield, bot.dummy.shieldMax);
@@ -1809,9 +1673,6 @@ export class BrMatch extends Duel {
       if (!row.al) {
         bot.dummy.fallDown(false);
         bot.remote.alive = false;
-      } else if (row.dn) {
-        bot.goDown(now, r?.health ?? squadCfg.bleedHealth, bot.diff.speed * SQUADS.crouchWalk * squadCfg.crawl);
-        b.down = { by: row.dn[0], bleed: row.dn[1] };
       }
       this.bots.push(b);
       this.dropFigure(id);
@@ -1831,7 +1692,7 @@ export class BrMatch extends Duel {
 
   // ------------------------------------------------------------ the squad
 
-  /** solo: there is nobody to pick you up, so a knock is an elimination */
+  /** a squad mate still standing (a ghost waits for one): never in solo, nor from the Gulag */
   protected override squadUp(): boolean {
     if (this.gulag) return false;
     if (this.team.size <= 1) return false;
@@ -1840,14 +1701,13 @@ export class BrMatch extends Duel {
   }
 
   /**
-   * Up in the match: alive, not down, and not in the Gulag. A player in the
-   * Gulag's room is alive there, and was counted up by their squad: a knock
-   * with only them left went down to bleed out with nobody who could come
-   * (plan section 12, item 2). Their squad is still not out while they are in
-   * it, which the side's own count keeps (sideOut, gulagIds).
+   * Up in the match: alive, and not in the Gulag. A player in the Gulag's
+   * room is alive there, but nobody here can be helped by them (plan section
+   * 12, item 2). Their squad is still not out while they are in it, which the
+   * side's own count keeps (sideOut, gulagIds).
    */
-  private standing(r: { id: number; alive: boolean; downed: boolean }): boolean {
-    return r.alive && !r.downed && !this.gulagIds.has(r.id);
+  private standing(r: { id: number; alive: boolean }): boolean {
+    return r.alive && !this.gulagIds.has(r.id);
   }
 
   /** a squad of bots wiped out, the last of it by anyone (announcer.ts) */
@@ -1921,9 +1781,9 @@ export class BrMatch extends Duel {
     const humans = [this.id, ...[...this.remotes.values()].filter((r) => r.id < Duel.BOT_ID).map((r) => r.id)];
     const up = (id: number): boolean => {
       if (this.gulagIds.has(id)) return true;
-      if (id === this.id) return this.alive && !this.downed;
+      if (id === this.id) return this.alive;
       const r = this.remotes.get(id);
-      return !!r && r.alive && !r.downed;
+      return !!r && r.alive;
     };
     const sides = [...new Set(humans.map((id) => this.sideOf(id)))];
     const standing = sides.filter((s) => humans.some((id) => this.sideOf(id) === s && up(id)));
@@ -1948,11 +1808,6 @@ export class BrMatch extends Duel {
       } else this.links.get(id)?.send({ t: "brend", won, placement });
     }
     this.brOver = true;
-  }
-
-  /** squads of friends: a player down with nobody of their squad left up is out with it */
-  protected override wipesWithSquad(): boolean {
-    return this.manySides;
   }
 
   /** a squad mate gone (left, or silent): with nobody of the squad still up, it is over */
@@ -1980,17 +1835,9 @@ export class BrMatch extends Duel {
     return solo ? `You placed #${p} of ${this.squadsTotal}.` : `The squad placed #${p} of ${this.squadsTotal} squads.`;
   }
 
-  /** a human went down (any side, this player included): the host decides whether the squad is out */
+  /** a human out (any side, this player included): the host decides whether the squad is out */
   protected override onSomeoneDown(_id: number, _by: number): void {
     for (const o of this.bots) o.bot.forget(_id);
-    // A duo has less time on the floor than a trio: only one person can ever
-    // be coming. Duel owns the bleed-out clock and has already started it by
-    // the time this runs, so the size cuts what it set rather than running a
-    // second clock beside it.
-    if (_id === this.id && this.downed && this.team.bleed > 0 && this.team.bleed < 1) {
-      const now = wallClock();
-      this.bleedUntil = now + (this.bleedUntil - now) * this.team.bleed;
-    }
     if (this.manySides) this.judgeSides();
     else if (this.role === "host" && this.sideOut) this.endBr(false);
   }
@@ -2014,13 +1861,13 @@ export class BrMatch extends Duel {
     if (!zone || this.role !== "host" || this.brOver || this.phase !== "fight") return;
     const inside = (x: number, z: number): boolean => Math.hypot(x - zone.x, z - zone.z) <= zone.r;
     const here = new Set<number>();
-    if (this.alive && !this.downed && !this.gulagIds.has(this.id) && inside(local.x, local.z)) here.add(this.sideOf(this.id));
+    if (this.alive && !this.gulagIds.has(this.id) && inside(local.x, local.z)) here.add(this.sideOf(this.id));
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !r.alive || r.downed) continue;
+      if (r.id >= Duel.BOT_ID || !r.alive) continue;
       const last = r.samples[r.samples.length - 1];
       if (last && inside(last.x, last.z)) here.add(this.sideOf(r.id));
     }
-    for (const b of this.bots) if (b.bot.alive && !b.down && !b.bot.dropping && inside(b.bot.pos.x, b.bot.pos.z)) here.add(CAPTURE_BOT + b.team);
+    for (const b of this.bots) if (b.bot.alive && !b.bot.dropping && inside(b.bot.pos.x, b.bot.pos.z)) here.add(CAPTURE_BOT + b.team);
     if (here.size !== 1) {
       // empty, or contested: nobody's meter moves
       c.holder = here.size > 1 ? -2 : -1;
@@ -2411,15 +2258,15 @@ export class BrMatch extends Duel {
     // what each is doing, for the bots' eyes: a runner is seen further out, a
     // crouched body nearer, and anyone who has just fired gives themselves away
     const firing = (id: number) => now - (this.shotAt.get(id) ?? -Infinity) < 0.5;
-    const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue; down: boolean }> = [];
+    const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue }> = [];
     // a player under INVISIBILITY is not seen by the bots until it runs out or they fire (SpeedKills)
     const unseen = (id: number) => (this.hiddenUntil.get(id) ?? -Infinity) > now && !firing(id);
-    if (this.alive && !this.gulagIds.has(this.id) && !unseen(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) }, down: this.downed });
+    if (this.alive && !this.gulagIds.has(this.id) && !unseen(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) } });
     for (const r of this.remotes.values()) {
       if (r.id >= Duel.BOT_ID || !r.alive || unseen(r.id)) continue;
       const last = r.samples[r.samples.length - 1];
       const low = !!last && (last.stance === "crouch" || last.stance === "slide");
-      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) }, down: r.downed });
+      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) } });
     }
 
     // the ship: a bot leaves it as it passes nearest the bot's place, and
@@ -2439,9 +2286,8 @@ export class BrMatch extends Duel {
       const bot = b.bot;
       const wasAlive = bot.alive;
       const sense: BotSense = bot.alive && !bot.dropping ? this.sense(b, humans) : { target: null, targetId: -1, goal: null, canShoot: false };
-      this.botCare(b, sense, dt);
       // a shut door in its way: it opens it, as anyone would
-      if (bot.alive && !b.down && !bot.dropping) {
+      if (bot.alive && !bot.dropping) {
         const door = this.map.doors.closedAt(bot.pos, doorsCfg.botReach);
         if (door) this.hostDoor(door.i, true);
         this.botTraversal(b, sense, b.ropeTo);
@@ -2490,7 +2336,7 @@ export class BrMatch extends Duel {
         if (!other || !other.bot.alive) continue;
         for (const s of shots) {
           // (a rocket's shot does nothing: its burst does, botBurst)
-          if (s.damage <= 0 || !hitsBody(s.from, s.dir, other.bot.pos, other.down ? CROUCH_TOP : BODY_TOP)) continue;
+          if (s.damage <= 0 || !hitsBody(s.from, s.dir, other.bot.pos, BODY_TOP)) continue;
           other.bot.dummy.hit(now, "body", s.damage, 1, 1, other.bot.pos.clone().setY(other.bot.pos.y + 1.2));
           other.bot.remote.health = other.bot.dummy.health;
           other.bot.remote.shield = other.bot.dummy.shield;
@@ -2533,8 +2379,7 @@ export class BrMatch extends Duel {
           op: bot.remote.avatarOp,
           name: bot.remote.name,
           ready: true,
-          st: b.down ? 7 : bot.travel?.kind === "zip" ? 6 : bot.dropping || bot.travel ? 3 : bot.crouching || bot.kneel ? 1 : 0,
-          dn: b.down ? 1 : 0,
+          st: bot.travel?.kind === "zip" ? 6 : bot.dropping || bot.travel ? 3 : bot.crouching ? 1 : 0,
           sp: bot.alive && !bot.dropping ? Math.round(bot.diff.speed * 10) : 0,
         });
       }
@@ -2542,14 +2387,8 @@ export class BrMatch extends Duel {
   }
 
   /** what a bot can see and where it should go */
-  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue; down: boolean }>): BotSense {
+  private sense(b: BrBot, humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue }>): BotSense {
     const bot = b.bot;
-    // down: no fighting, only a crawl toward the nearest of its squad still standing
-    if (b.down) {
-      let near: BrBot | null = null;
-      for (const o of this.bots) if (o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping && (!near || o.bot.pos.distanceTo(bot.pos) < near.bot.pos.distanceTo(bot.pos))) near = o;
-      return { target: null, targetId: -1, goal: near ? near.bot.pos.clone() : null, canShoot: false };
-    }
     // the nearest enemy in sight: a human, or another bot
     let target: THREE.Vector3 | null = null;
     let targetId = -1;
@@ -2557,14 +2396,13 @@ export class BrMatch extends Duel {
     // to anyone further are never cast (each is kept a moment, bots.json sight.recheck)
     const near: Array<{ d: number; feet: THREE.Vector3; id: number; cue?: SightCue }> = [];
     if (this.phase === "fight") {
-      // a downed human counts as further off: a bot turns to whoever is still up
-      for (const h of humans) near.push({ d: bot.pos.distanceTo(h.feet) * (h.down ? SQUADS.downedFar : 1), feet: h.feet, id: h.id, cue: h.cue });
+      for (const h of humans) near.push({ d: bot.pos.distanceTo(h.feet), feet: h.feet, id: h.id, cue: h.cue });
     }
     for (const o of this.bots) {
       // its own squad is not a target: in duos and trios the bots land in
       // twos and threes, and they used to shoot each other on the way down
       if (o === b || o.team === b.team || !o.bot.alive || o.bot.dropping) continue;
-      near.push({ d: bot.pos.distanceTo(o.bot.pos) * (o.down ? SQUADS.downedFar : 1), feet: o.bot.pos, id: o.bot.remote.id });
+      near.push({ d: bot.pos.distanceTo(o.bot.pos), feet: o.bot.pos, id: o.bot.remote.id });
     }
     near.sort((x, y) => x.d - y.d);
     for (const c of near) {
@@ -2574,7 +2412,7 @@ export class BrMatch extends Duel {
       break;
     }
     // A squad acts as one: what one bot sees, its mates close by go to look at.
-    const mates = this.team.size > 1 ? this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.down && !o.bot.dropping) : [];
+    const mates = this.team.size > 1 ? this.bots.filter((o) => o !== b && o.team === b.team && o.bot.alive && !o.bot.dropping) : [];
     if (target && targetId >= 0) {
       const now = wallClock();
       for (const m of mates) {
@@ -2802,7 +2640,7 @@ export class BrMatch extends Duel {
         .filter((r) => r.id < Duel.BOT_ID && this.friendly(r.id) && r.samples.length)
         .map((r) => {
           const s = r.samples[r.samples.length - 1];
-          return { id: r.id, x: s.x, z: s.z, name: r.name, downed: r.downed, alive: r.alive };
+          return { id: r.id, x: s.x, z: s.z, name: r.name, alive: r.alive };
         }),
       gulag: this.gulag ? { phase: this.gulag.phase, clock: this.gulag.clock(now), opponent: this.gulagBot?.remote.name ?? "", capMe: this.gulag.capMe, capThem: this.gulag.capThem, capture: GULAG.capture } : null,
     };

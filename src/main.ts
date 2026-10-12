@@ -57,8 +57,6 @@ import { opticInfo } from "./game/optics";
 import { opticName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, MAX_PLAYERS, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot, type Remote } from "./game/duel";
-import finCfg from "./config/finisher.json";
-import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
 import { LIFE_WIRE, SquadWatch, type MateNow } from "./game/squadview";
 import { reloadPlanOf, rifleConfig, tuneRifle } from "./game/rifle";
@@ -130,7 +128,6 @@ import squadCfg from "./config/squad.json";
 import { levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/loot";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
-import { Knockdown } from "./game/kit";
 import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
@@ -2515,12 +2512,6 @@ function isAllyFigure(a: Dummy): boolean {
   const r = duel.remoteOf(a);
   return !!r && duel.isAlly(r.id);
 }
-/** down: the move keys only, and crouched (a crawl) */
-const CRAWL_KEYS = new Set(["forward", "back", "left", "right"]);
-const crawlInput = (src: MoveInput): MoveInput => ({
-  held: (a) => a === "crouch" || (CRAWL_KEYS.has(a) && src.held(a)),
-  pressedNow: (a) => CRAWL_KEYS.has(a) && src.pressedNow(a),
-});
 const duelStatus = $("duelStatus");
 const duelHostBtn = $<HTMLButtonElement>("duelHost");
 const duelJoinBtn = $<HTMLButtonElement>("duelJoin");
@@ -3042,8 +3033,7 @@ function respawnForMatch(d: MatchLike): void {
   loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
   loadout.refillEnergy();
   holster = "out";
-  // no knockdown shield, no regen carried over from the last life
-  kd.reset();
+  // no regen carried over from the last life
   echoRegen = null;
   // land with nothing and loot: fists, no heals, no ammo. A restore at your echo starts from nothing
   // whatever the start or the game: what you had is given back below, and given onto the guns still in hand each would
@@ -3188,7 +3178,7 @@ function squadNow(d: BrMatch, now: number): HudState["squad"] {
     // a ghost is where its player is, not where its body fell
     const at = ghost && last ? new THREE.Vector3(last.x, last.y, last.z) : r.avatar.group.position.clone();
     const quietFor = d.held.has(id) ? Infinity : wall - r.lastHeard;
-    mates.push({ id, name: r.name, facts: { lf: r.life, alive: r.alive, downed: r.downed, gulag: d.inGulag(id), quietFor, gone: false }, health: r.health, healthMax: HEALTH_MAX, shield: r.shield, shieldMax: r.shieldMax, dist: last ? me.distanceTo(at) : null, talking: talking.has(r.name) });
+    mates.push({ id, name: r.name, facts: { lf: r.life, alive: r.alive, downed: false, gulag: d.inGulag(id), quietFor, gone: false }, health: r.health, healthMax: HEALTH_MAX, shield: r.shield, shieldMax: r.shieldMax, dist: last ? me.distanceTo(at) : null, talking: talking.has(r.name) });
     squadWatch.hear(id, r.name);
     figures.set(id, { r, at, ghost });
   }
@@ -3229,13 +3219,6 @@ function clearSquadRings(): void {
 
 /** brought back at your echo: the shield comes back over a few seconds */
 let echoRegen: { rate: number } | null = null;
-/** the knockdown shield (squad.json kdShield): what it has left, raised or not, and the knock it belongs to */
-// The knockdown shield (src/game/kit.ts): its size comes from your EVO level,
-// or a better one you looted, and a gold one carries a self-revive.
-const kd = new Knockdown();
-/** your bleed-out last frame while down, so the self-revive can tell a hit landed */
-let selfReviveHp = 0;
-let kdPane: THREE.Mesh | null = null;
 /** the restore beams in the world, by who is holding (your own is -1) */
 const beams = new Map<number, { obj: THREE.Mesh; until: number; hum: (() => void) | null }>();
 function setBeam(key: number, at: THREE.Vector3 | null): void {
@@ -3281,7 +3264,7 @@ let lastEmote = 0;
 function playEmote(i: number, now: number): void {
   const def = EMOTES[i];
   const d = duel;
-  if (!def || now < emoteReadyAt || !player.onGround || (d && (!d.alive || (d instanceof Duel && d.downed)))) return;
+  if (!def || now < emoteReadyAt || !player.onGround || (d && !d.alive)) return;
   emoting = { index: i, until: now + def.seconds };
   emoteReadyAt = now + def.seconds + emotesCfg.cooldown;
   lastEmote = i;
@@ -4128,7 +4111,7 @@ const brPlay = new BrPlay({
   onEnemyPing: () => announcer.say("spotted", realNow()),
   keyLabel: (a) => keyLabel(a),
   notice: (t) => hud.notice(t, gameTime, 2),
-  sound: (k) => (k === "ping" ? audio.hitTier("white") : k === "revive" ? audio.healDone() : audio.whoosh()),
+  sound: (k) => (k === "ping" ? audio.hitTier("white") : audio.whoosh()),
   beam: (at) => {
     setBeam(-1, at);
     duel?.localFx("beam", at ?? undefined, undefined, at ? 1 : 0);
@@ -4548,26 +4531,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       if (d.isFriend(victim)) announcer.say("mateDown", realNow());
     };
     damagedAt.clear();
-    // the knockdown shield: raised and facing the shot, it takes what it can
-    d.downedBlock = (amount, from) => {
-      if (!kd.up || kd.hp <= 0) return amount;
-      const at = figureById(from)?.group.position;
-      if (!at) return amount;
-      const yawR = player.yaw * DEG;
-      const fx = -Math.sin(yawR);
-      const fz = -Math.cos(yawR);
-      const dx = at.x - player.pos.x;
-      const dz = at.z - player.pos.z;
-      const dl = Math.hypot(dx, dz) || 1;
-      if ((fx * dx + fz * dz) / dl < Math.cos(squadCfg.kdShield.arc * DEG)) return amount;
-      const r = kd.absorb(amount);
-      audio.hitTier("blue");
-      if (r.broke) {
-        hud.notice("KNOCKDOWN SHIELD BROKEN", gameTime, 1.4);
-        audio.shieldBreak();
-      }
-      return r.through;
-    };
     d.onLootTaken = (it) => applyLoot(it);
     d.onMark = (k, from, at, label, target) => {
       // a squad mate's REVEAL: the same enemies shown here
@@ -4576,16 +4539,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
         return;
       }
       brPlay.addMarker(k, at, label, from, target, gameTime);
-    };
-    d.onDowned = () => {
-      hud.notice("DOWN: A SQUAD MATE CAN REVIVE YOU", gameTime, 2.5);
-      announcer.say("down", realNow());
-      audio.knock();
-    };
-    d.onRevived = () => {
-      hud.notice("REVIVED", gameTime, 1.5);
-      announcer.say("revived", realNow());
-      audio.healDone();
     };
   }
   d.streak = profile.match(kind).streak;
@@ -6186,13 +6139,6 @@ const MELEE_DAMAGE = 30;
 const MELEE_RANGE = 1.8;
 let meleeReadyAt = 0;
 let meleeHitAt = Infinity;
-/**
- * A finisher running (finisher.ts): who, since when, how much of you there
- * was when it began (a hit breaks it off), and how many blows have been heard.
- */
-let finisher: { r: Remote; at: number; vitals: number; blows: number } | null = null;
-/** finishes this match, for the tests and the recap */
-let finishesDone = 0;
 
 /**
  * SpeedKills' movement trails (trails.ts): every other player on its side's colour; a player hidden (invisible, out,
@@ -6214,65 +6160,6 @@ function stepTrails(now: number): void {
   trails.update(now, camera.position, list);
 }
 
-/** the knocked enemy you could finish from where you stand, or null */
-function finishable(): Remote | null {
-  const d = duel;
-  if (!(d instanceof Duel) || d.phase !== "fight" || !d.alive || d.downed || !player.onGround || player.aboard || finisher) return null;
-  const list: Array<{ at: THREE.Vector3; item: Remote }> = [];
-  for (const a of d.avatars) {
-    const r = d.remoteOf(a);
-    if (r && r.alive && r.downed && !d.isAlly(r.id) && a.group.visible) list.push({ at: a.group.position, item: r });
-  }
-  return finishTarget(player.pos, player.yaw, list);
-}
-
-/** start finishing `r`: you turn to them, the keys and the camera are the finisher's until it ends */
-function startFinisher(r: Remote, now: number): void {
-  const d = duel as Duel;
-  stopEmote();
-  finisher = { r, at: now, vitals: d.health + d.shield, blows: 0 };
-  player.yaw = yawToward(player.pos, r.avatar.group.position);
-  r.avatar.finishing = true;
-  meleeReadyAt = now + finCfg.seconds;
-}
-
-/** the finisher's frame: its blows heard, a hit or a lost target ending it, and at the end the kill */
-function updateFinisher(now: number): void {
-  if (!finisher) return;
-  const f = finisher;
-  const d = duel;
-  const a = f.r.avatar;
-  const end = (why: string): void => {
-    a.finishing = false;
-    finisher = null;
-    if (why) hud.notice(why, now, 1.2);
-  };
-  // gone from under you: revived, bled out, finished by someone else, or you were
-  if (!(d instanceof Duel) || !d.alive || d.downed || !f.r.alive || !f.r.downed) return end("");
-  // any damage breaks it off, as Apex's does: finishing in the open is a risk
-  if (d.health + d.shield < f.vitals - 0.5) return end("FINISHER BROKEN");
-  const t = now - f.at;
-  const n = blowsBy(t);
-  while (f.blows < n) {
-    f.blows++;
-    audio.punch(a.group.position);
-  }
-  if (t < finCfg.seconds) return;
-  // The kill, the way a bullet's hit reaches a figure: its own hit() and
-  // then the match's localHit, named a melee, so the feed, the credit and the
-  // host's bots need nothing new. Not a swing's ray: a figure on the floor
-  // has hit zones a ray from the eye can pass over, and a finisher that
-  // played to the end has to end in the kill.
-  a.finishing = false;
-  a.hit(now, "body", finCfg.damage, 1, 1, a.group.position.clone().add(new THREE.Vector3(0, 0.45, 0)));
-  d.localHit(f.r, finCfg.damage, false, "melee", player.pos.distanceTo(a.group.position));
-  hud.hitMarker(now, false, "kill");
-  if (finCfg.shieldBack && d.shieldMax > 0) d.shield = d.shieldMax;
-  finishesDone++;
-  finisher = null;
-  announcer.say("finish", realNow());
-  hud.notice(`FINISHED ${f.r.name}`, now, 1.6);
-}
 const zoomFov43 = (w: ResolvedWeapon): number => w.zoomFov43 + ((w.zoomToggleFov43 ?? w.zoomFov43) - w.zoomFov43) * zoomBlend;
 const rnd = () => Math.random();
 const tmpDir = new THREE.Vector3();
@@ -6293,7 +6180,6 @@ let shotFov: number | null = null;
 let selfFigKey = "";
 /** what your hands are doing, for your figure on the others' screens and in third person */
 function localAct(): number {
-  if (finisher) return actCode("finish");
   // a swing is short, and wins over anything else the hands were doing
   if (gameTime - swungAt < MELEE_TIME) return actCode("melee");
   const held = brPlay.holdKind;
@@ -6305,7 +6191,7 @@ function localAct(): number {
   return 0;
 }
 
-function selfFigure(now: number, dt: number, weaponId: string, op: string, look: string, show: boolean, knocked: boolean, downed: boolean): void {
+function selfFigure(now: number, dt: number, weaponId: string, op: string, look: string, show: boolean, knocked: boolean): void {
   if (!show) {
     if (selfFig) {
       selfFig.group.visible = false;
@@ -6338,7 +6224,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();
-  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
+  f.setPose({ speed: player.speed, stance: player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
   f.update(now, dt);
 }
 
@@ -6458,12 +6344,10 @@ function step(): void {
   // knocked in a 1v1: no movement, no weapon keys, until the next round
   const knockedOut = (duel !== null && !duel.alive) || (!duel && rangeCombat.on && !rangeCombat.alive);
   // down, not out (a battle royale squad): a crawl, no guns, no heals
-  const downedNow = duel instanceof Duel && duel.downed && duel.alive;
   // an empty slot (a battle royale's start): fists
   const emptyHand = loadout.active.empty;
 
-  // a finisher holds every key until it ends (it is broken off by a hit, not by a key)
-  if (input.playing && !finisher) {
+  if (input.playing) {
     // Holster. While the gun is away, fire, aim, reload or any weapon key
     // brings it back up instead of doing its usual job.
     const drawKey =
@@ -6489,12 +6373,12 @@ function step(): void {
       holster = "raising";
       holsterAt = now;
     }
-    const armed = holster === "out" && !knockedOut && !downedNow && !emptyHand;
+    const armed = holster === "out" && !knockedOut && !emptyHand;
     // Fists or the heirloom out: the fire button swings, the way the melee key
     // does. That is the empty hand of Gun Run's knife level AND the gun put
     // away on 3, where clicking used to do nothing at all.
     const handsOut = emptyHand || holster === "away";
-    if (handsOut && !downedNow && !knockedOut && !player.aboard && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
+    if (handsOut && !knockedOut && !player.aboard && input.pressedNow("fire") && now >= meleeReadyAt && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       swungAt = now;
       viewModel.melee();
@@ -6594,10 +6478,7 @@ function step(): void {
     }
     // V: melee, with the heirloom (or a fist). Apex's melee does 30 anywhere
     // it lands, at arm's length.
-    // over a knocked enemy it is a finisher instead
-    const toFinish = input.pressedNow("melee") && now >= meleeReadyAt && !downedNow ? finishable() : null;
-    if (toFinish) startFinisher(toFinish, now);
-    else if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && !downedNow && (!duel || duel.canFire)) {
+    if (input.pressedNow("melee") && now >= meleeReadyAt && !loadout.swapping && (!duel || duel.canFire)) {
       meleeReadyAt = now + MELEE_COOLDOWN;
       swungAt = now;
       viewModel.melee();
@@ -6716,7 +6597,7 @@ function step(): void {
   // be hidden: whoever has it on wears a red bar and the word AIM BOT over
   // them on every other screen, at any range, through walls.
   {
-    if (aimbot.enabled && !knockedOut && !downedNow && input.playing) {
+    if (aimbot.enabled && !knockedOut && input.playing) {
       const aim = aimbot.update({
         eye: player.eyePosition(),
         yaw: player.yaw,
@@ -6780,7 +6661,7 @@ function step(): void {
   if (SK_HEALTH) {
     const d = duel as unknown as { shield?: number; shieldMax?: number; health?: number; alive?: boolean } | null;
     const quiet = gameTime - lastHurtAt;
-    if (d && typeof d.shield === "number" && typeof d.shieldMax === "number" && typeof d.health === "number" && d.alive !== false && !(d instanceof Duel && d.downed)) {
+    if (d && typeof d.shield === "number" && typeof d.shieldMax === "number" && typeof d.health === "number" && d.alive !== false) {
       if (quiet >= SK_HEALTH.shieldDelay) d.shield = Math.min(d.shieldMax, d.shield + (d.shieldMax / SK_HEALTH.shieldFill) * dt);
       if (quiet >= SK_HEALTH.healthDelay) d.health = Math.min(SK_HEALTH.health, d.health + SK_HEALTH.healthRegen * dt);
     }
@@ -6792,17 +6673,17 @@ function step(): void {
   // interact and the movement already do): a magazine held on the spray wall
   // is a thing worth being able to ask for without a fake pad. Not while a melee swings (the owner, 2026-09-29: "WE
   // SHOULDN'T BE ABLE TO SHOOT WITH MELEEING")
-  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !finisher && gameTime - swungAt >= MELEE_TIME;
+  const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && gameTime - swungAt >= MELEE_TIME;
   // knocked in a 1v1: no aiming either
   // toggle ADS: a press goes in, the next comes out; a sprint, a swap or a holster comes out too
   if (settings.adsToggle) {
-    if (!input.playing || loadout.swapping || holster !== "out" || knockedOut || downedNow) adsLatch = false;
+    if (!input.playing || loadout.swapping || holster !== "out" || knockedOut) adsLatch = false;
     else if (input.pressedNow("ads") && !loadout.active.empty) adsLatch = !adsLatch;
     else if (input.pressedNow("sprint")) adsLatch = false;
   } else adsLatch = false;
   // a test's script aims as it fires (the trigger below), so a check can read the view aimed for real
   const adsIn = scriptInput ? scriptInput.held("ads") : settings.adsToggle ? adsLatch : input.held("ads");
-  const adsHeld = (input.playing || !!scriptInput) && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty && !downedNow && !finisher;
+  const adsHeld = (input.playing || !!scriptInput) && adsIn && !loadout.swapping && holster === "out" && (!duel || duel.alive) && !loadout.active.empty;
   // inspect: hold reload with a full magazine; anything that uses the gun ends it
   {
     const slot = loadout.active;
@@ -6830,49 +6711,8 @@ function step(): void {
   const weapon = loadout.active.weapon;
   const adsH = zoomFov43(weapon) * settings.fovScale;
   const firing = now - ws.lastShotAt < 0.25;
-  // down: the move keys only, crouched, at a crawl
-  if (downedNow && duel instanceof Duel) {
-    // a new knock: the knockdown shield at the white core's size (EVO, which sized it, went in Milestone 527)
-    kd.onKnock(duel.knockCount, 1);
-    // held fire raises it (and slows the crawl behind it)
-    kd.up = kd.hp > 0 && (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire"));
-    duel.kdUp = kd.up;
-    // A gold shield's self-revive: hold interact. A hit, a squad mate starting
-    // to revive you, or raising the shield all break the channel, and what it
-    // had run is not kept (kit.ts selfRevive). Done, you stand at the same
-    // health a squad mate's revive gives you, not more.
-    if (kd.canSelfRevive) {
-      const held = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("interact") : input.held("interact"));
-      // down, a hit lands on the bleed-out and not on health
-      const hurt = duel.bleedLeft < selfReviveHp - 1e-6;
-      const sr = kd.selfRevive(gameTime, held, hurt || duel.revivedBy !== null || kd.up);
-      if (sr.state === "done") {
-        duel.downed = false;
-        duel.health = sr.health;
-        duel.revivedBy = null;
-        hud.notice("SELF-REVIVED", gameTime, 1.5);
-        audio.healDone();
-      } else if (sr.state === "cancelled") audio.ui("error");
-    }
-    selfReviveHp = duel.bleedLeft;
-    player.healSlow = squadCfg.crawl * (kd.up ? squadCfg.kdShield.crawlScale : 1);
-  } else if (kd.up) {
-    kd.up = false;
-    if (duel instanceof Duel) duel.kdUp = false;
-  }
-  // the pane in front of you while it is up
-  if (kd.up && !kdPane) {
-    kdPane = new THREE.Mesh(new THREE.CylinderGeometry(0.75, 0.75, 0.9, 16, 1, true, -0.9, 1.8), new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.28, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, blending: THREE.AdditiveBlending }));
-    scene.add(kdPane);
-  }
-  if (kdPane) {
-    kdPane.visible = kd.up && !thirdPerson;
-    kdPane.position.set(player.pos.x, player.pos.y + 0.55, player.pos.z);
-    kdPane.rotation.y = player.yaw * DEG + Math.PI;
-  }
-  selfFig?.setKnockShield(kd.up);
   // a restore's shield: coming back a bit each frame
-  if (duel && duel.alive && !(duel instanceof Duel && duel.downed)) {
+  if (duel && duel.alive) {
     if (echoRegen && duel instanceof BrMatch) {
       duel.shield = Math.min(duel.shieldMax, duel.shield + echoRegen.rate * dt);
       if (duel.shield >= duel.shieldMax) echoRegen = null;
@@ -6935,7 +6775,7 @@ function step(): void {
   const skGhostNow = duel instanceof BrMatch && duel.ghost;
   if (duel instanceof BrMatch) edgeBounds(duel);
   // once the edge has had you, you stand where you died
-  player.update(dt, now, (knockedOut && !skGhostNow) || finisher || edge.struckAt !== null ? NO_INPUT : downedNow ? crawlInput(moveIn) : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
+  player.update(dt, now, (knockedOut && !skGhostNow) || edge.struckAt !== null ? NO_INPUT : moveIn, ws.adsFrac, weapon.adsMoveScale, firing || trigger);
   if (duel instanceof BrMatch) edgeFrame(duel, now);
   phases.lap("player");
   // a slide counts as crouched for the spread model: the cone tightens
@@ -6953,7 +6793,6 @@ function step(): void {
     audio.overheat();
     hud.notice("OVERHEATED", now, 0.8);
   }
-  if (!downedNow && player.healSlow !== 1) player.healSlow = 1;
 
   // camera from angles + soft recoil
   const off = ws.kick.offset();
@@ -7065,7 +6904,7 @@ function step(): void {
   aimYaw = player.yaw;
   aimPitch = player.pitch;
   // an emote steps your view back to watch it, whichever camera you play in
-  const third = (thirdPerson || !!emoting || !!finisher) && !watch;
+  const third = (thirdPerson || !!emoting) && !watch;
   if (third) {
     // Behind the right shoulder, looking where you look; orbiting, round the
     // figure's chest from wherever the orbit angles put it. A wall behind
@@ -7073,13 +6912,8 @@ function step(): void {
     // and the shot goes from the eye to that point, so it lands on the
     // crosshair rather than parallel to it.
     // an emote: the camera comes round in front of you to watch it
-    const orbitNow = orbiting || !!emoting || !!finisher;
-    if (finisher) {
-      // a finisher: out to the side, over both of you
-      const ease = 1 - Math.exp(-5 * dt);
-      orbitYaw += (finCfg.camera.yaw - orbitYaw) * ease;
-      orbitPitch += (finCfg.camera.pitch - orbitPitch) * ease;
-    } else if (emoting) {
+    const orbitNow = orbiting || !!emoting;
+    if (emoting) {
       const ease = 1 - Math.exp(-4 * dt);
       orbitYaw += (160 - orbitYaw) * ease;
       orbitPitch += (-6 - orbitPitch) * ease;
@@ -7098,7 +6932,7 @@ function step(): void {
       const side = Math.min(0.45, Math.max(0, solidHit(pivot, right, 0.45) - 0.1));
       pivot.addScaledVector(right, side).y += 0.1;
     }
-    let dist = orbitNow ? (finisher ? finCfg.camera.back : emoting ? emotesCfg.camera.back : 3.2) : 2.4 - 0.9 * ws.adsFrac;
+    let dist = orbitNow ? (emoting ? emotesCfg.camera.back : 3.2) : 2.4 - 0.9 * ws.adsFrac;
     const wall = solidHit(pivot, back, dist);
     if (wall < dist) dist = Math.max(0.25, wall - 0.15);
     camera.position.copy(pivot).addScaledVector(back, dist);
@@ -7288,29 +7122,22 @@ function step(): void {
         // when you last hurt them: their plate shows for a while after
         damagedAt.set(remote.id, gameTime);
       }
-      const wasDowned = remote.downed;
       duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
       stats.hits++;
       stats.damage += r.amount;
       if (r.headshot) stats.headshots++;
       const color = onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d";
-      // (a squad's bot knocked goes down with a fresh bleed-out pool, so its health says nothing)
-      const knock = wasAlive && (remote.health <= 0 || (remote.downed && !wasDowned));
-      hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || knock, now, remote);
-      // A bot's knock is its death unless it went down (a duo's or a trio's
-      // bot with a mate up), and a human's is once the hit left them out
-      // (solo, a 1v1): that is a kill, marked and heard as one. A knock a
-      // squad mate can still revive is a knock.
-      const kill = knock && (remote.id >= Duel.BOT_ID ? !remote.downed : !remote.alive || !(duel instanceof BrMatch) || duel.team.size === 1);
-      hud.hitMarker(now, r.headshot, kill ? "kill" : knock ? "knock" : "hit");
+      // at zero they are out: there are no knocks (Milestone 529). A human in a squad match was marked and called
+      // KNOCKED DOWN until their own "down" came back, though they were already out
+      const kill = wasAlive && remote.health <= 0;
+      hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || kill, now, remote);
+      hud.hitMarker(now, r.headshot, kill ? "kill" : "hit");
       if (kill) {
         killStreak = gameTime - lastKillAt <= hudCfg.killMarker.streak ? killStreak + 1 : 0;
         lastKillAt = gameTime;
         audio.eliminate(Math.min(killStreak, hudCfg.killMarker.chimeMax) * hudCfg.killMarker.chimeStep);
-      }
-      if (knock) {
-        hud.notice(kill ? "ELIMINATED" : "KNOCKED DOWN", now, 0.8);
-        announcer.say(kill ? "kill" : "knock", realNow());
+        hud.notice("ELIMINATED", now, 0.8);
+        announcer.say("kill", realNow());
         stats.knocks++;
         audio.knock();
         if (e.dummy) audio.bodyFall(e.dummy.group.position);
@@ -7346,7 +7173,6 @@ function step(): void {
   // the guided tour: its marker and the check for the step
   tourHud = !duel ? tour.update(now, tourCheck(now), input.playing && input.held("interact"), (a) => keyLabel(a as Parameters<typeof keyLabel>[0])) : null;
   impactSink = handleImpact;
-  updateFinisher(now);
   // the melee swing lands a third of the way through
   if (now >= meleeHitAt) {
     meleeHitAt = Infinity;
@@ -7468,8 +7294,8 @@ function step(): void {
     lookYaw,
     lookPitch,
     landDip: player.viewDip,
-    lowered: debugView.lowered ?? (emptyHand || downedNow || debugView.downed || (knockedOut && !killcam.active) ? 1 : lowered),
-    downed: downedNow || debugView.downed ? 1 : 0,
+    lowered: debugView.lowered ?? (emptyHand || debugView.downed || (knockedOut && !killcam.active) ? 1 : lowered),
+    downed: debugView.downed ? 1 : 0,
     inspect: debugView.inspect ?? (now - inspectAt < viewModel.inspectTime ? (now - inspectAt) / viewModel.inspectTime : undefined),
     hacks: (["mobility", "utility"] as const).flatMap((slot) => { const h = hacks.get(slot); return h ? [{ id: String(h.id), level: h.level, of: HACK.fuseLevels, slot }] : []; }),
     flourish: debugView.flourish !== null ? (debugView.flourish >= 0 ? debugView.flourish : undefined) : now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
@@ -7483,7 +7309,7 @@ function step(): void {
   // covers the half of it nearest the camera (tools/snap.ts)
   viewModel.group.visible = !snapNoGun && (killcam.active ? killcamGunReady : !third && !knockedOut && !player.dropping && !player.aboard);
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
-  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(loadouts.current), third && !killcam.active, knockedOut, downedNow);
+  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(loadouts.current), third && !killcam.active, knockedOut);
   if (!labManual)
     for (const lf of labFigs) {
       lf.f.setPose(lf.pose);
@@ -7508,7 +7334,7 @@ function step(): void {
     // started; a battle royale's starts once it has loaded, its ship waiting at its start until the card has gone
     held: show !== null && (show.stage === "load" || (show.stage === "card" && !show.br)),
     shipHeld: show !== null && show.br,
-    stance: downedNow ? "downed" : player.stance,
+    stance: player.stance,
     speed: player.speed,
     ads: ws.adsFrac,
     act: localAct(),
@@ -7520,14 +7346,14 @@ function step(): void {
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
     const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    brPlay.update(now, duel, player, scriptInput ?? input, camera.position.clone(), f, { alive: duel.alive, downed: downedNow, playing: input.playing || !!scriptInput, myId: duel.id });
+    brPlay.update(now, duel, player, scriptInput ?? input, camera.position.clone(), f, { alive: duel.alive, playing: input.playing || !!scriptInput, myId: duel.id });
   }
 
   // the killcam's recording: you and everyone else, 30 times a second
   if (duel) {
     const d = duel;
     recorder.sample(wall, () => [
-      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: downedNow ? "downed" : player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: IS_SK ? (mySoldierCode() ?? undefined) : undefined },
+      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: IS_SK ? (mySoldierCode() ?? undefined) : undefined },
       ...d.actorStates(),
     ]);
   }
@@ -7618,10 +7444,8 @@ function step(): void {
   const shown = loadout.display;
   // context prompts: a zipline in reach, or a ladder you are facing
   let prompt: { key: string; text: string } | null = null;
-  const canFinish = !finisher && input.playing ? finishable() : null;
   const ghostLine = duel instanceof BrMatch && duel.ghost ? `GHOST  ·  STAY WITH YOUR SQUAD: THEY RESTORE YOU AT YOUR ECHO  ·  ${PROFILE.life.ghostRevives - duel.restores} RESTORE${PROFILE.life.ghostRevives - duel.restores === 1 ? "" : "S"} LEFT` : null;
   if (ghostLine) prompt = { key: "", text: ghostLine };
-  else if (canFinish) prompt = { key: keyLabel("melee"), text: `FINISH ${canFinish.name}` };
   else if (duel instanceof BrMatch && brPlay.hud.prompt) prompt = brPlay.hud.prompt;
   else if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
   else if (!duel && drill.state === "idle" && drill.onPad(player.pos)) prompt = { key: keyLabel("interact"), text: "START THE FLICK DRILL" };
@@ -7746,7 +7570,6 @@ function step(): void {
     brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
     tour: tourHud,
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
-    downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
     captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
     pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), pick: pingPick } : null,
     spectating: watch ? { name: watchName || watchMate?.name || "SOMEONE", first: !!watchMate && watchMate.id < Duel.BOT_ID && spectateFirst, of: duel ? duel.spectateList().length : 1, at: watchIndex + 1 } : null,
@@ -8039,7 +7862,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     return { on: phases.on, line: phases.line, means: phases.means(), hitches: phases.hitches.slice() };
   },
   /** each thing that holds the trigger (the frame's trigger line): a check whose gun fired nothing says which */
-  triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, finisher: !!finisher, meleeing: gameTime - swungAt < MELEE_TIME, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
+  triggerWhy: () => ({ swapping: loadout.swapping, holster, canFire: !duel || duel.canFire, dropping: player.dropping, aboard: player.aboard, empty: loadout.active.empty, meleeing: gameTime - swungAt < MELEE_TIME, script: !!scriptInput, sprinting: player.sprinting, playing: input.playing }),
   setLootCard: (m: LootCardMode) => (lootCardMode = m),
   /** a gun as a beginner reads it, with its class (Phase 20 A7) */
   weaponLabel,
@@ -8092,17 +7915,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
       return { plan: d.decay, states: d.sectorStates(), held: cityDecay(d.sectorStates(), gameTime), zone: d.captureZone(), capture: { holder: d.capture.holder, held: d.capture.held, open: d.capture.open } };
     },
     setFusion: (i: number, level: number) => loadout.setFusion(i, level),
-  },
-  /** finishers (tools/e2e.ts): who could be finished now, start one as the key would, and one running */
-  finisher: {
-    target: () => finishable()?.id ?? null,
-    start: (): boolean => {
-      const r = finishable();
-      if (!r) return false;
-      startFinisher(r, gameTime);
-      return true;
-    },
-    state: () => ({ on: !!finisher, target: finisher?.r.id ?? null, act: localAct(), done: finishesDone, victimAct: finisher ? finisher.r.avatar.finishing : false }),
   },
   /** a melee swing, as the key starts one (tools/e2e.ts: kicking a door in) */
   swing: (): boolean => {
@@ -8172,8 +7984,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     impactSink({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: 6, weapon: loadout.active.id });
     return true;
   },
-  /** the knockdown shield and the regens (tools/e2e.ts) */
-  kdState: () => ({ ...kd, echo: echoRegen ? { ...echoRegen } : null }),
+  /** the regens (tools/e2e.ts) */
+  kdState: () => ({ echo: echoRegen ? { ...echoRegen } : null }),
   closeRecap: () => (recap = null),
   remoteFxLog,
   audio,
@@ -8429,8 +8241,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   progress,
   /** say quick chat line i, as the 1 to 6 keys do (tools/e2e.ts) */
   quickChat: (i: number) => sendQuick(i),
-  /** the knockdown shield (tools/e2e.ts) */
-  kd,
   brMap,
   /** the whole scene, for tools that look at what is drawn (the city's materials after the merge) */
   scene,

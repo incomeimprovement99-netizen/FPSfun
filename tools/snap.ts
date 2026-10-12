@@ -1112,30 +1112,6 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "br-downed",
-    note: "down, not out: the bleed-out clock and the crawl, a squad mate's ping on screen",
-    steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
-      [untilFightLong, 400],
-      [
-        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.brPlay.addMarker("go", new r.THREE.Vector3(s.x + 6, 0, s.z - 30), "GOING HERE", 1, -1, r.gameTime()); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
-        900,
-      ],
-    ],
-  },
-  {
-    name: "br-downed-3p",
-    note: "down, seen in third person: the figure low and bent into a crawl, not a crouch",
-    steps: [
-      [`(() => { document.getElementById("brStart").value = "loot"; document.getElementById("brBots").value = "3"; ${hideMenu}; document.getElementById("goBr").click(); document.getElementById("startMode").click(); })()`, 0],
-      [untilFightLong, 400],
-      [
-        `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, 0); d.downed = true; d.bleedUntil = performance.now() / 1000 + 71.4; r.setThirdPerson(true); r.setScript({ held: () => false, pressedNow: () => false }); })()`,
-        1400,
-      ],
-    ],
-  },
-  {
     name: "br-map-icons",
     note: "the full map: jump towers, a care package falling, pings, the rings",
     steps: [

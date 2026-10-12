@@ -575,17 +575,6 @@ export class Bot {
   /** crouched while it fires, and when it next thinks about it */
   crouching = false;
   /**
-   * Down, not out (a battle royale squad's bot): when it went down, or null.
-   * It stays hittable (its figure's health is the bleed-out pool), crawls
-   * toward the goal it is given, and does nothing else until it is picked up
-   * or finished.
-   */
-  downedAt: number | null = null;
-  /** how fast it crawls while down, m/s */
-  private crawlSpeed = 0;
-  /** on one knee over a downed squad mate: holds still, crouched */
-  kneel = false;
-  /**
    * Carried by the traversal, as a player is: thrown by a launch pad (a flight
    * under gravity until it lands), or riding a zipline from one end to the
    * other, hanging from it. It does nothing else meanwhile.
@@ -676,7 +665,6 @@ export class Bot {
       shield: SHIELD_MAX,
       shieldMax: SHIELD_MAX,
       alive: true,
-      downed: false,
       ready: true,
       lastHeard: 0,
       link: { role: "guest", send: () => undefined, close: () => undefined, onMessage: null, onClose: null },
@@ -714,8 +702,6 @@ export class Bot {
     this.heard = null;
     this.cover = null;
     this.crouching = false;
-    this.downedAt = null;
-    this.kneel = false;
     this.dodgeUntil = -Infinity;
   }
 
@@ -895,22 +881,6 @@ export class Bot {
     return !this.dummy.knocked;
   }
 
-  get downed(): boolean {
-    return this.downedAt !== null;
-  }
-
-  /** knocked with a squad mate still up: on the floor with `pool` to bleed through, crawling at `crawl` m/s */
-  goDown(now: number, pool: number, crawl: number): void {
-    this.dummy.reset();
-    this.dummy.health = pool;
-    this.dummy.shield = 0;
-    this.downedAt = now;
-    this.crawlSpeed = crawl;
-    this.crouching = false;
-    this.kneel = false;
-    this.aimSet = false;
-  }
-
   /** thrown by a launch pad: off the ground at `vel` (m/s), under gravity until it comes down */
   fling(vel: THREE.Vector3): void {
     if (this.travel || this.dropping) return;
@@ -979,36 +949,6 @@ export class Bot {
       }
     }
     this.dummy.group.position.copy(this.pos);
-    this.dummy.update(now, dt);
-  }
-
-  /** picked up: standing again with `health` and no shield */
-  standUp(health: number): void {
-    this.downedAt = null;
-    this.dummy.health = health;
-    this.dummy.shield = 0;
-  }
-
-  /** down: toward the goal (its squad) on hands and knees, stopping short of it */
-  private crawl(now: number, dt: number, goal: THREE.Vector3 | null): void {
-    let speed = 0;
-    if (goal) {
-      const dx = goal.x - this.pos.x;
-      const dz = goal.z - this.pos.z;
-      const d = Math.hypot(dx, dz);
-      if (d > 1.2) {
-        const step = Math.min(d - 1.2, this.crawlSpeed * dt);
-        const nx = this.pos.x + (dx / d) * step;
-        const nz = this.pos.z + (dz / d) * step;
-        if (!this.blocked(nx, nz)) {
-          this.pos.set(nx, this.groundAt(nx, nz), nz);
-          speed = this.crawlSpeed;
-        }
-        this.dummy.group.rotation.set(0, Math.atan2(dx, dz), 0);
-      }
-    }
-    this.dummy.group.position.copy(this.pos);
-    this.dummy.setPose({ speed, stance: "downed", pitch: 0 });
     this.dummy.update(now, dt);
   }
 
@@ -1174,10 +1114,6 @@ export class Bot {
     this.clock = now;
     if (!this.alive) {
       this.dummy.update(now, dt);
-      return [];
-    }
-    if (this.downedAt !== null) {
-      this.crawl(now, dt, sense.goal);
       return [];
     }
     if (this.travel) {
@@ -1435,7 +1371,7 @@ export class Bot {
     const moveDir = moving ? Math.atan2(want.x * -fwdZ + want.y * fwdX, want.x * fwdX + want.y * fwdZ) : 0;
     this.dummy.setPose({
       speed: moving ? this.speedNow * (this.crouching ? botsCfg.squads.crouchWalk : 1) : 0,
-      stance: this.crouching || this.kneel ? "crouch" : "stand",
+      stance: this.crouching ? "crouch" : "stand",
       pitch: aimPitch,
       moveDir,
       ads: target && this.knife === null ? 0.85 : 0,

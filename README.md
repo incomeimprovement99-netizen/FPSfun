@@ -579,9 +579,8 @@ than the arm is long (the LMGs), the support hand slides back along the gun
 until it has hold of it, rather than reaching at nothing. Their shots leave
 the end of the barrel, which is also where their muzzle flashes are.
 The legs go the way the figure moves while its body stays on its aim, and
-standing still its feet stay planted as it turns, then step round. Down,
-nobody holds a gun: figures crawl, and your view shows your hands on the
-floor. Out, the figure drops its gun and it lies by the body. Settings swaps
+standing still its feet stay planted as it turns, then step round. Out,
+the figure drops its gun and it lies by the body. Settings swaps
 the mannequin for our jointed **robots** (lighter to draw), which do all of
 the above in code, and tuck, squash, breathe and pump their arms.
 
@@ -599,7 +598,7 @@ defaults puts `binds.json` back.
 |---|---|---|---|
 | W A S D | move | Shift | sprint (press, like the game; hold in Settings). SpeedKills always sprints, whichever way you move, firing and aiming too, and has no sprint setting |
 | Space, scroll up | jump (scroll makes superjumps and bunny hops easy); off the dropship | Ctrl, C | crouch, slide (see Ctrl + W under limits; toggle in Settings); break off from the jumpmaster |
-| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a revive, a restore at an echo, skip a tour step; down with a gold knockdown shield, hold to self-revive |
+| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a restore at an echo, skip a tour step; down with a gold knockdown shield, hold to self-revive |
 | Enter, then 1 to 6 | quick chat: a line (GG, Nice shot!, Thanks!, On my way, Wait for me, Rematch?) to everyone in the match, in their kill feed | 7 | emotes: hold for the wheel (wave, cheer, over there, salute, shrug, dance), move to one and let go; a tap plays the last again. Your view steps round in front to watch, everyone sees it, and a step ends it |
 | 8 | your spray on the wall you look at (within 5 m): everyone in the match sees it, a new one replaces your last, and it fades after two minutes; pick yours in Settings | | |
 | Left mouse | fire | Right mouse | aim down sights (toggle in Settings) |
@@ -630,7 +629,7 @@ also brings the menu back). The layout is the game's **Default** preset
 | Left stick | move (auto sprint when pushed all the way, by default) | Right stick | look |
 | RT | fire | LT | aim down sights |
 | A | jump | B | crouch, slide |
-| X | reload; interact where there is a prompt (a zipline, an item); hold for a revive, a restore at an echo, a tour skip | Y | swap weapon; **hold** to holster |
+| X | reload; interact where there is a prompt (a zipline, an item); hold for a restore at an echo, a tour skip | Y | swap weapon; **hold** to holster |
 | LB | SpeedKills' mobility hack | RB | ping; **twice** for an enemy there |
 | L3 | sprint (when auto sprint is off) | R3 | melee |
 | D-pad up | nothing (the heal was there until the heal items went) | D-pad down | variable optic zoom (ours: the game has a character action there) |
@@ -918,7 +917,7 @@ damage).
 - **The battle royale's floor** (`src/game/loot.ts`, `brplay.ts`): the items
   come from a seed in the host's welcome, so every browser lays out the same
   items under the same keys; taking one is asked of the host (first come,
-  first served). Downs, revives, restores and pings are messages on
+  first served). Restores and pings are messages on
   the same links.
 - **The killcam** (`src/game/killcam.ts`) records every figure 30 times a
   second and replays the last seconds from the killer's eye. Its figures come
@@ -1018,16 +1017,15 @@ src/game/
   courses/basic.ts         The Run (Basic), seven rooms
   courses/advanced.ts      The Run (Advanced), nine rooms
   courses/chain.ts         The Chain (SpeedKills): the city's gaps and a chimney at their measured widths
-  duel.ts                  the match: rounds, scores, the circle, remotes, spectate, downs and revives
+  duel.ts                  the match: rounds, scores, the circle, remotes, spectate, respawns
   bots.ts                  the bot controller and the offline match
   br.ts                    the battle royale map's shared shape: places, sites, the bots' graph (the map is neonmap.ts)
   ring.ts                  the ring: six phases, the tick, the next circle
   brmatch.ts               the battle royale match, alone or as a squad, on the Duel
-  brplay.ts                the battle royale from your side: E, revives, restores at an echo, pads, pings
+  brplay.ts                the battle royale from your side: E, restores at an echo, pads, pings
   loot.ts                  the floor's loot: the seeded layout, rarities, labels
   modes.ts, modematch.ts   team deathmatch, free-for-all, Control: the rules and the match
   killcam.ts, recap.ts     the killcam's recording and replay; the death recap
-  kit.ts                   the legacy knockdown shield (its heals and armour went in 523 and 527)
   ammo.ts                  counted ammo and energy stockpiles
   rangetools.ts, trainer.ts  dummy behaviours, shoot-back, the spray wall, the flick drill; the superglide trainer
   readme.ts, readmetv.ts   README.md as sections and blocks; the screen at the far end, its sign and its shootable arrows
@@ -1097,8 +1095,8 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/bots.json` | the bot tiers (reaction, aim lag and error, aim point, dodging, hearing, cover, crouching), mixed's weights |
 | `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
 | `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; the L-STAR's heat and the shotguns' blast patterns |
-| `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, pads, pings, EVO's sources, knockdown shields, the restore at an echo |
-| `src/config/br.json` | the battle royale's match rules: solo, duos and trios (the bot counts each offers, the bleed-out it scales), the care package's arrival |
+| `src/config/loot.json`, `squad.json` | the battle royale's loot; pads, pings, the drop and the ship, the restore at an echo |
+| `src/config/br.json` | the battle royale's match rules: solo, duos and trios (the bot counts each offers), the care package's arrival |
 | `src/config/modes.json` | team deathmatch's score and size, free-for-all's kill limit and clock, Control's zones and numbers, the arena's spawns |
 | `src/config/net.json` | the delta state packets: on or off, their version, the rounding of position, look and health, the keyframe interval, how often an ack goes |
 | `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes, the sound's distances, and how much a wall takes off a sound it is between you and; the range's tools |
@@ -1131,7 +1129,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run verify` | 1,100+ checks: weapon data, damage, recoil, sensitivity maths, and the whole movement simulation (every movement rule against its source number), plus the modules under `tools/checks/` (the hours of the day, the ring's placement, loot tiers, the pickup reach, the bots' senses, the view model's arms, the delta state packets, audio occlusion, what the world costs to draw, the intro card), each of which also runs on its own with `npx tsx tools/checks/<name>.ts`. Must print VERIFY PASS. |
 | `npm run rehearsal` | eight pages over the real peer-to-peer path in one battle royale, four duos of friends and three of bots, played for a minute: everyone connects, lands and sees the other seven, nothing logs an error, and it reports the host's upload to each guest and how long its match update takes. Needs `npm run dev`. `PLAYERS`, `REHEARSAL_SECONDS`, `REHEARSAL_SPREAD=1` (each duo to its own place), `REHEARSAL_QUERY` (e.g. `interest=0`) |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
-| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, downs, revives, banners, pings, the care package's arrival, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, the intro card (it plays, a key takes it away, it never holds the game up, and every other page in the suite opens without it), and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. `E2E_ONLY=skpack` runs the first-person bought arms' frames alone, and `E2E_GUNS=r97,...` narrows them (and the soldier section's) to those guns, for a change to one gun's hold. `E2E_THROTTLE=6` runs every page on a sixth of the CPU, which is what a machine busy with other runs does to a page: a check that fails only in the full release run can be made to fail alone with it. The `mixed` section plays an older build against this one over the internet, both ways round and as a 1v1v1 whose host relays between the two: serve a checkout from before a change to the state packets on a second port and name it in `OLD_URL` (or the deployed site, `https://fpsfun.duckdns.org/?broker=public`), with `OLD_NET=full` if that build is from before the delta packets. |
+| `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, banners, pings, the care package's arrival, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, the intro card (it plays, a key takes it away, it never holds the game up, and every other page in the suite opens without it), and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. `E2E_ONLY=skpack` runs the first-person bought arms' frames alone, and `E2E_GUNS=r97,...` narrows them (and the soldier section's) to those guns, for a change to one gun's hold. `E2E_THROTTLE=6` runs every page on a sixth of the CPU, which is what a machine busy with other runs does to a page: a check that fails only in the full release run can be made to fail alone with it. The `mixed` section plays an older build against this one over the internet, both ways round and as a 1v1v1 whose host relays between the two: serve a checkout from before a change to the state packets on a second port and name it in `OLD_URL` (or the deployed site, `https://fpsfun.duckdns.org/?broker=public`), with `OLD_NET=full` if that build is from before the delta packets. |
 | `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the intro card, the README screen) into `shots/`; `SNAP=name,name` for some, `PARTS_DELAY=4000` holds the outfit parts back that long (a slow machine) |
 | `npm run slide-probe` | the slide and slide jump frame by frame in the simulation, as a page of curves beside the wiki's numbers |
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
