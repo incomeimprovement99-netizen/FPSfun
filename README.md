@@ -150,19 +150,20 @@ describes the retired legacy game, and goes with its code.
   between hand and gun (the e2e counts what the eye sees there, every gun); BOOG's left forearm comes up from below to its
   fore-end, the hand ahead of the magazine; ANAKIN, placed as Apex holds its Alternator
   and drawn a little smaller in your hands than on a soldier (a real hand closes round
-  it), is held under its front with the thumb along its side; PANDA, placed as Apex
-  holds its Flatline, is held on the handguard ahead of its magazine, the fingers over
-  the top; BIGANTLER, the pump shotgun, is held round the middle of its pump, which the
+  it), is held under its front where the soldier holds it in third person; PANDA, placed as Apex
+  holds its Flatline, is held under the handguard ahead of its magazine; BIGANTLER, the pump shotgun, is held round the middle of its pump, which the
   hand works after every shot, and is reloaded a shell at a time, the left hand
   pushing three up through the loading gate under the receiver, then pumping if it was
-  empty; REZ, the auto shotgun, placed as Apex holds its EVA-8, is held furthest out of
-  all, palm up under its fore-end ahead of the long magazine; CHOOCH, the LMG, is held
+  empty; REZ, the auto shotgun, placed as Apex holds its EVA-8, is held under the middle of
+  its long magazine tube; CHOOCH, the LMG, is held
   under its barrel past its drum and vents its overheat in both hands, tipped up and
   canted, rather than reloading; APUHTHEE and STRYDER, the pistols, are held out in both
   hands, the left wrapped round the right on the grip, the forefinger on the trigger; HAEFY, the launcher, sits on the
   right shoulder, aimed through the sight beside its tube, the left hand on the grip under its front, and its reload
   phases a rocket into the tube, the warhead standing out of it; and on every gun the right hand's lower three
-  fingers sit together round the grip with the forefinger's tip on the trigger; and
+  fingers sit together round the grip with the forefinger's tip on the trigger; each left forearm comes in from the
+  lower left, as Apex's do, and the inside of the arms' cut-off sleeve never shows (the e2e looks for it in every state,
+  aimed too); and
   the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,
   the other presets at 1024. On a reload the gun turns its underside toward you and
@@ -184,7 +185,7 @@ describes the retired legacy game, and goes with its code.
   up from below, palm up, with the hacks you carry floating over it, each card
   glowing and showing its level as the HUD's pips do, and near the end tosses
   them up to burn out in the air; holstered, the fists are the same bought arms
-  and gloves. A melee keeps the gun in the right hand while the left pulls back
+  and gloves, each finger curled straight into the palm and the thumb across the front. A melee keeps the gun in the right hand while the left pulls back
   beside you and punches, a fist, for 30; the gun cannot fire through it. A swap
   happens in place: the gun breaks up from its edges inward while both hands ease
   a little off it and cup round it, fingers bent, as a Hadouken is held, and the

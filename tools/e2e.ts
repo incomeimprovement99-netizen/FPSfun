@@ -1816,7 +1816,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
 /** an overheat's vent (CHOOCH's): its turn's weight mid-vent and at its ends, which clip leads mid-vent, the deepest seen
  * skin in the gun through it, mm, and the worst wrist, degrees */
 type Vent = { mid: number; ends: number; lead: string; deep: number; wrist: number };
@@ -1926,7 +1926,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // (every gun in the bought arms, fparms.json guns: a gun is added to the checks by adding it there)
   for (const id of packIds) {
     const other = allPack[(allPack.indexOf(id) + 1) % allPack.length];
-    const o = { through: {} as Record<string, number> } as Frames;
+    const o = { through: {} as Record<string, number>, inside: {} as Record<string, number> } as Frames;
     await pf(`r.debugView.inspect = -1; H.clear(); await H.hold(${JSON.stringify(id)}); window.__pf.first = H.fingers();`);
     // drawn, away, and drawn again: fitted the same (the second draw's fit had come out as no tilt), and the grip's
     // fingers the same (the clips had stopped putting still bones back, and a hold depended on the guns drawn before it)
@@ -2022,7 +2022,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     const inAt = (RL.phaseIn[0] + RL.phaseIn[1]) / 2;
     o.lead = noMag ? { out: [], into: [] } : await pf<Frames["lead"]>(`const at = async (u) => { r.debugView.reload = u; await H.gameWait(0.15); const s = r.packArms(); return [s.tipSlid, s.magSlid]; }; const out = await at(${outAt}); const into = await at(${inAt}); H.clear(); await H.gameWait(0.3); return { out, into };`);
     // the hands off the gun: the bought arms' fists
-    o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const s = r.packArms(); const f = { free: s.free, twist: [s.twistL, s.twistR], curl: [s.curlL, s.curlR], thumb: [s.thumbL, s.thumbR] }; H.clear(); await H.gameWait(0.8); return f;`);
+    o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const s = r.packArms(); const f = { free: s.free, twist: [s.twistL, s.twistR], curl: [s.curlL, s.curlR], thumb: [s.thumbL, s.thumbR], skew: [s.skewL, s.skewR] }; H.clear(); await H.gameWait(0.8); return f;`);
     // an inspect: the open left palm with the hack over it
     o.palm = await pf<{ w: number; cards: number }>(`r.debugView.inspect = 0.5; await H.gameWait(0.3); const p = { w: r.packArms().palm, cards: r.packArms().palmCards }; r.debugView.inspect = -1; await H.gameWait(0.3); return p;`);
     // the open hand's wrist and elbow on the screen (-1 to 1 across and up it), and the cards' hacks with their levels
@@ -2051,7 +2051,14 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
       ["pickup", "r.packPickupAt(0.6);"],
       ...(id === "r97" ? ([["aimed", "r.debugView.ads = 1;"]] as Array<[string, string]>) : []),
     ];
-    for (const [name, set] of states) o.through[name] = await pf<number>(`${set} await H.gameWait(0.35); const d = await H.through(); H.clear(); r.loadout.active.state.clip = r.loadout.active.weapon.clipSize; await H.gameWait(0.3); return d;`);
+    // (and the inside of a sleeve, in the same states and aimed: tools/pack-audit.js __sleeveInside, null with the arms not
+    // drawn, as behind a scope)
+    for (const [name, set] of states) {
+      const [d, s] = await pf<[number, number]>(`${set} await H.gameWait(0.35); const d = await H.through(); const s = window.__sleeveInside(); H.clear(); r.loadout.active.state.clip = r.loadout.active.weapon.clipSize; await H.gameWait(0.3); return [d, s ? s.inside : 0];`);
+      o.through[name] = d;
+      o.inside[name] = s;
+    }
+    o.inside.aimed = await pf<number>(`r.debugView.ads = 1; await H.gameWait(0.35); const s = window.__sleeveInside(); H.clear(); await H.gameWait(0.3); return s ? s.inside : 0;`);
     // the swap: the gun stays where it is while it phases out from its edges in and the next phases in from its middle
     // out (the owner, 2026-09-30: "keep the hands where they are while the weapon phases / disintegrates from the outside
     // going in ... then the new weapon should materialize from the inside out"), and the hands come a little off it and
@@ -2457,6 +2464,13 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     show((x) => ({ twist: x.fists.twist.map(Math.round), curl: x.fists.curl.map(Math.round), thumb: x.fists.thumb.map((t) => +t.toFixed(2)) })),
   );
   check(
+    // (the owner, 2026-10-11: "the fists out look obvously fucked up too lmao the fingers are all bent unnaturally": bent on
+    // along the grip's own turn, the USSO's fists' fingers curled 75 and 28 degrees off their planes, across each other)
+    "pack frames: each fist's fingers curl in their own planes, square to the knuckles' line (20 degrees off at most)",
+    g.every((x) => x.fists.skew.every((t) => t <= 20)),
+    show((x) => x.fists.skew.map(Math.round)),
+  );
+  check(
     "pack frames: on an inspect the left hand opens, palm up, with both hacks you carry over it",
     g.every((x) => x.palm.w > 0.9 && x.palm.cards === 2),
     show((x) => x.palm),
@@ -2536,6 +2550,14 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     "pack frames: no skin through the gun past touching (4 mm) where it is seen, held, pointing, the new magazine in, racking, aimed, swapping and picking up",
     g.every((x) => Object.values(x.through).every((d) => d <= 0.004)),
     show((x) => Object.fromEntries(Object.entries(x.through).map(([k, d]) => [k, Math.round(d * 1000)]))),
+  );
+  check(
+    // (the arms are cut off on the upper arm, an open sleeve: REZ's and PANDA's left hands reached so far out along the gun
+    // that the upper arm came up into the picture open end first, 3700 and 4600 pixels of its inside at rest, the owner,
+    // 2026-10-11: "the left arm is seethrough... like looks terrible"; a few pixels' edge is let through)
+    "pack frames: no inside of a sleeve seen (20 pixels of a 480 wide picture), held, pointing, the new magazine in, racking, aimed, swapping and picking up",
+    g.every((x) => Object.values(x.inside).every((n) => n <= 20)),
+    show((x) => x.inside),
   );
   check(
     // (to 5 cm since HAEFY: its grips are 4.2 cm thick, and its hands need 4.9 cm off them to clear them in the cup; at 3.9 they

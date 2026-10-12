@@ -566,3 +566,74 @@ window.__packSeenGap = (side, o) => {
   }
   return res;
 };
+
+// The inside of the bought arms where the eye sees it, pixels of a 480 wide picture (the owner, 2026-10-11, of REZ and
+// PANDA: "the left arm is seethrough... like looks terrible there"). The arms are cut off on the upper arm, an open
+// sleeve: when a hand reaches far out the upper arm comes up into the picture and the eye looks into it. Drawn with each
+// face's side told apart, the gun drawn in front: what shows of an arm's back faces is its inside.
+window.__sleeveInside = (W = 480) => {
+  const r = window.__range;
+  const T = r.THREE;
+  const R = r.renderer;
+  const root = r.viewModelRoot();
+  const cam = root.parent;
+  let scene = root;
+  while (scene.parent) scene = scene.parent;
+  let rig = null;
+  let gun = null;
+  root.traverse((o) => {
+    if (o.name === "pack-arms") rig = o;
+    if (!gun && o.userData && o.userData.paid) gun = o;
+  });
+  if (!rig || !rig.visible) return null;
+  const under = (o, a) => {
+    for (let p = o; p; p = p.parent) if (p === a) return true;
+    return false;
+  };
+  const sides = new T.MeshBasicMaterial({ side: T.DoubleSide, toneMapped: false, fog: false });
+  sides.onBeforeCompile = (sh) => {
+    sh.fragmentShader = sh.fragmentShader.replace("#include <dithering_fragment>", "#include <dithering_fragment>\n gl_FragColor = gl_FrontFacing ? vec4(0.0, 1.0, 0.0, 1.0) : vec4(1.0, 0.0, 0.0, 1.0);");
+  };
+  const black = new T.MeshBasicMaterial({ color: 0x000000, toneMapped: false, fog: false });
+  const kept = [];
+  scene.traverse((o) => {
+    if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.layers.test(cam.layers)) return;
+    kept.push([o, o.material, o.visible]);
+    if (under(o, rig)) o.material = sides;
+    else if (gun && under(o, gun) && o.isMesh) o.material = black;
+    else o.visible = false;
+  });
+  const H = Math.round((W * innerHeight) / innerWidth);
+  const rt = new T.WebGLRenderTarget(W, H);
+  const buf = new Uint8Array(W * H * 4);
+  const bg = scene.background;
+  const was = R.getRenderTarget();
+  const cc = R.getClearColor(new T.Color());
+  const ca = R.getClearAlpha();
+  try {
+    scene.background = null;
+    R.setRenderTarget(rt);
+    R.setClearColor(0x0000ff, 1);
+    R.clear(true, true, true);
+    R.render(scene, cam);
+    R.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+  } finally {
+    R.setRenderTarget(was);
+    R.setClearColor(cc, ca);
+    scene.background = bg;
+    for (const [o, m, v] of kept) {
+      o.material = m;
+      o.visible = v;
+    }
+    rt.dispose();
+    sides.dispose();
+    black.dispose();
+  }
+  let inside = 0;
+  let outside = 0;
+  for (let i = 0; i < W * H * 4; i += 4) {
+    if (buf[i] > 128 && buf[i + 1] < 100) inside++;
+    else if (buf[i + 1] > 128 && buf[i] < 100) outside++;
+  }
+  return { inside, outside };
+};

@@ -223,10 +223,13 @@ async function wrists(page: Page, id: string, name: string): Promise<void> {
     await page.evaluate(`(() => { const r = window.__range; r.debugView.ads = null; r.debugView.reload = null; ${js} })()`);
     await wait(700);
   };
-  const read = async (): Promise<{ l: number; r: number; short: number; cover: number }> => {
+  // (and the inside of a sleeve seen, tools/pack-audit.js __sleeveInside: REZ's and PANDA's left shoulders, placed for
+  // their wrists alone, brought the cut-off upper arm up into the picture open end first)
+  const read = async (): Promise<{ l: number; r: number; short: number; cover: number; inside: number }> => {
     const s = (await page.evaluate("window.__range.packArms()")) as { wristL: number; wristR: number; reachShort: number; reachShortR: number };
     const cover = (await page.evaluate("window.__armCover()")) as number;
-    return { l: s.wristL, r: s.wristR, short: Math.max(s.reachShort, s.reachShortR), cover };
+    const inside = (await page.evaluate("window.__sleeveInside()?.inside ?? 0")) as number;
+    return { l: s.wristL, r: s.wristR, short: Math.max(s.reachShort, s.reachShortR), cover, inside };
   };
   for (const [label, js, keysOf] of [
     ["rest", "", ["l", "r"]],
@@ -241,7 +244,7 @@ async function wrists(page: Page, id: string, name: string): Promise<void> {
       await page.evaluate(`window.__range.packRig().debugShoulders = ${JSON.stringify(t)}`);
       await wait(120);
       const b = await read();
-      return Math.max(0, b.l - WRIST) + Math.max(0, b.r - WRIST) + (b.l + b.r) * 0.02 + b.short * 1000 + Math.max(0, b.cover - before.cover) * 5;
+      return Math.max(0, b.l - WRIST) + Math.max(0, b.r - WRIST) + (b.l + b.r) * 0.02 + b.short * 1000 + Math.max(0, b.cover - before.cover) * 5 + b.inside * 0.05;
     };
     const keys = keysOf.filter((k) => wristSides.includes(k) || wristSides.includes(k.slice(-1).toLowerCase())).flatMap((k) => [0, 1, 2].map((i) => ({ get: (t: Shoulders) => t[k]?.[i] ?? 0, set: (t: Shoulders, v: number) => { const c = t[k] ?? [0, 0, 0]; c[i] = v; t[k] = c; }, steps: SHOULDER_STEPS })));
     const res = await descend(sh, keys, score, ROUNDS, () => false, () => {});
@@ -249,7 +252,7 @@ async function wrists(page: Page, id: string, name: string): Promise<void> {
     await page.evaluate(`window.__range.packRig().debugShoulders = ${JSON.stringify(sh)}`);
     await wait(150);
     const after = await read();
-    const note = `${label} wrists: before L ${before.l.toFixed(0)} R ${before.r.toFixed(0)}, after L ${after.l.toFixed(0)} R ${after.r.toFixed(0)}; arms in the picture ${before.cover.toFixed(1)}% then ${after.cover.toFixed(1)}% (shoulders ${JSON.stringify(sh)})`;
+    const note = `${label} wrists: before L ${before.l.toFixed(0)} R ${before.r.toFixed(0)}, after L ${after.l.toFixed(0)} R ${after.r.toFixed(0)}; arms in the picture ${before.cover.toFixed(1)}% then ${after.cover.toFixed(1)}%, a sleeve's inside ${before.inside} then ${after.inside} px (shoulders ${JSON.stringify(sh)})`;
     console.log(`  ${id} ${note}`);
     results[name].notes.push(note);
   }

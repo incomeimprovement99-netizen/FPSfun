@@ -100,7 +100,8 @@
         "A",
         "B",
         "C"
-      ]
+      ],
+      "slideTravel": 0.062
     },
     "autopistol": {
       "model": "SciFiPistol01_2",
@@ -188,5 +189,6 @@
     }
   },
   "_mount": "A sight from another model of the pack mounted on a gun that has none but irons (a gun's mount: the model it comes from, the part, and where along this gun its middle goes, the model's z). The pack has no sight attachments of its own: its only sights are built into the rifle, the steady SMG and the launcher, and the steady SMG's reflex sight is a part of its own, so the USSO (irons only) wears it: the owner, 2026-09-27, \"does the guns come with like red dot sights? we want to use those\". It sits into this gun's top as far as it sits into its own gun's (both measured off the models as they load, paidgun.ts mountSight), and the gun is aimed down its dot.",
-  "_round": "A gun whose reload loads a round its model has none of (HAEFY's rocket, rocket.ts): `round` names it, and it is the gun's magazine (paidgun.ts rocketMag), seated with its tip `roundOut` metres past the muzzle as a loaded RPG's warhead stands out of its tube, so its phase out and in on a reload is seen. Ours."
+  "_round": "A gun whose reload loads a round its model has none of (HAEFY's rocket, rocket.ts): `round` names it, and it is the gun's magazine (paidgun.ts rocketMag), seated with its tip `roundOut` metres past the muzzle as a loaded RPG's warhead stands out of its tube, so its phase out and in on a reload is seen. Ours.",
+  "_slideTravel": "A gun whose procedural model has no slide but whose bought one does (APUHTHEE: its procedural gun is a revolver) moves the bought slide as a pistol's (paidgun.ts, the slide cycle): back on a shot, held back once empty, racked from empty. `slideTravel` is how far, in the model's own metres: the pack's DGL50, whose arms APUHTHEE is held in, throws its slide 6.2 cm in its empty reload (measured off A_W_DGL50_Empty_Reload, back over 0.65 to 0.97 of it)."
 }

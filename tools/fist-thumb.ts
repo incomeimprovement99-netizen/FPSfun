@@ -26,7 +26,7 @@ const browser = await puppeteer.launch({ executablePath: CHROME, headless: true,
 try {
   const page = await browser.newPage();
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
-  await page.goto(`${URL}?game=speedkills&nointro`, { waitUntil: "domcontentloaded" });
+  await page.goto(`${URL}?game=speedkills&nointro&nohome`, { waitUntil: "domcontentloaded" });
   await page.waitForFunction("window.__range && window.__range.loaded() && window.__range.soldierReady() && window.__range.packRig().freeReady", { polling: 250, timeout: 120000 });
   await page.evaluate(`(() => { const r = window.__range; r.debugView.inspect = -1; r.debugView.lowered = 1; })()`);
   await wait(2500);

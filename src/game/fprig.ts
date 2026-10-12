@@ -502,6 +502,12 @@ export class PackArms {
   readonly feed = { w: 0, gate: 0, shellO: null as THREE.Vector3 | null, held: false };
   /** each finger joint as a fist has it (from the pack's grip, bent further along the same axis), once its clips are in */
   private readonly fistQ = new Map<THREE.Object3D, THREE.Quaternion>();
+  /**
+   * and as the grip bends it, further along its own turn: a swap's cup and a rack's pinch close part way toward this from
+   * a hold, and their timings and moves were searched against it (with the fist's hinges, REZ's cup closed its fingers
+   * 15 mm into the gun)
+   */
+  private readonly gripFistQ = new Map<THREE.Object3D, THREE.Quaternion>();
   /** the handle's knob this frame, where the grab's fingers close on it (the checks) */
   private readonly hookTarget = new THREE.Vector3();
   /** where the pointing finger points this frame (the checks: the angle off it) */
@@ -1163,7 +1169,7 @@ export class PackArms {
         if (!FINGER_L.test(n)) continue;
         const bind = this.bind.get(b);
         // (a pinch: the three last fingers curled into the palm out of the way, the thumb and forefinger on the knob)
-        const fist = this.fistQ.get(b);
+        const fist = this.gripFistQ.get(b);
         if (G.pinch && fist && /^(middle|ring|pinky)/.test(n)) b.quaternion.slerp(fist, grabW);
         else if (bind) b.quaternion.slerp(bind[1], (n.startsWith("thumb") ? G.thumbOpen : -G.curl) * grabW);
         // and the forefinger and thumb closed round the knob, `close` of the way to a fist (the owner, 2026-09-29: "the
@@ -1180,7 +1186,7 @@ export class PackArms {
     // (the fingers and the turn over the later `shape` of the hand's way, once it is off the gun)
     const cupShape = { l: THREE.MathUtils.smoothstep(cupW, cup.shape.l[0], cup.shape.l[1]), r: THREE.MathUtils.smoothstep(cupW, cup.shape.r[0], cup.shape.r[1]) };
     if (cupW > 0.001) {
-      for (const [b, fist] of this.fistQ) {
+      for (const [b, fist] of this.gripFistQ) {
         const bind = this.bind.get(b);
         if (bind) b.quaternion.slerp(bind[1].clone().slerp(fist, cup.curl), cupShape[b.name.endsWith("_l") ? "l" : "r"]);
       }
@@ -1847,10 +1853,30 @@ export class PackArms {
     return this.ready && this.fistQ.size > 0;
   }
 
-  /** each finger joint's fist from a pose clip's grip: bent further along the axis the grip bends it (FREE.fist) */
+  /**
+   * Each finger joint's fist from a pose clip's grip, bent `FREE.fist` about the joint's own hinge: across the finger, in
+   * the palm's plane, the way the grip bends it (the owner, 2026-10-11: "the fists out look obvously fucked up too lmao
+   * the fingers are all bent unnaturally": bent on along the grip's own turn, which also splays and rolls a finger round
+   * the side of a gun, the fingers curled off their own planes, across each other). The thumb along the grip's turn,
+   * then laid across the fingers by its own fit (FREE.thumb).
+   */
   private makeFists(clip: THREE.AnimationClip): void {
+    // (the hinges read off the arms at bind, then the pose put back)
+    const was = new Map<THREE.Object3D, [THREE.Vector3, THREE.Quaternion, THREE.Vector3]>();
+    for (const [o, [p, q, sc]] of this.bind) {
+      was.set(o, [o.position.clone(), o.quaternion.clone(), o.scale.clone()]);
+      o.position.copy(p);
+      o.quaternion.copy(q);
+      o.scale.copy(sc);
+    }
+    this.arms?.updateMatrixWorld(true);
+    const at = (n: string) => this.bones[n]?.getWorldPosition(new THREE.Vector3()) ?? null;
+    const made: Array<[THREE.Object3D, string, THREE.Vector3, number, string]> = [];
+    // (which way a hand's hinges bend it shut: by every joint's grip bend together, one held straight or back no matter)
+    const vote: Record<string, number> = { l: 0, r: 0 };
     for (const [n, b] of Object.entries(this.bones)) {
-      if (!/^(index|middle|ring|pinky|thumb)_0[123]_[lr]$/.test(n)) continue;
+      const m = /^(index|middle|ring|pinky|thumb)_0([123])_([lr])$/.exec(n);
+      if (!m) continue;
       const bind = this.bind.get(b);
       const tr = clip.tracks.find((t) => t.name === `${n}.quaternion`);
       if (!bind || !tr) continue;
@@ -1859,8 +1885,32 @@ export class PackArms {
       const angle = 2 * Math.acos(Math.min(1, Math.abs(d.w)));
       if (angle < 0.05) continue;
       const axis = new THREE.Vector3(d.x, d.y, d.z).normalize().multiplyScalar(Math.sign(d.w) || 1);
-      this.fistQ.set(b, bind[1].clone().multiply(new THREE.Quaternion().setFromAxisAngle(axis, FREE.fist[jointKey(n)] ?? angle)));
+      const [, finger, k, side] = m;
+      // a finger's hinge: square to its bone's line and to the palm's face (the knuckles' line crossed with the wrist to
+      // the middle knuckle), turned to bend the way the grip does
+      const [hand, mid, index, pinky] = [at(`hand_${side}`), at(`middle_01_${side}`), at(`index_01_${side}`), at(`pinky_01_${side}`)];
+      const next = at(`${finger}_0${Number(k) + 1}_${side}`);
+      const here = at(n);
+      const back = at(`${finger}_0${Number(k) - 1}_${side}`);
+      const line = here && next ? next.clone().sub(here) : here && back ? here.clone().sub(back) : null;
+      if (finger !== "thumb" && hand && mid && index && pinky && line) {
+        const face = mid.clone().sub(hand).cross(index.clone().sub(pinky)).normalize();
+        const hinge = line.normalize().cross(face).normalize().applyQuaternion(b.getWorldQuaternion(new THREE.Quaternion()).invert());
+        vote[side] += hinge.dot(axis) * angle;
+        made.push([b, n, hinge, angle, side]);
+      } else made.push([b, n, axis.clone(), angle, ""]);
+      this.gripFistQ.set(b, bind[1].clone().multiply(new THREE.Quaternion().setFromAxisAngle(axis, FREE.fist[jointKey(n)] ?? angle)));
     }
+    for (const [b, n, axis, angle, side] of made) {
+      if (side && vote[side] < 0) axis.negate();
+      this.fistQ.set(b, this.bind.get(b)![1].clone().multiply(new THREE.Quaternion().setFromAxisAngle(axis, FREE.fist[jointKey(n)] ?? angle)));
+    }
+    for (const [o, [p, q, sc]] of was) {
+      o.position.copy(p);
+      o.quaternion.copy(q);
+      o.scale.copy(sc);
+    }
+    this.arms?.updateMatrixWorld(true);
   }
 
   /**
@@ -2007,6 +2057,26 @@ export class PackArms {
       if (a && b && c) least = Math.min(least, ((a.clone().sub(wrist).angleTo(b.clone().sub(a)) + b.clone().sub(a).angleTo(c.clone().sub(b))) * 180) / Math.PI);
     }
     return least;
+  }
+
+  /**
+   * The finger most bent off its own plane, degrees: the plane its three bones bend in against the knuckles' line, which a
+   * finger curling straight crosses square (a fist's fingers bent along a grip's turn had come out rolled across each other)
+   */
+  fingerSkew(side: "l" | "r"): number {
+    const at = (n: string) => this.bones[`${n}_${side}`]?.getWorldPosition(new THREE.Vector3());
+    const [index, pinky] = [at("index_01"), at("pinky_01")];
+    if (!index || !pinky) return 0;
+    const across = index.clone().sub(pinky).normalize();
+    let worst = 0;
+    for (const f of ["index", "middle", "ring", "pinky"]) {
+      const [a, b, c] = [at(`${f}_01`), at(`${f}_02`), at(`${f}_03`)];
+      if (!a || !b || !c) continue;
+      const n = b.clone().sub(a).cross(c.clone().sub(b));
+      if (n.lengthSq() < 1e-12) continue;
+      worst = Math.max(worst, (Math.acos(Math.min(1, Math.abs(n.normalize().dot(across)))) * 180) / Math.PI);
+    }
+    return worst;
   }
 
   /** one finger's curl, degrees, as fingerCurl measures each (0 without its bones) */

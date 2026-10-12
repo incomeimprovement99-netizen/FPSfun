@@ -737,50 +737,40 @@
       "hold": {
         "l": {
           "shift": [
-            0.0109,
-            -0.1501,
-            0.1627
+            0.0203,
+            -0.0301,
+            0.0083
           ],
           "rot": [
-            -0.306,
-            0.183,
-            0.581
+            -0.063,
+            0.491,
+            -0.342
           ],
           "joint": {
             "thumb_01": [
-              -0.008,
-              -0.027,
-              -0.026
-            ],
-            "thumb_02": [
-              0.017,
-              -0.107,
-              -0.061
-            ],
-            "thumb_03": [
-              0.02,
-              0.049,
-              -0.01
-            ],
-            "pinky_01": [
-              -0.24,
-              0,
+              -0.18,
+              -1.08,
               0
             ],
             "index_01": [
-              -0.178,
-              0.369,
-              0.486
-            ],
-            "index_02": [
-              0.082,
-              -0.035,
-              -0.036
+              0.48,
+              -0.48,
+              0
             ],
             "middle_01": [
-              -0.339,
-              -0.396,
-              0.423
+              0.48,
+              -0.48,
+              -0.48
+            ],
+            "ring_01": [
+              -0.24,
+              0.36,
+              0
+            ],
+            "pinky_01": [
+              0.12,
+              -0.48,
+              0
             ]
           },
           "open": {},
@@ -838,13 +828,13 @@
         "r": {
           "shift": [
             -0.0433,
-            -0.0606,
+            -0.0646,
             0.0159
           ],
           "rot": [
-            0.166,
+            0.146,
             0.059,
-            -0.233
+            -0.251
           ],
           "joint": {
             "thumb_01": [
@@ -886,7 +876,7 @@
           "open": {}
         }
       },
-      "_solve": "tools/pack-solve.ts, 2026-10-07: l after: deepest 0 mm, palm 0.0 mm, fingers thumb 0 index 0 middle 0.1.",
+      "_solve": "tools/pack-solve.ts, 2026-10-12: l after: deepest 0 mm, palm 0.0 mm, fingers middle 0 ring 0 pinky 0.",
       "shoulders": {
         "l": [
           -0.0631,
@@ -911,12 +901,12 @@
       },
       "point": {
         "elbow": [
-          -0.6,
+          -0.45,
           -1.15,
-          -0.45
+          0
         ],
         "reach": 0.18,
-        "aimAt": 0.86
+        "aimAt": 0.79
       },
       "look": {
         "shift": [
@@ -1024,9 +1014,9 @@
       "gunScale": 0.73,
       "cupMove": {
         "l": [
-          -0.002,
-          -0.018,
-          -0.017
+          -0.04,
+          -0.01,
+          0
         ],
         "r": [
           0.027,
@@ -1039,8 +1029,8 @@
         "curl": 0.36,
         "shape": {
           "l": [
-            0.17,
-            0.27
+            0.25,
+            0.65
           ],
           "r": [
             0.17,
@@ -1049,8 +1039,8 @@
         },
         "moveAt": {
           "l": [
-            0.2,
-            0.81
+            0.02,
+            0.6
           ],
           "r": [
             0.05,
@@ -1073,45 +1063,85 @@
       "hold": {
         "l": {
           "shift": [
-            -0.0392,
-            0.012,
-            -0.1391
+            0.0079,
+            -0.0412,
+            -0.0583
           ],
           "rot": [
-            0.574,
-            0.964,
-            0.014
+            -0.009,
+            -0.33,
+            0.084
           ],
           "joint": {
-            "index_01": [
-              0.391,
-              -0.326,
-              -0.415
-            ],
-            "middle_01": [
-              0.463,
-              0.438,
-              0.002
-            ],
-            "ring_01": [
-              -0.723,
-              -0.292,
-              -0.189
+            "thumb_01": [
+              0,
+              0,
+              -0.48
             ],
             "pinky_01": [
-              0.249,
-              0.694,
-              -0.203
-            ],
-            "thumb_01": [
-              -0.413,
-              0.367,
-              -0.422
+              -0.12,
+              0,
+              0.66
             ],
             "thumb_02": [
-              0.111,
-              0.252,
-              -0.315
+              0,
+              0.24,
+              -0.12
+            ],
+            "index_01": [
+              -0.12,
+              1.2,
+              0.48
+            ],
+            "index_02": [
+              -0.72,
+              0.24,
+              0
+            ],
+            "index_03": [
+              0,
+              0.12,
+              -0.24
+            ],
+            "middle_01": [
+              -0.72,
+              -0.66,
+              0.66
+            ],
+            "middle_02": [
+              0,
+              -0.36,
+              -0.48
+            ],
+            "ring_01": [
+              0.06,
+              0.6,
+              0.78
+            ],
+            "middle_03": [
+              -0.96,
+              0.12,
+              -0.06
+            ],
+            "ring_02": [
+              -0.54,
+              0.72,
+              -0.84
+            ],
+            "ring_03": [
+              0,
+              0,
+              0.06
+            ],
+            "pinky_02": [
+              -0.66,
+              0.66,
+              -0.6
+            ],
+            "pinky_03": [
+              0,
+              -0.24,
+              0.12
             ]
           },
           "open": {},
@@ -1227,7 +1257,7 @@
           "open": {}
         }
       },
-      "_solve": "tools/pack-solve.ts, 2026-10-08: l after: deepest 8 mm, palm 0.0 mm, fingers thumb 0 middle 0 ring 0.",
+      "_solve": "tools/pack-solve.ts, 2026-10-12: l after: deepest 0 mm, palm 0.0 mm, fingers thumb 1.3 index 1.4 middle 1.3 ring 1.1 pinky 21.1.",
       "shoulders": {
         "r": [
           -0.04,
@@ -1235,14 +1265,14 @@
           -0.08
         ],
         "l": [
-          0.04,
-          0.03,
+          -0.12,
+          -0.12,
           0.08
         ],
         "adsL": [
           0.06,
-          -0.06,
-          0.05
+          -0.11,
+          0.07
         ],
         "adsR": [
           -0.12,
@@ -1257,14 +1287,14 @@
           0
         ],
         "reach": 0.18,
-        "aimAt": 0.85
+        "aimAt": 0.78
       },
       "gunScale": 0.8,
       "cupMove": {
         "l": [
-          -0.0192,
-          -0.0019,
-          0.0151
+          -0.02,
+          -0.03,
+          0
         ],
         "r": [
           0.0185,
@@ -1310,14 +1340,14 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.4001,
-          -0.2069,
-          -0.2284
+          -0.6473,
+          -0.104,
+          -0.6102
         ],
         "shoulder": [
-          0.007,
-          -0.092,
-          0.1092
+          0.0142,
+          0.0048,
+          -0.0066
         ]
       },
       "meleeClearWay": [
@@ -1583,16 +1613,42 @@
       "hold": {
         "l": {
           "shift": [
-            0.0193,
-            -0.0532,
-            -0.219
+            -0.0118,
+            -0.0134,
+            0.0379
           ],
           "rot": [
-            -0.6375,
-            -0.0802,
-            0.756
+            -0.093,
+            0.261,
+            0.067
           ],
-          "joint": {}
+          "joint": {
+            "thumb_01": [
+              0,
+              -0.24,
+              0
+            ],
+            "middle_01": [
+              0.48,
+              -0.6,
+              0
+            ],
+            "ring_01": [
+              0.24,
+              -0.48,
+              -0.36
+            ],
+            "pinky_01": [
+              0.54,
+              -0.48,
+              0
+            ],
+            "index_01": [
+              0.54,
+              -0.24,
+              0
+            ]
+          }
         },
         "r": {
           "shift": [
@@ -1636,9 +1692,9 @@
       },
       "shoulders": {
         "l": [
-          0.07,
-          0.06,
-          0.14
+          -0.13,
+          -0.16,
+          0
         ],
         "r": [
           -0.09,
@@ -1646,9 +1702,9 @@
           -0.4
         ],
         "adsL": [
-          0.12,
-          -0.15,
-          0.4
+          0,
+          0.01,
+          0.26
         ],
         "adsR": [
           -0.16,
@@ -1656,7 +1712,7 @@
           -0.13
         ]
       },
-      "_solve": "tools/pack-solve.ts, 2026-10-09: pointing wrist: before 62, after 44 (tip 0.0 cm, 5 deg; arms in the picture 23.0% then 17.3%; elbow -0.90,-1.00,0.00, reach 0.18, aimAt 0.85).",
+      "_solve": "tools/pack-solve.ts, 2026-10-12: l after: deepest 0 mm, palm 0.0 mm, fingers index 0 middle 0 ring 0 pinky 0.2.",
       "gunScale": 0.85,
       "cupMove": {
         "l": [
@@ -1696,14 +1752,14 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.2909,
-          0.0208,
-          -0.0263
+          -0.7404,
+          0.4013,
+          -0.0818
         ],
         "shoulder": [
-          0.1224,
-          -0.0193,
-          0.15
+          0.0945,
+          0.0358,
+          0.027
         ]
       },
       "meleeClearWay": [
@@ -1724,7 +1780,7 @@
           0
         ],
         "reach": 0.18,
-        "aimAt": 0.85
+        "aimAt": 0.78
       },
       "_hold": "REZ on the Drake-12, drawn at 0.85 (`gunScale`): its fore-end is a flat-bottomed block 5.6 cm wide, and at full size every fit left the palm 20 to 25 mm in it. The left hand is on it ahead of the long magazine, 36 cm ahead of the gun's middle as the soldier holds it: every search from the Drake-12's own hand (tools/pack-grip.ts, pack-flush.ts, pack-solve.ts joints, pack-thumb.ts) left the palm or the thumb's root 14 to 25 mm in the block, the pack's hand meeting it edge on and the searches that keep the palm touching sinking it in; so the hand was aimed outright, palm up under the block and the knuckles round its right side, then searched with the palm free to stand off and the fingers on: none of it seen in the gun, no daylight, the wrist 32 degrees. Aimed, REZ's irons are over the gun's middle and its fore-end over 40 cm out from the eye: the left arm fell 35 cm short, so aimed its shoulder comes 40 cm forward (`shoulders` adsL), out of the picture but the hand. The right shoulder is up and back for our raked grip through an inspect, which rolls the gun about the right forearm: 147 to 22 degrees at rest, 105 to 46 in an inspect. The punch, the arm off the gun and the swap's cup by tools/pack-tune.ts; the pointing arm by tools/pack-solve.ts POINT_ONLY (its wrist 62 to 44)."
     },
@@ -1789,9 +1845,9 @@
       },
       "shoulders": {
         "l": [
-          0.05,
-          0.05,
-          0.3
+          0.18,
+          -0.07,
+          0.24
         ],
         "r": [
           -0.04,
@@ -1802,6 +1858,11 @@
           -0.24,
           0.16,
           -0.24
+        ],
+        "adsL": [
+          0.04,
+          -0.02,
+          0.12
         ]
       },
       "vent": {
@@ -1880,7 +1941,17 @@
         -0.0468
       ],
       "_hold": "CHOOCH on the MGX5, its hold only: CHOOCH never reloads, it cools when it overheats. The MGX5 has no trigger part: tools/checks/fparms-pack.ts takes the pose's right forefinger as its trigger, on the gun's middle. The drum is 22 cm wide right in front of the trigger, so the left hand is under the barrel shroud 37 cm ahead of the gun's middle, as the soldier holds it, the shoulder 30 cm forward so the arm reaches it (at 20 it fell 4 cm short): aimed outright, palm up under the shroud, then searched with the palm free and the fingers on. The right hand on the thumbhole stock's slanted grip, by tools/pack-grip.ts (234 mm of it in the grip summed, 5 after), then its shoulder and the hand together against rest, aimed, an inspect, the swap's return and the flourish: in an inspect the wrist bent 77 and the palm went 7 mm in, coming back from a swap 19 mm; none after. The arm off the gun (`beforeArm`) keeps its shoulder 22 cm forward: at 15 the flourish's arm fell 3 cm short, at 30 its wrist bent 72.",
-      "_vent": "An overheat's vent (fprig.ts Vent, viewmodel.ts): the gun tipped up (`pitch`) and canted (`roll`) in both hands over `in` of the lockout and back over `out`, the hands on it all through; an overheat is the view's vent share, not a reload (main.ts). The soldier's vent (soldierhold.json vent) can follow the same shares."
+      "_vent": "An overheat's vent (fprig.ts Vent, viewmodel.ts): the gun tipped up (`pitch`) and canted (`roll`) in both hands over `in` of the lockout and back over `out`, the hands on it all through; an overheat is the view's vent share, not a reload (main.ts). The soldier's vent (soldierhold.json vent) can follow the same shares.",
+      "point": {
+        "elbow": [
+          -0.45,
+          -1,
+          0
+        ],
+        "reach": 0.18,
+        "aimAt": 0.78
+      },
+      "_solve": "tools/pack-solve.ts, 2026-10-12: rest wrists: before L 53 R 29, after L 50 R 30; arms in the picture 42.7% then 42.7%, a sleeve's inside 40 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.12,-0.06,0.12]}); aimed wrists: before L 49 R 18, after L 34 R 18; arms in the picture 0.0% then 0.0%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.03999999999999999,-0.019999999999999997,0.12]}); pointing wrist: before 56, after 49 (tip 0.0 cm, 9 deg; arms in the picture 0.1% then 0.2%; elbow -0.45,-1.00,0.00, reach 0.18, aimAt 0.78)."
     },
     "DGL50": {
       "model": "DGL50",
@@ -1939,6 +2010,66 @@
         ],
         "reach": 0.15,
         "aimAt": 0.78
+      },
+      "rack": {
+        "clip": "reloadEmpty",
+        "window": [
+          0.65,
+          0.97
+        ],
+        "pose": {
+          "roll": -0.3,
+          "yaw": -0.15,
+          "pitch": 0.1,
+          "x": -0.02,
+          "y": 0.03,
+          "z": -0.08
+        },
+        "grab": {
+          "reach": [
+            0,
+            0.3
+          ],
+          "pull": [
+            0.3,
+            0.5
+          ],
+          "release": [
+            0.56,
+            0.62
+          ],
+          "back": [
+            0.66,
+            1
+          ],
+          "clear": 0.08,
+          "curl": -0.2,
+          "thumbOpen": 0,
+          "hook": [
+            -0.016,
+            0,
+            0.07
+          ],
+          "along": [
+            0.25,
+            0.9,
+            -1
+          ],
+          "palm": [
+            1,
+            0.3,
+            -0.6
+          ],
+          "pinch": true,
+          "close": {
+            "index": 0.7,
+            "thumb": 0.3
+          }
+        },
+        "poseIn": [
+          0.6,
+          0.7
+        ]
       },
       "_solve": "tools/pack-solve.ts, 2026-10-10: l after: deepest 8 mm, palm 0.0 mm, fingers thumb 0 index 0; r after: deepest 4 mm, palm 0.0 mm, fingers thumb 1.1 index 0 middle 0 ring 0.",
       "hold": {
@@ -2843,15 +2974,20 @@
       "l": {
         "thumb_01": [
           -0.2,
-          -0.4,
-          0.6
+          -0.2,
+          0.4
         ]
       },
       "r": {
         "thumb_01": [
-          0.3,
-          0.2,
-          0.6
+          0.6,
+          0.6,
+          0.2
+        ],
+        "thumb_02": [
+          -0.2,
+          -0.2,
+          0.2
         ]
       }
     },

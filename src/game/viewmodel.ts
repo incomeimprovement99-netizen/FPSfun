@@ -472,6 +472,8 @@ export class ViewModel {
   private reloadFrameW = 0;
   /** how far into an overheat's vent turn this frame, 0..1 (the checks) */
   private ventW = 0;
+  /** where a pistol's slide is in its own cycle this frame (back on a shot, held back empty), before the rig's rack */
+  private slideZ = 0;
   /**
    * the rest look's move undone and the one before the refit done (inspectLook): a melee's places and an inspect's open
    * hand were set where the shoulders were under that look, and the shoulders move with the look
@@ -932,8 +934,8 @@ export class ViewModel {
     return this.pack;
   }
 
-  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number; palmCardKeys: string[]; palmCardY: number; palmWhole: number; inspectTime: number; gunCentre: number[]; poseAt: number[]; poseTurn: number[]; ownAt: number[]; vent: number; plainInspect: number } {
-    return { plainInspect: INSPECT_TIME, vent: this.ventW, active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length, palmCardKeys: this.palmCardIds.filter((k, i) => k && this.palmCards[i].group.visible), palmCardY: this.palmCardY, palmWhole: this.palmWhole, inspectTime: this.inspectTime, gunCentre: this.gunCentre.toArray(), poseAt: this.pose.position.toArray(), poseTurn: this.pose.quaternion.toArray(), ownAt: this.ownHipNow().toArray() };
+  get packState(): { active: string | null; on: boolean; lead: string; wristL: number; wristR: number; twistL: number; twistR: number; skinL: number; skinR: number; curlL: number; curlR: number; skewL: number; skewR: number; thumbL: number; thumbR: number; gunTurn: number; handleBack: number; leftToHandle: number; leftToMag: number; pointMiss: number; pointOff: number; reachShort: number; reachShortR: number; handsBelow: number; gripU: number; gripMiss: number; swapMove: number; jumpPart: string; hookMiss: number; offHold: number; palmAhead: number; free: boolean; palm: number; palmCards: number; palmCardKeys: string[]; palmCardY: number; palmWhole: number; inspectTime: number; gunCentre: number[]; poseAt: number[]; poseTurn: number[]; ownAt: number[]; vent: number; plainInspect: number } {
+    return { plainInspect: INSPECT_TIME, vent: this.ventW, active: this.pack.active, on: this.packOn, lead: this.pack.lead, wristL: this.pack.wristBend("l"), wristR: this.pack.wristBend("r"), twistL: this.pack.wristTwist("l"), twistR: this.pack.wristTwist("r"), skinL: this.pack.skinTwist("l"), skinR: this.pack.skinTwist("r"), curlL: this.pack.fingerCurl("l"), curlR: this.pack.fingerCurl("r"), skewL: this.pack.fingerSkew("l"), skewR: this.pack.fingerSkew("r"), thumbL: this.pack.freeReady ? this.pack.thumbOff("l") : 0, thumbR: this.pack.freeReady ? this.pack.thumbOff("r") : 0, ...this.pack.seen, free: this.packFree && this.fists.visible, palm: this.palmW, palmCards: this.palmCards.filter((c) => c.group.visible).length, palmCardKeys: this.palmCardIds.filter((k, i) => k && this.palmCards[i].group.visible), palmCardY: this.palmCardY, palmWhole: this.palmWhole, inspectTime: this.inspectTime, gunCentre: this.gunCentre.toArray(), poseAt: this.pose.position.toArray(), poseTurn: this.pose.quaternion.toArray(), ownAt: this.ownHipNow().toArray() };
   }
 
   /**
@@ -1916,6 +1918,9 @@ export class ViewModel {
         m.bolt,
         m.pump,
       );
+      // (a pistol's slide still goes back on a shot and stays back empty in the bought arms: the rig sets the bolt where its
+      // own rack has it, at rest when it is not racking, APUHTHEE's slide not moving at all)
+      if (m.cycle === "slide" && m.bolt) m.bolt.position.z = Math.max(m.bolt.position.z, this.slideZ);
       // a shell fed into the gate where the rig has the hand holding it, and the gate open as it goes in
       const fd = this.pack.feed;
       const k = m.parts;
@@ -2232,6 +2237,7 @@ export class ViewModel {
       const back = e < T ? (e < T * 0.35 ? e / (T * 0.35) : 1 - (e - T * 0.35) / (T * 0.65)) : 0;
       // an empty pistol locks its slide back until the reload seats a magazine
       m.bolt.position.z = m.travel * Math.max(back, check, clipEmpty ? 1 : 0);
+      this.slideZ = m.bolt.position.z;
     } else if (m.cycle === "pump" && m.pump) {
       // the pump runs inside the rechamber window, starting once the muzzle
       // has come back down
