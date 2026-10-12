@@ -11310,6 +11310,20 @@ and the loadout crate (`maybeCrate` returning at once). They went whole:
 - **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate and speedkills (152 ok; the one failure, a bot's gun
   lost in the host migration, is older than this and is Milestone 525's).
 
+## Milestone 525 — A bot's pickup reaches the heir at once
+
+Host migration hands a battle royale to the heir from the snapshot the host sends it once a second. A bot's pickup is
+off every floor the moment it is taken (the host tells everyone), but the snapshot only carried it at the end of that
+second, so a host that left inside it handed over a bot without the item, and the item was gone from the match. The
+e2e's host migration check found it under load: two runs out of four lost a gun or five (a bot's kit before the
+handover with a gun, after it with none).
+
+- **The fix:** a bot's take asks for the heir's next snapshot soon (duel.ts `heirSoon`): no later than net.json
+  `migrate.soon` (0.05 s, a few frames) after the last one, so a burst of pickups still goes as one snapshot.
+- **The check:** the e2e's host migration now has a bot take a gun 0.2 s before the host leaves and asks that the
+  heir's bot has it. With `soon` put back to a second, as it was, it fails; with the fix it passes.
+- **Checked:** tsc; verify; rules; e2e migrate (the bug put back, then the fix), brsolo and squad.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

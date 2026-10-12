@@ -3197,6 +3197,15 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   const kitsOf = "window.__range.duel().bots.map((x) => [x.bot.index, x.bot.lootKit.gunId, x.bot.lootKit.armor].join(':')).sort()";
   // a snapshot made after the bots are as they will be read: let one more go out
   await sleep(1300);
+  // A pickup a moment before the host goes. The item is off every floor the moment it is taken, so the heir has to hear
+  // of it soon (duel.ts heirSoon), not at the next second's snapshot: a takeover from the snapshot before it rebuilt the
+  // bot without the item, and it was gone from the match (a gun lost so, 2026-10-12). Taken here through the bot's own
+  // take, as its looting takes one, with its kit set as the looting would set it.
+  const late = await ev<{ index: number; gun: string } | null>(
+    host,
+    `(() => { const d = window.__range.duel(); const f = d.lootField; const b = d.bots.find((x) => x.bot.alive && !x.bot.aboard && !x.down && x.bot.lootSource); if (!f || !b) return null; const gun = b.bot.lootKit.gunId === "sentinel" ? "r97" : "sentinel"; const key = f.add({ kind: "weapon", id: gun, n: 1, rarity: "epic" }, b.bot.pos.clone()); const it = b.bot.lootSource.take(key); if (!it) return null; b.bot.looter.kit.gunId = it.id; return { index: b.bot.index, gun }; })()`,
+  );
+  await sleep(200);
   const roster = await ev<string[]>(host, "window.__range.duel().botRoster");
   const kits = await ev<string[]>(host, kitsOf);
   const ring = await ev<{ phase: number; state: string; timeLeft: number }>(host, "(() => { const v = window.__range.duel().view; return { phase: v.phase, state: v.state, timeLeft: v.timeLeft }; })()");
@@ -3237,6 +3246,8 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
     roster.length > 0 && after.roster.join() === roster.join() && after.figures === 0 && kitSame >= kits.length - Math.max(1, Math.ceil(kits.length * 0.2)) && kitLost === 0 && kits.filter((k) => k.split(":")[1]).length >= 4 && after.phase === "fight",
     JSON.stringify({ roster, after: after.roster, kits, afterKits: after.kits, figures: after.figures })
   );
+  const lateKit = late ? after.kits.find((k) => k.split(":")[0] === String(late.index)) : undefined;
+  check(`${label}: a gun a bot picked up 0.2 s before the host left is still in its hands after the takeover`, !!late && lateKit?.split(":")[1] === late.gun, JSON.stringify({ late, lateKit }));
   const expected = ring.timeLeft - (Date.now() - ringAt) / 1000;
   check(
     `${label}: the ring is where it was on its plan, its clock running on`,

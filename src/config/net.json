@@ -25,10 +25,11 @@
     "hold": 60,
     "retry": 3
   },
-  "_migrate": "Host migration (docs/PLAN_HOST_MIGRATION.md). A guest of this build says it can take a match over; the host names the lowest such guest its heir, tells everyone who that is, and sends the heir every `snapshot` seconds what no guest's copy of the match has (the seat keys and who is in). When the host drops mid-match, or leaves it, the heir becomes the host and registers the match's own code again, trying for `claim` seconds while the broker lets go of the old host's; the others' retries (rejoin above) find it there. A snapshot or a naming older than `fresh` seconds is not acted on. The other guests give the heir `wait` seconds before their first try, or it would come before the heir holds the code and cost them a whole retry. Only the matches whose host state a guest's copy already holds migrate so far (Free-for-all and Gun Run with friends only); the rest end as before. `on` false, or ?migrate=0 in the address, turns it off.",
+  "_migrate": "Host migration (docs/PLAN_HOST_MIGRATION.md). A guest of this build says it can take a match over; the host names the lowest such guest its heir, tells everyone who that is, and sends the heir every `snapshot` seconds what no guest's copy of the match has (the seat keys and who is in). When the host drops mid-match, or leaves it, the heir becomes the host and registers the match's own code again, trying for `claim` seconds while the broker lets go of the old host's; the others' retries (rejoin above) find it there. A snapshot or a naming older than `fresh` seconds is not acted on. The other guests give the heir `wait` seconds before their first try, or it would come before the heir holds the code and cost them a whole retry. Only the matches whose host state a guest's copy already holds migrate so far (Free-for-all and Gun Run with friends only); the rest end as before. `on` false, or ?migrate=0 in the address, turns it off. `soon` is how soon after the last one a change that must not be missed (a bot's pickup, which is off every floor at once) sends the next: ours, a few frames, so a burst of pickups goes as one.",
   "migrate": {
     "on": true,
     "snapshot": 1,
+    "soon": 0.05,
     "claim": 20,
     "fresh": 4,
     "wait": 1

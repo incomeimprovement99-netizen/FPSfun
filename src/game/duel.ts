@@ -449,6 +449,8 @@ export class Duel implements MatchLike {
   private heirCan = new Set<number>();
   private heirNamed: number | null = null;
   private heirSendNext = 0;
+  /** when the host last sent its heir a snapshot */
+  private heirSentAt = -Infinity;
   private heirSeen: { id: number; at: number } | null = null;
   private heirSnap: HeirSnapshot | null = null;
   /** the host: each seat's key, from the hosting (main sets it; the heir's snapshot carries them) */
@@ -828,6 +830,7 @@ export class Duel implements MatchLike {
   /** the host: its heir named to everyone, and the heir sent what it needs to take over, now and then */
   private sendHeir(now: number): void {
     this.heirSendNext = now + netCfg.migrate.snapshot;
+    this.heirSentAt = now;
     if (!MIGRATE || !this.canMigrate() || !this.holdsSeats()) return;
     let heir: number | null = null;
     for (const id of this.links.keys()) if (this.heirCan.has(id) && (heir === null || id < heir)) heir = id;
@@ -837,6 +840,16 @@ export class Duel implements MatchLike {
     const keys = this.seatKeys?.(ids.filter((id) => id !== this.id)) ?? [];
     const m = this.snapshotMode(now);
     for (const [id, l] of this.links) l.send(id === heir ? { t: "heir", op: "snap", keys, ids, m } : { t: "heir", op: "is", id: heir });
+  }
+
+  /**
+   * The host: the heir's next snapshot soon (net.json migrate.soon after the last), not at the second's end. For a
+   * change an older snapshot would lose for good: a bot's pickup is off every floor the moment it is taken, so a
+   * takeover from the snapshot before it rebuilt the bot without the item, and the item was gone from the match (the
+   * e2e's host migration check caught a bot's gun lost that way, 2026-10-12).
+   */
+  protected heirSoon(): void {
+    this.heirSendNext = Math.min(this.heirSendNext, this.heirSentAt + netCfg.migrate.soon);
   }
 
   /** the host's heir, or null (the tests) */

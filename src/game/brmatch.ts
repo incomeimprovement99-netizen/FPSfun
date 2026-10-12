@@ -697,8 +697,12 @@ export class BrMatch extends Duel {
           take: (key) => {
             const it = field.remove(key);
             // the squad's fields drop an item only on this message, so
-            // without it a bot's pickups would stay on every other screen
-            if (it) this.broadcast({ t: "loot", op: "gone", key, by: bot.remote.id });
+            // without it a bot's pickups would stay on every other screen;
+            // and the heir hears of it soon, or a takeover loses the item
+            if (it) {
+              this.broadcast({ t: "loot", op: "gone", key, by: bot.remote.id });
+              this.heirSoon();
+            }
             return it;
           },
         };
