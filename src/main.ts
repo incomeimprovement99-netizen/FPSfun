@@ -3170,7 +3170,7 @@ function squadNow(d: BrMatch, now: number): HudState["squad"] {
     const r = d.remoteById(id);
     if (!r) {
       // numbered but never heard: not in yet; heard once and gone since: they left
-      if (squadWatch.heard(id)) mates.push({ id, name: squadWatch.nameOf(id), facts: { alive: false, downed: false, gulag: false, quietFor: 0, gone: true }, health: 0, healthMax: HEALTH_MAX, shield: 0, shieldMax: 0, dist: null, talking: false });
+      if (squadWatch.heard(id)) mates.push({ id, name: squadWatch.nameOf(id), facts: { alive: false, gulag: false, quietFor: 0, gone: true }, health: 0, healthMax: HEALTH_MAX, shield: 0, shieldMax: 0, dist: null, talking: false });
       continue;
     }
     const last = r.samples[r.samples.length - 1];
@@ -3178,7 +3178,7 @@ function squadNow(d: BrMatch, now: number): HudState["squad"] {
     // a ghost is where its player is, not where its body fell
     const at = ghost && last ? new THREE.Vector3(last.x, last.y, last.z) : r.avatar.group.position.clone();
     const quietFor = d.held.has(id) ? Infinity : wall - r.lastHeard;
-    mates.push({ id, name: r.name, facts: { lf: r.life, alive: r.alive, downed: false, gulag: d.inGulag(id), quietFor, gone: false }, health: r.health, healthMax: HEALTH_MAX, shield: r.shield, shieldMax: r.shieldMax, dist: last ? me.distanceTo(at) : null, talking: talking.has(r.name) });
+    mates.push({ id, name: r.name, facts: { lf: r.life, alive: r.alive, gulag: d.inGulag(id), quietFor, gone: false }, health: r.health, healthMax: HEALTH_MAX, shield: r.shield, shieldMax: r.shieldMax, dist: last ? me.distanceTo(at) : null, talking: talking.has(r.name) });
     squadWatch.hear(id, r.name);
     figures.set(id, { r, at, ghost });
   }
@@ -3196,7 +3196,7 @@ function squadNow(d: BrMatch, now: number): HudState["squad"] {
   for (const row of rows) {
     const f = figures.get(row.id);
     if (!f) continue;
-    const here = row.life === "up" || row.life === "down" || row.life === "quiet";
+    const here = row.life === "up" || row.life === "quiet";
     const fig = f.r.avatar;
     if (here && fig.group.visible && row.dist !== null) {
       const perPx = (2 * Math.tan((camera.fov * DEG) / 2) * Math.max(1, row.dist)) / Math.max(1, window.innerHeight);

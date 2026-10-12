@@ -1062,6 +1062,7 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   eq("the hands on the wire: a reload", actFromCode(actCode("reload")), "reload");
   eq("a swap", actFromCode(actCode("swap")), "swap");
   eq("an old page's heal (13): nothing", actFromCode(13), null);
+  eq("an old page's revive (5): nothing", actFromCode(5), null);
   eq("nothing", actFromCode(actCode(null)), null);
   eq("an older build's packet (no code): nothing", actFromCode(undefined), null);
   // turning on the spot: the feet stay planted, then step round past 50 degrees

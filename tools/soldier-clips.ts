@@ -31,12 +31,8 @@ const MOTIONS: Array<[string, Record<string, unknown>]> = [
   ["swap", { speed: 0, stance: "stand", act: "swap" }],
   ["throw", { speed: 0, stance: "stand", act: "throw" }],
   ["melee", { speed: 0, stance: "stand", act: "melee" }],
-  ["downed", { speed: 1, stance: "downed" }],
   ["knocked out", { speed: 0, stance: "stand", dead: true }],
   // the rest of what the hands do (dummy.ts FigureAct), and three emotes (`emote`: an index into emotes.json, played on the figure)
-  ["finishing", { speed: 0, stance: "stand", act: "finish" }],
-  ["finished", { speed: 0, stance: "stand", act: "finished" }],
-  ["reviving", { speed: 0, stance: "crouch", act: "revive" }],
   ["interact", { speed: 0, stance: "stand", act: "interact" }],
   ["emote 1", { speed: 0, stance: "stand", emote: 0 }],
   ["emote 2", { speed: 0, stance: "stand", emote: 1 }],

@@ -31,7 +31,7 @@ import * as THREE from "three";
 import { pack, unpack } from "peerjs-js-binarypack";
 import netCfg from "../../src/config/net.json";
 import { Duel, type HeirSnapshot, type LocalState } from "../../src/game/duel";
-import { actCode, actFromCode, emptyReloadOf } from "../../src/game/dummy";
+import { actCode, actFromCode, emptyReloadOf, stanceFromCode } from "../../src/game/dummy";
 import type { DeltaMsg, DeltaPart, Link, NetMsg, StateMsg } from "../../src/net/link";
 import { operatorById, operatorWearing } from "../../src/game/operators";
 import { lookCode, readLook } from "../../src/game/outfit";
@@ -179,13 +179,22 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
     codes.tactical === 1 && codes.empty === 9 && actFromCode(9) === "reload" && emptyReloadOf(9) && !emptyReloadOf(1) && actFromCode(1) === "reload" && through === 9,
     JSON.stringify({ codes, through })
   );
-  // 10 to 19 were the heals' (a heal and its item) until the heal items went (Milestone 523): a page from before can
-  // still send one, and this page reads it as nothing; nor is any code from 21 on an act yet (dummy.ts actFromCode)
-  const old = [10, 13, 19, 21, 30].map((c) => ({ c, act: actFromCode(c) }));
+  // 10 to 19 were the heals' (a heal and its item) until the heal items went (Milestone 523), and 5, 7 and 8 a revive
+  // and a finisher's two sides until the knockdowns went (529): a page from before can still send one, and this page
+  // reads it as nothing; nor is any code from 21 on an act yet (dummy.ts actFromCode)
+  const old = [5, 7, 8, 10, 13, 19, 21, 30].map((c) => ({ c, act: actFromCode(c) }));
   check(
-    "an old page's heal (10 to 19) and a code from 21 on read as no act",
+    "an old page's revive or finisher (5, 7, 8), heal (10 to 19) and a code from 21 on read as no act",
     old.every((x) => x.act === null),
     JSON.stringify(old)
+  );
+  // The codes left keep their places, so a page from before and this one still agree on them: the list closed up over
+  // the gaps would make interact 5, which an older page reads as a revive
+  const kept = { throw: actCode("throw"), melee: actCode("melee"), interact: actCode("interact"), back: actFromCode(6), downStance: stanceFromCode(7) };
+  check(
+    "the acts left keep their codes (throw 3, melee 4, interact 6), and an old page's down stance (7) reads as standing",
+    kept.throw === 3 && kept.melee === 4 && kept.interact === 6 && kept.back === "interact" && kept.downStance === "stand",
+    JSON.stringify(kept)
   );
   // An overheated gun venting (CHOOCH) goes as 20 and comes back as a vent
   const vent = { code: actCode("vent"), back: dequantise(quantise({ ...s, ac: actCode("vent") })).ac };

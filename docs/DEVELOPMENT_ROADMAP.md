@@ -12730,3 +12730,27 @@ under their decks, so a body would walk inside them. So the tiers are built from
 - **Checked** (tools/checks/sk-neon.ts): its 101 squares in the west band between the roads, three storeys and fifteen ramps; a body dropped on each square rests on it; a player walks up the grand stair and both sides' ramps to the top tier and back down; all 69 edges over a drop railed so a body cannot walk off, but where a ramp arrives; 21 cypresses, 18 flower planters, 9 fern planters, 9 benches and 6 lamps; the name seen from the ring road on nine sight lines. Each new check was proven failing with its fault put back: the grand stair's first ramps and one rail taken out of the collision, and the name lowered onto the top tier's wall, where the tiers' edges hide it. The e2e: the SpeedKills section, 102 checks, none failing. verify, rules and the type check. The look: the ring road, the foot of the grand stair, the top tier, a road's avenue and the centre's west street, by golden hour and at night; the ramps first drew as bare concrete slabs, and are now paved as the tiers are.
   The map: its files lo 115.2 MB, hi 181.8 MB, max 410.4 MB.
   **Its files are version 64.**
+
+## Milestone 565 — The figure's knockdowns taken out
+
+The lobby agent's Milestone 529 took the match's knockdowns out: nobody is put down, revived or finished in SpeedKills,
+so no figure is posed for any of it. The figure's side, handed over to this agent, goes too:
+
+- **The stance:** `downed` out of FigureStance (dummy.ts): the robot's crawl (bent low on its hands and knees, the arms
+  reaching in turn, the gun put away) and the soldier's (the crouched walk bent right over, the head turned up, the
+  whole figure sunk 15 cm), and every "not while down" beside the head and chest held up, the flinches, the throw, the
+  melee and the reach (mannequin.ts).
+- **The acts:** `revive` (the soldier on one knee, Fixing_Kneeling) and `finish` and `finished` (the hook then the
+  cross from a crouch, and the one finished knocked back after the last blow, with finisher.json's timings, now
+  deleted) out of FigureAct, with the page's `finishing` override that played the blow on the one being finished.
+- **The knockdown shield:** Dummy.setKnockShield and knockShieldUp, the pane of light in front of a downed figure.
+- **The wire:** acts 5, 7 and 8 and stance 7 read as nothing and as standing, so a page from before that still sends
+  one shows nothing odd; the codes left keep their places (throw 3, melee 4, interact 6) while such pages may be in play.
+- **The squad panel:** a teammate's `downed` fact and its DOWN row (squadview.ts, hud.ts), which only the old game set.
+- **The tools:** the figure lab's crawler, snap's revive and its two finisher scenes, soldier-clips' down, finishing,
+  finished and reviving poses. README's controls (E no longer self-revives) and the deploy guide's squad paragraph say
+  so.
+- **Checked:** tools/checks/net-delta.ts holds that an old page's revive or finisher (5, 7, 8) reads as no act and its
+  down stance (7) as standing, and that the acts left keep their codes, seen failing with the act list closed up over
+  the gaps; verify's act checks; squadview's checks without the down state; the skfigure and sksquad e2e sections; the
+  type check and rules.

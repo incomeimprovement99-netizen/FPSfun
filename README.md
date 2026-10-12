@@ -598,7 +598,7 @@ defaults puts `binds.json` back.
 |---|---|---|---|
 | W A S D | move | Shift | sprint (press, like the game; hold in Settings). SpeedKills always sprints, whichever way you move, firing and aiming too, and has no sprint setting |
 | Space, scroll up | jump (scroll makes superjumps and bunny hops easy); off the dropship | Ctrl, C | crouch, slide (see Ctrl + W under limits; toggle in Settings); break off from the jumpmaster |
-| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a restore at an echo, skip a tour step; down with a gold knockdown shield, hold to self-revive |
+| Scroll down | forward, one tap per notch, for tap-strafing | E | interact: a zipline, an item; hold: a restore at an echo, skip a tour step |
 | Enter, then 1 to 6 | quick chat: a line (GG, Nice shot!, Thanks!, On my way, Wait for me, Rematch?) to everyone in the match, in their kill feed | 7 | emotes: hold for the wheel (wave, cheer, over there, salute, shrug, dance), move to one and let go; a tap plays the last again. Your view steps round in front to watch, everyone sees it, and a step ends it |
 | 8 | your spray on the wall you look at (within 5 m): everyone in the match sees it, a new one replaces your last, and it fades after two minutes; pick yours in Settings | | |
 | Left mouse | fire | Right mouse | aim down sights (toggle in Settings) |
@@ -1395,11 +1395,11 @@ also bound to crouch.
 are stepped. That covers everything built so far, but curved or angled level
 geometry would need a real physics engine.
 
-**Characters.** The default figure is a motion-captured mannequin on a free
-library's clips, which are pistol clips: a long gun is put at the shoulder by
-IK rather than by a rifle clip, and reloads and the crawl borrow the pistol's
-and the crouch's. No fingers round the gun, no faces. The robots (a setting)
-are posed in code.
+**Characters.** The soldier plays a free library's motion-captured clips, which
+are pistol clips: a long gun is put at the shoulder by IK rather than by a rifle
+clip, and its hands and fingers on each gun, its reloads and its swaps are posed
+in code from measured holds (`src/config/soldierhold.json`). The robots (a
+setting) are posed in code.
 
 **Up to eight players, peer to peer.**
 - The browsers connect directly (WebRTC). On the game's own server our own

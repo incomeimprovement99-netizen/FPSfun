@@ -36,7 +36,6 @@ import figureCfg from "../config/figure.json";
 import perfCfg from "../config/perf.json";
 import { slow } from "./slow";
 import soldierHold from "../config/soldierhold.json";
-import finCfg from "../config/finisher.json";
 import feelCfg from "../config/gunfeel.json";
 import { newSweep, phaseMeshes, type PhaseSweep } from "./phase";
 import type { FigurePose } from "./dummy";
@@ -1293,7 +1292,7 @@ export class MannequinFigure {
   /** the stance and the hands' act last frame, when a slide began and when its way out ends, and which swing a melee is on */
   private lastStance = "";
   private lastAct: FigurePose["act"] = null;
-  /** when the act began, on this figure's clock: a finisher is two blows in order */
+  /** when the act began, on this figure's clock: a reload, a swap or a melee swing is timed from it */
   private actAt = 0;
   private slideAt = -Infinity;
   private slideExitUntil = -Infinity;
@@ -2101,7 +2100,7 @@ export class MannequinFigure {
     // two-handed hold, whose reach onto the gun ran after the clip and pulled
     // both arms straight back onto it.
     // SpeedKills' soldier with a long gun strikes with it instead (rifle.ts melee): it keeps it, and both hands on it
-    const rifleMelee = act === "melee" && !!this.rifle && !!this.mount && p.stance !== "downed";
+    const rifleMelee = act === "melee" && !!this.rifle && !!this.mount;
     if (act !== this.lastAct) {
       if (act === "melee") this.meleeSwing = (this.meleeSwing + 1) % MELEE_SWINGS.length;
       this.lastAct = act;
@@ -2112,7 +2111,7 @@ export class MannequinFigure {
     // the soldier's throw is over once the grenade has gone (soldierhold.json throwFor), and the hands go back for the
     // gun: held to the act's own time, its arms hung empty for 0.35 s after the release
     const throwing = act === "throw" && !(this.rifle && this.mount && this.t - this.actAt >= THROW_FOR);
-    if (throwing || (act === "melee" && !rifleMelee) || act === "revive" || act === "interact" || act === "finish" || act === "finished") armed = false;
+    if (throwing || (act === "melee" && !rifleMelee) || act === "interact") armed = false;
     let lowerOnce = false;
     // the legs
     let lower = "Idle_Loop";
@@ -2140,16 +2139,8 @@ export class MannequinFigure {
         lower = "Idle_Rail_Loop";
         full = true;
         break;
-      case "downed":
-        lower = "Crouch_Fwd_Loop";
-        lowerRate = Math.max(0.2, speed / 2);
-        break;
       default:
-        if (act === "revive" && hasClip("Fixing_Kneeling")) {
-          // on one knee over the one being brought back
-          lower = "Fixing_Kneeling";
-          full = true;
-        } else if (this.t < this.slideExitUntil && speed > 0.3) {
+        if (this.t < this.slideExitUntil && speed > 0.3) {
           lower = "Slide_Exit";
           full = true;
         } else if (this.t < this.landUntil) {
@@ -2176,19 +2167,6 @@ export class MannequinFigure {
       lowerRate = 1;
       full = true;
     }
-    // A finisher. The one finishing crouches over the one on the floor and
-    // throws a hook, then a cross, from the hips up: standing, the same blows
-    // went a metre over a downed head (the snapshot motion-finisher-hook).
-    // The one finished stays down, crawling pose and all, until the last
-    // blow lands, and only then goes back.
-    const finishing = act === "finish" && p.stance !== "air";
-    if (finishing) lower = "Crouch_Idle_Loop";
-    if (act === "finished" && hasClip("Hit_Knockback") && this.t - this.actAt >= finCfg.blows[finCfg.blows.length - 1]) {
-      lower = "Hit_Knockback";
-      lowerRate = finCfg.knockRate;
-      full = true;
-      lowerOnce = true;
-    }
     // A jump out of a sprint keeps the sprint's carry, as a runner's gun stays low until they aim: raised in the air and
     // lowered again on landing, the stock swept through the right forearm both ways. And a gun carried low into the
     // landing stays low until the landing is over, to come up in the standing body (Phase 27, 27.12)
@@ -2198,37 +2176,30 @@ export class MannequinFigure {
     let upperRate = lowerRate;
     let once = false;
     if (!full) {
-      if (finishing) {
-        // without the extra clips the jab stands in for both blows
-        const hook = hasClip("Melee_Hook") ? "Melee_Hook" : "Punch_Jab";
-        const cross = hasClip("Punch_Cross") ? "Punch_Cross" : "Punch_Jab";
-        upper = this.t - this.actAt < clipSeconds(hook) / finCfg.rate ? hook : cross;
-        upperRate = finCfg.rate;
-        once = true;
-      } else if (this.t < this.headUntil && hasClip("Hit_Head") && p.stance !== "downed") {
+      if (this.t < this.headUntil && hasClip("Hit_Head")) {
         upper = "Hit_Head";
         upperRate = 1.3;
         once = true;
-      } else if (this.t < this.staggerUntil && p.stance !== "downed") {
+      } else if (this.t < this.staggerUntil) {
         upper = "Hit_Chest";
         upperRate = 1.1;
         once = true;
-      } else if (throwing && hasClip("OverhandThrow") && p.stance !== "downed") {
+      } else if (throwing && hasClip("OverhandThrow")) {
         upper = "OverhandThrow";
         upperRate = 1.3;
         once = true;
       } else if (rifleMelee) {
         upper = "Pistol_Aim_Neutral";
         upperRate = 1;
-      } else if (act === "melee" && p.stance !== "downed") {
+      } else if (act === "melee") {
         // a jab, a cross or a hook, whichever of them has loaded
         upper = [MELEE_SWINGS[this.meleeSwing], "Punch_Jab"].find((c) => hasClip(c))!;
         upperRate = 1.4;
         once = true;
-      } else if (act === "interact" && hasClip("Interact") && p.stance !== "downed") {
+      } else if (act === "interact" && hasClip("Interact")) {
         upper = "Interact";
         upperRate = 1;
-      } else if (!armed || p.stance === "downed") {
+      } else if (!armed) {
         upper = lower;
       } else if (p.act === "reload") {
         // the soldier's rifle is reloaded by its own hands (rifle.ts); the pistol's reload clip is the rest's
@@ -2262,21 +2233,12 @@ export class MannequinFigure {
       turnBone(b.pelvis, fig, Y, fx.legYaw);
       turnBone(b.spine_01, fig, Y, -fx.legYaw);
     }
-    const aimed = !full && armed && p.act !== "swap" && p.stance !== "downed";
-    // Down: the crouched walk bent right over into a crawl, the head up to
-    // see. At 45 degrees a knocked figure at 30 m read as a live one
-    // crouching, which is the one thing a knock has to not look like: bent to
-    // about 70 and sunk (below), it is low and plainly out of the fight.
-    if (p.stance === "downed" && !full) {
-      if (b.spine_01) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), 0.7);
-      if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), 0.5);
-      if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -0.95);
-    }
+    const aimed = !full && armed && p.act !== "swap";
     this.scoped = aimed && !act && wantGun && !this.gunComing ? (p.ads ?? 0) * (1 - this.lowered) : 0;
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
     // (the soldier's chest held up before the look bends it: the clips lean it 33 to 40 degrees crouched and aimed or
     // sprinting, and from behind the shoulder armour and the pack hid the head; the owner, 2026-10-04: more upright)
-    if (this.soldier && b.spine_02 && b.spine_03 && b.neck_01 && !full && p.stance !== "downed" && !this.dead) this.holdChestUp(b, fig);
+    if (this.soldier && b.spine_02 && b.spine_03 && b.neck_01 && !full && !this.dead) this.holdChestUp(b, fig);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
     // (the soldier looking down bends only as far as its gun's hold needs, at the waist, and its head goes down onto the
@@ -2289,7 +2251,7 @@ export class MannequinFigure {
     // head 43 degrees forward of the neck standing, 52 to 56 aimed, 74 to 80 crouched or sprinting, chin on the chest,
     // and from behind a shot at the back of the head it showed took the neck's or torso's volume: 2 to 7 in 100 were
     // headshots sprinting or crouched, the owner unable to headshot one from behind with BOOG)
-    if (this.soldier && b.Head && !full && p.stance !== "downed" && !this.dead) this.holdHeadUp(b.Head, fig, pitch);
+    if (this.soldier && b.Head && !full && !this.dead) this.holdHeadUp(b.Head, fig, pitch);
     if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -fx.flinch * 0.25 + 0.1 * fx.ads);
     // The emote, on top of everything: the arms raised and swung in figure
     // space (+x is the figure's left, +z its front), the forearms bent at the
@@ -2327,7 +2289,7 @@ export class MannequinFigure {
         turnBone(b.lowerarm_l, fig, X, -em.lElbowF);
       }
       this.root.position.y = em.bounce;
-    } else this.root.position.y = p.stance === "downed" ? -0.15 : FLAT_FEET.lift * this.liftW;
+    } else this.root.position.y = FLAT_FEET.lift * this.liftW;
     // the double jump's knees, up and back down over its time: the thighs forward (a turn about the figure's left by a
     // negative angle brings a hanging bone's end forward) and the knees bent back
     if (lift >= 0 && lift < 1) {

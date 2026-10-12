@@ -3077,10 +3077,9 @@ export class Hud {
           c.fillStyle = `rgba(255,90,90,${(0.85 * r.chipK).toFixed(3)})`;
           c.fillRect(nx, hy, bw * Math.min(1, r.chipHealth / r.healthMax), hb);
         }
-        c.fillStyle = r.life === "down" || hp < 0.3 ? RED : WHITE;
+        c.fillStyle = hp < 0.3 ? RED : WHITE;
         c.fillRect(nx, hy, bw * Math.min(1, hp), hb);
         this.edge(nx, hy, bw, hb, u);
-        if (r.life === "down") this.text("DOWN", right, ny, 700, Q.stateFont * u, RED, "right");
       }
       c.globalAlpha = 1;
       this.box(`squad${r.slot}`, x0, y, w, h);

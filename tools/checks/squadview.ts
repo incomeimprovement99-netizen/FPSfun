@@ -67,7 +67,7 @@ console.log("The squad's numbers and colours");
 
 console.log("\nA teammate's state");
 {
-  const up: MateFacts = { alive: true, downed: false, gulag: false, quietFor: 0, gone: false };
+  const up: MateFacts = { alive: true, gulag: false, quietFor: 0, gone: false };
   const cases: Array<[string, MateFacts, MateLife]> = [
     ["up, saying nothing", up, "up"],
     ["on the way to the Gulag or in it (lf 1)", { ...up, alive: false, lf: LIFE_WIRE.gulag }, "gulag"],
@@ -76,7 +76,6 @@ console.log("\nA teammate's state");
     ["a ghost (lf 2)", { ...up, alive: false, lf: LIFE_WIRE.ghost }, "ghost"],
     ["out (lf 3)", { ...up, alive: false, lf: LIFE_WIRE.out }, "out"],
     ["dead, saying nothing (a build from before)", { ...up, alive: false }, "out"],
-    ["knocked down (the legacy game)", { ...up, downed: true }, "down"],
     [`silent past ${squadCfg.mates.quiet} s`, { ...up, quietFor: squadCfg.mates.quiet + 0.1 }, "quiet"],
     ["silent, but only for a keyframe's gap across the relay (5 s)", { ...up, quietFor: 5 }, "up"],
     ["a ghost gone silent", { ...up, alive: false, lf: LIFE_WIRE.ghost, quietFor: 30 }, "quiet"],
@@ -95,7 +94,7 @@ console.log("\nThe news");
 {
   const say = (was: MateLife, now: MateLife) => mateNews("Ana", was, now);
   const cues = new Set(Object.keys(announcerCfg.lines));
-  const all: MateLife[] = ["up", "down", "gulag", "ghost", "out", "quiet", "left"];
+  const all: MateLife[] = ["up", "gulag", "ghost", "out", "quiet", "left"];
   let unsaid = 0;
   for (const a of all) for (const b of all) {
     const n = mateNews("Ana", a, b);
@@ -120,7 +119,7 @@ console.log("\nThe news");
 
   const sw = new SquadWatch();
   sw.members([0, 1]);
-  const mate = (facts: Partial<MateFacts>): MateNow => ({ id: 1, name: "Ana", facts: { alive: true, downed: false, gulag: false, quietFor: 0, gone: false, ...facts }, health: 100, healthMax: 100, shield: 50, shieldMax: 50, dist: 10, talking: false });
+  const mate = (facts: Partial<MateFacts>): MateNow => ({ id: 1, name: "Ana", facts: { alive: true, gulag: false, quietFor: 0, gone: false, ...facts }, health: 100, healthMax: 100, shield: 50, shieldMax: 50, dist: 10, talking: false });
   const first = sw.step([mate({ alive: false, lf: LIFE_WIRE.ghost })], 0);
   check("a teammate first seen already a ghost: no news (opening on it is not news)", first.news.length === 0 && first.rows[0]?.life === "ghost");
   const again = sw.step([mate({ alive: false, lf: LIFE_WIRE.ghost })], 0.1);
@@ -143,7 +142,7 @@ console.log("\nA hit on their row");
 {
   const sw = new SquadWatch();
   sw.members([0, 1]);
-  const at = (health: number, shield: number, t: number) => sw.step([{ id: 1, name: "Ana", facts: { alive: true, downed: false, gulag: false, quietFor: 0, gone: false }, health, healthMax: 100, shield, shieldMax: 50, dist: 5, talking: false }], t).rows[0];
+  const at = (health: number, shield: number, t: number) => sw.step([{ id: 1, name: "Ana", facts: { alive: true, gulag: false, quietFor: 0, gone: false }, health, healthMax: 100, shield, shieldMax: 50, dist: 5, talking: false }], t).rows[0];
   at(100, 50, 0);
   const hit = at(100, 20, 1);
   check("a hit flashes the row", hit.hurtK === 1);

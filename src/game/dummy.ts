@@ -200,9 +200,9 @@ export interface DummyOptions {
 }
 
 /** what a rigged figure is doing, from the player it stands for */
-export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "downed";
+export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip";
 /** what its hands are busy with: a reload, a swap, a throw, a melee swing, a revive, or holding interact on something */
-export type FigureAct = "reload" | "swap" | "throw" | "melee" | "revive" | "interact" | "finish" | "finished" | "vent" | null;
+export type FigureAct = "reload" | "swap" | "throw" | "melee" | "interact" | "vent" | null;
 export interface FigurePose {
   /** horizontal speed, m/s */
   speed: number;
@@ -222,11 +222,12 @@ export interface FigurePose {
 }
 /**
  * What the hands are doing, as one small number for the network: 0 nothing,
- * 1 reload, 2 swap, 3 throw, 4 melee, 5 revive, 6 interact, 7 finishing
- * someone (finisher.ts), 8 being finished, 9 a reload from empty, 20 a vent. A page from before 3 to 6 existed
+ * 1 reload, 2 swap, 3 throw, 4 melee, 6 interact, 9 a reload from empty, 20 a vent. 5 (a revive), 7 and 8 (finishing
+ * someone, being finished) went with the knockdowns (Milestone 529) and read as nothing now, kept unused while pages from
+ * before may be in play. A page from before 3 to 6 existed
  * reads them as nothing, so a figure on an old page just does not play the new motion.
  */
-const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "revive", "interact", "finish", "finished"];
+const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", null, "interact", null, null];
 /**
  * A reload from an empty magazine has a code of its own, 9 (1 stays the tactical reload), so the others see which: an
  * older page reads it as nothing and just does not show that reload
@@ -254,8 +255,11 @@ export const TURN_STEP_AT = 0.87;
 /** the step round: the feet catch up at this rate (1/s), lifting in turn */
 const TURN_STEP_RATE = 11;
 const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
-const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip", "downed"];
-/** a stance as one small number for the network, and back */
+const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip"];
+/**
+ * A stance as one small number for the network, and back. 7 was down, a knocked figure's crawl, gone with the
+ * knockdowns (Milestone 529): a page from before that sends it reads as standing.
+ */
 export const stanceCode = (s: FigureStance): number => Math.max(0, STANCE_CODE.indexOf(s));
 export const stanceFromCode = (c: number | undefined): FigureStance => STANCE_CODE[c ?? 0] ?? "stand";
 
@@ -725,7 +729,7 @@ export class Dummy {
   private pose: FigurePose = { speed: 0, stance: "stand", pitch: 0 };
   private gait = 0;
   /** eased pose values, so a change of stance blends rather than snaps */
-  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, down: 0, sprint: 0 };
+  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, sprint: 0 };
   /** the feet's yaw while standing still (world, radians), and a step round in progress */
   private plantYaw: number | null = null;
   private stepping = false;
@@ -748,8 +752,6 @@ export class Dummy {
   private joltAmt = 0;
   /** the arms' resting place on the torso (the ADS and the kick move them from it) */
   private armsBase = new THREE.Vector3();
-  /** its gun is away while it is down (separate from a bot's gun hidden while it searches) */
-  private gunAway = false;
   /**
    * Knocked out: the gun leaves its hands and falls to the floor beside it,
    * a copy in the world (the held one hides) that tumbles, lands and lies
@@ -1029,10 +1031,6 @@ export class Dummy {
     this.outline = null;
     this.mateRing?.dispose();
     this.mateRing = null;
-    if (this.kdPane) {
-      this.kdPane.geometry.dispose();
-      (this.kdPane.material as THREE.Material).dispose();
-    }
     this.dropped?.obj.removeFromParent();
     this.dropped = null;
     this.mq?.dispose();
@@ -1047,15 +1045,8 @@ export class Dummy {
   }
 
   /** a rigged figure: what it should be doing, from the player or bot it stands for */
-  /**
-   * Being finished on this page (main.ts): whatever the network or a bot's
-   * own code says the figure is doing, it takes the blow. The one finishing
-   * says so in its own state, but the one finished does not know yet.
-   */
-  finishing = false;
-
   setPose(p: FigurePose): void {
-    this.pose = this.finishing ? { ...p, act: "finished" } : p;
+    this.pose = p;
   }
 
   /** the gun it holds, by id (null unarmed) */
@@ -1136,7 +1127,7 @@ export class Dummy {
   /** show or hide the gun it holds (a bot still searching for one) */
   setGunVisible(on: boolean): void {
     this.gunShown = on;
-    if (this.gun) this.gun.visible = on && !this.gunAway && !(this.knocked && this.rig);
+    if (this.gun) this.gun.visible = on && !(this.knocked && this.rig);
     this.mq?.setGunVisible(on);
   }
 
@@ -1291,18 +1282,6 @@ export class Dummy {
         thighL = thighR = 0.3;
         shinL = shinR = -0.6;
         break;
-      case "downed":
-        // down, not out: on the knees and the hands, no gun, crawling; the
-        // arms reach in turn against the legs, the head up to see. Low: a
-        // knock at 30 m must not read as a live player crouching.
-        lean = 1.3;
-        drop = 0.7;
-        armsUp = -0.15;
-        armSwing = 0.45 * Math.max(0.35, frac);
-        thighL = 0.25 + s * 0.35 * frac;
-        thighR = 0.25 + s2 * 0.35 * frac;
-        shinL = shinR = -0.4;
-        break;
     }
     if (p.stance === "stand" || p.stance === "crouch") {
       thighL = thighBase + s * amp;
@@ -1348,9 +1327,7 @@ export class Dummy {
       shinR -= 0.9 * this.landAmt;
     }
     const DEG = Math.PI / 180;
-    const downed = p.stance === "downed";
-    // down: the look pitch is the head's alone (the arms are on the floor)
-    const pitch = downed ? 0 : Math.max(-70, Math.min(70, p.pitch)) * DEG;
+    const pitch = Math.max(-70, Math.min(70, p.pitch)) * DEG;
     const e = this.eased;
     const k = 1 - Math.exp(-14 * dt);
     // the JOLT: a lean into it, the legs trailing
@@ -1374,7 +1351,6 @@ export class Dummy {
     e.ads += ((p.ads ?? 0) - e.ads) * k2;
     e.reload += ((act === "reload" ? 1 : 0) - e.reload) * k2;
     e.swap += ((act === "swap" ? 1 : 0) - e.swap) * k2;
-    e.down += ((downed ? 1 : 0) - e.down) * k2;
     // sprinting with the gun not up: it comes down and cants across the body, the arms pumping
     const sprinting = p.stance === "stand" && speed > 6.2 && (p.ads ?? 0) < 0.3 && act === null;
     e.sprint += ((sprinting ? 1 : 0) - e.sprint) * k2;
@@ -1395,7 +1371,7 @@ export class Dummy {
     // standing still it breathes: the chest rises and settles every few seconds
     const breathe = speed < 0.3 && p.stance === "stand" ? Math.sin(this.idleT * 1.7) : 0;
     r.torso.rotation.x = e.lean - 0.2 * flinch + 0.02 * breathe;
-    r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload - 0.25 * e.down;
+    r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload;
     r.head.rotation.z = 0.12 * e.ads;
     r.thighL.rotation.x = e.thighL;
     r.thighR.rotation.x = e.thighR;
@@ -1409,18 +1385,11 @@ export class Dummy {
     } else {
       // aimed: the gun up to the eye; a shot kicks it back; a reload rolls and
       // dips it; a swap takes it down out of sight
-      // down: the gun gone, the arms straight down to the floor, reaching in turn as it crawls
-      const crawl = e.down * s * e.armSwing * 0.6;
       const pump = e.sprint * Math.sin(g) * 0.12;
-      r.arms.rotation.x = -(e.armsUp + pitch * 0.8 * (1 - e.sprint)) - e.lean * 0.5 * (1 - e.down) - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + crawl + 0.55 * e.sprint + pump;
-      r.arms.rotation.z = 0.5 * e.reload + 0.25 * crawl + 0.45 * e.sprint;
+      r.arms.rotation.x = -(e.armsUp + pitch * 0.8 * (1 - e.sprint)) - e.lean * 0.5 - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + 0.55 * e.sprint + pump;
+      r.arms.rotation.z = 0.5 * e.reload + 0.45 * e.sprint;
       r.arms.rotation.y = -0.3 * e.sprint;
       r.arms.position.set(this.armsBase.x, this.armsBase.y + 0.07 * e.ads + 0.006 * breathe, this.armsBase.z - 0.05 * this.kickAmt - 0.03 * e.ads);
-      const away = e.down > 0.15;
-      if (away !== this.gunAway) {
-        this.gunAway = away;
-        if (this.gun) this.gun.visible = this.gunShown && !away;
-      }
     }
     // An emote, on top: it runs its length, and moving or going down ends it.
     // The robot's armed arms are one piece with the gun, so it raises them
@@ -1428,7 +1397,7 @@ export class Dummy {
     if (this.emoteIndex !== null) {
       this.emoteT += dt;
       const def = emoteAt(this.emoteIndex);
-      if (!def || this.emoteT >= def.seconds || speed > 1.5 || downed || (p.stance !== "stand" && p.stance !== "crouch")) this.emoteIndex = null;
+      if (!def || this.emoteT >= def.seconds || speed > 1.5 || (p.stance !== "stand" && p.stance !== "crouch")) this.emoteIndex = null;
     }
     const ep = this.emoteIndex !== null ? emotePose(this.emoteIndex, this.emoteT) : null;
     const emoting = !!ep && ep.weight > 0.02;
@@ -1455,15 +1424,15 @@ export class Dummy {
         this.gun.visible = false;
         this.emoteHidGun = true;
       } else if (!emoting && this.emoteHidGun) {
-        this.gun.visible = this.gunShown && !this.gunAway;
+        this.gun.visible = this.gunShown;
         this.emoteHidGun = false;
       }
     }
     // the mannequin plays its clips for the same pose, with the same corrections on top
-    this.mq?.update(p, dt, !!this.gun && this.gunShown && !downed, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps, shots: this.shots }, this.lodAnimate);
+    this.mq?.update(p, dt, !!this.gun && this.gunShown, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps, shots: this.shots }, this.lodAnimate);
     // a scoped figure glints (muzzle.ts, Hyper Scape's lens flare) only while it is looking down its scope (mannequin.ts
     // scoped): not while its gun is away, and not for an aim held through a reload, a swap, a throw or a strike
-    if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown && !downed ? this.mq.scoped : 0, this.glintT += dt);
+    if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown ? this.mq.scoped : 0, this.glintT += dt);
     if (this.lodAnimate) this.followBones();
   }
 
@@ -1720,23 +1689,6 @@ export class Dummy {
     this.pickUpGun();
   }
 
-  /** down with the knockdown shield raised: a pane of light in front of it */
-  private kdPane: THREE.Mesh | null = null;
-  setKnockShield(on: boolean): void {
-    if (!on && !this.kdPane) return;
-    if (!this.kdPane) {
-      const g = new THREE.CylinderGeometry(0.75, 0.75, 0.9, 16, 1, true, -0.9, 1.8);
-      const m = new THREE.MeshBasicMaterial({ color: 0x6fd3ff, transparent: true, opacity: 0.32, side: THREE.DoubleSide, forceSinglePass: true, depthWrite: false, blending: THREE.AdditiveBlending });
-      this.kdPane = new THREE.Mesh(g, m);
-      this.kdPane.position.set(0, 0.55, 0.05);
-      this.group.add(this.kdPane);
-    }
-    this.kdPane.visible = on && !this.knocked;
-  }
-  get knockShieldUp(): boolean {
-    return !!this.kdPane && this.kdPane.visible;
-  }
-
   /** the gun on the floor, or null (the tests look) */
   get droppedGun(): THREE.Object3D | null {
     return this.dropped?.obj ?? null;
@@ -1762,7 +1714,7 @@ export class Dummy {
     // a merged figure (a range dummy, a course's pop-up) topples whole, gun and all, as it always has
     if (!this.rig) return;
     const held = this.mq?.gunObject ?? this.gun;
-    const showing = this.mq ? this.mq.gunInHand : !!held && held.visible && this.gunShown && !this.gunAway;
+    const showing = this.mq ? this.mq.gunInHand : !!held && held.visible && this.gunShown;
     this.mq?.setDead(true);
     if (this.gun) this.gun.visible = false;
     if (!held || !showing || this.dropped || !this.group.parent) return;
@@ -1786,7 +1738,7 @@ export class Dummy {
       this.dropped.obj.removeFromParent();
       this.dropped = null;
     }
-    if (this.gun) this.gun.visible = this.gunShown && !this.gunAway;
+    if (this.gun) this.gun.visible = this.gunShown;
     this.mq?.setGunVisible(this.gunShown);
   }
 
@@ -1887,7 +1839,7 @@ export class Dummy {
     // crouched or sliding: the hit zones shrink to two thirds (the same blend
     // at any frame rate: 35% a frame at 60 fps); a rigged figure bends into
     // it, a merged one is squashed whole
-    const wantCrouch = this.pose.stance === "crouch" || this.pose.stance === "slide" || this.pose.stance === "downed" ? 1 : 0;
+    const wantCrouch = this.pose.stance === "crouch" || this.pose.stance === "slide" ? 1 : 0;
     this.crouchAmt += (wantCrouch - this.crouchAmt) * (1 - Math.exp(-26 * dt));
     const sy = 1 - 0.34 * this.crouchAmt;
     if (this.rig) {

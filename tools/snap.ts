@@ -58,10 +58,10 @@ const untilFightLong = untilFight.replace("20000", "60000");
 /** wait in the page until `s` seconds of GAME time have passed (a software renderer draws a few frames a second, so wall time says little) */
 const gameSeconds = (s: number) => `new Promise((r) => { const t0 = window.__range.gameTime(); const t = setInterval(() => { if (window.__range.gameTime() - t0 >= ${s}) { clearInterval(t); r(0); } }, 50); setTimeout(() => { clearInterval(t); r(0); }, 90000); })`;
 
-/** the figure lab: standing aimed, walking, crouched, down and crawling, knocked out (the gun on the floor) */
+/** the figure lab: standing aimed, running, walking, crouched, knocked out (the gun on the floor) */
 const lab = (style: "robot" | "mannequin") =>
   `(async () => { ${hideMenu}; const r = window.__range; if (${style === "mannequin"}) { await r.loadMannequin(); } r.setFigureStyle("${style}"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -12);
-    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1 }, { speed: 7, stance: "stand", pitch: 0 }, { speed: 3.5, stance: "stand", pitch: 0 }, { speed: 0, stance: "crouch", pitch: 0 }, { speed: 1, stance: "downed", pitch: 0 }, { speed: 0, stance: "stand", pitch: 0, dead: true }], 4.5); })()`;
+    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1 }, { speed: 7, stance: "stand", pitch: 0 }, { speed: 3.5, stance: "stand", pitch: 0 }, { speed: 0, stance: "crouch", pitch: 0 }, { speed: 0, stance: "stand", pitch: 0, dead: true }], 4.5); })()`;
 
 /** the rifle hold from the side: the left hand on each gun's handguard */
 const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
@@ -769,29 +769,11 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "motion-acts",
-    note: "four figures a moment into what their hands are doing: a grenade thrown overhand, a melee swing, kneeling over a revive, reaching to open something",
+    note: "three figures a moment into what their hands are doing: a grenade thrown overhand, a melee swing, reaching to open something",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["throw", "melee", "revive", "interact"].map((a) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, act: a, look: "fatigues||" })), 2.8, 60); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["throw", "melee", "interact"].map((a) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, act: a, look: "fatigues||" })), 2.8, 60); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(0.35), 100],
-    ],
-  },
-  {
-    name: "motion-finisher-hook",
-    note: "a finisher (finisher.ts) a moment in, the hook landing: the one finishing and the one knocked, side by side, as the acts play them",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["Melee_Hook", "Punch_Cross", "Hit_Knockback"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, act: "finish", look: "fatigues||" }, { speed: 0, stance: "downed", pitch: 0, ads: 0, act: "finished", look: "combat||" }], 2.6, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(0.45), 100],
-    ],
-  },
-  {
-    name: "motion-finisher-cross",
-    note: "a finisher (finisher.ts) later, the cross: the one finishing and the one knocked, side by side, as the acts play them",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["Melee_Hook", "Punch_Cross", "Hit_Knockback"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, act: "finish", look: "fatigues||" }, { speed: 0, stance: "downed", pitch: 0, ads: 0, act: "finished", look: "combat||" }], 2.6, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
     ],
   },
   {
