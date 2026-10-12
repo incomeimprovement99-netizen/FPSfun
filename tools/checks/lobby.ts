@@ -65,7 +65,6 @@ console.log("The lobby");
   check("the battle royale asks about the squad, the bots and the ring, and nothing about an arena", setupFor("br").includes("br") && setupFor("br").includes("difficulty") && !setupFor("br").includes("map") && !setupFor("br").includes("range"), setupFor("br").join(", "));
   check("every mode with bots in it asks how good they are", ["bots", "br", "tdm", "control", "ffa"].every((id) => setupFor(id).includes("difficulty")));
   check("the courses and the tour ask nothing: they are one button each", setupFor("run").length === 0 && setupFor("runAdvanced").length === 0 && setupFor("tour").length === 0);
-  check("the aim bot is offered wherever there is something to aim at", ["range", "bots", "br", "tdm"].every((id) => setupFor(id).includes("train")));
 }
 console.log("\nThe ring's pace");
 {

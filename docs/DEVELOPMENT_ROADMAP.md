@@ -11471,6 +11471,21 @@ read line by line and tidied by hand.
 - About 560 lines out, 230 in.
 - **Checked:** tsc; verify; rules; e2e page, range, speedkills, brsolo, gulag, sktour and sklobby.
 
+## Milestone 532 — The page's legacy crumbs: the old brand, its rules and the lobby's practice row
+
+What only the legacy game showed, hidden in SpeedKills by `.legacyOnly`, is out of the page:
+
+- **The brand:** B00G's RANGE on the loading screen and the menu's header (SpeedKills' own name stays).
+- **The rules list:** the legacy 1v1, Gun Run, the round's circle, JOLT and TRIAGE, and the old battle royale's squads,
+  care packages, loadout crates and Storm Surge.
+- **The lobby's practice row** (the `train` setup group): its aim bot box mirrored the Settings tab's and was hidden in
+  every mode; the Settings tab keeps the aim bot. lobby.ts's `train` group and menu.ts's mirroring went with it, and
+  tools/checks/lobby.ts's check that every mode offered it.
+- The `.legacyOnly` rule itself.
+- **Checked:** tsc; verify; rules; e2e page and sklobby. The SpeedKills order check ("while it loads, the loading
+  screen and its bar") failed once when sklobby ran straight after page, the screen already gone when it first looked,
+  and passed alone.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

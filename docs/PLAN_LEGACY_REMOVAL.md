@@ -69,8 +69,9 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   hack. can remove old guns and old abilities that we don't use." Next: the game switch (`game=legacy` gone, IS_SK
   folded), after the city agent's old-city removal lands; then the dead code below, the 18 old guns with it (the guns
   agent asked for that), the knockdowns with the character agent taking the figure's downed side.
-- **Later, the UI's crumbs:** the `legacyOnly` controls, the legacy tour's steps, the README branch of the screen (the
-  TV and the manual stay), the legacy intro card and tips, the cross-game join message. About 300 lines.
+- **The UI's crumbs (done, 523 to 532):** the legacy tour went with the heals (523), the README branch of the screen,
+  the legacy intro card and tips with `IS_SK` (531), the `legacyOnly` controls and text (532); the cross-game join
+  message went with the game switch (520).
 - **491, abilities and kits (done)** (JOLT, TRIAGE, MEDIC, SCOUT, HOOK, SMOKE, WARD): SpeedKills turns them off and runs its
   hacks, which load at startup for the range and stay, with what they borrow (walls.ts and the ward's numbers,
   reveal.ts, healarea.ts, DASH's look and sound). About 1,600 lines.
@@ -96,7 +97,8 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
 - **531, the `IS_SK` branches (done)** in the lobby's files: about 160 of 190 uses, with the settings only the legacy game
   read (sprint, the movement box, the battle royale's own sky). The guns and character agents fold their own five
   files; then `IS_SK` goes from game.ts.
-- **Next:** the UI's crumbs below, then the extra modes on the range or the city (section 5).
+- **532, the page's crumbs (done):** the legacy brand, rules list and the lobby's hidden practice row.
+- **Next:** the extra modes on the range or the city (section 5), the Gulag's room checked first.
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
 - **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,

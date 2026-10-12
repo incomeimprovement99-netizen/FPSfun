@@ -99,15 +99,6 @@ export class Menu {
       else o.onFriends?.(this.picked);
     });
     $("playFriends").addEventListener("click", () => o.onFriends?.(this.picked));
-    // the aim bot, mirrored from the Settings tab: a practice helper belongs
-    // with the rest of a match's setup. Settings still keeps the stored one.
-    const aimLobby = $<HTMLSelectElement>("aimbotLobby");
-    aimLobby.addEventListener("change", () => {
-      const real = document.getElementById("aimbotMode") as HTMLSelectElement | null;
-      if (!real) return;
-      real.value = aimLobby.value;
-      real.dispatchEvent(new Event("change"));
-    });
     // the battle royale is the game: a first visit opens on it (the owner, 2026-10-04: "the main obvious mode")
     let opened = "br";
     try {
@@ -250,9 +241,6 @@ export class Menu {
           : "On your own. Every mode from the arena down can be played with friends instead.";
     // the loadout you play with, under the buttons, on the modes you play with it (not the courses and the range)
     $("setupLoadout").hidden = LOADOUT_MODES.has(m.id) === false;
-    // the aim bot's switch follows the one on the Settings tab
-    const real = document.getElementById("aimbotMode") as HTMLSelectElement | null;
-    if (real) $<HTMLSelectElement>("aimbotLobby").value = real.value;
   }
 
   /**

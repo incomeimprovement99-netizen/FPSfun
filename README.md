@@ -374,8 +374,7 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    questions that mode actually has: which map (NEON YARD, NEON HALL or THE
    CENTRE, or the one picked for the mode), how many bots
    and how good they are, the squad size and the ring's pace for a battle
-   royale, whether you land with a loadout, whether the aim bot is on for
-   practice. Then **Start**, or **With friends**, which makes the match on
+   royale, whether you land with a loadout. Then **Start**, or **With friends**, which makes the match on
    exactly those settings and copies an invite link.
 
 Nothing is installed: settings, loadouts, your name, your best times and your

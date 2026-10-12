@@ -266,7 +266,6 @@
       body.soldierOn .wardrobe { display: none; }
       /* SpeedKills with the bought guns in (paidgun.ts): no finish picker, which the bought model would hide */
       body.paidOn .gunPick select[id^="finish"] { display: none; }
-      [data-game="speedkills"] .legacyOnly { display: none; }
       /* SpeedKills' menu (Phase 20 A11): wider on a wider screen, and one width for every tab so Loadouts no longer
          jumps (1280 wide: 1120, 1600: 1200, 1920: 1280, 2560: 1400, never more than 94% of a small screen) */
       [data-game="speedkills"] .menu,
@@ -447,7 +446,7 @@
     <canvas id="intro" hidden></canvas>
     <p id="introSay" class="sr" aria-live="polite"></p>
     <div id="loading" role="status" aria-live="polite">
-      <div class="brand"><span class="logo legacyOnly">B00G's</span><span class="title legacyOnly">RANGE</span><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span></div>
+      <div class="brand"><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span></div>
       <div class="pcard" id="pcard" aria-label="Your player card">
         <div class="pcFig"><canvas id="pcFig" width="480" height="720"></canvas></div>
         <div class="pcBody">
@@ -484,7 +483,7 @@
       <button type="button" class="clickPlay" id="clickPlay" hidden><b>Click to play</b><span>The game takes your mouse. Esc gives it back.</span></button>
       <div class="menu">
         <header class="brand">
-          <span class="logo legacyOnly">B00G's</span><span class="title legacyOnly">RANGE</span><span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span><span class="beta">BETA</span><button type="button" class="startBack" id="startBack" hidden>Back</button>
+          <span class="logo skOnly">SPEED</span><span class="title skOnly">KILLS</span><span class="beta">BETA</span><button type="button" class="startBack" id="startBack" hidden>Back</button>
           <span class="loadoutChip" id="loadoutChip"></span>
         </header>
         <nav class="tabs" id="tabs">
@@ -539,7 +538,6 @@
             <div class="setupGroup" data-group="difficulty" hidden><label>Difficulty <select id="botDifficulty" title="Easy: slow to react, loose aim, stands and shoots. Normal: strafes, dodges some hits, throws a frag at a camper, heals behind cover. Hard: quick and accurate, always dodges, crouches in fights, hears your shots. Elite: all of that sharper, and it pre-aims where it lost you. Mixed: each bot its own tier."><option value="easy">Easy</option><option value="normal" selected>Normal</option><option value="hard">Hard</option><option value="elite">Elite</option><option value="mixed">Mixed (each bot its own)</option></select></label></div>
             <div class="setupGroup" data-group="rules" hidden><label>Guns <select id="ruleGuns" title="custom rules: the guns this match allows, by category; anyone holding another is handed that class's guns, and so are the bots (the 1v1s and the arena modes; a battle royale's guns are what you find)"><option value="any">Any guns</option><option value="ar">Rifles only</option><option value="smg">SMGs only</option><option value="lmg">CHOOCH only</option><option value="shotgun">Shotguns only</option><option value="sniper">Snipers and marksmen only</option><option value="pistol">Pistols only</option></select></label><label>Friendly fire <select id="ruleFF" title="custom rules: whether squad mates and team mates can hurt each other"><option value="off">Friendly fire off</option><option value="on">Friendly fire on</option></select></label></div>
             <div class="setupGroup" data-group="rounds" hidden><label>Rounds <select id="ruleRounds" title="custom rules: rounds to win the 1v1"><option value="1">First to 1</option><option value="2">First to 2</option><option value="3" selected>First to 3</option><option value="4">First to 4</option><option value="5">First to 5</option><option value="7">First to 7</option></select></label></div>
-            <div class="setupGroup legacyOnly" data-group="train" hidden><label>Aim bot <select id="aimbotLobby" title="the view is steered onto the nearest enemy you can see: practice only, and it cannot be hidden, because everyone else sees a red bar and the word AIM BOT over you, through walls. The same switch is on the Settings tab"><option value="0">Off</option><option value="1">On (practice)</option></select></label></div>
             </div>
               <div class="hackPicks">
                 <label>Mobility hack <span class="hint">F / LB</span><select id="hackMobility"></select></label>
@@ -582,11 +580,6 @@
             <li class="skOnly"><b>Team deathmatch</b> (four a side, first to 30), <b>Control</b> (three zones, five a side, first to 500) and <b>Free-for-all</b> (first to 20) are played in a block of the Neon City, the empty places filled with bots; you come back a few seconds after you go down, and 10 minutes ends any of them.</li>
             <li class="skOnly"><b>Battle royale</b>: your squad drops into the Neon City together, against the bots set below. Its sectors decay in waves, each warned on the map first; when only the last is left its capture zone opens. Die once and you fight your way back in a 1v1; die again and you are a ghost your squad can restore at your echo.</li>
             <li class="skOnly">Your hacks are on F and G (mobility and utility), found on the floor as hack cores; a gun or a hack found at a higher level is stronger (fusion).</li>
-            <li class="legacyOnly">1v1: three lanes. 1v1v1: a triangle, a corner each. First to 3 rounds, blue shields and 100 health.</li>
-            <li class="legacyOnly"><b>Gun Run</b>: one kill moves you to the next gun; after the last gun comes the knife (melee, 100 a hit, 300 to the head), and a knife kill wins. Dying to a melee costs a level. 10 minutes, then the highest level wins. Health and shields come back 4 s after the last hit. <b>Team deathmatch</b>: you and your friends, filled out with bots to four, against four bots; respawns; first team to 30, or ahead at 10 minutes. <b>Crown</b>: rounds; 20 s in the crown appears in the middle, walk over it to take it, and 30 s holding it without going down takes the round (so does being the last one up). First to 3. All three play in the 1v1 arena.</li>
-            <li class="legacyOnly">20 s into a round the circle in the middle goes live. Stand in it alone for 10 s to take the round. The last one standing takes it at any time.</li>
-            <li class="legacyOnly">Abilities (a setting per match; the battle royale has them on): pick <b>JOLT</b> (a 10 m dash the way you are moving, every 3 s, key F) or <b>TRIAGE</b> (every heal twice as fast) with 5 or 6 when the card comes up: at each countdown, or when you land. In the range, 5 and 6 pick one any time to try it.</li>
-            <li class="legacyOnly"><b>Battle royale</b>: pick Solo, Duos or Trios above and the bots come in whole squads of that size; you and your friends are one side whatever the size, and the host's size is everyone's. In Solo a knock is the end; in Duos the bleed-out is half a trio's. Landing with nothing, three care packages and two loadout crates come down as the rings close: a package is called before it arrives, marked on both maps, and worth fighting over for a while after it lands; stand on a crate a moment and it hands you the loadout you built, with ammo, once each, so a squad mate taking theirs costs you nothing. From the fourth ring, <b>Storm Surge</b>: if more are alive than the ring allows, whoever has dealt the least damage starts taking it wherever they stand, unless they have dealt some in the last 20 s.</li>
             <li>You play with your selected loadout: <b id="duelLoadout"></b>. Change it on the Loadouts tab any time; weapons swap straight away.</li>
             <li>It connects your browser straight to your friends'. Most home internet works; some school, work or phone networks block it. With three, the host's connection carries the match.</li>
           </ul>
