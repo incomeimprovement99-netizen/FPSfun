@@ -266,14 +266,16 @@ describes the retired legacy game, and goes with its code.
   never reloads: when it overheats, others see it vent, the gun tipped up and
   canted in both hands on the same beats as your own view's, back in hand as it
   can fire again, a bot's too. APUHTHEE,
-  the heavy pistol, is held as a pistol is: out in front in both hands, the left
-  wrapped round the right with its thumb forward along the frame, the trigger
+  the heavy pistol, is held as a pistol is: out in front in both hands at the
+  arms' reach, where Apex holds its pistols from the hip in its third person, the
+  left wrapped round the right with its thumb forward along the frame, the trigger
   finger on the trigger, and raised to the eye with the arms nearly straight when
   aiming; its reload is the magazine alone, down out of the handle and back, until
   the first person's pistol moves are made. STRYDER, the fast pistol, is held the
-  same way. HAEFY, the rocket launcher, rides on the right shoulder, its tubes
-  running back past the head, the eye at its side sight when aiming: every gun on
-  the soldier is fitted.
+  same way. REZ, the auto shotgun, is held round the middle of its magazine tube
+  under the barrel. HAEFY, the rocket launcher, is carried muzzle up across the
+  right shoulder until it is aimed, and aimed it rides on the shoulder, the eye at
+  its side sight: every gun on the soldier is fitted.
 - **Your squad, always in sight:** each of you has a colour and a number, the
   same on every screen (1 blue, 2 green, 3 orange, 4 white). Your teammates'
   rows sit over your own health, bordered in their colour: name, shield and

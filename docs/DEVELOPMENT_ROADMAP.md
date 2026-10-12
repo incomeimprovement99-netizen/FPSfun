@@ -12467,3 +12467,37 @@ torso stands behind them to stop the shot.
   the next gun comes in at its own, the carry changed while neither shows (mannequin.ts setGun). Every skfigure check
   (315 of 315); verify;
   rules; the type check.
+
+## Milestone 563 — The pistols and REZ held as Apex holds them, proven over Apex's own third person
+
+The owner, 2026-10-11, looking at every gun in both views (docs/PLAN_GUNS_FIX_ROUND.md, the guns agent's plan for the
+round; the third person is this agent's): "the stryder third person holds it way too far to the right ... the rez is
+just like the panda where the left hand is way too forward on the gun ... and the third person looks off too for rez,
+then same for apuhthee, its too far off on the right, at least for third person ... provide proof for each gun with the
+layers over the related apex and hyperscape gun in third and first person". ANAKIN's third person is right as it is.
+
+- **The references:** Apex's own third person, filmed in the Firing Range (a video of every gun held in third person,
+  frames taken at 1080p): the RE-45 and the P2020 from the hip (Apex holds its pistols alike, so one frame stands for
+  STRYDER's and APUHTHEE's), and the Mastiff, a shotgun held still from behind (the footage's EVA-8 is a bulky legend on
+  the move with the gun half hidden). Hyper Scape has no third person (first person only, Ubisoft's own answer), so
+  there is no Hyper Scape picture to lay these over.
+- **The camera:** each reference's camera fitted, our soldier's head and hips put where its character's are (to 51
+  and 17 pixels): 2.1 to 2.3 m behind the eye, 0.45 to 0.5 m to its right, at its height, a 40 degree view. Close to
+  the game's own third-person camera (2.4 m behind, 0.45 to the right), with a narrower view. Our soldier is shot
+  through that camera and laid over the reference, half each, both right hands marked.
+- **STRYDER and APUHTHEE** (soldierhold.json guns.wingman and guns.autopistol pocket): at rest the gun was out past the
+  right shoulder, its grip 40 cm right of the body's middle and only 18 cm in front, bent arms; over the RE-45 its hand
+  was 66 pixels right of Apex's and 40 under. Now out in front at the arms' reach, 26 cm right, 40 cm in front, 1.45 m
+  up, 12 cm under where it is aimed: within 8 pixels of Apex's hand. The wrists are straighter for it (29 and 15
+  degrees, from 54 and 24). Their running, sprinting, swap and jump carries keep the old place (a gun's own
+  `lowered.pocket`, rifle.ts pocketOf): moved with the rest hold, the running carry's palms came 21 to 29 mm off the gun.
+- **REZ** (guns.shotgun support and hands.l): its left hand held the gun 6 cm past the front of its magazine tube, near
+  the muzzle. Now on the tube's middle (model z 22 cm, 24 cm ahead of the trigger's face, where the guns agent puts the
+  first person's), the hand grasped round the tube there (tools/figure-fit.ts: the palm on it, every finger touching it, nothing
+  deeper than 2 mm, the wrist 21 degrees). Held 4.5 cm higher at rest (`pocket.down` 0), its carries kept where they were:
+  through the camera fitted to Apex's Mastiff its muzzle is 16 pixels under Apex's, where it was 40, and the gun sits
+  20 to 24 mm into the chest's armour, where it was 27. Its right elbow stays tucked: Wraith holds the gun up by her face
+  and her elbow drops out and down, which the soldier's arm cannot reach with its hand on the grip.
+- **Checked:** every skfigure check on the three guns (315 of 315 on all ten guns), verify, rules and the type check. Photographed: each
+  pistol and REZ at rest, aimed, sprinting, crouched and aimed, from the front, the side and behind, and through the
+  game's own third-person camera.

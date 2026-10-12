@@ -220,10 +220,17 @@ export function supportOf(id: string): THREE.Vector3 | null {
   return at ? new THREE.Vector3(...at) : null;
 }
 
-/** where the butt sits, in spine_03's frame: in from the right shoulder joint toward the chest's middle (+x, the figure's left), under it, in front (soldierhold.json pocket) */
-function pocketOf(rig: RifleRig, figScale: number, C: HoldCfg): THREE.Vector3 {
+/**
+ * where the butt sits, in spine_03's frame: in from the right shoulder joint toward the chest's middle (+x, the figure's
+ * left), under it, in front (soldierhold.json pocket). Lowered (`lo`), toward the low carries' own where a gun has one
+ * (lowered.pocket): a pistol's rest hold moved out in front of the chest, its sprint, swap and jump carries kept theirs.
+ */
+function pocketOf(rig: RifleRig, figScale: number, C: HoldCfg, lo = 0): THREE.Vector3 {
   const P = C.pocket;
-  const off = new THREE.Vector3(P.in, -P.down, P.ahead).multiplyScalar(figScale / rig.spineScale).applyQuaternion(rig.figInSpine);
+  const LP = (C.lowered as { pocket?: { in: number; down: number; ahead: number } }).pocket;
+  const k = LP ? lo : 0;
+  const mix = (a: number, b: number | undefined) => a + ((b ?? a) - a) * k;
+  const off = new THREE.Vector3(mix(P.in, LP?.in), -mix(P.down, LP?.down), mix(P.ahead, LP?.ahead)).multiplyScalar(figScale / rig.spineScale).applyQuaternion(rig.figInSpine);
   return rig.shoulder.clone().add(off);
 }
 
@@ -749,10 +756,10 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   if (!spine) return out;
   const figQ = fig.getWorldQuaternion(new THREE.Quaternion());
   const figScale = fig.getWorldScale(new THREE.Vector3()).x;
-  const pocket = spine.localToWorld(pocketOf(rig, figScale, C)).add(Y.clone().applyQuaternion(figQ).multiplyScalar(C.pocket.adsUp * s.ads * figScale));
   // (a swap's carry is its own: one carry for a runner's arms and a stander's was a compromise that suited neither)
   const L = carryOf(C, s.carry);
   const lo = s.lowered;
+  const pocket = spine.localToWorld(pocketOf(rig, figScale, C, lo)).add(Y.clone().applyQuaternion(figQ).multiplyScalar(C.pocket.adsUp * s.ads * figScale));
   // a reload turns the gun's magazine toward the left hand and tips it down, then back, as the first person's does
   const R = C.reload;
   const u = s.reload;
