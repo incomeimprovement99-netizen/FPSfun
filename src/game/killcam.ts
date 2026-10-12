@@ -249,7 +249,7 @@ export class Killcam {
       g?.dispose();
       // the soldier it wore: its operator's look was the only one before, a bot's or a friend's pick went missing
       const op = operatorById(a.op);
-      g = new Dummy(0, 0, 0, { armed: a.weapon || undefined, respawn: false, skin: a.soldier ? { ...op, soldier: a.soldier } : op, rig: true, noBase: true });
+      g = new Dummy(0, 0, 0, { armed: a.weapon || undefined, respawn: false, skin: a.soldier ? { ...op, soldier: a.soldier } : op, noBase: true });
       g.group.name = `killcam:${a.id}`;
       this.scene.add(g.group);
       if (this.prepare) {

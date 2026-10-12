@@ -13031,3 +13031,31 @@ the old body stood in only on a copy without the soldier's files; the owner's ca
   point the Head bone carries, as the sphere's was. Since Milestone 560 the volume is the skull's own ellipsoid, whose
   middle its extremes place: measured 47 mm off that one in every pose (the jaw and the face pull it down and forward),
   with all of the head inside. The check holds it within 55 mm now.
+
+## Milestone 569 — The robot out: the range's targets are the soldier or a bullseye
+
+Our own robot, a training dummy of capsules, ball joints and a visored head posed in code, was still every figure's
+first form: the range's dummies, the courses' pop-ups and the drill's target were it outright, and every soldier
+carried a hidden one under it, built, posed and matrix-updated every frame for nothing. The owner (2026-10-12): a range
+target is either the soldier or a bullseye whose middle is the crit damage. So:
+
+- **Every figure is the soldier.** dummy.ts has no robot (its shapes, its baking, its rig and joints, its vest and its
+  gun): a figure is its invisible hit volumes with the soldier over them. A figure made before the soldier is ready (the
+  range's ten are made with the page) is its volumes alone until then, and puts the soldier on in update(), two figures
+  a frame (figure.json dressPerFrame), so the courses' fifty pop-ups never stall a frame; what was already set on it
+  (its gun shown, a finish, its distance's shadow and eyes, a glow, an outline) carries over. The rail figures sidestep
+  as they slide. A figure built only to warm the soldier's shaders (the battle royale card's) puts it on at once.
+- **The drill's target is a bullseye board** (rangetools.json board): rings in white and red on a post, its torso's
+  volume the disc and its head's the red middle, a centimetre proud of it, so a shot there is a crit (a headshot's
+  damage) and one on the rings a body hit. Its figure's other volumes are put away.
+- **The threat highlight on the soldier.** A Digital Threat optic and a REVEAL lit our robot's shell alone, so on the
+  soldier neither showed anything. mannequin.ts setFlash takes the highlight: red over its colours darkened, as the
+  robot's was.
+- **Gone with it:** the Settings "Figures" choice (mannequins or robots), gear.ts and gear.json (the robot's kit) with its
+  check, the operators' robot colours and add-ons, the robot's snap scenarios. The soldier's own figure code loses the
+  branches for a figure that was not the soldier.
+- **Checked:** verify holds the board's middle and anywhere in its crit a head hit, its rings the body and past its edge
+  nothing, seen failing with the crit put behind the rings; the range e2e holds that the range's figures, made before
+  the soldier, wear it once it is in and the drill's target is a board, seen failing with the dressing stopped, and that a
+  threat lights the soldier red and goes again, seen failing with the highlight left out of setFlash; the planted turn
+  still holds without a robot; verify, rules, the type check, the range and skfigure e2e sections.

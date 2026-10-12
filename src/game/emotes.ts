@@ -6,10 +6,8 @@
 // (7) picks one; your figure plays it for everyone, and your own view steps
 // back to third person to watch it. Moving, jumping or firing ends it early.
 //
-// The figures' rigs are not the same (the mannequin has an elbow, the robot's
-// arm is one piece with its gun), so an emote is described once here as
-// angles for a generic body, eased in and out, and each rig reads what it can
-// (dummy.ts for the robot, mannequin.ts for the mannequin). Pure, so the
+// An emote is described once here as angles for a generic body, eased in and
+// out, and the soldier reads what it can (mannequin.ts). Pure, so the
 // checks can run it. The list and the timings are in src/config/emotes.json.
 import cfg from "../config/emotes.json";
 

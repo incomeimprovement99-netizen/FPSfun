@@ -582,9 +582,7 @@ until it has hold of it, rather than reaching at nothing. Their shots leave
 the end of the barrel, which is also where their muzzle flashes are.
 The legs go the way the figure moves while its body stays on its aim, and
 standing still its feet stay planted as it turns, then step round. Out,
-the figure drops its gun and it lies by the body. Settings swaps
-the mannequin for our jointed **robots** (lighter to draw), which do all of
-the above in code, and tuck, squash, breathe and pump their arms.
+the figure drops its gun and it lies by the body.
 
 ## Controls
 
@@ -675,7 +673,6 @@ The Settings tab, all remembered in this browser:
 | Fullscreen while playing | on by default: fullscreen with Keyboard Lock, which hands Ctrl+W to the game in Chrome and Edge |
 | Graphics | Competitive (straight to the screen with MSAA, fastest, and the shortest draw distance), Balanced, High (post-processing, shadows, bloom, and the longest view) |
 | Sound captions | off, the ones that mean someone is near you, or everything: what you would have heard, written down with which way it came from and roughly how far ("DOOR  LEFT  NEAR") |
-| Figures | the motion-captured mannequin (the default) or our robots (lighter to draw); for figures made from then on |
 | Killcam | on (the replay, then the recap) or off (the recap only) |
 | Volume | master, effects, hits |
 | The range's ammo | endless, or counted |
@@ -758,8 +755,10 @@ cells, syringes, batteries, med kits and its fifth kit), their wheel and the
 backpacks that carried more of them are gone, and so are its shield cores that
 levelled with EVO and its helmets: SpeedKills' shield is one for everyone.
 
-Dummies have head, body and leg zones (a hit flashes gold, white or blue by
-zone), shield tiers (T cycles them), knock and stand-up, damage numbers and a
+The range's figures are the soldier, standing on the lanes and walking the
+rails; the flick drill's target is a bullseye board whose red middle is the
+crit, a headshot's damage. Figures have head, body and leg zones (a hit
+flashes gold, white or blue by zone), shield tiers (T cycles them), knock and stand-up, damage numbers and a
 knock time on the HUD for time-to-kill checks. They can stand, strafe,
 strafe and crouch or dodge at random (I, or the Range box), and shoot back
 with a bot's aim, in which case you have a shield and health in the range
@@ -788,7 +787,7 @@ distance: the pattern is a dozen magazines averaged, drawn for the way you are
 actually firing, aimed or from the hip, and each of its points carries a ring
 of how far a round can be off it, the gun's cone and the pattern's own wander
 together. Your rounds belong inside the corridor, not on the dots), the flick
-drill (thirty figures one at a time in a 60-degree cone, a clock, your best on
+drill (thirty bullseye boards one at a time in a 60-degree cone, a clock, your best on
 the Stats tab and the online board; the pad by the firing line or the Play
 tab's button starts it), the superglide trainer (every mantle draws a bar of
 its last 0.3 s with a needle running to its end, your jump and crouch on it
@@ -908,12 +907,11 @@ damage).
   by surface, the reload in parts, the match's cues. CC0 recordings are layered
   under it where synthesis is weakest, including the gun's own action under
   every shot.
-- **Figures** (`src/game/dummy.ts`) are either merged into a few meshes (the
-  range's dummies) or, for anything that moves, built as jointed parts about
-  their pivots (pelvis, torso, head, arms with the gun, thighs, shins) and
-  posed from a stance, a speed, the aim, the way it moves and what the hands
-  are doing, sent in the state packet. `mannequin.ts` swaps in the
-  motion-captured mannequin (two animation layers, legs and upper body).
+- **Figures** (`src/game/dummy.ts`) are invisible hit volumes with the soldier
+  over them (`mannequin.ts`: the motion-captured clips in two layers, legs and
+  upper body), posed from a stance, a speed, the aim, the way it moves and what
+  the hands are doing, sent in the state packet; the volumes follow its bones.
+  A figure made before the soldier is ready puts it on when it is.
 - **Rendering** (`src/game/render.ts`, `quality.ts`, `staticmerge.ts`,
   `materials.ts`, `props.ts`): the static level is merged into one mesh per
   material, PBR textures and glTF props are CC0 and fetched by script, and
@@ -1378,8 +1376,7 @@ geometry would need a real physics engine.
 **Characters.** The soldier plays a free library's motion-captured clips, which
 are pistol clips: a long gun is put at the shoulder by IK rather than by a rifle
 clip, and its hands and fingers on each gun, its reloads and its swaps are posed
-in code from measured holds (`src/config/soldierhold.json`). The robots (a
-setting) are posed in code.
+in code from measured holds (`src/config/soldierhold.json`).
 
 **Up to eight players, peer to peer.**
 - The browsers connect directly (WebRTC). On the game's own server our own

@@ -408,7 +408,7 @@ export class FlickDrill {
   onFinish: ((time: number, accuracy: number) => void) | null = null;
 
   constructor(scene: THREE.Scene, projectiles: ProjectileSystem) {
-    this.target = new Dummy(cfg.drill.padX, cfg.drill.padZ - 10, 0, { oneHit: true, respawn: false });
+    this.target = new Dummy(cfg.drill.padX, cfg.drill.padZ - 10, 0, { oneHit: true, respawn: false, board: true });
     this.target.group.name = "drill:target";
     this.target.hide();
     scene.add(this.target.group);

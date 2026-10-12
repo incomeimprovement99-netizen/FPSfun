@@ -11,6 +11,7 @@ import { AMMO } from "../src/game/ammo";
 import { WeaponState } from "../src/game/weapon-state";
 import { AimAssist, falloff } from "../src/game/aimassist";
 import aaCfg from "../src/config/aimassist.json";
+import rangeToolsCfg from "../src/config/rangetools.json";
 import { Ring, RING_PHASES, RING_TICK } from "../src/game/ring";
 import { RANGE_SOLIDS } from "../src/game/range";
 import { Dummy, TURN_STEP_AT } from "../src/game/dummy";
@@ -43,7 +44,6 @@ import { lobbyFails } from "./checks/lobby";
 import { seenFails } from "./checks/seen";
 import { holdFails } from "./checks/hold";
 import { dressFails } from "./checks/dress";
-import { gearFails } from "./checks/gear";
 import { hullFails } from "./checks/hull";
 import { calloutFails } from "./checks/callouts";
 import { botFireFails } from "./checks/bot-fire";
@@ -1062,7 +1062,7 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   eq("nothing", actFromCode(actCode(null)), null);
   eq("an older build's packet (no code): nothing", actFromCode(undefined), null);
   // turning on the spot: the feet stay planted, then step round past 50 degrees
-  const fig = new Dummy(0, 0, 0, { rig: true, noBase: true, respawn: false });
+  const fig = new Dummy(0, 0, 0, { noBase: true, respawn: false });
   fig.setPose({ speed: 0, stance: "stand", pitch: 0 });
   for (let i = 0; i < 5; i++) fig.update(i / 60, 1 / 60);
   fig.group.rotation.y = 0.5;
@@ -1076,6 +1076,23 @@ console.log("The figures' motion (src/game/dummy.ts, duel.ts moveDirOf)");
   fig.update(1, 1 / 60);
   eq("walking, the feet go with the body", fig.plantedTurn, 0);
   fig.dispose();
+  // The drill's bullseye board (rangetools.json board): a shot at its middle meets the crit (a head hit) first, one on
+  // its rings the body, one past its edge nothing; its figure's other volumes are put away, so none of them is hit
+  const B = rangeToolsCfg.board;
+  const board = new Dummy(0, 0, 0, { board: true, respawn: false });
+  board.group.updateMatrixWorld(true);
+  const ray = new THREE.Raycaster();
+  const at = (x: number, y: number): string => {
+    ray.set(new THREE.Vector3(x, y, 5), new THREE.Vector3(0, 0, -1));
+    return (ray.intersectObjects(board.hitMeshes.filter((m) => m.visible), false)[0]?.object.userData.zone as string | undefined) ?? "none";
+  };
+  const shots = { middle: at(0, B.height), inCrit: at(B.crit * 0.8, B.height), ring: at((B.crit + B.radius) / 2, B.height), edge: at(0, B.height - B.radius * 0.95), past: at(B.radius * 1.1, B.height), low: at(0, 0.5) };
+  eq(
+    "the drill's board: its middle and anywhere in the crit a head hit, its rings the body, past its edge and below it nothing",
+    JSON.stringify(shots),
+    JSON.stringify({ middle: "head", inCrit: "head", ring: "body", edge: "body", past: "none", low: "none" })
+  );
+  board.dispose();
 }
 
 console.log("");
@@ -1323,7 +1340,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + hullFails + dressFails + calloutFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

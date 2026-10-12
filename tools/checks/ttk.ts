@@ -65,7 +65,7 @@ console.log(rows.map((r) => `        ${r}`).join("\n"));
   for (const id of PROFILE.roster) {
     for (let lv = 0; lv <= PROFILE.fusion.levels; lv++) {
       const w = resolveWeapon(id, [], lv);
-      const fig = new Dummy(0, 0, 0, { rig: true, noBase: true, respawn: false });
+      const fig = new Dummy(0, 0, 0, { noBase: true, respawn: false });
       fig.shieldCap = PROFILE.health ? PROFILE.health.shield : 50;
       fig.setTier(1);
       const pool = fig.shield + fig.health;

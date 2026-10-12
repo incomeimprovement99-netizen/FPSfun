@@ -1,9 +1,6 @@
-// The motion-captured figure: Quaternius's mannequin and his Universal
-// Animation Library clips (CC0; public/models/mannequin), in place of the
-// robot built in code, when Settings says "Figures: mannequins".
-//
-// It is the default figure; the robot is the setting's other choice and the
-// fallback until the files have loaded. The library's clips are pistol clips
+// The figure: the bought soldier (soldier.ts) playing Quaternius's Universal Animation Library clips (CC0;
+// public/models/mannequin), carried over to its rig (retarget.ts). A figure made before it is ready is its hit volumes
+// alone until it is (dummy.ts dress). The library's clips are pistol clips
 // (it has no rifle set), so a pistol is held as the aim clip holds it, and a
 // long gun is not: it hangs off the chest with its stock in the right
 // shoulder, and both arms reach onto it (a two-bone IK to the grip and the
@@ -14,9 +11,9 @@
 // The body is two layers. The legs (and the hips' bob) play the locomotion
 // clip for the stance and speed: idle, walk, jog, sprint, crouched, backward
 // by running the clip in reverse. The upper body plays the hands' clip: the
-// aim pose, the reload, the heal, the gun lowered for a sprint or a swap; an
+// aim pose, the reload, the gun lowered for a sprint or a swap; an
 // unarmed figure's arms swing with the legs. Then, on top of the clips, the
-// same corrections the robot makes: the hips turn toward a strafe and the
+// corrections the pose asks for (dummy.ts animate): the hips turn toward a strafe and the
 // spine turns back onto the aim, the spine bends to the look pitch, a shot
 // kicks, a hit flinches, a JOLT leans.
 import * as THREE from "three";
@@ -43,16 +40,9 @@ import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
 import { buttOf, carryLowOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shellParts, shellsOf, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, ventOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
 import { resolveWeapon } from "./weapons";
 
-export type FigureStyle = "robot" | "mannequin";
-let style: FigureStyle = "robot";
-/** what new figures are built as (Settings); the robot until the mannequin has loaded */
-export function setFigureStyle(s: FigureStyle): void {
-  style = s;
-  if (s === "mannequin") void loadMannequin();
-}
+/** the soldier is ready: a figure made now wears it, and one made before puts it on (dummy.ts dress) */
 export function useMannequin(): boolean {
-  // robots until the soldier is ready: no figure is ever anything else (the legacy body went in Milestone 568)
-  return style === "mannequin" && soldierTemplate !== null;
+  return soldierTemplate !== null;
 }
 
 interface Template {
@@ -73,7 +63,7 @@ let libraryClips: Map<string, THREE.AnimationClip> | null = null;
 let loading: Promise<void> | null = null;
 /**
  * The soldier (soldier.ts), once its files and its clips are in: the game's clips carried over to its rig
- * (retarget.ts), and its hand and chest sampled in the aim pose on it. Figures made before it is ready are robots.
+ * (retarget.ts), and its hand and chest sampled in the aim pose on it. Figures made before it is ready put it on then.
  */
 let soldierTemplate: Template | null = null;
 let soldierMap: Retargeter | null = null;
@@ -181,8 +171,8 @@ export function loadMannequin(): Promise<void> {
           })
           .catch(() => null);
       libraryClips = clips;
-      // the bought soldier, when its files are here (they are local only; see soldier.json): without them the figures stay
-      // robots
+      // the bought soldier, when its files are here (they are local only; see soldier.json): without them the figures are
+      // their hit volumes alone
       void soldier
         .then((a) => (a ? makeSoldierTemplate(main.scene, a.scene) : null))
         .catch(() => null)
@@ -191,7 +181,7 @@ export function loadMannequin(): Promise<void> {
         });
     })
     .catch((e) => {
-      console.warn("the mannequin did not load; the figures stay robots", e);
+      console.warn("the figures' clips did not load; the figures are their hit volumes alone", e);
       loading = null;
     });
   return loading;
@@ -718,6 +708,8 @@ export class MannequinFigure {
   scoped = 0;
   private gunShown = true;
   private mats: THREE.MeshStandardMaterial[] = [];
+  /** each of its materials' own colour, which a threat highlight darkens (setFlash) */
+  private matColours: THREE.Color[] = [];
   /** knocked out: the death clip, once, then lying still */
   private dead = false;
   /** where the left hand holds the gun, gun-local (its handguard), and how far the reach is blended in */
@@ -806,6 +798,7 @@ export class MannequinFigure {
         const slot = m.userData.soldierMaterial as string | undefined;
         const mat = slot ? soldierMaterial(slot, this.soldier) : src.clone();
         this.mats.push(mat);
+        this.matColours.push(mat.color.clone());
         m.material = mat;
         m.userData.ownMaterial = mat;
       }
@@ -862,7 +855,7 @@ export class MannequinFigure {
     this.support = new THREE.Vector3(m.support.x ?? 0, m.support.u, -m.support.f);
     this.grip = new THREE.Vector3(0, m.grip.u, -m.grip.f);
     // (a pistol given the soldier's pistol stance goes the long guns' way too: the rifleman's rig holds it, rifle.ts)
-    if ((m.support.kind !== "pistol" || (this.soldier && !!this.tpl.rifle && pistolStance(id))) && chest) {
+    if ((m.support.kind !== "pistol" || (!!this.tpl.rifle && pistolStance(id))) && chest) {
       // A long gun: its stock in the shoulder pocket, which is OUTBOARD of the
       // joint and not inboard of it, its grip below and in front. How far in
       // front is the gun's own business: a carbine needs less room behind the
@@ -879,8 +872,8 @@ export class MannequinFigure {
       this.mountBase.decompose(mount.position, mount.quaternion, mount.scale);
       // the soldier's gun drawn at its own size for the glove (soldierhold.json scale), its grip still at the mount,
       // and its left hand's hold where the arm reaches it when the model's own is too far out (soldierhold.json support)
-      const size = this.soldier && this.tpl.rifle ? gunScaleOf(id) : 1;
-      if (this.soldier && this.tpl.rifle) this.support = supportOf(id) ?? this.support;
+      const size = this.tpl.rifle ? gunScaleOf(id) : 1;
+      if (this.tpl.rifle) this.support = supportOf(id) ?? this.support;
       gun.scale.setScalar(size);
       gun.position.copy(this.grip).multiplyScalar(size).negate();
       gun.visible = this.gunShown && !this.dead;
@@ -889,7 +882,7 @@ export class MannequinFigure {
       this.mount = mount;
       this.gun = gun;
       // SpeedKills' soldier holds it as a rifleman does (rifle.ts): its butt measured off the gun it holds
-      this.rifle = this.soldier ? (this.tpl.rifle ?? null) : null;
+      this.rifle = this.tpl.rifle ?? null;
       this.butt = this.rifle ? buttOf(gun) : null;
       // the magazine group the reload takes out (gunmodels.ts builds it as "mag"), where it sits, and the handle
       const mag = gun.getObjectByName("mag") ?? null;
@@ -1272,9 +1265,17 @@ export class MannequinFigure {
     this.captureClipPose();
   }
 
-  /** the hit flash: the body lights up for a moment */
-  setFlash(amount: number, head: boolean): void {
-    for (const m of this.mats) m.emissive.setRGB(amount * 0.9 + (head ? amount * 0.6 : 0), amount * 0.9 + (head ? amount * 0.3 : 0), amount * 0.9);
+  /**
+   * The hit flash, the body lit for a moment, and the threat highlight, 0 to 1 (a Digital Threat optic, a REVEAL: dummy.ts
+   * setThreat): red light over the body darkened, since red over its own colours reads pink. Kept under 1, as filmic
+   * tone mapping pushes a brighter red toward orange.
+   */
+  setFlash(amount: number, head: boolean, threat = 0): void {
+    for (let i = 0; i < this.mats.length; i++) {
+      const m = this.mats[i];
+      m.emissive.setRGB(amount * 0.9 + (head ? amount * 0.6 : 0) + threat * 0.95, amount * 0.9 + (head ? amount * 0.3 : 0) + threat * 0.02, amount * 0.9 + threat * 0.02);
+      m.color.copy(this.matColours[i]).multiplyScalar(1 - 0.9 * threat);
+    }
   }
 
   private play(layer: "lower" | "upper", name: string, timeScale: number, fade = 0.18, once = false, source: "lower" | "upper" | "full" = layer): void {
@@ -1505,12 +1506,12 @@ export class MannequinFigure {
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
     // (the soldier's chest held up before the look bends it: the clips lean it 33 to 40 degrees crouched and aimed or
     // sprinting, and from behind the shoulder armour and the pack hid the head; the owner, 2026-10-04: more upright)
-    if (this.soldier && b.spine_02 && b.spine_03 && b.neck_01 && !full && !this.dead) this.holdChestUp(b, fig);
+    if (b.spine_02 && b.spine_03 && b.neck_01 && !full && !this.dead) this.holdChestUp(b, fig);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
     // (the soldier looking down bends only as far as its gun's hold needs, at the waist, and its head goes down onto the
     // stock for the rest: bent as far as a look up, the head went down between the shoulders and from behind they hid it)
-    const bend = this.soldier && pitch < 0 ? (AIM_BEND.downByGun[this.gunId] ?? AIM_BEND.down) : AIM_BEND.up;
+    const bend = pitch < 0 ? (AIM_BEND.downByGun[this.gunId] ?? AIM_BEND.down) : AIM_BEND.up;
     if (b.spine_01 && bend[0]) turnBone(b.spine_01, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[0]);
     if (b.spine_02) turnBone(b.spine_02, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[1] + lean * 0.5);
     if (b.spine_03) turnBone(b.spine_03, fig, new THREE.Vector3(1, 0, 0), -pitch * bend[2] + lean * 0.5 - fx.kick * 0.1);
@@ -1518,7 +1519,7 @@ export class MannequinFigure {
     // head 43 degrees forward of the neck standing, 52 to 56 aimed, 74 to 80 crouched or sprinting, chin on the chest,
     // and from behind a shot at the back of the head it showed took the neck's or torso's volume: 2 to 7 in 100 were
     // headshots sprinting or crouched, the owner unable to headshot one from behind with BOOG)
-    if (this.soldier && b.Head && !full && !this.dead) this.holdHeadUp(b.Head, fig, pitch);
+    if (b.Head && !full && !this.dead) this.holdHeadUp(b.Head, fig, pitch);
     if (b.Head) turnBone(b.Head, fig, new THREE.Vector3(1, 0, 0), -fx.flinch * 0.25 + 0.1 * fx.ads);
     // The emote, on top of everything: the arms raised and swung in figure
     // space (+x is the figure's left, +z its front), the forearms bent at the
@@ -1572,7 +1573,7 @@ export class MannequinFigure {
     // heels (measured by apex-lobby for the card, Milestone 416; the owner asked it fixed): each foot is turned about its
     // own side to side until its toe is no higher than the bind pose has it, eased in as it stops and out as it moves, so
     // a walk's, a run's, a jump's and a kneeling foot's are the clips' own
-    const still = this.soldier && (p.stance === "stand" || p.stance === "crouch") && p.speed < FLAT_FEET.under ? 1 : 0;
+    const still = (p.stance === "stand" || p.stance === "crouch") && p.speed < FLAT_FEET.under ? 1 : 0;
     this.flatW += (still - this.flatW) * Math.min(1, dt * FLAT_FEET.rate);
     // (and lifted onto them standing: the standing clip holds the legs lower than a walk's planted foot)
     this.liftW += ((still && p.stance === "stand" ? 1 : 0) - this.liftW) * Math.min(1, dt * FLAT_FEET.rate);

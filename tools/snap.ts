@@ -50,12 +50,12 @@ const untilFightLong = untilFight.replace("20000", "60000");
 const gameSeconds = (s: number) => `new Promise((r) => { const t0 = window.__range.gameTime(); const t = setInterval(() => { if (window.__range.gameTime() - t0 >= ${s}) { clearInterval(t); r(0); } }, 50); setTimeout(() => { clearInterval(t); r(0); }, 90000); })`;
 
 /** the figure lab: standing aimed, running, walking, crouched, knocked out (the gun on the floor) */
-const lab = (style: "robot" | "mannequin") =>
-  `(async () => { ${hideMenu}; const r = window.__range; if (${style === "mannequin"}) { await r.loadMannequin(); } r.setFigureStyle("${style}"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -12);
+const lab = () =>
+  `(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -12);
     r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1 }, { speed: 7, stance: "stand", pitch: 0 }, { speed: 3.5, stance: "stand", pitch: 0 }, { speed: 0, stance: "crouch", pitch: 0 }, { speed: 0, stance: "stand", pitch: 0, dead: true }], 4.5); })()`;
 
 /** the rifle hold from the side: the left hand on each gun's handguard */
-const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
+const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
     r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "shotgun" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "wingman" }], 3.2, 90); })()`;
 
 export const SCENARIOS: Scenario[] = [
@@ -496,20 +496,15 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "figures-crouch-close",
-    note: "close up: a robot and a mannequin crouched and walking, from the side",
-    steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14); r.setFigureStyle("robot"); const a = r.figureLab([{ speed: 0, stance: "crouch", pitch: 0 }, { speed: 3.5, stance: "stand", pitch: 0 }], 2.6, 90); r.setFigureStyle("mannequin"); })()`, 0], [gameSeconds(1), 100]],
-  },
-  {
     name: "figures-hold-close",
     note: "close up, from the side: a mannequin holding the R-301, its left hand on the handguard",
-    steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
+    steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
   },
   {
     name: "motion-acts",
     note: "three figures a moment into what their hands are doing: a grenade thrown overhand, a melee swing, reaching to open something",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
         r.figureLab(["throw", "melee", "interact"].map((a) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, act: a, look: "fatigues||" })), 2.8, 60); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(0.35), 100],
     ],
@@ -518,7 +513,7 @@ export const SCENARIOS: Scenario[] = [
     name: "motion-slide",
     note: "two figures going into a slide: its way in, a moment after it starts, and the loop it settles into",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
         r.figureLab([{ speed: 7, stance: "slide", pitch: 0, ads: 0, look: "urban||" }], 2.4, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(0.25), 100],
     ],
@@ -527,7 +522,7 @@ export const SCENARIOS: Scenario[] = [
     name: "motion-air",
     note: "two figures in the air: a standing hop, and a fast jump out of a slide with the legs tucked",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
         r.figureLab([2, 8].map((v) => ({ speed: v, stance: "air", pitch: 0, ads: 0, look: "plainclothes||" })), 2.4, 90); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(0.6), 100],
     ],
@@ -536,7 +531,7 @@ export const SCENARIOS: Scenario[] = [
     name: "motion-emotes",
     note: "the three emotes that are recorded clips: the dance, a nod, arms folded",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.hideViewModel(true); await new Promise((ok) => { const w = () => (["OverhandThrow", "Dance_Loop", "Slide_Start"].every((c) => r.hasClip(c)) ? ok(true) : setTimeout(w, 100)); w(); }); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
         const figs = r.figureLab(["hoodie", "tracksuit", "irregular"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, look: o + "||" })), 2.6, 0); figs.forEach((f, i) => f.emote(5 + i)); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
@@ -550,7 +545,7 @@ export const SCENARIOS: Scenario[] = [
     name: "gear-lineup",
     note: "the five operators in their kit, close and from the front: the vest, the pack, the helmet, the shades, the gas mask, the hood",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
         r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" })), 3.6, 0); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
@@ -559,7 +554,7 @@ export const SCENARIOS: Scenario[] = [
     name: "gear-close",
     note: "one operator's head and chest: the helmet's lip and rails, the shades on their strap, the plate carrier's pouches",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14);
         r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.35, 0); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
@@ -568,7 +563,7 @@ export const SCENARIOS: Scenario[] = [
     name: "figures-stock",
     note: "the longest guns in the game from the side, where a stock through the chest shows: a sniper, an LMG, a shotgun and a pistol",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 8); r.player.teleport(s.x, 0, s.z, 0, -6); r.setThirdPerson(false); r.debugView.lowered = 1;
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 8); r.player.teleport(s.x, 0, s.z, 0, -6); r.setThirdPerson(false); r.debugView.lowered = 1;
         r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "kraber" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "devotion" }], 1.9, 90); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
@@ -584,14 +579,9 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(() => { ${hideMenu}; window.__range.debugView.downed = true; })()`, 0], [gameSeconds(0.6), 100]],
   },
   {
-    name: "figures-robot",
-    note: "the figure lab, robots: aimed, walking, crouched, down (no gun), knocked out (the gun on the floor)",
-    steps: [[lab("robot"), 0], [gameSeconds(2.5), 100]],
-  },
-  {
     name: "figures-mannequin",
-    note: "the figure lab, mannequins: aimed, walking, crouched, down (no gun), dead (its death clip, the gun on the floor)",
-    steps: [[lab("mannequin"), 0], [gameSeconds(3), 100]],
+    note: "the figure lab, soldiers: aimed, walking, crouched, down (no gun), dead (its death clip, the gun on the floor)",
+    steps: [[lab(), 0], [gameSeconds(3), 100]],
   },
   {
     name: "killcam",
@@ -844,7 +834,7 @@ export const SCENARIOS: Scenario[] = [
     name: "emotes-mannequin",
     note: "the six emotes on the mannequin, a moment in: wave, cheer, over there, salute, shrug, dance",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
         const still = { speed: 0, stance: "stand", pitch: 0 };
         const figs = r.figureLab([still, still, still, still, still, still], 5.5);
         figs.forEach((f, i) => f.emote(i)); })()`, 0],
@@ -855,22 +845,11 @@ export const SCENARIOS: Scenario[] = [
     name: "emote-self",
     note: "your own emote: the view steps back and comes round in front to watch you dance",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 0); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 0); })()`, 0],
       // on game time: an emote wants your feet on the ground, and a slow renderer may not have drawn the landing yet
       [gameSeconds(0.6), 0],
       [`(() => { window.__range.emote(5); })()`, 0],
       [gameSeconds(1.4), 200],
-    ],
-  },
-  {
-    name: "emotes-robot",
-    note: "the six emotes on the robots, a moment in",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; r.setFigureStyle("robot"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        const still = { speed: 0, stance: "stand", pitch: 0 };
-        const figs = r.figureLab([still, still, still, still, still, still], 5.5);
-        figs.forEach((f, i) => f.emote(i)); })()`, 0],
-      [gameSeconds(1.1), 200],
     ],
   },
   {
@@ -900,7 +879,7 @@ export const SCENARIOS: Scenario[] = [
     note: "the motion-captured mannequins (a setting): the same four poses",
     steps: [
       [fakePad, 600],
-      [`(() => { window.__range.setFigureStyle("mannequin"); return window.__range.loadMannequin(); })()`, 200],
+      [`window.__range.loadMannequin()`, 200],
       [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("ffa"); })()`, 400],
       [padButton(9, true), 300],
       [padButton(9, false), 300],

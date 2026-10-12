@@ -3,5 +3,7 @@
   "dummies": { "strafeSpeed": 4.4, "range": 2.6, "flipMin": 0.45, "flipMax": 1.1 },
   "combat": { "range": 60, "shooters": 2, "downSeconds": 2, "weapon": "vinson" },
   "sprayWall": { "x": 33.45, "z": -64, "y": 2.0, "width": 5, "height": 3.5, "distance": 20, "stringGap": 1.2 },
-  "drill": { "padX": 3, "padZ": 2.2, "targets": 30, "coneDeg": 60, "minDist": 5, "maxDist": 30 }
+  "drill": { "padX": 3, "padZ": 2.2, "targets": 30, "coneDeg": 60, "minDist": 5, "maxDist": 30 },
+  "_board": "The drill's target, a bullseye board on a post (dummy.ts board, the owner, 2026-10-12: a range target is the soldier or a bullseye whose middle is the crit). Ours: `radius` m is about a torso's half-width (its volume is 0.5 m across), `crit` m the middle's, which counts as a headshot, about half the head volume's 0.13; `height` m its middle off the floor, a standing figure's chest; `rings` the rings from its edge to the crit, alternating white and red so the one round the red crit is white.",
+  "board": { "radius": 0.3, "crit": 0.065, "height": 1.45, "rings": 5 }
 }

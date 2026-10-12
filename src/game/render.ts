@@ -41,7 +41,7 @@ import { compileSafely } from "./compilesafe";
  *     walls": the 4 x 2 m distance-label sprites, and the damage readout
  *     sprite on every target board.
  *   - meshes with an invisible material (the dummies' hit zones, which are now
- *     separate from the robot you see) would have been drawn as boxes, putting
+ *     separate from the figure you see) would have been drawn as boxes, putting
  *     box-shaped AO halos round every dummy.
  *
  * So the pass also hides those for its own prepass. The visibility cache it

@@ -1772,6 +1772,21 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   for (let i = 0; i < 30; i++) await ev(page, "window.__range.drill.onHit(window.__range.drill.target, window.__range.gameTime())");
   const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
+  // The range's targets (the owner, 2026-10-12: the soldier or a bullseye board, never our robot): the figures made with
+  // the page, before the soldier was ready, put it on when it is (dummy.ts dress), and the drill's target is a board
+  const soldierIn = await page.waitForFunction("window.__range.soldierReady()", { polling: 250, timeout: 120000 }).then(() => true, () => false);
+  await sleep(500);
+  const worn = await ev<{ figures: number; soldiers: number; board: boolean; drillFigure: boolean }>(
+    page,
+    "(() => { const r = window.__range; const ds = r.dummies; return { figures: ds.length, soldiers: ds.filter((d) => !!d.figure?.soldier).length, board: !!r.drill.target.group.getObjectByName('board'), drillFigure: !!r.drill.target.figure }; })()",
+  );
+  check("range: its figures, made before the soldier was in, wear it once it is, and the drill's target is a bullseye board", soldierIn && worn.figures >= 8 && worn.soldiers === worn.figures && worn.board && !worn.drillFigure, JSON.stringify(worn));
+  // a REVEAL or a threat optic (main.ts, setThreat): our robot's shell was all that lit, so on the soldier nothing showed
+  const glow = await ev<{ on: number[]; off: number[] }>(
+    page,
+    "(() => { const d = window.__range.dummies[0]; const read = () => { let e = 0, c = 0; d.figure.root.traverse((o) => { if (o.isSkinnedMesh) { e = Math.max(e, o.material.emissive.r); c = Math.max(c, o.material.color.r); } }); return [e, c]; }; d.setThreat(1); const on = read(); d.setThreat(0); return { on, off: read() }; })()",
+  );
+  check("range: a REVEAL or a threat optic lights the soldier red over its colours darkened, and it goes again", glow.on[0] > 0.8 && glow.on[1] < 0.15 && glow.off[0] < 0.1 && glow.off[1] > 0.3, JSON.stringify(glow));
   await shotgunChecks(page);
   await aimbotChecks(page);
   // the plates' line-of-sight test, on known geometry: the backstop is at z -106.75. One line from the firing line
@@ -4483,8 +4498,9 @@ async function soldierTest(browser: Browser): Promise<void> {
     "(() => { const r = window.__range; const f = r.labFigures()[0]; return { soldier: r.soldierReady(), guns: r.paidGuns().ready, figure: !!f, mq: !!f?.mq }; })()",
   );
   const crashed = errors.slice(before).filter((e) => e.startsWith("pageerror"));
-  // (the old game's body stood in here until Milestone 568: a figure is the soldier or a robot now, never that)
-  check("soldier: without the bought files the figures are robots and the guns those of before, and nothing throws", !fell.soldier && !fell.guns && fell.figure && !fell.mq && crashed.length === 0, JSON.stringify({ ...fell, crashed: crashed.slice(0, 2) }));
+  // (the old game's body stood in here until Milestone 568, and our robot until 569: without the soldier a figure is its
+  // hit volumes alone)
+  check("soldier: without the bought files the figures are their hit volumes alone and the guns those of before, and nothing throws", !fell.soldier && !fell.guns && fell.figure && !fell.mq && crashed.length === 0, JSON.stringify({ ...fell, crashed: crashed.slice(0, 2) }));
   await bare.close();
   // the 404s were the point of that page, not a fault: only what it threw stays counted
   for (let i = errors.length - 1; i >= before; i--) if (!errors[i].startsWith("pageerror")) errors.splice(i, 1);

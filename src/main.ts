@@ -113,7 +113,7 @@ import { LS_LOOT_CARD, gunOutcome, hackOutcome, lootCardView, type LootCardMode,
 import { Armory, armorySolids, type ArmoryStation, type ArmoryView } from "./game/armory";
 import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
-import { figuresSettled, hasClip, loadMannequin, setFigureStyle, useMannequin, soldierReady } from "./game/mannequin";
+import { figuresSettled, hasClip, loadMannequin, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
@@ -1647,26 +1647,17 @@ mantleCueSel.addEventListener("change", () => {
     /* ignore */
   }
 });
-// the figures: the motion-captured mannequin (the default since it holds a rifle at the
-// shoulder), or our robots (Settings; mannequin.ts). Robots stand in until it has loaded.
-const figureSel = $<HTMLSelectElement>("figureStyle");
-figureSel.value = "mannequin";
-try {
-  if (localStorage.getItem("range.figures") === "robot") figureSel.value = "robot";
-} catch {
-  /* ignore */
-}
 /**
- * SpeedKills' figures (its soldier, and the clips it plays) are asked for once the page's own screen has gone, not with
- * the page: the range is first person among robot dummies, and they were the last 14 MB that screen waited for, with a
- * half-second's retargeting (2026-10-03). A match asks for them as it starts and its screen waits for them (showFrame),
- * as do the test hook's loaded() and the battle royale card's portrait.
+ * The figures (the soldier, and the clips it plays) are asked for once the page's own screen has gone, not with the
+ * page: they were the last 14 MB that screen waited for, with a half-second's retargeting (2026-10-03). The range's
+ * figures are their volumes until then, and put the soldier on as it comes (dummy.ts dress). A match asks for them as it
+ * starts and its screen waits for them (showFrame), as do the test hook's loaded() and the battle royale card's portrait.
  */
 let figuresAsked = false;
 function askFigures(): void {
   if (figuresAsked) return;
   figuresAsked = true;
-  setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
+  void loadMannequin();
 }
 /** the figures are in (or never coming): what a match on SpeedKills waits for */
 const figuresIn = (): boolean => figuresAsked && figuresSettled();
@@ -1739,14 +1730,6 @@ void loadPaidGuns([loadouts.current.slot1, loadouts.current.slot2]).then((ok) =>
   };
   dressed();
   later(() => loadPaidRest().then((all) => all && dressed()));
-});
-figureSel.addEventListener("change", () => {
-  setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
-  try {
-    localStorage.setItem("range.figures", figureSel.value);
-  } catch {
-    /* ignore */
-  }
 });
 // The practice aim bot (Settings): it steers the view onto the nearest enemy
 // you can see. Off in any match with another human in it (see the frame loop),
@@ -1883,7 +1866,7 @@ function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): 
   const def = loadouts.current;
   // the weapon in hand too: it is a loadout, not just an outfit
   // useMannequin() is in the key so the figure is built again once the
-  // mannequin has finished loading, rather than staying the robot; and the
+  // soldier is ready, rather than staying its volumes alone; and the
   // bought guns' readiness, or a figure built before they came in held the
   // procedural stand-in until the loadout changed (Phase 27)
   const key = `${def.operator}|${lookCode()}|${gun}|${useMannequin()}|${soldierReady()}|${paidGunsReady()}`;
@@ -1891,7 +1874,7 @@ function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): 
     previewKey = key;
     previewFig?.dispose();
     previewScene.remove(previewFig?.group ?? new THREE.Object3D());
-    previewFig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode()), rig: true, noBase: true });
+    previewFig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode()), noBase: true });
     previewFig.group.position.set(0, 0, 0);
     previewScene.add(previewFig.group);
   }
@@ -2062,7 +2045,9 @@ function warmPortrait(): void {
   const ready = hudCfg.loading.brCard.figureGuns as string[];
   const gun = [loadouts.current.slot1, loadouts.current.slot2].find((g) => ready.includes(g)) ?? ready[0];
   const def = loadouts.current;
-  const fig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode()), rig: true, noBase: true });
+  const fig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode()), noBase: true });
+  // never updated, so it puts the soldier on now: it is here for the soldier's shaders
+  fig.dressNow();
   const holder = new THREE.Scene();
   holder.add(fig.group);
   fig.group.updateMatrixWorld(true);
@@ -6136,7 +6121,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   }
   if (!selfFig || selfFigKey !== key) {
     selfFig?.dispose();
-    selfFig = new Dummy(0, 0, 0, { armed: weaponId, respawn: false, skin: operatorWearing(op, look), rig: true, noBase: true });
+    selfFig = new Dummy(0, 0, 0, { armed: weaponId, respawn: false, skin: operatorWearing(op, look), noBase: true });
     selfFig.group.name = "self";
     scene.add(selfFig.group);
     selfFigKey = key;
@@ -8052,7 +8037,7 @@ const GALLERY = { x: 0, z: -8 };
       // `look` puts a soldier on it: a soldier's code (soldier.ts), or a whole look code (outfit.ts lookCode)
       const op = OPERATORS[i % OPERATORS.length];
       const skin = p.look && /^S\d{7}$/.test(p.look) ? { ...op, soldier: p.look } : p.look ? operatorWearing(op.id, p.look) : op;
-      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "vinson", respawn: false, rig: true, noBase: true, skin });
+      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "vinson", respawn: false, noBase: true, skin });
       f.group.position.set(player.pos.x + fx * dist + fz * side, player.pos.y, player.pos.z + fz * dist - fx * side);
       f.group.rotation.y = yawR + turnDeg * DEG;
       scene.add(f.group);
@@ -8114,7 +8099,6 @@ const GALLERY = { x: 0, z: -8 };
   loadMannequin,
   /** a figure clip is in: the extras (a slide's way in and out, a throw, emotes) load after the figures (tools/e2e.ts) */
   hasClip,
-  setFigureStyle,
   /** open ground near x, z: nothing standing on the floor within `clear` metres (tools/e2e.ts) */
   openGround: (x: number, z: number, clear = 5): { x: number; z: number } | null => {
     for (let r = 0; r < 120; r += 3) {
@@ -8180,7 +8164,7 @@ const GALLERY = { x: 0, z: -8 };
         [0, "vinson"],
         [1, undefined],
       ] as const) {
-        const d = new Dummy(GALLERY.x - 6 + i * 2, GALLERY.z + row * 2.5, 0, { armed, respawn: false, skin: OPERATORS[i % OPERATORS.length], rig: true, noBase: true });
+        const d = new Dummy(GALLERY.x - 6 + i * 2, GALLERY.z + row * 2.5, 0, { armed, respawn: false, skin: OPERATORS[i % OPERATORS.length], noBase: true });
         d.group.rotation.y = Math.PI;
         d.setPose({ speed: st === "stand" || st === "crouch" ? speed : 0, stance: st, pitch: 12 });
         scene.add(d.group);

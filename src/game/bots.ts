@@ -646,7 +646,7 @@ export class Bot {
     // SpeedKills: its own soldier, seeded by its id, which a guest's figure of it takes too (soldier.ts botSoldierCode)
     const op = OPERATORS[(index + 1) % OPERATORS.length];
     const skin = { ...op, soldier: botSoldierCode(id) };
-    this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, rig: true, noBase: true });
+    this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, noBase: true });
     // SpeedKills: a player's one shield (speedkills.json health), whatever armour tier the kit says
     if (PROFILE.health) this.dummy.shieldCap = PROFILE.health.shield;
     this.dummy.setTier(2);

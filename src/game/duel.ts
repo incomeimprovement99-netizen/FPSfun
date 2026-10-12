@@ -16,7 +16,7 @@
 //   - A round goes to the last player standing, or to whoever is alone in
 //     the circle for 10 s once it is live (20 s into the round). First to 3.
 //
-// The other players are drawn as robot figures holding their weapons, 100 ms
+// The other players are drawn as soldiers holding their weapons, 100 ms
 // behind real time and interpolated between updates, which hides the jitter
 // of packets arriving unevenly.
 //
@@ -952,7 +952,7 @@ export class Duel implements MatchLike {
       // gives it, the soldier the host's own figure of that bot wears (soldier.ts botSoldierCode)
       const worn = operatorWearing(op, look);
       const skin = !worn.soldier ? { ...worn, soldier: botSoldierCode(r.id) } : worn;
-      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin, rig: true, noBase: true });
+      d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin, noBase: true });
       // Its own health is not the truth, the other player's is; a huge pool
       // means its hit() reports full damage and never knocks it by itself.
       // Blue shields like the player's, so hits read in the shield colour.
