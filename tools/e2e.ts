@@ -2030,8 +2030,17 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // the toss: the cards before it, rising and phasing, and after it as the hand goes back
     o.toss = await pf<Frames["toss"]>(`const at = async (u) => { r.debugView.inspect = u; await H.gameWait(0.15); return r.packArms(); }; const a = await at(0.72); const b = await at(0.85); const c = await at(0.93); r.debugView.inspect = -1; await H.gameWait(0.3); return { y0: a.palmCardY, y1: b.palmCardY, whole0: a.palmWhole, whole1: b.palmWhole, after: c.palmCards };`);
     // an inspect and a first draw's flourish all the way through: the worst of each measure at each moment
-    const moves = (knob: string, cards: boolean) =>
-      pf<Moves>(`const w = { cards: 0, deep: 0, wrist: 0, wrung: 0, short: 0 }; for (const u of [0.04, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.96]) { r.debugView.${knob} = u; await H.gameWait(0.12); const s = r.packArms(); const a = window.__packAudit(0.004); ${cards ? "w.cards = Math.max(w.cards, ...window.__cardOverGun());" : ""} w.deep = Math.max(w.deep, a.seenDeepest * 1000); w.wrist = Math.max(w.wrist, s.wristL, s.wristR); w.wrung = Math.max(w.wrung, s.skinL, s.skinR); w.short = Math.max(w.short, s.reachShort, s.reachShortR); } r.debugView.${knob} = -1; await H.gameWait(0.3); return w;`);
+    // (a page call a moment: the whole sweep in one call took up to 85 s, and with other runs loading the machine it
+    // passed the page's 120 s limit, 2026-10-12)
+    const moves = async (knob: string, cards: boolean): Promise<Moves> => {
+      const w: Moves = { cards: 0, deep: 0, wrist: 0, wrung: 0, short: 0 };
+      for (const u of [0.04, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 0.96]) {
+        const m = await pf<Moves>(`r.debugView.${knob} = ${u}; await H.gameWait(0.12); const s = r.packArms(); const a = window.__packAudit(0.004); return { cards: ${cards ? "Math.max(0, ...window.__cardOverGun())" : "0"}, deep: a.seenDeepest * 1000, wrist: Math.max(s.wristL, s.wristR), wrung: Math.max(s.skinL, s.skinR), short: Math.max(s.reachShort, s.reachShortR) };`);
+        for (const k of Object.keys(w) as Array<keyof Moves>) w[k] = Math.max(w[k], m[k]);
+      }
+      await pf(`r.debugView.${knob} = -1; await H.gameWait(0.3);`);
+      return w;
+    };
     o.inspect = await moves("inspect", true);
     o.flourish = await moves("flourish", false);
     // no skin through the gun where it is seen, in each state
@@ -2065,7 +2074,14 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // turn in round its middle, "like the streetfighter haduken"; through it the most the gun's middle moves, the deepest
     // seen skin in the gun, the most an arm falls short, and with the hands cupped (held 0.6 s of game time to settle) how
     // far they are off their holds, how far each palm is turned from the gun's middle, the fingers' bend, the phase's shape
-    const swap = await pf<Frames["swap"]>(`r.packRig().debugStill = true; const root = r.viewModelRoot(); const T = r.THREE; let gun = null; root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; }); const at = () => root.worldToLocal(new T.Box3().setFromObject(gun).getCenter(new T.Vector3())); H.clear(); await H.gameWait(0.2); const p0 = at(); let moved = 0, deep = 0, short = 0; for (let u = 0.04; u < 0.97; u += 0.04) { r.debugView.raise = u; await H.gameWait(0.1); moved = Math.max(moved, at().distanceTo(p0)); const a = window.__packAudit(0.004); deep = Math.max(deep, a ? a.seenDeepest * 1000 : 0); const s = r.packArms(); short = Math.max(short, s.reachShort, s.reachShortR); } r.debugView.raise = 0.4; await H.gameWait(0.6); const c = r.packArms(); const radial = r.gunFeel().radial; r.packRig().debugStill = false; H.clear(); await H.gameWait(0.3); return { moved, deep, short, off: c.cupOff, face: c.cupFace, curl: Math.min(c.curlL, c.curlR), radial };`);
+    // (a page call a step, as the moves above: in one call the sweep took up to 85 s)
+    await pf(`r.packRig().debugStill = true; const root = r.viewModelRoot(); const T = r.THREE; let gun = null; root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; }); H.gunAt = () => root.worldToLocal(new T.Box3().setFromObject(gun).getCenter(new T.Vector3())); H.clear(); await H.gameWait(0.2); H.gunAt0 = H.gunAt();`);
+    const sw = { moved: 0, deep: 0, short: 0 };
+    for (let u = 0.04; u < 0.97; u += 0.04) {
+      const m = await pf<typeof sw>(`r.debugView.raise = ${u}; await H.gameWait(0.1); const a = window.__packAudit(0.004); const s = r.packArms(); return { moved: H.gunAt().distanceTo(H.gunAt0), deep: a ? a.seenDeepest * 1000 : 0, short: Math.max(s.reachShort, s.reachShortR) };`);
+      for (const k of Object.keys(sw) as Array<keyof typeof sw>) sw[k] = Math.max(sw[k], m[k]);
+    }
+    const swap = { ...sw, ...(await pf<Omit<Frames["swap"], "moved" | "deep" | "short">>(`r.debugView.raise = 0.4; await H.gameWait(0.6); const c = r.packArms(); const radial = r.gunFeel().radial; r.packRig().debugStill = false; H.clear(); await H.gameWait(0.3); return { off: c.cupOff, face: c.cupFace, curl: Math.min(c.curlL, c.curlR), radial };`)) };
     o.swap = swap;
     const pick = await pf<string[]>(`r.packPickupAt(0.4); await H.gameWait(0.2); const a = r.packArms().lead; r.packPickupAt(null); await H.gameWait(0.3); const b = r.packArms().lead; r.debugView.inspect = null; return [a, b];`);
     o.pickLead = pick[0];

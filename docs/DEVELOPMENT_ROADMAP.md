@@ -13178,3 +13178,65 @@ The district's second stage.
 - **Checked** (tools/checks/sk-neon.ts): the metro train behind the station with its buffer stop, and four trams on rails along both strips clear of the bots' street lines; a player walks out of each hall through its south arch onto the platform beside the train. The new checks were proven failing with their faults put back: a wall across one hall's south arch, and a tram strip moved onto a street line. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: along the platform, the train from an arch, a tram strip from the ring road, the west strip and the yard's end, by golden hour and at night.
   The map: its files lo 119.0 MB, hi 185.6 MB, max 414.3 MB.
   **Its files are version 68.**
+
+## Milestone 540 — The long guns' left hands where the soldier holds them, no sleeve seen, and the fists
+
+The owner's look at every gun (2026-10-11, `docs/PLAN_GUNS_FIX_ROUND.md`): REZ's and PANDA's left hands "way too far
+forward" and the left arm "seethrough... like looks terrible", ANAKIN's first person not matching its third, and "the
+fists out look obvously fucked up too lmao the fingers are all bent unnaturally". The first person's part of the round
+for REZ, PANDA, ANAKIN and CHOOCH, and the fists. Each fit was measured off the gun's own model and laid over Apex's
+frames.
+
+- **The see-through arm was the inside of a sleeve.** The bought arms are cut off on the upper arm. Where a left hand
+  reached far out along the gun, the upper arm came up into the picture open end first, and the eye looked into it.
+  Drawn with each face's side told apart (tools/pack-audit.js `__sleeveInside`), at rest PANDA showed 4616 pixels of
+  that inside, CHOOCH 5628 and REZ 3721 (of a 480 wide picture). Every other gun showed none, and none at all aimed.
+  Now none anywhere: the left shoulders come out and down, so each forearm comes in from the lower left as Apex's do.
+  The shoulder search scores it (tools/pack-solve.ts wrists), and the e2e checks it in every state it measures skin in
+  the gun, aimed too.
+- **Each left palm where the soldier's is** (the character agent measured the third person's, in each model's own cm):
+  - REZ was at z 50.8, past the gun's 49.3 cm nose; now at 22.5, the magazine tube's middle (the soldier's 22).
+  - PANDA was at 47.9, on the nose and up its side; now at 37.3, under the handguard ahead of the magazine (the soldier's
+    39.1).
+  - ANAKIN was at 8.3, low on the grip's front; now at 29.7, under its front (the soldier's 29.0; the owner: its third
+    person "is correct").
+  - CHOOCH was already at the soldier's 41 ahead of the drum; only its shoulder moved.
+  Each hand started from the pack gun's own fore-end grip, unturned (the old fits had turned it up to 55 degrees). It was
+  moved onto the place, its shoulder searched, the palm taken out of the gun with nothing asked to lie flush, and the
+  fingers laid on joint by joint.
+- **No forearm wrung:** laid out of PANDA's handguard by a turn of the hand alone, its left forearm was wrung 95 degrees;
+  past 90 the glove's cuff parts from the sleeve. Turned back, it is 54. The flush search now scores the forearm's twist
+  (tools/pack-flush.ts).
+- **The moves fitted to the new holds:**
+  - Each swap's left hand comes off its own way: PANDA's down from under the handguard, ANAKIN's out before its fingers
+    curl (fparms.json `cupMove`, `cup`). The old ways ran 7 and 17 mm into the guns.
+  - ANAKIN's right hand is 4 mm lower: its old left hand had hidden a sliver of daylight in the right grip.
+  - REZ's and PANDA's inspect arms were refitted (`beforeArm`): REZ's wrist bent 62 degrees, PANDA's first draw 89.
+  - PANDA points at its magazine in a reload from its own shoulder (`pointShoulder`, fprig.ts, as a punch has
+    `meleeShoulder`): from the off-gun shoulder refitted for its inspect, the pointing wrist bent 64 degrees with the
+    finger 11 off the magazine; from its own, 43 and 5.
+  - CHOOCH's left shoulder came down and in, its wrist 26 degrees where it was 50, and no sleeve shows as it vents or
+    swaps (53 and 65 pixels on the first fit).
+  - ANAKIN's right palm has sat about 9 mm into its grip since its first fit, always hidden; with its left hand moved
+    forward, the swap's phase-in showed it. A 0.06 radian turn of the right hand keeps it hidden. Refitting that palm
+    out of the grip is left for the round's next part.
+- **Set aside:** the APUHTHEE slide rack begun before this round put the left palm 4.4 mm into the gun as it racked; it
+  is kept aside to finish.
+- **The proof** (the plan's method): each gun's picture laid half over its references at rest and aimed: REZ over Apex's
+  EVA-8, PANDA over Apex's Flatline and Hyper Scape's Ripper, ANAKIN over Apex's Alternator and Hyper Scape's Harpy,
+  CHOOCH over Apex's Devotion at rest and its L-STAR aimed (Apex's energy LMG, as CHOOCH is). The aimed references come
+  from a video that lays every Apex gun's aimed view side by side. Hyper Scape has no automatic shotgun and no LMG like
+  CHOOCH's to lay REZ and CHOOCH over.
+- **The fists:** each finger joint is now bent about its own hinge, across the finger in the palm's plane, instead of on
+  along the first gun's grip turn, which also splays and rolls a finger round a gun's side. The fingers curl within 7
+  degrees of their own planes; the old fist's were 75 and 28 degrees off (the USSO's left and right). The thumbs were refitted across the fingers
+  (tools/fist-thumb.ts, 0.82 and 0.75 of a phalanx off their place). The punch's fist is the same. A swap's cup and a
+  rack's pinch, which close part way from a hold, keep the grip's bend: their timings were fitted to it, and with the
+  hinges REZ's cup closed 15 mm into the gun.
+- **Checked:** verify, rules and the type check; the soldier e2e's skpack frames on all ten guns, then again on the four
+  changed after it (ANAKIN, PANDA, CHOOCH, APUHTHEE). Two new checks, each seen failing: no inside of a sleeve seen, in
+  every state the skin check visits and aimed (PANDA's 4651 pixels at rest), and each fist's fingers within 20 degrees
+  of their own planes (the old bend, 75 and 28). The frames' longest page calls, the inspect, first-draw and swap sweeps
+  with a full skin audit at each step, took up to 85 s in one call; with other runs loading the machine they passed the
+  page's 120 s limit, and the character agent's soldier section, which runs them, looked hung. They now make a page call
+  a step.

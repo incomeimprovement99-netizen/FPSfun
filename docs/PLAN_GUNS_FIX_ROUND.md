@@ -92,11 +92,12 @@ e2e, seen failing with the fault put back.
 
 | Item | First person | Third person |
 |---|---|---|
-| REZ | the hand on the tube's middle (palm z 22.5), the shoulder out and down, no sleeve seen; every move without fault (pack-tune) | done (Milestone 563): the left hand on the tube's middle at model z 22, the muzzle 16 px under Apex's Mastiff's (40 before) |
-| BIGANTLER | the palm already over the pump (z 26.4, the soldier's 28.1); the hand to close on it | |
-| PANDA | the hand moved to the soldier's place (z 39, ahead of the magazine), no sleeve seen; 7 mm in the gun to take out | |
-| ANAKIN | the hand moving to the soldier's place (z 29, ahead of the trigger) | right |
-| STRYDER | to do | done (Milestone 563): the hand within 8 px of Apex's RE-45 from the hip (66 px right before) |
-| APUHTHEE | aimed: the gun 2.3 times nearer the eye than Apex's pistols | done (Milestone 563), over the RE-45 as STRYDER |
-| Aimed, every gun | to do | |
-| The fists | each finger bent about its own knuckle hinge (7 degrees off its plane at most), the thumbs refitted across the fingers | |
+| REZ | done (Milestone 540): the hand on the tube's middle (palm z 22.5), the forearm in from the lower left, no sleeve seen, every move without fault; over Apex's EVA-8 at rest and aimed | done (Milestone 563): the left hand on the tube's middle at model z 22, the muzzle 16 px under Apex's Mastiff's (40 before) |
+| BIGANTLER | next: the palm is over the pump (z 26.4, the soldier's 28.1) but 3 cm under it with no fingers seen on it; the hand to close on it | |
+| PANDA | done (Milestone 540): under the handguard ahead of the magazine (palm z 37.3, the soldier's 39.1), no sleeve seen, its own pointing shoulder; over Apex's Flatline and Hyper Scape's Ripper at rest and aimed | |
+| CHOOCH | done (Milestone 540): its shoulder down and in, no sleeve seen at rest, venting or swapping, the wrist 26 degrees; over Apex's Devotion at rest and its L-STAR aimed | |
+| ANAKIN | done (Milestone 540): under its front where the soldier holds it (palm z 29.7, the soldier's 29.0); over Apex's Alternator and Hyper Scape's Harpy at rest and aimed. Left: its right palm sits 9 mm into the grip, hidden in every state measured | right |
+| STRYDER | next: half the Riot One's size on the screen, more than the guns' sizes explain: to come nearer, "a bit" | done (Milestone 563): the hand within 8 px of Apex's RE-45 from the hip (66 px right before) |
+| APUHTHEE | next: at rest 0.05 right of and 0.08 higher than Apex's Wingman; aimed 2.3 times nearer the eye than Apex's pistols (every bought gun's irons come to 34 cm: a pistol needs its own distance) | done (Milestone 563), over the RE-45 as STRYDER |
+| Aimed, every gun | looked at: the pistols are the fault (above); REZ, PANDA, ANAKIN and CHOOCH aimed laid over Apex's aimed frames | |
+| The fists | done (Milestone 540): each finger bent about its own knuckle hinge (7 degrees off its plane, the old 75), the thumbs refitted across the fingers | |
