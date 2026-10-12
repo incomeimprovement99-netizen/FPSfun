@@ -3886,7 +3886,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // 6 and z from its pivot less 1 to its pivot plus 20.5. A taxi rank of the pack's urban cars on the forecourt, the
 // district's name over the arcade on the north face. Colliding as their own faces, as the centre's hall does
 {
-  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
+  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
   if (TM) {
     const H = TM.hall;
     const hr = piece(H.piece).row;
@@ -3910,10 +3910,42 @@ const STREET_WALL_BOXES: OBox[] = [];
       const name = RK.pieces[Math.floor(rndM() * RK.pieces.length)];
       placeTurned(TM.chunk, name, x, RK.z, RK.yaw, "o", -piece(name).row.min![1]);
     }
+    // the trains (`trains`, Milestone 588): the pack's metro train at the platform behind the station, along its south
+    // arcade, on the pack's rail plates, its buffer stop at its front; the pack's trams parked on rail plates along both
+    // strips past the roads, off the bots' street lines; benches on the platform. The plates a centimetre over the ground,
+    // whose tiles are flush with theirs. All collide as their own faces: the wagons stand as cover
+    const TR = TM.trains;
+    let trams = 0, plates = 0;
+    if (TR) {
+      const M = TR.metro;
+      add(TM.chunk, "c", [piece(M.piece).key, M.at[0], M.at[1], M.at[2], M.yaw, "o"] as Place);
+      const mr = piece(M.piece).row;
+      const [mx0, mx1] = [M.at[0] + mr.min![0], M.at[0] + mr.max![0]];
+      placeTurned(TM.chunk, M.stop, mx1 + M.stopGap, M.at[2], 90, "o");
+      const plate = piece(TR.plate).row;
+      const pl = plate.size![2];
+      // (the metro's plates turned 90 degrees, their length along x, from its tail to past its stop)
+      for (let x = mx0 - 1; x < mx1 + M.stopGap + 1; x += pl) {
+        placeTurned(TM.chunk, TR.plate, x + pl / 2, M.at[2], 90, "g", TR.lift);
+        plates++;
+      }
+      for (const s of TR.strips) {
+        for (let z = s.z[0]; z < s.z[1] - 1e-6; z += pl) {
+          placeTurned(TM.chunk, TR.plate, s.x, z + pl / 2, 0, "g", TR.lift);
+          plates++;
+        }
+        for (const [z, yaw] of s.trams) {
+          const name = TR.trams[trams % TR.trams.length];
+          placeTurned(TM.chunk, name, s.x, z, yaw, "o", TR.lift - piece(name).row.min![1]);
+          trams++;
+        }
+      }
+      for (const [x, z, yaw] of TR.benches) placeTurned(TM.chunk, TR.bench, x, z, yaw, "o");
+    }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terminal"), { district: "terminal", ...TM.name }];
     const [X0, X1, Z0, Z1] = [Math.min(...halls.map((h) => h[0])), Math.max(...halls.map((h) => h[1])), Math.min(...halls.map((h) => h[2])), Math.max(...halls.map((h) => h[3]))];
-    cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length };
-    console.log(`THE TERMINAL: ${halls.length} halls, x ${X0} to ${X1}, z ${Z0} to ${Z1}; ${RK.x.length} cars in the rank`);
+    cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length, trams, plates };
+    console.log(`THE TERMINAL: ${halls.length} halls, x ${X0} to ${X1}, z ${Z0} to ${Z1}; ${RK.x.length} cars in the rank, ${trams} trams, ${plates} rail plates${TR ? ", the metro train at the platform" : ""}`);
   }
 }
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super

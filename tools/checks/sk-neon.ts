@@ -2590,5 +2590,29 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE TERMINAL: its name over the arcade, seen from the ring road", named && !!N && blocked.length === 0, blocked.slice(0, 4).join("; ") || "9 sight lines clear");
 }
 
+// THE TERMINAL's trains (rules.districts.terminal.trains, Milestone 588): the metro train behind the station along its
+// south arcade with its buffer stop past its front, and the trams on both strips clear of the bots' street lines; and
+// a player walks out of each hall through its south arch onto the platform beside the train
+{
+  type TR = { metro: { piece: string; at: number[]; stop: string }; strips: Array<{ x: number; trams: number[][] }> };
+  const T2 = (cfg.rules as unknown as { districts?: { terminal?: { trains?: TR } } }).districts?.terminal?.trains;
+  const TO = (cfg as unknown as { terminal?: { box: number[]; trams?: number } }).terminal;
+  const place = (cfg.chunks as unknown as Record<string, { place: unknown[][] }>)["c-terminal"]?.place ?? [];
+  const has = (name?: string) => !!name && place.some((q) => String(q[0]).endsWith(`/${name}`));
+  const lim = 152 - (cfg.game as unknown as { graph: { margin: number } }).graph.margin;
+  const onLine = (v: number) => Math.abs((v + lim) / 10 - Math.round((v + lim) / 10)) * 10;
+  const nearLine = (T2?.strips ?? []).filter((s) => onLine(s.x) < 1.25 + MOVE.radius + 0.2);
+  check("THE TERMINAL: the metro train behind the station with its buffer stop, and four trams on rails along both strips, clear of the bots' street lines", !!T2 && has(T2.metro.piece) && has(T2.metro.stop) && (TO?.trams ?? 0) === 4 && nearLine.length === 0 && T2.metro.at[2] > (TO?.box[3] ?? 0), `${TO?.trams ?? 0} trams, ${nearLine.length} strips on a street line`);
+  const Z1 = TO?.box[3] ?? 0;
+  const shut: string[] = [];
+  // (through the arch at each hall's middle: between them the south arcade is wall)
+  for (const x of ((cfg as unknown as { terminal?: { halls: number[][] } }).terminal?.halls ?? []).map((h) => (h[0] + h[1]) / 2)) {
+    const route = [[x, Z1 - 4, 0], [x, Z1 + 2.4, 0]];
+    const w = along(route);
+    if (w.k !== route.length) shut.push(`at x ${x}: to (${w.x.toFixed(1)}, ${w.z.toFixed(1)})`);
+  }
+  check("THE TERMINAL: a player walks out of the hall through its south arcade onto the platform beside the train, through each hall's arch", shut.length === 0, shut.join("; ") || "6 walks");
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

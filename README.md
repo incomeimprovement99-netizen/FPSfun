@@ -1229,7 +1229,8 @@ roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined
 low shophouses under lantern lines, jump pads up onto their roofs; and THE TERRACES in
 the west: three garden tiers stepping up to the edge, a grand stair up the middle, a run of
 balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls; and
-THE TERMINAL in the south: a station hall of arcades under glass vaults. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+THE TERMINAL in the south: a station hall of arcades under glass vaults, a metro train at its
+platform and trams on the strips beside it. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

@@ -13095,3 +13095,19 @@ straight roads, empty pavement until now. Its plan is on the plan page.
 - **Checked** (tools/checks/sk-neon.ts): six halls in a row in the south band between the roads; in each a body stands on its floor at the street and a player walks in from the forecourt through the arcade and back out; the name over the arcade seen from the ring road on nine sight lines; the street network still whole with the halls' nodes. The new checks were proven failing with their faults put back: a wall across one hall's arcade, and the name moved inside the hall. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: the ring road, the forecourt, inside the arcade and along the halls, the east front and the centre's south street, by golden hour and at night.
   The map: its files lo 117.4 MB, hi 184.0 MB, max 412.6 MB.
   **Its files are version 67.**
+
+## Milestone 588 — THE TERMINAL, its trains: the metro at the platform, trams on the strips
+
+The district's second stage.
+
+- **The metro** (`rules.districts.terminal.trains`, tools/neon-layout.ts): the pack's 35 m metro train behind the
+  station, along a 3 m platform outside the halls' south arches, its pivot its front end and its wheels at the street.
+  It stands on the pack's rail plates laid a centimetre over the ground (their tops are flush with the ground's tiles,
+  which would flicker through them), and the pack's buffer stop stands past its front. Three of the pack's metro benches
+  sit on the platform at the halls' joins, before the walls between the arches: the first two stood before arches.
+- **The trams:** four of the pack's trams parked on rail plates along both strips past the roads, at x 42.5 and -42.5,
+  off the bots' street lines at x 45 and -45.
+- **Collision:** all of them collide as their own faces; the wagons stand as cover.
+- **Checked** (tools/checks/sk-neon.ts): the metro train behind the station with its buffer stop, and four trams on rails along both strips clear of the bots' street lines; a player walks out of each hall through its south arch onto the platform beside the train. The new checks were proven failing with their faults put back: a wall across one hall's south arch, and a tram strip moved onto a street line. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: along the platform, the train from an arch, a tram strip from the ring road, the west strip and the yard's end, by golden hour and at night.
+  The map: its files lo 119.0 MB, hi 185.6 MB, max 414.3 MB.
+  **Its files are version 68.**
