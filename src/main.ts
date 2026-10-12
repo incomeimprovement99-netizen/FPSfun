@@ -130,11 +130,10 @@ import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
 import { levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/loot";
-import type { AmmoType } from "./game/weapons";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
-import { Armor, Knockdown, type KnockTier } from "./game/kit";
-import { STACK, ammoTypeOf } from "./game/ammo";
+import { Armor, Knockdown } from "./game/kit";
+import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
@@ -2258,12 +2257,7 @@ function onEliminated(d: MatchLike, by: number): void {
     const items: LootItem[] = [];
     // SpeedKills: each gun at the level you fused it to
     for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 });
-    // SpeedKills' is your guns: its reserve is endless, it has no heals or helmets, and its floor is guns and hack
-    // cores. A loadout start carries the match's ammo kit, which went down as clutter.
-    if (!IS_SK) {
-      for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
-      if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
-    }
+    // (your guns and nothing else: the reserve is endless, and the floor is guns and hack cores)
     // what a restore at your echo gives back: kept here, not taken off the floor, where anyone may have it by then
     deathKit = items.map((it) => ({ ...it }));
     // an echo only where there is a squad to bring you back: in solo the others are opponents
@@ -3150,8 +3144,6 @@ function respawnForMatch(d: MatchLike): void {
     loadout.ammo.empty();
     for (const gun of gulagGuns) {
       applyLoot({ kind: "weapon", id: gun, n: 1, rarity: "common" });
-      const type = ammoTypeOf(gun);
-      if (type !== "energy") applyLoot({ kind: "ammo", id: type, n: STACK[type] * GULAG.kitStacks, rarity: "common" });
     }
     killcam.stop();
     recap = null;
@@ -4237,19 +4229,8 @@ const brPlay = new BrPlay({
     if (at && duel instanceof BrMatch) duel.hearBeam(at);
   },
 });
-// What you carry, for the walk-over pickup and the reach list's grey-out. The
-// looting shipped with this hook documented and never set, so in a real match
-// the walk-over pickup did nothing at all: with no carry state it takes
-// nothing, because it cannot tell ammo for your gun from ammo for someone
-// else's.
-brPlay.carrying = () => {
-  const held = loadout.slots.filter((s) => !s.empty);
-  return {
-    ammo: held.map((s) => ammoTypeOf(s.id)),
-    ammoRoom: Object.fromEntries(held.map((s) => [ammoTypeOf(s.id), loadout.ammo.room(ammoTypeOf(s.id))])),
-    hacks: IS_SK ? { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null } : undefined,
-  };
-};
+// What you carry, for the hold that empties a spot: it leaves a hack core that would swap yours.
+brPlay.carrying = () => ({ hacks: { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null } });
 // ---------- SpeedKills' loot card (Phase 20 A8; lootcard.ts) ----------
 let lootCardMode: LootCardMode = (() => {
   try {
@@ -4401,32 +4382,6 @@ function applyLoot(it: LootItem): void {
       audio.swap();
       break;
     }
-    case "ammo": {
-      // as much as fits; the rest goes back down where it lay (ammo.json carry)
-      const put = loadout.ammo.add(it.id as AmmoType, it.n);
-      if (put < it.n) {
-        putBack({ ...it, n: it.n - put });
-        hud.notice(put ? `${label}: ${put} TAKEN, THE REST IS FULL` : `${label}: FULL`, gameTime, 1.4);
-        if (!put) return;
-      }
-      audio.reloadStep("in");
-      break;
-    }
-    case "knockdown":
-      // the shield you crawl behind when you are knocked; a gold one gets you up once
-      if (!kd.take(it.id as KnockTier, armor.level)) {
-        putBack(it);
-        hud.notice(`${label}: YOURS IS AS GOOD`, gameTime, 1.2);
-        return;
-      }
-      hud.notice(kd.canSelfRevive ? `${label}: CARRIES A SELF-REVIVE` : label, gameTime, 1.4);
-      audio.shieldBreak();
-      break;
-    case "helmet":
-      armor.helmet = it.id === "red" ? "red" : "gold";
-      if (d) d.shieldMax = armor.shieldMax;
-      audio.shieldBreak();
-      break;
   }
   hud.notice(label, gameTime, 1);
 }
@@ -5262,8 +5217,6 @@ function endMatch(reason: string): void {
   // the match's bullet holes and sprays go with it
   impacts.clear();
   sprays.clear();
-  // and out of a battle royale nothing limits the ammo you carry
-  loadout.ammo.limited = false;
   // back in the range: ammo as Settings says
   loadout.ammo.infinite = !rangeAmmoCounted;
   killcam.stop();
@@ -7674,8 +7627,6 @@ function step(): void {
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
     const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    // what you can carry of each ammo type (ammo.json carry)
-    loadout.ammo.limited = true;
     brPlay.update(now, duel, player, scriptInput ?? input, camera.position.clone(), f, { alive: duel.alive, downed: downedNow, playing: input.playing || !!scriptInput, myId: duel.id });
   }
 

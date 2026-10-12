@@ -188,15 +188,8 @@
     "startArmor": 1,
     "maxArmor": 3,
     "armorPerItems": 3,
-    "helmetTier": {
-      "gold": 3,
-      "red": 4
-    },
-    "maxMods": 4,
-    "startMag": 0,
     "score": {
       "gun": 4,
-      "mod": 1,
       "armor": 2
     },
     "_overtime": "how many of its own search windows a bot that still has NO gun may spend before it gives up and fights unarmed. The window alone used to end the search, so a bot that landed badly stopped looking and stayed unarmed, held its fire for the whole match and walked the ring as a free kill. Ours.",

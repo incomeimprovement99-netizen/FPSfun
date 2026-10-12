@@ -77,8 +77,7 @@ import { PROFILE } from "../src/game/game";
 import { DamageLog } from "../src/game/recap";
 import { Armor } from "../src/game/kit";
 import audioCfg from "../src/config/audio.json";
-import lootCfg from "../src/config/loot.json";
-import { LootField, rollItem, seeded } from "../src/game/loot";
+import { LootField } from "../src/game/loot";
 import { Duel, moveDirOf } from "../src/game/duel";
 import { actCode, actFromCode } from "../src/game/dummy";
 import { medalFor, roomPars } from "../src/game/course";
@@ -1034,30 +1033,15 @@ console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
   eq("the same seed lays out the same items under the same keys (a squad's browsers agree)", same, true);
   eq("another seed lays out another floor", [...a.drops].some(([k, d]) => c.drops.get(k)?.item.id !== d.item.id), true);
   eq("two places and the field: at least 40 items", a.count >= 40, true);
-  // the rolls: every id they can make is one the game knows
-  const rnd = seeded(9);
-  const rar: Record<string, number> = { common: 0, rare: 0, epic: 0, legendary: 0 };
+  // what the floor lays: guns the game knows and hack cores, nothing else. (The legacy single-item roll this tested
+  // went in Milestone 526; it gathered the unknown ids and never asserted them.)
   const unknown: string[] = [];
   const guns = new Set(weaponIds());
-  let weapons = 0;
-  for (let i = 0; i < 20000; i++) {
-    const it = rollItem(rnd);
-    if (it.kind === "weapon") {
-      weapons++;
-      rar[it.rarity]++;
-      if (!guns.has(it.id)) unknown.push(it.id);
-    }
+  for (const d of a.drops.values()) {
+    if (d.item.kind === "weapon" && !guns.has(d.item.id)) unknown.push(d.item.id);
+    else if (d.item.kind !== "weapon" && d.item.kind !== "hack") unknown.push(d.item.kind);
   }
-  for (const id of lootCfg.carePackage) if (!guns.has(id)) unknown.push(id);
-  // against the configured weights, not a number typed here: the owner tunes
-  // loot.json's rarity, and a test that hardcodes it just fails on their edit
-  {
-    const w = lootCfg.rarity as Record<string, number>;
-    const total = Object.values(w).reduce((a, b) => a + b, 0);
-    for (const tier of ["common", "rare", "epic", "legendary"] as const) {
-      near(`a ${tier} gun is ${Math.round((w[tier] / total) * 100)}% of guns, as loot.json weights it`, rar[tier] / weapons, w[tier] / total, 0.02);
-    }
-  }
+  eq("every item on the floor is a gun the game knows or a hack core", unknown.join(", ") || "none", "none");
   // a loadout starts empty and fills from the floor
   const lo = new Loadout(["vinson", "wingman"]);
   lo.clearSlot(0);

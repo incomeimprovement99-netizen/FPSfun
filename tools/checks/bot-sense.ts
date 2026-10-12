@@ -157,8 +157,9 @@ class Floor implements BotLootSource {
 }
 
 const gun = (id: string, rarity: string): BotLootItem => ({ kind: "weapon", id, rarity, n: 1 });
-const mod = (id: string, rarity: string): BotLootItem => ({ kind: "attach", id, rarity, n: 1 });
-const helmet = (id: string): BotLootItem => ({ kind: "helmet", id, rarity: "legendary", n: 1 });
+// a hack core: on the floor, and nothing a bot wants (it wants guns: the legacy game's fittings and helmets went in
+// Milestone 526)
+const core = (id: string): BotLootItem => ({ kind: "hack", id, rarity: "rare", n: 1 });
 const ammo = (): BotLootItem => ({ kind: "ammo", id: "light", rarity: "common", n: 60 });
 
 /** a place: plenty on the floor and all of it close together, like a room with loot in it */
@@ -168,14 +169,12 @@ function richFloor(): Floor {
     gun("r97", "common"),
     gun("vinson", "rare"),
     gun("sentinel", "epic"),
-    mod("mag:2", "rare"),
-    mod("optic_ranged_hcog", "rare"),
-    mod("barrel_stabilizer_l2", "rare"),
-    mod("stock_tactical_l2", "rare"),
+    core("dash"),
+    core("heal"),
     ammo(),
     ammo(),
     ammo(),
-    { kind: "helmet", id: "gold", rarity: "legendary", n: 1 },
+    core("mine"),
   ];
   ring.forEach((item, i) => {
     const a = (i / ring.length) * Math.PI * 2;
@@ -188,7 +187,7 @@ function richFloor(): Floor {
 function poorFloor(): Floor {
   const f = new Floor();
   f.add(38, 0, gun("semipistol", "common"));
-  f.add(-20, 34, helmet("gold"));
+  f.add(-20, 34, core("heal"));
   f.add(0, -40, ammo());
   return f;
 }
@@ -253,10 +252,10 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const withGun = (() => {
     const f = new Floor();
     f.add(3, 0, gun("r97", "common"));
-    f.add(-4, 0, helmet("gold"));
+    f.add(-4, 0, gun("vinson", "epic"));
     return loot("normal", f, 20).looter;
   })();
-  check("and armed it still picks up a helmet near it", withGun.armed && withGun.kit.taken === 2, `${withGun.kit.taken} taken`);
+  check("and armed it still swaps up for a better gun near it", withGun.kit.gunId === "vinson" && withGun.kit.taken === 2, `${withGun.kit.gunId}, ${withGun.kit.taken} taken`);
   check(
     "the one that landed in a field is worse off for it",
     rich.looter.score > poor.looter.score,
@@ -292,8 +291,8 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   // one on its floor 2 to 17 m off (the host migration check, 2026-09-29).
   const junkFirst = (): Floor => {
     const f = new Floor();
-    f.add(2, 0, helmet("gold"));
-    f.add(0, 3, helmet("red"));
+    f.add(2, 0, core("heal"));
+    f.add(0, 3, core("dash"));
     f.add(12, 0, gun("r97", "common"));
     return f;
   };
@@ -307,9 +306,9 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
     const g = first.goal;
     if (g && !first.holding) at1.lerp(g, Math.min(1, (DIFFICULTY.normal.speed * 0.05) / Math.max(1e-6, at1.distanceTo(g))));
   }
-  check("with no gun, a gun first: past two helmets nearer to it", took[0] === "weapon", took.join(", ") || "nothing");
+  check("with no gun, a gun first: past two hack cores nearer to it", took[0] === "weapon", took.join(", ") || "nothing");
   const armedNext = loot("normal", junkFirst(), 30);
-  check("and with one, the rest of the floor as before", armedNext.looter.armed && armedNext.looter.kit.taken > 1, `${armedNext.looter.kit.taken} taken`);
+  check("and armed, it leaves the hack cores where they lie: a bot keeps no track of them", armedNext.looter.armed && armedNext.looter.kit.taken === 1, `${armedNext.looter.kit.taken} taken`);
 
   // Hurried (the ring, someone in its sights), a bot used to stop looting outright,
   // and most of those still unarmed a minute in were outside the next circle
@@ -317,7 +316,7 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const hurried = (gunAt: number): { goal: number | null; took: string | null } => {
     const l = new BotLooter("hard");
     const f = new Floor();
-    f.add(1.5, 0, helmet("gold"));
+    f.add(1.5, 0, core("heal"));
     f.add(gunAt, 0, gun("r97", "common"));
     const at = new THREE.Vector3();
     let took: string | null = null;
@@ -333,14 +332,14 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   };
   const nearGun = hurried(LOOTING.hurrySearch - 5);
   const farGun = hurried(LOOTING.hurrySearch + 10);
-  check("hurried with no gun, it goes for a gun near its way and takes that, not the helmet at its feet", nearGun.took === "weapon" && nearGun.goal === LOOTING.hurrySearch - 5, JSON.stringify(nearGun));
+  check("hurried with no gun, it goes for a gun near its way and takes that, not the hack core at its feet", nearGun.took === "weapon" && nearGun.goal === LOOTING.hurrySearch - 5, JSON.stringify(nearGun));
   check("but not one further off than hurrySearch, nor anything else", farGun.goal === null && farGun.took === null, JSON.stringify(farGun));
   const armedHurry = new BotLooter("hard");
   const armedFloor = new Floor();
   armedFloor.add(1, 0, gun("r97", "common"));
   for (let t = 0; t < 6; t += 0.05) armedHurry.step(t, new THREE.Vector3(), armedFloor, false);
   const gunNow = armedHurry.armed;
-  armedFloor.add(2, 0, helmet("gold"));
+  armedFloor.add(2, 0, core("heal"));
   let armedGoal = false;
   for (let t = 6; t < 10; t += 0.05) {
     armedHurry.step(t, new THREE.Vector3(), armedFloor, true);
@@ -372,7 +371,7 @@ console.log("\nWhat a bot would rather have (bots.ts BotLooter.wants)");
 {
   const l = new BotLooter("hard");
   check("with nothing, any gun will do", l.wants(gun("semipistol", "common")));
-  check("but fittings are no use without one", !l.wants(mod("mag:3", "epic")));
+  check("and a hack core is nothing to it", !l.wants(core("dash")));
   const floor = new Floor();
   floor.add(0, 0, gun("sentinel", "epic"));
   l.step(0, new THREE.Vector3(), floor, false);
@@ -381,11 +380,9 @@ console.log("\nWhat a bot would rather have (bots.ts BotLooter.wants)");
   check("it takes the gun it walked to", got?.id === "sentinel", `${got?.id}`);
   check("it swaps up", l.wants(gun("vinson", "legendary")));
   check("and never down", !l.wants(gun("r97", "common")));
-  check("now it has a gun it wants a magazine", l.wants(mod("mag:2", "rare")));
-  check("a helmet is worth a shield tier", l.wants({ kind: "helmet", id: "gold", rarity: "legendary", n: 1 }));
   const before = l.kit.taken;
   const gone = new Floor();
-  const key = gone.add(0, 0, helmet("red"));
+  const key = gone.add(0, 0, core("dash"));
   gone.take(key);
   check("a drop someone else got first is nothing taken", gone.take(key) === null && l.kit.taken === before);
 }

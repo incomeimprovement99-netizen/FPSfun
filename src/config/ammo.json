@@ -1,9 +1,5 @@
 {
-  "_carry": "What you can carry of each ammo type in a battle royale, in stacks (the stack sizes below). It was this with the white backpack and perPack more for each tier above it, until the backpacks went in Milestone 523. Ours, after Apex's inventory: there was no limit, so the walk-over pickup took every matching stack on the map and a player finished a match with 2,000 rounds; the limit is what makes ammo a choice.",
-  "carry": {
-    "stacks": 4
-  },
-  "_note": "Ammo, Season 30 (docs/RESEARCH_PHASE_11.md section 8): each gun's type, the inventory stack per type, and the energy rework: energy guns carry their own stockpile of whole magazines that refills one magazine every 18 s while the gun is idle (not firing or reloading). The range is unlimited unless Settings says otherwise; a match counts.",
+  "_note": "Ammo, Season 30 (docs/RESEARCH_PHASE_11.md section 8): each gun's type, the inventory stack per type, and the energy rework: energy guns carry their own stockpile of whole magazines that refills one magazine every 18 s while the gun is idle (not firing or reloading). The range is unlimited unless Settings says otherwise, and a SpeedKills match is endless (main.ts); the floor's ammo, and what a battle royale let you carry of it, went with the legacy game's floor in Milestone 526.",
   "types": {
     "r97": "light",
     "alternator_smg": "light",
@@ -32,5 +28,5 @@
   "energyRegen": 18,
   "_kit": "what a 1v1 or bot match gives you each life: this many stacks of each gun's ammo (ours; Apex's Mixtape gives unlimited reserves) Four stacks since the owner's ask above: a battle royale spawn with guns starts with a full pouch of each gun's ammo, 600 light rounds against 120 before.",
   "kitStacks": 4,
-  "_stacks": "The size of one stack, per type: one ammo pickup on the floor, and a quarter of what you can carry (`carry`). Apex's are 60 / 60 / 28 / 20; ours are about two and a half times that, because the owner does not want anybody running out: 'make battle royale when we spawn in with guns have way more ammo and the ammo stacks should be a lot more per stack on the ground. I don't want ppl running out of ammo.' Arrows are a quiver and stay as they were."
+  "_stacks": "The size of one stack, per type: the counted range's kit is kitStacks of them a gun (ammo.ts AmmoPouch.kit), and they were the floor's ammo pickups until Milestone 526. Apex's are 60 / 60 / 28 / 20; ours are about two and a half times that, because the owner does not want anybody running out: 'make battle royale when we spawn in with guns have way more ammo and the ammo stacks should be a lot more per stack on the ground. I don't want ppl running out of ammo.' Arrows are a quiver and stay as they were."
 }

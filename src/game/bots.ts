@@ -259,14 +259,12 @@ export interface BotSense {
 
 /** one thing on the floor, as much of it as a bot needs to know */
 export interface BotLootItem {
-  /** "weapon", "attach", "hopup", "helmet", "ammo", "hack": src/game/loot.ts's kinds */
+  /** "weapon", "hack", "echo": src/game/loot.ts's kinds (a bot wants only the guns) */
   kind: string;
   id: string;
   rarity: string;
-  /** how many (an ammo stack, a hack's level) */
+  /** how many (a hack's level) */
   n?: number;
-  /** a gun off the floor keeps the magazine it was found with */
-  mag?: number;
 }
 /** that item, and where it is lying */
 export interface BotLootDrop {
@@ -287,10 +285,7 @@ export interface BotKit {
   /** the gun it is carrying and its grade: 0 nothing, then 1 common up to 4 legendary */
   gunId: string | null;
   gun: number;
-  /** the magazine level and the fittings, one to a slot */
-  mag: number;
-  mods: Record<string, { id: string; rank: number }>;
-  /** the shield tier it has kitted up to: 1 white to 4 red */
+  /** the shield tier it has kitted up to, 1 white to 3 purple: in SpeedKills its vest's colour, its shield being everyone's */
   armor: number;
   /** how many things it has taken off the floor */
   taken: number;
@@ -303,7 +298,6 @@ export interface BotKit {
  */
 const RARITY_RANK: Record<string, number> = { common: 1, rare: 2, epic: 3, legendary: 4 };
 const LOOTING = botsCfg.loot;
-const HELMET_TIER = LOOTING.helmetTier as Record<string, number>;
 const BOT_SEARCH = lootCfg.botSearch as Record<string, number>;
 
 /**
@@ -318,7 +312,7 @@ const BOT_SEARCH = lootCfg.botSearch as Record<string, number>;
  * it straight.
  */
 export class BotLooter {
-  readonly kit: BotKit = { gunId: null, gun: 0, mag: LOOTING.startMag, mods: {}, armor: LOOTING.startArmor, taken: 0 };
+  readonly kit: BotKit = { gunId: null, gun: 0, armor: LOOTING.startArmor, taken: 0 };
   /** the drop it is walking to, when it started walking, and when its rummage there is up */
   private mark: { key: number; pos: THREE.Vector3; since: number; gun: boolean; best: number; bestAt: number } | null = null;
   private holdUntil = Infinity;
@@ -336,10 +330,6 @@ export class BotLooter {
     this.window = search * LOOTING.window;
   }
 
-  /** the mods it has fitted, for resolveWeapon */
-  get modIds(): string[] {
-    return Object.values(this.kit.mods).map((m) => m.id);
-  }
   /** it has found a gun (a bot that lands with nothing does not shoot until it has) */
   get armed(): boolean {
     return this.kit.gunId !== null;
@@ -356,7 +346,7 @@ export class BotLooter {
   get score(): number {
     const s = LOOTING.score;
     const k = this.kit;
-    return k.gun * s.gun + Object.keys(k.mods).length * s.mod + k.armor * s.armor;
+    return k.gun * s.gun + k.armor * s.armor;
   }
   /**
    * Kitted out, or its time is up and it has something to fight with.
@@ -383,21 +373,9 @@ export class BotLooter {
     switch (item.kind) {
       case "weapon":
         // SpeedKills: a copy of its own gun fuses it, as a player's does
-        return rank > k.gun || (IS_SK && item.id === k.gunId && k.gun < 6);
-      case "attach": {
-        // a gun first: fittings are no use with nothing to fit them to
-        if (!k.gunId) return false;
-        if (item.id.startsWith("mag:")) return Number(item.id.slice(4)) > k.mag;
-        const slot = item.id.split("_")[0];
-        const has = k.mods[slot];
-        return rank > (has?.rank ?? 0) && (has !== undefined || Object.keys(k.mods).length < LOOTING.maxMods);
-      }
-      case "hopup":
-        return Boolean(k.gunId) && k.mods.hopup === undefined && Object.keys(k.mods).length < LOOTING.maxMods;
-      case "helmet":
-        return (HELMET_TIER[item.id] ?? 0) > k.armor;
+        return rank > k.gun || (item.id === k.gunId && k.gun < 6);
       default:
-        // ammo, an echo: nothing a bot keeps track of
+        // a hack core, an echo: nothing a bot keeps track of
         return false;
     }
   }
@@ -406,30 +384,13 @@ export class BotLooter {
   private put(item: BotLootItem): void {
     const k = this.kit;
     const rank = RARITY_RANK[item.rarity] ?? 1;
-    const slot = item.id.split("_")[0];
-    switch (item.kind) {
-      case "weapon":
-        // SpeedKills: the same gun again is a level up (its rank is its fusion level plus one)
-        if (IS_SK && item.id === k.gunId) {
-          k.gun = Math.min(6, Math.max(k.gun + 1, rank));
-          break;
-        }
+    if (item.kind === "weapon") {
+      // the same gun again is a level up (its rank is its fusion level plus one)
+      if (item.id === k.gunId) k.gun = Math.min(6, Math.max(k.gun + 1, rank));
+      else {
         k.gunId = item.id;
         k.gun = rank;
-        k.mag = Math.max(k.mag, item.mag ?? 0);
-        break;
-      case "attach":
-        if (item.id.startsWith("mag:")) k.mag = Number(item.id.slice(4));
-        else k.mods[slot] = { id: item.id, rank };
-        break;
-      case "hopup":
-        k.mods.hopup = { id: item.id, rank };
-        break;
-      case "helmet":
-        k.armor = Math.max(k.armor, HELMET_TIER[item.id] ?? k.armor);
-        break;
-      default:
-        break;
+      }
     }
     k.taken++;
     // there is no body shield on this map's floor, so kitting up is the shield:
@@ -1137,7 +1098,7 @@ export class Bot {
    * shield are the caller's to set after.
    */
   restoreKit(kit: BotKit): void {
-    Object.assign(this.looter.kit, kit, { mods: { ...kit.mods } });
+    Object.assign(this.looter.kit, kit);
     this.lootStarted = true;
     this.setArmor(kit.armor);
     this.refit();
@@ -1183,21 +1144,20 @@ export class Bot {
   }
 
   /**
-   * Something off the floor, onto the bot: a gun or a fitting refits its
-   * weapon, and whatever it was, the shield tier its kit has reached goes on.
+   * Something off the floor, onto the bot: a gun refits its weapon, and the
+   * shield tier its kit has reached goes on.
    */
   private equip(item: BotLootItem): void {
     const k = this.looter.kit;
-    if (item.kind === "weapon" || item.kind === "attach" || item.kind === "hopup") this.refit();
+    if (item.kind === "weapon") this.refit();
     this.setArmor(k.armor);
   }
 
-  /** its gun as the kit now has it: the weapon it found, with the magazine and the mods it found */
+  /** its gun as the kit now has it: the weapon it found, at its fusion level (the kit's rank is the level plus one) */
   private refit(): void {
     const k = this.looter.kit;
     if (!k.gunId) return;
-    // SpeedKills: its gun at its fusion level (the kit's rank is the level plus one)
-    this.weapon = resolveWeapon(k.gunId, this.looter.modIds, IS_SK ? Math.max(0, k.gun - 1) : 0);
+    this.weapon = resolveWeapon(k.gunId, [], Math.max(0, k.gun - 1));
     if (this.remote.avatarWeapon !== k.gunId) {
       this.remote.avatarWeapon = k.gunId;
       this.dummy.setGun(k.gunId);

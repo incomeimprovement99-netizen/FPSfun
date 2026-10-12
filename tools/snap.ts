@@ -1103,10 +1103,9 @@ export const SCENARIOS: Scenario[] = [
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, -28); const f = d.lootField; const V = (x, z) => new r.THREE.Vector3(s.x + x, 0, s.z + z);
           f.add({ kind: "weapon", id: "r97", n: 1, rarity: "rare" }, V(0, -1.7));
-          f.add({ kind: "weapon", id: "sentinel", n: 1, rarity: "epic", mag: 2 }, V(-1.6, -4));
-          f.add({ kind: "heal", id: "battery", n: 1, rarity: "rare" }, V(1.4, -3.2));
-          f.add({ kind: "ammo", id: "light", n: 60, rarity: "common" }, V(0.6, -4.8));
-          f.add({ kind: "helmet", id: "gold", n: 1, rarity: "legendary" }, V(2.6, -5.6));
+          f.add({ kind: "weapon", id: "sentinel", n: 1, rarity: "epic", fusion: 2 }, V(-1.6, -4));
+          f.add({ kind: "hack", id: "heal", n: 1, rarity: "rare" }, V(1.4, -3.2));
+          f.add({ kind: "hack", id: "dash", n: 3, rarity: "legendary" }, V(2.6, -5.6));
           r.setScript({ held: () => false, pressedNow: () => false }); })()`,
         900,
       ],

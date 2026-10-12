@@ -11,23 +11,9 @@ import type { AmmoType, ResolvedWeapon } from "./weapons";
 export const AMMO = cfg;
 export const STACK: Record<Exclude<AmmoType, "energy">, number> = cfg.stacks;
 
-/** how many rounds of a type fit in a battle royale (ammo.json carry) */
-export function ammoCap(type: AmmoType): number {
-  if (type === "energy") return Infinity;
-  return STACK[type] * cfg.carry.stacks;
-}
-
 export class AmmoPouch {
   infinite = true;
   stock: Record<AmmoType, number> = { light: 0, heavy: 0, energy: 0, sniper: 0, shotgun: 0 };
-  /** a battle royale counts what you carry against ammo.json carry; everywhere else there is no limit */
-  limited = false;
-
-  /** how many more rounds of a type fit */
-  room(type: AmmoType): number {
-    return this.limited ? Math.max(0, ammoCap(type) - this.stock[type]) : Infinity;
-  }
-
   empty(): void {
     for (const k of Object.keys(this.stock) as AmmoType[]) this.stock[k] = 0;
   }
@@ -42,12 +28,6 @@ export class AmmoPouch {
     }
   }
 
-  /** put rounds in, as many as fit; returns how many went in */
-  add(type: AmmoType, n: number): number {
-    const put = Math.min(Math.max(0, Math.floor(n)), this.room(type));
-    this.stock[type] += put;
-    return put;
-  }
 }
 
 /** the ammo a gun takes (by id, for a gun not in hand) */

@@ -77,8 +77,10 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
 - **Later, attachments, mag levels and hop-ups;** SpeedKills keeps one fixed optic per gun and fusion. About 350 lines.
 - **524, the battle royale's side rules (done):** the keycard vault and its guard, the Ring Consoles, Storm Surge and
   the loadout crate, each switched off in SpeedKills by its own guard. About 1,260 lines.
-- **Later, the legacy loot:** ammo, attachment, hop-up, helmet and knockdown-shield loot, the floor's spot kinds and
-  single-item roll, the bots' looting of them, armour and EVO.
+- **526, the legacy floor (done):** ammo, attachment, hop-up, helmet and knockdown-shield loot, the floor's spot kinds
+  and single-item roll, the walk-over sweep, the bots' looting of them. About 920 lines.
+- **Later, armour, helmets and EVO** (kit.ts Armor, SHIELD_LEVELS, giveEvo, the care package's EVO, the HUD's EVO bar):
+  SpeedKills' shield is one for everyone.
 - **523, the heal items, the heal wheel and the backpacks (done):** the player's kit, the bots' item heals, the
   floor's heals and backpacks, the walk-over's small heals and the recap's "healed recently". The battle royale's ammo
   limit stays the white pack's. The figure's heal pose and its act codes are the character agent's (told). Armour and
@@ -91,8 +93,7 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   lists, loot, mechanics entries and checks; the R-301 goes with 522.
 - **522, the attachments, magazine levels, hop-ups and fire modes, the old guns' mechanics and the R-301 (done).**
   SpeedKills keeps each gun's fixed optic, fusion, the L-STAR's heat and the shotguns' blast patterns.
-- **Next:** the legacy loot (ammo, attachments, hop-ups, helmets, knockdown shields, armour and EVO), then the
-  Outskirts map, then the match side of the
+- **Next:** armour, helmets and EVO, then the Outskirts map, then the match side of the
   knockdowns (the character agent takes the figure's).
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).

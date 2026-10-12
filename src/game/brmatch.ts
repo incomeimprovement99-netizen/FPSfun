@@ -323,7 +323,7 @@ function readBrSnap(v: unknown): BrSnap | null {
     const x = r as Record<string, unknown>;
     const k = x.k as Record<string, unknown> | null;
     return num(x.i) && x.i >= 0 && x.i < 64 && num(x.t) && num(x.tm) && num(x.sl) && num(x.n) && num(x.g) && numOrNull(x.ar) && typeof x.as === "boolean" && typeof x.al === "boolean"
-      && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.mag) && num(k.armor) && !!k.mods && typeof k.mods === "object"
+      && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.armor)
       && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
       && Array.isArray(x.dt) && x.dt.length === 2 && x.dt.every(num);
   }).map((r) => ({ ...r, ar: r.ar ?? null, dn: r.dn ?? null }));
@@ -395,7 +395,7 @@ const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HA
 const RARITIES = ["common", "rare", "epic", "legendary"];
 // every kind loot.ts can make (a kind left out here is thrown away when it comes over the wire); typed, so a kind
 // loot.ts no longer makes is an error here rather than a name nobody checks
-const KINDS: readonly LootKind[] = ["weapon", "ammo", "attach", "hopup", "helmet", "echo", "knockdown", "hack"];
+const KINDS: readonly LootKind[] = ["weapon", "echo", "hack"];
 
 /** a loot item from another browser, checked field by field */
 function wireItem(x: unknown): LootItem | null {
@@ -405,16 +405,9 @@ function wireItem(x: unknown): LootItem | null {
   const n = typeof o.n === "number" && Number.isFinite(o.n) ? Math.max(0, Math.min(500, Math.floor(o.n))) : 1;
   const rarity = typeof o.rarity === "string" && RARITIES.includes(o.rarity) ? (o.rarity as Rarity) : "common";
   const it: LootItem = { kind: o.kind as LootKind, id: o.id, n, rarity };
-  if (typeof o.mag === "number" && Number.isFinite(o.mag)) it.mag = Math.max(0, Math.min(4, Math.floor(o.mag)));
-  if (o.attach && typeof o.attach === "object") {
-    const a: Record<string, string | null> = {};
-    for (const [k, v] of Object.entries(o.attach as Record<string, unknown>)) if (typeof v === "string" && v.length < 40) a[k] = v;
-    it.attach = a;
-  }
   if (typeof o.owner === "number") it.owner = o.owner;
   if (typeof o.ownerName === "string") it.ownerName = o.ownerName.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 16);
   if (typeof o.pod === "number" && Number.isFinite(o.pod)) it.pod = Math.floor(o.pod);
-  if (typeof o.hop === "number" && Number.isFinite(o.hop)) it.hop = Math.max(0, Math.min(10000, o.hop));
   // SpeedKills: a gun's fusion level
   if (typeof o.fusion === "number" && Number.isFinite(o.fusion)) it.fusion = Math.max(0, Math.min(5, Math.floor(o.fusion)));
   return it;
@@ -968,21 +961,9 @@ export class BrMatch extends Duel {
     return best.name.toUpperCase();
   }
 
-  /** the host: what a care package holds (a care-package gun at gold, and the best of the rest; in SpeedKills, its own loot) */
+  /** the host: what a care package holds, SpeedKills' own guns and hack cores fused past what its floor gives (speedkills.json loot.carePackage) */
   private podItems(): LootItem[] {
-    const out: LootItem[] = [];
-    if (IS_SK && PROFILE.loot?.carePackage) {
-      // SpeedKills: its own guns and hack cores, fused past what its floor gives (speedkills.json
-      // loot.carePackage). The legacy gun and helmet below are nothing it can use.
-      out.push(...speedkillsPackage(Math.random));
-    } else {
-      const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
-      out.push({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4 });
-      const extras: LootItem[] = [
-        { kind: "helmet", id: "gold", n: 1, rarity: "legendary" },
-      ];
-      while (out.length < LOOT.carePackageContents) out.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
-    }
+    const out = speedkillsPackage(Math.random);
     // its number: each of the squad who loots from it gets the package's EVO once (Apex pays the squad)
     const n = ++this.podCount;
     return out.map((it) => ({ ...it, pod: n }));
@@ -1787,7 +1768,7 @@ export class BrMatch extends Duel {
         ar: t(b.armedAt),
         as: !!b.armedShown,
         al: b.bot.alive,
-        k: { ...b.bot.lootKit, mods: { ...b.bot.lootKit.mods } },
+        k: { ...b.bot.lootKit },
         dn: b.down ? [b.down.by, b.down.bleed] : null,
         rv: b.reviving,
         dt: [b.dropTo.x, b.dropTo.z],

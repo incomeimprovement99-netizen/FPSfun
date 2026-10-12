@@ -11324,6 +11324,33 @@ handover with a gun, after it with none).
   heir's bot has it. With `soon` put back to a second, as it was, it fails; with the fix it passes.
 - **Checked:** tsc; verify; rules; e2e migrate (the bug put back, then the fix), brsolo and squad.
 
+## Milestone 526 — The legacy floor out: its ammo, fittings, hop-ups, helmets and knockdown shields
+
+SpeedKills' floor is guns and hack cores (speedkills.json loot), and every roll of the legacy game's went round it
+(`if (IS_SK && PROFILE.loot) return speedkillsSpot(...)` at the top of rollSpot). What it laid went:
+
+- **The kinds:** ammo, attachments and magazines, hop-ups, helmets and knockdown shields. LootKind is weapon, hack
+  and echo; a dropped gun no longer carries a magazine or fittings, and the hop-up's damage count went with it.
+- **The legacy roll:** the rarity weights and the tiers' multipliers, the single-item roll, the spot kinds (gun racks,
+  attachment benches, ammo crates), the item makers, the places' tiers by id and order, the seeded Hot Zone (it is the
+  centre, every match) and its kitted-gun settings, the legacy death drop (a bot's magazine, fittings and ammo) and
+  the legacy care package. rollSpot is SpeedKills' spot.
+- **Picking up:** the walk-over sweep (it only ever swept ammo, which SpeedKills' floor never has) and the reach
+  list's grey rows; the hold that empties a spot and the list itself stay. A match's reserve is endless, so the
+  battle royale's carry limit and AmmoPouch.add went; the range's counted ammo stays.
+- **The bots:** a bot wants guns, the same gun again a fusion level up, and nothing else; its kit's magazine and
+  fittings went (the heir's snapshot with them). Its armour tier from what it has taken stays: in SpeedKills it is its
+  vest's colour.
+- **The player:** the death drop's legacy ammo and helmet, the Gulag's ammo kit (endless anyway), and taking ammo,
+  a helmet or a knockdown shield off the floor. The Knockdown class stays for the knockdowns' own milestone.
+- **Config:** loot.json keeps the spot counts, the sites, the metro, the halls, the districts and the drawing;
+  bots.json's looter its search and its armour; hud.json's loot its hold and its list.
+- **Checks:** verify's single-item roll (which gathered unknown ids and never asserted them) is a check that every
+  item the floor lays is a known gun or a hack core; pickup-reach.ts keeps the list and the hold; bot-sense.ts's
+  floors hold hack cores where they held fittings and helmets, and a bot armed swaps up for a better gun.
+- About 920 lines out, 140 in.
+- **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate and speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

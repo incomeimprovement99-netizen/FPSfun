@@ -52,7 +52,7 @@ check("gold soaks purple's 750 and no more: what it adds is the self-revive", KN
 const withRevive = KNOCK_ORDER.filter((t) => KNOCK_SHIELDS[t].selfRevives > 0);
 check("gold is the only tier carrying a self-revive, and it carries one", withRevive.length === 1 && withRevive[0] === "gold" && KNOCK_SHIELDS.gold.selfRevives === 1, withRevive.join(", ") || "none");
 
-const rarities = Object.keys(lootCfg.rarity);
+const rarities = Object.keys(lootCfg.colors);
 const badRarity = KNOCK_ORDER.map((t) => KNOCK_SHIELDS[t].rarity).filter((r) => !rarities.includes(r));
 check("every tier names a rarity the loot table has", badRarity.length === 0, badRarity.join(", ") || rarities.join(", "));
 

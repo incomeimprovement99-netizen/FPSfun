@@ -6,15 +6,18 @@
 //
 // Looting used to be one item a press at whatever happened to be nearest the
 // crosshair, so a landing was dozens of presses with your head down and a
-// death box of eight things was eight aims. Three habits from Apex, Warzone
-// and The Finals fix that, and they all live here:
+// death box of eight things was eight aims. Two habits from Apex, Warzone
+// and The Finals fix that, and they both live here:
 //
-//   walk over it   ammo for a gun you carry and the small heals you have room
-//                  for come up with no press at all, inside a small sweep
 //   hold the key   past a short delay the spot empties itself, one item on a
-//                  cadence, skipping anything there is nothing to gain from
+//                  cadence (a gun, or a hack core that would swap yours, is
+//                  still a press of its own)
 //   the reach list what is at your feet is listed, nearest first, and you can
 //                  step the list rather than trust whatever is closest
+//
+// (The walk-over sweep of ammo and small heals, and the grey rows of things
+// there was nothing to gain from, went with the legacy game's floor:
+// Milestone 526. SpeedKills' floor is guns and hack cores.)
 import { hackSlotOf } from "./hacks";
 import * as THREE from "three";
 import type { BrMatch } from "./brmatch";
@@ -46,12 +49,6 @@ export interface ReachRow {
   rarity: Rarity;
   /** how far away it is, flat, in metres */
   dist: number;
-  /**
-   * Nothing to gain from it: ammo neither of your guns takes, or more of a
-   * type than you have room for. Drawn
-   * grey, and the hold steps over it rather than filling your hands with it.
-   */
-  dim: boolean;
 }
 
 /** the frame's reach list: the rows, the one the prompt points at, and what steps the list */
@@ -70,17 +67,10 @@ export interface ReachHud {
 }
 
 /**
- * What you carry, which the walk-over pickup and the grey-out both need:
- * which ammo types your guns take and how much more of each fits. BrPlay asks for it once
- * a frame and simply does neither of those two things without it, so the
- * press-to-take path never depends on it being wired up.
+ * What you carry, as the hold needs it: the hack in each slot, by id, so a hold leaves a core that would swap yours.
+ * BrPlay asks for it once a frame, and the press-to-take path never depends on it being wired up.
  */
 export interface CarryState {
-  /** the ammo types your guns take ("light", "heavy", "sniper", "shotgun", "energy") */
-  ammo: string[];
-  /** how many more rounds of each ammo type fit, by type; missing is no limit */
-  ammoRoom?: Record<string, number>;
-  /** SpeedKills: the hack in each slot, by id (a hold leaves a core that would swap it) */
   hacks?: Record<string, string | null>;
 }
 
@@ -109,35 +99,10 @@ export interface BrPlayHud {
  */
 export const REACH: ReachHud = { rows: [], pick: -1, cycleKey: "" };
 
-/** looting: the walk-over sweep, the hold that empties a spot, the reach list (src/config/hud.json) */
+/** looting: the hold that empties a spot, the reach list (src/config/hud.json) */
 const LOOTING = hudCfg.loot;
 /** the action that steps the reach list, named in the config */
 const CYCLE = LOOTING.cycle as Action;
-
-/**
- * Would walking over this pick it up, with no press at all? Ammo for a gun
- * you actually carry: a refill, the thing you would take every single time. A
- * gun or a hack core is a choice, so those still wait for the key.
- *
- * A stack is only swept when the whole of it fits. Taking part of one puts the
- * remainder back down at your feet (src/main.ts applyLoot), and a remainder
- * lying inside the sweep is picked at once and put back again: better to
- * leave the stack alone and let the player press for it.
- */
-export function autoTakes(item: LootItem, carry: CarryState | null): boolean {
-  if (!carry) return false;
-  if (!(LOOTING.autoKinds as string[]).includes(item.kind)) return false;
-  // swept only when the whole stack fits (see above)
-  if (item.kind === "ammo") return carry.ammo.includes(item.id) && (carry.ammoRoom?.[item.id] ?? Infinity) >= item.n;
-  return false;
-}
-
-/** nothing to gain from this one: it is listed, but greyed, and the hold steps over it */
-export function nothingToGain(item: LootItem, carry: CarryState | null): boolean {
-  if (!carry) return false;
-  if (item.kind === "ammo") return !carry.ammo.includes(item.id) || (carry.ammoRoom?.[item.id] ?? Infinity) <= 0;
-  return false;
-}
 
 /**
  * Everything lying within reach of your feet, nearest first, at most
@@ -146,14 +111,14 @@ export function nothingToGain(item: LootItem, carry: CarryState | null): boolean
  * on the map. Equal distances go to the lower key, so the list holds still
  * under the cursor instead of shuffling while you stand there.
  */
-export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }, carry: CarryState | null): ReachRow[] {
+export function reachRows(drops: Iterable<ReachDrop>, at: { x: number; y: number; z: number }): ReachRow[] {
   const rows: ReachRow[] = [];
   for (const d of drops) {
     if (d.item.kind === "echo") continue;
     if (Math.abs(d.pos.y - at.y) > LOOTING.floorGap) continue;
     const dist = Math.hypot(d.pos.x - at.x, d.pos.z - at.z);
     if (dist > LOOTING.reach) continue;
-    rows.push({ key: d.key, label: lootLabel(d.item), rarity: d.item.rarity, dist, dim: nothingToGain(d.item, carry) });
+    rows.push({ key: d.key, label: lootLabel(d.item), rarity: d.item.rarity, dist });
   }
   rows.sort((a, b) => a.dist - b.dist || a.key - b.key);
   return rows.slice(0, LOOTING.listMax);
@@ -235,14 +200,8 @@ export class BrPlay {
   /** what the frame's prompt and hold are */
   private out: BrPlayHud = { prompt: null, hold: null, markers: [], reach: { rows: [], pick: -1, cycleKey: "" } };
   /**
-   * What you carry, asked once a frame. The walk-over pickup and the grey-out
-   * both need it and both stay off until something sets it, so main.ts wires
-   * it once the loadout and the kit exist:
-   *
-   *   const held = loadout.slots.filter((s) => !s.empty);
-   *   brPlay.carrying = () => ({
-   *     ammo: held.map((s) => ammoTypeOf(s.id)),                    // src/game/ammo.ts
-   *   });
+   * What you carry, asked once a frame (main.ts wires it): the hold reads
+   * your hacks off it.
    */
   carrying: (() => CarryState | null) | null = null;
   /** the row you stepped to with the cycle key, while it is still in reach */
@@ -481,23 +440,6 @@ export class BrPlay {
       return out;
     }
     const carry = this.carrying?.() ?? null;
-    // walk over it: the refills come up on their own, which is what turns a
-    // landing from dozens of presses into running through the rooms
-    // The keys first, the taking after: on the host a take runs main.ts's
-    // applyLoot then and there, and a stack that does not all fit is put back
-    // at your feet (dropLoot), which adds to the very map this walks. A Map
-    // hands out entries added while it is being iterated, so taking inside
-    // the loop would meet that remainder, weigh it against the same
-    // frame-old carry, take it, put it back, and never leave the loop.
-    if (carry && match.lootField) {
-      const sweep: number[] = [];
-      for (const d of match.lootField.drops.values()) {
-        if (Math.abs(d.pos.y - p.y) > LOOTING.floorGap) continue;
-        if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > LOOTING.sweep) continue;
-        if (autoTakes(d.item, carry)) sweep.push(d.key);
-      }
-      for (const k of sweep) this.take(match, k, now);
-    }
     const key = this.deps.keyLabel("interact");
     const holdingE = input.held("interact");
     // a revive: a downed squad mate within reach
@@ -597,7 +539,7 @@ export class BrPlay {
       const d = f.drops.get(key);
       return !!d && Math.hypot(d.pos.x - this.gunTakenFrom.x, d.pos.z - this.gunTakenFrom.z) < 0.5;
     };
-    const rows = reachRows(f.drops.values(), p, carry).filter((r) => !letGo(r.key));
+    const rows = reachRows(f.drops.values(), p).filter((r) => !letGo(r.key));
     if (!rows.length) {
       this.stopTaking();
       return;
@@ -611,8 +553,8 @@ export class BrPlay {
     const pick = this.pickOf(rows, eye, fwd, f);
     const row = rows.find((r) => r.key === pick) ?? rows[0];
     out.reach = { rows, pick: row.key, cycleKey: many ? this.deps.keyLabel(CYCLE) : "", how: this.pickHow(rows, eye, fwd, f) };
-    // what a hold would still take: everything in reach bar the greyed rows
-    const left = rows.filter((r) => !r.dim);
+    // what a hold would still take: everything in reach
+    const left = rows;
     out.prompt = { key: many && left.length > 1 ? `${key} / HOLD` : key, text: many && left.length > 1 ? `TAKE ${row.label}  ·  HOLD: TAKE ALL` : `TAKE ${row.label}` };
     if (input.pressedNow("interact")) {
       // the press takes the one the prompt names, as it always has

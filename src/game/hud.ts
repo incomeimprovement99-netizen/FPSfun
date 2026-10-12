@@ -1822,9 +1822,9 @@ export class Hud {
         c.fillStyle = "rgba(242,242,242,0.12)";
         c.fillRect(cx - pw / 2 + 4 * u, y - 15 * u, pw - 8 * u, rowH);
       }
-      c.fillStyle = r.dim ? "#5a5f66" : lootCfg.colors[r.rarity];
+      c.fillStyle = lootCfg.colors[r.rarity];
       c.fillRect(cx - pw / 2 + 12 * u, y - 11 * u, 4 * u, 13 * u);
-      this.text(r.label, cx - pw / 2 + 24 * u, y, picked ? 700 : 600, 14 * u, r.dim ? "#5a5f66" : picked ? WHITE : "#c8d0d8");
+      this.text(r.label, cx - pw / 2 + 24 * u, y, picked ? 700 : 600, 14 * u, picked ? WHITE : "#c8d0d8");
       this.text(`${r.dist.toFixed(1)} M`, cx + pw / 2 - 12 * u, y, 600, 12 * u, DIM, "right");
     });
     if (REACH.cycleKey) this.text(`${REACH.cycleKey}: NEXT ITEM`, cx, top + rows.length * rowH + 8 * u, 600, 11 * u, DIM, "center");
