@@ -47,8 +47,6 @@ const PICK: Record<string, { pack: (typeof PACKS)[number]; files: string[] }> = 
   door_open: { pack: "impact-sounds", files: [0, 1].map((i) => `impactWood_medium_00${i}`) },
   door_close: { pack: "impact-sounds", files: [2, 3].map((i) => `impactWood_medium_00${i}`) },
   door_kick: { pack: "impact-sounds", files: [0, 1].map((i) => `impactWood_heavy_00${i}`) },
-  bin_open: { pack: "impact-sounds", files: [0, 1].map((i) => `impactMetal_heavy_00${i}`) },
-  bin_close: { pack: "impact-sounds", files: [2, 3].map((i) => `impactMetal_heavy_00${i}`) },
   pickup: { pack: "interface-sounds", files: ["select_002", "select_003"] },
   beacon: { pack: "sci-fi-sounds", files: ["forceField_000", "forceField_001"] },
   horn: { pack: "sci-fi-sounds", files: ["lowFrequency_explosion_000"] },

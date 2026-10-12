@@ -28,7 +28,7 @@ import { damageText, poolText } from "./damagetext";
 import type { LootCardView } from "./lootcard";
 /** SpeedKills' bottom HUD (hud.json layouts; Phase 20 A6) */
 type SkLayout = typeof hudCfg.layouts.speedkills;
-const SK_LAYOUT: SkLayout | null = hudCfg.layouts.speedkills;
+const SK_LAYOUT: SkLayout = hudCfg.layouts.speedkills;
 /** damage numbers: the window a spray at one target adds to one number, and the pop as it grows (hud.json) */
 const NUMBERS = hudCfg.damageNumbers;
 const LOW_AMMO = hudCfg.lowAmmo;
@@ -357,8 +357,8 @@ function alphaOf(color: string): number {
 export class Hud {
   private ctx: CanvasRenderingContext2D;
   private numbers: DamageNumber[] = [];
-  /** SpeedKills' bottom layout, or null for the legacy HUD (Phase 20 A6) */
-  private readonly layout: SkLayout | null = SK_LAYOUT;
+  /** SpeedKills' bottom layout (Phase 20 A6); the legacy game's own bottom HUD went in Milestone 536 */
+  private readonly layout: SkLayout = SK_LAYOUT;
   /** the HUD unit of the frame being drawn (the outline's limits scale with it) */
   private uNow = 1;
   /** where the squad panel's top is this frame (the captions and the talking list go above it); the screen's foot without one */
@@ -1032,7 +1032,7 @@ export class Hud {
     if (slow("keys")) return this.paintKeyHints(k, u, left, right, width, top, h);
     const dpr = this.canvas.width / this.w;
     // (the fonts' state too: drawn before the HUD's font is in, it would keep the stand-in font for good)
-    const key = `${this.w}|${dpr}|${u}|${this.layout ? 1 : 0}|${document.fonts?.status}|${k.hide}|${k.rows.map((r) => `${r.label}=${r.keys.join(",")}`).join(";")}`;
+    const key = `${this.w}|${dpr}|${u}|${document.fonts?.status}|${k.hide}|${k.rows.map((r) => `${r.label}=${r.keys.join(",")}`).join(";")}`;
     if (this.hintsCache?.key !== key) {
       // its corner on a whole device pixel, so the copy is as sharp as the drawing
       const x = Math.floor((left - 12 * u) * dpr) / dpr;
@@ -1798,19 +1798,16 @@ export class Hud {
     c.textAlign = align;
     // SpeedKills: a thin outline under every text, so none of it is lost against a lit wall or a bright floor
     // (the owner, Phase 20 A6), in the colour opposite the text's; faded text keeps a faded outline
-    const L = this.layout;
-    if (L) {
-      const o = L.outline;
-      const lw = c.lineWidth;
-      const lj = c.lineJoin;
-      c.lineJoin = "round";
-      c.miterLimit = 2;
-      c.lineWidth = Math.min(o.max * this.uNow, Math.max(o.min * this.uNow, size * o.text));
-      c.strokeStyle = `rgba(${lumOf(color) < o.darkBelow ? o.lightRgb : o.rgb},${o.alpha * alphaOf(color)})`;
-      c.strokeText(t, x, y);
-      c.lineWidth = lw;
-      c.lineJoin = lj;
-    }
+    const o = this.layout.outline;
+    const lw = c.lineWidth;
+    const lj = c.lineJoin;
+    c.lineJoin = "round";
+    c.miterLimit = 2;
+    c.lineWidth = Math.min(o.max * this.uNow, Math.max(o.min * this.uNow, size * o.text));
+    c.strokeStyle = `rgba(${lumOf(color) < o.darkBelow ? o.lightRgb : o.rgb},${o.alpha * alphaOf(color)})`;
+    c.strokeText(t, x, y);
+    c.lineWidth = lw;
+    c.lineJoin = lj;
     c.fillStyle = color;
     c.fillText(t, x, y);
   }
@@ -1818,7 +1815,6 @@ export class Hud {
   /** SpeedKills: the dark outline round a bar or a box, wholly outside it (Phase 20 A6) */
   private edge(x: number, y: number, w: number, h: number, u: number): void {
     const L = this.layout;
-    if (!L) return;
     const c = this.ctx;
     const t = L.outline.bar * u;
     c.lineWidth = t;
@@ -1842,7 +1838,7 @@ export class Hud {
    * (4:3 at the largest HUD scale)
    */
   private bottomUnit(u: number): number {
-    const L = this.layout!;
+    const L = this.layout;
     const left = L.margin.x + L.health.w + L.hacks.dx + 2 * L.hacks.size + L.hacks.gap;
     const right = L.margin.x + L.ammo.right + L.ammo.digitsBox + L.slots.dx + L.slots.w;
     return u * Math.min(1, this.w / ((left + right + L.margin.minGap) * u));
@@ -2629,50 +2625,10 @@ export class Hud {
   }
 
   /**
-   * SpeedKills' hacks, bottom left beside the bars, where the legacy game's ability
-   * square was: a square each, the mobility hack in cyan and the
-   * utility one in magenta, its name, its key, a dark sweep while it comes
-   * back with the seconds on it, and its fusion level as pips along the foot.
+   * SpeedKills' hacks, bottom left beside the bars (drawHacksSk).
    */
   private drawHacks(s: HudState, u: number): void {
-    if (this.layout) {
-      this.drawHacksSk(s, this.bottomUnit(u), this.layout);
-      return;
-    }
-    const list = s.hacks;
-    if (!list?.length) return;
-    const c = this.ctx;
-    const size = 58 * u;
-    const gap = 8 * u;
-    list.forEach((h, i) => {
-      const x = 384 * u + i * (size + gap);
-      const y = this.h - 76 * u - size;
-      const col = h.slot === "mobility" ? "32, 224, 255" : "255, 46, 154";
-      const ready = h.frac <= 0;
-      c.fillStyle = PANEL;
-      c.fillRect(x, y, size, size);
-      c.strokeStyle = `rgba(${col}, ${ready ? 0.95 : 0.4})`;
-      c.lineWidth = 2 * u;
-      c.strokeRect(x + u, y + u, size - 2 * u, size - 2 * u);
-      // the dark sweep while it comes back, from the top down
-      if (!ready) {
-        c.fillStyle = "rgba(0, 0, 0, 0.55)";
-        c.fillRect(x, y, size, size * h.frac);
-      }
-      c.textAlign = "center";
-      c.fillStyle = ready ? `rgb(${col})` : `rgba(${col}, 0.6)`;
-      c.font = `700 ${Math.round(11 * u)}px ${FONT}`;
-      c.fillText(h.name.length > 8 ? h.name.slice(0, 7) + "." : h.name, x + size / 2, y + 24 * u);
-      c.fillStyle = WHITE;
-      c.font = `700 ${Math.round((ready ? 12 : 15) * u)}px ${FONT}`;
-      c.fillText(ready ? h.key : h.left.toFixed(h.left < 10 ? 1 : 0), x + size / 2, y + 42 * u);
-      // the fusion level, as pips
-      for (let p = 0; p < h.maxLevel; p++) {
-        c.fillStyle = p < h.level ? `rgb(${col})` : "rgba(255,255,255,0.18)";
-        c.fillRect(x + 8 * u + p * ((size - 16 * u) / h.maxLevel), y + size - 8 * u, (size - 16 * u) / h.maxLevel - 2 * u, 3 * u);
-      }
-      c.textAlign = "left";
-    });
+    this.drawHacksSk(s, this.bottomUnit(u), this.layout);
   }
 
   /** the wheels, the inventory and the captions (the heal kit's line and its wheel went with the heals: Milestone 523) */
@@ -2812,7 +2768,7 @@ export class Hud {
 
   private drawStats(s: HudState, u: number): void {
     // the range's practice numbers are the range's: in a SpeedKills match they were only in the way
-    if (this.layout && s.duel) return;
+    if (s.duel) return;
     const x0 = 26 * u;
     const y0 = 26 * u + 230 * u + 10 * u;
     const w = 230 * u;
@@ -3251,130 +3207,13 @@ export class Hud {
   }
 
   private drawVitals(s: HudState, u: number): void {
-    if (this.layout) {
-      this.drawVitalsSk(s, this.bottomUnit(u), this.layout);
-      return;
-    }
-    const c = this.ctx;
-    const x0 = 34 * u;
-    const barW = 330 * u;
-    const yShield = this.h - 72 * u;
-    const yHealth = this.h - 50 * u;
-    // speed and stance, which movement players actually read
-    const stanceColor = s.stance === "slide" ? "#ffd27a" : s.stance === "air" ? "#8fc7ff" : s.stance === "climb" ? "#7ddc8a" : WHITE;
-    const speedColor = WHITE;
-    this.text(`${s.speedHu.toFixed(0)}`, x0, yShield - 26 * u, 700, 34 * u, speedColor);
-    this.text(`HU/S   ${s.stance.toUpperCase()}${s.holstered ? "   HOLSTERED" : ""}`, x0 + 72 * u, yShield - 30 * u, 700, 15 * u, stanceColor);
-    // shield: segmented in 25s like the game. Real values in a 1v1 (blue
-    // shields, three segments); full purple bars otherwise.
-    const v = s.vitals;
-    const segs = v ? Math.round(v.shieldMax / 25) : 4;
-    const gap = 4 * u;
-    const segW = (barW - gap * (segs - 1)) / segs;
-    for (let i = 0; i < segs; i++) {
-      c.fillStyle = "rgba(0,0,0,0.5)";
-      c.fillRect(x0 + i * (segW + gap), yShield, segW, 10 * u);
-      const fill = v ? Math.max(0, Math.min(1, (v.shield - i * 25) / 25)) : 1;
-      // the shield's colour is its tier: white 50, blue 75, purple 100, red 125
-      c.fillStyle = v ? (v.shieldMax >= 125 ? "#ff3b3b" : v.shieldMax >= 100 ? SHIELD : v.shieldMax >= 75 ? "#3b8bff" : "#e8e8e8") : SHIELD;
-      c.fillRect(x0 + i * (segW + gap), yShield, segW * fill, 10 * u);
-    }
-    const hp = v ? Math.max(0, v.health / v.healthMax) : 1;
-    c.fillStyle = "rgba(0,0,0,0.5)";
-    c.fillRect(x0, yHealth, barW, 12 * u);
-    c.fillStyle = hp < 0.3 ? RED : WHITE;
-    c.fillRect(x0, yHealth, barW * hp, 12 * u);
-    this.text(v ? poolText(v.health) : "100", x0 + barW + 10 * u, yHealth + 11 * u, 700, 15 * u, WHITE);
+    this.drawVitalsSk(s, this.bottomUnit(u), this.layout);
   }
 
   // ------------------------------------------------------------ bottom-right
 
   private drawWeapons(s: HudState, u: number): void {
-    if (this.layout) {
-      this.drawWeaponsSk(s, this.bottomUnit(u), this.layout);
-      return;
-    }
-    const c = this.ctx;
-    const right = this.w - 30 * u;
-    const bottom = this.h - 30 * u;
-    // big magazine count and reserve (none with nothing in hand)
-    if (s.unarmed) {
-      this.text("—", right - 70 * u, bottom - 10 * u, 700, 58 * u, DIM, "right");
-    }
-    const warn = s.unarmed ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
-    const clipColor = s.clip === 0 ? RED : s.swapping || s.holstered ? DIM : warn ? "#ffb13d" : WHITE;
-    if (!s.unarmed) {
-      this.text(`${s.clip}`, right - 70 * u, bottom - 10 * u, 700, 58 * u, clipColor, "right");
-      this.text(`/ ${s.clipSize}`, right, bottom - 18 * u, 700, 22 * u, DIM, "right");
-    }
-    // the reserve: endless in the range, rounds in the inventory, an energy gun's stockpile as a percentage
-    const res = s.reserve ?? Infinity;
-    if (s.unarmed) {
-      /* nothing to reload */
-    } else if (s.energy && Number.isFinite(res)) {
-      const pct = Math.round((100 * s.energy.rounds) / Math.max(1, s.energy.max));
-      this.text(`${pct}%`, right, bottom - 44 * u, 700, 20 * u, pct === 0 ? RED : "#8fd8ff", "right");
-    } else this.text(Number.isFinite(res) ? String(res) : "∞", right, bottom - 44 * u, 700, 20 * u, res === 0 ? RED : DIM, "right");
-    // the L-STAR's heat: a bar over the count
-    const bar = (v: number, col: string, label: string) => {
-      c.fillStyle = "rgba(0,0,0,0.5)";
-      c.fillRect(right - 180 * u, bottom - 72 * u, 180 * u, 6 * u);
-      c.fillStyle = col;
-      c.fillRect(right - 180 * u, bottom - 72 * u, 180 * u * Math.max(0, Math.min(1, v)), 6 * u);
-      this.text(label, right - 186 * u, bottom - 66 * u, 700, 12 * u, col, "right");
-    };
-    if (s.heat) bar(s.heat.heat, s.heat.locked ? RED : s.heat.heat > 0.75 ? "#ff9a4a" : "#ffd27a", s.heat.locked ? "OVERHEATED" : "HEAT");
-    // two slots, active one lit
-    const slotW = 170 * u;
-    const slotH = 30 * u;
-    const top = bottom - 110 * u;
-    const names = s.slot === 1 ? [s.weaponName, s.otherName] : [s.otherName, s.weaponName];
-    for (let i = 0; i < 2 && i < s.slotCount; i++) {
-      const active = i + 1 === s.slot;
-      const x = right - (2 - i) * (slotW + 8 * u) + 8 * u;
-      c.fillStyle = active ? "rgba(255,255,255,0.16)" : PANEL;
-      c.fillRect(x, top, slotW, slotH);
-      if (active) {
-        c.fillStyle = "#ffd23c";
-        c.fillRect(x, top + slotH - 3 * u, slotW, 3 * u);
-      }
-      this.text(`${i + 1}`, x + 8 * u, top + 21 * u, 700, 15 * u, active ? "#ffd23c" : DIM);
-      const label = names[i].toUpperCase();
-      this.ctx.font = this.font(700, 15 * u);
-      const fit = Math.min(1, (slotW - 32 * u) / Math.max(1, this.ctx.measureText(label).width));
-      this.text(label, x + 24 * u, top + 21 * u, 700, 15 * u * fit, active ? WHITE : DIM);
-      // SpeedKills: the gun's fusion as pips along the slot's foot, lit to its level (as the hacks show theirs)
-      const lv = s.fusion ? s.fusion.levels[i] : undefined;
-      if (s.fusion && lv !== undefined && names[i] !== "EMPTY") {
-        const n = s.fusion.max;
-        const pw = 10 * u;
-        const gap = 3 * u;
-        const x0 = x + slotW - 8 * u - n * pw - (n - 1) * gap;
-        for (let k = 0; k < n; k++) {
-          c.fillStyle = k < lv ? "#3cf2ff" : "rgba(255,255,255,0.18)";
-          c.fillRect(x0 + k * (pw + gap), top + 4 * u, pw, 3 * u);
-        }
-      }
-    }
-    if (!s.unarmed) this.text(s.fusion ? `${s.fireMode.toUpperCase()}  ·  FUSION ${s.fusion.levels[s.slot - 1] ?? 0}/${s.fusion.max}` : s.fireMode.toUpperCase(), right, top - 10 * u, 600, 13 * u, DIM, "right");
-    // The reload bar is in the middle of the screen, under the reticle, and
-    // faint. It was tucked under the ammo count in the corner, which is the
-    // one place your eyes are not during a reload: you are looking at whoever
-    // made you reload. Faint, because it sits over the fight - enough to read
-    // at a glance, not enough to hide anybody.
-    if (s.reloading) {
-      const w = 180 * u;
-      const x = Math.round((this.w - w) / 2);
-      const y = Math.round(this.h / 2 + 46 * u);
-      const done = Math.max(0, Math.min(1, s.reloadProgress));
-      c.fillStyle = "rgba(0,0,0,0.28)";
-      c.fillRect(x - 1, y - 1, w + 2, 5 * u + 2);
-      c.fillStyle = "rgba(255,255,255,0.18)";
-      c.fillRect(x, y, w, 5 * u);
-      c.fillStyle = "rgba(255,210,122,0.72)";
-      c.fillRect(x, y, w * done, 5 * u);
-      this.text("RELOADING", x + w / 2, y - 6 * u, 600, 10 * u, "rgba(230,236,242,0.5)", "center");
-    }
+    this.drawWeaponsSk(s, this.bottomUnit(u), this.layout);
   }
 
   // ------------------------------------------------------------ course

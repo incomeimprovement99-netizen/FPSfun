@@ -11551,6 +11551,17 @@ anything like that." Of the 27 texture sets `npm run assets` fetched, six are dr
 - 11 MB of the 15 MB under public/tex and 1.2 MB of props, which the build copies into every deploy.
 - **Checked:** tsc; verify; rules; e2e page, range and speedkills.
 
+## Milestone 536 — The legacy game's bottom HUD out
+
+hud.ts drew its bottom corners two ways: SpeedKills' layout (hud.json layouts.speedkills, Phase 20 A6) when it had one,
+and the legacy game's own when it did not, which since the switch (Milestone 520) was never. The legacy halves of the
+vitals (its speed readout, the shield segments by armour tier, the health bar), the weapons corner and the ability
+squares are gone, with the null checks on the layout in the text outline, the box edges and the range's stats panel.
+- **And the loot bins' two sounds** (fetch-sounds.ts bin_open and bin_close, with their files and the Kenney index),
+  which nothing has played since the floor's bins went.
+- About 180 lines out of hud.ts; nothing drawn or heard changes.
+- **Checked:** tsc; verify; rules; e2e range and speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
