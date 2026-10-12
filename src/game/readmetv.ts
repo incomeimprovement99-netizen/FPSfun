@@ -9,13 +9,14 @@
 // round anywhere else on the screen is an ordinary miss, so stray fire down
 // range never moves the page.
 //
-// The text is the manual itself (readme.ts parses it), so the screen cannot drift from the file. It is fetched the
-// first time someone shoots the screen (the owner, 2026-10-04: "only load it all when the user interacts with it"):
-// until then the screen is a cover, and the page's first script carries none of it. The legacy game shows the README
-// (the public build swaps its real names first, tools/public-text.ts), 150 KB that every SpeedKills page carried too.
+// The text is the manual itself (readme.ts parses it), so the screen cannot drift from the file. It is fetched once
+// the page's first screen has gone (later.ts), so the page's first script still carries none of it, and the screen
+// opens at its first section by itself (the owner, 2026-10-12: "auto defaulted to the first section"); until it is
+// in, the screen is a cover, and a round on it asks for the text at once.
 import * as THREE from "three";
 import cfg from "../config/readme-tv.json";
 import { parseReadme, spansOf, type Block, type Section } from "./readme";
+import { later } from "./later";
 import type { Shootable } from "./projectile";
 
 // SpeedKills hangs it in its range's barrier, 24 m down range, at three quarters of the size (readme-tv.json speedkills)
@@ -23,6 +24,22 @@ const SCREEN = { ...cfg.screen, ...cfg.speedkills.screen };
 const SIGN = { ...cfg.sign, ...cfg.speedkills.sign };
 const BTN = { ...cfg.buttons, ...cfg.speedkills.buttons };
 const L = cfg.layout;
+const FEEDBACK = cfg.feedback;
+
+/** the whole days since SpeedKills began (readme-tv.json feedback.started), by the player's own calendar */
+export function daysOld(now = new Date()): number {
+  const [y, m, d] = FEEDBACK.started.split("-").map(Number);
+  const start = new Date(y, m - 1, d);
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((today.getTime() - start.getTime()) / 86400000));
+}
+
+/** the manual's {days} and {started}, filled in as it loads */
+export function fillManual(md: string, now = new Date()): string {
+  const [y, m, d] = FEEDBACK.started.split("-").map(Number);
+  const started = new Date(y, m - 1, d).toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+  return md.replace(/\{days\}/g, String(daysOld(now))).replace(/\{started\}/g, started);
+}
 
 export type TvAction = "prevPage" | "nextPage" | "prevSection" | "nextSection";
 
@@ -189,6 +206,8 @@ export class ReadmeTv implements Shootable {
       },
       () => undefined
     );
+    // the text after the page's first screen, so it is open at its first section before anyone looks
+    later(() => this.load());
   }
 
   // ---------- what a bullet hits ----------
@@ -234,7 +253,7 @@ export class ReadmeTv implements Shootable {
   load(): Promise<void> {
     this.loading ??= (import("../../docs/MANUAL.md?raw")).then(
       (m) => {
-        this.sections = parseReadme(m.default);
+        this.sections = parseReadme(fillManual(m.default));
         this.pages = this.sections.map(() => null);
         this.loaded = true;
         this.goto(0, 0);
@@ -371,9 +390,15 @@ export class ReadmeTv implements Shootable {
     }
     for (const span of b.spans) {
       let run: Run = { text: "", bold: !!span.bold, code: !!span.code };
+      // a span that starts with no space ("**USSO**, fast") joins the word before it: it was drawn "USSO , fast"
+      let glue = !/^\s/.test(span.text);
       for (const word of span.text.split(" ")) {
-        if (!word) continue;
-        const piece = used ? ` ${word}` : word;
+        if (!word) {
+          glue = false;
+          continue;
+        }
+        const piece = used && !glue ? ` ${word}` : word;
+        glue = false;
         const w = this.measure(style, run, piece);
         if (used + w > width - indent && used) {
           if (run.text) runs.push(run);
@@ -397,7 +422,8 @@ export class ReadmeTv implements Shootable {
     if (had) return had;
     const section = this.sections[index];
     const width = this.cv.width - L.sidebar - L.pad * 2;
-    const perPage = Math.max(4, Math.floor((this.cv.height - L.header - L.footer - L.pad) / L.bodyLine));
+    // filled by height: a gap between blocks is L.gap, and counting it as a whole line left a third of a page empty
+    const room = this.cv.height - L.header - L.footer - L.pad;
     const lines: Line[] = [];
     section.blocks.forEach((b, i) => {
       if (i) lines.push({ runs: [], indent: 0, style: "body", gap: true });
@@ -405,17 +431,19 @@ export class ReadmeTv implements Shootable {
     });
     const pages: Line[][] = [];
     let page: Line[] = [];
+    const tall = (ls: Line[]): number => ls.reduce((h, l) => h + (l.gap ? L.gap : L.bodyLine), 0);
     for (const line of lines) {
       // a gap never opens a page
       if (line.gap && !page.length) continue;
-      page.push(line);
-      if (page.length >= perPage) {
+      if (page.length && tall(page) + (line.gap ? L.gap : L.bodyLine) > room) {
         // a subhead (or the gap before it) left at the foot of a page goes over with its text
         const held: Line[] = [];
         while (page.length > 1 && (page[page.length - 1].style === "head" || page[page.length - 1].gap)) held.unshift(page.pop()!);
         pages.push(page);
         page = held.filter((l) => !l.gap);
+        if (line.gap) continue;
       }
+      page.push(line);
     }
     if (page.length) pages.push(page);
     this.pages[index] = pages.length ? pages : [[]];
@@ -441,15 +469,15 @@ export class ReadmeTv implements Shootable {
       g.fillRect(0, 0, cv.width, 9);
       g.fillRect(0, cv.height - 9, cv.width, 9);
       g.textAlign = "center";
-      g.font = BOLD.replace("%s", String(Math.round(cv.height * 0.55)));
+      g.font = BOLD.replace("%s", String(Math.round(cv.height * SIGN.titleShare)));
       g.shadowColor = "#ffb347";
       g.shadowBlur = 26;
       g.fillStyle = "#ffd23c";
-      g.fillText(SIGN.text, cv.width / 2, cv.height * 0.62);
+      g.fillText(SIGN.text, cv.width / 2, cv.height * (0.04 + SIGN.titleShare));
       g.shadowBlur = 0;
-      g.font = FACE.replace("%s", String(Math.round(cv.height * 0.15)));
+      g.font = FACE.replace("%s", String(Math.round(cv.height * SIGN.subShare)));
       g.fillStyle = "#9fb2c0";
-      g.fillText(SIGN.sub, cv.width / 2, cv.height * 0.88);
+      g.fillText(SIGN.sub, cv.width / 2, cv.height * 0.9);
       tex.needsUpdate = true;
     };
     draw();
@@ -497,11 +525,11 @@ export class ReadmeTv implements Shootable {
     g.textAlign = "left";
     g.font = BOLD.replace("%s", String(L.titleSize));
     g.fillStyle = "#ffd23c";
-    g.fillText(section.title.toUpperCase(), L.pad, L.header - 26);
+    g.fillText(section.title.toUpperCase(), L.pad, L.header - 30);
     g.textAlign = "right";
-    g.font = FACE.replace("%s", String(L.titleSize - 6));
+    g.font = FACE.replace("%s", String(L.bodySize));
     g.fillStyle = "#9fb2c0";
-    g.fillText(`SECTION ${this.section + 1}/${this.sections.length}  ·  PAGE ${this.page + 1}/${pages.length}`, W - L.pad, L.header - 26);
+    g.fillText(`SECTION ${this.section + 1}/${this.sections.length}  ·  PAGE ${this.page + 1}/${pages.length}`, W - L.pad, L.header - 30);
     g.fillStyle = "#223040";
     g.fillRect(0, L.header - 12, W, 2);
 
@@ -544,6 +572,14 @@ export class ReadmeTv implements Shootable {
         }
       }
       ty += line.gap ? L.gap : L.bodyLine;
+    }
+
+    // the first section's credit, lowkey: small and dim at the foot of its page, over the footer's line
+    if (this.section === 0) {
+      g.textAlign = "right";
+      g.font = FACE.replace("%s", String(L.creditSize));
+      g.fillStyle = "#74838f";
+      g.fillText(FEEDBACK.credit, W - L.pad, H - L.footer - 18);
     }
 
     // footer

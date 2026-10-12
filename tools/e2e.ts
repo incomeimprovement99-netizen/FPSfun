@@ -2727,15 +2727,19 @@ async function readmeTvChecks(page: Page): Promise<void> {
     await ev(page, padSet(6, false));
     await sleep(150);
   };
-  // the text comes when the screen is used (the owner, 2026-10-04): a cover until then, and a round on an arrow opens it
-  const cover = await ev<{ loaded: boolean; sections: number }>(page, "({ loaded: window.__range.readmeTv.loaded, sections: window.__range.readmeTv.sections.length })");
-  await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -98, 0, 0); })()`);
-  await shootAt(`window.__range.readmeTv.buttonAt("nextPage")`);
-  const opened = await page.waitForFunction("window.__range.readmeTv.loaded", { polling: 100, timeout: 8000 }).then(() => true, () => false);
+  // the text comes in by itself once the page's first screen has gone, open at its first section (the owner,
+  // 2026-10-12: "auto defaulted to the first section"), its tenth the Feedback section with SpeedKills' age filled in
+  const opened = await page.waitForFunction("window.__range.readmeTv.loaded", { polling: 100, timeout: 20000 }).then(() => true, () => false);
   const first = await tv();
-  // (at its first section: the pull fires more than one round, and one landing after the text is in turns a page, as an arrow does)
-  check("README screen: a cover until it is used, and a round on an arrow loads the text at its start", !cover.loaded && cover.sections === 1 && opened && first.section === 0 && first.sections.length > 1, JSON.stringify({ cover, opened, at: [first.section, first.page] }));
-  await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -98, 0, 0); r.readmeTv.goto(0, 0); })()`);
+  const fb = await ev<string>(page, "(() => { const t = window.__range.readmeTv; const at = [t.section, t.page]; t.goto(9, 0); const s = t.pageText(); t.goto(at[0], at[1]); return s; })()");
+  check(
+    "README screen: the text comes in by itself and opens at its first section, ten of them, the last Feedback with SpeedKills' age in days",
+    opened && first.section === 0 && first.page === 0 && first.sections.length === 10 && first.sections[9] === "Feedback" && /SpeedKills: \d+ days old/.test(fb.replace(/\s+/g, " ")) && !/\{days\}|\{started\}/.test(fb),
+    JSON.stringify({ opened, at: [first.section, first.page], sections: first.sections.length, fb: fb.slice(0, 160) })
+  );
+  // (8 m in front of the screen, which hangs 24 m down range: the barrier it hung in, and the bound behind it, went on
+  // 2026-10-12, so a teleport past it is no longer held at it)
+  await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, -16, 0, 0); r.readmeTv.goto(0, 0); })()`);
   await sleep(200);
   const start = await tv();
   // The words of the opening change as the game does (they were the legacy game's until 2026-10-03); what has to hold
@@ -4699,9 +4703,9 @@ async function speedkillsTest(browser: Browser): Promise<void> {
       JSON.stringify({ all, have: Object.keys(b), inBand, clash, health: b.health, ammo: b.ammo, hack0: b.hack0, slot0: b.slot0 }),
     );
   }
-  // The range as SpeedKills' sandbox (Phase 20 A12): a body sent 40 m down range stops at the lit edge 24 m in,
-  // where the curtain stands, and the README screen hangs in it. Read after a stretch of game time, not 500 ms: on the
-  // e2e's CPU drawing a frame can take longer than that, and the edge had not been reached because no frame had run
+  // The range open to its far end (the owner, 2026-10-12: "remove the barrier where the tv screen is, but keep the tv
+  // screen just like that"): a body sent 40 m down range stays there, no curtain stands, and the manual's screen still
+  // hangs 24 m in. Read after a stretch of game time: on the e2e's CPU a frame can take longer than 500 ms
   const sb = await ev<{ z: number; curtains: number; tvZ: number | null }>(
     sight,
     `(async () => {
@@ -4717,7 +4721,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
       return out;
     })()`,
   );
-  check("speedkills range: the sandbox stops you at its lit edge, 24 m down range, where the curtain stands", sb.z >= -24.5 && sb.z <= -22 && sb.curtains === 3, JSON.stringify(sb));
+  check("speedkills range: open past the screen, 40 m down range and further, no barrier, the manual's screen 24 m in", sb.z < -39 && sb.curtains === 0 && sb.tvZ !== null && Math.abs(sb.tvZ + 24.17) < 0.2, JSON.stringify(sb));
   // The menu (Phase 20 A11): no tab and no Play mode wider than the menu, at three screen sizes (the hack pickers
   // and the controller boxes pushed rows past its edge, and every mode scrolled sideways)
   const wide: string[] = [];

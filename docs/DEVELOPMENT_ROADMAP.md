@@ -11562,6 +11562,39 @@ squares are gone, with the null checks on the layout in the text outline, the bo
 - About 180 lines out of hud.ts; nothing drawn or heard changes.
 - **Checked:** tsc; verify; rules; e2e range and speedkills.
 
+## Milestone 537 — The range open past the manual's screen, and the manual bigger, open and dated
+
+The owner (2026-10-12): "remove the barrier where the tv screen is, but keep the tv screen just like that. I want it
+to be auto defaulted to the first section ... All text should be 1 size bigger except the arrow button tiles. Make the
+title larger too ... Keep the tv overall at the same size. Add a 10th section called Feedback ... the first page should
+also have a footer ... 'Created by B00G' ... the guns tab should have a row for each gun, with an accurate description,
+don't combine. Have them grouped by like close range vs long range."
+
+- **The barrier out:** the lit curtain, its neon bars and posts 24 m down range (range.ts buildSandboxEdge,
+  range.json), and the bound behind it: the range is open to its backstop again, the spray wall, the ladders and the
+  far platforms with it. The screen hangs where it did, the same size.
+- **Open at its first section:** the manual's text comes in after the page's first screen (later.ts), so the page's
+  first script still carries none of it, and the screen shows section 1 with no shot needed. The cover is only there
+  until it is in, and a round on it still asks at once.
+- **A size up:** the body 40 to 47 px (on a 200 px a metre canvas), the section list 32 to 40, the section's title 44
+  to 60, the footer with them; the arrow plates as they were. The pages fill by height now (a gap between blocks is
+  20 px and was counted as a 52 px line, leaving a third of a page empty), and a bold name followed by its comma reads
+  "USSO, fast SMG" (it was drawn "USSO , fast SMG").
+- **The sign's name larger, clear of the line under it:** the sign a quarter taller (1.05 to 1.3 m, its foot where it
+  was), SPEEDKILLS on 56% of it with a clear gap over "THE MANUAL" line (the owner: "the top SpeedKills text is too
+  close on the bottom to the supporting text"). The roof's middle girder went with it: it hung through the sign's top
+  and crossed the name once the sign grew.
+- **The guns, one each, grouped:** close range (USSO, ANAKIN, BIGANTLER, REZ), sidearms (STRYDER, APUHTHEE), any range
+  (PANDA, CHOOCH), long range (HAEFY, BOOG), each with its fire rate, magazine and time to kill as tools/checks/ttk.ts
+  measures them. It said STRYDER was a rifle and HAEFY a marksman: they are a fast pistol and a rocket launcher.
+- **Feedback, the tenth section:** message B00G with suggestions, bugs, features or changes; "SpeedKills: N days old.
+  It was started on 25 September 2026", N counted by the player's calendar from readme-tv.json feedback.started, the
+  day of the first SpeedKills commit (1f6b82d6).
+- **The first section's footer:** "Created by B00G", small and dim at the foot of its page.
+- **Checked:** tsc; verify; rules; e2e range, speedkills and sktour (the screen opens by itself at section 1 of 10
+  with the age filled in; the range is open 40 m down with no curtain and the screen 24 m in); photographs before and
+  after.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

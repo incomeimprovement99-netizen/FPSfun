@@ -34,9 +34,8 @@ import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/pro
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
-import { buildRange, rangeBounds, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, RANGE_BOUNDS, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { floorAt } from "./game/floors";
-import rangeCfg from "./config/range.json";
 import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
 import { BrMatch, DROP_HEIGHT, teamFor } from "./game/brmatch";
@@ -785,7 +784,7 @@ const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.inne
 vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
-buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, sandbox: rangeCfg.sandbox, solids: armorySolids() });
+buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, solids: armorySolids() });
 // the Gulag's room, the Vault (src/game/arena.ts), merged with the range
 // (its textures after the page's first screen: nothing the range's first frame shows, later.ts)
 holdTextures(true);
@@ -1114,8 +1113,11 @@ const input = new Input(renderer.domElement);
 // the player's own keys (the Controls tab) on top of binds.json
 applySavedBinds();
 initBindsUi($("bindTable"), $("bindsNote"));
-/** where a player may go in the range: in SpeedKills, the sandbox up to its lit edge (range.json; Phase 20 A12) */
-const RANGE_PLAY = rangeBounds(rangeCfg.sandbox);
+/**
+ * where a player may go in the range: all of it, down to the backstop. Its lit barrier 24 m in (Phase 20 A12, the
+ * owner's sandbox) went on the owner's word, 2026-10-12, and the manual's screen it hung in stays where it was.
+ */
+const RANGE_PLAY = RANGE_BOUNDS;
 const player = new Player(RANGE_PLAY);
 /** your name and every result, in this browser (src/game/stats.ts) */
 const profile = new Stats();

@@ -36,15 +36,38 @@ Every key can be changed in Settings, Controls. A controller works too.
 
 ## Guns
 
-Ten guns, two in your hands at a time. You never run out of ammo: reload and keep moving.
+Ten guns, two in your hands at a time. You never run out of ammo: reload and keep moving. A time to kill below is
+from full health and shield (150), four shots in five landing.
 
-- **USSO**, fast SMG, and **ANAKIN**, steady SMG: close range, fast fire.
-- **STRYDER**, fast rifle, and **PANDA**, heavy rifle: steady at any range.
-- **BIGANTLER**, heavy shotgun, and **REZ**, auto shotgun: point blank, one or two shots.
-- **HAEFY**, marksman: long range, hard single shots.
-- **BOOG**, sniper: the longest range, and a headshot kills.
-- **APUHTHEE**, heavy pistol: six hard single shots.
-- **CHOOCH**, energy LMG: never reloads, it cools instead.
+### Close range
+
+- **USSO**, fast SMG: the fastest-firing gun in the game, 18 rounds a second from a 27-round magazine. It kicks the
+  most of the automatics. About 1.3 s to kill up close; past 30 m it falls off hard.
+- **ANAKIN**, steady SMG: 10 rounds a second from 18, with the least kick of any automatic. About 1.4 s to kill up
+  close; past 30 m it falls off hard.
+- **BIGANTLER**, heavy shotgun: five pellets a shot, one shot a second, five shells. A kill in about a second when
+  the pellets land.
+- **REZ**, auto shotgun: eight pellets a shot, about three shots a second, eight shells. About 1.1 s to kill up close.
+
+### Sidearms
+
+- **STRYDER**, fast pistol: fully automatic, 13 rounds a second from 25. About 1.4 s to kill up close; past 30 m it
+  falls off hard.
+- **APUHTHEE**, heavy pistol: six hard single shots, about three a second. About 1.8 s to kill.
+
+### Any range
+
+- **PANDA**, heavy rifle: 8.5 rounds a second from 19, and it keeps its damage at range: about 1.5 s to kill at 10 m
+  or 30 m, and barely slower at 60.
+- **CHOOCH**, energy LMG: 10 rounds a second, and it never reloads: after 24 shots without a pause it overheats and
+  cools for about a second instead. About 1.5 s to kill, and steady out to 60 m.
+
+### Long range
+
+- **HAEFY**, rocket launcher: four rockets. A rocket bursts on whatever it hits, and the further it flew the harder it
+  hits: about 10 point blank, rising to 50 from 20 m on. It never hurts you or a teammate, and has no headshots.
+- **BOOG**, sniper: four rounds, with a bolt to work between shots (1.6 s). A headshot (450) kills through full
+  health, a full shield and an ARMOR hack; a body shot does not.
 
 **Fusion:** take a copy of a gun you carry and it fuses a level up, to level 5: a bigger magazine, faster reloads,
 more damage and less recoil. A copy at a higher level takes yours straight to it.
@@ -106,3 +129,10 @@ On the Play tab, behind **Extra modes**.
 - **Your soldier and loadouts:** the Loadouts tab: your soldier's colours and pieces, your guns, your hacks and your
   melee weapon.
 - **Your banner:** an icon, a frame and a title, shown to whoever you eliminate and when your squad wins.
+
+## Feedback
+
+**Message B00G with any feedback:** suggestions, bugs you hit, features you would like, or anything you would change.
+Every message is read.
+
+SpeedKills is the first game we have made. **SpeedKills: {days} days old.** It was started on {started}.

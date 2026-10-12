@@ -4,7 +4,6 @@
 // stairs and a ramp, and a moving target rail.
 //
 // All geometry is generated here. Materials are CC0 (public/tex/ATTRIBUTION.md).
-import rangeCfg from "../config/range.json";
 import * as THREE from "three";
 import { material, tileBox } from "./materials";
 import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } from "./geo";
@@ -193,65 +192,8 @@ export interface RangeOptions {
   /** point lights cost every lit pixel; Competitive and Balanced drop them */
   pointLights: boolean;
   shadowSize: number;
-  /** SpeedKills: the sandbox's edge (range.json; Phase 20 A12) */
-  sandbox?: typeof rangeCfg.sandbox | null;
   /** boxes of things other modules stand in the range (SpeedKills' armory's cases, armory.ts), pushed with its own */
   solids?: Solid[];
-}
-
-/** where a player may go in the range: all of it, or in SpeedKills up to the sandbox's edge (range.json edgeZ) */
-export function rangeBounds(sandbox: { edgeZ: number } | null | undefined): Bounds {
-  return sandbox ? { ...RANGE_BOUNDS, minZ: sandbox.edgeZ } : RANGE_BOUNDS;
-}
-
-/**
- * SpeedKills' sandbox edge (Phase 20 A12): a lit curtain across the range at edgeZ, posts and a kerb of neon,
- * with a gap under the README screen that hangs in it. None of it is solid: the player's bound stops you
- * (rangeBounds), and rounds still reach the lanes beyond.
- */
-function buildSandboxEdge(scene: THREE.Scene, sb: typeof rangeCfg.sandbox): void {
-  const E = sb.edgeZ;
-  const C = sb.curtain;
-  const cv = document.createElement("canvas");
-  cv.width = cv.height = 64;
-  const g = cv.getContext("2d");
-  if (g) {
-    g.clearRect(0, 0, 64, 64);
-    g.strokeStyle = "rgba(255,255,255,0.9)";
-    g.lineWidth = 2;
-    g.strokeRect(1, 1, 62, 62);
-  }
-  const tex = new THREE.CanvasTexture(cv);
-  tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(C.color), transparent: true, opacity: C.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
-  const panelAt = (x0: number, x1: number, y0: number, y1: number): void => {
-    const w = x1 - x0;
-    const h = y1 - y0;
-    const t = tex.clone();
-    // a grid of 1.5 m cells, whatever the panel's size
-    t.repeat.set(w / 1.5, h / 1.5);
-    t.needsUpdate = true;
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat.clone());
-    (m.material as THREE.MeshBasicMaterial).map = t;
-    m.position.set((x0 + x1) / 2, (y0 + y1) / 2, E - 0.02);
-    m.name = "sk-sandbox-curtain";
-    m.userData.dynamic = true;
-    scene.add(m);
-  };
-  const half = RANGE_BOUNDS.maxX - 0.5;
-  panelAt(-half, C.gap.minX, C.bottom, C.top);
-  panelAt(C.gap.maxX, half, C.bottom, C.top);
-  panelAt(C.gap.minX, C.gap.maxX, C.bottom, C.gap.bottom);
-  const neon = emissive(new THREE.Color(C.color).getHex(), 2.4);
-  const post = emissive(new THREE.Color(sb.postColor).getHex(), 2.4);
-  const bar = (w: number, h: number, d: number, x: number, y: number, z: number, m: THREE.Material): void => {
-    const b = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), m);
-    b.position.set(x, y, z);
-    scene.add(b);
-  };
-  bar(half * 2, 0.08, 0.08, 0, C.bottom, E - 0.04, neon);
-  bar(half * 2, 0.08, 0.08, 0, C.top - 0.08, E - 0.04, neon);
-  for (const x of sb.posts) bar(0.14, C.top - C.bottom, 0.14, x, (C.top + C.bottom) / 2, E - 0.1, post);
 }
 
 export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLights: true, shadowSize: 4096 }): void {
@@ -289,7 +231,6 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   const panel = flat(0x161b27, 0.6, 0.12);
   const trim = flat(0x0c0e14, 0.6, 0.4);
   const glow = emissive(0xff2e9a, 2.6);
-  if (opts.sandbox) buildSandboxEdge(scene, opts.sandbox);
 
   // ---------- sky and fog ----------
   // An authored gradient dome, not the HDRI. The HDRI stays as
@@ -415,7 +356,9 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     z1: 9,
     y: 10,
     skylightEvery: 4,
-    girders: [-17, 0, 17],
+    // (none down the middle: it hung through the manual's sign 24 m in, 9.28 m up, and crossed its name once the sign
+    // grew to hold it larger, 2026-10-12)
+    girders: [-17, 17],
     lights: [-26, -9, 9, 26],
     solid: (minX, maxX, minZ, maxZ, base, top) => RANGE_SOLIDS.push({ minX, maxX, minZ, maxZ, base, top }),
   });

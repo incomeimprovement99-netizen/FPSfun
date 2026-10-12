@@ -14,10 +14,12 @@ art packs the owner bought.
 
 **Play it: https://fpsfun.duckdns.org/** (Chrome or Edge on a PC.)
 
-**The manual is in the game.** In the range, a screen in the barrier 24 m down
-range shows `docs/MANUAL.md`, the player's manual: shoot it to open it (its
-text is fetched then, not with the page), and the arrows beside it to turn a
-page or change section.
+**The manual is in the game.** In the range, a screen hung 24 m down range
+shows `docs/MANUAL.md`, the player's manual, open at its first section (its
+text comes in after the page's first screen, not with it): shoot the arrows
+beside it to turn a page or change section, or a section's name to jump to it.
+Its last section, Feedback, asks for players' feedback and counts SpeedKills'
+age in days from its first commit (25 September 2026).
 
 **Where it came from.** SpeedKills grew out of B00G's Range, a browser
 recreation of another battle royale's movement and guns (Milestones 1 to 182,
@@ -764,15 +766,15 @@ strafe and crouch or dodge at random (I, or the Range box), and shoot back
 with a bot's aim, in which case you have a shield and health in the range
 too. Pop-up targets on the courses are armed and count.
 
-**The README screen**: run to the far end of the range (or ride the 100 m
-with a scope on) and this file is on a 16 m screen under the **B00G'S RANGE**
-sign, as sections and pages. Four arrow plates beside it do the paging — ◀ ▶
+**The manual's screen**: 24 m down range, the range open past it since the
+barrier it hung in went (2026-10-12), `docs/MANUAL.md` is on a 12 m screen
+under the **SPEEDKILLS** sign, as sections and pages. Four arrow plates beside it do the paging — ◀ ▶
 a page, ▲ ▼ a section — and the list of sections down the left side is
 shootable too, so a round on a name opens it. Any gun, pellet, arrow or a
 melee punch works; a round anywhere else on the screen does nothing, so stray
-fire never moves the page. It is this file, bundled at build time, so the
-screen can never say something the README does not (the public build swaps in
-the codenames first).
+fire never moves the page. It is the manual itself, so the screen can never
+say something the file does not (the public build swaps in the codenames
+first).
 
 **Movement, beyond Apex's.** Everyone has one more jump in the air (once until
 you touch ground, a wall or a rope) and a run along any wall you are already

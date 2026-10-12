@@ -13,7 +13,9 @@
     "width": 16.6,
     "height": 1.4,
     "text": "B00G'S RANGE",
-    "sub": "THE MANUAL · SHOOT THE ARROWS TO TURN THE PAGES"
+    "sub": "THE MANUAL · SHOOT THE ARROWS TO TURN THE PAGES",
+    "titleShare": 0.58,
+    "subShare": 0.15
   },
   "buttons": {
     "z": -106.62,
@@ -24,20 +26,27 @@
     "height": 1.9,
     "flash": 0.22
   },
+  "_layout": "The page's layout in canvas pixels (200 a metre on SpeedKills' screen). Every text a size up on the owner's word, 2026-10-12 (\"all text should be 1 size bigger except the arrow button tiles. Make the title larger too\"), the screen itself the same size: the body 40 to 47 on 52 to 61 between lines, the section list 32 to 40, the section's title 44 to 60 under a header grown to hold it. creditSize is the first section's lowkey footer.",
   "layout": {
     "pad": 34,
-    "header": 96,
-    "footer": 52,
+    "header": 118,
+    "footer": 62,
     "sidebar": 560,
-    "entryLine": 42,
-    "entrySize": 32,
-    "titleSize": 44,
-    "bodySize": 40,
-    "bodyLine": 52,
-    "indent": 44,
-    "gap": 18
+    "entryLine": 54,
+    "entrySize": 40,
+    "titleSize": 60,
+    "bodySize": 47,
+    "bodyLine": 61,
+    "indent": 50,
+    "gap": 20,
+    "creditSize": 38
   },
-  "_speedkills": "SpeedKills hangs the screen in its range's barrier, 24 m down range, at three quarters of its size (Phase 20 A12): 107 m away it could not be read without a scope. Every canvas keeps its pixel size (px rises as the width falls), so the pages lay out the same. The frame's foot (3.16 m) stays above the bays' line of sight to the lanes behind it (2.99 m, measured by the Phase 20 diagnosis), and the sign stays under the 10 m roof.",
+  "_feedback": "The manual's Feedback section (docs/MANUAL.md): its {days} and {started} are filled in as it loads, from `started`, the day SpeedKills began: its first commit, 1f6b82d6 (2026-09-25 23:49, \"SpeedKills: the plan, the game switch and the first profiles\"). `credit` is the first section's footer, lowkey (the owner, 2026-10-12).",
+  "feedback": {
+    "started": "2026-09-25",
+    "credit": "Created by B00G"
+  },
+  "_speedkills": "SpeedKills hangs the screen 24 m down range, where its range's barrier stood until 2026-10-12 (the owner: \"remove the barrier where the tv screen is, but keep the tv screen just like that\"), at three quarters of its size (Phase 20 A12): 107 m away it could not be read without a scope. Its sign is a quarter taller (1.05 to 1.3 m, its foot where it was, its top 0.3 m under the roof) so its name is larger with a clear gap over the line under it (the owner, 2026-10-12: \"make the title larger too\", then \"the top SpeedKills text is too close on the bottom to the supporting text\"). Every canvas keeps its pixel size (px rises as the width falls), so the pages lay out the same. The frame's foot (3.16 m) stays above the bays' line of sight to the lanes behind it (2.99 m, measured by the Phase 20 diagnosis), and the sign stays under the 10 m roof.",
   "speedkills": {
     "screen": {
       "x": 0,
@@ -48,11 +57,13 @@
       "px": 200
     },
     "sign": {
-      "y": 8.9,
+      "y": 9.03,
       "width": 12.45,
-      "height": 1.05,
+      "height": 1.3,
       "text": "SPEEDKILLS",
-      "sub": "THE MANUAL · SHOOT THE ARROWS TO TURN THE PAGES"
+      "sub": "THE MANUAL · SHOOT THE ARROWS TO TURN THE PAGES",
+      "titleShare": 0.56,
+      "subShare": 0.13
     },
     "buttons": {
       "z": -24.02,
