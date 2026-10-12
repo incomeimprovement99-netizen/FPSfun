@@ -156,13 +156,33 @@ replaces Caddy's welcome page; on a shared one it is appended):
 
 ```
 fpsfun.duckdns.org {
-	encode zstd gzip
-	reverse_proxy localhost:4100
+	# .glb is not on Caddy's own list of types to compress, and the clips, the soldier and the guns are mostly
+	# plain floats that zstd or gzip take to a half or a third. Not the city's: hundreds of MB a file is too much to
+	# squeeze on every request on this one CPU, and neonmap.ts reads their Content-Length for its progress.
+	@models {
+		path *.glb
+		not path /models/paid/neon/*
+	}
+	handle @models {
+		encode zstd gzip {
+			match {
+				header Content-Type model/gltf-binary*
+			}
+		}
+		reverse_proxy localhost:4100
+	}
+	handle {
+		encode zstd gzip
+		reverse_proxy localhost:4100
+	}
 }
 ```
 
 It backs the Caddyfile up first, has Caddy validate the result, and puts the
-backup back if Caddy rejects it. A reload of Caddy does not drop Algonomics'
+backup back if Caddy rejects it. A box set up before Milestone 567 has the
+block without the `@models` part (no .glb compressed): setup.sh leaves a block
+that is already there alone, so put the new one in by hand (back up, `caddy
+validate`, `systemctl reload caddy`). A reload of Caddy does not drop Algonomics'
 connections. Safe to run again.
 
 ## 6. Ship it

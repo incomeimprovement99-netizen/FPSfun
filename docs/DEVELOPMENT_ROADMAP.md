@@ -12813,3 +12813,23 @@ every player downloads their four files on the way in: 6.5 MB, sent as they are 
   first three) and with Interact dropped from its file and list (the fourth). The e2e's late-clips check loses the
   revive's clip; the skfigure and page sections, verify, rules and the type check pass.
 - **Also:** fetch-clips uses the library already taken out of its zip when the zip is gone, and exports its lists.
+
+## Milestone 567 — The models sent compressed
+
+The game's server compresses what Caddy compresses by default, and .glb is not on its list, so every model went over
+the wire as it is on disk. The clips, the soldier and the guns are mostly plain floats that zstd or gzip take to a half
+or a third: the owner's call (2026-10-12) was to compress them.
+
+- **The Caddyfile** (server/game/setup.sh, and by hand on the live box, the old one backed up beside it): every .glb but
+  the city's is compressed. The city's files are left as they are: 100 to 400 MB each is too much to squeeze on every
+  request on the box's one CPU, and neonmap.ts reads their Content-Length for its loading progress, which a compressed
+  reply does not carry.
+- **What it comes to, measured off the live site:** the four clip files 2,176,080 bytes to 811,990 (zstd), so the 6.5 MB
+  of clips before Milestone 566 is 0.8 MB on the wire now; the soldier 1,690,892 to 845,903. Each file decoded is the
+  same bytes as on disk.
+- **Checked:** caddy validate before the reload; each kind of reply after it (a clip file and the soldier come back
+  zstd, the city's lo file plain with its Content-Length, the page still compressed, /health answering); the live 1v1
+  check (npm run live) passes with no failed request.
+- **Not done, and worth a look:** the city's lo file gzips from 100 MB to 53 MB even at the fastest level. That wants
+  the files compressed once at deploy time and sent as they are, with the progress reading the compressed length, not
+  squeezed per request.

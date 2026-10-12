@@ -191,8 +191,25 @@ else
 
 # the game (apex-range server/game/setup.sh)
 $DOMAIN {
-	encode zstd gzip
-	reverse_proxy localhost:4100
+	# .glb is not on Caddy's own list of types to compress, and the clips, the soldier and the guns are mostly
+	# plain floats that zstd or gzip take to a half or a third. Not the city's: hundreds of MB a file is too much to
+	# squeeze on every request on this one CPU, and neonmap.ts reads their Content-Length for its progress.
+	@models {
+		path *.glb
+		not path /models/paid/neon/*
+	}
+	handle @models {
+		encode zstd gzip {
+			match {
+				header Content-Type model/gltf-binary*
+			}
+		}
+		reverse_proxy localhost:4100
+	}
+	handle {
+		encode zstd gzip
+		reverse_proxy localhost:4100
+	}
 }
 EOF
   if ! sudo caddy validate --config "$CADDYFILE" --adapter caddyfile >/dev/null 2>&1; then
