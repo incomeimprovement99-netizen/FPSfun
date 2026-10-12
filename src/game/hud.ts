@@ -227,7 +227,6 @@ export interface HudState {
     guns: Array<{ name: string; clip: number; size: number; ammo: string; attach: string[]; inHand: boolean }>;
     ammo: Array<{ name: string; n: number }>;
     armor: string;
-    helmet: string;
   } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
@@ -238,7 +237,7 @@ export interface HudState {
    */
   squad?: { me: { slot: number; color: string } | null; rows: SquadRow[]; tags: MateTag[] } | null;
   /** real shield and health (a 1v1); the bars are decorative without it */
-  vitals?: { shield: number; shieldMax: number; health: number; healthMax: number; evo?: number | null; helmet?: string | null } | null;
+  vitals?: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
   /**
    * SpeedKills' two hacks (src/game/hacks.ts), mobility then utility: the
    * name, the key, how much of the cooldown is still to go (0 ready), the
@@ -2801,7 +2800,7 @@ export class Hud {
     c.lineWidth = 1;
     c.strokeRect(x0, y0, w, h);
     this.text("WHAT YOU ARE CARRYING", x0 + 24 * u, y0 + 34 * u, 700, 18 * u, WHITE);
-    this.text(`${inv.armor}   ·   ${inv.helmet}`, x0 + w - 24 * u, y0 + 34 * u, 700, 14 * u, DIM, "right");
+    this.text(inv.armor, x0 + w - 24 * u, y0 + 34 * u, 700, 14 * u, DIM, "right");
     let y = y0 + 74 * u;
     for (const g of inv.guns) {
       this.text(g.name, x0 + 24 * u, y, 700, 17 * u, g.inHand ? "#ffd23c" : WHITE);
@@ -3324,14 +3323,6 @@ export class Hud {
       c.fillStyle = v ? (v.shieldMax >= 125 ? "#ff3b3b" : v.shieldMax >= 100 ? SHIELD : v.shieldMax >= 75 ? "#3b8bff" : "#e8e8e8") : SHIELD;
       c.fillRect(x0 + i * (segW + gap), yShield, segW * fill, 10 * u);
     }
-    // EVO: how far the shield core is to its next level, a thin bar under the shield
-    if (v && v.evo !== null && v.evo !== undefined) {
-      c.fillStyle = "rgba(0,0,0,0.45)";
-      c.fillRect(x0, yShield + 11 * u, barW, 2 * u);
-      c.fillStyle = "#e8e8e8";
-      c.fillRect(x0, yShield + 11 * u, barW * v.evo, 2 * u);
-    }
-    if (v?.helmet) this.text(v.helmet === "red" ? "MYTHIC HELMET" : "GOLD HELMET", x0 + barW + 10 * u, yShield + 9 * u, 700, 11 * u, v.helmet === "red" ? RED : "#ffd23c");
     const hp = v ? Math.max(0, v.health / v.healthMax) : 1;
     c.fillStyle = "rgba(0,0,0,0.5)";
     c.fillRect(x0, yHealth, barW, 12 * u);

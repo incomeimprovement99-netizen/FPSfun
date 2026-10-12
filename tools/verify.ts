@@ -75,7 +75,6 @@ import { pingWheelFails } from "./checks/pingwheel";
 import { HU, MOVE, jumpVelocityFor, SLIDE_RAMP_ANGLE } from "../src/game/movement";
 import { PROFILE } from "../src/game/game";
 import { DamageLog } from "../src/game/recap";
-import { Armor } from "../src/game/kit";
 import audioCfg from "../src/config/audio.json";
 import { LootField } from "../src/game/loot";
 import { Duel, moveDirOf } from "../src/game/duel";
@@ -994,24 +993,6 @@ console.log("Sound (src/config/audio.json)");
 }
 
 console.log("");
-console.log("Armour (src/config/items.json, Season 30; the heal items went in Milestone 523)");
-{
-  const a = new Armor();
-  a.reset(1);
-  eq("a battle royale starts on a white core", a.shieldMax, 50);
-  eq("449 EVO: still white", a.addEvo(449), null);
-  eq("450: blue", a.addEvo(1), 2);
-  eq("blue holds 75", a.shieldMax, 75);
-  a.addEvo(1700);
-  eq("1,700 more (2,150 in all): purple, 100", a.shieldMax, 100);
-  eq("purple is the top of the core", a.evoFrac, null);
-  a.helmet = "red";
-  eq("the mythic helmet: 125", a.shieldMax, 125);
-  a.reset(1);
-  a.helmet = "gold";
-  eq("the gold helmet: 100 on a white core", a.shieldMax, 100);
-}
-
 console.log("");
 console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
 {
@@ -1188,14 +1169,6 @@ console.log("Control (src/game/modes.ts, src/config/modes.json control; RESEARCH
 console.log("");
 console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mechanics.json, RESEARCH_PHASE_12 section 2)");
 {
-  const a = new Armor();
-  a.reset(1);
-  eq("450 EVO: blue", (a.addEvo(450), a.level), 2);
-  eq("purple needs 1,700 more (2,150 in all), not 1,700 in all", (a.addEvo(1249), a.level), 2);
-  eq("still blue at 2,149", (a.addEvo(450), a.level), 2);
-  eq("at 2,150: purple", (a.addEvo(1), a.level), 3);
-  eq("a knock is 150 EVO, an assist 100, a care package 100", [squadJson.evo.knock, squadJson.evo.assist, squadJson.evo.carePackage].join(" "), "150 100 100");
-  eq("revives: 100 twice, then 25 less each", squadJson.evo.revive.join(" "), "100 100 75 50 25 0");
   eq("the knockdown shield by EVO level", squadJson.kdShield.hp.join(" "), "200 450 750");
   near("behind it you crawl 45% slower", 1 - squadJson.kdShield.crawlScale, 0.45, 1e-9);
   eq("brought back at an echo: a 7 s hold, back at 20 health", [squadJson.echoRespawn.time, squadJson.echoRespawn.health].join(" "), "7 20");

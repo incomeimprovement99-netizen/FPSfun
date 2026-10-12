@@ -79,8 +79,8 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   the loadout crate, each switched off in SpeedKills by its own guard. About 1,260 lines.
 - **526, the legacy floor (done):** ammo, attachment, hop-up, helmet and knockdown-shield loot, the floor's spot kinds
   and single-item roll, the walk-over sweep, the bots' looting of them. About 920 lines.
-- **Later, armour, helmets and EVO** (kit.ts Armor, SHIELD_LEVELS, giveEvo, the care package's EVO, the HUD's EVO bar):
-  SpeedKills' shield is one for everyone.
+- **527, armour, helmets and EVO (done):** kit.ts Armor, the shield levels and helmets, giveEvo and all it paid,
+  the HUD's EVO bar. About 210 lines.
 - **523, the heal items, the heal wheel and the backpacks (done):** the player's kit, the bots' item heals, the
   floor's heals and backpacks, the walk-over's small heals and the recap's "healed recently". The battle royale's ammo
   limit stays the white pack's. The figure's heal pose and its act codes are the character agent's (told). Armour and
@@ -93,7 +93,7 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   lists, loot, mechanics entries and checks; the R-301 goes with 522.
 - **522, the attachments, magazine levels, hop-ups and fire modes, the old guns' mechanics and the R-301 (done).**
   SpeedKills keeps each gun's fixed optic, fusion, the L-STAR's heat and the shotguns' blast patterns.
-- **Next:** armour, helmets and EVO, then the Outskirts map, then the match side of the
+- **Next:** the Outskirts map, then the match side of the
   knockdowns (the character agent takes the figure's).
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).

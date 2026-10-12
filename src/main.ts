@@ -132,7 +132,7 @@ import squadCfg from "./config/squad.json";
 import { levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/loot";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
-import { Armor, Knockdown } from "./game/kit";
+import { Knockdown } from "./game/kit";
 import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
@@ -3089,9 +3089,6 @@ function respawnForMatch(d: MatchLike): void {
   loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
   loadout.refillEnergy();
   holster = "out";
-  // the arena and the bots: the fixed kit and blue shields; a battle royale:
-  // its start kit and a white shield core that levels with EVO
-  const br = d instanceof BrMatch;
   // no knockdown shield, no regen carried over from the last life
   kd.reset();
   echoRegen = null;
@@ -3103,9 +3100,8 @@ function respawnForMatch(d: MatchLike): void {
     loadout.clearSlot(1);
     loadout.ammo.empty();
   }
-  armor.reset(br ? 1 : 2);
-  // SpeedKills: one shield for everyone, no EVO and no armour to find (speedkills.json health)
-  d.shieldMax = SK_HEALTH ? SK_HEALTH.shield : armor.shieldMax;
+  // one shield for everyone, no EVO and no armour to find (speedkills.json health)
+  if (SK_HEALTH) d.shieldMax = SK_HEALTH.shield;
   d.shield = d.shieldMax;
   if (SK_HEALTH) d.health = SK_HEALTH.health;
   player.healSlow = 1;
@@ -3155,23 +3151,6 @@ function respawnForMatch(d: MatchLike): void {
   }
 }
 
-/**
- * EVO (squad.json, Season 30): the damage you deal, a knock 150, an assist
- * 100, a revive 100 twice then less, a care package 100. A level up refills
- * the shield and says so.
- */
-function giveEvo(amount: number, why = ""): void {
-  // SpeedKills has no EVO: the shield is the same for everyone all match
-  if (!(duel instanceof BrMatch) || amount <= 0 || IS_SK) return;
-  const up = armor.addEvo(amount);
-  if (why) hud.notice(`+${amount} EVO  ·  ${why}`, gameTime, 1.2);
-  if (up !== null) {
-    duel.shieldMax = armor.shieldMax;
-    if (!duel.downed) duel.shield = duel.shieldMax;
-    hud.notice(`SHIELD UP: ${["", "WHITE", "BLUE", "PURPLE"][up]} ${armor.shieldMax}`, gameTime, 1.6);
-    audio.stinger("won");
-  }
-}
 /** whom you hurt and when (an assist: someone else knocks them soon after) */
 const damagedAt = new Map<number, number>();
 
@@ -3295,24 +3274,6 @@ function clearSquadRings(): void {
   ringed.clear();
 }
 
-/** the knocks already paid (a figure can be reported twice: down, then out) */
-const evoPaid = new Map<number, number>();
-/** your revives this match (the first two pay 100, then less) and the care packages already paid */
-let revivesDone = 0;
-const podsPaid = new Set<number>();
-function evoForKnock(victim: number, by: number): void {
-  if (!(duel instanceof BrMatch) || victim === duel.id) return;
-  const last = evoPaid.get(victim) ?? -Infinity;
-  if (gameTime - last < 3) return;
-  if (by === duel.id) {
-    evoPaid.set(victim, gameTime);
-    giveEvo(squadCfg.evo.knock, "KNOCK");
-  } else if (gameTime - (damagedAt.get(victim) ?? -Infinity) < squadCfg.evo.assistWindow) {
-    evoPaid.set(victim, gameTime);
-    giveEvo(squadCfg.evo.assist, "ASSIST");
-  }
-}
-
 /** brought back at your echo: the shield comes back over a few seconds */
 let echoRegen: { rate: number } | null = null;
 /** the knockdown shield (squad.json kdShield): what it has left, raised or not, and the knock it belongs to */
@@ -3347,8 +3308,6 @@ document.getElementById("overlay")?.addEventListener("click", (e) => {
   if (t && (t.tagName === "BUTTON" || t.closest("button"))) audio.ui("click");
 });
 
-/** your armour: the shield core, its EVO, a helmet (the legacy game's; SpeedKills' shield is one for everyone) */
-const armor = new Armor();
 /** the emote wheel (7, held): open, where the mouse has moved it, what it points at */
 let emoteWheelOpen = false;
 const emoteVec = { x: 0, y: 0 };
@@ -4217,11 +4176,6 @@ const brPlay = new BrPlay({
   keyLabel: (a) => keyLabel(a),
   notice: (t) => hud.notice(t, gameTime, 2),
   sound: (k) => (k === "ping" ? audio.hitTier("white") : k === "revive" ? audio.healDone() : audio.whoosh()),
-  onRevive: () => {
-    const R = squadCfg.evo.revive;
-    giveEvo(R[Math.min(revivesDone, R.length - 1)], "REVIVE");
-    revivesDone++;
-  },
   beam: (at) => {
     setBeam(-1, at);
     duel?.localFx("beam", at ?? undefined, undefined, at ? 1 : 0);
@@ -4325,11 +4279,6 @@ function applyLoot(it: LootItem): void {
   const d = duel instanceof BrMatch ? duel : null;
   // the hands take it off the ground (a gun comes into them by the swap instead)
   if (it.kind !== "weapon") viewModel.pickup();
-  // a care package's loot: its EVO, once a package
-  if (it.pod !== undefined && !podsPaid.has(it.pod)) {
-    podsPaid.add(it.pod);
-    giveEvo(squadCfg.evo.carePackage, "CARE PACKAGE");
-  }
   const here = player.pos.clone();
   const putBack = (x: LootItem) => d?.dropLoot(x, here);
   const label = lootLabel(it);
@@ -4642,14 +4591,10 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, H.reveal.shareSeconds));
   if (d instanceof BrMatch) {
     d.onWiped = () => announcer.say("wiped", realNow());
-    d.onKnockSeen = (victim, by) => {
-      evoForKnock(victim, by);
+    d.onKnockSeen = (victim) => {
       if (d.isFriend(victim)) announcer.say("mateDown", realNow());
     };
-    revivesDone = 0;
-    podsPaid.clear();
     damagedAt.clear();
-    evoPaid.clear();
     // the knockdown shield: raised and facing the shot, it takes what it can
     d.downedBlock = (amount, from) => {
       if (!kd.up || kd.hp <= 0) return amount;
@@ -6936,9 +6881,8 @@ function step(): void {
   const firing = now - ws.lastShotAt < 0.25;
   // down: the move keys only, crouched, at a crawl
   if (downedNow && duel instanceof Duel) {
-    // a new knock: the knockdown shield at your EVO level's size
-    // (a looted shield better than your EVO level's is the one that comes up)
-    kd.onKnock(duel.knockCount, armor.level);
+    // a new knock: the knockdown shield at the white core's size (EVO, which sized it, went in Milestone 527)
+    kd.onKnock(duel.knockCount, 1);
     // held fire raises it (and slows the crawl behind it)
     kd.up = kd.hp > 0 && (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire"));
     duel.kdUp = kd.up;
@@ -7390,10 +7334,8 @@ function step(): void {
       const onShield = remote.shield > 0;
       if (duel.phase === "fight" && remote.alive) {
         dlog.hit({ t: realNow(), from: duel.id, to: remote.id, amount: r.amount, head: r.headshot, weapon: e.weapon, dist: e.distance });
-        // when you last hurt them: their plate shows for a while after (and a battle royale's assists)
+        // when you last hurt them: their plate shows for a while after
         damagedAt.set(remote.id, gameTime);
-        // a battle royale's shield core levels with the damage you deal
-        if (duel instanceof BrMatch) giveEvo(r.amount);
       }
       const wasDowned = remote.downed;
       duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
@@ -7836,7 +7778,6 @@ function step(): void {
             .filter(([, n]) => n > 0)
             .map(([k, n]) => ({ name: k.toUpperCase(), n })),
           armor: armorTier === 0 ? "NO SHIELD" : `${ARMOR_NAME[armorTier].toUpperCase()} SHIELD`,
-          helmet: armor.helmet ? `${armor.helmet.toUpperCase()} HELMET` : "NO HELMET",
         }
       : null,
     damageDirs: duel ? damageDirs() : undefined,
@@ -7848,7 +7789,7 @@ function step(): void {
       hosting && !hangout?.connected && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
         ? { code: hosting.code, waitingFor: duel ? duel.players - 1 - (duel as Duel).connected : Number(duelPlayers.value) === 3 ? 2 : 1 }
         : null,
-    vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
+    vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
     drill: duel ? null : drill.hud(now),
     // a hold-E action
     brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
@@ -8542,7 +8483,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   quickChat: (i: number) => sendQuick(i),
   /** the knockdown shield (tools/e2e.ts) */
   kd,
-  armor,
   brMap,
   /** the whole scene, for tools that look at what is drawn (the city's materials after the merge) */
   scene,

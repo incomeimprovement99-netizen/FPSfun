@@ -52,8 +52,6 @@ export interface LootItem {
   /** an echo (where a squad mate died, for their restore): whose, and their name */
   owner?: number;
   ownerName?: string;
-  /** from a care package (its number): the package's EVO, once */
-  pod?: number;
   /** SpeedKills: a gun's fusion level, 0 as found to 5 (a hack core's level is its n) */
   fusion?: number;
 }

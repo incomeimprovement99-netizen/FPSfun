@@ -11351,6 +11351,21 @@ SpeedKills' floor is guns and hack cores (speedkills.json loot), and every roll 
 - About 920 lines out, 140 in.
 - **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate and speedkills.
 
+## Milestone 527 — Armour, helmets and EVO out
+
+SpeedKills' shield is one for everyone all match (speedkills.json health), and `giveEvo` returned at once in it. The
+legacy battle royale's armour went with what fed it:
+
+- **The shield core** that levelled with EVO (white 50, blue 75, purple 100) and **the helmets** (gold 100, mythic
+  125): kit.ts's Armor, items.json's shield levels and helmets, the HUD's EVO bar under the shield and its helmet tag,
+  the inventory's helmet, and the page's `armor`.
+- **EVO itself:** what paid it (the damage you dealt, knocks and assists, revives, care packages), squad.json's table,
+  the knocks it remembered paying, and the care package's number on each of its items that paid it once.
+- **Kept for the knockdowns' own milestone:** the Knockdown class, now sized at the white core's level (EVO sized it).
+- **Checks:** verify's armour and EVO tables went; knockdown.ts no longer reads the shield levels.
+- About 210 lines out, 25 in.
+- **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate and speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

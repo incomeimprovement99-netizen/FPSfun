@@ -471,7 +471,7 @@ export class Duel implements MatchLike {
   onMark: ((k: string, from: number, at: THREE.Vector3, label: string, target: number) => void) | null = null;
   /** you went down (not out): the HUD's bleed-out clock starts */
   onDowned: (() => void) | null = null;
-  /** someone went down or out that this side saw (a bot knocked, a player downed): EVO's knocks and assists */
+  /** someone went down or out that this side saw (a bot knocked, a player downed): the announcer's "mate down" */
   onKnockSeen: ((victim: number, by: number) => void) | null = null;
   /**
    * Down with the knockdown shield raised: what a hit from `from` leaves after

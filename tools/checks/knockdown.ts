@@ -13,7 +13,7 @@
 //
 // Run on its own: npx tsx tools/checks/knockdown.ts. Also belongs inside
 // npm run verify.
-import { KNOCK_ORDER, KNOCK_SHIELDS, Knockdown, SELF_REVIVE, SHIELD_LEVELS } from "../../src/game/kit";
+import { KNOCK_ORDER, KNOCK_SHIELDS, Knockdown, SELF_REVIVE } from "../../src/game/kit";
 import itemsCfg from "../../src/config/items.json";
 import squadCfg from "../../src/config/squad.json";
 import lootCfg from "../../src/config/loot.json";
@@ -64,7 +64,7 @@ check("every tier names a rarity the loot table has", badRarity.length === 0, ba
   check("with nothing looted your EVO level is the shield: white, blue, purple", byLevel.join(",") === "white,blue,purple", byLevel.join(", "));
   // Only the three shield-core levels exist, so a level past the top must not
   // walk off the end of the order and hand out the gold tier for free.
-  check("no EVO level reaches gold: that tier is only ever looted", kd.tierFor(SHIELD_LEVELS.length + 4) === "purple", kd.tierFor(99));
+  check("no EVO level reaches gold: that tier is only ever looted", kd.tierFor(7) === "purple", kd.tierFor(99));
 }
 
 {

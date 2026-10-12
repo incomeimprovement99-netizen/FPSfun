@@ -305,7 +305,6 @@ interface BrSnap {
     rv: number;
     dt: [number, number];
   }>;
-  pc: number;
   ps: number;
   pp: number[];
   pl: Array<[number, number]>;
@@ -330,7 +329,6 @@ function readBrSnap(v: unknown): BrSnap | null {
   const pairs = (Array.isArray(o.pl) ? o.pl : []).filter((r): r is [number, number] => Array.isArray(r) && r.length === 2 && r.every(num));
   return {
     b,
-    pc: num(o.pc) ? o.pc : 0,
     ps: num(o.ps) ? o.ps : 0,
     pp: (Array.isArray(o.pp) ? o.pp : []).filter(num),
     pl: pairs,
@@ -407,7 +405,6 @@ function wireItem(x: unknown): LootItem | null {
   const it: LootItem = { kind: o.kind as LootKind, id: o.id, n, rarity };
   if (typeof o.owner === "number") it.owner = o.owner;
   if (typeof o.ownerName === "string") it.ownerName = o.ownerName.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 16);
-  if (typeof o.pod === "number" && Number.isFinite(o.pod)) it.pod = Math.floor(o.pod);
   // SpeedKills: a gun's fusion level
   if (typeof o.fusion === "number" && Number.isFinite(o.fusion)) it.fusion = Math.max(0, Math.min(5, Math.floor(o.fusion)));
   return it;
@@ -840,7 +837,6 @@ export class BrMatch extends Duel {
   /** the item you asked for is yours (the host's own, or the host said so) */
   onLootTaken: ((item: LootItem) => void) | null = null;
   private pods: Pod[] = [];
-  private podCount = 0;
   private podSeq = 0;
   private podPhases = new Set<number>();
   /** when the host next counts the centre's loot for a restock (speedkills.json loot.restock), game seconds */
@@ -963,10 +959,7 @@ export class BrMatch extends Duel {
 
   /** the host: what a care package holds, SpeedKills' own guns and hack cores fused past what its floor gives (speedkills.json loot.carePackage) */
   private podItems(): LootItem[] {
-    const out = speedkillsPackage(Math.random);
-    // its number: each of the squad who loots from it gets the package's EVO once (Apex pays the squad)
-    const n = ++this.podCount;
-    return out.map((it) => ({ ...it, pod: n }));
+    return speedkillsPackage(Math.random);
   }
 
   /** the pods: called, falling under smoke, then landing (the host lays out a package's items) */
@@ -1773,7 +1766,6 @@ export class BrMatch extends Duel {
         rv: b.reviving,
         dt: [b.dropTo.x, b.dropTo.z],
       })),
-      pc: this.podCount,
       ps: this.podSeq,
       pp: [...this.podPhases],
       pl: [...this.placedAt],
@@ -1824,7 +1816,6 @@ export class BrMatch extends Duel {
       this.bots.push(b);
       this.dropFigure(id);
     }
-    this.podCount = Math.max(this.podCount, s.pc);
     this.podSeq = Math.max(this.podSeq, s.ps);
     for (const ph of s.pp) this.podPhases.add(ph);
     for (const [side, place] of s.pl) this.placedAt.set(side, place);

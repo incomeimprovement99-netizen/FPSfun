@@ -1,16 +1,5 @@
 {
-  "_note": "Shields, helmets and knockdown shields, Season 30 (docs/RESEARCH_PHASE_11.md sections 2 and 3), the legacy battle royale's. The heal items, the start kits and the backpacks went in Milestone 523: SpeedKills heals with its HEAL hack and health and shield that come back on their own (speedkills.json health).",
-  "_shields": "Shield cores (Season 20 on): you start at white 50; EVO (squad.json's sources: the damage you deal, knocks, assists, revives, care packages) takes it to blue 75 at 450 and purple 100 at 1,700 more, 2,150 in all (docs/RESEARCH_PHASE_12.md section 2.3; Phase 11 had 1,700 in all). Red 125 only from the mythic helmet. A level-up refilling the shield is ours (unverified for Season 30).",
-  "shieldLevels": [
-    { "tier": 1, "max": 50, "evo": 0 },
-    { "tier": 2, "max": 75, "evo": 450 },
-    { "tier": 3, "max": 100, "evo": 2150 }
-  ],
-  "_helmets": "Helmets cut no headshot damage since Season 24. The gold one sets your armour to 100 (it also doubled the small heals, which went with them in Milestone 523); the mythic (red) one sets it to 125.",
-  "helmets": {
-    "gold": { "armor": 100 },
-    "red": { "armor": 125 }
-  },
+  "_note": "Knockdown shields, Season 30 (docs/RESEARCH_PHASE_11.md section 3), the legacy battle royale's. The heal items, the start kits and the backpacks went in Milestone 523, the shield cores and helmets in 527: SpeedKills heals with its HEAL hack and health and shield that come back on their own, one shield for everyone (speedkills.json health).",
   "_knockdown": "Knockdown shields. Season 28 took them out of the loot pool and tied the size to your EVO level, 200 / 450 / 750 (docs/RESEARCH_PHASE_12.md section 2.2, from wiki/Knockdown_Shield and the Breach notes of 2026-02-09). src/config/squad.json holds those same three for the down code, along with the arc and the crawl, and the tiers here are them under their colours so the two cannot drift. Your EVO level is the floor and a shield you find can only raise it. Gold is Apex's old level 4 Guardian Angel shield, removed from every mode on 2024-11-26, and it is back here because the whole point of a tier is that it is a decision: it soaks purple's 750 and no more, and what it adds is one self-revive. Ours, because Apex has published none of it: a self-revive existing at all in Season 30, its channel, and a spent gold shield still soaking 750.",
   "knockdown": {
     "white": { "name": "Knockdown shield", "hp": 200, "rarity": "common", "selfRevives": 0 },

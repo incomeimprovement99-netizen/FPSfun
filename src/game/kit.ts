@@ -1,8 +1,7 @@
-// Your armour and your knockdown shield, the legacy game's (src/config/items.json); they go with its battle royale.
+// Your knockdown shield, the legacy game's (src/config/items.json); it goes with its battle royale's knockdowns.
 //
-// Armour: a shield core that levels with EVO (the damage you deal) from white
-// 50 to blue 75 to purple 100; the gold helmet sets it to 100, the mythic one
-// to 125.
+// The shield core that levelled with EVO, and the helmets, went in Milestone
+// 527: SpeedKills' shield is one for everyone (speedkills.json health).
 //
 // A KNOCKDOWN SHIELD is what soaks the shots aimed at you while you are down:
 // your EVO level sets the floor, a better one off the floor raises it, and the
@@ -14,56 +13,6 @@
 // them went in Milestone 523: SpeedKills' health comes back on its own, and its
 // one heal is the HEAL hack.
 import cfg from "../config/items.json";
-
-export type Helmet = keyof typeof cfg.helmets;
-
-export const SHIELD_LEVELS = cfg.shieldLevels;
-
-export class Armor {
-  /** EVO earned this life */
-  evo = 0;
-  /** 1 white, 2 blue, 3 purple */
-  level = 1;
-  helmet: Helmet | null = null;
-
-  /** a new life: white, no EVO, no helmet */
-  reset(level = 1): void {
-    this.evo = SHIELD_LEVELS[Math.max(0, Math.min(SHIELD_LEVELS.length - 1, level - 1))].evo;
-    this.level = level;
-    this.helmet = null;
-  }
-
-  /** the shield it holds: the core's level, or the helmet's armour if higher */
-  get shieldMax(): number {
-    const core = SHIELD_LEVELS[this.level - 1]?.max ?? 50;
-    return Math.max(core, this.helmet ? cfg.helmets[this.helmet].armor : 0);
-  }
-
-  /** the colour tier for the HUD and the hit sounds: 1 white .. 4 red */
-  get tier(): number {
-    const m = this.shieldMax;
-    return m >= 125 ? 4 : m >= 100 ? 3 : m >= 75 ? 2 : 1;
-  }
-
-  /** EVO for damage dealt; returns the new level when the core levels up */
-  addEvo(amount: number): number | null {
-    this.evo += Math.max(0, amount);
-    const next = SHIELD_LEVELS[this.level];
-    if (next && this.evo >= next.evo) {
-      this.level++;
-      return this.level;
-    }
-    return null;
-  }
-
-  /** 0..1 of the way to the next level, or null at the top */
-  get evoFrac(): number | null {
-    const cur = SHIELD_LEVELS[this.level - 1];
-    const next = SHIELD_LEVELS[this.level];
-    if (!cur || !next) return null;
-    return Math.max(0, Math.min(1, (this.evo - cur.evo) / (next.evo - cur.evo)));
-  }
-}
 
 export type KnockTier = keyof typeof cfg.knockdown;
 export const KNOCK_SHIELDS = cfg.knockdown;
@@ -122,9 +71,9 @@ export class Knockdown {
 
   /** the shield in force at this EVO level: the level's, or the better one you found */
   tierFor(evoLevel: number): KnockTier {
-    // clamped by the shield core's levels rather than by KNOCK_ORDER, so no
-    // amount of EVO can hand you the gold tier: that one is only ever looted
-    const lvl = KNOCK_ORDER[Math.max(0, Math.min(SHIELD_LEVELS.length - 1, evoLevel - 1))];
+    // clamped at purple, the top EVO level's, so no level can hand you the gold
+    // tier: that one is only ever looted
+    const lvl = KNOCK_ORDER[Math.max(0, Math.min(KNOCK_ORDER.indexOf("purple"), evoLevel - 1))];
     return rankOf(this.looted) > rankOf(lvl) ? (this.looted as KnockTier) : lvl;
   }
 

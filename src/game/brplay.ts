@@ -139,8 +139,6 @@ interface Deps {
   sound: (kind: "ping" | "tower" | "pad" | "revive") => void;
   /** an enemy ping, yours or a squad mate's: someone says so (announcer.ts) */
   onEnemyPing?: () => void;
-  /** a revive of yours finished (EVO) */
-  onRevive?: () => void;
   /** a restore's beam: on at a place, or off */
   beam?: (at: THREE.Vector3 | null) => void;
 }
@@ -179,7 +177,7 @@ export class BrPlay {
   markers: Marker[] = [];
   /**
    * A revive you finished, waiting for the one you revived to say they are
-   * up: the credit (the notice, the sound, the EVO) is given then, and not if
+   * up: the credit (the notice, the sound) is given then, and not if
    * they are out instead or say nothing for revive.confirm seconds. It was
    * given the moment the hold ended, even to a revive that never happened (plan
    * section 12, item 5).
@@ -380,7 +378,6 @@ export class BrPlay {
       if (up) {
         this.deps.notice(`${this.revived.name} IS BACK UP`);
         this.deps.sound("revive");
-        this.deps.onRevive?.();
         this.revived = null;
       } else if (up === null || !match.memberAlive(this.revived.id) || now - this.revived.at > REVIVE_CONFIRM) this.revived = null;
     }
