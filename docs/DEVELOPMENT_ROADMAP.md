@@ -11257,6 +11257,34 @@ returned before a hop-up's lock was set). It went, with the R-301 its checks wer
 - About 2,450 lines out, 550 in.
 - **Checked:** tsc; verify; rules; e2e pad, range, sklobby, speedkills, duel, bots, skarmory and skbots.
 
+## Milestone 523 — The heal items, the heal wheel and the backpacks out
+
+SpeedKills heals with its HEAL hack and with health and shield that come back on their own; it carried no heal items,
+and its bots returned before their item heal (`if (IS_SK) return`). The legacy game's heals were all still there, with
+everything round them:
+
+- **The player's heals:** the kit (cells, syringes, batteries, med kits and the fifth kit), the quick heal and the
+  heal wheel on 4 and the D-pad's up, the heal in progress with its bar, its slowdown and its cancels, the HUD's kit
+  line and the inventory's heals column, the range's lent vitals for the legacy tour's heal step (the step went too:
+  the tour is SpeedKills' eight), and the arena's and the battle royale's start kits.
+- **The backpacks:** their tiers, their room for heals, gold's quicker heal, their pickup and their loot. The ammo you
+  may carry in a battle royale was the white pack's four stacks a type and stays that (`AmmoPouch.limited`, ammo.json
+  carry); the range still has no limit.
+- **The floor:** the heal and backpack loot kinds, the med shelf spot kind, the heals in a bot's death drop and the care
+  package's legacy extras, and the walk-over pickup's small heals (ammo is the one kind it sweeps now).
+- **The bots:** their cells and syringes, the heal they ran out of sight to do, its walk and its hands, the heals they
+  looted and carried, the host migration snapshot's count of them, and the vault guard's. A bot still breaks line of
+  sight when low (its shield and health come back on their own, and its HEAL hack if its tier has one).
+- **The recap's "healed recently":** the heal log, the fx message that fed it and its line on the card.
+- **Kept:** the figure's heal pose and the act code's heal numbers (the character agent's, told), `player.healSlow`
+  (the downed crawl uses it), the helmets, the shield cores and EVO, the knockdown shields (their own milestone).
+- **The controller:** D-pad up is nothing now on Default; Grenadier leaves the utility hack on D-pad right as well.
+- **Checks:** verify's heal picks, stacks and times, the gold helmet's double heal and the recap's healed rows went;
+  knockdown.ts is the knockdown shields alone; pickup-reach.ts's walk-over and grey-out checks are on ammo and its
+  room; bot-sense.ts's looting floors hold helmets where they held heals.
+- About 900 lines out, 180 in.
+- **Checked:** tsc; verify; rules; e2e bots, pad, range, speedkills, brsolo, migrate and squad.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -76,7 +76,7 @@ import { pingWheelFails } from "./checks/pingwheel";
 import { HU, MOVE, jumpVelocityFor, SLIDE_RAMP_ANGLE } from "../src/game/movement";
 import { PROFILE } from "../src/game/game";
 import { DamageLog } from "../src/game/recap";
-import { Armor, HEALS, Kit } from "../src/game/kit";
+import { Armor } from "../src/game/kit";
 import audioCfg from "../src/config/audio.json";
 import lootCfg from "../src/config/loot.json";
 import { LootField, rollItem, seeded } from "../src/game/loot";
@@ -996,24 +996,8 @@ console.log("Sound (src/config/audio.json)");
 }
 
 console.log("");
-console.log("Heals and armour (src/config/items.json, Season 30)");
+console.log("Armour (src/config/items.json, Season 30; the heal items went in Milestone 523)");
 {
-  const k = new Kit();
-  k.fill("kit");
-  eq("the arena kit: 4 cells, 2 batteries, 4 syringes, 2 med kits", `${k.items.cell}/${k.items.battery}/${k.items.syringe}/${k.items.medkit}`, "4/2/4/2");
-  eq("20 shield missing: a cell", k.pick(55, 75, 100, 100), "cell");
-  eq("60 shield missing: a battery", k.pick(15, 75, 100, 100), "battery");
-  eq("shields before health", k.pick(50, 75, 40, 100), "cell");
-  eq("20 health missing, full shield: a syringe", k.pick(75, 75, 80, 100), "syringe");
-  eq("70 health missing: a med kit", k.pick(75, 75, 30, 100), "medkit");
-  k.items.phoenix = 1;
-  eq("both half gone and a phoenix: the phoenix", k.pick(10, 75, 20, 100), "phoenix");
-  eq("full: nothing", k.pick(75, 75, 100, 100), null);
-  eq("a stack holds six cells", k.add("cell", 10), 2);
-  eq("med kits stack two", HEALS.medkit.stack, 2);
-  near("a battery takes 5 s", HEALS.battery.time, 5, 1e-9);
-  near("a med kit takes 8 s", HEALS.medkit.time, 8, 1e-9);
-  near("a phoenix kit takes 10 s", HEALS.phoenix.time, 10, 1e-9);
   const a = new Armor();
   a.reset(1);
   eq("a battle royale starts on a white core", a.shieldMax, 50);
@@ -1028,7 +1012,6 @@ console.log("Heals and armour (src/config/items.json, Season 30)");
   a.reset(1);
   a.helmet = "gold";
   eq("the gold helmet: 100 on a white core", a.shieldMax, 100);
-  eq("and doubles the small heals", a.smallHealScale, 2);
 }
 
 console.log("");
@@ -1065,7 +1048,6 @@ console.log("Battle royale loot (src/game/loot.ts, src/config/loot.json)");
       rar[it.rarity]++;
       if (!guns.has(it.id)) unknown.push(it.id);
     }
-    if (it.kind === "heal" && !(it.id in HEALS)) unknown.push(it.id);
   }
   for (const id of lootCfg.carePackage) if (!guns.has(id)) unknown.push(id);
   // against the configured weights, not a number typed here: the owner tunes
@@ -1233,7 +1215,6 @@ console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mec
   eq("a knock is 150 EVO, an assist 100, a care package 100", [squadJson.evo.knock, squadJson.evo.assist, squadJson.evo.carePackage].join(" "), "150 100 100");
   eq("revives: 100 twice, then 25 less each", squadJson.evo.revive.join(" "), "100 100 75 50 25 0");
   eq("the knockdown shield by EVO level", squadJson.kdShield.hp.join(" "), "200 450 750");
-  eq("the phoenix kit's name comes from names.ts (a codename, Nova kit, on a public build)", HEALS.phoenix.name, "Phoenix kit");
   near("behind it you crawl 45% slower", 1 - squadJson.kdShield.crawlScale, 0.45, 1e-9);
   eq("brought back at an echo: a 7 s hold, back at 20 health", [squadJson.echoRespawn.time, squadJson.echoRespawn.health].join(" "), "7 20");
   eq("the lockout grows with each death (ours), reset after 3 minutes alive", `${squadJson.echoRespawn.lockout.join(" ")} / ${squadJson.echoRespawn.resetAfter}`, "30 60 120 / 180");
@@ -1313,8 +1294,6 @@ console.log("The death recap (src/game/recap.ts)");
   log.hit({ t: 2.5, from: 2, to: 0, amount: 70, head: true, weapon: "sentinel", dist: 60 });
   log.hit({ t: 3, from: 1, to: 0, amount: 45, head: true, weapon: "vinson", dist: 25 });
   log.hit({ t: 3.2, from: 1, to: 0, amount: 30, head: false, weapon: "vinson", dist: 22 });
-  log.heal({ t: 1.5, id: 1, item: "cell" });
-  log.heal({ t: -20, id: 2, item: "syringe" });
   const names: Record<number, string> = { 1: "BOT ASH", 2: "BOT VOLT" };
   const r = log.recap(3.3, 1, (id) => names[id] ?? "?", (id) => (id === 1 ? { shield: 40, health: 100 } : null));
   eq("the killer's row first", r.rows[0].name, "BOT ASH");
@@ -1327,11 +1306,8 @@ console.log("The death recap (src/game/recap.ts)");
   eq("their gun", r.rows[0].guns[0].hits, 3);
   eq("closest hit, m", r.rows[0].guns[0].near, 18);
   eq("farthest hit, m", r.rows[0].guns[0].far, 25);
-  near("healed 1.8 s before", r.rows[0].healed?.ago ?? -1, 1.8, 1e-9);
-  eq("with a shield cell", r.rows[0].healed?.item, "SHIELD CELL");
   eq("what they had left", (r.rows[0].left?.shield ?? 0) + (r.rows[0].left?.health ?? 0), 140);
   eq("the other attacker's row", r.rows[1].name, "BOT VOLT");
-  eq("a heal 23 s before is not 'recently'", r.rows[1].healed, null);
   eq("everything you took", r.totalTaken, 175);
   const ring = log.recap(4, -1, () => "?", () => null);
   eq("the ring: named", ring.killerName, "THE RING");

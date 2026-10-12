@@ -31,7 +31,6 @@ import { ARENA_X, ARENA_Z, arenaMap, type ArenaMapId } from "./arena";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
-import { HEAL_CODES } from "./recap";
 import { Control, MODES, MODE_TITLE, Scoreboard, TeamScore, controlSpawnZone, killLeader, pickSpawn, teamMode, yawToMiddle, type ModeKind } from "./modes";
 
 const wallClock = (): number => performance.now() / 1000;
@@ -255,10 +254,6 @@ export class ArenaMode extends Duel {
       bot.onJolt = (a, b) => {
         this.onRemoteFx?.("jolt", bot.remote.id, a, b);
         this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
-      };
-      bot.onHealed = (item) => {
-        this.onHealSeen?.(bot.remote.id, item);
-        this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
       };
       bot.onRocket = (at, travelled, w) => this.botBurst(id, rocketBurst(w, at, travelled), w.id);
       this.teamOf.set(id, team);

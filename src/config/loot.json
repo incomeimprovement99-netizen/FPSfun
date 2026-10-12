@@ -140,7 +140,7 @@
       "hopup": []
     }
   },
-  "_spots": "A spot is a place with a purpose, not a handful of independent dice. Every item used to roll on its own off the kinds table below, so a room could be four shield cells and nothing else and the next one two helmets: nothing read like a room. A spot picks one of these kinds and fills it. A gun rack holds a gun, a stack of the ammo THAT gun takes and a magazine; a med shelf holds heals; a bench holds attachments; an ammo crate holds loose stacks. An energy gun carries its own magazines, so its rack holds another attachment where the ammo would be. The counts are [fewest, most] and include both ends, the chances are per spot, and the weights are per tier: a richer place leans towards racks and benches, a thin one towards shelves and crates.",
+  "_spots": "A spot is a place with a purpose, not a handful of independent dice. Every item used to roll on its own off the kinds table below, so a room could be four shield cells and nothing else and the next one two helmets: nothing read like a room. A spot picks one of these kinds and fills it. A gun rack holds a gun, a stack of the ammo THAT gun takes and a magazine; a bench holds attachments; an ammo crate holds loose stacks (the med shelf and its heals went in Milestone 523). An energy gun carries its own magazines, so its rack holds another attachment where the ammo would be. The counts are [fewest, most] and include both ends, the chances are per spot, and the weights are per tier: a richer place leans towards racks and benches, a thin one towards crates.",
   "spotKinds": [
     {
       "id": "gunRack",
@@ -167,48 +167,9 @@
         0,
         1
       ],
-      "heal": [
-        0,
-        0
-      ],
       "hopupChance": 0.13,
       "helmetChance": 0.06,
-      "backpackChance": 0,
       "knockdownChance": 0.06
-    },
-    {
-      "id": "medShelf",
-      "weight": {
-        "low": 24,
-        "mid": 23,
-        "site": 23,
-        "high": 21,
-        "hot": 19
-      },
-      "gun": [
-        0,
-        0
-      ],
-      "ammo": [
-        0,
-        0
-      ],
-      "mag": [
-        0,
-        0
-      ],
-      "attach": [
-        0,
-        0
-      ],
-      "heal": [
-        2,
-        3
-      ],
-      "hopupChance": 0,
-      "helmetChance": 0,
-      "backpackChance": 0.18,
-      "knockdownChance": 0
     },
     {
       "id": "attachBench",
@@ -235,13 +196,8 @@
         1,
         2
       ],
-      "heal": [
-        0,
-        0
-      ],
       "hopupChance": 0.38,
       "helmetChance": 0.16,
-      "backpackChance": 0,
       "knockdownChance": 0.12
     },
     {
@@ -269,17 +225,12 @@
         0,
         0
       ],
-      "heal": [
-        0,
-        1
-      ],
       "hopupChance": 0,
       "helmetChance": 0,
-      "backpackChance": 0,
       "knockdownChance": 0
     }
   ],
-  "_density_targets": "What the whole floor should hold in one match, counted over sixty seeds in tools/checks/loot-tiers.ts. These exist because the move to typed spots re-tuned the floor without anyone noticing: guns fell 57 per cent, helmets 80, hop-ups 69, and magazines went up eight times, so the commonest object on the map after a heal was a magazine, most of them worse than the one already fitted. Every check passed, because they all asked whether a place hands you a gun and none asked how many. The numbers below are what the floor held before typed spots, with guns and the total a little higher because the owner asked for more of both. A spot kind's weights are free to move inside them; a change that takes the floor outside one is a balance decision and should be made on purpose. With no grenades (the owner, 2026-10-04) the ordnance crate went: its eighth of the spots (16 of 128 by weight) now roll the other kinds, which hold more, so the total was put at 880 to 1060 (1012 measured); every kind inside it is where it was.",
+  "_density_targets": "What the whole floor should hold in one match, counted over sixty seeds in tools/checks/loot-tiers.ts. These exist because the move to typed spots re-tuned the floor without anyone noticing: guns fell 57 per cent, helmets 80, hop-ups 69, and magazines went up eight times, so the commonest object on the map after a heal was a magazine, most of them worse than the one already fitted. Every check passed, because they all asked whether a place hands you a gun and none asked how many. The numbers below are what the floor held before typed spots, with guns and the total a little higher because the owner asked for more of both. A spot kind's weights are free to move inside them; a change that takes the floor outside one is a balance decision and should be made on purpose. The heal target went with the heals (Milestone 523), and nothing holds the floor to these now: SpeedKills lays its own (speedkills.json loot). With no grenades (the owner, 2026-10-04) the ordnance crate went: its eighth of the spots (16 of 128 by weight) now roll the other kinds, which hold more, so the total was put at 880 to 1060 (1012 measured); every kind inside it is where it was.",
   "densityTargets": {
     "weapon": [
       200,
@@ -288,10 +239,6 @@
     "ammo": [
       155,
       230
-    ],
-    "heal": [
-      145,
-      225
     ],
     "helmet": [
       10,
@@ -314,7 +261,6 @@
   "kinds": {
     "weapon": 30,
     "ammo": 22,
-    "heal": 24,
     "attach": 16,
     "helmet": 2,
     "hopup": 5
@@ -366,32 +312,6 @@
     "3030",
     "lstar"
   ],
-  "heals": {
-    "common": [
-      "cell",
-      "syringe"
-    ],
-    "rare": [
-      "cell",
-      "syringe",
-      "battery",
-      "medkit"
-    ],
-    "epic": [
-      "battery",
-      "medkit"
-    ],
-    "legendary": [
-      "phoenix"
-    ]
-  },
-  "healAmount": {
-    "cell": 2,
-    "syringe": 2,
-    "battery": 1,
-    "medkit": 1,
-    "phoenix": 1
-  },
   "attachments": {
     "common": [
       "barrel_stabilizer_l1",
@@ -429,11 +349,9 @@
     "hopup_shield_breaker",
     "altfire_double_tap"
   ],
-  "_deathDrop": "deathDrop: what a bot leaves where it dies (loot.ts deathDropOf), loose on the floor; there are no death boxes (the owner, 2026-10-04). Never fewer than `cells` and `syringes` heals, and `stacks` stacks of its gun's ammo (the legacy game; SpeedKills' is its gun alone). Ours.",
+  "_deathDrop": "deathDrop: what a bot leaves where it dies (loot.ts deathDropOf), loose on the floor; there are no death boxes (the owner, 2026-10-04). `stacks` stacks of its gun's ammo with its gun (the legacy game; SpeedKills' is its gun alone). Ours.",
   "deathDrop": {
-    "stacks": 2,
-    "cells": 2,
-    "syringes": 1
+    "stacks": 2
   },
   "carePackageContents": 3,
   "pickupReach": 2.2,
@@ -450,7 +368,7 @@
   "drawDistance": 70,
   "_batchCap": "how many of one small loot shape (a rarity's boxes, a colour's rings or beams) can be drawn at once, within drawDistance: each shape is one instanced draw call for all its copies (loot.ts Batch)",
   "batchCap": 512,
-  "_packs": "backpackChance and knockdownChance: the chance a spot kind also holds a backpack or a knockdown shield (src/game/kit.ts, src/config/items.json). A backpack goes with the heals, on a med shelf, because what it does is carry more of them; a knockdown shield goes with the armour on an attachment bench, and now and then on a gun rack. The tier rolls on the place's rarity like everything else, so a gold one turns up where gold things do. A white one is never placed: Season 28 put the white backpack in the starter kit, and a white knockdown shield is what EVO gives you anyway. Ours.",
+  "_packs": "knockdownChance: the chance a spot kind also holds a knockdown shield (src/game/kit.ts, src/config/items.json). It goes with the armour on an attachment bench, and now and then on a gun rack. The tier rolls on the place's rarity like everything else, so a gold one turns up where gold things do. A white one is never placed: a white knockdown shield is what EVO gives you anyway. (The backpacks went with the heals they carried, Milestone 523.) Ours.",
   "_surface": "A spot for loot has to be a surface you can stand on: a box's top counts only if it is at least minSurface metres across both ways. Without it loot landed on parapets, wall tops and stair treads, where a player sees it and cannot walk to it. A place's loot is laid from 4 m out to the place's own reach (src/config/brmap.json, br.ts's radius), never less than 34 m, so West Town's clocktower and water tower, 34 m and more from its middle, get their share.",
   "minSurface": 1.0,
   "placeReachMin": 34,

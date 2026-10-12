@@ -56,7 +56,7 @@ import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
 import { opticName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
-import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot, type Remote } from "./game/duel";
+import { Duel, MAX_PLAYERS, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot, type Remote } from "./game/duel";
 import finCfg from "./config/finisher.json";
 import { finishTarget, yawToward, blowsBy } from "./game/finisher";
 import { Announcer, cues, type Watch } from "./game/announcer";
@@ -102,7 +102,7 @@ import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
 import { Killcam, Recorder } from "./game/killcam";
-import { DamageLog, HEAL_CODES, type Recap } from "./game/recap";
+import { DamageLog, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
 import { DummyBehaviour, DUMMY_MODES, DUMMY_MODE_NAME, FlickDrill, RangeCombat, SprayWall, type DummyMode } from "./game/rangetools";
 import { ReadmeTv } from "./game/readmetv";
@@ -133,9 +133,7 @@ import { levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/lo
 import type { AmmoType } from "./game/weapons";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
-import itemsCfg from "./config/items.json";
-import { PACK_ORDER, Armor, HEAL_ORDER, HEALS, Kit, type HealItem } from "./game/kit";
-import { Knockdown, type BackTier, type KnockTier } from "./game/kit";
+import { Armor, Knockdown, type KnockTier } from "./game/kit";
 import { STACK, ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
@@ -1598,10 +1596,7 @@ rangeCombat.onHurt = (amount) => {
   void amount;
 };
 rangeCombat.onDown = () => hud.notice("DOWN: BACK UP IN 2 S", gameTime, 2);
-rangeCombat.onUp = () => {
-  kit.fill("kit");
-  hud.notice("BACK UP", gameTime, 1);
-};
+rangeCombat.onUp = () => hud.notice("BACK UP", gameTime, 1);
 const sprayWall = new SprayWall(scene);
 // the README screen under the "B00G'S RANGE" sign at the far end: its pages
 // turn when you shoot the arrows beside it (src/game/readmetv.ts)
@@ -2267,7 +2262,6 @@ function onEliminated(d: MatchLike, by: number): void {
     // cores. A loadout start carries the match's ammo kit, which went down as clutter.
     if (!IS_SK) {
       for (const [type, n] of Object.entries(loadout.ammo.stock)) if (n > 0 && type !== "energy") items.push({ kind: "ammo", id: type, n, rarity: "common" });
-      for (const [item, n] of Object.entries(kit.items)) if (n > 0) items.push({ kind: "heal", id: item, n, rarity: "common" });
       if (armor.helmet) items.push({ kind: "helmet", id: armor.helmet, n: 1, rarity: "legendary" });
     }
     // what a restore at your echo gives back: kept here, not taken off the floor, where anyone may have it by then
@@ -3104,8 +3098,6 @@ function respawnForMatch(d: MatchLike): void {
   // the arena and the bots: the fixed kit and blue shields; a battle royale:
   // its start kit and a white shield core that levels with EVO
   const br = d instanceof BrMatch;
-  // SpeedKills carries no heals: health and shield come back on their own (speedkills.json health)
-  kit.fill(IS_SK ? "empty" : br ? "brStart" : "kit");
   // no knockdown shield, no regen carried over from the last life
   kd.reset();
   echoRegen = null;
@@ -3116,14 +3108,12 @@ function respawnForMatch(d: MatchLike): void {
     loadout.clearSlot(0);
     loadout.clearSlot(1);
     loadout.ammo.empty();
-    kit.fill("empty");
   }
   armor.reset(br ? 1 : 2);
   // SpeedKills: one shield for everyone, no EVO and no armour to find (speedkills.json health)
   d.shieldMax = SK_HEALTH ? SK_HEALTH.shield : armor.shieldMax;
   d.shield = d.shieldMax;
   if (SK_HEALTH) d.health = SK_HEALTH.health;
-  heal = null;
   player.healSlow = 1;
   // Brought back at your echo, last (after the life's kit and armour above, so nothing given back is cleared again):
   // 20 health, the shield back over a few seconds, and what you had when you died given back, the owner's "kept with
@@ -3173,13 +3163,6 @@ function respawnForMatch(d: MatchLike): void {
   }
 }
 
-// ---------- healing ----------
-// Apex's items, the numbers its own (src/config/items.json): a shield cell is
-// 25 shield over 2.5 s, a syringe 25 health over 4 s. The kit per life is in
-// the config; the heal key takes a cell while the shield is down, else a
-// syringe. Firing or aiming cancels it; the item is only spent when it
-// finishes. TRIAGE halves every time.
-const HEAL_ITEMS = HEALS;
 /**
  * EVO (squad.json, Season 30): the damage you deal, a knock 150, an assist
  * 100, a revive 100 twice then less, a care package 100. A level up refills
@@ -3372,32 +3355,8 @@ document.getElementById("overlay")?.addEventListener("click", (e) => {
   if (t && (t.tagName === "BUTTON" || t.closest("button"))) audio.ui("click");
 });
 
-/** your heals (kit.ts) and your armour: the shield core, its EVO, a helmet */
-const kit = new Kit();
-kit.fill("kit");
+/** your armour: the shield core, its EVO, a helmet (the legacy game's; SpeedKills' shield is one for everyone) */
 const armor = new Armor();
-let heal: { item: HealItem; startedAt: number; duration: number } | null = null;
-/** the shield the heals and the HUD work to: the match's, else the range's */
-const shieldCap = (): number => duel?.shieldMax ?? SHIELD_MAX;
-/** a heal: the quick heal's pick (kit.ts), or the one the wheel chose */
-function startHeal(now: number, want: HealItem | null = null): void {
-  const v = vitalsTarget();
-  if (!v || !v.alive || heal) return;
-  const item = want && kit.items[want] > 0 ? want : want ? null : kit.pick(v.shield, shieldCap(), v.health, HEALTH_MAX);
-  if (!item) {
-    hud.notice(want ? `NO ${HEAL_ITEMS[want].name.toUpperCase()}` : kit.whyNot(v.shield, shieldCap(), v.health, HEALTH_MAX), now, 1);
-    return;
-  }
-  // a gold backpack takes a quarter off every heal (kit.healTime)
-  heal = { item, startedAt: now, duration: kit.healTime(item) };
-  // walking pace, no sprint, while it runs
-  player.healSlow = itemsCfg.healSlow;
-}
-/** the heal wheel: hold the heal key, move the mouse toward an item, let go */
-let healHeldAt = -1;
-let wheelOpen = false;
-const wheelVec = { x: 0, y: 0 };
-let wheelPick: HealItem | null = null;
 /** the emote wheel (7, held): open, where the mouse has moved it, what it points at */
 let emoteWheelOpen = false;
 const emoteVec = { x: 0, y: 0 };
@@ -3436,32 +3395,6 @@ function stopEmote(): void {
   emoting = null;
   selfFig?.emote(null);
   sendFx("emote", undefined, undefined, EMOTE_STOP);
-}
-/** the heal in progress: cancelled by firing or aiming, applied when its time is up */
-function updateHeal(now: number, cancel: boolean): void {
-  const v = vitalsTarget();
-  if (!heal || !v) {
-    heal = null;
-    player.healSlow = 1;
-    return;
-  }
-  if (cancel || !v.alive) {
-    heal = null;
-    player.healSlow = 1;
-    return;
-  }
-  const it = HEAL_ITEMS[heal.item];
-  if (now - heal.startedAt < heal.duration) return;
-  // the gold helmet doubles what the small heals give
-  const small = heal.item === "cell" || heal.item === "syringe" ? armor.smallHealScale : 1;
-  v.shield = Math.min(shieldCap(), v.shield + it.shield * small);
-  v.health = Math.min(HEALTH_MAX, v.health + it.health * small);
-  kit.items[heal.item]--;
-  player.healSlow = 1;
-  audio.healDone();
-  // the others' recaps say you healed
-  duel?.localFx("heal", undefined, undefined, HEAL_CODES.indexOf(heal.item));
-  heal = null;
 }
 // ---------- the keys, as the HUD names them ----------
 /** the key an action is on, as the HUD shows it */
@@ -3556,8 +3489,6 @@ function aimPoint(reach: number): THREE.Vector3 {
 const PING_DOUBLE = 0.35;
 let lastPingAt = -Infinity;
 
-/** the vitals heals work on: the match's, or the range's when the dummies shoot back */
-const vitalsTarget = (): { shield: number; health: number; alive: boolean } | null => duel ?? (rangeCombat?.on ? rangeCombat : (tour?.healVitals ?? null));
 /** the guided tour of the range (tour.ts): it watches, the steps move on when you do each thing */
 const tour = new Tour(scene);
 
@@ -4206,7 +4137,6 @@ function tourCheck(now: number): TourCheck {
     hits: stats.hits,
     reloading: loadout.active.state.reloading,
     swapping: loadout.swapping,
-    healing: heal !== null,
     now,
     hackUses,
     fusion: loadout.active.fusion ?? 0,
@@ -4317,7 +4247,6 @@ brPlay.carrying = () => {
   const held = loadout.slots.filter((s) => !s.empty);
   return {
     ammo: held.map((s) => ammoTypeOf(s.id)),
-    healRoom: kit.room,
     ammoRoom: Object.fromEntries(held.map((s) => [ammoTypeOf(s.id), loadout.ammo.room(ammoTypeOf(s.id))])),
     hacks: IS_SK ? { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null } : undefined,
   };
@@ -4484,26 +4413,6 @@ function applyLoot(it: LootItem): void {
       audio.reloadStep("in");
       break;
     }
-    case "heal": {
-      const put = kit.add(it.id as HealItem, it.n);
-      if (put < it.n) {
-        putBack({ ...it, n: it.n - put });
-        hud.notice(put ? `${label}: ${put} TAKEN, THE REST IS FULL` : `${label}: FULL`, gameTime, 1.4);
-        return;
-      }
-      audio.reloadStep("out");
-      break;
-    }
-    case "backpack":
-      // more room for every heal, and at gold, faster heals; a worse one stays down
-      if (!kit.takePack(it.id as BackTier)) {
-        putBack(it);
-        hud.notice(`${label}: YOURS IS AS GOOD`, gameTime, 1.2);
-        return;
-      }
-      hud.notice(`${label}: MORE HEALS FIT`, gameTime, 1.4);
-      audio.reloadStep("out");
-      break;
     case "knockdown":
       // the shield you crawl behind when you are knocked; a gold one gets you up once
       if (!kd.take(it.id as KnockTier, armor.level)) {
@@ -4782,7 +4691,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       audio.gun(w, o);
     }
   };
-  d.onHealSeen = (id, item) => dlog.heal({ t: realNow(), id, item });
   brPlay.reset();
   // a team mate's SCOUT scan, in the modes (a battle royale's marks go through onMark below)
   if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, H.reveal.shareSeconds));
@@ -4847,7 +4755,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       hud.notice("DOWN: A SQUAD MATE CAN REVIVE YOU", gameTime, 2.5);
       announcer.say("down", realNow());
       audio.knock();
-      heal = null;
     };
     d.onRevived = () => {
       hud.notice("REVIVED", gameTime, 1.5);
@@ -5379,7 +5286,6 @@ function endMatch(reason: string): void {
     pendingSlots.forEach((id, i) => loadout.setWeaponId(i, id));
     pendingSlots = null;
   }
-  kit.fill("kit");
   duel?.dispose();
   duel = null;
   bannerSentAt = -Infinity;
@@ -5390,13 +5296,12 @@ function endMatch(reason: string): void {
   impacts.clear();
   sprays.clear();
   // and out of a battle royale nothing limits the ammo you carry
-  loadout.ammo.packTier = null;
+  loadout.ammo.limited = false;
   // back in the range: ammo as Settings says
   loadout.ammo.infinite = !rangeAmmoCounted;
   killcam.stop();
   recap = null;
   recorder.clear();
-  heal = null;
   mapOpen = false;
   if (wasBr) {
     setRegion("range");
@@ -6507,7 +6412,6 @@ function finishable(): Remote | null {
 function startFinisher(r: Remote, now: number): void {
   const d = duel as Duel;
   stopEmote();
-  heal = null;
   finisher = { r, at: now, vitals: d.health + d.shield, blows: 0 };
   player.yaw = yawToward(player.pos, r.avatar.group.position);
   r.avatar.finishing = true;
@@ -6572,7 +6476,6 @@ let selfFigKey = "";
 /** what your hands are doing, for your figure on the others' screens and in third person */
 function localAct(): number {
   if (finisher) return actCode("finish");
-  if (heal) return actCode("heal", Math.max(0, HEAL_CODES.indexOf(heal.item)));
   // a swing is short, and wins over anything else the hands were doing
   if (gameTime - swungAt < MELEE_TIME) return actCode("melee");
   const held = brPlay.holdKind;
@@ -6617,7 +6520,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();
-  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), healItem: heal?.item, airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
+  f.setPose({ speed: player.speed, stance: downed ? "downed" : player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
   f.update(now, dt);
 }
 
@@ -6884,20 +6787,6 @@ function step(): void {
       viewModel.melee();
       meleeHitAt = now + MELEE_TIME * 0.35;
     }
-    // 4: a tap is the quick heal, a hold opens the wheel (move the mouse to an item, let go)
-    if (input.pressedNow("heal")) {
-      healHeldAt = now;
-      wheelVec.x = wheelVec.y = 0;
-      wheelPick = null;
-    }
-    if (healHeldAt >= 0 && input.held("heal") && !wheelOpen && now - healHeldAt >= 0.25 && vitalsTarget()) wheelOpen = true;
-    if (healHeldAt >= 0 && !input.held("heal")) {
-      if (wheelOpen) {
-        if (wheelPick) startHeal(now, wheelPick);
-      } else startHeal(now);
-      wheelOpen = false;
-      healHeldAt = -1;
-    }
     // 7: hold for the emote wheel (move to one, let go); a tap plays the last one again
     // 8: your spray on the wall you look at
     if (input.pressedNow("spray")) doSpray(now);
@@ -6959,17 +6848,6 @@ function step(): void {
     const adsHNow = zoomFov43(loadout.active.weapon) * settings.fovScale;
     const m = input.consumeMouse();
     const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads * opticAdsMult()) - 1) * ws.adsFrac;
-    if (wheelOpen) {
-      // the wheel: five items round the circle, the mouse's (or the right stick's) direction picks
-      wheelVec.x = Math.max(-200, Math.min(200, wheelVec.x + m.dx - padLook.yawLeft * 14));
-      wheelVec.y = Math.max(-200, Math.min(200, wheelVec.y + m.dy - padLook.pitchUp * 14));
-      if (Math.hypot(wheelVec.x, wheelVec.y) > 40) {
-        const a = (Math.atan2(wheelVec.x, -wheelVec.y) + Math.PI * 2) % (Math.PI * 2);
-        wheelPick = HEAL_ORDER[Math.round(a / ((Math.PI * 2) / HEAL_ORDER.length)) % HEAL_ORDER.length];
-      }
-      m.dx = 0;
-      m.dy = 0;
-    }
     if (pingWheelOpen) {
       // the ping wheel: the mouse's direction picks, as the emote wheel's does
       pingVec.x = Math.max(-200, Math.min(200, pingVec.x + m.dx));
@@ -7013,7 +6891,7 @@ function step(): void {
         : null;
     const slow = assist?.slow ?? 1;
     // (the wheel open: the stick is picking, not looking)
-    if (!wheelOpen && !emoteWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
+    if (!emoteWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
   }
 
   // The practice aim bot, after the look input so it is the last word on where
@@ -7260,8 +7138,7 @@ function step(): void {
     audio.overheat();
     hud.notice("OVERHEATED", now, 0.8);
   }
-  updateHeal(now, trigger || adsHeld || knockedOut || downedNow || (input.playing && input.pressedNow("sprint")) || loadout.swapping);
-  if (!downedNow && !heal && player.healSlow !== 1) player.healSlow = 1;
+  if (!downedNow && player.healSlow !== 1) player.healSlow = 1;
 
   // camera from angles + soft recoil
   const off = ws.kick.offset();
@@ -7830,8 +7707,8 @@ function step(): void {
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {
     const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
-    // what the backpack lets you carry of each ammo type (ammo.json carry)
-    loadout.ammo.packTier = PACK_ORDER.indexOf(kit.pack);
+    // what you can carry of each ammo type (ammo.json carry)
+    loadout.ammo.limited = true;
     brPlay.update(now, duel, player, scriptInput ?? input, camera.position.clone(), f, { alive: duel.alive, downed: downedNow, playing: input.playing || !!scriptInput, myId: duel.id });
   }
 
@@ -7971,7 +7848,7 @@ function step(): void {
     alive: duel ? duel.alive : true,
     health: duel ? duel.health : HEALTH_MAX,
     figures: duel ? duel.avatars : [],
-    heal: heal && duel ? Math.min(1, (now - heal.startedAt) / heal.duration) : null,
+    heal: null,
     reload: { on: ws.reloading, progress: ws.reloadProgress(now), empty: ws.clip === 0 },
   });
   pipeline.setDesaturation(sounds.desat);
@@ -8023,8 +7900,6 @@ function step(): void {
       ? { k: player.diveFactor, height: player.pos.y - surfaceUnder(player.pos.x, player.pos.z, player.pos.y), following: following !== null && duel ? duel.nameFor(following) : null, breakKey: keyLabel("crouch") }
       : null,
     ship: player.aboard && duel instanceof BrMatch && duel.ship ? shipHud(duel, duel.ship) : null,
-    heal: heal && vitalsTarget() ? { item: HEAL_ITEMS[heal.item].name, progress: Math.min(1, (now - heal.startedAt) / heal.duration) } : null,
-    kit: (duel && duel.alive) || (!duel && rangeCombat.on && rangeCombat.alive) ? { ...kit.items } : null,
     // Tab, held: everything you are carrying in one place (hud.ts
     // drawInventory). Read only on purpose: what a player needs mid-match is
     // the answer to "what have I got", and dropping and swapping are done
@@ -8039,7 +7914,6 @@ function step(): void {
             attach: i === loadout.activeIndex ? [loadout.opticLabel()].filter((l): l is string => !!l) : [],
             inHand: i === loadout.activeIndex,
           })),
-          heals: HEAL_ORDER.filter((k) => (kit.items[k] ?? 0) > 0).map((k) => ({ name: HEAL_ITEMS[k].name, n: kit.items[k] })),
           ammo: Object.entries(loadout.ammo.stock)
             .filter(([, n]) => n > 0)
             .map(([k, n]) => ({ name: k.toUpperCase(), n })),
@@ -8051,7 +7925,6 @@ function step(): void {
     reticle,
     summary: summaryView(),
     quickChat: gameTime < quickOpenUntil ? QUICK.lines : null,
-    healWheel: wheelOpen ? { items: HEAL_ORDER.map((k) => ({ id: k, name: HEAL_ITEMS[k].name, count: kit.items[k] })), pick: wheelPick } : null,
     emoteWheel: emoteWheelOpen ? { items: EMOTES.map((e) => e.name), pick: emotePick } : null,
     lobby:
       hosting && !hangout?.connected && (!duel || (duel.phase === "waiting" && duel instanceof Duel && duel.connected < duel.players - 1))
@@ -8062,7 +7935,6 @@ function step(): void {
     // a hold-E action, or standing on a loadout crate while it hands your loadout over
     brHold: duel instanceof BrMatch ? (brPlay.hud.hold ?? (duelHud?.br?.crate != null ? { label: "LOADOUT CRATE  ·  STAY ON IT", progress: duelHud.br.crate } : null)) : null,
     tour: tourHud,
-    healKey: keyLabel("heal"),
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,
     captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
@@ -8744,8 +8616,6 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** the README screen at the far end (tools/e2e.ts, tools/snap.ts) */
   readmeTv,
   gunSession: () => [...gunSession.entries()],
-  startHeal: () => startHeal(gameTime),
-  kit,
   /** the crosshair as set up on the Settings tab (tools/e2e.ts) */
   reticle,
   /** XP, the level and the challenges (tools/e2e.ts) */

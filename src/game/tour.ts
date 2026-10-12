@@ -16,7 +16,6 @@
 // squad mate's echo to walk to while the step says how the Gulag and the
 // ghost work.
 import * as THREE from "three";
-import { IS_SK } from "./game";
 
 export interface TourCheck {
   pos: THREE.Vector3;
@@ -29,7 +28,6 @@ export interface TourCheck {
   hits: number;
   reloading: boolean;
   swapping: boolean;
-  healing: boolean;
   /** the game's clock (a step held for a time counts it) */
   now: number;
   /** SpeedKills: each hack slot's uses so far, and the gun in hand's fusion level */
@@ -67,20 +65,6 @@ interface StepState {
 
 /** seconds in the capture ring for its step (a match's zone takes 45: this is a taste of it) */
 const RING_HOLD = 5;
-
-const LEGACY_STEPS: Step[] = [
-  { id: "move", title: "MOVE", text: "Walk to the marker with {forward} {left} {back} {right}.", at: [0, -8], reach: 1.6, done: (_c, s) => s.there },
-  { id: "sprint", title: "SPRINT", text: "Hold {sprint} and run to the next marker.", at: [-6, -13], reach: 1.8, done: (c, s) => s.there && (s.sprinted || c.sprinting) },
-  { id: "slide", title: "SLIDE", text: "Sprint at the low rail and press {crouch} to slide under it.", at: [0, -22], reach: 3.5, done: (c) => c.sliding },
-  { id: "jump", title: "JUMP", text: "Press {jump}.", done: (c) => !c.onGround && c.vy > 2 },
-  { id: "mantle", title: "MANTLE", text: "Run at the ledge, jump and hold {forward}: you pull yourself up.", at: [-25.5, -58], reach: 2.2, done: (c) => c.mantling },
-  { id: "climb", title: "CLIMB", text: "Run at the ladder's wall and hold {forward} and {jump}: you climb it.", at: [14.8, -46], reach: 2.5, done: (c) => c.climbing },
-  { id: "superglide", title: "SUPERGLIDE", text: "At the very end of a mantle, press {jump} and then {crouch} within a frame: you shoot forward. The feed says how close you were. Hold {interact} to skip this one.", at: [25.5, -8], reach: 3, done: (_c, s) => s.tech.has("SUPERGLIDE") },
-  { id: "shoot", title: "SHOOT", text: "Go back to the firing line and hit a target downrange with {fire}. {ads} aims down the sights.", at: [0, -2], reach: 3, done: (c, s) => c.hits > s.hits0 },
-  { id: "reload", title: "RELOAD", text: "Press {reload}.", done: (c) => c.reloading },
-  { id: "swap", title: "SWAP", text: "Swap guns with {swapWeapon}, or {slot1} and {slot2}.", done: (c) => c.swapping },
-  { id: "heal", title: "HEAL", text: "Your shield is down: press {heal} for a shield cell (hold it for the wheel of every heal).", done: (c) => c.healing },
-];
 
 const SK_STEPS: Step[] = [
   { id: "move", title: "MOVE", text: "Walk to the marker with {forward} {left} {back} {right}. The city is vertical: most of the game happens above the street.", at: [0, -8], reach: 1.6, done: (_c, s) => s.there },
@@ -122,8 +106,8 @@ const SK_STEPS: Step[] = [
   },
 ];
 
-/** the game's own tour */
-const STEPS: Step[] = IS_SK ? SK_STEPS : LEGACY_STEPS;
+/** the game's own tour (the legacy game's, with its heal step, went with it: Milestone 523) */
+const STEPS: Step[] = SK_STEPS;
 
 export interface TourHud {
   step: number;
@@ -148,8 +132,6 @@ export class Tour {
   readonly group = new THREE.Group();
   private ring: THREE.Mesh;
   private beam: THREE.Mesh;
-  /** the heal step's own vitals: the range has none unless the dummies shoot back */
-  readonly vitals = { shield: 25, health: 100, alive: true };
   onStep: ((title: string) => void) | null = null;
   onDone: (() => void) | null = null;
 
@@ -175,11 +157,6 @@ export class Tour {
     return this.active ? STEPS[this.index].id : null;
   }
 
-  /** the heal step lends its vitals (the range has none of its own), until the heal it began is over */
-  get healVitals(): { shield: number; health: number; alive: boolean } | null {
-    return this.stepId === "heal" || this.lending ? this.vitals : null;
-  }
-  private lending = false;
 
   start(c: TourCheck): void {
     this.index = 0;
@@ -188,7 +165,6 @@ export class Tour {
 
   stop(): void {
     this.index = -1;
-    this.lending = false;
     this.group.visible = false;
   }
 
@@ -204,17 +180,11 @@ export class Tour {
 
   private begin(c: TourCheck): void {
     this.state = { hits0: c.hits, there: false, tech: new Set(), sprinted: false, hacks0: { ...c.hackUses }, fusion0: c.fusion, climbed: false, inSince: null };
-    if (STEPS[this.index]?.id === "heal") {
-      this.vitals.shield = 25;
-      this.vitals.health = 100;
-    }
     this.skipFrom = -Infinity;
     if (this.active) this.onStep?.(STEPS[this.index].title);
   }
 
   private next(c: TourCheck, now: number): void {
-    // the heal step is done the moment the heal starts: its shield stays lent until the heal ends
-    if (STEPS[this.index]?.id === "heal") this.lending = true;
     this.index++;
     if (this.index >= STEPS.length) {
       this.index = -1;
@@ -228,7 +198,7 @@ export class Tour {
 
   /** one frame: the marker, the check, the skip hold; `keys` fills in the key names */
   update(now: number, c: TourCheck, skipHeld: boolean, keys: (action: string) => string): TourHud | null {
-    if (!this.active) return now - this.doneAt < 5 ? { step: STEPS.length, of: STEPS.length, title: "TOUR COMPLETE", text: IS_SK ? "That is the game. PLAY, then Battle Royale: drop on the Spire if you want the fight." : "That is everything the range teaches. The Run (Basic) puts it together against the clock.", marker: null, skip: 0, done: true } : null;
+    if (!this.active) return now - this.doneAt < 5 ? { step: STEPS.length, of: STEPS.length, title: "TOUR COMPLETE", text: "That is the game. PLAY, then Battle Royale: drop on the Spire if you want the fight.", marker: null, skip: 0, done: true } : null;
     const step = STEPS[this.index];
     const s = this.state;
     if (c.sprinting) s.sprinted = true;
@@ -236,7 +206,6 @@ export class Tour {
     // the ring's hold: from when you stepped in, reset if you step out
     if (step.at && Math.hypot(c.pos.x - step.at[0], c.pos.z - step.at[1]) <= (step.reach ?? 1.6)) s.inSince ??= c.now;
     else s.inSince = null;
-    if (this.lending && !c.healing) this.lending = false;
     let marker: THREE.Vector3 | null = null;
     if (step.at) {
       const [x, z] = step.at;
@@ -266,4 +235,4 @@ export class Tour {
 }
 
 export const TOUR_STEPS = STEPS.map((s) => s.id);
-export { LEGACY_STEPS, SK_STEPS };
+export { SK_STEPS };

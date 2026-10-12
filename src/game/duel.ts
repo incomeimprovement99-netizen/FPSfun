@@ -330,10 +330,8 @@ export interface MatchLike {
   nameFor(id: number): string;
   /** what someone has left, when known (the recap) */
   vitalsFor(id: number): { shield: number; health: number } | null;
-  /** an effect of this player's for the others (a JOLT from a to b; a finished heal, n its item code) */
+  /** an effect of this player's for the others (a JOLT from a to b) */
   localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void;
-  /** someone else finished a heal (a player's fx, or a bot): the recap's "healed recently" */
-  onHealSeen: ((id: number, item: string) => void) | null;
   /** someone else's effect (a player's, or a bot's): draw and play it */
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null;
 }
@@ -468,7 +466,6 @@ export class Duel implements MatchLike {
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null = null;
   onDamaged: ((from: number, amount: number, head: boolean, weapon: string, dist: number | null) => void) | null = null;
   onEliminated: ((by: number) => void) | null = null;
-  onHealSeen: ((id: number, item: string) => void) | null = null;
   onShotFired: ((id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string) => void) | null = null;
   /** a squad member pinged something: what, where, the label, the figure it is on */
   onMark: ((k: string, from: number, at: THREE.Vector3, label: string, target: number) => void) | null = null;
@@ -1198,8 +1195,7 @@ export class Duel implements MatchLike {
       if (known) known.lastHeard = now;
       // a mode's own (Search's "hold"): its to keep, not a thing to draw or pass on
       if (this.onFx(m.k, from, m.n)) return;
-      if (m.k === "heal" && typeof m.n === "number" && HEAL_CODES[m.n]) this.onHealSeen?.(from, HEAL_CODES[m.n]);
-      else this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined, m.n);
+      this.onRemoteFx?.(m.k, from, m.a ? new THREE.Vector3(...m.a) : undefined, m.b ? new THREE.Vector3(...m.b) : undefined, m.n);
       // a JOLT: the figure leans into it
       if (m.k === "jolt") known?.avatar.jolt();
       this.relay(m, from);

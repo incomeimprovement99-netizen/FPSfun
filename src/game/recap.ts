@@ -2,14 +2,12 @@
 // both ways, and what they did around the kill.
 //
 // A DamageLog is kept per life (cleared at every spawn and drop). Every hit you
-// land in a match goes in (who, gun, amount, headshot, distance), every hit
-// you take (the same, from the hit message or the bot that fired), and every
-// heal anyone is seen to finish. When you are eliminated, `recap()` folds it
-// into one row per opponent who hurt you or whom you hurt, the killer first:
-// damage and hits each way, their guns and distances, a heal of theirs in the
-// 10 s before the kill, and what they had left.
-import { PHOENIX_NAME } from "../config/names";
-import cfg from "../config/killcam.json";
+// land in a match goes in (who, gun, amount, headshot, distance), and every
+// hit you take (the same, from the hit message or the bot that fired). When you
+// are eliminated, `recap()` folds it into one row per opponent who hurt you or
+// whom you hurt, the killer first: damage and hits each way, their guns and
+// distances, and what they had left. (Their heal in the 10 s before the kill
+// went with the heal items, Milestone 523.)
 import { weaponLabel } from "./weapons";
 import { causeName, EDGE_ID, RING_ID } from "./causes";
 
@@ -26,12 +24,6 @@ export interface HitEntry {
   dist: number | null;
 }
 
-export interface HealEntry {
-  t: number;
-  id: number;
-  item: string;
-}
-
 export interface RecapRow {
   id: number;
   name: string;
@@ -42,8 +34,6 @@ export interface RecapRow {
   taken: { damage: number; hits: number; heads: number };
   /** the guns they hit you with: name, hits, damage, closest and farthest */
   guns: Array<{ name: string; hits: number; damage: number; near: number | null; far: number | null }>;
-  /** seconds before the kill that they finished a heal, and with what */
-  healed: { ago: number; item: string } | null;
   /** what they had left when you went down (null: not known) */
   left: { shield: number; health: number } | null;
 }
@@ -62,15 +52,14 @@ export interface Recap {
   at: number;
 }
 
-/** heal items as small numbers for the network (the fx message's n) */
+/**
+ * The legacy heal items as small numbers in a figure's act code (dummy.ts actCode: a heal is 10 + its item). Nothing
+ * heals with an item any more (Milestone 523); the figure's heal pose that reads these is the character agent's.
+ */
 export const HEAL_CODES = ["cell", "syringe", "battery", "medkit", "phoenix"];
-
-const ITEM_NAME: Record<string, string> = { cell: "SHIELD CELL", syringe: "SYRINGE", battery: "SHIELD BATTERY", medkit: "MED KIT", phoenix: PHOENIX_NAME.toUpperCase() };
-export const healItemName = (item: string): string => ITEM_NAME[item] ?? item.toUpperCase();
 
 export class DamageLog {
   hits: HitEntry[] = [];
-  heals: HealEntry[] = [];
   /** this player's id in the match */
   me = 0;
 
@@ -78,17 +67,11 @@ export class DamageLog {
   clear(me: number): void {
     this.me = me;
     this.hits = [];
-    this.heals = [];
   }
 
   hit(e: HitEntry): void {
     this.hits.push(e);
     if (this.hits.length > 400) this.hits.shift();
-  }
-
-  heal(e: HealEntry): void {
-    this.heals.push(e);
-    if (this.heals.length > 60) this.heals.shift();
   }
 
   /**
@@ -119,7 +102,6 @@ export class DamageLog {
         }
         guns.set(key, g);
       }
-      const heal = [...this.heals].reverse().find((e) => e.id === id && t - e.t <= cfg.healedWithin && e.t <= t + 0.01);
       rows.push({
         id,
         name: nameOf(id),
@@ -127,7 +109,6 @@ export class DamageLog {
         dealt: { damage: sum(mine), hits: mine.length, heads: mine.filter((h) => h.head).length },
         taken: { damage: sum(theirs), hits: theirs.length, heads: theirs.filter((h) => h.head).length },
         guns: [...guns.values()].sort((a, b) => b.damage - a.damage),
-        healed: heal ? { ago: Math.max(0, t - heal.t), item: healItemName(heal.item) } : null,
         left: vitalsOf(id),
       });
     }

@@ -41,7 +41,6 @@ import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
 import type { MatchSummary, BotDifficulty } from "./stats";
 import type { ActorState } from "./killcam";
-import items from "../config/items.json";
 import botsCfg from "../config/bots.json";
 import type { CircleNav } from "./centrenav";
 import lootCfg from "../config/loot.json";
@@ -88,9 +87,7 @@ export interface Difficulty {
   /** chances: to dodge when hurt, to hear a shot in earshot */
   dodge: number;
   hearing: number;
-  /** it heals after this long with nobody in its sights, s */
-  healAfter: number;
-  /** breaks line of sight to heal, then peeks back */
+  /** breaks line of sight when low, then peeks back */
   cover: boolean;
   /** the chance, every so often while firing, to crouch (or stand back up) */
   crouchPeek: number;
@@ -233,8 +230,6 @@ export function botName(i: number): string {
 /** how many bots a match may hold at most: a limit of the frame rate, not of the names */
 export const MOST_BOTS = 48;
 
-/** a bot healing walks at this fraction of its speed (ours) */
-const HEAL_WALK = 0.45;
 /** a drop from the sky: terminal speed, m/s */
 /** how fast a bot comes down from the drop, straight (src/config/squad.json dive.botFall) */
 export const DROP_SPEED = squadCfg.dive.botFall;
@@ -264,11 +259,11 @@ export interface BotSense {
 
 /** one thing on the floor, as much of it as a bot needs to know */
 export interface BotLootItem {
-  /** "weapon", "attach", "hopup", "heal", "helmet", "ammo": src/game/loot.ts's kinds */
+  /** "weapon", "attach", "hopup", "helmet", "ammo", "hack": src/game/loot.ts's kinds */
   kind: string;
   id: string;
   rarity: string;
-  /** how many (a heal stack) */
+  /** how many (an ammo stack, a hack's level) */
   n?: number;
   /** a gun off the floor keeps the magazine it was found with */
   mag?: number;
@@ -297,8 +292,6 @@ export interface BotKit {
   mods: Record<string, { id: string; rank: number }>;
   /** the shield tier it has kitted up to: 1 white to 4 red */
   armor: number;
-  cells: number;
-  syringes: number;
   /** how many things it has taken off the floor */
   taken: number;
 }
@@ -309,8 +302,6 @@ export interface BotKit {
  * about a weapon it has never fired.
  */
 const RARITY_RANK: Record<string, number> = { common: 1, rare: 2, epic: 3, legendary: 4 };
-/** the heals a bot counts as cells: its heal only knows a shield one and a health one */
-const SHIELD_HEALS = ["cell", "battery", "phoenix"];
 const LOOTING = botsCfg.loot;
 const HELMET_TIER = LOOTING.helmetTier as Record<string, number>;
 const BOT_SEARCH = lootCfg.botSearch as Record<string, number>;
@@ -327,7 +318,7 @@ const BOT_SEARCH = lootCfg.botSearch as Record<string, number>;
  * it straight.
  */
 export class BotLooter {
-  readonly kit: BotKit = { gunId: null, gun: 0, mag: LOOTING.startMag, mods: {}, armor: LOOTING.startArmor, cells: 0, syringes: 0, taken: 0 };
+  readonly kit: BotKit = { gunId: null, gun: 0, mag: LOOTING.startMag, mods: {}, armor: LOOTING.startArmor, taken: 0 };
   /** the drop it is walking to, when it started walking, and when its rummage there is up */
   private mark: { key: number; pos: THREE.Vector3; since: number; gun: boolean; best: number; bestAt: number } | null = null;
   private holdUntil = Infinity;
@@ -365,7 +356,7 @@ export class BotLooter {
   get score(): number {
     const s = LOOTING.score;
     const k = this.kit;
-    return k.gun * s.gun + Object.keys(k.mods).length * s.mod + k.armor * s.armor + (k.cells + k.syringes) * s.heal;
+    return k.gun * s.gun + Object.keys(k.mods).length * s.mod + k.armor * s.armor;
   }
   /**
    * Kitted out, or its time is up and it has something to fight with.
@@ -403,8 +394,6 @@ export class BotLooter {
       }
       case "hopup":
         return Boolean(k.gunId) && k.mods.hopup === undefined && Object.keys(k.mods).length < LOOTING.maxMods;
-      case "heal":
-        return k.cells + k.syringes < LOOTING.maxHeals;
       case "helmet":
         return (HELMET_TIER[item.id] ?? 0) > k.armor;
       default:
@@ -435,10 +424,6 @@ export class BotLooter {
         break;
       case "hopup":
         k.mods.hopup = { id: item.id, rank };
-        break;
-      case "heal":
-        if (SHIELD_HEALS.includes(item.id)) k.cells += item.n ?? 1;
-        else k.syringes += item.n ?? 1;
         break;
       case "helmet":
         k.armor = Math.max(k.armor, HELMET_TIER[item.id] ?? k.armor);
@@ -650,7 +635,7 @@ export class Bot {
     | { kind: "pad"; vel: THREE.Vector3; carry: { vx: number; vz: number; over: number } | null }
     | null = null;
   private crouchNext = 0;
-  /** a spot out of the target's sight to heal behind, and until when it keeps to it */
+  /** a spot out of the target's sight to get its breath back behind, and until when it keeps to it */
   cover: { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null; until: number; best: number; bestAt: number } | null = null;
   private coverTryAt = 0;
   /** headway: where it last got somewhere, and since when; a detour out of a pocket and until when */
@@ -686,13 +671,8 @@ export class Bot {
   private prevVital = 0;
   /** the last time it had someone in its sights */
   private lastTargetAt = -Infinity;
-  /** a heal in progress: bots heal when they have had nobody to shoot for a while */
-  healing: { item: "cell" | "syringe"; startedAt: number } | null = null;
-  private kit = { cell: items.bots.cell, syringe: items.bots.syringe };
   /** a JOLT went from a to b: the match draws it (and sends it) */
   onJolt: ((a: THREE.Vector3, b: THREE.Vector3) => void) | null = null;
-  /** a heal finished, for the death recap */
-  onHealed: ((item: "cell" | "syringe") => void) | null = null;
   /**
    * Its rocket burst (where, how far it flew, the gun): the match deals the burst (botBurst with rocketBurst). Until a
    * bot's rocket burst where it stopped, it was settled as a bullet the moment it left, its damage landing before the
@@ -765,8 +745,6 @@ export class Bot {
     this.skHealUntil = -Infinity;
     this.lastHurtAt = -Infinity;
     this.lastTargetAt = -Infinity;
-    this.healing = null;
-    this.kit = { cell: items.bots.cell, syringe: items.bots.syringe };
     this.looter = new BotLooter(this.diff.name);
     this.lootStarted = false;
     this.prevVital = this.dummy.health + this.dummy.shield;
@@ -804,9 +782,9 @@ export class Bot {
 
   /**
    * Somewhere near, out of `threat`'s sight: a spot hidden standing (behind
-   * a wall) or, second best, hidden crouched (behind low cover, where it
-   * heals crouched, as players do). It must be reachable: straight, or by one
-   * turn at a clear point 3 m off (round the end of a crate). For a heal.
+   * a wall) or, second best, hidden crouched (behind low cover). It must be
+   * reachable: straight, or by one turn at a clear point 3 m off (round the end
+   * of a crate). Somewhere to be while its shield and health come back.
    */
   private findCover(threat: THREE.Vector3): { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null } | null {
     let best: { spot: THREE.Vector3; crouch: boolean; via: THREE.Vector3 | null } | null = null;
@@ -865,35 +843,6 @@ export class Bot {
     this.spawn = s;
     this.reset();
     this.dummy.setGunVisible(this.knife === null);
-  }
-
-  /** a random ability when the match has them on; none otherwise */
-  /** the heal it is doing, if its time is up: applied; a target in sight cancels it */
-  private stepHeal(now: number, hasTarget: boolean): void {
-    const d = this.dummy;
-    if (hasTarget) {
-      this.healing = null;
-      return;
-    }
-    if (this.healing) {
-      const it = items.heals[this.healing.item];
-      if (now - this.healing.startedAt >= it.time) {
-        d.shield = Math.min(d.shieldMax, d.shield + it.shield);
-        d.health = Math.min(HEALTH_MAX, d.health + it.health);
-        this.kit[this.healing.item]--;
-        this.onHealed?.(this.healing.item);
-        this.healing = null;
-        this.prevVital = d.health + d.shield;
-      }
-      return;
-    }
-    // out of sight behind cover it starts at once; otherwise after its tier's quiet spell. SpeedKills carries no heals, a
-    // bot no more than a player (health and shield come back on their own, stepSk): a bot there stood behind cover with
-    // its gun put away, holding nothing, for the four seconds of a heal nobody else has (Phase 27, 27.12)
-    if (IS_SK) return;
-    if (!this.cover && now - this.lastTargetAt < this.diff.healAfter) return;
-    if (d.shield < d.shieldMax && this.kit.cell > 0) this.healing = { item: "cell", startedAt: now };
-    else if (d.health < HEALTH_MAX && this.kit.syringe > 0) this.healing = { item: "syringe", startedAt: now };
   }
 
   /**
@@ -996,7 +945,6 @@ export class Bot {
     this.dummy.shield = 0;
     this.downedAt = now;
     this.crawlSpeed = crawl;
-    this.healing = null;
     this.crouching = false;
     this.kneel = false;
     this.aimSet = false;
@@ -1006,7 +954,6 @@ export class Bot {
   fling(vel: THREE.Vector3): void {
     if (this.travel || this.dropping) return;
     this.travel = { kind: "fling", vel: vel.clone() };
-    this.healing = null;
     this.crouching = false;
   }
 
@@ -1018,7 +965,6 @@ export class Bot {
   jumpPad(p: { up: number; dx: number; dz: number; over: number }): void {
     if (this.travel || this.dropping) return;
     this.travel = { kind: "pad", vel: new THREE.Vector3(0, p.up, 0), carry: { vx: p.dx, vz: p.dz, over: p.over } };
-    this.healing = null;
     this.crouching = false;
   }
 
@@ -1026,7 +972,6 @@ export class Bot {
   ride(a: THREE.Vector3, b: THREE.Vector3, speed: number): void {
     if (this.travel || this.dropping) return;
     this.travel = { kind: "zip", a: a.clone(), b: b.clone(), t: 0, dur: Math.max(0.2, a.distanceTo(b) / speed) };
-    this.healing = null;
     this.crouching = false;
   }
 
@@ -1186,21 +1131,14 @@ export class Bot {
     return this.looter.kit;
   }
 
-  /** the heals it still carries (host migration: the heir's snapshot) */
-  get carried(): { cell: number; syringe: number } {
-    return { cell: this.kit.cell, syringe: this.kit.syringe };
-  }
-
   /**
-   * Its kit as the host had it (host migration): what it has found, what it
-   * still carries, and its gun and shield tier put on, as a bot that had
-   * looted them. Its health and shield are the caller's to set after.
+   * Its kit as the host had it (host migration): what it has found, and its
+   * gun and shield tier put on, as a bot that had looted them. Its health and
+   * shield are the caller's to set after.
    */
-  restoreKit(kit: BotKit, carried: { cell: number; syringe: number }): void {
+  restoreKit(kit: BotKit): void {
     Object.assign(this.looter.kit, kit, { mods: { ...kit.mods } });
     this.lootStarted = true;
-    this.kit.cell = carried.cell;
-    this.kit.syringe = carried.syringe;
     this.setArmor(kit.armor);
     this.refit();
   }
@@ -1220,8 +1158,6 @@ export class Bot {
     if (!src) return null;
     if (!this.lootStarted) {
       this.lootStarted = true;
-      this.kit.cell = 0;
-      this.kit.syringe = 0;
       this.setArmor(this.looter.kit.armor);
       this.dummy.setGunVisible(false);
     }
@@ -1247,19 +1183,12 @@ export class Bot {
   }
 
   /**
-   * Something off the floor, onto the bot. What it picked up is ADDED to what
-   * it is carrying: the looter's kit counts what it has found, and the bot's
-   * counts what it still has, so a heal it drank is not
-   * handed back the next time it picks one up.
+   * Something off the floor, onto the bot: a gun or a fitting refits its
+   * weapon, and whatever it was, the shield tier its kit has reached goes on.
    */
   private equip(item: BotLootItem): void {
     const k = this.looter.kit;
     if (item.kind === "weapon" || item.kind === "attach" || item.kind === "hopup") this.refit();
-    else if (item.kind === "heal") {
-      const n = item.n ?? 1;
-      if (SHIELD_HEALS.includes(item.id)) this.kit.cell = Math.min(k.cells, this.kit.cell + n);
-      else this.kit.syringe = Math.min(k.syringes, this.kit.syringe + n);
-    }
     this.setArmor(k.armor);
   }
 
@@ -1356,11 +1285,10 @@ export class Bot {
       }
     }
     this.prevVital = vital;
-    // low, with cover on: away out of sight to heal, then back to peek
+    // low, with cover on: away out of sight while its shield and health come back on their own (and its HEAL hack, if
+    // its tier carries one), then back to peek
     const hurtFrac = vital / Math.max(1, HEALTH_MAX + this.dummy.shieldMax);
-    // (SpeedKills: into cover to be out of the fire while its shield comes back on its own, no heal needed)
-    const canRecover = IS_SK || this.kit.cell > 0 || this.kit.syringe > 0;
-    if (tier.cover && !this.cover && sees && target && now >= this.coverTryAt && hurtFrac < COVER.below && canRecover) {
+    if (tier.cover && !this.cover && sees && target && now >= this.coverTryAt && hurtFrac < COVER.below) {
       // (nothing found: look again in a moment, from wherever the strafe has taken it)
       this.coverTryAt = now + 0.5;
       const found = this.findCover(target);
@@ -1375,8 +1303,7 @@ export class Bot {
         this.cover.bestAt = now;
       } else if (now - this.cover.bestAt > 1) this.cover = null;
     }
-    if (this.cover && (now > this.cover.until || (!this.healing && hurtFrac >= 0.95) || !canRecover)) this.cover = null;
-    this.stepHeal(now, sees);
+    if (this.cover && (now > this.cover.until || hurtFrac >= 0.95)) this.cover = null;
     if (IS_SK) this.stepSk(now, dt, target);
 
     // loot: a landed bot with a floor under it goes and kits itself out. It
@@ -1393,7 +1320,7 @@ export class Bot {
     const hurried = sees || sense.urgent === true;
     const lootGoal = this.stepLoot(now, hurried && !unarmed, hurried && unarmed);
     const running = unarmed && lootGoal !== null;
-    // where to go: cover when it is healing behind it; a gun, running for it
+    // where to go: cover when it is low and getting its breath back; a gun, running for it
     // unarmed; at the target if seen (keeping a distance); the loot it is going
     // for; where it last saw one (a hunt), or a shot it heard; else the match's goal
     const hunting = !sees && this.lastSeen && tier.name !== "easy" ? this.lastSeen.pos : null;
@@ -1425,8 +1352,8 @@ export class Bot {
     } else if (dist < (this.cover ? 0.6 : sense.exact && !target ? 0.3 : 1.5) || (this.cover && !sees)) want.set(0, 0);
     // standing over a drop, rummaging through it: it does not walk while it does that
     if (this.looter.holding) want.set(0, 0);
-    // a crouch now and then while it fires (by tier), never while it walks to cover or heals
-    if (sees && target && !this.cover && !this.healing && !running && tier.crouchPeek > 0) {
+    // a crouch now and then while it fires (by tier), never while it walks to cover
+    if (sees && target && !this.cover && !running && tier.crouchPeek > 0) {
       // only a crouch that still sees the target (not one that ducks behind low cover mid-fight)
       const seesLow = lineOfSight(this.pos, target, CROUCH_EYE);
       if (now >= this.crouchNext) {
@@ -1467,7 +1394,7 @@ export class Bot {
         }
         this.headwaySince = now;
       }
-      const move = this.speedNow * dt * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1);
+      const move = this.speedNow * dt * (this.crouching ? botsCfg.squads.crouchWalk : 1);
       // In pieces no longer than bots.json maxStep: a slow frame (dt runs to 0.1 s) made one step of half
       // a metre, which a wall or a box's corner stopped whole where small steps slide round it; under a
       // CPU throttle a squad's follower stood pinned to a wall for the rest of the match
@@ -1539,7 +1466,7 @@ export class Bot {
     this.dummy.group.position.copy(this.pos);
     // the figure runs when it moves and looks at what it aims at; the legs go the
     // way it walks (a strafe, a backpedal) while the body stays on the target;
-    // it aims down its sights at a target in sight, and a heal takes its hands
+    // it aims down its sights at a target in sight
     const moving = want.length() > 1e-3;
     const aimPitch = target ? (Math.atan2(target.y + 1.15 - (this.pos.y + 1.35), Math.max(1e-3, Math.hypot(target.x - this.pos.x, target.z - this.pos.z))) * 180) / Math.PI : 0;
     const ry = this.dummy.group.rotation.y;
@@ -1547,13 +1474,12 @@ export class Bot {
     const fwdZ = Math.cos(ry);
     const moveDir = moving ? Math.atan2(want.x * -fwdZ + want.y * fwdX, want.x * fwdX + want.y * fwdZ) : 0;
     this.dummy.setPose({
-      speed: moving ? this.speedNow * (this.healing ? HEAL_WALK : 1) * (this.crouching ? botsCfg.squads.crouchWalk : 1) : 0,
+      speed: moving ? this.speedNow * (this.crouching ? botsCfg.squads.crouchWalk : 1) : 0,
       stance: this.crouching || this.kneel ? "crouch" : "stand",
       pitch: aimPitch,
       moveDir,
-      ads: target && this.knife === null && !this.healing ? 0.85 : 0,
-      act: this.healing ? "heal" : this.mag.reloading(now) ? (this.mag.venting ? "vent" : "reload") : null,
-      healItem: this.healing?.item,
+      ads: target && this.knife === null ? 0.85 : 0,
+      act: this.mag.reloading(now) ? (this.mag.venting ? "vent" : "reload") : null,
       // (a bot reloads only when its magazine runs out: always from empty)
       reloadEmpty: true,
     });
@@ -1574,7 +1500,7 @@ export class Bot {
     const shots: BotShot[] = [];
     if (this.knife !== null) {
       // the knife: a swing whenever the target is within reach
-      if (target && sense.canShoot && !this.healing && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt && Math.hypot(target.x - this.pos.x, target.z - this.pos.z) <= BOT_MELEE_RANGE) {
+      if (target && sense.canShoot && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt && Math.hypot(target.x - this.pos.x, target.z - this.pos.z) <= BOT_MELEE_RANGE) {
         this.nextShotAt = now + BOT_MELEE_EVERY;
         const from = this.pos.clone().setY(this.pos.y + 1.35);
         const dir = target.clone().setY(target.y + 1.15).sub(from).normalize();
@@ -1582,7 +1508,7 @@ export class Bot {
       }
       return shots;
     }
-    if (target && sense.canShoot && !this.holdingFire && !this.healing && this.mag.ready(now, this.weapon) && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
+    if (target && sense.canShoot && !this.holdingFire && this.mag.ready(now, this.weapon) && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
       const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
       this.nextShotAt = now + interval;
       this.mag.fired(now, this.weapon, interval);
@@ -1771,7 +1697,6 @@ export class BotMatch implements MatchLike {
   onDamaged: ((from: number, amount: number, head: boolean, weapon: string, dist: number | null) => void) | null = null;
   onEliminated: ((by: number) => void) | null = null;
   onShotFired: ((id: number, o: THREE.Vector3, d: THREE.Vector3, weapon: string) => void) | null = null;
-  onHealSeen: ((id: number, item: string) => void) | null = null;
   /** you are always player 0 against the bots */
   readonly id = 0;
 
@@ -1821,7 +1746,6 @@ export class BotMatch implements MatchLike {
       b.ring = drawn?.bounds.circle ?? null;
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
       b.onRocket = (at, travelled, w) => this.botBurst(b.remote.id, rocketBurst(w, at, travelled), w.id);
-      b.onHealed = (item) => this.onHealSeen?.(b.remote.id, item);
       this.bots.push(b);
     }
     this.scores = new Array(this.players).fill(0);

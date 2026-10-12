@@ -1,139 +1,21 @@
-// What you carry to heal with, and your armour (src/config/items.json).
-//
-// The heal key picks for you, the way Apex's quick heal does: shields first,
-// a battery when a lot of shield is gone and a cell for a little, then health
-// the same way with a med kit or a syringe, and a phoenix kit when both are
-// low. Holding the key opens a wheel to pick one yourself.
+// Your armour and your knockdown shield, the legacy game's (src/config/items.json); they go with its battle royale.
 //
 // Armour: a shield core that levels with EVO (the damage you deal) from white
-// 50 to blue 75 to purple 100; the gold helmet sets it to 100 and doubles what
-// the small heals give, the mythic one sets it to 125.
+// 50 to blue 75 to purple 100; the gold helmet sets it to 100, the mythic one
+// to 125.
 //
-// Two looted things change the shape of a kit rather than its numbers. A
-// BACKPACK adds room on top of every heal's own stack, and the gold one takes
-// a quarter off how long a heal takes. A KNOCKDOWN SHIELD is what soaks the
-// shots aimed at you while you are down: your EVO level sets the floor, a
-// better one off the floor raises it, and the gold one carries a single
-// self-revive that a long, droppable channel spends. Neither of them knows
-// anything about the world, so the down code, the HUD and the loot code drive
-// them from outside and this file stays arithmetic.
+// A KNOCKDOWN SHIELD is what soaks the shots aimed at you while you are down:
+// your EVO level sets the floor, a better one off the floor raises it, and the
+// gold one carries a single self-revive that a long, droppable channel spends.
+// It knows nothing about the world, so the down code, the HUD and the loot
+// code drive it from outside and this file stays arithmetic.
+//
+// The heals you carried, the heal wheel and the backpacks that made room for
+// them went in Milestone 523: SpeedKills' health comes back on its own, and its
+// one heal is the HEAL hack.
 import cfg from "../config/items.json";
-import { PHOENIX_NAME } from "../config/names";
 
-export type HealItem = keyof typeof cfg.heals;
-export const HEAL_ORDER: HealItem[] = ["cell", "battery", "syringe", "medkit", "phoenix"];
-export const HEALS = cfg.heals;
-// (its name is the game's own: names.ts gives it, codenamed on a public build)
-HEALS.phoenix.name = PHOENIX_NAME;
 export type Helmet = keyof typeof cfg.helmets;
-
-export type BackTier = keyof typeof cfg.backpacks;
-export const BACKPACKS = cfg.backpacks;
-/**
- * The backpacks worst to best. It lives here rather than in the config for
- * the same reason HEAL_ORDER does: it is an order and not a number, and the
- * code has to compare two tiers without trusting a cast. The first of them is
- * what a life starts with, because Season 28 moved the white pack into the
- * starter kit and there has been no such thing as no backpack since.
- */
-export const PACK_ORDER: BackTier[] = ["white", "blue", "purple", "gold"];
-
-export class Kit {
-  items: Record<HealItem, number> = { cell: 0, syringe: 0, battery: 0, medkit: 0, phoenix: 0 };
-  /** the backpack you wear; never none, the white one is the start */
-  pack: BackTier = PACK_ORDER[0];
-
-  /** a life's start: the arena's kit, a battle royale's start, or nothing */
-  fill(which: "kit" | "brStart" | "empty"): void {
-    this.pack = PACK_ORDER[0];
-    const src = which === "empty" ? null : cfg[which];
-    for (const k of HEAL_ORDER) this.items[k] = src ? Math.min(this.stackOf(k), src[k]) : 0;
-  }
-
-  /** how many of a heal fit: its own stack, plus the room the backpack adds */
-  stackOf(item: HealItem): number {
-    return HEALS[item].stack + BACKPACKS[this.pack].stack[item];
-  }
-
-  /**
-   * How much more of each heal would go in, by its id. This is what the
-   * walk-over pickup and the greyed-out reach rows read (src/game/brplay.ts's
-   * CarryState.healRoom), so a bigger pack quietly widens what the sweep
-   * absorbs without brplay having to know backpacks exist.
-   */
-  get room(): Record<HealItem, number> {
-    const out = {} as Record<HealItem, number>;
-    for (const k of HEAL_ORDER) out[k] = Math.max(0, this.stackOf(k) - this.items[k]);
-    return out;
-  }
-
-  /** the seconds this heal takes with the pack you wear (the gold one is quicker) */
-  healTime(item: HealItem): number {
-    return HEALS[item].time * BACKPACKS[this.pack].healTime;
-  }
-
-  /** where the pack you wear sits in PACK_ORDER, for a caller comparing two */
-  get packRank(): number {
-    return PACK_ORDER.indexOf(this.pack);
-  }
-
-  /**
-   * A backpack off the floor. It goes on only when it beats the one you have,
-   * so a caller can offer every pack it finds and let this decide; false means
-   * leave it lying there. Room only ever grows, so a swap can never strand a
-   * heal you are already carrying.
-   */
-  takePack(tier: BackTier): boolean {
-    if (PACK_ORDER.indexOf(tier) <= this.packRank) return false;
-    this.pack = tier;
-    return true;
-  }
-
-  /** picked up: as many as the stack has room for; returns how many went in */
-  add(item: HealItem, n: number): number {
-    const room = Math.max(0, this.stackOf(item) - this.items[item]);
-    const put = Math.min(room, n);
-    this.items[item] += put;
-    return put;
-  }
-
-  get total(): number {
-    return HEAL_ORDER.reduce((a, k) => a + this.items[k], 0);
-  }
-
-  /**
-   * The quick heal's choice for these vitals, or null with nothing that
-   * helps. Shields first: a battery for 50 or more missing, else a cell;
-   * then health: a med kit for 50 or more missing, else a syringe; a phoenix
-   * kit when both are at least half gone, or when it is all that is left.
-   */
-  pick(shield: number, shieldMax: number, health: number, healthMax: number): HealItem | null {
-    const sMiss = Math.max(0, shieldMax - shield);
-    const hMiss = Math.max(0, healthMax - health);
-    const has = (k: HealItem) => this.items[k] > 0;
-    if (sMiss >= shieldMax / 2 && hMiss >= healthMax / 2 && has("phoenix")) return "phoenix";
-    if (sMiss > 0) {
-      if (sMiss >= 50 && has("battery")) return "battery";
-      if (has("cell")) return "cell";
-      if (has("battery")) return "battery";
-    }
-    if (hMiss > 0) {
-      if (hMiss >= 50 && has("medkit")) return "medkit";
-      if (has("syringe")) return "syringe";
-      if (has("medkit")) return "medkit";
-    }
-    if ((sMiss > 0 || hMiss > 0) && has("phoenix")) return "phoenix";
-    return null;
-  }
-
-  /** why the quick heal found nothing, for the notice */
-  whyNot(shield: number, shieldMax: number, health: number, healthMax: number): string {
-    if (this.total === 0) return "NO HEALS LEFT";
-    if (shield >= shieldMax && health >= healthMax) return "FULL";
-    if (shield < shieldMax && !this.items.cell && !this.items.battery && health >= healthMax) return "NO SHIELD HEALS LEFT";
-    return "NO HEALTH HEALS LEFT";
-  }
-}
 
 export const SHIELD_LEVELS = cfg.shieldLevels;
 
@@ -161,11 +43,6 @@ export class Armor {
   get tier(): number {
     const m = this.shieldMax;
     return m >= 125 ? 4 : m >= 100 ? 3 : m >= 75 ? 2 : 1;
-  }
-
-  /** what cells and syringes give is scaled by this (the gold helmet) */
-  get smallHealScale(): number {
-    return this.helmet ? cfg.helmets[this.helmet].smallHealScale : 1;
   }
 
   /** EVO for damage dealt; returns the new level when the core levels up */

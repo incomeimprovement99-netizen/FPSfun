@@ -27,7 +27,7 @@ import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
 import { paidGunMaterial, paidPropBatch } from "./paidgun";
 import { weaponLabel, type AmmoType } from "./weapons";
-import { HEALS, type HealItem, type Helmet } from "./kit";
+import { type Helmet } from "./kit";
 import { hopupName, opticName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
 import { solidsIn } from "./solidgrid";
@@ -35,18 +35,18 @@ import { solidsIn } from "./solidgrid";
 import { DISTRICT_FLOORS, floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
 import { ammoTypeOf, STACK } from "./ammo";
 import { type Attachments } from "./attachments";
-import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
+import { KNOCK_SHIELDS, type KnockTier } from "./kit";
 import { inView } from "./figlod";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
 /** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
 const CORE_DETAIL2 = cfg.coreDetail ** 2;
 
-export type LootKind = "weapon" | "ammo" | "heal" | "attach" | "hopup" | "helmet" | "echo" | "backpack" | "knockdown" | "keycard" | "hack";
+export type LootKind = "weapon" | "ammo" | "attach" | "hopup" | "helmet" | "echo" | "knockdown" | "keycard" | "hack";
 
 export interface LootItem {
   kind: LootKind;
-  /** weapon id, ammo type, heal item, mod name ("mag:N" for a magazine), helmet kind, an echo's player id */
+  /** weapon id, ammo type, mod name ("mag:N" for a magazine), helmet kind, an echo's player id */
   id: string;
   n: number;
   rarity: Rarity;
@@ -140,8 +140,6 @@ export function lootLabel(it: LootItem): string {
       return `${hackDef(it.id)?.name ?? it.id.toUpperCase()} HACK${it.n > 0 ? `  ·  LEVEL ${it.n}` : ""}`;
     case "ammo":
       return `${it.id.toUpperCase()} AMMO x${it.n}`;
-    case "heal":
-      return `${HEALS[it.id as HealItem]?.name.toUpperCase() ?? it.id} x${it.n}`;
     case "attach":
       if (it.id.startsWith("mag:")) return MAG_NAMES[Number(it.id.slice(4))]?.toUpperCase() ?? "MAG";
       if (it.id.startsWith("optic_")) return opticName(it.id, it.id).toUpperCase();
@@ -150,8 +148,6 @@ export function lootLabel(it: LootItem): string {
       return hopupName(it.id).toUpperCase();
     case "helmet":
       return it.id === "red" ? "MYTHIC HELMET" : "GOLD HELMET";
-    case "backpack":
-      return `${(BACKPACKS[it.id as BackTier]?.name ?? it.id).toUpperCase()}`;
     case "knockdown":
       return `${(KNOCK_SHIELDS[it.id as KnockTier]?.name ?? it.id).toUpperCase()}`;
     case "echo":
@@ -191,10 +187,6 @@ const pick = <T>(rnd: () => number, xs: T[]): T => xs[Math.floor(rnd() * xs.leng
 // One item of each class, so the single-item roll below and the typed spots
 // further down make the same things out of the same table.
 const makeWeapon = (rnd: () => number, rarity: Rarity): LootItem => ({ kind: "weapon", id: pick(rnd, cfg.weapons[rarity]), n: 1, rarity, mag: (cfg.gunMag as Record<Rarity, number>)[rarity] });
-const makeHeal = (rnd: () => number, rarity: Rarity): LootItem => {
-  const id = pick(rnd, cfg.heals[rarity]) as HealItem;
-  return { kind: "heal", id, n: cfg.healAmount[id], rarity };
-};
 const makeAttach = (rnd: () => number, rarity: Rarity): LootItem => ({ kind: "attach", id: pick(rnd, cfg.attachments[rarity]), n: 1, rarity });
 const makeMag = (rarity: Rarity): LootItem => ({ kind: "attach", id: `mag:${(cfg.magLevel as Record<Rarity, number>)[rarity]}`, n: 1, rarity });
 const makeHopup = (rnd: () => number): LootItem => ({ kind: "hopup", id: pick(rnd, cfg.hopups), n: 1, rarity: "epic" });
@@ -227,8 +219,6 @@ export function rollItem(rnd: () => number, tier: PlaceTier | null = null): Loot
   switch (kind) {
     case "weapon":
       return makeWeapon(rnd, rarity);
-    case "heal":
-      return makeHeal(rnd, rarity);
     case "attach":
       return makeAttach(rnd, rarity);
     case "hopup":
@@ -247,11 +237,9 @@ interface SpotKind {
   ammo: number[];
   mag: number[];
   attach: number[];
-  heal: number[];
   hopupChance: number;
   helmetChance: number;
-  /** a backpack and a knockdown shield on top, now and then (loot.json _packs) */
-  backpackChance?: number;
+  /** a knockdown shield on top, now and then (loot.json _packs) */
   knockdownChance?: number;
 }
 const SPOT_KINDS = cfg.spotKinds as SpotKind[];
@@ -270,14 +258,11 @@ export interface DeadBotKit {
   gun: number;
   mag: number;
   mods: Record<string, { id: string; rank: number }>;
-  cells: number;
-  syringes: number;
 }
 
 /**
  * What a bot drops where it dies, from what it looted: its gun at the grade it found (with its magazine), every
- * fitting and hop-up it took, two stacks of its gun's ammo, and its heals (never fewer than loot.json's
- * deathDrop). `fallbackGun` is the gun a bot held without looting one (a match that starts with loadouts); null when it
+ * fitting and hop-up it took, and two stacks of its gun's ammo (loot.json deathDrop). `fallbackGun` is the gun a bot held without looting one (a match that starts with loadouts); null when it
  * had none. They lie loose on the floor: there are no death boxes (the owner, 2026-10-04).
  *
  * SpeedKills' is its gun at the level it had fused it to, and nothing else: its floor is guns and hack cores.
@@ -301,8 +286,6 @@ export function deathDropOf(kit: DeadBotKit | null, fallbackGun: string | null):
     if (kit.mag > 0 && magRarity) items.push({ kind: "attach", id: `mag:${kit.mag}`, n: 1, rarity: magRarity });
     for (const [slot, m] of Object.entries(kit.mods)) items.push({ kind: slot === "hopup" ? "hopup" : "attach", id: m.id, n: 1, rarity: grade(m.rank) });
   }
-  items.push({ kind: "heal", id: "cell", n: Math.max(cfg.deathDrop.cells, kit?.cells ?? 0), rarity: "common" });
-  items.push({ kind: "heal", id: "syringe", n: Math.max(cfg.deathDrop.syringes, kit?.syringes ?? 0), rarity: "common" });
   return items;
 }
 
@@ -333,14 +316,13 @@ export function pickHotZone(seed: number, places: LootPlace[]): HotZone | null {
  * the rack holds another attachment instead of a stack nobody can use.
  */
 /**
- * A backpack or a knockdown shield of the rarity rolled. A common roll comes
- * up blue: the white pack is in the starter kit and a white shield is what EVO
- * gives you, so neither is worth placing on a floor.
+ * A knockdown shield of the rarity rolled. A common roll comes up blue: a
+ * white shield is what EVO gives you, so it is not worth placing on a floor.
  */
-function makeTiered(rarity: Rarity, kind: "backpack" | "knockdown"): LootItem {
-  const table = (kind === "backpack" ? BACKPACKS : KNOCK_SHIELDS) as Record<string, { rarity: string }>;
+function makeKnockShield(rarity: Rarity): LootItem {
+  const table = KNOCK_SHIELDS as Record<string, { rarity: string }>;
   const pick = Object.keys(table).find((t) => table[t].rarity === rarity && t !== "white") ?? "blue";
-  return { kind, id: pick, n: 1, rarity: (table[pick]?.rarity ?? "rare") as Rarity };
+  return { kind: "knockdown", id: pick, n: 1, rarity: (table[pick]?.rarity ?? "rare") as Rarity };
 }
 
 /** SpeedKills: a floor level for a found thing, from a tier's odds (one number a level) */
@@ -425,7 +407,6 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
   let ammo = count(spot.ammo);
   const mags = count(spot.mag);
   let attach = count(spot.attach);
-  const heals = count(spot.heal);
   const out: LootItem[] = [];
   // A rack used to remember only the LAST gun's ammo type, so a rack holding
   // two guns left one of them with a stack it could not use. Each gun's type
@@ -449,13 +430,10 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
   }
   for (let i = 0; i < mags; i++) out.push(makeMag(rollRarity(rnd, tier)));
   for (let i = 0; i < attach; i++) out.push(makeAttach(rnd, rollRarity(rnd, tier)));
-  for (let i = 0; i < heals; i++) out.push(makeHeal(rnd, rollRarity(rnd, tier)));
   if (rnd() < spot.hopupChance) out.push(makeHopup(rnd));
   if (rnd() < spot.helmetChance) out.push(makeHelmet(rnd));
-  // the two drawn after everything else, so adding them moved none of the
-  // rolls above and a seed lays out the same floor it always did
-  if (rnd() < (spot.backpackChance ?? 0)) out.push(makeTiered(rollRarity(rnd, tier), "backpack"));
-  if (rnd() < (spot.knockdownChance ?? 0)) out.push(makeTiered(rollRarity(rnd, tier), "knockdown"));
+  // drawn after everything else, so adding it moved none of the rolls above
+  if (rnd() < (spot.knockdownChance ?? 0)) out.push(makeKnockShield(rollRarity(rnd, tier)));
   return out;
 }
 

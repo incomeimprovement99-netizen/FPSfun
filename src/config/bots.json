@@ -27,7 +27,6 @@
       "strafeRate": 0,
       "dodge": 0,
       "hearing": 0.1,
-      "healAfter": 5,
       "cover": true,
       "crouchPeek": 0,
       "preAim": false
@@ -46,7 +45,6 @@
       "strafeRate": 1.2,
       "dodge": 0,
       "hearing": 0.2,
-      "healAfter": 4,
       "cover": false,
       "crouchPeek": 0,
       "preAim": false
@@ -65,7 +63,6 @@
       "strafeRate": 1.7,
       "dodge": 0.5,
       "hearing": 0.5,
-      "healAfter": 3,
       "cover": true,
       "crouchPeek": 0.1,
       "preAim": false
@@ -84,7 +81,6 @@
       "strafeRate": 2.2,
       "dodge": 1,
       "hearing": 0.9,
-      "healAfter": 2,
       "cover": true,
       "crouchPeek": 0.3,
       "preAim": false
@@ -103,7 +99,6 @@
       "strafeRate": 2.8,
       "dodge": 1,
       "hearing": 1,
-      "healAfter": 1.5,
       "cover": true,
       "crouchPeek": 0.45,
       "preAim": true
@@ -197,14 +192,12 @@
       "gold": 3,
       "red": 4
     },
-    "maxHeals": 6,
     "maxMods": 4,
     "startMag": 0,
     "score": {
       "gun": 4,
       "mod": 1,
-      "armor": 2,
-      "heal": 0.5
+      "armor": 2
     },
     "_overtime": "how many of its own search windows a bot that still has NO gun may spend before it gives up and fights unarmed. The window alone used to end the search, so a bot that landed badly stopped looking and stayed unarmed, held its fire for the whole match and walked the ring as a free kill. Ours.",
     "overtime": 2.5,

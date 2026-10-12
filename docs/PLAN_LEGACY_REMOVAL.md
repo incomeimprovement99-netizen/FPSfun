@@ -75,10 +75,11 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   hacks, which load at startup for the range and stay, with what they borrow (walls.ts and the ward's numbers,
   reveal.ts, healarea.ts, DASH's look and sound). About 1,600 lines.
 - **Later, attachments, mag levels and hop-ups;** SpeedKills keeps one fixed optic per gun and fusion. About 350 lines.
-- **Later, the legacy loot and the battle royale's side rules:** ammo, attachment, heal, helmet, backpack and
-  knockdown-shield loot, the vault, the Ring Consoles, Storm Surge, the loadout crate, EVO. About 1,700 lines.
-- **Later, heals, armour and EVO** (kit.ts, items.json, the heal wheel): SpeedKills' health comes back on its own.
-  About 550 lines.
+- **Later, the legacy loot and the battle royale's side rules:** ammo, attachment, helmet and knockdown-shield loot, the vault, the Ring Consoles, Storm Surge, the loadout crate, EVO. About 1,700 lines.
+- **523, the heal items, the heal wheel and the backpacks (done):** the player's kit, the bots' item heals, the
+  floor's heals and backpacks, the walk-over's small heals and the recap's "healed recently". The battle royale's ammo
+  limit stays the white pack's. The figure's heal pose and its act codes are the character agent's (told). Armour and
+  EVO go with the loot below.
 - **Later, the Outskirts map** (br.ts's builder, its scenery and about 15 MB of its assets); the shared types stay.
   About 3,050 lines.
 - **Later, knockdowns, bleed-out, revives, finishers, the knockdown shield** (SpeedKills has none: `noKnocks`). The
@@ -87,7 +88,7 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   lists, loot, mechanics entries and checks; the R-301 goes with 522.
 - **522, the attachments, magazine levels, hop-ups and fire modes, the old guns' mechanics and the R-301 (done).**
   SpeedKills keeps each gun's fixed optic, fusion, the L-STAR's heat and the shotguns' blast patterns.
-- **Next:** the legacy loot and the battle royale's side rules (ammo, heals, helmets, backpacks, knockdown shields,
+- **Next:** the legacy loot and the battle royale's side rules (ammo, helmets, knockdown shields,
   the vault, the Ring Consoles, Storm Surge, the loadout crate, EVO), then the Outskirts map, then the match side of the
   knockdowns (the character agent takes the figure's).
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so

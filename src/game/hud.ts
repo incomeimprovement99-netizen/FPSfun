@@ -12,7 +12,6 @@
 //
 // One 2D canvas, redrawn every frame. Everything is sized from the viewport
 // height so the layout holds at any resolution.
-import { PHOENIX_SHORT } from "../config/names";
 import * as THREE from "three";
 import { RANGE_SOLIDS, COURSE_GATES } from "./range";
 import { ZIPLINES } from "./traversal";
@@ -212,12 +211,6 @@ export interface HudState {
     linkedTo: string | null;
     keys: { jump: string; crouch: string; map: string };
   } | null;
-  /** a heal in progress: the item, 0..1, and what is left in the kit */
-  heal?: { item: string; progress: number } | null;
-  /** what is left of each heal */
-  kit?: Record<string, number> | null;
-  /** the heal wheel, held open: the items, their counts, the one the mouse points at */
-  healWheel?: { items: Array<{ id: string; name: string; count: number }>; pick: string | null } | null;
   /** the emote wheel (7, held): the emotes round it and the one the mouse points at */
   emoteWheel?: { items: string[]; pick: number | null } | null;
   /** sound captions (src/game/captions.ts): what was heard, which way and how far */
@@ -232,7 +225,6 @@ export interface HudState {
    */
   inventory?: {
     guns: Array<{ name: string; clip: number; size: number; ammo: string; attach: string[]; inHand: boolean }>;
-    heals: Array<{ name: string; n: number }>;
     ammo: Array<{ name: string; n: number }>;
     armor: string;
     helmet: string;
@@ -288,8 +280,6 @@ export interface HudState {
   trainer?: TrainerHud | null;
   /** a superglide's window is open: the mantle boost cue on the crosshair */
   mantleCue?: boolean;
-  /** the heal key's label, for the kit line */
-  healKey?: string;
   /** the guided tour's step, or its finish card */
   tour?: TourHud | null;
   /** a hold-E action in progress (a revive, a restore): its label and 0..1 */
@@ -1002,9 +992,8 @@ export class Hud {
       const guns = row.guns.length ? row.guns.slice(0, 2).map((g) => `${g.name}${dist(g)}`).join("   ·   ") : "NO HITS ON YOU";
       this.text(guns, bx, y + 96 * u, 600, 13 * u, "#c8d0d8");
       const right: string[] = [];
-      if (row.healed) right.push(`HEALED ${row.healed.ago.toFixed(1)} S BEFORE (${row.healed.item})`);
       if (row.left) right.push(`LEFT: ${poolText(row.left.shield)} SHIELD · ${poolText(row.left.health)} HEALTH`);
-      right.forEach((t, j) => this.text(t, x0 + w - 24 * u, y + 24 * u + j * 18 * u, 700, 12 * u, j === 0 && row.healed ? "#ffd23c" : DIM, "right"));
+      right.forEach((t, j) => this.text(t, x0 + w - 24 * u, y + 24 * u + j * 18 * u, 700, 12 * u, DIM, "right"));
     });
     this.text(`${r.closeKey} CLOSES`, x0 + w - 22 * u, y0 + h - 12 * u, 600, 12 * u, DIM, "right");
     c.restore();
@@ -2704,16 +2693,6 @@ export class Hud {
       c.fillRect(0, 0, this.w, this.h);
       this.text(`${s.sectors?.length ? "IN THE DECAY" : "OUTSIDE THE RING"}  ·  ${br.ring.damage} EVERY ${RING_TICK} S`, cx, this.h * 0.3, 700, 26 * u, "#ff9a4a", "center");
     }
-    // the heal in progress, and the kit
-    if (s.heal) {
-      const bw = 260 * u;
-      const y = this.h * 0.62;
-      c.fillStyle = "rgba(0,0,0,0.55)";
-      c.fillRect(cx - bw / 2, y, bw, 10 * u);
-      c.fillStyle = "#7ddc8a";
-      c.fillRect(cx - bw / 2, y, bw * s.heal.progress, 10 * u);
-      this.text(s.heal.item.toUpperCase(), cx, y - 8 * u, 700, 15 * u, WHITE, "center");
-    }
     // the card at the end
     if (br.placement !== null) {
       const won = br.placement === 1;
@@ -2774,36 +2753,14 @@ export class Hud {
     });
   }
 
-  /** the heal kit, bottom left over the bars: what is left of each */
+  /** the wheels, the inventory and the captions (the heal kit's line and its wheel went with the heals: Milestone 523) */
   private drawKit(s: HudState, u: number): void {
-    // SpeedKills carries no heals: no rows for them, only the wheels,
-    // the inventory and the captions, which the legacy path left undrawn while alive in a match (Phase 20 A6)
-    if (this.layout) {
-      this.drawHealWheel(s, u);
-      this.drawEmoteWheel(s, u);
-      this.drawPingWheel(s, u);
-      this.drawInventory(s, u);
-      this.drawCaptions(s, u);
-      return;
-    }
-    if (!s.kit) {
-      this.drawHealWheel(s, u);
     this.drawEmoteWheel(s, u);
     this.drawPingWheel(s, u);
     this.drawInventory(s, u);
     this.drawCaptions(s, u);
-      return;
-    }
-    const x = 34 * u + 350 * u;
-    const y = this.h - 52 * u;
-    const short: Record<string, string> = { cell: "CELL", battery: "BATT", syringe: "SYR", medkit: "MED", phoenix: PHOENIX_SHORT };
-    const parts = ["cell", "battery", "syringe", "medkit", "phoenix"].filter((k) => (s.kit?.[k] ?? 0) > 0 || k === "cell" || k === "syringe").map((k) => `${short[k]} ${s.kit?.[k] ?? 0}`);
-    const any = Object.values(s.kit).some((n) => n > 0);
-    this.text(`${s.healKey ?? "4"}  ${parts.join("  ")}`, x, y, 700, 13 * u, any ? DIM : "rgba(154,164,173,0.4)");
-    this.drawHealWheel(s, u);
   }
 
-  /** the heal wheel: the five heals round the crosshair, the one pointed at lit, a count on each */
   /**
    * The captions, down the left above the vitals: what was heard, which way it
    * came from and roughly how far. Read left to right the way a line of text
@@ -2898,8 +2855,7 @@ export class Hud {
         yy += 19 * u;
       }
     };
-    col("HEALS", inv.heals, x0 + 24 * u);
-    col("AMMO", inv.ammo, x0 + 24 * u + 200 * u);
+    col("AMMO", inv.ammo, x0 + 24 * u);
     this.text("HOLD TAB", this.w / 2, y0 + h - 18 * u, 700, 12 * u, DIM, "center");
   }
 
@@ -2930,35 +2886,6 @@ export class Hud {
       this.text(name, x, y + 5 * u, 700, 12 * u, on ? "#ffd23c" : WHITE, "center");
     });
     this.text("MOVE TO AN EMOTE, LET GO TO PLAY IT", cx, cy + R + 70 * u, 700, 13 * u, DIM, "center");
-  }
-
-  private drawHealWheel(s: HudState, u: number): void {
-    const w = s.healWheel;
-    if (!w) return;
-    const c = this.ctx;
-    const cx = this.w / 2;
-    const cy = this.h / 2;
-    const R = 120 * u;
-    c.fillStyle = "rgba(0,0,0,0.35)";
-    c.beginPath();
-    c.arc(cx, cy, R + 50 * u, 0, Math.PI * 2);
-    c.fill();
-    w.items.forEach((it, i) => {
-      const a = (i / w.items.length) * Math.PI * 2;
-      const x = cx + Math.sin(a) * R;
-      const y = cy - Math.cos(a) * R;
-      const on = w.pick === it.id;
-      c.fillStyle = on ? "rgba(125,220,138,0.35)" : "rgba(8,10,12,0.75)";
-      c.beginPath();
-      c.arc(x, y, 36 * u, 0, Math.PI * 2);
-      c.fill();
-      c.strokeStyle = on ? "#7ddc8a" : "rgba(255,255,255,0.25)";
-      c.lineWidth = 2 * u;
-      c.stroke();
-      this.text(it.name.toUpperCase(), x, y - 2 * u, 700, 12 * u, it.count > 0 ? WHITE : DIM, "center");
-      this.text(`${it.count}`, x, y + 16 * u, 700, 16 * u, it.count > 0 ? (on ? "#7ddc8a" : WHITE) : RED, "center");
-    });
-    this.text("MOVE TO AN ITEM, LET GO TO USE IT", cx, cy + R + 70 * u, 700, 13 * u, DIM, "center");
   }
 
   private drawStats(s: HudState, u: number): void {

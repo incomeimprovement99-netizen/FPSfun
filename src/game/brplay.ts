@@ -48,8 +48,8 @@ export interface ReachRow {
   /** how far away it is, flat, in metres */
   dist: number;
   /**
-   * Nothing to gain from it: ammo neither of your guns takes, a heal your kit
-   * is already full of, a magazine no better than the one on your gun. Drawn
+   * Nothing to gain from it: ammo neither of your guns takes, or more of a
+   * type than you have room for. Drawn
    * grey, and the hold steps over it rather than filling your hands with it.
    */
   dim: boolean;
@@ -72,16 +72,13 @@ export interface ReachHud {
 
 /**
  * What you carry, which the walk-over pickup and the grey-out both need:
- * which ammo types your guns take, how many more of each heal your kit has
- * room for, and the magazine level you already have. BrPlay asks for it once
+ * which ammo types your guns take and how much more of each fits. BrPlay asks for it once
  * a frame and simply does neither of those two things without it, so the
  * press-to-take path never depends on it being wired up.
  */
 export interface CarryState {
   /** the ammo types your guns take ("light", "heavy", "sniper", "shotgun", "energy") */
   ammo: string[];
-  /** how many more of each heal fit in the kit, by its id; 0 or missing is full */
-  healRoom: Record<string, number>;
   /** how many more rounds of each ammo type fit, by type; missing is no limit */
   ammoRoom?: Record<string, number>;
   /** SpeedKills: the hack in each slot, by id (a hold leaves a core that would swap it) */
@@ -120,11 +117,10 @@ const CYCLE = LOOTING.cycle as Action;
 
 /**
  * Would walking over this pick it up, with no press at all? Ammo for a gun
- * you actually carry, and the small heals you have room for: refills, the
- * things you would take every single time. A gun, an attachment or a helmet
- * is a choice, so those still wait for the key.
+ * you actually carry: a refill, the thing you would take every single time. A
+ * gun or a hack core is a choice, so those still wait for the key.
  *
- * A heal is only swept when the whole stack fits. Taking half of one puts the
+ * A stack is only swept when the whole of it fits. Taking part of one puts the
  * remainder back down at your feet (src/main.ts applyLoot), and a remainder
  * lying inside the sweep is picked at once and put back again: better to
  * leave the stack alone and let the player press for it.
@@ -132,9 +128,8 @@ const CYCLE = LOOTING.cycle as Action;
 export function autoTakes(item: LootItem, carry: CarryState | null): boolean {
   if (!carry) return false;
   if (!(LOOTING.autoKinds as string[]).includes(item.kind)) return false;
-  // ammo as heals: swept only when the whole stack fits (see above)
+  // swept only when the whole stack fits (see above)
   if (item.kind === "ammo") return carry.ammo.includes(item.id) && (carry.ammoRoom?.[item.id] ?? Infinity) >= item.n;
-  if (item.kind === "heal") return (LOOTING.autoHeals as string[]).includes(item.id) && (carry.healRoom[item.id] ?? 0) >= item.n;
   return false;
 }
 
@@ -142,7 +137,6 @@ export function autoTakes(item: LootItem, carry: CarryState | null): boolean {
 export function nothingToGain(item: LootItem, carry: CarryState | null): boolean {
   if (!carry) return false;
   if (item.kind === "ammo") return !carry.ammo.includes(item.id) || (carry.ammoRoom?.[item.id] ?? Infinity) <= 0;
-  if (item.kind === "heal") return (carry.healRoom[item.id] ?? 0) <= 0;
   return false;
 }
 
@@ -251,7 +245,6 @@ export class BrPlay {
    *   const held = loadout.slots.filter((s) => !s.empty);
    *   brPlay.carrying = () => ({
    *     ammo: held.map((s) => ammoTypeOf(s.id)),                    // src/game/ammo.ts
-   *     healRoom: Object.fromEntries(HEAL_ORDER.map((h) => [h, HEALS[h].stack - kit.items[h]])),
    *   });
    */
   carrying: (() => CarryState | null) | null = null;
@@ -494,7 +487,7 @@ export class BrPlay {
     // walk over it: the refills come up on their own, which is what turns a
     // landing from dozens of presses into running through the rooms
     // The keys first, the taking after: on the host a take runs main.ts's
-    // applyLoot then and there, and a heal that does not all fit is put back
+    // applyLoot then and there, and a stack that does not all fit is put back
     // at your feet (dropLoot), which adds to the very map this walks. A Map
     // hands out entries added while it is being iterated, so taking inside
     // the loop would meet that remainder, weigh it against the same

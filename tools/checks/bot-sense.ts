@@ -158,7 +158,7 @@ class Floor implements BotLootSource {
 
 const gun = (id: string, rarity: string): BotLootItem => ({ kind: "weapon", id, rarity, n: 1 });
 const mod = (id: string, rarity: string): BotLootItem => ({ kind: "attach", id, rarity, n: 1 });
-const heal = (id: string): BotLootItem => ({ kind: "heal", id, rarity: "common", n: 2 });
+const helmet = (id: string): BotLootItem => ({ kind: "helmet", id, rarity: "legendary", n: 1 });
 const ammo = (): BotLootItem => ({ kind: "ammo", id: "light", rarity: "common", n: 60 });
 
 /** a place: plenty on the floor and all of it close together, like a room with loot in it */
@@ -172,9 +172,6 @@ function richFloor(): Floor {
     mod("optic_ranged_hcog", "rare"),
     mod("barrel_stabilizer_l2", "rare"),
     mod("stock_tactical_l2", "rare"),
-    heal("cell"),
-    heal("syringe"),
-    heal("battery"),
     ammo(),
     ammo(),
     ammo(),
@@ -191,7 +188,7 @@ function richFloor(): Floor {
 function poorFloor(): Floor {
   const f = new Floor();
   f.add(38, 0, gun("semipistol", "common"));
-  f.add(-20, 34, heal("cell"));
+  f.add(-20, 34, helmet("gold"));
   f.add(0, -40, ammo());
   return f;
 }
@@ -237,9 +234,8 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   check("its kit only ever goes up", rich.scores.every((s, i) => i === 0 || s >= rich.scores[i - 1]), rich.scores.join(" -> "));
   check("it is better armed at the end than at the start", rich.scores[rich.scores.length - 1] > rich.scores[0], `${rich.scores[0]} -> ${rich.scores[rich.scores.length - 1]}`);
   check("it kits up a shield as it goes", rich.looter.kit.armor > LOOTING.startArmor, `tier ${rich.looter.kit.armor}`);
-  check("it carries heals it found", rich.looter.kit.cells + rich.looter.kit.syringes > 0, `${rich.looter.kit.cells} cells, ${rich.looter.kit.syringes} syringes`);
-  // As it was, the nearest first, it took a syringe, a battery, two frags (there were
-  // grenades then) and the helmet round it before its first gun, 29 s in; it reaches
+  // As it was, the nearest first, it took a syringe, a battery (there were heals
+  // then), two frags (and grenades) and the helmet round it before its first gun, 29 s in; it reaches
   // `enough` at the same time either way.
   const firstGun = (() => {
     const l = new BotLooter("normal");
@@ -257,10 +253,10 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const withGun = (() => {
     const f = new Floor();
     f.add(3, 0, gun("r97", "common"));
-    f.add(-4, 0, heal("cell"));
+    f.add(-4, 0, helmet("gold"));
     return loot("normal", f, 20).looter;
   })();
-  check("and armed it still picks up a heal near it", withGun.armed && withGun.kit.cells > 0, `${withGun.kit.cells}`);
+  check("and armed it still picks up a helmet near it", withGun.armed && withGun.kit.taken === 2, `${withGun.kit.taken} taken`);
   check(
     "the one that landed in a field is worse off for it",
     rich.looter.score > poor.looter.score,
@@ -291,14 +287,13 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   check("but one that has found no gun keeps looking rather than going unarmed", !bare.looter.armed && !bare.looter.done(upAt));
   check("and it gives up in the end rather than following the floor for ever", bare.looter.done(lootCfg.botSearch.hard * LOOTING.window * LOOTING.overtime + 1), `${LOOTING.overtime} windows`);
 
-  // A gun first. It took the nearest thing it wanted, and a heal or a helmet is a
+  // A gun first. It took the nearest thing it wanted, and a heal (when there were heals) or a helmet is a
   // rummage each: 60 s into real battle royales a bot in four still had no gun,
   // one on its floor 2 to 17 m off (the host migration check, 2026-09-29).
   const junkFirst = (): Floor => {
     const f = new Floor();
-    f.add(2, 0, heal("cell"));
-    f.add(0, 3, heal("syringe"));
-    f.add(-3, 1, { kind: "helmet", id: "gold", rarity: "legendary", n: 1 });
+    f.add(2, 0, helmet("gold"));
+    f.add(0, 3, helmet("red"));
     f.add(12, 0, gun("r97", "common"));
     return f;
   };
@@ -312,9 +307,9 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
     const g = first.goal;
     if (g && !first.holding) at1.lerp(g, Math.min(1, (DIFFICULTY.normal.speed * 0.05) / Math.max(1e-6, at1.distanceTo(g))));
   }
-  check("with no gun, a gun first: past two heals and a helmet nearer to it", took[0] === "weapon", took.join(", ") || "nothing");
+  check("with no gun, a gun first: past two helmets nearer to it", took[0] === "weapon", took.join(", ") || "nothing");
   const armedNext = loot("normal", junkFirst(), 30);
-  check("and with one, the rest of the floor as before", armedNext.looter.armed && armedNext.looter.kit.cells > 0, `${armedNext.looter.kit.taken} taken`);
+  check("and with one, the rest of the floor as before", armedNext.looter.armed && armedNext.looter.kit.taken > 1, `${armedNext.looter.kit.taken} taken`);
 
   // Hurried (the ring, someone in its sights), a bot used to stop looting outright,
   // and most of those still unarmed a minute in were outside the next circle
@@ -322,7 +317,7 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const hurried = (gunAt: number): { goal: number | null; took: string | null } => {
     const l = new BotLooter("hard");
     const f = new Floor();
-    f.add(1.5, 0, heal("cell"));
+    f.add(1.5, 0, helmet("gold"));
     f.add(gunAt, 0, gun("r97", "common"));
     const at = new THREE.Vector3();
     let took: string | null = null;
@@ -338,14 +333,14 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   };
   const nearGun = hurried(LOOTING.hurrySearch - 5);
   const farGun = hurried(LOOTING.hurrySearch + 10);
-  check("hurried with no gun, it goes for a gun near its way and takes that, not the heal at its feet", nearGun.took === "weapon" && nearGun.goal === LOOTING.hurrySearch - 5, JSON.stringify(nearGun));
+  check("hurried with no gun, it goes for a gun near its way and takes that, not the helmet at its feet", nearGun.took === "weapon" && nearGun.goal === LOOTING.hurrySearch - 5, JSON.stringify(nearGun));
   check("but not one further off than hurrySearch, nor anything else", farGun.goal === null && farGun.took === null, JSON.stringify(farGun));
   const armedHurry = new BotLooter("hard");
   const armedFloor = new Floor();
   armedFloor.add(1, 0, gun("r97", "common"));
   for (let t = 0; t < 6; t += 0.05) armedHurry.step(t, new THREE.Vector3(), armedFloor, false);
   const gunNow = armedHurry.armed;
-  armedFloor.add(2, 0, heal("cell"));
+  armedFloor.add(2, 0, helmet("gold"));
   let armedGoal = false;
   for (let t = 6; t < 10; t += 0.05) {
     armedHurry.step(t, new THREE.Vector3(), armedFloor, true);
@@ -390,7 +385,7 @@ console.log("\nWhat a bot would rather have (bots.ts BotLooter.wants)");
   check("a helmet is worth a shield tier", l.wants({ kind: "helmet", id: "gold", rarity: "legendary", n: 1 }));
   const before = l.kit.taken;
   const gone = new Floor();
-  const key = gone.add(0, 0, heal("cell"));
+  const key = gone.add(0, 0, helmet("red"));
   gone.take(key);
   check("a drop someone else got first is nothing taken", gone.take(key) === null && l.kit.taken === before);
 }

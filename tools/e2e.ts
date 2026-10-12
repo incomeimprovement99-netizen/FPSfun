@@ -926,7 +926,7 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   // (a bot of a duo knocked with its mate up, down on the guest's screen and up once revived: SpeedKills has no knockdown)
   // a bot reloading on the host reloads on the guest's screen too, and from empty (act code 9): the host sent its bots'
   // place alone, so a guest's figures of them never reloaded, healed or aimed in
-  const rel = await ev<number>(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.aboard && !x.down && !x.bot.healing); if (!b) return -1; b.bot.mag.until = 1e12; return b.bot.remote.id; })()`);
+  const rel = await ev<number>(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.aboard && !x.down); if (!b) return -1; b.bot.mag.until = 1e12; return b.bot.remote.id; })()`);
   const relSeen = rel >= 0 && (await guest.waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${rel}); const s = r?.samples[r.samples.length - 1]; return !!s && s.act === "reload" && s.reloadEmpty === true; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false));
   await ev(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.remote.id === ${rel}); if (b) b.bot.mag.until = 0; })()`);
   check("squad: a bot reloading on the host is seen reloading from empty on the guest's screen", relSeen, JSON.stringify({ rel, relSeen }));
@@ -1366,14 +1366,14 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
     }
     if (first) r.player.teleport(first.x, 0, first.z, 0); })()`);
   const crouched = await page.waitForFunction("window.__range.duel().bots[0].crouching", { polling: 50, timeout: 12000 }).then(() => true, () => false);
-  check("tiers: the elite bot crouches while it fires", crouched, crouched ? "" : JSON.stringify({ ...(await ev<object>(page, `(() => { const b = window.__range.duel().bots[0]; const p = window.__range.player.pos; const y = b.dummy.group.rotation.y; const dx = p.x - b.pos.x, dz = p.z - b.pos.z; return { sees: b.sees(p), seenAgo: b.lastSeen ? +(performance.now() / 1000 - b.lastSeen.at).toFixed(1) : null, facingDeg: Math.round(Math.acos(Math.max(-1, Math.min(1, (Math.sin(y) * dx + Math.cos(y) * dz) / Math.hypot(dx, dz)))) * 180 / Math.PI), d: +Math.hypot(dx, dz).toFixed(1), healing: !!b.healing, cover: !!b.cover }; })()`)), where: await where(), carried }));
+  check("tiers: the elite bot crouches while it fires", crouched, crouched ? "" : JSON.stringify({ ...(await ev<object>(page, `(() => { const b = window.__range.duel().bots[0]; const p = window.__range.player.pos; const y = b.dummy.group.rotation.y; const dx = p.x - b.pos.x, dz = p.z - b.pos.z; return { sees: b.sees(p), seenAgo: b.lastSeen ? +(performance.now() / 1000 - b.lastSeen.at).toFixed(1) : null, facingDeg: Math.round(Math.acos(Math.max(-1, Math.min(1, (Math.sin(y) * dx + Math.cos(y) * dz) / Math.hypot(dx, dz)))) * 180 / Math.PI), d: +Math.hypot(dx, dz).toFixed(1), cover: !!b.cover }; })()`)), where: await where(), carried }));
   const dodge = await ev<boolean>(page, `(() => { const b = window.__range.duel().bots[0]; const before = b.strafeSign; b.dummy.hit(0, "body", 5, 1, 1, b.pos.clone().setY(1.2)); return new Promise((r) => setTimeout(() => r(b.strafeSign !== before), 400)); })()`);
   check("tiers: hit, it reverses its strafe (hard and elite always dodge)", dodge);
   // low: it finds cover out of your sight and heals there
   await ev(page, `(() => { const b = window.__range.duel().bots[0]; b.diff = { ...b.diff, keep: 6 }; b.dummy.shield = 0; b.dummy.health = 30; })()`);
   const covered = await page.waitForFunction("!!window.__range.duel().bots[0].cover", { polling: 100, timeout: 6000 }).then(() => true, () => false);
   check("tiers: low, it picks a spot out of your sight", covered, covered ? "" : JSON.stringify({ where: await where(), carried }));
-  const healed = await page.waitForFunction("(() => { const b = window.__range.duel().bots[0]; return b.dummy.health + b.dummy.shield > 30 || !!b.healing; })()", { polling: 100, timeout: 12000 }).then(() => true, () => false);
+  const healed = await page.waitForFunction("(() => { const b = window.__range.duel().bots[0]; return b.dummy.health + b.dummy.shield > 30; })()", { polling: 100, timeout: 12000 }).then(() => true, () => false);
   const hidden = await ev<boolean>(page, "(() => { const b = window.__range.duel().bots[0]; return !b.sees(window.__range.player.pos); })()");
   // (out of your sight was the legacy game's heal, an item behind cover; a SpeedKills bot heals with its HEAL hack, an
   // area, where it stands)
@@ -1476,7 +1476,7 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
       step(); })`,
   );
   const pos = await ev<{ x: number; z: number; sh: number }>(page, "(() => { const b = window.__range.duel().avatars[0].group.position; return { x: b.x, z: b.z, sh: window.__range.duel().shield }; })()");
-  check("bots: the bot closes in and lands a shot", shot, `bot at ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}, your shield ${pos.sh}` + (shot ? "" : " " + JSON.stringify(await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; const pl = window.__range.player.pos; return { y: b.pos.y, you: [pl.x.toFixed(1), pl.z.toFixed(1)], sees: b.sees(pl), crouch: b.crouching, cover: !!b.cover, heard: !!b.heard, seen: b.lastSeen && [b.lastSeen.pos.x.toFixed(1), b.lastSeen.pos.z.toFixed(1)], slideDir: b.slideDir, joltLeft: b.joltLeft, healing: !!b.healing }; })()`))));
+  check("bots: the bot closes in and lands a shot", shot, `bot at ${pos.x.toFixed(1)}, ${pos.z.toFixed(1)}, your shield ${pos.sh}` + (shot ? "" : " " + JSON.stringify(await ev(page, `(() => { const d = window.__range.duel(); const b = d.bots[0]; const pl = window.__range.player.pos; return { y: b.pos.y, you: [pl.x.toFixed(1), pl.z.toFixed(1)], sees: b.sees(pl), crouch: b.crouching, cover: !!b.cover, heard: !!b.heard, seen: b.lastSeen && [b.lastSeen.pos.x.toFixed(1), b.lastSeen.pos.z.toFixed(1)], slideDir: b.slideDir, joltLeft: b.joltLeft }; })()`))));
   const off = await ev<number>(page, `(() => { const b = window.__range.duel().bots[0]; return Math.hypot(b.pos.x - ${start.x}, b.pos.z - ${start.z}); })()`);
   check("bots: it fights on the move, off where it stood when it saw you", off > 1, `${off.toFixed(1)} m${start.placed ? "" : " (no spot in its sight was found)"}`);
   const snd = await ev<{ played: number; voices: number }>(page, "({ played: window.__range.audio.played, voices: window.__range.audio.voiceCount })");
@@ -1507,9 +1507,6 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   await page.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
   const killer = await ev<{ name: string; gun: string; full: number }>(page, "(() => { const d = window.__range.duel(); const b = d.bots[0]; return { name: d.nameFor(b.remote.id), gun: b.weapon.id, full: b.dummy.shieldMax }; })()");
   // your two hits on it first (a head and a body, 12 m), then almost nothing left for its next round to take.
-  // It keeps no heals: a hard bot that heals behind cover is back at full by the kill, and the recap below
-  // reads what it really has left, so the check would be measuring the heal rather than your damage.
-  await ev(page, "(() => { const b = window.__range.duel().bots[0]; b.kit.cell = 0; b.kit.syringe = 0; b.healing = null; })()");
   await ev(page, "window.__range.landHit(1, 20, true, 'r97', 12)");
   await ev(page, "window.__range.landHit(1, 15, false, 'r97', 12)");
   await ev(page, "(() => { const d = window.__range.duel(); d.shield = 0; d.health = 3; })()");
@@ -1575,7 +1572,6 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   check(`recap: its gun (${gunName}) and the distance`, !!row && row.guns.length > 0 && row.guns[0].name.toUpperCase().includes(gunName.toUpperCase()) && (row.guns[0].near ?? 0) > 1, JSON.stringify(row?.guns));
   check(`recap: what it had left (${killer.full} + 100 less your 35)`, !!row?.left && row.left.shield + row.left.health === killer.full + 100 - 35, JSON.stringify(row?.left));
   await ev(page, "window.__range.closeRecap()");
-  // the bot heals when it has had nobody to shoot for a while: your next life's recap would say so
 
   check("recap: it closes", (await ev<unknown>(page, "window.__range.recap()")) === null);
   await ev(page, "window.__range.duel().leave()");
@@ -2839,8 +2835,8 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `(() => { const s = document.getElementById("padPreset"); s.value = "bumperJumper"; s.dispatchEvent(new Event("change")); })()`);
   const bj = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0]]; })()");
   await ev(page, `(() => { const s = document.getElementById("padPreset"); s.value = "default"; s.dispatchEvent(new Event("change")); })()`);
-  const df = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0], b[5], b[12], b[15]]; })()");
-  check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, ping, heal, grenade)", bj.join() === "jump,ability" && df.join() === "ability,jump,ping,heal,grenade", `${bj} / ${df}`);
+  const df = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0], b[5], b[12] ?? 'nothing', b[15]]; })()");
+  check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, ping, nothing on D-pad up since the heal went, the utility hack)", bj.join() === "jump,ability" && df.join() === "ability,jump,ping,nothing,grenade", `${bj} / ${df}`);
   await page.close();
 }
 
@@ -3734,7 +3730,7 @@ async function skWholeNumbers(page: Page): Promise<void> {
       for (let i = 0; i < 3; i++) h.addDamage(at.clone(), 11.16, "#ff4a3d", false, now, key);
       h.addDamage(at.clone().add(new r.THREE.Vector3(1.5, 0, 0)), 101 / 3, "#ff4a3d", true, now, {});
       numbers = h.damageNumbers.slice(kept).map((n) => ({ amount: n.amount, text: n.text }));
-      const row = { id: 101, name: "BOT GRIM", killer: true, dealt: { damage: 40.66666666666667, hits: 3, heads: 0 }, taken: { damage: 531.16, hits: 3, heads: 0 }, guns: [{ name: "STRYDER", hits: 3, damage: 531.16, near: 12.34, far: 12.34 }], healed: null, left: { shield: 0.4, health: 0.3 } };
+      const row = { id: 101, name: "BOT GRIM", killer: true, dealt: { damage: 40.66666666666667, hits: 3, heads: 0 }, taken: { damage: 531.16, hits: 3, heads: 0 }, guns: [{ name: "STRYDER", hits: 3, damage: 531.16, near: 12.34, far: 12.34 }], left: { shield: 0.4, health: 0.3 } };
       h.draw(now, r.camera, { ...base, killcam: null, course: null, drill: null, trainer: null, tour: null, hacks: null, ability: null,
         stats: { ...base.stats, damage: 135.85606666673223, headshots: 4, lastTtk: null },
         vitals: { ...(base.vitals ?? {}), shield: 18.84, shieldMax: 50, health: 42.00000000000001, healthMax: 100 },

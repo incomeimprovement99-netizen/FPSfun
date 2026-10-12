@@ -1,11 +1,11 @@
-// Knockdown shield tiers and backpack tiers (src/config/items.json,
-// src/game/kit.ts).
+// Knockdown shield tiers (src/config/items.json, src/game/kit.ts). The
+// backpack tiers were checked here too until the backpacks went with the heals
+// they carried (Milestone 523).
 //
-// Two of these numbers are published and the rest are ours, so this checks
+// Some of these numbers are published and the rest are ours, so this checks
 // two different things. The published ones are held to the source: the three
 // EVO knockdown sizes are 200 / 450 / 750 and have to agree with the copy
-// src/config/squad.json hands the down code, and a gold backpack has to give
-// a med kit and a battery a stack of 3 and a phoenix kit a stack of 2. The
+// src/config/squad.json hands the down code. The
 // rest is held to the shape the tiers promise: a ladder that never goes
 // backwards, a self-revive that is spent once and not once per knock, and a
 // channel that keeps nothing when it is interrupted, because each of those is
@@ -13,7 +13,7 @@
 //
 // Run on its own: npx tsx tools/checks/knockdown.ts. Also belongs inside
 // npm run verify.
-import { BACKPACKS, HEALS, KNOCK_ORDER, KNOCK_SHIELDS, Kit, Knockdown, PACK_ORDER, SELF_REVIVE, SHIELD_LEVELS } from "../../src/game/kit";
+import { KNOCK_ORDER, KNOCK_SHIELDS, Knockdown, SELF_REVIVE, SHIELD_LEVELS } from "../../src/game/kit";
 import itemsCfg from "../../src/config/items.json";
 import squadCfg from "../../src/config/squad.json";
 import lootCfg from "../../src/config/loot.json";
@@ -24,7 +24,7 @@ function check(label: string, ok: boolean, detail = ""): void {
   console.log(`${ok ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
 }
 
-console.log("\nKnockdown shields and backpacks");
+console.log("\nKnockdown shields");
 
 // ---------------------------------------------------------- the shield tiers
 
@@ -53,7 +53,7 @@ const withRevive = KNOCK_ORDER.filter((t) => KNOCK_SHIELDS[t].selfRevives > 0);
 check("gold is the only tier carrying a self-revive, and it carries one", withRevive.length === 1 && withRevive[0] === "gold" && KNOCK_SHIELDS.gold.selfRevives === 1, withRevive.join(", ") || "none");
 
 const rarities = Object.keys(lootCfg.rarity);
-const badRarity = [...KNOCK_ORDER.map((t) => KNOCK_SHIELDS[t].rarity), ...PACK_ORDER.map((t) => BACKPACKS[t].rarity)].filter((r) => !rarities.includes(r));
+const badRarity = KNOCK_ORDER.map((t) => KNOCK_SHIELDS[t].rarity).filter((r) => !rarities.includes(r));
 check("every tier names a rarity the loot table has", badRarity.length === 0, badRarity.join(", ") || rarities.join(", "));
 
 // ------------------------------------------------- the EVO level is the floor
@@ -150,67 +150,7 @@ check("and it gives back no more than being picked up does", SELF_REVIVE.health 
   check("a new life clears the shield, the revive and the raise", kd.looted === null && kd.selfLeft === 0 && kd.hp === 0 && !kd.up && kd.knock === -1);
 }
 
-// ------------------------------------------------------------- the backpacks
-
-check(
-  "four backpack tiers, and the order lists every one",
-  PACK_ORDER.length === Object.keys(BACKPACKS).length && PACK_ORDER.every((t) => t in BACKPACKS),
-  PACK_ORDER.join(", ")
-);
-
-check("white is the Season 28 starter kit, so it adds no room and the published stacks stand", Object.values(BACKPACKS.white.stack).every((n) => n === 0) && BACKPACKS.white.healTime === 1);
-
-{
-  // A tier that took room away from the one below it would make a pickup a
-  // punishment, which is the one thing a loot ladder must never be.
-  const shrank: string[] = [];
-  const slower: string[] = [];
-  const kit = new Kit();
-  for (let i = 1; i < PACK_ORDER.length; i++) {
-    const lo = BACKPACKS[PACK_ORDER[i - 1]];
-    const hi = BACKPACKS[PACK_ORDER[i]];
-    for (const k of Object.keys(lo.stack) as Array<keyof typeof lo.stack>) if (hi.stack[k] < lo.stack[k]) shrank.push(`${PACK_ORDER[i]}.${k}`);
-    if (hi.healTime > lo.healTime) slower.push(PACK_ORDER[i]);
-  }
-  check("no tier carries less than the one below it", shrank.length === 0, shrank.join(", ") || "room only grows");
-  check("and none of them heals slower than the one below it", slower.length === 0, slower.join(", ") || "time only falls");
-
-  // The published line: a gold backpack stacks med kits and batteries 3 and
-  // phoenix kits 2 (RESEARCH_PHASE_11 section 1). Purple gives the same room
-  // because Apex's level 3 and level 4 packs carry the same six slots.
-  kit.pack = "gold";
-  check("the published gold stacks: a med kit 3, a battery 3, a phoenix kit 2", kit.stackOf("medkit") === 3 && kit.stackOf("battery") === 3 && kit.stackOf("phoenix") === 2, `${kit.stackOf("medkit")} / ${kit.stackOf("battery")} / ${kit.stackOf("phoenix")}`);
-  kit.pack = "purple";
-  check("and purple carries the same room, as it does in Apex", kit.stackOf("medkit") === 3 && kit.stackOf("battery") === 3 && kit.stackOf("phoenix") === 2, `${kit.stackOf("medkit")} / ${kit.stackOf("battery")} / ${kit.stackOf("phoenix")}`);
-}
-
-{
-  const kit = new Kit();
-  kit.fill("empty");
-  check("a life starts in the white pack, at the heals' own stacks", kit.pack === "white" && kit.stackOf("cell") === HEALS.cell.stack && kit.stackOf("medkit") === HEALS.medkit.stack, `${kit.stackOf("cell")} cells, ${kit.stackOf("medkit")} med kits`);
-  check("the white pack takes nothing off a heal's published seconds", kit.healTime("medkit") === HEALS.medkit.time && kit.healTime("cell") === HEALS.cell.time, `${kit.healTime("medkit")} s med kit`);
-  const before = kit.add("cell", 99);
-  check("cells fill to the white pack's room and no further", before === HEALS.cell.stack && kit.items.cell === HEALS.cell.stack, `${kit.items.cell} cells`);
-  check("and a full stack shows no room, which is what the walk-over sweep reads", kit.room.cell === 0 && kit.room.medkit === HEALS.medkit.stack, `${kit.room.cell} cells, ${kit.room.medkit} med kits`);
-  check("a better pack goes on", kit.takePack("purple") && kit.pack === "purple");
-  check("and the room it opened is room the sweep can now use", kit.room.cell === BACKPACKS.purple.stack.cell && kit.add("cell", 99) === BACKPACKS.purple.stack.cell, `${kit.items.cell} cells`);
-  check("a worse pack is left lying there", !kit.takePack("blue") && kit.pack === "purple");
-  check("the gold pack takes a quarter off a heal", kit.takePack("gold") && Math.abs(kit.healTime("medkit") - HEALS.medkit.time * 0.75) < 1e-9, `${kit.healTime("medkit")} s med kit`);
-  check("what the pack held is still held after the swap", kit.items.cell === kit.stackOf("cell"), `${kit.items.cell} cells`);
-  kit.fill("brStart");
-  check("and a new life is back in the white pack", kit.pack === "white" && kit.items.cell === itemsCfg.brStart.cell, `${kit.items.cell} cells`);
-}
-
-{
-  // The arena's fixed kit is handed out with no loot in the mode at all, so
-  // it has to fit inside the pack a life starts in or two of it would vanish.
-  const kit = new Kit();
-  kit.fill("kit");
-  const over = (Object.keys(kit.items) as Array<keyof typeof kit.items>).filter((k) => kit.items[k] < itemsCfg.kit[k]);
-  check("the arena's fixed kit fits in the pack a life starts with", over.length === 0, over.join(", ") || "all five fit");
-}
-
-check("the config carries its own notes", Boolean(itemsCfg._knockdown && itemsCfg._selfRevive && itemsCfg._backpacks && itemsCfg._healTime));
+check("the config carries its own notes", Boolean(itemsCfg._knockdown && itemsCfg._selfRevive));
 
 export const knockdownFails = fails;
 if (process.argv[1]?.includes("knockdown")) console.log(fails ? `\n${fails} FAILED` : "\nknockdown PASS");

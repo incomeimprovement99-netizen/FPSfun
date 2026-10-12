@@ -165,7 +165,6 @@ import { Duel, HEALTH_MAX, SHIELD_MAX, type DuelHud, type LocalState, type Remot
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
-import { HEAL_CODES } from "./recap";
 import brmapCfg from "../config/brmap.json";
 /** bot squads acting as squads (bots.json squads) */
 const SQUADS = botsCfg.squads;
@@ -430,7 +429,6 @@ interface BrSnap {
     as: boolean;
     al: boolean;
     k: BotKit;
-    c: { cell: number; syringe: number };
     dn: [number, number] | null;
     rv: number;
     dt: [number, number];
@@ -458,10 +456,9 @@ function readBrSnap(v: unknown): BrSnap | null {
     if (!r || typeof r !== "object") return false;
     const x = r as Record<string, unknown>;
     const k = x.k as Record<string, unknown> | null;
-    const c = x.c as Record<string, unknown> | null;
     return num(x.i) && x.i >= 0 && x.i < 64 && num(x.t) && num(x.tm) && num(x.sl) && num(x.n) && num(x.g) && numOrNull(x.ar) && typeof x.as === "boolean" && typeof x.al === "boolean"
       && !!k && typeof k === "object" && (k.gunId === null || typeof k.gunId === "string") && num(k.gun) && num(k.mag) && num(k.armor) && !!k.mods && typeof k.mods === "object"
-      && !!c && num(c.cell) && num(c.syringe) && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
+      && (x.dn === null || x.dn === undefined || (Array.isArray(x.dn) && x.dn.length === 2 && x.dn.every(num))) && num(x.rv)
       && Array.isArray(x.dt) && x.dt.length === 2 && x.dt.every(num);
   }).map((r) => {
     const g = (r as { gd?: unknown }).gd;
@@ -544,14 +541,15 @@ const PUFF_GEO = new THREE.SphereGeometry(brCfg.pod.trail.radius, 8, 6);
 
 const BR_BOUNDS_WORLD = { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF };
 const RARITIES = ["common", "rare", "epic", "legendary"];
-// every kind loot.ts can make: backpacks and knockdown shields were left out, so a dropped one sent over the wire was thrown away
-const KINDS = ["weapon", "ammo", "heal", "attach", "hopup", "helmet", "echo", "keycard", "backpack", "knockdown", "hack"];
+// every kind loot.ts can make (a kind left out here is thrown away when it comes over the wire); typed, so a kind
+// loot.ts no longer makes is an error here rather than a name nobody checks
+const KINDS: readonly LootKind[] = ["weapon", "ammo", "attach", "hopup", "helmet", "echo", "keycard", "knockdown", "hack"];
 
 /** a loot item from another browser, checked field by field */
 function wireItem(x: unknown): LootItem | null {
   const o = x as Record<string, unknown> | null;
   if (!o || typeof o !== "object") return null;
-  if (typeof o.kind !== "string" || !KINDS.includes(o.kind) || typeof o.id !== "string" || o.id.length > 40) return null;
+  if (typeof o.kind !== "string" || !(KINDS as readonly string[]).includes(o.kind) || typeof o.id !== "string" || o.id.length > 40) return null;
   const n = typeof o.n === "number" && Number.isFinite(o.n) ? Math.max(0, Math.min(500, Math.floor(o.n))) : 1;
   const rarity = typeof o.rarity === "string" && RARITIES.includes(o.rarity) ? (o.rarity as Rarity) : "common";
   const it: LootItem = { kind: o.kind as LootKind, id: o.id, n, rarity };
@@ -885,11 +883,6 @@ export class BrMatch extends Duel {
       this.onRemoteFx?.("jolt", bot.remote.id, a, b);
       this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
     };
-    // a bot's finished heal: the recap's "healed recently", here and on the squad's screens
-    bot.onHealed = (item) => {
-      this.onHealSeen?.(bot.remote.id, item);
-      this.broadcast({ t: "fx", from: bot.remote.id, k: "heal", n: HEAL_CODES.indexOf(item) });
-    };
     return bot;
   }
 
@@ -1220,15 +1213,13 @@ export class BrMatch extends Duel {
     const out: LootItem[] = [];
     if (IS_SK && PROFILE.loot?.carePackage) {
       // SpeedKills: its own guns and hack cores, fused past what its floor gives (speedkills.json
-      // loot.carePackage). The legacy gun, helmet, batteries and phoenix below are nothing it can use.
+      // loot.carePackage). The legacy gun and helmet below are nothing it can use.
       out.push(...speedkillsPackage(Math.random));
     } else {
       const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
       out.push({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4 });
       const extras: LootItem[] = [
         { kind: "helmet", id: "gold", n: 1, rarity: "legendary" },
-        { kind: "heal", id: "phoenix", n: 1, rarity: "legendary" },
-        { kind: "heal", id: "battery", n: 2, rarity: "epic" },
       ];
       while (out.length < LOOT.carePackageContents) out.push(extras.splice(Math.floor(Math.random() * extras.length), 1)[0]);
     }
@@ -2123,7 +2114,6 @@ export class BrMatch extends Duel {
         as: !!b.armedShown,
         al: b.bot.alive,
         k: { ...b.bot.lootKit, mods: { ...b.bot.lootKit.mods } },
-        c: b.bot.carried,
         dn: b.down ? [b.down.by, b.down.bleed] : null,
         rv: b.reviving,
         dt: [b.dropTo.x, b.dropTo.z],
@@ -2165,7 +2155,7 @@ export class BrMatch extends Duel {
       const spawn: Spawn = last ? { x: last.x, z: last.z, yaw: last.yaw } : { x: row.dt[0], z: row.dt[1], yaw: 0 };
       const bot = this.makeBot(row.i, WIRE_TIERS[row.t] ?? "normal", spawn, row.gd ? VAULT.guardName : undefined);
       if (last) bot.pos.y = last.y;
-      bot.restoreKit(row.k, row.c);
+      bot.restoreKit(row.k);
       if (!this.startLoot || row.as) bot.dummy.setGunVisible(true);
       const b: BrBot = { bot, node: row.n, goal: row.g, armedAt: rt(row.ar), armedShown: row.as, landed: true, team: row.tm, slot: row.sl, dropTo: { x: row.dt[0], z: row.dt[1] }, jumpAt: Infinity, down: null, reviving: row.rv, guard: row.gd ? { x: row.gd[0], z: row.gd[1] } : undefined };
       if (r) {
@@ -2224,12 +2214,12 @@ export class BrMatch extends Duel {
   private vaultStocked = false;
   private vaultMarkAt = 0;
 
-  /** the host: the vault's guard, at its post with its gun, its armour and a few heals */
+  /** the host: the vault's guard, at its post with its gun and its armour */
   private makeGuard(i: number): void {
     const v = this.map.vault;
     const spawn: Spawn = { x: v.post.x, z: v.post.z, yaw: 180 };
     const bot = this.makeBot(i, VAULT.guardTier as BotTier, spawn, VAULT.guardName);
-    bot.restoreKit({ gunId: VAULT.guardGun, gun: 3, mag: 3, mods: {}, armor: 3, cells: 2, syringes: 2, taken: 0 }, { cell: 2, syringe: 2 });
+    bot.restoreKit({ gunId: VAULT.guardGun, gun: 3, mag: 3, mods: {}, armor: 3, taken: 0 });
     bot.dummy.setGunVisible(true);
     const node = this.nearestNode(spawn.x, spawn.z);
     this.bots.push({ bot, node, goal: node, armedAt: 0, armedShown: true, landed: true, team: -1, slot: 0, dropTo: { x: spawn.x, z: spawn.z }, jumpAt: Infinity, down: null, reviving: 0, guard: { x: spawn.x, z: spawn.z } });
@@ -3125,10 +3115,10 @@ export class BrMatch extends Duel {
         // on the ship it is nowhere yet: a guest draws a figure only once one has been sent
         if (bot.aboard) continue;
         const yaw = ((bot.dummy.group.rotation.y - Math.PI) * 180) / Math.PI;
-        // what its hands are doing and where it aims, as a player's state says: a guest's figure of a bot reloaded, healed
-        // and aimed in only on the host's screen
+        // what its hands are doing and where it aims, as a player's state says: a guest's figure of a bot reloaded and
+        // aimed in only on the host's screen
         const pose = bot.dummy.currentPose;
-        const ac = actCode(pose.act ?? null, Math.max(0, HEAL_CODES.indexOf(pose.healItem ?? "")), pose.reloadEmpty);
+        const ac = actCode(pose.act ?? null, 0, pose.reloadEmpty);
         this.broadcast({
           t: "s",
           from: bot.remote.id,

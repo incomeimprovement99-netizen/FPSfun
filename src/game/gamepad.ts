@@ -6,7 +6,8 @@
 //   X reload (and interact: a zipline in reach, an item, held for a revive or
 //   a restore), Y swap weapon (hold: holster), L3 sprint, R3 melee, LB the
 //   ability (the game's tactical), RB ping (twice: an enemy there), D-pad up
-//   heal (tap: the quick heal; hold: the wheel), D-pad right the utility hack,
+//   nothing (the heal was there until the heal items went, Milestone 523),
+//   D-pad right the utility hack,
 //   D-pad left fire mode (hold: inspect), D-pad down the
 //   variable zoom (ours: the game puts a character action there), Back the
 //   map, Start the menu. The game's other presets are here too, and "Range",
@@ -131,7 +132,6 @@ export const DEFAULT_PAD_BUTTONS: Readonly<Record<number, Action | "menu">> = {
   9: "menu",
   10: "sprint",
   11: "melee",
-  12: "heal",
   13: "zoomToggle",
   14: "inspect",
   15: "grenade",
@@ -150,8 +150,9 @@ export const PAD_PRESETS: Record<PadPreset, { name: string; changes: Partial<Rec
   buttonPuncher: { name: "Button Puncher", changes: { 11: "crouch", 1: "melee" } },
   // jump to LB, crouch to R3; the tactical to A and melee to B (ours: unconfirmed)
   evolved: { name: "Evolved", changes: { 4: "jump", 11: "crouch", 0: "ability", 1: "melee" } },
-  // grenades to RB, ping to D-pad up; the heal to D-pad right (ours: unconfirmed)
-  grenadier: { name: "Grenadier", changes: { 5: "grenade", 12: "ping", 15: "heal" } },
+  // grenades (SpeedKills' utility hack) to RB, ping to D-pad up; D-pad right keeps the hack too, now that the heal that
+  // went there is gone (ours: unconfirmed)
+  grenadier: { name: "Grenadier", changes: { 5: "grenade", 12: "ping" } },
   // jump to LB, crouch to RB; the tactical to B, ping to A
   ninja: { name: "Ninja", changes: { 4: "jump", 5: "crouch", 1: "ability", 0: "ping" } },
   // the range: the fusion level and the slots on the D-pad, holster on Back, zoom on RB (the optic's cycle there went with
