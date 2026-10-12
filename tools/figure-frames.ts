@@ -158,15 +158,6 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
       aimed: (t) => t > 1.1,
     },
     {
-      // a heal (a syringe), then back to the hold
-      name: "heal",
-      settle: stand,
-      at: (t) => ({ ...stand, act: t < 1.5 ? "heal" : null, healItem: "syringe" }) as Pose,
-      frames: every(2, 0.1),
-      label: (t) => `${t.toFixed(2)} s ${t < 1.5 ? "heal" : "back"}`,
-      aimed: (t) => t > 1.9,
-    },
-    {
       // walking sideways and backwards, aimed, the body on the look and the legs on the way it goes
       name: "strafe",
       settle: { ...stand, ads: 1 },

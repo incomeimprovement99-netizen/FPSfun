@@ -29,7 +29,6 @@ const MOTIONS: Array<[string, Record<string, unknown>]> = [
   ["zipline", { speed: 10, stance: "zip" }],
   ["reload", { speed: 0, stance: "stand", act: "reload" }],
   ["swap", { speed: 0, stance: "stand", act: "swap" }],
-  ["heal", { speed: 0, stance: "stand", act: "heal", healItem: "syringe" }],
   ["throw", { speed: 0, stance: "stand", act: "throw" }],
   ["melee", { speed: 0, stance: "stand", act: "melee" }],
   ["downed", { speed: 1, stance: "downed" }],

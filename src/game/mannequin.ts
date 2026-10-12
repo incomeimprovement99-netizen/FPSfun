@@ -2205,9 +2205,6 @@ export class MannequinFigure {
         upper = this.t - this.actAt < clipSeconds(hook) / finCfg.rate ? hook : cross;
         upperRate = finCfg.rate;
         once = true;
-      } else if (p.act === "heal") {
-        upper = "Consume";
-        upperRate = 1;
       } else if (this.t < this.headUntil && hasClip("Hit_Head") && p.stance !== "downed") {
         upper = "Hit_Head";
         upperRate = 1.3;
@@ -2248,10 +2245,10 @@ export class MannequinFigure {
     }
     this.play("lower", lower, lowerRate, 0.18, lowerOnce);
     this.play("upper", upper, upperRate, 0.15, once);
-    // no gun in the hand for a heal, or down (the figure says armed = false then). SpeedKills' soldier, taking its long
-    // gun back (after a throw, a heal, a reach for something), has the hands go to it first and shows it once they are
+    // no gun in the hand down (the figure says armed = false then). SpeedKills' soldier, taking its long
+    // gun back (after a throw or a reach for something), has the hands go to it first and shows it once they are
     // nearly there: shown at once, it came back through both hands while they were still on their way (Phase 27, 27.12)
-    const wantGun = this.gunShown && armed && p.act !== "heal" && !this.dead;
+    const wantGun = this.gunShown && armed && !this.dead;
     if (!wantGun && this.rifle && this.mount) this.gunComing = true;
     if (this.gun) this.gun.visible = wantGun && !(this.gunComing && Math.min(this.gripW, this.ikW) < GUN_BACK);
     this.gunInHand = !!this.gun && this.gun.visible;
@@ -2265,7 +2262,7 @@ export class MannequinFigure {
       turnBone(b.pelvis, fig, Y, fx.legYaw);
       turnBone(b.spine_01, fig, Y, -fx.legYaw);
     }
-    const aimed = !full && armed && p.act !== "heal" && p.act !== "swap" && p.stance !== "downed";
+    const aimed = !full && armed && p.act !== "swap" && p.stance !== "downed";
     // Down: the crouched walk bent right over into a crawl, the head up to
     // see. At 45 degrees a knocked figure at 30 m read as a live one
     // crouching, which is the one thing a knock has to not look like: bent to

@@ -3118,7 +3118,7 @@ export class BrMatch extends Duel {
         // what its hands are doing and where it aims, as a player's state says: a guest's figure of a bot reloaded and
         // aimed in only on the host's screen
         const pose = bot.dummy.currentPose;
-        const ac = actCode(pose.act ?? null, 0, pose.reloadEmpty);
+        const ac = actCode(pose.act ?? null, pose.reloadEmpty);
         this.broadcast({
           t: "s",
           from: bot.remote.id,

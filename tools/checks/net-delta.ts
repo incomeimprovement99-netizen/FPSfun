@@ -31,8 +31,7 @@ import * as THREE from "three";
 import { pack, unpack } from "peerjs-js-binarypack";
 import netCfg from "../../src/config/net.json";
 import { Duel, type HeirSnapshot, type LocalState } from "../../src/game/duel";
-import { actCode, actFromCode, emptyReloadOf, healOfCode } from "../../src/game/dummy";
-import { HEAL_CODES } from "../../src/game/recap";
+import { actCode, actFromCode, emptyReloadOf } from "../../src/game/dummy";
 import type { DeltaMsg, DeltaPart, Link, NetMsg, StateMsg } from "../../src/net/link";
 import { operatorById, operatorWearing } from "../../src/game/operators";
 import { lookCode, readLook } from "../../src/game/outfit";
@@ -173,27 +172,26 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
   );
   // A reload from empty goes as its own act code, 9, the tactical one keeping 1 (dummy.ts actCode): an older page reads
   // 9 as nothing, a newer one as a reload from empty (the rack at its end), and through the codec it is kept
-  const codes = { tactical: actCode("reload"), empty: actCode("reload", 0, true) };
+  const codes = { tactical: actCode("reload"), empty: actCode("reload", true) };
   const through = dequantise(quantise({ ...s, ac: codes.empty })).ac;
   check(
     "a reload from empty is its own act code (9, the tactical one 1), read back as a reload from empty, through the codec",
     codes.tactical === 1 && codes.empty === 9 && actFromCode(9) === "reload" && emptyReloadOf(9) && !emptyReloadOf(1) && actFromCode(1) === "reload" && through === 9,
     JSON.stringify({ codes, through })
   );
-  // A heal is 10 to 19 alone, so an act appended later (20 on: CHOOCH's vent) is read as nothing by this page and not as
-  // a heal with no item, as every page read any code from 10 before (dummy.ts HEALS)
-  const heals = HEAL_CODES.map((h, i) => ({ h, code: actCode("heal", i), back: dequantise(quantise({ ...s, ac: actCode("heal", i) })).ac }));
-  const later = [21, 30].map((c) => ({ c, act: actFromCode(c), heal: healOfCode(c) }));
+  // 10 to 19 were the heals' (a heal and its item) until the heal items went (Milestone 523): a page from before can
+  // still send one, and this page reads it as nothing; nor is any code from 21 on an act yet (dummy.ts actFromCode)
+  const old = [10, 13, 19, 21, 30].map((c) => ({ c, act: actFromCode(c) }));
   check(
-    "each heal's item goes over the wire and comes back (10 to 19), and a code from 21 on is no act yet, not a heal",
-    HEAL_CODES.length <= 10 && heals.every((x, i) => x.back === x.code && actFromCode(x.back) === "heal" && healOfCode(x.back) === i) && later.every((x) => x.act === null && x.heal < 0),
-    JSON.stringify({ heals, later })
+    "an old page's heal (10 to 19) and a code from 21 on read as no act",
+    old.every((x) => x.act === null),
+    JSON.stringify(old)
   );
-  // An overheated gun venting (CHOOCH) goes as 20, the first code after the heals, and comes back as a vent, not a heal
+  // An overheated gun venting (CHOOCH) goes as 20 and comes back as a vent
   const vent = { code: actCode("vent"), back: dequantise(quantise({ ...s, ac: actCode("vent") })).ac };
   check(
-    "an overheated gun's vent goes over the wire as its own act code (20) and comes back a vent, not a heal",
-    vent.code === 20 && vent.back === 20 && actFromCode(20) === "vent" && healOfCode(20) < 0,
+    "an overheated gun's vent goes over the wire as its own act code (20) and comes back a vent",
+    vent.code === 20 && vent.back === 20 && actFromCode(20) === "vent",
     JSON.stringify(vent)
   );
   const spun = dequantise(quantise({ ...sample(0, 0), yaw: 725 }));

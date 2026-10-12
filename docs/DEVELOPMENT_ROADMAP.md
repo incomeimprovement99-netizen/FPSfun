@@ -12546,3 +12546,19 @@ The district's third stage, the roofs.
   roofs, as many as find room (the rounded houses' roofs at 10.5 m take them; the decorative blocks' tops are not flat).
 - **Checked:** LANTERN ALLEYS' pads each landing on a house's roof (new, proven with a landing put on the street), its roof cover standing on its roofs; the centre's pads' walk check keeps to the centre's own, as it does without the corner blocks'; sk-neon all passed. The e2e: the speedkills section 102 of 102. verify, rules and the type check. The look: from pad a's landing, along the east and north arms' roofs over the lantern lines, by golden hour and at night. The map: its files lo 113.8 MB,
   hi 180.4 MB, max 409.0 MB. **Its files are version 63.**
+
+## Milestone 564 — The figure's heal taken out
+
+The lobby agent's Milestone 523 took SpeedKills' heal items out, so nothing heals with an item and no figure is posed
+healing any more (the heal hack's zone poses nothing). The figure's side of it, handed over to this agent, goes too:
+
+- **The act:** `heal` out of FigureAct and `healItem` out of a figure's pose (dummy.ts); the robot's heal pose (its arms
+  lowered, its head down, its gun put away) and its heal item, a canister coloured by the item (HEAL_COLOUR,
+  healItemMesh); the soldier's Consume clip for it, and the gun hidden and the aim off while healing (mannequin.ts).
+- **The wire:** a heal went as act code 10 plus its item (recap.ts HEAL_CODES), read back by the remote figure (duel.ts).
+  Codes 10 to 19 now read as nothing, so a page from before that still sends one shows no act, and they stay unused while
+  such pages may be in play. `actCode` loses its item argument.
+- **The tools:** figure-frames' heal stage, soldier-clips' heal pose and snap's healing bots (a throw in their place).
+- **Checked:** verify's act checks and tools/checks/net-delta.ts now hold that an old page's heal (10, 13, 19) and any
+  code from 21 on read as no act, seen failing with a heal code read as a reload; every skfigure check (315 of 315); the
+  p2p section (47 of 47); verify, rules and the type check.

@@ -1247,7 +1247,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "figure-poses",
-    note: "the figures: a strafe aimed down sights, a backpedal reloading, a heal, a swap (left to right)",
+    note: "the figures: a strafe aimed down sights, a backpedal reloading, a throw, a swap (left to right)",
     steps: [
       [fakePad, 600],
       [`(() => { document.getElementById("modeBots").value = "4"; window.__range.startMode("ffa"); })()`, 400],
@@ -1259,7 +1259,7 @@ export const SCENARIOS: Scenario[] = [
           const poses = [
             { speed: 5, stance: "stand", pitch: 0, moveDir: Math.PI / 2, ads: 1, act: null },
             { speed: 3, stance: "stand", pitch: 0, moveDir: Math.PI, ads: 0, act: "reload" },
-            { speed: 0, stance: "stand", pitch: -10, moveDir: 0, ads: 0, act: "heal", healItem: "battery" },
+            { speed: 0, stance: "stand", pitch: -10, moveDir: 0, ads: 0, act: "throw" },
             { speed: 0, stance: "crouch", pitch: 0, moveDir: 0, ads: 0, act: "swap" },
           ];
           d.bots.forEach((b, i) => { const bot = b.bot; bot.update = function (now, dt) { this.dummy.setPose(poses[i]); this.dummy.update(now, dt); return []; }; bot.pos.set(87.4 + i * 1.5, 0, -34); bot.dummy.group.position.copy(bot.pos); bot.dummy.group.rotation.y = -Math.PI / 2; });
@@ -1282,7 +1282,7 @@ export const SCENARIOS: Scenario[] = [
           const poses = [
             { speed: 5, stance: "stand", pitch: 0, moveDir: Math.PI / 2, ads: 1, act: null },
             { speed: 3, stance: "stand", pitch: 0, moveDir: Math.PI, ads: 0, act: "reload" },
-            { speed: 0, stance: "stand", pitch: -10, moveDir: 0, ads: 0, act: "heal", healItem: "battery" },
+            { speed: 0, stance: "stand", pitch: -10, moveDir: 0, ads: 0, act: "throw" },
             { speed: 0, stance: "crouch", pitch: 0, moveDir: 0, ads: 0, act: "swap" },
           ];
           d.bots.forEach((b, i) => { const bot = b.bot; bot.update = function (now, dt) { this.dummy.setPose(poses[i]); this.dummy.update(now, dt); return []; }; bot.pos.set(87.4 + i * 1.5, 0, -34); bot.dummy.group.position.copy(bot.pos); bot.dummy.group.rotation.y = -Math.PI / 2; });

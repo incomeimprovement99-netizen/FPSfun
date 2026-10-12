@@ -52,12 +52,6 @@ export interface Recap {
   at: number;
 }
 
-/**
- * The legacy heal items as small numbers in a figure's act code (dummy.ts actCode: a heal is 10 + its item). Nothing
- * heals with an item any more (Milestone 523); the figure's heal pose that reads these is the character agent's.
- */
-export const HEAL_CODES = ["cell", "syringe", "battery", "medkit", "phoenix"];
-
 export class DamageLog {
   hits: HitEntry[] = [];
   /** this player's id in the match */

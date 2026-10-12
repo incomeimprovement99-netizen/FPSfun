@@ -201,8 +201,8 @@ export interface DummyOptions {
 
 /** what a rigged figure is doing, from the player it stands for */
 export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "downed";
-/** what its hands are busy with: a reload, a swap, a heal, a throw, a melee swing, a revive, or holding interact on something */
-export type FigureAct = "reload" | "swap" | "heal" | "throw" | "melee" | "revive" | "interact" | "finish" | "finished" | "vent" | null;
+/** what its hands are busy with: a reload, a swap, a throw, a melee swing, a revive, or holding interact on something */
+export type FigureAct = "reload" | "swap" | "throw" | "melee" | "revive" | "interact" | "finish" | "finished" | "vent" | null;
 export interface FigurePose {
   /** horizontal speed, m/s */
   speed: number;
@@ -215,8 +215,6 @@ export interface FigurePose {
   ads?: number;
   /** a reload, a weapon swap, a heal */
   act?: FigureAct;
-  /** a heal's item, for what it holds */
-  healItem?: string;
   /** how many double jumps it has made (player.ts airJumps): a new one lifts the figure's knees (mannequin.ts) */
   airJumps?: number;
   /** a reload from an empty magazine (weapon-state.ts reloadEmpty): the longer one, with the rack; else a tactical one */
@@ -225,7 +223,7 @@ export interface FigurePose {
 /**
  * What the hands are doing, as one small number for the network: 0 nothing,
  * 1 reload, 2 swap, 3 throw, 4 melee, 5 revive, 6 interact, 7 finishing
- * someone (finisher.ts), 8 being finished, 9 a reload from empty, 10 + a heal's code. A page from before 3 to 6 existed
+ * someone (finisher.ts), 8 being finished, 9 a reload from empty, 20 a vent. A page from before 3 to 6 existed
  * reads them as nothing, so a figure on an old page just does not play the new motion.
  */
 const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "revive", "interact", "finish", "finished"];
@@ -235,27 +233,20 @@ const ACT_CODES: FigureAct[] = [null, "reload", "swap", "throw", "melee", "reviv
  */
 const EMPTY_RELOAD = 9;
 /**
- * A heal is 10 + its item's code (recap.ts HEAL_CODES), and 10 to 19 are the heals' alone: an act added later goes from
- * 20. Pages read every code from 10 as a heal until this, so one of them would show such an act (CHOOCH's vent,
- * docs/PLAN_SOLDIER_EIGHT_GUNS.md G3) as a heal with no item; this goes out a release ahead of the first, so the pages
- * in play by then read it as nothing.
+ * 10 to 19 were a heal and its item's code, until SpeedKills' heal items went (Milestone 523): read as nothing now, so a
+ * page from before shows nothing for one, and not to be given to another act while such pages may be in play.
  */
-const HEALS = [10, 20];
 /**
  * An overheated gun venting (CHOOCH's lockout, weapon-mechanics.json lstar.lockout): 20, the first code after the
  * heals. The owner, 2026-10-01: other players see it. It had gone as a reload (the lockout is a reload to the gun's
  * state), so others saw a magazine come out of a gun that has none. A page from before reads 20 as nothing.
  */
 const VENT = 20;
-export const actCode = (a: FigureAct, healCode = 0, emptyReload = false): number => (a === "heal" ? HEALS[0] + healCode : a === "vent" ? VENT : a === "reload" && emptyReload ? EMPTY_RELOAD : Math.max(0, ACT_CODES.indexOf(a)));
-/** the heal item's code (recap.ts HEAL_CODES) in an act code, or -1 when it is not a heal */
-export const healOfCode = (c: number | undefined): number => (c !== undefined && c >= HEALS[0] && c < HEALS[1] ? c - HEALS[0] : -1);
-export const actFromCode = (c: number | undefined): FigureAct => (healOfCode(c) >= 0 ? "heal" : c === VENT ? "vent" : c === EMPTY_RELOAD ? "reload" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
+export const actCode = (a: FigureAct, emptyReload = false): number => (a === "vent" ? VENT : a === "reload" && emptyReload ? EMPTY_RELOAD : Math.max(0, ACT_CODES.indexOf(a)));
+export const actFromCode = (c: number | undefined): FigureAct => (c === VENT ? "vent" : c === EMPTY_RELOAD ? "reload" : c !== undefined && c > 0 && c < ACT_CODES.length ? ACT_CODES[c] : null);
 /** the act code is a reload from empty */
 export const emptyReloadOf = (c: number | undefined): boolean => c === EMPTY_RELOAD;
 
-/** a heal item's colour in the hand: shields blue, health red, the phoenix gold */
-const HEAL_COLOUR: Record<string, number> = { cell: 0x3b8bff, battery: 0x3b8bff, syringe: 0xe84a4a, medkit: 0xe84a4a, phoenix: 0xffa000 };
 /** the legs turn at most this far from the body toward the way it moves (a strafe) */
 const LEG_TURN = 1.25;
 /** standing still, the feet stay planted while the body turns, until it has turned this far (radians, 50 degrees); then a step round */
@@ -734,7 +725,7 @@ export class Dummy {
   private pose: FigurePose = { speed: 0, stance: "stand", pitch: 0 };
   private gait = 0;
   /** eased pose values, so a change of stance blends rather than snaps */
-  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, heal: 0, down: 0, sprint: 0 };
+  private readonly eased = { lean: 0, pelvisDrop: 0, thighL: 0, thighR: 0, shinL: 0, shinR: 0, armsUp: 0, armSwing: 0, headPitch: 0, legYaw: 0, ads: 0, reload: 0, swap: 0, down: 0, sprint: 0 };
   /** the feet's yaw while standing still (world, radians), and a step round in progress */
   private plantYaw: number | null = null;
   private stepping = false;
@@ -757,9 +748,7 @@ export class Dummy {
   private joltAmt = 0;
   /** the arms' resting place on the torso (the ADS and the kick move them from it) */
   private armsBase = new THREE.Vector3();
-  /** the heal item in its hands, made the first time it heals */
-  private healMesh: THREE.Mesh | null = null;
-  /** its gun is away for a heal, or it is down (separate from a bot's gun hidden while it searches) */
+  /** its gun is away while it is down (separate from a bot's gun hidden while it searches) */
   private gunAway = false;
   /**
    * Knocked out: the gun leaves its hands and falls to the floor beside it,
@@ -1047,10 +1036,6 @@ export class Dummy {
     this.dropped?.obj.removeFromParent();
     this.dropped = null;
     this.mq?.dispose();
-    if (this.healMesh) {
-      this.healMesh.geometry.dispose();
-      (this.healMesh.material as THREE.Material).dispose();
-    }
     this.group.removeFromParent();
     this.baked.traverse((o) => {
       const m = o as THREE.Mesh;
@@ -1389,7 +1374,6 @@ export class Dummy {
     e.ads += ((p.ads ?? 0) - e.ads) * k2;
     e.reload += ((act === "reload" ? 1 : 0) - e.reload) * k2;
     e.swap += ((act === "swap" ? 1 : 0) - e.swap) * k2;
-    e.heal += ((act === "heal" && !downed ? 1 : 0) - e.heal) * k2;
     e.down += ((downed ? 1 : 0) - e.down) * k2;
     // sprinting with the gun not up: it comes down and cants across the body, the arms pumping
     const sprinting = p.stance === "stand" && speed > 6.2 && (p.ads ?? 0) < 0.3 && act === null;
@@ -1411,7 +1395,7 @@ export class Dummy {
     // standing still it breathes: the chest rises and settles every few seconds
     const breathe = speed < 0.3 && p.stance === "stand" ? Math.sin(this.idleT * 1.7) : 0;
     r.torso.rotation.x = e.lean - 0.2 * flinch + 0.02 * breathe;
-    r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload + 0.35 * e.heal - 0.25 * e.down;
+    r.head.rotation.x = e.headPitch - e.lean * 0.7 - 0.25 * flinch + 0.15 * e.ads + 0.2 * e.reload - 0.25 * e.down;
     r.head.rotation.z = 0.12 * e.ads;
     r.thighL.rotation.x = e.thighL;
     r.thighR.rotation.x = e.thighR;
@@ -1424,23 +1408,18 @@ export class Dummy {
       r.arms.rotation.x = 0;
     } else {
       // aimed: the gun up to the eye; a shot kicks it back; a reload rolls and
-      // dips it; a swap takes it down out of sight; a heal lowers it for the item
+      // dips it; a swap takes it down out of sight
       // down: the gun gone, the arms straight down to the floor, reaching in turn as it crawls
       const crawl = e.down * s * e.armSwing * 0.6;
       const pump = e.sprint * Math.sin(g) * 0.12;
-      r.arms.rotation.x = -(e.armsUp + pitch * 0.8 * (1 - e.sprint)) - e.lean * 0.5 * (1 - e.down) - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + 0.75 * e.heal + crawl + 0.55 * e.sprint + pump;
+      r.arms.rotation.x = -(e.armsUp + pitch * 0.8 * (1 - e.sprint)) - e.lean * 0.5 * (1 - e.down) - 0.1 * e.ads - 0.14 * this.kickAmt + 0.4 * e.reload + 1.1 * e.swap + crawl + 0.55 * e.sprint + pump;
       r.arms.rotation.z = 0.5 * e.reload + 0.25 * crawl + 0.45 * e.sprint;
       r.arms.rotation.y = -0.3 * e.sprint;
       r.arms.position.set(this.armsBase.x, this.armsBase.y + 0.07 * e.ads + 0.006 * breathe, this.armsBase.z - 0.05 * this.kickAmt - 0.03 * e.ads);
-      const away = e.heal > 0.5 || e.down > 0.15;
+      const away = e.down > 0.15;
       if (away !== this.gunAway) {
         this.gunAway = away;
         if (this.gun) this.gun.visible = this.gunShown && !away;
-      }
-      if ((e.heal > 0.02 && !downed) || this.healMesh) {
-        const m = this.healItemMesh(r.arms);
-        m.visible = e.heal > 0.5;
-        (m.material as THREE.MeshStandardMaterial).color.setHex(HEAL_COLOUR[p.healItem ?? "cell"] ?? 0x3b8bff);
       }
     }
     // An emote, on top: it runs its length, and moving or going down ends it.
@@ -1709,18 +1688,6 @@ export class Dummy {
     // the full model's own meshes give way to it, except the muzzle's marker:
     // a shot from a figure across the map still has to flash (muzzle.ts)
     for (const o of root.children) if (o !== this.farGun && o.name !== "muzzle") o.visible = !on;
-  }
-
-  /** the heal item: a small canister held in front of the chest */
-  private healItemMesh(parent: THREE.Group): THREE.Mesh {
-    if (!this.healMesh) {
-      const m = new THREE.Mesh(new THREE.CylinderGeometry(0.035, 0.035, 0.15, 10), new THREE.MeshStandardMaterial({ color: 0x3b8bff, emissive: 0x112244, roughness: 0.4, metalness: 0.3 }));
-      m.rotation.z = Math.PI / 2;
-      m.position.set(0, -0.2, 0.34);
-      parent.add(m);
-      this.healMesh = m;
-    }
-    return this.healMesh;
   }
 
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
