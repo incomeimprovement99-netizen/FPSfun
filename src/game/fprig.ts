@@ -53,7 +53,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; meleeOut?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent; leftOnHand?: boolean };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; meleeOut?: number[]; pointShoulder?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent; leftOnHand?: boolean };
 /**
  * An overheat's vent (fparms.json packGuns vent, CHOOCH's): the gun tipped up and canted in both hands over `in` of the
  * lockout and back over `out`, by `roll`, `yaw` and `pitch` (radians) and `x`, `y`, `z` (view metres), the soldier's on the
@@ -491,6 +491,8 @@ export class PackArms {
   private beforeArmW = 0;
   /** how far into a punch this frame, 0..1: the left shoulder goes to the gun's melee one by as much */
   private punchW = 0;
+  /** how far a reload's point has the left hand, for the gun's own pointing shoulder (packGuns pointShoulder) */
+  private pointShoulderW = 0;
   /** our shell's rest in our gun's frame (BIGANTLER's Bullet), our pump's rest along it, and the left fingers holding a shell */
   private roundRestO: THREE.Vector3 | null = null;
   /** where the shell being fed is this frame, our gun's frame */
@@ -1045,6 +1047,7 @@ export class PackArms {
     this.mixer.update(0);
     for (const b of (this.mixer as unknown as { _bindings: Array<{ buffer: { fill(v: number, from: number, to: number): unknown }; valueSize: number }> })._bindings) b.buffer.fill(NaN, b.valueSize, 3 * b.valueSize);
     this.punchW = f.punch?.w ?? 0;
+    this.pointShoulderW = pointW;
     this.moveShoulders(f.ads);
     // (the bolt worked is the right hand's: the left holds the gun as at rest, its fingers too; the pack's clip moved it
     // on its own gun's fore-end, and with BOOG's hand out ahead of the magazine that took the arm past its reach)
@@ -1720,7 +1723,11 @@ export class PackArms {
     // 58% of the picture; its own, 20 cm back and 10 down, none)
     const was0 = PACK[this.active!]?.beforeArm?.shoulder ?? [0, 0, 0];
     const MS = PACK[this.active!]?.meleeShoulder;
-    const was = MS ? was0.map((v, i) => v + (MS[i] - v) * this.punchW) : was0;
+    const was1 = MS ? was0.map((v, i) => v + (MS[i] - v) * this.punchW) : was0;
+    // (and in a reload's point to the gun's own pointing shoulder, where it has one: PANDA's off-gun shoulder, refitted for
+    // its inspect's open palm and its first draw, bent its pointing wrist to 64 degrees)
+    const PS = PACK[this.active!]?.pointShoulder;
+    const was = PS ? was1.map((v, i) => v + (PS[i] - v) * this.pointShoulderW) : was1;
     const lw = this.holdLW * (1 - this.beforeArmW);
     const l = add(me.clavicleL, S.l?.map((v, i) => was[i] + (v - was[i]) * lw), S.adsL, back);
     const r = add(me.clavicleR, S.r, S.adsR, back);

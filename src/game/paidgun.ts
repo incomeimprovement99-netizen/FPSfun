@@ -28,8 +28,6 @@ interface Gun {
   /** the round a reload loads, where the model has none of its own: HAEFY's rocket (rocket.ts), and how far its tip stands out of the muzzle, metres */
   round?: string;
   roundOut?: number;
-  /** how far the bought model's slide goes back, in its own metres, where the procedural gun has no slide of its own (APUHTHEE) */
-  slideTravel?: number;
 }
 const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
@@ -378,23 +376,6 @@ export function dressPaid(m: GunModel, level = 0, view = false): boolean {
   }
   mover(/^Clip/, m.mag);
   mover(/^(Slide|Slider)$/, m.bolt);
-  // (a slide the procedural gun has none of, APUHTHEE's, its own being a revolver's: the bought one moved as a pistol's, back
-  // on a shot, held back once it is empty and racked from empty, by its own travel, paidweapons.json slideTravel)
-  if (!m.bolt && g.slideTravel) {
-    const slides: THREE.Object3D[] = [];
-    model.traverse((o) => {
-      if (/^(Slide|Slider)$/.test(o.name) && (o as THREE.Mesh).isMesh) slides.push(o);
-    });
-    if (slides.length) {
-      m.bolt = new THREE.Group();
-      m.bolt.name = "bolt";
-      m.root.add(m.bolt);
-      m.root.updateMatrixWorld(true);
-      for (const s of slides) m.bolt.attach(s);
-      m.travel = g.slideTravel * place.scale.z;
-      m.cycle = "slide";
-    }
-  }
   mover(/^Pump$/, m.pump);
   m.parts = hingeParts(model, size.muzzleEnd);
   if (g.round === "rocket" && !m.mag) m.mag = rocketMag(m, place, size.muzzle, g.roundOut ?? 0);

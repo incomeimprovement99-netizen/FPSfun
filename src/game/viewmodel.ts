@@ -472,8 +472,6 @@ export class ViewModel {
   private reloadFrameW = 0;
   /** how far into an overheat's vent turn this frame, 0..1 (the checks) */
   private ventW = 0;
-  /** where a pistol's slide is in its own cycle this frame (back on a shot, held back empty), before the rig's rack */
-  private slideZ = 0;
   /**
    * the rest look's move undone and the one before the refit done (inspectLook): a melee's places and an inspect's open
    * hand were set where the shoulders were under that look, and the shoulders move with the look
@@ -1918,9 +1916,6 @@ export class ViewModel {
         m.bolt,
         m.pump,
       );
-      // (a pistol's slide still goes back on a shot and stays back empty in the bought arms: the rig sets the bolt where its
-      // own rack has it, at rest when it is not racking, APUHTHEE's slide not moving at all)
-      if (m.cycle === "slide" && m.bolt) m.bolt.position.z = Math.max(m.bolt.position.z, this.slideZ);
       // a shell fed into the gate where the rig has the hand holding it, and the gate open as it goes in
       const fd = this.pack.feed;
       const k = m.parts;
@@ -2237,7 +2232,6 @@ export class ViewModel {
       const back = e < T ? (e < T * 0.35 ? e / (T * 0.35) : 1 - (e - T * 0.35) / (T * 0.65)) : 0;
       // an empty pistol locks its slide back until the reload seats a magazine
       m.bolt.position.z = m.travel * Math.max(back, check, clipEmpty ? 1 : 0);
-      this.slideZ = m.bolt.position.z;
     } else if (m.cycle === "pump" && m.pump) {
       // the pump runs inside the rechamber window, starting once the muzzle
       // has come back down

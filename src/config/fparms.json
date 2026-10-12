@@ -827,9 +827,9 @@
         },
         "r": {
           "shift": [
-            -0.0433,
+            -0.0413,
             -0.0646,
-            0.0159
+            0.0189
           ],
           "rot": [
             0.146,
@@ -989,14 +989,14 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.2,
-          -0.45,
-          0.1
+          -0.1395,
+          -0.3062,
+          0.2498
         ],
         "shoulder": [
-          0.01,
-          0,
-          -0.04
+          0.0509,
+          -0.0353,
+          0.0067
         ]
       },
       "inspectLook": {
@@ -1257,7 +1257,7 @@
           "open": {}
         }
       },
-      "_solve": "tools/pack-solve.ts, 2026-10-12: l after: deepest 0 mm, palm 0.0 mm, fingers thumb 1.3 index 1.4 middle 1.3 ring 1.1 pinky 21.1.",
+      "_solve": "tools/pack-solve.ts, 2026-10-12: pointing wrist: before 64, after 68 (tip 0.0 cm, 8 deg; arms in the picture 0.0% then 1.2%; elbow -0.45,-1.15,0.00, reach 0.24, aimAt 0.85).",
       "shoulders": {
         "r": [
           -0.04,
@@ -1282,12 +1282,12 @@
       },
       "point": {
         "elbow": [
-          -0.6,
-          -1,
+          -0.75,
+          -1.1,
           0
         ],
         "reach": 0.18,
-        "aimAt": 0.78
+        "aimAt": 0.86
       },
       "gunScale": 0.8,
       "cupMove": {
@@ -1361,7 +1361,13 @@
         -0.1022,
         -0.2
       ],
-      "_moves": "Found by tools/pack-tune.ts against the e2e's own pack-frame measures, 2026-10-08: the swap's cup (`cup`, `cupMove`: with the shared one a hand went 6.4 mm into the gun), the arm off the gun (`beforeArm`) and the punch (`meleeClearWay`, `meleeClear`, `meleeShoulder`). PANDA's hold brings the left shoulder 8 cm forward (`shoulders` l) so the hand reaches past the magazine, and the first draw's flourish keeps it forward (with it 12 cm back the arm fell 7 to 19 cm short and the hand went 10 to 13 mm into the gun); from there the punching upper arm filled 11 to 58% of the picture, so the punch has its own shoulder, 20 cm back and 10 down: none of it."
+      "_moves": "Found by tools/pack-tune.ts against the e2e's own pack-frame measures, 2026-10-08: the swap's cup (`cup`, `cupMove`: with the shared one a hand went 6.4 mm into the gun), the arm off the gun (`beforeArm`) and the punch (`meleeClearWay`, `meleeClear`, `meleeShoulder`). PANDA's hold brings the left shoulder 8 cm forward (`shoulders` l) so the hand reaches past the magazine, and the first draw's flourish keeps it forward (with it 12 cm back the arm fell 7 to 19 cm short and the hand went 10 to 13 mm into the gun); from there the punching upper arm filled 11 to 58% of the picture, so the punch has its own shoulder, 20 cm back and 10 down: none of it.",
+      "pointShoulder": [
+        0.007,
+        -0.092,
+        0.1092
+      ],
+      "_pointShoulder": "PANDA points at its magazine in a reload from its own left shoulder (fprig.ts pointShoulder), the off-gun shoulder it had before the fix round: refitted for its inspect and first draw once the hold moved under the handguard (2026-10-12), the shared one bent the pointing wrist to 64 degrees, the finger 11 off the magazine; from this, 43 and 5."
     },
     "KXG12": {
       "model": "KXG12",
@@ -1845,9 +1851,9 @@
       },
       "shoulders": {
         "l": [
-          0.18,
-          -0.07,
-          0.24
+          0.12,
+          -0.1,
+          0.2
         ],
         "r": [
           -0.04,
@@ -2010,66 +2016,6 @@
         ],
         "reach": 0.15,
         "aimAt": 0.78
-      },
-      "rack": {
-        "clip": "reloadEmpty",
-        "window": [
-          0.65,
-          0.97
-        ],
-        "pose": {
-          "roll": -0.3,
-          "yaw": -0.15,
-          "pitch": 0.1,
-          "x": -0.02,
-          "y": 0.03,
-          "z": -0.08
-        },
-        "grab": {
-          "reach": [
-            0,
-            0.3
-          ],
-          "pull": [
-            0.3,
-            0.5
-          ],
-          "release": [
-            0.56,
-            0.62
-          ],
-          "back": [
-            0.66,
-            1
-          ],
-          "clear": 0.08,
-          "curl": -0.2,
-          "thumbOpen": 0,
-          "hook": [
-            -0.016,
-            0,
-            0.07
-          ],
-          "along": [
-            0.25,
-            0.9,
-            -1
-          ],
-          "palm": [
-            1,
-            0.3,
-            -0.6
-          ],
-          "pinch": true,
-          "close": {
-            "index": 0.7,
-            "thumb": 0.3
-          }
-        },
-        "poseIn": [
-          0.6,
-          0.7
-        ]
       },
       "_solve": "tools/pack-solve.ts, 2026-10-10: l after: deepest 8 mm, palm 0.0 mm, fingers thumb 0 index 0; r after: deepest 4 mm, palm 0.0 mm, fingers thumb 1.1 index 0 middle 0 ring 0.",
       "hold": {
