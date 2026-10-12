@@ -12384,3 +12384,30 @@ round 5 asked for "a VAULT sign that can be seen from every High City roof".
   at the letters' height (three sight lines a face). Proven with the east name put back behind the lookout's block. The
   e2e: the speedkills section 102 of 102 on its rerun. Its first run's one failure, the ghost's restore in the loot start, counted the city's own floor loot lying within reach of the death (a launcher) as a gun left behind, though that start lands unarmed; it counts only the guns the guest held now. verify, rules and the type check. The look: the north and east decks by golden hour and at night, the name
   read from 45 m.
+
+## Milestone 582 — LANTERN ALLEYS, its alleys and courtyard: the first district past the ring road
+
+The districts plan's first district, the north-east sector's band between the ring road and the city's edge, empty
+ground until now. Option A of the plan page, taken on the owner's "continue" and "keep looping between planning and
+making": an alley quarter of the pack's own low buildings and its Chinese lanterns. Its card had said "cut in from
+NeonScene00"; read piece by piece, that scene is a tall industrial block with no lantern, shrine or tree in it, and
+every district card was checked against the pack before this (the plan page's table).
+
+- **The alleys** (`rules.districts.lantern`, tools/neon-layout.ts): two arms, east (x 100 to 152) and north (z -152 to
+  -100), each a main alley 6 m wide on the bots' 10 m grid (x 125, z -125), so their nodes stand in it; a cross alley
+  through each (z -75, x 75) and a back lane along the fence.
+- **The houses:** both sides of each main alley lined by the pack's low shophouses (StreetBuilding 05, 07 and Rounded,
+  the low decorative blocks), 7.8 to 12.5 m, a seeded mix, each its front on the alley's line and as deep as
+  its row has room for (the ring road's pavement behind one row, the back lane behind the other).
+- **The lanterns:** NOODLE ROW's lantern lines across both main alleys, a cable every 3.5 m and on to the next in an X,
+  the pack's Chinese lanterns every 1.75 m along each, drawn only.
+- **The courtyard** where the two main alleys meet (x 108 to 145, z -145 to -108): the pack's walk-in shops on two sides,
+  Neon Building 05 on the north and 06 on the east, each turned so its door (its own -x face) opens on the courtyard;
+  the district's name, LANTERN ALLEYS, in its sector's red on the north shop's front (src/game/neonmap.ts draws
+  `districtNames` as THE VAULT's, letters filled on a plate); a web of ten lantern lines from its middle to its sides at
+  6.4 m, over the alleys' 5.4; and the pack's two food stalls turned to its middle. 96 cables and 415 lanterns in all.
+- **Two shophouses left out:** StreetBuilding01 and 04 read as floor inside four walls at the ground, and the bots'
+  graph put two street nodes in a room with no way out (the street network check, 800 of 802, named them at x 135); the
+  centre's street walls leave them out for the same reason. That check now names any node it finds cut off.
+- **Checked** (tools/checks/sk-neon.ts): LANTERN ALLEYS' 17 houses in the band, none overlapping or on an alley; both main alleys walked end to end and the four cross alleys through; 415 lanterns; the street one network, 798 of 798; sk-neon all passed. The e2e: the speedkills section 102 of 102. verify, rules and the type check. The look: the east and north alleys and the courtyard, its name and its lantern web, by golden hour and at night, and from the air.
+  The map: its files lo 113.8 MB, hi 180.4 MB, max 409.0 MB. **Its files are version 62.**

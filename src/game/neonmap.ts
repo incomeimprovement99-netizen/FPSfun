@@ -485,6 +485,15 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       mesh.userData.dynamic = true;
       group.add(mesh);
     }
+    // and each district's name (neon-layout.ts rules.districts, the layout's districtNames), its letters filled on a plate
+    // to be read across a courtyard
+    for (const q of (neonCfg as unknown as { districtNames?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }> }).districtNames ?? []) {
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.h), new THREE.MeshBasicMaterial({ map: neonLetters(q.text, q.colour, q.w, q.h, { back: q.back, fill: true }), transparent: true, depthWrite: false, toneMapped: false }));
+      mesh.position.set(q.at[0], q.at[1], q.at[2]);
+      mesh.rotation.y = (q.yaw * Math.PI) / 180;
+      mesh.userData.dynamic = true;
+      group.add(mesh);
+    }
     // and THE VAULT's on the tower's four faces across its storey (rules.tower.vaultSign), placed off the tower's measured
     // square: the reviews read the vault as "a thin gold line" from the roofs round it
     const VS = (neonCfg.rules as unknown as { tower?: { vaultSign?: { text: string; colour: string; y: number; h: number; back?: string; fill?: boolean; faces: Array<[string, number, number, number]> } } }).tower?.vaultSign;

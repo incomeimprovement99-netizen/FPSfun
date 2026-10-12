@@ -1267,7 +1267,8 @@ work, the street from a median 66 fps to 80 on Balanced.
 City bundle alone, nothing drawn by hand; the ILranch city it replaced went on
 2026-10-09.
 The same nine districts, the eight round the centre plain for now with straight
-roads. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined with
+low shophouses under lantern lines. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

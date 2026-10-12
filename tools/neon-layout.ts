@@ -3446,6 +3446,102 @@ const STREET_WALL_BOXES: OBox[] = [];
     console.log(`the street cover: ${placed.length} pieces, ${(tris / 1000).toFixed(0)}k triangles; ${((left / streetN) * 100).toFixed(1)}% of the open street over ${CO.far} m from cover, the farthest ${farthest.toFixed(1)} m (${JSON.stringify(Object.fromEntries(why))} tried)`);
   }
 }
+// LANTERN ALLEYS (rules.districts.lantern; the districts plan's north-east district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
+// the north-east sector's band past the ring road, its alleys lined both sides by the pack's low shophouses. Each row a
+// line the buildings' fronts (their own +z) stand on, toward `front`, as deep as the row has room for (`deep`), a seeded
+// mix `gap` metres apart, open where a cross alley runs through (`skip`, metres along the row). The alleys run on the
+// bots' 10 m grid (game.graph), so their nodes stand in them. Lantern lines over the main alleys as NOODLE ROW's: a cable
+// across every `every` metres from front to front and on to the next in an X, the pack's Chinese lanterns hung along each,
+// drawn only. Placed off rules alone, so nothing measured moves it
+{
+  type Court = { shops: Array<{ piece: string; c: Pt; yaw: number }>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; web: { from: Pt; height: number; to: Pt[] }; stalls: { pieces: string[]; at: Pt[]; face: Pt } };
+  const DL = (R.districts as { lantern?: { chunk: string; seed: number; pool: string[]; gap: number[]; rows: Array<{ id: string; from: Pt; to: Pt; front: Pt; deep: number; skip?: number[][] }>; lights: { cable: string; lanterns: string[]; height: number; every: number; hang: number; alleys: Array<{ from: Pt; to: Pt; half: number }> }; court?: Court } } | undefined)?.lantern;
+  if (DL) {
+    const rndD = seeded(DL.seed);
+    const houses: Array<{ row: string; piece: string; c: Pt; yaw: number; hu: number; hv: number; top: number }> = [];
+    for (const row of DL.rows) {
+      const L = Math.hypot(row.to[0] - row.from[0], row.to[1] - row.from[1]);
+      const t: Pt = [(row.to[0] - row.from[0]) / L, (row.to[1] - row.from[1]) / L];
+      const f = row.front;
+      const yaw = yawToward(f[0], f[1]);
+      const skips = row.skip ?? [];
+      let at = 0;
+      while (at < L - 0.5) {
+        const inSkip = skips.find(([s0, s1]) => at >= s0 - 1e-6 && at < s1);
+        if (inSkip) {
+          at = inSkip[1];
+          continue;
+        }
+        // (up to the next opening or the row's end: a house across a cross alley shut it)
+        const room = Math.min(L, ...skips.filter(([s0]) => s0 > at).map(([s0]) => s0)) - at;
+        const fits = DL.pool.filter((n) => piece(n).row.size![2] <= row.deep && piece(n).row.size![0] <= room);
+        if (!fits.length) {
+          at += 0.5;
+          continue;
+        }
+        const name = fits[Math.floor(rndD() * fits.length)];
+        const r = piece(name).row;
+        const [w, d] = [r.size![0], r.size![2]];
+        const mid = at + w / 2;
+        const c: Pt = [row.from[0] + t[0] * mid - f[0] * (d / 2), row.from[1] + t[1] * mid - f[1] * (d / 2)];
+        const box = placeTurned(DL.chunk, name, c[0], c[1], yaw, "o");
+        houses.push({ row: row.id, piece: name, c: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), hu: +(w / 2).toFixed(3), hv: +(d / 2).toFixed(3), top: +box.top.toFixed(2) });
+        at += w + DL.gap[0] + rndD() * (DL.gap[1] - DL.gap[0]);
+      }
+    }
+    // the lantern lines
+    const LT = DL.lights;
+    const cable = piece(LT.cable).row;
+    const clen = Math.max(cable.size![0], cable.size![2]);
+    let cables = 0, hung = 0;
+    const string = (a: Pt, b: Pt, y = LT.height) => {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      placeTurned(DL.chunk, LT.cable, (a[0] + b[0]) / 2, (a[1] + b[1]) / 2, yawToward(b[0] - a[0], b[1] - a[1]), "g", y, undefined, L / clen);
+      cables++;
+      for (let k = LT.hang / 2; k < L; k += LT.hang) {
+        placeTurned(DL.chunk, LT.lanterns[hung % LT.lanterns.length], a[0] + ((b[0] - a[0]) * k) / L, a[1] + ((b[1] - a[1]) * k) / L, 0, "g", y);
+        hung++;
+      }
+    };
+    for (const al of LT.alleys) {
+      const L = Math.hypot(al.to[0] - al.from[0], al.to[1] - al.from[1]);
+      const t: Pt = [(al.to[0] - al.from[0]) / L, (al.to[1] - al.from[1]) / L];
+      const n: Pt = [-t[1], t[0]];
+      const ends = (k: number): [Pt, Pt] => {
+        const p: Pt = [al.from[0] + t[0] * k, al.from[1] + t[1] * k];
+        return [[p[0] - n[0] * al.half, p[1] - n[1] * al.half], [p[0] + n[0] * al.half, p[1] + n[1] * al.half]];
+      };
+      for (let k = LT.every / 2; k < L; k += LT.every) {
+        const [p, q] = ends(k);
+        string(p, q);
+        if (k + LT.every < L) {
+          const [p2, q2] = ends(k + LT.every);
+          string(p, q2);
+          string(q, p2);
+        }
+      }
+    }
+    // the courtyard where the main alleys meet (`court`): the pack's walk-in shops on its north and east sides, their
+    // doors (each one's own -x face) on it; its name in its sector's red on the north shop's front; a web of lantern
+    // lines from its middle out to its sides, higher than the alleys'; food stalls turned to its middle
+    const CT = DL.court;
+    const shops: Array<{ piece: string; at: number[]; yaw: number; door: number[] }> = [];
+    if (CT) {
+      for (const sh of CT.shops) {
+        const r = piece(sh.piece).row;
+        placeTurned(DL.chunk, sh.piece, sh.c[0], sh.c[1], sh.yaw, "o");
+        const [dx, dz] = rotY(sh.yaw, -1, 0);
+        const reach = r.size![0] / 2 + 2;
+        shops.push({ piece: sh.piece, at: sh.c.map((v) => +v.toFixed(3)), yaw: sh.yaw, door: [+(sh.c[0] + dx * reach).toFixed(3), +(sh.c[1] + dz * reach).toFixed(3)] });
+      }
+      for (const p of CT.web.to) string(CT.web.from, p, CT.web.height);
+      CT.stalls.at.forEach((p, k) => placeTurned(DL.chunk, CT.stalls.pieces[k % CT.stalls.pieces.length], p[0], p[1], yawToward(CT.stalls.face[0] - p[0], CT.stalls.face[1] - p[1]), "o"));
+      cfg.districtNames = [{ district: "lantern", ...CT.name }];
+    }
+    cfg.lanternAlleys = { houses, shops, cables, lanterns: hung };
+    console.log(`LANTERN ALLEYS: ${houses.length} houses (${DL.rows.map((r) => `${r.id} ${houses.filter((h) => h.row === r.id).length}`).join(", ")}), ${cables} cables, ${hung} lanterns`);
+  }
+}
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
 // basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
 // each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of

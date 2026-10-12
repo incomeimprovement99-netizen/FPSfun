@@ -83,7 +83,7 @@ const seen = new Set<number>([street[0]?.i ?? 0]);
 const todo = [street[0]?.i ?? 0];
 while (todo.length) for (const j of map.nodes[todo.pop()!].links) if (!map.nodes[j].y && !seen.has(j)) (seen.add(j), todo.push(j));
 check("the street a network of at least 700 nodes", street.length >= 700, `${street.length}`);
-check("the street one network: every street node reaches the rest", seen.size === street.length, `${seen.size} of ${street.length}`);
+check("the street one network: every street node reaches the rest", seen.size === street.length, `${seen.size} of ${street.length}` + (seen.size < street.length ? `; cut off: ${street.filter(({ i }) => !seen.has(i)).slice(0, 4).map(({ n }) => `(${(n.x - BR_X).toFixed(1)}, ${(n.z - BR_Z).toFixed(1)})`).join(" ")}` : ""));
 
 // the collision the bake wrote, all of it; the tallest building's top where the ship passes
 // (and the street's slab over each of the court's halls and over the station, its tunnel and its concourse)
@@ -291,7 +291,7 @@ check("a pad up onto each corner block's roof from the street, each landing on i
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("ring") || name === "gangway" || name.startsWith("lantern") ? 2 : 6);
 check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway and the corner blocks' roofs, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 19 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
@@ -2303,6 +2303,62 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     runs.length === 2 && between.length === 2 && runs.every((q) => q.up.rode && Math.abs(q.up.y - top) < 0.15 && q.up.d > 1.7 && q.down.rode && Math.abs(q.down.y - foot) < 0.15 && q.ons.every((l) => l.r.rode && Math.abs(l.r.y - top) < 0.15 && l.r.d > 1.7)),
     runs.map((q, i) => `rope ${i + 1}: up ${q.up.rode ? "rode" : "no grab"}, off at ${q.up.y.toFixed(2)} m ${q.up.d.toFixed(1)} m out; down ${q.down.rode ? "rode" : "no grab"}, off at ${q.down.y.toFixed(2)} m; ${q.ons.map((l) => `from ${l.h} m ${l.r.rode ? "rode" : "no grab"}, off at ${l.r.y.toFixed(2)}`).join(", ")}`).join("; "),
   );
+}
+
+// LANTERN ALLEYS (rules.districts.lantern, the north-east district): its houses in the sector's band past the ring road
+// and its pavement, none in another or across a main alley; each main alley walked end to end by a body, and each row's
+// cross alley through it (nothing standing from under a head to over a step within a body's reach), and the lantern
+// lines over the main alleys
+{
+  type Row = { id: string; from: number[]; to: number[]; front: number[]; deep: number; skip?: number[][] };
+  const DL = (cfg.rules as unknown as { districts?: { lantern?: { rows: Row[]; lights: { alleys: Array<{ from: number[]; to: number[]; half: number }> } } } }).districts?.lantern;
+  const LA = (cfg as unknown as { lanternAlleys?: { houses: Array<{ c: number[]; yaw: number; hu: number; hv: number }>; lanterns: number } }).lanternAlleys;
+  const ne = (cfg.game as unknown as { sectors: Array<{ id: string; minX: number; maxX: number; minZ: number; maxZ: number }> }).sectors.find((q) => q.id === "ne")!;
+  const ring = (cfg.rules as unknown as { ring: number[] }).ring[1] + 2.5;
+  // (each house's footprint: its turns are quarter turns, so its box is axis-aligned)
+  const foot = (h: { c: number[]; yaw: number; hu: number; hv: number }) => {
+    const side = Math.abs(Math.round(h.yaw / 90)) % 2 === 1;
+    const [ex, ez] = side ? [h.hv, h.hu] : [h.hu, h.hv];
+    return [h.c[0] - ex, h.c[0] + ex, h.c[1] - ez, h.c[1] + ez];
+  };
+  const houses = (LA?.houses ?? []).map(foot);
+  const strayed = houses.filter(([x0, x1, z0, z1]) => x0 < ne.minX || x1 > ne.maxX || z0 < ne.minZ || z1 > ne.maxZ || !(x0 >= ring || z1 <= -ring));
+  const overlaps = houses.flatMap((a, i) => houses.slice(i + 1).filter((b) => a[0] < b[1] - 0.01 && a[1] > b[0] + 0.01 && a[2] < b[3] - 0.01 && a[3] > b[2] + 0.01).map(() => i));
+  const alleys = DL?.lights.alleys ?? [];
+  const onAlley = houses.filter(([x0, x1, z0, z1]) => alleys.some((al) => {
+    const ns = al.from[0] === al.to[0];
+    const [ax0, ax1, az0, az1] = [Math.min(al.from[0], al.to[0]) - (ns ? al.half : 0), Math.max(al.from[0], al.to[0]) + (ns ? al.half : 0), Math.min(al.from[1], al.to[1]) - (ns ? 0 : al.half), Math.max(al.from[1], al.to[1]) + (ns ? 0 : al.half)];
+    return x0 < ax1 - 0.01 && x1 > ax0 + 0.01 && z0 < az1 - 0.01 && z1 > az0 + 0.01;
+  }));
+  check("LANTERN ALLEYS: a dozen houses and more in the north-east band past the ring road, none in another or across a main alley", houses.length >= 12 && strayed.length === 0 && overlaps.length === 0 && onAlley.length === 0, `${houses.length} houses, ${strayed.length} out of the band, ${overlaps.length} overlapping, ${onAlley.length} on an alley`);
+  // a body's way: at each half metre, nothing within its reach standing from under its head to over its step
+  const R0 = MOVE.radius;
+  const blockedAt = (x: number, z: number) => solidsIn(x - R0 + BR_X, x + R0 + BR_X, z - R0 + BR_Z, z + R0 + BR_Z).some((q) => q.minX < x + R0 + BR_X && q.maxX > x - R0 + BR_X && q.minZ < z + R0 + BR_Z && q.maxZ > z - R0 + BR_Z && q.base < MOVE.standHeight && q.top > MOVE.stepHeight);
+  const walk = (a: number[], b: number[]) => {
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    for (let k = 0; k <= L; k += 0.5) {
+      const [x, z] = [a[0] + ((b[0] - a[0]) * k) / L, a[1] + ((b[1] - a[1]) * k) / L];
+      if (blockedAt(x, z)) return `(${x.toFixed(1)}, ${z.toFixed(1)})`;
+    }
+    return "";
+  };
+  const shut: string[] = [];
+  for (const al of alleys) {
+    const w = walk(al.from, al.to);
+    if (w) shut.push(`main alley at ${w}`);
+  }
+  for (const row of DL?.rows ?? []) {
+    const L = Math.hypot(row.to[0] - row.from[0], row.to[1] - row.from[1]);
+    const t = [(row.to[0] - row.from[0]) / L, (row.to[1] - row.from[1]) / L];
+    for (const [s0, s1] of row.skip ?? []) {
+      const m = (s0 + s1) / 2;
+      const p = [row.from[0] + t[0] * m, row.from[1] + t[1] * m];
+      const w = walk([p[0] + row.front[0], p[1] + row.front[1]], [p[0] - row.front[0] * (row.deep + 1), p[1] - row.front[1] * (row.deep + 1)]);
+      if (w) shut.push(`row ${row.id}'s cross alley at ${w}`);
+    }
+  }
+  check("LANTERN ALLEYS: each main alley walked end to end, and each row's cross alley through it", alleys.length === 2 && shut.length === 0, shut.join("; ") || `${alleys.length} alleys, ${(DL?.rows ?? []).reduce((n, r) => n + (r.skip?.length ?? 0), 0)} cross alleys`);
+  check("LANTERN ALLEYS: lanterns over its main alleys", (LA?.lanterns ?? 0) >= 200, `${LA?.lanterns ?? 0} lanterns`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
