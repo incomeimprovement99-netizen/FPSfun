@@ -3565,7 +3565,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // alone, so nothing measured moves it
 {
   type Walk = number[][];
-  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
+  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; rooms?: { at: Pt[]; slab: string; wall: number; inner: string; crate: string }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
   if (DT) {
     const rndT = seeded(DT.seed);
     const S = DT.cell;
@@ -3602,9 +3602,24 @@ const STREET_WALL_BOXES: OBox[] = [];
       }
     for (const [x0, z0] of DT.ramp.cells) if (!cells.some((c) => c.ramp && Math.abs(c.x0 - x0) < 0.01 && Math.abs(c.z0 - z0) < 0.01)) throw new Error(`THE TERRACES: the ramp at (${x0}, ${z0}) is off its grid`);
     const solids: number[][] = [];
+    // the rooms (`rooms`, Milestone 586): a square of a tier's first column, a storey over the one before it, opened to
+    // it as a bay a storey high: its floor the tier below, its ceiling the pack's floor slab with its top the tier's own
+    // (the tiers' paving over, plaster under), walls a body's hand thick on its other three sides drawn in the kit's
+    // plain wall facing in, a crate inside. Collides as boxes with the rest: under its floor, its slab, its walls
+    const RM = DT.rooms;
+    const slabRow = RM ? piece(RM.slab).row : null;
+    const roomAt = new Map((RM?.at ?? []).map(([x0, z0]) => [key(x0, z0), true]));
+    const isRoom = (x0: number, z0: number) => roomAt.has(key(x0, z0));
+    const rooms: Array<{ x0: number; z0: number; floor: number; top: number }> = [];
+    for (const [x0, z0] of RM?.at ?? []) {
+      const c = cells.find((q) => Math.abs(q.x0 - x0) < 0.01 && Math.abs(q.z0 - z0) < 0.01 && !q.ramp);
+      const front = [x0 + S, z0];
+      if (!c || isRamp(front[0], front[1]) || Math.abs(c.top - tierAt(front[0], front[1]) - DT.walls.storey) > 0.01) throw new Error(`THE TERRACES: the room at (${x0}, ${z0}) is not a tier's first square a storey over the one before it`);
+      rooms.push({ x0, z0, floor: c.top - DT.walls.storey, top: c.top });
+    }
     // the squares solid to their tops, a column's run of one height as one box
     const byCol = new Map<number, typeof cells>();
-    for (const c of cells) if (!c.ramp && c.top > 0) (byCol.get(c.x0) ?? byCol.set(c.x0, []).get(c.x0)!).push(c);
+    for (const c of cells) if (!c.ramp && c.top > 0 && !isRoom(c.x0, c.z0)) (byCol.get(c.x0) ?? byCol.set(c.x0, []).get(c.x0)!).push(c);
     for (const [x0, list] of byCol) {
       list.sort((a, b) => a.z0 - b.z0);
       let i = 0;
@@ -3613,6 +3628,16 @@ const STREET_WALL_BOXES: OBox[] = [];
         while (j + 1 < list.length && Math.abs(list[j + 1].z0 - list[j].z0 - S) < 0.01 && list[j + 1].top === list[i].top) j++;
         solids.push([x0, x0 + S, list[i].z0, list[j].z0 + S, 0, list[i].top]);
         i = j + 1;
+      }
+    }
+    if (RM && slabRow) {
+      const st = slabRow.size![1];
+      const w = RM.wall;
+      for (const q of rooms) {
+        const [x1, z1] = [q.x0 + S, q.z0 + S];
+        if (q.floor > 0) solids.push([q.x0, x1, q.z0, z1, 0, q.floor]);
+        solids.push([q.x0, x1, q.z0, z1, q.top - st, q.top]);
+        solids.push([q.x0, q.x0 + w, q.z0, z1, q.floor, q.top - st], [q.x0, x1, q.z0, q.z0 + w, q.floor, q.top - st], [q.x0, x1, z1 - w, z1, q.floor, q.top - st]);
       }
     }
     // the ramps: each its foot's height solid under it, and steps a `steps`th of its run deep, each to its rise's height
@@ -3634,7 +3659,17 @@ const STREET_WALL_BOXES: OBox[] = [];
     if (Math.abs(tile.size![0] - S) > 0.01) throw new Error(`THE TERRACES: ${DT.top.piece} is ${tile.size![0]} m, not ${S}`);
     for (const c of cells) {
       if (c.ramp) placeTurned(DT.chunk, DT.ramp.piece, c.x0 + S / 2, c.z0 + S / 2, yawToward(ux, uz), "g", c.top, DT.ramp.mat);
-      else if (c.top > 0) placeTurned(DT.chunk, DT.top.piece, c.x0 + S / 2, c.z0 + S / 2, 0, "g", c.top, DT.top.mat);
+      else if (c.top > 0 && !isRoom(c.x0, c.z0)) placeTurned(DT.chunk, DT.top.piece, c.x0 + S / 2, c.z0 + S / 2, 0, "g", c.top, DT.top.mat);
+    }
+    // each room: its slab, its floor's slab where it stands on a tier, its walls facing in, its crate
+    // (the crate's side by turns, not the seed's: a draw here would change every wall's pick after it)
+    for (const [ri, q] of (RM ? rooms : []).entries()) {
+      const [cx, cz] = [q.x0 + S / 2, q.z0 + S / 2];
+      placeTurned(DT.chunk, RM!.slab, cx, cz, 0, "g", q.top);
+      if (q.floor > 0) placeTurned(DT.chunk, RM!.slab, cx, cz, 0, "g", q.floor);
+      const w = RM!.wall;
+      for (const [x, z, n] of [[q.x0 + w, cz, [1, 0]], [cx, q.z0 + w, [0, 1]], [cx, q.z0 + S - w, [0, -1]]] as Array<[number, number, Pt]>) placeTurned(DT.chunk, RM!.inner, x, z, (Math.atan2(-n[1], n[0]) * 180) / Math.PI, "g", q.floor);
+      placeTurned(DT.chunk, RM!.crate, q.x0 + 1, cz + (ri % 2 ? -1.6 : 1.6), 90, "o", q.floor);
     }
     // the walls: on each edge where a square stands over the next (past the band, the ground), a storey at a time, facing
     // the lower side; none behind a ramp's head (its face is under the ramp); the pack's fronts on the faces seen from the
@@ -3658,14 +3693,17 @@ const STREET_WALL_BOXES: OBox[] = [];
         const mid: Pt = [c.x0 + S / 2 + (n[0] * S) / 2, c.z0 + S / 2 + (n[1] * S) / 2];
         const yaw = (Math.atan2(-n[1], n[0]) * 180) / Math.PI;
         const plain = nRamp || n[0] < 0;
+        // (a room's front is its opening: no wall, though the seed's pick is drawn, so the walls after it keep theirs)
+        const open = n[0] > 0 && isRoom(c.x0, c.z0);
         for (let y = low; y < c.top - 0.01; y += W.storey) {
           const name = plain ? W.plain : W.fronts[Math.floor(rndT() * W.fronts.length)];
+          if (open) continue;
           const r = piece(name).row;
           const cxl = (r.min![0] + r.max![0]) / 2;
           placeTurned(DT.chunk, name, mid[0] + n[0] * cxl, mid[1] + n[1] * cxl, yaw, "g", y);
           walls++;
         }
-        if (n[0] > 0) faces.push({ x: mid[0], z0: c.z0, z1: c.z0 + S, n, low, lowRamp: nRamp });
+        if (n[0] > 0 && !open) faces.push({ x: mid[0], z0: c.z0, z1: c.z0 + S, n, low, lowRamp: nRamp });
       }
     }
     // the rails: along every edge of a square with a drop past it, `inset` in from the edge, but where a ramp arrives
@@ -3834,7 +3872,7 @@ const STREET_WALL_BOXES: OBox[] = [];
         trees++;
       }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terraces"), { district: "terraces", ...DT.name }];
-    cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps, blocks: blocks.map((q) => [q.z0, q.z1, q.top]), balconies: balconyAt };
+    cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps, rooms: rooms.map((q) => [q.x0, q.z0, q.floor, q.top]), blocks: blocks.map((q) => [q.z0, q.z1, q.top]), balconies: balconyAt };
     console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps, ${blocks.length} blocks on the top tier with ${balconies} balconies`);
   }
 }

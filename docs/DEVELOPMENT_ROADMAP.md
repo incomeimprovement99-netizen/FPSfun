@@ -12926,3 +12926,29 @@ its wing, measured off its model a 2 m cell at a time. The walk-in Neon Building
 - **Checked** (tools/checks/sk-neon.ts): five blocks on the top tier, none in another, 1 to 1.5 m apart, their roofs stepping a storey to the middle; a player climbs onto the first block, jumps each gap onto the next block's wall and climbs it to the 18 m roof, drops roof to roof to the far end and down through the last gap onto the tier; all 24 roof edges railed but across the gaps; each of the four balconies standing a body; the perches now 24, each piece on its roof. Each new check was proven failing with its fault put back: the second block, a roof rail and a balcony taken out of the collision, and the second block moved into the first. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: the top tier, the grand stair's axis up to the gate with the tallest block behind it, its roof by the stair hut, a gap between blocks, the ring road and the centre's west street, by golden hour and at night.
   The map: its files lo 115.3 MB, hi 181.9 MB, max 410.5 MB.
   **Its files are version 65.**
+
+## Milestone 586 — THE TERRACES, its rooms: bays in the tiers' walls
+
+The district's third stage, the card's "flats you walk through": rooms behind the retaining walls, each a bay open to
+the tier before it.
+
+- **The rooms** (`rules.districts.terraces.rooms`, tools/neon-layout.ts): six squares of the tiers' first columns,
+  two a tier either side of the grand stair. Each stands a storey over the tier before it and opens onto it. Its floor
+  is that tier, and its ceiling is the pack's 0.5 m floor slab, the tiers' paving on top and plaster under, laid with
+  its top the tier's own. Walls 0.25 m thick close its other three sides, drawn in the terrain kit's plain wall facing
+  in. A crate stands inside as cover. They collide as boxes with the tiers: the tier under the floor, the slab, the
+  three walls.
+- **Why bays and not the pack's rooms:** the pack's small room modules are wall sets with arched doorways on several
+  sides, made to join room to room, and a doorway into a tier's solid would show a void. The terrain kit's arched wall
+  opens 3 m wide but only 1.2 m high at its sides and 2 m in the middle, too low for a body through the collision's
+  half-metre cells. So each room's front is its whole width, 2.5 m high under the slab's brick edge.
+- **Moved twice in the making:** the second tier's first two rooms stood behind the first tier's landing lamps, where a
+  body walks in, and a crate's collision cells reached the room's middle. They are now on the rows either side, and
+  the crates stand back by the wall.
+- **The gardens give way:** no cypress or flower planter stands in a room's opening, so the gardens are 14 cypresses
+  and 12 flower planters now.
+- **Loot:** the sector's loot spots fall at random on any floor with a standing body's room out to its reach (loot.ts),
+  so the rooms' floors take loot with no change.
+- **Checked** (tools/checks/sk-neon.ts): six rooms, two a tier, each walked into from the tier before it and back out by a player, its slab holding a body over it in the squares' drop check; the gardens' counts set to what the openings leave. The new check was proven failing with a wall put back across one room's opening. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: a first-tier room from the promenade and from inside looking out, a second-tier room from the first tier, a top-tier room from inside, and the ring road, by golden hour and at night.
+  The map: its files lo 115.3 MB, hi 181.9 MB, max 410.5 MB.
+  **Its files are version 66.**

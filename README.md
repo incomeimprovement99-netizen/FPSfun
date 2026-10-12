@@ -1260,8 +1260,8 @@ City bundle alone, nothing drawn by hand; the ILranch city it replaced went on
 The same nine districts, the eight round the centre plain for now with straight
 roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined with
 low shophouses under lantern lines, jump pads up onto their roofs; and THE TERRACES in
-the west: three garden tiers stepping up to the edge, a grand stair up the middle, and a run
-of balconied blocks along the top to climb and drop across. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+the west: three garden tiers stepping up to the edge, a grand stair up the middle, a run of
+balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

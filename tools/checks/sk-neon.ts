@@ -2431,7 +2431,9 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   }
   check("THE TERRACES: every edge of its tiers over a drop railed, a body kept from walking off, but where a ramp arrives", edges >= 50 && open.length === 0, open.slice(0, 6).join("; ") || `${edges} edges`);
-  check("THE TERRACES: its gardens: cypresses at the walls' feet, on the top tier and along both roads, flower planters, fern planters and benches as cover, lamps by the grand stair's landings", (TC?.trees ?? 0) >= 15 && (TC?.flowers ?? 0) >= 12 && (TC?.ferns ?? 0) + (TC?.benches ?? 0) >= 12 && (TC?.lamps ?? 0) >= 4, `${TC?.trees ?? 0} cypresses, ${TC?.flowers ?? 0} flower planters, ${TC?.ferns ?? 0} ferns, ${TC?.benches ?? 0} benches, ${TC?.lamps ?? 0} lamps`);
+  // (the counts are what the layout lays less what the rooms' openings took since Milestone 586: none stands in a room's
+  // way, so a room's wall square has neither the cypress at its edge nor the flower planter at its middle)
+  check("THE TERRACES: its gardens: cypresses at the walls' feet, on the top tier and along both roads, flower planters, fern planters and benches as cover, lamps by the grand stair's landings", (TC?.trees ?? 0) >= 12 && (TC?.flowers ?? 0) >= 10 && (TC?.ferns ?? 0) + (TC?.benches ?? 0) >= 12 && (TC?.lamps ?? 0) >= 4, `${TC?.trees ?? 0} cypresses, ${TC?.flowers ?? 0} flower planters, ${TC?.ferns ?? 0} ferns, ${TC?.benches ?? 0} benches, ${TC?.lamps ?? 0} lamps`);
   // its name: from the middle of the ring road's west side at a standing eye, a clear line to the plate's middle and near both ends
   const N = DT?.name;
   const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
@@ -2523,6 +2525,20 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     if (Math.abs(p.pos.y - by) > 0.3) off.push(`(${bx}, ${bz}) at ${p.pos.y.toFixed(2)} m of ${by}`);
   }
   check("THE TERRACES: the blocks' balconies, one each storey over the first on their street faces, each standing a body", (TO?.balconies?.length ?? 0) >= 4 && off.length === 0, off.join("; ") || `${TO?.balconies?.length ?? 0} balconies`);
+}
+
+// THE TERRACES' rooms (rules.districts.terraces.rooms, Milestone 586): each walked into by a player from the tier before
+// it to its middle, under its slab, and back out (a body drops onto the tier over it in the squares' check)
+{
+  const TR = (cfg as unknown as { terraces?: { rooms?: number[][] } }).terraces?.rooms ?? [];
+  const shut: string[] = [];
+  for (const [x0, z0, floor] of TR) {
+    const route = [[x0 + 7, z0 + 2.5, floor], [x0 + 2.5, z0 + 2.5, floor]];
+    const inn = along(route);
+    const out = along([...route].reverse());
+    if (inn.k !== route.length || out.k !== route.length) shut.push(`(${x0}, ${z0}) at ${floor} m: in to (${inn.x.toFixed(1)}, ${inn.z.toFixed(1)}) at ${inn.y.toFixed(2)}, out to (${out.x.toFixed(1)}, ${out.z.toFixed(1)})`);
+  }
+  check("THE TERRACES: six rooms in its tiers' street walls, two a tier, each walked into from the tier before it and back out by a player", TR.length === 6 && new Set(TR.map((q) => q[2])).size === 3 && shut.length === 0, shut.join("; ") || `${TR.length} rooms`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
