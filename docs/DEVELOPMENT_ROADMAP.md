@@ -12856,3 +12856,33 @@ or a third: the owner's call (2026-10-12) was to compress them.
 - **Not done, and worth a look:** the city's lo file gzips from 100 MB to 53 MB even at the fastest level. That wants
   the files compressed once at deploy time and sent as they are, with the progress reading the compressed length, not
   squeezed per request.
+
+## Milestone 585 — THE TERRACES, its blocks: a roof run on the top tier
+
+The district's second stage, the card's "balconied blocks" and "roof-hopping run at 10 to 18 m". The pack's buildings
+were looked at for it first. Decorative13, a 37 m balconied block, has pyramid roofs and only a closed courtyard under
+its wing, measured off its model a 2 m cell at a time. The walk-in Neon Building 04 is 20 m deep, and the top tier has
+15 m behind the stair heads. So the blocks are built from the terrain kit, as the tiers are.
+
+- **The blocks** (`rules.districts.terraces.blocks`, tools/neon-layout.ts): five along the fence on the top tier,
+  10 m deep. Their roofs step a storey up to the middle: 12, 15, 18, 15 and 12 m. Gaps of 1 and 1.5 m run between them.
+  The tallest stands behind the gate, so the district's name reads against its face. Each collides as a box written
+  with the tiers'.
+- **The walls:** the pack's gates and shop windows on the ground storey toward the street, its windows on the storeys
+  over that, plain walls in the gaps and at the fence. The climbs' round balcony (`rules.blocks.climbs`) sits on the
+  street face of each storey over the first, by turns along it.
+- **The roof run:** SpeedKills climbs a wall a storey high by running into it. So a body climbs onto the first block
+  from the tier, jumps each gap from a roof's edge onto the next block's wall and climbs it, up to the 18 m roof. From
+  there it drops roof to roof to the other end, and down into the last gap and out onto the tier.
+- **The roofs:** paved, railed along their long sides and over the band's two ends, open across the gaps. A stair hut
+  on the top roof has the pack's gate for a door. Five of the pack's AC boxes and crates stand on the roofs as cover,
+  a perch to each roof height (`rules.perches`' terraces-12, -15 and -18). The perch search counts the roof under a box
+  the last bake measured at the middle of the perch's height range, and over all three heights in one range a box on
+  the 18 m roof read as 15 m and moved every run. The perches keep a lane clear along the run, `rules.perches_clear.run`
+  round every metre of it, since the first cover put a coolbox in the climber's way on the first roof.
+- **The cypresses:** they now collide as their planters, as the fern planters do (`rules.collision.caps`: their pits
+  are the same Box045 parts). Solid to their 11 to 15 m tops, the first roof-run test climbed one by running into it
+  and stood on its crown. The top tier's grove now stands at the blocks' feet, clear of the gaps' mouths.
+- **Checked** (tools/checks/sk-neon.ts): five blocks on the top tier, none in another, 1 to 1.5 m apart, their roofs stepping a storey to the middle; a player climbs onto the first block, jumps each gap onto the next block's wall and climbs it to the 18 m roof, drops roof to roof to the far end and down through the last gap onto the tier; all 24 roof edges railed but across the gaps; each of the four balconies standing a body; the perches now 24, each piece on its roof. Each new check was proven failing with its fault put back: the second block, a roof rail and a balcony taken out of the collision, and the second block moved into the first. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: the top tier, the grand stair's axis up to the gate with the tallest block behind it, its roof by the stair hut, a gap between blocks, the ring road and the centre's west street, by golden hour and at night.
+  The map: its files lo 115.3 MB, hi 181.9 MB, max 410.5 MB.
+  **Its files are version 65.**

@@ -2800,6 +2800,14 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     for (const q of ((cfg.zips ?? []) as Array<{ block: string; b: number[] }>).filter((z) => !z.block.startsWith("lookout"))) lands.push([q.b[0], q.b[2], PC.zip]);
     // (and each roof bridge's ends and its step, rules.low.roofs `clear`)
     for (const q of roofBridges) for (const p of [q.a, q.b, ...(q.step ? [q.step] : [])]) lands.push([p[0], p[2], (R.low.roofs as { clear: number }).clear]);
+    // (and along THE TERRACES' roof run, rules.districts.terraces.walks.roofs, a point a metre and `run` round each: a
+    // crate on the first block's roof stood in the run's way and the climber stopped against it)
+    const RUN = (R.districts as { terraces?: { walks?: Record<string, number[][]> } } | undefined)?.terraces?.walks?.roofs ?? [];
+    for (let i = 1; i < RUN.length; i++) {
+      const [a, b] = [RUN[i - 1], RUN[i]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      for (let s = 0; s <= L; s += 1) lands.push([a[0] + ((b[0] - a[0]) * s) / L, a[1] + ((b[1] - a[1]) * s) / L, (PC as { run?: number }).run ?? 0]);
+    }
     const perches: Array<{ name: string; at: number[][] }> = [];
     const roofCounts: string[] = [];
     // (every perch's pieces so far: a deck's landmark keeps off its cover as its cover keeps off itself)
@@ -3557,7 +3565,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // alone, so nothing measured moves it
 {
   type Walk = number[][];
-  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
+  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
   if (DT) {
     const rndT = seeded(DT.seed);
     const S = DT.cell;
@@ -3697,7 +3705,7 @@ const STREET_WALL_BOXES: OBox[] = [];
       placeTurned(DT.chunk, G2.flower, f.x + G2.flowerOff, (f.z0 + f.z1) / 2, rndT() * 360, "o", f.low);
       flowers++;
     }
-    // a grove of cypresses on the top tier, on the line the blocks over it will front
+    // a cypress at the foot of each block's street face on the top tier but the middle one's, clear of the gaps' mouths
     for (const z of G2.grove.z) {
       placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], G2.grove.x, z, rndT() * 360, "s", tierAt(G2.grove.x - S / 2, z - S / 2));
       trees++;
@@ -3742,6 +3750,83 @@ const STREET_WALL_BOXES: OBox[] = [];
     // the gate at the head of the grand stair: two of the pack's columns on the top tier either side of where it arrives,
     // the district's name on a plate between them (src/game/neonmap.ts draws districtNames)
     for (const [x, z] of DT.gate.at) placeTurned(DT.chunk, DT.gate.piece, x, z, 0, "o", tierAt(x - S / 2, z - S / 2));
+    // the blocks on the top tier (`blocks`, Milestone 585): rows along the fence, each a rectangle [z0, z1, top] across
+    // `x`, a few metres apart, their roofs stepping up to the middle a storey at a time, so a body climbs each from the
+    // next (SpeedKills' climb up a wall a storey high) and drops off each onto the next. Drawn as the tiers are: the
+    // pack's paving on the roof, a storey of wall at a time from the tier to the roof (its gates and windows on the
+    // ground storey toward the street, windows over it, plain walls in the gaps and at the fence), and colliding as boxes
+    // written with the tiers'. The pack's round balcony on the street face of each storey over the first, by turns along
+    // it; rails on each roof's long sides and over the band's ends, open across the gaps; a stair hut on the top roof
+    const BK = DT.blocks;
+    const blocks: Array<{ z0: number; z1: number; top: number; base: number }> = [];
+    let balconies = 0;
+    const balconyAt: number[][] = [];
+    if (BK) {
+      const [bx0, bx1] = BK.x;
+      const brow = piece(BK.balcony.piece).row;
+      for (const [z0, z1, top] of BK.rows) {
+        const base = tierAt(bx0, z0);
+        for (const [a, b] of [[bx1 - bx0, S], [z1 - z0, S]]) if (Math.abs(a / b - Math.round(a / b)) > 0.01) throw new Error(`THE TERRACES: a block of ${bx1 - bx0} by ${z1 - z0} m is not whole ${S} m squares`);
+        if (Math.abs((top - base) / W.storey - Math.round((top - base) / W.storey)) > 0.01) throw new Error(`THE TERRACES: a block ${top - base} m over its tier is not whole storeys`);
+        blocks.push({ z0, z1, top, base });
+        solids.push([bx0, bx1, z0, z1, 0, top]);
+        for (let x = bx0; x < bx1 - 1e-6; x += S) for (let z = z0; z < z1 - 1e-6; z += S) placeTurned(DT.chunk, DT.top.piece, x + S / 2, z + S / 2, 0, "g", top, DT.top.mat);
+      }
+      for (const [i, q] of blocks.entries()) {
+        const sides: Array<{ n: Pt; from: Pt; len: number; rail: boolean; front: boolean }> = [
+          { n: [1, 0], from: [bx1, q.z0], len: q.z1 - q.z0, rail: true, front: true },
+          { n: [-1, 0], from: [bx0, q.z0], len: q.z1 - q.z0, rail: true, front: false },
+          { n: [0, -1], from: [bx0, q.z0], len: bx1 - bx0, rail: i === 0, front: i === 0 },
+          { n: [0, 1], from: [bx0, q.z1], len: bx1 - bx0, rail: i === blocks.length - 1, front: i === blocks.length - 1 },
+        ];
+        for (const sd of sides) {
+          const t: Pt = sd.n[0] !== 0 ? [0, 1] : [1, 0];
+          const yaw = (Math.atan2(-sd.n[1], sd.n[0]) * 180) / Math.PI;
+          // (walls the whole way down to the tier where the next block's face stands across a gap: the gap is a slot to the
+          // tier, and the next one covers only its own height)
+          for (let s0 = 0; s0 < sd.len - 1e-6; s0 += S) {
+            const mid: Pt = [sd.from[0] + t[0] * (s0 + S / 2), sd.from[1] + t[1] * (s0 + S / 2)];
+            for (let y = q.base; y < q.top - 0.01; y += W.storey) {
+              const name = !sd.front ? W.plain : y === q.base ? W.fronts[Math.floor(rndT() * W.fronts.length)] : BK.uppers[Math.floor(rndT() * BK.uppers.length)];
+              const r = piece(name).row;
+              const cxl = (r.min![0] + r.max![0]) / 2;
+              placeTurned(DT.chunk, name, mid[0] + sd.n[0] * cxl, mid[1] + sd.n[1] * cxl, yaw, "g", y);
+              walls++;
+            }
+            if (sd.rail) {
+              const m: Pt = [mid[0] - sd.n[0] * DT.rail.inset, mid[1] - sd.n[1] * DT.rail.inset];
+              placeTurned(DT.chunk, DT.rail.piece, m[0], m[1], (Math.atan2(-t[1], t[0]) * 180) / Math.PI, "o", q.top);
+              railAt.push([+m[0].toFixed(2), +m[1].toFixed(2), q.top]);
+              rails++;
+            }
+          }
+        }
+        // the balconies on its street face: one each storey over the first, by turns at a quarter and three quarters along
+        // (the climbs' balcony, its own +z turned to the wall, its kerb left out so its floor is its top: rules.blocks.climbs)
+        for (let y = q.base + W.storey, k = 0; y < q.top - 0.01; y += W.storey, k++) {
+          // (its pivot the middle of its back: placed on the face, `inset` out)
+          const z = q.z0 + (q.z1 - q.z0) * (k % 2 ? 0.75 : 0.25);
+          if (brow.size![0] > (q.z1 - q.z0) / 2) throw new Error(`THE TERRACES: the balcony is wider than half the block at z ${q.z0}`);
+          add(DT.chunk, "c", [piece(BK.balcony.piece).key, +(bx1 + BK.balcony.inset).toFixed(3), +y.toFixed(3), +z.toFixed(3), +yawToward(-1, 0).toFixed(2), "s", null, BK.balcony.without] as Place);
+          balconyAt.push([+(bx1 + BK.balcony.inset).toFixed(2), +z.toFixed(2), y]);
+          balconies++;
+        }
+      }
+      // the stair hut on the top roof: a storey's box with the pack's gate on its street face, plain walls round, paved
+      const topBlock = blocks.reduce((a, b) => (b.top > a.top ? b : a));
+      const [hx0, hz0] = BK.hut.at;
+      const H = W.storey;
+      solids.push([hx0, hx0 + S, hz0, hz0 + S, 0, topBlock.top + H]);
+      placeTurned(DT.chunk, DT.top.piece, hx0 + S / 2, hz0 + S / 2, 0, "g", topBlock.top + H, DT.top.mat);
+      for (const n of dirs) {
+        const mid: Pt = [hx0 + S / 2 + (n[0] * S) / 2, hz0 + S / 2 + (n[1] * S) / 2];
+        const name = n[0] > 0 ? BK.hut.door : W.plain;
+        const r = piece(name).row;
+        const cxl = (r.min![0] + r.max![0]) / 2;
+        placeTurned(DT.chunk, name, mid[0] + n[0] * cxl, mid[1] + n[1] * cxl, (Math.atan2(-n[1], n[0]) * 180) / Math.PI, "g", topBlock.top);
+        walls++;
+      }
+    }
     // the cypress avenue along both roads, on the ground beyond each
     for (const z of G2.avenue.z)
       for (const x of G2.avenue.x) {
@@ -3749,8 +3834,8 @@ const STREET_WALL_BOXES: OBox[] = [];
         trees++;
       }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terraces"), { district: "terraces", ...DT.name }];
-    cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps };
-    console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps`);
+    cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps, blocks: blocks.map((q) => [q.z0, q.z1, q.top]), balconies: balconyAt };
+    console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps, ${blocks.length} blocks on the top tier with ${balconies} balconies`);
   }
 }
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super

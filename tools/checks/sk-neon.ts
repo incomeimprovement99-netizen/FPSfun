@@ -294,8 +294,8 @@ check("LANTERN ALLEYS: a pad up onto a house from each main alley and each back 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway and the corner blocks' roofs, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 21 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway, the corner blocks' roofs, LANTERN ALLEYS' houses and THE TERRACES' blocks, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 24 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
@@ -2382,13 +2382,16 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const strayed = cells.filter(([x0, z0]) => x0 < wSec.minX - 0.51 || x0 + S > -ring + 0.01 || z0 < DT!.z[0] - 0.01 || z0 + S > DT!.z[1] + 0.01 || z0 < wSec.minZ || z0 + S > wSec.maxZ);
   const raised = cells.filter((c) => c[2] > 0 || c[3]);
   check("THE TERRACES: its tiers in the west band past the ring road and its pavement, between the two roads, three storeys and fifteen ramps", !!DT && raised.length >= 90 && strayed.length === 0 && new Set(cells.filter((c) => !c[3] && c[2] > 0).map((c) => c[2])).size === 3 && cells.filter((c) => c[3]).length === 15, `${raised.length} squares raised, ${cells.filter((c) => c[3]).length} ramps, ${strayed.length} out of the band`);
-  // a body dropped 2 m over each square's middle: on a tier it rests on the top (or on what stands there, never lower),
-  // on a ramp between its foot and its head
+  // a body dropped 2 m over each square's middle (over whatever stands there: the blocks on the top tier): on a tier it
+  // rests on the top or on what stands there, never lower, on a ramp between its foot and its head
   const sunk: string[] = [];
   for (const [x0, z0, top, ramp] of raised) {
     const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
-    const y0 = top + (ramp ? TC!.rise : 0);
-    p.teleport(x0 + S / 2 + BR_X, y0 + 2, z0 + S / 2 + BR_Z, 0);
+    const [cx, cz] = [x0 + S / 2 + BR_X, z0 + S / 2 + BR_Z];
+    const r = MOVE.radius;
+    const over = solidsIn(cx - r, cx + r, cz - r, cz + r).reduce((h, q) => (q.minX < cx + r && q.maxX > cx - r && q.minZ < cz + r && q.maxZ > cz - r && q.top < 40 && q.top > h ? q.top : h), 0);
+    const y0 = Math.max(top + (ramp ? TC!.rise : 0), over);
+    p.teleport(cx, y0 + 2, cz, 0);
     let t = 1000;
     for (let i = 0; i < 2 * 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
     const ok = ramp ? p.pos.y > top + 0.05 && p.pos.y < top + TC!.rise + 0.05 : p.pos.y > top - 0.05;
@@ -2396,7 +2399,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   }
   check("THE TERRACES: a body dropped on each square of its tiers and ramps rests on it, none sunk into a tier", raised.length > 0 && sunk.length === 0, sunk.slice(0, 6).join("; ") || `${raised.length} squares`);
   // each way up walked by a player: from the promenade up its ramps and landings to the top tier, and back down
-  const ways = Object.entries(DT?.walks ?? {});
+  const ways = Object.entries(DT?.walks ?? {}).filter(([n]) => n !== "roofs");
   const failed: string[] = [];
   for (const [name, route] of ways) {
     const up = along(route);
@@ -2449,6 +2452,77 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "terraces");
   check("THE TERRACES: its name on the gate at the head of the grand stair, seen from the ring road", named && !!N && blocked.length === 0, blocked.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
+// THE TERRACES' blocks on the top tier (rules.districts.terraces.blocks, Milestone 585): five along the fence, none in
+// another, a jump apart, their roofs stepping a storey up to the middle; the run along them climbed and dropped by a
+// player with SpeedKills' moves (a wall a storey high climbed by running into it, a gap jumped from the roof's edge onto
+// the next one's wall); each roof's long sides and the band's ends railed; each balcony standing a body
+{
+  type BRule = { x: number[]; rows: number[][] };
+  const TB = (cfg.rules as unknown as { districts?: { terraces?: { blocks?: BRule; walks: Record<string, number[][]> } } }).districts?.terraces;
+  const BK = TB?.blocks;
+  const TO = (cfg as unknown as { terraces?: { balconies?: number[][] } }).terraces;
+  const rows = [...(BK?.rows ?? [])].sort((a, b) => a[0] - b[0]);
+  const gaps = rows.slice(1).map((r, i) => r[0] - rows[i][1]);
+  const mid = rows.reduce((a, r, i) => (r[2] > rows[a][2] ? i : a), 0);
+  const steps = rows.every((r, i) => i === mid || Math.abs(Math.abs(r[2] - rows[i < mid ? i + 1 : i - 1][2]) - 3) < 0.01);
+  check("THE TERRACES: five blocks on the top tier along the fence, none in another, each a jump from the next (0.75 to 2 m), their roofs a storey apart stepping up to the middle", rows.length === 5 && gaps.every((g) => g >= 0.75 && g <= 2) && steps && (BK?.x[0] ?? 0) >= -152.51, `${rows.map((r) => `${r[0]} to ${r[1]} at ${r[2]} m`).join(", ")}; gaps ${gaps.join(", ")} m`);
+  // (the highest floor at a point no higher than a step over `y`)
+  const floorUnder = (x: number, z: number, y: number) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).reduce((f, q) => (q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.top <= y + MOVE.stepHeight && q.top > f ? q.top : f), 0);
+  const climbRun = (pts: number[][]): { k: number; at: string } => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.sprintMode = "auto";
+    p.extraMoves = true;
+    p.autoClimb = true;
+    p.teleport(pts[0][0] + BR_X, pts[0][2] + 0.05, pts[0][1] + BR_Z, 0);
+    let t = 1000, k = 1, legT = 0;
+    for (let i = 0; i < 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+    for (let i = 0; i < 90 * 144 && k < pts.length; i++) {
+      const [tx, tz, ty] = pts[k];
+      const here = [p.pos.x - BR_X, p.pos.z - BR_Z];
+      if (Math.hypot(tx - here[0], tz - here[1]) < 0.8 && Math.abs(p.pos.y - ty) < 0.4 && p.onGround) {
+        (k++), (legT = 0);
+        continue;
+      }
+      if ((legT += 1 / 144) > 12) break;
+      const [dx, dz] = [tx - here[0], tz - here[1]];
+      const L = Math.hypot(dx, dz) || 1;
+      p.yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+      // (bound for a higher roof across a gap: a jump where the roof gives out 0.7 m ahead)
+      const leap = p.onGround && ty > p.pos.y + 1 && floorUnder(here[0] + (dx / L) * 0.7, here[1] + (dz / L) * 0.7, p.pos.y) < p.pos.y - 1;
+      p.update(1 / 144, (t += 1 / 144), { held: (a: Action) => a === "forward" || (a === "jump" && leap), pressedNow: (a: Action) => a === "jump" && leap }, 0, 1, false);
+    }
+    return { k, at: `(${(p.pos.x - BR_X).toFixed(1)}, ${p.pos.y.toFixed(2)}, ${(p.pos.z - BR_Z).toFixed(1)})` };
+  };
+  const route = TB?.walks.roofs ?? [];
+  const run = climbRun(route);
+  check("THE TERRACES: a player climbs from the top tier onto the first block, jumps each gap up onto the next block to the top roof, then drops roof to roof to the last and down into its gap and out", route.length > 4 && run.k === route.length, `${run.k - 1} of ${route.length - 1} legs, at ${run.at}`);
+  // the roofs' rails: along each long side, and the band's two ends, as the tiers' (a body kept from walking off)
+  const open: string[] = [];
+  let edges = 0;
+  for (const [i, [z0, z1, top]] of rows.entries()) {
+    const sides: Array<[number, number, number, number]> = [];
+    for (let z = z0 + 2.5; z < z1; z += 5) sides.push([BK!.x[1] - 0.25, z, 1, 0], [BK!.x[0] + 0.25, z, -1, 0]);
+    if (i === 0) for (let x = BK!.x[0] + 2.5; x < BK!.x[1]; x += 5) sides.push([x, z0 + 0.25, 0, -1]);
+    if (i === rows.length - 1) for (let x = BK!.x[0] + 2.5; x < BK!.x[1]; x += 5) sides.push([x, z1 - 0.25, 0, 1]);
+    for (const [px, pz] of sides) {
+      edges++;
+      const hit = solidsIn(px - 0.3 + BR_X, px + 0.3 + BR_X, pz - 0.3 + BR_Z, pz + 0.3 + BR_Z).some((q) => q.minX < px + 0.3 + BR_X && q.maxX > px - 0.3 + BR_X && q.minZ < pz + 0.3 + BR_Z && q.maxZ > pz - 0.3 + BR_Z && q.base < top + MOVE.stepHeight && q.top > top + 0.9);
+      if (!hit) open.push(`(${px}, ${pz}) at ${top} m`);
+    }
+  }
+  check("THE TERRACES: each block's roof railed along its long sides, and the band's two ends, open across the gaps", rows.length === 5 && open.length === 0, open.slice(0, 6).join("; ") || `${edges} edges`);
+  // each balcony: a body dropped on it rests on its floor
+  const off: string[] = [];
+  for (const [bx, bz, by] of TO?.balconies ?? []) {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(bx + 1.2 + BR_X, by + 1.5, bz + BR_Z, 0);
+    let t = 1000;
+    for (let i = 0; i < 2 * 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+    if (Math.abs(p.pos.y - by) > 0.3) off.push(`(${bx}, ${bz}) at ${p.pos.y.toFixed(2)} m of ${by}`);
+  }
+  check("THE TERRACES: the blocks' balconies, one each storey over the first on their street faces, each standing a body", (TO?.balconies?.length ?? 0) >= 4 && off.length === 0, off.join("; ") || `${TO?.balconies?.length ?? 0} balconies`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
