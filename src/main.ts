@@ -2,7 +2,7 @@ import * as THREE from "three";
 import { setFigureView } from "./game/figlod";
 import { WALL, WALLS, clearWalls, putWall, stepWalls, type PutWall } from "./game/walls";
 import playerCfg from "./config/player.json";
-import { GAME, PROFILE, IS_SK } from "./game/game";
+import { GAME, PROFILE } from "./game/game";
 import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
@@ -37,7 +37,7 @@ import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, ty
 import { buildRange, rangeBounds, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { floorAt } from "./game/floors";
 import rangeCfg from "./config/range.json";
-import { HOURS, HOUR_IDS, hourFor, loadHour, saveHour, matchHour, loadBrSky, saveBrSky, loadSkHour, saveSkHour, type Hour } from "./game/sky";
+import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
 import { BrMatch, DROP_HEIGHT, teamFor } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
@@ -146,7 +146,7 @@ import keyHintsCfg from "./config/keyhints.json";
 // had before any of it is read: the row reads its choices back from these keys as the page builds it.
 applyBrDefaults();
 function applyBrDefaults(): void {
-  const D = IS_SK ? PROFILE.brDefaults : undefined;
+  const D = PROFILE.brDefaults;
   if (!D) return;
   try {
     if (localStorage.getItem("range.brDefaults") === D.tag) return;
@@ -224,13 +224,13 @@ intro.onWarm = () => {
 // the world in, and SpeedKills' late heavy steps over (the bought guns dressed, the soldier's clips carried over, and the
 // first-person arms built from him, which are asked for twice a second): each was a stall that landed on the card once
 // it had started (intro.json settle)
-intro.ready = () => loadingScreen.loaded && (!IS_SK || (paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms)));
+intro.ready = () => loadingScreen.loaded && (paidSettled && figuresSettled() && (!soldierReady() || viewModel.realArms));
 // SpeedKills: the loading screen, its bar and its tips, is what shows while anything loads, up to those late steps
 // too; there is no card over it, and a mode's card plays once it is done (below, and wireMatch)
 // and the city's side warmed after all that (brWarmed): drawn cold from the ship, it froze the page for seconds
 // (not the city's warm: the city is asked for when a match on it starts, askCity, and its warm waits on the match's screen;
 // nor the figures: asked for once this screen has gone, askFigures, and a match's screen waits for them)
-if (IS_SK) loadingScreen.waitFor = () => paidSettled && warming === 0 && skyIn;
+loadingScreen.waitFor = () => paidSettled && warming === 0 && skyIn;
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
@@ -569,8 +569,8 @@ const reticle: Reticle = loadReticle();
 }
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
-/** SpeedKills' health and shield, and how they come back; null in the legacy game */
-const SK_HEALTH = IS_SK ? PROFILE.health : null;
+/** SpeedKills' health and shield, and how they come back */
+const SK_HEALTH = PROFILE.health;
 // The game this page is (src/game/game.ts), its look keyed off index.html's
 // data-game; set again here so nothing that drew the page can lose it.
 document.documentElement.dataset.game = GAME;
@@ -785,21 +785,18 @@ const vmCamera = new THREE.PerspectiveCamera(90, window.innerWidth / window.inne
 vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
-buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: IS_SK ? "city" : "warehouse", sandbox: IS_SK ? rangeCfg.sandbox : null, solids: IS_SK ? armorySolids() : undefined });
+buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: "city", sandbox: rangeCfg.sandbox, solids: armorySolids() });
 // the 1v1 arena, east of the range, and the 1v1v1 triangle north of it (src/game/arena.ts)
 // (the arenas' textures after the page's first screen: nothing the range's first frame shows, later.ts)
 holdTextures(true);
 const arena = buildArena(scene);
 const triArena = buildTriArena(scene);
 holdTextures(false);
-// the battle royale map, 500 m south (src/game/br.ts)
-// SpeedKills' city, or the legacy game's Outskirts, in the same square of the world. SpeedKills plays the map rebuilt from
-// Daelonik's Neon City (neonmap.ts, Phase 28); the city of the ILranch packs before it went on 2026-10-09 (the owner:
-// "remove ILranch city completely")
-const NEON = IS_SK;
+// the battle royale map, 500 m south (src/game/br.ts): the map rebuilt from Daelonik's Neon City (neonmap.ts, Phase 28);
+// the city of the ILranch packs before it went on 2026-10-09 (the owner: "remove ILranch city completely")
 const brMap = buildNeonMap(scene);
 // the Neon City's collision boxes after the page's first screen, not in its first script (neonmap.ts loadNeonSolids)
-if (NEON) later(() => void loadNeonSolids());
+later(() => void loadNeonSolids());
 // a door opening or shutting, heard where it hangs (whoever did it)
 brMap.doors.onChange = (d, what) => audio.door(d.centre, what === "break" || what === "kick" ? "kick" : what);
 /**
@@ -843,7 +840,7 @@ const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== are
 const SK_SKIES = PROFILE.identity.skies ?? [PROFILE.identity.sky];
 // (?sky=id: this page's hour whatever the Settings box says, for measuring one sky against another: tools/bench.ts)
 const SKY_ASKED = new URLSearchParams(location.search).get("sky");
-const gameHour = (): Hour => (SKY_ASKED && SKY_ASKED in HOURS ? hourFor(SKY_ASKED) : IS_SK ? loadSkHour(SK_SKIES, PROFILE.identity.sky) : loadHour());
+const gameHour = (): Hour => (SKY_ASKED && SKY_ASKED in HOURS ? hourFor(SKY_ASKED) : loadSkHour(SK_SKIES, PROFILE.identity.sky));
 let hour = gameHour();
 function applyHour(h: Hour): void {
   hour = h;
@@ -896,7 +893,7 @@ qualitySel.addEventListener("change", () => {
 // one shader with four colour uniforms, the sun is one light, and the
 // environment map is reloaded in the background.
 const skySel = $<HTMLSelectElement>("skyHour");
-for (const id of IS_SK ? SK_SKIES.filter((s) => s in HOURS) : HOUR_IDS) {
+for (const id of SK_SKIES.filter((s) => s in HOURS)) {
   const o = document.createElement("option");
   o.value = id;
   o.textContent = HOURS[id].label;
@@ -904,24 +901,15 @@ for (const id of IS_SK ? SK_SKIES.filter((s) => s in HOURS) : HOUR_IDS) {
 }
 skySel.value = hour.id;
 skySel.addEventListener("change", () => {
-  if (IS_SK) saveSkHour(skySel.value);
-  else saveHour(skySel.value);
+  saveSkHour(skySel.value);
   applyHour(hourFor(skySel.value));
 });
-// A battle royale plays at its own hour, drawn from the match seed, unless
-// the owner keeps theirs. Changing it mid-match applies at once.
-const skyBrSel = $<HTMLSelectElement>("skyBr");
-skyBrSel.value = loadBrSky();
-skyBrSel.addEventListener("change", () => {
-  saveBrSky(skyBrSel.value === "mine" ? "mine" : "match");
-  if (duel instanceof BrMatch) brHour(duel);
-});
-/** the sky a battle royale is played under: the match's hour, or the owner's own */
-function brHour(d: BrMatch): void {
-  const h = IS_SK ? gameHour() : loadBrSky() === "match" ? matchHour(d.seed) : loadHour();
+/** the sky a battle royale is played under: the player's own hour */
+function brHour(): void {
+  const h = gameHour();
   // SpeedKills plays under the hour already up: putting it up again fetched the sky once more and took the city's
   // reflection again (six renders of the city) for nothing, on the match's first frames
-  if (IS_SK && h.id === hour.id) return;
+  if (h.id === hour.id) return;
   applyHour(h);
 }
 const perfLine = $("perfLine");
@@ -949,7 +937,7 @@ scene.add(rangeProps);
 // SpeedKills' armory on the range's back wall (armory.ts): every gun and hack on a stand, a screen behind each, E takes
 // one and taking it again fuses it. With the range's props, so it is on the range's side and out of the static merge
 // (its holograms turn)
-const armory = IS_SK && !new URLSearchParams(location.search).has("norender") ? new Armory() : null;
+const armory = !new URLSearchParams(location.search).has("norender") ? new Armory() : null;
 if (armory) rangeProps.add(armory.root);
 // (after the page's first screen: 5.4 MB of crates, barrels, barriers and lights it waited for, set dressing whose
 // colliders are the range's own and in place already, later.ts)
@@ -964,7 +952,7 @@ later(() =>
 // there (the public build, a checkout); not on a ?norender page, which never draws it: decoding and dressing its million
 // and a half triangles there only takes the CPU from the e2e's fights
 /** the Neon City map's file is in and dressed, or is not there: its side is warmed after it (warmBrSide) */
-let cityIn = !NEON || new URLSearchParams(location.search).has("norender");
+let cityIn = new URLSearchParams(location.search).has("norender");
 /**
  * The Neon City's file is asked for the first time a match on its side starts (wireMatch, or the city's side first
  * shown), not with the page. The range never draws it, and with its warm it was most of the page's first load: on a
@@ -982,8 +970,8 @@ function askCity(): void {
   void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(() => (cityIn = true));
 }
 // the city's haze (atmosphere.ts, the Neon City map's own), from Balanced up; ?noair leaves it off, to compare
-atmosphereOn(IS_SK && quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("noair"));
-if (NEON) ownAir(NEON_AIR);
+atmosphereOn(quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("noair"));
+ownAir(NEON_AIR);
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
 // true because the player spawns on the firing line at z = 0.
@@ -1128,7 +1116,7 @@ const input = new Input(renderer.domElement);
 applySavedBinds();
 initBindsUi($("bindTable"), $("bindsNote"));
 /** where a player may go in the range: in SpeedKills, the sandbox up to its lit edge (range.json; Phase 20 A12) */
-const RANGE_PLAY = rangeBounds(IS_SK ? rangeCfg.sandbox : null);
+const RANGE_PLAY = rangeBounds(rangeCfg.sandbox);
 const player = new Player(RANGE_PLAY);
 /** your name and every result, in this browser (src/game/stats.ts) */
 const profile = new Stats();
@@ -1137,28 +1125,7 @@ const profile = new Stats();
 player.pos.set(0, 0, 0);
 // SpeedKills always sprints, whichever way you move, firing and aiming too (the owner, 2026-09-27: "only sprinting
 // on and not ever walking"); it was forward only, as Hyper Scape's Auto-Sprint (Phase 20 A15)
-player.sprintMode = IS_SK ? "always" : playerCfg.sprintMode === "hold" ? "hold" : "toggle";
-// Sprint: toggle (press once, the legacy default), hold, or auto. Chosen on the start screen and remembered,
-// each game its own (a legacy toggle kept must not turn SpeedKills' auto off)
-const LS_SPRINT = IS_SK ? "range.sk.sprintMode" : "range.sprintMode";
-try {
-  const sm = localStorage.getItem(LS_SPRINT);
-  if (!IS_SK && (sm === "hold" || sm === "toggle" || sm === "auto")) player.sprintMode = sm;
-} catch {
-  /* ignore */
-}
-const sprintSel = $<HTMLSelectElement>("sprintMode");
-sprintSel.value = player.sprintMode;
-// SpeedKills has no choice to make: it always sprints
-if (IS_SK) (sprintSel.closest(".row") ?? sprintSel).setAttribute("hidden", "");
-sprintSel.addEventListener("change", () => {
-  player.sprintMode = sprintSel.value === "hold" ? "hold" : sprintSel.value === "auto" ? "auto" : "toggle";
-  try {
-    localStorage.setItem(LS_SPRINT, player.sprintMode);
-  } catch {
-    /* ignore */
-  }
-});
+player.sprintMode = "always";
 // The mantle boost, Apex's own setting: with it on, holding jump through the
 // end of a mantle superglides for you. Off by default here, because the window
 // is what the trainer and the crosshair cue exist to teach.
@@ -1464,7 +1431,7 @@ const targets: Target[] = TARGET_SPECS.map((t) => {
 // SpeedKills has a third, THE CHAIN: the city's chain modules at their measured distances (courses/chain.ts)
 // (their textures after the page's first screen: the courses are through the gates behind you)
 holdTextures(true);
-const courses = [new Course(scene, BASIC_COURSE), new Course(scene, ADVANCED_COURSE), ...(IS_SK ? [new Course(scene, CHAIN_COURSE)] : [])];
+const courses = [new Course(scene, BASIC_COURSE), new Course(scene, ADVANCED_COURSE), new Course(scene, CHAIN_COURSE)];
 holdTextures(false);
 // a course's pad (THE CHAIN's window pad) sounds as the battle royale's do
 for (const c of courses) c.onPad = () => audio.whoosh();
@@ -1696,7 +1663,7 @@ try {
  * half-second's retargeting (2026-10-03). A match asks for them as it starts and its screen waits for them (showFrame),
  * as do the test hook's loaded() and the battle royale card's portrait.
  */
-let figuresAsked = !IS_SK;
+let figuresAsked = false;
 function askFigures(): void {
   if (figuresAsked) return;
   figuresAsked = true;
@@ -1704,10 +1671,9 @@ function askFigures(): void {
 }
 /** the figures are in (or never coming): what a match on SpeedKills waits for */
 const figuresIn = (): boolean => figuresAsked && figuresSettled();
-if (!IS_SK) setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
 // SpeedKills: the soldier picker on the Loadouts tab (soldier.json): a kit, colours, skin and eyes, and three
 // pieces on or off; kept as the player's code, which the look carries to friends (outfit.ts lookCode)
-if (IS_SK) {
+{
   const P = soldierCfg.palettes;
   const sel = (id: string) => $<HTMLSelectElement>(id);
   const fill = (id: string, items: Array<[string, string, string?]>) => {
@@ -1758,24 +1724,23 @@ if (IS_SK) {
 // SpeedKills: the bought guns (paidgun.ts), when their files are here; the guns in hand are built again once they are in
 // The guns in your hands first, the page's first screen waiting for them; the rest (the armory's, the floor's, the
 // cases) after it, behind the range (later.ts): the screen waited for all fourteen files and their skins, 10.5 MB
-if (IS_SK)
-  void loadPaidGuns([loadouts.current.slot1, loadouts.current.slot2]).then((ok) => {
-    paidSettled = true;
-    if (!ok) return;
-    const dressed = (): void => {
-      resetGunModels();
-      resetFloorGuns();
-      viewModel.rebuild();
-      // the gun in hand built now, not at the next frame's setWeapon: the warm below has to find it in the scene. Built
-      // after it, each bought gun's shader was built at its first draw, 100 ms each (tools' glprog, 2026-10-04)
-      viewModel.setWeapon(currentWeapon());
-      showPaidGuns();
-      // their materials' shaders, as the range's were (warmScene)
-      warmScene();
-    };
-    dressed();
-    later(() => loadPaidRest().then((all) => all && dressed()));
-  });
+void loadPaidGuns([loadouts.current.slot1, loadouts.current.slot2]).then((ok) => {
+  paidSettled = true;
+  if (!ok) return;
+  const dressed = (): void => {
+    resetGunModels();
+    resetFloorGuns();
+    viewModel.rebuild();
+    // the gun in hand built now, not at the next frame's setWeapon: the warm below has to find it in the scene. Built
+    // after it, each bought gun's shader was built at its first draw, 100 ms each (tools' glprog, 2026-10-04)
+    viewModel.setWeapon(currentWeapon());
+    showPaidGuns();
+    // their materials' shaders, as the range's were (warmScene)
+    warmScene();
+  };
+  dressed();
+  later(() => loadPaidRest().then((all) => all && dressed()));
+});
 figureSel.addEventListener("change", () => {
   setFigureStyle(figureSel.value === "mannequin" ? "mannequin" : "robot");
   try {
@@ -1922,8 +1887,8 @@ function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): 
   // mannequin has finished loading, rather than staying the robot; and the
   // bought guns' readiness, or a figure built before they came in held the
   // procedural stand-in until the loadout changed (Phase 27)
-  const key = `${def.operator}|${lookCode(def)}|${gun}|${useMannequin()}|${soldierReady()}|${IS_SK && paidGunsReady()}`;
-  document.body.classList.toggle("soldierOn", IS_SK && soldierReady());
+  const key = `${def.operator}|${lookCode(def)}|${gun}|${useMannequin()}|${soldierReady()}|${paidGunsReady()}`;
+  document.body.classList.toggle("soldierOn", soldierReady());
   if (key !== previewKey) {
     previewKey = key;
     previewFig?.dispose();
@@ -1947,7 +1912,7 @@ function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): 
   // a player pictures when they picture their loadout. SpeedKills' soldier holds
   // it up at rest already, as a rifleman stands (rifle.ts): aimed in, its head was
   // down on the stock and BOOG's scope glinted across the panel (Phase 27, 27.12)
-  const soldier = IS_SK && soldierReady();
+  const soldier = soldierReady();
   previewFig.setPose({ speed: 0, stance: "stand", pitch: 0, ads: soldier ? 0 : 1 });
   previewFig.update(now, dt);
   previewWhole = previewFitNow(previewFig);
@@ -2522,7 +2487,7 @@ const duelMode = $<HTMLSelectElement>("duelMode");
 const botDifficulty = $<HTMLSelectElement>("botDifficulty");
 const botCount = $<HTMLSelectElement>("botCount");
 // SpeedKills: its five tiers by its own names (speedkills.json bots, botNames), Beginner first
-if (IS_SK) {
+{
   const names = PROFILE.botNames ?? {};
   const tips: Record<string, string> = {
     beginner: "walks, reacts slowly, misses wide, takes cover, uses no hacks: one to learn on",
@@ -2568,7 +2533,7 @@ const botWeaponSel = $<HTMLSelectElement>("botWeapon");
 for (const id of weaponIds()) {
   const o = document.createElement("option");
   o.value = id;
-  o.textContent = IS_SK ? weaponLabel(id) : `Bot guns: ${weaponName(id)}`;
+  o.textContent = weaponLabel(id);
   botWeaponSel.appendChild(o);
 }
 try {
@@ -2592,20 +2557,18 @@ const botWeaponChoice = (): string | null => botWeaponSel.value || null;
 const arenaMapSel = $<HTMLSelectElement>("arenaMap");
 for (const [value, label] of [
   // the box wears the word MAP in the lobby, so the options do not repeat it
-  // (SpeedKills offers its own maps alone, the Neon ones: the legacy game's warehouse and drawn arenas are not its places)
-  ...(NEON ? [] : [["warehouse", "The warehouse"]]),
+  // (the Neon maps alone: the legacy game's warehouse and drawn arenas are not SpeedKills' places)
   ["auto", "Picked for the mode"],
-  ...ARENA_MAPS.filter((m) => (NEON ? m.city : m.plan)).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
+  ...ARENA_MAPS.filter((m) => m.city).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
 ] as Array<[string, string]>) {
   const o = document.createElement("option");
   o.value = value;
   o.textContent = label;
   arenaMapSel.appendChild(o);
 }
-// SpeedKills keeps its own choice, and starts on the map drawn for the mode, which is its city block
-// (arena.ts mapFor): the legacy game's first option, the warehouse, is not SpeedKills' place
-const LS_ARENA_MAP = IS_SK ? "range.sk.arenaMap" : "range.arenaMap";
-if (IS_SK) arenaMapSel.value = "auto";
+// SpeedKills' own key, and it starts on the map drawn for the mode (arena.ts mapFor)
+const LS_ARENA_MAP = "range.sk.arenaMap";
+arenaMapSel.value = "auto";
 try {
   const saved = localStorage.getItem(LS_ARENA_MAP) ?? "";
   if (saved && [...arenaMapSel.options].some((o) => o.value === saved)) arenaMapSel.value = saved;
@@ -2628,8 +2591,8 @@ const arenaFromWire = (id: string | undefined): ArenaMapId | null => (id ? (aren
 /** the friends' row's mode, when it is one of the arena's modes */
 const duelModeKind = (): ModeKind | null => (isModeKind(duelMode.value) ? duelMode.value : null);
 for (const id of ["duelMode", "brTeam", "brSides"]) document.getElementById(id)?.addEventListener("change", brPlayersDefault);
-/** the battle royale's bot count, each game its own (the menu keeps the same key, menu.ts BR_BOTS_KEY) */
-const BR_BOTS_STORE = IS_SK ? "range.br.bots.sk" : "range.br.bots";
+/** the battle royale's bot count (the menu keeps the same key, menu.ts BR_BOTS_KEY) */
+const BR_BOTS_STORE = "range.br.bots.sk";
 try {
   const bb = localStorage.getItem(BR_BOTS_STORE);
   if (bb && [...brBots.options].some((o) => o.value === bb)) brBots.value = bb;
@@ -2888,7 +2851,7 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   linkedTo = d.jumpmaster();
   const master = d.isJumpmaster();
   const say = (): void => {
-    hud.notice(master ? "YOU LEAD THE DROP: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} LEADS THE DROP` : `THE SHIP PASSES ${IS_SK && SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
+    hud.notice(master ? "YOU LEAD THE DROP: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} LEADS THE DROP` : `THE SHIP PASSES ${SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
     if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice("M IS THE MAP  ·  SPACE JUMPS", gameTime, 2.5), 3200);
   };
   // boarded under SpeedKills' loading screen and card: said once they have gone, or it was over before anyone saw it
@@ -3028,8 +2991,8 @@ function respawnForMatch(d: MatchLike): void {
   // full magazines, settled spread and recoil, gun out, a full heal kit, and
   // the match's ammo: counted, two stacks of each gun's, full energy stockpiles
   for (const sl of loadout.slots) sl.state.setWeapon(sl.weapon);
-  // SpeedKills: infinite reserve in every match (the owner's rule); the legacy game counts it
-  loadout.ammo.infinite = IS_SK;
+  // SpeedKills: infinite reserve in every match (the owner's rule)
+  loadout.ammo.infinite = true;
   loadout.ammo.kit(loadout.slots.map((sl) => sl.weapon));
   loadout.refillEnergy();
   holster = "out";
@@ -3054,7 +3017,7 @@ function respawnForMatch(d: MatchLike): void {
   // the echo (0.9 m round its spot), and the echo, are cleared away into nobody's pack, so none of it is there twice.
   if (d instanceof BrMatch && echoAt) {
     // SpeedKills: a restored ghost stands up whole (speedkills.json life)
-    d.health = IS_SK ? (PROFILE.life.restoreHealth ?? squadCfg.echoRespawn.health) : squadCfg.echoRespawn.health;
+    d.health = (PROFILE.life.restoreHealth ?? squadCfg.echoRespawn.health);
     d.shield = 0;
     echoRegen = { rate: d.shieldMax / squadCfg.echoRespawn.shieldRegen };
     // a death after this one drops what you have then (a Gulag lost before it had said: no second drop)
@@ -3552,7 +3515,6 @@ function resetHacks(): void {
   armorUntil = invisUntil = -Infinity;
   for (const z of healZones.splice(0)) scene.remove(z.mesh);
   for (const m of mines.splice(0)) scene.remove(m.mesh);
-  if (!IS_SK) return;
   const p = savedPicks();
   hacks.set(p.mobility, 0);
   hacks.set(p.utility, 0);
@@ -3714,7 +3676,6 @@ function useHack(slot: HackSlot, now: number): void {
 
 /** the hacks' frame: slams, pulls, leaps, the heal areas, mines, armour and invisibility */
 function stepHacks(now: number, dt: number): void {
-  if (!IS_SK) return;
   const d = duel;
   // ARMOR: most of a hit taken away, and slower while it lasts
   const armored = now < armorUntil;
@@ -3870,13 +3831,13 @@ let edgeArmed = false;
 const edgeInside = new THREE.Vector3(BR_X, 0, BR_Z);
 /** the wall a landed, living player stops at: the city and its margin; the city itself for the drop, a ghost and the dead */
 function edgeBounds(d: BrMatch): void {
-  if (!IS_SK || d.phase === "waiting" || (d.gulag && d.gulag.phase !== "wait")) return;
+  if (d.phase === "waiting" || (d.gulag && d.gulag.phase !== "wait")) return;
   if (!edgeArmed && d.alive && player.onGround && !player.aboard && !player.dropping) edgeArmed = true;
   player.setBounds(edgeArmed && d.alive && d.phase === "fight" ? EDGE_BOUNDS : BR_BOUNDS);
 }
 /** a frame past the edge or back: the countdown, and the death it brings */
 function edgeFrame(d: BrMatch, now: number): void {
-  const live = IS_SK && edgeArmed && d.phase === "fight" && d.alive && !(d.gulag && d.gulag.phase !== "wait") && !player.aboard;
+  const live = edgeArmed && d.phase === "fight" && d.alive && !(d.gulag && d.gulag.phase !== "wait") && !player.aboard;
   if (!live) {
     if (edge.since !== null || edge.struckAt !== null) edge.reset();
     return;
@@ -3897,7 +3858,6 @@ function edgeNear(): number {
 }
 
 function stepDecay(now: number): void {
-  if (!IS_SK) return;
   cityEdge(now, edgeNear());
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const states = d ? d.sectorStates() : null;
@@ -4132,7 +4092,7 @@ let lootCardMode: LootCardMode = (() => {
 })();
 /** the card for the floor item you look at or cycled to, or null (not aiming in, and not while merely nearest) */
 function lootCardNow(): LootCardView | null {
-  if (!IS_SK || !(duel instanceof BrMatch) || !duel.lootField) return null;
+  if (!(duel instanceof BrMatch) || !duel.lootField) return null;
   if (REACH.pick < 0 || (REACH.how !== "aimed" && REACH.how !== "cycled")) return null;
   if (loadout.active.state.adsFrac >= hudCfg.lootCard.hideAds) return null;
   const d = duel.lootField.drops.get(REACH.pick);
@@ -4455,16 +4415,16 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   // SpeedKills: the loading screen first, then the card, then the match (showFrame); not for a tab in the background,
   // which gets no frames to show it with
   // a match on the city's side: the city's file asked for now (it is not loaded with the page)
-  const onCity = NEON && (d instanceof BrMatch || ("arenaId" in d && !!arenaMap((d as { arenaId: string }).arenaId).city));
+  const onCity = d instanceof BrMatch || ("arenaId" in d && !!arenaMap((d as { arenaId: string }).arenaId).city);
   if (onCity) askCity();
   // and the figures, which a match's are
   askFigures();
   if (!NO_INTRO) {
-    if (IS_SK && !document.hidden) {
+    if (!document.hidden) {
       show = { stage: "load", words: modeWords(kind), br: d instanceof BrMatch, city: onCity, at: performance.now() / 1000, menuAt: performance.now() / 1000, then: [] };
       // (a battle royale's card is up already when Start put the screen up; a friend's match starting it is not)
       loadingScreen.again(introCfg.show.text, d instanceof BrMatch ? (loadingScreen.card ?? playerCard()) : null);
-    } else if (!IS_SK) void intro.play("match", modeWords(kind));
+    }
   }
   note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
   d.onRespawn = () => respawnForMatch(d);
@@ -4639,11 +4599,6 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   // a squad mate's Gulag: in it, back from it, or out
   if (k === "gulag" && typeof n === "number" && d instanceof BrMatch) {
     d.hearGulag(from, n);
-    // SpeedKills' squad panel says it, with what comes after (squadview.ts mateNews); the legacy game says it here
-    if (!IS_SK) {
-      const who = d.nameFor(from);
-      hud.notice(n === 1 ? `${who} IS IN THE GULAG` : n === 2 ? `${who} WON THE GULAG AND IS DROPPING BACK IN` : `${who} LOST IN THE GULAG`, gameTime, 2.5);
-    }
     return;
   }
   // the jumpmaster jumped: a squad mate still linked to them goes too, and follows them down
@@ -4692,7 +4647,7 @@ let boxesWaiting = false;
  * and starts once they are in; true when it may start now.
  */
 function boxesFirst(start: () => void, link?: Link): boolean {
-  if (!NEON || neonSolidsIn() || boxesTried) return true;
+  if (neonSolidsIn() || boxesTried) return true;
   // A friend's match on the other end is already running, and counts this one gone after 10 s of silence (duel.ts
   // SILENCE_LIMIT): a busy machine's host waited longer than that, said nothing, and its friend was told it had left
   // (the live check, 2026-10-04). So the link is pinged as a match pings it, and what comes in on it is kept for the match.
@@ -4781,7 +4736,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     duel = d;
     wireMatch(d, "br");
     applyRules(d, myId === 0 ? (hostOpts?.rules ?? undefined) : opts?.rules);
-    brHour(br);
+    brHour();
   } else {
     // three is still the triangle, the only map with three corners; two play
     // on the host's pick
@@ -4970,7 +4925,7 @@ function startBr(seed = newSeed(), poi?: string): void {
   const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), pace: brPace(), gulag: !noGulag() });
   duel = d;
   wireMatch(d, "br");
-  brHour(d);
+  brHour();
   // the drop starts on the first frame in the game (respawnForMatch, from the countdown)
   setDuelStatus(`Battle royale in the Neon City, ${d.team.label.toLowerCase()}: you and ${bots} bots, ${PROFILE.botNames?.[diff] ?? diff}. Dropping onto ${d.poi.name}.`, "good");
   duelButtons();
@@ -5010,31 +4965,9 @@ brPaceSel.addEventListener("change", () => {
 });
 const brPace = (): string => brPaceSel.value || "normal";
 
-// The movement this match runs (src/config/movement.json `extra`): Apex's, or
-// Apex's plus a double jump and a wall run. Off by default, because both
-// change how every fight reads and the rest of the movement in this game is
-// measured against a source. Remembered between visits, and applied whenever
-// a match or the range starts.
-const extraMovesSel = $<HTMLSelectElement>("extraMoves");
-try {
-  if (localStorage.getItem("range.move.extra") === "1") extraMovesSel.value = "1";
-} catch {
-  /* storage off: Apex's */
-}
-const applyExtraMoves = (): void => {
-  // SpeedKills: double jump, wall run and auto-climb are everyone's baseline (the owner's list), not a setting
-  player.extraMoves = IS_SK || extraMovesSel.value === "1";
-  player.autoClimb = IS_SK;
-};
-extraMovesSel.addEventListener("change", () => {
-  try {
-    localStorage.setItem("range.move.extra", extraMovesSel.value);
-  } catch {
-    /* ignore */
-  }
-  applyExtraMoves();
-});
-applyExtraMoves();
+// SpeedKills: double jump, wall run and auto-climb are everyone's baseline (the owner's list), not a setting
+player.extraMoves = true;
+player.autoClimb = true;
 const newSeed = (): number => Math.floor(Math.random() * 2 ** 31);
 const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(MOST_BOTS, Number(brBots.value) || 11));
@@ -5090,20 +5023,18 @@ function endMatch(reason: string): void {
     hosting = null;
   }
   hud.notice(reason.toUpperCase(), gameTime, 3);
-  if (IS_SK) {
-    // the range gives back your two picks, ready, whatever the match left you holding (Phase 20 A12)
-    resetHacks();
-    // and says where to go in it once the match's own notice has been read
-    window.setTimeout(() => {
-      if (!duel) hud.notice(`THE RANGE  ·  THE RUN: ${IS_SK ? "THREE" : "TWO"} COURSES THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
-    }, 3200);
-  }
+  // the range gives back your two picks, ready, whatever the match left you holding (Phase 20 A12)
+  resetHacks();
+  // and says where to go in it once the match's own notice has been read
+  window.setTimeout(() => {
+    if (!duel) hud.notice(`THE RANGE  ·  THE RUN: THREE COURSES THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
+  }, 3200);
   const together = !party ? "" : "guests" in party ? " Your group is still here: pick the next match above and Play again." : " Your group is still together: the host starts the next match.";
   setDuelStatusText(reason + together);
   duelButtons();
   goTo("range");
   // SpeedKills: a group whose match ran out is back in the range together, where the host picks the next one
-  if (IS_SK && !groupMoving && party && "guests" in party && party.guests.size)
+  if (!groupMoving && party && "guests" in party && party.guests.size)
     window.setTimeout(() => {
       if (!duel && !hangout && party && "guests" in party) playAgain(true);
     }, 0);
@@ -5183,7 +5114,7 @@ duelHostBtn.addEventListener("click", () => {
  * starts by itself once that many are in. A room sized to hold anyone left a match of fewer waiting for Start now.
  */
 function brPlayersDefault(): void {
-  if (!IS_SK || duelMode.value !== "br" || $<HTMLSelectElement>("brSides").value === "split") return;
+  if (duelMode.value !== "br" || $<HTMLSelectElement>("brSides").value === "split") return;
   const size = teamFor(brTeamId()).size;
   if (size >= 2) duelPlayers.value = String(Math.min(MAX_PLAYERS, size));
 }
@@ -5385,7 +5316,7 @@ scene.add(rangeSide, brSide);
   const onRangeSide = [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root, ...targets.map((t) => t.group), ...dummies.map((d) => d.group)];
   // SpeedKills (Phase 20 A5): the range's later arrivals too (its props, the README TV, the spray wall, the drill's
   // pad), which were drawn from the city: 126 draw calls and 582k triangles whenever they were in view
-  if (IS_SK) onRangeSide.push(rangeProps, readmeTv.root, sprayWall.group, drill.pad);
+  onRangeSide.push(rangeProps, readmeTv.root, sprayWall.group, drill.pad);
   for (const o of onRangeSide) if (!lit.has(o)) rangeSide.attach(o);
 }
 brSide.attach(brMap.root);
@@ -5395,7 +5326,7 @@ let sideShown: "range" | "br" | null = null;
 function wantSide(): "range" | "br" {
   // The ship starts 156 m short of the edge with the camera 38 m behind it (dropship.ts): on every line in from
   // the north the camera hung over the range for 7.5 s, and the owner saw the range and its arenas, not the city
-  if (IS_SK && duel instanceof BrMatch && (player.aboard || player.dropping)) return "br";
+  if (duel instanceof BrMatch && (player.aboard || player.dropping)) return "br";
   return camera.position.z > 250 ? "br" : "range";
 }
 function showSide(): void {
@@ -5467,7 +5398,7 @@ const merged = new URLSearchParams(location.search).has("nomerge")
  * can (0.6 to 0.8 s here, and the freeze on the ship 0.3 to 0.6 s after it), and its textures are sent to the GPU a few
  * a frame. Not on a ?norender page, which never draws it.
  */
-let brWarm: "no" | "going" | "done" = IS_SK && !new URLSearchParams(location.search).has("norender") ? "no" : "done";
+let brWarm: "no" | "going" | "done" = !new URLSearchParams(location.search).has("norender") ? "no" : "done";
 /** frames since the city came in: its warm starts on the second, so the screen has said so before its first, held part */
 let cityInFrames = 0;
 function brWarmed(): boolean {
@@ -5670,7 +5601,6 @@ function goTo(mode: Mode): void {
   if (mode === "duel") return;
   // anything else, on your own, is leaving the group (its host starts the group's matches: Start for everyone)
   if (hangout && !RANGE_SIDE.has(mode)) hangout.leave();
-  applyExtraMoves();
   // In a match the arena and your spawn are the match's, so a jump elsewhere
   // has to end it first. It used to refuse and send you to a tab to resign
   // from the match by hand, which the owner rightly called bad: picking a
@@ -5715,9 +5645,8 @@ function goTo(mode: Mode): void {
   }
 }
 
-// SpeedKills' movement lab: built once, in SpeedKills only (the legacy game has its courses);
-// its capture ring, which every plan draws, drawn too small to see
-if (IS_SK) {
+// SpeedKills' movement lab, built once; its capture ring, which every plan draws, drawn too small to see
+{
   // on the range's side (Phase 20 A5): built after the split, it was drawn from the city too
   // (its textures after the page's first screen: it is a mode of its own, not in sight of the range)
   holdTextures(true);
@@ -5738,7 +5667,7 @@ const menu = new Menu(loadouts, profile, {
   onGo: (mode) => {
     // SpeedKills: the loading screen up and drawn before a match is built. Building one is a second or more of work (a
     // battle royale's bots and loot), and the menu stood frozen on the screen through it after the click on Start.
-    if (IS_SK && !NO_INTRO && !calibrating && MATCH_MODES.has(mode) && !document.hidden) {
+    if (!NO_INTRO && !calibrating && MATCH_MODES.has(mode) && !document.hidden) {
       loadingScreen.again(introCfg.show.text, mode === "br" ? playerCard() : null);
       readSettings();
       void input.lock();
@@ -5831,7 +5760,7 @@ for (const i of [0, 1]) {
 renderFinishes();
 /** SpeedKills with the bought guns in: the finish picker, which the bought model hides, is put away (index.html .paidOn) */
 function showPaidGuns(): void {
-  document.body.classList.toggle("paidOn", IS_SK && paidGunsReady());
+  document.body.classList.toggle("paidOn", paidGunsReady());
 }
 showPaidGuns();
 /** the optional account (Stats tab): the name is the account's once signed in; new stats go up after a match or a run */
@@ -6067,7 +5996,7 @@ const startScreen = new StartScreen(
     canResume: () => !playBtn.hidden,
     keys: () => ({ mobility: keyLabel("ability"), utility: keyLabel("grenade") }),
   },
-  IS_SK && !new URLSearchParams(location.search).has("nohome")
+  !new URLSearchParams(location.search).has("nohome")
 );
 startScreen.opened(false);
 const playHint = $("playHint");
@@ -6145,7 +6074,6 @@ let meleeHitAt = Infinity;
  * the replay's) leaves theirs to fade
  */
 function stepTrails(now: number): void {
-  if (!IS_SK) return;
   const d = duel instanceof Duel ? duel : null;
   if (!d) {
     trails.clear();
@@ -6254,11 +6182,9 @@ function frame(): void {
   setFigureView(camera.position, lodFrustum, framesRun);
   // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
   // clock, since game time stands still when nothing is being played
-  if (IS_SK) {
-    tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
-    // the Neon map's interiors lit from the lamps nearest the eye (neonmap.ts updateNeonFill)
-    if (NEON) updateNeonFill(camera.position);
-  }
+  tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
+  // the Neon map's interiors lit from the lamps nearest the eye (neonmap.ts updateNeonFill)
+  updateNeonFill(camera.position);
   phases.lap("view");
   try {
     step();
@@ -6386,7 +6312,7 @@ function step(): void {
     }
     // G (a pad's RB, the "grenade" action, kept by that name so saved keys hold): SpeedKills' utility hack. There are
     // no grenades (the owner, 2026-10-04).
-    if (IS_SK && input.pressedNow("grenade") && !knockedOut) useHack("utility", now);
+    if (input.pressedNow("grenade") && !knockedOut) useHack("utility", now);
     // The middle mouse button (RB): a TAP pings what you are looking at, twice
     // quickly an enemy there, and HOLDING it opens the wheel of what the mark
     // means (src/game/brplay.ts PING_INTENTS). A squad without voice is
@@ -6461,7 +6387,7 @@ function step(): void {
     }
     // Attachments on the weapon in hand. Digits 1 and 2 are weapon slots, so
     // these get their own keys.
-    if (IS_SK && !loadout.swapping && !knockedOut) {
+    if (!loadout.swapping && !knockedOut) {
       // SpeedKills has no attachments: out of a match, the magazine key steps
       // the gun in hand through its fusion levels, so each can be tried
       if (!duel && input.pressedNow("magLevel")) {
@@ -6517,7 +6443,7 @@ function step(): void {
     if (input.pressedNow("map")) mapOpen = !mapOpen;
     // F8: the default hour (golden hour) or the hazy day, the city both ways (the owner's toggle); kept as the chosen hour,
     // as the menu keeps it
-    if (IS_SK && input.pressedNow("dayNight")) {
+    if (input.pressedNow("dayNight")) {
       const next = hour.id === "hazyDay" ? PROFILE.identity.sky : "hazyDay";
       saveSkHour(next);
       skySel.value = next;
@@ -6525,7 +6451,7 @@ function step(): void {
       hud.notice(`${HOURS[next].label} (F8 flips it)`, now, 2);
     }
     // F (a pad's LB): SpeedKills' mobility hack; G (RB) the utility one, below
-    if (IS_SK && input.pressedNow("ability") && !knockedOut) useHack("mobility", now);
+    if (input.pressedNow("ability") && !knockedOut) useHack("mobility", now);
     // K: race your best run's ghost, or not
     if (input.pressedNow("ghost")) {
       const course = activeCourse();
@@ -6611,7 +6537,7 @@ function step(): void {
   }
 
   // The enemy under the crosshair, outlined (speedkills.json feel.outline), and the speed streaks (feel.streaks)
-  if (IS_SK && PROFILE.feel) {
+  if (PROFILE.feel) {
     const O = PROFILE.feel.outline;
     let aimed: Dummy | null = null;
     let dist = 0;
@@ -7353,7 +7279,7 @@ function step(): void {
   if (duel) {
     const d = duel;
     recorder.sample(wall, () => [
-      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: IS_SK ? (mySoldierCode() ?? undefined) : undefined },
+      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: mySoldierCode() ?? undefined },
       ...d.actorStates(),
     ]);
   }
@@ -7469,7 +7395,7 @@ function step(): void {
     } else watchWas = null;
     audio.music(dropping);
     // SpeedKills: the city under a match, on the ground (the drop has its theme)
-    audio.ambience(IS_SK && !!duel && !dropping && !player.aboard);
+    audio.ambience(!!duel && !dropping && !player.aboard);
     announcer.level = audio.volumes.master * audio.volumes.voice;
     announcer.update(realNow());
   }
@@ -7494,7 +7420,7 @@ function step(): void {
     weaponName: shown.empty ? "FISTS" : shown.weapon.name,
     weaponKind: shown.empty ? null : weaponKind(shown.id),
     unarmed: shown.empty,
-    fusion: IS_SK ? { levels: loadout.slots.map((sl) => sl.fusion ?? 0), max: PROFILE.fusion.levels } : null,
+    fusion: { levels: loadout.slots.map((sl) => sl.fusion ?? 0), max: PROFILE.fusion.levels },
     slot: loadout.displayIndex + 1,
     slotCount: loadout.slots.length,
     otherName: loadout.slots[loadout.nextIndex].empty ? "EMPTY" : loadout.slots[loadout.nextIndex].weapon.name,
@@ -7583,18 +7509,16 @@ function step(): void {
     capture: duel instanceof BrMatch && duel.decay ? skCaptureHud(duel) : null,
     zoneLabel: duel instanceof BrMatch && duel.decay ? skZoneLabel(duel) : null,
     lootCard: lootCardNow(),
-    edge: IS_SK && duel instanceof BrMatch && (edge.since !== null || edge.struckAt !== null) ? { left: edge.left(gameTime) } : null,
-    edgeZone: IS_SK && duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? { inner: BR_BOUNDS, outer: EDGE_BOUNDS } : null,
-    hacks: IS_SK
-      ? (["mobility", "utility"] as const).flatMap((slot) => {
-          const h = hacks.get(slot);
-          if (!h) return [];
-          return [{ name: hackDef(h.id)?.name ?? h.id, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), frac: hacks.fraction(slot, now), left: hacks.left(slot, now), level: h.level, maxLevel: HACK.fuseLevels, slot }];
-        })
-      : null,
+    edge: duel instanceof BrMatch && (edge.since !== null || edge.struckAt !== null) ? { left: edge.left(gameTime) } : null,
+    edgeZone: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? { inner: BR_BOUNDS, outer: EDGE_BOUNDS } : null,
+    hacks: (["mobility", "utility"] as const).flatMap((slot) => {
+      const h = hacks.get(slot);
+      if (!h) return [];
+      return [{ name: hackDef(h.id)?.name ?? h.id, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), frac: hacks.fraction(slot, now), left: hacks.left(slot, now), level: h.level, maxLevel: HACK.fuseLevels, slot }];
+    }),
     callout: calloutNow,
     // the squad before the plates: a teammate the squad shows has its name tag, not a plate
-    squad: (lastSquad = IS_SK && duel instanceof BrMatch && !killcam.active ? squadNow(duel, now) : (clearSquadRings(), null)),
+    squad: (lastSquad = duel instanceof BrMatch && !killcam.active ? squadNow(duel, now) : (clearSquadRings(), null)),
     plates: duel ? (lastPlates = platesNow(duel, now)) : hangout ? (lastPlates = platesNow(hangout, now)) : (lastPlates = []),
     stance: player.stance,
     speedMs: player.speed,
@@ -7602,7 +7526,7 @@ function step(): void {
     prompt,
     keyHints: keyHintsNow(now),
     scope: optic && optic.info.overlay && !third ? scopeState(optic, aimNow, now) : null,
-    healing: IS_SK ? { k: (healFelt += (healingNow - healFelt) * Math.min(1, dt / 0.25)), edge: (H as unknown as { healArea: { screen: number } }).healArea.screen } : undefined,
+    healing: { k: (healFelt += (healingNow - healFelt) * Math.min(1, dt / 0.25)), edge: (H as unknown as { healArea: { screen: number } }).healArea.screen },
   });
   input.endFrame();
   // the loading screen goes once the world is in and this frame is drawn
@@ -7613,7 +7537,7 @@ function step(): void {
     firstScreenDone();
   }
   // the card's portrait's shaders, once the figures it is drawn from are in (warmPortrait)
-  if (IS_SK && !portraitWarmed && !NO_RENDER && figuresIn()) {
+  if (!portraitWarmed && !NO_RENDER && figuresIn()) {
     portraitWarmed = true;
     warmPortrait();
   }
@@ -7629,12 +7553,6 @@ function step(): void {
   // see. From here the frames are steady (src/ui/intro.ts).
   if (!NO_INTRO && !introShown) {
     introShown = true;
-    // SpeedKills opens on its loading screen alone, which goes by itself once everything is in (its waitFor); the
-    // card is the mode's own, as a match starts (the owner, 2026-09-29: the card was played too often)
-    if (!IS_SK) {
-      loadingScreen.hide();
-      void intro.play("boot");
-    }
   }
   // CPU time for everything this frame did: simulation, render submission and
   // HUD. The GPU works on it after this, in parallel with the next frame.
@@ -7699,7 +7617,7 @@ document.addEventListener("visibilitychange", () => {
  * The page's screen waits for them, and frames are not drawn under it meanwhile; the rest of a frame runs.
  */
 function warmScene(): void {
-  if (!IS_SK || NO_RENDER || !skyIn) return;
+  if (NO_RENDER || !skyIn) return;
   // As the next frame will be drawn: one side of the world shown, and the world's lights on the gun's layer. Before the
   // first frame both sides were shown, every shader was built for both sides' lights, and the first frame, which shows
   // one, built them all again on the spot (a shader is built for the lights it is lit by).
@@ -7754,10 +7672,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
       return hour.id;
     },
     ids: HOUR_IDS,
-    /** the hour a battle royale on this seed is played at */
-    matchFor: (seed: number) => matchHour(seed).id,
     set: (id: string) => {
-      saveHour(id);
+      saveSkHour(id);
       applyHour(hourFor(id));
       skySel.value = hour.id;
       return hour.id;
@@ -7933,9 +7849,9 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   cameraPos: () => camera.position.toArray(),
   /** the loading screen has gone: everything asked for is in and a frame is drawn (the tools wait on it) */
   // (and the figures in: tools and the e2e start matches at once, and a SpeedKills page's screen no longer waits for them)
-  loaded: () => loadingScreen.loaded && (!IS_SK || figuresIn()) && laterSettled() && (!NEON || neonSolidsIn()),
+  loaded: () => loadingScreen.loaded && figuresIn() && laterSettled() && neonSolidsIn(),
   /** loaded()'s parts, so a page that never loads says which part it is waiting on (tools/e2e.ts) */
-  loadedParts: () => ({ screen: loadingScreen.loaded, figures: !IS_SK || figuresIn(), later: laterSettled(), solids: !NEON || neonSolidsIn() }),
+  loadedParts: () => ({ screen: loadingScreen.loaded, figures: figuresIn(), later: laterSettled(), solids: neonSolidsIn() }),
   /** the page's first screen has gone by itself: what it waits for is in (loaded() waits for what comes after it too) */
   screenLoaded: () => loadingScreen.loaded,
   /** SpeedKills' way into a match (show): its stage, or null once the match is its own (tools/e2e.ts) */
@@ -8087,7 +8003,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     };
   },
   /** the Neon City map (?map=neon): what its file drew */
-  neonMap: () => ({ on: NEON, asked: cityAsked, ...NEON_MAP, part: neonPart() }),
+  neonMap: () => ({ on: true, asked: cityAsked, ...NEON_MAP, part: neonPart() }),
   // (a photo of a Neon arena with no match on it: its piece of the file shown by hand)
   neonShow: (chunk: string | null) => showNeonPart(chunk),
   /** the Neon City's file asked for now (a tool that measures the city without a match; a match asks for it itself) */

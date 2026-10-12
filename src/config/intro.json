@@ -20,11 +20,6 @@
     "_note": "No shake, no flash, no shards: the card fades in, holds, cracks once and fades out.",
     "end": 1.6
   },
-  "text": {
-    "_note": "The card's own words. `mark` is the big line and `sub` the one under it, spaced out the way a game's title screen spaces it.",
-    "mark": "B00G's FPS",
-    "sub": "FULL POWER SURGE"
-  },
   "rain": {
     "_note": "The green rainfall. A column is `column` pixels wide, its glyphs `glyph` pixels tall, and it falls at somewhere between `slow` and `fast` glyphs a second, drawn afresh every `swap` seconds so the characters change as they fall. `trail` is how much of the last frame is kept (the tail behind each head), `head` how bright the leading glyph is and `dim` the rest.",
     "column": 16,

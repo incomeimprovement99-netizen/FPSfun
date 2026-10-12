@@ -1,7 +1,6 @@
 // The menu: tabs (Play, 1v1, Loadouts, Settings, Controls) and the loadout
 // editor. Settings and the 1v1 box keep their own wiring in main.ts; this
 // owns navigation, loadouts and the battle royale's lobby row.
-import { IS_SK } from "../game/game";
 import { DEFAULT_LOADOUTS, type LoadoutDef, type LoadoutRef, type Loadouts } from "../game/loadouts";
 import { bodyOf, loadMannequin } from "../game/mannequin";
 import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
@@ -38,8 +37,8 @@ const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as 
 const hex = (c: number) => `#${c.toString(16).padStart(6, "0")}`;
 
 /** where main.ts keeps the bot count; the row writes it too, since it moves the count itself */
-// each game its own: SpeedKills' counts are not the legacy game's
-const BR_BOTS_KEY = IS_SK ? "range.br.bots.sk" : "range.br.bots";
+// (SpeedKills' own key, from when the legacy game kept another)
+const BR_BOTS_KEY = "range.br.bots.sk";
 const COUNT_WORDS = ["no", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve"];
 const word = (n: number): string => COUNT_WORDS[n] ?? String(n);
 
@@ -228,8 +227,7 @@ export class Menu {
     for (const g of document.querySelectorAll<HTMLElement>(".setupGroup")) {
       g.hidden = !needs.includes(g.dataset.group as never);
     }
-    // nothing to adjust (a course outside SpeedKills, whose hacks are always there to pick): no button
-    $("adjustSettings").hidden = !needs.length && !IS_SK;
+    $("adjustSettings").hidden = false;
     const start = $<HTMLButtonElement>("startMode");
     const friends = $<HTMLButtonElement>("playFriends");
     const shared = friendsModeFor(m.id);

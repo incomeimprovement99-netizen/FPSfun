@@ -25,11 +25,10 @@ import type { ModeHud } from "./modematch";
 import type { TourHud } from "./tour";
 import hudCfg from "../config/hud.json";
 import { damageText, poolText } from "./damagetext";
-import { IS_SK } from "./game";
 import type { LootCardView } from "./lootcard";
-/** SpeedKills' bottom HUD (hud.json layouts; Phase 20 A6); the legacy game draws its own, in code */
+/** SpeedKills' bottom HUD (hud.json layouts; Phase 20 A6) */
 type SkLayout = typeof hudCfg.layouts.speedkills;
-const SK_LAYOUT: SkLayout | null = IS_SK ? hudCfg.layouts.speedkills : null;
+const SK_LAYOUT: SkLayout | null = hudCfg.layouts.speedkills;
 /** damage numbers: the window a spray at one target adds to one number, and the pop as it grows (hud.json) */
 const NUMBERS = hudCfg.damageNumbers;
 const LOW_AMMO = hudCfg.lowAmmo;
@@ -105,7 +104,7 @@ export interface HudState {
   weaponName: string;
   /** SpeedKills: the gun's class beside its name (speedkills.json kind; Phase 20 A7) */
   weaponKind?: string | null;
-  /** SpeedKills: each slot's fusion level (slot 1 first) and the most there is; null in the legacy game */
+  /** SpeedKills: each slot's fusion level (slot 1 first) and the most there is */
   fusion?: { levels: number[]; max: number } | null;
   slot: number;
   slotCount: number;

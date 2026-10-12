@@ -7475,11 +7475,9 @@ async function ownerTest(browser: Browser): Promise<void> {
   // the movement: SpeedKills' own, the double jump and the wall run always on
   const moves = await ev<{ on: boolean }>(page, `({ on: window.__range.player.extraMoves })`);
   check("the double jump and the wall run are on, as SpeedKills always has them", moves.on, JSON.stringify(moves));
-  await ev(page, `(() => { const s = document.getElementById("extraMoves"); s.value = "1"; s.dispatchEvent(new Event("change")); })()`);
   await start("goRange");
   const armed = await ev<boolean>(page, `window.__range.player.extraMoves`);
-  check("and on when it does", armed);
-  await ev(page, `(() => { const s = document.getElementById("extraMoves"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
+  check("and on in the range too", armed);
   await page.close();
 }
 

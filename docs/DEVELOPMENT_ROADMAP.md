@@ -11448,6 +11448,29 @@ degrees off video frames; ours leans further on the owner's word.
   a kick carries along it, gathering speed, and runs out of chimney a storey short of the top.
 - **Checked:** tsc; verify (reach, sk-chaincourse); rules; e2e sktour, range and speedkills.
 
+## Milestone 531 — IS_SK folded out of the code: the legacy game's branches gone
+
+`IS_SK` has been the constant true since the game switch went (Milestone 520), so every `!IS_SK` branch was dead code
+and every `IS_SK ?` a question with one answer. About 160 of its 190 uses are folded away in 22 files, by a codemod over the
+TypeScript syntax tree (ternaries, `&&` and `||`, if statements and bare uses, outermost first, a pass at a time), then
+read line by line and tidied by hand.
+
+- **What went with the branches:** the legacy game's sprint setting (toggle or hold; SpeedKills always sprints), the
+  "plus double jump and wall run" movement box (always on), the battle royale's own hour drawn from the match seed and
+  its "Battle royale sky" setting (SpeedKills plays under your own hour), the ammo racks and yard clutter of the old
+  range, the old sky key, the whole-point rounding of a hit (dummy.ts WHOLE_HITS), the old arenas' picks in `mapFor`,
+  the knock lockout read after a return, the legacy intro card's words and the green colours, the loading screen's
+  old tips, and the legacy branches of the bots, the loot, the battle royale, the HUD, the Gulag, the manual's screen,
+  the ring, the hit check and the menu.
+- **Config:** intro.json `text`, hud.json `loading.tips`, player.json `sprintMode`, br.json `gulag.untilPhase`,
+  net.json `meleeRange` and sky.json `match` (with sky-hours.ts's check of it) out; their notes say what reads them now.
+- **Kept:** every SpeedKills storage key keeps its name, so nobody loses a setting; three top-level blocks keep their
+  braces so their names stay their own.
+- **Left:** the guns agent folds viewmodel.ts, fparms.ts and gunmodels.ts, and the character agent mannequin.ts and
+  outfit.ts (asked); then `IS_SK` itself goes from game.ts.
+- About 560 lines out, 230 in.
+- **Checked:** tsc; verify; rules; e2e page, range, speedkills, brsolo, gulag, sktour and sklobby.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

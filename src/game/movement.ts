@@ -3,7 +3,6 @@
 // stores them, so they can be checked against a source without arithmetic.
 import base from "../config/movement.json";
 import skOverlay from "../config/movement.speedkills.json";
-import { IS_SK } from "./game";
 
 /** `over`'s keys laid onto `into`, object by object; a key `over` does not name keeps `into`'s value */
 function overlay<T>(into: T, over: Record<string, unknown>): T {
@@ -16,10 +15,8 @@ function overlay<T>(into: T, over: Record<string, unknown>): T {
   return out as T;
 }
 
-// A SpeedKills page moves by movement.json with SpeedKills' overlay on top
-// (src/config/movement.speedkills.json); the legacy game by movement.json
-// alone. Read once, here, because a page never changes game without a reload.
-const raw = IS_SK ? overlay(base, skOverlay) : base;
+// SpeedKills moves by movement.json with its overlay on top (src/config/movement.speedkills.json).
+const raw = overlay(base, skOverlay);
 
 /** metres per Hammer unit: 1 hu = 1 inch */
 export const HU = 0.0254;

@@ -15,20 +15,19 @@
 // (the public build swaps its real names first, tools/public-text.ts), 150 KB that every SpeedKills page carried too.
 import * as THREE from "three";
 import cfg from "../config/readme-tv.json";
-import { IS_SK } from "./game";
 import { parseReadme, spansOf, type Block, type Section } from "./readme";
 import type { Shootable } from "./projectile";
 
 // SpeedKills hangs it in its range's barrier, 24 m down range, at three quarters of the size (readme-tv.json speedkills)
-const SCREEN = IS_SK ? { ...cfg.screen, ...cfg.speedkills.screen } : cfg.screen;
-const SIGN = IS_SK ? { ...cfg.sign, ...cfg.speedkills.sign } : cfg.sign;
-const BTN = IS_SK ? { ...cfg.buttons, ...cfg.speedkills.buttons } : cfg.buttons;
+const SCREEN = { ...cfg.screen, ...cfg.speedkills.screen };
+const SIGN = { ...cfg.sign, ...cfg.speedkills.sign };
+const BTN = { ...cfg.buttons, ...cfg.speedkills.buttons };
 const L = cfg.layout;
 
 export type TvAction = "prevPage" | "nextPage" | "prevSection" | "nextSection";
 
 /** the screen before its text is asked for: one section saying how to open it */
-const COVER: Section[] = [{ title: IS_SK ? "The manual" : "README.md", blocks: [{ kind: "para", spans: spansOf("Shoot an arrow, or this screen, to open it.") }] }];
+const COVER: Section[] = [{ title: "The manual", blocks: [{ kind: "para", spans: spansOf("Shoot an arrow, or this screen, to open it.") }] }];
 
 const FACE = '500 %spx "Rajdhani", "Segoe UI", sans-serif';
 const BOLD = '700 %spx "Rajdhani", "Segoe UI", sans-serif';
@@ -233,7 +232,7 @@ export class ReadmeTv implements Shootable {
    * the cover up, and the next shot asks again.
    */
   load(): Promise<void> {
-    this.loading ??= (IS_SK ? import("../../docs/MANUAL.md?raw") : import("../../README.md?raw")).then(
+    this.loading ??= (import("../../docs/MANUAL.md?raw")).then(
       (m) => {
         this.sections = parseReadme(m.default);
         this.pages = this.sections.map(() => null);
@@ -477,7 +476,7 @@ export class ReadmeTv implements Shootable {
       g.textAlign = "center";
       g.font = BOLD.replace("%s", String(Math.round(H * 0.16)));
       g.fillStyle = "#ffd23c";
-      g.fillText(IS_SK ? "THE MANUAL" : "README.md", W / 2, H * 0.47);
+      g.fillText("THE MANUAL", W / 2, H * 0.47);
       g.font = FACE.replace("%s", String(Math.round(H * 0.07)));
       g.fillStyle = "#dbe4ec";
       g.fillText("SHOOT AN ARROW OR THIS SCREEN TO OPEN IT", W / 2, H * 0.64);
@@ -555,7 +554,7 @@ export class ReadmeTv implements Shootable {
     g.textAlign = "left";
     g.fillText("SHOOT ◀ ▶ TO TURN A PAGE   ·   ▲ ▼ FOR THE SECTION BEFORE OR AFTER   ·   SHOOT A NAME ON THE LEFT TO JUMP", L.pad, H - 14);
     g.textAlign = "right";
-    g.fillText(IS_SK ? "THE MANUAL" : "README.md", W - L.pad, H - 14);
+    g.fillText("THE MANUAL", W - L.pad, H - 14);
     this.tex.needsUpdate = true;
   }
 }

@@ -26,7 +26,6 @@
 // a delta packet to a peer that has said it reads them (src/net/statesync.ts),
 // the full packet to any other. The battle royale and the arena modes send
 // their bots through the same broadcast and get the same choice for free.
-import { IS_SK } from "./game";
 import { botSoldierCode } from "./soldier";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
@@ -610,8 +609,7 @@ export class Duel implements MatchLike {
   /** what a guest is told as the fight starts; the battle royale says who wins it, and a solo one says it differently */
   protected fightNotice(): string {
     // SpeedKills' two ways to win: the capture zone, or the last squad
-    if (this.mode === "br" && IS_SK) return "LANDED  ·  HOLD THE CAPTURE ZONE, OR BE THE LAST SQUAD";
-    return this.mode === "br" ? "LANDED  ·  LAST SQUAD STANDING WINS" : "FIGHT";
+    return this.mode === "br" ? "LANDED  ·  HOLD THE CAPTURE ZONE, OR BE THE LAST SQUAD" : "FIGHT";
   }
   /** a name for the feed by id (the subclass adds the bots it runs) */
   protected nameOf(id: number): string | undefined {
@@ -979,7 +977,7 @@ export class Duel implements MatchLike {
       // SpeedKills: a figure whose look carries no soldier (a bot, whose state has no look) wears the one its id
       // gives it, the soldier the host's own figure of that bot wears (soldier.ts botSoldierCode)
       const worn = operatorWearing(op, look);
-      const skin = IS_SK && !worn.soldier ? { ...worn, soldier: botSoldierCode(r.id) } : worn;
+      const skin = !worn.soldier ? { ...worn, soldier: botSoldierCode(r.id) } : worn;
       d = new Dummy(0, 0, 0, { armed: weapon, respawn: false, skin, rig: true, noBase: true });
       // Its own health is not the truth, the other player's is; a huge pool
       // means its hit() reports full damage and never knocks it by itself.
@@ -1662,11 +1660,7 @@ export class Duel implements MatchLike {
   /** seconds before a squad member can be respawned at their box (0: now) */
   boxLockout(id: number): number {
     // SpeedKills: no lockout between restores, and none at all once a ghost has had its two
-    if (IS_SK) return (this as unknown as { noRestores?: Set<number> }).noRestores?.has(id) ? Infinity : 0;
-    const b = this.boxDeaths.get(id);
-    if (!b || b.n <= 0) return 0;
-    const L = squadCfg.echoRespawn.lockout;
-    return Math.max(0, b.at + L[Math.min(b.n - 1, L.length - 1)] - wallClock());
+    return (this as unknown as { noRestores?: Set<number> }).noRestores?.has(id) ? Infinity : 0;
   }
 
   /** a respawn of an eliminated squad mate: held at their echo (`echo`: they stand up on it) */
@@ -1976,7 +1970,7 @@ export class Duel implements MatchLike {
     const g = r.avatar.group;
     const kp = k + ahead;
     // SpeedKills: a player out is a ghost that still moves; their body stays where it fell (main.ts draws the ghost for their squad)
-    if (!(IS_SK && !r.alive)) g.position.set(a.x + (b.x - a.x) * kp, a.y + (b.y - a.y) * kp, a.z + (b.z - a.z) * kp);
+    if (r.alive) g.position.set(a.x + (b.x - a.x) * kp, a.y + (b.y - a.y) * kp, a.z + (b.z - a.z) * kp);
     let dy = b.yaw - a.yaw;
     dy = ((((dy + 180) % 360) + 360) % 360) - 180;
     // the figure faces +z; a player at yaw 0 looks down -z

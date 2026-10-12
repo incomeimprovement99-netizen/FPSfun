@@ -16,7 +16,7 @@
 // checks can run them; brmatch.ts runs the room and the bot, main.ts puts you
 // in it. The numbers are in src/config/br.json `gulag`.
 import decayCfg from "../config/decay.json";
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import brCfg from "../config/br.json";
 
 export const GULAG = brCfg.gulag;
@@ -41,7 +41,7 @@ export class Gulag {
   decidedAt = Infinity;
 
   constructor(now: number, rng: () => number = Math.random) {
-    const pool = IS_SK && PROFILE.lists ? PROFILE.lists.gulagGuns : GULAG.guns;
+    const pool = PROFILE.lists ? PROFILE.lists.gulagGuns : GULAG.guns;
     const a = Math.floor(rng() * pool.length);
     let b = Math.floor(rng() * (pool.length - 1));
     if (b >= a) b++;
@@ -112,6 +112,6 @@ export class Gulag {
 /** a first death goes to the Gulag: the rules have it, it is still early, and this player has not been */
 export function gulagFor(ringPhase: number, used: boolean): boolean {
   // SpeedKills: every first death goes to the Gulag, until the capture zone opens (the last round)
-  const until = IS_SK ? decayCfg.phases.length - 1 : GULAG.untilPhase;
+  const until = decayCfg.phases.length - 1;
   return GULAG.enabled && !used && ringPhase < until;
 }

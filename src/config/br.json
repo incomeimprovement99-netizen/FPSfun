@@ -95,10 +95,9 @@
   "podLure": 90,
   "_podStand": "Where a bot lured to a care package stands, metres off it on its own side, and how near a landed one it has to come for the package to count as contested, after which its own looting and fighting take over (brmatch.ts podToContest). It used to walk onto the crate itself and stand inside it for the whole contest: two bots of two squads spent 20 s and more in one, each blind to the other half a metre away (a hunt, 2026-09-30). Ours.",
   "podStand": 4,
-  "_gulag": "The Gulag (src/game/gulag.ts), under the battle royale's own rules. A first death before ring round untilPhase + 1 sends you, `delay` seconds later, to the arena `map` against a bot of tier `tier`, the two of you on two of `guns` drawn for the fight; a countdown of `countdown` seconds, then `fight` seconds, then overtime: a flag `flagRadius` metres across in the room's middle, won by `capture` seconds on it alone. Win and you drop back into the match `after` seconds later with those guns and kitStacks stacks of their ammo; lose and you are out. One trip a match. Ours: Warzone's Gulag is the idea, and none of its numbers carry over to a map this size. A win drops you back in 8 to landSpread metres from a squad mate who is up, or alone somewhere well inside the ring (it was Resurgence's redeploy spread, 30, ours).",
+  "_gulag": "The Gulag (src/game/gulag.ts), under the battle royale's own rules. A first death before the decay's last round (decay.json phases; gulag.ts gulagFor) sends you, `delay` seconds later, to the arena `map` against a bot of tier `tier`, the two of you on two of `guns` drawn for the fight; a countdown of `countdown` seconds, then `fight` seconds, then overtime: a flag `flagRadius` metres across in the room's middle, won by `capture` seconds on it alone. Win and you drop back into the match `after` seconds later with those guns and kitStacks stacks of their ammo; lose and you are out. One trip a match. Ours: Warzone's Gulag is the idea, and none of its numbers carry over to a map this size. A win drops you back in 8 to landSpread metres from a squad mate who is up, or alone somewhere well inside the ring (it was Resurgence's redeploy spread, 30, ours).",
   "gulag": {
     "enabled": true,
-    "untilPhase": 3,
     "delay": 3,
     "countdown": 3,
     "fight": 40,

@@ -16,7 +16,6 @@ import netCfg from "../config/net.json";
 import hacksCfg from "../config/hacks.json";
 import { resolveWeapon, weaponIds, type ResolvedWeapon } from "../game/weapons";
 import { MOVE } from "../game/movement";
-import { IS_SK } from "../game/game";
 
 const C = netCfg.hitCheck;
 const GUNS = new Set(weaponIds());
@@ -37,9 +36,9 @@ export const TOP_SPEED = Math.max(MOVE.sprintSpeed * MOVE.holsterBoost, MOVE.sli
 export const STALE = netCfg.buffer.max + C.staleTrip;
 /**
  * How far apart the host may see a swinger and the one they hit (net.json _hitCheckSk). SpeedKills' is its reach
- * plus its fastest target's run over the staleness, 9.4 m; the legacy game keeps its fixed meleeRange.
+ * plus its fastest target's run over the staleness, 9.4 m.
  */
-export const MELEE_APART = IS_SK ? C.meleeReach + TOP_SPEED * STALE : C.meleeRange;
+export const MELEE_APART = C.meleeReach + TOP_SPEED * STALE;
 
 export interface HitClaim {
   /** who claims it */
@@ -105,10 +104,9 @@ export class HitCheck {
     const melee = c.weapon === "melee";
     const gun = melee ? null : gunOf(c.weapon);
     const hack = melee || gun ? undefined : HACK_MAX[c.weapon];
-    // SpeedKills: a claim names a gun of its roster, a swing or a hack that hurts. The legacy game's otherMax is for
-    // an older build's claim with no id; in SpeedKills it let any other name through with no shot behind it, a forged
-    // 250 a claim that took a player out in one (Milestone 499)
-    if (IS_SK && !melee && !gun && hack === undefined) return `names nothing that hurts in this game (${c.weapon || "no weapon"})`;
+    // A claim names a gun of the roster, a swing or a hack that hurts. otherMax, for an older build's claim with no id,
+    // let any other name through with no shot behind it, a forged 250 a claim that took a player out in one (Milestone 499)
+    if (!melee && !gun && hack === undefined) return `names nothing that hurts in this game (${c.weapon || "no weapon"})`;
     const cap = gun ? maxRound(gun) : melee ? C.meleeMax : hack !== undefined ? hack * C.margin : C.otherMax;
     if (c.amount > cap) return `more than one ${melee ? "swing" : "round"} can do (${Math.round(c.amount)} over ${Math.round(cap)})`;
     // a round lands after the shot that fired it: a gun's hit with no shot heard lately is made up (a rocket's burst comes

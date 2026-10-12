@@ -671,7 +671,6 @@ The Settings tab, all remembered in this browser:
 | Mouse sensitivity, ADS multiplier, FOV scale | the game's three numbers, with the same maths (0.022 degrees per count; ADS scaled by the zoom). The panel shows your cm/360 live. The FOV is the world's: the gun in your hands has a camera of its own and looks the same on every setting, and a slide widens the world, not the gun. |
 | ADS per optic | a multiplier for each zoom (1x, 2x, 3x, 4x, 6x, 8x, 10x) on top of the ADS one, like the game's; a variable optic uses the zoom it is on |
 | Aim down sights, Crouch | hold, or toggle (a press in, a press out) |
-| Sprint | press (the game's default: press once, it arms for 3 s and runs while you hold forward) or hold |
 | Mantle boost | the game's own setting: on, holding jump through the end of a mantle superglides for you; off (the default), the one-frame window is the real one and the trainer teaches it |
 | Sprint view shake | Normal or Minimal, the game's setting |
 | Fullscreen while playing | on by default: fullscreen with Keyboard Lock, which hands Ctrl+W to the game in Chrome and Edge |
@@ -683,7 +682,6 @@ The Settings tab, all remembered in this browser:
 | The range's ammo | endless, or counted |
 | Mantle boost cue | the ring on the crosshair in the last frames of a mantle, where a superglide is possible |
 | Time of day | seven hours, morning to moonlight: the sky, the sun, the light and the fog, applied at once with no reload. In SpeedKills, its own three: golden hour (the default since 2026-10-04), the neon night (its sky fill and rim light turned down, the city's own lights carrying it) or a hazy day, kept apart from the legacy game's; **F8** flips between golden hour and the hazy day in play |
-| Battle royale sky | the match's hour (the default: each battle royale draws its own hour from its seed, the same for the whole squad, dusk and moonlight rarer), or always your time of day |
 | Accessibility | a colour vision mode (normal, deuteranopia, protanopia, tritanopia) that moves the enemy and ally colours on pings, the kill feed, name plates and the damage arcs to a pair you can tell apart; and a HUD size, 80% to 140% |
 | Crosshair | five styles (the game's three prongs, cross, T, circle, dot), six colours, length, thickness, gap, centre dot, outline, whether it opens with spread, opacity; a live preview, and Reset for the game's own |
 | Controller: look, ADS, curve, deadzone, auto sprint, rumble, aim assist, advanced look | see [Controller](#controller) |
@@ -778,14 +776,12 @@ fire never moves the page. It is this file, bundled at build time, so the
 screen can never say something the README does not (the public build swaps in
 the codenames first).
 
-**Movement, beyond Apex's.** The lobby's **Movement** box has one more setting
-than "Apex movement": *plus double jump and wall run*. Off by default, and
-off is the default for a reason, because everything else in this game's
-movement is measured against a source and these two are ours. On, you get one
-more jump in the air (once until you touch ground, a wall or a rope) and a run
-along any wall you are already moving along, for as long as you hold forward
-along it, which you leave with a kick that throws you where you look, faster,
-and up.
+**Movement, beyond Apex's.** Everyone has one more jump in the air (once until
+you touch ground, a wall or a rope) and a run along any wall you are already
+moving along, for as long as you hold forward along it, which you leave with a
+kick that throws you where you look, faster, and up. These two are ours:
+everything else in this game's movement is measured against a source. You
+always sprint; there is no sprint setting.
 
 **The range's tools**: the spray wall (a mag from the mark 20 m out leaves
 your hits in white beside the gun's own pattern in gold, scaled to the

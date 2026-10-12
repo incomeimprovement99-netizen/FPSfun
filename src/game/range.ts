@@ -5,7 +5,6 @@
 //
 // All geometry is generated here. Materials are CC0 (public/tex/ATTRIBUTION.md).
 import rangeCfg from "../config/range.json";
-import { IS_SK } from "./game";
 import * as THREE from "three";
 import { material, tileBox } from "./materials";
 import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } from "./geo";
@@ -26,10 +25,10 @@ export const RANGE_BOUNDS: Bounds = { minX: -34, maxX: 34, minZ: -108, maxZ: 212
 export const COURSE_GATE = { minX: -23.5, maxX: -19.5 };
 /** the second gate, back-right, into the advanced course (courses/advanced.ts) */
 export const COURSE_GATE_R = { minX: 19.5, maxX: 23.5 };
-/** SpeedKills' third, in the middle behind the spawn, into THE CHAIN (courses/chain.ts); legacy's wall stays whole */
+/** the third, in the middle behind the spawn, into THE CHAIN (courses/chain.ts) */
 export const COURSE_GATE_C = { minX: -2, maxX: 2 };
 /** the gates this game's back wall has, left to right */
-export const COURSE_GATES = IS_SK ? [COURSE_GATE, COURSE_GATE_C, COURSE_GATE_R] : [COURSE_GATE, COURSE_GATE_R];
+export const COURSE_GATES = [COURSE_GATE, COURSE_GATE_C, COURSE_GATE_R];
 
 /**
  * Direction TO the sun. About 25 degrees of elevation, behind and to the right
@@ -686,7 +685,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   for (const [g, glowColor, title, fromX] of [
     [COURSE_GATE, PAL.orange, "THE RUN: BASIC\nSeven rooms: slides, a climb, a superglide, a gap, ziplines. Beat the clock.", -3],
     [COURSE_GATE_R, 0xff3b2f, "THE RUN: ADVANCED\nNine rooms, 200 m: a superglide gap, lurch pads, wallbounces, a zipline superjump. Chain them.", 3],
-    ...(IS_SK ? ([[COURSE_GATE_C, 0xff3df2, "THE CHAIN\nThe city's distances: a run gap, a double gap, a wall gap and the chimney.", 0]] as const) : []),
+    [COURSE_GATE_C, 0xff3df2, "THE CHAIN\nThe city's distances: a run gap, a double gap, a wall gap and the chimney.", 0],
   ] as const) {
     const glow = emissive(glowColor, 2.4);
     for (const x of [g.minX - 0.1, g.maxX + 0.1]) {
@@ -715,58 +714,6 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   const note = spawnNote();
   note.position.set(-2.8, 0.014, -3.4);
   scene.add(note);
-
-  // ---------- weapon racks, colour coded by ammo type ----------
-  // Saturated functional colour is the readability layer of a real range and
-  // the single most recognisable thing about one. It is also what the bloom
-  // pass exists for: these emissive strips are the only things in the scene
-  // bright enough to cross its threshold.
-  const AMMO: Array<[string, number]> = [
-    ["LIGHT", 0xf2a33c],
-    ["HEAVY", 0x35c9c4],
-    ["ENERGY", 0x7ddc4a],
-    ["SHOTGUN", 0xe4553c],
-    ["SNIPER", 0x9a7bff],
-    ["SUPPLY", 0xd94f9a],
-  ];
-  // (SpeedKills: the armory's stands stand here instead, armory.ts, the owner, 2026-09-30)
-  if (!IS_SK) AMMO.forEach(([label, colour], i) => {
-    // Behind the firing line, flanking the spawn, so they never block a lane.
-    const x = -26 + i * 10.4;
-    const z = 5.5;
-    // rack body
-    addBox(scene, panel, 3.4, 1.15, 0.9, x, 0, z, { tile: 1.2 });
-    // emissive strip along the top edge
-    const strip = new THREE.Mesh(
-      new THREE.BoxGeometry(3.3, 0.1, 0.08),
-      new THREE.MeshStandardMaterial({
-        color: 0x101418,
-        emissive: colour,
-        emissiveIntensity: 2.2,
-        roughness: 0.4,
-      })
-    );
-    strip.position.set(x, 1.2, z - 0.47);
-    scene.add(strip);
-    // a back board so the rack reads as a station, and a label
-    const board = new THREE.Mesh(
-      new THREE.BoxGeometry(3.4, 1.5, 0.12),
-      new THREE.MeshStandardMaterial({ color: 0x232a31, roughness: 0.6, metalness: 0.4 })
-    );
-    board.position.set(x, 2.0, z + 0.4);
-    board.castShadow = true;
-    scene.add(board);
-    const l = labelSprite(label, 52, `#${colour.toString(16).padStart(6, "0")}`);
-    l.scale.set(3.0, 1.5, 1);
-    l.position.set(x, 2.15, z + 0.32);
-    scene.add(l);
-    // a small fill light so the rack pool-lights the floor in front of it
-    if (opts.pointLights) {
-      const pl = new THREE.PointLight(colour, 6, 7, 2);
-      pl.position.set(x, 1.6, z - 1.2);
-      scene.add(pl);
-    }
-  });
 
   // ---------- moving target rails ----------
   TARGET_RAILS.push({ z: -35, minX: -10, maxX: 10, speed: 4.2 });
@@ -833,22 +780,11 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   for (const x of [-22, -10, 10, 22]) {
     prop({ prop: "concrete_road_barrier", x, z: -8, rot: 90, solid: { w: 0.8, h: 0.85, d: 2.2 } });
   }
-  // ammo boxes and shelving beside the racks (not SpeedKills': its armory is there)
-  for (let i = 0; i < (IS_SK ? 0 : 6); i++) {
-    prop({ prop: "ammo_box", x: -26 + i * 10.4 + 2.2, z: 4.6, rot: 180 });
-    prop({ prop: "plastic_crate_03", x: -26 + i * 10.4 - 2.2, z: 4.8, rot: 20 * i });
-  }
   // Floodlights on the front pillar row. They followed the old roof line at
   // z = -4.5; once the canopy moved back they were left hanging in open air
   // 6 m in front of the pillars that were meant to carry them.
   for (const x of [-30, -6, 18]) {
     prop({ prop: "security_light", x, z: 1.1, y: 4.2, rot: 180, scale: 1.4 });
-  }
-  // yard clutter behind the line (not SpeedKills': the armory stands along that wall)
-  if (!IS_SK) {
-    prop({ prop: "portable_generator", x: -18, z: 6.5, rot: -25, solid: { w: 1.2, h: 0.9, d: 1.0 } });
-    prop({ prop: "utility_box_01", x: 14, z: 7.4, rot: 180, scale: 1.2 });
-    prop({ prop: "steel_frame_shelves_01", x: 28, z: 7.0, rot: 200 });
   }
 
   // ---------- lighting ----------

@@ -302,16 +302,7 @@
     "maxSeconds": 25,
     "quietSeconds": 1.2,
     "tipSeconds": 4.5,
-    "tips": [
-      "Look straight down in the drop to dive fast, level to glide far.",
-      "In a squad the host is the jumpmaster. Press C to break off and fly yourself.",
-      "Hold the interact key over a pile of loot to take everything at your feet.",
-      "Crouch while you sprint to slide, and jump out of the slide to keep its speed.",
-      "M opens the map. The middle mouse button pings a place, an item or an enemy for your squad.",
-      "The Mast at the hub is seven floors to the best loot on the map, and everyone knows it.",
-      "Walk into a place and its name comes up. The quieter corners are walled compounds."
-    ],
-    "_tipsSk": "SpeedKills' tips: what a first-timer needs, a line at a time (the brief: teach only what is necessary).",
+    "_tipsSk": "The tips: what a first-timer needs, a line at a time (the brief: teach only what is necessary).",
     "tipsSk": [
       "Double jump, run along walls and climb anything: the roofs are yours.",
       "A second copy of your gun fuses into it: up to level 5.",

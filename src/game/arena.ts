@@ -25,7 +25,6 @@ import { buildPlan } from "./arenas/build";
 import { PLAN_MAPS, type ArenaMapInfo } from "./arenas";
 import { CENTRE_MAP } from "./arenas/centre";
 import { YARD_MAP, HALL_MAP } from "./arenas/neonarenas";
-import { IS_SK } from "./game";
 import type { Bounds } from "./player";
 
 export const ARENA_X = 90;
@@ -541,18 +540,8 @@ export function mapFor(mode: string, players: number): ArenaMapId {
   // SpeedKills fights on its four Neon maps (the owner, 2026-10-09: "2 1v1 maps, 1 centre destrict map, 1 br map, all
   // new neon stuff"): a 1v1 in NEON YARD (NEON HALL the picker's other), and everything with more than two players, the
   // free-for-all, teams and Control, on THE CENTRE, the city's middle, which has spawns for eight
-  if (IS_SK && mode === "duel" && players === 2) return "yard";
-  if (IS_SK) return "centre";
-  // three players is still the triangle: it is the only map with three
-  // corners and no fourth side to be caught from
-  if (mode === "duel" && players === 3) return "triangle";
-  // a 1v1 wants the small two-storey room, where a round is a fight
-  if (mode === "duel") return "vault";
-  // the modes where everybody fights everybody want a map with no back line
-  if (mode === "ffa") return "ringworks";
-  // teams want the wide map: high ground each, and three points worth holding
-  if (mode === "tdm" || mode === "control") return "crossing";
-  return "warehouse";
+  if (mode === "duel" && players === 2) return "yard";
+  return "centre";
 }
 
 /**

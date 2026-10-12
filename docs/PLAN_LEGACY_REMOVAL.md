@@ -93,7 +93,10 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   lists, loot, mechanics entries and checks; the R-301 goes with 522.
 - **522, the attachments, magazine levels, hop-ups and fire modes, the old guns' mechanics and the R-301 (done).**
   SpeedKills keeps each gun's fixed optic, fusion, the L-STAR's heat and the shotguns' blast patterns.
-- **Next:** the `IS_SK` branches that are left.
+- **531, the `IS_SK` branches (done)** in the lobby's files: about 160 of 190 uses, with the settings only the legacy game
+  read (sprint, the movement box, the battle royale's own sky). The guns and character agents fold their own five
+  files; then `IS_SK` goes from game.ts.
+- **Next:** the UI's crumbs below, then the extra modes on the range or the city (section 5).
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
 - **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,

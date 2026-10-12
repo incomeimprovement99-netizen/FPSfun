@@ -45,7 +45,7 @@
 import { decayPlan, decayRounds, sectorPhases, captureOpens, sectorIdAt, SECTOR_RECTS, centreOf, type DecayPlan, type SectorPhase } from "./decay";
 import { paidProp } from "./paidgun";
 import decayCfg from "../config/decay.json";
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import type { Seen } from "./reveal";
 import moveCfg from "../config/movement.json";
 import { MOVE } from "./movement";
@@ -170,7 +170,7 @@ export interface TeamMode {
 }
 
 // SpeedKills' own sizes: up to 30 in a match
-export const TEAMS: readonly TeamMode[] = IS_SK && PROFILE.match.teams ? PROFILE.match.teams : brCfg.teams;
+export const TEAMS: readonly TeamMode[] = PROFILE.match.teams ? PROFILE.match.teams : brCfg.teams;
 
 /** the size a lobby or a welcome packet names, and the default when it names none we know */
 export function teamFor(id: string | null | undefined): TeamMode {
@@ -178,11 +178,10 @@ export function teamFor(id: string | null | undefined): TeamMode {
 }
 
 /**
- * where the lobby's squad size is kept in this browser (the menu writes it, a match alone reads it);
- * each game its own, as the bots count is (menu.ts), or duos chosen in one were SpeedKills' too,
- * with the other's bot count (the e2e caught 28 bots in a trio match after a legacy duo)
+ * where the lobby's squad size is kept in this browser (the menu writes it, a match alone reads it); SpeedKills' own
+ * key from when the legacy game kept another, so nobody loses their choice
  */
-const TEAM_KEY = IS_SK ? "range.br.team.sk" : "range.br.team";
+const TEAM_KEY = "range.br.team.sk";
 
 export function savedTeamId(): string {
   try {
@@ -414,7 +413,7 @@ export class BrMatch extends Duel {
   /** the host's ring; a guest mirrors it in `view` */
   private ring: Ring | null;
   private view: RingView;
-  /** SpeedKills' decay (decay.ts): the final sector and the waves, from the seed; null in the legacy game */
+  /** SpeedKills' decay (decay.ts): the final sector and the waves, from the seed */
   decay: DecayPlan | null = null;
   /** the final sector's circle, where every round closes to and the bots run */
   private decayCircle: Circle | null = null;
@@ -564,7 +563,7 @@ export class BrMatch extends Duel {
     // the ship's line passes over it, and every browser draws the same one
     // SpeedKills' ship always passes the Spire, near enough to glide onto its crown (the owner, 2026-09-27: "the drop
     // ship should always go over the middle district ... we should be always able to land at the top middle building")
-    const beside = IS_SK && SPIRE_TOP.y > 0 ? PROFILE.ship?.centre : undefined;
+    const beside = SPIRE_TOP.y > 0 ? PROFILE.ship?.centre : undefined;
     this.shipLine = opts.ship === false ? null : beside ? shipLine(this.seed, SPIRE_TOP, BR_BOUNDS, beside) : shipLine(this.seed, this.poi, BR_BOUNDS);
     const now = wallClock();
     this.startedAt = now;
@@ -577,29 +576,24 @@ export class BrMatch extends Duel {
     // SpeedKills: the decay's waves are the rounds, and every round closes to the final sector's middle. At the lobby's
     // pace too: the Ring box under Adjust settings, and the pace on the loading card, changed nothing here when the
     // waves were taken as they stood (found 2026-10-05, when the e2e moved onto SpeedKills)
-    if (IS_SK) {
-      this.decay = decayPlan(this.seed);
-      this.phases = decayRounds(opts.pace ?? "normal");
-      // (the sectors as the map in play has them, decay.ts SECTOR_RECTS: a sector's own middle and reach where it names them)
-      const f = SECTOR_RECTS.find((s) => s.id === this.decay!.final)!;
-      const mid = centreOf(f.id);
-      this.decayCircle = { cx: BR_X + mid.x, cz: BR_Z + mid.z, r: f.reach ?? Math.min(f.maxX - f.minX, f.maxZ - f.minZ) / 2 };
-      map.ringWall.visible = false;
-    }
+    this.decay = decayPlan(this.seed);
+    this.phases = decayRounds(opts.pace ?? "normal");
+    // (the sectors as the map in play has them, decay.ts SECTOR_RECTS: a sector's own middle and reach where it names them)
+    const f = SECTOR_RECTS.find((s) => s.id === this.decay!.final)!;
+    const mid = centreOf(f.id);
+    this.decayCircle = { cx: BR_X + mid.x, cz: BR_Z + mid.z, r: f.reach ?? Math.min(f.maxX - f.minX, f.maxZ - f.minZ) / 2 };
+    map.ringWall.visible = false;
     // The floor's loot, from the host's seed (the welcome carries it). The start decides only what you land
     // holding: SpeedKills' floor has its loot either way, since fusing and changing guns is looting (the
-    // owner could not loot, fuse or swap a gun after landing with a loadout); the legacy game's loadout
-    // start keeps its bare floor.
+    // owner could not loot, fuse or swap a gun after landing with a loadout).
     this.startLoot = opts.start !== "loadout";
-    if (this.startLoot || IS_SK) {
-      this.lootField = new LootField(scene);
-      this.lootField.generate(
-        this.seed,
-        map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })),
-        BR_BOUNDS_WORLD,
-        map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius, y: s.y, tier: s.tier }))
-      );
-    }
+    this.lootField = new LootField(scene);
+    this.lootField.generate(
+      this.seed,
+      map.pois.map((p) => ({ x: p.x, z: p.z, id: p.id, radius: p.radius })),
+      BR_BOUNDS_WORLD,
+      map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius, y: s.y, tier: s.tier }))
+    );
     if (this.role === "host") {
       // The bots take the OTHER places: where the squad drops is the squad's.
       // Landing beside three of them with no gun was the whole of a match.
@@ -608,11 +602,9 @@ export class BrMatch extends Duel {
       // SpeedKills: the centre is the hottest drop, and the bots go there the
       // most (the owner): every other bot squad drops on the Spire, the rest
       // spread over the other sectors
-      if (IS_SK) {
-        const spire = map.pois.find((p) => p.id === "c");
-        const rest = order.filter((p) => p !== spire);
-        if (spire) order = rest.length ? rest.flatMap((p) => [spire, p]) : [spire];
-      }
+      const spire = map.pois.find((p) => p.id === "c");
+      const rest = order.filter((p) => p !== spire);
+      if (spire) order = rest.length ? rest.flatMap((p) => [spire, p]) : [spire];
       const apart = squadCfg.drop.apart;
       for (let i = 0; i < this.botCount; i++) {
         // A bot squad lands together: the place and the drop point belong to
@@ -657,7 +649,7 @@ export class BrMatch extends Duel {
     // 440 m across (bots.ts sightRange, src/config/bots.json sight).
     bot.sightMode = "br";
     // SpeedKills: the map's bots keep to the city; only a player strays past its edge (edge.ts)
-    if (IS_SK) bot.fence = BR_BOUNDS;
+    bot.fence = BR_BOUNDS;
     // With a loot start it lands with nothing and LOOTS for its kit, rather
     // than waiting out a timer and being handed one: a bot that landed
     // somewhere rich is really better armed than one that landed in a field.
@@ -820,7 +812,7 @@ export class BrMatch extends Duel {
 
   // ------------------------------------------------------------ loot
 
-  /** the floor's loot, echoes and care packages (null only in the legacy game's loadout start) */
+  /** the floor's loot, echoes and care packages */
   lootField: LootField | null = null;
   /** true: you land with nothing (the bots land unarmed and loot); false: you land with your loadout and the bots with their guns */
   readonly startLoot: boolean;
@@ -913,7 +905,7 @@ export class BrMatch extends Duel {
     const canopy = new THREE.Mesh(new THREE.ConeGeometry(cfg.canopy.radius, cfg.canopy.height, 12, 1, true), new THREE.MeshStandardMaterial({ color: 0xdde3ea, emissive: tint, emissiveIntensity: 0.12, roughness: 0.9, side: THREE.DoubleSide }));
     canopy.position.y = 1.8 + cfg.canopy.height * 0.5;
     // SpeedKills: the pack's weapon case when it is in (paidgun.ts); our cylinder otherwise
-    const bought = IS_SK ? paidProp("carepackage") : null;
+    const bought = paidProp("carepackage");
     obj.add(bought ?? shell, beam, canopy);
     obj.position.set(at.x, cfg.height, at.z);
     obj.visible = false;
@@ -2196,7 +2188,7 @@ export class BrMatch extends Duel {
     }
     // The centre's loot coming back (speedkills.json loot.restock), the host's to roll and send, as a drop is
     const RS = PROFILE.loot?.restock;
-    if (IS_SK && RS && this.role === "host" && this.lootField && this.phase === "fight" && now >= this.restockAt) {
+    if (RS && this.role === "host" && this.lootField && this.phase === "fight" && now >= this.restockAt) {
       this.restockAt = now + RS.every;
       for (const { item, at } of this.lootField.restockPlan(RS, Math.random)) this.dropLoot(item, at);
     }
@@ -2296,7 +2288,7 @@ export class BrMatch extends Duel {
       if (b.armedAt > now) sense.canShoot = false;
       const shots = bot.update(now, dt, sense);
       // and held there, whatever moved it (a pad's throw, a chase along the edge); the ship carries riders outside before its doors open
-      if (IS_SK && bot.alive && !bot.aboard && !bot.dropping) {
+      if (bot.alive && !bot.aboard && !bot.dropping) {
         const r = MOVE.radius;
         bot.pos.x = Math.max(BR_BOUNDS.minX + r, Math.min(BR_BOUNDS.maxX - r, bot.pos.x));
         bot.pos.z = Math.max(BR_BOUNDS.minZ + r, Math.min(BR_BOUNDS.maxZ - r, bot.pos.z));

@@ -152,51 +152,7 @@ export function hourFor(id: string | null | undefined): Hour {
   return HOURS[id ?? ""] ?? HOURS[DEFAULT_HOUR];
 }
 
-/**
- * The hour a battle royale is played at, drawn from its seed with the
- * weights in sky.json. Every browser in the match has the seed, so a squad
- * sees the same sky without a word on the network. Its own hash, salted, so
- * it never moves the loot, the ring or the ship, which draw from the same
- * seed.
- */
-export function matchHour(seed: number): Hour {
-  const weights = skyCfg.match.weights as Record<string, number>;
-  const ids = HOUR_IDS.filter((id) => (weights[id] ?? 0) > 0);
-  const total = ids.reduce((a, id) => a + weights[id], 0);
-  if (!ids.length || total <= 0) return HOURS[DEFAULT_HOUR];
-  let h = (seed ^ 0x5b17ba5e) >>> 0;
-  h = Math.imul(h ^ (h >>> 16), 0x7feb352d);
-  h = Math.imul(h ^ (h >>> 15), 0x846ca68b);
-  h = (h ^ (h >>> 16)) >>> 0;
-  let pick = (h / 4294967296) * total;
-  for (const id of ids) {
-    pick -= weights[id];
-    if (pick < 0) return HOURS[id];
-  }
-  return HOURS[ids[ids.length - 1]];
-}
-
-const BR_SKY_KEY = "range.sky.br";
-
-/** whether a battle royale shows its own hour ("match", the default) or keeps yours ("mine") */
-export function loadBrSky(): "match" | "mine" {
-  try {
-    return localStorage.getItem(BR_SKY_KEY) === "mine" ? "mine" : "match";
-  } catch {
-    return "match";
-  }
-}
-
-export function saveBrSky(v: "match" | "mine"): void {
-  try {
-    localStorage.setItem(BR_SKY_KEY, v);
-  } catch {
-    // kept for this visit only
-  }
-}
-
-const HOUR_KEY = "range.sky.hour";
-/** SpeedKills keeps its own: its hours are not the legacy game's, and switching game should not trade them */
+/** SpeedKills' own key, kept from when the legacy game kept another, so nobody loses their hour */
 const SK_HOUR_KEY = "range.sky.hour.sk";
 
 /** SpeedKills' chosen hour, one of `skies`, or `fallback` (its neon night) */
@@ -214,24 +170,6 @@ export function saveSkHour(id: string): void {
     localStorage.setItem(SK_HOUR_KEY, id);
   } catch {
     // kept for this visit only
-  }
-}
-
-/** the owner's chosen hour, kept the way the graphics preset is */
-export function loadHour(): Hour {
-  try {
-    return hourFor(localStorage.getItem(HOUR_KEY));
-  } catch {
-    return HOURS[DEFAULT_HOUR];
-  }
-}
-
-export function saveHour(id: string): void {
-  try {
-    localStorage.setItem(HOUR_KEY, id);
-  } catch {
-    // a browser with storage switched off still gets to change the hour, it
-    // just does not keep it
   }
 }
 

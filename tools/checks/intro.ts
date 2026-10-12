@@ -92,7 +92,7 @@ console.log("The intro card");
 }
 {
   // the name is the game's own, and it is the one thing on the card
-  check("the card says what the game is called", INTRO_CFG.text.mark.length > 3 && INTRO_CFG.text.sub.length > 3, `${INTRO_CFG.text.mark}: ${INTRO_CFG.text.sub}`);
+  check("the card says what the game is called", INTRO_CFG.speedkills.mark.length > 3 && INTRO_CFG.speedkills.sub.length > 3, `${INTRO_CFG.speedkills.mark}: ${INTRO_CFG.speedkills.sub}`);
 }
 
 {

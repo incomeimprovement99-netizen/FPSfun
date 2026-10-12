@@ -1,7 +1,6 @@
 // The battle royale map's shared shape: where it sits in the world, and the types a map is made of (its places, its
 // sites, the bots' graph, its towers, pads and doors). SpeedKills' map is the Neon City (neonmap.ts). The legacy
 // game's OUTSKIRTS, built here until Milestone 528, went with its scenery, its building kit and its checks.
-import { IS_SK } from "./game";
 import type { Doors } from "./doors";
 import * as THREE from "three";
 import type { Bounds } from "./player";
@@ -9,8 +8,8 @@ import worldCfg from "../config/world.json";
 
 export const BR_X = 0;
 export const BR_Z = 500;
-/** half the map's side: Outskirts' 440 m, or SpeedKills' city (world.json cut: 304 m since Phase 23.3) in the same square of the world */
-export const BR_HALF = IS_SK ? worldCfg.cut.half : 220;
+/** half the map's side: the city's (world.json cut: 304 m since Phase 23.3) */
+export const BR_HALF = worldCfg.cut.half;
 export const BR_BOUNDS: Bounds = { minX: BR_X - BR_HALF, maxX: BR_X + BR_HALF, minZ: BR_Z - BR_HALF, maxZ: BR_Z + BR_HALF };
 export const BR_CENTER = new THREE.Vector3(BR_X, 0, BR_Z);
 

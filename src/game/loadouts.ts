@@ -1,7 +1,7 @@
 // Loadouts, the way CoD does classes: five fixed defaults, five custom slots
 // you name and edit, and the game remembers which one you used last. A
 // loadout is an operator look, two weapons and an heirloom.
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import { weaponIds } from "./weapons";
 import { OPERATORS } from "./operators";
 import { BODY_IDS, BUILD_IDS, OUTFIT_IDS, faceList } from "./outfit";
@@ -61,8 +61,8 @@ interface Store {
   pick?: string;
 }
 
-// each game keeps its own: SpeedKills' guns would not survive a legacy check of what a slot may hold, nor the other way round
-const KEY = IS_SK ? "range.loadouts.sk.v1" : "range.loadouts.v1";
+// SpeedKills' own key, from when the legacy game kept another (its guns would not have survived the other's check)
+const KEY = "range.loadouts.sk.v1";
 const OLD_SLOTS = "range.slots.v1";
 /**
  * A returning player keeps whatever loadout they last picked, which for
@@ -70,7 +70,7 @@ const OLD_SLOTS = "range.slots.v1";
  * shows none of that work. A new tag here moves every browser onto the first
  * default once; the tag is kept in the store, so a pick made after that sticks.
  */
-const PICK = IS_SK ? (PROFILE.lists?.loadoutPick ?? "") : "";
+const PICK = PROFILE.lists?.loadoutPick ?? "";
 
 /**
  * A dressed slot, picked at random but spread out: the shuffle is seeded by

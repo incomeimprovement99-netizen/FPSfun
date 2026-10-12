@@ -7,18 +7,6 @@
   "_fog": "near and far in metres. The battle royale scales both up because its map is 440 m across and the range is 80 m.",
   "default": "afternoon",
   "_neonNight": "SpeedKills' own hour (speedkills.json identity.skies), not in the legacy menu's order: a neon city at night, after the owner's direction and Hyper Scape's screenshots. The dome's horizon is the city's glow, a violet the fog takes too, so the far towers go dark and violet rather than a grey-blue wash, and their windows and neon carry the picture; the moon is dim, so the lit things are what you see. Tuned by eye against the city's snapshots (npm run snap).",
-  "_match": "A battle royale draws its own hour from the match seed, so a squad plays the same match under the same light and the next match can be another hour. weights is how often each comes up; night and dusk are rarer because a 165 m sightline in low light is a different game, which is good now and then and tiring every time. The setting 'Battle royale sky' can keep your own hour instead.",
-  "match": {
-    "weights": {
-      "morning": 2,
-      "noon": 2,
-      "afternoon": 3,
-      "goldenHour": 2,
-      "overcast": 2,
-      "dusk": 1,
-      "night": 1
-    }
-  },
   "order": [
     "morning",
     "noon",

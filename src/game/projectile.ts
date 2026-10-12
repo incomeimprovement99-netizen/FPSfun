@@ -9,7 +9,6 @@ import { viewer } from "./muzzle";
 import type { Dummy, HitReport, Zone } from "./dummy";
 import type { Target } from "./targets";
 import type { ResolvedWeapon } from "./weapons";
-import { IS_SK } from "./game";
 import { bodyAlong, bodyGap, buildRocket } from "./rocket";
 import { takenHit } from "./hitpick";
 
@@ -440,9 +439,8 @@ export class ProjectileSystem {
               const t = tOwner.get(hit.object)!;
               // a head hit past headshot range is body damage and no headshot
               const head = zone === "head" && headshotScale > 1;
-              // whole points in the legacy game; SpeedKills' tuned value, as a figure takes it (dummy.ts WHOLE_HITS)
-              const raw = dmg * (head ? headshotScale : 1);
-              const amount = IS_SK ? raw : Math.floor(raw + 1e-6);
+              // the tuned value, as a figure takes it: never rounded to whole points (Phase 20 A2)
+              const amount = dmg * (head ? headshotScale : 1);
               t.hit(now, head, amount);
               onImpact({
                 dummy: null, report: null, target: t, targetHead: head,

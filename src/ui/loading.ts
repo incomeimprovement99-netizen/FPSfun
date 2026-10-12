@@ -19,7 +19,6 @@
 // shows each player's banner (the owner, 2026-10-02).
 //
 // The numbers and the tips are in src/config/hud.json `loading`.
-import { IS_SK } from "../game/game";
 import * as THREE from "three";
 import hudCfg from "../config/hud.json";
 import introCfg from "../config/intro.json";
@@ -28,7 +27,7 @@ const CFG = hudCfg.loading;
 // what a steady frame is: the intro card's own test (intro.json settle), so the screen and the card agree
 const SETTLE = introCfg.settle;
 // SpeedKills teaches its own game on the loading screen
-const TIPS: string[] = IS_SK ? CFG.tipsSk : CFG.tips;
+const TIPS: string[] = CFG.tipsSk;
 
 /** your card on a battle royale's loading screen (main.ts playerCard) */
 export interface PlayerCard {

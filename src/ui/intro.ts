@@ -19,18 +19,14 @@
 // seed, so the same seed draws the same crack: that is what lets the checks and
 // the snapshots see the picture the player sees.
 import INTRO_CFG from "../config/intro.json";
-import { IS_SK } from "../game/game";
 // SpeedKills' card: its own name and line, and the rain in its neon
-const TEXT = IS_SK ? INTRO_CFG.speedkills : INTRO_CFG.text;
-const RAIN_HEAD = IS_SK ? INTRO_CFG.speedkills.head : INTRO_CFG.rain.head;
-const RAIN_DIM = IS_SK ? INTRO_CFG.speedkills.dim : INTRO_CFG.rain.dim;
+const TEXT = INTRO_CFG.speedkills;
+const RAIN_HEAD = INTRO_CFG.speedkills.head;
+const RAIN_DIM = INTRO_CFG.speedkills.dim;
 /**
- * The card's colours as r, g, b: the legacy card's greens, or SpeedKills'
- * cyan with magenta for the split. One table so the two cards cannot drift.
+ * The card's colours as r, g, b: SpeedKills' cyan, with magenta for the split.
  */
-const C = IS_SK
-  ? { soft: "120, 235, 255", main: "32, 224, 255", split1: "255, 46, 154", split2: "32, 224, 255", white: "236, 252, 255", pale: "210, 245, 255", pale2: "170, 235, 255", pale3: "225, 248, 255" }
-  : { soft: "120, 255, 170", main: "55, 224, 122", split1: "0, 255, 130", split2: "0, 200, 255", white: "242, 255, 246", pale: "210, 255, 225", pale2: "180, 255, 210", pale3: "230, 255, 240" };
+const C = { soft: "120, 235, 255", main: "32, 224, 255", split1: "255, 46, 154", split2: "32, 224, 255", white: "236, 252, 255", pale: "210, 245, 255", pale2: "170, 235, 255", pale3: "225, 248, 255" };
 
 export type IntroKind = "boot" | "match";
 

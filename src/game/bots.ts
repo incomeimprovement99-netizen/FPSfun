@@ -22,7 +22,7 @@
 // first to 3. Two bots do not shoot each other: they are both after you.
 
 import { botBlocked, botGroundAt } from "./botbody";
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import { botSoldierCode } from "./soldier";
 import hackCfg from "../config/hacks.json";
 import { cooldownOf } from "./hacks";
@@ -129,7 +129,7 @@ export function aimError(d: Difficulty, t: number, dist = 0): number {
  * that times botAimLagScale, since its players run twice as fast (speedkills.json _botAimLagScale)
  */
 export function aimLagOf(d: Difficulty): number {
-  return d.aimLag * (IS_SK ? (PROFILE.botAimLagScale ?? 1) : 1);
+  return d.aimLag * (PROFILE.botAimLagScale ?? 1);
 }
 
 /** which map a bot is on: the arena is 36 m by 64, the battle royale's map 440 across */
@@ -211,7 +211,7 @@ function lineOfSight(a: THREE.Vector3, b: THREE.Vector3, eye = 1.4): boolean {
 /** what bots carry, one per bot in order */
 export const BOT_WEAPONS: string[] = [...(PROFILE.lists?.botWeapons ?? [])];
 // SpeedKills renames a bot whose name was a gun's (speedkills.json lists.botRename)
-export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"].map((n) => (IS_SK ? (PROFILE.lists?.botRename?.[n] ?? n) : n));
+export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"].map((n) => (PROFILE.lists?.botRename?.[n] ?? n));
 
 /**
  * The name of the nth bot in a match. Twelve names were the cap on how many
@@ -484,11 +484,11 @@ export class BotLooter {
 
 /** a tier's walking speed in this game, m/s: its own, times SpeedKills' botSpeedScale and the tier's botTierSpeed (Casual slower) */
 export function tierSpeed(tier: BotTier): number {
-  return DIFFICULTY[tier].speed * (IS_SK ? (PROFILE.botSpeedScale ?? 1) * (PROFILE.botTierSpeed?.[tier] ?? 1) : 1);
+  return DIFFICULTY[tier].speed * (PROFILE.botSpeedScale ?? 1) * (PROFILE.botTierSpeed?.[tier] ?? 1);
 }
 
 /** SpeedKills: a fighting bot's sideways share, times this (speedkills.json botStrafe) */
-const STRAFE_SCALE = IS_SK ? (PROFILE.botStrafe ?? 1) : 1;
+const STRAFE_SCALE = PROFILE.botStrafe ?? 1;
 
 /** a shot a bot fired that may have hit an enemy: for the match to apply */
 export interface BotShot {
@@ -606,7 +606,7 @@ export class Bot {
   private skHealUntil = -Infinity;
   /** SpeedKills: the hacks its tier carries (bots.json skHacks) */
   get skHacks(): readonly string[] {
-    return IS_SK ? ((botsCfg.skHacks as unknown as Record<string, string[]>)[this.diff.name] ?? []) : [];
+    return (botsCfg.skHacks as unknown as Record<string, string[]>)[this.diff.name] ?? [];
   }
   /** SpeedKills: the hacks it has used this life, for the tests and the recap */
   skUsed = { heal: 0, dash: 0 };
@@ -645,10 +645,10 @@ export class Bot {
     this.weapon = resolveWeapon(wid);
     // SpeedKills: its own soldier, seeded by its id, which a guest's figure of it takes too (soldier.ts botSoldierCode)
     const op = OPERATORS[(index + 1) % OPERATORS.length];
-    const skin = IS_SK ? { ...op, soldier: botSoldierCode(id) } : op;
+    const skin = { ...op, soldier: botSoldierCode(id) };
     this.dummy = new Dummy(spawn.x, spawn.z, 0, { armed: wid, respawn: false, skin, rig: true, noBase: true });
     // SpeedKills: a player's one shield (speedkills.json health), whatever armour tier the kit says
-    if (IS_SK && PROFILE.health) this.dummy.shieldCap = PROFILE.health.shield;
+    if (PROFILE.health) this.dummy.shieldCap = PROFILE.health.shield;
     this.dummy.setTier(2);
     this.dummy.group.name = `bot:${index}`;
     scene.add(this.dummy.group);
@@ -677,7 +677,7 @@ export class Bot {
     this.dummy.setTier(2);
     this.dummy.setThreat(0);
     this.remote.health = HEALTH_MAX;
-    this.remote.shield = IS_SK ? this.dummy.shield : SHIELD_MAX;
+    this.remote.shield = this.dummy.shield;
     this.remote.alive = true;
     this.pos.set(this.spawn.x, 0, this.spawn.z);
     this.yaw = this.spawn.yaw;
@@ -1200,7 +1200,7 @@ export class Bot {
       } else if (now - this.cover.bestAt > 1) this.cover = null;
     }
     if (this.cover && (now > this.cover.until || hurtFrac >= 0.95)) this.cover = null;
-    if (IS_SK) this.stepSk(now, dt, target);
+    this.stepSk(now, dt, target);
 
     // loot: a landed bot with a floor under it goes and kits itself out. It
     // comes before hunting and before the match's goal, because the first

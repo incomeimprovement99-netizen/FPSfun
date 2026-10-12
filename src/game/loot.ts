@@ -18,7 +18,7 @@
 // another. And a spot is a KIND, not a handful of separate dice: a gun rack, a
 // med shelf, a bench, an ammo crate, so a room reads as a
 // room instead of coming out four shield cells and nothing else.
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import { HACK_IDS, hackDef, hackSlotOf } from "./hacks";
 import * as THREE from "three";
 import { slow } from "./slow";
@@ -225,7 +225,7 @@ export function rollSpot(rnd: () => number, tier: PlaceTier): LootItem[] {
  * loot all went back outdoors, which is the opposite of what the buildings
  * are for.
  */
-const MAX_FLOOR = (IS_SK && PROFILE.loot?.maxFloor) || 12;
+const MAX_FLOOR = PROFILE.loot?.maxFloor || 12;
 function standingSpots(x: number, z: number): number[] {
   // (the boxes near, from the solid grid: over all of the Neon map's 79,000, every spot a match's loot tried was most of
   // the battle royale's 1.4 s start, 2026-10-04; the same boxes, as the test below is the same)
@@ -235,8 +235,8 @@ function standingSpots(x: number, z: number): number[] {
   // SpeedKills' buildings collide by their own triangles (tools/import-city.ts districtSolids), so a room's floor is many
   // boxes side by side, few of them a metre across: there a top is a floor too where boxes at that height cover the
   // square round the spot between them. Without it the rooms held loot on their ground floors only
-  if (IS_SK) floorTops.push(...acrossTops(x, z));
-  // the highest floor loot is put on: the legacy map's roofs top out near 12 m; SpeedKills' city is its roofs
+  floorTops.push(...acrossTops(x, z));
+  // the highest floor loot is put on (speedkills.json loot.maxFloor): the city is its roofs
   const tops = [0, ...floorTops].filter((y) => y <= MAX_FLOOR);
   const out: number[] = [];
   for (const y of new Set(tops)) {
@@ -478,7 +478,7 @@ export class LootField {
       // the items turn slowly
       this.tmpQ.setFromEuler(this.tmpE.set(0, now * 0.8 + d.key, 0));
       // SpeedKills: a hack core is the pack's canister standing, glowing in its slot's colour (paidgun.ts)
-      const core = it.kind === "hack" && IS_SK && near ? paidPropBatch("hackcore", col) : null;
+      const core = it.kind === "hack" && near ? paidPropBatch("hackcore", col) : null;
       if (core) {
         p.set(d.pos.x, d.pos.y + 0.22 + 0.04 * Math.sin(now * 2 + d.key), d.pos.z);
         this.batch(`core${col}`, core.geo, () => core.mat).put(this.tmpM.compose(p, this.tmpQ, this.unit));
@@ -616,7 +616,7 @@ export class LootField {
       const tier: PlaceTier = hot ? "hot" : tierOf(p);
       const spots: THREE.Vector3[] = [];
       let tries = 0;
-      const want = IS_SK && PROFILE.loot ? (PROFILE.loot.spots[tier] ?? PROFILE.loot.spots.mid) : cfg.tiers[tier].spots;
+      const want = PROFILE.loot ? (PROFILE.loot.spots[tier] ?? PROFILE.loot.spots.mid) : cfg.tiers[tier].spots;
       while (spots.length < want && tries++ < want * 12) {
         const a = rnd() * Math.PI * 2;
         // out to the place's own reach: West Town's clocktower is 34 m and more from its middle

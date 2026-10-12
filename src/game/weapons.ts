@@ -1,6 +1,6 @@
 // Typed access to data/weapons.json and resolution into the numbers the
 // simulation consumes. Everything gameplay-relevant comes from here.
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import raw from "../../data/weapons.json";
 import { displayName } from "../config/names";
 import mechCfg from "../config/weapon-mechanics.json";
@@ -192,14 +192,11 @@ export function weaponClass(id: string): string {
 }
 
 /**
- * The guns in play in this page's game (src/game/game.ts): the whole
- * catalogue in the legacy game, SpeedKills' ten in SpeedKills. The pickers,
- * a loadout's check and the network's hit check all follow it.
+ * The guns in play: SpeedKills' roster (speedkills.json). The pickers, a
+ * loadout's check and the network's hit check all follow it.
  */
-/** the guns only SpeedKills has: the legacy game, frozen with the data's catalogue, never lists them */
-export const SK_ONLY = ["launcher"];
 export function weaponIds(): string[] {
-  return IS_SK ? [...PROFILE.roster] : Object.keys(DATA.weapons).filter((id) => !SK_ONLY.includes(id));
+  return [...PROFILE.roster];
 }
 /** every gun the engine can make, whatever game is on */
 export function allWeaponIds(): string[] {
@@ -207,13 +204,13 @@ export function allWeaponIds(): string[] {
 }
 export function weaponName(id: string): string {
   // SpeedKills' guns carry their own names, the same in every build
-  const sk = IS_SK ? (PROFILE.weapons[id]?.name ?? PROFILE.otherNames?.[id]) : undefined;
+  const sk = PROFILE.weapons[id]?.name ?? PROFILE.otherNames?.[id];
   if (sk) return sk;
   return displayName(id, DATA.weapons[id]?.name ?? id);
 }
-/** SpeedKills: a gun's two-word class (speedkills.json kind), or null (the legacy game names no class) */
+/** SpeedKills: a gun's two-word class (speedkills.json kind), or null for a gun it names none for */
 export function weaponKind(id: string): string | null {
-  return IS_SK ? (PROFILE.weapons[id]?.kind ?? PROFILE.otherKinds?.[id] ?? null) : null;
+  return PROFILE.weapons[id]?.kind ?? PROFILE.otherKinds?.[id] ?? null;
 }
 /**
  * A gun as a beginner reads it, "USSO (Fast SMG)" (the owner, Phase 20 A7), where there is room for it; the bare
