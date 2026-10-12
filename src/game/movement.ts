@@ -195,12 +195,17 @@ export const MOVE = {
 export const EXTRA = {
   doubleJump: { height: m(raw.extra.doubleJump.height), grace: raw.extra.doubleJump.grace },
   wallRun: {
-    seconds: raw.extra.wallRun.seconds,
-    fall: raw.extra.wallRun.fall,
     minSpeed: m(raw.extra.wallRun.minSpeed),
+    keepAngle: raw.extra.wallRun.keepAngle,
+    speed: m(raw.extra.wallRun.speed),
+    accel: m(raw.extra.wallRun.accel),
+    maxSpeed: m(raw.extra.wallRun.maxSpeed),
+    drag: m(raw.extra.wallRun.drag),
     out: m(raw.extra.wallRun.out),
     up: m(raw.extra.wallRun.up),
-    cooldown: raw.extra.wallRun.cooldown,
+    boost: m(raw.extra.wallRun.boost),
+    minOut: raw.extra.wallRun.minOut,
+    sameWall: raw.extra.wallRun.sameWall,
     hold: m(raw.extra.wallRun.hold),
   },
 } as const;

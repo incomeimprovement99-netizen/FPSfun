@@ -33,7 +33,7 @@ export const GAPS = {
   wall: cm((reach.doubleJump.carry * cfg.over + reach.wallKick.carry * cfg.under) / 2),
 };
 
-/** a gap room from its door at `entryZ`: the deck you climb (a0 to a1), the pit, the deck you land on (b0 to b1) */
+/** a gap room from its door at `entryZ`: the deck you climb (a0 to a1), the pit, the deck you land on (b0 to b1), `landing` long */
 export interface GapRoom {
   entryZ: number;
   a0: number;
@@ -43,16 +43,18 @@ export interface GapRoom {
   /** the next room's door: the floor past the landing deck, to drop down to */
   exitZ: number;
 }
-function gapRoom(entryZ: number, gap: number): GapRoom {
+function gapRoom(entryZ: number, gap: number, landing = cfg.landing): GapRoom {
   const a0 = entryZ + 3;
   const a1 = a0 + cfg.runUp;
   const b0 = cm(a1 + gap);
-  const b1 = cm(b0 + cfg.landing);
+  const b1 = cm(b0 + landing);
   return { entryZ, a0, a1, b0, b1, exitZ: Math.ceil(b1 + 4) };
 }
 export const RUN = gapRoom(20, GAPS.run);
 export const DOUBLE = gapRoom(RUN.exitZ, GAPS.double);
-export const WALLGAP = gapRoom(DOUBLE.exitZ, GAPS.wall);
+// The wall gap's deck runs on past where the kick lands (its carry times over) by half a landing: a wall run keeps 15 m/s
+// and more since Milestone 530, and its kick at the measured moment came down past the end of a 6 m deck
+export const WALLGAP = gapRoom(DOUBLE.exitZ, GAPS.wall, cm(Math.max(cfg.landing, reach.wallKick.carry * cfg.over - GAPS.wall + cfg.landing / 2)));
 /** the deck's height, and the height over a pit below which you have fallen */
 export const DECK = cfg.deck;
 export const FALL_Y = cfg.deck - cfg.fallBelow;
@@ -129,7 +131,7 @@ export const CHAIN_COURSE: CourseLayout = {
       name: "WALL GAP",
       entryZ: WALLGAP.entryZ,
       tipX: 3,
-      tip: tip("WALL GAP", `${GAPS.wall.toFixed(1)} m, past any jump. Sprint beside the lit wall on your right, jump at the edge into a wall run along it, and kick off (jump) late in the run, 1.2 to 1.4 s in. The run alone falls short.`),
+      tip: tip("WALL GAP", `${GAPS.wall.toFixed(1)} m, past any jump. Sprint beside the lit wall on your right, jump at the edge into a wall run along it and hold forward: it carries you over. Kick off (jump) to land, or run on to the deck.`),
       trigger: (_x, _y, z) => z > WALLGAP.entryZ + 0.7,
       enemies: [],
     },
@@ -137,7 +139,7 @@ export const CHAIN_COURSE: CourseLayout = {
       name: "CHIMNEY",
       entryZ: WALLGAP.exitZ,
       tipX: 3,
-      tip: tip("CHIMNEY", `Two walls ${Ch.width.toFixed(1)} m apart. Sprint in beside one, jump, and kick across to the other a quarter second into each wall run: three kicks reach the landing ${Ch.rise} m up. Turn round on it and kick on up to the top, ${TOP} m. Hop over the wall's cap on your left, and the zip takes you down.`),
+      tip: tip("CHIMNEY", `Two walls ${Ch.width.toFixed(1)} m apart. Sprint in beside one, jump, and kick across to the other, looking at it, a quarter second into each wall run: three kicks reach the landing ${Ch.rise} m up. Turn round on it and kick on up to the top, ${TOP} m. Hop over the wall's cap on your left, and the zip takes you down.`),
       trigger: (_x, _y, z) => z > WALLGAP.exitZ + 0.7,
       enemies: [],
     },
@@ -175,7 +177,7 @@ export const CHAIN_COURSE: CourseLayout = {
   startPose: { x: 0, z: 10.2, yaw: 180 },
   sign:
     "THE CHAIN\n\nThe city's moves at the distances it is built to, measured on the real movement: a RUN GAP (a sprint jump), " +
-    "a DOUBLE GAP (the double jump), a WALL GAP (a wall run and the kick off it), the CHIMNEY: kick wall to wall to its " +
+    "a DOUBLE GAP (the double jump), a WALL GAP (a wall run), the CHIMNEY: kick wall to wall to its " +
     "landing, turn, and on to its top; and a WINDOW PAD, which throws you through a window onto the finish deck.\n\n" +
     "Fall into a gap and the room restarts with 2 s added. Every room's way is written on the wall you came in by: turn round.\n\nF resets the course.",
   girders: [-4, 4],

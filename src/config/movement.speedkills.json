@@ -19,12 +19,17 @@
       "grace": 0.1
     },
     "wallRun": {
-      "seconds": 1.5,
-      "fall": 0.45,
       "minSpeed": 140,
+      "keepAngle": 70,
+      "speed": 620,
+      "accel": 900,
+      "maxSpeed": 790,
+      "drag": 400,
       "out": 230,
       "up": 56,
-      "cooldown": 0.3,
+      "boost": 70,
+      "minOut": 0.35,
+      "sameWall": 0.4,
       "hold": 0.45
     }
   },

@@ -11415,6 +11415,39 @@ battle royale never called its down). Everything that only a knock used went:
 - About 1,300 lines out, 150 in.
 - **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate, speedkills, gulag and sksquad.
 
+## Milestone 530 — The wall run after EMPULSE: as long as you hold it, wall to wall without losing speed
+
+The owner (2026-10-12): the wall run was "not anywhere near as smooth" as EMPULSE's, where "they can indefinitely run
+on the walls and it's a smooth transition between each wall without losing speed and the camera tilts a bit more".
+EMPULSE's own numbers, where it publishes them: a wall run capped at 20 m/s (790 hu/s), a burst of speed on every wall
+jump (what its chains are built from), and speed lost on a head-on (90 degree) approach. Its camera lean reads 3 to 6
+degrees off video frames; ours leans further on the owner's word.
+
+- **As long as you hold it:** a run lasted 1.5 s while sinking at 45% of gravity. It now lasts while you hold forward
+  along the wall and never sinks: entered rising it arcs up and levels off, entered falling it is caught level (half a
+  frame of gravity up is exactly level after the trapezoidal step, at any frame rate). Holding forward carries you up
+  to 620 hu/s (15.7 m/s) and anything faster is kept to 790; let go and it coasts off in about 1.4 s. Steering away
+  from the wall or a crouch drops you off; so do the ground, a climb, slowing under its minimum, or the wall ending.
+- **Wall to wall without losing speed:** a new wall kept only the part of your speed that already went along it, the
+  same wall could not be taken for 0.3 s and no other either. Now an approach within 70 degrees of the wall's line keeps
+  all its speed, turned along the wall (more head-on keeps the part along, as EMPULSE's does); the face just left takes
+  you again after 0.4 s and any other at once; an inside corner turns the run onto the next wall with its speed (WALL
+  TURN) where before you ran into it and stopped.
+- **The kick:** it went straight out from the wall at 230 hu/s on top of whatever you had along it. It goes where you
+  look now, at least 35% of it away from the wall, keeps your speed and adds a 70 hu/s burst (to 790), never slower
+  than 230 hu/s away from the wall, and throws you up 56 hu with the double jump back.
+- **The lean:** 15 degrees (was 10), eased in over 0.22 s and out over 0.4 s, so going wall to wall it carries across
+  rather than snapping flat between them.
+- **Measured (tools/checks/reach.ts):** held 3 s, 47.2 m along a wall from 14.1 to 15.7 m/s, rising 1.37 m and sinking
+  none; a kick a second in, 15.7 to 17.5 m/s; corridors from 2.5 to 6 m hold a bounce up them (a 5 m one did not).
+  reach.json is rewritten from it: the kick at 1.5 s carries 39.9 m, the run alone 94.4 m. Put back, the old run fails
+  five of the new checks.
+- **THE CHAIN:** the wall gap is crossed by the run alone now as well as by its kick, so its check lands both (a player
+  steers off over the deck) and not a double jump; its deck runs on past where the kick lands, as the kick came down
+  past a 6 m deck at the new speed. The chimney's kicks look across at the other wall, as its tip says: looking along it
+  a kick carries along it, gathering speed, and runs out of chimney a storey short of the top.
+- **Checked:** tsc; verify (reach, sk-chaincourse); rules; e2e sktour, range and speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

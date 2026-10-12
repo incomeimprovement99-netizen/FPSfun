@@ -14,14 +14,19 @@
       "height": 44,
       "grace": 0.12
     },
-    "_wallRun": "a run along a wall you are moving along in the air: it holds you against the wall for up to `seconds`, falling at `fall` of gravity (a bit over half, so a run carries you along and lifts you a little rather than walking you up the side of a building), and you leave it with a jump that throws you `out` hu off the wall and `up` hu up. `minSpeed` is how fast you have to be going along the wall to start one, so walking into a wall does not stick you to it (a walk is 173 hu/s and a sprint 260, and what is left of either in the air after a jump is less, so this sits under a walk), and `cooldown` is how long before the same wall takes you again, which is what stops a wall being a ladder.",
+    "_wallRun": "a run along a wall you are moving along in the air (Milestone 530, after EMPULSE, the owner 2026-10-12: 'they can indefinitely run on the walls and it is a smooth transition between each wall without losing speed'). It lasts as long as you hold it: moving along the wall at `minSpeed` or more and not steering away (or crouching, which drops you off). Holding forward along it carries you up to `speed` at `accel`; faster than that you keep what you brought, up to `maxSpeed` (EMPULSE's wall-run cap is 20 m/s, 790 hu/s, from its patch notes); not pushing along it, you coast down at `drag`. It never sinks: a run entered rising arcs up under gravity and levels off, and one entered falling is caught level. An approach within `keepAngle` degrees of the wall's line keeps all of its speed, turned along the wall; a more head-on one keeps only the part along it (EMPULSE loses speed at 90 degrees too). An inside corner turns the run onto the next wall with its speed. The kick off it goes where you look, but at least `minOut` of it away from the wall, keeps your speed and adds `boost` (EMPULSE's burst on every wall jump, what chains are built from), up to `maxSpeed`, and throws you `up` hu up, never less than `out` hu/s; the wall you left takes you again after `sameWall` s, any other at once. `hold` keeps you against the wall. Ours, tuned on the owner's word; the units are Hammer units.",
     "wallRun": {
-      "seconds": 1.2,
-      "fall": 0.55,
       "minSpeed": 150,
+      "keepAngle": 70,
+      "speed": 600,
+      "accel": 900,
+      "maxSpeed": 790,
+      "drag": 400,
       "out": 210,
       "up": 46,
-      "cooldown": 0.35,
+      "boost": 70,
+      "minOut": 0.35,
+      "sameWall": 0.4,
       "hold": 0.45
     }
   },

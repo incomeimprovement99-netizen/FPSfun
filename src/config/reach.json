@@ -15,109 +15,120 @@
   },
   "slideJump": {
     "apex": 1.422,
-    "carry": 10.083
+    "carry": 16.703
   },
   "wallRun": {
-    "along": 20.955,
-    "seconds": 1.5,
-    "heightChange": 1.586,
-    "started": true
+    "started": true,
+    "held": true,
+    "seconds": 3,
+    "along": 47.192,
+    "startSpeed": 14.129,
+    "endSpeed": 15.748,
+    "heightChange": 1.374,
+    "rise": 1.374,
+    "sinkAfterTop": 0,
+    "coast": 1.382
   },
   "wallKick": {
-    "at": 1.45,
-    "carry": 34.634,
-    "runAlone": 24.35
+    "at": 1.5,
+    "carry": 39.853,
+    "runAlone": 94.425,
+    "speed": {
+      "before": 15.748,
+      "after": 17.526,
+      "off": true
+    }
   },
   "zigzag": [
     {
       "width": 2.5,
-      "crossings": 21,
-      "perCrossing": 1.572,
-      "along": 167.64
+      "crossings": 25,
+      "perCrossing": 1.458,
+      "along": 231.072
     },
     {
       "width": 2.75,
-      "crossings": 20,
-      "perCrossing": 1.538,
-      "along": 167.64
+      "crossings": 23,
+      "perCrossing": 1.467,
+      "along": 230.312
     },
     {
       "width": 3,
-      "crossings": 19,
-      "perCrossing": 1.409,
-      "along": 167.64
+      "crossings": 21,
+      "perCrossing": 1.474,
+      "along": 229.713
     },
     {
       "width": 3.25,
-      "crossings": 18,
-      "perCrossing": 1.25,
-      "along": 167.64
+      "crossings": 20,
+      "perCrossing": 1.479,
+      "along": 229.254
     },
     {
       "width": 3.5,
-      "crossings": 17,
-      "perCrossing": 1.063,
-      "along": 167.64
+      "crossings": 19,
+      "perCrossing": 1.484,
+      "along": 228.693
     },
     {
       "width": 3.75,
-      "crossings": 16,
-      "perCrossing": 0.848,
-      "along": 167.64
+      "crossings": 18,
+      "perCrossing": 1.487,
+      "along": 228.225
     },
     {
       "width": 4,
-      "crossings": 15,
-      "perCrossing": 0.56,
-      "along": 167.64
+      "crossings": 17,
+      "perCrossing": 1.48,
+      "along": 227.832
     },
     {
       "width": 4.25,
-      "crossings": 14,
-      "perCrossing": 0.284,
-      "along": 167.64
+      "crossings": 16,
+      "perCrossing": 1.452,
+      "along": 227.444
     },
     {
       "width": 4.5,
-      "crossings": 7,
-      "perCrossing": 0.154,
-      "along": 89.156
+      "crossings": 15,
+      "perCrossing": 1.391,
+      "along": 226.989
     },
     {
       "width": 4.75,
-      "crossings": 3,
-      "perCrossing": 0.367,
-      "along": 41.619
+      "crossings": 15,
+      "perCrossing": 1.329,
+      "along": 226.569
     },
     {
       "width": 5,
-      "crossings": 2,
-      "perCrossing": 0.54,
-      "along": 29.589
+      "crossings": 14,
+      "perCrossing": 1.216,
+      "along": 226.378
     },
     {
       "width": 5.25,
-      "crossings": 2,
-      "perCrossing": 0.208,
-      "along": 29.201
+      "crossings": 13,
+      "perCrossing": 1.097,
+      "along": 225.978
     },
     {
       "width": 5.5,
-      "crossings": 1,
-      "perCrossing": 1.547,
-      "along": 17.657
+      "crossings": 13,
+      "perCrossing": 0.949,
+      "along": 225.69
     },
     {
       "width": 5.75,
-      "crossings": 1,
-      "perCrossing": 1.243,
-      "along": 17.56
+      "crossings": 12,
+      "perCrossing": 0.784,
+      "along": 225.399
     },
     {
       "width": 6,
-      "crossings": 1,
-      "perCrossing": 0.908,
-      "along": 17.462
+      "crossings": 12,
+      "perCrossing": 0.593,
+      "along": 225.187
     }
   ]
 }

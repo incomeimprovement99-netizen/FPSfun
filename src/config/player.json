@@ -40,9 +40,9 @@
     "airRoll": 2.4,
     "airIn": 0.16,
     "airOut": 0.22,
-    "wallRoll": 10,
-    "wallIn": 0.15,
-    "wallOut": 0.25,
-    "_wallRoll": "The view's lean away from a wall you are running, degrees with the wall full to one side (none when it is ahead), eased in over `wallIn` and out over `wallOut` seconds, as Empulse's and Titanfall's wall runs lean: the owner, 2026-09-28, 'it should twist the camera a bit'. The camera only, as every number here; the HUD's streaks (hud.json wallRun) follow it."
+    "wallRoll": 15,
+    "wallIn": 0.22,
+    "wallOut": 0.4,
+    "_wallRoll": "The view's lean away from a wall you are running, degrees with the wall full to one side (none when it is ahead), eased in over `wallIn` and out over `wallOut` seconds, as Empulse's and Titanfall's wall runs lean: the owner, 2026-09-28, 'it should twist the camera a bit'. The camera only, as every number here; the HUD's streaks (hud.json wallRun) follow it. 15 degrees since Milestone 530 (the owner, 2026-10-12, after EMPULSE: 'the camera tilts a bit more'; it was 10), eased in over 0.22 s and out over 0.4 s, so going from one wall to the next it carries across rather than snapping flat between them. EMPULSE's own looks like 3 to 6 degrees in its videos (measured off frames, no published number); ours leans further on the owner's word."
   }
 }

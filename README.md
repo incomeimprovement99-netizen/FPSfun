@@ -56,13 +56,16 @@ describes the retired legacy game, and goes with its code.
   - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
   - A lit red fence marks the city's edge. Past it you have 5 s to come back, or it is OUT OF BOUNDS.
   - A match runs 6 to 7 minutes.
-- **Movement for roofs:** double jump, wall run and kick (the view leans off
-  the wall and streaks run down that side of the screen), slide, and a climb
+- **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
   move forward, at 14 m/s, and a slide speeds you up a little past that and
   holds it (faster than the sprint it came from for its first second, a gun out
   or holstered); a jump and a double jump at a sprint clear 24 m, wider than any
-  street.
+  street. A wall run lasts as long as you hold forward along the wall and never
+  sinks, and you keep your speed from wall to wall, round an inside corner and
+  through each kick, which goes where you look with a burst on top (after
+  EMPULSE's). The view leans 15 degrees off the wall and streaks run down that
+  side of the screen.
 - **The soldier:** on the game server, every SpeedKills figure is the bought
   Sci-Fi Modular Soldier, in four variants (VANGUARD, the full kit; BREACHER,
   heavy and clean; RECON, light, the face showing; RUNNER, lean), each with its
@@ -780,8 +783,9 @@ than "Apex movement": *plus double jump and wall run*. Off by default, and
 off is the default for a reason, because everything else in this game's
 movement is measured against a source and these two are ours. On, you get one
 more jump in the air (once until you touch ground, a wall or a rope) and a run
-along any wall you are already moving along, which you leave with a kick that
-throws you off it and up.
+along any wall you are already moving along, for as long as you hold forward
+along it, which you leave with a kick that throws you where you look, faster,
+and up.
 
 **The range's tools**: the spray wall (a mag from the mark 20 m out leaves
 your hits in white beside the gun's own pattern in gold, scaled to the

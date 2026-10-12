@@ -53,10 +53,11 @@ console.log(`        gaps from reach.json: run ${GAPS.run} m, double ${GAPS.doub
 
 /**
  * One gap room: from the back of its take-off deck, sprinting ahead, a jump at the edge, and with `dj` a double jump
- * at the measured moment, or with `kick` a kick off the wall at the measured moment. At `x` across. Clean: on the far
- * deck, never climbing, never under the fall line over the pit.
+ * at the measured moment, or with `kick` a kick off the wall at the measured moment, or with `off` a step off the wall
+ * (steering away from it) once over the far deck. At `x` across. Clean: on the far deck, never climbing, never under the
+ * fall line over the pit.
  */
-function crossing(r: GapRoom, x: number, o: { jump: boolean; dj?: boolean; kick?: boolean }): { clean: boolean; z: number } {
+function crossing(r: GapRoom, x: number, o: { jump: boolean; dj?: boolean; kick?: boolean; off?: boolean }): { clean: boolean; z: number } {
   const p = player(x, DECK, r.a0 + 0.5);
   const s = new Script();
   s.down.add("forward");
@@ -79,6 +80,9 @@ function crossing(r: GapRoom, x: number, o: { jump: boolean; dj?: boolean; kick?
       s.taps.add("jump");
       kicked = true;
     }
+    // the run goes on along the wall as long as forward is held (Milestone 530): a player steers off it, away from the
+    // wall (+x, on the left), to come down on the deck
+    if (o.off && p.onWall && p.pos.z > r.b0 + 0.5) s.down.add("left");
     p.update(DT, t, s, 0, 1, false);
     s.taps.clear();
     if (p.climbing || (p.pos.z > r.a1 && p.pos.z < r.b0 && p.pos.y < FALL_Y)) fell = true;
@@ -97,15 +101,27 @@ const r2 = crossing(DOUBLE, mid, { jump: true, dj: true });
 const r2no = crossing(DOUBLE, mid, { jump: true });
 check(`double gap (${GAPS.double} m): the double jump lands clean, and one jump falls in`, r2.clean && !r2no.clean, `one jump reached z ${r2no.z.toFixed(1)} of ${DOUBLE.b0}`);
 const r3 = crossing(WALLGAP, byWall, { jump: true, kick: true });
-const r3run = crossing(WALLGAP, byWall, { jump: true });
+const r3run = crossing(WALLGAP, byWall, { jump: true, off: true });
 const r3dj = crossing(WALLGAP, mid, { jump: true, dj: true });
+// (since Milestone 530 a wall run lasts as long as you hold it, as EMPULSE's do, so the run alone crosses too; before,
+// it sank and ended in 1.5 s and only its kick crossed)
 check(
-  `wall gap (${GAPS.wall} m): a wall run along the lit wall and its kick lands clean; the run alone and a double jump in the open both fall in`,
-  r3.clean && !r3run.clean && !r3dj.clean,
-  `the run alone reached z ${r3run.z.toFixed(1)}, a double jump ${r3dj.z.toFixed(1)}, of ${WALLGAP.b0}`,
+  `wall gap (${GAPS.wall} m): a wall run along the lit wall lands clean, with its kick or stepping off it over the deck; a double jump in the open falls in`,
+  r3.clean && r3run.clean && !r3dj.clean,
+  `the kick reached z ${r3.z.toFixed(1)}, the run alone ${r3run.z.toFixed(1)}, a double jump ${r3dj.z.toFixed(1)}, of ${WALLGAP.b0}`,
 );
 
-/** the chimney: in at its mouth beside its right wall running +z, a jump after `runUp` s, a kick a quarter second into each wall run; `legs` 2 turns on the landing and climbs on to the top */
+/**
+ * How far a player turns to look at the other wall as they kick (Milestone 530: a kick goes where you look, so one
+ * looking straight along the chimney carries along it, gathering speed, and runs out of chimney before the top)
+ */
+const KICK_LOOK = 30;
+
+/**
+ * the chimney: in at its mouth beside its right wall running +z, a jump after `runUp` s, a kick a quarter second into
+ * each wall run, looking KICK_LOOK degrees across at the other wall as it goes and back along the chimney once off;
+ * `legs` 2 turns on the landing and climbs on to the top
+ */
 function climb(runUp: number, kicks: boolean, legs: 1 | 2): { up: boolean; best: number } {
   const C = CHIMNEY;
   const p = player(C.x - C.innerW / 2 + MOVE.radius + 0.05, 0, C.z0 - 2.5);
@@ -119,6 +135,7 @@ function climb(runUp: number, kicks: boolean, legs: 1 | 2): { up: boolean; best:
   let climbed = false;
   let leg = 1;
   let best = 0;
+  const ahead = (): number => (leg === 1 ? AHEAD : AHEAD + 180);
   for (let i = 0; i < 10 / DT; i++) {
     t += DT;
     clock += DT;
@@ -131,10 +148,14 @@ function climb(runUp: number, kicks: boolean, legs: 1 | 2): { up: boolean; best:
       if (kicks && !kicked && clock - runSince > 0.25) {
         s.taps.add("jump");
         kicked = true;
+        // facing +z (leg 1) a larger yaw looks to +x; facing -z (leg 2), a smaller one
+        const toward = p.pos.x < C.x ? 1 : -1;
+        p.yaw = ahead() + toward * KICK_LOOK * (leg === 1 ? 1 : -1);
       }
     } else if (runSince >= 0) {
       runSince = -1;
       kicked = false;
+      p.yaw = ahead();
     }
     p.update(DT, t, s, 0, 1, false);
     s.taps.clear();
@@ -144,7 +165,7 @@ function climb(runUp: number, kicks: boolean, legs: 1 | 2): { up: boolean; best:
     if (leg === 1 && p.onGround && p.pos.y > C.landing - 0.25 && p.pos.z > C.z1 - 2.5) {
       if (legs === 1 || climbed) return { up: !climbed, best };
       leg = 2;
-      p.yaw += 180;
+      p.yaw = ahead();
       jumped = false;
       clock = 0;
       runSince = -1;

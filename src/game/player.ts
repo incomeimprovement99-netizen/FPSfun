@@ -129,9 +129,10 @@ export class Player {
   private airJumpLeft = true;
   /** how many double jumps this player has made: the figure others see flips on each new one (dummy.ts FigurePose) */
   airJumps = 0;
-  /** while running a wall: which wall, when it started, and when the last one ended */
-  private wallRun: { nx: number; nz: number; since: number } | null = null;
-  private wallRunEndedAt = -Infinity;
+  /** while running a wall: which face (its normal, and where its plane is along it) and when it started */
+  private wallRun: { nx: number; nz: number; plane: number; since: number } | null = null;
+  /** the face last left, and when: it takes you again after movement.json wallRun.sameWall, any other at once */
+  private lastWall: { nx: number; nz: number; plane: number; at: number } | null = null;
   /** what the HUD says about it (main.ts) */
   get onWall(): boolean {
     return this.wallRun !== null;
@@ -695,7 +696,7 @@ export class Player {
     }
 
     // ----- the wall run -----
-    if (this.extraMoves) this.stepWallRun(now, dt, wx, wz);
+    if (this.extraMoves) this.stepWallRun(now, dt, wx, wz, wl, wantCrouch);
 
     // ----- climb -----
     if (!this.climbing) this.tryAttach(now, wx, wz, wl);
@@ -843,66 +844,148 @@ export class Player {
   }
 
   /**
-   * A run along a wall. You have to be in the air, moving along the wall
-   * rather than into it, and fast enough that it is a run and not a lean.
-   * While it holds, gravity is a quarter and the wall keeps you at arm's
-   * length; it ends on a jump (which throws you off and along), on the clock,
-   * on hitting the ground, or on the wall running out.
+   * A run along a wall (movement.json wallRun, after EMPULSE: Milestone 530). You have to be in the air and moving along
+   * the wall rather than into it. It lasts as long as you hold it: holding forward along the wall carries you up to its
+   * speed and anything faster is kept, never sinking (a run entered rising arcs up and levels off; one entered falling is
+   * caught level), so a building is as long a run as it is a wall. It ends on a jump (the kick), on steering away or
+   * crouching, on the ground, when you slow below its minimum, or when the wall does; an inside corner turns the run onto
+   * the next wall with its speed.
    *
-   * The cooldown is what stops a wall being a ladder: you cannot come back to
-   * the same wall immediately, so height is won by moving along the building
-   * rather than by bouncing in place.
+   * It used to last 1.5 s while sinking, the same wall could not be taken for 0.3 s and no other either, and a new wall
+   * kept only the part of your speed that already went along it: the owner (2026-10-12) found it "not anywhere near as
+   * smooth" as EMPULSE's, where a run carries its momentum from wall to wall.
    */
-  private stepWallRun(now: number, dt: number, wx: number, wz: number): void {
+  private stepWallRun(now: number, dt: number, wx: number, wz: number, wl: number, crouch: boolean): void {
     const W = EXTRA.wallRun;
-    if (this.wallRun) {
-      const spent = now - this.wallRun.since;
-      const still = this.wallNear(MOVE.climbAttachReach);
-      // along the wall, not through the air: turning away from a wall is how
-      // you say you are done with it, and a run that ends because you steered
-      // off it reads as your decision rather than a clock you cannot see
-      const along = Math.abs(this.vel.x * -this.wallRun.nz + this.vel.z * this.wallRun.nx);
-      const sameWall = !!still && still.nx === this.wallRun.nx && still.nz === this.wallRun.nz;
-      // steering away from the wall is how you say you are done with it: a run
-      // that ends because you turned off it is your decision, and one that
-      // ends on a clock is a rule the player cannot see
-      const awayWish = wx * this.wallRun.nx + wz * this.wallRun.nz;
-      if (this.onGround || this.climbing || spent > W.seconds || !sameWall || along < W.minSpeed * 0.5 || awayWish > 0.5) {
-        this.wallRun = null;
-        this.wallRunEndedAt = now;
-        return;
-      }
-      // a quarter of gravity, and the wall holds you against it
-      this.vel.y += MOVE.gravity * (1 - W.fall) * dt;
-      this.vel.x -= this.wallRun.nx * W.hold;
-      this.vel.z -= this.wallRun.nz * W.hold;
+    if (!this.wallRun) {
+      if (this.onGround || this.climbing || this.mantle) return;
+      const n = this.wallNear(MOVE.climbAttachReach);
+      if (!n) return;
+      const plane = this.planeOf(n.nx, n.nz);
+      const last = this.lastWall;
+      if (last && last.nx === n.nx && last.nz === n.nz && Math.abs(last.plane - plane) < 0.2 && now - last.at < W.sameWall) return;
+      // moving ALONG it, not into it: the part of the velocity in the wall's plane is what a run is made of
+      const along = this.vel.x * -n.nz + this.vel.z * n.nx;
+      if (Math.abs(along) < W.minSpeed) return;
+      // within keepAngle of the wall's line, all of the speed comes with you, turned along it; more head-on, only the part along
+      const h = this.hSpeed();
+      const angle = (Math.acos(Math.min(1, Math.abs(along) / Math.max(1e-6, h))) * 180) / Math.PI;
+      const speed = Math.min(W.maxSpeed, angle <= W.keepAngle ? h : Math.abs(along));
+      const dir = Math.sign(along);
+      this.vel.x = -n.nz * dir * speed;
+      this.vel.z = n.nx * dir * speed;
+      this.wallRun = { nx: n.nx, nz: n.nz, plane, since: now };
+      this.airJumpLeft = true;
+      this.tech("WALL RUN", `${Math.round(speed / HU)} hu/s along it`, true);
+    }
+    const run = this.wallRun;
+    // which way along the wall you are going (the tangent you are moving on), and how fast
+    const along = this.vel.x * -run.nz + this.vel.z * run.nx;
+    const dir = Math.sign(along) || 1;
+    const tx = -run.nz * dir;
+    const tz = run.nx * dir;
+    let speed = Math.abs(along);
+    // An inside corner ahead: the run turns onto the wall across its way, going on away from the one it leaves, with
+    // all of its speed. Before, the corner was a wall you ran into and stopped against.
+    if (this.wallAt(tx, tz, MOVE.climbAttachReach)) {
+      this.wallRun = { nx: -tx, nz: -tz, plane: this.planeOf(-tx, -tz), since: now };
+      this.vel.x = run.nx * speed;
+      this.vel.z = run.nz * speed;
+      this.tech("WALL TURN", `${Math.round(speed / HU)} hu/s round the corner`, true);
+      this.holdOnWall(dt);
       return;
     }
-    if (this.onGround || this.climbing || this.mantle || now - this.wallRunEndedAt < W.cooldown) return;
-    const n = this.wallNear(MOVE.climbAttachReach);
-    if (!n) return;
-    // moving ALONG it, not into it: the part of the velocity in the wall's
-    // plane is what a run is made of
-    const along = Math.abs(this.vel.x * -n.nz + this.vel.z * n.nx);
-    if (along < W.minSpeed) return;
-    this.wallRun = { nx: n.nx, nz: n.nz, since: now };
-    this.airJumpLeft = true;
-    this.tech("WALL RUN", `${Math.round(along)} hu/s along it`, true);
+    // steering away from the wall is how you say you are done with it, and a crouch drops you off
+    const awayWish = wl > 0 ? wx * run.nx + wz * run.nz : 0;
+    if (this.onGround || this.climbing || crouch || awayWish > 0.5 || speed < W.minSpeed * 0.5 || !this.wallAt(-run.nx, -run.nz, MOVE.climbAttachReach)) {
+      this.leaveWall(now);
+      return;
+    }
+    // holding forward along it: carried up to its speed, and anything faster kept (to maxSpeed); not pushing, a coast
+    const wishAlong = wl > 0 ? wx * tx + wz * tz : 0;
+    if (wishAlong > 0.1) {
+      if (speed < W.speed) speed = Math.min(W.speed, speed + W.accel * wishAlong * dt);
+    } else speed = Math.max(0, speed - W.drag * dt);
+    speed = Math.min(speed, W.maxSpeed);
+    // along the wall at that speed, and held against it (the collision takes the push back off)
+    this.vel.x = tx * speed - run.nx * W.hold;
+    this.vel.z = tz * speed - run.nz * W.hold;
+    this.holdOnWall(dt);
   }
 
-  /** off the wall: up and away from it, and the double jump comes back with it */
+  /**
+   * Never sinking: rising, gravity takes you up to where you stop as it would anywhere; then the height is held. Half a
+   * frame of gravity up is exactly level after the integration's own (trapezoidal) step, at any frame rate.
+   */
+  private holdOnWall(dt: number): void {
+    const level = (MOVE.gravity * dt) / 2;
+    if (this.vel.y < level) this.vel.y = level;
+  }
+
+  /** off a wall without a kick: it is the last face left */
+  private leaveWall(now: number): void {
+    const n = this.wallRun;
+    this.wallRun = null;
+    if (n) this.lastWall = { nx: n.nx, nz: n.nz, plane: n.plane, at: now };
+  }
+
+  /** where a wall face with this normal is, along the normal: a face's runs share it, so the same wall is told apart from another */
+  private planeOf(nx: number, nz: number): number {
+    return this.pos.x * nx + this.pos.z * nz;
+  }
+
+  /** a wall within `reach` on one side (dx, dz: a unit axis; the world's walls are boxes, so every face is on one) */
+  private wallAt(dx: number, dz: number, reach: number): boolean {
+    const r = MOVE.radius;
+    const feet = this.pos.y;
+    const inside = this.overlapping(this.pos.x, this.pos.z, r);
+    for (const s of this.overlapping(this.pos.x + dx * reach, this.pos.z + dz * reach, r)) {
+      if (this.blocks(s, feet, this.height) && !inside.includes(s)) return true;
+    }
+    return false;
+  }
+
+  /**
+   * Off the wall with a jump: where you are looking, but at least wallRun.minOut of it away from the wall (a kick goes
+   * where you mean it to, as EMPULSE's does), your speed kept with wallRun.boost on top, up to wallRun.maxSpeed, and
+   * up. The double jump comes back with it. Before, every kick went straight out from the wall at 230 hu/s on top of
+   * whatever you had along it.
+   */
   private kickOffWall(now: number): void {
     const W = EXTRA.wallRun;
     const n = this.wallRun;
-    this.wallRun = null;
-    this.wallRunEndedAt = now;
+    this.leaveWall(now);
     if (!n) return;
-    this.vel.x += n.nx * W.out;
-    this.vel.z += n.nz * W.out;
+    const { fx, fz } = this.look();
+    // the look's share away from the wall, and its part along the wall; looking straight into it, the way you were going
+    let away = fx * n.nx + fz * n.nz;
+    let ax = fx - n.nx * away;
+    let az = fz - n.nz * away;
+    let al = Math.hypot(ax, az);
+    if (al < 1e-3) {
+      const along = this.vel.x * -n.nz + this.vel.z * n.nx;
+      ax = -n.nz * (Math.sign(along) || 1);
+      az = n.nx * (Math.sign(along) || 1);
+      al = 1;
+    }
+    away = Math.max(away, W.minOut);
+    const across = Math.sqrt(Math.max(0, 1 - away * away));
+    const dx = (ax / al) * across + n.nx * away;
+    const dz = (az / al) * across + n.nz * away;
+    const speed = Math.min(W.maxSpeed, Math.max(this.hSpeed(), W.out) + W.boost);
+    this.vel.x = dx * speed;
+    this.vel.z = dz * speed;
+    // and never slower than `out` away from the wall, however slow the run was: a slow run's kick looking along a
+    // chimney crossed it too slowly to rise (the chain course's second leg, from a standstill on the landing)
+    const off = this.vel.x * n.nx + this.vel.z * n.nz;
+    if (off < W.out) {
+      this.vel.x += n.nx * (W.out - off);
+      this.vel.z += n.nz * (W.out - off);
+    }
     this.vel.y = Math.max(this.vel.y, Math.sqrt(2 * MOVE.gravity * W.up));
     this.airJumpLeft = true;
     this.lastJumpAt = now;
-    this.tech("WALL KICK", `${W.out} hu off it`, true);
+    this.tech("WALL KICK", `${Math.round(speed / HU)} hu/s`, true);
   }
 
   private doJump(now: number, coyote: boolean): void {
