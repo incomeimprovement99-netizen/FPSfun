@@ -27,7 +27,7 @@ console.log("A bot's gun, and what it drops");
 // ------------------------------------------------------------ the magazine
 {
   const SECONDS = 20;
-  for (const id of ["r97", "rspn101", "lmg", "wingman"]) {
+  for (const id of ["r97", "rspn101", "vinson", "wingman"]) {
     const w = resolveWeapon(id, 2);
     const interval = Math.max(w.shotInterval, w.semiAuto ? 0.25 : 0);
     // a bot firing whenever it may, as Bot.update does

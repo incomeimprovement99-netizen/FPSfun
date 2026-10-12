@@ -11199,6 +11199,31 @@ a system SpeedKills shares onto SpeedKills, so what was left on the address test
 - About 2,300 lines out in all.
 - **Checked:** tsc; verify; rules; build:beta (its check of the built page); e2e page, invite, duel and start.
 
+## Milestone 521 — The legacy guns out
+
+The owner, 2026-10-09: "can remove old guns and old abilities that we don't use". The abilities went in 491; this is
+the guns. Of the 27 in the weapon data, SpeedKills uses nine of its ten (the tenth, HAEFY's launcher, is built in code
+on the 30-30) and the P2020, which the Run's pistols are built on. Fifteen of the other sixteen and the two built in
+code went:
+
+- **Gone:** the C.A.R., the Volt, the Prowler, the Hemlok, the HAVOC, the Spitfire, the Devotion, the Rampage, the G7
+  Scout, the Longbow, the Triple Take, the Charge Rifle, the Kraber, the Peacekeeper and the Mozambique from
+  data/weapons.json (600 KB to 252 KB, with the 37 recoil patterns and springs only they used) and its overrides; the
+  Nemesis and the Bocek from weapons.ts; their entries in ammo, audio, loot, the legacy Gulag's list and the weapon
+  mechanics; their gun models, and the bow's builder, its string and its draw in the hands; and the extractor's list,
+  so a fresh extract does not bring them back. The bots' guns and the six default loadouts were the legacy game's
+  where SpeedKills did not set them; they are SpeedKills' alone now.
+- **Kept:** the 30-30 (the launcher's base); the P2020 and the Glock built on it (the Run). The mechanics only the old
+  guns used (the HAVOC's wind-up, the Charge Rifle's charge, the choke, the burst charge, the draw, the fire modes) go
+  with the attachments and hop-ups next, their config blocks empty until then.
+- **The R-301 waits a milestone:** it is the sample gun of the checks of the attachments and magazine levels that go
+  next (522), and the Run's pop-ups and some fallbacks hold it; it goes with them.
+- **Checks:** verify's tests of the old guns went (the HAVOC's and the Devotion's spin-up, the Charge Rifle, the
+  Peacekeeper's choke and pellets, the Nemesis' bursts, the Bocek's draw, the burst gap, the Kraber's rechamber and
+  scope, the Mozambique's headshot); the rechamber is checked on BOOG, the energy stockpile on STRYDER, the Executioner
+  on BIGANTLER alone. Three hop-ups only the old guns took came off the legacy floor's list.
+- **Checked:** tsc; verify; rules; e2e sklobby, skarmory and range.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -5525,7 +5525,7 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
       a.slots.every((s) => !s.empty) && b.slots[0].id === a.slots[0].id && b.slots[0].fusion === a.slots[0].fusion + 1 && b.slots[1].fusion === a.slots[1].fusion && b.fused === a.fused + 1 && b.down.length === 0,
       JSON.stringify({ a, b }),
     );
-    const other = skCfg.roster.find((g) => !b.slots.some((s) => s.id === g)) ?? "g2";
+    const other = skCfg.roster.find((g) => !b.slots.some((s) => s.id === g)) ?? skCfg.roster[0];
     const was = b.slots[b.active];
     await take(`{ kind: "weapon", id: "${other}", n: 1, rarity: "rare", fusion: 1 }`);
     const c = await ev<Here>(page, here);

@@ -719,31 +719,28 @@ what the feed registered.
 
 ## Guns, attachments, optics, loadouts
 
-29 of Apex's guns (and the course pistol) from extracted reference numbers
-with Season 30's changes on top: damage per zone, fire rate, magazine sizes
-per level, reload and tactical reload times, spread by stance, recoil
-patterns, projectile speed and drop (hitscan where the game is). Mag levels
-(U), barrels (J), stocks (N), lasers (H) and hop-ups (L) apply the reference
-mod blocks. Ten optics with their own housings, reticles, eye relief,
-variable zoom (Z) and full-screen scopes at 3x and up; a weapon whose own
-sight is a scope (the Kraber's 4x-8x) wears it by default.
+The guns come from extracted reference numbers with Season 30's changes on
+top: damage per zone, fire rate, magazine sizes per level, reload and
+tactical reload times, spread by stance, recoil patterns, projectile speed and
+drop (hitscan where the game is). The data keeps SpeedKills' guns and the
+bases it builds on (the 30-30 under HAEFY's launcher, the P2020 under the
+Run's pistols); the legacy game's other guns, the Kraber, the HAVOC, the
+Peacekeeper, the Bocek and the rest, went in Milestone 521, and the R-301 goes
+with the attachments next. Mag levels (U), barrels (J), stocks (N), lasers (H)
+and hop-ups (L) apply the reference mod blocks (the legacy game's; SpeedKills
+fuses instead). Ten optics with their own housings, reticles, eye relief,
+variable zoom (Z) and full-screen scopes at 3x and up.
 
 The guns that are not a plain trigger work the way the game's do: the
-Havoc's and the Devotion's wind-up (a turbocharger shortens it), the Charge
-Rifle's charge and its damage growing with range, the L-STAR's heat and
-lockout (it cools only when you let go), the 30-30's aimed charge, the
-Peacekeeper's choke, the Nemesis's burst charge, the Bocek's draw, and fire
-modes on B (the Hemlok, the Prowler, the R-301...). Ammo is counted in a
-match: light, heavy, sniper, shotgun rounds and arrows in stacks, and an
-energy gun's own stockpile of whole magazines that comes back one every 18 s
-while the gun is idle (Season 30's rework).
+L-STAR's heat and lockout (it cools only when you let go), and the 30-30's
+aimed charge. Ammo is counted in a match: light, heavy, sniper and shotgun
+rounds in stacks, and an energy gun's own stockpile of whole magazines that
+comes back one every 18 s while the gun is idle (Season 30's rework).
 
 **Shotguns fire the game's blast patterns**, not a random cone: the
-Mastiff's horizontal line of five, the EVA-8's figure 8, the Peacekeeper's
-star of nine (the choke closes it), the Mozambique's triangle, the Triple
-Take's three in a row. The data's own scales size them (the Mastiff and the
-Mozambique tighten to half when aimed); the spread stat deviates the whole
-blast once a pull. A pull's pellets read as one damage number on the HUD, so
+Mastiff's horizontal line of five and the EVA-8's figure 8. The data's own
+scales size them (the Mastiff tightens to half when aimed); the spread stat
+deviates the whole blast once a pull. A pull's pellets read as one damage number on the HUD, so
 a full Mastiff blast says 95, not five 19s.
 
 The view model is built in code: each gun with its grip at the hand, gloved

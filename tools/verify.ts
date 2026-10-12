@@ -382,10 +382,8 @@ console.log("\nAudit regression guards");
     near(`damping ratio preserved at dial ${r}`, zeta(k * r * r, c * r), zeta(k, c), 1e-9);
   }
 
-  // burst weapons have a forced gap between bursts
-  const hem = resolveWeapon("hemlok", 0);
-  eq("hemlok burst delay extracted", hem.burstDelay > 0, true);
-  near("hemlok burst delay", hem.burstDelay, 0.3, 1e-6);
+  // (the burst guns' forced gap between bursts was checked here on the Hemlok: no gun of SpeedKills' fires bursts,
+  // and the legacy ones went in Milestone 521)
 
   // a negative or NaN loop offset must not index out of the pattern
   const bad = { loopOffset: -5, startMax: -1, bullets: [[0, -0.5, 0, 0], [0, -0.4, 0, 0]] };
@@ -489,14 +487,6 @@ console.log("\nLoadout (two slots, independent state)");
   lo3.requestSwap(1, 0);
   eq("mid-swap toward 2, Q goes back to 1", lo3.nextIndex, 0);
 
-  // a burst in flight must not survive being holstered
-  const lo4 = new Loadout(["hemlok", "wingman"]);
-  const hs = lo4.active.state;
-  hs.update(1 / 60, 0, true, false, "stand", "still", false, false, () => 0.5);
-  eq("burst started", hs.burstRemaining > 0, true);
-  lo4.requestSwap(1, 0.02);
-  eq("burst cancelled by the swap", hs.burstRemaining, 0);
-
   // a cancelled swap still raises the gun it never put away: no instant fire
   const lo5 = new Loadout(["rspn101", "wingman"]);
   lo5.requestSwap(1, 0);
@@ -525,15 +515,15 @@ console.log("\nLoadout (two slots, independent state)");
   };
   const wing = resolveWeapon("wingman", 0).shotInterval;
   eq("Wingman: no two shots closer than its interval", semiGaps("wingman", [0.5, 1.16, 1.24]) >= wing - 1e-9, true);
-  const kraber = resolveWeapon("sniper", 0).shotInterval;
-  eq("Kraber: no two shots closer than its rechamber", semiGaps("sniper", [0.2, 2.62, 2.84]) >= kraber - 1e-9, true);
+  const boog = resolveWeapon("sentinel", 0).shotInterval;
+  eq("BOOG: no two shots closer than its rechamber", semiGaps("sentinel", [0.2, 1.84, 2.06]) >= boog - 1e-9, true);
 
   // a new gun does not inherit the old one's cooldown
-  const st6 = new WeaponState(resolveWeapon("sniper", 0));
+  const st6 = new WeaponState(resolveWeapon("sentinel", 0));
   st6.update(1 / 60, 0, true, false, "stand", "still", false, false, () => 0.5);
   st6.setWeapon(resolveWeapon("semipistol", 0));
   st6.update(1 / 60, 0.1, false, false, "stand", "still", false, false, () => 0.5);
-  eq("a lent pistol fires 0.1 s after a Kraber shot", st6.update(1 / 60, 0.12, true, false, "stand", "still", false, false, () => 0.5).length, 1);
+  eq("a lent pistol fires 0.1 s after a BOOG shot", st6.update(1 / 60, 0.12, true, false, "stand", "still", false, false, () => 0.5).length, 1);
 }
 
 console.log("\nRecoil fixes from the swap audit");
@@ -767,12 +757,8 @@ console.log("\nAttachments (every effect is a mod block in the reference data)")
   // no-op on all four shotguns.
   // The Mastiff is care-package only in this data era and carries no
   // attachments at all, so it is excluded from the bolt check.
-  const pkBase = resolveWeapon("energy_shotgun", 0);
-  const pkBolt = resolveWeapon("energy_shotgun", 3);
-  near("purple bolt shortens the pump (x0.84)", pkBolt.shotInterval, pkBase.shotInterval * 0.84, 1e-9);
-  eq("bolt does not change the shell count", pkBolt.clipSize, pkBase.clipSize);
   eq("the Mastiff takes optics but no bolt in this era", optionsFor("optic", weaponMods("mastiff")).length > 1 && weaponMods("mastiff")["shotgun_bolt_l1"] === undefined, true);
-  for (const id of ["shotgun", "energy_shotgun", "shotgun_pistol"]) {
+  for (const id of ["shotgun"]) {
     const l0 = resolveWeapon(id, 0);
     const l3 = resolveWeapon(id, 3);
     const changed = l3.shotInterval !== l0.shotInterval || l3.clipSize !== l0.clipSize || l3.reloadTime !== l0.reloadTime;
@@ -786,19 +772,12 @@ console.log("\nAttachments (every effect is a mod block in the reference data)")
 
   // Pump and bolt-action weapons are limited by rechamber time, not fire rate.
   // Using 1/fireRate made the Kraber fire in 0.83 s instead of 1.6 s.
-  const kraber = resolveWeapon("sniper", 0);
-  eq("Kraber rechamber time", kraber.rechamberTime, 2.4);
-  near("Kraber shot interval is the rechamber, not 1/rate", kraber.shotInterval, 2.4, 1e-9);
-  eq("which is slower than the fire rate implies", kraber.shotInterval > 1 / kraber.fireRate, true);
-  // its own sight is a 4x-8x scope (zoom_fov 13.3 with a toggle), drawn by default
-  eq("Kraber wears its built-in 4x-8x with nothing fitted", kraber.integralOptic, "optic_sniper_variable");
-  eq("the R-301 has no built-in scope", resolveWeapon("rspn101", 0).integralOptic, null);
-  eq("a fitted 3x replaces the Kraber's own", resolveWeapon("sniper", 0, ["optic_ranged_hcog"]).optic, "optic_ranged_hcog");
+  // (the Kraber was this check's gun, and its built-in scope: a legacy gun, gone in Milestone 521)
   const sent = resolveWeapon("sentinel", 0);
-  near("Sentinel shot interval", sent.shotInterval, 1.62, 1e-9);
-  const pk = resolveWeapon("energy_shotgun", 0);
-  near("Peacekeeper shot interval", pk.shotInterval, 1.36, 1e-9);
-  near("purple bolt cuts the Peacekeeper pump (x0.84)", resolveWeapon("energy_shotgun", 3).shotInterval, 1.36 * 0.84, 1e-9);
+  eq("Sentinel rechamber time", sent.rechamberTime, 1.62);
+  near("Sentinel shot interval is the rechamber, not 1/rate", sent.shotInterval, 1.62, 1e-9);
+  eq("which is slower than the fire rate implies", sent.shotInterval > 1 / sent.fireRate, true);
+  eq("the R-301 has no built-in scope", resolveWeapon("rspn101", 0).integralOptic, null);
   // a full-auto weapon is unaffected
   near("R-301 interval is still 1/fire rate", w.shotInterval, 1 / 13.5, 1e-9);
 
@@ -858,9 +837,6 @@ console.log("\nAttachments (every effect is a mod block in the reference data)")
   eq("new weapon in the slot", lo2.active.weapon.id, "vinson");
   eq("build reset with the weapon, to the new gun's own optic", lo2.active.attach.optic, PROFILE.weapons.vinson.optic);
   eq("mag level reset with the weapon", lo2.active.magLevel, 0);
-  // a gun with its own scope keeps it rather than being given a dot
-  const lo3 = new Loadout(["sniper"]);
-  eq("a gun with a scope of its own is left alone", lo3.active.attach.optic ?? null, null);
 }
 
 console.log("\nMovement (constants are engine defaults, in Hammer units)");
@@ -962,11 +938,8 @@ console.log("\nMovement responsiveness");
 console.log("\nShotgun pellets (current season)");
 {
   const pelletRows: Array<[string, number, number]> = [
-    ["shotgun_pistol", 3, 17],
     ["shotgun", 8, 7],
     ["mastiff", 5, 19],
-    ["energy_shotgun", 9, 11],
-    ["doubletake", 3, 23],
   ];
   for (const [id, n, dmg] of pelletRows) {
     const g = resolveWeapon(id, 0);
@@ -974,19 +947,17 @@ console.log("\nShotgun pellets (current season)");
     eq(`${id} damage per pellet`, g.damage.near, dmg);
     eq(`${id} full hit`, g.damage.near * g.pellets, dmg * n);
   }
-  // Three of the four shotguns lost their headshot multiplier entirely; a
-  // headshot now does exactly body damage. Only the Mozambique kept one.
-  for (const id of ["shotgun", "mastiff", "energy_shotgun"]) {
+  // the shotguns lost their headshot multiplier entirely; a headshot now does exactly body damage
+  for (const id of ["shotgun", "mastiff"]) {
     eq(`${id} has no headshot multiplier`, resolveWeapon(id, 0).damage.headshot, 1);
   }
-  eq("the Mozambique kept one", resolveWeapon("shotgun_pistol", 0).damage.headshot, 1.25);
   eq("every non-shotgun fires one projectile", resolveWeapon("rspn101", 0).pellets, 1);
 }
 
 console.log("\nShotgun blast patterns (blast.ts)");
 {
   // every shotgun has a pattern with one place per pellet; nothing else has one
-  for (const id of ["shotgun_pistol", "shotgun", "mastiff", "energy_shotgun", "doubletake"]) {
+  for (const id of ["shotgun", "mastiff"]) {
     const g = resolveWeapon(id, 0);
     eq(`${id} has a place in its pattern for every pellet`, g.mech.blast?.shape.length ?? 0, g.pellets);
     const offs = blastOffsets(g, false, 1, () => 0.5)!;
@@ -1003,9 +974,6 @@ console.log("\nShotgun blast patterns (blast.ts)");
   near("aimed, the Mastiff's line is half as wide (the data's ads scale 0.5)", blastWidth(m, true) / blastWidth(m), 0.5 / 1.1, 0.02);
   const e = resolveWeapon("shotgun", 0);
   near("the EVA-8 has no ads scale in the data: aimed is the same width", blastWidth(e, true) / blastWidth(e), 1, 1e-9);
-  // a choke closes the Peacekeeper's star to its minScale
-  const pk = resolveWeapon("energy_shotgun", 0);
-  near("the Peacekeeper's star, choked to 0.45, is 0.45 as wide", blastWidth(pk, false, 0.45) / blastWidth(pk), 0.45, 0.01);
   // the pattern is a shape, so the first and last Mastiff pellets are across from each other at the same height
   const line = blastOffsets(m, false, 1, () => 0.5)!;
   near("the Mastiff's line is horizontal", Math.abs(line[0][1] - line[4][1]), 0, 1e-9);
@@ -1013,11 +981,12 @@ console.log("\nShotgun blast patterns (blast.ts)");
 }
 
 console.log("\nRoster sanity");
-// 27 from the game's data, the Glock 17 for the course, and the two newer than the data
-eq("weapon count (27 from the data, the Striker 9, the Nemesis, the Bocek, SpeedKills' launcher)", Object.keys(DATA.weapons).length, 31);
+// SpeedKills' guns and the bases it derives from (the 30-30, the P2020), the Glock 17 for the course and SpeedKills'
+// launcher; the legacy game's other guns went in Milestone 521
+eq("weapon count (12 from the data, the Striker 9, SpeedKills' launcher)", Object.keys(DATA.weapons).length, 14);
 eq("Glock 17 magazine", resolveWeapon("g17", 0).clipSize, 17);
 eq("Glock uses P2020 damage", resolveWeapon("g17", 0).damage.near, resolveWeapon("semipistol", 0).damage.near);
-for (const id of ["r97", "volt_smg", "vinson", "wingman", "mastiff", "hemlok", "g2"]) {
+for (const id of ["r97", "vinson", "wingman", "mastiff"]) {
   const x = resolveWeapon(id, 0);
   if (!(x.damage.near > 0 && x.fireRate > 0 && x.clipSize > 0)) {
     console.error(`FAIL roster ${id}: zero stat`);
@@ -1025,7 +994,6 @@ for (const id of ["r97", "volt_smg", "vinson", "wingman", "mastiff", "hemlok", "
   }
 }
 eq("wingman is semi", resolveWeapon("wingman", 0).semiAuto, true);
-eq("hemlok burst count", resolveWeapon("hemlok", 0).burstCount, 3);
 
 console.log("\nOptics (the weapon data's own values)");
 {
@@ -1111,15 +1079,7 @@ console.log("Guns that are not a plain trigger (src/config/weapon-mechanics.json
     }
     return { times, reqs, st, wpn };
   };
-  const havoc = run("energy_ar", 1);
-  near("HAVOC: the first round after the 0.42 s wind-up, s", havoc.times[0] ?? -1, 0.42, 2 / 144);
-  const turbo = run("energy_ar", 0.3, { attach: ["hopup_turbocharger"] });
-  near("HAVOC with the Turbocharger: at once, s", turbo.times[0] ?? -1, 0.01, 2 / 144);
-  const dev = run("esaw", 3);
-  const gap0 = dev.times[1] - dev.times[0];
-  const gapN = dev.times[dev.times.length - 1] - dev.times[dev.times.length - 2];
-  near("Devotion: its first rounds at 5 a second, s apart", gap0, 0.2, 0.02);
-  near("Devotion: spun up after 1.75 s, 15 a second, s apart", gapN, 1 / 15, 0.01);
+  // (the HAVOC's wind-up and the Devotion's spin-up were checked here: legacy guns, gone in Milestone 521)
   const lstar = run("lstar", 2.5);
   eq("L-STAR: 24 rounds to overheat with no mag", lstar.times.length, 24);
   eq("L-STAR: then it is overheated", lstar.st.overheated, true);
@@ -1129,52 +1089,13 @@ console.log("Guns that are not a plain trigger (src/config/weapon-mechanics.json
   near("L-STAR: firing again after the 1.19 s cooldown, s", resumed - last, 1.19, 0.12);
   const lsCool = run("lstar", 3.5, { trigger: (x) => x < 1 });
   eq("L-STAR: let go and the heat comes back", lsCool.st.clip, 24);
-  const cr = run("defender", 1.2, { trigger: (x) => x < 0.05 });
-  near("Charge Rifle: the round leaves 0.85 s after the pull, s", cr.times[0] ?? -1, 0.85, 2 / 144);
-  eq("Charge Rifle: one round a pull", cr.times.length, 1);
+  // (the Charge Rifle's delayed shot was checked here)
   const r30 = run("3030", 0.9, { ads: true, trigger: (x) => x > 0.75 && x < 0.77 });
   near("30-30: aimed 0.25 s, the round does +36%", r30.reqs[0]?.dmgScale ?? 0, 1.36, 1e-6);
   const r30hip = run("3030", 0.1, { trigger: (x) => x < 0.02 });
   near("30-30: from the hip, no charge", r30hip.reqs[0]?.dmgScale ?? 0, 1, 1e-6);
-  const pk = run("energy_shotgun", 2.2, { ads: true, attach: ["hopup_energy_choke"], trigger: (x) => x > 2 && x < 2.02 });
-  near("Precision choke: aimed long enough, the cone closes to 45%", pk.reqs[0]?.coneScale ?? 0, 0.45, 1e-6);
-  const pkBare = run("energy_shotgun", 2.2, { ads: true, trigger: (x) => x > 2 && x < 2.02 });
-  near("no choke fitted: the cone stays", pkBare.reqs[0]?.coneScale ?? 0, 1, 1e-6);
-  // the Nemesis: bursts of 4 at 18 a second; 0.31 s between bursts, 0.19 s once charged
-  // a purple magazine (32, eight bursts) so it charges fully before a reload
-  const nem = run("nemesis", 3, { mag: 3 });
-  near("Nemesis: rounds in a burst 1/18 s apart", nem.times[1] - nem.times[0], 1 / 18, 0.01);
-  const gapBefore = (k: number) => nem.times[4 * k] - nem.times[4 * k - 1];
-  const firstGap = gapBefore(1);
-  const lastGap = gapBefore(6);
-  near("Nemesis: uncharged, 0.31 s between bursts", firstGap, 0.31, 0.02);
-  near("Nemesis: charged (6 bursts), 0.19 s between bursts", lastGap, 0.19, 0.02);
-  eq("Nemesis: 17 a round, 20 in the magazine", `${resolveWeapon("nemesis", 0).damage.near}/${resolveWeapon("nemesis", 0).clipSize}`, "17/20");
-  eq("Nemesis: energy ammo, a 3-magazine stockpile", `${resolveWeapon("nemesis", 0).ammoType}/${resolveWeapon("nemesis", 0).energyStock}`, "energy/3");
-  // the Bocek: hold to draw, let go to loose
-  const full = run("bocek", 1, { trigger: (x) => x < 0.4 });
-  eq("Bocek: one arrow on the let-go", full.times.length, 1);
-  near("Bocek: loosed at the let-go, s", full.times[0] ?? -1, 0.4, 2 / 144);
-  near("Bocek: a full draw does all 55", full.reqs[0]?.dmgScale ?? 0, 1, 1e-9);
-  const quick = run("bocek", 0.5, { trigger: (x) => x < 0.1 });
-  eq("Bocek: a quick draw hits softer", (quick.reqs[0]?.dmgScale ?? 1) < 0.75 && (quick.reqs[0]?.dmgScale ?? 0) > 0.6, true);
-  const again = run("bocek", 1.4, { trigger: (x) => x < 0.4 || (x > 0.95 && x < 1.35) });
-  eq("Bocek: the next arrow nocks by itself", again.times.length, 2);
-  eq("Bocek: arrows, and it takes optics only", resolveWeapon("bocek", 0).ammoType === "arrows" && Object.keys(weaponMods("bocek")).every((m) => m.startsWith("optic_")), true);
-
-  // fire modes
-  const lo = new Loadout(["hemlok", "pdw"]);
-  eq("Hemlok: B switches to single", lo.toggleFireMode(), "single");
-  eq("and it is semi-auto", lo.active.weapon.semiAuto, true);
-  eq("B again: back to the burst", lo.toggleFireMode(), "burst 3");
-  lo.requestSwap(1, 0);
-  lo.update(10);
-  eq("Prowler: no second mode without Selectfire", lo.toggleFireMode(), null);
-  let hopTries = 0;
-  while (lo.active.attach.hopup !== "selectfire" && hopTries++ < 10) lo.cycleAttachment("hopup");
-  eq("Prowler: Selectfire fitted", lo.active.attach.hopup, "selectfire");
-  eq("then B makes it automatic", lo.toggleFireMode(), "auto");
-  eq("a burst no more", lo.active.weapon.burstCount <= 1 && !lo.active.weapon.semiAuto, true);
+  // (the Peacekeeper's choke, the Nemesis' charged bursts, the Bocek's draw and the Hemlok's and Prowler's fire modes
+  // were checked here: legacy guns, gone in Milestone 521)
   // Hammerpoint and Disruptor scale the damage
   eq("Hammerpoint P2020: 2.7x on bare health", resolveWeapon("semipistol", 0, ["hopup_unshielded_dmg"]).damage.unshieldedScale, 2.7);
   eq("Disruptor Alternator: 1.55x on shields", resolveWeapon("alternator_smg", 0, ["hopup_shield_breaker"]).damage.shieldScale, 1.55);
@@ -1184,14 +1105,15 @@ console.log("Guns that are not a plain trigger (src/config/weapon-mechanics.json
 console.log("");
 console.log("Ammo (src/config/ammo.json, Season 30)");
 {
-  const lo = new Loadout(["rspn101", "energy_ar"]);
+  const lo = new Loadout(["rspn101", "autopistol"]);
   lo.ammo.infinite = false;
   lo.ammo.kit(lo.slots.map((s) => s.weapon));
   lo.refillEnergy();
   // the kit is ammo.json's own, which the owner raised so nobody runs out: whatever it is, it is that many stacks
   eq(`R-301: ${AMMO.kitStacks} stacks of light (${AMMO.stacks.light} a stack)`, lo.reserve(lo.slots[0]), AMMO.kitStacks * AMMO.stacks.light);
   eq(`and it is well over what it used to be, so nobody runs out (${AMMO.stacks.light} a stack, ${AMMO.kitStacks} stacks)`, AMMO.stacks.light >= 150 && AMMO.kitStacks >= 4, true);
-  eq("HAVOC: its own three magazines", lo.reserve(lo.slots[1]), 54);
+  const eMag = lo.slots[1].weapon.clipSize;
+  eq("RE-45: its own two magazines", lo.reserve(lo.slots[1]), 2 * eMag);
   const st = lo.slots[0].state;
   st.clip = 0;
   lo.ammo.stock.light = 10;
@@ -1203,14 +1125,14 @@ console.log("Ammo (src/config/ammo.json, Season 30)");
   st.startReload(20);
   eq("nothing left: no reload", st.reloading, false);
   eq("and it says so", st.consumeNoAmmo(), true);
-  // the HAVOC's stockpile: spend a magazine, it comes back after 18 s idle
+  // the RE-45's stockpile: spend a magazine, it comes back after 18 s idle
   const e = lo.slots[1].energy!;
-  e.rounds = 18;
+  e.rounds = eMag;
   lo.update(100);
   lo.update(117.9);
-  eq("energy: not back before 18 s", e.rounds, 18);
+  eq("energy: not back before 18 s", e.rounds, eMag);
   lo.update(118.1);
-  eq("energy: a magazine back after 18 s idle", e.rounds, 36);
+  eq("energy: a magazine back after 18 s idle", e.rounds, 2 * eMag);
   const inf = new Loadout(["rspn101", "wingman"]);
   eq("the range: endless", inf.reserve() === Infinity, true);
 }
@@ -1478,7 +1400,7 @@ console.log("The battle royale's Season 29 and 30 pieces (squad.json, weapon-mec
   near("behind it you crawl 45% slower", 1 - squadJson.kdShield.crawlScale, 0.45, 1e-9);
   eq("brought back at an echo: a 7 s hold, back at 20 health", [squadJson.echoRespawn.time, squadJson.echoRespawn.health].join(" "), "7 20");
   eq("the lockout grows with each death (ours), reset after 3 minutes alive", `${squadJson.echoRespawn.lockout.join(" ")} / ${squadJson.echoRespawn.resetAfter}`, "30 60 120 / 180");
-  eq("Executioner is the Peacekeeper's and the Mastiff's", LOCKED_HOPUPS.hopup_executioner.guns.join(" "), "energy_shotgun mastiff");
+  eq("Executioner is the Mastiff's (the Peacekeeper's too, a legacy gun gone in Milestone 521)", LOCKED_HOPUPS.hopup_executioner.guns.join(" "), "mastiff");
   eq("50 shield over 5 s after a knock, unlocked at 275", [LOCKED_HOPUPS.hopup_executioner.shield, LOCKED_HOPUPS.hopup_executioner.over, LOCKED_HOPUPS.hopup_executioner.unlock].join(" "), "50 5 275");
   eq("Shattercaps: the 30-30's hip fire as 7 pellets of 8, heads x1.25", [lockedHopupFor("3030"), LOCKED_HOPUPS.hopup_shattercaps.pellets, LOCKED_HOPUPS.hopup_shattercaps.damage, LOCKED_HOPUPS.hopup_shattercaps.headshot].join(" "), "hopup_shattercaps 7 8 1.25");
   near("Shattercaps' blast at point blank: 56 to the body", (LOCKED_HOPUPS.hopup_shattercaps.pellets ?? 0) * (LOCKED_HOPUPS.hopup_shattercaps.damage ?? 0), 56, 1e-9);

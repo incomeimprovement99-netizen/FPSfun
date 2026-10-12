@@ -65,7 +65,7 @@ const lab = (style: "robot" | "mannequin") =>
 
 /** the rifle hold from the side: the left hand on each gun's handguard */
 const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
-    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "energy_shotgun" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "wingman" }], 3.2, 90); })()`;
+    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "shotgun" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "wingman" }], 3.2, 90); })()`;
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -967,20 +967,6 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "gun-havoc-charge",
-    note: "the HAVOC winding up: the ring round the crosshair",
-    steps: [
-      [`(() => { ${hideMenu}; const l = window.__range.loadout; l.setWeaponId(0, "energy_ar"); l.slots[0].state.charge = 0.6; l.slots[0].state.update = ((f) => function (...a) { const r = f.apply(this, a); this.charge = 0.6; return r; })(l.slots[0].state.update); })()`, 500],
-    ],
-  },
-  {
-    name: "gun-bocek-drawn",
-    note: "the Bocek, drawn most of the way",
-    steps: [
-      [`(() => { ${hideMenu}; const l = window.__range.loadout; l.setWeaponId(0, "bocek"); const st = l.slots[0].state; st.update = ((f) => function (...a) { const r = f.apply(this, a); this.drawFrac = 0.8; return r; })(st.update); })()`, 1200],
-    ],
-  },
-  {
     name: "fp-arms",
     note: "the R-301 in the player's own arms: the published body's hands and the outfit's own sleeves, not drawn gloves",
     steps: [
@@ -1032,11 +1018,6 @@ export const SCENARIOS: Scenario[] = [
       [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
       [`(() => true)()`, 1200],
     ],
-  },
-  {
-    name: "gun-nemesis",
-    note: "the Nemesis in hand",
-    steps: [[`(() => { ${hideMenu}; window.__range.loadout.setWeaponId(0, "nemesis"); })()`, 1200]],
   },
   {
     name: "gun-finish-gold",
@@ -1122,7 +1103,7 @@ export const SCENARIOS: Scenario[] = [
       [
         `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true; const s = r.openGround(r.player.pos.x, r.player.pos.z, 7); r.player.teleport(s.x, 0, s.z, 0, -28); const f = d.lootField; const V = (x, z) => new r.THREE.Vector3(s.x + x, 0, s.z + z);
           f.add({ kind: "weapon", id: "r97", n: 1, rarity: "rare" }, V(0, -1.7));
-          f.add({ kind: "weapon", id: "bocek", n: 1, rarity: "epic", mag: 2 }, V(-1.6, -4));
+          f.add({ kind: "weapon", id: "sentinel", n: 1, rarity: "epic", mag: 2 }, V(-1.6, -4));
           f.add({ kind: "heal", id: "battery", n: 1, rarity: "rare" }, V(1.4, -3.2));
           f.add({ kind: "ammo", id: "light", n: 60, rarity: "common" }, V(0.6, -4.8));
           f.add({ kind: "helmet", id: "gold", n: 1, rarity: "legendary" }, V(2.6, -5.6));

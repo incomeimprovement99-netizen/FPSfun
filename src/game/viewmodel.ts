@@ -22,7 +22,7 @@ import * as THREE from "three";
 import { loadQuality } from "./quality";
 import { springStep } from "./spring";
 import type { ResolvedWeapon } from "./weapons";
-import { aimBowString, gunModel, setMagRarity, type GunModel } from "./gunmodels";
+import { gunModel, setMagRarity, type GunModel } from "./gunmodels";
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
@@ -81,8 +81,6 @@ export interface VMFrame {
   lowered: number;
   /** riding a zipline: the left hand goes up to the trolley */
   onZip: boolean;
-  /** a bow: 0..1 drawn */
-  draw?: number;
   /** 0..1 through an inspect (holding reload with a full magazine), or undefined */
   inspect?: number;
   /** the hacks carried, mobility first: each floats over the open palm on an inspect, its fusion level on its card */
@@ -1334,7 +1332,6 @@ export class ViewModel {
     const g = m.grip;
     const s = g.scale ?? 1;
     this.right.group.position.set(g.x ?? 0, g.u, -g.f);
-    this.gripBaseZ = -g.f;
     this.right.group.rotation.set(-g.angle, 0, 0);
     this.right.group.scale.set(s, s, s);
 
@@ -1395,15 +1392,10 @@ export class ViewModel {
     this.shells.emit(this.tmp, this.feel?.shell ?? m.shell, this.tmp2);
   }
 
-  /** a bow's draw, 0..1, and where the string hand sits undrawn */
-  private drawFrac = 0;
-  private gripBaseZ = 0;
-
   update(f: VMFrame): void {
     const m = this.model;
     const w = this.weapon;
     const dt = Math.min(0.05, f.dt);
-    this.drawFrac = f.draw ?? 0;
     this.t += dt;
     // the rig's own matrix, which is the viewmodel scale: every arm's
     // near-plane guard measures through it, and the fists hang straight off it
@@ -2251,11 +2243,6 @@ export class ViewModel {
         this.cycleEjected = true;
         this.eject();
       }
-    } else if (m.cycle === "draw" && m.bolt) {
-      // the bow: the nock (and the string hand) come back as it is drawn
-      m.bolt.position.z = this.boltBase.z + m.travel * this.drawFrac;
-      aimBowString(m);
-      this.right.group.position.z = this.gripBaseZ + m.travel * this.drawFrac;
     } else if (m.cycle === "bolt" && m.bolt) {
       const R = Math.max(0.4, w.rechamberTime || w.shotInterval);
       const u = clamp((e - 0.14) / (R * 0.75), 0, 1);

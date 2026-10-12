@@ -163,36 +163,21 @@ function applyOp(base: number | undefined, op: number | string): number | undefi
 }
 
 // Display names (ours; ids are the file stems). Codename swap lives in src/config/names.ts.
+// SpeedKills' guns and the bases it derives from (the launcher from the 30-30, the Run's pistols from the P2020):
+// the legacy game's other guns went with it (Milestone 521), so a fresh extract does not bring them back
 const NAMES: Record<string, string> = {
   rspn101: "R-301 Carbine",
   r97: "R-99 SMG",
-  volt_smg: "Volt SMG",
   vinson: "VK-47 Flatline",
-  hemlok: "Hemlok Burst AR",
   wingman: "Wingman",
   shotgun: "EVA-8 Auto",
   mastiff: "Mastiff Shotgun",
-  g2: "G7 Scout",
-  lmg: "M600 Spitfire",
-  energy_ar: "HAVOC Rifle",
-  energy_shotgun: "Peacekeeper",
-  car: "C.A.R. SMG",
   alternator_smg: "Alternator SMG",
-  dmr: "Longbow DMR",
-  sniper: "Kraber .50-Cal",
-  defender: "Charge Rifle",
-  doubletake: "Triple Take",
   sentinel: "Sentinel",
-  pdw: "Prowler Burst PDW",
-  esaw: "Devotion LMG",
   lstar: "L-STAR EMG",
   autopistol: "RE-45 Auto",
   semipistol: "P2020",
-  shotgun_pistol: "Mozambique Shotgun",
   "3030": "30-30 Repeater",
-  bow: "Bocek Compound Bow",
-  dragon_lmg: "Rampage LMG",
-  nemesis: "Nemesis Burst AR",
 };
 
 // Ammo classes name their mag mods differently: light/heavy use `bullets_`,

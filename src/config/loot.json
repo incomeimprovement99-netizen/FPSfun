@@ -344,45 +344,27 @@
   "weapons": {
     "common": [
       "semipistol",
-      "shotgun_pistol",
       "r97",
       "alternator_smg",
-      "g2",
-      "hemlok",
       "shotgun",
       "autopistol"
     ],
     "rare": [
       "rspn101",
       "vinson",
-      "car",
-      "volt_smg",
-      "pdw",
-      "energy_ar",
-      "nemesis",
       "wingman",
-      "mastiff",
-      "energy_shotgun",
-      "dmr"
+      "mastiff"
     ],
     "epic": [
-      "lmg",
-      "esaw",
-      "dragon_lmg",
-      "doubletake",
-      "sentinel",
-      "defender",
-      "bocek"
+      "sentinel"
     ],
     "legendary": [
       "rspn101",
       "r97",
-      "wingman",
-      "energy_ar"
+      "wingman"
     ]
   },
   "carePackage": [
-    "sniper",
     "3030",
     "lstar"
   ],
@@ -444,13 +426,10 @@
     ]
   },
   "hopups": [
-    "hopup_turbocharger",
     "hopup_headshot_dmg",
     "hopup_unshielded_dmg",
     "hopup_shield_breaker",
-    "hopup_energy_choke",
-    "altfire_double_tap",
-    "selectfire"
+    "altfire_double_tap"
   ],
   "_deathDrop": "deathDrop: what a bot leaves where it dies (loot.ts deathDropOf), loose on the floor; there are no death boxes (the owner, 2026-10-04). Never fewer than `cells` and `syringes` heals, and `stacks` stacks of its gun's ammo (the legacy game; SpeedKills' is its gun alone). Ours.",
   "deathDrop": {

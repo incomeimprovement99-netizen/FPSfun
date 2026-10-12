@@ -79,7 +79,6 @@ console.log("How far a bot sees, per mode and per tier (src/config/bots.json sig
 console.log("\nA long gun in its hands (bots.ts scopedGun)");
 {
   check("the sentinel is one", scopedGun(resolveWeapon("sentinel", 2)));
-  check("the kraber is one", scopedGun(resolveWeapon("sniper", 2)));
   check("the wingman is not: sniper ammo, but it falls off by 20 m", !scopedGun(resolveWeapon("wingman", 2)));
   check("nor is an SMG", !scopedGun(resolveWeapon("r97", 2)));
   check("a ranged optic off the floor makes one", scopedGun(resolveWeapon("rspn101", 2, ["optic_ranged_hcog"])));

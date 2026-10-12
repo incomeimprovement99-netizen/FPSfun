@@ -7923,7 +7923,6 @@ function step(): void {
     hacks: (["mobility", "utility"] as const).flatMap((slot) => { const h = hacks.get(slot); return h ? [{ id: String(h.id), level: h.level, of: HACK.fuseLevels, slot }] : []; }),
     flourish: debugView.flourish !== null ? (debugView.flourish >= 0 ? debugView.flourish : undefined) : now - flourishAt < FLOURISH_TIME ? (now - flourishAt) / FLOURISH_TIME : undefined,
     onZip: debugView.onZip ?? player.onZip,
-    draw: onScreen.state.drawFrac,
   });
   // in third person the gun in your hands is on your figure instead; in the
   // killcam the gun in view is your killer's, and it kicks when they fire

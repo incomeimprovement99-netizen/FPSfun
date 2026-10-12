@@ -39,18 +39,17 @@ export interface LoadoutDef {
  * out of a different game from the one it is standing in.
  */
 export const DEFAULT_LOADOUTS: readonly LoadoutDef[] = [
-  { name: "Assault", operator: "vanguard", outfit: "fatigues", build: "regular", face: "goggles", slot1: "rspn101", slot2: "wingman", heirloom: "fists" },
-  { name: "Close Quarters", operator: "nightshade", outfit: "urban", build: "lean", face: "fullMask", slot1: "r97", slot2: "mastiff", heirloom: "karambit" },
-  { name: "Marksman", operator: "frost", outfit: "arctic", build: "heavy", face: "goggles", slot1: "g2", slot2: "volt_smg", heirloom: "tanto" },
-  { name: "Heavy", operator: "inferno", outfit: "irregular", build: "heavy", face: "wrap,goggles", slot1: "lmg", slot2: "shotgun", heirloom: "kukri" },
-  { name: "Sidearms", operator: "sandstorm", outfit: "desert", build: "regular", face: "wrap,goggles", slot1: "semipistol", slot2: "g17", heirloom: "butterfly" },
-  { name: "Dirt Bike", operator: "scrambler", outfit: "motocross", build: "lean", face: "", slot1: "car", slot2: "mastiff", heirloom: "kukri" },
+  { name: "Assault", operator: "vanguard", outfit: "fatigues", build: "regular", face: "goggles", heirloom: "fists" },
+  { name: "Close Quarters", operator: "nightshade", outfit: "urban", build: "lean", face: "fullMask", heirloom: "karambit" },
+  { name: "Marksman", operator: "frost", outfit: "arctic", build: "heavy", face: "goggles", heirloom: "tanto" },
+  { name: "Heavy", operator: "inferno", outfit: "irregular", build: "heavy", face: "wrap,goggles", heirloom: "kukri" },
+  { name: "Sidearms", operator: "sandstorm", outfit: "desert", build: "regular", face: "wrap,goggles", heirloom: "butterfly" },
+  { name: "Dirt Bike", operator: "scrambler", outfit: "motocross", build: "lean", face: "", heirloom: "kukri" },
 ].map((d, i) => {
-  // SpeedKills: the same six, carrying its own guns
-  const pair = IS_SK ? PROFILE.lists?.loadouts[i] : undefined;
-  // and a name that fits the pair (Phase 20 A7)
-  const name = IS_SK ? (PROFILE.lists?.loadoutNames?.[i] ?? d.name) : d.name;
-  return pair ? { ...d, name, slot1: pair[0], slot2: pair[1] } : d;
+  // each carries one of SpeedKills' six pairs (speedkills.json lists.loadouts), with a name that fits it (Phase 20 A7);
+  // the legacy game's own guns were here until Milestone 521
+  const [slot1, slot2] = PROFILE.lists?.loadouts[i] ?? ["", ""];
+  return { ...d, name: PROFILE.lists?.loadoutNames?.[i] ?? d.name, slot1, slot2 };
 });
 
 export type LoadoutRef = { kind: "default" | "custom"; index: number };

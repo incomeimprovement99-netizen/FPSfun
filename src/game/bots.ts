@@ -212,7 +212,7 @@ function lineOfSight(a: THREE.Vector3, b: THREE.Vector3, eye = 1.4): boolean {
   return solidHit(from, d.divideScalar(len), len) >= len;
 }
 /** what bots carry, one per bot in order */
-export const BOT_WEAPONS: string[] = IS_SK && PROFILE.lists ? [...PROFILE.lists.botWeapons] : ["rspn101", "r97", "vinson", "wingman", "hemlok", "energy_ar", "lmg", "energy_shotgun", "volt_smg", "car", "g2", "sentinel"];
+export const BOT_WEAPONS: string[] = [...(PROFILE.lists?.botWeapons ?? [])];
 // SpeedKills renames a bot whose name was a gun's (speedkills.json lists.botRename)
 export const BOT_NAMES = ["BOT ASH", "BOT VOLT", "BOT GRIM", "BOT NOVA", "BOT FLUX", "BOT STEEL", "BOT NEON", "BOT SOLAR", "BOT RAPID", "BOT SWIFT", "BOT ONYX", "BOT DUNE"].map((n) => (IS_SK ? (PROFILE.lists?.botRename?.[n] ?? n) : n));
 
