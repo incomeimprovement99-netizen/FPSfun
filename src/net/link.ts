@@ -111,14 +111,10 @@ export type NetMsg =
   /**
    * The battle royale's ring from the host, twice a second: phase, 0 waiting
    * 1 closing 2 closed, seconds left, the live and the next circle, how many
-   * are alive. `sq` is how many squads are still in it. `sg` is Storm Surge
-   * once it is called, [seconds to its first tick, 1 once it is live, the
-   * damage a tick, how many are below the line], and `sv` the players below
-   * it, so a guest can take its own tick the way it takes the ring's: the
-   * host ranks everyone, because every hit on a bot comes to it. An older
-   * build sends none of the three, and a guest then shows no surge.
+   * are alive. `sq` is how many squads are still in it. (Storm Surge's `sg`
+   * and `sv` went with it, Milestone 524.)
    */
-  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number; sq?: number; sg?: [number, number, number, number]; sv?: number[]; dr?: number[]; db?: number[]; cp?: [number, number, number] }
+  | { t: "ring"; ph: number; st: number; left: number; cur: [number, number, number]; next: [number, number, number]; alive: number; sq?: number; dr?: number[]; db?: number[]; cp?: [number, number, number] }
   /** a door (doors.ts): a friend asking the host, or the host saying (the ring packet's `dr` lists the open ones for anyone who missed it) */
   | { t: "door"; i: number; open: boolean; k?: number; b?: number }
   /** the battle royale is over for the squad */

@@ -2196,7 +2196,6 @@ export class Hud {
     if (this.mapSolids !== RANGE_SOLIDS.length || key !== this.mapRegionKey) this.buildMap(s.mapRegion);
   }
 
-  /** the rings on a map: the live one orange, the next one white, and the one after dashed cyan when a Ring Console has shown it */
   /** Past SpeedKills' edge (Phase 20 A4): a red vignette and the countdown in the middle of the screen */
   private drawEdge(now: number, s: HudState, u: number): void {
     const e = s.edge;
@@ -2277,17 +2276,6 @@ export class Hud {
       }
       return;
     }
-    if (br.ring.ahead) {
-      const a = br.ring.ahead;
-      c.save();
-      c.lineWidth = 2 * u;
-      c.setLineDash([8 * u, 6 * u]);
-      c.strokeStyle = "rgba(57,208,255,0.95)";
-      c.beginPath();
-      c.arc(toX(a.cx), toZ(a.cz), Math.max(0.5, a.r * scale), 0, Math.PI * 2);
-      c.stroke();
-      c.restore();
-    }
     c.lineWidth = 2 * u;
     c.strokeStyle = "rgba(255,255,255,0.9)";
     c.beginPath();
@@ -2344,23 +2332,12 @@ export class Hud {
         c.fillRect(-0.8 * u, 5 * u, 1.6 * u, 6 * u);
       });
     }
-    // a Ring Console: a cyan screen, dim once it has been scanned this round
-    for (const k of br.consoles ?? []) {
-      upright(k.x, k.z, () => {
-        c.fillStyle = k.ready ? "#39d0ff" : "rgba(57,208,255,0.3)";
-        c.fillRect(-5 * u, -4 * u, 10 * u, 8 * u);
-        c.strokeRect(-5 * u, -4 * u, 10 * u, 8 * u);
-        c.fillStyle = "rgba(0,0,0,0.8)";
-        c.fillRect(-3 * u, -2 * u, 6 * u, 1.5 * u);
-      });
-    }
-    // a care package blue and a loadout crate gold: faint while it is only
+    // a care package: faint while it is only
     // called or falling, bright while it is down and worth fighting over, and
     // dim again once its window has passed and it has most likely been had
     for (const p of br.pods) {
       upright(p.x, p.z, () => {
-        const rgb = p.loadout ? "255,193,46" : "59,139,255";
-        c.fillStyle = `rgba(${rgb},${!p.landed ? 0.5 : p.hot ? 1 : 0.3})`;
+        c.fillStyle = `rgba(59,139,255,${!p.landed ? 0.5 : p.hot ? 1 : 0.3})`;
         c.fillRect(-5 * u, -5 * u, 10 * u, 10 * u);
         c.strokeRect(-5 * u, -5 * u, 10 * u, 10 * u);
       });
@@ -2673,17 +2650,6 @@ export class Hud {
     }
     // in duos and trios the count that decides a placement is squads, so it sits under the alive count
     if (br.team > 1 && br.placement === null) this.text(`${br.squads} SQUAD${br.squads === 1 ? "" : "S"}`, cx - 120 * u, 132 * u, 700, 12 * u, DIM, "center");
-    // Storm Surge under the panel: the countdown once it is called, then what
-    // a tick costs and whether you are the one below the line
-    const sg = br.surge;
-    if (sg && br.placement === null) {
-      const text = !sg.live
-        ? `STORM SURGE IN ${Math.ceil(sg.startsIn)}  ·  DEAL DAMAGE OR TAKE IT`
-        : sg.safe
-          ? `STORM SURGE  ·  ${sg.below} BELOW THE LINE  ·  YOU ARE CLEAR`
-          : `STORM SURGE  ·  ${sg.damage} EVERY ${RING_TICK} S  ·  DEAL DAMAGE`;
-      this.text(text, cx, 150 * u, 700, 15 * u, !sg.live ? "#ffd23c" : sg.safe ? DIM : "#ff5a4a", "center");
-    }
     // outside: an orange vignette and the damage it costs
     if (br.ring.outside && !br.dropping && !br.placement && !s.edge) {
       const g = c.createRadialGradient(cx, this.h / 2, this.h * 0.35, cx, this.h / 2, this.h * 0.9);

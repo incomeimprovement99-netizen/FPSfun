@@ -93,8 +93,6 @@ async function open(browser: Browser, query: string, base = BASE, init?: string)
   await page.evaluateOnNewDocument("window.__straightDrop = true");
   // and no Gulag, for the same reason: the checks of a plain death are about the death (gulagTest turns it back on)
   await page.evaluateOnNewDocument("window.__noGulag = true");
-  // and no vault: its guard is a bot more, and most checks count the bots (vaultTest turns it back on)
-  await page.evaluateOnNewDocument("window.__noVault = true");
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   // every file the page loads kept for the checks that count them (the textures'): the browser keeps 250, and the dev
   // server's modules, a request each, grew past that before the first texture came (it counted 37, then 22, then 0)
@@ -5547,12 +5545,6 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
           p.every((it) => it.kind === "weapon" || it.kind === "hack"),
       );
       check("sk: a care package holds SpeedKills guns and hack cores at the package's levels, nothing of the legacy game's", podOk, JSON.stringify(pods.slice(0, 3)));
-      // no loadout crate: a round's close that calls one in the legacy game calls none (it handed back level-0 copies)
-      const crates = await ev<number>(
-        page,
-        `(() => { const d = window.__range.duel(); const L = ${JSON.stringify(brCfg.loadoutPod.phases)}; d.view = { ...d.view, phase: L[0], state: "closing", timeLeft: 0 }; d.maybeCrate(); return d.pods.filter((p) => p.kind === "loadout").length; })()`,
-      );
-      check("sk: no loadout crate is called as a round closes", crates === 0, `${crates} called`);
       // what a bot drops: its gun at its level, loose, and none of the legacy ammo, cells or syringes
       // (one past its landing grace, so it has its gun in hand: before that it rightly drops nothing. What it put
       // down is every key the field handed out during the kill.)

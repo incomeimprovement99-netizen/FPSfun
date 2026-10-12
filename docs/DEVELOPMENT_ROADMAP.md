@@ -11285,6 +11285,31 @@ everything round them:
 - About 900 lines out, 180 in.
 - **Checked:** tsc; verify; rules; e2e bots, pad, range, speedkills, brsolo, migrate and squad.
 
+## Milestone 524 — The battle royale's keycard vault, Ring Consoles, Storm Surge and loadout crate out
+
+Four of the legacy battle royale's side rules were still in the match, each switched off in SpeedKills by its own
+guard: the vault (`vaultAllowed` false), the Ring Consoles (`IS_SK ? []`), Storm Surge (`if (!ring || IS_SK) return`)
+and the loadout crate (`maybeCrate` returning at once). They went whole:
+
+- **The vault:** its guard, THE WARDEN (a bot on no side, its sight, its post, its place in the counts), the keycard
+  (a loot kind, its holder, its drop where the holder fell, its marker, its prompt at the door, the door's lock), the
+  mythic gun inside and its red, the vault's news, and the switch the tests turned it off with (`__noVault`). The
+  Outskirts' vault building stays as a building, its door an ordinary one, until that map goes; THE VAULT on the Neon
+  tower is the city's loot tier and is untouched.
+- **The Ring Consoles:** ringconsole.ts, their placing and figures, the hold to scan, the dashed circle after next on
+  the maps, the squad's "rcon" effect, the scan's EVO, the loading tip, and the ring's whole plan the guests drew
+  only for them.
+- **Storm Surge:** the ranking of everyone by the damage they had dealt (the record every hit fed), the warning, the
+  ticks on the host and on a guest, its line under the HUD's panel, and its two fields in the ring packet.
+- **The loadout crate:** the call into the late rings, the gold pod, the claim, the hand-over of your saved loadout
+  (and `savedLoadout`, its one caller), and its bar.
+- **The heir's snapshot** loses the guard, the keycard's holder, the vault's stock, the surge's record and its clock.
+- **Checks:** ring-console.ts went; br-rules.ts keeps the squad sizes and the care package (its surge and crate
+  sections went); the e2e's SpeedKills check that no crate is called went with the crate.
+- About 1,260 lines out, 70 in.
+- **Checked:** tsc; verify; rules; e2e brsolo, squad, migrate and speedkills (152 ok; the one failure, a bot's gun
+  lost in the host migration, is older than this and is Milestone 525's).
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

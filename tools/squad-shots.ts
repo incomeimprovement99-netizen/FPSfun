@@ -28,7 +28,6 @@ async function open(browser: Browser, name: string): Promise<Page> {
   await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
   page.on("pageerror", (e) => console.log(`${name} pageerror:`, String(e)));
   await page.evaluateOnNewDocument("window.__straightDrop = true");
-  await page.evaluateOnNewDocument("window.__noVault = true");
   await page.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
   const url = `${BASE}${BASE.includes("?") ? "&" : "?"}net=local&game=speedkills&nointro`;

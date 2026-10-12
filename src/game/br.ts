@@ -32,7 +32,6 @@
 /** how near a graph node has to be to a rope's end to be its foot (metres) */
 const ROPE_NODE_REACH = 22;
 import { IS_SK } from "./game";
-import brCfg from "../config/br.json";
 import { DOORWAYS, Doors } from "./doors";
 import * as THREE from "three";
 import { RANGE_SOLIDS } from "./range";
@@ -147,8 +146,6 @@ export interface BrMap {
   pads: Array<{ x: number; z: number; dx: number; dz: number; y?: number; up?: number; over?: number; hold?: number }>;
   /** a door in every ground-floor doorway (doors.ts) */
   doors: Doors;
-  /** the vault: its door's index, the room's middle and floor, and where its guard stands (world space) */
-  vault: { door: number; x: number; z: number; y: number; post: { x: number; z: number } };
   /**
    * The field's cover as real rock (props.ts): where each rock stands and the
    * box it fills, the boxed shapes drawn in their place until the scans are
@@ -1637,9 +1634,6 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     }
   }
 
-  /** the vault's door (the Well's yard, below): its index among the doorways */
-  let vaultDoor = -1;
-
   // ---------------------------------------------------------------- the sites
   // Eight small places between the big ones (see Site): a name and a sign, a
   // building or two with loot in it, somewhere to hold, and a dirt track to
@@ -1839,10 +1833,8 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     slab(28, 2.6, 0.8, -107, 0, 32, wall);
     slab(0.8, 2.6, 26.8, -121, 0, 19, wall);
     deckAt.well = building(here, { x: -114.6, z: 14, w: 12, d: 10, storeys: 2, storeyH: 3.4, doors: ["s"], windows: ["n", "e", "w"], roofAccess: true }).roof;
-    // The vault: sealed (no window to climb through), its one door locked
-    // until someone brings the keycard from its guard (brmatch.ts). Its door
-    // keeps its place in the build order, so every door's index is as it was.
-    vaultDoor = DOORWAYS.length;
+    // The vault: sealed (no window to climb through), its one door an ordinary one since its keycard and its guard
+    // went (Milestone 524). It keeps its place in the build order, so every door's index is as it was.
     building(here, { x: -100, z: 24, w: 9, d: 7, storeys: 1, storeyH: 3.2, doors: ["n"], windows: [] });
     root.add(textPanel("VAULT", -97, 1.9, 20.28, Math.atan2(0, -1), 2.6, 0.8));
     // the well head and its gibbet, whose arm is for show
@@ -2854,7 +2846,6 @@ export function buildBrMap(scene: THREE.Scene): BrMap {
     towers: towerSpots.map(([x, z, foot]) => ({ ...P(x, z), y: foot })),
     pads: padSpots.map(([x, z, dx, dz]) => ({ ...P(x, z), dx, dz })),
     doors: new Doors(root, { x: BR_X, z: BR_Z }, DOORWAYS),
-    vault: { door: vaultDoor, ...P(-100, 24), y: groundTop(-100, 24), post: P(-100, 20.5 - brCfg.vault.post) },
     scenery,
   };
 }

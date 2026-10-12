@@ -10,7 +10,7 @@
 // still aboard there is put out.
 //
 // Every browser works the line out for itself from the match seed and the
-// squad's place, the way the loot field and the loadout crates are, so
+// squad's place, the way the loot field is, so
 // nothing about the ship goes over the wire. Each runs its own clock from its
 // own start of the drop, which is within a round trip of everyone else's.
 //

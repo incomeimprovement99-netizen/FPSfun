@@ -42,7 +42,7 @@ export type Rarity = "common" | "rare" | "epic" | "legendary";
 /** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
 const CORE_DETAIL2 = cfg.coreDetail ** 2;
 
-export type LootKind = "weapon" | "ammo" | "attach" | "hopup" | "helmet" | "echo" | "knockdown" | "keycard" | "hack";
+export type LootKind = "weapon" | "ammo" | "attach" | "hopup" | "helmet" | "echo" | "knockdown" | "hack";
 
 export interface LootItem {
   kind: LootKind;
@@ -53,8 +53,6 @@ export interface LootItem {
   /** a dropped gun keeps its fittings */
   mag?: number;
   attach?: Attachments;
-  /** the vault's gun: a legendary drawn red and called mythic (an older build sees a legendary) */
-  mythic?: boolean;
   /** an echo (where a squad mate died, for their restore): whose, and their name */
   owner?: number;
   ownerName?: string;
@@ -126,16 +124,12 @@ const ATTACH_LABEL: Record<string, string> = {
 };
 const MAG_NAMES = ["", "white mag", "blue mag", "purple mag", "gold mag"];
 
-/** the vault's mythic red (its gun and its keycard) */
-const MYTHIC_RED = 0xff3b3b;
 
 /** what an item is called on the prompt */
 export function lootLabel(it: LootItem): string {
   switch (it.kind) {
     case "weapon":
-      return `${it.mythic ? "MYTHIC " : ""}${weaponLabel(it.id).toUpperCase()}`;
-    case "keycard":
-      return "VAULT KEYCARD";
+      return weaponLabel(it.id).toUpperCase();
     case "hack":
       return `${hackDef(it.id)?.name ?? it.id.toUpperCase()} HACK${it.n > 0 ? `  ·  LEVEL ${it.n}` : ""}`;
     case "ammo":
@@ -682,8 +676,7 @@ export class LootField {
   /** the batched shapes of an item near enough to draw: its box, a gun's ring, a rare one's beam */
   private drawBatched(d: LootDrop, now: number, near = true): void {
     const it = d.item;
-    // the vault's gun and its keycard: mythic red
-    const colour = it.mythic || it.kind === "keycard" ? MYTHIC_RED : hexOf(it.rarity);
+    const colour = hexOf(it.rarity);
     const p = this.tmpP;
     if (it.kind === "weapon") {
       // the gun, when it is in view: its batch draws every copy it is given, wherever they are
@@ -717,7 +710,7 @@ export class LootField {
         this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
       }
     }
-    if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "echo" || it.kind === "keycard") {
+    if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "echo") {
       p.set(d.pos.x, d.pos.y + 1.2, d.pos.z);
       this.tmpQ.identity();
       this.batch(`beam${colour}`, this.beamGeo, () => new THREE.MeshBasicMaterial({ color: it.kind === "echo" ? 0x7ddc8a : colour, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })).put(this.tmpM.compose(p, this.tmpQ, this.unit));

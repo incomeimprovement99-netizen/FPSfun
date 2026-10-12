@@ -4225,7 +4225,6 @@ const brPlay = new BrPlay({
   keyLabel: (a) => keyLabel(a),
   notice: (t) => hud.notice(t, gameTime, 2),
   sound: (k) => (k === "ping" ? audio.hitTier("white") : k === "revive" ? audio.healDone() : audio.whoosh()),
-  onScan: () => giveEvo(brCfg.console.evo, "RING CONSOLE"),
   onRevive: () => {
     const R = squadCfg.evo.revive;
     giveEvo(R[Math.min(revivesDone, R.length - 1)], "REVIVE");
@@ -4428,12 +4427,6 @@ function applyLoot(it: LootItem): void {
       if (d) d.shieldMax = armor.shieldMax;
       audio.shieldBreak();
       break;
-    case "keycard":
-      // the vault's keycard: the way to the vault is marked while you hold it (brmatch.ts stepVault)
-      if (duel instanceof BrMatch) duel.myKey = true;
-      hud.notice("VAULT KEYCARD  ·  THE VAULT IS AT THE WELL", gameTime, 3);
-      audio.pickup?.();
-      break;
   }
   hud.notice(label, gameTime, 1);
 }
@@ -4477,8 +4470,6 @@ const leashAt = new THREE.Vector3();
 const straightDrop = (): boolean => (window as unknown as { __straightDrop?: boolean }).__straightDrop === true;
 /** the tests' other switch: no Gulag, for the checks of what a plain death does (the Gulag's own section turns it back on) */
 const noGulag = (): boolean => (window as unknown as { __noGulag?: boolean }).__noGulag === true;
-/** and no vault (its guard is a bot more on the map), for the checks that count the bots; the vault's own section turns it back on */
-const noVault = (): boolean => (window as unknown as { __noVault?: boolean }).__noVault === true;
 /**
  * The words on a match's card: the mode's name and its line (intro.json
  * modes). Every bot difficulty is one card.
@@ -4725,24 +4716,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       return r.through;
     };
     d.onLootTaken = (it) => applyLoot(it);
-    // The loadout crate (brmatch.ts): the two guns you built go straight into
-    // your two slots, and what you were carrying goes down at your feet the
-    // way a swap puts it down, so nothing you found is lost to the crate.
-    // The ammo that came with them goes in the pack.
-    d.onLoadoutDrop = (items) => {
-      const here = player.pos.clone();
-      items
-        .filter((it) => it.kind === "weapon")
-        .slice(0, loadout.slots.length)
-        .forEach((g, i) => {
-          const s = loadout.slots[i];
-          // SpeedKills calls no crate (brmatch.ts maybeCrate), but a gun put down keeps its level wherever it is put down
-          if (!s.empty) d.dropLoot({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 }, here);
-          loadout.give(i, g.id, g.fusion ?? 0);
-        });
-      for (const it of items) if (it.kind === "ammo") loadout.ammo.add(it.id as AmmoType, it.n);
-      audio.swap();
-    };
     d.onMark = (k, from, at, label, target) => {
       // a squad mate's REVEAL: the same enemies shown here
       if (k === "scan") {
@@ -4831,7 +4804,6 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
     sayQuick(d.nameFor(from) ?? "PLAYER", n, false);
     return;
   }
-  // a squad mate scanned a Ring Console: the circle after next is on our map too
   // someone's emote: their figure plays it (or stops)
   // someone's line for the end table
   if (k === "sum" && a && duel) {
@@ -4868,11 +4840,6 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
     }
     return;
   }
-  if (k === "rcon" && a && typeof n === "number" && d instanceof BrMatch) {
-    d.hearConsole(a, n);
-    hud.notice(`${d.nameFor(from)} SCANNED A RING CONSOLE: THE RING AFTER NEXT IS ON THE MAP`, gameTime, 2.5);
-    return;
-  }
   // the jumpmaster jumped: a squad mate still linked to them goes too, and follows them down
   if (k === "jm" && player.aboard && linkedTo === from && d instanceof BrMatch) {
     linkedTo = null;
@@ -4889,7 +4856,7 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
     setBeam(from, n === 1 && a ? a : null);
     if (n === 1 && a && duel instanceof BrMatch) duel.hearBeam(a);
   }
-  // A care package or a loadout crate (brmatch.ts: n 0 or 2 called, 1
+  // A care package (brmatch.ts: n 0 called, 1
   // landed): the horn when it is called and the thump when it lands, each
   // heard only so far (br.json podHeard). Past 25 m the audio holds each
   // back by its distance over the speed of sound, so a far one comes late.
@@ -5003,7 +4970,7 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
   } else if (squad) {
     const diff: BotDifficulty = asDifficulty(squad.difficulty);
     // the squad size is the host's for everyone (an older host sends none: the default size)
-    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), pace: squad.pace, gulag: !noGulag(), split: squad.split === true, vault: !noVault() });
+    const br = new BrMatch(scene, projectiles, brMap, diff, squad.bots, { players, myId, link, guestId, poi: squad.poi, seed: squad.seed, start: squad.start === "loadout" ? "loadout" : "loot", team: squad.team, ship: !straightDrop(), pace: squad.pace, gulag: !noGulag(), split: squad.split === true });
     d = br;
     duel = d;
     wireMatch(d, "br");
@@ -5194,7 +5161,7 @@ function startBr(seed = newSeed(), poi?: string): void {
   for (const c of courses) c.leave();
   const diff = brDifficulty();
   const bots = brBotCount();
-  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), pace: brPace(), gulag: !noGulag(), vault: !noVault() });
+  const d = new BrMatch(scene, projectiles, brMap, diff, bots, { players: 1, myId: 0, link: null, poi, seed, start: brStart(), team: brTeamId(), ship: !straightDrop(), pace: brPace(), gulag: !noGulag() });
   duel = d;
   wireMatch(d, "br");
   brHour(d);
@@ -7932,8 +7899,8 @@ function step(): void {
         : null,
     vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX, evo: duel instanceof BrMatch ? armor.evoFrac : null, helmet: armor.helmet } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
     drill: duel ? null : drill.hud(now),
-    // a hold-E action, or standing on a loadout crate while it hands your loadout over
-    brHold: duel instanceof BrMatch ? (brPlay.hud.hold ?? (duelHud?.br?.crate != null ? { label: "LOADOUT CRATE  ·  STAY ON IT", progress: duelHud.br.crate } : null)) : null,
+    // a hold-E action
+    brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
     tour: tourHud,
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     downed: downedNow && duel instanceof Duel ? { left: Math.max(0, duel.bleedUntil - performance.now() / 1000), revivedBy: duel.revivedBy !== null ? duel.nameFor(duel.revivedBy) : null, kd: kd.max > 0 ? { hp: kd.hp, max: kd.max, up: kd.up, key: keyLabel("fire") } : null, self: kd.canSelfRevive ? { key: keyLabel("interact"), progress: kd.selfProgress(gameTime) } : null } : null,

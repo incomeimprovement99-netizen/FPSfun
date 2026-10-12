@@ -28,7 +28,6 @@ import squad from "../config/squad.json";
 import chainCfg from "../config/chaincourse.json";
 import { stepPads, type CoursePad, type PadState } from "./course";
 import hudCfg from "../config/hud.json";
-import { CONSOLE } from "./ringconsole";
 
 export interface Marker {
   k: "enemy" | "loot" | "go";
@@ -179,8 +178,6 @@ interface Deps {
   onRevive?: () => void;
   /** a restore's beam: on at a place, or off */
   beam?: (at: THREE.Vector3 | null) => void;
-  /** a Ring Console scan of yours finished (EVO) */
-  onScan?: () => void;
 }
 
 /** seconds to hold for a revive (Season 30) and at a squad mate's echo, the pads (src/config/squad.json) */
@@ -225,7 +222,7 @@ export class BrPlay {
   private revived: { id: number; name: string; at: number } | null = null;
   /** a jump pad's throw on its way up: the push over the roof's edge, given once above `over` */
   private padCarry: { vx: number; vz: number; over: number } | null = null;
-  private hold: { kind: "revive" | "echo" | "console"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
+  private hold: { kind: "revive" | "echo"; target: number; label: string; start: number; need: number; filled: number; last: number } | null = null;
   /** what the player is holding interact on, for their figure: a revive, something else, or nothing */
   get holdKind(): "revive" | "interact" | null {
     return this.hold ? (this.hold.kind === "revive" ? "revive" : "interact") : null;
@@ -506,8 +503,6 @@ export class BrPlay {
     // a revive: a downed squad mate within reach
     const mate = match.downedMateNear(p, squad.reviveReach);
     const echo = mate ? null : this.echoHere(match, p, eye, fwd, now);
-    // a Ring Console at your feet
-    const rc = player.onGround ? match.consoleNear(p, CONSOLE.reach) : null;
     if (mate) {
       out.prompt = { key: `HOLD ${key}`, text: `REVIVE ${mate.name}` };
       this.runHold("revive", mate.id, `REVIVING ${mate.name}`, REVIVE_TIME, holdingE, now, match, () => {
@@ -542,20 +537,6 @@ export class BrPlay {
         }, rate);
         if (fresh && this.hold?.kind === "echo") this.deps.beam?.(at);
       } else this.cancelHold(match);
-    } else if (rc) {
-      // a Ring Console: hold to put the circle after next on the squad's map
-      if (!rc.ready) {
-        this.cancelHold(match);
-        out.prompt = { key: "", text: "RING CONSOLE: SCANNED THIS ROUND, IT REBOOTS WHEN THE RING CLOSES" };
-      } else {
-        out.prompt = { key: `HOLD ${key}`, text: "SCAN THE RING CONSOLE: SEE WHERE THE RING GOES AFTER NEXT" };
-        this.runHold("console", rc.index, "SCANNING THE RING CONSOLE", CONSOLE.hold, holdingE, now, match, () => {
-          if (!match.scanConsole(rc.index)) return;
-          this.deps.notice("THE RING AFTER NEXT IS ON YOUR MAP");
-          this.deps.sound("ping");
-          this.deps.onScan?.();
-        });
-      }
     } else {
       this.cancelHold(match);
       // on the tower's own floor: the Mast's balloon is on its roof, not in the hall 28 m under it
@@ -572,10 +553,8 @@ export class BrPlay {
       } else if (door && !player.zipPrompt) {
         // a door you look at: a tap opens or shuts it
         this.stopTaking();
-        // the vault's door: locked, and only the keycard opens it
-        const locked = match.doors.isLocked(door.i);
-        out.prompt = locked ? (match.myKey ? { key, text: "OPEN THE VAULT (USES THE KEYCARD)" } : { key: "", text: "LOCKED  ·  THE VAULT KEYCARD OPENS IT" }) : { key, text: door.open ? "SHUT THE DOOR" : "OPEN THE DOOR" };
-        if (input.pressedNow("interact") && (!locked || match.myKey)) match.useDoor(door.i, !door.open);
+        out.prompt = { key, text: door.open ? "SHUT THE DOOR" : "OPEN THE DOOR" };
+        if (input.pressedNow("interact")) match.useDoor(door.i, !door.open);
       } else if (!player.zipPrompt) {
         this.lootHere(now, match, input, p, eye, fwd, key, carry, out);
       } else this.stopTaking();
@@ -703,7 +682,7 @@ export class BrPlay {
    * can change as it goes (SpeedKills' restore, a third as fast while the
    * ghost is away from you).
    */
-  private runHold(kind: "revive" | "echo" | "console", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
+  private runHold(kind: "revive" | "echo", target: number, label: string, need: number, holding: boolean, now: number, match: BrMatch, done: () => void, rate = 1): void {
     if (!holding) {
       this.cancelHold(match);
       return;
