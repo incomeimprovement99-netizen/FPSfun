@@ -2,7 +2,7 @@
 // requests and no account. The page (for a CSRF token), a POST for a signed
 // download-page URL, and a POST to that page's file endpoint for the storage
 // URL. The zip is kept in the temp folder, so a second run fetches nothing.
-// Used by tools/fetch-characters.ts and tools/fetch-clips.ts.
+// Used by tools/fetch-clips.ts.
 import { execFileSync } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
 

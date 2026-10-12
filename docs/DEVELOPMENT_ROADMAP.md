@@ -12952,3 +12952,31 @@ the tier before it.
 - **Checked** (tools/checks/sk-neon.ts): six rooms, two a tier, each walked into from the tier before it and back out by a player, its slab holding a body over it in the squares' drop check; the gardens' counts set to what the openings leave. The new check was proven failing with a wall put back across one room's opening. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: a first-tier room from the promenade and from inside looking out, a second-tier room from the first tier, a top-tier room from inside, and the ring road, by golden hour and at night.
   The map: its files lo 115.3 MB, hi 181.9 MB, max 410.5 MB.
   **Its files are version 66.**
+
+## Milestone 568 — The old body and its wardrobe taken out
+
+The old game's figure was a published body (two of them, in three builds) under sixteen outfits of published cloth,
+with hair, tinted atlases, a fit test and the Loadouts tab's wardrobe. SpeedKills' figure is the bought soldier, and
+the old body stood in only on a copy without the soldier's files; the owner's call (2026-10-12) was to take it out.
+
+- **The figure** (mannequin.ts): the bodies, their shaping to a build and the undersuit, the garment parts and their
+  tints, the hair, the kit on a legacy figure, the joints' armour glow, the fit test's paint, the fallback that built
+  the old body when the soldier's files were missing, and the first person's arms cut from it under the outfit's
+  sleeves. A figure is the soldier or, until it is ready or without its files, a robot (useMannequin asks for the
+  soldier's template); MannequinFigure is the soldier's alone. The grey mannequin's own probe of the aim pose went too:
+  only the soldier's is used.
+- **The look on the wire** (outfit.ts): only the soldier's code is left, in the fifth field where the old wardrobe's
+  pages put it, so a page from before still finds it; the first four go empty, and an old page's clothes are dropped
+  when read. Loadouts and operators lose their outfit, build, body and face; the Loadouts tab its wardrobe.
+- **IS_SK folded** out of mannequin.ts and outfit.ts, as the lobby agent's Milestone 531 did everywhere else.
+- **Gone with them:** public/models/body (3.2 MB) and public/models/outfits (7.0 MB), 106 files; src/config/outfits.json;
+  tools/checks/outfit.ts and body.ts (both measured the old body), npm run fit, characters and tints and their tools;
+  thirty snap scenarios of the wardrobe, the bodies and the fit test. About 3,600 lines of code and tools.
+- **Checked:** net-delta's look checks rewritten for the soldier's code (an old page's look keeps its soldier and drops
+  its clothes, seen failing with the field read from the wrong place); the soldier section's no-files page now also
+  holds that no figure is built on anything but the soldier, seen failing with the figure allowed before the soldier;
+  verify, rules, the type check, and the soldier, page, p2p, skfigure and sklobby e2e sections.
+- **Also:** the soldier section's head check still held the head volume's middle within 20 mm of the middle of every
+  point the Head bone carries, as the sphere's was. Since Milestone 560 the volume is the skull's own ellipsoid, whose
+  middle its extremes place: measured 47 mm off that one in every pose (the jaw and the face pull it down and forward),
+  with all of the head inside. The check holds it within 55 mm now.

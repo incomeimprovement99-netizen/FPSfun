@@ -113,7 +113,7 @@ import { LS_LOOT_CARD, gunOutcome, hackOutcome, lootCardView, type LootCardMode,
 import { Armory, armorySolids, type ArmoryStation, type ArmoryView } from "./game/armory";
 import { Captions, howFar, whereFrom } from "./game/captions";
 import { Tour, type TourCheck } from "./game/tour";
-import { figuresSettled, hasClip, loadMannequin, loadOutfit, loadTint, setFigureStyle, setFitDebug, useMannequin, soldierReady } from "./game/mannequin";
+import { figuresSettled, hasClip, loadMannequin, setFigureStyle, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
@@ -1886,13 +1886,12 @@ function previewLoadout(now: number, dt: number, gun = loadouts.current.slot1): 
   // mannequin has finished loading, rather than staying the robot; and the
   // bought guns' readiness, or a figure built before they came in held the
   // procedural stand-in until the loadout changed (Phase 27)
-  const key = `${def.operator}|${lookCode(def)}|${gun}|${useMannequin()}|${soldierReady()}|${paidGunsReady()}`;
-  document.body.classList.toggle("soldierOn", soldierReady());
+  const key = `${def.operator}|${lookCode()}|${gun}|${useMannequin()}|${soldierReady()}|${paidGunsReady()}`;
   if (key !== previewKey) {
     previewKey = key;
     previewFig?.dispose();
     previewScene.remove(previewFig?.group ?? new THREE.Object3D());
-    previewFig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode(def)), rig: true, noBase: true });
+    previewFig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode()), rig: true, noBase: true });
     previewFig.group.position.set(0, 0, 0);
     previewScene.add(previewFig.group);
   }
@@ -2063,7 +2062,7 @@ function warmPortrait(): void {
   const ready = hudCfg.loading.brCard.figureGuns as string[];
   const gun = [loadouts.current.slot1, loadouts.current.slot2].find((g) => ready.includes(g)) ?? ready[0];
   const def = loadouts.current;
-  const fig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode(def)), rig: true, noBase: true });
+  const fig = new Dummy(0, 0, 0, { armed: gun, respawn: false, skin: operatorWearing(def.operator, lookCode()), rig: true, noBase: true });
   const holder = new THREE.Scene();
   holder.add(fig.group);
   fig.group.updateMatrixWorld(true);
@@ -5588,7 +5587,7 @@ function applyLoadout(def: LoadoutDef): void {
     loadout.setWeaponId(1, def.slot2);
   }
   setArmColors(operatorById(def.operator));
-  viewModel.setLook(operatorWearing(def.operator, lookCode(def)));
+  viewModel.setLook(operatorWearing(def.operator, lookCode()));
   viewModel.setHeirloom(def.heirloom);
   refreshDerived();
 }
@@ -7234,7 +7233,7 @@ function step(): void {
   // covers the half of it nearest the camera (tools/snap.ts)
   viewModel.group.visible = !snapNoGun && (killcam.active ? killcamGunReady : !third && !knockedOut && !player.dropping && !player.aboard);
   if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
-  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(loadouts.current), third && !killcam.active, knockedOut);
+  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(), third && !killcam.active, knockedOut);
   if (!labManual)
     for (const lf of labFigs) {
       lf.f.setPose(lf.pose);
@@ -7252,7 +7251,7 @@ function step(): void {
     crouch: player.crouched || player.sliding,
     weapon: emptyHand ? "" : onScreen.weapon.id,
     operator: loadouts.current.operator,
-    look: lookCode(loadouts.current),
+    look: lookCode(),
     name: profile.profile.name,
     ready: input.playing,
     // SpeedKills: the way in (show) holds the match's start while it loads, and a card over a match that has not
@@ -7717,8 +7716,6 @@ const GALLERY = { x: 0, z: -8 };
   /** the gun in the hands and the arms, for a picture to find a part by name (tools/gunfeel-sheet.ts) */
   viewModelRoot: () => viewModel.group,
   /** how many kit pieces dress the battle royale's buildings (kitdress.ts), 0 until they are in */
-  /** the fit test: every figure's clothed body painted flat magenta, so a picture can count what shows through (mannequin.ts) */
-  fitDebug: (on: boolean) => setFitDebug(on),
   /** how many guns have been fused into one already carried (br.json fusion) */
   fused: () => fusedCount,
   /** the prompt under the crosshair this frame, outside a match's own (tools/e2e.ts: the armory's) */
@@ -8044,12 +8041,6 @@ const GALLERY = { x: 0, z: -8 };
     });
     return { ready: paidGunsReady(), inHand, skin };
   },
-  /**
-   * Resolves once these outfits' parts and their atlases are in (they load on demand, when a figure first wears one): a
-   * tool that photographs clothes waits on it rather than on a fixed time, which a busy machine outlasted (the fit test
-   * found five outfits without trousers in a regression sweep)
-   */
-  outfitsLoaded: (outfits: string[]) => Promise.all(outfits.flatMap((o) => [loadOutfit(o), loadTint(o)])).then(() => true),
   figureLab: (poses: Array<FigurePose & { dead?: boolean; weapon?: string; look?: string }> = [], dist = 4, turnDeg = 0) => {
     for (const lf of labFigs) lf.f.dispose();
     labFigs.length = 0;
@@ -8058,10 +8049,8 @@ const GALLERY = { x: 0, z: -8 };
     const fz = -Math.cos(yawR);
     poses.forEach((p, i) => {
       const side = (i - (poses.length - 1) / 2) * 1.3;
-      // `look` dresses the figure in something other than its operator's own
-      // set, which is how the wardrobe snapshot shows all ten of them
+      // `look` puts a soldier on it: a soldier's code (soldier.ts), or a whole look code (outfit.ts lookCode)
       const op = OPERATORS[i % OPERATORS.length];
-      // a look that is a soldier's code (soldier.ts) puts that soldier on it, in SpeedKills
       const skin = p.look && /^S\d{7}$/.test(p.look) ? { ...op, soldier: p.look } : p.look ? operatorWearing(op.id, p.look) : op;
       const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "vinson", respawn: false, rig: true, noBase: true, skin });
       f.group.position.set(player.pos.x + fx * dist + fz * side, player.pos.y, player.pos.z + fz * dist - fx * side);
@@ -8207,23 +8196,6 @@ const GALLERY = { x: 0, z: -8 };
       if (!o.userData?.prop || (name && o.userData.prop !== name)) return;
       const p = o.getWorldPosition(new THREE.Vector3());
       out.push({ x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) });
-    });
-    return out;
-  },
-  /**
-   * What a figure is wearing (outfit.ts), by the group it stands in: "self" is
-   * your own third-person figure, "opponent" the first other player's. This is
-   * how a test can see that a look chosen on one page arrived on another.
-   */
-  figureWear: (which = "self") => {
-    let out: string[] = [];
-    scene.traverse((o) => {
-      if (out.length || !(o.name === which || o.name.startsWith(`${which}:`))) return;
-      const worn: string[] = [];
-      o.traverse((c) => {
-        if (c.name.startsWith("wear:")) worn.push(c.name.slice(5));
-      });
-      out = worn.sort();
     });
     return out;
   },

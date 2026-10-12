@@ -28,9 +28,6 @@ import { clone as cloneSkinned } from "three/examples/jsm/utils/SkeletonUtils.js
 import { displayGunModel } from "./gunmodels";
 import { LOWER as CARRY, REACH, gripAt, reachFraction, stockBehind } from "./hold";
 import type { OperatorSkin } from "./operators";
-import { buildGear, type GearPiece } from "./gear";
-import { OUR_GEOMETRY, buildOutfit, outfitMaterials } from "./outfit";
-import outfitCfg from "../config/outfits.json";
 import vmCfg from "../config/viewmodel.json";
 import figureCfg from "../config/figure.json";
 import perfCfg from "../config/perf.json";
@@ -40,7 +37,7 @@ import feelCfg from "../config/gunfeel.json";
 import { newSweep, phaseMeshes, type PhaseSweep } from "./phase";
 import type { FigurePose } from "./dummy";
 import type { EmotePose } from "./emotes";
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
 import { retargetClip, retargeter, rigOf, type Retargeter } from "./retarget";
 import { buttOf, carryLowOf, FIRST_PERSON_RELOAD, gunScaleOf, holdRifle, measureRifleRig, pistolStance, RIFLE_BONES, shellParts, shellsOf, shoulderGain, sizeFingers, supportOf, SWAP_CUP, tacticalOf, ventOf, type ReloadParts, type RifleOut, type RifleRig } from "./rifle";
@@ -54,8 +51,8 @@ export function setFigureStyle(s: FigureStyle): void {
   if (s === "mannequin") void loadMannequin();
 }
 export function useMannequin(): boolean {
-  // (SpeedKills: robots until its soldier is ready, not the legacy body it never shows, whose figures fetched its outfits)
-  return style === "mannequin" && template !== null && !soldierPending;
+  // robots until the soldier is ready: no figure is ever anything else (the legacy body went in Milestone 568)
+  return style === "mannequin" && soldierTemplate !== null;
 }
 
 interface Template {
@@ -71,29 +68,22 @@ interface Template {
   /** SpeedKills' soldier: its rifle hold's measures (rifle.ts), off its rest pose */
   rifle?: RifleRig | null;
 }
-let template: Template | null = null;
+/** the clips as the library's rig plays them, split three ways (addClips): which are in (hasClip) */
+let libraryClips: Map<string, THREE.AnimationClip> | null = null;
 let loading: Promise<void> | null = null;
 /**
- * SpeedKills' soldier (soldier.ts), once its files and its clips are in: the game's clips carried over to its rig
- * (retarget.ts), and its hand and chest sampled in the aim pose on it. Figures made before it is ready are the
- * figures of before, and keep their own template, so no figure ever plays another rig's clips.
+ * The soldier (soldier.ts), once its files and its clips are in: the game's clips carried over to its rig
+ * (retarget.ts), and its hand and chest sampled in the aim pose on it. Figures made before it is ready are robots.
  */
 let soldierTemplate: Template | null = null;
 let soldierMap: Retargeter | null = null;
-/**
- * SpeedKills' soldier is on its way: until its template is made, or its files turn out not to be here, no figure is
- * built on the legacy body (and none of its outfits fetched). The legacy body was the first figure a SpeedKills page
- * made and then never showed, and it and its outfits were the last 3.5 MB the page's first screen waited for
- * (2026-10-03).
- */
-let soldierPending = IS_SK;
 /** the clips as they came, kept so the soldier's are made from all of them whenever it arrives */
 const rawClips: THREE.AnimationClip[] = [];
 /** the soldier is what new figures are (SpeedKills with its files here) */
 export function soldierReady(): boolean {
   return soldierTemplate !== null;
 }
-/** the figures' loading is over, whichever way it went (the body, its clips, the soldier and their retargeting) */
+/** the figures' loading is over, whichever way it went (the clips, the soldier and their retargeting) */
 let figuresDone = false;
 /**
  * Nothing more is coming for the figures: never asked for, failed, or in, the soldier's clips carried over. The intro
@@ -114,445 +104,10 @@ function soldierLookFor(skin: OperatorSkin): SoldierLook {
   return l;
 }
 
-/**
- * The garment PARTS: a body, arms, legs, feet, a hood, a shoulder guard, each
- * its own skinned mesh on the same universal rig. This is what a modular
- * outfit pack is for - a ranger's legs under a peasant's shirt is an outfit
- * neither set shipped - and it is how an outfit is real cloth without being a
- * whole second figure.
- *
- * They load ON DEMAND. Loading them all beside the body put 15 MB on every
- * page whether anything wore them or not, and the e2e felt it twice: a mode
- * test and a Resurgence test each found a match that had not started yet. A
- * figure now asks for what its own outfit needs.
- */
-const parts = new Map<string, THREE.SkinnedMesh[]>();
-const partLoads = new Map<string, Promise<unknown>>();
-
-/**
- * EVERY skinned mesh in a loaded part, not the first one.
- *
- * A ranger's body is three meshes - the coat and two belts - and taking only
- * the first of them put a belt on a bare chest. That is the "the clothes
- * aren't fully covering the body" the owner saw.
- */
-function skinnedIn(o: THREE.Object3D): THREE.SkinnedMesh[] {
-  const found: THREE.SkinnedMesh[] = [];
-  o.traverse((c) => {
-    const m = c as THREE.SkinnedMesh;
-    if (m.isSkinnedMesh) found.push(m);
-  });
-  return found;
-}
-
-/**
- * A garment sits exactly on the skin it was modelled over, so the body shows
- * through wherever the two meet. Pushing the cloth out along its own normals
- * by a few millimetres puts it outside the skin everywhere at once, which is
- * what a shell offset is for. Done once per part, on the geometry every
- * figure wearing it shares.
- */
-const OVER_CLOTH = outfitCfg.fit.overCloth as number;
-function inflate(g: THREE.BufferGeometry): THREE.BufferGeometry {
-  const out = g.clone();
-  if (!out.attributes.normal) out.computeVertexNormals();
-  const p = out.attributes.position as THREE.BufferAttribute;
-  const n = out.attributes.normal as THREE.BufferAttribute;
-  for (let i = 0; i < p.count; i++) {
-    p.setXYZ(i, p.getX(i) + n.getX(i) * OVER_CLOTH, p.getY(i) + n.getY(i) * OVER_CLOTH, p.getZ(i) + n.getZ(i) * OVER_CLOTH);
-  }
-  p.needsUpdate = true;
-  out.computeBoundingSphere();
-  return out;
-}
-
-/**
- * The bodies. There are two in the pack, a heavier and a lighter build of the
- * same rig, and a garment is cut for one of them: the ranger's coat shaped for
- * the second sits wrong on the first. So an outfit names the body its clothes
- * were made for, and the figure is built on that one.
- *
- * The skeleton is identical either way, which is the part that matters for a
- * shooter: the hit boxes are built from the bones, so nobody is a bigger or a
- * smaller target for the body their clothes came on.
- */
-const bodies = new Map<string, THREE.Object3D>();
-const bodyLoads = new Map<string, Promise<unknown>>();
-const DEFAULT_BODY = "Superhero_Male_FullBody";
-
-/**
- * The body a figure is built on: the one its player picked, or the one its
- * outfit names, or the default. Every garment binds to either body, so the
- * pick is free rather than tied to the clothes.
- */
-export function bodyOf(outfit: string, picked?: string): string {
-  if (picked && picked in (outfitCfg.bodies as Record<string, unknown>)) return picked;
-  return ((outfitCfg.sets as Record<string, { body?: string }>)[outfit]?.body ?? DEFAULT_BODY) as string;
-}
-
-/**
- * How a torso is shaped: the body brought in so the cloth closes on it, and
- * the build a player picked, both as one width factor that eases in up the
- * chest and back out at the neck.
- *
- * The clothes in this pack are cut for the pack's Regular build; the free tier
- * ships the Superhero one, 424 mm across the shoulders, and a coat cut for the
- * slimmer body gapes on it - a bare back with a collar and a belt, which is
- * what the owner saw. Narrowing the BODY (not the skeleton, so nothing about
- * the hit boxes or the animation changes) puts it back inside the cloth.
- *
- * By HEIGHT, not uniformly: this build's bulk is in the traps and the lats,
- * and a tenth off everywhere still left a bare upper back inside a coat that
- * closed at the waist. And eased back OUT above the shoulders: the first cut
- * held the full narrowing all the way up, so the head was 29% narrower than
- * the skull the hair and the hood were made for. The numbers are per body and
- * measured (outfits.json fit.torso).
- */
-interface Torso {
-  from: number;
-  to: number;
-  neck: number;
-  head: number;
-  chest: number;
-  armFrom: number;
-  armTo: number;
-  upperArm?: number;
-}
-const TORSO = outfitCfg.fit.torso as Record<string, Torso>;
-
-/** a build's width across the chest, 1 for the one the clothes were cut to */
-function buildWidth(build: string): number {
-  const b = (outfitCfg.builds as Record<string, { shoulders: number }>)[build];
-  return b ? b.shoulders : 1;
-}
-
 const smooth = (a: number, b: number, v: number): number => {
   const t = Math.max(0, Math.min(1, (v - a) / (b - a)));
   return t * t * (3 - 2 * t);
 };
-
-/** the bones that make a vertex part of an arm rather than the torso */
-const ARM_BONE = /^(upperarm|lowerarm|hand|thumb|index|middle|ring|pinky)_/;
-
-/**
- * A copy of `g` with its torso brought to `target` of its width and depth.
- * The body gets its measured narrowing times the build; a garment gets the
- * build alone, and so the two move together and the fit between them holds.
- *
- * What counts as the torso is decided by the skin weights: a vertex is arm
- * in the proportion the arm bones move it. The first cut decided by distance
- * from the middle, and at armpit height that caught the lats as well, which
- * kept their full width and showed as skin at the back of every armpit.
- */
-function shapeTorso(g: THREE.BufferGeometry, t: Torso, target: number, bones: string[]): THREE.BufferGeometry {
-  if (target === 1) return g;
-  const out = g.clone();
-  const p = out.attributes.position as THREE.BufferAttribute;
-  const si = out.attributes.skinIndex as THREE.BufferAttribute | undefined;
-  const sw = out.attributes.skinWeight as THREE.BufferAttribute | undefined;
-  const isArm = bones.map((b) => ARM_BONE.test(b));
-  for (let i = 0; i < p.count; i++) {
-    const x = p.getX(i);
-    const y = p.getY(i);
-    // Arms are left alone. In the bind pose they are out at shoulder height,
-    // so narrowing them dragged the hands in off their own wrist bones and
-    // the skinning stretched them into fans.
-    let arm = 0;
-    if (si && sw) {
-      arm = (isArm[si.getX(i)] ? sw.getX(i) : 0) + (isArm[si.getY(i)] ? sw.getY(i) : 0) + (isArm[si.getZ(i)] ? sw.getZ(i) : 0) + (isArm[si.getW(i)] ? sw.getW(i) : 0);
-    } else arm = smooth(t.armFrom, t.armTo, Math.abs(x));
-    const ease = smooth(t.from, t.to, y) * (1 - smooth(t.neck, t.head, y)) * (1 - Math.min(1, arm));
-    const k = 1 + (target - 1) * ease;
-    p.setXYZ(i, x * k, y, p.getZ(i) * k);
-  }
-  p.needsUpdate = true;
-  out.computeVertexNormals();
-  out.computeBoundingSphere();
-  return out;
-}
-
-/**
- * A copy of `g` with each upper arm brought in around its own bone to `k` of
- * its thickness: fully for the first 60% of the way to the elbow, and back to
- * nothing at it, so the forearm and the hand stay where the clips put them.
- * The free body's upper arm is 101 to 104 mm out from the bone through the
- * deltoid and the sleeves are cut for 60 to 69 (outfits.json fit.torso), so
- * the back of every shoulder showed through the top of the sleeve.
- */
-function shapeUpperArms(g: THREE.BufferGeometry, skeleton: THREE.Skeleton, k: number): THREE.BufferGeometry {
-  if (k === 1) return g;
-  const out = g.clone();
-  const p = out.attributes.position as THREE.BufferAttribute;
-  const si = out.attributes.skinIndex as THREE.BufferAttribute | undefined;
-  const sw = out.attributes.skinWeight as THREE.BufferAttribute | undefined;
-  if (!si || !sw) return g;
-  const names = skeleton.bones.map((b) => b.name);
-  const rest = (name: string): THREE.Vector3 | null => {
-    const i = names.indexOf(name);
-    return i < 0 ? null : new THREE.Vector3().setFromMatrixPosition(skeleton.boneInverses[i].clone().invert());
-  };
-  const v = new THREE.Vector3();
-  for (const side of ["l", "r"]) {
-    const ua = names.indexOf(`upperarm_${side}`);
-    const a = rest(`upperarm_${side}`);
-    const b = rest(`lowerarm_${side}`);
-    if (ua < 0 || !a || !b) continue;
-    const axis = b.clone().sub(a);
-    const len = axis.length();
-    axis.normalize();
-    for (let i = 0; i < p.count; i++) {
-      let w = 0;
-      if (si.getX(i) === ua) w += sw.getX(i);
-      if (si.getY(i) === ua) w += sw.getY(i);
-      if (si.getZ(i) === ua) w += sw.getZ(i);
-      if (si.getW(i) === ua) w += sw.getW(i);
-      if (w <= 0) continue;
-      v.set(p.getX(i), p.getY(i), p.getZ(i)).sub(a);
-      const along = v.dot(axis);
-      const s = 1 + (k - 1) * Math.min(1, w) * (1 - smooth(0.6, 1, along / len));
-      // the offset from the bone's own line is what is brought in; the
-      // position along the bone is kept, so the arm is no shorter
-      const px = a.x + axis.x * along + (v.x - axis.x * along) * s;
-      const py = a.y + axis.y * along + (v.y - axis.y * along) * s;
-      const pz = a.z + axis.z * along + (v.z - axis.z * along) * s;
-      p.setXYZ(i, px, py, pz);
-    }
-  }
-  p.needsUpdate = true;
-  out.computeVertexNormals();
-  out.computeBoundingSphere();
-  return out;
-}
-
-/** the bones whose skin is seen through any outfit: face, neck, forearms, hands */
-const SKIN_BONE = /^(head|neck_|lowerarm_|hand_|thumb_|index_|middle_|ring_|pinky_)/i;
-const UNDERSUIT = new THREE.Color(outfitCfg.fit.undersuit as string);
-
-/**
- * A copy of `g` with a vertex colour that keeps the skin where it is seen and
- * takes it to the undersuit's colour where the clothes always cover it.
- *
- * Shaping the body closes the big gaps; it cannot close every seam, because
- * each garment piece was cut against a body we do not have and each seam
- * against a different outline. A seam that shows a dark undersuit reads as
- * fabric or shadow; one that shows skin reads as a hole in the clothes.
- */
-function undersuit(g: THREE.BufferGeometry, bones: string[]): THREE.BufferGeometry {
-  const si = g.attributes.skinIndex as THREE.BufferAttribute | undefined;
-  const sw = g.attributes.skinWeight as THREE.BufferAttribute | undefined;
-  if (!si || !sw) return g;
-  const out = g.clone();
-  const skin = bones.map((b) => SKIN_BONE.test(b));
-  const n = out.attributes.position.count;
-  const col = new Float32Array(n * 3);
-  for (let i = 0; i < n; i++) {
-    const s = Math.min(1, (skin[si.getX(i)] ? sw.getX(i) : 0) + (skin[si.getY(i)] ? sw.getY(i) : 0) + (skin[si.getZ(i)] ? sw.getZ(i) : 0) + (skin[si.getW(i)] ? sw.getW(i) : 0));
-    // eased, so the change sits under a collar or a cuff rather than on show
-    const e = s * s * (3 - 2 * s);
-    col[i * 3] = UNDERSUIT.r + (1 - UNDERSUIT.r) * e;
-    col[i * 3 + 1] = UNDERSUIT.g + (1 - UNDERSUIT.g) * e;
-    col[i * 3 + 2] = UNDERSUIT.b + (1 - UNDERSUIT.b) * e;
-  }
-  out.setAttribute("color", new THREE.BufferAttribute(col, 3));
-  return out;
-}
-
-/** a body in a build, made once from the body as it was loaded */
-const shaped = new Map<string, THREE.Object3D>();
-function bodyFor(name: string, build: string): THREE.Object3D | null {
-  const key = `${name}|${build}`;
-  const had = shaped.get(key);
-  if (had) return had;
-  const raw = bodies.get(name);
-  const t = TORSO[name];
-  if (!raw) return null;
-  const out = cloneSkinned(raw);
-  if (t) {
-    const target = t.chest * buildWidth(build);
-    out.traverse((c) => {
-      const m = c as THREE.SkinnedMesh;
-      if (!m.isSkinnedMesh) return;
-      m.geometry = shapeTorso(m.geometry, t, target, m.skeleton.bones.map((x) => x.name));
-      m.geometry = shapeUpperArms(m.geometry, m.skeleton, t.upperArm ?? 1);
-      // the skin itself, not the eyes or the brows that share its skeleton
-      if ((m.material as THREE.Material).name.startsWith("MI_Superhero")) m.geometry = undersuit(m.geometry, m.skeleton.bones.map((x) => x.name));
-    });
-  }
-  shaped.set(key, out);
-  return out;
-}
-
-/** a garment mesh's geometry for a build on a body, made once */
-const garmentShapes = new Map<string, THREE.BufferGeometry>();
-function garmentFor(src: THREE.SkinnedMesh, key: string, body: string, build: string): THREE.BufferGeometry {
-  const t = TORSO[body];
-  const w = buildWidth(build);
-  if (!t || w === 1) return src.geometry;
-  const k = `${key}|${body}|${build}`;
-  let g = garmentShapes.get(k);
-  if (!g) {
-    g = shapeTorso(src.geometry, t, w, src.skeleton.bones.map((x) => x.name));
-    garmentShapes.set(k, g);
-  }
-  return g;
-}
-
-/** fetch a body, once */
-export function loadBody(name: string): Promise<unknown> {
-  const had = bodyLoads.get(name);
-  if (had) return had;
-  const job = new GLTFLoader()
-    .loadAsync(`models/body/${name}.gltf`)
-    .then((g) => {
-      bodies.set(name, g.scene);
-    })
-    .catch(() => null);
-  bodyLoads.set(name, job);
-  return job;
-}
-
-/**
- * An outfit's own recoloured atlas (tools/tint-outfits.ts), loaded once.
- *
- * Multiplying a colour into the material was the first try and it could only
- * darken, so every outfit stayed in the atlas's own brown-green family and
- * ARCTIC's white came out as a pale coat. The colour lives in the picture now:
- * the artist's folds and seams as luminance, the outfit's colour over them.
- */
-const tintMaps = new Map<string, THREE.Texture | null>();
-const tintLoads = new Map<string, Promise<unknown>>();
-
-/**
- * The pack a garment came out of, which decides which atlas reads its UVs.
- *
- * An outfit borrows from both sets now - a ranger's body over a peasant's
- * legs is a different outline from either, and outlines are what the wardrobe
- * is short of - and the two sets lay their UVs out differently. One atlas per
- * outfit put a peasant shirt in a ranger's seams.
- */
-function packOf(part: string): string | null {
-  return part.includes("Ranger") ? "Ranger" : part.includes("Peasant") ? "Peasant" : null;
-}
-
-function tintMap(outfit: string, part: string): THREE.Texture | null {
-  const pack = packOf(part);
-  return pack ? (tintMaps.get(`${outfit}_${pack}`) ?? null) : null;
-}
-
-/**
- * Fetch an outfit's own atlas, once, and only when it has one.
- *
- * Nine of the twenty outfits wear the pack's own colours and have no
- * recoloured atlas made for them. Asking for one anyway was a 404 each, which
- * the catch swallowed and the console did not: the e2e's "no page errors"
- * check is what noticed.
- */
-export function loadTint(outfit: string): Promise<unknown> {
-  const had = tintLoads.get(outfit);
-  if (had) return had;
-  const packs = [...new Set(partsOf(outfit).map(packOf))].filter((p): p is string => !!p);
-  if (tintOf(outfit) === null || !packs.length) {
-    const none = Promise.resolve(null);
-    tintLoads.set(outfit, none);
-    return none;
-  }
-  const job = Promise.all(
-    packs.map((pack) => {
-      const key = `${outfit}_${pack}`;
-      return new THREE.TextureLoader()
-        .loadAsync(`models/outfits/tints/${key}.webp`)
-        .then((t) => {
-          t.flipY = false;
-          t.colorSpace = THREE.SRGBColorSpace;
-          t.needsUpdate = true;
-          tintMaps.set(key, t);
-        })
-        .catch(() => {
-          tintMaps.set(key, null);
-        });
-    })
-  );
-  tintLoads.set(outfit, job);
-  return job;
-}
-
-/** the colour an outfit paints its garments, or null for the asset's own */
-export function tintOf(outfit: string): number | null {
-  const t = (outfitCfg.sets as Record<string, { tint?: string }>)[outfit]?.tint;
-  return typeof t === "string" ? parseInt(t.replace("#", ""), 16) : null;
-}
-
-/** what an outfit is made of, or nothing when it is built in code */
-export function partsOf(outfit: string): string[] {
-  return (((outfitCfg.sets as Record<string, { parts?: string[] }>)[outfit]?.parts ?? []) as string[]).slice();
-}
-
-/**
- * The hair an outfit wears. It is fetched and worn exactly like a garment,
- * because it is one: the pack rigs each style to the same 65 joints, so a
- * hairstyle binds to the figure's own skeleton and turns with the head.
- *
- * What it is NOT is tinted. A garment gets the outfit's colour; hair keeps
- * the colour the pack gave it, or every figure in an olive outfit would have
- * olive hair.
- */
-export function hairOf(outfit: string, picked?: string): string[] {
-  const named = ((outfitCfg.sets as Record<string, { hair?: string[] }>)[outfit]?.hair ?? []) as string[];
-  // an outfit's hair was chosen for the male body; a body can swap it
-  const swap = (outfitCfg.bodies as Record<string, { hair?: Record<string, string | null> }>)[bodyOf(outfit, picked)]?.hair;
-  if (!swap) return named.slice();
-  const out: string[] = [];
-  for (const h of named) {
-    const to = h in swap ? swap[h] : h;
-    if (to && !out.includes(to)) out.push(to);
-  }
-  return out;
-}
-
-/**
- * The colour hair is painted. The pack ships its hair as a greyscale mask,
- * mean 143 of 255 measured off the webp, and leaves the colouring to the
- * engine; without this every figure is white haired.
- */
-export function hairTintOf(outfit: string): number {
-  const t = (outfitCfg.sets as Record<string, { hairColor?: string }>)[outfit]?.hairColor;
-  return typeof t === "string" ? parseInt(t.replace("#", ""), 16) : 0x3a2c20;
-}
-
-/** hair lives beside the bodies it belongs to, a garment in its own folder */
-function partUrl(name: string): string {
-  return name.startsWith("Hair_") ? `models/body/hair/${name}.gltf` : `models/outfits/parts/${name}.gltf`;
-}
-
-/** fetch an outfit's parts, once each; resolves when they are all in or given up on */
-export function loadOutfit(outfit: string): Promise<unknown> {
-  const loader = new GLTFLoader();
-  return Promise.all(
-    // the hair for every body, since which one wears the outfit is a pick
-    [...new Set([...partsOf(outfit), ...Object.keys(outfitCfg.bodies).flatMap((b) => hairOf(outfit, b))])].map((n) => {
-      const had = partLoads.get(n);
-      if (had) return had;
-      const job = loader
-        .loadAsync(partUrl(n))
-        .then((g) => {
-          const found = skinnedIn(g.scene);
-          // Only the layer against the skin is pushed out. The shell exists so
-          // cloth and skin stop fighting over the same pixels, and a piece
-          // that was never against the skin does not need it: a pauldron sits
-          // on the coat and lifted clear of the shoulder when it got one, a
-          // hood sits on the head, and hair sits on the scalp. Measured off
-          // the parts: the pauldron spans y 1437..1575 mm against the sleeve's
-          // 1380..1530, so it is already 45 mm proud before anything moves it.
-          if (/_(Body|Arms|Legs|Feet)(_|$)/.test(n)) for (const m of found) m.geometry = inflate(m.geometry);
-          if (found.length) parts.set(n, found);
-        })
-        .catch(() => null);
-      partLoads.set(n, job);
-      return job;
-    })
-  );
-}
-
 
 /** the bones below the waist: the locomotion layer's */
 const LOWER = /^(root|pelvis|thigh_|calf_|foot_|ball_)/;
@@ -568,46 +123,14 @@ function addClips(clips: Map<string, THREE.AnimationClip>, list: THREE.Animation
   }
 }
 
-// ------------------------------------------------------------ the fit test
-
-/**
- * The fit test's paint (tools/snap.ts `magentaMax`, docs/TEST_AUDIT.md). The
- * body where clothes always cover it (the undersuit, undersuit()) is drawn
- * flat, unlit magenta, and the rest of it (face, neck, forearms, hands) not at
- * all, so every magenta pixel in a picture is body showing through clothes,
- * counted rather than looked for. It is how the bare backs and the shoulders
- * through the sleeves were found by eye, made into something a check can fail.
- */
-let fitDebug = false;
-const bodyMeshes = new Set<THREE.SkinnedMesh>();
-let fitMat: THREE.MeshBasicMaterial | null = null;
-function fitMaterial(): THREE.MeshBasicMaterial {
-  if (!fitMat) {
-    fitMat = new THREE.MeshBasicMaterial({ vertexColors: true, fog: false });
-    fitMat.toneMapped = false;
-    fitMat.onBeforeCompile = (shader) => {
-      shader.fragmentShader = shader.fragmentShader.replace(
-        "#include <color_fragment>",
-        ["#include <color_fragment>", "  if (vColor.r > 0.5) discard;", "  diffuseColor = vec4(1.0, 0.0, 1.0, 1.0);"].join(String.fromCharCode(10))
-      );
-    };
-  }
-  return fitMat;
-}
-/** paint every figure's clothed body magenta (on) or put their own material back (off) */
-export function setFitDebug(on: boolean): void {
-  fitDebug = on;
-  for (const m of bodyMeshes) m.material = on ? fitMaterial() : (m.userData.ownMaterial as THREE.Material);
-}
-
 /** a clip is in (the extras arrive after the figures do) */
 export function hasClip(name: string): boolean {
-  return !!template?.clips.has(`full:${name}`);
+  return !!libraryClips?.has(`full:${name}`);
 }
 
 /** a clip's length, s, or 0 when it is not in */
 function clipSeconds(name: string): number {
-  return template?.clips.get(`full:${name}`)?.duration ?? 0;
+  return libraryClips?.get(`full:${name}`)?.duration ?? 0;
 }
 
 /** horizontal speed, m/s, above which a jump is the athletic one (figure.json) */
@@ -636,18 +159,9 @@ const MELEE_SWINGS = ["Punch_Jab", "Punch_Cross", "Melee_Hook"];
 export function loadMannequin(): Promise<void> {
   if (loading) return loading;
   const loader = new GLTFLoader();
-  // The body is a different file from the clips.
-  //
-  // mannequin.glb is Quaternius's Universal Animation Library: a grey
-  // untextured mannequin and the motion. The body is their Universal Base
-  // Characters, built on the SAME universal humanoid rig - the Unreal
-  // mannequin's own bone names, pelvis / spine_01..03 / clavicle_l /
-  // upperarm_l / calf_l / ball_l - so the clips drive it without retargeting,
-  // and the clothes hang on the bones they already hang on. It has real
-  // topology, a face, and base colour, normal and roughness maps, which is
-  // what the grey mannequin never had.
-  // SpeedKills' soldier asked for with the clips, not after them: it is the figure, and it waited on the clips' files it does not need
-  const soldier = IS_SK ? loadSoldier().catch(() => null) : null;
+  // mannequin.glb is Quaternius's Universal Animation Library: its rig and its motion, which the soldier plays carried
+  // over to its own rig (makeSoldierTemplate). The soldier is asked for with the clips, not after them: it is the figure.
+  const soldier = loadSoldier().catch(() => null);
   loading = Promise.all([loader.loadAsync("models/mannequin/mannequin.glb"), loader.loadAsync("models/mannequin/mannequin-more.glb")])
     .then(([main, more]) => {
       const clips = new Map<string, THREE.AnimationClip>();
@@ -666,62 +180,15 @@ export function loadMannequin(): Promise<void> {
             if (soldierTemplate && soldierMap) addClips(soldierTemplate.clips, g.animations.map((c) => retargetClip(soldierMap!, c)));
           })
           .catch(() => null);
-      // the right hand in the aim pose: sample the clip onto a copy once
-      const probe = cloneSkinned(main.scene);
-      const mixer = new THREE.AnimationMixer(probe);
-      mixer.clipAction(clips.get("full:Pistol_Aim_Neutral")!).play();
-      mixer.update(0);
-      probe.updateMatrixWorld(true);
-      const hand = probe.getObjectByName("hand_r")!;
-      const chest = probe.getObjectByName("spine_03")!;
-      const shoulder = probe.getObjectByName("upperarm_r")!;
-      // The real body is an UPGRADE, not a gate.
-      //
-      // It was in the promise above, and that delayed the moment a figure
-      // could stop being a robot by however long 3 MB of body and textures
-      // takes. The e2e saw that as a bot with no spine_03 on it: it was still
-      // a robot when the check ran. The grey mannequin is a file we load
-      // anyway and has the same skeleton, so figures start there, and every
-      // figure built after the body arrives is the real one.
-      // (Through loadBody, the one fetch a body gets: loaded here on its own, a figure asking for the same body before it
-      // came fetched its file and its seven textures a second time, and held two copies of them; a hunt, 2026-09-30.)
-      // (SpeedKills: only if its soldier is not here; the legacy body is not what a SpeedKills figure wears)
-      const upgradeBody = (): void => {
-      void loadBody(DEFAULT_BODY)
-        .then(() => {
-          const body = bodies.get(DEFAULT_BODY);
-          if (!template || !body) return;
-          template.scene = bodyFor(DEFAULT_BODY, "regular") ?? body;
-          // the hand's aim pose is sampled off whatever the body is
-          const p2 = cloneSkinned(body);
-          const m2 = new THREE.AnimationMixer(p2);
-          m2.clipAction(clips.get("full:Pistol_Aim_Neutral")!).play();
-          m2.update(0);
-          p2.updateMatrixWorld(true);
-          template.handAim = p2.getObjectByName("hand_r")!.matrixWorld.clone();
-          template.chestAim = p2.getObjectByName("spine_03")!.matrixWorld.clone();
-          template.shoulderR = new THREE.Vector3().setFromMatrixPosition(p2.getObjectByName("upperarm_r")!.matrixWorld);
-        })
-        .catch(() => null);
-      };
-      if (!IS_SK) upgradeBody();
-
-      template = { scene: main.scene, clips, handAim: hand.matrixWorld.clone(), chestAim: chest.matrixWorld.clone(), shoulderR: new THREE.Vector3().setFromMatrixPosition(shoulder.matrixWorld) };
-      // SpeedKills: the bought soldier, when its files are here (they are local only; see soldier.json)
-      if (soldier)
-        void soldier
-          .then((a) => {
-            if (a) return makeSoldierTemplate(main.scene, a.scene);
-            // no soldier here (a checkout without the bought files): the legacy body after all
-            upgradeBody();
-            return null;
-          })
-          .catch(() => upgradeBody())
-          .finally(() => {
-            soldierPending = false;
-            figuresDone = true;
-          });
-      else figuresDone = true;
+      libraryClips = clips;
+      // the bought soldier, when its files are here (they are local only; see soldier.json): without them the figures stay
+      // robots
+      void soldier
+        .then((a) => (a ? makeSoldierTemplate(main.scene, a.scene) : null))
+        .catch(() => null)
+        .finally(() => {
+          figuresDone = true;
+        });
     })
     .catch((e) => {
       console.warn("the mannequin did not load; the figures stay robots", e);
@@ -1251,7 +718,6 @@ export class MannequinFigure {
   scoped = 0;
   private gunShown = true;
   private mats: THREE.MeshStandardMaterial[] = [];
-  private joints: THREE.MeshStandardMaterial | null = null;
   /** knocked out: the death clip, once, then lying still */
   private dead = false;
   /** where the left hand holds the gun, gun-local (its handguard), and how far the reach is blended in */
@@ -1316,18 +782,14 @@ export class MannequinFigure {
 
   /** the template this figure was made from, and plays the clips of, for its whole life */
   private tpl: Template;
-  /** SpeedKills' soldier: this figure's look, or null for the figures of before */
-  readonly soldier: SoldierLook | null;
+  /** this figure's look: the soldier's kit, colours, skin and eyes */
+  readonly soldier: SoldierLook;
 
+  /** made only once the soldier is ready (useMannequin) */
   constructor(skin: OperatorSkin, gunId: string | null) {
-    this.soldier = soldierTemplate ? soldierLookFor(skin) : null;
-    const t = (this.tpl = this.soldier ? soldierTemplate! : template!);
-    // the body this outfit's clothes were cut for, if it is here; the one the
-    // template holds otherwise, and the next figure gets it right
-    const want = bodyOf(skin.outfit, skin.body);
-    const body = this.soldier ? soldierScene(this.soldier) : bodyFor(want, skin.build ?? "regular");
-    if (!body && !this.soldier) void loadBody(want);
-    this.root = cloneSkinned(body ?? t.scene);
+    this.soldier = soldierLookFor(skin);
+    const t = (this.tpl = soldierTemplate!);
+    this.root = cloneSkinned(soldierScene(this.soldier) ?? t.scene);
     this.root.name = "mannequin";
     const skinned: THREE.SkinnedMesh[] = [];
     this.mixer = new THREE.AnimationMixer(this.root);
@@ -1338,230 +800,42 @@ export class MannequinFigure {
         m.castShadow = true;
         if (slow("cull")) m.frustumCulled = false;
         else skinned.push(m);
-        // its own materials, so a hit can flash this figure and not every one.
-        // The grey mannequin is untextured and takes the operator's colours:
-        // the body the shell's, the joints the accent's. A real body is NOT
-        // painted. Its colour is a multiply over the skin texture, so an
-        // operator with a near-black shell got a black, glossy face that
-        // followed the contour of the head, one figure in every lineup.
+        // its own materials, so a hit can flash this figure and not every one: the soldier's, rebuilt with this figure's
+        // colours (soldier.ts)
         const src = m.material as THREE.MeshStandardMaterial;
-        // the soldier's are its own, rebuilt with this figure's colours (soldier.ts); none of the rules below apply
         const slot = m.userData.soldierMaterial as string | undefined;
-        const mat = this.soldier && slot ? soldierMaterial(slot, this.soldier) : src.clone();
-        if (this.soldier && slot) {
-          // (nothing: the soldier's material is complete as it is)
-        } else if (!src.map) {
-          if (src.name === "M_Joints") {
-            mat.color.setHex(skin.accent);
-            this.joints = mat;
-          } else mat.color.setHex(skin.shell);
-          mat.roughness = 0.55;
-        } else if (src.name.startsWith("MI_Hair")) {
-          // the eyebrows are on the body and read the same grey hair mask,
-          // so they take the same colour as the hair or they are white
-          mat.color.setHex(hairTintOf(skin.outfit));
-        } else if (src.name.startsWith("MI_Superhero") && m.geometry.attributes.color) {
-          // the undersuit is a vertex colour over the skin (undersuit())
-          mat.vertexColors = true;
-          bodyMeshes.add(m);
-          if (fitDebug) m.material = fitMaterial();
-        }
+        const mat = slot ? soldierMaterial(slot, this.soldier) : src.clone();
         this.mats.push(mat);
-        if (!(fitDebug && bodyMeshes.has(m))) m.material = mat;
+        m.material = mat;
         m.userData.ownMaterial = mat;
       }
     });
     // The soldier's eyes are a mesh of their own, a draw call a figure (apex-lobby counted 28 bots' in a Neon street
     // frame): never in the shadow pass, where an eye's shadow is nothing, and hidden past lod.json figures.eyes (showEyes),
     // where an eye is under a pixel
-    if (this.soldier) {
-      this.root.traverse((o) => {
-        const m = o as THREE.SkinnedMesh;
-        if (m.isSkinnedMesh && /eye/i.test(String(m.userData.soldierMaterial ?? ""))) {
-          m.castShadow = false;
-          m.userData.shadowOff = true;
-          this.eyes.push(m);
-        }
-      });
-    }
-    // the soldier wears its own pieces, nothing of the figures' wardrobe; its fingers are drawn smaller than its model's
+    this.root.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (m.isSkinnedMesh && /eye/i.test(String(m.userData.soldierMaterial ?? ""))) {
+        m.castShadow = false;
+        m.userData.shadowOff = true;
+        this.eyes.push(m);
+      }
+    });
+    // its fingers are drawn smaller than its model's
     if (skinned.length) {
       this.height = figureHeight(this.root, skinned);
       cullAsFigure(this.root, skinned, this.height);
     }
-    if (!this.soldier) this.wearGear(skin);
-    else sizeFingers(this.bones);
+    sizeFingers(this.bones);
     if (!slow("skeleton")) shareSkeletons(this.root);
     if (gunId) this.setGun(gunId);
   }
-
-  /** what it is wearing, so a check and a snapshot can name the pieces */
-  readonly gear: GearPiece[] = [];
-
-  /**
-   * Put the operator's kit on: each piece onto the bone it hangs from, so it
-   * moves with the body without being weighted to it. A helmet on the head
-   * bone turns when the head turns; a vest on the upper spine leans when the
-   * spine leans; and nothing has to deform, because none of it would.
-   */
-  /**
-   * Put real garment meshes on: each one is skinned to the same rig, so it is
-   * rebound to THIS figure's bones and then moves with it exactly as the body
-   * does - no bone to hang it from, no piece that fails to bend at a knee.
-   * The body underneath is hidden where a garment covers it, because two
-   * surfaces in the same place fight each other in the depth buffer.
-   */
-  private wearParts(names: string[], tint: number | null = null, outfit = "", build = "regular", picked?: string): void {
-    const body = bodyOf(outfit, picked);
-    for (const n of names) {
-      const srcs = parts.get(n);
-      // already on, or not here yet
-      if (!srcs || this.worn.some((w) => w.name.startsWith(`wear:${n}`))) continue;
-      const hair = n.startsWith("Hair_");
-      for (let k = 0; k < srcs.length; k++) {
-        const src = srcs[k];
-        const bones = src.skeleton.bones.map((b) => this.bones[b.name]);
-        if (bones.some((b) => !b)) continue;
-        const mat = (src.material as THREE.MeshStandardMaterial).clone();
-        // its own atlas if one is made for it; the multiply is the fallback.
-        // Hair is exempt: it is worn like a garment but it is not one, and an
-        // outfit's colour on it would give every figure in olive olive hair.
-        const map = outfit && !hair ? tintMap(outfit, n) : null;
-        if (map) mat.map = map;
-        else if (tint !== null && !hair) mat.color.setHex(tint);
-        if (hair && outfit) mat.color.setHex(hairTintOf(outfit));
-        // hair sits on the head, which no build changes
-        const geo = hair ? src.geometry : garmentFor(src, `${n}#${k}`, body, build);
-        const mesh = new THREE.SkinnedMesh(geo, mat);
-        mesh.bind(new THREE.Skeleton(bones as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
-        mesh.castShadow = true;
-        if (slow("cull")) mesh.frustumCulled = false;
-        else cullAsFigure(this.root, [mesh], this.height);
-        mesh.name = k === 0 ? `wear:${n}` : `wear:${n}#${k}`;
-        this.root.add(mesh);
-        this.worn.push(mesh);
-      }
-    }
-    // (a garment cut for the same rest pose shares the body's skeleton too)
-    if (!slow("skeleton")) shareSkeletons(this.root);
-  }
-
-  /** the outfit's atlas arrived after the clothes went on: put it on them */
-  private redressParts(outfit: string): void {
-    for (const w of this.worn) {
-      if (w.name.startsWith("wear:Hair_")) continue;
-      // the mesh carries the part it came from, which is what says whose
-      // atlas reads its UVs
-      const part = w.name.replace(/^wear:/, "").replace(/#\d+$/, "");
-      const map = tintMap(outfit, part);
-      if (!map) continue;
-      const m = w.material as THREE.MeshStandardMaterial;
-      m.map = map;
-      m.color.setHex(0xffffff);
-      m.needsUpdate = true;
-    }
-  }
-
-  /** the garment meshes this figure is wearing */
-  private worn: THREE.SkinnedMesh[] = [];
-
-  private wearGear(skin: OperatorSkin): void {
-    this.root.updateMatrixWorld(true);
-    const rootQ = this.root.getWorldQuaternion(new THREE.Quaternion());
-    // the clothes first, then the kit on top of them (src/game/outfit.ts).
-    // A sleeve hangs on the arm bone and turns with it, so it is added raw;
-    // what goes on a face is authored the way a person would describe it and
-    // gets the same rest-frame holder the kit does.
-    // real garment parts, if this outfit is made of them
-    // Real garment meshes, if this outfit is made of them. They are fetched
-    // on demand, so a figure built before they land wears what is there and
-    // puts the rest on when it arrives - which is one frame later on this
-    // machine and a second on a bad connection, either way better than every
-    // page in the game waiting for clothes nobody asked for.
-    // the hair goes on with the clothes: same skeleton, same fetch, same wear
-    const want = [...partsOf(skin.outfit), ...hairOf(skin.outfit, skin.body)];
-    if (want.length) {
-      const tint = tintOf(skin.outfit);
-      this.wearParts(want, tint, skin.outfit, skin.build ?? "regular", skin.body);
-      // The parts and the outfit's own atlas both arrive late on a cold page,
-      // and BOTH are asked for here. The first try only started the atlas
-      // inside the dressing loop, which a cold page never reaches because the
-      // parts are not in yet: every figure wore the multiply instead and the
-      // recoloured atlases were never seen.
-      const outfit = skin.outfit;
-      const build = skin.build ?? "regular";
-      const picked = skin.body;
-      void Promise.all([loadOutfit(outfit), loadTint(outfit)]).then(() => {
-        this.wearParts(want, tint, outfit, build, picked);
-        this.redressParts(outfit);
-      });
-    }
-    const mats = outfitMaterials(skin.outfit, skin.visor, skin.eye);
-    // a real outfit brings its own clothes; only what goes on the face is ours
-    const all = buildOutfit(skin.outfit, mats, skin.face ?? [], skin.build ?? "regular");
-    // a figure in real cloth wears only what the player put on its face
-    const built = partsOf(skin.outfit).length ? all.filter((w) => w.bone === "Head") : all;
-    for (const worn of built) {
-      const bone = this.bones[worn.bone];
-      if (!bone) continue;
-      if (!worn.aligned) {
-        bone.add(worn.group);
-        continue;
-      }
-      const holder = new THREE.Group();
-      holder.name = `wearMount:${worn.id}`;
-      holder.quaternion.copy(bone.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(rootQ));
-      holder.add(worn.group);
-      bone.add(holder);
-    }
-    // The kit is OURS, built in code out of boxes, and on a figure wearing
-    // real cloth it is exactly what the owner spotted: our shapes stacked on
-    // top of somebody's asset. The pack already brings a hood and a shoulder
-    // guard of its own, and a plate carrier of boxes over a ranger's coat
-    // reads as what it is. So a real-cloth outfit wears no kit at all; what
-    // stays is the face, because nothing in the pack covers a pair of eyes and
-    // the rule is that everybody's are covered.
-    for (const piece of !OUR_GEOMETRY() || partsOf(skin.outfit).length ? [] : buildGear(skin)) {
-      const bone = this.bones[piece.bone];
-      if (!bone) continue;
-      // Each piece is authored the way a person would describe it: so far up
-      // the head, so far in front of the chest. A bone is not authored that
-      // way (this rig's head bone leans, its arm bones point down their own
-      // length), so the piece goes on a holder that undoes the bone's rest
-      // turn. The holder still turns WITH the bone from there, which is what
-      // a helmet and a vest do.
-      const holder = new THREE.Group();
-      holder.name = `gearMount:${piece.id}`;
-      holder.add(piece.group);
-      bone.add(holder);
-      this.gear.push(piece);
-    }
-    this.fitGear(rootQ);
-  }
-
-  /**
-   * Point every holder the way the figure points in its rest pose, so a piece
-   * can be authored the way a person would describe it: so far up the head, so
-   * far in front of the chest. From there each holder turns with its bone, so
-   * a helmet leans when the head leans into the sights and a vest turns with
-   * the chest, which is what a helmet and a vest do.
-   */
-  private fitGear(rootQ?: THREE.Quaternion): void {
-    this.root.updateMatrixWorld(true);
-    const rq = rootQ ?? this.root.getWorldQuaternion(new THREE.Quaternion());
-    for (const piece of this.gear) {
-      const holder = piece.group.parent;
-      if (!holder?.parent) continue;
-      holder.quaternion.copy(holder.parent.getWorldQuaternion(new THREE.Quaternion()).invert().multiply(rq));
-    }
-  }
-
 
   /** a gun into the right hand, held as the aim pose holds it: pointing the way the figure faces */
   setGun(id: string): void {
     const hand = this.bones.hand_r;
     const chest = this.bones.spine_03;
-    if (!hand || !template) return;
+    if (!hand) return;
     this.gun?.removeFromParent();
     this.mount?.removeFromParent();
     this.mount = null;
@@ -1579,8 +853,8 @@ export class MannequinFigure {
     this.flash = fitMuzzle(gun, ammoTypeOf(id) === "energy", m.muzzle);
     // a magnified optic glints when its holder aims (Hyper Scape's lens flare), at its front lens: the frontmost point
     // of the gun within 3 cm of its sight line, measured off the model (at the eyepiece the gun and head hid it)
-    // (SpeedKills: every gun wears its profile's one optic; the legacy game's figures carry none they show)
-    const optic = IS_SK ? ((PROFILE.weapons as Record<string, { optic?: string }>)[id]?.optic ?? null) : null;
+    // (every gun wears its profile's one optic)
+    const optic = (PROFILE.weapons as Record<string, { optic?: string }>)[id]?.optic ?? null;
     this.glint = optic && opticInfo(optic)?.overlay ? fitGlint(gun, lensFront(gun, m.sightY)) : null;
     gun.traverse((o) => {
       if ((o as THREE.Mesh).isMesh) (o as THREE.Mesh).castShadow = true;
@@ -1998,16 +1272,9 @@ export class MannequinFigure {
     this.captureClipPose();
   }
 
-  /** the joints glow in the armour's colour (the robot's vest does it on the robot) */
-  setArmorColour(hex: number | null): void {
-    if (!this.joints) return;
-    this.joints.emissive.setHex(hex ?? 0x000000);
-    this.joints.emissiveIntensity = hex === null ? 0 : 0.35;
-  }
-
   /** the hit flash: the body lights up for a moment */
   setFlash(amount: number, head: boolean): void {
-    for (const m of this.mats) if (m !== this.joints) m.emissive.setRGB(amount * 0.9 + (head ? amount * 0.6 : 0), amount * 0.9 + (head ? amount * 0.3 : 0), amount * 0.9);
+    for (const m of this.mats) m.emissive.setRGB(amount * 0.9 + (head ? amount * 0.6 : 0), amount * 0.9 + (head ? amount * 0.3 : 0), amount * 0.9);
   }
 
   private play(layer: "lower" | "upper", name: string, timeScale: number, fade = 0.18, once = false, source: "lower" | "upper" | "full" = layer): void {
@@ -2449,7 +1716,6 @@ export class MannequinFigure {
   }
 
   dispose(): void {
-    this.root.traverse((o) => bodyMeshes.delete(o as THREE.SkinnedMesh));
     this.mixer.stopAllAction();
     this.mixer.uncacheRoot(this.root);
     this.root.removeFromParent();
@@ -2473,9 +1739,8 @@ export class MannequinFigure {
  * right at the elbow, the cut showed.
  */
 const ARM_PART = /^(lowerarm|hand|thumb|index|middle|ring|pinky)_/;
-/** how much of the upper arm a first-person arm keeps, from the elbow, as a share of its length (viewmodel.json realArms) */
-/** how much of the upper arm a first-person arm keeps: all of it for SpeedKills' soldier (speedkills.json viewmodel upperArm) */
-export const FP_UPPER: number = (IS_SK ? (PROFILE.viewmodel as { upperArm?: number } | undefined)?.upperArm : undefined) ?? vmCfg.realArms.upper;
+/** how much of the upper arm a first-person arm keeps: all of it for the soldier (speedkills.json viewmodel upperArm) */
+export const FP_UPPER: number = (PROFILE.viewmodel as { upperArm?: number } | undefined)?.upperArm ?? vmCfg.realArms.upper;
 
 /**
  * A copy of `g` keeping only the triangles an arm owns: every corner
@@ -2646,90 +1911,9 @@ function fingersFrom(rig: THREE.Object3D, clip: THREE.AnimationClip | undefined,
   return out;
 }
 
-/**
- * The player's own arms, for the first-person view: the published body cut
- * down to its arms and hands, in the body and build the loadout picked, with
- * the outfit's own sleeves on them in the outfit's own colour. Null until the
- * body and the clips are in, and the viewmodel keeps its drawn arms till then.
- */
+/** the player's own arms for the first-person view: the soldier's, or null until it is ready (the drawn arms till then) */
 export function buildArmRig(skin: OperatorSkin): ArmRig | null {
-  if (soldierTemplate) return soldierArmRig(skin);
-  // (SpeedKills: no legacy body's arms, nor its outfit's sleeves fetched, while the soldier is on its way)
-  if (!template || soldierPending) return null;
-  const name = bodyOf(skin.outfit, skin.body);
-  const build = skin.build ?? "regular";
-  const body = bodyFor(name, build);
-  if (!body) {
-    void loadBody(name);
-    return null;
-  }
-  const root = cloneSkinned(body);
-  const bones: Record<string, THREE.Bone> = {};
-  root.traverse((o) => {
-    if ((o as THREE.Bone).isBone) bones[o.name] = o as THREE.Bone;
-  });
-  const keepers: THREE.SkinnedMesh[] = [];
-  root.traverse((o) => {
-    const m = o as THREE.SkinnedMesh;
-    if (!m.isSkinnedMesh) return;
-    const mat = (m.material as THREE.MeshStandardMaterial).clone();
-    if (!mat.name.startsWith("MI_Superhero")) {
-      // the brows and the eyes: no part of an arm
-      m.visible = false;
-      return;
-    }
-    const key = `${name}|${build}|${m.name}`;
-    let g = armBodies.get(key);
-    if (!g) {
-      g = armOnly(m.geometry, m.skeleton);
-      armBodies.set(key, g);
-    }
-    m.geometry = g;
-    if (g.attributes.color) mat.vertexColors = true;
-    m.material = mat;
-    m.frustumCulled = false;
-    m.castShadow = false;
-    keepers.push(m);
-  });
-  // the outfit's own sleeves, fetched with the outfit and painted by it
-  const sleeves = partsOf(skin.outfit).filter((n) => /_Arms$/.test(n));
-  void loadOutfit(skin.outfit);
-  void loadTint(skin.outfit);
-  for (const n of sleeves) {
-    const srcs = parts.get(n);
-    if (!srcs) continue;
-    for (let k = 0; k < srcs.length; k++) {
-      const src = srcs[k];
-      const bs = src.skeleton.bones.map((b) => bones[b.name]);
-      if (bs.some((b) => !b)) continue;
-      const mat = (src.material as THREE.MeshStandardMaterial).clone();
-      const map = tintMap(skin.outfit, n);
-      if (map) mat.map = map;
-      else {
-        const tint = tintOf(skin.outfit);
-        if (tint !== null) mat.color.setHex(tint);
-      }
-      const gk = `${name}|${build}|${n}#${k}`;
-      let g = armBodies.get(gk);
-      if (!g) {
-        g = armOnly(garmentFor(src, `${n}#${k}`, name, build), src.skeleton);
-        armBodies.set(gk, g);
-      }
-      const mesh = new THREE.SkinnedMesh(g, mat);
-      mesh.bind(new THREE.Skeleton(bs as THREE.Bone[], src.skeleton.boneInverses), src.bindMatrix);
-      mesh.frustumCulled = false;
-      mesh.castShadow = false;
-      mesh.name = `sleeve:${n}`;
-      root.add(mesh);
-    }
-  }
-  const t = template;
-  // The fingers are the clips' own. The two-handed pistol aim closes the
-  // hands round a grip; a jab, a third of the way in, is a closed fist.
-  const grip = fingersFrom(cloneSkinned(body), t.clips.get("full:Pistol_Aim_Neutral"), 0);
-  const fist = fingersFrom(cloneSkinned(body), t.clips.get("full:Punch_Jab"), 0.3);
-  const ready = sleeves.every((n) => parts.has(n)) && (tintOf(skin.outfit) === null || sleeves.every((n) => tintMap(skin.outfit, n)));
-  return { root, bones, grip, fist, ...restFingers(cloneSkinned(body), fist), key: `${name}|${build}|${skin.outfit}|${ready ? "dressed" : "bare"}` };
+  return soldierTemplate ? soldierArmRig(skin) : null;
 }
 
 /**
@@ -2801,9 +1985,5 @@ function lensFront(gun: THREE.Object3D, sightY: number): THREE.Vector3 {
 
 /** what a rig built now for this look would be keyed, so the viewmodel knows when to rebuild */
 export function armRigKey(skin: OperatorSkin): string {
-  if (soldierTemplate) return `soldier|${soldierCode(soldierLookFor(skin))}`;
-  const name = bodyOf(skin.outfit, skin.body);
-  const sleeves = partsOf(skin.outfit).filter((n) => /_Arms$/.test(n));
-  const ready = sleeves.every((n) => parts.has(n)) && (tintOf(skin.outfit) === null || sleeves.every((n) => tintMap(skin.outfit, n)));
-  return `${name}|${skin.build ?? "regular"}|${skin.outfit}|${ready ? "dressed" : "bare"}`;
+  return soldierTemplate ? `soldier|${soldierCode(soldierLookFor(skin))}` : "none";
 }

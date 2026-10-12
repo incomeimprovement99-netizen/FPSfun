@@ -5,7 +5,6 @@
 // scheme with its own add-ons, not any game's character.
 import * as THREE from "three";
 import { readLook } from "./outfit";
-import type { BuildId, FacePiece, OutfitId } from "./outfit";
 
 export interface OperatorSkin {
   id: string;
@@ -29,14 +28,7 @@ export interface OperatorSkin {
    * wears a different set: at 80 m the helmet, the hood and the gas mask are
    * what tells you which of them is coming.
    */
-  /** the clothes under the kit (src/game/outfit.ts): which set, and what it has on its face */
-  outfit: OutfitId;
-  /** how heavy-set it looks: the clothes, never the body or its hit boxes */
-  build?: BuildId;
-  face?: FacePiece[];
-  /** which of the two bodies, when a player picked one; the outfit's own otherwise */
-  body?: string;
-  /** SpeedKills: the soldier's look (soldier.ts soldierCode), when one was chosen; a figure without one takes its operator's */
+  /** the soldier's look (soldier.ts soldierCode), when one was chosen; a figure without one takes its operator's */
   soldier?: string;
   extras: {
     crest?: boolean;
@@ -67,11 +59,8 @@ export interface OperatorSkin {
 export const OPERATORS: OperatorSkin[] = [
   {
     id: "vanguard",
-    build: "regular",
-    outfit: "fatigues",
     name: "Vanguard",
     blurb: "Range grey with safety orange. The original.",
-    face: ["goggles"],
     shell: 0x9aa2aa, head: 0xa9b0b7, accent: 0xd4712a, joint: 0x24282d, visor: 0x0d1013, eye: 0x39d7ee,
     glove: 0x45403a, pad: 0x625a50, sleeve: 0x3a3e43, cuff: 0xc9772f,
     // the goggles are the outfit's, so the kit's flat shades bar would double up
@@ -79,9 +68,6 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "nightshade",
-    build: "lean",
-    outfit: "urban",
-    face: ["fullMask"],
     name: "Nightshade",
     blurb: "Matte black, violet trim, a blade crest.",
     shell: 0x2c2f36, head: 0x353841, accent: 0x9b4dff, joint: 0x15171a, visor: 0x1a0f24, eye: 0xff3bd4,
@@ -90,9 +76,6 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "sandstorm",
-    build: "regular",
-    outfit: "desert",
-    face: ["wrap", "goggles"],
     name: "Sandstorm",
     blurb: "Desert tan, olive webbing, brimmed hood and face guard.",
     shell: 0xb59a72, head: 0xc2a67c, accent: 0x5d6b3a, joint: 0x3a3226, visor: 0x1c140c, eye: 0xffb23c,
@@ -101,9 +84,6 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "frost",
-    build: "heavy",
-    outfit: "arctic",
-    face: ["goggles"],
     name: "Frost",
     blurb: "Arctic white with cobalt, heavy shoulder armour.",
     shell: 0xdfe7ee, head: 0xeef3f7, accent: 0x3b8bff, joint: 0x5c6b78, visor: 0x0c1a2a, eye: 0x7fe8ff,
@@ -112,9 +92,6 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "inferno",
-    build: "heavy",
-    outfit: "irregular",
-    face: ["wrap", "goggles"],
     name: "Inferno",
     blurb: "Scorched red and black, an antenna and shoulder plates.",
     shell: 0x3a1f1c, head: 0x4a2622, accent: 0xff3b1f, joint: 0x1a1210, visor: 0x2a0a06, eye: 0xffd23c,
@@ -123,8 +100,6 @@ export const OPERATORS: OperatorSkin[] = [
   },
   {
     id: "scrambler",
-    build: "lean",
-    outfit: "motocross",
     name: "Scrambler",
     blurb: "Dirt bike blue and orange, a peaked helmet and a dark visor.",
     shell: 0x24425f, head: 0x2d5078, accent: 0xff7a18, joint: 0x141b22, visor: 0x0a0f14, eye: 0xffa03c,
@@ -138,16 +113,13 @@ export function operatorById(id: string | undefined): OperatorSkin {
 }
 
 /**
- * An operator wearing what a player chose for it (outfit.ts lookCode), which
- * is how two people on the same operator turn up as two people. Only the
- * clothes move: the colours, the kit and the body are the operator's own, and
- * so are its hit boxes.
+ * An operator wearing the soldier a player chose (outfit.ts lookCode), which is how two people on the same operator
+ * turn up as two people. Only the look moves: the operator and its hit boxes are its own.
  */
 export function operatorWearing(id: string | undefined, look: string | undefined): OperatorSkin {
   const base = operatorById(id);
   const worn = readLook(look);
-  if (worn.outfit === undefined && worn.build === undefined && worn.face === undefined && worn.body === undefined && worn.soldier === undefined) return base;
-  return { ...base, ...worn };
+  return worn.soldier === undefined ? base : { ...base, soldier: worn.soldier };
 }
 
 interface SkinMats {

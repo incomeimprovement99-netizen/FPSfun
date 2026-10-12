@@ -933,7 +933,6 @@ export class Dummy {
     this.health = this.oneHit ? 1 : HEALTH_MAX;
     this.plate.visible = t !== 0;
     this.vest.visible = t !== 0;
-    this.mq?.setArmorColour(t !== 0 ? ARMOR_COLOR[t] : null);
     if (t !== 0) {
       this.vestMat.color.setHex(ARMOR_COLOR[t]);
       this.vestMat.emissive.setHex(ARMOR_COLOR[t]);

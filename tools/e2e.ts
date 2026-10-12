@@ -3847,9 +3847,12 @@ async function soldierTest(browser: Browser): Promise<void> {
   await ev(page, `(() => { const r = window.__range; r.player.teleport(0, 0, 0, 0, 0); r.figureLab(${JSON.stringify(poses)}, 4.5, 90); })()`);
   await gameSleep(page, 1.5);
   const heads = await ev<Array<{ soldier: boolean; n: number; inside: number; offset: number }>>(page, MEASURE_HEADS);
-  const bad = heads.map((h, i) => ({ pose: HIT_POSES[i][0], ...h })).filter((h) => !h.soldier || h.n < 100 || h.offset > 0.02 || h.inside < 0.8);
+  // The volume's middle is its ellipsoid's (Milestone 560, mannequin.ts headShape), which the skull's own extremes place:
+  // measured 47 mm from the middle of every point the Head bone carries, the jaw and the face pulling that one down and
+  // forward, in every pose (2026-10-12). A volume that stops following the head moves off it by far more.
+  const bad = heads.map((h, i) => ({ pose: HIT_POSES[i][0], ...h })).filter((h) => !h.soldier || h.n < 100 || h.offset > 0.055 || h.inside < 0.8);
   check(
-    "soldier: its head sits in the head's hit volume standing, aiming, walking, running, sprinting, crouched and sliding (the middle within 20 mm, 80% of it inside)",
+    "soldier: its head sits in the head's hit volume standing, aiming, walking, running, sprinting, crouched and sliding (the middle within 55 mm, 80% of it inside)",
     heads.length === HIT_POSES.length && bad.length === 0,
     JSON.stringify(bad.length ? bad : heads.map((h) => `${Math.round(h.offset * 1000)} mm, ${Math.round(h.inside * 100)}%`)),
   );
@@ -4477,10 +4480,11 @@ async function soldierTest(browser: Browser): Promise<void> {
   await gameSleep(bare, 3);
   const fell = await ev<{ soldier: boolean; guns: boolean; figure: boolean; mq: boolean }>(
     bare,
-    "(() => { const r = window.__range; const f = r.labFigures()[0]; return { soldier: r.soldierReady(), guns: r.paidGuns().ready, figure: !!f, mq: !!f?.mq && !f.mq.soldier }; })()",
+    "(() => { const r = window.__range; const f = r.labFigures()[0]; return { soldier: r.soldierReady(), guns: r.paidGuns().ready, figure: !!f, mq: !!f?.mq }; })()",
   );
   const crashed = errors.slice(before).filter((e) => e.startsWith("pageerror"));
-  check("soldier: without the bought files the game runs on the figures and guns of before, and nothing throws", !fell.soldier && !fell.guns && fell.figure && crashed.length === 0, JSON.stringify({ ...fell, crashed: crashed.slice(0, 2) }));
+  // (the old game's body stood in here until Milestone 568: a figure is the soldier or a robot now, never that)
+  check("soldier: without the bought files the figures are robots and the guns those of before, and nothing throws", !fell.soldier && !fell.guns && fell.figure && !fell.mq && crashed.length === 0, JSON.stringify({ ...fell, crashed: crashed.slice(0, 2) }));
   await bare.close();
   // the 404s were the point of that page, not a fault: only what it threw stays counted
   for (let i = errors.length - 1; i >= before; i--) if (!errors[i].startsWith("pageerror")) errors.splice(i, 1);
@@ -7770,7 +7774,7 @@ async function main(): Promise<void> {
     // sleeves, not the drawn gloves (src/game/fparms.ts). They come in once the
     // body has; a figure is already on screen above, so the body is here.
     const real = await ev<boolean>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(window.__range.realArms()) : setTimeout(w, 100)); w(); })`);
-    check("your own arms in first person are the real body's, not drawn gloves", real);
+    check("your own arms in first person are the soldier's, not drawn gloves", real);
     // the clips a figure plays now and then load after the figures do (tools/fetch-clips.ts), and they arrive
     const extras = ["Slide_Start", "Slide_Exit", "OverhandThrow", "Melee_Hook", "Punch_Cross", "Hit_Head", "NinjaJump_Idle_Loop", "Interact", "Dance_Loop", "Yes", "Idle_FoldArms_Loop"];
     const clipsIn = await ev<string[]>(page, `new Promise((ok) => { const want = ${JSON.stringify(extras)}; const t0 = performance.now(); const w = () => { const miss = want.filter((c) => !window.__range.hasClip(c)); if (!miss.length || performance.now() - t0 > 10000) ok(miss); else setTimeout(w, 100); }; w(); })`);

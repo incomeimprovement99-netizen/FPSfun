@@ -46,8 +46,6 @@ import { dressFails } from "./checks/dress";
 import { gearFails } from "./checks/gear";
 import { hullFails } from "./checks/hull";
 import { calloutFails } from "./checks/callouts";
-import { outfitFails } from "./checks/outfit";
-import { bodyFails } from "./checks/body";
 import { botFireFails } from "./checks/bot-fire";
 import { feelFails } from "./checks/feel";
 import { gulagFails } from "./checks/gulag";
@@ -1322,7 +1320,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

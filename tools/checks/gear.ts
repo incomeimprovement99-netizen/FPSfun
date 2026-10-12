@@ -14,7 +14,6 @@
 //
 // Run on its own: npx tsx tools/checks/gear.ts.
 import { GEAR_IDS, buildGear, gearMaterials, wears, type GearBone } from "../../src/game/gear";
-import outfitCfg from "../../src/config/outfits.json";
 import { OPERATORS } from "../../src/game/operators";
 import gearCfg from "../../src/config/gear.json";
 
@@ -29,33 +28,16 @@ const RIG: readonly GearBone[] = ["Head", "spine_03", "pelvis", "upperarm_l", "u
 
 console.log("The operators' kit");
 {
-  // What an operator has on comes from two places now: the kit here, and the
-  // clothes in outfit.ts, which carry their own headgear (a hood, a motocross
-  // helmet) and what is on the face. So both are counted: an operator in a
-  // full-face helmet does not also need the kit's shades, and one whose
-  // goggles are part of its outfit should not wear the kit's flat bar over
-  // them.
-  // What an operator has on is its published outfit first (outfits.json
-  // `parts`: a coat, a hood, boots, a shoulder guard), then whatever of ours
-  // it still wears. Ours is off by default now - the owner asked for the
-  // published assets and nothing else - so the kit below is checked as the
-  // fallback it has become, and an operator is judged on the cloth it wears.
-  const dressed = (o: (typeof OPERATORS)[number]): string[] => [
-    ...(o.face ?? []),
-    ...((((outfitCfg.sets as Record<string, { head?: string[] }>)[o.outfit] ?? {}).head ?? []) as string[]),
-    ...((((outfitCfg.sets as Record<string, { parts?: string[] }>)[o.outfit] ?? {}).parts ?? []) as string[]),
-  ];
-  const kits = OPERATORS.map((o) => ({ id: o.id, wears: GEAR_IDS.filter((g) => wears(o, g)), worn: dressed(o) }));
-  for (const k of kits) check(`${k.id} is wearing something`, k.wears.length + k.worn.length >= 3, [...k.wears, ...k.worn].join(", ") || "nothing");
+  // (the clothes counted beside the kit here went with the old body, Milestone 568)
+  const kits = OPERATORS.map((o) => ({ id: o.id, wears: GEAR_IDS.filter((g) => wears(o, g)) }));
+  for (const k of kits) check(`${k.id} is wearing something`, k.wears.length >= 1, k.wears.join(", ") || "nothing");
   const sets = kits.map((k) => k.wears.slice().sort().join("+"));
   check("no two operators wear the same kit: you can tell them apart by their outline", new Set(sets).size === sets.length, `${new Set(sets).size} of ${sets.length}`);
   const worn = new Set(kits.flatMap((k) => k.wears));
   check("and every piece that exists is worn by somebody", GEAR_IDS.every((g) => worn.has(g)), GEAR_IDS.filter((g) => !worn.has(g)).join(", ") || "all of them");
-  const heads = kits.map((k) => k.wears.filter((g) => ["helmet", "hood", "brim", "mask", "shades"].includes(g)).length + k.worn.filter((w) => /hood|mask|goggles|wrap|helmet/i.test(w)).length);
-  // Not every operator has something on its head any more, and that is the
-  // trade the published assets bought: the pack has one hood and no eyewear.
-  // What is checked is that somebody does, so the silhouette work is not lost
-  // entirely, and the rest is written down in the roadmap.
+  const heads = kits.map((k) => k.wears.filter((g) => ["helmet", "hood", "brim", "mask", "shades"].includes(g)).length);
+  // Not every operator has something on its head: what is checked is that somebody does, so the silhouette work is not
+  // lost entirely.
   check("some of them have something on their head, which is what reads first at range", heads.some((n) => n > 0), heads.join(", "));
 }
 {

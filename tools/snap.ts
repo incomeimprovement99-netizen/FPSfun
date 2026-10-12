@@ -10,7 +10,6 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer, { type Page } from "puppeteer";
-import sharp from "sharp";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const OUT = resolve(HERE, "..", "shots");
@@ -28,13 +27,6 @@ interface Scenario {
   steps: Array<[string, number]>;
   /** a battle royale starts on the dropship (the rest drop straight in, as the e2e does) */
   ship?: boolean;
-  /**
-   * The picture asserts something: at most this share of the frame may be
-   * the fit test's magenta, which is body showing through clothes
-   * (mannequin.ts setFitDebug). A scenario without it only proves the page
-   * threw no error, which is what every picture used to prove.
-   */
-  magentaMax?: number;
 }
 
 const hideMenu = `document.getElementById("overlay").classList.add("hidden")`;
@@ -45,7 +37,6 @@ const hideMenu = `document.getElementById("overlay").classList.add("hidden")`;
  * lineup measures 0.144%. A first limit of 0.2% passed that, which is a test
  * that cannot catch the bug it is for; 0.06% fails it with room to spare.
  */
-const MAGENTA_MAX = 0.0006;
 /** a fake controller whose Start plays (a scripted page gets no pointer lock), and its trigger */
 const fakePad = `(() => { const btn = () => ({ pressed: false, touched: false, value: 0 }); const pad = { index: 0, id: "fake pad", connected: true, mapping: "standard", timestamp: 0, axes: [0, 0, 0, 0], buttons: Array.from({ length: 17 }, btn) }; window.__pad = pad; navigator.getGamepads = () => [pad]; })()`;
 const padButton = (i: number, on: boolean) => `(() => { window.__pad.buttons[${i}].pressed = ${on}; window.__pad.buttons[${i}].value = ${on ? 1 : 0}; })()`;
@@ -515,203 +506,6 @@ export const SCENARIOS: Scenario[] = [
     steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
   },
   {
-    name: "outfits",
-    note: "the five operators in their clothes and kit, close and from the front: fatigues, urban, desert, arctic, irregular",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "outfit-close",
-    note: "one operator head to knee: the wrap, the goggles, the sleeves, the trousers and the boots under the kit",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -10);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "outfit-wardrobe",
-    note: "all ten outfits on one line, so no two of them read the same: hoodie, coveralls, ghillie, tracksuit, fatigues, plain clothes, irregular, urban, arctic, desert",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        const sets = ["hoodie", "coveralls", "ghillie", "tracksuit", "fatigues"];
-        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "outfit-wardrobe-2",
-    note: "the other five outfits: plain clothes, irregular, urban, arctic, desert",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        const sets = ["plainclothes", "irregular", "urban", "arctic", "motocross"];
-        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "outfit-shapes",
-    note: "close: the three that change an outline rather than a colour, hoodie, ghillie and tracksuit, with the hood up, the strips hanging and the stripe down the arm",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
-        r.figureLab(["hoodie", "ghillie", "tracksuit"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "operators-faces",
-    note: "the six operators head and shoulders: every one of them has its eyes covered, by goggles, a mask or a helmet",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 6);
-        r.figureLab([0, 1, 2, 3, 4, 5].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "face-close",
-    note: "close, from the front: goggles on a real-cloth figure, and the code-built motocross helmet beside it, to see whether our head pieces still sit on a real head",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 8);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||goggles" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "motocross||" }], 1.45, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "loadout-front",
-    note: "the Loadouts panel: the figure facing you, in plain clothes, head and all",
-    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); [...document.querySelectorAll("#outfitCards button")].find((b) => b.textContent.includes("PLAIN CLOTHES"))?.click(); window.__range.previewTurn(0); })()`, 2500]],
-  },
-  {
-    name: "loadout-back",
-    note: "the same figure turned half round: the back of the same clothes",
-    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); [...document.querySelectorAll("#outfitCards button")].find((b) => b.textContent.includes("PLAIN CLOTHES"))?.click(); window.__range.previewTurn(Math.PI); })()`, 2500]],
-  },
-  {
-    name: "loadout-body",
-    note: "the Loadouts panel with the other body picked: the same outfit, the same skeleton, a different figure",
-    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); const b = document.getElementById("opBody"); b.value = "Superhero_Female_FullBody"; b.dispatchEvent(new Event("change")); b.scrollIntoView({ block: "center" }); window.__range.previewTurn(0); })()`, 3000]],
-  },
-  {
-    name: "skin-one-back",
-    note: "the same coat on both bodies from behind: the slimmer one it was cut for, and the bulky one we have",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -2);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger|||Superhero_Female_FullBody" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 2.0, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "skin-audit-front",
-    note: "close, from the front: four outfits on the body, to see where cloth stops and skin starts",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["fatigues", "plainclothes", "ranger", "urban"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "skin-audit-back",
-    note: "the same four from behind",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["fatigues", "plainclothes", "ranger", "urban"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 2.6, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "skin-close-front",
-    note: "one figure filling the frame from the front: where the cloth meets the skin at the neck, the wrists and the waist",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 1.9, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "skin-close-back",
-    note: "the same one figure from behind, close",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "ranger||" }], 1.9, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "hair-close",
-    note: "four bare heads close up: the hairstyles and the beard, in the colour the pack gave them",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 4);
-        r.figureLab(["plainclothes", "peasant", "peasant|||Superhero_Female_FullBody", "motocross"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o.includes("|") ? o : o + "||" })), 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "wardrobe-a",
-    note: "five of the wardrobe side by side: peasant, coveralls, plainclothes, desert, tracksuit",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["peasant", "coveralls", "plainclothes", "desert", "tracksuit"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "wardrobe-b",
-    note: "five of the wardrobe side by side: shirtsleeves, hoodie, irregular, ghillie, arctic",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["shirtsleeves", "hoodie", "irregular", "ghillie", "arctic"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "wardrobe-c",
-    note: "five of the wardrobe side by side: hooded, motocross, scout_leathers, urban, fatigues",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["hooded", "motocross", "scout_leathers", "urban", "fatigues"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "wardrobe-d",
-    note: "the last outfit, and four on the lighter body: ranger, then peasant, hoodie, scout leathers and ranger on it",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        r.figureLab(["ranger||", "peasant|||F", "hoodie|||F", "scout_leathers|||F", "ranger|||F"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o.replace("|F", "|Superhero_Female_FullBody") })), 3.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "builds-front",
-    note: "the same outfit in lean, regular and heavy from the front: the build is the chest's width, and the head keeps its own",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -3);
-        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "fatigues|" + b + "|" })), 2.2, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "builds-back",
-    note: "the same three from behind: whatever the build, the coat still closes",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -3);
-        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: "fatigues|" + b + "|" })), 2.2, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
-    name: "head-close",
-    note: "two faces at arm's length, one that reads right and one that did not: fatigues and peasant, regular build",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, 8);
-        r.figureLab(["fatigues", "peasant"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "|regular|" })), 0.9, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.6), 100],
-    ],
-  },
-  {
     name: "motion-acts",
     note: "three figures a moment into what their hands are doing: a grenade thrown overhand, a melee swing, reaching to open something",
     steps: [
@@ -746,73 +540,6 @@ export const SCENARIOS: Scenario[] = [
         const figs = r.figureLab(["hoodie", "tracksuit", "irregular"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, look: o + "||" })), 2.6, 0); figs.forEach((f, i) => f.emote(5 + i)); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
-  },
-  {
-    name: "fit-front-a",
-    note: "the fit test from the front: all sixteen outfits' clothed body painted magenta, counted (first eight)",
-    magentaMax: MAGENTA_MAX,
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        const outfits = ["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(2.5), 100],
-      ["window.__range.fitDebug(true)", 400],
-    ],
-  },
-  {
-    name: "fit-front-b",
-    note: "the fit test from the front: all sixteen outfits' clothed body painted magenta, counted (second eight)",
-    magentaMax: MAGENTA_MAX,
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        const outfits = ["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(2.5), 100],
-      ["window.__range.fitDebug(true)", 400],
-    ],
-  },
-  {
-    name: "fit-back-a",
-    note: "the fit test from behind (first eight)",
-    magentaMax: MAGENTA_MAX,
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        const outfits = ["peasant", "coveralls", "plainclothes", "desert", "tracksuit", "shirtsleeves", "hoodie", "irregular"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(2.5), 100],
-      ["window.__range.fitDebug(true)", 400],
-    ],
-  },
-  {
-    name: "fit-back-b",
-    note: "the fit test from behind (second eight)",
-    magentaMax: MAGENTA_MAX,
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -4);
-        const outfits = ["ghillie", "arctic", "hooded", "motocross", "scout_leathers", "urban", "fatigues", "ranger"]; await r.outfitsLoaded(outfits); r.figureLab(outfits.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 4.4, 180); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(2.5), 100],
-      ["window.__range.fitDebug(true)", 400],
-    ],
-  },
-  {
-    name: "outfit-real",
-    note: "five outfits in their own colours: arctic white, urban black, desert tan, orange coveralls, ghillie green, all on published cloth",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); r.hideViewModel(true); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab(["arctic", "urban", "desert", "coveralls", "ghillie"].map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "", look: o + "||" })), 3.4, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "outfit-builds",
-    note: "one outfit in all three builds, lean, regular and heavy: the clothes change, the body inside them does not",
-    steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson", look: "coveralls|" + b + "|" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
-      [gameSeconds(1.2), 100],
-    ],
-  },
-  {
-    name: "loadout-wear",
-    note: "the Loadouts tab: the outfit cards, the build and what is on the face, under the operator row",
-    steps: [[`(() => { document.querySelector('[data-tab="loadouts"]').click(); document.getElementById("copyLoadout")?.click(); })()`, 700]],
   },
   {
     name: "ability-numbers",
@@ -1217,15 +944,6 @@ async function main(): Promise<void> {
     for (const sc of list) {
       const page = await browser.newPage();
       await page.setViewport({ width: 1280, height: 720, deviceScaleFactor: 1 });
-      // PARTS_DELAY=4000 holds every outfit part and hair back that long: a slow or busy machine, for proving a picture
-      // waits for its clothes rather than for a fixed time
-      if (process.env.PARTS_DELAY) {
-        await page.setRequestInterception(true);
-        page.on("request", (q) => {
-          if (/models\/(outfits\/parts|body\/hair)\//.test(q.url())) setTimeout(() => void q.continue(), Number(process.env.PARTS_DELAY));
-          else void q.continue();
-        });
-      }
       const errors: string[] = [];
       page.on("pageerror", (e) => errors.push(String((e as Error).message ?? e)));
       page.on("console", (m) => {
@@ -1251,16 +969,6 @@ async function main(): Promise<void> {
       }
       const shot = resolve(OUT, `${sc.name}.png`);
       await page.screenshot({ path: shot });
-      if (sc.magentaMax !== undefined) {
-        // every pixel that is the fit test's flat magenta is body through clothes
-        const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });
-        let n = 0;
-        for (let i = 0; i < data.length; i += info.channels) if (data[i] > 200 && data[i + 1] < 70 && data[i + 2] > 200) n++;
-        const share = n / (info.width * info.height);
-        const fits = share <= sc.magentaMax;
-        if (!fits) errors.push(`body through the clothes: ${(share * 100).toFixed(3)}% of the frame, over ${(sc.magentaMax * 100).toFixed(3)}%`);
-        console.log(`        fit test: ${n} pixels of body through the clothes, ${(share * 100).toFixed(3)}% of the frame (at most ${(sc.magentaMax * 100).toFixed(3)}%)`);
-      }
       const ok = errors.length === 0;
       if (!ok) bad++;
       console.log(`${ok ? "  ok  " : "FAIL  "}${sc.name.padEnd(22)} ${sc.note}${ok ? "" : `: ${errors.slice(0, 3).join(" | ")}`}`);
@@ -1273,5 +981,5 @@ async function main(): Promise<void> {
   process.exit(bad ? 1 : 0);
 }
 
-// run directly, or from a wrapper that picks the scenarios (tools/fit.ts)
+// run directly, or from a wrapper that picks the scenarios
 if (process.argv[1]?.endsWith("snap.ts") || process.env.SNAP_RUN === "1") void main();

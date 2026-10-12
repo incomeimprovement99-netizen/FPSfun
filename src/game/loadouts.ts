@@ -4,47 +4,24 @@
 import { PROFILE } from "./game";
 import { weaponIds } from "./weapons";
 import { OPERATORS } from "./operators";
-import { BODY_IDS, BUILD_IDS, OUTFIT_IDS, faceList } from "./outfit";
-import type { BodyId, BuildId, OutfitId } from "./outfit";
 import { HEIRLOOMS } from "./heirlooms";
-import outfitCfg from "../config/outfits.json";
-
-/**
- * Four outfits used to be an outfit on the lighter body. The body is its own
- * pick now, so they went, and a loadout that stored one of them is given the
- * same clothes on that body rather than a stranger's.
- */
-const ON_THE_OTHER_BODY: Record<string, string> = { rangerF: "ranger", peasantF: "peasant", scout_f: "scout_leathers", hooded_f: "hoodie" };
 
 export interface LoadoutDef {
   name: string;
   operator: string;
-  /** the clothes under the kit, and how they sit (src/game/outfit.ts) */
-  outfit?: string;
-  build?: string;
-  /** which body, when one was picked (outfits.json bodies) */
-  body?: string;
-  /** what is on the face, over the kit's own: "", "wrap", "goggles", "fullMask", or two of them */
-  face?: string;
   slot1: string;
   slot2: string;
   heirloom: string;
 }
 
-/**
- * The loadouts everybody starts with. Each one is dressed outright rather than
- * left to inherit its operator's set, and every one of them covers its face:
- * goggles, a full mask, or a helmet. Nobody's eyes are visible, which is the
- * owner's rule and a good one - a figure whose face you can read is a figure
- * out of a different game from the one it is standing in.
- */
+/** the loadouts everybody starts with */
 export const DEFAULT_LOADOUTS: readonly LoadoutDef[] = [
-  { name: "Assault", operator: "vanguard", outfit: "fatigues", build: "regular", face: "goggles", heirloom: "fists" },
-  { name: "Close Quarters", operator: "nightshade", outfit: "urban", build: "lean", face: "fullMask", heirloom: "karambit" },
-  { name: "Marksman", operator: "frost", outfit: "arctic", build: "heavy", face: "goggles", heirloom: "tanto" },
-  { name: "Heavy", operator: "inferno", outfit: "irregular", build: "heavy", face: "wrap,goggles", heirloom: "kukri" },
-  { name: "Sidearms", operator: "sandstorm", outfit: "desert", build: "regular", face: "wrap,goggles", heirloom: "butterfly" },
-  { name: "Dirt Bike", operator: "scrambler", outfit: "motocross", build: "lean", face: "", heirloom: "kukri" },
+  { name: "Assault", operator: "vanguard", heirloom: "fists" },
+  { name: "Close Quarters", operator: "nightshade", heirloom: "karambit" },
+  { name: "Marksman", operator: "frost", heirloom: "tanto" },
+  { name: "Heavy", operator: "inferno", heirloom: "kukri" },
+  { name: "Sidearms", operator: "sandstorm", heirloom: "butterfly" },
+  { name: "Dirt Bike", operator: "scrambler", heirloom: "kukri" },
 ].map((d, i) => {
   // each carries one of SpeedKills' six pairs (speedkills.json lists.loadouts), with a name that fits it (Phase 20 A7);
   // the legacy game's own guns were here until Milestone 521
@@ -73,23 +50,13 @@ const OLD_SLOTS = "range.slots.v1";
 const PICK = PROFILE.lists?.loadoutPick ?? "";
 
 /**
- * A dressed slot, picked at random but spread out: the shuffle is seeded by
- * the slot's own number so two slots never start in the same clothes, and a
- * browser that has never seen this game gets six people rather than six of
- * one person.
+ * A slot's melee weapon, picked at random but spread out: the shuffle is seeded by the slot's own number so two slots
+ * never start with the same one.
  */
 const spread = <T>(list: readonly T[], i: number): T => list[(i * 7 + 3) % list.length];
-const pickOutfit = (i: number): string => spread(DRESSED, i + Math.floor(Math.random() * DRESSED.length));
 const pickHeirloom = (i: number): string => spread(HEIRLOOMS, i + Math.floor(Math.random() * HEIRLOOMS.length)).id;
 
-/**
- * The outfits a slot may be given: the ones that are real cloth. An outfit
- * from before the published assets went in - or one that has since been
- * renamed - is not kept, because what it named is gone.
- */
-const DRESSED = OUTFIT_IDS.filter((id) => ((outfitCfg.sets as Record<string, { parts?: string[] }>)[id]?.parts?.length ?? 0) > 0);
-
-/** a stored loadout made safe to use: anything unknown falls back (exported for tools/checks/outfit.ts) */
+/** a stored loadout made safe to use: anything unknown falls back, and what is no longer kept (the old clothes) is dropped */
 export function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef): LoadoutDef {
   const ids = weaponIds();
   // (a gun that left the roster for another id keeps its holder's choice: STRYDER's rifle is its pistol now)
@@ -101,16 +68,6 @@ export function valid(d: Partial<LoadoutDef> | undefined, fallback: LoadoutDef):
     slot1: d?.slot1 && ids.includes(d.slot1) ? d.slot1 : fallback.slot1,
     slot2: d?.slot2 && ids.includes(d.slot2) ? d.slot2 : fallback.slot2,
     heirloom: HEIRLOOMS.some((h) => h.id === d?.heirloom) ? d!.heirloom! : fallback.heirloom,
-    // What they chose to wear, if they chose: an id we no longer have (an
-    // outfit renamed between releases) falls back to the operator's own set
-    // rather than to nothing, which would be a naked figure.
-    // A stored outfit that is not one of the dressed ones is an old skin: the
-    // owner asked that none of those survive, so the slot is given a new one
-    // rather than the fallback's, which would make every stale slot identical.
-    outfit: DRESSED.includes(d?.outfit as OutfitId) ? d!.outfit : (ON_THE_OTHER_BODY[d?.outfit ?? ""] ?? fallback.outfit),
-    build: BUILD_IDS.includes(d?.build as BuildId) ? d!.build : fallback.build,
-    body: BODY_IDS.includes(d?.body as BodyId) ? d!.body : ON_THE_OTHER_BODY[d?.outfit ?? ""] ? "Superhero_Female_FullBody" : fallback.body,
-    face: typeof d?.face === "string" ? faceList(d.face).join(",") : fallback.face,
   };
 }
 
@@ -127,12 +84,10 @@ export class Loadouts {
   }
 
   private load(): Store {
-    // A custom slot arrives dressed, each in a different outfit with a
-    // different melee weapon, rather than six copies of the defaults. Somebody
-    // who never opens this tab still gets six characters instead of one.
+    // A custom slot arrives with a different melee weapon each, rather than six copies of the defaults
     const fresh: Store = {
       selected: { kind: "default", index: 0 },
-      custom: DEFAULT_LOADOUTS.map((d, i) => ({ ...d, name: `Custom ${i + 1}`, outfit: pickOutfit(i), heirloom: pickHeirloom(i) })),
+      custom: DEFAULT_LOADOUTS.map((d, i) => ({ ...d, name: `Custom ${i + 1}`, heirloom: pickHeirloom(i) })),
     };
     try {
       const raw = localStorage.getItem(KEY);

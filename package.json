@@ -19,8 +19,6 @@
     "shot": "tsx tools/shot.ts",
     "compare-sources": "tsx tools/compare-sources.ts",
     "models": "tsx tools/fetch-models.ts",
-    "characters": "tsx tools/fetch-characters.ts && tsx tools/tint-outfits.ts",
-    "tints": "tsx tools/tint-outfits.ts",
     "compress": "tsx tools/compress-assets.ts",
     "sounds": "tsx tools/fetch-sounds.ts && tsx tools/fetch-music.ts",
     "fonts": "tsx tools/fetch-fonts.ts",
@@ -40,7 +38,6 @@
     "mixamo": "tsx tools/fetch-mixamo.ts",
     "guns": "tsx tools/fetch-guns.ts",
     "clips": "tsx tools/fetch-clips.ts",
-    "fit": "tsx tools/fit.ts",
     "profile": "tsx tools/profile-frame.ts",
     "paid": "tsx tools/import-paid.ts",
     "paid:sounds": "tsx tools/import-pack-sounds.ts"

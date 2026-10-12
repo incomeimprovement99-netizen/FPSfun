@@ -1143,25 +1143,26 @@ const scene = new THREE.Scene();
 
 // ------------------------------------------------------- what they are wearing
 //
-// The clothes ride BESIDE the operator id rather than inside it, so a build
-// that has never heard of them still draws the right operator. What is checked
-// here is that the choice survives the codec, that going back to the
-// operator's own set is said in the mask rather than by leaving the field out
-// (or the other side would keep the old clothes forever), and that a look we
-// do not recognise is dropped rather than handed to the builder.
+// The look rides BESIDE the operator id rather than inside it, so a build that has never heard of it still draws the
+// right operator: the soldier's code in its fifth field, where the old wardrobe's pages put it (outfit.ts lookCode).
+// What is checked here is that it survives the codec, that going back to no look is said in the mask rather than by
+// leaving the field out (or the other side would keep the old look forever), and that a look we do not recognise,
+// the old game's clothes among it, is dropped rather than handed to the builder.
 {
-  const dressed: PlayerState = { ...sample(0, 0), lk: "urban|heavy|wrap,goggles" };
-  check("a choice of clothes survives the codec", dequantise(quantise(dressed)).lk === "urban|heavy|wrap,goggles");
-  check("and a full packet carries it", stateOf(stateMsg(dressed)).lk === "urban|heavy|wrap,goggles");
-  const plain = quantise({ ...dressed, lk: undefined });
-  const back = diff(quantise(dressed), plain);
-  check("back to the operator's own set is CLEARED in the mask, not left out", back.d.lk === undefined && back.c === 512, `mask ${back.c}`);
-  check("and applying that takes the clothes off", applyDiff(quantise(dressed), back.d, back.c)?.lk === undefined);
-  const nonsense = readLook("no-such-outfit|enormous|hat,goggles");
-  check("a look with things we do not have keeps only what we do", nonsense.outfit === undefined && nonsense.build === undefined && JSON.stringify(nonsense.face) === '["goggles"]');
-  check("nothing chosen is nothing sent", lookCode({ outfit: "", build: "", face: "" }) === "" && lookCode({}) === "" && JSON.stringify(readLook(undefined)) === "{}");
-  const skin = operatorWearing("vanguard", lookCode({ outfit: "tracksuit", build: "heavy", face: "goggles" }));
-  check("and an operator wearing one keeps its own colours", skin.id === "vanguard" && skin.outfit === "tracksuit" && skin.build === "heavy" && JSON.stringify(skin.face) === '["goggles"]', `${skin.outfit} / ${skin.build}`);
+  const SD = "S0123456";
+  const worn: PlayerState = { ...sample(0, 0), lk: `||||${SD}` };
+  check("a soldier's look survives the codec", dequantise(quantise(worn)).lk === `||||${SD}`);
+  check("and a full packet carries it", stateOf(stateMsg(worn)).lk === `||||${SD}`);
+  const plain = quantise({ ...worn, lk: undefined });
+  const back = diff(quantise(worn), plain);
+  check("back to no look is CLEARED in the mask, not left out", back.d.lk === undefined && back.c === 512, `mask ${back.c}`);
+  check("and applying that takes the look off", applyDiff(quantise(worn), back.d, back.c)?.lk === undefined);
+  const old = readLook(`urban|heavy|wrap,goggles|Superhero_Female_FullBody|${SD}`);
+  check("an old page's look keeps its soldier and drops its clothes", JSON.stringify(old) === JSON.stringify({ soldier: SD }), JSON.stringify(old));
+  check("nothing chosen is nothing read", JSON.stringify(readLook("urban|heavy|goggles")) === "{}" && JSON.stringify(readLook(undefined)) === "{}");
+  check("and nothing picked here is nothing sent (no soldier stored: node has no storage)", lookCode() === "");
+  const skin = operatorWearing("vanguard", `||||${SD}`);
+  check("an operator wearing one keeps its own colours", skin.id === "vanguard" && skin.soldier === SD && skin.shell === operatorById("vanguard").shell, JSON.stringify({ id: skin.id, soldier: skin.soldier }));
   const bare = operatorWearing("vanguard", "");
   check("while an operator nobody dressed is the operator itself", bare === operatorById("vanguard"));
 }

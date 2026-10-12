@@ -799,31 +799,11 @@ and the frame you hit, ten tries scored), and the per-gun session numbers on the
 Five operator looks (the other player sees yours), seven heirlooms (four built
 in code, two free CC0 models) as the melee weapon when holstered.
 
-**What they wear.** Sixteen outfits, every one of them published cloth: a CC0
-modular garment pack rigged to the same universal humanoid skeleton the bodies
-and the animations use, so a coat hangs on the bones without retargeting.
-Forty part files allow sixty-four combinations per body and the wardrobe takes
-sixteen of them - a body from one set over legs from the other, hood up or
-down, a plate on one shoulder or not - so no two outfits are the same outline,
-which is what a player reads at range before any colour reaches them. A check
-fails if two ever become the same. Each outfit is painted by its own
-recoloured atlas rather than by a colour multiplied into the material, which
-could only darken and kept every outfit in the same brown-green family.
-Everybody has hair, from four styles and a beard that came with the bodies,
-in a colour the outfit names: the pack ships its hair as a greyscale mask and
-leaves the colouring to the engine.
-
-Each operator comes dressed; the Loadouts tab lets you put something else on,
-pick one of two bodies and a build (how broad across the chest), per loadout,
-with a figure you can turn and zoom, and the other players see it. Every
-choice is the same 65-joint skeleton and so the same hit boxes, so nobody is a
-bigger target for how they look. The body under the clothes is shaped to fit
-the cloth (the free garments are cut for a slimmer body than the free one)
-and wears a dark undersuit where the clothes always cover it, so a seam
-between two pieces reads as fabric rather than skin.
-
-Where the clothes came from, what the free pool still holds and what is
-missing is counted in `docs/SKIN_GAP.md`.
+**What they wear.** Every figure is the soldier, in one of four kits, with the
+armour, accent and suit colours, the skin and the eyes you pick on the Loadouts
+tab, and a beret, shoulder plates and pouches on or off; the other players see
+your choice. Every look is the same skeleton and so the same hit boxes, so
+nobody is a bigger target for how they look.
 
 The **Stats** tab keeps your name and every result in this browser: matches
 (won, lost, K/D, rounds, damage, accuracy, win streak) per mode and per bot
@@ -1051,7 +1031,7 @@ src/game/
   gunmodels.ts             the 28 gun models, built in code
   heirlooms.ts             the seven melee weapons
   operators.ts             the five character looks
-  outfit.ts                the wardrobe, the builds and the face pieces
+  outfit.ts                a player's look on the wire (the soldier's code)
   hud.ts                   the HUD canvas
   audio.ts                 synthesised sounds
   render.ts                the render pipeline and post-processing
@@ -1129,7 +1109,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run rehearsal` | eight pages over the real peer-to-peer path in one battle royale, four duos of friends and three of bots, played for a minute: everyone connects, lands and sees the other seven, nothing logs an error, and it reports the host's upload to each guest and how long its match update takes. Needs `npm run dev`. `PLAYERS`, `REHEARSAL_SECONDS`, `REHEARSAL_SPREAD=1` (each duo to its own place), `REHEARSAL_QUERY` (e.g. `interest=0`) |
 | `npm run movesim` | the movement simulation alone: wiki timings, the wallbounce recipe, crouch kick, wallskip, every course gate, teleports |
 | `npm run e2e` | real browser pages (puppeteer): load, the first visit, the course and its medals, menus, loadouts and rebinding, third person, a full 1v1 over the local transport and over the internet, invite links, a 1v1v1 over three tabs, a bot match with the killcam and the recap, the controller, the range's tools, the settings and the tour, throwables, the battle royale alone, with loot and as a squad (solo and duos, banners, pings, the care package's arrival, on a guest's screen too), Gun Run, team deathmatch, Crown and Control alone and Gun Run with a friend, the bot tiers, the controller's layout and presets, the intro card (it plays, a key takes it away, it never holds the game up, and every other page in the suite opens without it), and the README screen paged by shooting its arrows. Needs `npm run dev`. Must print E2E PASS. `E2E_ONLY=page,br,...` runs only those sections (the file lists them); the whole run takes about twelve minutes. `E2E_ONLY=skpack` runs the first-person bought arms' frames alone, and `E2E_GUNS=r97,...` narrows them (and the soldier section's) to those guns, for a change to one gun's hold. `E2E_THROTTLE=6` runs every page on a sixth of the CPU, which is what a machine busy with other runs does to a page: a check that fails only in the full release run can be made to fail alone with it. The `mixed` section plays an older build against this one over the internet, both ways round and as a 1v1v1 whose host relays between the two: serve a checkout from before a change to the state packets on a second port and name it in `OLD_URL` (or the deployed site, `https://fpsfun.duckdns.org/?broker=public`), with `OLD_NET=full` if that build is from before the delta packets. |
-| `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the intro card, the README screen) into `shots/`; `SNAP=name,name` for some, `PARTS_DELAY=4000` holds the outfit parts back that long (a slow machine) |
+| `npm run snap` | screenshots of named scenarios drawn for real (the HUD, the killcam, the figures, the loot, the modes, the intro card, the README screen) into `shots/`; `SNAP=name,name` for some |
 | `npm run slide-probe` | the slide and slide jump frame by frame in the simulation, as a page of curves beside the wiki's numbers |
 | `npx tsx tools/trim-glb.ts` | cut a .glb down to the animations named (how the mannequin's files were made) |
 | `npm run probe` | a scripted wallbounce at the practice wall in the real page, printing what the feed registered (needs `npm run dev`) |
