@@ -218,9 +218,12 @@ npm run deploy
 npm run live         # optional: plays a 1v1 on the live site to prove it
 ```
 
-The mannequin's animation files (`public/models/mannequin/`, 4.3 MB, CC0)
-are in git and in every build; the mannequin is the default figure, so every
-player downloads them (the robots stand in until they have loaded).
+The mannequin's animation files (`public/models/mannequin/`, 2.1 MB, CC0)
+are in git and in every build; every figure plays their clips (SpeedKills'
+soldier through them carried over to its rig), so every player downloads them
+(the robots stand in until they have loaded). `npm run clips` remakes them from
+the library with the clips `tools/fetch-clips.ts` lists, and
+`tools/checks/clips.ts` (in verify) fails a file carrying a clip nothing plays.
 
 Pages picks up the new `gh-pages` commit within a minute; players need a
 reload (Ctrl+Shift+R if the old bundle sticks: the file names carry a hash,

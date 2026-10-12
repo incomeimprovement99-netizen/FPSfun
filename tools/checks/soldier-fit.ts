@@ -167,7 +167,7 @@ function through(): { n: number; deepest: number; where: string } {
 const rest = through();
 console.log(`        at rest: ${rest.n} of them through (none should be)`);
 const mixer = new THREE.AnimationMixer(kit);
-const CLIPS = ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Crouch_Idle_Loop", "Crouch_Fwd_Loop", "Pistol_Aim_Neutral", "Pistol_Reload", "Jump_Loop", "Slide_Loop", "Punch_Jab", "Consume"];
+const CLIPS = ["Idle_Loop", "Walk_Loop", "Jog_Fwd_Loop", "Sprint_Loop", "Crouch_Idle_Loop", "Crouch_Fwd_Loop", "Pistol_Aim_Neutral", "Pistol_Reload", "Jump_Loop", "Slide_Loop", "Punch_Jab"];
 const rows: Array<{ clip: string; t: number; n: number; deepest: number; where: string }> = [];
 for (const name of CLIPS) {
   const clip = all.find((c) => c.name === name);

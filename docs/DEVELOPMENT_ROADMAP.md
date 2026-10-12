@@ -12787,3 +12787,29 @@ so no figure is posed for any of it. The figure's side, handed over to this agen
   down stance (7) as standing, and that the acts left keep their codes, seen failing with the act list closed up over
   the gaps; verify's act checks; squadview's checks without the down state; the skfigure and sksquad e2e sections; the
   type check and rules.
+
+## Milestone 566 — The figures' clips cut to what plays, and keyed only where they move
+
+Every figure plays Quaternius's motion-captured clips (SpeedKills' soldier through them carried over to its rig), and
+every player downloads their four files on the way in: 6.5 MB, sent as they are (the server compresses text, not
+.glb). Two things in them were never seen:
+
+- **Nine clips nothing played.** A jump's start, a roll, the pistol's aim up, aim down and shot (the aim is turned by
+  the look), a heal, a knockback, getting up off the floor, and kneeling over a revive: the last four went with the
+  heals and knockdowns (Milestones 564 and 565), the rest never had a caller. Out of tools/fetch-clips.ts's lists and
+  the files: 37 clips to 28.
+- **Keys for bones that never move.** The library keys every bone's position, rotation and scale every frame, and most
+  never move: every scale, all but a few positions, two rotations in five. tools/trim-glb.ts now gives a channel held
+  within 0.00001 of its first key two keys, its first and last times (so a clip keeps its length when three.js splits
+  it by bone), and packs every sampler's keys into one buffer view, each array once (every held scale is the same two
+  keys): a view per array was a third of what was left.
+- **What it comes to:** 6,486,960 bytes to 2,176,080 (66% less), and the two files a figure waits on before it stops
+  being a robot from 4.4 MB to 1.6 MB. In memory each held track is two keys instead of one a frame. Compared key by key
+  with the files before, every kept channel of every kept clip is within 0.000006 of what it was, and every clip is the
+  same length.
+- **Checked:** tools/checks/clips.ts, in verify: each file holds the clips its list names and no others, no held bone is
+  keyed every frame, every clip in the files is one the game names (comments out), and every clip the soldier asks for
+  by name (hasClip, the layers' keys, the melee swings, the emotes) is in them. Seen failing on the old files (the
+  first three) and with Interact dropped from its file and list (the fourth). The e2e's late-clips check loses the
+  revive's clip; the skfigure and page sections, verify, rules and the type check pass.
+- **Also:** fetch-clips uses the library already taken out of its zip when the zip is gone, and exports its lists.

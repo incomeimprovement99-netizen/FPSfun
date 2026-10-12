@@ -646,7 +646,7 @@ export function loadMannequin(): Promise<void> {
   // and the clothes hang on the bones they already hang on. It has real
   // topology, a face, and base colour, normal and roughness maps, which is
   // what the grey mannequin never had.
-  // SpeedKills' soldier asked for with the clips, not after them: it is the figure, and it waited on 4.4 MB it does not need
+  // SpeedKills' soldier asked for with the clips, not after them: it is the figure, and it waited on the clips' files it does not need
   const soldier = IS_SK ? loadSoldier().catch(() => null) : null;
   loading = Promise.all([loader.loadAsync("models/mannequin/mannequin.glb"), loader.loadAsync("models/mannequin/mannequin-more.glb")])
     .then(([main, more]) => {
@@ -654,7 +654,7 @@ export function loadMannequin(): Promise<void> {
       addClips(clips, [...main.animations, ...more.animations]);
       rawClips.push(...main.animations, ...more.animations);
       // The clips a figure only plays now and then (a slide's way in and out,
-      // a throw, a revive, an emote) come after it is up, so they never hold a
+      // a throw, an emote) come after it is up, so they never hold a
       // page up; until they are in, whatever would play them plays what it
       // did before (hasClip). tools/fetch-clips.ts says which are which.
       for (const extra of ["models/mannequin/mannequin-extra-1.glb", "models/mannequin/mannequin-extra-2.glb"])
@@ -680,7 +680,7 @@ export function loadMannequin(): Promise<void> {
       // It was in the promise above, and that delayed the moment a figure
       // could stop being a robot by however long 3 MB of body and textures
       // takes. The e2e saw that as a bot with no spine_03 on it: it was still
-      // a robot when the check ran. The grey mannequin is 4.4 MB we load
+      // a robot when the check ran. The grey mannequin is a file we load
       // anyway and has the same skeleton, so figures start there, and every
       // figure built after the body arrives is the real one.
       // (Through loadBody, the one fetch a body gets: loaded here on its own, a figure asking for the same body before it

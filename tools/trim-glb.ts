@@ -7,7 +7,20 @@
 //
 // --no-mesh keeps only the skeleton's nodes and the animations (a file of
 // clips for a skeleton another file already brings).
+//
+// A bone a clip holds still keeps two keys, its first and its last, rather
+// than one a frame: the library keys every bone's position, rotation and
+// scale every frame, and most of them never move (every scale, all but the
+// hips' and a few others' positions, two rotations in five), which was three
+// quarters of the files. The value held is the first key's, and a channel
+// counts as still when no key strays from it by more than HOLD_EPS. The keys
+// all go in one buffer view, each array once however many channels share it
+// (every held scale is the same two keys): a view per array was a third of
+// what was left.
 import { readFileSync, writeFileSync } from "node:fs";
+
+/** how far a key may stray from the first and its channel still count as held: a hundred-thousandth of a unit (a thousandth of a degree in a rotation) */
+export const HOLD_EPS = 1e-5;
 
 interface Gltf {
   asset: unknown;
@@ -16,8 +29,8 @@ interface Gltf {
   nodes?: Array<{ name?: string; mesh?: number; skin?: number; children?: number[] }>;
   meshes?: Array<{ primitives: Array<{ attributes: Record<string, number>; indices?: number; targets?: Array<Record<string, number>>; material?: number }> }>;
   skins?: Array<{ inverseBindMatrices?: number; joints: number[]; skeleton?: number }>;
-  animations?: Array<{ name?: string; samplers: Array<{ input: number; output: number }>; channels: unknown[] }>;
-  accessors?: Array<{ bufferView?: number; byteOffset?: number }>;
+  animations?: Array<{ name?: string; samplers: Array<{ input: number; output: number; interpolation?: string }>; channels: unknown[] }>;
+  accessors?: Array<{ bufferView?: number; byteOffset?: number; componentType?: number; count?: number; type?: string; min?: number[]; max?: number[] }>;
   bufferViews?: Array<{ buffer: number; byteOffset?: number; byteLength: number; byteStride?: number; target?: number }>;
   buffers?: Array<{ byteLength: number }>;
   images?: Array<{ bufferView?: number }>;
@@ -27,7 +40,7 @@ interface Gltf {
   [k: string]: unknown;
 }
 
-function readGlb(path: string): { json: Gltf; bin: Buffer } {
+export function readGlb(path: string): { json: Gltf; bin: Buffer } {
   const b = readFileSync(path);
   if (b.readUInt32LE(0) !== 0x46546c67) throw new Error(`${path}: not a .glb`);
   const jsonLen = b.readUInt32LE(12);
@@ -57,6 +70,81 @@ function writeGlb(path: string, json: Gltf, bin: Buffer): void {
   writeFileSync(path, Buffer.concat([head, jh, js, bh, bn]));
 }
 
+const WIDTH: Record<string, number> = { SCALAR: 1, VEC2: 2, VEC3: 3, VEC4: 4 };
+
+/** an accessor's floats, or null when it is not plain floats in a tight view (which this leaves alone) */
+export function floatsOf(json: Gltf, bin: Buffer, i: number): Float32Array | null {
+  const a = json.accessors![i];
+  const w = WIDTH[a.type ?? ""];
+  if (a.bufferView === undefined || a.componentType !== 5126 || !w) return null;
+  const v = json.bufferViews![a.bufferView];
+  if (v.byteStride && v.byteStride !== w * 4) return null;
+  const at = bin.byteOffset + (v.byteOffset ?? 0) + (a.byteOffset ?? 0);
+  return new Float32Array(bin.buffer.slice(at, at + a.count! * w * 4));
+}
+
+/** whether every key of an output stays within HOLD_EPS of the first */
+export function held(values: Float32Array, width: number): boolean {
+  for (let k = width; k < values.length; k++) if (Math.abs(values[k] - values[k % width]) > HOLD_EPS) return false;
+  return true;
+}
+
+/**
+ * The clips' keys packed: each held channel's sampler given two keys, the
+ * clip's first and last times (so the clip keeps its length when three.js
+ * splits it by bone) and the value of its first key, and every sampler's
+ * times and values put in one new view on the end of the buffer, an array
+ * stored once however many samplers use it. A sampler this cannot read as
+ * plain floats keeps what it had.
+ */
+function packKeys(json: Gltf, bin: Buffer): { bin: Buffer; held: number; of: number } {
+  const accessors = json.accessors!;
+  const views = json.bufferViews!;
+  const view = views.length;
+  const parts: Buffer[] = [];
+  let at = 0;
+  const stored = new Map<string, number>();
+  const store = (data: Float32Array, type: string, isTime: boolean): number => {
+    const bytes = Buffer.from(data.buffer, data.byteOffset, data.byteLength);
+    const key = `${type}:${bytes.toString("base64")}`;
+    const had = stored.get(key);
+    if (had !== undefined) return had;
+    let lo = Infinity;
+    let hi = -Infinity;
+    if (isTime) for (const t of data) (lo = Math.min(lo, t)), (hi = Math.max(hi, t));
+    accessors.push({ bufferView: view, byteOffset: at, componentType: 5126, count: data.length / WIDTH[type], type, ...(isTime ? { min: [lo], max: [hi] } : {}) });
+    parts.push(bytes);
+    at += bytes.length;
+    stored.set(key, accessors.length - 1);
+    return accessors.length - 1;
+  };
+  let nHeld = 0;
+  let of = 0;
+  for (const a of json.animations ?? [])
+    for (const s of a.samplers) {
+      of++;
+      const times = floatsOf(json, bin, s.input);
+      const out = floatsOf(json, bin, s.output);
+      const type = accessors[s.output].type ?? "";
+      const w = WIDTH[type];
+      if (!times || !out || s.interpolation === "CUBICSPLINE" || out.length !== times.length * w) continue;
+      if (times.length > 2 && held(out, w)) {
+        const two = new Float32Array(2 * w);
+        two.set(out.subarray(0, w), 0);
+        two.set(out.subarray(0, w), w);
+        s.input = store(new Float32Array([times[0], times[times.length - 1]]), "SCALAR", true);
+        s.output = store(two, type, false);
+        nHeld++;
+      } else {
+        s.input = store(times, "SCALAR", true);
+        s.output = store(out, type, false);
+      }
+    }
+  const pad = (4 - (bin.length % 4)) % 4;
+  views.push({ buffer: 0, byteOffset: bin.length + pad, byteLength: at });
+  return { bin: Buffer.concat([bin, Buffer.alloc(pad), ...parts]), held: nHeld, of };
+}
+
 function main(): void {
   const args = process.argv.slice(2);
   const noMesh = args.includes("--no-mesh");
@@ -73,6 +161,8 @@ function main(): void {
     process.exit(1);
   }
   json.animations = all.filter((a) => names.includes(a.name ?? ""));
+  const still = packKeys(json, bin);
+  const data = still.bin;
   if (noMesh) {
     // the nodes stay (the channels point at them by index); what hangs off them goes
     for (const n of json.nodes ?? []) {
@@ -114,7 +204,7 @@ function main(): void {
   [...usedView].sort((a, b) => a - b).forEach((i) => {
     const v = json.bufferViews![i];
     const start = v.byteOffset ?? 0;
-    const bytes = bin.subarray(start, start + v.byteLength);
+    const bytes = data.subarray(start, start + v.byteLength);
     const padBy = (4 - (offset % 4)) % 4;
     if (padBy) {
       parts.push(Buffer.alloc(padBy));
@@ -144,7 +234,7 @@ function main(): void {
   const out = Buffer.concat(parts);
   json.buffers = [{ byteLength: out.length }];
   writeGlb(outPath, json, out);
-  console.log(`${outPath}: ${json.animations.length} clips, ${(out.length / 1024).toFixed(0)} KB of data (from ${(bin.length / 1024).toFixed(0)} KB)`);
+  console.log(`${outPath}: ${json.animations.length} clips, ${still.held} of ${still.of} channels held still, ${(out.length / 1024).toFixed(0)} KB of data (from ${(bin.length / 1024).toFixed(0)} KB)`);
 }
 
-main();
+if (process.argv[1]?.endsWith("trim-glb.ts")) main();

@@ -53,6 +53,7 @@ import { feelFails } from "./checks/feel";
 import { gulagFails } from "./checks/gulag";
 import { decayClockFails } from "./checks/decay-clock";
 import { squadViewFails } from "./checks/squadview";
+import { clipsFails } from "./checks/clips";
 import { hitcheckFails } from "./checks/hitcheck";
 import { rulesFails } from "./checks/rules";
 import { finishesFails } from "./checks/finishes";
@@ -1324,7 +1325,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
+fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + gearFails + hullFails + dressFails + calloutFails + outfitFails + bodyFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

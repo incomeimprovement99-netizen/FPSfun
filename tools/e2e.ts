@@ -7794,9 +7794,9 @@ async function main(): Promise<void> {
     const real = await ev<boolean>(page, `new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(window.__range.realArms()) : setTimeout(w, 100)); w(); })`);
     check("your own arms in first person are the real body's, not drawn gloves", real);
     // the clips a figure plays now and then load after the figures do (tools/fetch-clips.ts), and they arrive
-    const extras = ["Slide_Start", "Slide_Exit", "OverhandThrow", "Melee_Hook", "Punch_Cross", "Hit_Head", "NinjaJump_Idle_Loop", "Fixing_Kneeling", "Interact", "Dance_Loop", "Yes", "Idle_FoldArms_Loop"];
+    const extras = ["Slide_Start", "Slide_Exit", "OverhandThrow", "Melee_Hook", "Punch_Cross", "Hit_Head", "NinjaJump_Idle_Loop", "Interact", "Dance_Loop", "Yes", "Idle_FoldArms_Loop"];
     const clipsIn = await ev<string[]>(page, `new Promise((ok) => { const want = ${JSON.stringify(extras)}; const t0 = performance.now(); const w = () => { const miss = want.filter((c) => !window.__range.hasClip(c)); if (!miss.length || performance.now() - t0 > 10000) ok(miss); else setTimeout(w, 100); }; w(); })`);
-    check("the extra clips (a slide's way in and out, a throw, three swings, a revive, emotes) load after the figures", clipsIn.length === 0, clipsIn.length ? `missing ${clipsIn.join(", ")}` : `${extras.length} clips`);
+    check("the extra clips (a slide's way in and out, a throw, three swings, a reach, emotes) load after the figures", clipsIn.length === 0, clipsIn.length ? `missing ${clipsIn.join(", ")}` : `${extras.length} clips`);
     // (the Outskirts' kit dressing and its scenery were checked here: the legacy game's map, which SpeedKills never
     // draws; the code goes with the map, docs/PLAN_LEGACY_REMOVAL.md 496)
     await ev(page, "window.__range.player.teleport(0, 0, 6, 0)");
