@@ -97,7 +97,7 @@ export const SKY: SkyColors = {
 export interface Hour {
   id: string;
   label: string;
-  /** the HDRI in public/tex; a missing one falls back to sky.hdr */
+  /** the HDRI in public/tex; a missing one falls back to the golden hour's (materials.ts installSky) */
   hdr: string;
   colors: SkyColors;
   /**
@@ -143,7 +143,7 @@ export const HOURS: Record<string, Hour> = Object.fromEntries(
   ])
 );
 
-/** the order the settings menu shows them in */
+/** every hour, in the order sky.json lists them (SpeedKills' menu shows its own, speedkills.json identity.skies) */
 export const HOUR_IDS: string[] = skyCfg.order.filter((id) => id in HOURS);
 export const DEFAULT_HOUR = skyCfg.default;
 

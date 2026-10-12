@@ -102,7 +102,12 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   Vault stays for the Gulag. Section 5 below is done with it.
 - **534, what the legacy left unused (done):** the range's warehouse look, the hop-ups' names, the Outskirts' rocks,
   floor decals and doorway list, planById and TOUR_STEPS, found by a scan for exports nothing names.
-- **Next:** `IS_SK` out of game.ts once the guns and character agents' folds land.
+- **535, the legacy textures and skies (done):** 21 texture sets and four skies (six hours), 11 MB a deploy.
+- **The owner, 2026-10-12:** "continue removing all old shit, including old guns maps textures anything like that.
+  GitHub pages should no longer be a thing." The character agent takes the old body, outfits, the robot and Pages; the
+  guns agent the old guns' models and files; this plan the rest.
+- **Next:** the rest of public/ nothing loads (the old props, sounds and models), then `IS_SK` out of game.ts once the
+  guns agent's fold lands.
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
 - **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,

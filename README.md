@@ -680,7 +680,7 @@ The Settings tab, all remembered in this browser:
 | Volume | master, effects, hits |
 | The range's ammo | endless, or counted |
 | Mantle boost cue | the ring on the crosshair in the last frames of a mantle, where a superglide is possible |
-| Time of day | seven hours, morning to moonlight: the sky, the sun, the light and the fog, applied at once with no reload. In SpeedKills, its own three: golden hour (the default since 2026-10-04), the neon night (its sky fill and rim light turned down, the city's own lights carrying it) or a hazy day, kept apart from the legacy game's; **F8** flips between golden hour and the hazy day in play |
+| Time of day | three hours, the sky, the sun, the light and the fog, applied at once with no reload: golden hour (the default since 2026-10-04), the neon night (its sky fill and rim light turned down, the city's own lights carrying it) or a hazy day; **F8** flips between golden hour and the hazy day in play |
 | Accessibility | a colour vision mode (normal, deuteranopia, protanopia, tritanopia) that moves the enemy and ally colours on pings, the kill feed, name plates and the damage arcs to a pair you can tell apart; and a HUD size, 80% to 140% |
 | Crosshair | five styles (the game's three prongs, cross, T, circle, dot), six colours, length, thickness, gap, centre dot, outline, whether it opens with spread, opacity; a live preview, and Reset for the game's own |
 | Controller: look, ADS, curve, deadzone, auto sprint, rumble, aim assist, advanced look | see [Controller](#controller) |
@@ -1081,7 +1081,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/killcam.json`, `audio.json`, `rangetools.json` | the killcam's timing; the gun classes, the sound's distances, and how much a wall takes off a sound it is between you and; the range's tools |
 | `src/config/readme-tv.json` | the README screen at the far end of the range: where it stands, its size, its arrow plates and the layout of its pages |
 | `src/config/hud.json` | the plates over the others (how long after a hit an enemy's shows, how far away it is drawn), and the looting reach: the walk-over radius, what comes up with no press, the hold cadence and the reach list |
-| `src/config/sky.json` | the seven hours of the day: each one's dome palette, sun direction, light colour, environment strength, fog and which HDRI it uses. The setting is under Graphics and applies without a reload. |
+| `src/config/sky.json` | the three hours of the day: each one's dome palette, sun direction, light colour, environment strength, fog and which HDRI it uses. The setting is under Graphics and applies without a reload. |
 | `src/config/ring.json` | the battle royale ring: the six phases (wait, close, radius, damage), the tick, the square every circle is clamped inside, and the cover attractors late circles are pulled toward |
 | `src/config/viewmodel.json` | the first-person arms: one shoulder anchor set per gun family, the closest an arm may come to the eye, and the radius the sleeve narrows to at the elbow |
 

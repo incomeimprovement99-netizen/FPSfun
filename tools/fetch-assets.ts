@@ -16,84 +16,32 @@ const HERE = fileURLToPath(new URL(".", import.meta.url));
 const OUT = resolve(HERE, "..", "public", "tex");
 
 /** ambientCG asset id -> the folder name we use in code */
-// Chosen to be LIGHT and rust-free. The first set (DiamondPlate008B,
-// PaintedMetal014, MetalPlates006) was dark and heavily rusted, which read as
-// near-black slabs and orange walls; a colour tint multiplies the map, so it
-// can only darken a texture, never rescue a dark one.
+// What the game draws with since the legacy game's went (Milestone 535: its range's metals and asphalt, Outskirts' set
+// and the city's unused facades): the courses' and the Vault's light concrete, and SpeedKills' night city (docs/
+// PHASE_18_PLAN_SPEEDKILLS.md 7.9), a facade photographed at night with an emission map so its windows glow for real,
+// dark asphalt and pavement, black metal and a dark concrete.
 const MATERIALS: Array<{ id: string; as: string; note: string }> = [
-  { id: "Concrete048", as: "concrete", note: "range floor, clean light concrete" },
-  { id: "Metal049A", as: "wall", note: "bay walls and dividers, clean silver metal" },
-  { id: "Metal050A", as: "catwalk", note: "platforms and stairs, brushed aluminium" },
-  { id: "Metal041A", as: "panel", note: "cover, posts and target frames, clean iron" },
-  { id: "Asphalt031", as: "ground", note: "outside the pad, light asphalt" },
-  // The battle royale's own set. Every place on Outskirts used to be the same
-  // grey concrete and the same painted steel, so from 200 m one yard of boxes
-  // looked like the next and there was no reason to choose where to land.
-  // These give each place a surface of its own. They are fetched but not
-  // preloaded: src/game/materials.ts loads a set the first time something
-  // asks for it, so a set nothing uses costs nothing to ship.
-  { id: "Ground037", as: "sand", note: "Outskirts' floor, dry packed sand" },
-  { id: "Rock030", as: "rock", note: "the ridge, the mesas and the boulders" },
-  { id: "Gravel023", as: "gravel", note: "yards and the roadside" },
-  { id: "CorrugatedSteel005", as: "corrugated", note: "North Yard's sheds and warehouse" },
-  { id: "Rust004", as: "rust", note: "South Depot: industrial, weathered" },
-  { id: "PaintedPlaster017", as: "plaster", note: "West Town's houses" },
-  { id: "Bricks066", as: "brick", note: "the Hub's compound walls" },
-  { id: "RoofingTiles003", as: "roof", note: "roofs that read as roofs from above" },
-  { id: "WoodFloor051", as: "planks", note: "interior floors and crate stacks" },
-  { id: "Metal046B", as: "steel", note: "containers, masts and zipline posts" },
-  // SpeedKills' city (docs/PHASE_18_PLAN_SPEEDKILLS.md 7.9): dark and neo-
-  // futuristic, as the owner asked. Six facades photographed at night, their
-  // windows lit, each with an emission map so the windows glow for real; dark
-  // glass for the core; brick for the old town; dark asphalt and pavement;
-  // black metal for trim; a dark concrete for floors and interiors.
-  { id: "Facade002", as: "skNight1", note: "SpeedKills: a night tower, lit windows" },
-  { id: "Facade007", as: "skNight2", note: "SpeedKills: a night tower, lit windows" },
-  { id: "Facade009", as: "skNight3", note: "SpeedKills: a night tower, lit windows" },
-  { id: "Facade011", as: "skNight4", note: "SpeedKills: a night tower, lit windows" },
-  { id: "Facade014", as: "skNight5", note: "SpeedKills: a dark grid tower, a few windows lit" },
-  { id: "Facade017", as: "skNight6", note: "SpeedKills: a night block, warm lit windows" },
-  { id: "Facade001", as: "skGlass", note: "SpeedKills: dark curtain glass" },
-  { id: "Facade020A", as: "skBrick", note: "SpeedKills: the old town's brick" },
+  { id: "Concrete048", as: "concrete", note: "the courses' floors and the Vault's, clean light concrete" },
+  { id: "Facade007", as: "skNight2", note: "SpeedKills: a night tower, lit windows (the movement lab's walls)" },
   { id: "Road012A", as: "skStreet", note: "SpeedKills: the streets, dark asphalt" },
   { id: "Asphalt026C", as: "skPave", note: "SpeedKills: pavements and plazas" },
   { id: "Metal029", as: "skMetal", note: "SpeedKills: black metal trim, walkways and rails" },
   { id: "Concrete033", as: "skConcrete", note: "SpeedKills: floors, interiors and roofs" },
 ];
 
-/** the only maps we ship; the rest of each pack is discarded */
-// Emission only where a pack has it (the night facades' lit windows)
 const KEEP = ["Color", "Roughness", "NormalGL", "Emission"] as const;
 
 /**
- * A sky HDRI, also CC0 (Poly Haven). This is not decoration: metalness
- * materials reflect their environment, and with nothing to reflect every
- * metal surface in the range rendered pure black. It also provides the
- * ambient light that makes shadowed faces readable.
- */
-const HDRI = {
-  id: "kloofendal_48d_partly_cloudy_puresky",
-  url: "https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/kloofendal_48d_partly_cloudy_puresky_1k.hdr",
-  file: "sky.hdr",
-};
-
-/**
- * The other skies. One sky meant every match looked the same hour of the same
- * day, which is the single cheapest thing a shooter can vary: the light does
- * more for how a map reads than any amount of geometry. A match picks one by
- * seed, so a squad sees the same sky as each other and a different one next
- * game. They are extra files, not replacements, and the game falls back to
- * sky.hdr when one is missing, so a checkout that skipped them still runs.
- *
- * All Poly Haven, all CC0, all the 1k HDR so the whole set is a few megabytes.
+ * The skies, CC0 (Poly Haven). Not decoration: metalness materials reflect their environment, and with nothing to
+ * reflect every metal surface renders pure black; it is also the ambient light that makes shadowed faces readable.
+ * SpeedKills' three hours (speedkills.json identity.skies): the golden hour (its default, and what a missing file falls
+ * back to), the hazy day and the neon night. The legacy game's other four hours and its default sky went in Milestone
+ * 535. All the 1k HDR, shrunk (tools/hdr.ts), so the set is under a megabyte.
  */
 const SKIES: Array<{ id: string; file: string; note: string }> = [
-  { id: "kloofendal_43d_clear_puresky", file: "sky-noon.hdr", note: "hard noon, short shadows" },
-  { id: "qwantani_mid_morning_puresky", file: "sky-morning.hdr", note: "mid morning, long soft shadows" },
-  { id: "qwantani_late_afternoon_puresky", file: "sky-afternoon.hdr", note: "low warm sun" },
-  { id: "qwantani_dusk_1_puresky", file: "sky-dusk.hdr", note: "dusk, the lamps start to matter" },
-  { id: "kloofendal_overcast_puresky", file: "sky-overcast.hdr", note: "flat grey, no shadows to read" },
-  { id: "qwantani_moon_noon_puresky", file: "sky-night.hdr", note: "moonlight, for the night variant" },
+  { id: "qwantani_late_afternoon_puresky", file: "sky-afternoon.hdr", note: "the golden hour: low warm sun" },
+  { id: "kloofendal_43d_clear_puresky", file: "sky-noon.hdr", note: "the hazy day: hard noon, short shadows" },
+  { id: "qwantani_moon_noon_puresky", file: "sky-night.hdr", note: "the neon night's moonlight" },
 ];
 const skyUrl = (id: string) => `https://dl.polyhaven.org/file/ph-assets/HDRIs/hdr/1k/${id}_1k.hdr`;
 
@@ -182,20 +130,6 @@ async function main(): Promise<void> {
       console.log(`FAILED: ${(err as Error).message}`);
       lines.push(`| \`${m.as}/\` | ambientCG ${m.id} (CC0) | ${m.note} — DOWNLOAD FAILED |`);
     }
-  }
-
-  // sky
-  process.stdout.write(`  ${HDRI.id} -> ${HDRI.file} ... `);
-  try {
-    const hdr = await download(HDRI.url);
-    // (at no more than 512 across: tools/hdr.ts says why)
-    const small = shrinkSky(hdr);
-    writeFileSync(join(OUT, HDRI.file), small);
-    console.log(`${(small.length / 1024).toFixed(0)} KB`);
-    lines.push(`| \`${HDRI.file}\` | Poly Haven ${HDRI.id} (CC0) | sky, reflections and ambient light |`);
-  } catch (err) {
-    console.log(`FAILED: ${(err as Error).message}`);
-    lines.push(`| \`${HDRI.file}\` | Poly Haven ${HDRI.id} (CC0) | sky — DOWNLOAD FAILED |`);
   }
 
   for (const sky of SKIES) {

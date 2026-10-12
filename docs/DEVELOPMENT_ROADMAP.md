@@ -11529,6 +11529,28 @@ what the legacy removals had left behind, used by nothing:
 - About 110 lines out.
 - **Checked:** tsc; verify; rules; e2e range.
 
+## Milestone 535 — The legacy textures and skies out: 11 MB less in every deploy
+
+The owner (2026-10-12, through the character agent): "continue removing all old shit, including old guns maps textures
+anything like that." Of the 27 texture sets `npm run assets` fetched, six are drawn now; of its seven skies, three.
+
+- **Textures out (21 sets):** the legacy range's metals and asphalt (wall, catwalk, panel, ground: the range has worn
+  the city's since Phase 20 and its warehouse palette went in 534), Outskirts' ten (sand, rock, gravel, corrugated,
+  rust, plaster, brick, roof, planks, steel) and the city facades nothing uses (skNight1 and 3 to 6, skGlass,
+  skBrick). Kept: concrete (the courses' and the Vault's floors), skNight2 (the movement lab's walls), skStreet,
+  skPave, skMetal and skConcrete. fetch-assets.ts, materials.ts's names and fallback colours, and ATTRIBUTION.md follow.
+- **Skies out (four files, six hours):** the legacy game's morning, noon, afternoon, overcast, dusk and moonlight hours
+  (sky.json), with sky.hdr, sky-morning.hdr, sky-dusk.hdr and sky-overcast.hdr. SpeedKills' golden hour, hazy day and
+  neon night stay, and the golden hour is the default and what a missing sky file falls back to (it was sky.hdr, the
+  legacy afternoon). A saved legacy hour lands on the golden hour.
+- **The sky hours check** checks SpeedKills' three: all it offers and nothing else, the golden hour the default, every
+  colour, sun, fog and light sound, the neon night the darkest with its fill and rim down, a legacy id falling back,
+  and every hour's file one the fetch script names. bench.ts's battle royale sky key (gone in 531) went.
+- **Props out (three):** the ammo boxes, utility box and chain-link fence (props.ts, fetch-models.ts), placed by
+  nothing since the old range's clutter (531) and Outskirts' perimeter (528) went.
+- 11 MB of the 15 MB under public/tex and 1.2 MB of props, which the build copies into every deploy.
+- **Checked:** tsc; verify; rules; e2e page, range and speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

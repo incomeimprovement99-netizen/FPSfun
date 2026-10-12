@@ -9,37 +9,12 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { later } from "./later";
 
 export type MatName =
+  // the courses' floors and the Vault's (tools/fetch-assets.ts)
   | "concrete"
-  | "wall"
-  | "catwalk"
-  | "panel"
-  | "ground"
-  // Outskirts' own set (tools/fetch-assets.ts). Each place on the battle
-  // royale map takes one or two of these so its walls, roofs and floors are
-  // not the same grey as every other place. Nothing is preloaded: a set is
-  // fetched from public/tex the first time something asks for it, so a set
-  // nothing uses costs no bandwidth.
-  | "sand"
-  | "rock"
-  | "gravel"
-  | "corrugated"
-  | "rust"
-  | "plaster"
-  | "brick"
-  | "roof"
-  | "planks"
-  | "steel"
-  // SpeedKills' city (tools/fetch-assets.ts): night facades with lit
-  // windows, whose emission maps make the windows glow; glass, brick,
-  // streets, pavement, black metal and dark concrete
-  | "skNight1"
+  // SpeedKills' city (tools/fetch-assets.ts): a night facade with lit windows, whose emission map makes them glow;
+  // streets, pavement, black metal and dark concrete. The legacy game's range metals and Outskirts' set went in
+  // Milestone 535.
   | "skNight2"
-  | "skNight3"
-  | "skNight4"
-  | "skNight5"
-  | "skNight6"
-  | "skGlass"
-  | "skBrick"
   | "skStreet"
   | "skPave"
   | "skMetal"
@@ -67,22 +42,24 @@ const cache = new Map<string, THREE.MeshStandardMaterial>();
  * scene, so it sits at 0.85: enough fill to keep shaded faces readable, not so
  * much that the sun stops mattering.
  */
+/** the golden hour's sky, SpeedKills' default (sky.json default): what a missing sky file falls back to */
+const FALLBACK_SKY = "sky-afternoon.hdr";
+
 export async function installSky(
   scene: THREE.Scene,
   renderer: THREE.WebGLRenderer,
   /**
-   * Which sky, from src/config/sky.json. A file that is not there (a checkout
-   * that fetched the assets before the extra hours existed) falls back to
-   * sky.hdr rather than leaving the scene with no environment at all, because
-   * no environment means every metal surface renders black.
+   * Which sky, from src/config/sky.json. A file that is not there falls back to the golden hour's (the default
+   * hour's) rather than leaving the scene with no environment at all, because no environment means every metal
+   * surface renders black.
    */
-  file = "sky.hdr"
+  file = FALLBACK_SKY
 ): Promise<boolean> {
   try {
     const loadHdr = new RGBELoader();
     const hdr = await loadHdr.loadAsync(`tex/${file}`).catch(async (err: unknown) => {
-      if (file === "sky.hdr") throw err;
-      return loadHdr.loadAsync("tex/sky.hdr");
+      if (file === FALLBACK_SKY) throw err;
+      return loadHdr.loadAsync(`tex/${FALLBACK_SKY}`);
     });
     const pmrem = new THREE.PMREMGenerator(renderer);
     pmrem.compileEquirectangularShader();
@@ -112,30 +89,7 @@ interface Opts {
 
 const FALLBACK: Record<MatName, number> = {
   concrete: 0x8d8f8c,
-  wall: 0x5d6570,
-  catwalk: 0x6b7078,
-  panel: 0x7b8189,
-  ground: 0x7a7266,
-  // the colours Outskirts used before it had textures, so a checkout that has
-  // not run `npm run assets` still reads as the same map in the same palette
-  sand: 0xb8a988,
-  rock: 0x6f6a62,
-  gravel: 0x8b857a,
-  corrugated: 0x9aa3a6,
-  rust: 0x8a5a3c,
-  plaster: 0xc9bda6,
-  brick: 0x9c6a52,
-  roof: 0x5a5e62,
-  planks: 0x8a6a44,
-  steel: 0x7f8891,
-  skNight1: 0x1a2233,
   skNight2: 0x161c28,
-  skNight3: 0x1b2030,
-  skNight4: 0x141a26,
-  skNight5: 0x121620,
-  skNight6: 0x1e1a22,
-  skGlass: 0x1a2432,
-  skBrick: 0x3a2a26,
   skStreet: 0x1a1b1e,
   skPave: 0x26282c,
   skMetal: 0x121316,
@@ -236,7 +190,7 @@ export function material(name: MatName, opts: Opts = {}): THREE.MeshStandardMate
   const m = new THREE.MeshStandardMaterial({
     color: opts.color ?? 0xffffff,
     roughness: opts.roughness ?? 0.9,
-    metalness: opts.metalness ?? (name === "catwalk" || name === "panel" || name === "steel" || name === "corrugated" ? 0.55 : 0.05),
+    metalness: opts.metalness ?? 0.05,
   });
 
   // If any map 404s, drop every map on this material and fall back to a flat

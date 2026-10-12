@@ -13,11 +13,8 @@ export type PropName =
   | "concrete_road_barrier"
   | "plastic_crate_03"
   | "security_light"
-  | "utility_box_01"
-  | "ammo_box"
   | "steel_frame_shelves_01"
-  | "portable_generator"
-  | "modular_chainlink_fence";
+  | "portable_generator";
 
 export interface Placement {
   prop: PropName;

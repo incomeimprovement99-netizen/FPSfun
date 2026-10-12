@@ -206,7 +206,6 @@ async function measure(browser: import("puppeteer").Browser, preset: string, mer
   if (CPU_SLOW > 1) await (await page.createCDPSession()).send("Emulation.setCPUThrottlingRate", { rate: CPU_SLOW });
   await page.evaluateOnNewDocument((v: string) => localStorage.setItem("range.quality", v), preset);
   // one hour for every run (a battle royale draws its own from the seed otherwise)
-  await page.evaluateOnNewDocument(() => localStorage.setItem("range.sky.br", "mine"));
   if (BEFORE[SPOT]) await page.evaluateOnNewDocument(BEFORE[SPOT]);
   await page.goto(PAGE_URL + (merge ? "?nointro" : "?nomerge&nointro") + (PHASES ? "&perf" : "") + (process.env.BENCH_QUERY ?? "") + query, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range)", { timeout: 60000 });

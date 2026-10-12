@@ -24,11 +24,8 @@ const MODELS: Array<{ slug: string; note: string }> = [
   { slug: "concrete_road_barrier", note: "lane barriers" },
   { slug: "plastic_crate_03", note: "small clutter" },
   { slug: "security_light", note: "floodlights on the walls" },
-  { slug: "utility_box_01", note: "wall clutter" },
-  { slug: "ammo_box", note: "beside the racks" },
   { slug: "steel_frame_shelves_01", note: "rack shelving" },
   { slug: "portable_generator", note: "yard clutter" },
-  { slug: "modular_chainlink_fence", note: "perimeter" },
 ];
 
 interface FileEntry {
