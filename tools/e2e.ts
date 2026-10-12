@@ -763,7 +763,7 @@ async function rulesTest(browser: Browser, query: string): Promise<void> {
   await sleep(500);
   const ally = await ev<boolean>(h2, "window.__range.duel().isAlly(1)");
   const before = await ev<number>(g2, "(() => { const d = window.__range.duel(); return d.health + d.shield; })()");
-  await ev(h2, `(() => { const d = window.__range.duel(); d.localHit(d.remotes.get(1), 30, false, "rspn101"); })()`);
+  await ev(h2, `(() => { const d = window.__range.duel(); d.localHit(d.remotes.get(1), 30, false, "vinson"); })()`);
   const hurt = await g2.waitForFunction(`(() => { const d = window.__range.duel(); return d.health + d.shield < ${before}; })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
   check("rules: friendly fire on: the host's round hurts its team mate", ally && hurt, JSON.stringify({ ally, before, hurt }));
   await h2.close();
@@ -838,7 +838,7 @@ async function modesFriendsTest(browser: Browser, query: string): Promise<void> 
   const seen = await ev<{ bots: number; humans: number; rows: number }>(guest, `(() => { const d = window.__range.duel(); const rs = [...d.remotes.values()]; return { bots: rs.filter((r) => r.id >= 100).length, humans: rs.filter((r) => r.id < 100).length, rows: d.hud().mode.rows.length }; })()`);
   check("modes friends: the guest sees the host and the host's bot, and all three on the scoreboard", seen.bots === 1 && seen.humans === 1 && seen.rows === 3, JSON.stringify(seen));
   // the host knocks the guest: the host's kill counts on both screens, the guest comes back
-  await ev(host, `(() => { const d = window.__range.duel(); const r = d.remotes.get(1); d.localHit(r, 900, true, "rspn101", 12); })()`);
+  await ev(host, `(() => { const d = window.__range.duel(); const r = d.remotes.get(1); d.localHit(r, 900, true, "vinson", 12); })()`);
   const down = await guest.waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   await sleep(700);
   const lv = await Promise.all([host, guest].map((p) => ev<number>(p, "window.__range.duel().board.row(0).kills")));
@@ -1486,7 +1486,7 @@ async function botsTest(browser: Browser, query: string): Promise<void> {
   // no pass for a missing file: a release without `npm run sounds` would ship the synthesis (docs/TEST_AUDIT.md)
   check("sound: the recorded samples are loaded and layered into the fight's sounds", rec.files && rec.loaded >= 10 && rec.played > 0, JSON.stringify(rec));
   // recorded gunshots (npm run guns): every class has near and far takes, and a shot plays one
-  const guns = await ev<{ files: boolean; classes: string[]; missing: string[]; before: number; after: number }>(page, `(async () => { const a = window.__range.audio; const files = (await fetch("audio/guns/index.json")).ok; const classes = ["pistol", "smg", "rifle", "lmg", "marksman", "sniper", "shotgun"]; const missing = classes.flatMap((c) => [\`shot_\${c}\`, \`shot_\${c}_far\`]).filter((n) => !a.samples.has(n)); const before = a.samplesPlayed; a.gun("rspn101"); return { files, classes, missing, before, after: a.samplesPlayed }; })()`);
+  const guns = await ev<{ files: boolean; classes: string[]; missing: string[]; before: number; after: number }>(page, `(async () => { const a = window.__range.audio; const files = (await fetch("audio/guns/index.json")).ok; const classes = ["pistol", "smg", "rifle", "lmg", "marksman", "sniper", "shotgun"]; const missing = classes.flatMap((c) => [\`shot_\${c}\`, \`shot_\${c}_far\`]).filter((n) => !a.samples.has(n)); const before = a.samplesPlayed; a.gun("vinson"); return { files, classes, missing, before, after: a.samplesPlayed }; })()`);
   check("sound: every gun class has recorded shots near and far, and a shot plays one", guns.files && guns.missing.length === 0 && guns.after > guns.before, JSON.stringify({ files: guns.files, missing: guns.missing, played: guns.after - guns.before }));
   // knock it: a hit through its dummy, then the match is told
   await ev(page, `(() => { const d = window.__range.duel(); const a = d.avatars[0]; const pt = { clone() { return this; } }; a.hit(0, "body", 500, 1, 1, pt); d.localHit(d.remoteOf(a), 500, false); })()`);
@@ -2679,7 +2679,7 @@ async function shotgunChecks(page: Page): Promise<void> {
   check(`shotgun: one pull of the Mastiff is ${set.pellets} pellets, and at 4 m they all land`, fired === set.pellets && hits === set.pellets, `fired ${fired}, hit ${hits}`);
   check("shotgun: the pellets do damage each, not one pellet's worth", dealt >= set.near * set.pellets * 0.75, `${dealt} dealt, a pellet is ${set.near}`);
   check("shotgun: the HUD sums the pull into one damage number", nums.length === 1 && nums[0].amount === dealt, JSON.stringify(nums));
-  await ev(page, `window.__range.loadout.setWeaponId(0, "rspn101")`);
+  await ev(page, `window.__range.loadout.setWeaponId(0, "vinson")`);
   await sleep(1600);
   // a spray at one target: one number that grows, not one a round (hud.json
   // damageNumbers); five hits on one target handed to the HUD, as main.ts does
@@ -3010,14 +3010,14 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
   await sleep(1200);
   // the host fires: the guest's figure of the host flashes at the muzzle, and the flash goes out
   const f0 = await ev<number>(guest, "window.__range.duel().remotes.get(0)?.avatar.flashFrames ?? -1");
-  await ev(host, "(() => { const p = window.__range.player.eyePosition(); window.__range.duel().localShot(p, new window.__range.THREE.Vector3(0, 0, -1), 'rspn101'); })()");
+  await ev(host, "(() => { const p = window.__range.player.eyePosition(); window.__range.duel().localShot(p, new window.__range.THREE.Vector3(0, 0, -1), 'vinson'); })()");
   const lit = await guest.waitForFunction(`(window.__range.duel().remotes.get(0)?.avatar.flashFrames ?? -1) > ${f0}`, { polling: 50, timeout: 3000 }).then(() => true, () => false);
   await sleep(400);
   const out = await ev<boolean>(guest, "!window.__range.duel().remotes.get(0)?.avatar.flashShown");
   check("muzzle flash: the host fires and the guest's figure of the host flashes at the muzzle, then goes out", f0 >= 0 && lit && out, JSON.stringify({ f0, lit, out }));
   // the host fires into the floor: where it lands is marked on the guest's screen too
   const i0 = await ev<number>(guest, "window.__range.impacts()");
-  await ev(host, "(() => { const p = window.__range.player.eyePosition(); window.__range.duel().localShot(p, new window.__range.THREE.Vector3(0, -1, -1).normalize(), 'rspn101'); })()");
+  await ev(host, "(() => { const p = window.__range.player.eyePosition(); window.__range.duel().localShot(p, new window.__range.THREE.Vector3(0, -1, -1).normalize(), 'vinson'); })()");
   const marked = await guest.waitForFunction(`window.__range.impacts() > ${i0}`, { polling: 50, timeout: 3000 }).then(() => true, () => false);
   check("impacts: another player's round into the floor is marked where it lands", marked, `${i0} before`);
   // the host sprays the nearest wall it can turn to: the guest sees the host's spray
@@ -4942,7 +4942,7 @@ async function skOutlineTest(browser: Browser): Promise<void> {
   await page.waitForFunction(`window.__range.duel()?.phase === "fight"`, { polling: 200, timeout: 60000 }).catch(() => undefined);
   // the bot on the rifle, whose bought model is the one with scale-100 parts (a bot 1v1 draws its bot's gun at
   // random, and the Bot guns box is the modes'; on another gun this check measured nothing that could go wrong)
-  await ev(page, `(() => { const b0 = window.__range.duel()?.bots?.[0]; if (b0) (b0.bot ?? b0).setWeapon("rspn101"); })()`);
+  await ev(page, `(() => { const b0 = window.__range.duel()?.bots?.[0]; if (b0) (b0.bot ?? b0).setWeapon("vinson"); })()`);
   // the bot's figure with a bought gun in its hands (the scale-100 parts), its outline on at 2 cm
   const read = `(() => { const r = window.__range; const d = r.duel(); const b0 = d?.bots?.[0]; if (!b0) return null; const fig = (b0.bot ?? b0).dummy;
     fig.setOutline(true, 0.02, 0xff2a3a, 0.12);
@@ -5248,7 +5248,9 @@ async function skIntroTest(browser: Browser): Promise<void> {
       const atClick = look();
       const step = () => { const s = look(); rows.push(s);
         if (rows.some((r) => r.card) && !s.card && !cardGone) cardGone = performance.now();
-        if ((cardGone && performance.now() - cardGone > 1500) || performance.now() - t0 > 60000) return ok({ atClick, rows });
+        // (120 s, not 60: on the suite's software drawing the match took 51 to 57 s to build before its card, which then
+        // plays 8, and the window closed with the card still up; this is the order's check, not the build's speed)
+        if ((cardGone && performance.now() - cardGone > 1500) || performance.now() - t0 > 120000) return ok({ atClick, rows });
         setTimeout(step, 30); };
       step(); })`,
   );
@@ -7680,8 +7682,8 @@ async function main(): Promise<void> {
     // in the game, not on the menu: the menu stops a run's clock
     await pressPlay(page);
     await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
-    // fit an optic to slot 1 first: the course lends pistols and must give it back
-    const fitted = await ev<string | null>(page, `(() => { const l = window.__range.loadout; l.cycleAttachment("optic"); return l.slots[0].attach.optic ?? null; })()`);
+    // slot 1's optic, its own: the course lends pistols and must give it back
+    const fitted = await ev<string | null>(page, `(() => { const l = window.__range.loadout; return l.slots[0].attach.optic ?? null; })()`);
     const X = -21.5;
     const steps: Array<[number, number, number]> = [
       [0, 0, 11], [0, 0, 13.5], [6, 0, 22], [0, 0, 42], [0, 4.2, 52.8], [0, 1.4, 71], [8, 1.4, 83], [-7, 0, 95], [7, 0, 119.5], [7, 0, 131.2],

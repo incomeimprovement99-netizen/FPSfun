@@ -190,9 +190,9 @@ export function sightRange(tier: BotTier, mode: BotSightMode = "arena", cue: Sig
  * rather than a list of names, because the data already says it plainly: those
  * guns hold their full damage out to 190 m where an SMG is falling off by 25.
  */
-export function scopedGun(w: Pick<ResolvedWeapon, "optic" | "integralOptic" | "damage">): boolean {
+export function scopedGun(w: Pick<ResolvedWeapon, "optic" | "damage">): boolean {
   if (w.damage.nearDist >= SIGHT.longFrom) return true;
-  const o = w.optic ?? w.integralOptic;
+  const o = w.optic;
   return o !== null && SIGHT.scopes.some((p) => o.startsWith(p));
 }
 
@@ -712,7 +712,7 @@ export class Bot {
     name?: string
   ) {
     const wid = weaponId ?? BOT_WEAPONS[index % BOT_WEAPONS.length];
-    this.weapon = resolveWeapon(wid, 2);
+    this.weapon = resolveWeapon(wid);
     // SpeedKills: its own soldier, seeded by its id, which a guest's figure of it takes too (soldier.ts botSoldierCode)
     const op = OPERATORS[(index + 1) % OPERATORS.length];
     const skin = IS_SK ? { ...op, soldier: botSoldierCode(id) } : op;
@@ -848,7 +848,7 @@ export class Bot {
   /** a different gun (Gun Run's next level): its figure's too */
   setWeapon(id: string): void {
     if (id === this.weapon.id) return;
-    this.weapon = resolveWeapon(id, 2);
+    this.weapon = resolveWeapon(id);
     this.remote.avatarWeapon = id;
     this.dummy.setGun(id);
     this.dummy.setGunVisible(this.knife === null);
@@ -1268,7 +1268,7 @@ export class Bot {
     const k = this.looter.kit;
     if (!k.gunId) return;
     // SpeedKills: its gun at its fusion level (the kit's rank is the level plus one)
-    this.weapon = resolveWeapon(k.gunId, k.mag, this.looter.modIds, IS_SK ? Math.max(0, k.gun - 1) : 0);
+    this.weapon = resolveWeapon(k.gunId, this.looter.modIds, IS_SK ? Math.max(0, k.gun - 1) : 0);
     if (this.remote.avatarWeapon !== k.gunId) {
       this.remote.avatarWeapon = k.gunId;
       this.dummy.setGun(k.gunId);

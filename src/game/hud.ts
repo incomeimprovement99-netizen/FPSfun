@@ -106,9 +106,6 @@ export interface HudState {
   weaponName: string;
   /** SpeedKills: the gun's class beside its name (speedkills.json kind; Phase 20 A7) */
   weaponKind?: string | null;
-  /** the gun's locked hop-up and its progress (a battle royale, Seasons 29 and 30) */
-  hopLock?: { name: string; have: number; need: number } | null;
-  magLevel: number;
   /** SpeedKills: each slot's fusion level (slot 1 first) and the most there is; null in the legacy game */
   fusion?: { levels: number[]; max: number } | null;
   slot: number;
@@ -117,7 +114,6 @@ export interface HudState {
   otherKind?: string | null;
   swapping: boolean;
   fireMode: string;
-  attachLines: string[];
   clip: number;
   clipSize: number;
   /** nothing in hand (a battle royale's start, an empty slot): no count, no reserve */
@@ -151,12 +147,8 @@ export interface HudState {
     /** everyone in the match, as each sent it at the end: you among them */
     table?: Array<{ name: string; kills: number; damage: number; place: number; you: boolean }>;
   } | null;
-  /** 0..1: the gun's wind-up, charge, aimed charge, choke or burst charge (a ring round the crosshair) */
-  gunCharge?: number;
   /** the L-STAR's heat, and whether it is in its forced cooldown */
   heat?: { heat: number; locked: boolean } | null;
-  /** the Devotion's spin, 0..1 */
-  spin?: number | null;
   reloading: boolean;
   reloadProgress: number;
   coneDeg: number;
@@ -2107,20 +2099,6 @@ export class Hud {
       c.stroke();
       c.lineWidth = 2;
     }
-    // a gun's charge: a ring round the crosshair that closes as it fills
-    const ch = s.gunCharge ?? 0;
-    if (ch > 0.01 && !s.holstered) {
-      c.lineWidth = 3 * u;
-      c.strokeStyle = "rgba(0,0,0,0.5)";
-      c.beginPath();
-      c.arc(cx, cy, gap + 16 * u, 0, Math.PI * 2);
-      c.stroke();
-      c.strokeStyle = ch >= 0.999 ? "#ffd23c" : "#8fd8ff";
-      c.beginPath();
-      c.arc(cx, cy, gap + 16 * u, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * ch);
-      c.stroke();
-      c.lineWidth = 2;
-    }
     if (now < this.hitMarkerUntil) {
       const big = this.hitMarkerKind !== "hit";
       c.strokeStyle = big ? (this.hitMarkerKind === "kill" ? "rgba(255,60,50,0.98)" : "rgba(255,140,60,0.98)") : this.hitMarkerHead ? "rgba(255,210,60,0.95)" : "rgba(255,255,255,0.9)";
@@ -3497,7 +3475,7 @@ export class Hud {
       const pct = Math.round((100 * s.energy.rounds) / Math.max(1, s.energy.max));
       this.text(`${pct}%`, right, bottom - 44 * u, 700, 20 * u, pct === 0 ? RED : "#8fd8ff", "right");
     } else this.text(Number.isFinite(res) ? String(res) : "∞", right, bottom - 44 * u, 700, 20 * u, res === 0 ? RED : DIM, "right");
-    // the L-STAR's heat, the Devotion's spin: a bar over the count
+    // the L-STAR's heat: a bar over the count
     const bar = (v: number, col: string, label: string) => {
       c.fillStyle = "rgba(0,0,0,0.5)";
       c.fillRect(right - 180 * u, bottom - 72 * u, 180 * u, 6 * u);
@@ -3506,7 +3484,6 @@ export class Hud {
       this.text(label, right - 186 * u, bottom - 66 * u, 700, 12 * u, col, "right");
     };
     if (s.heat) bar(s.heat.heat, s.heat.locked ? RED : s.heat.heat > 0.75 ? "#ff9a4a" : "#ffd27a", s.heat.locked ? "OVERHEATED" : "HEAT");
-    else if (s.spin !== null && s.spin !== undefined) bar(s.spin, "#8fd8ff", "SPIN");
     // two slots, active one lit
     const slotW = 170 * u;
     const slotH = 30 * u;
@@ -3539,23 +3516,7 @@ export class Hud {
         }
       }
     }
-    if (!s.unarmed) this.text(s.fusion ? `${s.fireMode.toUpperCase()}  ·  FUSION ${s.fusion.levels[s.slot - 1] ?? 0}/${s.fusion.max}` : `${s.fireMode.toUpperCase()}  ·  MAG ${s.magLevel}`, right, top - 10 * u, 600, 13 * u, DIM, "right");
-    // a locked hop-up: a thin bar over the slots, filling with the damage done with the gun
-    if (s.hopLock && !s.unarmed) {
-      const w = 170 * u;
-      const y = top - 4 * u;
-      c.fillStyle = "rgba(0,0,0,0.5)";
-      c.fillRect(right - w, y, w, 3 * u);
-      c.fillStyle = "#e8b84a";
-      c.fillRect(right - w, y, w * Math.min(1, s.hopLock.have / Math.max(1, s.hopLock.need)), 3 * u);
-      this.text(`${s.hopLock.name.toUpperCase()} LOCKED  ·  ${Math.floor(s.hopLock.have)}/${s.hopLock.need}`, right - w - 8 * u, y + 4 * u, 700, 11 * u, "#e8b84a", "right");
-    }
-    if (s.attachLines.length && !s.unarmed) {
-      s.attachLines.forEach((line, i) => {
-        const empty = line.endsWith("none") || line.endsWith("iron sights");
-        this.text(line, right, top - 30 * u - i * 16 * u, 600, 12 * u, empty ? "#5d666f" : "#b9c2cc", "right");
-      });
-    }
+    if (!s.unarmed) this.text(s.fusion ? `${s.fireMode.toUpperCase()}  ·  FUSION ${s.fusion.levels[s.slot - 1] ?? 0}/${s.fusion.max}` : s.fireMode.toUpperCase(), right, top - 10 * u, 600, 13 * u, DIM, "right");
     // The reload bar is in the middle of the screen, under the reticle, and
     // faint. It was tucked under the ammo count in the corner, which is the
     // one place your eyes are not during a reload: you are looking at whoever

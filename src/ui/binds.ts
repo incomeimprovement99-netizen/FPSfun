@@ -57,7 +57,6 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["inspect", "Inspect the gun (also: hold reload with a full magazine)"],
       ["melee", "Melee"],
       ["zoomToggle", "Variable optic zoom"],
-      ["fireMode", "Fire mode (where the gun has two)"],
     ],
   },
   {

@@ -11224,6 +11224,39 @@ code went:
   on BIGANTLER alone. Three hop-ups only the old guns took came off the legacy floor's list.
 - **Checked:** tsc; verify; rules; e2e sklobby, skarmory and range.
 
+## Milestone 522 — The attachments, magazine levels and hop-ups out, and the R-301
+
+SpeedKills' guns each wear one fixed optic and grow by fusion; the legacy game's attachment system was all still in
+the code, refused at every turn in SpeedKills (Loadout.fitAttachment and fitMag returned false there, its pickup path
+returned before a hop-up's lock was set). It went, with the R-301 its checks were built on:
+
+- **Attachments:** barrels, stocks, lasers and hop-ups, their keys (J, N, H, L, O, and B for the second fire mode),
+  the HUD's attachment lines and the locked hop-up's bar, the floor's attachment and magazine pickups, the kitted guns
+  of the legacy loot (the Hot Zone's prize, the loadout crate's, the vault's), and the locked hop-ups' effects
+  (Executioner's shield, Shattercaps, Redline). attachments.ts is SpeedKills' optics alone, each gun's own and fixed.
+- **Magazine levels:** gone from the loadout, the resolved gun (`resolveWeapon(id, attach, fusion)`, no level), the
+  HUD's MAG readout and the gun model's coloured magazine; a gun is the data's first magazine, and fusion grows it.
+  The U key still steps a gun's fusion level in the range.
+- **The old guns' mechanics** (weapon-state.ts): the HAVOC's wind-up, the Charge Rifle's charge, the Devotion's
+  spin-up, the 30-30's aimed charge, the choke, the Nemesis' burst charge and the Hemlok's and Prowler's bursts, the
+  Bocek's draw, and the charge ring round the crosshair. The firing loop is a semi-auto or an automatic, with the
+  L-STAR's heat (CHOOCH); the shotguns' blast patterns stay (BIGANTLER, REZ). weapon-mechanics.json keeps the two.
+- **The R-301:** out of the data (11 guns now: SpeedKills' nine, the 30-30 under the launcher and the P2020 under
+  the Run's pistols), its overrides, the extractor's list, the configs and the gun models. Where it stood in for "a
+  gun" (the Run's pop-ups, the range's shooting tool, a friend's figure before its loadout arrives, the replay's
+  fallback, the figure labs) PANDA does. A saved loadout naming it still gets STRYDER (speedkills.json renamed).
+- **The controller:** D-pad left was the fire mode, and held, inspect; it inspects on a press now. The range preset's
+  optic button went.
+- **Checks:** verify's tests of the attachments, magazine levels, hop-ups and fire modes went; its data checks and the
+  recoil pattern's moved from the R-301 to PANDA (its own numbers, through SpeedKills' tuning), the first rounds'
+  climb to PANDA's six, the cursor's decay to the gun's own schedule, and the magazine key's two (its slot alone, the
+  recoil kept) to fusion's. The legacy armour tiers' shots-to-kill table went (SpeedKills' kill times are ttk.ts's).
+- **The Start-to-ship check** (Milestone 496) watched 60 s from Start; on the suite's software drawing the match took
+  51 to 57 s to build before its card, which then plays 8, so the window closed with the card still up and the check
+  failed with nothing wrong. It watches 120 s: it checks the order, not the build's speed.
+- About 2,450 lines out, 550 in.
+- **Checked:** tsc; verify; rules; e2e pad, range, sklobby, speedkills, duel, bots, skarmory and skbots.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

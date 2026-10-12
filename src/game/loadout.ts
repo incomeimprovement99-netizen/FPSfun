@@ -1,44 +1,37 @@
 // Two weapon slots with independent state. Each slot keeps its own clip,
-// reload timer, mag level, spread and recoil, so you can empty one mag, swap,
-// empty the other, and swap back to a still-empty first gun.
+// reload timer, fusion level, spread and recoil, so you can empty one mag,
+// swap, empty the other, and swap back to a still-empty first gun.
 //
 // Model: `activeIndex` is what is in hand and what can fire. `targetIndex` is
 // where we are heading. They differ exactly while a swap is running, which
 // makes redirecting mid-swap (changing your mind) fall out for free.
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import { resolveWeapon, weaponMods, type ResolvedWeapon } from "./weapons";
 import { WeaponState } from "./weapon-state";
-import { fireModeOf, modNames, optionsFor, startingOptic, SLOTS, type AttachSlot, type Attachments } from "./attachments";
+import { modNames, opticsFor, startingOptic, type Attachments } from "./attachments";
 import { AMMO, AmmoPouch, fullEnergy, type EnergyStock } from "./ammo";
-import { opticInfo } from "./optics";
-import { opticName } from "../config/names";
 
 export interface Slot {
   id: string;
-  magLevel: number;
+  /** its sight: the gun's own, fixed (attachments.ts startingOptic) */
   attach: Attachments;
   weapon: ResolvedWeapon;
   state: WeaponState;
   /** a variable optic on its second zoom */
   zoomAlt: boolean;
-  /** on its second fire mode (B) */
-  altMode: boolean;
   /** an energy gun's own stockpile (ammo.ts), or null */
   energy: EnergyStock | null;
   /** nothing in this slot (a battle royale's start): fists; the weapon object is only a placeholder */
   empty: boolean;
   /** just picked up: its first time out comes with a flourish (cosmetic) */
   firstDraw?: boolean;
-  /** a battle royale gun's locked hop-up (Seasons 29 and 30): the damage done with it toward unlocking it */
-  hopLock?: { mod: string; have: number; need: number } | null;
-  /** SpeedKills' fusion level, 0 as found to 5 (src/config/games/speedkills.json fusion); the legacy game leaves it 0 */
+  /** its fusion level, 0 as found to 5 (src/config/games/speedkills.json fusion) */
   fusion?: number;
 }
 
-/** a slot's weapon and its fittings, without the live state */
+/** a slot's weapon and its sight, without the live state */
 export interface SlotSetup {
   id: string;
-  magLevel: number;
   attach: Attachments;
   zoomAlt: boolean;
 }
@@ -56,9 +49,9 @@ export class Loadout {
   constructor(ids: string[]) {
     for (const id of ids) {
       // every gun out of a loadout wears a sight (attachments.ts startingOptic)
-      const attach: Attachments = { optic: startingOptic(weaponMods(id), id) };
-      const fitted = resolveWeapon(id, 0, modNames(attach));
-      const s: Slot = { id, magLevel: 0, attach, weapon: fitted, state: new WeaponState(fitted), zoomAlt: false, altMode: false, energy: fullEnergy(fitted), empty: false, fusion: 0 };
+      const attach: Attachments = { optic: startingOptic(id) };
+      const fitted = resolveWeapon(id, modNames(attach));
+      const s: Slot = { id, attach, weapon: fitted, state: new WeaponState(fitted), zoomAlt: false, energy: fullEnergy(fitted), empty: false, fusion: 0 };
       this.slots.push(s);
       this.wireSupply(s);
     }
@@ -82,52 +75,20 @@ export class Loadout {
     };
   }
 
-  /** the mods a slot's gun is built from (tools/verify.ts: a sight is fitted, not just recorded) */
+  /** the mods a slot's gun is built from: its sight (tools/verify.ts: a sight is fitted, not just recorded) */
   chainOf(slotIndex: number): string[] {
     const s = this.slots[slotIndex];
-    return s ? this.chain(s) : [];
+    return s ? modNames(s.attach) : [];
   }
 
-  /** the mod chain for a slot: its attachments, and its fire mode's mod when on the second one */
-  private chain(s: Slot): string[] {
-    const fm = fireModeOf(s.id);
-    const list = modNames(s.attach);
-    if (s.altMode && fm && this.fireModeAvailable(s)) list.push(fm.mod);
-    return list;
-  }
-
-  /** a gun's second fire mode can be picked (it has one, and the hop-up it needs is on) */
-  fireModeAvailable(s: Slot = this.active): boolean {
-    const fm = fireModeOf(s.id);
-    return !!fm && (!fm.needs || s.attach.hopup === fm.needs);
-  }
-
-  /** B: the other fire mode; returns its label, or null when the gun has none */
-  toggleFireMode(): string | null {
-    const s = this.active;
-    const fm = fireModeOf(s.id);
-    if (!fm || !this.fireModeAvailable(s)) return null;
-    s.altMode = !s.altMode;
-    this.rebuild(true);
-    return s.altMode ? fm.alt : fm.base;
-  }
-
-  /** the fire mode's name for the HUD */
+  /** how the gun fires, for the HUD (the legacy game's second fire modes went in Milestone 522) */
   fireModeLabel(s: Slot = this.display): string {
-    const fm = fireModeOf(s.id);
-    if (fm && this.fireModeAvailable(s)) return s.altMode ? fm.alt : fm.base;
-    const w = s.weapon;
-    return w.burstCount > 1 ? `burst ${w.burstCount}` : w.semiAuto ? "single" : "auto";
-  }
-
-  /** rebuild the active slot's weapon from its id, mag level, attachments and fire mode */
-  private rebuild(keepState: boolean): void {
-    this.rebuildSlot(this.active, keepState);
+    return s.weapon.semiAuto ? "single" : "auto";
   }
 
   private rebuildSlot(s: Slot, keepState: boolean): void {
-    s.weapon = resolveWeapon(s.id, s.magLevel, this.chain(s), s.fusion ?? 0);
-    if (keepState) s.state.setMagLevel(s.weapon);
+    s.weapon = resolveWeapon(s.id, modNames(s.attach), s.fusion ?? 0);
+    if (keepState) s.state.setBuild(s.weapon);
     else s.state.setWeapon(s.weapon);
     if (s.energy) {
       const max = s.weapon.energyStock * s.weapon.clipSize;
@@ -174,23 +135,18 @@ export class Loadout {
     if (!s) return;
     s.empty = true;
     s.attach = {};
-    s.altMode = false;
     s.energy = null;
   }
 
-  /** a looted gun into a slot, with its fittings; a full magazine (ours) and, for an energy gun, its stockpile */
-  give(i: number, id: string, magLevel = 0, attach: Attachments = {}, fusion = 0): void {
+  /** a looted gun into a slot, at its fusion level and with its own sight; a full magazine and, for an energy gun, its stockpile */
+  give(i: number, id: string, fusion = 0): void {
     const s = this.slots[i];
     if (!s) return;
     this.setWeaponId(i, id);
     s.empty = false;
     s.firstDraw = true;
-    s.magLevel = Math.max(0, Math.min(4, magLevel));
-    // SpeedKills: the gun's own optic whatever came with it, and its fusion level
-    s.attach = IS_SK ? { optic: startingOptic(weaponMods(id), id) } : { ...attach };
-    s.fusion = IS_SK ? Math.max(0, Math.min(PROFILE.fusion.levels, fusion)) : 0;
-    s.altMode = false;
-    s.hopLock = null;
+    s.attach = { optic: startingOptic(id) };
+    s.fusion = Math.max(0, Math.min(PROFILE.fusion.levels, fusion));
     this.rebuildSlot(s, false);
     s.energy = fullEnergy(s.weapon);
   }
@@ -202,7 +158,7 @@ export class Loadout {
    */
   fuse(i: number, level: number): boolean {
     const s = this.slots[i];
-    if (!s || s.empty || !IS_SK) return false;
+    if (!s || s.empty) return false;
     const to = Math.max(0, Math.min(PROFILE.fusion.levels, Math.round(level)));
     if (to <= (s.fusion ?? 0)) return false;
     s.fusion = to;
@@ -214,7 +170,7 @@ export class Loadout {
   /** SpeedKills: a slot's fusion level set outright, up or down (the range's key; the tests) */
   setFusion(i: number, level: number): void {
     const s = this.slots[i];
-    if (!s || s.empty || !IS_SK) return;
+    if (!s || s.empty) return;
     s.fusion = Math.max(0, Math.min(PROFILE.fusion.levels, Math.round(level)));
     this.rebuildSlot(s, true);
     s.state.clip = s.weapon.clipSize;
@@ -225,43 +181,18 @@ export class Loadout {
     return this.slots.findIndex((s) => s.empty);
   }
 
-  /** a looted attachment onto a slot's gun, if it takes it; true when it went on */
-  fitAttachment(i: number, slot: AttachSlot, mod: string): boolean {
-    const s = this.slots[i];
-    // SpeedKills has no attachments: fusion is the upgrade
-    if (!s || s.empty || IS_SK) return false;
-    if (!optionsFor(slot, weaponMods(s.id), s.id).some((o) => o.mod === mod)) return false;
-    s.attach[slot] = mod;
-    this.rebuildSlot(s, true);
-    return true;
-  }
-
-  /** a looted magazine: a higher mag level on a slot's gun, if it has magazines; true when it went on */
-  fitMag(i: number, level: number): boolean {
-    const s = this.slots[i];
-    if (!s || s.empty || IS_SK || level <= s.magLevel) return false;
-    const before = s.weapon.clipSize;
-    const r = resolveWeapon(s.id, level, this.chain(s));
-    if (r.clipSize === before && level > 0 && s.weapon.reloadTime === r.reloadTime) return false;
-    s.magLevel = level;
-    this.rebuildSlot(s, true);
-    return true;
-  }
-
-  /** put a different weapon in a slot, resetting its attachments and state */
+  /** put a different weapon in a slot, resetting its sight, fusion and state */
   setWeaponId(slotIndex: number, id: string): void {
     const s = this.slots[slotIndex];
     if (!s || s.id === id) return;
     // resolve BEFORE mutating: an unknown id throws, and a half-applied slot
     // whose id no longer matches its weapon would throw on every later rebuild
-    const weapon = resolveWeapon(id, 0);
+    const weapon = resolveWeapon(id);
     s.id = id;
-    s.magLevel = 0;
     s.fusion = 0;
-    // a gun swapped into a loadout slot comes with a sight, like the rest
-    s.attach = { optic: startingOptic(weaponMods(id), id) };
+    // a gun swapped into a loadout slot comes with its sight, like the rest
+    s.attach = { optic: startingOptic(id) };
     s.zoomAlt = false;
-    s.altMode = false;
     s.weapon = weapon;
     s.state.setWeapon(weapon);
     s.energy = fullEnergy(weapon);
@@ -281,35 +212,19 @@ export class Loadout {
   /** what a slot carries, to put back later: the course lends you its pistols */
   setup(slotIndex: number): SlotSetup {
     const s = this.slots[slotIndex];
-    return { id: s.id, magLevel: s.magLevel, attach: { ...s.attach }, zoomAlt: s.zoomAlt };
+    return { id: s.id, attach: { ...s.attach }, zoomAlt: s.zoomAlt };
   }
 
-  /** put a slot back as `setup` had it, attachments and mag level included, with a full magazine */
+  /** put a slot back as `setup` had it, its sight included, with a full magazine */
   restore(slotIndex: number, su: SlotSetup): void {
     const s = this.slots[slotIndex];
     if (!s) return;
     this.setWeaponId(slotIndex, su.id);
-    s.magLevel = su.magLevel;
     s.attach = { ...su.attach };
     s.zoomAlt = su.zoomAlt;
-    s.weapon = resolveWeapon(s.id, s.magLevel, this.chain(s));
+    s.weapon = resolveWeapon(s.id, modNames(s.attach));
     s.state.setWeapon(s.weapon);
     s.energy = fullEnergy(s.weapon);
-  }
-
-  /** cycle one attachment slot on the weapon in hand */
-  cycleAttachment(slot: AttachSlot): void {
-    const s = this.active;
-    const opts = optionsFor(slot, weaponMods(s.id), s.id);
-    if (opts.length <= 1) return; // nothing to cycle on this weapon
-    const cur = s.attach[slot] ?? null;
-    const i = opts.findIndex((o) => o.mod === cur);
-    const next = opts[(i + 1) % opts.length];
-    s.attach[slot] = next.mod;
-    if (slot === "optic") s.zoomAlt = false;
-    // a fire mode that needed the hop-up just taken off goes back to the first
-    if (slot === "hopup" && s.altMode && !this.fireModeAvailable(s)) s.altMode = false;
-    this.rebuild(true);
   }
 
   /**
@@ -324,22 +239,12 @@ export class Loadout {
   }
 
   /**
-   * Label for each attachment slot. Reads the DISPLAY slot so the panel lists
-   * the incoming gun's attachments during a swap, matching the name and ammo
-   * beside it rather than describing the weapon being put away.
+   * The sight's name (the inventory lists it). Reads the DISPLAY slot so the panel names the incoming gun's during a
+   * swap, matching the name and ammo beside it rather than describing the weapon being put away.
    */
-  attachLabels(): Array<{ slot: AttachSlot; label: string; available: boolean }> {
+  opticLabel(): string | null {
     const s = this.display;
-    const mods = weaponMods(s.id);
-    return SLOTS.map((slot) => {
-      const opts = optionsFor(slot, mods, s.id);
-      const cur = s.attach[slot] ?? null;
-      const found = opts.find((o) => o.mod === cur);
-      // a scoped weapon's own sight, when nothing else is fitted
-      const own = slot === "optic" && cur === null && s.weapon.integralOptic ? opticInfo(s.weapon.integralOptic) : null;
-      const label = own ? `${opticName(s.weapon.integralOptic!, own.label)} (built in)` : (found?.label ?? "none");
-      return { slot, label, available: opts.length > 1 };
-    });
+    return opticsFor(weaponMods(s.id)).find((o) => o.mod !== null && o.mod === s.attach.optic)?.label ?? null;
   }
 
   /** the weapon in hand: the only one that can fire */
@@ -393,7 +298,7 @@ export class Loadout {
       this.swapTotal = this.active.weapon.deployTime;
     } else {
       this.swapTotal = this.active.weapon.holsterTime + this.slots[index].weapon.deployTime;
-      // a reload or a burst in flight does not survive being put away
+      // a reload in flight does not survive being put away
       this.active.state.cancelAction();
     }
     this.swapEndsAt = now + this.swapTotal;
@@ -427,11 +332,5 @@ export class Loadout {
       // carrying the outgoing gun's state
       this.active.state.onDeploy();
     }
-  }
-
-  /** change the active slot's mag level (0..4) */
-  setMagLevel(level: number): void {
-    this.active.magLevel = Math.max(0, Math.min(4, level));
-    this.rebuild(true);
   }
 }

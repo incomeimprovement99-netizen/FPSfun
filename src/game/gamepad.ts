@@ -133,7 +133,7 @@ export const DEFAULT_PAD_BUTTONS: Readonly<Record<number, Action | "menu">> = {
   11: "melee",
   12: "heal",
   13: "zoomToggle",
-  14: "fireMode",
+  14: "inspect",
   15: "grenade",
 };
 export type PadPreset = "default" | "bumperJumper" | "buttonPuncher" | "evolved" | "grenadier" | "ninja" | "range";
@@ -154,8 +154,9 @@ export const PAD_PRESETS: Record<PadPreset, { name: string; changes: Partial<Rec
   grenadier: { name: "Grenadier", changes: { 5: "grenade", 12: "ping", 15: "heal" } },
   // jump to LB, crouch to RB; the tactical to B, ping to A
   ninja: { name: "Ninja", changes: { 4: "jump", 5: "crouch", 1: "ability", 0: "ping" } },
-  // the range: the optic and the magazine level on the D-pad, the slots on it too, holster on Back, zoom on RB
-  range: { name: "Range (optic, magazine and slots on the D-pad)", changes: { 5: "zoomToggle", 8: "holster", 12: "optic", 13: "magLevel", 14: "slot1", 15: "slot2" } },
+  // the range: the fusion level and the slots on the D-pad, holster on Back, zoom on RB (the optic's cycle there went with
+  // the legacy game's attachments, Milestone 522)
+  range: { name: "Range (fusion level and slots on the D-pad)", changes: { 5: "zoomToggle", 8: "holster", 13: "magLevel", 14: "slot1", 15: "slot2" } },
 };
 /**
  * A button's hold does something else than its tap, where the game has one:
@@ -163,7 +164,8 @@ export const PAD_PRESETS: Record<PadPreset, { name: string; changes: Partial<Rec
  * when the button comes up (before HOLD_TIME); the hold once it has been
  * down that long.
  */
-export const PAD_HOLDS: Partial<Record<Action, Action>> = { swapWeapon: "holster", fireMode: "inspect" };
+// (D-pad left was the fire mode, and held, inspect: with no second fire mode left it inspects on a press, Milestone 522)
+export const PAD_HOLDS: Partial<Record<Action, Action>> = { swapWeapon: "holster" };
 export const HOLD_TIME = PAD.holdTime;
 /** the live map: the defaults with the player's changes (the Controls tab) */
 const BUTTON: Record<number, Action | "menu"> = { ...DEFAULT_PAD_BUTTONS };

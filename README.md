@@ -319,7 +319,7 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
 6. [Controller](#controller)
 7. [Settings](#settings)
 8. [Movement tech, and how to do it here](#movement-tech-and-how-to-do-it-here)
-9. [Guns, attachments, optics, loadouts](#guns-attachments-optics-loadouts)
+9. [Guns, optics, loadouts](#guns-optics-loadouts)
 10. [Your character, stats and boards](#your-character-stats-and-boards)
 11. [How it works](#how-it-works)
 12. [Project layout](#project-layout)
@@ -607,11 +607,9 @@ defaults puts `binds.json` back.
 | 1, 2 | weapon slot | Q, Mouse 5 | swap weapon |
 | 3 | holster (move 15% faster) | 4 | heal: a tap is the quick heal, hold for the wheel of every heal |
 | G | SpeedKills' utility hack (there are no grenades) | F | SpeedKills' mobility hack |
-| B | fire mode (where a gun has two) | | |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
-| Tab (hold) | what you are carrying: both guns with the build in hand, the heals, the ammo by kind and the armour | | |
-| U | magazine level | O | cycle optic |
-| J, N, H | barrel, stock, laser | L | hop-up |
+| Tab (hold) | what you are carrying: both guns and the optic of the one in hand, the heals, the ammo by kind and the armour | | |
+| U | the gun's fusion level (the range) | | |
 | Z | variable optic zoom | T | dummy armour tier |
 | . (full stop) | what the dummies do | Y | reset dummies and the course |
 | K | ghost of your best run on/off | P | copy your course result |
@@ -635,12 +633,12 @@ also brings the menu back). The layout is the game's **Default** preset
 | LB | SpeedKills' mobility hack | RB | ping; **twice** for an enemy there |
 | L3 | sprint (when auto sprint is off) | R3 | melee |
 | D-pad up | heal: a tap is the quick heal, **hold** for the wheel (the right stick picks) | D-pad down | variable optic zoom (ours: the game has a character action there) |
-| D-pad left | fire mode; **hold** to inspect the gun | D-pad right | the utility hack |
+| D-pad left | inspect the gun | D-pad right | the utility hack |
 | Back | the full map | Start | play / menu |
 
 **Presets** on the Controls tab: Default, Bumper Jumper, Button
-Puncher, Evolved, Grenadier and Ninja (the game's), and Range (the optic, the
-magazine level and the weapon slots on the D-pad, for trying guns). **Every
+Puncher, Evolved, Grenadier and Ninja (the game's), and Range (the fusion
+level and the weapon slots on the D-pad, for trying guns). **Every
 button but Start can also be moved** one at a time.
 
 Look sensitivity 1 to 8 like the game (3 is the game's default, 180 deg/s of
@@ -717,7 +715,7 @@ the real controller (the numbers the advanced course was built from) and
 `npm run probe` performs a scripted wallbounce in the real page and prints
 what the feed registered.
 
-## Guns, attachments, optics, loadouts
+## Guns, optics, loadouts
 
 The guns come from extracted reference numbers with Season 30's changes on
 top: damage per zone, fire rate, magazine sizes per level, reload and
@@ -725,15 +723,14 @@ tactical reload times, spread by stance, recoil patterns, projectile speed and
 drop (hitscan where the game is). The data keeps SpeedKills' guns and the
 bases it builds on (the 30-30 under HAEFY's launcher, the P2020 under the
 Run's pistols); the legacy game's other guns, the Kraber, the HAVOC, the
-Peacekeeper, the Bocek and the rest, went in Milestone 521, and the R-301 goes
-with the attachments next. Mag levels (U), barrels (J), stocks (N), lasers (H)
-and hop-ups (L) apply the reference mod blocks (the legacy game's; SpeedKills
-fuses instead). Ten optics with their own housings, reticles, eye relief,
-variable zoom (Z) and full-screen scopes at 3x and up.
+Peacekeeper, the Bocek and the rest, went in Milestone 521, and the R-301 with
+its attachments, magazine levels, hop-ups and fire modes in 522. Each gun
+wears one optic, its own and fixed, and fusion is the upgrade. Ten optics with
+their own housings, reticles, eye relief, variable zoom (Z) and full-screen
+scopes at 3x and up.
 
-The guns that are not a plain trigger work the way the game's do: the
-L-STAR's heat and lockout (it cools only when you let go), and the 30-30's
-aimed charge. Ammo is counted in a match: light, heavy, sniper and shotgun
+The one gun that is not a plain trigger works the way the game's does: the
+L-STAR's heat and lockout (it cools only when you let go). Ammo is counted in a match: light, heavy, sniper and shotgun
 rounds in stacks, and an energy gun's own stockpile of whole magazines that
 comes back one every 18 s while the gun is idle (Season 30's rework).
 
@@ -751,9 +748,9 @@ swing.
 
 Loadouts, the way CoD does classes: five defaults and five custom slots
 (pick two weapons, name it), the last one used remembered. Loadouts can be
-changed mid-match; mid-fight the new guns come at the next round. Changing
-an attachment keeps the rounds in the gun (a bigger magazine fills on the
-next reload), so the attachment keys are never a free reload.
+changed mid-match; mid-fight the new guns come at the next round. A gun fused
+a level up keeps the rounds in it and its recoil (a bigger magazine fills on
+the next reload), so a fusion is never a free reload.
 
 **Healing**, Season 30's items and times: the shield cell (25 in 2.5 s), the
 syringe (25 health in 4 s), the shield battery (full in 5 s), the med kit
@@ -1048,7 +1045,7 @@ src/game/
   weapon-state.ts          firing, ammo, reload, ADS transition
   loadout.ts               two slots with their own state
   loadouts.ts              the five defaults and five custom loadouts
-  attachments.ts           mags, barrels, stocks, lasers
+  attachments.ts           the optic each gun wears
   optics.ts                the ten optics: housings, reticles, zoom, scopes
   recoil.ts                view kick from the reference patterns
   spread.ts                hipfire and ADS cones
@@ -1102,7 +1099,7 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `src/config/wall.json` | the WALL hack's wall: its panel's width, height and thickness, and how far ahead of you it goes |
 | `src/config/bots.json` | the bot tiers (reaction, aim lag and error, aim point, dodging, hearing, cover, crouching), mixed's weights |
 | `src/config/items.json` | the heals (amounts, times, stacks), the kits, shield cores and helmets |
-| `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; wind-ups, charges, heat, chokes, draws, the shotguns' blast patterns, hop-ups (and the locked ones of Seasons 29 and 30), fire modes |
+| `src/config/ammo.json`, `weapon-mechanics.json` | ammo types and stacks, energy stockpiles; the L-STAR's heat and the shotguns' blast patterns |
 | `src/config/loot.json`, `squad.json` | the battle royale's loot tables; downs, revives, pads, pings, EVO's sources, knockdown shields, the restore at an echo |
 | `src/config/br.json` | the battle royale's match rules: solo, duos and trios (the bot counts each offers, the bleed-out it scales), the care package's arrival, the loadout crate, Storm Surge, the vault (its guard's name, tier, gun and range) |
 | `src/config/modes.json` | team deathmatch's score and size, free-for-all's kill limit and clock, Control's zones and numbers, the arena's spawns |

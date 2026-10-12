@@ -7,30 +7,21 @@ import mechCfg from "../config/weapon-mechanics.json";
 import ammoCfg from "../config/ammo.json";
 import rocketCfg from "../config/rocket.json";
 
-export type AmmoType = "light" | "heavy" | "energy" | "sniper" | "shotgun" | "arrows";
+export type AmmoType = "light" | "heavy" | "energy" | "sniper" | "shotgun";
 
-/** the rules of a gun that is not a plain trigger, as fitted (src/config/weapon-mechanics.json) */
+/**
+ * The rules of a gun that is not a plain trigger (src/config/weapon-mechanics.json): the L-STAR's heat and the
+ * shotguns' blast patterns. The legacy guns' own went with them (Milestone 522).
+ */
 export interface WeaponMech {
-  /** HAVOC: wound up for `time` before the first round; stays wound while firing (or not, for its charged single) */
-  chargeUp: { time: number; coolDelay: number; coolTime: number; remainFull: boolean } | null;
-  /** Charge Rifle: the round leaves `time` after the trigger */
-  chargeShot: { time: number } | null;
   /** L-STAR: the magazine is its heat; empty is an overheat with a forced cooldown */
   overheat: { lockout: number; coolDelay: number; coolTime: number } | null;
-  /** 30-30: aiming charges it; a full charge adds `bonus` to the damage */
-  adsCharge: { time: number; bonus: number } | null;
-  /** Precision Choke: aiming closes the pellet cone to `minScale` over `time` */
-  choke: { time: number; minScale: number } | null;
   /**
    * Shotguns: the fixed pellet pattern (blast.ts). `shape` is [across, up] per
    * pellet in `unit` hammer units at `zeroDistance`; `scale` and `adsScale`
    * are the data's blast_pattern scales; `jitter` is degrees of random on top.
    */
   blast: { shape: Array<[number, number]>; unit: number; jitter: number; scale: number; adsScale: number; zeroDistance: number } | null;
-  /** Nemesis: the burst delay shortens as it charges */
-  burstCharge: { delayFrom: number; delayTo: number; perBurst: number; decayAfter: number; decayRate: number } | null;
-  /** Bocek: hold to draw over `time`, let go to loose; damage from `minDamage` of full at no draw, speed from `minSpeed` */
-  draw: { time: number; minDamage: number; minSpeed: number } | null;
 }
 
 type MechTable = Record<string, Record<string, unknown>>;
@@ -43,9 +34,9 @@ export interface WeaponDef {
   name: string;
   stats: Record<string, number | string>;
   mods: Record<string, Record<string, number | string>>;
-  /** mod name to apply for each mag level 0..4; null means no magazine */
+  /** mod name for each of the data's mag levels 0..4 (the first is the gun as it comes; the legacy game's others went, Milestone 522) */
   magMods: Array<string | null>;
-  /** explicit clip size per mag level from the current-season override table */
+  /** explicit clip size per mag level from the current-season override table (the first is the one used) */
   magClips: number[] | null;
   /** projectiles per trigger pull; shotguns fire several */
   pellets?: number;
@@ -115,16 +106,10 @@ function n(stats: Record<string, number | string>, key: string, fallback = 0): n
 export interface ResolvedWeapon {
   id: string;
   name: string;
-  magLevel: number;
   /** SpeedKills' fusion level, 0 as found (a bought gun's skin follows it, paidgun.ts) */
   fusion?: number;
   /** the fitted optic's mod name, or null for iron sights */
   optic: string | null;
-  /**
-   * The weapon's own sight when it is a scope, not irons: the Kraber's base
-   * zoom is a 4x-8x. Drawn and used as the optic when none is fitted.
-   */
-  integralOptic: string | null;
   damage: {
     near: number; far: number; veryFar: number;
     nearDist: number; farDist: number; veryFarDist: number; // metres
@@ -134,8 +119,6 @@ export interface ResolvedWeapon {
     /** extra damage to bare health (Hammerpoint: damage_unshielded_scale) */
     unshieldedScale: number;
   };
-  /** Devotion: the fire rate climbs from `from` to `to` rounds a second over `time` of firing */
-  spin: { from: number; to: number; time: number } | null;
   mech: WeaponMech;
   /** the ammo it takes, and for an energy gun the magazines its own stockpile holds (0: the inventory's) */
   ammoType: AmmoType;
@@ -144,8 +127,8 @@ export interface ResolvedWeapon {
   /**
    * Pump and bolt-action delay between shots, seconds. On those weapons it is
    * much longer than 1/fireRate and is what actually governs the cadence: the
-   * Kraber reads 1.2 rps (0.83 s) but rechambers in 1.6 s, and the Sentinel
-   * 0.32 s against 1.85 s. Use `shotInterval` rather than 1/fireRate.
+   * Sentinel reads 3.1 rps (0.32 s) but rechambers in 1.62 s. Use
+   * `shotInterval` rather than 1/fireRate.
    */
   rechamberTime: number;
   /** seconds between shots, the larger of the fire-rate and rechamber limits */
@@ -153,8 +136,6 @@ export interface ResolvedWeapon {
   /** projectiles per trigger pull; 1 for everything but shotguns */
   pellets: number;
   semiAuto: boolean;
-  burstCount: number;
-  burstDelay: number; // forced gap between bursts, seconds
   clipSize: number;
   reloadTime: number;
   reloadEmptyTime: number;
@@ -293,9 +274,8 @@ function applyMod(stats: Record<string, number | string>, mod: Record<string, nu
  * src/config/games/speedkills.json). The legacy game never applies either,
  * so every existing caller gets exactly what it always did.
  */
-export function resolveWeapon(id: string, magLevel = 0, attach: string[] = [], fusion = 0): ResolvedWeapon {
-  const r = resolveBase(id, magLevel, attach);
-  return IS_SK ? speedkillsTuned(r, fusion) : r;
+export function resolveWeapon(id: string, attach: string[] = [], fusion = 0): ResolvedWeapon {
+  return speedkillsTuned(resolveBase(id, attach), fusion);
 }
 
 /** SpeedKills' tuning and fusion over a resolved gun */
@@ -329,18 +309,15 @@ function speedkillsTuned(r: ResolvedWeapon, fusion: number): ResolvedWeapon {
   };
 }
 
-function resolveBase(id: string, magLevel: number, attach: string[]): ResolvedWeapon {
+function resolveBase(id: string, attach: string[]): ResolvedWeapon {
   const w = DATA.weapons[id];
   if (!w) throw new Error(`unknown weapon ${id}`);
   const s: Record<string, number | string> = { ...w.stats };
-  // The magazine is applied first, then the other attachments, so a stock's
-  // reload multiplier stacks on top of the mag's instead of being overwritten.
-  const lvl = Math.max(0, Math.min(4, magLevel));
-  const magMod = w.magMods[lvl];
+  // the gun as it comes: the data's first magazine (fusion grows it, speedkillsTuned), its mod first so its reload
+  // scaling survives the current season's clip
+  const magMod = w.magMods[0];
   if (magMod && w.mods[magMod]) applyMod(s, w.mods[magMod]);
-  // A current-season clip ladder wins over the dump's mag mod, but the mod
-  // still runs first so its reload scaling survives.
-  if (w.magClips && typeof w.magClips[lvl] === "number") s.ammo_clip_size = w.magClips[lvl];
+  if (w.magClips && typeof w.magClips[0] === "number") s.ammo_clip_size = w.magClips[0];
   for (const name of attach) {
     const mod = w.mods[name];
     if (mod) applyMod(s, mod);
@@ -351,10 +328,7 @@ function resolveBase(id: string, magLevel: number, attach: string[]): ResolvedWe
   return {
     id,
     name: displayName(id, w.name),
-    magLevel,
     optic: attach.find((a) => a.startsWith("optic_") && Boolean(w.mods[a])) ?? null,
-    // a base zoom_fov under 20 (a 3x is 25.3, a 4x is 20) is a scope built in
-    integralOptic: n(s, "zoom_fov", 55) < 20 ? (n(s, "zoom_toggle_fov", 0) > 0 ? "optic_sniper_variable" : "optic_sniper") : null,
     damage: {
       near: n(s, "damage_near_value"),
       far: n(s, "damage_far_value", n(s, "damage_near_value")),
@@ -368,27 +342,11 @@ function resolveBase(id: string, magLevel: number, attach: string[]): ResolvedWe
       shieldScale: n(s, "damage_shield_scale", 1),
       unshieldedScale: n(s, "damage_unshielded_scale", 1),
     },
-    spin: n(s, "fire_rate_max", 0) > n(s, "fire_rate", 10) ? { from: n(s, "fire_rate", 10), to: n(s, "fire_rate_max"), time: Math.max(0.01, n(s, "fire_rate_max_time_speedup", 1)) } : null,
     mech: {
-      chargeUp: (() => {
-        const c = mechOf<{ coolDelay: number; coolTime: number }>("chargeUp", id);
-        return c ? { time: Math.max(0, n(s, "charge_time", 0.42)), coolDelay: n(s, "charge_cooldown_delay", c.coolDelay), coolTime: Math.max(0.01, n(s, "charge_cooldown_time", c.coolTime) || c.coolTime), remainFull: n(s, "charge_remain_full_when_fired", 1) === 1 } : null;
-      })(),
-      chargeShot: mechOf<{ time: number }>("chargeShot", id),
       overheat: (() => {
         const c = mechOf<{ lockout: number[]; coolDelay: number; coolTime: number }>("overheat", id);
-        return c ? { lockout: c.lockout[Math.max(0, Math.min(4, magLevel))] ?? c.lockout[0], coolDelay: c.coolDelay, coolTime: c.coolTime } : null;
+        return c ? { lockout: c.lockout[0], coolDelay: c.coolDelay, coolTime: c.coolTime } : null;
       })(),
-      adsCharge: (() => {
-        const c = mechOf<{ time: number }>("adsCharge", id);
-        return c ? { time: c.time, bonus: n(s, "charge_additional_damage_multiplier", 0) } : null;
-      })(),
-      choke: (() => {
-        const c = mechOf<{ minScale: number }>("choke", id);
-        return c && attach.includes("hopup_energy_choke") ? { time: Math.max(0.05, n(s, "charge_time", 1)), minScale: c.minScale } : null;
-      })(),
-      burstCharge: mechOf<WeaponMech["burstCharge"]>("burstCharge", id),
-      draw: mechOf<WeaponMech["draw"]>("draw", id),
       blast: (() => {
         const c = mechOf<{ shape: Array<[number, number]>; unit: number; jitter: number }>("blast", id);
         if (!c || n(s, "pellets", 1) <= 1) return null;
@@ -403,8 +361,6 @@ function resolveBase(id: string, magLevel: number, attach: string[]): ResolvedWe
     shotInterval: Math.max(1 / Math.max(1e-6, n(s, "fire_rate", 10)), n(s, "rechamber_time", 0)),
     pellets: Math.max(1, Math.round(n(s, "pellets", 1))),
     semiAuto: n(s, "is_semi_auto", 0) === 1 || s.fire_mode === "semi-auto",
-    burstCount: n(s, "burst_fire_count", 0),
-    burstDelay: n(s, "burst_fire_delay", 0),
     // whole rounds only: a `*1.25` mag on the L-STAR's 18 gives 22.5 raw
     clipSize: Math.max(1, Math.floor(n(s, "ammo_clip_size", 1))),
     reloadTime: n(s, "reload_time", 2),

@@ -56,7 +56,7 @@ function gunOf(id: string): ResolvedWeapon | null {
   if (!id || !GUNS.has(id)) return null;
   try {
     // the most it can be: SpeedKills' top fusion level (the legacy game has none, and ignores it)
-    return resolveWeapon(id, 0, [], 5);
+    return resolveWeapon(id, [], 5);
   } catch {
     return null;
   }
@@ -65,13 +65,12 @@ function gunOf(id: string): ResolvedWeapon | null {
 /** the most one round of this gun can deal: a headshot at its nearest range with every bonus it can carry */
 export function maxRound(w: ResolvedWeapon): number {
   const d = w.damage;
-  const bonus = 1 + (w.mech.adsCharge?.bonus ?? 0);
-  return Math.max(d.near, d.far, d.veryFar) * Math.max(1, d.headshot) * Math.max(1, d.shieldScale, d.unshieldedScale) * bonus * C.margin;
+  return Math.max(d.near, d.far, d.veryFar) * Math.max(1, d.headshot) * Math.max(1, d.shieldScale, d.unshieldedScale) * C.margin;
 }
 
 /** the most this gun can deal in a second: every pellet of every shot at its fastest, and never less than one whole trigger pull (a sniper fires slower than once a second) */
 export function maxPerSecond(w: ResolvedWeapon): number {
-  const fastest = Math.min(w.shotInterval, w.spin ? 1 / w.spin.to : Infinity);
+  const fastest = w.shotInterval;
   const shots = Math.max(1, 1 / Math.max(0.01, fastest));
   return maxRound(w) * Math.max(1, w.pellets) * shots * C.rateMargin;
 }

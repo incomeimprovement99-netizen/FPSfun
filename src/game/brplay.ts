@@ -84,13 +84,6 @@ export interface CarryState {
   healRoom: Record<string, number>;
   /** how many more rounds of each ammo type fit, by type; missing is no limit */
   ammoRoom?: Record<string, number>;
-  /**
-   * The magazine to measure a looted one against, 0 to 4: the LOWER of your
-   * two guns' levels, because main.ts's applyLoot offers a magazine to both
-   * slots (Loadout.fitMag) and keeps it if either takes it. The higher one
-   * would grey out a magazine that is an upgrade for your other gun.
-   */
-  mag?: number;
   /** SpeedKills: the hack in each slot, by id (a hold leaves a core that would swap it) */
   hacks?: Record<string, string | null>;
 }
@@ -150,7 +143,6 @@ export function nothingToGain(item: LootItem, carry: CarryState | null): boolean
   if (!carry) return false;
   if (item.kind === "ammo") return !carry.ammo.includes(item.id) || (carry.ammoRoom?.[item.id] ?? Infinity) <= 0;
   if (item.kind === "heal") return (carry.healRoom[item.id] ?? 0) <= 0;
-  if (item.kind === "attach" && item.id.startsWith("mag:")) return Number(item.id.slice(4)) <= (carry.mag ?? 0);
   return false;
 }
 
@@ -260,7 +252,6 @@ export class BrPlay {
    *   brPlay.carrying = () => ({
    *     ammo: held.map((s) => ammoTypeOf(s.id)),                    // src/game/ammo.ts
    *     healRoom: Object.fromEntries(HEAL_ORDER.map((h) => [h, HEALS[h].stack - kit.items[h]])),
-   *     mag: held.length ? Math.min(...held.map((s) => s.magLevel)) : 0,
    *   });
    */
   carrying: (() => CarryState | null) | null = null;

@@ -64,7 +64,7 @@ console.log("\nThe reach list: what is at your feet, nearest first (src/game/brp
 // ------------------------------------------------------------------ walking over it
 console.log("\nWalk-over pickup: the refills only, and only when they are of use (src/config/hud.json)");
 {
-  const carry: CarryState = { ammo: ["light"], healRoom: { cell: 4, syringe: 0 }, mag: 2 };
+  const carry: CarryState = { ammo: ["light"], healRoom: { cell: 4, syringe: 0 } };
   check("ammo for a gun you carry comes up with no press", autoTakes(ammo("light"), carry));
   check("ammo for a gun you do not carry is left where it lies", !autoTakes(ammo("heavy"), carry), "heavy, carrying a light gun");
   check("a shield cell comes up when the kit has room", autoTakes(heal("cell", 2), carry), "room 4, stack 2");
@@ -72,7 +72,6 @@ console.log("\nWalk-over pickup: the refills only, and only when they are of use
   check("and refused when only part of the stack fits", !autoTakes(heal("cell", 2), { ...carry, healRoom: { cell: 1 } }), "room 1, stack 2");
   check("a medkit is not a walk-over heal", !autoTakes(heal("medkit", 1), { ammo: [], healRoom: { medkit: 2 } }), `autoHeals: ${L.autoHeals.join(", ")}`);
   check("a gun is a choice, so it waits for the key", !autoTakes(gun("r97"), carry));
-  check("so does a magazine", !autoTakes(mag(4), carry));
   check("nothing is swept while what you carry is unknown", !autoTakes(ammo("light"), null));
   check("every walk-over kind is one of the two the config names", L.autoKinds.every((k) => k === "ammo" || k === "heal"), L.autoKinds.join(", "));
   check("the sweep is smaller than the reach radius", L.sweep < L.reach, `${L.sweep} m inside ${L.reach} m`);
@@ -81,13 +80,11 @@ console.log("\nWalk-over pickup: the refills only, and only when they are of use
 // ------------------------------------------------------------------ the grey-out
 console.log("\nNothing to gain: the rows the list greys and the hold steps over");
 {
-  const carry: CarryState = { ammo: ["light"], healRoom: { cell: 4, syringe: 0 }, mag: 2 };
+  const carry: CarryState = { ammo: ["light"], healRoom: { cell: 4, syringe: 0 } };
   check("ammo neither gun takes is greyed", nothingToGain(ammo("heavy"), carry));
   check("ammo you can use is not", !nothingToGain(ammo("light"), carry));
   check("a heal your kit is full of is greyed", nothingToGain(heal("syringe", 2), carry));
   check("one you have room for is not", !nothingToGain(heal("cell", 2), carry));
-  check("a magazine no better than yours is greyed", nothingToGain(mag(2), carry), "mag 2, holding 2");
-  check("a better one is not", !nothingToGain(mag(3), carry));
   check("a gun is never greyed, because it is a choice", !nothingToGain(gun("r97"), carry));
   check("nothing is greyed while what you carry is unknown", !nothingToGain(ammo("heavy"), null));
 

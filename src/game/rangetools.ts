@@ -262,7 +262,7 @@ export class SprayWall {
    * for a whole magazine. Cached per gun as fitted.
    */
   reference(w: ResolvedWeapon, ads = true): SprayPattern[] {
-    const key = `${w.id}|${w.magLevel}|${w.clipSize}|${w.shotInterval}|${ads ? "ads" : "hip"}`;
+    const key = `${w.id}|${w.fusion ?? 0}|${w.clipSize}|${w.shotInterval}|${ads ? "ads" : "hip"}`;
     const hit = this.refs.get(key);
     if (hit) return hit;
     // The gun fired a dozen times over, each with its own dice. A single run

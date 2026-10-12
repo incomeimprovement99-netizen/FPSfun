@@ -6,7 +6,6 @@
   },
   "_note": "Ammo, Season 30 (docs/RESEARCH_PHASE_11.md section 8): each gun's type, the inventory stack per type, and the energy rework: energy guns carry their own stockpile of whole magazines that refills one magazine every 18 s while the gun is idle (not firing or reloading). The range is unlimited unless Settings says otherwise; a match counts.",
   "types": {
-    "rspn101": "light",
     "r97": "light",
     "alternator_smg": "light",
     "semipistol": "light",
@@ -25,8 +24,7 @@
     "light": 150,
     "heavy": 150,
     "sniper": 60,
-    "shotgun": 48,
-    "arrows": 60
+    "shotgun": 48
   },
   "energyStock": {
     "autopistol": 2,

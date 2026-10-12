@@ -31,7 +31,7 @@ const BOT = 105;
 const KILLER = 106;
 const code = botSoldierCode(BOT);
 const rec = new Recorder();
-const actor = (id: number, t: number, soldier?: string) => ({ id, name: "BOT", x: 0, y: 0, z: -5 - t, yaw: 0, pitch: 0, stance: "stand" as const, speed: 1, weapon: "rspn101", op: "vanguard", alive: true, soldier });
+const actor = (id: number, t: number, soldier?: string) => ({ id, name: "BOT", x: 0, y: 0, z: -5 - t, yaw: 0, pitch: 0, stance: "stand" as const, speed: 1, weapon: "vinson", op: "vanguard", alive: true, soldier });
 // you (id 0, no soldier recorded), a bot and the bot that got you, four seconds of them
 for (let t = 0; t < 4; t += 0.05) rec.sample(t, () => [actor(0, t), actor(BOT, t, code), actor(KILLER, t, botSoldierCode(KILLER))]);
 const kc = new Killcam(new THREE.Scene(), { fire() {} } as never);

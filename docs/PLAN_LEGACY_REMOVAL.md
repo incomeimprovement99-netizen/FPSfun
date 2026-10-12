@@ -85,8 +85,11 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   Gulag, the echo restore and the figure's death fall stay. About 1,000 lines; the character agent told first.
 - **521, the legacy guns (done):** fifteen of the data's guns, the Nemesis and the Bocek, with their models, sounds
   lists, loot, mechanics entries and checks; the R-301 goes with 522.
-- **522, next: the attachments, magazine levels and hop-ups, and the R-301** (SpeedKills keeps each gun's fixed optic
-  and fusion), with the mechanics only the old guns used.
+- **522, the attachments, magazine levels, hop-ups and fire modes, the old guns' mechanics and the R-301 (done).**
+  SpeedKills keeps each gun's fixed optic, fusion, the L-STAR's heat and the shotguns' blast patterns.
+- **Next:** the legacy loot and the battle royale's side rules (ammo, heals, helmets, backpacks, knockdown shields,
+  the vault, the Ring Consoles, Storm Surge, the loadout crate, EVO), then the Outskirts map, then the match side of the
+  knockdowns (the character agent takes the figure's).
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
 - **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,

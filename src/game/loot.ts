@@ -26,7 +26,7 @@ import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js
 import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
 import { paidGunMaterial, paidPropBatch } from "./paidgun";
-import { weaponLabel, weaponMods, type AmmoType } from "./weapons";
+import { weaponLabel, type AmmoType } from "./weapons";
 import { HEALS, type HealItem, type Helmet } from "./kit";
 import { hopupName, opticName } from "../config/names";
 import { RANGE_SOLIDS } from "./range";
@@ -34,7 +34,7 @@ import { solidsIn } from "./solidgrid";
 // the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
 import { DISTRICT_FLOORS, floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
 import { ammoTypeOf, STACK } from "./ammo";
-import { optionsFor, SLOTS, type Attachments } from "./attachments";
+import { type Attachments } from "./attachments";
 import { BACKPACKS, KNOCK_SHIELDS, type BackTier, type KnockTier } from "./kit";
 import { inView } from "./figlod";
 
@@ -324,35 +324,6 @@ export function pickHotZone(seed: number, places: LootPlace[]): HotZone | null {
   const index = Math.floor(rnd() * places.length) % places.length;
   const p = places[index];
   return { id: p.id ?? cfg.placeOrder[index] ?? String(index), index, x: p.x, z: p.z, radius: cfg.hotZone.radius };
-}
-
-/**
- * Everything a gun can wear, the best of it: per slot the first mod on
- * loot.json's kitted.prefer list that the gun is actually offered, and the
- * last one it is offered when it takes none of them. Every slot is filled
- * from what the gun is offered (src/game/attachments.ts knows which mods fit
- * which gun), so this cannot hand out a sniper stock on an SMG.
- *
- * The Hot Zone's prize wears this, and so do the guns out of the battle
- * royale's loadout crate (brmatch.ts), from this one function: a second copy
- * of the loop would drift from the first the way a second list would.
- */
-export function kittedAttach(id: string): Attachments {
-  const mods = weaponMods(id);
-  const attach: Attachments = {};
-  for (const slot of SLOTS) {
-    const fits = optionsFor(slot, mods, id).filter((o) => o.mod !== null);
-    if (!fits.length) continue;
-    const prefer = (cfg.kitted.prefer as Record<string, string[]>)[slot] ?? [];
-    attach[slot] = prefer.find((m) => fits.some((o) => o.mod === m)) ?? fits[fits.length - 1].mod;
-  }
-  return attach;
-}
-
-/** the Hot Zone's prize: a gun off the epic list wearing everything it can take */
-export function kittedGun(rnd: () => number): LootItem {
-  const id = pick(rnd, cfg.weapons[cfg.kitted.pool as Rarity]);
-  return { kind: "weapon", id, n: 1, rarity: cfg.kitted.rarity as Rarity, mag: cfg.kitted.mag, attach: kittedAttach(id) };
 }
 
 /**
@@ -886,7 +857,6 @@ export class LootField {
         }
       }
     };
-    let hotSpots: THREE.Vector3[] = [];
     for (let i = 0; i < places.length; i++) {
       const p = places[i];
       const hot = this.hotZone?.index === i;
@@ -901,7 +871,6 @@ export class LootField {
         const r = 4 + rnd() * (reach - 4);
         trySpotAnyFloor(spots, p.x + Math.cos(a) * r, p.z + Math.sin(a) * r);
       }
-      if (hot) hotSpots = spots;
       fill(spots, tier);
       if (hot) {
         this.hotSpots = spots.map((s) => s.clone());
@@ -912,16 +881,8 @@ export class LootField {
     const field: THREE.Vector3[] = [];
     for (let i = 0; i < cfg.fieldSpots; i++) trySpot(field, bounds.minX + 20 + rnd() * (bounds.maxX - bounds.minX - 40), bounds.minZ + 20 + rnd() * (bounds.maxZ - bounds.minZ - 40));
     fill(field, cfg.fieldTier as PlaceTier);
-    // The kitted gun last, on one of the Hot Zone's own spots so it is indoors
-    // as often as the rest of that place's loot is. Not every match has one:
-    // a Hot Zone you can see is worth crossing for even when the prize is not
-    // in it, and a guaranteed prize would make it the only place to land.
-    // Not in SpeedKills: its prize was drawn off the legacy game's epic list, so a match there could lay a gun that is
-    // not on its roster, kitted with attachments it has none of (a bot was seen carrying the legacy bow, Milestone 499).
-    if (!IS_SK && hotSpots.length && rnd() < cfg.hotZone.kittedChance) {
-      const at = hotSpots[Math.floor(rnd() * hotSpots.length)];
-      this.add(kittedGun(rnd), at.clone().add(new THREE.Vector3((rnd() - 0.5) * 1.2, 0, (rnd() - 0.5) * 1.2)));
-    }
+    // (the legacy game's kitted prize gun was laid here, on one of the Hot Zone's own spots: off in SpeedKills from
+    // Milestone 499, where it laid guns off the roster, and gone with the attachments it wore in 522)
     // The small sites between the places, last: their own tier, out to their
     // own reach (they are small, so no floor on it), and never the Hot Zone.
     // Rolled after everything else so the places, the field and the kitted

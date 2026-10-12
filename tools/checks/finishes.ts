@@ -26,7 +26,7 @@ console.log("Weapon finishes");
   check(`every finish is open to everybody, all ${FINISHES.length} of them`, unlocked().length === FINISHES.length);
   check("the last one in the list can be taken from the first minute", chooseFinish("r97", top.id) && finishFor("r97").id === top.id);
   check("a finish that does not exist is not taken", !chooseFinish("r97", "no-such-paint") && finishFor("r97").id === top.id);
-  check("each gun keeps its own", finishFor("rspn101").id === "factory");
+  check("each gun keeps its own", finishFor("vinson").id === "factory");
 }
 
 console.log(fails === 0 ? "\nFINISHES PASS" : `\nFINISHES FAIL (${fails})`);

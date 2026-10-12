@@ -27,8 +27,8 @@ console.log("A bot's gun, and what it drops");
 // ------------------------------------------------------------ the magazine
 {
   const SECONDS = 20;
-  for (const id of ["r97", "rspn101", "vinson", "wingman"]) {
-    const w = resolveWeapon(id, 2);
+  for (const id of ["r97", "alternator_smg", "vinson", "wingman"]) {
+    const w = resolveWeapon(id);
     const interval = Math.max(w.shotInterval, w.semiAuto ? 0.25 : 0);
     // a bot firing whenever it may, as Bot.update does
     const mag = new BotMag();
@@ -47,17 +47,17 @@ console.log("A bot's gun, and what it drops");
     const ratio = shots / player;
     check(`${w.name}: over ${SECONDS} s a bot fires what a player can (a magazine, then a reload)`, ratio > 0.85 && ratio < 1.2, `${shots} shots against a player's ${player}, x${ratio.toFixed(2)}; without reloads it was ${Math.floor(SECONDS / interval)}`);
   }
-  const w = resolveWeapon("r97", 2);
+  const w = resolveWeapon("r97");
   const mag = new BotMag();
   mag.ready(0, w);
   for (let i = 0; i < w.clipSize; i++) mag.fired(i * 0.05, w, 0.05);
   const last = (w.clipSize - 1) * 0.05;
   check("the last round starts a reload as long as the gun's from empty", mag.reloading(last + 0.1) && mag.reloading(last + 0.05 + w.reloadEmptyTime - 0.01) && !mag.reloading(last + 0.05 + w.reloadEmptyTime + 0.01), `${w.reloadEmptyTime} s, against ${w.reloadTime} s with a round still chambered`);
-  check("and a gun it picks up comes loaded", mag.ready(last + 0.1, resolveWeapon("wingman", 2)));
+  check("and a gun it picks up comes loaded", mag.ready(last + 0.1, resolveWeapon("wingman")));
   // CHOOCH (lstar) overheats rather than reloads: its bot's figure vents through the wait (act 20), as a player's does;
   // a magazine gun's still reloads
   const vents = (id: string): boolean => {
-    const g = resolveWeapon(id, 2);
+    const g = resolveWeapon(id);
     const m = new BotMag();
     m.ready(0, g);
     for (let i = 0; i < g.clipSize; i++) m.fired(i * 0.05, g, 0.05);
@@ -71,11 +71,11 @@ console.log("A bot's gun, and what it drops");
 // players' own). No gun a bot carries falls off today, as none of the guns
 // they come from do, so this holds the rule on a gun made to fall off.
 {
-  const base = resolveWeapon("rspn101", 2);
+  const base = resolveWeapon("vinson");
   const w = { ...base, damage: { ...base.damage, near: 20, far: 14, veryFar: 10, nearDist: 20, farDist: 60, veryFarDist: 120 } };
   check("a bot's round does the near damage up close", falloff(w, 10) === 20);
   check("and less at range, as a player's does", falloff(w, 40) === 17 && falloff(w, 60) === 14 && falloff(w, 200) === 10, `${falloff(w, 40)} at 40 m, ${falloff(w, 200)} at 200 m`);
-  const falls = BOT_WEAPONS.filter((id) => { const d = resolveWeapon(id, 2).damage; return d.far < d.near || d.veryFar < d.near; });
+  const falls = BOT_WEAPONS.filter((id) => { const d = resolveWeapon(id).damage; return d.far < d.near || d.veryFar < d.near; });
   console.log(`  --  bot guns that fall off today: ${falls.join(", ") || "none"}`);
 }
 

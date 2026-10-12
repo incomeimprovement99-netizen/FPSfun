@@ -53,20 +53,8 @@
   "magLevel": [
     "KeyU"
   ],
-  "optic": [
-    "KeyO"
-  ],
   "melee": [
     "KeyV"
-  ],
-  "barrel": [
-    "KeyJ"
-  ],
-  "stock": [
-    "KeyN"
-  ],
-  "laser": [
-    "KeyH"
   ],
   "cycleArmor": [
     "KeyT"
@@ -100,12 +88,6 @@
   ],
   "ability": [
     "KeyF"
-  ],
-  "fireMode": [
-    "KeyB"
-  ],
-  "hopup": [
-    "KeyL"
   ],
   "dummyMode": [
     "Period"

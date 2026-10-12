@@ -15,7 +15,6 @@
 import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, humanSides, sideOfHuman, surgeAllowed, surgeVictims, surgeDamage, surgeNotice, loadoutPodAt, loadoutItems, DROP_HEIGHT, type SurgeView } from "../../src/game/brmatch";
 import { BOT_NAMES, MOST_BOTS } from "../../src/game/bots";
 import { DEFAULT_LOADOUTS } from "../../src/game/loadouts";
-import { kittedAttach } from "../../src/game/loot";
 import { ammoTypeOf, STACK } from "../../src/game/ammo";
 import { RING_PHASES, RING_TICK, RING_BOUNDS, type Circle } from "../../src/game/ring";
 import brCfg from "../../src/config/br.json";
@@ -253,8 +252,8 @@ check("the crate's guns arrive fitted and magazined", L.mag >= 1 && L.mag <= 4 &
   check("and a crate is down before the ring it was called into has closed", !late, late || L.phases.map((p) => `phase ${p}: ${L.after + warning} of ${RING_PHASES[p].close} s`).join(", "));
 }
 
-// What the crate hands over: your loadout's two guns, the Hot Zone's kit on
-// them from the same function, and ammo for each that counts it.
+// What the crate hands over: your loadout's two guns at its tier, and ammo for each that counts it (the attachments
+// they wore went in Milestone 522).
 {
   let wrong = "";
   for (const def of DEFAULT_LOADOUTS) {
@@ -262,13 +261,12 @@ check("the crate's guns arrive fitted and magazined", L.mag >= 1 && L.mag <= 4 &
     const guns = items.filter((it) => it.kind === "weapon");
     const ammo = items.filter((it) => it.kind === "ammo");
     if (guns.length !== 2 || guns[0].id !== def.slot1 || guns[1].id !== def.slot2) wrong = `${def.name}: guns ${guns.map((g) => g.id).join(", ")}`;
-    else if (guns.some((g) => g.mag !== L.mag || g.rarity !== L.rarity || JSON.stringify(g.attach) !== JSON.stringify(kittedAttach(g.id)))) wrong = `${def.name}: not kitted as the Hot Zone's gun`;
+    else if (guns.some((g) => g.mag !== L.mag || g.rarity !== L.rarity || g.attach !== undefined)) wrong = `${def.name}: not at the crate's tier, or fitted`;
     const types = new Set<string>([def.slot1, def.slot2].map(ammoTypeOf).filter((t) => t !== "energy"));
-    // a bow's arrows are one quiver, as a match's kit counts them
-    const want = (id: string): number => (id === "arrows" ? STACK.arrows : STACK[id as keyof typeof STACK] * L.stacks);
+    const want = (id: string): number => STACK[id as keyof typeof STACK] * L.stacks;
     if (ammo.length !== types.size || ammo.some((a) => !types.has(a.id) || a.n !== want(a.id))) wrong = `${def.name}: ammo ${ammo.map((a) => `${a.id} ${a.n}`).join(", ")}`;
   }
-  check("a crate hands over your two guns kitted, and ammo for each gun that counts it", !wrong && L.stacks >= 1, wrong || `${DEFAULT_LOADOUTS.length} default loadouts, ${L.stacks} stacks a gun, energy guns on their own stockpile`);
+  check("a crate hands over your two guns, and ammo for each gun that counts it", !wrong && L.stacks >= 1, wrong || `${DEFAULT_LOADOUTS.length} default loadouts, ${L.stacks} stacks a gun, energy guns on their own stockpile`);
 }
 
 // -------------------------------------------------------- the package's theatre

@@ -232,9 +232,9 @@ export class Killcam {
     let w = this.weapons.get(id);
     if (!w) {
       try {
-        w = resolveWeapon(id, 0);
+        w = resolveWeapon(id);
       } catch {
-        w = resolveWeapon("rspn101", 0);
+        w = resolveWeapon("vinson");
       }
       this.weapons.set(id, w);
     }

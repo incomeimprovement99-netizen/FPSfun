@@ -100,7 +100,7 @@ function sample(i: number, tick: number): PlayerState {
     yaw: (a * 180) / Math.PI,
     pitch: Math.sin(tick * 0.07) * 18,
     crouch: tick % 97 === 0,
-    w: "rspn101",
+    w: "vinson",
     hp: 100,
     sh: 50,
     alive: true,
@@ -617,7 +617,7 @@ function seenAt(viewer: Duel, id: number): { x: number; z: number; yaw: number }
 function walk(id: number, f: number, name = `P${id}`): LocalState {
   const a = id * 1.3 + f * 0.02;
   const r = 6 + id;
-  return { x: 90 + Math.cos(a) * r, y: 0, z: -40 + Math.sin(a) * r, yaw: (a * 180) / Math.PI + 90, pitch: Math.sin(f * 0.05) * 10, crouch: false, weapon: "rspn101", operator: "vanguard", name, ready: true, stance: "stand", speed: 6, ads: f % 90 < 45 ? 1 : 0, act: 0 };
+  return { x: 90 + Math.cos(a) * r, y: 0, z: -40 + Math.sin(a) * r, yaw: (a * 180) / Math.PI + 90, pitch: Math.sin(f * 0.05) * 10, crouch: false, weapon: "vinson", operator: "vanguard", name, ready: true, stance: "stand", speed: 6, ads: f % 90 < 45 ? 1 : 0, act: 0 };
 }
 
 /**

@@ -1,48 +1,13 @@
 {
-  "_note": "How the guns that are not a plain trigger work. Where the weapon data has the number (charge_time, fire_rate_max, fire_rate_max_time_speedup, charge_additional_damage_multiplier, the hop-up mods) it is read from there and only the rule lives here; where current Apex has moved past the data, the number here is Season 30's with its source in docs/RESEARCH_PHASE_11.md. Anything marked ours has no published number.",
+  "_note": "How the guns that are not a plain trigger work: the L-STAR's heat (CHOOCH) and the shotguns' blast patterns (BIGANTLER, REZ). Where the weapon data has the number it is read from there and only the rule lives here; where current Apex has moved past the data, the number here is Season 30's with its source in docs/RESEARCH_PHASE_11.md. Anything marked ours has no published number. The legacy guns' own (the HAVOC's wind-up, the Charge Rifle's charge, the 30-30's aimed charge, the choke, the Nemesis' burst charge, the Bocek's draw), the hop-ups, their locked kind and the second fire modes went with the legacy game, Milestones 521 and 522.",
 
-  "chargeUp": {
-    "_note": "HAVOC: the trigger winds it up for the data's charge_time (0.42 s; the Turbocharger mod sets 0.01) before the first round; it stays wound while firing, and runs down over charge_cooldown_time after charge_cooldown_delay once you let go."
-  },
-  "chargeShot": {
-    "_note": "Charge Rifle (Season 30): 0.85 s after the trigger, one round. No damaging beam since Season 18."
-  },
   "overheat": {
     "_note": "L-STAR: no magazine; the mag level's shots to overheat (24/26/28/30), a forced cooldown of 1.19/1.15/1.11/1.07 s from full, cooling from 0.08 s after you stop, a full cool over the data's charge_cooldown_time (2.45 s).",
     "lstar": { "lockout": [1.19, 1.15, 1.11, 1.07, 1.07], "coolDelay": 0.08, "coolTime": 2.45 }
-  },
-  "adsCharge": {
-    "_note": "30-30 (Season 30): aiming charges it in 0.25 s; the data's charge_additional_damage_multiplier (+36%) at full; spent by the shot.",
-    "3030": { "time": 0.25 }
-  },
-  "choke": {
-    "_note": "Precision Choke (the data's hopup_energy_choke): aiming charges it over the mod's charge_time and the pellet cone closes to this fraction (ours: the data has no cone number for it)."
   },
   "blast": {
     "_note": "Shotgun blast patterns (blast.ts). The game fires a fixed shape per gun rather than a random cone; the data has each gun's blast_pattern_default_scale, _ads_scale and _zero_distance but not the shape, so the shapes are the game's known ones and their `unit` (hammer units at the zero distance) is ours, sized from how wide each blast reads at about 8 m: the Mastiff's line about 6 degrees, the Peacekeeper's star 8 closing to 3.6 with the choke, the EVA-8's figure 8 about 7 tall by 3 wide, the Mozambique's triangle 5, the Triple Take's three 2.3 closing to 0.9. `shape` is [across, up] per pellet, one entry per pellet; `jitter` is degrees of random on each, so no two blasts are the same. The spread stat deviates the whole blast once a pull.",
     "mastiff": { "shape": [[-2, 0], [-1, 0], [0, 0], [1, 0], [2, 0]], "unit": 12, "jitter": 0.2 },
     "shotgun": { "shape": [[-0.65, 1.55], [0.65, 1.55], [-0.65, 0.25], [0.65, 0.25], [-0.65, -0.25], [0.65, -0.25], [-0.65, -1.55], [0.65, -1.55]], "unit": 14, "jitter": 0.25 }
-  },
-  "burstCharge": {
-    "_note": "Nemesis: the delay between bursts falls from 0.31 s to 0.19 s as it charges, +16.7% a burst fired; after 8 s without firing it loses 12.5% a second."
-  },
-  "draw": {
-    "_note": "Bocek (Season 30): a 0.35 s draw; at no draw 35/65 of the damage (the wiki infobox's range) and 10,000 of its 28,000 hu/s."
-  },
-  "hopups": {
-    "_note": "The hop-up slot, by the data's mod names (the labels are in src/config/names.ts, codenames on a public build). selectfire is ours: the switch for the Prowler's altfire, which the data has no hop-up for.",
-    "list": ["hopup_turbocharger", "hopup_headshot_dmg", "hopup_unshielded_dmg", "hopup_shield_breaker", "hopup_energy_choke", "altfire_double_tap", "selectfire"]
-  },
-  "lockedHopups": {
-    "_note": "Season 29 and 30's hop-ups (docs/RESEARCH_PHASE_12.md section 2.4), which are not in the weapon data: they are effects here, not mods. In a battle royale a gun that takes one comes with it fitted but locked, and it unlocks after `unlock` points of damage with that gun (a care-package gun comes unlocked; a dropped gun keeps its progress). In the range they are on the hop-up key like any other. Executioner: a knock with the gun gives 50 shield over 5 s (unlock 275 since 2026-09-14). Shattercaps: hip fire splits each round into 7 pellets of 8, headshots x1.25 (the pellets' cone is ours). Redline: Apex has published no numbers; ours are +15% damage above 75% heat (and the bolts drawn larger: our rounds are rays, so a bigger projectile is not modelled). The 275 for Shattercaps and Redline is ours (theirs come on care-package guns).",
-    "hopup_executioner": { "guns": ["mastiff"], "unlock": 275, "shield": 50, "over": 5 },
-    "hopup_shattercaps": { "guns": ["3030"], "unlock": 275, "pellets": 7, "damage": 8, "headshot": 1.25, "cone": 5.5 },
-    "hopup_redline": { "guns": ["lstar"], "unlock": 275, "heat": 0.75, "damage": 1.15 }
-  },
-  "fireModes": {
-    "_note": "B switches to the data's altfire where there is one. `needs`: only with that hop-up fitted.",
-    "rspn101": { "mod": "altfire", "base": "auto", "alt": "single" },
-    "vinson": { "mod": "altfire", "base": "auto", "alt": "single" },
-    "shotgun": { "mod": "altfire_double_tap", "base": "auto", "alt": "double tap", "needs": "altfire_double_tap" }
   }
 }

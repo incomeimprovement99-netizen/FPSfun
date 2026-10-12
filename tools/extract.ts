@@ -166,7 +166,6 @@ function applyOp(base: number | undefined, op: number | string): number | undefi
 // SpeedKills' guns and the bases it derives from (the launcher from the 30-30, the Run's pistols from the P2020):
 // the legacy game's other guns went with it (Milestone 521), so a fresh extract does not bring them back
 const NAMES: Record<string, string> = {
-  rspn101: "R-301 Carbine",
   r97: "R-99 SMG",
   vinson: "VK-47 Flatline",
   wingman: "Wingman",

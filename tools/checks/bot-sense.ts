@@ -78,11 +78,11 @@ console.log("How far a bot sees, per mode and per tier (src/config/bots.json sig
 
 console.log("\nA long gun in its hands (bots.ts scopedGun)");
 {
-  check("the sentinel is one", scopedGun(resolveWeapon("sentinel", 2)));
-  check("the wingman is not: sniper ammo, but it falls off by 20 m", !scopedGun(resolveWeapon("wingman", 2)));
-  check("nor is an SMG", !scopedGun(resolveWeapon("r97", 2)));
-  check("a ranged optic off the floor makes one", scopedGun(resolveWeapon("rspn101", 2, ["optic_ranged_hcog"])));
-  check("a close quarters holosight does not", !scopedGun(resolveWeapon("rspn101", 2, ["optic_cq_holosight"])));
+  check("the sentinel is one", scopedGun(resolveWeapon("sentinel")));
+  check("the wingman is not: sniper ammo, but it falls off by 20 m", !scopedGun(resolveWeapon("wingman")));
+  check("nor is an SMG", !scopedGun(resolveWeapon("r97")));
+  check("a ranged optic off the floor makes one", scopedGun(resolveWeapon("vinson", ["optic_ranged_hcog"])));
+  check("a close quarters holosight does not", !scopedGun(resolveWeapon("vinson", ["optic_cq_holosight"])));
   const plain = sightRange("hard", "br");
   const scoped = sightRange("hard", "br", {}, true);
   check("a long gun sees further than iron sights", scoped > plain, `${m(scoped)} against ${m(plain)}`);
@@ -166,7 +166,7 @@ function richFloor(): Floor {
   const f = new Floor();
   const ring = [
     gun("r97", "common"),
-    gun("rspn101", "rare"),
+    gun("vinson", "rare"),
     gun("sentinel", "epic"),
     mod("mag:2", "rare"),
     mod("optic_ranged_hcog", "rare"),
@@ -358,7 +358,7 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const walled = new BotLooter("normal");
   const wf = new Floor();
   wf.add(20, 0, gun("r97", "common"));
-  wf.add(-20, 0, gun("rspn101", "common"));
+  wf.add(-20, 0, gun("vinson", "common"));
   const pinned = new THREE.Vector3();
   let firstGoal: number | null = null;
   let movedOnAt: number | null = null;
@@ -384,7 +384,7 @@ console.log("\nWhat a bot would rather have (bots.ts BotLooter.wants)");
   l.step(l.rummage + 0.1, new THREE.Vector3(), floor, false);
   const got = l.step(l.rummage * 2 + 1, new THREE.Vector3(), floor, false);
   check("it takes the gun it walked to", got?.id === "sentinel", `${got?.id}`);
-  check("it swaps up", l.wants(gun("rspn101", "legendary")));
+  check("it swaps up", l.wants(gun("vinson", "legendary")));
   check("and never down", !l.wants(gun("r97", "common")));
   check("now it has a gun it wants a magazine", l.wants(mod("mag:2", "rare")));
   check("a helmet is worth a shield tier", l.wants({ kind: "helmet", id: "gold", rarity: "legendary", n: 1 }));

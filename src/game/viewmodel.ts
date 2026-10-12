@@ -22,7 +22,7 @@ import * as THREE from "three";
 import { loadQuality } from "./quality";
 import { springStep } from "./spring";
 import type { ResolvedWeapon } from "./weapons";
-import { gunModel, setMagRarity, type GunModel } from "./gunmodels";
+import { gunModel, type GunModel } from "./gunmodels";
 import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
@@ -702,7 +702,7 @@ export class ViewModel {
 
   /** show this weapon; cheap to call every frame */
   setWeapon(w: ResolvedWeapon): void {
-    const key = `${w.id}:${w.magLevel}:${w.optic ?? w.integralOptic ?? ""}:${w.fusion ?? 0}`;
+    const key = `${w.id}:${w.optic ?? ""}:${w.fusion ?? 0}`;
     if (key === this.key) return;
     this.key = key;
     this.weapon = w;
@@ -743,8 +743,7 @@ export class ViewModel {
       this.checkPending = true;
     }
     // no optic fitted: a scoped weapon (the Kraber) wears its own
-    this.fitOptic(this.model, w.optic ?? w.integralOptic);
-    setMagRarity(this.model, w.magLevel);
+    this.fitOptic(this.model, w.optic);
     // a bought gun wears its fusion level (paidgun.ts); a signature gun fused up in the hands scans along its new skin
     if (this.model.root.userData.paid && (this.model.root.userData.paidLevel !== (w.fusion ?? 0) || this.model.root.userData.paidHi !== HI_TEX)) {
       if (this.feel && !fresh && (w.fusion ?? 0) > (this.model.root.userData.paidLevel as number)) {

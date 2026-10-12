@@ -1003,7 +1003,7 @@ export class Duel implements MatchLike {
       link: this.hostLink ?? (this.links.get(id) as Link),
     };
     this.remotes.set(id, r);
-    r.avatar = this.makeAvatar(r, "rspn101", "vanguard");
+    r.avatar = this.makeAvatar(r, "vinson", "vanguard");
     return r;
   }
 
@@ -1537,9 +1537,9 @@ export class Duel implements MatchLike {
     let w = this.weaponCache.get(id);
     if (!w) {
       try {
-        w = resolveWeapon(id, 0);
+        w = resolveWeapon(id);
       } catch {
-        w = resolveWeapon("rspn101", 0);
+        w = resolveWeapon("vinson");
       }
       this.weaponCache.set(id, w);
     }

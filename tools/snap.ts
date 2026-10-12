@@ -65,7 +65,7 @@ const lab = (style: "robot" | "mannequin") =>
 
 /** the rifle hold from the side: the left hand on each gun's handguard */
 const holdLab = `(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -8);
-    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "shotgun" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "wingman" }], 3.2, 90); })()`;
+    r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 0, weapon: "vinson" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "shotgun" }, { speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "wingman" }], 3.2, 90); })()`;
 
 export const SCENARIOS: Scenario[] = [
   {
@@ -568,14 +568,14 @@ export const SCENARIOS: Scenario[] = [
   {
     name: "figures-hold-close",
     note: "close up, from the side: a mannequin holding the R-301, its left hand on the handguard",
-    steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
+    steps: [[`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -18); r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.7, 90); })()`, 0], [gameSeconds(1.2), 100]],
   },
   {
     name: "outfits",
     note: "the five operators in their clothes and kit, close and from the front: fatigues, urban, desert, arctic, irregular",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -584,7 +584,7 @@ export const SCENARIOS: Scenario[] = [
     note: "one operator head to knee: the wrap, the goggles, the sleeves, the trousers and the boots under the kit",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -10);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -594,7 +594,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
         const sets = ["hoodie", "coveralls", "ghillie", "tracksuit", "fatigues"];
-        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -604,7 +604,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
         const sets = ["plainclothes", "irregular", "urban", "arctic", "motocross"];
-        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(sets.map((o) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson", look: o + "||" })), 3.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -879,7 +879,7 @@ export const SCENARIOS: Scenario[] = [
     note: "one outfit in all three builds, lean, regular and heavy: the clothes change, the body inside them does not",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101", look: "coveralls|" + b + "|" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
+        r.figureLab(["lean", "regular", "heavy"].map((b) => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson", look: "coveralls|" + b + "|" })), 2.6, 0); document.getElementById("welcomeOk")?.click(); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -898,7 +898,7 @@ export const SCENARIOS: Scenario[] = [
     note: "the five operators in their kit, close and from the front: the vest, the pack, the helmet, the shades, the gas mask, the hood",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -6);
-        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" })), 3.6, 0); })()`, 0],
+        r.figureLab([0, 1, 2, 3, 4].map(() => ({ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" })), 3.6, 0); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -907,7 +907,7 @@ export const SCENARIOS: Scenario[] = [
     note: "one operator's head and chest: the helmet's lip and rails, the shades on their strap, the plate carrier's pouches",
     steps: [
       [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.setFigureStyle("mannequin"); const s = r.openGround(0, 40, 6); r.player.teleport(s.x, 0, s.z, 0, -14);
-        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "rspn101" }], 1.35, 0); })()`, 0],
+        r.figureLab([{ speed: 0, stance: "stand", pitch: 0, ads: 1, weapon: "vinson" }], 1.35, 0); })()`, 0],
       [gameSeconds(1.2), 100],
     ],
   },
@@ -946,7 +946,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(() => { ${hideMenu}; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`, 0],
       [untilFight, 200],
-      [`(() => { window.__range.landHit(1, 20, true, "r97", 14); const d = window.__range.duel(); d.takeHit(60, d.bots[0], "rspn101", 24); d.takeHit(200, d.bots[0], "rspn101", 22); })()`, 1800],
+      [`(() => { window.__range.landHit(1, 20, true, "r97", 14); const d = window.__range.duel(); d.takeHit(60, d.bots[0], "vinson", 24); d.takeHit(200, d.bots[0], "vinson", 22); })()`, 1800],
     ],
   },
   {
@@ -955,7 +955,7 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(() => { ${hideMenu}; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`, 0],
       [untilFight, 200],
-      [`(() => { window.__range.landHit(1, 20, true, "r97", 14); window.__range.landHit(1, 15, false, "r97", 14); const d = window.__range.duel(); d.takeHit(60, d.bots[0], "rspn101", 24); d.takeHit(200, d.bots[0], "rspn101", 22); })()`, 300],
+      [`(() => { window.__range.landHit(1, 20, true, "r97", 14); window.__range.landHit(1, 15, false, "r97", 14); const d = window.__range.duel(); d.takeHit(60, d.bots[0], "vinson", 24); d.takeHit(200, d.bots[0], "vinson", 22); })()`, 300],
       [`window.__range.skipKillcam()`, 400],
     ],
   },
@@ -970,7 +970,7 @@ export const SCENARIOS: Scenario[] = [
     name: "fp-arms",
     note: "the R-301 in the player's own arms: the published body's hands and the outfit's own sleeves, not drawn gloves",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "vinson"); })()`, 0],
       [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(window.__range.realArms()) : setTimeout(w, 100)); w(); }))()`, 1200],
     ],
   },
@@ -978,7 +978,7 @@ export const SCENARIOS: Scenario[] = [
     name: "fp-arms-ads",
     note: "aiming down the sights in the player's own arms",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { ads: 1 }); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "vinson"); Object.assign(r.debugView, { ads: 1 }); })()`, 0],
       [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
       [`(() => true)()`, 1200],
     ],
@@ -987,7 +987,7 @@ export const SCENARIOS: Scenario[] = [
     name: "fp-arms-reload",
     note: "a magazine reload half done: the support hand down at the magazine",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { reload: 0.4 }); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "vinson"); Object.assign(r.debugView, { reload: 0.4 }); })()`, 0],
       [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
       [`(() => true)()`, 1200],
     ],
@@ -996,7 +996,7 @@ export const SCENARIOS: Scenario[] = [
     name: "fp-arms-holstered",
     note: "the empty hands while holstered, two loose fists",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { lowered: 1 }); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "vinson"); Object.assign(r.debugView, { lowered: 1 }); })()`, 0],
       [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
       [`(() => true)()`, 1200],
     ],
@@ -1005,7 +1005,7 @@ export const SCENARIOS: Scenario[] = [
     name: "fp-arms-zip",
     note: "on a zipline: the left hand up on the trolley",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { onZip: true }); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "vinson"); Object.assign(r.debugView, { onZip: true }); })()`, 0],
       [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
       [`(() => true)()`, 1200],
     ],
@@ -1014,7 +1014,7 @@ export const SCENARIOS: Scenario[] = [
     name: "fp-arms-down",
     note: "knocked down: the hands low on the floor",
     steps: [
-      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "rspn101"); Object.assign(r.debugView, { downed: true }); })()`, 0],
+      [`(async () => { ${hideMenu}; const r = window.__range; await r.loadMannequin(); r.loadout.setWeaponId(0, "vinson"); Object.assign(r.debugView, { downed: true }); })()`, 0],
       [`(() => new Promise((ok) => { const t0 = performance.now(); const w = () => (window.__range.realArms() || performance.now() - t0 > 8000 ? ok(true) : setTimeout(w, 100)); w(); }))()`, 300],
       [`(() => true)()`, 1200],
     ],
@@ -1022,22 +1022,22 @@ export const SCENARIOS: Scenario[] = [
   {
     name: "gun-finish-gold",
     note: "the R-301 in the Gold finish (the level for it reached): the body metal, the accents dark",
-    steps: [[`(() => { ${hideMenu}; const r = window.__range; r.progress.s.xp = 1e7; r.progress.onChange?.(); r.loadout.setWeaponId(0, "rspn101"); const s0 = document.getElementById("slot0"); s0.value = "rspn101"; const f = document.getElementById("finish0"); f.value = "gold"; f.dispatchEvent(new Event("change")); })()`, 1200]],
+    steps: [[`(() => { ${hideMenu}; const r = window.__range; r.progress.s.xp = 1e7; r.progress.onChange?.(); r.loadout.setWeaponId(0, "vinson"); const s0 = document.getElementById("slot0"); s0.value = "vinson"; const f = document.getElementById("finish0"); f.value = "gold"; f.dispatchEvent(new Event("change")); })()`, 1200]],
   },
   {
     name: "gun-finish-arctic",
     note: "the R-301 in the Arctic finish",
-    steps: [[`(() => { ${hideMenu}; const r = window.__range; r.progress.s.xp = 1e7; r.progress.onChange?.(); r.loadout.setWeaponId(0, "rspn101"); const s0 = document.getElementById("slot0"); s0.value = "rspn101"; const f = document.getElementById("finish0"); f.value = "arctic"; f.dispatchEvent(new Event("change")); })()`, 1200]],
+    steps: [[`(() => { ${hideMenu}; const r = window.__range; r.progress.s.xp = 1e7; r.progress.onChange?.(); r.loadout.setWeaponId(0, "vinson"); const s0 = document.getElementById("slot0"); s0.value = "vinson"; const f = document.getElementById("finish0"); f.value = "arctic"; f.dispatchEvent(new Event("change")); })()`, 1200]],
   },
   {
     name: "gun-fov-wide",
     note: "the widest FOV setting: the world wide, the gun as it is at the default (its own camera)",
-    steps: [[`(() => { ${hideMenu}; const f = document.getElementById("fov"); f.value = "1.571"; f.dispatchEvent(new Event("input")); window.__range.loadout.setWeaponId(0, "rspn101"); })()`, 1200]],
+    steps: [[`(() => { ${hideMenu}; const f = document.getElementById("fov"); f.value = "1.571"; f.dispatchEvent(new Event("input")); window.__range.loadout.setWeaponId(0, "vinson"); })()`, 1200]],
   },
   {
     name: "gun-fov-narrow",
     note: "the narrowest FOV setting: the gun still as it is at the default",
-    steps: [[`(() => { ${hideMenu}; const f = document.getElementById("fov"); f.value = "1"; f.dispatchEvent(new Event("input")); window.__range.loadout.setWeaponId(0, "rspn101"); })()`, 1200]],
+    steps: [[`(() => { ${hideMenu}; const f = document.getElementById("fov"); f.value = "1"; f.dispatchEvent(new Event("input")); window.__range.loadout.setWeaponId(0, "vinson"); })()`, 1200]],
   },
   {
     name: "spray-wall",

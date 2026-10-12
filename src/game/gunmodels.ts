@@ -295,14 +295,6 @@ export function applyFinishTo(root: THREE.Object3D, f: Finish | null): void {
   root.userData.finish = f?.id ?? "factory";
 }
 
-/** rarity colours for the magazine base plate: none, white, blue, purple, gold */
-const RARITY = [0, 0xe2e2e2, 0x3b8bff, 0xb04cff, 0xffc12e];
-const rarityMats = RARITY.map((c) =>
-  c
-    ? new THREE.MeshStandardMaterial({ color: c, emissive: c, emissiveIntensity: 0.25, metalness: 0.3, roughness: 0.45 })
-    : null
-);
-
 // --------------------------------------------------------------- primitives
 
 const tmpM = new THREE.Matrix4();
@@ -1542,7 +1534,6 @@ const SHOTGUN: Partial<RifleSpec> = {
  */
 const ROSTER: Record<string, Family> = {
   // assault rifles
-  rspn101: { kind: "rifle", spec: {} },
   vinson: { kind: "rifle", spec: { body: 0x2f3236, accent: 0xb33a2a, magCurve: 0.085, magLen: 0.2, magDepth: 0.066, stock: "skeleton", guardVents: 5 } },
   // submachine guns
   r97: { kind: "rifle", spec: { ...SMG, body: 0x2b2e33, accent: 0x3f8fd8, muzzle: "flash" } },
@@ -1605,21 +1596,6 @@ export function displayGunModel(id: string): GunModel {
   let m = display.get(id);
   if (!m) display.set(id, (m = buildModel(id)));
   return m;
-}
-
-/** recolour the magazine base plate by rarity: 0 none .. 4 gold */
-export function setMagRarity(m: GunModel, level: number): void {
-  if (!m.magPlate) return;
-  const r = rarityMats[Math.max(0, Math.min(4, level))];
-  if (r) {
-    m.magPlate.material = r;
-  } else {
-    // level 0 goes back to the gun's own accent colour
-    const base = m.magPlate.userData.base as THREE.Material | undefined;
-    if (base) m.magPlate.material = base;
-  }
-  // an extended magazine is visibly longer
-  if (m.mag) m.mag.scale.y = 1 + 0.07 * Math.max(0, level);
 }
 
 /** every weapon id with a model, for the verification pass */

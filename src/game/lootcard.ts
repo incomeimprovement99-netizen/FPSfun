@@ -73,7 +73,7 @@ export interface GunStats {
 
 /** a gun's numbers at a fusion level (the range's armory screens show them too: armory.ts) */
 export function gunStats(id: string, level: number): GunStats {
-  const w = resolveWeapon(id, 0, [], level);
+  const w = resolveWeapon(id, [], level);
   const per = w.damage.near;
   const pellets = Math.max(1, w.pellets);
   return {

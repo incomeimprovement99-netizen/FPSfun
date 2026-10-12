@@ -25,7 +25,7 @@ console.log("The host's check on a claimed hit");
   let bad: string[] = [];
   for (const id of weaponIds()) {
     const w = resolveWeapon(id);
-    const best = Math.max(w.damage.near, w.damage.far) * Math.max(1, w.damage.headshot) * Math.max(1, w.damage.shieldScale, w.damage.unshieldedScale) * (1 + (w.mech.adsCharge?.bonus ?? 0));
+    const best = Math.max(w.damage.near, w.damage.far) * Math.max(1, w.damage.headshot) * Math.max(1, w.damage.shieldScale, w.damage.unshieldedScale);
     const h = new HitCheck();
     if (h.judge({ from: 1, amount: best, weapon: id, dist: 20 }, 10, 9.9, 21) !== null) bad.push(id);
   }
@@ -36,7 +36,7 @@ console.log("The host's check on a claimed hit");
     const w = resolveWeapon(id);
     const h = new HitCheck();
     const round = maxRound(w) / C.margin;
-    const gap = Math.min(w.shotInterval, w.spin ? 1 / w.spin.to : Infinity);
+    const gap = w.shotInterval;
     for (let i = 0; i < Math.min(30, w.clipSize); i++) {
       const at = 10 + i * gap;
       for (let p = 0; p < Math.max(1, w.pellets); p++) if (h.judge({ from: 1, amount: round, weapon: id, dist: 20 }, at, at, 20) !== null) bad.push(id);
@@ -47,7 +47,7 @@ console.log("The host's check on a claimed hit");
   // legacy game has no levels and ignores it)
   // (a gun both games hand out: the judge knows only the roster's guns, and STRYDER's old rifle left SpeedKills')
   const SAMPLE = "vinson";
-  const r301 = resolveWeapon(SAMPLE, 0, [], 5);
+  const r301 = resolveWeapon(SAMPLE, [], 5);
   const h = new HitCheck();
   check("a round's worth more than the gun can do is refused", h.judge({ from: 1, amount: maxRound(r301) + 1, weapon: SAMPLE, dist: 10 }, 10, 9.9, 10) !== null);
   check("a gun's hit with no shot heard lately is refused", h.judge({ from: 2, amount: 10, weapon: SAMPLE, dist: 10 }, 10, 10 - C.shotWindow - 0.1, 10) !== null && h.judge({ from: 3, amount: 10, weapon: SAMPLE, dist: 10 }, 10, undefined, 10) !== null);

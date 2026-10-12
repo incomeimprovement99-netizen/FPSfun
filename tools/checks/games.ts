@@ -12,7 +12,7 @@
 // Run on its own: npx tsx tools/checks/games.ts.
 import { GAME, IS_SK, PROFILE } from "../../src/game/game";
 import { allWeaponIds, weaponMods } from "../../src/game/weapons";
-import { optionsFor } from "../../src/game/attachments";
+import { opticsFor } from "../../src/game/attachments";
 import binds from "../../src/config/binds.json";
 import worldCfg from "../../src/config/world.json";
 import neonCfg from "../../src/config/neonmap.json";
@@ -42,7 +42,7 @@ console.log("SpeedKills, the one game, and its profile");
     check(`${tag} the families hold the roster exactly, each gun once`, twice.length === 0 && inFamilies.length === p.roster.length && inFamilies.every((g) => p.roster.includes(g)), twice.join(", "));
     const named = Object.entries(p.weapons);
     check(`${tag} every named gun is on the roster`, named.every(([g]) => p.roster.includes(g)));
-    const badOptic = named.filter(([g, w]) => !optionsFor("optic", weaponMods(g), g).some((o) => o.mod === w.optic)).map(([g, w]) => `${g}:${w.optic}`);
+    const badOptic = named.filter(([g, w]) => !opticsFor(weaponMods(g)).some((o) => o.mod === w.optic)).map(([g, w]) => `${g}:${w.optic}`);
     check(`${tag} every fixed optic is one the gun can take`, badOptic.length === 0, badOptic.join(", "));
     check(`${tag} every ability sits in one of the game's slots, and every slot has a choice`, p.abilities.set.every((a) => p.abilities.slots.includes(a.slot)) && p.abilities.slots.every((s) => p.abilities.set.some((a) => a.slot === s)));
     check(`${tag} the battle royale map is one there is`, MAPS.has(p.map), p.map);

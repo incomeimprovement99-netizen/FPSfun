@@ -71,7 +71,6 @@ import { senderStamp } from "../net/state";
 import * as THREE from "three";
 import squadCfg from "../config/squad.json";
 import brCfg from "../config/br.json";
-import { lockedHopupFor } from "./attachments";
 import { weaponLabel } from "./weapons";
 import { savedLoadout, type LoadoutDef } from "./loadouts";
 import { Bot, BODY_TOP, BOT_NAMES, MOST_BOTS, botName, BOT_WEAPONS, CROUCH_TOP, DIFFICULTY, hitsBody, rocketBurst, tierFor, type BotSense, type SightCue, WIRE_TIERS, type BotKit, type BotTier, type BurstHurts } from "./bots";
@@ -170,7 +169,7 @@ import { HEAL_CODES } from "./recap";
 import brmapCfg from "../config/brmap.json";
 /** bot squads acting as squads (bots.json squads) */
 const SQUADS = botsCfg.squads;
-import { LootField, LOOT, deathDropOf, kittedAttach, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
+import { LootField, LOOT, deathDropOf, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
 import { ammoTypeOf, STACK } from "./ammo";
 import { causeName, EDGE_ID } from "./causes";
 import { EDGE } from "./edge";
@@ -343,19 +342,17 @@ export function loadoutPodAt(seed: number, phase: number, c: Circle): { x: numbe
 }
 
 /**
- * What a loadout crate hands you: your loadout's two guns, wearing what the
- * Hot Zone's kitted gun wears (loot.ts kittedAttach) and a magazine of
- * br.json's tier, and br.json's `stacks` of each one's ammo. An energy gun
- * brings its own stockpile and a bow one quiver, the way a match's kit counts
- * them (ammo.ts AmmoPouch.kit).
+ * What a loadout crate hands you (the legacy game's): your loadout's two guns at br.json's tier, and br.json's
+ * `stacks` of each one's ammo. An energy gun brings its own stockpile, the way a match's kit counts it (ammo.ts
+ * AmmoPouch.kit). (The attachments they wore went in Milestone 522.)
  */
 export function loadoutItems(def: LoadoutDef): LootItem[] {
   const L = brCfg.loadoutPod;
   const ids = [def.slot1, def.slot2];
-  const out = ids.map((id): LootItem => ({ kind: "weapon", id, n: 1, rarity: L.rarity as Rarity, mag: L.mag, attach: kittedAttach(id) }));
+  const out = ids.map((id): LootItem => ({ kind: "weapon", id, n: 1, rarity: L.rarity as Rarity, mag: L.mag }));
   for (const type of new Set(ids.map(ammoTypeOf))) {
     if (type === "energy") continue;
-    out.push({ kind: "ammo", id: type, n: type === "arrows" ? STACK[type] : STACK[type] * L.stacks, rarity: "common" });
+    out.push({ kind: "ammo", id: type, n: STACK[type] * L.stacks, rarity: "common" });
   }
   return out;
 }
@@ -1227,9 +1224,7 @@ export class BrMatch extends Duel {
       out.push(...speedkillsPackage(Math.random));
     } else {
       const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
-      // a care-package gun comes with its hop-up unlocked
-      const hop = lockedHopupFor(gun);
-      out.push({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4, ...(hop ? { attach: { hopup: hop } } : {}) });
+      out.push({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4 });
       const extras: LootItem[] = [
         { kind: "helmet", id: "gold", n: 1, rarity: "legendary" },
         { kind: "heal", id: "phoenix", n: 1, rarity: "legendary" },
@@ -2299,9 +2294,7 @@ export class BrMatch extends Duel {
     if (this.role === "host" && !this.vaultStocked && this.phase === "fight" && this.lootField) {
       this.vaultStocked = true;
       const gun = LOOT.carePackage[Math.floor(Math.random() * LOOT.carePackage.length)];
-      const hop = lockedHopupFor(gun);
-      const attach = { ...kittedAttach(gun), ...(hop ? { hopup: hop } : {}) };
-      this.dropLoot({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4, attach, mythic: true }, new THREE.Vector3(v.x, v.y, v.z + 1.2));
+      this.dropLoot({ kind: "weapon", id: gun, n: 1, rarity: "legendary", mag: 4, mythic: true }, new THREE.Vector3(v.x, v.y, v.z + 1.2));
     }
     // a holder who is gone drops the keycard where they fell (the host's own, a guest's last state)
     if (this.role === "host" && this.keyHolder !== null) {

@@ -780,7 +780,7 @@ function reloadSeconds(id: string, empty: boolean): number {
   let t = reloadTimes.get(key);
   if (t === undefined) {
     try {
-      const w = resolveWeapon(id, 0);
+      const w = resolveWeapon(id);
       t = empty ? w.reloadEmptyTime : w.reloadTime;
     } catch {
       t = 2;
@@ -796,7 +796,7 @@ function rechamberSeconds(id: string): number {
   let t = rechamberTimes.get(id);
   if (t === undefined) {
     try {
-      const w = resolveWeapon(id, 0);
+      const w = resolveWeapon(id);
       t = Math.max(0.4, w.rechamberTime || w.shotInterval);
     } catch {
       t = 0.4;
@@ -812,7 +812,7 @@ function lockoutSeconds(id: string): number {
   let t = lockoutTimes.get(id);
   if (t === undefined) {
     try {
-      t = resolveWeapon(id, 0).mech.overheat?.lockout ?? 1;
+      t = resolveWeapon(id).mech.overheat?.lockout ?? 1;
     } catch {
       t = 1;
     }
@@ -832,7 +832,7 @@ function swapSeconds(id: string): { holster: number; deploy: number } {
   let t = swapTimes.get(id);
   if (!t) {
     try {
-      const w = resolveWeapon(id, 0);
+      const w = resolveWeapon(id);
       t = { holster: Math.max(0.1, w.holsterTime), deploy: Math.max(0.1, w.deployTime) };
     } catch {
       t = { holster: 0.5, deploy: 0.5 };

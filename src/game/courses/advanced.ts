@@ -81,7 +81,7 @@ export const ADVANCED_COURSE: CourseLayout = {
         "the second. Out through the left-hand door.",
       trigger: (_x, _y, z) => z > 20.7,
       enemies: [
-        { x: 0, z: 38.5, gun: "rspn101", sway: 0.35 },
+        { x: 0, z: 38.5, gun: "vinson", sway: 0.35 },
         { x: -7, z: 37, gun: "semipistol" },
       ],
     },
@@ -96,9 +96,9 @@ export const ADVANCED_COURSE: CourseLayout = {
         "restart the room with 2 s added. Three dummies on the pad. Out right.",
       trigger: (_x, _y, z) => z > 40.7,
       enemies: [
-        { x: -7, y: 1.0, z: 58, gun: "rspn101" },
+        { x: -7, y: 1.0, z: 58, gun: "vinson" },
         { x: 0, y: 1.0, z: 60, gun: "semipistol", sway: 0.4 },
-        { x: 8, y: 1.0, z: 58.5, gun: "rspn101" },
+        { x: 8, y: 1.0, z: 58.5, gun: "vinson" },
       ],
     },
     {
@@ -113,7 +113,7 @@ export const ADVANCED_COURSE: CourseLayout = {
       trigger: (_x, _y, z) => z > 62.7,
       enemies: [
         { x: -8, y: 1.4, z: 83.3, gun: "semipistol" },
-        { x: 8, y: 1.4, z: 83.3, gun: "rspn101", sway: 0.3 },
+        { x: 8, y: 1.4, z: 83.3, gun: "vinson", sway: 0.3 },
       ],
     },
     {
@@ -127,9 +127,9 @@ export const ADVANCED_COURSE: CourseLayout = {
         "your speed. Running round costs a second a fin. Three dummies after the second. Out right.",
       trigger: (_x, _y, z) => z > 84.7,
       enemies: [
-        { x: -8, z: 100, gun: "rspn101" },
+        { x: -8, z: 100, gun: "vinson" },
         { x: 2, z: 101.5, gun: "semipistol", sway: 0.4 },
-        { x: 8, z: 99, gun: "rspn101" },
+        { x: 8, z: 99, gun: "vinson" },
       ],
     },
     {
@@ -143,9 +143,9 @@ export const ADVANCED_COURSE: CourseLayout = {
         "it: nothing else reaches it. Walk its length, drop off the end. Three below. Out left.",
       trigger: (_x, _y, z) => z > 104.7,
       enemies: [
-        { x: 0, z: 116, gun: "rspn101", sway: 0.4 },
+        { x: 0, z: 116, gun: "vinson", sway: 0.4 },
         { x: 8, z: 119, gun: "semipistol" },
-        { x: 4, z: 122, gun: "rspn101" },
+        { x: 4, z: 122, gun: "vinson" },
       ],
     },
     {
@@ -159,8 +159,8 @@ export const ADVANCED_COURSE: CourseLayout = {
       trigger: (_x, _y, z) => z > 124.7,
       enemies: [
         { x: -6, z: 138, gun: "semipistol" },
-        { x: 1, z: 140, gun: "rspn101", sway: 0.4 },
-        { x: 8, z: 137.5, gun: "rspn101" },
+        { x: 1, z: 140, gun: "vinson", sway: 0.4 },
+        { x: 8, z: 137.5, gun: "vinson" },
       ],
     },
     {
@@ -173,10 +173,10 @@ export const ADVANCED_COURSE: CourseLayout = {
         "drop early, or ride it out at full speed.",
       trigger: (_x, _y, z) => z > 142.7,
       enemies: [
-        { x: 0, z: 151, gun: "rspn101", sway: 0.4 },
+        { x: 0, z: 151, gun: "vinson", sway: 0.4 },
         { x: -8, z: 155, gun: "semipistol" },
-        { x: 8, z: 157, gun: "rspn101" },
-        { x: -2, z: 161, gun: "rspn101", sway: 0.3 },
+        { x: 8, z: 157, gun: "vinson" },
+        { x: -2, z: 161, gun: "vinson", sway: 0.3 },
       ],
     },
     {
@@ -188,10 +188,10 @@ export const ADVANCED_COURSE: CourseLayout = {
         "land in a slide for the next. Four dummies between the walls. Out right.",
       trigger: (_x, _y, z) => z > 166.7,
       enemies: [
-        { x: -8, z: 174, gun: "rspn101" },
+        { x: -8, z: 174, gun: "vinson" },
         { x: 6, z: 175.5, gun: "semipistol", sway: 0.4 },
-        { x: 8, z: 181, gun: "rspn101" },
-        { x: -5, z: 183, gun: "rspn101", sway: 0.3 },
+        { x: 8, z: 181, gun: "vinson" },
+        { x: -5, z: 183, gun: "vinson", sway: 0.3 },
       ],
     },
     {
@@ -203,12 +203,12 @@ export const ADVANCED_COURSE: CourseLayout = {
         "Slide jump the cover instead of going round it.",
       trigger: (_x, _y, z) => z > 186.7,
       enemies: [
-        { x: 8, z: 191, gun: "rspn101" },
+        { x: 8, z: 191, gun: "vinson" },
         { x: -8, z: 193, gun: "semipistol", sway: 0.4 },
-        { x: 0, z: 197, gun: "rspn101" },
+        { x: 0, z: 197, gun: "vinson" },
         { x: 6, z: 201, gun: "semipistol", sway: 0.3 },
-        { x: -6, z: 203, gun: "rspn101" },
-        { x: 0, z: 206.5, gun: "rspn101", sway: 0.5 },
+        { x: -6, z: 203, gun: "vinson" },
+        { x: 0, z: 206.5, gun: "vinson", sway: 0.5 },
       ],
     },
   ],

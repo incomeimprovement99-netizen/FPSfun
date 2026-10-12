@@ -43,8 +43,8 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
   // (the launcher at its full range: up close it is meant to be weak, the owner's rule, and is held to that below)
   const at = (w: ResolvedWeapon): ResolvedWeapon => (fam === "launcher" ? { ...w, damage: { ...w.damage, near: w.damage.far } } : w);
   for (const id of f.guns) {
-    const t0 = ttk(at(resolveWeapon(id, 0, [], 0)));
-    const t5 = ttk(at(resolveWeapon(id, 0, [], 5)));
+    const t0 = ttk(at(resolveWeapon(id, [], 0)));
+    const t5 = ttk(at(resolveWeapon(id, [], 5)));
     rows.push(`${PROFILE.weapons[id].name.padEnd(12)} ${t0.toFixed(2)} s, fused ${t5.toFixed(2)} s`);
     if (band) check(`${PROFILE.weapons[id].name} (${fam}) kills in ${band[0]} to ${band[1]} s as found`, t0 >= band[0] - 1e-9 && t0 <= band[1] + 1e-9, `${t0.toFixed(2)} s`);
     // better, not decisive (the owner's 2% a level): never more than 10% quicker at level 5
@@ -64,7 +64,7 @@ console.log(rows.map((r) => `        ${r}`).join("\n"));
   let pairs = 0;
   for (const id of PROFILE.roster) {
     for (let lv = 0; lv <= PROFILE.fusion.levels; lv++) {
-      const w = resolveWeapon(id, 0, [], lv);
+      const w = resolveWeapon(id, [], lv);
       const fig = new Dummy(0, 0, 0, { rig: true, noBase: true, respawn: false });
       fig.shieldCap = PROFILE.health ? PROFILE.health.shield : 50;
       fig.setTier(1);
@@ -90,7 +90,7 @@ console.log(rows.map((r) => `        ${r}`).join("\n"));
 // the pairs: each one a real choice, not a trap
 for (const [fam, f] of Object.entries(PROFILE.families)) {
   if (f.guns.length !== 2) continue;
-  const [a, b] = f.guns.map((id) => resolveWeapon(id, 0, [], 0));
+  const [a, b] = f.guns.map((id) => resolveWeapon(id, [], 0));
   const fast = PROFILE.weapons[a.id].role === "fast" ? a : b;
   const hard = fast === a ? b : a;
   check(`${fam}: the fast one fires faster, the hard one hits harder`, fast.fireRate > hard.fireRate && hard.damage.near * Math.max(1, hard.pellets) > fast.damage.near * Math.max(1, fast.pellets));
@@ -98,34 +98,34 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
 
 // the owner's two SMGs: USSO the fastest and hardest to hold, ANAKIN the easiest
 {
-  const usso = resolveWeapon("r97", 0, [], 0);
-  const anakin = resolveWeapon("alternator_smg", 0, [], 0);
-  const all = PROFILE.roster.map((id) => resolveWeapon(id, 0, [], 0));
+  const usso = resolveWeapon("r97", [], 0);
+  const anakin = resolveWeapon("alternator_smg", [], 0);
+  const all = PROFILE.roster.map((id) => resolveWeapon(id, [], 0));
   check("USSO fires faster than any other gun", all.every((w) => w.id === "r97" || w.fireRate < usso.fireRate));
   check("USSO kicks harder than ANAKIN, which kicks least of the automatics", usso.viewkick.pitchBase > anakin.viewkick.pitchBase && all.filter((w) => !w.semiAuto && w.id !== "alternator_smg").every((w) => Math.abs(w.viewkick.pitchBase) >= Math.abs(anakin.viewkick.pitchBase)));
 }
 
 // BOOG: one headshot, whatever the target has and however it is protected
 {
-  const boog = resolveWeapon("sentinel", 0, [], 0);
+  const boog = resolveWeapon("sentinel", [], 0);
   const head = boog.damage.near * boog.damage.headshot;
   const armorCut = 0.6;
   check("BOOG: a headshot kills through full health, full shield and an ARMOR hack, as found", head * (1 - armorCut) >= POOL, `${head.toFixed(0)} a headshot`);
   check("BOOG: and a body shot does not", boog.damage.near < POOL);
   // the wire's own bound on a claimed hit is 1000 (duel.ts wellFormed)
-  check("BOOG's headshot at its top fusion level is still under the wire's 1000 a hit", resolveWeapon("sentinel", 0, [], 5).damage.near * resolveWeapon("sentinel", 0, [], 5).damage.headshot <= 1000);
+  check("BOOG's headshot at its top fusion level is still under the wire's 1000 a hit", resolveWeapon("sentinel", [], 5).damage.near * resolveWeapon("sentinel", [], 5).damage.headshot <= 1000);
 }
 
 // fusion itself: the owner's numbers on a real gun
 {
-  const a = resolveWeapon("rspn101", 0, [], 0);
-  const b = resolveWeapon("rspn101", 0, [], 5);
+  const a = resolveWeapon("vinson", [], 0);
+  const b = resolveWeapon("vinson", [], 5);
   check("fused to 5: +10% damage and +50% magazine on a real gun", Math.abs(b.damage.near / a.damage.near - 1.1) < 1e-9 && Math.abs(b.clipSize / a.clipSize - 1.5) < 0.06, `${a.clipSize} to ${b.clipSize} rounds`);
   // switching guns (the owner, 2026-09-26): 1.5 times as quick as the legacy data as found, twice as quick at level 5;
   // then 1.35 times those, for a swap that phases the gun out and the next in where it is held (the owner, 2026-09-30:
   // "i think our swaps are too quick for how we wanted it"): 0.9 of the legacy time as found, 0.675 at level 5
   const legacyDraw = 0.6;
-  check("a gun draws in 0.9 of the legacy time as found and 0.675 at level 5, quicker each level", Math.abs(a.deployTime / legacyDraw - 0.9) < 0.01 && Math.abs(b.deployTime / legacyDraw - 0.675) < 0.01 && [0, 1, 2, 3, 4].every((l) => resolveWeapon("rspn101", 0, [], l + 1).deployTime < resolveWeapon("rspn101", 0, [], l).deployTime), `${a.deployTime.toFixed(2)} s to ${b.deployTime.toFixed(2)} s`);
+  check("a gun draws in 0.9 of the legacy time as found and 0.675 at level 5, quicker each level", Math.abs(a.deployTime / legacyDraw - 0.9) < 0.01 && Math.abs(b.deployTime / legacyDraw - 0.675) < 0.01 && [0, 1, 2, 3, 4].every((l) => resolveWeapon("vinson", [], l + 1).deployTime < resolveWeapon("vinson", [], l).deployTime), `${a.deployTime.toFixed(2)} s to ${b.deployTime.toFixed(2)} s`);
 }
 
 // The owner's rule for range (2026-10-05: "all around the same but if it's closer range more dps vs rifles. If longer
@@ -143,7 +143,7 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
     return d.veryFar;
   };
   const time = (id: string, m: number): number => {
-    const w = resolveWeapon(id, 0, [], 0);
+    const w = resolveWeapon(id, [], 0);
     return ttk({ ...w, damage: { ...w.damage, near: falloffAt(w.damage, m) } });
   };
   const fam = (f: string): string[] => (PROFILE.families as Record<string, { guns: string[] }>)[f]?.guns ?? [];
@@ -156,7 +156,7 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
   // HAEFY's rocket (the owner, 2026-10-06: "more damage the further it travels, so a point blank or very close does like 10
   // damage"): about 10 a rocket point blank, a kill in about the others' time from 20 m on, and no quicker near than far
   for (const id of fam("launcher")) {
-    const w = resolveWeapon(id, 0, [], 0);
+    const w = resolveWeapon(id, [], 0);
     const pointBlank = falloffAt(w.damage, 1);
     check(`${PROFILE.weapons[id].name}'s rocket does about 10 point blank and its full damage from 20 m, a kill there in 1.3 to 1.9 s`, Math.abs(pointBlank - 10) <= 1 && time(id, 25) >= 1.3 && time(id, 25) <= 1.9 && time(id, 1) >= 3 * time(id, 25), `${pointBlank.toFixed(1)} a rocket point blank; ${row(id)}; point blank ${time(id, 1).toFixed(2)} s`);
   }

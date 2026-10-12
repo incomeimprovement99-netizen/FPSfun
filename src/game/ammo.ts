@@ -13,13 +13,13 @@ export const STACK: Record<Exclude<AmmoType, "energy">, number> = cfg.stacks;
 
 /** how many rounds of a type fit, carrying a backpack `packTier` tiers above the white one (ammo.json carry) */
 export function ammoCap(type: AmmoType, packTier: number): number {
-  if (type === "energy" || type === "arrows") return Infinity;
+  if (type === "energy") return Infinity;
   return STACK[type] * (cfg.carry.stacks + cfg.carry.perPack * Math.max(0, packTier));
 }
 
 export class AmmoPouch {
   infinite = true;
-  stock: Record<AmmoType, number> = { light: 0, heavy: 0, energy: 0, sniper: 0, shotgun: 0, arrows: 0 };
+  stock: Record<AmmoType, number> = { light: 0, heavy: 0, energy: 0, sniper: 0, shotgun: 0 };
   /** the backpack's tier above the white one: how much fits (null: no limit, the range) */
   packTier: number | null = null;
 
@@ -38,8 +38,7 @@ export class AmmoPouch {
     for (const w of weapons) {
       if (w.energyStock > 0 || w.ammoType === "energy") continue;
       const per = STACK[w.ammoType as Exclude<AmmoType, "energy">] ?? 60;
-      // the bow's arrows are its own quiver: one of them, not stacks
-      this.stock[w.ammoType] = Math.max(this.stock[w.ammoType], w.ammoType === "arrows" ? per : per * stacks);
+      this.stock[w.ammoType] = Math.max(this.stock[w.ammoType], per * stacks);
     }
   }
 

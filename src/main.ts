@@ -9,7 +9,6 @@ import { Input } from "./game/input";
 import { padButtons, type PadSettings } from "./game/gamepad";
 import { Player } from "./game/player";
 import { Loadout, type SlotSetup } from "./game/loadout";
-import type { AttachSlot } from "./game/attachments";
 import { HU, MOVE } from "./game/movement";
 import { holdTextures, installSky } from "./game/materials";
 import { firstScreenDone, later, laterSettled } from "./game/later";
@@ -34,7 +33,6 @@ import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRan
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
-import { LOCKED_HOPUPS, lockedHopupFor } from "./game/attachments";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, rangeBounds, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { floorAt } from "./game/floors";
@@ -56,7 +54,7 @@ import { DpiCalibrator, snapDpi } from "./game/dpi-calibrate";
 import { ZIPLINES, ladderAhead } from "./game/traversal";
 import { mergeStatic } from "./game/staticmerge";
 import { opticInfo } from "./game/optics";
-import { opticName, hopupName } from "./config/names";
+import { opticName } from "./config/names";
 import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, MAX_PLAYERS, SHIELD_MAX, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot, type Remote } from "./game/duel";
 import finCfg from "./config/finisher.json";
@@ -244,16 +242,8 @@ if (IS_SK) loadingScreen.waitFor = () => paidSettled && warming === 0 && skyIn;
 intro.progress = () => loadingScreen.fraction;
 
 const DEG = Math.PI / 180;
-/** slot 1 and slot 2. Keys 1 and 2 select, Q swaps. */
-const LOADOUT_IDS = ["rspn101", "wingman"];
-/** which key cycles each attachment slot, shown in the HUD */
-const ATTACH_KEY: Record<AttachSlot, string> = {
-  optic: "O",
-  barrel: "J",
-  stock: "N",
-  laser: "H",
-  hopup: "L",
-};
+/** slot 1 and slot 2, before a loadout is read: SpeedKills' first, the USSO and BOOG. Keys 1 and 2 select, Q swaps. */
+const LOADOUT_IDS = ["r97", "sentinel"];
 
 // ---------- settings (defaults from config, overrides in localStorage) ----------
 interface Settings {
@@ -598,7 +588,7 @@ document.title = PROFILE.identity.title;
  * the default slot-1 weapon; afterwards it is whatever is in hand, with its
  * attachments applied.
  */
-let currentWeapon = () => resolveWeapon(LOADOUT_IDS[0], 0);
+let currentWeapon = () => resolveWeapon(LOADOUT_IDS[0]);
 const overlay = $("overlay");
 const inDpi = $<HTMLInputElement>("dpi");
 const inSens = $<HTMLInputElement>("sens");
@@ -1601,7 +1591,7 @@ function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon, on
 // ---------- the range's tooling (rangetools.ts, trainer.ts) ----------
 const dummyBehaviour = new DummyBehaviour(dummies);
 const rangeCombat = new RangeCombat();
-const combatWeapon = resolveWeapon(rangeToolsCfg.combat.weapon, 2);
+const combatWeapon = resolveWeapon(rangeToolsCfg.combat.weapon);
 rangeCombat.onHurt = (amount) => {
   hud.hurt(gameTime);
   audio.hurt(rangeCombat.shield > 0);
@@ -2272,7 +2262,7 @@ function onEliminated(d: MatchLike, by: number): void {
   if (d instanceof BrMatch && d.lootField && !d.diedInGulag) {
     const items: LootItem[] = [];
     // SpeedKills: each gun at the level you fused it to
-    for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: IS_SK ? levelRarity(s.fusion ?? 0) : "rare", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}), ...(IS_SK ? { fusion: s.fusion ?? 0 } : {}) });
+    for (const s of loadout.slots) if (!s.empty) items.push({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 });
     // SpeedKills' is your guns: its reserve is endless, it has no heals or helmets, and its floor is guns and hack
     // cores. A loadout start carries the match's ammo kit, which went down as clutter.
     if (!IS_SK) {
@@ -3118,7 +3108,6 @@ function respawnForMatch(d: MatchLike): void {
   kit.fill(IS_SK ? "empty" : br ? "brStart" : "kit");
   // no knockdown shield, no regen carried over from the last life
   kd.reset();
-  execRegen = null;
   echoRegen = null;
   // land with nothing and loot: fists, no heals, no ammo. A restore at your echo starts from nothing
   // whatever the start or the game: what you had is given back below, and given onto the guns still in hand each would
@@ -3349,35 +3338,6 @@ function evoForKnock(victim: number, by: number): void {
   }
 }
 
-// ---- the hop-ups of Seasons 29 and 30 (weapon-mechanics.json lockedHopups): unlocked by damage, and their effects
-/** damage with the gun in hand goes to its locked hop-up; at the mark it unlocks */
-function hopProgress(weaponId: string, amount: number): void {
-  const s = loadout.active;
-  if (s.empty || s.id !== weaponId || !s.hopLock) return;
-  s.hopLock.have += amount;
-  if (s.hopLock.have >= s.hopLock.need) {
-    const mod = s.hopLock.mod;
-    s.hopLock = null;
-    loadout.fitAttachment(loadout.activeIndex, "hopup", mod);
-    hud.notice(`${hopupName(mod).toUpperCase()} UNLOCKED`, gameTime, 2);
-    audio.healDone();
-  }
-}
-/** Shattercaps: the gun's round as a blast of pellets (7 of 8, heads x1.25), made once per gun */
-const shatterCache = new Map<string, ResolvedWeapon>();
-function shatterOf(w: ResolvedWeapon): ResolvedWeapon {
-  const key = `${w.id}:${w.magLevel}`;
-  let v = shatterCache.get(key);
-  if (!v) {
-    const h = LOCKED_HOPUPS.hopup_shattercaps;
-    const dmg = h?.damage ?? 8;
-    v = { ...w, pellets: h?.pellets ?? 7, damage: { ...w.damage, near: dmg, far: dmg, veryFar: dmg, headshot: h?.headshot ?? 1.25 } };
-    shatterCache.set(key, v);
-  }
-  return v;
-}
-/** Executioner's shield after a knock: what is left to give, and how fast */
-let execRegen: { left: number; rate: number } | null = null;
 /** brought back at your echo: the shield comes back over a few seconds */
 let echoRegen: { rate: number } | null = null;
 /** the knockdown shield (squad.json kdShield): what it has left, raised or not, and the knock it belongs to */
@@ -4359,7 +4319,6 @@ brPlay.carrying = () => {
     ammo: held.map((s) => ammoTypeOf(s.id)),
     healRoom: kit.room,
     ammoRoom: Object.fromEntries(held.map((s) => [ammoTypeOf(s.id), loadout.ammo.room(ammoTypeOf(s.id))])),
-    mag: held.length ? Math.min(...held.map((s) => s.magLevel)) : 0,
     hacks: IS_SK ? { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null } : undefined,
   };
 };
@@ -4486,65 +4445,31 @@ function applyLoot(it: LootItem): void {
       // SpeedKills' fusion: the gun you carry, found again, goes up a level
       // (a higher-level copy, to its level); a new one fills an empty slot or
       // swaps with the one in hand, which goes down with its own level
-      if (IS_SK) {
-        const twin = loadout.slots.findIndex((s) => !s.empty && s.id === it.id);
-        if (twin >= 0) {
-          const s = loadout.slots[twin];
-          const to = Math.max((s.fusion ?? 0) + 1, it.fusion ?? 0);
-          if (loadout.fuse(twin, to)) {
-            hud.notice(`${label} FUSED  ·  LEVEL ${s.fusion}`, gameTime, 1.8);
-            fusedCount++;
-            audio.reloadStep("bolt");
-            audio.swap();
-          } else {
-            hud.notice(`${label}: ALREADY AT ITS TOP LEVEL`, gameTime, 1.4);
-            putBack(it);
-          }
-          // (as the hack's: the FUSED notice was written over by the bare name after the switch)
-          return;
-        }
-        const empty = loadout.emptySlot;
-        if (empty >= 0) {
-          loadout.give(empty, it.id, 0, {}, it.fusion ?? 0);
-          if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
-        } else {
-          const s = loadout.active;
-          putBack({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 });
-          loadout.give(loadout.activeIndex, it.id, 0, {}, it.fusion ?? 0);
-        }
-        audio.swap();
-        break;
-      }
-      // Fusion (br.json fusion): the gun you already carry, found again, is
-      // not a spare to juggle but a better copy of the one you have
-      const twin = brCfg.fusion.on && d instanceof BrMatch ? loadout.slots.findIndex((s) => !s.empty && s.id === it.id) : -1;
+      const twin = loadout.slots.findIndex((s) => !s.empty && s.id === it.id);
       if (twin >= 0) {
         const s = loadout.slots[twin];
-        const level = Math.min(brCfg.fusion.maxMag, Math.max(s.magLevel, it.mag ?? 0) + 1);
-        const magUp = loadout.fitMag(twin, level);
-        const filled = Object.entries(it.attach ?? {}).filter(([slot, mod]) => mod && !(s.attach as Record<string, string | undefined>)[slot] && loadout.fitAttachment(twin, slot as Parameters<typeof loadout.fitAttachment>[1], mod as string)).length;
-        const type = s.weapon.ammoType;
-        const rounds = type === "energy" || type === "arrows" ? 0 : loadout.ammo.add(type, STACK[type] * brCfg.fusion.ammoStacks);
-        hud.notice(`${label} FUSED${magUp ? `  ·  MAG LEVEL ${s.magLevel}` : ""}${filled ? `  ·  ${filled} ATTACHMENT${filled > 1 ? "S" : ""}` : ""}${rounds ? `  ·  +${rounds} ROUNDS` : ""}`, gameTime, 1.8);
-        fusedCount++;
-        audio.reloadStep("bolt");
-        audio.swap();
-        break;
+        const to = Math.max((s.fusion ?? 0) + 1, it.fusion ?? 0);
+        if (loadout.fuse(twin, to)) {
+          hud.notice(`${label} FUSED  ·  LEVEL ${s.fusion}`, gameTime, 1.8);
+          fusedCount++;
+          audio.reloadStep("bolt");
+          audio.swap();
+        } else {
+          hud.notice(`${label}: ALREADY AT ITS TOP LEVEL`, gameTime, 1.4);
+          putBack(it);
+        }
+        // (as the hack's: the FUSED notice was written over by the bare name after the switch)
+        return;
       }
       const empty = loadout.emptySlot;
-      const into = empty >= 0 ? empty : loadout.activeIndex;
       if (empty >= 0) {
-        loadout.give(empty, it.id, it.mag ?? 0, (it.attach ?? {}) as Parameters<typeof loadout.give>[3]);
+        loadout.give(empty, it.id, it.fusion ?? 0);
         if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
       } else {
         const s = loadout.active;
-        putBack({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}) });
-        loadout.give(loadout.activeIndex, it.id, it.mag ?? 0, (it.attach ?? {}) as Parameters<typeof loadout.give>[3]);
+        putBack({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 });
+        loadout.give(loadout.activeIndex, it.id, it.fusion ?? 0);
       }
-      // Seasons 29 and 30: a gun with a locked hop-up earns it with damage (a care-package gun, or one already unlocked, has it)
-      const lockMod = lockedHopupFor(it.id);
-      const slot = loadout.slots[into];
-      if (lockMod && slot.attach.hopup !== lockMod) slot.hopLock = { mod: lockMod, have: it.hop ?? 0, need: LOCKED_HOPUPS[lockMod].unlock };
       audio.swap();
       break;
     }
@@ -4567,23 +4492,6 @@ function applyLoot(it: LootItem): void {
         return;
       }
       audio.reloadStep("out");
-      break;
-    }
-    case "attach":
-    case "hopup": {
-      const order = [loadout.activeIndex, 1 - loadout.activeIndex];
-      let ok = false;
-      if (it.id.startsWith("mag:")) ok = order.some((i) => loadout.fitMag(i, Number(it.id.slice(4))));
-      else {
-        const slot = it.kind === "hopup" ? "hopup" : it.id.startsWith("optic_") ? "optic" : it.id.startsWith("barrel_") ? "barrel" : it.id.startsWith("stock_") ? "stock" : "laser";
-        ok = order.some((i) => loadout.fitAttachment(i, slot, it.id));
-      }
-      if (!ok) {
-        putBack(it);
-        hud.notice(`${label} FITS NEITHER GUN`, gameTime, 1.4);
-        return;
-      }
-      audio.reloadStep("bolt");
       break;
     }
     case "backpack":
@@ -4627,9 +4535,9 @@ function killcamGun(id: string): ResolvedWeapon {
   let w = killcamGuns.get(id);
   if (!w) {
     try {
-      w = resolveWeapon(id, 0);
+      w = resolveWeapon(id);
     } catch {
-      w = resolveWeapon("rspn101", 0);
+      w = resolveWeapon("vinson");
     }
     killcamGuns.set(id, w);
   }
@@ -4921,11 +4829,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
         .forEach((g, i) => {
           const s = loadout.slots[i];
           // SpeedKills calls no crate (brmatch.ts maybeCrate), but a gun put down keeps its level wherever it is put down
-          if (!s.empty) d.dropLoot({ kind: "weapon", id: s.id, n: 1, rarity: "common", mag: s.magLevel, attach: { ...s.attach }, ...(s.hopLock ? { hop: s.hopLock.have } : {}), ...(IS_SK ? { rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 } : {}) }, here);
-          loadout.give(i, g.id, g.mag ?? 0, (g.attach ?? {}) as Parameters<typeof loadout.give>[3]);
-          // a hop-up earned with damage is earned here too, unless the crate fitted it (as applyLoot)
-          const lockMod = lockedHopupFor(g.id);
-          if (lockMod && loadout.slots[i].attach.hopup !== lockMod) loadout.slots[i].hopLock = { mod: lockMod, have: 0, need: LOCKED_HOPUPS[lockMod].unlock };
+          if (!s.empty) d.dropLoot({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 }, here);
+          loadout.give(i, g.id, g.fusion ?? 0);
         });
       for (const it of items) if (it.kind === "ammo") loadout.ammo.add(it.id as AmmoType, it.n);
       audio.swap();
@@ -6017,7 +5922,7 @@ const loadout = new Loadout([loadouts.current.slot1, loadouts.current.slot2]);
 // from here the readout describes the gun actually in hand, attachments included
 currentWeapon = () => loadout.active.weapon;
 currentOpticZoom = () => {
-  const info = opticInfo(loadout.active.attach.optic ?? loadout.active.weapon.integralOptic ?? null);
+  const info = opticInfo(loadout.active.attach.optic ?? null);
   return opticZoom(info?.label ?? null, info?.zooms, loadout.active.zoomAlt);
 };
 refreshDerived();
@@ -6065,7 +5970,7 @@ function applyLoadout(def: LoadoutDef): void {
     // only a slot whose gun changed is replaced: changing the operator must
     // not strip the attachments off guns you get back at the end
     const saved = savedSlots;
-    savedSlots = ids.map((id, i) => (saved[i]?.id === id ? saved[i] : { id, magLevel: 0, attach: {}, zoomAlt: false }));
+    savedSlots = ids.map((id, i) => (saved[i]?.id === id ? saved[i] : { id, attach: {}, zoomAlt: false }));
   } else if (duel && duel.phase === "fight" && (loadout.slots[0].id !== def.slot1 || loadout.slots[1].id !== def.slot2)) {
     // mid-fight a new gun would come up with a full magazine and no deploy
     // time: it waits for the next round's spawn
@@ -6961,26 +6866,12 @@ function step(): void {
         loadout.setFusion(loadout.activeIndex, next);
         hud.notice(`${weaponLabel(loadout.active.id).toUpperCase()}  ·  FUSION LEVEL ${next}`, now, 1.2);
       }
-    } else if (!loadout.swapping && !knockedOut) {
-      if (input.pressedNow("magLevel")) loadout.setMagLevel((loadout.active.magLevel + 1) % 5);
-      if (input.pressedNow("optic")) loadout.cycleAttachment("optic");
-      if (input.pressedNow("barrel")) loadout.cycleAttachment("barrel");
-      if (input.pressedNow("stock")) loadout.cycleAttachment("stock");
-      if (input.pressedNow("laser")) loadout.cycleAttachment("laser");
-      if (input.pressedNow("hopup")) loadout.cycleAttachment("hopup");
-      // B: the gun's other fire mode, where it has one (a switch hop-up may be needed)
-      if (input.pressedNow("fireMode")) {
-        const label = loadout.toggleFireMode();
-        hud.notice(label ? `FIRE MODE: ${label.toUpperCase()}` : "THIS GUN HAS ONE FIRE MODE", now, 1);
-        if (label) audio.reloadStep("bolt");
-      }
-      // Z: a variable optic's other zoom
-      if (input.pressedNow("zoomToggle") && loadout.toggleZoom()) {
-        const w = loadout.active.weapon;
-        const mod = w.optic ?? w.integralOptic;
-        const info = opticInfo(mod);
-        if (info?.zooms) hud.notice(`${opticName(mod ?? "", info.label)}: ${info.zooms[loadout.active.zoomAlt ? 1 : 0]}`, now, 0.9);
-      }
+    }
+    // Z: a variable optic's other zoom
+    if (!loadout.swapping && !knockedOut && input.pressedNow("zoomToggle") && loadout.toggleZoom()) {
+      const mod = loadout.active.weapon.optic;
+      const info = opticInfo(mod);
+      if (info?.zooms) hud.notice(`${opticName(mod ?? "", info.label)}: ${info.zooms[loadout.active.zoomAlt ? 1 : 0]}`, now, 0.9);
     }
     // V: melee, with the heirloom (or a fist). Apex's melee does 30 anywhere
     // it lands, at arm's length.
@@ -7208,8 +7099,6 @@ function step(): void {
   // is a thing worth being able to ask for without a fake pad. Not while a melee swings (the owner, 2026-09-29: "WE
   // SHOULDN'T BE ABLE TO SHOOT WITH MELEEING")
   const trigger = (input.playing || !!scriptInput) && (scriptInput ? scriptInput.held("fire") : input.held("fire")) && !loadout.swapping && holster === "out" && (!duel || duel.canFire) && !player.dropping && !player.aboard && !loadout.active.empty && !downedNow && !finisher && gameTime - swungAt >= MELEE_TIME;
-  // a burst fires on without the trigger: knocked, or the round decided, it stops
-  if (knockedOut || (duel && !duel.canFire)) ws.cancelBurst();
   // knocked in a 1v1: no aiming either
   // toggle ADS: a press goes in, the next comes out; a sprint, a swap or a holster comes out too
   if (settings.adsToggle) {
@@ -7289,15 +7178,8 @@ function step(): void {
     kdPane.rotation.y = player.yaw * DEG + Math.PI;
   }
   selfFig?.setKnockShield(kd.up);
-  // Executioner's shield after a knock, a restore's shield: coming back a bit each frame
-  if (execRegen && (!duel || !duel.alive)) execRegen = null;
+  // a restore's shield: coming back a bit each frame
   if (duel && duel.alive && !(duel instanceof Duel && duel.downed)) {
-    if (execRegen) {
-      const add = Math.min(execRegen.left, execRegen.rate * dt, duel.shieldMax - duel.shield);
-      duel.shield += Math.max(0, add);
-      execRegen.left -= execRegen.rate * dt;
-      if (execRegen.left <= 0) execRegen = null;
-    }
     if (echoRegen && duel instanceof BrMatch) {
       duel.shield = Math.min(duel.shieldMax, duel.shield + echoRegen.rate * dt);
       if (duel.shield >= duel.shieldMax) echoRegen = null;
@@ -7372,13 +7254,6 @@ function step(): void {
   if (ws.consumeNoAmmo()) {
     hud.notice(`NO ${weapon.ammoType.toUpperCase()} AMMO`, now, 1);
     audio.dry();
-  }
-  if (ws.chargeStarted) {
-    ws.chargeStarted = false;
-    const m = weapon.mech;
-    if (m.chargeUp && m.chargeUp.time > 0.05) audio.charge(m.chargeUp.time);
-    else if (m.chargeShot) audio.charge(m.chargeShot.time);
-    else if (m.draw) audio.charge(m.draw.time);
   }
   if (ws.overheatStarted) {
     ws.overheatStarted = false;
@@ -7595,13 +7470,8 @@ function step(): void {
   // accumulated so shot 2 of a frame sees shot 1's permanent kick.
   let hardPitch = 0;
   let hardYaw = 0;
-  // Seasons 29 and 30's hop-ups: Shattercaps splits a hip-fired round into a blast; Redline hits harder near overheat
-  const hop = loadout.active.attach.hopup;
-  const shatter = hop === "hopup_shattercaps" && ws.adsFrac < 0.5 ? shatterOf(weapon) : null;
-  const redline = hop === "hopup_redline" && 1 - ws.clip / Math.max(1, weapon.clipSize) >= (LOCKED_HOPUPS.hopup_redline?.heat ?? 0.75) ? (LOCKED_HOPUPS.hopup_redline?.damage ?? 1.15) : 1;
-  for (const s0 of shots) {
-    const s = redline !== 1 ? { ...s0, dmgScale: s0.dmgScale * redline } : s0;
-    const weapon = shatter ?? loadout.active.weapon;
+  for (const s of shots) {
+    const weapon = loadout.active.weapon;
     // per pellet, as hits are: per trigger pull an EVA-8 read 800% accuracy
     stats.shots += weapon.pellets;
     gunRow(weapon.id).shots += weapon.pellets;
@@ -7626,11 +7496,11 @@ function step(): void {
     };
     // A shotgun fires its pattern (blast.ts): the spread stat deviates the
     // blast as a whole, once, and each pellet sits at its place in the shape
-    // round that. Without a pattern (a Shattercaps blast, a single round) each
-    // projectile takes its own deviation inside the cone.
-    const pattern = shatter ? null : blastOffsets(weapon, ws.adsFrac > 0.5, s.coneScale, rnd);
+    // round that. Without a pattern (a single round) each projectile takes
+    // its own deviation inside the cone.
+    const pattern = blastOffsets(weapon, ws.adsFrac > 0.5, rnd);
     const centre = new THREE.Vector3(0, 0, -1).applyQuaternion(shotQ);
-    if (pattern) deviate(centre, s.cone * s.coneScale);
+    if (pattern) deviate(centre, s.cone);
     for (let p = 0; p < weapon.pellets; p++) {
       tmpDir.copy(centre);
       if (pattern) {
@@ -7640,12 +7510,12 @@ function step(): void {
       } else {
         // a single pellet of a shotgun still spreads, using at least the
         // weapon's own cone so the pattern is not a laser
-        const cone = shatter ? Math.max(s.cone, LOCKED_HOPUPS.hopup_shattercaps?.cone ?? 5) : (weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone) * s.coneScale;
+        const cone = weapon.pellets > 1 ? Math.max(s.cone, weapon.spread.standHip) : s.cone;
         deviate(tmpDir, cone);
       }
       // the tracer from the muzzle you see: the gun in first person, your figure's in third
       const muzzle = thirdPerson ? (selfFig?.muzzleWorld() ?? null) : onScreenAsWorld(viewModel.muzzleWorld());
-      projectiles.fire(origin.clone(), tmpDir, weapon, false, s.dmgScale, s.speedScale, muzzle, viewModel.tracerStyle);
+      projectiles.fire(origin.clone(), tmpDir, weapon, false, 1, 1, muzzle, viewModel.tracerStyle);
       (duel ?? hangout)?.localShot(origin, tmpDir, weapon.id);
       selfFig?.kick();
     }
@@ -7687,7 +7557,7 @@ function step(): void {
     }
     // a round into the spray wall (the range only)
     if (!duel && !e.dummy && !e.target && e.distance > 1) {
-      const w = e.weapon === loadout.active.weapon.id ? loadout.active.weapon : e.weapon && e.weapon !== "melee" ? resolveWeapon(e.weapon, 0) : null;
+      const w = e.weapon === loadout.active.weapon.id ? loadout.active.weapon : e.weapon && e.weapon !== "melee" ? resolveWeapon(e.weapon) : null;
       if (w) sprayWall.hit(e.point, w, now, e.distance, ws.adsFrac > 0.5);
       return;
     }
@@ -7725,11 +7595,8 @@ function step(): void {
         dlog.hit({ t: realNow(), from: duel.id, to: remote.id, amount: r.amount, head: r.headshot, weapon: e.weapon, dist: e.distance });
         // when you last hurt them: their plate shows for a while after (and a battle royale's assists)
         damagedAt.set(remote.id, gameTime);
-        // a battle royale's shield core levels with the damage you deal; the gun's locked hop-up counts it too
-        if (duel instanceof BrMatch) {
-          giveEvo(r.amount);
-          hopProgress(e.weapon, r.amount);
-        }
+        // a battle royale's shield core levels with the damage you deal
+        if (duel instanceof BrMatch) giveEvo(r.amount);
       }
       const wasDowned = remote.downed;
       duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
@@ -7757,12 +7624,6 @@ function step(): void {
         stats.knocks++;
         audio.knock();
         if (e.dummy) audio.bodyFall(e.dummy.group.position);
-        // Executioner: a knock with the gun that has it gives shield back over a few seconds
-        const ex = LOCKED_HOPUPS.hopup_executioner;
-        if (ex && !loadout.active.empty && loadout.active.id === e.weapon && loadout.active.attach.hopup === "hopup_executioner") {
-          execRegen = { left: ex.shield ?? 50, rate: (ex.shield ?? 50) / (ex.over ?? 5) };
-          hud.notice(`${hopupName("hopup_executioner").toUpperCase()}: +${ex.shield} SHIELD`, now, 1.2);
-        }
       } else if (onShield && remote.shield <= 0) audio.shieldBreak();
       else audio.hitTier(r.headshot ? "head" : onShield ? "blue" : "health");
       return;
@@ -7863,7 +7724,7 @@ function step(): void {
   if (debugView.weapon) {
     const key = `${debugView.weapon}:${debugView.optic ?? ""}`;
     let dw = debugWeapons.get(key);
-    if (!dw) debugWeapons.set(key, (dw = resolveWeapon(debugView.weapon, 0, debugView.optic ? [debugView.optic] : [])));
+    if (!dw) debugWeapons.set(key, (dw = resolveWeapon(debugView.weapon, debugView.optic ? [debugView.optic] : [])));
     drawn = dw;
   }
   viewModel.setWeapon(drawn);
@@ -8120,9 +7981,7 @@ function step(): void {
     // the gun actually in hand
     weaponName: shown.empty ? "FISTS" : shown.weapon.name,
     weaponKind: shown.empty ? null : weaponKind(shown.id),
-    hopLock: !shown.empty && shown.hopLock ? { name: hopupName(shown.hopLock.mod), have: shown.hopLock.have, need: shown.hopLock.need } : null,
     unarmed: shown.empty,
-    magLevel: shown.magLevel,
     fusion: IS_SK ? { levels: loadout.slots.map((sl) => sl.fusion ?? 0), max: PROFILE.fusion.levels } : null,
     slot: loadout.displayIndex + 1,
     slotCount: loadout.slots.length,
@@ -8132,16 +7991,7 @@ function step(): void {
     fireMode: loadout.fireModeLabel(),
     reserve: loadout.reserve(),
     energy: shown.energy ? { rounds: shown.energy.rounds, max: shown.energy.max } : null,
-    gunCharge: shown.state.chargeFrac(now),
     heat: shown.weapon.mech.overheat ? { heat: shown.state.heat, locked: shown.state.overheated } : null,
-    spin: shown.weapon.spin ? shown.state.spin : null,
-    // (SpeedKills has no attachments: its guns carry their own optic, and fusion is the upgrade)
-    attachLines: IS_SK
-      ? []
-      : loadout
-          .attachLabels()
-          .filter((a) => a.available)
-          .map((a) => `${ATTACH_KEY[a.slot]}  ${a.slot}   ${a.label}`),
     clip: shown.state.clip,
     clipSize: shown.weapon.clipSize,
     reloading: shown.state.reloading,
@@ -8186,13 +8036,7 @@ function step(): void {
             clip: sl.state.clip,
             size: sl.weapon.clipSize,
             ammo: sl.energy ? `${sl.energy.rounds} energy` : `${loadout.ammo.stock[ammoTypeOf(sl.id)] ?? 0} ${ammoTypeOf(sl.id)}`,
-            attach:
-              i === loadout.activeIndex
-                ? loadout
-                    .attachLabels()
-                    .filter((a) => a.available && !/none|iron/i.test(a.label))
-                    .map((a) => a.label)
-                : [],
+            attach: i === loadout.activeIndex ? [loadout.opticLabel()].filter((l): l is string => !!l) : [],
             inHand: i === loadout.activeIndex,
           })),
           heals: HEAL_ORDER.filter((k) => (kit.items[k] ?? 0) > 0).map((k) => ({ name: HEAL_ITEMS[k].name, n: kit.items[k] })),
@@ -8443,7 +8287,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   /** screenshots: the five operators in a row, in front of the arena's first spawn */
   gallery: () => {
     OPERATORS.forEach((op, i) => {
-      const d = new Dummy(ARENA_SPAWNS.host.x - 4 + i * 2, ARENA_SPAWNS.host.z + 5, 0, { armed: "rspn101", respawn: false, skin: op });
+      const d = new Dummy(ARENA_SPAWNS.host.x - 4 + i * 2, ARENA_SPAWNS.host.z + 5, 0, { armed: "vinson", respawn: false, skin: op });
       d.group.rotation.y = Math.PI;
       scene.add(d.group);
     });
@@ -8650,7 +8494,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     return true;
   },
   /** the knockdown shield and the regens (tools/e2e.ts) */
-  kdState: () => ({ ...kd, exec: execRegen ? { ...execRegen } : null, echo: echoRegen ? { ...echoRegen } : null }),
+  kdState: () => ({ ...kd, echo: echoRegen ? { ...echoRegen } : null }),
   closeRecap: () => (recap = null),
   remoteFxLog,
   audio,
@@ -8815,7 +8659,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
       const op = OPERATORS[i % OPERATORS.length];
       // a look that is a soldier's code (soldier.ts) puts that soldier on it, in SpeedKills
       const skin = p.look && /^S\d{7}$/.test(p.look) ? { ...op, soldier: p.look } : p.look ? operatorWearing(op.id, p.look) : op;
-      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "rspn101", respawn: false, rig: true, noBase: true, skin });
+      const f = new Dummy(0, 0, 0, { armed: p.weapon ?? "vinson", respawn: false, rig: true, noBase: true, skin });
       f.group.position.set(player.pos.x + fx * dist + fz * side, player.pos.y, player.pos.z + fz * dist - fx * side);
       f.group.rotation.y = yawR + turnDeg * DEG;
       scene.add(f.group);
@@ -8829,7 +8673,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   takenHit: (hits: THREE.Intersection[]) => takenHit(hits),
   /** a gun's times as the game plays them (fusion 0): its reload, empty and not, and its swap's two halves */
   weaponTimes: (id: string) => {
-    const w = resolveWeapon(id, 0);
+    const w = resolveWeapon(id);
     return { reload: w.reloadTime, reloadEmpty: w.reloadEmptyTime, deploy: w.deployTime, holster: w.holsterTime, lockout: w.mech.overheat?.lockout ?? null, rechamber: Math.max(0.4, w.rechamberTime || w.shotInterval) };
   },
   /** the soldier's rifle hold's numbers changed live, and read back (rifle.ts; tools/figure-solve.ts) */
@@ -8945,7 +8789,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
     const stances = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip"] as const;
     stances.forEach((st, i) => {
       for (const [row, armed] of [
-        [0, "rspn101"],
+        [0, "vinson"],
         [1, undefined],
       ] as const) {
         const d = new Dummy(ARENA_SPAWNS.host.x - 6 + i * 2, ARENA_SPAWNS.host.z + 5 + row * 2.5, 0, { armed, respawn: false, skin: OPERATORS[i % OPERATORS.length], rig: true, noBase: true });

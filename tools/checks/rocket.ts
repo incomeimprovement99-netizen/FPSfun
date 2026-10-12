@@ -61,7 +61,7 @@ check("a rocket's step through a body stops on it, a step 0.5 m beside it does n
 }
 
 if (GAME === "speedkills") {
-  const w = resolveWeapon("launcher", 0, [], 0);
+  const w = resolveWeapon("launcher", [], 0);
   check("the launcher: HAEFY's, a burst its round, no drop, the numbers rocket.json gives", w.blast === true && w.name === "HAEFY" && w.projectile.gravity === 0 && Math.abs(w.projectile.speed - ROCKET.speed) < 1e-6 && w.clipSize === ROCKET.magazine && Math.abs(w.reloadTime - ROCKET.reload) < 1e-9 && w.damage.headshot === 1, `${w.projectile.speed} m/s, ${w.clipSize} rockets, ${w.reloadTime} s`);
   check("its damage by distance is the rocket's (10 point blank, 50 from 20 m)", w.damage.near === ROCKET.damage.pointBlank && w.damage.far === ROCKET.damage.full && Math.abs(w.damage.nearDist - ROCKET.damage.from) < 1e-6 && Math.abs(w.damage.farDist - ROCKET.damage.fullFrom) < 1e-6);
   // (the burst's middle is the gun's own damage for the distance flown, so the two must be one curve)
@@ -73,7 +73,7 @@ if (GAME === "speedkills") {
   for (let i = 0; i < 4; i++) if (h.judge({ from: 7, amount: 50, weapon: "launcher", dist: 25 }, 10, 9.6, 25) === null) passed++;
   check("the host lets one burst's hits on four through", passed === 4, `${passed} of 4`);
   // (the host judges a claim against the gun fused to 5, the most it can be)
-  const per = maxPerSecond(resolveWeapon("launcher", 0, [], 5)) * 4;
+  const per = maxPerSecond(resolveWeapon("launcher", [], 5)) * 4;
   let more = 0;
   for (let i = 0; i < 40; i++) if (h.judge({ from: 7, amount: 50, weapon: "launcher", dist: 25 }, 10.01 + i * 0.001, 9.6, 25) === null) more++;
   check("and no more than four bursts' worth of what the gun fires in a second", (4 + more) * 50 <= per + 1e-6, `${4 + more} claims of 50, over ${Math.round(per)} a second`);

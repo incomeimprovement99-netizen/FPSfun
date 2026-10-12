@@ -47,9 +47,9 @@ export const BASIC_COURSE: CourseLayout = {
         "Out through the right-hand door.",
       trigger: (_x, _y, z) => z > 20.7,
       enemies: [
-        { x: 8.5, z: 30.5, gun: "rspn101", sway: 0.35 },
+        { x: 8.5, z: 30.5, gun: "vinson", sway: 0.35 },
         { x: 0, z: 30, gun: "semipistol" },
-        { x: -9, z: 31.5, gun: "rspn101" },
+        { x: -9, z: 31.5, gun: "vinson" },
       ],
     },
     {
@@ -63,7 +63,7 @@ export const BASIC_COURSE: CourseLayout = {
       trigger: (_x, _y, z) => z > 40.7,
       enemies: [
         { x: 5, z: 45.5, gun: "semipistol" },
-        { x: -1.5, z: 44.5, gun: "rspn101", sway: 0.4 },
+        { x: -1.5, z: 44.5, gun: "vinson", sway: 0.4 },
       ],
     },
     {
@@ -77,9 +77,9 @@ export const BASIC_COURSE: CourseLayout = {
         "right-hand door.",
       trigger: (_x, y, z) => z > 51.5 && y > 3.5,
       enemies: [
-        { x: -6, z: 63, gun: "rspn101" },
+        { x: -6, z: 63, gun: "vinson" },
         { x: 6, z: 62.5, gun: "semipistol" },
-        { x: 0, z: 64, gun: "rspn101", sway: 0.45 },
+        { x: 0, z: 64, gun: "vinson", sway: 0.45 },
       ],
     },
     {
@@ -93,8 +93,8 @@ export const BASIC_COURSE: CourseLayout = {
       trigger: (_x, _y, z) => z > 69,
       enemies: [
         { x: -7, y: 1.4, z: 77, gun: "semipistol" },
-        { x: 0, y: 1.4, z: 78.5, gun: "rspn101", sway: 0.4 },
-        { x: 7.5, y: 1.4, z: 76, gun: "rspn101" },
+        { x: 0, y: 1.4, z: 78.5, gun: "vinson", sway: 0.4 },
+        { x: 7.5, y: 1.4, z: 76, gun: "vinson" },
       ],
     },
     {
@@ -108,7 +108,7 @@ export const BASIC_COURSE: CourseLayout = {
         "this room with 2 s added. Two dummies across the gap. Out right.",
       trigger: (_x, _y, z) => z > 82,
       enemies: [
-        { x: -6, y: 1.4, z: 92, gun: "rspn101" },
+        { x: -6, y: 1.4, z: 92, gun: "vinson" },
         { x: 0.5, y: 1.4, z: 92.3, gun: "semipistol", sway: 0.3 },
       ],
     },
@@ -123,9 +123,9 @@ export const BASIC_COURSE: CourseLayout = {
         "to the end to leave at full speed, or crouch to drop off. Out left.",
       trigger: (_x, _y, z) => z > 94.5,
       enemies: [
-        { x: 1, z: 105, gun: "rspn101", sway: 0.4 },
+        { x: 1, z: 105, gun: "vinson", sway: 0.4 },
         { x: -8, z: 109.5, gun: "semipistol" },
-        { x: 9.5, z: 104, gun: "rspn101" },
+        { x: 9.5, z: 104, gun: "vinson" },
       ],
     },
     {
@@ -137,9 +137,9 @@ export const BASIC_COURSE: CourseLayout = {
         "and cross the line.",
       trigger: (_x, _y, z) => z > 118,
       enemies: [
-        { x: 8, z: 123.5, gun: "rspn101" },
+        { x: 8, z: 123.5, gun: "vinson" },
         { x: -8, z: 126.5, gun: "semipistol", sway: 0.4 },
-        { x: 3, z: 128.5, gun: "rspn101" },
+        { x: 3, z: 128.5, gun: "vinson" },
         { x: -3, z: 122.5, gun: "semipistol", sway: 0.3 },
       ],
     },

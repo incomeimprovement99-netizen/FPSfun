@@ -12,13 +12,6 @@
   ],
 
   "weapons": {
-    "rspn101": {
-      "_name": "R-301 Carbine",
-      "damage_near_value": 15, "damage_far_value": 15, "damage_very_far_value": 15,
-      "damage_headshot_scale": 1.3, "damage_leg_scale": 0.75,
-      "fire_rate": 13.5, "reload_time": 2.4, "reloadempty_time": 3.2,
-      "magClips": [21, 23, 28, 31, 31]
-    },
     "r97": {
       "_name": "R-99 SMG",
       "damage_near_value": 12, "damage_far_value": 12, "damage_very_far_value": 12,
