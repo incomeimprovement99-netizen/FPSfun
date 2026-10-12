@@ -5,13 +5,11 @@
 // browser: the menu, the match and the checks all read the list from here,
 // and only src/game/arena.ts goes on to build the meshes. That is why
 // tools/checks/arenas.ts can walk every map in plain node.
-import { CROSSING } from "./crossing";
-import { RINGWORKS } from "./ringworks";
 import { VAULT } from "./vault";
-import { NEONBLOCK } from "./neonblock";
 import { boundsOf, spawnsOf, teamSpawnsOf, type ArenaPlan, type PlanSpawn } from "./plan";
 
-export const ARENA_PLANS: ArenaPlan[] = [VAULT, CROSSING, RINGWORKS, NEONBLOCK];
+/** the drawn arenas: the Gulag's Vault alone since the legacy game's went (Milestone 533) */
+export const ARENA_PLANS: ArenaPlan[] = [VAULT];
 
 /** what a map looks like to a match, a menu or a mode: world coordinates, no meshes */
 export interface ArenaMapInfo {
@@ -33,7 +31,7 @@ export interface ArenaMapInfo {
   crown: { x: number; z: number };
   /** the modes the map was drawn for */
   bestFor: string[];
-  /** the plan behind it, for the builder and the checks; null for the two hand-built arenas and THE CENTRE */
+  /** the plan behind it, for the builder and the checks; null for the maps drawn in the city's file */
   plan: ArenaPlan | null;
   /** played on the battle royale's city, not on an arena of its own (THE CENTRE, arenas/centre.ts) */
   city?: boolean;
@@ -58,7 +56,7 @@ export function infoOf(plan: ArenaPlan): ArenaMapInfo {
   };
 }
 
-/** the three drawn arenas, in the order they should be offered */
+/** the drawn arenas, as the rest of the game reads them */
 export const PLAN_MAPS: ArenaMapInfo[] = ARENA_PLANS.map(infoOf);
 
 export function planById(id: string): ArenaPlan | null {

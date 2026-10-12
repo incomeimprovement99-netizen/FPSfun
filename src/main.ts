@@ -81,7 +81,7 @@ import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
-import { buildArena, buildCityMarks, buildTriArena, ARENA_HANDLES, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
+import { buildArenas, buildCityMarks, ARENA_HANDLES, ARENA_MAPS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { CENTRE, CENTRE_MAP } from "./game/arenas/centre";
 import { arenaShadow } from "./game/arenas/neonarenas";
 import { CircleNav } from "./game/centrenav";
@@ -786,11 +786,10 @@ vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
 buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, look: "city", sandbox: rangeCfg.sandbox, solids: armorySolids() });
-// the 1v1 arena, east of the range, and the 1v1v1 triangle north of it (src/game/arena.ts)
-// (the arenas' textures after the page's first screen: nothing the range's first frame shows, later.ts)
+// the Gulag's room, the Vault (src/game/arena.ts), merged with the range
+// (its textures after the page's first screen: nothing the range's first frame shows, later.ts)
 holdTextures(true);
-const arena = buildArena(scene);
-const triArena = buildTriArena(scene);
+buildArenas(scene);
 holdTextures(false);
 // the battle royale map, 500 m south (src/game/br.ts): the map rebuilt from Daelonik's Neon City (neonmap.ts, Phase 28);
 // the city of the ILranch packs before it went on 2026-10-09 (the owner: "remove ILranch city completely")
@@ -828,7 +827,7 @@ function setRegion(region: "range" | "br"): void {
 // and targets added later, which move)
 // (not the battle royale map, built between: it was in this list, so the merge
 // took every one of its meshes twice and the whole map was drawn double)
-const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== arena.root && o !== triArena.root && o !== brMap.root);
+const rangeRoots = scene.children.filter((o) => !beforeRange.has(o) && o !== brMap.root);
 // The sky doubles as the environment map. Without it every metal surface is
 // black, so this is load-bearing rather than decoration.
 //
@@ -4738,12 +4737,12 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     applyRules(d, myId === 0 ? (hostOpts?.rules ?? undefined) : opts?.rules);
     brHour();
   } else {
-    // three is still the triangle, the only map with three corners; two play
-    // on the host's pick
+    // two play on the host's pick; three and more on THE CENTRE, which has spawns for eight (arena.ts mapFor), where
+    // they had the Triangle (three) and the Warehouse until Milestone 533
     const wireMap = myId === 0 ? hostOpts?.map : opts?.map;
-    d = new Duel(scene, projectiles, { players, myId, link, guestId, map: players >= 3 ? null : arenaFromWire(wireMap) });
+    d = new Duel(scene, projectiles, { players, myId, link, guestId, map: players >= 3 ? mapFor("duel", players) : arenaFromWire(wireMap) });
     duel = d;
-    player.setBounds(players >= 3 ? TRI_BOUNDS : d.arenaBounds);
+    player.setBounds(d.arenaBounds);
     wireMatch(d, players >= 3 ? "triple" : "duel");
     applyRules(d, myId === 0 ? (hostOpts?.rules ?? undefined) : opts?.rules);
   }
@@ -5313,7 +5312,7 @@ scene.add(rangeSide, brSide);
     // picture of the horizon showed it.
     if (o.name === "sky") lit.add(o);
   });
-  const onRangeSide = [...rangeRoots, ...courses.map((c) => c.root), arena.root, triArena.root, ...targets.map((t) => t.group), ...dummies.map((d) => d.group)];
+  const onRangeSide = [...rangeRoots, ...courses.map((c) => c.root), ...targets.map((t) => t.group), ...dummies.map((d) => d.group)];
   // SpeedKills (Phase 20 A5): the range's later arrivals too (its props, the README TV, the spray wall, the drill's
   // pad), which were drawn from the city: 126 draw calls and 582k triangles whenever they were in view
   onRangeSide.push(rangeProps, readmeTv.root, sprayWall.group, drill.pad);
@@ -5387,7 +5386,7 @@ if (!slow("static"))
   }
 const merged = new URLSearchParams(location.search).has("nomerge")
   ? null
-  : mergeStatic(scene, [[...rangeRoots, ...courses.map((c) => c.root)], arena.root, triArena.root, brMap.root], [rangeSide, rangeSide, rangeSide, brSide]);
+  : mergeStatic(scene, [[...rangeRoots, ...courses.map((c) => c.root)], brMap.root], [rangeSide, brSide]);
 
 /**
  * SpeedKills: the city's side made ready to be drawn before anyone flies over it, and the rest of the world out of view
@@ -7300,12 +7299,8 @@ function step(): void {
   // the arena circles: a column of light once the match's is live
   {
     const z = duel ? duel.hud().zone : null;
-    const inTri = duel !== null && duel.players >= 3 && duel.kind === "duel";
-    // Every arena has its own circle now (src/game/arena.ts ARENA_HANDLES), and
-    // only the one the match is standing in lights up. A match that does not
-    // say which is the warehouse, or the triangle for three.
-    const onMap = duel && "arenaId" in duel ? (duel as { arenaId: string }).arenaId : "warehouse";
-    const active = inTri ? "triangle" : onMap;
+    // every arena has its own circle (src/game/arena.ts ARENA_HANDLES), and only the one the match is standing in lights up
+    const active = duel && "arenaId" in duel ? (duel as { arenaId: string }).arenaId : null;
     for (const [id, a] of ARENA_HANDLES) {
       const live = id === active && !!z?.live;
       a.zone.column.visible = live;
@@ -7662,6 +7657,8 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
 }
 
 // debug handle
+/** where the screenshot galleries stand their figures: the range's floor ahead of its spawn (the warehouse's first spawn before Milestone 533) */
+const GALLERY = { x: 0, z: -8 };
 (window as unknown as { __range: unknown }).__range = {
   loadout,
   player,
@@ -7705,10 +7702,10 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
   startMode,
   menu,
   loadouts,
-  /** screenshots: the five operators in a row, in front of the arena's first spawn */
+  /** screenshots: the five operators in a row, in the range in front of its spawn */
   gallery: () => {
     OPERATORS.forEach((op, i) => {
-      const d = new Dummy(ARENA_SPAWNS.host.x - 4 + i * 2, ARENA_SPAWNS.host.z + 5, 0, { armed: "vinson", respawn: false, skin: op });
+      const d = new Dummy(GALLERY.x - 4 + i * 2, GALLERY.z, 0, { armed: "vinson", respawn: false, skin: op });
       d.group.rotation.y = Math.PI;
       scene.add(d.group);
     });
@@ -8194,7 +8191,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
         [0, "vinson"],
         [1, undefined],
       ] as const) {
-        const d = new Dummy(ARENA_SPAWNS.host.x - 6 + i * 2, ARENA_SPAWNS.host.z + 5 + row * 2.5, 0, { armed, respawn: false, skin: OPERATORS[i % OPERATORS.length], rig: true, noBase: true });
+        const d = new Dummy(GALLERY.x - 6 + i * 2, GALLERY.z + row * 2.5, 0, { armed, respawn: false, skin: OPERATORS[i % OPERATORS.length], rig: true, noBase: true });
         d.group.rotation.y = Math.PI;
         d.setPose({ speed: st === "stand" || st === "crouch" ? speed : 0, stance: st, pitch: 12 });
         scene.add(d.group);

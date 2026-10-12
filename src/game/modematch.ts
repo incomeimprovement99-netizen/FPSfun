@@ -27,7 +27,7 @@ import { Bot, botName, WIRE_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
-import { ARENA_X, ARENA_Z, arenaMap, type ArenaMapId } from "./arena";
+import { arenaMap, type ArenaMapId } from "./arena";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
@@ -97,15 +97,14 @@ export interface ArenaModeOpts {
    * human is on one side against the bots.
    */
   split?: boolean;
-  /** the arena (src/game/arena.ts ARENA_MAPS); none is the warehouse, as it always was */
+  /** the arena (src/game/arena.ts ARENA_MAPS); none is THE CENTRE */
   map?: ArenaMapId | null;
 }
 
 /**
  * Where a mode's points are, for the map it is played on. Everything in the
  * mode rules is in the arena's own coordinates, its middle at 0, 0, so the
- * same rules play on any map: the warehouse's come from src/config/modes.json
- * as they always did, and a drawn arena's come from its plan
+ * same rules play on any map: a map's come from its list entry
  * (src/game/arenas), turned from world space into the arena's own.
  */
 interface ModeLayout {
@@ -123,20 +122,8 @@ interface ModeLayout {
 }
 
 function layoutFor(map: ArenaMapId | null | undefined): ModeLayout {
-  const m = map ? arenaMap(map) : null;
-  if (!m || m.id === "warehouse" || m.id === "triangle") {
-    const S = MODES.spawns;
-    return {
-      ox: ARENA_X,
-      oz: ARENA_Z,
-      a: S.a,
-      b: S.b,
-      mid: S.mid,
-      // all eighteen points, ends and middle alternating
-      order: [S.a[0], S.b[0], S.mid[0], S.mid[1], S.a[1], S.b[2], S.mid[2], S.mid[3], S.a[2], S.b[1], S.a[3], S.b[4], S.mid[4], S.mid[5], S.a[4], S.b[3], S.a[5], S.b[5]],
-      zones: MODES.control.zones.map(([id, x, z]) => [String(id), Number(x), Number(z)] as [string, number, number]),
-    };
-  }
+  // (an older host naming no map played the warehouse, gone since Milestone 533: THE CENTRE, which has spawns for eight)
+  const m = arenaMap(map ?? "centre");
   const local = (q: { x: number; z: number }): number[] => [q.x - m.center.x, q.z - m.center.z];
   return {
     ox: m.center.x,

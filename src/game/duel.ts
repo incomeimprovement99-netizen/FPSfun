@@ -38,7 +38,7 @@ import type { AckMsg, DeltaMsg, DeltaPart, Link, NetMsg, RoundPhase, StateMsg } 
 import { senderStamp, stateMsg, stateOf, type PlayerState } from "../net/state";
 import { StateSync } from "../net/statesync";
 import { HitCheck } from "../net/hitcheck";
-import { ARENA_BOUNDS, ARENA_CENTER, ARENA_LOBBY_SPAWNS, ARENA_MAPS, ARENA_SPAWNS, TRI_BOUNDS, TRI_CENTER, TRI_SPAWNS, ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
+import { ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
 import { operatorWearing } from "./operators";
 import type { MatchSummary } from "./stats";
@@ -111,41 +111,15 @@ export interface ArenaChoice {
 }
 
 /**
- * The arena a match uses. There are five of them now (src/game/arena.ts
- * ARENA_MAPS): the warehouse, the triangle, and the three in
- * src/game/arenas. `map` is the host's choice, and it is the host's because
- * everyone in a match has to be standing in the same building.
- *
- * With no choice made this returns exactly what it always returned, which is
- * on purpose. main.ts still clamps a match's player to ARENA_BOUNDS by hand,
- * so a match that quietly moved to another map would put the player in the
- * warehouse's walls with the Vault's floor under them. The day the menu and
- * the welcome packet carry a map id, and main.ts reads `bounds` off this,
- * every mode can open on the map `mapFor` picks for it.
+ * The arena a match uses (src/game/arena.ts ARENA_MAPS). `map` is the host's choice, and it is the host's because
+ * everyone in a match has to be standing in the same place; with none, the one `mapFor` picks for that many players:
+ * NEON YARD for two, THE CENTRE for more (and for the battle royale and the range's group, whose spawns are their own,
+ * the label only). The Warehouse and the Triangle this fell back to before went in Milestone 533.
  */
 export function arenaFor(players: number, map?: ArenaMapId | null): ArenaChoice {
-  if (map) {
-    const m = arenaMap(map);
-    // a map has to have a spawn for everyone in the match; the warehouse and
-    // the three drawn arenas all carry eight
-    const spawns = m.spawns.length ? m.spawns : ARENA_LOBBY_SPAWNS;
-    return { map: m.id as ArenaMapId, spawns, center: new THREE.Vector3(m.center.x, 0, m.center.z), bounds: m.bounds };
-  }
-  // two: the warehouse's ends. three: the triangle, a corner each. more than
-  // that and the triangle is too small and has only three corners, so a lobby
-  // plays the warehouse, which has a spawn each.
-  if (players === 3) return { map: "triangle", spawns: TRI_SPAWNS, center: TRI_CENTER, bounds: TRI_BOUNDS };
-  if (players > 3) return { map: "warehouse", spawns: ARENA_LOBBY_SPAWNS, center: ARENA_CENTER, bounds: ARENA_BOUNDS };
-  return { map: "warehouse", spawns: [ARENA_SPAWNS.host, ARENA_SPAWNS.guest], center: ARENA_CENTER, bounds: ARENA_BOUNDS };
+  const m = arenaMap(map ?? mapFor("duel", players));
+  return { map: m.id as ArenaMapId, spawns: m.spawns, center: new THREE.Vector3(m.center.x, 0, m.center.z), bounds: m.bounds };
 }
-
-/** the maps a menu can offer, each with the modes it was drawn for */
-export function arenaMapList(): Array<{ id: ArenaMapId; name: string; blurb: string; bestFor: string[]; players: number }> {
-  return ARENA_MAPS.map((m) => ({ id: m.id as ArenaMapId, name: m.name, blurb: m.blurb, bestFor: m.bestFor, players: m.spawns.length }));
-}
-
-/** the map a mode opens on when the host has not picked one (src/game/arena.ts mapFor) */
-export const defaultMapFor = mapFor;
 
 interface Sample {
   at: number;

@@ -81,8 +81,8 @@ a shorter cooldown each time.
 
 On the Play tab, behind **Extra modes**.
 
-- **1v1 and 1v1v1:** with a friend or against a bot. A 1v1 is fought on THE CENTRE, the Neon City's own middle, inside
-  a circle you cannot leave.
+- **1v1 and 1v1v1:** with a friend or against a bot. A 1v1 is fought in NEON YARD (or NEON HALL, picked in the lobby);
+  three or more on THE CENTRE, the Neon City's own middle, inside a circle you cannot leave.
 - **Arena, bots:** rounds against bots in an arena.
 - **Team Deathmatch, Control and Free-for-all:** with friends, bots or both.
 - **Friends:** one of you makes a match and sends the invite link; the others open it.

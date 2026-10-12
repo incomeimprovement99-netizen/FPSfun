@@ -11486,6 +11486,31 @@ What only the legacy game showed, hidden in SpeedKills by `.legacyOnly`, is out 
   screen and its bar") failed once when sklobby ran straight after page, the screen already gone when it first looked,
   and passed alone.
 
+## Milestone 533 — The legacy arenas out: the Warehouse, the Triangle, the Crossing, the Ringworks and NEON BLOCK
+
+Every SpeedKills mode plays on the Neon maps (the owner, 2026-10-09: two Neon 1v1 arenas, THE CENTRE, the Neon City
+battle royale), but the legacy game's arenas were still built on every page load and two of them were still played:
+
+- **What was still reached:** a friends' arena match of three fell back to the Triangle and one of four to eight to
+  the Warehouse (duel.ts arenaFor with no map), and a lobby of four to eight was held inside the Triangle's walls
+  while it spawned in the Warehouse (main.ts set TRI_BOUNDS for any three or more). Three and more now play THE
+  CENTRE, which has a spawn each, and every match is held inside its own map's walls.
+- **Out:** the Warehouse and the Triangle (arena.ts, about 500 lines with their spawns, bounds, bot spawns, ziplines
+  and roof pitch), the Crossing, the Ringworks and NEON BLOCK (arenas/*.ts, built and merged on every page though no
+  menu offered them since Milestone 507), modes.json's warehouse spawns with verify's check of them, the arena bots'
+  and modes' warehouse fallbacks (they take NEON YARD and THE CENTRE), and plan.ts's yawToCentre.
+- **Kept:** the Vault, built now from main.ts beside the range (`buildArenas`), because the Gulag's fight is in it;
+  NEON YARD, NEON HALL and THE CENTRE (arenas/neonarenas.ts, centre.ts), the city agent's; the movement lab; and
+  modes.json's Control points, the rules' own checks' defaults.
+- **Tests:** the arenas check walks the Vault alone and lists four maps; the 1v1v1 e2e checks three spawns on THE
+  CENTRE and moves its players toward its middle; the modes e2e's check of the Warehouse's middle roof went; the
+  screenshot tools' warehouse, triangle and drawn-arena shots went, and the operators' gallery stands in the range.
+  A build from before this plays three in the Triangle, so the mixed-build 1v1v1 runs need an OLD_URL from here on.
+- About 800 lines out, 80 in.
+- **Checked:** tsc; verify; rules; e2e page, duel, triple, bots, modes, ping and gulag. With the machine at 99% (the
+  city's bake), the friends' 1v1s run straight after page failed to connect once and the jitter checks' smoothness
+  failed once; duel and ping passed alone, and none of those 1v1s changes map (two play NEON YARD before and after).
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

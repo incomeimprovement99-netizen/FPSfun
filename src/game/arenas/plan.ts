@@ -218,8 +218,3 @@ export function spawnsOf(plan: ArenaPlan): PlanSpawn[] {
 export function teamSpawnsOf(plan: ArenaPlan, side: "a" | "b"): PlanSpawn[] {
   return plan.teams[side].map((i) => ({ x: plan.x + plan.spawns[i].x, z: plan.z + plan.spawns[i].z, yaw: plan.spawns[i].yaw }));
 }
-
-/** the yaw that looks at the middle of the map from (x, z), so no spawn faces a wall */
-export function yawToCentre(x: number, z: number): number {
-  return Math.round(((Math.atan2(x, z) * 180) / Math.PI) * 10) / 10;
-}

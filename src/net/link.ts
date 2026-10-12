@@ -253,7 +253,7 @@ export interface MatchOpts {
   /**
    * The arena, for a friends' 1v1 (src/game/arena.ts ARENA_MAPS). A guest has
    * to stand in the same building as the host, so the host's choice travels
-   * in the welcome. An older host sends none, which is the warehouse.
+   * in the welcome. An older host sends none, which is the 1v1's own (arena.ts mapFor).
    */
   map?: string;
   /** the host's custom rules (src/config/rules.json): an older host sends none, the rules as they always were */
@@ -281,7 +281,7 @@ export interface ModeWelcome {
   difficulty: string;
   /** the gun every bot carries, the host's choice; unset is the mixed list */
   botWeapon?: string | null;
-  /** the arena the mode is played on; unset is the warehouse */
+  /** the arena the mode is played on; unset is THE CENTRE */
   map?: string;
   /** team modes: the friends split into two sides against each other (unset: all on one side) */
   split?: boolean;

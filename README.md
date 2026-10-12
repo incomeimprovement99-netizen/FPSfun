@@ -433,8 +433,8 @@ channel of their own that never waits for a lost one to be resent: a lost
 state costs only itself, not every state behind it. And the host sends you the players and bots far from you less often (15 a second past 90 m, 10 past 200 m, against 30 near), which is most of the lobby most of the match: with eight friends spread over the map its upload is about 40% less.
 
 **Up to eight people.** The player count on the Friends tab goes to 8: two is
-the warehouse arena, three the triangle, and four or more play the warehouse,
-which has a spawn each. Every mode below can be played this way, with bots
+the 1v1, on NEON YARD or NEON HALL, and three or more play THE CENTRE, the Neon
+City's middle, which has a spawn each. Every mode below can be played this way, with bots
 filling in — the bot count you pick is the side you **face**, and a team mode
 fills your side to match. The **Bot guns** box gives every bot the same gun if
 you want a shotgun-only night.
@@ -482,8 +482,8 @@ kills and damage added up, the same on every screen. Play again keeps adding
 to it; a new code starts a new night.
 
 **Three players**: pick "3 players" before Create match; both friends open
-the same link; it starts once all three have clicked Play. The map is a
-triangle with a corner each. A guest leaving before round 1 frees their
+the same link; it starts once all three have clicked Play. The map is THE
+CENTRE. A guest leaving before round 1 frees their
 place (the link works again); during the match it drops it to a 1v1; the
 host leaving ends it.
 
@@ -539,7 +539,7 @@ optics and hop-ups.
 | Guided tour | Eleven steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal. It watches what you do and moves on; hold E (X on a controller) to skip a step. In SpeedKills it is eight: move; double jump, wall run and climb; shoot; both hacks; fusion; a hit from high ground; five seconds in a capture ring; and a walk to a squad mate's echo while it says how the Gulag and the ghost work. |
 | The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a gold, silver or bronze medal per room against its par, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
 | The Run (Advanced) | The back-right corner: nine rooms, 200 m, 30 pop-ups, the techniques chained. Every gate needs its move: a 7 m gap only a superglide clears, pads only a lurch reaches, a platform only a zipline superjump gets on, two vents, a bounce slalom, a drop slide, a shooting zip, a flow room. Its own bests, splits, ghost and TV. |
-| 1v1 and 1v1v1 | One player makes a match (2 or 3 players) and gets a 5-letter code; the others type it. 1v1: a three-lane warehouse arena. 1v1v1: a triangle, a corner each, spokes between the corners. First to 3 rounds, blue shields and 100 health. 20 s into a round a circle lights up in the middle; stand in it alone for 10 s to take the round. The last one standing takes it any time. |
+| 1v1 and 1v1v1 | One player makes a match (2 or 3 players) and gets a 5-letter code; the others type it. 1v1: NEON YARD or NEON HALL. 1v1v1: THE CENTRE, the Neon City's middle. First to 3 rounds, blue shields and 100 health. 20 s into a round a circle lights up in the middle; stand in it alone for 10 s to take the round. The last one standing takes it any time. |
 | Arena, Bots | The 1v1 rules against one or two bots, offline. **Easy, Normal, Hard, Elite or Mixed** (each bot its own tier), graded the way CS2's and TF2's bots are: reaction time, how far their aim lags a moving target, an aim error that settles the longer they keep you in view, and where they aim. The tiers also play differently: normal and up dodge when hit, hear your shots and come to look, hunt where they last saw you, and break line of sight when low before peeking back; hard and up crouch in fights; elite comes round a corner already aimed where it lost you. |
 | Team Deathmatch | You and your friends, filled out with bots to four, against four bots in the 1v1 arena; respawns after 4 s at your end; first team to 30, or ahead at 10 minutes. Team mates cannot hurt each other and their plates are green. |
 | Control | Apex's Control in the arena: five a side (you and friends with bots, against bots) over zones A (your side), B (the middle) and C (theirs). A point a second for each zone your team holds, first to 500 or the most at 10 minutes. More of you on a zone takes it faster (Apex's multipliers); an enemy's zone is cleared to neutral first; with both teams on it, it holds. A bonus zone (the gold pole) is worth 150 to whoever holds it when its minute is up; holding all three starts a 30 s lockout that wins the match if it is not broken. You come back 5 s after going down on your team's most forward zone linked to its base. |
@@ -1010,7 +1010,7 @@ src/game/
   traversal.ts             ziplines and ladders
   range.ts                 the range level: walls, banks, rails, signs, gates
   armory.ts                SpeedKills' range armory: the guns and hacks on stands, their screens, E to take and fuse
-  arena.ts                 the 1v1 warehouse and the 1v1v1 triangle
+  arena.ts                 the arenas' list, their capture circles and the Gulag's Vault
   warehouse.ts             the roof and beams
   course.ts                the course engine: rooms, gates, splits, ghosts, results TV
   courses/basic.ts         The Run (Basic), seven rooms

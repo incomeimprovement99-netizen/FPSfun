@@ -100,29 +100,11 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "arena-middle",
-    note: "the 1v1 arena's new middle building over the capture circle, from a spawn: two storeys, the roof, the ziplines onto it",
-    steps: [
-      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
-      [`(() => { const r = window.__range; r.player.teleport(90, 0, -58, 180, 6); })()`, 0],
-      [gameSeconds(1), 250],
-    ],
-  },
-  {
     name: "arena-vault",
     note: "the Vault, the small two-storey arena for 1v1 and free-for-all, from a spawn at one end",
     steps: [
       [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
       [`(() => { const r = window.__range; r.player.setBounds({ minX: -86, maxX: -58, minZ: -64, maxZ: -32 }); r.player.teleport(-72, 0, -60.5, 180, 4); })()`, 0],
-      [gameSeconds(1), 250],
-    ],
-  },
-  {
-    name: "arena-crossing",
-    note: "the Crossing, the wide symmetric team arena, from one team's end",
-    steps: [
-      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
-      [`(() => { const r = window.__range; r.player.setBounds({ minX: -125, maxX: -67, minZ: -1, maxZ: 69 }); r.player.teleport(-96, 0, 2.5, 180, 4); })()`, 0],
       [gameSeconds(1), 250],
     ],
   },
@@ -133,44 +115,6 @@ export const SCENARIOS: Scenario[] = [
     steps: [
       [`(() => { ${hideMenu}; document.getElementById("goLab").click(); document.getElementById("startMode").click(); })()`, 600],
       [`(() => { window.__range.player.teleport(98, 0, -83, 0, 8); })()`, 0],
-      [gameSeconds(1), 250],
-    ],
-  },
-  {
-    name: "arena-neonblock",
-    note: "SpeedKills' NEON BLOCK: a city crossing at night, from the south street's end: the decks, the skybridge, the cars",
-    query: "?game=speedkills",
-    steps: [
-      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
-      [`(() => { const r = window.__range; r.player.setBounds({ minX: 73, maxX: 119, minZ: 93, maxZ: 143 }); r.player.teleport(96, 0, 95.5, 180, 6); })()`, 0],
-      [gameSeconds(1), 250],
-    ],
-  },
-  {
-    name: "arena-neonblock-deck",
-    note: "NEON BLOCK from the south-west deck, a storey up, across the crossing to the far decks and their towers",
-    query: "?game=speedkills",
-    steps: [
-      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
-      [`(() => { const r = window.__range; r.player.setBounds({ minX: 73, maxX: 119, minZ: 93, maxZ: 143 }); r.player.teleport(85, 4.05, 107, 215, -4); })()`, 0],
-      [gameSeconds(1), 250],
-    ],
-  },
-  {
-    name: "arena-ringworks",
-    note: "the Ringworks, the open-sky free-for-all arena, from a spawn on its edge",
-    steps: [
-      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
-      [`(() => { const r = window.__range; r.player.setBounds({ minX: -95, maxX: -49, minZ: 89, maxZ: 135 }); r.player.teleport(-72, 0, 93, 180, 4); })()`, 0],
-      [gameSeconds(1), 250],
-    ],
-  },
-  {
-    name: "arena-middle-roof",
-    note: "the middle building from the side, at roof height: the two storeys, the roof lip and the ziplines",
-    steps: [
-      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
-      [`(() => { const r = window.__range; r.setThirdPerson(true); r.player.teleport(90 - 15.5, 4.2, -48, -90, -2); })()`, 0],
       [gameSeconds(1), 250],
     ],
   },

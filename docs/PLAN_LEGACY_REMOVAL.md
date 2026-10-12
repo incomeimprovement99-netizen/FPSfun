@@ -98,7 +98,9 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   read (sprint, the movement box, the battle royale's own sky). The guns and character agents fold their own five
   files; then `IS_SK` goes from game.ts.
 - **532, the page's crumbs (done):** the legacy brand, rules list and the lobby's hidden practice row.
-- **Next:** the extra modes on the range or the city (section 5), the Gulag's room checked first.
+- **533, the legacy arenas (done):** the Warehouse, the Triangle, the Crossing, the Ringworks and NEON BLOCK; the
+  Vault stays for the Gulag. Section 5 below is done with it.
+- **Next:** the range's legacy look (range.ts `look: "warehouse"`), then what the guns and character agents' folds leave.
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
 - **The legacy guns' data** (18 guns not in SpeedKills' roster): the new-stuff agent's now (the guns agent asked,
@@ -110,9 +112,9 @@ About 9,500 to 10,000 lines of code, 1,500 of config and 5,000 of tests in all, 
 
 ## 5. The extra modes on the range or the city
 
-- 1v1, Arena Bots, Free-for-all, Team Deathmatch and Control played on the Firing Range or the Neon City (its
-  spawns, its bounds, bots that stay on the streets) instead of the Warehouse, the Crossing and the Ringworks, which
-  then go. The Gulag's room is checked first: SpeedKills still uses it.
+- **Done (Milestones 507 and 533):** 1v1, Arena Bots, Free-for-all, Team Deathmatch and Control play on NEON YARD,
+  NEON HALL and THE CENTRE; the Warehouse, the Triangle, the Crossing, the Ringworks and NEON BLOCK are gone. The
+  Gulag's Vault stays.
 
 ## 6. With the other agents
 

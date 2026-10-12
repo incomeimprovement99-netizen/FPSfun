@@ -20,7 +20,7 @@ import { MOVE } from "../../src/game/movement";
 import { PLAN_MAPS, ARENA_PLANS } from "../../src/game/arenas";
 import { MOVELAB } from "../../src/game/arenas/movelab";
 import { allBoxes, boundsOf, solidsOf, type ArenaPlan, type PlanSolid } from "../../src/game/arenas/plan";
-import { ARENA_BOUNDS, TRI_BOUNDS, ARENA_MAPS, ZONE_RADIUS, mapFor } from "../../src/game/arena";
+import { ARENA_MAPS, ZONE_RADIUS, mapFor } from "../../src/game/arena";
 import { CENTRE_MAP } from "../../src/game/arenas/centre";
 import { RANGE_BOUNDS } from "../../src/game/range";
 import { BR_BOUNDS } from "../../src/game/br";
@@ -264,11 +264,12 @@ function meshCount(plan: ArenaPlan): number {
 
 // -------------------------------------------------------------- the maps
 
-check("four drawn arenas: three for the modes, and SpeedKills' city block", ARENA_PLANS.length === 4 && ARENA_PLANS.some((p) => p.id === "neonblock" && p.look === "city"), ARENA_PLANS.map((p) => p.id).join(", "));
+// (the legacy game's Warehouse, Triangle, Crossing, Ringworks and NEON BLOCK went in Milestone 533)
+check("one drawn arena: the Gulag's Vault", ARENA_PLANS.length === 1 && ARENA_PLANS[0].id === "vault", ARENA_PLANS.map((p) => p.id).join(", "));
 check(
-  "the menu's list holds the old two, the drawn four, the Neon City's two arenas (each its own piece of the city's file) and THE CENTRE",
-  ARENA_MAPS.length === 9 && ARENA_MAPS[0].id === "warehouse" && ARENA_MAPS[1].id === "triangle" &&
-    ARENA_MAPS.slice(6, 8).every((m, i) => m.id === ["yard", "hall"][i] && !!m.city && m.chunk === `a-${m.id}`) && ARENA_MAPS[8].id === "centre" && !!ARENA_MAPS[8].city,
+  "the list holds the Vault, the Neon City's two arenas (each its own piece of the city's file) and THE CENTRE",
+  ARENA_MAPS.length === 4 && ARENA_MAPS[0].id === "vault" &&
+    ARENA_MAPS.slice(1, 3).every((m, i) => m.id === ["yard", "hall"][i] && !!m.city && m.chunk === `a-${m.id}`) && ARENA_MAPS[3].id === "centre" && !!ARENA_MAPS[3].city,
   ARENA_MAPS.map((m) => m.id).join(", ")
 );
 // THE CENTRE (arenas/centre.ts): the city's own middle inside a circle. Its spawns, its 1v1 circle and Control's
@@ -306,8 +307,6 @@ check(
 // with each other's walls in it.
 const rects = [
   { id: "range", ...RANGE_BOUNDS },
-  { id: "warehouse", ...ARENA_BOUNDS },
-  { id: "triangle", ...TRI_BOUNDS },
   { id: "battle royale", ...BR_BOUNDS },
   ...ARENA_PLANS.map((p) => ({ id: p.id, ...boundsOf(p) })),
   // SpeedKills' movement lab is no match's map, and still a place in the world
@@ -331,7 +330,7 @@ const outside = ARENA_PLANS.filter((p) => {
   const b = boundsOf(p);
   return b.minX < -145 || b.maxX > 125 || b.minZ < -123 || b.maxZ > 147;
 });
-check("every new arena stands inside the sun's shadow box", outside.length === 0, outside.map((p) => p.id).join(", ") || "all three lit like the range");
+check("every drawn arena stands inside the sun's shadow box", outside.length === 0, outside.map((p) => p.id).join(", ") || "lit like the range");
 
 for (const info of PLAN_MAPS) {
   const plan = info.plan as ArenaPlan;

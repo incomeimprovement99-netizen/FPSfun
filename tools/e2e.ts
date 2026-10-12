@@ -402,28 +402,6 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(t, "window.__range.duel()?.leave()");
   await t.close();
 
-  // ---- the middle building: a roof to stand on, and ziplines onto it
-  // (no match: a mode would put the player back on a spawn)
-  {
-    const a = await open(browser, query);
-    await pressPlay(a);
-    await sleep(800);
-    const built = await ev<{ zips: number; slab: boolean }>(
-      a,
-      `(() => { const r = window.__range;
-        const zips = r.ziplines.filter((z) => Math.abs(z.a.x - 90) < 40 && z.a.z > -80 && z.a.z < 0).length;
-        // the roof as a floor in the collision. Standing on it is not checked
-        // here: with no drawing the page runs a handful of frames a second and
-        // falls half a metre a frame, which tunnels a 0.3 m slab. A page with
-        // drawing on, at 56 fps, lands on it and stays.
-        const slab = r.solids.some((s) => s.top > 5.9 && s.top < 6.1 && s.minX < 90 && s.maxX > 90 && s.minZ < -40 && s.maxZ > -40);
-        return { zips, slab }; })()`
-    );
-    check("arena: the middle building's roof is a floor over the middle of the map, 6 m up", built.slab);
-    check("arena: two ziplines run onto it, one from each end", built.zips === 2, `${built.zips} ziplines in the arena`);
-    await a.close();
-  }
-
   // ---- free-for-all: no teams, everyone scores for themselves, first to 20
   const f = await startModePage(browser, query, "goFfa", `document.getElementById("modeBots").value = "3"`);
   const f0 = await ev<{ allies: number; enemies: number; you: number; best: number; limit: number; teams: boolean }>(
@@ -1265,7 +1243,9 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
   check(`${tag}: a guest sees the other two (one relayed by the host)`, seenByGuest === 2, `${seenByGuest}`);
   const spawns = await Promise.all(pages.map((p) => ev<{ x: number; z: number }>(p, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })")));
   const distinct = new Set(spawns.map((sp) => `${sp.x.toFixed(0)},${sp.z.toFixed(0)}`)).size;
-  check(`${tag}: three different corners of the triangle`, distinct === 3 && spawns.every((sp) => Math.hypot(sp.x - 90, sp.z - 60) > 15), JSON.stringify(spawns.map((sp) => [+sp.x.toFixed(1), +sp.z.toFixed(1)])));
+  // (three and more play on THE CENTRE since the Triangle went, Milestone 533)
+  const onMap = await ev<string>(host, "window.__range.duel().arenaId");
+  check(`${tag}: three different spawns on THE CENTRE`, onMap === "centre" && distinct === 3, JSON.stringify({ map: onMap, spawns: spawns.map((sp) => [+sp.x.toFixed(1), +sp.z.toFixed(1)]) }));
   // The relay moves figures, whatever form each guest reads it in: guest 2
   // steps toward the middle and guest 1 sees it there, then the other way
   // round. With one guest on the full packets this is the host turning one
@@ -1274,7 +1254,7 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
     [g2, g1, 2],
     [g1, g2, 1],
   ] as const) {
-    const to = await ev<{ x: number; z: number }>(mover, `(() => { const p = window.__range.player; const dx = 90 - p.pos.x, dz = 60 - p.pos.z, d = Math.hypot(dx, dz) || 1; p.teleport(p.pos.x + (dx / d) * 4, p.pos.y, p.pos.z + (dz / d) * 4, p.yaw); return { x: p.pos.x, z: p.pos.z }; })()`);
+    const to = await ev<{ x: number; z: number }>(mover, `(() => { const p = window.__range.player; const b = window.__range.duel().arenaBounds; const cx = b.circle ? b.circle.x : (b.minX + b.maxX) / 2, cz = b.circle ? b.circle.z : (b.minZ + b.maxZ) / 2; const dx = cx - p.pos.x, dz = cz - p.pos.z, d = Math.hypot(dx, dz) || 1; p.teleport(p.pos.x + (dx / d) * 4, p.pos.y, p.pos.z + (dz / d) * 4, p.yaw); return { x: p.pos.x, z: p.pos.z }; })()`);
     const moved = await watcher
       .waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${id}); const g = r && r.avatar.group.position; return !!g && Math.hypot(g.x - ${to.x}, g.z - ${to.z}) < 0.2; })()`, { polling: 100, timeout: 5000 })
       .then(() => true, () => false);
@@ -7953,7 +7933,7 @@ async function main(): Promise<void> {
     if (want("modes")) await section("modes", async () => {
       console.log("\nThe arena's modes: team deathmatch, free-for-all, Control (alone, against bots)");
       await modesTest(browser, "?norender");
-      console.log("\nThe new arenas: the Vault, the Crossing, the Ringworks");
+      console.log("\nThe arenas: NEON YARD, NEON HALL and THE CENTRE");
       await arenaMapsTest(browser, "?norender");
       console.log("\nA free-for-all with a friend (two tabs, the local transport)");
       await modesFriendsTest(browser, "?net=local&norender");
@@ -8124,6 +8104,7 @@ async function main(): Promise<void> {
         console.log(`\nAn older build (${OLD}, ${oldNet} packets) and this one, over peer to peer`);
         await duelTest(browser, "?norender", "old guest", [BASE, OLD], oldNet);
         await duelTest(browser, "?norender", "old host", [OLD, BASE], oldNet);
+        // (a build from before Milestone 533 plays three in the Triangle, this one on THE CENTRE: these two want an OLD_URL from it on)
         await tripleTest(browser, "?norender", "1v1v1, an old guest", [{}, {}, { base: OLD, want: oldNet }]);
         await tripleTest(browser, "?norender", "1v1v1, an old host", [{ base: OLD, want: oldNet }, { want: oldNet }, { want: oldNet }]);
       }

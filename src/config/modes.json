@@ -12,7 +12,7 @@
     "timeLimit": 600,
     "respawn": 4
   },
-  "_control": "Control (docs/RESEARCH_PHASE_12.md section 3), scaled to the arena: Apex plays 9 v 9 over three zones, 1 point a second per zone held, first to 1,000 or 30 minutes, a 150-point bonus zone, spawns on zones linked to your base, and a lockout when one team holds all three. Ours: 5 v 5, first to 500 or 10 minutes. The capture speed by the number on a zone is Apex's (1, 1.5, 2, 2.25, 2.5, 2.75, 3); the base capture time (8 s from neutral with one player, twice that to take an enemy's), the bonus timings, the lockout's 30 s and the 5 s respawn are ours (Apex's are unpublished, and it respawns in waves of up to 10 s). Zones are in arena coordinates: A on team A's side in the left lane, B in the middle, C on team B's side in the right lane.",
+  "_control": "Control (docs/RESEARCH_PHASE_12.md section 3), scaled to the arena: Apex plays 9 v 9 over three zones, 1 point a second per zone held, first to 1,000 or 30 minutes, a 150-point bonus zone, spawns on zones linked to your base, and a lockout when one team holds all three. Ours: 5 v 5, first to 500 or 10 minutes. The capture speed by the number on a zone is Apex's (1, 1.5, 2, 2.25, 2.5, 2.75, 3); the base capture time (8 s from neutral with one player, twice that to take an enemy's), the bonus timings, the lockout's 30 s and the 5 s respawn are ours (Apex's are unpublished, and it respawns in waves of up to 10 s). These zones are in arena coordinates, the rules' own checks' (verify.ts); a match takes its map's (src/game/arenas).",
   "control": {
     "teamSize": 5,
     "scoreLimit": 500,
@@ -61,87 +61,6 @@
   "matchEnd": 10,
   "_bots": "bots added to a mode with no teams (free-for-all) by the host's setting; team deathmatch and Control fill both teams to teamSize. The cap is what the frame rate will carry rather than what the arena was drawn for: the owner asked to be able to put thirty and more in a match, to stress the game and to have something always shooting. Past the spawns a map has, they are stepped out around them in a grid.",
   "maxBots": 36,
-  "_spawns": "arena coordinates (the 1v1 arena's centre is 0, 0; team A's end is -z, team B's +z), each facing up the map toward the middle",
-  "spawns": {
-    "a": [
-      [
-        0,
-        -29
-      ],
-      [
-        -12,
-        -28
-      ],
-      [
-        12,
-        -28
-      ],
-      [
-        -15,
-        -23
-      ],
-      [
-        15,
-        -23
-      ],
-      [
-        0,
-        -12
-      ]
-    ],
-    "b": [
-      [
-        0,
-        29
-      ],
-      [
-        -12,
-        28
-      ],
-      [
-        12,
-        28
-      ],
-      [
-        -15,
-        23
-      ],
-      [
-        15,
-        23
-      ],
-      [
-        0,
-        12
-      ]
-    ],
-    "mid": [
-      [
-        -16,
-        -6
-      ],
-      [
-        16,
-        6
-      ],
-      [
-        -9,
-        -5
-      ],
-      [
-        9,
-        5
-      ],
-      [
-        -12,
-        8
-      ],
-      [
-        12,
-        -8
-      ]
-    ]
-  },
   "_spawnFacing": "Which way you face when an arena match puts you down. A spawn faces the middle, and the new arenas put a pillar or a container on that line on purpose, to break the shot from one spawn to the other; so a spawn faced the box a metre away. Now the facing turns, in steps of `step` degrees either side up to `sweep`, to the nearest heading with at least `clear` metres of open view, and keeps the middle when it already has that. Ours.",
   "spawnFacing": {
     "clear": 8,

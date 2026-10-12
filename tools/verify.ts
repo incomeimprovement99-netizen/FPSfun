@@ -85,7 +85,6 @@ import { PAD_DEFAULTS, advancedLookRate, padCurve, padDeadzone } from "../src/ga
 import { withoutClashes } from "../src/ui/binds";
 import { withoutUndefined } from "../src/net/link";
 import { FramePhases } from "../src/game/framephase";
-import modesCfg from "../src/config/modes.json";
 import { Control, MODES as MODES_CFG, Scoreboard, TeamScore, isModeKind, killLeader, pickSpawn, teamMode, yawToMiddle } from "../src/game/modes";
 
 let fails = 0;
@@ -1047,8 +1046,6 @@ console.log("The arena's modes (src/game/modes.ts, src/config/modes.json)");
   eq("a respawn is the spawn farthest from the enemies", pickSpawn([[0, -29], [0, 29]], [{ x: 0, z: -20 }]).join(","), "0,29");
   near("a spawn at the -z end faces the middle (yaw 180)", yawToMiddle(0, -29), 180, 1e-9);
   near("a spawn on the -x side faces +x (yaw -90)", yawToMiddle(-16, 0), -90, 1e-9);
-  const inside = [...modesCfg.spawns.a, ...modesCfg.spawns.b, ...modesCfg.spawns.mid].every(([x, z]) => Math.abs(x) <= 17 && Math.abs(z) <= 31);
-  eq("every spawn is inside the arena's walls", inside, true);
 }
 
 console.log("");

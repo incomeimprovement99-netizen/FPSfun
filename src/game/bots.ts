@@ -35,7 +35,7 @@ import { rocketHurts } from "./rocket";
 import moveCfg from "../config/movement.json";
 import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import { OPERATORS } from "./operators";
-import { ARENA_BOT_SPAWNS, ARENA_BOUNDS, ARENA_CENTER, ARENA_SPAWNS, ZONE_RADIUS, arenaMap, type ArenaMapId } from "./arena";
+import { ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
 import { HU, MOVE } from "./movement";
 import type { RoundPhase } from "../net/link";
@@ -1601,20 +1601,16 @@ export class BotMatch implements MatchLike {
     projectiles: ProjectileSystem,
     readonly difficulty: BotDifficulty,
     count: number,
-    /** the arena; none is the warehouse, as it always was */
+    /** the arena; none is the 1v1's own (arena.ts mapFor: NEON YARD) */
     map: ArenaMapId | null = null
   ) {
-    // A drawn map's spawns come in opposite pairs, so you take the first and
-    // the bots take the rest, the far end first. The warehouse keeps its own
-    // host spawn and three bot spawns exactly as they were.
-    const m = map ? arenaMap(map) : null;
-    // (THE CENTRE has no plan: it is the city's own middle, arenas/centre.ts)
-    const drawn = m && (m.plan || m.city) ? m : null;
-    this.arenaId = (drawn ? drawn.id : "warehouse") as ArenaMapId;
-    this.arenaBounds = drawn ? drawn.bounds : ARENA_BOUNDS;
-    this.center = drawn ? new THREE.Vector3(drawn.center.x, 0, drawn.center.z) : ARENA_CENTER;
-    this.spawn = drawn ? drawn.spawns[0] : ARENA_SPAWNS.host;
-    const homes = drawn ? drawn.spawns.slice(1) : ARENA_BOT_SPAWNS;
+    // A map's spawns come in opposite pairs, so you take the first and the bots take the rest, the far end first
+    const drawn = arenaMap(map ?? mapFor("duel", 2));
+    this.arenaId = drawn.id as ArenaMapId;
+    this.arenaBounds = drawn.bounds;
+    this.center = new THREE.Vector3(drawn.center.x, 0, drawn.center.z);
+    this.spawn = drawn.spawns[0];
+    const homes = drawn.spawns.slice(1);
     // As many as the frame rate carries (bots.ts MOST_BOTS). The owner asked
     // for thirty and more, to stress the game and to have something always
     // shooting, so the spawns are cycled and each lap round them is stepped
@@ -1639,7 +1635,7 @@ export class BotMatch implements MatchLike {
               yaw: home.yaw,
             };
       const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
-      b.ring = drawn?.bounds.circle ?? null;
+      b.ring = drawn.bounds.circle ?? null;
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
       b.onRocket = (at, travelled, w) => this.botBurst(b.remote.id, rocketBurst(w, at, travelled), w.id);
       this.bots.push(b);
