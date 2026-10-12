@@ -2365,5 +2365,91 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("LANTERN ALLEYS: lanterns over its main alleys", (LA?.lanterns ?? 0) >= 200, `${LA?.lanterns ?? 0} lanterns`);
 }
 
+// THE TERRACES (rules.districts.terraces, the west district): its squares in the west band past the ring road and
+// between its two roads; each tier solid (a body dropped on each square rests on its top, none sinks into a tier or
+// stands inside one); each way up walked by a player from the promenade to the top tier and back down; every edge with
+// a drop railed, a rail standing over it that a body cannot step through, but where a ramp arrives; the gardens on it;
+// and its name on the gate at the head of the grand stair seen from the ring road
+{
+  type TRule = { cell: number; z: number[]; ramp: { up: number[]; cells: number[][] }; walks: Record<string, number[][]>; name: { at: number[]; w: number; h: number } };
+  const DT = (cfg.rules as unknown as { districts?: { terraces?: TRule } }).districts?.terraces;
+  const TC = (cfg as unknown as { terraces?: { cells: number[][]; rise: number; trees: number; flowers: number; ferns: number; benches: number; lamps: number } }).terraces;
+  const wSec = (cfg.game as unknown as { sectors: Array<{ id: string; minX: number; maxX: number; minZ: number; maxZ: number }> }).sectors.find((q) => q.id === "w")!;
+  const ring = (cfg.rules as unknown as { ring: number[] }).ring[1] + 2.5;
+  const S = DT?.cell ?? 5;
+  const cells = TC?.cells ?? [];
+  // (the grid starts half a metre past the fence, its first column's walls standing in the map's margin)
+  const strayed = cells.filter(([x0, z0]) => x0 < wSec.minX - 0.51 || x0 + S > -ring + 0.01 || z0 < DT!.z[0] - 0.01 || z0 + S > DT!.z[1] + 0.01 || z0 < wSec.minZ || z0 + S > wSec.maxZ);
+  const raised = cells.filter((c) => c[2] > 0 || c[3]);
+  check("THE TERRACES: its tiers in the west band past the ring road and its pavement, between the two roads, three storeys and fifteen ramps", !!DT && raised.length >= 90 && strayed.length === 0 && new Set(cells.filter((c) => !c[3] && c[2] > 0).map((c) => c[2])).size === 3 && cells.filter((c) => c[3]).length === 15, `${raised.length} squares raised, ${cells.filter((c) => c[3]).length} ramps, ${strayed.length} out of the band`);
+  // a body dropped 2 m over each square's middle: on a tier it rests on the top (or on what stands there, never lower),
+  // on a ramp between its foot and its head
+  const sunk: string[] = [];
+  for (const [x0, z0, top, ramp] of raised) {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    const y0 = top + (ramp ? TC!.rise : 0);
+    p.teleport(x0 + S / 2 + BR_X, y0 + 2, z0 + S / 2 + BR_Z, 0);
+    let t = 1000;
+    for (let i = 0; i < 2 * 144; i++) p.update(1 / 144, (t += 1 / 144), idle, 0, 1, false);
+    const ok = ramp ? p.pos.y > top + 0.05 && p.pos.y < top + TC!.rise + 0.05 : p.pos.y > top - 0.05;
+    if (!ok) sunk.push(`(${x0}, ${z0}) at ${p.pos.y.toFixed(2)} m of ${top}${ramp ? "+" : ""}`);
+  }
+  check("THE TERRACES: a body dropped on each square of its tiers and ramps rests on it, none sunk into a tier", raised.length > 0 && sunk.length === 0, sunk.slice(0, 6).join("; ") || `${raised.length} squares`);
+  // each way up walked by a player: from the promenade up its ramps and landings to the top tier, and back down
+  const ways = Object.entries(DT?.walks ?? {});
+  const failed: string[] = [];
+  for (const [name, route] of ways) {
+    const up = along(route);
+    const down = along([...route].reverse());
+    if (up.k !== route.length || down.k !== route.length) failed.push(`${name}: up ${up.k - 1} of ${route.length - 1} legs to (${up.x.toFixed(1)}, ${up.z.toFixed(1)}) at ${up.y.toFixed(2)} m, down ${down.k - 1} to (${down.x.toFixed(1)}, ${down.z.toFixed(1)}) at ${down.y.toFixed(2)} m`);
+  }
+  check("THE TERRACES: a player walks up the grand stair and each side's ramps from the promenade to the top tier, and back down", ways.length === 3 && failed.length === 0, failed.join("; ") || ways.map(([n, r]) => `${n} ${r.length - 1} legs`).join(", "));
+  // the rails: on each edge of a tier square over a drop (to the ground past the band, to a lower tier or into a ramp's
+  // slot), but the one a ramp arrives at, something standing on the tier at the edge from under a step to over a waist
+  const at = new Map(cells.map((c) => [`${c[0]},${c[1]}`, c]));
+  const [ux, uz] = DT?.ramp.up ?? [-1, 0];
+  const low = (x0: number, z0: number) => at.get(`${x0},${z0}`)?.[2] ?? 0;
+  const open: string[] = [];
+  let edges = 0;
+  for (const [x0, z0, top, ramp] of raised) {
+    if (ramp) continue;
+    for (const [nx, nz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const [ax, az] = [x0 + nx * S, z0 + nz * S];
+      const n = at.get(`${ax},${az}`);
+      if (n?.[3] && ax + ux * S === x0 && az + uz * S === z0) continue;
+      if (low(ax, az) >= top - 0.5) continue;
+      edges++;
+      // (along the edge, at its middle and a metre each way, a quarter metre in from it)
+      const hit = [-1, 0, 1].every((s) => {
+        const [px, pz] = [x0 + S / 2 + nx * (S / 2 - 0.25) + Math.abs(nz) * s, z0 + S / 2 + nz * (S / 2 - 0.25) + Math.abs(nx) * s];
+        return solidsIn(px - 0.3 + BR_X, px + 0.3 + BR_X, pz - 0.3 + BR_Z, pz + 0.3 + BR_Z).some((q) => q.minX < px + 0.3 + BR_X && q.maxX > px - 0.3 + BR_X && q.minZ < pz + 0.3 + BR_Z && q.maxZ > pz - 0.3 + BR_Z && q.base < top + MOVE.stepHeight && q.top > top + 0.9);
+      });
+      if (!hit) open.push(`(${x0}, ${z0}) toward (${nx}, ${nz})`);
+    }
+  }
+  check("THE TERRACES: every edge of its tiers over a drop railed, a body kept from walking off, but where a ramp arrives", edges >= 50 && open.length === 0, open.slice(0, 6).join("; ") || `${edges} edges`);
+  check("THE TERRACES: its gardens: cypresses at the walls' feet, on the top tier and along both roads, flower planters, fern planters and benches as cover, lamps by the grand stair's landings", (TC?.trees ?? 0) >= 15 && (TC?.flowers ?? 0) >= 12 && (TC?.ferns ?? 0) + (TC?.benches ?? 0) >= 12 && (TC?.lamps ?? 0) >= 4, `${TC?.trees ?? 0} cypresses, ${TC?.flowers ?? 0} flower planters, ${TC?.ferns ?? 0} ferns, ${TC?.benches ?? 0} benches, ${TC?.lamps ?? 0} lamps`);
+  // its name: from the middle of the ring road's west side at a standing eye, a clear line to the plate's middle and near both ends
+  const N = DT?.name;
+  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
+  const blocked: string[] = [];
+  const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
+  for (const ez of [-10, 0, 10])
+    for (const t of N ? [-N.w / 2 + 0.5, 0, N.w / 2 - 0.5] : []) {
+      const [a, b] = [[-roadMid, 1.7, ez], [N!.at[0] + 0.3, N!.at[1], N!.at[2] + t]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+        if (inBox(p[0], p[1], p[2])) {
+          blocked.push(`from z ${ez} to ${t.toFixed(1)} at (${p.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "terraces");
+  check("THE TERRACES: its name on the gate at the head of the grand stair, seen from the ring road", named && !!N && blocked.length === 0, blocked.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

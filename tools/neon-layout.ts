@@ -3542,6 +3542,217 @@ const STREET_WALL_BOXES: OBox[] = [];
     console.log(`LANTERN ALLEYS: ${houses.length} houses (${DL.rows.map((r) => `${r.id} ${houses.filter((h) => h.row === r.id).length}`).join(", ")}), ${cables} cables, ${hung} lanterns`);
   }
 }
+// THE TERRACES (rules.districts.terraces; the districts plan's west district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
+// the west band past the ring road, between the two straight roads out to the edge, stepped up in tiers from the ring
+// road's pavement to the fence. Laid on a grid of `cell` metre squares: each tier a run of columns at its height (`tiers`,
+// [x0, x1, top]), a few squares raised on their own (`raised`, the bastions over the roads), and the ramps cut into a
+// tier's first column (`ramp.cells`, each climbing `ramp.up` from the square before it to the one after, its sides the
+// tier's own walls). Drawn in the pack's terrain kit: a paving tile on each square, its walls a storey at a time where a
+// square stands over the next (the pack's shop windows and lit gates on the faces seen from the street, plain walls in
+// the ramps' slots and at the fence), a glass rail along every edge with a drop but where a ramp arrives. The kit's tiles
+// and walls are faces with nothing behind them, so the tiers collide as the boxes written to cfg.terraces.solids (the
+// bake adds them to the collision): a square solid to its top, a ramp as steps a fraction of its rise apart. The gardens
+// on it: cypresses in planters at the foot of the walls, fern planters and benches behind the front rails as cover, the
+// pack's deco lamps either side of the grand stair's landings, and a cypress avenue along both roads. Placed off rules
+// alone, so nothing measured moves it
+{
+  type Walk = number[][];
+  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
+  if (DT) {
+    const rndT = seeded(DT.seed);
+    const S = DT.cell;
+    const [zA, zB] = DT.z;
+    const xA = Math.min(...DT.tiers.map((t) => t[0]), ...DT.raised.map((r) => r[0]));
+    const xB = Math.max(...DT.tiers.map((t) => t[1]), ...DT.raised.map((r) => r[1]));
+    const key = (x0: number, z0: number) => `${x0.toFixed(2)},${z0.toFixed(2)}`;
+    const rampAt = new Map(DT.ramp.cells.map(([x0, z0]) => [key(x0, z0), true]));
+    const rp = piece(DT.ramp.piece).row;
+    const rise = rp.size![1];
+    const run = rp.size![2];
+    if (Math.abs(run - S) > 0.01 || Math.abs(rp.size![0] - S) > 0.01) throw new Error(`THE TERRACES: the ramp is ${rp.size![0]} by ${run} m, not a ${S} m square`);
+    const [ux, uz] = DT.ramp.up;
+    /** a square's own height: its tier's top, a raised square's, the ground's past the band (a ramp's is its foot's) */
+    const tierAt = (x0: number, z0: number): number => {
+      const [cx, cz] = [x0 + S / 2, z0 + S / 2];
+      const r = DT.raised.find(([a, b, c, d]) => cx > a && cx < b && cz > c && cz < d);
+      if (r) return r[4];
+      if (cz < zA || cz > zB) return 0;
+      return DT.tiers.find(([a, b]) => cx > a && cx < b)?.[2] ?? 0;
+    };
+    const isRamp = (x0: number, z0: number) => rampAt.has(key(x0, z0));
+    const footOf = (x0: number, z0: number) => tierAt(x0 - ux * S, z0 - uz * S);
+    const cells: Array<{ x0: number; z0: number; top: number; ramp: boolean }> = [];
+    for (let x0 = xA; x0 < xB - 1e-6; x0 += S)
+      for (let z0 = zA; z0 < zB - 1e-6; z0 += S) {
+        const ramp = isRamp(x0, z0);
+        if (ramp) {
+          const [foot, head] = [footOf(x0, z0), tierAt(x0 + ux * S, z0 + uz * S)];
+          if (Math.abs(head - foot - rise) > 0.01) throw new Error(`THE TERRACES: the ramp at (${x0}, ${z0}) climbs ${rise} m from ${foot} to ${head}`);
+          for (const [sx, sz] of [[uz, ux], [-uz, -ux]]) if (tierAt(x0 + sx * S, z0 + sz * S) < head - 0.01) throw new Error(`THE TERRACES: the ramp at (${x0}, ${z0}) has a side open over a drop`);
+        }
+        cells.push({ x0: +x0.toFixed(2), z0: +z0.toFixed(2), top: ramp ? footOf(x0, z0) : tierAt(x0, z0), ramp });
+      }
+    for (const [x0, z0] of DT.ramp.cells) if (!cells.some((c) => c.ramp && Math.abs(c.x0 - x0) < 0.01 && Math.abs(c.z0 - z0) < 0.01)) throw new Error(`THE TERRACES: the ramp at (${x0}, ${z0}) is off its grid`);
+    const solids: number[][] = [];
+    // the squares solid to their tops, a column's run of one height as one box
+    const byCol = new Map<number, typeof cells>();
+    for (const c of cells) if (!c.ramp && c.top > 0) (byCol.get(c.x0) ?? byCol.set(c.x0, []).get(c.x0)!).push(c);
+    for (const [x0, list] of byCol) {
+      list.sort((a, b) => a.z0 - b.z0);
+      let i = 0;
+      while (i < list.length) {
+        let j = i;
+        while (j + 1 < list.length && Math.abs(list[j + 1].z0 - list[j].z0 - S) < 0.01 && list[j + 1].top === list[i].top) j++;
+        solids.push([x0, x0 + S, list[i].z0, list[j].z0 + S, 0, list[i].top]);
+        i = j + 1;
+      }
+    }
+    // the ramps: each its foot's height solid under it, and steps a `steps`th of its run deep, each to its rise's height
+    // at its middle, so the first is a fraction of a step's height over the foot and the last as little under the head
+    const N = DT.ramp.steps;
+    for (const c of cells.filter((q) => q.ramp)) {
+      const [x1, z1] = [c.x0 + S, c.z0 + S];
+      if (c.top > 0) solids.push([c.x0, x1, c.z0, z1, 0, c.top]);
+      for (let k = 0; k < N; k++) {
+        const [a, b] = [(k * S) / N, ((k + 1) * S) / N];
+        const y = c.top + (rise * (k + 0.5)) / N;
+        // (from the foot's side across the square toward `up`)
+        const box = ux > 0 ? [c.x0 + a, c.x0 + b, c.z0, z1] : ux < 0 ? [x1 - b, x1 - a, c.z0, z1] : uz > 0 ? [c.x0, x1, c.z0 + a, c.z0 + b] : [c.x0, x1, z1 - b, z1 - a];
+        solids.push([...box, 0, +y.toFixed(3)]);
+      }
+    }
+    // the paving on each square's top, and the ramps
+    const tile = piece(DT.top.piece).row;
+    if (Math.abs(tile.size![0] - S) > 0.01) throw new Error(`THE TERRACES: ${DT.top.piece} is ${tile.size![0]} m, not ${S}`);
+    for (const c of cells) {
+      if (c.ramp) placeTurned(DT.chunk, DT.ramp.piece, c.x0 + S / 2, c.z0 + S / 2, yawToward(ux, uz), "g", c.top, DT.ramp.mat);
+      else if (c.top > 0) placeTurned(DT.chunk, DT.top.piece, c.x0 + S / 2, c.z0 + S / 2, 0, "g", c.top, DT.top.mat);
+    }
+    // the walls: on each edge where a square stands over the next (past the band, the ground), a storey at a time, facing
+    // the lower side; none behind a ramp's head (its face is under the ramp); the pack's fronts on the faces seen from the
+    // street and the roads, plain ones in a ramp's slot and at the fence
+    const W = DT.walls;
+    const dirs: Pt[] = [[1, 0], [-1, 0], [0, 1], [0, -1]];
+    /** a square's floor for its walls: a ramp's foot, else its own top */
+    const heightAt = (x0: number, z0: number) => (isRamp(x0, z0) ? footOf(x0, z0) : tierAt(x0, z0));
+    let walls = 0;
+    const faces: Array<{ x: number; z0: number; z1: number; n: Pt; low: number; lowRamp: boolean }> = [];
+    for (const c of cells) {
+      if (c.ramp || c.top <= 0) continue;
+      for (const n of dirs) {
+        const [nx0, nz0] = [c.x0 + n[0] * S, c.z0 + n[1] * S];
+        const nRamp = isRamp(nx0, nz0);
+        // (the ramp arriving here: its head is this edge)
+        if (nRamp && Math.abs(nx0 + ux * S - c.x0) < 0.01 && Math.abs(nz0 + uz * S - c.z0) < 0.01) continue;
+        const low = heightAt(nx0, nz0);
+        if (low >= c.top - 0.01) continue;
+        if (Math.abs(((c.top - low) / W.storey) - Math.round((c.top - low) / W.storey)) > 0.01) throw new Error(`THE TERRACES: a drop of ${c.top - low} m at (${c.x0}, ${c.z0}) is not whole storeys`);
+        const mid: Pt = [c.x0 + S / 2 + (n[0] * S) / 2, c.z0 + S / 2 + (n[1] * S) / 2];
+        const yaw = (Math.atan2(-n[1], n[0]) * 180) / Math.PI;
+        const plain = nRamp || n[0] < 0;
+        for (let y = low; y < c.top - 0.01; y += W.storey) {
+          const name = plain ? W.plain : W.fronts[Math.floor(rndT() * W.fronts.length)];
+          const r = piece(name).row;
+          const cxl = (r.min![0] + r.max![0]) / 2;
+          placeTurned(DT.chunk, name, mid[0] + n[0] * cxl, mid[1] + n[1] * cxl, yaw, "g", y);
+          walls++;
+        }
+        if (n[0] > 0) faces.push({ x: mid[0], z0: c.z0, z1: c.z0 + S, n, low, lowRamp: nRamp });
+      }
+    }
+    // the rails: along every edge of a square with a drop past it, `inset` in from the edge, but where a ramp arrives
+    const RL = piece(DT.rail.piece).row;
+    let rails = 0;
+    const railAt: number[][] = [];
+    for (const c of cells) {
+      if (c.ramp || c.top <= 0) continue;
+      for (const n of dirs) {
+        const [nx0, nz0] = [c.x0 + n[0] * S, c.z0 + n[1] * S];
+        if (isRamp(nx0, nz0) && Math.abs(nx0 + ux * S - c.x0) < 0.01 && Math.abs(nz0 + uz * S - c.z0) < 0.01) continue;
+        if (heightAt(nx0, nz0) >= c.top - 0.5) continue;
+        const t: Pt = [-n[1], n[0]];
+        const m: Pt = [c.x0 + S / 2 + n[0] * (S / 2 - DT.rail.inset), c.z0 + S / 2 + n[1] * (S / 2 - DT.rail.inset)];
+        placeTurned(DT.chunk, DT.rail.piece, m[0], m[1], (Math.atan2(-t[1], t[0]) * 180) / Math.PI, "o", c.top);
+        railAt.push([+m[0].toFixed(2), +m[1].toFixed(2), c.top]);
+        rails++;
+      }
+    }
+    if (RL.size![0] < S - 0.1) throw new Error(`THE TERRACES: the rail is ${RL.size![0]} m, short of a ${S} m edge`);
+    // the gardens. A cypress in its planter at the foot of the street-side walls, at the row lines in `treesAt`, where the
+    // wall runs a square either side of the line with no ramp's mouth below it (between the bots' nodes, which stand in the
+    // squares' middles)
+    const G2 = DT.garden;
+    let trees = 0;
+    const faceAt = (x: number, z0: number) => faces.find((f) => Math.abs(f.x - x) < 0.01 && Math.abs(f.z0 - z0) < 0.01 && !f.lowRamp);
+    for (const x of [...new Set(faces.map((f) => f.x))])
+      for (const z of G2.treesAt) {
+        const [a, b] = [faceAt(x, z - S), faceAt(x, z)];
+        if (!a || !b || a.low !== b.low) continue;
+        placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], x + G2.treeOff, z, rndT() * 360, "s", a.low);
+        trees++;
+      }
+    // a flower planter at the foot of each street-side wall's square, in the middle of its run
+    let flowers = 0;
+    for (const f of faces.filter((q) => !q.lowRamp)) {
+      placeTurned(DT.chunk, G2.flower, f.x + G2.flowerOff, (f.z0 + f.z1) / 2, rndT() * 360, "o", f.low);
+      flowers++;
+    }
+    // a grove of cypresses on the top tier, on the line the blocks over it will front
+    for (const z of G2.grove.z) {
+      placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], G2.grove.x, z, rndT() * 360, "s", tierAt(G2.grove.x - S / 2, z - S / 2));
+      trees++;
+    }
+    // cover behind the front rails: on each square with a rail on its street side, a fern planter or a bench by turns
+    let ferns = 0, benches = 0;
+    for (const c of cells) {
+      if (c.ramp || c.top <= 0) continue;
+      const front = railAt.find(([x, z, y]) => Math.abs(x - (c.x0 + S - DT.rail.inset)) < 0.01 && Math.abs(z - (c.z0 + S / 2)) < 0.01 && y === c.top);
+      if (!front) continue;
+      // (none beside a ramp's head: the landing stays clear)
+      const byHead = DT.ramp.cells.some(([rx, rz]) => Math.abs(rx + ux * S - c.x0) < 0.01 && Math.abs(Math.abs(rz - c.z0) - S) < 0.01);
+      if (byHead) continue;
+      const [x, z] = [c.x0 + S - G2.coverOff, c.z0 + S / 2 + (rndT() - 0.5)];
+      if ((ferns + benches) % 2 === 0) {
+        placeTurned(DT.chunk, G2.fern, x, z, 0, "o", c.top);
+        ferns++;
+      } else {
+        placeTurned(DT.chunk, G2.bench, x, z, yawToward(1, 0), "o", c.top);
+        benches++;
+      }
+    }
+    // the deco lamps either side of each landing a ramp of the grand stair arrives on (the run of ramps three squares wide)
+    let lamps = 0;
+    const heads = new Map<string, { x0: number; zs: number[] }>();
+    for (const [rx, rz] of DT.ramp.cells) {
+      const k = rx.toFixed(2);
+      const h = heads.get(k) ?? heads.set(k, { x0: rx + ux * S, zs: [] }).get(k)!;
+      h.zs.push(rz);
+    }
+    for (const h of heads.values()) {
+      const zs = h.zs.sort((a, b) => a - b);
+      for (let i = 0; i + 2 < zs.length; i++) {
+        if (Math.abs(zs[i + 2] - zs[i] - 2 * S) > 0.01) continue;
+        const top = tierAt(h.x0, zs[i]);
+        for (const z of [zs[i] - G2.lampOff, zs[i + 2] + S + G2.lampOff]) {
+          placeTurned(DT.chunk, G2.lamp, h.x0 + S / 2, z, 0, "o", top);
+          lamps++;
+        }
+      }
+    }
+    // the gate at the head of the grand stair: two of the pack's columns on the top tier either side of where it arrives,
+    // the district's name on a plate between them (src/game/neonmap.ts draws districtNames)
+    for (const [x, z] of DT.gate.at) placeTurned(DT.chunk, DT.gate.piece, x, z, 0, "o", tierAt(x - S / 2, z - S / 2));
+    // the cypress avenue along both roads, on the ground beyond each
+    for (const z of G2.avenue.z)
+      for (const x of G2.avenue.x) {
+        placeTurned(DT.chunk, G2.avenue.pieces[trees % G2.avenue.pieces.length], x, z, rndT() * 360, "s", 0);
+        trees++;
+      }
+    cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terraces"), { district: "terraces", ...DT.name }];
+    cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps };
+    console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps`);
+  }
+}
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
 // basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
 // each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of

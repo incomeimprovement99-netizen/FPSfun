@@ -12628,3 +12628,41 @@ healing any more (the heal hack's zone poses nothing). The figure's side of it, 
 - **Checked:** verify's act checks and tools/checks/net-delta.ts now hold that an old page's heal (10, 13, 19) and any
   code from 21 on read as no act, seen failing with a heal code read as a reload; every skfigure check (315 of 315); the
   p2p section (47 of 47); verify, rules and the type check.
+
+## Milestone 584 — THE TERRACES, its tiers: the west district stepped up from the ring road
+
+The districts plan's second district, the west sector's band between the ring road and the city's edge, between the two
+straight roads out to the edge, empty pavement until now. Its plan is on the plan page, made on the owner's "keep
+looping between planning and making". NeonScene01 was read piece by piece first. Its gardens are small street touches
+(planters, cypresses, benches). Its raised levels come from the pack's 5 m elevation modules, which are hollow trusses
+under their decks, so a body would walk inside them. So the tiers are built from the pack's plain terrain kit.
+
+- **The tiers** (`rules.districts.terraces`, tools/neon-layout.ts): on a grid of 5 m squares, so the bots' raised
+  nodes stand in the squares' middles. The first tier is 3 m and 10 m deep, the second 6 m and 10 m deep, the top one
+  9 m and 25 m deep to the fence. A 5 m promenade at the street's height stands before them, and a bastion at each
+  corner over the roads. Each square has the pack's paving tile on top, the ground's own material.
+- **The walls:** a storey of the kit at a time wherever a square stands over the next. The pack's shop windows and lit
+  gates face the street and the roads, picked by a seed, so the tiers' ends over the roads read as three storeys of
+  flats. Plain walls line the ramps' slots and the fence.
+- **The ways up:** the pack's terrain ramp, 3 m up over a 5 m square (measured off it, so a tier is one ramp's rise),
+  cut into each tier's first column with the tier's own walls as its sides. The grand stair is three squares wide up the
+  middle, with a 5 m landing between ramps, from the promenade to the top in one straight climb. A ramp each side
+  zig-zags up the three tiers.
+- **The collision:** the kit's tiles and walls are faces with nothing behind them, so the layout writes each tier as a
+  box solid to its top and each ramp as twenty steps 15 cm apart, the first and last 7.5 cm off the floors they meet
+  (`cfg.terraces.solids`). tools/import-neon.ts adds them to the map's collision.
+- **The rails:** the pack's glass rail, its panels a green crystal pattern, along every edge with a drop but where a
+  ramp arrives.
+- **The gardens:** cypresses in planters at the foot of the street-side walls, between the bots' nodes; a flower
+  planter at each wall square's middle; fern planters and benches by turns behind the front rails as a crouched body's
+  cover; the pack's four-armed lamps either side of the grand stair's landings; a grove on the top tier; and an avenue
+  of cypresses along both roads.
+- **The gate and the name:** two of the pack's 6 m columns either side of the grand stair's head, THE TERRACES in the
+  sector's green on a plate between them, 13 m up. The tiers' own edges hide their lower walls from the ring road, so
+  the name sits over the top tier, where the road and the centre see it.
+- **The bots:** each tier is an island in their graph, as the roofs are: their graph links floors under a metre apart,
+  and a ramp climbs 3 m in 5. They keep to the promenade and the roads, the owner's call that bot paths wait until the
+  map is about 90% done.
+- **Checked** (tools/checks/sk-neon.ts): its 101 squares in the west band between the roads, three storeys and fifteen ramps; a body dropped on each square rests on it; a player walks up the grand stair and both sides' ramps to the top tier and back down; all 69 edges over a drop railed so a body cannot walk off, but where a ramp arrives; 21 cypresses, 18 flower planters, 9 fern planters, 9 benches and 6 lamps; the name seen from the ring road on nine sight lines. Each new check was proven failing with its fault put back: the grand stair's first ramps and one rail taken out of the collision, and the name lowered onto the top tier's wall, where the tiers' edges hide it. The e2e: the SpeedKills section, 102 checks, none failing. verify, rules and the type check. The look: the ring road, the foot of the grand stair, the top tier, a road's avenue and the centre's west street, by golden hour and at night; the ramps first drew as bare concrete slabs, and are now paved as the tiers are.
+  The map: its files lo 115.2 MB, hi 181.8 MB, max 410.4 MB.
+  **Its files are version 64.**

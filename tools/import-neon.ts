@@ -1178,9 +1178,13 @@ if (mode === "bake") {
     }
     return out;
   };
-  const solids = [...cutBack(carve(coarse)), ...cutBack(carve(fine)), ...exactBoxes, ...windowBoxes];
+  // THE TERRACES' tiers and ramps (cfg.terraces, neon-layout.ts rules.districts.terraces): the pack's terrain kit is
+  // faces with nothing behind them, so the layout writes each tier as a box solid to its top and each ramp as steps
+  const typed = ((cfg.terraces as { solids?: number[][] } | undefined)?.solids ?? []).map((q) => [...q]);
+  const solids = [...cutBack(carve(coarse)), ...cutBack(carve(fine)), ...exactBoxes, ...windowBoxes, ...typed];
   if (carved) console.log(`the windows cut out of ${carved} collision boxes`);
   if (trimmed) console.log(`${trimmed} collision boxes of the rest cut back out of the fire escapes' rooms`);
+  if (typed.length) console.log(`THE TERRACES: ${typed.length} collision boxes of its tiers and ramps`);
   const all = [...solids, ...solidBoxes];
   mkdirSync(join(ROOT, "src", "config", "neon"), { recursive: true });
   if (!TAG) writeFileSync(
