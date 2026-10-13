@@ -1521,37 +1521,68 @@
         },
         "r": {
           "shift": [
-            -0.003,
-            -0.009,
-            -0.009
+            0.0002,
+            -0.0016,
+            -0.0002
           ],
           "rot": [
-            0.12,
-            -0.36,
-            0.24
+            0.3927,
+            -0.1894,
+            -0.192
           ],
           "joint": {
             "thumb_01": [
-              0,
-              0,
-              0.36
-            ],
-            "index_01": [
-              0.12,
-              0,
-              0
+              0.0915,
+              -0.4707,
+              0.3317
             ],
             "middle_01": [
-              0.24,
-              0,
-              -0.36
+              -0.0601,
+              0.0241,
+              -0.2024
             ],
             "ring_01": [
-              -1.02,
-              -0.72,
-              0.12
+              -0.2034,
+              -0.2121,
+              0.0111
+            ],
+            "thumb_02": [
+              -0.3006,
+              -0.1566,
+              0.3796
+            ],
+            "middle_02": [
+              0.2751,
+              0.1499,
+              0.3061
+            ],
+            "ring_02": [
+              -0.352,
+              -0.2766,
+              0.0861
+            ],
+            "pinky_01": [
+              -0.0196,
+              -0.0029,
+              0.0563
+            ],
+            "pinky_02": [
+              0.0205,
+              -0.1624,
+              -0.0317
+            ],
+            "index_01": [
+              -0.2458,
+              0.313,
+              0.3177
+            ],
+            "index_02": [
+              -0.6197,
+              0.3228,
+              0.1864
             ]
-          }
+          },
+          "open": {}
         }
       },
       "shoulders": {
@@ -1566,9 +1597,9 @@
           -0.18
         ],
         "adsR": [
-          0.12,
-          0.18,
-          -0.16
+          -0.18,
+          0.32,
+          -0.21
         ],
         "adsL": [
           0.01,
@@ -1607,7 +1638,8 @@
             0.65
           ]
         }
-      }
+      },
+      "_holdR": "The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip 90 mm behind it): searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, the middle, ring and little fingers laid by tools/pack-solve.ts (the forefinger kept as searched: laid again, it curled 60 mm off the trigger), and the aimed right shoulder fitted for the wrist (31 degrees; at the shoulder before, 63)."
     },
     "Drake-12": {
       "model": "Drake-12",

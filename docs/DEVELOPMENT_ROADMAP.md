@@ -13680,3 +13680,14 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
 - **Checked:** verify, rules and the type check; the three guns' pack frames, 39 of 40 together (CHOOCH's inspect wrist,
   then fixed) and CHOOCH's 40 of 40 alone, with the forefinger on the trigger check passing on all three; HAEFY's
   bot-rocket check eight runs in eight alone.
+
+## Milestone 545 — BIGANTLER's right forefinger on its trigger
+
+- **BIGANTLER** (fparms.json packGuns KXG12 hold r): the right hand from where the pack holds its own gun, its forefinger
+  on our trigger (it had held the grip 90 mm behind it), searched as Milestone 544's were; the middle, ring and little
+  fingers laid on the grip and the forefinger kept as searched (laid again with the others it curled 60 mm off the
+  trigger). Aimed, the right wrist had bent 63 degrees with the hand there; the aimed right shoulder is fitted afresh,
+  wider than the search's own steps reach, to 31.
+- **Still off the trigger:** ANAKIN and REZ (Milestone 544).
+- **Checked:** verify, rules and the type check; BIGANTLER's pack frames 41 of 41, the forefinger on the trigger check
+  among them.
