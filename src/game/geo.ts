@@ -383,6 +383,26 @@ export function floorNumber(text: string, w: number, color = "#d8d2c6"): THREE.M
 }
 
 /**
+ * How a panel's text names a key: `{interact}`, `{forward}` and the like are an action, drawn as the key or the
+ * controller's button in hand (Milestone 621; the owner, 2026-10-12: "every like 'Press F to loot' should be the
+ * controller equivalent"). main.ts sets it; until then, the action's own name.
+ */
+let panelKey: (action: string) => string = (a) => a.toUpperCase();
+/** the panels whose text names a key: each one's redraw, and the text it last drew */
+const keyPanels: { draw: () => void; text: string }[] = [];
+
+/** name the keys with this from now on, and redraw every panel that names one */
+export function setPanelKeys(name: (action: string) => string): void {
+  panelKey = name;
+  for (const p of keyPanels) p.draw();
+}
+
+/** what the panels that name a key say now (the e2e reads them) */
+export function keyPanelTexts(): string[] {
+  return keyPanels.map((p) => p.text);
+}
+
+/**
  * A text panel mesh: dark card, orange top bar, yellow title and wrapped body
  * text. Unlit so it reads in shade. Shared by the course and the range's sign
  * over the course gate.
@@ -397,7 +417,8 @@ export function textPanel(text: string, x: number, y: number, z: number, rotY: n
   tex.colorSpace = THREE.SRGBColorSpace;
   tex.anisotropy = 8;
   const pad = 26;
-  const paragraphs = text.split("\n");
+  const keyed: { draw: () => void; text: string } | null = /\{\w+\}/.test(text) ? { draw: () => undefined, text } : null;
+  let paragraphs: string[] = [];
   /**
    * Lay the text out at a body size, wrapping words; `paint` false only
    * measures. Returns the height used, so the size can be shrunk until the
@@ -434,6 +455,9 @@ export function textPanel(text: string, x: number, y: number, z: number, rotY: n
     return yy;
   };
   const draw = () => {
+    const now = keyed ? text.replace(/\{(\w+)\}/g, (_, a: string) => panelKey(a)) : text;
+    if (keyed) keyed.text = now;
+    paragraphs = now.split("\n");
     g.clearRect(0, 0, cv.width, cv.height);
     g.fillStyle = "rgba(10,12,15,0.86)";
     g.fillRect(0, 0, cv.width, cv.height);
@@ -446,6 +470,10 @@ export function textPanel(text: string, x: number, y: number, z: number, rotY: n
     tex.needsUpdate = true;
   };
   draw();
+  if (keyed) {
+    keyed.draw = draw;
+    keyPanels.push(keyed);
+  }
   // the web font may arrive after the first draw
   document.fonts?.load('500 30px "Rajdhani"').then(draw, () => undefined);
   const m = new THREE.Mesh(

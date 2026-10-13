@@ -137,7 +137,7 @@ export const ADVANCED_COURSE: CourseLayout = {
       entryZ: 104,
       tipX: -4,
       tip:
-        "SUPERJUMP\n\nThe yellow rope on your right. Stand at its foot, press E, and roll " +
+        "SUPERJUMP\n\nThe yellow rope on your right. Stand at its foot, press {interact}, and roll " +
         "the wheel up (two jumps in two frames): the zip jump and the coyote jump stack " +
         "and throw you 5 m up. Turn to the platform on the right as you rise and mantle " +
         "it: nothing else reaches it. Walk its length, drop off the end. Three below. Out left.",
@@ -168,7 +168,7 @@ export const ADVANCED_COURSE: CourseLayout = {
       entryZ: 142,
       tipX: -4,
       tip:
-        "ZIP\n\nUp the rope on your right to the deck, then E on the long zip. Four " +
+        "ZIP\n\nUp the rope on your right to the deck, then {interact} on the long zip. Four " +
         "dummies below as you ride; the rope ends at the left-hand door. Crouch to " +
         "drop early, or ride it out at full speed.",
       trigger: (_x, _y, z) => z > 142.7,
@@ -184,7 +184,7 @@ export const ADVANCED_COURSE: CourseLayout = {
       entryZ: 166,
       tipX: 3,
       tip:
-        "FLOW\n\nTwo low walls. Slide, jump the wall out of the slide, keep W held and " +
+        "FLOW\n\nTwo low walls. Slide, jump the wall out of the slide, keep holding {forward} and " +
         "land in a slide for the next. Four dummies between the walls. Out right.",
       trigger: (_x, _y, z) => z > 166.7,
       enemies: [

@@ -27,6 +27,7 @@ import { Voice } from "./net/voice";
 import { seen, type SeenDetail, type SeenEvent } from "./net/seen";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
+import { keyPanelTexts, setPanelKeys } from "./game/geo";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { CHAIN_COURSE } from "./game/courses/chain";
@@ -3239,6 +3240,16 @@ function stopEmote(): void {
  * they are using the controller and swap out the buttons for them"). An action no pad button does keeps its key.
  */
 const keyLabel = (a: Action): string => (input.device === "pad" ? padLabel(a, input.pad.family) : null) ?? bindName(currentBinds()[a]?.[0] ?? "?").toUpperCase();
+// The range's signs name keys too (geo.ts textPanel, Milestone 621): a sign says "the stick forward" where a keyboard
+// says W, and is redrawn when what it would say changes (the device in hand, the controller, a rebind)
+const panelLabel = (a: string): string => (input.device === "pad" && (a === "forward" || a === "right") ? `the stick ${a}` : keyLabel(a as Action));
+let panelKeysSaid = "";
+const panelKeysNow = (): void => {
+  const said = ["interact", "forward", "right"].map(panelLabel).join("|");
+  if (said === panelKeysSaid) return;
+  panelKeysSaid = said;
+  setPanelKeys(panelLabel);
+};
 /**
  * The keys on screen (keyhints.json, hud.ts drawKeyHints): up for everyone until
  * they hide them, and remembered either way. Built from the bindings as they are,
@@ -6272,6 +6283,7 @@ function step(): void {
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
   const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac, opticAdsMult());
   if (input.pad.touchedNow) input.device = "pad";
+  panelKeysNow();
   if (input.pad.id !== padIdSeen) {
     padIdSeen = input.pad.id;
     refreshPadSeen();
@@ -7720,6 +7732,7 @@ function note(ev: SeenEvent, d: SeenDetail = {}): void {
 /** where the screenshot galleries stand their figures: the range's floor ahead of its spawn (the warehouse's first spawn before Milestone 533) */
 const GALLERY = { x: 0, z: -8 };
 (window as unknown as { __range: unknown }).__range = {
+  keyPanelTexts,
   loadout,
   player,
   settings,

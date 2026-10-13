@@ -11668,6 +11668,19 @@ PC controller values (40% rotational, 0.8 slowdown), the weakest a pad gets ther
 - **Checked:** tsc; verify (the follow at the level's share, the three strengths in order, a target 5 degrees off
   snapped its share of the way, none past the snap angle, none at Light); rules; e2e pad.
 
+## Milestone 621 — The range's signs follow the controller too
+
+The owner (2026-10-12): "every like 'Press F to loot' should be the controller equivalent". Milestone 538 turned the
+prompts, the keys panel and the HUD's lines; the signs in the range still said "press E" and "keep W held" to a
+player holding a pad.
+
+- **Keys in a sign's text are actions now** (`{interact}`, `{forward}`, `{right}`; src/game/geo.ts textPanel), drawn
+  as the key or button in hand: the zipline rooms say "press X" (Xbox), "press □" (PlayStation) or "press E", and the
+  climb, gap, flow and wallbounce signs "hold the stick forward" or "hold W". A sign is redrawn when what it would say
+  changes: the device in hand, the controller, or a rebind of the key.
+- **Checked:** tsc; verify; rules; e2e pad (the zipline sign says X on an Xbox pad, □ on a DualSense and E on the
+  keyboard, the gap sign the stick forward and W).
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

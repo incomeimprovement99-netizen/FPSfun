@@ -2905,10 +2905,11 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, the utility hack on RB, ping on D-pad up, the keys panel on D-pad right)", bj.join() === "jump,ability" && df.join() === "ability,jump,grenade,ping,keyHints", `${bj} / ${df}`);
   // The prompts follow the controller (Milestone 538): a pad in hand names its buttons in the keys panel and the
   // prompts, an unnamed pad as Xbox's, a DualSense as PlayStation's, and a key on the keyboard turns them back
-  const rows = `(() => { const h = window.__range.hud.last; const k = h && h.keyHints; const f = (l) => (k && k.rows.find((r) => r.label.startsWith(l))?.keys.join(" ")) || null; return { pad: h ? h.padFamily ?? null : null, jump: f("Jump"), mob: f("Mobility"), util: f("Utility"), move: f("Move"), hide: k ? k.hide : null }; })()`;
+  // (and the range's signs, Milestone 621: the zipline room's says what to press and to hold the stick forward)
+  const rows = `(() => { const h = window.__range.hud.last; const k = h && h.keyHints; const f = (l) => (k && k.rows.find((r) => r.label.startsWith(l))?.keys.join(" ")) || null; const sign = (t) => window.__range.keyPanelTexts().find((x) => x.startsWith(t)) || ""; const zip = sign("ZIPLINE"); const gap = sign("GAP"); return { pad: h ? h.padFamily ?? null : null, jump: f("Jump"), mob: f("Mobility"), util: f("Utility"), move: f("Move"), hide: k ? k.hide : null, zip: (zip.match(/press (\\S+),/) || [])[1] || null, gap: (gap.match(/holding (.+?) and tap/) || [])[1] || null }; })()`;
   await padTap(page, 0);
   await sleep(700);
-  const xb = await ev<{ pad: string | null; jump: string | null; mob: string | null; util: string | null; move: string | null; hide: string | null }>(page, rows);
+  const xb = await ev<{ pad: string | null; jump: string | null; mob: string | null; util: string | null; move: string | null; hide: string | null; zip: string | null; gap: string | null }>(page, rows);
   await ev(page, `window.__pad.id = "DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)"`);
   await padTap(page, 0);
   await sleep(700);
@@ -2917,10 +2918,10 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   await sleep(700);
   const kb = await ev<typeof xb>(page, rows);
   check(
-    "pad prompts: an unnamed pad in hand says Xbox's buttons (A, LB, RB, the left stick), a DualSense PlayStation's (cross, L1, R1), and a key turns them back to the keyboard's",
-    xb.pad === "xbox" && xb.jump === "A" && xb.mob === "LB" && xb.util === "RB" && xb.move === "L-STICK" && xb.hide === "D-PAD →" &&
-      ps.pad === "ps" && ps.jump === "✕" && ps.mob === "L1" && ps.util === "R1" &&
-      kb.pad === null && kb.jump !== null && kb.jump !== "A" && kb.jump !== "✕",
+    "pad prompts: an unnamed pad in hand says Xbox's buttons (A, LB, RB, the left stick), a DualSense PlayStation's (cross, L1, R1), and a key turns them back to the keyboard's, the range's signs with them",
+    xb.pad === "xbox" && xb.jump === "A" && xb.mob === "LB" && xb.util === "RB" && xb.move === "L-STICK" && xb.hide === "D-PAD →" && xb.zip === "X" && xb.gap === "the stick forward" &&
+      ps.pad === "ps" && ps.jump === "✕" && ps.mob === "L1" && ps.util === "R1" && ps.zip === "□" &&
+      kb.pad === null && kb.jump !== null && kb.jump !== "A" && kb.jump !== "✕" && kb.zip === "E" && kb.gap === "W",
     JSON.stringify({ xb, ps, kb })
   );
   await page.close();

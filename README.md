@@ -644,15 +644,16 @@ with SpeedKills' two hacks on the bumpers (since Milestone 538):
 **The prompts follow the controller.** The moment a stick or a button is
 used, every key on screen turns into the controller's button: the controls
 panel on the right, the prompts under the crosshair, the hacks' tiles, the
-ship's and the map's lines. An Xbox pad's are its coloured A, B, X and Y and
+ship's and the map's lines, and the range's signs ("press X" for "press E",
+"hold the stick forward" for "hold W"). An Xbox pad's are its coloured A, B, X and Y and
 LB, RT and so on; a PlayStation pad's are its cross, circle, square and
 triangle and L1, R2 and so on, told apart by the pad's own id (Sony's USB
 vendor 054c, Microsoft's 045e, or its name). A pad that names neither shows
-Xbox's, the layout most PC pads copy, and Settings, Controller, says so and
-has **Button prompts** to pick Xbox or PlayStation by hand. A key or a click
+Xbox's, the layout most PC pads copy, and the Controller tab says so and has
+**Button prompts** to pick Xbox or PlayStation by hand. A key or a click
 turns everything back to the keyboard's.
 
-**Presets** on the Controls tab: Default, Bumper Jumper, Button
+**Presets** on the Controller tab: Default, Bumper Jumper, Button
 Puncher, Evolved and Ninja (the game's), Classic (the layout before 538: ping
 on RB, the utility hack on D-pad right), and Range (the fusion level and the
 weapon slots on the D-pad, for trying guns). **Every button but Start can also

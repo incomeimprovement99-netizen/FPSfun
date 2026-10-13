@@ -72,7 +72,7 @@ export const BASIC_COURSE: CourseLayout = {
       tipX: -4,
       tip:
         "CLIMB\n\nThe ladder straight ahead marks the climb. Jump into the wall " +
-        "holding W to climb it, and keep W held at the top to mantle over. Slide " +
+        "holding {forward} to climb it, and keep holding it at the top to mantle over. Slide " +
         "down the ramp to pick up speed. Three dummies below. Out through the " +
         "right-hand door.",
       trigger: (_x, y, z) => z > 51.5 && y > 3.5,
@@ -103,7 +103,7 @@ export const BASIC_COURSE: CourseLayout = {
       tipX: -4,
       tip:
         "GAP\n\nThe far platform is off to the right. Slide jump straight off the " +
-        "end at full speed, then keep W held and tap D in the air: a forward-right " +
+        "end at full speed, then keep holding {forward} and tap {right} in the air: a forward-right " +
         "lurch that keeps your speed. Or jump diagonally. Fall and you restart " +
         "this room with 2 s added. Two dummies across the gap. Out right.",
       trigger: (_x, _y, z) => z > 82,
@@ -117,9 +117,9 @@ export const BASIC_COURSE: CourseLayout = {
       entryZ: 93,
       tipX: 3,
       tip:
-        "ZIPLINE\n\nThe yellow rope on your right goes straight up: look at it, press E, " +
+        "ZIPLINE\n\nThe yellow rope on your right goes straight up: look at it, press {interact}, " +
         "and it carries you to the deck (the ladder beside it is the slow way). On " +
-        "the deck, E on the long zip and shoot the three below as you ride. Ride it " +
+        "the deck, {interact} on the long zip and shoot the three below as you ride. Ride it " +
         "to the end to leave at full speed, or crouch to drop off. Out left.",
       trigger: (_x, _y, z) => z > 94.5,
       enemies: [
