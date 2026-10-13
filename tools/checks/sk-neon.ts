@@ -2614,5 +2614,49 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE TERMINAL: a player walks out of the hall through its south arcade onto the platform beside the train, through each hall's arch", shut.length === 0, shut.join("; ") || "6 walks");
 }
 
+// the stairs run up at a sprint with SpeedKills' own moves (the double jump, the wall runs and the auto-climb, which the
+// game turns on and the walks above leave off): the tower's stair core from the lobby to its top storey, and each of the
+// base's stairs. No climb or mantle may start on a stair, and the body never rises half a metre over the flight it is
+// on: on the core's landings, with the landing above overhead, running into the core's wall climbed it into that
+// landing and the mantle off its edge lifted the body up through it (the owner, 2026-10-12: "i can glitch through
+// stairs all the time when going up")
+{
+  const sprintUp = (pts: number[][]) => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.sprintMode = "auto";
+    p.extraMoves = true;
+    p.autoClimb = true;
+    p.teleport(pts[0][0] + BR_X, pts[0][2] + 0.05, pts[0][1] + BR_Z, 0);
+    const go = { held: (a: Action) => a === "forward", pressedNow: (_a: Action) => false };
+    let t = 1000, k = 1, starts = 0, over = 0, last = "stand", at = "";
+    for (let i = 0; i < 120 * 144 && k < pts.length; i++) {
+      const [tx, tz, ty] = pts[k];
+      const dx = tx - (p.pos.x - BR_X), dz = tz - (p.pos.z - BR_Z);
+      if (Math.hypot(dx, dz) < 0.35 && Math.abs(p.pos.y - ty) < 1) {
+        k++;
+        continue;
+      }
+      p.yaw = (Math.atan2(-dx, -dz) * 180) / Math.PI;
+      p.update(1 / 144, (t += 1 / 144), go, 0, 1, false);
+      const st = p.stance;
+      if (st !== last && (st === "climb" || st === "mantle")) {
+        starts++;
+        if (!at) at = `${st} at (${(p.pos.x - BR_X).toFixed(1)}, ${p.pos.y.toFixed(1)}, ${(p.pos.z - BR_Z).toFixed(1)})`;
+      }
+      last = st;
+      over = Math.max(over, p.pos.y - Math.max(pts[k - 1][2], ty));
+    }
+    return { k, n: pts.length, starts, over, at };
+  };
+  const routes: Array<[string, number[][]]> = [["the tower's core", (cfg.tower as unknown as { core: { route: number[][] } }).core.route]];
+  for (const q of (cfg.base as unknown as { stairs: Array<{ at: number; top: number[]; route: number[][] }> }).stairs) routes.push([`the base's ${q.at} m stair (${q.top.join(", ")})`, q.route]);
+  const bad: string[] = [];
+  for (const [name, r] of routes) {
+    const w = sprintUp(r);
+    if (w.k !== w.n || w.starts > 0 || w.over > 0.5) bad.push(`${name}: ${w.k - 1} of ${w.n - 1} legs, ${w.starts} climbs or mantles${w.at ? ` (first ${w.at})` : ""}, ${w.over.toFixed(2)} m over the flight`);
+  }
+  check("the stairs run up at a sprint with SpeedKills' moves: the tower's core to its top storey and each of the base's stairs, no climb or mantle started, never half a metre over the flight", bad.length === 0, bad.slice(0, 4).join("; ") || `${routes.length} stairs`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

@@ -494,6 +494,12 @@ export class Player {
     return false;
   }
 
+  /** whether a box hangs over the body within `reach` of its head */
+  private overhead(reach: number): boolean {
+    const head = this.pos.y + this.height;
+    return this.overlapping(this.pos.x, this.pos.z, MOVE.radius).some((s) => s.base >= head - 1e-4 && s.base < head + reach);
+  }
+
   private blocks(s: Solid, feet: number, height: number): boolean {
     return s.top > feet + MOVE.stepHeight + 1e-4 && s.base < feet + height - 1e-4;
   }
@@ -1115,6 +1121,10 @@ export class Player {
     if (this.climbing || this.mantle || this.sliding) return;
     // on the ground only for an auto-climb, and only up a wall too tall to mantle
     if (this.onGround && !(this.autoClimb && this.tallWallAhead())) return;
+    // and not with a ceiling over the body within the climb's space: on a stair core's landing, with the landing above
+    // it overhead, running into the core's wall climbed it into that landing, and the mantle off its edge lifted the
+    // body up through it (the owner, 2026-10-12: "i can glitch through stairs all the time when going up")
+    if (this.onGround && this.overhead(MOVE.climbSpaceHeight)) return;
     // on the ground, the climb's space is measured from where you stand
     if (this.onGround) this.climbBaseline = this.pos.y;
     const n = this.wallNear(MOVE.climbAttachReach);

@@ -13346,3 +13346,23 @@ all measured, the surface's continuity never was.
   the armour meets the arm and the waist, tens of pixels at 0.9 m, invisible at playing distance.
 - **Checked:** both checks; the skfigure section (the head from behind and every hold) with the collar higher; verify,
   rules and the type check.
+
+## Milestone 589 — No climbing up through a stairwell's landing
+
+The owner, 2026-10-12: "i can glitch through stairs all the time when going up".
+
+- **The fault, reproduced:** the tower's stair core, run up at a sprint with SpeedKills' own moves on (the double
+  jump, the wall runs and the auto-climb). On a landing, with the landing above 1.4 m over the head, running into the
+  core's wall started the auto-climb (SpeedKills climbs a wall too tall to mantle by running into it). The climb rose
+  into that landing, and the mantle off its edge took its top for a ledge and lifted the body up through the 0.3 m slab:
+  3.5 m up, a storey skipped. The base's twelve double flights and THE TERRACES' ramps did not do it.
+- **Why the checks missed it:** every stair walk in them ran with those moves off, which the game always turns on.
+- **The fix** (src/game/player.ts): the auto-climb does not start from the ground with a ceiling over the body within
+  the climb's space. A guard on the mantle itself was tried too, refusing a ledge with a box over the body, and it
+  stopped THE CHAIN's chimney (tools/checks/sk-chaincourse.ts): its last move mantles over the top deck's lip from
+  under it, the same shape. So it is not in. Without the auto-climb a body never reaches the landing's edge on a run
+  up, and the chimney, the wall gaps and the climbs (reach.ts, sk-chaincourse.ts) are as they were.
+- **Checked** (tools/checks/sk-neon.ts): a new check sprints up the tower's core from its lobby to its top storey and
+  up each of the base's stairs with the game's moves on. It fails on any climb or mantle starting, or the body rising
+  half a metre over the flight. It passes now, and it failed with the old code: at (-9, 3.5, 0.5), 3.5 m over the
+  flight. reach.ts and sk-chaincourse.ts pass. The e2e: the SpeedKills section, 101 checks, none failing, run alone (two runs beside six other e2e runs had failed different guns and ghost checks each time). verify, rules and the type check.
