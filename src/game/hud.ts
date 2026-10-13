@@ -178,6 +178,10 @@ export interface HudState {
   prompt: { key: string; text: string } | null;
   /** the keys on screen, under the FPS (keyhints.json): each row's description and keys, and the key that hides them */
   keyHints?: { rows: ReadonlyArray<{ label: string; keys: readonly string[] }>; hide: string } | null;
+  /** a controller in hand, and whose buttons it has: the key caps draw its face buttons as the pad does (keyCap) */
+  padFamily?: "xbox" | "ps" | null;
+  /** the map's key or button, for the map's own line */
+  mapKey?: string;
   /**
    * a magnified scope's full-screen picture, faded in with aim; a signature gun's (gunfeel.json scope) powers on: `on`
    * is how far through its boot it is, 0..1, and `charge` how far it has recharged since its last shot
@@ -300,6 +304,21 @@ const PANEL = "rgba(8,10,12,0.55)";
 const SHIELD = "#a855f7";
 const RED = "#ff4b3e";
 const FONT = `"Rajdhani", "Segoe UI", system-ui, sans-serif`;
+/**
+ * A pad's face buttons as the pad prints them (keyCap): Xbox's lettered A B X Y in green, red, blue and yellow, and
+ * PlayStation's cross, circle, square and triangle in blue, red, pink and green, so a prompt reads as the button under
+ * the thumb (the owner, 2026-10-12: "detect if its xbox or ps layout and display accordingly").
+ */
+const FACE_GLYPH: Readonly<Record<string, { color: string; shape: "letter" | "cross" | "circle" | "square" | "triangle" }>> = {
+  A: { color: "#6cc644", shape: "letter" },
+  B: { color: "#e5483b", shape: "letter" },
+  X: { color: "#3d8bf2", shape: "letter" },
+  Y: { color: "#f2c21b", shape: "letter" },
+  "✕": { color: "#8fb0ff", shape: "cross" },
+  "○": { color: "#ff6f6f", shape: "circle" },
+  "□": { color: "#f08fdc", shape: "square" },
+  "△": { color: "#45d6a8", shape: "triangle" },
+};
 
 /** a teammate's name over them (Phase 27): where, in what colour, and what goes under it */
 export interface MateTag {
@@ -537,6 +556,7 @@ export class Hud {
 
   draw(now: number, camera: THREE.Camera, s: HudState): void {
     this.last = s;
+    this.padNow = s.padFamily ?? null;
     if (!this.enabled) return;
     const c = this.ctx;
     c.clearRect(0, 0, this.w, this.h);
@@ -1015,6 +1035,88 @@ export class Hud {
    */
   private hintsCache: { key: string; canvas: HTMLCanvasElement; x: number; y: number; w: number; h: number } | null = null;
 
+  /** whose pad the caps draw this frame (HudState padFamily), null for the keyboard's caps */
+  private padNow: "xbox" | "ps" | null = null;
+
+  /**
+   * One key cap, its left edge at x and its middle at yMid, `h` tall, its text `size`; how wide it drew. The keyboard's
+   * are light squares with the key's name; with a controller in hand its face buttons are the pad's own round buttons
+   * in their colours, and its other buttons (bumpers, triggers, the D-pad, the sticks) dark pills with their names.
+   */
+  private keyCap(label: string, x: number, yMid: number, h: number, size: number, u: number, light = "#f2f2f2"): number {
+    const c = this.ctx;
+    const face = this.padNow ? FACE_GLYPH[label] : undefined;
+    if (face && (this.padNow === "xbox") === (face.shape === "letter")) {
+      const r = h / 2;
+      const cx = x + r;
+      c.fillStyle = "#15191e";
+      c.beginPath();
+      c.arc(cx, yMid, r, 0, Math.PI * 2);
+      c.fill();
+      c.strokeStyle = "rgba(255,255,255,0.35)";
+      c.lineWidth = 1.2 * u;
+      c.stroke();
+      c.strokeStyle = face.color;
+      c.fillStyle = face.color;
+      const k = r * 0.45;
+      c.lineWidth = Math.max(1.5, r * 0.16);
+      if (face.shape === "letter") this.text(label, cx, yMid + size * 0.36, 700, size, face.color, "center");
+      else if (face.shape === "cross") {
+        c.beginPath();
+        c.moveTo(cx - k, yMid - k);
+        c.lineTo(cx + k, yMid + k);
+        c.moveTo(cx + k, yMid - k);
+        c.lineTo(cx - k, yMid + k);
+        c.stroke();
+      } else if (face.shape === "circle") {
+        c.beginPath();
+        c.arc(cx, yMid, k, 0, Math.PI * 2);
+        c.stroke();
+      } else if (face.shape === "square") c.strokeRect(cx - k * 0.9, yMid - k * 0.9, k * 1.8, k * 1.8);
+      else {
+        c.beginPath();
+        c.moveTo(cx, yMid - k);
+        c.lineTo(cx + k, yMid + k * 0.75);
+        c.lineTo(cx - k, yMid + k * 0.75);
+        c.closePath();
+        c.stroke();
+      }
+      return h;
+    }
+    c.font = this.font(600, size);
+    const w = Math.max(h, c.measureText(label).width + 12 * u);
+    if (this.padNow) {
+      // a pad's other buttons: a dark pill, its name light
+      const r = h / 2;
+      c.fillStyle = "#15191e";
+      c.beginPath();
+      c.moveTo(x + r, yMid - r);
+      c.lineTo(x + w - r, yMid - r);
+      c.arc(x + w - r, yMid, r, -Math.PI / 2, Math.PI / 2);
+      c.lineTo(x + r, yMid + r);
+      c.arc(x + r, yMid, r, Math.PI / 2, (Math.PI * 3) / 2);
+      c.closePath();
+      c.fill();
+      c.strokeStyle = "rgba(255,255,255,0.35)";
+      c.lineWidth = 1.2 * u;
+      c.stroke();
+      this.text(label, x + w / 2, yMid + size * 0.36, 600, size, "#e8edf2", "center");
+      return w;
+    }
+    c.fillStyle = light;
+    c.fillRect(x, yMid - h / 2, w, h);
+    this.text(label, x + w / 2, yMid + size * 0.36, 600, size, "#101214", "center");
+    return w;
+  }
+
+  /** a key cap's width, as keyCap would draw it */
+  private keyCapWidth(label: string, h: number, size: number, u: number): number {
+    const face = this.padNow ? FACE_GLYPH[label] : undefined;
+    if (face && (this.padNow === "xbox") === (face.shape === "letter")) return h;
+    this.ctx.font = this.font(600, size);
+    return Math.max(h, this.ctx.measureText(label).width + 12 * u);
+  }
+
   private drawKeyHints(s: HudState, u: number): void {
     this.hintsBottom = 0;
     const k = s.keyHints;
@@ -1032,7 +1134,7 @@ export class Hud {
     if (slow("keys")) return this.paintKeyHints(k, u, left, right, width, top, h);
     const dpr = this.canvas.width / this.w;
     // (the fonts' state too: drawn before the HUD's font is in, it would keep the stand-in font for good)
-    const key = `${this.w}|${dpr}|${u}|${document.fonts?.status}|${k.hide}|${k.rows.map((r) => `${r.label}=${r.keys.join(",")}`).join(";")}`;
+    const key = `${this.w}|${dpr}|${u}|${document.fonts?.status}|${this.padNow}|${k.hide}|${k.rows.map((r) => `${r.label}=${r.keys.join(",")}`).join(";")}`;
     if (this.hintsCache?.key !== key) {
       // its corner on a whole device pixel, so the copy is as sharp as the drawing
       const x = Math.floor((left - 12 * u) * dpr) / dpr;
@@ -1070,12 +1172,8 @@ export class Hud {
       // right to left, so the last key sits on the panel's right edge
       let x = x0;
       for (let i = keys.length - 1; i >= 0; i--) {
-        c.font = this.font(600, 15 * u);
-        const w = Math.max(cap, c.measureText(keys[i]).width + 12 * u);
-        x -= w;
-        c.fillStyle = "#f2f2f2";
-        c.fillRect(x, yMid - cap / 2, w, cap);
-        this.text(keys[i], x + w / 2, yMid + 5 * u, 600, 15 * u, "#101214", "center");
+        x -= this.keyCapWidth(keys[i], cap, 15 * u, u);
+        this.keyCap(keys[i], x, yMid, cap, 15 * u, u);
         x -= 5 * u;
       }
     };
@@ -1092,11 +1190,7 @@ export class Hud {
     this.text("Press", left, mid + 5 * u, 600, 14 * u, "#ffd23c");
     c.font = this.font(600, 14 * u);
     const pw = c.measureText("Press ").width;
-    c.font = this.font(600, 13 * u);
-    const hw = Math.max(cap, c.measureText(k.hide).width + 12 * u);
-    c.fillStyle = "#ffd23c";
-    c.fillRect(left + pw, mid - cap / 2, hw, cap);
-    this.text(k.hide, left + pw + hw / 2, mid + 5 * u, 600, 13 * u, "#101214", "center");
+    const hw = this.keyCap(k.hide, left + pw, mid, cap, 13 * u, u, "#ffd23c");
     this.text("to hide this", left + pw + hw + 6 * u, mid + 5 * u, 600, 14 * u, "#ffd23c");
   }
 
@@ -1662,18 +1756,14 @@ export class Hud {
     const y = this.h * 0.58;
     c.font = this.font(700, 22 * u);
     const tw = c.measureText(p.text).width;
-    c.font = this.font(700, 18 * u);
-    const key = Math.max(30 * u, c.measureText(p.key).width + 16 * u);
-    c.font = this.font(700, 22 * u);
+    const cap = 30 * u;
+    const key = this.keyCapWidth(p.key, cap, 18 * u, u);
     const gap = 10 * u;
     const total = key + gap + tw;
     const x = this.w / 2 - total / 2;
-    const cap = 30 * u;
     c.fillStyle = PANEL;
     c.fillRect(x - 10 * u, y - cap / 2 - 6 * u, total + 20 * u, cap + 12 * u);
-    c.fillStyle = "#f2f2f2";
-    c.fillRect(x, y - cap / 2, key, cap);
-    this.text(p.key, x + key / 2, y + 7 * u, 700, 18 * u, "#101214", "center");
+    this.keyCap(p.key, x, y, cap, 18 * u, u);
     this.text(p.text, x + key + gap, y + 8 * u, 700, 22 * u, WHITE);
   }
 
@@ -2463,8 +2553,8 @@ export class Hud {
       this.text(this.shipWho(sh), this.w / 2, foot + 22 * u, 600, 14 * u, DIM, "center");
     } else if (br?.dropping) {
       this.text(`DROPPING INTO ${br.poi}`, this.w / 2, y0 - 26 * u, 700, 34 * u, "#ffd23c", "center");
-      this.text("STEER WITH THE MOVEMENT KEYS, LOOK DOWN TO DIVE", this.w / 2, foot, 600, 15 * u, DIM, "center");
-    } else this.text("M CLOSES THE MAP", this.w / 2, foot, 600, 15 * u, DIM, "center");
+      this.text(`STEER WITH THE ${this.padNow ? "LEFT STICK" : "MOVEMENT KEYS"}, LOOK DOWN TO DIVE`, this.w / 2, foot, 600, 15 * u, DIM, "center");
+    } else this.text(`${s.mapKey ?? "M"} CLOSES THE MAP`, this.w / 2, foot, 600, 15 * u, DIM, "center");
   }
 
   /**

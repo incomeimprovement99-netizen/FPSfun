@@ -2833,7 +2833,28 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   const bj = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0]]; })()");
   await ev(page, `(() => { const s = document.getElementById("padPreset"); s.value = "default"; s.dispatchEvent(new Event("change")); })()`);
   const df = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0], b[5], b[12] ?? 'nothing', b[15]]; })()");
-  check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, ping, nothing on D-pad up since the heal went, the utility hack)", bj.join() === "jump,ability" && df.join() === "ability,jump,ping,nothing,grenade", `${bj} / ${df}`);
+  // (Default since Milestone 538: the two hacks on the bumpers, ping on D-pad up, the controls panel on D-pad right)
+  check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, the utility hack on RB, ping on D-pad up, the keys panel on D-pad right)", bj.join() === "jump,ability" && df.join() === "ability,jump,grenade,ping,keyHints", `${bj} / ${df}`);
+  // The prompts follow the controller (Milestone 538): a pad in hand names its buttons in the keys panel and the
+  // prompts, an unnamed pad as Xbox's, a DualSense as PlayStation's, and a key on the keyboard turns them back
+  const rows = `(() => { const h = window.__range.hud.last; const k = h && h.keyHints; const f = (l) => (k && k.rows.find((r) => r.label.startsWith(l))?.keys.join(" ")) || null; return { pad: h ? h.padFamily ?? null : null, jump: f("Jump"), mob: f("Mobility"), util: f("Utility"), move: f("Move"), hide: k ? k.hide : null }; })()`;
+  await padTap(page, 0);
+  await sleep(700);
+  const xb = await ev<{ pad: string | null; jump: string | null; mob: string | null; util: string | null; move: string | null; hide: string | null }>(page, rows);
+  await ev(page, `window.__pad.id = "DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)"`);
+  await padTap(page, 0);
+  await sleep(700);
+  const ps = await ev<typeof xb>(page, rows);
+  await ev(page, `document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyQ" })); document.dispatchEvent(new KeyboardEvent("keyup", { code: "KeyQ" }));`);
+  await sleep(700);
+  const kb = await ev<typeof xb>(page, rows);
+  check(
+    "pad prompts: an unnamed pad in hand says Xbox's buttons (A, LB, RB, the left stick), a DualSense PlayStation's (cross, L1, R1), and a key turns them back to the keyboard's",
+    xb.pad === "xbox" && xb.jump === "A" && xb.mob === "LB" && xb.util === "RB" && xb.move === "L-STICK" && xb.hide === "D-PAD →" &&
+      ps.pad === "ps" && ps.jump === "✕" && ps.mob === "L1" && ps.util === "R1" &&
+      kb.pad === null && kb.jump !== null && kb.jump !== "A" && kb.jump !== "✕",
+    JSON.stringify({ xb, ps, kb })
+  );
   await page.close();
 }
 

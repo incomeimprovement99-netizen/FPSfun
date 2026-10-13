@@ -62,6 +62,12 @@ export class Input {
   /** scroll notches this frame, by direction */
   private wheel: Record<Wheel, number> = { wheelup: 0, wheeldown: 0 };
   locked = false;
+  /**
+   * What the player last used, the keyboard and mouse or a controller: the prompts follow it (main.ts keyLabel). A
+   * key, a click or the mouse moving in play turns it to the keyboard; a stick or a button, to the pad (main.ts, after
+   * the pad's poll).
+   */
+  device: "keyboard" | "pad" = "keyboard";
   /** mouse movement comes from pointerrawupdate (lowest latency) */
   rawMouse = false;
   /** go fullscreen (with Keyboard Lock) when play starts; see lock() */
@@ -79,11 +85,14 @@ export class Input {
       if (!this.locked) return;
       this.dx += e.movementX;
       this.dy += e.movementY;
+      // (a nudge of a pixel or two is a desk bump, not a hand on the mouse)
+      if (Math.abs(e.movementX) + Math.abs(e.movementY) > 3) this.device = "keyboard";
     };
     if (raw) document.addEventListener("pointerrawupdate" as "pointermove", onMove);
     else document.addEventListener("mousemove", onMove);
     this.rawMouse = raw;
     document.addEventListener("mousedown", (e) => {
+      this.device = "keyboard";
       if (!this.locked) return;
       if (e.button < 5) {
         this.mouseDown[e.button] = true;
@@ -106,6 +115,7 @@ export class Input {
       { passive: false }
     );
     document.addEventListener("keydown", (e) => {
+      this.device = "keyboard";
       if (!this.locked) return;
       if (!this.down.has(e.code)) this.pressed.add(e.code);
       this.down.add(e.code);

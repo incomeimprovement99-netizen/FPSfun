@@ -229,7 +229,7 @@ describes the retired legacy game, and goes with its code.
   goes down loose, each gun at its level; a squad mate brings you back at your echo with it. A care package holds a gun at level 3 to 5 and two
   hack cores at 2 to 4. There are no loadout crates.
 - **Ten hacks, two carried:** a move on F or LB (Dash, Slam, Leap, Grapple)
-  and a tool on G or D-pad right (Heal, Armor, Wall, Invisibility, Reveal,
+  and a tool on G or RB (Heal, Armor, Wall, Invisibility, Reveal,
   Mine). Pick them in a match's setup under PLAY, or find them on the floor.
   Slam shows its 5 m ring on the floor under you while you are up, red when an
   enemy is inside it, and hits everyone in it on your floor, the damage shown
@@ -622,9 +622,10 @@ The defaults, as the Controls tab first shows them.
 
 ## Controller
 
-Plug one in and press **Start**; that is the controller's "click Play" (Start
-also brings the menu back). The layout is the game's **Default** preset
-(EA's own table), holds and double taps included:
+Plug one in and press **Start** (Options on a PlayStation pad); that is the
+controller's "click Play" (Start also brings the menu back). The layout is the
+game's **Default** preset (EA's own table), holds and double taps included,
+with SpeedKills' two hacks on the bumpers (since Milestone 538):
 
 | Control | Action | Control | Action |
 |---|---|---|---|
@@ -632,16 +633,28 @@ also brings the menu back). The layout is the game's **Default** preset
 | RT | fire | LT | aim down sights |
 | A | jump | B | crouch, slide |
 | X | reload; interact where there is a prompt (a zipline, an item); hold for a restore at an echo, a tour skip | Y | swap weapon; **hold** to holster |
-| LB | SpeedKills' mobility hack | RB | ping; **twice** for an enemy there |
+| LB | SpeedKills' mobility hack | RB | SpeedKills' utility hack |
 | L3 | sprint (when auto sprint is off) | R3 | melee |
-| D-pad up | nothing (the heal was there until the heal items went) | D-pad down | variable optic zoom (ours: the game has a character action there) |
-| D-pad left | inspect the gun | D-pad right | the utility hack |
+| D-pad up | ping; **twice** for an enemy there; **held**, the wheel, the right stick picking | D-pad down | variable optic zoom (ours: the game has a character action there) |
+| D-pad left | inspect the gun | D-pad right | show or hide the controls on screen |
 | Back | the full map | Start | play / menu |
 
+**The prompts follow the controller.** The moment a stick or a button is
+used, every key on screen turns into the controller's button: the controls
+panel on the right, the prompts under the crosshair, the hacks' tiles, the
+ship's and the map's lines. An Xbox pad's are its coloured A, B, X and Y and
+LB, RT and so on; a PlayStation pad's are its cross, circle, square and
+triangle and L1, R2 and so on, told apart by the pad's own id (Sony's USB
+vendor 054c, Microsoft's 045e, or its name). A pad that names neither shows
+Xbox's, the layout most PC pads copy, and Settings, Controller, says so and
+has **Button prompts** to pick Xbox or PlayStation by hand. A key or a click
+turns everything back to the keyboard's.
+
 **Presets** on the Controls tab: Default, Bumper Jumper, Button
-Puncher, Evolved, Grenadier and Ninja (the game's), and Range (the fusion
-level and the weapon slots on the D-pad, for trying guns). **Every
-button but Start can also be moved** one at a time.
+Puncher, Evolved and Ninja (the game's), Classic (the layout before 538: ping
+on RB, the utility hack on D-pad right), and Range (the fusion level and the
+weapon slots on the D-pad, for trying guns). **Every button but Start can also
+be moved** one at a time, each listed by its Xbox and its PlayStation name.
 
 Look sensitivity 1 to 8 like the game (3 is the game's default, 180 deg/s of
 yaw), a separate ADS level, a Classic (curved) or Linear response, an inner

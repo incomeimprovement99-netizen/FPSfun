@@ -11595,6 +11595,40 @@ don't combine. Have them grouped by like close range vs long range."
   with the age filled in; the range is open 40 m down with no curtain and the screen 24 m in); photographs before and
   after.
 
+## Milestone 538 — The prompts follow the controller: Xbox's or PlayStation's buttons, and the hacks on the bumpers
+
+The owner (2026-10-12): "we need to make the game much more controller friendly. We need to detect when they are
+using the controller and swap out the buttons for them ... the box with the keys on the right should be translated and
+every like 'Press F to loot' should be the controller equivalent. If possible, detect if its xbox or ps layout and
+display accordingly." Tiger, the fifth playtester, found the game hard on a controller.
+
+- **Which device is in hand:** input.ts `device` turns to the keyboard on a key, a click or the mouse moving in play,
+  and to the pad when a stick moves or a button goes down (gamepad.ts `touchedNow`, read after the pad's poll).
+- **Whose pad:** gamepad.ts `padFamilyOf` reads the pad's id, which the browser builds from its USB vendor and name:
+  Sony's 054c (or "DualSense", "DualShock", "Wireless Controller") is PlayStation, Microsoft's 045e (or "Xbox",
+  "XInput") Xbox. A pad that names neither shows Xbox's (most PC pads copy its layout), and Settings, Controller has
+  **Button prompts** (Auto, Xbox, PlayStation) with a line saying what the pad in hand was read as.
+- **Every prompt from the binding follows it:** main.ts `keyLabel` gives the pad button an action is on
+  (gamepad.ts `padLabel`: the live map, a hold as "HOLD" and its button, interact on reload's button, the move keys
+  as the left stick), so the loot, restore and armory prompts, the hacks' tiles, the ship's, the dive's and the map's
+  lines, the killcam and recap all turn. The controls panel on the right lists one button an action and drops the
+  rows no button does. Key texts that were written in (the zipline's E, the ladder's SPACE and W, "M IS THE MAP ·
+  SPACE JUMPS", "M CLOSES THE MAP", "STEER WITH THE MOVEMENT KEYS") go through it now.
+- **Drawn as the pad's buttons:** hud.ts `keyCap` draws Xbox's A B X Y as their green, red, blue and yellow letters
+  on a dark button, PlayStation's cross, circle, square and triangle as their blue, red, pink and green shapes, and
+  the bumpers, triggers, D-pad and sticks as dark pills with their names; the keyboard keeps its light caps.
+- **The wheels by stick:** the ping wheel picked only by the mouse; with a wheel open the right stick now points at
+  the pick and stops turning the view.
+- **The hacks on the bumpers:** the Default layout put the utility hack on D-pad right, which a thumb on the move
+  stick cannot reach in a fight. LB is the mobility hack and RB the utility hack now (Apex's tactical sits on a
+  bumper too), ping is on D-pad up and D-pad right shows or hides the controls panel. "Classic" keeps the old layout;
+  a player's own button changes stay on top of the new default.
+- **Said in both where the screen cannot see the pad:** the manual's Controls section has an "On a controller" table
+  with each button's Xbox and PlayStation name and why, and the Controls tab lists each button by both names.
+- **Checked:** tsc; verify; rules; e2e pad (an unnamed pad says Xbox's buttons, a DualSense PlayStation's, a key
+  turns them back; the new Default), finish and range; photographs of the panel with an Xbox and a DualSense id.
+  Put back (the device never turning to the pad), the prompts check fails.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -539,7 +539,7 @@
             </div>
               <div class="hackPicks">
                 <label>Mobility hack <span class="hint">F / LB</span><select id="hackMobility"></select></label>
-                <label>Utility hack <span class="hint">G / D-pad right</span><select id="hackUtility"></select></label>
+                <label>Utility hack <span class="hint">G / RB</span><select id="hackUtility"></select></label>
               </div>
             </div>
               <div class="setupGo">
@@ -648,7 +648,8 @@
           <div class="row"><label>Size, thickness, gap <div class="hint">line length (1 is the default), line width in pixels, and extra space round the middle</div></label><span class="pair"><input id="xhSize" type="number" min="0.3" max="3" step="0.1" /><input id="xhThick" type="number" min="1" max="5" step="0.5" /><input id="xhGap" type="number" min="0" max="20" step="1" /></span></div>
           <div class="row"><label>Dot, outline, spread <div class="hint">a centre dot; a dark edge so it reads on a bright sky; the gap opening with the gun's spread</div></label><span class="pair"><select id="xhDot"><option value="1">Dot</option><option value="0">No dot</option></select><select id="xhOutline"><option value="0">No outline</option><option value="1">Outline</option></select><select id="xhDynamic"><option value="1">Moves with spread</option><option value="0">Fixed</option></select></span></div>
           <div class="row"><label>Opacity <div class="hint">0.2 to 1</div></label><span class="pair"><input id="xhOpacity" type="number" min="0.2" max="1" step="0.05" /><canvas id="xhPreview" width="96" height="96" style="background:#6f7d86;border-radius:4px;vertical-align:middle"></canvas><button id="xhReset" type="button">Reset</button></span></div>
-          <div class="lohead">Controller <span class="hint">plug one in and press Start. Left stick move, right stick look, RT fire, LT aim, A jump, B crouch, X reload and use, Y swap (hold: holster), L3 sprint, R3 melee, LB mobility hack, D-pad right utility hack, RB ping, D-pad up heal, Back map. Other layouts are in the Controls tab</span></div>
+          <div class="lohead">Controller <span class="hint">plug one in and press Start (Options on a PlayStation pad). Left stick move, right stick look, RT fire, LT aim, A jump, B crouch, X reload and use, Y swap (hold: holster), L3 sprint, R3 melee, LB mobility hack, RB utility hack, D-pad up ping, D-pad right the controls on screen, Back map. On a PlayStation pad: cross, circle, square, triangle, L1, R1, L2, R2. Other layouts are in the Controls tab</span></div>
+          <div class="row"><label>Button prompts <div class="hint" id="padPromptsSeen"></div></label><select id="padPrompts"><option value="auto">Auto: the controller in hand</option><option value="xbox">Xbox (A B X Y)</option><option value="ps">PlayStation (cross circle square triangle)</option></select></div>
           <div class="row"><label>Look sensitivity <div class="hint">1 to 8; 3 is 180 deg/s of yaw</div></label><select id="padLook"></select></div>
           <div class="row"><label>ADS sensitivity <div class="hint">1 to 8; 3 scales with the zoom like the mouse</div></label><select id="padAds"></select></div>
           <div class="row"><label>Response curve</label><select id="padCurve"><option value="classic">Classic</option><option value="linear">Linear</option></select></div>

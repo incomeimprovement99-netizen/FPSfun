@@ -4,7 +4,7 @@
 // and the tab says so. The changes live in this browser (localStorage) on top
 // of src/config/binds.json, which stays the default.
 import { DEFAULT_BINDS, currentBinds, setBinds, type Action } from "../game/input";
-import { DEFAULT_PAD_BUTTONS, PAD_BUTTON_NAMES, PAD_HOLDS, PAD_PRESETS, padButtons, setPadButtons, type PadPreset } from "../game/gamepad";
+import { DEFAULT_PAD_BUTTONS, PAD_BUTTON_NAMES, PAD_HOLDS, PAD_LABELS, PAD_PRESETS, padButtons, setPadButtons, type PadPreset } from "../game/gamepad";
 
 const PAD_KEY = "range.padbinds.v1";
 /** the controller's changes: a button's index to an action, or "none" */
@@ -323,9 +323,9 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
     root.appendChild(h);
     const hint = document.createElement("div");
     hint.className = "bindRow";
-    hint.innerHTML = `<span class="bindName" style="color:#7d8895">The game's Default layout. The sticks move and look. Start is always the menu, so it cannot be moved. X also rides ziplines and takes items where there is a prompt. Held: ${Object.entries(PAD_HOLDS)
+    hint.innerHTML = `<span class="bindName" style="color:#7d8895">The game's Default layout, each button by its Xbox name and its PlayStation one. The sticks move and look. Start (Options) is always the menu, so it cannot be moved. X (square) also rides ziplines and takes items where there is a prompt. Held: ${Object.entries(PAD_HOLDS)
       .map(([a, h]) => `${labelOf(a as Action).split(" (")[0].toLowerCase()} → ${labelOf(h as Action).split(" (")[0].toLowerCase()}`)
-      .join("; ")}. Twice on ping: an enemy there. While the ability card is up, D-pad left and right pick.</span>`;
+      .join("; ")}. Twice on ping: an enemy there. Held on ping, the right stick picks on its wheel.</span>`;
     root.appendChild(hint);
     // the game's presets: a layout in one go
     const presetRow = document.createElement("div");
@@ -364,7 +364,9 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
       row.className = "bindRow";
       const lab = document.createElement("span");
       lab.className = "bindName";
-      lab.textContent = name;
+      // both names: the Xbox one, and the PlayStation one where it differs (a D-pad is a D-pad)
+      const ps = PAD_LABELS.ps[i];
+      lab.textContent = ps && ps !== PAD_LABELS.xbox[i] ? `${name} / ${ps}` : name;
       row.appendChild(lab);
       if (i === 9) {
         const fixed = document.createElement("span");

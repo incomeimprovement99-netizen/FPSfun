@@ -1,17 +1,18 @@
 // Controller support, through the browser's Gamepad API.
 //
-// The layout is the game's Default preset (EA's own table,
-// docs/RESEARCH_PHASE_12.md section 1):
+// The layout is the game's Default preset (EA's own table, docs/RESEARCH_PHASE_12.md section 1), with SpeedKills' two
+// hacks on the bumpers (Milestone 538: the utility hack was on D-pad right, which a thumb on the move stick cannot
+// reach in a fight, and Tiger, a playtester, found the controller hard):
 //   left stick move, right stick look, RT fire, LT aim, A jump, B crouch,
-//   X reload (and interact: a zipline in reach, an item, held for a revive or
-//   a restore), Y swap weapon (hold: holster), L3 sprint, R3 melee, LB the
-//   ability (the game's tactical), RB ping (twice: an enemy there), D-pad up
-//   nothing (the heal was there until the heal items went, Milestone 523),
-//   D-pad right the utility hack,
-//   D-pad left fire mode (hold: inspect), D-pad down the
-//   variable zoom (ours: the game puts a character action there), Back the
-//   map, Start the menu. The game's other presets are here too, and "Range",
-//   the layout with the optic and magazine on the D-pad for trying guns.
+//   X reload (and interact: a zipline in reach, an item, held for a restore), Y swap weapon (hold: holster), L3
+//   sprint, R3 melee, LB the mobility hack, RB the utility hack, D-pad up ping (twice: an enemy there), D-pad right
+//   the controls panel on screen, D-pad left inspect, D-pad down the variable zoom (ours: the game puts a character
+//   action there), Back the map, Start the menu. The game's other presets are here too, "Classic" the layout before
+//   538 (ping on RB, the utility hack on D-pad right), and "Range", the fusion level and the slots on the D-pad.
+//
+// The prompts follow the pad: the face buttons are said the way the pad in hand says them, Xbox (A B X Y, LB RB LT
+// RT) or PlayStation (cross circle square triangle, L1 R1 L2 R2), read off the pad's id (its USB vendor: Sony 054c,
+// Microsoft 045e, or its name) unless the player picks one in Settings.
 //
 // Look: a deadzone, a response curve (the game's Classic is a steeper curve
 // than Linear), and yaw and pitch speeds from a look sensitivity of 1 to 8
@@ -43,6 +44,8 @@ export interface PadSettings {
   rumble: boolean;
   /** slowdown and rotational aim assist (aimassist.ts), as the game has for controllers */
   aimAssist: boolean;
+  /** the buttons the prompts name: the pad's own (read off its id), or Xbox's or PlayStation's whatever is in hand */
+  prompts: "auto" | PadFamily;
   /**
    * The game's advanced look controls: yaw and pitch speeds in degrees a
    * second at full deflection (hip and aimed), and at the stick's edge an
@@ -69,6 +72,7 @@ export const PAD_DEFAULTS: PadSettings = {
   autoSprint: true,
   rumble: true,
   aimAssist: true,
+  prompts: "auto",
   advanced: false,
   yaw: 180,
   pitch: 120,
@@ -118,6 +122,58 @@ export function advancedLookRate(s: PadSettings, rx: number, ry: number, adsFrac
 /** the buttons by their standard-mapping index, as a person would say them */
 export const PAD_BUTTON_NAMES = ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "Back", "Start", "L3", "R3", "D-pad up", "D-pad down", "D-pad left", "D-pad right"];
 
+/** whose buttons a pad has: Xbox's letters or PlayStation's shapes */
+export type PadFamily = "xbox" | "ps";
+/**
+ * A pad's family off its id, which the browser builds from the pad's USB vendor and its name: Chrome's "DualSense
+ * Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)", Firefox's "054c-0ce6-...". Sony is 054c,
+ * Microsoft 045e. Anything else (an 8BitDo, a pad that names nobody) is null: the prompts then say Xbox's, the layout
+ * most PC pads copy, and Settings says so and lets the player pick.
+ */
+export function padFamilyOf(id: string): PadFamily | null {
+  const s = id.toLowerCase();
+  if (/054c|playstation|dualsense|dualshock|ps4|ps5/.test(s)) return "ps";
+  if (/045e|xbox|xinput/.test(s)) return "xbox";
+  // Sony's own pads name themselves "Wireless Controller" and nothing else
+  if (/^wireless controller/.test(s)) return "ps";
+  return null;
+}
+/**
+ * The buttons by standard-mapping index as each family's pads print them, for the prompts. The face buttons are the
+ * HUD's glyphs (hud.ts draws them as the pad's coloured buttons); the rest are said in words.
+ */
+export const PAD_LABELS: Readonly<Record<PadFamily, readonly string[]>> = {
+  xbox: ["A", "B", "X", "Y", "LB", "RB", "LT", "RT", "VIEW", "MENU", "LS CLICK", "RS CLICK", "D-PAD ↑", "D-PAD ↓", "D-PAD ←", "D-PAD →"],
+  ps: ["✕", "○", "□", "△", "L1", "R1", "L2", "R2", "CREATE", "OPTIONS", "L3", "R3", "D-PAD ↑", "D-PAD ↓", "D-PAD ←", "D-PAD →"],
+};
+/** the face buttons, which the HUD draws as glyphs rather than words */
+export const PAD_FACE: ReadonlySet<string> = new Set([...PAD_LABELS.xbox.slice(0, 4), ...PAD_LABELS.ps.slice(0, 4)]);
+/**
+ * The pad button an action is on, as the family says it: what the live map (BUTTON) puts it on; for an action that
+ * is another's hold, "HOLD" and that button; interact rides on reload's button (input.ts); the move keys are the left
+ * stick. Null where no button does it (the action is on the keyboard alone).
+ */
+export function padLabel(action: Action, family: PadFamily): string | null {
+  const names = PAD_LABELS[family];
+  if (action === "forward" || action === "back" || action === "left" || action === "right") return "L-STICK";
+  const on = (a: Action): number | null => {
+    for (const [k, v] of Object.entries(BUTTON)) if (v === a) return Number(k);
+    return null;
+  };
+  const i = on(action);
+  if (i !== null) return names[i];
+  for (const [tap, hold] of Object.entries(PAD_HOLDS)) {
+    if (hold !== action) continue;
+    const j = on(tap as Action);
+    if (j !== null) return `HOLD ${names[j]}`;
+  }
+  if (action === "interact") {
+    const j = on("reload");
+    if (j !== null) return names[j];
+  }
+  return null;
+}
+
 /** what each button does out of the box (standard-mapping indices): the game's Default */
 export const DEFAULT_PAD_BUTTONS: Readonly<Record<number, Action | "menu">> = {
   0: "jump",
@@ -125,18 +181,19 @@ export const DEFAULT_PAD_BUTTONS: Readonly<Record<number, Action | "menu">> = {
   2: "reload",
   3: "swapWeapon",
   4: "ability",
-  5: "ping",
+  5: "grenade",
   6: "ads",
   7: "fire",
   8: "map",
   9: "menu",
   10: "sprint",
   11: "melee",
+  12: "ping",
   13: "zoomToggle",
   14: "inspect",
-  15: "grenade",
+  15: "keyHints",
 };
-export type PadPreset = "default" | "bumperJumper" | "buttonPuncher" | "evolved" | "grenadier" | "ninja" | "range";
+export type PadPreset = "default" | "bumperJumper" | "buttonPuncher" | "evolved" | "classic" | "ninja" | "range";
 /**
  * The game's named presets, as what moves from Default (EA's accessibility
  * page; where it does not say where a displaced action goes, ours is noted),
@@ -150,14 +207,13 @@ export const PAD_PRESETS: Record<PadPreset, { name: string; changes: Partial<Rec
   buttonPuncher: { name: "Button Puncher", changes: { 11: "crouch", 1: "melee" } },
   // jump to LB, crouch to R3; the tactical to A and melee to B (ours: unconfirmed)
   evolved: { name: "Evolved", changes: { 4: "jump", 11: "crouch", 0: "ability", 1: "melee" } },
-  // grenades (SpeedKills' utility hack) to RB, ping to D-pad up; D-pad right keeps the hack too, now that the heal that
-  // went there is gone (ours: unconfirmed)
-  grenadier: { name: "Grenadier", changes: { 5: "grenade", 12: "ping" } },
-  // jump to LB, crouch to RB; the tactical to B, ping to A
-  ninja: { name: "Ninja", changes: { 4: "jump", 5: "crouch", 1: "ability", 0: "ping" } },
-  // the range: the fusion level and the slots on the D-pad, holster on Back, zoom on RB (the optic's cycle there went with
-  // the legacy game's attachments, Milestone 522)
-  range: { name: "Range (fusion level and slots on the D-pad)", changes: { 5: "zoomToggle", 8: "holster", 13: "magLevel", 14: "slot1", 15: "slot2" } },
+  // the layout before Milestone 538: ping on RB, the utility hack on D-pad right, the controls panel on D-pad up
+  classic: { name: "Classic (ping on RB, utility hack on D-pad right)", changes: { 5: "ping", 12: "keyHints", 15: "grenade" } },
+  // jump to LB, crouch to RB; the tactical to B, ping to A, the utility hack (RB's in Default) to D-pad up
+  ninja: { name: "Ninja", changes: { 4: "jump", 5: "crouch", 1: "ability", 0: "ping", 12: "grenade" } },
+  // the range: the fusion level and the slots on the D-pad, the zoom on D-pad up and holster on Back (the optic's cycle
+  // went with the legacy game's attachments, Milestone 522; RB keeps the utility hack since 538)
+  range: { name: "Range (fusion level and slots on the D-pad)", changes: { 12: "zoomToggle", 8: "holster", 13: "magLevel", 14: "slot1", 15: "slot2" } },
 };
 /**
  * A button's hold does something else than its tap, where the game has one:
@@ -192,8 +248,18 @@ export class GamepadInput {
   settings: PadSettings = { ...PAD_DEFAULTS };
   /** a pad is connected and was touched recently */
   active = false;
+  /** whose buttons the prompts say: the player's pick, else the pad's own family, else Xbox's (padFamilyOf) */
+  get family(): PadFamily {
+    return this.settings.prompts !== "auto" ? this.settings.prompts : (padFamilyOf(this.id) ?? "xbox");
+  }
   /** set on the connect event, cleared by whoever reads it (the HUD notice) */
   justConnected = false;
+  /** a stick moved or a button went down this frame: the prompts turn to the pad (input.ts device) */
+  touchedNow = false;
+  /** the pad's id as the browser gives it (its name and USB ids), for its family */
+  id = "";
+  /** the right stick through the deadzone this frame, for a wheel's pick (x right, y down) */
+  readonly stick = { x: 0, y: 0 };
   private index = -1;
   private down = new Set<Action | "menu">();
   private pressed = new Set<Action | "menu">();
@@ -242,11 +308,15 @@ export class GamepadInput {
     this.pressed.clear();
     this.lookX = 0;
     this.lookY = 0;
+    this.touchedNow = false;
+    this.stick.x = 0;
+    this.stick.y = 0;
     if (!p) {
       this.active = false;
       this.down.clear();
       return { yawLeft: 0, pitchUp: 0 };
     }
+    this.id = p.id;
     const s = this.settings;
     const dz = (v: number) => padDeadzone(s, v);
     const ax = p.axes;
@@ -254,6 +324,8 @@ export class GamepadInput {
     const my = dz(ax[1] ?? 0);
     const rx = dz(ax[2] ?? 0);
     const ry = dz(ax[3] ?? 0);
+    this.stick.x = rx;
+    this.stick.y = ry;
     let touched = Math.abs(mx) + Math.abs(my) + Math.abs(rx) + Math.abs(ry) > 0;
 
     // buttons: held and pressed-this-frame
@@ -308,6 +380,7 @@ export class GamepadInput {
     this.down = next;
 
     if (touched) this.lastTouched = now;
+    this.touchedNow = touched;
     this.active = now - this.lastTouched < 120;
 
     // the advanced look: its own speeds, and the extra turn at the edge

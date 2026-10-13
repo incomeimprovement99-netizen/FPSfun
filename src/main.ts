@@ -6,7 +6,7 @@ import { GAME, PROFILE } from "./game/game";
 import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponName } from "./game/weapons";
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
-import { padButtons, type PadSettings } from "./game/gamepad";
+import { padButtons, padFamilyOf, padLabel, type PadSettings } from "./game/gamepad";
 import { Player } from "./game/player";
 import { Loadout, type SlotSetup } from "./game/loadout";
 import { HU, MOVE } from "./game/movement";
@@ -2837,7 +2837,7 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   const master = d.isJumpmaster();
   const say = (): void => {
     hud.notice(master ? "YOU LEAD THE DROP: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} LEADS THE DROP` : `THE SHIP PASSES ${SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
-    if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice("M IS THE MAP  ·  SPACE JUMPS", gameTime, 2.5), 3200);
+    if (!squadCfg.dive.mapOnBoard) window.setTimeout(() => hud.notice(`${keyLabel("map")} IS THE MAP  ·  ${keyLabel("jump")} JUMPS`, gameTime, 2.5), 3200);
   };
   // boarded under SpeedKills' loading screen and card: said once they have gone, or it was over before anyone saw it
   if (show) show.then.push(say);
@@ -3232,8 +3232,12 @@ function stopEmote(): void {
   sendFx("emote", undefined, undefined, EMOTE_STOP);
 }
 // ---------- the keys, as the HUD names them ----------
-/** the key an action is on, as the HUD shows it */
-const keyLabel = (a: Action): string => bindName(currentBinds()[a]?.[0] ?? "?").toUpperCase();
+/**
+ * The key an action is on, as the HUD shows it: the keyboard's, or with a controller in hand (input.device) the pad
+ * button, said the way the pad says it (Xbox or PlayStation, gamepad.ts padLabel; the owner, 2026-10-12: "detect when
+ * they are using the controller and swap out the buttons for them"). An action no pad button does keeps its key.
+ */
+const keyLabel = (a: Action): string => (input.device === "pad" ? padLabel(a, input.pad.family) : null) ?? bindName(currentBinds()[a]?.[0] ?? "?").toUpperCase();
 /**
  * The keys on screen (keyhints.json, hud.ts drawKeyHints): up for everyone until
  * they hide them, and remembered either way. Built from the bindings as they are,
@@ -3250,21 +3254,29 @@ function keyHintsNow(now: number): HudState["keyHints"] {
   if (!keyHintsOn) return null;
   const inRange = !duel;
   const friends = (duel instanceof Duel && duel.players > 1) || hangout !== null;
-  const key = `${inRange}|${friends}`;
+  const pad = input.device === "pad" ? input.pad.family : null;
+  const key = `${inRange}|${friends}|${pad}`;
   if (keyHintsBuilt && keyHintsBuilt.key === key && now - keyHintsBuilt.at < 0.5) return keyHintsBuilt.value;
   const binds = currentBinds();
   // the keys a person would name: not the scroll wheel's notches, nor the right-hand twin of a left-hand key
   const named = (b: string): boolean => !b.startsWith("wheel") && !/Right$/.test(b);
-  const first = (a: string, n: number): string[] => (binds[a as Action] ?? []).filter(named).slice(0, n).map((b) => bindName(b));
+  // with a controller in hand, its one button for each (the move row is the left stick)
+  const first = (a: string, n: number): string[] => {
+    if (pad) {
+      const l = padLabel(a as Action, pad);
+      return l ? [l] : [];
+    }
+    return (binds[a as Action] ?? []).filter(named).slice(0, n).map((b) => bindName(b));
+  };
   const rows: Array<{ label: string; keys: string[] }> = [];
   for (const r of keyHintsCfg.rows as ReadonlyArray<{ label: string; actions: string[]; when?: string }>) {
     if (r.when === "range" && !inRange) continue;
     if (r.when === "friends" && !friends) continue;
-    const keys = r.actions.length > 1 ? r.actions.flatMap((a) => first(a, 1)) : first(r.actions[0], keyHintsCfg.keysPerAction);
+    const keys = r.actions.length > 1 ? [...new Set(r.actions.flatMap((a) => first(a, 1)))] : first(r.actions[0], keyHintsCfg.keysPerAction);
     // an action someone unbound has nothing to press: its row goes rather than showing an empty cap
     if (keys.length) rows.push({ label: r.label, keys });
   }
-  const value = { rows, hide: bindName(binds.keyHints?.[0] ?? "?") };
+  const value = { rows, hide: pad ? (padLabel("keyHints", pad) ?? "?") : bindName(binds.keyHints?.[0] ?? "?") };
   keyHintsBuilt = { at: now, key, value };
   return value;
 }
@@ -5853,6 +5865,7 @@ try {
     if (typeof p.autoSprint === "boolean") s.autoSprint = p.autoSprint;
     if (typeof p.rumble === "boolean") s.rumble = p.rumble;
     if (typeof p.aimAssist === "boolean") s.aimAssist = p.aimAssist;
+    if (p.prompts === "auto" || p.prompts === "xbox" || p.prompts === "ps") s.prompts = p.prompts;
     if (typeof p.advanced === "boolean") s.advanced = p.advanced;
     const rng = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi ? v : d);
     s.yaw = rng(p.yaw, 10, 1000, s.yaw);
@@ -5887,6 +5900,20 @@ try {
   const rumble = $<HTMLSelectElement>("padRumble");
   const assistSel = $<HTMLSelectElement>("padAimAssist");
   assistSel.value = s.aimAssist ? "1" : "0";
+  // whose buttons the prompts say, and which the pad in hand was read as (gamepad.ts padFamilyOf)
+  const promptsSel = $<HTMLSelectElement>("padPrompts");
+  promptsSel.value = s.prompts;
+  const promptsSeen = $("padPromptsSeen");
+  const seen = (): void => {
+    const fam = input.pad.id ? padFamilyOf(input.pad.id) : null;
+    promptsSeen.textContent = !input.pad.id
+      ? "No controller seen yet: plug one in and press a button."
+      : fam
+        ? `Your controller reads as ${fam === "ps" ? "a PlayStation" : "an Xbox"} pad, so Auto shows its buttons.`
+        : "Your controller does not say whose it is, so Auto shows Xbox's buttons (A B X Y), the layout most PC pads copy. Pick PlayStation if yours has the shapes.";
+  };
+  seen();
+  window.addEventListener("gamepadconnected", () => window.setTimeout(seen, 100));
   aimAssist.enabled = s.aimAssist;
   look.value = String(s.look);
   ads.value = String(s.ads);
@@ -5912,6 +5939,7 @@ try {
     s.autoSprint = auto.value === "1";
     s.rumble = rumble.value === "1";
     s.aimAssist = assistSel.value === "1";
+    s.prompts = promptsSel.value === "xbox" || promptsSel.value === "ps" ? promptsSel.value : "auto";
     aimAssist.enabled = s.aimAssist;
     try {
       localStorage.setItem(LS_PAD, JSON.stringify(s));
@@ -5919,7 +5947,7 @@ try {
       /* ignore */
     }
   };
-  for (const el of [look, ads, curve, dead, outer, expo, auto, rumble, assistSel]) el.addEventListener("change", save);
+  for (const el of [look, ads, curve, dead, outer, expo, auto, rumble, assistSel, promptsSel]) el.addEventListener("change", save);
   // the advanced look: on or off, and its numbers
   const adv = $<HTMLSelectElement>("padAdvanced");
   const nums: Array<[keyof PadSettings, number, number]> = [
@@ -6215,6 +6243,7 @@ function step(): void {
   // toggles the menu; with a pad in use no pointer lock is needed to play.
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
   const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac, opticAdsMult());
+  if (input.pad.touchedNow) input.device = "pad";
   if (input.pad.menuPressed) {
     if (input.locked) input.unlock();
     else if (!overlay.classList.contains("hidden")) {
@@ -6231,7 +6260,8 @@ function step(): void {
   }
   if (input.pad.justConnected) {
     input.pad.justConnected = false;
-    hud.notice("CONTROLLER CONNECTED: PRESS START TO PLAY", now, 3);
+    const fam = padFamilyOf(input.pad.id);
+    hud.notice(`${fam === "ps" ? "PLAYSTATION CONTROLLER" : fam === "xbox" ? "XBOX CONTROLLER" : "CONTROLLER"} CONNECTED: PRESS ${fam === "ps" ? "OPTIONS" : "START"} TO PLAY`, now, 3);
   }
   // the pad went away (or idle) while it was the way in: back to the menu,
   // or there would be no input and no menu at all
@@ -6456,10 +6486,12 @@ function step(): void {
     const adsHNow = zoomFov43(loadout.active.weapon) * settings.fovScale;
     const m = input.consumeMouse();
     const adsScale = 1 + (adsSensScale(hipH, adsHNow, settings.ads * opticAdsMult()) - 1) * ws.adsFrac;
+    // a wheel open with a controller in hand: its right stick points at the pick, as the mouse's direction does
+    const stickPick = Math.hypot(input.pad.stick.x, input.pad.stick.y) > 0.5 ? { x: input.pad.stick.x * 200, y: input.pad.stick.y * 200 } : null;
     if (pingWheelOpen) {
       // the ping wheel: the mouse's direction picks, as the emote wheel's does
-      pingVec.x = Math.max(-200, Math.min(200, pingVec.x + m.dx));
-      pingVec.y = Math.max(-200, Math.min(200, pingVec.y + m.dy));
+      pingVec.x = Math.max(-200, Math.min(200, stickPick ? stickPick.x : pingVec.x + m.dx));
+      pingVec.y = Math.max(-200, Math.min(200, stickPick ? stickPick.y : pingVec.y + m.dy));
       const at = pingPickAt(pingVec.x, pingVec.y);
       if (at !== null) pingPick = at;
       m.dx = 0;
@@ -6467,8 +6499,8 @@ function step(): void {
     }
     if (emoteWheelOpen) {
       // the emote wheel: the mouse's direction picks, as the heal wheel's does
-      emoteVec.x = Math.max(-200, Math.min(200, emoteVec.x + m.dx));
-      emoteVec.y = Math.max(-200, Math.min(200, emoteVec.y + m.dy));
+      emoteVec.x = Math.max(-200, Math.min(200, stickPick ? stickPick.x : emoteVec.x + m.dx));
+      emoteVec.y = Math.max(-200, Math.min(200, stickPick ? stickPick.y : emoteVec.y + m.dy));
       if (Math.hypot(emoteVec.x, emoteVec.y) > 40) {
         const a = (Math.atan2(emoteVec.x, -emoteVec.y) + Math.PI * 2) % (Math.PI * 2);
         emotePick = Math.round(a / ((Math.PI * 2) / EMOTES.length)) % EMOTES.length;
@@ -6498,8 +6530,8 @@ function step(): void {
           })
         : null;
     const slow = assist?.slow ?? 1;
-    // (the wheel open: the stick is picking, not looking)
-    if (!emoteWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
+    // (a wheel open: the stick is picking, not looking)
+    if (!emoteWheelOpen && !pingWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
   }
 
   // The practice aim bot, after the look input so it is the last word on where
@@ -7354,11 +7386,11 @@ function step(): void {
   const ghostLine = duel instanceof BrMatch && duel.ghost ? `GHOST  ·  STAY WITH YOUR SQUAD: THEY RESTORE YOU AT YOUR ECHO  ·  ${PROFILE.life.ghostRevives - duel.restores} RESTORE${PROFILE.life.ghostRevives - duel.restores === 1 ? "" : "S"} LEFT` : null;
   if (ghostLine) prompt = { key: "", text: ghostLine };
   else if (duel instanceof BrMatch && brPlay.hud.prompt) prompt = brPlay.hud.prompt;
-  else if (player.zipPrompt) prompt = { key: "E", text: "RIDE ZIPLINE" };
+  else if (player.zipPrompt) prompt = { key: keyLabel("interact"), text: "RIDE ZIPLINE" };
   else if (!duel && drill.state === "idle" && drill.onPad(player.pos)) prompt = { key: keyLabel("interact"), text: "START THE FLICK DRILL" };
   else if (!duel && armory?.near(player.pos, player.yaw)) prompt = { key: keyLabel("interact"), text: armorySay(armory.near(player.pos, player.yaw)!) };
   else if (player.onGround && ladderAhead(player.pos.x, player.pos.y, player.pos.z, player.yaw)) {
-    prompt = { key: "SPACE", text: "JUMP INTO THE WALL, HOLD W TO CLIMB" };
+    prompt = { key: keyLabel("jump"), text: `JUMP INTO THE WALL, HOLD ${input.device === "pad" ? "THE STICK FORWARD" : keyLabel("forward")} TO CLIMB` };
   }
   shownPrompt = prompt;
   const optic = viewModel.opticFitted;
@@ -7506,6 +7538,8 @@ function step(): void {
     speedHu: player.speed / HU,
     prompt,
     keyHints: keyHintsNow(now),
+    padFamily: input.device === "pad" ? input.pad.family : null,
+    mapKey: keyLabel("map"),
     scope: optic && optic.info.overlay && !third ? scopeState(optic, aimNow, now) : null,
     healing: { k: (healFelt += (healingNow - healFelt) * Math.min(1, dt / 0.25)), edge: (H as unknown as { healArea: { screen: number } }).healArea.screen },
   });

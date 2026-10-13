@@ -20,7 +20,35 @@ Shoot the arrows beside this screen to turn the page or change section, or punch
 | M | Map | 7 | Emotes (hold) |
 | X | Third person | / | Show or hide the keys |
 
-Every key can be changed in Settings, Controls. A controller works too.
+Every key can be changed in Settings, Controls.
+
+### On a controller
+
+This screen cannot see which controller you hold, so it names both: Xbox's button first, PlayStation's after the
+slash. In play, every prompt names the buttons of the controller in your hands.
+
+| Button | Action |
+|---|---|
+| Left stick | Move (push it all the way forward to sprint) |
+| Right stick | Look |
+| RT / R2 | Fire |
+| LT / L2 | Aim |
+| A / ✕ | Jump (twice: double jump) |
+| B / ○ | Crouch, slide |
+| X / □ | Reload; pick up and use |
+| Y / △ | Swap guns (hold: holster) |
+| LB / L1 | Mobility hack |
+| RB / R1 | Utility hack |
+| D-pad up | Ping (hold: the wheel, the right stick picks) |
+| D-pad left | Inspect your gun |
+| D-pad down | Zoom |
+| D-pad right | Show or hide the controls on screen |
+| L3 / R3 | Sprint / melee |
+| View / Create | Map |
+| Menu / Options | The menu |
+
+Settings, Controller, has its look speed, deadzones, aim assist and which buttons the prompts name; Settings,
+Controls, has other layouts and every button to change.
 
 ## Movement
 
