@@ -2585,7 +2585,8 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   );
   check(
     `pack frames: as it phases out the magazine has slid ${RL.slide} m out of the gun (the owner: "drop out and pixelate"), and the new one phases in ${RL.slideIn ? `from ${RL.slideIn * RL.slide} m out` : "seated"}`,
-    gm.every((x) => x.slid > RL.slide * 0.8 && x.slid < RL.slide * 1.2 && (RL.slideIn > 0 ? x.slidIn > RL.slideIn * RL.slide * 0.5 : x.slidIn < 0.001)),
+    // (each gun's own magSlide where it has one: fparms.json packGuns)
+    Object.entries(res.guns).filter(([, x]) => !x.feed && !x.vent).every(([id, x]) => { const want = (fparmsCfg.packGuns as Record<string, { magSlide?: number }>)[(fparmsCfg.guns as Record<string, string>)[id]]?.magSlide ?? RL.slide; return x.slid > want * 0.8 && x.slid < want * 1.2 && (RL.slideIn > 0 ? x.slidIn > RL.slideIn * want * 0.5 : x.slidIn < 0.001); }),
     show((x) => ({ out: +x.slid.toFixed(3), in: +x.slidIn.toFixed(3) })),
   );
   // (the owner, 2026-10-01: "make the magazine phase in from the middle out and then we take the mag out it should be from

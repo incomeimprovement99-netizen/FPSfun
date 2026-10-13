@@ -13691,3 +13691,27 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
 - **Still off the trigger:** ANAKIN and REZ (Milestone 544).
 - **Checked:** verify, rules and the type check; BIGANTLER's pack frames 41 of 41, the forefinger on the trigger check
   among them.
+
+## Milestone 546 — REZ's forefinger on its trigger, and ANAKIN's reload in the picture
+
+- **REZ** (fparms.json packGuns Drake-12 hold r): the right hand from where the pack holds its own gun, its forefinger on
+  the trigger at rest (it had held the foot of the grip, 126 mm from it). REZ's rear sight is well ahead of its grip, so
+  aimed, a hand on the trigger is so near the eye that its forearm filled the lower right of the picture: no shoulder the
+  arm reaches from cleared it (lowered, the wrist bent 90 to 130 degrees), nor a bent elbow (the arm is all but straight
+  there), nor the gun held further out (the arms fell short). A hand now has its own aimed fit (hold r `ads`, fprig.ts,
+  mixed in by the aim), searched with the gun aimed for the forearm out of the picture and the wrist: aimed REZ's right
+  hand holds the grip lower, its wrist 44 degrees, a glove at the picture's lower right as before. Its left hand 2 mm
+  lower: with the right hand moved, the first draw's flourish put the left palm 4.3 mm into the gun.
+- **ANAKIN's reload** (ASVal twist, magSlide, holdElbow r): its magazine is held in its grip, and at the shared turn the
+  gun went down to the right, the magazine and the whole pointing hand under the picture's bottom edge for half the
+  reload, the right wrist bent 75 to 80 degrees. Now its own turn lifts it 25 cm and rolls it a little the other way,
+  the grip, magazine and both hands in the picture (121 pixels of magazine at its most, the wrists under 30 degrees);
+  the right elbow is held where it sits at rest (the wrist about 20 degrees); and a gun's magazine can slide its own
+  length out (`magSlide`, fprig.ts): ANAKIN's 2.5 cm, as at the shared 8 cm sliding out of the grip it passed through
+  the right hand round it, 10 mm of palm seen in it.
+- **ANAKIN's forefinger stays 41 mm off its trigger:** its grip holds the magazine and is thick enough that every hand
+  with the forefinger on the trigger showed daylight at rest (8 pixels) or the palm through the magazine in an inspect
+  or a swap (5 to 6 mm). The trigger check fails on it alone.
+- **Tools:** pack-flush.ts takes EXTRA (page code added to each try's score: REZ's aimed forearm and wrist).
+- **Checked:** verify, rules and the type check; ANAKIN's and REZ's pack frames 38 of 39 together, the one miss ANAKIN's
+  forefinger as above; the reload check (the magazine and the pointing fingertip in the picture) passes on both.

@@ -33,7 +33,7 @@ const FINGER_L = /^(index|middle|ring|pinky|thumb)_0[123]_l$/;
  * and any one joint turned `joint` radians about its own axes (the fit a joint at a time: a whole finger's curl left
  * one knuckle in the grip whichever way it went)
  */
-type HandFit = { shift: number[]; open: Record<string, number>; turn?: Record<string, number[]>; joint?: Record<string, number[]>; rot?: number[]; copy?: Record<string, string>; pick?: HandFit };
+type HandFit = { shift: number[]; open: Record<string, number>; turn?: Record<string, number[]>; joint?: Record<string, number[]>; rot?: number[]; copy?: Record<string, string>; pick?: HandFit; ads?: HandFit };
 /** one hand's fit `k` of the way to another: each number of each setting in between (a setting one lacks counts as none) */
 function mixFit(a: HandFit, b: HandFit, k: number): HandFit {
   const mix3 = (x?: number[], y?: number[]) => [0, 1, 2].map((i) => (x?.[i] ?? 0) * (1 - k) + (y?.[i] ?? 0) * k);
@@ -53,7 +53,7 @@ type Shoulders = { l?: number[]; r?: number[]; adsL?: number[]; adsR?: number[] 
 export type HoldFit = { l?: HandFit; r?: HandFit };
 /** a fist's thumb joints turned on top of the fist, radians about each joint's own axes, per hand (tools/fist-thumb.ts) */
 export type ThumbFit = { l?: Record<string, number[]>; r?: Record<string, number[]> };
-type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; meleeOut?: number[]; pointShoulder?: number[]; reload?: ShellReload; pumpScale?: number; vent?: Vent; leftOnHand?: boolean };
+type PackGun = { model: string; arms: Record<string, string>; gun: Record<string, string>; offset?: number[]; hold?: HoldFit; rack?: { clip: string; window: number[]; pose?: Twist; poseIn?: number[]; gunKeep?: number; grab?: Grab; shift?: { l?: number[]; r?: number[] } }; twist?: Twist; point?: PointAt; shoulders?: Shoulders; palmElbow?: number[]; holdElbow?: { l?: number[]; r?: number[] }; look?: { shift: number[]; turn: number[] }; inspectLook?: { shift: number[]; turn: number[] }; tacticalRack?: boolean; meleeClearWay?: number[]; meleeClear?: number; cupMove?: { l?: number[]; r?: number[] }; cup?: { turn?: number; curl?: number; shape?: { l?: number[]; r?: number[] }; moveAt?: { l?: number[]; r?: number[] } }; beforeArm?: { elbow?: number[]; shoulder?: number[] }; meleeShoulder?: number[]; meleeOut?: number[]; pointShoulder?: number[]; magSlide?: number; reload?: ShellReload; pumpScale?: number; vent?: Vent; leftOnHand?: boolean };
 /**
  * An overheat's vent (fparms.json packGuns vent, CHOOCH's): the gun tipped up and canted in both hands over `in` of the
  * lockout and back over `out`, by `roll`, `yaw` and `pitch` (radians) and `x`, `y`, `z` (view metres), the soldier's on the
@@ -1095,7 +1095,11 @@ export class PackArms {
     const bw = BA && !this.debugHold ? Math.min(1, Math.max(0, f.before ?? 0, BEFORE_FRAME.offArm * offNow)) : 0;
     this.beforeArmW = bw;
     const baseHold = this.debugHold ?? PACK[this.active!]?.hold;
-    const hold = this.lead === "pickup" && baseHold?.l?.pick ? { ...baseHold, l: mixFit(baseHold.l, baseHold.l.pick, leadW) } : baseHold;
+    let hold = this.lead === "pickup" && baseHold?.l?.pick ? { ...baseHold, l: mixFit(baseHold.l, baseHold.l.pick, leadW) } : baseHold;
+    // and aimed, a hand's own aimed fit mixed in by the aim (hold r `ads`): REZ's right hand on its trigger is so near the
+    // eye aimed, the gun's rear sight being well ahead of its grip, that its forearm filled the lower right of the picture
+    // at every shoulder the arm reaches from; aimed it holds the grip lower, under the picture, where it was before
+    if (hold?.r?.ads && f.ads > 0.001) hold = { ...hold, r: mixFit(hold.r, hold.r.ads, f.ads) };
     const palmW = f.palm?.w ?? 0;
     // (in a pickup the right hand holds the gun all through, and the left takes its fit back as it comes back to its
     // place on the gun: without them, the pack's hands made for thinner grips went 13 mm into ours)
@@ -1265,8 +1269,11 @@ export class PackArms {
     const tipSlideO = new THREE.Vector3();
     if (this.magRestO && (slid > 0 || tipSlid > 0)) {
       const k = this.group.getWorldScale(new THREE.Vector3()).x / Math.max(1e-6, holder.getWorldScale(new THREE.Vector3()).x);
-      slideO.set(0, -1, 0).transformDirection(this.magRestO).multiplyScalar(RL.slide * k * slid);
-      tipSlideO.set(0, -1, 0).transformDirection(this.magRestO).multiplyScalar(RL.slide * k * tipSlid);
+      // (a gun's own `magSlide` where its magazine is held in the grip: ANAKIN's slid the shared 8 cm out through the right
+      // hand round it, 10 mm of palm seen in the magazine as it went)
+      const slideLen = PACK[this.active!]?.magSlide ?? RL.slide;
+      slideO.set(0, -1, 0).transformDirection(this.magRestO).multiplyScalar(slideLen * k * slid);
+      tipSlideO.set(0, -1, 0).transformDirection(this.magRestO).multiplyScalar(slideLen * k * tipSlid);
     }
     this.seen.magSlid = slid;
     this.seen.tipSlid = tipSlid;

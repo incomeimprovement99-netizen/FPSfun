@@ -970,6 +970,11 @@
           0.1347,
           -0.1251,
           0.2869
+        ],
+        "r": [
+          -0.0991,
+          -0.173,
+          0.1817
         ]
       },
       "beforeArm": {
@@ -1032,7 +1037,18 @@
             0.79
           ]
         }
-      }
+      },
+      "_holdR": "Its right elbow is held toward `holdElbow` r, where it sits at rest, the way the left one is (2026-10-13): bent the clip's way, the reload's turn of the gun bent the right wrist 75 to 80 degrees; now about 20. The right forefinger is still 41 mm off the trigger: the grip holds the magazine and is thick enough that every hand with its forefinger on the trigger showed daylight at rest or the palm through the magazine in an inspect or a swap (5 to 6 mm).",
+      "twist": {
+        "roll": 0.2,
+        "yaw": 0.12,
+        "pitch": 0.2,
+        "x": 0.02,
+        "y": 0.25,
+        "z": 0
+      },
+      "magSlide": 0.025,
+      "_twist": "ANAKIN's own turn while the left hand points at the magazine (2026-10-13; fprig.ts twist): its magazine is held in its grip, under the right hand, and at the reload's shared turn the gun went down to the right and took the magazine and the whole pointing hand under the picture's bottom edge for half the reload. Lifted 25 cm and rolled a little the other way, the grip, its magazine and both hands stay in the picture, searched for the magazine seen (121 pixels of a 480 wide picture), the fingertip in the picture and both wrists under 30 degrees. `magSlide`: its magazine slides 2.5 cm out as it phases, not the shared 8: sliding out of the grip it passed through the right hand round it, 10 mm of palm seen in the magazine."
     },
     "G3": {
       "model": "G3",
@@ -1668,7 +1684,7 @@
         "l": {
           "shift": [
             -0.0118,
-            -0.0134,
+            -0.0154,
             0.0379
           ],
           "rot": [
@@ -1706,41 +1722,142 @@
         },
         "r": {
           "shift": [
-            0.0232,
-            -0.0465,
-            0.0128
+            0.0231,
+            -0.0043,
+            0.0111
           ],
           "rot": [
-            0.531,
-            -0.132,
-            0.316
+            -0.1776,
+            -0.3622,
+            -0.1419
           ],
           "joint": {
             "thumb_01": [
-              0.06,
-              0.48,
-              -0.24
+              0.1107,
+              -0.4564,
+              -0.1325
             ],
             "thumb_02": [
-              0.48,
-              0.06,
-              0
+              0.8355,
+              0.1214,
+              -0.1778
             ],
             "middle_01": [
-              0.36,
-              -0.12,
-              0
+              0.8006,
+              -0.0534,
+              -0.7386
             ],
             "ring_01": [
-              0.06,
-              0,
-              0
+              0.0216,
+              0.3284,
+              -0.4211
             ],
             "pinky_01": [
-              -0.48,
+              -0.2689,
+              -0.3752,
+              0.1142
+            ],
+            "index_01": [
+              -0.4071,
+              -0.5027,
+              0.488
+            ],
+            "index_02": [
+              0.5637,
+              0.3944,
+              0.2004
+            ],
+            "middle_02": [
+              -0.6628,
+              0.0039,
+              -0.1148
+            ],
+            "ring_02": [
+              -0.0756,
+              0.4522,
+              -0.5799
+            ],
+            "pinky_02": [
+              -1.1768,
+              -0.0578,
+              0.2493
+            ],
+            "pinky_03": [
+              -0.6,
               0,
-              0
+              -0.18
             ]
+          },
+          "open": {},
+          "ads": {
+            "shift": [
+              0.0328,
+              -0.0201,
+              0.0238
+            ],
+            "rot": [
+              -0.2097,
+              -0.198,
+              -0.1433
+            ],
+            "joint": {
+              "thumb_01": [
+                0.1107,
+                -0.4564,
+                -0.1325
+              ],
+              "thumb_02": [
+                0.8355,
+                0.1214,
+                -0.1778
+              ],
+              "middle_01": [
+                0.8006,
+                -0.0534,
+                -0.7386
+              ],
+              "ring_01": [
+                0.0216,
+                0.3284,
+                -0.4211
+              ],
+              "pinky_01": [
+                -0.2689,
+                -0.3752,
+                0.1142
+              ],
+              "index_01": [
+                0.3339,
+                -0.487,
+                0.4081
+              ],
+              "index_02": [
+                0.7499,
+                0.4487,
+                0.5051
+              ],
+              "middle_02": [
+                -0.6628,
+                0.0039,
+                -0.1148
+              ],
+              "ring_02": [
+                -0.0756,
+                0.4522,
+                -0.5799
+              ],
+              "pinky_02": [
+                -1.1768,
+                -0.0578,
+                0.2493
+              ],
+              "pinky_03": [
+                -0.6,
+                0,
+                -0.18
+              ]
+            },
+            "open": {}
           }
         }
       },
@@ -1751,9 +1868,9 @@
           0
         ],
         "r": [
-          -0.09,
+          -0.08,
           0.27,
-          -0.4
+          -0.44
         ],
         "adsL": [
           0,
@@ -1836,7 +1953,8 @@
         "reach": 0.18,
         "aimAt": 0.78
       },
-      "_hold": "REZ on the Drake-12, drawn at 0.85 (`gunScale`): its fore-end is a flat-bottomed block 5.6 cm wide, and at full size every fit left the palm 20 to 25 mm in it. The left hand is on it ahead of the long magazine, 36 cm ahead of the gun's middle as the soldier holds it: every search from the Drake-12's own hand (tools/pack-grip.ts, pack-flush.ts, pack-solve.ts joints, pack-thumb.ts) left the palm or the thumb's root 14 to 25 mm in the block, the pack's hand meeting it edge on and the searches that keep the palm touching sinking it in; so the hand was aimed outright, palm up under the block and the knuckles round its right side, then searched with the palm free to stand off and the fingers on: none of it seen in the gun, no daylight, the wrist 32 degrees. Aimed, REZ's irons are over the gun's middle and its fore-end over 40 cm out from the eye: the left arm fell 35 cm short, so aimed its shoulder comes 40 cm forward (`shoulders` adsL), out of the picture but the hand. The right shoulder is up and back for our raked grip through an inspect, which rolls the gun about the right forearm: 147 to 22 degrees at rest, 105 to 46 in an inspect. The punch, the arm off the gun and the swap's cup by tools/pack-tune.ts; the pointing arm by tools/pack-solve.ts POINT_ONLY (its wrist 62 to 44)."
+      "_hold": "REZ on the Drake-12, drawn at 0.85 (`gunScale`): its fore-end is a flat-bottomed block 5.6 cm wide, and at full size every fit left the palm 20 to 25 mm in it. The left hand is on it ahead of the long magazine, 36 cm ahead of the gun's middle as the soldier holds it: every search from the Drake-12's own hand (tools/pack-grip.ts, pack-flush.ts, pack-solve.ts joints, pack-thumb.ts) left the palm or the thumb's root 14 to 25 mm in the block, the pack's hand meeting it edge on and the searches that keep the palm touching sinking it in; so the hand was aimed outright, palm up under the block and the knuckles round its right side, then searched with the palm free to stand off and the fingers on: none of it seen in the gun, no daylight, the wrist 32 degrees. Aimed, REZ's irons are over the gun's middle and its fore-end over 40 cm out from the eye: the left arm fell 35 cm short, so aimed its shoulder comes 40 cm forward (`shoulders` adsL), out of the picture but the hand. The right shoulder is up and back for our raked grip through an inspect, which rolls the gun about the right forearm: 147 to 22 degrees at rest, 105 to 46 in an inspect. The punch, the arm off the gun and the swap's cup by tools/pack-tune.ts; the pointing arm by tools/pack-solve.ts POINT_ONLY (its wrist 62 to 44).",
+      "_holdR": "The right forefinger on the trigger at rest (2026-10-13; it had held the foot of the grip, 126 mm from the trigger): the hand from where the pack holds its own gun, searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, fingers laid by tools/pack-solve.ts, the right shoulder fitted for the wrist. Aimed it takes its own `ads` fit, mixed in by the aim (fprig.ts): REZ's rear sight is well ahead of its grip, so aimed the hand on the trigger was so near the eye that its forearm filled the lower right of the picture from every shoulder the arm reaches from (moving the shoulder, the elbow or the gun's distance did not clear it); its aimed fit, searched with the gun aimed for the forearm out of the picture, holds the grip lower, the wrist 44 degrees."
     },
     "MGX5": {
       "model": "MGX5",

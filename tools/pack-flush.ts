@@ -24,6 +24,7 @@
 //   PICKUP=0.64,0.7,0.76                 pickup shares scored for the arm's reach and depth
 //   START='{"shift":..,"rot":..,"joints":{..}}'  go on from an earlier best
 //   SETUP='rig.debugShoulders = {...};'  page code run before the search (rig and r in scope)
+//   EXTRA='...return n;'                  page code whose number is added to each try's score (rig, r, T and frame in scope)
 //   MOVE=0.01 TURN=0.3 JTURN=0.4 TRIES=500 PCT=0.25 FLUSH=1.5
 //   SEEN=0.2                             each pixel of daylight the eye sees shut between the hand and the gun (pack-audit.js
 //                                        __packSeenGap, the e2e's 960 wide picture) costs this; the page is then the owner's 1920 by
@@ -158,10 +159,13 @@ try {
       // (at the e2e's 960 and 4, not half: a thin gap under PANDA's thumb closed up at 480 and the search never saw it)
       const sg = S.seen > 0 ? window.__packSeenGap(S.side) : null;
       const seen = sg ? sg.holes + sg.cracks : 0;
-      const score = seen * S.seen + over * 3 + flush.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) * 2 + touch.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) + apart * 0.5 + trig * 2 + Math.max(0, wrist - 45) + Math.max(0, skin - 60) * 2 + short * 10 + pickShort * 10 + pickOver * 3;
+      // (and EXTRA's own term, page code giving a number to add: REZ's right hand aimed, its forearm in the picture and its
+      // wrist, scored with the gun aimed between tries)
+      const extra = Number(await (async () => { ${process.env.EXTRA ?? "return 0;"} })()) || 0;
+      const score = seen * S.seen + over * 3 + flush.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) * 2 + touch.reduce((s, g) => s + Math.max(0, g - S.flushMm), 0) + apart * 0.5 + trig * 2 + Math.max(0, wrist - 45) + Math.max(0, skin - 60) * 2 + short * 10 + pickShort * 10 + pickOver * 3 + extra;
       // (and each flush bone's spread, for the report: its skin's gaps at a twentieth, a tenth, a quarter and half)
       const spread = Object.fromEntries(S.flush.map((f) => f.split("@")[0]).map((b) => [b, [0.05, 0.1, 0.25, 0.5].map((q) => pct(a.gapList[b + "_" + S.side], q))]));
-      return { score, seen, over, flush, touch, gaps, trig, wrist, skin, short, pickShort, pickOver, spread };
+      return { score, seen, over, flush, touch, gaps, trig, wrist, skin, short, pickShort, pickOver, extra, spread };
     };
     const x0 = { shift: H.shift.slice(), rot: H.rot.slice(), joints: Object.fromEntries(S.joints.map((j) => [j, H.joint[j].slice()])) };
     const start = await look(x0);
