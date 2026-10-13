@@ -637,3 +637,67 @@ window.__sleeveInside = (W = 480) => {
   }
   return { inside, outside };
 };
+
+// How much of the gun's magazine the eye sees, pixels of a 480 wide picture: the magazine drawn in one colour, the rest of
+// the gun and the arms in front of it in others (the owner, 2026-10-13: "the reloads should be squeaky clean"; ANAKIN's
+// reload turned its magazine under the picture's bottom edge, the pointing hand after it, and nothing of the phase was
+// seen). The magazine is the gun's Clip parts, as paidgun.ts takes them.
+window.__magSeen = (W = 480) => {
+  const r = window.__range;
+  const T = r.THREE;
+  const R = r.renderer;
+  const root = r.viewModelRoot();
+  const cam = root.parent;
+  let scene = root;
+  while (scene.parent) scene = scene.parent;
+  let rig = null;
+  root.traverse((o) => {
+    if (o.name === "pack-arms") rig = o;
+  });
+  const under = (o, a) => {
+    for (let p = o; p; p = p.parent) if (p === a) return true;
+    return false;
+  };
+  const flat = (c) => new T.MeshBasicMaterial({ color: c, toneMapped: false, fog: false, side: T.DoubleSide });
+  const mag = flat(0xff00ff);
+  const arm = flat(0x00ff00);
+  const gun = flat(0x000000);
+  const kept = [];
+  scene.traverse((o) => {
+    if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.layers.test(cam.layers)) return;
+    kept.push([o, o.material, o.visible]);
+    if (rig && under(o, rig)) o.material = arm;
+    else if (under(o, root) && o.isMesh) o.material = /^Clip/.test(o.name) ? mag : gun;
+    else o.visible = false;
+  });
+  const H = Math.round((W * innerHeight) / innerWidth);
+  const rt = new T.WebGLRenderTarget(W, H);
+  const buf = new Uint8Array(W * H * 4);
+  const bg = scene.background;
+  const was = R.getRenderTarget();
+  const cc = R.getClearColor(new T.Color());
+  const ca = R.getClearAlpha();
+  try {
+    scene.background = null;
+    R.setRenderTarget(rt);
+    R.setClearColor(0x0000ff, 1);
+    R.clear(true, true, true);
+    R.render(scene, cam);
+    R.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+  } finally {
+    R.setRenderTarget(was);
+    R.setClearColor(cc, ca);
+    scene.background = bg;
+    for (const [o, m, v] of kept) {
+      o.material = m;
+      o.visible = v;
+    }
+    rt.dispose();
+    mag.dispose();
+    arm.dispose();
+    gun.dispose();
+  }
+  let seen = 0;
+  for (let i = 0; i < W * H * 4; i += 4) if (buf[i] > 128 && buf[i + 2] > 128 && buf[i + 1] < 100) seen++;
+  return seen;
+};

@@ -15,7 +15,7 @@
 // tools/pack-thumb.ts searches a finger's joints over their whole range for that. A Levenberg-Marquardt solve of a
 // whole hand at once was tried here too and dropped: two minutes a step in the page, and it stalled where this did. WRITE=1 writes the result into fparms.json (packGuns hold joint and shift, shoulders, point).
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30, HOLD=index,middle,ring,pinky, KEEP_HAND=1, WRIST_SIDES=r or a shoulder key, adsL)
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30, HOLD=index,middle,ring,pinky, KEEP_HAND=1, WRIST_SIDES=r or a shoulder key, adsL, CFG_PATCH, RESULT_FILE)
 // Headless, never the real mouse or keyboard.
 import fs from "node:fs";
 import path from "node:path";
@@ -52,6 +52,15 @@ type Shoulders = { l?: Vec; r?: Vec; adsL?: Vec; adsR?: Vec };
 type Point = { elbow?: Vec; reach?: number };
 
 const cfg = JSON.parse(fs.readFileSync(CFG, "utf8"));
+// CFG_PATCH='{"packGuns":{"MPS5":{"hold":{"l":{"shift":[..]}}}}}' laid over the config read here (not the file): a hold tried
+// and solved without writing fparms.json, which reloads every page another tool has open on the dev server
+const merge = (into: Record<string, unknown>, from: Record<string, unknown>): void => {
+  for (const [k, v] of Object.entries(from)) {
+    if (v && typeof v === "object" && !Array.isArray(v) && into[k] && typeof into[k] === "object") merge(into[k] as Record<string, unknown>, v as Record<string, unknown>);
+    else into[k] = v;
+  }
+};
+if (process.env.CFG_PATCH) merge(cfg, JSON.parse(process.env.CFG_PATCH));
 const results: Record<string, { hold?: { l: Hand; r: Hand }; shoulders?: Shoulders; point?: Point; notes: string[] }> = {};
 
 /** coordinate descent: each (key, index) tried at each step, kept at the lowest score, `rounds` times */
@@ -315,6 +324,8 @@ try {
   await browser.close();
 }
 
+// RESULT_FILE=<path>: the results as JSON, written or not
+if (process.env.RESULT_FILE) fs.writeFileSync(process.env.RESULT_FILE, JSON.stringify(results, null, 1));
 if (WRITE) {
   const raw = fs.readFileSync(CFG, "utf8");
   const nl = raw.includes("\r\n") ? "\r\n" : "\n";

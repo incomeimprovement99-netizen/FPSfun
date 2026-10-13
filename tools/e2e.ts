@@ -1821,7 +1821,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; aimReach: number; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; pointR: number; swap: number }; pointHand: number; trigTip: number; reloadSeen: { mag: number[]; tip: number[] }; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; aimReach: number; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
 /** an overheat's vent (CHOOCH's): its turn's weight mid-vent and at its ends, which clip leads mid-vent, the deepest seen
  * skin in the gun through it, mm, and the worst wrist, degrees */
 type Vent = { mid: number; ends: number; lead: string; deep: number; wrist: number };
@@ -1983,7 +1983,10 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     const shells = packOf?.reload?.style === "shells";
     const vents = !!packOf?.vent;
     const noMag = shells || vents;
-    o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: vents ? 0 : (await wr("r.debugView.reload = 0.28;"))[0], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
+    // (and the right wrist through the point: the gun's turn bent ANAKIN's 75 to 80 degrees there, its elbow pulled round
+    // by the turn where nothing held it, 2026-10-13)
+    const pointWr = vents ? [0, 0] : await wr("r.debugView.reload = 0.28;");
+    o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: pointWr[0], pointR: pointWr[1], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
     // and how far an arm falls short of its hold through an aim, cm (BIGANTLER's left arm, its shoulder fitted at rest
     // alone, fell 23 cm short aimed and the hand slid off the pump onto the receiver: the owner, 2026-10-11, "THE
     // BIGANTLERS LEFT HAND FIRST PERSON DOESN'T GRIP THE PUMP")
@@ -1996,6 +1999,14 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // every joint of the arms a number, held (one that is not is drawn from nowhere)
     o.nanBones = await pf<string[]>(`H.clear(); await H.gameWait(0.3); const n = []; r.packRig().group.traverse((b) => { const q = b.quaternion, p = b.position; if (![q.x, q.y, q.z, q.w, p.x, p.y, p.z].every(Number.isFinite)) n.push(b.name); }); return n;`);
     // and how high in the picture the pointing wrist is (-1 its bottom edge, the gun camera's), -9 behind the eye
+    // the right forefinger on the trigger at rest, view mm from its tip (its last bone carried on by its own length) to the
+    // gun's trigger: six guns' right hands sat on their grips' foot or behind them, the forefinger 3 to 13 cm off the
+    // trigger, ANAKIN's round its magazine under the grip and REZ's trigger bare in the picture (2026-10-13)
+    o.trigTip = await pf<number>(`H.clear(); await H.gameWait(0.3); const T = r.THREE; const g = r.packRig().group; const s = g.getWorldScale(new T.Vector3()).x; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); let trig = null; r.viewModelRoot().traverse((x) => { if (!trig && x.isMesh && /^Trigger/.test(x.name)) trig = x; }); if (!trig) return -1; const tip = at("index_03_r").add(at("index_03_r").sub(at("index_02_r")).multiplyScalar(0.9)); return (new T.Box3().setFromObject(trig).distanceToPoint(tip) / s) * 1000;`);
+    // the reload where it is seen: through the magazine's phase out and in, how much of the magazine the eye sees (pixels of
+    // a 480 wide picture, tools/pack-audit.js __magSeen) and how high the pointing fingertip is (-1 the picture's bottom
+    // edge): ANAKIN's turn took its magazine and the whole pointing hand under the bottom edge for half its reload
+    o.reloadSeen = noMag ? { mag: [], tip: [] } : await pf<Frames["reloadSeen"]>(`const T = r.THREE; const root = r.viewModelRoot(); const tanV = Math.tan(((r.gunFov().gun / 2) * Math.PI) / 180); const out = { mag: [], tip: [] }; for (const u of [0.2, 0.28, 0.4, 0.48]) { r.debugView.reload = u; await H.gameWait(0.15); const inv = new T.Matrix4().copy(root.matrixWorld).invert(); const v = r.packRig().group.getObjectByName("index_03_l").getWorldPosition(new T.Vector3()).applyMatrix4(inv); out.tip.push(v.z < 0 ? v.y / -v.z / tanV : -9); out.mag.push(window.__magSeen()); } H.clear(); await H.gameWait(0.3); return out;`);
     o.pointHand = await pf<number>(`r.debugView.reload = 0.28; await H.gameWait(0.35); const T = r.THREE; const root = r.viewModelRoot(); const inv = new T.Matrix4().copy(root.matrixWorld).invert(); const tanV = Math.tan(((r.gunFov().gun / 2) * Math.PI) / 180); const v = r.packRig().group.getObjectByName("hand_l").getWorldPosition(new T.Vector3()).applyMatrix4(inv); H.clear(); await H.gameWait(0.3); return v.z < 0 ? v.y / -v.z / tanV : -9;`);
     // the magazine as the old one goes (just before its phase out ends), and part way into the new one's phase in: out, and seated
     o.slid = noMag ? 0 : await pf<number>(`const rest = H.magAt(); r.debugView.reload = ${RL.phaseOut[1] - 0.005}; await H.gameWait(0.2); const d = H.magAt().distanceTo(rest); H.clear(); await H.gameWait(0.2); return d;`);
@@ -2481,6 +2492,21 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     "pack frames: both wrists 50 degrees or less at rest and aimed, and 60 or less pointing (where it is in the picture) and early in a swap, on the USSO and BOOG",
     g.every((x) => [...x.wrists.rest, ...x.wrists.aimed].every((w) => w <= 50) && (x.wrists.point <= 60 || x.pointHand < -1) && x.wrists.swap <= 60),
     show((x) => ({ rest: x.wrists.rest.map(Math.round), aimed: x.wrists.aimed.map(Math.round), point: Math.round(x.wrists.point), pointAt: +x.pointHand.toFixed(2), swap: Math.round(x.wrists.swap) })),
+  );
+  check(
+    "pack frames: the right wrist 50 degrees or less while the left hand points at the magazine",
+    g.every((x) => x.wrists.pointR <= 50),
+    show((x) => Math.round(x.wrists.pointR)),
+  );
+  check(
+    "pack frames: the right forefinger's tip on the trigger at rest (4 mm at most), every gun",
+    g.every((x) => x.trigTip >= 0 && x.trigTip <= 4),
+    show((x) => +x.trigTip.toFixed(1)),
+  );
+  check(
+    "pack frames: in a reload the magazine is seen through its phase (60 pixels of a 480 wide picture at its most) and the pointing fingertip is in the picture or at its edge",
+    gm.every((x) => Math.max(...x.reloadSeen.mag) >= 60 && Math.min(...x.reloadSeen.tip) > -1.1),
+    show((x) => ({ mag: x.reloadSeen.mag, tip: x.reloadSeen.tip.map((v) => +v.toFixed(2)) })),
   );
   check(
     "pack frames: both arms reach their holds all through an aim (within 1 cm), the hands staying on the gun",
@@ -4115,7 +4141,9 @@ async function soldierTest(browser: Browser): Promise<void> {
     })()`,
   );
   // the signature guns phase out of the hands and in (gunfeel.json, phase.ts): a swap from the USSO to BOOG takes the
-  // USSO's phase down to nothing and brings BOOG's up whole, the gun never dropped out of the frame; STRYDER has no feel
+  // USSO's phase down to nothing and brings BOOG's up whole, the gun never dropped out of the frame; and STRYDER, drawn
+  // after, comes up whole too (every gun has its feel since Milestone 516: the check's old "STRYDER has no phase" half
+  // read its feel as missing and failed on a gun that phases as the others do)
   const phased = await ev<{ low: Record<string, number>; end: { gun: string | null; phase: number; shown: boolean }; plain: { gun: string | null; phase: number }; frames: number }>(
     page,
     `(async () => {
@@ -4181,10 +4209,11 @@ async function soldierTest(browser: Browser): Promise<void> {
       r.setScript(null);
       await gameWait(0.15);
       const after = r.gunFeel().charge;
-      // whole again within the rechamber and a little (BOOG's is over two seconds)
-      const g1 = r.gameTime();
+      // whole again after the rechamber (BOOG's is over two seconds), waited on the charge itself: it counts on the view's
+      // own clock, whose step a slow frame caps, so 6 s of game time under load had it at 0.95 (the lobby agent's sweep,
+      // 2026-10-13, twice alone)
       t0 = performance.now();
-      while (r.gunFeel().charge !== 1 && r.gameTime() - g1 < 6 && performance.now() - t0 < 30000) await wait(20);
+      while (r.gunFeel().charge !== 1 && performance.now() - t0 < 30000) await wait(20);
       const later = r.gunFeel().charge;
       r.debugView.inspect = 0.3;
       await gameWait(0.2);
@@ -4544,8 +4573,8 @@ async function soldierTest(browser: Browser): Promise<void> {
     JSON.stringify(reddot),
   );
   check(
-    "soldier guns: the USSO phases out of the hands and BOOG in, whole at the end and drawn; STRYDER has no phase",
-    phased.low.r97 < 0.2 && phased.low.sentinel < 0.2 && phased.end.gun === "sentinel" && phased.end.phase === 1 && phased.end.shown && phased.plain.gun === null && phased.plain.phase === 1,
+    "soldier guns: the USSO phases out of the hands and BOOG in, whole at the end and drawn; STRYDER drawn after is whole too",
+    phased.low.r97 < 0.2 && phased.low.sentinel < 0.2 && phased.end.gun === "sentinel" && phased.end.phase === 1 && phased.end.shown && phased.plain.gun === "autopistol" && phased.plain.phase === 1,
     JSON.stringify(phased),
   );
   // a hack used in first person (hackcast.ts): the left hand comes up with its card and taps it, and HEAL's area is

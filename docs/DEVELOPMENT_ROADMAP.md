@@ -13561,3 +13561,34 @@ The north district's first stage, planned on the districts page after two test b
 - **Checked** (tools/checks/sk-neon.ts): its slabs and tower inside the band; all four gangways walked by a player's own movement from the North deck on, and every High City bridge's end stair walked up and down the same way (17 stairs, 15 set back, 2 lifted), the flood walk and the stair climb as before; its name seen on nine sight lines from the ring road; the street network whole; the North deck's cover still six pieces with the gangway's end kept clear. The e2e: 101 of 101. verify, rules and the type check. The look: from the ring road by day and night, from the North deck, on the gangway, the decks, the courtyard, and a ring bridge's set-back stair.
   The map: its files lo 136.9 MB, hi 206.3 MB, max 444.7 MB.
   **Its files are version 73.**
+
+## Milestone 543 — The USSO's left hand on the gun, and checks for the right forefinger and the reload
+
+The owner, 2026-10-13: "clearly the Uso's left hand is messed up at rest on first person ... see how it's like cupped to
+the left of the gun and not really on it" (said many times before, and missed).
+
+- **The USSO's left hand on its left side** (fparms.json packGuns MPS5 hold l). The USSO is 2.6 cm wide; at rest the
+  left palm's middle was 4.2 cm out from its left side and 1.4 cm under it, only the fingertips round the lower front
+  corner and the ground showing between the knuckles and the gun. Measured on the model (a cross-section of the gun
+  round the hand) and looked at from the eye, the side, the right, beneath and through the gun made see-through. Now
+  the palm lies flat on the gun's left side ahead of the trigger guard with the fingers wrapped under its front and the
+  thumb along the side, as Apex's R-99 is held; searched by how much of the palm and thumb lie on the gun, nothing seen
+  in it and no daylight, then the wrist swung 0.3 radians off the trigger guard and the fingers and thumb laid on.
+  Two other grips were tried and set aside: the palm up under the front (where the third-person soldier holds it) went
+  12 mm into the gun at every place that reached, the USSO's front being 2.6 cm wide under the hand.
+- **Its off-gun shoulder** 3 cm back (beforeArm shoulder): with the hand on its new place the first draw's flourish
+  bent the left wrist to 60.4 degrees; now 55.8, and the inspect's 39 to 34.
+- **New checks** (tools/e2e.ts pack frames, and tools/pack-audit.js __magSeen):
+  - the right forefinger's tip on the trigger at rest, 4 mm at most: measured on all ten, six were 26 to 126 mm off
+    (APUHTHEE, PANDA, ANAKIN, BIGANTLER, REZ, CHOOCH);
+  - the magazine seen through its phase and the pointing fingertip in the picture: ANAKIN's reload turned its magazine
+    and the whole pointing hand under the picture's bottom edge;
+  - the right wrist while the left hand points: ANAKIN's 75 to 80 degrees.
+  The six right hands and ANAKIN's reload are being fitted to them next.
+- **Tools:** pack-flush.ts takes SETUP (page code before the search, a shoulder tried with the hold); pack-solve.ts takes
+  CFG_PATCH (a hold solved without writing fparms.json) and RESULT_FILE.
+- **The lobby agent's sweep** (Milestone 622): "STRYDER has no phase" was stale since Milestone 516, when every gun got
+  its feel; the check now asks that STRYDER drawn after comes up whole. BOOG's recharge waits on the charge itself, not
+  6 s of game time, which a slow frame's capped step stretched (0.95 twice alone).
+- **Checked:** verify, rules and the type check; the USSO's pack frames 44 of 44 with the new checks (its forefinger 3 mm
+  from the trigger); the new checks against the six right hands and ANAKIN's reload as measured, which they fail.

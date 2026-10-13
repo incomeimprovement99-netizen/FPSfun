@@ -144,9 +144,9 @@ describes the retired legacy game, and goes with its code.
   where its files are): two SMG holds, a sniper hold, a rifle hold, two shotguns', an LMG's, two pistols' and a launcher's, fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
   a pickup (every frame of each photographed and measured); the USSO's left hand
-  holds it low, round the gun's lower front just ahead of its trigger guard, as
-  Hyper Scape's Harpy is held: it comes up from the bottom of the picture with a
-  fifth of the forearm showing, the thumb along the gun's side, and no daylight
+  holds it low, its palm flat on the gun's left side just ahead of the trigger guard
+  with the fingers wrapped under its front, as Apex's R-99 is held: it comes up from
+  the bottom of the picture, the thumb along the gun's side, and no daylight
   between hand and gun (the e2e counts what the eye sees there, every gun); BOOG's left forearm comes up from below to its
   fore-end, the hand ahead of the magazine; ANAKIN, placed as Apex holds its Alternator
   and drawn a little smaller in your hands than on a soldier (a real hand closes round

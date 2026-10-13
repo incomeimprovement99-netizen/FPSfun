@@ -23,6 +23,7 @@
 //   JOINTS=thumb_01,thumb_02             joints turned (Euler, radians) besides the hold's shift and rot
 //   PICKUP=0.64,0.7,0.76                 pickup shares scored for the arm's reach and depth
 //   START='{"shift":..,"rot":..,"joints":{..}}'  go on from an earlier best
+//   SETUP='rig.debugShoulders = {...};'  page code run before the search (rig and r in scope)
 //   MOVE=0.01 TURN=0.3 JTURN=0.4 TRIES=500 PCT=0.25 FLUSH=1.5
 //   SEEN=0.2                             each pixel of daylight the eye sees shut between the hand and the gun (pack-audit.js
 //                                        __packSeenGap, the e2e's 960 wide picture) costs this; the page is then the owner's 1920 by
@@ -98,6 +99,9 @@ try {
     const rig = r.packRig();
     // the idle's breath held still, so two tries of one hold score alike (fprig.ts debugStill, Milestone 462)
     rig.debugStill = true;
+    // and the page set as SETUP says first (a shoulder or an elbow tried with the hold: a hand moved 6 cm along the gun is
+    // out of the arm's reach from the shoulder fitted to where it was)
+    ${process.env.SETUP ?? ""}
     const S = ${JSON.stringify(setup)};
     const frame = () => new Promise((ok) => requestAnimationFrame(() => requestAnimationFrame(ok)));
     const hold = ${JSON.stringify(hold)};
