@@ -93,7 +93,7 @@ e2e, seen failing with the fault put back.
 | Item | First person | Third person |
 |---|---|---|
 | REZ | done (Milestone 540): the hand on the tube's middle (palm z 22.5), the forearm in from the lower left, no sleeve seen, every move without fault; over Apex's EVA-8 at rest and aimed | done (Milestone 563): the left hand on the tube's middle at model z 22, the muzzle 16 px under Apex's Mastiff's (40 before) |
-| BIGANTLER | next: the palm is over the pump (z 26.4, the soldier's 28.1) but 3 cm under it with no fingers seen on it; the hand to close on it | |
+| BIGANTLER | done (Milestone 540): the fingers up the pump's sides (within 1.1 mm), and aimed the hand stays on the pump (it had slid 22 cm back onto the receiver) | |
 | PANDA | done (Milestone 540): under the handguard ahead of the magazine (palm z 37.3, the soldier's 39.1), no sleeve seen, its own pointing shoulder; over Apex's Flatline and Hyper Scape's Ripper at rest and aimed | |
 | CHOOCH | done (Milestone 540): its shoulder down and in, no sleeve seen at rest, venting or swapping, the wrist 26 degrees; over Apex's Devotion at rest and its L-STAR aimed | |
 | ANAKIN | done (Milestone 540): under its front where the soldier holds it (palm z 29.7, the soldier's 29.0); over Apex's Alternator and Hyper Scape's Harpy at rest and aimed. Left: its right palm sits 9 mm into the grip, hidden in every state measured | right |

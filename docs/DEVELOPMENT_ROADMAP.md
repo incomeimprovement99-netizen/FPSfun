@@ -13204,6 +13204,12 @@ frames.
   Each hand started from the pack gun's own fore-end grip, unturned (the old fits had turned it up to 55 degrees). It was
   moved onto the place, its shoulder searched, the palm taken out of the gun with nothing asked to lie flush, and the
   fingers laid on joint by joint.
+- **BIGANTLER's hand on its pump:** its palm was already under the pump's middle (model z 26.4, the soldier's 28.1),
+  but the fingers were curled into a fist below it, 15 to 43 mm off the pump; they now lie up its sides, each within
+  1.1 mm and none in it. Aimed, its left arm fell 23 cm short and the hand slid off the pump back onto the receiver: its
+  gun had no aimed shoulder of its own (`shoulders` adsL now, 26 cm forward), and the hand stays on the pump all through
+  an aim; its right arm, aimed, had fallen 1.7 cm short of the grip, and its aimed shoulder moved 4 cm to reach it. Its swap's left hand comes off downward, the fingers curling later (`cupMove`, `cup`): wrapped round the pump,
+  they had closed 15.5 mm into it.
 - **No forearm wrung:** laid out of PANDA's handguard by a turn of the hand alone, its left forearm was wrung 95 degrees;
   past 90 the glove's cuff parts from the sleeve. Turned back, it is 54. The flush search now scores the forearm's twist
   (tools/pack-flush.ts).
@@ -13234,7 +13240,8 @@ frames.
   rack's pinch, which close part way from a hold, keep the grip's bend: their timings were fitted to it, and with the
   hinges REZ's cup closed 15 mm into the gun.
 - **Checked:** verify, rules and the type check; the soldier e2e's skpack frames on all ten guns, then again on the four
-  changed after it (ANAKIN, PANDA, CHOOCH, APUHTHEE). Two new checks, each seen failing: no inside of a sleeve seen, in
+  changed after it (ANAKIN, PANDA, CHOOCH, APUHTHEE). Three new checks, each seen failing: both arms reaching through an aim (BIGANTLER 22.8 cm short without its aimed
+  shoulder), no inside of a sleeve seen, in
   every state the skin check visits and aimed (PANDA's 4651 pixels at rest), and each fist's fingers within 20 degrees
   of their own planes (the old bend, 75 and 28). The frames' longest page calls, the inspect, first-draw and swap sweeps
   with a full skin audit at each step, took up to 85 s in one call; with other runs loading the machine they passed the

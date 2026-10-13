@@ -1447,34 +1447,39 @@
           ],
           "joint": {
             "index_01": [
-              0.399,
-              -0.4,
-              0.099
+              -0.081,
+              -1.84,
+              -0.381
             ],
             "middle_01": [
-              0.285,
-              0.471,
-              0.524
+              -0.075,
+              -0.009,
+              0.884
             ],
             "ring_01": [
-              -0.137,
-              -0.291,
-              0.561
+              -0.377,
+              -0.051,
+              0.801
             ],
             "pinky_01": [
-              0.379,
-              0.194,
-              0.02
+              1.099,
+              1.154,
+              -0.94
             ],
             "thumb_01": [
-              0.03,
-              0.349,
-              0.532
+              -0.99,
+              -1.091,
+              -0.908
             ],
             "thumb_02": [
-              -0.316,
-              0.327,
-              -0.091
+              0.164,
+              0.087,
+              -0.451
+            ],
+            "pinky_02": [
+              -0.48,
+              0.24,
+              0
             ]
           },
           "pick": {
@@ -1570,13 +1575,18 @@
           -0.18
         ],
         "adsR": [
-          0.16,
-          0.16,
+          0.12,
+          0.18,
           -0.16
+        ],
+        "adsL": [
+          0.01,
+          -0.06,
+          0.26
         ]
       },
       "pumpScale": 0.4,
-      "_solve": "tools/pack-solve.ts, 2026-10-09: l after: deepest 14 mm, palm 0.0 mm, fingers thumb 0 middle 0 ring 0 pinky 0; r after: deepest 14 mm, palm 0.0 mm, fingers thumb 0 index 0 middle 0 ring 0 pinky 0.",
+      "_solve": "tools/pack-solve.ts, 2026-10-13: rest wrists: before L 33 R 30, after L 33 R 30; arms in the picture 40.7% then 40.8%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.03,0.05,0.14],\"r\":[-0.1,0.18,-0.18],\"adsR\":[0.16,0.16,-0.16],\"adsL\":[0.01,-0.06,0.26]}); aimed wrists: before L 7 R 40, after L 7 R 38; arms in the picture 37.7% then 37.7%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.03,0.05,0.14],\"r\":[-0.1,0.18,-0.18],\"adsR\":[0.12,0.18,-0.16],\"adsL\":[0.01,-0.06,0.26]}); pointing wrist: before 29, after 29 (tip 0.0 cm, 180 deg; arms in the picture 14.7% then 14.5%; elbow -0.30,-1.00,0.00, reach 0.18, aimAt 1.00).",
       "beforeArm": {
         "elbow": [
           -0.0971,
@@ -1591,7 +1601,22 @@
       },
       "_reload": "BIGANTLER's reload, a shell at a time (fprig.ts ShellReload), in shares of its empty reload (3.0 s; the tactical 2.0 s is read onto it and ends at `back`'s end), which the soldier reads too (the character agent's rifle.ts): the left hand off the pump over `leave`, `count` shells fed into the gate (Cover) over `feed`, each pushed in over `push` of its own share, back on the pump over `back`, and from empty only the KXG12's pump over `pump`. The KXG12 is a bullpup whose own reload feeds a port under the butt with the right hand; our gate is under the receiver behind the pump, so the left hand feeds it, procedurally. The shell (Bullet) rides at the hand's pinch `drop` under the gate and is pushed home; the hand stops `clear` under the shell's rest (at 3 cm the closing gate met the fingers, 7 to 11 mm in), drops by `dip` (our gun's frame) for the next, is turned `turn` off the hold and bowed out by `bow` on its way off the pump and back (straight, it went 7 mm through the gun's underside); its fingers are the KXG12's empty pump's at `shellAt` of it, where that hand holds a shell. The sound is laid on the same beats (packsounds.json KXG12 shells).",
       "_pump": "After every shot the KXG12's Pump clip leads over the rechamber (`arms` fire), the left hand keeping its hold and sliding with the clip's stroke, our pump (Pump) with it: `pumpScale` of the KXG12's stroke, as our loading gate is close behind the pump and the whole stroke took the hand 23 mm into it.",
-      "_hold": "The KXG12's left hand is on its pump close in front of its grip; ours is 27 to 47 cm ahead of the trigger, so the hand is moved 19 cm forward and the left shoulder 14 cm (`shoulders` l), then searched on the pump's middle with the pump's back position scored too: laid flush by tools/pack-flush.ts alone it crept to the pump's rear end, its heel 14 mm into the receiver's bracket. The right shoulder is the straightest wrist on our raked grip (the KXG12's stands upright) at rest, in an inspect and aimed: 93 to 30 degrees at rest, 101 to 40 aimed, 65 to 37 in an inspect. Its pickup fit (`pick`) is 3 cm out and down: the pack's pickup brings the hand back 9 cm off the KXG12's hold, and with the hold's move on it the fingers went 11 mm into the pump."
+      "_hold": "The KXG12's left hand is on its pump close in front of its grip; ours is 27 to 47 cm ahead of the trigger, so the hand is moved 19 cm forward and the left shoulder 14 cm (`shoulders` l), then searched on the pump's middle with the pump's back position scored too: laid flush by tools/pack-flush.ts alone it crept to the pump's rear end, its heel 14 mm into the receiver's bracket. The right shoulder is the straightest wrist on our raked grip (the KXG12's stands upright) at rest, in an inspect and aimed: 93 to 30 degrees at rest, 101 to 40 aimed, 65 to 37 in an inspect. Its pickup fit (`pick`) is 3 cm out and down: the pack's pickup brings the hand back 9 cm off the KXG12's hold, and with the hold's move on it the fingers went 11 mm into the pump.",
+      "cupMove": {
+        "l": [
+          -0.01,
+          -0.04,
+          0
+        ]
+      },
+      "cup": {
+        "shape": {
+          "l": [
+            0.25,
+            0.65
+          ]
+        }
+      }
     },
     "Drake-12": {
       "model": "Drake-12",

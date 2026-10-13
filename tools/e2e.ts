@@ -1816,7 +1816,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; swap: number }; pointHand: number; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; aimReach: number; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
 /** an overheat's vent (CHOOCH's): its turn's weight mid-vent and at its ends, which clip leads mid-vent, the deepest seen
  * skin in the gun through it, mm, and the worst wrist, degrees */
 type Vent = { mid: number; ends: number; lead: string; deep: number; wrist: number };
@@ -1979,6 +1979,10 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     const vents = !!packOf?.vent;
     const noMag = shells || vents;
     o.wrists = { rest: await wr(""), aimed: await wr("r.debugView.ads = 1;"), point: vents ? 0 : (await wr("r.debugView.reload = 0.28;"))[0], swap: (await wr("r.debugView.raise = 0.16;"))[0] };
+    // and how far an arm falls short of its hold through an aim, cm (BIGANTLER's left arm, its shoulder fitted at rest
+    // alone, fell 23 cm short aimed and the hand slid off the pump onto the receiver: the owner, 2026-10-11, "THE
+    // BIGANTLERS LEFT HAND FIRST PERSON DOESN'T GRIP THE PUMP")
+    o.aimReach = await pf<number>(`let worst = 0; for (const a of [0.5, 1]) { r.debugView.ads = a; await H.gameWait(0.35); const s = r.packArms(); worst = Math.max(worst, s.reachShort, s.reachShortR); } H.clear(); await H.gameWait(0.3); return worst * 100;`);
     // at rest, as fitted to the other games' resting frames (fparms.json packGuns look, tools/gun-fit.ts): where the barrel's
     // line meets the screen and where the muzzle is (shares of the screen, from the left and the top), and the gun's across
     // axis on the screen, degrees off level; and how much of the left upper arm is in the picture through a melee (carried by
@@ -2470,6 +2474,11 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     "pack frames: both wrists 50 degrees or less at rest and aimed, and 60 or less pointing (where it is in the picture) and early in a swap, on the USSO and BOOG",
     g.every((x) => [...x.wrists.rest, ...x.wrists.aimed].every((w) => w <= 50) && (x.wrists.point <= 60 || x.pointHand < -1) && x.wrists.swap <= 60),
     show((x) => ({ rest: x.wrists.rest.map(Math.round), aimed: x.wrists.aimed.map(Math.round), point: Math.round(x.wrists.point), pointAt: +x.pointHand.toFixed(2), swap: Math.round(x.wrists.swap) })),
+  );
+  check(
+    "pack frames: both arms reach their holds all through an aim (within 1 cm), the hands staying on the gun",
+    g.every((x) => x.aimReach <= 1),
+    show((x) => +x.aimReach.toFixed(1)),
   );
   // (the owner, 2026-09-28: "the right arm is clearly still so fucked up ... just put the guns away and look at the right
   // arm": the right fist rolled 159 degrees on its forearm, the glove's cuff split from the sleeve, and each thumb out
