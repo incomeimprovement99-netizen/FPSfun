@@ -13585,6 +13585,12 @@ the left of the gun and not really on it" (said many times before, and missed).
     and the whole pointing hand under the picture's bottom edge;
   - the right wrist while the left hand points: ANAKIN's 75 to 80 degrees.
   The six right hands and ANAKIN's reload are being fitted to them next.
+- **The deploy ships one Neon bake** (tools/deploy-server.ts): every bake ever made of the Neon City, fifteen versions and
+  12 GB, went to the server with each release. This one filled the server's disk half way through unpacking, and the
+  step chained with && did not stop, so the half-unpacked release was swapped in over the running one and the site
+  served empty scripts until it was rolled back (npm run fps rollback, a few minutes). Now only the committed map
+  version's bake goes (1 GB a release), and each step on the server is its own command, so set -e stops at the first
+  that fails.
 - **Tools:** pack-flush.ts takes SETUP (page code before the search, a shoulder tried with the hold); pack-solve.ts takes
   CFG_PATCH (a hold solved without writing fparms.json) and RESULT_FILE.
 - **The lobby agent's sweep** (Milestone 622): "STRYDER has no phase" was stale since Milestone 516, when every gun got

@@ -113,7 +113,12 @@ function snapshot(): string {
   execFileSync("git", ["archive", "--format=tar", "-o", tar, "HEAD"], { cwd: ROOT });
   execFileSync(TAR, ["-xf", tar, "-C", dir]);
   rmSync(tar, { force: true });
+  // (the Neon City's bake of the committed map version only: every older bake kept in public/models/paid/neon went
+  // too, fifteen of them and 12 GB by 2026-10-13, and that deploy filled the server's disk half way through unpacking)
+  const neonVersion = (JSON.parse(readFileSync(join(dir, "src", "config", "neonmap.json"), "utf8")) as { version?: number }).version;
   for (const f of execFileSync("git", ["ls-files", "-o", "-i", "--exclude-standard", "-z", "--", "public"], { cwd: ROOT, encoding: "utf8" }).split("\0").filter(Boolean)) {
+    const bake = /neonmap-v(\d+)-[^/]*$/.exec(f);
+    if (bake && Number(bake[1]) !== neonVersion) continue;
     mkdirSync(dirname(join(dir, f)), { recursive: true });
     cpSync(join(ROOT, f), join(dir, f));
   }
@@ -382,8 +387,15 @@ async function main(): Promise<void> {
       [
         "set -e",
         "cd ~/range",
-        "rm -rf next && mkdir next && tar -xzf incoming.tgz -C next && rm incoming.tgz",
-        "cd next/server && npm ci --omit=dev --no-audit --no-fund --loglevel=error && cd ~/range",
+        // (one command a step, so set -e stops at the first that fails: chained with &&, a tar that ran out of disk
+        // did not stop it, and the half-unpacked release was swapped in over the running one, 2026-10-13)
+        "rm -rf next",
+        "mkdir next",
+        "tar -xzf incoming.tgz -C next",
+        "rm incoming.tgz",
+        "cd next/server",
+        "npm ci --omit=dev --no-audit --no-fund --loglevel=error",
+        "cd ~/range",
         "rm -rf prev; if [ -d app ]; then mv app prev; fi; mv next app",
         "pm2 startOrReload app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null",
         HEALTH_AFTER_RELOAD,
