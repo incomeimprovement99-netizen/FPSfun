@@ -260,6 +260,10 @@ export class GamepadInput {
   id = "";
   /** the right stick through the deadzone this frame, for a wheel's pick (x right, y down) */
   readonly stick = { x: 0, y: 0 };
+  /** the left stick through the deadzone this frame, and the buttons by index held and gone down: the menu by pad (padnav.ts) */
+  readonly leftStick = { x: 0, y: 0 };
+  readonly rawHeld = new Set<number>();
+  readonly rawPressed = new Set<number>();
   private index = -1;
   private down = new Set<Action | "menu">();
   private pressed = new Set<Action | "menu">();
@@ -311,6 +315,10 @@ export class GamepadInput {
     this.touchedNow = false;
     this.stick.x = 0;
     this.stick.y = 0;
+    this.leftStick.x = 0;
+    this.leftStick.y = 0;
+    this.rawHeld.clear();
+    this.rawPressed.clear();
     if (!p) {
       this.active = false;
       this.down.clear();
@@ -326,6 +334,8 @@ export class GamepadInput {
     const ry = dz(ax[3] ?? 0);
     this.stick.x = rx;
     this.stick.y = ry;
+    this.leftStick.x = mx;
+    this.leftStick.y = my;
     let touched = Math.abs(mx) + Math.abs(my) + Math.abs(rx) + Math.abs(ry) > 0;
 
     // buttons: held and pressed-this-frame
@@ -335,6 +345,8 @@ export class GamepadInput {
       if (on) touched = true;
       const was = !!this.prevButtons[i];
       this.prevButtons[i] = on;
+      if (on) this.rawHeld.add(i);
+      if (on && !was) this.rawPressed.add(i);
       const action: Action | "menu" | undefined = BUTTON[i];
       if (!action) return;
       const hold = action === "menu" ? undefined : PAD_HOLDS[action];

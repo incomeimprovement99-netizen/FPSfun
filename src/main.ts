@@ -7,6 +7,7 @@ import { resolveWeapon, weaponClass, weaponIds, weaponKind, weaponLabel, weaponN
 import { adsSensScale, cmPer360, degPerCount, gunFov, hipFov43, verticalFovFrom43, OPTIC_ZOOMS, opticZoom, type OpticZoom } from "./game/sens";
 import { Input } from "./game/input";
 import { padButtons, padFamilyOf, padLabel, type PadSettings } from "./game/gamepad";
+import { PadNav } from "./ui/padnav";
 import { Player } from "./game/player";
 import { Loadout, type SlotSetup } from "./game/loadout";
 import { HU, MOVE } from "./game/movement";
@@ -88,7 +89,7 @@ import { Loadouts, type LoadoutDef } from "./game/loadouts";
 import { operatorById, operatorWearing, OPERATORS } from "./game/operators";
 import { lookCode } from "./game/outfit";
 import { setArmColors } from "./game/arms";
-import { Menu, brTeamId, type Mode } from "./ui/menu";
+import { Menu, brTeamId, type Mode, type Tab } from "./ui/menu";
 import { StartScreen } from "./ui/start";
 import { friendsModeFor } from "./ui/lobby";
 import { calloutAt, calloutLine } from "./game/callouts";
@@ -1112,7 +1113,7 @@ const debugWeapons = new Map<string, ReturnType<typeof resolveWeapon>>();
 const input = new Input(renderer.domElement);
 // the player's own keys (the Controls tab) on top of binds.json
 applySavedBinds();
-initBindsUi($("bindTable"), $("bindsNote"));
+initBindsUi($("bindTable"), $("bindsNote"), $("padBindTable"));
 /**
  * where a player may go in the range: all of it, down to the backstop. Its lit barrier 24 m in (Phase 20 A12, the
  * owner's sandbox) went on the owner's word, 2026-10-12, and the manual's screen it hung in stays where it was.
@@ -5652,6 +5653,24 @@ function goTo(mode: Mode): void {
   rangeSide.attach(lab.root);
 }
 
+/**
+ * The menu by controller (padnav.ts): the screen the pad works in now (the hack pick over the start screen over the
+ * menu), and LB and RB turning the menu's tabs in the order they stand.
+ */
+const PAD_TABS: Tab[] = ["play", "duel", "loadouts", "stats", "settings", "controller", "controls"];
+const padNav = new PadNav(
+  () => {
+    for (const id of ["pick", "start"]) {
+      const el = document.getElementById(id);
+      if (el && !el.hidden) return el;
+    }
+    return overlay.querySelector<HTMLElement>(".menu");
+  },
+  (step) => {
+    const i = Math.max(0, PAD_TABS.indexOf(menu.tab));
+    menu.show(PAD_TABS[(i + step + PAD_TABS.length) % PAD_TABS.length]);
+  },
+);
 const menu = new Menu(loadouts, profile, {
   // the finish pickers follow the slots (hoisted: it runs once the pickers exist)
   onRendered: () => renderFinishes(),
@@ -5848,6 +5867,9 @@ window.addEventListener("keydown", (e) => {
 });
 let courseHinted = false;
 let padWasActive = false;
+/** the Controller tab's line about the pad in hand: redrawn when the pad seen changes (a new one, or the first press) */
+let refreshPadSeen = (): void => undefined;
+let padIdSeen = "";
 // The controller's settings (gamepad.ts), from the Settings tab, remembered
 const LS_PAD = "range.pad.v1";
 try {
@@ -5904,8 +5926,10 @@ try {
   const promptsSel = $<HTMLSelectElement>("padPrompts");
   promptsSel.value = s.prompts;
   const promptsSeen = $("padPromptsSeen");
+  const padStatus = $("padStatus");
   const seen = (): void => {
     const fam = input.pad.id ? padFamilyOf(input.pad.id) : null;
+    padStatus.textContent = !input.pad.id ? "No controller yet: plug one in and press any button." : `${fam === "ps" ? "PlayStation controller" : fam === "xbox" ? "Xbox controller" : "Controller"} connected`;
     promptsSeen.textContent = !input.pad.id
       ? "No controller seen yet: plug one in and press a button."
       : fam
@@ -5913,7 +5937,7 @@ try {
         : "Your controller does not say whose it is, so Auto shows Xbox's buttons (A B X Y), the layout most PC pads copy. Pick PlayStation if yours has the shapes.";
   };
   seen();
-  window.addEventListener("gamepadconnected", () => window.setTimeout(seen, 100));
+  refreshPadSeen = seen;
   aimAssist.enabled = s.aimAssist;
   look.value = String(s.look);
   ads.value = String(s.ads);
@@ -6244,6 +6268,10 @@ function step(): void {
   const padAdsScale = 1 + (adsSensScale(hipFov43(settings.fovScale), zoomFov43(loadout.active.weapon) * settings.fovScale, opticAdsMult()) - 1) * loadout.active.state.adsFrac;
   const padLook = input.pad.poll(wall, dt, padAdsScale, loadout.active.state.adsFrac, opticAdsMult());
   if (input.pad.touchedNow) input.device = "pad";
+  if (input.pad.id !== padIdSeen) {
+    padIdSeen = input.pad.id;
+    refreshPadSeen();
+  }
   if (input.pad.menuPressed) {
     if (input.locked) input.unlock();
     else if (!overlay.classList.contains("hidden")) {
@@ -6258,6 +6286,9 @@ function step(): void {
       input.onLockChange?.(false);
     }
   }
+  // the menu by controller (padnav.ts): whichever of its screens is up, while no match or range has the pad
+  if (!overlay.classList.contains("hidden") && !calibrating) padNav.step(wall, input.pad);
+  else padNav.clear();
   if (input.pad.justConnected) {
     input.pad.justConnected = false;
     const fam = padFamilyOf(input.pad.id);

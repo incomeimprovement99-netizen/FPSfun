@@ -179,7 +179,7 @@ export function applySavedBinds(): void {
 }
 
 /** build the Controls tab's table into `root` and keep it live */
-export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
+export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLElement = root): void {
   let changes = withoutClashes(load());
   /** the chip waiting for a key, and how to stop waiting */
   let capturing: { stop: () => void } | null = null;
@@ -320,13 +320,13 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
     const h = document.createElement("div");
     h.className = "bindGroup";
     h.textContent = "Controller buttons";
-    root.appendChild(h);
+    padRoot.appendChild(h);
     const hint = document.createElement("div");
     hint.className = "bindRow";
     hint.innerHTML = `<span class="bindName" style="color:#7d8895">The game's Default layout, each button by its Xbox name and its PlayStation one. The sticks move and look. Start (Options) is always the menu, so it cannot be moved. X (square) also rides ziplines and takes items where there is a prompt. Held: ${Object.entries(PAD_HOLDS)
       .map(([a, h]) => `${labelOf(a as Action).split(" (")[0].toLowerCase()} → ${labelOf(h as Action).split(" (")[0].toLowerCase()}`)
       .join("; ")}. Twice on ping: an enemy there. Held on ping, the right stick picks on its wheel.</span>`;
-    root.appendChild(hint);
+    padRoot.appendChild(hint);
     // the game's presets: a layout in one go
     const presetRow = document.createElement("div");
     presetRow.className = "bindRow";
@@ -356,7 +356,7 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
       render();
     });
     presetRow.appendChild(presetSel);
-    root.appendChild(presetRow);
+    padRoot.appendChild(presetRow);
     const actions = GROUPS.flatMap((g) => g.actions);
     const live = padButtons();
     PAD_BUTTON_NAMES.forEach((name, i) => {
@@ -373,7 +373,7 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
         fixed.className = "bindKeys";
         fixed.textContent = "Menu";
         row.appendChild(fixed);
-        root.appendChild(row);
+        padRoot.appendChild(row);
         return;
       }
       const sel = document.createElement("select");
@@ -394,7 +394,7 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
         note.textContent = `${name} is now ${sel.value === "none" ? "nothing" : labelOf(sel.value as Action)}.`;
       });
       row.appendChild(sel);
-      root.appendChild(row);
+      padRoot.appendChild(row);
     });
     const reset = document.createElement("button");
     reset.type = "button";
@@ -411,7 +411,7 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement): void {
       note.textContent = "The controller's buttons are back to the default.";
       render();
     });
-    root.appendChild(reset);
+    padRoot.appendChild(reset);
   };
 
   document.getElementById("bindsReset")?.addEventListener("click", () => {

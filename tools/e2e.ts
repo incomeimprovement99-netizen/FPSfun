@@ -22,6 +22,7 @@ import soldierHoldCfg from "../src/config/soldierhold.json";
 import figureCfg from "../src/config/figure.json";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import brCfg from "../src/config/br.json";
+import { decayRounds } from "../src/game/decay";
 import netCfg from "../src/config/net.json";
 /**
  * The longest a peer goes unheard by design: one standing still sends nothing until its next keyframe (net.json
@@ -2834,6 +2835,26 @@ async function readmeTvChecks(page: Page): Promise<void> {
 /** a fake gamepad: Start plays, the left stick walks, the right stick turns */
 async function padTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
+  // The menu by controller (Milestone 539): RB and LB turn the tabs, the Controller tab is one of them, the D-pad
+  // lights a stop, and A on a lit tab opens it
+  await padTap(page, 5);
+  const t1 = await ev<string>(page, "window.__range.menu.tab");
+  await padTap(page, 4);
+  const t0 = await ev<string>(page, "window.__range.menu.tab");
+  for (let i = 0; i < 5; i++) await padTap(page, 5);
+  const tc = await ev<{ tab: string; shown: boolean; status: string }>(page, `({ tab: window.__range.menu.tab, shown: !document.querySelector('section[data-panel="controller"]').hidden, status: document.getElementById("padStatus").textContent })`);
+  await padTap(page, 4);
+  await padTap(page, 4);
+  await padTap(page, 4);
+  await padTap(page, 4);
+  await padTap(page, 4);
+  await padTap(page, 13);
+  const lit = await ev<string | null>(page, "(() => { const e = document.querySelector('.padfocus'); return e ? (e.id || e.dataset.tab || e.tagName) : null; })()");
+  check(
+    "pad menu: RB and LB turn the tabs (the Controller tab among them, saying a pad is in), and the D-pad lights something to press",
+    t1 === "duel" && t0 === "play" && tc.tab === "controller" && tc.shown && /connected/i.test(tc.status) && lit !== null,
+    JSON.stringify({ t1, t0, tc, lit })
+  );
   // Start on the menu: play without a pointer lock
   await pressPlay(page);
   const playing = await ev<{ hidden: boolean; playing: boolean; active: boolean }>(page, `({ hidden: document.getElementById("overlay").classList.contains("hidden"), playing: window.__range.input.playing, active: window.__range.input.pad.active })`);
@@ -7416,7 +7437,10 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
   const started = await page.waitForFunction("!!window.__range.duel()", { polling: 100, timeout: 30000 }).then(() => true, () => false);
   const ring = await ev<{ phases: number; wait: number }>(page, `(() => { const p = window.__range.duel().phases; return { phases: p.length, wait: p[0].wait }; })()`);
   check("the panel's own button starts the match it is set up for", started, `${ring.phases} rounds`);
-  check("and the pace the panel was set to is the pace the ring runs at", ring.wait < 45, `${ring.wait} s before the first close, against 45 at the normal pace`);
+  // (against the normal pace's own first wait, not a number: the quiet first minute, Milestone 577, made it 110 s and
+  // this check read 95 s fast against the 45 it had been written for)
+  const normalWait = decayRounds("normal")[0].wait;
+  check("and the pace the panel was set to is the pace the ring runs at", ring.wait < normalWait - 1, `${ring.wait} s before the first close, against ${normalWait} at the normal pace`);
   await ev(page, "window.__range.toMenu()");
 
   await ev(page, `document.getElementById("goBots").click(); document.getElementById("playFriends").click()`);

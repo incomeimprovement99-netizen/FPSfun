@@ -11629,6 +11629,26 @@ display accordingly." Tiger, the fifth playtester, found the game hard on a cont
   turns them back; the new Default), finish and range; photographs of the panel with an Xbox and a DualSense id.
   Put back (the device never turning to the pad), the prompts check fails.
 
+## Milestone 539 — The menu on a controller, and a Controller tab
+
+The owner (2026-10-12): "we should make it more of an obvious section in the settings page for those players (they
+hate using the mouse to look for shit lol)". The menu could only be used with a mouse: Start played and nothing else.
+
+- **The Controller tab:** a tab of its own between Settings and Controls, opening on which controller is in hand
+  ("Xbox controller connected", "PlayStation controller connected", or how to get one seen), then the button prompts,
+  look and aim (sensitivities, curve, deadzones, auto sprint, rumble, advanced look, aim assist), then the buttons (the
+  layout said once, the presets and every button to change, moved from the Controls tab).
+- **The menu by pad** (src/ui/padnav.ts): the D-pad or the left stick (held, it repeats) moves a lit outline to the
+  nearest button, box, card or tab that way, its sideways offset counting double so a column walks down first; A
+  (cross) presses what is lit, on a box steps it on; left and right change a box's value; B (circle) presses the hack
+  pick's or the menu's Back; LB and RB (L1, R1) turn the tabs. The first move lights the open tab's picked card or
+  first control. It works on the start screen and the hack pick as well as the menu.
+- **And an e2e check that had gone stale:** the panel's pace check wanted a fast first round under 45 s, written
+  before the quiet first minute (Milestone 577) made the normal one 110 s; it is checked against the normal pace's
+  own wait now.
+- **Checked:** tsc; verify; rules; e2e pad (RB and LB turn the tabs, the Controller tab says the pad is in, the D-pad
+  lights a stop), finish and panel; photographs of the menu lit by a pad.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

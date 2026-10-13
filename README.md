@@ -657,6 +657,13 @@ on RB, the utility hack on D-pad right), and Range (the fusion level and the
 weapon slots on the D-pad, for trying guns). **Every button but Start can also
 be moved** one at a time, each listed by its Xbox and its PlayStation name.
 
+**The Controller tab** (beside Settings) holds all of it: which controller is
+in hand, the button prompts, the look and aim settings, and every button to
+change. **The whole menu works on a controller**: the D-pad or the left stick
+moves a lit outline between the buttons, boxes and cards, A (cross) presses,
+B (circle) goes back, LB and RB (L1, R1) turn the tabs, and on a box left and
+right change it.
+
 Look sensitivity 1 to 8 like the game (3 is the game's default, 180 deg/s of
 yaw), a separate ADS level, a Classic (curved) or Linear response, an inner
 deadzone, and rumble on shots and hits. **Advanced look** (Settings) is the
