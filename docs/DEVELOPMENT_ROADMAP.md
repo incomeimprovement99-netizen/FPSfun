@@ -13315,3 +13315,34 @@ figure (569). What the soldier takes from that file is the library's rig, which 
 - **Checked:** tools/checks/clips.ts now also holds that no clip file carries a body and that the rig file's joints load
   as bones, seen failing on the file before; tools/checks/soldier.ts (the soldier carried over from this rig) passes on
   it; verify, rules, the type check, and the skfigure and page e2e sections.
+
+## Milestone 602 — The gap at the bottom of the back of the neck, closed, and looked for
+
+The owner (2026-10-12): in third person with the USSO, and maybe other guns, a gap at the bottom of the back of the neck.
+Milestone 560 lowered the collar behind the head so the whole head shows from behind: it cut the collar 8 cm under the
+head's lowest point. But the neck's skin ends 3 mm over the neck bone, its edge meant to sit inside the collar, and that
+cut put the collar's top 51 to 55 mm under the edge all round the back and the sides (measured in the bind pose), so
+from behind you saw into the body through it. No check looked: the volumes, the head's visibility and the pose were
+all measured, the surface's continuity never was.
+
+- **The fix** (soldier.ts collarLowering, soldier.json collar): the suit's collar is never lowered past the neck's
+  skin. Its edge is measured off the model (the middle of each 15-degree sector's lowest point of the head piece round
+  the back and the sides, within `neckRadius` of the neck's line), and the suit's cut is at that edge whenever the cut
+  under the head would be lower: the squashed collar's top stands 0 to 5 mm over the edge's middle all round. The armour
+  over the suit keeps the cut under the head: brought up with the suit, its collar hid 0.5 to 3.6 of every 100 points of
+  VANGUARD's skull from 30 m behind, where the head-from-behind check allows 0.5, and lower, it shows the suit's collar,
+  not a gap. And the suit no higher than the edge: 1.5 cm over it, it hid 0.7 of every 100 points of RUNNER's skull aimed,
+  0.8 cm over, 0.5, at the edge none.
+- **How it is looked for from now on:** two checks, each seen failing with the old cut put back.
+  - tools/checks/soldier.ts, in verify: in the bind pose the lowered suit's collar comes up to the neck skin's edge in
+    every sector of the back and the sides, 2 mm under its middle at most (failing: -54 to -60 mm).
+  - The skfigure e2e (neckSeamTest): every gun, standing, aimed level, 30 down and 30 up, crouched aimed and sprinting,
+    from behind, 35 degrees to either side and from above, 240 shots: the figure alone on flat magenta, drawn as it is
+    and then with the back of every surface flat green, and no pixel within 15 cm of the neck, between the head and 12 cm
+    under it, that shows the world in the first and the body's inside in the second: a ray through a gap out to the
+    world. The inside alone is not a gap (a shoulder plate's rim shows its own, the suit behind it), nor is the world
+    between an arm and the body. With the old cut: 842 to 2,180 such pixels from behind and the side at 960 px.
+- **Seen elsewhere, not this:** the same picture over the whole figure finds slivers of the inside at a few folds where
+  the armour meets the arm and the waist, tens of pixels at 0.9 m, invisible at playing distance.
+- **Checked:** both checks; the skfigure section (the head from behind and every hold) with the collar higher; verify,
+  rules and the type check.

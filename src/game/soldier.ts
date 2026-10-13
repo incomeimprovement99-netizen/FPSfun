@@ -227,7 +227,7 @@ export function soldierScene(look: SoldierLook): THREE.Object3D | null {
  * sides of the neck and not at its front (`front`, the cosine of the way out from the neck's line against straight
  * ahead). Null when a bone it measures by is missing.
  */
-export function collarLowering(meshes: THREE.SkinnedMesh[], body: THREE.SkinnedMesh): ((g: THREE.BufferGeometry) => void) | null {
+export function collarLowering(meshes: THREE.SkinnedMesh[], body: THREE.SkinnedMesh): ((g: THREE.BufferGeometry, part: string) => void) | null {
   const C = cfg.collar;
   const skel = body.skeleton;
   const toBody = body.bindMatrix.clone().invert();
@@ -272,8 +272,33 @@ export function collarLowering(meshes: THREE.SkinnedMesh[], body: THREE.SkinnedM
     }
   }
   if (!Number.isFinite(low)) return null;
-  const cut = low - C.below;
-  return (g) => {
+  // The neck's skin ends a little over the neck bone, its edge meant to be inside the collar: the suit's collar is never
+  // brought down past it, or there is a gap at the bottom of the back of the neck to see through (the owner, 2026-10-12,
+  // in third person with the USSO: the cut under the head alone left the collar 5 cm under the edge all round the back).
+  // The armour over the suit keeps the head's cut: brought up with the suit, its collar hid up to 4 in 100 of the skull.
+  // The edge's height round the back and the sides: each 15-degree sector's lowest point of the head piece near the
+  // neck's line and under the head, and the middle of those (a sector the mesh is sparse in reads high).
+  const lowest = new Map<number, number>();
+  for (const m of meshes) {
+    if (partOf(m) !== "head_eyes") continue;
+    const pos = m.geometry.attributes.position as THREE.BufferAttribute;
+    const toB = toBody.clone().multiply(m.bindMatrix);
+    for (let i = 0; i < pos.count; i++) {
+      const d = v.fromBufferAttribute(pos, i).applyMatrix4(toB).sub(pelvis);
+      const hx = d.dot(left) - neckX;
+      const hz = d.dot(fwd) - neckZ;
+      const y = d.dot(up);
+      if (Math.hypot(hx, hz) > C.neckRadius || y > low || round(d) > C.front[1]) continue;
+      const s = Math.round((Math.atan2(hx, -hz) / (2 * Math.PI)) * 24);
+      lowest.set(s, Math.min(lowest.get(s) ?? Infinity, y));
+    }
+  }
+  const edges = [...lowest.values()].sort((a, b) => a - b);
+  const edge = edges.length ? edges[edges.length >> 1] : -Infinity;
+  const underHead = low - C.below;
+  const overNeck = Math.max(underHead, edge + C.overNeck);
+  return (g, part) => {
+    const cut = C.overNeckParts.includes(part) ? overNeck : underHead;
     const pos = g.attributes.position as THREE.BufferAttribute;
     for (let i = 0; i < pos.count; i++) {
       const d = v.fromBufferAttribute(pos, i).sub(pelvis);
@@ -326,7 +351,7 @@ export function mergeSoldier(src: THREE.Object3D, look: SoldierLook): THREE.Obje
     }
     const g = m.geometry.clone();
     g.applyMatrix4(body.bindMatrix.clone().invert().multiply(x).multiply(m.bindMatrix));
-    if (lowerCollar && cfg.collar.parts.includes(partOf(m))) lowerCollar(g);
+    if (lowerCollar && cfg.collar.parts.includes(partOf(m))) lowerCollar(g, partOf(m));
     const si = g.getAttribute("skinIndex");
     for (let v = 0; v < si.count; v++) for (let c = 0; c < 4; c++) si.setComponent(v, c, index.get(m.skeleton.bones[si.getComponent(v, c)].name) ?? 0);
     for (const a of Object.keys(g.attributes)) if (!["position", "normal", "uv", "skinIndex", "skinWeight"].includes(a)) g.deleteAttribute(a);

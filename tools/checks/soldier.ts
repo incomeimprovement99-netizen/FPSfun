@@ -12,7 +12,7 @@ import { existsSync, readFileSync } from "node:fs";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { retargetClip, retargeter, rigOf } from "../../src/game/retarget";
-import { botSoldierCode, lookOf, mergeSoldier, readSoldierCode } from "../../src/game/soldier";
+import { botSoldierCode, collarLowering, lookOf, mergeSoldier, readSoldierCode } from "../../src/game/soldier";
 import soldierCfg from "../../src/config/soldier.json";
 
 let fails = 0;
@@ -170,6 +170,66 @@ const wp = (root: THREE.Object3D, n: string) => root.getObjectByName(n)!.getWorl
     rose = Math.max(rose, (vb.y - va.y) * 1000);
   });
   check("the merge moves only the collar behind the head, and only down (soldier.json collar), in the bind pose", lowered.size > 0 && lowered.size < 400 && sideways < 30 && rose <= 0, `${lowered.size} vertices, most sideways ${sideways.toFixed(1)} mm, most up ${rose.toFixed(1)} mm`);
+  // ...and never past the bottom edge of the neck's skin, which is meant to be inside it: the cut under the head alone
+  // left the collar's top 5 cm under the edge all round the back and the sides, a gap at the bottom of the back of the
+  // neck you could see the world through (the owner, 2026-10-12, in third person with the USSO). Round the neck in
+  // 15-degree sectors, over the bind pose: the head piece's lowest point near the neck's line (their middle, the edge),
+  // and the lowered collar's highest in each sector of the back and the sides
+  {
+    const partOf = (o: THREE.Object3D): string => {
+      for (let p: THREE.Object3D | null = o; p; p = p.parent) if ((soldierCfg.parts as Record<string, string>)[p.name]) return p.name;
+      return o.name;
+    };
+    const body = pieces.find((m) => partOf(m) === "body")!;
+    const skel = body.skeleton;
+    const toBody = body.bindMatrix.clone().invert();
+    const bone = (n: string) => new THREE.Vector3().setFromMatrixPosition(toBody.clone().multiply(skel.boneInverses[skel.bones.findIndex((x) => x.name === n)].clone().invert()));
+    const [pelvis, neck, head, ul, ur] = ["pelvis", "neck_01", "Head", "upperarm_l", "upperarm_r"].map(bone);
+    const up = head.clone().sub(pelvis).normalize();
+    const left = ul.clone().sub(ur);
+    left.addScaledVector(up, -left.dot(up)).normalize();
+    const fwd = new THREE.Vector3().crossVectors(left, up).normalize();
+    const nx = neck.clone().sub(pelvis).dot(left);
+    const nz = neck.clone().sub(pelvis).dot(fwd);
+    const neckH = neck.clone().sub(pelvis).dot(up);
+    const lower = collarLowering(pieces, body);
+    const C = soldierCfg.collar;
+    const edgeLow = new Map<number, number>();
+    const top = new Map<number, number>();
+    const index = new Map(skel.bones.map((x, i) => [x.name, i]));
+    const m4 = new THREE.Matrix4();
+    const v = new THREE.Vector3();
+    for (const m of pieces) {
+      const part = partOf(m);
+      // the suit: the armour over it stays lowered as far as the head's cut, and the suit is what closes the neck
+      if (part !== "head_eyes" && !C.overNeckParts.includes(part)) continue;
+      m4.copy(skel.boneInverses[index.get(m.skeleton.bones[0].name)!]).invert().multiply(m.skeleton.boneInverses[0]);
+      const geo = m.geometry.clone().applyMatrix4(toBody.clone().multiply(m4).multiply(m.bindMatrix));
+      if (part !== "head_eyes" && lower) lower(geo, part);
+      const pos = geo.attributes.position as THREE.BufferAttribute;
+      for (let i = 0; i < pos.count; i++) {
+        const d = v.fromBufferAttribute(pos, i).sub(pelvis);
+        const hx = d.dot(left) - nx;
+        const hz = d.dot(fwd) - nz;
+        const y = d.dot(up);
+        // the back and the sides, as far round as the collar is lowered: two thirds of the way to the front
+        const a = Math.atan2(hx, -hz);
+        if (Math.hypot(hx, hz) > C.neckRadius || Math.abs(a) > (2 * Math.PI) / 3 || y < neckH - 0.15 || y > neckH + 0.12) continue;
+        const sct = Math.round((a / (2 * Math.PI)) * 24);
+        if (part === "head_eyes") edgeLow.set(sct, Math.min(edgeLow.get(sct) ?? Infinity, y));
+        else top.set(sct, Math.max(top.get(sct) ?? -Infinity, y));
+      }
+    }
+    const lows = [...edgeLow.values()].sort((a, b) => a - b);
+    const edge = lows[lows.length >> 1];
+    const over = [...top.entries()].map(([sct, y]) => ({ deg: sct * 15, mm: Math.round((y - edge) * 1000) }));
+    const short = over.filter((o) => o.mm < -2);
+    check(
+      "the lowered suit's collar comes up to the bottom edge of the neck's skin all round the back and the sides, 2 mm under its middle at most (no gap to see through)",
+      over.length >= 15 && short.length === 0,
+      short.length ? JSON.stringify(short) : `the edge ${Math.round((edge - neckH) * 1000)} mm over the neck bone, the collar ${Math.min(...over.map((o) => o.mm))} to ${Math.max(...over.map((o) => o.mm))} mm over it in ${over.length} sectors`,
+    );
+  }
   const sprint = retargetClip(r, all.find((c) => c.name === "Sprint_Loop")!);
   const a1 = new THREE.AnimationMixer(soldier.scene);
   const a2 = new THREE.AnimationMixer(merged);

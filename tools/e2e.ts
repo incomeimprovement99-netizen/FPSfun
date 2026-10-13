@@ -42,6 +42,7 @@ import fparmsCfg from "../src/config/fparms.json";
 import gunfeelCfg from "../src/config/gunfeel.json";
 import squadCfg from "../src/config/squad.json";
 import { readFileSync } from "node:fs";
+import sharp from "sharp";
 
 const BASE = process.env.SHOT_URL ?? "http://localhost:5173/";
 const CHROME = process.env.CHROME_PATH ?? "C:/Program Files/Google/Chrome/Application/chrome.exe";
@@ -6307,6 +6308,114 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
  * the magazine out, letting a copy fall that is cleared away, and bringing a new one home; and the Loadouts tab's soldier
  * with its hands on the gun it shows. The frame sheets are tools/figure-frames.ts's.
  */
+/**
+ * The soldier's neck from behind, the sides and above: no gap at the bottom of the back of the neck you can see through
+ * (the owner, 2026-10-12, in third person with the USSO: Milestone 560's collar, lowered to show the whole head, went 5
+ * cm under the bottom edge of the neck's skin all round the back). Every gun, standing, aimed level, 30 degrees down and
+ * up, crouched and aimed, and sprinting, from straight behind, 35 degrees to either side and from above, 0.9 m away: the
+ * figure alone on flat magenta, drawn as it is and then with the back of every surface flat green. A pixel within 15 cm
+ * either side of the neck, between the head and 12 cm under the neck bone, that shows the world in the first picture and
+ * the body's inside in the second is a ray through a gap in the surface out to the world. (The inside alone is not a gap:
+ * a shoulder plate's rim shows its own inside with the suit behind it, and the space between an arm and the body shows
+ * the world with no inside in front of it.)
+ */
+async function neckSeamTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?");
+  const SIZE = 480;
+  await page.setViewport({ width: SIZE, height: SIZE, deviceScaleFactor: 1 });
+  const ready = await page.waitForFunction("window.__range.soldierReady() && window.__range.paidGuns().ready", { polling: 250, timeout: 180000 }).then(() => true, () => false);
+  if (!ready) {
+    console.log("  --  the soldier's or the guns' files are not here (npm run paid makes them), so the neck's seam is not checked");
+    await page.close();
+    return;
+  }
+  await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); const r = window.__range; r.input.locked = true; r.hideViewModel(true); document.getElementById("hud")?.style.setProperty("display", "none"); r.shotFov(40); })()`);
+  const guns = Object.keys((soldierHoldCfg as { guns: Record<string, unknown> }).guns);
+  const poses: Record<string, Record<string, unknown>> = {
+    stand: { speed: 0, stance: "stand", pitch: 0 },
+    aimed: { speed: 0, stance: "stand", pitch: 0, ads: 1 },
+    "aimed down": { speed: 0, stance: "stand", pitch: -30, ads: 1 },
+    "aimed up": { speed: 0, stance: "stand", pitch: 30, ads: 1 },
+    "crouched aimed": { speed: 0, stance: "crouch", pitch: 0, ads: 1 },
+    sprint: { speed: 14, stance: "stand", pitch: 0 },
+  };
+  const views: Record<string, number> = { behind: 0, "its left": -35, "its right": 35, above: 0 };
+  const pixels = async (): Promise<{ data: Buffer; channels: number; width: number; height: number }> => {
+    const { data, info } = await sharp(await page.screenshot()).raw().toBuffer({ resolveWithObject: true });
+    return { data, channels: info.channels, width: info.width, height: info.height };
+  };
+  const bad: string[] = [];
+  let shots = 0;
+  for (const [view, turn] of Object.entries(views)) {
+    // the view settles onto the eye over a moment after a teleport: both pictures of a shot must be of the same frame
+    await ev(page, `window.__range.player.teleport(0, 0, 0, 0, ${view === "above" ? -22 : 0})`);
+    await sleep(1200);
+    for (const gun of guns)
+      for (const [pose, p] of Object.entries(poses)) {
+        const at = await ev<{ neck: number[]; head: number[]; ppm: number }>(
+          page,
+          `(() => {
+            const r = window.__range, T = r.THREE;
+            r.figureLabManual(false); r.figureLab([{ ...${JSON.stringify(p)}, weapon: "${gun}", look: "S0000010" }], 2.4, 180); r.figureLabManual(true);
+            r.figureLabStep(1.5);
+            const f = r.labFigures()[0];
+            const scene = f.group.parent;
+            for (const c of scene.children) if (c !== f.group && !c.isLight && !c.isCamera) c.visible = false;
+            scene.background = new T.Color(1, 0, 1);
+            scene.fog = null;
+            const C = r.camera;
+            C.updateMatrixWorld(true);
+            const cam = C.getWorldPosition(new T.Vector3());
+            const F = C.getWorldDirection(new T.Vector3());
+            f.group.rotation.y += ${turn} * Math.PI / 180;
+            f.group.updateMatrixWorld(true);
+            const neck0 = new T.Vector3().setFromMatrixPosition(f.mq.bone("neck_01").matrixWorld);
+            f.group.position.add(cam.clone().addScaledVector(F, 0.9).sub(neck0));
+            r.figureLabStep(0.05);
+            f.group.updateMatrixWorld(true);
+            const neck = new T.Vector3().setFromMatrixPosition(f.mq.bone("neck_01").matrixWorld);
+            const head = new T.Vector3().setFromMatrixPosition(f.mq.bone("Head").matrixWorld);
+            const px = (v) => { const q = v.clone().project(C); return [(q.x + 1) / 2 * ${SIZE}, (1 - q.y) / 2 * ${SIZE}]; };
+            const right = new T.Vector3(1, 0, 0).applyQuaternion(C.quaternion);
+            const n = px(neck), s = px(neck.clone().addScaledVector(right, 0.1));
+            return { neck: n, head: px(head), ppm: Math.hypot(s[0] - n[0], s[1] - n[1]) / 0.1 };
+          })()`,
+        );
+        await sleep(300);
+        const drawn = await pixels();
+        await ev(
+          page,
+          `(() => { const T = window.__range.THREE; window.__range.labFigures()[0].figure.root.traverse((o) => {
+            if (!o.isSkinnedMesh) return;
+            const m = o.material.clone();
+            m.side = T.DoubleSide;
+            m.onBeforeCompile = (sh) => { sh.fragmentShader = sh.fragmentShader.replace("#include <dithering_fragment>", "#include <dithering_fragment>" + String.fromCharCode(10) + " if (!gl_FrontFacing) gl_FragColor = vec4(0.0, 1.0, 0.0, 1.0);"); };
+            m.customProgramCacheKey = () => "inside";
+            m.toneMapped = false;
+            o.material = m;
+          }); })()`,
+        );
+        await sleep(300);
+        const inside = await pixels();
+        const x0 = at.neck[0] - 0.15 * at.ppm, x1 = at.neck[0] + 0.15 * at.ppm;
+        const y0 = Math.min(at.head[1], at.neck[1]), y1 = at.neck[1] + 0.12 * at.ppm;
+        let through = 0;
+        for (let y = Math.max(0, Math.floor(y0)); y < Math.min(drawn.height, y1); y++)
+          for (let x = Math.max(0, Math.floor(x0)); x < Math.min(drawn.width, x1); x++) {
+            const a = (y * drawn.width + x) * drawn.channels;
+            const b = (y * inside.width + x) * inside.channels;
+            const world = drawn.data[a] > 150 && drawn.data[a + 1] < 90 && drawn.data[a + 2] > 150;
+            const back = inside.data[b] < 60 && inside.data[b + 1] > 200 && inside.data[b + 2] < 60;
+            if (world && back) through++;
+          }
+        shots++;
+        if (through > 5) bad.push(`${gun} ${pose} from ${view}: ${through} px`);
+      }
+  }
+  check(`soldier's neck: no gap at the bottom of the back of the neck to see through, on every gun, six poses, from behind, either side and above (${shots} shots)`, shots === guns.length * 24 && bad.length === 0, bad.slice(0, 6).join("; ") || `${shots} shots, none`);
+  await page.close();
+}
+
 async function figureHoldTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender");
   const ready = await page.waitForFunction("window.__range.loaded() && window.__range.soldierReady()", { polling: 250, timeout: 90000 }).then(() => true, () => false);
@@ -8138,6 +8247,7 @@ async function main(): Promise<void> {
     if (want("skfigure")) await section("skfigure", async () => {
       console.log("\nThe soldier as others see it, holding the USSO and BOOG, and its reload (Phase 27)");
       await figureHoldTest(browser);
+      await neckSeamTest(browser);
     });
 
     if (want("sksquad")) await section("sksquad", async () => {
