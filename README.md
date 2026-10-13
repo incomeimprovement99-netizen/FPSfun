@@ -1267,7 +1267,8 @@ the west: three garden tiers stepping up to the edge, a grand stair up the middl
 balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls; and
 THE TERMINAL in the south: a station hall of arcades under glass vaults, a metro train at its
 platform and trams on the strips beside it, jump pads onto its vault roofs; and THE STACKS
-in the north-west: three towers of stacked capsule pods round an avenue and a car park. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+in the north-west: three towers of stacked capsule pods round an avenue and a car park, and a
+capsule hotel of 21 pods on three storeys round a court, galleries and stairs up to its roof. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

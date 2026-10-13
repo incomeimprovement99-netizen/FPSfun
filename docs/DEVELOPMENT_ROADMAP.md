@@ -13443,3 +13443,28 @@ becomes more obvious when ADS down").
   RE-45 aimed (Hyper Scape's footage has no pistol aimed).
 - **Checked:** verify, rules and the type check; the soldier e2e's skpack frames on both pistols, with their placement checks moved
   to the new places (APUHTHEE's muzzle 0.574 and 0.615 of the screen, STRYDER's 0.632 and 0.586, both sight lines at 0.48).
+
+## Milestone 592 — THE STACKS, the capsule hotel
+
+The district's second stage: the walk-through the districts plan promised, "capsule rooms you walk through, pod by pod,
+up the stack". Planned on the districts page after a test bake of the pieces.
+
+- **Studied first:** the pack's capsule rooms are rounded concrete pods with slit windows, the towers' own look. Each is
+  walls only, open on one side 4.5 m wide, and stands on the pack's capsule floor of the same size; the slab of the
+  storey above is its ceiling. The pack's fire escapes and thin stair pieces hang their flights under their landings, so
+  a body cannot walk them. Its double-flight stair is the one the base uses, rising 3.42 m in 5 by 4.75 m.
+- **The hotel** (`rules.districts.stacks.hotel`, tools/neon-layout.ts): an L of pods along the corner square's two
+  outer edges, four along the north edge and three down the west, each 10 by 7.5 m with its open side on the court.
+  Three storeys at 0, 3.5 and 7 m, 21 pods, each on its capsule floor with a crate by its back wall. An open gallery
+  2.5 m deep before every storey's pods, and a roof deck at 10.5 m with six AC boxes as cover, all on the pack's floor
+  tiles and railed with its elegant fence in 5, 2.5 and 1 m lengths, 76 of them.
+- **Six stairs outside the galleries, in the court,** each arriving on the gallery above, at a different place on
+  every storey so no flight runs under another: two from the court up to the first gallery, two up to the second and two
+  onto the roof. The upper ones stand on platforms jutting from the gallery below. The rails leave a stretch open where
+  each stair sets out and comes off.
+- **The court:** planters, benches, kiosks and crates, and CAPSULE HOTEL in pink neon along the north wing's roof edge.
+- **Collision:** the pods as their own faces; the slabs, the galleries' decks, the platforms and the roof as boxes the
+  layout writes, which the bake adds to its typed collision with the plugs.
+- **Checked** (tools/checks/sk-neon.ts): 21 pods on three storeys each holding a body at its floor, every storey's gallery walked end to end and into every pod, all six of its stairs sprinted up with the game's moves with the base's and the tower's (19 stairs, no climb or mantle started), 273 points along the galleries' and roof's edges railed but at the stairs, six AC boxes on its roof, its sign seen from the court; THE STACKS' cover within 6 m over 99.5% of its ground. The e2e: 101 of 101 (with the machine at 94% CPU under other agents' tests). verify, rules and the type check. The look: the court, both wings, a gallery, a pod, the roof and a stair, at golden hour and night.
+  The map: its files lo 130.9 MB, hi 199.4 MB, max 434.0 MB.
+  **Its files are version 71.**

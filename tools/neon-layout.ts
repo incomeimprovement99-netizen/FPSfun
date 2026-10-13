@@ -4001,7 +4001,9 @@ function onNode(o: OBox): boolean {
 // 10's podium stair and the climbs up 02's and 09's pods
 {
   type Ground = { grid: number; at: number[]; keep: number; rowKeep: number; fill: number[][]; doors: number[][]; mix: string[]; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; cars: string[]; vans: string[]; planters: string[]; machines: string[]; crate: string; deco: string };
-  type Stacks = { chunk: string; seed: number; buildings: Array<[string, number, number, number]>; ground: Ground; lamps: { piece: string; at: number; north: number[]; west: number[] }; plugs?: number[][]; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  type HotelWing = { id: string; axis: "x" | "z"; from: number; count: number; width: number; back: number; deep: number; gallery: number; run: number[]; fenceRun: number[]; yaw: number; floorYaw: number };
+  type Hotel = { storeys: number[]; roof: number; slab: number; rooms: string[]; floor: string; deck: string; wings: HotelWing[]; stairs: { piece: string; rise: number; arrive: number[]; route: number[][]; at: Array<[string, number, number]> }; rail: { x5: string; x2: string; x1: string; inset: number }; outline: Pt[]; roofCover: { pieces: string[]; at: number[][] }; podCrate: { piece: string; back: number; side: number }; court: Ground["rows"]; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  type Stacks = { chunk: string; seed: number; buildings: Array<[string, number, number, number]>; ground: Ground; lamps: { piece: string; at: number; north: number[]; west: number[] }; plugs?: number[][]; hotel?: Hotel; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
   const DS = (R.districts as { stacks?: Stacks } | undefined)?.stacks;
   if (DS) {
     const towers: Array<{ piece: string; c: number[]; yaw: number; foot: number[]; top: number }> = [];
@@ -4013,17 +4015,149 @@ function onNode(o: OBox): boolean {
       const [hx, hz] = side ? [r.size![2] / 2, r.size![0] / 2] : [r.size![0] / 2, r.size![2] / 2];
       towers.push({ piece: name, c: [x, z], yaw, foot: [+(x - hx).toFixed(2), +(x + hx).toFixed(2), +(z - hz).toFixed(2), +(z + hz).toFixed(2)], top: +box.top.toFixed(2) });
     }
+    // THE CAPSULE HOTEL (`hotel`, Milestone 592): the pack's capsule pods in an L along the corner square's outer edges,
+    // three storeys round a court, an open gallery before each storey's pods, the pack's double-flight stairs in the court
+    // coming off onto the gallery above, a railed roof deck. Laid before the ground's cover, so the court's cover and the
+    // bots' street model know it
+    const HT = DS.hotel;
+    const hotelSolids: number[][] = [];
+    const hotel = { pods: [] as Array<{ c: Pt; y: number; wing: string }>, galleries: [] as Array<{ wing: string; y: number; box: number[] }>, stairs: [] as Array<{ wing: string; at: number; route: number[][] }>, roof: HT?.roof ?? 0, outline: [] as Pt[], fences: 0, tiles: 0, cover: 0 };
+    if (HT) {
+      const tops = [...HT.storeys.slice(1), HT.roof];
+      const deck = piece(HT.deck).row;
+      const T = deck.size![0];
+      // (a box in a wing's frame, `a` along its axis and `d` in from its back, as x0, x1, z0, z1; and a point)
+      const boxOf = (W: HotelWing, a0: number, a1: number, d0: number, d1: number) =>
+        W.axis === "x" ? [Math.min(a0, a1), Math.max(a0, a1), W.back + d0, W.back + d1] : [W.back + d0, W.back + d1, Math.min(a0, a1), Math.max(a0, a1)];
+      const ptOf = (W: HotelWing, a: number, d: number): Pt => (W.axis === "x" ? [a, W.back + d] : [W.back + d, a]);
+      // (the deck's tiles over a box at a height, its top at it)
+      const tile = (b: number[], y: number) => {
+        for (let x = b[0]; x < b[1] - 0.01; x += T)
+          for (let z = b[2]; z < b[3] - 0.01; z += T) {
+            placeTurned(DS.chunk, HT.deck, x + T / 2, z + T / 2, 0, "g", y);
+            hotel.tiles++;
+          }
+      };
+      const wings = new Map(HT.wings.map((W) => [W.id, W]));
+      for (const W of HT.wings) {
+        for (const [si, y] of HT.storeys.entries())
+          for (let k = 0; k < W.count; k++) {
+            const c = ptOf(W, W.from + W.width * (k + 0.5), W.deep / 2);
+            // (the pod's walls from half a metre under its floor to the slab over it; its floor the pack's capsule floor)
+            const room = placeTurned(DS.chunk, HT.rooms[(si + k) % HT.rooms.length], c[0], c[1], W.yaw, "o", y);
+            if (y === 0) STREET_GRAPH?.add(room);
+            if (y > 0) placeTurned(DS.chunk, HT.floor, c[0], c[1], W.floorYaw, "g", y);
+            // (a crate by its back wall, off to one side, either side by turns: cover in the pod, clear of the way in)
+            const pc = ptOf(W, W.from + W.width * (k + 0.5) + ((si + k) % 2 ? 1 : -1) * HT.podCrate.side, HT.podCrate.back);
+            placeTurned(DS.chunk, HT.podCrate.piece, pc[0], pc[1], W.yaw, "o", y - piece(HT.podCrate.piece).row.min![1]);
+            hotel.pods.push({ c, y, wing: W.id });
+          }
+        const rooms = boxOf(W, W.from, W.from + W.width * W.count, 0, W.deep);
+        const gal = boxOf(W, W.run[0], W.run[1], W.deep, W.deep + W.gallery);
+        for (const y of tops) {
+          for (const b of [rooms, gal]) hotelSolids.push([b[0], b[1], b[2], b[3], y - HT.slab, y]);
+          tile(gal, y);
+          if (y === HT.roof) tile(rooms, y);
+        }
+        for (const y of HT.storeys.slice(1)) hotel.galleries.push({ wing: W.id, y, box: gal });
+      }
+      // the stairs: each one's front edge on its gallery's outer edge, its body in the court; above the ground on the
+      // platform the gallery below juts out. A rail stretch is left open where a stair comes off and where one sets out
+      const ST = HT.stairs;
+      const st = piece(ST.piece).row;
+      const [mx, mz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
+      const gaps = new Map<string, number[][]>();
+      const gapAt = (wing: string, y: number) => gaps.get(`${wing},${y}`) ?? gaps.set(`${wing},${y}`, []).get(`${wing},${y}`)!;
+      const clear = 0.4;
+      for (const [wing, along, si] of ST.at) {
+        const W = wings.get(wing)!;
+        const y = HT.storeys[si];
+        const edge = W.deep + W.gallery;
+        const depth = st.size![2];
+        const c = ptOf(W, along, edge + depth / 2);
+        // (its own +z toward the gallery, the wing's back: the backs are the map's west and north edges)
+        const yaw = W.axis === "x" ? 180 : 270;
+        const box = placeTurned(DS.chunk, ST.piece, c[0], c[1], yaw, "o", y);
+        if (y === 0) STREET_GRAPH?.add(box);
+        const own = (ox: number, oz: number): Pt => [c[0] + box.u[0] * (ox - mx) + box.v[0] * (oz - mz), c[1] + box.u[1] * (ox - mx) + box.v[1] * (oz - mz)];
+        if (y > 0) {
+          const pb = boxOf(W, along - st.size![0] / 2, along + st.size![0] / 2, edge, edge + depth);
+          hotelSolids.push([pb[0], pb[1], pb[2], pb[3], y - HT.slab, y]);
+          tile(pb, y);
+        }
+        // (the stretch of the gallery's edge, along the wing's axis, an own x range of the stair's front covers)
+        const span = (o0: number, o1: number) => {
+          const [p, q] = [own(o0, st.max![2]), own(o1, st.max![2])];
+          const [a, b] = W.axis === "x" ? [p[0], q[0]] : [p[1], q[1]];
+          return [Math.min(a, b), Math.max(a, b)];
+        };
+        gapAt(wing, y + 3.5).push(span(ST.arrive[0] - clear, ST.arrive[1] + clear));
+        if (y > 0) gapAt(wing, y).push(span(ST.arrive[1] - clear, st.max![0] + clear));
+        hotel.stairs.push({ wing, at: y, route: ST.route.map(([ox, oz, oy]) => [...own(ox, oz).map((v) => +v.toFixed(2)), +(y + oy).toFixed(2)]) });
+      }
+      // the rails: the pack's fence in its 5, 2.5 and 1 m lengths along a line, `inset` in, the gaps left open
+      const RL = HT.rail;
+      const lens = [RL.x5, RL.x2, RL.x1].map((n) => [n, piece(n).row.max![0]] as [string, number]);
+      const fence = (a: Pt, b: Pt, y: number, open: number[][] = [], axis: "x" | "z" = "x") => {
+        const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+        const d: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+        const yaw = +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2);
+        const along = (u: number) => (axis === "x" ? a[0] + d[0] * u : a[1] + d[1] * u);
+        const shut = (u0: number, u1: number) => open.some(([g0, g1]) => Math.max(along(u0), along(u1)) > g0 && Math.min(along(u0), along(u1)) < g1);
+        let u = 0;
+        while (u < L - 0.3) {
+          const fit = lens.find(([, l]) => l <= L - u + 0.2 && !shut(u, u + l));
+          if (!fit) {
+            u += 0.5;
+            continue;
+          }
+          add(DS.chunk, "c", [piece(fit[0]).key, +(a[0] + d[0] * u).toFixed(3), y, +(a[1] + d[1] * u).toFixed(3), yaw, "o"] as Place);
+          u += fit[1];
+          hotel.fences++;
+        }
+      };
+      for (const W of HT.wings) {
+        const edge = W.deep + W.gallery - RL.inset;
+        for (const y of HT.storeys.slice(1)) {
+          // (the gallery's outer edge, from the inside corner where the two galleries meet, and its ends across)
+          fence(ptOf(W, W.fenceRun[0], edge), ptOf(W, W.fenceRun[1], edge), y, gapAt(W.id, y), W.axis);
+          for (const [e, s] of [[W.run[1], -1], ...(W.run[0] === W.fenceRun[0] ? [] : [[W.run[0], 1]])]) fence(ptOf(W, e + s * RL.inset, W.deep), ptOf(W, e + s * RL.inset, W.deep + W.gallery), y);
+        }
+      }
+      // (round the roof: the L's outline, `inset` in, the gaps where the stairs come off onto it)
+      const O = HT.outline;
+      hotel.outline = O;
+      for (let k = 0; k < O.length; k++) {
+        const [p, q] = [O[k], O[(k + 1) % O.length]];
+        const L = Math.hypot(q[0] - p[0], q[1] - p[1]);
+        const d: Pt = [(q[0] - p[0]) / L, (q[1] - p[1]) / L];
+        // (inward: the outline runs round with the inside on its right)
+        const inn: Pt = [-d[1] * RL.inset, d[0] * RL.inset];
+        const axis = Math.abs(d[0]) > 0.5 ? "x" : "z";
+        const wing = HT.wings.find((W) => W.axis === axis && Math.abs((axis === "x" ? p[1] : p[0]) - (W.back + W.deep + W.gallery)) < 0.01);
+        fence([p[0] + inn[0] + d[0] * RL.inset, p[1] + inn[1] + d[1] * RL.inset], [q[0] + inn[0] - d[0] * RL.inset, q[1] + inn[1] - d[1] * RL.inset], HT.roof, wing ? gapAt(wing.id, HT.roof) : [], axis);
+      }
+      // cover on the roof
+      for (const [i, [x, z]] of HT.roofCover.at.entries()) {
+        const name = HT.roofCover.pieces[i % HT.roofCover.pieces.length];
+        placeTurned(DS.chunk, name, x, z, 0, "o", HT.roof - piece(name).row.min![1]);
+        hotel.cover++;
+      }
+      cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "stacks-hotel"), { district: "stacks-hotel", ...HT.name }];
+      console.log(`THE CAPSULE HOTEL: ${hotel.pods.length} pods, ${hotel.stairs.length} stairs, ${hotel.fences} lengths of fence, ${hotel.tiles} deck tiles, ${hotel.cover} AC boxes on the roof`);
+    }
     // the ground's cover (`ground`): the rows laid by hand first (the avenue up to 10's stair, the car park either side of
     // it, the kiosks by the doors, the kerb's parked cars, the service alley's crates), then a spot at each half-way point
     // between the bots' street nodes over the fill (behind the towers and over the corner square), each given its kind by
     // the seed before anything can refuse it, so one left out does not change the rest
     const G = DS.ground;
-    const rnd = seeded(DS.seed);
+    // (the rows' picks from a seed of their own, so a row's spot added does not change the fill's kinds)
+    const rnd = seeded(DS.seed), rndRows = seeded(DS.seed + 1);
     const kinds: Record<string, number> = {};
     const drawn: Array<{ x: number; z: number; kind: string; piece?: string; pick: number; yaw: number; keep: number }> = [];
-    for (const row of G.rows)
+    for (const row of [...G.rows, ...(HT?.court ?? [])])
       for (const [i, [x, z]] of row.at.entries())
-        drawn.push({ x, z, kind: row.kind ?? "piece", piece: row.pieces?.[i % row.pieces.length], pick: rnd(), yaw: row.yaw + (row.flip && i % 2 ? 180 : 0), keep: G.rowKeep });
+        drawn.push({ x, z, kind: row.kind ?? "piece", piece: row.pieces?.[i % row.pieces.length], pick: rndRows(), yaw: row.yaw + (row.flip && i % 2 ? 180 : 0), keep: G.rowKeep });
     for (const [x0, x1, z0, z1] of G.fill)
       for (let x = G.at[0]; x <= G.at[1] + 1e-6; x += G.grid)
         for (let z = G.at[0]; z <= G.at[1] + 1e-6; z += G.grid)
@@ -4082,7 +4216,7 @@ function onNode(o: OBox): boolean {
     const lamps = lampsAt.length;
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "stacks"), { district: "stacks", ...DS.name }];
     // (and the plugs in 10's shut rooms, to the bake's typed collision as THE TERRACES' tiers go)
-    cfg.stacks = { towers, cover, kinds, lamps, solids: DS.plugs ?? [] };
+    cfg.stacks = { towers, cover, kinds, lamps, hotel, solids: [...(DS.plugs ?? []), ...hotelSolids] };
     console.log(`THE STACKS: ${towers.map((t) => `${t.piece.replace(".prefab", "")} to ${t.top} m`).join(", ")}; ${cover} pieces of cover on its ground (${Object.entries(kinds).map(([k, c]) => `${c} ${k}`).join(", ")}) of ${drawn.length} spots, ${lamps} lamps`);
   }
 }

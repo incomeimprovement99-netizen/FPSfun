@@ -2650,12 +2650,14 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   };
   const routes: Array<[string, number[][]]> = [["the tower's core", (cfg.tower as unknown as { core: { route: number[][] } }).core.route]];
   for (const q of (cfg.base as unknown as { stairs: Array<{ at: number; top: number[]; route: number[][] }> }).stairs) routes.push([`the base's ${q.at} m stair (${q.top.join(", ")})`, q.route]);
+  // (and THE CAPSULE HOTEL's, Milestone 592: the same double flight, out in its court)
+  for (const q of (cfg as unknown as { stacks?: { hotel?: { stairs: Array<{ wing: string; at: number; route: number[][] }> } } }).stacks?.hotel?.stairs ?? []) routes.push([`the hotel's ${q.wing} ${q.at} m stair`, q.route]);
   const bad: string[] = [];
   for (const [name, r] of routes) {
     const w = sprintUp(r);
     if (w.k !== w.n || w.starts > 0 || w.over > 0.5) bad.push(`${name}: ${w.k - 1} of ${w.n - 1} legs, ${w.starts} climbs or mantles${w.at ? ` (first ${w.at})` : ""}, ${w.over.toFixed(2)} m over the flight`);
   }
-  check("the stairs run up at a sprint with SpeedKills' moves: the tower's core to its top storey and each of the base's stairs, no climb or mantle started, never half a metre over the flight", bad.length === 0, bad.slice(0, 4).join("; ") || `${routes.length} stairs`);
+  check("the stairs run up at a sprint with SpeedKills' moves: the tower's core to its top storey, each of the base's stairs and THE CAPSULE HOTEL's, no climb or mantle started, never half a metre over the flight", bad.length === 0 && routes.length >= 19, bad.slice(0, 4).join("; ") || `${routes.length} stairs`);
 }
 
 // THE TERMINAL's concourse and roofs (Milestone 590): a player walks each hall from the forecourt through its north arch,
@@ -2759,6 +2761,91 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "stacks");
   check("THE STACKS: its name in pink over 10's podium stair, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
   check("THE STACKS: street lamps along its inner edge, both arms", (SO?.lamps ?? 0) >= 6, `${SO?.lamps ?? 0} lamps`);
+}
+
+// THE CAPSULE HOTEL (rules.districts.stacks.hotel, Milestone 592): every pod's floor holds a body at its storey with a
+// standing body's room over it; a player walks each storey's gallery end to end and into every pod off it; the
+// galleries' outer edges and the roof's railed but where a stair comes off or sets out; the AC boxes on the roof; its
+// name seen from the court. (Its stairs are sprinted up with the base's, in the stairs check)
+{
+  type HotelOut = { pods: Array<{ c: number[]; y: number; wing: string }>; galleries: Array<{ wing: string; y: number; box: number[] }>; stairs: Array<{ wing: string; at: number; route: number[][] }>; roof: number; outline: number[][]; cover: number };
+  type HWing = { id: string; axis: "x" | "z"; back: number; deep: number; gallery: number; run: number[]; fenceRun: number[]; width: number; from: number; count: number };
+  const HO = (cfg as unknown as { stacks?: { hotel?: HotelOut } }).stacks?.hotel;
+  const HR = (cfg.rules as unknown as { districts?: { stacks?: { hotel?: { wings: HWing[]; rail: { inset: number }; roofCover: { at: number[][] }; name: { at: number[]; w: number }; stairs: { arrive: number[] } } } } }).districts?.stacks?.hotel;
+  const at = (x: number, z: number) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).filter((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z);
+  const floorAtY = (x: number, z: number, y: number) => at(x, z).reduce((f, q) => (q.top <= y + 0.3 && q.top > f ? q.top : f), 0);
+  const badPods = (HO?.pods ?? []).filter((p) => {
+    const f = floorAtY(p.c[0], p.c[1], p.y);
+    return Math.abs(f - p.y) > 0.15 || at(p.c[0], p.c[1]).some((q) => q.base > f + 0.3 && q.base < f + MOVE.standHeight);
+  });
+  check("THE CAPSULE HOTEL: 21 pods on three storeys, each one's floor holding a body at its storey with room to stand", (HO?.pods.length ?? 0) === 21 && badPods.length === 0, badPods.map((p) => `(${p.c.join(", ")}) at ${p.y} m`).join("; ") || `${HO?.pods.length} pods`);
+  // (each storey's gallery walked from its far end to the inside corner, stepping into each pod off it and back out)
+  const walked: string[] = [], shut: string[] = [];
+  for (const W of HR?.wings ?? []) {
+    for (const y of [0, 3.5, 7]) {
+      const mid = W.deep + W.gallery / 2;
+      const pt = (a: number, d: number) => (W.axis === "x" ? [a, W.back + d, y] : [W.back + d, a, y]);
+      const route: number[][] = [pt(W.run[1] - 1, mid)];
+      for (let k = W.count - 1; k >= 0; k--) {
+        const a = W.from + W.width * (k + 0.5);
+        route.push(pt(a, mid), pt(a, W.deep / 2), pt(a, mid));
+      }
+      route.push(pt(W.fenceRun[0] + 1, mid));
+      const w = along(route);
+      if (w.k === route.length) walked.push(`${W.id} ${y} m`);
+      else shut.push(`${W.id} at ${y} m: ${w.k - 1} of ${route.length - 1} legs, at (${w.x.toFixed(1)}, ${w.z.toFixed(1)}, ${w.y.toFixed(2)})`);
+    }
+  }
+  check("THE CAPSULE HOTEL: a player walks each storey's gallery end to end and into every pod off it", walked.length === 6 && shut.length === 0, shut.join("; ") || walked.join(", "));
+  // (the rails: along each gallery's outer edge on the upper storeys and round the roof, a point every half metre a
+  // fence's inset in from the edge, each under a box from the floor to past a body's waist, but in a stair's stretch)
+  const fenced = (x: number, z: number, y: number) => at(x, z).some((q) => q.base <= y + 0.3 && q.top >= y + 0.9);
+  const inset = HR?.rail.inset ?? 0.1;
+  // (a stair's stretch of the edge: 2 m either side of where its way up leaves the gallery, and of where the one from
+  // the storey below comes off onto it)
+  const gapsAt = (wing: string, y: number) => {
+    const W = HR!.wings.find((q) => q.id === wing)!;
+    const along = (p: number[]) => (W.axis === "x" ? p[0] : p[1]);
+    return (HO?.stairs ?? []).filter((q) => q.wing === wing).flatMap((q) => [
+      ...(y > 0 && Math.abs(q.at - y) < 0.01 ? [[along(q.route[0]) - 2, along(q.route[0]) + 2]] : []),
+      ...(Math.abs(q.at + 3.5 - y) < 0.01 ? [[along(q.route.at(-1)!) - 2, along(q.route.at(-1)!) + 2]] : []),
+    ]);
+  };
+  const open: string[] = [];
+  let points = 0;
+  for (const W of HR?.wings ?? [])
+    for (const y of [3.5, 7, HO?.roof ?? 10.5]) {
+      const d = W.deep + W.gallery - inset;
+      for (let a = Math.min(...W.fenceRun) + 0.5; a < Math.max(...W.fenceRun) - 0.5; a += 0.5) {
+        if (gapsAt(W.id, y).some(([g0, g1]) => a > g0 && a < g1)) continue;
+        const [x, z] = W.axis === "x" ? [a, W.back + d] : [W.back + d, a];
+        points++;
+        if (!fenced(x, z, y)) open.push(`${W.id} ${y} m at (${x.toFixed(1)}, ${z.toFixed(1)})`);
+      }
+    }
+  check("THE CAPSULE HOTEL: the galleries' outer edges and the roof's court side railed, but where a stair sets out or comes off", points > 200 && open.length === 0, open.slice(0, 4).join("; ") + (open.length > 4 ? ` and ${open.length - 4} more` : "") || `${points} points`);
+  const R = HO?.roof ?? 10.5;
+  const off = (HR?.roofCover.at ?? []).filter(([x, z]) => !at(x, z).some((q) => q.top > R + 0.9 && q.top < R + 1.7));
+  check("THE CAPSULE HOTEL: AC boxes standing on its roof as cover", (HR?.roofCover.at.length ?? 0) >= 6 && off.length === 0 && (HO?.cover ?? 0) >= 6, off.map((p) => `(${p.join(", ")})`).join("; ") || `${HO?.cover} boxes`);
+  // its name: from the court's open corner toward the plaza at a standing eye, a clear line to the plate
+  const NM = HR?.name;
+  const inBox = (x: number, y: number, z: number) => at(x, z).some((q) => q.base < y && q.top > y);
+  const blockedAt: string[] = [];
+  for (const [ex, ez] of [[-112, -112], [-120, -112], [-112, -120]])
+    for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
+      const [a, b] = [[ex, 1.7, ez], [NM!.at[0] + t, NM!.at[1], NM!.at[2] + 0.3]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+        if (inBox(p[0], p[1], p[2])) {
+          blockedAt.push(`from (${ex}, ${ez}) to ${t.toFixed(1)} at (${p.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "stacks-hotel");
+  check("THE CAPSULE HOTEL: CAPSULE HOTEL in pink on the roof's edge, seen from the court", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
