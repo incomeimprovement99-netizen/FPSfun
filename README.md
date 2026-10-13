@@ -1271,7 +1271,9 @@ in the north-west: three towers of stacked capsule pods round an avenue and a ca
 capsule hotel of 21 pods on three storeys round a court, galleries and stairs up to its roof, lit pink by
 night, and a jump pad onto a pod roof 20 m up the twin towers; and GLASS HEIGHTS in the north: white glass
 towers with decks at the High City's height, joined by gangways, the North deck's carried across the ring road onto
-them, a glass lift up from its courtyard, and a 72 m glass tower with a cyan crown. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+them, a glass lift up from its courtyard, and a 72 m glass tower with a cyan crown; and THE STRIP in the east: an 87 m
+black tower on the city's edge at the end of a boulevard, its foot ringed by glowing blocks, and a
+glowing pyramid to run up onto a lookout 7 m over the plaza. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

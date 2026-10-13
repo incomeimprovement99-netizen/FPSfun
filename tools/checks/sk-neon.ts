@@ -294,8 +294,8 @@ check("LANTERN ALLEYS: a pad up onto a house from each main alley and each back 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks and GLASS HEIGHTS' decks, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 28 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 29 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
@@ -3043,6 +3043,109 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       if (d > farthest) (farthest = d), (at = [x, z]);
     }
   check("GLASS HEIGHTS: something to crouch behind within 6 m over its ground (at most 1% of it farther, none past 8 m)", n > 1500 && (far / n) * 100 <= 1 && farthest <= 8, `${((far / n) * 100).toFixed(1)}% of ${n} points over 6 m; the farthest ${farthest.toFixed(1)} m at (${at[0].toFixed(1)}, ${at[1].toFixed(1)}); ${GLq?.cover ?? 0} pieces of cover`);
+}
+
+// THE STRIP (rules.districts.strip, Milestone 596): its tower across the city's edge at the boulevard's end, its glowing
+// blocks and pyramid inside the east band; each block shut to its top in the collision (the pack's are faces round
+// nothing); a player walks up the pyramid from each side onto its top; its name seen from the ring road, cover within
+// 6 m over its ground, its lamps
+{
+  const SO = (cfg as unknown as { strip?: { tower: { piece: string; foot: number[]; top: number }; base: number[][]; pyramid: { c: number[]; foot: number[]; top: number; steps: number }; cover: number; lamps: number } }).strip;
+  const SR = (cfg.rules as unknown as { districts?: { strip?: { name: { at: number[]; w: number } } } }).districts?.strip;
+  const T = SO?.tower;
+  const boxes = [...(SO?.base ?? []), ...(SO ? [SO.pyramid.foot] : [])];
+  const out = boxes.filter((b) => b[0] < 107.49 || b[1] > 152.01 || b[2] < -30.01 || b[3] > 30.01);
+  const overlap = boxes.some((a, i) => boxes.some((b, j) => j > i && a[0] < b[1] - 0.01 && a[1] > b[0] + 0.01 && a[2] < b[3] - 0.01 && a[3] > b[2] + 0.01));
+  const edgeOk = !!T && T.foot[0] > 107.5 && T.foot[0] < 152 && T.foot[1] > 152 && T.foot[2] >= -30 && T.foot[3] <= 30 && T.top > 85;
+  check("THE STRIP: its 87 m tower across the city's edge at the boulevard's end, its eight glowing blocks and the pyramid inside the east band, none in another", edgeOk && (SO?.base.length ?? 0) === 8 && out.length === 0 && !overlap, `${T ? `the tower x ${T.foot[0]} to ${T.foot[1]}, ${T.top} m` : "no tower"}; ${SO?.base.length ?? 0} blocks; ${out.length} outside the band${overlap ? "; two overlap" : ""}`);
+  const S = SOLIDS.solids as number[][];
+  const open = (SO?.base ?? []).filter((b) => {
+    const [x, z] = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2];
+    return !S.some((q) => q[0] <= x && q[1] >= x && q[2] <= z && q[3] >= z && q[4] <= 0.05 && q[5] >= b[5] - 0.05);
+  });
+  check("THE STRIP: each glowing block shut from the street to its top in the collision", !!SO && open.length === 0, open.map((b) => `(${((b[0] + b[1]) / 2).toFixed(1)}, ${((b[2] + b[3]) / 2).toFixed(1)}) open`).join("; ") || `${SO?.base.length ?? 0} shut`);
+  // (the pyramid walked up from 2.5 m off the middle of each face, toward its middle, until 1 m from it)
+  const climbs: string[] = [];
+  let climbed = 0;
+  if (SO) {
+    const [cx, cz] = SO.pyramid.c;
+    const half = (SO.pyramid.foot[1] - SO.pyramid.foot[0]) / 2;
+    for (const [dx, dz] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const [x, z] = [cx + dx * (half + 2.5), cz + dz * (half + 2.5)];
+      const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+      p.teleport(x + BR_X, 0.05, z + BR_Z, (Math.atan2(dx, dz) * 180) / Math.PI);
+      let t = 1000;
+      const input = { held: (a: Action) => a === "forward", pressedNow: () => false };
+      for (let i = 0; i < 144 * 8 && Math.hypot(p.pos.x - BR_X - cx, p.pos.z - BR_Z - cz) > 1; i++) p.update(1 / 144, (t += 1 / 144), input, 0, 1, false);
+      const up = Math.abs(p.pos.y - SO.pyramid.top) < 0.15 && Math.hypot(p.pos.x - BR_X - cx, p.pos.z - BR_Z - cz) <= 1.2;
+      if (up) climbed++;
+      climbs.push(`from the ${dx > 0 ? "east" : dx < 0 ? "west" : dz > 0 ? "south" : "north"} to ${p.pos.y.toFixed(2)} m, ${Math.hypot(p.pos.x - BR_X - cx, p.pos.z - BR_Z - cz).toFixed(1)} m off its middle`);
+    }
+  }
+  check("THE STRIP: a player walks up the glowing pyramid from each side onto its top, 7 m up", climbed === 4, climbs.join("; "));
+  const NM = SR?.name;
+  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
+  const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
+  const blockedAt: string[] = [];
+  for (const ez of [-10, 0, 10])
+    for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
+      const [p0, p1] = [[roadMid, 1.7, NM!.at[2] + ez], [NM!.at[0] - 0.3, NM!.at[1], NM!.at[2] + t]];
+      const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const q = [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, p0[2] + (p1[2] - p0[2]) * f];
+        if (inBox(q[0], q[1], q[2])) {
+          blockedAt.push(`from z ${ez} to ${t.toFixed(1)} at (${q.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "strip");
+  check("THE STRIP: its name in magenta over the gate at the boulevard's end, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
+  // (the band's open ground, as GLASS HEIGHTS' check measures it: the tower's, the blocks' and the pyramid's feet left out)
+  const feet = SO ? [SO.tower.foot, ...SO.base, SO.pyramid.foot] : [];
+  const C = 0.5, X0 = 107.5, Z0 = -30, NI = Math.round((152 - 107.5) / C), NJ = Math.round(60 / C);
+  const body = new Uint8Array(NI * NJ), cov = new Uint8Array(NI * NJ);
+  const floor = new Float32Array(NI * NJ).fill(-Infinity);
+  for (const b of S) {
+    if (b[5] < -0.5 || b[4] > 2.5 || b[1] < X0 || b[0] > 152 || b[3] < Z0 || b[2] > 30) continue;
+    for (let i = Math.max(0, Math.floor((b[0] - X0) / C)); i <= Math.min(NI - 1, Math.floor((b[1] - X0) / C)); i++)
+      for (let j = Math.max(0, Math.floor((b[2] - Z0) / C)); j <= Math.min(NJ - 1, Math.floor((b[3] - Z0) / C)); j++) {
+        const k = i * NJ + j;
+        if (b[4] < 1.8 && b[5] > 0.3) body[k] = 1;
+        if (b[4] < 0.5 && b[5] > 1) cov[k] = 1;
+        if (b[5] <= 0.3 && b[5] > floor[k]) floor[k] = b[5];
+      }
+  }
+  const D = new Float32Array(NI * NJ);
+  for (let k = 0; k < D.length; k++) D[k] = cov[k] ? 0 : 1e9;
+  for (let i = 0; i < NI; i++)
+    for (let j = 0; j < NJ; j++) {
+      const k = i * NJ + j;
+      if (i > 0) D[k] = Math.min(D[k], D[k - NJ] + 1, j > 0 ? D[k - NJ - 1] + Math.SQRT2 : 1e9, j < NJ - 1 ? D[k - NJ + 1] + Math.SQRT2 : 1e9);
+      if (j > 0) D[k] = Math.min(D[k], D[k - 1] + 1);
+    }
+  for (let i = NI - 1; i >= 0; i--)
+    for (let j = NJ - 1; j >= 0; j--) {
+      const k = i * NJ + j;
+      if (i < NI - 1) D[k] = Math.min(D[k], D[k + NJ] + 1, j < NJ - 1 ? D[k + NJ + 1] + Math.SQRT2 : 1e9, j > 0 ? D[k + NJ - 1] + Math.SQRT2 : 1e9);
+      if (j < NJ - 1) D[k] = Math.min(D[k], D[k + 1] + 1);
+    }
+  const openAt = (k: number) => !body[k] && (floor[k] > -0.3 || !Number.isFinite(floor[k]));
+  let n = 0, far = 0, farthest = 0, at = [0, 0];
+  for (let i = 1; i < NI - 1; i++)
+    for (let j = 1; j < NJ - 1; j++) {
+      const k = i * NJ + j;
+      const [x, z] = [X0 + (i + 0.5) * C, Z0 + (j + 0.5) * C];
+      if (feet.some((f) => x > f[0] && x < f[1] && z > f[2] && z < f[3])) continue;
+      if (![-NJ - 1, -NJ, -NJ + 1, -1, 0, 1, NJ - 1, NJ, NJ + 1].every((d) => openAt(k + d))) continue;
+      n++;
+      const d = D[k] * C;
+      if (d > 6) far++;
+      if (d > farthest) (farthest = d), (at = [x, z]);
+    }
+  check("THE STRIP: something to crouch behind within 6 m over its ground (at most 1% of it farther, none past 8 m)", n > 1500 && (far / n) * 100 <= 1 && farthest <= 8, `${((far / n) * 100).toFixed(1)}% of ${n} points over 6 m; the farthest ${farthest.toFixed(1)} m at (${at[0].toFixed(1)}, ${at[1].toFixed(1)}); ${SO?.cover ?? 0} pieces of cover`);
+  check("THE STRIP: street lamps along the ring road", (SO?.lamps ?? 0) >= 3, `${SO?.lamps ?? 0} lamps`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

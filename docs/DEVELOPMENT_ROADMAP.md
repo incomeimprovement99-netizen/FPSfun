@@ -13624,3 +13624,31 @@ The north district's second stage.
 - **Checked** (tools/checks/sk-neon.ts): its glass lift ridden up from its car onto its landing, its stair walked down onto the front deck and back up, and ridden down again; the four Sky Ring lifts' landing stairs walked back up onto (a new check); cover within 6 m over the band's ground (0.7% over, the farthest 7.4 m); cover on every GLASS HEIGHTS deck, each piece on its roof; the street network whole; every bridge's stair walked as before. The e2e: 100 of 101, the one failure HAEFY's launcher check the guns agent is taking (both rockets fly the full 165 m), passed in the run before. verify, rules and the type check. The look: the courtyard and the lift, the ride up, the landing, the decks, by day and night.
   The map: its files lo 137.6 MB, hi 207.0 MB, max 445.4 MB.
   **Its files are version 74.**
+
+## Milestone 596 — THE STRIP, its tower, its glowing base and its pyramid
+
+The east district's first stage, in EAST DECK's magenta: the band past the ring road between the straight roads (x
+107.5 to 152, z -30 to 30), empty until now (`rules.districts.strip`, tools/neon-layout.ts).
+
+- **Studied first.** The pack's glow and sign pieces went into a test bake and were photographed by day and night from
+  the ring road, the street and a deck. The pack's own 87 m decorative tower has no glowing base: its two giant towers
+  build theirs out of the glowing blocks and pyramid, so this one gets a base built the same way.
+- **The tower** (33 by 30 m, 87 m) stands at the end of a boulevard from the ring road, its lit spine facing down it.
+  Inside the band it left 11 m in front of it, so it stands across the city's edge, its back half out of bounds behind
+  the edge fence.
+- **The glowing base:** eight of the pack's 5.6 m glowing blocks along the tower's foot inside the band, the two at the
+  front corners two high. The two either side of the boulevard's end each carry one of the pack's billboards, with THE
+  STRIP in magenta over the gate between them. Their screens still show dark from the boulevard by day and by night,
+  turned either way (the test bake's one, on the street, lit orange): lighting them is the first item when THE STRIP's
+  work resumes.
+  The blocks are faces round nothing, open at the top, so each is plugged to its top in the bake's typed collision.
+- **The glowing pyramid** (20.6 m, 7 m high) fills the plaza north of the boulevard. Its faces climb 7 m over 5.3 m, too
+  steep to walk, and its top is open, so the piece is drawn only. It collides as 14 nested boxes, each 0.5 m over the
+  one under it (a body steps 0.56 m), and the pack's 10 m floor tile closes its top: you run up any face onto a
+  lookout 7 m up over the boulevard. Two AC boxes stand on it (`rules.perches` strip-pyramid).
+- **The ground:** low planters down the boulevard (the pack's cypresses there hid the name from the ring road), two cars
+  by the gate, planters, kiosks, benches and crates in the south plaza, cars nosed in along the south road, crates and
+  planters in the strips beside the tower, and street lamps along the ring road, kept off the name's sight lines.
+- **Checked** (tools/checks/sk-neon.ts): the tower across the edge, with its eight blocks and the pyramid inside the band; each block shut to its top in the collision; a player walks up the pyramid from each of its four sides onto its top at 7.00 m; the name along nine clear sight lines from the ring road; 0.2% of 4,422 points over 6 m from cover (the farthest 6.5 m); three lamps; the perches now 29. The plug and climb checks were proven by taking the typed boxes out of the collision: all eight blocks read open and the walker fell into the pyramid at 0 m. The e2e: the SpeedKills section 100 of 101; the one fail, HAEFY's own-rocket test, is the guns agent's test fault, fixed on their branch in 638e2a41 and not on main yet. verify, rules and the type check. The look: the boulevard, the ring road, the pyramid and its top, the base and from a deck, by golden hour and neon night, plus a view from above; the billboards' screens show dark from the boulevard.
+  The map: its files lo 140.3 MB, hi 211.1 MB, max 452.8 MB.
+  **Its files are version 75.**

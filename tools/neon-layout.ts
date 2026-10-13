@@ -4371,6 +4371,105 @@ function onNode(o: OBox): boolean {
     console.log(`GLASS HEIGHTS: ${slabs.map((s) => `${s.piece.replace(".prefab", "")} to ${s.top} m`).join(", ")}`);
   }
 }
+// THE STRIP (rules.districts.strip; the districts plan's east district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md): the
+// east band past the ring road in EAST DECK's magenta, the pack's glow and sign pieces. Its 87 m black tower stands across
+// the city's edge at the end of a boulevard from the ring road (inside the band it left 11 m before it), its foot inside
+// the band ringed by the pack's glowing blocks, the tower having no glowing base of its own; the two either side of the
+// boulevard's end carry the pack's lit billboards. The blocks are faces round nothing, open at the top, so each is plugged
+// to its top in the bake's typed collision as THE STACKS' shut rooms are. The glowing pyramid in the plaza north of the
+// boulevard is drawn only: its faces climb 7 m over 5.3 m and its top is open, so it collides as nested boxes a body walks
+// up, each under a step's height, and a floor tile shuts its top
+{
+  type Strip = {
+    chunk: string;
+    tower: { piece: string; at: number[]; yaw: number };
+    base: { piece: string; at: number[][] };
+    ads: { piece: string; at: number[][] };
+    pyramid: { piece: string; at: number[]; steps: number; rim: number; cap: string };
+    ground: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
+    name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
+  };
+  const DT = (R.districts as { strip?: Strip } | undefined)?.strip;
+  if (DT) {
+    const solids: number[][] = [];
+    const footOf = (r: Row, x: number, z: number, yaw: number) => {
+      const [hx, hz] = Math.abs(Math.round(yaw / 90)) % 2 === 1 ? [r.size![2] / 2, r.size![0] / 2] : [r.size![0] / 2, r.size![2] / 2];
+      return [x - hx, x + hx, z - hz, z + hz].map((v) => +v.toFixed(2));
+    };
+    const tr = piece(DT.tower.piece).row;
+    const [tx, tz] = DT.tower.at;
+    const tbox = placeTurned(DT.chunk, DT.tower.piece, tx, tz, DT.tower.yaw, "o", -tr.min![1]);
+    STREET_GRAPH?.add(tbox);
+    const tower = { piece: DT.tower.piece, foot: footOf(tr, tx, tz, DT.tower.yaw), top: +tbox.top.toFixed(2) };
+    // the glowing base, each block plugged from the street to its top (two storeys at the front corners)
+    const br = piece(DT.base.piece).row;
+    const base: number[][] = [];
+    for (const [x, z, storeys] of DT.base.at) {
+      for (let s = 0; s < storeys; s++) placeTurned(DT.chunk, DT.base.piece, x, z, 0, "o", s * br.size![1]);
+      const [x0, x1, z0, z1] = footOf(br, x, z, 0);
+      const plug = [x0, x1, z0, z1, 0, +(storeys * br.size![1]).toFixed(2)];
+      STREET_GRAPH?.add({ c: [x, z], u: [1, 0], v: [0, 1], hu: br.size![0] / 2, hv: br.size![2] / 2, top: plug[5] });
+      solids.push(plug);
+      base.push(plug);
+    }
+    for (const [x, z, y, yaw] of DT.ads.at) placeTurned(DT.chunk, DT.ads.piece, x, z, yaw, "o", y - piece(DT.ads.piece).row.min![1]);
+    // the pyramid: nested boxes from its foot to `rim` from its middle, each a step's rise over the one under it, their
+    // edges half a step's run inside the face so a body stands about on it; the top one under the floor tile
+    const PY = DT.pyramid;
+    const pr = piece(PY.piece).row;
+    const [px, pz] = PY.at;
+    const half = pr.size![0] / 2;
+    STREET_GRAPH?.add(placeTurned(DT.chunk, PY.piece, px, pz, 0, "g"));
+    const [run, rise] = [(half - PY.rim) / PY.steps, pr.size![1] / PY.steps];
+    for (let k = 0; k < PY.steps; k++) {
+      const h = half - (k + 0.5) * run;
+      solids.push([px - h, px + h, pz - h, pz + h, 0, (k + 1) * rise].map((v) => +v.toFixed(3)));
+    }
+    placeTurned(DT.chunk, PY.cap, px, pz, 0, "g", pr.size![1] - piece(PY.cap).row.max![1]);
+    const pyramid = { c: [px, pz], foot: footOf(pr, px, pz, 0), top: pr.size![1], steps: PY.steps };
+    // the ground's cover (`ground`), as GLASS HEIGHTS' rows: each laid unless within `keep` of the tower, a block or the
+    // pyramid, on a street node or cutting the bots' streets in two
+    const GT = DT.ground;
+    const feet = [tower.foot, ...base, pyramid.foot];
+    const near = (o: OBox) => {
+      const [ex, ez] = [Math.abs(o.u[0]) * o.hu + Math.abs(o.v[0]) * o.hv, Math.abs(o.u[1]) * o.hu + Math.abs(o.v[1]) * o.hv];
+      return feet.some((f) => o.c[0] + ex > f[0] - GT.keep && o.c[0] - ex < f[1] + GT.keep && o.c[1] + ez > f[2] - GT.keep && o.c[1] - ez < f[3] + GT.keep);
+    };
+    let cover = 0;
+    for (const row of GT.rows)
+      for (const [i, [x, z]] of row.at.entries()) {
+        const yaw = row.yaw + (row.flip && i % 2 ? 180 : 0);
+        const set: Array<[string, number, number, number, number]> = [];
+        if (row.kind === "crates") {
+          const c = piece(GT.crate).row;
+          const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+          set.push([GT.crate, ox, oz, yaw, 0], [GT.crate, -ox, -oz, yaw, 0], [GT.crate, -ox, -oz, yaw, c.size![1]]);
+        } else if (row.kind === "machine") {
+          const m = piece(GT.machines[i % GT.machines.length]).row;
+          const [ox, oz] = rotY(yaw, m.size![0] / 2 + 0.01, 0);
+          set.push([GT.machines[i % GT.machines.length], ox, oz, yaw, 0], [GT.machines[(i + 1) % GT.machines.length], -ox, -oz, yaw + 180, 0]);
+        } else set.push([row.pieces![i % row.pieces!.length], 0, 0, yaw, 0]);
+        let [hu, hv, top] = [0, 0, 0];
+        for (const [name, dx, dz, yw, y] of set) {
+          const r = piece(name).row;
+          const turned = Math.abs(Math.round((yw - yaw) / 90)) % 2 === 1;
+          const [lu, lv] = rotY(-yaw, dx, dz);
+          hu = Math.max(hu, Math.abs(lu) + (turned ? r.size![2] : r.size![0]) / 2);
+          hv = Math.max(hv, Math.abs(lv) + (turned ? r.size![0] : r.size![2]) / 2);
+          top = Math.max(top, y + r.size![1]);
+        }
+        const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+        if (near(o) || onNode(o) || STREET_GRAPH?.splits(o)) continue;
+        STREET_GRAPH?.add(o);
+        for (const [name, dx, dz, yw, y] of set) placeTurned(DT.chunk, name, x + dx, z + dz, yw, "o", y - piece(name).row.min![1]);
+        cover++;
+      }
+    for (const [x, z, yaw] of GT.lamps.at) placeTurned(DT.chunk, GT.lamps.piece, x, z, yaw, "o");
+    cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "strip"), { district: "strip", ...DT.name }];
+    cfg.strip = { tower, base, pyramid, cover, lamps: GT.lamps.at.length, solids };
+    console.log(`THE STRIP: ${tower.piece.replace(".prefab", "")} to ${tower.top} m over x ${tower.foot[0]} to ${tower.foot[1]}; ${base.length} glowing blocks, the pyramid in ${PY.steps} steps; ${cover} pieces of cover of ${GT.rows.reduce((n, r) => n + r.at.length, 0)} spots, ${GT.lamps.at.length} lamps`);
+  }
+}
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
 // basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
 // each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of
