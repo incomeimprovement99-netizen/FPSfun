@@ -20,9 +20,9 @@ Each item: **build it, test it, document it, commit it, ship it**, then pick up 
 
 - **Tests**: `npm run verify` and `npm run rules` on every change. e2e only for the new code: the one section the
   change touches (`E2E_ONLY=<section>`), and a rerun, alone, of a check that failed. The full e2e batches
-  (`$TEMP/run-e2e.sh apex-net 5194 <tag>`) and `npm run fit` run once a day, as the regression sweep, not per
+  (`$TEMP/run-e2e.sh apex-net 5194 <tag>`) run once a day, as the regression sweep, not per
   release (the owner, 2026-09-27: "stop with the e2e tests, only run e2e tests on specifically new code, we can once a
-  day check for regressions with the full e2e"). Both deploys refuse to build if verify or
+  day check for regressions with the full e2e"). The deploy refuses to build if verify or
   rules fail (`tools/release-gate.ts`). A new check is proven by putting the bug back and watching it fail. Never edit `src/`
   or the README in a worktree while that worktree's e2e is running - the run is invalid if you do.
 - **Docs**: a `docs/DEVELOPMENT_ROADMAP.md` milestone per shipped feature, a diary entry in
@@ -45,6 +45,6 @@ Each item: **build it, test it, document it, commit it, ship it**, then pick up 
 ## Measure, do not guess
 
 Numbers about the world - a bone's length, a head's height, how thick a body is - are **measured off the
-model** by `tools/checks/body.ts` and written into the config with the measurement beside them. Two separate
+model** by `tools/checks/soldier.ts` and written into the config with the measurement beside them. Two separate
 faults this project has already had came from typing a number in by eye: sleeves inside the arms they
 covered, and every head piece 30 to 60 mm too high. If a number describes something that exists, measure it.
