@@ -99,7 +99,7 @@ console.log("\nSpeedKills' keys");
 // the legacy game's ring and went with it (Milestone 520)
 {
   const br = readFileSync(new URL("../../src/game/br.ts", import.meta.url), "utf8");
-  const cut = /BR_HALF = (?:IS_SK \? )?worldCfg\.cut\.half/.test(br);
+  const cut = /BR_HALF = worldCfg\.cut\.half/.test(br);
   const edge = Math.max(...neonCfg.game.sectors.flatMap((s: { maxX: number; maxZ: number }) => [s.maxX, s.maxZ]));
   check("speedkills: the map's half-side: br.ts takes the map's cut, and the rounds' square and the sectors' edge are the same", cut && ringCfg.speedkills.half === worldCfg.cut.half && edge === worldCfg.cut.half, `cut ${worldCfg.cut.half}, ring ${ringCfg.speedkills.half}, sectors to ${edge}`);
 }

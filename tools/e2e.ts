@@ -160,6 +160,9 @@ async function pressPlay(page: Page): Promise<void> {
   await sleep(300);
   await ev(page, "window.__pad.buttons[9].pressed = false");
   await sleep(300);
+  // Start stood in for a click on Play, so the keys on screen stay the keyboard's: since Milestone 538 a pad's press
+  // turns them to its buttons (a pad's own checks press it again)
+  await ev(page, `window.__range.input.device = "keyboard"`);
 }
 
 /**
@@ -4000,8 +4003,11 @@ async function soldierTest(browser: Browser): Promise<void> {
       const fused = r.paidGuns().skin;
       r.loadout.setFusion(0, 0);
       const [fig] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000000" }], 4, 0);
-      await wait(600);
-      const figure = fig?.mq?.gun?.userData?.paid ?? null;
+      // until the figure holds a gun, 10 s at the most: its soldier and gun come in on frames of their own (a fixed 600 ms
+      // found none in the sweep and a rerun alone, 2026-10-13)
+      const t2 = performance.now();
+      while (!fig?.mq?.gun && performance.now() - t2 < 10000) await wait(50);
+      const figure = fig?.mq?.gun?.userData?.paid ?? (fig?.mq?.gun ? "a gun, not the paid one" : null);
       r.figureLab([]);
       return { inHand: held.inHand, skin: held.skin, fused, figure, pickers: document.querySelectorAll("#gunModel0, #gunSkin0").length };
     })()`,

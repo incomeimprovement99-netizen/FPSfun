@@ -11681,6 +11681,20 @@ player holding a pad.
 - **Checked:** tsc; verify; rules; e2e pad (the zipline sign says X on an Xbox pad, □ on a DualSense and E on the
   keyboard, the gap sign the stick forward and W).
 
+## Milestone 622 — The legacy game's last switch gone, and what the day's sweep found
+
+- **`IS_SK` out of game.ts.** It had been a constant since Milestone 520 (the legacy game's switch gone), its branches
+  folding as the legacy code went: the lobby's in 531, the check tools' (bot-aim, games, hitcheck) on 2026-10-12, the
+  guns agent's viewmodel.ts, fparms.ts and gunmodels.ts in 541. Nothing asks which game a page is now.
+- **The day's full e2e sweep** (main 138387ad, three batches) found six failures; each failed section was rerun alone:
+  - **keys: Inspect on I** was Milestone 538's: the e2e's stand-in for a click on Play is a fake pad's Start, and since
+    538 a pad's press turns the keys on screen to its buttons, so the keyboard check read "D-PAD ←". The stand-in now
+    puts the keyboard back after the press, as a click would leave it (a pad's own checks press it again).
+  - **soldier guns: one model a gun** read a figure's gun 600 ms after putting the figure up and found none, in the
+    sweep and alone; it waits for the gun now, 10 s at the most, and says so if the gun is not the paid one.
+  - HAEFY's own rocket, the p2p reload seen on the other screen and the inspect's pack frames passed alone (load).
+- **Checked:** tsc; verify; rules; e2e sklobby and soldier.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

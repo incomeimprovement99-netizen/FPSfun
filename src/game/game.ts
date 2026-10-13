@@ -4,9 +4,10 @@
 // was a second game on the same code until Milestone 520, reached by a
 // ?game=legacy address for the tests that still ran it; the owner retired it
 // (2026-10-09: "i am fine with retiring all old apex-range stuff"), and its
-// profile, its switch and those tests went. Its code goes milestone by
-// milestone after it (docs/PLAN_LEGACY_REMOVAL.md): until then IS_SK is a
-// constant, and a `!IS_SK` branch is the legacy game's, never run.
+// profile, its switch and those tests went. Its code went milestone by
+// milestone after it (docs/PLAN_LEGACY_REMOVAL.md), and with the last branch
+// on it folded, the IS_SK constant that stood in for the switch went too
+// (Milestone 622).
 //
 // Pure: no three.js and no DOM work at import, so the node checks load it.
 import speedkills from "../config/games/speedkills.json";
@@ -94,5 +95,3 @@ export const GAME: GameId = "speedkills";
 /** its profile (src/config/games/speedkills.json): what is in play, and the design that differs */
 export const PROFILE: GameProfile = speedkills;
 
-/** this page is SpeedKills: always, since Milestone 520; the branches on it fold as the legacy code goes */
-export const IS_SK: boolean = true;

@@ -110,7 +110,9 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   sounds but the loot bins' two, the icons and the music are named by the code; the gun sounds are the guns agent's.
 - **The check tools folded (2026-10-12):** bot-aim, games and hitcheck no longer ask `IS_SK`; what is left is the
   guns agent's viewmodel.ts, fparms.ts and gunmodels.ts.
-- **Next:** `IS_SK` out of game.ts once the guns agent's fold lands; the battle royale's Ring stays (it is the decay's
+- **622, `IS_SK` gone (done, 2026-10-13):** the guns agent folded its three files in 541, and the constant went from
+  game.ts; nothing asks which game a page is any more.
+- **Next:** the battle royale's Ring stays (it is the decay's
   round clock and closes on the final sector).
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
   every `!IS_SK` branch is dead code; the SpeedKills storage keys are kept, so nobody loses a setting).
