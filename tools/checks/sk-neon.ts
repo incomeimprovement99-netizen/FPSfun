@@ -294,8 +294,8 @@ check("LANTERN ALLEYS: a pad up onto a house from each main alley and each back 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway, the corner blocks' roofs, LANTERN ALLEYS' houses and THE TERRACES' blocks, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 24 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks and GLASS HEIGHTS' decks, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 28 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)
@@ -973,7 +973,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
   // is ridden by its own check)
   // (the centre's own: not the corner blocks' or the districts' pads, out on their streets and alleys)
-  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-"].some((p) => q.id.startsWith(p)));
+  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-", "glass-"].some((p) => q.id.startsWith(p)));
   const stops = [
     ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
     ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
@@ -1240,6 +1240,14 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
     return { q, roof: Math.abs(toFoot.y - BRG.roof) < 0.3, toFoot, ok: back.rode && Math.abs(back.y - q.floor) < 0.15 && Math.hypot(back.x - q.car[0], back.z - q.car[1]) < 1.3, back };
   });
   check("the glass lifts: each landing walked off down its stair onto the island's roof", LF.length === 4 && downs.every((a) => a.roof), downs.map((a) => `${a.q.id} at ${a.toFoot.y.toFixed(2)} m`).join("; "));
+  // (and walked back up onto it from the stair's foot: the landing's deck stood half a metre past its end over the
+  // stair's top tread, as every bridge's did, until Milestone 595)
+  const upStairs = LF.map((q) => {
+    const w = q.out;
+    const e = go(q.foot[0], q.foot[1], BRG.roof, facing([-w[0], -w[1]]), { walk: Math.hypot(q.foot[0] - q.land[0], q.foot[1] - q.land[1]) });
+    return { q, ok: Math.abs(e.y - BRG.deck) < 0.15, e };
+  });
+  check("the glass lifts: each landing walked back up onto from its stair's foot", LF.length === 4 && upStairs.every((a) => a.ok), upStairs.map((a) => `${a.q.id} at ${a.e.y.toFixed(2)} m`).join("; "));
   check("the glass lifts: each ridden down from its landing into its car", LF.length === 4 && downs.every((a) => a.ok), downs.map((a) => `${a.q.id} ${a.back.rode ? "rode" : "did not grab"}, off at ${a.back.y.toFixed(2)} m, ${Math.hypot(a.back.x - a.q.car[0], a.back.z - a.q.car[1]).toFixed(1)} m from the rope`).join("; "));
 }
 
@@ -2945,6 +2953,96 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "glass");
   check("GLASS HEIGHTS: its name in cyan over the front deck's face, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
+// GLASS HEIGHTS' ground and ways up (Milestone 595): its glass lift ridden up from its car onto its landing, its stair
+// walked down onto the front deck and back up, and ridden down again; cover within 6 m over the band's open ground; its
+// pads are ridden with the rest
+{
+  const GLq = (cfg as unknown as { glass?: { lift?: { rope: number[][]; floor: number; car: number[]; out: number[]; land: number[]; foot: number[] }; cover?: number; slabs: Array<{ foot: number[] }> } }).glass;
+  const q = GLq?.lift;
+  const BRG = (cfg.rules as unknown as { bridges: { deck: number; roof: number } }).bridges;
+  const facing = (d: number[]) => (Math.atan2(-d[0], -d[1]) * 180) / Math.PI;
+  const go = (x: number, z: number, y: number, yaw: number, o: { walk?: number; zip?: boolean }) => {
+    const p = new Player({ minX: BR_X - 400, maxX: BR_X + 400, minZ: BR_Z - 400, maxZ: BR_Z + 400 });
+    p.teleport(x + BR_X, y + 0.05, z + BR_Z, yaw);
+    let [t, tap, rode, walking] = [1000, false, false, !!o.walk];
+    const input = { held: (a: Action) => walking && a === "forward", pressedNow: (a: Action) => tap && a === "interact" };
+    const step = () => p.update(1 / 144, (t += 1 / 144), input, 0, 1, false);
+    if (o.walk) {
+      for (let i = 0; i < 144 * 8 && Math.hypot(p.pos.x - BR_X - x, p.pos.z - BR_Z - z) < o.walk; i++) step();
+      walking = false;
+      for (let i = 0; i < 144; i++) step();
+    } else {
+      for (let i = 0; i < 36; i++) step();
+      tap = true;
+      step();
+      tap = false;
+      rode = p.stance === "zip";
+      for (let i = 0; i < 144 * 6 && p.stance === "zip"; i++) step();
+      for (let i = 0; i < 144 * 2; i++) step();
+    }
+    return { rode, x: p.pos.x - BR_X, y: p.pos.y, z: p.pos.z - BR_Z };
+  };
+  const said: string[] = [];
+  let ok = !!q;
+  if (q) {
+    const w = q.out;
+    const up = go(q.car[0] - w[0] * 0.6, q.car[1] - w[1] * 0.6, q.floor, facing(w), { zip: true });
+    const past = (up.x - q.car[0]) * w[0] + (up.z - q.car[1]) * w[1];
+    const upOk = up.rode && Math.abs(up.y - BRG.deck) < 0.15 && past > 0.5;
+    const down = go(q.land[0], q.land[1], BRG.deck, facing(w), { walk: Math.hypot(q.foot[0] - q.land[0], q.foot[1] - q.land[1]) + 1 });
+    const back = go(q.foot[0], q.foot[1], BRG.roof, facing([-w[0], -w[1]]), { walk: Math.hypot(q.foot[0] - q.land[0], q.foot[1] - q.land[1]) });
+    const ride = go(q.land[0], q.land[1], BRG.deck, facing([-w[0], -w[1]]), { zip: true });
+    const rideOk = ride.rode && Math.abs(ride.y - q.floor) < 0.15 && Math.hypot(ride.x - q.car[0], ride.z - q.car[1]) < 1.3;
+    ok = upOk && Math.abs(down.y - BRG.roof) < 0.3 && Math.abs(back.y - BRG.deck) < 0.15 && rideOk;
+    said.push(`up ${up.rode ? "rode" : "did not grab"}, off at ${up.y.toFixed(2)} m ${past.toFixed(1)} m past the rope`, `down its stair to ${down.y.toFixed(2)} m`, `back up to ${back.y.toFixed(2)} m`, `down ${ride.rode ? "rode" : "did not grab"}, off at ${ride.y.toFixed(2)} m`);
+  }
+  check("GLASS HEIGHTS: its glass lift ridden up from its car in the courtyard onto its landing, its stair walked down onto the front deck and back up, and ridden down again", ok, said.join("; "));
+  // (the band's open ground: from every open half-metre outside the buildings with a body's width round it, the distance
+  // to the nearest box standing from the ground past a crouched head, as THE STACKS' check measures it)
+  const feet = GLq?.slabs ?? [];
+  const C = 0.5, X0 = -30, Z0 = -152, NI = Math.round(60 / C), NJ = Math.round((152 - 107.5) / C);
+  const body = new Uint8Array(NI * NJ), cov = new Uint8Array(NI * NJ);
+  const floor = new Float32Array(NI * NJ).fill(-Infinity);
+  for (const b of SOLIDS.solids as number[][]) {
+    if (b[5] < -0.5 || b[4] > 2.5 || b[1] < X0 || b[0] > 30 || b[3] < Z0 || b[2] > -107.5) continue;
+    for (let i = Math.max(0, Math.floor((b[0] - X0) / C)); i <= Math.min(NI - 1, Math.floor((b[1] - X0) / C)); i++)
+      for (let j = Math.max(0, Math.floor((b[2] - Z0) / C)); j <= Math.min(NJ - 1, Math.floor((b[3] - Z0) / C)); j++) {
+        const k = i * NJ + j;
+        if (b[4] < 1.8 && b[5] > 0.3) body[k] = 1;
+        if (b[4] < 0.5 && b[5] > 1) cov[k] = 1;
+        if (b[5] <= 0.3 && b[5] > floor[k]) floor[k] = b[5];
+      }
+  }
+  const D = new Float32Array(NI * NJ);
+  for (let k = 0; k < D.length; k++) D[k] = cov[k] ? 0 : 1e9;
+  for (let i = 0; i < NI; i++)
+    for (let j = 0; j < NJ; j++) {
+      const k = i * NJ + j;
+      if (i > 0) D[k] = Math.min(D[k], D[k - NJ] + 1, j > 0 ? D[k - NJ - 1] + Math.SQRT2 : 1e9, j < NJ - 1 ? D[k - NJ + 1] + Math.SQRT2 : 1e9);
+      if (j > 0) D[k] = Math.min(D[k], D[k - 1] + 1);
+    }
+  for (let i = NI - 1; i >= 0; i--)
+    for (let j = NJ - 1; j >= 0; j--) {
+      const k = i * NJ + j;
+      if (i < NI - 1) D[k] = Math.min(D[k], D[k + NJ] + 1, j < NJ - 1 ? D[k + NJ + 1] + Math.SQRT2 : 1e9, j > 0 ? D[k + NJ - 1] + Math.SQRT2 : 1e9);
+      if (j < NJ - 1) D[k] = Math.min(D[k], D[k + 1] + 1);
+    }
+  const openAt = (k: number) => !body[k] && (floor[k] > -0.3 || !Number.isFinite(floor[k]));
+  let n = 0, far = 0, farthest = 0, at = [0, 0];
+  for (let i = 1; i < NI - 1; i++)
+    for (let j = 1; j < NJ - 1; j++) {
+      const k = i * NJ + j;
+      const [x, z] = [X0 + (i + 0.5) * C, Z0 + (j + 0.5) * C];
+      if (feet.some((t) => x > t.foot[0] && x < t.foot[1] && z > t.foot[2] && z < t.foot[3])) continue;
+      if (![-NJ - 1, -NJ, -NJ + 1, -1, 0, 1, NJ - 1, NJ, NJ + 1].every((d) => openAt(k + d))) continue;
+      n++;
+      const d = D[k] * C;
+      if (d > 6) far++;
+      if (d > farthest) (farthest = d), (at = [x, z]);
+    }
+  check("GLASS HEIGHTS: something to crouch behind within 6 m over its ground (at most 1% of it farther, none past 8 m)", n > 1500 && (far / n) * 100 <= 1 && farthest <= 8, `${((far / n) * 100).toFixed(1)}% of ${n} points over 6 m; the farthest ${farthest.toFixed(1)} m at (${at[0].toFixed(1)}, ${at[1].toFixed(1)}); ${GLq?.cover ?? 0} pieces of cover`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

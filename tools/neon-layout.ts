@@ -1811,7 +1811,8 @@ const lifts: Array<{ id: string; rope: number[][]; floor: number; ring: number[]
     // the landing: decks along w from `gap` past the rope, at the bridges' height, and the stair down at its end
     const from = plat / 2 + L.gap;
     for (let k = 0; k < at.decks; k++) placeTurned("c-lifts", L.landing, ...along(b0 + len + from + landing.size![0] * (k + 0.5)), yaw, "o", B.deck - B.straight.deck);
-    const end = along(b0 + len + from + landing.size![0] * at.decks);
+    // (the stair's top edge `stairs.back` past the landing's end, off the deck's column, as the bridges' stairs: Milestone 595)
+    const end = along(b0 + len + from + landing.size![0] * at.decks + (B.stairs.back ?? 0));
     // (the stair climbs along its own `up`, toward the landing: -w; its top edge at the landing's end)
     const up = B.stairs.up as number[];
     const syaw = [0, 90, 180, 270].find((y) => {
@@ -1822,7 +1823,7 @@ const lifts: Array<{ id: string; rope: number[][]; floor: number; ring: number[]
     const [ox, oz] = rotY(syaw, tMid[0], tMid[1]);
     add("c-lifts", "c", [piece(L.stairs).key, +(end[0] - ox).toFixed(3), +(B.roof - stair.min![1]).toFixed(3), +(end[1] - oz).toFixed(3), syaw, "o"] as Place);
     const runs = Math.max(stair.size![0], stair.size![2]);
-    const foot = along(b0 + len + from + landing.size![0] * at.decks + runs + 0.5);
+    const foot = along(b0 + len + from + landing.size![0] * at.decks + (B.stairs.back ?? 0) + runs + 0.5);
     liftRing.push(ring);
     lifts.push({ id: q.id, rope, floor: L.deck, ring: ring.map((x) => +x.toFixed(3)), car: car.map((x) => +x.toFixed(3)), out: w, land: along(b0 + len + from + 1).map((x) => +x.toFixed(3)), foot: foot.map((x) => +x.toFixed(3)), colour: L.colours[q.id] });
   }
@@ -2766,7 +2767,10 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     const anyTop = (x: number, z: number, h: number) => (grid.get(`${Math.floor(x / G)},${Math.floor(z / G)}`) ?? []).reduce((t, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h && b[5] > t ? b[5] : t), -Infinity);
     // (where each pad lands on the perches, as the bake finds it: the first column `face` metres high along its line, a
     // body wide, and `land` metres past it; or the way down's own spot)
-    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number; stairDoor: number; fire: number };
+    const PC = R.perches_clear as { pad: number; lift: number; bridge: number; zip: number; walk: number; stairDoor: number; fire: number; glass: number };
+    // (GLASS HEIGHTS' decks, past the ring road between the straight roads: lobes 9 to 14 m across, which the decks' 10 m
+    // round a bridge's end and 8 m round a lift's landing left bare; `glass` round each there)
+    const onGlass = (x: number, z: number) => Math.abs(x) <= 30 && z < -107.5;
     const lands: Array<[number, number, number]> = [];
     // (every one: the corner blocks' pads go up from the street, Milestone 574, where those from the plaza landed where
     // no cover stood and were passed over)
@@ -2783,7 +2787,10 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     // (not an end that runs into a building, rules.bridges.into: it has no stair, and its spot, flat as every spot here
     // is, cleared the tower's crown 80 m over the gangway's end)
     for (const path of (R.bridges?.paths ?? []) as number[][][])
-      for (const e of [path[0], path[path.length - 1]]) if (!((R.bridges.into ?? []) as number[][]).some((q) => q[0] === e[0] && q[1] === e[1])) lands.push([e[0], e[1], PC.bridge]);
+      for (const e of [path[0], path[path.length - 1]]) if (!((R.bridges.into ?? []) as number[][]).some((q) => q[0] === e[0] && q[1] === e[1])) lands.push([e[0], e[1], onGlass(e[0], e[1]) ? PC.glass : PC.bridge]);
+    // (and GLASS HEIGHTS' glass lift's landing, rules.districts.glass.lift: a metre onto it, the lifts' gap past its rope)
+    const GLf = (R.districts as { glass?: { lift?: { car: number[]; out: number[] } } } | undefined)?.glass?.lift;
+    if (GLf) lands.push([GLf.car[0] + GLf.out[0] * (R.lifts.gap + 1), GLf.car[1] + GLf.out[1] * (R.lifts.gap + 1), PC.glass]);
     for (const q of ((cfg.zips ?? []) as Array<{ a: number[] }>)) lands.push([q.a[0], q.a[2], PC.zip]);
     // (and the lookout's zip lines' ends on it, a grab's room round each: a rider comes off one at speed and is carried
     // 8 to 14 m whatever stands there, and at the decks' 4 m three ends left the lookout one crate)
@@ -4271,8 +4278,14 @@ function onNode(o: OBox): boolean {
 // footprint's middle at its own pivot's height, colliding as its own faces, given to the bots' street model; the
 // gangways between their decks are rules.bridges' (laid with the High City's)
 {
-  type Glass = { chunk: string; buildings: Array<[string, number, number, number]>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  type Glass = {
+    chunk: string;
+    buildings: Array<[string, number, number, number]>;
+    lift?: { car: number[]; out: number[]; decks: number; colour: string };
+    ground?: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
+    name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
   const DG = (R.districts as { glass?: Glass } | undefined)?.glass;
+  let cfgGlassLift: { id: string; rope: number[][]; floor: number; car: number[]; out: number[]; land: number[]; foot: number[]; colour: string } | null = null;
   if (DG) {
     const slabs: Array<{ piece: string; c: number[]; foot: number[]; top: number }> = [];
     for (const [name, x, z, yaw] of DG.buildings) {
@@ -4283,8 +4296,78 @@ function onNode(o: OBox): boolean {
       const [hx, hz] = side ? [r.size![2] / 2, r.size![0] / 2] : [r.size![0] / 2, r.size![2] / 2];
       slabs.push({ piece: name, c: [x, z], foot: [+(x - hx).toFixed(2), +(x + hx).toFixed(2), +(z - hz).toFixed(2), +(z + hz).toFixed(2)], top: +box.top.toFixed(2) });
     }
+    // the glass lift (`lift`, Milestone 595), as the Sky Ring's (rules.lifts): the pack's glass car at the street, its
+    // roof, lamp and door left out, a rope from its floor to over the deck's fence, at its top a walk of floating decks
+    // at the bridges' height over the fence and the small stair down onto the roof
+    const GL = DG.lift;
+    if (GL) {
+      const L = R.lifts;
+      const B = R.bridges;
+      const hang = JSON.parse(readFileSync(join(ROOT, "src", "config", "movement.json"), "utf8")).ziplineHang * 0.0254;
+      const [landing, stair] = [piece(L.landing).row, piece(L.stairs).row];
+      const w: Pt = [GL.out[0], GL.out[1]];
+      const along = (k: number): Pt => [GL.car[0] + w[0] * k, GL.car[1] + w[1] * k];
+      const yaw = +((Math.atan2(-w[1], w[0]) * 180) / Math.PI).toFixed(2);
+      placeAt(DG.chunk, "c", L.car.piece, GL.car[0], GL.car[1], yaw, "o", { y: 0, without: L.car.without });
+      const rope = [[GL.car[0], +(hang + L.under).toFixed(3), GL.car[1]], [GL.car[0], +(B.deck + hang + L.over).toFixed(3), GL.car[1]]];
+      // (the landing from the lifts' gap past the rope, over the car's far half, as the Sky Ring's: within a grab's reach)
+      const from = L.gap;
+      for (let k = 0; k < GL.decks; k++) placeTurned(DG.chunk, L.landing, ...along(from + landing.size![0] * (k + 0.5)), yaw, "o", B.deck - B.straight.deck);
+      const endK = from + landing.size![0] * GL.decks;
+      const up = B.stairs.up as number[];
+      const syaw = [0, 90, 180, 270].find((y) => {
+        const [x2, z2] = rotY(y, up[0], up[1]);
+        return Math.abs(x2 + w[0]) < 1e-6 && Math.abs(z2 + w[1]) < 1e-6;
+      })!;
+      const tMid: Pt = [up[0] ? (up[0] > 0 ? stair.max![0] : stair.min![0]) : (stair.min![0] + stair.max![0]) / 2, up[1] ? (up[1] > 0 ? stair.max![2] : stair.min![2]) : (stair.min![2] + stair.max![2]) / 2];
+      // (set back off the landing deck's column, as the bridges' stairs)
+      const end = along(endK + (B.stairs.back ?? 0));
+      const [ox, oz] = rotY(syaw, tMid[0], tMid[1]);
+      add(DG.chunk, "c", [piece(L.stairs).key, +(end[0] - ox).toFixed(3), +(B.roof - stair.min![1]).toFixed(3), +(end[1] - oz).toFixed(3), syaw, "o"] as Place);
+      const runs = Math.max(stair.size![0], stair.size![2]);
+      cfgGlassLift = { id: "glass", rope, floor: 0, car: GL.car, out: w, land: along(from + 1).map((x) => +x.toFixed(3)), foot: along(endK + (B.stairs.back ?? 0) + runs + 0.5).map((x) => +x.toFixed(3)), colour: GL.colour };
+    }
+    // the ground's cover (`ground`), as THE STACKS' rows: each laid unless within `keep` of a building, on a street node
+    // or cutting the bots' streets in two
+    const GG = DG.ground;
+    let cover = 0;
+    if (GG) {
+      const near = (o: OBox) => {
+        const [ex, ez] = [Math.abs(o.u[0]) * o.hu + Math.abs(o.v[0]) * o.hv, Math.abs(o.u[1]) * o.hu + Math.abs(o.v[1]) * o.hv];
+        return slabs.some((t) => o.c[0] + ex > t.foot[0] - GG.keep && o.c[0] - ex < t.foot[1] + GG.keep && o.c[1] + ez > t.foot[2] - GG.keep && o.c[1] - ez < t.foot[3] + GG.keep);
+      };
+      for (const row of GG.rows)
+        for (const [i, [x, z]] of row.at.entries()) {
+          const yaw = row.yaw + (row.flip && i % 2 ? 180 : 0);
+          const set: Array<[string, number, number, number, number]> = [];
+          if (row.kind === "crates") {
+            const c = piece(GG.crate).row;
+            const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+            set.push([GG.crate, ox, oz, yaw, 0], [GG.crate, -ox, -oz, yaw, 0], [GG.crate, -ox, -oz, yaw, c.size![1]]);
+          } else if (row.kind === "machine") {
+            const m = piece(GG.machines[i % GG.machines.length]).row;
+            const [ox, oz] = rotY(yaw, m.size![0] / 2 + 0.01, 0);
+            set.push([GG.machines[i % GG.machines.length], ox, oz, yaw, 0], [GG.machines[(i + 1) % GG.machines.length], -ox, -oz, yaw + 180, 0]);
+          } else set.push([row.pieces![i % row.pieces!.length], 0, 0, yaw, 0]);
+          let [hu, hv, top] = [0, 0, 0];
+          for (const [name, dx, dz, yw, y] of set) {
+            const r = piece(name).row;
+            const turned = Math.abs(Math.round((yw - yaw) / 90)) % 2 === 1;
+            const [lu, lv] = rotY(-yaw, dx, dz);
+            hu = Math.max(hu, Math.abs(lu) + (turned ? r.size![2] : r.size![0]) / 2);
+            hv = Math.max(hv, Math.abs(lv) + (turned ? r.size![0] : r.size![2]) / 2);
+            top = Math.max(top, y + r.size![1]);
+          }
+          const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+          if (near(o) || onNode(o) || STREET_GRAPH?.splits(o)) continue;
+          STREET_GRAPH?.add(o);
+          for (const [name, dx, dz, yw, y] of set) placeTurned(DG.chunk, name, x + dx, z + dz, yw, "o", y - piece(name).row.min![1]);
+          cover++;
+        }
+      for (const [x, z, yaw] of GG.lamps.at) placeTurned(DG.chunk, GG.lamps.piece, x, z, yaw, "o");
+    }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "glass"), { district: "glass", ...DG.name }];
-    cfg.glass = { slabs };
+    cfg.glass = { slabs, ...(cfgGlassLift ? { lift: cfgGlassLift } : {}), cover };
     console.log(`GLASS HEIGHTS: ${slabs.map((s) => `${s.piece.replace(".prefab", "")} to ${s.top} m`).join(", ")}`);
   }
 }

@@ -432,9 +432,10 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // (and the Well's rope, neon-layout.ts rules.well: up its light-well from the bottom to the ground ring)
   // (and the tower's express lifts, rules.tower.express: from the 45.5 m sky floor up through its three levels to over the
   // crown's deck, stepped off at any level on the way)
-  const ropeCfg = neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }>; well?: { ropes: Array<{ rope: number[][]; floor: number; colour: string }> }; express?: Array<{ rope: number[][]; floor: number; colour: string }> };
+  // (and GLASS HEIGHTS' glass lift, neon-layout.ts rules.districts.glass.lift: from its courtyard up onto its front deck)
+  const ropeCfg = neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }>; well?: { ropes: Array<{ rope: number[][]; floor: number; colour: string }> }; express?: Array<{ rope: number[][]; floor: number; colour: string }>; glass?: { lift?: { rope: number[][]; floor: number; colour: string } } };
   const ropes: THREE.Mesh[] = [];
-  for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? []), ...(ropeCfg.express ?? [])]) {
+  for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? []), ...(ropeCfg.express ?? []), ...(ropeCfg.glass?.lift ? [ropeCfg.glass.lift] : [])]) {
     const [a, b] = q.rope;
     const top = b[1] + 0.3;
     const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, top - q.floor, 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));

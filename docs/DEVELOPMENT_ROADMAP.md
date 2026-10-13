@@ -13598,3 +13598,29 @@ the left of the gun and not really on it" (said many times before, and missed).
   6 s of game time, which a slow frame's capped step stretched (0.95 twice alone).
 - **Checked:** verify, rules and the type check; the USSO's pack frames 44 of 44 with the new checks (its forefinger 3 mm
   from the trigger); the new checks against the six right hands and ANAKIN's reload as measured, which they fail.
+
+## Milestone 595 — GLASS HEIGHTS, its glass lift, its ground and its decks' cover
+
+The north district's second stage.
+
+- **The glass lift** (`rules.districts.glass.lift`, tools/neon-layout.ts; src/game/neonmap.ts draws its rope and rides
+  it): built as the Sky Ring's four are, with their pieces and numbers. The pack's glass car stands at the street in the
+  courtyard, a cyan rope rises from its floor to over the front deck's fence, and at its top a floating deck at the
+  bridges' height crosses the east lobe's fence to the small stair down onto its roof. It stands north of the gangway
+  that crosses the courtyard: under it, the rope rose through the gangway's deck and the rider fell back to the street.
+  It also stays off the way in under the front deck: there, the car shut three of the bots' street nodes in under the
+  deck.
+- **The Sky Ring lifts' landing stairs** stood half a metre into their landing deck's column, as every bridge's did
+  (Milestone 594). They are set back the same way, and a new check walks each one back up onto its landing.
+- **No jump pads:** two were tried. The east deck's roof lies in pieces under its two gangways, with no level landing
+  on it. The front deck's west lobe overhangs its base, over any pad's spot in the strip beside it. The ways up are the
+  lift and the gangway from the North deck.
+- **The ground** (`ground`): cypresses, benches and kiosks round the courtyard, cars parked at the front, ferns and
+  crates in the west strip, the back lanes and the east channel, and street lamps along the front. Cover is within 6 m
+  over the band's open ground.
+- **Cover on the decks** (`rules.perches`' glass-*): AC boxes and crates on all four decks' lobes. `perches_clear.glass`
+  keeps them 4 m off a gangway's end and the lift's landing there: the High City's 10 m and 8 m left lobes 9 to 14 m
+  across bare.
+- **Checked** (tools/checks/sk-neon.ts): its glass lift ridden up from its car onto its landing, its stair walked down onto the front deck and back up, and ridden down again; the four Sky Ring lifts' landing stairs walked back up onto (a new check); cover within 6 m over the band's ground (0.7% over, the farthest 7.4 m); cover on every GLASS HEIGHTS deck, each piece on its roof; the street network whole; every bridge's stair walked as before. The e2e: 100 of 101, the one failure HAEFY's launcher check the guns agent is taking (both rockets fly the full 165 m), passed in the run before. verify, rules and the type check. The look: the courtyard and the lift, the ride up, the landing, the decks, by day and night.
+  The map: its files lo 137.6 MB, hi 207.0 MB, max 445.4 MB.
+  **Its files are version 74.**
