@@ -13508,3 +13508,23 @@ like that". The guns' share, with two fixes from the night's all-ten-guns run.
   bot's own fired as nobody's at its head, is fired a second time if the first misses.
 - **Checked:** verify, rules and the type check; the speedkills section 101 of 101; both pistols' frames 36 of 36 in the
   all-ten run's order; the USSO's frames on the re-imported arms.
+
+## Milestone 593 — THE STACKS, the high ground and the light
+
+The district's third stage, re-planned on the districts page after measuring the towers' open roofs.
+
+- **Measured first:** a jump pad throws a body straight up, so it needs open sky over its landing. The terrace between
+  Neon Building 10's towers at 21 m has pods 13 m over it, and the bridge roof at 18 m has them 6 m over. Neither works.
+  The roof of the pod on 10's east tower, 4.5 by 9.5 m at 20.5 m, has nothing over it, with the tower's wall on its west.
+  02's roof at 40 m is walled in by a parapet above eye height, and 09's broken roofs at 44 to 50 m would be a sniper's
+  nest over the whole centre, so neither was used.
+- **The high ground** (`rules.districts.stacks.perch`, and `stacks-e` in `rules.pads.spine.up`): a jump pad on the strip
+  by the road throws onto the east pod's roof. The bake solved it to 21.7 m, its rail's top. The roof's three open edges
+  are railed with the hotel's fence, and two AC boxes stand on it as cover. It looks over the road, the plaza and the
+  centre. The service alley's middle crate moved off the pad's spot.
+- **Light in the hotel** (`hotel.lights`): the pack's strip light under every gallery's ceiling every 5 m, its light part
+  worn in pink. In every pod is the ceiling panel the base's storeys and the tower's floors use, which the game's fill
+  lights take as a spot of their own, so a pod is lit when you are near it.
+- **Checked** (tools/checks/sk-neon.ts): the pad stacks-e ridden as a match throws it, onto 21.7 m; the pod roof's three open edges railed at 34 points; its two AC boxes standing on it; 36 pink strips and 21 pod lights in the hotel; the fill lights' spots, none inside anything solid; and every check before it, with the district's pad left out of the centre's own pad walk as the other districts' are. The e2e: 99 of 101 under load, then 100 of 101 alone: the capture check that failed under load passed, and one of HAEFY's launcher checks failed both times (both rockets flew 165 m), a guns check the guns agent is hardening. verify, rules and the type check. The look: the pod roof by day, the hotel's court, a gallery and a pod by night.
+  The map: its files lo 131.3 MB, hi 199.7 MB, max 434.4 MB.
+  **Its files are version 72.**

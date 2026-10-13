@@ -4002,8 +4002,8 @@ function onNode(o: OBox): boolean {
 {
   type Ground = { grid: number; at: number[]; keep: number; rowKeep: number; fill: number[][]; doors: number[][]; mix: string[]; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; cars: string[]; vans: string[]; planters: string[]; machines: string[]; crate: string; deco: string };
   type HotelWing = { id: string; axis: "x" | "z"; from: number; count: number; width: number; back: number; deep: number; gallery: number; run: number[]; fenceRun: number[]; yaw: number; floorYaw: number };
-  type Hotel = { storeys: number[]; roof: number; slab: number; rooms: string[]; floor: string; deck: string; wings: HotelWing[]; stairs: { piece: string; rise: number; arrive: number[]; route: number[][]; at: Array<[string, number, number]> }; rail: { x5: string; x2: string; x1: string; inset: number }; outline: Pt[]; roofCover: { pieces: string[]; at: number[][] }; podCrate: { piece: string; back: number; side: number }; court: Ground["rows"]; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
-  type Stacks = { chunk: string; seed: number; buildings: Array<[string, number, number, number]>; ground: Ground; lamps: { piece: string; at: number; north: number[]; west: number[] }; plugs?: number[][]; hotel?: Hotel; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  type Hotel = { storeys: number[]; roof: number; slab: number; rooms: string[]; floor: string; deck: string; wings: HotelWing[]; stairs: { piece: string; rise: number; arrive: number[]; route: number[][]; at: Array<[string, number, number]> }; rail: { x5: string; x2: string; x1: string; inset: number }; outline: Pt[]; roofCover: { pieces: string[]; at: number[][] }; podCrate: { piece: string; back: number; side: number }; lights?: { strip: string; stripRemap: string; every: number; pod: string; podRemap?: string }; court: Ground["rows"]; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  type Stacks = { chunk: string; seed: number; buildings: Array<[string, number, number, number]>; ground: Ground; lamps: { piece: string; at: number; north: number[]; west: number[] }; plugs?: number[][]; hotel?: Hotel; perch?: { box: number[]; y: number; inset: number; cover: { pieces: string[]; at: number[][] } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
   const DS = (R.districts as { stacks?: Stacks } | undefined)?.stacks;
   if (DS) {
     const towers: Array<{ piece: string; c: number[]; yaw: number; foot: number[]; top: number }> = [];
@@ -4050,11 +4050,19 @@ function onNode(o: OBox): boolean {
             // (a crate by its back wall, off to one side, either side by turns: cover in the pod, clear of the way in)
             const pc = ptOf(W, W.from + W.width * (k + 0.5) + ((si + k) % 2 ? 1 : -1) * HT.podCrate.side, HT.podCrate.back);
             placeTurned(DS.chunk, HT.podCrate.piece, pc[0], pc[1], W.yaw, "o", y - piece(HT.podCrate.piece).row.min![1]);
+            // (and the ceiling panel the base's storeys use, under the slab over it: a spot for the game's fill lights)
+            if (HT.lights) placeTurned(DS.chunk, HT.lights.pod, c[0], c[1], W.yaw, "g", y + 3.5 - HT.slab - piece(HT.lights.pod).row.max![1], HT.lights.podRemap);
             hotel.pods.push({ c, y, wing: W.id });
           }
         const rooms = boxOf(W, W.from, W.from + W.width * W.count, 0, W.deep);
         const gal = boxOf(W, W.run[0], W.run[1], W.deep, W.deep + W.gallery);
         for (const y of tops) {
+          // (the pack's strip light under each gallery's ceiling, along its outer edge, its light in pink)
+          if (HT.lights)
+            for (let a = Math.min(...W.fenceRun) + HT.lights.every / 2; a < Math.max(...W.fenceRun); a += HT.lights.every) {
+              const p = ptOf(W, a, W.deep + W.gallery - 0.4);
+              placeTurned(DS.chunk, HT.lights.strip, p[0], p[1], W.axis === "x" ? 0 : 90, "g", y - HT.slab - piece(HT.lights.strip).row.max![1], HT.lights.stripRemap);
+            }
           for (const b of [rooms, gal]) hotelSolids.push([b[0], b[1], b[2], b[3], y - HT.slab, y]);
           tile(gal, y);
           if (y === HT.roof) tile(rooms, y);
@@ -4144,6 +4152,20 @@ function onNode(o: OBox): boolean {
         hotel.cover++;
       }
       cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "stacks-hotel"), { district: "stacks-hotel", ...HT.name }];
+      // THE STACKS' high ground (`perch`, Milestone 593): the roof of 10's east pod, its three open edges railed (the
+      // tower's wall is its fourth), AC boxes on it; the spine pad stacks-e throws onto it
+      const PR = DS.perch;
+      if (PR) {
+        const [x0, x1, z0, z1] = PR.box;
+        const i = PR.inset;
+        fence([x0 + i, z0 + i], [x1 - i, z0 + i], PR.y, [], "x");
+        fence([x1 - i, z0 + i], [x1 - i, z1 - i], PR.y, [], "z");
+        fence([x1 - i, z1 - i], [x0 + i, z1 - i], PR.y, [], "x");
+        for (const [k, [x, z]] of PR.cover.at.entries()) {
+          const name = PR.cover.pieces[k % PR.cover.pieces.length];
+          placeTurned(DS.chunk, name, x, z, 90, "o", PR.y - piece(name).row.min![1]);
+        }
+      }
       console.log(`THE CAPSULE HOTEL: ${hotel.pods.length} pods, ${hotel.stairs.length} stairs, ${hotel.fences} lengths of fence, ${hotel.tiles} deck tiles, ${hotel.cover} AC boxes on the roof`);
     }
     // the ground's cover (`ground`): the rows laid by hand first (the avenue up to 10's stair, the car park either side of

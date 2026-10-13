@@ -973,7 +973,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
   // is ridden by its own check)
   // (the centre's own: not the corner blocks' or the districts' pads, out on their streets and alleys)
-  const SPU = SPN.up.filter((q) => !q.id.startsWith("corner-") && !q.id.startsWith("lantern-") && !q.id.startsWith("terminal-"));
+  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-"].some((p) => q.id.startsWith(p)));
   const stops = [
     ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
     ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
@@ -2846,6 +2846,34 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "stacks-hotel");
   check("THE CAPSULE HOTEL: CAPSULE HOTEL in pink on the roof's edge, seen from the court", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
+// THE STACKS' high ground and light (Milestone 593): the east pod's roof railed on its three open edges, its AC boxes
+// standing on it (its pad, stacks-e, is ridden with every pad above); the hotel's pink strip lights under its galleries'
+// ceilings and a light in every pod
+{
+  const PR = (cfg.rules as unknown as { districts?: { stacks?: { perch?: { box: number[]; y: number; inset: number; cover: { at: number[][] } } } } }).districts?.stacks?.perch;
+  const at = (x: number, z: number) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).filter((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z);
+  const open: string[] = [];
+  let points = 0;
+  if (PR) {
+    const [x0, x1, z0, z1] = PR.box;
+    const i = PR.inset;
+    const edge: Array<[number, number]> = [];
+    for (let x = x0 + 0.5; x < x1 - 0.3; x += 0.5) edge.push([x, z0 + i], [x, z1 - i]);
+    for (let z = z0 + 0.5; z < z1 - 0.3; z += 0.5) edge.push([x1 - i, z]);
+    for (const [x, z] of edge) {
+      points++;
+      if (!at(x, z).some((q) => q.base <= PR.y + 0.3 && q.top >= PR.y + 0.9)) open.push(`(${x.toFixed(1)}, ${z.toFixed(1)})`);
+    }
+  }
+  const pad = ((cfg as unknown as { spine: { up: Array<{ id: string; roof: number }> } }).spine.up ?? []).find((q) => q.id === "stacks-e");
+  const off = (PR?.cover.at ?? []).filter(([x, z]) => !at(x, z).some((q) => q.top > PR!.y + 0.9 && q.top < PR!.y + 1.7));
+  check("THE STACKS: the high ground on 10's east pod at 20.5 m, its pad solved onto it, railed on its three open edges, AC boxes on it", !!pad && Math.abs(pad.roof - (PR?.y ?? 0)) < 1.5 && points > 20 && open.length === 0 && off.length === 0 && (PR?.cover.at.length ?? 0) >= 2, `${pad ? `the pad onto ${pad.roof} m` : "no pad"}; ${open.length} of ${points} edge points open${open.length ? ` (${open.slice(0, 3).join("; ")})` : ""}; ${(PR?.cover.at.length ?? 0) - off.length} boxes standing on it`);
+  const L = (cfg.rules as unknown as { districts?: { stacks?: { hotel?: { lights?: { strip: string; pod: string } } } } }).districts?.stacks?.hotel?.lights;
+  const placed = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-stacks"]?.place ?? [];
+  const count = (name?: string) => placed.filter((q) => name && String(q[0]).endsWith(`/${name}`)).length;
+  check("THE CAPSULE HOTEL: pink strip lights under every gallery's ceiling and a light in each of its 21 pods", !!L && count(L.strip) >= 30 && count(L.pod) === 21, `${count(L?.strip)} strips, ${count(L?.pod)} pod lights`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
