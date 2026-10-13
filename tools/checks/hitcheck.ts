@@ -8,7 +8,6 @@
 //
 // Run on its own: npx tsx tools/checks/hitcheck.ts (and with GAME=speedkills for SpeedKills' own: verify runs both).
 import { HACK_MAX, HitCheck, MELEE_APART, STALE, TOP_SPEED, maxPerSecond, maxRound } from "../../src/net/hitcheck";
-import { IS_SK } from "../../src/game/game";
 import { resolveWeapon, weaponIds } from "../../src/game/weapons";
 import netCfg from "../../src/config/net.json";
 
@@ -53,23 +52,21 @@ console.log("The host's check on a claimed hit");
   check("a gun's hit with no shot heard lately is refused", h.judge({ from: 2, amount: 10, weapon: SAMPLE, dist: 10 }, 10, 10 - C.shotWindow - 0.1, 10) !== null && h.judge({ from: 3, amount: 10, weapon: SAMPLE, dist: 10 }, 10, undefined, 10) !== null);
   check("a claim from 100 m by two players 10 m apart is refused; a round trip's drift is not", h.judge({ from: 4, amount: 10, weapon: SAMPLE, dist: 100 }, 10, 9.9, 10) !== null && h.judge({ from: 5, amount: 10, weapon: SAMPLE, dist: 18 }, 10, 9.9, 10) === null);
   check(`a swing from 20 m is refused, one from 2 m passes (up to ${C.meleeMax})`, h.judge({ from: 6, amount: 30, weapon: "melee", dist: null }, 10, undefined, 20) !== null && h.judge({ from: 7, amount: 300, weapon: "melee", dist: null }, 10, undefined, 2) === null);
-  if (IS_SK) {
-    // SpeedKills' speeds (Phase 20 A15): a real swing on a target at the top speed, seen as late as the jitter
-    // buffer and a trip allow, passes; the fixed 5 m refused it. And one from much further still does not.
-    const late = C.meleeReach + TOP_SPEED * STALE - 0.05;
-    const hs = new HitCheck();
-    check(
-      `speedkills: a swing on a target at ${TOP_SPEED.toFixed(1)} m/s seen ${STALE.toFixed(2)} s late passes (${late.toFixed(1)} m apart at the host); one from ${(MELEE_APART + 3).toFixed(1)} m does not`,
-      hs.judge({ from: 11, amount: 30, weapon: "melee", dist: null }, 10, undefined, late) === null && hs.judge({ from: 12, amount: 30, weapon: "melee", dist: null }, 10, undefined, MELEE_APART + 3) !== null,
-      `the limit ${MELEE_APART.toFixed(1)} m`,
-    );
-    // a gun's claim at close range on the same target: its measured distance and the host's differ by that run
-    const drift = TOP_SPEED * STALE;
-    check(
-      `speedkills: a gun's claim from 3 m on a target at the top speed seen late passes (the host has them ${(3 + drift).toFixed(1)} m apart)`,
-      hs.judge({ from: 13, amount: 10, weapon: SAMPLE, dist: 3 }, 10, 9.9, 3 + drift) === null,
-    );
-  }
+  // SpeedKills' speeds (Phase 20 A15): a real swing on a target at the top speed, seen as late as the jitter
+  // buffer and a trip allow, passes; the fixed 5 m refused it. And one from much further still does not.
+  const late = C.meleeReach + TOP_SPEED * STALE - 0.05;
+  const hs = new HitCheck();
+  check(
+    `speedkills: a swing on a target at ${TOP_SPEED.toFixed(1)} m/s seen ${STALE.toFixed(2)} s late passes (${late.toFixed(1)} m apart at the host); one from ${(MELEE_APART + 3).toFixed(1)} m does not`,
+    hs.judge({ from: 11, amount: 30, weapon: "melee", dist: null }, 10, undefined, late) === null && hs.judge({ from: 12, amount: 30, weapon: "melee", dist: null }, 10, undefined, MELEE_APART + 3) !== null,
+    `the limit ${MELEE_APART.toFixed(1)} m`,
+  );
+  // a gun's claim at close range on the same target: its measured distance and the host's differ by that run
+  const drift = TOP_SPEED * STALE;
+  check(
+    `speedkills: a gun's claim from 3 m on a target at the top speed seen late passes (the host has them ${(3 + drift).toFixed(1)} m apart)`,
+    hs.judge({ from: 13, amount: 10, weapon: SAMPLE, dist: 3 }, 10, 9.9, 3 + drift) === null,
+  );
   // a stream faster than the gun fires: one second's worth, then one more
   const fast = new HitCheck();
   const per = maxPerSecond(r301);
@@ -82,15 +79,13 @@ console.log("The host's check on a claimed hit");
 
 // SpeedKills: a claim names a gun of its roster, a swing or a hack that hurts. Any other name passed as an older build's
 // claim, with no shot behind it, at up to 250 a claim: one forged hit took a player out (Milestone 499)
-if (IS_SK) {
-  const h = new HitCheck();
-  const refused = ["rspn101", "anything", ""].filter((w, i) => h.judge({ from: 20 + i, amount: 20, weapon: w, dist: 10 }, 10, undefined, 10) !== null);
-  check("SpeedKills: a claim naming a gun off its roster, a made-up name or none is refused, however small", refused.length === 3, `${refused.length} of 3 refused`);
-  const hacks = Object.entries(HACK_MAX);
-  const fair = hacks.filter(([id, top], i) => h.judge({ from: 30 + i, amount: top, weapon: id, dist: 3 }, 10, undefined, 3) === null);
-  const over = hacks.filter(([id, top], i) => h.judge({ from: 40 + i, amount: top * C.margin + 1, weapon: id, dist: 3 }, 10, undefined, 3) !== null);
-  check("SpeedKills: a hack's hit, which no shot comes before, passes at its top level's damage and is refused past it", hacks.length >= 2 && fair.length === hacks.length && over.length === hacks.length, hacks.map(([id, top]) => `${id} ${top}`).join(", "));
-}
+const h = new HitCheck();
+const refused = ["rspn101", "anything", ""].filter((w, i) => h.judge({ from: 20 + i, amount: 20, weapon: w, dist: 10 }, 10, undefined, 10) !== null);
+check("SpeedKills: a claim naming a gun off its roster, a made-up name or none is refused, however small", refused.length === 3, `${refused.length} of 3 refused`);
+const hacks = Object.entries(HACK_MAX);
+const fair = hacks.filter(([id, top], i) => h.judge({ from: 30 + i, amount: top, weapon: id, dist: 3 }, 10, undefined, 3) === null);
+const over = hacks.filter(([id, top], i) => h.judge({ from: 40 + i, amount: top * C.margin + 1, weapon: id, dist: 3 }, 10, undefined, 3) !== null);
+check("SpeedKills: a hack's hit, which no shot comes before, passes at its top level's damage and is refused past it", hacks.length >= 2 && fair.length === hacks.length && over.length === hacks.length, hacks.map(([id, top]) => `${id} ${top}`).join(", "));
 
 console.log(fails === 0 ? "\nHITCHECK PASS" : `\nHITCHECK FAIL (${fails})`);
 export const hitcheckFails = fails;

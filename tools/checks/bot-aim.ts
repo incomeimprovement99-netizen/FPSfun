@@ -15,7 +15,7 @@
 import * as THREE from "three";
 import { BOT_TIERS, DIFFICULTY, aimLagOf } from "../../src/game/bots";
 import { MOVE } from "../../src/game/movement";
-import { GAME, IS_SK } from "../../src/game/game";
+import { GAME } from "../../src/game/game";
 import legacyMove from "../../src/config/movement.json";
 
 let fails = 0;
@@ -40,24 +40,20 @@ console.log(`\nA bot's aim against a runner (game: ${GAME})`);
 // a player's sprint, m/s: this game's, and the legacy game's own (movement.json, Hammer units)
 const HU = 0.0254;
 const legacySprint = legacyMove.sprintSpeed * HU;
-if (!IS_SK) {
-  check("legacy: every tier aims with its own lag", BOT_TIERS.every((t) => aimLagOf(DIFFICULTY[t]) === DIFFICULTY[t].aimLag));
-} else {
-  const rows: string[] = [];
-  const off: string[] = [];
-  for (const t of BOT_TIERS) {
-    const d = DIFFICULTY[t];
-    const was = trail(d.aimLag, legacySprint);
-    const now = trail(aimLagOf(d), MOVE.sprintSpeed);
-    rows.push(`${t} ${was.toFixed(2)} m then, ${now.toFixed(2)} m now`);
-    if (now > was * 1.15) off.push(t);
-  }
-  check(
-    `speedkills: no tier trails a sprint at ${MOVE.sprintSpeed.toFixed(1)} m/s by more than it trailed one at the legacy ${legacySprint.toFixed(1)} (within 15%)`,
-    off.length === 0,
-    off.length ? `off: ${off.join(", ")}; ${rows.join("; ")}` : rows.join("; "),
-  );
+const rows: string[] = [];
+const off: string[] = [];
+for (const t of BOT_TIERS) {
+  const d = DIFFICULTY[t];
+  const was = trail(d.aimLag, legacySprint);
+  const now = trail(aimLagOf(d), MOVE.sprintSpeed);
+  rows.push(`${t} ${was.toFixed(2)} m then, ${now.toFixed(2)} m now`);
+  if (now > was * 1.15) off.push(t);
 }
+check(
+  `speedkills: no tier trails a sprint at ${MOVE.sprintSpeed.toFixed(1)} m/s by more than it trailed one at the legacy ${legacySprint.toFixed(1)} (within 15%)`,
+  off.length === 0,
+  off.length ? `off: ${off.join(", ")}; ${rows.join("; ")}` : rows.join("; "),
+);
 
 console.log(fails === 0 ? "\nBOT AIM PASS" : `\nBOT AIM FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

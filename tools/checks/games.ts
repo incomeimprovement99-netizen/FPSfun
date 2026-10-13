@@ -10,7 +10,7 @@
 // better and not decisive).
 //
 // Run on its own: npx tsx tools/checks/games.ts.
-import { GAME, IS_SK, PROFILE } from "../../src/game/game";
+import { GAME, PROFILE } from "../../src/game/game";
 import { allWeaponIds, weaponMods } from "../../src/game/weapons";
 import { opticsFor } from "../../src/game/attachments";
 import binds from "../../src/config/binds.json";
@@ -28,7 +28,7 @@ function check(label: string, cond: boolean, detail = ""): void {
 console.log("SpeedKills, the one game, and its profile");
 {
   // (the URL, a browser's old choice and the build's default chose between two games until Milestone 499)
-  check("the game is SpeedKills, the one game", GAME === "speedkills" && IS_SK && PROFILE.id === "speedkills");
+  check("the game is SpeedKills, the one game", GAME === "speedkills" && PROFILE.id === "speedkills");
 
   const MAPS = new Set(["city"]);
   {

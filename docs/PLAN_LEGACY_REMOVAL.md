@@ -108,6 +108,8 @@ Done so far: no supply bins (475), no death boxes (476), no grenades (481), the 
   guns agent the old guns' models and files; this plan the rest.
 - **536, the legacy bottom HUD (done).** What else public/ held was checked: three props went with 535; the Kenney
   sounds but the loot bins' two, the icons and the music are named by the code; the gun sounds are the guns agent's.
+- **The check tools folded (2026-10-12):** bot-aim, games and hitcheck no longer ask `IS_SK`; what is left is the
+  guns agent's viewmodel.ts, fparms.ts and gunmodels.ts.
 - **Next:** `IS_SK` out of game.ts once the guns agent's fold lands; the battle royale's Ring stays (it is the decay's
   round clock and closes on the final sector).
 - **As each piece goes, its `IS_SK` branches fold** (the switch itself went first, 520: `IS_SK` is a constant now, so
