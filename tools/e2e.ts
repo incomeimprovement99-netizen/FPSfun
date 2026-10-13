@@ -5844,8 +5844,11 @@ async function skLauncherTest(browser: Browser): Promise<void> {
           // still while its own rockets fly: a bot runs sideways at up to 10 m/s, out of the line it was fired along
           const upd = b.update; b.update = () => [];
           const fire = async (firer) => {
-            const eye = b.pos.clone().setY(b.pos.y + 1.35);
+            // (from 35 cm under its head, up into it: from a fixed 1.35 m, a bot crouched with its head's middle at 1.4 m
+            // fired from inside its head, and a rocket leaving a mesh from inside meets none of its faces, so the control
+            // flew its whole 165 m half the runs, alone and unloaded, 2026-10-13)
             const head = b.dummy.hitMeshes.find((m) => m.userData.zone === "head").getWorldPosition(new T.Vector3());
+            const eye = head.clone().setY(head.y - 0.35);
             const before = r.rocketLast();
             b.projectiles.fire(eye, head.sub(eye).normalize(), b.weapon, true, 1, 1, null, null, firer);
             const t1 = performance.now(); while (r.rocketLast() === before && performance.now() - t1 < 4000) await new Promise((ok) => setTimeout(ok, 16));
