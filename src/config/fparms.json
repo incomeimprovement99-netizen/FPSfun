@@ -1178,65 +1178,70 @@
         },
         "r": {
           "shift": [
-            0.0261,
-            -0.0326,
-            -0.001
+            0.0143,
+            -0.0122,
+            0.0024
           ],
           "rot": [
-            0.039,
-            0.184,
-            -0.013
+            -0.334,
+            -0.1403,
+            -0.1978
           ],
           "joint": {
             "thumb_01": [
-              -0.33,
-              0.46,
-              0
+              -0.4769,
+              -0.4359,
+              -0.2898
             ],
             "thumb_02": [
-              0,
-              -0.12,
-              0
+              -0.5085,
+              -0.4314,
+              0.4805
             ],
             "thumb_03": [
               -0.48,
               0.12,
               0
             ],
-            "index_01": [
-              0.56,
-              -0.1,
-              0
-            ],
             "middle_01": [
-              -0.96,
-              0.12,
-              -0.48
+              -0.5044,
+              -0.0313,
+              0.3288
             ],
             "middle_02": [
-              -0.36,
-              0,
-              0.48
+              0.305,
+              -0.3226,
+              0.1562
             ],
             "ring_01": [
-              -0.36,
-              0.48,
-              -0.48
+              -0.0332,
+              0.3294,
+              0.257
             ],
             "ring_02": [
-              -0.36,
-              0.48,
-              0
+              -0.2399,
+              -0.0322,
+              0.2111
             ],
             "pinky_01": [
-              -0.36,
-              0.48,
-              0.48
+              -0.2953,
+              0.4378,
+              0.0035
             ],
             "pinky_02": [
-              0.06,
-              0.48,
-              0
+              -0.0593,
+              0.4927,
+              -0.0328
+            ],
+            "index_01": [
+              0.384,
+              0.0573,
+              0.216
+            ],
+            "index_02": [
+              0.6351,
+              0.3899,
+              0.1495
             ]
           },
           "open": {}
@@ -1245,9 +1250,9 @@
       "_solve": "tools/pack-solve.ts, 2026-10-12: pointing wrist: before 64, after 68 (tip 0.0 cm, 8 deg; arms in the picture 0.0% then 1.2%; elbow -0.45,-1.15,0.00, reach 0.24, aimAt 0.85).",
       "shoulders": {
         "r": [
-          -0.04,
-          -0.01,
-          -0.08
+          -0.11,
+          0.09,
+          -0.16
         ],
         "l": [
           -0.12,
@@ -1260,9 +1265,9 @@
           0.07
         ],
         "adsR": [
-          -0.12,
-          0.04,
-          -0.12
+          -0.28,
+          0.08,
+          -0.22
         ]
       },
       "point": {
@@ -1352,7 +1357,8 @@
         -0.092,
         0.1092
       ],
-      "_pointShoulder": "PANDA points at its magazine in a reload from its own left shoulder (fprig.ts pointShoulder), the off-gun shoulder it had before the fix round: refitted for its inspect and first draw once the hold moved under the handguard (2026-10-12), the shared one bent the pointing wrist to 64 degrees, the finger 11 off the magazine; from this, 43 and 5."
+      "_pointShoulder": "PANDA points at its magazine in a reload from its own left shoulder (fprig.ts pointShoulder), the off-gun shoulder it had before the fix round: refitted for its inspect and first draw once the hold moved under the handguard (2026-10-12), the shared one bent the pointing wrist to 64 degrees, the finger 11 off the magazine; from this, 43 and 5.",
+      "_holdR": "The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had been 30 mm off): searched by tools/pack-flush.ts for the fingertip on the trigger, the palm on the grip and nothing seen in the gun, the fingers laid by tools/pack-solve.ts and the right shoulder fitted at rest and aimed for the wrist (39 and 9 degrees)."
     },
     "KXG12": {
       "model": "KXG12",
@@ -1848,15 +1854,68 @@
         },
         "r": {
           "shift": [
-            -0.0577,
-            -0.0258,
-            -0.0528
+            0.0079,
+            -0.0143,
+            -0.016
           ],
           "rot": [
-            -0.107,
-            0.135,
-            0.266
-          ]
+            0.3248,
+            -0.2667,
+            -0.2066
+          ],
+          "open": {},
+          "joint": {
+            "thumb_01": [
+              -0.0931,
+              -0.2303,
+              0.2026
+            ],
+            "thumb_02": [
+              -0.0317,
+              -0.9602,
+              0.264
+            ],
+            "index_01": [
+              -0.0363,
+              0.9003,
+              0.745
+            ],
+            "index_02": [
+              -0.2185,
+              0.3058,
+              -0.2675
+            ],
+            "middle_01": [
+              -0.1327,
+              -0.0316,
+              -0.0038
+            ],
+            "middle_02": [
+              -0.0325,
+              -0.0176,
+              0.1942
+            ],
+            "ring_01": [
+              0.0073,
+              -0.7481,
+              -0.3418
+            ],
+            "ring_02": [
+              -0.2475,
+              -0.0197,
+              0.1756
+            ],
+            "pinky_01": [
+              -0.9248,
+              -0.0208,
+              -0.0214
+            ],
+            "pinky_02": [
+              -0.4897,
+              -0.9434,
+              -0.3055
+            ]
+          }
         }
       },
       "shoulders": {
@@ -1866,14 +1925,14 @@
           0.2
         ],
         "r": [
-          -0.04,
-          0.05,
-          -0.1
+          -0.2,
+          0.06,
+          -0.18
         ],
         "adsR": [
-          -0.24,
+          -0.42,
           0.16,
-          -0.24
+          -0.28
         ],
         "adsL": [
           0.04,
@@ -1967,7 +2026,8 @@
         "reach": 0.18,
         "aimAt": 0.78
       },
-      "_solve": "tools/pack-solve.ts, 2026-10-12: rest wrists: before L 53 R 29, after L 50 R 30; arms in the picture 42.7% then 42.7%, a sleeve's inside 40 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.12,-0.06,0.12]}); aimed wrists: before L 49 R 18, after L 34 R 18; arms in the picture 0.0% then 0.0%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.03999999999999999,-0.019999999999999997,0.12]}); pointing wrist: before 56, after 49 (tip 0.0 cm, 9 deg; arms in the picture 0.1% then 0.2%; elbow -0.45,-1.00,0.00, reach 0.18, aimAt 0.78)."
+      "_solve": "tools/pack-solve.ts, 2026-10-12: rest wrists: before L 53 R 29, after L 50 R 30; arms in the picture 42.7% then 42.7%, a sleeve's inside 40 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.12,-0.06,0.12]}); aimed wrists: before L 49 R 18, after L 34 R 18; arms in the picture 0.0% then 0.0%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.03999999999999999,-0.019999999999999997,0.12]}); pointing wrist: before 56, after 49 (tip 0.0 cm, 9 deg; arms in the picture 0.1% then 0.2%; elbow -0.45,-1.00,0.00, reach 0.18, aimAt 0.78).",
+      "_holdR": "The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip's foot under the drum, 125 mm from the trigger): searched as G3's was, its palm inside the grip where nothing of it is seen; the right shoulder 12 cm further out than its wrist fit put it, so the inspect's right wrist stays at 29 degrees (62 there)."
     },
     "DGL50": {
       "model": "DGL50",
@@ -2054,9 +2114,9 @@
               0
             ],
             "index_01": [
-              0.005,
-              0.076,
-              -0.49
+              0.5413,
+              0.0599,
+              -1.0873
             ],
             "middle_01": [
               -0.052,
@@ -2079,14 +2139,14 @@
               0
             ],
             "index_02": [
-              -0.036,
-              0.051,
-              0.472
+              -0.1297,
+              1.2975,
+              1.1759
             ],
             "index_03": [
-              -0.028,
-              0.031,
-              0.029
+              -0.3991,
+              -0.711,
+              -0.0691
             ]
           },
           "rot": [
@@ -2147,7 +2207,8 @@
         0.06,
         -0.08,
         0
-      ]
+      ],
+      "_holdR": "The right forefinger reaches the trigger (2026-10-13; it had lain 26 mm off it): only the forefinger's joints moved, the hand where it was on the grip, searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun (moved with it, the palm came 5 mm into the grip where it is seen)."
     },
     "X18": {
       "model": "SK_X18",

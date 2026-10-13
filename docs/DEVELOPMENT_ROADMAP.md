@@ -13652,3 +13652,31 @@ The east district's first stage, in EAST DECK's magenta: the band past the ring 
 - **Checked** (tools/checks/sk-neon.ts): the tower across the edge, with its eight blocks and the pyramid inside the band; each block shut to its top in the collision; a player walks up the pyramid from each of its four sides onto its top at 7.00 m; the name along nine clear sight lines from the ring road; 0.2% of 4,422 points over 6 m from cover (the farthest 6.5 m); three lamps; the perches now 29. The plug and climb checks were proven by taking the typed boxes out of the collision: all eight blocks read open and the walker fell into the pyramid at 0 m. The e2e: the SpeedKills section 100 of 101; the one fail, HAEFY's own-rocket test, is the guns agent's test fault, fixed on their branch in 638e2a41 and not on main yet. verify, rules and the type check. The look: the boulevard, the ring road, the pyramid and its top, the base and from a deck, by golden hour and neon night, plus a view from above; the billboards' screens show dark from the boulevard.
   The map: its files lo 140.3 MB, hi 211.1 MB, max 452.8 MB.
   **Its files are version 75.**
+
+## Milestone 544 — The right forefinger on the trigger: APUHTHEE, PANDA and CHOOCH
+
+Milestone 543's check of the right forefinger on the trigger, measured on all ten guns at rest: six were off it, 26 to
+126 mm (the hand at the foot of the grip or behind it, the trigger bare in the picture on REZ). Three are fitted here.
+
+- **How:** each right hand from where the pack's own clip holds its own gun (our trigger is placed on the pack gun's, so
+  its forefinger is near ours), searched by tools/pack-flush.ts for the fingertip on the trigger with the palm on the
+  grip and nothing seen in the gun, every finger joint free (our grips are thicker than the pack's: there the hands were
+  13 to 39 mm into them); then the fingers laid by tools/pack-solve.ts and the right shoulder fitted at rest and aimed
+  for the wrist.
+- **APUHTHEE** (fparms.json packGuns DGL50 hold r): the hand stays where it was on the grip and only the forefinger
+  reaches, 26 mm to the trigger (moved with it, the palm came 5 mm into the grip where it is seen).
+- **PANDA** (G3): the fingertip 3 mm from the trigger (it was 30); the right wrist 39 degrees at rest, 9 aimed.
+- **CHOOCH** (MGX5): 3 mm (it was 125: the hand held the grip's foot under the drum); its right shoulder 12 cm further
+  out, which keeps the inspect's right wrist at 29 degrees (moved in with the hand, 62).
+- **Still off the trigger:** ANAKIN, whose grip holds its magazine and is thick enough that a hand on its trigger goes
+  17 mm into it where it is seen; REZ, whose right arm fills the lower right of the picture aimed with the hand on its
+  trigger; and BIGANTLER, its aimed right wrist 63 degrees there. Next.
+- **Tools:** pack-solve.ts's shoulder fit now holds the hand it is given (with a hold patched in, it had fitted the
+  shoulders to the hand in the file: PANDA's wrist read 44 degrees there and 69 on the hand meant); OWNER_VIEW=1 runs it
+  at the owner's field of view.
+- **HAEFY's bot-rocket check** (tools/e2e.ts) fires from 35 cm under the bot's head: from a fixed 1.35 m, a bot crouched
+  with its head's middle at 1.4 m fired from inside its head, and a rocket leaving a mesh from inside meets none of its
+  faces, so the control flew its whole 165 m in half the runs. Eight runs in eight now.
+- **Checked:** verify, rules and the type check; the three guns' pack frames, 39 of 40 together (CHOOCH's inspect wrist,
+  then fixed) and CHOOCH's 40 of 40 alone, with the forefinger on the trigger check passing on all three; HAEFY's
+  bot-rocket check eight runs in eight alone.

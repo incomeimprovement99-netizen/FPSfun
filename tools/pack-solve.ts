@@ -15,7 +15,7 @@
 // tools/pack-thumb.ts searches a finger's joints over their whole range for that. A Levenberg-Marquardt solve of a
 // whole hand at once was tried here too and dropped: two minutes a step in the page, and it stalled where this did. WRITE=1 writes the result into fparms.json (packGuns hold joint and shift, shoulders, point).
 //
-// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30, HOLD=index,middle,ring,pinky, KEEP_HAND=1, WRIST_SIDES=r or a shoulder key, adsL, CFG_PATCH, RESULT_FILE)
+// Run: SHOT_URL=http://localhost:5196/ npx tsx tools/pack-solve.ts [joints|wrists|all] [ids...]   (SIDES=r, STEPS=30, HOLD=index,middle,ring,pinky, KEEP_HAND=1, WRIST_SIDES=r or a shoulder key, adsL, CFG_PATCH, RESULT_FILE, OWNER_VIEW=1)
 // Headless, never the real mouse or keyboard.
 import fs from "node:fs";
 import path from "node:path";
@@ -221,6 +221,10 @@ const COVER = `window.__armCover = () => {
 
 async function wrists(page: Page, id: string, name: string): Promise<void> {
   await page.evaluate(COVER);
+  // the hold as this run has it (the joints stage's, or CFG_PATCH's): the page's own is the file's, and with a hold patched
+  // in and not written the shoulders were fitted to the hand the file still has (PANDA's right wrist 44 degrees on it,
+  // 69 on the hand meant)
+  await page.evaluate(`window.__range.packRig().debugHold = ${JSON.stringify(results[name]?.hold ?? cfg.packGuns[name].hold)}`);
   // from the pack's own shoulders (no fit of ours), and never with more of the arms in the picture than those put there:
   // the first search raised the USSO's left shoulder 16 cm and its sleeve filled the bottom of the picture aimed
   // (POINT_ONLY=1: the shoulders written, the pointing arm alone)
@@ -299,7 +303,7 @@ async function wrists(page: Page, id: string, name: string): Promise<void> {
   console.log(`  ${id} ${note}`);
   results[name].notes.push(note);
   results[name].point = pres.best;
-  await page.evaluate("window.__range.packRig().debugPoint = null; window.__range.packRig().debugShoulders = null; window.__range.debugView.reload = null");
+  await page.evaluate("window.__range.packRig().debugPoint = null; window.__range.packRig().debugShoulders = null; window.__range.packRig().debugHold = null; window.__range.debugView.reload = null");
 }
 
 const browser = await puppeteer.launch({ executablePath: CHROME, headless: true, args: ["--use-angle=d3d11", "--enable-gpu", "--ignore-gpu-blocklist", "--mute-audio", "--no-sandbox"] });
@@ -307,6 +311,12 @@ try {
   const page = await browser.newPage();
   await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
   await page.evaluateOnNewDocument(NO_REAL_MOUSE);
+  // OWNER_VIEW=1: the owner's field of view setting, 1.571, as tools/pack-flush.ts SEEN has it (the gun's own camera
+  // stays at 1.55 whatever the setting; what the world shows round it changes)
+  if (process.env.OWNER_VIEW === "1") {
+    await page.setViewport({ width: 1920, height: 1080, deviceScaleFactor: 1 });
+    await page.evaluateOnNewDocument(`try { const k = "range.settings.v1"; const s = JSON.parse(localStorage.getItem(k) || "{}"); s.fovScale = 1.571; localStorage.setItem(k, JSON.stringify(s)); } catch {}`);
+  }
   page.on("pageerror", (e) => console.log("pageerror:", String(e)));
   await page.goto(`${URL}?game=speedkills&nointro&nohome`, { waitUntil: "domcontentloaded", timeout: 60000 });
   await page.waitForFunction("Boolean(window.__range) && window.__range.loaded() && window.__range.paidGuns().ready && window.__range.soldierReady()", { polling: 250, timeout: 90000 });
