@@ -28,6 +28,8 @@ interface Gun {
   /** the round a reload loads, where the model has none of its own: HAEFY's rocket (rocket.ts), and how far its tip stands out of the muzzle, metres */
   round?: string;
   roundOut?: number;
+  /** how far in front of the eye its own sight comes aimed, metres, where it is not the shared `sights.ironsEye` or `dotEye` (a pistol is aimed at arm's length) */
+  sightEye?: number;
 }
 const GUNS = cfg.guns as Record<string, Gun>;
 /** every model of each gun's family, measured (tools/checks/paid-weapons.ts writes it) */
@@ -331,7 +333,7 @@ export function dressPaid(m: GunModel, level = 0, view = false): boolean {
   m.sightX = eye.x;
   m.sightY = m.railY = eye.y;
   m.rearF = m.opticF = -eye.z;
-  m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: own.sight === "irons", dot: own.sight === "dot" };
+  m.root.userData.ownSight = { y: eye.y, f: -eye.z, irons: own.sight === "irons", dot: own.sight === "dot", eyeAt: g.sightEye ?? (own.sight === "irons" ? IRONS_EYE : DOT_EYE) };
   // the support hand under the bought gun, where paidweapons.json support holds it (measured, paidmodels.json), 22 mm
   // above the underside as the procedural hand sits over its handguard's: it was where the procedural handguard had
   // been, on the USSO over the top of the bought gun and, aimed, beside the rear sight by the eye

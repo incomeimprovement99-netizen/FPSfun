@@ -23,7 +23,7 @@ import { loadQuality } from "./quality";
 import { springStep } from "./spring";
 import type { ResolvedWeapon } from "./weapons";
 import { gunModel, type GunModel } from "./gunmodels";
-import { DOT_EYE, IRONS_EYE, openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
+import { openLenses, PAID_MOTION, setPaidLevel, tintDots } from "./paidgun";
 import { Forearm, Hand } from "./arms";
 import { FpArms } from "./fparms";
 import { BEFORE_FRAME, FREE, HIP_PITCH, LOCO, PACK_INSPECT, PACK_MELEE, PACK_PALM, PACK_RELOAD, PICKUP, PackArms, SWAP_CUP, SWAP_THROW, packGunFor, type FreeHand, type PackArmsFrame } from "./fprig";
@@ -1258,14 +1258,17 @@ export class ViewModel {
     // A bought gun is aimed down its own sights (paidgun.ts ownSight), never ours on top of them: the fitted optic lends
     // its zoom and, magnified, its picture over the screen, and is not drawn. The eye comes up the gun's own sight line,
     // the optic's eye relief behind a scope, or as far behind irons as on any gun
-    const own = m.root.userData.ownSight as { y: number; f: number; irons: boolean; dot: boolean } | undefined;
+    const own = m.root.userData.ownSight as { y: number; f: number; irons: boolean; dot: boolean; eyeAt: number } | undefined;
     if (own) {
       m.railY = own.y - this.optic.lineH;
       // (at the sight's own eye relief, however near the gun's back end comes: pushed out until the USSO's back end was 3
       // cm off the eye, its sight shrank to a speck far down a gun held at arm's length, the owner, 2026-09-29, "adsing
       // with the usso is completely broken"; what had shown through aimed was the mounted sight's own culled faces
       // (paidgun.ts mountMaterial), and the gun camera's near plane is close enough that the back end is not cut, main.ts)
-      m.opticF = own.f - this.optic.backF + (own.irons ? this.optic.info.relief - IRONS_EYE : own.dot ? this.optic.info.relief - DOT_EYE : 0);
+      // (a pistol's sight at its own distance, paidweapons.json sightEye: APUHTHEE's dot at the scopes' 16 cm put its back
+      // end over a hand's width of the picture, 2.3 times the size of Apex's pistols' aimed, the owner, 2026-10-11: "the scope
+      // and the hand placement becomes more obvious when ADS down")
+      m.opticF = own.f - this.optic.backF + (own.irons || own.dot ? this.optic.info.relief - own.eyeAt : 0);
     }
     this.optic.group.visible = !own;
     // and its own reticle dots take the optic's colour: the pack's dot is white, and a red dot reads as one
