@@ -388,31 +388,6 @@
       },
       "_beforeArm": "The left elbow hint and shoulder the arm had before the 2026-10-02 refit (packGuns holdElbow l and shoulders l then), where the moves off the gun (the inspect's open hand, the punch, the point, the pickup) were fitted: the arm goes to them as the hand leaves the gun and while the gun is framed as before the refit (beforeFrame offArm). Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 at a reload's start, against 21, 42 and 18 before; the grip itself stays the new one, as mixed between the two the USSO's fingers went 18 mm into its front in a first draw."
     },
-    "Striker-V": {
-      "model": "SKM_Striker-V",
-      "arms": {
-        "pose": "A_FP_Striker-V_Pose",
-        "reloadTac": "A_FP_Striker-V_Reload_Tac",
-        "reloadEmpty": "A_FP_Striker-V_Reload_Empty"
-      },
-      "gun": {
-        "pose": "A_W_Striker-V_Pose",
-        "reloadTac": "A_W_Striker-V_Reload_Tac",
-        "reloadEmpty": "A_W_Striker-V_Reload_Empty"
-      },
-      "offset": [
-        0,
-        -0.03,
-        -0.04
-      ],
-      "rack": {
-        "clip": "reloadEmpty",
-        "window": [
-          0.62,
-          0.78
-        ]
-      }
-    },
     "L96X": {
       "model": "L96X",
       "arms": {
@@ -3040,43 +3015,6 @@
         0,
         -0.004,
         0.195
-      ],
-      "clavicleL": [
-        0,
-        0,
-        0
-      ],
-      "clavicleR": [
-        0,
-        0,
-        0
-      ]
-    },
-    "Striker-V": {
-      "turn": [
-        90,
-        0,
-        0
-      ],
-      "forward": [
-        0,
-        0,
-        1
-      ],
-      "up": [
-        0,
-        1,
-        0
-      ],
-      "trigger": [
-        0,
-        -0.01,
-        -0.102
-      ],
-      "palm": [
-        0,
-        -0.015,
-        0.118
       ],
       "clavicleL": [
         0,

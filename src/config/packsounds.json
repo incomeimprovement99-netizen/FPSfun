@@ -28,21 +28,6 @@
       "reloadEmpty": "L96X/S_L96X_Reload_Dry_Full.WAV",
       "foley": "L96X/S_L96X_Fire_Foley_Full.WAV"
     },
-    "AK": {
-      "fire": [
-        "AK/S_AKX200_Shot_0.WAV",
-        "AK/S_AKX200_Shot_1.WAV",
-        "AK/S_AKX200_Shot_2.WAV"
-      ]
-    },
-    "MX16A4": {
-      "fire": [
-        "MX16A4/S_MX16A4_Fire_A.WAV",
-        "MX16A4/S_MX16A4_Fire_B.WAV",
-        "MX16A4/S_MX16A4_Fire_C.WAV",
-        "MX16A4/S_MX16A4_Fire_D.WAV"
-      ]
-    },
     "ASVal": {
       "fire": [
         "ASVal/S_Val_0.WAV",
@@ -62,16 +47,6 @@
       ],
       "reloadTac": "G3/S_G3A3_Reload_Tac.WAV",
       "reloadEmpty": "G3/S_G3A3_Reload_Empty.WAV"
-    },
-    "Striker-V": {
-      "fire": [
-        "Striker-V/S_Striker-V_01_Sounds.WAV",
-        "Striker-V/S_Striker-V_02_Sounds.WAV",
-        "Striker-V/S_Striker-V_03_Sounds.WAV",
-        "Striker-V/S_Striker-V_04_Sounds.WAV"
-      ],
-      "reloadTac": "Striker-V/S_Striker-V_Reload_Tac_Full.WAV",
-      "reloadEmpty": "Striker-V/S_Striker-V_Reload_Empty_Full.WAV"
     },
     "KXG12": {
       "fire": [
@@ -101,14 +76,6 @@
         "Drake-12/S_Drake-12_Reload_Wet_End.WAV"
       ],
       "reloadEmpty": "Drake-12/S_Drake-12_Reload_Dry_Full.WAV"
-    },
-    "Mk14EBR": {
-      "fire": [
-        "Mk14EBR/S_MK14-EBR_01_Sounds.WAV",
-        "Mk14EBR/S_MK14-EBR_02_Sounds.WAV",
-        "Mk14EBR/S_MK14-EBR_03_Sounds.WAV",
-        "Mk14EBR/S_MK14-EBR_04_Sounds.WAV"
-      ]
     },
     "MGX5": {
       "fire": [
@@ -177,10 +144,6 @@
     "shotgun": {
       "pack": "Drake-12",
       "level": 1.05
-    },
-    "3030": {
-      "pack": "Mk14EBR",
-      "level": 1.0
     },
     "launcher": {
       "pack": "RPG",

@@ -12,36 +12,18 @@ import { resolve } from "node:path";
 
 /** the public build's weapon names, by id (src/config/names.ts keeps the same table for the game) */
 const CODENAMES: Record<string, string> = {
-  rspn101: "Not R-301",
   vinson: "Not Flatline",
-  hemlok: "Not Hemlok",
-  energy_ar: "Not HAVOC",
   "3030": "Not 30-30",
-  g2: "Not G7 Scout",
-  dmr: "Not Longbow",
-  doubletake: "Not Triple Take",
   sentinel: "Not Sentinel",
-  sniper: "Not Kraber",
-  defender: "Not Charge Rifle",
   r97: "Not R-99",
-  volt_smg: "Not Volt",
-  car: "Not C.A.R.",
   alternator_smg: "Not Alternator",
-  pdw: "Not Prowler",
-  lmg: "Not Spitfire",
-  esaw: "Not Devotion",
-  dragon_lmg: "Not Rampage",
   lstar: "Not L-STAR",
   shotgun: "Not EVA-8",
   mastiff: "Not Mastiff",
-  energy_shotgun: "Not Peacekeeper",
-  shotgun_pistol: "Not Mozambique",
   wingman: "Not Wingman",
   autopistol: "Not RE-45",
   semipistol: "Not P2020",
   g17: "Striker 9",
-  nemesis: "Not Nemesis",
-  bocek: "Not Bocek",
 };
 
 /**

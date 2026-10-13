@@ -11,7 +11,7 @@
 //
 // Only local tools touch the files: tar, FBX2glTF, glTF-Transform and sharp. Nothing here uploads them.
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, unlinkSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import sharp from "sharp";
 
@@ -167,6 +167,10 @@ export async function fpArms(h: FpArmsImportHelpers, packages: Map<string, strin
     settings[name] = { ikOffset: vec(text, "ikOffset"), clavicleL: vec(text, "leftClavicleOffset"), clavicleR: vec(text, "rightClavicleOffset"), aimPoint: vec(text, "aimPointOffset") };
   }
   writeFileSync(join(out, "settings.json"), `${JSON.stringify(settings, null, 2)}\n`);
+  // (and the clips and guns no pack gun names any more taken away: the AK-200's, the MX16A4's and the Striker-V's, 5 MB
+  // with their clips, stayed in the folder and went to the server long after no gun of ours was held by them)
+  for (const f of readdirSync(clipsOut)) if (f.endsWith(".glb") && !clipNames.has(f.slice(0, -4))) unlinkSync(join(clipsOut, f));
+  for (const f of readdirSync(gunsOut)) if (f.endsWith(".glb") && !gunModels.includes(f.slice(0, -4))) unlinkSync(join(gunsOut, f));
 
   // The moving clips' own motion of the gun (and the camera): KINEMATION's walk, sprint, jump and equip move no arm
   // bone the FBX files keep. Its controller plays them on an Additive layer masked to two bones its player adds,

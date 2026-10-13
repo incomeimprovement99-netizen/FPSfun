@@ -13468,3 +13468,29 @@ up the stack". Planned on the districts page after a test bake of the pieces.
 - **Checked** (tools/checks/sk-neon.ts): 21 pods on three storeys each holding a body at its floor, every storey's gallery walked end to end and into every pod, all six of its stairs sprinted up with the game's moves with the base's and the tower's (19 stairs, no climb or mantle started), 273 points along the galleries' and roof's edges railed but at the stairs, six AC boxes on its roof, its sign seen from the court; THE STACKS' cover within 6 m over 99.5% of its ground. The e2e: 101 of 101 (with the machine at 94% CPU under other agents' tests). verify, rules and the type check. The look: the court, both wings, a gallery, a pod, the roof and a stair, at golden hour and night.
   The map: its files lo 130.9 MB, hi 199.4 MB, max 434.0 MB.
   **Its files are version 71.**
+
+## Milestone 542 — The old guns' leftovers out, STRYDER's hand, and HAEFY's checks under load
+
+The owner, 2026-10-12 (by the lobby agent): "continue removing all old shit, including old guns maps textures anything
+like that". The guns' share, with two fixes from the night's all-ten-guns run.
+
+- **Sounds no gun plays** (public/audio/paid, built by tools/import-pack-sounds.ts): rspn101's four shots, 466 KB, had
+  stayed after it left the roster, and the 3030's four, 262 KB, are no live gun's (the launcher is built from the 3030's
+  numbers but has its own sounds). Both sets were downloaded and decoded on every page. Gone, with the 3030's entry and
+  the Mk14EBR pack it alone used (packsounds.json), and the pack entries for the AK, MX16A4 and Striker-V, which no gun
+  used. The import now deletes any sound its index no longer names.
+- **Arms no gun is held in** (public/models/paid/arms, built by tools/import-fparms.ts): the AK-200's, the MX16A4's and
+  the Striker-V's three guns and 16 clips, about 8 MB, which went to the server with every deploy. The Striker-V's
+  pack-gun entry and its measures are out of fparms.json (it was tried for the USSO and not chosen). The import now
+  deletes any clip or gun no pack gun names.
+- **The codenames of guns long gone** (src/config/names.ts and its copy in tools/public-text.ts): 18 of them, from the
+  Hemlok to the Bocek, out; every name still in the weapon data keeps its own.
+- **Left as it is:** the 3030's weapon data, which the launcher is built from (src/game/weapons.ts), and its code-built
+  model, which the data check holds every weapon to; and the courses' semipistol and g17.
+- **STRYDER's left hand** 2 mm down and back: in the all-ten-guns run, drawn straight after APUHTHEE, it showed 13
+  pixels of daylight at rest (none after the USSO or HAEFY); this place shows none after either.
+- **HAEFY's rocket checks under load** (tools/e2e.ts): the city agent's runs at 96% CPU failed one a run. The 25 m
+  rocket's burst is waited for by 1.5 s of game time (it had been 1.5 s of the real clock), and the control rocket, the
+  bot's own fired as nobody's at its head, is fired a second time if the first misses.
+- **Checked:** verify, rules and the type check; the speedkills section 101 of 101; both pistols' frames 36 of 36 in the
+  all-ten run's order; the USSO's frames on the re-imported arms.

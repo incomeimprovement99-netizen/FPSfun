@@ -14,7 +14,7 @@
 //
 //   npm run paid:sounds
 import { execFileSync } from "node:child_process";
-import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import DATA from "../data/weapons.json";
@@ -260,6 +260,10 @@ function main(): void {
   }
   writeFileSync(join(OUT, "index.json"), JSON.stringify(index, null, 1));
   writeFileSync(join(OUT, "meta.json"), JSON.stringify(meta, null, 1));
+  // (and the sounds no gun names any more taken away: rspn101's four shots stayed on disk after it left the roster, and
+  // were downloaded and decoded on every page while the old index still named them)
+  const named = new Set(Object.values(index).flat());
+  for (const f of readdirSync(OUT)) if (f.endsWith(".wav") && !named.has(f)) unlinkSync(join(OUT, f));
   console.log(`${Object.values(index).flat().length} files, ${(bytes / 1048576).toFixed(2)} MB, to ${OUT}`);
 }
 
