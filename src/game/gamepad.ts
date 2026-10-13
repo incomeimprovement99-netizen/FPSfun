@@ -44,6 +44,8 @@ export interface PadSettings {
   rumble: boolean;
   /** slowdown and rotational aim assist (aimassist.ts), as the game has for controllers */
   aimAssist: boolean;
+  /** its strength (aimassist.json levels): standard by default since Milestone 620 */
+  assistLevel: "light" | "standard" | "strong";
   /** the buttons the prompts name: the pad's own (read off its id), or Xbox's or PlayStation's whatever is in hand */
   prompts: "auto" | PadFamily;
   /**
@@ -63,7 +65,9 @@ export interface PadSettings {
 }
 
 export const PAD_DEFAULTS: PadSettings = {
-  look: 3,
+  // 4, 240 deg/s of yaw (Milestone 620): the game's 3 turned too slowly for SpeedKills' fights at a sprint, the
+  // fifth playtester finding the controller hard
+  look: 4,
   ads: 3,
   curve: "classic",
   deadzone: PAD.defaults.deadzone,
@@ -72,6 +76,7 @@ export const PAD_DEFAULTS: PadSettings = {
   autoSprint: true,
   rumble: true,
   aimAssist: true,
+  assistLevel: "standard",
   prompts: "auto",
   advanced: false,
   yaw: 180,

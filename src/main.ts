@@ -5887,6 +5887,7 @@ try {
     if (typeof p.autoSprint === "boolean") s.autoSprint = p.autoSprint;
     if (typeof p.rumble === "boolean") s.rumble = p.rumble;
     if (typeof p.aimAssist === "boolean") s.aimAssist = p.aimAssist;
+    if (p.assistLevel === "light" || p.assistLevel === "standard" || p.assistLevel === "strong") s.assistLevel = p.assistLevel;
     if (p.prompts === "auto" || p.prompts === "xbox" || p.prompts === "ps") s.prompts = p.prompts;
     if (typeof p.advanced === "boolean") s.advanced = p.advanced;
     const rng = (v: unknown, lo: number, hi: number, d: number) => (typeof v === "number" && Number.isFinite(v) && v >= lo && v <= hi ? v : d);
@@ -5910,7 +5911,7 @@ try {
     for (let i = 1; i <= 8; i++) {
       const o = document.createElement("option");
       o.value = String(i);
-      o.textContent = `${i}${i === 3 ? " (the game's default)" : ""}`;
+      o.textContent = `${i}${sel === look && i === 4 ? " (ours: the default)" : i === 3 ? " (the game's default)" : ""}`;
       sel.appendChild(o);
     }
   }
@@ -5921,7 +5922,8 @@ try {
   const auto = $<HTMLSelectElement>("padAutoSprint");
   const rumble = $<HTMLSelectElement>("padRumble");
   const assistSel = $<HTMLSelectElement>("padAimAssist");
-  assistSel.value = s.aimAssist ? "1" : "0";
+  assistSel.value = s.aimAssist ? s.assistLevel : "0";
+  aimAssist.level = s.assistLevel;
   // whose buttons the prompts say, and which the pad in hand was read as (gamepad.ts padFamilyOf)
   const promptsSel = $<HTMLSelectElement>("padPrompts");
   promptsSel.value = s.prompts;
@@ -5962,7 +5964,9 @@ try {
     s.exponent = expo.value.trim() !== "" && Number.isFinite(ex) ? Math.max(lim.exponent[0], Math.min(lim.exponent[1], ex)) : PAD_CFG.defaults.exponent;
     s.autoSprint = auto.value === "1";
     s.rumble = rumble.value === "1";
-    s.aimAssist = assistSel.value === "1";
+    s.aimAssist = assistSel.value !== "0";
+    if (assistSel.value === "light" || assistSel.value === "standard" || assistSel.value === "strong") s.assistLevel = assistSel.value;
+    aimAssist.level = s.assistLevel;
     s.prompts = promptsSel.value === "xbox" || promptsSel.value === "ps" ? promptsSel.value : "auto";
     aimAssist.enabled = s.aimAssist;
     try {
@@ -6561,6 +6565,11 @@ function step(): void {
           })
         : null;
     const slow = assist?.slow ?? 1;
+    // the snap as the aim comes up on a pad (aimassist.ts, Milestone 620), and its turn this frame
+    const snapIn = { eye: player.eyePosition(), yaw: player.yaw, pitch: player.pitch, ads: ws.adsFrac, activeInput: true, targets: duel ? duel.avatars.filter((a) => !isAllyFigure(a)) : rangeTargets };
+    if (input.device === "pad" && input.pad.pressedNow("ads") && !knockedOut) aimAssist.startSnap(snapIn);
+    const snap = aimAssist.snapStep(snapIn, dt);
+    if (snap.yawLeft || snap.pitchUp) player.addAngles(snap.pitchUp, snap.yawLeft);
     // (a wheel open: the stick is picking, not looking)
     if (!emoteWheelOpen && !pingWheelOpen) player.addAngles(padLook.pitchUp * slow * (playerCfg.invertPitch ? -1 : 1) + (assist?.pitchUp ?? 0), padLook.yawLeft * slow + (assist?.yawLeft ?? 0));
   }

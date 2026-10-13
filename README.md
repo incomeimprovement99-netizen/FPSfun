@@ -310,7 +310,8 @@ describes the retired legacy game, and goes with its code.
   inside a circle you cannot leave, plays FFA, team deathmatch and Control
   (and the 1v1 in the Map box).
 - **A controller** with an outer deadzone, a curve strength, per-optic ADS and
-  aim assist that fades with distance and never snaps between targets.
+  aim assist in three strengths that fades with distance and never switches
+  between targets by itself.
 - **The tour:** eight steps, each done for real in the range.
 
 The plan, the gap analysis against Hyper Scape and every owner decision are in
@@ -665,7 +666,7 @@ B (circle) goes back, LB and RB (L1, R1) turn the tabs, and on a box left and
 right change it.
 
 Look sensitivity 1 to 8 like the game (3 is the game's default, 180 deg/s of
-yaw), a separate ADS level, a Classic (curved) or Linear response, an inner
+yaw; ours is 4, 240 deg/s, for fights at a sprint), a separate ADS level, a Classic (curved) or Linear response, an inner
 deadzone, and rumble on shots and hits. **Advanced look** (Settings) is the
 game's custom look controls: yaw and pitch speeds for hipfire and aiming, and
 an extra yaw and pitch at the stick's edge that ramps in over a time after a
@@ -673,13 +674,23 @@ delay. The stick is turned into the four movement keys at a threshold, so
 every movement rule (lurch, the 45-degree sprint cone, air strafing) sees the
 same inputs a keyboard gives.
 
-**Aim assist**, on by default (Settings to turn it off), in the game's two
-parts: the stick slows with the reticle on a target (0.8 hipfire, 0.6 aiming),
-and while you move, the view follows 40% of the target's movement across the
-screen (the PC controller value). The zone is a sphere round the target's
-chest, so it shrinks with distance; a wall between switches it off; with no
-input it does nothing, and the mouse never gets it. Numbers in
-`src/config/aimassist.json`.
+**Aim assist**, Standard by default (the Controller tab: Standard, Strong,
+Light or Off), in the game's two parts and one of ours: the stick slows with
+the reticle on a target, while you move the view follows a share of the
+target's movement across the screen, and as you start to aim a target near
+the reticle draws the view part of the way to it over a tenth of a second.
+
+| Strength | Follows | Stick speed on a target (hip / aimed) | Zone (hip / aimed) | Snap as you aim |
+|---|---|---|---|---|
+| Light (what every pad had before) | 40% | 0.8 / 0.6 | 1.3 / 1.0 m | none |
+| **Standard** | 60% | 0.65 / 0.5 | 1.5 / 1.2 m | 60% of the way |
+| Strong | 80% (75% aimed) | 0.5 / 0.4 | 1.8 / 1.4 m | 85% of the way |
+
+The snap takes a target within 9 degrees of the reticle and 50 m. The zone is
+a sphere round the target's chest, so it shrinks with distance; the assist is
+full strength to 30 m and fades to none at 75 m; a wall between switches it
+off; with no input it does nothing, it never switches targets by itself, and
+the mouse never gets it. Numbers in `src/config/aimassist.json`.
 
 ## Settings
 

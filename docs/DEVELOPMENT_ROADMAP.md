@@ -11649,6 +11649,25 @@ hate using the mouse to look for shit lol)". The menu could only be used with a 
 - **Checked:** tsc; verify; rules; e2e pad (RB and LB turn the tabs, the Controller tab says the pad is in, the D-pad
   lights a stop), finish and panel; photographs of the menu lit by a pad.
 
+## Milestone 620 — Aim assist you can feel: three strengths, a snap as you aim, and a faster look
+
+The owner (2026-10-12): Tiger, the fifth playtester, "said it was really difficult on controller and he barely noticed
+the aim assist ... what else can we do to make it easier for roller players here?" The assist was the legacy game's
+PC controller values (40% rotational, 0.8 slowdown), the weakest a pad gets there, and the look was its default 3.
+
+- **Three strengths** (src/config/aimassist.json `levels`, picked in the Controller tab): Light is what every pad had;
+  **Standard, the default now**, follows 60% of a target's movement (the console value before the game cut it),
+  slows the stick to 0.65 hipfire and 0.5 aimed, and widens the zone round the chest to 1.5 m; Strong goes to 80%,
+  0.5 and 0.4, and 1.8 m, for a player still learning the stick. Off is still there.
+- **The snap as you aim** (ours): on a pad, the aim button going down with a target in sight within 9 degrees of the
+  reticle and 50 m turns the view part of the way to its chest (Standard 60%, Strong 85%, Light none) over 0.12 s,
+  eased, following it if it moves. It takes the nearest to the reticle and never switches between targets after.
+- **Farther:** full strength to 30 m (was 25) and some to 75 m (was 60), as SpeedKills' fights at a sprint open wider.
+- **A faster look:** the default look sensitivity is 4 (240 deg/s of yaw), the game's 3 turning too slowly here; the
+  box marks 4 as ours and 3 as the game's.
+- **Checked:** tsc; verify (the follow at the level's share, the three strengths in order, a target 5 degrees off
+  snapped its share of the way, none past the snap angle, none at Light); rules; e2e pad.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -569,11 +569,12 @@ console.log("\nAim assist (controller only, src/game/aimassist.ts)");
   const r0 = aa.update(input);
   eq("a figure under the reticle slows the stick", r0.target === ahead && r0.slow < 1, true);
   eq("the first frame on a figure adds no pull", r0.yawLeft, 0);
-  // it strafes 0.2 m to the right (+x): its bearing turns right, the pull follows 40% of it
+  // it strafes 0.2 m to the right (+x): its bearing turns right, the pull follows the level's share of it (standard,
+  // the default since Milestone 620: 60%)
   (ahead.hitMeshes[1] as THREE.Mesh).position.x = 0.2;
   const r1 = aa.update(input);
   const turn = (Math.atan2(-0.2, 10) * 180) / Math.PI;
-  near("the view follows 40% of the strafe", r1.yawLeft, turn * 0.4, 1e-6);
+  near("the view follows the level's share of the strafe (standard: 60%)", r1.yawLeft, turn * aaCfg.levels.standard.rotational, 1e-6);
   (ahead.hitMeshes[1] as THREE.Mesh).position.x = 0.4;
   eq("with no input, no pull (it never aims for you)", aa.update({ ...input, activeInput: false }).yawLeft, 0);
   eq("ADS slows more than hipfire", aa.update({ ...input, ads: 1 }).slow < aa.update(input).slow, true);
@@ -597,6 +598,28 @@ console.log("\nAim assist (controller only, src/game/aimassist.ts)");
   const far = fig(0, 1.6, -(aaCfg.falloffStart + aaCfg.maxRange) / 2);
   const nearOne = fig(0, 1.6, -10);
   eq("a far target slows the stick less than a near one", new AimAssist().update({ ...input, targets: [far] }).slow > new AimAssist().update({ ...input, targets: [nearOne] }).slow, true);
+  // the three strengths (Milestone 620): each slows the stick more than the one below it
+  const slowAt = (level: "light" | "standard" | "strong") => {
+    const x = new AimAssist();
+    x.level = level;
+    return x.update({ ...input, targets: [fig(0, 1.6, -10)] }).slow;
+  };
+  eq("strong slows more than standard, and standard than light", slowAt("strong") < slowAt("standard") && slowAt("standard") < slowAt("light"), true);
+  // the snap as the aim comes up: a target 5 degrees off is turned toward by the level's share over snapTime; one
+  // past snapAngle is not; light has none
+  const snapOver = (level: "light" | "standard" | "strong", deg: number): number => {
+    const x = new AimAssist();
+    x.level = level;
+    const t = fig(-Math.tan((deg * Math.PI) / 180) * 10, 1.6, -10);
+    const at = { ...input, ads: 0.2, targets: [t] };
+    x.startSnap(at);
+    let yaw = 0;
+    for (let i = 0; i < 30; i++) yaw += x.snapStep({ ...at, yaw }, 1 / 120).yawLeft;
+    return yaw;
+  };
+  near("standard: aiming at a target 5 degrees off turns the view its snap share of the way", snapOver("standard", 5), 5 * aaCfg.levels.standard.snap, 0.05);
+  eq("and one past snapAngle is not snapped to", snapOver("standard", aaCfg.snapAngle + 3), 0);
+  eq("light has no snap", snapOver("light", 5), 0);
   aa.enabled = false;
   eq("off in the settings is off", aa.update(input).target, null);
 }
