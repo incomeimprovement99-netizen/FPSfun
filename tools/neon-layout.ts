@@ -3886,7 +3886,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // 6 and z from its pivot less 1 to its pivot plus 20.5. A taxi rank of the pack's urban cars on the forecourt, the
 // district's name over the arcade on the north face. Colliding as their own faces, as the centre's hall does
 {
-  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
+  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; concourse?: { machines: string[]; bench: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
   if (TM) {
     const H = TM.hall;
     const hr = piece(H.piece).row;
@@ -3942,9 +3942,50 @@ const STREET_WALL_BOXES: OBox[] = [];
       }
       for (const [x, z, yaw] of TR.benches) placeTurned(TM.chunk, TR.bench, x, z, yaw, "o");
     }
+    // the concourse's cover (`concourse`, Milestone 590): in each hall, either side of its walkway from arch to arch, the
+    // centre station's ticket and vending machines and its benches, each at `spots` ([dx, dz, kind, yaw] from the hall's
+    // middle and its north face), none on a bots' street node: none whose footprint, a body's clearance round it, takes a
+    // node in. Not the street graph's model, which reads the last bake's collision: a bench laid in one run stood in it
+    // the next, cut the model, was left out, and came back the run after
+    const CC = TM.concourse;
+    let cover = 0;
+    const GG = cfg.game.graph as { step: number; margin: number };
+    const glim = (JSON.parse(readFileSync(join(ROOT, "src", "config", "world.json"), "utf8")) as { cut: { half: number } }).cut.half - GG.margin;
+    const clear = R.perches_clear.walk as number;
+    const onNode = (o: OBox) => {
+      for (let x = -glim; x <= glim + 1e-6; x += GG.step)
+        for (let z = -glim; z <= glim + 1e-6; z += GG.step) {
+          if (Math.abs(x - o.c[0]) > 8 || Math.abs(z - o.c[1]) > 8) continue;
+          const [du, dv] = [(x - o.c[0]) * o.u[0] + (z - o.c[1]) * o.u[1], (x - o.c[0]) * o.v[0] + (z - o.c[1]) * o.v[1]];
+          if (Math.abs(du) < o.hu + clear && Math.abs(dv) < o.hv + clear) return true;
+        }
+      return false;
+    };
+    // (each machine picked by its hall and spot, not by a count of those laid: one refused would change every one after)
+    for (const [hi, [hx0, hx1, hz0]] of (CC ? halls : []).entries()) {
+      const cx = (hx0 + hx1) / 2;
+      for (const [si, [dx, dz, kind, yaw]] of CC!.spots.entries()) {
+        const name = kind === "bench" ? CC!.bench : CC!.machines[(hi * CC!.spots.length + si) % CC!.machines.length];
+        const row = piece(name).row;
+        const [mx, mz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2);
+        const o: OBox = { c: [cx + dx + mx, hz0 + dz + mz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };
+        if (onNode(o)) continue;
+        STREET_GRAPH?.add(o);
+        add(TM.chunk, "c", [piece(name).key, +(cx + dx).toFixed(3), +(-row.min![1]).toFixed(3), +(hz0 + dz).toFixed(3), yaw, "o"] as Place);
+        cover++;
+      }
+    }
+    // the roofs' cover (`roof`): the pack's AC boxes along the side vaults' ridges at `y`, flat a metre across there
+    // (measured: a body dropped over a hall rests at 12.5 m on each ridge), off where the pads land
+    const RF = TM.roof;
+    for (const [i, [x, z]] of (RF?.at ?? []).entries()) {
+      const name = RF!.pieces[i % RF!.pieces.length];
+      placeTurned(TM.chunk, name, x, z, 0, "o", RF!.y - piece(name).row.min![1]);
+      cover++;
+    }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terminal"), { district: "terminal", ...TM.name }];
     const [X0, X1, Z0, Z1] = [Math.min(...halls.map((h) => h[0])), Math.max(...halls.map((h) => h[1])), Math.min(...halls.map((h) => h[2])), Math.max(...halls.map((h) => h[3]))];
-    cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length, trams, plates };
+    cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length, trams, plates, cover, roofCover: RF?.at.length ?? 0 };
     console.log(`THE TERMINAL: ${halls.length} halls, x ${X0} to ${X1}, z ${Z0} to ${Z1}; ${RK.x.length} cars in the rank, ${trams} trams, ${plates} rail plates${TR ? ", the metro train at the platform" : ""}`);
   }
 }

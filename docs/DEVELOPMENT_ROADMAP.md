@@ -13366,3 +13366,23 @@ The owner, 2026-10-12: "i can glitch through stairs all the time when going up".
   up each of the base's stairs with the game's moves on. It fails on any climb or mantle starting, or the body rising
   half a metre over the flight. It passes now, and it failed with the old code: at (-9, 3.5, 0.5), 3.5 m over the
   flight. reach.ts and sk-chaincourse.ts pass. The e2e: the SpeedKills section, 101 checks, none failing, run alone (two runs beside six other e2e runs had failed different guns and ghost checks each time). verify, rules and the type check.
+
+## Milestone 590 — THE TERMINAL, its roofs and its concourse
+
+The district's third stage. Measured first: a body flooded through a hall from its floor reaches 0.65 m, so the hall
+has no stairs between its levels (in the centre's station they are separate pieces), and the stage plan's escalator
+walk was dropped. A body dropped over a grid of a hall rests on its side vaults at 11.2 to 12.5 m and its middle vault
+up to 16 m, so the roofs are walkable.
+
+- **The way up** (`rules.pads.spine`'s terminal-*): two jump pads on the forecourt throwing onto the north side vaults'
+  ridges, 12.5 m, as the bake measured them. Their `face` is 5 m: the arcade's cornice stands 5.5 m up over the
+  forecourt, and taken from the 8 m wall behind it the pad's spot fell under the cornice, and the bake refused it.
+- **Cover on the roofs** (`rules.districts.terminal.roof`): eight of the pack's AC boxes along the side vaults' ridges
+  at 12.5 m, flat a metre across there, kept off where the pads land. They are placed by hand: on curved roofs the
+  roof-cover search would float or sink them.
+- **Cover in the concourse** (`concourse`): in each hall, either side of the walkway from arch to arch, the centre
+  station's ticket and vending machines and its benches, 23 in all. One bench beside a street node is left out by the
+  bots' street-graph guard. Each machine is picked by its hall and spot, so one left out does not change the rest.
+- **Checked** (tools/checks/sk-neon.ts): the two pads ridden onto the vault ridges (the check that rides every pad the bake found); a player walks each hall from the forecourt through to the platform past the concourse's 23 pieces; each AC box stands on its ridge, its column the ridge's 12.5 m and a box's height over it (the bake merges a box and the roof under it into one column, so the first form of this check read the box's own top for the roof's) with the ridge at its foot's height a metre either side. The new checks were proven failing with their faults put back: a box across a hall's walkway, and the boxes' height a metre wrong. The centre's pads check leaves the district's pads out, as it does the corner blocks' and LANTERN ALLEYS'. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: the west vault's roof, the middle vault from the south ridge, the west pad, and the concourse from two halls, by golden hour and at night.
+  The map: its files lo 119.7 MB, hi 186.4 MB, max 415.0 MB.
+  **Its files are version 69.**

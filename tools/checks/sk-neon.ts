@@ -973,7 +973,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
   // is ridden by its own check)
   // (the centre's own: not the corner blocks' or the districts' pads, out on their streets and alleys)
-  const SPU = SPN.up.filter((q) => !q.id.startsWith("corner-") && !q.id.startsWith("lantern-"));
+  const SPU = SPN.up.filter((q) => !q.id.startsWith("corner-") && !q.id.startsWith("lantern-") && !q.id.startsWith("terminal-"));
   const stops = [
     ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
     ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
@@ -2656,6 +2656,31 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     if (w.k !== w.n || w.starts > 0 || w.over > 0.5) bad.push(`${name}: ${w.k - 1} of ${w.n - 1} legs, ${w.starts} climbs or mantles${w.at ? ` (first ${w.at})` : ""}, ${w.over.toFixed(2)} m over the flight`);
   }
   check("the stairs run up at a sprint with SpeedKills' moves: the tower's core to its top storey and each of the base's stairs, no climb or mantle started, never half a metre over the flight", bad.length === 0, bad.slice(0, 4).join("; ") || `${routes.length} stairs`);
+}
+
+// THE TERMINAL's concourse and roofs (Milestone 590): a player walks each hall from the forecourt through its north arch,
+// past the machines and benches either side, out through its south arch onto the platform; and each AC box on the
+// vaults' ridges stands on the roof under it
+{
+  const TO = (cfg as unknown as { terminal?: { halls: number[][]; cover?: number; roofCover?: number } }).terminal;
+  const RF = (cfg.rules as unknown as { districts?: { terminal?: { roof?: { y: number; at: number[][] } } } }).districts?.terminal?.roof;
+  const shut: string[] = [];
+  for (const [hx0, hx1, hz0, hz1] of TO?.halls ?? []) {
+    const cx = (hx0 + hx1) / 2;
+    const route = [[cx, hz0 - 6, 0], [cx, (hz0 + hz1) / 2, 0], [cx, hz1 + 2.4, 0]];
+    const w = along(route);
+    if (w.k !== route.length) shut.push(`at x ${cx}: to (${w.x.toFixed(1)}, ${w.z.toFixed(1)})`);
+  }
+  check("THE TERMINAL: a player walks each hall from the forecourt through to the platform, past its concourse's machines and benches", (TO?.cover ?? 0) >= 24 && shut.length === 0, shut.join("; ") || `${TO?.halls.length} halls, ${TO?.cover} pieces of cover`);
+  // (the bake merges a box and the roof under it into one column, so at its middle the top is the box's own: it stands
+  // on the roof when that top is the ridge's height and a box's (1 to 1.5 m) over it, and the ridge a metre either side
+  // of it is at its foot's height)
+  const topAt = (x: number, z: number) => solidsIn(x + BR_X, x + BR_X, z + BR_Z, z + BR_Z).reduce((t, b) => (b.minX <= x + BR_X && b.maxX >= x + BR_X && b.minZ <= z + BR_Z && b.maxZ >= z + BR_Z && b.top < 20 && b.top > t ? b.top : t), 0);
+  const off = (RF?.at ?? []).filter(([x, z]) => {
+    const own = topAt(x, z) - RF!.y;
+    return !(own > 0.9 && own < 1.6 && [-1, 1].every((d) => Math.abs(topAt(x + d, z) - RF!.y) < 0.3));
+  });
+  check("THE TERMINAL: the AC boxes along the vaults' ridges each stand on the roof", (RF?.at.length ?? 0) >= 8 && off.length === 0, off.map(([x, z]) => `(${x}, ${z})`).join("; ") || `${RF?.at.length} boxes`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
