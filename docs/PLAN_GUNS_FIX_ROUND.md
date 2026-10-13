@@ -97,7 +97,7 @@ e2e, seen failing with the fault put back.
 | PANDA | done (Milestone 540): under the handguard ahead of the magazine (palm z 37.3, the soldier's 39.1), no sleeve seen, its own pointing shoulder; over Apex's Flatline and Hyper Scape's Ripper at rest and aimed | |
 | CHOOCH | done (Milestone 540): its shoulder down and in, no sleeve seen at rest, venting or swapping, the wrist 26 degrees; over Apex's Devotion at rest and its L-STAR aimed | |
 | ANAKIN | done (Milestone 540): under its front where the soldier holds it (palm z 29.7, the soldier's 29.0); over Apex's Alternator and Hyper Scape's Harpy at rest and aimed. Left: its right palm sits 9 mm into the grip, hidden in every state measured | right |
-| STRYDER | next: half the Riot One's size on the screen, more than the guns' sizes explain: to come nearer, "a bit" | done (Milestone 563): the hand within 8 px of Apex's RE-45 from the hip (66 px right before) |
-| APUHTHEE | next: at rest 0.05 right of and 0.08 higher than Apex's Wingman; aimed 2.3 times nearer the eye than Apex's pistols (every bought gun's irons come to 34 cm: a pistol needs its own distance) | done (Milestone 563), over the RE-45 as STRYDER |
-| Aimed, every gun | looked at: the pistols are the fault (above); REZ, PANDA, ANAKIN and CHOOCH aimed laid over Apex's aimed frames | |
+| STRYDER | done (Milestone 541): 5 cm nearer the face, laid over the Riot One at rest and Apex's RE-45 aimed | done (Milestone 563): the hand within 8 px of Apex's RE-45 from the hip (66 px right before) |
+| APUHTHEE | done (Milestone 541): at rest its rear sight on the Wingman's (0.612, 0.575 against 0.607, 0.574); aimed at arm's length, 6% of the screen's width as Apex's | done (Milestone 563), over the RE-45 as STRYDER |
+| Aimed, every gun | done: every gun aimed laid over its Apex aimed view (the evidence page); APUHTHEE's back is 6% of the screen as the Wingman's | |
 | The fists | done (Milestone 540): each finger bent about its own knuckle hinge (7 degrees off its plane, the old 75), the thumbs refitted across the fingers | |

@@ -13414,3 +13414,32 @@ the districts page (THE STACKS, stage by stage), after a test bake of the pack's
 - **Checked** (tools/checks/sk-neon.ts): the towers inside the L and none in another, cover within 6 m over 99.9% of its open ground (the farthest 7.8 m), its name seen on nine sight lines from the ring road, six lamps; and the street network whole, which it was not until the two plugs went in. The e2e: 100 of 101 twice: each run one of HAEFY's launcher checks failed and the other run passed it, the second a failure the check itself notes under load (the machine was at 96% CPU with other agents' tests). verify, rules and the type check. The look: the avenue, the car park, the west street, the corner and the skyline from the centre, at golden hour and night.
   The map: its files lo 130.8 MB, hi 199.2 MB, max 433.9 MB.
   **Its files are version 70.**
+
+## Milestone 541 — The pistols where Apex holds its Wingman, and aimed at arm's length
+
+The fix round's pistols (`docs/PLAN_GUNS_FIX_ROUND.md`; the owner, 2026-10-11: APUHTHEE "too far off on the right",
+STRYDER "a bit closer to the face, match it over the riot one", and of every gun aimed, "the scope and the hand placement
+becomes more obvious when ADS down").
+
+- **APUHTHEE at rest** (`packGuns` DGL50 `look`): 9 cm left and 6 cm down. Laid over Apex's Wingman at rest, its rear
+  sight was 0.05 of the screen to the right and 0.08 higher (0.66 and 0.495 against the Wingman's 0.607 and 0.574); now
+  0.612 and 0.575.
+- **STRYDER at rest** (X18 `look`): 5 cm nearer the eye and 2 cm lower. Over Hyper Scape's Riot One at rest it was half
+  the revolver's size on the screen, more than the guns' own sizes explain.
+- **Aimed at arm's length** (paidweapons.json `sightEye`, paidgun.ts and viewmodel.ts): every bought gun's own sight came
+  to one shared distance from the eye, 34 cm for irons and 16 cm for a dot. APUHTHEE's sight is a dot, so aimed the back
+  of the gun was 4.7 cm from the eye and filled 15.6% of the screen's width, a blown-out slab with the hands huge either
+  side. A gun can now have its own distance: APUHTHEE's is 29 cm, its back 6% of the screen's width, as Apex's Wingman
+  aimed is. Its aimed shoulders came forward so both arms still reach (they fell 6.7 cm short at 26 cm), the wrists 9 and
+  4 degrees. STRYDER's irons stay at 34 cm (its back 3.7%); its aimed left shoulder moves 16 cm in, so the two forearms
+  rise side by side under the gun.
+- **The hands, after the moves:** STRYDER's left hand moves 2 to 4 mm, where the nearer gun showed a sliver of daylight
+  in it (10 holes); APUHTHEE's right forefinger is laid on its trigger again, its tip 4 mm in, which the inspect's turn
+  had brought into view; and on an inspect APUHTHEE's open hand has its own elbow (`palmElbow`): with the gun further
+  left its forearm had left the picture through the left edge instead of the bottom.
+- **IS_SK folded out** of viewmodel.ts, fparms.ts and gunmodels.ts: SpeedKills has been the only game since Milestone
+  520, so every branch for the other was dead (the lobby agent takes the flag out of game.ts).
+- **The proof:** APUHTHEE over Apex's Wingman at rest and aimed, STRYDER over Hyper Scape's Riot One at rest and Apex's
+  RE-45 aimed (Hyper Scape's footage has no pistol aimed).
+- **Checked:** verify, rules and the type check; the soldier e2e's skpack frames on both pistols, with their placement checks moved
+  to the new places (APUHTHEE's muzzle 0.574 and 0.615 of the screen, STRYDER's 0.632 and 0.586, both sight lines at 0.48).

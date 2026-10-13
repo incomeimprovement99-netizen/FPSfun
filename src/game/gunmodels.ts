@@ -20,7 +20,6 @@
 // hammer) is kept as its own group so the viewmodel can move it.
 import type { Finish } from "./finishes";
 import * as THREE from "three";
-import { IS_SK } from "./game";
 import { dressPaid } from "./paidgun";
 import { mergeGeometries } from "three/examples/jsm/utils/BufferGeometryUtils.js";
 import { RoundedBoxGeometry } from "three/examples/jsm/geometries/RoundedBoxGeometry.js";
@@ -1570,7 +1569,7 @@ function buildModel(id: string, view = false): GunModel {
   // remember the plate's own colour so a mag level of 0 can restore it
   if (m.magPlate) m.magPlate.userData.base = m.magPlate.material;
   // SpeedKills: the bought gun over it, when it is in (paidgun.ts)
-  if (IS_SK) dressPaid(m, 0, view);
+  dressPaid(m, 0, view);
   return m;
 }
 

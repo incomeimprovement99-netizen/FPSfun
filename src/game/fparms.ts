@@ -16,7 +16,7 @@
 import * as THREE from "three";
 import { GLOVE_MIDDLE_KNUCKLE, GLOVE_WRIST, type Forearm, type Hand } from "./arms";
 import cfg from "../config/viewmodel.json";
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 import { armRigKey, buildArmRig, FP_UPPER, type ArmRig } from "./mannequin";
 import type { OperatorSkin } from "./operators";
 
@@ -180,9 +180,9 @@ export class FpArms {
     // SpeedKills' soldier at the body's own size, both arms: sized to its glove, the support arm took the support
     // glove's 1.15 (drawn bigger so a plain glove reads) and was 15% bigger than the arm on the trigger, a slab across
     // the bottom of the owner's view at 1920 by 1080 (tools/pov-sheet.ts)
-    const body = S.restUnit * (IS_SK ? this.group.matrixWorld.getMaxScaleOnAxis() : gm.getMaxScaleOnAxis());
-    // the hand's scale (SpeedKills' soldier only: the legacy game's arms stay as they were)
-    const unit = IS_SK ? body * S.fit : body;
+    const body = S.restUnit * this.group.matrixWorld.getMaxScaleOnAxis();
+    // the hand's scale
+    const unit = body * S.fit;
 
     // the hand: on the glove's wrist, in the glove's own frame
     const wrist = GLOVE_WRIST.clone().applyMatrix4(gm);
@@ -197,7 +197,7 @@ export class FpArms {
     const along = new THREE.Vector3(0, 1, 0).applyQuaternion(forearm.group.getWorldQuaternion(q1)).normalize();
     const down = new THREE.Vector3(0, -1, 0.35).transformDirection(this.group.matrixWorld);
     const along0 = along.clone();
-    let downBy = IS_SK ? this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body) : DOWN;
+    let downBy = this.cutOffFrame(side, wrist, along, down, S.foreLen * body, UPPER * S.upperLen * body, 0.5 * CUT_RADIUS * body);
     // The support hand rolls round what it holds until its wrist is nearly straight on the forearm, as a hand under a
     // handguard does (speedkills.json viewmodel support straighten). The glove's turn is posed for the gun and the
     // forearm's line is chosen to take the arm out of the frame, each on its own, and the wrist took whatever was
@@ -205,7 +205,7 @@ export class FpArms {
     // is"). A roll about the bar, pivoted on the grip, keeps the hand on the gun; then the forearm is chosen again from
     // where the wrist now is.
     const SUP = PROFILE.viewmodel?.support;
-    const straighten = side === "l" && grip === "grip" && IS_SK && SUP ? SUP.straighten : 0;
+    const straighten = side === "l" && grip === "grip" && SUP ? SUP.straighten : 0;
     if (straighten > 0 && SUP) {
       const axis = across.clone().normalize();
       const pivot = new THREE.Vector3().setFromMatrixPosition(gm);
@@ -293,7 +293,7 @@ export class FpArms {
     // way, it came at the eye like a tube)
     // SpeedKills' support arm down and back under the gun, the way a forearm under a handguard runs to the body, rather
     // than out to the corner (speedkills.json viewmodel support corner; the owner: "the left arms sticks out too much")
-    const S = side === "l" && IS_SK ? PROFILE.viewmodel?.support : undefined;
+    const S = side === "l" ? PROFILE.viewmodel?.support : undefined;
     const corner = (S ? new THREE.Vector3().fromArray(S.corner) : new THREE.Vector3(x, -0.9, 0.6)).lerp(S ? v2.fromArray(S.cornerAds) : v2.set(0.95 * x, -1, 0.45), ads).transformDirection(eye.matrixWorld);
     const eyeward = new THREE.Vector3(0.8 * x, -0.9, 1.8).lerp(v2.set(0.4 * x, -1, 1.4), ads).transformDirection(eye.matrixWorld);
     const from = along.clone();

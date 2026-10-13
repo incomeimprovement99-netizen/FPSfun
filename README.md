@@ -158,7 +158,8 @@ describes the retired legacy game, and goes with its code.
   its long magazine tube; CHOOCH, the LMG, is held
   under its barrel past its drum and vents its overheat in both hands, tipped up and
   canted, rather than reloading; APUHTHEE and STRYDER, the pistols, are held out in both
-  hands, the left wrapped round the right on the grip, the forefinger on the trigger; HAEFY, the launcher, sits on the
+  hands, the left wrapped round the right on the grip, the forefinger on the trigger, APUHTHEE where Apex holds its
+  Wingman and aimed at arm's length (each bought gun can have its own aimed distance from the eye); HAEFY, the launcher, sits on the
   right shoulder, aimed through the sight beside its tube, the left hand on the grip under its front, and its reload
   phases a rocket into the tube, the warhead standing out of it; and on every gun the right hand's lower three
   fingers sit together round the grip with the forefinger's tip on the trigger; each left forearm comes in from the

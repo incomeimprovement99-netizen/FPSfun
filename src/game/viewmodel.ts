@@ -34,7 +34,7 @@ import armCfg from "../config/viewmodel.json";
 import feelCfg from "../config/gunfeel.json";
 import { HackCard, hackCard } from "./hackcast";
 import { newSweep, phaseMeshes } from "./phase";
-import { IS_SK, PROFILE } from "./game";
+import { PROFILE } from "./game";
 
 /** how much of a reload's pose is gone in the sights (speedkills.json viewmodel; the legacy game keeps all of it) */
 const RELOAD_ADS = PROFILE.viewmodel?.reloadAds ?? 0;
@@ -697,7 +697,7 @@ export class ViewModel {
     this.group.add(this.castRig, this.castArm.group, this.castCard.group, ...this.palmCards.map((c) => c.group));
     this.group.add(this.real.group);
     this.group.add(this.pack.group);
-    if (IS_SK) void this.pack.load().then((ok) => ok && this.packRefresh());
+    void this.pack.load().then((ok) => ok && this.packRefresh());
   }
 
   /** show this weapon; cheap to call every frame */
@@ -764,7 +764,7 @@ export class ViewModel {
     const w = this.weapon;
     this.pack.release();
     this.gunGripOn = false;
-    if (!IS_SK || !m || !w || !m.root.userData.paid || !this.pack.ready || !packGunFor(w.id)) return;
+    if (!m || !w || !m.root.userData.paid || !this.pack.ready || !packGunFor(w.id)) return;
     const trig = m.parts?.trigger;
     if (!trig) return;
     // our trigger in the gun's own frame, the gun's spin taken off for the moment
@@ -977,7 +977,7 @@ export class ViewModel {
 
   /** a signature gun's feel, and the axes its sweeps run along, measured off the bought model in the hands */
   private setFeel(m: GunModel, w: ResolvedWeapon): void {
-    this.feel = IS_SK && m.root.userData.paid ? (FEEL[w.id] ?? null) : null;
+    this.feel = m.root.userData.paid ? (FEEL[w.id] ?? null) : null;
     this.feelKick = this.feelKickVel = this.pulse = 0;
     this.bodySweep.phase.value = this.magSweep.phase.value = 1;
     if (!this.feel) return;
@@ -1342,7 +1342,7 @@ export class ViewModel {
     // SpeedKills' bought guns: the hand under the gun, palm up, rather than round its side (speedkills.json viewmodel
     // support). Their bodies are wider than the procedural handguard the hand was posed round, and at 22 mm over the
     // underside and rolled 0.55 the fingers went into the gun's side (the owner: "morphed/glitched into the side of it")
-    const under = IS_SK && m.root.userData.paid && sp.kind !== "pistol" && sp.kind !== "pump" ? PROFILE.viewmodel?.support : undefined;
+    const under = m.root.userData.paid && sp.kind !== "pistol" && sp.kind !== "pump" ? PROFILE.viewmodel?.support : undefined;
     this.supportBase.set(sp.x ?? 0, sp.u - (under?.below ?? 0), -sp.f);
     this.left.group.position.copy(this.supportBase);
     // 'ZYX': tilt the held bar first, then roll the hand under the handguard
@@ -2051,7 +2051,7 @@ export class ViewModel {
     const gun = this.holder.visible;
     // The arms are not under the holder: when a magnified scope hid the gun they stayed drawn where the last
     // frame posed them, and the scope's narrower view blew the left arm up into its picture (HAEFY, PULSAR)
-    this.real.group.visible = !IS_SK || gun || (this.fists.visible && !this.packFree) || this.zipRig.visible || this.castRig.visible;
+    this.real.group.visible = gun || (this.fists.visible && !this.packFree) || this.zipRig.visible || this.castRig.visible;
     if (gun) this.real.pose("r", this.right, this.rightArm, "grip");
     else if (this.fists.visible) this.real.pose("r", this.fistR, this.fistArmR, "fist");
     if (this.zipRig.visible && !this.left.group.visible) this.real.pose("l", this.zipHand, this.zipArm, "grip");
@@ -2094,7 +2094,7 @@ export class ViewModel {
         fh.palm.set(0, -1, 0);
         fh.fist = 0;
       }
-      this.packFree = IS_SK && this.pack.freeReady;
+      this.packFree = this.pack.freeReady;
       return;
     }
     const run = f.onGround ? Math.min(1, f.moveSpeed / 7.6) : 0.2;
@@ -2134,7 +2134,7 @@ export class ViewModel {
       fh.palm.set(-side, -0.5, 0);
       fh.fist = 1;
     }
-    this.packFree = IS_SK && this.pack.freeReady;
+    this.packFree = this.pack.freeReady;
   }
 
   /**
