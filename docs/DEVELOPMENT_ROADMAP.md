@@ -13386,3 +13386,31 @@ up to 16 m, so the roofs are walkable.
 - **Checked** (tools/checks/sk-neon.ts): the two pads ridden onto the vault ridges (the check that rides every pad the bake found); a player walks each hall from the forecourt through to the platform past the concourse's 23 pieces; each AC box stands on its ridge, its column the ridge's 12.5 m and a box's height over it (the bake merges a box and the roof under it into one column, so the first form of this check read the box's own top for the roof's) with the ridge at its foot's height a metre either side. The new checks were proven failing with their faults put back: a box across a hall's walkway, and the boxes' height a metre wrong. The centre's pads check leaves the district's pads out, as it does the corner blocks' and LANTERN ALLEYS'. The e2e: the SpeedKills section, 101 checks, none failing. verify, rules and the type check. The look: the west vault's roof, the middle vault from the south ridge, the west pad, and the concourse from two halls, by golden hour and at night.
   The map: its files lo 119.7 MB, hi 186.4 MB, max 415.0 MB.
   **Its files are version 69.**
+
+## Milestone 591 — THE STACKS, its towers and its plaza
+
+The north-west district's first stage, in MOTEL HILL's pink: the L past the ring road, empty until now. Planned first on
+the districts page (THE STACKS, stage by stage), after a test bake of the pack's capsule towers.
+
+- **Measured first:** the three towers are real buildings inside, with floors every 3.5 m and Neon Building 10's
+  corridors and framed doors, but none is a way up for a player. 10's own stairs have 1.4 m over each flight, and a
+  body stands 1.83 m. Its front stair rises 0.7 to 0.8 m a step in its collision, over the 0.56 m a body steps. The
+  doors are shut blocks. A player climbing 02's and 09's pods with SpeedKills' real moves was stopped at the street by
+  gaps narrower than a body; an estimate from the collision alone had them climbable to 18 and 20 m. So the towers
+  stand as the district's skyline, and its ways up are built in the next stages: the capsule hotel's stairs and pads.
+- **The towers** (`rules.districts.stacks.buildings`, tools/neon-layout.ts): Neon Building 10, two 60 m stacks of pods
+  on a podium, along the north edge with its podium stair facing the ring road; 09 (50 m) and 02 (57 m) down the west
+  arm. Each collides as its own faces and is given to the bots' street model.
+- **The ground** (`ground`): an avenue of cypresses and benches up to 10's stair, a car park of 24 cars either side of
+  it, three to a bay between the bots' node lines so the streets along them stay open, kiosks of vending and ticket
+  machines, cars parked along the west arm's kerb off the towers' doors, crates in the service alley and the lane between
+  09 and 02, ferns by the doors, and the grid's mix of cars, crates, planters and kiosks behind the towers and over the
+  corner square (the capsule hotel's site, stage 2). 88 pieces of cover, the street's lamps along the inner edge, and
+  THE STACKS in pink over 10's stair.
+- **Two plugs** (`plugs`): boxes filling two of 10's shut rooms under its podium deck, where a node of the bots' street
+  grid fell on their open floor, an island no bot or drop could reach. The bake adds them to its typed collision.
+- **The bots' node guard** is shared: THE TERMINAL's concourse kept its machines off the street nodes with it, and THE
+  STACKS' cover uses the same one (`onNode`).
+- **Checked** (tools/checks/sk-neon.ts): the towers inside the L and none in another, cover within 6 m over 99.9% of its open ground (the farthest 7.8 m), its name seen on nine sight lines from the ring road, six lamps; and the street network whole, which it was not until the two plugs went in. The e2e: 100 of 101 twice: each run one of HAEFY's launcher checks failed and the other run passed it, the second a failure the check itself notes under load (the machine was at 96% CPU with other agents' tests). verify, rules and the type check. The look: the avenue, the car park, the west street, the corner and the skyline from the centre, at golden hour and night.
+  The map: its files lo 130.8 MB, hi 199.2 MB, max 433.9 MB.
+  **Its files are version 70.**

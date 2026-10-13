@@ -3876,6 +3876,23 @@ const STREET_WALL_BOXES: OBox[] = [];
     console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps, ${blocks.length} blocks on the top tier with ${balconies} balconies`);
   }
 }
+// whether a piece's footprint, a body's clearance round it (`perches_clear.walk`), takes in one of the bots' street nodes:
+// the districts' cover is kept off them by this, not by the street graph's model, which reads the last bake's collision
+// (a bench laid in one run stood in it the next, cut the model, was left out, and came back the run after)
+function onNode(o: OBox): boolean {
+  const GG = cfg.game.graph as { step: number; margin: number };
+  const glim = (JSON.parse(readFileSync(join(ROOT, "src", "config", "world.json"), "utf8")) as { cut: { half: number } }).cut.half - GG.margin;
+  const clear = R.perches_clear.walk as number;
+  const reach = Math.hypot(o.hu, o.hv) + clear + GG.step;
+  for (let x = -glim; x <= glim + 1e-6; x += GG.step)
+    for (let z = -glim; z <= glim + 1e-6; z += GG.step) {
+      if (Math.abs(x - o.c[0]) > reach || Math.abs(z - o.c[1]) > reach) continue;
+      const [du, dv] = [(x - o.c[0]) * o.u[0] + (z - o.c[1]) * o.u[1], (x - o.c[0]) * o.v[0] + (z - o.c[1]) * o.v[1]];
+      if (Math.abs(du) < o.hu + clear && Math.abs(dv) < o.hv + clear) return true;
+    }
+  return false;
+}
+
 // THE TERMINAL (rules.districts.terminal; the districts plan's south district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
 // the south band past the ring road, its station: the pack's glass-roofed hall (the one Centre Station sinks under the
 // plaza, its floor 10 m under the street and its vaults over it) lifted `lift` metres so its marble floor is the street's,
@@ -3944,23 +3961,9 @@ const STREET_WALL_BOXES: OBox[] = [];
     }
     // the concourse's cover (`concourse`, Milestone 590): in each hall, either side of its walkway from arch to arch, the
     // centre station's ticket and vending machines and its benches, each at `spots` ([dx, dz, kind, yaw] from the hall's
-    // middle and its north face), none on a bots' street node: none whose footprint, a body's clearance round it, takes a
-    // node in. Not the street graph's model, which reads the last bake's collision: a bench laid in one run stood in it
-    // the next, cut the model, was left out, and came back the run after
+    // middle and its north face), none on a bots' street node (onNode)
     const CC = TM.concourse;
     let cover = 0;
-    const GG = cfg.game.graph as { step: number; margin: number };
-    const glim = (JSON.parse(readFileSync(join(ROOT, "src", "config", "world.json"), "utf8")) as { cut: { half: number } }).cut.half - GG.margin;
-    const clear = R.perches_clear.walk as number;
-    const onNode = (o: OBox) => {
-      for (let x = -glim; x <= glim + 1e-6; x += GG.step)
-        for (let z = -glim; z <= glim + 1e-6; z += GG.step) {
-          if (Math.abs(x - o.c[0]) > 8 || Math.abs(z - o.c[1]) > 8) continue;
-          const [du, dv] = [(x - o.c[0]) * o.u[0] + (z - o.c[1]) * o.u[1], (x - o.c[0]) * o.v[0] + (z - o.c[1]) * o.v[1]];
-          if (Math.abs(du) < o.hu + clear && Math.abs(dv) < o.hv + clear) return true;
-        }
-      return false;
-    };
     // (each machine picked by its hall and spot, not by a count of those laid: one refused would change every one after)
     for (const [hi, [hx0, hx1, hz0]] of (CC ? halls : []).entries()) {
       const cx = (hx0 + hx1) / 2;
@@ -3987,6 +3990,100 @@ const STREET_WALL_BOXES: OBox[] = [];
     const [X0, X1, Z0, Z1] = [Math.min(...halls.map((h) => h[0])), Math.max(...halls.map((h) => h[1])), Math.min(...halls.map((h) => h[2])), Math.max(...halls.map((h) => h[3]))];
     cfg.terminal = { halls, box: [X0, X1, Z0, Z1], cars: RK.x.length, trams, plates, cover, roofCover: RF?.at.length ?? 0 };
     console.log(`THE TERMINAL: ${halls.length} halls, x ${X0} to ${X1}, z ${Z0} to ${Z1}; ${RK.x.length} cars in the rank, ${trams} trams, ${plates} rail plates${TR ? ", the metro train at the platform" : ""}`);
+  }
+}
+// THE STACKS (rules.districts.stacks; the districts plan's north-west district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
+// the north-west sector's L past the ring road, its towers the pack's capsule towers: Neon Building 10, two towers of pods
+// on a podium, along the north edge, and 09 and 02 down the west arm, each the pack's realistic building with its floors
+// inside, colliding as its own faces as the corner blocks' walk-in buildings do. Each placed by its footprint's middle
+// (`buildings`, [piece, x, z, yaw]), turned in quarter turns, and given to the bots' street model. Measured in a test bake:
+// none is walked up inside (10's own stairs have 1.4 m over each flight, and a body stands 1.83 m), so the ways up are
+// 10's podium stair and the climbs up 02's and 09's pods
+{
+  type Ground = { grid: number; at: number[]; keep: number; rowKeep: number; fill: number[][]; doors: number[][]; mix: string[]; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; cars: string[]; vans: string[]; planters: string[]; machines: string[]; crate: string; deco: string };
+  type Stacks = { chunk: string; seed: number; buildings: Array<[string, number, number, number]>; ground: Ground; lamps: { piece: string; at: number; north: number[]; west: number[] }; plugs?: number[][]; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  const DS = (R.districts as { stacks?: Stacks } | undefined)?.stacks;
+  if (DS) {
+    const towers: Array<{ piece: string; c: number[]; yaw: number; foot: number[]; top: number }> = [];
+    for (const [name, x, z, yaw] of DS.buildings) {
+      const box = placeTurned(DS.chunk, name, x, z, yaw, "o");
+      STREET_GRAPH?.add(box);
+      const r = piece(name).row;
+      const side = Math.abs(Math.round(yaw / 90)) % 2 === 1;
+      const [hx, hz] = side ? [r.size![2] / 2, r.size![0] / 2] : [r.size![0] / 2, r.size![2] / 2];
+      towers.push({ piece: name, c: [x, z], yaw, foot: [+(x - hx).toFixed(2), +(x + hx).toFixed(2), +(z - hz).toFixed(2), +(z + hz).toFixed(2)], top: +box.top.toFixed(2) });
+    }
+    // the ground's cover (`ground`): the rows laid by hand first (the avenue up to 10's stair, the car park either side of
+    // it, the kiosks by the doors, the kerb's parked cars, the service alley's crates), then a spot at each half-way point
+    // between the bots' street nodes over the fill (behind the towers and over the corner square), each given its kind by
+    // the seed before anything can refuse it, so one left out does not change the rest
+    const G = DS.ground;
+    const rnd = seeded(DS.seed);
+    const kinds: Record<string, number> = {};
+    const drawn: Array<{ x: number; z: number; kind: string; piece?: string; pick: number; yaw: number; keep: number }> = [];
+    for (const row of G.rows)
+      for (const [i, [x, z]] of row.at.entries())
+        drawn.push({ x, z, kind: row.kind ?? "piece", piece: row.pieces?.[i % row.pieces.length], pick: rnd(), yaw: row.yaw + (row.flip && i % 2 ? 180 : 0), keep: G.rowKeep });
+    for (const [x0, x1, z0, z1] of G.fill)
+      for (let x = G.at[0]; x <= G.at[1] + 1e-6; x += G.grid)
+        for (let z = G.at[0]; z <= G.at[1] + 1e-6; z += G.grid)
+          if (x >= x0 && x <= x1 && z >= z0 && z <= z1) drawn.push({ x, z, kind: G.mix[Math.floor(rnd() * G.mix.length)], pick: rnd(), yaw: rnd() < 0.5 ? 180 : 0, keep: G.keep });
+    // (a footprint within `grow` of a tower's, or in a door's way)
+    const blocked = (o: OBox, grow: number) => {
+      const [ex, ez] = [Math.abs(o.u[0]) * o.hu + Math.abs(o.v[0]) * o.hv, Math.abs(o.u[1]) * o.hu + Math.abs(o.v[1]) * o.hv];
+      return towers.some((t) => o.c[0] + ex > t.foot[0] - grow && o.c[0] - ex < t.foot[1] + grow && o.c[1] + ez > t.foot[2] - grow && o.c[1] - ez < t.foot[3] + grow) ||
+        G.doors.some(([x0, x1, z0, z1]) => o.c[0] + ex > x0 && o.c[0] - ex < x1 && o.c[1] + ez > z0 && o.c[1] - ez < z1);
+    };
+    let cover = 0;
+    for (const d of drawn) {
+      const yaw = d.yaw;
+      // (each kind's pieces round the spot, [piece, dx, dz, yaw, y] from it)
+      const set: Array<[string, number, number, number, number]> = [];
+      const at = (list: string[], k = 0) => list[(Math.floor(d.pick * list.length) + k) % list.length];
+      if (d.kind === "piece") set.push([d.piece!, 0, 0, yaw, 0]);
+      else if (d.kind === "car") set.push([at(G.cars), 0, 0, yaw, 0]);
+      else if (d.kind === "van") set.push([at(G.vans), 0, 0, yaw, 0]);
+      else if (d.kind === "planter") set.push([at(G.planters), 0, 0, yaw, 0]);
+      else if (d.kind === "deco") set.push([G.deco, 0, 0, yaw, 0]);
+      else if (d.kind === "machine") {
+        // (two back to back)
+        const m = piece(at(G.machines)).row;
+        const [ox, oz] = rotY(yaw, m.size![0] / 2 + 0.01, 0);
+        set.push([at(G.machines), ox, oz, yaw, 0], [at(G.machines, 1), -ox, -oz, yaw + 180, 0]);
+      } else if (d.kind === "crates") {
+        // (MARKET's stack: two side by side and one on them)
+        const c = piece(G.crate).row;
+        const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+        set.push([G.crate, ox, oz, yaw, 0], [G.crate, -ox, -oz, yaw, 0], [G.crate, -ox, -oz, yaw, c.size![1]]);
+      }
+      if (!set.length) continue;
+      // (the footprint of them all, in the spot's own frame)
+      let [hu, hv, top] = [0, 0, 0];
+      for (const [name, dx, dz, yw, y] of set) {
+        const r = piece(name).row;
+        const turned = Math.abs(Math.round((yw - yaw) / 90)) % 2 === 1;
+        const [lu, lv] = rotY(-yaw, dx, dz);
+        hu = Math.max(hu, Math.abs(lu) + (turned ? r.size![2] : r.size![0]) / 2);
+        hv = Math.max(hv, Math.abs(lv) + (turned ? r.size![0] : r.size![2]) / 2);
+        top = Math.max(top, y + r.size![1]);
+      }
+      const o: OBox = { c: [d.x, d.z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+      if (blocked(o, d.keep) || onNode(o) || STREET_GRAPH?.splits(o)) continue;
+      STREET_GRAPH?.add(o);
+      for (const [name, dx, dz, yw, y] of set) placeTurned(DS.chunk, name, d.x + dx, d.z + dz, yw, "o", y - piece(name).row.min![1]);
+      const k = d.kind === "piece" ? (G.cars.includes(d.piece!) ? "car" : d.piece!.startsWith("GardenPit") ? "planter" : "bench") : d.kind;
+      kinds[k] = (kinds[k] ?? 0) + 1;
+      cover++;
+    }
+    // the street's lamps along the L's inner edge, on both arms
+    const LP = DS.lamps;
+    const lampsAt = [...LP.north.map((x) => [x, -LP.at, 0]), ...LP.west.map((z) => [-LP.at, z, 90])];
+    for (const [x, z, yaw] of lampsAt) placeTurned(DS.chunk, LP.piece, x, z, yaw, "o");
+    const lamps = lampsAt.length;
+    cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "stacks"), { district: "stacks", ...DS.name }];
+    // (and the plugs in 10's shut rooms, to the bake's typed collision as THE TERRACES' tiers go)
+    cfg.stacks = { towers, cover, kinds, lamps, solids: DS.plugs ?? [] };
+    console.log(`THE STACKS: ${towers.map((t) => `${t.piece.replace(".prefab", "")} to ${t.top} m`).join(", ")}; ${cover} pieces of cover on its ground (${Object.entries(kinds).map(([k, c]) => `${c} ${k}`).join(", ")}) of ${drawn.length} spots, ${lamps} lamps`);
   }
 }
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super

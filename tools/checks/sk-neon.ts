@@ -2683,5 +2683,83 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE TERMINAL: the AC boxes along the vaults' ridges each stand on the roof", (RF?.at.length ?? 0) >= 8 && off.length === 0, off.map(([x, z]) => `(${x}, ${z})`).join("; ") || `${RF?.at.length} boxes`);
 }
 
+// THE STACKS (rules.districts.stacks, Milestone 591): its three capsule towers inside the north-west L and none in
+// another; cover within 6 m over the L's open ground; its name over 10's podium seen from the ring road; its lamps
+{
+  type Tower = { piece: string; foot: number[]; top: number };
+  const SO = (cfg as unknown as { stacks?: { towers: Tower[]; cover: number; lamps: number } }).stacks;
+  const SR = (cfg.rules as unknown as { districts?: { stacks?: { name: { at: number[]; w: number } } } }).districts?.stacks;
+  const T = SO?.towers ?? [];
+  const IN = 107.5, HALF = 152;
+  const inL = (x: number, z: number) => x >= -HALF && z >= -HALF && x <= -40 && z <= -40 && (x <= -IN || z <= -IN);
+  const out = T.filter((t) => !(inL(t.foot[0], t.foot[2]) && inL(t.foot[1], t.foot[3]) && inL(t.foot[0], t.foot[3]) && inL(t.foot[1], t.foot[2])));
+  const overlap = T.some((a, i) => T.some((b, j) => j > i && a.foot[0] < b.foot[1] && b.foot[0] < a.foot[1] && a.foot[2] < b.foot[3] && b.foot[2] < a.foot[3]));
+  check("THE STACKS: three capsule towers inside the north-west L, off the roads and the ring, none in another, 49 to 60 m", T.length === 3 && out.length === 0 && !overlap && T.every((t) => t.top > 49 && t.top < 61), T.map((t) => `${t.piece.replace(".prefab", "")} x ${t.foot[0]} to ${t.foot[1]}, z ${t.foot[2]} to ${t.foot[3]}, ${t.top} m`).join("; "));
+  // (the L's open ground: from every open half-metre of it a body's width of open ground stands round, outside the towers'
+  // footprints, the distance to the nearest box standing from the ground past a crouched head, as the streets' check
+  // measures it. Not the towers' own shut rooms, nor the quarter metre between 10's back and the map's edge)
+  const C = 0.5, X0 = -HALF, N = Math.round((HALF - 40) / C);
+  const body = new Uint8Array(N * N), cover = new Uint8Array(N * N);
+  const floor = new Float32Array(N * N).fill(-Infinity);
+  for (const b of SOLIDS.solids as number[][]) {
+    if (b[5] < -0.5 || b[4] > 2.5 || b[1] < X0 || b[0] > -40 || b[3] < X0 || b[2] > -40) continue;
+    for (let i = Math.max(0, Math.floor((b[0] - X0) / C)); i <= Math.min(N - 1, Math.floor((b[1] - X0) / C)); i++)
+      for (let j = Math.max(0, Math.floor((b[2] - X0) / C)); j <= Math.min(N - 1, Math.floor((b[3] - X0) / C)); j++) {
+        const k = i * N + j;
+        if (b[4] < 1.8 && b[5] > 0.3) body[k] = 1;
+        if (b[4] < 0.5 && b[5] > 1) cover[k] = 1;
+        if (b[5] <= 0.3 && b[5] > floor[k]) floor[k] = b[5];
+      }
+  }
+  const D = new Float32Array(N * N);
+  for (let k = 0; k < D.length; k++) D[k] = cover[k] ? 0 : 1e9;
+  for (let i = 0; i < N; i++)
+    for (let j = 0; j < N; j++) {
+      const k = i * N + j;
+      if (i > 0) D[k] = Math.min(D[k], D[k - N] + 1, j > 0 ? D[k - N - 1] + Math.SQRT2 : 1e9, j < N - 1 ? D[k - N + 1] + Math.SQRT2 : 1e9);
+      if (j > 0) D[k] = Math.min(D[k], D[k - 1] + 1);
+    }
+  for (let i = N - 1; i >= 0; i--)
+    for (let j = N - 1; j >= 0; j--) {
+      const k = i * N + j;
+      if (i < N - 1) D[k] = Math.min(D[k], D[k + N] + 1, j < N - 1 ? D[k + N + 1] + Math.SQRT2 : 1e9, j > 0 ? D[k + N - 1] + Math.SQRT2 : 1e9);
+      if (j < N - 1) D[k] = Math.min(D[k], D[k + 1] + 1);
+    }
+  let n = 0, far = 0, farthest = 0, at = [0, 0];
+  const openAt = (k: number) => !body[k] && (floor[k] > -0.3 || !Number.isFinite(floor[k]));
+  for (let k = N + 1; k < N * N - N - 1; k++) {
+    const [x, z] = [X0 + (Math.floor(k / N) + 0.5) * C, X0 + ((k % N) + 0.5) * C];
+    if (!inL(x, z) || T.some((t) => x > t.foot[0] && x < t.foot[1] && z > t.foot[2] && z < t.foot[3])) continue;
+    if (![-N - 1, -N, -N + 1, -1, 0, 1, N - 1, N, N + 1].every((d) => openAt(k + d))) continue;
+    n++;
+    const d = D[k] * C;
+    if (d > 6) far++;
+    if (d > farthest) (farthest = d), (at = [x, z]);
+  }
+  check("THE STACKS: something to crouch behind within 6 m over its ground (at most 1% of it farther, none past 8 m)", n > 10000 && (far / n) * 100 <= 1 && farthest <= 8, `${((far / n) * 100).toFixed(1)}% of ${n} points over 6 m; the farthest ${farthest.toFixed(1)} m at (${at[0].toFixed(1)}, ${at[1].toFixed(1)}); ${SO?.cover ?? 0} pieces of cover`);
+  // its name: from the middle of the ring road's north side at a standing eye, a clear line to the plate's middle and
+  // near both ends
+  const NM = SR?.name;
+  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
+  const blockedAt: string[] = [];
+  const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
+  for (const ex of [-10, 0, 10])
+    for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
+      const [a, b] = [[NM!.at[0] + ex, 1.7, -roadMid], [NM!.at[0] + t, NM!.at[1], NM!.at[2] + 0.3]];
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
+        if (inBox(p[0], p[1], p[2])) {
+          blockedAt.push(`from x ${ex} to ${t.toFixed(1)} at (${p.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "stacks");
+  check("THE STACKS: its name in pink over 10's podium stair, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
+  check("THE STACKS: street lamps along its inner edge, both arms", (SO?.lamps ?? 0) >= 6, `${SO?.lamps ?? 0} lamps`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);
