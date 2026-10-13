@@ -2229,6 +2229,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
   if (B.deck - B.roof - B.stairs.rise > B.stairs.step) throw new Error(`the stair climbs ${B.stairs.rise} m and the deck is ${(B.deck - B.roof).toFixed(2)} m over the roof: a step of more than ${B.stairs.step} m at its top`);
   let decks = 0;
   let stairs = 0;
+  const bridgeStairs: Array<{ at: number[]; back: number; lift: number }> = [];
   /** the sill of the window an end runs into (rules.bridges.into), as the last bake measured it (cfg.windows); null elsewhere */
   const sillAt = (e: number[]): number | null => {
     if (!((B.into ?? []) as number[][]).some((q) => q[0] === e[0] && q[1] === e[1])) return null;
@@ -2273,10 +2274,21 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
       const l = Math.hypot(n[0] - e[0], n[1] - e[1]);
       const toward = [(n[0] - e[0]) / l, (n[1] - e[1]) / l];
       const syaw = [0, 90, 180, 270].find((y) => same(rot(y, up[0], up[1]), toward))!;
-      put(B.stairs.piece, B.roof - stair.min![1], syaw, e, tMid);
+      // (its top edge `back` metres short of the deck's end: the bake stands the deck's 2 m body half a cell past its
+      // end, over the stair's top tread, and a walking body met it 0.65 m over the tread under it and stopped there.
+      // Where the island's fence stands too near behind for that, a body's width past the stair's foot, the stair stays
+      // and is lifted `lift` instead, the same step taken off the top: measured off the last bake's collision)
+      const SB = B.stairs as { back?: number; lift?: number };
+      const len = Math.abs(rot(syaw, 0, stair.size![2])[0]) + Math.abs(rot(syaw, 0, stair.size![2])[1]);
+      const probe = [e[0] - toward[0] * ((SB.back ?? 0) + len + 0.6), e[1] - toward[1] * ((SB.back ?? 0) + len + 0.6)];
+      const room = !lastSolids().some((b) => b[0] <= probe[0] + 0.4 && b[1] >= probe[0] - 0.4 && b[2] <= probe[1] + 0.4 && b[3] >= probe[1] - 0.4 && b[5] > B.roof + 0.2 && b[4] < B.roof + 1.8);
+      const [back, lift] = room ? [SB.back ?? 0, 0] : [0, SB.lift ?? 0];
+      put(B.stairs.piece, B.roof - stair.min![1] + lift, syaw, [e[0] - toward[0] * back, e[1] - toward[1] * back], tMid);
+      bridgeStairs.push({ at: e, back, lift });
     }
   }
-  console.log(`bridges: ${decks} decks on ${B.paths.length} paths, ${stairs} stairs at their ends`);
+  cfg.bridgeStairs = bridgeStairs;
+  console.log(`bridges: ${decks} decks on ${B.paths.length} paths, ${stairs} stairs at their ends (${bridgeStairs.filter((q) => q.lift).length} lifted, the rest set back)`);
 }
 
 // The fronts along the centre's streets and its ring hung with the pack's neon signs (rules.signs): found in the last
@@ -3287,7 +3299,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // next farthest, until every point has cover or no piece fits by it. Measured on the last bake's collision and the
 // street walls above, and laid last (the bake lists its boxes in `laid`), so the next run measures the same streets
 {
-  const CO = (R.dress as { cover?: { chunk: string; far: number; near: number; clear: number; headroom: number; road: string[]; pave: string[]; tall: { piece: string; every: number }; most: number; seed: number } }).cover;
+  const CO = (R.dress as { cover?: { chunk: string; far: number; near: number; clear: number; headroom: number; road: string[]; pave: string[]; tall: { piece: string; every: number }; most: number; seed: number; nameView: number } }).cover;
   if (CO) {
     const rndC = seeded(CO.seed);
     const L = R.low;
@@ -3397,6 +3409,16 @@ const STREET_WALL_BOXES: OBox[] = [];
       return k === "ok";
     };
     const placed: Array<{ piece: string; c: Pt; yaw: number; half?: number[] }> = [];
+    // (no tall board on the ring road in front of a district's name, `nameView` either side of it, from the ring's inner
+    // edge out to the name: from right behind a 3 m board, 2.5 m off, no name over a district's plaza shows, and on the
+    // north side two of them hid THE STACKS' from three of seven points along the road)
+    const views = Object.values((R.districts ?? {}) as Record<string, { name?: { at: number[] } }>).flatMap((d) => (d && typeof d === "object" && d.name ? [d.name.at] : []));
+    const inView = (x: number, z: number) =>
+      views.some(([nx, , nz]) =>
+        Math.abs(nz) > Math.abs(nx)
+          ? Math.abs(x - nx) < CO.nameView && Math.sign(z) === Math.sign(nz) && Math.abs(z) >= R.ring[0] - 1 && Math.abs(z) <= Math.abs(nz)
+          : Math.abs(z - nz) < CO.nameView && Math.sign(x) === Math.sign(nx) && Math.abs(x) >= R.ring[0] - 1 && Math.abs(x) <= Math.abs(nx),
+      );
     const tried = new Uint8Array(N * N);
     let left = 0;
     for (let n = 0; n < CO.most; n++) {
@@ -3418,6 +3440,7 @@ const STREET_WALL_BOXES: OBox[] = [];
         const carriage = onRoad(x, z) < 0 || m >= R.ring[0];
         const pool = carriage ? (placed.length % CO.tall.every === CO.tall.every - 1 ? [CO.tall.piece, ...CO.road] : [...CO.road].sort(() => rndC() - 0.5)) : [...CO.pave].sort(() => rndC() - 0.5);
         for (const name of pool) {
+          if (name === CO.tall.piece && inView(x, z)) continue;
           const row = piece(name).row;
           const along = yawToward(t[0], t[1]) + (row.size![2] >= row.size![0] ? 0 : 90);
           for (const yaw of [along, along + 90]) {
@@ -4240,6 +4263,29 @@ function onNode(o: OBox): boolean {
     // (and the plugs in 10's shut rooms, to the bake's typed collision as THE TERRACES' tiers go)
     cfg.stacks = { towers, cover, kinds, lamps, hotel, solids: [...(DS.plugs ?? []), ...hotelSolids] };
     console.log(`THE STACKS: ${towers.map((t) => `${t.piece.replace(".prefab", "")} to ${t.top} m`).join(", ")}; ${cover} pieces of cover on its ground (${Object.entries(kinds).map(([k, c]) => `${c} ${k}`).join(", ")}) of ${drawn.length} spots, ${lamps} lamps`);
+  }
+}
+// GLASS HEIGHTS (rules.districts.glass; the districts plan's north district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
+// the north band past the ring road, the High City's white glass run on north: the pack's high-platform slabs, their
+// decks at the North deck's height, and its black-glass street tower with the cyan crown behind them. Each by its
+// footprint's middle at its own pivot's height, colliding as its own faces, given to the bots' street model; the
+// gangways between their decks are rules.bridges' (laid with the High City's)
+{
+  type Glass = { chunk: string; buildings: Array<[string, number, number, number]>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
+  const DG = (R.districts as { glass?: Glass } | undefined)?.glass;
+  if (DG) {
+    const slabs: Array<{ piece: string; c: number[]; foot: number[]; top: number }> = [];
+    for (const [name, x, z, yaw] of DG.buildings) {
+      const r = piece(name).row;
+      const box = placeTurned(DG.chunk, name, x, z, yaw, "o", -r.min![1]);
+      STREET_GRAPH?.add(box);
+      const side = Math.abs(Math.round(yaw / 90)) % 2 === 1;
+      const [hx, hz] = side ? [r.size![2] / 2, r.size![0] / 2] : [r.size![0] / 2, r.size![2] / 2];
+      slabs.push({ piece: name, c: [x, z], foot: [+(x - hx).toFixed(2), +(x + hx).toFixed(2), +(z - hz).toFixed(2), +(z + hz).toFixed(2)], top: +box.top.toFixed(2) });
+    }
+    cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "glass"), { district: "glass", ...DG.name }];
+    cfg.glass = { slabs };
+    console.log(`GLASS HEIGHTS: ${slabs.map((s) => `${s.piece.replace(".prefab", "")} to ${s.top} m`).join(", ")}`);
   }
 }
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super

@@ -13528,3 +13528,36 @@ The district's third stage, re-planned on the districts page after measuring the
 - **Checked** (tools/checks/sk-neon.ts): the pad stacks-e ridden as a match throws it, onto 21.7 m; the pod roof's three open edges railed at 34 points; its two AC boxes standing on it; 36 pink strips and 21 pod lights in the hotel; the fill lights' spots, none inside anything solid; and every check before it, with the district's pad left out of the centre's own pad walk as the other districts' are. The e2e: 99 of 101 under load, then 100 of 101 alone: the capture check that failed under load passed, and one of HAEFY's launcher checks failed both times (both rockets flew 165 m), a guns check the guns agent is hardening. verify, rules and the type check. The look: the pod roof by day, the hotel's court, a gallery and a pod by night.
   The map: its files lo 131.3 MB, hi 199.7 MB, max 434.4 MB.
   **Its files are version 72.**
+
+## Milestone 594 — GLASS HEIGHTS, its decks and its tower; and the High City's bridges walked onto
+
+The north district's first stage, planned on the districts page after two test bakes of the pack's pieces.
+
+- **Studied first:** the districts card's towers (the pack's decorative 06, 07, 08 and 16) are brown concrete stacks of
+  rounded pods, THE STACKS' look, not white glass. The white glass is the High City's own family: the pack's
+  high-platform slabs, white frames round lit glass, each with a crystal-fenced deck of round lobes on top at 26 m, the
+  North deck's height across the ring road. The landmark is the pack's 72.6 m black-glass street tower with bands of cyan
+  light round its top. The high-platform "stairs" piece is a stepped deck on a closed tower with no flight up from the
+  street, and the pack's glass lift is 12 m, so the ways up from the street come in stage 2.
+- **The decks and the tower** (`rules.districts.glass`, tools/neon-layout.ts): four slabs round a courtyard (the big
+  front deck with two lobes and an arm toward the ring road, a deck east of it, one in each back corner) and the tower in
+  the back middle. Each is 8.5 m and more from the next or snug against the band's edge, so no street node of the bots'
+  grid is shut in a channel. They collide as their own faces. GLASS HEIGHTS is in cyan over the front deck's arm.
+- **Four gangways** (`rules.bridges.paths`' last four, laid by the High City's bridge code): from the North deck's west
+  lobe north across the ring road onto the front deck's arm, so the centre's deck layer runs on north. Then lobe to lobe:
+  the front deck to the east deck, that one to the east back corner's, and the front deck to the west back corner's. The
+  decks' lobes were measured off a test bake, and each gangway's ends stand on a lobe's roof inside its fence.
+- **The High City's bridges walked onto** (`rules.bridges.stairs.back` and `lift`): a player walking up any bridge's end
+  stair stopped on its third tread and had to hop on, at every end of every bridge. The bake grows each deck's 2 m body
+  to whole half-metre columns, so it stood half a metre past the deck's end over the stair's top tread, 0.65 m over the
+  tread under it. Each stair now stands half a metre back, its treads 26.15 to 26.5 m and the deck 0.4 m over the last.
+  Where an island's fence stands too near behind for that (two of the ring's ends, measured off the bake), the stair
+  keeps its place and stands 0.12 m higher instead. The bridge checks' flood had walked a body's square up round the
+  stair's edge and passed it. A new check walks every stair up and down with a player's own movement, and it failed on
+  every end before.
+- **The street's tall boards** (`rules.dress.cover.nameView`) are kept off the ring road within 20 m of a district's
+  name: two of them, 2.5 m in front of the road's middle, hid THE STACKS' name from three of seven points along it. The
+  low cover still stands there. THE STACKS' name check now looks from seven points along the road and wants five or more clear: a hover van parked at the kerb, 2.4 m high, still hides the name from the point right behind it.
+- **Checked** (tools/checks/sk-neon.ts): its slabs and tower inside the band; all four gangways walked by a player's own movement from the North deck on, and every High City bridge's end stair walked up and down the same way (17 stairs, 15 set back, 2 lifted), the flood walk and the stair climb as before; its name seen on nine sight lines from the ring road; the street network whole; the North deck's cover still six pieces with the gangway's end kept clear. The e2e: 101 of 101. verify, rules and the type check. The look: from the ring road by day and night, from the North deck, on the gangway, the decks, the courtyard, and a ring bridge's set-back stair.
+  The map: its files lo 136.9 MB, hi 206.3 MB, max 444.7 MB.
+  **Its files are version 73.**

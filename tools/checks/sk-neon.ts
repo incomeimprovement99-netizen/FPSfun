@@ -1598,12 +1598,20 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   const nearest = (p: number[]) => decks.reduce((best, q) => (Math.hypot(q[0] - p[0], q[1] - p[1]) < Math.hypot(best[0] - p[0], best[1] - p[1]) ? q : best));
   for (const path of B.paths) {
     const past = (p: number[], q: number[], by: number) => { const l = Math.hypot(p[0] - q[0], p[1] - q[1]); return [p[0] + ((p[0] - q[0]) / l) * by, p[1] + ((p[1] - q[1]) / l) * by]; };
-    // the foot of each end's stair: a metre and a half past the deck's end, on the roof
-    const feet = [past(path[0], path[1], 1.5), past(path.at(-1)!, path.at(-2)!, 1.5)];
+    // the foot of each end's stair: a metre and a half past the deck's end and the stair's setback there (cfg.bridgeStairs,
+    // the layout's), on the roof
+    const backAt = (e: number[]) => ((cfg as unknown as { bridgeStairs?: Array<{ at: number[]; back: number }> }).bridgeStairs ?? []).find((q) => q.at[0] === e[0] && q.at[1] === e[1])?.back ?? 0;
+    const feet = [past(path[0], path[1], 1.5 + backAt(path[0])), past(path.at(-1)!, path.at(-2)!, 1.5 + backAt(path.at(-1)!))];
     // (an end that runs into a building, rules.bridges.into, the gangway's into the tower: its goal the foot of its stair
     // on the floor inside, there being no island's deck at that end)
     const into = (e: number[]) => ((cfg.rules.bridges as unknown as { into?: number[][] }).into ?? []).some((q) => q[0] === e[0] && q[1] === e[1]);
-    const sites = [path[0], path.at(-1)!].map((e, w) => (into(e) ? feet[w] : nearest(e)));
+    // (and an end on a deck with no site of the bots', GLASS HEIGHTS' slabs past the ring road (Milestone 594): its goal
+    // the roof two and a half metres on past its stair's foot, inside its fence)
+    const sites = [path[0], path.at(-1)!].map((e, w) => {
+      if (into(e)) return feet[w];
+      const site = nearest(e);
+      return Math.hypot(site[0] - e[0], site[1] - e[1]) < 40 ? site : past(feet[w], w ? path.at(-1)! : path[0], 2.5);
+    });
     const pts = [sites[0], feet[0], ...path, feet[1], sites[1]];
     const M = 8;
     const [X0, X1, Z0, Z1] = [Math.min(...pts.map((p) => p[0])) - M, Math.max(...pts.map((p) => p[0])) + M, Math.min(...pts.map((p) => p[1])) - M, Math.max(...pts.map((p) => p[1])) + M];
@@ -1631,8 +1639,8 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
       const [si, sj] = cell(feet[way]);
       const start = floorFor(si, sj, B.roof);
       const todo: number[] = [];
-      // (on the roof: a body at the foot may touch the stair's first tread, 0.1 m up)
-      if (start !== null && start > B.roof - 0.1 && start < B.roof + 0.15) (seen.set(si * NJ + sj, start), todo.push(si * NJ + sj));
+      // (on the roof: a body at the foot may touch the stair's first tread, 0.1 m up, or a lifted stair's, 0.3)
+      if (start !== null && start > B.roof - 0.1 && start < B.roof + 0.35) (seen.set(si * NJ + sj, start), todo.push(si * NJ + sj));
       while (todo.length) {
         const k = todo.pop()!;
         const [i, j, y] = [Math.floor(k / NJ), k % NJ, seen.get(k)!];
@@ -1669,6 +1677,19 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
       return Math.abs(y - want) < 0.05 ? "" : `ends at ${y.toFixed(2)} m`;
     });
     check(`High City's bridge ${name}: the stair at each end (at a window it runs into, the sill) climbed straight up its middle, roof to deck`, climbs.every((c) => c === ""), climbs.map((c, w) => `${w ? "far" : "near"} ${c || "climbed"}`).join(", "));
+    // (and each stair walked by a player's own movement, up from its foot onto the deck two metres and back down: the
+    // flood above walks a body's square an eighth of a metre at a time and found its way up round the stair's edge,
+    // where a player walking up its middle stopped on its third tread, the deck's body 0.65 m over it, and had to hop
+    // on, at every end of every bridge (Milestone 594). Not along the decks: the ring's carry cover)
+    const ends = [[path[0], path[1]], [path.at(-1)!, path.at(-2)!]].filter(([e]) => !into(e));
+    const stepped = ends.flatMap(([e, n], w) => {
+      const foot = past(e, n, 1.5 + backAt(e));
+      const on = past(e, n, -2);
+      const up = along([[foot[0], foot[1], B.roof], [on[0], on[1], B.deck]]);
+      const down = along([[on[0], on[1], B.deck], [foot[0], foot[1], B.roof]]);
+      return [up, down].flatMap((r, k) => (r.k === 2 ? [] : [`${w ? "far" : "near"} ${k ? "down" : "up"} stopped at (${r.x.toFixed(1)}, ${r.y.toFixed(2)}, ${r.z.toFixed(1)})`]));
+    });
+    check(`High City's bridge ${name}: each stair walked up onto the deck and back down by a player's own movement`, stepped.length === 0, stepped.join("; ") || `${ends.length} stairs`);
     // its rails: a look from p toward d (along x or z) at the waist, a box standing across that height within `far`
     const width = 5;
     // (the cell at a window it runs into lies at the window's sill, the layout's, and its rails with it)
@@ -1703,7 +1724,9 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
         }
       }
     }
-    check(`High City's bridge ${name}: railed both sides all its way, and its corner's outer sides`, looks > 100 && open.length === 0, `${looks} looks, ${open.length} open${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
+    // (a look a metre each side all the way: the ring's paths make a hundred and more, GLASS HEIGHTS' 10 m one twenty)
+    const span = path.slice(1).reduce((t, q, k) => t + Math.hypot(q[0] - path[k][0], q[1] - path[k][1]), 0);
+    check(`High City's bridge ${name}: railed both sides all its way, and its corner's outer sides`, looks >= Math.min(100, 2 * Math.floor(span) - 4) && open.length === 0, `${looks} looks, ${open.length} open${open.length ? `: ${open.slice(0, 4).join("; ")}` : ""}`);
   }
 }
 
@@ -2745,7 +2768,11 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
   const blockedAt: string[] = [];
   const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
-  for (const ex of [-10, 0, 10])
+  // (from seven points along the ring road's north side, five or more with every line clear: the street cover keeps its
+  // 3 m boards off the road in front of a district's name, rules.dress.cover.nameView, as from right behind one no name
+  // over the plaza shows; a hover van parked at the kerb, 2.4 m high, still hides it from the point right behind it)
+  const viewsBlocked = new Set<number>();
+  for (const ex of [-15, -10, -5, 0, 5, 10, 15])
     for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
       const [a, b] = [[NM!.at[0] + ex, 1.7, -roadMid], [NM!.at[0] + t, NM!.at[1], NM!.at[2] + 0.3]];
       const L = Math.hypot(b[0] - a[0], b[1] - a[1], b[2] - a[2]);
@@ -2754,12 +2781,13 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
         const p = [a[0] + (b[0] - a[0]) * f, a[1] + (b[1] - a[1]) * f, a[2] + (b[2] - a[2]) * f];
         if (inBox(p[0], p[1], p[2])) {
           blockedAt.push(`from x ${ex} to ${t.toFixed(1)} at (${p.map((v) => v.toFixed(1)).join(", ")})`);
+          viewsBlocked.add(ex);
           break;
         }
       }
     }
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "stacks");
-  check("THE STACKS: its name in pink over 10's podium stair, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
+  check("THE STACKS: its name in pink over 10's podium stair, seen from five of seven points along the ring road and more", named && !!NM && viewsBlocked.size <= 2, `${7 - viewsBlocked.size} of 7 points clear${blockedAt.length ? `; ${blockedAt.slice(0, 3).join("; ")}` : ""}`);
   check("THE STACKS: street lamps along its inner edge, both arms", (SO?.lamps ?? 0) >= 6, `${SO?.lamps ?? 0} lamps`);
 }
 
@@ -2874,6 +2902,49 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const placed = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-stacks"]?.place ?? [];
   const count = (name?: string) => placed.filter((q) => name && String(q[0]).endsWith(`/${name}`)).length;
   check("THE CAPSULE HOTEL: pink strip lights under every gallery's ceiling and a light in each of its 21 pods", !!L && count(L.strip) >= 30 && count(L.pod) === 21, `${count(L?.strip)} strips, ${count(L?.pod)} pod lights`);
+}
+
+// GLASS HEIGHTS (rules.districts.glass, Milestone 594): its slabs and tower inside the north band; a player walks each
+// of its gangways (rules.bridges.paths that end in the band) from one deck's roof up its stair, over, and down onto the
+// next, the first from the North deck across the ring road; its name seen from the ring road
+{
+  const GO = (cfg as unknown as { glass?: { slabs: Array<{ piece: string; foot: number[]; top: number }> } }).glass;
+  const GR = (cfg.rules as unknown as { districts?: { glass?: { name: { at: number[]; w: number } } } }).districts?.glass;
+  const S = GO?.slabs ?? [];
+  const out = S.filter((s) => s.foot[0] < -30.01 || s.foot[1] > 30.01 || s.foot[2] < -152.01 || s.foot[3] > -107.49);
+  check("GLASS HEIGHTS: its four white slabs and its 72 m glass tower inside the north band", S.length === 5 && out.length === 0 && S.some((s) => s.top > 70), S.map((s) => `${s.piece.replace(".prefab", "")} x ${s.foot[0]} to ${s.foot[1]}, z ${s.foot[2]} to ${s.foot[3]}, ${s.top} m`).join("; "));
+  const BR = (cfg.rules as unknown as { bridges: { roof: number; deck: number; paths: number[][][] } }).bridges;
+  const mine = BR.paths.filter((p) => p.some((q) => q[1] < -105));
+  const shut: string[] = [];
+  for (const p of mine) {
+    const [a, b] = [p[0], p.at(-1)!];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    const u = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+    const at = (q: number[], t: number, y: number) => [q[0] + u[0] * t, q[1] + u[1] * t, y];
+    const route = [at(a, -2, BR.roof), at(a, 2.5, BR.deck), at(b, -2.5, BR.deck), at(b, 2, BR.roof)];
+    const w = along(route);
+    if (w.k !== route.length) shut.push(`(${a.join(", ")}) to (${b.join(", ")}): ${w.k - 1} of 3 legs, at (${w.x.toFixed(1)}, ${w.y.toFixed(2)}, ${w.z.toFixed(1)})`);
+  }
+  check("GLASS HEIGHTS: a player walks from the North deck over the ring road onto its front deck, and over each gangway onto each of its decks", mine.length === 4 && shut.length === 0, shut.join("; ") || `${mine.length} gangways`);
+  const NM = GR?.name;
+  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
+  const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
+  const blockedAt: string[] = [];
+  for (const ex of [-10, 0, 10])
+    for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
+      const [p0, p1] = [[NM!.at[0] + ex, 1.7, -roadMid], [NM!.at[0] + t, NM!.at[1], NM!.at[2] + 0.3]];
+      const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const q = [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, p0[2] + (p1[2] - p0[2]) * f];
+        if (inBox(q[0], q[1], q[2])) {
+          blockedAt.push(`from x ${ex} to ${t.toFixed(1)} at (${q.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "glass");
+  check("GLASS HEIGHTS: its name in cyan over the front deck's face, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
