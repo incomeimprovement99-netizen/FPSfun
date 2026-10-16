@@ -76,7 +76,7 @@
         "C"
       ],
       "round": "rocket",
-      "roundOut": 0.2
+      "roundOut": 0.42
     },
     "sentinel": {
       "model": "SciFiSniperRifle01_2",
@@ -189,6 +189,6 @@
     }
   },
   "_mount": "A sight from another model of the pack mounted on a gun that has none but irons (a gun's mount: the model it comes from, the part, and where along this gun its middle goes, the model's z). The pack has no sight attachments of its own: its only sights are built into the rifle, the steady SMG and the launcher, and the steady SMG's reflex sight is a part of its own, so the USSO (irons only) wears it: the owner, 2026-09-27, \"does the guns come with like red dot sights? we want to use those\". It sits into this gun's top as far as it sits into its own gun's (both measured off the models as they load, paidgun.ts mountSight), and the gun is aimed down its dot.",
-  "_round": "A gun whose reload loads a round its model has none of (HAEFY's rocket, rocket.ts): `round` names it, and it is the gun's magazine (paidgun.ts rocketMag), seated with its tip `roundOut` metres past the muzzle as a loaded RPG's warhead stands out of its tube, so its phase out and in on a reload is seen. Ours.",
+  "_round": "A gun whose reload loads a round its model has none of (HAEFY's rocket, rocket.ts): `round` names it, and it is the gun's magazine (paidgun.ts rocketMag), seated with its tip `roundOut` metres past the muzzle as a loaded RPG's warhead stands out of its tube, so its phase out and in on a reload is seen. Ours. HAEFY's 0.42 is measured (2026-10-15, in the model's own units, as roundOut is): the tube's front piece stands 0.30 past the muzzle point the model gives, so at the 0.2 it had, the tip of the 0.12 nose cone sat 0.10 back inside the tube (4 cm as drawn) and nothing of the rocket was seen from either view; at 0.42 the cone's base is at the tube's mouth and the cone stands out of it.",
   "_sightEye": "A gun's own sight aimed at its own distance from the eye, metres, where the shared one (sights ironsEye, dotEye) is wrong for it: a pistol is aimed at arm's length. APUHTHEE's dot at the scopes' 16 cm put the back of the gun 4.7 cm from the eye, 15.6% of the screen's width; Apex's Wingman aimed is about 6%, and at 29 cm APUHTHEE's is the same (measured off the gun's back face, 2026-10-13)."
 }

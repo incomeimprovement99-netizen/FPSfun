@@ -724,7 +724,13 @@ export class ViewModel {
       // one draw and not after another, the owner, 2026-09-29)
       m.root.position.set(0, 0, 0);
       m.root.quaternion.identity();
+      // (the gun without a round of its own standing out of it: HAEFY's rocket, its warhead out of the tube's mouth, moved
+      // the middle the swap cups the hands round 5 cm ahead, and the left thumb went 5 mm into the tube)
+      const round = m.mag?.userData.rocket ? m.mag : null;
+      const roundIn = round?.parent ?? null;
+      roundIn?.remove(round!);
       const box = new THREE.Box3().setFromObject(m.root);
+      roundIn?.add(round!);
       box.getCenter(this.gunCentre);
       this.gunRadius = Math.max(0.01, box.getSize(new THREE.Vector3()).length() / 2);
       this.pack.gunDelta.add(m.root);

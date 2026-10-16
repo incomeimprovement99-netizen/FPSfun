@@ -641,7 +641,9 @@ window.__sleeveInside = (W = 480) => {
 // How much of the gun's magazine the eye sees, pixels of a 480 wide picture: the magazine drawn in one colour, the rest of
 // the gun and the arms in front of it in others (the owner, 2026-10-13: "the reloads should be squeaky clean"; ANAKIN's
 // reload turned its magazine under the picture's bottom edge, the pointing hand after it, and nothing of the phase was
-// seen). The magazine is the gun's Clip parts, as paidgun.ts takes them.
+// seen). The magazine is the gun's Clip parts, as paidgun.ts takes them, and whatever the gun's `mag` group holds, the
+// round the reload phases out and in: HAEFY's is a rocket of unnamed parts, and counted by name alone it read 0 pixels
+// all through a reload where its rocket was in the picture.
 window.__magSeen = (W = 480) => {
   const r = window.__range;
   const T = r.THREE;
@@ -651,8 +653,10 @@ window.__magSeen = (W = 480) => {
   let scene = root;
   while (scene.parent) scene = scene.parent;
   let rig = null;
+  let magGroup = null;
   root.traverse((o) => {
     if (o.name === "pack-arms") rig = o;
+    if (!magGroup && o.name === "mag") magGroup = o;
   });
   const under = (o, a) => {
     for (let p = o; p; p = p.parent) if (p === a) return true;
@@ -667,7 +671,7 @@ window.__magSeen = (W = 480) => {
     if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.layers.test(cam.layers)) return;
     kept.push([o, o.material, o.visible]);
     if (rig && under(o, rig)) o.material = arm;
-    else if (under(o, root) && o.isMesh) o.material = /^Clip/.test(o.name) ? mag : gun;
+    else if (under(o, root) && o.isMesh) o.material = /^Clip/.test(o.name) || (magGroup && under(o, magGroup)) ? mag : gun;
     else o.visible = false;
   });
   const H = Math.round((W * innerHeight) / innerWidth);

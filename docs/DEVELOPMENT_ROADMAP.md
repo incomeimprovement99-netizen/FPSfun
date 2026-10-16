@@ -13735,3 +13735,23 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
   (`__magSeen` counts only parts named Clip), and ANAKIN's forefinger is still off its
   trigger. A hold with it on the trigger (1.3 mm) was tried in the same run: it showed 8 pixels of daylight at rest and
   6 mm of palm in the magazine pointing and with the new one in, so it waits.
+
+## Milestone 548 — HAEFY's rocket seen as it reloads
+
+- **The fault** (found by the reload check on all ten guns, Milestone 547): through HAEFY's whole reload not a pixel of
+  the rocket's phase was seen. From the first person the tube is seen from behind with its own sight in front of its
+  mouth, and the rocket (its magazine, paidgun.ts rocketMag) sat with its tip 4 cm back inside the tube: `roundOut` was
+  0.2 past the model's muzzle point, and the tube's front piece stands 0.30 past it (measured, in the model's units).
+  The left forefinger pointed at the sight.
+- **Now:** the rocket sits at 0.42, the base of its nose cone at the tube's mouth and the cone out of it, as a loaded
+  RPG's warhead stands, in the soldier's hands too. HAEFY has its own turn in the reload (packGuns RPG `twist`, picked
+  from a grid of yaw, pitch and roll): the tube's mouth comes into the picture left of the sight with the rocket phasing
+  in it, 248 pixels of a 480 wide picture halfway, the pointing wrist under 60 degrees. The pointing spot stays where it
+  was on the gun (`point` along 0.38, aimAt 0.8): carried out with the rocket the finger pointed 14 degrees off it.
+- **The rocket is not the gun:** the gun's middle (viewmodel.ts, the swap's cup and the turns about it) and the e2e's
+  muzzle are taken without it: with the warhead out, the swap's cup moved 5 cm ahead and the left thumb went 5 mm into
+  the tube, and the e2e's muzzle sat 1 to 2% of the picture off the tube's mouth.
+- **Tools:** `__magSeen` (tools/pack-audit.js) counts the gun's whole `mag` group, not only parts named Clip (HAEFY's
+  rocket has unnamed parts); tools/e2e.ts' fit leaves a round out of the gun's box. The scratch probe can draw in
+  software at the e2e's 800 by 450: a hand's daylight read 8 pixels there and 0 on the GPU, which is why ANAKIN's
+  trigger hold passed the probes and failed the e2e.

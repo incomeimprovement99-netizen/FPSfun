@@ -2734,8 +2734,8 @@
           0
         ],
         "reach": 0.24,
-        "aimAt": 0.68,
-        "along": 0.3,
+        "aimAt": 0.8,
+        "along": 0.38,
         "aim": [
           1,
           0.8,
@@ -2806,7 +2806,16 @@
         -0.12,
         0,
         0
-      ]
+      ],
+      "twist": {
+        "roll": -0.4,
+        "yaw": 0.6,
+        "pitch": -0.2,
+        "x": -0.02,
+        "y": 0.03,
+        "z": 0
+      },
+      "_twist": "HAEFY's own turn while the left hand points at the rocket (2026-10-15; fprig.ts twist): the rocket is its magazine, seated in the tube's front, and from the first person the tube is seen from behind, its front hidden behind its own sight, so through the whole reload not a pixel of the rocket's phase was seen (tools/pack-audit.js __magSeen, the e2e's reload check) and the finger pointed at the sight. Turned 0.6 radians more toward the left and its front 0.2 down, the tube's mouth comes into the picture left of the sight with the rocket phasing in it (248 pixels of a 480 wide picture halfway, against 40 at the shared turn), the pointing wrist 52 degrees and the right 25, picked from a grid of yaw, pitch and roll. Its pointing spot (`point` along 0.38, aimAt 0.8) stays where it was on the gun now the rocket sits 9 cm further out (paidweapons.json roundOut): left at 0.3 behind the rocket's middle the finger went with it and pointed 14 degrees off the rocket, and drawn back to 0.5 or 0.6 the hand came up big by the eye; at 0.38 it points 7 degrees off, the wrist 56."
     }
   },
   "guns": {
