@@ -162,8 +162,7 @@ describes the retired legacy game, and goes with its code.
   Wingman and aimed at arm's length (each bought gun can have its own aimed distance from the eye); HAEFY, the launcher, sits on the
   right shoulder, aimed through the sight beside its tube, the left hand on the grip under its front, and its reload
   phases a rocket into the tube, the warhead standing out of its mouth, the launcher turning so you see it come; and on every gun the right hand's lower three
-  fingers sit together round the grip with the forefinger's tip on the trigger (ANAKIN's, still being fitted, lies along
-  the gun's side); each left forearm comes in from the
+  fingers sit together round the grip with the forefinger's tip on the trigger; each left forearm comes in from the
   lower left, as Apex's do, and the inside of the arms' cut-off sleeve never shows (the e2e looks for it in every state,
   aimed too); and
   the wrists kept

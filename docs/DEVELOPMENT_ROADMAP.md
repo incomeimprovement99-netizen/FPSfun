@@ -13755,3 +13755,17 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
   rocket has unnamed parts); tools/e2e.ts' fit leaves a round out of the gun's box. The scratch probe can draw in
   software at the e2e's 800 by 450: a hand's daylight read 8 pixels there and 0 on the GPU, which is why ANAKIN's
   trigger hold passed the probes and failed the e2e.
+
+## Milestone 549 — ANAKIN's forefinger on its trigger: all ten guns
+
+- **ANAKIN** (fparms.json packGuns ASVal hold r): the right hand holds the grip higher, its forefinger's tip 2.6 mm from
+  the trigger at rest (it lay along the side of the gun, 41 mm off), so every gun now rests the forefinger on the
+  trigger and the e2e's trigger check passes on all ten.
+- **How:** the trigger search's hold (tools/pack-flush.ts TRIGGER=index_03) was clean in every state on the GPU but
+  failed the e2e: a 10 pixel pocket of daylight where the top of the hand met the gun at rest, and 6 mm of palm seen in
+  the magazine while the hand points and with the new one in (the palm sits 10 mm into the magazine the grip holds,
+  hidden behind the grip but at one edge). The e2e draws in software at 800 by 450, and the probes now can too (Milestone
+  548); each step round the search's hold was tried that way, at rest held still and at the reload's pointing and new
+  magazine, and at a swap's end where the hand settles back on the grip (the palm showed 5 mm there too): 1.5 mm lower,
+  turned 0.02 on two axes, 1 mm across and lower, 4 mm along, and the forefinger's middle joint turned to bring its tip
+  back on the trigger. Neither the pocket nor the palm is seen any more.

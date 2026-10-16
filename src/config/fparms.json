@@ -812,20 +812,20 @@
         },
         "r": {
           "shift": [
-            -0.0433,
-            -0.0646,
-            0.0159
+            -0.049,
+            -0.0675,
+            0.017
           ],
           "rot": [
-            0.206,
-            0.059,
-            -0.251
+            0.106,
+            0.0147,
+            -0.2992
           ],
           "joint": {
             "thumb_01": [
-              -0.212,
-              0.052,
-              -0.06
+              0.277,
+              0.0585,
+              -0.1665
             ],
             "thumb_02": [
               -0.018,
@@ -833,29 +833,59 @@
               0.017
             ],
             "ring_01": [
-              0.157,
-              -0.082,
-              0.213
+              0.3782,
+              -0.1115,
+              -0.087
             ],
             "pinky_01": [
-              -0.772,
-              0.698,
-              0.188
+              -0.9396,
+              0.8332,
+              0.1724
             ],
             "middle_01": [
-              -0.441,
-              0.149,
-              -0.157
+              -0.9406,
+              -0.3844,
+              0.073
             ],
             "index_01": [
-              -1.113,
-              -0.094,
-              -0.697
+              -0.1797,
+              -0.2678,
+              -0.4787
             ],
             "thumb_03": [
               -0.093,
               0.09,
               0.032
+            ],
+            "index_02": [
+              -0.8676,
+              0.068,
+              1.0193
+            ],
+            "index_03": [
+              0.7395,
+              0.2834,
+              -0.4562
+            ],
+            "middle_02": [
+              -0.059,
+              0.3724,
+              -0.018
+            ],
+            "ring_02": [
+              -0.1799,
+              -0.1499,
+              0.2673
+            ],
+            "pinky_02": [
+              0.0333,
+              0.2788,
+              0.1586
+            ],
+            "pinky_03": [
+              0.0219,
+              0.375,
+              -0.1667
             ]
           },
           "open": {}
@@ -1038,7 +1068,7 @@
           ]
         }
       },
-      "_holdR": "Its right elbow is held toward `holdElbow` r, where it sits at rest, the way the left one is (2026-10-13): bent the clip's way, the reload's turn of the gun bent the right wrist 75 to 80 degrees; now about 20. The right forefinger is still 41 mm off the trigger: the grip holds the magazine and is thick enough that every hand with its forefinger on the trigger showed daylight at rest or the palm through the magazine in an inspect or a swap (5 to 6 mm).",
+      "_holdR": "Its right elbow is held toward `holdElbow` r, where it sits at rest, the way the left one is (2026-10-13): bent the clip's way, the reload's turn of the gun bent the right wrist 75 to 80 degrees; now about 20. The right hand holds the grip higher, its forefinger on the trigger (2.6 mm from it at rest, Milestone 549; it had lain along the side of the gun, 41 mm off). Fitted in two stages: tools/pack-flush.ts TRIGGER=index_03 for the forefinger on the trigger, then a step at a time round that, each step tried drawn in software at 800 by 450 as the e2e draws (a hand clean on the GPU showed daylight there): shift 1.5 mm lower, rot z 0.02 more, shift 1 mm across and 1 mm lower, 4 mm along, rot y 0.02 more, and the forefinger's middle joint turned -0.08 and -0.08 about its x and z: no daylight at rest held still (a 10 pixel pocket where the hand's top met the gun), and no palm seen in the magazine pointing, with the new one in or as the hand settles back on the grip at a swap's end (5 to 6 mm, where the palm sits 10 mm into the magazine the grip holds, hidden behind the grip but at that one edge).",
       "twist": {
         "roll": 0.2,
         "yaw": 0.12,
