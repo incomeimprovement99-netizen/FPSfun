@@ -13769,3 +13769,34 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
   magazine, and at a swap's end where the hand settles back on the grip (the palm showed 5 mm there too): 1.5 mm lower,
   turned 0.02 on two axes, 1 mm across and lower, 4 mm along, and the forefinger's middle joint turned to bring its tip
   back on the trigger. Neither the pocket nor the palm is seen any more.
+
+## Milestone 597 — THE STRIP's club, stairs you walk straight up, and the gate's billboards lit
+
+The east district's second stage (`rules.districts.strip.club`, tools/neon-layout.ts), planned from a draft built in a
+test bake and photographed by day and night.
+
+- **The club:** a 21 m hall in the plaza south of the boulevard, mirroring the glowing pyramid across it. Four glowing
+  columns stand at its corners, each two of the pack's blocks high (14 m), plugged to their tops in the bake's typed
+  collision. The pack's glowing inverted pyramid is its roof, drawn only: its rim rests on the columns' tops and its
+  point hangs down to 7 m over the dance floor, open to the sky through its bottom. The pack's 7 m black metal walls
+  stand between the columns, with a 5 m gate onto the boulevard and one onto the ring road.
+- **The balcony** at 3.5 m runs round all four walls and wraps each column's inner corner, so you can walk right round.
+  The walls stand 0.32 m back from the columns' faces, which makes every cell exactly the pack's 2.5 m floor tile. Its
+  slab is typed collision with the tiles drawn over it. Its open edges are railed with the capsule hotel's fence, over
+  the gates too, and left open where a stair comes up.
+- **The stairs** are the pack's double-flight stairs, two of them, set on the west and east balconies' free edges.
+  Measured off the bake, each flight collides between stringers standing 0.15 to 0.4 m over its steps, which leaves a
+  lane about 1 m wide. A body is 0.81 m. A check walking the capsule hotel's line up the west stair stopped dead at its
+  foot, one centimetre into a stringer: this is the catch the owner felt going up stairs. Here the stair is drawn only
+  and collides as typed steps across each flight's whole width, ten treads a flight, with a flat landing and guards
+  along the flights' sides. It is checked up the middle of each flight and as near each side as a body fits.
+- **Inside:** a bar of the pack's counter pieces under the south balcony, and couches and tables in two corners.
+- **The gate's billboards lit.** Milestone 596's showed black screens whichever way they turned. The cause: that stand
+  (the pack's AD_Structure00) has screens that are plain metal in the pack itself, and the test bake had mixed it up
+  with a lit stand. They are now the pack's lit stand (AD_Structure02), facing down the boulevard, one with a different
+  ad. Its lit face was found by standing two of them back to back in a test bake.
+- **The name's check** now looks from the ring road's outer pavement across the boulevard's mouth. From 10 m off its
+  middle the club's corner column stands in the way, and from the road's middle a parked hover car does.
+- **Checked** (tools/checks/sk-neon.ts): the columns shut to 14 m and all 28 balcony cells in the collision; a player walks in through each gate onto the dance floor; sprints up each stair onto the balcony in three lanes across its flights (six walks to 3.5 m); walks the whole ring round its 12 legs; the balcony railed along 28 rails (128 points); THE STRIP's earlier checks all still pass. The stair check failed on the pack's own collision before the typed steps (the west stair's walk stopped at its foot); with the club's typed boxes taken out of the collision, the column, deck, stair, ring and rail checks all failed. The e2e: the SpeedKills section's first run broke off under load (the owner's game and recorder running: the BR's timed checks, the heal, the decay and the loot's return, saw no game time pass); rerun alone, 100 of 101, the one fail the feel section's outline check at a spot it picks at random (the bot stood where its crouched case wants it crouched, at map 105, 93), passed in Milestone 596's run. verify, rules and the type check. The look: the club from the ring road, its gate onto the boulevard, its floor, a stair, the balcony, the bar, looking up through the canopy, the gate's billboards lit, and from above, by golden hour and neon night.
+  The map: its files lo 140.7 MB, hi 212.6 MB, max 457.3 MB.
+  **Its files are version 76.**

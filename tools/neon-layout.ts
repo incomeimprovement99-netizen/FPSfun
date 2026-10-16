@@ -4384,8 +4384,14 @@ function onNode(o: OBox): boolean {
     chunk: string;
     tower: { piece: string; at: number[]; yaw: number };
     base: { piece: string; at: number[][] };
-    ads: { piece: string; at: number[][] };
+    ads: { piece: string; at: number[][]; mats?: string[] };
     pyramid: { piece: string; at: number[]; steps: number; rim: number; cap: string };
+    club?: {
+      at: number[]; span: number; storeys: number; canopy: string; inset: number; walls: Array<[string, number, number, number]>; gates: number[][];
+      balcony: { y: number; slab: number; cell: number; deck: string };
+      stairs: number[][]; bar: { piece: string; from: number[]; count: number; step: number; yaw: number }; seats: Array<[string, number, number, number]>;
+      steps: { up: number[]; down: number[]; landing: number[]; run: number; treads: number; rise: number; guard: number; thick: number; lanes: { up: number[]; down: number[] } };
+    };
     ground: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
   };
@@ -4412,7 +4418,7 @@ function onNode(o: OBox): boolean {
       solids.push(plug);
       base.push(plug);
     }
-    for (const [x, z, y, yaw] of DT.ads.at) placeTurned(DT.chunk, DT.ads.piece, x, z, yaw, "o", y - piece(DT.ads.piece).row.min![1]);
+    for (const [i, [x, z, y, yaw]] of DT.ads.at.entries()) placeTurned(DT.chunk, DT.ads.piece, x, z, yaw, "o", y - piece(DT.ads.piece).row.min![1], DT.ads.mats?.[i % DT.ads.mats.length]);
     // the pyramid: nested boxes from its foot to `rim` from its middle, each a step's rise over the one under it, their
     // edges half a step's run inside the face so a body stands about on it; the top one under the floor tile
     const PY = DT.pyramid;
@@ -4427,10 +4433,149 @@ function onNode(o: OBox): boolean {
     }
     placeTurned(DT.chunk, PY.cap, px, pz, 0, "g", pr.size![1] - piece(PY.cap).row.max![1]);
     const pyramid = { c: [px, pz], foot: footOf(pr, px, pz, 0), top: pr.size![1], steps: PY.steps };
-    // the ground's cover (`ground`), as GLASS HEIGHTS' rows: each laid unless within `keep` of the tower, a block or the
-    // pyramid, on a street node or cutting the bots' streets in two
+    // THE CLUB (`club`, Milestone 597): a square of glowing columns at its corners under the glowing inverted pyramid,
+    // black walls between them, a balcony round the inside. Laid before the ground's cover, so the cover keeps off it
+    const CL = DT.club;
+    let club: Record<string, unknown> | null = null;
+    if (CL) {
+      const [cx, cz] = CL.at;
+      const B = br.size![0];
+      const half = CL.span / 2 + B;
+      const [x0, z0] = [cx - half, cz - half];
+      const hall = [x0, cx + half, z0, cz + half].map((v) => +v.toFixed(2));
+      // the columns, plugged from the street to their tops as the base's blocks are
+      const columns: number[][] = [];
+      for (const sx of [-1, 1])
+        for (const sz of [-1, 1]) {
+          const [x, z] = [cx + sx * (CL.span / 2 + B / 2), cz + sz * (CL.span / 2 + B / 2)];
+          for (let s = 0; s < CL.storeys; s++) placeTurned(DT.chunk, DT.base.piece, x, z, 0, "o", s * br.size![1]);
+          const plug = [...footOf(br, x, z, 0), 0, +(CL.storeys * br.size![1]).toFixed(2)];
+          STREET_GRAPH?.add({ c: [x, z], u: [1, 0], v: [0, 1], hu: B / 2, hv: B / 2, top: plug[5] });
+          solids.push(plug);
+          columns.push(plug);
+        }
+      // the canopy, its rim on the columns' tops
+      const cr = piece(CL.canopy).row;
+      placeTurned(DT.chunk, CL.canopy, cx, cz, 0, "g", CL.storeys * br.size![1] - cr.size![1] - cr.min![1]);
+      for (const [name, x, z, yaw] of CL.walls) STREET_GRAPH?.add(placeTurned(DT.chunk, name, x, z, yaw, "o", -piece(name).row.min![1]));
+      // the balcony's cells, in the hall's own metres from its north-west corner (u east, v south): a strip along each
+      // wall between the columns, and three cells round each column's inner corner (from the wall's inner face to a
+      // column's inner face is two cells' worth, 5 m, by `inset`)
+      const BL = CL.balcony;
+      const [K, W, E] = [BL.cell, CL.inset, 2 * half - CL.inset];
+      const [cin, cout] = [B, 2 * half - B];
+      const cells: number[][] = [];
+      for (let u = cin; u < cout - 0.01; u += K) cells.push([u, u + K, W, W + K], [u, u + K, E - K, E]);
+      for (let v = cin; v < cout - 0.01; v += K) cells.push([W, W + K, v, v + K], [E - K, E, v, v + K]);
+      for (const [a, sa] of [[cin, 1], [cout, -1]])
+        for (const [b, sb] of [[cin, 1], [cout, -1]]) {
+          // (round the column whose inner corner is (a, b): along its face across u, the corner, along its face across v)
+          const box = (u0: number, u1: number, v0: number, v1: number) => [Math.min(u0, u1), Math.max(u0, u1), Math.min(v0, v1), Math.max(v0, v1)];
+          cells.push(box(a, a + sa * K, b - sb * K, b), box(a, a + sa * K, b, b + sb * K), box(a - sa * K, a, b, b + sb * K));
+        }
+      const world = (c: number[]) => [x0 + c[0], x0 + c[1], z0 + c[2], z0 + c[3]].map((v) => +v.toFixed(3));
+      const deck = cells.map(world);
+      const dk = piece(BL.deck).row;
+      for (const d of deck) {
+        solids.push([d[0], d[1], d[2], d[3], +(BL.y - BL.slab).toFixed(2), BL.y]);
+        placeTurned(DT.chunk, BL.deck, (d[0] + d[1]) / 2, (d[2] + d[3]) / 2, 0, "g", BL.y - dk.max![1]);
+      }
+      // the stairs, as the capsule hotel's (its piece, its measured arrival and route): each one's front on a strip's
+      // free edge, the rail left open over its arrival
+      const HS = (R.districts as { stacks: { hotel: { stairs: { piece: string; arrive: number[]; route: number[][] }; rail: { x5: string; x2: string; x1: string; inset: number } } } }).stacks.hotel;
+      const st = piece(HS.stairs.piece).row;
+      const [smx, smz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
+      const stairs: Array<{ at: number[]; route: number[][]; lanes: number[][][]; gap: number[][] }> = [];
+      const SS = CL.steps;
+      for (const [x, z, yaw] of CL.stairs) {
+        const box = placeTurned(DT.chunk, HS.stairs.piece, x, z, yaw, "g");
+        STREET_GRAPH?.add(box);
+        const own = (ox: number, oz: number): Pt => [x + box.u[0] * (ox - smx) + box.v[0] * (oz - smz), z + box.u[1] * (ox - smx) + box.v[1] * (oz - smz)];
+        // (a box in the stair's own frame to the map's, solid from the street to `top`)
+        const solid = (ox0: number, ox1: number, oz0: number, oz1: number, top: number) => {
+          const [a, b] = [own(ox0, oz0), own(ox1, oz1)];
+          solids.push([Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[1], b[1]), 0, top].map((v) => +v.toFixed(3)));
+        };
+        const flight = SS.rise / 2;
+        const tread = SS.run / SS.treads;
+        const upAt = (k: number) => (flight * (k + 1)) / SS.treads;
+        const downAt = (k: number) => flight + (flight * (k + 1)) / SS.treads;
+        for (let k = 0; k < SS.treads; k++) {
+          // (the up flight from the front back, the return from the back to the front: tread k of the up flight lies
+          // beside tread treads-1-k of the return)
+          const [f0, f1] = [-tread * (k + 1), -tread * k];
+          const back = SS.treads - 1 - k;
+          solid(SS.up[0], SS.up[1], f0, f1, upAt(k));
+          solid(SS.down[0], SS.down[1], f0, f1, downAt(back));
+          solid(SS.up[1], SS.up[1] + SS.thick, f0, f1, upAt(k) + SS.guard);
+          solid(SS.down[0] - SS.thick, SS.down[0], f0, f1, downAt(back) + SS.guard);
+          solid(SS.down[1], SS.up[0], f0, f1, Math.max(upAt(k), downAt(back)) + SS.guard);
+        }
+        solid(SS.landing[0], SS.landing[1], SS.landing[2], SS.landing[3], flight);
+        const [p, q] = [own(HS.stairs.arrive[0] - 0.4, st.max![2]), own(HS.stairs.arrive[1] + 0.4, st.max![2])];
+        // (the hotel's route, its flights walked at the lanes' own x)
+        const route = (lu: number, ld: number) =>
+          HS.stairs.route.map(([ox, oz, oy], i) => [...own(i < 3 ? lu : i > 3 ? ld : ox, oz).map((v) => +v.toFixed(2)), +oy.toFixed(2)]);
+        stairs.push({ at: [x, z], route: route(SS.lanes.up[1], SS.lanes.down[1]), lanes: SS.lanes.up.map((lu, i) => route(lu, SS.lanes.down[i])), gap: [p, q].map((r) => r.map((v) => +v.toFixed(2))) });
+      }
+      // the rails along the deck's open edges: every cell edge with no deck past it and no wall or column behind it, run
+      // into lines and laid in the hotel's fence lengths, `inset` onto the deck, open where a stair arrives
+      const RL = HS.rail;
+      // (a wall or a column behind the edge, but not a gate: over a gate the deck's outer edge drops to the street)
+      const gateAt = (u: number, v: number) => CL.gates.some((g) => x0 + u > g[0] - 0.2 && x0 + u < g[1] + 0.2 && z0 + v > g[2] - 0.2 && z0 + v < g[3] + 0.2);
+      const solidAt = (u: number, v: number) => !gateAt(u, v) && (u < W || u > E || v < W || v > E || ((u < cin || u > cout) && (v < cin || v > cout)));
+      const deckAt = (u: number, v: number) => cells.some((c) => u > c[0] && u < c[1] && v > c[2] && v < c[3]);
+      const edges: Array<{ a: Pt; b: Pt; inward: Pt }> = [];
+      for (const c of cells)
+        for (const [a, b, out] of [[[c[0], c[2]], [c[1], c[2]], [0, -1]], [[c[0], c[3]], [c[1], c[3]], [0, 1]], [[c[0], c[2]], [c[0], c[3]], [-1, 0]], [[c[1], c[2]], [c[1], c[3]], [1, 0]]] as Array<[Pt, Pt, Pt]>) {
+          const m: Pt = [(a[0] + b[0]) / 2 + out[0] * 0.1, (a[1] + b[1]) / 2 + out[1] * 0.1];
+          if (deckAt(m[0], m[1]) || solidAt(m[0], m[1])) continue;
+          edges.push({ a, b, inward: [-out[0], -out[1]] });
+        }
+      const lens = [RL.x5, RL.x2, RL.x1].map((n) => [n, piece(n).row.max![0]] as [string, number]);
+      const gaps = stairs.map((s) => s.gap);
+      const open = (p: Pt) => gaps.some(([g0, g1]) => Math.hypot(p[0] - (g0[0] + g1[0]) / 2, p[1] - (g0[1] + g1[1]) / 2) < Math.hypot(g1[0] - g0[0], g1[1] - g0[1]) / 2);
+      let rails = 0;
+      const railLines: number[][] = [];
+      for (const { a, b, inward } of edges) {
+        // (each cell edge is one cell long: a 2.5 m fence, or shorter pieces round a stair's arrival)
+        const [A, Bp]: Pt[] = [[x0 + a[0] + inward[0] * RL.inset, z0 + a[1] + inward[1] * RL.inset], [x0 + b[0] + inward[0] * RL.inset, z0 + b[1] + inward[1] * RL.inset]];
+        const L = Math.hypot(Bp[0] - A[0], Bp[1] - A[1]);
+        const d: Pt = [(Bp[0] - A[0]) / L, (Bp[1] - A[1]) / L];
+        const yaw = +((Math.atan2(-d[1], d[0]) * 180) / Math.PI).toFixed(2);
+        let t = 0;
+        while (t < L - 0.3) {
+          const fit = lens.find(([, l]) => l <= L - t + 0.05 && ![0, 0.5, 1].some((f) => open([A[0] + d[0] * (t + l * f), A[1] + d[1] * (t + l * f)])));
+          if (!fit) {
+            t += 0.5;
+            continue;
+          }
+          add(DT.chunk, "c", [piece(fit[0]).key, +(A[0] + d[0] * t).toFixed(3), BL.y, +(A[1] + d[1] * t).toFixed(3), yaw, "o"] as Place);
+          railLines.push([+(A[0] + d[0] * t).toFixed(2), +(A[1] + d[1] * t).toFixed(2), +(A[0] + d[0] * (t + fit[1])).toFixed(2), +(A[1] + d[1] * (t + fit[1])).toFixed(2), inward[0], inward[1]]);
+          t += fit[1];
+          rails++;
+        }
+      }
+      // the bar under the south balcony's edge, and the seats
+      const BR2 = CL.bar;
+      for (let k = 0; k < BR2.count; k++) placeTurned(DT.chunk, BR2.piece, BR2.from[0] + k * BR2.step, BR2.from[1], BR2.yaw, "o");
+      const bw = (BR2.count - 1) * BR2.step + piece(BR2.piece).row.size![0];
+      STREET_GRAPH?.add({ c: [BR2.from[0] + ((BR2.count - 1) * BR2.step) / 2, BR2.from[1]], u: [1, 0], v: [0, 1], hu: bw / 2, hv: piece(BR2.piece).row.size![2] / 2, top: piece(BR2.piece).row.size![1] });
+      for (const [name, x, z, yaw] of CL.seats) STREET_GRAPH?.add(placeTurned(DT.chunk, name, x, z, yaw, "o", -piece(name).row.min![1]));
+      // (the ring a body walks round the balcony: along each strip's middle line to the corner cells' middles and round,
+      // square to the columns, never across a column's inner corner)
+      const mid = K / 2;
+      const [lo, hi, ow, oe] = [cin + mid, cout - mid, W + mid, E - mid];
+      const ring: number[][] = [];
+      for (const [u, v] of [[lo, ow], [hi, ow], [hi, lo], [oe, lo], [oe, hi], [hi, hi], [hi, oe], [lo, oe], [lo, hi], [ow, hi], [ow, lo], [lo, lo]] as Pt[])
+        ring.push([+(x0 + u).toFixed(2), +(z0 + v).toFixed(2), BL.y]);
+      ring.push(ring[0]);
+      club = { at: CL.at, hall, columns, deck, stairs, rails, railLines, ring, gates: CL.gates, y: BL.y };
+    }
+    // the ground's cover (`ground`), as GLASS HEIGHTS' rows: each laid unless within `keep` of the tower, a block, the
+    // pyramid or the club, on a street node or cutting the bots' streets in two
     const GT = DT.ground;
-    const feet = [tower.foot, ...base, pyramid.foot];
+    const feet = [tower.foot, ...base, pyramid.foot, ...(club ? [club.hall as number[]] : [])];
     const near = (o: OBox) => {
       const [ex, ez] = [Math.abs(o.u[0]) * o.hu + Math.abs(o.v[0]) * o.hv, Math.abs(o.u[1]) * o.hu + Math.abs(o.v[1]) * o.hv];
       return feet.some((f) => o.c[0] + ex > f[0] - GT.keep && o.c[0] - ex < f[1] + GT.keep && o.c[1] + ez > f[2] - GT.keep && o.c[1] - ez < f[3] + GT.keep);
@@ -4466,7 +4611,8 @@ function onNode(o: OBox): boolean {
       }
     for (const [x, z, yaw] of GT.lamps.at) placeTurned(DT.chunk, GT.lamps.piece, x, z, yaw, "o");
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "strip"), { district: "strip", ...DT.name }];
-    cfg.strip = { tower, base, pyramid, cover, lamps: GT.lamps.at.length, solids };
+    cfg.strip = { tower, base, pyramid, ...(club ? { club } : {}), cover, lamps: GT.lamps.at.length, solids };
+    if (club) console.log(`THE STRIP's club: ${(club.deck as unknown[]).length} balcony cells, ${club.rails} rails, ${(club.stairs as unknown[]).length} stairs`);
     console.log(`THE STRIP: ${tower.piece.replace(".prefab", "")} to ${tower.top} m over x ${tower.foot[0]} to ${tower.foot[1]}; ${base.length} glowing blocks, the pyramid in ${PY.steps} steps; ${cover} pieces of cover of ${GT.rows.reduce((n, r) => n + r.at.length, 0)} spots, ${GT.lamps.at.length} lamps`);
   }
 }

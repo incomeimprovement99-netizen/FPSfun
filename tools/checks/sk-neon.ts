@@ -3084,12 +3084,15 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   }
   check("THE STRIP: a player walks up the glowing pyramid from each side onto its top, 7 m up", climbed === 4, climbs.join("; "));
   const NM = SR?.name;
-  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
   const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
   const blockedAt: string[] = [];
-  for (const ez of [-10, 0, 10])
+  // (from the ring road's outer pavement across the boulevard's mouth, 5 m either side of its middle: from 10 m off it
+  // the club's corner column stands between, as a building does at any street's corner, and from the road's middle a
+  // parked hover car stands at eye height)
+  const pave = (cfg.rules as unknown as { ring: number[] }).ring[1] + (cfg.rules as unknown as { streets: { curves: { pave: number } } }).streets.curves.pave / 2;
+  for (const ez of [-5, 0, 5])
     for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
-      const [p0, p1] = [[roadMid, 1.7, NM!.at[2] + ez], [NM!.at[0] - 0.3, NM!.at[1], NM!.at[2] + t]];
+      const [p0, p1] = [[pave, 1.7, NM!.at[2] + ez], [NM!.at[0] - 0.3, NM!.at[1], NM!.at[2] + t]];
       const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
       for (let k = 0; k < L; k += 0.25) {
         const f = k / L;
@@ -3146,6 +3149,53 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   check("THE STRIP: something to crouch behind within 6 m over its ground (at most 1% of it farther, none past 8 m)", n > 1500 && (far / n) * 100 <= 1 && farthest <= 8, `${((far / n) * 100).toFixed(1)}% of ${n} points over 6 m; the farthest ${farthest.toFixed(1)} m at (${at[0].toFixed(1)}, ${at[1].toFixed(1)}); ${SO?.cover ?? 0} pieces of cover`);
   check("THE STRIP: street lamps along the ring road", (SO?.lamps ?? 0) >= 3, `${SO?.lamps ?? 0} lamps`);
+}
+
+// THE STRIP's club (rules.districts.strip.club, Milestone 597): its four columns shut to their tops and its balcony's
+// deck in the collision; a player walks in through each gate onto the dance floor, sprints up each stair onto the
+// balcony up its middle and near each side, walks the whole ring, and every rail stands in the collision (walked into,
+// a rail is mantled over, as every rail in the game is)
+{
+  type Club = { hall: number[]; columns: number[][]; deck: number[][]; stairs: Array<{ route: number[][]; lanes: number[][][] }>; rails: number; railLines: number[][]; ring: number[][]; gates: number[][]; y: number; at: number[] };
+  const CO = (cfg as unknown as { strip?: { club?: Club } }).strip?.club;
+  const S = SOLIDS.solids as number[][];
+  const has = (x: number, z: number, base: number, top: number) => S.some((q) => q[0] <= x && q[1] >= x && q[2] <= z && q[3] >= z && q[4] <= base + 0.05 && q[5] >= top - 0.05);
+  const openCols = (CO?.columns ?? []).filter((b) => !has((b[0] + b[1]) / 2, (b[2] + b[3]) / 2, 0, b[5]));
+  const openDeck = (CO?.deck ?? []).filter((d) => !has((d[0] + d[1]) / 2, (d[2] + d[3]) / 2, (CO?.y ?? 0) - 0.1, CO?.y ?? 0));
+  check("THE STRIP's club: four glowing columns shut to 14 m at its corners, every cell of its balcony's deck in the collision", !!CO && CO.columns.length === 4 && openCols.length === 0 && CO.deck.length >= 20 && openDeck.length === 0, `${CO?.columns.length ?? 0} columns, ${openCols.length} open; ${CO?.deck.length ?? 0} deck cells, ${openDeck.length} missing`);
+  const walks: string[] = [];
+  let walked = 0;
+  for (const g of CO?.gates ?? []) {
+    // (from 3.5 m outside the gate's middle, through it, 1.8 m in under the balcony, then to the dance floor's middle)
+    const [gx, gz] = [(g[0] + g[1]) / 2, (g[2] + g[3]) / 2];
+    const acrossX = g[1] - g[0] < g[3] - g[2];
+    const sgn = acrossX ? Math.sign(CO!.at[0] - gx) : Math.sign(CO!.at[1] - gz);
+    const out = acrossX ? [gx - sgn * 3.5, gz, 0] : [gx, gz - sgn * 3.5, 0];
+    const inn = acrossX ? [gx + sgn * 1.8, gz - 1.1, 0] : [gx, gz + sgn * 2.8, 0];
+    const route = [out, [gx, gz, 0], inn, [CO!.at[0], CO!.at[1] - 4, 0], [CO!.at[0], CO!.at[1], 0]];
+    const w = along(route);
+    if (w.k === route.length) walked++;
+    walks.push(`the gate at (${gx.toFixed(1)}, ${gz.toFixed(1)}): ${w.k - 1} of ${route.length - 1} legs, at (${w.x.toFixed(1)}, ${w.z.toFixed(1)})`);
+  }
+  check("THE STRIP's club: a player walks in through each of its two gates onto the dance floor", !!CO && CO.gates.length === 2 && walked === 2, walks.join("; "));
+  const ups = (CO?.stairs ?? []).flatMap((s, i) => s.lanes.map((r, j) => ({ i, j, r, w: along(r) })));
+  const stuck = ups.filter((u) => u.w.k !== u.r.length || Math.abs(u.w.y - CO!.y) > 0.15);
+  check("THE STRIP's club: a player sprints up each of its two stairs onto the balcony, up the middle of its flights and near each side", !!CO && ups.length === 6 && stuck.length === 0, stuck.map((u) => `stair ${u.i + 1} lane ${u.j + 1}: ${u.w.k - 1} of ${u.r.length - 1} legs, at (${u.w.x.toFixed(1)}, ${u.w.z.toFixed(1)}) ${u.w.y.toFixed(2)} m`).join("; ") || `${ups.length} walks to ${CO?.y} m`);
+  const ring = CO ? along(CO.ring) : null;
+  check("THE STRIP's club: a player walks the whole balcony round, past every column", !!ring && ring.k === CO!.ring.length && Math.abs(ring.y - CO!.y) < 0.15, ring ? `${ring.k - 1} of ${CO!.ring.length - 1} legs, at (${ring.x.toFixed(1)}, ${ring.z.toFixed(1)}) ${ring.y.toFixed(2)} m` : "no club");
+  // (along every rail, a point every half metre a fence's inset onto the deck: a box from the deck to past a body's
+  // waist, as THE CAPSULE HOTEL's rails are checked)
+  const unfenced: string[] = [];
+  let railPoints = 0;
+  for (const [x0, z0, x1, z1] of CO?.railLines ?? []) {
+    const L = Math.hypot(x1 - x0, z1 - z0);
+    for (let t = 0.25; t < L - 0.2; t += 0.5) {
+      const [x, z] = [x0 + ((x1 - x0) * t) / L, z0 + ((z1 - z0) * t) / L];
+      railPoints++;
+      if (!S.some((q) => q[0] <= x + 0.05 && q[1] >= x - 0.05 && q[2] <= z + 0.05 && q[3] >= z - 0.05 && q[4] <= CO!.y + 0.3 && q[5] >= CO!.y + 0.9)) unfenced.push(`(${x.toFixed(1)}, ${z.toFixed(1)})`);
+    }
+  }
+  check("THE STRIP's club: its balcony railed along every open edge, over its gates too, but where a stair comes off", !!CO && CO.railLines.length >= 20 && railPoints > 80 && unfenced.length === 0, unfenced.slice(0, 4).join("; ") || `${railPoints} points along ${CO?.railLines.length ?? 0} rails`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
