@@ -1656,12 +1656,16 @@ export class ViewModel {
     // outgoing one over the swap's first half, the incoming one over its second (the model changes at the middle),
     // and out and in again over a holster and a draw. Only a little of the drop is kept, so the phase is seen
     let phase = 1;
+    // (whether the swap alone has the gun gone: a holster or a fall takes the bought arms away with it)
+    let swapOnly = false;
     // a swap in place, in the bought arms' hands (fparms.json swap style "cup"): the gun stays where it is and phases out
     // from its edges in and the next in from its middle out, while the hands cup round it
     const cupped = packOn && SWAP_THROW.style === "cup";
     if (F) {
       const swapPh = f.raise >= 1 ? 1 : f.raise < 0.5 ? 1 - smooth(F.swap.out[0], F.swap.out[1], f.raise) : smooth(F.swap.in[0], F.swap.in[1], f.raise);
-      phase = Math.min(swapPh, 1 - smooth(F.holster.out[0], F.holster.out[1], f.lowered));
+      const holsterPh = 1 - smooth(F.holster.out[0], F.holster.out[1], f.lowered);
+      phase = Math.min(swapPh, holsterPh);
+      swapOnly = holsterPh > 0.999;
       this.swapPhase = phase;
       // coming whole it rises into the hands and unrolls (not in place: the owner, "without the weapon moving much")
       if (!cupped) {
@@ -1945,8 +1949,10 @@ export class ViewModel {
       this.real.group.visible = false;
       this.placePalmCard(f);
       // (and hidden with the gun when a scope's picture is up: the gun went and the arms stayed, a hand in the air
-      // under BOOG's scope)
-      if (!this.holder.visible) this.pack.group.visible = false;
+      // under BOOG's scope; not in a swap in place, where the hands stay cupped while one gun has phased out and the
+      // next not yet in: hidden with it, both arms vanished for the swap's middle 6%, the owner's own rule for the cup
+      // being "keep the hands where they are while the weapon phases", 2026-09-30)
+      if (!this.holder.visible && (scoped || !(cupped && swapOnly))) this.pack.group.visible = false;
     } else if (this.packFree && this.fists.visible) {
       this.pack.free(this.freeHands);
       this.real.group.visible = false;

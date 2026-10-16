@@ -191,7 +191,7 @@ describes the retired legacy game, and goes with its code.
   happens in place: the gun breaks up from its edges inward while both hands ease
   a little off it and cup round it, fingers bent, as a Hadouken is held, and the
   next builds out from its middle as the hands settle onto its own grip and
-  handguard (settings bring back the thrown swap, or the pack's own, the gun swung
+  handguard (in the moment between the two guns the hands hold where they are) (settings bring back the thrown swap, or the pack's own, the gun swung
   down to the chest in both hands). Jumping plays
   the pack's take-off and landing, and taking loot off the ground its pickup. Every other bought gun's support hand holds it where the bought model is
   held (measured), under the gun, and rolls round it until its wrist is nearly

@@ -13715,3 +13715,23 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
 - **Tools:** pack-flush.ts takes EXTRA (page code added to each try's score: REZ's aimed forearm and wrist).
 - **Checked:** verify, rules and the type check; ANAKIN's and REZ's pack frames 38 of 39 together, the one miss ANAKIN's
   forefinger as above; the reload check (the magazine and the pointing fingertip in the picture) passes on both.
+
+## Milestone 547 — Both hands through the swap's middle
+
+- **The swap in place** (fparms.json swap style `cup`): the bought arms were hidden with the gun whenever the gun was
+  wholly phased out, and in a swap it is wholly out at its middle (from 47% to 53%, gunfeel.json swap out and in), so
+  both arms blinked out of the picture for a moment between the two guns, against the cup's own rule (the owner,
+  2026-09-30: "keep the hands where they are while the weapon phases"). They stay now, cupped where they were
+  (viewmodel.ts): hidden with the gun only under a scope's picture, as before, or where a holster or a fall has the gun
+  gone.
+- **Check** (skpack): in a swap in place both arms are in the picture in all 24 of its frames. Proven by putting the old
+  hiding back: 2 of the 24 frames without the arms, on the USSO and on BOOG.
+- **The ten guns' evidence page** (Ten Guns in Hand): every gun at rest, halfway into its aim, aimed, through its reload
+  (CHOOCH's vent) and through a swap, each frame measured for skin in the gun, daylight through a hand, the inside of a
+  sleeve, the wrists and the right forefinger on the trigger.
+- **Checked:** verify, rules and the type check; the bought arms' frames on all ten guns, where the new check passes on
+  every one (no frame of a swap without the arms). The same run found three checks failing that this change does not
+  touch, each next: STRYDER's left hand shows 13 pixels of daylight at rest, HAEFY's reload reads no magazine seen
+  (`__magSeen` counts only parts named Clip), and ANAKIN's forefinger is still off its
+  trigger. A hold with it on the trigger (1.3 mm) was tried in the same run: it showed 8 pixels of daylight at rest and
+  6 mm of palm in the magazine pointing and with the new one in, so it waits.

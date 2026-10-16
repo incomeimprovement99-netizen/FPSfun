@@ -1821,7 +1821,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; pointR: number; swap: number }; pointHand: number; trigTip: number; reloadSeen: { mag: number[]; tip: number[] }; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; off: number; face: number; curl: number; radial: number }; aimReach: number; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; pointR: number; swap: number }; pointHand: number; trigTip: number; reloadSeen: { mag: number[]; tip: number[] }; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; gone: number; off: number; face: number; curl: number; radial: number }; aimReach: number; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
 /** an overheat's vent (CHOOCH's): its turn's weight mid-vent and at its ends, which clip leads mid-vent, the deepest seen
  * skin in the gun through it, mm, and the worst wrist, degrees */
 type Vent = { mid: number; ends: number; lead: string; deep: number; wrist: number };
@@ -2096,12 +2096,15 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // far they are off their holds, how far each palm is turned from the gun's middle, the fingers' bend, the phase's shape
     // (a page call a step, as the moves above: in one call the sweep took up to 85 s)
     await pf(`r.packRig().debugStill = true; const root = r.viewModelRoot(); const T = r.THREE; let gun = null; root.traverse((o) => { if (o.userData && o.userData.paid && !gun) gun = o; }); H.gunAt = () => root.worldToLocal(new T.Box3().setFromObject(gun).getCenter(new T.Vector3())); H.clear(); await H.gameWait(0.2); H.gunAt0 = H.gunAt();`);
-    const sw = { moved: 0, deep: 0, short: 0 };
+    // (and how many of its frames have the arms gone from the picture: hidden with the gun, they went for the swap's middle,
+    // where one gun has phased out and the next not yet in)
+    const sw = { moved: 0, deep: 0, short: 0, gone: 0 };
     for (let u = 0.04; u < 0.97; u += 0.04) {
-      const m = await pf<typeof sw>(`r.debugView.raise = ${u}; await H.gameWait(0.1); const a = window.__packAudit(0.004); const s = r.packArms(); return { moved: H.gunAt().distanceTo(H.gunAt0), deep: a ? a.seenDeepest * 1000 : 0, short: Math.max(s.reachShort, s.reachShortR) };`);
-      for (const k of Object.keys(sw) as Array<keyof typeof sw>) sw[k] = Math.max(sw[k], m[k]);
+      const m = await pf<typeof sw>(`r.debugView.raise = ${u}; await H.gameWait(0.1); const a = window.__packAudit(0.004); const s = r.packArms(); return { moved: H.gunAt().distanceTo(H.gunAt0), deep: a ? a.seenDeepest * 1000 : 0, short: Math.max(s.reachShort, s.reachShortR), gone: r.packRig().group.visible ? 0 : 1 };`);
+      for (const k of ["moved", "deep", "short"] as const) sw[k] = Math.max(sw[k], m[k]);
+      sw.gone += m.gone;
     }
-    const swap = { ...sw, ...(await pf<Omit<Frames["swap"], "moved" | "deep" | "short">>(`r.debugView.raise = 0.4; await H.gameWait(0.6); const c = r.packArms(); const radial = r.gunFeel().radial; r.packRig().debugStill = false; H.clear(); await H.gameWait(0.3); return { off: c.cupOff, face: c.cupFace, curl: Math.min(c.curlL, c.curlR), radial };`)) };
+    const swap = { ...sw, ...(await pf<Omit<Frames["swap"], "moved" | "deep" | "short" | "gone">>(`r.debugView.raise = 0.4; await H.gameWait(0.6); const c = r.packArms(); const radial = r.gunFeel().radial; r.packRig().debugStill = false; H.clear(); await H.gameWait(0.3); return { off: c.cupOff, face: c.cupFace, curl: Math.min(c.curlL, c.curlR), radial };`)) };
     o.swap = swap;
     const pick = await pf<string[]>(`r.packPickupAt(0.4); await H.gameWait(0.2); const a = r.packArms().lead; r.packPickupAt(null); await H.gameWait(0.3); const b = r.packArms().lead; r.debugView.inspect = null; return [a, b];`);
     o.pickLead = pick[0];
@@ -2625,6 +2628,14 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     g.every((x) => x.swap.moved < 0.01 && x.swap.radial === 1 && x.swap.off > 0.01 && x.swap.off < 0.05 && x.swap.face < 50 && x.swap.curl >= 45 && x.swap.deep <= 4 && x.swap.short < 0.01),
     // (a measure that is no number comes out of the page as null, and is shown as that: a NaN finger had crashed the report)
     show((x) => { const k = (v: number | null, f: number, d: number) => (typeof v === "number" ? +(v * f).toFixed(d) : v); return { moved: k(x.swap.moved, 100, 1), radial: x.swap.radial, off: k(x.swap.off, 100, 1), face: k(x.swap.face, 1, 0), curl: k(x.swap.curl, 1, 0), deep: k(x.swap.deep, 1, 1), short: k(x.swap.short, 100, 1) }; }),
+  );
+  check(
+    // (the owner, 2026-09-30, of the swap in place: "keep the hands where they are while the weapon phases"; hidden with the
+    // gun, both arms went from the picture for the middle 6% of every swap, where one gun has phased out and the next not yet
+    // in, Milestone 547)
+    "pack frames: in a swap in place both arms stay in the picture all through it (24 frames), its middle too, where one gun has phased out and the next is not yet in",
+    g.every((x) => x.swap.gone === 0),
+    show((x) => x.swap.gone),
   );
   check("pack frames: taking something off the ground plays the pack's pickup, and the hold comes back after", g.every((x) => x.pickLead === "pickup" && x.pickAfter === "pose"), show((x) => [x.pickLead, x.pickAfter]));
   check(
