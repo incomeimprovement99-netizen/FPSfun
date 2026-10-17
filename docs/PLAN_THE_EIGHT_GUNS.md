@@ -23,13 +23,13 @@ named beside it.
 
 | Question | Decided |
 |---|---|
-| Repeats where only the skin changes (PANDA and STRYDER on one rifle, HAEFY and BOOG on one sniper) | **None.** Ten guns, every name kept: STRYDER becomes a fast pistol on the unused Pistol01, HAEFY a launcher on the unused RocketLauncher01. No marksman ("idc about a marksman"); no fast rifle. |
+| Repeats where only the skin changes (PANDA and STRYDER on one rifle, DEVINOS and BOOG on one sniper) | **None.** Ten guns, every name kept: STRYDER becomes a fast pistol on the unused Pistol01, DEVINOS a launcher on the unused RocketLauncher01. No marksman ("idc about a marksman"); no fast rifle. |
 | CHOOCH's overheat | **A vent, seen by other players too** (a new act code). |
 | BIGANTLER's reload as others see it | **A fixed number of shells** every reload, so nothing new goes over the network. |
 
 Defaults written in, for the owner's final approval to confirm or change: the two pistols held in **both hands** in
 both views; REZ on the pack's **Drake-12** (a magazine shotgun, closer than the G3); PANDA's class label **Rifle**, now
-it is the only one; STRYDER's and HAEFY's numbers proposed when their turn comes (section 5).
+it is the only one; STRYDER's and DEVINOS's numbers proposed when their turn comes (section 5).
 
 ## 1. Where we stand
 
@@ -83,7 +83,7 @@ Hyper Scape's guns are its Season 1 list (`RESEARCH_PHASE_12.md` 5.4); the Apex 
 | CHOOCH | Energy LMG | L-STAR (lstar) | Hexfire | GrenadeLauncher01 | MGX5, the hold only |
 | APUHTHEE | Heavy Pistol | Wingman (wingman) | Riot One | Pistol02 | DGL50 (or Viper-357) |
 | **STRYDER** | **Fast Pistol** (was the Fast Rifle) | RE-45 Auto (autopistol, in our data) | D-Tap | **Pistol01** | X18 (an automatic; or M1911, Kolibri) |
-| **HAEFY** | **Launcher** (was the Marksman) | none: Apex has no rocket launcher; a new gun | Skybreaker | **RocketLauncher01** | RPG |
+| **DEVINOS** | **Launcher** (was the Marksman) | none: Apex has no rocket launcher; a new gun | Skybreaker | **RocketLauncher01** | RPG |
 
 The families now: two SMGs (fast, steady), two shotguns (auto, heavy), two pistols (fast, heavy), and one each of the
 rifle, the sniper, the LMG and the launcher.
@@ -100,7 +100,7 @@ off each .glb:
 | CHOOCH | 24 shots of heat | never reloads: cools when it overheats | auto, 600 | Drum (turns a chamber a shot), sights |
 | APUHTHEE | 6 | 2.10 / 2.10 s | semi, 168 | Clip, Slide |
 | STRYDER | from the RE-45's data, to be tuned (section 5.6) | | automatic | Pistol01's parts, read at its turn |
-| HAEFY | a new launcher's, to be set (section 5.7) | | a rocket a shot | RocketLauncher01's parts, read at its turn |
+| DEVINOS | a new launcher's, to be set (section 5.7) | | a rocket a shot | RocketLauncher01's parts, read at its turn |
 
 ## 3. The order, and why
 
@@ -116,7 +116,7 @@ and checks need nothing from the first person; only its reload's keys wait for t
 | 4 | **REZ** | A magazine shotgun with the furthest fore-end hold of any gun (the soldier's left arm may come up short, as BOOG's did) and no handle part (PANDA's answer). |
 | 5 | **CHOOCH** | No reload; the hold of the widest gun (its drum against the chest and the left forearm), its carries and swap, and the overheat's vent, which others see (a new act code). |
 | 6 | **APUHTHEE and STRYDER** | The two pistols together: one new kind of hold in both views (no stock, both hands on the grip) serves both. STRYDER's move onto the RE-45's data and Pistol01 lands here. |
-| 7 | **HAEFY** | The launcher: new gameplay (a rocket and its blast) before either view can hold it, and a hold of its own (a launcher on the shoulder), so last. |
+| 7 | **DEVINOS** | The launcher: new gameplay (a rocket and its blast) before either view can hold it, and a hold of its own (a launcher on the shoulder), so last. |
 
 The guns agent's own order once put BIGANTLER first, for its exact match; if the owner plays it most, it moves up. The
 owner's word moves any gun up.
@@ -127,7 +127,7 @@ Both agents, agreed in a message before either builds:
 
 - **A gun's reload in the shared keys, per gun.** Today `reload` is one timeline for both guns and only the rack differs
   (packGuns.&lt;g&gt;.rack). The eight need a gun's own: a pump's loop with its fixed shell count (BIGANTLER), a slide
-  (the pistols), none (CHOOCH), a rocket into the tube (HAEFY). The guns agent proposes the shape (for example
+  (the pistols), none (CHOOCH), a rocket into the tube (DEVINOS). The guns agent proposes the shape (for example
   packGuns.&lt;g&gt;.reload over the shared one, with a `style` of mag, pump, slide, tube or none, and a loop's start,
   each, end and count), and the soldier reads the same.
 - **Where a rack's hand goes on a model without a handle** (PANDA's Rifle01, REZ's ShotGun01): a measured spot on the
@@ -144,7 +144,7 @@ Both agents, agreed in a message before either builds:
 - **The roster change** (the character agent, as it made PULSAR's on 2026-09-30, each at its gun's turn so no gun is
   ever without its look):
   - STRYDER onto the RE-45's data (`autopistol`), tuned into the TTK band the checks hold (tools/checks/ttk.ts), on
-    Pistol01, kind "Fast Pistol"; HAEFY onto a new launcher (below); PANDA's kind "Rifle".
+    Pistol01, kind "Fast Pistol"; DEVINOS onto a new launcher (below); PANDA's kind "Rifle".
   - speedkills.json's families, lists (the bots' guns, the six default loadouts, whose Marksman and Skirmisher pairs
     change, the Gulag's pool), tuning and notes; paidweapons.json; the README, the guides and the docs; the e2e's name
     list.
@@ -233,7 +233,7 @@ character agent's), and what to look out for. Everything not named here is as th
 - **Look out for:** the old pistol hold (mannequin.ts, the clips' own) must give way only for these guns on the
   soldier; the legacy game's figures keep theirs. Pistol01's parts are read off its .glb at its turn.
 
-### 5.7 HAEFY, the launcher
+### 5.7 DEVINOS, the launcher
 
 - **New:** everything: a new gun in the game (groundwork), a launcher held on the shoulder in both views, a rocket that
   flies and bursts, its reload a rocket into the tube.
@@ -241,7 +241,7 @@ character agent's), and what to look out for. Everything not named here is as th
   entry.
 - **Soldier:** a launcher stance (on the right shoulder, both hands on it, aimed along the look); its carries; the reload
   (a rocket into the tube) on the first person's shares; the swap's cup round a long tube; the punch.
-- **HAEFY's numbers**, proposed at its turn: from the Skybreaker's ratios (a rocket a shot, its burst's full damage and
+- **DEVINOS's numbers**, proposed at its turn: from the Skybreaker's ratios (a rocket a shot, its burst's full damage and
   area, a slow reload), held to the TTK and fusion rules; how far its blast reaches and whether it hurts its own holder
   are the owner's to approve.
 - **Look out for:** the launcher's length on the shoulder against the head and the left arm in every carry; others must
@@ -253,7 +253,7 @@ character agent's), and what to look out for. Everything not named here is as th
   Hyper Scape's 120 health (a third of a kill, three rockets), and "Min Range for Full Damage & Full Explosion AoE: 20m":
   both its damage and its blast's reach grow until the rocket has flown 20 m. No self-damage found in any source. Its
   blast radius, rocket speed, fire rate and reload were never published.
-- **HAEFY's numbers, from those ratios:**
+- **DEVINOS's numbers, from those ratios:**
   - **Damage by travel:** 10 a rocket up to 2 m flown, rising evenly to 50 at 20 m and on (50 is the Skybreaker's third
     of a kill against our 150), the damage at the blast's middle; the blast's reach grows with it, from 1.5 m to 3 m,
     full damage within the inner 0.6 m and none at its edge. No headshot (a blast).
@@ -264,7 +264,7 @@ character agent's), and what to look out for. Everything not named here is as th
   - **Seen by others:** the rocket model in flight (one model, also the round loaded on a reload in both views) and its
     burst, on every page.
   - **Bots** fire it too, its burst settled where the rocket would land.
-- **Order:** the gameplay and the rocket (a new gun id, `launcher`, replacing `3030` in the roster, a saved HAEFY following
+- **Order:** the gameplay and the rocket (a new gun id, `launcher`, replacing `3030` in the roster, a saved DEVINOS following
   it), the soldier's shoulder stance, then the guns agent's first-person hold and reload.
 
 
@@ -313,7 +313,7 @@ Both bars hold, each agent's own:
 
 - Go, and in this order (section 3)?
 - The defaults in section 0: the pistols in both hands, REZ on the Drake-12, PANDA labelled Rifle.
-- STRYDER's and HAEFY's numbers, shown at their turn (sections 5.6 and 5.7), including whether HAEFY's blast hurts its
+- STRYDER's and DEVINOS's numbers, shown at their turn (sections 5.6 and 5.7), including whether DEVINOS's blast hurts its
   own holder.
 
 ## 9. Each agent's homework, before its first gun
@@ -328,4 +328,4 @@ Both bars hold, each agent's own:
   (section 4). Write it into section 5's soldier lines. Done for the plan (2026-10-01): `PLAN_SOLDIER_EIGHT_GUNS.md`
   has each gun measured on the soldier today, the soldier's groundwork, and the faults expected a gun with what heads
   each off. Two found on the way: CHOOCH's overheat already shows other players the start of a reload (the vent fixes
-  it), and a saved loadout naming STRYDER or HAEFY falls back to the default once their ids change (mapped instead).
+  it), and a saved loadout naming STRYDER or DEVINOS falls back to the default once their ids change (mapped instead).

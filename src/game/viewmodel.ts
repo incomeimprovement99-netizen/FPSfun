@@ -724,7 +724,7 @@ export class ViewModel {
       // one draw and not after another, the owner, 2026-09-29)
       m.root.position.set(0, 0, 0);
       m.root.quaternion.identity();
-      // (the gun without a round of its own standing out of it: HAEFY's rocket, its warhead out of the tube's mouth, moved
+      // (the gun without a round of its own standing out of it: DEVINOS's rocket, its warhead out of the tube's mouth, moved
       // the middle the swap cups the hands round 5 cm ahead, and the left thumb went 5 mm into the tube)
       const round = m.mag?.userData.rocket ? m.mag : null;
       const roundIn = round?.parent ?? null;
@@ -831,7 +831,7 @@ export class ViewModel {
     if (!this.packOn || mp < 0 || mp >= 1) return null;
     const M = PACK_MELEE;
     const k = smooth(M.punch[0], M.punch[1], mp);
-    // (out past a gun's own way where it is in the shared punch's: HAEFY's Visor stands out of its tube's left side, by the
+    // (out past a gun's own way where it is in the shared punch's: DEVINOS's Visor stands out of its tube's left side, by the
     // middle of the picture, and the fist went 10 mm into it; fparms.json packGuns meleeOut)
     const out = new THREE.Vector3().fromArray(M.out).add(new THREE.Vector3().fromArray(this.pack.meleeOut ?? [0, 0, 0]));
     const outElbow = new THREE.Vector3().fromArray(M.outElbow).add(new THREE.Vector3().fromArray(this.pack.meleeOut ?? [0, 0, 0]));
@@ -1197,7 +1197,7 @@ export class ViewModel {
       const rp = PR ? this.packRP : reloadP;
       const lastRp = PR ? this.lastPackRP : this.lastReloadP;
       mp = Math.min(phase, rp < mid ? 1 - smooth(magOut[0], magOut[1], rp) : smooth(magIn[0], magIn[1], rp));
-      // (HAEFY's rocket, its magazine: fired empty there is none in the tube to phase out, only the new one in)
+      // (DEVINOS's rocket, its magazine: fired empty there is none in the tube to phase out, only the new one in)
       if (m.mag?.userData.rocket && this.reloadEmpty && rp < mid) mp = 0;
       // the seat: a slap into the hands and a pulse
       if (lastRp < seat && rp >= seat) {
@@ -1486,8 +1486,8 @@ export class ViewModel {
     // a signature gun's own hip pose (gunfeel.json hip), else the gun's
     const hip = packOn ? this.pack.hip.position : this.feel?.hip ? this.hipFeel.copy(m.hip).add(this.tmp2.fromArray(this.feel.hip)) : m.hip;
     const o = this.optic;
-    // (across from the gun's middle by its sight's own `sightX`: HAEFY's Visor is beside its tube, and aimed through the
-    // middle the eye sat inside the gun. With an optic too: HAEFY's visor lends a magnified one, and through it the eye
+    // (across from the gun's middle by its sight's own `sightX`: DEVINOS's Visor is beside its tube, and aimed through the
+    // middle the eye sat inside the gun. With an optic too: DEVINOS's visor lends a magnified one, and through it the eye
     // came in down the tube's middle, through the launcher's body from a half aim until the scope's picture took over)
     const adsPos = o
       ? this.tmp.set(-(m.sightX ?? 0), -(m.railY + o.lineH), m.opticF + o.backF - o.info.relief)
@@ -2062,7 +2062,7 @@ export class ViewModel {
     if (!ready) return;
     const gun = this.holder.visible;
     // The arms are not under the holder: when a magnified scope hid the gun they stayed drawn where the last
-    // frame posed them, and the scope's narrower view blew the left arm up into its picture (HAEFY, PULSAR)
+    // frame posed them, and the scope's narrower view blew the left arm up into its picture (DEVINOS, PULSAR)
     this.real.group.visible = gun || (this.fists.visible && !this.packFree) || this.zipRig.visible || this.castRig.visible;
     if (gun) this.real.pose("r", this.right, this.rightArm, "grip");
     else if (this.fists.visible) this.real.pose("r", this.fistR, this.fistArmR, "fist");

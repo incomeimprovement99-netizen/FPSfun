@@ -108,7 +108,7 @@ A first mapping, to be judged on pictures at the owner's view (1920 by 1080, 110
 | REZ (`shotgun`) | Auto Shotgun | Drake-12 | magazine shotgun |
 | BIGANTLER (`mastiff`) | Heavy Shotgun | KXG12 | pump, and a shell-by-shell reload |
 | PULSAR (`g2`) | Fast Marksman | Mk14EBR | DMR |
-| HAEFY (`3030`) | Heavy Marksman | SVD | DMR, a long gun |
+| DEVINOS (`3030`) | Heavy Marksman | SVD | DMR, a long gun |
 | BOOG (`sentinel`) | Sniper | L96X | bolt sniper: the bolt worked after each shot |
 | CHOOCH (`lstar`) | Energy LMG | MGX5 | LMG hold for the drum launcher's bulk |
 

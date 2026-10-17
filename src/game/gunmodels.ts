@@ -1540,7 +1540,7 @@ const ROSTER: Record<string, Family> = {
   // light machine guns
   lstar: { kind: "rifle", spec: { ...LMG, body: 0x33373b, accent: 0x3fd1e8, mag: "energy", magLen: 0.1, muzzle: "energy", energy: true, shell: null, cycle: "none", bipod: false } },
   // marksman and snipers
-  // HAEFY's rocket launcher: drawn by the bought model in SpeedKills (paidweapons.json); this only where the paid files are not
+  // DEVINOS's rocket launcher: drawn by the bought model in SpeedKills (paidweapons.json); this only where the paid files are not
   // (no casing: built on the marksman rifle's, it threw brass after every rocket)
   launcher: { kind: "rifle", spec: { ...MARKSMAN, body: 0x4a4f55, accent: 0xd8582a, stock: "solid", mag: "none", muzzle: "none", shell: null } },
   "3030": { kind: "rifle", spec: { ...MARKSMAN, body: 0x3d3833, accent: 0xa07a4a, grip: 0x6a4428, stock: "solid", mag: "none", tubeMag: true, cycle: "bolt", muzzle: "none" } },

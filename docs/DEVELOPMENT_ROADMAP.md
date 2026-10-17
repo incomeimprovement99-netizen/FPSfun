@@ -3310,7 +3310,7 @@ built, on SpeedKills pages only, so the legacy game's measured Apex numbers are 
 
 Stages D and E.
 
-- **The ten:** PANDA and STRYDER (rifles), ANAKIN and USSO (SMGs), BIGANTLER and REZ (shotguns), HAEFY and
+- **The ten:** PANDA and STRYDER (rifles), ANAKIN and USSO (SMGs), BIGANTLER and REZ (shotguns), DEVINOS and
   PULSAR (marksman), BOOG (sniper) and CHOOCH (an energy gun that overheats), each with one fixed optic and no
   attachments.
 - **Tuned to the owner's longer fights:** `tools/checks/ttk.ts` measures every gun at every fusion level
@@ -4069,7 +4069,7 @@ Phase 20, A2 (the owner saw "33.66666666666666" over a bot).
 Phase 20, A3 (the owner: "the left arm is in the red dot and sight area"). Two faults were measured by the
 diagnosis at 1280x720:
 
-- **HAEFY and PULSAR, the 3x scope.** Aimed past 0.9, the gun is hidden so the HUD's scope picture can take
+- **DEVINOS and PULSAR, the 3x scope.** Aimed past 0.9, the gun is hidden so the HUD's scope picture can take
   over. The player's arms are not under the gun, so they stayed drawn, frozen, and the scope's narrow view blew
   the left arm up into the picture: 23,800 to 29,200 pixels. Now the arms are hidden whenever nothing posed them.
 - **PANDA, STRYDER and CHOOCH, a reload in the sights.** At full size the reload rolled the gun, and the support
@@ -4077,7 +4077,7 @@ diagnosis at 1280x720:
   its roll (speedkills.json `viewmodel.reloadAds` 0.85), so the sight holds steady.
 - The four red-dot guns never showed the arm.
 - Both fixes are SpeedKills only.
-- **Checked:** a new e2e check: aimed through HAEFY's scope the arms are hidden, and through USSO's red dot they
+- **Checked:** a new e2e check: aimed through DEVINOS's scope the arms are hidden, and through USSO's red dot they
   are drawn.
 
 ## Milestone 224 — The city's edge: a fence, a countdown and a laser ✅
@@ -4148,7 +4148,7 @@ Phase 20, A7 (the owner: "USSO (Fast SMG)", so a beginner can see what each gun 
 
 - **Each SpeedKills gun has a two-word class** (speedkills.json `kind`), read off its numbers. Each pair reads
   Heavy or Steady against Fast or Auto: PANDA Heavy Rifle, STRYDER Fast Rifle, ANAKIN Steady SMG, USSO Fast
-  SMG, BIGANTLER Heavy Shotgun, REZ Auto Shotgun, HAEFY Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper,
+  SMG, BIGANTLER Heavy Shotgun, REZ Auto Shotgun, DEVINOS Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper,
   CHOOCH Energy LMG. The Run's pistols are Pistol.
 - **`weaponLabel` names a gun with its class wherever there is room:**
   - the loot prompts and the reach list;
@@ -4521,7 +4521,7 @@ Phase 21, the owner's question "are the weapons completely in with no bugs?", an
 (`tools/weapon-picks-sheet.ts`) puts every gun in every model it can be picked in, at the hip, in the sights and
 mid-reload, and prints what the reload moves.
 
-- **Three guns kept their magazines in on a reload** since the guns went live: STRYDER, HAEFY and PULSAR wore the pack's `_1` builds. The pack's `_1` of a family is the same gun as its `_2` (the same length, muzzle and
+- **Three guns kept their magazines in on a reload** since the guns went live: STRYDER, DEVINOS and PULSAR wore the pack's `_1` builds. The pack's `_1` of a family is the same gun as its `_2` (the same length, muzzle and
   sights, measured) in one piece, with nothing a reload can move. Every gun now wears its family's split build.
 - **The model picks were not real:** a gun's "other model" was its own family's `_1`, the same gun unsplit, and CHOOCH
   was offered the launcher's round (0.18 m) as a model. A gun now picks between the pack's guns of its class whose
@@ -4559,7 +4559,7 @@ The owner: "one model per gun ... smg is one of the two smgs ... and the skin va
   4 to 5, brighter each level.
 - **One model a gun, by its class** (`paidweapons.json` guns): ANAKIN and USSO the pack's two SMGs, BIGANTLER and REZ
   its two shotguns, PANDA and STRYDER its rifle, BOOG its sniper, CHOOCH its launcher (the only drum-fed heavy). The pack
-  has no marksman rifle: HAEFY (heavy marksman) wears the sniper and PULSAR (fast marksman) the scoped rifle, where it
+  has no marksman rifle: DEVINOS (heavy marksman) wears the sniper and PULSAR (fast marksman) the scoped rifle, where it
   had worn ANAKIN's SMG. Guns sharing a model start in different skins. The pack's two pistols and rocket launcher fit
   none of the ten.
 - **A fitted optic mounts where the bought model's sight is** (`paidmodels.json` sightZ, measured), not where the
@@ -4588,15 +4588,15 @@ buyer to animate. Until now only the magazine, slide and pump moved.
   - STRYDER, PANDA and PULSAR's optic sat on the top of the rifle's hidden scope, 69 mm over the gun.
   - ANAKIN's sat 18 mm high.
   - CHOOCH's sat on its rear sight, which now folds.
-- **BOOG and HAEFY sight down the sniper's own scope.** It is one piece with the gun, and the fitted optic stood stacked
+- **BOOG and DEVINOS sight down the sniper's own scope.** It is one piece with the gun, and the fitted optic stood stacked
   on it at the hip. The fitted optic's housing is off and the eye comes up the scope's measured axis.
-- **HAEFY takes its magazine out on a reload.** Its procedural gun has none, so the bought one's stayed in. The support
+- **DEVINOS takes its magazine out on a reload.** Its procedural gun has none, so the bought one's stayed in. The support
   hand of every gun now reaches for the bought magazine's measured bottom.
 - **Checked:**
   - `tools/checks/paid-weapons.ts`, on the game's own hinges: the drum turned a chamber puts every round where another
     stood; the folded sights lie under the optic's window (0.103 m against 0.116 m).
   - The e2e soldier section: CHOOCH's 4-round burst turns the drum 4 chambers with the trigger back, its sights folded;
-    BOOG's housing off; HAEFY's magazine 133 mm out mid-reload.
+    BOOG's housing off; DEVINOS's magazine 133 mm out mid-reload.
   - Each failed with its bug put back: a 7-chamber step, the middle hinge, the drum left still.
   - Pictures of all ten at the hip, in the sights and mid-reload.
 
@@ -5144,7 +5144,7 @@ The first item of `docs/HYPERSCAPE_GAP_ANALYSIS.md`. Hyper Scape's patch 1.1: "a
 with the rifle, to give warning to their potential victims".
 
 - **A scoped figure aiming in throws a flare** (`muzzle.ts` fitGlint and showGlint, `mannequin.ts`, `hud.json`
-  scopeGlint). On any SpeedKills gun whose optic draws a full-screen scope (BOOG, HAEFY and PULSAR), once the figure's
+  scopeGlint). On any SpeedKills gun whose optic draws a full-screen scope (BOOG, DEVINOS and PULSAR), once the figure's
   aim passes 0.6. Its own texture: a hot core, a soft halo and a long thin streak across it, cool white. It measures
   0.28 m near and never under 18 pixels far; Hyper Scape's players found its flare "too big, covering the entire body".
 - **Where it hangs:** 12 cm ahead of the front of the scope, found off the model: the frontmost point within 3 cm of
@@ -5570,7 +5570,7 @@ FPS Animation Ultimate (docs/PLAN_FIRST_PERSON_ARMS.md), arms made for the camer
 - **Checked:**
   - e2e (soldier): the bought arms hold both; mid-reload the clip has turned the gun; from empty the handle goes back
     with the left hand's knuckle 5.5 cm from it; wrists within 50 degrees held and aimed (60 on the handle, the pack's
-    own grip); the old arms' cut ends checked on the guns they still hold (ANAKIN, HAEFY); the red dot keeps its arms;
+    own grip); the old arms' cut ends checked on the guns they still hold (ANAKIN, DEVINOS); the red dot keeps its arms;
   - `tools/checks/fparms-pack.ts`; verify; rules; pictures of the hold, aim, reload, rack and bolt at the owner's view.
 
 ## Milestone 290 — Sharper textures on High, lighter on every preset: the packs GPU-compressed
@@ -6153,14 +6153,14 @@ the pickup a frame every 4%), the sheets sent as proof. The first sweep flagged 
   the held gun's 2048 skin on High and 1024 on Balanced), the through-the-gun check tightened from 1 cm to 4 mm, each
   seen failing with its fault put back; the soldier section; verify; rules.
 
-## Milestone 313 — STRYDER, REZ and HAEFY; the bought arms' fists straight on their forearms, the thumbs across the fingers; the guns-in-hand plan
+## Milestone 313 — STRYDER, REZ and DEVINOS; the bought arms' fists straight on their forearms, the thumbs across the fingers; the guns-in-hand plan
 
 The owner, 2026-09-28: "Change the Zephyr to a Stryder, all mentions of it, everywhere ... change one of the guns to
-REZ ... Another one could be Haefy"; "the right arm is clearly still so fucked up lol, just put the guns away and look
+REZ ... Another one could be Devinos"; "the right arm is clearly still so fucked up lol, just put the guns away and look
 at the right arm"; and of the round's feedback, "make a planning / update document for this since this is perfect
 feedback that you'll have to remember for context when we go for the other guns".
 
-- **The renames** (`speedkills.json` weapons): ZEPHYR is STRYDER, RIPTIDE REZ and HELIX HAEFY, in the code, the
+- **The renames** (`speedkills.json` weapons): ZEPHYR is STRYDER, RIPTIDE REZ and HELIX DEVINOS, in the code, the
   config, the checks, the README and the docs (79 mentions). The guns' ids are the legacy ones (`rspn101`, `shotgun`,
   `3030`), so saved loadouts keep their guns. RIPTIDE and HELIX were the two chosen because they were ours rather than
   friends' names; PULSAR and the Energy LMG's name were then the only invented ones (the LMG is CHOOCH since 2026-10-01).
@@ -7648,11 +7648,11 @@ boog and the usso. It's critical to have the agents on the same page with it bef
   tucked; SpeedKills' double jump rises 0.39 s): the player's count of them (player.ts airJumps) goes to the figure
   and over the network as `dj` (net/state.ts, the last optional key, so an older build ignores it). Only an explicit
   count: found from the figure's height, a wall run's start, a climb's end boost and a zipline's pop flipped it too.
-- **The roster:** PULSAR (g2) is out and HAEFY is plain Marksman. APUHTHEE (a working name then; the owner named it on 2026-10-01) is the legacy Wingman tuned
+- **The roster:** PULSAR (g2) is out and DEVINOS is plain Marksman. APUHTHEE (a working name then; the owner named it on 2026-10-01) is the legacy Wingman tuned
   to Hyper Scape's Riot One: its 26 against Hyper Scape's 120 health is five body hits, which against our 150 is 32.5
   (Wingman 50 x 0.65), six rounds, a quarter of the kick, 1.5 to the head, no drop-off, 2.8 shots a second; 1.79 s to
   kill at 80% on target, fused the same. It wears the pack's second pistol (SciFiPistol02_2, measured into
-  paidmodels.json, aimed down its own dot). The defaults: Marksman is HAEFY and PANDA, Skirmisher STRYDER and APUHTHEE;
+  paidmodels.json, aimed down its own dot). The defaults: Marksman is DEVINOS and PANDA, Skirmisher STRYDER and APUHTHEE;
   the bots and the Gulag carry APUHTHEE where they carried PULSAR. On the soldier APUHTHEE has the clips' own pistol hold
   until its turn in PLAN_SOLDIER_EIGHT_GUNS.md.
 - **Checked:** the skfigure e2e (44: the trigger finger on both guns, every finger at 0.9, BOOG's hold on the rail, the
@@ -7980,8 +7980,8 @@ send in st, where the runs are at".
 - **Taking and fusing** (main.ts takeFromArmory, armorySay): E (or a pad's X) at the stand you face within 2.2 m is
   applyLoot with a level 0 copy, as one off a match's floor: the gun you carry fuses a level up, to 5; a new one fills
   an empty slot or takes the place of the one in your hand. A hack goes into its slot; the same one fuses, to 4;
-  another of its slot swaps it. The prompt says which (lootcard.ts gunOutcome, hackOutcome): TAKE HAEFY FOR USSO,
-  FUSE HAEFY · LEVEL 0 TO 1, HAEFY IS AT LEVEL 5, ITS TOP.
+  another of its slot swaps it. The prompt says which (lootcard.ts gunOutcome, hackOutcome): TAKE DEVINOS FOR USSO,
+  FUSE DEVINOS · LEVEL 0 TO 1, DEVINOS IS AT LEVEL 5, ITS TOP.
 - **Solid** (armory.json solid, armory.ts armorySolids, range.ts buildRange's `solids`): each case is a box on the range's
   solids, built with the range whether or not the stands are drawn (a ?norender page builds no stands, but you collide
   the same). Its size MEASURED off the loaded case as it stands, its cover open (`__range.armory()` stands[].box):
@@ -8525,7 +8525,7 @@ The owner, 2026-10-01: "nova should be chooch. Do the same treatment, replace al
 - **Checked:**
   - no NOVA left in the repo that names the gun;
   - the speedkills and soldier e2e sections (156), the names list and CHOOCH's drum among them; verify; rules.
-- **The roster now:** all ten guns carry the owner's own names: PANDA, STRYDER, ANAKIN, USSO, BIGANTLER, REZ, HAEFY,
+- **The roster now:** all ten guns carry the owner's own names: PANDA, STRYDER, ANAKIN, USSO, BIGANTLER, REZ, DEVINOS,
   APUHTHEE, BOOG and CHOOCH.
 
 ## Milestone 390 — The Well's corridor: from the metro station to its lowest gallery
@@ -8823,7 +8823,7 @@ have less bugs".
     shot's cycle off the kick every figure already gets, pistol and launcher stances, hand on hand in the audit, the left
     hand fitted round the right), and for each gun the faults expected, what heads each off, and the checks it adds.
   - Found on the way: an overheated CHOOCH sends the act "reload" today (weapon-state.ts sets `reloading` for the
-    lockout), so other players see a reload start; and a saved loadout naming STRYDER or HAEFY would drop to the default
+    lockout), so other players see a reload start; and a saved loadout naming STRYDER or DEVINOS would drop to the default
     once their ids change (loadouts.ts valid()), to be mapped instead.
 - **The heal codes kept to 10 to 19** (dummy.ts HEALS, healOfCode; duel.ts's recorded heal item): every page read any act
   code from 10 as a heal, so a new act there (CHOOCH's vent, 20) would show as a heal with no item on a page from
@@ -9061,7 +9061,7 @@ that costing us in terms of FPS performance and or loading time?"
   over every shot.
 - **The shots:** each of the ten guns shoots with the pack gun most like it (packsounds.json): the USSO the MPS5,
   BOOG the L96X, PANDA the AKX200, STRYDER the MX16A4, ANAKIN the Striker-V, BIGANTLER the KXG12 pump, REZ the Drake-12,
-  HAEFY the Mk14 EBR, APUHTHEE the Viper-357 revolver and CHOOCH the MGX5 machine gun. No energy whine over a pack shot.
+  DEVINOS the Mk14 EBR, APUHTHEE the Viper-357 revolver and CHOOCH the MGX5 machine gun. No energy whine over a pack shot.
   A far shot still plays the free library's far take, which is what a far recording is for.
 - **The reloads:** the USSO and BOOG are reloaded with the pack's own animations (fparms.json guns), so they reload
   with the sounds recorded to them. Our reloads are quicker than the pack's clips (the USSO's 1.8 s and 2.5 s against
@@ -9724,7 +9724,7 @@ code for what the legacy game left switched on in SpeedKills found these, none g
   there in SpeedKills (main.ts).
 - **The Guns rule** (the Friends tab's Rules row) handed out guns SpeedKills does not have, under their real-world
   names: its classes are SpeedKills' guns now (rules.json): rifles STRYDER and PANDA, SMGs USSO and ANAKIN, CHOOCH,
-  shotguns REZ and BIGANTLER, snipers and marksmen BOOG and HAEFY, the pistol APUHTHEE.
+  shotguns REZ and BIGANTLER, snipers and marksmen BOOG and DEVINOS, the pistol APUHTHEE.
 - The code goes with the legacy game's removal, after its tests are moved to SpeedKills (the next steps).
 - **Checked:** verify; rules; the duel (the Guns rule), sklobby and speedkills e2e.
 
@@ -11061,7 +11061,7 @@ start with the default settings, also, make the bots a little bit easier to hit,
   Start now into the range with the picks kept, Resume, the battle royale going in by itself after ten seconds, Esc in
   a match) and `skbots` (a Skilled bot's sideways speed: under 6 m/s on average and 8.5 in its fastest tenth; with the
   stretch put back it read 10.0 and failed). Every other page asks for the menu (`nohome`), as it asks for no intro.
-- **Mended on the way:** sklobby's check that a Marksman pick is kept over a reload still held HAEFY's gun id from
+- **Mended on the way:** sklobby's check that a Marksman pick is kept over a reload still held DEVINOS's gun id from
   before its launcher (Milestone 510) and failed on main too; it checks the loadout's own guns in hand now.
 - **Checked:** tsc; verify; rules; e2e start, skbots, page, panel, owner, pad, sklobby, speedkills, bots, skhunt, br.
   The page section's loading check missed its 30 s twice, alone too, with the machine at 91% and six other e2e runs
@@ -11103,7 +11103,7 @@ nobody plays; SpeedKills' own tools ran beside them with GAME=speedkills. The de
 - **Run as the legacy game until their code goes:** tools/checks/loot-tiers.ts and ring-place.ts, the Outskirts' loot
   tiers and the legacy ring's circles, in a process of their own as SpeedKills' tools run as SpeedKills.
 - **A SpeedKills bug found:** the custom rules' classes (rules.json) still named the rifle the roster dropped and
-  HAEFY's old id, first in their lists, so "Rifles only" or "Snipers" in an arena mode handed you a gun SpeedKills
+  DEVINOS's old id, first in their lists, so "Rifles only" or "Snipers" in an arena mode handed you a gun SpeedKills
   does not have. Rifles are PANDA now, snipers BOOG, and pistols APUHTHEE and STRYDER (STRYDER was missing).
 - **Found, not changed (the owner's call):** in SpeedKills a walk crouched into slides, because its walk (347 hu/s) is
   over the slide's start speed (200); crouched first, a walk is the 80 hu/s crouch walk.
@@ -11125,7 +11125,7 @@ range's tools and the jump pads. They run on SpeedKills now, each failure sorted
 - **Bots, their tiers and the killcam:** the killer's name, gun and shield are read from the match (the legacy check
   named BOT ASH and the R-301); you are placed where the bot can see you; the replay's aim is sampled across the whole
   replay, since a SpeedKills bot that sees you kills you in about a second; a bot heals with its HEAL hack where it
-  stands, not behind cover; the per-optic check aims HAEFY's fixed 3x.
+  stands, not behind cover; the per-optic check aims DEVINOS's fixed 3x.
 - **The range:** the slide check goes through the game's own input (holding Shift turned SpeedKills' sprint off); the
   TV is checked against the manual it shows (docs/MANUAL.md), not the README.
 - **Gone with the legacy game:** the legacy guided tour (sktour plays SpeedKills' own), the jump pad's Shattercaps
@@ -11202,7 +11202,7 @@ a system SpeedKills shares onto SpeedKills, so what was left on the address test
 ## Milestone 521 — The legacy guns out
 
 The owner, 2026-10-09: "can remove old guns and old abilities that we don't use". The abilities went in 491; this is
-the guns. Of the 27 in the weapon data, SpeedKills uses nine of its ten (the tenth, HAEFY's launcher, is built in code
+the guns. Of the 27 in the weapon data, SpeedKills uses nine of its ten (the tenth, DEVINOS's launcher, is built in code
 on the 30-30) and the P2020, which the Run's pistols are built on. Fifteen of the other sixteen and the two built in
 code went:
 
@@ -11407,7 +11407,7 @@ battle royale never called its down). Everything that only a knock used went:
 - **A fix it brought:** a human shot to zero in a squad match was marked and called KNOCKED DOWN until their own "down"
   came back, though they were already out. Zero health is the kill now.
 - **The e2e:** the gulag test read the match 400 ms after its start, which takes 1.6 s even on a quiet machine (the
-  committed code measured the same), and the section ended there under load; it waits for the match now. The HAEFY
+  committed code measured the same), and the section ended there under load; it waits for the match now. The DEVINOS
   check of a bot's own rocket failed twice at 91% CPU with both rockets flying 165 m and passed alone; it reports the
   bot's state now, so a failure says why.
 - **Kept:** the figure's API (its downed stance, crawl and finisher poses, setKnockShield) for the character agent to
@@ -11585,8 +11585,8 @@ don't combine. Have them grouped by like close range vs long range."
   close on the bottom to the supporting text"). The roof's middle girder went with it: it hung through the sign's top
   and crossed the name once the sign grew.
 - **The guns, one each, grouped:** close range (USSO, ANAKIN, BIGANTLER, REZ), sidearms (STRYDER, APUHTHEE), any range
-  (PANDA, CHOOCH), long range (HAEFY, BOOG), each with its fire rate, magazine and time to kill as tools/checks/ttk.ts
-  measures them. It said STRYDER was a rifle and HAEFY a marksman: they are a fast pistol and a rocket launcher.
+  (PANDA, CHOOCH), long range (DEVINOS, BOOG), each with its fire rate, magazine and time to kill as tools/checks/ttk.ts
+  measures them. It said STRYDER was a rifle and DEVINOS a marksman: they are a fast pistol and a rocket launcher.
 - **Feedback, the tenth section:** message B00G with suggestions, bugs, features or changes; "SpeedKills: N days old.
   It was started on 25 September 2026", N counted by the player's calendar from readme-tv.json feedback.started, the
   day of the first SpeedKills commit (1f6b82d6).
@@ -11692,7 +11692,7 @@ player holding a pad.
     puts the keyboard back after the press, as a click would leave it (a pad's own checks press it again).
   - **soldier guns: one model a gun** read a figure's gun 600 ms after putting the figure up and found none, in the
     sweep and alone; it waits for the gun now, 10 s at the most, and says so if the gun is not the paid one.
-  - HAEFY's own rocket, the p2p reload seen on the other screen and the inspect's pack frames passed alone (load).
+  - DEVINOS's own rocket, the p2p reload seen on the other screen and the inspect's pack frames passed alone (load).
 - **Checked:** tsc; verify; rules; e2e sklobby and soldier.
 
 ## Milestone 623 — The battle royale check survives its own fights, and the 2026-10-16 sweep
@@ -11795,7 +11795,7 @@ city agent's, who is taking them next with texture arrays.
   60 fps and the menu say nothing, both tried says fewer bots, stalls are not counted; proven by letting it repeat);
   rules.
 
-## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
+## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
 THOSE BEFORE YOU CONTINUE ON. (SEE IF ITS ON THE 3RD PERSON TOO)". The first person is the guns agent's, told the same
@@ -11813,9 +11813,9 @@ hour; this is the soldier others see, and the last of its guns.
   sank it into the gun (10 to 8 mm with the palm 9 mm in), so they stay.
 - **Checked:** a new skfigure check, each gun carried low running and sprinting with the left palm and holding fingers
   on it (8 mm at most), seen failing on PANDA and ANAKIN before; photographed close.
-- **HAEFY** (`3030`) wears BOOG's bought model in its own skins, so it is held as BOOG is: a copy of BOOG's fitted
+- **DEVINOS** (`3030`) wears BOOG's bought model in its own skins, so it is held as BOOG is: a copy of BOOG's fitted
   numbers, its hand on the same rail, held to every skfigure check as its own gun. With it every gun on the roster is
-  fitted on the soldier. If HAEFY becomes the launcher (`PLAN_THE_EIGHT_GUNS.md` 5.7, the owner to approve the blast),
+  fitted on the soldier. If DEVINOS becomes the launcher (`PLAN_THE_EIGHT_GUNS.md` 5.7, the owner to approve the blast),
   it is fitted from scratch then.
 
 ## Milestone 501 — STRYDER is the fast pistol, and every gun falls off with range
@@ -11833,18 +11833,18 @@ less dps ... vary depending on the guns type ... All games do this pretty much".
 - **Fall-off with range:** speedkills.json tuning `far` and `veryFar`, each gun's damage at its data's far and very far
   distances as a share of its near damage (weapons.ts; projectile.ts eases between them). Every gun had been flat. At 80%
   on target against 150, at 10 / 30 / 60 m: the USSO 1.33 / 1.39 / 3.52, ANAKIN 1.40 / 1.50 / 3.70, STRYDER 1.38 / 1.46 /
-  3.42, APUHTHEE 1.79 / 1.79 / 4.24, PANDA 1.53 / 1.53 / 1.65, CHOOCH 1.50 / 1.50 / 1.60, HAEFY 1.72, BOOG and the
-  shotguns as they were. HAEFY had been the quickest kill up close outside the shotguns (1.29) and PANDA level with the
+  3.42, APUHTHEE 1.79 / 1.79 / 4.24, PANDA 1.53 / 1.53 / 1.65, CHOOCH 1.50 / 1.50 / 1.60, DEVINOS 1.72, BOOG and the
+  shotguns as they were. DEVINOS had been the quickest kill up close outside the shotguns (1.29) and PANDA level with the
   SMGs; both brought to their kind's place.
-- **Fusion kept within a tenth:** at the table's first damages a fully fused PANDA or HAEFY dropped a whole shot (16 and
-  25% quicker, the TTK check refusing it), so PANDA's damage is 0.70, CHOOCH's 0.60 (it sat on a shot's edge) and HAEFY's
+- **Fusion kept within a tenth:** at the table's first damages a fully fused PANDA or DEVINOS dropped a whole shot (16 and
+  25% quicker, the TTK check refusing it), so PANDA's damage is 0.70, CHOOCH's 0.60 (it sat on a shot's edge) and DEVINOS's
   0.823; each time as approved.
 - **Checks:** tools/checks/ttk.ts holds the rule (no gun quicker far than near; the SMGs and pistols at least twice as
   long at 60 m; the rifle and CHOOCH within a fifth; up close the SMGs and the fast pistol no slower than the rifle), each
   seen failing with the fall-off taken out; two hit-check cases that used STRYDER's old rifle as their sample now use a
   gun both games have. verify; rules; the type check; e2e speedkills, soldier, skarmory and skfigure.
 
-## Milestone 510 — HAEFY is a rocket launcher
+## Milestone 510 — DEVINOS is a rocket launcher
 
 The owner, 2026-10-06: "yes i want that, it shouldn't hurt the shooter, but it should do more damage the further it travels,
 so a point blank or very close does like 10 damage and then it scales like that, the skybreaker is the reference for
@@ -11853,7 +11853,7 @@ hyperscape" (`PLAN_THE_EIGHT_GUNS.md` 5.7).
 - **The Skybreaker, as sourced** (Ubisoft's patch notes, v1.0): 40 a rocket at full range against Hyper Scape's 120
   health, a third of a kill, and "Min Range for Full Damage & Full Explosion AoE: 20m". Its blast radius, rocket speed,
   fire rate and reload were never published.
-- **HAEFY's numbers** (src/config/rocket.json): 10 a rocket up to 2 m flown, rising evenly to 50 at 20 m and on; the
+- **DEVINOS's numbers** (src/config/rocket.json): 10 a rocket up to 2 m flown, rising evenly to 50 at 20 m and on; the
   burst's reach growing with it from 1.5 to 3 m, full within 0.6 m, none at its edge; no headshot. Four rockets a
   magazine, one every 0.55 s, a 2.6 s reload; the rocket 55 m/s with no drop. At 80% on target: 1.65 s to kill from 20 m
   on, 5.9 s at 10 m, 20 s point blank. tools/checks/ttk.ts holds it to the rule (judged at its full range for fusion).
@@ -11866,7 +11866,7 @@ hyperscape" (`PLAN_THE_EIGHT_GUNS.md` 5.7).
   Its own copies of the blast helpers: the grenades' are going (the lobby agent's Milestone 481). Bots carry it, a bot's
   rocket settled as a hit on its target (no splash from a bot's near miss yet).
 - **The roster:** `launcher` (the 30-30's handling with the rocket's numbers, weapons.ts; SpeedKills' alone, never in the
-  legacy game's catalogue) replaces `3030`; Marksman becomes Launcher; a saved HAEFY follows it (speedkills.json
+  legacy game's catalogue) replaces `3030`; Marksman becomes Launcher; a saved DEVINOS follows it (speedkills.json
   renamed). Its bought model is the pack's rocket launcher (paidweapons.json, `round` "rocket").
 - **The model's front and sight, measured:** the end farther from its origin is the back of its twin tubes, which run
   65 cm behind the pistol grip over the shoulder; its trigger is in front of the grip only with +Z forward
@@ -11885,7 +11885,7 @@ hyperscape" (`PLAN_THE_EIGHT_GUNS.md` 5.7).
   the host passing one burst's four hits and no more; seen failing with point blank set to 40); an e2e in the speedkills
   section (a real rocket at a range dummy from 25 m does 50, from 3 m about 13, drawn as a rocket and its burst seen;
   someone else's does nothing here); the skfigure e2e on the launcher; ttk; verify; rules; the type check; photographs.
-- **Tests that named the 30-30 for HAEFY** now use the launcher (the armory's stand, the loot card) or BOOG (the
+- **Tests that named the 30-30 for DEVINOS** now use the launcher (the armory's stand, the loot card) or BOOG (the
   magnified scope that hides the frozen arms). One check, the loot start's death box holding your guns, failed in two
   long combined runs and passed both times run alone (the box never appeared at all, not a gun missing: timing under
   load).
@@ -12002,11 +12002,11 @@ checks' bars, then photographed: four states of each gun from two sides, and eve
 - **Found and fixed:** looking 35 degrees up, BOOG's left forearm ran 149 mm through its magazine (the elbow followed
   the gun up); its left elbow turned out and down ([1, -0.4, -0.4]), now 0, its left wrist 33 degrees aimed. Mid-swap,
   PANDA's left forearm had been 115 mm inside the gun through the whole swap carry; with the guns agent's PANDA in the
-  bought arms (Milestone 489) it swaps in place, the gun staying up, and it is 0. HAEFY's launcher swap carry re-solved
+  bought arms (Milestone 489) it swaps in place, the gun staying up, and it is 0. DEVINOS's launcher swap carry re-solved
   (62 mm into the left forearm to 0).
 - **Looked at and left:** the butts in the shoulder armour, 44 to 79 mm by the exact measure (CHOOCH and PANDA looking
   up, BIGANTLER crouched and aimed or running aimed, BOOG's tall heel looking up), read as a stock in the shoulder from
-  every side; HAEFY's tubes resting over the shoulder crouched (50 mm into the upper back's armour) read as a shoulder
+  every side; DEVINOS's tubes resting over the shoulder crouched (50 mm into the upper back's armour) read as a shoulder
   launcher's; ANAKIN's stock along the right forearm, which the owner accepted on 2026-10-05.
 - **Why the checks had missed it:** the soldier's hold check measures the gun in the body only 4 cm deep, so an arm 15 cm
   inside read 4 and passed. A new skfigure check measures each hold pose exactly and holds every arm to 40 mm in the
@@ -12070,7 +12070,7 @@ timing the first rummage, and the check passed or failed by when the checks befo
   it, one without, and that one wedged in a fight, which the fix leaves alone. Not worth its code.
 - **Checked**: the e2e `speedkills` section on the Neon City: every check passes (97), 27 of 27 bots 3 m on. verify, rules and tsc.
 
-## Milestone 512 — A review of the soldier and HAEFY's rocket: what the rocket hit, and what the host let through
+## Milestone 512 — A review of the soldier and DEVINOS's rocket: what the rocket hit, and what the host let through
 
 The owner, 2026-10-09: "any other next steps here? we did a lot so make sure its all good, basically do a code review on
 your domain here". The soldier's hold code read as sound; the faults were in the rocket (Milestone 510), and are fixed:
@@ -12682,12 +12682,12 @@ The plan's item 10, the light: the fourth review called the neon night "a purple
 The owner, 2026-10-11: "ensure 100% of the head is visible from the back, i want to always be able to clearly snipe hs
 someone from the back". Measured from shooters 30 m behind a soldier (straight, 30 degrees off each way, at a standing
 eye and 10 m up), at every point of the drawn head turned to each: what hides it, and whether a shot at a point it shows
-is a headshot, in 117 states (VANGUARD, RECON and RUNNER; BOOG, HAEFY and APUHTHEE; standing, walking, running,
+is a headshot, in 117 states (VANGUARD, RECON and RUNNER; BOOG, DEVINOS and APUHTHEE; standing, walking, running,
 sprinting, crouched, crouch-walking, aimed, aimed walking, crouched and aimed, aimed 30 up and 30 down, jumping,
 sliding). The skull is the head over its lowest 6 cm (the jaw and the nape, which the neck and the collar meet).
 
 **Before:** the armour's collar hid 36 of every 100 points of a standing soldier's head from straight behind (85 from
-30 degrees off); HAEFY's tube, carried on the shoulder, 54 to 95 standing, walking, running or crouched; aiming 30 degrees
+30 degrees off); DEVINOS's tube, carried on the shoulder, 54 to 95 standing, walking, running or crouched; aiming 30 degrees
 down, the shoulders, the back armour and the raised arm 56 to 84. And of the shots at the head a soldier did show, the
 neck's, the torso's and the arms' volumes took up to 1 in 4: the head's sphere left the bottom of the back of the head out,
 the torso's one box leant with the whole back and stood up behind the head sprinting and crouched, and each arm's 0.6 m
@@ -12699,9 +12699,9 @@ box reached half its length past a bent arm's shoulder.
   - The chest held more upright (figure.json chestUp, 20 to 8 degrees): crouched and aimed, the raised right shoulder hid
     12 to 22 of every 100 points of the skull; now none.
   - Looking down, the soldier bends as little as its gun's hold allows (figure.json aimBend): 0.3 of the look at the
-    waist, BIGANTLER, REZ, STRYDER and HAEFY 0.5 and CHOOCH 0.9, each the least at which its hold looking 35 down keeps
+    waist, BIGANTLER, REZ, STRYDER and DEVINOS 0.5 and CHOOCH 0.9, each the least at which its hold looking 35 down keeps
     the skfigure bar; it was 0.9 at the chest for every gun.
-  - HAEFY carried low unless aimed (soldierhold.json carryLow, rifle.ts carryLowOf): muzzle up across the right
+  - DEVINOS carried low unless aimed (soldierhold.json carryLow, rifle.ts carryLowOf): muzzle up across the right
     shoulder, the tube's back down behind it, through a punch too; its low, jump and swap carries searched with the head
     counted (tools/figure-solve.ts HEAD=n, the gun's share of the head hidden from the six shooters a cost; GRID= measures
     a list of numbers without a search; LOWALL=1 measures the low carry standing, crouched and walking).
@@ -12717,18 +12717,18 @@ box reached half its length past a bent arm's shoulder.
     head volume within 6 cm takes the head. Where the head meets the neck and the shoulders the volumes cannot follow the
     drawn body exactly; the shots it gives the head were all at its lowest 6 cm.
 - **After** (the same 117 states): every shot at the skull a soldier shows is a headshot in 115 of them and 99 in 100 in
-  the other two (RECON's and RUNNER's HAEFY aimed 30 down); at the whole head, the jaw and the nape too, every shot in 109
+  the other two (RECON's and RUNNER's DEVINOS aimed 30 down); at the whole head, the jaw and the nape too, every shot in 109
   and 92 in 100 at the worst. Nothing of the soldier's kit hides its skull in 90 of them: every pose not aimed down with
-  BOOG and APUHTHEE but the slide, and HAEFY carried.
-- **Left:** HAEFY aimed in is on the shoulder, and from 30 degrees behind on its side its tube hides 70 to 88 of every 100
+  BOOG and APUHTHEE but the slide, and DEVINOS carried.
+- **Left:** DEVINOS aimed in is on the shoulder, and from 30 degrees behind on its side its tube hides 70 to 88 of every 100
   points of the skull; its back is level with the eye there. Looking 30 degrees down, BOOG's stock and the raised right
   arm hide 23 to 28 of every 100 points of the skull, APUHTHEE's 3 to 9; sliding, the collar 1 to 4.
-- **Checked:** the skfigure check of the head from behind rewritten (VANGUARD and RUNNER, BOOG in seven poses and HAEFY
+- **Checked:** the skfigure check of the head from behind rewritten (VANGUARD and RUNNER, BOOG in seven poses and DEVINOS
   carried in three, four shooters; every shot at the skull it shows a headshot and 99 in 100 at the whole head, nothing
   but its own head and neck hiding its skull except looking 30 down, 30 in 100 at most there, the face and the chest),
-  seen failing with the seam taken out, the chest let lean 20 and HAEFY carried on the shoulder; the hold checks for a gun carried low (at rest and after a reload, its barrel not along the look); verify's merge
+  seen failing with the seam taken out, the chest let lean 20 and DEVINOS carried on the shoulder; the hold checks for a gun carried low (at rest and after a reload, its barrel not along the look); verify's merge
   check now finds the merge moves only the collar, and only down; every skfigure check on all ten guns (303); verify;
-  rules; the type check. Photographed: HAEFY's carry from six sides standing and sprinting, the aim down, the crouched aim
+  rules; the type check. Photographed: DEVINOS's carry from six sides standing and sprinting, the aim down, the crouched aim
   and the sprint from the side at each chest lean tried, the slide.
 
 ## Milestone 518 — Every gun's kick sized to its kind
@@ -12768,9 +12768,9 @@ where they aimed, and 58 to 80 into none at all (standing, walking, sprinting, c
   55 in 100 or more within 6 cm, 25 or fewer into none), seen failing with the old box put back; every skfigure check
   (304 of 304); verify; rules; the type check.
 
-## Milestone 517 — HAEFY in the bought arms, on the shoulder
+## Milestone 517 — DEVINOS in the bought arms, on the shoulder
 
-HAEFY, the rocket launcher (launcher, SciFiRocketLauncher01_2), is the tenth and last SpeedKills gun the first person's
+DEVINOS, the rocket launcher (launcher, SciFiRocketLauncher01_2), is the tenth and last SpeedKills gun the first person's
 bought arms hold (`PLAN_THE_EIGHT_GUNS.md` 5.7), on the pack's RPG: its pose, and the RPG's own recorded launch and
 reload. Every SpeedKills gun is now held by them.
 
@@ -12804,14 +12804,14 @@ reload. Every SpeedKills gun is now held by them.
   across the face. From the eye the Visor stands between the eye and the tube's front, so the new rocket is seen phase
   in from the side and by others; the eye has the point, the turn, the RPG's recorded reload and the gun's glow pulsing as
   the rocket seats.
-- **No brass:** built on the marksman rifle's procedural model, HAEFY threw a cartridge case after every rocket.
+- **No brass:** built on the marksman rifle's procedural model, DEVINOS threw a cartridge case after every rocket.
 - **Its feel and sounds:** a launcher's heavy kick, 6 degrees and 5 cm a rocket on a soft spring (Milestone 518's measure),
   a bigger flash (gunfeel.json), the RPG's launch and reload (packsounds.json; it had the Drake-12's shots).
 - **The plain gun:** every SpeedKills gun is now in the bought arms, so the check that they draw at the gun camera's own
   field of view compares them with the old R-301, the last gun the view's own arms hold.
-- **Checked:** the soldier e2e's pack frames for HAEFY with the USSO (`E2E_ONLY=skpack
+- **Checked:** the soldier e2e's pack frames for DEVINOS with the USSO (`E2E_ONLY=skpack
   E2E_GUNS=launcher,r97`), 38 of 38. Two checks measured it wrong and were set right: the fit's tilt, held over 3 degrees
-  to show the fit was made at all (the second draw's had once come out as none), is HAEFY's 1.8 and now held over 0.6; and
+  to show the fit was made at all (the second draw's had once come out as none), is DEVINOS's 1.8 and now held over 0.6; and
   a magazine's phase was centred on the middle of its box over the world's axes, which for a rocket 54 cm long rolled with
   the reload's turn lay 12 mm off its own middle: measured in the magazine's own frame, as the view takes it, both guns'
   phases are centred to the millimetre. npm run verify, rules and the type check.
@@ -12819,7 +12819,7 @@ reload. Every SpeedKills gun is now held by them.
 ## Milestone 519 — The bought arms' field of view checked against the settings
 
 The skpack check that the bought arms' guns are drawn at the gun camera's own field of view compared them with the first
-SpeedKills gun the view's own arms still held. Since HAEFY (Milestone 517) none is left, and the last gun it could have
+SpeedKills gun the view's own arms still held. Since DEVINOS (Milestone 517) none is left, and the last gun it could have
 borrowed, the old R-301, is going with the legacy guns (the new-stuff agent's sweep). The field of view at the hip is the
 settings', not a gun's: sens.ts gunFov is the world's 4:3 hip view at viewmodel.json's own scale, the player's own cancelling
 out, so the check now takes that, and the view's own inspect length from the page (packArms plainInspect, viewmodel.ts
@@ -12991,7 +12991,7 @@ torso stands behind them to stop the shot.
 
 - **Now** (dummy.ts followBones and soldierVolumes, figure.json handVolume): each hand a sphere 0.08 m round, its middle
   halfway from the hand bone to the middle finger's second joint, so it follows the fingers as they close round each
-  gun. Measured holding BOOG, USSO, APUHTHEE, HAEFY and CHOOCH, at the hip and aimed: 95 in 100 of the hand's skin within
+  gun. Measured holding BOOG, USSO, APUHTHEE, DEVINOS and CHOOCH, at the hip and aimed: 95 in 100 of the hand's skin within
   0.077 to 0.086 of that middle.
 - **After:** shots at the drawn arms within 6 cm of where they aimed 54 to 60 in 100 (32 to 45 before), into nothing
   10 to 16 (22 to 26). No shot at a head a soldier shows from behind goes into a hand.
@@ -13000,7 +13000,7 @@ torso stands behind them to stop the shot.
   round a curved plate, and from 30 degrees behind it took 88 to 98 of every 500 shots at the head a soldier showed,
   aiming; it needs a volume the plate's own shape.
 - **Checked:** the skfigure limbs check now holds the arms too (a shot at them within 6 cm 50 in 100 or more, into
-  nothing 19 or fewer), seen failing with the hands' spheres shrunk to nothing (into nothing 22 to 25). HAEFY joined
+  nothing 19 or fewer), seen failing with the hands' spheres shrunk to nothing (into nothing 22 to 25). DEVINOS joined
   the swap checks with Milestone 517's swap of its own: carried low, it goes out of an in-place swap from its carry and
   the next gun comes in at its own, the carry changed while neither shows (mannequin.ts setGun). Every skfigure check
   (315 of 315); verify;
@@ -13525,7 +13525,7 @@ the districts page (THE STACKS, stage by stage), after a test bake of the pack's
   grid fell on their open floor, an island no bot or drop could reach. The bake adds them to its typed collision.
 - **The bots' node guard** is shared: THE TERMINAL's concourse kept its machines off the street nodes with it, and THE
   STACKS' cover uses the same one (`onNode`).
-- **Checked** (tools/checks/sk-neon.ts): the towers inside the L and none in another, cover within 6 m over 99.9% of its open ground (the farthest 7.8 m), its name seen on nine sight lines from the ring road, six lamps; and the street network whole, which it was not until the two plugs went in. The e2e: 100 of 101 twice: each run one of HAEFY's launcher checks failed and the other run passed it, the second a failure the check itself notes under load (the machine was at 96% CPU with other agents' tests). verify, rules and the type check. The look: the avenue, the car park, the west street, the corner and the skyline from the centre, at golden hour and night.
+- **Checked** (tools/checks/sk-neon.ts): the towers inside the L and none in another, cover within 6 m over 99.9% of its open ground (the farthest 7.8 m), its name seen on nine sight lines from the ring road, six lamps; and the street network whole, which it was not until the two plugs went in. The e2e: 100 of 101 twice: each run one of DEVINOS's launcher checks failed and the other run passed it, the second a failure the check itself notes under load (the machine was at 96% CPU with other agents' tests). verify, rules and the type check. The look: the avenue, the car park, the west street, the corner and the skyline from the centre, at golden hour and night.
   The map: its files lo 130.8 MB, hi 199.2 MB, max 433.9 MB.
   **Its files are version 70.**
 
@@ -13583,7 +13583,7 @@ up the stack". Planned on the districts page after a test bake of the pieces.
   The map: its files lo 130.9 MB, hi 199.4 MB, max 434.0 MB.
   **Its files are version 71.**
 
-## Milestone 542 — The old guns' leftovers out, STRYDER's hand, and HAEFY's checks under load
+## Milestone 542 — The old guns' leftovers out, STRYDER's hand, and DEVINOS's checks under load
 
 The owner, 2026-10-12 (by the lobby agent): "continue removing all old shit, including old guns maps textures anything
 like that". The guns' share, with two fixes from the night's all-ten-guns run.
@@ -13602,8 +13602,8 @@ like that". The guns' share, with two fixes from the night's all-ten-guns run.
 - **Left as it is:** the 3030's weapon data, which the launcher is built from (src/game/weapons.ts), and its code-built
   model, which the data check holds every weapon to; and the courses' semipistol and g17.
 - **STRYDER's left hand** 2 mm down and back: in the all-ten-guns run, drawn straight after APUHTHEE, it showed 13
-  pixels of daylight at rest (none after the USSO or HAEFY); this place shows none after either.
-- **HAEFY's rocket checks under load** (tools/e2e.ts): the city agent's runs at 96% CPU failed one a run. The 25 m
+  pixels of daylight at rest (none after the USSO or DEVINOS); this place shows none after either.
+- **DEVINOS's rocket checks under load** (tools/e2e.ts): the city agent's runs at 96% CPU failed one a run. The 25 m
   rocket's burst is waited for by 1.5 s of game time (it had been 1.5 s of the real clock), and the control rocket, the
   bot's own fired as nobody's at its head, is fired a second time if the first misses.
 - **Checked:** verify, rules and the type check; the speedkills section 101 of 101; both pistols' frames 36 of 36 in the
@@ -13625,7 +13625,7 @@ The district's third stage, re-planned on the districts page after measuring the
 - **Light in the hotel** (`hotel.lights`): the pack's strip light under every gallery's ceiling every 5 m, its light part
   worn in pink. In every pod is the ceiling panel the base's storeys and the tower's floors use, which the game's fill
   lights take as a spot of their own, so a pod is lit when you are near it.
-- **Checked** (tools/checks/sk-neon.ts): the pad stacks-e ridden as a match throws it, onto 21.7 m; the pod roof's three open edges railed at 34 points; its two AC boxes standing on it; 36 pink strips and 21 pod lights in the hotel; the fill lights' spots, none inside anything solid; and every check before it, with the district's pad left out of the centre's own pad walk as the other districts' are. The e2e: 99 of 101 under load, then 100 of 101 alone: the capture check that failed under load passed, and one of HAEFY's launcher checks failed both times (both rockets flew 165 m), a guns check the guns agent is hardening. verify, rules and the type check. The look: the pod roof by day, the hotel's court, a gallery and a pod by night.
+- **Checked** (tools/checks/sk-neon.ts): the pad stacks-e ridden as a match throws it, onto 21.7 m; the pod roof's three open edges railed at 34 points; its two AC boxes standing on it; 36 pink strips and 21 pod lights in the hotel; the fill lights' spots, none inside anything solid; and every check before it, with the district's pad left out of the centre's own pad walk as the other districts' are. The e2e: 99 of 101 under load, then 100 of 101 alone: the capture check that failed under load passed, and one of DEVINOS's launcher checks failed both times (both rockets flew 165 m), a guns check the guns agent is hardening. verify, rules and the type check. The look: the pod roof by day, the hotel's court, a gallery and a pod by night.
   The map: its files lo 131.3 MB, hi 199.7 MB, max 434.4 MB.
   **Its files are version 72.**
 
@@ -13721,7 +13721,7 @@ The north district's second stage.
 - **Cover on the decks** (`rules.perches`' glass-*): AC boxes and crates on all four decks' lobes. `perches_clear.glass`
   keeps them 4 m off a gangway's end and the lift's landing there: the High City's 10 m and 8 m left lobes 9 to 14 m
   across bare.
-- **Checked** (tools/checks/sk-neon.ts): its glass lift ridden up from its car onto its landing, its stair walked down onto the front deck and back up, and ridden down again; the four Sky Ring lifts' landing stairs walked back up onto (a new check); cover within 6 m over the band's ground (0.7% over, the farthest 7.4 m); cover on every GLASS HEIGHTS deck, each piece on its roof; the street network whole; every bridge's stair walked as before. The e2e: 100 of 101, the one failure HAEFY's launcher check the guns agent is taking (both rockets fly the full 165 m), passed in the run before. verify, rules and the type check. The look: the courtyard and the lift, the ride up, the landing, the decks, by day and night.
+- **Checked** (tools/checks/sk-neon.ts): its glass lift ridden up from its car onto its landing, its stair walked down onto the front deck and back up, and ridden down again; the four Sky Ring lifts' landing stairs walked back up onto (a new check); cover within 6 m over the band's ground (0.7% over, the farthest 7.4 m); cover on every GLASS HEIGHTS deck, each piece on its roof; the street network whole; every bridge's stair walked as before. The e2e: 100 of 101, the one failure DEVINOS's launcher check the guns agent is taking (both rockets fly the full 165 m), passed in the run before. verify, rules and the type check. The look: the courtyard and the lift, the ride up, the landing, the decks, by day and night.
   The map: its files lo 137.6 MB, hi 207.0 MB, max 445.4 MB.
   **Its files are version 74.**
 
@@ -13749,7 +13749,7 @@ The east district's first stage, in EAST DECK's magenta: the band past the ring 
 - **The ground:** low planters down the boulevard (the pack's cypresses there hid the name from the ring road), two cars
   by the gate, planters, kiosks, benches and crates in the south plaza, cars nosed in along the south road, crates and
   planters in the strips beside the tower, and street lamps along the ring road, kept off the name's sight lines.
-- **Checked** (tools/checks/sk-neon.ts): the tower across the edge, with its eight blocks and the pyramid inside the band; each block shut to its top in the collision; a player walks up the pyramid from each of its four sides onto its top at 7.00 m; the name along nine clear sight lines from the ring road; 0.2% of 4,422 points over 6 m from cover (the farthest 6.5 m); three lamps; the perches now 29. The plug and climb checks were proven by taking the typed boxes out of the collision: all eight blocks read open and the walker fell into the pyramid at 0 m. The e2e: the SpeedKills section 100 of 101; the one fail, HAEFY's own-rocket test, is the guns agent's test fault, fixed on their branch in 638e2a41 and not on main yet. verify, rules and the type check. The look: the boulevard, the ring road, the pyramid and its top, the base and from a deck, by golden hour and neon night, plus a view from above; the billboards' screens show dark from the boulevard.
+- **Checked** (tools/checks/sk-neon.ts): the tower across the edge, with its eight blocks and the pyramid inside the band; each block shut to its top in the collision; a player walks up the pyramid from each of its four sides onto its top at 7.00 m; the name along nine clear sight lines from the ring road; 0.2% of 4,422 points over 6 m from cover (the farthest 6.5 m); three lamps; the perches now 29. The plug and climb checks were proven by taking the typed boxes out of the collision: all eight blocks read open and the walker fell into the pyramid at 0 m. The e2e: the SpeedKills section 100 of 101; the one fail, DEVINOS's own-rocket test, is the guns agent's test fault, fixed on their branch in 638e2a41 and not on main yet. verify, rules and the type check. The look: the boulevard, the ring road, the pyramid and its top, the base and from a deck, by golden hour and neon night, plus a view from above; the billboards' screens show dark from the boulevard.
   The map: its files lo 140.3 MB, hi 211.1 MB, max 452.8 MB.
   **Its files are version 75.**
 
@@ -13774,11 +13774,11 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
 - **Tools:** pack-solve.ts's shoulder fit now holds the hand it is given (with a hold patched in, it had fitted the
   shoulders to the hand in the file: PANDA's wrist read 44 degrees there and 69 on the hand meant); OWNER_VIEW=1 runs it
   at the owner's field of view.
-- **HAEFY's bot-rocket check** (tools/e2e.ts) fires from 35 cm under the bot's head: from a fixed 1.35 m, a bot crouched
+- **DEVINOS's bot-rocket check** (tools/e2e.ts) fires from 35 cm under the bot's head: from a fixed 1.35 m, a bot crouched
   with its head's middle at 1.4 m fired from inside its head, and a rocket leaving a mesh from inside meets none of its
   faces, so the control flew its whole 165 m in half the runs. Eight runs in eight now.
 - **Checked:** verify, rules and the type check; the three guns' pack frames, 39 of 40 together (CHOOCH's inspect wrist,
-  then fixed) and CHOOCH's 40 of 40 alone, with the forefinger on the trigger check passing on all three; HAEFY's
+  then fixed) and CHOOCH's 40 of 40 alone, with the forefinger on the trigger check passing on all three; DEVINOS's
   bot-rocket check eight runs in eight alone.
 
 ## Milestone 545 — BIGANTLER's right forefinger on its trigger
@@ -13831,27 +13831,27 @@ Milestone 543's check of the right forefinger on the trigger, measured on all te
   sleeve, the wrists and the right forefinger on the trigger.
 - **Checked:** verify, rules and the type check; the bought arms' frames on all ten guns, where the new check passes on
   every one (no frame of a swap without the arms). The same run found three checks failing that this change does not
-  touch, each next: STRYDER's left hand shows 13 pixels of daylight at rest, HAEFY's reload reads no magazine seen
+  touch, each next: STRYDER's left hand shows 13 pixels of daylight at rest, DEVINOS's reload reads no magazine seen
   (`__magSeen` counts only parts named Clip), and ANAKIN's forefinger is still off its
   trigger. A hold with it on the trigger (1.3 mm) was tried in the same run: it showed 8 pixels of daylight at rest and
   6 mm of palm in the magazine pointing and with the new one in, so it waits.
 
-## Milestone 548 — HAEFY's rocket seen as it reloads
+## Milestone 548 — DEVINOS's rocket seen as it reloads
 
-- **The fault** (found by the reload check on all ten guns, Milestone 547): through HAEFY's whole reload not a pixel of
+- **The fault** (found by the reload check on all ten guns, Milestone 547): through DEVINOS's whole reload not a pixel of
   the rocket's phase was seen. From the first person the tube is seen from behind with its own sight in front of its
   mouth, and the rocket (its magazine, paidgun.ts rocketMag) sat with its tip 4 cm back inside the tube: `roundOut` was
   0.2 past the model's muzzle point, and the tube's front piece stands 0.30 past it (measured, in the model's units).
   The left forefinger pointed at the sight.
 - **Now:** the rocket sits at 0.42, the base of its nose cone at the tube's mouth and the cone out of it, as a loaded
-  RPG's warhead stands, in the soldier's hands too. HAEFY has its own turn in the reload (packGuns RPG `twist`, picked
+  RPG's warhead stands, in the soldier's hands too. DEVINOS has its own turn in the reload (packGuns RPG `twist`, picked
   from a grid of yaw, pitch and roll): the tube's mouth comes into the picture left of the sight with the rocket phasing
   in it, 248 pixels of a 480 wide picture halfway, the pointing wrist under 60 degrees. The pointing spot stays where it
   was on the gun (`point` along 0.38, aimAt 0.8): carried out with the rocket the finger pointed 14 degrees off it.
 - **The rocket is not the gun:** the gun's middle (viewmodel.ts, the swap's cup and the turns about it) and the e2e's
   muzzle are taken without it: with the warhead out, the swap's cup moved 5 cm ahead and the left thumb went 5 mm into
   the tube, and the e2e's muzzle sat 1 to 2% of the picture off the tube's mouth.
-- **Tools:** `__magSeen` (tools/pack-audit.js) counts the gun's whole `mag` group, not only parts named Clip (HAEFY's
+- **Tools:** `__magSeen` (tools/pack-audit.js) counts the gun's whole `mag` group, not only parts named Clip (DEVINOS's
   rocket has unnamed parts); tools/e2e.ts' fit leaves a round out of the gun's box. The scratch probe can draw in
   software at the e2e's 800 by 450: a hand's daylight read 8 pixels there and 0 on the GPU, which is why ANAKIN's
   trigger hold passed the probes and failed the e2e.
@@ -14040,7 +14040,7 @@ The south-west district's third stage, the last of its three streets (`rules.dis
   a few frames a second, the 0.35 s of game time the bought arms' states waited was a frame or two of the view's, the
   hands still on their way into a state. Skin in the gun, the inspect's and the flourish's sweep and the hands at rest
   now wait as long in the view's own time too. That is what showed APUHTHEE's thumb (it read 0 caught on its way), and
-  it took STRYDER's 5 mm as a swap came in (one run in four) and HAEFY's flourish wrist just over 60 degrees out of
+  it took STRYDER's 5 mm as a swap came in (one run in four) and DEVINOS's flourish wrist just over 60 degrees out of
   the results. A failure of the skin check names the bone and the part it is in.
 - **Also in tools/e2e.ts** (no milestone of their own): the soldier section's BOOG recharge and reload-in-view checks are
   short page calls, BOOG's charge waited on for up to 90 s, after the lobby agent's sweep found them past a page call's
@@ -14049,7 +14049,7 @@ The south-west district's third stage, the last of its three streets (`rules.dis
 - **Known:** STRYDER's left hand can show a 13 pixel pocket of daylight at rest on some runs. The same hold reads 0 or 13
   from run to run, and moves of half a millimetre flip it both ways; it passed this round.
 - **Checked:** verify, rules and the type check; the bought arms' frames on all ten guns with the wait (48 of 50, the two
-  misses STRYDER's pocket and HAEFY's flourish wrist, then both passing in a run of their own) and APUHTHEE's alone
+  misses STRYDER's pocket and DEVINOS's flourish wrist, then both passing in a run of their own) and APUHTHEE's alone
   (40 of 40).
 
 ## Milestone 644 — THE CANYON's market floor and its light
@@ -14315,3 +14315,11 @@ its edges.
   corner's. It fails with the bug put back: with the south rail's two middle sets taken out it read NNNS, four half metres bare. The bridges' walks still pass, the gangway's among them. The e2e: the speedkills section 101 of 101, run alone (a first run beside the map checks lost one: the ghost loadout check found a rifle on the floor, a known flake under load). verify, rules and the type
   check. Photographed along the gangway both ways and from above. The map: its files lo 155.4 MB, hi 227.2 MB, max 471.9 MB.
   **Its files are version 93.**
+
+## Milestone 552 — The launcher is named DEVINOS
+
+- **The launcher's name** (the owner, 2026-10-17: the launcher renamed DEVINOS, "all references everywhere"): the gun's name
+  in speedkills.json, and every mention of it in the code's notes, the configs' notes, the checks, the README, the plans
+  and the diaries, 209 lines in 44 files. Its id stays `launcher`, so saved loadouts and anything stored by id carry over.
+- **Checked:** verify (the rocket check reads the name), rules and the type check; the HUD photographed with it in hand
+  ("DEVINOS  LAUNCHER" fits its card).

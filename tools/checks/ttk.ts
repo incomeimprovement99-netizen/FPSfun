@@ -153,7 +153,7 @@ for (const [fam, f] of Object.entries(PROFILE.families)) {
   // (but the launcher, whose rocket does more the further it flies: the owner, 2026-10-06)
   const notLauncher = PROFILE.roster.filter((id) => !fam("launcher").includes(id));
   check("no gun kills quicker far than near (10, 30 and 60 m), but the launcher", notLauncher.every((id) => time(id, 30) >= time(id, 10) - 1e-9 && time(id, 60) >= time(id, 30) - 1e-9), notLauncher.map(row).join(", "));
-  // HAEFY's rocket (the owner, 2026-10-06: "more damage the further it travels, so a point blank or very close does like 10
+  // DEVINOS's rocket (the owner, 2026-10-06: "more damage the further it travels, so a point blank or very close does like 10
   // damage"): about 10 a rocket point blank, a kill in about the others' time from 20 m on, and no quicker near than far
   for (const id of fam("launcher")) {
     const w = resolveWeapon(id, [], 0);

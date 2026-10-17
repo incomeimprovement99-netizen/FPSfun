@@ -834,9 +834,9 @@ export class MannequinFigure {
     this.mount = null;
     // (a gun in place of another is the one a swap phases in; the first one given is just there)
     if (id !== this.gunId) this.gunAt = this.gunId ? this.t : -1;
-    // A gun carried low unless aimed (HAEFY's, carryLowOf) goes out of a swap from its carry and the next comes in at its
+    // A gun carried low unless aimed (DEVINOS's, carryLowOf) goes out of a swap from its carry and the next comes in at its
     // own: the carry changes here, while neither gun shows (the old one phased out, the new one not yet in). Eased, the
-    // swap in place had HAEFY come in at the shoulder and drop through its draw
+    // swap in place had DEVINOS come in at the shoulder and drop through its draw
     if (this.gunId && id !== this.gunId && !!carryLowOf(this.gunId) !== !!carryLowOf(id)) this.lowered = carryLowOf(id) ? 1 : 0;
     this.gunId = id;
     this.rifleMem.gunInHand = null;
@@ -1590,7 +1590,7 @@ export class MannequinFigure {
       // overheat's. Eased at the carry's own rate as the act held, it ran on a clock of its own, not the first person's.
       const V = p.act === "vent" && holding && !full && !rifleMelee ? ventOf(this.gunId) : null;
       const ventU = V ? (this.t - this.actAt) / lockoutSeconds(this.gunId) : 0;
-      // (and a gun carried low unless aimed in, HAEFY's tube, whose back half up on the shoulder hid the head from behind)
+      // (and a gun carried low unless aimed in, DEVINOS's tube, whose back half up on the shoulder hid the head from behind)
       const CL = carryLowOf(this.gunId);
       const carriedLow = !!CL && (p.ads ?? 0) < 0.3 && p.act !== "reload" && this.t - this.shotAt > CL.after;
       // (and through a punch, the right hand keeping the gun where it was: brought up to the shoulder for it and down

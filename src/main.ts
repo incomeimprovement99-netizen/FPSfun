@@ -1494,7 +1494,7 @@ speedLines.style.cssText =
 projectiles.listener = camera.position;
 projectiles.onWhiz = (p) => audio.whiz(p);
 projectiles.onVisualImpact = (at, normal) => markImpact(at, normal);
-// HAEFY's rockets (rocket.ts): every burst is seen and heard; your own does its damage (rocketBlast)
+// DEVINOS's rockets (rocket.ts): every burst is seen and heard; your own does its damage (rocketBlast)
 const rocketBursts = new RocketBursts(scene);
 projectiles.onBurst = (at, travelled, w, visual, onImpact) => {
   rocketBursts.add(at, travelled);
@@ -1868,7 +1868,7 @@ function previewFitNow(fig: Dummy): number {
   fig.group.updateMatrixWorld(true);
   const c = fig.group.getWorldPosition(new THREE.Vector3());
   // a point x across and z toward the camera stays in the panel while x / (D - z) <= k; y up from the camera's aim
-  // while y / (D - z) <= kv: HAEFY's launcher, on the shoulder and over the head, ran out of the top
+  // while y / (D - z) <= kv: DEVINOS's launcher, on the shoulder and over the head, ran out of the top
   const k = (Math.tan((previewCam.fov * Math.PI) / 360) * previewCam.aspect) / 1.08;
   const kv = Math.tan((previewCam.fov * Math.PI) / 360) / 1.08;
   let need = 3.15;
@@ -8397,7 +8397,7 @@ const GALLERY = { x: 0, z: -8 };
   sprays: () => ({ count: sprays.count, owners: sprays.owners() }),
   /** bullet impacts marked on the level since the page opened */
   impacts: () => impacts.count,
-  /** HAEFY's rocket bursts showing (rocket.ts) */
+  /** DEVINOS's rocket bursts showing (rocket.ts) */
   rocketBursts: () => rocketBursts.count,
   rocketLast: () => rocketBursts.last,
   /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */

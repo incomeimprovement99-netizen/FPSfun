@@ -82,7 +82,7 @@ interface Bullet {
   age: number;
   /** its tracer, or a rocket's model */
   mesh: THREE.Object3D;
-  /** a rocket (HAEFY's, rocket.ts): drawn as itself, and bursting where it stops, which does its damage */
+  /** a rocket (DEVINOS's, rocket.ts): drawn as itself, and bursting where it stops, which does its damage */
   rocket: boolean;
   /** where the streak is drawn from (the muzzle) less where the round really left (the eye): blended out over the first metres */
   drawOffset: THREE.Vector3 | null;

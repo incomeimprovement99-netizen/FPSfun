@@ -78,7 +78,7 @@ describes the retired legacy game, and goes with its code.
   are tried again three times over 13 s before the page settles without them.
   Its hit volumes follow its body, so a headshot lands on the head you see,
   running, crouched or sliding, and from behind nothing of its kit hides its
-  head: the collar sits below it, the chest stays upright, HAEFY is carried
+  head: the collar sits below it, the chest stays upright, DEVINOS is carried
   muzzle up until it is aimed, and a shot that clips the neck or a shoulder on
   its way into the head is a headshot. The bought files never enter git, so a copy
   without them (and the Pages build) shows the figures of before.
@@ -104,7 +104,7 @@ describes the retired legacy game, and goes with its code.
   Weapons model, in first person, in hands and on the floor, and a fused gun
   changes skin and glows brighter each level. One model a gun, by its class:
   the two SMGs, the two shotguns and the two pistols one each, PANDA the rifle,
-  BOOG the sniper, HAEFY the rocket launcher, CHOOCH the drum launcher. The
+  BOOG the sniper, DEVINOS the rocket launcher, CHOOCH the drum launcher. The
   pack's own parts move:
   triggers, CHOOCH's drum a chamber a shot, the sniper's wheels, the heavy
   shotgun's loading gate, the magazine releases. Every gun is aimed down its
@@ -140,7 +140,7 @@ describes the retired legacy game, and goes with its code.
   for squad mates; a double jump that turns them
   leaves a streak of the same light through the air along the turn. The gap analysis
   against Hyper Scape is docs/HYPERSCAPE_GAP_ANALYSIS.md.
-  Every gun, the USSO, BOOG, ANAKIN, PANDA, BIGANTLER, REZ, CHOOCH, APUHTHEE, STRYDER and HAEFY, is held by real first-person arms (a bought pack's,
+  Every gun, the USSO, BOOG, ANAKIN, PANDA, BIGANTLER, REZ, CHOOCH, APUHTHEE, STRYDER and DEVINOS, is held by real first-person arms (a bought pack's,
   where its files are): two SMG holds, a sniper hold, a rifle hold, two shotguns', an LMG's, two pistols' and a launcher's, fitted to our guns' grips joint
   by joint so no finger sinks into them anywhere in a reload, a swap, aiming in or
   a pickup (every frame of each photographed and measured); the USSO's left hand
@@ -159,7 +159,7 @@ describes the retired legacy game, and goes with its code.
   under its barrel past its drum and vents its overheat in both hands, tipped up and
   canted, rather than reloading; APUHTHEE and STRYDER, the pistols, are held out in both
   hands, the left wrapped round the right on the grip, the forefinger on the trigger, APUHTHEE where Apex holds its
-  Wingman and aimed at arm's length (each bought gun can have its own aimed distance from the eye); HAEFY, the launcher, sits on the
+  Wingman and aimed at arm's length (each bought gun can have its own aimed distance from the eye); DEVINOS, the launcher, sits on the
   right shoulder, aimed through the sight beside its tube, the left hand on the grip under its front, and its reload
   phases a rocket into the tube, the warhead standing out of its mouth, the launcher turning so you see it come; and on every gun the right hand's lower three
   fingers sit together round the grip with the forefinger's tip on the trigger; each left forearm comes in from the
@@ -210,14 +210,14 @@ describes the retired legacy game, and goes with its code.
 - **The city's pieces:** on the game server every piece of the Neon City is the bundle the owner bought, at the
   texture size the graphics preset picks; a copy without the files draws nothing of the city.
 - **Ten guns**, most named for the owner's friends: a rifle (PANDA), two SMGs,
-  two shotguns, a rocket launcher (HAEFY), a sniper (BOOG, which kills with one
+  two shotguns, a rocket launcher (DEVINOS), a sniper (BOOG, which kills with one
   headshot), two pistols (STRYDER, a fast automatic, and APUHTHEE, a heavy
   semi-automatic with six rounds and almost no recoil: five body hits a kill) and
   CHOOCH, which cools instead of reloading. Ammo is infinite; the magazine is not.
   Every gun kills in about the same time where it is meant to be used, about one
   and a half seconds with most rounds on target: the SMGs and pistols quicker up
   close and losing damage with range, so that at 60 m they take twice as long or
-  more, the rifle and CHOOCH nearly as strong far as near. HAEFY works the other
+  more, the rifle and CHOOCH nearly as strong far as near. DEVINOS works the other
   way: its rockets fly slowly enough to see and burst where they land, about 10
   up close and harder the further they fly, 50 from 20 m on, with a bigger burst
   too; your own rockets never hurt you or your team. A bot carries it the same
@@ -280,7 +280,7 @@ describes the retired legacy game, and goes with its code.
   aiming; its reload is the magazine alone, down out of the handle and back, until
   the first person's pistol moves are made. STRYDER, the fast pistol, is held the
   same way. REZ, the auto shotgun, is held round the middle of its magazine tube
-  under the barrel. HAEFY, the rocket launcher, is carried muzzle up across the
+  under the barrel. DEVINOS, the rocket launcher, is carried muzzle up across the
   right shoulder until it is aimed, and aimed it rides on the shoulder, the eye at
   its side sight: every gun on the soldier is fitted.
 - **Your squad, always in sight:** each of you has a colour and a number, the
@@ -765,7 +765,7 @@ The guns come from extracted reference numbers with Season 30's changes on
 top: damage per zone, fire rate, magazine sizes per level, reload and
 tactical reload times, spread by stance, recoil patterns, projectile speed and
 drop (hitscan where the game is). The data keeps SpeedKills' guns and the
-bases it builds on (the 30-30 under HAEFY's launcher, the P2020 under the
+bases it builds on (the 30-30 under DEVINOS's launcher, the P2020 under the
 Run's pistols); the legacy game's other guns, the Kraber, the HAVOC, the
 Peacekeeper, the Bocek and the rest, went in Milestone 521, and the R-301 with
 its attachments, magazine levels, hop-ups and fire modes in 522. Each gun

@@ -72,7 +72,7 @@ const PUB = typeof __PUBLIC_BUILD__ !== "undefined" && __PUBLIC_BUILD__;
 addDerived("g17", "semipistol", PUB ? "Striker 9" : "Glock 17", [17, 19, 21, 24, 24]);
 // (the Nemesis and the Bocek were derived here, off the Hemlok and the G7: legacy guns, gone with it, Milestone 521)
 
-// HAEFY's rocket launcher (src/game/rocket.ts, rocket.json), SpeedKills' alone (weaponIds leaves it out of the legacy
+// DEVINOS's rocket launcher (src/game/rocket.ts, rocket.json), SpeedKills' alone (weaponIds leaves it out of the legacy
 // game's catalogue, which is the data's whole): no gun in the data fires a rocket, so the 30-30's handling
 // with the rocket's own numbers; its damage by distance is how far the rocket has flown to its burst (10 point blank to
 // 50 from 20 m), the curve every gun's damage takes, here rising; no headshot; the burst does the damage (rocket_blast)
@@ -152,7 +152,7 @@ export interface ResolvedWeapon {
   threatRange: [number, number] | null;
   adsMoveScale: number;
   projectile: { speed: number; gravity: number; lifetime: number }; // m/s, m/s^2, s
-  /** its round bursts where it stops, and the burst does the damage (HAEFY's rocket, rocket.ts) */
+  /** its round bursts where it stops, and the burst does the damage (DEVINOS's rocket, rocket.ts) */
   blast?: boolean;
   spread: {
     standHip: number; runHip: number; sprintHip: number; crouchHip: number; airHip: number;

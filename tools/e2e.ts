@@ -1669,7 +1669,7 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   check("toggle crouch: a press crouches and it holds; a jump stands you up", down && !up, `${down} then ${up}`);
   await ev(page, `(() => { const s = document.getElementById("crouchMode"); s.value = "hold"; s.dispatchEvent(new Event("change")); })()`);
   // ---- per-optic ADS: the 3x's multiplier applies with a 3x on
-  // (HAEFY wears the 3x, its fixed optic: SpeedKills fits none)
+  // (DEVINOS wears the 3x, its fixed optic: SpeedKills fits none)
   await ev(page, `(() => { const i = document.getElementById("opticAds3x"); i.value = "0.5"; i.dispatchEvent(new Event("input")); const l = window.__range.loadout; l.setWeaponId(l.activeIndex, "launcher"); })()`);
   await sleep(200);
   const mult = await ev<number>(page, "window.__range.opticAdsMult()");
@@ -1851,7 +1851,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
       };
       // and as much of the view's own time: it steps a frame at most 0.05 s (viewmodel.ts), so drawn in software a few
       // frames a second, 0.35 s of game time was a frame or two of the view's, the hands still on their way into a state
-      // (STRYDER's 5 mm seen in the gun as a swap came in, on one run in four, and HAEFY's wrist just over 60 degrees in
+      // (STRYDER's 5 mm seen in the gun as a swap came in, on one run in four, and DEVINOS's wrist just over 60 degrees in
       // a first draw's flourish, 2026-10-17)
       H.viewWait = async (s) => {
         await H.gameWait(s);
@@ -1938,7 +1938,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const packIds = allPack.filter((id) => !E2E_GUNS.length || E2E_GUNS.includes(id));
   const has = (...ids: string[]) => ids.every((id) => packIds.includes(id));
   // (as the settings give it, sens.ts gunFov: the world's 4:3 hip view at viewmodel.json's own scale, the player's own
-  // cancelling out; it had been read off the first SpeedKills gun not yet in the bought arms, and since HAEFY, 2026-10-11,
+  // cancelling out; it had been read off the first SpeedKills gun not yet in the bought arms, and since DEVINOS, 2026-10-11,
   // none is left)
   const plainFov = verticalFovFrom43(hipFov43(vmCfgE2e.fovScale));
   // and the length of an inspect in the view's own arms (viewmodel.ts INSPECT_TIME, as the page has it)
@@ -2010,7 +2010,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     // line meets the screen and where the muzzle is (shares of the screen, from the left and the top), and the gun's across
     // axis on the screen, degrees off level; and how much of the left upper arm is in the picture through a melee (carried by
     // the new look, the chest it draws back to came by the eye, a sheet of sleeve across the gun: 80% of it in the picture)
-    // (the gun's own box, without a round standing out of it: HAEFY's rocket, its warhead out of the tube's mouth, put the
+    // (the gun's own box, without a round standing out of it: DEVINOS's rocket, its warhead out of the tube's mouth, put the
     // muzzle 1 to 2% of the picture off where the tube's mouth is)
     o.fit = await pf<Frames["fit"]>(`H.clear(); await H.gameWait(0.4); const T = r.THREE; const rig = r.packRig(); const root = r.viewModelRoot(); let gun = null; root.traverse((x) => { if (x.userData && x.userData.paid && !gun) gun = x; }); gun.updateWorldMatrix(true, true); const ginv = new T.Matrix4().copy(gun.matrixWorld).invert(); const lb = new T.Box3(); const inRound = (m) => { for (let q = m; q; q = q.parent) if (q.userData && q.userData.rocket) return true; return false; }; gun.traverse((m) => { if (m.isMesh && m.visible && !inRound(m)) { if (!m.geometry.boundingBox) m.geometry.computeBoundingBox(); lb.union(m.geometry.boundingBox.clone().applyMatrix4(new T.Matrix4().multiplyMatrices(ginv, m.matrixWorld))); } }); const vinv = new T.Matrix4().copy(root.matrixWorld).invert(); const tv = Math.tan(r.gunFov().gun / 2 * Math.PI / 180); const th = tv * innerWidth / innerHeight; const toV = (q) => q.clone().applyMatrix4(gun.matrixWorld).applyMatrix4(vinv); const share = (v) => [(1 + v.x / -v.z / th) / 2, (1 - v.y / -v.z / tv) / 2]; const c = lb.getCenter(new T.Vector3()); const back = toV(new T.Vector3(c.x, c.y, lb.max.z)), front = toV(new T.Vector3(c.x, c.y, lb.min.z)); const d = front.clone().sub(back); const ax = toV(new T.Vector3(c.x + 0.1, c.y, c.z)).sub(toV(c)); let across = Math.atan2(ax.y, ax.x) * 180 / Math.PI; if (across > 90) across -= 180; if (across < -90) across += 180; const upperIn = () => { const inv = new T.Matrix4().copy(root.matrixWorld).invert(); const tv2 = Math.tan(r.gunFov().gun / 2 * Math.PI / 180); const th2 = tv2 * innerWidth / innerHeight; let n = 0, k = 0; rig.group.traverse((m) => { if (!m.isSkinnedMesh) return; const g = m.geometry; const pos = g.attributes.position; const sk = g.attributes.skinIndex, sw = g.attributes.skinWeight; const v = new T.Vector3(); for (let i = 0; i < pos.count; i += 2) { let up = 0; for (let j = 0; j < 4; j++) if (sw.getComponent(i, j) > 0.5 && /^upperarm.*_l$/.test(m.skeleton.bones[sk.getComponent(i, j)].name)) up = 1; if (!up) continue; n++; v.fromBufferAttribute(pos, i); m.applyBoneTransform(i, v); v.applyMatrix4(m.matrixWorld).applyMatrix4(inv); if (v.z < 0 && Math.abs(v.x / -v.z / th2) < 1 && Math.abs(v.y / -v.z / tv2) < 1) k++; } }); return n ? k / n : 0; }; let upper = 0; for (const u of [0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8]) { r.meleeAt(u); await H.gameWait(0.15); upper = Math.max(upper, upperIn()); } r.meleeAt(null); H.clear(); await H.gameWait(0.3); return { vanish: d.z < 0 ? share(d) : [9, 9], muzzle: share(front), across, upper };`);
     // every joint of the arms a number, held (one that is not is drawn from nowhere)
@@ -2361,7 +2361,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   const SEEN_CRACKS = 40;
   check(
     "pack frames: the USSO and BOOG are fitted into the bought hands the same on every draw (it had been only the first)",
-    // (tilted either way: ANAKIN's grip into the palm is 6 degrees nose down, HAEFY's 1.8 up, the second draw's had come out
+    // (tilted either way: ANAKIN's grip into the palm is 6 degrees nose down, DEVINOS's 1.8 up, the second draw's had come out
     // as none at all; a pistol not at all, its left hand on the right, fparms.json packGuns leftOnHand)
     g.length === packIds.length && g.every((x, i) => (onHand(Object.keys(res.guns)[i]) ? Math.abs(x.tilt[0]) < 1e-6 : Math.abs(x.tilt[0]) > 0.01) && Math.abs(x.tilt[0] - x.tilt[1]) < 1e-4),
     show((x) => x.tilt.map((v) => +((v * 180) / Math.PI).toFixed(2))),
@@ -2484,7 +2484,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // the crosshair, as the others' are, 5 degrees off level; REZ the same way on Apex's EVA-8, its muzzle 55.5% across and
   // 56.5% down; CHOOCH on Apex's Devotion, there being no L-STAR at rest in the frames, its muzzle 54.5% across and 58%
   // down; APUHTHEE and STRYDER on Apex's Wingman at rest, its sights' line meeting at 48% across and down, its muzzle
-  // 62% across and 56% down, held further off than a rifle as a pistol is, 5 degrees off level; HAEFY on the shoulder as
+  // 62% across and 56% down, held further off than a rifle as a pistol is, 5 degrees off level; DEVINOS on the shoulder as
   // Battlefield Hardline holds its RPG-7 at rest, Apex having no launcher, its tube's line at the middle, its warhead's tip
   // 57% across and 55% down)
   // (the pistols since Milestone 541: APUHTHEE's rear sight on Apex's Wingman's at rest, 0.607 and 0.574 of the screen, 9 cm
@@ -2614,7 +2614,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   // the outside in", as the guns phase on a swap)
   check(
     "pack frames: the old magazine phases out from its edges in and the new one in from its middle out (the phase radial round the magazine's own middle, within 5 mm)",
-    // (its middle in its own frame, as the view takes it: over the world's axes HAEFY's rocket, 54 cm long and rolled with
+    // (its middle in its own frame, as the view takes it: over the world's axes DEVINOS's rocket, 54 cm long and rolled with
     // the reload's turn, came out 12 mm off its own middle)
     gm.every((x) => x.magPhase.radial.every((v) => v === 1) && x.magPhase.off.every((d) => d < 0.005)),
     show((x) => ({ radial: x.magPhase.radial, mm: x.magPhase.off.map((d) => Math.round(d * 1000)) })),
@@ -2640,7 +2640,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     show((x) => x.inside),
   );
   check(
-    // (to 5 cm since HAEFY: its grips are 4.2 cm thick, and its hands need 4.9 cm off them to clear them in the cup; at 3.9 they
+    // (to 5 cm since DEVINOS: its grips are 4.2 cm thick, and its hands need 4.9 cm off them to clear them in the cup; at 3.9 they
     // went 12 mm in)
     "pack frames: a swap keeps the gun where it is (its middle within 1 cm) as it phases out from its edges in and the next from its middle out; the hands come 1 to 5 cm off their holds and turn in round its middle (each palm within 50 degrees of facing it across its forearm, the fingers bent 45 degrees and more), no hand through the gun (4 mm) and both arms reaching all through it",
     g.every((x) => x.swap.moved < 0.01 && x.swap.radial === 1 && x.swap.off > 0.01 && x.swap.off < 0.05 && x.swap.face < 50 && x.swap.curl >= 45 && x.swap.deep <= 4 && x.swap.short < 0.01),
@@ -4085,7 +4085,7 @@ async function soldierTest(browser: Browser): Promise<void> {
   );
   // the pack's own parts move in the hand (paidgun.ts PaidParts; the pack gives them split and moves none): CHOOCH's drum
   // turns a chamber a shot and its trigger stays back through a burst; a bought gun is aimed down its own sights, the
-  // fitted optic not drawn on top of them (CHOOCH's and BOOG's); HAEFY takes out a magazine on a reload (its procedural
+  // fitted optic not drawn on top of them (CHOOCH's and BOOG's); DEVINOS takes out a magazine on a reload (its procedural
   // gun has none, and the bought one's stayed in)
   const moving = await ev<{ why: unknown; shots: number; pulled: number; drum: number; step: number; choochOptic: boolean | null; boogOptic: boolean | null; helixMag: number; helixOut: number }>(
     page,
@@ -4136,7 +4136,7 @@ async function soldierTest(browser: Browser): Promise<void> {
     })()`,
   );
   check(
-    "soldier guns: the pack's parts move, CHOOCH's drum a chamber a shot with its trigger back through a burst; CHOOCH and BOOG aimed down their own sights, no fitted optic drawn over them; and HAEFY's magazine out on a reload",
+    "soldier guns: the pack's parts move, CHOOCH's drum a chamber a shot with its trigger back through a burst; CHOOCH and BOOG aimed down their own sights, no fitted optic drawn over them; and DEVINOS's magazine out on a reload",
     moving.shots >= 2 &&
       Math.abs(moving.drum - moving.shots * moving.step) < 0.02 &&
       moving.pulled > 0.3 &&
@@ -4159,7 +4159,7 @@ async function soldierTest(browser: Browser): Promise<void> {
         while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
       };
       const out = [];
-      // (ANAKIN, and HAEFY on BOOG's model: the USSO and BOOG are held by the bought arms where their files are here)
+      // (ANAKIN, and DEVINOS on BOOG's model: the USSO and BOOG are held by the bought arms where their files are here)
       for (const id of ["alternator_smg", "3030"]) {
         r.loadout.give(0, id);
         r.setScript({ held: () => false, pressedNow: (a) => a === "slot1" }, null);
@@ -4709,7 +4709,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING behind Extra modes (Gun Run gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
   // the guns: ten of its own, named, the owner's friends among them
   const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
-  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "HAEFY", "APUHTHEE", "BOOG", "CHOOCH"].includes(n)), JSON.stringify(guns));
+  check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "DEVINOS", "APUHTHEE", "BOOG", "CHOOCH"].includes(n)), JSON.stringify(guns));
   // fusion: level 5 is half again the magazine
   const fused = await ev<{ before: number; after: number; level: number }>(page, `(() => { const r = window.__range; const before = r.loadout.slots[0].weapon.clipSize; r.sk.setFusion(0, 5); return { before, after: r.loadout.slots[0].weapon.clipSize, level: r.sk.fusion()[0] }; })()`);
   check("speedkills: fused to 5, a gun's magazine is half as big again", fused.level === 5 && Math.abs(fused.after / fused.before - 1.5) < 0.08, JSON.stringify(fused));
@@ -4857,8 +4857,8 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await ev(lab, "window.__range.setScript(null)");
   check("speedkills: in the lab, the storey block is climbed to its top (4 m)", topped, JSON.stringify(await ev(lab, "({ y: window.__range.player.pos.y, z: window.__range.player.pos.z })")));
   await lab.close();
-  // The arms in the sights (Phase 20 A3): aimed through a magnified scope (BOOG's; HAEFY's 3x went with the 30-30 when
-  // HAEFY became the launcher) the gun is hidden for the scope picture,
+  // The arms in the sights (Phase 20 A3): aimed through a magnified scope (BOOG's; DEVINOS's 3x went with the 30-30 when
+  // DEVINOS became the launcher) the gun is hidden for the scope picture,
   // and the arms, which are not under the gun, stayed drawn frozen and filled the scope. With a red dot (USSO) the
   // arms stay, as they should.
   const sight = await open(browser, "?");
@@ -4978,7 +4978,7 @@ async function skLoadoutTest(browser: Browser): Promise<void> {
   await back.reload({ waitUntil: "domcontentloaded" });
   await back.waitForFunction("Boolean(window.__range)", { polling: 200, timeout: 60000 });
   const c = await ev<{ name: string; want: string[]; held: string[] }>(back, read);
-  // (its own guns in hand, whatever they are now: HAEFY's id changed with its launcher, Milestone 510)
+  // (its own guns in hand, whatever they are now: DEVINOS's id changed with its launcher, Milestone 510)
   check("a pick made after the move is kept over a reload", c.name === "Marksman" && c.held.join() === c.want.join() && c.want.join() !== "r97,sentinel", JSON.stringify(c));
   // put the first back for the pages after this one (they share the browser's storage)
   await ev(back, `[...document.querySelectorAll("#loadoutList button")].find((x) => x.textContent.startsWith("USSO and BOOG")).click()`);
@@ -5795,7 +5795,7 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
  * there must not fuse the guns given back onto the same guns in hand.
  */
 /**
- * HAEFY's rocket launcher (rocket.ts; the owner, 2026-10-06: "it shouldn't hurt the shooter, but it should do more damage
+ * DEVINOS's rocket launcher (rocket.ts; the owner, 2026-10-06: "it shouldn't hurt the shooter, but it should do more damage
  * the further it travels, so a point blank or very close does like 10 damage and then it scales like that"): a real
  * rocket fired at a range dummy where it stands, from 25 m and from 3 m: drawn as a rocket in flight, its burst seen,
  * the dummy taking the burst's damage for how far the rocket flew. Someone else's rocket (as a shot message redraws it)
@@ -5835,11 +5835,11 @@ async function skLauncherTest(browser: Browser): Promise<void> {
       })()`,
     );
   const far = await shoot(25, false);
-  check("HAEFY: a rocket at a dummy from 25 m is drawn as a rocket, bursts, and the dummy takes its full 50", far.rocketDrawn && far.bursts >= 1 && Math.abs(far.took - 50) <= 1 && far.travelled > 20, JSON.stringify(far));
+  check("DEVINOS: a rocket at a dummy from 25 m is drawn as a rocket, bursts, and the dummy takes its full 50", far.rocketDrawn && far.bursts >= 1 && Math.abs(far.took - 50) <= 1 && far.travelled > 20, JSON.stringify(far));
   const near = await shoot(3, false);
-  check("HAEFY: from 3 m the same rocket does about 10 to 14 (point blank about 10, more the further it flies)", near.bursts >= 1 && near.took >= 9 && near.took <= 14, JSON.stringify(near));
+  check("DEVINOS: from 3 m the same rocket does about 10 to 14 (point blank about 10, more the further it flies)", near.bursts >= 1 && near.took >= 9 && near.took <= 14, JSON.stringify(near));
   const theirs = await shoot(25, true);
-  check("HAEFY: someone else's rocket (a shot message's) flies and bursts here too, and does no damage on this page", theirs.rocketDrawn && theirs.bursts >= 1 && theirs.took === 0, JSON.stringify(theirs));
+  check("DEVINOS: someone else's rocket (a shot message's) flies and bursts here too, and does no damage on this page", theirs.rocketDrawn && theirs.bursts >= 1 && theirs.took === 0, JSON.stringify(theirs));
   // Into the floor a hand beside a dummy's feet, from 10 m to its side (in front of it a low wall takes a floor shot):
   // on it, the full damage for the rocket's flight (to a chest point 1.1 m up it had been four fifths of it)
   const toes = await ev<{ took: number; travelled: number; want: number }>(
@@ -5861,7 +5861,7 @@ async function skLauncherTest(browser: Browser): Promise<void> {
       return { took: Math.round((before - (d.health ?? 0) - (d.shield ?? 0)) * 10) / 10, travelled: Math.round(travelled * 10) / 10, want: Math.round(want * 10) / 10 };
     })()`,
   );
-  check("HAEFY: a rocket into the floor a hand from a dummy's feet is on it: the full damage for its flight", toes.travelled > 0 && Math.abs(toes.took - toes.want) <= 1, JSON.stringify(toes));
+  check("DEVINOS: a rocket into the floor a hand from a dummy's feet is on it: the full damage for its flight", toes.travelled > 0 && Math.abs(toes.took - toes.want) <= 1, JSON.stringify(toes));
   // a range target: a rocket's burst counts on it as a round does (only the figures took one before); aimed at its middle
   const board = await ev<{ took: number; burst: boolean; off: number | null } | null>(
     page,
@@ -5881,7 +5881,7 @@ async function skLauncherTest(browser: Browser): Promise<void> {
       return { took: Math.round(took * 10) / 10, burst: L !== L0, off: L !== L0 ? Math.round(new T.Vector3(...L.at).distanceTo(c) * 100) / 100 : null };
     })()`,
   );
-  check("HAEFY: a rocket on a range target bursts on it and counts on it, its full 50 from 25 m", !!board && board.burst && (board.off ?? 9) < 0.2 && Math.abs(board.took - 50) <= 1, JSON.stringify(board));
+  check("DEVINOS: a rocket on a range target bursts on it and counts on it, its full 50 from 25 m", !!board && board.burst && (board.off ?? 9) < 0.2 && Math.abs(board.took - 50) <= 1, JSON.stringify(board));
   await page.close();
   // A bot with the launcher, on a page of its own, in the open 7 to 15 m from you. Held and still: a rocket from inside it toward
   // its own head, fired as its own and as nobody's. Then firing: its rockets stop on you (you are no figure on your own
@@ -5941,8 +5941,8 @@ async function skLauncherTest(browser: Browser): Promise<void> {
         })()`,
       )
     : null;
-  check("HAEFY: a rocket never bursts on the figure that fired it (the same one fired as nobody's bursts on it)", !!bot && (bot.own === null || bot.own > 1) && bot.nobody !== null && bot.nobody < 0.6, JSON.stringify(bot));
-  check("HAEFY: a bot's rockets burst on you, and you take their damage with the burst, never before it", !!bot && bot.onMe >= 1 && bot.took > 0 && bot.unexplained === 0, JSON.stringify(bot));
+  check("DEVINOS: a rocket never bursts on the figure that fired it (the same one fired as nobody's bursts on it)", !!bot && (bot.own === null || bot.own > 1) && bot.nobody !== null && bot.nobody < 0.6, JSON.stringify(bot));
+  check("DEVINOS: a bot's rockets burst on you, and you take their damage with the burst, never before it", !!bot && bot.onMe >= 1 && bot.took > 0 && bot.unexplained === 0, JSON.stringify(bot));
   await bp.close();
 }
 
@@ -6576,7 +6576,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // (and a finger whose knuckle is under the gun's lowest point has nothing there to hold: figure-audit.js below;
   // STRYDER's right pinky, the soldier's glove wider than its handle is long)
   const on = (a: A, id: string) => Math.max(Math.min(a.palmGap?.l ?? 99, a.handGap?.palm_l ?? 99), a.palmGap?.r ?? 99) <= BAR.off && holdingOf(id).every((f) => (a.below ?? []).includes(f) || touching(a, f) <= BAR.off);
-  // (a gun carried low unless aimed, HAEFY's tube, soldierhold.json carryLow: at rest its barrel is not along the look)
+  // (a gun carried low unless aimed, DEVINOS's tube, soldierhold.json carryLow: at rest its barrel is not along the look)
   const carriedLow = (id: string) => !!(soldierHoldCfg.guns as Record<string, { carryLow?: unknown }>)[id]?.carryLow;
   const within = (a: A | null, aimed: boolean, id: string) =>
     !!a && a.armed && (a.grip ?? 99) <= BAR.grip && (a.support ?? 99) <= BAR.support && (!aimed || (a.aim ?? 99) <= BAR.aim) && a.wristL <= BAR.wrist && a.wristR <= BAR.wrist && Math.max(a.handIn?.l ?? 99, a.handIn?.r ?? 99) <= BAR.handIn && (a.gunIn ?? 99) <= BAR.gunIn && (a.handOnHand ?? 0) <= BAR.handOnHand && (a.handOnHandN ?? 0) <= BAR.handOnHandN && on(a, id);
@@ -6966,7 +6966,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
     const cupOn = (fparmsCfg as { swap?: { style?: string } }).swap?.style === "cup";
     check(
       cupOn ? `the soldier's swap is in place, as the first person's cup: the gun stays up, both hands cupped round it through the swap's middle, back on the ${nameOf(SB)}'s holds after` : "the soldier's swap lowers the gun across the body, as the first person's swap (not the cup) does",
-      // (a gun carried low unless aimed, HAEFY's, goes out from its carry and comes in at it: in place there)
+      // (a gun carried low unless aimed, DEVINOS's, goes out from its carry and comes in at it: in place there)
       cupOn ? [going, gone, arrived, coming].every((x) => Math.abs(x.lowered - (carriedLow(x.id) ? 1 : 0)) < 0.05 && (x.radial === null || x.radial === 1)) && [gone, arrived].every((x) => /l:cup/.test(x.keys) && /r:cup/.test(x.keys)) && !/cup/.test(after.keys) : gone.lowered > 0.5,
       JSON.stringify({ cupOn, going, gone, arrived, coming, after })
     );
@@ -7064,7 +7064,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
   // as the game's own shot asks them (hitpick.ts). The skull is the head over its lowest 6 cm (the jaw and the nape, which
   // the neck and the collar meet). Every shot at the head it shows takes the head; nothing but the soldier's own head and
   // neck hides the skull, save looking 30 degrees down, where the raised right arm and BOOG's stock still hide some of it.
-  // Before: the collar hid 36 in 100 of a standing soldier's head from straight behind; HAEFY's tube, carried on the
+  // Before: the collar hid 36 in 100 of a standing soldier's head from straight behind; DEVINOS's tube, carried on the
   // shoulder, 54 to 95 in 100 from 30 degrees off; and 2 to 7 in 100 shots at a sprinting or crouched soldier's head were
   // headshots before the head was held up (figure.json headUp), the chest held up (chestUp), the torso's volume split at
   // spine_02 and each arm's made two cylinders (dummy.ts followBones)
@@ -7077,11 +7077,11 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       ["BOOG", "aimed", { speed: 0, stance: "stand", pitch: 0, ads: 1 }],
       ["BOOG", "crouched and aimed", { speed: 0, stance: "crouch", pitch: 0, ads: 1 }],
       ["BOOG", "aimed 30 down", { speed: 0, stance: "stand", pitch: -30, ads: 1 }],
-      ["HAEFY", "standing", { speed: 0, stance: "stand", pitch: 0 }],
-      ["HAEFY", "walking", { speed: 3, stance: "stand", pitch: 0 }],
-      ["HAEFY", "sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
+      ["DEVINOS", "standing", { speed: 0, stance: "stand", pitch: 0 }],
+      ["DEVINOS", "walking", { speed: 3, stance: "stand", pitch: 0 }],
+      ["DEVINOS", "sprinting", { speed: 9.5, stance: "stand", pitch: 0 }],
     ];
-    const gunOf: Record<string, string> = { BOOG: "sentinel", HAEFY: "launcher" };
+    const gunOf: Record<string, string> = { BOOG: "sentinel", DEVINOS: "launcher" };
     type Back = { seen: number; head: number; skullSeen: number; skullHead: number; skull: number; skullHid: number; face: number; chest: number };
     const back: Record<string, Back> = {};
     for (const [look, kit] of [["S0000010", "VANGUARD"], ["S3000010", "RUNNER"]] as const)
@@ -7154,7 +7154,7 @@ async function figureHoldTest(browser: Browser): Promise<void> {
         );
     const down = (k: string) => k.endsWith("30 down");
     check(
-      "a soldier seen from behind (VANGUARD and RUNNER, 30 m back, straight and 30 degrees off, level and 10 m up; BOOG standing, walking, sprinting, crouched, aimed, crouched and aimed, aimed 30 down; HAEFY carried standing, walking, sprinting): every shot at the skull it shows is a headshot, and 99 in 100 at the whole head it shows (the jaw and the nape where they meet the collar too)",
+      "a soldier seen from behind (VANGUARD and RUNNER, 30 m back, straight and 30 degrees off, level and 10 m up; BOOG standing, walking, sprinting, crouched, aimed, crouched and aimed, aimed 30 down; DEVINOS carried standing, walking, sprinting): every shot at the skull it shows is a headshot, and 99 in 100 at the whole head it shows (the jaw and the nape where they meet the collar too)",
       Object.values(back).every((x) => x.skullSeen >= 100 && x.skullHead === 100 && x.head >= 99),
       JSON.stringify(Object.fromEntries(Object.entries(back).map(([k, x]) => [k, { seen: x.seen, head: x.head, skull: x.skullHead }])))
     );

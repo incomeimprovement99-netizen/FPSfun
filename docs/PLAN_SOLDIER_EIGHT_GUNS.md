@@ -30,7 +30,7 @@ hold, or a wrist bent past 60 degrees. Look is aimed from 40 degrees down to 40 
 | CHOOCH (lstar) | all, hand 25, gun 40 | all | all | all | all | all | all | all | all |
 | APUHTHEE (wingman) | all, hand 30, palms 3.9 and 4.4 off | all | all | all | all | all | all, left 67 mm off | all | 13/25 |
 
-STRYDER (rspn101 today) and HAEFY (3030 today) are not measured: both change model (section 6).
+STRYDER (rspn101 today) and DEVINOS (3030 today) are not measured: both change model (section 6).
 
 What it says:
 
@@ -406,7 +406,7 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
   into the chest and collarbones (the bar 40); standing aimed within it. Seen in the live enemy photographs, it reads as
   the butt plate against the armour.
 
-### 5.7 HAEFY (a new launcher), SciFiRocketLauncher01_2, about 1.1 m
+### 5.7 DEVINOS (a new launcher), SciFiRocketLauncher01_2, about 1.1 m
 
 - **Done on the soldier, 2026-10-06 (Milestone 510):** the gameplay and the roster change first (rocket.ts; `launcher`
   replaces `3030`). Measured, the model's front is its +Z end (its trigger in front of its pistol grip; the far end's
@@ -432,7 +432,7 @@ added. Lengths and hold points are the 2026-09-30 survey's (`gun-shape.ts` on th
 Each lands with its gun's turn, so no gun is ever without its look.
 
 - **STRYDER: rspn101 to autopistol** (the RE-45's data, already in the game's data and ammo lists), on Pistol01, kind
-  "Fast Pistol", tuned into the band tools/checks/ttk.ts holds a pistol to. **HAEFY: 3030 to a new launcher id**, on
+  "Fast Pistol", tuned into the band tools/checks/ttk.ts holds a pistol to. **DEVINOS: 3030 to a new launcher id**, on
   RocketLauncher01, kind "Launcher", its gameplay new (a rocket that flies, projectile.ts; a blast, throwables.ts
   blastDamage, under the thrower-decides rule over the network; seen in flight by others), its numbers from the
   Skybreaker's ratios with the owner approving the blast's reach and whether it hurts its holder. **PANDA's kind
@@ -488,7 +488,7 @@ live shots to the owner.
 
 ## 9. The soldier's order
 
-The shared plan's (ANAKIN, PANDA, BIGANTLER, REZ, CHOOCH, the pistols, HAEFY), each starting with the guns agent's
+The shared plan's (ANAKIN, PANDA, BIGANTLER, REZ, CHOOCH, the pistols, DEVINOS), each starting with the guns agent's
 first person of the same gun: the hold, fingers, carries, sweep and checks need nothing from it; only the reload's keys
 wait for its keys. Before the first: step 0, G1, G2 and G3 (the narrowing shipped alone). With BIGANTLER: G4's pump and
-G5. With the pistols: G6, G7 and G8. With HAEFY: the launcher's gameplay first.
+G5. With the pistols: G6, G7 and G8. With DEVINOS: the launcher's gameplay first.

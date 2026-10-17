@@ -44,7 +44,7 @@ player sees it, aimed in above all, before it ships.
 | Every gun aimed | "the scope and the hand placement becomes more obvious when ADS down" | aimed in on all ten, each looked at whole: the sight in the middle and clear, no hand or sleeve where it should not be | each gun aimed, over the Apex gun aimed where there is one |
 | The fists | "the fingers are all bent unnaturally" | the fists' fingers curled as a fist is, each joint within a hand's range | the fists out, over Apex's and Hyper Scape's empty hands |
 
-Then the rest looked at the same way, whether the owner named them or not: the USSO, BOOG, CHOOCH and HAEFY at rest,
+Then the rest looked at the same way, whether the owner named them or not: the USSO, BOOG, CHOOCH and DEVINOS at rest,
 aimed, in a reload, a swap and an inspect.
 
 ## The third person (character agent)

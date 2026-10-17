@@ -21,7 +21,7 @@ import { HU, MOVE } from "./movement";
 type Measured = { turn: number[]; forward: number[]; up: number[]; trigger: number[]; palm: number[]; clavicleL?: number[]; clavicleR?: number[] };
 type Twist = { roll: number; yaw: number; pitch: number; x: number; y: number; z: number };
 /** where the left forefinger points in a reload (fparms.json reload, a pack gun's `point`): `along` moves its spot back down the
- * gun from the magazine's middle, metres (HAEFY's rocket stands at the tube's front, out of the arm's reach) */
+ * gun from the magazine's middle, metres (DEVINOS's rocket stands at the tube's front, out of the arm's reach) */
 type PointAt = { face: number[]; at: number; aim: number[]; elbow?: number[]; reach?: number; aimAt?: number; clearWay?: number[]; clear?: number; along?: number };
 /** the rack done by our own timing with the pack's grip on its handle: shares of the rack for each part of it */
 type Grab = { reach: number[]; pull: number[]; release: number[]; back: number[]; clear: number; curl: number; thumbOpen: number; hook: number[]; roll?: number; along?: number[]; palm?: number[]; pinch?: boolean; close?: { index: number; thumb: number } };
@@ -332,7 +332,7 @@ export class PackArms {
   get twist(): Twist {
     return this.debugTwist ?? ((this.active && PACK[this.active]?.twist) || PACK_RELOAD.twist);
   }
-  /** where a pack gun's punch lands off the shared one (fparms.json packGuns meleeOut, view metres): HAEFY's, past its Visor */
+  /** where a pack gun's punch lands off the shared one (fparms.json packGuns meleeOut, view metres): DEVINOS's, past its Visor */
   get meleeOut(): number[] | null {
     return (this.active && PACK[this.active]?.meleeOut) || null;
   }

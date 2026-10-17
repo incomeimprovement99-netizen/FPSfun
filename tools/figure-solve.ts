@@ -33,7 +33,7 @@ const MAX = Number(process.env.EVALS ?? 160);
 const EXACT = process.env.EXACT !== "0";
 // HEAD=n: each pose also costs n a percent of the head the gun hides from behind (six shooters 30 m back, straight and 30
 // degrees off each way, level and 10 m up: the owner, 2026-10-11, "i want to always be able to clearly snipe hs someone
-// from the back"; HAEFY's tube, carried on the shoulder, hid 54 to 95 percent of the head from one side)
+// from the back"; DEVINOS's tube, carried on the shoulder, hid 54 to 95 percent of the head from one side)
 const HEAD = Number(process.env.HEAD ?? 0);
 const HEAD_HID = `window.__gunHidesHead = () => {
   const r = window.__range, T = r.THREE, f = r.labFigures()[0], mq = f.mq;
@@ -383,7 +383,7 @@ async function main(): Promise<void> {
       return { cost: total, worst, per };
     };
     // GRID='[{...}, ...]': each of those over the gun's own numbers measured, a line each, and no search: a coarse look
-    // over a wide space, which a descent from one start does not make (HAEFY's carry stopped 30 mm from where it began)
+    // over a wide space, which a descent from one start does not make (DEVINOS's carry stopped 30 mm from where it began)
     if (process.env.GRID) {
       for (const g of JSON.parse(process.env.GRID) as Record<string, unknown>[]) {
         const c = JSON.parse(JSON.stringify(cur)) as Record<string, unknown>;

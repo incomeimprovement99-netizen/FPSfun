@@ -312,7 +312,7 @@ models. Owner's friends' names are in capitals as given; the rest are ours.
 | SMG | **ANAKIN** | `alternator_smg` | the steady SMG: slower, **easy to control**, hits harder a round |
 | Shotgun | **BIGANTLER** | `mastiff` | a wall of pellets, slow: one big hit |
 | Shotgun | **REZ** | `shotgun` | fast handling, lower per shot: sustained |
-| Marksman | **HAEFY** | `3030` | lever action; a charged shot hits hard: patience |
+| Marksman | **DEVINOS** | `3030` | lever action; a charged shot hits hard: patience |
 | Marksman | **PULSAR** | `g2` | fast semi-auto: rhythm |
 | Sniper | **BOOG** | `sentinel` | bolt action; **a headshot always kills, at any fusion level and any health** |
 | Special | **CHOOCH** | `lstar` | an energy beam gun with no reload that overheats instead: suppression |
@@ -675,7 +675,7 @@ These do not block the build. Each proceeds as written unless the owner says oth
 
 - **Health model** (7.6): 100 health and 50 shield with regeneration and no heal items. This is my
   simplification of "loot is a gun and a hack".
-- **The five non-friend gun names:** STRYDER, REZ, HAEFY, PULSAR, CHOOCH. Renamed in one config file.
+- **The five non-friend gun names:** STRYDER, REZ, DEVINOS, PULSAR, CHOOCH. Renamed in one config file.
 - **District names** (7.9): working names.
 - **Capture hold time** (about 45 s) and **ghost sight range** (about 25 m): starting values, tuned in play.
   The match length is the owner's: about 6 to 7 minutes.

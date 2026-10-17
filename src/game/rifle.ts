@@ -207,7 +207,7 @@ export function pistolStance(id: string): boolean {
 
 /**
  * A gun the soldier carries low across the body whenever it is not aimed in (soldierhold.json guns.<id>.carryLow), as
- * every gun is sprinting, except for `after` seconds after a shot and through a reload: HAEFY's tube, up on the shoulder,
+ * every gun is sprinting, except for `after` seconds after a shot and through a reload: DEVINOS's tube, up on the shoulder,
  * lay its back half beside and behind the head, and from 30 degrees behind it hid 54 to 95 of every 100 points of it.
  */
 export function carryLowOf(id: string): { after: number } | null {

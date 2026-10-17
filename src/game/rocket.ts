@@ -1,4 +1,4 @@
-// HAEFY's rocket (docs/PLAN_THE_EIGHT_GUNS.md 5.7; the owner, 2026-10-06: "it shouldn't hurt the shooter, but it should
+// DEVINOS's rocket (docs/PLAN_THE_EIGHT_GUNS.md 5.7; the owner, 2026-10-06: "it shouldn't hurt the shooter, but it should
 // do more damage the further it travels, so a point blank or very close does like 10 damage and then it scales like
 // that, the skybreaker is the reference for hyperscape"). The round itself flies as every gun's does (projectile.ts,
 // the launcher's speed and no drop); where it stops it bursts, and the burst is what does the damage: rocketDamage(the

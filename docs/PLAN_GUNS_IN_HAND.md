@@ -75,7 +75,7 @@ Checked against the deployed build's own sheets before acting on each.
    but I think we should try it and make a note of how it is now in case we need to revert": **done** (Milestone 327),
    `swap.style` "throw"; the swap as it was is "drop" (section 3). One fault left and known: on the USSO a fingertip
    grazes the gun, 5 to 6 mm for about a hundredth of the swap, as it leaves the hands and as the next lands.
-8. Renames: ZEPHYR is STRYDER, and two more of the guns are named for people who matter to the owner, REZ and HAEFY
+8. Renames: ZEPHYR is STRYDER, and two more of the guns are named for people who matter to the owner, REZ and DEVINOS
    (RIPTIDE and HELIX, the names that were ours rather than friends'): **done** (Milestone 313).
 9. "the right arm is clearly still so fucked up lol, just put the guns away and look at the right arm": **done**
    (Milestone 313). The right fist was rolled 159 degrees on its forearm (the glove's cuff split open) and both thumbs
@@ -300,9 +300,9 @@ Milestone 312's.
 | ANAKIN (steady SMG) | ASVal | handguard, ahead of the magazine | its handle | |
 | BIGANTLER (pump shotgun) | KXG12, an exact match | on the pump | shells phase in one by one at the loading gate (the pack's start, loop and end), then a pump | a pump after each shot |
 | REZ (auto shotgun) | G3, a weak match | the long handguard | the G3-style handle slap | |
-| HAEFY (heavy marksman, lever) | SVD | handguard | its bolt | the bolt (the pack has no lever gun) |
+| DEVINOS (heavy marksman, lever) | SVD | handguard | its bolt | the bolt (the pack has no lever gun) |
 | PULSAR (fast marksman) | Mk14 EBR | handguard | its handle | |
 | CHOOCH (energy LMG, never reloads) | MGX5, the hold only | ahead of the drum | on overheating, a short vent gesture | |
 
-Open for the owner: HAEFY on the SVD or on a Kar98K-style bolt loaded round by round; whether REZ's G3 hold is close
+Open for the owner: DEVINOS on the SVD or on a Kar98K-style bolt loaded round by round; whether REZ's G3 hold is close
 enough; whether CHOOCH gets a vent gesture. The order: BIGANTLER first (the exact match), then PANDA.

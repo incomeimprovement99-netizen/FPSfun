@@ -92,7 +92,7 @@ from full health and shield (150), four shots in five landing.
 
 ### Long range
 
-- **HAEFY**, rocket launcher: four rockets. A rocket bursts on whatever it hits, and the further it flew the harder it
+- **DEVINOS**, rocket launcher: four rockets. A rocket bursts on whatever it hits, and the further it flew the harder it
   hits: about 10 point blank, rising to 50 from 20 m on. It never hurts you or a teammate, and has no headshots.
 - **BOOG**, sniper: four rounds, with a bolt to work between shots (1.6 s). A headshot (450) kills through full
   health, a full shield and an ARMOR hack; a body shot does not.

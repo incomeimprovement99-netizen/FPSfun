@@ -59,7 +59,7 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   - SpeedKills stops rounding each hit down before it lands (dummy.ts). The rounding cut USSO 10% and made some
     guns' fusion add nothing.
 - **A3:**
-  - Real arms that nothing posed are hidden; they showed in the 3x scope on HAEFY and PULSAR.
+  - Real arms that nothing posed are hidden; they showed in the 3x scope on DEVINOS and PULSAR.
   - A reload while aiming keeps the sight steady (reloadAds 0.85), instead of leaving the sights.
 - **A4:**
   - 38 m of grace, not 40, because the range's back wall stands 39 m north of the city.
@@ -80,7 +80,7 @@ stop; any of them can be reversed. Legacy stays untouched throughout, by the own
   - The speed readout stays, smaller.
 - **A7:**
   - The kinds: PANDA Heavy Rifle, STRYDER Fast Rifle, ANAKIN Steady SMG, USSO Fast SMG, BIGANTLER Heavy
-    Shotgun, REZ Auto Shotgun, HAEFY Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper, CHOOCH Energy LMG.
+    Shotgun, REZ Auto Shotgun, DEVINOS Heavy Marksman, PULSAR Fast Marksman, BOOG Sniper, CHOOCH Energy LMG.
     The Run's pistols are Pistol.
   - The kill feed names no gun, as today.
   - The bot called NOVA is renamed in SpeedKills (it was the Energy LMG's name, CHOOCH since 2026-10-01).

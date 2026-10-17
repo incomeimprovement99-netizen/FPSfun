@@ -1,4 +1,4 @@
-// HAEFY's rocket (src/game/rocket.ts, src/config/rocket.json; the owner, 2026-10-06: "it shouldn't hurt the shooter, but it
+// DEVINOS's rocket (src/game/rocket.ts, src/config/rocket.json; the owner, 2026-10-06: "it shouldn't hurt the shooter, but it
 // should do more damage the further it travels, so a point blank or very close does like 10 damage and then it scales
 // like that, the skybreaker is the reference for hyperscape"). The burst's numbers: its damage by how far the rocket
 // flew, its reach, and its fall-off from the middle; the gap to a body it is measured by (a figure's own hit volumes, or
@@ -19,7 +19,7 @@ function check(label: string, cond: boolean, detail = ""): void {
   console.log(`${cond ? "  ok  " : "FAIL  "}${label}${detail ? ` (${detail})` : ""}`);
 }
 
-console.log("\nHAEFY's rocket");
+console.log("\nDEVINOS's rocket");
 const r = (x: number) => Math.round(x * 10) / 10;
 check("point blank, about 10 (the owner's 'like 10')", Math.abs(rocketDamage(0.5) - 10) < 1e-9 && Math.abs(rocketDamage(ROCKET.damage.from) - 10) < 1e-9, `${r(rocketDamage(0.5))} at 0.5 m`);
 const steps = [2, 5, 10, 15, 20, 30, 80].map(rocketDamage);
@@ -62,7 +62,7 @@ check("a rocket's step through a body stops on it, a step 0.5 m beside it does n
 
 if (GAME === "speedkills") {
   const w = resolveWeapon("launcher", [], 0);
-  check("the launcher: HAEFY's, a burst its round, no drop, the numbers rocket.json gives", w.blast === true && w.name === "HAEFY" && w.projectile.gravity === 0 && Math.abs(w.projectile.speed - ROCKET.speed) < 1e-6 && w.clipSize === ROCKET.magazine && Math.abs(w.reloadTime - ROCKET.reload) < 1e-9 && w.damage.headshot === 1, `${w.projectile.speed} m/s, ${w.clipSize} rockets, ${w.reloadTime} s`);
+  check("the launcher: DEVINOS's, a burst its round, no drop, the numbers rocket.json gives", w.blast === true && w.name === "DEVINOS" && w.projectile.gravity === 0 && Math.abs(w.projectile.speed - ROCKET.speed) < 1e-6 && w.clipSize === ROCKET.magazine && Math.abs(w.reloadTime - ROCKET.reload) < 1e-9 && w.damage.headshot === 1, `${w.projectile.speed} m/s, ${w.clipSize} rockets, ${w.reloadTime} s`);
   check("its damage by distance is the rocket's (10 point blank, 50 from 20 m)", w.damage.near === ROCKET.damage.pointBlank && w.damage.far === ROCKET.damage.full && Math.abs(w.damage.nearDist - ROCKET.damage.from) < 1e-6 && Math.abs(w.damage.farDist - ROCKET.damage.fullFrom) < 1e-6);
   // (the burst's middle is the gun's own damage for the distance flown, so the two must be one curve)
   const flown = [1, 2, 8, 14, 20, 40];

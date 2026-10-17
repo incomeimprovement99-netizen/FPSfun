@@ -25,7 +25,7 @@ interface Gun {
   skins: string[];
   /** a sight from another model of the pack (paidweapons.json _mount) */
   mount?: { from: string; part: string; z: number };
-  /** the round a reload loads, where the model has none of its own: HAEFY's rocket (rocket.ts), and how far its tip stands out of the muzzle, metres */
+  /** the round a reload loads, where the model has none of its own: DEVINOS's rocket (rocket.ts), and how far its tip stands out of the muzzle, metres */
   round?: string;
   roundOut?: number;
   /** how far in front of the eye its own sight comes aimed, metres, where it is not the shared `sights.ironsEye` or `dotEye` (a pistol is aimed at arm's length) */
@@ -356,7 +356,7 @@ export function dressPaid(m: GunModel, level = 0, view = false): boolean {
     if (/^Clip/.test(o.name) && (o as THREE.Mesh).isMesh) clips.push(o);
   });
   if (clips.length) {
-    // a gun whose procedural model has no magazine (HAEFY's tube) takes out its bought model's on a reload
+    // a gun whose procedural model has no magazine (DEVINOS's tube) takes out its bought model's on a reload
     if (!m.mag) {
       m.mag = new THREE.Group();
       m.mag.name = "mag";
@@ -446,7 +446,7 @@ export function hingeParts(model: THREE.Object3D, end: number): PaidParts {
 }
 
 /**
- * HAEFY's magazine, the launcher's model having none: the rocket the shot flies as (rocket.ts), unlit, seated in the tube
+ * DEVINOS's magazine, the launcher's model having none: the rocket the shot flies as (rocket.ts), unlit, seated in the tube
  * with its warhead `out` past the muzzle (paidweapons.json roundOut), as a loaded RPG's stands out of its tube. A reload
  * phases it out and a new one in where it sits, the finger pointing at it, as every gun's magazine (a rocket fed by the
  * hand into the tube's front was out of the left arm's reach on the shoulder, fparms.json packGuns RPG _reload)
