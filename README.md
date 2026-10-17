@@ -1336,7 +1336,8 @@ pack's Unity materials are drawn as Unity draws them: their detail maps
 multiplied in, their light beams unlit and added (`src/game/detailmaps.ts`).
 The tower stands in a sunken court 7 m deep, its own basement at its floor,
 walled with the pack's concrete (the world's floor lowered into it, as the old
-metro's was), and four of the pack's metro corridors lead off it under the
+metro's was), floored in black marble, with stacks of crates and the pack's cooling plant to
+fight round in its open ends, and four of the pack's metro corridors lead off it under the
 plaza, two of them down from the street through the pack's metro kiosks and
 their escalators, the other two the pack's shop corridors, a noodle bar and an
 electronics shop to walk into. Under the south street is Centre Station, the pack's own metro

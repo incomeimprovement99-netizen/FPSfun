@@ -273,7 +273,8 @@ const noGround: Array<[number, number, number, number]> = [];
   const EX = T?.express as { at: number[][]; from: number; to: number; hole: number; hang: number; over: number; colour: string; cut?: number[] } | undefined;
   const ropeCuts = EX?.cut ? EX.at.map(([ex, ez]) => `*|${[ex - EX.hole / 2 - 0.02, ex + EX.hole / 2 + 0.02, EX.cut![0], EX.cut![1], ez - EX.hole / 2 - 0.02, ez + EX.hole / 2 + 0.02].join(",")}`) : [];
   const without = T ? [...(T.lobbyArch as string[]), ...((T.terraceWay ?? []) as string[]), `*#${T.strip.join(",")}`, `*#${T.floorStrip.join(",")}~FloorBasic00`, `*|${[C.box[0] - C.cutPast, C.box[1] + C.cutPast, C.storeys[0], C.top, C.box[2] - C.cutPast, C.box[3] + C.cutPast].join(",")}`, ...ropeCuts] : [];
-  const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o", T ? { without } : {});
+  // (its basement's floor worn in another material, rules.middle.remap: the pack's dirt there read as grass underground)
+  const b = placeAt("c-middle", "c", M.building, 0, 0, M.yaw, "o", { ...(T ? { without } : {}), ...(M.remap ? { mat: M.remap } : {}) });
   noGround.push([b.x0, b.x1, b.z0, b.z1]);
   cfg.tallest = { x0: b.x0, x1: b.x1, z0: b.z0, z1: b.z1, top: +b.top.toFixed(2), foot: +piece(M.building).row.min![1].toFixed(2) };
   if (T) {
@@ -1016,7 +1017,28 @@ if (holes.length) {
   const C = R.court;
   const [x0, x1, z0, z1] = [Math.min(...holes.map((h) => h[0])), Math.max(...holes.map((h) => h[1])), Math.min(...holes.map((h) => h[2])), Math.max(...holes.map((h) => h[3]))];
   const foot = cfg.tallest.foot;
-  for (const [hx0, , hz0] of holes) placeAt("c-court", "c", R.ground.tile, hx0 + T / 2, hz0 + T / 2, 0, "g", { y: foot - C.under });
+  // (worn in its own `floorMat`: in the street's tiles its pavement read as grass underground, the sixth review)
+  for (const [hx0, , hz0] of holes) placeAt("c-court", "c", R.ground.tile, hx0 + T / 2, hz0 + T / 2, 0, "g", { y: foot - C.under, ...(C.floorMat ? { mat: C.floorMat } : {}) });
+  // Its `cover` (the sixth review's "bare trench": 40 by 20 m of open floor round the entrances' stairs): each set by its
+  // middle on the floor, `crates` two of the pack's crates side by side and a third on them as THE CANYON's market lays
+  // them, its box [x, z, half x, half z, top] for the court's checks
+  const courtCover: number[][] = [];
+  for (const [name, x, z, yaw] of (C.cover ?? []) as Array<[string, number, number, number]>) {
+    const set: Array<[string, number, number, number]> = [];
+    if (name === "crates") {
+      const c = piece(C.crate).row;
+      const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+      set.push([C.crate, ox, oz, 0], [C.crate, -ox, -oz, 0], [C.crate, -ox, -oz, c.size![1]]);
+    } else set.push([name, 0, 0, 0]);
+    let [hx, hz, top] = [0, 0, -Infinity];
+    for (const [n, dx, dz, up] of set) {
+      const o = placeTurned("c-court", n, x + dx, z + dz, yaw, "o", foot + up - piece(n).row.min![1]);
+      hx = Math.max(hx, Math.abs(dx) + Math.abs(o.u[0]) * o.hu + Math.abs(o.v[0]) * o.hv);
+      hz = Math.max(hz, Math.abs(dz) + Math.abs(o.u[1]) * o.hu + Math.abs(o.v[1]) * o.hv);
+      top = Math.max(top, o.top);
+    }
+    courtCover.push([x, z, hx, hz, top].map((q) => +q.toFixed(2)));
+  }
   const wall = piece(C.wall).row;
   const len = wall.size![2];
   const thick = wall.size![0];
@@ -1127,7 +1149,7 @@ if (holes.length) {
     const [hx0, hx1, hz0, hz1] = rect(0, h.open ? d : d + thick);
     halls.push({ x0: hx0, x1: hx1, z0: hz0, z1: hz1, slab: rect(0, slabTo), ...(route ? { route } : {}), ...(h.open ? { open: true } : {}) });
   }
-  cfg.court = { x0, x1, z0, z1, y: foot, halls };
+  cfg.court = { x0, x1, z0, z1, y: foot, halls, cover: courtCover };
 }
 
 // ---------------------------------------------------------------- the underground: Centre Station (rules.underground)

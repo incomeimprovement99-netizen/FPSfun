@@ -114,6 +114,54 @@ const rests = [
 });
 const tiles = cfg.chunks["c-court"].place.filter((q) => q[5] === "g" && String(q[0]).endsWith(cfg.rules.ground.tile)).length;
 check("the court round the tallest building: a body dropped in its corners stands on its floor, 7 m down, and it is drawn", K.y < -6 && rests.every((y) => Math.abs(y - K.y) < 0.05) && tiles * 100 >= (K.x1 - K.x0) * (K.z1 - K.z0), `rests at ${rests.join(", ")}; ${tiles} tiles`);
+// Its floor and its cover (Milestone 655; the sixth review: "a bare trench", its pavement read as grass underground):
+// every tile of its floor worn in rules.court.floorMat; each set of its cover solid from the floor to 1.4 m or more;
+// and none of it shuts any of the court off. Walked on foot from a corner an eighth of a metre at a time, a body the
+// square round the player's round one, every spot reached without the cover is reached with it but those it stands on
+{
+  const worn = cfg.chunks["c-court"].place.filter((q) => q[5] === "g" && String(q[0]).endsWith(cfg.rules.ground.tile) && q[6] === cfg.rules.court.floorMat).length;
+  const cover = ((K as { cover?: number[][] }).cover ?? []).map(([x, z, hx, hz, top]) => ({ x: x + BR_X, z: z + BR_Z, hx, hz, top }));
+  type Box = { minX: number; maxX: number; minZ: number; maxZ: number; base: number; top: number };
+  // (a set's boxes: its pieces collide as faces in half-metre columns, which stand out of the set's own box by up to that)
+  const ofCover = (b: Box) => cover.some((c) => b.minX >= c.x - c.hx - 0.5 && b.maxX <= c.x + c.hx + 0.5 && b.minZ >= c.z - c.hz - 0.5 && b.maxZ <= c.z + c.hz + 0.5 && b.base >= K.y - 0.1 && b.top <= c.top + 0.1);
+  const tall = cover.map((c) => {
+    const bs = solidsIn(c.x - c.hx + 0.1, c.x + c.hx - 0.1, c.z - c.hz + 0.1, c.z + c.hz - 0.1).filter((b) => b.minX < c.x + c.hx - 0.1 && b.maxX > c.x - c.hx + 0.1 && b.minZ < c.z + c.hz - 0.1 && b.maxZ > c.z - c.hz + 0.1 && b.base <= K.y + 0.1);
+    return bs.length ? Math.max(...bs.map((b) => b.top)) - K.y : 0;
+  });
+  const C = 0.125, H = MOVE.radius;
+  const [NI, NJ] = [Math.round((K.x1 - K.x0) / C), Math.round((K.z1 - K.z0) / C)];
+  const floorOf = (i: number, j: number, without: boolean): number | null => {
+    const [wx, wz] = [K.x0 + (i + 0.5) * C + BR_X, K.z0 + (j + 0.5) * C + BR_Z];
+    const here = solidsIn(wx - H, wx + H, wz - H, wz + H).filter((b) => b.minX < wx + H && b.maxX > wx - H && b.minZ < wz + H && b.maxZ > wz - H && !(without && ofCover(b)));
+    let f = K.y;
+    for (const b of here) if (b.top <= K.y + MOVE.stepHeight && b.top > f) f = b.top;
+    return here.some((b) => b.base < f + MOVE.standHeight && b.top > f + MOVE.stepHeight) ? null : f;
+  };
+  const walk = (without: boolean) => {
+    const seen = new Set<number>();
+    const [si, sj] = [NI - 1 - Math.round(1 / C), NJ - 1 - Math.round(1 / C)];
+    const todo: Array<[number, number]> = [];
+    const f0 = floorOf(si, sj, without);
+    if (f0 !== null) (seen.add(si * NJ + sj), todo.push([si * NJ + sj, f0]));
+    while (todo.length) {
+      const [k, y] = todo.pop()!;
+      const [i, j] = [Math.floor(k / NJ), k % NJ];
+      for (const [di, dj] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const [a2, b2] = [i + di, j + dj];
+        if (a2 < 0 || b2 < 0 || a2 >= NI || b2 >= NJ || seen.has(a2 * NJ + b2)) continue;
+        const f = floorOf(a2, b2, without);
+        if (f === null || Math.abs(f - y) > MOVE.stepHeight) continue;
+        seen.add(a2 * NJ + b2);
+        todo.push([a2 * NJ + b2, f]);
+      }
+    }
+    return seen;
+  };
+  const [bare, laid] = [walk(true), walk(false)];
+  const shut: string[] = [];
+  for (const k of bare) if (!laid.has(k) && floorOf(Math.floor(k / NJ), k % NJ, false) !== null) shut.push(`(${(K.x0 + (Math.floor(k / NJ) + 0.5) * C).toFixed(1)}, ${(K.z0 + ((k % NJ) + 0.5) * C).toFixed(1)})`);
+  check("the court: its floor in marble, its cover standing on it 1.4 m and more, and none of the court shut off by it", tiles > 0 && worn === tiles && cover.length >= 6 && tall.every((h) => h >= 1.4) && shut.length === 0 && laid.size > 0.5 * NI * NJ, `${worn} of ${tiles} tiles in ${cfg.rules.court.floorMat}; ${cover.length} sets of cover, ${tall.map((h) => h.toFixed(1)).join("/")} m; walked over ${((laid.size / (NI * NJ)) * 100).toFixed(0)}% of its floor, ${shut.length} spots shut off${shut.length ? `: ${shut.slice(0, 3).join(", ")}` : ""}`);
+}
 // its halls: from the court's floor a body sprints down each one to its far end, on the court's floor all the way; and
 // on the plaza over a hall it stands at the street's height, not fallen through onto the corridor's roof
 const sprint = (x: number, z: number, y: number, yaw: number, s: number) => {

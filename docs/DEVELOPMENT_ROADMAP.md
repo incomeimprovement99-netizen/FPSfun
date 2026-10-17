@@ -14231,3 +14231,23 @@ The sixth review found the cover down the Loop and the curved streets knee-high,
   along 3.0% of the points (4.4%), on the Loop 4.9% (7.3%); every street point's cover still within 6 m but 0.4%; the
   street one network of 663 nodes. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. Photographed at the review's
   street spots. The map: its files lo 155.0 MB, hi 226.9 MB, max 471.6 MB. **Its files are version 91.**
+
+## Milestone 655 — The court floored in marble and furnished
+
+The sixth review found the court under the tower "a bare trench on a grass floor" (spot 20) and asked for it furnished,
+its floor fit for underground.
+
+- **The floor:** the court's tiles wear the pack's black marble (`rules.court.floorMat`, MarbleTilesDirt01), not the
+  street's pavement. The grass the review saw was the tower's own basement floor inside its round wall: 175 m2 of the
+  pack's GroundDirt00, the only place the building wears it (measured off its mesh). It wears the same marble
+  (`rules.middle.remap`).
+- **The cover** (`rules.court.cover`): seven sets in the court's open ends, west and east of the entrances' stairs: four
+  stacks of three crates (2 m) and three of the pack's cooling plant (1.5 and 2 m), each 2 m and more clear of every
+  hall's mouth and the ways in from them.
+- **Checked:** a new check (tools/checks/sk-neon.ts): every tile of the court's floor in marble, each set of cover solid
+  on it (2.0 m, the low plant 1.5 m), and none of the court shut off by it: walked over on foot from a corner an eighth
+  of a metre at a time, every spot reached without the cover is reached with it. It fails with the bug put back: an L
+  of two boxes closing the north-west corner shut off 84 spots, and one tile in its old material read 7 of 8. The halls,
+  the entrances and the way down to the station still walked. The e2e: the speedkills section 101 of 101. verify, rules and the type check. Looked at
+  from the review's spot 20 and three new ones in the court. The map: its files lo 155.3 MB, hi 227.2 MB, max 471.8 MB.
+  **Its files are version 92.**
