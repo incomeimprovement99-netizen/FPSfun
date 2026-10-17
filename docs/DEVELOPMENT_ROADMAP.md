@@ -11754,6 +11754,31 @@ friend messaged them.
   to 1500, the eleventh in a window refused, the visit log's new fields kept), proven with the address written plain
   and `loaded` off the server's list; e2e pad (LB to the Feedback tab, and "nowhere to send it" on the dev server).
 
+## Milestone 626 — Smoother on every machine, first steps: the far figures' own rate, and a render scale
+
+The owner (2026-10-17): "lets try to make the game run smoother and more optimized for lower and higher end machines".
+Measured first, on the full city (all eight districts, 28 bots, the bench's `neonstreet`, 1080p): on the owner's
+machine Competitive 179 fps, Balanced 172, High 115, all but free of hitches; on a processor at half speed (Chrome's
+throttle, a laptop's) 66 fps on Balanced with about one frame in twenty over 32 ms, and at a quarter 22 fps, the presets
+barely apart. Where a half-speed frame went: the city's draw calls about 5 ms (hiding them took 601 calls to 178), the
+bots about 4 to 5 ms (their figures' poses most of it, their senses the rest), the first person's gun 0.6, the HUD 1.4.
+The city's draw calls (441 meshes, one a material, each across the whole city, so frustum culling saves none) are the
+city agent's, who is taking them next with texture arrays.
+
+- **A far figure animates at its own rate on any machine** (src/config/lod.json `midHz` 30, `farHz` 15;
+  src/game/figlod.ts). The bands' strides were counted in frames, so at 170 fps a figure 30 to 80 m off posed 85 times
+  a second and one further 42, where 60 fps gives 30 and 15. Now it is held to that rate at any frame rate, never fewer
+  frames apart than the band's stride, and within 30 m a figure still poses every frame. Counted in the street at about
+  95 fps: the mid band's poses 279 a second to 226, the far's 139 to 96; at 170 fps the mid band's would fall by two
+  thirds. `?slow=lodhz` puts the old strides back.
+- **Render scale** (Settings, beside Graphics): 100% down to 50%, the 3D view drawn at that share of the screen's pixels
+  and stretched to fit, applied at once and kept in the browser. The HUD and the menus are not that canvas and stay
+  sharp. Measured on High at a laptop's 1.5 density: the graphics card's time a frame 13.5 ms at 100%, 9.7 at 70%, 8.8
+  at 50%.
+- **Checked:** tsc; verify (at 180 fps the near band every frame, the mid every sixth and the far every twelfth, at 30
+  fps the bands' own strides, two far figures on different frames); rules; e2e page (50% halves the pixel ratio and the
+  canvas at once, is kept, and 100% puts it back).
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -5,9 +5,10 @@
 /**
  * a saving's name: the AO prepass's shadow map, the AO pass's walks of the scene, figures culled by a sphere, one
  * skeleton a figure, static matrices; and (2026-10-03) array uniforms sent only when changed (uniformcache.ts), the
- * HUD's keys panel drawn once and copied (hud.ts), a warm compiling one object a program (programreps.ts)
+ * HUD's keys panel drawn once and copied (hud.ts), a warm compiling one object a program (programreps.ts); and
+ * (Milestone 626) a far figure's animation held to its own rate at any frame rate (figlod.ts)
  */
-export type Saving = "aoshadow" | "aowalk" | "cull" | "skeleton" | "static" | "uniforms" | "keys" | "reps";
+export type Saving = "aoshadow" | "aowalk" | "cull" | "skeleton" | "static" | "uniforms" | "keys" | "reps" | "lodhz";
 
 const off = new Set(
   (typeof location === "undefined" ? "" : (new URLSearchParams(location.search).get("slow") ?? ""))

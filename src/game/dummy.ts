@@ -969,8 +969,8 @@ export class Dummy {
     }
   }
 
-  /** its own number, so the figures that skip frames do not all skip the same one */
-  private lodSpread = Math.floor(Math.random() * 4);
+  /** its own number, so the figures that skip frames do not all skip the same one (wide enough for any stride a frame rate gives) */
+  private lodSpread = Math.floor(Math.random() * 64);
 
   /** every mesh of the figure and its gun casts a shadow, or none does */
   private setCastShadow(on: boolean): void {

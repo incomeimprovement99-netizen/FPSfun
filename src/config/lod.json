@@ -6,6 +6,9 @@
     "offscreen": 20,
     "shadow": 60,
     "farGun": 15,
-    "eyes": 60
-  }
+    "eyes": 60,
+    "midHz": 30,
+    "farHz": 15
+  },
+  "_rates": "Milestone 626: a band's stride is counted in frames, so on a fast machine a figure out of the near band animated far more often than it needs to (170 fps gave a mid figure 85 poses a second and a far one 42, where 60 fps gives them 30 and 15). Past `near` a figure is held to `midHz` (to `mid` metres) or `farHz` (beyond) poses a second at any frame rate, and never fewer frames apart than its band's stride: what 60 fps always looked like. Within `near` a figure still animates every frame, as a fight up close needs. ?slow=lodhz puts the old strides back for measuring."
 }

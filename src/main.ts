@@ -32,7 +32,7 @@ import { keyPanelTexts, setPanelKeys } from "./game/geo";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { ADVANCED_COURSE } from "./game/courses/advanced";
 import { CHAIN_COURSE } from "./game/courses/chain";
-import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange } from "./game/quality";
+import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, RENDER_SCALES, loadRenderScale, saveRenderScale } from "./game/quality";
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
@@ -717,6 +717,9 @@ const loadouts = new Loadouts();
 // ---------- three ----------
 const app = $("app");
 const quality = loadQuality();
+let renderScale = loadRenderScale();
+/** the 3D view's pixels to the page's: the preset's cap on the screen's density, times the render scale */
+const viewPixelRatio = (): number => Math.min(quality.maxPixelRatio, window.devicePixelRatio) * renderScale;
 // The WebGL context is made here rather than by three, because three does not
 // pass `desynchronized` through. A desynchronized canvas is the browser's
 // low-latency path: frames reach the screen without waiting on the page
@@ -752,7 +755,7 @@ const renderer = new THREE.WebGLRenderer({ canvas: glCanvas, context: gl, antial
 renderer.info.autoReset = false;
 /** the whole of the last frame drawn: every pass, the shadow map's included */
 let frameCost = { calls: 0, triangles: 0 };
-renderer.setPixelRatio(Math.min(quality.maxPixelRatio, window.devicePixelRatio));
+renderer.setPixelRatio(viewPixelRatio());
 renderer.setSize(window.innerWidth, window.innerHeight);
 renderer.shadowMap.enabled = quality.shadows !== "off";
 renderer.shadowMap.type = quality.preset === "high" ? THREE.PCFSoftShadowMap : THREE.PCFShadowMap;
@@ -889,6 +892,24 @@ qualitySel.value = quality.preset;
 qualitySel.addEventListener("change", () => {
   saveQuality(qualitySel.value as Preset);
   location.reload();
+});
+// Render scale (quality.ts RENDER_SCALES): at once, no reload
+const scaleSel = $<HTMLSelectElement>("renderScale");
+for (const v of RENDER_SCALES) {
+  const o = document.createElement("option");
+  o.value = String(v);
+  o.textContent = v === 1 ? "100% (sharpest)" : `${Math.round(v * 100)}%`;
+  scaleSel.appendChild(o);
+}
+scaleSel.value = String(renderScale);
+scaleSel.addEventListener("change", () => {
+  renderScale = Number(scaleSel.value);
+  saveRenderScale(renderScale);
+  const pr = viewPixelRatio();
+  renderer.setPixelRatio(pr);
+  pipeline.setPixelRatio(pr);
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  pipeline.setSize(window.innerWidth, window.innerHeight);
 });
 // Time of day. Unlike the graphics preset this needs no reload: the dome is
 // one shader with four colour uniforms, the sun is one light, and the
@@ -6099,7 +6120,7 @@ input.onLockChange = (locked) => {
 window.addEventListener("resize", () => {
   // a move to a screen with another pixel ratio, or a browser zoom, fires this
   // too: without the ratio the 3D view stayed blurry or oversized
-  const pr = Math.min(quality.maxPixelRatio, window.devicePixelRatio);
+  const pr = viewPixelRatio();
   if (pr !== renderer.getPixelRatio()) {
     renderer.setPixelRatio(pr);
     pipeline.setPixelRatio(pr);
@@ -6260,7 +6281,7 @@ function frame(): void {
   // animation, their shadows and their guns follow from it
   camera.updateMatrixWorld();
   lodFrustum.setFromProjectionMatrix(lodMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  setFigureView(camera.position, lodFrustum, framesRun);
+  setFigureView(camera.position, lodFrustum, framesRun, fps);
   // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
   // clock, since game time stands still when nothing is being played
   tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");

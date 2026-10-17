@@ -6,18 +6,20 @@
 // dummy.ts, so the checks can ask the same questions without a scene.
 import * as THREE from "three";
 import cfg from "../config/lod.json";
+import { slow } from "./slow";
 
 export const FIG_LOD = cfg.figures;
 
 /** where the page is drawing from this frame, and which frame it is */
-const view = { at: new THREE.Vector3(), frustum: new THREE.Frustum(), frame: 0, set: false };
+const view = { at: new THREE.Vector3(), frustum: new THREE.Frustum(), frame: 0, set: false, fps: 60 };
 
-/** the page, once a frame: the camera's place, what it can see, and the frame's number */
-export function setFigureView(at: THREE.Vector3, frustum: THREE.Frustum | null, frame: number): void {
+/** the page, once a frame: the camera's place, what it can see, the frame's number and the frame rate */
+export function setFigureView(at: THREE.Vector3, frustum: THREE.Frustum | null, frame: number, fps = 60): void {
   view.at.copy(at);
   if (frustum) view.frustum.copy(frustum);
   view.frame = frame;
   view.set = !!frustum;
+  view.fps = Number.isFinite(fps) ? Math.max(1, Math.min(1000, fps)) : 60;
 }
 
 export function figureFrame(): number {
@@ -56,7 +58,10 @@ export function inView(x: number, y: number, z: number, r: number): boolean {
 export function figureWork(at: THREE.Vector3, spread: number): { animate: boolean; shadow: boolean; fullGun: boolean; eyes: boolean; stride: number } {
   const d = figureDistance(at);
   const onScreen = figureOnScreen(at);
-  const stride = d <= FIG_LOD.near ? 1 : d <= FIG_LOD.mid ? 2 : 4;
+  const band = d <= FIG_LOD.near ? 1 : d <= FIG_LOD.mid ? 2 : 4;
+  // past the near band, its own rate at any frame rate (lod.json midHz, farHz): never fewer frames apart than the band's
+  // stride, and on a fast machine as many more as hold it to that rate
+  const stride = band === 1 || slow("lodhz") ? band : Math.max(band, Math.round(view.fps / (band === 2 ? FIG_LOD.midHz : FIG_LOD.farHz)));
   // off screen and well away: nothing to animate until it is looked at again
   const animate = onScreen || d <= FIG_LOD.offscreen ? (view.frame + Math.abs(Math.round(spread))) % stride === 0 : false;
   return { animate, shadow: d <= FIG_LOD.shadow, fullGun: d <= FIG_LOD.farGun, eyes: d <= FIG_LOD.eyes, stride };

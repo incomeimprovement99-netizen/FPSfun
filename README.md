@@ -717,6 +717,7 @@ The Settings tab, all remembered in this browser:
 | Sprint view shake | Normal or Minimal, the game's setting |
 | Fullscreen while playing | on by default: fullscreen with Keyboard Lock, which hands Ctrl+W to the game in Chrome and Edge |
 | Graphics | Competitive (straight to the screen with MSAA, fastest, and the shortest draw distance), Balanced, High (post-processing, shadows, bloom, and the longest view) |
+| Render scale | 100% down to 50%: the 3D view drawn at that share of the screen's pixels and stretched to fit, for a laptop's graphics that cannot keep up; the HUD and menus stay sharp, and it applies at once (on High at a laptop's 1.5 density the graphics card's time a frame went 13.5 ms at 100%, 9.7 at 70%, 8.8 at 50%) |
 | Sound captions | off, the ones that mean someone is near you, or everything: what you would have heard, written down with which way it came from and roughly how far ("DOOR  LEFT  NEAR") |
 | Killcam | on (the replay, then the recap) or off (the recap only) |
 | Volume | master, effects, hits |

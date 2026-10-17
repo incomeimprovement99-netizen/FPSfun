@@ -149,6 +149,31 @@ function overridden(q: Quality): Quality {
   return out as unknown as Quality;
 }
 
+/**
+ * Render scale (Settings; Milestone 626): the 3D view drawn at this share of the screen's pixels and stretched to fit,
+ * for a laptop's graphics that cannot fill the screen at its frame rate. The HUD and the menus are not the 3D view's
+ * canvas and stay sharp. Unlike the preset it applies at once.
+ */
+export const RENDER_SCALES = [1, 0.9, 0.8, 0.7, 0.6, 0.5];
+const SCALE_KEY = "range.renderScale";
+
+export function loadRenderScale(): number {
+  try {
+    const v = Number(localStorage.getItem(SCALE_KEY));
+    return RENDER_SCALES.includes(v) ? v : 1;
+  } catch {
+    return 1;
+  }
+}
+
+export function saveRenderScale(v: number): void {
+  try {
+    localStorage.setItem(SCALE_KEY, String(v));
+  } catch {
+    /* ignore */
+  }
+}
+
 export function saveQuality(p: Preset): void {
   try {
     localStorage.setItem(KEY, p);

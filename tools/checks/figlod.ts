@@ -21,13 +21,13 @@ function check(label: string, cond: boolean, detail = ""): void {
 const L = FIG_LOD;
 const at = (d: number) => new THREE.Vector3(0, 0, -d);
 /** a view from the origin looking down -z, with everything in front of it on screen */
-function look(frame: number): void {
+function look(frame: number, fps = 60): void {
   const cam = new THREE.PerspectiveCamera(80, 16 / 9, 0.1, 1000);
   cam.position.set(0, 1.6, 0);
   cam.lookAt(0, 1.6, -10);
   cam.updateMatrixWorld();
   const f = new THREE.Frustum().setFromProjectionMatrix(new THREE.Matrix4().multiplyMatrices(cam.projectionMatrix, cam.matrixWorldInverse));
-  setFigureView(cam.position, f, frame);
+  setFigureView(cam.position, f, frame, fps);
 }
 /** how often a figure at `d` animates over 12 frames */
 function ran(d: number, spread = 0): number {
@@ -68,6 +68,29 @@ console.log("Figure LOD");
   look(0);
   check(`a figure casts a shadow within ${L.shadow} m and none beyond`, figureWork(at(L.shadow - 1), 0).shadow && !figureWork(at(L.shadow + 1), 0).shadow);
   check(`its gun is the full model within ${L.farGun} m and the merged mesh beyond`, figureWork(at(L.farGun - 1), 0).fullGun && !figureWork(at(L.farGun + 1), 0).fullGun);
+}
+{
+  // (Milestone 626) the bands' own rates at any frame rate: at 180 fps a mid figure every sixth frame and a far one every
+  // twelfth (30 and 15 poses a second, as at 60), a near one still every frame; at 30 fps never fewer frames apart than
+  // the band's stride
+  look(0, 180);
+  const fast = [figureWork(at(L.near - 5), 0).stride, figureWork(at((L.near + L.mid) / 2), 0).stride, figureWork(at(L.mid + 40), 0).stride];
+  look(0, 30);
+  const slowRate = [figureWork(at(L.near - 5), 0).stride, figureWork(at((L.near + L.mid) / 2), 0).stride, figureWork(at(L.mid + 40), 0).stride];
+  check(`at 180 fps the near band animates every frame, the mid ${L.midHz} times a second and the far ${L.farHz}`, fast.join() === `1,${180 / L.midHz},${180 / L.farHz}`, fast.join());
+  check("at 30 fps the strides stay the bands' own (every frame, every second, every fourth)", slowRate.join() === "1,2,4", slowRate.join());
+  // a far figure at 180 fps over 36 frames: three poses, and figures of other numbers take other frames
+  const turns = (spread: number): number[] => {
+    const out: number[] = [];
+    for (let f = 0; f < 36; f++) {
+      look(f, 180);
+      if (figureWork(at(L.mid + 40), spread).animate) out.push(f);
+    }
+    return out;
+  };
+  const a = turns(0);
+  const b = turns(5);
+  check("over 36 frames at 180 fps a far figure poses three times, and another number takes other frames", a.length === 3 && b.length === 3 && a.every((f) => !b.includes(f)), `${a.join(",")} / ${b.join(",")}`);
 }
 {
   // nothing said yet: everything animates, as it did before any of this

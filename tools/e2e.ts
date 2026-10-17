@@ -7879,6 +7879,13 @@ async function main(): Promise<void> {
       await lp.close();
     }
     check("frames are drawing", f.calls > 0, `${f.calls} draw calls`);
+    // Render scale (Settings, Milestone 626): at once, the 3D view's pixel ratio its share of what it was and its canvas
+    // that many fewer pixels, kept for the next visit, and back at 100% the same as before
+    const scaled = await ev<{ was: number; half: number; px: [number, number]; kept: string | null; back: number }>(
+      page,
+      `(() => { const R = window.__range.renderer; const s = document.getElementById("renderScale"); const was = R.getPixelRatio(); const w0 = R.domElement.width; s.value = "0.5"; s.dispatchEvent(new Event("change")); const half = R.getPixelRatio(); const px = [w0, R.domElement.width]; const kept = localStorage.getItem("range.renderScale"); s.value = "1"; s.dispatchEvent(new Event("change")); return { was, half, px, kept, back: R.getPixelRatio() }; })()`,
+    );
+    check("render scale: 50% halves the 3D view's pixel ratio and its canvas at once, is kept, and 100% puts it back", Math.abs(scaled.half - scaled.was / 2) < 1e-9 && Math.abs(scaled.px[1] - scaled.px[0] / 2) <= 1 && scaled.kept === "0.5" && scaled.back === scaled.was, JSON.stringify(scaled));
     check("no page errors on load", errors.length === 0, errors.slice(0, 3).join(" | "));
     // smaller downloads (tools/compress-assets.ts): the surfaces and the props' maps come as WebP, and none is missing
     const webp = await ev<{ webp: number; jpg: number; bad: string[] }>(page, `(() => { const r = performance.getEntriesByType("resource"); const tex = r.filter((x) => x.name.includes("/tex/") || x.name.includes("/models/")); return { webp: tex.filter((x) => x.name.endsWith(".webp")).length, jpg: tex.filter((x) => x.name.endsWith(".jpg")).length, bad: tex.filter((x) => x.responseStatus >= 400).map((x) => x.name.split("/").slice(-2).join("/")) }; })()`);
