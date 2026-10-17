@@ -13838,3 +13838,19 @@ bridge stairs and 595 the Sky Ring lifts' landing stairs, both at the top step. 
 - **Checked** (tools/checks/sk-neon.ts): every double-flight stair walked up by a player in three lanes across its flights, 72 walks up 24 stairs, which on the pack's own collision stuck in 41 of 72 (the base's main stairs among them); the base's stairs walked up and down, their headroom, the Sky Ring walked up and round, the capsule hotel's and the club's stairs, all still passing; the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section 101 of 101 (a first run under load broke off after 55 at the decay's endgame, a game-time step, and passed in full rerun alone). verify, rules and the type check. The look: the stairs are drawn as before; their collision is what changed.
   The map: its files lo 140.8 MB, hi 212.6 MB, max 457.3 MB.
   **Its files are version 77.**
+
+## Milestone 599 — THE STRIP's light
+
+The east district's third stage (`rules.districts.strip.light`, tools/neon-layout.ts). The game's fill lights are warm
+white, so the district's magenta is in glowing pieces, as THE STACKS' pink is.
+
+- **The club at night:** a magenta strip light, the pack's strip worn in its Light06 glowing magenta, under the
+  balcony's slab over each full rail, 24 in all, and one of the pack's ceiling panels under every balcony cell. The
+  game takes those for fill lights' spots, as it does the tower base's, so the dance floor and the space under the
+  balcony are lit at night. Before this they drew black.
+- **The street lamps:** the ring road's three by THE STRIP wear the same magenta in their heads. Three more along the
+  boulevard were tried. Between the club's north wall and the bots' street link from (115, 5) to (125, 5) there is no
+  room for one, and at z 5.2 one stood in the name's sight line. Both faults were caught by the checks.
+- **Checked** (tools/checks/sk-neon.ts): the strips placed (24), a lamp under each of the 28 balcony cells and 28 fill spots under the balcony as the game gathers them, the 3 street lamps magenta, proven by taking the 28 lamps out (0 lamps, 0 fill spots: failed); THE STRIP's and the stairs' checks all still passing; the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: the club from inside, under its balcony and from its gate, the boulevard and the ring road, by neon night and golden hour: the dance floor lit at night where it drew black.
+  The map: its files lo 141.0 MB, hi 212.8 MB, max 457.5 MB.
+  **Its files are version 78.**

@@ -3198,6 +3198,19 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE STRIP's club: its balcony railed along every open edge, over its gates too, but where a stair comes off", !!CO && CO.railLines.length >= 20 && railPoints > 80 && unfenced.length === 0, unfenced.slice(0, 4).join("; ") || `${railPoints} points along ${CO?.railLines.length ?? 0} rails`);
 }
 
+// THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,
+// a ceiling lamp under every balcony cell that the game takes for a fill light's spot, the street lamps' heads magenta
+{
+  const LT = (cfg.rules as unknown as { districts?: { strip?: { light?: { strip: string; remap: string; lamp: string; lampRemap: string } } } }).districts?.strip?.light;
+  const CL = (cfg as unknown as { strip?: { club?: { hall: number[]; deck: number[][]; y: number } } }).strip?.club;
+  const placed = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-strip"]?.place ?? [];
+  const n = (name: string | undefined, mat?: string) => placed.filter((q) => name && String(q[0]).endsWith(`/${name.split("/").pop()}`) && (mat === undefined || q[6] === mat)).length;
+  const [x0, x1, z0, z1] = CL?.hall ?? [0, 0, 0, 0];
+  const spots = neonFillSpots().filter((q) => q.x - BR_X > x0 && q.x - BR_X < x1 && q.z - BR_Z > z0 && q.z - BR_Z < z1 && q.y > 2 && q.y < (CL?.y ?? 0));
+  const [strips, lamps, heads] = [n(LT?.strip, LT?.remap), n(LT?.lamp), n("Lighting_Deco002_lgt.prefab", LT?.lampRemap)];
+  check("THE STRIP's light: magenta strips under the club's balcony, a ceiling lamp under each balcony cell lit as fill, the street lamps magenta", !!LT && !!CL && strips >= 20 && lamps === CL.deck.length && spots.length === CL.deck.length && heads >= 3, `${strips} strips, ${lamps} lamps of ${CL?.deck.length ?? 0} cells, ${spots.length} fill spots under the balcony, ${heads} magenta street lamps`);
+}
+
 // every double-flight stair (rules.doubleStair, Milestone 598): the tower base's twelve, the Sky Ring's four, the capsule
 // hotel's six and THE STRIP club's two, each walked up by a player in three lanes across its flights, up their middle
 // and as near each side as a body fits (the owner, 2026-10-12: "i can glitch through stairs all the time when going up")

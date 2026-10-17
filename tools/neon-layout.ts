@@ -4435,6 +4435,7 @@ function onNode(o: OBox): boolean {
       stairs: number[][]; bar: { piece: string; from: number[]; count: number; step: number; yaw: number }; seats: Array<[string, number, number, number]>;
     };
     ground: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
+    light?: { strip: string; remap: string; in: number; lamp: string; lampRemap: string };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
   };
   const DT = (R.districts as { strip?: Strip } | undefined)?.strip;
@@ -4574,6 +4575,18 @@ function onNode(o: OBox): boolean {
           rails++;
         }
       }
+      // THE STRIP's light in the club (`light`, Milestone 599): a magenta strip hung under the balcony's slab over each
+      // full rail, `in` from it, and a ceiling lamp under every balcony cell, which the game lights as fill
+      const LT = DT.light;
+      if (LT) {
+        const [sr, lr] = [piece(LT.strip).row, piece(LT.lamp).row];
+        for (const [x0r, z0r, x1r, z1r, ix, iz] of railLines) {
+          if (Math.hypot(x1r - x0r, z1r - z0r) < K - 0.1) continue;
+          const yaw = Math.abs(x1r - x0r) > Math.abs(z1r - z0r) ? 0 : 90;
+          placeTurned(DT.chunk, LT.strip, (x0r + x1r) / 2 + ix * LT.in, (z0r + z1r) / 2 + iz * LT.in, yaw, "g", BL.y - BL.slab - sr.max![1], LT.remap);
+        }
+        for (const d of deck) placeTurned(DT.chunk, LT.lamp, (d[0] + d[1]) / 2, (d[2] + d[3]) / 2, 0, "g", BL.y - BL.slab - lr.max![1]);
+      }
       // the bar under the south balcony's edge, and the seats
       const BR2 = CL.bar;
       for (let k = 0; k < BR2.count; k++) placeTurned(DT.chunk, BR2.piece, BR2.from[0] + k * BR2.step, BR2.from[1], BR2.yaw, "o");
@@ -4627,7 +4640,8 @@ function onNode(o: OBox): boolean {
         for (const [name, dx, dz, yw, y] of set) placeTurned(DT.chunk, name, x + dx, z + dz, yw, "o", y - piece(name).row.min![1]);
         cover++;
       }
-    for (const [x, z, yaw] of GT.lamps.at) placeTurned(DT.chunk, GT.lamps.piece, x, z, yaw, "o");
+    // (the street lamps, their heads in THE STRIP's magenta where `light` says)
+    for (const [x, z, yaw] of GT.lamps.at) placeTurned(DT.chunk, GT.lamps.piece, x, z, yaw, "o", 0, DT.light?.lampRemap);
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "strip"), { district: "strip", ...DT.name }];
     cfg.strip = { tower, base, pyramid, ...(club ? { club } : {}), cover, lamps: GT.lamps.at.length, solids };
     if (club) console.log(`THE STRIP's club: ${(club.deck as unknown[]).length} balcony cells, ${club.rails} rails, ${(club.stairs as unknown[]).length} stairs`);
