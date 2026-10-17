@@ -4936,7 +4936,8 @@ function onNode(o: OBox): boolean {
   type Inside = { column: string; columns: Pt[]; gallery: { v: number; y: number; tile: string; rail: string; railShort: string; railH: number }; stair: { u: number }; crate: string; cover: Array<[string, number, number, number]>; pipes: Array<[string, number, number, number, number]>; cables: Array<[string, number, number, number, number]> };
   type Upper = { hall: string; atrium: number[]; lampEvery: number; cover: Array<[string, number, number, number]> };
   type Roofs = { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]>; gas: number[][]; gasPiece: string; crate: string; yard: number[][] };
-  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; roofs?: Roofs; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
+  type WorksLight = { strip: string; remap: string; every: number; in: number; roofLamp: string; lampRemap: string; roofLamps: number[][] };
+  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; roofs?: Roofs; light?: WorksLight; name?: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
   const DW = (R.districts as { works?: Works } | undefined)?.works;
   if (DW) {
     const solids: number[][] = [];
@@ -5223,7 +5224,44 @@ function onNode(o: OBox): boolean {
         roofs.laid++;
       }
     }
-    cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}) };
+    // THE WORKS' light (`light`, Milestone 650): THE WELL's teal in glowing pieces, as the other districts' colours
+    // are: the strip light under each gallery's open edge and round the works block's atrium under its ring, and the
+    // street lamp on the roofs, its head teal; and its name, facing the ring road
+    const LG = DW.light;
+    const light = { strips: 0, roofLamps: 0 };
+    if (LG && IN) {
+      const sr = piece(LG.strip).row;
+      // (a strip along u: its own x along u)
+      const along = (U: Pt) => +((Math.atan2(-U[1], U[0]) * 180) / Math.PI).toFixed(2);
+      for (const H of DW.halls)
+        if (H.frame) {
+          const { o, u: U, v: V } = H.frame;
+          const span = Math.abs((H.box[1] - H.box[0]) * U[0] + (H.box[3] - H.box[2]) * U[1]);
+          const b = IN.gallery.v + LG.in;
+          for (let a = LG.every / 2; a < span; a += LG.every) {
+            placeTurned(DW.chunk, LG.strip, o[0] + a * U[0] + b * V[0], o[1] + a * U[1] + b * V[1], along(U), "g", IN.gallery.y - DW.slab - sr.max![1], LG.remap);
+            light.strips++;
+          }
+        }
+      if (UP && UH) {
+        const [a0, a1, b0, b1] = UP.atrium;
+        for (const [line, s0, s1, alongX, out] of [[b0, a0, a1, true, -1], [b1, a0, a1, true, 1], [a0, b0, b1, false, -1], [a1, b0, b1, false, 1]] as Array<[number, number, number, boolean, number]>) {
+          const at = line + out * LG.in;
+          for (let s = s0 + LG.every / 2; s < s1; s += LG.every) {
+            placeTurned(DW.chunk, LG.strip, alongX ? s : at, alongX ? at : s, alongX ? 0 : 90, "g", DW.storey - DW.slab - sr.max![1], LG.remap);
+            light.strips++;
+          }
+        }
+      }
+      for (const [x, z, yaw] of LG.roofLamps) {
+        const H = halls.find((h) => x > h.box[0] && x < h.box[1] && z > h.box[2] && z < h.box[3]);
+        if (!H) throw new Error(`THE WORKS' roof lamp at (${x}, ${z}): over no hall`);
+        placeTurned(DW.chunk, LG.roofLamp, x, z, yaw, "o", H.top - piece(LG.roofLamp).row.min![1], LG.lampRemap);
+        light.roofLamps++;
+      }
+    }
+    if (DW.name) cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "works"), { district: "works", ...DW.name }];
+    cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}), ...(LG ? { light } : {}) };
     console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}`);
   }
 }

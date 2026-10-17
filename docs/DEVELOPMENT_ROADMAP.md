@@ -14086,3 +14086,18 @@ tools/neon-layout.ts).
 - **Checked** (tools/checks/sk-neon.ts): the eight yard pads each ridden onto its roof (six at 7.00 m, the two onto the works block at 14.00 m, their throws' tops 11.2 and 18.2 m); both footbridges walked across and back; 220 rail lengths standing along the roof edges but where a bridge arrives; the 18 pieces on the roofs standing on them; all 8 yard pieces laid; the street one network of 664 nodes. The checks fail with their bugs put back: a hall's roof slab taken out, a bar across a bridge's end, a tank's legs taken out. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night across a footbridge, on a hall's roof, on the works roof, in a yard at its pads, the crown from the corner and the district from over the centre.
   The map: its files lo 154.4 MB, hi 226.3 MB, max 470.9 MB.
   **Its files are version 87.**
+
+## Milestone 650 — THE WORKS' light and name
+
+The south-east district's fourth and last stage (`rules.districts.works.light` and `.name`, tools/neon-layout.ts).
+With it all eight districts past the ring road are built.
+
+- **The light:** THE WELL's teal (its beam's, the pack's Light06 read off its materials) in glowing pieces, as the
+  other districts' colours are, since the game's fill lights are warm white: the pack's strip light every 2.5 m under
+  each gallery's open edge and round the works block's atrium under its ring, and the pack's street lamp on the roofs
+  along the yards' and the ring road's edges, its head teal, off the bridges' lines, the pads' landings and their
+  throws.
+- **The name:** THE WORKS in teal on the south arm's second hall, over its wall beside the ring road's door.
+- **Checked** (tools/checks/sk-neon.ts): 64 teal strips each hung against an underside (40 under the galleries, 24 round the atrium), 16 teal lamps on the roofs, the name seen from the ring road along 9 sight lines. Each check fails with its bug put back: a strip lowered a metre, a wall set in the name's sight lines. The e2e: the SpeedKills section, 101 of 101 run alone (the first run lost one check to floor loot: the ghost's restore found a city sentinel lying within 1.3 m of its death spot). verify, rules and the type check. The look: photographed at night and by golden hour at the name from the ring road, inside a hall at its gallery, in the works block's atrium, over the roofs and from over the corner.
+  The map: its files lo 154.9 MB, hi 226.7 MB, max 471.4 MB.
+  **Its files are version 88.**

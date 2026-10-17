@@ -3424,6 +3424,38 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE WORKS: its roofs railed along every drop but where a bridge arrives, their cover standing on them, every yard piece laid", (RWc?.rails.length ?? 0) > 150 && bareRoof.length === 0 && (RWc?.cover.length ?? 0) >= 18 && unstood.length === 0 && (RWc?.of ?? 0) === 8 && RWc?.laid === RWc?.of, [...bareRoof.slice(0, 3).map(([x, z]) => `bare (${x}, ${z})`), ...unstood.slice(0, 3).map(({ q, name }) => `${name} at (${q[0]}, ${q[1]}) not standing`)].join("; ") || `${RWc?.rails.length ?? 0} rail lengths, ${RWc?.cover.length ?? 0} pieces on the roofs, ${RWc?.laid ?? 0} of ${RWc?.of ?? 0} yard pieces`);
 }
 
+// THE WORKS' light and name (rules.districts.works.light and .name, Milestone 650): teal strips under its galleries
+// and round the works block's atrium, each hung against an underside; teal lamps on its roofs; its name on the south
+// arm's second hall seen from the ring road
+{
+  const LG = (cfg.rules as unknown as { districts?: { works?: { light?: { strip: string; remap: string; roofLamp: string; lampRemap: string }; name?: { at: number[]; w: number } } } }).districts?.works;
+  const placed = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-works"]?.place ?? [];
+  const strips = placed.filter((q) => LG?.light && String(q[0]).endsWith(`/${LG.light.strip}`) && q[6] === LG.light.remap) as Array<[string, number, number, number]>;
+  const S = SOLIDS.solids as number[][];
+  const loose = strips.filter(([, x, y, z]) => !S.some((b) => b[0] <= x && b[1] >= x && b[2] <= z && b[3] >= z && b[4] >= y - 0.1 && b[4] <= y + 0.6));
+  const heads = placed.filter((q) => LG?.light && String(q[0]).endsWith(`/${LG.light.roofLamp}`) && q[6] === LG.light.lampRemap).length;
+  check("THE WORKS' light: teal strips under its galleries and round the works block's atrium, each hung against an underside, and teal lamps on its roofs", !!LG?.light && strips.length >= 60 && loose.length === 0 && heads >= 12, `${strips.length} strips, ${loose.length} hanging free${loose.length ? ` (${loose.slice(0, 3).map(([, x, y, z]) => `(${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`).join("; ")})` : ""}, ${heads} teal lamps on the roofs`);
+  const NM = LG?.name;
+  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
+  const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
+  const blocked: string[] = [];
+  for (const ex of [-10, 0, 10])
+    for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
+      const [p0, p1] = [[NM!.at[0] + ex, 1.7, roadMid], [NM!.at[0] + t, NM!.at[1], NM!.at[2] - 0.3]];
+      const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const q = [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, p0[2] + (p1[2] - p0[2]) * f];
+        if (inBox(q[0], q[1], q[2])) {
+          blocked.push(`from x ${ex} to ${t.toFixed(1)} at (${q.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "works");
+  check("THE WORKS: its name in teal on the south arm's second hall, seen from the ring road", named && !!NM && blocked.length === 0, blocked.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,
 // a ceiling lamp under every balcony cell that the game takes for a fill light's spot, the street lamps' heads magenta
 {

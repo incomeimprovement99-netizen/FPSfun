@@ -1280,7 +1280,7 @@ between two cliffs of lit windows 27 m high, down both arms and round the corner
 walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L,
 crossed indoors from hall to hall, each with columns, a gallery and its stair, a tank and machines, and the corner's works block with an upper floor
 round an atrium, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
-crowned with tanks 31 m up. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+crowned with tanks 31 m up, lit teal by night. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the
