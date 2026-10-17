@@ -14007,3 +14007,22 @@ stands, live, and THE CANYON's passages in this round's first bakes. It showed r
   both, so it refuses Fastfood_street00 for its Neon008b. The stand is not banned by its own name: the clean variant is
   built on it, and banned by name the variant was refused with it. A scan of all 191 pieces the layout places, flattened as the
   bake flattens them, found the food stand the only one. Checked: with the stand put back in a canyon row and its name off the ban list, the bake refused it, naming the Neon008b nested in it.
+
+## Milestone 646 — THE WORKS, the halls
+
+The south-east district's first stage (`rules.districts.works`, tools/neon-layout.ts), the last of the eight districts
+past the ring road, in THE WELL's sector: rust and machinery, the one district crossed indoors.
+
+- **The halls:** two on each arm, 25 m along it and 30 m deep, 7 m tall, and in the corner square the works block,
+  30 by 30 m and 14 m tall. They are built of the pack's rusted metal wall panels, 10 and 5 m long, laid in 5 m modules
+  from each corner. Each panel is drawn only, on the bake's typed collision: the panels are 0.32 m thick, and the bake's
+  half-metre columns would have made each a metre. The panels are faced on one side only, so each is laid with a twin
+  turned about on its footprint: without it, from inside a hall the roof hung over open air.
+- **The way through:** 10 m doors at both ends of each hall on the line down the arm's middle, and in each side, in
+  from the ring road and out to the edge. Every door's middle is on a line of the bots' street nodes, so a node stands in
+  each doorway and the street stays one network. The 10 m between halls are yards, a footbridge's span for stage 3.
+- **The roofs:** the pack's floor tiles over a typed slab, and under each the ceiling lamp the game lights as fill every
+  7.5 m each way, so the halls are lit inside.
+- **Checked** (tools/checks/sk-neon.ts): the whole L walked indoors from the south road through each arm's halls and the works block to the east road; each hall shut to a body every half metre along every side but at its doors, and roofed; in from the ring road through each arm hall's side doors and out to the edge; the street one network of 654 nodes. Each new check fails with its bug put back: a bar across a yard's doorway, a wall length taken out, a side door shut. The e2e: the SpeedKills section, 101 of 101 run alone (straight after verify it lost its game-time waits, 51 of 56). verify, rules and the type check. The look: photographed by golden hour and at night from the ring road, inside a hall, in a yard, at the works block and inside it, and from over the corner; the first bake's walls were see-through from inside and are laid twinned.
+  The map: its files lo 150.8 MB, hi 222.6 MB, max 467.3 MB.
+  **Its files are version 84.**

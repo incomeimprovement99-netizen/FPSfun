@@ -4927,6 +4927,81 @@ function onNode(o: OBox): boolean {
     console.log(`THE CANYON: ${DC.blocks.length} blocks, ${fronts} fronts, ${tiles} roof tiles${RF ? `; on its roofs ${RF.bridges.length} bridges, ${RF.cover.length} pieces of cover, ${roofFence} lengths of fence along ${roofRails.length * RF.cell} m of edge` : ""}`);
   }
 }
+// THE WORKS (rules.districts.works; the districts plan's south-east district): an L of halls of the pack's rusted metal
+// walls, the one district crossed indoors, each door's middle on a line of the bots' street nodes so a node stands in
+// the doorway. The walls are drawn only, on typed collision: the panels are 0.32 m thick, and the bake's half-metre
+// columns would have made each a metre. Each roof is the pack's floor tiles over a typed slab, with the fill lamps under it
+{
+  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]> }> };
+  const DW = (R.districts as { works?: Works } | undefined)?.works;
+  if (DW) {
+    const solids: number[][] = [];
+    const thick = piece(DW.wall).row.size![0];
+    const long = piece(DW.wall).row.size![2];
+    const [lr, unit] = [piece(DW.lamp).row, piece(DW.wallShort).row.size![2]];
+    let [panels, tiles, lamps] = [0, 0, 0];
+    const halls: Array<{ id: string; box: number[]; top: number; doors: Record<string, number[][]> }> = [];
+    // (a rectangle's roof in the floor tiles, the largest that fit first, their tops (their pivots) at `y`)
+    const roof = (x0: number, x1: number, z0: number, z1: number, y: number, sizes: string[]) => {
+      if (!sizes.length || x1 - x0 < 0.1 || z1 - z0 < 0.1) return;
+      const t = piece(sizes[0]).row;
+      const s = t.size![0];
+      const [nx, nz] = [Math.floor((x1 - x0) / s + 1e-6), Math.floor((z1 - z0) / s + 1e-6)];
+      for (let i = 0; i < nx; i++)
+        for (let j = 0; j < nz; j++) {
+          placeTurned(DW.chunk, sizes[0], x0 + s * (i + 0.5), z0 + s * (j + 0.5), 0, "g", y - t.max![1]);
+          tiles++;
+        }
+      roof(x0 + nx * s, x1, z0, z1, y, sizes.slice(1));
+      roof(x0, x0 + nx * s, z0 + nz * s, z1, y, sizes.slice(1));
+    };
+    for (const H of DW.halls) {
+      const [x0, x1, z0, z1] = H.box;
+      const top = H.storeys * DW.storey;
+      const gaps: Record<string, number[][]> = {};
+      for (const [k, line, a0, a1, alongX] of [["n", z0, x0, x1, true], ["s", z1, x0, x1, true], ["w", x0, z0, z1, false], ["e", x1, z0, z1, false]] as Array<[string, number, number, number, boolean]>) {
+        const doors = (H.doors[k] ?? []).map((m) => [m - DW.door / 2, m + DW.door / 2]);
+        gaps[k] = doors;
+        for (let st = 0; st < H.storeys; st++) {
+          const y = st * DW.storey;
+          // (the side's modules clear of a door in the ground storey, run together, and laid long panels first)
+          const runs: number[][] = [];
+          for (let a = a0; a < a1 - 0.01; a += unit) {
+            if (st === 0 && doors.some(([d0, d1]) => a + unit / 2 > d0 && a + unit / 2 < d1)) continue;
+            const last = runs[runs.length - 1];
+            if (last && Math.abs(last[1] - a) < 0.01) last[1] = a + unit;
+            else runs.push([a, a + unit]);
+          }
+          for (const [r0, r1] of runs) {
+            for (let a = r0; a < r1 - 0.01; ) {
+              const name = r1 - a >= long - 0.01 ? DW.wall : DW.wallShort;
+              const l = piece(name).row.size![2];
+              // (and its twin turned about on the same footprint: the panels are faced on one side only, and from
+              // inside a hall its roof hung over open air)
+              const [px, pz, yw] = [alongX ? a + l / 2 : line, alongX ? line : a + l / 2, alongX ? 90 : 0];
+              const o = placeTurned(DW.chunk, name, px, pz, yw, "g", y);
+              placeTurned(DW.chunk, name, px, pz, yw + 180, "g", y);
+              if (st === 0) STREET_GRAPH?.add(o);
+              panels++;
+              a += l;
+            }
+            solids.push((alongX ? [r0, r1, line - thick / 2, line + thick / 2] : [line - thick / 2, line + thick / 2, r0, r1]).map((v) => +v.toFixed(3)).concat([y, y + DW.storey]));
+          }
+        }
+      }
+      roof(x0, x1, z0, z1, top, DW.roof);
+      solids.push([x0, x1, z0, z1, top - DW.slab, top]);
+      for (let x = x0 + DW.lampEvery / 2; x < x1; x += DW.lampEvery)
+        for (let z = z0 + DW.lampEvery / 2; z < z1; z += DW.lampEvery) {
+          placeTurned(DW.chunk, DW.lamp, x, z, 0, "g", top - DW.slab - lr.max![1]);
+          lamps++;
+        }
+      halls.push({ id: H.id, box: H.box, top, doors: gaps });
+    }
+    cfg.works = { halls, panels, tiles, lamps, solids };
+    console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps`);
+  }
+}
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
 // basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
 // each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of

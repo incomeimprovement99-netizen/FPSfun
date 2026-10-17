@@ -3359,6 +3359,40 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE CANYON's light: yellow-green strips under its walkways, each hung against one's underside, ceiling lamps under them lit as fill, and street lamps on its roofs", !!LG && strips.length >= 100 && loose.length === 0 && spots.length >= 30 && heads >= 12, `${strips.length} strips, ${loose.length} hanging free${loose.length ? ` (${loose.slice(0, 3).map(([, x, y, z]) => `(${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`).join("; ")})` : ""}, ${spots.length} fill spots under the walkways, ${heads} yellow-green lamps on the roofs`);
 }
 
+// THE WORKS (rules.districts.works, Milestone 646): its L walked indoors from the south road through both halls of each
+// arm and the works block to the east road; each hall shut to a body along every side but at its doors, and roofed; and
+// in from the ring road through each arm hall's side doors and out to the edge
+{
+  const W = (cfg as unknown as { works?: { halls: Array<{ id: string; box: number[]; top: number; doors: Record<string, number[][]> }> } }).works;
+  const S = SOLIDS.solids as number[][];
+  const route = [[41, 125], [50, 125], [75, 125], [92.5, 125], [110, 125], [125, 125], [125, 110], [125, 92.5], [125, 75], [125, 57.5], [125, 41]].map(([x, z]) => [x, z, 0]);
+  const L = along(route);
+  check("THE WORKS: a player walks the whole L indoors, from the south road through each arm's halls and the works block to the east road", !!W && L.k === route.length, `${L.k - 1} of ${route.length - 1} legs, at (${L.x.toFixed(1)}, ${L.z.toFixed(1)})`);
+  const open: string[] = [];
+  for (const h of W?.halls ?? []) {
+    const [x0, x1, z0, z1] = h.box;
+    for (const [k, line, a0, a1, alongX] of [["n", z0, x0, x1, true], ["s", z1, x0, x1, true], ["w", x0, z0, z1, false], ["e", x1, z0, z1, false]] as Array<[string, number, number, number, boolean]>)
+      for (let a = a0 + 0.25; a < a1; a += 0.5) {
+        if ((h.doors[k] ?? []).some(([d0, d1]) => a > d0 && a < d1)) continue;
+        const [px, pz] = alongX ? [a, line] : [line, a];
+        if (!S.some((b) => b[0] <= px + 0.01 && b[1] >= px - 0.01 && b[2] <= pz + 0.01 && b[3] >= pz - 0.01 && b[4] <= 0.3 && b[5] >= 2)) open.push(`${h.id} ${k} (${px.toFixed(1)}, ${pz.toFixed(1)})`);
+      }
+  }
+  const roofless = (W?.halls ?? []).filter((h) => {
+    const [cx, cz] = [(h.box[0] + h.box[1]) / 2, (h.box[2] + h.box[3]) / 2];
+    return !S.some((b) => b[0] <= cx && b[1] >= cx && b[2] <= cz && b[3] >= cz && Math.abs(b[5] - h.top) < 0.05);
+  });
+  check("THE WORKS: each hall shut to a body but at its doors, and roofed", (W?.halls.length ?? 0) === 5 && open.length === 0 && roofless.length === 0, [...open.slice(0, 4), ...roofless.map((h) => `${h.id} roofless`)].join("; ") || `${W?.halls.length ?? 0} halls`);
+  const sides = (W?.halls ?? []).filter((h) => h.id !== "works").map((h) => {
+    const southArm = h.box[2] > 100;
+    const m = (southArm ? h.doors.n : h.doors.w)[0];
+    const mid = (m[0] + m[1]) / 2;
+    const r = southArm ? [[mid, 108, 0], [mid, 130, 0], [mid, 150, 0]] : [[108, mid, 0], [130, mid, 0], [150, mid, 0]];
+    return { id: h.id, w: along(r), n: r.length };
+  });
+  check("THE WORKS: in from the ring road through each arm hall's side doors and out to the edge", sides.length === 4 && sides.every((q) => q.w.k === q.n), sides.map((q) => `${q.id}: ${q.w.k - 1} of ${q.n - 1} legs`).join("; "));
+}
+
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,
 // a ceiling lamp under every balcony cell that the game takes for a fill light's spot, the street lamps' heads magenta
 {
