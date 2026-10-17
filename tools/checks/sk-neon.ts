@@ -1139,7 +1139,8 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   check(
     "the tower: its new floors, its sky floors and its three levels walked over, most of each and every room of it",
     laid.length === TW.shaft.length + SKYW.length + LVL.length && laid.every((q) => q.of > 100 && q.got / q.of > (SKYW.includes(q.y) || LVL.includes(q.y) ? 0.85 : 0.9) && roomsOk(q)),
-    laid.map((q) => `${q.y} m ${((q.got / q.of) * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2${roomsOk(q) ? "" : ` (a room ${Math.min(...q.rooms.filter((r) => r.of * C * C >= 4).map((r) => (r.got / r.of) * 100)).toFixed(0)}%)`}`).join("; "),
+    // (the rooms named by where they lie round the core, the rooms list's order less its middle)
+    laid.map((q) => `${q.y} m ${((q.got / q.of) * 100).toFixed(0)}% of ${q.of.toFixed(0)} m2${roomsOk(q) ? "" : ` (${q.rooms.map((r, i) => ({ r, name: ["north-west", "north", "north-east", "west", "east", "south-west", "south", "south-east"][i] })).filter(({ r }) => r.of * C * C >= 4 && r.got / r.of <= 0.4).map(({ r, name }) => `its ${name} room ${((r.got / r.of) * 100).toFixed(0)}%`).join(", ")})`}`).join("; "),
   );
   // (measured by the bake: a layout run since without a bake leaves none)
   const F = TW.measured?.floors ?? [];
@@ -3455,6 +3456,15 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "works");
   check("THE WORKS: its name in teal on the south arm's second hall, seen from the ring road", named && !!NM && blocked.length === 0, blocked.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
+// THE VAULT's gold trim (rules.tower.floors.at's trim, Milestone 653): the strip light lit gold along its partitions'
+// feet, at the floor's height (32 lengths along its plain walls: most of the maze's walls are doors and their fills)
+{
+  const TR = (cfg.rules.tower.floors.at as unknown as Record<string, { trim?: { strip: string; remap: string } }>)["32"]?.trim;
+  const lit = ((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-tower"]?.place ?? []).filter((q) => TR && String(q[0]).endsWith(`/${TR.strip}`) && q[6] === TR.remap) as Array<[string, number, number, number]>;
+  const off = lit.filter(([, , y]) => y < 32 || y > 32.6);
+  check("THE VAULT: its maze lit gold along its partitions' feet", !!TR && lit.length >= 30 && off.length === 0, `${lit.length} lengths of gold trim, ${off.length} off the floor`);
 }
 
 // what the sixth review read wrong (Milestone 651): the names' planes drawn after the city's other see-through pieces

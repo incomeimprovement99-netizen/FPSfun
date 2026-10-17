@@ -14174,3 +14174,21 @@ floor's lamps.
   USSO's right hand 16 to 25, APUHTHEE's left 0 to 4, against 40).
 - **Checked:** verify, rules and the type check; the bought arms' frames on ANAKIN, STRYDER, the USSO and APUHTHEE, 45
   checks, all pass; each gun's daylight with and without the other arm drawn in software as the e2e draws.
+
+## Milestone 653 — THE VAULT lit gold along its maze
+
+The sixth review saw "nothing gold or rewarding" inside the tower's floors; its picture was the 23 m maze, and no review
+spot stood in THE VAULT.
+
+- **The trim:** a floor's `trim` (`rules.tower.floors.at[32].trim`): the pack's strip light along both faces of every
+  plain partition at its foot, lit in THE VAULT's gold, 32 lengths. Review spot 28 now stands inside it.
+- **Tried and dropped, gold crates as caches.** Laid as the floor's own cover they moved every floor laid after it (the
+  floors draw their cover from one sequence), and a crate on the 35 m floor shut a room. At their own places none fitted
+  the maze's 2.5 m ways. With each floor seeded on its own they were all re-rolled, and the same floor's east room was
+  shut again. The layout's own reach model passes a placement the tower's walk check refuses there: that is fixed before
+  THE VAULT gets more (caches, an atrium, more ways in).
+- **On the way:** the cover's placing is one helper, drawing from the sequence exactly as before; the walk check names
+  the room it finds shut ("its east room 1%").
+- **Checked:** the trim along THE VAULT's walls at its floor (fails with five lengths moved off it); the map's checks
+  all pass. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The map: its files lo 155.0 MB, hi 226.9 MB, max 471.6 MB.
+  **Its files are version 90.**

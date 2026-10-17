@@ -369,14 +369,15 @@ const noGround: Array<[number, number, number, number]> = [];
     // (the floors numbered up from the first laid out: the new floors 1 to 8, the sky floors over them 9 to 11, the levels 12 to 14)
     const numbered = Object.keys(F.at).map(Number).sort((a, b) => a - b);
     const rnd3 = seeded(F.seed);
-    const pick3 = <Q,>(a: Q[]): Q => a[Math.floor(rnd3() * a.length)];
     const lines = F.lines as Record<string, number[]>;
     let tWalls = 0, tProps = 0, tLamps = 0;
+    let tTrim = 0;
     const wayLog: string[] = [];
-    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; mat?: string; lampMat?: string }>)) {
+    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; mat?: string; lampMat?: string; trim?: { strip: string; remap: string; y: number; every: number; off: number } }>)) {
       const h = Number(hs);
       const plan = F.plans[P.plan] as Record<string, string>;
       const placed: OBox[] = [];
+      const plain: OBox[] = [];
       // (the partitions as a body meets them: each piece, and the width open through it, a doorway's or a gate's)
       const bars: Array<{ o: OBox; open: number; pad: number }> = [];
       // (the walls' and the gates' collision column; a doorway and its half-metre wall beside it as drawn, the way a body
@@ -463,10 +464,27 @@ const noGround: Array<[number, number, number, number]> = [];
           const isGate = k === gate && !!FR;
           const wb = placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", isGate ? sunk(F.gate) : h - 0.02, isGate ? framed(F.gate) : P.mat);
           placed.push(wb);
+          if (!isGate) plain.push(wb);
           bars.push({ o: wb, open: isGate ? FW.gate : 0, pad: padOf(two ? piece5 : F.walls["2.5"]) });
           if (isGate) keepT.push({ c, u: [d[0], d[1]], v: [-d[1], d[0]], hu: 2.5, hv: F.clear, top: 0 });
           tWalls++;
           k += two ? 2 : 1;
+        }
+      }
+      // (a floor's lit `trim`: the strip light along both faces of every plain partition at its foot, `every` metres,
+      // `off` out from the face, worn as `remap`: THE VAULT's gold, its maze lit gold along the floor, cover the maze's
+      // 2.5 m ways had no room for)
+      if (P.trim) {
+        const sr = piece(P.trim.strip).row;
+        for (const w of plain) {
+          const [L, D, T, N] = w.hu >= w.hv ? [w.hu, w.u, w.hv, w.v] : [w.hv, w.v, w.hu, w.u];
+          const yaw = +((Math.atan2(-D[1], D[0]) * 180) / Math.PI).toFixed(2);
+          for (const side of [-1, 1])
+            for (let t = -L + P.trim.every / 2; t < L; t += P.trim.every) {
+              const o = side * (T + P.trim.off);
+              placeTurned("c-tower", P.trim.strip, w.c[0] + D[0] * t + N[0] * o, w.c[1] + D[1] * t + N[1] * o, yaw, "g", h + P.trim.y - sr.min![1], P.trim.remap);
+              tTrim++;
+            }
         }
       }
       // (the lamps keep off the partitions: on the rooms and maze floors a lamp hung in a wall)
@@ -561,26 +579,33 @@ const noGround: Array<[number, number, number, number]> = [];
       let unreached = lost(shut);
       const wayAll = free.reduce((a, v) => a + v, 0);
       wayLog.push(`${h} m ${(wayAll * FW.cell * FW.cell).toFixed(0)} m2${unreached ? ` (${(unreached * FW.cell * FW.cell).toFixed(1)} out of reach before its cover)` : ""}`);
-      const names = (P.pieces ?? F.cover) as string[];
-      for (let t = 0, got = 0; t < P.cover * 40 && got < P.cover; t++) {
-        const name = pick3(names);
+      // (a piece of cover at (lx, lz) turned `yaw`, worn in `mat`, laid unless it leaves the floor, stands on the core's
+      // way or by another, or shuts off more of the floor's way than a dead corner)
+      const tryCover = (name: string, lx: number, lz: number, yaw: number, mat?: string) => {
         const row = piece(name).row;
-        const [lx, lz] = [qx0 + rnd3() * (qx1 - qx0), qz0 + rnd3() * (qz1 - qz0)];
-        const yaw = Math.floor(rnd3() * 4) * 90 + (row.size![0] < 1.2 && row.size![2] < 1.2 ? rnd3() * 40 - 20 : 0);
         const o: OBox = { c: [lx + px, lz + pz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: 0 };
         const reach = Math.hypot(o.hu, o.hv);
-        if (!inFloor(lx, lz, reach + 0.3) || keepT.some((q) => overlaps(o, q, 0.3)) || placed.some((q) => overlaps(o, q, F.apart))) continue;
+        if (!inFloor(lx, lz, reach + 0.3) || keepT.some((q) => overlaps(o, q, 0.3)) || placed.some((q) => overlaps(o, q, F.apart))) return false;
         const next = shut.slice();
         for (let k = 0; k < free.length; k++) if (free[k] && !next[k] && hits(o, ...wxz(k), 0, FW.column)) next[k] = 1;
         // (a dead corner behind it, `corner` square metres, is let be: refused outright, a crate a body's width off a
         // wall's end cost the maze floors half their cover)
         const u = lost(next);
-        if ((u - unreached) * FW.cell * FW.cell > FW.corner) continue;
+        if ((u - unreached) * FW.cell * FW.cell > FW.corner) return false;
         [shut, unreached] = [next, u];
-        placeTurned("c-tower", name, lx + px, lz + pz, yaw, "o", h - row.min![1]);
+        placeTurned("c-tower", name, lx + px, lz + pz, yaw, "o", h - row.min![1], mat);
         placed.push(o);
         tProps++;
-        got++;
+        return true;
+      };
+      // (the floor's own cover, `cover` pieces of its list at places drawn from the floors' one sequence)
+      for (let t = 0, got = 0; t < P.cover * 40 && got < P.cover; t++) {
+        const names = (P.pieces ?? F.cover) as string[];
+        const name = names[Math.floor(rnd3() * names.length)];
+        const row = piece(name).row;
+        const [lx, lz] = [qx0 + rnd3() * (qx1 - qx0), qz0 + rnd3() * (qz1 - qz0)];
+        const yaw = Math.floor(rnd3() * 4) * 90 + (row.size![0] < 1.2 && row.size![2] < 1.2 ? rnd3() * 40 - 20 : 0);
+        if (tryCover(name, lx, lz, yaw)) got++;
       }
       // the pack's ceiling lamp on a grid under the floor over it, none over the core
       const lamp = piece(F.lamp.piece).row;
@@ -600,7 +625,8 @@ const noGround: Array<[number, number, number, number]> = [];
           tLamps++;
         }
     }
-    console.log(`the tower's floors: ${tWalls} lengths of wall, ${tProps} pieces of cover, ${tLamps} lamps`);
+    cfg.tower.trim = tTrim;
+    console.log(`the tower's floors: ${tWalls} lengths of wall, ${tProps} pieces of cover, ${tLamps} lamps, ${tTrim} lengths of lit trim`);
     console.log(`the tower's floors' way round each, kept whole by the cover: ${wayLog.join("; ")}`);
   }
 }
