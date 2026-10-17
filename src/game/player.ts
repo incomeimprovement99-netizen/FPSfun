@@ -130,7 +130,9 @@ export class Player {
   /** how many double jumps this player has made: the figure others see flips on each new one (dummy.ts FigurePose) */
   airJumps = 0;
   /** while running a wall: which face (its normal, and where its plane is along it) and when it started */
-  private wallRun: { nx: number; nz: number; plane: number; since: number } | null = null;
+  private wallRun: { nx: number; nz: number; plane: number; since: number; start: number } | null = null;
+  /** a wall a run ran out on (movement.json wallRun.duration): it takes you again only once you have touched the ground */
+  private spentWall: { nx: number; nz: number; plane: number } | null = null;
   /** the face last left, and when: it takes you again after movement.json wallRun.sameWall, any other at once */
   private lastWall: { nx: number; nz: number; plane: number; at: number } | null = null;
   /** what the HUD says about it (main.ts) */
@@ -860,9 +862,14 @@ export class Player {
    * It used to last 1.5 s while sinking, the same wall could not be taken for 0.3 s and no other either, and a new wall
    * kept only the part of your speed that already went along it: the owner (2026-10-12) found it "not anywhere near as
    * smooth" as EMPULSE's, where a run carries its momentum from wall to wall.
+   *
+   * And it ends after wallRun.duration (Milestone 630, the owner: "stop wall running after like 3 seconds"), its last
+   * wallRun.sink no longer held up; round an inside corner it is the same run, and the wall it ran out on is not taken
+   * again before the ground. A kick onto another wall starts a new one.
    */
   private stepWallRun(now: number, dt: number, wx: number, wz: number, wl: number, crouch: boolean): void {
     const W = EXTRA.wallRun;
+    if (this.onGround) this.spentWall = null;
     if (!this.wallRun) {
       if (this.onGround || this.climbing || this.mantle) return;
       const n = this.wallNear(MOVE.climbAttachReach);
@@ -870,6 +877,8 @@ export class Player {
       const plane = this.planeOf(n.nx, n.nz);
       const last = this.lastWall;
       if (last && last.nx === n.nx && last.nz === n.nz && Math.abs(last.plane - plane) < 0.2 && now - last.at < W.sameWall) return;
+      const spent = this.spentWall;
+      if (spent && spent.nx === n.nx && spent.nz === n.nz && Math.abs(spent.plane - plane) < 0.2) return;
       // moving ALONG it, not into it: the part of the velocity in the wall's plane is what a run is made of
       const along = this.vel.x * -n.nz + this.vel.z * n.nx;
       if (Math.abs(along) < W.minSpeed) return;
@@ -880,11 +889,18 @@ export class Player {
       const dir = Math.sign(along);
       this.vel.x = -n.nz * dir * speed;
       this.vel.z = n.nx * dir * speed;
-      this.wallRun = { nx: n.nx, nz: n.nz, plane, since: now };
+      this.wallRun = { nx: n.nx, nz: n.nz, plane, since: now, start: now };
       this.airJumpLeft = true;
       this.tech("WALL RUN", `${Math.round(speed / HU)} hu/s along it`, true);
     }
     const run = this.wallRun;
+    // run out: off the wall with what speed it has, and that wall is spent until the ground
+    const age = now - run.start;
+    if (age >= W.duration) {
+      this.spentWall = { nx: run.nx, nz: run.nz, plane: run.plane };
+      this.leaveWall(now);
+      return;
+    }
     // which way along the wall you are going (the tangent you are moving on), and how fast
     const along = this.vel.x * -run.nz + this.vel.z * run.nx;
     const dir = Math.sign(along) || 1;
@@ -894,11 +910,11 @@ export class Player {
     // An inside corner ahead: the run turns onto the wall across its way, going on away from the one it leaves, with
     // all of its speed. Before, the corner was a wall you ran into and stopped against.
     if (this.wallAt(tx, tz, MOVE.climbAttachReach)) {
-      this.wallRun = { nx: -tx, nz: -tz, plane: this.planeOf(-tx, -tz), since: now };
+      this.wallRun = { nx: -tx, nz: -tz, plane: this.planeOf(-tx, -tz), since: now, start: run.start };
       this.vel.x = run.nx * speed;
       this.vel.z = run.nz * speed;
       this.tech("WALL TURN", `${Math.round(speed / HU)} hu/s round the corner`, true);
-      this.holdOnWall(dt);
+      if (age < W.duration - W.sink) this.holdOnWall(dt);
       return;
     }
     // steering away from the wall is how you say you are done with it, and a crouch drops you off
@@ -916,7 +932,8 @@ export class Player {
     // along the wall at that speed, and held against it (the collision takes the push back off)
     this.vel.x = tx * speed - run.nx * W.hold;
     this.vel.z = tz * speed - run.nz * W.hold;
-    this.holdOnWall(dt);
+    // its last `sink` seconds no longer held up: it drops away before it ends, rather than stopping in the air
+    if (age < W.duration - W.sink) this.holdOnWall(dt);
   }
 
   /**

@@ -63,8 +63,9 @@ describes the retired legacy game, and goes with its code.
   move forward, at 14 m/s, and a slide speeds you up a little past that and
   holds it (faster than the sprint it came from for its first second, a gun out
   or holstered); a jump and a double jump at a sprint clear 24 m, wider than any
-  street. A wall run lasts as long as you hold forward along the wall and never
-  sinks, and you keep your speed from wall to wall, round an inside corner and
+  street. A wall run lasts 3 s (it holds level, then drops away in its last 0.6
+  s, and that wall takes you again only after the ground), and you keep your
+  speed from wall to wall, round an inside corner and
   through each kick, which goes where you look with a burst on top (after
   EMPULSE's). The view leans 15 degrees off the wall and streaks run down that
   side of the screen.

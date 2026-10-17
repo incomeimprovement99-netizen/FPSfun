@@ -11833,6 +11833,23 @@ city agent's yes; src/main.ts askCity):
   answering 404 for the city the page asks four times and the HUD says so, and with the file back the next match asks
   again and the city draws. Proven by taking the retries and the message out (one ask, nothing said).
 
+## Milestone 630 — The wall run ends after 3 seconds
+
+The owner, 2026-10-17: "our wall run is great, but we failed in making it stop wall running after like 3 seconds. we
+were supposed to follow empulse's example." Since Milestone 530 a run lasted as long as you held it. EMPULSE publishes
+no length for its runs, so the owner's 3 s.
+
+- **A run lasts `duration` 3 s** (src/config/movement.json wallRun; src/game/player.ts stepWallRun), its last `sink`
+  0.6 s no longer held up, so it drops away from the wall rather than stopping in the air. Round an inside corner it is
+  the same run (the clock goes on); the wall it ran out on does not take you again before you touch the ground; a kick
+  onto another wall starts a new run, as EMPULSE's and Titanfall's chains do.
+- The measured reach (src/config/reach.json, tools/checks/reach.ts WRITE=1): a run held 2.3 s carries 36.3 m; begun 8 m
+  up it ends at 3.0 s; begun low it reaches the ground in its last 0.6 s (2.8 s); the kick a second and a half in still
+  carries 39.9 m, so THE CHAIN's gaps, built from it, do not move.
+- **Checked:** tsc; verify; rules; tools/checks/reach.ts (it ends at 3 s begun high, on the ground by then begun low, the
+  spent wall not retaken; proven with the limit taken out) and tools/checks/sk-chaincourse.ts; e2e sktour (its wall run
+  and the view's lean).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

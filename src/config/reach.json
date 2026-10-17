@@ -20,19 +20,22 @@
   "wallRun": {
     "started": true,
     "held": true,
-    "seconds": 3,
-    "along": 47.192,
+    "seconds": 2.3,
+    "endedHigh": 3,
+    "along": 36.256,
     "startSpeed": 14.129,
     "endSpeed": 15.748,
     "heightChange": 1.374,
     "rise": 1.374,
     "sinkAfterTop": 0,
+    "endedAt": 2.799,
+    "retaken": false,
     "coast": 1.382
   },
   "wallKick": {
     "at": 1.5,
     "carry": 39.853,
-    "runAlone": 94.425,
+    "runAlone": 44.119,
     "speed": {
       "before": 15.748,
       "after": 17.526,

@@ -204,6 +204,8 @@ export const EXTRA = {
     minOut: raw.extra.wallRun.minOut,
     sameWall: raw.extra.wallRun.sameWall,
     hold: m(raw.extra.wallRun.hold),
+    duration: raw.extra.wallRun.duration,
+    sink: raw.extra.wallRun.sink,
   },
 } as const;
 

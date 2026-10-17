@@ -19,7 +19,7 @@ import { Player, type MoveInput } from "../../src/game/player";
 import type { Action } from "../../src/game/input";
 import { RANGE_SOLIDS } from "../../src/game/range";
 import { ZIPLINES } from "../../src/game/traversal";
-import { HU, MOVE } from "../../src/game/movement";
+import { EXTRA, HU, MOVE } from "../../src/game/movement";
 import { GAME } from "../../src/game/game";
 
 let fails = 0;
@@ -146,9 +146,13 @@ const slide = flight((s, t) => {
   }
 });
 
-// 5. the wall run (Milestone 530: it lasts as long as you hold it): a long wall on the left (x -0.7), a sprint beside
-// it, a jump; held 3 s along it (its speed and height then), then let go (how long it coasts before it ends)
+// 5. the wall run (Milestone 530, and Milestone 630's limit): a long wall on the left (x -0.7), a sprint beside it, a
+// jump; held along it to just before its last `sink` seconds (its speed and height then), then held on to its end (when
+// it ends, and whether that wall takes you again before the ground); and in a run of its own, let go a second in (how
+// long it coasts before it ends)
 const hSpeed = (s: Sim): number => Math.hypot(s.p.vel.x, s.p.vel.z);
+const WR = EXTRA.wallRun;
+const HOLD_FOR = r3(WR.duration - WR.sink - 0.1);
 const wallRun = (() => {
   // (beside it, at the body's radius and a hand's width: the run takes a wall within the climb's reach)
   const s = new Sim([{ minX: -10, maxX: -0.7, minZ: -400, maxZ: 10, top: 12 }]);
@@ -172,20 +176,55 @@ const wallRun = (() => {
       startSpeed = hSpeed(s);
     }
     if (started >= 0) topY = Math.max(topY, s.p.pos.y);
-    if (started >= 0 && t - started >= 3) break;
+    if (started >= 0 && t - started >= HOLD_FOR) break;
   }
   const held = s.p.onWall;
   const endSpeed = hSpeed(s);
   const along = startZ - s.p.pos.z;
   const endY = s.p.pos.y;
-  // let go: it coasts down to its minimum and ends
-  s.in.release("forward");
-  let coast = 0;
-  for (let i = 0; i < 6 / DT && s.p.onWall; i++) {
+  // held on, still pushing along it: when it ends, and whether the same wall takes you again before the ground
+  let endedAt = -1;
+  let retaken = false;
+  for (let i = 0; i < 4 / DT && !s.p.onGround; i++) {
     s.step();
+    t += DT;
+    if (endedAt < 0 && !s.p.onWall) endedAt = t - started;
+    else if (endedAt >= 0 && s.p.onWall) retaken = true;
+  }
+  // and in a run of its own, let go a second in: it coasts down to its minimum and ends
+  const c = new Sim([{ minX: -10, maxX: -0.7, minZ: -400, maxZ: 10, top: 12 }]);
+  c.p.teleport(-0.7 + MOVE.radius + 0.05, 0, 0, 0);
+  c.in.hold("forward");
+  c.run(2.2);
+  c.in.tap("jump");
+  let since = -1;
+  let ct = 0;
+  for (let i = 0; i < 4 / DT && (since < 0 || ct - since < 1); i++) {
+    c.step();
+    ct += DT;
+    if (c.p.onWall && since < 0) since = ct;
+  }
+  c.in.release("forward");
+  let coast = 0;
+  for (let i = 0; i < 6 / DT && c.p.onWall; i++) {
+    c.step();
     coast += DT;
   }
-  return { started: started >= 0, held, seconds: 3, along: r3(along), startSpeed: r3(startSpeed), endSpeed: r3(endSpeed), heightChange: r3(endY - startY), rise: r3(topY - startY), sinkAfterTop: r3(topY - endY), coast: r3(coast) };
+  // and one begun 8 m up, so its sink never reaches the ground: the limit itself
+  const h = new Sim([{ minX: -10, maxX: -0.7, minZ: -400, maxZ: 10, top: 20 }]);
+  h.p.teleport(-0.7 + MOVE.radius + 0.05, 8, 0, 0);
+  h.p.vel.z = -MOVE.sprintSpeed;
+  h.in.hold("forward");
+  let hs = -1;
+  let ht = 0;
+  let endedHigh = -1;
+  for (let i = 0; i < 5 / DT && endedHigh < 0; i++) {
+    h.step();
+    ht += DT;
+    if (h.p.onWall && hs < 0) hs = ht;
+    else if (hs >= 0 && !h.p.onWall) endedHigh = ht - hs;
+  }
+  return { started: started >= 0, held, seconds: HOLD_FOR, endedHigh: r3(endedHigh), along: r3(along), startSpeed: r3(startSpeed), endSpeed: r3(endSpeed), heightChange: r3(endY - startY), rise: r3(topY - startY), sinkAfterTop: r3(topY - endY), endedAt: r3(endedAt), retaken, coast: r3(coast) };
 })();
 
 // 5a. a kick keeps your speed and adds its boost: a run along a wall, a kick a second in looking along it
@@ -293,7 +332,7 @@ console.log(`        sprint ${sprint.speed.toFixed(2)} m/s, reached in ${sprint.
 console.log(`        jump from a sprint: apex ${jump.apex} m, carry ${jump.carry} m`);
 console.log(`        double jump at ${dj.at} s: apex ${dj.apex} m, carry ${dj.carry} m`);
 console.log(`        slide jump: apex ${slide.apex} m, carry ${slide.carry} m`);
-console.log(`        wall run: held ${wallRun.seconds} s, ${wallRun.along} m along, ${wallRun.startSpeed} to ${wallRun.endSpeed} m/s, rose ${wallRun.rise} m and sank ${wallRun.sinkAfterTop} m after; let go, it coasts ${wallRun.coast} s`);
+console.log(`        wall run: held ${wallRun.seconds} s, ${wallRun.along} m along, ${wallRun.startSpeed} to ${wallRun.endSpeed} m/s, rose ${wallRun.rise} m and sank ${wallRun.sinkAfterTop} m after; held on, it ended at ${wallRun.endedAt} s; let go, it coasts ${wallRun.coast} s`);
 console.log(`        a kick a second into a run: ${kickSpeed.before} to ${kickSpeed.after} m/s`);
 console.log(`        the wall run's kick at ${kick.at} s into the run: carry ${kick.carry} m (the run alone ${kick.runAlone} m)`);
 for (const z of widths) console.log(`        zig-zag ${z.width.toFixed(2)} m: ${z.crossings} crossings, ${z.perCrossing} m a crossing, ${z.along} m along`);
@@ -301,11 +340,16 @@ for (const z of widths) console.log(`        zig-zag ${z.width.toFixed(2)} m: ${
 check("the sprint is SpeedKills' (movement.speedkills.json sprintSpeed)", Math.abs(sprint.speed - MOVE.sprintSpeed) < 0.05, `${sprint.speed} m/s`);
 check("a double jump carries further than a single one", dj.carry > jump.carry, `${dj.carry} against ${jump.carry} m`);
 check("a sprint jump beside a wall starts a wall run", wallRun.started);
-// Milestone 530 (the owner, 2026-10-12, after EMPULSE): runs that last as long as you hold them, keep their speed and
-// never sink. Before, a run lasted 1.5 s while sinking at 45% of gravity
-check("and it lasts as long as you hold it: still on the wall 3 s in", wallRun.held, `${wallRun.along} m along`);
+// Milestone 530 (the owner, 2026-10-12, after EMPULSE): runs that keep their speed and do not sink; Milestone 630 (the
+// owner, 2026-10-17: "stop wall running after like 3 seconds"): each lasts movement.json wallRun.duration, its last
+// `sink` seconds no longer held up. Before 530 a run lasted 1.5 s while sinking at 45% of gravity; from 530 to 630 for
+// ever
+check(`and it holds while pushed along: still on the wall ${HOLD_FOR} s in`, wallRun.held, `${wallRun.along} m along`);
 check("at the speed it came in with or more, never slowed", wallRun.endSpeed >= wallRun.startSpeed - 0.05, `${wallRun.startSpeed} to ${wallRun.endSpeed} m/s`);
-check("and it never sinks: no lower than the highest it rose to", wallRun.sinkAfterTop < 0.02, `${wallRun.sinkAfterTop} m`);
+check(`and it never sinks before its last ${WR.sink} s: no lower than the highest it rose to`, wallRun.sinkAfterTop < 0.02, `${wallRun.sinkAfterTop} m`);
+check(`held on, it ends at ${WR.duration} s, the owner's limit (begun 8 m up)`, Math.abs(wallRun.endedHigh - WR.duration) < 0.05, `${wallRun.endedHigh} s`);
+check(`and begun low, its last ${WR.sink} s drop it to the ground by then`, wallRun.endedAt > WR.duration - WR.sink - 0.05 && wallRun.endedAt <= WR.duration + 0.05, `${wallRun.endedAt} s`);
+check("and the wall it ran out on does not take you again before the ground", !wallRun.retaken);
 check("let go, it coasts off within a couple of seconds", wallRun.coast > 0.2 && wallRun.coast < 2.5, `${wallRun.coast} s`);
 check("a kick keeps your speed and adds its boost (EMPULSE's burst)", kickSpeed.off && kickSpeed.after > kickSpeed.before + 1, `${kickSpeed.before} to ${kickSpeed.after} m/s`);
 const best = widths.reduce((a, z) => (z.crossings > a.crossings || (z.crossings === a.crossings && z.perCrossing > a.perCrossing) ? z : a), widths[0]);
