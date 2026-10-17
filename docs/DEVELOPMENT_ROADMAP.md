@@ -13872,3 +13872,29 @@ now on.
 - **Checked** (tools/checks/sk-neon.ts): the strips (32) and panels (9) placed under the four gangways, every strip found hung against a deck's underside in the collision, the street lamps cyan (3), proven by lowering the strips a metre (all 32 hanging free: failed); the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: the gangways from under them on the ring road, from across the ring road, from the courtyard and from the Loop, by neon night and golden hour: the strips alone read as thin pale lines, and with the panels the undersides read cyan from the street.
   The map: its files lo 141.3 MB, hi 213.2 MB, max 457.8 MB.
   **Its files are version 79.**
+
+## Milestone 641 — THE CANYON, a canyon street between cliffs of lit windows
+
+The south-west district's first stage, in MARKET's yellow-green (`rules.districts.canyon`, tools/neon-layout.ts): the
+south-west corner's L past the ring road, empty until now.
+
+- **Studied in two test bakes.** The pack's premade "street platforms" (13.6 m wide, 50 m tall) turned out to be two
+  building fronts across a gap, one from the ground to 25 m and the other from 27 to 50 m, with no floor: the sides of
+  the High City's raised streets. Their lower fronts (26.9 m tall, 5 and 7.5 m wide, lit windows) make a canyon.
+- **The canyon:** a street 10 m wide down the middle of each arm, round the corner, open onto both straight roads. Its
+  middle lines are on the bots' street grid (z 125 and x -125); a canyon from 125 to 135 would have had the grid's lines
+  on its walls and none in its street.
+- **Its sides:** six blocks of the pack's lower fronts, 26.9 m tall: the inner L between the canyon and the ring road,
+  12.5 m deep, and the outer L between the canyon and the map's edge. Each block has fronts round every side but the
+  map's edge and the sides against another block. It is solid behind them in the bake's typed collision, with a roof
+  of the pack's floor tiles. A 10 m passage through the inner block on each arm leads in from the ring road.
+- **The fronts' windows are on one face.** From behind, a front shows only its frame. Turned the wrong way, the canyon
+  looked through one row of fronts at the windows of the row behind it, and the outer wall showed the edge fence
+  through it. Each front is now turned so its windows face out, and a check holds that.
+- **Not built:** the gangway arch the plan put over the crossroads. The pack's arch segments are piers 2 to 2.5 m
+  thick from the street up, with a 1.5 m gap, and across the canyon they shut it: the walk down the canyon stopped at
+  them. The crossings come with stage 2's bridges.
+- **THE CANYON** in yellow-green over the south passage, toward the ring road.
+- **Checked** (tools/checks/sk-neon.ts): the six blocks inside the L and shut to their roofs (100 fronts); every front's windows facing out of its block, proven by turning them all round (failed); a player walks the whole canyon round its corner and in through each passage from the ring road; the name seen along nine sight lines from the ring road; the street one network (678 nodes, the floor moved from 700 to 650 as the blocks stand on about 60 of the south-west's nodes); the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: down both arms of the canyon, round its corner, through a passage, from the ring road and from above, by golden hour and neon night: both walls lit windows once the fronts were turned to face out.
+  The map: its files lo 143.5 MB, hi 215.4 MB, max 460.1 MB.
+  **Its files are version 80.**

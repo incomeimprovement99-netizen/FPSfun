@@ -4676,6 +4676,77 @@ function onNode(o: OBox): boolean {
     console.log(`THE STRIP: ${tower.piece.replace(".prefab", "")} to ${tower.top} m over x ${tower.foot[0]} to ${tower.foot[1]}; ${base.length} glowing blocks, the pyramid in ${PY.steps} steps; ${cover} pieces of cover of ${GT.rows.reduce((n, r) => n + r.at.length, 0)} spots, ${GT.lamps.at.length} lamps`);
   }
 }
+// THE CANYON (rules.districts.canyon; the districts plan's south-west district, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md):
+// a canyon street down the south-west corner's L between two cliffs of the pack's lower fronts, the High City's raised
+// streets' sides brought down to the ground. Each block is the fronts round its sides but on the map's edge or against
+// another block, solid behind them in the bake's typed collision (the fronts are faces a few metres deep round
+// nothing) and its roof the pack's floor tiles; the gangway arch spans the canyon near the corner at the roofs' height
+{
+  type Canyon = {
+    chunk: string; height: number; edge: number; fronts: string[]; long: string; roof: string[]; blocks: number[][];
+    arch: Array<[string, number, number, number]>;
+    name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
+  };
+  const DC = (R.districts as { canyon?: Canyon } | undefined)?.canyon;
+  if (DC) {
+    const solids: number[][] = [];
+    const inBlock = (x: number, z: number) => DC.blocks.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+    const fr = piece(DC.fronts[0]).row;
+    const [deep, unit, longLen] = [fr.size![0], fr.size![2], piece(DC.long).row.size![2]];
+    let fronts = 0;
+    let k = 0;
+    // a side from a to b, `out` the way out of the block: its modules of `unit` metres, one `long` where it ends in a half
+    // module, each laid a front's depth in from the side, its own z along the side; none where another block is past it
+    const side = (a: Pt, b: Pt, out: Pt) => {
+      const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+      const d: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+      const n = Math.floor(L / unit + 1e-6);
+      const lens = L - n * unit > 0.1 ? [longLen, ...Array(Math.max(0, n - 1)).fill(unit)] : Array(n).fill(unit);
+      // (its windows on its own -x face only, turned to `out`: from behind a front shows its frame and nothing else, and
+      // turned the other way the canyon looked through one row at the windows of the row behind it)
+      const yaw = +((Math.atan2(-d[0], -d[1]) * 180) / Math.PI).toFixed(2);
+      let s = 0;
+      for (const l of lens) {
+        const m: Pt = [a[0] + d[0] * (s + l / 2), a[1] + d[1] * (s + l / 2)];
+        s += l;
+        if (inBlock(m[0] + out[0] * 0.5, m[1] + out[1] * 0.5)) continue;
+        const name = l > unit + 0.1 ? DC.long : DC.fronts[k++ % DC.fronts.length];
+        placeTurned(DC.chunk, name, m[0] - out[0] * (deep / 2), m[1] - out[1] * (deep / 2), yaw, "o", -piece(name).row.min![1]);
+        fronts++;
+      }
+    };
+    // (a rectangle's roof in the floor tiles, the largest that fit first, their tops at the blocks' height)
+    let tiles = 0;
+    const roof = (x0: number, x1: number, z0: number, z1: number, sizes: string[]) => {
+      if (!sizes.length || x1 - x0 < 0.1 || z1 - z0 < 0.1) return;
+      const t = piece(sizes[0]).row;
+      const s = t.size![0];
+      const [nx, nz] = [Math.floor((x1 - x0) / s + 1e-6), Math.floor((z1 - z0) / s + 1e-6)];
+      for (let i = 0; i < nx; i++)
+        for (let j = 0; j < nz; j++) {
+          placeTurned(DC.chunk, sizes[0], x0 + s * (i + 0.5), z0 + s * (j + 0.5), 0, "g", DC.height - t.max![1]);
+          tiles++;
+        }
+      roof(x0 + nx * s, x1, z0, z1, sizes.slice(1));
+      roof(x0, x0 + nx * s, z0 + nz * s, z1, sizes.slice(1));
+    };
+    for (const [x0, x1, z0, z1] of DC.blocks) {
+      // (round each block, its sides on the map's edge left bare)
+      const edge = (v: number) => Math.abs(v) >= DC.edge - 0.01;
+      if (!edge(z0)) side([x0, z0], [x1, z0], [0, -1]);
+      if (!edge(x1)) side([x1, z0], [x1, z1], [1, 0]);
+      if (!edge(z1)) side([x1, z1], [x0, z1], [0, 1]);
+      if (!edge(x0)) side([x0, z1], [x0, z0], [-1, 0]);
+      roof(x0, x1, z0, z1, DC.roof);
+      solids.push([x0, x1, z0, z1, 0, DC.height]);
+      STREET_GRAPH?.add({ c: [(x0 + x1) / 2, (z0 + z1) / 2], u: [1, 0], v: [0, 1], hu: (x1 - x0) / 2, hv: (z1 - z0) / 2, top: DC.height });
+    }
+    for (const [name, x, z, yaw] of DC.arch) STREET_GRAPH?.add(placeTurned(DC.chunk, name, x, z, yaw, "o", -piece(name).row.min![1]));
+    cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "canyon"), { district: "canyon", ...DC.name }];
+    cfg.canyon = { blocks: DC.blocks, fronts, tiles, solids };
+    console.log(`THE CANYON: ${DC.blocks.length} blocks, ${fronts} fronts, ${tiles} roof tiles`);
+  }
+}
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
 // basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
 // each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of

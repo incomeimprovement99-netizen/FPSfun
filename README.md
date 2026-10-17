@@ -1275,7 +1275,8 @@ them, a glass lift up from its courtyard, its gangways glowing cyan underneath b
 cyan crown; and THE STRIP in the east: an 87 m
 black tower on the city's edge at the end of a boulevard, its foot ringed by glowing blocks under lit billboards, a
 glowing pyramid to run up onto a lookout 7 m over the plaza, and a club under a glowing inverted pyramid, its balcony
-running right round, lit magenta by night. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
+between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

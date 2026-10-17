@@ -82,7 +82,9 @@ const street = map.nodes.map((n, i) => ({ n, i })).filter(({ n }) => !n.y && n.l
 const seen = new Set<number>([street[0]?.i ?? 0]);
 const todo = [street[0]?.i ?? 0];
 while (todo.length) for (const j of map.nodes[todo.pop()!].links) if (!map.nodes[j].y && !seen.has(j)) (seen.add(j), todo.push(j));
-check("the street a network of at least 700 nodes", street.length >= 700, `${street.length}`);
+// (at least 650: the districts past the ring road stand on what was open street, THE CANYON's solid blocks alone on about
+// 60 of the south-west's nodes, 735 to 677)
+check("the street a network of at least 650 nodes", street.length >= 650, `${street.length}`);
 check("the street one network: every street node reaches the rest", seen.size === street.length, `${seen.size} of ${street.length}` + (seen.size < street.length ? `; cut off: ${street.filter(({ i }) => !seen.has(i)).slice(0, 4).map(({ n }) => `(${(n.x - BR_X).toFixed(1)}, ${(n.z - BR_Z).toFixed(1)})`).join(" ")}` : ""));
 
 // the collision the bake wrote, all of it; the tallest building's top where the ship passes
@@ -3196,6 +3198,59 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   }
   check("THE STRIP's club: its balcony railed along every open edge, over its gates too, but where a stair comes off", !!CO && CO.railLines.length >= 20 && railPoints > 80 && unfenced.length === 0, unfenced.slice(0, 4).join("; ") || `${railPoints} points along ${CO?.railLines.length ?? 0} rails`);
+}
+
+// THE CANYON (rules.districts.canyon, Milestone 641): its blocks inside the south-west L and shut to their roofs; a
+// player walks the whole canyon from the south road round the corner to the west road, and in through each passage from
+// the ring road; its name seen from the ring road
+{
+  const CN = (cfg as unknown as { canyon?: { blocks: number[][]; fronts: number } }).canyon;
+  const CR = (cfg.rules as unknown as { districts?: { canyon?: { height: number; name: { at: number[]; w: number } } } }).districts?.canyon;
+  const S = SOLIDS.solids as number[][];
+  const inL = (b: number[]) => (b[0] >= -152.01 && b[1] <= -42.49 && b[2] >= 107.49 && b[3] <= 152.01) || (b[0] >= -152.01 && b[1] <= -107.49 && b[2] >= 42.49 && b[3] <= 152.01);
+  const open = (CN?.blocks ?? []).filter((b) => !S.some((q) => q[0] <= (b[0] + b[1]) / 2 && q[1] >= (b[0] + b[1]) / 2 && q[2] <= (b[2] + b[3]) / 2 && q[3] >= (b[2] + b[3]) / 2 && q[4] <= 0.05 && q[5] >= (CR?.height ?? 26.86) - 0.05));
+  check("THE CANYON: its blocks of the pack's lower fronts inside the south-west L, each shut to its roof", !!CN && CN.blocks.length === 6 && CN.blocks.every(inL) && open.length === 0 && CN.fronts >= 100, `${CN?.blocks.length ?? 0} blocks, ${CN?.fronts ?? 0} fronts, ${open.length} open`);
+  // (each front's windows to the open air: a front is lit windows on its own -x face and its frame from behind, its
+  // own x from -5 to -2.5 and its own z from minus its length to 0; so from its middle, 3 m behind it is inside its
+  // block and a metre out from its windows is not)
+  const inBlk = (x: number, z: number) => (CN?.blocks ?? []).some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+  const placedC = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-canyon"]?.place ?? [];
+  const backwards = (placedC.filter((q) => /\/UnderWall0[01]/.test(String(q[0]))) as Array<[string, number, number, number, number]>).filter(([name, x, , z, yaw]) => {
+    const a = (yaw * Math.PI) / 180;
+    const [c, s] = [Math.cos(a), Math.sin(a)];
+    const own = (lx: number, lz: number) => [x + c * lx + s * lz, z - s * lx + c * lz];
+    const mid = /UnderWall01/.test(name) ? -3.75 : -2.5;
+    const [bx, bz] = own(-3.75 + 3, mid);
+    const [fx, fz] = own(-3.75 - 2.25, mid);
+    return !inBlk(bx, bz) || inBlk(fx, fz);
+  });
+  check("THE CANYON: every front's windows face out of its block, onto the canyon, the passages, the ring road or the roads", !!CN && placedC.length > 0 && backwards.length === 0, backwards.slice(0, 3).map(([, x, , z, yaw]) => `(${x.toFixed(1)}, ${z.toFixed(1)}) at ${yaw}`).join("; ") || `${CN?.fronts ?? 0} fronts face out`);
+  const walks: Array<[string, number[][]]> = [
+    ["the whole canyon, from the south road round the corner to the west road", [[-45, 125, 0], [-125, 125, 0], [-125, 45, 0]]],
+    ["in through the south arm's passage", [[-85, 104, 0], [-85, 125, 0]]],
+    ["in through the west arm's passage", [[-104, 85, 0], [-125, 85, 0]]],
+  ];
+  const said = walks.map(([name, r]) => ({ name, r, w: along(r) }));
+  check("THE CANYON: a player walks the whole canyon round its corner, and in through each passage from the ring road", said.every((q) => q.w.k === q.r.length), said.map((q) => `${q.name}: ${q.w.k - 1} of ${q.r.length - 1} legs, at (${q.w.x.toFixed(1)}, ${q.w.z.toFixed(1)})`).join("; "));
+  const NM = CR?.name;
+  const roadMid = ((cfg.rules as unknown as { ring: number[] }).ring[0] + (cfg.rules as unknown as { ring: number[] }).ring[1]) / 2;
+  const inBox = (x: number, y: number, z: number) => solidsIn(x - 0.01 + BR_X, x + 0.01 + BR_X, z - 0.01 + BR_Z, z + 0.01 + BR_Z).some((q) => q.minX <= x + BR_X && q.maxX >= x + BR_X && q.minZ <= z + BR_Z && q.maxZ >= z + BR_Z && q.base < y && q.top > y);
+  const blockedAt: string[] = [];
+  for (const ex of [-10, 0, 10])
+    for (const t of NM ? [-NM.w / 2 + 0.5, 0, NM.w / 2 - 0.5] : []) {
+      const [p0, p1] = [[NM!.at[0] + ex, 1.7, roadMid], [NM!.at[0] + t, NM!.at[1], NM!.at[2] - 0.3]];
+      const L = Math.hypot(p1[0] - p0[0], p1[1] - p0[1], p1[2] - p0[2]);
+      for (let k = 0; k < L; k += 0.25) {
+        const f = k / L;
+        const q = [p0[0] + (p1[0] - p0[0]) * f, p0[1] + (p1[1] - p0[1]) * f, p0[2] + (p1[2] - p0[2]) * f];
+        if (inBox(q[0], q[1], q[2])) {
+          blockedAt.push(`from x ${ex} to ${t.toFixed(1)} at (${q.map((v) => v.toFixed(1)).join(", ")})`);
+          break;
+        }
+      }
+    }
+  const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "canyon");
+  check("THE CANYON: its name in yellow-green over the south passage, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
 }
 
 // GLASS HEIGHTS' light (rules.districts.glass.light, Milestone 640): cyan strips under its four gangways, each hung
