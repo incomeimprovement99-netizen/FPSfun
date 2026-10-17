@@ -39,7 +39,7 @@
   "beam": {
     "radius": 0.42,
     "height": 1.7,
-    "opacity": 0.1
+    "opacity": 0.055
   },
   "_solid": "A stand's case as the player collides with it, about the stand's middle on the floor (x along the wall, z toward it): its box as it stands with its cover open, MEASURED off the loaded case (__range.armory() stands[].box, armory.ts caseBox; 2026-10-01: 1.224 m across, 0.970 m to the open cover's top, 0.342 m in front of the middle to 0.531 m behind it, the same for the gun's white case and the hack's black one). The skarmory check holds every stand to it, within 3 cm. Without it you walked through the cases and stood in the hologram.",
   "solid": {

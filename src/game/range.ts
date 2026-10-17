@@ -95,6 +95,14 @@ export function setHour(h: Hour, scene: THREE.Scene): void {
   if (rimLight) rimLight.intensity = h.rim;
 }
 
+/**
+ * The share of the sky's environment light the range gets (Milestone 631). It is indoors under a dark roof, and the
+ * sky's reflection off its glossy floor was a white blaze under bloom beside the gun and hack stands at every hour:
+ * at none the range is dark as a hall at night and lit by its own lamps, at a third the stands and targets keep their
+ * colour. The battle royale's city keeps the whole of it.
+ */
+export const RANGE_ENV_SHARE = 0.3;
+
 /** Axis-aligned solid the player collides with and can stand on. */
 export interface Solid {
   minX: number; maxX: number; minZ: number; maxZ: number; top: number;
@@ -349,6 +357,9 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // backstop (9 m) are closed up to it.
   addBox(scene, wall, 68, 4, 1, 0, 6, 8.5, { tile: 3 });
   addBox(scene, wall, 68, 1, 1.5, 0, 9, -107.5, { tile: 3 });
+  // (dark, Milestone 631: the owner, 2026-10-17, "the roof of the range should be different as well, make it darker
+  // themed"; the warehouse's pale grey panels and white lamps lit the whole top of the frame. The panels are the walls'
+  // own blue-black, the lamps at a third of their brightness and the skylights smoked)
   warehouseRoof(scene, {
     x0: -34.5,
     x1: 34.5,
@@ -356,6 +367,11 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     z1: 9,
     y: 10,
     skylightEvery: 4,
+    panelColor: 0x1a1f2b,
+    beamColor: 0x0f1218,
+    lampIntensity: 0.9,
+    glass: { color: 0x2a3446, opacity: 0.55 },
+    shade: true,
     // (none down the middle: it hung through the manual's sign 24 m in, 9.28 m up, and crossed its name once the sign
     // grew to hold it larger, 2026-10-12)
     girders: [-17, 17],
@@ -378,13 +394,25 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   const ROOF_NEAR = 1.0;
   const ROOF_FAR = 9.5;
   const roofDepth = ROOF_FAR - ROOF_NEAR;
-  const roofGeo = new THREE.BoxGeometry(64, 0.4, roofDepth);
-  tileBox(roofGeo, 2); // without this the 64 m roof shows two thirds of one tile
-  const roof = new THREE.Mesh(roofGeo, flat(PAL.ceiling, 0.72, 0.06));
+  const roofGeo = new THREE.BoxGeometry(67, 0.4, roofDepth);
+  tileBox(roofGeo, 2); // without this the 67 m roof shows two thirds of one tile
+  // (wall to wall since Milestone 631: at 64 m it left 1.5 m each side where the sun came through the roof onto the floor
+  // beside the stands, a white blaze under bloom. Dark like the roof over it; and solid, so a player who double jumps or wall runs up onto it stands
+  // there rather than falling through: the owner, 2026-10-17, "the podium up there we can't even stand on we glitch
+  // through")
+  const roof = new THREE.Mesh(roofGeo, flat(0x1d2330, 0.72, 0.06));
   roof.position.set(0, ROOF_Y, (ROOF_NEAR + ROOF_FAR) / 2);
   roof.castShadow = true;
   roof.receiveShadow = true;
   scene.add(roof);
+  RANGE_SOLIDS.push({ minX: -33.5, maxX: 33.5, minZ: ROOF_NEAR, maxZ: ROOF_FAR, base: ROOF_Y - 0.2, top: ROOF_Y + 0.2 });
+  // a fascia along the canopy's front, 1.2 m deep: the low sun under the canopy's edge lit the floor before the gun and
+  // hack stands white under bloom (Milestone 631). Above head height, so it hides none of the stands
+  const fascia = new THREE.Mesh(new THREE.BoxGeometry(67, 1.2, 0.25), flat(0x161b27, 0.6, 0.12));
+  fascia.position.set(0, ROOF_Y - 0.6, ROOF_NEAR + 0.12);
+  fascia.castShadow = true;
+  fascia.receiveShadow = true;
+  scene.add(fascia);
   for (const x of [-30, -18, -6, 6, 18, 30]) {
     // The back row sits inside the back wall (z 8 to 9). At ROOF_FAR - 0.6 it
     // stuck 15 cm through into the course's start area.
@@ -546,7 +574,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     scene.add(kick);
   }
   // Roof edge light bar, facing down along the canopy's leading edge.
-  const roofBar = new THREE.Mesh(new THREE.BoxGeometry(62, 0.1, 0.16), glow);
+  const roofBar = new THREE.Mesh(new THREE.BoxGeometry(62, 0.1, 0.16), emissive(0xff2e9a, 1.3));
   roofBar.position.set(0, ROOF_Y - 0.26, ROOF_NEAR + 0.2);
   scene.add(roofBar);
 
@@ -554,7 +582,9 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // The canopy's underside is what you see when you turn round or look up from
   // the bays. Unlit, it is a dark slab no matter how good the lighting is
   // everywhere else. Real ranges light the bays from above; so does this one.
-  const lampWhite = emissive(0xfff0d2, 3.4);
+  // (a warm white at about half what it was, Milestone 631: under bloom the strips and the stands' columns of light
+  // under them washed the bays out white, the owner: "the lights by the hacks and guns are super bright")
+  const lampWhite = emissive(0xffe6c4, 1.6);
   for (const x of [-27, -18, -9, 0, 9, 18, 27]) {
     for (const z of [ROOF_NEAR + 2.2, ROOF_FAR - 2.2]) {
       // The housing sits flush against the roof and the lit strip hangs BELOW
@@ -575,7 +605,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // nearest fitting was contributing about as much as the sky bounce; a ceiling
   // wants to be lit by its own lamps, not by the sky it is blocking.
   for (const x of opts.pointLights ? [-27, -16, -5, 5, 16, 27] : []) {
-    const pl = new THREE.PointLight(0xffeccd, 110, 34, 2);
+    const pl = new THREE.PointLight(0xffeccd, 55, 34, 2);
     pl.position.set(x, ROOF_Y - 0.7, (ROOF_NEAR + ROOF_FAR) / 2);
     scene.add(pl);
   }

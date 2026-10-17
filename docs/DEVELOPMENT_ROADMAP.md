@@ -11850,6 +11850,27 @@ no length for its runs, so the owner's 3 s.
   spent wall not retaken; proven with the limit taken out) and tools/checks/sk-chaincourse.ts; e2e sktour (its wall run
   and the view's lean).
 
+## Milestone 631 — The range darker, its stands not blinding, and the canopy a floor
+
+The owner, 2026-10-17: "the roof of the range should be different as well, make it darker themed, along with the lights
+by the hacks and guns are super bright and the podium up there we can't even stand on we glitch through, so rethink the
+firing range a bit as well in terms of styling". Photographed from the same spots before and after.
+
+- **The roof dark** (src/game/warehouse.ts gains a roof's own panel, beam, lamp and glass colours, and `shade`):
+  the range's panels are the walls' blue-black, the beams near black, its lamps a third as bright and the skylights
+  smoked; and the panels now cast the sun's shadow, so it comes in only through the skylights.
+- **The canopy over the stands** dark like the roof, run wall to wall (at 64 m it left a strip each side where the sun
+  came through), with a fascia along its front; its lamps about half as bright and its point lights halved, its pink
+  edge bar halved; the gun and hack stands' columns of light about half as strong (armory.json beam.opacity 0.055).
+- **The blaze beside the stands was the sky's reflection.** With the sun off it stayed; with the environment light off it
+  went: the sky's reflection off the glossy floor, at every hour. The range is indoors, so it takes a third of the
+  hour's environment light now (range.ts RANGE_ENV_SHARE, applied by main.ts's region and hour); the battle royale's
+  city keeps all of it.
+- **"The podium up there" is the canopy**, 6.2 m up over the stands: a double jump or a wall run put you on it, and it
+  had no collider. It is a floor now (RANGE_SOLIDS), so you stand on it.
+- **Checked:** tsc; verify; rules; e2e range (dropped onto the canopy you stand at 6.4 m; the range's environment light
+  a third of the hour's), proven with the floor and the share taken out (fell to 0 m; 0.95 of 0.95).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -38,7 +38,7 @@ import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/pro
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
-import { buildRange, RANGE_BOUNDS, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { floorAt } from "./game/floors";
 import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
@@ -827,6 +827,8 @@ function setRegion(region: "range" | "br"): void {
     camera.far = want.camFar;
     camera.updateProjectionMatrix();
   }
+  // (the range is indoors: a share of the sky's environment light, range.ts RANGE_ENV_SHARE)
+  scene.environmentIntensity = hour.env * (region === "range" ? RANGE_ENV_SHARE : 1);
   renderer.shadowMap.needsUpdate = true;
 }
 // exactly what the range built, for the static merge below (not the dummies
@@ -850,6 +852,7 @@ let hour = gameHour();
 function applyHour(h: Hour): void {
   hour = h;
   setHour(h, scene);
+  if (regionNow === "range") scene.environmentIntensity = h.env * RANGE_ENV_SHARE;
   renderer.shadowMap.needsUpdate = true;
   // (the shaders built again once it is in: a material lit by the sky's environment map is another shader than one
   // without; the page's first warm and first frame wait for the first sky, skyIn)
@@ -7835,6 +7838,10 @@ const GALLERY = { x: 0, z: -8 };
   sky: {
     get id() {
       return hour.id;
+    },
+    /** the hour's own environment light, before the range takes its share (range.ts RANGE_ENV_SHARE) */
+    get hourEnv() {
+      return hour.env;
     },
     ids: HOUR_IDS,
     set: (id: string) => {

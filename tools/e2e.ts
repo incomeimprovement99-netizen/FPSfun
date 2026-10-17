@@ -1802,6 +1802,15 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   await sleep(200);
   const los = await ev<{ open: boolean; wall: boolean }>(page, `(() => { const r = window.__range; const T = r.THREE; return { open: r.clearTo(new T.Vector3(0, 4, -100)), wall: r.clearTo(new T.Vector3(0, 4, -110)) }; })()`);
   check("plates: the line of sight is clear down the range and blocked through the backstop", los.open && !los.wall, JSON.stringify(los));
+  // Milestone 631: the canopy over the gun and hack stands is a floor you stand on (the owner: "the podium up there we
+  // can't even stand on we glitch through"), and the range takes a share of the sky's environment light (indoors)
+  await ev(page, "window.__range.player.teleport(0, 7.2, 5, 0, 0)");
+  await gameSleep(page, 1.2);
+  const onCanopy = await ev<{ y: number; ground: boolean }>(page, "({ y: window.__range.player.pos.y, ground: window.__range.player.onGround })");
+  check("range: dropped onto the canopy over the stands, you stand on it (6.4 m) rather than fall through", onCanopy.ground && Math.abs(onCanopy.y - 6.4) < 0.05, JSON.stringify(onCanopy));
+  const env = await ev<{ env: number; hour: number }>(page, "({ env: window.__range.scene.environmentIntensity, hour: window.__range.sky.hourEnv })");
+  check("range: indoors, its environment light a third of the hour's (RANGE_ENV_SHARE)", Math.abs(env.env - env.hour * 0.3) < 1e-6, JSON.stringify(env));
+  await ev(page, "window.__range.player.teleport(0, 0, 0, 0, 0)");
   await readmeTvChecks(page);
   await page.close();
 }

@@ -25,6 +25,15 @@ export interface RoofSpec {
   /** light strips at these x on each solid bay */
   lights?: number[];
   lightColor?: number;
+  /** the look, where a roof is not the warehouse's grey (Milestone 631: the range's is dark): panels, beams, its lamps'
+   * brightness, and the skylights' glass */
+  panelColor?: number;
+  beamColor?: number;
+  lampIntensity?: number;
+  glass?: { color: number; opacity: number };
+  /** the panels cast the sun's shadow (the range's, Milestone 631: under a roof that let the sun through, its glare off
+   * the floor bloomed white beside the stands); the skylights still let it in */
+  shade?: boolean;
   /**
    * A pitched roof instead of a flat one: it climbs `rise` metres from the
    * eaves to a ridge down the middle, in `steps` steps each side. The owner
@@ -43,15 +52,15 @@ export interface RoofSpec {
 }
 
 export function warehouseRoof(parent: THREE.Object3D, r: RoofSpec): void {
-  const beamMat = flat(PAL.steelDark, 0.6, 0.2);
-  const panelMat = flat(PAL.ceiling, 0.85, 0.05);
-  const lamp = emissive(r.lightColor ?? 0xfff0d2, 2.6);
+  const beamMat = flat(r.beamColor ?? PAL.steelDark, 0.6, 0.2);
+  const panelMat = flat(r.panelColor ?? PAL.ceiling, 0.85, 0.05);
+  const lamp = emissive(r.lightColor ?? 0xfff0d2, r.lampIntensity ?? 2.6);
   const glass = new THREE.MeshStandardMaterial({
-    color: 0xdfe8ef,
+    color: r.glass?.color ?? 0xdfe8ef,
     roughness: 0.35,
     metalness: 0,
     transparent: true,
-    opacity: 0.35,
+    opacity: r.glass?.opacity ?? 0.35,
     depthWrite: false,
     side: THREE.DoubleSide,
     forceSinglePass: true,
@@ -90,7 +99,7 @@ export function warehouseRoof(parent: THREE.Object3D, r: RoofSpec): void {
       const y = r.y + lift(bx);
       const p = new THREE.Mesh(new THREE.BoxGeometry(bandW + 0.02, 0.1, d), panelMat);
       p.position.set(bx, y + 0.05, z + d / 2);
-      p.castShadow = false;
+      p.castShadow = !!r.shade;
       p.receiveShadow = false;
       parent.add(p);
       // the riser between this band and the one outside it, so the ceiling is
