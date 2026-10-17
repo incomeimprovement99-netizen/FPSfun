@@ -981,7 +981,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
   // is ridden by its own check)
   // (the centre's own: not the corner blocks' or the districts' pads, out on their streets and alleys)
-  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-", "glass-", "canyon-"].some((p) => q.id.startsWith(p)));
+  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-", "glass-", "canyon-", "works-"].some((p) => q.id.startsWith(p)));
   const stops = [
     ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
     ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
@@ -3400,6 +3400,13 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const bareRail = (IN?.rails ?? []).filter(([x, z, y]) => !S.some((b) => b[0] <= x + 0.06 && b[1] >= x - 0.06 && b[2] <= z + 0.06 && b[3] >= z - 0.06 && b[4] <= y + 0.3 && b[5] >= y + 0.9));
   check("THE WORKS: its galleries railed along their open edges, but where a stair arrives", (IN?.rails.length ?? 0) >= 30 && bareRail.length === 0, bareRail.slice(0, 4).map(([x, z]) => `(${x}, ${z})`).join("; ") || `${IN?.rails.length ?? 0} rail lengths`);
   check("THE WORKS: inside the arm halls, columns floor to roof and every set of cover laid", (IN?.columns ?? 0) === 24 && (IN?.of ?? 0) >= 24 && IN?.laid === IN?.of, `${IN?.columns ?? 0} columns, ${IN?.laid ?? 0} of ${IN?.of ?? 0} sets of cover laid`);
+  // (the works block's upper floor, Milestone 648: each pad up from the atrium's floor landing on its ring, the ring
+  // walked round, its rail standing along every edge of the atrium, its cover laid)
+  const UPc = (cfg as unknown as { works?: { upper?: { rails: number[][]; cover: number; walk: number[][] } } }).works?.upper;
+  const worksPads = ups.filter((u) => u.q.id.startsWith("works-"));
+  const ring = along(UPc?.walk ?? [[0, 0, 0]]);
+  const bareRing = (UPc?.rails ?? []).filter(([x, z, y]) => !S.some((b) => b[0] <= x + 0.06 && b[1] >= x - 0.06 && b[2] <= z + 0.06 && b[3] >= z - 0.06 && b[4] <= y + 0.3 && b[5] >= y + 0.9));
+  check("THE WORKS: the works block's upper floor, a pad up onto it from each side of the atrium, walked round, the atrium railed", worksPads.length === 2 && worksPads.every((u) => u.ok && Math.abs(u.q.ground - 7) < 0.3) && ring.k === (UPc?.walk.length ?? -1) && (UPc?.rails.length ?? 0) === 24 && bareRing.length === 0 && (UPc?.cover ?? 0) >= 8, `${worksPads.map((u) => u.said).join("; ")}; round the ring ${ring.k - 1} of ${(UPc?.walk.length ?? 1) - 1} legs; ${bareRing.length} of ${UPc?.rails.length ?? 0} rail lengths bare; ${UPc?.cover ?? 0} pieces of cover`);
 }
 
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,

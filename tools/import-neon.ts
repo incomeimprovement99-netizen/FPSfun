@@ -1373,25 +1373,27 @@ function findPads(boxes: number[][], rules: any): Array<{ id: string; face: numb
 function spinePads(boxes: number[][], rules: any) {
   const SP = rules.pads.spine;
   const B = rules.pads.body;
-  const top = (x: number, z: number, h: number) => boxes.reduce((a, b) => (b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h ? Math.max(a, b[5]) : a), 0);
-  const level = (x: number, z: number, y: number) => [-0.5, 0, 0.5].every((dx) => [-0.5, 0, 0.5].every((dz) => Math.abs(top(x + dx, z + dz, 0.05) - y) < 0.3));
+  // (a pad's `below`: the boxes starting that high or higher left out, for a pad under a roof: THE WORKS' up the works
+  // block's atrium, Milestone 648, where every column's highest box was the roof 14 m up)
+  const top = (x: number, z: number, h: number, below = Infinity) => boxes.reduce((a, b) => (b[4] < below && b[0] < x + h && b[1] > x - h && b[2] < z + h && b[3] > z - h ? Math.max(a, b[5]) : a), 0);
+  const level = (x: number, z: number, y: number, below?: number) => [-0.5, 0, 0.5].every((dx) => [-0.5, 0, 0.5].every((dz) => Math.abs(top(x + dx, z + dz, 0.05, below) - y) < 0.3));
   const stand = padStandOff();
-  const up = (SP.up as Array<{ id: string; at: number[]; to: number[]; floor: number; face: number; land: number }>).map((q) => {
+  const up = (SP.up as Array<{ id: string; at: number[]; to: number[]; floor: number; face: number; land: number; below?: number }>).map((q) => {
     const at = (t: number): [number, number] => [q.at[0] + q.to[0] * t, q.at[1] + q.to[1] * t];
     let hit = -1;
-    for (let t = 0; t < 30 && hit < 0; t += 0.05) if (top(...at(t), B) >= q.face) hit = t + B;
+    for (let t = 0; t < 30 && hit < 0; t += 0.05) if (top(...at(t), B, q.below) >= q.face) hit = t + B;
     if (hit < 0) throw new Error(`spine pad ${q.id}: no face ${q.face} m high within 30 m of (${q.at.join(", ")})`);
     const face = at(hit);
     const pad = at(hit - stand);
-    const floor = top(...pad, 1.4);
+    const floor = top(...pad, 1.4, q.below);
     if (Math.abs(floor - q.floor) > 0.3) throw new Error(`spine pad ${q.id}: something ${floor.toFixed(2)} m high over its spot (${pad.map((v) => v.toFixed(1)).join(", ")}), not its floor ${q.floor}`);
     const L = q.land;
     const land = at(hit + L);
-    const ground = top(...land, MOVE.radius);
-    if (!level(...land, ground)) throw new Error(`spine pad ${q.id}: its landing at (${land.map((v) => v.toFixed(1)).join(", ")}) is not level`);
+    const ground = top(...land, MOVE.radius, q.below);
+    if (!level(...land, ground, q.below)) throw new Error(`spine pad ${q.id}: its landing at (${land.map((v) => v.toFixed(1)).join(", ")}) is not level`);
     let roof = ground;
     // (from the face in: a rail at the roof's edge is crossed too, 1.2 m round the base's roof)
-    for (let t = hit; t <= hit + L; t += 0.25) roof = Math.max(roof, top(...at(t), MOVE.radius));
+    for (let t = hit; t <= hit + L; t += 0.25) roof = Math.max(roof, top(...at(t), MOVE.radius, q.below));
     return { id: q.id, face: face.map((v) => +v.toFixed(2)), out: [-q.to[0], -q.to[1]], pad: pad.map((v) => +v.toFixed(2)), floor: +floor.toFixed(2), roof: +roof.toFixed(2), land: L, ground: +ground.toFixed(2) };
   });
   // (a way down `hop` metres up off its roof; a pad across `over` metres over its mark at the top of its throw)

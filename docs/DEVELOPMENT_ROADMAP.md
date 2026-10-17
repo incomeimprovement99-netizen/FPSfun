@@ -14045,3 +14045,23 @@ plan's do.
 - **Checked** (tools/checks/sk-neon.ts): each gallery walked end to end at 3.5 m; its rails standing along its open edge but where the stair arrives (32 lengths); 24 columns and all 24 sets of cover laid; the four new stairs walked up in three lanes with the rest (96 walks up 32 stairs). Each new check fails with its bug put back: a gallery's slab taken out, a rail taken out, an engine moved onto a node. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night inside three halls, along two galleries and at a stair.
   The map: its files lo 152.4 MB, hi 224.2 MB, max 468.9 MB.
   **Its files are version 85.**
+
+## Milestone 648 — The works block's upper floor
+
+THE WORKS' corner block, 30 by 30 m and two storeys, gets its upper floor (`rules.districts.works.upper`,
+tools/neon-layout.ts).
+
+- **The ring:** a floor 7.5 m wide at 7 m, the top of the first storey, round an open atrium 15 by 15 m under the
+  roof, the pack's floor tiles over a typed slab, railed along every edge of the atrium in the halls' metal street fence.
+  The ceiling lamps the game lights as fill hang under it, for the floor below.
+- **The way up:** two jump pads on the atrium's floor, one each way from its middle and off the line of the bots'
+  street nodes through the block, each thrown up through the atrium onto the ring (`rules.pads.spine` works-a and
+  works-b), measured as every spine pad is and solved over the rail, but under the block's roof: a spine pad now takes
+  `below`, the boxes from that height up left out (tools/import-neon.ts), since the first bake found the roof, 14 m up,
+  the highest box over every spot in the block and refused the pads. Two double-flight stairs stacked, 7 m, would have
+  taken most of a 7.5 m ring.
+- **Cover** along the ring's outer side, AC boxes, engines, crates and a concrete barrier, with a body's way round its
+  inner side clear.
+- **Checked** (tools/checks/sk-neon.ts): each pad ridden up from the atrium onto the ring at 7.00 m, the throw's top 11.2 m under the 13.5 m roof; the ring walked round; all 24 lengths of the atrium's rail standing; 8 pieces of cover. The check fails with its bug put back: the ring's west side and a rail length taken out. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night on the ground floor under the ring, at a pad, on the ring and down into the atrium.
+  The map: its files lo 152.7 MB, hi 224.6 MB, max 469.3 MB.
+  **Its files are version 86.**

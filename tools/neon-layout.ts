@@ -4934,7 +4934,8 @@ function onNode(o: OBox): boolean {
 {
   type Frame = { o: Pt; u: Pt; v: Pt };
   type Inside = { column: string; columns: Pt[]; gallery: { v: number; y: number; tile: string; rail: string; railShort: string; railH: number }; stair: { u: number }; crate: string; cover: Array<[string, number, number, number]>; pipes: Array<[string, number, number, number, number]>; cables: Array<[string, number, number, number, number]> };
-  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
+  type Upper = { hall: string; atrium: number[]; lampEvery: number; cover: Array<[string, number, number, number]> };
+  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
   const DW = (R.districts as { works?: Works } | undefined)?.works;
   if (DW) {
     const solids: number[][] = [];
@@ -5100,7 +5101,53 @@ function onNode(o: OBox): boolean {
         for (const [name, a, b, t, y] of IN!.pipes) placeTurned(DW.chunk, name, ...at(a, b), yawOf(t), "g", y - piece(name).row.min![1]);
         for (const [name, a, b, t, y] of IN!.cables) placeTurned(DW.chunk, name, ...at(a, b), yawOf(t), "g", y - piece(name).row.max![1]);
       }
-    cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}) };
+    // the works block's upper floor (`upper`, Milestone 648): a ring at its first storey's top round an open atrium,
+    // railed along the atrium's edge, the fill lamps under it, cover along its outer side; the way up is the two pads
+    // from the atrium's floor (rules.pads.spine's works-*)
+    const UP = DW.upper;
+    const UH = UP && DW.halls.find((h) => h.id === UP.hall);
+    const upper = { rails: [] as number[][], cover: 0, walk: [] as number[][] };
+    if (UP && UH && IN) {
+      const [x0, x1, z0, z1] = UH.box;
+      const [a0, a1, b0, b1] = UP.atrium;
+      const y = DW.storey;
+      for (const [rx0, rx1, rz0, rz1] of [[x0, x1, z0, b0], [x0, x1, b1, z1], [x0, a0, b0, b1], [a1, x1, b0, b1]]) {
+        roof(rx0, rx1, rz0, rz1, y, DW.roof);
+        solids.push([rx0, rx1, rz0, rz1, y - DW.slab, y]);
+        for (let x = rx0 + UP.lampEvery / 2; x < rx1; x += UP.lampEvery)
+          for (let z = rz0 + UP.lampEvery / 2; z < rz1; z += UP.lampEvery) {
+            placeTurned(DW.chunk, DW.lamp, x, z, 0, "g", y - DW.slab - lr.max![1]);
+            lamps++;
+          }
+      }
+      // (the rail on the ring's side of each of the atrium's edges, a typed rail behind it)
+      const G = IN.gallery;
+      const long = piece(G.rail).row.size![2];
+      for (const [line, s0, s1, alongX, out] of [[b0, a0, a1, true, -1], [b1, a0, a1, true, 1], [a0, b0, b1, false, -1], [a1, b0, b1, false, 1]] as Array<[number, number, number, boolean, number]>) {
+        const at = line + out * 0.1;
+        for (let s = s0; s < s1 - 0.01; ) {
+          const name = s1 - s >= long - 0.01 ? G.rail : G.railShort;
+          const l = piece(name).row.size![2];
+          placeTurned(DW.chunk, name, alongX ? s + l / 2 : at, alongX ? at : s + l / 2, alongX ? 90 : 0, "g", y - piece(name).row.min![1]);
+          s += l;
+        }
+        solids.push((alongX ? [s0, s1, at - 0.06, at + 0.06] : [at - 0.06, at + 0.06, s0, s1]).concat([y, y + G.railH]).map((q) => +q.toFixed(3)));
+        for (let s = s0 + 1.25; s < s1; s += 2.5) upper.rails.push((alongX ? [s, at, y] : [at, s, y]).map((q) => +q.toFixed(2)));
+      }
+      // (cover on the ring, by its bottom on the ring: no street node is up here, so none is kept off one)
+      for (const [name, x, z, yaw] of UP.cover) {
+        const set: Array<[string, number, number, number]> = [];
+        if (name === "crates") {
+          const c = piece(IN.crate).row;
+          const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+          set.push([IN.crate, ox, oz, 0], [IN.crate, -ox, -oz, 0], [IN.crate, -ox, -oz, c.size![1]]);
+        } else set.push([name, 0, 0, 0]);
+        for (const [n, dx, dz, up] of set) placeTurned(DW.chunk, n, x + dx, z + dz, yaw, "o", y + up - piece(n).row.min![1]);
+        upper.cover++;
+      }
+      upper.walk = [[a0 - 2, b0 - 2], [a1 + 2, b0 - 2], [a1 + 2, b1 + 2], [a0 - 2, b1 + 2], [a0 - 2, b0 - 2]].map(([x, z]) => [x, z, y]);
+    }
+    cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}) };
     console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}`);
   }
 }
