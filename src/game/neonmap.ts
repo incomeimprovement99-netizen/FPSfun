@@ -154,6 +154,9 @@ export function neonPart(): { shown: string | null; nodes: string[]; extras: boo
  * A name in neon letters (the corner blocks' names): each letter a tube, its glow in the colour round it and its core
  * near white, on nothing, sized to fill the panel's width or its height, whichever binds first
  */
+// (the names' planes drawn after the city's other see-through pieces: they write no depth, and THE VAULT's sign on the
+// tower's east face lost two letters to see-through pieces behind it drawn over it, round 6's "THE ##LT")
+const NAMES_ORDER = 10;
 function neonLetters(text: string, colour: string, w: number, h: number, opts: { back?: string; fill?: boolean } = {}): THREE.CanvasTexture {
   const PX = 96;
   const cv = document.createElement("canvas");
@@ -435,23 +438,33 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // (and GLASS HEIGHTS' glass lift, neon-layout.ts rules.districts.glass.lift: from its courtyard up onto its front deck)
   const ropeCfg = neonCfg as unknown as { lifts?: Array<{ rope: number[][]; floor: number; colour: string }>; well?: { ropes: Array<{ rope: number[][]; floor: number; colour: string }> }; express?: Array<{ rope: number[][]; floor: number; colour: string }>; glass?: { lift?: { rope: number[][]; floor: number; colour: string } } };
   const ropes: THREE.Mesh[] = [];
+  // (a rope from `a` to `b`, `r` thick, lit at `zipGlow`, and a lit collar in its colour every `zipCollar.every` metres:
+  // at 3 cm the second review read the ropes as thin dotted lines, lit whole the fifth and sixth read them as lasers and
+  // glowing tubes, and THE WELL's two as debug lines falling into its shaft; unlit, a rope is gone at night)
+  const cable = (a: THREE.Vector3, b: THREE.Vector3, r: number, colour: string) => {
+    const len = a.distanceTo(b);
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), emissive(new THREE.Color(colour).getHex(), G.zipGlow));
+    rope.position.copy(a).add(b).multiplyScalar(0.5);
+    rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
+    ropes.push(rope);
+    const ZC = G.zipCollar;
+    for (let t = ZC.every / 2; t < len; t += ZC.every) {
+      const collar = new THREE.Mesh(new THREE.CylinderGeometry(r * ZC.wide, r * ZC.wide, ZC.long, 8), emissive(new THREE.Color(colour).getHex(), ZC.glow));
+      collar.position.copy(a).lerp(b, t / len);
+      collar.quaternion.copy(rope.quaternion);
+      ropes.push(collar);
+    }
+  };
   for (const q of [...(ropeCfg.lifts ?? []), ...(ropeCfg.well?.ropes ?? []), ...(ropeCfg.express ?? []), ...(ropeCfg.glass?.lift ? [ropeCfg.glass.lift] : [])]) {
     const [a, b] = q.rope;
-    const top = b[1] + 0.3;
-    const rope = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, top - q.floor, 8), emissive(new THREE.Color(q.colour).getHex(), 1.2));
-    rope.position.set(a[0], (q.floor + top) / 2, a[2]);
-    ropes.push(rope);
+    cable(new THREE.Vector3(a[0], q.floor, a[2]), new THREE.Vector3(a[0], b[1] + 0.3, a[2]), G.liftRope, q.colour);
     ZIPLINES.push({ a: new THREE.Vector3(a[0] + BR_X, a[1], a[2] + BR_Z), b: new THREE.Vector3(b[0] + BR_X, b[1], b[2] + BR_Z) });
   }
   // the zip lines (neon-layout.ts rules.low.zip): from each rooms building's roof yard up to a High City deck, a rope
   // between its ends lit in its block's colour, ridden up or down
   for (const q of (neonCfg as unknown as { zips?: Array<{ a: number[]; b: number[]; colour: string }> }).zips ?? []) {
     const [a, b] = [new THREE.Vector3(...(q.a as [number, number, number])), new THREE.Vector3(...(q.b as [number, number, number]))];
-    // (`zipRope` thick and `zipGlow` bright: at 3 cm the second review read them as thin dotted lines)
-    const rope = new THREE.Mesh(new THREE.CylinderGeometry(G.zipRope, G.zipRope, a.distanceTo(b), 8), emissive(new THREE.Color(q.colour).getHex(), G.zipGlow));
-    rope.position.copy(a).add(b).multiplyScalar(0.5);
-    rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
-    ropes.push(rope);
+    cable(a, b, G.zipRope, q.colour);
     ZIPLINES.push({ a: new THREE.Vector3(a.x + BR_X, a.y, a.z + BR_Z), b: new THREE.Vector3(b.x + BR_X, b.y, b.z + BR_Z) });
   }
   // the ropes merged a colour each, one draw a colour as the page's merge made them (staticmerge.ts), in a group of their
@@ -484,6 +497,7 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       mesh.position.set(q.at[0], q.at[1], q.at[2]);
       mesh.rotation.y = (q.yaw * Math.PI) / 180;
       mesh.userData.dynamic = true;
+      mesh.renderOrder = NAMES_ORDER;
       group.add(mesh);
     }
     // and each district's name (neon-layout.ts rules.districts, the layout's districtNames), its letters filled on a plate
@@ -493,6 +507,7 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       mesh.position.set(q.at[0], q.at[1], q.at[2]);
       mesh.rotation.y = (q.yaw * Math.PI) / 180;
       mesh.userData.dynamic = true;
+      mesh.renderOrder = NAMES_ORDER;
       group.add(mesh);
     }
     // and THE VAULT's on the tower's four faces across its storey (rules.tower.vaultSign), placed off the tower's measured
@@ -509,6 +524,7 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
         mesh.position.set(x, VS.y, z);
         mesh.rotation.y = (yaw * Math.PI) / 180;
         mesh.userData.dynamic = true;
+        mesh.renderOrder = NAMES_ORDER;
         group.add(mesh);
       }
     }

@@ -250,3 +250,50 @@ court's and roofs' textures); a middle layer (awnings, balconies and ledges at 3
 a jump apart); a darker night.
 
 *Built since round 5: Milestone 580, the parked cars without their light-bodied models (Light03 bodies glowed white by day), the pads' beams 17 m (were 30), the zip ropes lit at half, cover on the gangway; Milestone 581, THE VAULT named in gold neon on the tower's four faces. Looked at and left: the "tan block stuck into the van's roof" (27) is the pack's hover truck and its cargo crate.*
+
+## Round 6, 2026-10-17 (map version 88)
+
+The same 25 day spots and 2 night spots as round 5, at its hours, with spots 18 (MARKET) and 19 (THE WELL) where round 5
+moved them; the designer's list brought up to date (THE VAULT's name, the cars' glare, the gangway's cover, the stairs).
+All eight districts past the ring road were built by now and show in the aerials; the reviewer was told to judge the
+centre.
+
+| | Round 1 | Round 2 | Round 3 | Round 4 | Round 5 | Round 6 |
+|---|---|---|---|---|---|---|
+| Looks and identity | 4 | 4.5 | 5 | 5 | 5 | 5 |
+| Readability | 4 | 5 | 5 | 5 | 6 | 6 |
+| Flow and getting around | 5 | 5 | 5 | 6 | 6 | 6 |
+| Fits every play style | 4 | 4.5 | 5 | 5 | 5 | 5 |
+| Finish and bugs | 3 | 3 | 4 | 4 | 4 | 4 |
+| Fun | 5 | 6 | 6 | 6 | 6 | 6 |
+| **Overall** | **4.5** | **4.5** | **5** | **5** | **5.5** | **5.5** |
+
+**What it liked.** The High City blocks each in their own colour, NOODLE ROW's lanterns ("the strongest street
+identity"), THE VAULT's gold band; the tower readable from everywhere, the floors numbered and coloured; "plenty of ways
+up" (balconies, the fire escape, footbridges, the gangway, pads, zips): "the vertical skeleton round the tower is right".
+
+**What holds it at 5.5.** The ground: wide dark asphalt and empty paving (16, 18), knee-high cover across 20 to 30 m
+boulevards, no middle range; play at a few fixed heights with nothing between the 3.5 m Sky Ring and the 27 m roofs;
+THE VAULT one corridor maze with nothing gold or rewarding inside; the interiors one concrete ceiling; the base hall
+dark (07) and the court a bare trench on a grass floor (20); MARKET and MOTEL HILL alike; the sky noisy (beams in six
+colours, zip ropes that read as glowing tubes, the High City loops walkable or not?); the day haze washing the aerials.
+
+**Broken, by its own reading and checked by eye against the pictures:** torn slivers where a wall meets the floor and a
+flat black slab on the 26 m floor (11); a green wall ending in a bare plane edge and black voids on the 17 m floor (13);
+THE VAULT's sign read "THE ##LT" behind the tower's window frames (25); the corner blocks' beams falling into THE
+WELL's shaft, seen as dashes through its railing (19); a zip rope a thick pink tube (14, 17); a grass floor underground
+(20); the base hall's lights blowing out (07, 11, 13); two hover vans at bridge height in the bridge ring's picture (15);
+the lookout's thick parapet hiding everything below (10).
+
+**One spot moved.** Spot 15 ("on the bridge ring") stood at (-45, 28.6, -50), over nothing: the north-west bridges run
+along x -62.5 and z -62.5, and the reviewer said the camera did not look as if it stood on a bridge. From round 7 it is
+on that bridge at (-45, 28.6, -62.5), looking along it toward the corner and the west block.
+
+**What round 6 asks for next, in its order:** THE VAULT made a Red Tiger (gold floors and walls, gold caches, an
+atrium, three ways in, its sign clear of the frames); the boulevards broken into 15 to 25 m lanes by cover 1.2 to 2.5 m
+tall (stall rows, MARKET's crates, bus shelters, barriers, trucks); the tower floors' slivers and black planes fixed,
+partitions given thickness and trim; a roof layer at 8 to 15 m (awnings, kiosk roofs, balconies, 4 to 6 m gaps up
+toward the High City roofs); the gangway's cover staggered with side shields; the base hall and the court lit and
+furnished, the court's floor fit for underground; the sky quieter (a meaning per beam colour, thin zip cables, the
+loops plainly walkable or plainly scenery); each corner block its own street identity; the haze and bloom cut, the
+ceilings varied by floor; the lookout's parapet lowered with firing gaps, the hover traffic above the roofs.

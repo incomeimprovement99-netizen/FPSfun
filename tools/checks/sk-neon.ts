@@ -37,7 +37,8 @@ const cfg = (await import("../../src/config/neonmap.json")).default;
 const SOLIDS = (await import("../../src/config/neon/neonmap.solids.json")).default;
 const firstSolid = RANGE_SOLIDS.length;
 // (the page asks for the boxes after its first screen, neonmap.ts loadNeonSolids; a check has them now)
-const map = buildNeonMap(new THREE.Scene(), (SOLIDS as { solids: number[][] }).solids);
+const scene = new THREE.Scene();
+const map = buildNeonMap(scene, (SOLIDS as { solids: number[][] }).solids);
 console.warn = warn;
 if (!hadDocument) delete g.document;
 
@@ -3454,6 +3455,28 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "works");
   check("THE WORKS: its name in teal on the south arm's second hall, seen from the ring road", named && !!NM && blocked.length === 0, blocked.slice(0, 4).join("; ") || "9 sight lines clear");
+}
+
+// what the sixth review read wrong (Milestone 651): the names' planes drawn after the city's other see-through pieces
+// (THE VAULT's lost two letters to panes behind it drawn over it, "THE ##LT"); and every rope a cable unlit at `zipGlow`
+// with lit collars in its colour (lit whole, the ropes read as lasers and glowing tubes, THE WELL's two as debug lines)
+{
+  const names = scene.getObjectByName("neon:names");
+  const planes: THREE.Mesh[] = [];
+  names?.traverse((o) => (o as THREE.Mesh).isMesh && planes.push(o as THREE.Mesh));
+  const early = planes.filter((m) => m.renderOrder <= 0);
+  check("the names' planes drawn after the city's other see-through pieces", planes.length >= 12 && early.length === 0, `${planes.length} name planes, ${early.length} drawn in the scene's own order`);
+  const ropes = scene.getObjectByName("neon:ropes");
+  const G2 = cfg.game as unknown as { zipGlow: number; zipCollar: { glow: number } };
+  const byColour = new Map<string, Set<number>>();
+  ropes?.traverse((o) => {
+    const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
+    if (!(o as THREE.Mesh).isMesh || !m?.emissive) return;
+    const k = m.emissive.getHexString();
+    (byColour.get(k) ?? byColour.set(k, new Set()).get(k)!).add(m.emissiveIntensity);
+  });
+  const bare = [...byColour].filter(([, g]) => !g.has(G2.zipGlow) || !g.has(G2.zipCollar.glow)).map(([k]) => `#${k}`);
+  check("every rope a cable unlit at zipGlow with lit collars in its colour", byColour.size >= 3 && bare.length === 0, bare.join(", ") || `${byColour.size} rope colours, each a cable and its collars`);
 }
 
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,

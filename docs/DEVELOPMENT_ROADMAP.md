@@ -14101,3 +14101,21 @@ With it all eight districts past the ring road are built.
 - **Checked** (tools/checks/sk-neon.ts): 64 teal strips each hung against an underside (40 under the galleries, 24 round the atrium), 16 teal lamps on the roofs, the name seen from the ring road along 9 sight lines. Each check fails with its bug put back: a strip lowered a metre, a wall set in the name's sight lines. The e2e: the SpeedKills section, 101 of 101 run alone (the first run lost one check to floor loot: the ghost's restore found a city sentinel lying within 1.3 m of its death spot). verify, rules and the type check. The look: photographed at night and by golden hour at the name from the ring road, inside a hall at its gallery, in the works block's atrium, over the roofs and from over the corner.
   The map: its files lo 154.9 MB, hi 226.7 MB, max 471.4 MB.
   **Its files are version 88.**
+
+## Milestone 651 — The sixth review, and what it read wrong
+
+With all eight districts built, the centre comes back. A fresh reviewer scored it from the same 27 photographs, round
+6 (map version 88): **5.5 of 10**, as round 5 (docs/CENTRE_REVIEW.md has the scores, what it liked, what holds it, its
+faults and its ranked asks). Its faults were checked by eye in its pictures, and the plan for the centre's detail pass,
+a milestone each from 652, is on the plan page. Fixed here, all in the game's drawing (src/game/neonmap.ts; the map's
+files are unchanged, version 88):
+
+- **THE VAULT's name read "THE ##LT" from the gangway.** The names' planes write no depth, and see-through panes behind
+  the sign drew over two of its letters. Every name plane (the corner blocks', the districts', THE VAULT's) now draws
+  after the city's other see-through pieces.
+- **The ropes read as lasers, glowing tubes and debug lines.** Every rope, the zips, the lifts', THE WELL's two, the
+  express lifts' and GLASS HEIGHTS' glass lift's, is now a dark cable (`game.zipGlow` 0) with a lit collar in its colour
+  every 4 m (`game.zipCollar`), seen as a cable by day and as a line of lights at night; the vertical ropes' thickness
+  is `game.liftRope`. THE WELL's "beams falling into its shaft" were its climbing ropes.
+- **Review spot 15** stood in the air off the bridge ring; it is moved onto its bridge for round 7.
+- **Checked** (tools/checks/sk-neon.ts): the name planes all drawn after the city's other see-through pieces (15), every rope colour a cable unlit with its lit collars (9 colours); each fails with its bug put back, the order set back to the scene's and the collars spaced out of the ropes. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check.

@@ -80427,7 +80427,7 @@
    }
   },
   "zipRope": 0.06,
-  "zipGlow": 1,
+  "zipGlow": 0,
   "sectors": [
    {
     "id": "c",
@@ -80560,7 +80560,15 @@
   "_dropClear": "`dropClear` (Milestone 574): no squad's drop within this many metres of a jump pad. Four drops stood on a pad's own street node (two of High City's and two of the corner blocks'), and a squad dropped there was thrown off as it landed.",
   "dropRoom": 1.5,
   "_dropRoom": "`dropRoom` (Milestone 574): each squad's drop has this much room round it, nothing over a step's height within it (a roof over it or a stair beside it). A drop falls onto the first floor under it, and six drops were indoors (four in the rooms buildings' ground floors, which put a squad on their roofs at 11 m, two in the tower's base) and one by the Sky Ring's stair, which put a squad on the stair at 3.6 m; the e2e's ghost restore failed on each.",
-  "_zipGlow": "The zip ropes (src/game/neonmap.ts): zipRope metres thick, lit in their colour at zipGlow. 6 cm, since at 3 cm the second review read them as thin dotted lines; glow 1 (2 until Milestone 580), since at 2 the fifth review saw 'thick pink lasers, not cables'."
+  "_zipGlow": "The zip ropes (src/game/neonmap.ts): zipRope metres thick, lit in their colour at zipGlow, with a collar in their colour every zipCollar.every metres, zipCollar.wide times the rope thick and zipCollar.long long, lit at zipCollar.glow. 6 cm, since at 3 cm the second review read them as thin dotted lines; the rope itself unlit since Milestone 651 (glow 2 until 580, then 1): the fifth review saw thick pink lasers and the sixth glowing tubes. The collars keep the line seen at night, when an unlit rope is gone.",
+  "zipCollar": {
+   "every": 4,
+   "wide": 1.8,
+   "long": 0.15,
+   "glow": 2
+  },
+  "liftRope": 0.03,
+  "_liftRope": "The vertical ropes (the lifts' and THE WELL's, the express lifts', GLASS HEIGHTS' glass lift), liftRope metres thick, drawn as the zip ropes are (zipGlow, zipCollar): THE WELL's two, lit whole, read to the sixth review as debug lines falling into its shaft."
  },
  "pads": [
   {
