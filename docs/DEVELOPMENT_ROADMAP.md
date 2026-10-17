@@ -13922,3 +13922,28 @@ The south-west district's second stage, the second of its three streets (`rules.
 - **Checked** (tools/checks/sk-neon.ts): each L of the walkways walked end to end at 3.5 m, the inner and the outer; every open edge railed but at the stairs' arrivals (148 rail lengths); the four new stairs walked up in three lanes each with the rest (84 walks up 28 stairs); the 109 fronts still facing out, the canyon and its passages walked, one street network. Both new checks fail with the bug put back, a gap in the inner walkway and four rail boxes taken out. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night along both walkways, from a stair, at the crossroads' corner and out of a recess.
   The map: its files lo 145.4 MB, hi 217.2 MB, max 461.9 MB.
   **Its files are version 81.**
+
+## Milestone 643 — THE CANYON's roofs
+
+The south-west district's third stage, the last of its three streets (`rules.districts.canyon.roofs`, the pads
+`rules.pads.spine` canyon-a to canyon-d, tools/neon-layout.ts).
+
+- **The bridges:** four of the pack's 10.1 m footbridges, two across each arm, from wall top to wall top at the roofs'
+  height (26.86 m), each joining an inner roof to the outer L's. The pack's 10 m bridge deck without legs was laid first,
+  as planned, and a body walking onto it stopped at each end: its glass and frame run across both its ends 0.85 m high
+  (found in its triangles above the deck, which a map of its up-facing tops had missed). The footbridge is railed along
+  its sides only, its deck rising 0.5 m to its middle 5 m. Each stands on one 2.5 m cell of the roofs' edges, so the
+  roofs' rails stop at its sides.
+- **The ways up:** a jump pad up each wall of each passage, four, onto the three pieces of the inner L's roof. They are
+  staggered along each passage so the bots' line of street nodes down its middle runs between them. Each is measured as
+  every spine pad is, and its throw solved over the rail at the roof's edge.
+- **The rails:** the walkways' glass fence along every roof edge with a drop past it, the canyon, the passages, the
+  ring road, the roads and the map's edge, with a typed rail behind it, open where a bridge arrives. The edges are
+  gathered along each line and laid in 5 m lengths where they run on, half the pieces a 2.5 m length a cell would take.
+- **The cover:** about one piece every 10 m, 38 of them: AC boxes on the inner roofs, 12.5 m deep, and the pack's 5 m
+  roof tanks with AC boxes in two rows on the outer ones, 22.5 m deep. None stands on the first 6 m in from a bridge's
+  end or where a pad lands, and one stands about 10 m in on each bridge's line on the outer roofs, cover for a body
+  coming off it. The first bake had 20, and from above the roofs were bare.
+- **Checked** (tools/checks/sk-neon.ts): each of the four pads ridden onto its roof (26.86 m, 3.4 m in); each bridge walked across from roof to roof and back; the 38 pieces of cover each standing in the collision on the roof, found over its footprint (the roof tank is a shell, its lid 3 m up over nothing); 780 m of roof edge railed but where a bridge arrives; and the rest of the map's checks, the walkways, the stairs and the street network among them. Each new check fails with its bug put back: a bar across a bridge's end, a whole AC box taken out, a rail length taken out, and the roof under a pad's landing taken away. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night from the inner roofs across a bridge, along the outer roofs, up a passage at its pads, from the canyon floor up at the bridges, and from over the corner.
+  The map: its files lo 147.9 MB, hi 219.8 MB, max 464.4 MB.
+  **Its files are version 82.**

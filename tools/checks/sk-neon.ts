@@ -284,6 +284,10 @@ check("a pad up onto each corner block's roof from the street, each landing on i
 // (and LANTERN ALLEYS' four, rules.pads.spine's lantern-*: from its alleys and back lanes onto its houses' roofs)
 const lanternPads = ups.filter((u) => u.q.id.startsWith("lantern-"));
 check("LANTERN ALLEYS: a pad up onto a house from each main alley and each back lane, each landing on its roof", lanternPads.length === 4 && lanternPads.every((u) => u.ok && u.q.ground > 7), lanternPads.map((u) => u.said).join("; "));
+// (and THE CANYON's four, rules.pads.spine's canyon-*: up each wall of its two passages onto the inner roofs, over the
+// rail along the roof's edge)
+const canyonPads = ups.filter((u) => u.q.id.startsWith("canyon-"));
+check("THE CANYON: a pad up each wall of each passage, each landing on the roof over it", canyonPads.length === 4 && canyonPads.every((u) => u.ok && u.q.ground > 26), canyonPads.map((u) => u.said).join("; "));
 // (and no squad dropped on or by a pad, game.dropClear: four drops stood on a pad's own street node, a squad dropped
 // there thrown off as it landed)
 {
@@ -975,7 +979,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
   // is ridden by its own check)
   // (the centre's own: not the corner blocks' or the districts' pads, out on their streets and alleys)
-  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-", "glass-"].some((p) => q.id.startsWith(p)));
+  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-", "glass-", "canyon-"].some((p) => q.id.startsWith(p)));
   const stops = [
     ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
     ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
@@ -3269,6 +3273,27 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       if (!S.some((b) => b[0] <= px + 0.05 && b[1] >= px - 0.05 && b[2] <= pz + 0.05 && b[3] >= pz - 0.05 && b[4] <= y + 0.3 && b[5] >= y + 0.9)) unrailed.push(`(${px.toFixed(1)}, ${pz.toFixed(1)})`);
     }
   check("THE CANYON: its walkways railed along every open edge, but where a stair arrives", !!WKc && (WKc.rails.length ?? 0) > 100 && unrailed.length === 0, unrailed.slice(0, 4).join("; ") || `${WKc?.rails.length ?? 0} rail lengths`);
+  // (its roofs, Milestone 643: each bridge walked across, from 4 m into one roof to 4 m into the other and back; each
+  // piece of cover standing in the collision on the roof; and every roof edge with a drop past it railed, as the
+  // walkways' are, but where a bridge arrives)
+  const RFc = (cfg as unknown as { canyon?: { roofs?: { y: number; bridges: number[][]; cover: Array<[string, number, number, number, number, number]>; rails: number[][] } } }).canyon?.roofs;
+  const ry = RFc?.y ?? 26.86;
+  const crossed = (RFc?.bridges ?? []).map(([x, z, yaw]) => {
+    const [ux, uz] = Math.abs(yaw % 180) < 1 ? [1, 0] : [0, 1];
+    const r = [[x - ux * 9, z - uz * 9, ry], [x + ux * 9, z + uz * 9, ry]];
+    return { x, z, there: along(r), back: along([...r].reverse()) };
+  });
+  check("THE CANYON: a player walks each bridge across the canyon from roof to roof, and back", crossed.length === 4 && crossed.every((q) => q.there.k === 2 && q.back.k === 2), crossed.map((q) => `(${q.x}, ${q.z}): ${q.there.k === 2 ? "across" : `stopped at (${q.there.x.toFixed(1)}, ${q.there.z.toFixed(1)}) ${q.there.y.toFixed(2)} m`}, ${q.back.k === 2 ? "back" : `back stopped at (${q.back.x.toFixed(1)}, ${q.back.z.toFixed(1)}) ${q.back.y.toFixed(2)} m`}`).join("; "));
+  // (over its footprint, not at its middle: the roof tank is a shell, its wall round it and its lid 3 m up over nothing)
+  const bare = (RFc?.cover ?? []).filter(([, x, z, , hx, hz]) => !S.some((b) => b[0] < x + hx && b[1] > x - hx && b[2] < z + hz && b[3] > z - hz && b[4] <= ry + 0.3 && b[5] >= ry + 0.9));
+  check("THE CANYON: cover on its roofs, each piece standing in the collision on the roof", (RFc?.cover.length ?? 0) >= 30 && bare.length === 0, bare.map(([n, x, z]) => `${n} at (${x}, ${z})`).slice(0, 4).join("; ") || `${RFc?.cover.length ?? 0} pieces`);
+  const roofOpen: string[] = [];
+  for (const [x, z, ox] of RFc?.rails ?? [])
+    for (const t of [-1, -0.5, 0, 0.5, 1]) {
+      const [px, pz] = ox ? [x, z + t] : [x + t, z];
+      if (!S.some((b) => b[0] <= px + 0.05 && b[1] >= px - 0.05 && b[2] <= pz + 0.05 && b[3] >= pz - 0.05 && b[4] <= ry + 0.3 && b[5] >= ry + 0.9)) roofOpen.push(`(${px.toFixed(1)}, ${pz.toFixed(1)})`);
+    }
+  check("THE CANYON: its roofs railed along every drop, but where a bridge arrives", (RFc?.rails.length ?? 0) > 200 && roofOpen.length === 0, roofOpen.slice(0, 4).join("; ") || `${((RFc?.rails.length ?? 0) * 2.5).toFixed(0)} m of edge`);
 }
 
 // GLASS HEIGHTS' light (rules.districts.glass.light, Milestone 640): cyan strips under its four gangways, each hung

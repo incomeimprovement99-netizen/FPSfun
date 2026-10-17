@@ -4680,13 +4680,14 @@ function onNode(o: OBox): boolean {
 // a canyon street down the south-west corner's L between two cliffs of the pack's lower fronts, the High City's raised
 // streets' sides brought down to the ground. Each block is the fronts round its sides but on the map's edge or against
 // another block, solid behind them in the bake's typed collision (the fronts are faces a few metres deep round
-// nothing) and its roof the pack's floor tiles; the gangway arch spans the canyon near the corner at the roofs' height
+// nothing) and its roof the pack's floor tiles; the walkways run along its walls and the bridges cross it at the roofs
 {
   type Canyon = {
     chunk: string; height: number; edge: number; fronts: string[]; long: string; roof: string[]; blocks: number[][];
     arch: Array<[string, number, number, number]>;
     walkways?: { y: number; slab: string; short: string; rail: string; railShort: string; railH: number; runs: number[][] };
     stairs?: { at: number[][] };
+    roofs?: { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]> };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
   };
   const DC = (R.districts as { canyon?: Canyon } | undefined)?.canyon;
@@ -4793,9 +4794,68 @@ function onNode(o: OBox): boolean {
             }
       }
     }
+    // THE CANYON's roofs (`roofs`, Milestone 643), the third of its streets: the pack's bridge deck across the canyon from
+    // wall top to wall top, level with the roofs; cover on them; and the glass fence along every roof edge with a drop
+    // past it, a typed rail behind it, open where a bridge arrives. The ways up are rules.pads.spine's canyon-*, from the
+    // passages: the bake solves each throw over the highest it crosses, so the rail runs on where one lands
+    const RF = DC.roofs;
+    const roofRails: number[][] = [];
+    let roofFence = 0;
+    if (RF) {
+      const y = DC.height;
+      const open: number[][] = [];
+      for (const [x, z, yaw] of RF.bridges) {
+        const b = placeTurned(DC.chunk, RF.bridge, x, z, yaw, "o", y);
+        const [hx, hz] = [Math.abs(b.u[0]) * b.hu + Math.abs(b.v[0]) * b.hv, Math.abs(b.u[1]) * b.hu + Math.abs(b.v[1]) * b.hv];
+        open.push([x - hx - 0.3, x + hx + 0.3, z - hz - 0.3, z + hz + 0.3]);
+      }
+      for (const [name, x, z, yaw] of RF.cover) placeTurned(DC.chunk, name, x, z, yaw, "o", y - piece(name).row.min![1]);
+      // (each roof cell's edges with neither a block nor a bridge past them, gathered along each line and laid in the
+      // long lengths where they run on: a 2.5 m length a cell drew the walkways' 148 cells twice the triangles)
+      const lines = new Map<string, { line: number; ox: number; oz: number; spans: number[][] }>();
+      const c = RF.cell;
+      for (const [x0, x1, z0, z1] of DC.blocks)
+        for (let x = x0; x < x1 - 0.01; x += c)
+          for (let z = z0; z < z1 - 0.01; z += c)
+            for (const [ex, ez, ox, oz] of [[x + c / 2, z, 0, -1], [x + c / 2, z + c, 0, 1], [x, z + c / 2, -1, 0], [x + c, z + c / 2, 1, 0]]) {
+              const [px, pz] = [ex + ox * 0.1, ez + oz * 0.1];
+              if (inBlock(px, pz) || open.some(([a0, a1, b0, b1]) => px > a0 && px < a1 && pz > b0 && pz < b1)) continue;
+              const line = ox ? ex : ez;
+              const key = `${ox},${oz},${line.toFixed(2)}`;
+              const mid = ox ? ez : ex;
+              (lines.get(key) ?? lines.set(key, { line, ox, oz, spans: [] }).get(key)!).spans.push([mid - c / 2, mid + c / 2]);
+            }
+      const long = piece(RF.rail).row.size![2];
+      for (const { line, ox, oz, spans } of lines.values()) {
+        spans.sort((p, q) => p[0] - q[0]);
+        const runs: number[][] = [];
+        for (const sp of spans) {
+          const last = runs[runs.length - 1];
+          if (last && Math.abs(last[1] - sp[0]) < 0.01) last[1] = sp[1];
+          else runs.push([...sp]);
+        }
+        const at = line - (ox || oz) * 0.06;
+        for (const [a0, a1] of runs) {
+          for (let a = a0; a < a1 - 0.01; ) {
+            const name = a1 - a >= long - 0.01 ? RF.rail : RF.railShort;
+            const l = piece(name).row.size![2];
+            placeTurned(DC.chunk, name, ox ? at : a + l / 2, ox ? a + l / 2 : at, ox ? 0 : 90, "g", y - piece(name).row.min![1]);
+            roofFence++;
+            a += l;
+          }
+          solids.push((ox ? [at - 0.06, at + 0.06, a0, a1] : [a0, a1, at - 0.06, at + 0.06]).map((v) => +v.toFixed(3)).concat([y, +(y + RF.railH).toFixed(2)]));
+          for (let a = a0 + c / 2; a < a1; a += c) roofRails.push(ox ? [+at.toFixed(2), +a.toFixed(2), ox, oz] : [+a.toFixed(2), +at.toFixed(2), ox, oz]);
+        }
+      }
+    }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "canyon"), { district: "canyon", ...DC.name }];
-    cfg.canyon = { blocks: DC.blocks, fronts, tiles, solids, ...(WK ? { walkways: { y: WK.y, runs: WK.runs, rails } } : {}) };
-    console.log(`THE CANYON: ${DC.blocks.length} blocks, ${fronts} fronts, ${tiles} roof tiles`);
+    cfg.canyon = {
+      blocks: DC.blocks, fronts, tiles, solids,
+      ...(WK ? { walkways: { y: WK.y, runs: WK.runs, rails } } : {}),
+      // (each piece of cover with its half-extents as turned, for the check to find it standing on the roof)
+      ...(RF ? { roofs: { y: DC.height, bridges: RF.bridges, cover: RF.cover.map(([n, x, z, yaw]) => { const r = piece(n).row.size!; return [n, x, z, yaw, ...(Math.abs(yaw % 180) > 1 ? [r[2] / 2, r[0] / 2] : [r[0] / 2, r[2] / 2])]; }), rails: roofRails } } : {}),
+    };
+    console.log(`THE CANYON: ${DC.blocks.length} blocks, ${fronts} fronts, ${tiles} roof tiles${RF ? `; on its roofs ${RF.bridges.length} bridges, ${RF.cover.length} pieces of cover, ${roofFence} lengths of fence along ${roofRails.length * RF.cell} m of edge` : ""}`);
   }
 }
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
