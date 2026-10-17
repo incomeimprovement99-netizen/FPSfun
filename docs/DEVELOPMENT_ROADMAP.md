@@ -14119,3 +14119,18 @@ files are unchanged, version 88):
   is `game.liftRope`. THE WELL's "beams falling into its shaft" were its climbing ropes.
 - **Review spot 15** stood in the air off the bridge ring; it is moved onto its bridge for round 7.
 - **Checked** (tools/checks/sk-neon.ts): the name planes all drawn after the city's other see-through pieces (15), every rope colour a cable unlit with its lit collars (9 colours); each fails with its bug put back, the order set back to the scene's and the collars spaced out of the ropes. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check.
+
+## Milestone 652 — The tower's round corners from inside
+
+The sixth review found "a flat black slab" on the tower's 26 m floor and "black void panels" on its 17 m floor. Every
+floor was photographed from its four corners, 44 pictures from 14 to 45.5 m: the black panels are the round corners'
+fake windows. The tower's one-sided shell is drawn from inside too (`rules.tower.backs`, turned over and worn in plaster
+as `backWear` says), but its glass was kept as glass, and from inside that glass was a black mirror flaring with the
+floor's lamps.
+
+- **The fix:** the backs are worn whole, their glass too (`backWear.keep` empty). From inside, the corners are plaster
+  walls like the rest of each floor, and the torn edges at their feet, which showed against the black, are gone into
+  them.
+- **Checked:** every floor's corners photographed before and after; the map's checks all pass on the bake. The e2e:
+  the SpeedKills section, 101 of 101. verify, rules and the type check. The map: its files lo 154.9 MB, hi 226.7 MB, max 471.4 MB.
+  **Its files are version 89.**
