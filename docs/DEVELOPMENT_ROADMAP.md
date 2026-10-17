@@ -14217,3 +14217,17 @@ spot stood in THE VAULT.
 - **Checked:** the trim along THE VAULT's walls at its floor (fails with five lengths moved off it); the map's checks
   all pass. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The map: its files lo 155.0 MB, hi 226.9 MB, max 471.6 MB.
   **Its files are version 90.**
+
+## Milestone 654 — The boulevards broken into lanes
+
+The sixth review found the cover down the Loop and the curved streets knee-high, planters and cars across boulevards
+20 to 30 m wide, and asked for cover 1.2 to 2.5 m tall to break them into lanes.
+
+- **The tall board more often:** the street cover (`rules.dress.cover`) lays the tall board, the 3 m panel with a poster
+  on each face, as every second piece on a carriageway (every third until now).
+- **The pavements** take the pack's ticket machine, 1.7 m, among their low pieces. The pack's street fence blocks, its
+  1.2 m pieces, are barred railings, and the cover's own check keeps those out.
+- **Measured** (tools/checks/sk-neon.ts): 44 tall boards (33 before); a standing body on the curves seen from past 60 m
+  along 3.0% of the points (4.4%), on the Loop 4.9% (7.3%); every street point's cover still within 6 m but 0.4%; the
+  street one network of 663 nodes. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. Photographed at the review's
+  street spots. The map: its files lo 155.0 MB, hi 226.9 MB, max 471.6 MB. **Its files are version 91.**
