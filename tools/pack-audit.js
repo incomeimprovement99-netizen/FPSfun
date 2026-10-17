@@ -413,6 +413,15 @@ window.__packSeenGap = (side, o) => {
   const under = (x, a) => { for (let p = x; p; p = p.parent) if (p === a) return true; return false; };
   const W = o.w || 960, H = Math.round((W * innerHeight) / innerWidth), RAD = o.r || 4;
   root.updateMatrixWorld(true);
+  // the other arm folded out of the picture while this hand's daylight is drawn (both arms are one red): a pocket between
+  // ANAKIN's left forearm and the gun's underside was read as 18 pixels of daylight through its right hand, which is
+  // hidden behind the gun there, when that hand's bones came near it on the picture (2026-10-17). `both` keeps it in.
+  const otherArm = o.both ? null : rig.getObjectByName("upperarm_" + (side === "l" ? "r" : "l"));
+  const otherScale = otherArm ? otherArm.scale.clone() : null;
+  if (otherArm) {
+    otherArm.scale.setScalar(1e-4);
+    otherArm.updateMatrixWorld(true);
+  }
   const red = new T.MeshBasicMaterial({ color: 0xff0000, fog: false, toneMapped: false, side: T.DoubleSide });
   const green = new T.MeshBasicMaterial({ color: 0x00ff00, fog: false, toneMapped: false, side: T.DoubleSide });
   const saved = [];
@@ -439,6 +448,10 @@ window.__packSeenGap = (side, o) => {
     scene.background = bg;
     for (const [x, m, v] of saved) { x.material = m; x.visible = v; }
     rt.dispose(); red.dispose(); green.dispose();
+    if (otherArm) {
+      otherArm.scale.copy(otherScale);
+      otherArm.updateMatrixWorld(true);
+    }
   }
   // rows from the top, as the picture is seen
   const hand = new Uint8Array(W * H), gunM = new Uint8Array(W * H);

@@ -14134,3 +14134,26 @@ floor's lamps.
 - **Checked:** every floor's corners photographed before and after; the map's checks all pass on the bake. The e2e:
   the SpeedKills section, 101 of 101. verify, rules and the type check. The map: its files lo 154.9 MB, hi 226.7 MB, max 471.4 MB.
   **Its files are version 89.**
+
+## Milestone 551 — ANAKIN's right hand up on its grip, and the daylight check reading one hand at a time
+
+- **The recheck** (the owner, 2026-10-17: "recheck each gun, especially the right hand now and right trigger finger, i saw
+  some guns that looked weird before"): every gun's right hand photographed from both sides of the gun, one hand drawn
+  at a time, and measured against its trigger. Nine hold their grip as a hand does: the palm on the grip's right side 2
+  to 7 cm under the trigger and 4 to 7 cm to the right of the bore, the forefinger's tip on the trigger. ANAKIN's palm was
+  12 cm under its trigger and in line with the gun, holding the foot of its grip (its magazine, 7 cm deep front to back
+  and 7 cm behind the trigger), its forefinger stretched 7 cm up to the trigger: every refit since its first had moved
+  the fingers alone.
+- **ANAKIN** (fparms.json packGuns ASVal hold r): searched again from where the bought pack holds its own AS Val
+  (tools/pack-flush.ts TRIGGER=index_03): the palm on the grip's right side 6 cm under the trigger, the index knuckle
+  level with it, the forefinger 0.1 mm from the trigger, no skin in the gun. Its held elbow stays: left to itself, the
+  elbow flipped part way through an inspect and bent the wrist 89 degrees; held, the wrists are 19 at rest and 49 at most
+  in an inspect. Its reload now shows the magazine better (up to 732 pixels, from 72).
+- **The daylight check reads one hand at a time** (tools/pack-audit.js `__packSeenGap`): both arms are drawn in one colour,
+  so a pocket of daylight between the other arm and the gun was read as daylight through this hand. The other arm is
+  folded out of the picture while a hand is read. That pocket was the 18 pixels it found through ANAKIN's new right hand
+  (between its left forearm and the gun's underside), and the 13 pixels STRYDER's left hand showed on some runs (between
+  its two hands on the pistol's grip). Over the ten guns it changes nothing else past a few pixels of cracks (the
+  USSO's right hand 16 to 25, APUHTHEE's left 0 to 4, against 40).
+- **Checked:** verify, rules and the type check; the bought arms' frames on ANAKIN, STRYDER, the USSO and APUHTHEE, 45
+  checks, all pass; each gun's daylight with and without the other arm drawn in software as the e2e draws.

@@ -812,80 +812,70 @@
         },
         "r": {
           "shift": [
-            -0.049,
-            -0.0675,
-            0.017
+            0.032,
+            -0.0065,
+            -0.0006
           ],
           "rot": [
-            0.106,
-            0.0147,
-            -0.2992
+            -0.2374,
+            0.081,
+            -0.1388
           ],
           "joint": {
             "thumb_01": [
-              0.277,
-              0.0585,
-              -0.1665
+              -0.53,
+              -0.7145,
+              0.2176
             ],
             "thumb_02": [
-              -0.018,
-              0.073,
-              0.017
-            ],
-            "ring_01": [
-              0.3782,
-              -0.1115,
-              -0.087
-            ],
-            "pinky_01": [
-              -0.9396,
-              0.8332,
-              0.1724
-            ],
-            "middle_01": [
-              -0.9406,
-              -0.3844,
-              0.073
+              -0.3532,
+              0.1293,
+              0.4137
             ],
             "index_01": [
-              -0.1797,
-              -0.2678,
-              -0.4787
-            ],
-            "thumb_03": [
-              -0.093,
-              0.09,
-              0.032
+              0.3941,
+              -0.2154,
+              0.7683
             ],
             "index_02": [
-              -0.8676,
-              0.068,
-              1.0193
+              0.2794,
+              0.0107,
+              -0.0588
             ],
             "index_03": [
-              0.7395,
-              0.2834,
-              -0.4562
+              0.1553,
+              -0.0285,
+              0.2588
+            ],
+            "middle_01": [
+              -0.5198,
+              0.202,
+              0.2885
             ],
             "middle_02": [
-              -0.059,
-              0.3724,
-              -0.018
+              0.9658,
+              -0.4295,
+              0.3265
+            ],
+            "ring_01": [
+              -0.3329,
+              0.1061,
+              0.2747
             ],
             "ring_02": [
-              -0.1799,
-              -0.1499,
-              0.2673
+              0.0802,
+              -0.6489,
+              0.1912
+            ],
+            "pinky_01": [
+              0.1335,
+              -0.597,
+              0.0503
             ],
             "pinky_02": [
-              0.0333,
-              0.2788,
-              0.1586
-            ],
-            "pinky_03": [
-              0.0219,
-              0.375,
-              -0.1667
+              0.5712,
+              -0.1516,
+              -0.2588
             ]
           },
           "open": {}
@@ -1068,7 +1058,7 @@
           ]
         }
       },
-      "_holdR": "Its right elbow is held toward `holdElbow` r, where it sits at rest, the way the left one is (2026-10-13): bent the clip's way, the reload's turn of the gun bent the right wrist 75 to 80 degrees; now about 20. The right hand holds the grip higher, its forefinger on the trigger (2.6 mm from it at rest, Milestone 549; it had lain along the side of the gun, 41 mm off). Fitted in two stages: tools/pack-flush.ts TRIGGER=index_03 for the forefinger on the trigger, then a step at a time round that, each step tried drawn in software at 800 by 450 as the e2e draws (a hand clean on the GPU showed daylight there): shift 1.5 mm lower, rot z 0.02 more, shift 1 mm across and 1 mm lower, 4 mm along, rot y 0.02 more, and the forefinger's middle joint turned -0.08 and -0.08 about its x and z: no daylight at rest held still (a 10 pixel pocket where the hand's top met the gun), and no palm seen in the magazine pointing, with the new one in or as the hand settles back on the grip at a swap's end (5 to 6 mm, where the palm sits 10 mm into the magazine the grip holds, hidden behind the grip but at that one edge).",
+      "_holdR": "Its right elbow is held toward `holdElbow` r (2026-10-13): bent the clip's way, the reload's turn of the gun bent the right wrist 75 to 80 degrees; left to itself with the hand where it is now, the elbow flipped part way through an inspect and the wrist bent 89. The right hand holds the grip high behind the trigger, the palm on the grip's right side 6 cm under the trigger and the forefinger on it (2026-10-17, Milestone 551, the owner: \"especially the right hand ... i saw some guns that looked weird\"). Measured against the trigger it had been the odd one of the ten: the palm 12 cm under the trigger and in line with the gun, holding the foot of the grip (the magazine, 7 cm deep front to back and 7 cm behind the trigger), the forefinger stretched 7 cm up to it; every other gun's palm sits 2 to 7 cm under its trigger, 4 to 7 cm to the right. Searched from the pack's own place on its AS Val with tools/pack-flush.ts TRIGGER=index_03: forefinger 0.1 mm from the trigger, no skin in the gun, wrists 19 at rest and 49 at most in an inspect.",
       "twist": {
         "roll": 0.2,
         "yaw": 0.12,
