@@ -6320,9 +6320,11 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills decay: the first wave's sectors decay, from the ground up, and their boxes leave the collision list", first.every((id) => dec.states[id].phase === "decaying") && dec.held > 0, JSON.stringify({ states: first.map((id) => dec.states[id]), held: dec.held }));
   // standing in a decaying sector hurts (from after its first tick: until one lands a part-empty shield refills at its own
   // rate, 17 a second, and outran the first two ticks)
+  // (topped up first and taken to the final sector after: the fights before had left the player at 70 and at 4 of 150 on
+  // 2026-10-16, and a player the decay kills here ends the match, so the waves and the capture after it read nothing)
   const hurt = await ev<{ before: number; after: number }>(
     page,
-    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const s = r.brMap.pois.find((p) => p.id === "${first[0]}"); r.player.teleport(s.x, 0.3, s.z, 0); setTimeout(() => { const before = d.health + d.shield; setTimeout(() => ok({ before, after: d.health + d.shield }), 3500); }, 1600); }))()`
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; d.health = 100; d.shield = d.shieldMax; const s = r.brMap.pois.find((p) => p.id === "${first[0]}"); r.player.teleport(s.x, 0.3, s.z, 0); setTimeout(() => { const before = d.health + d.shield; setTimeout(() => { const after = d.health + d.shield; const f = r.brMap.pois.find((p) => p.id === "${decay0.plan.final}"); r.player.teleport(f.x, 150, f.z, 0); d.health = 100; d.shield = d.shieldMax; ok({ before, after }); }, 3500); }, 1600); }))()`
   );
   check("speedkills decay: standing in a decaying sector hurts", hurt.after < hurt.before, JSON.stringify(hurt));
   // on through the waves to the endgame
@@ -6353,10 +6355,10 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   );
   // holding the zone alone wins: the bots kept out of it, you in it (dropped from above onto whatever floor
   // stands there: the Spire is solid to its tiers now), its meter near full
-  const won = await ev<{ phase: string; placement: number | null }>(
+  const won = await ev<{ phase: string; placement: number | null; zone?: number[]; me?: number[]; health?: number; progress?: Record<string, number> }>(
     page,
     `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100; r.player.teleport(z.x, 150, z.z, 0);
-      d.capture.progress.set(d.sideOf(d.id), ${45} - 1.5); setTimeout(() => ok({ phase: d.phase, placement: d.placement }), 3500); }))()`
+      d.capture.progress.set(d.sideOf(d.id), ${45} - 1.5); setTimeout(() => { const p = r.player.pos; ok({ phase: d.phase, placement: d.placement, zone: [Math.round(z.x), Math.round(z.z)], me: [Math.round(p.x), Math.round(p.y * 10) / 10, Math.round(p.z)], health: d.health, progress: Object.fromEntries([...d.capture.progress].map(([k, v]) => [k, Math.round(v * 10) / 10])) }); }, 3500); }))()`
   );
   check("speedkills capture: a squad alone in the zone for 45 s wins the match outright", won.phase === "matchEnd" && won.placement === 1, JSON.stringify(won));
   await ev(page, "window.__range.duel()?.leave()");

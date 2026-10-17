@@ -11695,6 +11695,23 @@ player holding a pad.
   - HAEFY's own rocket, the p2p reload seen on the other screen and the inspect's pack frames passed alone (load).
 - **Checked:** tsc; verify; rules; e2e sklobby and soldier.
 
+## Milestone 623 — The battle royale check survives its own fights, and the 2026-10-16 sweep
+
+- **The day's full e2e sweep** (main 288b4d0b, three batches; the mixed batch passed) found five failures, each rerun
+  alone on main 325db865:
+  - **speedkills capture, "a squad alone in the zone for 45 s wins", ended at placement 10**, and alone the battle
+    royale test stopped earlier still (a TypeError on the decay after the match had ended). The cause was the test's:
+    the bots' fire is held only from the outline check on, so the fights before it had worn the player down (144 of
+    150 on 2026-10-13, 70 in the sweep, 4 in the rerun), and the decay check, which stands the player in a decaying
+    sector, killed it there and ended the match. The decay's damage was the same both days (12 a tick). The check now
+    tops the player up before it and takes it to the final sector after, and the capture check says where the player
+    and the zone were, its health and the capture's progress.
+  - **soldier: BOOG's recharge glow** (0.348 alone) and the section stopping on a puppeteer protocol timeout, both runs:
+    passed to the guns agent.
+  - The loading screen's bar (sklobby) and the p2p reload seen on the other screen passed alone (load).
+- **Checked:** tsc; verify; rules; e2e skbr alone (the decay hurts 144 to 126, eight sectors gone, the capture won at
+  placement 1).
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
