@@ -6,6 +6,8 @@
 // graph wherever a bot is sent up it.
 //
 // Run on its own: GAME=speedkills npx tsx tools/checks/sk-neon.ts (npm run verify runs it).
+import { existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import * as THREE from "three";
 
 const g = globalThis as unknown as Record<string, unknown>;
@@ -3293,6 +3295,10 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       const [px, pz] = ox ? [x, z + t] : [x + t, z];
       if (!S.some((b) => b[0] <= px + 0.05 && b[1] >= px - 0.05 && b[2] <= pz + 0.05 && b[3] >= pz - 0.05 && b[4] <= ry + 0.3 && b[5] >= ry + 0.9)) roofOpen.push(`(${px.toFixed(1)}, ${pz.toFixed(1)})`);
     }
+  // (its market floor, Milestone 644: every set of cover the rules list laid, none left out for standing on a street node
+  // or cutting the bots' streets in two; the canyon, its passages, walkways and stairs walked with it in place above)
+  const MKc = (cfg as unknown as { canyon?: { market?: { laid: number; of: number } } }).canyon?.market;
+  check("THE CANYON: its market floor, cover down both walls of both arms and food stands in the passages, every set laid", !!MKc && MKc.of >= 30 && MKc.laid === MKc.of, `${MKc?.laid ?? 0} of ${MKc?.of ?? 0} sets laid`);
   check("THE CANYON: its roofs railed along every drop, but where a bridge arrives", (RFc?.rails.length ?? 0) > 200 && roofOpen.length === 0, roofOpen.slice(0, 4).join("; ") || `${((RFc?.rails.length ?? 0) * 2.5).toFixed(0)} m of edge`);
 }
 
@@ -3307,6 +3313,50 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const loose = strips.filter(([, x, y, z]) => !S.some((b) => b[0] <= x && b[1] >= x && b[2] <= z && b[3] >= z && b[4] >= y - 0.1 && b[4] <= y + 0.6));
   const heads = placed.filter((q) => GL && String(q[0]).endsWith("/Lighting_Deco002_lgt.prefab") && q[6] === GL.lampRemap).length;
   check("GLASS HEIGHTS' light: cyan strips and panels under its four gangways, each strip hung against a deck's underside, and its street lamps cyan", !!GL && strips.length >= 28 && panels.length >= 8 && loose.length === 0 && heads >= 3, `${strips.length} strips and ${panels.length} panels, ${loose.length} strips hanging free${loose.length ? ` (${loose.slice(0, 3).map(([, x, y, z]) => `(${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`).join("; ")})` : ""}, ${heads} cyan street lamps`);
+}
+
+// every floor tile the layout draws only (the pack's FloorBasic, "g"), drawn where it is walked: a collision box's top at
+// its drawn top over its middle, or the ground's under a tile at the street. THE CANYON's walkways were drawn half a
+// metre under their walk from Milestone 642 to 644 (the tile's pivot is its top), and the strips hung under them were lost
+// inside the drawn slab; the sizes are the bundle's catalogue's, as the layout reads them
+{
+  const PAID = process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid";
+  const cat = existsSync(join(PAID, "neon", "catalogue.json")) ? (JSON.parse(readFileSync(join(PAID, "neon", "catalogue.json"), "utf8")) as Array<{ path: string; size: number[] | null; min: number[] | null; max: number[] | null }>) : [];
+  const rows = new Map(cat.filter((r) => r.size).map((r) => [r.path.split("City Builder/")[1] ?? r.path, r]));
+  const S = SOLIDS.solids as number[][];
+  let tiles = 0;
+  const off: string[] = [];
+  for (const [chunk, c] of Object.entries((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks))
+    for (const q of c.place) {
+      const r = rows.get(String(q[0]));
+      if (!r || !/FloorBasic/.test(String(q[0])) || q[5] !== "g") continue;
+      const [x, y, z, yaw] = [q[1], q[2], q[3], q[4]] as number[];
+      const sc = (q[8] as number | undefined) ?? 1;
+      const top = y + r.max![1] * sc;
+      const [mx, mz] = [((r.min![0] + r.max![0]) / 2) * sc, ((r.min![2] + r.max![2]) / 2) * sc];
+      const a = (yaw * Math.PI) / 180;
+      const [cx, cz] = [x + Math.cos(a) * mx + Math.sin(a) * mz, z - Math.sin(a) * mx + Math.cos(a) * mz];
+      tiles++;
+      const under = S.some((b) => b[0] <= cx && b[1] >= cx && b[2] <= cz && b[3] >= cz && Math.abs(b[5] - top) < 0.06);
+      if (!under && Math.abs(top) > 0.06) off.push(`${chunk} (${cx.toFixed(1)}, ${cz.toFixed(1)}) drawn at ${top.toFixed(2)} m`);
+    }
+  check("every floor tile drawn where it is walked: a collision top at its drawn top, or the ground", tiles > 500 && off.length === 0, !cat.length ? `no catalogue at ${PAID}/neon` : off.slice(0, 4).join("; ") || `${tiles} tiles`);
+}
+
+// THE CANYON's light (rules.districts.canyon.light, Milestone 644): yellow-green strips under its walkways' open edges,
+// each hung against a walkway's underside; ceiling lamps down the walkways' middles that the game takes for fill lights'
+// spots, over the market floor; and its roofs' street lamps yellow-green
+{
+  const LG = (cfg.rules as unknown as { districts?: { canyon?: { light?: { strip: string; remap: string; lamp: string; lampRemap: string; roofLamp: string } } } }).districts?.canyon?.light;
+  const runs = (cfg as unknown as { canyon?: { walkways?: { y: number; runs: number[][] } } }).canyon?.walkways;
+  const placed = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-canyon"]?.place ?? [];
+  const strips = placed.filter((q) => LG && String(q[0]).endsWith(`/${LG.strip}`) && q[6] === LG.remap) as Array<[string, number, number, number]>;
+  const S = SOLIDS.solids as number[][];
+  const loose = strips.filter(([, x, y, z]) => !S.some((b) => b[0] <= x && b[1] >= x && b[2] <= z && b[3] >= z && b[4] >= y - 0.1 && b[4] <= y + 0.6));
+  const inRun = (x: number, z: number) => (runs?.runs ?? []).some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+  const spots = neonFillSpots().filter((q) => inRun(q.x - BR_X, q.z - BR_Z) && q.y > 1.5 && q.y < (runs?.y ?? 3.5));
+  const heads = placed.filter((q) => LG && String(q[0]).endsWith(`/${LG.roofLamp}`) && q[6] === LG.lampRemap).length;
+  check("THE CANYON's light: yellow-green strips under its walkways, each hung against one's underside, ceiling lamps under them lit as fill, and street lamps on its roofs", !!LG && strips.length >= 100 && loose.length === 0 && spots.length >= 30 && heads >= 12, `${strips.length} strips, ${loose.length} hanging free${loose.length ? ` (${loose.slice(0, 3).map(([, x, y, z]) => `(${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`).join("; ")})` : ""}, ${spots.length} fill spots under the walkways, ${heads} yellow-green lamps on the roofs`);
 }
 
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,

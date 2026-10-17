@@ -13968,3 +13968,42 @@ The south-west district's third stage, the last of its three streets (`rules.dis
 - **Checked:** verify, rules and the type check; the bought arms' frames on all ten guns with the wait (48 of 50, the two
   misses STRYDER's pocket and HAEFY's flourish wrist, then both passing in a run of their own) and APUHTHEE's alone
   (40 of 40).
+
+## Milestone 644 — THE CANYON's market floor and its light
+
+The south-west district's fourth and last stage (`rules.districts.canyon.market` and `.light`, tools/neon-layout.ts).
+THE CANYON is finished: its three streets, the floor, the walkways and the roofs, each with its cover and its light.
+
+- **The market floor:** the pack has no market stalls, only two street food stands, and at 3.3 m they are too tall for
+  the 3 m under the walkways. So crate stacks, tables and barrels stand down both walls of both arms under the
+  walkways, about every 7.5 m, staggered between the two walls. The canyon's middle 5 m is left clear, where the bots'
+  one line of street nodes runs, and so are the stairs' fronts and the passages' mouths. Two food stands stand in each
+  passage, by the walls opposite its pads, facing in. Each set is laid as THE STRIP's ground is, unless it stands on a
+  street node or cuts the bots' streets in two, and the check counts every one laid.
+- **The light:** yellow-green, in glowing pieces as THE STRIP's magenta is, because the game's fill lights are warm
+  white. The pack's strip light hangs under each walkway's open edge every 2.5 m. The ceiling lamp the game lights as
+  fill runs down each walkway's middle every 7.5 m, so the market floor under it is lit at night. Street lamps stand
+  along the roofs' canyon edges, their heads yellow-green: the roofs drew near black at night.
+- **The walkways drawn at their walk:** from Milestone 642 the walkways' tiles were drawn half a metre under the walk,
+  2.5 to 3 m with the walk at 3.5 m: the pack's floor tile has its pivot on its top, and the layout laid it as if it were
+  its bottom, so a body walked half a metre over the drawn deck and the glass rails stood clear of it. It showed when
+  the new strips under the walkways did not: they hung inside the drawn slab. A new check takes every floor tile the
+  layout draws only and finds a collision top at its drawn top, or the ground under it; on the old layout it fails on
+  the 132 walkway tiles. The rest of the map's tiles (THE STACKS', THE STRIP's, THE TERRACES' and the roofs) were right.
+- **Checked** (tools/checks/sk-neon.ts): every set of cover laid (38 of 38), failing with a set moved onto the canyon's line of street nodes; the strips hung against the walkways (132), 43 fill spots under them and 16 yellow-green lamps on the roofs, failing with a strip lowered a metre; every floor tile drawn where it is walked (590 tiles), failing on the old layout's 132 walkway tiles; and the rest of the map's, the walkways, stairs, bridges and street network among them. The e2e: the SpeedKills section, 101 of 101 run alone (run beside the owner's Discord and Medal encoder it lost its game-time waits, 50 of 56). verify, rules and the type check. The look: photographed by golden hour and at night down both arms of the floor, under a walkway, at the food stands in the south passage, along a roof's lamps and from over the corner; the stands' letters read (the clean stand's poster is the Gujarati 'amazing' read in Milestone 571).
+  The map: its files lo 150.5 MB, hi 222.4 MB, max 467.1 MB.
+  **Its files are version 83.**
+
+## Milestone 645 — The banned sign out of the food stands
+
+The pack's street food stand Fastfood_street00 has the letter sign Neon008b nested in it twice, under its awning:
+무료섹스, "free sex" in Korean, the sign banned in Milestone 571. The layout refused a banned piece by its own name only,
+so the stand carried the sign into the map wherever it stood: NOODLE ROW's and LANTERN ALLEYS' food stalls, three
+stands, live, and THE CANYON's passages in this round's first bakes. It showed reading the letters in the canyon's photos.
+
+- **The stands:** every one is now the pack's Fastfood_street01, the same stand with its signs taken off; its nested
+  pieces were listed and no letter sign is left in it.
+- **The guard:** the bake (tools/import-neon.ts) refuses any piece with a banned piece nested anywhere in it, naming
+  both, so it refuses Fastfood_street00 for its Neon008b. The stand is not banned by its own name: the clean variant is
+  built on it, and banned by name the variant was refused with it. A scan of all 191 pieces the layout places, flattened as the
+  bake flattens them, found the food stand the only one. Checked: with the stand put back in a canyon row and its name off the ban list, the bake refused it, naming the Neon008b nested in it.

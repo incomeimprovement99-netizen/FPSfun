@@ -182,12 +182,18 @@ if (mode === "bake") {
     if (k) pathOf.set(k, p);
   }
   const flat = new Map<string, Array<{ d: Draw; m: M4 }>>();
+  // (never a piece with a banned one nested in it, rules.banned: the layout refuses a banned piece by its own name, and
+  // the pack's food stand carried Neon008b's "free sex" under its awning into two districts, Milestone 645)
+  const banned = (cfg.rules.banned?.pieces ?? []) as string[];
   const draws = (key: string) => {
     let f = flat.get(key);
     if (!f) {
       const p = pathOf.get(key);
       if (!p) throw new Error(`no prefab ${key}`);
-      f = res.flatten(guidOf.get(p)!).map(({ d, m }) => ({ d, m }));
+      const all = res.flatten(guidOf.get(p)!);
+      const nested = [...new Set(all.flatMap(({ from }) => from.map((g) => pack.guidPath.get(g) ?? g)).filter((q) => banned.some((b) => q.endsWith(`/${b}`))))];
+      if (nested.length) throw new Error(`${key}: ${nested.map((q) => q.split("/").pop()).join(", ")} nested in it, in rules.banned`);
+      f = all.map(({ d, m }) => ({ d, m }));
       flat.set(key, f);
     }
     return f;

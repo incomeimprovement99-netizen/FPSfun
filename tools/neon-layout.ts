@@ -4688,6 +4688,8 @@ function onNode(o: OBox): boolean {
     walkways?: { y: number; slab: string; short: string; rail: string; railShort: string; railH: number; runs: number[][] };
     stairs?: { at: number[][] };
     roofs?: { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]> };
+    market?: { crate: string; turned: string[]; rows: Array<{ pieces: string[]; yaw: number; flip?: boolean; at: number[][] }> };
+    light?: { strip: string; remap: string; every: number; in: number; lamp: string; lampEvery: number; roofLamp: string; lampRemap: string; roofLamps: number[][] };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
   };
   const DC = (R.districts as { canyon?: Canyon } | undefined)?.canyon;
@@ -4771,12 +4773,13 @@ function onNode(o: OBox): boolean {
       for (const [x0, x1, z0, z1] of WK.runs) {
         const alongX = x1 - x0 > z1 - z0;
         const [a0, a1] = alongX ? [x0, x1] : [z0, z1];
-        // (its slab in the pack's 5 m lengths along it, a 2.5 m one where it ends in a half module)
+        // (its slab in the pack's 5 m lengths along it, a 2.5 m one where it ends in a half module; the floor tiles' pivot
+        // is their top, and laid as if it were their bottom they drew the walkways half a metre under the walk)
         for (let a = a0; a < a1 - 0.01; ) {
           const name = a1 - a >= sl.size![2] - 0.01 ? WK.slab : WK.short;
           const l = piece(name).row.size![2];
           const [cx, cz] = alongX ? [a + l / 2, (z0 + z1) / 2] : [(x0 + x1) / 2, a + l / 2];
-          placeTurned(DC.chunk, name, cx, cz, alongX ? 90 : 0, "g", WK.y - sl.size![1]);
+          placeTurned(DC.chunk, name, cx, cz, alongX ? 90 : 0, "g", WK.y - piece(name).row.max![1]);
           a += l;
         }
         solids.push([x0, x1, z0, z1, +(WK.y - sl.size![1]).toFixed(2), WK.y]);
@@ -4848,13 +4851,79 @@ function onNode(o: OBox): boolean {
         }
       }
     }
+    // THE CANYON's market floor (`market`, Milestone 644): cover down both walls under the walkways and the food stands in
+    // the passages, each set laid unless it stands on a street node or cuts the bots' streets in two, as THE STRIP's
+    // ground is
+    const MK = DC.market;
+    const market = { laid: 0, of: 0 };
+    for (const row of MK?.rows ?? [])
+      for (const [i, [x, z]] of row.at.entries()) {
+        const yaw = row.yaw + (row.flip && i % 2 ? 180 : 0);
+        const name = row.pieces[i % row.pieces.length];
+        const set: Array<[string, number, number, number, number]> = [];
+        if (name === "crates") {
+          const c = piece(MK!.crate).row;
+          const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+          set.push([MK!.crate, ox, oz, yaw, 0], [MK!.crate, -ox, -oz, yaw, 0], [MK!.crate, -ox, -oz, yaw, c.size![1]]);
+        } else set.push([name, 0, 0, yaw + (MK!.turned.includes(name) ? 90 : 0), 0]);
+        let [hu, hv, top] = [0, 0, 0];
+        for (const [n, dx, dz, yw, y] of set) {
+          const r = piece(n).row;
+          const turned = Math.abs(Math.round((yw - yaw) / 90)) % 2 === 1;
+          const [lu, lv] = rotY(-yaw, dx, dz);
+          hu = Math.max(hu, Math.abs(lu) + (turned ? r.size![2] : r.size![0]) / 2);
+          hv = Math.max(hv, Math.abs(lv) + (turned ? r.size![0] : r.size![2]) / 2);
+          top = Math.max(top, y + r.size![1]);
+        }
+        market.of++;
+        const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+        if (onNode(o) || STREET_GRAPH?.splits(o)) continue;
+        STREET_GRAPH?.add(o);
+        for (const [n, dx, dz, yw, y] of set) placeTurned(DC.chunk, n, x + dx, z + dz, yw, "o", y - piece(n).row.min![1]);
+        market.laid++;
+      }
+    // THE CANYON's light (`light`, Milestone 644): the yellow-green strip under each walkway's open edge, the ceiling
+    // lamp the game lights as fill down each one's middle, and the street lamp on the roofs along the canyon's edges
+    const LG = DC.light;
+    const light = { strips: 0, lamps: 0, roofLamps: 0 };
+    if (LG && WK) {
+      const [sr, lr] = [piece(LG.strip).row, piece(LG.lamp).row];
+      const under = WK.y - piece(WK.slab).row.size![1];
+      for (const [x0, x1, z0, z1] of WK.runs) {
+        const alongX = x1 - x0 > z1 - z0;
+        const [a0, a1, e0, e1] = alongX ? [x0, x1, z0, z1] : [z0, z1, x0, x1];
+        // (its open edge: the long side with a block past it along less of the run, the wall's being past the other)
+        const walled = (e: number, out: number) => {
+          let [n, k] = [0, 0];
+          for (let a = a0 + 1.25; a < a1; a += 2.5, k++) if (alongX ? inBlock(a, e + out * 0.5) : inBlock(e + out * 0.5, a)) n++;
+          return n / Math.max(1, k);
+        };
+        const [edge, inward] = walled(e0, -1) < walled(e1, 1) ? [e0, 1] : [e1, -1];
+        for (let a = a0 + LG.every / 2; a < a1; a += LG.every) {
+          const e = edge + inward * LG.in;
+          placeTurned(DC.chunk, LG.strip, alongX ? a : e, alongX ? e : a, alongX ? 0 : 90, "g", under - sr.max![1], LG.remap);
+          light.strips++;
+        }
+        for (let a = a0 + LG.lampEvery / 2; a < a1; a += LG.lampEvery) {
+          placeTurned(DC.chunk, LG.lamp, alongX ? a : (e0 + e1) / 2, alongX ? (e0 + e1) / 2 : a, alongX ? 90 : 0, "g", under - lr.max![1]);
+          light.lamps++;
+        }
+      }
+      for (const [x, z, yaw] of LG.roofLamps) {
+        placeTurned(DC.chunk, LG.roofLamp, x, z, yaw, "o", DC.height - piece(LG.roofLamp).row.min![1], LG.lampRemap);
+        light.roofLamps++;
+      }
+    }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "canyon"), { district: "canyon", ...DC.name }];
     cfg.canyon = {
       blocks: DC.blocks, fronts, tiles, solids,
       ...(WK ? { walkways: { y: WK.y, runs: WK.runs, rails } } : {}),
       // (each piece of cover with its half-extents as turned, for the check to find it standing on the roof)
+      ...(MK ? { market } : {}),
+      ...(LG ? { light } : {}),
       ...(RF ? { roofs: { y: DC.height, bridges: RF.bridges, cover: RF.cover.map(([n, x, z, yaw]) => { const r = piece(n).row.size!; return [n, x, z, yaw, ...(Math.abs(yaw % 180) > 1 ? [r[2] / 2, r[0] / 2] : [r[0] / 2, r[2] / 2])]; }), rails: roofRails } } : {}),
     };
+    if (MK || LG) console.log(`THE CANYON's market floor: ${market.laid} of ${market.of} sets of cover laid; its light: ${light.strips} strips, ${light.lamps} ceiling lamps, ${light.roofLamps} lamps on the roofs`);
     console.log(`THE CANYON: ${DC.blocks.length} blocks, ${fronts} fronts, ${tiles} roof tiles${RF ? `; on its roofs ${RF.bridges.length} bridges, ${RF.cover.length} pieces of cover, ${roofFence} lengths of fence along ${roofRails.length * RF.cell} m of edge` : ""}`);
   }
 }
