@@ -4935,7 +4935,8 @@ function onNode(o: OBox): boolean {
   type Frame = { o: Pt; u: Pt; v: Pt };
   type Inside = { column: string; columns: Pt[]; gallery: { v: number; y: number; tile: string; rail: string; railShort: string; railH: number }; stair: { u: number }; crate: string; cover: Array<[string, number, number, number]>; pipes: Array<[string, number, number, number, number]>; cables: Array<[string, number, number, number, number]> };
   type Upper = { hall: string; atrium: number[]; lampEvery: number; cover: Array<[string, number, number, number]> };
-  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
+  type Roofs = { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]>; gas: number[][]; gasPiece: string; crate: string; yard: number[][] };
+  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; roofs?: Roofs; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
   const DW = (R.districts as { works?: Works } | undefined)?.works;
   if (DW) {
     const solids: number[][] = [];
@@ -5147,7 +5148,82 @@ function onNode(o: OBox): boolean {
       }
       upper.walk = [[a0 - 2, b0 - 2], [a1 + 2, b0 - 2], [a1 + 2, b1 + 2], [a0 - 2, b1 + 2], [a0 - 2, b0 - 2]].map(([x, z]) => [x, z, y]);
     }
-    cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}) };
+    // THE WORKS' yards and roofs (`roofs`, Milestone 649): the footbridges across the yards between the 7 m roofs, the
+    // metal fence along every roof edge but where a bridge arrives, cover on the roofs by its bottom on the roof under
+    // it, and in the yards the gas stacks against the halls' walls and crates; the ways up are the yards' pads
+    // (rules.pads.spine's worksyard-*)
+    const RW = DW.roofs;
+    const roofs = { rails: [] as number[][], bridges: [] as number[][], cover: [] as number[][], names: [] as string[], laid: 0, of: 0 };
+    if (RW) {
+      const open: number[][] = [];
+      for (const [x, z, yaw] of RW.bridges) {
+        const b = placeTurned(DW.chunk, RW.bridge, x, z, yaw, "o", DW.storey);
+        const [hx, hz] = [Math.abs(b.u[0]) * b.hu + Math.abs(b.v[0]) * b.hv, Math.abs(b.u[1]) * b.hu + Math.abs(b.v[1]) * b.hv];
+        open.push([x - hx - 0.3, x + hx + 0.3, z - hz - 0.3, z + hz + 0.3]);
+        roofs.bridges.push([x, z, yaw, DW.storey]);
+      }
+      // (each roof's edges a cell at a time but where a bridge is past one, run together into long lengths)
+      const long = piece(RW.rail).row.size![2];
+      for (const H of halls) {
+        const [x0, x1, z0, z1] = H.box;
+        const y = H.top;
+        for (const [line, a0, a1, alongX, out] of [[z0, x0, x1, true, -1], [z1, x0, x1, true, 1], [x0, z0, z1, false, -1], [x1, z0, z1, false, 1]] as Array<[number, number, number, boolean, number]>) {
+          const runs: number[][] = [];
+          for (let a = a0; a < a1 - 0.01; a += RW.cell) {
+            const m = a + RW.cell / 2;
+            const [px, pz] = alongX ? [m, line + out * 0.1] : [line + out * 0.1, m];
+            if (open.some(([b0, b1, c0, c1]) => px > b0 && px < b1 && pz > c0 && pz < c1)) continue;
+            const last = runs[runs.length - 1];
+            if (last && Math.abs(last[1] - a) < 0.01) last[1] = a + RW.cell;
+            else runs.push([a, a + RW.cell]);
+          }
+          const at = line - out * 0.1;
+          for (const [r0, r1] of runs) {
+            for (let a = r0; a < r1 - 0.01; ) {
+              const name = r1 - a >= long - 0.01 ? RW.rail : RW.railShort;
+              const l = piece(name).row.size![2];
+              placeTurned(DW.chunk, name, alongX ? a + l / 2 : at, alongX ? at : a + l / 2, alongX ? 90 : 0, "g", y - piece(name).row.min![1]);
+              a += l;
+            }
+            solids.push((alongX ? [r0, r1, at - 0.06, at + 0.06] : [at - 0.06, at + 0.06, r0, r1]).concat([y, y + RW.railH]).map((q) => +q.toFixed(3)));
+            for (let a = r0 + RW.cell / 2; a < r1; a += RW.cell) roofs.rails.push((alongX ? [a, at, y] : [at, a, y]).map((q) => +q.toFixed(2)));
+          }
+        }
+      }
+      // (the roofs' cover, by its bottom on the roof of the hall under it)
+      for (const [name, x, z, yaw] of RW.cover) {
+        const H = halls.find((h) => x > h.box[0] && x < h.box[1] && z > h.box[2] && z < h.box[3]);
+        if (!H) throw new Error(`THE WORKS' roof cover ${name} at (${x}, ${z}): over no hall`);
+        const o = placeTurned(DW.chunk, name, x, z, yaw, "o", H.top - piece(name).row.min![1]);
+        roofs.cover.push([x, z, Math.abs(o.u[0]) * o.hu + Math.abs(o.v[0]) * o.hv, Math.abs(o.u[1]) * o.hu + Math.abs(o.v[1]) * o.hv, H.top].map((q) => +q.toFixed(2)));
+        roofs.names.push(name);
+      }
+      // (the yards' gas stacks and crates, each laid unless on a street node or cutting the streets in two)
+      const sets: Array<[string, number, number, number]> = [...RW.gas.map(([x, z, yaw]) => [RW.gasPiece, x, z, yaw] as [string, number, number, number]), ...RW.yard.map(([x, z, yaw]) => ["crates", x, z, yaw] as [string, number, number, number])];
+      for (const [name, x, z, yaw] of sets) {
+        const set: Array<[string, number, number, number]> = [];
+        if (name === "crates") {
+          const c = piece(RW.crate).row;
+          const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+          set.push([RW.crate, ox, oz, 0], [RW.crate, -ox, -oz, 0], [RW.crate, -ox, -oz, c.size![1]]);
+        } else set.push([name, 0, 0, 0]);
+        let [hu, hv, top] = [0, 0, 0];
+        for (const [n, dx, dz, up] of set) {
+          const r = piece(n).row;
+          const [lu, lv] = rotY(-yaw, dx, dz);
+          hu = Math.max(hu, Math.abs(lu) + r.size![0] / 2);
+          hv = Math.max(hv, Math.abs(lv) + r.size![2] / 2);
+          top = Math.max(top, up + r.size![1]);
+        }
+        const ob: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+        roofs.of++;
+        if (onNode(ob) || STREET_GRAPH?.splits(ob)) continue;
+        STREET_GRAPH?.add(ob);
+        for (const [n, dx, dz, up] of set) placeTurned(DW.chunk, n, x + dx, z + dz, yaw, "o", up - piece(n).row.min![1]);
+        roofs.laid++;
+      }
+    }
+    cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}) };
     console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}`);
   }
 }

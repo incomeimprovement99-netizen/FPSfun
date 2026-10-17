@@ -14065,3 +14065,24 @@ tools/neon-layout.ts).
 - **Checked** (tools/checks/sk-neon.ts): each pad ridden up from the atrium onto the ring at 7.00 m, the throw's top 11.2 m under the 13.5 m roof; the ring walked round; all 24 lengths of the atrium's rail standing; 8 pieces of cover. The check fails with its bug put back: the ring's west side and a rail length taken out. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night on the ground floor under the ring, at a pad, on the ring and down into the atrium.
   The map: its files lo 152.7 MB, hi 224.6 MB, max 469.3 MB.
   **Its files are version 86.**
+
+## Milestone 649 — THE WORKS' yards and roofs
+
+The south-east district's third stage (`rules.districts.works.roofs`, the pads `rules.pads.spine` worksyard-*,
+tools/neon-layout.ts).
+
+- **The ways up:** in each 10 m yard between the halls, a jump pad up each wall onto the roof over it, eight in all,
+  staggered along the yard off its routes and its line of street nodes; from the two yards beside the works block they
+  throw you onto its roof at 14 m.
+- **The footbridges:** the pack's 10.1 m footbridge across each yard between two 7 m hall roofs, on a 2.5 m roof cell
+  so the rails stop at its sides.
+- **The rails:** the halls' metal street fence along every roof edge, a typed rail behind it, open where a bridge
+  arrives.
+- **On the roofs:** a roof tank on legs on each hall (its body 3 m up, measured off its triangles, so a body passes
+  under it), chimneys and AC boxes; and the landmark, the works block crowned with the pack's 17 m double tank and its
+  piped tank, the top 31 m up.
+- **The yards:** the pack's 13 m gas pipe stack against a hall's wall in each, clear of the doors' edges, and crates,
+  each laid off the bots' nodes. The tanks did not fit there: a 7.5 m tank in a 10 m yard stands on its node line.
+- **Checked** (tools/checks/sk-neon.ts): the eight yard pads each ridden onto its roof (six at 7.00 m, the two onto the works block at 14.00 m, their throws' tops 11.2 and 18.2 m); both footbridges walked across and back; 220 rail lengths standing along the roof edges but where a bridge arrives; the 18 pieces on the roofs standing on them; all 8 yard pieces laid; the street one network of 664 nodes. The checks fail with their bugs put back: a hall's roof slab taken out, a bar across a bridge's end, a tank's legs taken out. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night across a footbridge, on a hall's roof, on the works roof, in a yard at its pads, the crown from the corner and the district from over the centre.
+  The map: its files lo 154.4 MB, hi 226.3 MB, max 470.9 MB.
+  **Its files are version 87.**

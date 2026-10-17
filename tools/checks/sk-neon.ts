@@ -981,7 +981,7 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
   // (not the corner blocks' pads, rules.pads.spine's corner-*: they go up from the edge road, out of the centre, and each
   // is ridden by its own check)
   // (the centre's own: not the corner blocks' or the districts' pads, out on their streets and alleys)
-  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-", "glass-", "canyon-", "works-"].some((p) => q.id.startsWith(p)));
+  const SPU = SPN.up.filter((q) => !["corner-", "lantern-", "terminal-", "stacks-", "glass-", "canyon-", "works-", "worksyard-"].some((p) => q.id.startsWith(p)));
   const stops = [
     ...SPU.map((q) => ({ id: `${q.id}'s pad`, x: q.pad[0], z: q.pad[1], y: q.floor })),
     ...SPU.filter((q) => q.floor === 0).map((q) => ({ id: `${q.id}'s landing`, x: q.face[0] - q.out[0] * q.land, z: q.face[1] - q.out[1] * q.land, y: q.ground })),
@@ -3407,6 +3407,21 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const ring = along(UPc?.walk ?? [[0, 0, 0]]);
   const bareRing = (UPc?.rails ?? []).filter(([x, z, y]) => !S.some((b) => b[0] <= x + 0.06 && b[1] >= x - 0.06 && b[2] <= z + 0.06 && b[3] >= z - 0.06 && b[4] <= y + 0.3 && b[5] >= y + 0.9));
   check("THE WORKS: the works block's upper floor, a pad up onto it from each side of the atrium, walked round, the atrium railed", worksPads.length === 2 && worksPads.every((u) => u.ok && Math.abs(u.q.ground - 7) < 0.3) && ring.k === (UPc?.walk.length ?? -1) && (UPc?.rails.length ?? 0) === 24 && bareRing.length === 0 && (UPc?.cover ?? 0) >= 8, `${worksPads.map((u) => u.said).join("; ")}; round the ring ${ring.k - 1} of ${(UPc?.walk.length ?? 1) - 1} legs; ${bareRing.length} of ${UPc?.rails.length ?? 0} rail lengths bare; ${UPc?.cover ?? 0} pieces of cover`);
+  // (its yards and roofs, Milestone 649: each yard pad ridden onto its roof, each footbridge walked across and back,
+  // every roof edge railed but where a bridge arrives, the roofs' cover standing in the collision on them, every yard
+  // piece laid)
+  const RWc = (cfg as unknown as { works?: { roofs?: { rails: number[][]; bridges: number[][]; cover: number[][]; names: string[]; laid: number; of: number } } }).works?.roofs;
+  const yardPads = ups.filter((u) => u.q.id.startsWith("worksyard-"));
+  check("THE WORKS: a pad up each wall of each yard, each landing on the roof over it", yardPads.length === 8 && yardPads.every((u) => u.ok && u.q.ground > 6), yardPads.map((u) => u.said).join("; "));
+  const crossed = (RWc?.bridges ?? []).map(([x, z, yaw, y]) => {
+    const [ux, uz] = Math.abs(yaw % 180) < 1 ? [1, 0] : [0, 1];
+    const r = [[x - ux * 9, z - uz * 9, y], [x + ux * 9, z + uz * 9, y]];
+    return { x, z, there: along(r), back: along([...r].reverse()) };
+  });
+  check("THE WORKS: each footbridge walked across its yard from roof to roof, and back", crossed.length === 2 && crossed.every((q) => q.there.k === 2 && q.back.k === 2), crossed.map((q) => `(${q.x}, ${q.z}): ${q.there.k === 2 ? "across" : `stopped at (${q.there.x.toFixed(1)}, ${q.there.z.toFixed(1)}) ${q.there.y.toFixed(2)} m`}, ${q.back.k === 2 ? "back" : `back stopped at (${q.back.x.toFixed(1)}, ${q.back.z.toFixed(1)}) ${q.back.y.toFixed(2)} m`}`).join("; "));
+  const bareRoof = (RWc?.rails ?? []).filter(([x, z, y]) => !S.some((b) => b[0] <= x + 0.06 && b[1] >= x - 0.06 && b[2] <= z + 0.06 && b[3] >= z - 0.06 && b[4] <= y + 0.3 && b[5] >= y + 0.9));
+  const unstood = (RWc?.cover ?? []).map((q, i) => ({ q, name: RWc!.names[i] })).filter(({ q: [x, z, hx, hz, y] }) => !S.some((b) => b[0] < x + hx && b[1] > x - hx && b[2] < z + hz && b[3] > z - hz && b[4] <= y + 0.3 && b[5] >= y + 0.9));
+  check("THE WORKS: its roofs railed along every drop but where a bridge arrives, their cover standing on them, every yard piece laid", (RWc?.rails.length ?? 0) > 150 && bareRoof.length === 0 && (RWc?.cover.length ?? 0) >= 18 && unstood.length === 0 && (RWc?.of ?? 0) === 8 && RWc?.laid === RWc?.of, [...bareRoof.slice(0, 3).map(([x, z]) => `bare (${x}, ${z})`), ...unstood.slice(0, 3).map(({ q, name }) => `${name} at (${q[0]}, ${q[1]}) not standing`)].join("; ") || `${RWc?.rails.length ?? 0} rail lengths, ${RWc?.cover.length ?? 0} pieces on the roofs, ${RWc?.laid ?? 0} of ${RWc?.of ?? 0} yard pieces`);
 }
 
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,
