@@ -6200,6 +6200,46 @@ async function speedkillsShipTest(browser: Browser): Promise<void> {
 }
 
 /** a SpeedKills battle royale in the city: it starts, 30 in it, bots on the streets, loot on the floors */
+/**
+ * The city's file not on the site (Milestone 629; on 2026-10-17 a release went out without the High file and a battle
+ * royale dropped the owner onto no city, nothing said): the page asks again after each of its waits, and then the HUD
+ * says the map did not load, rather than nothing. The next match asks for it again, and with the file back it draws.
+ */
+async function cityMissingTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?");
+  // (the 404s this test serves are its own: kept out of the run's "no page errors")
+  const errorsBefore = errors.length;
+  let gone = true;
+  const asked: string[] = [];
+  await page.setRequestInterception(true);
+  page.on("request", (r) => {
+    if (/neonmap-v\d+-\w+\.glb/.test(r.url())) {
+      asked.push(r.method());
+      if (gone) return void r.respond({ status: 404, contentType: "text/plain", body: "not here" });
+    }
+    void r.continue();
+  });
+  await ev(page, `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); })()`);
+  const said = await page.waitForFunction(`/DID NOT LOAD/.test(window.__range.hud.noticeNow)`, { polling: 250, timeout: 40000 }).then(() => true, () => false);
+  const heads = asked.filter((m) => m === "HEAD").length;
+  const notice = await ev<string>(page, "window.__range.hud.noticeNow");
+  check(
+    "the city's file missing: asked for again after each wait, and then the HUD says the map did not load",
+    said && heads === 4 && /RELOAD THE PAGE/.test(notice),
+    JSON.stringify({ said, heads, notice }),
+  );
+  // back on the site: the next match asks again and the city draws
+  gone = false;
+  await ev(page, "window.__range.duel()?.leave()");
+  await sleep(500);
+  await ev(page, `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); })()`);
+  const drawn = await page.waitForFunction("window.__range.neonMap().drawn", { polling: 500, timeout: 240000 }).then(() => true, () => false);
+  check("and with the file back the next match asks again, and the city draws", drawn, JSON.stringify({ asked: asked.length }));
+  await ev(page, "window.__range.duel()?.leave()");
+  await page.close();
+  for (let i = errors.length - 1; i >= errorsBefore; i--) if (/neonmap-v\d+|status of 404/.test(errors[i])) errors.splice(i, 1);
+}
+
 async function speedkillsBrTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender");
   // the row set to what this checks (trios, 27 bots), not left to its defaults: those are duos and 28 since Milestone 341
@@ -8303,7 +8343,13 @@ async function main(): Promise<void> {
       console.log("\nSpeedKills: the front door, the guns, fusion and the hacks");
       await speedkillsTest(browser);
       await speedkillsSlamTest(browser);
+      await cityMissingTest(browser);
     });
+    // (the city's file missing, alone, named only)
+    if (ONLY.includes("skcity")) {
+      console.log("\nSpeedKills: the city's file missing, alone");
+      await cityMissingTest(browser);
+    }
     // (the slam alone, named only: a rerun of the one check that failed, as a flaky one is rerun)
     if (ONLY.includes("skslam")) {
       console.log("\nSpeedKills: the slam, alone");

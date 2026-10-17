@@ -11817,6 +11817,22 @@ and the live check plays a 1v1 in an arena, which never asks for the city.
   without its High file or with it half copied is refused; an older version's files do not count); the real v93 bake
   and the live site both pass; rules.
 
+## Milestone 629 — A missing city is asked for again, and said, never a drop onto nothing
+
+The other half of 2026-10-17's empty drop (Milestone 628): when the site did not have the city's file, the page asked
+once, gave up without a word, and the battle royale went on with no city. Now (src/game/neonmap.ts cityBytes, with the
+city agent's yes; src/main.ts askCity):
+
+- **Asked again:** a 404 or no answer is asked for again after 1.5, 3 and 6 s, since a deploy swapping a release in
+  leaves the file missing for a moment. A dev server's page in its place is still a checkout without the bought files,
+  as before.
+- **Said:** after every try, the HUD says "THE CITY'S MAP DID NOT LOAD: RELOAD THE PAGE TO PLAY ON IT" for 15 s, the
+  visit log notes "the city did not load", and the next match asks for the file again (it waits for it under its
+  screen as the first did).
+- **Checked:** tsc; verify (the visit log says it); rules; e2e skcity, now in the speedkills section: with the site
+  answering 404 for the city the page asks four times and the HUD says so, and with the file back the next match asks
+  again and the city draws. Proven by taking the retries and the message out (one ask, nothing said).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

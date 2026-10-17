@@ -70,6 +70,8 @@ check("and main.ts sends every one of them", unsent.length === 0, unsent.join(",
   const left = describe({ ...base, ev: "close", secs: 120, on: "loading" });
   const played = describe({ ...base, ev: "close", secs: 900, on: "match", fps: 58 });
   check("the page's own screen in words: how long, on which preset", loaded === "in after 7 s on balanced", loaded);
+  const lost = describe({ ...base, ev: "city", secs: 11, mb: 0, cached: 0, on: "failed" });
+  check("a city that did not load says so", lost === "the city did not load (after 11 s)", lost);
   check("the city's wait, its size, and downloaded or from the browser's own copy", fetched === "waited 64 s for the city (155 MB, downloaded)" && kept === "waited 9 s for the city (155 MB, from its own copy)", `${fetched} / ${kept}`);
   check("where the player was as they closed it, and the frame rate playing", left === "closed it after 2 min on the loading screen" && played === "closed it after 15 min in a match (58 fps playing)", `${left} / ${played}`);
 }

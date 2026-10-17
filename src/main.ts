@@ -120,7 +120,7 @@ import { figuresSettled, hasClip, loadMannequin, useMannequin, soldierReady } fr
 import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
-import { NEON_AIR, NEON_MAP, buildNeonMap, dressNeonMap, loadNeonSolids, neonSolidsIn, neonPart, retakeReflection, showNeonPart, updateNeonFill, warmReflection } from "./game/neonmap";
+import { NEON_AIR, NEON_MAP, buildNeonMap, cityLoadFailed, dressNeonMap, loadNeonSolids, neonSolidsIn, neonPart, retakeReflection, showNeonPart, updateNeonFill, warmReflection } from "./game/neonmap";
 import type { ArenaMapInfo } from "./game/arenas";
 import { programRepList, repsRoot } from "./game/programreps";
 import { compileSafely } from "./game/compilesafe";
@@ -987,15 +987,24 @@ let cityAsked = cityIn;
 function askCity(): void {
   if (cityAsked) return;
   cityAsked = true;
+  // (asked again after a load that failed: the match waits for this one under its screen)
+  cityIn = new URLSearchParams(location.search).has("norender");
   // (its unpacking on more workers than three's four: one fewer than the machine's processors, intro.json cityWorkers)
   const workers = Math.max(4, Math.min(introCfg.show.cityWorkers, (navigator.hardwareConcurrency || 4) - 1));
   // (and the city's boxes, which a match on it cannot do without: neonmap.ts loadNeonSolids)
   const askedAt = performance.now();
-  void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(() => {
+  void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(([dressed]) => {
     cityIn = true;
+    // The site did not have the city's file after every try, or it broke off (Milestone 629): said to the player, not a
+    // drop onto nothing, and asked for again by the next match
+    const failed = cityLoadFailed() || dressed.status === "rejected";
+    if (failed) {
+      cityAsked = false;
+      hud.notice("THE CITY'S MAP DID NOT LOAD: RELOAD THE PAGE TO PLAY ON IT", gameTime, 15);
+    }
     // (for the visit log: how long a match waited for the city, and whether it came over the network or from the
     // browser's own copy; every map release is a new file to fetch)
-    note("city", { secs: (performance.now() - askedAt) / 1000, mb: NEON_MAP.total / 1e6, cached: NEON_MAP.fromCache });
+    note("city", { secs: (performance.now() - askedAt) / 1000, mb: NEON_MAP.total / 1e6, cached: NEON_MAP.fromCache, on: failed ? "failed" : undefined });
   });
 }
 // the city's haze (atmosphere.ts, the Neon City map's own), from Balanced up; ?noair leaves it off, to compare

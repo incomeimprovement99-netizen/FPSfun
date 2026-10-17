@@ -680,6 +680,19 @@ export function warmReflection(root: THREE.Object3D): Promise<unknown> {
 const CITY_CACHE = "sk-city";
 
 /**
+ * The waits, ms, before the city's file is asked for again when the site does not have it (Milestone 629): a deploy
+ * swaps the release in, and for that moment there is no file. On 2026-10-17 a release went out without the High file
+ * for a few minutes, and a battle royale dropped the owner onto no city at all with nothing said.
+ */
+const CITY_RETRY_MS = [1500, 3000, 6000];
+let cityFailed = false;
+
+/** the city's file could not be had from the site this visit, after every try: the page says so, and asks again */
+export function cityLoadFailed(): boolean {
+  return cityFailed;
+}
+
+/**
  * The city's file, from the browser's Cache Storage when a visit before kept it, or downloaded and kept there for the
  * next. Chrome's own cache does not keep a file this big: a return visit downloaded it again in full (78.8 MB of the
  * lo set over the network on the second of two visits with one profile, 2026-10-04), every first match of every visit.
@@ -701,11 +714,23 @@ async function cityBytes(url: string, fresh = false): Promise<ArrayBuffer | null
     NEON_MAP.fromCache = true;
     return buf;
   }
-  // a HEAD first: the Vite dev server answers a missing file with its index page, not a 404
-  const probe = await fetch(abs, { method: "HEAD" }).catch(() => null);
-  if (!probe || !probe.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) return null;
+  // A HEAD first: the Vite dev server answers a missing file with its index page, not a 404, and that is a checkout
+  // without the bought files. A 404 or no answer is asked again after each of CITY_RETRY_MS.
+  const page = (r: Response) => (r.headers.get("content-type") ?? "").includes("text/html");
+  let probe = await fetch(abs, { method: "HEAD" }).catch(() => null);
+  for (const wait of CITY_RETRY_MS) {
+    if (probe?.ok) break;
+    await new Promise((ok) => setTimeout(ok, wait));
+    probe = await fetch(abs, { method: "HEAD", cache: "no-store" }).catch(() => null);
+  }
+  if (probe?.ok && page(probe)) return null;
+  cityFailed = !probe?.ok;
+  if (cityFailed) return null;
   const res = await fetch(abs);
-  if (!res.ok || !res.body) throw new Error(`the city's file: ${res.status}`);
+  if (!res.ok || !res.body) {
+    cityFailed = true;
+    throw new Error(`the city's file: ${res.status}`);
+  }
   const total = Number(res.headers.get("content-length") ?? 0);
   // one copy into the cache as it streams, the other counted for the screen and read whole
   const [toKeep, toRead] = res.body.tee();

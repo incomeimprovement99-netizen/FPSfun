@@ -94,6 +94,7 @@ export function describe(l: SeenLine): string {
     case "loaded":
       return `in after ${l.secs ?? "?"} s${l.preset ? ` on ${l.preset}` : ""}`;
     case "city":
+      if (l.on === "failed") return `the city did not load (after ${l.secs ?? "?"} s)`;
       return `waited ${l.secs ?? "?"} s for the city${typeof l.mb === "number" ? ` (${l.mb} MB, ${l.cached === 1 ? "from its own copy" : "downloaded"})` : ""}`;
     case "host":
       return `made a lobby ${l.code ?? ""}${mode}`.trim();
