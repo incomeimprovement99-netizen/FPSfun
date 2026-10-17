@@ -3198,6 +3198,19 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE STRIP's club: its balcony railed along every open edge, over its gates too, but where a stair comes off", !!CO && CO.railLines.length >= 20 && railPoints > 80 && unfenced.length === 0, unfenced.slice(0, 4).join("; ") || `${railPoints} points along ${CO?.railLines.length ?? 0} rails`);
 }
 
+// GLASS HEIGHTS' light (rules.districts.glass.light, Milestone 600): cyan strips under its four gangways, each hung
+// against a deck's underside, and its street lamps' heads cyan
+{
+  const GL = (cfg.rules as unknown as { districts?: { glass?: { light?: { strip: string; remap: string; lampRemap: string; panel: string; panelRemap: string } } } }).districts?.glass?.light;
+  const placed = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-glass"]?.place ?? [];
+  const strips = placed.filter((q) => GL && String(q[0]).endsWith(`/${GL.strip}`) && q[6] === GL.remap) as Array<[string, number, number, number]>;
+  const panels = placed.filter((q) => GL && String(q[0]).endsWith(`/${GL.panel.split("/").pop()}`) && q[6] === GL.panelRemap) as Array<[string, number, number, number]>;
+  const S = SOLIDS.solids as number[][];
+  const loose = strips.filter(([, x, y, z]) => !S.some((b) => b[0] <= x && b[1] >= x && b[2] <= z && b[3] >= z && b[4] >= y - 0.1 && b[4] <= y + 0.6));
+  const heads = placed.filter((q) => GL && String(q[0]).endsWith("/Lighting_Deco002_lgt.prefab") && q[6] === GL.lampRemap).length;
+  check("GLASS HEIGHTS' light: cyan strips and panels under its four gangways, each strip hung against a deck's underside, and its street lamps cyan", !!GL && strips.length >= 28 && panels.length >= 8 && loose.length === 0 && heads >= 3, `${strips.length} strips and ${panels.length} panels, ${loose.length} strips hanging free${loose.length ? ` (${loose.slice(0, 3).map(([, x, y, z]) => `(${x.toFixed(1)}, ${y.toFixed(1)}, ${z.toFixed(1)})`).join("; ")})` : ""}, ${heads} cyan street lamps`);
+}
+
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,
 // a ceiling lamp under every balcony cell that the game takes for a fill light's spot, the street lamps' heads magenta
 {

@@ -13854,3 +13854,19 @@ white, so the district's magenta is in glowing pieces, as THE STACKS' pink is.
 - **Checked** (tools/checks/sk-neon.ts): the strips placed (24), a lamp under each of the 28 balcony cells and 28 fill spots under the balcony as the game gathers them, the 3 street lamps magenta, proven by taking the 28 lamps out (0 lamps, 0 fill spots: failed); THE STRIP's and the stairs' checks all still passing; the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: the club from inside, under its balcony and from its gate, the boulevard and the ring road, by neon night and golden hour: the dance floor lit at night where it drew black.
   The map: its files lo 141.0 MB, hi 212.8 MB, max 457.5 MB.
   **Its files are version 78.**
+
+## Milestone 600 — GLASS HEIGHTS' light
+
+The north district's third stage (`rules.districts.glass.light`, tools/neon-layout.ts).
+
+- **Why up high:** its decks' undersides stand 20 to 28 m up, measured off the bake, too high for the game's warm fill
+  lights to reach the ground. So the district's cyan is glowing pieces up there.
+- **Under its four gangways** (rules.bridges.paths' last four, the long one over the ring road among them), clear of
+  the 5 m at each end where a deck rests on a roof: the pack's strip light along both edges every 2.5 m, and its 2.8 m
+  ceiling panel down the middle every 3.75 m, their lit faces worn as the pack's Light06 glowing cyan. The strips
+  alone, 14 cm wide 25 m up, read as thin pale lines from the street, and at three times the light's strength the cyan
+  went white. The panels give the underside a body, and the light is at 1.5 so the colour holds.
+- **Its street lamps' heads** are cyan too.
+- **Checked** (tools/checks/sk-neon.ts): the strips (32) and panels (9) placed under the four gangways, every strip found hung against a deck's underside in the collision, the street lamps cyan (3), proven by lowering the strips a metre (all 32 hanging free: failed); the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: the gangways from under them on the ring road, from across the ring road, from the courtyard and from the Loop, by neon night and golden hour: the strips alone read as thin pale lines, and with the panels the undersides read cyan from the street.
+  The map: its files lo 141.3 MB, hi 213.2 MB, max 457.8 MB.
+  **Its files are version 79.**

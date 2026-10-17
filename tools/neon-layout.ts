@@ -4326,6 +4326,7 @@ function onNode(o: OBox): boolean {
     buildings: Array<[string, number, number, number]>;
     lift?: { car: number[]; out: number[]; decks: number; colour: string };
     ground?: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
+    light?: { strip: string; remap: string; every: number; side: number; under: number; ends: number; lampRemap: string; panel: string; panelRemap: string; panelEvery: number };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } };
   const DG = (R.districts as { glass?: Glass } | undefined)?.glass;
   let cfgGlassLift: { id: string; rope: number[][]; floor: number; car: number[]; out: number[]; land: number[]; foot: number[]; colour: string } | null = null;
@@ -4407,10 +4408,37 @@ function onNode(o: OBox): boolean {
           for (const [name, dx, dz, yw, y] of set) placeTurned(DG.chunk, name, x + dx, z + dz, yw, "o", y - piece(name).row.min![1]);
           cover++;
         }
-      for (const [x, z, yaw] of GG.lamps.at) placeTurned(DG.chunk, GG.lamps.piece, x, z, yaw, "o");
+      for (const [x, z, yaw] of GG.lamps.at) placeTurned(DG.chunk, GG.lamps.piece, x, z, yaw, "o", 0, DG.light?.lampRemap);
+    }
+    // GLASS HEIGHTS' light (`light`, Milestone 600): cyan strips under its four gangways along both edges, clear of
+    // their ends where the deck rests on a roof
+    const GLT = DG.light;
+    let [strips, panels] = [0, 0];
+    if (GLT) {
+      const sr = piece(GLT.strip).row;
+      const y = R.bridges.deck - GLT.under - sr.max![1];
+      for (const path of (R.bridges.paths as number[][][]).filter((p) => p.some((q) => q[1] < -105)))
+        for (let k = 1; k < path.length; k++) {
+          const [a, b] = [path[k - 1], path[k]];
+          const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+          const u: Pt = [(b[0] - a[0]) / L, (b[1] - a[1]) / L];
+          const yaw = Math.abs(u[0]) > Math.abs(u[1]) ? 0 : 90;
+          for (let t = GLT.ends + GLT.every / 2; t < L - GLT.ends; t += GLT.every)
+            for (const s of [-1, 1]) {
+              placeTurned(DG.chunk, GLT.strip, a[0] + u[0] * t - u[1] * s * GLT.side, a[1] + u[1] * t + u[0] * s * GLT.side, yaw, "g", y, GLT.remap);
+              strips++;
+            }
+          // (and the panels down its middle, their long side along it)
+          const pr = piece(GLT.panel).row;
+          const half = pr.size![0] / 2;
+          for (let t = GLT.ends + half; t <= L - GLT.ends - half + 1e-6; t += GLT.panelEvery) {
+            placeTurned(DG.chunk, GLT.panel, a[0] + u[0] * t, a[1] + u[1] * t, yaw, "g", R.bridges.deck - GLT.under - pr.max![1], GLT.panelRemap);
+            panels++;
+          }
+        }
     }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "glass"), { district: "glass", ...DG.name }];
-    cfg.glass = { slabs, ...(cfgGlassLift ? { lift: cfgGlassLift } : {}), cover };
+    cfg.glass = { slabs, ...(cfgGlassLift ? { lift: cfgGlassLift } : {}), cover, strips, panels };
     console.log(`GLASS HEIGHTS: ${slabs.map((s) => `${s.piece.replace(".prefab", "")} to ${s.top} m`).join(", ")}`);
   }
 }
