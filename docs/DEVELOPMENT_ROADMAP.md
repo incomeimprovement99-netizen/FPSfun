@@ -14292,3 +14292,26 @@ its floor fit for underground.
   the entrances and the way down to the station still walked. The e2e: the speedkills section 101 of 101. verify, rules and the type check. Looked at
   from the review's spot 20 and three new ones in the court. The map: its files lo 155.3 MB, hi 227.2 MB, max 471.8 MB.
   **Its files are version 92.**
+
+## Milestone 656 — The gangway's cover staggered, with side shields
+
+The sixth review asked for the gangway's cover "staggered with side shields". The fifth had found the gangway a bare
+52 m slab over the plaza, and the three pieces laid on it then (Milestone 580, as a perch) stood in its middle, kept off
+its edges.
+
+- **Staggered** (`rules.bridges.gangwayCover`): six sets along its long leg, out of the tower's window, against its north
+  rail and then its south in turn, 7 m apart: stacks of three crates (2 m) and the pack's cooling plant laid with its long
+  side down the rail (1.5 m). Each stands 0.15 m off the rail's glass, which is 2.0 m either side of the deck's middle
+  line (measured off the bridge piece's mesh), and leaves a 3 m lane beside it.
+- **Side shields:** from each set a 2.5 m length of the pack's two-sided concrete panel at half size, 1.5 m tall, runs on
+  along the same rail, away from the tower. A body crosses from one side's cover to the other's, and the rail it hugs
+  is shut to the plaza and the blocks beside it.
+- **The perch's three pieces** are gone (the perches are 28 now).
+- **Looked at and left, the lookout's "thick parapet"** (the review's spot 10): it is 0.5 m tall and 1.5 m deep, within a
+  body's 0.56 m step. A player steps onto it and sees straight down from its edge; only the review's camera, on the roof
+  behind it, had its view cut.
+- **Checked:** a new check (tools/checks/sk-neon.ts): the sets alternate rails, each solid on the deck (2.0 and 1.5 m),
+  each shield 1.5 m, and cover within 4 m of every half metre of the deck's middle line between the window's cell and the
+  corner's. It fails with the bug put back: with the south rail's two middle sets taken out it read NNNS, four half metres bare. The bridges' walks still pass, the gangway's among them. The e2e: the speedkills section 101 of 101, run alone (a first run beside the map checks lost one: the ghost loadout check found a rifle on the floor, a known flake under load). verify, rules and the type
+  check. Photographed along the gangway both ways and from above. The map: its files lo 155.4 MB, hi 227.2 MB, max 471.9 MB.
+  **Its files are version 93.**

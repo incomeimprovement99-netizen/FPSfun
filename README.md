@@ -47,7 +47,7 @@ describes the retired legacy game, and goes with its code.
   - The centre's tower rises from a wide base round a lobby, eleven floors of rooms, halls and mazes numbered by its
     stair, THE VAULT among them with the best loot (its name in gold neon on all four faces), a lookout at 49 m, and over them a sky lobby, a machine hall and a
     penthouse (60, 75 and 90 m) reached by two express ropes and the stair, which climbs on to the crown at 109.
-  - Round it the Sky Ring walkway, the four High City islands on their decks at 26 m joined by a ring of bridges and the east one to the tower's 26 m storey by a gangway, glass
+  - Round it the Sky Ring walkway, the four High City islands on their decks at 26 m joined by a ring of bridges and the east one to the tower's 26 m storey by a gangway with crates, plant and concrete shields against one rail and then the other, glass
     lifts up to them, zip lines from the lookout and the roof yards, jump pads, and a station under the plaza.
   - The streets curve round the Loop, with cover within 6 m of every point of them.
   - The dropship starts off the map and flies 6 s before its doors open. It always passes the tower, from any side,

@@ -351,8 +351,30 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") || name === "gangway" ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the gangway, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 29 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 28 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+// THE GANGWAY's cover (Milestone 656; the sixth review: "the gangway's cover staggered with side shields"): along its long
+// leg its sets alternate rails, each solid on its deck 1.4 m and more, each with its shield 1.4 m and more along the same
+// rail; and from every half metre of the deck's middle line between the window's cell and the corner's, cover a body
+// stands behind is within 4 m
+{
+  const GW = (cfg as unknown as { gangway?: { leg: number[]; z: number; deck: number; sets: number[][]; shields: number[][] } }).gangway;
+  const tall = (q: number[]) => {
+    const [x, z, hx, hz] = [q[0] + BR_X, q[1] + BR_Z, q[2] - 0.1, q[3] - 0.1];
+    const bs = solidsIn(x - hx, x + hx, z - hz, z + hz).filter((b) => b.minX < x + hx && b.maxX > x - hx && b.minZ < z + hz && b.maxZ > z - hz && b.base < GW!.deck + 0.5 && b.top > GW!.deck + 0.3);
+    return bs.length ? Math.max(...bs.map((b) => b.top)) - GW!.deck : 0;
+  };
+  const sets = [...(GW?.sets ?? [])].sort((p, q) => p[0] - q[0]);
+  const staggered = sets.every((q, k) => k === 0 || q[5] !== sets[k - 1][5]);
+  const [setH, shieldH] = [sets.map(tall), (GW?.shields ?? []).map(tall)];
+  const all = [...sets, ...(GW?.shields ?? [])].filter((q) => tall(q) >= 1.4);
+  const bare: number[] = [];
+  for (let x = (GW?.leg[0] ?? 0) + 5.5; x <= (GW?.leg[1] ?? 0) - 2.5; x += 0.5) {
+    const d = Math.min(...all.map((q) => Math.hypot(Math.max(0, Math.abs(x - q[0]) - q[2]), Math.max(0, Math.abs(GW!.z - q[1]) - q[3]))));
+    if (d > 4) bare.push(x);
+  }
+  check("THE GANGWAY: its cover staggered from rail to rail, each set and its side shield solid on the deck 1.4 m and more, and cover within 4 m of every half metre of it", !!GW && sets.length >= 6 && staggered && setH.every((h) => h >= 1.4) && shieldH.length === sets.length && shieldH.every((h) => h >= 1.4) && bare.length === 0, `${sets.length} sets ${sets.map((q) => (q[5] < 0 ? "N" : "S")).join("")}, ${setH.map((h) => h.toFixed(1)).join("/")} m; shields ${shieldH.map((h) => h.toFixed(1)).join("/")} m; ${bare.length} half metres bare${bare.length ? ` (x ${bare.slice(0, 4).join(", ")})` : ""}`);
+}
 // each corner block's sign (rules.low.identity): four, each scaled up, standing on its roof (the collision's top there
 // at its foot), its lit face turned to the middle of the map, and solid: its own collision standing 2 m and more over its
 // roof within 1.5 m of its foot (drawn only, a player on MOTEL HILL's roof walked through MOTEL)

@@ -2380,6 +2380,52 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
   }
   cfg.bridgeStairs = bridgeStairs;
   console.log(`bridges: ${decks} decks on ${B.paths.length} paths, ${stairs} stairs at their ends (${bridgeStairs.filter((q) => q.lift).length} lifted, the rest set back)`);
+
+  // The gangway's cover (rules.bridges.gangwayCover, Milestone 656; the sixth review: "the gangway's cover staggered with
+  // side shields"; the fifth had found it a bare 52 m slab over the plaza). Along its long leg, out of the tower's window,
+  // a set against one rail and the next against the other, each with a low shield running on along its rail from it: a
+  // body crosses from one side's cover to the other's, and the plaza under the rail it hugs has no line on it. Each
+  // set's and shield's box [x, z, half x, half z, top, side] for the checks
+  const GC = B.gangwayCover as { crate: string; rail: number; inset: number; sets: Array<[string, number, number]>; shield: { piece: string; scale: number; gap: number } } | undefined;
+  const gangway = (B.paths as number[][][]).find((p) => ((B.into ?? []) as number[][]).some((q) => same(q, p[0])));
+  if (GC && gangway) {
+    const [a, b] = gangway;
+    if (Math.abs(a[1] - b[1]) > 1e-6) throw new Error("the gangway's long leg runs along x");
+    const deck = B.deck;
+    const sets: number[][] = [];
+    const shields: number[][] = [];
+    const sh = piece(GC.shield.piece).row;
+    const [shx, shz, shTop] = [(sh.size![0] / 2) * GC.shield.scale, (sh.size![2] / 2) * GC.shield.scale, sh.size![1] * GC.shield.scale];
+    for (const [name, x, side] of GC.sets) {
+      const set: Array<[string, number, number, number]> = [];
+      if (name === "crates") {
+        const c = piece(GC.crate).row;
+        set.push([GC.crate, c.size![0] / 2 + 0.01, 0, 0], [GC.crate, -c.size![0] / 2 - 0.01, 0, 0], [GC.crate, -c.size![0] / 2 - 0.01, 0, c.size![1]]);
+      } else set.push([name, 0, 0, 0]);
+      // (laid a quarter turn where the piece is longer across than along: its long side down the rail)
+      const r0 = piece(set[0][0]).row;
+      const yaw = name !== "crates" && r0.size![2] > r0.size![0] ? 90 : 0;
+      let [hx, hz, top] = [0, 0, -Infinity];
+      for (const [n, dx, , up] of set) {
+        const r = piece(n).row;
+        const [ex, ez] = yaw ? [r.size![2] / 2, r.size![0] / 2] : [r.size![0] / 2, r.size![2] / 2];
+        hx = Math.max(hx, Math.abs(dx) + ex);
+        hz = Math.max(hz, ez);
+        top = Math.max(top, deck + up + r.size![1]);
+      }
+      // (its face `inset` off the rail's glass, the rail `rail` from the deck's middle line: a body cannot pass behind it)
+      const z = a[1] + side * (GC.rail - GC.inset - hz);
+      for (const [n, dx, , up] of set) placeTurned("c-bridges", n, x + dx, z, yaw, "o", deck + up - piece(n).row.min![1]);
+      sets.push([x, z, hx, hz, top, side].map((q) => +q.toFixed(2)));
+      // the shield on along the same rail, a `gap` past the set, away from the tower
+      const sx = x + hx + GC.shield.gap + shx;
+      const sz = a[1] + side * (GC.rail - GC.inset - shz);
+      placeTurned("c-bridges", GC.shield.piece, sx, sz, 0, "o", deck - sh.min![1] * GC.shield.scale, undefined, GC.shield.scale);
+      shields.push([sx, sz, shx, shz, deck + shTop, side].map((q) => +q.toFixed(2)));
+    }
+    cfg.gangway = { leg: [a[0], b[0]], z: a[1], deck, sets, shields };
+    console.log(`the gangway: ${sets.length} sets of cover, ${sets.filter((q) => q[5] < 0).length} on its north rail and ${sets.filter((q) => q[5] > 0).length} on its south, a shield on from each`);
+  }
 }
 
 // The fronts along the centre's streets and its ring hung with the pack's neon signs (rules.signs): found in the last
