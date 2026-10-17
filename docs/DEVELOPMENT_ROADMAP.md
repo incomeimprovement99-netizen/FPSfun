@@ -11779,6 +11779,22 @@ city agent's, who is taking them next with texture arrays.
   fps the bands' own strides, two far figures on different frames); rules; e2e page (50% halves the pixel ratio and the
   canvas at once, is kept, and 100% puts it back).
 
+## Milestone 627 — A low frame rate tip, and a HUD saving that was not one
+
+- **The tip** (src/game/perftip.ts, src/config/hud.json `slowTip`): a friend on a weak machine does not know there is a
+  Render scale or a Competitive preset (Milestone 626). After 20 s of play (not the menu, not loading) averaging under
+  45 fps the HUD says once what to try: "LOW FRAME RATE (30 FPS): TRY RENDER SCALE 70% OR THE COMPETITIVE PRESET IN
+  SETTINGS", only what is not already set, or fewer bots in a battle royale once both are. That browser never hears it
+  again; a frame over a second (a tab in the background, a load) is not counted; a test browser never shows it (its
+  frames are drawn in software, and its notice would cover the ones the tests read).
+- **Tried and taken back: the HUD's words drawn once and copied.** On a half-speed processor the HUD is 1.4 ms a frame,
+  its words an outline and a fill each. Each word was drawn once into a canvas of its own and copied after: interleaved
+  on the same half-speed bench (four rounds each) the HUD took 1.58 ms a frame with it and 1.27 without, and the frame
+  rate fell, so it went back out (copying from a hundred small canvases costs Chrome more than drawing the words).
+- **Checked:** tsc; verify (20 s at 30 fps says it once naming both, never again in that browser even after a reload,
+  60 fps and the menu say nothing, both tried says fewer bots, stalls are not counted; proven by letting it repeat);
+  rules.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

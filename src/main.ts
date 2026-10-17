@@ -26,6 +26,7 @@ import { applyFinish, gunModel, resetGunModels } from "./game/gunmodels";
 import { Voice } from "./net/voice";
 import { seen, type SeenDetail, type SeenEvent } from "./net/seen";
 import { FEEDBACK_MAX, sendFeedback, type FeedbackKind } from "./net/feedback";
+import { SlowTip } from "./game/perftip";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { keyPanelTexts, setPanelKeys } from "./game/geo";
@@ -6141,7 +6142,12 @@ let playSecs = 0;
 let playFrames = 0;
 /** the last match's kind, for a note from the Feedback tab */
 let lastMode: string | undefined;
+/** a low frame rate said once, with what to try (perftip.ts, Milestone 627) */
+const slowTip = new SlowTip();
 function visitFrame(dt: number): void {
+  // (not in a test browser: it draws in software, slowly, and a notice of its own would cover the ones the tests read)
+  const tip = navigator.webdriver ? null : slowTip.frame(dt, input.playing && overlay.classList.contains("hidden"), renderScale, quality.preset);
+  if (tip) hud.notice(tip, gameTime, 7);
   if (!loadedSaid && loadingScreen.loaded) {
     loadedSaid = true;
     note("loaded", { secs: performance.now() / 1000, preset: quality.preset });

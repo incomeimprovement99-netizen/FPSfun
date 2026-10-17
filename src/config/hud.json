@@ -420,5 +420,10 @@
     "streaks": 9,
     "speed": 1.6,
     "color": "#78dcff"
+  },
+  "_slowTip": "Milestone 627: a friend on a weak machine does not know there is a Render scale or a Competitive preset. After `seconds` of play (not the menu, not loading) averaging under `below` frames a second, the HUD says once what to try, and that browser never hears it again (src/game/perftip.ts). 45: under it a fight stutters on a 60 Hz screen; 20 s: long enough that a moment's hitch or a heavy fight is not the machine's pace.",
+  "slowTip": {
+    "below": 45,
+    "seconds": 20
   }
 }
