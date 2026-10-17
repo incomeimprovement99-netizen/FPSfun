@@ -4410,7 +4410,7 @@ function onNode(o: OBox): boolean {
         }
       for (const [x, z, yaw] of GG.lamps.at) placeTurned(DG.chunk, GG.lamps.piece, x, z, yaw, "o", 0, DG.light?.lampRemap);
     }
-    // GLASS HEIGHTS' light (`light`, Milestone 600): cyan strips under its four gangways along both edges, clear of
+    // GLASS HEIGHTS' light (`light`, Milestone 640): cyan strips under its four gangways along both edges, clear of
     // their ends where the deck rests on a roof
     const GLT = DG.light;
     let [strips, panels] = [0, 0];

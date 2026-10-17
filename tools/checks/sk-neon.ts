@@ -3198,7 +3198,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE STRIP's club: its balcony railed along every open edge, over its gates too, but where a stair comes off", !!CO && CO.railLines.length >= 20 && railPoints > 80 && unfenced.length === 0, unfenced.slice(0, 4).join("; ") || `${railPoints} points along ${CO?.railLines.length ?? 0} rails`);
 }
 
-// GLASS HEIGHTS' light (rules.districts.glass.light, Milestone 600): cyan strips under its four gangways, each hung
+// GLASS HEIGHTS' light (rules.districts.glass.light, Milestone 640): cyan strips under its four gangways, each hung
 // against a deck's underside, and its street lamps' heads cyan
 {
   const GL = (cfg.rules as unknown as { districts?: { glass?: { light?: { strip: string; remap: string; lampRemap: string; panel: string; panelRemap: string } } } }).districts?.glass?.light;

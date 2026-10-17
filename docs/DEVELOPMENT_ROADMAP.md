@@ -13855,9 +13855,11 @@ white, so the district's magenta is in glowing pieces, as THE STACKS' pink is.
   The map: its files lo 141.0 MB, hi 212.8 MB, max 457.5 MB.
   **Its files are version 78.**
 
-## Milestone 600 — GLASS HEIGHTS' light
+## Milestone 640 — GLASS HEIGHTS' light
 
-The north district's third stage (`rules.districts.glass.light`, tools/neon-layout.ts).
+The north district's third stage (`rules.districts.glass.light`, tools/neon-layout.ts). Committed as Milestone 600, a
+number the character agent had already used (e5fe3091); renumbered here, and the city's milestones are 640 to 659 from
+now on.
 
 - **Why up high:** its decks' undersides stand 20 to 28 m up, measured off the bake, too high for the game's warm fill
   lights to reach the ground. So the district's cyan is glowing pieces up there.
