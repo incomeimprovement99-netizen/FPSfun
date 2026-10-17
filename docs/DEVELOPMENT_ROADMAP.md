@@ -11871,6 +11871,27 @@ firing range a bit as well in terms of styling". Photographed from the same spot
 - **Checked:** tsc; verify; rules; e2e range (dropped onto the canopy you stand at 6.4 m; the range's environment light
   a third of the hour's), proven with the floor and the share taken out (fell to 0 m; 0.95 of 0.95).
 
+## Milestone 632 — The start screen: Tutorial, Firing Range and Battle Royale
+
+The owner, 2026-10-17: "the menu at the start should have it there. It should be sectioned differently now, like 3
+options for "TUTORIAL" "FIRING RANGE" "BATTLE ROYALE". Similar to how we have it but everything should be center
+aligned. and keep the resume and more, but resume should be bigger and more should be more or less hidden, and make the
+whole UX smooth and easy to do. New players should get a nudge or whatever to click on the tutorial, returning players
+shouldn't get that, they can click it if they want to."
+
+- **Three ways in, centred** (index.html, src/ui/start.ts): TUTORIAL (amber, "Learn"), FIRING RANGE (cyan, "Training")
+  and BATTLE ROYALE (pink, "Play"), side by side, everything in them centred. The tutorial goes straight in, with no hack
+  pick: it teaches the hacks in their own room. Until its own course is built (docs/PLAN_TUTORIAL.md) it is the guided
+  tour.
+- **Resume** is the big button over them when there is a game to go back to; **More** is a quiet word under them (its
+  tooltip says what is there).
+- **The nudge:** someone new (a profile made on this visit, and no way in ever chosen in this browser) sees "NEW HERE?
+  START WITH THIS" over the Tutorial and a slow amber glow round it. Once any way in has been chosen it is never shown
+  again in that browser; anyone who played before this milestone has a profile from before, so is not nudged.
+- **Checked:** tsc; verify; rules; e2e start (three ways and More; a returning player not nudged; someone new nudged,
+  the Tutorial straight into the tour with no pick, and the nudge gone after; the rest of the start screen as before),
+  proven with the nudge turned off.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

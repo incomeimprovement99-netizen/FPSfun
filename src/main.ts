@@ -6082,13 +6082,16 @@ const startScreen = new StartScreen(
         sel.value = picks[slot];
         sel.dispatchEvent(new Event("change"));
       }
-      // the menu's own Start, on the panel's settings: the defaults, or what was set under More
-      menu.pickMode(way);
+      // the menu's own Start, on the panel's settings: the defaults, or what was set under More (the tutorial is the
+      // guided tour until its own course is built, docs/PLAN_TUTORIAL.md)
+      menu.pickMode(way === "tutorial" ? "tour" : way);
       $<HTMLButtonElement>("startMode").click();
     },
     resume: () => resumeFromMenu(),
     canResume: () => !playBtn.hidden,
     keys: () => ({ mobility: keyLabel("ability"), utility: keyLabel("grenade") }),
+    // new: the profile was made on this visit (stats.ts makes one on a first visit and keeps it)
+    newPlayer: Date.parse(profile.profile.since) >= performance.timeOrigin - 2000,
   },
   !new URLSearchParams(location.search).has("nohome")
 );

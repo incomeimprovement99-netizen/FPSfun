@@ -101,21 +101,28 @@
       .startBrand .logo { color: #20e0ff; text-shadow: 0 0 22px rgba(32, 224, 255, .55); }
       .startBrand .title { color: #ff2e9a; text-shadow: 0 0 22px rgba(255, 46, 154, .5); }
       .startBrand .beta { align-self: center; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: #fff; background: #ff2e9a; padding: 2px 8px; border-radius: 3px; }
-      .startResume { padding: 10px 44px; border-radius: 8px; border: 2px solid #20e0ff; background: #0f5a6e; color: #e8fbff; font: 700 20px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .14em; text-transform: uppercase; cursor: pointer; }
+      /* (Milestone 632: Resume the big button when there is a game to go back to, More a quiet word under the three ways in) */
+      .startResume { padding: 16px 84px; border-radius: 10px; border: 2px solid #20e0ff; background: #0f5a6e; color: #e8fbff; font: 700 32px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 30px rgba(32, 224, 255, .25); }
       .startResume:hover { background: #137690; }
-      .startWays { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; width: 100%; }
-      .startWay { display: flex; flex-direction: column; justify-content: flex-end; align-items: flex-start; gap: 8px; min-height: 250px; padding: 28px 30px; box-sizing: border-box; text-align: left; border-radius: 10px; border: 2px solid #1d2a44; background: linear-gradient(160deg, #0f1a33, #0a0e1c); color: #e8fbff; font: inherit; cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
+      .startWays { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; width: 100%; }
+      .startWay { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; min-height: 250px; padding: 28px 26px; box-sizing: border-box; text-align: center; border-radius: 10px; border: 2px solid #1d2a44; background: linear-gradient(160deg, #0f1a33, #0a0e1c); color: #e8fbff; font: inherit; cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
       .startWay small { font-size: 15px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; }
-      .startWay b { font-size: clamp(32px, 4.4vw, 50px); font-weight: 700; letter-spacing: .03em; line-height: 1.02; }
-      .startWay span { font-size: 17px; line-height: 1.4; color: #9aa7b8; max-width: 36ch; }
+      .startWay b { font-size: clamp(28px, 3.2vw, 42px); font-weight: 700; letter-spacing: .03em; line-height: 1.02; }
+      .startWay span { font-size: 17px; line-height: 1.4; color: #9aa7b8; max-width: 30ch; }
+      .startWay.learn { border-color: #ffd23c66; background: linear-gradient(160deg, #2a2210, #120e06); }
+      .startWay.learn small { color: #ffd23c; }
+      .startWay.learn:hover, .startWay.learn:focus-visible { border-color: #ffd23c; box-shadow: 0 0 0 1px rgba(255, 210, 60, .35), 0 0 36px rgba(255, 210, 60, .2); transform: translateY(-2px); outline: none; }
+      /* a new player's nudge to the tutorial: a badge and a slow glow (start.ts, Milestone 632) */
+      .startWay.learn.nudge { border-color: #ffd23c; animation: nudge 1.8s ease-in-out infinite; }
+      @keyframes nudge { 0%, 100% { box-shadow: 0 0 0 1px rgba(255, 210, 60, .3), 0 0 18px rgba(255, 210, 60, .15); } 50% { box-shadow: 0 0 0 2px rgba(255, 210, 60, .7), 0 0 44px rgba(255, 210, 60, .4); } }
+      .startNudge { position: absolute; top: -14px; left: 50%; transform: translateX(-50%); white-space: nowrap; padding: 4px 14px; border-radius: 999px; background: #ffd23c; color: #1a1406; font: 700 14px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .1em; text-transform: uppercase; font-style: normal; }
       .startWay.training small { color: #20e0ff; }
       .startWay.play { border-color: #ff2e9a77; background: linear-gradient(160deg, #1d1033, #0c0a1c); }
       .startWay.play small { color: #ff2e9a; }
       .startWay.training:hover, .startWay.training:focus-visible { border-color: #20e0ff; box-shadow: 0 0 0 1px rgba(32, 224, 255, .35), 0 0 36px rgba(32, 224, 255, .2); transform: translateY(-2px); outline: none; }
       .startWay.play:hover, .startWay.play:focus-visible { border-color: #ff2e9a; box-shadow: 0 0 0 1px rgba(255, 46, 154, .35), 0 0 36px rgba(255, 46, 154, .2); transform: translateY(-2px); outline: none; }
-      .startMore { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 12px 40px; border-radius: 8px; border: 1px solid #2a3a55; background: rgba(11, 14, 24, .7); color: #e8fbff; font: 700 21px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; }
-      .startMore span { font-size: 13px; font-weight: 600; letter-spacing: .05em; text-transform: none; color: #7d8aa0; }
-      .startMore:hover, .startMore:focus-visible { border-color: #20e0ff; outline: none; }
+      .startMore { padding: 6px 18px; border: 0; border-radius: 6px; background: transparent; color: #6d7a90; font: 600 15px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; }
+      .startMore:hover, .startMore:focus-visible { color: #e8fbff; outline: none; text-decoration: underline; text-underline-offset: 4px; }
       .startBack { margin-left: 4px; padding: 3px 10px; border-radius: 4px; border: 1px solid #2a3a55; background: transparent; color: #9aa7b8; font: 700 12px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; align-self: center; }
       .startBack[hidden] { display: none; }
       .startBack:hover { color: #e8fbff; border-color: #20e0ff; }
@@ -478,10 +485,11 @@
         <div class="startBrand"><span class="logo">SPEED</span><span class="title">KILLS</span><span class="beta">BETA</span></div>
         <button type="button" class="startResume" id="startResume" hidden>Resume</button>
         <div class="startWays">
+          <button type="button" class="startWay learn" id="startTutorial"><em class="startNudge" id="startNudge" hidden>New here? Start with this</em><small>Learn</small><b>Tutorial</b><span>Every move first, then the hacks, then a fight: the game a step at a time.</span></button>
           <button type="button" class="startWay training" id="startRange"><small>Training</small><b>Firing Range</b><span>Every gun and both of your hacks, at your own pace.</span></button>
           <button type="button" class="startWay play" id="startBr"><small>Play</small><b>Battle Royale</b><span>Drop into the Neon City with a squad mate. Last squad standing wins.</span></button>
         </div>
-        <button type="button" class="startMore" id="startMore">More<span>Friends, loadouts, other modes and settings</span></button>
+        <button type="button" class="startMore" id="startMore" title="Friends, loadouts, other modes and settings">More</button>
       </div>
       <div class="pick" id="pick" role="dialog" aria-modal="true" aria-labelledby="pickTitle" hidden>
         <div class="pickHead"><b id="pickTitle">Pick your hacks</b><span id="pickFor"></span></div>

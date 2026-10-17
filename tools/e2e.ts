@@ -7499,7 +7499,8 @@ const CENTRE_NAME = neonSectorsCfg.game.sectors.find((s) => s.id === "c")!.name;
  * (DASH and HEAL for someone new), and goes in by itself when the time is up.
  */
 async function startScreenTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?norender&home=on");
+  // (a player who has chosen a way in before: the returning one, Milestone 632; someone new is a page of its own below)
+  const page = await open(browser, "?norender&home=on", BASE, `localStorage.setItem("range.startedOnce", "1")`);
   await page
     .waitForFunction(`(() => { const L = document.getElementById("loading"); return !L || L.hidden || L.classList.contains("done"); })()`, { polling: 250, timeout: 180000 })
     .catch(() => undefined);
@@ -7511,7 +7512,9 @@ async function startScreenTest(browser: Browser): Promise<void> {
   const first = await ev<Views>(page, views);
   check("start: a page opens on the start screen, not the menu", first.overlay && first.start && !first.menu && !first.pick, JSON.stringify(first));
   const ways = await ev<string[]>(page, `[...document.querySelectorAll("#start .startWay b, #startMore")].map((e) => e.firstChild.textContent.trim())`);
-  check("start: two ways in, the Firing Range and the Battle Royale, and More", ways.join("|") === "Firing Range|Battle Royale|More", ways.join("|"));
+  check("start: three ways in, the Tutorial, the Firing Range and the Battle Royale, and More", ways.join("|") === "Tutorial|Firing Range|Battle Royale|More", ways.join("|"));
+  // (Milestone 632) a page whose player has been here before: no nudge to the tutorial
+  check("start: someone who has been here before is not nudged to the tutorial", await ev<boolean>(page, `document.getElementById("startNudge").hidden && !document.getElementById("startTutorial").classList.contains("nudge")`));
   // More: the menu as it was, and Back to here
   await ev(page, `document.getElementById("startMore").click()`);
   const more = await ev<Views & { back: boolean }>(page, `(() => ({ ...${views}, back: !document.getElementById("startBack").hidden }))()`);
@@ -7557,6 +7560,16 @@ async function startScreenTest(browser: Browser): Promise<void> {
   const inMatch = await ev<Views & { back: boolean }>(page, `(() => ({ ...${views}, back: !document.getElementById("startBack").hidden }))()`);
   check("start: Esc in a match opens the menu, with no Back to the start screen", inMatch.menu && !inMatch.start && !inMatch.back, JSON.stringify(inMatch));
   await ev(page, "window.__range.duel()?.leave()");
+  // (Milestone 632) someone new: no profile and no way in ever chosen. The tutorial is pointed out; it goes straight
+  // into the guided tour, with no hack pick; and from then on the nudge is gone
+  const fresh = await open(browser, "?norender&home=on", BASE, `if (!sessionStorage.getItem("e2e.fresh")) { sessionStorage.setItem("e2e.fresh", "1"); window.__keptProfile = localStorage.getItem("range.profile.v1"); window.__keptStarted = localStorage.getItem("range.startedOnce"); localStorage.removeItem("range.profile.v1"); localStorage.removeItem("range.startedOnce"); }`);
+  const nudged = await ev<boolean>(fresh, `!document.getElementById("startNudge").hidden && document.getElementById("startTutorial").classList.contains("nudge")`);
+  await ev(fresh, `document.getElementById("startTutorial").click()`);
+  await sleep(800);
+  const tut = await ev<{ pick: boolean; tour: boolean; started: string | null; nudge: boolean }>(fresh, `({ pick: !document.getElementById("pick").hidden, tour: !!window.__range.tour?.active, started: localStorage.getItem("range.startedOnce"), nudge: !document.getElementById("startNudge").hidden })`);
+  check("start: someone new is nudged to the tutorial, which goes straight in (no hack pick), and the nudge is gone after", nudged && !tut.pick && tut.tour && tut.started === "1" && !tut.nudge, JSON.stringify({ nudged, tut }));
+  await fresh.close();
+  await ev(page, `localStorage.setItem("range.startedOnce", "1")`);
   await ev(page, `(() => { const k = ${JSON.stringify(kept)}; if (k.hacks === null) localStorage.removeItem("range.sk.hacks"); else localStorage.setItem("range.sk.hacks", k.hacks); if (k.diff !== null) localStorage.setItem("range.bots.difficulty", k.diff); })()`);
   await page.close();
 }

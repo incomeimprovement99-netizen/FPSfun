@@ -358,16 +358,18 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    under it has stopped stuttering, so the rain runs smooth. A key or a click takes the rest of it, `?nointro` in the address turns
    it off for good, and a machine set to less movement gets a shorter one with
    no shake and no falling glass.
-3. The start screen is up: **Firing Range** on the left (Training, the place to
-   start) and **Battle Royale** on the right (Play), with **More** under them
-   for the menu. Either way in asks for your two hacks first, one mobility and
+3. The start screen is up, everything centred: **Tutorial** (Learn: every move,
+   then the hacks, then a fight; someone new sees it pointed out), **Firing
+   Range** (Training) and **Battle Royale** (Play), with **More** a quiet word
+   under them for the menu. The Tutorial goes straight in (it is the guided
+   tour until its own course is built). The other two ways in ask for your two hacks first, one mobility and
    one utility, for ten seconds: DASH and HEAL to begin with, then whatever you
    picked last. **Start now** goes straight in; left alone it goes in by itself
    when the time is up and asks for one click, which the browser needs before
    the game can take the mouse. The battle royale plays on the default
    settings, or on what you set under More. The browser locks the mouse and
    goes fullscreen (Settings can turn that off). **Esc** brings back the start
-   screen, or the menu in a match; **Resume** goes back in.
+   screen, or the menu in a match; **Resume**, the big button over the three, goes back in.
    **More** is the menu, with a short welcome on a first visit (and a warning
    on a phone, a tablet or Safari, which cannot play), and **Back** to the
    start screen. **The lobby is its Play tab**: the modes down the left, and

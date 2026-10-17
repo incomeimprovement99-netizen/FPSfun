@@ -13,7 +13,7 @@
 import cfg from "../config/start.json";
 import { HACK_DEFS, savedPicks, type HackId, type HackSlot } from "../game/hacks";
 
-export type StartWay = "range" | "br";
+export type StartWay = "range" | "br" | "tutorial";
 type View = "start" | "pick" | "click" | "menu";
 
 export interface StartOptions {
@@ -25,11 +25,16 @@ export interface StartOptions {
   canResume(): boolean;
   /** the keys the two hacks are on, as the HUD names them */
   keys(): Record<HackSlot, string>;
+  /** someone new here (their profile made on this visit, and no way in ever chosen): the tutorial is pointed out */
+  newPlayer: boolean;
 }
+
+/** a way in has been chosen in this browser: from then on its player is not new, and the nudge is not shown */
+const STARTED_KEY = "range.startedOnce";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 const SLOTS: HackSlot[] = ["mobility", "utility"];
-const WAY_NAME: Record<StartWay, string> = { range: "Firing Range", br: "Battle Royale" };
+const WAY_NAME: Record<StartWay, string> = { range: "Firing Range", br: "Battle Royale", tutorial: "Tutorial" };
 
 export class StartScreen {
   view: View = "menu";
@@ -46,6 +51,21 @@ export class StartScreen {
     /** SpeedKills, and not a test page that asked for the menu (?nohome) */
     readonly enabled: boolean
   ) {
+    // The tutorial goes straight in: it teaches the hacks in their own room, on the picks you already have (Milestone 632)
+    $("startTutorial").addEventListener("click", () => {
+      this.started();
+      this.o.go("tutorial", savedPicks(), true);
+    });
+    // A new player is pointed at it (the owner, 2026-10-17: "New players should get a nudge ... returning players
+    // shouldn't get that"); anyone who has chosen a way in before has not
+    let started = false;
+    try {
+      started = localStorage.getItem(STARTED_KEY) === "1";
+    } catch {
+      /* no storage: treated as returning, no nudge */
+      started = true;
+    }
+    this.nudge(o.newPlayer && !started);
     $("startRange").addEventListener("click", () => this.ask("range"));
     $("startBr").addEventListener("click", () => this.ask("br"));
     $("startMore").addEventListener("click", () => this.more());
@@ -99,8 +119,25 @@ export class StartScreen {
     $("startResume").hidden = !this.o.canResume();
   }
 
+  /** the tutorial pointed out, or not */
+  private nudge(on: boolean): void {
+    $("startNudge").hidden = !on;
+    $("startTutorial").classList.toggle("nudge", on);
+  }
+
+  /** a way in has been chosen: this browser's player is not new any more */
+  private started(): void {
+    this.nudge(false);
+    try {
+      localStorage.setItem(STARTED_KEY, "1");
+    } catch {
+      /* the nudge comes back next visit: no harm */
+    }
+  }
+
   /** a way in chosen: the hacks first, on your last picks, for pickSeconds */
   private ask(way: StartWay): void {
+    this.started();
     this.pick = { way, endsAt: performance.now() / 1000 + cfg.pickSeconds, picks: savedPicks() };
     $("pickFor").textContent = WAY_NAME[way];
     const keys = this.o.keys();
