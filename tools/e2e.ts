@@ -2917,6 +2917,16 @@ async function padTest(browser: Browser, query: string): Promise<void> {
     t1 === "duel" && t0 === "play" && tc.tab === "controller" && tc.shown && /connected/i.test(tc.status) && lit !== null,
     JSON.stringify({ t1, t0, tc, lit })
   );
+  // The Feedback tab (Milestone 625): the last tab LB reaches from the first, and on a page with no server of ours (the
+  // dev server has no /net.json) a note says there is nowhere to send it rather than seeming sent
+  await ev(page, `window.__range.menu.show("play")`);
+  await padTap(page, 4);
+  const fb = await ev<{ tab: string; shown: boolean }>(page, `({ tab: window.__range.menu.tab, shown: !document.querySelector('section[data-panel="feedback"]').hidden })`);
+  await ev(page, `(() => { document.getElementById("fbText").value = "a note from the e2e"; document.getElementById("fbSend").click(); })()`);
+  await page.waitForFunction(`!/Sending/.test(document.getElementById("fbStatus").textContent)`, { polling: 100, timeout: 10000 }).catch(() => undefined);
+  const fbSaid = await ev<string>(page, `document.getElementById("fbStatus").textContent`);
+  check("feedback: LB from the first tab is the Feedback tab, and with no server of ours to send to it says so", fb.tab === "feedback" && fb.shown && /nowhere to send it/.test(fbSaid), JSON.stringify({ fb, fbSaid }));
+  await ev(page, `window.__range.menu.show("play")`);
   // Start on the menu: play without a pointer lock
   await pressPlay(page);
   const playing = await ev<{ hidden: boolean; playing: boolean; active: boolean }>(page, `({ hidden: document.getElementById("overlay").classList.contains("hidden"), playing: window.__range.input.playing, active: window.__range.input.pad.active })`);

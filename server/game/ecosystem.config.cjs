@@ -38,6 +38,7 @@ module.exports = {
         BOARD_FILE: join(__dirname, "..", "..", "boards.json"),
         ACCOUNT_FILE: join(__dirname, "..", "..", "accounts.json"),
         SEEN_FILE: join(__dirname, "..", "..", "seen.jsonl"),
+        FEEDBACK_FILE: join(__dirname, "..", "..", "feedback.jsonl"),
         ...boxEnv,
       },
       autorestart: true,

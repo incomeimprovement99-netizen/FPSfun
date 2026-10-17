@@ -384,10 +384,19 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
 
 Nothing is installed: settings, loadouts, your name, your best times and your
 stats live in this browser's localStorage. The game's own server keeps a short
-visit log (`npm run fps seen`): a line when the page opens, a lobby is made or
-joined, a match starts and the page closes, with the name you play under and
-an id this browser made for itself. Your address is kept only as a hash, so
-two visits from one place can be told apart without it being written down.
+visit log (`npm run fps seen`): a line when the page opens, its first screen
+goes, a lobby is made or joined, a match starts, the city comes in for one and
+the page closes, with the name you play under and an id this browser made for
+itself, how long the waits took (and whether the city came from this browser's
+own copy), the frame rate while playing, and where you were as you left. Your
+address is kept only as a hash, so two visits from one place can be told apart
+without it being written down.
+
+**Feedback** is a tab of the menu: pick what it is (a bug, an idea, a change,
+something else), write it and Send. It goes to the game's own server with the
+build you are on, your last match and your settings, and `npm run fps feedback`
+reads it. On a copy of the game away from that server, it says there is
+nowhere to send it.
 
 ## 1v1 a friend
 
@@ -1186,6 +1195,7 @@ npm run fps deploy   # build the last commit, ship it, reload, play a 1v1 on it
 npm run fps check    # from your PC: DNS, the firewall, /health, a real relayed datagram
 npm run fps backup   # the boards and accounts down to server-backup/ first
 npm run fps seen     # who played in the last 3 days (`seen 7` for a week, `seen 3 all` with the test browsers)
+npm run fps feedback # what players sent from the Feedback tab, the last 7 days (`feedback 30` for a month)
 ```
 
 Players need a reload after a release (the file names carry a hash, so a plain reload is enough). The game lives only

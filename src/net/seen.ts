@@ -9,7 +9,7 @@
 // it is one, so the deploy's own live check can be told from a friend.
 import { session } from "./account";
 
-export type SeenEvent = "open" | "host" | "join" | "match" | "close";
+export type SeenEvent = "open" | "loaded" | "host" | "join" | "match" | "city" | "close";
 
 export interface SeenDetail {
   /** the name the player goes by (the profile's) */
@@ -21,6 +21,16 @@ export interface SeenDetail {
   role?: "host" | "guest";
   /** the page was opened from an invite link */
   invite?: boolean;
+  /** how long it took, seconds: the page's own screen ("loaded"), a match's wait for the city ("city") */
+  secs?: number;
+  /** the city's file, megabytes, and whether it came from the browser's own copy */
+  mb?: number;
+  cached?: boolean;
+  /** the frame rate while playing, over the visit, and the quality preset */
+  fps?: number;
+  preset?: string;
+  /** where the player was as they closed it: loading, menu, match or range */
+  on?: string;
 }
 
 /**
@@ -29,7 +39,7 @@ export interface SeenDetail {
  * would read in the log as one.
  */
 const DEVICE_KEY = "seen.device";
-function device(): string {
+export function device(): string {
   try {
     let d = localStorage.getItem(DEVICE_KEY);
     if (!d || !/^[a-z0-9]{10}$/.test(d)) {
@@ -42,14 +52,13 @@ function device(): string {
   }
 }
 
-let where: Promise<string | null> | null = null;
-/** the log's address from /net.json, looked up once; null where there is no log */
-function logUrl(): Promise<string | null> {
-  where ??= fetch("./net.json", { cache: "no-store" })
-    .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? r.json() : null))
-    .then((j: { seen?: unknown } | null) => (j && typeof j.seen === "string" ? new URL(j.seen, location.href).href : null))
+let net: Promise<Record<string, unknown> | null> | null = null;
+/** one of our own server's services (the visit log, the feedback) from /net.json, looked up once; null where there is none */
+export function serverUrl(key: "seen" | "feedback"): Promise<string | null> {
+  net ??= fetch("./net.json", { cache: "no-store" })
+    .then((r) => (r.ok && (r.headers.get("content-type") ?? "").includes("json") ? (r.json() as Promise<Record<string, unknown>>) : null))
     .catch(() => null);
-  return where;
+  return net.then((j) => (j && typeof j[key] === "string" ? new URL(j[key] as string, location.href).href : null)).catch(() => null);
 }
 /** known once the first line has gone: a closing page cannot wait for a lookup */
 let known: string | null = null;
@@ -66,7 +75,12 @@ export function seen(ev: SeenEvent, d: SeenDetail = {}): void {
     code: d.code,
     role: d.role,
     invite: d.invite ? 1 : undefined,
-    secs: ev === "close" ? (performance.now() - openedAt) / 1000 : undefined,
+    secs: ev === "close" ? (performance.now() - openedAt) / 1000 : d.secs,
+    mb: d.mb,
+    cached: d.cached === undefined ? undefined : d.cached ? 1 : 0,
+    fps: d.fps,
+    preset: d.preset,
+    on: d.on,
     bot: navigator.webdriver ? 1 : undefined,
   });
   const send = (url: string) => {
@@ -79,7 +93,7 @@ export function seen(ev: SeenEvent, d: SeenDetail = {}): void {
   };
   if (known) send(known);
   else
-    void logUrl().then((url) => {
+    void serverUrl("seen").then((url) => {
       known = url;
       if (url) send(url);
     });

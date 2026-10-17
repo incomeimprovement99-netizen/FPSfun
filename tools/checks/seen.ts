@@ -8,7 +8,7 @@
 //
 // Run on its own: npx tsx tools/checks/seen.ts.
 import { readFileSync } from "node:fs";
-import { parseSeen, seenReport, sittings, SITTING_GAP_MS } from "../seen-report";
+import { describe, feedbackReport, parseSeen, seenReport, sittings, SITTING_GAP_MS } from "../seen-report";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -59,6 +59,34 @@ check("and main.ts sends every one of them", unsent.length === 0, unsent.join(",
   check("and leaves the test browser out", !/livecheck/.test(report) && !/TEST/.test(report));
   check("unless asked for everything", /TEST/.test(seenReport(text, 1, true, now)));
   check("an empty log says so", /none/.test(seenReport("", 3, false, now)));
+}
+
+// What a visit went through (Milestone 625): the page's screen, the city's wait and where the player left, in words
+{
+  const base = { at: "2026-10-17T12:00:00.000Z" };
+  const loaded = describe({ ...base, ev: "loaded", secs: 7, preset: "balanced" });
+  const fetched = describe({ ...base, ev: "city", secs: 64, mb: 155, cached: 0 });
+  const kept = describe({ ...base, ev: "city", secs: 9, mb: 155, cached: 1 });
+  const left = describe({ ...base, ev: "close", secs: 120, on: "loading" });
+  const played = describe({ ...base, ev: "close", secs: 900, on: "match", fps: 58 });
+  check("the page's own screen in words: how long, on which preset", loaded === "in after 7 s on balanced", loaded);
+  check("the city's wait, its size, and downloaded or from the browser's own copy", fetched === "waited 64 s for the city (155 MB, downloaded)" && kept === "waited 9 s for the city (155 MB, from its own copy)", `${fetched} / ${kept}`);
+  check("where the player was as they closed it, and the frame rate playing", left === "closed it after 2 min on the loading screen" && played === "closed it after 15 min in a match (58 fps playing)", `${left} / ${played}`);
+}
+
+// The players' feedback (server/game/serve.mjs /api/feedback), as `npm run fps feedback` prints it
+{
+  const at = (h: number) => new Date(Date.UTC(2026, 9, 17, h, 0)).toISOString();
+  const text = [
+    JSON.stringify({ at: at(14), kind: "bug", text: "The zipline on NOODLE ROW drops me.\nEvery time at the top.", name: "Tiger", dev: "k3j2m9q0aa", ua: "Chrome/Windows", v: "abc1234", preset: "balanced", fps: 61, mode: "br" }),
+    JSON.stringify({ at: at(15), kind: "idea", text: "from the deploy's browser", dev: "livecheck0", bot: 1 }),
+    "{ torn",
+  ].join("\n");
+  const now = Date.UTC(2026, 9, 17, 18, 0);
+  const report = feedbackReport(text, 7, false, now);
+  check("a note reads with its kind, its name, the build and settings, and its own lines", /BUG {2}Tiger/.test(report) && /build abc1234/.test(report) && /61 fps/.test(report) && /after br/.test(report) && /\n {4}The zipline on NOODLE ROW drops me\.\n {4}Every time at the top\./.test(report), report);
+  check("the test browser's left out unless asked for, and a torn line skipped", !/deploy's browser/.test(report) && /TEST/.test(feedbackReport(text, 7, true, now)));
+  check("no feedback says so", /none/.test(feedbackReport("", 7, false, now)));
 }
 
 export const seenFails = fails;

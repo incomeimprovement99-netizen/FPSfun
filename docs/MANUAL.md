@@ -160,7 +160,7 @@ On the Play tab, behind **Extra modes**.
 
 ## Feedback
 
-**Message B00G with any feedback:** suggestions, bugs you hit, features you would like, or anything you would change.
-Every message is read.
+**Tell B00G anything:** suggestions, bugs you hit, features you would like, or anything you would change. The menu's
+**Feedback** tab sends it straight to B00G, or message B00G. Every one is read.
 
 SpeedKills is the first game we have made. **SpeedKills: {days} days old.** It was started on {started}.

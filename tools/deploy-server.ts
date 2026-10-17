@@ -19,7 +19,9 @@
 //   npm run fps logs            the last 60 lines of the server's log (read-only)
 //   npm run fps seen [days] [all]  who played: the visit log as sittings, the last 3 days by
 //                               default; `all` keeps the test browsers (read-only)
-//   npm run fps backup          the boards, accounts and visit log down to server-backup/ (read-only)
+//   npm run fps feedback [days] [all]  what players sent from the menu's Feedback tab, the last 7 days
+//                               by default; `all` keeps the test browsers' (read-only)
+//   npm run fps backup          the boards, accounts, visit log and feedback down to server-backup/ (read-only)
 //   npm run fps ssh             a shell on the box
 //   npm run fps setup           one-time box setup (server/game/setup.sh; safe to rerun)
 //   npm run fps restart         restart the game server, rereading range.env
@@ -41,7 +43,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { stunBinding, tcpProbe, turnRelay } from "./net-probe";
-import { seenReport } from "./seen-report";
+import { feedbackReport, seenReport } from "./seen-report";
 
 const ROOT = resolve(fileURLToPath(new URL(".", import.meta.url)), "..");
 /** this PC's tar: Windows' own bsdtar by its full path (from Git Bash the PATH finds GNU tar first, which reads "C:\..." as a remote host) */
@@ -299,7 +301,7 @@ async function main(): Promise<void> {
   } else if (verb === "restart") {
     ssh(`pm2 startOrReload ~/range/app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; ${HEALTH_AFTER_RELOAD}`);
   } else if (verb === "backup") {
-    const have = sshOut("cd ~/range && ls boards.json accounts.json seen.jsonl 2>/dev/null || true").split(/\s+/).filter(Boolean);
+    const have = sshOut("cd ~/range && ls boards.json accounts.json seen.jsonl feedback.jsonl 2>/dev/null || true").split(/\s+/).filter(Boolean);
     if (!have.length) return console.log("nothing to save yet: no boards or accounts on the box");
     const dir = join(ROOT, "server-backup", new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-"));
     mkdirSync(dir, { recursive: true });
@@ -324,6 +326,11 @@ async function main(): Promise<void> {
     // the file moved aside at its size limit first, so a sitting across the move reads whole
     const text = sshOut("cd ~/range && cat seen.jsonl.1 seen.jsonl 2>/dev/null | tail -n 50000 || true");
     console.log(seenReport(text, days, process.argv.includes("all")));
+  } else if (verb === "feedback") {
+    const days = Math.max(1, Number(process.argv[3]) || 7);
+    // (the file moved aside at its size limit first, as the visit log's is)
+    const text = sshOut("cd ~/range && cat feedback.jsonl.1 feedback.jsonl 2>/dev/null | tail -n 20000 || true");
+    console.log(feedbackReport(text, days, process.argv.includes("all")));
   } else if (verb === "logs") {
     ssh("pm2 logs range --lines 60 --nostream");
   } else if (verb === "rollback") {
@@ -407,7 +414,7 @@ async function main(): Promise<void> {
       console.log(`\n== live at https://${DOMAIN}/ (npm run fps check probes it from outside)`);
     }
   } else {
-    console.error(`unknown: ${verb} (deploy, dry, check, health, logs, seen, backup, ssh, setup, restart, rollback, dns, run)`);
+    console.error(`unknown: ${verb} (deploy, dry, check, health, logs, seen, feedback, backup, ssh, setup, restart, rollback, dns, run)`);
     process.exit(1);
   }
 }

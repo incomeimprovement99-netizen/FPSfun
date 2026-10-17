@@ -220,7 +220,8 @@ ships.
 | `npm run fps health` | `/health`, `pm2 ls`, coturn and Caddy up, memory, disk | no |
 | `npm run fps logs` | the server's last 60 log lines | no |
 | `npm run fps seen [days] [all]` | who played: the visit log (`~/range/seen.jsonl`) read as sittings, each browser's lines grouped until half an hour passes with nothing, the last 3 days by default in Chicago time; the deploy's own test browser is left out unless `all` | no |
-| `npm run fps backup` | copies `boards.json`, `accounts.json` and `seen.jsonl` down to `server-backup/<date>/` (gitignored: password hashes) | no |
+| `npm run fps feedback [days] [all]` | what players sent from the menu's Feedback tab (`~/range/feedback.jsonl`), oldest first with its kind, name, build and settings, the last 7 days by default; the deploy's own test browser left out unless `all` | no |
+| `npm run fps backup` | copies `boards.json`, `accounts.json`, `seen.jsonl` and `feedback.jsonl` down to `server-backup/<date>/` (gitignored: password hashes) | no |
 | `npm run fps ssh` | a shell on the box | only what you type |
 | `npm run fps restart` | restart the game server, rereading `~/range/range.env` | restarts it |
 | `npm run fps rollback` | put the previous release back | yes |
@@ -235,7 +236,11 @@ the relay secret (written once by setup, never shipped),
 accounts (password hashes, sessions and synced profiles), and
 `~/range/seen.jsonl` the visit log (`/api/seen`: the time, what happened, the
 player's name, an id their browser made, the address as a hash; moved aside
-to `seen.jsonl.1` at 5 MB), all outside the release so a deploy keeps them. Back `accounts.json` up now and then
+to `seen.jsonl.1` at 5 MB), and `~/range/feedback.jsonl` what players sent
+from the Feedback tab (`/api/feedback`: a note of up to 1500 characters, its
+kind, the name, the build and the settings, the address hashed as the visit
+log's; ten an address in ten minutes; moved aside at 5 MB too), all outside the
+release so a deploy keeps them. Back `accounts.json` up now and then
 (`npm run fps backup`): it is the one file on the box a player would miss.
 
 ## 8. When something is wrong

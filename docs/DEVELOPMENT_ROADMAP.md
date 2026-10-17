@@ -11729,6 +11729,31 @@ player holding a pad.
   - The match's shaders aboard, the friend joining a host, the broker blips and the p2p reload passed alone (load).
 - **Checked:** tsc; verify; rules; e2e skbr and sklobby alone.
 
+## Milestone 625 — Feedback from the menu, and what a visit went through
+
+The owner asked (2026-10-17) what else would improve the players' experience. Two things measured first: the visit log
+had only the owner and one friend in a week, several visits "opened the game · closed it after 0 min" with nothing to
+say why, and on Balanced the city a first battle royale waits for is 155 MB (75 MB on 2026-10-02), fetched again by
+every returning player after each map release (thirteen versions on 2026-10-17). Feedback reached the owner only when a
+friend messaged them.
+
+- **A Feedback tab** (the last of the menu's tabs; LB from the first): what it is (a bug, an idea, a change, something
+  else), a note of up to 1500 characters, and Send. It posts to the game's own server (`/api/feedback`, named in
+  /net.json; src/net/feedback.ts) with the build, the last match's kind, the preset and the frame rate, kept a line each
+  in `~/range/feedback.jsonl` with the visit log's own fields (the browser's id, the address only as a hash), ten an
+  address in ten minutes. `npm run fps feedback [days]` prints them, and `npm run fps backup` saves the file. Away from
+  that server (the dev server) the tab says there is nowhere to send it. A click in the note no longer resumes the game.
+- **What a visit went through**, in the visit log: `loaded` as the page's own screen goes (seconds since the page opened,
+  and the preset), `city` as the city comes in for a match (how long the match waited, its megabytes, and whether it
+  came from the browser's own copy or over the network), and on `close` where the player was (the loading screen, the
+  menu, a match or the range) and the frame rate while playing. `npm run fps seen` says them in words.
+- **And a server check that had gone stale:** `npm run boardcheck` wanted a signed-in win of 7, written before a wins
+  board counted wins (2026-09-19); it wants the one win now.
+- **Checked:** tsc; verify (the new lines in words, the feedback report); rules; `npm run boardcheck` against the real
+  server (a note kept with its lines and the address hashed, an empty note and an unknown kind refused, a long one cut
+  to 1500, the eleventh in a window refused, the visit log's new fields kept), proven with the address written plain
+  and `loaded` off the server's list; e2e pad (LB to the Feedback tab, and "nowhere to send it" on the dev server).
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

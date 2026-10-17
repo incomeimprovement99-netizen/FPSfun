@@ -25,6 +25,7 @@ import { FINISHES, chooseFinish, finishFor } from "./game/finishes";
 import { applyFinish, gunModel, resetGunModels } from "./game/gunmodels";
 import { Voice } from "./net/voice";
 import { seen, type SeenDetail, type SeenEvent } from "./net/seen";
+import { FEEDBACK_MAX, sendFeedback, type FeedbackKind } from "./net/feedback";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { keyPanelTexts, setPanelKeys } from "./game/geo";
@@ -967,7 +968,13 @@ function askCity(): void {
   // (its unpacking on more workers than three's four: one fewer than the machine's processors, intro.json cityWorkers)
   const workers = Math.max(4, Math.min(introCfg.show.cityWorkers, (navigator.hardwareConcurrency || 4) - 1));
   // (and the city's boxes, which a match on it cannot do without: neonmap.ts loadNeonSolids)
-  void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(() => (cityIn = true));
+  const askedAt = performance.now();
+  void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(() => {
+    cityIn = true;
+    // (for the visit log: how long a match waited for the city, and whether it came over the network or from the
+    // browser's own copy; every map release is a new file to fetch)
+    note("city", { secs: (performance.now() - askedAt) / 1000, mb: NEON_MAP.total / 1e6, cached: NEON_MAP.fromCache });
+  });
 }
 // the city's haze (atmosphere.ts, the Neon City map's own), from Balanced up; ?noair leaves it off, to compare
 atmosphereOn(quality.cityDetail >= 1 && !new URLSearchParams(location.search).has("noair"));
@@ -4435,6 +4442,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
       loadingScreen.again(introCfg.show.text, d instanceof BrMatch ? (loadingScreen.card ?? playerCard()) : null);
     }
   }
+  lastMode = kind;
   note("match", { mode: kind, role: d instanceof Duel && d.players > 1 ? d.role : undefined });
   d.onRespawn = () => respawnForMatch(d);
   // a guest with a seat key (a host that gives one) gets back in after a dropped connection
@@ -5282,7 +5290,7 @@ duelLeaveBtn.addEventListener("click", () => {
 window.addEventListener("pagehide", () => {
   duel?.leave();
   hangout?.leave();
-  note("close");
+  note("close", { fps: playFps(), on: whereNow() });
 });
 // Ctrl+W still closes a windowed tab (Input.lock): mid-match or mid-play the
 // browser asks first.
@@ -5668,7 +5676,7 @@ function goTo(mode: Mode): void {
  * The menu by controller (padnav.ts): the screen the pad works in now (the hack pick over the start screen over the
  * menu), and LB and RB turning the menu's tabs in the order they stand.
  */
-const PAD_TABS: Tab[] = ["play", "duel", "loadouts", "stats", "settings", "controller", "controls"];
+const PAD_TABS: Tab[] = ["play", "duel", "loadouts", "stats", "settings", "controller", "controls", "feedback"];
 const padNav = new PadNav(
   () => {
     for (const id of ["pick", "start"]) {
@@ -5849,7 +5857,7 @@ const takeResume = (e: Event): void => {
   const el = document.activeElement as HTMLElement | null;
   if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
   const on = e.target as HTMLElement | null;
-  if (e.type === "pointerdown" && on && on.closest("button, select, input, a, .tabs")) return;
+  if (e.type === "pointerdown" && on && on.closest("button, select, input, textarea, a, .tabs")) return;
   wantResume = false;
   void input.lock(true);
 };
@@ -6105,6 +6113,27 @@ window.addEventListener("resize", () => {
 let last = performance.now() / 1000;
 let gameTime = 0;
 let fps = 60;
+// What a visit went through, for the visit log (Milestone 625): when the page's own screen went, the frame rate while
+// playing and where the player was as they closed it, so a friend who left at once can be told from one left waiting
+let loadedSaid = false;
+let playSecs = 0;
+let playFrames = 0;
+/** the last match's kind, for a note from the Feedback tab */
+let lastMode: string | undefined;
+function visitFrame(dt: number): void {
+  if (!loadedSaid && loadingScreen.loaded) {
+    loadedSaid = true;
+    note("loaded", { secs: performance.now() / 1000, preset: quality.preset });
+  }
+  if (input.playing && overlay.classList.contains("hidden")) {
+    playSecs += dt;
+    playFrames++;
+  }
+}
+/** the frame rate while playing, over the visit; none for under 5 s of play */
+const playFps = (): number | undefined => (playSecs >= 5 ? Math.round(playFrames / playSecs) : undefined);
+/** where the player is: still loading, on the menu, in a match, or in the range */
+const whereNow = (): string => (!loadingScreen.loaded ? "loading" : !overlay.classList.contains("hidden") ? "menu" : duel ? "match" : "range");
 let frameMs = 0;
 /** where a frame's CPU time goes, by phase, and every frame over 50 ms (Phase 20 A18; ?perf or __range.perf) */
 const phases = new FramePhases();
@@ -6273,6 +6302,7 @@ function step(): void {
   gameTime += dt;
   const now = gameTime;
   fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
+  visitFrame(dt);
   frameHook?.(now, dt);
   // the map's doors swing to where they are (any of them, in a match or not)
   brMap.doors.update(dt);
@@ -7722,6 +7752,35 @@ initWelcome();
     duelCode.value = invite;
     duelJoinBtn.click();
   }
+}
+// The Feedback tab (src/net/feedback.ts, Milestone 625): a note straight to the owner, with the build, the last match
+// and the settings it was seen with
+{
+  const text = document.getElementById("fbText") as HTMLTextAreaElement;
+  const kind = document.getElementById("fbKind") as HTMLSelectElement;
+  const send = document.getElementById("fbSend") as HTMLButtonElement;
+  const status = document.getElementById("fbStatus") as HTMLElement;
+  text.maxLength = FEEDBACK_MAX;
+  text.addEventListener("input", () => {
+    status.textContent = text.value.length > FEEDBACK_MAX - 200 ? `${FEEDBACK_MAX - text.value.length} characters left` : "";
+  });
+  send.addEventListener("click", () => {
+    const msg = text.value.trim();
+    if (!msg) {
+      status.textContent = "Write something first.";
+      return;
+    }
+    send.disabled = true;
+    status.textContent = "Sending...";
+    void sendFeedback(msg, kind.value as FeedbackKind, { name: profile.profile.name, mode: lastMode, preset: quality.preset, fps: playFps() }).then((r) => {
+      send.disabled = false;
+      if (r === "sent") {
+        text.value = "";
+        status.textContent = "Sent. Thank you: B00G reads every one.";
+      } else if (r === "nowhere") status.textContent = "This copy of the game is not on B00G's server, so there is nowhere to send it from here: message B00G instead.";
+      else status.textContent = "It did not go (the network, or a few too many at once). Try again in a minute, or message B00G.";
+    });
+  });
 }
 /** a line in the owner's visit log (src/net/seen.ts): who, in which game, and what they just did */
 function note(ev: SeenEvent, d: SeenDetail = {}): void {

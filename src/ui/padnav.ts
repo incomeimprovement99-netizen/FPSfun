@@ -24,7 +24,7 @@ const REPEAT = 0.13;
 
 type Dir = "up" | "down" | "left" | "right";
 
-const STOPS = "button, select, input:not([type=hidden]), [data-tab], a[href]";
+const STOPS = "button, select, input:not([type=hidden]), textarea, [data-tab], a[href]";
 
 export class PadNav {
   /** what is lit */

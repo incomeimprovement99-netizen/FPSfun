@@ -17,6 +17,12 @@ export interface SeenLine {
   role?: string;
   invite?: number;
   secs?: number;
+  /** the city's file (megabytes, 1 when it came from the browser's copy), the frame rate, the preset, where they left */
+  mb?: number;
+  cached?: number;
+  fps?: number;
+  preset?: string;
+  on?: string;
   v?: string;
   bot?: number;
 }
@@ -85,14 +91,20 @@ export function describe(l: SeenLine): string {
   switch (l.ev) {
     case "open":
       return l.invite ? `opened an invite${l.code ? ` to ${l.code}` : ""}` : "opened the game";
+    case "loaded":
+      return `in after ${l.secs ?? "?"} s${l.preset ? ` on ${l.preset}` : ""}`;
+    case "city":
+      return `waited ${l.secs ?? "?"} s for the city${typeof l.mb === "number" ? ` (${l.mb} MB, ${l.cached === 1 ? "from its own copy" : "downloaded"})` : ""}`;
     case "host":
       return `made a lobby ${l.code ?? ""}${mode}`.trim();
     case "join":
       return `joined ${l.code ?? "a lobby"}${mode}`;
     case "match":
       return `played ${l.mode ?? "a match"}${l.role ? ` as ${l.role}` : ""}`;
-    case "close":
-      return `closed it${typeof l.secs === "number" ? ` after ${Math.round(l.secs / 60)} min` : ""}`;
+    case "close": {
+      const on = ({ loading: "on the loading screen", menu: "on the menu", match: "in a match", range: "in the range" } as Record<string, string>)[l.on ?? ""];
+      return `closed it${typeof l.secs === "number" ? ` after ${Math.round(l.secs / 60)} min` : ""}${on ? ` ${on}` : ""}${typeof l.fps === "number" ? ` (${l.fps} fps playing)` : ""}`;
+    }
     default:
       return l.ev;
   }
@@ -123,6 +135,51 @@ export function seenReport(text: string, days: number, all = false, now = Date.n
       else said.push([w, 1]);
     }
     rows.push(`    ${said.map(([w, n]) => (n > 1 ? `${w} x${n}` : w)).join(" · ")}`);
+  }
+  return rows.join("\n");
+}
+
+/** a line of the players' feedback (server/game/serve.mjs /api/feedback) */
+export interface FeedbackLine {
+  at: string;
+  kind: string;
+  text: string;
+  name?: string;
+  acct?: string;
+  dev?: string;
+  ip?: string;
+  ua?: string;
+  mode?: string;
+  preset?: string;
+  fps?: number;
+  v?: string;
+  bot?: number;
+}
+
+const KIND_WORD: Record<string, string> = { bug: "BUG", idea: "IDEA", change: "CHANGE", other: "NOTE" };
+
+/** what players sent from the Feedback tab in the last `days` days, oldest first; test browsers left out unless `all` */
+export function feedbackReport(text: string, days: number, all = false, now = Date.now()): string {
+  const since = now - days * 86400 * 1000;
+  const list: FeedbackLine[] = [];
+  for (const raw of text.split(/\r?\n/)) {
+    if (!raw.trim()) continue;
+    try {
+      const l = JSON.parse(raw) as FeedbackLine;
+      if (l && typeof l.at === "string" && typeof l.text === "string" && Date.parse(l.at) >= since && (all || l.bot !== 1)) list.push(l);
+    } catch {
+      /* a torn line: not a note */
+    }
+  }
+  list.sort((a, b) => Date.parse(a.at) - Date.parse(b.at));
+  const head = `Feedback in the last ${days} day${days === 1 ? "" : "s"} (Chicago time)${all ? "" : ", test browsers left out"}:`;
+  if (!list.length) return `${head}\n  none`;
+  const rows: string[] = [head];
+  for (const l of list) {
+    const t = Date.parse(l.at);
+    const seenWith = [l.acct ? `account ${l.acct}` : "", l.dev ? `browser ${l.dev.slice(0, 6)}` : "", l.ua, l.v ? `build ${l.v}` : "", l.preset, typeof l.fps === "number" ? `${l.fps} fps` : "", l.mode ? `after ${l.mode}` : "", l.bot === 1 ? "TEST" : ""].filter(Boolean).join(", ");
+    rows.push(`\n${day(t)}  ${clock(t)}  ${KIND_WORD[l.kind] ?? l.kind.toUpperCase()}  ${l.name || "(no name)"}  [${seenWith}]`);
+    for (const para of l.text.split(/\n/)) rows.push(`    ${para}`);
   }
   return rows.join("\n");
 }

@@ -14,7 +14,9 @@
 //   6. answers /health for the deploy script,
 //   7. keeps a visit log (/api/seen: a line as the page opens, a lobby is
 //      made or joined, a match starts, the page closes), so the owner can see
-//      when a friend played; addresses are hashed, never written down.
+//      when a friend played; addresses are hashed, never written down,
+//   8. keeps what players send from the menu's Feedback tab (/api/feedback),
+//      a line each, for the owner to read with `npm run fps feedback`.
 //
 // The game reads /net.json when a match is made or joined (src/net/link.ts). On
 // a page without this server (the dev server) the file is missing and the game
@@ -34,6 +36,7 @@
 //   BOARD_FILE    where the boards are kept, default boards.json next to this file
 //   ACCOUNT_FILE  where the accounts are kept, default accounts.json next to this file
 //   SEEN_FILE     the visit log, default seen.jsonl next to this file
+//   FEEDBACK_FILE what players sent from the Feedback tab, default feedback.jsonl next to this file
 //   VERSION       shown on /health, default the build stamp in dist/version.txt
 import { nextBoardValue } from "./boardrules.mjs";
 import express from "express";
@@ -88,7 +91,7 @@ app.get("/net.json", (req, res) => {
       { urls: [`turn:${host}:${TURN_PORT}?transport=udp`, `turn:${host}:${TURN_PORT}?transport=tcp`], username, credential }
     );
   }
-  res.json({ v: 1, peer: { path: "/peerjs/", key: PEER_KEY }, iceServers, board: "/api/board", account: "/api/account", seen: "/api/seen" });
+  res.json({ v: 1, peer: { path: "/peerjs/", key: PEER_KEY }, iceServers, board: "/api/board", account: "/api/account", seen: "/api/seen", feedback: "/api/feedback" });
 });
 
 // ---------- the online boards ----------
@@ -341,8 +344,10 @@ app.put("/api/account/profile", express.json({ limit: PROFILE_MAX }), (req, res)
 // ---------- who came, and what they did ----------
 // The owner could not tell whether a friend had played: the broker keeps no
 // names, and a result reaches the boards only when a run or a match is won.
-// The game posts a line here as the page opens, as a lobby is made or joined,
-// as a match starts and as the page closes (src/net/seen.ts), and each is kept
+// The game posts a line here as the page opens, as its first screen goes, as a
+// lobby is made or joined, as a match starts, as the city comes in for one and
+// as the page closes (src/net/seen.ts), with how long the waits took, the frame
+// rate and where the player was as they left (Milestone 625), and each is kept
 // as one JSON line in SEEN_FILE: the time, what happened, the name the player
 // goes by, an id their browser made for itself, and the address hashed with
 // the server's own secrets, so two visits from one place can be told apart
@@ -350,7 +355,7 @@ app.put("/api/account/profile", express.json({ limit: PROFILE_MAX }), (req, res)
 const SEEN_FILE = resolve(process.env.SEEN_FILE ?? join(here, "seen.jsonl"));
 /** past this the file is moved aside to .1 (the one before that goes), so it never fills the disk */
 const SEEN_MAX_BYTES = 5 * 1024 * 1024;
-const SEEN_EVENTS = new Set(["open", "host", "join", "match", "close"]);
+const SEEN_EVENTS = new Set(["open", "loaded", "host", "join", "match", "city", "close"]);
 const SEEN_LIMIT = 120;
 const seenPosts = new Map();
 setInterval(() => {
@@ -395,6 +400,13 @@ app.post("/api/seen", express.text({ type: "*/*", limit: "1kb" }), (req, res) =>
     role: shortText(b.role, 6),
     invite: b.invite === 1 ? 1 : undefined,
     secs: typeof b.secs === "number" && Number.isFinite(b.secs) ? Math.max(0, Math.min(86400, Math.round(b.secs))) : undefined,
+    // the city's file (megabytes, and whether the browser had its own copy), the frame rate playing, the preset, and
+    // where the player was as they closed it
+    mb: typeof b.mb === "number" && Number.isFinite(b.mb) ? Math.max(0, Math.min(5000, Math.round(b.mb))) : undefined,
+    cached: b.cached === 1 ? 1 : b.cached === 0 ? 0 : undefined,
+    fps: typeof b.fps === "number" && Number.isFinite(b.fps) ? Math.max(0, Math.min(1000, Math.round(b.fps))) : undefined,
+    preset: shortText(b.preset, 12),
+    on: shortText(b.on, 8),
     // the build that was served (its commit), so a visit can be matched to what the player saw
     v: version.split(" ")[0],
     // a test browser (the deploy's live check drives one): kept, and marked so the reader can leave it out
@@ -405,6 +417,65 @@ app.post("/api/seen", express.text({ type: "*/*", limit: "1kb" }), (req, res) =>
     appendFileSync(SEEN_FILE, `${JSON.stringify(line)}\n`);
   } catch (e) {
     console.error(`seen: write failed (${e})`);
+  }
+  res.status(204).end();
+});
+
+// ---------- what the players tell the owner ----------
+// The owner asked for everyone's feedback ("suggestions, bugs, features or
+// changes", 2026-10-12), and the only way was a message to the owner. The menu's
+// Feedback tab posts here (src/net/feedback.ts): a line each in FEEDBACK_FILE,
+// with the visit log's own fields (the browser's id, the address hashed, the
+// build) and the settings it was seen with. `npm run fps feedback` reads it.
+const FEEDBACK_FILE = resolve(process.env.FEEDBACK_FILE ?? join(here, "feedback.jsonl"));
+const FEEDBACK_KINDS = new Set(["bug", "idea", "change", "other"]);
+/** the longest note kept (src/net/feedback.ts FEEDBACK_MAX) */
+const FEEDBACK_MAX_CHARS = 1500;
+/** notes an address may send in POST_WINDOW_MS: a few a sitting is plenty, and a script is stopped early */
+const FEEDBACK_LIMIT = 10;
+const feedbackPosts = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, p] of feedbackPosts) if (p.resetAt < now) feedbackPosts.delete(ip);
+}, POST_WINDOW_MS).unref();
+app.post("/api/feedback", express.text({ type: "*/*", limit: "8kb" }), (req, res) => {
+  res.set("Cache-Control", "no-store");
+  const now = Date.now();
+  const ip = req.ip ?? "?";
+  const p = feedbackPosts.get(ip) ?? { count: 0, resetAt: now + POST_WINDOW_MS };
+  if (p.resetAt < now) Object.assign(p, { count: 0, resetAt: now + POST_WINDOW_MS });
+  feedbackPosts.set(ip, p);
+  if (++p.count > FEEDBACK_LIMIT) return res.status(429).end();
+  let b;
+  try {
+    b = JSON.parse(typeof req.body === "string" ? req.body : "");
+  } catch {
+    return res.status(400).end();
+  }
+  // the note as written, its control characters out but its lines kept
+  const text = b && typeof b.text === "string" ? b.text.replace(/[\u0000-\u0009\u000b-\u001f\u007f]/g, " ").trim().slice(0, FEEDBACK_MAX_CHARS) : "";
+  if (!text || !FEEDBACK_KINDS.has(b.kind)) return res.status(400).end();
+  const line = {
+    at: new Date(now).toISOString(),
+    kind: b.kind,
+    text,
+    name: shortText(b.name, 24),
+    acct: shortText(b.acct, 24),
+    dev: shortText(b.dev, 12),
+    ip: createHmac("sha256", seenSalt).update(ip).digest("hex").slice(0, 8),
+    ua: agentOf(req.get("user-agent") ?? ""),
+    mode: shortText(b.mode, 24),
+    preset: shortText(b.preset, 12),
+    fps: typeof b.fps === "number" && Number.isFinite(b.fps) ? Math.max(0, Math.min(1000, Math.round(b.fps))) : undefined,
+    v: version.split(" ")[0],
+    bot: b.bot === 1 ? 1 : undefined,
+  };
+  try {
+    if (existsSync(FEEDBACK_FILE) && statSync(FEEDBACK_FILE).size > SEEN_MAX_BYTES) renameSync(FEEDBACK_FILE, `${FEEDBACK_FILE}.1`);
+    appendFileSync(FEEDBACK_FILE, `${JSON.stringify(line)}\n`);
+  } catch (e) {
+    console.error(`feedback: write failed (${e})`);
+    return res.status(500).end();
   }
   res.status(204).end();
 });
