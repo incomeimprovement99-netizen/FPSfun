@@ -4201,16 +4201,15 @@ async function soldierTest(browser: Browser): Promise<void> {
   // BOOG recharges after a shot (gunfeel.json charge; its scope's ring and its glow show it): part way just after it,
   // whole a rechamber later; and an inspect makes it glow round its edges as the hack cards glow (the owner, 2026-09-29:
   // "that glow we are using on the hacks, not the janky looking highlight")
-  const boog = await ev<{ after: number | null; later: number | null; glow: number }>(
+  // (a page call a step: the soldier section draws in software, and on a loaded machine the page ran so slowly that 30 s
+  // waited on the charge had it at 0.67 and 0.96, and the next call ran past a page call's 120 s; the lobby agent's
+  // sweep and a rerun alone, 2026-10-16)
+  const gameWaitJs = `const wait = (ms) => new Promise((ok) => setTimeout(ok, ms)); const gameWait = async (s) => { const g0 = r.gameTime(); const t0 = performance.now(); while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20); };`;
+  const boogShot = await ev<{ after: number | null }>(
     page,
     `(async () => {
       const r = window.__range;
-      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
-      const gameWait = async (s) => {
-        const g0 = r.gameTime();
-        const t0 = performance.now();
-        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
-      };
+      ${gameWaitJs}
       r.loadout.give(0, "sentinel");
       r.loadout.requestSwap(0, r.gameTime());
       let t0 = performance.now();
@@ -4222,20 +4221,35 @@ async function soldierTest(browser: Browser): Promise<void> {
       while (r.loadout.active.state.clip === clip0 && performance.now() - t0 < 20000) await wait(10);
       r.setScript(null);
       await gameWait(0.15);
-      const after = r.gunFeel().charge;
-      // whole again after the rechamber (BOOG's is over two seconds), waited on the charge itself: it counts on the view's
-      // own clock, whose step a slow frame caps, so 6 s of game time under load had it at 0.95 (the lobby agent's sweep,
-      // 2026-10-13, twice alone)
-      t0 = performance.now();
-      while (r.gunFeel().charge !== 1 && performance.now() - t0 < 30000) await wait(20);
-      const later = r.gunFeel().charge;
+      return { after: r.gunFeel().charge };
+    })()`,
+  );
+  // whole again after the rechamber (BOOG's is over two seconds), waited on the charge itself: it counts on the view's
+  // own clock, whose step a slow frame caps, so 6 s of game time under load had it at 0.95 (the lobby agent's sweep,
+  // 2026-10-13, twice alone), and 30 s of the page's time at 0.67 (2026-10-16)
+  const boogLater = await ev<number | null>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      ${gameWaitJs}
+      const t0 = performance.now();
+      while (r.gunFeel().charge !== 1 && performance.now() - t0 < 90000) await wait(50);
+      return r.gunFeel().charge;
+    })()`,
+  );
+  const boogGlow = await ev<number>(
+    page,
+    `(async () => {
+      const r = window.__range;
+      ${gameWaitJs}
       r.debugView.inspect = 0.3;
       await gameWait(0.2);
       const glow = r.gunFeel().rim;
       r.debugView.inspect = null;
-      return { after, later, glow };
+      return glow;
     })()`,
   );
+  const boog = { ...boogShot, later: boogLater, glow: boogGlow };
   check(
     "soldier guns: BOOG recharges after a shot (part way just after it, whole later) and an inspect makes it glow",
     boog.after !== null && boog.after > 0 && boog.after < 0.9 && boog.later === 1 && boog.glow > 0.1,
@@ -4247,80 +4261,88 @@ async function soldierTest(browser: Browser): Promise<void> {
   // our handle as it moves), and afterwards the hand is back on the gun. Without the pack's files, the view's own:
   // rolled over by gunfeel.json reload.twist, the support hand on the handle for the rack (rackHand)
   type Point = { miss: number; lead: string; turn: number; rackLead: string; rackBack: number; rackHand: number; held: number; swapped: number; shortHip: number; shortAimed: number };
-  const twistPoint = await ev<{ pack: boolean; roll: Record<string, number>; point: Record<string, Point> }>(
-    page,
-    `(async () => {
-      const r = window.__range;
-      const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
-      const gameWait = async (s) => {
-        const g0 = r.gameTime();
-        const t0 = performance.now();
-        while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
-      };
-      // in the hands and settled, 0.6 s with no swap and no flourish: a gun's first draw twirls it a whole turn round
-      // its barrel, starting as the swap ends; and the bought arms' clips in, if their files are here
-      const hold = async (id) => {
-        r.loadout.give(0, id);
-        r.loadout.requestSwap(0, r.gameTime());
-        const t0 = performance.now();
-        let clearFrom = r.gameTime();
-        while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
-          if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
-          await wait(20);
-        }
-      };
-      r.debugView.inspect = -1;
-      const roll = {};
-      const point = {};
-      let pack = false;
-      for (const id of ["r97", "sentinel"]) {
-        await hold(id);
-        pack = r.packArms().on;
-        const rest = r.gunFeel().roll;
-        const held = r.packArms().handsBelow;
-        // both hands on the gun, still, a second after it was drawn and aimed (how far each arm falls short of where
-        // it reaches; BOOG's right arm drifted off behind the eye within seconds of drawing it, its shoulder moved 21 cm
-        // back every frame)
-        await gameWait(1);
-        const shortHip = Math.max(r.packArms().reachShort, r.packArms().reachShortR);
-        r.debugView.ads = 1;
-        await gameWait(1);
-        const shortAimed = Math.max(r.packArms().reachShort, r.packArms().reachShortR);
-        r.debugView.ads = null;
-        await gameWait(0.3);
-        // (the empty reload, rack and all: with rounds in, a reload is a tactical one, with no rack)
-        r.loadout.active.state.clip = 0;
-        r.debugView.reload = 0.5;
-        await gameWait(0.2);
-        roll[id] = r.gunFeel().roll - rest;
-        if (pack) {
-          // the bought arms: pointing at the magazine as it phases out (fparms.json reload), the gun left alone by the
-          // pack's clip; working the gun in the rack window; and out of the picture at the bottom of a swap
-          r.debugView.reload = 0.28;
+  // (a page call a gun: both in one ran past a page call's 120 s with the soldier section drawing in software on a
+  // loaded machine, 2026-10-16)
+  const twistPoint: { pack: boolean; roll: Record<string, number>; point: Record<string, Point> } = { pack: false, roll: {}, point: {} };
+  for (const gunId of ["r97", "sentinel"]) {
+    const one = await ev<{ pack: boolean; roll: Record<string, number>; point: Record<string, Point> }>(
+      page,
+      `(async () => {
+        const r = window.__range;
+        const wait = (ms) => new Promise((ok) => setTimeout(ok, ms));
+        const gameWait = async (s) => {
+          const g0 = r.gameTime();
+          const t0 = performance.now();
+          while (r.gameTime() - g0 < s && performance.now() - t0 < 30000) await wait(20);
+        };
+        // in the hands and settled, 0.6 s with no swap and no flourish: a gun's first draw twirls it a whole turn round
+        // its barrel, starting as the swap ends; and the bought arms' clips in, if their files are here
+        const hold = async (id) => {
+          r.loadout.give(0, id);
+          r.loadout.requestSwap(0, r.gameTime());
+          const t0 = performance.now();
+          let clearFrom = r.gameTime();
+          while (r.gameTime() - clearFrom < 0.6 && performance.now() - t0 < 30000) {
+            if (r.loadout.swapping || r.vmState().flourish) clearFrom = r.gameTime();
+            await wait(20);
+          }
+        };
+        r.debugView.inspect = -1;
+        const roll = {};
+        const point = {};
+        let pack = false;
+        for (const id of [${JSON.stringify(gunId)}]) {
+          await hold(id);
+          pack = r.packArms().on;
+          const rest = r.gunFeel().roll;
+          const held = r.packArms().handsBelow;
+          // both hands on the gun, still, a second after it was drawn and aimed (how far each arm falls short of where
+          // it reaches; BOOG's right arm drifted off behind the eye within seconds of drawing it, its shoulder moved 21 cm
+          // back every frame)
+          await gameWait(1);
+          const shortHip = Math.max(r.packArms().reachShort, r.packArms().reachShortR);
+          r.debugView.ads = 1;
+          await gameWait(1);
+          const shortAimed = Math.max(r.packArms().reachShort, r.packArms().reachShortR);
+          r.debugView.ads = null;
+          await gameWait(0.3);
+          // (the empty reload, rack and all: with rounds in, a reload is a tactical one, with no rack)
+          r.loadout.active.state.clip = 0;
+          r.debugView.reload = 0.5;
           await gameWait(0.2);
-          const s = r.packArms();
-          r.debugView.reload = 0.78;
-          await gameWait(0.2);
-          const rackLead = r.packArms().lead;
-          const rackBack = r.packArms().handleBack;
-          const rackHand = r.packArms().leftToHandle;
+          roll[id] = r.gunFeel().roll - rest;
+          if (pack) {
+            // the bought arms: pointing at the magazine as it phases out (fparms.json reload), the gun left alone by the
+            // pack's clip; working the gun in the rack window; and out of the picture at the bottom of a swap
+            r.debugView.reload = 0.28;
+            await gameWait(0.2);
+            const s = r.packArms();
+            r.debugView.reload = 0.78;
+            await gameWait(0.2);
+            const rackLead = r.packArms().lead;
+            const rackBack = r.packArms().handleBack;
+            const rackHand = r.packArms().leftToHandle;
+            r.debugView.reload = null;
+            await gameWait(0.2);
+            r.debugView.raise = 0.5;
+            await gameWait(0.2);
+            const swapped = r.packArms().handsBelow;
+            r.debugView.raise = null;
+            // (no point is Infinity, which comes out of the page as null, and null < 0.06 holds: so 99 m)
+            point[id] = { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, lead: s.lead, turn: s.gunTurn, rackLead, rackBack, rackHand, held, swapped, shortHip, shortAimed };
+          }
           r.debugView.reload = null;
+          r.loadout.active.state.clip = r.loadout.active.weapon.clipSize;
           await gameWait(0.2);
-          r.debugView.raise = 0.5;
-          await gameWait(0.2);
-          const swapped = r.packArms().handsBelow;
-          r.debugView.raise = null;
-          // (no point is Infinity, which comes out of the page as null, and null < 0.06 holds: so 99 m)
-          point[id] = { miss: Number.isFinite(s.pointMiss) ? s.pointMiss : 99, lead: s.lead, turn: s.gunTurn, rackLead, rackBack, rackHand, held, swapped, shortHip, shortAimed };
         }
-        r.debugView.reload = null;
-        r.loadout.active.state.clip = r.loadout.active.weapon.clipSize;
-        await gameWait(0.2);
-      }
-      r.debugView.inspect = null;
-      return { pack, roll, point };
-    })()`,
-  );
+        r.debugView.inspect = null;
+        return { pack, roll, point };
+      })()`,
+    );
+    twistPoint.pack ||= one.pack;
+    Object.assign(twistPoint.roll, one.roll);
+    Object.assign(twistPoint.point, one.point);
+  }
   // (the empty reload's sweep in a call of its own: in one with the above it ran past a page call's 120 s on a busy
   // machine)
   const twistRack = await ev<{ rack: { back: number; hand: number; after: number } | null; onHandle: number | null; away: number | null }>(
