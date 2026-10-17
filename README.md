@@ -1278,7 +1278,7 @@ glowing pyramid to run up onto a lookout 7 m over the plaza, and a club under a 
 running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
 walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L,
-crossed indoors from hall to hall. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+crossed indoors from hall to hall, each with columns, a gallery and its stair, a tank and machines. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

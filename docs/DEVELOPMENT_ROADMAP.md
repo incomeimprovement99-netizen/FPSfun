@@ -14026,3 +14026,22 @@ past the ring road, in THE WELL's sector: rust and machinery, the one district c
 - **Checked** (tools/checks/sk-neon.ts): the whole L walked indoors from the south road through each arm's halls and the works block to the east road; each hall shut to a body every half metre along every side but at its doors, and roofed; in from the ring road through each arm hall's side doors and out to the edge; the street one network of 654 nodes. Each new check fails with its bug put back: a bar across a yard's doorway, a wall length taken out, a side door shut. The e2e: the SpeedKills section, 101 of 101 run alone (straight after verify it lost its game-time waits, 51 of 56). verify, rules and the type check. The look: photographed by golden hour and at night from the ring road, inside a hall, in a yard, at the works block and inside it, and from over the corner; the first bake's walls were see-through from inside and are laid twinned.
   The map: its files lo 150.8 MB, hi 222.6 MB, max 467.3 MB.
   **Its files are version 84.**
+
+## Milestone 647 — Inside THE WORKS' halls
+
+The south-east district's second stage (`rules.districts.works.inside`, tools/neon-layout.ts): the four arm halls
+furnished from one plan in a hall's own metres. Each hall has a `frame`, u along the arm and v in from the ring road, and
+the second hall of each arm is the first mirrored, so in every hall its doors and the bots' node lines fall where the
+plan's do.
+
+- **Columns:** six of the pack's beam columns, scaled to the clear height under the roof slab, drawn on typed boxes,
+  off every node line.
+- **The gallery:** a deck along the edge's wall at 3.5 m, the pack's floor tiles over a typed slab, railed along its
+  open edge in the pack's metal street fence. A double-flight stair (rules.doubleStair's typed steps) comes up onto it,
+  its front on the deck's edge, and the rail is open where it arrives.
+- **Cover:** laid as THE STRIP's ground is, off the bots' nodes: two car engines, a crate stack behind a concrete
+  barrier row, the pack's 5 m tank in the middle, a ticket machine by the stair. A pipe run on two walls and cable
+  bunches under the roof, drawn only.
+- **Checked** (tools/checks/sk-neon.ts): each gallery walked end to end at 3.5 m; its rails standing along its open edge but where the stair arrives (32 lengths); 24 columns and all 24 sets of cover laid; the four new stairs walked up in three lanes with the rest (96 walks up 32 stairs). Each new check fails with its bug put back: a gallery's slab taken out, a rail taken out, an engine moved onto a node. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night inside three halls, along two galleries and at a stair.
+  The map: its files lo 152.4 MB, hi 224.2 MB, max 468.9 MB.
+  **Its files are version 85.**

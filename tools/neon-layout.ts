@@ -4932,7 +4932,9 @@ function onNode(o: OBox): boolean {
 // the doorway. The walls are drawn only, on typed collision: the panels are 0.32 m thick, and the bake's half-metre
 // columns would have made each a metre. Each roof is the pack's floor tiles over a typed slab, with the fill lamps under it
 {
-  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]> }> };
+  type Frame = { o: Pt; u: Pt; v: Pt };
+  type Inside = { column: string; columns: Pt[]; gallery: { v: number; y: number; tile: string; rail: string; railShort: string; railH: number }; stair: { u: number }; crate: string; cover: Array<[string, number, number, number]>; pipes: Array<[string, number, number, number, number]>; cables: Array<[string, number, number, number, number]> };
+  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
   const DW = (R.districts as { works?: Works } | undefined)?.works;
   if (DW) {
     const solids: number[][] = [];
@@ -4998,8 +5000,108 @@ function onNode(o: OBox): boolean {
         }
       halls.push({ id: H.id, box: H.box, top, doors: gaps });
     }
-    cfg.works = { halls, panels, tiles, lamps, solids };
-    console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps`);
+    // inside the arm halls (`inside`, Milestone 647): one plan in a hall's own metres, its `frame` taking u along the
+    // arm and v in from the ring road onto the map, the second hall of each arm the first mirrored
+    const IN = DW.inside;
+    const inside = { laid: 0, of: 0, columns: 0, galleries: [] as Array<{ hall: string; y: number; a: number[]; b: number[] }>, rails: [] as number[][] };
+    for (const H of IN ? DW.halls : [])
+      if (H.frame) {
+        const { o, u: U, v: V } = H.frame;
+        const at = (a: number, b: number): Pt => [o[0] + a * U[0] + b * V[0], o[1] + a * U[1] + b * V[1]];
+        // (a piece's yaw on the map for a turn `t` from u: its own x along cos t u + sin t v)
+        const yawOf = (t: number) => {
+          const [c, s] = [Math.cos((t * Math.PI) / 180), Math.sin((t * Math.PI) / 180)];
+          return +((Math.atan2(-(c * U[1] + s * V[1]), c * U[0] + s * V[0]) * 180) / Math.PI).toFixed(2);
+        };
+        // (the columns scaled to the clear height under the roof slab, each a typed box)
+        const cr = piece(IN!.column).row;
+        const sc = (DW.storey - DW.slab) / cr.size![1];
+        for (const [a, b] of IN!.columns) {
+          const [x, z] = at(a, b);
+          const ob = placeTurned(DW.chunk, IN!.column, x, z, 0, "g", -cr.min![1] * sc, undefined, sc);
+          solids.push([x - ob.hu, x + ob.hu, z - ob.hv, z + ob.hv, 0, DW.storey - DW.slab].map((q) => +q.toFixed(3)));
+          STREET_GRAPH?.add(ob);
+          inside.columns++;
+        }
+        // (the gallery's stair first, so where it arrives is known: its front on the deck's edge, facing the wall)
+        const G = IN!.gallery;
+        const SP = R.doubleStair as { piece: string };
+        const HS = (R.districts as { stacks: { hotel: { stairs: { arrive: number[] } } } }).stacks.hotel.stairs;
+        const st = piece(SP.piece).row;
+        const [sx, sz] = at(IN!.stair.u, G.v - st.size![2] / 2);
+        const box = placeTurned(DW.chunk, SP.piece, sx, sz, +((Math.atan2(V[0], V[1]) * 180) / Math.PI).toFixed(2), "g");
+        STREET_GRAPH?.add(box);
+        const [smx, smz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
+        const own = (ox: number, oz: number): Pt => [sx + box.u[0] * (ox - smx) + box.v[0] * (oz - smz), sz + box.u[1] * (ox - smx) + box.v[1] * (oz - smz)];
+        doubleStair(own, 0, `THE WORKS' ${H.id} gallery stair`);
+        // (the arrival's stretch of the deck's edge in u, the rail open over it)
+        const along = (p: Pt) => (p[0] - o[0]) * U[0] + (p[1] - o[1]) * U[1];
+        const ends = [along(own(HS.arrive[0] - 0.4, st.max![2])), along(own(HS.arrive[1] + 0.4, st.max![2]))];
+        const [g0, g1] = [Math.min(...ends), Math.max(...ends)];
+        // (the deck: the floor tiles, their pivots their tops, over a typed slab from the edge to the wall)
+        const tr = piece(G.tile).row;
+        const cell = tr.size![0];
+        const span = Math.abs((H.box[1] - H.box[0]) * U[0] + (H.box[3] - H.box[2]) * U[1]);
+        const deep = Math.abs((H.box[1] - H.box[0]) * V[0] + (H.box[3] - H.box[2]) * V[1]);
+        for (let a = 0; a < span - 0.01; a += cell) {
+          const [x, z] = at(a + cell / 2, (G.v + deep) / 2);
+          placeTurned(DW.chunk, G.tile, x, z, 0, "g", G.y - tr.max![1]);
+        }
+        const [p0, p1] = [at(0, G.v), at(span, deep)];
+        solids.push([Math.min(p0[0], p1[0]), Math.max(p0[0], p1[0]), Math.min(p0[1], p1[1]), Math.max(p0[1], p1[1]), G.y - DW.slab, G.y]);
+        inside.galleries.push({ hall: H.id, y: G.y, a: at(0.6, (G.v + deep) / 2), b: at(span - 0.6, (G.v + deep) / 2) });
+        // (its rail along the open edge, a cell at a time but where the stair arrives, run together into long lengths)
+        const runs: number[][] = [];
+        for (let a = 0; a < span - 0.01; a += cell) {
+          if (a + cell > g0 && a < g1) continue;
+          const last = runs[runs.length - 1];
+          if (last && Math.abs(last[1] - a) < 0.01) last[1] = a + cell;
+          else runs.push([a, a + cell]);
+        }
+        const long = piece(G.rail).row.size![2];
+        for (const [r0, r1] of runs) {
+          for (let a = r0; a < r1 - 0.01; ) {
+            const name = r1 - a >= long - 0.01 ? G.rail : G.railShort;
+            const l = piece(name).row.size![2];
+            const [x, z] = at(a + l / 2, G.v + 0.1);
+            placeTurned(DW.chunk, name, x, z, yawOf(90), "g", G.y - piece(name).row.min![1]);
+            a += l;
+          }
+          const [q0, q1] = [at(r0, G.v + 0.04), at(r1, G.v + 0.16)];
+          solids.push([Math.min(q0[0], q1[0]), Math.max(q0[0], q1[0]), Math.min(q0[1], q1[1]), Math.max(q0[1], q1[1]), G.y, G.y + G.railH].map((q) => +q.toFixed(3)));
+          for (let a = r0 + cell / 2; a < r1; a += cell) inside.rails.push([...at(a, G.v + 0.1)].map((q) => +q.toFixed(2)).concat([G.y]));
+        }
+        // (the cover, each set laid as THE STRIP's ground is, unless on a street node or cutting the streets in two)
+        for (const [name, a, b, t] of IN!.cover) {
+          const yaw = yawOf(t);
+          const set: Array<[string, number, number, number, number]> = [];
+          if (name === "crates") {
+            const c = piece(IN!.crate).row;
+            const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+            set.push([IN!.crate, ox, oz, yaw, 0], [IN!.crate, -ox, -oz, yaw, 0], [IN!.crate, -ox, -oz, yaw, c.size![1]]);
+          } else set.push([name, 0, 0, yaw, 0]);
+          let [hu, hv, top] = [0, 0, 0];
+          for (const [n, dx, dz, , y] of set) {
+            const r = piece(n).row;
+            const [lu, lv] = rotY(-yaw, dx, dz);
+            hu = Math.max(hu, Math.abs(lu) + r.size![0] / 2);
+            hv = Math.max(hv, Math.abs(lv) + r.size![2] / 2);
+            top = Math.max(top, y + r.size![1]);
+          }
+          const [x, z] = at(a, b);
+          const ob: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+          inside.of++;
+          if (onNode(ob) || STREET_GRAPH?.splits(ob)) continue;
+          STREET_GRAPH?.add(ob);
+          for (const [n, dx, dz, yw, y] of set) placeTurned(DW.chunk, n, x + dx, z + dz, yw, "o", y - piece(n).row.min![1]);
+          inside.laid++;
+        }
+        // (the pipe runs on the walls and the cable bunches under the roof slab, drawn only: by their bottoms and tops)
+        for (const [name, a, b, t, y] of IN!.pipes) placeTurned(DW.chunk, name, ...at(a, b), yawOf(t), "g", y - piece(name).row.min![1]);
+        for (const [name, a, b, t, y] of IN!.cables) placeTurned(DW.chunk, name, ...at(a, b), yawOf(t), "g", y - piece(name).row.max![1]);
+      }
+    cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}) };
+    console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}`);
   }
 }
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super

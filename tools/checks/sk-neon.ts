@@ -3391,6 +3391,15 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     return { id: h.id, w: along(r), n: r.length };
   });
   check("THE WORKS: in from the ring road through each arm hall's side doors and out to the edge", sides.length === 4 && sides.every((q) => q.w.k === q.n), sides.map((q) => `${q.id}: ${q.w.k - 1} of ${q.n - 1} legs`).join("; "));
+  // (inside the arm halls, Milestone 647: each gallery walked end to end at its height, railed along its open edge but
+  // where its stair arrives (the stairs themselves walked with the rest); every set of cover laid; each column floor to
+  // the roof slab)
+  const IN = (cfg as unknown as { works?: { inside?: { laid: number; of: number; columns: number; galleries: Array<{ hall: string; y: number; a: number[]; b: number[] }>; rails: number[][] } } }).works?.inside;
+  const gw = (IN?.galleries ?? []).map((g) => ({ g, w: along([[g.a[0], g.a[1], g.y], [g.b[0], g.b[1], g.y]]) }));
+  check("THE WORKS: each arm hall's gallery walked end to end at its height", gw.length === 4 && gw.every((q) => q.w.k === 2 && Math.abs(q.w.y - q.g.y) < 0.15), gw.map((q) => `${q.g.hall}: ${q.w.k === 2 ? "end to end" : `stopped at (${q.w.x.toFixed(1)}, ${q.w.z.toFixed(1)}) ${q.w.y.toFixed(2)} m`}`).join("; "));
+  const bareRail = (IN?.rails ?? []).filter(([x, z, y]) => !S.some((b) => b[0] <= x + 0.06 && b[1] >= x - 0.06 && b[2] <= z + 0.06 && b[3] >= z - 0.06 && b[4] <= y + 0.3 && b[5] >= y + 0.9));
+  check("THE WORKS: its galleries railed along their open edges, but where a stair arrives", (IN?.rails.length ?? 0) >= 30 && bareRail.length === 0, bareRail.slice(0, 4).map(([x, z]) => `(${x}, ${z})`).join("; ") || `${IN?.rails.length ?? 0} rail lengths`);
+  check("THE WORKS: inside the arm halls, columns floor to roof and every set of cover laid", (IN?.columns ?? 0) === 24 && (IN?.of ?? 0) >= 24 && IN?.laid === IN?.of, `${IN?.columns ?? 0} columns, ${IN?.laid ?? 0} of ${IN?.of ?? 0} sets of cover laid`);
 }
 
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,
@@ -3419,7 +3428,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       const w = along(r);
       if (w.k !== r.length || Math.abs(w.y - r.at(-1)![2]) > 0.15) stuck.push(`${s.where} lane ${j + 1}: ${w.k - 1} of ${r.length - 1} legs, at (${w.x.toFixed(1)}, ${w.z.toFixed(1)}) ${w.y.toFixed(2)} m`);
     }
-  check("every double-flight stair, the base's, the Sky Ring's, the capsule hotel's, the club's and THE CANYON's, walked up by a player in three lanes across its flights", (ST?.list.length ?? 0) === 28 && stuck.length === 0, stuck.slice(0, 4).join("; ") + (stuck.length > 4 ? ` and ${stuck.length - 4} more` : "") || `${walks} walks up ${ST?.list.length ?? 0} stairs`);
+  check("every double-flight stair, the base's, the Sky Ring's, the capsule hotel's, the club's, THE CANYON's and THE WORKS' halls', walked up by a player in three lanes across its flights", (ST?.list.length ?? 0) === 32 && stuck.length === 0, stuck.slice(0, 4).join("; ") + (stuck.length > 4 ? ` and ${stuck.length - 4} more` : "") || `${walks} walks up ${ST?.list.length ?? 0} stairs`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
