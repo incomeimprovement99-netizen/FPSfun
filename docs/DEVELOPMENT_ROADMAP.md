@@ -13947,3 +13947,24 @@ The south-west district's third stage, the last of its three streets (`rules.dis
 - **Checked** (tools/checks/sk-neon.ts): each of the four pads ridden onto its roof (26.86 m, 3.4 m in); each bridge walked across from roof to roof and back; the 38 pieces of cover each standing in the collision on the roof, found over its footprint (the roof tank is a shell, its lid 3 m up over nothing); 780 m of roof edge railed but where a bridge arrives; and the rest of the map's checks, the walkways, the stairs and the street network among them. Each new check fails with its bug put back: a bar across a bridge's end, a whole AC box taken out, a rail length taken out, and the roof under a pad's landing taken away. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night from the inner roofs across a bridge, along the outer roofs, up a passage at its pads, from the canyon floor up at the bridges, and from over the corner.
   The map: its files lo 147.9 MB, hi 219.8 MB, max 464.4 MB.
   **Its files are version 82.**
+
+## Milestone 550 — APUHTHEE's thumb out of the slide as a swap starts, and the e2e waiting for the hands
+
+- **APUHTHEE** (fparms.json packGuns DGL50 cup): its right hand turned into the swap's cup in place on the grip before
+  it moved off it (`cup.shape` r from 0.2268, `moveAt` r from 0.3545), and the thumb tip went 4.1 mm into the slide at a
+  swap's start. It turns now as it moves off.
+- **The e2e waits for the hands** (tools/e2e.ts H.viewWait): the view steps a frame at most 0.05 s, so drawn in software
+  a few frames a second, the 0.35 s of game time the bought arms' states waited was a frame or two of the view's, the
+  hands still on their way into a state. Skin in the gun, the inspect's and the flourish's sweep and the hands at rest
+  now wait as long in the view's own time too. That is what showed APUHTHEE's thumb (it read 0 caught on its way), and
+  it took STRYDER's 5 mm as a swap came in (one run in four) and HAEFY's flourish wrist just over 60 degrees out of
+  the results. A failure of the skin check names the bone and the part it is in.
+- **Also in tools/e2e.ts** (no milestone of their own): the soldier section's BOOG recharge and reload-in-view checks are
+  short page calls, BOOG's charge waited on for up to 90 s, after the lobby agent's sweep found them past a page call's
+  120 s; and the crouched-outline check's proof ray is at 1.4 m, above the crouched soldier's head (its volumes reach
+  1.25 m, measured).
+- **Known:** STRYDER's left hand can show a 13 pixel pocket of daylight at rest on some runs. The same hold reads 0 or 13
+  from run to run, and moves of half a millimetre flip it both ways; it passed this round.
+- **Checked:** verify, rules and the type check; the bought arms' frames on all ten guns with the wait (48 of 50, the two
+  misses STRYDER's pocket and HAEFY's flourish wrist, then both passing in a run of their own) and APUHTHEE's alone
+  (40 of 40).

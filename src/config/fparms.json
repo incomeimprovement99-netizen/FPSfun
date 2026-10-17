@@ -2357,8 +2357,8 @@
             0.8769
           ],
           "r": [
-            0.2268,
-            0.5641
+            0.3545,
+            0.6
           ]
         },
         "moveAt": {
@@ -2372,6 +2372,7 @@
           ]
         }
       },
+      "_cup": "The right hand turns into its cup only as it moves off the grip (`cup.shape` r starting where `moveAt` r does, 0.3545): starting at 0.2268, it turned in place on the grip before it moved, and its thumb tip went 4.1 mm into the slide at a swap's start (2026-10-17, once the e2e waited for the hands in the view's own time).",
       "meleeClearWay": [
         -0.7613,
         -1.5,
