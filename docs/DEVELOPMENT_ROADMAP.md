@@ -13800,3 +13800,24 @@ test bake and photographed by day and night.
 - **Checked** (tools/checks/sk-neon.ts): the columns shut to 14 m and all 28 balcony cells in the collision; a player walks in through each gate onto the dance floor; sprints up each stair onto the balcony in three lanes across its flights (six walks to 3.5 m); walks the whole ring round its 12 legs; the balcony railed along 28 rails (128 points); THE STRIP's earlier checks all still pass. The stair check failed on the pack's own collision before the typed steps (the west stair's walk stopped at its foot); with the club's typed boxes taken out of the collision, the column, deck, stair, ring and rail checks all failed. The e2e: the SpeedKills section's first run broke off under load (the owner's game and recorder running: the BR's timed checks, the heal, the decay and the loot's return, saw no game time pass); rerun alone, 100 of 101, the one fail the feel section's outline check at a spot it picks at random (the bot stood where its crouched case wants it crouched, at map 105, 93), passed in Milestone 596's run. verify, rules and the type check. The look: the club from the ring road, its gate onto the boulevard, its floor, a stair, the balcony, the bar, looking up through the canopy, the gate's billboards lit, and from above, by golden hour and neon night.
   The map: its files lo 140.7 MB, hi 212.6 MB, max 457.3 MB.
   **Its files are version 76.**
+
+## Milestone 598 — Every double-flight stair walked straight up
+
+The owner, 2026-10-12: "i can glitch through stairs all the time when going up". Milestone 594 fixed the High City's
+bridge stairs and 595 the Sky Ring lifts' landing stairs, both at the top step. This is the rest of it.
+
+- **The fault, measured.** The pack's double-flight stair is the tower base's twelve between its storeys, the Sky Ring's
+  four up from the plaza and the capsule hotel's six. Measured off the bake (Milestone 597), its flights collide
+  between stringers standing 0.15 to 0.4 m over their treads, which leaves a lane about 1 m wide for a 0.81 m body. A
+  new check walks every one of them up in three lanes across its flights: up the middle and as near each side as a
+  body fits. On the pack's own collision, 41 of its 72 walks stuck, at the foot or halfway up. The base's main stairs
+  were among them.
+- **The fix** (`rules.doubleStair`, tools/neon-layout.ts `doubleStair`): every double-flight stair is drawn as it was,
+  and collides as typed steps across each flight's whole width, ten treads a flight, with a flat landing at half the
+  rise and guards along the flights' sides and between them, in the bake's typed collision (`cfg.stairs`,
+  tools/import-neon.ts). THE STRIP club's two, built that way in Milestone 597, now use the same rule. The base's,
+  the Sky Ring's and the hotel's existing checks (walked up and down, their headroom, the Sky Ring's deck reached) all
+  still pass.
+- **Checked** (tools/checks/sk-neon.ts): every double-flight stair walked up by a player in three lanes across its flights, 72 walks up 24 stairs, which on the pack's own collision stuck in 41 of 72 (the base's main stairs among them); the base's stairs walked up and down, their headroom, the Sky Ring walked up and round, the capsule hotel's and the club's stairs, all still passing; the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section 101 of 101 (a first run under load broke off after 55 at the decay's endgame, a game-time step, and passed in full rerun alone). verify, rules and the type check. The look: the stairs are drawn as before; their collision is what changed.
+  The map: its files lo 140.8 MB, hi 212.6 MB, max 457.3 MB.
+  **Its files are version 77.**

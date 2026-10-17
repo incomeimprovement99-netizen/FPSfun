@@ -100,6 +100,43 @@ function placeFaced(chunk: string, name: string, cx: number, cz: number, yaw: nu
   return b;
 }
 /**
+ * a double-flight stair's collision (rules.doubleStair), the piece itself placed drawn only: typed steps across each
+ * flight's whole width, its landing and guards along the flights' sides, solid from `base`, into the bake's typed
+ * collision (cfg.stairs). The pack's own collision left a lane 1 m wide between stringers that caught a body walking
+ * up a little off its middle. `own` takes the stair's own metres (its pivot's frame) onto the map; `where` names it
+ * for the check, which walks it up in each of rules.doubleStair's lanes
+ */
+const STAIR_SOLIDS: number[][] = [];
+const STAIR_LIST: Array<{ where: string; lanes: number[][][] }> = [];
+function doubleStair(own: (ox: number, oz: number) => Pt, base: number, where: string): number[][][] {
+  const S = R.doubleStair as { up: number[]; down: number[]; landing: number[]; run: number; treads: number; rise: number; guard: number; thick: number; route: number[][]; lanes: { up: number[]; down: number[] } };
+  const solid = (ox0: number, ox1: number, oz0: number, oz1: number, top: number) => {
+    const [a, b] = [own(ox0, oz0), own(ox1, oz1)];
+    STAIR_SOLIDS.push([Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[1], b[1]), base, base + top].map((v) => +v.toFixed(3)));
+  };
+  const flight = S.rise / 2;
+  const tread = S.run / S.treads;
+  const upAt = (k: number) => (flight * (k + 1)) / S.treads;
+  const downAt = (k: number) => flight + (flight * (k + 1)) / S.treads;
+  for (let k = 0; k < S.treads; k++) {
+    // (the up flight from the front back, the return from the back to the front: tread k of the up flight lies beside
+    // tread treads-1-k of the return)
+    const [f0, f1] = [-tread * (k + 1), -tread * k];
+    const back = S.treads - 1 - k;
+    solid(S.up[0], S.up[1], f0, f1, upAt(k));
+    solid(S.down[0], S.down[1], f0, f1, downAt(back));
+    solid(S.up[1], S.up[1] + S.thick, f0, f1, upAt(k) + S.guard);
+    solid(S.down[0] - S.thick, S.down[0], f0, f1, downAt(back) + S.guard);
+    solid(S.down[1], S.up[0], f0, f1, Math.max(upAt(k), downAt(back)) + S.guard);
+  }
+  solid(S.landing[0], S.landing[1], S.landing[2], S.landing[3], flight);
+  // (the route up it, its flights walked at each lane's own x)
+  const route = (lu: number, ld: number) => S.route.map(([ox, oz, oy], i) => [...own(i < 3 ? lu : i > 3 ? ld : ox, oz).map((v) => +v.toFixed(2)), +(base + oy).toFixed(2)]);
+  const lanes = S.lanes.up.map((lu, i) => route(lu, S.lanes.down[i]));
+  STAIR_LIST.push({ where, lanes });
+  return lanes;
+}
+/**
  * the street's tall cover dressed (rules.dress.board): the pack's poster sheet on each face of the concrete panel just
  * placed, `up` over its foot and `gap` off each face, drawn only. The panel's own thin side is its z
  */
@@ -1313,10 +1350,11 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     if (!levels.includes(up) && up !== B.roof) throw new Error(`stairs at ${h} lead to no storey`);
     if (up - (h + B.stairs.rise) > MOVE_STEP) throw new Error(`the base's stair climbs ${B.stairs.rise} m of ${up - h}`);
     for (const [x, z, yaw] of list) {
-      const box = placeTurned("c-base", B.stairs.piece, x, z, yaw, "o", h);
+      const box = placeTurned("c-base", B.stairs.piece, x, z, yaw, "g", h);
       // own (x, z) of the stair onto the map, by its footprint's middle
       const [mx, mz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
       const own = (ox: number, oz: number): Pt => [x + box.u[0] * (ox - mx) + box.v[0] * (oz - mz), z + box.u[1] * (ox - mx) + box.v[1] * (oz - mz)];
+      doubleStair(own, h, `the base's ${h} m stair at (${x}, ${z})`);
       const [x0, x1, z0, z1] = [st.min![0], st.max![0], st.min![2], st.max![2]];
       holes.get(up)!.push([own(x0, z0), own(x1, z0), own(x1, z1), own(x0, z1)]);
       // (the rail stands back from the flight's sides by `clear`: flush with them it left a body's square no way off)
@@ -1847,7 +1885,11 @@ const skyStairs: Pt[] = [];
   for (const deg of SR.stairs.at as number[]) {
     const u: Pt = [Math.cos((deg * Math.PI) / 180), Math.sin((deg * Math.PI) / 180)];
     const yaw = yawToward(u[0], u[1]);
-    add("c-skyring", "c", [piece(SR.stairs.piece).key, +(u[0] * SR.r0).toFixed(3), 0, +(u[1] * SR.r0).toFixed(3), +yaw.toFixed(2), "o"] as Place);
+    add("c-skyring", "c", [piece(SR.stairs.piece).key, +(u[0] * SR.r0).toFixed(3), 0, +(u[1] * SR.r0).toFixed(3), +yaw.toFixed(2), "g"] as Place);
+    doubleStair((ox, oz) => {
+      const [dx, dz] = rotY(yaw, ox, oz);
+      return [u[0] * SR.r0 + dx, u[1] * SR.r0 + dz];
+    }, 0, `the Sky Ring's stair at ${deg} degrees`);
     const [ex, ez] = rotY(yaw, SR.stairs.exit[0], SR.stairs.exit[1]);
     exits.push([u[0] * SR.r0 + ex, u[1] * SR.r0 + ez]);
     skyStairs.push([u[0] * (SR.r0 - stair.size![2] / 2), u[1] * (SR.r0 - stair.size![2] / 2)]);
@@ -4115,9 +4157,10 @@ function onNode(o: OBox): boolean {
         const c = ptOf(W, along, edge + depth / 2);
         // (its own +z toward the gallery, the wing's back: the backs are the map's west and north edges)
         const yaw = W.axis === "x" ? 180 : 270;
-        const box = placeTurned(DS.chunk, ST.piece, c[0], c[1], yaw, "o", y);
+        const box = placeTurned(DS.chunk, ST.piece, c[0], c[1], yaw, "g", y);
         if (y === 0) STREET_GRAPH?.add(box);
         const own = (ox: number, oz: number): Pt => [c[0] + box.u[0] * (ox - mx) + box.v[0] * (oz - mz), c[1] + box.u[1] * (ox - mx) + box.v[1] * (oz - mz)];
+        doubleStair(own, y, `the capsule hotel's ${y} m stair on its ${wing} wing`);
         if (y > 0) {
           const pb = boxOf(W, along - st.size![0] / 2, along + st.size![0] / 2, edge, edge + depth);
           hotelSolids.push([pb[0], pb[1], pb[2], pb[3], y - HT.slab, y]);
@@ -4390,7 +4433,6 @@ function onNode(o: OBox): boolean {
       at: number[]; span: number; storeys: number; canopy: string; inset: number; walls: Array<[string, number, number, number]>; gates: number[][];
       balcony: { y: number; slab: number; cell: number; deck: string };
       stairs: number[][]; bar: { piece: string; from: number[]; count: number; step: number; yaw: number }; seats: Array<[string, number, number, number]>;
-      steps: { up: number[]; down: number[]; landing: number[]; run: number; treads: number; rise: number; guard: number; thick: number; lanes: { up: number[]; down: number[] } };
     };
     ground: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
@@ -4486,37 +4528,13 @@ function onNode(o: OBox): boolean {
       const st = piece(HS.stairs.piece).row;
       const [smx, smz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
       const stairs: Array<{ at: number[]; route: number[][]; lanes: number[][][]; gap: number[][] }> = [];
-      const SS = CL.steps;
       for (const [x, z, yaw] of CL.stairs) {
         const box = placeTurned(DT.chunk, HS.stairs.piece, x, z, yaw, "g");
         STREET_GRAPH?.add(box);
         const own = (ox: number, oz: number): Pt => [x + box.u[0] * (ox - smx) + box.v[0] * (oz - smz), z + box.u[1] * (ox - smx) + box.v[1] * (oz - smz)];
-        // (a box in the stair's own frame to the map's, solid from the street to `top`)
-        const solid = (ox0: number, ox1: number, oz0: number, oz1: number, top: number) => {
-          const [a, b] = [own(ox0, oz0), own(ox1, oz1)];
-          solids.push([Math.min(a[0], b[0]), Math.max(a[0], b[0]), Math.min(a[1], b[1]), Math.max(a[1], b[1]), 0, top].map((v) => +v.toFixed(3)));
-        };
-        const flight = SS.rise / 2;
-        const tread = SS.run / SS.treads;
-        const upAt = (k: number) => (flight * (k + 1)) / SS.treads;
-        const downAt = (k: number) => flight + (flight * (k + 1)) / SS.treads;
-        for (let k = 0; k < SS.treads; k++) {
-          // (the up flight from the front back, the return from the back to the front: tread k of the up flight lies
-          // beside tread treads-1-k of the return)
-          const [f0, f1] = [-tread * (k + 1), -tread * k];
-          const back = SS.treads - 1 - k;
-          solid(SS.up[0], SS.up[1], f0, f1, upAt(k));
-          solid(SS.down[0], SS.down[1], f0, f1, downAt(back));
-          solid(SS.up[1], SS.up[1] + SS.thick, f0, f1, upAt(k) + SS.guard);
-          solid(SS.down[0] - SS.thick, SS.down[0], f0, f1, downAt(back) + SS.guard);
-          solid(SS.down[1], SS.up[0], f0, f1, Math.max(upAt(k), downAt(back)) + SS.guard);
-        }
-        solid(SS.landing[0], SS.landing[1], SS.landing[2], SS.landing[3], flight);
+        const lanes = doubleStair(own, 0, `THE STRIP club's stair at (${x}, ${z})`);
         const [p, q] = [own(HS.stairs.arrive[0] - 0.4, st.max![2]), own(HS.stairs.arrive[1] + 0.4, st.max![2])];
-        // (the hotel's route, its flights walked at the lanes' own x)
-        const route = (lu: number, ld: number) =>
-          HS.stairs.route.map(([ox, oz, oy], i) => [...own(i < 3 ? lu : i > 3 ? ld : ox, oz).map((v) => +v.toFixed(2)), +oy.toFixed(2)]);
-        stairs.push({ at: [x, z], route: route(SS.lanes.up[1], SS.lanes.down[1]), lanes: SS.lanes.up.map((lu, i) => route(lu, SS.lanes.down[i])), gap: [p, q].map((r) => r.map((v) => +v.toFixed(2))) });
+        stairs.push({ at: [x, z], route: lanes[1], lanes, gap: [p, q].map((r) => r.map((v) => +v.toFixed(2))) });
       }
       // the rails along the deck's open edges: every cell edge with no deck past it and no wall or column behind it, run
       // into lines and laid in the hotel's fence lengths, `inset` onto the deck, open where a stair arrives
@@ -4713,6 +4731,9 @@ function onNode(o: OBox): boolean {
 }
 cfg.chunks = Object.fromEntries([...chunks].sort((a, b) => a[0].localeCompare(b[0])));
 cfg.measured = { placements: [...chunks.values()].reduce((a, c) => a + c.place.length, 0), pieces: new Set([...chunks.values()].flatMap((c) => c.place.map((p) => p[0]))).size };
+// every double-flight stair's typed steps (doubleStair) to the bake's typed collision, and each one's lanes for the check
+cfg.stairs = { solids: STAIR_SOLIDS, list: STAIR_LIST };
+console.log(`the double-flight stairs: ${STAIR_LIST.length} as typed steps, ${STAIR_SOLIDS.length} boxes`);
 writeFileSync(CFG_FILE, JSON.stringify(cfg, null, 1) + "\n");
 const tris = [...chunks.values()].flatMap((c) => c.place).reduce((a, p) => a + (byName.get(p[0])?.tris ?? 0), 0);
 console.log(`${cfg.measured.placements} placements of ${cfg.measured.pieces} pieces in ${chunks.size} chunks, ${(tris / 1e6).toFixed(2)}M triangles`);

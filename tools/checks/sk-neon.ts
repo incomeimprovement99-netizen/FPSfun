@@ -3198,5 +3198,21 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("THE STRIP's club: its balcony railed along every open edge, over its gates too, but where a stair comes off", !!CO && CO.railLines.length >= 20 && railPoints > 80 && unfenced.length === 0, unfenced.slice(0, 4).join("; ") || `${railPoints} points along ${CO?.railLines.length ?? 0} rails`);
 }
 
+// every double-flight stair (rules.doubleStair, Milestone 598): the tower base's twelve, the Sky Ring's four, the capsule
+// hotel's six and THE STRIP club's two, each walked up by a player in three lanes across its flights, up their middle
+// and as near each side as a body fits (the owner, 2026-10-12: "i can glitch through stairs all the time when going up")
+{
+  const ST = (cfg as unknown as { stairs?: { list: Array<{ where: string; lanes: number[][][] }> } }).stairs;
+  const stuck: string[] = [];
+  let walks = 0;
+  for (const s of ST?.list ?? [])
+    for (const [j, r] of s.lanes.entries()) {
+      walks++;
+      const w = along(r);
+      if (w.k !== r.length || Math.abs(w.y - r.at(-1)![2]) > 0.15) stuck.push(`${s.where} lane ${j + 1}: ${w.k - 1} of ${r.length - 1} legs, at (${w.x.toFixed(1)}, ${w.z.toFixed(1)}) ${w.y.toFixed(2)} m`);
+    }
+  check("every double-flight stair, the base's, the Sky Ring's, the capsule hotel's and the club's, walked up by a player in three lanes across its flights", (ST?.list.length ?? 0) === 24 && stuck.length === 0, stuck.slice(0, 4).join("; ") + (stuck.length > 4 ? ` and ${stuck.length - 4} more` : "") || `${walks} walks up ${ST?.list.length ?? 0} stairs`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);
