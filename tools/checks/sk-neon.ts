@@ -3207,9 +3207,10 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const CN = (cfg as unknown as { canyon?: { blocks: number[][]; fronts: number } }).canyon;
   const CR = (cfg.rules as unknown as { districts?: { canyon?: { height: number; name: { at: number[]; w: number } } } }).districts?.canyon;
   const S = SOLIDS.solids as number[][];
-  const inL = (b: number[]) => (b[0] >= -152.01 && b[1] <= -42.49 && b[2] >= 107.49 && b[3] <= 152.01) || (b[0] >= -152.01 && b[1] <= -107.49 && b[2] >= 42.49 && b[3] <= 152.01);
+  // (the outer blocks run half a metre past the map's 152 m edge, so their sides are whole fronts)
+  const inL = (b: number[]) => (b[0] >= -152.51 && b[1] <= -42.49 && b[2] >= 107.49 && b[3] <= 152.51) || (b[0] >= -152.51 && b[1] <= -107.49 && b[2] >= 42.49 && b[3] <= 152.51);
   const open = (CN?.blocks ?? []).filter((b) => !S.some((q) => q[0] <= (b[0] + b[1]) / 2 && q[1] >= (b[0] + b[1]) / 2 && q[2] <= (b[2] + b[3]) / 2 && q[3] >= (b[2] + b[3]) / 2 && q[4] <= 0.05 && q[5] >= (CR?.height ?? 26.86) - 0.05));
-  check("THE CANYON: its blocks of the pack's lower fronts inside the south-west L, each shut to its roof", !!CN && CN.blocks.length === 6 && CN.blocks.every(inL) && open.length === 0 && CN.fronts >= 100, `${CN?.blocks.length ?? 0} blocks, ${CN?.fronts ?? 0} fronts, ${open.length} open`);
+  check("THE CANYON: its blocks of the pack's lower fronts inside the south-west L, each shut to its roof", !!CN && CN.blocks.length >= 6 && CN.blocks.every(inL) && open.length === 0 && CN.fronts >= 100, `${CN?.blocks.length ?? 0} blocks, ${CN?.fronts ?? 0} fronts, ${open.length} open`);
   // (each front's windows to the open air: a front is lit windows on its own -x face and its frame from behind, its
   // own x from -5 to -2.5 and its own z from minus its length to 0; so from its middle, 3 m behind it is inside its
   // block and a metre out from its windows is not)
@@ -3251,6 +3252,23 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     }
   const named = ((cfg as unknown as { districtNames?: Array<{ district: string }> }).districtNames ?? []).some((q) => q.district === "canyon");
   check("THE CANYON: its name in yellow-green over the south passage, seen from the ring road", named && !!NM && blockedAt.length === 0, blockedAt.slice(0, 4).join("; ") || "9 sight lines clear");
+  // (its walkways, Milestone 642: each L of them walked end to end at their height, and every rail edge, a point every
+  // half metre along it, standing in the collision from the walk to past a body's waist)
+  const WKc = (cfg as unknown as { canyon?: { walkways?: { y: number; rails: number[][] } } }).canyon?.walkways;
+  const y = WKc?.y ?? 3.5;
+  const wl: Array<[string, number[][]]> = [
+    ["the inner walkways, from the south road round the crossroads to the west road", [[-44, 121.25, y], [-121.25, 121.25, y], [-121.25, 44, y]]],
+    ["the outer walkways, the same way round", [[-44, 128.75, y], [-128.75, 128.75, y], [-128.75, 44, y]]],
+  ];
+  const ww = wl.map(([name, r]) => ({ name, r, w: along(r) }));
+  check("THE CANYON: a player walks each L of its walkways end to end, 3.5 m up its walls", !!WKc && ww.every((q) => q.w.k === q.r.length && Math.abs(q.w.y - y) < 0.15), ww.map((q) => `${q.name}: ${q.w.k - 1} of ${q.r.length - 1} legs, at (${q.w.x.toFixed(1)}, ${q.w.z.toFixed(1)}) ${q.w.y.toFixed(2)} m`).join("; "));
+  const unrailed: string[] = [];
+  for (const [x, z, ox] of WKc?.rails ?? [])
+    for (const t of [-1, -0.5, 0, 0.5, 1]) {
+      const [px, pz] = ox ? [x, z + t] : [x + t, z];
+      if (!S.some((b) => b[0] <= px + 0.05 && b[1] >= px - 0.05 && b[2] <= pz + 0.05 && b[3] >= pz - 0.05 && b[4] <= y + 0.3 && b[5] >= y + 0.9)) unrailed.push(`(${px.toFixed(1)}, ${pz.toFixed(1)})`);
+    }
+  check("THE CANYON: its walkways railed along every open edge, but where a stair arrives", !!WKc && (WKc.rails.length ?? 0) > 100 && unrailed.length === 0, unrailed.slice(0, 4).join("; ") || `${WKc?.rails.length ?? 0} rail lengths`);
 }
 
 // GLASS HEIGHTS' light (rules.districts.glass.light, Milestone 640): cyan strips under its four gangways, each hung
@@ -3292,7 +3310,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       const w = along(r);
       if (w.k !== r.length || Math.abs(w.y - r.at(-1)![2]) > 0.15) stuck.push(`${s.where} lane ${j + 1}: ${w.k - 1} of ${r.length - 1} legs, at (${w.x.toFixed(1)}, ${w.z.toFixed(1)}) ${w.y.toFixed(2)} m`);
     }
-  check("every double-flight stair, the base's, the Sky Ring's, the capsule hotel's and the club's, walked up by a player in three lanes across its flights", (ST?.list.length ?? 0) === 24 && stuck.length === 0, stuck.slice(0, 4).join("; ") + (stuck.length > 4 ? ` and ${stuck.length - 4} more` : "") || `${walks} walks up ${ST?.list.length ?? 0} stairs`);
+  check("every double-flight stair, the base's, the Sky Ring's, the capsule hotel's, the club's and THE CANYON's, walked up by a player in three lanes across its flights", (ST?.list.length ?? 0) === 28 && stuck.length === 0, stuck.slice(0, 4).join("; ") + (stuck.length > 4 ? ` and ${stuck.length - 4} more` : "") || `${walks} walks up ${ST?.list.length ?? 0} stairs`);
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

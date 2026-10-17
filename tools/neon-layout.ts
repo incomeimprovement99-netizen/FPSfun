@@ -4685,6 +4685,8 @@ function onNode(o: OBox): boolean {
   type Canyon = {
     chunk: string; height: number; edge: number; fronts: string[]; long: string; roof: string[]; blocks: number[][];
     arch: Array<[string, number, number, number]>;
+    walkways?: { y: number; slab: string; short: string; rail: string; railShort: string; railH: number; runs: number[][] };
+    stairs?: { at: number[][] };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
   };
   const DC = (R.districts as { canyon?: Canyon } | undefined)?.canyon;
@@ -4742,8 +4744,57 @@ function onNode(o: OBox): boolean {
       STREET_GRAPH?.add({ c: [(x0 + x1) / 2, (z0 + z1) / 2], u: [1, 0], v: [0, 1], hu: (x1 - x0) / 2, hv: (z1 - z0) / 2, top: DC.height });
     }
     for (const [name, x, z, yaw] of DC.arch) STREET_GRAPH?.add(placeTurned(DC.chunk, name, x, z, yaw, "o", -piece(name).row.min![1]));
+    // THE CANYON's walkways (`walkways`, Milestone 642): the stairs up to them first, each in its recess with its front on
+    // the wall's line, so where each arrives is known; then each run's slab, typed under its walk, and the glass fence
+    // along every edge of it that faces neither another run nor a block, but where a stair arrives
+    const WK = DC.walkways;
+    const rails: number[][] = [];
+    const gaps: number[][] = [];
+    for (const [x, z, yaw] of DC.stairs?.at ?? []) {
+      const SP = R.doubleStair as { piece: string };
+      const HS = (R.districts as { stacks: { hotel: { stairs: { arrive: number[] } } } }).stacks.hotel.stairs;
+      const st = piece(SP.piece).row;
+      const [smx, smz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
+      const box = placeTurned(DC.chunk, SP.piece, x, z, yaw, "g");
+      STREET_GRAPH?.add(box);
+      const own = (ox: number, oz: number): Pt => [x + box.u[0] * (ox - smx) + box.v[0] * (oz - smz), z + box.u[1] * (ox - smx) + box.v[1] * (oz - smz)];
+      doubleStair(own, 0, `THE CANYON's stair at (${x}, ${z})`);
+      const [p, q] = [own(HS.arrive[0] - 0.4, st.max![2]), own(HS.arrive[1] + 0.4, st.max![2])];
+      gaps.push([Math.min(p[0], q[0]) - 0.2, Math.max(p[0], q[0]) + 0.2, Math.min(p[1], q[1]) - 0.2, Math.max(p[1], q[1]) + 0.2]);
+    }
+    if (WK) {
+      const sl = piece(WK.slab).row;
+      const cell = sl.size![0];
+      const inRun = (x: number, z: number) => WK.runs.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+      const inGap = (x: number, z: number) => gaps.some(([x0, x1, z0, z1]) => x > x0 && x < x1 && z > z0 && z < z1);
+      for (const [x0, x1, z0, z1] of WK.runs) {
+        const alongX = x1 - x0 > z1 - z0;
+        const [a0, a1] = alongX ? [x0, x1] : [z0, z1];
+        // (its slab in the pack's 5 m lengths along it, a 2.5 m one where it ends in a half module)
+        for (let a = a0; a < a1 - 0.01; ) {
+          const name = a1 - a >= sl.size![2] - 0.01 ? WK.slab : WK.short;
+          const l = piece(name).row.size![2];
+          const [cx, cz] = alongX ? [a + l / 2, (z0 + z1) / 2] : [(x0 + x1) / 2, a + l / 2];
+          placeTurned(DC.chunk, name, cx, cz, alongX ? 90 : 0, "g", WK.y - sl.size![1]);
+          a += l;
+        }
+        solids.push([x0, x1, z0, z1, +(WK.y - sl.size![1]).toFixed(2), WK.y]);
+        // (its cells' edges, each a cell long, railed unless a run, a block or a stair's arrival is past it)
+        for (let x = x0; x < x1 - 0.01; x += cell)
+          for (let z = z0; z < z1 - 0.01; z += cell)
+            for (const [ex, ez, ox, oz] of [[x + cell / 2, z, 0, -1], [x + cell / 2, z + cell, 0, 1], [x, z + cell / 2, -1, 0], [x + cell, z + cell / 2, 1, 0]]) {
+              const [px, pz] = [ex + ox * 0.1, ez + oz * 0.1];
+              if (inRun(px, pz) || inBlock(px, pz) || inGap(ex, ez)) continue;
+              const [ix, iz] = [ex - ox * 0.06, ez - oz * 0.06];
+              placeTurned(DC.chunk, WK.railShort, ix, iz, ox ? 0 : 90, "g", WK.y - piece(WK.railShort).row.min![1]);
+              const half = cell / 2;
+              solids.push((ox ? [ix - 0.06, ix + 0.06, iz - half, iz + half] : [ix - half, ix + half, iz - 0.06, iz + 0.06]).map((v) => +v.toFixed(3)).concat([WK.y, WK.y + WK.railH]));
+              rails.push([+ix.toFixed(2), +iz.toFixed(2), ox, oz]);
+            }
+      }
+    }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "canyon"), { district: "canyon", ...DC.name }];
-    cfg.canyon = { blocks: DC.blocks, fronts, tiles, solids };
+    cfg.canyon = { blocks: DC.blocks, fronts, tiles, solids, ...(WK ? { walkways: { y: WK.y, runs: WK.runs, rails } } : {}) };
     console.log(`THE CANYON: ${DC.blocks.length} blocks, ${fronts} fronts, ${tiles} roof tiles`);
   }
 }

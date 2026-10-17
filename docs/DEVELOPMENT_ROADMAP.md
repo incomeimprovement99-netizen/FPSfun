@@ -13898,3 +13898,27 @@ south-west corner's L past the ring road, empty until now.
 - **Checked** (tools/checks/sk-neon.ts): the six blocks inside the L and shut to their roofs (100 fronts); every front's windows facing out of its block, proven by turning them all round (failed); a player walks the whole canyon round its corner and in through each passage from the ring road; the name seen along nine sight lines from the ring road; the street one network (678 nodes, the floor moved from 700 to 650 as the blocks stand on about 60 of the south-west's nodes); the layout's rerun after the bake leaving the config unchanged. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: down both arms of the canyon, round its corner, through a passage, from the ring road and from above, by golden hour and neon night: both walls lit windows once the fronts were turned to face out.
   The map: its files lo 143.5 MB, hi 215.4 MB, max 460.1 MB.
   **Its files are version 80.**
+
+## Milestone 642 — THE CANYON's walkways
+
+The south-west district's second stage, the second of its three streets (`rules.districts.canyon.walkways` and
+`.stairs`, tools/neon-layout.ts).
+
+- **The walkways:** a run along each wall of each arm, 2.5 m deep, its walk 3.5 m up with 3 m of headroom under it.
+  The runs join at both corners of the crossroads and cross the passages' mouths. Each is the pack's 2.5 m floor tiles
+  over a typed slab 0.5 m thick. The pack's own walkway platform was not used: its glass fences cross its short ends,
+  and along a wall they would fence the walkway off every 5 m. Its 1 m platform border slab was tried first: a body
+  climbing a stair's first steps put its head into the walkway's underside and was thrown 17 m out along it. With the
+  thinner deck there is room.
+- **The rails:** the pack's glass fence along every edge that faces neither another run nor a block, with a typed rail
+  behind it, open where a stair arrives.
+- **The stairs:** four of the double-flight stairs (rules.doubleStair's clean steps), one in a 5 m recess cut into each
+  wall of each arm, its front on the wall's line so its top arrives on the walkway. A stair standing in the 10 m canyon
+  itself would stand over the bots' only line of street nodes down its middle and cut it. The blocks round each recess
+  are written as the rectangles that leave it, so the fronts wrap the recess on their own.
+- **The outer blocks run to 152.5,** half a metre past the map's edge, so their sides are whole fronts. At 152 their
+  22 m sides ended in half a module, and the last front ran 0.5 m past the block's corner. On the half-metre collision
+  grid that put a post across the outer walkway where it passes a recess.
+- **Checked** (tools/checks/sk-neon.ts): each L of the walkways walked end to end at 3.5 m, the inner and the outer; every open edge railed but at the stairs' arrivals (148 rail lengths); the four new stairs walked up in three lanes each with the rest (84 walks up 28 stairs); the 109 fronts still facing out, the canyon and its passages walked, one street network. Both new checks fail with the bug put back, a gap in the inner walkway and four rail boxes taken out. The e2e: the SpeedKills section, 101 of 101. verify, rules and the type check. The look: photographed by golden hour and at night along both walkways, from a stair, at the crossroads' corner and out of a recess.
+  The map: its files lo 145.4 MB, hi 217.2 MB, max 461.9 MB.
+  **Its files are version 81.**
