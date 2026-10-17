@@ -9,6 +9,8 @@
 // BROKER=own or BROKER=public makes that a check; without it the line is
 // informational.
 import puppeteer, { type Browser, type Page } from "puppeteer";
+import { join } from "node:path";
+import { cityVersion, liveCityProblems } from "./citybake";
 
 const CHROME = process.env.CHROME ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const URL = (process.env.LIVE_URL ?? "https://fpsfun.duckdns.org/").replace(/\/?$/, "/");
@@ -190,6 +192,11 @@ async function main(): Promise<void> {
     await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 }).catch(() => undefined);
     check("leaving ends it for the host", (await ev<boolean>(host, "window.__range.duel() === null")));
     check("no page errors or failed requests", errors.length === 0, [...new Set(errors)].slice(0, 4).join(" | "));
+    // the battle royale's city (tools/citybake.ts, Milestone 628): the 1v1 above never asks for it, and a release went
+    // out without its High file on 2026-10-17; each kit's header, held to its own length and to the file here
+    const version = cityVersion(process.cwd());
+    const cityProblems = await liveCityProblems(URL, version, join(process.cwd(), "public"));
+    check(`the battle royale's city is on the site whole: map version ${version}'s lo, hi and max`, cityProblems.length === 0, cityProblems.join("; "));
   } catch (e) {
     // a wait that gave out or a page that threw is a failure like any other: without this the verdict in the finally
     // below said PASS over it and exited 0 (Milestone 348's deploy: the fight never started inside 20 s, "PASS")

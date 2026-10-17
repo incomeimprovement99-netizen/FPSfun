@@ -11795,6 +11795,28 @@ city agent's, who is taking them next with texture arrays.
   60 fps and the menu say nothing, both tried says fewer bots, stalls are not counted; proven by letting it repeat);
   rules.
 
+## Milestone 628 — No release without the city whole, and the live check looks at it
+
+The owner, 2026-10-17, 2:55 PM: "drop in battle royale and the map is all fucked up and gone ... how did our automated
+tests not catch this?" The visit log (Milestone 625) said what happened: "in after 2 s on high · played br · waited 0
+s for the city (0 MB, downloaded)": the High file of the map's new version (v93) was not on the site. The lobby agent's
+deploy at 19:54Z packed apex-range while the city agent was still copying v93's files into it (their time on disk is
+19:54:39), so the release went out without the High file or with part of it; the city agent's own deploy minutes later
+put them all up whole. Nothing caught it because the deploy packed whatever bake was on disk without looking at it,
+and the live check plays a 1v1 in an arena, which never asks for the city.
+
+- **The deploy refuses a release without the city whole** (tools/citybake.ts, tools/deploy-server.ts): every kit of
+  the committed map version (lo, hi, max) must be in what is packed, and whole: a GLB states its own length in its
+  header, so a file still being copied, cut short, or a page in its place is refused, naming the kit. Nothing is
+  shipped.
+- **The live check looks at it** (tools/live-check.ts): after the 1v1 it asks the site for each kit's first 12 bytes
+  (a range request, not 850 MB) and holds them to the header's length, the file's type and the size of the file here.
+  On a version the site does not have it fails with "lo: 404; hi: 404; max: 404".
+- Checked live just after: the city draws on all three presets (max 472 MB, hi 227, lo 155).
+- **Checked:** tsc; verify (a whole GLB passes; one cut short, a page in its place and nothing are caught; a release
+  without its High file or with it half copied is refused; an older version's files do not count); the real v93 bake
+  and the live site both pass; rules.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

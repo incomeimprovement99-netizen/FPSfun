@@ -36,6 +36,7 @@
 //   RANGE_DOMAIN   the game's hostname, e.g. fpsfun.duckdns.org
 //   DUCKDNS_TOKEN  optional, for `dns`: the token at the top of duckdns.org
 import { releaseGate } from "./release-gate";
+import { cityBakeProblems } from "./citybake";
 import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
@@ -123,6 +124,17 @@ function snapshot(): string {
     if (bake && Number(bake[1]) !== neonVersion) continue;
     mkdirSync(dirname(join(dir, f)), { recursive: true });
     cpSync(join(ROOT, f), join(dir, f));
+  }
+  // and every kit of that version whole in what is packed (tools/citybake.ts, Milestone 628): a release packed while
+  // another agent was still copying the new version's files in went out without the High file, 2026-10-17, and a
+  // battle royale on High had no city
+  if (typeof neonVersion === "number") {
+    const problems = cityBakeProblems(join(dir, "public"), neonVersion);
+    if (problems.length) {
+      dropSnapshot(dir);
+      throw new Error(`the city's files for map version ${neonVersion} are not whole here, so nothing was shipped: ${problems.join("; ")}`);
+    }
+    console.log(`   the city's map version ${neonVersion}: lo, hi and max whole`);
   }
   symlinkSync(join(ROOT, "node_modules"), join(dir, "node_modules"), "junction");
   return dir;
