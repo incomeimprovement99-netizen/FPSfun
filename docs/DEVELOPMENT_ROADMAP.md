@@ -11712,6 +11712,23 @@ player holding a pad.
 - **Checked:** tsc; verify; rules; e2e skbr alone (the decay hurts 144 to 126, eight sectors gone, the capture won at
   placement 1).
 
+## Milestone 624 — The 2026-10-17 sweep: the battle royale's bots hold their fire, and the loading screen watched from the start
+
+- **The day's full e2e sweep** (main 5f83dd35, the eight districts built; the mixed batch passed) had eleven failures;
+  each failed section was rerun alone on main 8382ba24:
+  - **Seven in the battle royale test** were one: the player, standing still where it landed, was shot down by the
+    outline check (Milestone 623 had topped it up only for the decay's check, and the fights had moved earlier), the
+    match over and every check after it reading nothing. Nothing in that test is about surviving a fight, so it holds
+    the bots' fire from the start. Alone it passes whole: a bot heals, the decay hurts 144 to 132, the capture won at
+    placement 1.
+  - **sk order: while it loads, the loading screen and its bar** failed in the sweep and alone at 94% CPU: the page was
+    in and the screen gone before the probe began (0.0001 s into it), so the bar read as never seen. The screen is
+    watched from the page's first line now. Proven with the probe held back 30 s: the bar still seen.
+  - **pack frames, a first draw's flourish** was REZ's forearm wrung 93 against 90 on one frame; the guns agent's two
+    sweeps of REZ alone peak at 51 (a frame caught mid-turn).
+  - The match's shaders aboard, the friend joining a host, the broker blips and the p2p reload passed alone (load).
+- **Checked:** tsc; verify; rules; e2e skbr and sklobby alone.
+
 ## Milestone 500 — Every left hand on its gun, and HAEFY held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

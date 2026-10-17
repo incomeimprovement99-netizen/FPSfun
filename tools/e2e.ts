@@ -5401,11 +5401,14 @@ async function skArmoryTest(browser: Browser): Promise<void> {
 async function skIntroTest(browser: Browser): Promise<void> {
   // drawn: a ?norender page never builds the first-person arms, one of the late steps the loading screen waits on.
   // The ship on (open() drops straight in): the way in is the ship's to hold.
-  const page = await open(browser, "?intro=on", BASE, "window.__straightDrop = false");
+  // (the screen watched from the page's first line, not from when open() returns: on a loaded machine the page was in and
+  // the screen gone before the probe below began, 0.0001 s into it, and the bar read as never seen; 2026-10-16 and -17)
+  const watch = `window.__boot = { everCard: false, bar: false }; (function watch() { const L = document.getElementById("loading"); const s = window.__range?.intro?.state?.(); if (s && s.kind !== null) window.__boot.everCard = true; const gone = !!L && (L.hidden || L.classList.contains("done")); if (L && !gone && document.getElementById("loadingFill")) window.__boot.bar = true; if (!gone) setTimeout(watch, 30); })();`;
+  const page = await open(browser, "?intro=on", BASE, `window.__straightDrop = false; ${watch}`);
   // while it loads: the loading screen, its bar, and no card; and it goes only once everything the card waits on is in
   const boot = await ev<{ everCard: boolean; bar: boolean; atHide: { loaded: boolean; secs: number; status: string; waited: boolean; kind: string | null } | null }>(
     page,
-    `new Promise((ok) => { const R = window.__range; const L = document.getElementById("loading"); let everCard = false; let bar = false; const t0 = performance.now();
+    `new Promise((ok) => { const R = window.__range; const L = document.getElementById("loading"); let everCard = !!window.__boot?.everCard; let bar = !!window.__boot?.bar; const t0 = performance.now();
       const step = () => { const s = R.intro.state(); if (s.kind !== null) everCard = true; if (L && !L.hidden && !L.classList.contains("done") && document.getElementById("loadingFill")) bar = true;
         const gone = !L || L.hidden || L.classList.contains("done");
         const st = document.getElementById("loadingStatus")?.textContent ?? "";
@@ -6198,6 +6201,10 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
     await page.close();
     return;
   }
+  // the bots' fire held from the start: nothing here is about surviving a fight, and a player standing still where it
+  // landed was being shot down before the checks were done (at 70 and at 4 of 150 by the decay's check on 2026-10-16,
+  // dead by the outline check on 2026-10-17), the match then over and every check after it reading nothing
+  await ev(page, "window.__range.duel().holdFire = true");
   // its sky (speedkills.json identity.skies): golden hour it starts at (the owner's, 2026-10-04), the neon night, and the
   // hazy day to see the city by (Milestone 288), applied at once
   const sky = await ev<{ options: string[]; start: string; night: number; golden: number; kept: string | null }>(
