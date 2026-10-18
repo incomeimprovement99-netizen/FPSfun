@@ -12,6 +12,8 @@
 // putting the whole menu back over a match that has begun.
 import cfg from "../config/start.json";
 import { HACK_DEFS, savedPicks, type HackId, type HackSlot } from "../game/hacks";
+import { session } from "../net/account";
+import { StartRain } from "./startrain";
 
 export type StartWay = "range" | "br" | "tutorial";
 type View = "start" | "pick" | "click" | "menu";
@@ -27,6 +29,8 @@ export interface StartOptions {
   keys(): Record<HackSlot, string>;
   /** someone new here (their profile made on this visit, and no way in ever chosen): the tutorial is pointed out */
   newPlayer: boolean;
+  /** the menu, opened on one of its tabs (the sign-in line's links) */
+  openTab(tab: "settings" | "account"): void;
 }
 
 /** a way in has been chosen in this browser: from then on its player is not new, and the nudge is not shown */
@@ -45,6 +49,8 @@ export class StartScreen {
   private pick: { way: StartWay; endsAt: number; picks: Record<HackSlot, HackId> } | null = null;
   private frame = 0;
   private timer = 0;
+  /** the rain behind it, while it is up */
+  private readonly rain = new StartRain($("startRain"));
 
   constructor(
     private o: StartOptions,
@@ -69,6 +75,16 @@ export class StartScreen {
     $("startRange").addEventListener("click", () => this.ask("range"));
     $("startBr").addEventListener("click", () => this.ask("br"));
     $("startMore").addEventListener("click", () => this.more());
+    // (Milestone 635, the owner: "a login or something with some helper text ... Then do a link for settings and the
+    // account tab")
+    $("startSettings").addEventListener("click", () => {
+      this.more();
+      o.openTab("settings");
+    });
+    $("startAccount").addEventListener("click", () => {
+      this.more();
+      o.openTab("account");
+    });
     $("startBack").addEventListener("click", () => {
       this.wantMenu = false;
       this.show("start");
@@ -117,6 +133,21 @@ export class StartScreen {
     (document.querySelector("#overlay .menu") as HTMLElement).hidden = view !== "menu";
     $("startBack").hidden = !this.enabled || this.inMatch;
     $("startResume").hidden = !this.o.canResume();
+    this.rain.set(view === "start");
+    if (view === "start") this.signLine();
+  }
+
+  /** the sign-in line: the helper and its two links, or, signed in, whose the settings and stats are */
+  private signLine(): void {
+    const s = session();
+    const text = $("startSignText");
+    if (s) {
+      text.textContent = "";
+      const who = document.createElement("b");
+      who.textContent = s.name;
+      text.append("Signed in as ", who, ": your settings and stats are kept on your account.");
+    } else text.textContent = "If you change your settings, they will be saved as long as you connect from the same browser. Making an account will always keep your settings and allow for stat tracking.";
+    $("startAccount").textContent = s ? "Account" : "Sign in or make an account";
   }
 
   /** the tutorial pointed out, or not */

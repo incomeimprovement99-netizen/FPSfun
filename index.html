@@ -95,20 +95,25 @@
       /* the start screen (src/ui/start.ts): two ways in, More under them; then the hacks, picked on a timer */
       .start, .pick, .clickPlay { font-family: "Rajdhani", "Segoe UI", sans-serif; color: #e8fbff; }
       .start[hidden], .pick[hidden], .clickPlay[hidden], .menu[hidden] { display: none; }
-      .start { display: flex; flex-direction: column; align-items: center; gap: 26px; width: min(1080px, 94vw); max-height: 96vh; overflow-y: auto; }
-      .startBrand { display: flex; align-items: baseline; gap: 14px; }
+      .start { position: relative; z-index: 1; display: flex; flex-direction: column; align-items: center; gap: clamp(12px, 2.2vh, 22px); width: min(1180px, 94vw); max-height: 98vh; overflow-y: auto; }
+      /* (Milestone 635: the rain behind the start screen, half seen, blue and pink: src/ui/startrain.ts) */
+      .startRain { position: absolute; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; }
+      .startRain[hidden] { display: none; }
+      .startBrand { display: flex; align-items: baseline; gap: 14px; margin-bottom: clamp(0px, 1vh, 10px); }
       .startBrand .logo, .startBrand .title { font-weight: 700; font-style: italic; font-size: clamp(44px, 7vw, 84px); letter-spacing: .06em; line-height: 1; }
       .startBrand .logo { color: #20e0ff; text-shadow: 0 0 22px rgba(32, 224, 255, .55); }
       .startBrand .title { color: #ff2e9a; text-shadow: 0 0 22px rgba(255, 46, 154, .5); }
       .startBrand .beta { align-self: center; font-size: 13px; font-weight: 700; letter-spacing: .14em; color: #fff; background: #ff2e9a; padding: 2px 8px; border-radius: 3px; }
       /* (Milestone 632: Resume the big button when there is a game to go back to, More a quiet word under the three ways in) */
-      .startResume { padding: 16px 84px; border-radius: 10px; border: 2px solid #20e0ff; background: #0f5a6e; color: #e8fbff; font: 700 32px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 30px rgba(32, 224, 255, .25); }
+      .startResume { padding: 11px 64px; border-radius: 10px; border: 2px solid #20e0ff; background: #0f5a6e; color: #e8fbff; font: 700 26px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .16em; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 30px rgba(32, 224, 255, .25); }
       .startResume:hover { background: #137690; }
-      .startWays { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; width: 100%; }
-      .startWay { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 8px; min-height: 250px; padding: 28px 26px; box-sizing: border-box; text-align: center; border-radius: 10px; border: 2px solid #1d2a44; background: linear-gradient(160deg, #0f1a33, #0a0e1c); color: #e8fbff; font: inherit; cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
-      .startWay small { font-size: 15px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; }
-      .startWay b { font-size: clamp(28px, 3.2vw, 42px); font-weight: 700; letter-spacing: .03em; line-height: 1.02; }
-      .startWay span { font-size: 17px; line-height: 1.4; color: #9aa7b8; max-width: 30ch; }
+      /* (Milestone 635: the Tutorial and the Firing Range side by side, the Battle Royale under them in the middle, all bigger) */
+      .startWays { display: grid; grid-template-columns: 1fr 1fr; gap: clamp(14px, 2.2vh, 24px) 24px; width: 100%; }
+      .startWay.play { grid-column: 1 / -1; justify-self: center; width: calc(50% - 12px); }
+      .startWay { position: relative; display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 10px; min-height: clamp(170px, 27vh, 320px); padding: 30px 34px; box-sizing: border-box; text-align: center; border-radius: 10px; border: 2px solid #1d2a44; background: linear-gradient(160deg, #0f1a33, #0a0e1c); color: #e8fbff; font: inherit; cursor: pointer; transition: border-color .12s, box-shadow .12s, transform .12s; }
+      .startWay small { font-size: 16px; font-weight: 700; letter-spacing: .24em; text-transform: uppercase; }
+      .startWay b { font-size: clamp(32px, 3.8vw, 54px); font-weight: 700; letter-spacing: .03em; line-height: 1.02; }
+      .startWay span { font-size: 19px; line-height: 1.4; color: #9aa7b8; max-width: 36ch; }
       .startWay.learn { border-color: #ffd23c66; background: linear-gradient(160deg, #2a2210, #120e06); }
       .startWay.learn small { color: #ffd23c; }
       .startWay.learn:hover, .startWay.learn:focus-visible { border-color: #ffd23c; box-shadow: 0 0 0 1px rgba(255, 210, 60, .35), 0 0 36px rgba(255, 210, 60, .2); transform: translateY(-2px); outline: none; }
@@ -123,6 +128,12 @@
       .startWay.play:hover, .startWay.play:focus-visible { border-color: #ff2e9a; box-shadow: 0 0 0 1px rgba(255, 46, 154, .35), 0 0 36px rgba(255, 46, 154, .2); transform: translateY(-2px); outline: none; }
       .startMore { padding: 6px 18px; border: 0; border-radius: 6px; background: transparent; color: #6d7a90; font: 600 15px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .2em; text-transform: uppercase; cursor: pointer; }
       .startMore:hover, .startMore:focus-visible { color: #e8fbff; outline: none; text-decoration: underline; text-underline-offset: 4px; }
+      /* (Milestone 635: where your settings are kept, and the way to an account) */
+      .startSign { max-width: 74ch; text-align: center; font-size: 15px; line-height: 1.45; color: #8f9cb2; padding: 8px 18px; border-radius: 8px; background: rgba(5, 7, 16, .8); }
+      .startLinks { display: inline-flex; gap: 14px; margin-left: 6px; }
+      .startLink { padding: 0; border: 0; background: none; color: #20e0ff; font: 600 15px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .04em; cursor: pointer; text-decoration: underline; text-underline-offset: 3px; }
+      .startLink:hover, .startLink:focus-visible { color: #e8fbff; outline: none; }
+      .startSign b { color: #e8fbff; }
       .startBack { margin-left: 4px; padding: 3px 10px; border-radius: 4px; border: 1px solid #2a3a55; background: transparent; color: #9aa7b8; font: 700 12px "Rajdhani", "Segoe UI", sans-serif; letter-spacing: .12em; text-transform: uppercase; cursor: pointer; align-self: center; }
       .startBack[hidden] { display: none; }
       .startBack:hover { color: #e8fbff; border-color: #20e0ff; }
@@ -155,6 +166,7 @@
       .clickPlay span { font-size: 16px; color: #9aa7b8; }
       @media (max-width: 720px) {
         .startWays { grid-template-columns: 1fr; }
+        .startWay.play { width: 100%; }
         .startWay { min-height: 150px; padding: 20px 22px; }
         .pickFoot { flex-wrap: wrap; }
       }
@@ -481,6 +493,7 @@
     <div id="app"></div>
     <canvas id="hud"></canvas>
     <div id="overlay">
+      <canvas class="startRain" id="startRain" aria-hidden="true" hidden></canvas>
       <div class="start" id="start" hidden>
         <div class="startBrand"><span class="logo">SPEED</span><span class="title">KILLS</span><span class="beta">BETA</span></div>
         <button type="button" class="startResume" id="startResume" hidden>Resume</button>
@@ -490,6 +503,7 @@
           <button type="button" class="startWay play" id="startBr"><small>Play</small><b>Battle Royale</b><span>Drop into the Neon City with a squad mate. Last squad standing wins.</span></button>
         </div>
         <button type="button" class="startMore" id="startMore" title="Friends, loadouts, other modes and settings">More</button>
+        <div class="startSign" id="startSign"><span id="startSignText">If you change your settings, they will be saved as long as you connect from the same browser. Making an account will always keep your settings and allow for stat tracking.</span> <span class="startLinks"><button type="button" class="startLink" id="startSettings">Settings</button><button type="button" class="startLink" id="startAccount">Sign in or make an account</button></span></div>
       </div>
       <div class="pick" id="pick" role="dialog" aria-modal="true" aria-labelledby="pickTitle" hidden>
         <div class="pickHead"><b id="pickTitle">Pick your hacks</b><span id="pickFor"></span></div>
@@ -508,6 +522,7 @@
           <button type="button" data-tab="duel">Friends</button>
           <button type="button" data-tab="loadouts">Loadouts</button>
           <button type="button" data-tab="stats">Stats</button>
+          <button type="button" data-tab="account">Account</button>
           <button type="button" data-tab="settings">Settings</button>
           <button type="button" data-tab="controller">Controller</button>
           <button type="button" data-tab="controls">Controls</button>
@@ -720,14 +735,18 @@
         </section>
 
         <section data-panel="stats" hidden>
+          <div id="statsBody" class="statsBody"></div>
+          <div class="hintLine" id="statsOnline"></div>
+        </section>
+
+        <section data-panel="account" hidden>
+          <div class="hintLine accountWhy">Your settings are kept in this browser: change them and they stay, as long as you play from the same browser. An account keeps them everywhere you sign in, and tracks your stats.</div>
           <div class="row"><label>Your name <div class="hint">shown to the people you play, and on the boards; kept in this browser</div></label><input id="profileName" maxlength="16" autocomplete="off" spellcheck="false" /></div>
           <div class="row accountBox" id="accountBox"><label>Account <div class="hint">optional, on the game's own server: your settings, keys, loadouts and stats in every browser you sign in on</div></label>
             <span id="accountSignedOut" hidden><input id="accountName" maxlength="16" placeholder="name" autocomplete="username" spellcheck="false" /> <input id="accountPass" type="password" maxlength="128" placeholder="password (8 or more)" autocomplete="current-password" /> <button type="button" id="accountSignIn">Sign in</button> <button type="button" id="accountSignUp">Sign up</button></span>
             <span id="accountSignedIn" hidden><b id="accountWho"></b> <button type="button" id="accountSync">Sync now</button> <button type="button" id="accountSignOut">Sign out</button></span>
           </div>
           <div class="hintLine" id="accountStatus"></div>
-          <div id="statsBody" class="statsBody"></div>
-          <div class="hintLine" id="statsOnline"></div>
         </section>
 
         <section data-panel="controls" hidden>

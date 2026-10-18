@@ -11,7 +11,7 @@ import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/l
 import { LOBBY_MODES, lobbyMode, setupFor, friendsModeFor } from "./lobby";
 
 export type Mode = "range" | "run" | "tutorial" | "duel" | "bots" | "br" | "tdm" | "control" | "ffa" | "tour" | "lab";
-export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controller" | "controls" | "feedback";
+export type Tab = "play" | "duel" | "loadouts" | "stats" | "account" | "settings" | "controller" | "controls" | "feedback";
 
 export interface MenuOptions {
   /** the Loadouts tab was drawn again (a loadout picked, one changed): the page's own pickers follow it */

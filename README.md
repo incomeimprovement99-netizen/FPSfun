@@ -358,10 +358,14 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    under it has stopped stuttering, so the rain runs smooth. A key or a click takes the rest of it, `?nointro` in the address turns
    it off for good, and a machine set to less movement gets a shorter one with
    no shake and no falling glass.
-3. The start screen is up, everything centred: **Tutorial** (Learn: every move,
-   then the hacks, then a fight; someone new sees it pointed out), **Firing
-   Range** (Training) and **Battle Royale** (Play), with **More** a quiet word
-   under them for the menu. The Tutorial goes straight in, to its start room
+3. The start screen is up, everything centred over the blue and pink rain of the
+   intro card, half seen: the SPEEDKILLS name at the top, **Tutorial** (Learn:
+   every move, then the hacks, then a fight; someone new sees it pointed out)
+   and **Firing Range** (Training) side by side, **Battle Royale** (Play) under
+   them in the middle, and **More** a quiet word under them for the menu. Under
+   that a line says your settings are kept in this browser and that an account
+   keeps them everywhere and tracks your stats, with links to Settings and the
+   Account tab. The Tutorial goes straight in, to its start room
    behind the range's right-hand gate (the Modes table says what it is). The other two ways in ask for your two hacks first, one mobility and
    one utility, for ten seconds: DASH and HEAL to begin with, then whatever you
    picked last. **Start now** goes straight in; left alone it goes in by itself
@@ -369,7 +373,7 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
    the game can take the mouse. The battle royale plays on the default
    settings, or on what you set under More. The browser locks the mouse and
    goes fullscreen (Settings can turn that off). **Esc** brings back the start
-   screen, or the menu in a match; **Resume**, the big button over the three, goes back in.
+   screen, or the menu in a match; **Resume**, the button over the three, goes back in.
    **More** is the menu, with a short welcome on a first visit (and a warning
    on a phone, a tablet or Safari, which cannot play), and **Back** to the
    start screen. **The lobby is its Play tab**: the modes down the left, and
@@ -510,7 +514,7 @@ friends, which carries it across: the arena 1v1 / 1v1v1, team deathmatch
 royale as a squad. The host's choice (and the bots and their difficulty)
 goes to everyone who joins.
 
-**Your name** for the kill feed and the scoreboard: the Stats tab.
+**Your name** for the kill feed and the scoreboard: the Account tab.
 **Loadouts**: the Loadouts tab, before or during a match (mid-fight, the new
 guns come at the next round). The Play tab shows the one you will play with
 under the Start and With friends buttons, with a button to change it.
@@ -860,7 +864,7 @@ difficulty, best time and the top ten runs per course, and every piece of
 tech landed or called out as a miss.
 
 **An account** (optional) comes with the game's own server too: sign up on
-the Stats tab with a name and a password, and your settings, keys, loadouts
+the Account tab with a name and a password, and your settings, keys, loadouts
 and stats follow you to any browser you sign in on. The password is kept
 only as a salted scrypt hash on our server; nothing is shared with anyone.
 Playing never needs one.
@@ -1096,6 +1100,8 @@ src/net/link.ts            the connection: PeerJS links, the local transport, co
 src/ui/menu.ts             tabs, loadout editor, the Stats tab and its online boards
 src/ui/binds.ts            the Controls tab: rebinding
 src/ui/welcome.ts          the first-visit welcome and the device check
+src/ui/start.ts            the start screen: the three ways in, the hack pick, the sign-in line
+src/ui/startrain.ts        the blue and pink rain behind the start screen
 data/weapons.json          the extracted weapon numbers (real names; stripped in the beta)
 data/overrides.json        hand corrections to the extract, each with a reason
 server/game/               the game's own server: serve.mjs, the pm2 file, setup.sh for the box

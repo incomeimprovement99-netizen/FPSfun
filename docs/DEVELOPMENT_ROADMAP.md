@@ -11983,6 +11983,39 @@ The owner, 2026-10-17: "build it out of the neon city map bundle we have built o
     in the browser's cache by the end. Proven by keeping the plain boxes shown and taking the prefetch out (2 FAIL).
   - Photographed room by room on the GPU.
 
+## Milestone 635 — The start screen: bigger ways in, two over one, the rain behind, and where your settings live
+
+The owner, 2026-10-17: "on the main screen, the 3 buttons should be bigger. taller and wider and then you can simply
+move the firing range one to be on the right side and the battle royale will be on the bottom/middle, making it below
+the other two. So raise up the speedkills text as well and make the resume button slightly smaller ... can we add the
+matrix falling style stuff we have? it could be like 50% transparant or something with blue and pink ones to match the
+theme ... somewhere on the initial screen we should put like a login or something with some helper text saying
+something like 'If you change your settings, they will be saved as long as you connect from the same browser. Making
+an account will always keep your settings and allow for stat tracking.' Then do a link for settings and the account
+tab." The reason, in the owner's words: the tutorial hooks a new player, the range interests them, and the battle
+royale is what they come back for.
+
+- **Two over one** (index.html): the Tutorial and the Firing Range side by side, the Battle Royale under them in the
+  middle, each as wide as one. Each is about two thirds wider than before, and taller with the screen (27% of its height,
+  170 to 320 px), its words bigger. The SPEEDKILLS name sits at the top, and Resume is a little smaller (26 px, from 32).
+- **The rain** (src/ui/startrain.ts, src/config/start.json rain): the intro card's own columns (intro.ts rainColumns),
+  every other one pink and the rest the blue, at half strength.
+  - It sits behind the start screen and over the game. Its tails fade to clear rather than to black, so the game still
+    shows through.
+  - It is drawn at most 30 times a second and only while the start screen is up. A machine set to less movement gets
+    one still frame.
+- **Where your settings live:** the owner's line under More, word for word. Its links open the menu on Settings, and on
+  a new **Account** tab (Sign in or make an account). Signed in, the line says whose they are.
+  - The Account tab holds your name and the account box, moved off Stats, under a line on what is kept where. The pad's
+    LB and RB turn to it too.
+- **Checked:**
+  - tsc; verify; rules.
+  - e2e start: the Tutorial left of the Firing Range and level with it, the Battle Royale under both in the middle as
+    wide as one; the rain painted in both colours at 0.5; the line's words; each link to its tab; the rain stopped with
+    the start screen. Proven with the three in one row and the rain switched off (2 FAIL).
+  - e2e page (your name typed on the Account tab).
+  - Photographed at 1600 x 900, new and with a game to resume.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

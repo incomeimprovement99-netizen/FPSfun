@@ -7664,6 +7664,33 @@ async function startScreenTest(browser: Browser): Promise<void> {
   check("start: three ways in, the Tutorial, the Firing Range and the Battle Royale, and More", ways.join("|") === "Tutorial|Firing Range|Battle Royale|More", ways.join("|"));
   // (Milestone 632) a page whose player has been here before: no nudge to the tutorial
   check("start: someone who has been here before is not nudged to the tutorial", await ev<boolean>(page, `document.getElementById("startNudge").hidden && !document.getElementById("startTutorial").classList.contains("nudge")`));
+  // (Milestone 635) the Tutorial and the Firing Range side by side, the Battle Royale under them in the middle, as wide as one
+  const lay = await ev<Record<string, { l: number; r: number; t: number; b: number }>>(page, `(() => { const r = (id) => { const q = document.getElementById(id).getBoundingClientRect(); return { l: q.left, r: q.right, t: q.top, b: q.bottom }; }; return { tut: r("startTutorial"), range: r("startRange"), br: r("startBr"), ways: document.querySelector("#start .startWays").getBoundingClientRect() }; })()`);
+  const mid = (q: { l: number; r: number }) => (q.l + q.r) / 2;
+  check(
+    "start: the Tutorial left of the Firing Range, level with it, and the Battle Royale under both, in the middle, as wide as one",
+    lay.tut.r <= lay.range.l && Math.abs(lay.tut.t - lay.range.t) < 2 && lay.br.t >= Math.max(lay.tut.b, lay.range.b) && Math.abs(mid(lay.br) - (lay.tut.l + lay.range.r) / 2) < 4 && Math.abs(lay.br.r - lay.br.l - (lay.tut.r - lay.tut.l)) < 4,
+    JSON.stringify(lay),
+  );
+  // the rain behind it, painted, blue and pink at half strength
+  await page.waitForFunction(`(() => { const c = document.getElementById("startRain"); if (c.hidden || !c.width) return false; const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n > 20; })()`, { polling: 200, timeout: 15000 }).catch(() => undefined);
+  const rain = await ev<{ shown: boolean; opacity: string; lit: number; blue: number; pink: number }>(page, `(() => { const c = document.getElementById("startRain"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let lit = 0, blue = 0, pink = 0; for (let i = 0; i < d.length; i += 4 * 13) { if (d[i + 3] < 60) continue; lit++; if (d[i + 2] > d[i] + 40) blue++; if (d[i] > d[i + 1] + 60 && d[i + 2] > d[i + 1]) pink++; } return { shown: !c.hidden, opacity: getComputedStyle(c).opacity, lit, blue, pink }; })()`);
+  check("start: the rain falls behind it, blue and pink, half seen", rain.shown && Number(rain.opacity) === 0.5 && rain.blue > 5 && rain.pink > 5, JSON.stringify(rain));
+  // the sign-in line: where settings are kept, and its links to the Settings and Account tabs
+  const sign = await ev<string>(page, `document.getElementById("startSign").textContent`);
+  check("start: it says where your settings are kept and what an account adds", /saved as long as you connect from the same browser/.test(sign) && /account will always keep your settings and allow for stat tracking/i.test(sign), sign);
+  const tabShown = (tab: string) => `(() => ({ menu: !document.querySelector("#overlay .menu").hidden, tab: !document.querySelector('section[data-panel="${tab}"]').hidden, start: !document.getElementById("start").hidden, rain: !document.getElementById("startRain").hidden }))()`;
+  await ev(page, `document.getElementById("startSettings").click()`);
+  const toSettings = await ev<{ menu: boolean; tab: boolean; start: boolean; rain: boolean }>(page, tabShown("settings"));
+  await ev(page, `document.getElementById("startBack").click()`);
+  await ev(page, `document.getElementById("startAccount").click()`);
+  const toAccount = await ev<{ menu: boolean; tab: boolean; start: boolean; rain: boolean; box?: boolean }>(page, `(() => ({ ...${tabShown("account")}, box: !!document.querySelector('section[data-panel="account"] #accountBox') }))()`);
+  await ev(page, `document.getElementById("startBack").click()`);
+  check(
+    "start: its Settings link opens the menu on Settings and its account link on the Account tab (the account box there); the rain stops with the start screen",
+    toSettings.menu && toSettings.tab && !toSettings.start && !toSettings.rain && toAccount.menu && toAccount.tab && !!toAccount.box,
+    JSON.stringify({ toSettings, toAccount }),
+  );
   // More: the menu as it was, and Back to here
   await ev(page, `document.getElementById("startMore").click()`);
   const more = await ev<Views & { back: boolean }>(page, `(() => ({ ...${views}, back: !document.getElementById("startBack").hidden }))()`);
@@ -8174,7 +8201,8 @@ async function main(): Promise<void> {
         // closed by now is a race: it flaked with the whole overlay hidden.
         // This check is about typing on the menu, so the menu is put back.
         document.getElementById("overlay").classList.remove("hidden");
-        document.querySelector('#tabs button[data-tab="stats"]').click();
+        // (on the Account tab since Milestone 635)
+        document.querySelector('#tabs button[data-tab="account"]').click();
         // A hidden field cannot take focus, and on a loaded machine the tab's
         // panel is not always shown by the time the click returns: this flaked
         // with "focused: false" whenever the CPU was busy. Wait for it to show.

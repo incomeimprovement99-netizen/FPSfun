@@ -5782,7 +5782,7 @@ function goTo(mode: Mode): void {
  * The menu by controller (padnav.ts): the screen the pad works in now (the hack pick over the start screen over the
  * menu), and LB and RB turning the menu's tabs in the order they stand.
  */
-const PAD_TABS: Tab[] = ["play", "duel", "loadouts", "stats", "settings", "controller", "controls", "feedback"];
+const PAD_TABS: Tab[] = ["play", "duel", "loadouts", "stats", "account", "settings", "controller", "controls", "feedback"];
 const padNav = new PadNav(
   () => {
     for (const id of ["pick", "start"]) {
@@ -6163,6 +6163,8 @@ const startScreen = new StartScreen(
     keys: () => ({ mobility: keyLabel("ability"), utility: keyLabel("grenade") }),
     // new: the profile was made on this visit (stats.ts makes one on a first visit and keeps it)
     newPlayer: Date.parse(profile.profile.since) >= performance.timeOrigin - 2000,
+    // the start screen's Settings and account links: the menu, on that tab
+    openTab: (tab) => menu.show(tab),
   },
   !new URLSearchParams(location.search).has("nohome")
 );
