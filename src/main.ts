@@ -3525,7 +3525,7 @@ function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
   const at = fig.group.position.clone().add(new THREE.Vector3(0, 1, 0));
   fig.hit(gameTime, "body", amount, 1, 1, at);
   d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position));
-  hud.addDamage(at.setY(at.y + 0.6), amount, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", false, gameTime, rem);
+  hud.addDamage(fig.overHead(hudCfg.damageNumbers.over), amount, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", false, gameTime, rem);
   hud.hitMarker(gameTime, false, "hit");
 }
 
@@ -7228,7 +7228,7 @@ function step(): void {
       // at zero they are out: there are no knocks (Milestone 529). A human in a squad match was marked and called
       // KNOCKED DOWN until their own "down" came back, though they were already out
       const kill = wasAlive && remote.health <= 0;
-      hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || kill, now, remote);
+      hud.addDamage(e.dummy ? e.dummy.overHead(hudCfg.damageNumbers.over) : r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || kill, now, remote);
       hud.hitMarker(now, r.headshot, kill ? "kill" : "hit");
       if (kill) {
         killStreak = gameTime - lastKillAt <= hudCfg.killMarker.streak ? killStreak + 1 : 0;
@@ -7254,7 +7254,7 @@ function step(): void {
     const firstHit = e.dummy.engagedAt === null;
     if (firstHit) e.dummy.engagedAt = now;
     const color = r.toShield > 0 ? `#${ARMOR_COLOR[e.dummy.tier].toString(16).padStart(6, "0")}` : "#ff4a3d";
-    hud.addDamage(r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || r.knocked, now, e.dummy);
+    hud.addDamage(e.dummy.overHead(hudCfg.damageNumbers.over), r.amount, r.headshot ? "#ffd23c" : color, r.headshot || r.knocked, now, e.dummy);
     hud.hitMarker(now, r.headshot, r.knocked ? "knock" : "hit");
     if (r.knocked) {
       hud.notice("KNOCKED DOWN", now, 0.8);
@@ -7489,11 +7489,15 @@ function step(): void {
   // Digital Threat optics: aiming through one lights enemies up red, fading
   // out over the data's threat_scope_fadedist range.
   {
+    const look = (H.reveal as unknown as { outline: { color: string; width: number; fill: number } }).outline;
+    const revealColor = parseInt(look.color.slice(1), 16);
     const range = drawn.threatRange;
     const aim = Math.max(0, Math.min(1, ((debugView.ads ?? ws.adsFrac) - 0.6) / 0.3));
     for (const d of duel ? [...threatTargets, ...duel.avatars] : threatTargets) {
-      // a REVEAL shows an enemy whatever the optic
-      let t = kitSight()?.shown.has(d) ? 1 : 0;
+      // a REVEAL shows an enemy whatever the optic, and through walls (Milestone 690)
+      const revealed = kitSight()?.shown.has(d) ?? false;
+      d.setRevealed(revealed && d.group.visible && !d.knocked, revealColor, look.width, look.fill);
+      let t = revealed ? 1 : 0;
       if (range && aim > 0 && d.group.visible && !d.knocked) {
         const dist = d.group.position.distanceTo(camera.position);
         t = Math.max(t, aim * (dist <= range[0] ? 1 : dist >= range[1] ? 0 : 1 - (dist - range[0]) / (range[1] - range[0])));

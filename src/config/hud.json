@@ -31,10 +31,11 @@
     "click": 0.2,
     "minClip": 5
   },
-  "_damageNumbers": "Damage numbers. Ours, after Apex's default: every hit on the same target within stack seconds of the last adds to one number, which pops to 1.25 times its size and back over pop seconds as it grows; a spray used to draw one number a round, sixteen of them on top of each other.",
+  "_damageNumbers": "Damage numbers. Ours, after Apex's default: every hit on the same target within stack seconds of the last adds to one number, which pops to 1.25 times its size and back over pop seconds as it grows; a spray used to draw one number a round, sixteen of them on top of each other. On a figure the number stands `over` metres above the top of its head (its head volume, which follows the soldier's bones), not where the round struck (Milestone 690, the owner, 2026-10-18: \"the number should appear above the soldier when shooting/damaging them, it blocks the soldier right now if we hit them in the chest/legs\").",
   "damageNumbers": {
     "stack": 0.7,
-    "pop": 0.08
+    "pop": 0.08,
+    "over": 0.3
   },
   "_muzzleFlash": "Other players' muzzle flashes (src/game/muzzle.ts). Ours: a flash lights for life seconds on each shot, two frames at 60 fps, as a player's own view model flash does; size is its width in metres up close, a little over a rifle's muzzle brake; minPx is the fewest pixels across it is ever drawn on screen, so a shot at 150 m is still a point of light and not nothing.",
   "muzzleFlash": {

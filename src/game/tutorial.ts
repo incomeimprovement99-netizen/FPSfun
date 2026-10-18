@@ -223,7 +223,9 @@ export class Tutorial {
       RANGE_SOLIDS.push(solid);
       this.doors.push({ mesh, light, solid, h: w.h, openedAt: null });
     }
-    const glow = (opacity: number) => new THREE.MeshBasicMaterial({ color: 0x7ddc8a, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, toneMapped: false });
+    // (one pass for both sides: a see-through two-sided material is drawn twice a frame, back then front, and the battle
+    // royale's check for that found the beacon, which is in the scene in every mode, Milestone 690)
+    const glow = (opacity: number) => new THREE.MeshBasicMaterial({ color: 0x7ddc8a, transparent: true, opacity, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false });
     const beam = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, BEAM_H, 16, 1, true), glow(0.32));
     beam.position.y = BEAM_H / 2;
     this.beaconRing = new THREE.Mesh(new THREE.RingGeometry(0.75, 1.05, 40), glow(0.85));

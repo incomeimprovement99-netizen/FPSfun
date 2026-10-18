@@ -465,8 +465,8 @@ export class Hud {
   }
 
   /** the damage numbers up now, newest last (tools/e2e.ts) */
-  get damageNumbers(): ReadonlyArray<{ amount: number; text: string; big: boolean }> {
-    return this.numbers.map((n) => ({ amount: n.amount, text: n.text, big: n.big }));
+  get damageNumbers(): ReadonlyArray<{ amount: number; text: string; big: boolean; y: number }> {
+    return this.numbers.map((n) => ({ amount: n.amount, text: n.text, big: n.big, y: n.world.y }));
   }
 
   /**

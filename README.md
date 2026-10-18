@@ -571,7 +571,7 @@ optics and hop-ups.
 In every mode the HUD is laid out where the game puts things: health and
 shield bottom left, weapon and
 ammo bottom right, the tech feed on the left, the kill feed and scoreboard
-top right in a match, damage numbers and hit markers on the target, a notice
+top right in a match, damage numbers over the target's head and hit markers, a notice
 line in the middle; in a battle royale the alive count, your kills and the
 ring's clock top centre, the rings on the minimap, and an orange edge when
 you are outside. **An enemy's name and bars** show only after you have hurt

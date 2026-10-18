@@ -283,6 +283,8 @@ export class Dummy {
   private outline: Outline | null = null;
   /** a teammate's ring in their squad colour, through walls (outline.ts MateOutline), made the first time it is */
   private mateRing: MateOutline | null = null;
+  /** a REVEAL's rim and fill through walls (outline.ts MateOutline with a fill), made the first time it is shown */
+  private revealRing: MateOutline | null = null;
   readonly oneHit: boolean;
   /** its own full health, when not HEALTH_MAX */
   private readonly healthCap: number | undefined;
@@ -508,6 +510,28 @@ export class Dummy {
     this.outline.show(on, width);
   }
 
+  /** shown by a REVEAL: its rim and its shape through walls in `color` (hacks.json reveal.outline), or off */
+  setRevealed(on: boolean, color = 0xff2a3a, width = 0.03, fill = 0.3): void {
+    if (!on && !this.revealRing) return;
+    this.revealRing ??= new MateOutline(this.group, [this.hits], fill);
+    this.revealRing.show(on, width, color);
+  }
+
+  /** the REVEAL's drawing (tools/e2e.ts), or null when this figure has never been shown */
+  revealState(): { on: number; width: number; color: number; through: boolean; fill: number } | null {
+    return this.revealRing?.state() ?? null;
+  }
+
+  /**
+   * Where a damage number goes: `over` metres above the top of the head (its volume, which follows the soldier's bones),
+   * so the number never covers the figure (hud.json damageNumbers.over)
+   */
+  overHead(over: number): THREE.Vector3 {
+    const at = this.vols.head.getWorldPosition(new THREE.Vector3());
+    at.y += HEAD_R + over;
+    return at;
+  }
+
   /** a teammate's ring through walls in their squad colour, `width` metres wide; null takes it off */
   setMateOutline(color: number | null, width = 0.02): void {
     if (color === null && !this.mateRing) return;
@@ -554,6 +578,8 @@ export class Dummy {
     this.outline = null;
     this.mateRing?.dispose();
     this.mateRing = null;
+    this.revealRing?.dispose();
+    this.revealRing = null;
     this.dropped?.obj.removeFromParent();
     this.dropped = null;
     this.mq?.dispose();
@@ -782,6 +808,8 @@ export class Dummy {
     this.outline = null;
     this.mateRing?.dispose();
     this.mateRing = null;
+    this.revealRing?.dispose();
+    this.revealRing = null;
     this.applyGlow();
   }
 

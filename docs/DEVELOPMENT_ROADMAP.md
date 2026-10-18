@@ -12153,6 +12153,34 @@ so it kind of takes up like 50-60% of the width near the top."
 - **Checked:** tsc; verify; rules; e2e start: the rain on its base at 0.75 in both colours; the name 47 to 62% across;
   the outlines and the label's size. Photographed at 1600 x 900.
 
+## Milestone 690 — Damage numbers over the head, a REVEAL drawn through walls, and no see-through material drawn twice
+
+The owner, 2026-10-18, playing: "the number should appear above the soldier when shooting/damaging them, it blocks the
+soldier right now if we hit them in the chest/legs. The reveal also just makes them red, it should highlight them
+through walls". (The lobby's milestones run on from 690: 620 to 639 are used, and the city's are 660 to 689.)
+
+- **Damage numbers over the head:**
+  - A number on a figure now stands 0.3 m over the top of its head (hud.json damageNumbers.over). The head is its
+    volume, which follows the soldier's bones (Dummy.overHead).
+  - Before, the number stood where the round struck: over the chest or the legs, covering the figure you were
+    shooting.
+  - Applies to a dummy's, a player's or bot's, and a hack's hit. A target board's stays where it was struck.
+- **A REVEAL through walls:**
+  - A shown enemy is drawn over everything in front of it: its rim in red and its shape filled red at 0.3
+    (hacks.json reveal.outline; outline.ts MateOutline with a fill, the squad mate's ring with the shape filled in).
+  - Where it is in the open, its own red glow is on top as before.
+  - Before, the glow alone: a wall hid it as it hid the figure.
+- **No see-through material drawn twice a frame.** Three.js draws a see-through two-sided material back then front.
+  The battle royale's check for that found the tutorial's beacon, which is in the scene in every mode (from Milestone
+  638). The city agent found the armory's beams and hologram cards too. These are now drawn once a frame, both sides
+  together, as is the outline's mask.
+- **Checked:**
+  - tsc; verify; rules.
+  - e2e range: the Mastiff's number over the dummy's head, at 2.11 m with the head's top at 1.80.
+  - e2e speedkills: a REVEAL on NEON YARD draws the bot's rim and fill through walls; the battle royale's materials.
+  - Proven with the number put back at the hit and the REVEAL's drawing taken out (2 FAIL: the number at 1.20 m; no
+    REVEAL drawn).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -164,7 +164,8 @@ function shownIn(src: THREE.Object3D, root: THREE.Object3D): boolean {
   return true;
 }
 
-/** the frame's last things: every teammate's shape before any teammate's ring, after everything else in the scene */
+/** the frame's last things: a revealed figure's fill, every teammate's shape before any teammate's ring, after everything else */
+const FILL_ORDER = 989;
 const MASK_ORDER = 990;
 const RING_ORDER = 991;
 
@@ -193,10 +194,15 @@ export class MateOutline {
   private readonly mask: THREE.MeshBasicMaterial;
   /** the ring's material for each scale among the figure's meshes, pushing in that scale's units (see Outline) */
   private readonly rings = new Map<string, { mat: THREE.MeshBasicMaterial; thick: { value: number }; scale: number }>();
-  private readonly parts: Array<{ mask: THREE.Mesh; ring: THREE.Mesh; src: THREE.Mesh }> = [];
+  private readonly parts: Array<{ mask: THREE.Mesh; ring: THREE.Mesh; fill: THREE.Mesh | null; src: THREE.Mesh }> = [];
   private sources = 0;
   private width = 0.02;
   private color = 0xffffff;
+  /**
+   * The figure's shape filled in its colour, over everything, at `fill` opacity (a REVEAL's, Milestone 690: a ring alone
+   * through a wall reads as a thin line; a filled shape is a body there). None for a teammate's.
+   */
+  private readonly fillMat: THREE.MeshBasicMaterial | null;
   private readonly nearest = (s: { fragmentShader: string }): void => {
     s.fragmentShader = s.fragmentShader.replace("#include <dithering_fragment>", "#include <dithering_fragment>\ngl_FragDepth = 0.0;");
   };
@@ -204,9 +210,12 @@ export class MateOutline {
   constructor(
     private readonly root: THREE.Object3D,
     private readonly skip: THREE.Object3D[],
+    fill = 0,
   ) {
-    this.mask = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, depthFunc: THREE.AlwaysDepth, transparent: true, side: THREE.DoubleSide });
+    // (one pass for both sides: it writes depth alone, and a two-sided see-through material is drawn twice a frame)
+    this.mask = new THREE.MeshBasicMaterial({ colorWrite: false, depthWrite: true, depthFunc: THREE.AlwaysDepth, transparent: true, side: THREE.DoubleSide, forceSinglePass: true });
     this.mask.onBeforeCompile = this.nearest;
+    this.fillMat = fill > 0 ? new THREE.MeshBasicMaterial({ color: this.color, transparent: true, opacity: fill, depthTest: false, depthWrite: false, toneMapped: false }) : null;
   }
 
   /** the ring material for meshes of this scale, made on first asking */
@@ -231,11 +240,13 @@ export class MateOutline {
     for (const p of this.parts) {
       p.mask.removeFromParent();
       p.ring.removeFromParent();
+      p.fill?.removeFromParent();
     }
     this.parts.length = 0;
     const list = figureMeshes(this.root, this.skip);
     this.sources = list.length;
-    for (const src of list) this.parts.push({ mask: copyOf(src, this.mask, MASK_ORDER), ring: copyOf(src, this.ringFor(scaleOf(src)), RING_ORDER), src });
+    for (const src of list)
+      this.parts.push({ mask: copyOf(src, this.mask, MASK_ORDER), ring: copyOf(src, this.ringFor(scaleOf(src)), RING_ORDER), fill: this.fillMat ? copyOf(src, this.fillMat, FILL_ORDER) : null, src });
   }
 
   /** on in `color` and `width` metres wide, or off; rebuilt when the figure's meshes change (outline.ts Outline.show) */
@@ -247,27 +258,31 @@ export class MateOutline {
       r.thick.value = width / r.scale;
       r.mat.color.setHex(color);
     }
+    this.fillMat?.color.setHex(color);
     for (const p of this.parts) {
       const seen = on && shownIn(p.src, this.root);
       p.mask.visible = seen;
       p.ring.visible = seen;
+      if (p.fill) p.fill.visible = seen;
     }
   }
 
   /** the ring's width in metres and colour, how many of its meshes are drawn, and that nothing in front hides it (tools/e2e.ts) */
-  state(): { on: number; width: number; color: number; through: boolean } {
+  state(): { on: number; width: number; color: number; through: boolean; fill: number } {
     const rings = [...this.rings.values()];
-    const through = this.mask.depthFunc === THREE.AlwaysDepth && rings.every((r) => r.mat.depthFunc === THREE.NotEqualDepth) && !this.mask.colorWrite;
-    return { on: this.parts.filter((p) => p.ring.visible).length, width: this.width, color: this.color, through };
+    const through = this.mask.depthFunc === THREE.AlwaysDepth && rings.every((r) => r.mat.depthFunc === THREE.NotEqualDepth) && !this.mask.colorWrite && (!this.fillMat || !this.fillMat.depthTest);
+    return { on: this.parts.filter((p) => p.ring.visible).length, width: this.width, color: this.color, through, fill: this.fillMat && this.parts.some((p) => p.fill?.visible) ? this.fillMat.opacity : 0 };
   }
 
   dispose(): void {
     for (const p of this.parts) {
       p.mask.removeFromParent();
       p.ring.removeFromParent();
+      p.fill?.removeFromParent();
     }
     this.parts.length = 0;
     this.mask.dispose();
+    this.fillMat?.dispose();
     for (const r of this.rings.values()) r.mat.dispose();
     this.rings.clear();
   }

@@ -212,7 +212,7 @@ export class Armory {
     // the column of light the hologram stands in
     const beam = new THREE.Mesh(
       new THREE.CylinderGeometry(cfg.beam.radius, cfg.beam.radius * 0.75, cfg.beam.height, 6, 1, true),
-      new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: cfg.beam.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+      new THREE.MeshBasicMaterial({ color: colour, transparent: true, opacity: cfg.beam.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }),
     );
     beam.position.y = cfg.item.y - 0.1;
     root.add(beam);
@@ -227,7 +227,7 @@ export class Armory {
     // the hologram card over it, facing the firing line
     const card = new THREE.Mesh(
       new THREE.PlaneGeometry(cfg.card.w, cfg.card.h),
-      new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, toneMapped: false }),
+      new THREE.MeshBasicMaterial({ transparent: true, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false }),
     );
     card.position.y = cfg.card.y;
     card.rotation.y = Math.PI;

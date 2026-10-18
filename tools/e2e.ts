@@ -2780,13 +2780,16 @@ async function shotgunChecks(page: Page): Promise<void> {
   await padTap(page, 7, 60);
   await sleep(700);
   const s1 = await ev<{ shots: number; hits: number; damage: number }>(page, "window.__range.stats()");
-  const nums = await ev<Array<{ amount: number; text: string }>>(page, "window.__range.hud.damageNumbers");
+  const nums = await ev<Array<{ amount: number; text: string; y: number }>>(page, "window.__range.hud.damageNumbers");
   const fired = s1.shots - s0.shots;
   const hits = s1.hits - s0.hits;
   const dealt = s1.damage - s0.damage;
   check(`shotgun: one pull of the Mastiff is ${set.pellets} pellets, and at 4 m they all land`, fired === set.pellets && hits === set.pellets, `fired ${fired}, hit ${hits}`);
   check("shotgun: the pellets do damage each, not one pellet's worth", dealt >= set.near * set.pellets * 0.75, `${dealt} dealt, a pellet is ${set.near}`);
   check("shotgun: the HUD sums the pull into one damage number", nums.length === 1 && nums[0].amount === dealt, JSON.stringify(nums));
+  // and it stands over the figure's head, not on the chest it struck (Milestone 690, the owner: "it blocks the soldier")
+  const head = await ev<number>(page, "window.__range.dummies[0].overHead(0).y");
+  check("shotgun: that number stands over the dummy's head, not where the pellets struck", nums.length === 1 && nums[0].y > head, JSON.stringify({ number: nums[0]?.y, headTop: head }));
   await ev(page, `window.__range.loadout.setWeaponId(0, "vinson")`);
   await sleep(1600);
   // a spray at one target: one number that grows, not one a round (hud.json
@@ -4811,6 +4814,12 @@ async function speedkillsTest(browser: Browser): Promise<void> {
       y.map === "yard" && y.me && y.bot && y.drawn && y.part.shown === "a-yard" && y.part.nodes.join() === "a-yard" && !y.part.extras && y.batches?.batches >= 1 && y.batches.layers > y.batches.batches * 4,
       JSON.stringify(y),
     );
+    // a REVEAL draws the bot through walls, its rim and its shape filled red, over anything in front (Milestone 690, the
+    // owner: "the reveal also just makes them red, it should highlight them through walls")
+    await ev(page, "(() => { const R = window.__range; R.duel().reveal(R.player.pos, null, 1000, 360, 3); })()");
+    const shown = await page.waitForFunction("window.__range.duel().avatars.some((a) => (a.revealState()?.on ?? 0) > 0)", { polling: 100, timeout: 15000 }).then(() => true, () => false);
+    const rv = await ev<{ on: number; through: boolean; fill: number; color: number } | null>(page, "(() => { const a = window.__range.duel().avatars.find((x) => x.revealState()); return a ? a.revealState() : null; })()");
+    check("speedkills: a REVEAL draws the bot through walls, its rim and its shape filled in red", shown && !!rv && rv.on > 0 && rv.through && rv.fill > 0 && rv.color === 0xff2a3a, JSON.stringify(rv));
     await page.close();
   }
   // THE CENTRE, picked (arenas/centre.ts, the owner, 2026-10-01): the city's own middle, inside a circle you cannot leave;
