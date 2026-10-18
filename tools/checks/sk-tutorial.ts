@@ -19,7 +19,7 @@ import { MOVE } from "../../src/game/movement";
 import { GAME } from "../../src/game/game";
 import { solidHit } from "../../src/game/projectile";
 import { courseColliders } from "../../src/game/course";
-import { TUTORIAL_COURSE, JUMP, DOUBLE, MANTLE, WALLRUN, DASH, HIGH, CLIMB, GLIDE, GLIDE_GAP, EXIT, OUT, BACK, TURN_Z, FALL_Y, DECK, RUN_WALL_X, type Ledge, type PitRoom } from "../../src/game/courses/tutorial";
+import { TUTORIAL_COURSE, JUMP, DOUBLE, MANTLE, WALLRUN, DASH, HIGH, CLIMB, GLIDE, GLIDE_GAP, EXIT, OUT, BACK, TURN_Z, FALL_Y, DECK, RUN_WALL_X, DIVIDERS, type Ledge, type PitRoom } from "../../src/game/courses/tutorial";
 import cfg from "../../src/config/tutorial.json";
 import hacksCfg from "../../src/config/hacks.json";
 import dress from "../../src/config/tutorialdress.json";
@@ -186,6 +186,40 @@ const DJS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
   const run = attempt({ x: byWall, z: WALLRUN.entryZ + 1.5, dir: 1, armed: false, jumpAt: 0.8, takeoff: WALLRUN.a1, done: past, pit: [...span(WALLRUN), FALL_Y], seconds: 7, onWall: wall });
   const djs = DJS.concat([0.9, 1.0]).filter((d) => attempt({ x: OX, z: WALLRUN.entryZ + 1.5, dir: 1, armed: false, jumpAt: 0.8, takeoff: WALLRUN.a1, dj: d, done: past, pit: [...span(WALLRUN), FALL_Y], seconds: 7 }));
   check(`wall run (a ${cfg.wallRun.pit} m pit): a wall run along the lit wall lands past it; a double jump at any timing falls in`, run && wall.seen && djs.length === 0, `double jumps that crossed: ${djs.length}`);
+  // and as a player runs it (the owner's playtest, 2026-10-18: it could not be passed): from the door, up the lit line on
+  // the deck to beside the wall, a jump at the deck's end looking straight along it, forward held. On the ground a body
+  // run beside a wall rides a hand's width off it, past the 4 hu a climb takes; the run's own reach takes it
+  // (movement.json wallRun.reach)
+  const fromDoor = (jumpAt: number, lineX: number) => {
+    const p = player((DIVIDERS[4].door[0] + DIVIDERS[4].door[1]) / 2, 0, WALLRUN.entryZ + 1.5, OUTWARD, false);
+    const s = new Script();
+    s.down.add("forward");
+    let t = 1000;
+    let jumped = false;
+    let ran = false;
+    for (let i = 0; i < 8 / DT; i++) {
+      t += DT;
+      if (!jumped) {
+        // steered at a point 3 m on along the line, as a player follows it
+        const ahead = Math.min(WALLRUN.a1, p.pos.z + 3);
+        p.yaw = (Math.atan2(-(lineX - p.pos.x), -(ahead - p.pos.z)) * 180) / Math.PI;
+        if (p.onGround && p.pos.z > WALLRUN.a1 - jumpAt) {
+          s.taps.add("jump");
+          jumped = true;
+          p.yaw = OUTWARD;
+        }
+      }
+      p.update(DT, t, s, 0, 1, false);
+      s.taps.clear();
+      if (p.onWall) ran = true;
+      if (p.pos.z > WALLRUN.a1 && p.pos.z < WALLRUN.b0 && p.pos.y < FALL_Y) return false;
+      if (p.onGround && p.pos.z > WALLRUN.b0) return ran;
+    }
+    return false;
+  };
+  const lines = [RUN_WALL_X - 0.55, RUN_WALL_X - MOVE.radius];
+  const tries = lines.flatMap((lx) => [0.5, 1, 1.5, 2].map((j) => fromDoor(j, lx)));
+  check("and as a player runs it: from the door up the lit line to beside the wall (or steered right into it), a jump at the deck's end 0.5 to 2 m out lands past the pit on the wall", tries.every(Boolean), `${tries.filter(Boolean).length} of ${tries.length}`);
 }
 
 // ---- 6. the dash: a double jump and the dash, in either order, onto the ledge; a jump and the dash, or the dash alone, not
@@ -325,6 +359,153 @@ const DJS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
     p.update(DT, t, s, 0, 1, false);
   }
   check("the turn: across the far end from the right-hand bay to the middle one, nothing in the way", p.pos.x < BACK.x1 - 2, `reached x ${p.pos.x.toFixed(1)}`);
+}
+
+// ---- the whole tutorial, end to end (Milestone 638, the owner's playtest, 2026-10-18: "have the bot actually run through
+// 4's end to 5's beginning. there is a wall blocking it"): from its start through every room's door into the next, each
+// room with its move, steered at points through the doors, unarmed until the ANAKIN and armed after, and out of its last
+// door into the range. The rooms above are proven one at a time from inside their doors; this is the way between them.
+{
+  const door = (i: number) => (DIVIDERS[i].door[0] + DIVIDERS[i].door[1]) / 2;
+  const lineX = RUN_WALL_X - 0.55;
+  const lane = (BACK.x0 + GLIDE.laneX1) / 2;
+  const exitX = (EXIT.x0 + EXIT.x1) / 2;
+  const way: Array<[number, number]> = [
+    [door(0), DIVIDERS[0].z + 1],
+    [door(1), DIVIDERS[1].z - 1],
+    [door(1), DIVIDERS[1].z + 1],
+    [door(1), JUMP.ledge.z1 + 1],
+    [door(2), DIVIDERS[2].z - 1],
+    [door(2), DIVIDERS[2].z + 1],
+    [door(2), DOUBLE.ledge.z1 + 1],
+    [door(3), DIVIDERS[3].z - 1],
+    [door(3), DIVIDERS[3].z + 1],
+    [door(3), MANTLE.b1 + 0.8],
+    [door(4), DIVIDERS[4].z - 1],
+    [door(4), DIVIDERS[4].z + 1],
+    // up the lit line to the wall, and along it
+    [lineX, WALLRUN.a0 + 3.5],
+    [lineX, WALLRUN.b0 + 4],
+    [OX, TURN_Z + 8],
+    [door(5), TURN_Z + 8],
+    [door(5), DIVIDERS[5].z - 1],
+    [door(5), DASH.b1 - 1],
+    [door(6), DIVIDERS[6].z + 1],
+    [door(6), DIVIDERS[6].z - 1],
+    [door(6), HIGH.ledge.z1 - 1],
+    [door(7), DIVIDERS[7].z + 1],
+    [door(7), DIVIDERS[7].z - 1],
+    [door(7), CLIMB.ledge.z1 - 1],
+    [door(8), DIVIDERS[8].z + 1],
+    [door(8), DIVIDERS[8].z - 1],
+    [lane, DIVIDERS[8].z - 3],
+    [lane, GLIDE.b1 - 1],
+    [exitX, EXIT.z + 1.5],
+    [exitX, EXIT.z - 2],
+  ];
+  type Act = { z: number; dir: 1 | -1; jump?: boolean; dj?: number; dash?: number; glide?: boolean; arm?: boolean };
+  const acts: Act[] = [
+    { z: JUMP.ledge.z0 - 1.5, dir: 1, jump: true },
+    { z: DOUBLE.ledge.z0 - 1, dir: 1, jump: true, dj: 0.3 },
+    { z: MANTLE.a1 - 0.8, dir: 1, jump: true, dj: 0.4 },
+    { z: WALLRUN.a1 - 1, dir: 1, jump: true },
+    { z: DASH.a1 + 0.8, dir: -1, jump: true, dj: 0.3, dash: 0.55 },
+    { z: HIGH.entryZ - 1, dir: -1, arm: true },
+    { z: HIGH.ledge.z0 + 1, dir: -1, jump: true, dj: 0.3 },
+    { z: GLIDE.face + 2, dir: -1, jump: true, dj: 0.2, glide: true },
+  ];
+  const p = player(TUTORIAL_COURSE.startPose.x, 0, TUTORIAL_COURSE.startPose.z, OUTWARD, false);
+  const s = new Script();
+  s.down.add("forward");
+  let t = 1000;
+  let clock = 0;
+  let next = 0;
+  let actZ = p.pos.z;
+  const done = new Set<Act>();
+  let djAt = -1;
+  let dashAt = -1;
+  let glide = false;
+  let sgFrame = -1;
+  let out = -1;
+  let fell = "";
+  const moves = { ran: false, climbed: false, glided: false, dashed: false };
+  const reached: number[] = [];
+  for (let i = 0; i < 180 / DT && out < 0; i++) {
+    t += DT;
+    clock += DT;
+    const [tx, tz] = way[next];
+    const [px, pz] = next > 0 ? way[next - 1] : [p.pos.x, p.pos.z];
+    const ux = tx - px;
+    const uz = tz - pz;
+    const ul = Math.hypot(ux, uz) || 1;
+    if ((p.pos.x - tx) * (ux / ul) + (p.pos.z - tz) * (uz / ul) > -0.5 && next < way.length - 1) next++;
+    {
+      // a point 3 m on along the line to the next one, so the body keeps to the line
+      const [bx, bz] = way[next];
+      const [cx, cz] = next > 0 ? way[next - 1] : [p.pos.x, p.pos.z];
+      const vx = bx - cx;
+      const vz = bz - cz;
+      const vl = Math.hypot(vx, vz) || 1;
+      const k = Math.min(vl, Math.max(0, ((p.pos.x - cx) * vx + (p.pos.z - cz) * vz) / vl) + 3);
+      if (!p.onWall && !p.climbing) p.yaw = (Math.atan2(-(cx + (vx / vl) * k - p.pos.x), -(cz + (vz / vl) * k - p.pos.z)) * 180) / Math.PI;
+    }
+    for (const a of acts) {
+      if (done.has(a)) continue;
+      const side = a.dir === 1 ? p.pos.x > OUT.x0 : p.pos.x < BACK.x1;
+      if (!side || !((actZ - a.z) * a.dir < 0 && (p.pos.z - a.z) * a.dir >= 0)) continue;
+      done.add(a);
+      if (a.jump) {
+        s.taps.add("jump");
+        if (a.dj !== undefined) djAt = clock + a.dj;
+        if (a.dash !== undefined) dashAt = clock + a.dash;
+      }
+      if (a.glide) glide = true;
+      if (a.arm) p.holsterBoost = 1;
+    }
+    actZ = p.pos.z;
+    const m = mantleOf(p);
+    if (djAt > 0 && clock >= djAt) {
+      if (!m) s.taps.add("jump");
+      djAt = -1;
+    }
+    if (dashAt > 0 && clock >= dashAt) {
+      dash(p, 0);
+      moves.dashed = true;
+      dashAt = -1;
+    }
+    if (glide && m) {
+      const left = m.started + m.duration - t;
+      if (sgFrame < 0 && left <= MOVE.superglideWindow * 0.5 + DT) {
+        s.taps.add("jump");
+        sgFrame = i;
+      } else if (sgFrame >= 0 && i === sgFrame + 1) {
+        s.taps.add("crouch");
+        glide = false;
+      }
+    }
+    p.update(DT, t, s, 0, 1, false);
+    s.taps.clear();
+    if (p.onWall) moves.ran = true;
+    if (p.climbing) moves.climbed = true;
+    if (p.superglidedAt > 0) moves.glided = true;
+    // every room's door come through
+    DIVIDERS.forEach((d, di) => {
+      if (reached[di] !== undefined) return;
+      const inDoor = p.pos.x > d.door[0] && p.pos.x < d.door[1];
+      if (inDoor && (d.facing === -1 ? p.pos.z < d.z - 0.5 : p.pos.z > d.z + 0.5)) reached[di] = clock;
+    });
+    for (const hz of TUTORIAL_COURSE.hazards) if (p.pos.z > hz.minZ && p.pos.z < hz.maxZ && p.pos.y < hz.fallY && p.pos.x > (hz.minX ?? -Infinity) && p.pos.x < (hz.maxX ?? Infinity)) fell ||= `fell at z ${p.pos.z.toFixed(1)}`;
+    if (fell) break;
+    if (p.pos.z < EXIT.z - 0.5 && p.pos.x > EXIT.x0 && p.pos.x < EXIT.x1) out = clock;
+  }
+  const doors = DIVIDERS.map((_, i) => (reached[i] !== undefined ? reached[i].toFixed(1) : "-")).join(" ");
+  const where = `at x ${p.pos.x.toFixed(1)} y ${p.pos.y.toFixed(1)} z ${p.pos.z.toFixed(1)}, the point ${next} of ${way.length}`;
+  check(
+    "the whole tutorial run end to end: through every room's door into the next, out of the last door into the range, no fall",
+    out > 0 && reached.filter((r) => r !== undefined).length === DIVIDERS.length && !fell,
+    out > 0 ? `${out.toFixed(1)} s, the doors at ${doors}` : `${fell || "stopped"} ${where}; the doors at ${doors}`,
+  );
+  check("and on the way the wall run, the dash, the climb and the superglide each happened", moves.ran && moves.dashed && moves.climbed && moves.glided, JSON.stringify(moves));
 }
 
 console.log(fails === 0 ? "\nSK TUTORIAL PASS" : `\nSK TUTORIAL FAIL (${fails})`);

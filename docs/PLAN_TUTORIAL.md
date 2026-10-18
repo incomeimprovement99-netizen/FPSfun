@@ -54,6 +54,8 @@ royale.
 | 634 | **The tutorial dressed in the Neon City bundle's pieces.** It gets a small file of its own for just the pieces it uses, because the city's file is 155 MB and a new player would wait for all of it first. The city's file then loads in the background while they play. | shipped (roadmap Milestone 634) |
 | 635 | **The start screen again.** The three ways in bigger. Tutorial left, Firing Range right, Battle Royale under both in the middle. The title higher, Resume a little smaller. The rain behind it in blue and pink at half strength. A sign-in line with the owner's helper text and links to Settings and the Account tab. | shipped (roadmap Milestone 635) |
 | 636 | **THE RUN rebuilt** for today's speeds: out and back, about 340 m, nine rooms each measured to its move, no ziplines, S from the route run end to end. | shipped (roadmap Milestone 636) |
+| 637 | **The guided tour out** (the owner, 2026-10-18: "yep remove old one"). Its panel stays as the tutorial's; the wall run's feel check gets its own e2e section. | shipped (roadmap Milestone 637) |
+| 638 | **The tutorial from the owner's playtest:** room 4 left by its door, room 5's wall run taken from a run beside the wall, a skip that puts you in the next room, a goal and a beacon in every room, no see-through walls, the Neon ceiling, and the whole tutorial run end to end. | shipped (roadmap Milestone 638) |
 
 ## The tutorial as built (Milestone 633)
 

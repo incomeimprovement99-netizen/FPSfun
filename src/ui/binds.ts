@@ -40,7 +40,7 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["jump", "Jump"],
       ["crouch", "Crouch, slide"],
       ["sprint", "Sprint"],
-      ["interact", "Interact: a zipline, an item (hold: a revive, a beacon, skip a tour step)"],
+      ["interact", "Interact: a zipline, an item (hold: a revive, a beacon, skip a tutorial room)"],
       ["chat", "Quick chat: then 1 to 6 sends a line to everyone in the match"],
     ],
   },

@@ -55,8 +55,8 @@ console.log("The lobby");
   const offered = Array.from(box.slice(0, box.indexOf("</select>")).matchAll(/value="([a-z]+)"/g)).map((m) => m[1]);
   check("every mode that can be played with friends names a mode the Friends box offers", friends.every((m) => offered.includes(m.friends as string)), friends.map((m) => `${m.id}>${m.friends}`).join(" "));
   check("the battle royale is one of them, which is the thing that used to take a tab marked 1v1", friendsModeFor("br") === "br" && friendsModeFor("bots") === "arena");
-  // the range can be played together since the owner asked to be in it with a friend (2026-09-29); the courses and the tour are one person's runs
-  check("the range is played together, as itself, and the courses, the tutorial and the tour are not", friendsModeFor("range") === "range" && ["run", "tutorial", "tour"].every((id) => friendsModeFor(id) === null));
+  // the range can be played together since the owner asked to be in it with a friend (2026-09-29); the courses are one person's runs
+  check("the range is played together, as itself, and the courses and the tutorial are not", friendsModeFor("range") === "range" && ["run", "tutorial"].every((id) => friendsModeFor(id) === null));
   check("a 1v1 cannot be played alone, and everything else can", lobbyMode("duel")?.solo === false && LOBBY_MODES.filter((m) => m.id !== "duel").every((m) => m.solo));
 }
 {
@@ -64,7 +64,7 @@ console.log("The lobby");
   check("the range asks about its dummies and nothing about bots or a ring", setupFor("range").includes("range") && !setupFor("range").includes("br") && !setupFor("range").includes("difficulty"));
   check("the battle royale asks about the squad, the bots and the ring, and nothing about an arena", setupFor("br").includes("br") && setupFor("br").includes("difficulty") && !setupFor("br").includes("map") && !setupFor("br").includes("range"), setupFor("br").join(", "));
   check("every mode with bots in it asks how good they are", ["bots", "br", "tdm", "control", "ffa"].every((id) => setupFor(id).includes("difficulty")));
-  check("the courses, the tutorial and the tour ask nothing: they are one button each", setupFor("run").length === 0 && setupFor("tutorial").length === 0 && setupFor("tour").length === 0);
+  check("the courses and the tutorial ask nothing: they are one button each", setupFor("run").length === 0 && setupFor("tutorial").length === 0);
 }
 console.log("\nThe ring's pace");
 {

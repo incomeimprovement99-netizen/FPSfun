@@ -99,22 +99,28 @@ class Surfaces {
     gr.idx.push(base, base + 1, base + 2, base, base + 2, base + 3);
   }
   /**
-   * A box's faces, each the material `face` names for it (null: none, a box's bottom never), cut into cells of at most
-   * CELL metres on the world's grid and each cell left out where `covered` says something stands over it: a wall's face
-   * is covered in some places and not others (the block between the bays is 169 m long, a ledge stands against it here
-   * and there), and one test for the whole face left the whole face out
+   * A box's faces, each the material `face` names for it (null: none), cut into cells of at most CELL metres on the
+   * world's grid and each cell left out where `covered` says something stands over it: a wall's face is covered in some
+   * places and not others (the block between the bays is 169 m long, a ledge stands against it here and there), and one
+   * test for the whole face left the whole face out. The cells are cut at every other box's edges too (`edges`), so a
+   * cell is wholly covered or wholly not: tested at its middle alone, a cell half behind a ledge was left out whole, and
+   * the half above the ledge was a hole through to the next course (the owner's playtest, 2026-10-18: "see through walls /
+   * areas / chunks"). A box's bottom is dressed where it stands off the floor (a lintel's underside, over every door).
    */
-  box(b: { minX: number; maxX: number; base: number; top: number; minZ: number; maxZ: number }, face: (f: Face) => string | null, covered: (x: number, y: number, z: number) => boolean): void {
+  box(b: { minX: number; maxX: number; base: number; top: number; minZ: number; maxZ: number }, face: (f: Face) => string | null, covered: (x: number, y: number, z: number) => boolean, edges: { x: number[]; y: number[]; z: number[] } = { x: [], y: [], z: [] }): void {
     const { minX: x0, maxX: x1, base: y0, top: y1, minZ: z0, maxZ: z1 } = b;
     const OUT = 0.02;
-    const cuts = (a: number, c: number): number[] => {
+    const cuts = (a: number, c: number, more: number[]): number[] => {
       const out = [a];
       for (let v = Math.floor(a / CELL + 1) * CELL; v < c - 1e-6; v += CELL) out.push(v);
+      for (const v of more) if (v > a + 1e-3 && v < c - 1e-3) out.push(v);
       out.push(c);
-      return out;
+      out.sort((p, q) => p - q);
+      return out.filter((v, i) => i === 0 || v - out[i - 1] > 1e-3);
     };
     const faces: Array<[Face, [number, number, number]]> = [
       ["top", [0, 1, 0]],
+      ["bottom", [0, -1, 0]],
       ["px", [1, 0, 0]],
       ["nx", [-1, 0, 0]],
       ["pz", [0, 0, 1]],
@@ -123,19 +129,26 @@ class Surfaces {
     for (const [f, n] of faces) {
       const m = face(f);
       if (!m) continue;
-      if (f === "top") {
-        const xs = cuts(x0, x1);
-        const zs = cuts(z0, z1);
+      if (f === "top" || f === "bottom") {
+        // (a bottom only off the floor: on it, nothing sees it)
+        if (f === "bottom" && y0 < 0.01) continue;
+        const xs = cuts(x0, x1, edges.x);
+        const zs = cuts(z0, z1, edges.z);
         for (let i = 0; i + 1 < xs.length; i++)
           for (let j = 0; j + 1 < zs.length; j++) {
             const [a, c, d, e] = [xs[i], xs[i + 1], zs[j], zs[j + 1]];
-            if (covered((a + c) / 2, y1 + OUT, (d + e) / 2)) continue;
-            this.quad(m, [[a, y1, d], [a, y1, e], [c, y1, e], [c, y1, d]], n);
+            if (f === "top") {
+              if (covered((a + c) / 2, y1 + OUT, (d + e) / 2)) continue;
+              this.quad(m, [[a, y1, d], [a, y1, e], [c, y1, e], [c, y1, d]], n);
+            } else {
+              if (covered((a + c) / 2, y0 - OUT, (d + e) / 2)) continue;
+              this.quad(m, [[a, y0, d], [c, y0, d], [c, y0, e], [a, y0, e]], n);
+            }
           }
         continue;
       }
-      const ys = cuts(y0, y1);
-      const along = f === "px" || f === "nx" ? cuts(z0, z1) : cuts(x0, x1);
+      const ys = cuts(y0, y1, edges.y);
+      const along = f === "px" || f === "nx" ? cuts(z0, z1, edges.z) : cuts(x0, x1, edges.x);
       for (let i = 0; i + 1 < along.length; i++)
         for (let j = 0; j + 1 < ys.length; j++) {
           const [a, c, ya, yb] = [along[i], along[i + 1], ys[j], ys[j + 1]];
@@ -163,7 +176,7 @@ class Surfaces {
     return { id, groups: this.groups, tris, min, max, faces: {}, depths: {} };
   }
 }
-type Face = "top" | "px" | "nx" | "pz" | "nz";
+type Face = "top" | "bottom" | "px" | "nx" | "pz" | "nz";
 /** the cells a face is cut into, metres */
 const CELL = 2.5;
 
@@ -257,6 +270,12 @@ if (mode === "bake") {
   // what hides a point of a face: another box standing over it, but not the glass, which is seen through
   const solidBoxes = solids.filter((o) => roleOf(o) !== "glass");
   const covered = (self: object) => (x: number, y: number, z: number) => solidBoxes.some((o) => o !== self && x > o.minX + 1e-3 && x < o.maxX - 1e-3 && y > o.base + 1e-3 && y < o.top - 1e-3 && z > o.minZ + 1e-3 && z < o.maxZ - 1e-3);
+  // every box's edges, to cut each face at: the ones within a metre of a face are all that can cover part of it
+  const near = (b: (typeof solids)[number]) => solidBoxes.filter((o) => o !== b && o.minX < b.maxX + 1 && o.maxX > b.minX - 1 && o.minZ < b.maxZ + 1 && o.maxZ > b.minZ - 1 && o.base < b.top + 1 && o.top > b.base - 1);
+  const edgesOf = (b: (typeof solids)[number]) => {
+    const n = near(b);
+    return { x: n.flatMap((o) => [o.minX, o.maxX]), y: n.flatMap((o) => [o.base, o.top]), z: n.flatMap((o) => [o.minZ, o.maxZ]) };
+  };
   for (const b of solids) {
     const role = roleOf(b);
     s.box(
@@ -269,7 +288,19 @@ if (mode === "bake") {
         return role === "ledge" ? R.ledge : role === "climb" ? R.climb : R.block;
       },
       covered(b),
+      edgesOf(b),
     );
+  }
+  // the ceiling, the Neon City's and solid, where the warehouse roof was (its skylights showed the sky: the owner's
+  // playtest, 2026-10-18, "the ceiling should be the neon city style"), its lights the bundle's own ceiling panels
+  {
+    const y = WH - 0.01;
+    const [x0, x1, z0, z1] = [BACK.x0 - 1, OUT.x1 + 1, 8, tcfg.farZ + 1];
+    for (let x = x0; x < x1 - 1e-6; x += CELL)
+      for (let z = z0; z < z1 - 1e-6; z += CELL) {
+        const [a, c, d, e] = [x, Math.min(x1, x + CELL), z, Math.min(z1, z + CELL)];
+        s.quad(R.ceiling, [[a, y, d], [c, y, d], [c, y, e], [a, y, e]], [0, -1, 0]);
+      }
   }
   // the floor: both bays and the turn, but under the block between them; the pits' floors their own
   const pits = [MANTLE, WALLRUN, DASH].map((r) => ({ bay: r === DASH ? BACK : OUT, z0: Math.min(r.a1, r.b0), z1: Math.max(r.a1, r.b0) }));
@@ -289,6 +320,17 @@ if (mode === "bake") {
   // [piece, wall, along, up] on a wall (onWall), or [piece, x, y, z, yaw] where it stands
   const list = dress.pieces as unknown as Array<[string, string | number, number, number, number?]>;
   const draws = list.flatMap(([key, a, b, c, d]) => (typeof a === "string" ? onWall(key, a, b, c) : placed(key, a, b, c, d ?? 0)));
+  // the ceiling's lights: the bundle's panel light down the middle of each bay and across the turn, its top on the ceiling
+  {
+    const C = (dress as unknown as { ceilingLights: { piece: string; every: number } }).ceilingLights;
+    const p = pathOf.get(C.piece);
+    if (!p) throw new Error(`no prefab ${C.piece}`);
+    const lb = bake(pack, res, C.piece, guidOf.get(p)!, mats);
+    if (!lb) throw new Error(`${C.piece} bakes nothing`);
+    const top = WH - lb.max[1] - 0.02;
+    for (const bay of [OUT, BACK]) for (let z = 9 + C.every / 2; z < TURN_Z; z += C.every) draws.push(...placed(C.piece, (bay.x0 + bay.x1) / 2, top, z, 0));
+    for (let x = BACK.x0 + 3; x < OUT.x1 - 2; x += C.every) draws.push(...placed(C.piece, x, top, (TURN_Z + tcfg.farZ) / 2, 90));
+  }
   const rooms = s.baked("tutorial:rooms");
   const pieces = draws.length ? bake(pack, res, "tutorial:pieces", "", mats, draws) : null;
   const all = [rooms, ...(pieces ? [pieces] : [])];

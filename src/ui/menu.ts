@@ -10,7 +10,7 @@ import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 import { LOBBY_MODES, lobbyMode, setupFor, friendsModeFor } from "./lobby";
 
-export type Mode = "range" | "run" | "tutorial" | "duel" | "bots" | "br" | "tdm" | "control" | "ffa" | "tour" | "lab";
+export type Mode = "range" | "run" | "tutorial" | "duel" | "bots" | "br" | "tdm" | "control" | "ffa" | "lab";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "account" | "settings" | "controller" | "controls" | "feedback";
 
 export interface MenuOptions {

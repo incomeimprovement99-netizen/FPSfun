@@ -12064,6 +12064,95 @@ its gap, a double jump and a mantle topped its 4.2 m climb, and a climb (8 m) to
   - The pad section's tab count, one short since Milestone 635's Account tab, fixed on the way.
   - Photographed every room.
 
+## Milestone 637 — The guided tour out: the tutorial teaches the game
+
+The owner, 2026-10-18, asked whether the old guided tour under More should go now the tutorial covers it: "yep remove
+old one".
+
+- **Gone:** the tour (src/game/tour.ts, its eight SpeedKills steps), its button in Extra modes' TRAINING, its mode, its
+  page wiring and the count of hack uses only it read. The interact key's hold skips a tutorial room, as its line on the
+  Controls tab now says.
+- **Kept:** the panel it drew at the top of the screen, which the tutorial's rooms are shown on at twice its size: its
+  type is the tutorial's now (tutorial.ts TutorialHud). Inspect still waits while a held X would be a room's skip, now
+  in the tutorial.
+- **The wall run's feel** (the view leaning off the wall, and level again) was checked inside the tour's e2e section:
+  it has a section of its own, `skwall`, on THE RUN's wall run deck. The range's right-hand wall it ran along before
+  has stands against it now, and today's sweep found the run stopped short there. The bug hunt plays the tutorial
+  where it played the tour.
+- **Two e2e checks that failed in today's sweep, both the tests' own:**
+  - DASH's 26 m was measured from z 200 facing back over the range, and THE RUN's far wall has stood at z 195 since
+    Milestone 636: it is measured down THE RUN's last room now.
+  - The city-missing check read nothing from the site, because a bot match earlier in its section had kept the city in
+    the browser's cache. It empties that cache first, as a first visit's is.
+- **Checked:** tsc; verify; rules; e2e speedkills, skwall, sktutorial, start.
+
+## Milestone 638 — The tutorial from the owner's playtest: every room passable into the next, a skip that moves you, where to go never a guess, no holes, a Neon ceiling
+
+The owner played the tutorial on 2026-10-18: "room 5/10 was fucked and the waypoints need to be more obvious when used, bump
+the text down at the top like 5 pixals at least and then the 'holding E to skip' doesn't teleport you to the next room
+... anything should be like painfully obvious where to go with no guesses. There are see through walls / areas / chunks
+in the tutorial run as well and the ceiling should be the neon city style", and then: "the problem with 5 is also we
+cant get to it from 4, have the bot actually run through 4's end to 5's beginning. there is a wall blocking it".
+
+- **Room 4 could not be left.** Its ledge ended 0.5 m from the next door's wall, narrower than a body (0.81 m), so from
+  its top nobody could get down to the door under it. The room is 2 m longer (tutorial.json mantle length 26): the ledge
+  ends 2.5 m short, and you drop off it to the door.
+- **Room 5's wall run could not be taken as a player runs it.** A body running along a wall on the ground keeps 4.06 hu
+  off it, measured on the tutorial's deck. The wall run only took a wall within the climb's 4 hu, so a jump from beside
+  the lit wall took no run at all: only a run started already against it did, which is how the old proof started it.
+  - A run now takes a wall within its own reach, 8 hu (movement.json wallRun.reach), and is held to it within that.
+  - This is the game's movement, not only the tutorial's: a wall run from a run along a wall now takes everywhere.
+  - A lit line runs up the deck from the door to beside the wall and along it to the take-off, and the tip says to
+    follow it.
+- **The whole tutorial is run end to end** (tools/checks/sk-tutorial.ts). A bot goes from its start through every
+  room's door into the next and out of the last door, each room by its move: 35.9 s, with the wall run, the dash, the
+  climb and the superglide each done.
+  - Proven: with room 4 put back at 24 m it stops on that ledge at z 102.8, 5.2 m up, where the owner stood.
+  - And a player's way through room 5, from its door up the lit line (or steered right into the wall), jumping 0.5 to
+    2 m before the deck's end, lands from all 8 tries; with the old 4 hu reach, 4 of 8.
+- **A skip moves you:** held E opens the room's door and puts you just inside the next room, facing in. Past the
+  superglide it puts you on its landing deck; past the last room, out in the range (Tutorial.roomStart, onSkip).
+- **Where to go:**
+  - Every room has a goal the marker points at once you are through its door: the ledge to jump onto, the take-off by
+    the lit wall and then the landing, the platform, the wall's top, the superglide's ledge, the way out. Before it,
+    the door.
+  - A beacon stands there: a column of light, a ring on the floor and an arrow bobbing over it.
+  - The HUD marker is a chevron over a ring with "GO HERE · N M" under it, its arrow at the screen's edge three times
+    the size it was.
+  - The panel at the top is 8 px lower.
+- **No see-through walls** (tools/tutorial-dress.ts). A face's 2.5 m cell was left out whole when its middle was behind
+  a box, and the uncovered part of it was a hole through to THE RUN's wall next door. Every face is now cut at every
+  nearby box's edges too, so a cell is covered whole or dressed. The undersides of the lintels over the doors are
+  dressed.
+- **The ceiling is the Neon City's:** the bundle's tech panel across both bays and the turn at the walls' top, its
+  ceiling panel light every 10 m. The warehouse roof, whose skylights showed the sky, is drawn only where there is no
+  dressing (course.ts puts a dressed course's roof with its plain boxes); its colliders stay. Dressing version 2,
+  4.16 MB.
+- **Checked:**
+  - tsc; verify (sk-tutorial with the run end to end and the player's wall run; sk-run's route at 29.48 s); rules.
+  - e2e sktutorial (the skip lands you at the next room's start) and skwall.
+  - Photographed: the beacon at the first door, the lit line and the beacon in room 5, room 4's drop, the left wall
+    whole, the ceiling.
+
+## Milestone 639 — The start screen's third pass: the rain over more of the game, smaller ways in, outlined words, a wider name
+
+The owner, 2026-10-18: "make the matrix screen less transparant. we did 50% before, do 75 now so we see less of the
+background. Also, each of the 3 option boxes on the main screen can be a bit smaller, but keep the text the same size
+except up one size the learn/play/training and give the Tutorial/firingrange/battleroyale a black outline, same with the
+text below it. This should give slightly more room to make the speed kills logo larger. Make it taller but mostly wider
+so it kind of takes up like 50-60% of the width near the top."
+
+- **The rain** (src/ui/startrain.ts, start.json rain) is drawn on a dark base now, and the whole of it is at 0.75. Before,
+  only its glyphs were drawn, at 0.5, and the game showed through everywhere between them.
+- **The three ways in:**
+  - Smaller: 21% of the screen's height (140 to 250 px), from 27%, and less padding. Their row is 1040 px at most.
+  - Their names and lines are the same size, each with a black outline. The labels (LEARN, TRAINING, PLAY) are a size up,
+    19 px.
+- **The name:** a size up (7.6% of the width, to 148 px) and its letters spread (0.16 em, from 0.06). Measured: 54% of
+  the window across at 1600 x 900, 55% at 1280 x 720, 53% at 1920 x 1080. The BETA tag stands clear of its last letter.
+- **Checked:** tsc; verify; rules; e2e start: the rain on its base at 0.75 in both colours; the name 47 to 62% across;
+  the outlines and the label's size. Photographed at 1600 x 900.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

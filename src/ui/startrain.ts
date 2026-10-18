@@ -2,9 +2,9 @@
 // in the game's blue and pink, half seen (the owner, 2026-10-17: "can we add the matrix falling style stuff we have? it
 // could be like 50% transparant or something with blue and pink ones to match the theme").
 //
-// A canvas over the overlay's backdrop and under the start screen, drawn only while the start screen is up. Its tails
-// fade to clear rather than to black, so the game behind still shows through. A machine set to less movement gets one
-// still frame of it.
+// A canvas over the overlay's backdrop and under the start screen, drawn only while the start screen is up: a dark base
+// with the glyphs on it, the whole of it at rain.opacity, so the game behind shows through only that much (Milestone
+// 639: 0.75, the owner's "we see less of the background"). A machine set to less movement gets one still frame of it.
 import { rainColumns, type RainColumn } from "./intro";
 import cfg from "../config/start.json";
 
@@ -47,6 +47,11 @@ export class StartRain {
     this.w = this.canvas.width = w;
     this.h = this.canvas.height = h;
     this.cols = rainColumns(w, h, 7);
+    // (a new size clears the canvas: the base under it again at once)
+    if (this.ctx) {
+      this.ctx.fillStyle = cfg.rain.base;
+      this.ctx.fillRect(0, 0, w, h);
+    }
   }
 
   private draw = (): void => {
@@ -58,11 +63,11 @@ export class StartRain {
     // (at most rain.fps frames a second: a backdrop at the display's 240 is the GPU's time for nothing)
     if (t - this.last >= 1 / R.fps || this.still) {
       this.last = t;
-      // what was there fades toward clear, not black: each head leaves a tail and the game shows through
-      ctx.globalCompositeOperation = "destination-out";
-      ctx.fillStyle = `rgba(0, 0, 0, ${R.fade})`;
+      // what was there fades toward the base: each head leaves a tail
+      ctx.globalAlpha = R.fade;
+      ctx.fillStyle = R.base;
       ctx.fillRect(0, 0, this.w, this.h);
-      ctx.globalCompositeOperation = "source-over";
+      ctx.globalAlpha = 1;
       ctx.font = `${R.glyph}px "Consolas", "Courier New", monospace`;
       ctx.textBaseline = "top";
       const rows = Math.ceil(this.h / R.glyph) + 2;

@@ -899,13 +899,9 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "tour",
-    note: "the guided tour: the step, what to do and the keys, the marker to walk to",
-    steps: [
-      [`(() => { document.getElementById("goTour").click(); document.getElementById("startMode").click(); ${hideMenu}; })()`, 600],
-      [`(() => { window.__range.player.teleport(0, 0, -8, 0); })()`, 500],
-      [`(() => { window.__range.player.teleport(2, 0, -2, 20); })()`, 600],
-    ],
+    name: "tutorial",
+    note: "the tutorial's first room, its panel at the top at twice the old guided tour's size",
+    steps: [[`(() => { document.getElementById("goTutorial").click(); document.getElementById("startMode").click(); ${hideMenu}; })()`, 1500]],
   },
 ];
 

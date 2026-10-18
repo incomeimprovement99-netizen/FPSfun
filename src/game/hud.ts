@@ -22,7 +22,7 @@ import type { BannerCard } from "./banners";
 import type { DrillHud } from "./rangetools";
 import type { TrainerHud } from "./trainer";
 import type { ModeHud } from "./modematch";
-import type { TourHud } from "./tour";
+import type { TutorialHud } from "./tutorial";
 import hudCfg from "../config/hud.json";
 import { damageText, poolText } from "./damagetext";
 import type { LootCardView } from "./lootcard";
@@ -282,8 +282,8 @@ export interface HudState {
   trainer?: TrainerHud | null;
   /** a superglide's window is open: the mantle boost cue on the crosshair */
   mantleCue?: boolean;
-  /** the guided tour's step, or its finish card */
-  tour?: TourHud | null;
+  /** the tutorial's room, or its finish card */
+  tutorial?: TutorialHud | null;
   /** a hold-E action in progress (a restore at an echo): its label and 0..1 */
   brHold?: { label: string; progress: number } | null;
   /** pings in the world: an enemy (red), an item (its colour), a place (yellow) */
@@ -617,20 +617,21 @@ export class Hud {
     this.drawSquad(now, s, u);
     // over the rest of the HUD: past the edge nothing else matters
     this.drawEdge(now, s, u);
-    this.drawTour(camera, s, u);
+    this.drawTutorial(camera, s, u);
   }
 
-  /** the tour: the step under the compass, what to do, the skip bar, and an arrow to the marker when it is off screen */
-  private drawTour(camera: THREE.Camera, s: HudState, u: number): void {
-    const t = s.tour;
+  /** the tutorial: the room under the compass, what to do, the skip bar, and an arrow to the marker when it is off screen */
+  private drawTutorial(camera: THREE.Camera, s: HudState, u: number): void {
+    const t = s.tutorial;
     if (!t) return;
     const c = this.ctx;
     const cx = this.w / 2;
-    // (the tutorial's at twice the size, and wider: the owner, 2026-10-17, "make sure the instructions are blatantly
+    // (at twice the old guided tour's size, and wider: the owner, 2026-10-17, "make sure the instructions are blatantly
     // obvious near the top, like at least twice as big as they are now on the 'Tour'")
-    const k = t.size ?? 1;
+    const k = t.size;
     const w = Math.min(this.w - 32 * u, 620 * u * (k === 1 ? 1 : 1.6));
-    const y0 = 62 * u;
+    // (8 px lower than it was: the owner's playtest, 2026-10-18, "bump the text down at the top like 5 pixels at least")
+    const y0 = 70 * u;
     // the instruction, wrapped to the panel
     c.font = this.font(600, 14 * u * k);
     const words = t.text.split(" ");
@@ -650,7 +651,7 @@ export class Hud {
     c.fillRect(cx - w / 2, y0, w, h);
     c.fillStyle = t.done ? "#ffd23c" : "#7ddc8a";
     c.fillRect(cx - w / 2, y0, w * (t.step / t.of), 4 * u * k);
-    this.text(t.done ? t.title : `${t.label ?? "TOUR"} ${t.step} / ${t.of}  ·  ${t.title}`, cx, y0 + 30 * u * k, 700, 20 * u * k, t.done ? "#ffd23c" : "#7ddc8a", "center");
+    this.text(t.done ? t.title : `${t.label} ${t.step} / ${t.of}  ·  ${t.title}`, cx, y0 + 30 * u * k, 700, 20 * u * k, t.done ? "#ffd23c" : "#7ddc8a", "center");
     shown.forEach((l, i) => this.text(l, cx, y0 + (52 + i * 16) * u * k, 600, 14 * u * k, WHITE, "center"));
     if (t.skip > 0) {
       c.fillStyle = "rgba(255,255,255,0.15)";
@@ -658,10 +659,11 @@ export class Hud {
       c.fillStyle = "#ffd23c";
       c.fillRect(cx - 80 * u * k, y0 + h + 6 * u, 160 * u * k * t.skip, 5 * u * k);
     }
-    // the marker: where on screen, or an arrow at the edge toward it
+    // the marker: where on screen, or an arrow at the edge toward it; big and said, so where to go is never a guess (the
+    // owner's playtest, 2026-10-18: "the waypoints need to be more obvious when used")
     if (t.marker) {
-      const v = t.marker.clone().setY(1.2).project(camera);
-      const pad = 44 * u;
+      const v = t.marker.clone().setY(t.marker.y + 1.2).project(camera);
+      const pad = 60 * u;
       let x = (v.x * 0.5 + 0.5) * this.w;
       let y = (-v.y * 0.5 + 0.5) * this.h;
       const behind = v.z > 1;
@@ -675,16 +677,31 @@ export class Hud {
       const cam = (camera as THREE.PerspectiveCamera).position;
       const dist = Math.round(Math.hypot(t.marker.x - cam.x, t.marker.z - cam.z));
       c.fillStyle = "#7ddc8a";
+      c.strokeStyle = "rgba(0,0,0,0.75)";
+      c.lineWidth = 3 * u;
       c.beginPath();
       if (off) {
         const a = Math.atan2(y - this.h / 2, x - cx);
-        c.moveTo(x + Math.cos(a) * 14 * u, y + Math.sin(a) * 14 * u);
-        c.lineTo(x + Math.cos(a + 2.4) * 11 * u, y + Math.sin(a + 2.4) * 11 * u);
-        c.lineTo(x + Math.cos(a - 2.4) * 11 * u, y + Math.sin(a - 2.4) * 11 * u);
-      } else c.arc(x, y, 7 * u, 0, Math.PI * 2);
+        c.moveTo(x + Math.cos(a) * 30 * u, y + Math.sin(a) * 30 * u);
+        c.lineTo(x + Math.cos(a + 2.4) * 22 * u, y + Math.sin(a + 2.4) * 22 * u);
+        c.lineTo(x + Math.cos(a - 2.4) * 22 * u, y + Math.sin(a - 2.4) * 22 * u);
+      } else {
+        // a chevron pointing down at it, over a ring
+        c.moveTo(x - 16 * u, y - 30 * u);
+        c.lineTo(x + 16 * u, y - 30 * u);
+        c.lineTo(x, y - 12 * u);
+      }
       c.closePath();
+      c.stroke();
       c.fill();
-      this.text(`${dist} M`, x, y + 24 * u, 700, 12 * u, "#7ddc8a", "center");
+      if (!off) {
+        c.beginPath();
+        c.arc(x, y, 9 * u, 0, Math.PI * 2);
+        c.lineWidth = 4 * u;
+        c.strokeStyle = "#7ddc8a";
+        c.stroke();
+      }
+      this.text(`GO HERE · ${dist} M`, x, y + (off ? 40 : 30) * u, 700, 16 * u, "#7ddc8a", "center");
     }
   }
 

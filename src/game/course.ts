@@ -589,7 +589,10 @@ export class Course {
       const back = d.facing === -1;
       this.panel(L.rooms[i].name, (d0 + d1) / 2, 4.2, d.z + (back ? 0.52 : -0.52), back ? 0 : Math.PI, 3.4, 0.8);
     });
-    warehouseRoof(this.root, {
+    // (a dressed course's roof is the plain boxes' too: its dressing has a ceiling of its own, Milestone 638)
+    const roofIn = new THREE.Group();
+    (L.dressed ? this.plain : this.root).add(roofIn);
+    warehouseRoof(roofIn, {
       x0: L.x0 - 1,
       x1: L.x1 + 1,
       z0: 8,
@@ -599,6 +602,7 @@ export class Course {
       lights: L.lights,
       solid: (a, c, d, e, f, g) => this.solid(a, c, d, e, f, g),
     });
+    if (L.dressed) roofIn.traverse((o) => (o.userData.dynamic = true));
     if (!L.untimed) {
       this.tv();
       // start and finish lines

@@ -1,6 +1,6 @@
 {
   "_note": "The tutorial dressed in the Neon City bundle (tools/tutorial-dress.ts bakes it into public/models/paid/neon/tutorial-v<version>.glb; src/game/tutorialdress.ts draws it over the course's own boxes, which it still collides with). `roles` is the bundle's material each surface wears, tiled at the scale the bundle's own pieces wear it (measured by the tool, printed when it bakes); `pieces` the bundle's pieces set about the rooms, [City Builder path, x, y, z, yaw]; `candidates` the materials tools/neongallery.html shows side by side (DRESS=swatch) to choose from. `texture` and `normal` the textures' sizes: one small file, not the city's 155 MB. Bump `version` with every bake that ships.",
-  "version": 1,
+  "version": 2,
   "texture": 512,
   "normal": 256,
   "_roles": "Chosen off the swatch sheet (DRESS=swatch, 2026-10-18): the floor the dark tiles with their blue lights, the walls the cyan-lit tech panel, a ledge you jump onto painted yellow so it reads from the door, its top a plated grey; the decks and steps dark panels with tech plates on top; the climb's wall the ribbed metal; the slick walls dark glass; a pit's floor a dark red.",
@@ -13,8 +13,11 @@
     "blockTop": "MetalSquareTiles00",
     "ledge": "MetalPaintPannelsYellow00",
     "ledgeTop": "MetalDotsGrid02",
-    "climb": "CyberpunkPannel04"
+    "climb": "CyberpunkPannel04",
+    "ceiling": "TechPannel_00"
   },
+  "_ceiling": "Since version 2 (Milestone 638) the ceiling is the dressing's too, the Neon City's: `roles.ceiling` over both bays and the turn at the walls' top, where the warehouse roof was (its skylights showed the sky), and the bundle's ceiling panel light `ceilingLights.piece` every `every` metres down the middle of each bay and across the turn. The roof's colliders stay; its drawing is the plain boxes', hidden under the dressing.",
+  "ceilingLights": { "piece": "2_Deco/Lighting/Lighting_Deco006.prefab", "every": 10 },
   "_pieces": "The bundle's own neon signs (its English ones only, and NEON009, robot in Korean: see docs, the pack's foreign signs are read before they go anywhere), tube lights and lanterns, on the walls 6.5 m up and over, above any wall run (a run along the lit wall is 2 to 4 m up), so nothing stands in a way through a room; the lanterns hang over the turn. [piece, wall, along, up] on a wall, or [piece, x, y, z, yaw] where it hangs.",
   "pieces": [
     ["2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab", "x28", 15, 6.5],

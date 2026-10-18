@@ -32,7 +32,7 @@ import { Course } from "./game/course";
 import { keyPanelTexts, setPanelKeys } from "./game/geo";
 import { BASIC_COURSE, RUN_ROUTE } from "./game/courses/basic";
 import { TUTORIAL_COURSE, DASH_HAZARD } from "./game/courses/tutorial";
-import { Tutorial, DASH_STEP, GUN_STEP, type TutorialCheck } from "./game/tutorial";
+import { Tutorial, DASH_STEP, GUN_STEP, type TutorialCheck, type TutorialHud } from "./game/tutorial";
 import { loadTutorialDress, TUTORIAL_DRESS } from "./game/tutorialdress";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, RENDER_SCALES, loadRenderScale, saveRenderScale } from "./game/quality";
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
@@ -116,7 +116,6 @@ import { BrPlay, PING_INTENTS, pingPickAt, REACH } from "./game/brplay";
 import { LS_LOOT_CARD, gunOutcome, hackOutcome, lootCardView, type LootCardMode, type LootCardView } from "./game/lootcard";
 import { Armory, armorySolids, type ArmoryStation, type ArmoryView } from "./game/armory";
 import { Captions, howFar, whereFrom } from "./game/captions";
-import { Tour, type TourCheck } from "./game/tour";
 import { figuresSettled, hasClip, loadMannequin, useMannequin, soldierReady } from "./game/mannequin";
 import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
@@ -1452,7 +1451,6 @@ hud.enabled = !NO_RENDER;
 const techLog: Array<{ name: string; detail: string; good: boolean; at: number }> = [];
 player.onTech = (name, detail, good) => {
   trainer?.onTech(name, detail);
-  if (good) tour?.onTech(name);
   hud.tech(name, detail, good, gameTime);
   techLog.push({ name, detail, good, at: gameTime });
   if (techLog.length > 200) techLog.shift();
@@ -2260,7 +2258,7 @@ let party: { guests: Map<number, Link> } | { host: Link } | null = null;
  * each would be in it alone, seeing each other. It is not `duel`, on purpose:
  * over a hundred things in this file ask whether a match is on to decide that
  * the range's own rules no longer apply (the drill, the courses, the dummies,
- * the tour, the heal kit), and with friends in the range they all still should.
+ * the tutorial, the heal kit), and with friends in the range they all still should.
  * This carries only the others' figures, their shots, hacks, emotes and voice,
  * and the group's links until the host starts its next match (groupNext).
  */
@@ -2489,8 +2487,8 @@ let reloadHeldAt = -Infinity;
 const INSPECT_HOLD = 0.4;
 /** a new gun's first-draw flourish: when it began */
 let flourishAt = -Infinity;
-/** the tour's panel this frame */
-let tourHud: ReturnType<Tour["update"]> = null;
+/** the tutorial's panel this frame */
+let tutorialHud: TutorialHud | null = null;
 /** toggle crouch's state: down until the next press, a jump or a sprint */
 let crouchLatch = false;
 /** the movement's input with crouch as a toggle: a press flips it, and it is "held" while down */
@@ -3389,8 +3387,6 @@ function aimPoint(reach: number): THREE.Vector3 {
 const PING_DOUBLE = 0.35;
 let lastPingAt = -Infinity;
 
-/** the guided tour of the range (tour.ts): it watches, the steps move on when you do each thing */
-const tour = new Tour(scene);
 /** the tutorial's steps over its course (tutorial.ts): a room each, its doors, and the hacks off until their room */
 const tutorial = new Tutorial(scene, courseTutorial);
 // its rooms in the Neon City bundle (Milestone 634): its own small file, after the page's first screen, over its plain
@@ -3583,8 +3579,6 @@ function resetHacks(): void {
 }
 
 /** fire a slot's hack, if it is ready */
-/** SpeedKills: each hack slot's uses this page, for the tour */
-const hackUses = { mobility: 0, utility: 0 };
 function useHack(slot: HackSlot, now: number): void {
   const d = duel;
   if (d instanceof Duel && (!d.alive || !d.canFire)) return;
@@ -3606,7 +3600,6 @@ function useHack(slot: HackSlot, now: number): void {
   }
   const id = hacks.use(slot, now);
   if (!id) return;
-  hackUses[slot]++;
   // the hand's tap on the hack's card (hackcast.ts): the hack goes off at once, as Hyper Scape's did, under it
   viewModel.castHack(id);
   // another hack ends INVISIBILITY, as Hyper Scape's did (Phase 20 A9)
@@ -3628,7 +3621,6 @@ function useHack(slot: HackSlot, now: number): void {
       const reach = Math.max(0, Math.min(H.dash.distance, (Number.isFinite(hit) ? hit : H.dash.distance) - MOVE.radius * 1.5));
       if (reach < 1) {
         hacks.refund(slot);
-        hackUses[slot]--;
         return;
       }
       const at = eyeAt.addScaledVector(fwd, reach);
@@ -3663,7 +3655,6 @@ function useHack(slot: HackSlot, now: number): void {
       const hit = solidHit(eye, fwd, H.grapple.range);
       if (!Number.isFinite(hit) || hit >= H.grapple.range) {
         hacks.refund(slot);
-        hackUses[slot]--;
         hud.notice("GRAPPLE: NOTHING IN REACH", now, 0.8);
         return;
       }
@@ -4039,27 +4030,6 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
     }
   }
 }
-function tourCheck(now: number): TourCheck {
-  return {
-    pos: player.pos,
-    sprinting: player.sprinting,
-    sliding: player.sliding,
-    onGround: player.onGround,
-    vy: player.vel.y,
-    mantling: player.mantling,
-    climbing: player.climbing,
-    hits: stats.hits,
-    reloading: loadout.active.state.reloading,
-    swapping: loadout.swapping,
-    now,
-    hackUses,
-    fusion: loadout.active.fusion ?? 0,
-  };
-}
-tour.onStep = (title) => {
-  hud.notice(`TOUR: ${title}`, gameTime, 1.4);
-  audio.countdown(false);
-};
 /** what the tutorial's steps read */
 function tutorialCheck(): TutorialCheck {
   return { pos: player.pos, onGround: player.onGround };
@@ -4096,20 +4066,12 @@ tutorial.onReset = () => {
   }
 };
 tutorial.onDoor = (at) => audio.door(at, "open");
+tutorial.onSkip = (x, y, z, yaw) => player.teleport(x, y, z, yaw);
 tutorial.onDone = () => {
   hud.notice("TUTORIAL COMPLETE", gameTime, 3);
   audio.stinger("won");
   try {
     localStorage.setItem("range.tutorial.done", "1");
-  } catch {
-    /* ignore */
-  }
-};
-tour.onDone = () => {
-  hud.notice("TOUR COMPLETE", gameTime, 3);
-  audio.stinger("won");
-  try {
-    localStorage.setItem("range.tour.done", "1");
   } catch {
     /* ignore */
   }
@@ -4570,7 +4532,6 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   resetHacks();
   edge.reset();
   edgeArmed = false;
-  tour.stop();
   tutorial.reset();
   drill.stop();
   // the killcam's recording and the recap's log
@@ -5709,7 +5670,7 @@ function applyLoadout(def: LoadoutDef): void {
 }
 
 /** the modes played on the range's side of the world: the range together goes on through them */
-const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "tour", "lab", "run", "tutorial"]);
+const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "lab", "run", "tutorial"]);
 /** go somewhere to play, from the menu: the range, a course's start, the lab, or a match */
 function goTo(mode: Mode): void {
   if (mode === "duel") return;
@@ -5738,18 +5699,11 @@ function goTo(mode: Mode): void {
     return;
   }
   for (const c of courses) c.leave();
-  if (mode === "tour") {
-    player.setBounds(RANGE_PLAY);
-    player.teleport(0, 0, 0, 0);
-    tour.start(tourCheck(gameTime));
-    return;
-  }
   if (mode === "tutorial") {
     // at its start, from its first room, every door shut
     player.setBounds(RANGE_PLAY);
     const sp = courseTutorial.startPose;
     player.teleport(sp.x, 0, sp.z, sp.yaw);
-    tour.stop();
     tutorial.restart(gameTime);
     return;
   }
@@ -6832,8 +6786,8 @@ function step(): void {
   {
     const slot = loadout.active;
     const full = !slot.empty && slot.state.clip >= slot.weapon.clipSize && !slot.state.reloading;
-    // (not in the tour: there the held X is the step's skip, and the two would fight)
-    if (input.playing && input.held("reload") && full && !loadout.swapping && holster === "out" && !tour.active) {
+    // (not in the tutorial: there the held X is a room's skip, and the two would fight)
+    if (input.playing && input.held("reload") && full && !loadout.swapping && holster === "out" && !tutorial.active) {
       if (!Number.isFinite(reloadHeldAt)) reloadHeldAt = now;
       if (now - reloadHeldAt > INSPECT_HOLD && now - inspectAt > viewModel.inspectTime) inspectAt = now;
     } else reloadHeldAt = -Infinity;
@@ -7314,12 +7268,11 @@ function step(): void {
   phases.lap("aim and shots");
   projectiles.update(dt, now, handleImpact);
   rocketBursts.update(dt);
-  // the tutorial's step, or the guided tour's: the panel, the marker and the check for the step
+  // the tutorial's step: the panel, the marker and the check for the step
   {
     const keys = (a: string) => keyLabel(a as Parameters<typeof keyLabel>[0]);
     const skip = input.playing && input.held("interact");
-    const taught = !duel ? tutorial.update(now, tutorialCheck(), skip, keys) : null;
-    tourHud = !duel ? (taught ?? tour.update(now, tourCheck(now), skip, keys)) : null;
+    tutorialHud = !duel ? tutorial.update(now, tutorialCheck(), skip, keys) : null;
   }
   impactSink = handleImpact;
   // the melee swing lands a third of the way through
@@ -7713,7 +7666,7 @@ function step(): void {
     drill: duel ? null : drill.hud(now),
     // a hold-E action
     brHold: duel instanceof BrMatch ? brPlay.hud.hold : null,
-    tour: tourHud,
+    tutorial: tutorialHud,
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
     pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), pick: pingPick } : null,
@@ -8165,7 +8118,6 @@ const GALLERY = { x: 0, z: -8 };
   brPlay,
   applyLoot,
   THREE,
-  tour,
   tutorial,
   courseTutorial,
   tutorialDress: () => ({ ...TUTORIAL_DRESS, dressed: courseTutorial.isDressed }),

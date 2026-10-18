@@ -206,6 +206,7 @@ export const EXTRA = {
     hold: m(raw.extra.wallRun.hold),
     duration: raw.extra.wallRun.duration,
     sink: raw.extra.wallRun.sink,
+    reach: m(raw.extra.wallRun.reach),
   },
 } as const;
 

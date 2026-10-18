@@ -18,7 +18,7 @@
 // Course coordinates (course.ts) with the course at x 0, so they are the world's: x across, z from the gate at 9.
 // Facing +z, +x is on your LEFT; facing -z (the way back), on your right.
 import * as THREE from "three";
-import { PAL, DEFAULT_WALL } from "../geo";
+import { PAL, DEFAULT_WALL, emissive } from "../geo";
 import type { CourseBuilder, CourseLayout, EnemySpec, Hazard, Room } from "../course";
 import reach from "../../config/reach.json";
 import cfg from "../../config/tutorial.json";
@@ -301,6 +301,22 @@ export const TUTORIAL_COURSE: CourseLayout = {
     b.glow(OUT.x1 - OUT.x0, 0.05, 0.15, OX, DECK, WALLRUN.b0 + 0.1, 0x7ddc8a, 1.4);
     const lit = parseInt(cfg.wallRun.lit.slice(1), 16);
     b.glow(0.04, 0.12, WALLRUN.b0 - WALLRUN.a1 + 6, RUN_WALL_X - 0.03, DECK + 2.2, (WALLRUN.a1 + WALLRUN.b0) / 2, lit, 1.6);
+    // and a lit line up the deck from its door to the lit wall, then along the wall to the take-off: run it and you are
+    // where a jump takes the wall (the owner's playtest, 2026-10-18: "painfully obvious where to go"). A body run along a
+    // wall rides a hand's width off it, inside the wall run's reach (movement.json wallRun.reach).
+    {
+      const door = DIVIDERS[4].door;
+      const fromX = (door[0] + door[1]) / 2;
+      const lineX = RUN_WALL_X - 0.55;
+      const z0 = WALLRUN.a0 + 0.5;
+      const z1 = WALLRUN.a0 + 3.5;
+      const len = Math.hypot(lineX - fromX, z1 - z0);
+      const diag = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.03, len), emissive(lit, 1.8));
+      diag.position.set((fromX + lineX) / 2, DECK + 0.02, (z0 + z1) / 2);
+      diag.rotation.y = Math.atan2(lineX - fromX, z1 - z0);
+      b.add(diag);
+      b.glow(0.16, 0.03, WALLRUN.a1 - z1, lineX, DECK, (z1 + WALLRUN.a1) / 2, lit, 1.8);
+    }
     slickRoom(b, BACK, DASH.entryZ, DASH.exitZ, [DIVIDERS[6].door, DIVIDERS[5].door]);
     deckOf(DASH, BACK);
     slickLedge(b, BACK, { z0: DASH.b0, z1: DASH.b1, top: DASH.top });

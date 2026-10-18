@@ -338,7 +338,7 @@ export class Player {
    * which a jump then a crouch one frame later is a superglide (wider when you
    * sprinted into it).
    */
-  /** in a mantle right now (the tour's check) */
+  /** in a mantle right now */
   get mantling(): boolean {
     return this.mantle !== null;
   }
@@ -879,7 +879,8 @@ export class Player {
     if (this.onGround) this.spentWall = null;
     if (!this.wallRun) {
       if (this.onGround || this.climbing || this.mantle) return;
-      const n = this.wallNear(MOVE.climbAttachReach, true);
+      // (its own reach, not the climb's: a body run along a wall rides a little further off it than the climb takes)
+      const n = this.wallNear(W.reach, true);
       if (!n) return;
       const plane = this.planeOf(n.nx, n.nz);
       const last = this.lastWall;
@@ -926,7 +927,8 @@ export class Player {
     }
     // steering away from the wall is how you say you are done with it, and a crouch drops you off
     const awayWish = wl > 0 ? wx * run.nx + wz * run.nz : 0;
-    if (this.onGround || this.climbing || crouch || awayWish > 0.5 || speed < W.minSpeed * 0.5 || !this.wallAt(-run.nx, -run.nz, MOVE.climbAttachReach)) {
+    // (held to the wall within the reach that took it: a run taken a hand's width off the wall is held there)
+    if (this.onGround || this.climbing || crouch || awayWish > 0.5 || speed < W.minSpeed * 0.5 || !this.wallAt(-run.nx, -run.nz, W.reach)) {
       this.leaveWall(now);
       return;
     }

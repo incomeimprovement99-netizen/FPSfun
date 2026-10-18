@@ -41,6 +41,7 @@ import hudCfgE2e from "../src/config/hud.json";
 import fparmsCfg from "../src/config/fparms.json";
 import gunfeelCfg from "../src/config/gunfeel.json";
 import squadCfg from "../src/config/squad.json";
+import startCfg from "../src/config/start.json";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
 
@@ -1643,7 +1644,7 @@ const padTap = async (page: Page, i: number, ms = 120): Promise<void> => {
 /**
  * The finishing touches: toggle ADS and crouch, per-optic ADS, the
  * controller's buttons and advanced look, weapon inspect and the first-draw
- * flourish, and the guided tour from its first step to its last.
+ * flourish.
  */
 async function finishTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
@@ -1710,7 +1711,6 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   check("first draw: a gun just picked up comes out with the flourish", flourish);
   await page.close();
 
-  // (the legacy game's guided tour was played here, its twelve steps; SpeedKills' own is the sktour section's)
 }
 
 /** the range's tooling: moving dummies, dummies that shoot back, the spray wall, per-gun numbers, the flick drill */
@@ -3913,7 +3913,7 @@ async function skWholeNumbers(page: Page): Promise<void> {
       h.addDamage(at.clone().add(new r.THREE.Vector3(1.5, 0, 0)), 101 / 3, "#ff4a3d", true, now, {});
       numbers = h.damageNumbers.slice(kept).map((n) => ({ amount: n.amount, text: n.text }));
       const row = { id: 101, name: "BOT GRIM", killer: true, dealt: { damage: 40.66666666666667, hits: 3, heads: 0 }, taken: { damage: 531.16, hits: 3, heads: 0 }, guns: [{ name: "STRYDER", hits: 3, damage: 531.16, near: 12.34, far: 12.34 }], left: { shield: 0.4, health: 0.3 } };
-      h.draw(now, r.camera, { ...base, killcam: null, course: null, drill: null, trainer: null, tour: null, hacks: null, ability: null,
+      h.draw(now, r.camera, { ...base, killcam: null, course: null, drill: null, trainer: null, tutorial: null, hacks: null, ability: null,
         stats: { ...base.stats, damage: 135.85606666673223, headshots: 4, lastTtk: null },
         vitals: { ...(base.vitals ?? {}), shield: 18.84, shieldMax: 50, health: 42.00000000000001, healthMax: 100 },
         recap: { killerId: 101, killerName: "BOT GRIM", byRing: false, rows: [row], totalTaken: 531.16, totalDealt: 40.66666666666667, at: now, age: 1, closeKey: "SPACE", killerCard: null },
@@ -4715,9 +4715,9 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?norender");
   const front = await ev<{ game: string; html: string; br: boolean; gunrun: boolean; tour: boolean; title: string }>(
     page,
-    `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; window.__range.menu.showExtras(true); const out = { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: !!document.getElementById("goGunRun"), tour: vis("goTour"), title: document.title }; window.__range.menu.showExtras(false); return out; })()`
+    `(() => { const vis = (id) => getComputedStyle(document.getElementById(id)).display !== "none"; window.__range.menu.showExtras(true); const out = { game: window.__range.sk.game(), html: document.documentElement.dataset.game, br: vis("goBr"), gunrun: !!document.getElementById("goGunRun"), tour: !!document.getElementById("goTour"), title: document.title }; window.__range.menu.showExtras(false); return out; })()`
   );
-  check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING behind Extra modes (Gun Run gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
+  check("speedkills: the page is SpeedKills, its menu PLAY and TRAINING behind Extra modes (Gun Run and the guided tour gone)", front.game === "speedkills" && front.html === "speedkills" && front.br && !front.tour && !front.gunrun && front.title === "SpeedKills", JSON.stringify(front));
   // the guns: ten of its own, named, the owner's friends among them
   const guns = await ev<{ ids: number; names: string[] }>(page, `(() => { const r = window.__range; return { ids: r.weaponIds ? r.weaponIds().length : -1, names: r.loadout.slots.map((s) => s.weapon.name) }; })()`);
   check("speedkills: a loadout's guns carry SpeedKills names", guns.names.every((n) => /^[A-Z]+$/.test(n)) && guns.names.every((n) => ["PANDA", "STRYDER", "ANAKIN", "USSO", "BIGANTLER", "REZ", "DEVINOS", "APUHTHEE", "BOOG", "CHOOCH"].includes(n)), JSON.stringify(guns));
@@ -4728,9 +4728,10 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   // the hacks you picked, both ready
   const held = await ev<Array<{ slot: string; held: { id: string } | null; left: number }>>(page, "window.__range.sk.hacks()");
   check("speedkills: two hacks held, a mobility and a utility, both ready", held.length === 2 && held.every((h) => h.held && h.left === 0), JSON.stringify(held));
-  // onto the open ground behind the range, outdoors, facing down it: past the basic course's far wall (x -21, z 200),
-  // since the tutorial (courses/tutorial.ts) stands where this was, beside it
-  await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.__range.player.teleport(-21, 0, 200, 0); })()`);
+  // onto 44 m of open floor, facing down it: THE RUN's last room (courses/basic.ts FINAL, x -27.75 in the world). The
+  // open ground past the old run's far wall went when the run was rebuilt out to the city's edge (Milestone 636): from
+  // z 200 its new far wall stopped the dash at 4.4 m
+  await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.__range.player.teleport(-27.75, 0, 60, 0); })()`);
   await sleep(300);
   const hack = async (id: string, slot: string, settle = 600) => {
     await ev(page, `(() => { const r = window.__range; r.sk.setHack("${id}"); r.sk.use("${slot}"); })()`);
@@ -6045,23 +6046,14 @@ async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"):
 }
 
 /**
- * SpeedKills' tour, its eight steps (tour.ts SK_STEPS), each done for real in
- * the range: a walk, a double jump, a wall run along the range's right-hand
- * wall and a climb up a ladder's wall, a hit, both hacks on their keys, the
- * fusion key, a hit from the top of a platform, five seconds in the ring, and
- * the walk to the echo.
+ * The wall run's feel, in the range: a run along its right-hand wall, the view leaning away from the wall while on it
+ * and level again off it. (The guided tour's section until Milestone 637 took the tour out: its other steps are the
+ * tutorial's rooms now, the sktutorial section's.)
  */
-async function speedkillsTourTest(browser: Browser): Promise<void> {
+async function wallFeelTest(browser: Browser): Promise<void> {
   const t = await open(browser, "?");
-  await ev(t, `document.getElementById("goTour").click(); document.getElementById("startMode").click()`);
+  await ev(t, `document.getElementById("goRange").click(); document.getElementById("startMode").click()`);
   await pressPlay(t);
-  const step = () => ev<string | null>(t, "window.__range.tour.stepId");
-  check("sk tour: it starts at MOVE", (await step()) === "move", String(await step()));
-  const ORDER = ["move", "moves", "shoot", "hacks", "fusion", "high", "zone", "dying"];
-  const stepTo = async (id: string, timeout = 6000) => {
-    const next = ORDER[ORDER.indexOf(id) + 1] ?? null;
-    return t.waitForFunction(`window.__range.tour.stepId === ${JSON.stringify(next)}`, { polling: 50, timeout }).then(() => true, () => false);
-  };
   // keys held from now on, and `presses`: milliseconds after the start at which a key is pressed once (a
   // jump, then a second in the air). By the clock, not by frame: a headless page runs at hundreds of frames
   // a second, and a second jump twenty frames on came inside the coyote grace, a ground jump again
@@ -6070,28 +6062,22 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
       window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => (K.includes(a) && f <= 1) || due.has(a) }, () => { f++; const t = performance.now() - t0; due = new Set(); for (const [a, list] of Object.entries(P)) for (const ms of list) if (t >= ms && !gone.has(a + ms)) { gone.add(a + ms); due.add(a); } }); })()`;
   const stop = () => ev(t, "window.__range.setScript(null)");
   const tp = (x: number, y: number, z: number, yaw: number, pitch = 0) => ev(t, `window.__range.player.teleport(${x}, ${y}, ${z}, ${yaw}, ${pitch})`);
-  await tp(0, 0, -8, 0);
-  check("sk tour: MOVE done at the marker", await stepTo("move"));
-  // a double jump in the open
-  await tp(0, 0, -12, 0);
-  await ev(t, script([], { jump: [30, 450] }));
-  await sleep(1200);
-  await stop();
-  // a wall run: sprinting along the right-hand wall (its face at x 33.49, the body 0.41 m round, a wall
-  // counted within 4 hu of it), then a jump, from 2 m down range: SpeedKills' range ends 24 m in (Phase 20 A12). Up to three runs, as a player would try again: the take-off
-  // is a matter of frames, and a machine busy with another run has fewer of them
+  // a wall run: sprinting up THE RUN's wall run deck along the wall on its right (the block between its halves, its face at
+  // course x 0.5, world -21; the body 0.41 m round), then a jump: the range's right-hand wall this ran along has stands
+  // against it now, which stopped the run short (Milestone 637). Up to three runs, as a player would try again: the
+  // take-off is a matter of frames, and a machine busy with another run has fewer of them
   // (and while on the wall, the view's lean off it, read every few frames: the owner, 2026-09-28, "it should twist the
   // camera a bit and have some sort of visual feedback that we are indeed wallrunning")
   let wallFelt: { lean: number; side: number; tilt: number } | null = null;
   for (let i = 0; i < 3; i++) {
-    await tp(33.03, 0, -2, 0);
+    await tp(-20.54, 1, 119.5, 180);
     await ev(t, `(() => { window.__wallFelt = null; clearInterval(window.__wallT); window.__wallT = setInterval(() => { const w = window.__range.wallFeel(); if (w.onWall && (!window.__wallFelt || Math.abs(w.lean) > Math.abs(window.__wallFelt.lean))) window.__wallFelt = { lean: w.lean, side: w.side, tilt: w.tilt }; }, 10); })()`);
     await ev(t, script(["forward", "sprint"], { jump: [600 + i * 150] }));
     await sleep(1400);
     await stop();
     await sleep(400);
     wallFelt = await ev<{ lean: number; side: number; tilt: number } | null>(t, "(() => { clearInterval(window.__wallT); return window.__wallFelt; })()");
-    if (await ev<boolean>(t, `window.__range.tour.seen.tech.some((x) => x === "WALL RUN" || x === "WALL KICK")`)) break;
+    if (wallFelt) break;
   }
   // (off the wall, whenever the run ends, and a second of the game's time for the lean to ease out: wallOut is 0.25 s)
   await t.waitForFunction("!window.__range.wallFeel().onWall", { polling: 50, timeout: 5000 }).catch(() => undefined);
@@ -6099,71 +6085,11 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
   const feelAfter = await ev<{ onWall: boolean; lean: number }>(t, "window.__range.wallFeel()");
   const leanAfter = feelAfter.lean;
   check(
-    "sk tour: on the wall the view leans away from it, and levels again off it",
+    "the wall run: on the wall the view leans away from it, and levels again off it",
     // (away: the wall on the right, the camera's right side rises, as a head tilts off a wall)
     !!wallFelt && wallFelt.side > 0.5 && wallFelt.lean > 0.5 && wallFelt.tilt > 0.05 && Math.abs(leanAfter) < 0.1,
     JSON.stringify({ wallFelt, feelAfter }),
   );
-  // a climb: into the right-hand wall (its face at x 33.49), forward, a jump at it; the ladder's wall at z -46 is
-  // past SpeedKills' sandbox edge now (Phase 20 A12)
-  await tp(32.9, 0, -12, -90);
-  await ev(t, `(() => { const K = ["forward"]; let f = 0; window.__range.setScript({ held: (a) => K.includes(a), pressedNow: (a) => (K.includes(a) && f <= 1) || (a === "jump" && f % 20 === 0) }, () => { f++; }); })()`);
-  const moved = await stepTo("moves", 8000);
-  await stop();
-  check("sk tour: DOUBLE JUMP, WALL RUN and CLIMB, all three done for real", moved, JSON.stringify(await ev(t, "({ step: window.__range.tour.stepId, seen: window.__range.tour.seen, extra: window.__range.player.extraMoves })")));
-  await sleep(800);
-  // shoot: six metres from a figure, facing it, a burst with the trigger
-  const aimAt = (fromX: number, fromY: number, fromZ: number) =>
-    `(() => { const r = window.__range; const d = r.dummies.filter((x) => x.group.visible && !x.knocked).sort((a, b) => Math.hypot(a.group.position.x - ${fromX}, a.group.position.z - ${fromZ}) - Math.hypot(b.group.position.x - ${fromX}, b.group.position.z - ${fromZ}))[0]; const p = d.group.position; const dx = p.x - ${fromX}, dz = p.z - ${fromZ}; const yaw = Math.atan2(-dx, -dz) * 180 / Math.PI; const pitch = Math.atan2(p.y + 1.3 - (${fromY} + 1.6), Math.hypot(dx, dz)) * 180 / Math.PI; r.player.teleport(${fromX}, ${fromY}, ${fromZ}, yaw, pitch); return { x: p.x, y: p.y, z: p.z }; })()`;
-  await tp(0, 0, -2, 0);
-  await sleep(300);
-  await ev(t, `(() => { const r = window.__range; const d = r.dummies.find((x) => x.group.visible && !x.knocked); const p = d.group.position; const yaw = Math.atan2(0, -6) * 180 / Math.PI; r.player.teleport(p.x, 0, p.z + 6, 0, -5); })()`);
-  await sleep(300);
-  await ev(t, padSet(7, true));
-  const shot = await stepTo("shoot", 3000);
-  await ev(t, padSet(7, false));
-  check("sk tour: SHOOT done with a real hit", shot, JSON.stringify(await ev(t, "window.__range.stats()")));
-  // the two hacks, on their own keys (F the move, G the tool)
-  await ev(t, "window.__range.input.locked = true");
-  await t.keyboard.press("KeyF");
-  await sleep(600);
-  await t.keyboard.press("KeyG");
-  check("sk tour: HACKS done with both keys", await stepTo("hacks", 4000), JSON.stringify(await ev(t, "window.__range.sk.state()")));
-  // fusion: the range's fusion key, once the hand is free (a key the gun takes waits out a swap)
-  await t.waitForFunction("!window.__range.loadout.swapping", { polling: 50, timeout: 3000 }).catch(() => undefined);
-  // (the fusion key reads the keyboard itself, not the movement script)
-  await t.keyboard.press("KeyU");
-  const fused = await stepTo("fusion", 3000);
-  check("sk tour: FUSION done with the fusion key", fused, JSON.stringify(await ev(t, "({ step: window.__range.tour.stepId, fusion: window.__range.loadout.active.fusion, swapping: window.__range.loadout.swapping, playing: window.__range.input.playing, locked: window.__range.input.locked, id: window.__range.loadout.active.id })")));
-  // high ground: on the stairs' sixth step (2.64 m, the tour asks 2.5), the highest footing inside SpeedKills'
-  // sandbox (Phase 20 A12: the left platform at 4.6 m is past its edge)
-  await sleep(1500);
-  // (the trigger pulled for two frames and let go for two: a pull of this gun is one shot. Counted in frames, not
-  // milliseconds: on a page drawing few frames a 120 ms beat could pull and let go between two of them)
-  const target = await ev(t, aimAt(-20, 2.64, -23.5));
-  await sleep(300);
-  await ev(t, aimAt(-20, 2.64, -23.5));
-  await ev(t, `(() => { let f = 0; window.__range.setScript({ held: (a) => a === "fire" && f % 4 < 2, pressedNow: () => false }, () => { f++; }); })()`);
-  // what holds the trigger, read while the script pulls it (read after, the script is gone)
-  await sleep(700);
-  const during = await ev(t, "({ why: window.__range.triggerWhy(), shots: window.__range.stats().shots, pos: window.__range.player.pos.toArray().map((v) => +v.toFixed(2)), yaw: +window.__range.player.yaw.toFixed(1), pitch: +window.__range.player.pitch.toFixed(1) })");
-  // (6 s, as every other step waits: a first shot that misses leaves the hit to the next pull, and twice on 2026-10-09,
-  // with every SpeedKills page on the Neon City, the step moved on just after 3.3 s; `took` says how long it was)
-  const highFrom = Date.now();
-  const high = await stepTo("high", 6000);
-  const highTook = (Date.now() - highFrom) / 1000;
-  await stop();
-  check("sk tour: HIGH GROUND done with a hit from the stairs, 2.6 m up", high, JSON.stringify(await ev(t, `({ took: ${highTook}, during: ${JSON.stringify(during)}, target: ${JSON.stringify(target)}, step: window.__range.tour.stepId, y: window.__range.player.pos.y, stats: window.__range.stats(), dropping: window.__range.player.dropping, aboard: window.__range.player.aboard, empty: window.__range.loadout.active.empty, clip: window.__range.loadout.active.state.clip, swapping: window.__range.loadout.swapping, reloading: window.__range.loadout.active.state.reloading, hud: window.__range.hud.last && { heal: window.__range.hud.last.heal, holster: window.__range.hud.last.holster } })`)));
-  // the ring: five seconds in it
-  await tp(6, 0, -14, 0);
-  // (five seconds of the game's time: a slow page runs fewer of them to the wall's second)
-  const g0 = await ev<number>(t, "window.__range.gameTime()");
-  await t.waitForFunction(`window.__range.tour.stepId === "dying" || window.__range.gameTime() - ${g0} > 7`, { polling: 100, timeout: 40000 }).catch(() => undefined);
-  check("sk tour: DECAY AND THE ZONE done after five seconds in the ring", (await step()) === "dying", JSON.stringify(await ev(t, "({ step: window.__range.tour.stepId, pos: [window.__range.player.pos.x, window.__range.player.pos.y, window.__range.player.pos.z], tour: window.__range.hud.last && window.__range.hud.last.tour, t: window.__range.gameTime() })")));
-  // the echo, and the tour is over and remembered
-  await tp(-6, 0, -20, 0);
-  const finished = await t.waitForFunction("window.__range.tour.stepId === null && localStorage.getItem('range.tour.done') === '1'", { polling: 100, timeout: 5000 }).then(() => true, () => false);
-  check("sk tour: DYING done at the echo, and the tour is complete (remembered)", finished, String(await step()));
   await t.close();
 }
 
@@ -6177,7 +6103,7 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
  * tools/checks/sk-tutorial.ts.
  */
 async function skTutorialTest(browser: Browser): Promise<void> {
-  // (drawn: a figure's hit volumes follow its pose as the frame draws it, as the tour's shots need; so every wait is on
+  // (drawn: a figure's hit volumes follow its pose as the frame draws it, as the soldiers' shots need; so every wait is on
   // the game's own clock or on the thing waited for, since a drawn headless page runs few frames a second)
   const t = await open(browser, "?");
   await ev(t, `document.getElementById("goTutorial").click(); document.getElementById("startMode").click()`);
@@ -6214,12 +6140,18 @@ async function skTutorialTest(browser: Browser): Promise<void> {
   check("sk tutorial: forward to the door, MOVE is done and the jump room's door opens (the next one stays shut)", moved && !opened.shut[0] && opened.shut[1], JSON.stringify(opened));
   await tp(21, 1.6, 51, 180);
   check("sk tutorial: up on the ledge, JUMP is done", await stepIs("DOUBLE JUMP"));
-  // a room skipped: interact held
+  // a room skipped: interact held. You are put at the next room's start, through its door (Milestone 638, the owner's
+  // playtest: a skip left you where you were stuck, its door open across a pit you could not cross)
+  const into = await ev<{ x: number; y: number; z: number; yaw: number }>(t, "window.__range.tutorial.roomStart(2)");
   await t.keyboard.down("KeyE");
   const skipped = await stepIs("MANTLE");
   await t.keyboard.up("KeyE");
   const afterSkip = await st();
-  check("sk tutorial: holding interact skips a room (DOUBLE JUMP), and its door opens", skipped && afterSkip.opening[2], JSON.stringify(afterSkip));
+  check(
+    "sk tutorial: holding interact skips a room (DOUBLE JUMP): its door opens and you are put in the next room, through its door",
+    skipped && afterSkip.opening[2] && Math.abs(afterSkip.x - into.x) < 0.6 && Math.abs(afterSkip.z - into.z) < 0.6,
+    JSON.stringify({ afterSkip, into }),
+  );
   // a fall into the mantle room's pit: back at its door, the room still to do
   await tp(21, 0.2, 96, 180);
   await until("Math.abs(window.__range.player.pos.z - 81.5) < 0.6");
@@ -6367,6 +6299,9 @@ async function speedkillsShipTest(browser: Browser): Promise<void> {
  */
 async function cityMissingTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?");
+  // a visit with no copy kept: the pages before this one in the run share its browser's Cache Storage, and a bot match on
+  // NEON YARD earlier in the section kept the city there, so the page read it from that and asked the site for nothing
+  await ev(page, `caches.delete("sk-city")`);
   // (the 404s this test serves are its own: kept out of the run's "no page errors")
   const errorsBefore = errors.length;
   let gone = true;
@@ -7676,8 +7611,12 @@ async function startScreenTest(browser: Browser): Promise<void> {
   );
   // the rain behind it, painted, blue and pink at half strength
   await page.waitForFunction(`(() => { const c = document.getElementById("startRain"); if (c.hidden || !c.width) return false; const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 3; i < d.length; i += 4 * 97) if (d[i] > 0) n++; return n > 20; })()`, { polling: 200, timeout: 15000 }).catch(() => undefined);
-  const rain = await ev<{ shown: boolean; opacity: string; lit: number; blue: number; pink: number }>(page, `(() => { const c = document.getElementById("startRain"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let lit = 0, blue = 0, pink = 0; for (let i = 0; i < d.length; i += 4 * 13) { if (d[i + 3] < 60) continue; lit++; if (d[i + 2] > d[i] + 40) blue++; if (d[i] > d[i + 1] + 60 && d[i + 2] > d[i + 1]) pink++; } return { shown: !c.hidden, opacity: getComputedStyle(c).opacity, lit, blue, pink }; })()`);
-  check("start: the rain falls behind it, blue and pink, half seen", rain.shown && Number(rain.opacity) === 0.5 && rain.blue > 5 && rain.pink > 5, JSON.stringify(rain));
+  const rain = await ev<{ shown: boolean; opacity: string; lit: number; blue: number; pink: number; base: number }>(page, `(() => { const c = document.getElementById("startRain"); const d = c.getContext("2d").getImageData(0, 0, c.width, c.height).data; let lit = 0, blue = 0, pink = 0, opaque = 0, n = 0; for (let i = 0; i < d.length; i += 4 * 13) { n++; if (d[i + 3] > 250) opaque++; if (d[i + 3] < 60) continue; lit++; if (d[i + 2] > d[i] + 40) blue++; if (d[i] > d[i + 1] + 60 && d[i + 2] > d[i + 1]) pink++; } return { shown: !c.hidden, opacity: getComputedStyle(c).opacity, lit, blue, pink, base: +(opaque / n).toFixed(2) }; })()`);
+  // the name across half to three fifths of the window, the ways' names and lines outlined in black (Milestone 639)
+  const brand = await ev<{ share: number; outlined: boolean; label: number }>(page, `(() => { const b = document.querySelector(".startBrand").getBoundingClientRect(); const way = document.querySelector(".startWay"); const outlined = [way.querySelector("b"), way.querySelector("span")].every((e) => /rgb\\(0, 0, 0\\)/.test(getComputedStyle(e).textShadow)); return { share: +(b.width / innerWidth).toFixed(2), outlined, label: parseFloat(getComputedStyle(way.querySelector("small")).fontSize) }; })()`);
+  check("start: the SPEEDKILLS name runs half to three fifths of the window across, each way's name and line outlined in black, its label a size up", brand.share >= 0.47 && brand.share <= 0.62 && brand.outlined && brand.label >= 19, JSON.stringify(brand));
+  // (since Milestone 639 on a dark base, the whole at 0.75: the owner, "we see less of the background")
+  check("start: the rain falls behind it, blue and pink on a dark base, the whole at its opacity (0.75), so little of the game shows through", rain.shown && Number(rain.opacity) === startCfg.rain.opacity && startCfg.rain.opacity >= 0.75 && rain.base > 0.95 && rain.blue > 5 && rain.pink > 5, JSON.stringify(rain));
   // the sign-in line: where settings are kept, and its links to the Settings and Account tabs
   const sign = await ev<string>(page, `document.getElementById("startSign").textContent`);
   check("start: it says where your settings are kept and what an account adds", /saved as long as you connect from the same browser/.test(sign) && /account will always keep your settings and allow for stat tracking/i.test(sign), sign);
@@ -7802,7 +7741,7 @@ async function botStrafeTest(browser: Browser): Promise<void> {
 }
 
 
-/** E2E_ONLY=bots,brsolo runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, sktutorial, skship, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
+/** E2E_ONLY=bots,brsolo runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), skwall, sktutorial, skship, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
 /**
  * The lobby (src/ui/lobby.ts, the Play tab's panel). What has to hold: a card
  * picks a mode rather than starting one, the panel then shows that mode's own
@@ -8534,7 +8473,7 @@ async function main(): Promise<void> {
     });
 
     if (want("finish")) await section("finish", async () => {
-      console.log("\nThe finishing touches: toggles, per-optic ADS, the controller, inspect, the first draw, the tour");
+      console.log("\nThe finishing touches: toggles, per-optic ADS, the controller, inspect, the first draw");
       await finishTest(browser, "?norender");
     });
 
@@ -8648,9 +8587,9 @@ async function main(): Promise<void> {
       await speedkillsShipTest(browser);
     });
 
-    if (want("sktour")) await section("sktour", async () => {
-      console.log("\nSpeedKills' tour: eight steps, each done for real in the range");
-      await speedkillsTourTest(browser);
+    if (want("skwall")) await section("skwall", async () => {
+      console.log("\nThe wall run's feel: the view leans off the wall, and levels again");
+      await wallFeelTest(browser);
     });
 
     if (want("sktutorial")) await section("sktutorial", async () => {
