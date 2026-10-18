@@ -29,25 +29,63 @@ export function glbHeaderProblem(head: Uint8Array, size: number): string | null 
   return null;
 }
 
+/** a GLB under `siteRoot` at `file` (the site's own path), whole: what is wrong with it, or null */
+function glbFileProblem(siteRoot: string, file: string): string | null {
+  const f = join(siteRoot, file);
+  if (!existsSync(f)) return `${file} is missing`;
+  const size = statSync(f).size;
+  const head = new Uint8Array(12);
+  const fd = openSync(f, "r");
+  try {
+    readSync(fd, head, 0, 12, 0);
+  } finally {
+    closeSync(fd);
+  }
+  const p = glbHeaderProblem(head, size);
+  return p ? `${file}: ${p}` : null;
+}
+
 /** every kit of `version` under `siteRoot` (the folder holding models/), whole; the problems, none when it can ship */
 export function cityBakeProblems(siteRoot: string, version: number): string[] {
+  return CITY_KITS.map((kit) => glbFileProblem(siteRoot, cityFile(version, kit))).filter((p): p is string => p !== null);
+}
+
+/** the tutorial's dressing (Milestone 634, tools/tutorial-dress.ts): its committed version (src/config/tutorialdress.json) */
+export function tutorialVersion(root: string): number {
+  return (JSON.parse(readFileSync(join(root, "src", "config", "tutorialdress.json"), "utf8")) as { version: number }).version;
+}
+/** where its file is, under the site's root */
+export const tutorialFile = (version: number): string => `models/paid/neon/tutorial-v${version}.glb`;
+/** that file under `siteRoot`, whole; the problems, none when it can ship */
+export function tutorialDressProblems(siteRoot: string, version: number): string[] {
+  const p = glbFileProblem(siteRoot, tutorialFile(version));
+  return p ? [p] : [];
+}
+
+/** the tutorial's dressing on the live site, held as the city's kits are (liveCityProblems) */
+export async function liveTutorialProblems(base: string, version: number, localSite?: string): Promise<string[]> {
+  return liveGlbProblems(base, tutorialFile(version), version, "the tutorial's dressing", localSite);
+}
+
+async function liveGlbProblems(base: string, file: string, version: number, name: string, localSite?: string): Promise<string[]> {
   const out: string[] = [];
-  for (const kit of CITY_KITS) {
-    const f = join(siteRoot, cityFile(version, kit));
-    if (!existsSync(f)) {
-      out.push(`${cityFile(version, kit)} is missing`);
-      continue;
+  const url = `${base.replace(/\/?$/, "/")}${file}?v=${version}`;
+  try {
+    const r = await fetch(url, { headers: { Range: "bytes=0-11" } });
+    const type = r.headers.get("content-type") ?? "";
+    const range = /\/(\d+)$/.exec(r.headers.get("content-range") ?? "");
+    const size = range ? Number(range[1]) : Number(r.headers.get("content-length") ?? 0);
+    const head = new Uint8Array(await r.arrayBuffer()).slice(0, 12);
+    if (!r.ok) out.push(`${name}: ${r.status}`);
+    else if (/text\/html/.test(type)) out.push(`${name}: answered with a page, not the file`);
+    else {
+      const p = glbHeaderProblem(head, size);
+      if (p) out.push(`${name}: ${p}`);
+      const local = localSite ? join(localSite, file) : null;
+      if (local && existsSync(local) && statSync(local).size !== size) out.push(`${name}: ${size} bytes live, ${statSync(local).size} here`);
     }
-    const size = statSync(f).size;
-    const head = new Uint8Array(12);
-    const fd = openSync(f, "r");
-    try {
-      readSync(fd, head, 0, 12, 0);
-    } finally {
-      closeSync(fd);
-    }
-    const p = glbHeaderProblem(head, size);
-    if (p) out.push(`${cityFile(version, kit)}: ${p}`);
+  } catch (e) {
+    out.push(`${name}: ${String((e as Error).message ?? e)}`);
   }
   return out;
 }

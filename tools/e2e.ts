@@ -6194,6 +6194,10 @@ async function skTutorialTest(browser: Browser): Promise<void> {
     s0.step === "MOVE" && s0.locked && s0.guns && s0.holster === "away" && Math.abs(s0.x - 21) < 0.5 && Math.abs(s0.z - 12) < 0.5 && s0.shut.length === 9 && s0.shut.every(Boolean),
     JSON.stringify(s0),
   );
+  // its rooms in the Neon City bundle (Milestone 634): their own small file over the plain boxes, which go
+  const dressed = await until("window.__range.tutorialDress().dressed", 90000);
+  const dr = await ev<{ meshes: number; plain: boolean; file: string }>(t, "({ ...window.__range.tutorialDress(), plain: window.__range.courseTutorial.plain.visible })");
+  check("sk tutorial: its rooms are dressed in the Neon City bundle, from a file of their own, over its plain boxes, which are hidden", dressed && dr.meshes >= 2 && !dr.plain && /tutorial-v\d+\.glb/.test(dr.file), JSON.stringify(dr));
   await ev(t, `window.__range.sk.use("mobility"); window.__range.sk.use("utility")`);
   await ev(t, "window.__range.input.locked = true");
   await t.keyboard.press("Digit1");
@@ -6241,7 +6245,8 @@ async function skTutorialTest(browser: Browser): Promise<void> {
   await tp(0, 5.5, 137, 0);
   check("sk tutorial: onto the far ledge, DASH is done", await stepIs("HIGH GROUND"), JSON.stringify(await st()));
   // the ANAKIN in your hands, drawn
-  await until("window.__range.triggerWhy().holster === 'out'", 10000);
+  // (the gun's deploy is game time: a drawn headless page runs a frame or two a second here)
+  await until("window.__range.triggerWhy().holster === 'out'", 60000);
   const armed = await st();
   check("sk tutorial: the gun room hands you the ANAKIN, drawn", armed.gun === "alternator_smg" && armed.holster === "out" && !armed.guns, JSON.stringify(armed));
   // a room's soldiers: up only once you are up there, 50 health, shot down for real
@@ -6297,6 +6302,10 @@ async function skTutorialTest(browser: Browser): Promise<void> {
     finished && after.gun !== "alternator_smg" && !after.locked && after.hacks.every((h) => h.id !== null) && after.shut.every(Boolean) && after.holster === "out",
     JSON.stringify(after),
   );
+  // the city's file fetched into the browser's cache while the tutorial was played (neonmap.ts prefetchCity), for the
+  // battle royale after it
+  const cachedCity = await until(`caches.open("sk-city").then((c) => c.keys()).then((k) => k.some((q) => q.url.includes("/neonmap-v")))`, 120000);
+  check("sk tutorial: by its end the city's file is in the browser's cache, so the battle royale after it does not start with it to download", cachedCity, JSON.stringify(await ev(t, `caches.open("sk-city").then((c) => c.keys()).then((k) => k.map((q) => q.url))`)));
   // back in by the right-hand gate: from its first room again
   await tp(21, 0, 14, 180);
   const again = await stepIs("MOVE");

@@ -36,7 +36,7 @@
 //   RANGE_DOMAIN   the game's hostname, e.g. fpsfun.duckdns.org
 //   DUCKDNS_TOKEN  optional, for `dns`: the token at the top of duckdns.org
 import { releaseGate } from "./release-gate";
-import { cityBakeProblems } from "./citybake";
+import { cityBakeProblems, tutorialDressProblems } from "./citybake";
 import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
@@ -136,6 +136,15 @@ function snapshot(): string {
     }
     console.log(`   the city's map version ${neonVersion}: lo, hi and max whole`);
   }
+  // and the tutorial's dressing of its committed version (Milestone 634): the bought files are copied in by hand, and a
+  // release without it shows the tutorial's plain boxes
+  const tutorialVersion = (JSON.parse(readFileSync(join(dir, "src", "config", "tutorialdress.json"), "utf8")) as { version: number }).version;
+  const tutorialProblems = tutorialDressProblems(join(dir, "public"), tutorialVersion);
+  if (tutorialProblems.length) {
+    dropSnapshot(dir);
+    throw new Error(`the tutorial's dressing, version ${tutorialVersion}, is not whole here, so nothing was shipped: ${tutorialProblems.join("; ")}`);
+  }
+  console.log(`   the tutorial's dressing, version ${tutorialVersion}: whole`);
   symlinkSync(join(ROOT, "node_modules"), join(dir, "node_modules"), "junction");
   return dir;
 }

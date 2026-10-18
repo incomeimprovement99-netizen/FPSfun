@@ -6,7 +6,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { CITY_KITS, cityBakeProblems, cityFile, glbHeaderProblem } from "../citybake";
+import { CITY_KITS, cityBakeProblems, cityFile, glbHeaderProblem, tutorialDressProblems, tutorialFile } from "../citybake";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -47,6 +47,14 @@ check("nothing there is caught", /not a GLB header/.test(glbHeaderProblem(new Ui
     put("max", glb(512));
     check(`with ${CITY_KITS.join(", ")} whole it may ship`, cityBakeProblems(dir, 93).length === 0);
     check("and an older version's files do not count for a newer one", cityBakeProblems(dir, 94).length === 3);
+    // the tutorial's dressing (Milestone 634): missing, cut short, whole
+    const missingTutorial = tutorialDressProblems(dir, 1);
+    check("a release without the tutorial's dressing is refused, naming it", missingTutorial.length === 1 && /tutorial-v1\.glb is missing/.test(missingTutorial[0]), missingTutorial.join("; "));
+    const t = join(dir, tutorialFile(1));
+    writeFileSync(t, glb(256, 4000));
+    check("and one with it cut short", tutorialDressProblems(dir, 1).length === 1 && /cut short/.test(tutorialDressProblems(dir, 1)[0]));
+    writeFileSync(t, glb(256));
+    check("whole, it may ship", tutorialDressProblems(dir, 1).length === 0);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

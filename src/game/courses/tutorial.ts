@@ -239,6 +239,7 @@ export const TUTORIAL_COURSE: CourseLayout = {
   x1: OUT.x1,
   wallH: cfg.wallH,
   untimed: true,
+  dressed: true,
   startZ: 12,
   finishZ: 9,
   farZ: FAR_Z,

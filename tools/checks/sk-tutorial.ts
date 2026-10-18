@@ -22,6 +22,7 @@ import { courseColliders } from "../../src/game/course";
 import { TUTORIAL_COURSE, JUMP, DOUBLE, MANTLE, WALLRUN, DASH, HIGH, CLIMB, GLIDE, GLIDE_GAP, EXIT, OUT, BACK, TURN_Z, FALL_Y, DECK, RUN_WALL_X, type Ledge, type PitRoom } from "../../src/game/courses/tutorial";
 import cfg from "../../src/config/tutorial.json";
 import hacksCfg from "../../src/config/hacks.json";
+import dress from "../../src/config/tutorialdress.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -302,6 +303,15 @@ const DJS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8];
     if (p.pos.z < G.b0 - 1) break;
   }
   check("the optional bridge: a walk up its stairs and along it gets past the gap, no jump at all", !fell && p.pos.z < G.b0 - 1 && p.pos.y > G.h - 0.1, `at z ${p.pos.z.toFixed(1)} y ${p.pos.y.toFixed(2)}`);
+}
+
+// ---- the dressing's pieces (Milestone 634, src/config/tutorialdress.json): none where a body goes. They draw and do not
+// collide, so a sign a wall run passed through would be seen through; every one on a wall stands its bottom 6.5 m up
+// or more (a wall run is 2 to 4 m up, a double jump's top under 3), and every one hanging free 8 m up or more
+{
+  const pieces = (dress as unknown as { pieces: Array<[string, string | number, number, number, number?]> }).pieces;
+  const low = pieces.filter(([, a, b, c]) => (typeof a === "string" ? c < 6.5 : b < 8));
+  check(`the dressing's ${pieces.length} pieces hang clear of every move: on a wall 6.5 m up or more, free 8 m up or more`, low.length === 0, low.map(([k]) => k.split("/").pop()).join(", "));
 }
 
 // ---- the turn: open across the far end from the way out's landing to the way back's first door

@@ -245,6 +245,11 @@ export interface CourseLayout {
    * it (the tutorial, Milestone 633, whose steps are src/game/tutorial.ts's)
    */
   untimed?: boolean;
+  /**
+   * Its boxes are drawn plain only until a dressing is laid over them (Course.dressWith: the tutorial's in the Neon City
+   * bundle, Milestone 634), so they are kept out of the page's merge, which could not hide them after
+   */
+  dressed?: boolean;
   /** the menu's start position */
   startPose: { x: number; z: number; yaw: number };
   /** the rules sign inside the gate; {P1} and {P2} are the course pistols' names */
@@ -375,6 +380,12 @@ export class Course {
   private readonly paths = new Map<Dummy, NonNullable<EnemySpec["path"]>>();
   /** everything the course draws, placed at the layout's x */
   readonly root = new THREE.Group();
+  /**
+   * The boxes as they are drawn plain (the compound, the layout's boxes, the pits' floors): what a dressing replaces
+   * (dressWith). `marks` stays over any dressing: the lit edges and strips, the door frames, the layout's own things.
+   */
+  readonly plain = new THREE.Group();
+  readonly marks = new THREE.Group();
   running = false;
   private startedAt = 0;
   private penalties = 0;
@@ -440,6 +451,9 @@ export class Course {
     scene.add(this.ghostFig);
     this.root.position.x = layout.x;
     this.root.name = `course:${layout.id}`;
+    this.plain.name = "plain";
+    this.marks.name = "marks";
+    this.root.add(this.plain, this.marks);
     scene.add(this.root);
     this.build();
     this.root.updateMatrixWorld(true);
@@ -452,6 +466,26 @@ export class Course {
   }
 
   // ---------- geometry ----------
+
+  /** a plain box drawn: kept out of the page's merge where a dressing will replace it */
+  private plainMesh(m: THREE.Mesh): void {
+    if (this.layout.dressed) m.userData.dynamic = true;
+    this.plain.add(m);
+  }
+
+  /**
+   * The dressing over the boxes (the tutorial's, tools/tutorial-dress.ts, in course coordinates as the world's at x 0):
+   * drawn, and the plain boxes it replaces hidden. Their colliders are the course's still.
+   */
+  dressWith(dressing: THREE.Object3D): void {
+    this.root.add(dressing);
+    this.plain.visible = false;
+  }
+
+  /** a dressing is laid over its boxes */
+  get isDressed(): boolean {
+    return !this.plain.visible;
+  }
 
   /** a collider, in course coordinates */
   private solid(minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number, slick = false): void {
@@ -470,7 +504,7 @@ export class Course {
         m.position.set(x, y + h / 2, z);
         m.castShadow = true;
         m.receiveShadow = true;
-        this.root.add(m);
+        this.plainMesh(m);
         if (solid) this.solid(x - w / 2, x + w / 2, z - d / 2, z + d / 2, y, y + h);
         return m;
       },
@@ -485,14 +519,14 @@ export class Course {
         const hazard = new THREE.Mesh(new THREE.PlaneGeometry(maxX - minX, maxZ - minZ), hzMat);
         hazard.rotation.x = -Math.PI / 2;
         hazard.position.set((minX + maxX) / 2, 0.01, (minZ + maxZ) / 2);
-        this.root.add(hazard);
+        this.plainMesh(hazard);
       },
       glow: (w, h, d, x, y, z, color, intensity = 1.8) => {
         const g = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), emissive(color, intensity));
         g.position.set(x, y + h / 2, z);
-        this.root.add(g);
+        this.marks.add(g);
       },
-      add: (o) => this.root.add(o),
+      add: (o) => this.marks.add(o),
       roomMat,
       coverMat: flat(PAL.steelLight, 0.55, 0.12),
       platMat: flat(0x5a6470, 0.5, 0.15),
@@ -518,7 +552,7 @@ export class Course {
     pad.rotation.x = -Math.PI / 2;
     pad.position.set((L.x0 + L.x1) / 2, 0.004, (9 + L.farZ) / 2);
     pad.receiveShadow = true;
-    this.root.add(pad);
+    this.plainMesh(pad);
 
     structure(L, b);
     // door trim in the colour of the room you are walking into, and the
@@ -526,8 +560,14 @@ export class Course {
     L.dividers.forEach((d, i) => {
       const [d0, d1] = d.door;
       const trim = flat(L.themes[i + 1].trim, 0.5, 0.2);
-      for (const x of [d0, d1]) b.box(0.2, 3.3, 1.08, x, 0, d.z, trim, false);
-      b.box(d1 - d0 + 0.2, 0.2, 1.08, (d0 + d1) / 2, 3.2, d.z, trim, false);
+      const frame = (w: number, h: number, x: number, y: number) => {
+        const m = new THREE.Mesh(bevel(w, h, 1.08, 0.04), trim);
+        m.position.set(x, y + h / 2, d.z);
+        m.castShadow = true;
+        this.marks.add(m);
+      };
+      for (const x of [d0, d1]) frame(0.2, 3.3, x, 0);
+      frame(d1 - d0 + 0.2, 0.2, (d0 + d1) / 2, 3.2);
       // on the side you come to it from
       const back = d.facing === -1;
       this.panel(L.rooms[i].name, (d0 + d1) / 2, 4.2, d.z + (back ? 0.52 : -0.52), back ? 0 : Math.PI, 3.4, 0.8);

@@ -10,7 +10,7 @@
 // informational.
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import { join } from "node:path";
-import { cityVersion, liveCityProblems } from "./citybake";
+import { cityVersion, liveCityProblems, liveTutorialProblems, tutorialVersion } from "./citybake";
 
 const CHROME = process.env.CHROME ?? "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const URL = (process.env.LIVE_URL ?? "https://fpsfun.duckdns.org/").replace(/\/?$/, "/");
@@ -197,6 +197,10 @@ async function main(): Promise<void> {
     const version = cityVersion(process.cwd());
     const cityProblems = await liveCityProblems(URL, version, join(process.cwd(), "public"));
     check(`the battle royale's city is on the site whole: map version ${version}'s lo, hi and max`, cityProblems.length === 0, cityProblems.join("; "));
+    // and the tutorial's dressing (Milestone 634), held the same way
+    const tv = tutorialVersion(process.cwd());
+    const tutorialProblems = await liveTutorialProblems(URL, tv, join(process.cwd(), "public"));
+    check(`the tutorial's dressing is on the site whole: version ${tv}`, tutorialProblems.length === 0, tutorialProblems.join("; "));
   } catch (e) {
     // a wait that gave out or a page that threw is a failure like any other: without this the verdict in the finally
     // below said PASS over it and exited 0 (Milestone 348's deploy: the fight never started inside 20 s, "PASS")

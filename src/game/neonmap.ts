@@ -692,6 +692,46 @@ export function cityLoadFailed(): boolean {
   return cityFailed;
 }
 
+/** the city's file at a size: the one dressNeonMap reads (?neontag=: a bake of another grouping, tools/import-neon.ts NEON_TAG) */
+function cityUrl(size: "lo" | "hi" | "max"): string {
+  const tag = (new URLSearchParams(location.search).get("neontag") ?? "").replace(/[^a-z0-9-]/gi, "");
+  return `models/paid/neon/neonmap-v${neonCfg.version}-${size}${tag}.glb?v=${neonCfg.version}`;
+}
+
+/** the city's file on its way into the browser's cache ahead of a match, or null */
+let prefetching: Promise<void> | null = null;
+/**
+ * The city's file fetched into the browser's Cache Storage ahead of any match, and not read (Milestone 634): asked while
+ * a new player is in the tutorial, so the battle royale after it does not start with the whole file to download. Its
+ * bytes are counted for the screen as cityBytes counts them, and a match asked for meanwhile waits for it rather than
+ * downloading it a second time (dressNeonMap). Nothing where the cache cannot be had, or the file is already kept.
+ */
+export function prefetchCity(size: "lo" | "hi" | "max"): void {
+  if (prefetching) return;
+  prefetching = (async () => {
+    const abs = new URL(cityUrl(size), location.href).href;
+    const cache = typeof caches === "undefined" ? null : await caches.open(CITY_CACHE).catch(() => null);
+    if (!cache || (await cache.match(abs).catch(() => undefined))) return;
+    const res = await fetch(abs).catch(() => null);
+    // (the dev server answers a missing file with its index page: a checkout without the bought files)
+    if (!res?.ok || !res.body || (res.headers.get("content-type") ?? "").includes("text/html")) return;
+    const total = Number(res.headers.get("content-length") ?? 0);
+    let got = 0;
+    const counted = res.body.pipeThrough(
+      new TransformStream<Uint8Array, Uint8Array>({
+        transform(chunk, out) {
+          got += chunk.byteLength;
+          NEON_MAP.got = got;
+          NEON_MAP.total = Math.max(total, got);
+          out.enqueue(chunk);
+        },
+      })
+    );
+    for (const k of await cache.keys()) if (k.url !== abs) await cache.delete(k);
+    await cache.put(abs, new Response(counted, { headers: { "content-type": "model/gltf-binary" } }));
+  })().catch(() => undefined);
+}
+
 /**
  * The city's file, from the browser's Cache Storage when a visit before kept it, or downloaded and kept there for the
  * next. Chrome's own cache does not keep a file this big: a return visit downloaded it again in full (78.8 MB of the
@@ -761,9 +801,9 @@ async function cityBytes(url: string, fresh = false): Promise<ArrayBuffer | null
 }
 
 export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRenderer, size: "lo" | "hi" | "max", workers = 4): Promise<number> {
-  // (?neontag=: a bake of another grouping beside this one, for measuring the two in turn: tools/import-neon.ts NEON_TAG)
-  const tag = (new URLSearchParams(location.search).get("neontag") ?? "").replace(/[^a-z0-9-]/gi, "");
-  const url = `models/paid/neon/neonmap-v${neonCfg.version}-${size}${tag}.glb?v=${neonCfg.version}`;
+  const url = cityUrl(size);
+  // (a prefetch under way, the tutorial's: the file is read from the cache it is going into, not fetched twice)
+  if (prefetching) await prefetching;
   let bytes = await cityBytes(url);
   if (!bytes) return 0;
   // Its textures unpacked on more workers than three's own four (its 728 took 2.1 s on four after the last byte, the

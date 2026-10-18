@@ -51,8 +51,8 @@ royale.
 | 631 | **The range darker.** The roof dark, the lamps and the stands' columns of light dimmed, the floor's sky reflection cut to a third. The canopy over the stands is solid to stand on. | live |
 | 632 | **The start screen.** TUTORIAL, FIRING RANGE and BATTLE ROYALE, centred. Resume bigger, More quiet. A new player is nudged to the tutorial. | live |
 | 633 | **The tutorial run.** The second brief's nine rooms in its order, each door shut until its move is done. Hacks are off until DASH and the gun is put away until the ANAKIN. Out into the range at the end. The instructions are twice the tour's size. THE CHAIN and THE RUN: ADVANCED are removed. | shipped (roadmap Milestone 633) |
-| 634 | **The tutorial dressed in the Neon City bundle's pieces.** It gets a small file of its own for just the pieces it uses, because the city's file is 155 MB and a new player would wait for all of it first. The city's file then loads in the background while they play. | next |
-| 635 | **The start screen again.** The three ways in bigger. Tutorial left, Firing Range right, Battle Royale under both in the middle. The title higher, Resume a little smaller. The rain behind it in blue and pink at half strength. A sign-in line with the owner's helper text and links to Settings and the Account tab. | after 634 |
+| 634 | **The tutorial dressed in the Neon City bundle's pieces.** It gets a small file of its own for just the pieces it uses, because the city's file is 155 MB and a new player would wait for all of it first. The city's file then loads in the background while they play. | shipped (roadmap Milestone 634) |
+| 635 | **The start screen again.** The three ways in bigger. Tutorial left, Firing Range right, Battle Royale under both in the middle. The title higher, Resume a little smaller. The rain behind it in blue and pink at half strength. A sign-in line with the owner's helper text and links to Settings and the Account tab. | next |
 | 636 | **THE RUN retuned** to today's speeds and lengthened, with no ziplines. | after 635 |
 
 ## The tutorial as built (Milestone 633)

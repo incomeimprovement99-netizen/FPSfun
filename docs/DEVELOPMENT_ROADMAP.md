@@ -11938,6 +11938,51 @@ blatantly obvious near the top, like at least twice as big as they are now on th
   own kit back, the start again), proven with the locks taken out (2 FAIL); e2e start and page. Photographed room by
   room on the GPU.
 
+## Milestone 634 — The tutorial built of the Neon City bundle, and the city fetched while it is played
+
+The owner, 2026-10-17: "build it out of the neon city map bundle we have built our whole BR on."
+
+- **Its own file, not the city's** (tools/tutorial-dress.ts, src/config/tutorialdress.json,
+  public/models/paid/neon/tutorial-v1.glb). The city's file is 155 MB on its smallest kit, and the tutorial is a new
+  player's first click, so the tutorial gets 3.6 MB of its own.
+  - It is baked by the city's own importer (tools/import-city.ts writePack, called as it is, as the city agent asked):
+    the bundle's materials and textures as KTX2, and its geometry meshopt-compressed.
+  - The page reads it as it reads the city's file (src/game/tutorialdress.ts: the bundle's detail maps, its unlit and
+    added looks, its glow strengths) after its first screen. It lays the file over the course's own boxes
+    (course.ts dressWith), which it still collides with.
+  - A checkout without the bought files keeps the plain boxes. Those are kept out of the page's static merge
+    (`dressed`), so they can be hidden.
+- **The rooms in the bundle's materials:**
+  - Every box face of the course is cut into 2.5 m cells on the world's grid. A cell is left out where another box
+    stands over it, and not where glass does, which is seen through.
+  - The block between the bays is 169 m long. Tested whole, one point decided its whole face, and it went.
+  - Each surface wears the bundle's material for its role: the cyan-lit tech panels on the walls, the dark tiles with
+    blue lights on the floor, the yellow-painted panels on every ledge a jump is for (plated grey on top), dark panels
+    and tech plates on the decks and steps, ribbed metal on the climb's wall, dark glass on the slick walls, dark red in
+    the pits.
+  - Each was chosen off a swatch sheet (DRESS=swatch, tools/neongallery.html). Each is tiled at the scale the bundle's
+    own pieces wear it, measured off up to eight of them (the median of their edges' length in metres over their length
+    in the texture), never typed. For example the floor tiles repeat every 0.67 m and the wall panels every 2.5 m.
+- **The bundle's pieces:**
+  - Its English neon signs, and NEON009 ("robot" in Korean). The Korean and Chinese signs were read before any was
+    placed, and the map's banned one is refused by the bake.
+  - Its tube lights in pink, white and warm, and its lanterns over the turn.
+  - Every piece hangs clear of every move: on a wall 6.5 m up or more, or free 8 m up or more. They draw and do not
+    collide. The check caught one of the first placements at 6 m on the turn's far wall.
+- **The city fetched while the tutorial is played** (neonmap.ts prefetchCity). When the tutorial starts, the city's
+  file, at the player's own kit, is fetched into the browser's Cache Storage and not read. The battle royale a new
+  player goes on to then finds it there, instead of starting with 155 MB to download. Its bytes are counted for the
+  screen, and a match asked for meanwhile waits for it rather than fetching it twice.
+- **Release and live guards** (tools/citybake.ts, Milestone 628's): a release refuses to go without the tutorial's file
+  of its committed version whole on disk, and the live check asks the site for its header.
+- **Checked:**
+  - tsc; verify; rules.
+  - tools/checks/citybake.ts: the tutorial's file missing, cut short, whole.
+  - tools/checks/sk-tutorial.ts: the pieces clear of every move.
+  - e2e sktutorial (21 checks): the rooms dressed from their own file with the plain boxes hidden, and the city's file
+    in the browser's cache by the end. Proven by keeping the plain boxes shown and taking the prefetch out (2 FAIL).
+  - Photographed room by room on the GPU.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

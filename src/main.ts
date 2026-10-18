@@ -33,6 +33,7 @@ import { keyPanelTexts, setPanelKeys } from "./game/geo";
 import { BASIC_COURSE } from "./game/courses/basic";
 import { TUTORIAL_COURSE, DASH_HAZARD } from "./game/courses/tutorial";
 import { Tutorial, DASH_STEP, GUN_STEP, type TutorialCheck } from "./game/tutorial";
+import { loadTutorialDress, TUTORIAL_DRESS } from "./game/tutorialdress";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, RENDER_SCALES, loadRenderScale, saveRenderScale } from "./game/quality";
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import { takenHit } from "./game/hitpick";
@@ -120,7 +121,7 @@ import { figuresSettled, hasClip, loadMannequin, useMannequin, soldierReady } fr
 import { loadPaidGuns, loadPaidRest, paidGunsReady, paidProp } from "./game/paidgun";
 import { SOLDIER_VARIANTS, lookOf, mySoldierCode, readSoldierCode, saveMySoldier, type SoldierLook } from "./game/soldier";
 import soldierCfg from "./config/soldier.json";
-import { NEON_AIR, NEON_MAP, buildNeonMap, cityLoadFailed, dressNeonMap, loadNeonSolids, neonSolidsIn, neonPart, retakeReflection, showNeonPart, updateNeonFill, warmReflection } from "./game/neonmap";
+import { NEON_AIR, NEON_MAP, buildNeonMap, cityLoadFailed, dressNeonMap, loadNeonSolids, neonSolidsIn, neonPart, prefetchCity, retakeReflection, showNeonPart, updateNeonFill, warmReflection } from "./game/neonmap";
 import type { ArenaMapInfo } from "./game/arenas";
 import { programRepList, repsRoot } from "./game/programreps";
 import { compileSafely } from "./game/compilesafe";
@@ -3392,6 +3393,11 @@ let lastPingAt = -Infinity;
 const tour = new Tour(scene);
 /** the tutorial's steps over its course (tutorial.ts): a room each, its doors, and the hacks off until their room */
 const tutorial = new Tutorial(scene, courseTutorial);
+// its rooms in the Neon City bundle (Milestone 634): its own small file, after the page's first screen, over its plain
+// boxes (a checkout without the bought files keeps those)
+later(() => {
+  if (!NO_RENDER) void loadTutorialDress(renderer).then((d) => d && courseTutorial.dressWith(d));
+});
 courseTutorial.onFall = (h) => {
   tutorial.onFall();
   // the dash room gives the dash back with every fall: twelve seconds' wait to try again teaches nothing
@@ -4063,6 +4069,9 @@ let tutorialSlots: SlotSetup[] | null = null;
 tutorial.onStep = (title, index) => {
   hud.notice(`TUTORIAL: ${title}`, gameTime, 1.4);
   audio.countdown(false);
+  // the city's file into the browser's cache while the tutorial is played, so the battle royale a new player goes on to
+  // does not start with 155 MB to download (neonmap.ts prefetchCity: fetched, not read)
+  if (index === 0 && !cityAsked && !NO_RENDER) prefetchCity(quality.cityKit);
   // its first rooms are run with the gun put away (and kept away each frame till the ANAKIN: gunsAway)
   if (index === 0) holster = "away";
   // the hacks come on with DASH in the move slot, whatever was picked: the room is built round it
@@ -8155,6 +8164,7 @@ const GALLERY = { x: 0, z: -8 };
   tour,
   tutorial,
   courseTutorial,
+  tutorialDress: () => ({ ...TUTORIAL_DRESS, dressed: courseTutorial.isDressed }),
   opticAdsMult,
   padButtons,
   /** the range's readout counters (shots, hits) */
