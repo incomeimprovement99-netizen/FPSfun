@@ -1,10 +1,9 @@
-// The range. Laid out like a real firing range rather than an empty box:
-// a covered firing line, numbered lanes running out to 100 m, a low cover
-// row for crouch and slide practice, elevated side platforms reached by
-// stairs and a ramp, and a moving target rail.
-//
-// All geometry is generated here. Materials are CC0 (public/tex/ATTRIBUTION.md).
+// The range: a street of the Neon City since Milestone 691 (docs/PLAN_RANGE_NEON.md), numbered lanes down its road
+// out to 100 m, target banks and two moving rails, the gun and hack stands along the gate wall. Its colliders and a
+// plain look are built here; the street itself is drawn over them from its own file (rangedress.ts).
 import * as THREE from "three";
+import tools from "../config/rangetools.json";
+import dress from "../config/rangedress.json";
 import { material, tileBox } from "./materials";
 import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } from "./geo";
 import { LADDERS, ZIPLINES } from "./traversal";
@@ -345,6 +344,10 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     [-34.5, 34.5, -108.25, -106.75],
     [-34.5, 34.5, 8, 9],
   ]) RANGE_SOLIDS.push({ minX, maxX, minZ, maxZ, base: 10, top: WALLS_TOP });
+  // the street's lamps (Milestone 692, rangedress.json lamps): their posts collide, as the city's do, and stand in the
+  // plain look until the street is drawn, so nothing there is invisible
+  const L = dress.lamps;
+  for (const side of [-1, 1]) for (const z of L.zs) addBox(RANGE_PLAIN, wall, L.post * 2, L.top, L.post * 2, side * L.x, 0, z, { sharp: true });
 
   // ---------- the way to the course ----------
   // A lit frame round the gate, a sign over it facing the spawn, and arrows
@@ -397,18 +400,13 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
 
   // ---------- target banks ----------
   TARGET_SPECS.length = 0;
-  // four rows of static targets at differing distance and height
-  const rows: Array<{ z: number; y: number; xs: number[]; kind: "board" | "flipper"; scale: number }> = [
-    { z: -12, y: 0, xs: [-9, -3, 3, 9], kind: "flipper", scale: 1 },
-    { z: -28, y: 0, xs: [-14, 0, 14], kind: "board", scale: 0.9 },
-    { z: -50, y: 1.2, xs: [-8, 8], kind: "board", scale: 1.1 },
-    { z: -78, y: 2.2, xs: [-16, 0, 16], kind: "board", scale: 1.5 },
-  ];
-  for (const r of rows) {
+  // four rows of static targets at differing distance and height (rangetools.json targets)
+  const [pw, pd] = tools.targets.plinth;
+  for (const r of tools.targets.rows as Array<{ z: number; y: number; xs: number[]; kind: "board" | "flipper"; scale: number }>) {
     for (const x of r.xs) TARGET_SPECS.push({ kind: r.kind, x, y: r.y, z: r.z, scale: r.scale });
-    // a low plinth under the raised rows so they do not float
+    // a low plinth under the raised rows so they do not float; in the plain look, as the street dresses it (Milestone 692)
     if (r.y > 0) {
-      for (const x of r.xs) addBox(scene, panel, 3.2, r.y, 1.0, x, 0, r.z, { tile: 1.5 });
+      for (const x of r.xs) addBox(RANGE_PLAIN, panel, pw, r.y, pd, x, 0, r.z, { tile: 1.5 });
     }
   }
   // one slider per rail

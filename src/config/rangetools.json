@@ -5,5 +5,15 @@
   "sprayWall": { "x": 33.45, "z": -64, "y": 2.0, "width": 5, "height": 3.5, "distance": 20, "stringGap": 1.2 },
   "drill": { "padX": 3, "padZ": 2.2, "targets": 30, "coneDeg": 60, "minDist": 5, "maxDist": 30 },
   "_board": "The drill's target, a bullseye board on a post (dummy.ts board, the owner, 2026-10-12: a range target is the soldier or a bullseye whose middle is the crit). Ours: `radius` m is about a torso's half-width (its volume is 0.5 m across), `crit` m the middle's, which counts as a headshot, about half the head volume's 0.13; `height` m its middle off the floor, a standing figure's chest; `rings` the rings from its edge to the crit, alternating white and red so the one round the red crit is white.",
-  "board": { "radius": 0.3, "crit": 0.065, "height": 1.45, "rings": 5 }
+  "board": { "radius": 0.3, "crit": 0.065, "height": 1.45, "rings": 5 },
+  "_targets": "The range's target banks (range.ts; moved here from it in Milestone 692, so the street's dressing, tools/range-dress.ts, lays its plinths where the range stands them): `rows` four rows of static targets at differing distance and height, as a real range lays out its banks; a row raised `y` m stands on a plinth `plinth` [width, depth] m under each target.",
+  "targets": {
+    "rows": [
+      { "z": -12, "y": 0, "xs": [-9, -3, 3, 9], "kind": "flipper", "scale": 1 },
+      { "z": -28, "y": 0, "xs": [-14, 0, 14], "kind": "board", "scale": 0.9 },
+      { "z": -50, "y": 1.2, "xs": [-8, 8], "kind": "board", "scale": 1.1 },
+      { "z": -78, "y": 2.2, "xs": [-16, 0, 16], "kind": "board", "scale": 1.5 }
+    ],
+    "plinth": [3.2, 1.0]
+  }
 }

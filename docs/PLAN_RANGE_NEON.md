@@ -69,3 +69,6 @@ The movement practice is the tutorial's and the movement lab's now. It goes, wit
 Milestone 691: steps 1 to 3 as above, with one change from the plan. The sides are blocks dressed in the bundle's own
 window materials, not its buildings. The buildings' prefabs bring scores of materials each (142 materials, 14 MB in a
 try), and the range's file had to stay small: it is 2.9 MB.
+
+Milestone 692: the street's lamps, which the plan promised and 691 had not laid (the city's own, along both kerbs,
+their posts colliding), and the raised target banks' plinths in the curb's concrete.

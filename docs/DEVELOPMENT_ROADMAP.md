@@ -12221,6 +12221,25 @@ that we used to have." (docs/PLAN_RANGE_NEON.md.)
   - e2e speedkills.
   - Photographed from the spawn, down the street, from the far end back, and at the stands.
 
+## Milestone 692 — The range's street lit: its lamps, and the plinths not black
+
+After Milestone 691, from its own photographs: the street had no street lights, and the raised target banks stood on
+black boxes, the range's old dark panel.
+
+- **The city's own street lamp** (neonmap.json rules.dress.lamp, the two-armed one on every street of the battle
+  royale's city), fourteen along both kerbs: the city's inset in from the kerb, its 15 m apart, its arms across the
+  street. Measured off the baked piece: 5.68 m tall, its foot 0.6 m square.
+- **Their posts collide**, as the city's do: range.ts stands a box up each one off the same config
+  (src/config/rangedress.json lamps), in the plain look until the street is drawn. The bake checks the config's height
+  and foot against the piece and refuses a drift.
+- **The plinths in the curb's concrete**, laid by the bake where the range stands them. The target rows moved from
+  range.ts into src/config/rangetools.json (targets) so both read one list; the plain plinths went into the plain look,
+  which the street hides.
+- **The range's file is version 2**, 2.97 MB (was 2.91).
+- **Checked:** tsc, verify, rules; e2e range (the 14 posts, each the lamp's height) and page (the street from
+  range-v2). Photographed at the golden hour and under the neon night. Proven: with the posts' colliders out the
+  range check fails (0 of 14), and with the lamp's height typed 5.5 the bake refuses.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

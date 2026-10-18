@@ -13,6 +13,7 @@ import { helpers, neonPack } from "./import-neon";
 import { bake, IMPORT_STATS, mul, readMaterial, Textures, writePack, type Baked, type Draw, type M4, type MatInfo } from "./import-city";
 import { BasisPool } from "./basis-pool";
 import dress from "../src/config/rangedress.json";
+import tools from "../src/config/rangetools.json";
 
 const ROOT = join(import.meta.dirname, "..");
 const PAID = process.env.PAID_DIR ?? "C:/Users/jwilb/Downloads/speedkills-paid";
@@ -280,11 +281,24 @@ for (const st of dress.streets as unknown as Street[]) {
 // single pieces: [piece, wall, along, up, front?] on a wall, or [piece, x, y, z, yaw] where they stand
 for (const [key, a, b, c, d] of dress.pieces as unknown as Array<[string, string | number, number, number, (number | string)?]>)
   draws.push(...(typeof a === "string" ? onWall(key, a, b, c, (d as "z" | "-z" | "x" | "-x") ?? "z") : placed(key, a, b, c, (d as number) ?? 0)));
+// the street's lamps along both kerbs (Milestone 692). range.ts stands their colliders off the same config, so the
+// lamp's height there is checked against the piece as it bakes: a typed number that drifted from it would stand a post
+// shorter or taller than the lamp drawn
+const LP = dress.lamps;
+const lb = bounds(LP.piece);
+const foot = Math.max(-lb.min[0], lb.max[0]);
+console.log(`the lamp: ${lb.max[1].toFixed(2)} m tall, its arms ${Math.max(-lb.min[2], lb.max[2]).toFixed(2)} m either side, its foot ${foot.toFixed(2)} m either side`);
+if (Math.abs(lb.max[1] - LP.top) > 0.01 || Math.abs(foot - LP.post) > 0.01) throw new Error(`rangedress.json lamps top ${LP.top} and post ${LP.post} are not the lamp's: ${lb.max[1].toFixed(2)} and ${foot.toFixed(2)}`);
+for (const side of [-1, 1]) for (const z of LP.zs) draws.push(...placed(LP.piece, side * LP.x, 0, z, LP.yaw));
 
 // the blocks either side of the street, across its far end and over the gate wall: [x0, z0, x1, z1, height, upper role]
 const D = dress as unknown as { blockLook: { ground: string; groundH: number; roof: string }; blocks: Array<[number, number, number, number, number, string, number?]>; gateWall: Array<[number, number, number, number]>; gateZ: number };
 const BL = D.blockLook;
 for (const [x0, z0, x1, z1, h, up, base] of D.blocks) ground.block(x0, z0, x1, z1, h, R[up], R[BL.ground], BL.groundH, R[BL.roof], base ?? 0);
+// the target banks' plinths, where the range stands them (rangetools.json targets), in one material all round: in the
+// range's plain panel they were black boxes on the street (Milestone 692)
+const [pw, pd] = tools.targets.plinth;
+for (const r of tools.targets.rows) if (r.y > 0) for (const x of r.xs) ground.block(x - pw / 2, r.z - pd / 2, x + pw / 2, r.z + pd / 2, r.y, R.plinth, R.plinth, 0, R.plinth);
 // the gate wall's face into the range, but its three gates (range.ts COURSE_GATES)
 for (const [x0, x1, y0, y1] of D.gateWall) ground.quad(R.gateWall, [[x0, y0, D.gateZ], [x0, y1, D.gateZ], [x1, y1, D.gateZ], [x1, y0, D.gateZ]], [0, 0, -1]);
 const g = ground.baked("range:ground");

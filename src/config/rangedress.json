@@ -1,6 +1,6 @@
 {
-  "_note": "The firing range as a street of the Neon City (docs/PLAN_RANGE_NEON.md, Milestone 691): tools/range-dress.ts bakes it into public/models/paid/neon/range-v<version>.glb and src/game/rangedress.ts draws it over the range's own colliders. `roles` the bundle's materials, each tiled at the scale the bundle's own pieces wear it (measured by the tool, printed when it bakes; `candidates` the swatch sheet they were chosen from, DRESS=swatch, tools/neongallery.html?sheet=range-swatch); `ground` [role, x0, z0, x1, z1, y?] the road, sidewalks and curbs; `blocks` [x0, z0, x1, z1, height, role, base?] the buildings either side of the street, across its far end and over the gate wall, their sides in that role over `blockLook.groundH` metres of shop fronts, their tops `blockLook.roof`; `gateWall` [x0, x1, y0, y1] the gate wall's face into the range (at z `gateZ`) but its three gates; `walls` the range's walls by the way they look into it (n) and their inner face along it (at: n dot the point), for `pieces` [piece, wall, along, up, front?] against one or [piece, x, y, z, yaw] where they stand; `streets` the bundle's own buildings stood along a wall (none: their prefabs bring scores of materials, 142 in a try at it, 14 MB, where this whole file is a few). Small on purpose: textures at `texture` and normals at `normal`, the range is the first thing a player loads. Bump `version` with every bake that ships.",
-  "version": 1,
+  "_note": "The firing range as a street of the Neon City (docs/PLAN_RANGE_NEON.md, Milestone 691): tools/range-dress.ts bakes it into public/models/paid/neon/range-v<version>.glb and src/game/rangedress.ts draws it over the range's own colliders. `roles` the bundle's materials, each tiled at the scale the bundle's own pieces wear it (measured by the tool, printed when it bakes; `candidates` the swatch sheet they were chosen from, DRESS=swatch, tools/neongallery.html?sheet=range-swatch); `ground` [role, x0, z0, x1, z1, y?] the road, sidewalks and curbs; `blocks` [x0, z0, x1, z1, height, role, base?] the buildings either side of the street, across its far end and over the gate wall, their sides in that role over `blockLook.groundH` metres of shop fronts, their tops `blockLook.roof`; the target banks' plinths (rangetools.json targets) in `roles.plinth` all round; `gateWall` [x0, x1, y0, y1] the gate wall's face into the range (at z `gateZ`) but its three gates; `walls` the range's walls by the way they look into it (n) and their inner face along it (at: n dot the point), for `pieces` [piece, wall, along, up, front?] against one or [piece, x, y, z, yaw] where they stand; `streets` the bundle's own buildings stood along a wall (none: their prefabs bring scores of materials, 142 in a try at it, 14 MB, where this whole file is a few). Small on purpose: textures at `texture` and normals at `normal`, the range is the first thing a player loads. Bump `version` with every bake that ships.",
+  "version": 2,
   "texture": 512,
   "normal": 256,
   "roles": {
@@ -14,7 +14,8 @@
     "w01": "BuildingWindows01",
     "w03": "BuildingWindows03",
     "w03b": "BuildingWindows03b",
-    "glow": "LightWall03_02"
+    "glow": "LightWall03_02",
+    "plinth": "Concrete03d"
   },
   "ground": [
     ["road", -12, -106.75, 12, 8],
@@ -78,6 +79,15 @@
     }
   },
   "streets": [],
+  "_lamps": "The street's lamps (Milestone 692): the city's own street lamp (neonmap.json rules.dress.lamp), along both kerbs `x` either side of the middle (the kerb at 12.3 and the city's inset, 0.6 m, in from it), at each of `zs` (the city's 15 m apart, from half that past the gate wall's stands), turned `yaw` so its two arms reach across the street. Measured off the baked piece (printed by every bake): 5.68 m tall, its arms 1.39 m either side along its own z, its foot 0.6 m square below 2 m. range.ts stands a collider `post` m either side of each one's middle up to `top`: the foot's half and the lamp's height.",
+  "lamps": {
+    "piece": "2_Deco/Lighting/Lighting_Deco002_lgt.prefab",
+    "x": 12.9,
+    "zs": [-7.5, -22.5, -37.5, -52.5, -67.5, -82.5, -97.5],
+    "yaw": 90,
+    "post": 0.3,
+    "top": 5.68
+  },
   "pieces": [
     ["2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab", "x34", -14, 8],
     ["2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab", "x34", -44, 10],

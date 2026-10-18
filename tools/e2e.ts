@@ -1811,6 +1811,10 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   check("range: open to the sky over the stands, no canopy to stand on, and its side wall holds 60 m up", sky.ground && sky.y < 0.1 && sky.wallTop >= 60, JSON.stringify(sky));
   const env = await ev<{ env: number; hour: number }>(page, "({ env: window.__range.scene.environmentIntensity, hour: window.__range.sky.hourEnv })");
   check("range: its environment light a third of the hour's (RANGE_ENV_SHARE)", Math.abs(env.env - env.hour * 0.3) < 1e-6, JSON.stringify(env));
+  // Milestone 692: the street's lamps along both kerbs, each post a collider as tall as the lamp drawn, so none is walked
+  // through (rangedress.json lamps; the bake checks the lamp's height against the piece)
+  const posts = await ev<number>(page, "window.__range.solids.filter((s) => Math.abs(Math.abs((s.minX + s.maxX) / 2) - 12.9) < 0.01 && Math.abs(s.maxX - s.minX - 0.6) < 0.01 && Math.abs(s.top - 5.68) < 0.01).length");
+  check("range: the street's 14 lamps each stand a post you cannot walk through, the lamp's height", posts === 14, `${posts}`);
   await ev(page, "window.__range.player.teleport(0, 0, 0, 0, 0)");
   await readmeTvChecks(page);
   await page.close();
