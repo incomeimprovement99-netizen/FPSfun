@@ -1,0 +1,95 @@
+{
+  "_note": "The firing range as a street of the Neon City (docs/PLAN_RANGE_NEON.md, Milestone 691): tools/range-dress.ts bakes it into public/models/paid/neon/range-v<version>.glb and src/game/rangedress.ts draws it over the range's own colliders. `roles` the bundle's materials, each tiled at the scale the bundle's own pieces wear it (measured by the tool, printed when it bakes; `candidates` the swatch sheet they were chosen from, DRESS=swatch, tools/neongallery.html?sheet=range-swatch); `ground` [role, x0, z0, x1, z1, y?] the road, sidewalks and curbs; `blocks` [x0, z0, x1, z1, height, role, base?] the buildings either side of the street, across its far end and over the gate wall, their sides in that role over `blockLook.groundH` metres of shop fronts, their tops `blockLook.roof`; `gateWall` [x0, x1, y0, y1] the gate wall's face into the range (at z `gateZ`) but its three gates; `walls` the range's walls by the way they look into it (n) and their inner face along it (at: n dot the point), for `pieces` [piece, wall, along, up, front?] against one or [piece, x, y, z, yaw] where they stand; `streets` the bundle's own buildings stood along a wall (none: their prefabs bring scores of materials, 142 in a try at it, 14 MB, where this whole file is a few). Small on purpose: textures at `texture` and normals at `normal`, the range is the first thing a player loads. Bump `version` with every bake that ships.",
+  "version": 1,
+  "texture": 512,
+  "normal": 256,
+  "roles": {
+    "road": "AsphaltWater00",
+    "sidewalk": "WallTiles00c",
+    "curb": "Concrete03d",
+    "shop": "BuildWindows00c 2",
+    "roof": "MetalPanels01",
+    "gateWall": "CyberpunkPannel00",
+    "w00": "BuildWindows00",
+    "w01": "BuildingWindows01",
+    "w03": "BuildingWindows03",
+    "w03b": "BuildingWindows03b",
+    "glow": "LightWall03_02"
+  },
+  "ground": [
+    ["road", -12, -106.75, 12, 8],
+    ["sidewalk", -33.5, -106.75, -12.3, 8],
+    ["sidewalk", 12.3, -106.75, 33.5, 8],
+    ["curb", -12.3, -106.75, -12, 8, 0.02],
+    ["curb", 12, -106.75, 12.3, 8, 0.02]
+  ],
+  "blockLook": {
+    "ground": "shop",
+    "groundH": 5,
+    "roof": "roof"
+  },
+  "blocks": [
+    [33.5, -6, 46, 8, 24, "w03"],
+    [33.5, -22, 46, -6, 36, "w00"],
+    [33.5, -34, 46, -22, 18, "w01"],
+    [33.5, -52, 46, -34, 42, "w03b"],
+    [33.5, -64, 46, -52, 22, "w00"],
+    [33.5, -80, 46, -64, 30, "w03"],
+    [33.5, -94, 46, -80, 20, "w01"],
+    [33.5, -120, 46, -94, 34, "w00"],
+    [-46, -10, -33.5, 8, 30, "w00"],
+    [-46, -24, -33.5, -10, 20, "w03"],
+    [-46, -40, -33.5, -24, 40, "w01"],
+    [-46, -54, -33.5, -40, 24, "w03b"],
+    [-46, -70, -33.5, -54, 34, "w00"],
+    [-46, -84, -33.5, -70, 18, "w03"],
+    [-46, -120, -33.5, -84, 28, "w01"],
+    [-33.5, -120, -12, -106.75, 26, "w03"],
+    [-12, -120, 12, -106.75, 44, "w00"],
+    [12, -120, 33.5, -106.75, 22, "w03b"],
+    [-34, 7.94, 34, 9.5, 20, "w03", 6]
+  ],
+  "gateWall": [
+    [-33.5, -23.5, 0, 6],
+    [-19.5, -2, 0, 6],
+    [2, 19.5, 0, 6],
+    [23.5, 33.5, 0, 6],
+    [-23.5, -19.5, 3.5, 6],
+    [-2, 2, 3.5, 6],
+    [19.5, 23.5, 3.5, 6]
+  ],
+  "gateZ": 7.97,
+  "walls": {
+    "x34": {
+      "n": [-1, 0],
+      "at": -33.5
+    },
+    "x-34": {
+      "n": [1, 0],
+      "at": -33.5
+    },
+    "zfar": {
+      "n": [0, 1],
+      "at": -106.75
+    },
+    "zgate": {
+      "n": [0, -1],
+      "at": -7.97
+    }
+  },
+  "streets": [],
+  "pieces": [
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon00.prefab", "x34", -14, 8],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon013.prefab", "x34", -44, 10],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon016.prefab", "x34", -72, 9],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon004.prefab", "x34", -100, 8],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon002.prefab", "x-34", -18, 9],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon014.prefab", "x-34", -48, 8],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon010.prefab", "x-34", -78, 10],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon001.prefab", "zfar", -22, 9],
+    ["2_Deco/Street Deco/Street Ads/SignLetters/Neon003.prefab", "zfar", 22, 10],
+    ["2_Deco/Street Deco/Street Ads/WallLights/Neon006.prefab", "x34", -30, 6.5],
+    ["2_Deco/Street Deco/Street Ads/WallLights/Neon007b.prefab", "x-34", -62, 6.5]
+  ],
+  "candidates": ["BuildWindows00", "BuildWindows00b", "BuildWindows00c", "BuildWindows00c 1", "BuildWindows00c 2", "BuildWindows00c 3", "BuildWindows00c 4", "BuildWindows00c 5", "BuildWindows00e", "BuildWindows00f", "BuildingWindows01", "BuildingWindows03", "BuildingWindows03b", "BuildingWindows05", "LightWall03_02", "ConcretePannelsPerforated00b", "CyberpunkPannel00", "CyberpunkPannel01", "CyberpunkPannel02", "CyberpunkPannel04", "TechPannel_00", "TechPannel_01", "PlasterPannelsDirt00", "MetalPannels02Dirtb", "RoundedPlasticPanel01", "ADS_Opaque01", "ADSLight00", "Light03", "Light07", "pannel01", "pannel02_03"]
+}

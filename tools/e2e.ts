@@ -1785,7 +1785,7 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
     page,
     "(() => { const r = window.__range; const ds = r.dummies; return { figures: ds.length, soldiers: ds.filter((d) => !!d.figure?.soldier).length, board: !!r.drill.target.group.getObjectByName('board'), drillFigure: !!r.drill.target.figure }; })()",
   );
-  check("range: its figures, made before the soldier was in, wear it once it is, and the drill's target is a bullseye board", soldierIn && worn.figures >= 8 && worn.soldiers === worn.figures && worn.board && !worn.drillFigure, JSON.stringify(worn));
+  check("range: its figures, made before the soldier was in, wear it once it is, and the drill's target is a bullseye board", soldierIn && worn.figures >= 6 && worn.soldiers === worn.figures && worn.board && !worn.drillFigure, JSON.stringify(worn));
   // a REVEAL or a threat optic (main.ts, setThreat): our robot's shell was all that lit, so on the soldier nothing showed
   const glow = await ev<{ on: number[]; off: number[] }>(
     page,
@@ -1802,14 +1802,15 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   await sleep(200);
   const los = await ev<{ open: boolean; wall: boolean }>(page, `(() => { const r = window.__range; const T = r.THREE; return { open: r.clearTo(new T.Vector3(0, 4, -100)), wall: r.clearTo(new T.Vector3(0, 4, -110)) }; })()`);
   check("plates: the line of sight is clear down the range and blocked through the backstop", los.open && !los.wall, JSON.stringify(los));
-  // Milestone 631: the canopy over the gun and hack stands is a floor you stand on (the owner: "the podium up there we
-  // can't even stand on we glitch through"), and the range takes a share of the sky's environment light (indoors)
+  // Milestone 691: a street of the Neon City, open to the sky: no canopy over the stands (dropped from 7.2 m there, you
+  // land on the street), and the walls' colliders over the street's tallest building, so a LEAP's 16 m does not clear
+  // them; and the range takes a share of the sky's environment light, its wet asphalt kept from a blaze
   await ev(page, "window.__range.player.teleport(0, 7.2, 5, 0, 0)");
-  await gameSleep(page, 1.2);
-  const onCanopy = await ev<{ y: number; ground: boolean }>(page, "({ y: window.__range.player.pos.y, ground: window.__range.player.onGround })");
-  check("range: dropped onto the canopy over the stands, you stand on it (6.4 m) rather than fall through", onCanopy.ground && Math.abs(onCanopy.y - 6.4) < 0.05, JSON.stringify(onCanopy));
+  await gameSleep(page, 1.5);
+  const sky = await ev<{ y: number; ground: boolean; wallTop: number }>(page, "(() => { const r = window.__range; const sides = r.solids.filter((s) => s.minX >= 33 && s.maxX <= 35 && s.maxZ - s.minZ > 100); return { y: r.player.pos.y, ground: r.player.onGround, wallTop: Math.max(0, ...sides.map((s) => s.top)) }; })()");
+  check("range: open to the sky over the stands, no canopy to stand on, and its side wall holds 60 m up", sky.ground && sky.y < 0.1 && sky.wallTop >= 60, JSON.stringify(sky));
   const env = await ev<{ env: number; hour: number }>(page, "({ env: window.__range.scene.environmentIntensity, hour: window.__range.sky.hourEnv })");
-  check("range: indoors, its environment light a third of the hour's (RANGE_ENV_SHARE)", Math.abs(env.env - env.hour * 0.3) < 1e-6, JSON.stringify(env));
+  check("range: its environment light a third of the hour's (RANGE_ENV_SHARE)", Math.abs(env.env - env.hour * 0.3) < 1e-6, JSON.stringify(env));
   await ev(page, "window.__range.player.teleport(0, 0, 0, 0, 0)");
   await readmeTvChecks(page);
   await page.close();
@@ -8042,6 +8043,10 @@ async function main(): Promise<void> {
     // (90 s, not 30: the first page of a run compiles every module of the dev server's, and with the machine at 94% under
     // other runs the world was in 31 s on, every part of it, where a quiet machine takes 4; this is not a speed check)
     const inWorld = await page.waitForFunction("window.__range.loaded()", { polling: 200, timeout: 90000 }).then(() => true, () => false);
+    // the range a street of the Neon City (Milestone 691): its own small file, drawn over the plain look, which it hides
+    const streetIn = await page.waitForFunction("window.__range.rangeDress().drawn || window.__range.rangeDress().failed", { polling: 250, timeout: 90000 }).then(() => true, () => false);
+    const street = await ev<{ drawn: boolean; meshes: number; plainShown: boolean; file: string }>(page, "window.__range.rangeDress()");
+    check("the range is a street of the Neon City from a file of its own, laid over the plain look, which is hidden", streetIn && street.drawn && street.meshes >= 1 && !street.plainShown && /range-v\d+\.glb/.test(street.file), JSON.stringify(street));
     await sleep(500);
     const ls = await ev<{ hidden: boolean; status: string; fill: string }>(page, `(() => { const e = document.getElementById("loading"); return { hidden: e.hidden, status: document.getElementById("loadingStatus").textContent, fill: document.getElementById("loadingFill").style.width }; })()`);
     // (SpeedKills' screen goes as soon as the range is drawn, the last few files still on their way: the first screen

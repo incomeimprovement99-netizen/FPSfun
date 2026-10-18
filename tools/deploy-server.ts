@@ -36,7 +36,7 @@
 //   RANGE_DOMAIN   the game's hostname, e.g. fpsfun.duckdns.org
 //   DUCKDNS_TOKEN  optional, for `dns`: the token at the top of duckdns.org
 import { releaseGate } from "./release-gate";
-import { cityBakeProblems, tutorialDressProblems } from "./citybake";
+import { cityBakeProblems, rangeDressProblems, rangeVersion, tutorialDressProblems } from "./citybake";
 import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
@@ -145,6 +145,14 @@ function snapshot(): string {
     throw new Error(`the tutorial's dressing, version ${tutorialVersion}, is not whole here, so nothing was shipped: ${tutorialProblems.join("; ")}`);
   }
   console.log(`   the tutorial's dressing, version ${tutorialVersion}: whole`);
+  // and the range's street (Milestone 691), the same: a release without it shows the range's plain look
+  const rv = rangeVersion(dir);
+  const rangeProblems = rangeDressProblems(join(dir, "public"), rv);
+  if (rangeProblems.length) {
+    dropSnapshot(dir);
+    throw new Error(`the range's street, version ${rv}, is not whole here, so nothing was shipped: ${rangeProblems.join("; ")}`);
+  }
+  console.log(`   the range's street, version ${rv}: whole`);
   symlinkSync(join(ROOT, "node_modules"), join(dir, "node_modules"), "junction");
   return dir;
 }

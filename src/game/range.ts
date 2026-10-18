@@ -7,11 +7,9 @@
 import * as THREE from "three";
 import { material, tileBox } from "./materials";
 import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } from "./geo";
-import { LADDERS, ZIPLINES, buildLadder } from "./traversal";
-import { warehouseRoof } from "./warehouse";
+import { LADDERS, ZIPLINES } from "./traversal";
 import { makeSky, type Hour, type Sky } from "./sky";
 import type { Bounds } from "./player";
-import { MOVE, SLIDE_RAMP_ANGLE } from "./movement";
 import type { Placement } from "./props";
 
 // maxZ reaches past the back wall to take in the movement course (course.ts).
@@ -96,10 +94,11 @@ export function setHour(h: Hour, scene: THREE.Scene): void {
 }
 
 /**
- * The share of the sky's environment light the range gets (Milestone 631). It is indoors under a dark roof, and the
+ * The share of the sky's environment light the range gets (Milestone 631). It was indoors under a dark roof, and the
  * sky's reflection off its glossy floor was a white blaze under bloom beside the gun and hack stands at every hour:
  * at none the range is dark as a hall at night and lit by its own lamps, at a third the stands and targets keep their
- * colour. The battle royale's city keeps the whole of it.
+ * colour. A street of the Neon City since Milestone 691, open to the sky, and its wet asphalt kept from the same blaze
+ * at the same third. The battle royale's city keeps the whole of it.
  */
 export const RANGE_ENV_SHARE = 0.3;
 
@@ -114,6 +113,13 @@ export interface Solid {
   slick?: boolean;
 }
 export const RANGE_SOLIDS: Solid[] = [];
+/**
+ * The range's plain look, its floor and its walls' faces: what the Neon street's dressing (rangedress.ts, Milestone
+ * 691) is laid over and hides. Kept out of the page's static merge (userData.dynamic), which could not hide it after.
+ */
+export const RANGE_PLAIN = new THREE.Group();
+/** the range walls' colliders reach this high, over the street's tallest building (rangedress.json blocks, 44 m) */
+const WALLS_TOP = 60;
 
 /**
  * Target placements: 11 static boards and flippers in four rows at differing
@@ -143,7 +149,7 @@ export const TARGET_RAILS: TargetRail[] = [];
 export const PROP_PLACEMENTS: Placement[] = [];
 
 function addBox(
-  scene: THREE.Scene,
+  scene: THREE.Object3D,
   mat: THREE.Material,
   w: number, h: number, d: number,
   x: number, y: number, z: number,
@@ -178,26 +184,6 @@ function addBox(
   return m;
 }
 
-function labelSprite(text: string, px = 72, color = "#f4f4f4"): THREE.Sprite {
-  const c = document.createElement("canvas");
-  c.width = 512;
-  c.height = 256;
-  const ctx = c.getContext("2d")!;
-  ctx.font = `700 ${px * 2}px system-ui, sans-serif`;
-  ctx.textAlign = "center";
-  ctx.textBaseline = "middle";
-  ctx.lineWidth = 10;
-  ctx.strokeStyle = "rgba(0,0,0,0.65)";
-  ctx.strokeText(text, 256, 128);
-  ctx.fillStyle = color;
-  ctx.fillText(text, 256, 128);
-  const tex = new THREE.CanvasTexture(c);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
-  s.scale.set(4, 2, 1);
-  return s;
-}
-
 export interface RangeOptions {
   /** point lights cost every lit pixel; Competitive and Balanced drop them */
   pointLights: boolean;
@@ -209,6 +195,10 @@ export interface RangeOptions {
 export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLights: true, shadowSize: 4096 }): void {
   RANGE_SOLIDS.length = 0;
   TARGET_RAILS.length = 0;
+  RANGE_PLAIN.clear();
+  RANGE_PLAIN.name = "range:plain";
+  RANGE_PLAIN.visible = true;
+  scene.add(RANGE_PLAIN);
   ZIPLINES.length = 0;
   LADDERS.length = 0;
   if (opts.solids) RANGE_SOLIDS.push(...opts.solids);
@@ -237,10 +227,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // Painted structural steel is a dielectric with a thin metal flake at most.
   // These are the values for painted metal, not for a mirror.
   const wall = flat(0x252b3a, 0.7, 0.1);
-  const catwalk = flat(0x3a4256, 0.55, 0.2);
   const panel = flat(0x161b27, 0.6, 0.12);
-  const trim = flat(0x0c0e14, 0.6, 0.4);
-  const glow = emissive(0xff2e9a, 2.6);
 
   // ---------- sky and fog ----------
   // An authored gradient dome, not the HDRI. The HDRI stays as
@@ -275,12 +262,11 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   pad.rotation.x = -Math.PI / 2;
   pad.position.set(0, 0, -47);
   pad.receiveShadow = true;
-  scene.add(pad);
+  RANGE_PLAIN.add(pad);
 
   // ---------- lane markings ----------
   const paint = new THREE.MeshStandardMaterial({ color: PAL.paint, roughness: 0.85 });
   const paintDim = new THREE.MeshStandardMaterial({ color: 0x8e8878, roughness: 0.9 });
-  const accent = new THREE.MeshStandardMaterial({ color: PAL.orange, roughness: 0.8 });
 
   const stripe = (w: number, d: number, x: number, z: number, mat: THREE.Material) => {
     const m = new THREE.Mesh(new THREE.PlaneGeometry(w, d), mat);
@@ -315,11 +301,6 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   for (let d = 10; d <= 100; d += 10) {
     const major = d % 50 === 0;
     stripe(64, major ? 0.3 : 0.14, 0, -d, major ? paint : paintDim);
-    for (const x of [-26, 26]) {
-      const l = labelSprite(`${d}`, major ? 84 : 64, major ? "#ffffff" : "#cfd6dc");
-      l.position.set(x, 1.5, -d);
-      scene.add(l);
-    }
     if (major || d % 20 === 0) {
       const n = floorNumber(`${d}`, major ? 7 : 5, major ? "#e4ddd0" : "#a79c89");
       n.position.set(0, 0.013, -d - (major ? 3.6 : 2.6));
@@ -341,314 +322,29 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // Four pieces and three gates, each with a lintel over it: back-left into
   // THE RUN, back-right into the tutorial, the middle the tutorial's way out.
   const cuts = [-34, ...COURSE_GATES.flatMap((g) => [g.minX, g.maxX]), 34];
-  for (let i = 0; i < cuts.length; i += 2) addBox(scene, wall, cuts[i + 1] - cuts[i], 6, 1, (cuts[i] + cuts[i + 1]) / 2, 0, 8.5);
-  for (const g of COURSE_GATES) addBox(scene, wall, g.maxX - g.minX, 2.5, 1, (g.minX + g.maxX) / 2, 3.5, 8.5);
+  for (let i = 0; i < cuts.length; i += 2) addBox(RANGE_PLAIN, wall, cuts[i + 1] - cuts[i], 6, 1, (cuts[i] + cuts[i + 1]) / 2, 0, 8.5);
+  for (const g of COURSE_GATES) addBox(RANGE_PLAIN, wall, g.maxX - g.minX, 2.5, 1, (g.minX + g.maxX) / 2, 3.5, 8.5);
   // Side walls. 10 m, not 6: a sprint jump off the 4.6 m platform peaked at
   // 5.9 m and landed the player on top of a 6 m wall, where the arena clamp
   // then kept them walking along the cap.
   // They stop at the back wall (z 9): past it on the left the course's own
   // wall carries on, and two coplanar walls would flicker.
-  addBox(scene, wall, 1, 10, 117, -34, 0, -49.5, { tile: 3 });
-  addBox(scene, wall, 1, 10, 117, 34, 0, -49.5, { tile: 3 });
+  addBox(RANGE_PLAIN, wall, 1, 10, 117, -34, 0, -49.5, { tile: 3 });
+  addBox(RANGE_PLAIN, wall, 1, 10, 117, 34, 0, -49.5, { tile: 3 });
   // far backstop
-  addBox(scene, wall, 68, 9, 1.5, 0, 0, -107.5, { tile: 3 });
+  addBox(RANGE_PLAIN, wall, 68, 9, 1.5, 0, 0, -107.5, { tile: 3 });
 
-  // The warehouse roof over the whole range, at the side walls' 10 m, the
-  // same build as the course's and the arena's. The back wall (6 m) and the
-  // backstop (9 m) are closed up to it.
-  addBox(scene, wall, 68, 4, 1, 0, 6, 8.5, { tile: 3 });
-  addBox(scene, wall, 68, 1, 1.5, 0, 9, -107.5, { tile: 3 });
-  // (dark, Milestone 631: the owner, 2026-10-17, "the roof of the range should be different as well, make it darker
-  // themed"; the warehouse's pale grey panels and white lamps lit the whole top of the frame. The panels are the walls'
-  // own blue-black, the lamps at a third of their brightness and the skylights smoked)
-  warehouseRoof(scene, {
-    x0: -34.5,
-    x1: 34.5,
-    z0: -108.5,
-    z1: 9,
-    y: 10,
-    skylightEvery: 4,
-    panelColor: 0x1a1f2b,
-    beamColor: 0x0f1218,
-    lampIntensity: 0.9,
-    glass: { color: 0x2a3446, opacity: 0.55 },
-    shade: true,
-    // (none down the middle: it hung through the manual's sign 24 m in, 9.28 m up, and crossed its name once the sign
-    // grew to hold it larger, 2026-10-12)
-    girders: [-17, 17],
-    lights: [-26, -9, 9, 26],
-    solid: (minX, maxX, minZ, maxZ, base, top) => RANGE_SOLIDS.push({ minX, maxX, minZ, maxZ, base, top }),
-  });
-
-  // Roof over the BAYS BEHIND the firing line, not over the line itself.
-  //
-  // It used to span z -5.5 to 8.5 with the spawn at z = 0, so the player stood
-  // under the middle of it and its underside filled the top third of the
-  // default view: a dark unlit slab across the frame that no amount of
-  // lighting elsewhere could fix. Measured, the transition sat at screen
-  // y = 132 of 900. It now starts at z = 1 and runs back, so from the firing
-  // line you see sky ahead and the canopy only when you look up or turn round.
-  //
-  // It is also higher, 6.2 instead of 5.2, which reads as an industrial
-  // structure rather than a carport.
-  const ROOF_Y = 6.2;
-  const ROOF_NEAR = 1.0;
-  const ROOF_FAR = 9.5;
-  const roofDepth = ROOF_FAR - ROOF_NEAR;
-  const roofGeo = new THREE.BoxGeometry(67, 0.4, roofDepth);
-  tileBox(roofGeo, 2); // without this the 67 m roof shows two thirds of one tile
-  // (wall to wall since Milestone 631: at 64 m it left 1.5 m each side where the sun came through the roof onto the floor
-  // beside the stands, a white blaze under bloom. Dark like the roof over it; and solid, so a player who double jumps or wall runs up onto it stands
-  // there rather than falling through: the owner, 2026-10-17, "the podium up there we can't even stand on we glitch
-  // through")
-  const roof = new THREE.Mesh(roofGeo, flat(0x1d2330, 0.72, 0.06));
-  roof.position.set(0, ROOF_Y, (ROOF_NEAR + ROOF_FAR) / 2);
-  roof.castShadow = true;
-  roof.receiveShadow = true;
-  scene.add(roof);
-  RANGE_SOLIDS.push({ minX: -33.5, maxX: 33.5, minZ: ROOF_NEAR, maxZ: ROOF_FAR, base: ROOF_Y - 0.2, top: ROOF_Y + 0.2 });
-  // a fascia along the canopy's front, 1.2 m deep: the low sun under the canopy's edge lit the floor before the gun and
-  // hack stands white under bloom (Milestone 631). Above head height, so it hides none of the stands
-  const fascia = new THREE.Mesh(new THREE.BoxGeometry(67, 1.2, 0.25), flat(0x161b27, 0.6, 0.12));
-  fascia.position.set(0, ROOF_Y - 0.6, ROOF_NEAR + 0.12);
-  fascia.castShadow = true;
-  fascia.receiveShadow = true;
-  scene.add(fascia);
-  for (const x of [-30, -18, -6, 6, 18, 30]) {
-    // The back row sits inside the back wall (z 8 to 9). At ROOF_FAR - 0.6 it
-    // stuck 15 cm through into the course's start area.
-    for (const z of [ROOF_NEAR + 0.6, ROOF_FAR - 1.0]) {
-      addBox(scene, panel, 0.5, ROOF_Y, 0.5, x, 0, z, { tile: 2 });
-    }
-  }
-
-  // Shooting bay dividers. None at x = 0: the player spawns there, and a
-  // divider on the spawn ejected them 0.56 m sideways on the first frame,
-  // which also broke the lane distances the spawn point exists to make exact.
-  for (const x of [-24, -12, 12, 24]) {
-    addBox(scene, panel, 0.3, 1.25, 3.2, x, 0, 1.4, { tile: 1.5 });
-  }
-
-  // ---------- cover row for crouch and slide practice ----------
-  for (const [x, z, w, h] of [
-    [-14, -16, 4, 1.15],
-    [-4, -22, 3, 0.95],
-    [8, -18, 5, 1.3],
-    [20, -26, 3.5, 1.15],
-    [-22, -30, 4, 0.95],
-    [2, -34, 6, 1.5],
-    [16, -40, 4, 1.15],
-    [-10, -44, 5, 1.3],
-  ] as Array<[number, number, number, number]>) {
-    addBox(scene, panel, w, h, 1.1, x, 0, z, { tile: 1.5 });
-  }
-
-  // a low rail to slide under: two posts and a beam, no collider on the beam
-  for (const z of [-26, -52]) {
-    addBox(scene, panel, 0.35, 1.35, 0.35, -3, 0, z, { tile: 1 });
-    addBox(scene, panel, 0.35, 1.35, 0.35, 3, 0, z, { tile: 1 });
-    const beam = new THREE.Mesh(new THREE.BoxGeometry(6.4, 0.3, 0.3), accent);
-    beam.position.set(0, 1.5, z);
-    beam.castShadow = true;
-    scene.add(beam);
-  }
-
-  // ---------- elevated side platforms ----------
-  // Left platform, reached by stairs. The lowest step must be NEAREST the
-  // firing line (highest z) and they ascend away from it, or the player walks
-  // into the top step face-first. Rise per step is 0.44 m against a free
-  // step-up of 0.559 m; at 0.55 the margin was 9 mm and one rounding away
-  // from an unclimbable staircase.
-  const platY = 4;
-  addBox(scene, catwalk, 14, 0.6, 22, -24, platY, -40, { tile: 2 });
-  const STEPS = 10;
-  const STEP_RISE = 0.44;
-  const STEP_DEPTH = 1.2;
-  for (let i = 0; i < STEPS; i++) {
-    // Each step is solid all the way to the ground. Boxes that floated at
-    // their own tread height let a crouched player walk straight through the
-    // body of the staircase.
-    const top = (i + 1) * STEP_RISE;
-    addBox(scene, catwalk, 5, top, STEP_DEPTH, -20, 0, -17.6 - i * STEP_DEPTH, { tile: 1.5 });
-  }
-  // Right platform, reached by a ramp you can slide down.
-  addBox(scene, catwalk, 14, 0.6, 22, 24, platY, -40, { tile: 2 });
-
-  // The ramp angle is DERIVED from the slide physics, not chosen. Built by eye
-  // at 12.9 degrees it was far too shallow: slide friction at speed is
-  // dominated by the velocity-proportional decay term, and cancelling that at
-  // the slide boost cap needs 30.4 degrees. Below the break-even angle a slide
-  // down a ramp still decays, which made the ramp pointless for the one thing
-  // a ramp is for. See slideBreakEvenAngle in movement.ts.
-  const RAMP_TOP_Y = platY + 0.6;
-  const RAMP_TOP_Z = -29; // meets the platform's near edge
-  const rampRun = RAMP_TOP_Y / Math.tan(SLIDE_RAMP_ANGLE);
-  const rampBottomZ = RAMP_TOP_Z + rampRun;
-  const rampLen = RAMP_TOP_Y / Math.sin(SLIDE_RAMP_ANGLE);
-
-  // The mesh must rise toward -z to match its colliders. At a negative
-  // rotation the visible ramp sloped the opposite way and passed through the
-  // player's head while they walked up an invisible slope.
-  const rampGeo = new THREE.BoxGeometry(5, 0.4, rampLen);
-  tileBox(rampGeo, 2);
-  const ramp = new THREE.Mesh(rampGeo, catwalk);
-  ramp.position.set(18, RAMP_TOP_Y / 2, (RAMP_TOP_Z + rampBottomZ) / 2);
-  ramp.rotation.x = SLIDE_RAMP_ANGLE;
-  ramp.castShadow = true;
-  ramp.receiveShadow = true;
-  scene.add(ramp);
-
-  // Stepped colliders under the ramp, since collision is axis-aligned boxes.
-  // Step count is chosen so the rise per step keeps a real margin under the
-  // free step-up height; at 14 steps the rise is 0.33 m against a 0.56 m
-  // step, rather than the 9 mm margin the stairs once had.
-  const RAMP_STEPS = 14;
-  for (let i = 0; i < RAMP_STEPS; i++) {
-    const t0 = i / RAMP_STEPS;
-    RANGE_SOLIDS.push({
-      minX: 15.5, maxX: 20.5,
-      minZ: RAMP_TOP_Z + rampRun * t0,
-      maxZ: RAMP_TOP_Z + rampRun * ((i + 1) / RAMP_STEPS),
-      top: RAMP_TOP_Y * (1 - t0),
-      base: 0,
-    });
-  }
-  // A wedge of side skirt so the ramp does not read as a floating plank.
-  for (const sx of [15.4, 20.6]) {
-    const skirt = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.55, rampLen), panel);
-    skirt.position.set(sx, RAMP_TOP_Y / 2, (RAMP_TOP_Z + rampBottomZ) / 2);
-    skirt.rotation.x = SLIDE_RAMP_ANGLE;
-    skirt.castShadow = true;
-    scene.add(skirt);
-  }
-  // Platform railings: a top rail, a mid rail and posts, rather than one bar
-  // floating in space. Three thin elements at different heights are what makes
-  // a silhouette read as a handrail, and they catch the low sun along their
-  // whole length.
-  for (const sx of [-24, 24]) {
-    for (const dz of [-11, 11]) {
-      for (const [hy, th] of [
-        [1.65, 0.09],
-        [0.95, 0.06],
-      ] as const) {
-        const r = new THREE.Mesh(bevel(14, th, th, th * 0.4), trim);
-        r.position.set(sx, platY + hy, -40 + dz);
-        r.castShadow = true;
-        scene.add(r);
-      }
-      for (let i = -3; i <= 3; i++) {
-        const post = new THREE.Mesh(bevel(0.08, 1.7, 0.08, 0.02), trim);
-        post.position.set(sx + i * 2.2, platY + 0.85, -40 + dz);
-        post.castShadow = true;
-        scene.add(post);
-      }
-    }
-    // An emissive strip under the platform lip. Edge lighting is the single
-    // clearest way to describe a silhouette against a bright sky, and it is
-    // the only thing in the frame above the bloom threshold.
-    for (const dz of [-11, 11]) {
-      const strip = new THREE.Mesh(new THREE.BoxGeometry(14, 0.07, 0.03), glow);
-      strip.position.set(sx, platY - 0.08, -40 + dz + (dz > 0 ? 0.32 : -0.32));
-      scene.add(strip);
-    }
-  }
-
-  // ---------- trim: kick plates and roof edge ----------
-  // Orange at the base of every long wall. A horizontal band low on a tall
-  // surface gives it a floor line and a sense of height; without one a 10 m
-  // wall and a 4 m wall look identical.
-  for (const [x, z, w, d] of [
-    [-33.4, -49.5, 0.12, 117],
-    [33.4, -49.5, 0.12, 117],
-    // the back wall's, either side of each course gate
-    ...(() => {
-      const cuts = [-34, ...COURSE_GATES.flatMap((g) => [g.minX, g.maxX]), 34];
-      const out: Array<readonly [number, number, number, number]> = [];
-      for (let i = 0; i < cuts.length; i += 2) out.push([(cuts[i] + cuts[i + 1]) / 2, 7.9, cuts[i + 1] - cuts[i], 0.12]);
-      return out;
-    })(),
-    [0, -106.9, 68, 0.12],
-  ] as const) {
-    const kick = new THREE.Mesh(bevel(w, 0.5, d, 0.03), trim);
-    kick.position.set(x, 0.25, z);
-    kick.receiveShadow = true;
-    scene.add(kick);
-  }
-  // Roof edge light bar, facing down along the canopy's leading edge.
-  const roofBar = new THREE.Mesh(new THREE.BoxGeometry(62, 0.1, 0.16), emissive(0xff2e9a, 1.3));
-  roofBar.position.set(0, ROOF_Y - 0.26, ROOF_NEAR + 0.2);
-  scene.add(roofBar);
-
-  // ---------- ceiling lights ----------
-  // The canopy's underside is what you see when you turn round or look up from
-  // the bays. Unlit, it is a dark slab no matter how good the lighting is
-  // everywhere else. Real ranges light the bays from above; so does this one.
-  // (a warm white at about half what it was, Milestone 631: under bloom the strips and the stands' columns of light
-  // under them washed the bays out white, the owner: "the lights by the hacks and guns are super bright")
-  const lampWhite = emissive(0xffe6c4, 1.6);
-  for (const x of [-27, -18, -9, 0, 9, 18, 27]) {
-    for (const z of [ROOF_NEAR + 2.2, ROOF_FAR - 2.2]) {
-      // The housing sits flush against the roof and the lit strip hangs BELOW
-      // it. Previously the two overlapped and the housing covered most of the
-      // strip it was meant to hold.
-      const can = new THREE.Mesh(bevel(5.6, 0.16, 0.8, 0.05), panel);
-      can.position.set(x, ROOF_Y - 0.28, z);
-      can.castShadow = false;
-      scene.add(can);
-      const lamp = new THREE.Mesh(new THREE.BoxGeometry(5.2, 0.07, 0.55), lampWhite);
-      lamp.position.set(x, ROOF_Y - 0.39, z);
-      scene.add(lamp);
-    }
-  }
-  // Six lights doing the actual work. Point lights are expensive per-fragment,
-  // so this is six covering a 64 m line rather than one per fitting. Intensity
-  // is in candela and falls off with the square of distance, so at 26 the
-  // nearest fitting was contributing about as much as the sky bounce; a ceiling
-  // wants to be lit by its own lamps, not by the sky it is blocking.
-  for (const x of opts.pointLights ? [-27, -16, -5, 5, 16, 27] : []) {
-    const pl = new THREE.PointLight(0xffeccd, 55, 34, 2);
-    pl.position.set(x, ROOF_Y - 0.7, (ROOF_NEAR + ROOF_FAR) / 2);
-    scene.add(pl);
-  }
-
-  // ---------- mantle ledges, waist to chest height ----------
-  for (const [x, z, h] of [
-    [-30, -8, 1.6],
-    [30, -8, 2.0],
-    [-30, -58, 2.4],
-    [30, -58, 1.6],
-  ] as Array<[number, number, number]>) {
-    addBox(scene, panel, 6, h, 3, x, 0, z, { tile: 1.5 });
-  }
-
-  // ---------- wallbounce practice, on the right-hand wall ----------
-  // The climb zones painted on the wall at the heights they sit when you jump
-  // from this floor: where your FEET are when you jump off decides what you
-  // get (mini-bounce, wallbounce, wall push). A take-off line on the floor.
-  const zones = climbZonesPanel();
-  zones.position.set(33.49, 2, -19);
-  zones.rotation.y = -Math.PI / 2;
-  scene.add(zones);
-  scene.add(
-    textPanel(
-      "WALLBOUNCE (the recipe)\n\nSprint at the wall. Crouch to slide, then JUMP out of the slide. Stop holding {forward}. Hit the wall at the top of the jump or just after: a slide jump peaks at 44 hu, inside the green band. Press jump. Lower in the band is a bigger bounce. A plain sprint jump peaks at 56, above the band: touch there and you get a wall push, no height. Hold {forward} into the wall and you get the height but no distance (a wallskip). The feed on the left says what you got and why.",
-      33.48, 5.6, -19, -Math.PI / 2, 6, 3.0
-    )
-  );
-  const takeoff = new THREE.Mesh(new THREE.PlaneGeometry(0.12, 6), paint);
-  takeoff.rotation.x = -Math.PI / 2;
-  takeoff.position.set(31.3, 0.012, -19);
-  scene.add(takeoff);
-
-  // ---------- ladders on the side platforms ----------
-  // A ladder in Apex is rungs on a wall a climb gets you up, so each platform
-  // gets a wall column to its top with a ladder on it. The platforms are 4.6 m,
-  // within a jump, climb and mantle.
-  for (const side of [-1, 1]) {
-    const faceX = side * 16.5;
-    addBox(scene, panel, 0.5, platY + 0.6, 2.4, faceX - side * 0.25, 0, -46, { tile: 1.5 });
-    buildLadder(scene, faceX, -46, -side, 0, 0, platY + 0.6);
-  }
+  // Closed up to 10 m over the gate wall and the backstop, and the walls' colliders taller than the street's buildings
+  // either side (rangedress.json blocks, 18 to 44 m): with no roof since Milestone 691 (the owner: "nothing is the old UI
+  // anymore, its all built off the city"), a LEAP's 16 m would have cleared a 10 m wall
+  addBox(RANGE_PLAIN, wall, 68, 4, 1, 0, 6, 8.5, { tile: 3 });
+  addBox(RANGE_PLAIN, wall, 68, 1, 1.5, 0, 9, -107.5, { tile: 3 });
+  for (const [minX, maxX, minZ, maxZ] of [
+    [-34.5, -33.5, -108.25, 9],
+    [33.5, 34.5, -108.25, 9],
+    [-34.5, 34.5, -108.25, -106.75],
+    [-34.5, 34.5, 8, 9],
+  ]) RANGE_SOLIDS.push({ minX, maxX, minZ, maxZ, base: 10, top: WALLS_TOP });
 
   // ---------- the way to the course ----------
   // A lit frame round the gate, a sign over it facing the spawn, and arrows
@@ -657,7 +353,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   const arrowMat = new THREE.MeshBasicMaterial({ map: chevron, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
   // (the tutorial's way out has no arrows: it is not a way in)
   for (const [g, glowColor, title, fromX, arrows] of [
-    [COURSE_GATE, PAL.orange, "THE RUN: BASIC\nSeven rooms: slides, a climb, a superglide, a gap, ziplines. Beat the clock.", -3, true],
+    [COURSE_GATE, PAL.orange, "THE RUN\nNine rooms out and back: a slide, a climb, a double jump, a wall run, a superglide. Beat the clock.", -3, true],
     [COURSE_GATE_R, 0xffd23c, "THE TUTORIAL: START HERE\nEvery move, then your hacks, then a gun: the game a room at a time.", 3, true],
     [COURSE_GATE_C, 0x7ddc8a, "THE TUTORIAL: WAY OUT\nIt comes out here, into the range.", 0, false],
   ] as const) {
@@ -727,40 +423,8 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     });
   }
 
-  // ---------- dressing ----------
-  // Real props break up the boxes. Colliders are added here so collision does
-  // not wait on a network fetch; the visible models arrive when they arrive.
+  // (the warehouse's crates, drums, barriers and floodlights went with it, Milestone 691: the street is the dressing's)
   PROP_PLACEMENTS.length = 0;
-  const prop = (p: Placement) => {
-    PROP_PLACEMENTS.push(p);
-    if (p.solid) {
-      RANGE_SOLIDS.push({
-        minX: p.x - p.solid.w / 2, maxX: p.x + p.solid.w / 2,
-        minZ: p.z - p.solid.d / 2, maxZ: p.z + p.solid.d / 2,
-        top: (p.y ?? 0) + p.solid.h,
-        base: p.y ?? 0,
-      });
-    }
-  };
-
-  // crate stacks flanking the racks
-  for (const [x, z, r] of [[-31, 3, 12], [-31, 0.5, -8], [31, 3, -20], [31, 0.6, 6], [-29.5, -2.5, 40]] as Array<[number, number, number]>) {
-    prop({ prop: "wooden_military_crate", x, z, rot: r, solid: { w: 1.1, h: 0.8, d: 0.8 } });
-  }
-  // drums along the walls
-  for (const [x, z] of [[-32, -14], [-32, -16.2], [32, -34], [32, -36.2], [-32, -62], [32, -70]] as Array<[number, number]>) {
-    prop({ prop: "Barrel_01", x, z, rot: Math.random() * 360, solid: { w: 0.7, h: 0.95, d: 0.7 } });
-  }
-  // concrete barriers marking the lane mouths
-  for (const x of [-22, -10, 10, 22]) {
-    prop({ prop: "concrete_road_barrier", x, z: -8, rot: 90, solid: { w: 0.8, h: 0.85, d: 2.2 } });
-  }
-  // Floodlights on the front pillar row. They followed the old roof line at
-  // z = -4.5; once the canopy moved back they were left hanging in open air
-  // 6 m in front of the pillars that were meant to carry them.
-  for (const x of [-30, -6, 18]) {
-    prop({ prop: "security_light", x, z: 1.1, y: 4.2, rot: 180, scale: 1.4 });
-  }
 
   // ---------- lighting ----------
   //
@@ -821,6 +485,8 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   rim.position.set(-50, 30, -140);
   scene.add(rim);
   rimLight = rim;
+  // (the plain look out of the page's static merge, so the street's dressing can hide it: rangedress.ts)
+  RANGE_PLAIN.traverse((o) => (o.userData.dynamic = true));
 }
 
 /**
@@ -868,49 +534,6 @@ function spawnNote(): THREE.Mesh {
   );
   m.rotation.x = -Math.PI / 2;
   return m;
-}
-
-/**
- * The climb zones painted on a wall, 6 m wide and 4 m tall from the floor:
- * mini (0 to 19 hu), green (19 to 47 hu), neutral (47 to 147 hu), from the
- * movement constants so the paint cannot drift from the rules.
- */
-function climbZonesPanel(): THREE.Mesh {
-  const PX = 96;
-  const W = 6;
-  const H = 4;
-  const cv = document.createElement("canvas");
-  cv.width = W * PX;
-  cv.height = H * PX;
-  const g = cv.getContext("2d")!;
-  const tex = new THREE.CanvasTexture(cv);
-  tex.colorSpace = THREE.SRGBColorSpace;
-  const y = (m: number) => cv.height - m * PX;
-  const mini = MOVE.climbMiniZone;
-  const green = MOVE.climbGreenZoneTop;
-  const top = MOVE.climbSpaceHeight;
-  const draw = () => {
-    g.clearRect(0, 0, cv.width, cv.height);
-    const band = (from: number, to: number, fill: string, label: string, color: string) => {
-      g.fillStyle = fill;
-      g.fillRect(0, y(to), cv.width, y(from) - y(to));
-      g.fillStyle = color;
-      g.font = '700 30px "Rajdhani", "Segoe UI", sans-serif';
-      g.fillText(label, 16, y(to) + 32);
-    };
-    band(green, top, "rgba(160,170,180,0.22)", "NEUTRAL: wall push, no height", "#e8ecef");
-    band(mini, green, "rgba(63,191,95,0.72)", "GREEN: jump with your feet here", "#ffffff");
-    band(0, mini, "rgba(59,130,196,0.7)", "MINI", "#ffffff");
-    g.fillStyle = "rgba(255,255,255,0.8)";
-    g.fillRect(0, y(top) - 2, cv.width, 4);
-    tex.needsUpdate = true;
-  };
-  draw();
-  document.fonts?.load('700 30px "Rajdhani"').then(draw, () => undefined);
-  return new THREE.Mesh(
-    new THREE.PlaneGeometry(W, H),
-    new THREE.MeshBasicMaterial({ map: tex, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 })
-  );
 }
 
 /** a painted chevron pointing up the texture (+v), for the floor arrows */

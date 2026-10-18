@@ -12181,6 +12181,46 @@ through walls". (The lobby's milestones run on from 690: 620 to 639 are used, an
   - Proven with the number put back at the hit and the REVEAL's drawing taken out (2 FAIL: the number at 1.20 m; no
     REVEAL drawn).
 
+## Milestone 691 — The firing range rebuilt as a street of the Neon City
+
+The owner, 2026-10-18: "We should redo the range so that nothing is the old UI anymore, its all built off the city. It
+shouldn't be big though, like i enjoy how we can load into the firing range and the tutorial rather quickly so reuse
+certain elements, don't have too many soldiers and don't get too creative it should just be like a section on the map
+already and then have our range stuff setup for it (moving targets plus all the guns and hacks and descriptions + TVs
+that we used to have." (docs/PLAN_RANGE_NEON.md.)
+
+- **A street at night**, the range's own size (68 m by 117 m), drawn from a file of its own, laid over the range's
+  colliders (src/game/rangedress.ts; tools/range-dress.ts, src/config/rangedress.json):
+  - The road down the middle in the bundle's wet asphalt, with sidewalks and curbs either side.
+  - Buildings 18 to 44 m tall down both sides, across the far end and over the gate wall. Their sides are in the
+    bundle's own lit-window materials, chosen off a swatch sheet of 31 (DRESS=swatch), with five metres of shop fronts
+    at the street.
+  - The gate wall's face is the tutorial's tech panel, but its three gates.
+  - The bundle's English neon signs are on the buildings, and the night sky is open overhead.
+- **Small, as the tutorial's: 2.9 MB.** A first try stood the bundle's own buildings along the street. Their prefabs
+  bring scores of materials each: 142 materials, 14 MB. The blocks here are 10 materials and 2,000 triangles, and the
+  signs 10,000 triangles.
+- **Kept:** every gun and hack stand with its screen, the moving targets and the target banks, the distance lines and
+  floor numbers, the spray wall, the flick drill, the superglide trainer, and the README screen.
+- **Gone:**
+  - The warehouse roof, and the canopy over the stands with its pillars, fascia and lamps.
+  - The bay dividers, the cover row and its slide rails, the two side platforms with their stairs, ramp, railings and
+    ladders, the wallbounce wall and its recipe sign, the mantle ledges.
+  - The crates, drums, barriers and floodlights, and the distance sprites floating at the lane edges.
+  - The movement practice is the tutorial's and the movement lab's now.
+- **Fewer soldiers:** four standing dummies, from eight (none on the platform that went), and the two on the rails.
+- **Walls over a LEAP:** with no roof, the walls' colliders reach 60 m, over the street's tallest building (44 m).
+  Before, a LEAP's 16 m would have cleared the old 10 m walls.
+- **THE RUN's sign over its gate** says what it is since Milestone 636: nine rooms out and back.
+- **Guarded:** the deploy refuses a release without the range's file whole, and the live check reads it on the site
+  (tools/citybake.ts, as the tutorial's).
+- **Checked:**
+  - tsc; verify (the city files check: a release without the range's street refused); rules.
+  - e2e page: the street drawn from its own file, the plain look hidden.
+  - e2e range: six figures in the soldier; open to the sky over the stands, the side wall's collider 60 m.
+  - e2e speedkills.
+  - Photographed from the spawn, down the street, from the far end back, and at the stands.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

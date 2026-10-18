@@ -63,3 +63,9 @@ The movement practice is the tutorial's and the movement lab's now. It goes, wit
 2. The dressing: the street, the buildings, the gate wall, the lights and signs, from its own file.
 3. Photographed from the spawn, down the street, from the far end back, at the stands and at each gate. Then shown to
    the owner.
+
+## Shipped
+
+Milestone 691: steps 1 to 3 as above, with one change from the plan. The sides are blocks dressed in the bundle's own
+window materials, not its buildings. The buildings' prefabs bring scores of materials each (142 materials, 14 MB in a
+try), and the range's file had to stay small: it is 2.9 MB.

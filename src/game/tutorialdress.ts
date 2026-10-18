@@ -17,12 +17,19 @@ export const TUTORIAL_DRESS = { asked: false, drawn: false, failed: false, meshe
 
 /** the dressing's file, read and made ready to draw, or null where there is none (or it would not read) */
 export async function loadTutorialDress(renderer: THREE.WebGLRenderer): Promise<THREE.Object3D | null> {
-  TUTORIAL_DRESS.asked = true;
-  const url = `models/paid/neon/tutorial-v${dress.version}.glb?v=${dress.version}`;
+  return loadNeonDress(renderer, `models/paid/neon/tutorial-v${dress.version}.glb?v=${dress.version}`, "tutorial:dress", TUTORIAL_DRESS);
+}
+
+/**
+ * A dressing of its own in the Neon City bundle, read: the tutorial's, and since Milestone 691 the range's street
+ * (rangedress.ts). What it did goes in `state`, for the tests and the screen.
+ */
+export async function loadNeonDress(renderer: THREE.WebGLRenderer, url: string, name: string, state: typeof TUTORIAL_DRESS): Promise<THREE.Object3D | null> {
+  state.asked = true;
   // (a HEAD first: the dev server answers a missing file with its index page, which is a checkout without the bought files)
   const probe = await fetch(url, { method: "HEAD" }).catch(() => null);
   if (!probe?.ok || (probe.headers.get("content-type") ?? "").includes("text/html")) {
-    TUTORIAL_DRESS.failed = true;
+    state.failed = true;
     return null;
   }
   // its own transcoder, two workers: a few textures, not the city's hundreds
@@ -48,11 +55,11 @@ export async function loadTutorialDress(renderer: THREE.WebGLRenderer): Promise<
         if (strength > 1 && m.emissiveIntensity === 1) m.emissiveIntensity = strength;
       }
     });
-    gltf.scene.name = "tutorial:dress";
-    Object.assign(TUTORIAL_DRESS, { drawn: true, meshes, file: url });
+    gltf.scene.name = name;
+    Object.assign(state, { drawn: true, meshes, file: url });
     return gltf.scene;
   } catch {
-    TUTORIAL_DRESS.failed = true;
+    state.failed = true;
     return null;
   } finally {
     ktx2.dispose();

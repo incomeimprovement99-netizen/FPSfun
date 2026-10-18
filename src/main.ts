@@ -34,12 +34,13 @@ import { BASIC_COURSE, RUN_ROUTE } from "./game/courses/basic";
 import { TUTORIAL_COURSE, DASH_HAZARD } from "./game/courses/tutorial";
 import { Tutorial, DASH_STEP, GUN_STEP, type TutorialCheck, type TutorialHud } from "./game/tutorial";
 import { loadTutorialDress, TUTORIAL_DRESS } from "./game/tutorialdress";
+import { loadRangeDress, RANGE_DRESS } from "./game/rangedress";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, RENDER_SCALES, loadRenderScale, saveRenderScale } from "./game/quality";
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
-import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, RANGE_PLAIN, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { floorAt } from "./game/floors";
 import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
@@ -1015,18 +1016,9 @@ atmosphereOn(quality.cityDetail >= 1 && !new URLSearchParams(location.search).ha
 ownAir(NEON_AIR);
 
 // Static dummies down the lanes, plus one on each moving rail. Distances are
-// true because the player spawns on the firing line at z = 0.
-const dummies: Dummy[] = [
-  new Dummy(-12, -15, 15),
-  new Dummy(-4, -25, 25),
-  new Dummy(4, -30, 30),
-  new Dummy(12, -45, 45),
-  new Dummy(-20, -55, 55),
-  new Dummy(0, -70, 70),
-  new Dummy(18, -85, 85),
-  new Dummy(-24, -40, 46), // on the left platform; height is set below
-];
-dummies[dummies.length - 1].group.position.y = 4.6;
+// true because the player spawns on the firing line at z = 0. Four since Milestone 691 (the owner: "don't have too many
+// soldiers"), from eight, and none on the platform that went with the old range.
+const dummies: Dummy[] = [new Dummy(-12, -15, 15), new Dummy(4, -30, 30), new Dummy(-20, -55, 55), new Dummy(18, -85, 85)];
 for (const rail of TARGET_RAILS) {
   const d = new Dummy((rail.minX + rail.maxX) / 2, rail.z, Math.abs(rail.z));
   d.rail = rail;
@@ -3389,6 +3381,16 @@ let lastPingAt = -Infinity;
 
 /** the tutorial's steps over its course (tutorial.ts): a room each, its doors, and the hacks off until their room */
 const tutorial = new Tutorial(scene, courseTutorial);
+// the range's street in the Neon City bundle (Milestone 691): its own small file, first after the page's first screen,
+// over the range's plain look, which it hides (a checkout without the bought files keeps that)
+later(() => {
+  if (!NO_RENDER)
+    void loadRangeDress(renderer).then((d) => {
+      if (!d) return;
+      rangeSide.add(d);
+      RANGE_PLAIN.visible = false;
+    });
+});
 // its rooms in the Neon City bundle (Milestone 634): its own small file, after the page's first screen, over its plain
 // boxes (a checkout without the bought files keeps those)
 later(() => {
@@ -8125,6 +8127,8 @@ const GALLERY = { x: 0, z: -8 };
   tutorial,
   courseTutorial,
   tutorialDress: () => ({ ...TUTORIAL_DRESS, dressed: courseTutorial.isDressed }),
+  /** the range's street (Milestone 691): its file, and whether the plain look under it is hidden */
+  rangeDress: () => ({ ...RANGE_DRESS, plainShown: RANGE_PLAIN.visible }),
   opticAdsMult,
   padButtons,
   /** the range's readout counters (shots, hits) */

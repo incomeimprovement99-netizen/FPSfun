@@ -6,7 +6,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { CITY_KITS, cityBakeProblems, cityFile, glbHeaderProblem, tutorialDressProblems, tutorialFile } from "../citybake";
+import { CITY_KITS, cityBakeProblems, cityFile, glbHeaderProblem, rangeDressProblems, rangeFile, tutorialDressProblems, tutorialFile } from "../citybake";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -55,6 +55,11 @@ check("nothing there is caught", /not a GLB header/.test(glbHeaderProblem(new Ui
     check("and one with it cut short", tutorialDressProblems(dir, 1).length === 1 && /cut short/.test(tutorialDressProblems(dir, 1)[0]));
     writeFileSync(t, glb(256));
     check("whole, it may ship", tutorialDressProblems(dir, 1).length === 0);
+    // the range's street (Milestone 691): missing, then whole
+    const missingRange = rangeDressProblems(dir, 1);
+    check("a release without the range's street is refused, naming it", missingRange.length === 1 && /range-v1\.glb is missing/.test(missingRange[0]), missingRange.join("; "));
+    writeFileSync(join(dir, rangeFile(1)), glb(256));
+    check("and with it whole it may ship", rangeDressProblems(dir, 1).length === 0);
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

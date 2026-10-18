@@ -62,6 +62,22 @@ export function tutorialDressProblems(siteRoot: string, version: number): string
   return p ? [p] : [];
 }
 
+/** the range's street (Milestone 691, tools/range-dress.ts): its committed version (src/config/rangedress.json) */
+export function rangeVersion(root: string): number {
+  return (JSON.parse(readFileSync(join(root, "src", "config", "rangedress.json"), "utf8")) as { version: number }).version;
+}
+/** where its file is, under the site's root */
+export const rangeFile = (version: number): string => `models/paid/neon/range-v${version}.glb`;
+/** that file under `siteRoot`, whole; the problems, none when it can ship */
+export function rangeDressProblems(siteRoot: string, version: number): string[] {
+  const p = glbFileProblem(siteRoot, rangeFile(version));
+  return p ? [p] : [];
+}
+/** the range's street on the live site, held as the tutorial's dressing is */
+export async function liveRangeProblems(base: string, version: number, localSite?: string): Promise<string[]> {
+  return liveGlbProblems(base, rangeFile(version), version, "the range's street", localSite);
+}
+
 /** the tutorial's dressing on the live site, held as the city's kits are (liveCityProblems) */
 export async function liveTutorialProblems(base: string, version: number, localSite?: string): Promise<string[]> {
   return liveGlbProblems(base, tutorialFile(version), version, "the tutorial's dressing", localSite);
