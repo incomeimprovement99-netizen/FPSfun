@@ -81378,9 +81378,11 @@
   "air": {
    "night": "#7a6e8c",
    "day": "#b3aec2",
-   "near": 3,
-   "far": 150,
-   "farUp": 2.2
+   "near": 60,
+   "far": 460,
+   "farUp": 2.2,
+   "nightNear": 80,
+   "nightFar": 520
   },
   "_fill": "The interiors' fill (neonmap.ts updateNeonFill): a fixed pool of `count` point lights on High, `byPreset` on the others (each light is in every lit shader per pixel on every preset, a cost on laptops: the lobby's frame-time pass, 2026-10-03), no shadows, each frame at the `count` lamp spots nearest the eye within `reach` m, height counted `tall` times over so a storey's own lamps come first (the floor above's, through a slab, lit nothing you could see); the spots are the pack's ceiling lamps the layout hung in the base and the tower, `under` m below the fitting, and a grid every `every` m over the court's and the station's floors `height` m up, none within `off` m of anything solid. `intensity` is three.js's candela (`tower` for the tower's floors' own lamps: their storeys are 3 m, the lamps close together and a metre over the eye under pale ceilings, and at the base's 60 they drew white, a mean luminance of 0.62 to 0.80 of full and up to a third of the picture clipped, where the court is 0.51 with nothing clipped; measured at 60, 24, 12 and 6, and 12 brings them to 0.27 to 0.51 with a few per cent clipped, the second review, 2026-10-03), `distance` where a light's reach ends, `colour` the lamps' warm white. The tower's floors, the base's storeys and the court drew near black at noon with only the sky's ambient (docs/CENTRE_REVIEW.md, 2026-10-02).",
   "fill": {
@@ -81542,7 +81544,8 @@
    "glow": 2
   },
   "liftRope": 0.03,
-  "_liftRope": "The vertical ropes (the lifts' and THE WELL's, the express lifts', GLASS HEIGHTS' glass lift), liftRope metres thick, drawn as the zip ropes are (zipGlow, zipCollar): THE WELL's two, lit whole, read to the sixth review as debug lines falling into its shaft."
+  "_liftRope": "The vertical ropes (the lifts' and THE WELL's, the express lifts', GLASS HEIGHTS' glass lift), liftRope metres thick, drawn as the zip ropes are (zipGlow, zipCollar): THE WELL's two, lit whole, read to the sixth review as debug lines falling into its shaft.",
+  "_air": "The city's haze from Balanced up (src/game/atmosphere.ts): its colour by day and by night, its near and far by day (`near`, `far`) and by night (`nightNear`, `nightFar`), the far end growing `farUp` a metre climbed, never past the preset's own draw distance. The owner, 2026-10-18: \"thin the golden-hour haze ... and the night fog, just a bit if anything\". It started 3 m off and was solid by 150 m, by day and by night, and two reviewers called the aerials beige and the top-down view useless as a drop map. The night's is the thinner: just a bit."
  },
  "pads": [
   {

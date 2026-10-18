@@ -14724,3 +14724,30 @@ street, one primitive per material, 441 of them each spanning the whole city, so
   - The e2e: the speedkills section, 102 of 103 run on a quiet PC (a first run beside the other agents lost the ghost loadout check to load as well). The one left, the city-missing check (Milestone 629), gets the city from the browser cache the section's earlier matches filled and never asks the network; run alone it passes, 3 of 3. verify, rules and the type check.
 
   The map: its files lo 158.1 MB, hi 236.1 MB, max 526.2 MB. **Its files are version 94.**
+
+## Milestone 658 — The city's air thinned, and the bloom almost gone
+
+The owner's calls on what two reviews in a row kept raising: "thin the golden-hour haze, yup bloom is a big thing, we
+don't want that almost at all i guess and the night fog, just a bit if anything and delete the old map bakes of
+course".
+
+- **The haze** (`game.air`, src/game/atmosphere.ts, Balanced and up):
+  - before: it started 3 m off and was solid by 150 m, by day and by night, and the reviewers called the aerials
+    beige and the top-down view useless as a drop map;
+  - by day: it now starts 60 m off and is full at 460 m;
+  - by night: it has its own, thinner, 80 to 520 m.
+
+  It still thins as you climb, never past the preset's draw distance.
+- **The bloom** (`world.json bloom`, src/game/render.ts): its numbers were literals in the code. Strength 0.32 over a
+  threshold of 0.95 is now 0.06 over 1, so the tower's ceiling lamps, THE CANYON's walkway lamps and THE STRIP's club
+  no longer blow out to white.
+- **The old map bakes** (versions 6 to 91, 529 files, 91 GB in the paid folder) are deleted. A superseded bake is
+  deleted from now on, not kept.
+- **Checked:**
+  - Photographed before and after at Balanced from the review spots, by day and by night: the aerials clear, the
+    lamps crisp.
+  - A new map check holds the owner's calls: the haze's far end 400 m and more and thinner by night, the bloom 0.1 at
+    most over a threshold of 1. It fails with the old bloom put back.
+  - The e2e: the speedkills section, 102 of 103; the one that failed, no material drawn in two passes, is the firing range's armory labels from the lobby agent's range work (transparent two-sided, found by a probe of the scene; reported to it). verify, rules and the type check.
+
+  The map's files are unchanged, version 94.

@@ -179,15 +179,15 @@ e2e, docs and deploy.
 - **684: the final reviews**: the centre's round 8 and the districts' round 2. Done if both meet the bar above;
   otherwise their lists become the next milestones.
 
-## The owner's calls (not built without the owner)
+## The owner's calls, decided 2026-10-18
 
-- **The golden-hour haze.** Both reviews ask for it thinned: "the aerials beige", "the top-down useless as a drop
-  map". It changes the look the owner chose.
-- **The bloom on the lamps and ceiling lights**, and **the night fog**: the same.
-- **Shadows** dithering on the flat roofs (14, 15, 19, 25) is the renderer's shadow resolution. It belongs to the
-  lobby agent's rendering work, and is handed to them.
-- **The old bakes** in speedkills-paid/neon/old-bakes (about 80 GB) with C: at about 42 GB free: deleted only on the
-  owner's word.
+- **The golden-hour haze:** thinned (Milestone 658).
+- **The bloom on the lamps and ceiling lights:** almost none (658).
+- **The night fog:** just a little (658).
+- **The old bakes:** deleted (91 GB).
+- **The frame rate:** last, benchmarked with the PC unused (Phase 3).
+- **Shadows** dithering on the flat roofs (14, 15, 19, 25) is the renderer's shadow resolution, handed to the lobby
+  agent.
 
 ## Risks
 

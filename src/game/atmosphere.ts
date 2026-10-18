@@ -23,8 +23,8 @@ export function atmosphereOn(v: boolean): void {
   on = v;
 }
 
-/** the map's own haze (the Neon City map, neonmap.json game.air): one colour by night and one by day, its own near and far, thinning as you climb */
-let own: { night: string; day: string; near: number; far: number; farUp: number } | null = null;
+/** the map's own haze (the Neon City map, neonmap.json game.air): a colour, a near and a far by day and by night, thinning as you climb */
+let own: { night: string; day: string; near: number; far: number; farUp: number; nightNear?: number; nightFar?: number } | null = null;
 export function ownAir(look: typeof own): void {
   own = look;
 }
@@ -66,8 +66,10 @@ export function tickAir(scene: THREE.Scene, camera: THREE.Camera, now: number, d
   last = now;
   cur.lerp(want, 1 - Math.exp(-dt / A.ease));
   fog.color.copy(cur);
-  fog.near = own.near;
-  fog.far = Math.min(saved?.far ?? own.far, own.far + Math.max(0, camera.position.y - 2) * own.farUp);
+  // (the night's own, thinner: the owner, "the night fog, just a bit if anything")
+  const [near, far] = day ? [own.near, own.far] : [own.nightNear ?? own.near, own.nightFar ?? own.far];
+  fog.near = near;
+  fog.far = Math.min(saved?.far ?? far, far + Math.max(0, camera.position.y - 2) * own.farUp);
   if (skyU) {
     skyU.uHorizon.value.copy(cur);
     skyU.uGround.value.copy(cur);

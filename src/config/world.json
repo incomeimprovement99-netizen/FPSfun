@@ -37,5 +37,11 @@
  "arenaLook": {
   "facadeTile": 16,
   "windowGlow": 1.4
+ },
+ "bloom": {
+  "strength": 0.06,
+  "radius": 0.3,
+  "threshold": 1,
+  "_note": "The post chain's bloom (src/game/render.ts, Balanced and High): its strength, radius and luminance threshold. The owner, 2026-10-18: \"bloom is a big thing, we don't want that almost at all\". It was 0.32, 0.5 and 0.95: the tower's ceiling lamps, THE CANYON's walkway lamps and THE STRIP's club blew out to white, named in two reviews in a row. Now only the brightest light glows, faintly, and gunfire barely."
  }
 }

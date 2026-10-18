@@ -1413,6 +1413,12 @@ so Competitive really does less work rather than only seeing less far: a third
 fewer triangles than Balanced from the map's corner, with the boxed rock the map
 already drew standing in beyond 126 m.
 
+**The city's air is thin, and nothing blooms.** From Balanced up the Neon City
+has a haze in its own colour: by day it starts 60 m off and is full at 460 m, by
+night 80 to 520 m, and it thins further as you climb (`neonmap.json game.air`).
+Bloom is almost none (`world.json bloom`). Both are the owner's calls, after two
+reviewers called the aerials beige and the lamps blew out to white.
+
 **The camera moves with the body.** A slide leans the view into the way it is
 carrying you, a running landing rolls it, a lurch kicks it round a touch and
 settles. None of it

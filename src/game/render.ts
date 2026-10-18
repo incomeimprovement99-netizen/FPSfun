@@ -20,6 +20,7 @@ import { RenderPass } from "three/examples/jsm/postprocessing/RenderPass.js";
 import { Pass } from "three/examples/jsm/postprocessing/Pass.js";
 import { GTAOPass } from "three/examples/jsm/postprocessing/GTAOPass.js";
 import { UnrealBloomPass } from "three/examples/jsm/postprocessing/UnrealBloomPass.js";
+import worldCfg from "../config/world.json";
 import { SMAAPass } from "three/examples/jsm/postprocessing/SMAAPass.js";
 import { OutputPass } from "three/examples/jsm/postprocessing/OutputPass.js";
 import type { ShaderPass } from "three/examples/jsm/postprocessing/ShaderPass.js";
@@ -201,9 +202,10 @@ export class Renderer {
     if (vmCamera) composer.addPass(new ViewModelPass(scene, vmCamera));
 
     if (q.bloom) {
-      // Threshold 0.95 and a lower strength: emissive trim glows, gunfire only
-      // just crosses it. At 0.5 strength the muzzle flash lit the whole frame.
-      const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), 0.32, 0.5, 0.95);
+      // Almost none (world.json bloom, the owner): at 0.32 the lamps and the
+      // ceiling lights blew out to white, and at 0.5 the muzzle flash lit the frame.
+      const B = worldCfg.bloom;
+      const bloom = new UnrealBloomPass(new THREE.Vector2(w, h), B.strength, B.radius, B.threshold);
       composer.addPass(bloom);
     }
 

@@ -34,6 +34,7 @@ const { floorAt } = await import("../../src/game/floors");
 const { MOVE } = await import("../../src/game/movement");
 const { streets: curvedStreets, StreetField } = await import("../neon-streets");
 const cfg = (await import("../../src/config/neonmap.json")).default;
+const worldCfg = (await import("../../src/config/world.json")).default;
 const SOLIDS = (await import("../../src/config/neon/neonmap.solids.json")).default;
 const firstSolid = RANGE_SOLIDS.length;
 // (the page asks for the boxes after its first screen, neonmap.ts loadNeonSolids; a check has them now)
@@ -95,6 +96,17 @@ check("the street one network: every street node reaches the rest", seen.size ==
 const slabs = cfg.court.halls.length + cfg.underground.slabs.length;
 check("the collision the bake measured, every box, and the street's slab over each hall and the station", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length + slabs && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length} + ${slabs}, bake ${cfg.baked.boxes}`);
 check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.tallest.top) < 1e-6 && SPIRE_TOP.y > 100, `${SPIRE_TOP.y}`);
+
+// The city's air thin and its bloom almost none (Milestone 658; the owner, 2026-10-18: "thin the golden-hour haze ... bloom
+// is a big thing, we don't want that almost at all ... the night fog, just a bit if anything"): the haze's far end
+// 400 m and more by day and no nearer by night, its near end 40 m and more; the bloom's strength 0.1 at most and its
+// threshold 1 and more
+{
+  const air = cfg.game.air as { near: number; far: number; nightNear?: number; nightFar?: number };
+  const bloom = (worldCfg as { bloom?: { strength: number; threshold: number } }).bloom;
+  const thin = air.far >= 400 && air.near >= 40 && (air.nightFar ?? air.far) >= air.far && (air.nightNear ?? air.near) >= 40;
+  check("the city's air thin by day and thinner by night, and its bloom almost none (the owner's calls)", thin && !!bloom && bloom.strength <= 0.1 && bloom.threshold >= 1, `haze ${air.near} to ${air.far} m by day, ${air.nightNear} to ${air.nightFar} m by night; bloom ${bloom?.strength} over ${bloom?.threshold}`);
+}
 
 // The centre's draws (Milestone 657, docs/PLAN_CITY_DRAWS.md): at each size rules.bake.batch names, the bake wrote the
 // centre's opaque lit materials in batches over texture arrays (tools/import-city.ts writePack, src/game/neonbatch.ts),
