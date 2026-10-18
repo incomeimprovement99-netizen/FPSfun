@@ -509,9 +509,11 @@ export class Player {
   /**
    * The outward normal of a wall within `reach` of the body, or null.
    * Collision is axis-aligned boxes, so a wall is whichever face we are
-   * against in one of the four axis directions.
+   * against in one of the four axis directions. For a wall run or a climb
+   * (`wallMove`), a slick face (Solid.slick) is no wall, and neither is
+   * anything behind it.
    */
-  private wallNear(reach: number): WallNormal | null {
+  private wallNear(reach: number, wallMove = false): WallNormal | null {
     const r = MOVE.radius;
     const feet = this.pos.y;
     const bodyH = this.height;
@@ -522,11 +524,16 @@ export class Player {
       [0, 1],
       [0, -1],
     ] as const) {
+      let wall = false;
+      let slick = false;
       for (const s of this.overlapping(this.pos.x + dx * reach, this.pos.z + dz * reach, r)) {
         if (!this.blocks(s, feet, bodyH)) continue;
         if (inside.includes(s)) continue;
-        return { nx: -dx, nz: -dz };
+        if (s.slick) slick = true;
+        else wall = true;
       }
+      if (wallMove && slick) continue;
+      if (wall || slick) return { nx: -dx, nz: -dz };
     }
     return null;
   }
@@ -872,7 +879,7 @@ export class Player {
     if (this.onGround) this.spentWall = null;
     if (!this.wallRun) {
       if (this.onGround || this.climbing || this.mantle) return;
-      const n = this.wallNear(MOVE.climbAttachReach);
+      const n = this.wallNear(MOVE.climbAttachReach, true);
       if (!n) return;
       const plane = this.planeOf(n.nx, n.nz);
       const last = this.lastWall;
@@ -957,15 +964,22 @@ export class Player {
     return this.pos.x * nx + this.pos.z * nz;
   }
 
-  /** a wall within `reach` on one side (dx, dz: a unit axis; the world's walls are boxes, so every face is on one) */
+  /**
+   * A runnable wall within `reach` on one side (dx, dz: a unit axis; the world's walls are boxes, so every face is on
+   * one). The wall run's own probe: a slick face there (Solid.slick) is none, so a run along a wall ends where the wall
+   * turns slick and does not turn onto one.
+   */
   private wallAt(dx: number, dz: number, reach: number): boolean {
     const r = MOVE.radius;
     const feet = this.pos.y;
     const inside = this.overlapping(this.pos.x, this.pos.z, r);
+    let wall = false;
     for (const s of this.overlapping(this.pos.x + dx * reach, this.pos.z + dz * reach, r)) {
-      if (this.blocks(s, feet, this.height) && !inside.includes(s)) return true;
+      if (!this.blocks(s, feet, this.height) || inside.includes(s)) continue;
+      if (s.slick) return false;
+      wall = true;
     }
-    return false;
+    return wall;
   }
 
   /**
@@ -1144,7 +1158,7 @@ export class Player {
     if (this.onGround && this.overhead(MOVE.climbSpaceHeight)) return;
     // on the ground, the climb's space is measured from where you stand
     if (this.onGround) this.climbBaseline = this.pos.y;
-    const n = this.wallNear(MOVE.climbAttachReach);
+    const n = this.wallNear(MOVE.climbAttachReach, true);
     if (!n) return;
     const { fx, fz } = this.look();
     if (-(fx * n.nx + fz * n.nz) < MOVE.climbAngleDot) return;
@@ -1175,7 +1189,7 @@ export class Player {
    * air beside a wall, so the feed says what to change rather than nothing.
    */
   private explainNoAttach(wx: number, wz: number, wl: number): void {
-    const n = this.wallNear(MOVE.climbAttachReach * 2);
+    const n = this.wallNear(MOVE.climbAttachReach * 2, true);
     if (!n) return;
     const { fx, fz } = this.look();
     const facing = -(fx * n.nx + fz * n.nz);
@@ -1207,8 +1221,8 @@ export class Player {
       this.detach(MOVE.climbDetachPenalty);
       return;
     }
-    // climbed off the side of the wall
-    if (!this.wallNear(MOVE.climbAttachReach * 2)) {
+    // climbed off the side of the wall (or onto a slick part of it)
+    if (!this.wallNear(MOVE.climbAttachReach * 2, true)) {
       this.detach(0);
       return;
     }

@@ -11892,6 +11892,52 @@ shouldn't get that, they can click it if they want to."
   the Tutorial straight into the tour with no pick, and the nudge gone after; the rest of the start screen as before),
   proven with the nudge turned off.
 
+## Milestone 633 — The tutorial: a run of its own, every room passed only by doing its move
+
+The owner, 2026-10-17 (the second brief, given while the first version was being built, which it replaced): "the player
+spawning in a different location and going through a 'tutorial run' and the end they will come out near the area they
+would have with the firing range ... they shouldn't be able to advance through the tutorial if they don't perform the
+moves. Obviously like first move forward, then jump up a ledge then double jump up a ledge then we tell them that they
+can mantle, then we have a next section they can only reach with the double jump and mantle, then only an area that
+they can get past by wall running and then have the hacks in the next room/area/part and have dash be there and make
+them double jump and then dash to get across. make the walls invalid there. Then a couple rooms after that where the
+ANAKIN is defaulted to the user, they should then have to do some sort of movement like now double jump / climb up and
+shoot a couple soldiers, give them like 50 health. Then the last part of it should be a superglide area ... allow a
+small section / bridge to the side of it clearly labeling this one is optional ... make sure the instructions are
+blatantly obvious near the top, like at least twice as big as they are now on the 'Tour'."
+
+- **Where it is** (src/game/courses/tutorial.ts, src/config/tutorial.json): behind the range's back wall, in THE
+  CHAIN's bay and THE RUN: ADVANCED's, which it replaces (THE RUN: BASIC stays; the owner: "you can remove 1 of the
+  runs"). In by the right-hand gate, out up that bay, across the far end, back down the middle bay and out of the middle
+  gate into the range, between the gun stands and the hack stands, facing the dummies. One bay is 187 m to the city's
+  edge; the run is about twice that. The start screen's Tutorial puts you in its start room; so does walking in.
+- **Nine rooms in the owner's order:** forward to the door; a 1.6 m ledge (a jump); a 4 m ledge (a double jump; the next
+  room names the mantle it ended in); a 6 m pit to a ledge 4.2 m above the deck (a double jump and a mantle); a 32 m pit
+  beside the lit wall (a wall run); a 24 m pit to a ledge 4.5 m above the deck (a double jump and DASH: the dash stops
+  at the ledge's face, so only one from a double jump's height is left a mantle from the top); a 4 m platform (a double
+  jump, the ANAKIN in hand) and a 6 m wall (a climb), two soldiers of 50 health shot from the top of each, up only once
+  you are; and the superglide gap (14.5 m off a 3.8 m ledge), with a bridge beside it under a green OPTIONAL sign.
+- **Measured, not guessed:** every height and gap on the real controller, unarmed (the gun put away is 15% faster,
+  movement.json holsterBoost) before the ANAKIN and armed after; the numbers and what each excludes are in
+  tutorial.json's notes. **Slick walls** (range.ts Solid.slick, player.ts): no wall run and no climb on them, a mantle
+  still taking their top. Every wall in a room a jump gates is one: a climb takes any wall up to 8 m from a run, which
+  would have let a climb past every ledge. reach.json gains the superglide off the tutorial's ledge (tools/checks/reach.ts).
+- **The steps** (src/game/tutorial.ts): each room's door shut until its move is done; the hacks off until the dash room,
+  which puts DASH in the move slot and gives it back at once with every fall; the guns put away (and kept so) until the
+  ANAKIN is handed over; your own guns and hacks back when you leave. The tour's panel at twice the size (TourHud size).
+  Hold E to skip a room; three falls or a minute in a room says what to change. Out of the middle gate: TUTORIAL
+  COMPLETE, the guns and hacks on the stands, and the battle royale next.
+- **Gone:** THE CHAIN (and its window pad, the jump pad the owner called broken) and THE RUN: ADVANCED, with their
+  simulations; the city's window pads keep their reach in src/config/windowpad.json. The course engine (course.ts) gains
+  what the tutorial needs: untimed courses, dividers across part of a course and facing back, hazards limited in x,
+  soldiers with their own health (dummy.ts `health`), figures that walk to and fro.
+- **Checked:** tsc; verify; rules; tools/checks/sk-tutorial.ts (in verify): each room passed with its move and not with
+  the one before, the soldiers in sight from where they stand up, the bridge walked; proven with the slick walls taken
+  out (5 FAIL: climbs past the jump ledges, a dash room crossed). e2e sktutorial (19 checks: the start, the locks, the
+  doors, a skip, a fall, the dash's return, the ANAKIN, the soldiers shot down for real, the bridge, the way out, your
+  own kit back, the start again), proven with the locks taken out (2 FAIL); e2e start and page. Photographed room by
+  room on the GPU.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

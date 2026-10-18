@@ -28,7 +28,7 @@ import { solidHit } from "./projectile";
 import { lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
 import { DROP_HEIGHT } from "./brmatch";
 import squad from "../config/squad.json";
-import chainCfg from "../config/chaincourse.json";
+import windowPad from "../config/windowpad.json";
 import { stepPads, type CoursePad, type PadState } from "./course";
 import hudCfg from "../config/hud.json";
 
@@ -391,7 +391,7 @@ export class BrPlay {
     // the Sky Lobby's window pads (city.ts): through a window, centred and held, as THE CHAIN's (course.ts stepPads)
     if (this.windowPadsOf !== match.mapInfo) {
       this.windowPadsOf = match.mapInfo;
-      this.windowPads = match.mapInfo.pads.filter((q) => q.hold !== undefined).map((q) => ({ x: q.x, z: q.z, y: q.y ?? 0, reach: chainCfg.window.reach, up: q.up ?? 0, vx: q.dx, vz: q.dz, over: q.over ?? 0, hold: q.hold ?? 0 }));
+      this.windowPads = match.mapInfo.pads.filter((q) => q.hold !== undefined).map((q) => ({ x: q.x, z: q.z, y: q.y ?? 0, reach: windowPad.reach, up: q.up ?? 0, vx: q.dx, vz: q.dz, over: q.over ?? 0, hold: q.hold ?? 0 }));
     }
     if (this.windowPads.length && stepPads(this.windowPads, 0, this.windowPad, player, now)) this.deps.sound("pad");
     // launch pads: step on one and be thrown along the road and up

@@ -10,7 +10,9 @@
 //   a slide jump's carry;
 //   the wall run: metres along a wall and the height it keeps, from a sprint jump beside it;
 //   the zig-zag: two parallel walls, kicking from one to the other (a jump during a wall run), for corridor widths
-//   2.5 to 6 m: how many crossings hold before the chain drops, and the height won or lost a crossing.
+//   2.5 to 6 m: how many crossings hold before the chain drops, and the height won or lost a crossing;
+//   the superglide off the tutorial's ledge (tutorial.json superglide): the least a superglide carries past it from
+//   every approach, and the furthest every approach without one gets (Milestone 633).
 //
 // WRITE=1 writes src/config/reach.json (generated; the centre's modules read it).
 // Run: GAME=speedkills npx tsx tools/checks/reach.ts
@@ -21,6 +23,7 @@ import { RANGE_SOLIDS } from "../../src/game/range";
 import { ZIPLINES } from "../../src/game/traversal";
 import { EXTRA, HU, MOVE } from "../../src/game/movement";
 import { GAME } from "../../src/game/game";
+import tutorial from "../../src/config/tutorial.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -434,6 +437,88 @@ check(
   wallGap(WALL_GAP, true, false) && wallGap(WALL_GAP, false, false) && !wallGap(WALL_GAP, false, true),
 );
 
+/**
+ * The superglide off the tutorial's ledge (tutorial.json superglide): a sprint at the ledge from 25 m back, a jump at
+ * `jumpAt` metres from its face and maybe a double jump `dj1` s after, then with `sg` the superglide (the mantle boost
+ * held: the same speed as the one-frame input, and every approach makes it), or without one, off the top by running on
+ * or (`hop`) a jump the moment you are on it; and maybe a double jump `dj2` s after leaving the top. How far past the
+ * top's far edge the body gets before its feet are fallBelow under the ledge, which is where the course's pit takes you.
+ */
+const SG = tutorial.superglide;
+function glide(o: { jumpAt: number; dj1: number | null; sg: boolean; hop: boolean; dj2: number | null }): { reach: number; glided: boolean } {
+  const FACE = -30;
+  const edge = FACE - SG.top;
+  const s = new Sim([{ minX: -7, maxX: 7, minZ: edge, maxZ: FACE, top: SG.ledge }]);
+  s.p.mantleBoost = o.sg;
+  s.p.teleport(0, 0, FACE + 25, 0);
+  s.in.hold("forward");
+  let t = 0;
+  let jumped = -1;
+  let left = -1;
+  let hopped = false;
+  let mantled = false;
+  let reach = -Infinity;
+  for (let i = 0; i < 6 / DT; i++) {
+    const m = s.p.mantling;
+    if (m) mantled = true;
+    s.step(() => {
+      if (jumped < 0 && s.p.pos.z < FACE + o.jumpAt) {
+        s.in.tap("jump");
+        jumped = t;
+      }
+      // the approach's own double jump, before the ledge (one the instant after a superglide cuts its rise short)
+      if (o.dj1 !== null && jumped > 0 && !mantled && Math.abs(t - jumped - o.dj1) < DT / 2) s.in.tap("jump");
+      if (m && o.sg) s.in.hold("jump");
+      if (o.hop && !hopped && !m && s.p.onGround && s.p.pos.y > SG.ledge - 0.05) {
+        s.in.tap("jump");
+        hopped = true;
+      }
+      if (o.dj2 !== null && left > 0 && Math.abs(t - left - o.dj2) < DT / 2) s.in.tap("jump");
+    });
+    t += DT;
+    if (left < 0 && s.p.pos.z < edge && s.p.pos.y > SG.ledge - tutorial.fallBelow) {
+      left = t;
+      s.in.release("jump");
+    }
+    if (s.p.pos.y >= SG.ledge - tutorial.fallBelow) reach = Math.max(reach, edge - s.p.pos.z);
+    if (s.p.pos.y < SG.ledge - tutorial.fallBelow && (left > 0 || t > 3)) break;
+  }
+  return { reach, glided: s.p.superglidedAt > 0 };
+}
+const superglide = (() => {
+  const jumps = Array.from({ length: 18 }, (_, i) => 0.75 + i * 0.25);
+  const dj1s = [null, 0.1, 0.3, 0.5];
+  const dj2s = [null, ...Array.from({ length: 10 }, (_, i) => 0.1 + i * 0.1)];
+  let carry = Infinity;
+  let withDj = -Infinity;
+  let without = -Infinity;
+  let glided = 0;
+  let tried = 0;
+  for (const jumpAt of jumps) {
+    for (const dj1 of dj1s) {
+      tried++;
+      const alone = glide({ jumpAt, dj1, sg: true, hop: false, dj2: null });
+      if (alone.glided) {
+        glided++;
+        carry = Math.min(carry, alone.reach);
+      }
+      for (const dj2 of dj2s) {
+        if (dj2 !== null) {
+          const g = glide({ jumpAt, dj1, sg: true, hop: false, dj2 });
+          if (g.glided) withDj = Math.max(withDj, g.reach);
+        }
+        for (const hop of [false, true]) without = Math.max(without, glide({ jumpAt, dj1, sg: false, hop, dj2 }).reach);
+      }
+    }
+  }
+  return { ledge: SG.ledge, top: SG.top, fallBelow: tutorial.fallBelow, carry: r3(carry), withDoubleJump: r3(withDj), without: r3(without), glided, of: tried };
+})();
+check(
+  `the tutorial's ${SG.ledge} m ledge: every approach superglides, and the least a superglide carries past it (${superglide.carry} m) is past the furthest anything else gets (${superglide.without} m) by a fifth`,
+  superglide.glided === superglide.of && superglide.carry > superglide.without * 1.2,
+  `${superglide.glided} of ${superglide.of} superglided; with its double jump up to ${superglide.withDoubleJump} m`,
+);
+
 if (process.env.WRITE) {
   const out = {
     _note: `Generated by tools/checks/reach.ts (WRITE=1) from SpeedKills' movement: every distance the centre's chains are built from, measured with the real controller, metres and seconds. Rerun it when the movement changes (A17). Game ${GAME}, hu ${HU}.`,
@@ -444,6 +529,7 @@ if (process.env.WRITE) {
     wallRun,
     wallKick: { ...kick, speed: kickSpeed },
     zigzag: widths,
+    superglide,
   };
   writeFileSync("src/config/reach.json", JSON.stringify(out, null, 2) + "\n");
   console.log("        wrote src/config/reach.json");

@@ -133,5 +133,15 @@
       "perCrossing": 0.593,
       "along": 225.187
     }
-  ]
+  ],
+  "superglide": {
+    "ledge": 3.8,
+    "top": 0.6,
+    "fallBelow": 0.5,
+    "carry": 16.89,
+    "withDoubleJump": 29.509,
+    "without": 12.534,
+    "glided": 72,
+    "of": 72
+  }
 }

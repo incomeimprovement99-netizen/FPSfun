@@ -4727,7 +4727,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   const held = await ev<Array<{ slot: string; held: { id: string } | null; left: number }>>(page, "window.__range.sk.hacks()");
   check("speedkills: two hacks held, a mobility and a utility, both ready", held.length === 2 && held.every((h) => h.held && h.left === 0), JSON.stringify(held));
   // onto the open ground behind the range, outdoors, facing down it: past the basic course's far wall (x -21, z 200),
-  // since THE CHAIN (courses/chain.ts) stands where this was, between the other two courses
+  // since the tutorial (courses/tutorial.ts) stands where this was, beside it
   await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.__range.player.teleport(-21, 0, 200, 0); })()`);
   await sleep(300);
   const hack = async (id: string, slot: string, settle = 600) => {
@@ -6166,6 +6166,146 @@ async function speedkillsTourTest(browser: Browser): Promise<void> {
 }
 
 /**
+ * The tutorial (Milestone 633, src/game/tutorial.ts over courses/tutorial.ts), the wiring of it: the menu's Tutorial
+ * puts you in its start room, every door shut, the hacks off and the guns away; each room done opens the next door; a
+ * room can be skipped; a pit puts you back at its door; the dash room turns the hacks on with DASH and gives it back
+ * with a fall; the gun room hands you the ANAKIN; the soldiers stand up only once you are up with them, with 50 health,
+ * and shot down open the way on; the optional bridge counts for the superglide; out through the middle gate it is over
+ * and remembered, your own guns and hacks back. The moves themselves are proven on the same geometry by
+ * tools/checks/sk-tutorial.ts.
+ */
+async function skTutorialTest(browser: Browser): Promise<void> {
+  // (drawn: a figure's hit volumes follow its pose as the frame draws it, as the tour's shots need; so every wait is on
+  // the game's own clock or on the thing waited for, since a drawn headless page runs few frames a second)
+  const t = await open(browser, "?");
+  await ev(t, `document.getElementById("goTutorial").click(); document.getElementById("startMode").click()`);
+  await pressPlay(t);
+  // (`shut`: a door's collider in the doorway; `opening`: it has begun to slide up, which takes 0.6 s)
+  type State = { step: string | null; active: boolean; locked: boolean; guns: boolean; holster: string; gun: string; x: number; y: number; z: number; shut: boolean[]; opening: boolean[]; hacks: Array<{ id: string | null; left: number }> };
+  const st = () =>
+    ev<State>(t, `(() => { const r = window.__range; const tu = r.tutorial; const p = r.player.pos; return { step: tu.stepTitle, active: tu.active, locked: tu.hacksLocked, guns: tu.gunsLocked, holster: r.triggerWhy().holster, gun: r.loadout.active.id, x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2), shut: tu.doors.map((d) => d.solid.top <= d.h + 0.01), opening: tu.doors.map((d) => d.openedAt !== null), hacks: r.sk.hacks().map((h) => ({ id: h.held ? h.held.id : null, left: +h.left.toFixed(2) })) }; })()`);
+  const tp = (x: number, y: number, z: number, yaw: number, pitch = 0) => ev(t, `window.__range.player.teleport(${x}, ${y}, ${z}, ${yaw}, ${pitch})`);
+  const until = (cond: string, timeout = 15000) => t.waitForFunction(cond, { polling: 50, timeout }).then(() => true, () => false);
+  const stepIs = (title: string | null, timeout = 15000) => until(`window.__range.tutorial.stepTitle === ${JSON.stringify(title)}`, timeout);
+  const stop = () => ev(t, "window.__range.setScript(null)");
+  const s0 = await st();
+  check(
+    "sk tutorial: the menu's Tutorial puts you in its start room behind the right-hand gate, on its first room, every door shut, the hacks off and the guns put away",
+    s0.step === "MOVE" && s0.locked && s0.guns && s0.holster === "away" && Math.abs(s0.x - 21) < 0.5 && Math.abs(s0.z - 12) < 0.5 && s0.shut.length === 9 && s0.shut.every(Boolean),
+    JSON.stringify(s0),
+  );
+  await ev(t, `window.__range.sk.use("mobility"); window.__range.sk.use("utility")`);
+  await ev(t, "window.__range.input.locked = true");
+  await t.keyboard.press("Digit1");
+  await gameSleep(t, 0.5);
+  const refused = await st();
+  check("sk tutorial: before their rooms the hack keys do nothing, and a gun key does not draw a gun", refused.hacks.every((h) => h.left === 0) && refused.holster === "away", JSON.stringify(refused));
+  // forward to the door: the jump room's opens, the next stays shut
+  await tp(21, 0, 38, 180);
+  const moved = await stepIs("JUMP");
+  await until("window.__range.tutorial.doors[0].solid.top > 3.31");
+  const opened = await st();
+  check("sk tutorial: forward to the door, MOVE is done and the jump room's door opens (the next one stays shut)", moved && !opened.shut[0] && opened.shut[1], JSON.stringify(opened));
+  await tp(21, 1.6, 51, 180);
+  check("sk tutorial: up on the ledge, JUMP is done", await stepIs("DOUBLE JUMP"));
+  // a room skipped: interact held
+  await t.keyboard.down("KeyE");
+  const skipped = await stepIs("MANTLE");
+  await t.keyboard.up("KeyE");
+  const afterSkip = await st();
+  check("sk tutorial: holding interact skips a room (DOUBLE JUMP), and its door opens", skipped && afterSkip.opening[2], JSON.stringify(afterSkip));
+  // a fall into the mantle room's pit: back at its door, the room still to do
+  await tp(21, 0.2, 96, 180);
+  await until("Math.abs(window.__range.player.pos.z - 81.5) < 0.6");
+  const fell = await st();
+  check("sk tutorial: fallen into the mantle room's pit, you are back at its door", fell.step === "MANTLE" && Math.abs(fell.z - 81.5) < 0.6 && Math.abs(fell.x - 21) < 0.6, JSON.stringify(fell));
+  for (const [title, at, next] of [
+    ["MANTLE", [21, 5.2, 101, 180], "WALL RUN"],
+    ["WALL RUN", [21, 1, 152, 180], "DASH"],
+  ] as const) {
+    await tp(at[0], at[1], at[2], at[3]);
+    check(`sk tutorial: ${title} done where it is done`, await stepIs(next), JSON.stringify(await st()));
+  }
+  // the hacks come on, DASH in the move slot; a fall in its pit gives the dash back at once
+  const dashOn = await st();
+  check("sk tutorial: in the dash room the hacks come on, DASH in the move slot", !dashOn.locked && dashOn.hacks[0]?.id === "dash" && dashOn.guns, JSON.stringify(dashOn));
+  // (facing back along the deck: a dash the way you came, clear of the pit)
+  await tp(0, 1, 168, 180);
+  await t.keyboard.press("KeyF");
+  await until("window.__range.sk.hacks()[0].left > 0", 5000);
+  const used = (await st()).hacks[0].left;
+  await tp(0, 0.2, 150, 0);
+  await until("Math.abs(window.__range.player.pos.z - 176.5) < 0.6");
+  const refilled = await st();
+  check("sk tutorial: the dash used and a fall into the pit, the dash is back at once", used > 0 && refilled.hacks[0].left === 0 && refilled.step === "DASH", JSON.stringify({ used, refilled }));
+  await tp(0, 5.5, 137, 0);
+  check("sk tutorial: onto the far ledge, DASH is done", await stepIs("HIGH GROUND"), JSON.stringify(await st()));
+  // the ANAKIN in your hands, drawn
+  await until("window.__range.triggerWhy().holster === 'out'", 10000);
+  const armed = await st();
+  check("sk tutorial: the gun room hands you the ANAKIN, drawn", armed.gun === "alternator_smg" && armed.holster === "out" && !armed.guns, JSON.stringify(armed));
+  // a room's soldiers: up only once you are up there, 50 health, shot down for real
+  const figs = (room: number) =>
+    ev<Array<{ x: number; y: number; z: number; up: boolean; down: boolean; health: number; armed: boolean }>>(t, `window.__range.courseTutorial.roomFigures(${room}).map((d) => ({ x: +d.group.position.x.toFixed(2), y: +d.group.position.y.toFixed(2), z: +d.group.position.z.toFixed(2), up: d.group.visible, down: d.knocked, health: d.health, armed: !!d.armedId }))`);
+  const allUp = (room: number) => until(`window.__range.courseTutorial.roomFigures(${room}).length > 0 && window.__range.courseTutorial.roomFigures(${room}).every((d) => d.group.visible)`);
+  /** each standing figure of a room shot from (x, y, z): aimed, two frames for the view to take it, then the trigger */
+  const shootAll = async (room: number, x: number, y: number, z: number): Promise<number> => {
+    let shot = 0;
+    for (let tries = 0; tries < 40; tries++) {
+      const list = await figs(room);
+      const i = list.findIndex((f) => !f.down);
+      if (i < 0) break;
+      // (aimed again every frame the trigger is pulled; 0.15 s of the game's time is two frames at least)
+      const g0 = await ev<number>(t, `(() => { const r = window.__range; const d = r.courseTutorial.roomFigures(${room})[${i}]; const p = d.group.position; r.player.teleport(${x}, ${y}, ${z}, 0, 0); window.__aimAt = () => { const q = r.player.pos; const dx = p.x - q.x, dz = p.z - q.z; r.player.yaw = Math.atan2(-dx, -dz) * 180 / Math.PI; r.player.pitch = Math.atan2(p.y + 1.25 - (q.y + 1.6), Math.hypot(dx, dz)) * 180 / Math.PI; }; window.__aimAt(); const g = r.loadout.active; if (!g.state.reloading) g.state.clip = g.weapon.clipSize; return r.gameTime(); })()`);
+      await until(`window.__range.gameTime() >= ${g0 + 0.15}`, 10000);
+      await ev(t, `(() => { const r = window.__range; window.__aimAt(); let f = 0; r.setScript({ held: (a) => a === "fire" && f % 4 < 2, pressedNow: () => false }, () => { f++; window.__aimAt(); }); })()`);
+      await until(`window.__range.courseTutorial.roomFigures(${room})[${i}].knocked`, 4000);
+      await stop();
+      if ((await figs(room))[i].down) shot++;
+    }
+    return shot;
+  };
+  await tp(0, 0, 128, 0);
+  await gameSleep(t, 0.5);
+  const below = await figs(6);
+  await tp(0, 4, 123, 0);
+  const up6 = await allUp(6);
+  const high = await figs(6);
+  check("sk tutorial: the high ground's two soldiers are down while you are on the floor, up once you are on the platform, with 50 health", below.every((f) => !f.up) && up6 && high.length === 2 && high.every((f) => f.armed && f.health === 50), JSON.stringify({ below, high }));
+  const shot6 = await shootAll(6, 0, 4, 123);
+  check("sk tutorial: both shot down from the platform, HIGH GROUND is done", shot6 === 2 && (await stepIs("CLIMB")), `${shot6} shot`);
+  await tp(0, 6, 98.5, 0);
+  const up7 = await allUp(7);
+  const shot7 = await shootAll(7, 0, 6, 98.5);
+  check("sk tutorial: on top of the wall its two soldiers stand up, and shot down CLIMB is done", up7 && shot7 === 2 && (await stepIs("SUPERGLIDE")), `${shot7} shot`);
+  // the optional bridge counts: past the gap by it, the way out opens
+  await tp(5.5, 3.8, 45, 0);
+  const glided = await stepIs("OUT");
+  // (a second of the game's time for the door, 0.6 s to slide up: looking down the bay at the range, a drawn page here
+  // runs about a frame a second)
+  const gOut = await ev<number>(t, "window.__range.gameTime()");
+  await until(`window.__range.gameTime() >= ${gOut + 1}`, 90000);
+  const exitOpen = await st();
+  check("sk tutorial: past the superglide's gap by the optional bridge, SUPERGLIDE is done and the way out into the range opens", glided && !exitOpen.shut[8], JSON.stringify(exitOpen));
+  await tp(0, 0, 6, 0);
+  const finished = await until("!window.__range.tutorial.active && localStorage.getItem('range.tutorial.done') === '1'");
+  await until("window.__range.tutorial.doors.every((d) => d.solid.top <= d.h + 0.01)");
+  await until("window.__range.triggerWhy().holster === 'out'", 10000);
+  const after = await st();
+  check(
+    "sk tutorial: out through the middle gate it is complete and remembered; your own guns and hacks are back, and its doors shut behind you",
+    finished && after.gun !== "alternator_smg" && !after.locked && after.hacks.every((h) => h.id !== null) && after.shut.every(Boolean) && after.holster === "out",
+    JSON.stringify(after),
+  );
+  // back in by the right-hand gate: from its first room again
+  await tp(21, 0, 14, 180);
+  const again = await stepIs("MOVE");
+  const back = await st();
+  check("sk tutorial: back in through the right-hand gate, it starts again from its first room", again && back.locked && back.guns && back.shut.every(Boolean), JSON.stringify(back));
+  await t.close();
+}
+
+/**
  * SpeedKills' dropship, ridden (the owner's rule, speedkills.json ship): it
  * starts off the city and flies at least five seconds before its doors open,
  * so the city loads behind it; the jump is refused until then, and the drop
@@ -7561,13 +7701,13 @@ async function startScreenTest(browser: Browser): Promise<void> {
   check("start: Esc in a match opens the menu, with no Back to the start screen", inMatch.menu && !inMatch.start && !inMatch.back, JSON.stringify(inMatch));
   await ev(page, "window.__range.duel()?.leave()");
   // (Milestone 632) someone new: no profile and no way in ever chosen. The tutorial is pointed out; it goes straight
-  // into the guided tour, with no hack pick; and from then on the nudge is gone
+  // in, with no hack pick (Milestone 633: onto the tutorial's first room); and from then on the nudge is gone
   const fresh = await open(browser, "?norender&home=on", BASE, `if (!sessionStorage.getItem("e2e.fresh")) { sessionStorage.setItem("e2e.fresh", "1"); window.__keptProfile = localStorage.getItem("range.profile.v1"); window.__keptStarted = localStorage.getItem("range.startedOnce"); localStorage.removeItem("range.profile.v1"); localStorage.removeItem("range.startedOnce"); }`);
   const nudged = await ev<boolean>(fresh, `!document.getElementById("startNudge").hidden && document.getElementById("startTutorial").classList.contains("nudge")`);
   await ev(fresh, `document.getElementById("startTutorial").click()`);
   await sleep(800);
-  const tut = await ev<{ pick: boolean; tour: boolean; started: string | null; nudge: boolean }>(fresh, `({ pick: !document.getElementById("pick").hidden, tour: !!window.__range.tour?.active, started: localStorage.getItem("range.startedOnce"), nudge: !document.getElementById("startNudge").hidden })`);
-  check("start: someone new is nudged to the tutorial, which goes straight in (no hack pick), and the nudge is gone after", nudged && !tut.pick && tut.tour && tut.started === "1" && !tut.nudge, JSON.stringify({ nudged, tut }));
+  const tut = await ev<{ pick: boolean; step: string | null; started: string | null; nudge: boolean }>(fresh, `({ pick: !document.getElementById("pick").hidden, step: window.__range.tutorial.stepTitle, started: localStorage.getItem("range.startedOnce"), nudge: !document.getElementById("startNudge").hidden })`);
+  check("start: someone new is nudged to the tutorial, which goes straight in (no hack pick) to its first room, and the nudge is gone after", nudged && !tut.pick && tut.step === "MOVE" && tut.started === "1" && !tut.nudge, JSON.stringify({ nudged, tut }));
   await fresh.close();
   await ev(page, `localStorage.setItem("range.startedOnce", "1")`);
   await ev(page, `(() => { const k = ${JSON.stringify(kept)}; if (k.hacks === null) localStorage.removeItem("range.sk.hacks"); else localStorage.setItem("range.sk.hacks", k.hacks); if (k.diff !== null) localStorage.setItem("range.bots.difficulty", k.diff); })()`);
@@ -7624,7 +7764,7 @@ async function botStrafeTest(browser: Browser): Promise<void> {
 }
 
 
-/** E2E_ONLY=bots,brsolo runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, skship, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
+/** E2E_ONLY=bots,brsolo runs only those sections (page, panel, duel, invite, triple, bots, pad, range, finish, throw, emote, speedkills, soldier, skpack (named only), sktour, sktutorial, skship, gulag, modes, hidden, brsolo, squad, sksquad, skfigure, sklobby, skhunt, skarmory, skfriends, start, skbots, p2p, mixed) */
 /**
  * The lobby (src/ui/lobby.ts, the Play tab's panel). What has to hold: a card
  * picks a mode rather than starting one, the panel then shows that mode's own
@@ -8252,9 +8392,9 @@ async function main(): Promise<void> {
     await ev(page, `document.getElementById("goRun").click(); document.getElementById("startMode").click()`);
     const at = await ev<{ x: number; z: number; yaw: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw })`);
     check("The Run button: at the course start facing the start line", Math.abs(at.x + 21.5) < 0.5 && Math.abs(at.z - 10.2) < 0.5 && at.yaw === 180, JSON.stringify(at));
-    await ev(page, `document.getElementById("goRunAdvanced").click(); document.getElementById("startMode").click()`);
-    const adv = await ev<{ x: number; z: number; yaw: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw })`);
-    check("The Run (Advanced) button: at the advanced course start", Math.abs(adv.x - 21.5) < 0.5 && Math.abs(adv.z - 10.2) < 0.5 && adv.yaw === 180, JSON.stringify(adv));
+    await ev(page, `document.getElementById("goTutorial").click(); document.getElementById("startMode").click()`);
+    const tut = await ev<{ x: number; z: number; yaw: number; step: string | null }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw, step: window.__range.tutorial.stepTitle })`);
+    check("The Tutorial button: in the tutorial's start room, facing in, on its first room", Math.abs(tut.x - 21) < 0.5 && Math.abs(tut.z - 12) < 0.5 && tut.yaw === 180 && tut.step === "MOVE", JSON.stringify(tut));
     // put the first default back for the 1v1 pages (SpeedKills' defaults have their own names)
     await ev(page, `document.querySelector("#loadoutList button").click()`);
     await page.close();
@@ -8456,6 +8596,11 @@ async function main(): Promise<void> {
     if (want("sktour")) await section("sktour", async () => {
       console.log("\nSpeedKills' tour: eight steps, each done for real in the range");
       await speedkillsTourTest(browser);
+    });
+
+    if (want("sktutorial")) await section("sktutorial", async () => {
+      console.log("\nThe tutorial: its rooms, doors, pits, the hacks' and the gun's locks, DASH, the ANAKIN, the soldiers, the way out");
+      await skTutorialTest(browser);
     });
 
     if (want("botsquads")) await section("botsquads", async () => {

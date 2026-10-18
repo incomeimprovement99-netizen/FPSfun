@@ -120,6 +120,10 @@ export interface TourHud {
   skip: number;
   /** the finish card, for a few seconds */
   done: boolean;
+  /** what the panel calls it ("TOUR" unless set: the tutorial's is "TUTORIAL") */
+  label?: string;
+  /** the panel's size against the tour's (the tutorial's is twice it) */
+  size?: number;
 }
 
 const SKIP_HOLD = 1.2;

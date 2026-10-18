@@ -626,32 +626,37 @@ export class Hud {
     if (!t) return;
     const c = this.ctx;
     const cx = this.w / 2;
-    const w = 620 * u;
+    // (the tutorial's at twice the size, and wider: the owner, 2026-10-17, "make sure the instructions are blatantly
+    // obvious near the top, like at least twice as big as they are now on the 'Tour'")
+    const k = t.size ?? 1;
+    const w = Math.min(this.w - 32 * u, 620 * u * (k === 1 ? 1 : 1.6));
     const y0 = 62 * u;
-    c.fillStyle = "rgba(8,10,12,0.78)";
-    c.fillRect(cx - w / 2, y0, w, 86 * u);
-    c.fillStyle = t.done ? "#ffd23c" : "#7ddc8a";
-    c.fillRect(cx - w / 2, y0, w * (t.step / t.of), 4 * u);
-    this.text(t.done ? t.title : `TOUR ${t.step} / ${t.of}  ·  ${t.title}`, cx, y0 + 30 * u, 700, 20 * u, t.done ? "#ffd23c" : "#7ddc8a", "center");
     // the instruction, wrapped to the panel
-    c.font = this.font(600, 14 * u);
+    c.font = this.font(600, 14 * u * k);
     const words = t.text.split(" ");
     const lines: string[] = [];
     let line = "";
     for (const wd of words) {
       const next = line ? `${line} ${wd}` : wd;
-      if (c.measureText(next).width > w - 40 * u && line) {
+      if (c.measureText(next).width > w - 40 * u * k && line) {
         lines.push(line);
         line = wd;
       } else line = next;
     }
     if (line) lines.push(line);
-    lines.slice(0, 3).forEach((l, i) => this.text(l, cx, y0 + 52 * u + i * 16 * u, 600, 14 * u, WHITE, "center"));
+    const shown = lines.slice(0, k === 1 ? 3 : 4);
+    const h = k === 1 ? 86 * u : (40 + shown.length * 17) * u * k;
+    c.fillStyle = "rgba(8,10,12,0.78)";
+    c.fillRect(cx - w / 2, y0, w, h);
+    c.fillStyle = t.done ? "#ffd23c" : "#7ddc8a";
+    c.fillRect(cx - w / 2, y0, w * (t.step / t.of), 4 * u * k);
+    this.text(t.done ? t.title : `${t.label ?? "TOUR"} ${t.step} / ${t.of}  ·  ${t.title}`, cx, y0 + 30 * u * k, 700, 20 * u * k, t.done ? "#ffd23c" : "#7ddc8a", "center");
+    shown.forEach((l, i) => this.text(l, cx, y0 + (52 + i * 16) * u * k, 600, 14 * u * k, WHITE, "center"));
     if (t.skip > 0) {
       c.fillStyle = "rgba(255,255,255,0.15)";
-      c.fillRect(cx - 80 * u, y0 + 92 * u, 160 * u, 5 * u);
+      c.fillRect(cx - 80 * u * k, y0 + h + 6 * u, 160 * u * k, 5 * u * k);
       c.fillStyle = "#ffd23c";
-      c.fillRect(cx - 80 * u, y0 + 92 * u, 160 * u * t.skip, 5 * u);
+      c.fillRect(cx - 80 * u * k, y0 + h + 6 * u, 160 * u * k * t.skip, 5 * u * k);
     }
     // the marker: where on screen, or an arrow at the edge toward it
     if (t.marker) {

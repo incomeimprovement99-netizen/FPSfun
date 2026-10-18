@@ -47,9 +47,14 @@ export interface EnemySpec {
   x: number;
   z: number;
   y?: number;
-  gun: string;
+  /** the gun it holds; none, a target */
+  gun?: string;
   /** side-to-side sway amplitude, metres (0 = still) */
   sway?: number;
+  /** walks to and fro: out along (dx, dz) from its spot and back, each way in `period` seconds (the tutorial's moving targets) */
+  path?: { dx: number; dz: number; period: number };
+  /** this much health and no shield, instead of going down to any hit (the tutorial's soldiers) */
+  health?: number;
 }
 
 export interface Room {
@@ -64,6 +69,8 @@ export interface Room {
   enemies: EnemySpec[];
   /** the par for this room, seconds (else its share of the course's S time by its length) */
   par?: number;
+  /** where the tip goes, if not on the entry wall at tipX (the tutorial's face you as you come in) */
+  tipAt?: { x: number; y: number; z: number; rotY: number };
 }
 
 export type Medal = "gold" | "silver" | "bronze";
@@ -157,12 +164,16 @@ export function stepPads(pads: CoursePad[], ox: number, s: PadState, p: PadPlaye
   return false;
 }
 
-/** a hazard floor: below `fallY` between these z you have fallen; back to `respawn`, 2 s added */
+/** a hazard floor: below `fallY` between these z (and these x, if set) you have fallen; back to `respawn`, 2 s added */
 export interface Hazard {
   minZ: number;
   maxZ: number;
+  minX?: number;
+  maxX?: number;
   fallY: number;
   respawn: THREE.Vector3;
+  /** the way you face there (180, along +z, unless set) */
+  yaw?: number;
 }
 
 /**
@@ -178,6 +189,8 @@ export interface CourseBuilder {
   box(w: number, h: number, d: number, x: number, y: number, z: number, mat: THREE.Material, solid?: boolean): THREE.Mesh | null;
   /** a bare collider */
   solid(minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number): void;
+  /** a slick collider: no wall run or climb on it (range.ts Solid.slick) */
+  slick(minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number): void;
   /** a ladder on a wall face (traversal.ts) */
   ladder(x: number, z: number, nx: number, nz: number, base: number, top: number): void;
   /** a zipline; `floorA`/`floorB` are the floor heights at each end's anchor post */
@@ -212,8 +225,11 @@ export interface CourseLayout {
   /** rank thresholds in seconds, ascending, the last Infinity */
   ranks: Array<[string, number]>;
   rooms: Room[];
-  /** divider walls between rooms, and the door gap in x */
-  dividers: Array<{ z: number; door: [number, number] }>;
+  /**
+   * divider walls between rooms, and the door gap in x; `span`, the x the wall runs across where not x0 to x1 (a course
+   * that turns back on itself, the tutorial), and `facing` -1 where its room is entered going -z
+   */
+  dividers: Array<{ z: number; door: [number, number]; span?: [number, number]; facing?: 1 | -1 }>;
   /** wall paint per segment: index 0 the start area, then the rooms in order */
   themes: Array<{ wall: WallTheme; trim: number }>;
   /** where each segment's walls begin and end; one more than themes */
@@ -221,13 +237,20 @@ export interface CourseLayout {
   hazards: Hazard[];
   /** pads that throw you (THE CHAIN's window pad) */
   pads?: CoursePad[];
-  /** the results TV and where you stand to read it */
-  tv: { x: number; y: number; z: number; w: number; h: number };
-  returnTo: { x: number; z: number; yaw: number; pitch: number };
+  /** the results TV and where you stand to read it (a timed course's) */
+  tv?: { x: number; y: number; z: number; w: number; h: number };
+  returnTo?: { x: number; z: number; yaw: number; pitch: number };
+  /**
+   * No clock: no start or finish line, TV, ghost, splits or penalties, and its rooms and hazards live whenever you are in
+   * it (the tutorial, Milestone 633, whose steps are src/game/tutorial.ts's)
+   */
+  untimed?: boolean;
   /** the menu's start position */
   startPose: { x: number; z: number; yaw: number };
   /** the rules sign inside the gate; {P1} and {P2} are the course pistols' names */
   sign: string;
+  /** where the sign stands, on a wall facing +x (x0's, 15.5 m in, unless set) */
+  signAt?: { x: number; z: number };
   /** roof girders and light rows, x */
   girders: number[];
   lights: number[];
@@ -281,8 +304,8 @@ function storageKeys(id: string): { best: string; splits: string; ghost: string;
  * the compound's walls and dividers, then whatever the layout builds, through
  * a builder that draws nothing.
  */
-export function courseColliders(L: CourseLayout): { solids: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; base: number; top: number }>; zips: Array<[THREE.Vector3, THREE.Vector3]> } {
-  const solids: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; base: number; top: number }> = [];
+export function courseColliders(L: CourseLayout): { solids: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; base: number; top: number; slick?: boolean }>; zips: Array<[THREE.Vector3, THREE.Vector3]> } {
+  const solids: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; base: number; top: number; slick?: boolean }> = [];
   const zips: Array<[THREE.Vector3, THREE.Vector3]> = [];
   const dummyMat = new THREE.MeshBasicMaterial();
   const b: CourseBuilder = {
@@ -294,6 +317,7 @@ export function courseColliders(L: CourseLayout): { solids: Array<{ minX: number
       return null;
     },
     solid: (minX, maxX, minZ, maxZ, base, top) => solids.push({ minX, maxX, minZ, maxZ, base, top }),
+    slick: (minX, maxX, minZ, maxZ, base, top) => solids.push({ minX, maxX, minZ, maxZ, base, top, slick: true }),
     ladder: () => undefined,
     zipline: (a, c) => zips.push([a.clone(), c.clone()]),
     hazardFloor: () => undefined,
@@ -317,17 +341,20 @@ function structure(L: CourseLayout, b: CourseBuilder): void {
     b.box(1, L.wallH, z1 - z0, L.x0 - 0.5, 0, (z0 + z1) / 2, b.roomMat(z0));
     b.box(1, L.wallH, z1 - z0, L.x1 + 0.5, 0, (z0 + z1) / 2, b.roomMat(z0));
   }
-  b.box(L.x1 - L.x0 + 2, L.wallH, 1, 0, 0, L.farZ + 0.5, b.roomMat(L.farZ - 0.1));
+  // (across the middle of x0 to x1: the tutorial's are not either side of 0)
+  const mid = (L.x0 + L.x1) / 2;
+  b.box(L.x1 - L.x0 + 2, L.wallH, 1, mid, 0, L.farZ + 0.5, b.roomMat(L.farZ - 0.1));
   // the range's back wall is 6 m; close the gap to the course roof over it
-  b.box(L.x1 - L.x0 + 2, L.wallH - 6, 1, 0, 6, 8.5, b.roomMat(9));
+  b.box(L.x1 - L.x0 + 2, L.wallH - 6, 1, mid, 6, 8.5, b.roomMat(9));
   for (const d of L.dividers) {
     const [d0, d1] = d.door;
+    const [s0, s1] = d.span ?? [L.x0, L.x1];
     for (const [dz, mat] of [
       [-0.25, b.roomMat(d.z - 1)],
       [0.25, b.roomMat(d.z + 1)],
     ] as const) {
-      if (d0 > L.x0) b.box(d0 - L.x0, L.wallH, 0.5, (L.x0 + d0) / 2, 0, d.z + dz, mat);
-      if (d1 < L.x1) b.box(L.x1 - d1, L.wallH, 0.5, (d1 + L.x1) / 2, 0, d.z + dz, mat);
+      if (d0 > s0) b.box(d0 - s0, L.wallH, 0.5, (s0 + d0) / 2, 0, d.z + dz, mat);
+      if (d1 < s1) b.box(s1 - d1, L.wallH, 0.5, (d1 + s1) / 2, 0, d.z + dz, mat);
       // above the door, up to the roof
       b.box(d1 - d0, L.wallH - 3.3, 0.5, (d0 + d1) / 2, 3.3, d.z + dz, mat);
     }
@@ -343,7 +370,9 @@ export class Course {
   private readonly roomEnemies: Dummy[][] = [];
   private readonly roomTriggered: boolean[] = [];
   private readonly baseX = new Map<Dummy, number>();
+  private readonly baseZ = new Map<Dummy, number>();
   private readonly sway = new Map<Dummy, number>();
+  private readonly paths = new Map<Dummy, NonNullable<EnemySpec["path"]>>();
   /** everything the course draws, placed at the layout's x */
   readonly root = new THREE.Group();
   running = false;
@@ -361,6 +390,8 @@ export class Course {
   onRunChange: ((running: boolean) => void) | null = null;
   /** called for on-screen notices */
   onNotice: ((text: string) => void) | null = null;
+  /** a fall into a hazard, after you are put back (the tutorial counts them) */
+  onFall: ((hazard: number) => void) | null = null;
   /** a run finished: the result, for stats */
   onFinish: ((r: CourseResult) => void) | null = null;
 
@@ -423,8 +454,8 @@ export class Course {
   // ---------- geometry ----------
 
   /** a collider, in course coordinates */
-  private solid(minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number): void {
-    RANGE_SOLIDS.push({ minX: minX + this.layout.x, maxX: maxX + this.layout.x, minZ, maxZ, top, base });
+  private solid(minX: number, maxX: number, minZ: number, maxZ: number, base: number, top: number, slick = false): void {
+    RANGE_SOLIDS.push({ minX: minX + this.layout.x, maxX: maxX + this.layout.x, minZ, maxZ, top, base, ...(slick ? { slick } : {}) });
   }
 
   private builder(mats: THREE.Material[]): CourseBuilder {
@@ -444,6 +475,7 @@ export class Course {
         return m;
       },
       solid: (minX, maxX, minZ, maxZ, base, top) => this.solid(minX, maxX, minZ, maxZ, base, top),
+      slick: (minX, maxX, minZ, maxZ, base, top) => this.solid(minX, maxX, minZ, maxZ, base, top, true),
       ladder: (x, z, nx, nz, base, top) => buildLadder(this.root, x, z, nx, nz, base, top, L.x),
       zipline: (a, c, opts) => this.zipline(a, c, opts.vertical, opts.floorA ?? 0, opts.floorB ?? 0),
       hazardFloor: (minZ, maxZ, minX = L.x0, maxX = L.x1) => {
@@ -484,7 +516,7 @@ export class Course {
     uv.needsUpdate = true;
     const pad = new THREE.Mesh(padGeo, floorMat);
     pad.rotation.x = -Math.PI / 2;
-    pad.position.set(0, 0.004, (9 + L.farZ) / 2);
+    pad.position.set((L.x0 + L.x1) / 2, 0.004, (9 + L.farZ) / 2);
     pad.receiveShadow = true;
     this.root.add(pad);
 
@@ -496,7 +528,9 @@ export class Course {
       const trim = flat(L.themes[i + 1].trim, 0.5, 0.2);
       for (const x of [d0, d1]) b.box(0.2, 3.3, 1.08, x, 0, d.z, trim, false);
       b.box(d1 - d0 + 0.2, 0.2, 1.08, (d0 + d1) / 2, 3.2, d.z, trim, false);
-      this.panel(L.rooms[i].name, (d0 + d1) / 2, 4.2, d.z - 0.52, Math.PI, 3.4, 0.8);
+      // on the side you come to it from
+      const back = d.facing === -1;
+      this.panel(L.rooms[i].name, (d0 + d1) / 2, 4.2, d.z + (back ? 0.52 : -0.52), back ? 0 : Math.PI, 3.4, 0.8);
     });
     warehouseRoof(this.root, {
       x0: L.x0 - 1,
@@ -508,19 +542,24 @@ export class Course {
       lights: L.lights,
       solid: (a, c, d, e, f, g) => this.solid(a, c, d, e, f, g),
     });
-    this.tv();
-
-    // start and finish lines
-    this.line(L.startZ, 0x7ddc8a, "START");
-    this.line(L.finishZ, 0xffd23c, "FINISH");
+    if (!L.untimed) {
+      this.tv();
+      // start and finish lines
+      this.line(L.startZ, 0x7ddc8a, "START");
+      this.line(L.finishZ, 0xffd23c, "FINISH");
+    }
 
     L.build(b);
 
     // --- sign at the entrance, readable on the way IN
-    this.panel(L.sign, L.x0 + 0.51, 2.6, 15.5, Math.PI / 2, 7, 3.6);
+    this.panel(L.sign, L.signAt?.x ?? L.x0 + 0.51, 2.6, L.signAt?.z ?? 15.5, Math.PI / 2, 7, 3.6);
 
-    // --- the tips, on each room's entry wall, facing into the room
-    L.rooms.forEach((room) => this.panel(room.tip, room.tipX, 2.6, room.entryZ + 0.51, 0, 7, 3.2));
+    // --- the tips, on each room's entry wall, facing into the room (or where the room puts its own)
+    L.rooms.forEach((room) => {
+      const t = room.tipAt;
+      if (t) this.panel(room.tip, t.x, t.y, t.z, t.rotY, 7, 3.2);
+      else this.panel(room.tip, room.tipX, 2.6, room.entryZ + 0.51, 0, 7, 3.2);
+    });
 
     // --- enemies, hidden until their room triggers: made after the page's first screen (makeEnemies)
     L.rooms.forEach((_, ri) => {
@@ -542,14 +581,16 @@ export class Course {
     const made: Dummy[] = [];
     L.rooms.forEach((room, ri) => {
       for (const e of room.enemies) {
-        const d = new Dummy(e.x + L.x, e.z, 0, { armed: e.gun, oneHit: true, respawn: false });
+        const d = new Dummy(e.x + L.x, e.z, 0, { armed: e.gun, oneHit: e.health === undefined, health: e.health, respawn: false });
         d.group.position.y = e.y ?? 0;
         d.hide();
         this.scene.add(d.group);
         this.enemies.push(d);
         this.roomEnemies[ri].push(d);
         this.baseX.set(d, e.x + L.x);
+        this.baseZ.set(d, e.z);
         this.sway.set(d, e.sway ?? 0);
+        if (e.path) this.paths.set(d, e.path);
         made.push(d);
       }
     });
@@ -562,7 +603,7 @@ export class Course {
    * last few runs. Turn round and the start line is right there.
    */
   private tv(): void {
-    const TV = this.layout.tv;
+    const TV = this.layout.tv!;
     const PX = 200;
     this.tvCanvas = document.createElement("canvas");
     this.tvCanvas.width = Math.round(TV.w * PX);
@@ -718,7 +759,7 @@ export class Course {
     const { x0, x1 } = this.layout;
     const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 0.5), emissive(color, 1.6));
     m.rotation.x = -Math.PI / 2;
-    m.position.set(0, 0.015, z);
+    m.position.set((x0 + x1) / 2, 0.015, z);
     this.root.add(m);
     // posts either side with the label
     for (const x of [x0 + 0.4, x1 - 0.4]) {
@@ -726,7 +767,7 @@ export class Course {
       post.position.set(x, 1.3, z);
       this.root.add(post);
     }
-    this.panel(label, 0, 3.4, z, Math.PI, 3, 0.8, true);
+    this.panel(label, (x0 + x1) / 2, 3.4, z, Math.PI, 3, 0.8, true);
   }
 
   /**
@@ -866,17 +907,22 @@ export class Course {
     this.inCompound = insideX && z > 9 && z < L.farZ;
     if (L.pads && this.inCompound && stepPads(L.pads, L.x, this.pads, p, now)) this.onPad?.();
 
-    // start line crossed going forward (re)starts the run
-    if (insideX && this.lastZ < L.startZ && z >= L.startZ) this.start(now);
-    // walking back out through the gate abandons it; so does a run left going
-    // for ten minutes (its ghost recording would be too big to keep)
-    if (this.running && (z < 9 || !insideX || now - this.startedAt > MAX_RUN)) this.reset();
+    if (!L.untimed) {
+      // start line crossed going forward (re)starts the run
+      if (insideX && this.lastZ < L.startZ && z >= L.startZ) this.start(now);
+      // walking back out through the gate abandons it; so does a run left going
+      // for ten minutes (its ghost recording would be too big to keep)
+      if (this.running && (z < 9 || !insideX || now - this.startedAt > MAX_RUN)) this.reset();
+    }
 
-    if (this.running) {
+    // an untimed course's rooms and hazards are live while you are in it; a timed one's while a run goes on
+    if (this.running || (L.untimed && this.inCompound)) {
+      if (L.untimed) this.makeEnemies();
       L.rooms.forEach((room, ri) => {
         if (!this.roomTriggered[ri] && room.trigger(x, y, z)) {
           this.roomTriggered[ri] = true;
           for (const d of this.roomEnemies[ri]) d.popUp();
+          if (!this.running) return;
           // split: the clock on entering the room, against the best run's
           const t = now - this.startedAt + this.penalties;
           this.splits[ri] = t;
@@ -886,25 +932,28 @@ export class Course {
       });
       // record this run for the ghost, 30 samples a second
       const since = now - this.startedAt;
-      while (since >= this.recNext) {
+      while (this.running && since >= this.recNext) {
         this.rec.push(Number(p.pos.x.toFixed(2)), Number(p.pos.y.toFixed(2)), Number(p.pos.z.toFixed(2)), Number(p.yaw.toFixed(1)));
         this.recNext += GHOST_DT;
       }
-      // a hazard: fall in and you are back at its room's entrance, 2 s down
-      for (const hz of L.hazards) {
-        if (z > hz.minZ && z < hz.maxZ && y < hz.fallY) {
-          p.teleport(hz.respawn.x + L.x, hz.respawn.y, hz.respawn.z, 180);
-          this.penalties += PENALTY_FALL;
-          this.onNotice?.(`FELL  +${PENALTY_FALL} s`);
+      // a hazard: fall in and you are back at its room's entrance, 2 s down (on a timed course)
+      for (const [hi, hz] of L.hazards.entries()) {
+        if (z > hz.minZ && z < hz.maxZ && y < hz.fallY && (hz.minX === undefined || x > hz.minX) && (hz.maxX === undefined || x < hz.maxX)) {
+          p.teleport(hz.respawn.x + L.x, hz.respawn.y, hz.respawn.z, hz.yaw ?? 180);
+          if (this.running) {
+            this.penalties += PENALTY_FALL;
+            this.onNotice?.(`FELL  +${PENALTY_FALL} s`);
+          }
+          this.onFall?.(hi);
           break;
         }
       }
-      if (insideX && this.lastZ < L.finishZ && z >= L.finishZ) this.finish(now);
+      if (this.running && insideX && this.lastZ < L.finishZ && z >= L.finishZ) this.finish(now);
     }
     // back to the start after a finish, facing the results TV
     if (now >= this.returnAt) {
       this.returnAt = Infinity;
-      const r = L.returnTo;
+      const r = L.returnTo!;
       p.teleport(r.x + L.x, 0, r.z, r.yaw, r.pitch);
       this.lastZ = r.z;
     } else this.lastZ = z;
@@ -919,6 +968,14 @@ export class Course {
         d.group.rotation.y += diff * Math.min(1, dt * 8);
         const amp = this.sway.get(d) ?? 0;
         if (amp > 0) d.group.position.x = (this.baseX.get(d) ?? 0) + Math.sin(now * 2.2 + (this.baseX.get(d) ?? 0)) * amp;
+        // to and fro along its line at an even walk, turning at each end
+        const path = this.paths.get(d);
+        if (path) {
+          const ph = (now / path.period) % 2;
+          const k = ph < 1 ? ph : 2 - ph;
+          d.group.position.x = (this.baseX.get(d) ?? 0) + path.dx * k;
+          d.group.position.z = (this.baseZ.get(d) ?? 0) + path.dz * k;
+        }
       }
       d.update(now, dt);
     }
@@ -964,7 +1021,8 @@ export class Course {
     banner: string | null;
     split: CourseSplit | null;
   } | null {
-    if (!this.inCompound && !this.running && !this.result) return null;
+    // (an untimed course has no clock to show: the tutorial's steps are its HUD)
+    if (this.layout.untimed || (!this.inCompound && !this.running && !this.result)) return null;
     return {
       title: this.layout.title,
       split: this.running && this.lastSplit && now - this.lastSplit.at < 3 ? this.lastSplit : null,
@@ -976,6 +1034,16 @@ export class Course {
       result: this.result,
       banner: this.inCompound ? `${this.layout.title}: cross the green line to start` : null,
     };
+  }
+
+  /** a room's figures (none until they are made), for the tutorial's steps */
+  roomFigures(room: number): readonly Dummy[] {
+    return this.roomEnemies[room] ?? [];
+  }
+
+  /** you are inside its walls */
+  get inside(): boolean {
+    return this.inCompound;
   }
 
   private untriggeredCount(): number {

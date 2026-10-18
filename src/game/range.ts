@@ -22,9 +22,9 @@ export const RANGE_BOUNDS: Bounds = { minX: -34, maxX: 34, minZ: -108, maxZ: 212
  * It used to be straight behind the spawn, where nobody turned round to see it.
  */
 export const COURSE_GATE = { minX: -23.5, maxX: -19.5 };
-/** the second gate, back-right, into the advanced course (courses/advanced.ts) */
+/** the second gate, back-right: the way into the tutorial (courses/tutorial.ts) */
 export const COURSE_GATE_R = { minX: 19.5, maxX: 23.5 };
-/** the third, in the middle behind the spawn, into THE CHAIN (courses/chain.ts) */
+/** the third, in the middle behind the spawn: the tutorial's way out into the range, between the gun and hack stands */
 export const COURSE_GATE_C = { minX: -2, maxX: 2 };
 /** the gates this game's back wall has, left to right */
 export const COURSE_GATES = [COURSE_GATE, COURSE_GATE_C, COURSE_GATE_R];
@@ -110,6 +110,8 @@ export interface Solid {
   base: number;
   /** a door (doors.ts): it moves as the door opens and shuts, and a walk of the map treats its doorway as a way through */
   door?: boolean;
+  /** a slick face: no wall run or climb starts on it or carries along it; a mantle still takes its top (the tutorial, Milestone 633) */
+  slick?: boolean;
 }
 export const RANGE_SOLIDS: Solid[] = [];
 
@@ -336,9 +338,8 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // back wall behind the player
   // Back wall, in two halves with a gate between them into the course. A
   // lintel over the gate closes the wall above head height.
-  // Three pieces and two gates: back-left into the basic course, back-right
-  // into the advanced one, each with a lintel over it.
-  // (SpeedKills: four pieces and three gates, THE CHAIN's in the middle)
+  // Four pieces and three gates, each with a lintel over it: back-left into
+  // THE RUN, back-right into the tutorial, the middle the tutorial's way out.
   const cuts = [-34, ...COURSE_GATES.flatMap((g) => [g.minX, g.maxX]), 34];
   for (let i = 0; i < cuts.length; i += 2) addBox(scene, wall, cuts[i + 1] - cuts[i], 6, 1, (cuts[i] + cuts[i + 1]) / 2, 0, 8.5);
   for (const g of COURSE_GATES) addBox(scene, wall, g.maxX - g.minX, 2.5, 1, (g.minX + g.maxX) / 2, 3.5, 8.5);
@@ -654,10 +655,11 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
   // on the floor from the spawn to it.
   const chevron = chevronTexture();
   const arrowMat = new THREE.MeshBasicMaterial({ map: chevron, transparent: true, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  for (const [g, glowColor, title, fromX] of [
-    [COURSE_GATE, PAL.orange, "THE RUN: BASIC\nSeven rooms: slides, a climb, a superglide, a gap, ziplines. Beat the clock.", -3],
-    [COURSE_GATE_R, 0xff3b2f, "THE RUN: ADVANCED\nNine rooms, 200 m: a superglide gap, lurch pads, wallbounces, a zipline superjump. Chain them.", 3],
-    [COURSE_GATE_C, 0xff3df2, "THE CHAIN\nThe city's distances: a run gap, a double gap, a wall gap and the chimney.", 0],
+  // (the tutorial's way out has no arrows: it is not a way in)
+  for (const [g, glowColor, title, fromX, arrows] of [
+    [COURSE_GATE, PAL.orange, "THE RUN: BASIC\nSeven rooms: slides, a climb, a superglide, a gap, ziplines. Beat the clock.", -3, true],
+    [COURSE_GATE_R, 0xffd23c, "THE TUTORIAL: START HERE\nEvery move, then your hacks, then a gun: the game a room at a time.", 3, true],
+    [COURSE_GATE_C, 0x7ddc8a, "THE TUTORIAL: WAY OUT\nIt comes out here, into the range.", 0, false],
   ] as const) {
     const glow = emissive(glowColor, 2.4);
     for (const x of [g.minX - 0.1, g.maxX + 0.1]) {
@@ -669,6 +671,7 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     lintelGlow.position.set((g.minX + g.maxX) / 2, 3.5, 7.95);
     scene.add(lintelGlow);
     scene.add(textPanel(title, (g.minX + g.maxX) / 2, 4.75, 7.94, Math.PI, 4.6, 1.9));
+    if (!arrows) continue;
     const from = new THREE.Vector2(fromX, 1.5);
     const to = new THREE.Vector2((g.minX + g.maxX) / 2, 6.8);
     const heading = Math.atan2(to.x - from.x, to.y - from.y);
@@ -851,10 +854,10 @@ function spawnNote(): THREE.Mesh {
     g.closePath();
     g.fill();
     g.font = '700 150px "Rajdhani", Impact, sans-serif';
-    g.fillText("THE RUN", 320, 190);
+    g.fillText("TUTORIAL", 320, 190);
     g.fillStyle = "rgba(232,226,214,0.9)";
     g.font = '600 62px "Rajdhani", "Segoe UI", sans-serif';
-    g.fillText("courses: turn round. basic left, advanced right", 322, 285);
+    g.fillText("turn round: the right-hand gate. THE RUN: left", 322, 285);
     tex.needsUpdate = true;
   };
   draw();

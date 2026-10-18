@@ -31,8 +31,8 @@ import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { keyPanelTexts, setPanelKeys } from "./game/geo";
 import { BASIC_COURSE } from "./game/courses/basic";
-import { ADVANCED_COURSE } from "./game/courses/advanced";
-import { CHAIN_COURSE } from "./game/courses/chain";
+import { TUTORIAL_COURSE, DASH_HAZARD } from "./game/courses/tutorial";
+import { Tutorial, DASH_STEP, GUN_STEP, type TutorialCheck } from "./game/tutorial";
 import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRange, RENDER_SCALES, loadRenderScale, saveRenderScale } from "./game/quality";
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import { takenHit } from "./game/hitpick";
@@ -1469,17 +1469,16 @@ const targets: Target[] = TARGET_SPECS.map((t) => {
   scene.add(tg.group);
   return tg;
 });
-// The two movement courses behind the firing line (src/game/course.ts, the
-// layouts in src/game/courses/). Their armed pop-ups are dummies too, so
-// bullets test against them as well.
-// SpeedKills has a third, THE CHAIN: the city's chain modules at their measured distances (courses/chain.ts)
+// The courses behind the firing line (src/game/course.ts, the layouts in
+// src/game/courses/): THE RUN through the left-hand gate, and THE TUTORIAL
+// through the middle one, out up the middle bay and back down the right-hand
+// one (Milestone 633: it took THE CHAIN's bay and THE RUN: ADVANCED's). Their
+// pop-ups are dummies too, so bullets test against them as well.
 // (their textures after the page's first screen: the courses are through the gates behind you)
 holdTextures(true);
-const courses = [new Course(scene, BASIC_COURSE), new Course(scene, ADVANCED_COURSE), new Course(scene, CHAIN_COURSE)];
+const courses = [new Course(scene, BASIC_COURSE), new Course(scene, TUTORIAL_COURSE)];
 holdTextures(false);
-// a course's pad (THE CHAIN's window pad) sounds as the battle royale's do
-for (const c of courses) c.onPad = () => audio.whoosh();
-const [courseBasic, courseAdvanced] = courses;
+const [courseBasic, courseTutorial] = courses;
 /** the course a run is going on, or the one you are standing in, or the basic one */
 const activeCourse = (): Course => courses.find((c) => c.running) ?? courses.find((c) => c.hud(gameTime)) ?? courseBasic;
 /** every figure outside a match: the range's dummies and the courses' pop-ups (hidden ones are skipped where it matters) */
@@ -3391,6 +3390,13 @@ let lastPingAt = -Infinity;
 
 /** the guided tour of the range (tour.ts): it watches, the steps move on when you do each thing */
 const tour = new Tour(scene);
+/** the tutorial's steps over its course (tutorial.ts): a room each, its doors, and the hacks off until their room */
+const tutorial = new Tutorial(scene, courseTutorial);
+courseTutorial.onFall = (h) => {
+  tutorial.onFall();
+  // the dash room gives the dash back with every fall: twelve seconds' wait to try again teaches nothing
+  if (h === DASH_HAZARD) hacks.refund("mobility");
+};
 
 // ---------------------------------------------------------------- SpeedKills' hacks
 // (hacks.ts holds what you carry; this is what each one does. The keys: the
@@ -3577,6 +3583,11 @@ function useHack(slot: HackSlot, now: number): void {
   const d = duel;
   if (d instanceof Duel && (!d.alive || !d.canFire)) return;
   if (player.aboard) return;
+  // the tutorial teaches them in their own room, and they are off until then (Milestone 633)
+  if (!d && tutorial.hacksLocked) {
+    hud.notice("YOUR HACKS COME ON IN THE HACKS ROOM", now, 1.2);
+    return;
+  }
   const held = hacks.get(slot);
   if (!held) {
     hud.notice(`NO ${slot.toUpperCase()} HACK`, now, 0.8);
@@ -4042,6 +4053,48 @@ function tourCheck(now: number): TourCheck {
 tour.onStep = (title) => {
   hud.notice(`TOUR: ${title}`, gameTime, 1.4);
   audio.countdown(false);
+};
+/** what the tutorial's steps read */
+function tutorialCheck(): TutorialCheck {
+  return { pos: player.pos, onGround: player.onGround };
+}
+/** the guns the tutorial took off you for the ANAKIN, given back when it is over */
+let tutorialSlots: SlotSetup[] | null = null;
+tutorial.onStep = (title, index) => {
+  hud.notice(`TUTORIAL: ${title}`, gameTime, 1.4);
+  audio.countdown(false);
+  // its first rooms are run with the gun put away (and kept away each frame till the ANAKIN: gunsAway)
+  if (index === 0) holster = "away";
+  // the hacks come on with DASH in the move slot, whatever was picked: the room is built round it
+  if (index === DASH_STEP) hacks.set("dash", 0);
+  // and the ANAKIN in your hands (the owner: "a couple rooms after that where the ANAKIN is defaulted to the user")
+  if (index === GUN_STEP) {
+    tutorialSlots ??= loadout.slots.map((_, i) => loadout.setup(i));
+    loadout.setWeaponId(loadout.activeIndex, "alternator_smg");
+    holster = "raising";
+    holsterAt = gameTime;
+  }
+};
+tutorial.onReset = () => {
+  if (tutorialSlots) {
+    tutorialSlots.forEach((su, i) => loadout.restore(i, su));
+    tutorialSlots = null;
+  }
+  if (!duel) resetHacks();
+  if (holster === "away" || holster === "lowering") {
+    holster = "raising";
+    holsterAt = gameTime;
+  }
+};
+tutorial.onDoor = (at) => audio.door(at, "open");
+tutorial.onDone = () => {
+  hud.notice("TUTORIAL COMPLETE", gameTime, 3);
+  audio.stinger("won");
+  try {
+    localStorage.setItem("range.tutorial.done", "1");
+  } catch {
+    /* ignore */
+  }
 };
 tour.onDone = () => {
   hud.notice("TOUR COMPLETE", gameTime, 3);
@@ -4509,6 +4562,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   edge.reset();
   edgeArmed = false;
   tour.stop();
+  tutorial.reset();
   drill.stop();
   // the killcam's recording and the recap's log
   recorder.clear();
@@ -5646,7 +5700,7 @@ function applyLoadout(def: LoadoutDef): void {
 }
 
 /** the modes played on the range's side of the world: the range together goes on through them */
-const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "tour", "lab", "run", "runAdvanced"]);
+const RANGE_SIDE: ReadonlySet<Mode> = new Set<Mode>(["range", "tour", "lab", "run", "tutorial"]);
 /** go somewhere to play, from the menu: the range, a course's start, the lab, or a match */
 function goTo(mode: Mode): void {
   if (mode === "duel") return;
@@ -5681,12 +5735,21 @@ function goTo(mode: Mode): void {
     tour.start(tourCheck(gameTime));
     return;
   }
+  if (mode === "tutorial") {
+    // at its start, from its first room, every door shut
+    player.setBounds(RANGE_PLAY);
+    const sp = courseTutorial.startPose;
+    player.teleport(sp.x, 0, sp.z, sp.yaw);
+    tour.stop();
+    tutorial.restart(gameTime);
+    return;
+  }
   if (mode === "range") {
     player.setBounds(RANGE_PLAY);
     player.teleport(0, 0, 0, 0);
-  } else if (mode === "run" || mode === "runAdvanced") {
+  } else if (mode === "run") {
     player.setBounds(RANGE_PLAY);
-    const sp = (mode === "run" ? courseBasic : courseAdvanced).startPose;
+    const sp = courseBasic.startPose;
     player.teleport(sp.x, 0, sp.z, sp.yaw);
   } else if (mode === "lab") {
     // SpeedKills' movement lab (arenas/movelab.ts), built with the page
@@ -5842,7 +5905,7 @@ const account = initAccountUi({
     menu.renderStats();
   },
 });
-menu.setRunBest(courseBasic.best, courseAdvanced.best);
+menu.setRunBest(courseBasic.best);
 applyLoadout(loadouts.current);
 let armorTier: ArmorTier = 0;
 
@@ -6082,9 +6145,8 @@ const startScreen = new StartScreen(
         sel.value = picks[slot];
         sel.dispatchEvent(new Event("change"));
       }
-      // the menu's own Start, on the panel's settings: the defaults, or what was set under More (the tutorial is the
-      // guided tour until its own course is built, docs/PLAN_TUTORIAL.md)
-      menu.pickMode(way === "tutorial" ? "tour" : way);
+      // the menu's own Start, on the panel's settings: the defaults, or what was set under More
+      menu.pickMode(way);
       $<HTMLButtonElement>("startMode").click();
     },
     resume: () => resumeFromMenu(),
@@ -6118,7 +6180,7 @@ input.onLockChange = (locked) => {
   }
   if (!locked) {
     startScreen.opened(duel !== null || hangout !== null);
-    menu.setRunBest(courseBasic.best, courseAdvanced.best);
+    menu.setRunBest(courseBasic.best);
     profile.flush();
     menu.renderStats();
     account.sync();
@@ -6126,7 +6188,7 @@ input.onLockChange = (locked) => {
   // (only standing at the range's spawn, where the gates are behind you: it came up in the arenas and the lab too)
   if (locked && !courseHinted && !duel && Math.hypot(player.pos.x, player.pos.z) < 20) {
     courseHinted = true;
-    hud.notice("THE RUN: the two movement courses are through the lit gates behind you", gameTime, 5);
+    hud.notice("BEHIND YOU: THE TUTORIAL (the right-hand gate) AND THE RUN (the left)", gameTime, 5);
   }
   if (locked) audio.unlock(); // create/resume the AudioContext from the gesture
   // coming back to the panel: the build may have changed in game
@@ -6407,6 +6469,10 @@ function step(): void {
   // an empty slot (a battle royale's start): fists
   const emptyHand = loadout.active.empty;
 
+  // the tutorial's guns stay put away until it hands you the ANAKIN (Milestone 633): its first rooms are measured
+  // unarmed, holstered being 15% faster
+  const gunsAway = !duel && tutorial.gunsLocked;
+  if (gunsAway) holster = "away";
   if (input.playing) {
     // Holster. While the gun is away, fire, aim, reload or any weapon key
     // brings it back up instead of doing its usual job.
@@ -6418,7 +6484,7 @@ function step(): void {
         input.pressedNow("slot1") ||
         input.pressedNow("slot2") ||
         input.pressedNow("swapWeapon"));
-    if (!knockedOut && input.pressedNow("holster") && !loadout.swapping) {
+    if (!knockedOut && input.pressedNow("holster") && !loadout.swapping && !gunsAway) {
       if (holster === "out") {
         holster = "lowering";
         holsterAt = now;
@@ -6429,7 +6495,7 @@ function step(): void {
         holster = "raising";
         holsterAt = now;
       }
-    } else if (drawKey && (holster === "away" || holster === "lowering")) {
+    } else if (drawKey && !gunsAway && (holster === "away" || holster === "lowering")) {
       holster = "raising";
       holsterAt = now;
     }
@@ -7237,8 +7303,13 @@ function step(): void {
   phases.lap("aim and shots");
   projectiles.update(dt, now, handleImpact);
   rocketBursts.update(dt);
-  // the guided tour: its marker and the check for the step
-  tourHud = !duel ? tour.update(now, tourCheck(now), input.playing && input.held("interact"), (a) => keyLabel(a as Parameters<typeof keyLabel>[0])) : null;
+  // the tutorial's step, or the guided tour's: the panel, the marker and the check for the step
+  {
+    const keys = (a: string) => keyLabel(a as Parameters<typeof keyLabel>[0]);
+    const skip = input.playing && input.held("interact");
+    const taught = !duel ? tutorial.update(now, tutorialCheck(), skip, keys) : null;
+    tourHud = !duel ? (taught ?? tour.update(now, tourCheck(now), skip, keys)) : null;
+  }
   impactSink = handleImpact;
   // the melee swing lands a third of the way through
   if (now >= meleeHitAt) {
@@ -7648,9 +7719,10 @@ function step(): void {
     lootCard: lootCardNow(),
     edge: duel instanceof BrMatch && (edge.since !== null || edge.struckAt !== null) ? { left: edge.left(gameTime) } : null,
     edgeZone: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? { inner: BR_BOUNDS, outer: EDGE_BOUNDS } : null,
+    // (none shown while the tutorial has them off: they appear as their room teaches them)
     hacks: (["mobility", "utility"] as const).flatMap((slot) => {
       const h = hacks.get(slot);
-      if (!h) return [];
+      if (!h || (!duel && tutorial.hacksLocked)) return [];
       return [{ name: hackDef(h.id)?.name ?? h.id, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), frac: hacks.fraction(slot, now), left: hacks.left(slot, now), level: h.level, maxLevel: HACK.fuseLevels, slot }];
     }),
     callout: calloutNow,
@@ -7866,7 +7938,6 @@ const GALLERY = { x: 0, z: -8 };
   /** the range's boards and flippers (tools/e2e.ts: what a round on one deals) */
   targets,
   course: courseBasic,
-  courseAdvanced,
   merged,
   duel: () => duel,
   /** the range together (main.ts hangout) */
@@ -8082,6 +8153,8 @@ const GALLERY = { x: 0, z: -8 };
   applyLoot,
   THREE,
   tour,
+  tutorial,
+  courseTutorial,
   opticAdsMult,
   padButtons,
   /** the range's readout counters (shots, hits) */

@@ -10,7 +10,7 @@ import { Stats, type MatchKind, type MatchStats } from "../game/stats";
 import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 import { LOBBY_MODES, lobbyMode, setupFor, friendsModeFor } from "./lobby";
 
-export type Mode = "range" | "run" | "runAdvanced" | "duel" | "bots" | "br" | "tdm" | "control" | "ffa" | "tour" | "lab";
+export type Mode = "range" | "run" | "tutorial" | "duel" | "bots" | "br" | "tdm" | "control" | "ffa" | "tour" | "lab";
 export type Tab = "play" | "duel" | "loadouts" | "stats" | "settings" | "controller" | "controls" | "feedback";
 
 export interface MenuOptions {
@@ -338,7 +338,6 @@ export class Menu {
       matchCard("Control", ["control"]),
       matchCard("Free-for-all", ["ffa"]),
       courseCard("basic", "The Run (Basic)"),
-      courseCard("advanced", "The Run (Advanced)"),
       courseCard("drill", "Flick drill (30 targets)"),
       this.gunsCard(),
       techCard,
@@ -401,11 +400,10 @@ export class Menu {
     for (const p of document.querySelectorAll<HTMLElement>("[data-panel]")) p.hidden = p.dataset.panel !== tab;
   }
 
-  setRunBest(basic: number | null, advanced: number | null): void {
+  setRunBest(basic: number | null): void {
     $("runBest").textContent = basic !== null ? `Seven rooms, one technique each. Your best: ${basic.toFixed(2)} s.` : "Seven rooms, one technique each, twenty pop-ups.";
-    $("runAdvancedBest").textContent = advanced !== null ? `Nine rooms, 200 m, the techniques chained. Your best: ${advanced.toFixed(2)} s.` : "Nine rooms, 200 m, the techniques chained. Thirty pop-ups.";
     // the panel shows the card's line, so a new best time has to reach it
-    if (this.picked === "run" || this.picked === "runAdvanced") this.renderSetup();
+    if (this.picked === "run") this.renderSetup();
   }
 
   private editCurrent(patch: Partial<LoadoutDef>): void {

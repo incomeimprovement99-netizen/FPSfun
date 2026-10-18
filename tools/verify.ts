@@ -78,8 +78,6 @@ import { moveDirOf } from "../src/game/duel";
 import { actCode, actFromCode } from "../src/game/dummy";
 import { medalFor, roomPars } from "../src/game/course";
 import { BASIC_COURSE } from "../src/game/courses/basic";
-import { ADVANCED_COURSE } from "../src/game/courses/advanced";
-import { CHAIN_COURSE } from "../src/game/courses/chain";
 import { opticZoom } from "../src/game/sens";
 import { PAD_DEFAULTS, advancedLookRate, padCurve, padDeadzone } from "../src/game/gamepad";
 import { withoutClashes } from "../src/ui/binds";
@@ -1237,7 +1235,7 @@ console.log("Finishing touches: medals, per-optic ADS, the controller's advanced
   eq("60% over: bronze", medalFor(8, 5), "bronze");
   eq("past that: none", medalFor(8.1, 5), null);
   eq("a skipped room: none", medalFor(NaN, 5), null);
-  for (const L of [BASIC_COURSE, ADVANCED_COURSE, CHAIN_COURSE]) {
+  for (const L of [BASIC_COURSE]) {
     const pars = roomPars(L);
     const firstLeg = (L.ranks[0][1] * (L.rooms[0].entryZ - L.startZ)) / (L.finishZ - L.startZ);
     near(`${L.title}: the pars add up to its S time less the walk to the first room`, pars.reduce((a, b) => a + b, 0) + firstLeg, L.ranks[0][1], 0.6);
@@ -1307,7 +1305,7 @@ fails += movesimFails;
 {
   const { spawnSync } = await import("node:child_process");
   // and everything else that reads SpeedKills' numbers as it loads: the guns' time to kill
-  for (const tool of ["tools/sk-movesim.ts", "tools/checks/ttk.ts", "tools/checks/rocket.ts", "tools/checks/hitcheck.ts", "tools/checks/bot-aim.ts", "tools/checks/soldier.ts", "tools/checks/paid-weapons.ts", "tools/checks/reach.ts", "tools/checks/sk-chaincourse.ts", "tools/checks/sk-killcam.ts", "tools/checks/soldier-fit.ts", "tools/checks/soldier-hold.ts", "tools/checks/sk-neon.ts", "tools/checks/trails.ts", "tools/checks/spring.ts", "tools/checks/fparms-pack.ts", "tools/checks/sk-sprint.ts"]) {
+  for (const tool of ["tools/sk-movesim.ts", "tools/checks/ttk.ts", "tools/checks/rocket.ts", "tools/checks/hitcheck.ts", "tools/checks/bot-aim.ts", "tools/checks/soldier.ts", "tools/checks/paid-weapons.ts", "tools/checks/reach.ts", "tools/checks/sk-tutorial.ts", "tools/checks/sk-killcam.ts", "tools/checks/soldier-fit.ts", "tools/checks/soldier-hold.ts", "tools/checks/sk-neon.ts", "tools/checks/trails.ts", "tools/checks/spring.ts", "tools/checks/fparms-pack.ts", "tools/checks/sk-sprint.ts"]) {
     const r = spawnSync(`npx tsx ${tool}`, { shell: true, encoding: "utf8", env: { ...process.env, GAME: "speedkills" } });
     process.stdout.write(r.stdout ?? "");
     if (r.status !== 0) fails++;

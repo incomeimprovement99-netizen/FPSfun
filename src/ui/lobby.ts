@@ -64,7 +64,7 @@ export const LOBBY_MODES: readonly LobbyMode[] = [
   { id: "tour", go: "goTour", name: "Guided tour", card: "Every move and key the range teaches, a step at a time.", needs: [], solo: true, friends: null },
   { id: "lab", go: "goLab", name: "Movement lab", card: "SpeedKills: climb a storey, run the wall, clear the gaps.", needs: [], solo: true, friends: null },
   { id: "run", go: "goRun", name: "The Run (Basic)", card: "Seven rooms, one technique each, twenty pop-ups.", needs: [], solo: true, friends: null },
-  { id: "runAdvanced", go: "goRunAdvanced", name: "The Run (Advanced)", card: "Nine rooms, 200 m, the techniques chained. Thirty pop-ups.", needs: [], solo: true, friends: null },
+  { id: "tutorial", go: "goTutorial", name: "Tutorial", card: "Every move, then your hacks, then a fight: the game a room at a time.", needs: [], solo: true, friends: null },
   { id: "duel", go: "goDuel", name: "1v1 and 1v1v1", card: "You against a friend, or two. First to 3, with the circle.", needs: ["map", "rules", "rounds"], solo: false, friends: "arena" },
   { id: "bots", go: "goBots", name: "Arena, Bots", card: "The 1v1 rules against bots, alone or with friends.", needs: ["map", "arenabots", "difficulty", "rules", "rounds"], solo: true, friends: "arena" },
   { id: "br", go: "goBr", name: "Battle Royale", card: "Drop into the Neon City, the sectors decay, last squad standing.", needs: ["br", "difficulty"], solo: true, friends: "br" },

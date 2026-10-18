@@ -361,8 +361,8 @@ The plan, the gap analysis against Hyper Scape and every owner decision are in
 3. The start screen is up, everything centred: **Tutorial** (Learn: every move,
    then the hacks, then a fight; someone new sees it pointed out), **Firing
    Range** (Training) and **Battle Royale** (Play), with **More** a quiet word
-   under them for the menu. The Tutorial goes straight in (it is the guided
-   tour until its own course is built). The other two ways in ask for your two hacks first, one mobility and
+   under them for the menu. The Tutorial goes straight in, to its start room
+   behind the range's right-hand gate (the Modes table says what it is). The other two ways in ask for your two hacks first, one mobility and
    one utility, for ten seconds: DASH and HEAL to begin with, then whatever you
    picked last. **Start now** goes straight in; left alone it goes in by itself
    when the time is up and asks for one click, which the browser needs before
@@ -552,10 +552,10 @@ optics and hop-ups.
 
 | Mode | What it is |
 |---|---|
-| Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Two lit gates on the back wall lead to the courses (three in SpeedKills: THE CHAIN, in the middle, has the city's run gap, double gap, wall gap and chimney at the widths its movement is built to), and the README screen stands at the far end, 107 m down range, under the **B00G'S RANGE** sign. In SpeedKills the back wall either side of the gates is the armory: the ten guns left of THE CHAIN and the ten hacks right of it, each turning as a hologram over its own open case, with a screen behind it giving its numbers at your level and the next and how to fuse it; E at a stand takes it, and E again fuses it a level up (to 5 for a gun, 4 for a hack), as a second copy does in a match. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
+| Firing Range | 29 of Apex's guns (and the course pistol), dummies with armour tiers, target banks and moving rails, ladders, a vertical zipline, the wallbounce practice wall with its recipe on a sign, mantle ledges, a slide ramp, the spray wall, the flick drill's pad and the superglide trainer. Lit gates on the back wall lead to the courses (in SpeedKills three: THE RUN on the left, the tutorial in by the right-hand one and out by the middle one), and the README screen stands at the far end, 107 m down range, under the **B00G'S RANGE** sign. In SpeedKills the back wall either side of the gates is the armory: the ten guns left of the middle gate and the ten hacks right of it, each turning as a hologram over its own open case, with a screen behind it giving its numbers at your level and the next and how to fuse it; E at a stand takes it, and E again fuses it a level up (to 5 for a gun, 4 for a hack), as a second copy does in a match. The Range box on the Play tab sets what the dummies do (stand, strafe, crouch, random; slow to fast) and whether they shoot back. |
 | Guided tour | Eleven steps through the range, a green marker for each: move, sprint, slide, jump, mantle, climb, a superglide, shoot, reload, swap, heal. It watches what you do and moves on; hold E (X on a controller) to skip a step. In SpeedKills it is eight: move; double jump, wall run and climb; shoot; both hacks; fusion; a hit from high ground; five seconds in a capture ring; and a walk to a squad mate's echo while it says how the Gulag and the ghost work. |
 | The Run (Basic) | Timed movement course in the range's back-left corner: seven rooms, each built round one technique (breach, vent slide, climb, superglide, gap lurch, zipline, final sprint), 20 armed pop-ups. Splits per room against your best, a gold, silver or bronze medal per room against its par, a ghost of your best run, a results TV at the start, ranks S/A/B/C. |
-| The Run (Advanced) | The back-right corner: nine rooms, 200 m, 30 pop-ups, the techniques chained. Every gate needs its move: a 7 m gap only a superglide clears, pads only a lurch reaches, a platform only a zipline superjump gets on, two vents, a bounce slalom, a drop slide, a shooting zip, a flow room. Its own bests, splits, ghost and TV. |
+| Tutorial | SpeedKills' walkthrough, a run of its own behind the range: in by the right-hand gate, out up that bay, back down the middle one and out of the middle gate into the range, between the gun stands and the hack stands. Nine rooms, each door shut until you have done its move: walk forward; jump up a ledge; double jump up a higher one; a double jump and a mantle over a pit; a pit only a wall run crosses; DASH (the hacks come on here, DASH in the move slot) with a double jump onto a ledge across a pit; the ANAKIN handed to you, a double jump onto a platform and a climb up a wall, two soldiers of 50 health shot from each; and the superglide, with a bridge beside it marked optional. Your guns stay put away and your hacks off until their rooms; the instructions are at the top at twice the tour's size; a fall puts you back at the room's door; hold E to skip a room. Every height and gap is measured on the real controller, unarmed before the ANAKIN and armed after (`tools/checks/sk-tutorial.ts`). The start screen's Tutorial puts you at its start. |
 | 1v1 and 1v1v1 | One player makes a match (2 or 3 players) and gets a 5-letter code; the others type it. 1v1: NEON YARD or NEON HALL. 1v1v1: THE CENTRE, the Neon City's middle. First to 3 rounds, blue shields and 100 health. 20 s into a round a circle lights up in the middle; stand in it alone for 10 s to take the round. The last one standing takes it any time. |
 | Arena, Bots | The 1v1 rules against one or two bots, offline. **Easy, Normal, Hard, Elite or Mixed** (each bot its own tier), graded the way CS2's and TF2's bots are: reaction time, how far their aim lags a moving target, an aim error that settles the longer they keep you in view, and where they aim. The tiers also play differently: normal and up dodge when hit, hear your shots and come to look, hunt where they last saw you, and break line of sight when low before peeking back; hard and up crouch in fights; elite comes round a corner already aimed where it lost you. |
 | Team Deathmatch | You and your friends, filled out with bots to four, against four bots in the 1v1 arena; respawns after 4 s at your end; first team to 30, or ahead at 10 minutes. Team mates cannot hurt each other and their plates are green. |
@@ -751,14 +751,14 @@ says why a miss missed.
 | Mini bounce, crouch kick, wallskip | jump off the bottom 19 hu of a climb (mini bounce, 188 out); crouch on the same frame (crouch kick, 245 out); hold W into the wall for height with no distance (wallskip). | WALLBOUNCE variants |
 | Climb | leave the ground, face the wall within 45 degrees, push into it (in SpeedKills, run into a wall too tall to mantle; not with a ceiling over you, as on a stair's landing). The climb space is 147 hu from your last ground contact or 100 hu above where you attached, then an end boost of 28 hu. | (silent) |
 | Mantle | run at a ledge up to the mantle height with your input toward it; it pulls you up. | (silent) |
-| Superglide | in the last 0.15 s of a mantle, press jump and then crouch exactly one frame later: a slide boost and a jump together, in the air. Peaks at 88 hu, which is why it clears the 7 m gap on the advanced course. Scroll up for jump makes the timing easier. | SUPERGLIDE; SUPERGLIDE MISS ("crouch 3 frames after jump (needs exactly 1)") |
+| Superglide | in the last 0.15 s of a mantle, press jump and then crouch exactly one frame later: a slide boost and a jump together, in the air. Peaks at 88 hu; in SpeedKills it carries 16.9 m off a 3.8 m ledge, the tutorial's last gap (14.5 m), which nothing else crosses. Scroll up for jump makes the timing easier. | SUPERGLIDE; SUPERGLIDE MISS ("crouch 3 frames after jump (needs exactly 1)") |
 | Zipline | E to ride, in the direction you look; 600 hu/s (480 on vertical zips). Jump or crouch to leave (up to 445 hu/s), ride to the end for the full 600. Three mid-air grabs, then you must touch the ground. | ZIP JUMP, ZIP CROUCH |
 | Zipline superjump | interact, jump, jump: the second jump in the grace window after a zip jump adds a full jump on top. | SUPERJUMP ("+N hu on the zip jump") |
 | Fall stun | a landing from 300 hu is free; from 800 hu, a full 1 s stun. | (the screen dip) |
 
-The basic course teaches them one room at a time; the advanced course gates
-each room on one. `npm run measure` prints what each technique reaches on
-the real controller (the numbers the advanced course was built from) and
+THE RUN teaches them one room at a time, and the tutorial gates each of its
+rooms on one. `npm run measure` prints what each technique reaches on
+the real controller and
 `npm run probe` performs a scripted wallbounce in the real page and prints
 what the feed registered.
 
@@ -1042,8 +1042,8 @@ src/game/
   warehouse.ts             the roof and beams
   course.ts                the course engine: rooms, gates, splits, ghosts, results TV
   courses/basic.ts         The Run (Basic), seven rooms
-  courses/advanced.ts      The Run (Advanced), nine rooms
-  courses/chain.ts         The Chain (SpeedKills): the city's gaps and a chimney at their measured widths
+  courses/tutorial.ts      The Tutorial (SpeedKills): nine rooms out up one bay and back down another, measured
+  tutorial.ts              the tutorial's steps: its doors, the hacks' and the gun's locks, the panel
   duel.ts                  the match: rounds, scores, the circle, remotes, spectate, respawns
   bots.ts                  the bot controller and the offline match
   br.ts                    the battle royale map's shared shape: places, sites, the bots' graph (the map is neonmap.ts)

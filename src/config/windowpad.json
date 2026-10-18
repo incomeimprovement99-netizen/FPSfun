@@ -1,0 +1,4 @@
+{
+  "_note": "The city's window pads (brplay.ts, neonmap.json pads with a `hold`): how near a pad's middle you must step to be thrown, metres. It was THE CHAIN's window pad's (chaincourse.json window.reach), which went with that course in Milestone 633; the city's pads kept its number.",
+  "reach": 1.2
+}

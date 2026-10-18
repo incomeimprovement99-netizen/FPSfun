@@ -90,6 +90,8 @@ export interface DummyOptions {
   armed?: string;
   /** any hit drops it, for the course's pop-up targets */
   oneHit?: boolean;
+  /** its health, not 100 (the tutorial's soldiers have 50) */
+  health?: number;
   /** stand back up after being knocked; false keeps it down until reset */
   respawn?: boolean;
   /** the operator look; the range's own dummies use the default */
@@ -282,6 +284,8 @@ export class Dummy {
   /** a teammate's ring in their squad colour, through walls (outline.ts MateOutline), made the first time it is */
   private mateRing: MateOutline | null = null;
   readonly oneHit: boolean;
+  /** its own full health, when not HEALTH_MAX */
+  private readonly healthCap: number | undefined;
   readonly respawns: boolean;
   private readonly plate: THREE.Mesh;
   private readonly ringMat: THREE.MeshStandardMaterial;
@@ -371,6 +375,7 @@ export class Dummy {
       this.group.add(this.contact);
     }
     this.oneHit = opts.oneHit ?? false;
+    this.healthCap = opts.health;
     this.respawns = opts.respawn ?? true;
     // Yaw first, then the fall, so an armed dummy turned to face you falls
     // away from you rather than along the world axis.
@@ -465,7 +470,7 @@ export class Dummy {
     this.tier = t;
     this.shieldMax = this.shieldCap ?? ARMOR_SHIELD[t];
     this.shield = this.shieldMax;
-    this.health = this.oneHit ? 1 : HEALTH_MAX;
+    this.health = this.oneHit ? 1 : (this.healthCap ?? HEALTH_MAX);
     this.plate.visible = t !== 0 && !this.boardMat;
     this.ringMat.emissive.setHex(t !== 0 ? ARMOR_COLOR[t] : 0x39d7ee);
     this.engagedAt = null;
