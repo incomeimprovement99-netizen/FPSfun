@@ -8,6 +8,7 @@ import { mkdirSync } from "node:fs";
 import { resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import puppeteer, { type Browser, type Page } from "puppeteer";
+import { RUN_ROUTE } from "../src/game/courses/basic";
 
 const HERE = fileURLToPath(new URL(".", import.meta.url));
 const OUT = resolve(HERE, "..", "shots");
@@ -47,23 +48,15 @@ interface View {
 /**
  * A scripted course run: teleport across the start line and into each room in
  * turn, so the splits, the result card and the ghost can be captured. Run it
- * twice and the second run has deltas and a ghost to race.
+ * twice and the second run has deltas and a ghost to race. The points are the
+ * course's own (courses/basic.ts RUN_ROUTE, out and back since Milestone 636).
  */
-const X = -21.5;
 function courseRun(tag: string, shootSplit: boolean, shootResult: boolean): View[] {
-  const at = (name: string, x: number, y: number, z: number, step = true): View => ({ name: `${tag}-${name}`, x: X + x, y, z, yaw: 180, pitch: 0, note: `run ${tag}: ${name}`, step });
-  return [
-    at("pre", 0, 0, 11),
-    at("start", 0, 0, 13.5),
-    at("breach", 6, 0, 22, !shootSplit),
-    at("vent", 0, 0, 42),
-    at("climb", 0, 4.2, 52.8),
-    at("glide", 0, 1.4, 71),
-    at("gap", 8, 1.4, 83),
-    at("zip", -7, 0, 95),
-    at("final", 7, 0, 119.5),
-    at("finish", 7, 0, 131.2, !shootResult),
-  ];
+  const names = ["pre", "start", "breach", "vent", "climb", "gap", "wallrun", "superglide", "crossfire", "high", "final", "line", "finish"];
+  return RUN_ROUTE.map(([x, y, z], i) => {
+    const shoot = (i === 2 && shootSplit) || (i === RUN_ROUTE.length - 1 && shootResult);
+    return { name: `${tag}-${names[i] ?? i}`, x, y, z, yaw: i >= 7 ? 0 : 180, pitch: 0, note: `run ${tag}: ${names[i] ?? i}`, step: !shoot };
+  });
 }
 
 const VIEWS: View[] = [
@@ -86,15 +79,17 @@ const VIEWS: View[] = [
   { name: "spawn-to-course", x: 0, z: 0, yaw: 118, pitch: 3, note: "from the spawn, turned toward the course gate" },
   { name: "course-gate", x: -21.5, z: 3, yaw: 180, pitch: 4, note: "the lit gate to the course, back-left of the spawn" },
   { name: "course-start", x: -18.5, z: 10.5, yaw: 160, pitch: 0, note: "start room, rules sign and the start line" },
-  { name: "course-breach", x: -14.5, z: 22, yaw: 180, pitch: -2, note: "room 1, B00G walls and the roof" },
-  { name: "course-tip", x: -21.5, z: 26, yaw: 0, pitch: 4, note: "room 1 looking back: the route tip" },
-  { name: "course-climb", x: -14.5, z: 49, yaw: 180, pitch: 10, note: "room 3, the 4.2 m climb wall and its ladder" },
-  { name: "course-gap", x: -13.5, y: 1.4, z: 82, yaw: 180, pitch: -10, note: "room 5, the gap" },
-  { name: "course-zip", x: -28.5, z: 94, yaw: 170, pitch: 16, note: "room 6: deck, vertical zip, ladder" },
-  { name: "course-zip-deck", x: -25.8, y: 4.5, z: 98.6, yaw: -146, pitch: -8, note: "room 6 from the deck, down the long zip" },
+  { name: "course-breach", x: -18, z: 21.5, yaw: 180, pitch: -2, note: "room 1, the low wall" },
+  { name: "course-tip", x: -15.25, z: 30, yaw: 0, pitch: 22, note: "room 1 looking back: the route tip over the door" },
+  { name: "course-climb", x: -18, z: 59.5, yaw: 180, pitch: 16, note: "room 3, the 6.5 m climb wall" },
+  { name: "course-gap", x: -12.5, y: 1, z: 94.5, yaw: 180, pitch: -8, note: "room 4, the double jump gap in slick glass" },
+  { name: "course-wallrun", x: -10.2, y: 1, z: 119.5, yaw: 178, pitch: 2, note: "room 5, the lit wall and the pit" },
+  { name: "course-superglide", x: -27.75, y: 3.8, z: 163.6, yaw: 0, pitch: -8, note: "room 6 from the ledge: the gap and the deck" },
+  { name: "course-high", x: -27.75, y: 4, z: 87, yaw: 0, pitch: -12, note: "room 8 from the platform, over the screen" },
+  { name: "course-finish", x: -25, z: 28, yaw: 0, pitch: -4, note: "the finish line inside the last door" },
   { name: "range-ladder", x: -13, z: -44, yaw: -78, pitch: 12, note: "a ladder on the left platform" },
   { name: "holstered", x: 2, z: -2, yaw: 8, pitch: -2, note: "holstered: empty hands on screen", weapon: "vinson", lowered: 1 },
-  { name: "zip-hands", x: -25.8, y: 4.5, z: 100, yaw: -146, pitch: -4, note: "on a zipline: left hand on the trolley", weapon: "semipistol", onZip: true },
+  { name: "zip-hands", x: 2, z: -2, yaw: 8, pitch: -4, note: "on a zipline: left hand on the trolley", weapon: "semipistol", onZip: true },
   { name: "optic-holo", x: 2, z: -2, yaw: 8, pitch: -2, note: "R-301 with a 1x holo, hip", weapon: "vinson", optic: "optic_cq_holosight" },
   { name: "optic-holo-ads", x: 2, z: -2, yaw: 2, pitch: -1, note: "R-301 1x holo, aimed", weapon: "vinson", optic: "optic_cq_holosight", ads: 1 },
   { name: "optic-classic-ads", x: 2, z: -2, yaw: 2, pitch: -1, note: "R-301 1x HCOG Classic, aimed", weapon: "vinson", optic: "optic_cq_hcog_classic", ads: 1 },
@@ -124,13 +119,8 @@ const VIEWS: View[] = [
   },
   { name: "operators", x: 0, z: -13, yaw: 180, pitch: -4, note: "the five operators", setup: "window.__range.gallery()" },
   { name: "range-roof", x: 0, z: -20, yaw: 0, pitch: 22, note: "the range under its new roof" },
-  { name: "course-vent", x: -18.5, z: 35, yaw: 180, pitch: 4, note: "room 2 in its own colours" },
-  { name: "course-glide", x: -21.5, y: 1.4, z: 72, yaw: 180, pitch: 4, note: "room 4 in its own colours" },
+  { name: "course-vent", x: -12.5, z: 41.5, yaw: 180, pitch: -4, note: "room 2, the slot to slide" },
   { name: "course-tv", x: -14.5, z: 11.4, yaw: 0, pitch: 3, note: "the results TV by the start" },
-  { name: "adv-gate", x: 21.5, z: 3, yaw: 180, pitch: 4, note: "the lit gate to the advanced course, back-right of the spawn" },
-  { name: "adv-glide", x: 21.5, y: 3.0, z: 45, yaw: 180, pitch: -6, note: "advanced room 2 from the ledge: the 7 m gap and the pad" },
-  { name: "adv-strafe", x: 21.5, y: 1.4, z: 65, yaw: 180, pitch: -8, note: "advanced room 3: the lurch pads over the red" },
-  { name: "adv-superjump", x: 21.5, z: 105, yaw: 200, pitch: 12, note: "advanced room 5: the zip and the floating platform" },
   { name: "menu-stats", x: 0, z: 0, yaw: 0, pitch: 0, note: "menu: stats", menu: "stats" },
   { name: "holster-mid", x: 2, z: -2, yaw: 8, pitch: -2, note: "halfway through holstering: the gun turns down and away", weapon: "vinson", lowered: 0.5 },
   { name: "hands-grip", x: 2, z: -2, yaw: 8, pitch: -2, note: "the rebuilt gripping hands on the Wingman", weapon: "wingman" },

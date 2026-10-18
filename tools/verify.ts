@@ -76,7 +76,7 @@ import audioCfg from "../src/config/audio.json";
 import { LootField } from "../src/game/loot";
 import { moveDirOf } from "../src/game/duel";
 import { actCode, actFromCode } from "../src/game/dummy";
-import { medalFor, roomPars } from "../src/game/course";
+import { medalFor, roomPars, routeLegs, storageKeys } from "../src/game/course";
 import { BASIC_COURSE } from "../src/game/courses/basic";
 import { opticZoom } from "../src/game/sens";
 import { PAD_DEFAULTS, advancedLookRate, padCurve, padDeadzone } from "../src/game/gamepad";
@@ -1237,10 +1237,14 @@ console.log("Finishing touches: medals, per-optic ADS, the controller's advanced
   eq("a skipped room: none", medalFor(NaN, 5), null);
   for (const L of [BASIC_COURSE]) {
     const pars = roomPars(L);
-    const firstLeg = (L.ranks[0][1] * (L.rooms[0].entryZ - L.startZ)) / (L.finishZ - L.startZ);
+    const legs = routeLegs(L);
+    const firstLeg = (L.ranks[0][1] * legs.first) / legs.total;
     near(`${L.title}: the pars add up to its S time less the walk to the first room`, pars.reduce((a, b) => a + b, 0) + firstLeg, L.ranks[0][1], 0.6);
     eq(`${L.title}: every room has a par over a second`, pars.every((p) => p > 1), true);
   }
+  // (Milestone 636: THE RUN rebuilt out and back keeps its times apart from the old layout's)
+  eq("THE RUN out and back: its route's legs are its bays' lengths there and back", routeLegs(BASIC_COURSE).total > 2 * (BASIC_COURSE.dividers[4].z - BASIC_COURSE.startZ), true);
+  eq("and a rebuilt course's best, splits and ghost are kept apart from the old layout's", storageKeys("basic", 2).best !== storageKeys("basic").best && storageKeys("basic").best === "range.course.best", true);
   eq("no optic: 1x", opticZoom(null), "1x");
   eq("the 3x HCOG: 3x", opticZoom("3x HCOG Ranger"), "3x");
   eq("a 2x-4x on its first zoom: 2x", opticZoom("2x-4x Variable AOG", ["2x", "4x"], false), "2x");
@@ -1305,7 +1309,7 @@ fails += movesimFails;
 {
   const { spawnSync } = await import("node:child_process");
   // and everything else that reads SpeedKills' numbers as it loads: the guns' time to kill
-  for (const tool of ["tools/sk-movesim.ts", "tools/checks/ttk.ts", "tools/checks/rocket.ts", "tools/checks/hitcheck.ts", "tools/checks/bot-aim.ts", "tools/checks/soldier.ts", "tools/checks/paid-weapons.ts", "tools/checks/reach.ts", "tools/checks/sk-tutorial.ts", "tools/checks/sk-killcam.ts", "tools/checks/soldier-fit.ts", "tools/checks/soldier-hold.ts", "tools/checks/sk-neon.ts", "tools/checks/trails.ts", "tools/checks/spring.ts", "tools/checks/fparms-pack.ts", "tools/checks/sk-sprint.ts"]) {
+  for (const tool of ["tools/sk-movesim.ts", "tools/checks/ttk.ts", "tools/checks/rocket.ts", "tools/checks/hitcheck.ts", "tools/checks/bot-aim.ts", "tools/checks/soldier.ts", "tools/checks/paid-weapons.ts", "tools/checks/reach.ts", "tools/checks/sk-tutorial.ts", "tools/checks/sk-run.ts", "tools/checks/sk-killcam.ts", "tools/checks/soldier-fit.ts", "tools/checks/soldier-hold.ts", "tools/checks/sk-neon.ts", "tools/checks/trails.ts", "tools/checks/spring.ts", "tools/checks/fparms-pack.ts", "tools/checks/sk-sprint.ts"]) {
     const r = spawnSync(`npx tsx ${tool}`, { shell: true, encoding: "utf8", env: { ...process.env, GAME: "speedkills" } });
     process.stdout.write(r.stdout ?? "");
     if (r.status !== 0) fails++;

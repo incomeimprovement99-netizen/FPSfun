@@ -30,7 +30,7 @@ import { SlowTip } from "./game/perftip";
 import type Peer from "peerjs";
 import { Course } from "./game/course";
 import { keyPanelTexts, setPanelKeys } from "./game/geo";
-import { BASIC_COURSE } from "./game/courses/basic";
+import { BASIC_COURSE, RUN_ROUTE } from "./game/courses/basic";
 import { TUTORIAL_COURSE, DASH_HAZARD } from "./game/courses/tutorial";
 import { Tutorial, DASH_STEP, GUN_STEP, type TutorialCheck } from "./game/tutorial";
 import { loadTutorialDress, TUTORIAL_DRESS } from "./game/tutorialdress";
@@ -3286,7 +3286,7 @@ const keyLabel = (a: Action): string => (input.device === "pad" ? padLabel(a, in
 const panelLabel = (a: string): string => (input.device === "pad" && (a === "forward" || a === "right") ? `the stick ${a}` : keyLabel(a as Action));
 let panelKeysSaid = "";
 const panelKeysNow = (): void => {
-  const said = ["interact", "forward", "right"].map(panelLabel).join("|");
+  const said = ["interact", "forward", "right", "crouch"].map(panelLabel).join("|");
   if (said === panelKeysSaid) return;
   panelKeysSaid = said;
   setPanelKeys(panelLabel);
@@ -7949,6 +7949,8 @@ const GALLERY = { x: 0, z: -8 };
   /** the range's boards and flippers (tools/e2e.ts: what a round on one deals) */
   targets,
   course: courseBasic,
+  /** points through every room of THE RUN, start to finish (tools/e2e.ts walks them) */
+  runRoute: RUN_ROUTE,
   merged,
   duel: () => duel,
   /** the range together (main.ts hangout) */

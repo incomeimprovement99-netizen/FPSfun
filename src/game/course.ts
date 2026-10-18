@@ -10,7 +10,7 @@
 // results TV), and the structure every course shares (a walled compound with
 // a roof, a divider wall and a nameplate between rooms, the start and finish
 // lines). What is IN the rooms comes from a CourseLayout (courses/basic.ts,
-// courses/advanced.ts), which also names the rooms, their enemies and the tips
+// courses/tutorial.ts), which also names the rooms, their enemies and the tips
 // on the walls.
 //
 // Cross the start line to start the clock, the finish line to stop it. Every
@@ -87,18 +87,24 @@ export function medalFor(time: number, par: number): Medal | null {
 }
 
 /**
+ * The course's legs along z: the start line to the first room, each room to the next one's entry, the last to the
+ * finish. Each is its length either way, so a course that turns and comes back down a second bay (THE RUN, Milestone
+ * 636) counts its way back too.
+ */
+export function routeLegs(L: Pick<CourseLayout, "rooms" | "startZ" | "finishZ">): { first: number; rooms: number[]; total: number } {
+  const first = Math.abs(L.rooms[0].entryZ - L.startZ);
+  const rooms = L.rooms.map((room, i) => Math.abs((i + 1 < L.rooms.length ? L.rooms[i + 1].entryZ : L.finishZ) - room.entryZ));
+  return { first, rooms, total: Math.max(1, first + rooms.reduce((a, b) => a + b, 0)) };
+}
+
+/**
  * Each room's par: its own if set, else the course's S time shared out by the
- * rooms' lengths along the course (the stretch from the start line to the
- * first room and each room to the next entry, the last to the finish).
+ * rooms' lengths along the course (routeLegs).
  */
 export function roomPars(L: Pick<CourseLayout, "rooms" | "ranks" | "startZ" | "finishZ">): number[] {
   const sTime = L.ranks[0]?.[1] ?? 60;
-  const total = Math.max(1, L.finishZ - L.startZ);
-  return L.rooms.map((room, i) => {
-    if (room.par !== undefined) return room.par;
-    const end = i + 1 < L.rooms.length ? L.rooms[i + 1].entryZ : L.finishZ;
-    return Math.round(((sTime * (end - room.entryZ)) / total) * 10) / 10;
-  });
+  const legs = routeLegs(L);
+  return L.rooms.map((room, i) => (room.par !== undefined ? room.par : Math.round(((sTime * legs.rooms[i]) / legs.total) * 10) / 10));
 }
 
 /**
@@ -221,7 +227,18 @@ export interface CourseLayout {
   wallH: number;
   startZ: number;
   finishZ: number;
+  /**
+   * The finish line crossed going -z, across `finishSpan` (x): a course that comes back down a second bay to finish by
+   * its start (THE RUN since Milestone 636). Unset, crossed going +z across the whole course.
+   */
+  finishDir?: 1 | -1;
+  finishSpan?: [number, number];
   farZ: number;
+  /**
+   * Bumped when the course is rebuilt: a best, its splits and its ghost from another layout are not times on this one, so
+   * each version keeps its own (storageKeys)
+   */
+  version?: number;
   /** rank thresholds in seconds, ascending, the last Infinity */
   ranks: Array<[string, number]>;
   rooms: Room[];
@@ -298,9 +315,9 @@ export interface CoursePlayer extends PadPlayer {
   teleport(x: number, y: number, z: number, yaw: number, pitch?: number): void;
 }
 
-/** the localStorage keys; the first course keeps the names from before there were two */
-function storageKeys(id: string): { best: string; splits: string; ghost: string; recent: string; ghostOn: string } {
-  const p = id === "basic" ? "range.course" : `range.course.${id}`;
+/** the localStorage keys; the first course keeps the names from before there were two, until it is rebuilt */
+export function storageKeys(id: string, version?: number): { best: string; splits: string; ghost: string; recent: string; ghostOn: string } {
+  const p = (id === "basic" ? "range.course" : `range.course.${id}`) + (version ? `.r${version}` : "");
   return { best: `${p}.best`, splits: `${p}.splits.v2`, ghost: `${p}.ghost.v2`, recent: `${p}.recent.v1`, ghostOn: `${p}.ghostOn` };
 }
 
@@ -432,7 +449,7 @@ export class Course {
     private scene: THREE.Scene,
     readonly layout: CourseLayout
   ) {
-    this.keys = storageKeys(layout.id);
+    this.keys = storageKeys(layout.id, layout.version);
     try {
       const b = Number(localStorage.getItem(this.keys.best));
       if (b > 0) this.best = b;
@@ -586,7 +603,8 @@ export class Course {
       this.tv();
       // start and finish lines
       this.line(L.startZ, 0x7ddc8a, "START");
-      this.line(L.finishZ, 0xffd23c, "FINISH");
+      // (its label faces the way you come to it: down the second bay, +z)
+      this.line(L.finishZ, 0xffd23c, "FINISH", L.finishSpan, L.finishDir === -1 ? 0 : Math.PI);
     }
 
     L.build(b);
@@ -795,8 +813,8 @@ export class Course {
     });
   }
 
-  private line(z: number, color: number, label: string): void {
-    const { x0, x1 } = this.layout;
+  private line(z: number, color: number, label: string, span?: [number, number], rotY = Math.PI): void {
+    const [x0, x1] = span ?? [this.layout.x0, this.layout.x1];
     const m = new THREE.Mesh(new THREE.PlaneGeometry(x1 - x0, 0.5), emissive(color, 1.6));
     m.rotation.x = -Math.PI / 2;
     m.position.set((x0 + x1) / 2, 0.015, z);
@@ -807,7 +825,7 @@ export class Course {
       post.position.set(x, 1.3, z);
       this.root.add(post);
     }
-    this.panel(label, (x0 + x1) / 2, 3.4, z, Math.PI, 3, 0.8, true);
+    this.panel(label, (x0 + x1) / 2, 3.4, z, rotY, 3, 0.8, true);
   }
 
   /**
@@ -988,7 +1006,11 @@ export class Course {
           break;
         }
       }
-      if (this.running && insideX && this.lastZ < L.finishZ && z >= L.finishZ) this.finish(now);
+      // the line crossed the way the course runs to it, and only once every room has been entered: a course that
+      // finishes by its start could otherwise be finished from the start area through its last door
+      const crossed = L.finishDir === -1 ? this.lastZ > L.finishZ && z <= L.finishZ : this.lastZ < L.finishZ && z >= L.finishZ;
+      const onLine = L.finishSpan ? x > L.finishSpan[0] && x < L.finishSpan[1] : insideX;
+      if (this.running && onLine && crossed && this.roomTriggered.every(Boolean)) this.finish(now);
     }
     // back to the start after a finish, facing the results TV
     if (now >= this.returnAt) {

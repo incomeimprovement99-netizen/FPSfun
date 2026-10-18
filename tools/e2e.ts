@@ -2912,7 +2912,8 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   const t1 = await ev<string>(page, "window.__range.menu.tab");
   await padTap(page, 4);
   const t0 = await ev<string>(page, "window.__range.menu.tab");
-  for (let i = 0; i < 5; i++) await padTap(page, 5);
+  // (six over to it since Milestone 635's Account tab, after Stats)
+  for (let i = 0; i < 6; i++) await padTap(page, 5);
   const tc = await ev<{ tab: string; shown: boolean; status: string }>(page, `({ tab: window.__range.menu.tab, shown: !document.querySelector('section[data-panel="controller"]').hidden, status: document.getElementById("padStatus").textContent })`);
   await padTap(page, 4);
   await padTap(page, 4);
@@ -2986,11 +2987,12 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, the utility hack on RB, ping on D-pad up, the keys panel on D-pad right)", bj.join() === "jump,ability" && df.join() === "ability,jump,grenade,ping,keyHints", `${bj} / ${df}`);
   // The prompts follow the controller (Milestone 538): a pad in hand names its buttons in the keys panel and the
   // prompts, an unnamed pad as Xbox's, a DualSense as PlayStation's, and a key on the keyboard turns them back
-  // (and the range's signs, Milestone 621: the zipline room's says what to press and to hold the stick forward)
-  const rows = `(() => { const h = window.__range.hud.last; const k = h && h.keyHints; const f = (l) => (k && k.rows.find((r) => r.label.startsWith(l))?.keys.join(" ")) || null; const sign = (t) => window.__range.keyPanelTexts().find((x) => x.startsWith(t)) || ""; const zip = sign("ZIPLINE"); const gap = sign("GAP"); return { pad: h ? h.padFamily ?? null : null, jump: f("Jump"), mob: f("Mobility"), util: f("Utility"), move: f("Move"), hide: k ? k.hide : null, zip: (zip.match(/press (\\S+),/) || [])[1] || null, gap: (gap.match(/holding (.+?) and tap/) || [])[1] || null }; })()`;
+  // (and the range's signs, Milestone 621; since Milestone 636 THE RUN's vent names the slide's button and its climb
+  // the forward held)
+  const rows = `(() => { const h = window.__range.hud.last; const k = h && h.keyHints; const f = (l) => (k && k.rows.find((r) => r.label.startsWith(l))?.keys.join(" ")) || null; const sign = (t) => window.__range.keyPanelTexts().find((x) => x.startsWith(t)) || ""; const vent = sign("VENT"); const climb = sign("CLIMB"); return { pad: h ? h.padFamily ?? null : null, jump: f("Jump"), mob: f("Mobility"), util: f("Utility"), move: f("Move"), hide: k ? k.hide : null, vent: (vent.match(/press (\\S+) to slide/) || [])[1] || null, climb: (climb.match(/keep holding (.+?): you climb/) || [])[1] || null }; })()`;
   await padTap(page, 0);
   await sleep(700);
-  const xb = await ev<{ pad: string | null; jump: string | null; mob: string | null; util: string | null; move: string | null; hide: string | null; zip: string | null; gap: string | null }>(page, rows);
+  const xb = await ev<{ pad: string | null; jump: string | null; mob: string | null; util: string | null; move: string | null; hide: string | null; vent: string | null; climb: string | null }>(page, rows);
   await ev(page, `window.__pad.id = "DualSense Wireless Controller (STANDARD GAMEPAD Vendor: 054c Product: 0ce6)"`);
   await padTap(page, 0);
   await sleep(700);
@@ -3000,9 +3002,9 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   const kb = await ev<typeof xb>(page, rows);
   check(
     "pad prompts: an unnamed pad in hand says Xbox's buttons (A, LB, RB, the left stick), a DualSense PlayStation's (cross, L1, R1), and a key turns them back to the keyboard's, the range's signs with them",
-    xb.pad === "xbox" && xb.jump === "A" && xb.mob === "LB" && xb.util === "RB" && xb.move === "L-STICK" && xb.hide === "D-PAD →" && xb.zip === "X" && xb.gap === "the stick forward" &&
-      ps.pad === "ps" && ps.jump === "✕" && ps.mob === "L1" && ps.util === "R1" && ps.zip === "□" &&
-      kb.pad === null && kb.jump !== null && kb.jump !== "A" && kb.jump !== "✕" && kb.zip === "E" && kb.gap === "W",
+    xb.pad === "xbox" && xb.jump === "A" && xb.mob === "LB" && xb.util === "RB" && xb.move === "L-STICK" && xb.hide === "D-PAD →" && xb.vent === "B" && xb.climb === "the stick forward" &&
+      ps.pad === "ps" && ps.jump === "✕" && ps.mob === "L1" && ps.util === "R1" && ps.vent === "○" &&
+      kb.pad === null && kb.jump !== null && kb.jump !== "A" && kb.jump !== "✕" && kb.vent === "CTRL" && kb.climb === "W",
     JSON.stringify({ xb, ps, kb })
   );
   await page.close();
@@ -8269,11 +8271,26 @@ async function main(): Promise<void> {
     // slot 1's optic, its own: the course lends pistols and must give it back
     const fitted = await ev<string | null>(page, `(() => { const l = window.__range.loadout; return l.slots[0].attach.optic ?? null; })()`);
     const X = -21.5;
-    const steps: Array<[number, number, number]> = [
-      [0, 0, 11], [0, 0, 13.5], [6, 0, 22], [0, 0, 42], [0, 4.2, 52.8], [0, 1.4, 71], [8, 1.4, 83], [-7, 0, 95], [7, 0, 119.5], [7, 0, 131.2],
-    ];
+    // (since Milestone 636 out and back: the points through every room are the course's own, courses/basic.ts RUN_ROUTE)
+    const steps = await ev<Array<[number, number, number]>>(page, "window.__range.runRoute");
+    const roomCount = await ev<number>(page, "window.__range.course.layout.rooms.length");
+    const frames3 = "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))";
+    // the finish by the start counts only once every room is entered: over the start line, in at the last door from the
+    // start area and back over the finish, and no result
+    {
+      const [sx, , sz] = steps[0];
+      const [fx, , fz] = steps[steps.length - 1];
+      for (const [x, z] of [[sx, sz], [sx, steps[1][2]], [fx, 18], [fx, fz + 2.5], [fx, fz]]) {
+        await ev(page, `(() => { const p = window.__range.player; p.pos.set(${x}, 0, ${z}); p.vel.set(0, 0, 0); p.yaw = 0; })()`);
+        await ev(page, frames3);
+      }
+      const short = await ev<{ result: boolean; running: boolean }>(page, "({ result: window.__range.course.result !== null, running: window.__range.course.running })");
+      check("the finish counts only after every room: in from the start area at the last door and over the line, no result", !short.result && short.running, JSON.stringify(short));
+      // (leave, not reset: a result left over would pass the run below without it finishing)
+      await ev(page, `window.__range.course.leave()`);
+    }
     for (const [x, y, z] of steps) {
-      await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X + x}, ${y}, ${z}); p.vel.set(0, 0, 0); p.yaw = 180; })()`);
+      await ev(page, `(() => { const p = window.__range.player; p.pos.set(${x}, ${y}, ${z}); p.vel.set(0, 0, 0); p.yaw = 180; })()`);
       // wait for at least three frames at this spot
       await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(() => requestAnimationFrame(r))))");
     }
@@ -8281,12 +8298,13 @@ async function main(): Promise<void> {
     check("a run through every room finishes with a result", res !== null, res ? `${res.time.toFixed(2)} s` : "no result");
     if (res) {
       const skipped = res.splits.filter((s) => !Number.isFinite(s.time)).map((s) => s.name);
-      check("with a split for every room and the finish", res.splits.length === 8 && skipped.length === 0, skipped.length ? `skipped ${skipped.join(",")}` : "8 splits");
-      const medals = (res.splits as Array<{ name: string; par?: number; medal?: string | null }>).slice(0, 7);
+      check("with a split for every room and the finish", res.splits.length === roomCount + 1 && roomCount === 9 && skipped.length === 0, skipped.length ? `skipped ${skipped.join(",")}` : `${res.splits.length} splits`);
+      const medals = (res.splits as Array<{ name: string; par?: number; medal?: string | null }>).slice(0, roomCount);
       check("medals: every room has a par, and a run this quick takes gold in each", medals.every((s) => (s.par ?? 0) > 1 && s.medal === "gold"), JSON.stringify(medals.map((s) => `${s.name}:${s.medal}/${s.par}`)));
-      // 1.5 s after the finish you are put back near the start, facing the results TV
+      // 1.5 s of game time after the finish you are put back near the start, facing the results TV (60 s to wait: the
+      // drawn page makes about one frame a second in software at the finish, its game time a tenth of a second a frame)
       const back = await page
-        .waitForFunction(`Math.abs(window.__range.player.pos.x - (${X} + 7)) < 0.3 && Math.abs(window.__range.player.pos.z - 11.4) < 0.3`, { polling: 200, timeout: 10000 })
+        .waitForFunction(`Math.abs(window.__range.player.pos.x - (${X} + 7)) < 0.3 && Math.abs(window.__range.player.pos.z - 11.4) < 0.3`, { polling: 200, timeout: 60000 })
         .then(() => true, () => false);
       const pose = await ev<{ x: number; z: number; yaw: number; running: boolean }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw, running: window.__range.course.running })");
       check("after the finish: back near the start, facing the TV, no run going", back && Math.abs(pose.yaw) < 1 && !pose.running, JSON.stringify({ x: +pose.x.toFixed(2), z: +pose.z.toFixed(2), yaw: +pose.yaw.toFixed(1) }));
@@ -8427,8 +8445,8 @@ async function main(): Promise<void> {
     check("after a reload the loadout and its edit are remembered", after.name === "Test Kit" && after.slot1 === "wingman" && after.w === "wingman", JSON.stringify(after));
     // the menu's The Run button puts you at the course start, facing the line
     await ev(page, `document.getElementById("goRun").click(); document.getElementById("startMode").click()`);
-    const at = await ev<{ x: number; z: number; yaw: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw })`);
-    check("The Run button: at the course start facing the start line", Math.abs(at.x + 21.5) < 0.5 && Math.abs(at.z - 10.2) < 0.5 && at.yaw === 180, JSON.stringify(at));
+    const at = await ev<{ x: number; z: number; yaw: number; sx: number; sz: number }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw, sx: window.__range.course.startPose.x, sz: window.__range.course.startPose.z })`);
+    check("The Run button: at the course start facing the start line", Math.abs(at.x - at.sx) < 0.5 && Math.abs(at.z - at.sz) < 0.5 && at.sz < 12 && at.yaw === 180, JSON.stringify(at));
     await ev(page, `document.getElementById("goTutorial").click(); document.getElementById("startMode").click()`);
     const tut = await ev<{ x: number; z: number; yaw: number; step: string | null }>(page, `({ x: window.__range.player.pos.x, z: window.__range.player.pos.z, yaw: window.__range.player.yaw, step: window.__range.tutorial.stepTitle })`);
     check("The Tutorial button: in the tutorial's start room, facing in, on its first room", Math.abs(tut.x - 21) < 0.5 && Math.abs(tut.z - 12) < 0.5 && tut.yaw === 180 && tut.step === "MOVE", JSON.stringify(tut));

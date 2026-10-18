@@ -183,17 +183,18 @@ const HAZARDS: Hazard[] = [
 export const DASH_HAZARD = 2;
 
 /** the slick walls' glass: a blue-grey that reads as glass and not as a hole (0x121821 drew them black) */
-const SLICK_GLASS = 0x2b3548;
+export const SLICK_GLASS = 0x2b3548;
 
 const theme = (top: string, bottom: string, trim: number) => ({ wall: { top, bottom, words: ["#f1efe6", "#ffd23c", "#9ff0ff", "#1a1d21", "#ff9f43"] as [string, string, string, string, string], strength: 0.5 }, trim });
 
-/** the slick walls of a room, between z0 and z1, in a bay: both sides, and the dividers' faces at its ends but their doors (`doors` the lower z's first) */
-function slickRoom(b: CourseBuilder, bay: { x0: number; x1: number }, z0: number, z1: number, doors: Array<[number, number] | null>): void {
-  const T = cfg.slick;
+/**
+ * The slick walls of a room, between z0 and z1, in a bay: both sides, and the dividers' faces at its ends but their doors
+ * (`doors` the lower z's first). THE RUN's slick rooms are these too (courses/basic.ts), with its own thickness and height.
+ */
+export function slickRoom(b: CourseBuilder, bay: { x0: number; x1: number }, z0: number, z1: number, doors: Array<[number, number] | null>, T = cfg.slick, WH = cfg.wallH): void {
   const glass = b.flat(SLICK_GLASS, 0.3, 0.35);
   const lo = Math.min(z0, z1);
   const hi = Math.max(z0, z1);
-  const WH = cfg.wallH;
   for (const [x0, x1] of [
     [bay.x0, bay.x0 + T],
     [bay.x1 - T, bay.x1],
@@ -222,7 +223,7 @@ function slickRoom(b: CourseBuilder, bay: { x0: number; x1: number }, z0: number
 }
 
 /** a slick ledge across a bay, drawn and solid */
-function slickLedge(b: CourseBuilder, bay: { x0: number; x1: number }, l: Ledge): void {
+export function slickLedge(b: CourseBuilder, bay: { x0: number; x1: number }, l: Ledge): void {
   const lo = Math.min(l.z0, l.z1);
   const hi = Math.max(l.z0, l.z1);
   b.box(bay.x1 - bay.x0, l.top, hi - lo, (bay.x0 + bay.x1) / 2, 0, (lo + hi) / 2, b.platMat, false);

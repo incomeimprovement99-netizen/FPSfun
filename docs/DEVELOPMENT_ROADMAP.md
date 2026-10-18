@@ -12016,6 +12016,54 @@ royale is what they come back for.
   - e2e page (your name typed on the Account tab).
   - Photographed at 1600 x 900, new and with a game to resume.
 
+## Milestone 636 — THE RUN rebuilt for today's speeds: out and back, nine rooms, every gate measured, no ziplines
+
+The owner, 2026-10-17: "WE NEED TO REDO THE 3 COURSES AGAIN AND MAKE THEM MUCH LONGER TO COMPENSATE WITH THE NEW
+DISTANCES AND MOVEMENT SPEED FOR EVERYTHING. No more ziplines ... you can remove 1 of the 'the runs' and the other run
+just align it to today's movement speed". The advanced course went in Milestone 633 and the middle one became the
+tutorial; this is the third. Its seven rooms were sized to a sprint half today's (13.97 m/s): one jump (11.4 m) cleared
+its gap, a double jump and a mantle topped its 4.2 m climb, and a climb (8 m) took its 7 m walls, out of the course.
+
+- **Out and back** (src/game/courses/basic.ts, src/config/therun.json): the left-hand gate's 24 m split by a wall into
+  two halves. Out up the left half from the start line, round the far end, back down the other, the finish line inside
+  the last door by the start and the results TV. About 340 m against 120 m. Walls 15 m.
+- **Nine rooms, each passed with its move and not the one before** (tools/checks/sk-run.ts, armed as the run has you;
+  the "not" cases from a full sprint, the "with" cases from the door at rest):
+  - BREACH: a 1 m wall, jumped at a sprint.
+  - VENT: a 1.25 m slot 4 m deep. A slide takes you through; standing, or jumping at it, you stop.
+  - CLIMB: a 6.5 m wall. A climb takes it; with it taking no climb, none of 70 jumps and double jumps tops it. A
+    30-degree ramp down its far side leaves a slide at 15.8 m/s, over the sprint.
+  - GAP: 13 m, in slick glass. No single jump from a full sprint; the double jump from 43 of 63 timings (a slide jump
+    makes it too). Measured on its deck: one jump crosses 11 m from 1 of 7 take-offs, the double jump 16 m from under
+    half.
+  - WALL RUN: a 32 m pit beside a lit wall. The wall run lands from every take-off; no double jump from a full sprint
+    at 63 timings, nor a slide into one. Measured: no jump crosses 24 m, the wall run crosses 44 m and not 48.
+  - SUPERGLIDE: the tutorial's measured ledge (3.8 m, its 14.49 m gap). The superglide from all 21 approaches, nothing
+    else across before dropping into the pit. The pit is no hazard here: climb out its far side, the slow way.
+  - CROSSFIRE: four dummies walking to and fro across the room between pillars.
+  - HIGH GROUND: a 4 m slick platform (no single jump; the double jump from 49 of 63 timings) and a 2.2 m screen past
+    it. The three behind the screen are out of sight from the floor and in sight from the top.
+  - FINAL: the sprint to the line, holstered.
+  - 27 armed pop-ups, each in sight from its room's way through, a walker at both ends of its line.
+- **Run end to end** on the controller, door to door, with the climb, the wall run and the superglide: 29.65 s. The S
+  rank is that and 0.4 s a dummy, 40 s (A 48, B 60); sk-run fails if S drifts 10% off it.
+- **The finish by the start** (course.ts `finishDir`, `finishSpan`): crossed going back down, and only once every room
+  has been entered, or it could be finished from the start area through the last door. Its label faces the way you come
+  to it. A room's par is its share of S by the route's length, there and back (`routeLegs`).
+- **Your times start again:** the rebuilt course keeps its best, its splits and its ghost under keys of its own
+  (CourseLayout `version`), not measured against the old layout's.
+- The tips are on the wall you came in by, over the door. The vent's names the crouch key and the climb's the forward
+  held, as the controller in hand says them.
+- **Checked:**
+  - tsc; verify (sk-run in it; the route's legs, the versioned keys); rules.
+  - sk-run proven by putting the gates back wrong: the gap at 10.5 m, the wall pit at 21 m, the climb at 4.5 m, the slot
+    at 2 m, the screen at 1 m (6 FAIL).
+  - e2e page: the route from the start line to the finish, a split and a gold a room, back at the TV, and the finish
+    refused from the start area. e2e pad: the signs' keys on Xbox, PlayStation and the keyboard. Proven with the
+    every-room rule taken out and the vent's key typed in (2 FAIL).
+  - The pad section's tab count, one short since Milestone 635's Account tab, fixed on the way.
+  - Photographed every room.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
