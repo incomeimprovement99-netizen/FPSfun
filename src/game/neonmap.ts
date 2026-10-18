@@ -19,6 +19,7 @@ import { botWalk } from "./botbody";
 import { Doors } from "./doors";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi } from "./br";
 import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay, useSectors } from "./world";
+import { applyBatches } from "./neonbatch";
 import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
 import { padOff, padOnto } from "./padsolve";
@@ -36,7 +37,7 @@ interface Spine {
 }
 
 /** what the map drew, for the page's hook and the checks */
-export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false };
+export const NEON_MAP: { drawn: boolean; file: string; triangles: number; meshes: number; detail: number; batches: { batches: number; materials: number; layers: number }; got: number; total: number; unpacked: number; textures: number; boxes: number; fromCache: boolean; kept: boolean } = { drawn: false, file: "", triangles: 0, meshes: 0, detail: 0, batches: { batches: 0, materials: 0, layers: 0 }, got: 0, total: 0, unpacked: 0, textures: 0, boxes: 0, fromCache: false, kept: false };
 
 /**
  * The city's collision boxes (src/config/neon/neonmap.solids.json, measured off the pieces at the bake): a file of their
@@ -835,6 +836,9 @@ export async function dressNeonMap(root: THREE.Object3D, renderer: THREE.WebGLRe
     gltf = await parse(bytes);
   }
   NEON_MAP.detail = await applyDetailMaps(gltf);
+  // (the opaque materials' batches joined into their texture arrays, neonbatch.ts: before the decay's patch, which keeps
+  // their glow's line)
+  NEON_MAP.batches = await applyBatches(gltf);
   let meshes = 0;
   gltf.scene.traverse((o) => {
     const mesh = o as THREE.Mesh;

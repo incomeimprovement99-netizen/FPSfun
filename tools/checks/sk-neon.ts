@@ -96,6 +96,27 @@ const slabs = cfg.court.halls.length + cfg.underground.slabs.length;
 check("the collision the bake measured, every box, and the street's slab over each hall and the station", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length + slabs && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length} + ${slabs}, bake ${cfg.baked.boxes}`);
 check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.tallest.top) < 1e-6 && SPIRE_TOP.y > 100, `${SPIRE_TOP.y}`);
 
+// The centre's draws (Milestone 657, docs/PLAN_CITY_DRAWS.md): at each size rules.bake.batch names, the bake wrote the
+// centre's opaque lit materials in batches over texture arrays (tools/import-city.ts writePack, src/game/neonbatch.ts),
+// so the centre is under half the 441 primitives of one a material, each of which was drawn whichever way a camera
+// looked; and no batch past 255 materials and a neutral layer, no array past 256 layers (WebGL 2's least) or the cap's
+// bytes at a byte a pixel and its mips
+{
+  const BR = (cfg.rules.bake as { batch?: { sizes: string[]; capMB: number } }).batch;
+  const draw = ((cfg.baked as { draw?: Record<string, { size: number[]; batches: number[]; layers: Record<string, number[]>; left: number }> }).draw ?? {});
+  const said: string[] = [];
+  const ok = !!BR && BR.sizes.every((s) => {
+    const d = draw[s];
+    if (!d) return said.push(`${s}: not batched`), false;
+    const prims = d.batches.length + d.left;
+    const bytes = (kind: string, n: number) => n * (kind === "normal" ? d.size[1] : d.size[0]) ** 2 * (4 / 3);
+    const big = Object.entries(d.layers).flatMap(([kind, v]) => v.filter((n) => n > 256 || bytes(kind, n) > BR.capMB * 1e6).map((n) => `${kind} ${n} layers`));
+    said.push(`${s}: ${prims} primitives (${d.batches.length} batches of ${d.batches.join("/")} materials, ${d.left} left), arrays of ${Object.entries(d.layers).map(([k, v]) => `${k} ${v.join("/")}`).join(", ")}${big.length ? `; too big: ${big.join(", ")}` : ""}`);
+    return prims <= 220 && d.batches.every((n) => n <= 255) && big.length === 0;
+  });
+  check("the centre's draws: its opaque materials in batches over texture arrays at each size named, under half its 441 primitives, every array within WebGL 2's 256 layers and its byte cap", ok, said.join("; "));
+}
+
 // the court the tallest building stands in: a body dropped in its corners stands on its drawn floor, 7 m down, not on
 // the street's height over nothing (the hole showed the sky through the world before it was floored). Dropped from under
 // the street: the base's ground floor covers the court now (rules.base), a basement under it

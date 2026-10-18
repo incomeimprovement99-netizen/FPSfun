@@ -1349,6 +1349,10 @@ by its measured bounds from the rules in `src/config/neonmap.json`, and
 measured off their own triangles (`src/config/neon/neonmap.solids.json`). The
 pack's Unity materials are drawn as Unity draws them: their detail maps
 multiplied in, their light beams unlit and added (`src/game/detailmaps.ts`).
+Its opaque materials are drawn in a few batches, not one draw each: the bake
+writes each material's pictures as layers of texture arrays and its numbers as
+a row of a table, and the game joins the layers as the file loads
+(`src/game/neonbatch.ts`; the plan, `docs/PLAN_CITY_DRAWS.md`).
 The tower stands in a sunken court 7 m deep, its own basement at its floor,
 walled with the pack's concrete (the world's floor lowered into it, as the old
 metro's was), floored in black marble, with stacks of crates and the pack's cooling plant to

@@ -1245,15 +1245,23 @@ if (mode === "bake") {
   tex.pool = pool;
   const outDir = join(helpers.out, "neon");
   const sizes: Record<string, number> = {};
+  // the centre's opaque materials in batches over texture arrays at the sizes rules.bake.batch names (Milestone 657;
+  // NEON_BATCH=1 batches every size, 0 none, for a bake beside the live one under NEON_TAG)
+  const BR = cfg.rules.bake.batch as { sizes: string[]; capMB: number; ids: string[] } | undefined;
+  const BT = process.env.NEON_BATCH === "0" ? null : process.env.NEON_BATCH === "1" ? { sizes: Object.keys(SIZES), capMB: BR?.capMB ?? 128, ids: BR?.ids ?? ["neon/c"] } : BR ?? null;
+  const draw: Record<string, { size: number[]; batches: number[]; layers: Record<string, number[]>; left: number }> = {};
   for (const s of (process.env.NEON_SIZES ?? "preview").split(",")) {
     const [size, normal] = SIZES[s];
     const file = join(outDir, `neonmap-v${cfg.version}-${s}${TAG}.glb`);
-    const bytes = await writePack(helpers, pack, baked, mats, tex, size, normal, new Set(baked.map((b) => b.id)), file, true);
+    const stats = { batches: [] as number[], layers: {} as Record<string, number[]>, left: 0 };
+    const batch = BT?.sizes.includes(s) ? { ids: BT.ids, capMB: BT.capMB, stats } : undefined;
+    const bytes = await writePack(helpers, pack, baked, mats, tex, size, normal, new Set(baked.map((b) => b.id)), file, true, batch);
     sizes[s] = +(bytes / 1e6).toFixed(1);
-    console.log(`${file}: ${(bytes / 1e6).toFixed(1)} MB`);
+    if (batch) draw[s] = { size: [size, normal], ...stats };
+    console.log(`${file}: ${(bytes / 1e6).toFixed(1)} MB${batch ? `; batches of ${stats.batches.join(", ")} materials (layers: ${Object.entries(stats.layers).map(([k, v]) => `${k} ${v.join("/")}`).join(", ")}), ${stats.left} materials left a primitive each` : ""}`);
   }
   await pool.stop();
-  cfg.baked = { triangles: tris, boxes: all.length, chunks: Object.fromEntries(baked.map((b) => [b.id.replace("neon/", ""), { tris: b.tris, min: b.min.map((v) => +v.toFixed(2)), max: b.max.map((v) => +v.toFixed(2)) }])), mb: { ...(cfg.baked?.mb ?? {}), ...sizes } };
+  cfg.baked = { draw, triangles: tris, boxes: all.length, chunks: Object.fromEntries(baked.map((b) => [b.id.replace("neon/", ""), { tris: b.tris, min: b.min.map((v) => +v.toFixed(2)), max: b.max.map((v) => +v.toFixed(2)) }])), mb: { ...(cfg.baked?.mb ?? {}), ...sizes } };
   // only what the bake measured goes back, into the file as it is now: a bake takes minutes, and writing back the copy
   // read at its start threw away the game's sites, added to the file while one ran
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));

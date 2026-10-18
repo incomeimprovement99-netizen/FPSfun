@@ -297,3 +297,76 @@ toward the High City roofs); the gangway's cover staggered with side shields; th
 furnished, the court's floor fit for underground; the sky quieter (a meaning per beam colour, thin zip cables, the
 loops plainly walkable or plainly scenery); each corner block its own street identity; the haze and bloom cut, the
 ceilings varied by floor; the lookout's parapet lowered with firing gaps, the hover traffic above the roofs.
+
+## Round 7, 2026-10-17 (map version 93)
+
+The same 27 spots and hours as round 6, with spot 15 moved onto its bridge and spot 28 added inside THE VAULT (32 m);
+the designer's list brought up to date (Milestones 651 to 656: the names over the glass, the ropes as cables, the
+tower's corners, THE VAULT's gold trim, the boulevards' taller cover, the court in marble, the gangway's staggered
+cover).
+
+| | Round 1 | Round 2 | Round 3 | Round 4 | Round 5 | Round 6 | Round 7 |
+|---|---|---|---|---|---|---|---|
+| Looks and identity | 4 | 4.5 | 5 | 5 | 5 | 5 | 6 |
+| Readability | 4 | 5 | 5 | 5 | 6 | 6 | 6 |
+| Flow and getting around | 5 | 5 | 5 | 6 | 6 | 6 | 7 |
+| Fits every play style | 4 | 4.5 | 5 | 5 | 5 | 5 | 6 |
+| Finish and bugs | 3 | 3 | 4 | 4 | 4 | 4 | 5 |
+| Fun | 5 | 6 | 6 | 6 | 6 | 6 | 6 |
+| **Overall** | **4.5** | **4.5** | **5** | **5** | **5.5** | **5.5** | **6** |
+
+**What it liked.** The tower and its gold VAULT band, a landmark from every height; the High City colours; NOODLE ROW's
+lanterns, the best street identity; the floor numbers and THE VAULT's gold walls ("unmistakable"); real layering (the
+Sky Ring, zips with lit collars, the fire escape, the corner footbridges, the gangway); the tower floors as shotgun and
+SMG spaces, the lookout and High City roofs as long lines.
+
+**What holds it at 6.** The golden-hour haze beiging the aerials; one green glass rail everywhere; every interior one
+concrete ceiling and one light fitting; THE WELL a black hole (19); the walk-in door not reading as a door (22); roof
+heights jumping 12, 26.9 and 49 m with nothing between; NOODLE ROW's square, the plaza ring and MARKET's street wide,
+flat and lightly covered. Against Neo Arcadia: no enterable small shops on its streets, no loot seen in any picture,
+nothing to step on between the corner roofs and the High City's.
+
+**Broken or confusing, by its reading:** torn wall bottoms on the tower floors (11, 13, 28); shadows dithering on flat
+roofs (14, 15, 19, 25); the gangway's crates black and unlit (25: they stand inside the rail, checked); the lookout bare
+(10); a zip cable read as a pipe ending in mid-air (14: the lookout zip's top end, which has no post); a plain white
+slab (17); the station read as a corridor from its spot (21); no crates in the court's picture (20: spot 20 looks into
+the tower's basement, the court's cover stands in its open ends, out of frame).
+
+**What round 7 asks for next, in its order:** enterable two-storey shopfronts along the Loop and in each corner block
+with stairs to their roofs; the open squares filled with stall clusters, awnings and kiosk lines; a 16 to 20 m tier
+(ledges, balcony runs, container stacks) chaining the corner roofs to the High City roofs; the tower floors dressed
+(a ceiling and a light per floor, furniture, crates; gold crates in THE VAULT); THE WELL lit; cover on the lookout;
+the torn wall bottoms and the kiosk's seam fixed; the shadows' resolution and the golden-hour fog; the gangway's window
+marked "26" and its crates lit; a rail colour per zone. The plan built from it is docs/PLAN_CITY_FINISH.md.
+
+## The districts, round 1, 2026-10-17 (map version 93)
+
+The first review of the eight districts past the ring road, by the same method: a fresh agent shown only pictures, with
+a brief of its own (three spots in each district, three aerials, two at night: 29 pictures).
+
+| District | Score | Its main point |
+|---|---|---|
+| THE TERMINAL | 6.5 | Unmistakable and the best finished; an empty forecourt and a black vault roof |
+| THE STACKS | 6 | A strong landmark; the hotel court a wide empty plaza with the map's edge behind |
+| THE CANYON | 5.5 | The best street atmosphere; one straight lane and a flat 48 m roof plateau |
+| LANTERN ALLEYS | 5 | The lanterns the most distinctive dressing; not alleys, the houses far apart |
+| GLASS HEIGHTS | 5 | Dramatic from below; the centre's window grid again, its deck bare |
+| THE STRIP | 4.5 | The red and the pyramid read; flat red planes, solid blue screens, an open-air club |
+| THE TERRACES | 3 | Nothing reads as stepped tiers; a bare top deck and an untextured room |
+| THE WORKS | 3 | Grey boxes, not rust and machinery; an empty hall |
+
+Together: looks 5, readability 5, flow 5, play styles 4, finish 4, fun 6, **overall 4.5**. The whole map from the air
+read as "a centre with filler around it": the districts told apart by one colour, not by shape, wide empty ground in
+the north-east and south-east, the south-west a flat brown lid; the edge reads as an edge, with only fog past it.
+
+**Checked in its pictures:** THE WORKS' block hall is empty on its ground floor (only its upper ring was furnished, its
+four side halls were); THE STRIP's ad screens show solid blue; a loose black slab stands in THE STRIP's
+boulevard.
+
+**What it asks for, in its order:** head-high cover in every open space so no stretch runs past about 15 m without it;
+THE WORKS' hall filled with machines, pipe runs, crates and stairs, rust and teal on its walls; THE TERRACES made
+terraced, with rooms that have doors, windows and furniture; facades of their own for GLASS HEIGHTS, THE CANYON and THE
+STRIP; THE STRIP's pyramid patterned and lit, its screens alive, its club a dark room; THE CANYON's plateau split into
+roofs and its lane broken; LANTERN ALLEYS' lanes made narrow; a white GLASS HEIGHTS tower with a cyan crown; each
+district's night colour read from the dropship; a far skyline past the edge, thinner fog, fewer laser lines, less
+bloom.

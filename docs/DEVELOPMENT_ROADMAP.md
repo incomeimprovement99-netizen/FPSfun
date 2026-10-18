@@ -14681,3 +14681,46 @@ its edges.
   and the diaries, 209 lines in 44 files. Its id stays `launcher`, so saved loadouts and anything stored by id carry over.
 - **Checked:** verify (the rocket check reads the name), rules and the type check; the HUD photographed with it in hand
   ("DEVINOS  LAUNCHER" fits its card).
+
+## Milestone 657 — The city drawn in batches, and the last plan
+
+The owner, after a pause: "plan this part out deeply then finish out the city overall". Two fresh reviews, both taken
+today on version 93:
+
+- **The centre, round 7: 6 of 10** (5.5 in rounds 5 and 6).
+- **The eight districts, their first review: 4.5.** THE TERMINAL 6.5, THE STACKS 6, THE CANYON 5.5, LANTERN ALLEYS
+  and GLASS HEIGHTS 5, THE STRIP 4.5, THE TERRACES and THE WORKS 3.
+
+Both are in docs/CENTRE_REVIEW.md. The plan built from them is docs/PLAN_CITY_FINISH.md, and on the plan page:
+- **"Done" in numbers:** the centre at 7, the districts at 7 overall with each at 6, and 60 fps on half a processor.
+- **The order:** the districts worst first, then the centre. The rest of the frame work and its benchmark go last,
+  with the PC unused (the owner, 2026-10-18: "save that for last and mention that the pc needs to be unused to really
+  benchmark": the other agents run their own copies of the game on it).
+- **Milestones:** 657 to 682.
+
+Built here, before the owner put the frame last, is its first stage, from the lobby agent's measure of the frame: the centre was about 420 draw calls a frame from the
+street, one primitive per material, 441 of them each spanning the whole city, so none was ever culled.
+
+- **The batches** (`rules.bake.batch`, tools/import-city.ts writePack, src/game/neonbatch.ts):
+  - **What goes in:** the 249 opaque, lit materials without detail maps, at lo, hi and max.
+  - **How it is drawn:** one primitive a batch. Each vertex carries its material's row in a table, and each material's
+    colour, normal, packed occlusion-roughness-metal and glow is a layer of a texture array of its kind.
+  - **The layers:** they ride in the file as KTX2 pictures of their own, square and opaque so they all transcode to one
+    format. The game joins each kind's layers into one array as the file loads. One Basis codebook over hundreds of
+    materials would have blurred them all.
+  - **The cap:** no array past 128 MB with its neutral layer (the least single allocation Direct3D 11 promises) or past
+    256 layers (WebGL 2's least): lo one batch, hi three, max twelve.
+- **The shader:** MeshStandardMaterial patched, the material's row read per vertex and handed on flat. Measured, that
+  was the cheapest on the graphics card. A branch round each lookup to skip a neutral layer cost more than it saved.
+- **Measured** at lo: the centre's 441 primitives to 193, and the look unchanged at 12 spots (mean difference under 1
+  of 255, the moving cars aside). The bench at the street spot, Competitive, interleaved: half a processor 40 to 50 fps,
+  a whole one 132 to 139, taken with the other agents' games running, so they show a direction, not a number to keep.
+- **Tried and dropped:** cutting the batches into 50 m cells to be sorted and culled. From the street most cells are in
+  view: 5% fewer triangles and no more fps.
+- **Checked:**
+  - The bake's draw counts are held (tools/checks/sk-neon.ts): at each size, under half the 441 primitives, every array
+    within 256 layers and its byte cap. It fails with the bug put back: a batch of 300 materials at lo, its colour array 301 layers, too big.
+  - The e2e's NEON YARD check reads the batches joined.
+  - The e2e: the speedkills section, 102 of 103 run on a quiet PC (a first run beside the other agents lost the ghost loadout check to load as well). The one left, the city-missing check (Milestone 629), gets the city from the browser cache the section's earlier matches filled and never asks the network; run alone it passes, 3 of 3. verify, rules and the type check.
+
+  The map: its files lo 158.1 MB, hi 236.1 MB, max 526.2 MB. **Its files are version 94.**

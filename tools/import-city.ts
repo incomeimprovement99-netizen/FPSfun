@@ -920,9 +920,57 @@ export class Textures {
       );
     return this.ktx.get(key)!;
   }
+  /**
+   * a texture as one layer of a texture array (writePack's batches): exactly `size` square whatever its own shape (a UV
+   * from 0 to 1 does not see the stretch), and opaque, so every layer of an array comes out of the transcoder in one GPU
+   * format (Basis gives a picture with any alpha in it an alpha slice, and three.js transcodes those to another format)
+   */
+  layerKtx2(pack: Pack, guid: string, size: number, kind: BasisKind): Promise<Uint8Array | null> {
+    const key = `${pack.name}/${guid}/${size}/${kind}/layer`;
+    if (!this.ktx.has(key))
+      this.ktx.set(
+        key,
+        (async () => {
+          const t = await this.decode(pack, guid);
+          if (!t) return null;
+          const rgba = await sharp(t.data, { raw: { width: t.width, height: t.height, channels: t.channels } }).resize(size, size, { kernel: "lanczos3", fit: "fill" }).removeAlpha().ensureAlpha().raw().toBuffer();
+          return this.pool!.encode(rgba, size, size, kind);
+        })(),
+      );
+    return this.ktx.get(key)!;
+  }
+  /** what tells two materials' packed occlusion, roughness and metal apart (ormKtx2's cache key) */
+  ormKey(pack: Pack, mi: MatInfo, size: number): string {
+    return `${pack.name}/${mi.metalGloss}/${mi.smoothFromAlbedo ? mi.map : ""}/${mi.occlusion}/${size}/${mi.smooth}/${mi.metal}/orm`;
+  }
+  /** the packed occlusion, roughness and metal as a layer of a texture array: `size` square; null where it has none */
+  ormLayerKtx2(pack: Pack, mi: MatInfo, size: number): Promise<Uint8Array | null> {
+    const key = `${this.ormKey(pack, mi, size)}/layer`;
+    if (!this.ktx.has(key))
+      this.ktx.set(
+        key,
+        (async () => {
+          const px = await this.ormPixels(pack, mi, size);
+          if (!px) return null;
+          const rgba = await sharp(px.rgb, { raw: { width: px.w, height: px.h, channels: 3 } }).resize(size, size, { fit: "fill" }).ensureAlpha().raw().toBuffer();
+          return this.pool!.encode(rgba, size, size, "data");
+        })(),
+      );
+    return this.ktx.get(key)!;
+  }
+  /** one colour all over, `size` square: an array's neutral layer, read by a material with no picture of that kind */
+  solidKtx2(rgb: [number, number, number], size: number, kind: BasisKind): Promise<Uint8Array | null> {
+    const key = `solid/${rgb.join(",")}/${size}/${kind}`;
+    if (!this.ktx.has(key)) {
+      const rgba = Buffer.alloc(size * size * 4);
+      for (let i = 0; i < size * size; i++) rgba.set([rgb[0], rgb[1], rgb[2], 255], i * 4);
+      this.ktx.set(key, this.pool!.encode(rgba, size, size, kind));
+    }
+    return this.ktx.get(key)!;
+  }
   /** the packed occlusion, roughness and metal (orm) as KTX2 */
   ormKtx2(pack: Pack, mi: MatInfo, size: number): Promise<Uint8Array | null> {
-    const key = `${pack.name}/${mi.metalGloss}/${mi.smoothFromAlbedo ? mi.map : ""}/${mi.occlusion}/${size}/${mi.smooth}/${mi.metal}/orm`;
+    const key = this.ormKey(pack, mi, size);
     if (!this.ktx.has(key))
       this.ktx.set(
         key,
@@ -1733,7 +1781,16 @@ let SIMPLIFIER: { getScale: (p: Float32Array, stride: number) => number; simplif
  * occlusion, roughness and metal at `size`, normal maps at `normalSize` (UASTC is four times ETC1S's bytes). Only the
  * pieces in `keep` are written: a GLB loads whole, and half the packs' textures were for pieces the centre never places.
  */
-export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, normalSize: number, keep: Set<string>, file: string, meshopt = false): Promise<number> {
+/**
+ * Which baked pieces' opaque materials writePack batches (Milestone 657), and how big a batch's biggest array may be. A
+ * batch is one primitive: its materials' pictures layers of texture arrays (colour, normal, packed occlusion, roughness
+ * and metal, glow), each vertex its material's row in a table of their numbers. The game joins the layers into arrays
+ * as the file loads (src/game/neonbatch.ts). Neon City's centre was 441 primitives, one a material, each spanning the
+ * whole city, so all of them were drawn whichever way a camera looked: 420 draw calls a frame from the street
+ */
+export type BatchOpts = { ids: string[]; capMB: number; stats?: { batches: number[]; layers: Record<string, number[]>; left: number } };
+
+export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Baked[], mats: Map<string, MatInfo | null>, tex: Textures, size: number, normalSize: number, keep: Set<string>, file: string, meshopt = false, batch?: BatchOpts): Promise<number> {
   const { Document, NodeIO } = await import("@gltf-transform/core");
   const { KHRTextureBasisu } = await import("@gltf-transform/extensions");
   const baked = allBaked.filter((b) => keep.has(b.id));
@@ -1816,9 +1873,89 @@ export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Bak
     matCache.set(k, m);
     return m;
   };
+  // (the batches' layers and the stand-in normal map each batch's material names, set once every texture is made)
+  const batchLater: Array<{ m: any; layers: Record<string, any[]>; extras: Record<string, unknown> }> = [];
+  /** the opaque, lit, detail-less materials a batch can draw (the rest keep a primitive each, as before) */
+  const batchable = (g: { mat: string | null }): boolean => {
+    const mi = g.mat ? mats.get(g.mat) : null;
+    return !!mi && mi.mode === "OPAQUE" && !mi.unlit && !mi.additive && !mi.detail && !mi.detailNormal;
+  };
+  /** one batch's primitive: its materials' geometry merged, each vertex its material's row; its arrays' layers */
+  const batchPrim = async (part: Array<{ mat: string | null; pos: number[]; nrm: number[]; uv: number[]; idx: number[] }>, k: number): Promise<any> => {
+    // layer 0 of every array is neutral, read by a material with no picture of that kind (its factor alone then counts)
+    const neutral = {
+      color: await tex.solidKtx2([255, 255, 255], size, "color"),
+      normal: await tex.solidKtx2([128, 128, 255], normalSize, "normal"),
+      orm: await tex.solidKtx2([255, 255, 255], size, "data"),
+      emissive: await tex.solidKtx2([255, 255, 255], size, "emissive"),
+    } as Record<string, Uint8Array | null>;
+    const layers: Record<string, any[]> = {};
+    const seen = new Map<string, number>();
+    for (const [kind, bytes] of Object.entries(neutral)) layers[kind] = [doc.createTexture(`batch ${k} ${kind} 0`).setImage(bytes!).setMimeType("image/ktx2")];
+    const layer = async (kind: string, key: string | null, make: () => Promise<Uint8Array | null>): Promise<number> => {
+      if (!key) return 0;
+      if (seen.has(kind + key)) return seen.get(kind + key)!;
+      const bytes = await make();
+      const at = bytes ? layers[kind].push(doc.createTexture(`batch ${k} ${kind} ${layers[kind].length}`).setImage(bytes).setMimeType("image/ktx2")) - 1 : 0;
+      seen.set(kind + key, at);
+      return at;
+    };
+    const [pos, nrm, uv, idx, mid, table]: number[][] = [[], [], [], [], [], []];
+    for (const [j, g] of part.entries()) {
+      const mi = mats.get(g.mat!)!;
+      const lc = await layer("color", mi.map, () => tex.layerKtx2(pack, mi.map!, size, "color"));
+      const ln = await layer("normal", mi.normal, () => tex.layerKtx2(pack, mi.normal!, normalSize, "normal"));
+      const lo = await layer("orm", tex.ormKey(pack, mi, size), () => tex.ormLayerKtx2(pack, mi, size));
+      const le = mi.emission && mi.emissive ? await layer("emissive", mi.emissive, () => tex.layerKtx2(pack, mi.emissive!, size, "emissive")) : 0;
+      // its numbers as its own material's were (material(), above): the factors 1 where the packed map carries them
+      const [metal, rough] = lo ? [1, 1] : [mi.metalGloss ? 1 : mi.metal, mi.metalGloss ? 1 : 1 - mi.smooth];
+      let glow = [0, 0, 0];
+      if (mi.emission) {
+        const peak = Math.max(...mi.emission, 1e-6);
+        glow = mi.emission.map((v) => srgbToLinear(Math.min(v / Math.max(peak, 1), 1)) * Math.max(1, peak));
+      }
+      // a row: the colour; the glow and the normal's scale; roughness, metal, occlusion's strength; the four layers
+      table.push(...mi.color, ...glow, ln ? mi.normalScale : 1, rough, metal, lo && mi.occlusion ? 1 : 0, 0, lc, ln, lo, le);
+      const base = pos.length / 3;
+      for (let i = 0; i < g.pos.length; i++) pos.push(g.pos[i]);
+      for (let i = 0; i < g.nrm.length; i++) nrm.push(g.nrm[i]);
+      for (let i = 0; i < g.uv.length; i++) uv.push(g.uv[i]);
+      for (let i = 0; i < g.idx.length; i++) idx.push(g.idx[i] + base);
+      for (let i = 0; i < g.pos.length / 3; i++) mid.push(j);
+    }
+    // (its material in the file: white, the factors 1, and a stand-in normal map, so the loader makes the game's material
+    // with a normal map's tangent frame and its scale's sign as it does every other's; the game draws the rest)
+    const stand = await tex.solidKtx2([128, 128, 255], 4, "normal");
+    const m = doc.createMaterial(`${pack.name}/batch ${k}`).setBaseColorFactor([1, 1, 1, 1]).setMetallicFactor(1).setRoughnessFactor(1);
+    m.setNormalTexture(doc.createTexture(`batch ${k} stand-in normal`).setImage(stand!).setMimeType("image/ktx2"));
+    batchLater.push({ m, layers, extras: { k, rows: part.length, width: 4, table: table.map((v) => +v.toFixed(5)) } });
+    if (batch!.stats) {
+      batch!.stats.batches.push(part.length);
+      for (const [kind, list] of Object.entries(layers)) (batch!.stats.layers[kind] ??= []).push(list.length);
+    }
+    const vcount = pos.length / 3;
+    return doc
+      .createPrimitive()
+      .setAttribute("POSITION", doc.createAccessor().setType("VEC3").setArray(new Float32Array(pos)).setBuffer(buf))
+      .setAttribute("NORMAL", doc.createAccessor().setType("VEC3").setArray(new Float32Array(nrm)).setBuffer(buf))
+      .setAttribute("TEXCOORD_0", doc.createAccessor().setType("VEC2").setArray(new Float32Array(uv)).setBuffer(buf))
+      .setAttribute("_MATID", doc.createAccessor().setType("SCALAR").setArray(new Float32Array(mid)).setBuffer(buf))
+      .setIndices(doc.createAccessor().setType("SCALAR").setArray(vcount < 65536 ? new Uint16Array(idx) : new Uint32Array(idx)).setBuffer(buf))
+      .setMaterial(m);
+  };
   for (const b of baked) {
     const mesh = doc.createMesh(b.id);
+    // a batched piece's opaque materials in batches, as many to a batch as its biggest array (the colour's, mips and
+    // all at a byte a pixel, BC7's) holds under `capMB` with its neutral layer, and never past 255 and that layer
+    // (WebGL 2's least 256)
+    const batched = batch?.ids.includes(b.id) ? [...b.groups.values()].filter(batchable).sort((p, q) => mats.get(p.mat!)!.name.localeCompare(mats.get(q.mat!)!.name)) : [];
+    if (batched.length) {
+      const per = Math.max(1, Math.min(255, Math.floor((batch!.capMB * 1e6) / ((size * size * 4) / 3)) - 1));
+      for (let k = 0; k * per < batched.length; k++) mesh.addPrimitive(await batchPrim(batched.slice(k * per, (k + 1) * per), k));
+      if (batch!.stats) batch!.stats.left = [...b.groups.values()].length - batched.length;
+    }
     for (const [, g] of b.groups) {
+      if (batched.includes(g)) continue;
       const vcount = g.pos.length / 3;
       const prim = doc
         .createPrimitive()
@@ -1843,6 +1980,19 @@ export async function writePack(_h: CityImportHelpers, pack: Pack, allBaked: Bak
       if (q.dn) holder.setNormalTexture(q.dn);
       if (q.dm) holder.setOcclusionTexture(q.dm);
       q.m.setExtras({ ...(q.m.getExtras() ?? {}), detail: { map: q.dt ? list.indexOf(q.dt) : -1, normal: q.dn ? list.indexOf(q.dn) : -1, mask: q.dm ? list.indexOf(q.dm) : -1, xf: q.xf.map((v) => +v.toFixed(5)), normalScale: q.normalScale } });
+    }
+  }
+  // the batches' layers by their images' indexes, each held by a material no mesh uses as the detail maps are
+  {
+    const list = doc.getRoot().listTextures();
+    const slots = ["setBaseColorTexture", "setNormalTexture", "setOcclusionTexture", "setEmissiveTexture", "setMetallicRoughnessTexture"];
+    for (const q of batchLater) {
+      const all = Object.values(q.layers).flat();
+      for (let i = 0; i < all.length; i += slots.length) {
+        const holder = doc.createMaterial(`${q.m.getName()} layers ${i / slots.length}`);
+        all.slice(i, i + slots.length).forEach((t, s) => (holder as unknown as Record<string, (x: unknown) => void>)[slots[s]](t));
+      }
+      q.m.setExtras({ batch: { ...q.extras, layers: Object.fromEntries(Object.entries(q.layers).map(([kind, ts]) => [kind, ts.map((t) => list.indexOf(t))])) } });
     }
   }
   mkdirSync(dirname(file), { recursive: true });

@@ -4800,14 +4800,15 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     await ev(page, `(() => { document.getElementById("goBots").click(); document.getElementById("startMode").click(); })()`);
     await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 200, timeout: 60000 }).catch(() => undefined);
     await page.waitForFunction("window.__range.neonMap().drawn", { polling: 500, timeout: 120000 }).catch(() => undefined);
-    const y = await ev<{ map: string; me: boolean; bot: boolean; drawn: boolean; part: { shown: string | null; nodes: string[]; extras: boolean } }>(
+    const y = await ev<{ map: string; me: boolean; bot: boolean; drawn: boolean; part: { shown: string | null; nodes: string[]; extras: boolean }; batches: { batches: number; materials: number; layers: number } }>(
       page,
       `(() => { const R = window.__range; const d = R.duel(); const b = d.arenaBounds; const inside = (q) => q.x > b.minX && q.x < b.maxX && q.z > b.minZ && q.z < b.maxZ;
-        return { map: d.arenaId, me: inside(R.player.pos), bot: inside(d.bots[0].pos), drawn: R.neonMap().drawn, part: R.neonMap().part }; })()`,
+        return { map: d.arenaId, me: inside(R.player.pos), bot: inside(d.bots[0].pos), drawn: R.neonMap().drawn, part: R.neonMap().part, batches: R.neonMap().batches }; })()`,
     );
+    // (and the city's file read whole, its opaque materials' batches joined into their texture arrays: neonbatch.ts)
     check(
-      "speedkills: a 1v1 against a bot opens on NEON YARD, you and the bot inside its walls, the city's file showing the yard alone",
-      y.map === "yard" && y.me && y.bot && y.drawn && y.part.shown === "a-yard" && y.part.nodes.join() === "a-yard" && !y.part.extras,
+      "speedkills: a 1v1 against a bot opens on NEON YARD, you and the bot inside its walls, the city's file showing the yard alone, its batches joined",
+      y.map === "yard" && y.me && y.bot && y.drawn && y.part.shown === "a-yard" && y.part.nodes.join() === "a-yard" && !y.part.extras && y.batches?.batches >= 1 && y.batches.layers > y.batches.batches * 4,
       JSON.stringify(y),
     );
     await page.close();
