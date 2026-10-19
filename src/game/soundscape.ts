@@ -130,7 +130,8 @@ export class Soundscape {
     const hear = cfg.footsteps.hearOthersTo;
     const grounded = (s: string): boolean => s === "stand" || s === "crouch" || s === "slide";
     for (const d of f.figures) {
-      if (!d.group.visible || d.knocked) continue;
+      // (one unseen under INVISIBILITY is hidden but still there, and still heard: Milestone 717)
+      if ((!d.group.visible && !d.cloaked) || d.knocked) continue;
       const pose = d.currentPose;
       const g = d.group.position;
       const far = Math.hypot(g.x - p.pos.x, g.z - p.pos.z) > hear;

@@ -12674,6 +12674,17 @@ they could not be hit at all. In Hyper Scape you can shoot someone you cannot qu
 - **Checked:** tsc, verify, rules; e2e brsolo, the INVISIBILITY check now asks that a round would find the cloaked guest
   (with the old rule put back it failed: "shot": false).
 
+## Milestone 717 — An invisible player is still heard walking
+
+The second thing Milestone 715's hiding took with it: the others' sounds (soundscape.ts) skip a hidden figure, so
+someone unseen under INVISIBILITY past 6 m walked, jumped, slid and landed in silence. Hyper Scape's invisible players
+are heard, and here, until Milestone 715 hid them for real, they were too. The sounds now count a figure unseen under
+INVISIBILITY (its `cloaked`) as there, as the rounds do since Milestone 716.
+
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: a figure unseen under INVISIBILITY, its group hidden,
+  is heard walking (7 steps in 1.5 s at 3.5 m/s; with the old rule put back, 0, and it failed). In that run the loot
+  start's drop check also found nothing on the floor once, as it has before under load; it passed in the run before.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

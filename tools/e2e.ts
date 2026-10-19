@@ -5044,6 +5044,19 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     }
     const heard = await ev<string[]>(page, "window.__range.sk.othersHeard()");
     check("speedkills: another figure's landing, slide, mantle, zipline and double jump are heard where it is", ["land", "slide", "mantle", "zip", "airjump"].every((k) => heard.includes(k)), JSON.stringify(heard));
+    // and its footsteps while it is unseen under INVISIBILITY (Milestone 717): its figure hidden past seenWithin, its
+    // shimmer up; hidden, its steps went silent (the sounds skip a hidden figure)
+    await ev(
+      page,
+      `(() => { const R = window.__range; const a = R.duel().avatars[0]; window.__fake = { stance: "stand", speed: 3.5, pitch: 0, airJumps: 1 }; a.cloaked = true;
+        Object.defineProperty(a.group, "visible", { get: () => false, set: () => undefined, configurable: true }); window.__steps0 = R.sk.stepsHeard(); })()`,
+    );
+    await gameSleep(page, 1.5);
+    const unseenSteps = await ev<number>(
+      page,
+      `(() => { const R = window.__range; const a = R.duel().avatars[0]; delete a.group.visible; a.group.visible = true; a.cloaked = false; window.__fake = { stance: "stand", speed: 0, pitch: 0, airJumps: 1 }; return R.sk.stepsHeard() - window.__steps0; })()`,
+    );
+    check("speedkills: someone unseen under INVISIBILITY is still heard walking", unseenSteps >= 2, `${unseenSteps} steps in 1.5 s of game time at 3.5 m/s`);
     // and its steps along a wall (Milestone 707): a wall run was silent; at 12 m/s, a step every audio.json wallStride
     await ev(page, `window.__fake = { stance: "wallL", speed: 12, pitch: 0 }`);
     await gameSleep(page, 1);

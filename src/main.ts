@@ -1308,6 +1308,8 @@ const announcer = new Announcer();
 let watchWas: Watch | null = null;
 /** someone else's hacks lately heard, newest last (tools/e2e.ts) */
 const heardHacks: string[] = [];
+/** others' footsteps heard so far (tools/e2e.ts: an invisible player's steps, Milestone 717) */
+let stepsHeard = 0;
 // How much of the world stands between the ear and a sound. Three lines
 // rather than one, spread across the source, so a figure half behind a pillar
 // is half blocked instead of all or nothing, which is what a single ray gives
@@ -1329,6 +1331,7 @@ audio.onCue = (id, at, fwd, ear) => {
     heardHacks.push(id);
     if (heardHacks.length > 20) heardHacks.shift();
   }
+  if (id === "step" && at) stepsHeard++;
   if (!at) {
     captions.heard(id, gameTime, "", "");
     return;
@@ -8212,6 +8215,8 @@ const GALLERY = { x: 0, z: -8 };
     },
     /** someone else's hacks lately heard (Milestone 710) */
     heardHacks: () => heardHacks.slice(),
+    /** others' footsteps heard so far (Milestone 717) */
+    stepsHeard: () => stepsHeard,
     /** what your rounds do to them under ARMOR (armorScaleOf), and the shards of shields broken in the air now */
     armorScale: (id: number) => armorScaleOf(id),
     /** the others' movement sounds lately played (soundscape.ts, Milestone 695) */
