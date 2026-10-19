@@ -5004,6 +5004,16 @@ async function speedkillsTest(browser: Browser): Promise<void> {
       .waitForFunction(`(() => { const R = window.__range; const s = R.duel().avatars[0].shellState(); return (!s || s.on === 0) && R.sk.armorScale(${arm?.id ?? -1}) === 1; })()`, { polling: 100, timeout: 15000 })
       .then(() => true, () => false);
     check("speedkills: and when ARMOR ends the shell goes and your rounds do their whole damage again", after);
+    // every hack of someone else's is heard where it was used (Milestone 710): their INVISIBILITY, a MINE set down, a
+    // WALL going up and where a DASH came out were silent or a stand-in
+    await ev(
+      page,
+      `(() => { const R = window.__range; const d = R.duel(); const a = d.avatars[0]; const r = a ? d.remoteOf(a) : null; if (!r) return; const p = a.group.position;
+        R.sk.remoteHack(r.id, 5, p.x, p.y, p.z, 2); R.sk.remoteHack(r.id, 6, p.x + 1, p.y, p.z);
+        R.sk.remoteFx("wall", r.id, [p.x + 2, p.y, p.z], [0, 0, 0]); R.sk.remoteFx("jolt", r.id, [p.x, p.y, p.z], [p.x + 3, p.y, p.z]); })()`,
+    );
+    const hacksHeard = await ev<string[]>(page, "window.__range.sk.heardHacks()");
+    check("speedkills: another figure's INVISIBILITY, MINE, WALL and DASH are heard where they were used", ["hack_invis", "hack_mine", "hack_wall", "hack_dash"].every((k) => hacksHeard.includes(k)), JSON.stringify(hacksHeard));
     // others' landings, slides and mantles are heard where they are (Milestone 695): the bot's figure taken through them
     // (its pose read as the sounds read it), 4 m from you
     await ev(page, `(() => { const R = window.__range; const a = R.duel().avatars[0]; window.__fake = { stance: "stand", speed: 0, pitch: 0 }; Object.defineProperty(a, "currentPose", { get: () => window.__fake, configurable: true }); const q = a.group.position; R.player.teleport(q.x + 4, q.y, q.z, 90, 0); })()`);

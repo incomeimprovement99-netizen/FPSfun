@@ -604,7 +604,8 @@ green plate always shows.
 - **An enemy under ARMOR:** wears a gold shell for its four seconds, and your damage numbers on them are what ARMOR lets
   through.
 - **Others' movement:** you hear their landings, slides, mantles and hacks where they are, and their steps along a
-  wall when they wall run, a little louder than a sprint (Milestone 707).
+  wall when they wall run, a little louder than a sprint (Milestone 707). Every hack of theirs has its own sound where
+  they used it, INVISIBILITY's shimmer, a MINE set down and a WALL going up among them (Milestone 710).
 - **An enemy's REVEAL that catches you:** puts a red REVEALED, counting down, under the compass.
 - **The compass and minimap:** they follow whoever you are watching (a squad mate, the killcam), and the minimap marks
   north.
@@ -771,7 +772,7 @@ The Settings tab, all remembered in this browser:
 | Graphics | Competitive (straight to the screen with MSAA, fastest, and the shortest draw distance), Balanced, High (post-processing, shadows, bloom, and the longest view) |
 | (a tip) | after 20 s of play under 45 fps the HUD says once, in that browser, to try Render scale 70% or Competitive (or fewer bots once both are tried); src/config/hud.json slowTip |
 | Render scale | 100% down to 50%: the 3D view drawn at that share of the screen's pixels and stretched to fit, for a laptop's graphics that cannot keep up; the HUD and menus stay sharp, and it applies at once (on High at a laptop's 1.5 density the graphics card's time a frame went 13.5 ms at 100%, 9.7 at 70%, 8.8 at 50%) |
-| Sound captions | off, the ones that mean someone is near you, or everything: what you would have heard, written down with which way it came from and roughly how far ("DOOR  LEFT  NEAR") |
+| Sound captions | off, the ones that mean someone is near you, or everything: what you would have heard, written down with which way it came from and roughly how far ("DOOR  LEFT  NEAR"), someone else's hacks among them ("INVISIBILITY  LEFT  NEAR", Milestone 710) |
 | Killcam | on (the replay, then the recap) or off (the recap only) |
 | Volume | master, effects, hits |
 | The range's ammo | endless, or counted |

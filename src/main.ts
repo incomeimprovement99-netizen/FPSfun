@@ -1306,6 +1306,8 @@ const audio = new GameAudio();
 /** the callouts and the match's voice (announcer.ts); what it last saw of the match, for what changed */
 const announcer = new Announcer();
 let watchWas: Watch | null = null;
+/** someone else's hacks lately heard, newest last (tools/e2e.ts) */
+const heardHacks: string[] = [];
 // How much of the world stands between the ear and a sound. Three lines
 // rather than one, spread across the source, so a figure half behind a pillar
 // is half blocked instead of all or nothing, which is what a single ray gives
@@ -1322,6 +1324,11 @@ let watchWas: Watch | null = null;
 // every sound worth writing down, written down (src/game/captions.ts): the
 // wording and the direction are the captions', the sound is the mixer's
 audio.onCue = (id, at, fwd, ear) => {
+  // (someone else's hacks heard, for tools/e2e.ts: Milestone 710)
+  if (id.startsWith("hack_")) {
+    heardHacks.push(id);
+    if (heardHacks.length > 20) heardHacks.shift();
+  }
   if (!at) {
     captions.heard(id, gameTime, "", "");
     return;
@@ -3757,7 +3764,7 @@ function useHack(slot: HackSlot, now: number): void {
     case "invis": {
       invisUntil = now + H.invis.seconds;
       if (d instanceof Duel) d.hiddenUntil.set(d.id, realNow() + H.invis.seconds);
-      audio.whoosh();
+      if (!audio.hackSound("invis")) audio.whoosh();
       sendFx("sk", player.pos.clone(), new THREE.Vector3(H.invis.seconds, 0, 0), 5);
       break;
     }
@@ -4077,6 +4084,8 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       const secs = b ? b.x : 0;
       if (secs > 0) unseenUntil.set(from, realNow() + secs);
       else unseenUntil.delete(from);
+      // going unseen is heard where they are (Milestone 710): it was the one hack nobody heard
+      if (secs > 0 && !audio.hackSound("invis", a)) audio.whoosh(a);
       // the host's bots stop seeing them too
       if (d instanceof Duel) {
         if (secs > 0) d.hiddenUntil.set(from, realNow() + secs);
@@ -4091,6 +4100,8 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       const mesh = bought ?? hackMesh(0xff2e9a, 0.35, 0.12);
       mesh.position.copy(a).setY(a.y + (bought ? 0 : 0.06));
       mines.push({ at: a.clone(), armAt: Infinity, until: gameTime + H.mine.life, mesh, mine: false });
+      // and heard as it lands (Milestone 710): it was set down in silence
+      audio.hackSound("mine", a);
       break;
     }
     case 7:
@@ -4723,7 +4734,8 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   // someone else's WALL: the same wall here
   if (k === "wall" && a && b) {
     putWall(scene, a.x, a.y, a.z, b.x, gameTime, H.wall.seconds);
-    audio.clatter(a);
+    // WALL's own sound where it goes up, as yours is (Milestone 710); a clatter was all it had
+    if (!audio.hackSound("wall", a)) audio.clatter(a);
     return;
   }
   // a quick chat line: its number, said in the feed under their name
@@ -4772,6 +4784,8 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   if (k === "jolt" && a && b) {
     fx.jolt(a, b, gameTime);
     audio.joltAt(a);
+    // and DASH's own sound where they came out (Milestone 710): the zap was only where they left
+    audio.hackSound("dash", b);
   }
   // a squad mate's restore at an echo: the beam while it runs
   if (k === "beam") {
@@ -8167,7 +8181,11 @@ const GALLERY = { x: 0, z: -8 };
     /** the Spire's crown deck, world metres (city.ts SPIRE_TOP): the ship passes beside it (tools/e2e.ts) */
     spireTop: () => ({ ...SPIRE_TOP }),
     /** someone else's hack as their page told this one (tools/e2e.ts: an enemy's HEAL heals you too) */
-    remoteHack: (from: number, n: number, x: number, y: number, z: number) => remoteHack(from, n, new THREE.Vector3(x, y, z), undefined),
+    remoteHack: (from: number, n: number, x: number, y: number, z: number, secs = 0) => remoteHack(from, n, new THREE.Vector3(x, y, z), secs > 0 ? new THREE.Vector3(secs, 0, 0) : undefined),
+    /** someone else's effect as their page told this one, from a to b (tools/e2e.ts: a DASH, a WALL) */
+    remoteFx: (k: string, from: number, a: [number, number, number], b: [number, number, number]) => duel && remoteFx(duel, k, from, new THREE.Vector3(...a), new THREE.Vector3(...b)),
+    /** someone else's hacks lately heard (Milestone 710) */
+    heardHacks: () => heardHacks.slice(),
     /** what your rounds do to them under ARMOR (armorScaleOf), and the shards of shields broken in the air now */
     armorScale: (id: number) => armorScaleOf(id),
     /** the others' movement sounds lately played (soundscape.ts, Milestone 695) */

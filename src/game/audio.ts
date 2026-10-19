@@ -406,6 +406,8 @@ export class GameAudio {
   hackSound(id: string, at: Vec | null = null): boolean {
     const layers = (cfg.hacks as Record<string, Array<{ take: string; level: number; len: number; rate: number }> | undefined>)[id];
     if (!layers?.length) return false;
+    // someone else's, captioned with its name and where it was (captions.json hack_*, Milestone 710)
+    if (at) this.cue(`hack_${id}`, at);
     const v = this.voice(at, Math.max(...layers.map((l) => l.len)) + 0.3, at ? "fx" : "own", 2, 0.4);
     if (!v) return false;
     let any = false;

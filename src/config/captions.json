@@ -16,9 +16,19 @@
     "ring": "THE RING",
     "package": "CARE PACKAGE",
     "knock": "KNOCKDOWN",
-    "hit": "HIT"
+    "hit": "HIT",
+    "hack_dash": "DASH",
+    "hack_slam": "SLAM",
+    "hack_leap": "LEAP",
+    "hack_heal": "HEAL AREA",
+    "hack_armor": "ARMOR",
+    "hack_wall": "WALL",
+    "hack_invis": "INVISIBILITY",
+    "hack_reveal": "REVEAL",
+    "hack_mine": "MINE"
   },
-  "important": ["gun", "blast", "step", "land", "door", "reload", "heal", "revive", "zip", "knock"],
+  "_hacks": "hack_* are someone else's hacks, heard where they were used (audio.ts hackSound, Milestone 710): each is someone near you doing something, so all are important.",
+  "important": ["gun", "blast", "step", "land", "door", "reload", "heal", "revive", "zip", "knock", "hack_dash", "hack_slam", "hack_leap", "hack_heal", "hack_armor", "hack_wall", "hack_invis", "hack_reveal", "hack_mine"],
   "cone": {
     "ahead": 45,
     "behind": 45

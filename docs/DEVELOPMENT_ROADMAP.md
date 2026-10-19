@@ -12566,6 +12566,22 @@ often were still flat boxes:
 - **Checked:** tsc, verify, rules; e2e speedkills (its loot start's drop check found nothing on the floor once, run
   under the machine's load, and passed run alone); photographed at 1080p with each panel's state put on the HUD.
 
+## Milestone 710 — Every hack of someone else's heard where it was used, and captioned
+
+What was left of the enemy-as-you-hear-them gap (docs/PLAN_ENEMY_POV.md row 4), found reading each hack's way to the
+other pages:
+
+- **INVISIBILITY** was the one hack nobody heard: going unseen made no sound at all on anyone else's page, and yours
+  was a plain whoosh. It has a sound of its own now (audio.json hacks.invis: the force field quick and high over the
+  scan low, a shimmer), heard where they were as they went.
+- **A MINE** was set down in silence: its own sound, where it landed.
+- **A WALL** going up was a clatter: WALL's own sound, as yours is.
+- **A DASH** was a zap where they left: DASH's own sound where they came out too.
+- **Captioned:** each of someone else's hacks is a sound caption now (captions.json hack_*: "INVISIBILITY  LEFT
+  NEAR"), among the important ones, since each is someone near you doing something.
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: a figure's INVISIBILITY, MINE, WALL and DASH are each
+  heard (with the old silence put back it failed, only the ARMOR before them heard).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
