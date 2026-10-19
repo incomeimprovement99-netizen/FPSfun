@@ -33,8 +33,8 @@ An inventory of the code, 2026-10-18.
 | 1 | A shield taking a round looked like flesh taking one: a white flash | Apex flares the shield's colour where it is hit; Halo, Splitgate and Empulse shimmer over the body | **M694**: the shield flare |
 | 2 | Breaking a shield had a sound and nothing else: the moment to push was easy to miss | Apex: a burst of the shield's colour and a cracked-shield marker | **M694**: shards and the break's marker |
 | 3 | An enemy under ARMOR looked like any other, and your numbers on them were two and a half times the truth | Hyper Scape: armour reads as a shell on the body | **M694**: a gold shell, true numbers |
-| 4 | Others' SLAM, LEAP and ARMOR sounded from everywhere at full volume; ARMOR's was a shield breaking | Every ability heard where it is used | **M694/M695**: heard where they are, with their own sounds |
-| 5 | Others' jumps, landings, slides and mantles were silent | Apex: an enemy's landing and slide are among the loudest things you hear | **M695** |
+| 4 | Others' SLAM, LEAP and ARMOR sounded from everywhere at full volume; ARMOR's was a shield breaking | Every ability heard where it is used | **M694/M695**: heard where they are, with their own sounds; **M710**: INVISIBILITY, MINE, WALL and DASH too, each captioned |
+| 5 | Others' jumps, landings, slides and mantles were silent | Apex: an enemy's landing and slide are among the loudest things you hear | **M695**; wall runs **M707**, ziplines **M712**, double jumps **M713** |
 | 6 | An enemy's REVEAL never told you | Apex: "you've been scanned" | **M695**: REVEALED, counting down |
 | 7 | The minimap turned with your own body while you watched someone else | | **M696** |
 
