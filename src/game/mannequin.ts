@@ -137,6 +137,8 @@ const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 const CHEST_UP = figureCfg.chestUp as { most: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
+/** a grapple's arm up at its hook point and back, a second (figure.json grapple) */
+const GRAPPLE = figureCfg.grapple as { rate: number };
 /** a wall run's lean in and out, a second, and the most its run clip is sped up (figure.json wallRun) */
 const WALL_RUN = figureCfg.wallRun as { rate: number; mostRate: number };
 /** the skydive's body, degrees forward of upright gliding and diving, its limbs, and its ease (figure.json skydive) */
@@ -786,6 +788,9 @@ export class MannequinFigure {
   private diveW = 0;
   private hipY = 0.95;
   private baseY = 0;
+  /** a grapple's hook point (world), until when on this figure's clock, how near is there, and the arm's weight on it */
+  private grapple: { to: THREE.Vector3; until: number; arrive: number } | null = null;
+  private grabW = 0;
   /** the double jumps seen so far (null until the first count arrives), and when the last one's knee lift began */
   private airJumpsSeen: number | null = null;
   private liftAt = -Infinity;
@@ -1356,6 +1361,26 @@ export class MannequinFigure {
     }
   }
 
+  /** pulled to a grapple's hook point (world): the left hand lets go of the gun and the arm reaches up at it */
+  reachFor(to: THREE.Vector3, seconds: number, arrive: number): void {
+    this.grapple = { to: to.clone(), until: this.t + seconds, arrive };
+  }
+
+  /**
+   * The left arm up at a grapple's hook point (Milestone 607): EMPULSE's and Pathfinder's grapples are an arm thrown at
+   * the point and the body hauled after it; ours was a jump pose with a line drawn from it. The upper arm and then the
+   * forearm turned to point at it, eased in and out at figure.json grapple.rate, after the hold (which has let the left
+   * hand go: update's support).
+   */
+  private reachArm(b: Record<string, THREE.Object3D>): void {
+    const G = this.grapple;
+    if (!G || this.grabW < 0.01 || !b.upperarm_l || !b.lowerarm_l || !b.hand_l) return;
+    const sh = b.upperarm_l.getWorldPosition(new THREE.Vector3());
+    aimBone(b.upperarm_l, b.lowerarm_l.getWorldPosition(new THREE.Vector3()).sub(sh), G.to.clone().sub(sh), this.grabW);
+    const el = b.lowerarm_l.getWorldPosition(new THREE.Vector3());
+    aimBone(b.lowerarm_l, b.hand_l.getWorldPosition(new THREE.Vector3()).sub(el), G.to.clone().sub(el), this.grabW);
+  }
+
   /** knocked out: only the death clip runs */
   updateDead(dt: number): void {
     // the last live frame's turns come off first, so the death clip starts clean
@@ -1425,6 +1450,11 @@ export class MannequinFigure {
     const speed = Math.max(0, p.speed);
     this.t += dt;
     this.layBody(p, dt);
+    // a grapple pulls it until it is near its hook point or its time is up; the arm comes down after
+    const G = this.grapple;
+    const pulled = !!G && this.t < G.until && this.root.getWorldPosition(new THREE.Vector3()).distanceTo(G.to) > G.arrive;
+    this.grabW += ((pulled ? 1 : 0) - this.grabW) * Math.min(1, dt * GRAPPLE.rate);
+    if (!pulled && this.grabW < 0.01) this.grapple = null;
     // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly (a skydive's too)
     const air = airborne(p.stance);
     if (this.wasAir && !air && (fx.land ?? 0) > 0.4 && speed < 2.6 && p.stance === "stand") this.landUntil = this.t + 0.32;
@@ -1733,7 +1763,7 @@ export class MannequinFigure {
       this.carryW.air += ((sprintJump ? 1 : 0) - this.carryW.air) * Math.min(1, dt * AIR_CARRY);
       this.gripW += ((holding && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
       // the left hand stays with the gun through a reload: it is the hand that does it
-      const support = holding && !full && this.t >= this.staggerUntil;
+      const support = holding && !full && this.t >= this.staggerUntil && !pulled;
       this.ikW += ((support ? 1 : 0) - this.ikW) * Math.min(1, dt * REACH.support);
       if (this.gunComing && Math.min(this.gripW, this.ikW) >= GUN_BACK) this.gunComing = false;
       // a reload's progress, on the gun's own reload time (an enemy's figure is told only that it reloads)
@@ -1830,6 +1860,7 @@ export class MannequinFigure {
       this.ikW += ((holding ? 1 : 0) - this.ikW) * Math.min(1, dt * 10);
       this.reachSupport(this.ikW);
     }
+    this.reachArm(b);
   }
 
   dispose(): void {

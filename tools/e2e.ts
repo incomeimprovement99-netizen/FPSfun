@@ -6785,6 +6785,25 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     Math.abs(glide.spine[1]) < 0.35 && glide.spine[2] > 0.8 && dive.spine[1] < -0.7 && !glide.gun && !dive.gun && landed.spine[1] > 0.85 && landed.gun,
     `along the back: glide ${glide.spine}, dive ${dive.spine}, landed ${landed.spine}; gun ${glide.gun}/${dive.gun}/${landed.gun}`,
   );
+  // GRAPPLE (Milestone 607): pulled to a point 8 m ahead and 5 m up, the left forearm points at it, the gun still in the
+  // right hand; once the pull's 1.6 s are up, the arm has gone back to the gun
+  const grab = await ev<{ during: number; after: number; gun: boolean }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 6, stance: "air", pitch: 20, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(0.5);
+      const to = f.group.localToWorld(new T.Vector3(0.5, 5, 8));
+      f.reachFor(to, 1.6, 2);
+      const off = () => { const at = (n) => f.mq.bone(n).getWorldPosition(new T.Vector3()); const fore = at("hand_l").sub(at("lowerarm_l")).normalize(); return Math.round(Math.acos(Math.max(-1, Math.min(1, fore.dot(to.clone().sub(at("lowerarm_l")).normalize())))) * 180 / Math.PI); };
+      for (let i = 0; i < 8; i++) r.figureLabStep(0.05);
+      const during = off(), gun = !!f.mq.gun?.visible;
+      for (let i = 0; i < 40; i++) r.figureLabStep(0.05);
+      return { during, after: off(), gun };
+    })()`,
+  );
+  check("a grapple: the left arm points at its hook point (within 10 degrees), the gun still in the right hand, and goes back to the gun after", grab.during <= 10 && grab.gun && grab.after > 30, JSON.stringify(grab));
   await page.close();
 }
 

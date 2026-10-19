@@ -3692,6 +3692,8 @@ function useHack(slot: HackSlot, now: number): void {
       }
       const to = eye.clone().addScaledVector(fwd, Math.max(0, hit - 0.4));
       skPull = { to, until: now + H.grapple.maxSeconds };
+      // (your own figure in third person reaches for it as others see you do)
+      selfFig?.reachFor(to, H.grapple.maxSeconds, H.grapple.arrive);
       fx.jolt(player.pos.clone(), to, now);
       audio.zipOn(player.pos);
       sendFx("grap", player.pos.clone(), to);
@@ -4686,6 +4688,8 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   // someone else's GRAPPLE: the line where it went
   if (k === "grap" && a && b) {
     fx.jolt(a, b, gameTime);
+    // and their figure's arm up at the point it pulls them to (Milestone 607)
+    if (d instanceof Duel) d.avatarOf(from)?.reachFor(b, H.grapple.maxSeconds, H.grapple.arrive);
     audio.zipOn(a);
     return;
   }

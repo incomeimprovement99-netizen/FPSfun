@@ -15183,3 +15183,19 @@ upright in the landing's first frame.
     standing on the ground. It fails with the flare taken out (still laid on the air 2 m up).
   - The e2e (skship, the dropship ridden to a landing): 6 of 6, the drop from the ship to its landing in the city.
   - verify, rules and the type check.
+
+## Milestone 607 — GRAPPLE seen: the arm up at the hook point
+
+The second of Milestone 604's nice-to-haves. EMPULSE's grapple and Pathfinder's are an arm thrown at the point and the
+body hauled after it; ours, seen by anyone else, was a jump pose with a line drawn from it to the wall.
+
+- **The arm** (mannequin.ts reachFor and reachArm, figure.json grapple): while a player's GRAPPLE pulls them (until they
+  are within hacks.json grapple.arrive of the point, or its maxSeconds are up), their left hand lets go of the gun and
+  the upper arm and then the forearm are turned to point at the hook point, eased in and out at 12 a second, after the
+  hold; the right hand keeps the gun. Others' pages start it from the grapple's own effect message (main.ts remoteFx
+  "grap", which already carried the point), and your own third-person figure from your grapple.
+- **Checked:**
+  - The e2e (skfigure, the figure's stances): a soldier pulled to a point 8 m ahead and 5 m up points its forearm at
+    it (0 degrees off), the gun still in the right hand, and 2 s on the arm is back on the gun (70 degrees off the
+    point). It fails with the arm left out (78 degrees off).
+  - verify, rules and the type check.

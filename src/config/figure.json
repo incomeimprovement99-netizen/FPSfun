@@ -37,6 +37,10 @@
     "rate": 8,
     "mostRate": 1.4
   },
+  "_grapple": "GRAPPLE seen on a figure (mannequin.ts reachArm, Milestone 607): EMPULSE's and Pathfinder's grapples are an arm thrown at the point and the body hauled after it, and ours was a jump pose with a line drawn from it. While a player's grapple pulls them (hacks.json grapple: until they are within `arrive` of its hook point or `maxSeconds` are up), their left hand lets go of the gun and the arm points at the point, eased in and out at `rate` a second. Ours.",
+  "grapple": {
+    "rate": 12
+  },
   "_ghost": "A squad mate's ghost as the squad sees it (src/game/ghostfigure.ts, Milestone 605): out with a squad mate standing, a player goes on as a ghost, and Hyper Scape's squads see theirs (its echoes) as the players still, a figure of light that runs where they run. Ours was a pale capsule. It is their soldier now, playing its clips from what they send, flat light in their squad colour `opacity` see-through (the capsule's 0.35, a little more for a body's thinner limbs), closing on where they were last heard at `follow` a second (their state arrives 20 to 30 times a second: unsmoothed it stepped). No gun, no shadow, no hit volumes, and only a squad mate's page makes one. Ours.",
   "ghost": {
     "opacity": 0.4,

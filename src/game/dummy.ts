@@ -661,6 +661,14 @@ export class Dummy {
     this.pose = p;
   }
 
+  /**
+   * GRAPPLE, seen (Milestone 607): pulled to a hook point (world), the left hand off the gun and the arm up at it,
+   * until it is within `arrive` of it or `seconds` are up (main.ts sends it on a player's grapple, hacks.json grapple)
+   */
+  reachFor(to: THREE.Vector3, seconds: number, arrive: number): void {
+    this.mq?.reachFor(to, seconds, arrive);
+  }
+
   /** the gun it holds, by id (null unarmed) */
   get armedId(): string | null {
     return this.armedWith;
