@@ -2388,7 +2388,8 @@ $("voiceList").addEventListener("click", (e) => {
   renderVoiceList();
 });
 {
-  const el = $<HTMLInputElement>("volVoice");
+  // (its own id since Milestone 711: it had the callouts' one, so the callouts' slider set this too and this did nothing)
+  const el = $<HTMLInputElement>("volChat");
   el.value = String(Math.round(voiceVolume * 100));
   el.addEventListener("input", () => {
     voiceVolume = Math.max(0, Math.min(1, Number(el.value) / 100));

@@ -8516,9 +8516,10 @@ async function main(): Promise<void> {
     );
     check("render scale: 50% halves the 3D view's pixel ratio and its canvas at once, is kept, and 100% puts it back", Math.abs(scaled.half - scaled.was / 2) < 1e-9 && Math.abs(scaled.px[1] - scaled.px[0] / 2) <= 1 && scaled.kept === "0.5" && scaled.back === scaled.was, JSON.stringify(scaled));
     check("no page errors on load", errors.length === 0, errors.slice(0, 3).join(" | "));
-    // smaller downloads (tools/compress-assets.ts): the surfaces and the props' maps come as WebP, and none is missing
+    // smaller downloads (tools/compress-assets.ts): the surfaces' maps come as WebP, and none is missing (19 of them since
+    // the props and their maps went, Milestone 663; there were 20 and more)
     const webp = await ev<{ webp: number; jpg: number; bad: string[] }>(page, `(() => { const r = performance.getEntriesByType("resource"); const tex = r.filter((x) => x.name.includes("/tex/") || x.name.includes("/models/")); return { webp: tex.filter((x) => x.name.endsWith(".webp")).length, jpg: tex.filter((x) => x.name.endsWith(".jpg")).length, bad: tex.filter((x) => x.responseStatus >= 400).map((x) => x.name.split("/").slice(-2).join("/")) }; })()`);
-    check("textures: the range's and the props' maps load as WebP, none missing", webp.webp >= 20 && webp.bad.length === 0, JSON.stringify(webp));
+    check("textures: the range's maps load as WebP, none missing", webp.webp >= 15 && webp.jpg === 0 && webp.bad.length === 0, JSON.stringify(webp));
     // The HUD's icons (npm run icons). They are SVG, so they have to survive
     // being rasterised and then tinted with a source-in fill: an icon that
     // still carried game-icons.net's black background plate would light every
@@ -8650,6 +8651,15 @@ async function main(): Promise<void> {
         return out; })()`
     );
     check("accessibility: four colour vision modes and six HUD sizes, and a choice is kept", acc.options === 4 && acc.scales === 6 && /deuteranopia/.test(acc.saved) && /1\.25/.test(acc.saved), JSON.stringify(acc));
+    // the voice chat's slider is its own (Milestone 711): it had the callouts' slider's id, so the callouts' set both and
+    // it did nothing. Moved, it sets the voice chat's volume and leaves the callouts' where they were.
+    const vols = await ev<{ chat: string | null; voiceBefore: number; voiceAfter: number }>(
+      page,
+      `(() => { const R = window.__range; const voiceBefore = R.audio.volumes.voice; const el = document.getElementById("volChat"); if (!el) return { chat: null, voiceBefore, voiceAfter: voiceBefore };
+        const was = el.value; el.value = "23"; el.dispatchEvent(new Event("input")); const chat = localStorage.getItem("range.voiceVolume"); const voiceAfter = R.audio.volumes.voice;
+        el.value = was; el.dispatchEvent(new Event("input")); return { chat, voiceBefore, voiceAfter }; })()`,
+    );
+    check("settings: the voice chat slider sets the voice chat's volume, not the callouts'", vols.chat === "0.23" && vols.voiceAfter === vols.voiceBefore, JSON.stringify(vols));
     const inGame = await ev<number>(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.dispatchEvent(new KeyboardEvent("keydown", { code: "Escape", key: "Escape", bubbles: true, cancelable: true })); document.getElementById("overlay").classList.remove("hidden"); return window.__range.menuEscapes(); })()`);
     check("Esc with the menu closed is not a resume", inGame === escOnMenu, `${inGame} taken as Resume, ${escOnMenu} before`);
 

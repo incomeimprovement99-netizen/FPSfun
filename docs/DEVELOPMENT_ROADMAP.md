@@ -12582,6 +12582,22 @@ other pages:
 - **Checked:** tsc, verify, rules; e2e speedkills, a new check: a figure's INVISIBILITY, MINE, WALL and DASH are each
   heard (with the old silence put back it failed, only the ARMOR before them heard).
 
+## Milestone 711 — The voice chat slider works, and the range's ammo setting says what a match does
+
+Found photographing every tab of the menu:
+
+- **Voice chat's slider did nothing:** it was given the id of the callouts' slider beside it (Settings, "Voice and
+  music"), and the code finds a slider by its id, so it found the callouts' one both times. The callouts' slider set
+  the voice chat's volume as well, and the voice chat's own moved nothing. It has its own id now (volChat).
+- **A check for the whole class** (tools/checks/page-ids.ts, in verify): every id in index.html used once. It failed
+  on the page as it was ("volVoice x2"); 222 ids, each once, now.
+- **"Ammo in the range"** said "matches always count it: two stacks per gun", the legacy game's rule. A SpeedKills
+  match never runs out, only the magazine does: the hint says so, and what counting in the range gives.
+- **The page section's WebP count:** the props and their maps went in Milestone 663, so the range loads 19 WebP maps,
+  under the check's 20; the check now asks for 15 and none as JPEG, and is named for the range's maps alone.
+- **Checked:** tsc, verify (the new check), rules; e2e page, with a new check: the voice chat slider sets the voice
+  chat's volume and leaves the callouts' alone.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
