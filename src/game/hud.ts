@@ -837,8 +837,7 @@ export class Hud {
       rows.forEach((name, i) => this.text(`● ${name}`, 24 * u, y0 - i * 17 * u, 700, 13 * u, "#7ddc8a", "left"));
     }
     if (s.spectating) {
-      c.fillStyle = PANEL;
-      c.fillRect(cx - 190 * u, this.h - 132 * u, 380 * u, 44 * u);
+      this.plate(cx - 190 * u, this.h - 132 * u, 380 * u, 44 * u, u);
       this.text(`WATCHING ${s.spectating.name}`, cx, this.h - 106 * u, 700, 18 * u, WHITE, "center");
       const more = (s.spectating.of ?? 1) > 1 ? `  ·  FIRE: NEXT, AIM: BACK  (${s.spectating.at ?? 1} OF ${s.spectating.of})` : "";
       this.text((s.spectating.first ? "THEIR EYES  ·  THIRD PERSON KEY: BEHIND THEM" : "BEHIND THEM  ·  THIRD PERSON KEY: THEIR EYES") + more, cx, this.h - 92 * u, 600, 11 * u, DIM, "center");
@@ -1217,8 +1216,7 @@ export class Hud {
     const cap = 22 * u;
     const head = 26 * u;
     const foot = 32 * u;
-    c.fillStyle = PANEL;
-    c.fillRect(left - 12 * u, top, width + 24 * u, h);
+    this.plate(left - 12 * u, top, width + 24 * u, h, u);
     this.text("KEYS", left, top + 18 * u, 700, 13 * u, DIM);
     const caps = (keys: readonly string[], x0: number, yMid: number): void => {
       // right to left, so the last key sits on the panel's right edge
@@ -1332,8 +1330,7 @@ export class Hud {
     if (!d || d.br || d.mode) return;
     const cx = this.w / 2;
     const c = this.ctx;
-    c.fillStyle = PANEL;
-    c.fillRect(cx - 150 * u, 60 * u, 300 * u, 58 * u);
+    this.plate(cx - 150 * u, 60 * u, 300 * u, 86 * u, u);
     this.text("YOU", cx - 120 * u, 97 * u, 700, 18 * u, "#7ddc8a");
     this.text(`${d.you}`, cx - 30 * u, 102 * u, 700, 38 * u, WHITE, "right");
     this.text("-", cx, 100 * u, 700, 30 * u, DIM, "center");
@@ -1395,8 +1392,7 @@ export class Hud {
     const c = this.ctx;
     const cx = this.w / 2;
     const clock = (t: number) => `${Math.floor(t / 60)}:${Math.floor(t % 60).toString().padStart(2, "0")}`;
-    c.fillStyle = PANEL;
-    c.fillRect(cx - 190 * u, 60 * u, 380 * u, 62 * u);
+    this.plate(cx - 190 * u, 60 * u, 380 * u, 88 * u, u);
     const GOLD = "#ffd23c";
     if (m.teams) {
       this.text("YOUR TEAM", cx - 175 * u, 84 * u, 700, 13 * u, "#7ddc8a");
@@ -1502,12 +1498,14 @@ export class Hud {
     const cx = this.w / 2;
     const c = this.ctx;
     const y = s.duel ? 200 * u : 60 * u;
-    c.fillStyle = PANEL;
-    c.fillRect(cx - 190 * u, y, 380 * u, 74 * u);
+    const who = l.waitingFor === 1 ? "A FRIEND" : `${l.waitingFor} FRIENDS`;
+    const waiting = `WAITING FOR ${who}  ·  THE INVITE LINK IS ON YOUR CLIPBOARD (ESC TO SEE IT)`;
+    c.font = this.font(600, 13 * u);
+    const pw = Math.max(380 * u, c.measureText(waiting).width + 32 * u);
+    this.plate(cx - pw / 2, y, pw, 102 * u, u, GOLD);
     this.text("MATCH CODE", cx, y + 22 * u, 700, 14 * u, DIM, "center");
     this.text(l.code.split("").join(" "), cx, y + 54 * u, 700, 34 * u, "#ffd23c", "center");
-    const who = l.waitingFor === 1 ? "A FRIEND" : `${l.waitingFor} FRIENDS`;
-    this.text(`WAITING FOR ${who}  ·  THE INVITE LINK IS ON YOUR CLIPBOARD (ESC TO SEE IT)`, cx, y + 92 * u, 600, 13 * u, WHITE, "center");
+    this.text(waiting, cx, y + 90 * u, 600, 13 * u, WHITE, "center");
   }
 
   /** the tech feed, down the left edge under the stats, newest at the bottom */
@@ -1836,8 +1834,7 @@ export class Hud {
     const gap = 10 * u;
     const total = key + gap + tw;
     const x = this.w / 2 - total / 2;
-    c.fillStyle = PANEL;
-    c.fillRect(x - 10 * u, y - cap / 2 - 6 * u, total + 20 * u, cap + 12 * u);
+    this.plate(x - 10 * u, y - cap / 2 - 6 * u, total + 20 * u, cap + 12 * u, u);
     this.keyCap(p.key, x, y, cap, 18 * u, u);
     this.text(p.text, x + key + gap, y + 8 * u, 700, 22 * u, WHITE);
   }
@@ -1934,8 +1931,7 @@ export class Hud {
     for (const r of rows) widest = Math.max(widest, c.measureText(r.label).width);
     const pw = widest + 96 * u;
     const foot = REACH.cycleKey ? 16 * u : 0;
-    c.fillStyle = PANEL;
-    c.fillRect(cx - pw / 2, top - 6 * u, pw, rows.length * rowH + foot + 10 * u);
+    this.plate(cx - pw / 2, top - 6 * u, pw, rows.length * rowH + foot + 10 * u, u);
     rows.forEach((r, i) => {
       const y = top + i * rowH + 15 * u;
       const picked = r.key === REACH.pick;
@@ -2391,6 +2387,10 @@ export class Hud {
     if (now >= this.noticeUntil) return;
     const a = Math.min(1, (this.noticeUntil - now) / 0.25);
     this.ctx.globalAlpha = a;
+    // on a gold-edged plate as wide as it (Milestone 704): bare gold text was lost on a lit street
+    this.ctx.font = this.font(700, 30 * u);
+    const tw = this.ctx.measureText(this.noticeText).width;
+    this.plate(this.w / 2 - tw / 2 - 20 * u, this.h * 0.64 - 31 * u, tw + 40 * u, 42 * u, u, GOLD);
     this.text(this.noticeText, this.w / 2, this.h * 0.64, 700, 30 * u, "#ffd23c", "center");
     this.ctx.globalAlpha = 1;
   }
@@ -2487,10 +2487,9 @@ export class Hud {
     c.fillStyle = g;
     c.fillRect(0, 0, this.w, this.h);
     const pw = 460 * u;
-    const ph = 128 * u;
+    const ph = 140 * u;
     const y0 = this.h * 0.3 - ph / 2;
-    c.fillStyle = PANEL;
-    c.fillRect(cx - pw / 2, y0, pw, ph);
+    this.plate(cx - pw / 2, y0, pw, ph, u, "#ff3b4a");
     this.text("RETURN TO THE CITY", cx, y0 + 34 * u, 700, 28 * u, "#ff3b4a", "center");
     this.text(`${Math.ceil(e.left)}`, cx, y0 + 96 * u, 700, 60 * u, e.left < 2 ? "#ff3b4a" : WHITE, "center");
     this.text("OR BE TERMINATED", cx, y0 + 120 * u, 600, 13 * u, DIM, "center");
@@ -2842,8 +2841,7 @@ export class Hud {
     const diving = d.k > 0.66;
     const gliding = d.k < 0.33;
     // on a panel: the ground under a skydive is bright, and plain text on it is lost
-    c.fillStyle = PANEL;
-    c.fillRect(cx - 170 * u, y - 30 * u, 340 * u, 106 * u);
+    this.plate(cx - 170 * u, y - 30 * u, 340 * u, 106 * u, u);
     this.text(diving ? "DIVING" : gliding ? "GLIDING" : "FALLING", cx, y, 700, 24 * u, diving ? "#ff9a3c" : gliding ? "#7fd8ff" : WHITE, "center");
     // the bar: the glide at the left end, the dive at the right, a mark where you are
     const w = 220 * u;
@@ -2880,12 +2878,10 @@ export class Hud {
   private drawShip(s: HudState, u: number): void {
     const sh = s.ship;
     if (!sh || s.mapOpen) return;
-    const c = this.ctx;
     const cx = this.w / 2;
     // under the ship, which the chase camera puts a little below the middle
     const y = this.h * 0.83;
-    c.fillStyle = PANEL;
-    c.fillRect(cx - 260 * u, y - 30 * u, 520 * u, 92 * u);
+    this.plate(cx - 260 * u, y - 30 * u, 520 * u, 92 * u, u, GOLD);
     this.text("ON THE DROPSHIP", cx, y, 700, 24 * u, "#ffd23c", "center");
     this.text(this.shipLine(sh), cx, y + 26 * u, 600, 14 * u, sh.doorsIn > 0 ? DIM : WHITE, "center");
     this.text(this.shipWho(sh), cx, y + 48 * u, 600, 13 * u, DIM, "center");
@@ -2919,8 +2915,7 @@ export class Hud {
     if (br.gulag) {
       const gl = br.gulag;
       const y = this.h * 0.22;
-      c.fillStyle = PANEL;
-      c.fillRect(cx - 210 * u, y - 36 * u, 420 * u, gl.phase === "overtime" ? 96 * u : 70 * u);
+      this.plate(cx - 210 * u, y - 36 * u, 420 * u, gl.phase === "overtime" ? 96 * u : 70 * u, u, gl.phase === "overtime" ? GOLD : gl.phase === "lost" ? "#ff5a4a" : "#7ddc8a");
       const mm = Math.floor(gl.clock / 60);
       const ss = Math.floor(gl.clock % 60);
       const title =
@@ -3137,9 +3132,7 @@ export class Hud {
     const x0 = 26 * u;
     const y0 = 26 * u + 230 * u + 10 * u;
     const w = 230 * u;
-    const c = this.ctx;
-    c.fillStyle = PANEL;
-    c.fillRect(x0, y0, w, 104 * u);
+    this.plate(x0, y0, w, 104 * u, u);
     const acc = s.stats.shots ? Math.round((100 * s.stats.hits) / s.stats.shots) : 0;
     const lh = 19 * u;
     const lines: Array<[string, string]> = [

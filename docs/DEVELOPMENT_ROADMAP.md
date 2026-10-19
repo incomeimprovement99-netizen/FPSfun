@@ -12448,6 +12448,24 @@ Two more of the enemy-as-you-see-it nice-to-haves (docs/PLAN_ENEMY_POV.md):
   shieldFx.break.full); at 40 m they were a few pixels.
 - **Checked:** tsc, verify, rules; e2e speedkills (a REVEAL in deuteranopia's orange, and red again after).
 
+## Milestone 704 — The rest of the HUD on plates
+
+Milestones 697 and 698 put what is on screen all the time on the plates Hyper Scape's, Apex's and Empulse's HUDs stand
+on (docs/PLAN_HUD_V2.md). Twelve panels that come and go were still flat dark boxes, and a few had a line hanging
+under them as bare text. Now every one is a plate (hud.ts plate), edged where it has a colour of its own:
+
+- **Always the same plate:** the E prompt and the list of what is at your feet; the skydive's readout; the bar while
+  you watch someone; the keys panel; the range's practice numbers.
+- **Scores:** a duel's and a mode's plates are taller, so the round's or the limit's line sits on them, not under.
+- **Edged in their colour:** the match code in gold, the plate now as wide as the waiting line under it; the dropship
+  in gold; the Gulag in its title's green, gold in overtime and red when out; out of bounds in red, with room for its
+  last line.
+- **Notices:** the big gold lines (the range's "BEHIND YOU: THE TUTORIAL..." and the like) were bare text, lost on a
+  lit street; each now sits on a gold-edged plate as wide as it.
+- **Left as they are:** the minimap's square (its own frame since Milestone 698) and the REVEALED warning's red pulse.
+- **Checked:** tsc, verify, rules; e2e speedkills (the layout check on the bottom edge); photographed at 1080p in the
+  range with each panel's state put on the HUD.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

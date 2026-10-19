@@ -57,5 +57,6 @@ What makes theirs look paid, in one line each:
 
 - **Milestone 697:** the bottom of the screen.
 - **Milestone 698:** the top of the screen.
-- **Left for later:** the kill feed's gun outlines between the names (the feed carries only text today), and a
-  headshot flag on a kill.
+- **Milestone 701:** the kill feed's gun outlines between the names, a headshot's mark, and a kill's skull.
+- **Milestone 704:** every panel that comes and goes (the prompt, the match code, the dropship, the Gulag, out of
+  bounds, the notices) on the same plates.
