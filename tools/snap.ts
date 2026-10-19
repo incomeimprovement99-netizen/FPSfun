@@ -308,7 +308,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: "inventory",
-    note: "the pack held open on Tab: both guns with the build in hand, the heals, the ammo and the armour",
+    note: "the carry card held open on Tab: both guns with their fusion and what it gives, both hacks, shield and health",
     steps: [
       [`(() => { ${hideMenu}; const r = window.__range; r.input.locked = true; r.player.teleport(0, 0, 6, 0); })()`, 300],
       ["(() => { window.__range.input.down.add('Tab'); })()", 500],

@@ -667,7 +667,7 @@ defaults puts `binds.json` back.
 | 3 | holster (move 15% faster) | | |
 | G | SpeedKills' utility hack (there are no grenades) | F | SpeedKills' mobility hack |
 | Middle mouse | ping, for the squad (twice quickly: an enemy there) | M | the full map |
-| Tab (hold) | what you are carrying: both guns and the optic of the one in hand, the ammo by kind and the armour | | |
+| Tab (hold) | what you are carrying: both guns with their fusion level and what it gives, both hacks with their level, cooldown and what they do, and your shield and health (Milestone 706) | | |
 | U | the gun's fusion level (the range) | | |
 | Z | variable optic zoom | T | dummy armour tier |
 | . (full stop) | what the dummies do | Y | reset dummies and the course |

@@ -154,13 +154,16 @@ const PAD_UP = squad.pad.up;
  * MEANS. Apex's wheel is the reason a squad without voice is legible: "going
  * here" and "defending here" are different plans, and a mark that says only
  * "here" is neither. The order is the wheel's, clockwise from the top.
+ *
+ * (The "ammo" slice says LOOT HERE since Milestone 706: SpeedKills' ammo is endless, and NEED AMMO asked for nothing.
+ * Its id, and its life in squad.json, stay; an older build's NEED AMMO still marks, with a loot mark's life.)
  */
 export const PING_INTENTS: ReadonlyArray<{ id: "go" | "defend" | "attack" | "ammo" | "watch" | "enemy"; label: string; marker: "enemy" | "loot" | "go" }> = [
   { id: "go", label: "GOING HERE", marker: "go" },
   { id: "attack", label: "ATTACKING HERE", marker: "go" },
   { id: "watch", label: "WATCHING HERE", marker: "go" },
   { id: "enemy", label: "ENEMY HERE", marker: "enemy" },
-  { id: "ammo", label: "NEED AMMO", marker: "loot" },
+  { id: "ammo", label: "LOOT HERE", marker: "loot" },
   { id: "defend", label: "DEFENDING HERE", marker: "go" },
 ];
 

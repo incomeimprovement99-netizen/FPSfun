@@ -12489,6 +12489,38 @@ docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md item 11, "loot you can see", handed to
   that every item in draw distance has its beam and a far one is widened (130 of 130 items; with the old beams put
   back it failed, 9 beams for 134 items and none widened).
 
+## Milestone 706 — Tab shows what you carry in SpeedKills, and the overlays stop covering each other
+
+Found by photographing every overlay of a battle royale on the GPU (the big map, Tab, the ping and emote wheels):
+
+- **Tab showed the legacy game's pack:**
+  - ammo by kind ("LIGHT x600") and "no attachments", neither of which SpeedKills has;
+  - the range dummy's armour, the one T sets, as "NO SHIELD" while your own shield was full.
+- **Tab is now the carry card**, Hyper Scape's own Tab, on the HUD's plates:
+  - **each gun:** its outline, name and class, its fusion level as pips, its magazine, and what its level gives over
+    level 0, in green, from speedkills.json fusion.gun ("+6% DAMAGE · +30% MAGAZINE · 12% FASTER RELOAD..."), or
+    "ANOTHER USSO FUSES IT A LEVEL" at level 0;
+  - **each hack:** its picture, name, slot and key, its level, its cooldown at that level (hacks.ts cooldownOf), READY
+    or the seconds left, and what it does (its blurb);
+  - **your shield and health** at the top, the world dimmed behind it.
+- **The wheels and the card covered the E prompt:** the ping and emote wheels sit where the prompt and the list of
+  what is at your feet are, and both were drawn half under the wheel. While a wheel or the card is open, the prompt,
+  the list and the loot card are not drawn.
+- **The big map named every place three times:** its sector's name in its colour, the place's own name in white just
+  over it, and, for a corner block, its site's name boxed nearby, all three the same words. Each place is named once
+  now, in white with its sector's colour under it ("· GONE" once decayed); a site named as its place is not named again,
+  and one at its place's middle (the tower's VAULT LOBBY) goes under the place's name instead of over it.
+- **The ping wheel's NEED AMMO** asked for something SpeedKills never runs out of. It says LOOT HERE (Apex's own
+  slice), with the same id and life; an older build's NEED AMMO still marks.
+- **Checked:**
+  - tsc, verify, rules;
+  - e2e brsolo, with a new check: Tab's card has both guns with their fusion and what it gives, both hacks with
+    their cooldown and blurb, your vitals, and none of the legacy pack (with the old Tab put back it failed: no hacks,
+    no vitals, the legacy pack);
+  - e2e squad (the ping wheel) and speedkills (the HUD's layout; its ghost check found one of the guest's guns on the
+    floor beside the echo once, run with the other two sections, and passed run alone);
+  - photographed at 1080p: the card, the map and both wheels.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

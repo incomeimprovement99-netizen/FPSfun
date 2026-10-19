@@ -72,7 +72,7 @@ import { EDGE_ID } from "./game/causes";
 import { healArea } from "./game/healarea";
 import { Trails } from "./game/trails";
 import DECAY_CFG from "./config/decay.json";
-import { Hacks, HACK, HACK_DEFS, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
+import { Hacks, HACK, HACK_DEFS, cooldownOf, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS, tierSpeed } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
@@ -134,7 +134,6 @@ import squadCfg from "./config/squad.json";
 import { levelRarity, lootLabel, type LootItem, resetFloorGuns } from "./game/loot";
 import rangeToolsCfg from "./config/rangetools.json";
 import type { HitTier } from "./game/audio";
-import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
 import { HUD_SCALES, P, VISION_MODES, access, enemy3d, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
@@ -456,6 +455,47 @@ function renderTonight(): void {
     `<div class="rosterRow"><b>TONIGHT</b> · ${Math.max(0, ...rows.map(([, t]) => t.played))} played</div>` +
     rows.map(([name, t]) => `<div class="rosterRow" data-name="${escapeHtml(name)}"><b>${escapeHtml(name)}</b> · ${t.wins} ${t.wins === 1 ? "win" : "wins"} · ${t.kills} ${t.kills === 1 ? "kill" : "kills"} · ${t.damage} damage · ${t.played} played</div>`).join("");
 }
+/**
+ * The carry card on Tab (hud.ts drawInventory, Milestone 706): each gun with its fusion level and what that level
+ * gives over level 0 (speedkills.json fusion.gun), each hack with its level, its cooldown at that level and what it does,
+ * and your shield and health.
+ */
+function carryCard(now: number): NonNullable<HudState["inventory"]> {
+  const rows = PROFILE.fusion.gun;
+  const base = rows[0];
+  const pc = (k: number) => Math.round(Math.abs(k) * 100);
+  const perks = (level: number): string[] => {
+    const r = rows[Math.max(0, Math.min(level, rows.length - 1))];
+    const out: string[] = [];
+    if (r.damage > base.damage) out.push(`+${pc(r.damage / base.damage - 1)}% DAMAGE`);
+    if (r.mag > base.mag) out.push(`+${pc(r.mag / base.mag - 1)}% MAGAZINE`);
+    if (r.reload < base.reload) out.push(`${pc(1 - r.reload / base.reload)}% FASTER RELOAD`);
+    if (r.recoil < base.recoil) out.push(`${pc(1 - r.recoil / base.recoil)}% LESS RECOIL`);
+    if (r.swap !== undefined && base.swap !== undefined && r.swap < base.swap) out.push(`${pc(1 - r.swap / base.swap)}% FASTER SWAP`);
+    return out;
+  };
+  return {
+    guns: loadout.slots.map((sl, i) => ({
+      id: sl.empty ? null : sl.id,
+      name: sl.empty ? "EMPTY" : sl.weapon.name,
+      kind: sl.empty ? null : weaponKind(sl.id),
+      clip: sl.state.clip,
+      size: sl.weapon.clipSize,
+      inHand: i === loadout.activeIndex,
+      level: sl.fusion ?? 0,
+      max: PROFILE.fusion.levels,
+      perks: perks(sl.fusion ?? 0),
+    })),
+    hacks: (["mobility", "utility"] as const).map((slot) => {
+      const h = hacks.get(slot);
+      if (!h) return null;
+      const def = hackDef(h.id);
+      return { id: String(h.id), name: def?.name ?? String(h.id), slot, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), level: h.level, max: HACK.fuseLevels, left: hacks.left(slot, now), cooldown: cooldownOf(h.id, h.level), blurb: def?.blurb ?? "" };
+    }),
+    vitals: duel ? { shield: duel.shield, shieldMax: duel.shieldMax, health: duel.health, healthMax: HEALTH_MAX } : rangeCombat.on ? { shield: rangeCombat.shield, shieldMax: rangeCombat.shieldMax, health: rangeCombat.health, healthMax: HEALTH_MAX } : null,
+  };
+}
+
 /**
  * The summary card as the HUD draws it this frame, or null once it has had
  * its time or a new match has started.
@@ -7748,22 +7788,7 @@ function step(): void {
     // drawInventory). Read only on purpose: what a player needs mid-match is
     // the answer to "what have I got", and dropping and swapping are done
     // where the item is.
-    inventory: input.held("inventory")
-      ? {
-          guns: loadout.slots.map((sl, i) => ({
-            name: weaponLabel(sl.weapon.id),
-            clip: sl.state.clip,
-            size: sl.weapon.clipSize,
-            ammo: sl.energy ? `${sl.energy.rounds} energy` : `${loadout.ammo.stock[ammoTypeOf(sl.id)] ?? 0} ${ammoTypeOf(sl.id)}`,
-            attach: i === loadout.activeIndex ? [loadout.opticLabel()].filter((l): l is string => !!l) : [],
-            inHand: i === loadout.activeIndex,
-          })),
-          ammo: Object.entries(loadout.ammo.stock)
-            .filter(([, n]) => n > 0)
-            .map(([k, n]) => ({ name: k.toUpperCase(), n })),
-          armor: armorTier === 0 ? "NO SHIELD" : `${ARMOR_NAME[armorTier].toUpperCase()} SHIELD`,
-        }
-      : null,
+    inventory: input.held("inventory") ? carryCard(now) : null,
     damageDirs: duel ? damageDirs() : undefined,
     reticle,
     summary: summaryView(),

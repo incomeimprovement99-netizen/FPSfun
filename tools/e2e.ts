@@ -3723,6 +3723,20 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     beams.items > 5 && Math.abs(beams.beams - beams.items) <= 2 && beams.heights.every((h) => tall.some((t) => Math.abs(t - h) < 0.05)) && beams.far > 0 && beams.farOk >= beams.far * 0.9 && beams.near > 0 && beams.nearOk === beams.near,
     JSON.stringify(beams),
   );
+  // the carry card on Tab (Milestone 706): both guns with their fusion and what it gives, both hacks with their cooldown
+  // and what they do, your shield and health; not the legacy game's pack (ammo by kind, attachments, the dummy's armour)
+  await ev(host, "(() => { const r = window.__range; r.loadout.slots[0].fusion = 2; r.input.locked = true; r.input.down.add('Tab'); })()");
+  await sleep(400);
+  const card = await ev<{ guns: Array<[string | null, number, number]>; hacks: Array<[string, boolean, boolean] | null>; vitals: boolean; legacy: boolean } | null>(
+    host,
+    `(() => { const v = window.__range.hud.last?.inventory ?? null; return v ? { guns: v.guns.map((g) => [g.id ?? null, g.level ?? -1, (g.perks ?? []).length]), hacks: (v.hacks ?? []).map((h) => h && [h.id, h.cooldown > 0, (h.blurb ?? "").length > 0]), vitals: !!v.vitals, legacy: "ammo" in v || "armor" in v } : null; })()`,
+  );
+  await ev(host, "(() => { const r = window.__range; r.input.down.delete('Tab'); r.loadout.slots[0].fusion = 0; })()");
+  check(
+    "the carry card on Tab: both guns with their fusion and what it gives, both hacks with their cooldown and what they do, your vitals, no legacy pack",
+    !!card && card.guns.length === 2 && card.guns[0][1] === 2 && card.guns[0][2] > 0 && card.hacks.length === 2 && card.hacks.every((h) => !!h && h[1] && h[2]) && card.vitals && !card.legacy,
+    JSON.stringify(card),
+  );
   // the host knocks the guest: in solo that is the end of them
   await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); d.localHit(r, 250, true); })()`);
   const out = await guest.waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 6000 }).then(() => true, () => false);

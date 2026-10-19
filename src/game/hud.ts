@@ -232,15 +232,15 @@ export interface HudState {
   /** the ping wheel (the ping key, held): what a mark would mean, and the one the mouse points at */
   pingWheel?: { items: string[]; pick: number | null } | null;
   /**
-   * What you are carrying, held open on Tab: the two guns with their builds,
-   * the pack, the ammo by kind and the armour. A battle royale
-   * hands you a dozen decisions a minute and the HUD could only answer them
-   * one line at a time.
+   * What you are carrying, held open on Tab (Milestone 706): your two guns with their fusion level and what it gives,
+   * your two hacks with their level, cooldown and what each does, and your shield and health, Hyper Scape's own Tab.
+   * Until then it showed the legacy game's pack: ammo by kind and attachments SpeedKills has not got, and the range
+   * dummy's armour (the T key's) as your own shield.
    */
   inventory?: {
-    guns: Array<{ name: string; clip: number; size: number; ammo: string; attach: string[]; inHand: boolean }>;
-    ammo: Array<{ name: string; n: number }>;
-    armor: string;
+    guns: Array<{ id: string | null; name: string; kind: string | null; clip: number; size: number; inHand: boolean; level: number; max: number; perks: string[] }>;
+    hacks: Array<{ id: string; name: string; slot: "mobility" | "utility"; key: string; level: number; max: number; left: number; cooldown: number; blurb: string } | null>;
+    vitals: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
   } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
@@ -623,9 +623,12 @@ export class Hud {
     this.drawWeapons(s, u);
     this.drawCourse(s, u);
     this.drawNotice(now, u);
-    this.drawPrompt(s, u);
-    this.drawReachList(u);
-    this.drawLootCard(s, u);
+    // (not under a wheel or the carry card, which sit where they are and hid them half under it: Milestone 706)
+    if (!s.pingWheel && !s.emoteWheel && !s.inventory) {
+      this.drawPrompt(s, u);
+      this.drawReachList(u);
+      this.drawLootCard(s, u);
+    }
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
     this.drawMateTags(camera, s, u);
@@ -2521,8 +2524,10 @@ export class Hud {
         c.strokeStyle = sec.final ? "rgba(255, 255, 255, 0.95)" : `rgba(${rgb}, 0.7)`;
         c.lineWidth = (sec.final ? 2.5 : 1.2) * u;
         c.strokeRect(x0, z0, w, h);
-        // the names where there is room for them (the big map)
-        if (w > 60 * u) this.text(sec.phase === "gone" ? `${sec.name} · GONE` : sec.name, x0 + w / 2, z0 + h / 2, 700, Math.max(9, 11 * u), sec.phase === "gone" ? "rgba(255,120,160,0.8)" : `rgba(${rgb}, 0.9)`, "center");
+        // the names where there is room for them (the big map), but not a place's: the place's own label carries it, in
+        // its sector's colour (drawFullMap), and both drawn put the one name twice, one over the other (Milestone 706)
+        const named = br.pois.some((p) => p.name === sec.name);
+        if (w > 60 * u && !named) this.text(sec.phase === "gone" ? `${sec.name} · GONE` : sec.name, x0 + w / 2, z0 + h / 2, 700, Math.max(9, 11 * u), sec.phase === "gone" ? "rgba(255,120,160,0.8)" : `rgba(${rgb}, 0.9)`, "center");
       }
       // the band past the city's edge, red, and the edge itself lined (Phase 20 A4)
       const ez = s.edgeZone;
@@ -2765,16 +2770,29 @@ export class Hud {
       // the sites between the places: named, smaller and dimmer, so the nine
       // big places still read first and a squad can call "the Crossing"; a
       // dark backing, because four of them sit on the pale shading of a mesa
+      // (a site named as its place is, a Neon corner block's yard, is not named again; one at its place's middle, the
+      // tower's VAULT, goes under the place's name, not over it: Milestone 706)
       for (const p of br.sites ?? []) {
+        if (br.pois.some((q) => q.name === p.name)) continue;
+        const under = br.pois.some((q) => Math.hypot(toX(q.x) - toX(p.x), toZ(q.z) - toZ(p.z)) < 40 * u) ? 18 * u : 0;
         c.font = this.font(600, 10 * u);
         const w = c.measureText(p.name).width + 8 * u;
         c.fillStyle = "rgba(0,0,0,0.55)";
-        c.fillRect(toX(p.x) - w / 2, toZ(p.z) - 16 * u, w, 13 * u);
-        this.text(p.name, toX(p.x), toZ(p.z) - 6 * u, 600, 10 * u, "rgba(255,255,255,0.8)", "center");
+        c.fillRect(toX(p.x) - w / 2, toZ(p.z) - 16 * u + under, w, 13 * u);
+        this.text(p.name, toX(p.x), toZ(p.z) - 6 * u + under, 600, 10 * u, "rgba(255,255,255,0.8)", "center");
       }
       for (const p of br.pois) {
         const mine = br.dropping && p.name === br.poi;
-        this.text(p.name, toX(p.x), toZ(p.z) - 10 * u, 700, (mine ? 18 : 14) * u, mine ? "#ffd23c" : WHITE, "center");
+        // in its sector's colour where it has one (SpeedKills), a gone one said so
+        const sec = s.sectors?.find((q) => q.name === p.name);
+        const secCol = sec ? (sec.phase === "gone" ? "rgba(255,120,160,0.9)" : `rgb(${(sec.accent >> 16) & 255}, ${(sec.accent >> 8) & 255}, ${sec.accent & 255})`) : null;
+        this.text(sec?.phase === "gone" ? `${p.name} · GONE` : p.name, toX(p.x), toZ(p.z) - 10 * u, 700, (mine ? 18 : 14) * u, mine ? "#ffd23c" : WHITE, "center");
+        if (secCol && !mine) {
+          c.font = this.font(700, 14 * u);
+          const lw = c.measureText(p.name).width;
+          c.fillStyle = secCol;
+          c.fillRect(toX(p.x) - lw / 2, toZ(p.z) - 4 * u, lw, 2 * u);
+        }
         if (mine) {
           const pulse = 1 + 0.35 * Math.sin(now * 6);
           c.strokeStyle = "#ffd23c";
@@ -3054,47 +3072,84 @@ export class Hud {
   }
 
   /**
-   * The pack, held open on Tab: what you have, in one place. Read only, which
-   * is the honest half of an inventory screen: dropping and swapping are done
-   * where the item is, and what a player needs mid-match is the answer to
-   * "what have I got".
+   * The carry card, held open on Tab (Milestone 706): what you have, in one place, on the HUD's plates. Read only,
+   * which is the honest half of an inventory screen: fusing and swapping are done where the item lies, and what a
+   * player needs mid-match is the answer to "what have I got, and how good is it".
    */
   private drawInventory(s: HudState, u: number): void {
     const inv = s.inventory;
     if (!inv) return;
     const c = this.ctx;
-    const w = Math.min(this.w * 0.8, 760 * u);
-    const h = Math.min(this.h * 0.8, 460 * u);
+    const w = Math.min(this.w - 32 * u, 900 * u);
+    const h = 452 * u;
     const x0 = (this.w - w) / 2;
     const y0 = (this.h - h) / 2;
-    c.fillStyle = "rgba(8, 10, 13, 0.9)";
-    c.fillRect(x0, y0, w, h);
-    c.strokeStyle = "rgba(255,255,255,0.14)";
-    c.lineWidth = 1;
-    c.strokeRect(x0, y0, w, h);
-    this.text("WHAT YOU ARE CARRYING", x0 + 24 * u, y0 + 34 * u, 700, 18 * u, WHITE);
-    this.text(inv.armor, x0 + w - 24 * u, y0 + 34 * u, 700, 14 * u, DIM, "right");
-    let y = y0 + 74 * u;
-    for (const g of inv.guns) {
-      this.text(g.name, x0 + 24 * u, y, 700, 17 * u, g.inHand ? "#ffd23c" : WHITE);
-      this.text(`${g.clip} / ${g.size}   ${g.ammo}`, x0 + w - 24 * u, y, 700, 15 * u, g.inHand ? "#ffd23c" : DIM, "right");
-      y += 20 * u;
-      this.text(g.attach.length ? g.attach.join("  ·  ") : "no attachments", x0 + 24 * u, y, 600, 12 * u, DIM);
-      y += 30 * u;
+    // the world dimmed behind it, so the card reads over a lit street
+    c.fillStyle = "rgba(0,0,0,0.35)";
+    c.fillRect(0, 0, this.w, this.h);
+    this.plate(x0, y0, w, h, u, null, 1.25);
+    this.text("WHAT YOU ARE CARRYING", x0 + 24 * u, y0 + 38 * u, 700, 20 * u, WHITE);
+    const v = inv.vitals;
+    if (v) {
+      const hp = `HEALTH ${Math.ceil(v.health)} / ${v.healthMax}`;
+      this.text(hp, x0 + w - 24 * u, y0 + 38 * u, 700, 15 * u, v.health > 30 ? WHITE : RED, "right");
+      c.font = this.font(700, 15 * u);
+      const sh = v.shieldMax > 0 ? `SHIELD ${Math.ceil(v.shield)} / ${v.shieldMax}` : "NO SHIELD";
+      this.text(sh, x0 + w - 24 * u - c.measureText(hp).width - 20 * u, y0 + 38 * u, 700, 15 * u, v.shieldMax > 0 ? SHIELD : DIM, "right");
     }
-    const col = (title: string, rows: Array<{ name: string; n: number }>, cx: number) => {
-      let yy = y + 10 * u;
-      this.text(title, cx, yy, 700, 12 * u, DIM);
-      yy += 22 * u;
-      if (!rows.length) this.text("nothing", cx, yy, 600, 13 * u, "rgba(154,164,173,0.5)");
-      for (const r of rows) {
-        this.text(r.name, cx, yy, 600, 13 * u, WHITE);
-        this.text(`x${r.n}`, cx + 150 * u, yy, 700, 13 * u, DIM, "right");
-        yy += 19 * u;
+    const pad = 24 * u;
+    const gap = 16 * u;
+    const cw = (w - pad * 2 - gap) / 2;
+    const ch = 150 * u;
+    // a level as pips, the HUD's fusion pips: lit up to the level, `col` lit
+    const pips = (x: number, y: number, level: number, max: number, col: string): void => {
+      this.text(`LV ${level}`, x, y, 700, 13 * u, level > 0 ? col : DIM);
+      for (let i = 0; i < max; i++) {
+        c.fillStyle = i < level ? col : "rgba(255,255,255,0.16)";
+        c.fillRect(x + 40 * u + i * 18 * u, y - 9 * u, 14 * u, 6 * u);
       }
     };
-    col("AMMO", inv.ammo, x0 + 24 * u);
-    this.text("HOLD TAB", this.w / 2, y0 + h - 18 * u, 700, 12 * u, DIM, "center");
+    this.text("GUNS", x0 + pad, y0 + 72 * u, 700, 12 * u, DIM);
+    inv.guns.forEach((g, i) => {
+      const x = x0 + pad + i * (cw + gap);
+      const y = y0 + 82 * u;
+      this.plate(x, y, cw, ch, u, g.inHand ? GOLD : null);
+      if (!g.id) {
+        this.text("EMPTY", x + cw / 2, y + ch / 2 + 6 * u, 700, 18 * u, DIM, "center");
+        return;
+      }
+      // its own outline (tools/gun-silhouettes.ts), its name in text until it loads
+      if (!drawGun(c, g.id, x + 20 * u + 80 * u, y + 46 * u, 160 * u, g.inHand ? "#ffffff" : "rgba(230,235,240,0.7)")) this.text(g.name, x + 100 * u, y + 52 * u, 700, 14 * u, DIM, "center");
+      this.text(g.name, x + 200 * u, y + 40 * u, 700, 24 * u, g.inHand ? GOLD : WHITE);
+      if (g.kind) this.text(g.kind.toUpperCase(), x + 200 * u, y + 60 * u, 600, 13 * u, DIM);
+      if (g.inHand) this.text("IN HAND", x + cw - 14 * u, y + 22 * u, 700, 11 * u, GOLD, "right");
+      pips(x + 20 * u, y + 98 * u, g.level, g.max, GOLD);
+      this.text(`${g.clip} / ${g.size}  ∞`, x + cw - 14 * u, y + 98 * u, 700, 16 * u, WHITE, "right");
+      if (!g.perks.length) this.text(`ANOTHER ${g.name} FUSES IT A LEVEL`, x + 20 * u, y + 124 * u, 600, 12 * u, DIM);
+      else {
+        this.text(g.perks.slice(0, 3).join("  ·  "), x + 20 * u, y + 124 * u, 700, 12 * u, "#7ddc8a");
+        if (g.perks.length > 3) this.text(g.perks.slice(3).join("  ·  "), x + 20 * u, y + 141 * u, 700, 12 * u, "#7ddc8a");
+      }
+    });
+    this.text("HACKS", x0 + pad, y0 + 256 * u, 700, 12 * u, DIM);
+    inv.hacks.forEach((hk, i) => {
+      const x = x0 + pad + i * (cw + gap);
+      const y = y0 + 266 * u;
+      const col = (hk?.slot ?? (i === 0 ? "mobility" : "utility")) === "mobility" ? "#20e0ff" : "#ff2e9a";
+      this.plate(x, y, cw, ch, u, hk ? col : null);
+      if (!hk) {
+        this.text(i === 0 ? "NO MOBILITY HACK" : "NO UTILITY HACK", x + cw / 2, y + ch / 2 + 6 * u, 700, 18 * u, DIM, "center");
+        return;
+      }
+      if (!drawIcon(c, `hack_${hk.id}`, x + 52 * u, y + 52 * u, 60 * u, "#ffffff")) this.text(hk.name.slice(0, 1), x + 52 * u, y + 62 * u, 700, 30 * u, col, "center");
+      this.text(hk.name.toUpperCase(), x + 100 * u, y + 40 * u, 700, 24 * u, col);
+      this.text(`${hk.slot.toUpperCase()}  ·  ${hk.key}`, x + 100 * u, y + 60 * u, 600, 13 * u, DIM);
+      this.text(hk.left > 0 ? `${Math.ceil(hk.left)} S` : "READY", x + cw - 14 * u, y + 24 * u, 700, 14 * u, hk.left > 0 ? DIM : "#7ddc8a", "right");
+      pips(x + 20 * u, y + 98 * u, hk.level, hk.max, col);
+      this.text(`COOLDOWN ${Math.round(hk.cooldown)} S`, x + cw - 14 * u, y + 98 * u, 700, 13 * u, WHITE, "right");
+      this.text(hk.blurb, x + 20 * u, y + 126 * u, 600, 13 * u, "rgba(230,235,240,0.85)");
+    });
+    this.text("HOLD TAB", this.w / 2, y0 + h - 14 * u, 700, 12 * u, DIM, "center");
   }
 
   /** the emote wheel: six round the middle, the one pointed at lit */
