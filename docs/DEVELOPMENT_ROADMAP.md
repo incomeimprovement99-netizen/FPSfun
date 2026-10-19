@@ -15725,3 +15725,28 @@ for the fall and came back at the ground. Apex's legends fall with theirs slung 
   - The e2e (skfigure, the figure's stances): the gun shown in the skydive, not in the hands, nothing in it gliding or
     diving. It fails with the sling taken out (not shown).
   - verify, rules and the type check.
+
+## Milestone 613 — A reload's grips closed as a hand closes
+
+The last of Milestone 604's nice-to-haves. Milestone 603 closed every gun's hold as a hand closes; a reload's own grips
+were left as tools/figure-fit.ts made them, a phalanx at a time: at the USSO's charging handle a middle finger 88
+degrees at the knuckle and straight after it, a ring finger the same, a little finger hooked 100 degrees off a 66 one,
+and the index 20 mm off the gun; at BOOG's bolt a ring finger 71 at the knuckle, -3 at its middle and 77 at its last.
+
+- **The fit** (tools/figure-grip.ts KEY=<key>): the hand that works a reload's key, at the moment of the empty reload it
+  holds it (the first person's plan, rifle.ts reloadPlanOf), its fingers closed the same way as a hold's, every finger
+  (the right index is off the trigger then), the thumb free of the hold's far-side rule. The fitter now also refuses a
+  hooked finger outright (its middle joint past twice its knuckle and 45 degrees), as the check does: fitted without
+  it, the alternator's handle had a little finger 95 at its middle joint off a straight knuckle.
+- **Refitted:** the USSO's charging handle and its pull back (all four fingers round it, tips on it), BOOG's bolt, its
+  lift and its pull back (closed round the knob, the fingers in the receiver's side 14 mm at most where they were
+  18; the e2e holds a bolt hand to 30), the alternator's handle. The BIGANTLER's pump hand was measured mid-reach (its
+  key's first moment is the hand on its way), so its nearly open hand is kept, its last joints made to follow.
+- **The check** (tools/checks/soldier-hold.ts, in verify): every gun's reload grips (a charging handle, a bolt, a pump;
+  not the pointing hand or a shell's pinch) with each last joint following its middle and none hooked. It fails on the
+  grips before (the USSO's, BOOG's, the alternator's: 30 and more faults).
+- **Checked:**
+  - The e2e's soldier hold test (skfigure) on the four guns with reload grips: 132 of 132 (the USSO's charging handle
+    with each finger on the gun, BOOG's bolt and the BIGANTLER's pump among them).
+  - Photographed the USSO's hand at its charging handle and BOOG's at its bolt, 1.75 and 2.72 s into the reload.
+  - verify, rules and the type check.

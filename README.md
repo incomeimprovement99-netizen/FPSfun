@@ -264,7 +264,8 @@ describes the retired legacy game, and goes with its code.
   A melee is your own view's punch: the gun stays in the right hand and the left
   draws back by the chest and punches out as a fist. A double jump lifts their
   knees for a moment. Their fingers close round what they hold as a hand closes,
-  each finger's joints bending together and alongside the fingers beside it
+  each finger's joints bending together and alongside the fingers beside it, at
+  the grip and in a reload's grab of a charging handle, a bolt or a pump
   (`tools/figure-grip.ts` fits them gun by gun). Running a wall they lean off it, feet to the wall and the gun
   up; in the battle royale's skydive they glide belly down with their arms out, or
   dive head first, as they steer, their long gun slung on their back until the ground, and fall the

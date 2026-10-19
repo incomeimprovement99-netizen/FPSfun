@@ -19,7 +19,7 @@
 //
 // Run: SHOT_URL=http://localhost:5198/ npx tsx tools/figure-grip.ts <gun id>  (SIDES=r or l for one hand; MOVE=r to move
 // that hand first, or HANDS='{"r":{"at":[x,y,z]}}' to keep a place one found; WRITE=1 stores it as guns.<id>.fingers,
-// and a moved hand as its hands). Nothing the page loads may change while it runs (src/, the README): the page reloads.
+// and a moved hand as its hands). KEY=handle fits a reload key's fingers instead, at the moment its hand holds it. Nothing the page loads may change while it runs (src/, the README): the page reloads.
 import fs from "node:fs";
 import path from "node:path";
 import puppeteer, { type Page } from "puppeteer";
@@ -30,7 +30,7 @@ const ID = process.argv[2] ?? "r97";
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 const POSE = { speed: 0, stance: "stand", pitch: 0, ads: 1 };
 const HOLD = JSON.parse(fs.readFileSync(path.resolve("src/config/soldierhold.json"), "utf8"));
-const G = (HOLD.grip ?? {}) as { follow?: number; natural?: number; proportion?: number; thumbFollow?: number; neighbour?: number; swing?: number; spread?: number; wrapMin?: number; wrap?: number };
+const G = (HOLD.grip ?? {}) as { follow?: number; natural?: number; proportion?: number; thumbFollow?: number; neighbour?: number; swing?: number; spread?: number; wrapMin?: number; wrap?: number; hookBy?: number };
 /** the last joint's bend as a share of the middle joint's (soldierhold.json grip.follow) */
 const FOLLOW = G.follow ?? 0.67;
 /** a grasp's middle joint against its knuckle (soldierhold.json grip.natural) */
@@ -50,6 +50,8 @@ const SPREAD = G.spread ?? 0.05;
  */
 const WRAP_MIN = G.wrapMin ?? 60;
 const WRAP = G.wrap ?? 0.05;
+/** a finger's middle joint past twice its knuckle and HOOK_BY degrees is hooked: what tools/checks/soldier-hold.ts refuses */
+const HOOK_BY = G.hookBy ?? 45;
 /** skin this far into what it holds is touching, not through (mm) */
 const TOUCH = 2;
 const FINGERS = ["index", "middle", "ring", "pinky"] as const;
@@ -79,12 +81,44 @@ async function main(): Promise<void> {
     await page.addScriptTag({ path: path.resolve("tools/figure-audit.js") });
     await ev(page, `(() => { document.getElementById("overlay").classList.add("hidden"); window.__range.player.teleport(0, 0, 0, 0, -9); })()`);
     const all = await ev<Record<string, unknown>>(page, "window.__range.rifleConfig()");
-    const own = ((all.guns as Record<string, Record<string, unknown>>)[ID] ?? {}) as { hands?: object; fingers?: Record<Side, Record<string, number[]>> };
+    const own = ((all.guns as Record<string, Record<string, unknown>>)[ID] ?? {}) as {
+      hands?: object;
+      fingers?: Record<Side, Record<string, number[]>>;
+      reload?: { keys?: Record<string, { fingers?: Record<string, number[]> }> };
+    };
     const fingers: Record<Side, Record<string, number[]>> = JSON.parse(JSON.stringify({ ...(all.fingers as object), ...(own.fingers ?? {}) }));
     /** the gun's own hands, once one is moved (MOVE) */
     let hands: Record<Side, { at: number[] }> | null = null;
-    const tune = () => `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: { fingers: ${JSON.stringify(fingers)}${hands ? `, hands: ${JSON.stringify(hands)}` : ""} } } })`;
-    await ev(page, `(() => { const r = window.__range; ${tune()}; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...POSE, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.8); })()`);
+    // KEY=handle: a reload's key instead of the hold (soldierhold.json guns.<id>.reload.keys.<key>.fingers): the hand that
+    // works it, at the moment of the empty reload it holds it (the first person's plan, rifle.ts reloadPlanOf), its
+    // fingers closed the same way round what it takes hold of (Milestone 613: they were fitted a phalanx at a time, a
+    // middle finger 88 degrees at the knuckle and straight after it at the USSO's charging handle)
+    const KEY = process.env.KEY ?? "";
+    let keySide: Side | null = null;
+    let keyAt = 0;
+    if (KEY) {
+      const plan = await ev<{ left: [number, string][]; right: [number, string][] }>(page, `window.__range.rifleReloadPlan(${JSON.stringify(ID)}, false)`);
+      for (const [seq, side] of [
+        [plan.left, "l"],
+        [plan.right, "r"],
+      ] as const) {
+        const i = seq.findIndex(([, k]) => k === KEY);
+        if (i < 0 || keySide) continue;
+        keySide = side;
+        keyAt = seq[i + 1]?.[1] === KEY ? (seq[i][0] + seq[i + 1][0]) / 2 : seq[i][0];
+      }
+      if (!keySide) throw new Error(`${ID} has no reload key ${KEY}`);
+      fingers[keySide] = { ...fingers[keySide], ...(own.reload?.keys?.[KEY]?.fingers ?? {}) };
+    }
+    const tune = () =>
+      KEY && keySide
+        ? `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: { reload: { keys: { ${JSON.stringify(KEY)}: { fingers: ${JSON.stringify(fingers[keySide])} } } } } } })`
+        : `window.__range.rifleTune({ guns: { ${JSON.stringify(ID)}: { fingers: ${JSON.stringify(fingers)}${hands ? `, hands: ${JSON.stringify(hands)}` : ""} } } })`;
+    const reloadTime = KEY ? await ev<number>(page, `window.__range.weaponTimes(${JSON.stringify(ID)}).reloadEmpty`) : 0;
+    const toKey = KEY ? `r.figureLabPose(0, ${JSON.stringify({ speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true, weapon: ID })}); r.figureLabStep(${keyAt * reloadTime});` : "";
+    const pose = KEY ? { speed: 0, stance: "stand", pitch: 0 } : POSE;
+    await ev(page, `(() => { const r = window.__range; ${tune()}; r.figureLabManual(false); r.figureLab([${JSON.stringify({ ...pose, weapon: ID, look: "S0000010" })}], 2.6, 30); r.figureLabManual(true); r.figureLabStep(0.8); ${toKey} })()`);
+    if (KEY) console.log(`${ID} reload key ${KEY}: the ${keySide === "l" ? "left" : "right"} hand, ${(keyAt * reloadTime).toFixed(2)} s into the empty reload`);
     let n = 0;
     const measure = async (): Promise<Audit> => {
       n++;
@@ -127,7 +161,10 @@ async function main(): Promise<void> {
         PROPORTION * Math.abs(m - NATURAL * k) +
         (want ? NEIGHBOUR * Math.abs(k + m - want[f]) : 0) +
         SPREAD * Math.abs(s - swing0[f]) +
-        (side === "r" ? WRAP * Math.max(0, WRAP_MIN - (k + m)) : 0);
+        (side === "r" ? WRAP * Math.max(0, WRAP_MIN - (k + m)) : 0) +
+        // (never hooked: the alternator's charging handle had a little finger 95 degrees at its middle joint off a straight
+        // knuckle, its tip on the gun, before this)
+        10 * Math.max(0, m - (2 * Math.max(0, k) + HOOK_BY));
       type Try = [number, number, number];
       let best: Record<string, { c: number; a: number; b: number; s: number }> = {};
       const tryAt = async (tries: Record<string, Try>) => {
@@ -174,7 +211,7 @@ async function main(): Promise<void> {
     const thumb = async (side: Side) => {
       const J0 = fingers[side].thumb;
       let best = { c: Infinity, J: [...J0] };
-      const cost = (a: Audit) => 10 * Math.max(0, deepOf(a, "thumb", side) - TOUCH) + tipOf(a, "thumb", side) + 5 * Math.max(0, a.thumbX[side] + 1) + 0.02 * (fingers[side].thumb[0] + fingers[side].thumb[1]);
+      const cost = (a: Audit) => 10 * Math.max(0, deepOf(a, "thumb", side) - TOUCH) + tipOf(a, "thumb", side) + (KEY ? 0 : 5 * Math.max(0, a.thumbX[side] + 1)) + 0.02 * (fingers[side].thumb[0] + fingers[side].thumb[1]);
       const at = async (k: number, m: number, swing: number) => {
         fingers[side].thumb = [r1(k), r1(m), r1(m * THUMB_FOLLOW), swing];
         const c = cost(await measure());
@@ -257,12 +294,13 @@ async function main(): Promise<void> {
       hands = JSON.parse(JSON.stringify(own.hands)) as Record<Side, { at: number[] }>;
       for (const side of ["r", "l"] as const) if (given[side]) hands[side] = { ...hands[side], ...given[side] };
     }
-    const sides = (process.env.SIDES ?? "r,l").split(",") as Side[];
+    const sides = keySide ? [keySide] : ((process.env.SIDES ?? "r,l").split(",") as Side[]);
     for (const side of sides) {
       if ((process.env.MOVE ?? "").split(",").includes(side)) await moveHand(side);
-      await close(side, side === "r" ? ["middle", "ring", "pinky"] : FINGERS);
+      // (a key's hand takes hold with every finger: the right's index is off the trigger then)
+      await close(side, side === "r" && !KEY ? ["middle", "ring", "pinky"] : FINGERS);
       await thumb(side);
-      if (side === "r") await trigger();
+      if (side === "r" && !KEY) await trigger();
     }
     await report(`after ${n} measures`);
     console.log(JSON.stringify(fingers));
@@ -270,9 +308,10 @@ async function main(): Promise<void> {
     if (process.env.WRITE === "1") {
       const file = path.resolve("src/config/soldierhold.json");
       const j = JSON.parse(fs.readFileSync(file, "utf8"));
-      j.guns[ID] = { ...(j.guns[ID] ?? {}), fingers, ...(hands ? { hands } : {}) };
+      if (KEY && keySide) j.guns[ID].reload.keys[KEY].fingers = fingers[keySide];
+      else j.guns[ID] = { ...(j.guns[ID] ?? {}), fingers, ...(hands ? { hands } : {}) };
       fs.writeFileSync(file, `${JSON.stringify(j, null, 2)}\n`);
-      console.log(`written to soldierhold.json guns.${ID}.fingers`);
+      console.log(`written to soldierhold.json guns.${ID}.${KEY ? `reload.keys.${KEY}.fingers` : "fingers"}`);
     }
   } finally {
     await browser.close();

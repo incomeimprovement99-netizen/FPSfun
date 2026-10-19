@@ -63,6 +63,26 @@ function check(label: string, cond: boolean, detail = ""): void {
   }
   check("every gun's fingers close as a hand closes: each last joint following its middle, none hooked, none between two curled far off both (soldierhold.json grip)", bad.length === 0, bad.slice(0, 6).join("; ") + (bad.length > 6 ? `; and ${bad.length - 6} more` : ""));
 }
+// and a reload's grips the same way (Milestone 613): the keys where a hand takes hold of the gun (a charging handle, a
+// bolt, a pump), not its point at the magazine or its pinch of a shell; their own fingers, over the hand's hold
+{
+  const G = holdCfg.grip;
+  const GRASPS = /^(handle|handleBack|bolt|boltUp|boltBack|pump)/;
+  const bad: string[] = [];
+  for (const [id, gun] of Object.entries(holdCfg.guns as unknown as Record<string, { reload?: { keys?: Record<string, { fingers?: Record<string, number[]> }> } }>)) {
+    for (const [key, k] of Object.entries(gun.reload?.keys ?? {})) {
+      if (!GRASPS.test(key) || !k.fingers) continue;
+      for (const [f, j] of Object.entries(k.fingers)) {
+        if (j.length < 3) continue;
+        const [kn, m, d] = j;
+        const follow = (f === "thumb" ? G.thumbFollow : G.follow) * m;
+        if (Math.abs(d - follow) > 1) bad.push(`${id} ${key} ${f}: its last joint ${d} on a middle one of ${m}`);
+        if (f !== "thumb" && m > 2 * Math.max(0, kn) + G.hookBy) bad.push(`${id} ${key} ${f}: hooked, ${m} at its middle joint off ${kn} at its knuckle`);
+      }
+    }
+  }
+  check("every gun's reload grips (a charging handle, a bolt, a pump) close as a hand closes: each last joint following its middle, none hooked", bad.length === 0, bad.slice(0, 6).join("; ") + (bad.length > 6 ? `; and ${bad.length - 6} more` : ""));
+}
 const GLB = `public/${soldierCfg.model}`;
 console.log("\nThe soldier's rifle hold, measured");
 if (!existsSync(GLB)) {
