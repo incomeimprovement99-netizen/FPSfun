@@ -15006,3 +15006,24 @@ you read where a squad is landing.
     diving head down, the gun away in both, and on the ground it stands with the gun again. It fails with the lean and the
     lay taken out (the head 4 cm across, the back upright in both falls). The whole section: 319 of 319.
   - verify, rules and the type check.
+
+## Milestone 605 — A squad mate's ghost drawn as their soldier in light
+
+The third gap from the owner's ask of 2026-10-18 (Milestone 604): out in a battle royale with a squad mate standing,
+a player goes on as a ghost, and Hyper Scape's squads see theirs (its echoes) as the players still, a figure of light
+that runs, jumps and looks round where they are. Ours was a pale capsule sliding along the ground.
+
+- **The figure** (src/game/ghostfigure.ts GhostFigure, main.ts stepGhosts): the ghost's own soldier (its kit and
+  look), playing its clips from the stance, speed, look and way of moving they send, drawn in one flat see-through
+  material in the squad colour their name tag already wears (figure.json ghost: opacity 0.4, the capsule's 0.35 and a
+  little more for a body's thinner limbs). It closes on where they were last heard at 14 a second, since their state
+  arrives 20 to 30 times a second and an unsmoothed figure stepped. No gun (a ghost fires none), no shadow, no eyes,
+  and nothing to hit: it is not a Dummy and has no hit volumes, and only a squad mate's page makes one, as before.
+  Until the soldier's files have loaded there is none.
+- **Checked:**
+  - Photographed beside a soldier in the range, running, jumping and still, from the front, side and back: a
+    soldier in see-through cyan, its legs running the run.
+  - The e2e (speedkills, the ghost test, both starts): the host's page draws the guest's ghost as its soldier, every
+    mesh of it in the see-through material, within 2 m of where the guest is after it has run off. It fails with
+    no figure made for the ghost. The whole section: 106 of 106.
+  - verify, rules and the type check.

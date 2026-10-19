@@ -6108,6 +6108,17 @@ async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"):
     if (Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3) break;
   }
   check(`${tag}: a ghost moves`, Math.hypot(p1.x - p0.x, p1.z - p0.z) > 3, `${Math.hypot(p1.x - p0.x, p1.z - p0.z).toFixed(1)} m`);
+  // and its squad mate sees it as its own soldier drawn in light where it is, not a capsule (Milestone 605)
+  await sleep(800);
+  const seenGhost = await host
+    .waitForFunction("(() => { const e = window.__range.squadGhosts().find((x) => x.id === 1); return e && e.drawn ? e : null; })()", { polling: 200, timeout: 8000 })
+    .then((h) => h.jsonValue() as Promise<{ at: number[] }>, () => null);
+  const ghostAt = await ev<number[]>(guest, "window.__range.player.pos.toArray()");
+  check(
+    `${tag}: its squad mate sees the ghost as its soldier drawn in see-through light, where it is (within 2 m)`,
+    !!seenGhost && Math.hypot(seenGhost.at[0] - ghostAt[0], seenGhost.at[2] - ghostAt[2]) < 2,
+    JSON.stringify({ seen: seenGhost?.at.map((v) => Math.round(v * 10) / 10), ghost: ghostAt.map((v) => Math.round(v * 10) / 10) }),
+  );
   // a respawn that comes from an opponent (a bot, id 100) is not the squad's to give: it is ignored
   // (plan section 12, item 7: it was taken from anyone)
   const forged = await ev<{ alive: boolean }>(guest, `(() => { const d = window.__range.duel(); d.receiveSquad({ t: "respawn", to: d.id, at: [0, 0, 500] }, 100, 0); return { alive: d.alive }; })()`);

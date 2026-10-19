@@ -242,8 +242,9 @@ describes the retired legacy game, and goes with its code.
 - **Dying:**
   - Your first death is the Gulag, until the capture zone opens.
   - After that you are a ghost: fast, unseen, no gun, while a squad mate is
-    still up. In solo, or with only other squads left standing, you are out
-    and watch them instead.
+    still up. Your squad sees you as your soldier drawn in light in your squad
+    colour, running and jumping as you do; enemies never see you. In solo, or
+    with only other squads left standing, you are out and watch them instead.
   - A squad mate restores you at your echo in 5 s, three times slower if you
     wander more than 12 m away. Two restores a match.
 - **The soldier as others see it:** holding the USSO, BOOG, ANAKIN, PANDA, BIGANTLER, REZ or CHOOCH the way a rifleman

@@ -64,6 +64,7 @@ import type { ResolvedWeapon } from "./game/weapons";
 import { Duel, MAX_PLAYERS, HEALTH_MAX, moveDirOf, type MatchLike, type HeirSnapshot, type Remote } from "./game/duel";
 import { Announcer, cues, type Watch } from "./game/announcer";
 import { LIFE_WIRE, SquadWatch, type MateNow } from "./game/squadview";
+import { GhostFigure } from "./game/ghostfigure";
 import { reloadPlanOf, rifleConfig, tuneRifle } from "./game/rifle";
 import { buildRingWall, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP } from "./game/world";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
@@ -3431,10 +3432,13 @@ const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THRE
 const myWalls: PutWall[] = [];
 /** when a ghost next looks round it */
 let ghostSeeAt = 0;
-/** the squad's ghosts, drawn where they are: a pale figure per dead squad mate */
-const ghostFigs = new Map<number, THREE.Mesh>();
-/** the squad's ghosts: a pale column where each dead squad mate is (enemies never see one) */
-function stepGhosts(): void {
+/** the squad's ghosts, drawn where they are: each dead squad mate's soldier as light (ghostfigure.ts) */
+const ghostFigs = new Map<number, GhostFigure>();
+/**
+ * The squad's ghosts: a figure of light where each dead squad mate is, running and jumping as they do (enemies never
+ * see one). A pale capsule until Milestone 605: Hyper Scape's squads see theirs (its echoes) as the players still.
+ */
+function stepGhosts(dt: number): void {
   const d = duel instanceof BrMatch && duel.decay ? duel : null;
   const seen = new Set<number>();
   if (d) {
@@ -3443,23 +3447,24 @@ function stepGhosts(): void {
       if (!r || r.alive || r.id >= Duel.BOT_ID || !d.isFriend(r.id)) continue;
       const last = r.samples[r.samples.length - 1];
       if (!last) continue;
-      seen.add(r.id);
       let m = ghostFigs.get(r.id);
       if (!m) {
-        m = new THREE.Mesh(new THREE.CapsuleGeometry(0.35, 1.1, 4, 10), new THREE.MeshBasicMaterial({ color: 0x9fefff, transparent: true, opacity: 0.35, depthWrite: false }));
-        m.userData.dynamic = true;
-        scene.add(m);
+        // (none until the soldier's files are in: there is nothing to make one of)
+        const made = GhostFigure.make(a.skin);
+        if (!made) continue;
+        m = made;
+        scene.add(m.group);
         ghostFigs.set(r.id, m);
       }
-      m.position.set(last.x, last.y + 0.95, last.z);
+      seen.add(r.id);
+      const prev = r.samples.length > 1 ? r.samples[r.samples.length - 2] : last;
       // in the teammate's own colour, as their name over it is (Phase 27)
-      const col = squadWatch.colorOf(r.id);
-      if (col) (m.material as THREE.MeshBasicMaterial).color.set(col);
+      m.update(last, squadWatch.colorOf(r.id) ?? 0x9fefff, moveDirOf(last.x - prev.x, last.z - prev.z, last.yaw), dt);
     }
   }
   for (const [id, m] of ghostFigs) {
     if (seen.has(id)) continue;
-    scene.remove(m);
+    m.dispose();
     ghostFigs.delete(id);
   }
 }
@@ -3773,7 +3778,7 @@ function stepHacks(now: number, dt: number): void {
     ghostSeeAt = now + 0.5;
     kitSight()?.reveal(player.pos, null, PROFILE.life.ghostSight, 360, 0.7);
   }
-  stepGhosts();
+  stepGhosts(dt);
   // INVISIBILITY ends when you fire, or aim in (Hyper Scape's rule; Phase 20 A9)
   if (now < invisUntil && (now - loadout.active.state.lastShotAt < 0.05 || loadout.active.state.adsFrac > 0.1)) {
     invisUntil = -Infinity;
@@ -8373,6 +8378,8 @@ const GALLERY = { x: 0, z: -8 };
   },
   /** the figures figureLab put up, for tools that measure them (tools/soldier-hits.ts) */
   labFigures: () => labFigs.map((l) => l.f),
+  /** the squad's ghosts drawn on this page: whose, where, and whether each is a soldier of light (ghostfigure.ts) */
+  squadGhosts: () => [...ghostFigs].map(([id, e]) => ({ id, at: e.group.position.toArray(), drawn: e.group.parent !== null && e.drawn() })),
   /** which of a shot's hits it takes, nearest first, as a shot does (hitpick.ts): the tests aim at heads with it */
   takenHit: (hits: THREE.Intersection[]) => takenHit(hits),
   /** a gun's times as the game plays them (fusion 0): its reload, empty and not, and its swap's two halves */
