@@ -137,6 +137,8 @@ const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 const CHEST_UP = figureCfg.chestUp as { most: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
+/** a runner's lean into a turn: no more than `most` degrees, `share` of a balanced lean, above `minSpeed` m/s (figure.json bank) */
+const BANK = figureCfg.bank as { most: number; share: number; minSpeed: number; rate: number; smooth: number };
 /** a plunge (SLAM's way down): falling faster than `fall` m/s, the knees up and the chest over them (figure.json plunge) */
 const PLUNGE = figureCfg.plunge as { fall: number; rate: number; raise: number; bend: number; lean: number };
 /** a grapple's arm up at its hook point and back, a second (figure.json grapple) */
@@ -242,6 +244,8 @@ const Z_AXIS = new THREE.Vector3(0, 0, 1);
 /** the body's lean or lay this frame, and its axis (layBody) */
 const layQ = new THREE.Quaternion();
 const layV = new THREE.Vector3();
+const layP = new THREE.Vector3();
+const layG = new THREE.Quaternion();
 
 /**
  * a gun's reload time, seconds (weapons.ts, fusion 0), from empty (the longer, with the rack) or tactical (a round
@@ -790,6 +794,17 @@ export class MannequinFigure {
   private diveW = 0;
   private hipY = 0.95;
   private baseY = 0;
+  /**
+   * The body's turn round its hips (a wall run's lean, a skydive's lay) and its lean into a turn round its feet (bank),
+   * and what the lean reads: where its group was, its way of moving and the change in it (world x and z, smoothed), and
+   * the lean now (world, radians toward the turn's middle)
+   */
+  private readonly tiltQ = new THREE.Quaternion();
+  private readonly bankQ = new THREE.Quaternion();
+  private lastXZ: [number, number] | null = null;
+  private readonly vel = new THREE.Vector2();
+  private readonly acc = new THREE.Vector2();
+  private readonly bank = new THREE.Vector2();
   /** a grapple's hook point (world), until when on this figure's clock, how near is there, and the arm's weight on it */
   private grapple: { to: THREE.Vector3; until: number; arrive: number } | null = null;
   private grabW = 0;
@@ -1284,6 +1299,9 @@ export class MannequinFigure {
     // (upright for the death clip, which lays it on the floor itself: a figure shot off a wall or out of the sky falls
     // from where it was, not leaning or lying on the air)
     this.wallW = this.skyW = 0;
+    this.tiltQ.identity();
+    this.bankQ.identity();
+    this.bank.set(0, 0);
     this.root.quaternion.identity();
     this.placeRoot();
     if (on) {
@@ -1315,7 +1333,7 @@ export class MannequinFigure {
     this.skyW += ((sky ? 1 : 0) - this.skyW) * Math.min(1, dt * (sky ? SKYDIVE.rateIn : SKYDIVE.rateOut));
     const dive = Math.max(0, Math.min(1, (DIVE.flatPitch - p.pitch) / (DIVE.flatPitch - DIVE.downPitch)));
     if (sky) this.diveW += (dive - this.diveW) * Math.min(1, dt * SKYDIVE.rateIn);
-    const q = this.root.quaternion.identity();
+    const q = this.tiltQ.identity();
     if (Math.abs(this.wallW) > 1e-3) {
       // about the way it runs (figure space: +z its front, +x its left): a wall on its left turns its up to its right
       const m = p.moveDir ?? 0;
@@ -1323,13 +1341,74 @@ export class MannequinFigure {
       q.multiply(layQ.setFromAxisAngle(layV.set(-Math.sin(m), 0, Math.cos(m)), lean * this.wallW));
     }
     if (this.skyW > 1e-3) q.multiply(layQ.setFromAxisAngle(X_AXIS, (SKYDIVE.glide + (SKYDIVE.dive - SKYDIVE.glide) * this.diveW) * DEG * this.skyW));
+    this.leanIntoTurn(p, dt);
+    this.root.quaternion.copy(this.bankQ).multiply(this.tiltQ);
     this.placeRoot();
   }
 
-  /** the root where its turn leaves the hips where they were, on its lift (a still stand's, an emote's bounce) */
+  /**
+   * A runner leans into a turn (Milestone 609): Apex's and Titanfall's do, and ours ran a curve bolt upright. Its way of
+   * moving and the change in it are read off where its group goes (an enemy's from its samples, smoothed at
+   * figure.json bank.smooth), and on the ground above bank.minSpeed it leans toward the turn's middle as far as a
+   * body balanced against the game's own gravity would (atan of the sideways acceleration over gravity), `share` of
+   * it, no more than `most` degrees, round its feet, which stay where they are; eased at `rate` a second.
+   */
+  private leanIntoTurn(p: FigurePose, dt: number): void {
+    const g = this.root.parent;
+    const at = g ? g.getWorldPosition(layP) : null;
+    let want = 0;
+    let wx = 0;
+    let wz = 0;
+    if (at && this.lastXZ && dt > 1e-4) {
+      // (no faster than 30 m/s: a figure put somewhere else is no run)
+      const vx = Math.max(-30, Math.min(30, (at.x - this.lastXZ[0]) / dt));
+      const vz = Math.max(-30, Math.min(30, (at.z - this.lastXZ[1]) / dt));
+      const k = Math.min(1, dt * BANK.smooth);
+      const ax = (vx - this.vel.x) / dt;
+      const az = (vz - this.vel.y) / dt;
+      this.vel.x += (vx - this.vel.x) * k;
+      this.vel.y += (vz - this.vel.y) * k;
+      this.acc.x += (ax - this.acc.x) * k;
+      this.acc.y += (az - this.acc.y) * k;
+      const speed = this.vel.length();
+      const ground = p.stance === "stand" || p.stance === "crouch" || p.stance === "slide";
+      if (ground && speed > BANK.minSpeed) {
+        // the change across the way it moves: the turn's middle is that way
+        const ux = this.vel.x / speed;
+        const uz = this.vel.y / speed;
+        const along = this.acc.x * ux + this.acc.y * uz;
+        wx = this.acc.x - along * ux;
+        wz = this.acc.y - along * uz;
+        const across = Math.hypot(wx, wz);
+        if (across > 1e-3) {
+          want = Math.min(BANK.most * DEG, Math.atan(across / MOVE.gravity) * BANK.share);
+          wx /= across;
+          wz /= across;
+        }
+      }
+    }
+    if (at) this.lastXZ = [at.x, at.z];
+    const e = Math.min(1, dt * BANK.rate);
+    this.bank.x += (wx * want - this.bank.x) * e;
+    this.bank.y += (wz * want - this.bank.y) * e;
+    const angle = this.bank.length();
+    if (angle < 1e-4 || !g) {
+      this.bankQ.identity();
+      return;
+    }
+    // toward the turn's middle in the group's own frame: its up turned toward it, about up x that way
+    const n = layV.set(this.bank.x / angle, 0, this.bank.y / angle).applyQuaternion(g.getWorldQuaternion(layG).invert());
+    this.bankQ.setFromAxisAngle(new THREE.Vector3(0, 1, 0).cross(n).normalize(), angle);
+  }
+
+  /**
+   * The root where its turn round the hips leaves them where they were, then leant round its feet (bank), on its lift
+   * (a still stand's, an emote's bounce)
+   */
   private placeRoot(): void {
-    const hip = layV.set(0, this.hipY, 0).applyQuaternion(this.root.quaternion);
-    this.root.position.set(-hip.x, this.baseY + this.hipY - hip.y, -hip.z);
+    const hip = layV.set(0, this.hipY, 0).applyQuaternion(this.tiltQ);
+    const off = hip.set(-hip.x, this.hipY - hip.y, -hip.z).applyQuaternion(this.bankQ);
+    this.root.position.set(off.x, this.baseY + off.y, off.z);
   }
 
   /**

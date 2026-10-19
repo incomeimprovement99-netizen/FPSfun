@@ -6873,6 +6873,37 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("SLAM's way down: coming down at 38 m/s its knees are up (20 cm or more higher against its hips than falling at 10 m/s)", plunge.fast - plunge.slow >= 0.2, JSON.stringify(plunge));
+  // a run round a turn (Milestone 609): sprinting round a 6 m circle it leans into it, toward the middle, either way
+  // round (the mean of the two: a sprint's own sway to one side, 6 degrees mid-stride, is toward the middle one way and
+  // away from it the other)
+  const lean = await ev<{ left: number; right: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      const run = (dir) => {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 12, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        const c = f.group.position.clone();
+        for (let i = 0; i < 60; i++) {
+          const t = i * 0.02;
+          const a = dir * 2 * t;
+          f.group.position.set(c.x + 6 * Math.cos(a), c.y, c.z + 6 * Math.sin(a));
+          f.group.rotation.y = Math.atan2(-Math.sin(a) * dir, Math.cos(a) * dir);
+          r.figureLabStep(0.02);
+        }
+        // the back's lean across the way it runs, toward the circle's middle (+), degrees: the run's own lean forward left out
+        const at = (n) => f.mq.bone(n).getWorldPosition(new T.Vector3());
+        const sp = at("neck_01").sub(at("pelvis")).normalize();
+        const fwd = new T.Vector3(0, 0, 1).applyQuaternion(f.group.quaternion).setY(0).normalize();
+        const left = new T.Vector3(0, 1, 0).cross(fwd).normalize();
+        const mid = c.clone().sub(at("pelvis")).setY(0);
+        const inward = mid.dot(left) >= 0 ? left : left.negate();
+        return Math.asin(Math.max(-1, Math.min(1, sp.dot(inward)))) * 180 / Math.PI;
+      };
+      return { left: Math.round(run(1) * 10) / 10, right: Math.round(run(-1) * 10) / 10 };
+    })()`,
+  );
+  check("a run round a turn: sprinting round a 6 m circle either way its back leans toward the middle, 5 degrees or more on the mean of the two", (lean.left + lean.right) / 2 >= 5 && lean.left > 0 && lean.right > 0, JSON.stringify(lean));
   await page.close();
 }
 

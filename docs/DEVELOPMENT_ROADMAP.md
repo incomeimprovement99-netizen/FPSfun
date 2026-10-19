@@ -15341,3 +15341,22 @@ into the fist at 90/100/80; the CHOOCH's right ring finger and little finger 18 
     it passing (168 and 39 checks).
   - Photographed every gun's hands at the grip and the support from three sides each.
   - verify, rules and the type check.
+
+## Milestone 609 — A runner leans into a turn
+
+The first of the nice-to-haves left after Milestone 608. Apex's and Titanfall's runners lean into a turn; ours ran a
+curve bolt upright, at SpeedKills' 14 m/s sprint.
+
+- **The lean** (mannequin.ts leanIntoTurn, figure.json bank): on the ground above a jog (3 m/s), the body leans toward
+  the turn's middle round its feet, which stay where they are, as far as a body balanced against the game's gravity
+  would (the angle whose tangent is the sideways acceleration over 17.5 m/s/s), a third of it (0.35), never more than
+  12 degrees, eased at 6 a second. Balanced in full, the sprint turned a radian a second leans 39 degrees, a
+  cyclist's; at a third it is 12, half that turn 8. The way the figure moves and the change in it are read off where
+  its group goes (an enemy's from its samples, smoothed at 10 a second; no faster than 30 m/s, so a figure put
+  somewhere else is no run), so nothing new goes over the wire. The wall run's lean and the skydive's lay turn the body
+  round its hips first; the turn's lean is laid over them round the feet.
+- **Checked:**
+  - The e2e (skfigure, the figure's stances): sprinting round a 6 m circle either way, the back leans toward the middle
+    15.2 and 3.4 degrees, 9.3 on the mean (a sprint's own sway, 5.9 mid-stride, is toward the middle one way round and
+    away the other). It fails with the lean taken out (5.9 and -5.9).
+  - verify, rules and the type check.

@@ -37,6 +37,14 @@
     "rate": 8,
     "mostRate": 1.4
   },
+  "_bank": "A runner seen leaning into a turn (mannequin.ts leanIntoTurn, Milestone 609): Apex's and Titanfall's do, and ours ran a curve bolt upright. On the ground above `minSpeed` m/s (a jog), the body leans toward the turn's middle round its feet, as far as a body balanced against the game's gravity would (the angle whose tangent is the sideways acceleration over gravity, movement.json), `share` of that, never more than `most` degrees, eased at `rate` a second; its way of moving and the change in it are read off where the figure goes, smoothed at `smooth` a second (an enemy's position comes in 20 to 30 times a second). Balanced in full, SpeedKills' sprint (14 m/s) turned a radian a second against its gravity (17.5 m/s/s) leans 39 degrees, a cyclist's lean; a third of it, capped at 12, reads as a runner's, and half that turn leans 8. Ours.",
+  "bank": {
+    "most": 12,
+    "share": 0.35,
+    "minSpeed": 3,
+    "rate": 6,
+    "smooth": 10
+  },
   "_plunge": "SLAM's way down seen on a figure (mannequin.ts, Milestone 608): it comes down at 38 m/s (hacks.json slam.downSpeed), faster than anything else in the air stance falls (the skydive's dive is 30 m/s, in its own stance), and it was the jump pose dropping like a stone. Falling faster than `fall` m/s (measured off where the figure's group goes, so an enemy's from its samples), the thighs come up `raise` degrees, the knees bend `bend` more and the chest leans `lean` forward over them, eased at `rate` a second: a body coming down onto what it hits, as Hyper Scape's slam reads. Ours.",
   "plunge": {
     "fall": 34,
