@@ -43,6 +43,34 @@ function flashTexture(): THREE.Texture | null {
   return tex;
 }
 
+/**
+ * The flash's halo (hud.json muzzleFlash halo): a soft glow round the star, `scale` times its size and at `opacity`, so a
+ * shot lights the air round the muzzle as a lit flash does, where the star alone was a hard point a few pixels across
+ * for two frames: at range you found a shooter by it only if you were already looking at him
+ */
+let haloTex: THREE.Texture | null = null;
+const haloMats: Partial<Record<"ballistic" | "energy", THREE.SpriteMaterial>> = {};
+function haloMaterial(kind: "ballistic" | "energy"): THREE.SpriteMaterial | null {
+  let m = haloMats[kind];
+  if (m) return m;
+  if (!haloTex) {
+    const c = document.createElement("canvas");
+    c.width = c.height = 64;
+    const g = c.getContext("2d");
+    if (!g) return null;
+    const grad = g.createRadialGradient(32, 32, 0, 32, 32, 32);
+    grad.addColorStop(0, "rgba(255,255,255,0.9)");
+    grad.addColorStop(0.35, "rgba(255,255,255,0.35)");
+    grad.addColorStop(1, "rgba(255,255,255,0)");
+    g.fillStyle = grad;
+    g.fillRect(0, 0, 64, 64);
+    haloTex = new THREE.CanvasTexture(c);
+  }
+  m = new THREE.SpriteMaterial({ map: haloTex, color: kind === "energy" ? 0x8fd8ff : 0xffc46b, opacity: MUZZLE.halo.opacity, blending: THREE.AdditiveBlending, depthWrite: false, transparent: true, fog: false });
+  haloMats[kind] = m;
+  return m;
+}
+
 function material(kind: "ballistic" | "energy"): THREE.SpriteMaterial {
   let m = mats[kind];
   if (!m) {
@@ -92,6 +120,15 @@ export function fitMuzzle(gun: THREE.Object3D, energy: boolean, muzzle: THREE.Ve
   s.visible = false;
   s.renderOrder = 10;
   marker.add(s);
+  // (a child of the star: lit and sized with it)
+  const hm = haloMaterial(energy ? "energy" : "ballistic");
+  if (hm) {
+    const h = new THREE.Sprite(hm);
+    h.name = "muzzle-halo";
+    h.scale.setScalar(MUZZLE.halo.scale);
+    h.renderOrder = 10;
+    s.add(h);
+  }
   return s;
 }
 

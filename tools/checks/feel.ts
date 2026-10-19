@@ -24,7 +24,9 @@ console.log("Muzzle flashes, damage numbers, the low-ammo line");
   const px = (dist: number) => (flashSize(dist, pxPerRad) / dist) * pxPerRad;
   check("a flash up close is its own size", flashSize(5, pxPerRad) === MUZZLE.size, `${flashSize(5, pxPerRad)} m at 5 m`);
   check(`a flash at 150 m and 300 m is still ${MUZZLE.minPx} pixels across or more`, px(150) >= MUZZLE.minPx - 1e-6 && px(300) >= MUZZLE.minPx - 1e-6, `${px(150).toFixed(1)} px at 150 m, ${px(300).toFixed(1)} px at 300 m`);
-  check("a flash lasts about two frames at 60 fps", MUZZLE.life >= 0.02 && MUZZLE.life <= 0.06, `${MUZZLE.life} s`);
+  check("a flash lasts two to four frames at 60 fps", MUZZLE.life >= 0.03 && MUZZLE.life <= 0.07, `${MUZZLE.life} s`);
+  // (2026-10-19: the star alone was a hard point a few pixels across for two frames, seen only if you were looking at it)
+  check("and lights a soft halo round itself, 2 to 3 times its size and dimmer than the star", MUZZLE.halo.scale >= 2 && MUZZLE.halo.scale <= 3 && MUZZLE.halo.opacity > 0 && MUZZLE.halo.opacity < 0.5, `${MUZZLE.halo.scale} times, opacity ${MUZZLE.halo.opacity}`);
   check("damage numbers stack within a spray's gaps, and pop briefly", hudCfg.damageNumbers.stack >= 0.3 && hudCfg.damageNumbers.stack <= 1.2 && hudCfg.damageNumbers.pop <= 0.15);
   check("the low-ammo line comes before the click, and short magazines are left alone", hudCfg.lowAmmo.warn >= hudCfg.lowAmmo.click && hudCfg.lowAmmo.minClip >= 4);
 }

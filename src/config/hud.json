@@ -1,11 +1,16 @@
 {
-  "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres. ownOpacity: how bright your own rounds' streaks are (additive, 0 to 1): at 0.9, as everyone else's are, a USSO spray at 18 rounds a second was a sheet of light over the target (the owner, 2026-09-28: \"the tracers ... are a bit obnoxious ... we should make the tracers much less visible\"). Others' rounds keep 0.9, so fire coming at you still reads; a signature gun's own tracer (gunfeel.json tracer, BOOG's) keeps its own.",
+  "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres. ownOpacity: how bright your own rounds' streaks are (additive, 0 to 1): at 0.9, as everyone else's are, a USSO spray at 18 rounds a second was a sheet of light over the target (the owner, 2026-09-28: \"the tracers ... are a bit obnoxious ... we should make the tracers much less visible\"). Others' rounds keep 0.9, so fire coming at you still reads; a signature gun's own tracer (gunfeel.json tracer, BOOG's) keeps its own. head: a soft round glow at the head of everyone else's rounds (not your own), size metres across up close and never under minPx pixels, at opacity: seen end on a streak is only its width, so a round fired at you had been a point 1.5 pixels across (the owner, 2026-10-18, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE).",
   "tracers": {
     "maxLen": 6,
     "width": 0.025,
     "minPx": 1.5,
     "blend": 8,
-    "ownOpacity": 0.25
+    "ownOpacity": 0.25,
+    "head": {
+      "size": 0.12,
+      "minPx": 8,
+      "opacity": 0.9
+    }
   },
   "_impacts": "Bullet impacts on the level (src/game/impacts.ts). Ours: holes is how many hole decals stay on the map at once (the oldest goes first), each holeSize metres across and gone after holeLife seconds; a hit throws puffPer dust sprites (sparks off metal) from a pool of puffs, each living puffLife seconds; the sound carries hearing metres.",
   "impacts": {
@@ -46,11 +51,15 @@
     "pop": 0.08,
     "over": 0.3
   },
-  "_muzzleFlash": "Other players' muzzle flashes (src/game/muzzle.ts). Ours: a flash lights for life seconds on each shot, two frames at 60 fps, as a player's own view model flash does; size is its width in metres up close, a little over a rifle's muzzle brake; minPx is the fewest pixels across it is ever drawn on screen, so a shot at 150 m is still a point of light and not nothing.",
+  "_muzzleFlash": "Other players' muzzle flashes (src/game/muzzle.ts). Ours: a flash lights for life seconds on each shot, two frames at 60 fps, as a player's own view model flash does; size is its width in metres up close, a little over a rifle's muzzle brake; minPx is the fewest pixels across it is ever drawn on screen, so a shot at 150 m is still a point of light and not nothing. Since 2026-10-19 (the owner, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE): lit for 0.05 s, three frames at 60 fps, not two, never under 9 pixels (6 had been a point you saw only if you were already looking at it), and a soft halo round the star, halo.scale times its size at halo.opacity, as a flash lights the air round a muzzle.",
   "muzzleFlash": {
-    "life": 0.035,
+    "life": 0.05,
     "size": 0.35,
-    "minPx": 6
+    "minPx": 9,
+    "halo": {
+      "scale": 2.4,
+      "opacity": 0.35
+    }
   },
   "_scopeGlint": "A scoped figure's lens flare (muzzle.ts fitGlint), Hyper Scape's patch 1.1: \"a Lens Flare when players are aiming with the rifle, to give warning to their potential victims\". On a figure aimed in (its aim past `from`) holding a gun with a magnified optic, at the front of the gun's sight line: `size` metres across, never under `minPx` pixels on screen (its players found Hyper Scape's \"too big, covering the entire body\", so ours is about a head's width near (0.12 m read as a few pixels at 6 m, lost against the gun's white skin) and never under a clear star far), in `color`, a cool white, twinkling by `twinkle` of itself; its streak across is four times its height.",
   "scopeGlint": {

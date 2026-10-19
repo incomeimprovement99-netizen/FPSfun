@@ -82,6 +82,8 @@ interface Bullet {
   age: number;
   /** its tracer, or a rocket's model */
   mesh: THREE.Object3D;
+  /** someone else's round's glowing head (remoteHeadMat), or null */
+  head: THREE.Sprite | null;
   /** a rocket (DEVINOS's, rocket.ts): drawn as itself, and bursting where it stops, which does its damage */
   rocket: boolean;
   /** where the streak is drawn from (the muzzle) less where the round really left (the eye): blended out over the first metres */
@@ -155,6 +157,28 @@ function tracerMatFor(color: string): THREE.MeshBasicMaterial {
 }
 /** the other player's rounds, redder so you can tell whose is whose */
 const remoteTracerMat = new THREE.MeshBasicMaterial({ color: 0xff6a4a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+/**
+ * A glowing head on everyone else's rounds (hud.json tracers head): a streak seen end on is only its width, so a round
+ * fired at you was a point 1.5 pixels across coming at you, where in Apex incoming fire is the brightest thing on
+ * the screen. A soft round glow at its head, never under head.minPx across, reads from any side.
+ */
+let headMat: THREE.SpriteMaterial | null = null;
+function remoteHeadMat(): THREE.SpriteMaterial | null {
+  if (headMat) return headMat;
+  if (typeof document === "undefined") return null;
+  const c = document.createElement("canvas");
+  c.width = c.height = 32;
+  const g = c.getContext("2d");
+  if (!g || typeof g.createRadialGradient !== "function") return null;
+  const grad = g.createRadialGradient(16, 16, 0, 16, 16, 16);
+  grad.addColorStop(0, "rgba(255,255,255,1)");
+  grad.addColorStop(0.3, "rgba(255,255,255,0.75)");
+  grad.addColorStop(1, "rgba(255,255,255,0)");
+  g.fillStyle = grad;
+  g.fillRect(0, 0, 32, 32);
+  headMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), color: 0xff7a55, transparent: true, opacity: TRACER.head.opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+  return headMat;
+}
 const Z = new THREE.Vector3(0, 0, 1);
 const tv = new THREE.Vector3();
 const td = new THREE.Vector3();
@@ -186,7 +210,15 @@ export class ProjectileSystem {
     else mesh.scale.setScalar(0.001);
     mesh.renderOrder = 5;
     this.scene.add(mesh);
+    const hm = visual && !rocket ? remoteHeadMat() : null;
+    const head = hm ? new THREE.Sprite(hm) : null;
+    if (head) {
+      head.renderOrder = 5;
+      head.scale.setScalar(0.001);
+      this.scene.add(head);
+    }
     this.bullets.push({
+      head,
       pos: origin.clone(),
       vel: dir.clone().normalize().multiplyScalar(w.projectile.speed * speedScale),
       origin: origin.clone(),
@@ -202,11 +234,15 @@ export class ProjectileSystem {
     });
   }
 
-  /** the live rounds' tracers: how long and wide each is drawn, and how far its head is off the real path (tools/e2e.ts) */
-  get tracers(): Array<{ len: number; width: number; off: number; travelled: number; opacity: number }> {
+  /**
+   * the live rounds' tracers: how long and wide each is drawn, how far its head is off the real path, and how many pixels
+   * across its glowing head is on screen (someone else's round; 0 for your own) (tools/e2e.ts)
+   */
+  get tracers(): Array<{ len: number; width: number; off: number; travelled: number; opacity: number; headPx: number }> {
     return this.bullets.map((b) => {
       const head = b.mesh.position.clone().addScaledVector(b.vel.clone().normalize(), b.mesh.scale.z / 2);
-      return { len: b.mesh.scale.z, width: b.mesh.scale.x, off: head.distanceTo(b.pos), travelled: b.pos.distanceTo(b.origin), opacity: ((b.mesh as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined)?.opacity ?? 1 };
+      const headPx = b.head ? (b.head.scale.x * viewer.pxPerRad) / Math.max(0.01, b.head.position.distanceTo(viewer.pos)) : 0;
+      return { len: b.mesh.scale.z, width: b.mesh.scale.x, off: head.distanceTo(b.pos), travelled: b.pos.distanceTo(b.origin), opacity: ((b.mesh as THREE.Mesh).material as THREE.MeshBasicMaterial | undefined)?.opacity ?? 1, headPx };
     });
   }
 
@@ -232,6 +268,10 @@ export class ProjectileSystem {
     const dist = viewer.pos.distanceTo(tv);
     const width = Math.max(TRACER.width, (dist * TRACER.minPx) / viewer.pxPerRad) * ((b.mesh.userData.width as number | undefined) ?? 1);
     b.mesh.scale.set(width, width, len);
+    if (b.head) {
+      b.head.position.copy(tv);
+      b.head.scale.setScalar(Math.max(TRACER.head.size, (dist * TRACER.head.minPx) / viewer.pxPerRad));
+    }
   }
 
   /** where your ears are: someone else's round passing within 2.5 m cracks past you (onWhiz) */
@@ -468,6 +508,7 @@ export class ProjectileSystem {
       }
       if (dead) {
         this.scene.remove(b.mesh);
+        if (b.head) this.scene.remove(b.head);
         this.bullets.splice(bi, 1);
       } else this.placeTracer(b, dt);
     }

@@ -8,7 +8,7 @@ import { figureWork } from "./figlod";
 import { floorGun, floorGunMat } from "./loot";
 import type { Finish } from "./finishes";
 import * as THREE from "three";
-import { applyFinishTo } from "./gunmodels";
+import { applyFinishTo, displayGunModel } from "./gunmodels";
 import { MUZZLE, muzzleOf, showFlash, showGlint } from "./muzzle";
 import { OPERATORS, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
@@ -821,6 +821,10 @@ export class Dummy {
     e.ads += ((p.ads ?? 0) - e.ads) * (1 - Math.exp(-10 * dt));
     // the impulses fade: a kick in a tenth of a second, a flinch in a fifth, a JOLT's lean in a third
     this.kickAmt = Math.max(0, this.kickAmt - dt * 12);
+    // a figure made before the bought guns were in (main.ts loads the two in your own hands first and the rest after)
+    // held the stand-in its gun was then until it was given another gun (main.ts dressed() builds the guns in hand and
+    // on the floor again, and no figure's): the bought one once it is in
+    if (this.armedWith && this.mq?.gunObject && !this.mq.gunObject.userData.paid && displayGunModel(this.armedWith).root.userData.paid) this.setGun(this.armedWith);
     // the flash: lit for its few hundredths of a second after a shot
     this.flashLeft = Math.max(0, this.flashLeft - dt);
     if (this.mq?.flash) showFlash(this.mq.flash, this.flashLeft > 0, this.flashSpin);

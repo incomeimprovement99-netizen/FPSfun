@@ -2851,6 +2851,14 @@ async function shotgunChecks(page: Page): Promise<void> {
   // (and your own dim: the owner, 2026-09-28, of a USSO spray, "the tracers ... are a bit obnoxious ... we should make the
   // tracers much less visible"; everyone else's keep 0.9, so fire coming at you still reads)
   check("tracers: a streak a metre or more long, on the real path once it is clear of the gun, and your own dim (0.3 or less)", !!tr.first && tr.first.len >= 1 && tr.first.width >= 0.02 && tr.first.opacity <= 0.3 && (!tr.later || tr.later.off < 0.05), JSON.stringify(tr));
+  const HEAD_PX = (hudCfgE2e as unknown as { tracers: { head: { minPx: number } } }).tracers.head.minPx;
+  // (the owner, 2026-10-18, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE: a round fired
+  // at you is seen end on, and a streak end on is only its width, 1.5 pixels, so incoming fire was a point you missed.
+  // Everyone else's rounds carry a glowing head, hud.json tracers head)
+  const incoming = await ev<{ headPx: number; width: number; at: number } | null>(page, `new Promise((ok) => { const r = window.__range; const e = r.player.eyePosition().clone(); r.fireRound([0, 0, 1], true, [e.x, e.y, e.z - 40]);
+    const look = () => { const t = r.tracers(); const x = t[t.length - 1]; if (!x) return ok(null); if (x.travelled > 10) return ok({ headPx: +x.headPx.toFixed(1), width: +x.width.toFixed(3), at: +(40 - x.travelled).toFixed(1) }); requestAnimationFrame(look); };
+    requestAnimationFrame(look); })`);
+  check(`tracers: everyone else's round fired at you reads head on, a glowing head ${HEAD_PX} pixels or more across where its streak is only its width`, !!incoming && incoming.headPx >= HEAD_PX - 0.1, JSON.stringify(incoming));
   // the low-ammo line: a quarter of the magazine left, then none
   await ev(page, "(() => { const r = window.__range; r.loadout.active.state.clip = 3; })()");
   await sleep(200);

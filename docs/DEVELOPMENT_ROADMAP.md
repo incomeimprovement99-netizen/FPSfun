@@ -14980,6 +14980,32 @@ might have that too. look specifically on the reticles and what holds them up. t
 - **Checked:** a new skpack check, no gun showing its inside (20 pixels at most) held, aimed and in an inspect: PANDA,
   ANAKIN and CHOOCH 0 to 3 in the e2e; verify, rules and the type check.
 
+## Milestone 555 — An enemy's fire, as it reads from your view
+
+The owner, 2026-10-18: "do a gap analysis on your section (3rd person, enemy pov) between hyperscape/apex/empules vs
+speedkills and implement the most important ones". Split with the other agents the same day: the lobby agent takes
+what is drawn on and over an enemy (damage numbers, shields, outlines, hit flashes), the character agent the body's
+poses, and the guns agent the enemy's gun and fire: the gun in their hands, their muzzle flash, tracers and shot sounds.
+What was there, read off the code: every gun is its own bought model in a figure's hands, which reloads, swaps, aims
+and sprints with it; a flash a few pixels across for two frames; every round a red streak; per-gun shot sounds placed
+in the world with distance, walls and a crack as a round passes within 2.5 m. The three gaps that cost the most in a
+fight, against Apex, Hyper Scape and EMPULSE, where you find a shooter by his flash and see the fire coming at you:
+
+- **Fire coming at you was a point** (projectile.ts remoteHeadMat, hud.json tracers head): a streak seen end on is
+  only its width, so a round fired at you was 1.5 pixels across, and you saw where you were shot from only when it hit.
+  Everyone else's rounds now carry a soft glowing head, never under 8 pixels across; your own do not, so your spray
+  stays as dim as the owner asked for (2026-09-28). A new range check fires a round at you and measures its head.
+- **A shooter's flash was a pinprick** (muzzle.ts haloMaterial, hud.json muzzleFlash): a hard star 6 pixels across
+  for two frames. It now lights for three frames, never under 9 pixels, with a soft halo round it 2.4 times its size,
+  as a flash lights the air round a muzzle.
+- **Figures could hold a grey stand-in all match** (dummy.ts update): the bought guns load in two steps, the two in
+  your hands first and the rest after, and when they came in the guns in hand and on the floor were built again and no
+  figure's were. A figure made in between, a bot at a match's start or a friend who joined, kept the plain stand-in
+  until it was handed another gun. A figure now takes its bought gun the frame it is in.
+- **Checked:** verify (the flash's numbers, tools/checks/feel.ts), rules, the type check and the e2e's range section:
+  a round fired at you from 40 m, at 29 m, has a head 8 pixels across, where its streak is 1.5 and the head before
+  this was nothing (the check reads 0 without it). In pictures beside a figure at 9 m: its flash before and after.
+
 ## Milestone 657 — The city drawn in batches, and the last plan
 
 The owner, after a pause: "plan this part out deeply then finish out the city overall". Two fresh reviews, both taken

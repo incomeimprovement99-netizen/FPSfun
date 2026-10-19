@@ -8588,9 +8588,11 @@ const GALLERY = { x: 0, z: -8 };
   rocketLast: () => rocketBursts.last,
   /** a round from the gun in hand along a direction, through the bullets' own path (tools/snap.ts) */
   // (`visual`: as someone else's shot, the one a shot message redraws: drawn, stopped, hurting nobody here)
-  fireRound: (dir: [number, number, number], visual = false) => {
+  fireRound: (dir: [number, number, number], visual = false, from: [number, number, number] | null = null) => {
     const w = loadout.active.weapon;
-    projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, visual, 1, 1, onScreenAsWorld(viewModel.muzzleWorld()));
+    // (from a point of the world: someone else's round fired at you, for the checks)
+    if (from) projectiles.fire(new THREE.Vector3(...from), new THREE.Vector3(...dir).normalize(), w, visual);
+    else projectiles.fire(player.eyePosition(), new THREE.Vector3(...dir).normalize(), w, visual, 1, 1, onScreenAsWorld(viewModel.muzzleWorld()));
   },
   /** the last frame's draw calls and triangles over every pass (tools/bench.ts) */
   frameCost: () => ({ ...frameCost }),
