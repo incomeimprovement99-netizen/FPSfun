@@ -38,7 +38,6 @@ function arena(id: string, name: string, blurb: string, bestFor = ["duel"]): Are
     zones,
     crown: { x: zones[0].x, z: zones[0].z },
     bestFor,
-    plan: null,
     city: true,
     chunk: L.chunk,
     ...(L.ledge ? { ledge: { y: L.ledge.y, ways: L.ledge.ways.map(([wx, wz]) => ({ x: wx + OX, z: wz + OZ })) } } : {}),

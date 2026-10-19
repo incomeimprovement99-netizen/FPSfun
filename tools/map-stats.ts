@@ -59,8 +59,7 @@ try {
     const t0 = Date.now();
     await page.goto(`${URL}?nointro&game=speedkills${QUERY}`, { waitUntil: "domcontentloaded", timeout: 120000 });
     await page.waitForFunction("Boolean(window.__range) && window.__range.loaded()", { timeout: 300000 });
-    // and the bought files, which load after the page says it is loaded
-    await page.waitForFunction("(!window.__range.cityKit || window.__range.cityKit().drawn > 0 || window.__range.cityKit().pieces === 0) && (!window.__range.cityDistricts || window.__range.cityDistricts().drawn.length >= 0)", { timeout: 300000 }).catch(() => undefined);
+    // and the city's bought file, which loads after the page says it is loaded
     await page.evaluate("window.__range.askCity && window.__range.askCity()");
     await page.waitForFunction("!window.__range.neonMap || !window.__range.neonMap().on || window.__range.neonMap().drawn", { timeout: 300000 }).catch(() => undefined);
     await page.waitForNetworkIdle({ idleTime: 3000, timeout: 300000 }).catch(() => undefined);

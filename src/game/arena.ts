@@ -3,11 +3,10 @@
 // SpeedKills fights on its Neon maps (the owner, 2026-10-09: "2 1v1 maps, 1 centre destrict map, 1 br map, all new
 // neon stuff"): NEON YARD and NEON HALL (arenas/neonarenas.ts) and THE CENTRE (arenas/centre.ts), all three drawn in the
 // city's own file, and the Gulag's fight on THE GULAG, a street in the same file (br.json gulag.map, Milestone 662). The
-// Vault (arenas/vault.ts) is the one drawn arena left, built here: the Gulag's room until Milestone 662. The legacy
-// game's Warehouse, Triangle, Crossing, Ringworks and NEON BLOCK went in Milestone 533.
+// Vault, the last arena drawn from a plan and the Gulag's room before, went in Milestone 663; the legacy game's
+// Warehouse, Triangle, Crossing, Ringworks and NEON BLOCK in Milestone 533.
 import * as THREE from "three";
-import { buildPlan } from "./arenas/build";
-import { PLAN_MAPS, type ArenaMapInfo } from "./arenas";
+import type { ArenaMapInfo } from "./arenas";
 import { CENTRE_MAP } from "./arenas/centre";
 import { YARD_MAP, HALL_MAP, GULAG_MAP } from "./arenas/neonarenas";
 
@@ -26,10 +25,10 @@ export interface ArenaHandles {
 // here picks a map by itself: the choosing is duel.ts's arenaFor, and what a mode picks if nobody says otherwise is
 // `mapFor`.
 
-export type ArenaMapId = "vault" | "centre" | "yard" | "hall" | "gulag";
+export type ArenaMapId = "centre" | "yard" | "hall" | "gulag";
 
-/** every arena there is: the Vault, the three a menu offers, and the Gulag's street */
-export const ARENA_MAPS: ArenaMapInfo[] = [...PLAN_MAPS, YARD_MAP, HALL_MAP, CENTRE_MAP, GULAG_MAP];
+/** every arena there is: the three a menu offers, and the Gulag's street */
+export const ARENA_MAPS: ArenaMapInfo[] = [YARD_MAP, HALL_MAP, CENTRE_MAP, GULAG_MAP];
 
 /** a map by id, falling back to THE CENTRE (it has spawns for eight) so a stale saved id can never leave a match without an arena */
 export function arenaMap(id: string | null | undefined): ArenaMapInfo {
@@ -82,7 +81,3 @@ export function buildCityMarks(parent: THREE.Object3D, m: ArenaMapInfo): ArenaHa
 /** the built arenas by id, so whoever shows a capture circle can find the right one */
 export const ARENA_HANDLES = new Map<string, ArenaHandles>();
 
-/** the drawn arenas (the Gulag's Vault), built into the scene once, with the range's static merge */
-export function buildArenas(scene: THREE.Scene): void {
-  for (const m of PLAN_MAPS) if (m.plan && !ARENA_HANDLES.has(m.id)) ARENA_HANDLES.set(m.id, buildPlan(scene, m.plan, ZONE_RADIUS));
-}

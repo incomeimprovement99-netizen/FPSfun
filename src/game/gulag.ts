@@ -2,7 +2,7 @@
 //
 // Out early, you used to be out: a banner in a box and a squad mate's walk to
 // a beacon, or nothing at all alone. Now a first death before the late rings
-// sends you to a small room (the Vault, one of the arenas) against a bot, the
+// sends you to a street of its own (THE GULAG, one of the arenas) against a bot, the
 // two of you on the same two guns, drawn for the fight. Win and you drop back
 // into the match with those guns; lose and you are out for good. A fight that
 // runs its clock goes to overtime, a flag in the middle of the room: stand on

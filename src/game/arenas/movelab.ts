@@ -1,9 +1,8 @@
 // THE MOVEMENT LAB: SpeedKills' practice ground for the moves the city is
 // built round (plan section 7.13, "practice is core"). It is not a map a
-// match is played on, so it is not one of ARENA_PLANS: those are held to
-// bots' rules (every floor on a bot's route), and the lab is exactly the
-// floors a bot cannot reach. It is built only in SpeedKills (main.ts), and
-// tools/checks/arenas.ts still holds it clear of every other place.
+// match is played on: it is exactly the floors a bot cannot reach. It is the
+// one place still drawn from a plan (build.ts), and tools/checks/arenas.ts
+// holds it clear of every other place and inside the sun's shadow box.
 //
 // 48 m by 42, open sky, three stations along the north wall:
 //
@@ -37,9 +36,9 @@ boxes.push({ x: 0, z: -3, w: 0.6, d: 30, h: 6, mat: "wall" });
 for (const side of [-1, 1]) boxes.push({ x: side * 0.35, z: -3, w: 0.08, d: 30, h: 0.08, y: 2.2, mat: "neon", solid: false });
 
 // GAPS: a deck a storey up, a 4 m gap, a second, a 6 m gap, a third; a stair to the first
-boxes.push({ x: 10.5, z: 0, w: 5, d: 8, h: STOREY, mat: "slab", walk: "player" });
-boxes.push({ x: 19.5, z: 0, w: 5, d: 8, h: STOREY, mat: "slab", walk: "player" });
-boxes.push({ x: 19.5, z: -13, w: 5, d: 6, h: STOREY, mat: "slab", walk: "player" });
+boxes.push({ x: 10.5, z: 0, w: 5, d: 8, h: STOREY, mat: "slab" });
+boxes.push({ x: 19.5, z: 0, w: 5, d: 8, h: STOREY, mat: "slab" });
+boxes.push({ x: 19.5, z: -13, w: 5, d: 6, h: STOREY, mat: "slab" });
 for (const [x, z, w, d] of [
   [10.5, 4, 5, 0.1],
   [19.5, 4, 5, 0.1],
@@ -57,11 +56,7 @@ export const MOVELAB: ArenaPlan = {
   halfX: 24,
   halfZ: 21,
   wallH: 12,
-  roof: false,
-  lights: [],
-  girders: [],
   floorColor: 0x9aa0aa,
-  look: "city",
   boxes,
   // where you come in, facing the stations (the rest of a plan's fields are for matches, which the lab has none of)
   spawns: Array.from({ length: 8 }, () => ({ x: 0, z: 17, yaw: 0 })),
@@ -69,6 +64,5 @@ export const MOVELAB: ArenaPlan = {
   zones: [],
   // (the plan's capture ring is drawn at the crown: in a corner, and drawn tiny, main.ts)
   crown: { x: -22, z: 19 },
-  zips: [],
   bestFor: [],
 };

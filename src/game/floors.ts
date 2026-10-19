@@ -18,11 +18,6 @@ export function floorAt(x: number, z: number): number {
  * halls, and the halls get loot of their own (loot.ts).
  */
 export const HALL_FLOORS: Array<{ minX: number; maxX: number; minZ: number; maxZ: number; y: number; top: number }> = [];
-/**
- * The districts made of the packs' own demo scenes (city.ts, citydistricts.json, Phase 25), world metres: each one's plan
- * within the map, its bounds, and its walkways' heights (fill walkway), for loot of their own (loot.ts)
- */
-export const DISTRICT_FLOORS: Array<{ plan: Array<[number, number]>; minX: number; maxX: number; minZ: number; maxZ: number; walkway: [number, number] }> = [];
 
 /** inside a hall at (x, z), standing on its floor at y */
 export function inHall(x: number, z: number, y: number): boolean {

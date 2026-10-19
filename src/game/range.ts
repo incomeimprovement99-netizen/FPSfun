@@ -9,7 +9,6 @@ import { PAL, bevel, flat, emissive, hazardTexture, floorNumber, textPanel } fro
 import { LADDERS, ZIPLINES } from "./traversal";
 import { makeSky, type Hour, type Sky } from "./sky";
 import type { Bounds } from "./player";
-import type { Placement } from "./props";
 
 // maxZ reaches past the back wall to take in the movement course (course.ts).
 export const RANGE_BOUNDS: Bounds = { minX: -34, maxX: 34, minZ: -108, maxZ: 212 };
@@ -143,9 +142,6 @@ export interface TargetRail {
   speed: number;
 }
 export const TARGET_RAILS: TargetRail[] = [];
-
-/** CC0 props to drop in once loaded; see src/game/props.ts */
-export const PROP_PLACEMENTS: Placement[] = [];
 
 function addBox(
   scene: THREE.Object3D,
@@ -421,8 +417,8 @@ export function buildRange(scene: THREE.Scene, opts: RangeOptions = { pointLight
     });
   }
 
-  // (the warehouse's crates, drums, barriers and floodlights went with it, Milestone 691: the street is the dressing's)
-  PROP_PLACEMENTS.length = 0;
+  // (the warehouse's crates, drums, barriers and floodlights went with it, Milestone 691: the street is the dressing's;
+  // the props' loader with the Vault, Milestone 663)
 
   // ---------- lighting ----------
   //

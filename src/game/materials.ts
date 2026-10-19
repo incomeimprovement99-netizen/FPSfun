@@ -9,7 +9,7 @@ import { RGBELoader } from "three/examples/jsm/loaders/RGBELoader.js";
 import { later } from "./later";
 
 export type MatName =
-  // the courses' floors and the Vault's (tools/fetch-assets.ts)
+  // the courses' floors (tools/fetch-assets.ts)
   | "concrete"
   // SpeedKills' city (tools/fetch-assets.ts): a night facade with lit windows, whose emission map makes them glow;
   // streets, pavement, black metal and dark concrete. The legacy game's range metals and Outskirts' set went in

@@ -91,15 +91,6 @@ export const SCENARIOS: Scenario[] = [
     ],
   },
   {
-    name: "arena-vault",
-    note: "the Vault, the small two-storey arena for 1v1 and free-for-all, from a spawn at one end",
-    steps: [
-      [`(() => { ${hideMenu}; window.__range.player.setBounds({ minX: -1e4, maxX: 1e4, minZ: -1e4, maxZ: 1e4 }); })()`, 600],
-      [`(() => { const r = window.__range; r.player.setBounds({ minX: -86, maxX: -58, minZ: -64, maxZ: -32 }); r.player.teleport(-72, 0, -60.5, 180, 4); })()`, 0],
-      [gameSeconds(1), 250],
-    ],
-  },
-  {
     name: "sk-lab",
     note: "SpeedKills' movement lab from where you come in: the three climbs (2, 4 and 8 m), the long wall, the gaps a storey up",
     query: "?game=speedkills",

@@ -43,7 +43,6 @@ export const CENTRE_MAP: ArenaMapInfo = {
   zones: cfg.zones.map((b, i) => ({ id: "ABC"[i], ...at(b, cfg.zone.r) })),
   crown: ZONE,
   bestFor: ["duel"],
-  plan: null,
   city: true,
 };
 

@@ -1,15 +1,9 @@
-// The arenas that are drawn from a plan, and what a caller needs to know
-// about one without building it.
+// What a caller needs to know about a map without building it.
 //
-// This file is deliberately free of three.js and of anything that wants a
-// browser: the menu, the match and the checks all read the list from here,
-// and only src/game/arena.ts goes on to build the meshes. That is why
-// tools/checks/arenas.ts can walk every map in plain node.
-import { VAULT } from "./vault";
-import { boundsOf, spawnsOf, teamSpawnsOf, type ArenaPlan, type PlanSpawn } from "./plan";
-
-/** the drawn arenas: the Gulag's Vault alone since the legacy game's went (Milestone 533) */
-export const ARENA_PLANS: ArenaPlan[] = [VAULT];
+// This file is deliberately free of three.js and of anything that wants a browser: the menu, the match and the checks
+// all read a map from here. Every map is drawn in the Neon City's file (arenas/neonarenas.ts, arenas/centre.ts): the
+// last arena drawn from a plan, the Vault, went in Milestone 663, when the Gulag moved to THE GULAG street.
+import type { PlanSpawn } from "./plan";
 
 /** what a map looks like to a match, a menu or a mode: world coordinates, no meshes */
 export interface ArenaMapInfo {
@@ -31,8 +25,6 @@ export interface ArenaMapInfo {
   crown: { x: number; z: number };
   /** the modes the map was drawn for */
   bestFor: string[];
-  /** the plan behind it, for the builder and the checks; null for the maps drawn in the city's file */
-  plan: ArenaPlan | null;
   /** played on the battle royale's city, not on an arena of its own (THE CENTRE, arenas/centre.ts) */
   city?: boolean;
   /** the city file's own piece it is drawn in, shown alone while it is played, the city hidden (arenas/neonarenas.ts) */
@@ -44,22 +36,3 @@ export interface ArenaMapInfo {
   ledge?: { y: number; ways: Array<{ x: number; z: number }> };
 }
 
-/** a plan, as the rest of the game wants to read it */
-export function infoOf(plan: ArenaPlan): ArenaMapInfo {
-  return {
-    id: plan.id,
-    name: plan.name,
-    blurb: plan.blurb,
-    bounds: boundsOf(plan),
-    center: { x: plan.x, z: plan.z },
-    spawns: spawnsOf(plan),
-    teams: { a: teamSpawnsOf(plan, "a"), b: teamSpawnsOf(plan, "b") },
-    zones: plan.zones.map((z) => ({ id: z.id, x: plan.x + z.x, z: plan.z + z.z })),
-    crown: { x: plan.x + plan.crown.x, z: plan.z + plan.crown.z },
-    bestFor: plan.bestFor,
-    plan,
-  };
-}
-
-/** the drawn arenas, as the rest of the game reads them */
-export const PLAN_MAPS: ArenaMapInfo[] = ARENA_PLANS.map(infoOf);

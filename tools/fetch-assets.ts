@@ -5,7 +5,7 @@
 //
 // Run: npm run assets
 // Downloaded files are gitignored; this script is the source of truth.
-import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { shrinkSky } from "./hdr";
 import { compressAssets } from "./compress-assets";
 import { join, resolve } from "node:path";
@@ -17,11 +17,11 @@ const OUT = resolve(HERE, "..", "public", "tex");
 
 /** ambientCG asset id -> the folder name we use in code */
 // What the game draws with since the legacy game's went (Milestone 535: its range's metals and asphalt, Outskirts' set
-// and the city's unused facades): the courses' and the Vault's light concrete, and SpeedKills' night city (docs/
+// and the city's unused facades): the courses' light concrete, and SpeedKills' night city (docs/
 // PHASE_18_PLAN_SPEEDKILLS.md 7.9), a facade photographed at night with an emission map so its windows glow for real,
 // dark asphalt and pavement, black metal and a dark concrete.
 const MATERIALS: Array<{ id: string; as: string; note: string }> = [
-  { id: "Concrete048", as: "concrete", note: "the courses' floors and the Vault's, clean light concrete" },
+  { id: "Concrete048", as: "concrete", note: "the courses' floors, clean light concrete" },
   { id: "Facade007", as: "skNight2", note: "SpeedKills: a night tower, lit windows (the movement lab's walls)" },
   { id: "Road012A", as: "skStreet", note: "SpeedKills: the streets, dark asphalt" },
   { id: "Asphalt026C", as: "skPave", note: "SpeedKills: pavements and plazas" },
@@ -149,15 +149,11 @@ async function main(): Promise<void> {
   lines.push(
     "",
     "Poly Haven assets are also CC0 1.0. The level geometry is generated in code; the",
-    "props are Poly Haven's (npm run models), the mannequin Quaternius's (CC0), and the recorded sounds Kenney's (CC0, public/audio/ATTRIBUTION.md) layered over the synthesis.",
+    "mannequin is Quaternius's (CC0), and the recorded sounds Kenney's (CC0, public/audio/ATTRIBUTION.md) layered over the synthesis.",
     ""
   );
-  // the models' credits are npm run models' own section of this file (fetch-models.ts): kept, not
-  // written over, or fetching textures after models loses them (it did, 2026-09-26)
-  const att = join(OUT, "ATTRIBUTION.md");
-  const had = existsSync(att) ? readFileSync(att, "utf8").replace(/\r\n/g, "\n") : "";
-  const models = had.indexOf("\n## Models");
-  writeFileSync(att, lines.join("\n") + (models >= 0 ? had.slice(models) : ""));
+  // (the legacy props' own section of this file went with them and their fetch, Milestone 663)
+  writeFileSync(join(OUT, "ATTRIBUTION.md"), lines.join("\n"));
   console.log(`\nwrote ${join(OUT, "ATTRIBUTION.md")}`);
   if (!existsSync(join(OUT, "concrete", "color.jpg"))) {
     console.error("no textures present; the range will fall back to flat colours");

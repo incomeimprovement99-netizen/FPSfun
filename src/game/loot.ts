@@ -27,10 +27,9 @@ import cfg from "../config/loot.json";
 import { displayGunModel } from "./gunmodels";
 import { paidGunMaterial, paidPropBatch } from "./paidgun";
 import { weaponLabel } from "./weapons";
-import { RANGE_SOLIDS } from "./range";
 import { solidsIn } from "./solidgrid";
 // the world's floor (floors.ts), named apart from this file's own floorAt, the lowest place loot can stand
-import { DISTRICT_FLOORS, floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
+import { floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
 import { inView } from "./figlod";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
@@ -730,51 +729,6 @@ export class LootField {
         if (!blocked && floored(x, z, f.y)) spots.push(new THREE.Vector3(x, f.y + 0.01, z));
       }
       for (const s of spots) for (const item of rollSpot(hallRnd, Hl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((hallRnd() - 0.5) * 0.8, 0, (hallRnd() - 0.5) * 0.8)));
-    }
-    // The districts made of the packs' own demo scenes (floors.ts DISTRICT_FLOORS, Phase 25), on a stream of their own
-    // as the halls': spots on each one's canyons' floor and its walkways, a metre and more from any edge, since a spot's
-    // items are spread round it; `walkways` of them up on the walkways, drawn from the walkways' own decks (the
-    // collision's boxes at a walkway's height, by their area): drawn over the whole plan, a narrow walkway lost to the
-    // canyons' floor
-    const Dl = cfg.districts;
-    const districtRnd = seeded((seed ^ 0x0d157c75) >>> 0);
-    for (const f of DISTRICT_FLOORS) {
-      const onPlan = (x: number, z: number): boolean => {
-        let n = false;
-        for (let i = 0, j = f.plan.length - 1; i < f.plan.length; j = i++) {
-          const [xi, zi] = f.plan[i];
-          const [xj, zj] = f.plan[j];
-          if (zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi) n = !n;
-        }
-        return n;
-      };
-      const spots: THREE.Vector3[] = [];
-      const upWant = Math.round(Dl.perDistrict * Dl.walkways);
-      let up = 0;
-      const decks = RANGE_SOLIDS.filter((s) => s.top >= f.walkway[0] && s.top <= f.walkway[1] && (s.maxX - s.minX) * (s.maxZ - s.minZ) >= 1 && onPlan((s.minX + s.maxX) / 2, (s.minZ + s.maxZ) / 2));
-      const deckArea = decks.reduce((a, s) => a + (s.maxX - s.minX) * (s.maxZ - s.minZ), 0);
-      const onDeck = (): [number, number] => {
-        let r = districtRnd() * deckArea;
-        for (const s of decks) {
-          const a = (s.maxX - s.minX) * (s.maxZ - s.minZ);
-          if (r < a) return [s.minX + districtRnd() * (s.maxX - s.minX), s.minZ + districtRnd() * (s.maxZ - s.minZ)];
-          r -= a;
-        }
-        return [f.minX, f.minZ];
-      };
-      for (let tries = 0; spots.length < Dl.perDistrict && tries < Dl.perDistrict * 80; tries++) {
-        const [x, z] = up < upWant && decks.length ? onDeck() : [f.minX + districtRnd() * (f.maxX - f.minX), f.minZ + districtRnd() * (f.maxZ - f.minZ)];
-        if (!onPlan(x, z)) continue;
-        const y = standingSpots(x, z).find((h) => h === 0 || (h >= f.walkway[0] && h <= f.walkway[1]));
-        if (y === undefined) continue;
-        // (a share full, its spot is passed over)
-        if (y > 0 ? up >= upWant : spots.length - up >= Dl.perDistrict - upWant) continue;
-        const firm = [[-1, 0], [1, 0], [0, -1], [0, 1]].every(([dx, dz]) => standingSpots(x + dx, z + dz).some((h) => Math.abs(h - y) < 0.2));
-        if (!firm) continue;
-        spots.push(new THREE.Vector3(x, y + 0.01, z));
-        if (y > 0) up++;
-      }
-      for (const s of spots) for (const item of rollSpot(districtRnd, Dl.tier as PlaceTier)) this.add(item, s.clone().add(new THREE.Vector3((districtRnd() - 0.5) * 0.8, 0, (districtRnd() - 0.5) * 0.8)));
     }
     // (the hot zone's stock counted again once everything is down: the tower's floors are halls, filled after the hot
     // place's own spots and inside its circle, and counted only among what it holds, a restock waited for less than 60% of

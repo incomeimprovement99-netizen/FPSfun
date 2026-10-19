@@ -40,7 +40,7 @@ import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/pro
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
 import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, airborne, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
-import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, RANGE_PLAIN, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
+import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, RANGE_PLAIN, TARGET_RAILS, TARGET_SPECS } from "./game/range";
 import { floorAt } from "./game/floors";
 import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
@@ -48,7 +48,6 @@ import { BrMatch, DROP_HEIGHT, teamFor } from "./game/brmatch";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import { GULAG } from "./game/gulag";
 import brCfg from "./config/br.json";
-import { placeProps } from "./game/props";
 import { Target } from "./game/targets";
 import { ViewModel } from "./game/viewmodel";
 import { GameAudio } from "./game/audio";
@@ -87,7 +86,7 @@ import { skipHiddenSubtrees } from "./game/hiddenskip";
 import PAD_CFG from "./config/gamepad.json";
 import { applySavedBinds, initBindsUi } from "./ui/binds";
 import type { MoveInput } from "./game/player";
-import { buildArenas, buildCityMarks, ARENA_HANDLES, ARENA_MAPS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
+import { buildCityMarks, ARENA_HANDLES, ARENA_MAPS, arenaMap, mapFor, type ArenaMapId } from "./game/arena";
 import { CENTRE, CENTRE_MAP } from "./game/arenas/centre";
 import { arenaShadow } from "./game/arenas/neonarenas";
 import { CircleNav } from "./game/centrenav";
@@ -835,11 +834,6 @@ vmCamera.layers.set(VM_LAYER);
 camera.add(vmCamera);
 const beforeRange = new Set(scene.children);
 buildRange(scene, { pointLights: quality.pointLights, shadowSize: quality.shadowSize, solids: armorySolids() });
-// the Gulag's room, the Vault (src/game/arena.ts), merged with the range
-// (its textures after the page's first screen: nothing the range's first frame shows, later.ts)
-holdTextures(true);
-buildArenas(scene);
-holdTextures(false);
 // the battle royale map, 500 m south (src/game/br.ts): the map rebuilt from Daelonik's Neon City (neonmap.ts, Phase 28);
 // the city of the ILranch packs before it went on 2026-10-09 (the owner: "remove ILranch city completely")
 const brMap = buildNeonMap(scene);
@@ -1008,14 +1002,6 @@ scene.add(rangeProps);
 // (its holograms turn)
 const armory = !new URLSearchParams(location.search).has("norender") ? new Armory() : null;
 if (armory) rangeProps.add(armory.root);
-// (after the page's first screen: 5.4 MB of crates, barrels, barriers and lights it waited for, set dressing whose
-// colliders are the range's own and in place already, later.ts)
-later(() =>
-  placeProps(rangeProps, PROP_PLACEMENTS).then(() => {
-    renderer.shadowMap.needsUpdate = true;
-    warmScene();
-  }),
-);
 
 // The Neon City map draws the bundle's pieces, at the preset's texture size, and nothing where the bought files are not
 // there (the public build, a checkout); not on a ?norender page, which never draws it: decoding and dressing its million

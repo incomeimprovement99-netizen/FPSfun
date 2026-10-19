@@ -10,7 +10,7 @@
 // The game loads the .webp and falls back to a .jpg (materials.ts), so a
 // checkout that has not run this still works.
 //
-// Run: npm run compress      (npm run assets and npm run models run it at the end)
+// Run: npm run compress      (npm run assets runs it at the end)
 import { existsSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -75,6 +75,6 @@ export async function compressAssets(): Promise<{ before: number; after: number;
 if (process.argv[1] && /compress-assets/.test(process.argv[1])) {
   void compressAssets().then((r) => {
     const mb = (n: number) => (n / 1048576).toFixed(1);
-    console.log(r.files ? `${r.files} textures to WebP: ${mb(r.before)} MB -> ${mb(r.after)} MB` : "nothing to compress (already WebP, or run npm run assets / npm run models first)");
+    console.log(r.files ? `${r.files} textures to WebP: ${mb(r.before)} MB -> ${mb(r.after)} MB` : "nothing to compress (already WebP, or run npm run assets first)");
   });
 }

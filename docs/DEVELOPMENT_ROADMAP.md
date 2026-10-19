@@ -15574,3 +15574,33 @@ clip); a player coming down on the run from a roof ran straight on, as if from t
   - The e2e (skfigure, the figure's stances): the legs at 64% of their standing length at the landing, no ankle under
     the floor. It fails with the landing taken out (83%).
   - verify, rules and the type check.
+
+## Milestone 663 — The legacy left over taken out
+
+The owner, 2026-10-18: the old range's textures and the old ILranch map gone, if nothing uses them. An inventory of
+the code and the files (what imports what, what the page loads) found what nothing uses any more.
+
+- **The Vault.** It was the last arena drawn from a plan, and the Gulag's room until THE GULAG street (Milestone 662).
+  It goes, with what only it used:
+  - its plan (arenas/vault.ts), the drawn arenas' list and the builder's call in main.ts;
+  - the plan builder's warehouse look, roof and ropes (arenas/build.ts): the builder keeps the city look the movement
+    lab is drawn in, and the plan format is cut to what the lab uses;
+  - the legacy prop models it was dressed in (dress.ts, props.ts; 18 of them over 14 of its boxes), fetched after
+    every page's first screen for a room nobody saw until a Gulag. With them go the
+    range's empty prop list, `npm run models` (tools/fetch-models.ts) and the props' credits;
+  - its snapshot (tools/snap.ts arena-vault).
+- **The ILranch city's own import** (tools/import-city.ts): `city()` (citykit.json, citydistricts.json), the demo
+  streets cut into buildings and facades, the districts' parts and the simplifier, 600 lines nothing called. The
+  machinery the Neon City's import and the tutorial's dressing use stays.
+- **The ILranch districts' leftovers:** the loot code's districts (floors.ts DISTRICT_FLOORS, never filled since that
+  city went, and loot.json's `districts`), the renderer's districts' look grade (render.ts setLook), and map-stats'
+  wait on the old city.
+- **Files:** the unused textures and models in the worktrees' public folders (none of them in git), and the
+  scratch tools that read the old city's files.
+- **Kept, because something uses them:** the courses' concrete; the movement lab's night facade, metal and concrete;
+  the range's street and pavement textures; the skies the game loads; the heirloom knives; the mannequin rig.
+- **Checks:**
+  - The arenas check keeps the list, THE CENTRE, the modes and the world's places kept apart; the movement lab is now
+    checked inside the sun's shadow box. The bot flood went with the drawn arenas it walked, and the dressing check
+    with the dressing.
+  - tsc, verify, rules; the e2e: the speedkills section (116 checks), the range section and the gulag section; one check in each of two runs of the speedkills section failed on a loaded machine (the death's drop waited past its frame, then the dev server going away mid-run) and passed in the other.

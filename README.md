@@ -552,7 +552,6 @@ See [Troubleshooting](#troubleshooting) when it will not connect.
 ```
 npm install
 npm run assets     # CC0 textures (ambientCG, Poly Haven), not kept in git; the skies kept at 512 wide (tools/hdr.ts)
-npm run models     # CC0 props (Poly Haven), not kept in git
 npm run dev        # http://localhost:5173
 ```
 
@@ -1015,9 +1014,9 @@ damage).
   the hands are doing, sent in the state packet; the volumes follow its bones.
   A figure made before the soldier is ready puts it on when it is.
 - **Rendering** (`src/game/render.ts`, `quality.ts`, `staticmerge.ts`,
-  `materials.ts`, `props.ts`): the static level is merged into one mesh per
-  material, PBR textures and glTF props are CC0 and fetched by script, and
-  three presets trade post-processing for frame rate.
+  `materials.ts`): the static level is merged into one mesh per material, PBR
+  textures are CC0 and fetched by script, and three presets trade
+  post-processing for frame rate.
 - **The intro card** (`src/ui/intro.ts`, `src/config/intro.json`): one 2D
   canvas over the page, and the loading screen while it is there. SpeedKills
   plays no card as the page opens: its loading screen and bar stay until the
@@ -1091,7 +1090,7 @@ src/game/
   range.ts                 the range level: its colliders, banks, rails, signs, gates, and its plain look
   rangedress.ts            the range's street in the Neon City bundle: its own file, laid over the plain look
   armory.ts                SpeedKills' range armory: the guns and hacks on stands, their screens, E to take and fuse
-  arena.ts                 the arenas' list, their capture circles and the Vault
+  arena.ts                 the arenas' list and their capture circles
   warehouse.ts             the roof and beams
   course.ts                the course engine: rooms, gates, splits, ghosts, results TV
   courses/basic.ts         The Run: nine rooms out up one half and back down the other, measured
@@ -1139,7 +1138,6 @@ src/game/
   quality.ts               the three graphics presets
   staticmerge.ts           merges the static level per material
   materials.ts             CC0 PBR materials
-  props.ts                 CC0 glTF props
   geo.ts                   geometry helpers, the text panels (signs)
   sky.ts, grade.ts         the sky dome, the colour grade
   sens.ts                  sensitivity and FOV maths
@@ -1198,7 +1196,6 @@ public/tex, public/models  fetched CC0 assets (not in git), with attribution fil
 | `npm run preview` | serve `dist/` locally |
 | `npm run check` | typecheck only |
 | `npm run assets` | fetch the CC0 textures into `public/tex` (as WebP) |
-| `npm run models` | fetch the CC0 props into `public/models` (their maps as WebP) |
 | `npm run paid` | the owner's bought Unity packages (soldier, guns, city kits) into `public/models/paid`, never in git; `PAID_ONLY=soldier`, `weapons` or `city` does one. See the deploy guide |
 | `npm run sounds` | fetch Kenney's CC0 recorded sounds and the metal and gravel footsteps into `public/audio/kenney`, and the drop theme into `public/audio/music` |
 | `npm run guns` | fetch The Free Firearm Sound Library (CC0) and write recorded gunshots per class into `public/audio/guns` |
@@ -1432,8 +1429,8 @@ The colliders are the map's own boxes, unchanged, so movement is exactly as it
 was tuned: a rock is the same cover it always was. A scan is tens of thousands
 of triangles, so they are drawn as instances, grouped into cells of the map so
 the ones behind you are culled, with no shadows for the scrub, and beyond 170 m
-a rock falls back to the shape it stands in for. Without the models (a checkout
-without `npm run models`) the field looks as it did.
+a rock falls back to the shape it stands in for. Without the models the field
+looks as it did.
 
 **The hands in front of you are one mesh each.** A hand is about thirty-five
 small parts (fingers, knuckle pads, a cuff) and none of them ever moves against
@@ -1587,7 +1584,7 @@ guns are built with their grips at the hand for that.
 | Ctrl+W closed the tab | Settings, "Fullscreen while playing" is on by default and stops that in Chrome and Edge; windowed, the browser asks first. Or crouch on C. |
 | The aim feels off | Settings: measure your DPI, then check the cm/360 against what you know. Use Chrome or Edge (Firefox cannot turn mouse acceleration off). |
 | Low frame rate | Settings, Graphics: Competitive. The frame cap is the monitor's refresh rate; the guide under "Getting past" raises it. |
-| No textures or props locally | `npm run assets` and `npm run models` were not run (they are not in git). |
+| No textures locally | `npm run assets` was not run (the textures are not in git). |
 | Controller does nothing | press a button so the browser exposes it, then Start. Only standard-mapping pads (Xbox, PlayStation, most others) map by default. |
 | Course timer will not start | cross the start line going forward (the course button puts you facing it); stepping back over it or off the course resets the run. F resets the course and the dummies. |
 

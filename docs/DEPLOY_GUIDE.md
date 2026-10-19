@@ -17,9 +17,8 @@ stood beside it until the owner stopped its deploys on 2026-09-27; its tool, its
 
 ## 1. Prerequisites (already true on this PC)
 
-- Node 20 or 22, `npm install` done, `npm run assets`, `npm run models`, `npm run sounds` and `npm run guns` done (the
-  CC0 textures, props, recorded sounds and gunshots are not in git; the build needs them). The first two leave their
-  textures as WebP. `npm run guns` fetches a 194 MB archive once, into the temp folder, and writes 2.4 MB of takes;
+- Node 20 or 22, `npm install` done, `npm run assets`, `npm run sounds` and `npm run guns` done (the CC0 textures,
+  recorded sounds and gunshots are not in git; the build needs them). The first leaves its textures as WebP. `npm run guns` fetches a 194 MB archive once, into the temp folder, and writes 2.4 MB of takes;
   `npm run sounds` also fetches the 3.3 MB drop theme into `public/audio/music`. Run them in `apex-range` as well as in
   a worktree: the release gate refuses to build without them.
 - `.env.server` at the repo root (not in git) with `RANGE_HOST`, `RANGE_KEY` and `RANGE_DOMAIN`
