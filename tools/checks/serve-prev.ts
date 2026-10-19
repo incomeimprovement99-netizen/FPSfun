@@ -6,7 +6,7 @@
 //
 // Run on its own: npx tsx tools/checks/serve-prev.ts.
 import { spawn } from "node:child_process";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -33,7 +33,8 @@ async function statuses(prev: boolean, port: number, paths: string[]): Promise<n
   const env = { ...process.env, PORT: String(port), HOST: "127.0.0.1", DIST: site, BOARD_FILE: join(root, "b.json"), ACCOUNT_FILE: join(root, "a.json"), SEEN_FILE: join(root, "s.jsonl"), FEEDBACK_FILE: join(root, "f.jsonl") };
   const srv = spawn(process.execPath, [SERVE.pathname.replace(/^\/([A-Za-z]:)/, "$1")], { env, stdio: "ignore" });
   try {
-    for (let i = 0; i < 50; i++) {
+    // (up to 20 s for it to start: on a machine busy with other runs it took more than the 5 s first given)
+    for (let i = 0; i < 200; i++) {
       try {
         if ((await fetch(`http://127.0.0.1:${port}/health`)).ok) break;
       } catch {
@@ -42,7 +43,8 @@ async function statuses(prev: boolean, port: number, paths: string[]): Promise<n
       await new Promise((r) => setTimeout(r, 100));
     }
     const out: number[] = [];
-    for (const p of paths) out.push((await fetch(`http://127.0.0.1:${port}${p}`)).status);
+    // (a server that never came up reads 0 for each, a failed check rather than a crash of the whole verify)
+    for (const p of paths) out.push(await fetch(`http://127.0.0.1:${port}${p}`).then((r) => r.status, () => 0));
     return out;
   } finally {
     srv.kill();
@@ -52,11 +54,17 @@ async function statuses(prev: boolean, port: number, paths: string[]): Promise<n
 }
 
 console.log("The release before's files, after a deploy");
-const after = await statuses(true, 4127, ["/assets/index-NEW.js", "/assets/peer-OLD.js", "/assets/none.js"]);
-check("after a deploy, a page from before it still gets its own build's parts (the release before's)", after[1] === 200, JSON.stringify(after));
-check("and the new release's own, and a name in neither is a 404", after[0] === 200 && after[2] === 404, JSON.stringify(after));
-const first = await statuses(false, 4128, ["/assets/index-NEW.js", "/assets/peer-OLD.js"]);
-check("with no release before (the first deploy) the server starts and serves its own", first[0] === 200 && first[1] === 404, JSON.stringify(first));
+// (a worktree whose server folder has never had its packages installed cannot run the server: said, not failed; the
+// release gate runs in apex-range, which has them)
+if (!existsSync(new URL("../../server/game/node_modules/express/package.json", import.meta.url))) {
+  console.log("  --  skipped: server/game has no node_modules (npm install there to run it)");
+} else {
+  const after = await statuses(true, 4127, ["/assets/index-NEW.js", "/assets/peer-OLD.js", "/assets/none.js"]);
+  check("after a deploy, a page from before it still gets its own build's parts (the release before's)", after[1] === 200, JSON.stringify(after));
+  check("and the new release's own, and a name in neither is a 404", after[0] === 200 && after[2] === 404, JSON.stringify(after));
+  const first = await statuses(false, 4128, ["/assets/index-NEW.js", "/assets/peer-OLD.js"]);
+  check("with no release before (the first deploy) the server starts and serves its own", first[0] === 200 && first[1] === 404, JSON.stringify(first));
+}
 
 export const servePrevFails = fails;
 if (import.meta.url === `file:///${process.argv[1]?.replace(/\\/g, "/")}`) process.exitCode = fails ? 1 : 0;
