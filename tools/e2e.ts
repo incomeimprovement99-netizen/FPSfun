@@ -6039,6 +6039,12 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
     // (yours are the ones put down as you died, by key, and near where you fell: a restock can add guns meanwhile, far off)
     const k0 = await ev<number>(page, "window.__range.duel().lootField.keyNext");
     const fell = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+    // (how it stood before: twice on a loaded machine the loot start found nothing dropped, as if the player were out
+    // already, by the decay or a stray round; said in the check's detail so the next time says which)
+    const before = await ev<{ alive: boolean; health: number; inDecay: boolean | null; ring: number | null }>(
+      page,
+      "(() => { const d = window.__range.duel(); const h = d.hud(); return { alive: d.alive, health: d.health, inDecay: h.br?.ring?.outside ?? null, ring: h.br?.ring?.phase ?? null }; })()",
+    );
     await ev(page, "window.__range.duel().takeHit(500, 100)");
     // (the drop is the death's frame's: waited for, not slept on, as a loaded machine runs that frame late)
     await page.waitForFunction(`[...window.__range.duel().lootField.drops.values()].some((x) => x.key >= ${k0} && x.item.kind === "weapon")`, { polling: 100, timeout: 5000 }).catch(() => undefined);
@@ -6048,7 +6054,7 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
         return { guns: round.filter((x) => x.item.kind === "weapon").map((x) => x.item.id + ":" + (x.item.fusion ?? 0)).sort().join(), other: round.filter((x) => x.item.kind !== "weapon" && x.item.kind !== "echo").map((x) => x.item.kind + ":" + x.item.id) }; })()`,
     );
     // and nothing else, no box among it: a loadout start's ammo kit would be clutter on a floor of guns and hack cores
-    check(`sk ${start} start: what you die with goes down loose, your guns at their levels, and nothing else`, dropped.guns === held && dropped.other.length === 0, JSON.stringify({ held, dropped }));
+    check(`sk ${start} start: what you die with goes down loose, your guns at their levels, and nothing else`, dropped.guns === held && dropped.other.length === 0, JSON.stringify({ held, dropped, before }));
     await page.close();
   }
 }
