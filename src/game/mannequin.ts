@@ -149,7 +149,12 @@ const GRAPPLE = figureCfg.grapple as { rate: number };
 const WALL_RUN = figureCfg.wallRun as { rate: number; mostRate: number };
 /** the skydive's body, degrees forward of upright gliding and diving, its limbs, and its ease (figure.json skydive) */
 type Limbs = { raise: number; forward: number; elbow: number; arch: number; head: number; thigh: number; spread: number; knee: number };
-const SKYDIVE = figureCfg.skydive as unknown as { glide: number; dive: number; rateIn: number; rateOut: number; flutter: number[]; glideLimbs: Limbs; diveLimbs: Limbs };
+/**
+ * Where a long gun rides on the back in the skydive, by soldier kit and gun: the mount's place in the chest bone's frame
+ * (holsterMount), measured once off the first figure of that kit to need it
+ */
+const HOLSTERS = new Map<string, THREE.Matrix4>();
+const SKYDIVE = figureCfg.skydive as unknown as { glide: number; dive: number; rateIn: number; rateOut: number; flutter: number[]; glideLimbs: Limbs; diveLimbs: Limbs; holster: { tilt: number; gap: number; band: number; height: number } };
 /** where a look goes from a glide to a dive, as the skydive's own steering has it (squad.json dive) */
 const DIVE = squadCfg.dive;
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
@@ -1990,6 +1995,82 @@ export class MannequinFigure {
       this.reachSupport(this.ikW);
     }
     this.reachArm(b);
+    // in the skydive a long gun rides on the back, as Apex's legends carry theirs (holsterMount); a pistol is put away
+    if (this.skyW > 0.5 && this.gun && this.mount && this.gunShown && !this.dead && !pistolStance(this.gunId)) {
+      const at = this.holsterMount();
+      if (at) {
+        at.decompose(this.mount.position, this.mount.quaternion, this.mount.scale);
+        this.gun.visible = true;
+        this.gunInHand = false;
+      }
+    }
+  }
+
+  /**
+   * Where the long gun rides on the back for the skydive (Milestone 612): it was put away for the fall and vanished, and
+   * Apex's legends fall with theirs slung on the back. Diagonal across it, the muzzle up over the left shoulder
+   * `holster.tilt` degrees off upright, its side flat to the back `holster.gap` m off the soldier's skin there. The skin
+   * is measured, not guessed: every vertex of the soldier as it is posed (its pack and armour with it) within
+   * `holster.band` m of the spine across, between the lower chest and the neck, the one furthest back. Kept, in the
+   * chest bone's frame (the mount's own), for each kit and gun.
+   */
+  private holsterMount(): THREE.Matrix4 | null {
+    const b = this.bones;
+    const gun = this.gun;
+    if (!gun || !this.mount || !b.spine_02 || !b.spine_03 || !b.neck_01) return null;
+    const key = `${soldierCode(this.soldier)}|${this.gunId}`;
+    const kept = HOLSTERS.get(key);
+    if (kept) return kept;
+    const H = SKYDIVE.holster;
+    this.root.updateMatrixWorld(true);
+    const toRoot = this.root.matrixWorld.clone().invert();
+    const inRoot = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3()).applyMatrix4(toRoot);
+    const lo = inRoot(b.spine_02).y;
+    const hi = inRoot(b.neck_01).y;
+    // the back: the furthest-back skin over the chest (the figure faces +z, +x its left)
+    let back = Infinity;
+    const v = new THREE.Vector3();
+    this.root.traverse((o) => {
+      const m = o as THREE.SkinnedMesh;
+      if (!m.isSkinnedMesh || !m.visible) return;
+      const pos = m.geometry.getAttribute("position");
+      for (let i = 0; i < pos.count; i++) {
+        m.getVertexPosition(i, v);
+        v.applyMatrix4(m.matrixWorld).applyMatrix4(toRoot);
+        if (v.y >= lo && v.y <= hi && Math.abs(v.x) <= H.band && v.z < back) back = v.z;
+      }
+    });
+    if (!Number.isFinite(back)) return null;
+    // the gun's own box, in its own frame: its middle, and how thick it is across (its x, laid flat to the back)
+    gun.updateMatrixWorld(true);
+    const ginv = gun.matrixWorld.clone().invert();
+    const box = new THREE.Box3();
+    gun.traverse((o) => {
+      const mesh = o as THREE.Mesh;
+      if (!mesh.isMesh || !mesh.visible || o.name === "muzzle") return;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      box.union(mesh.geometry.boundingBox!.clone().applyMatrix4(new THREE.Matrix4().multiplyMatrices(ginv, mesh.matrixWorld)));
+    });
+    if (box.isEmpty()) return null;
+    const mid = box.getCenter(new THREE.Vector3());
+    const scale = gun.getWorldScale(new THREE.Vector3()).x / this.root.getWorldScale(new THREE.Vector3()).x;
+    // its barrel (its -z) up over the left shoulder, its side flat to the back (its +x to the body), its top toward the
+    // right shoulder and so its grip and magazine toward the left hip: turned the other way, they stood up at the right
+    // shoulder, and the dive's right arm went 13 to 24 mm into a short gun's
+    const a = H.tilt * DEG;
+    const zAxis = new THREE.Vector3(-Math.sin(a), -Math.cos(a), 0);
+    const xAxis = new THREE.Vector3(0, 0, 1);
+    const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis);
+    const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
+    const centre = new THREE.Vector3(0, lo + (hi - lo) * H.height, back - H.gap - ((box.max.x - box.min.x) / 2) * scale);
+    const at = centre.sub(mid.clone().multiplyScalar(scale).applyQuaternion(q));
+    const gunInRoot = new THREE.Matrix4().compose(at, q, new THREE.Vector3(scale, scale, scale));
+    // the mount, which holds the gun as it does in the hand, in the chest bone's frame
+    const mountInRoot = gunInRoot.multiply(gun.matrix.clone().invert());
+    const chestInRoot = toRoot.clone().multiply(b.spine_03.matrixWorld);
+    const held = chestInRoot.invert().multiply(mountInRoot);
+    HOLSTERS.set(key, held);
+    return held;
   }
 
   dispose(): void {

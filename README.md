@@ -267,7 +267,7 @@ describes the retired legacy game, and goes with its code.
   each finger's joints bending together and alongside the fingers beside it
   (`tools/figure-grip.ts` fits them gun by gun). Running a wall they lean off it, feet to the wall and the gun
   up; in the battle royale's skydive they glide belly down with their arms out, or
-  dive head first, as they steer, the gun put away until the ground, and fall the
+  dive head first, as they steer, their long gun slung on their back until the ground, and fall the
   last moments upright, feet first, for the landing. A GRAPPLE throws their left
   arm up at the point it pulls them to, and SLAM's way down brings their knees up
   under them. Running round a turn they lean into it, a landing sinks into their

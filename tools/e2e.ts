@@ -6843,7 +6843,8 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     await page.close();
     return;
   }
-  type Seen = { spine: number[]; head: number; soles: number; gun: boolean; headVolume: number };
+  await page.addScriptTag({ path: "tools/figure-audit.js" });
+  type Seen = { spine: number[]; head: number; soles: number; gun: boolean; inHand: boolean; gunDeep: number; headVolume: number };
   /** a figure in `pose` for `seconds`, then `after` for `then` seconds if given: where its parts are in its own frame (+x its left) */
   const seen = (pose: Record<string, unknown>, seconds = 1.5, after?: Record<string, unknown>, then = 0) =>
     ev<Seen>(
@@ -6864,7 +6865,7 @@ async function figureStancesTest(browser: Browser): Promise<void> {
         const head = at("Head");
         const vol = g.hitMeshes.find((h) => h.userData.zone === "head");
         const headVolume = vol ? vol.getWorldPosition(new T.Vector3()).distanceTo(m.bone("Head").getWorldPosition(new T.Vector3())) : -1;
-        return { spine: [spine.x, spine.y, spine.z].map((v) => Math.round(v * 100) / 100), head: Math.round((head.x - pelvis.x) * 1000) / 1000, soles: Math.round(((at("ball_l").x + at("ball_r").x) / 2 - pelvis.x) * 1000) / 1000, gun: !!m.gun?.visible, headVolume: Math.round(headVolume * 1000) / 1000 };
+        return { spine: [spine.x, spine.y, spine.z].map((v) => Math.round(v * 100) / 100), head: Math.round((head.x - pelvis.x) * 1000) / 1000, soles: Math.round(((at("ball_l").x + at("ball_r").x) / 2 - pelvis.x) * 1000) / 1000, gun: !!m.gun?.visible, inHand: !!m.gunInHand, gunDeep: Math.max(0, ...Object.values(window.__figureAudit(0, { pitch: 0, exact: true }).gunWhere ?? {})), headVolume: Math.round(headVolume * 1000) / 1000 };
       })()`,
     );
   const stand = await seen({ speed: 0, stance: "stand", pitch: 0 });
@@ -6884,9 +6885,15 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   const dive = await seen({ speed: 5, stance: "skydive", pitch: -80, moveDir: 0 });
   const landed = await seen({ speed: 5, stance: "skydive", pitch: -80 }, 1.5, { speed: 0, stance: "stand", pitch: 0 }, 1.2);
   check(
-    "in the skydive it lies on the air gliding and goes head down diving, the gun away; on the ground it stands with it again",
-    Math.abs(glide.spine[1]) < 0.35 && glide.spine[2] > 0.8 && dive.spine[1] < -0.7 && !glide.gun && !dive.gun && landed.spine[1] > 0.85 && landed.gun,
-    `along the back: glide ${glide.spine}, dive ${dive.spine}, landed ${landed.spine}; gun ${glide.gun}/${dive.gun}/${landed.gun}`,
+    "in the skydive it lies on the air gliding and goes head down diving, its hands empty; on the ground it stands with the gun in them again",
+    Math.abs(glide.spine[1]) < 0.35 && glide.spine[2] > 0.8 && dive.spine[1] < -0.7 && !glide.inHand && !dive.inHand && landed.spine[1] > 0.85 && landed.gun && landed.inHand,
+    `along the back: glide ${glide.spine}, dive ${dive.spine}, landed ${landed.spine}; in hand ${glide.inHand}/${dive.inHand}/${landed.inHand}`,
+  );
+  // (and the gun slung on its back for the fall, Milestone 612: shown, and no bone of it in the gun, gliding or diving)
+  check(
+    "in the skydive its gun rides on its back: shown, not in its hands, and nothing of it in the gun (5 mm at most), gliding and diving",
+    glide.gun && dive.gun && glide.gunDeep <= 5 && dive.gunDeep <= 5,
+    `shown ${glide.gun}/${dive.gun}, deepest in it ${glide.gunDeep}/${dive.gunDeep} mm`,
   );
   // GRAPPLE (Milestone 607): pulled to a point 8 m ahead and 5 m up, the left forearm points at it, the gun still in the
   // right hand; once the pull's 1.6 s are up, the arm has gone back to the gun

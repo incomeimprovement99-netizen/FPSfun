@@ -15666,3 +15666,23 @@ the code and the files (what imports what, what the page loads) found what nothi
     checked inside the sun's shadow box. The bot flood went with the drawn arenas it walked, and the dressing check
     with the dressing.
   - tsc, verify, rules; the e2e: the speedkills section (116 checks), the range section and the gulag section; one check in each of two runs of the speedkills section failed on a loaded machine (the death's drop waited past its frame, then the dev server going away mid-run) and passed in the other.
+
+## Milestone 612 — The gun slung on the back in the skydive
+
+From Milestone 604's nice-to-haves. In the skydive the figure's hands are its own and the gun was put away: it vanished
+for the fall and came back at the ground. Apex's legends fall with theirs slung on the back.
+
+- **The sling** (mannequin.ts holsterMount, figure.json skydive.holster): a long gun rides diagonally on the back, the
+  muzzle up over the left shoulder 20 degrees off the spine, its grip and magazine toward the left hip, its side flat
+  to the back 1 cm off the skin, three tenths of the way from the lower chest to the neck. The skin is measured, not
+  guessed: every vertex of the soldier as it is posed (its pack and armour with it) within 12 cm of the spine across,
+  between the lower chest and the neck, the furthest back. The place is the mount's own (the chest bone's frame), so it
+  goes with the body, and it is kept for each kit and gun after the first figure that needs it. A pistol is put away.
+- **The dive's arms** come to the sides, a little out (raise 20, forward 0): swung back along the body as they were,
+  the right arm went 13 to 52 mm into the slung gun. Tried first: the muzzle 35 degrees off the spine and the grip
+  toward the right shoulder, where the short guns' grips met the dive's right arm.
+- **Checked:**
+  - Measured on all eight long guns, gliding and diving: no bone in any gun (the exact measure, 0 mm), photographed.
+  - The e2e (skfigure, the figure's stances): the gun shown in the skydive, not in the hands, nothing in it gliding or
+    diving. It fails with the sling taken out (not shown).
+  - verify, rules and the type check.
