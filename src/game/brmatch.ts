@@ -685,6 +685,11 @@ export class BrMatch extends Duel {
       this.onRemoteFx?.("jolt", bot.remote.id, a, b);
       this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
     };
+    // its HEAL, drawn here and sent to the squad, as a player's (Milestone 702)
+    bot.onHeal = (at) => {
+      this.onRemoteFx?.("sk", bot.remote.id, at, undefined, 3);
+      this.broadcast({ t: "fx", from: bot.remote.id, k: "sk", a: [at.x, at.y, at.z], n: 3 });
+    };
     return bot;
   }
 

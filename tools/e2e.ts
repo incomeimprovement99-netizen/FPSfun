@@ -7997,6 +7997,15 @@ async function botStrafeTest(browser: Browser): Promise<void> {
     // (the 90th percentile, not the single fastest sample: a frame that comes late reads as a jump in speed)
     check("bots: a Skilled bot strafes, at its share of its speed and not the whole of it (it was 8.6 m/s on average, 10.8 in its fastest tenth)", got.mean > 2 && got.mean < 6 && got.p90 < 8.5, `${got.mean.toFixed(1)} m/s on average, ${got.p90.toFixed(1)} in its fastest tenth`);
   }
+  // a bot's HEAL shows as a player's (Milestone 702): its area where it stands, which everyone sees and hears; it showed
+  // nothing at all. The bot taken low, its HEAL ready
+  const heal = await ev<{ before: number; after: number } | null>(
+    page,
+    `new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d?.bots[0]; if (!b) return ok(null);
+      Object.defineProperty(b, "skHacks", { get: () => ["heal"], configurable: true }); const before = r.sk.state().healZones; b.dummy.health = 10; b.dummy.shield = 0; b.skHealAt = -Infinity;
+      const t0 = performance.now(); const step = () => { const after = r.sk.state().healZones; if (after > before || performance.now() - t0 > 15000) return ok({ before, after }); setTimeout(step, 100); }; step(); })`,
+  );
+  check("bots: a bot's HEAL shows its area where it stands, as a player's does", !!heal && heal.after > heal.before, JSON.stringify(heal));
   await ev(page, "window.__range.duel()?.leave()");
   await ev(page, `(() => { const k = ${JSON.stringify(kept)}; if (k !== null) localStorage.setItem("range.bots.difficulty", k); })()`);
   await page.close();

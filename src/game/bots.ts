@@ -625,6 +625,11 @@ export class Bot {
   /** a JOLT went from a to b: the match draws it (and sends it) */
   onJolt: ((a: THREE.Vector3, b: THREE.Vector3) => void) | null = null;
   /**
+   * Its HEAL, where it stands (Milestone 702): a player's HEAL is an area everyone sees and hears, and heals whoever
+   * stands in it; a bot's showed nothing at all, as if it healed by itself
+   */
+  onHeal: ((at: THREE.Vector3) => void) | null = null;
+  /**
    * Its rocket burst (where, how far it flew, the gun): the match deals the burst (botBurst with rocketBurst). Until a
    * bot's rocket burst where it stopped, it was settled as a bullet the moment it left, its damage landing before the
    * rocket did and never in reach of a miss.
@@ -813,6 +818,7 @@ export class Bot {
       this.skHealUntil = now + hackCfg.heal.seconds;
       this.skHealAt = now + cooldownOf("heal", 0);
       this.skUsed.heal++;
+      this.onHeal?.(this.pos.clone());
     }
     if (hacks.includes("dash") && target && this.joltLeft <= 0 && now >= this.skDashAt && now - this.lastHurtAt < S.dashWhenHitWithin) {
       const tx = target.x - this.pos.x;
@@ -1641,6 +1647,8 @@ export class BotMatch implements MatchLike {
       const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
       b.ring = drawn.bounds.circle ?? null;
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
+      // its HEAL as a player's: the hack's own kind 3, drawn and heard where it is (main.ts remoteHack)
+      b.onHeal = (at) => this.onRemoteFx?.("sk", b.remote.id, at, undefined, 3);
       b.onRocket = (at, travelled, w) => this.botBurst(b.remote.id, rocketBurst(w, at, travelled), w.id);
       this.bots.push(b);
     }

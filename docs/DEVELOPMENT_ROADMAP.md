@@ -12423,6 +12423,17 @@ Two of the enemy-as-you-see-it gap analysis's nice-to-haves (docs/PLAN_ENEMY_POV
   - e2e speedkills (an enemy bot dropped by your round to the head: its line carries USSO and the head) and p2p;
   - photographed: a feed of four kills with their guns' outlines, and the skull.
 
+## Milestone 702 — A bot's HEAL shows, as a player's does
+
+From the enemy-as-you-see-it gap analysis (docs/PLAN_ENEMY_POV.md): a player's HEAL is an area everyone sees and
+hears, and heals whoever stands in it, an enemy's as well; a bot's HEAL showed nothing at all, as if it healed by
+itself.
+
+- **A bot's HEAL now tells the match** (bots.ts onHeal), and the match sends it as a player's: the hack's own effect,
+  kind 3, drawn and heard where the bot stands (main.ts remoteHack). The battle royale and the modes send it to every
+  page; the bots' arena draws it on its one.
+- **Checked:** tsc, verify, rules; e2e skbots (a bot taken low, its HEAL ready: its area appears).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

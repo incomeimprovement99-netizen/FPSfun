@@ -44,7 +44,8 @@ An inventory of the code, 2026-10-18.
   Milestone 701.
 - **INVISIBILITY's shimmer:** Hyper Scape's invisible players ripple when they move and flash when hit; ours vanish
   past 6 m and are whole inside it.
-- **HEAL's sound and a bot's HEAL drawn:** a bot's heal shows nothing, and anyone's is silent.
+- ~~HEAL's sound and a bot's HEAL drawn~~: a player's HEAL is heard where it is since Milestone 695, and a bot's HEAL
+  shows its area since Milestone 702.
 - **An enemy colour setting** for the outline, REVEAL and the trails, as Splitgate and Empulse offer. The colour-vision
   modes recolour only the HUD today.
 - **Hit reactions seen by a third player:** a hit flinches the figure only on the shooter's page (the character agent's,
