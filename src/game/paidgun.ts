@@ -305,7 +305,8 @@ export function dressPaid(m: GunModel, level = 0, view = false): boolean {
     mesh.visible = true;
     const name = (mesh.material as THREE.Material).name;
     mesh.userData.dot = /Dot/i.test(name) ? name : undefined;
-    mesh.material = mesh.userData.dot ? dotMaterial(name) : mat;
+    mesh.userData.shell = !mesh.userData.dot && SHELL.test(mesh.name);
+    mesh.material = mesh.userData.dot ? dotMaterial(name) : mesh.userData.shell ? twoSided(mat) : mat;
     mesh.castShadow = true;
   });
   // a sight from another model, on a gun with irons alone (paidweapons.json mount)
@@ -585,6 +586,27 @@ function mountSight(model: THREE.Object3D, mount: { from: string; part: string; 
   return { y: (dotBox.min.y + dotBox.max.y) / 2, back: partBox.min.z, sight: "dot" };
 }
 
+/**
+ * A gun's own sights and its drum's grenades, drawn from both sides: shells open at their ends, whose insides the pack
+ * leaves out, so looking into PANDA's scope its tube was see-through (1,871 pixels of a 480 wide picture aimed, its
+ * inside seen and not drawn), and ANAKIN's sight showed through the base that holds it up (294); CHOOCH's drum
+ * grenades at the widest field of view (the owner, 2026-10-18: "on the PANDA that part of the gun is like see through
+ * like the scope ... look specifically on the reticles and what holds them up"). Counted with the back of every
+ * one-sided face drawn green (tools/pack-audit.js __gunInside, checked in tools/e2e.ts's skpack section). The rest of
+ * each gun is closed, and stays one-sided.
+ */
+const SHELL = /^(Scope|FrontSight|RearSight|Grenade)/;
+const twoSidedMats = new Map<THREE.Material, THREE.MeshStandardMaterial>();
+function twoSided(mat: THREE.MeshStandardMaterial): THREE.MeshStandardMaterial {
+  let two = twoSidedMats.get(mat);
+  if (!two) {
+    two = mat.clone();
+    two.side = THREE.DoubleSide;
+    twoSidedMats.set(mat, two);
+  }
+  return two;
+}
+
 const mountMats = new Map<string, THREE.MeshStandardMaterial>();
 /**
  * a mounted sight's skin, drawn from both sides: lifted off its own gun, the sight is a shell whose inner faces that gun
@@ -650,7 +672,7 @@ export function setPaidLevel(m: GunModel, level: number, hi = false): void {
       mesh.material = mountMaterial(mesh.userData.mountFamily as string, skin, hi);
       return;
     }
-    if ((mesh.material as THREE.Material).name.startsWith(family)) mesh.material = mat;
+    if ((mesh.material as THREE.Material).name.startsWith(family)) mesh.material = mesh.userData.shell ? twoSided(mat) : mat;
   });
   m.root.userData.paidLevel = level;
   m.root.userData.paidHi = hi;

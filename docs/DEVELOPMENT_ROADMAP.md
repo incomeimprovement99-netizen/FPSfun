@@ -14958,6 +14958,28 @@ WHAT WE HAVE NOW TO APEX / HYPERSCAPE UNARMED AND DO THE OVERLAY THING".
   six changed guns, every check passing (REZ's first draw read its forearm wrung 102 degrees once with the machine
   loaded, 51 run alone, its known flourish flake).
 
+## Milestone 554 — Sights you cannot see through
+
+The owner, 2026-10-18: "on the PANDA that part of the gun is like see through like the scope and shit, other guns
+might have that too. look specifically on the reticles and what holds them up. there is clearly errors there."
+
+- **What it was:** the pack's sights are shells open at their ends (a scope's tube, the frame and base of a reflex
+  sight), and their insides are left out of the model. Drawn one-sided, as the rest of each gun is, the inside of the
+  shell is not drawn at all, so where the eye looks into one it sees straight through: aimed down PANDA's scope its
+  eyepiece and tube were a ring you could see the street through, and held, the front of the scope was too; ANAKIN's
+  sight showed through the base that holds it up. The USSO's mounted sight had the same fault in September and was
+  fixed for that sight alone (paidgun.ts mountMaterial).
+- **Measured** (tools/pack-audit.js `__gunInside`): the gun drawn flat, the arms black in front of it, and the back of
+  every one-sided face drawn green, so a green pixel is an inside seen where nothing is drawn. Of a 480 wide picture,
+  held, aimed and turned over in an inspect: PANDA 288 held and 1,871 aimed, ANAKIN 66 held, 294 aimed and 174
+  inspected, APUHTHEE 6. Every other gun 0 or 1.
+- **The fix** (paidgun.ts `SHELL`, `twoSided`): a gun's own sights (`Scope`, `FrontSight`, `RearSight`) and CHOOCH's
+  drum grenades, whose insides showed at the widest field of view, drawn from both sides; a copy of the skin a
+  material, kept through the fusion levels' skins. The rest of each gun is closed and stays one-sided. The same build
+  is the figures' guns, so an enemy's scope is solid too. After: every gun 0 or 1.
+- **Checked:** a new skpack check, no gun showing its inside (20 pixels at most) held, aimed and in an inspect: PANDA,
+  ANAKIN and CHOOCH 0 to 3 in the e2e; verify, rules and the type check.
+
 ## Milestone 657 — The city drawn in batches, and the last plan
 
 The owner, after a pause: "plan this part out deeply then finish out the city overall". Two fresh reviews, both taken

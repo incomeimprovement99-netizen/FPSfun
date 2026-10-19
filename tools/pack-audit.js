@@ -718,3 +718,85 @@ window.__magSeen = (W = 480) => {
   for (let i = 0; i < W * H * 4; i += 4) if (buf[i] > 128 && buf[i + 2] > 128 && buf[i + 1] < 100) seen++;
   return seen;
 };
+
+// A gun's inside seen where it is not drawn (the owner, 2026-10-18: "on the PANDA that part of the gun is like see through
+// like the scope ... look specifically on the reticles and what holds them up"): the gun drawn flat, its faces dark and
+// the back of any face drawn one-sided green, the arms black in front of it, so a green pixel is the inside of a shell
+// seen where the game draws nothing and the eye sees through it. Pixels of a W wide picture, and the parts they are on.
+window.__gunInside = (W = 480) => {
+  const r = window.__range;
+  const T = r.THREE;
+  const R = r.renderer;
+  const root = r.viewModelRoot();
+  const cam = root.parent;
+  let scene = root;
+  while (scene.parent) scene = scene.parent;
+  let rig = null;
+  let gun = null;
+  root.traverse((o) => {
+    if (o.name === "pack-arms") rig = o;
+    if (!gun && o.userData && o.userData.paid) gun = o;
+  });
+  if (!gun) return null;
+  const under = (o, a) => {
+    for (let p = o; p; p = p.parent) if (p === a) return true;
+    return false;
+  };
+  const shown = (o) => {
+    for (let p = o; p; p = p.parent) if (!p.visible) return false;
+    return true;
+  };
+  const flat = (one) => {
+    const m = new T.MeshBasicMaterial({ side: T.DoubleSide, toneMapped: false, fog: false });
+    m.onBeforeCompile = (sh) => {
+      sh.fragmentShader = sh.fragmentShader.replace("#include <dithering_fragment>", `#include <dithering_fragment>\n gl_FragColor = gl_FrontFacing ? vec4(0.25, 0.25, 0.25, 1.0) : ${one ? "vec4(0.0, 1.0, 0.0, 1.0)" : "vec4(0.25, 0.25, 0.25, 1.0)"};`);
+    };
+    m.customProgramCacheKey = () => (one ? "gunInside1" : "gunInside2");
+    return m;
+  };
+  const oneSided = flat(true);
+  const twoSided = flat(false);
+  const black = new T.MeshBasicMaterial({ color: 0x000000, toneMapped: false, fog: false });
+  const kept = [];
+  const parts = [];
+  scene.traverse((o) => {
+    if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.layers.test(cam.layers)) return;
+    kept.push([o, o.material, o.visible]);
+    if (rig && under(o, rig)) o.material = black;
+    else if (under(o, gun) && o.isMesh && shown(o) && !o.userData.dot && !(o.material && o.material.transparent)) {
+      const one = (Array.isArray(o.material) ? o.material[0] : o.material).side === T.FrontSide;
+      o.material = one ? oneSided : twoSided;
+      if (one) parts.push(o);
+    } else o.visible = false;
+  });
+  const H = Math.round((W * innerHeight) / innerWidth);
+  const rt = new T.WebGLRenderTarget(W, H);
+  const buf = new Uint8Array(W * H * 4);
+  const bg = scene.background;
+  const was = R.getRenderTarget();
+  const cc = R.getClearColor(new T.Color());
+  const ca = R.getClearAlpha();
+  try {
+    scene.background = null;
+    R.setRenderTarget(rt);
+    R.setClearColor(0x0000ff, 1);
+    R.clear(true, true, true);
+    R.render(scene, cam);
+    R.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+  } finally {
+    R.setRenderTarget(was);
+    R.setClearColor(cc, ca);
+    scene.background = bg;
+    for (const [o, m, v] of kept) {
+      o.material = m;
+      o.visible = v;
+    }
+    rt.dispose();
+    oneSided.dispose();
+    twoSided.dispose();
+    black.dispose();
+  }
+  let inside = 0;
+  for (let i = 0; i < W * H; i++) if (buf[i * 4 + 1] > 200 && buf[i * 4] < 60 && buf[i * 4 + 2] < 60) inside++;
+  return { inside, parts: parts.length };
+};
