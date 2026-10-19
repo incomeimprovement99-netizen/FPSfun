@@ -12521,6 +12521,21 @@ Found by photographing every overlay of a battle royale on the GPU (the big map,
     floor beside the echo once, run with the other two sections, and passed run alone);
   - photographed at 1080p: the card, the map and both wheels.
 
+## Milestone 707 — A wall run is heard
+
+The character agent's suggestion: "footsteps for others' wall runs. soundscape.ts steps only for stand/crouch, so a
+player running a wall is silent... EMPULSE's wall runs are loud, which is how you hear someone coming along a wall."
+
+- **Others:** a figure running a wall (its stance wallL or wallR, dummy.ts) steps on concrete, a building's face, a
+  little louder than a sprint (audio.json footsteps.wall.loud 1.3 against a sprint's 1.1), from about knee height
+  where they are. Before, a wall run was the one way to come at someone without a sound.
+- **You:** your own wall run steps too; it was as silent to you as to everyone else.
+- **The pace follows the legs** (soundscape.ts wallStride): on a wall the figure runs the sprint's loop at its speed
+  over the loop's own (7.5 m/s, mannequin.ts) of the loop's pace, never past figure.json wallRun.mostRate (1.4), so the
+  steps keep a sprint's stride up to 10.5 m/s and spread out past it, as the legs do: 1.2 m a step at 12 m/s.
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: a figure taken onto a wall at 12 m/s is heard a step
+  at a time (11 steps in a second of game time; with the wall branch taken out, 0, and it failed).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

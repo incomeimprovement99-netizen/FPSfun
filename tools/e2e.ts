@@ -4993,6 +4993,12 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     }
     const heard = await ev<string[]>(page, "window.__range.sk.othersHeard()");
     check("speedkills: another figure's landing, slide and mantle are heard where it is", ["land", "slide", "mantle"].every((k) => heard.includes(k)), JSON.stringify(heard));
+    // and its steps along a wall (Milestone 707): a wall run was silent; at 12 m/s, a step every audio.json wallStride
+    await ev(page, `window.__fake = { stance: "wallL", speed: 12, pitch: 0 }`);
+    await gameSleep(page, 1);
+    await ev(page, `window.__fake = { stance: "stand", speed: 0, pitch: 0 }`);
+    const walled = (await ev<string[]>(page, "window.__range.sk.othersHeard()")).filter((k) => k === "wallstep").length;
+    check("speedkills: another figure running a wall is heard, a step at a time", walled >= 3, `${walled} wall steps in 1 s of game time at 12 m/s`);
     await page.close();
   }
   // THE CENTRE, picked (arenas/centre.ts, the owner, 2026-10-01): the city's own middle, inside a circle you cannot leave;

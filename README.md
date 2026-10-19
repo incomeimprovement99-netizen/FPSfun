@@ -604,7 +604,8 @@ green plate always shows.
 - **The round that breaks it:** the shield bursts off in shards, with a cracked-shield hit marker of its own.
 - **An enemy under ARMOR:** wears a gold shell for its four seconds, and your damage numbers on them are what ARMOR lets
   through.
-- **Others' movement:** you hear their landings, slides, mantles and hacks where they are.
+- **Others' movement:** you hear their landings, slides, mantles and hacks where they are, and their steps along a
+  wall when they wall run, a little louder than a sprint (Milestone 707).
 - **An enemy's REVEAL that catches you:** puts a red REVEALED, counting down, under the compass.
 - **The compass and minimap:** they follow whoever you are watching (a squad mate, the killcam), and the minimap marks
   north.

@@ -51,7 +51,12 @@
     "crouchStride": 0.55,
     "hearOthersTo": 45,
     "ownLevel": 0.175,
-    "othersLevel": 0.45
+    "othersLevel": 0.45,
+    "_wall": "A wall run's steps (Milestone 707, the character agent's suggestion): EMPULSE's wall runs are loud, and that is how you hear someone coming along a wall; ours were silent, yours and everyone's. Their pace follows the figure's legs: on a wall they run the sprint's loop at the speed over legsAt of its own pace (legsAt, the speed the loop is drawn for, is mannequin.ts's wall-run line: speed / 7.5), never past figure.json wallRun.mostRate, so past legsAt x mostRate the steps spread out as the legs do. loud is the step's loudness against a walking step's (a sprint's is 1.1 and 1.15), on concrete, a building's face.",
+    "wall": {
+      "legsAt": 7.5,
+      "loud": 1.3
+    }
   },
   "classes": {
     "pistol": {

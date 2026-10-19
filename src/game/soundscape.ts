@@ -6,6 +6,7 @@
 // round and match stingers, and the parts of a reload. The sounds themselves
 // are audio.ts's; this decides when.
 import cfg from "../config/audio.json";
+import figureCfg from "../config/figure.json";
 import type { GameAudio, Surface } from "./audio";
 import type { Player } from "./player";
 import { airborne, type Dummy, type FigureStance } from "./dummy";
@@ -30,6 +31,14 @@ export interface SoundFrame {
   heal: number | null;
   /** the gun in hand: reloading, how far, and whether from empty */
   reload: { on: boolean; progress: number; empty: boolean };
+}
+
+/**
+ * A wall run's stride at `speed` (audio.json footsteps.wall): the sprint's, while the figure's legs keep up with the
+ * speed, and longer once they are held at figure.json wallRun.mostRate of the loop's own pace
+ */
+export function wallStride(speed: number): number {
+  return cfg.footsteps.sprintStride * Math.max(1, speed / (cfg.footsteps.wall.legsAt * figureCfg.wallRun.mostRate));
 }
 
 /** what is under a pair of feet */
@@ -81,6 +90,14 @@ export class Soundscape {
       if (this.stepAcc >= stride) {
         this.stepAcc -= stride;
         a.footstep(surface, null, p.crouched ? 0.45 : p.sprinting ? 1.15 : 0.8);
+      }
+    } else if (p.onWall && p.speed > 0.5 && f.alive) {
+      // your feet along a wall (Milestone 707): a wall run was silent
+      this.stepAcc += p.speed * f.dt;
+      const stride = wallStride(p.speed);
+      if (this.stepAcc >= stride) {
+        this.stepAcc -= stride;
+        a.footstep("concrete", null, cfg.footsteps.wall.loud);
       }
     } else if (!p.onGround) this.stepAcc = 0;
     if (p.onGround && !this.wasGround && f.alive) a.land(p.landingSpeed / (600 * HU), surface);
@@ -138,12 +155,18 @@ export class Soundscape {
       }
       this.otherMove.set(d, { stance: pose.stance, y: g.y, vy: airborne(pose.stance) ? Math.min(vy, was?.vy ?? 0) : 0 });
       if (far) continue;
-      if ((pose.stance !== "stand" && pose.stance !== "crouch") || pose.speed < 0.5) continue;
-      const stride = pose.stance === "crouch" ? cfg.footsteps.crouchStride : pose.speed > 5.5 ? cfg.footsteps.sprintStride : cfg.footsteps.walkStride;
+      // and along a wall (Milestone 707): someone running a wall was silent, the one way to come at you unheard
+      const onWall = pose.stance === "wallL" || pose.stance === "wallR";
+      if ((!onWall && pose.stance !== "stand" && pose.stance !== "crouch") || pose.speed < 0.5) continue;
+      const stride = onWall ? wallStride(pose.speed) : pose.stance === "crouch" ? cfg.footsteps.crouchStride : pose.speed > 5.5 ? cfg.footsteps.sprintStride : cfg.footsteps.walkStride;
       let acc = (this.others.get(d) ?? Math.random() * stride) + pose.speed * f.dt;
       if (acc >= stride) {
         acc -= stride;
-        a.footstep(surfaceAt(g.y, f.outdoors), { x: g.x, y: g.y + 0.1, z: g.z }, pose.stance === "crouch" ? 0.4 : pose.speed > 5.5 ? 1.1 : 0.75);
+        if (onWall) {
+          // (their feet on the wall, about knee high off the floor they left)
+          a.footstep("concrete", { x: g.x, y: g.y + 0.6, z: g.z }, cfg.footsteps.wall.loud);
+          this.heard("wallstep");
+        } else a.footstep(surfaceAt(g.y, f.outdoors), { x: g.x, y: g.y + 0.1, z: g.z }, pose.stance === "crouch" ? 0.4 : pose.speed > 5.5 ? 1.1 : 0.75);
       }
       this.others.set(d, acc);
     }
