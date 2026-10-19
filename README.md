@@ -582,6 +582,16 @@ them (for 6 s from the last hit) and only while your eye has a clear line to
 their chest, so a bar never gives away someone behind cover; a team mate's
 green plate always shows.
 
+**An enemy's shield, as you see it** (Milestones 694 to 696, docs/PLAN_ENEMY_POV.md):
+- **A round on a shield:** the figure flares in the shield's colour, brightest where it landed.
+- **The round that breaks it:** the shield bursts off in shards, with a cracked-shield hit marker of its own.
+- **An enemy under ARMOR:** wears a gold shell for its four seconds, and your damage numbers on them are what ARMOR lets
+  through.
+- **Others' movement:** you hear their landings, slides, mantles and hacks where they are.
+- **An enemy's REVEAL that catches you:** puts a red REVEALED, counting down, under the compass.
+- **The compass and minimap:** they follow whoever you are watching (a squad mate, the killcam), and the minimap marks
+  north.
+
 **The killcam and the death recap.** Eliminated, you see the last 4 s from
 your killer's eyes (Space skips; a setting turns it off), then a card: for
 everyone who hurt you this life, the damage, hits and headshots each way,

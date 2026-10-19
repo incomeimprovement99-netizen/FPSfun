@@ -287,3 +287,151 @@ export class MateOutline {
     this.rings.clear();
   }
 }
+
+/**
+ * An enemy's shield as you see it (Milestone 694): a glow over the figure's whole shape in the shield's colour when a
+ * round lands on the shield, brightest round where it landed and at the figure's edges, gone in a fifth of a second.
+ * Apex's shields flare in their colour where they are hit, and Halo's and Splitgate's shimmer over the body; a white
+ * flash alone said a round landed, not that a shield took it. The same shell glows gold, steadily, over an enemy
+ * under ARMOR (Hyper Scape's armour reads as a shell on the body), so you can see the rounds will not do their numbers.
+ *
+ * Copies of the figure's meshes, pushed a little out along their normals as the outlines are, drawn additive and
+ * depth tested: the figure's own front hides what is behind it, and a wall hides all of it, so it never shows anyone
+ * through a wall. Made the first time it shows; its copies stay, hidden, after.
+ */
+export class ShieldShell {
+  private readonly mats = new Map<string, { mat: THREE.MeshBasicMaterial; thick: { value: number }; scale: number }>();
+  private readonly parts: Array<{ copy: THREE.Mesh; src: THREE.Mesh }> = [];
+  private sources = 0;
+  private width = 0.012;
+  private readonly u = {
+    amt: { value: 0 },
+    color: { value: new THREE.Color() },
+    hit: { value: new THREE.Vector3() },
+    spot: { value: 0 },
+    fill: { value: 0.25 },
+    rim: { value: 1 },
+  };
+
+  constructor(
+    private readonly root: THREE.Object3D,
+    private readonly skip: THREE.Object3D[],
+  ) {}
+
+  private matFor(scale: number): THREE.MeshBasicMaterial {
+    const key = scaleKey(scale);
+    let m = this.mats.get(key);
+    if (!m) {
+      const thick = { value: this.width / scale };
+      const mat = new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, forceSinglePass: true });
+      const u = this.u;
+      mat.onBeforeCompile = (s) => {
+        s.uniforms.uThick = thick;
+        s.uniforms.uAmt = u.amt;
+        s.uniforms.uColor = u.color;
+        s.uniforms.uHit = u.hit;
+        s.uniforms.uSpot = u.spot;
+        s.uniforms.uFill = u.fill;
+        s.uniforms.uRim = u.rim;
+        s.vertexShader = s.vertexShader
+          .replace("#include <common>", "#include <common>\nuniform float uThick;\nvarying float vFres;\nvarying vec3 vWorld;")
+          .replace("#include <begin_vertex>", "#include <begin_vertex>\ntransformed += normalize(normal) * uThick;")
+          .replace(
+            "#include <project_vertex>",
+            [
+              "#include <project_vertex>",
+              "#ifdef USE_SKINNING",
+              "vec3 fN = normalize(normalMatrix * objectNormal);",
+              "#else",
+              "vec3 fN = normalize(normalMatrix * normal);",
+              "#endif",
+              "vFres = 1.0 - abs(dot(fN, normalize(-mvPosition.xyz)));",
+              "vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+            ].join("\n"),
+          );
+        s.fragmentShader = s.fragmentShader
+          .replace("#include <common>", "#include <common>\nuniform float uAmt;\nuniform vec3 uColor;\nuniform vec3 uHit;\nuniform float uSpot;\nuniform float uFill;\nuniform float uRim;\nvarying float vFres;\nvarying vec3 vWorld;")
+          .replace(
+            "#include <dithering_fragment>",
+            [
+              "#include <dithering_fragment>",
+              "vec3 dh = vWorld - uHit;",
+              "float sp = uSpot > 0.0 ? exp(-dot(dh, dh) / (uSpot * uSpot)) : 0.0;",
+              "gl_FragColor = vec4(uColor * uAmt * (uFill + uRim * vFres * vFres + sp), 1.0);",
+            ].join("\n"),
+          );
+      };
+      m = { mat, thick, scale };
+      this.mats.set(key, m);
+    }
+    return m.mat;
+  }
+
+  private build(): void {
+    for (const p of this.parts) p.copy.removeFromParent();
+    this.parts.length = 0;
+    const list = figureMeshes(this.root, this.skip);
+    this.sources = list.length;
+    for (const src of list) this.parts.push({ copy: copyOf(src, this.matFor(scaleOf(src))), src });
+  }
+
+  /**
+   * Two hidden meshes in its material, a plain one and a skinned one, for the page's warm to build its two shaders with
+   * the rest (main.ts): a figure's own shell is made at its first shield hit, and its shader was built on that frame. The
+   * shaders are shared by every shell after (the same code, the same kind of mesh)
+   */
+  static warmKit(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = "shell-warm";
+    const mat = new ShieldShell(g, []).matFor(1);
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 0.01, 0, 0, 0, 0.01, 0], 3));
+    geo.setAttribute("normal", new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+    geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 4));
+    geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 4));
+    const plain = new THREE.Mesh(geo, mat);
+    const bone = new THREE.Bone();
+    const skinned = new THREE.SkinnedMesh(geo, mat);
+    skinned.add(bone);
+    skinned.bind(new THREE.Skeleton([bone]));
+    for (const m of [plain, skinned]) {
+      m.visible = false;
+      m.frustumCulled = false;
+      m.userData.dynamic = true;
+    }
+    g.add(plain, skinned);
+    return g;
+  }
+
+  /**
+   * At `amount` (0 off) in `color`: `fill` over the whole shape, `rim` more at its edges, and `spot` metres round `hit`
+   * brighter (0, no spot), `width` metres out from the figure
+   */
+  show(amount: number, color: number, look: { fill: number; rim: number; spot: number; width: number }, hit: THREE.Vector3 | null = null): void {
+    const on = amount > 0.001;
+    if (on && figureMeshes(this.root, this.skip).length !== this.sources) this.build();
+    this.u.amt.value = amount;
+    this.u.color.value.setHex(color);
+    this.u.fill.value = look.fill;
+    this.u.rim.value = look.rim;
+    this.u.spot.value = hit ? look.spot : 0;
+    if (hit) this.u.hit.value.copy(hit);
+    if (look.width !== this.width) {
+      this.width = look.width;
+      for (const m of this.mats.values()) m.thick.value = look.width / m.scale;
+    }
+    for (const p of this.parts) p.copy.visible = on && shownIn(p.src, this.root);
+  }
+
+  /** how many of its copies are drawn, at what amount and colour (tools/e2e.ts) */
+  state(): { on: number; amount: number; color: number } {
+    return { on: this.parts.filter((p) => p.copy.visible).length, amount: this.u.amt.value, color: this.u.color.value.getHex() };
+  }
+
+  dispose(): void {
+    for (const p of this.parts) p.copy.removeFromParent();
+    this.parts.length = 0;
+    for (const m of this.mats.values()) m.mat.dispose();
+    this.mats.clear();
+  }
+}

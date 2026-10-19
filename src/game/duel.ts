@@ -261,8 +261,12 @@ export interface MatchLike {
   readonly avatars: Dummy[];
   remoteOf(d: Dummy): Remote | null;
   localShot(origin: THREE.Vector3, dir: THREE.Vector3, weapon: string): void;
-  /** one of your bullets hit someone: `weapon` and `dist` go to them for their recap */
-  localHit(r: Remote, amount: number, head: boolean, weapon?: string, dist?: number | null): void;
+  /**
+   * One of your bullets hit someone: `weapon` and `dist` go to them for their recap. `felt` is what it does there
+   * (under ARMOR a share: their own page takes the rest off, Duel.takeHit), what their bars are kept to until their
+   * state comes back
+   */
+  localHit(r: Remote, amount: number, head: boolean, weapon?: string, dist?: number | null, felt?: number): void;
   update(local: LocalState): void;
   hud(): DuelHud;
   leave(): void;
@@ -1563,6 +1567,8 @@ export class Duel implements MatchLike {
   /** another player's bullet hit this player (in a battle royale the humans are a squad: only bots and the ring, -1, hurt) */
   /** what reaches you of a hit: SpeedKills' ARMOR hack takes most of it away while it lasts (main.ts) */
   incomingScale = 1;
+  /** an enemy's REVEAL caught you: who (Milestone 695; main.ts warns you) */
+  onRevealed: ((by: number) => void) | null = null;
   /** players nearly unseen (SpeedKills' INVISIBILITY), until when on the page's wall clock: the bots do not see them */
   readonly hiddenUntil = new Map<number, number>();
 
@@ -1682,6 +1688,9 @@ export class Duel implements MatchLike {
       }
       case "mark":
         if (!vec3(m.at) || typeof m.k !== "string") return;
+        // an enemy's REVEAL that caught you: its scan names each one it showed, and an enemy's ping is not shown here, so
+        // you were never told (Milestone 695, after Apex's scan warning)
+        if (m.k === "scan" && m.target === this.id && !this.friendly(from)) this.onRevealed?.(from);
         // a ping is for its squad: another squad's (squads of friends) is passed on, not shown
         if (this.friendly(from)) this.onMark?.(m.k.slice(0, 12), from, new THREE.Vector3(...m.at), typeof m.label === "string" ? m.label.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 40) : "", typeof m.target === "number" ? m.target : -1);
         this.relay(m, from);
@@ -1713,20 +1722,20 @@ export class Duel implements MatchLike {
   }
 
   /** one of this player's bullets hit another player's figure */
-  localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
+  localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null, felt = amount): void {
     if (this.phase !== "fight" || !r.alive) return;
     // a squad mate in a battle royale, a team mate in the modes: no friendly fire
     if (!this.friendlyFire && this.friendly(r.id)) return;
     this.hits++;
-    this.damage += amount;
+    this.damage += felt;
     const m: NetMsg = { t: "hit", to: r.id, amount, head, w: weapon || undefined, d: dist === null ? undefined : Math.round(dist * 10) / 10 };
     if (this.role === "host") r.link.send(m);
     else this.hostLink?.send(m);
     // show it at once rather than a round trip later
     r.hitAt = wallClock();
-    const toShield = Math.min(r.shield, amount);
+    const toShield = Math.min(r.shield, felt);
     r.shield -= toShield;
-    r.health = Math.max(0, r.health - (amount - toShield));
+    r.health = Math.max(0, r.health - (felt - toShield));
     // the kill is credited when their `down` says it was us (once)
   }
 

@@ -12,10 +12,14 @@ import { applyFinishTo } from "./gunmodels";
 import { MUZZLE, muzzleOf, showFlash, showGlint } from "./muzzle";
 import { OPERATORS, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
-import { MateOutline, Outline } from "./outline";
+import { MateOutline, Outline, ShieldShell } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import figureCfg from "../config/figure.json";
 import rangeCfg from "../config/rangetools.json";
+import hudCfg from "../config/hud.json";
+
+const SHIELD_FX = hudCfg.shieldFx;
+const ARMOR_SHELL = parseInt(SHIELD_FX.armor.color.slice(1), 16);
 
 export type Zone = "head" | "body" | "legs";
 export type ArmorTier = 0 | 1 | 2 | 3 | 4;
@@ -293,6 +297,14 @@ export class Dummy {
   private mateRing: MateOutline | null = null;
   /** a REVEAL's rim and fill through walls (outline.ts MateOutline with a fill), made the first time it is shown */
   private revealRing: MateOutline | null = null;
+  /** its shield's glow when a round lands on it, and ARMOR's gold (outline.ts ShieldShell), made the first time it shows */
+  private shell: ShieldShell | null = null;
+  /** the flare now, from its peak down to 0 (hud.json shieldFx.flare) */
+  private shellFlare = 0;
+  private shellColor = 0x3b8bff;
+  private readonly shellHit = new THREE.Vector3();
+  /** under ARMOR (main.ts, from the hack's message): the gold shell, pulsing */
+  private armored = false;
   readonly oneHit: boolean;
   /** its own full health, when not HEALTH_MAX */
   private readonly healthCap: number | undefined;
@@ -531,6 +543,50 @@ export class Dummy {
   }
 
   /**
+   * A round on its shield at `point`, in the shield's `color` (Milestone 694): the shell flares over the figure,
+   * brightest where it landed; `broke`, the round that took the last of it, flares brighter (main.ts adds the shards).
+   * A board has no shield to show.
+   */
+  shieldHit(point: THREE.Vector3, color: number, broke: boolean): void {
+    if (!this.mq) return;
+    this.shellFlare = broke ? SHIELD_FX.break.flare : SHIELD_FX.flare.peak;
+    this.shellColor = color;
+    this.shellHit.copy(point);
+    this.drawShell();
+  }
+
+  /** under ARMOR or not: its gold shell, on until it is told off (main.ts, as the hack's message says) */
+  setArmored(on: boolean): void {
+    if (on === this.armored) return;
+    this.armored = on;
+    this.drawShell();
+  }
+
+  /** the shell as drawn (tools/e2e.ts), or null when it has never shown */
+  shellState(): { on: number; amount: number; color: number } | null {
+    return this.shell?.state() ?? null;
+  }
+
+  /** the middle of its chest, in the world: where its shield's shards burst from */
+  chestAt(): THREE.Vector3 {
+    return this.vols.torso.getWorldPosition(new THREE.Vector3());
+  }
+
+  /** the flare over ARMOR's gold while both are on: the flare says the round landed, the gold that it is armoured */
+  private drawShell(): void {
+    const F = SHIELD_FX.flare;
+    const A = SHIELD_FX.armor;
+    const gold = this.armored ? A.glow + A.pulse * Math.sin(this.idleT * A.hz * Math.PI * 2) : 0;
+    if (this.shellFlare <= 0.001 && gold <= 0.001) {
+      this.shell?.show(0, this.shellColor, F);
+      return;
+    }
+    this.shell ??= new ShieldShell(this.group, [this.hits]);
+    if (this.shellFlare >= gold) this.shell.show(this.shellFlare, this.shellColor, F, this.shellHit);
+    else this.shell.show(gold, ARMOR_SHELL, A);
+  }
+
+  /**
    * Where a damage number goes: `over` metres above the top of the head (its volume, which follows the soldier's bones),
    * so the number never covers the figure (hud.json damageNumbers.over)
    */
@@ -588,6 +644,8 @@ export class Dummy {
     this.mateRing = null;
     this.revealRing?.dispose();
     this.revealRing = null;
+    this.shell?.dispose();
+    this.shell = null;
     this.dropped?.obj.removeFromParent();
     this.dropped = null;
     this.mq?.dispose();
@@ -819,6 +877,8 @@ export class Dummy {
     this.mateRing = null;
     this.revealRing?.dispose();
     this.revealRing = null;
+    this.shell?.dispose();
+    this.shell = null;
     this.applyGlow();
   }
 
@@ -1261,6 +1321,11 @@ export class Dummy {
       this.headFlash = Math.max(0, this.headFlash - dt * 7);
       this.legFlash = Math.max(0, this.legFlash - dt * 8);
       this.applyGlow();
+    }
+    // the shield's flare fades over hud.json shieldFx.flare seconds; ARMOR's gold pulses while it lasts
+    if (this.shellFlare > 0 || this.armored) {
+      this.shellFlare = Math.max(0, this.shellFlare - (dt * SHIELD_FX.flare.peak) / SHIELD_FX.flare.seconds);
+      this.drawShell();
     }
 
     if (this.rail && !this.knocked) {

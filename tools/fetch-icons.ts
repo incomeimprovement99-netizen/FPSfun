@@ -81,6 +81,17 @@ const GAME: Record<string, { path: string; author: string }> = {
   armor: { path: "delapouite/armor-upgrade", author: "Delapouite" },
   parachute: { path: "lorc/parachute", author: "Lorc" },
   ladder: { path: "delapouite/ladder", author: "Delapouite" },
+  // SpeedKills' ten hacks, drawn on their tiles (docs/PLAN_HUD_V2.md, Milestone 697)
+  hack_dash: { path: "lorc/sprint", author: "Lorc" },
+  hack_slam: { path: "lorc/meteor-impact", author: "Lorc" },
+  hack_leap: { path: "delapouite/jump-across", author: "Delapouite" },
+  hack_grapple: { path: "lorc/grapple", author: "Lorc" },
+  hack_heal: { path: "sbed/health-increase", author: "Sbed" },
+  hack_armor: { path: "lorc/shield-reflect", author: "Lorc" },
+  hack_wall: { path: "delapouite/brick-wall", author: "Delapouite" },
+  hack_invis: { path: "delapouite/invisible", author: "Delapouite" },
+  hack_reveal: { path: "lorc/radar-sweep", author: "Lorc" },
+  hack_mine: { path: "lorc/land-mine", author: "Lorc" },
 };
 
 async function get(url: string): Promise<string> {
@@ -145,7 +156,8 @@ async function main(): Promise<void> {
   }
   for (const [name, g] of Object.entries(GAME)) {
     try {
-      const svg = await get(`https://game-icons.net/icons/ffffff/000000/1x1/${g.path}.svg`);
+      // (the site, or its own repository's copy of the same file when the site does not answer)
+      const svg = await get(`https://game-icons.net/icons/ffffff/000000/1x1/${g.path}.svg`).catch(() => get(`https://raw.githubusercontent.com/game-icons/icons/master/${g.path}.svg`));
       writeFileSync(join(OUT, `${name}.svg`), strip(svg));
       index[name] = `${name}.svg`;
       credits.push(`| \`${name}.svg\` | ${g.path.split("/")[1]} | ${g.author}, game-icons.net (CC BY 3.0) |`);

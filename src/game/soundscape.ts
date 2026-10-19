@@ -8,7 +8,7 @@
 import cfg from "../config/audio.json";
 import type { GameAudio, Surface } from "./audio";
 import type { Player } from "./player";
-import type { Dummy } from "./dummy";
+import { airborne, type Dummy, type FigureStance } from "./dummy";
 import type { DuelHud } from "./duel";
 import { HU } from "./movement";
 
@@ -45,6 +45,14 @@ export class Soundscape {
   private lastStance = "stand";
   private climbTapAt = 0;
   private others = new WeakMap<Dummy, number>();
+  /** each figure's stance and height last frame, and how fast it was falling while in the air (their landings' weight) */
+  private otherMove = new WeakMap<Dummy, { stance: string; y: number; vy: number }>();
+  /** the others' movement sounds lately played, newest last (tools/e2e.ts) */
+  readonly othersHeard: string[] = [];
+  private heard(kind: string): void {
+    this.othersHeard.push(kind);
+    if (this.othersHeard.length > 20) this.othersHeard.shift();
+  }
   private lastPhase: string | null = null;
   private lastCount = -1;
   private ringWasClosing = false;
@@ -98,12 +106,39 @@ export class Soundscape {
     a.loop("heal", f.heal !== null ? 0.08 : 0, 0.8 + (f.heal ?? 0) * 0.9);
     // ---- the others' feet
     const hear = cfg.footsteps.hearOthersTo;
+    const grounded = (s: string): boolean => s === "stand" || s === "crouch" || s === "slide";
     for (const d of f.figures) {
       if (!d.group.visible || d.knocked) continue;
       const pose = d.currentPose;
       const g = d.group.position;
+      const far = Math.hypot(g.x - p.pos.x, g.z - p.pos.z) > hear;
+      // their jumps, landings, slides and mantles, where they are (Milestone 695): yours had them, and theirs were
+      // silent, so a figure dropping off a ledge behind you or sliding round a corner made no sound but its steps
+      const was = this.otherMove.get(d);
+      const vy = was && f.dt > 0 ? (g.y - was.y) / f.dt : 0;
+      if (was && !far) {
+        const at = { x: g.x, y: g.y + 0.1, z: g.z };
+        // a jump off the ground, or a kick off a wall
+        if (pose.stance === "air" && ((grounded(was.stance) && vy > 1) || was.stance === "wallL" || was.stance === "wallR")) {
+          a.jump(at);
+          this.heard("jump");
+        }
+        if (grounded(pose.stance) && airborne(was.stance as FigureStance)) {
+          a.land(Math.abs(was.vy) / (600 * HU), surfaceAt(g.y, f.outdoors), at);
+          this.heard("land");
+        }
+        if (pose.stance === "slide" && was.stance !== "slide") {
+          a.slideStart(at);
+          this.heard("slide");
+        }
+        if (pose.stance === "mantle" && was.stance !== "mantle") {
+          a.mantle(at);
+          this.heard("mantle");
+        }
+      }
+      this.otherMove.set(d, { stance: pose.stance, y: g.y, vy: airborne(pose.stance) ? Math.min(vy, was?.vy ?? 0) : 0 });
+      if (far) continue;
       if ((pose.stance !== "stand" && pose.stance !== "crouch") || pose.speed < 0.5) continue;
-      if (Math.hypot(g.x - p.pos.x, g.z - p.pos.z) > hear) continue;
       const stride = pose.stance === "crouch" ? cfg.footsteps.crouchStride : pose.speed > 5.5 ? cfg.footsteps.sprintStride : cfg.footsteps.walkStride;
       let acc = (this.others.get(d) ?? Math.random() * stride) + pose.speed * f.dt;
       if (acc >= stride) {

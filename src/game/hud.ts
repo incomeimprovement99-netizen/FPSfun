@@ -33,6 +33,8 @@ const SK_LAYOUT: SkLayout = hudCfg.layouts.speedkills;
 const NUMBERS = hudCfg.damageNumbers;
 const LOW_AMMO = hudCfg.lowAmmo;
 const KILL_MARK = hudCfg.killMarker;
+/** a shield break's marker (hud.json shieldFx.marker, Milestone 694) */
+const BREAK_MARK = hudCfg.shieldFx.marker;
 
 /** the warning under the crosshair for a magazine: RELOAD when empty, LOW AMMO from the warn share down, or nothing */
 export function ammoWarning(clip: number, clipSize: number, reloading: boolean): "RELOAD" | "LOW AMMO" | null {
@@ -389,7 +391,9 @@ export class Hud {
   hsChargeDrawn: { ring: number; ready: boolean } = { ring: 1, ready: false };
   private hitMarkerUntil = 0;
   private hitMarkerHead = false;
-  private hitMarkerKind: "hit" | "knock" | "kill" = "hit";
+  private hitMarkerKind: "hit" | "knock" | "kill" | "break" = "hit";
+  /** a shield break's marker in the shield's colour (Milestone 694) */
+  private hitMarkerColor = 0x3b8bff;
   /** the last notice put up, for the checks (tools/e2e.ts reads it) */
   get noticeNow(): string {
     return this.noticeText;
@@ -474,14 +478,25 @@ export class Hud {
    * longer: one white flicker for every hit left a kill unconfirmed, and in a
    * spray you could not tell the round that finished them.
    */
-  hitMarker(now: number, head: boolean, kind: "hit" | "knock" | "kill" = "hit"): void {
-    this.hitMarkerUntil = now + (kind === "hit" ? 0.12 : KILL_MARK.hold);
+  hitMarker(now: number, head: boolean, kind: "hit" | "knock" | "kill" | "break" = "hit", color = 0x3b8bff): void {
+    this.hitMarkerUntil = now + (kind === "hit" ? 0.12 : kind === "break" ? BREAK_MARK.hold : KILL_MARK.hold);
     this.hitMarkerHead = head;
     this.hitMarkerKind = kind;
+    this.hitMarkerColor = color;
+  }
+
+  /** shown by an enemy's REVEAL until then (Milestone 695): a red warning under the compass, its seconds counting down */
+  private revealedUntil = -Infinity;
+  revealed(until: number): void {
+    this.revealedUntil = until;
+  }
+  /** the warning's seconds left at `now`, 0 when none (tools/e2e.ts) */
+  revealedLeft(now: number): number {
+    return Math.max(0, this.revealedUntil - now);
   }
 
   /** the last hit marker's kind (tools/e2e.ts) */
-  get hitMarkerKindNow(): "hit" | "knock" | "kill" {
+  get hitMarkerKindNow(): "hit" | "knock" | "kill" | "break" {
     return this.hitMarkerKind;
   }
 
@@ -2154,10 +2169,46 @@ export class Hud {
     }
     if (now < this.hitMarkerUntil) {
       const big = this.hitMarkerKind !== "hit";
-      c.strokeStyle = big ? (this.hitMarkerKind === "kill" ? "rgba(255,60,50,0.98)" : "rgba(255,140,60,0.98)") : this.hitMarkerHead ? "rgba(255,210,60,0.95)" : "rgba(255,255,255,0.9)";
+      const broke = this.hitMarkerKind === "break";
+      const sc = `#${this.hitMarkerColor.toString(16).padStart(6, "0")}`;
+      c.strokeStyle = broke ? "rgba(255,255,255,0.98)" : big ? (this.hitMarkerKind === "kill" ? "rgba(255,60,50,0.98)" : "rgba(255,140,60,0.98)") : this.hitMarkerHead ? "rgba(255,210,60,0.95)" : "rgba(255,255,255,0.9)";
       if (big) c.lineWidth = 3;
+      // (white over a glow in the shield's colour: the figure under it is flaring in that very colour)
+      if (broke) {
+        c.shadowColor = sc;
+        c.shadowBlur = 8 * u;
+      }
       const r0 = gap + 4;
-      const r1 = r0 + (8 * u + 2) * (big ? KILL_MARK.scale : 1);
+      const r1 = r0 + (8 * u + 2) * (broke ? BREAK_MARK.scale : big ? KILL_MARK.scale : 1);
+      // a shield broken: a cracked shield over the crosshair, Apex's, fading as it is held (Milestone 694)
+      if (broke) {
+        const g = BREAK_MARK.glyph * u * 0.5;
+        const x = cx;
+        const y = cy - r1 - g * 1.8;
+        c.globalAlpha = Math.min(1, (this.hitMarkerUntil - now) / (BREAK_MARK.hold * 0.5));
+        c.beginPath();
+        c.moveTo(x, y - g);
+        c.lineTo(x + g * 0.85, y - g * 0.6);
+        c.lineTo(x + g * 0.75, y + g * 0.15);
+        c.quadraticCurveTo(x + g * 0.45, y + g * 0.75, x, y + g);
+        c.quadraticCurveTo(x - g * 0.45, y + g * 0.75, x - g * 0.75, y + g * 0.15);
+        c.lineTo(x - g * 0.85, y - g * 0.6);
+        c.closePath();
+        c.fillStyle = "rgba(255,255,255,0.92)";
+        c.fill();
+        c.strokeStyle = sc;
+        c.lineWidth = 2 * u;
+        c.stroke();
+        c.beginPath();
+        c.moveTo(x + g * 0.1, y - g);
+        c.lineTo(x - g * 0.2, y - g * 0.3);
+        c.lineTo(x + g * 0.25, y + g * 0.1);
+        c.lineTo(x - g * 0.1, y + g * 0.7);
+        c.stroke();
+        c.globalAlpha = 1;
+        c.strokeStyle = "rgba(255,255,255,0.98)";
+        c.lineWidth = 3;
+      }
       for (const [dx, dy] of [
         [1, 1],
         [-1, 1],
@@ -2174,6 +2225,15 @@ export class Hud {
   }
 
   private drawNotice(now: number, u: number): void {
+    // an enemy's REVEAL has you (Milestone 695): under the compass and the battle royale's counts, over its zone line
+    if (now < this.revealedUntil) {
+      const c = this.ctx;
+      const y = 158 * u;
+      const pulse = 0.75 + 0.25 * Math.sin(now * Math.PI * 4);
+      c.fillStyle = `rgba(120,0,10,${0.55 * pulse})`;
+      c.fillRect(this.w / 2 - 96 * u, y - 19 * u, 192 * u, 26 * u);
+      this.text(`REVEALED  ·  ${Math.ceil(this.revealedUntil - now)}`, this.w / 2, y, 800, 16 * u, "#ff4a4a", "center");
+    }
     if (now >= this.noticeUntil) return;
     const a = Math.min(1, (this.noticeUntil - now) / 0.25);
     this.ctx.globalAlpha = a;
@@ -2472,6 +2532,23 @@ export class Hud {
       this.drawMapIcons(s, (x) => (x - s.px) * k, (z) => (z - s.pz) * k, u / scale, s.yaw);
     }
     c.restore();
+    // north, on the frame where it lies (Milestone 696): a map turned with you needs it marked, or facing south it reads
+    // as upside down
+    {
+      const a = (s.yaw * Math.PI) / 180;
+      const half = size / 2;
+      // the edge of the square along north's way from the middle
+      const dx = Math.sin(a);
+      const dy = -Math.cos(a);
+      const k = half / Math.max(Math.abs(dx), Math.abs(dy));
+      const nx = x0 + half + dx * (k - 9 * u);
+      const ny = y0 + half + dy * (k - 9 * u);
+      c.fillStyle = "rgba(8,10,12,0.75)";
+      c.beginPath();
+      c.arc(nx, ny, 8 * u, 0, Math.PI * 2);
+      c.fill();
+      this.text("N", nx, ny + 4 * u, 800, 11 * u, "#ffd23c", "center");
+    }
     // frame and player arrow
     c.strokeStyle = "rgba(255,255,255,0.35)";
     c.lineWidth = 1.5;

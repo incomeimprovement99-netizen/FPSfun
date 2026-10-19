@@ -12260,6 +12260,61 @@ CLEARLY A BUG."
   (in the suite's software drawing a long frame can carry you past the door as it shuts, so it is the tutorial left
   unfinished that fails there; on a GPU page you are put back inside, as the owner was).
 
+## Milestone 694 — An enemy's shield and ARMOR, as you see them
+
+The owner, 2026-10-18: a gap analysis of the third person and the enemy as seen, against Hyper Scape, Apex and
+Empulse, and the most important gaps built (docs/PLAN_ENEMY_POV.md). Split with the character agent (the body's poses
+and motion) and the guns agent (their guns, flashes, tracers and shot sounds); this is what is drawn on and round an
+enemy.
+
+- **A round on a shield flares the figure in the shield's colour** (dummy.ts shieldHit; outline.ts ShieldShell): a
+  copy of the figure's shape a centimetre out, additive, brightest at its edges and round where the round landed, gone
+  in a fifth of a second (hud.json shieldFx.flare). A white flash said a round landed; this says the shield took it, as
+  Apex's shields flare and Halo's and Splitgate's shimmer. Depth tested: a wall hides it.
+- **The round that breaks it:** the flare brighter, shards of the shield bursting off the chest and falling (fx.ts
+  ShardBurst, one instanced mesh always in the scene), and a hit marker of its own: white ticks over a glow in the
+  shield's colour and a cracked shield over the crosshair (hud.ts, shieldFx.marker), Apex's break. The glass sound it
+  had already.
+- **ARMOR on an enemy shows:** a gold shell over them, pulsing, for its four seconds (shieldFx.armor), as Hyper Scape's
+  armour reads as a shell. It played a shield-break sound from everywhere before, the very sound of your own round
+  breaking a shield; now the hack's own sound, where they are.
+- **Your numbers on an armoured enemy are true:** a round does ARMOR's share there (hacks.json armor.damageScale 0.4),
+  and the damage number, their plate's bars and your damage stats now say so (duel.ts localHit `felt`). They read the
+  whole round.
+- **Range dummies too**, in their tier's colour; and a hack's damage (a mine, a slam) flares and breaks a shield as a
+  round does.
+- **No first-hit stall:** the shell's two shaders (a plain and a skinned figure's) are built at load from two hidden
+  meshes (ShieldShell.warmKit); a figure's own shell is made at its first shield hit and shares them.
+- **Checked:** tsc, verify, rules; e2e speedkills (the flare in the shield's blue, gone a moment later; the break's
+  marker, shards and brighter flare; ARMOR's gold shell, the 0.4, both gone when it ends) and page (the shaders built at
+  load). Photographed on a GPU page: the flare, the break and its marker, ARMOR's gold.
+
+## Milestone 695 — Others heard where they move, and told when an enemy's REVEAL has you
+
+- **Others' jumps, landings, slides and mantles are heard where they are** (soundscape.ts): yours had them, theirs
+  were silent but their steps, so a figure dropping off a ledge behind you or sliding round a corner made no sound.
+  Read off each figure's stance as it changes: a jump off the ground or a kick off a wall, a landing from the air, a
+  skydive or a wall run (the character agent's stances), a slide's start and a mantle, each at its place.
+- **Others' SLAM, LEAP and HEAL are heard where they used them**, with the hack's own sound (audio.ts hackSound `at`).
+  A whoosh from everywhere said nothing of where.
+- **REVEALED:** an enemy's REVEAL that catches you puts a red REVEALED, counting down its eight seconds, under the
+  compass, with the scan's sweep (Apex tells you a scan found you). The scan's own mark already named each one it
+  showed and reached their page; an enemy's mark was ignored there. A squad mate's tells you nothing.
+- **Checked:** tsc, verify, rules; e2e speedkills (a landing, a slide and a mantle heard; REVEALED from an enemy's mark,
+  not a mate's).
+
+## Milestone 696 — The minimap turns with what you see, and marks north
+
+The owner, 2026-10-18: "noticed the minimap was upside down at one point in the BR".
+
+- **The cause:** the compass and the minimap read your own body's position and facing. Watching a squad mate, or the
+  killcam's replay through your killer's eyes, they stayed on your still body, so a mate looking the other way had the
+  minimap turned half round.
+- **The fix** (main.ts): while you watch someone or the killcam runs, the compass and the minimap take that view's
+  facing and centre on where it is. Your own play keeps your aim's yaw (the camera's carries the recoil's kick).
+- **North marked:** an N on the minimap's frame where north lies. A map that turns with you reads as upside down
+  facing south without it.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

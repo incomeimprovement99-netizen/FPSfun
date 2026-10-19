@@ -4012,6 +4012,48 @@ async function skHitsLand(page: Page): Promise<void> {
 }
 
 /**
+ * Milestone 694: a shield as the shooter sees it, on a range dummy given a blue shield. A round on it flares the figure
+ * in the shield's colour (dummy.ts shieldHit, outline.ts ShieldShell), gone in a fifth of a second; the round that
+ * takes the last of it flares it brighter, bursts it off in shards (fx.ts ShardBurst) and gets a marker of its own. The
+ * page builds the shell's shaders at load (the page section checks it: this page draws nothing).
+ */
+async function skShieldFx(page: Page): Promise<void> {
+  await ev(page, `(() => { const r = window.__range; r.sk.setFusion(0, 0); r.loadout.setWeaponId(0, "r97"); })()`);
+  await sleep(1600);
+  const pick = await ev<{ i: number; shield: number; color: number } | null>(
+    page,
+    `(() => { const r = window.__range; const d = r.dummies.find((x) => x.group.visible && !x.knocked); if (!d) return null; d.setTier(2); d.reset(); const p = d.group.position; r.player.teleport(p.x, 0, p.z + 6, 0, 0); return { i: r.dummies.indexOf(d), shield: d.shield, color: 0x3b8bff }; })()`,
+  );
+  if (!pick || pick.shield <= 0) {
+    check("shield fx: a range dummy with a shield to shoot", false, JSON.stringify(pick));
+    return;
+  }
+  await sleep(300);
+  const fire = () => ev(page, `(() => { const r = window.__range; const d = r.dummies[${pick.i}]; const p = d.chestAt(); const eye = r.player.eyePosition(); r.fireRound([p.x - eye.x, p.y - eye.y, p.z - eye.z]); })()`);
+  await fire();
+  const flared = await page.waitForFunction(`(() => { const s = window.__range.dummies[${pick.i}].shellState(); return !!s && s.on > 0 && s.amount > 0 && s.color === ${pick.color}; })()`, { polling: 30, timeout: 10000 }).then(() => true, () => false);
+  const lit = await ev(page, `window.__range.dummies[${pick.i}].shellState()`);
+  check("shield fx: a round on a dummy's blue shield flares the figure in the shield's blue", flared, JSON.stringify(lit));
+  await gameSleep(page, 1);
+  const gone = await ev<{ on: number; amount: number } | null>(page, `window.__range.dummies[${pick.i}].shellState()`);
+  check("shield fx: and the flare is gone a moment later (hud.json shieldFx.flare)", !!gone && gone.on === 0 && gone.amount === 0, JSON.stringify(gone));
+  // to the round that breaks it: the marker, the shards and the brighter flare read as it lands
+  let broke: { kind: string; shards: number; amount: number; shield: number } | null = null;
+  for (let n = 0; n < 20 && !broke; n++) {
+    await fire();
+    broke = await page
+      .waitForFunction(`(() => { const r = window.__range; const d = r.dummies[${pick.i}]; return d.shield <= 0 ? { kind: r.hud.hitMarkerKindNow, shards: r.sk.shards(), amount: d.shellState()?.amount ?? 0, shield: d.shield } : null; })()`, { polling: 30, timeout: 1500 })
+      .then((h) => h.jsonValue() as Promise<{ kind: string; shards: number; amount: number; shield: number }>, () => null);
+  }
+  check(
+    "shield fx: the round that takes the last of the shield gets its own marker, bursts it off in shards and flares brighter",
+    !!broke && broke.kind === "break" && broke.shards > 0 && broke.amount > 1,
+    JSON.stringify(broke),
+  );
+  await ev(page, `(() => { const d = window.__range.dummies[${pick.i}]; d.setTier(0); d.reset(); })()`);
+}
+
+/**
  * SpeedKills (docs/PHASE_18_PLAN_SPEEDKILLS.md), on a page that asks for it:
  * the front door, the ten guns, fusion, the health model, and every hack doing
  * what its card says. The rest of the suite tests SpeedKills' shared systems.
@@ -4821,6 +4863,7 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   check("speedkills: the gun panel carries each slot's fusion to level 5, and no attachment lines", panel.fusion?.levels[0] === 3 && panel.fusion.max === 5 && panel.attach === 0, JSON.stringify(panel));
   await skWholeNumbers(page);
   await skHitsLand(page);
+  await skShieldFx(page);
   await page.close();
   // a bot match in SpeedKills, a 1v1: on NEON YARD by default, THE CENTRE picked (below)
   const arena = await open(browser, "?");
@@ -4852,6 +4895,28 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     const shown = await page.waitForFunction("window.__range.duel().avatars.some((a) => (a.revealState()?.on ?? 0) > 0)", { polling: 100, timeout: 15000 }).then(() => true, () => false);
     const rv = await ev<{ on: number; through: boolean; fill: number; color: number } | null>(page, "(() => { const a = window.__range.duel().avatars.find((x) => x.revealState()); return a ? a.revealState() : null; })()");
     check("speedkills: a REVEAL draws the bot through walls, its rim and its shape filled in red", shown && !!rv && rv.on > 0 && rv.through && rv.fill > 0 && rv.color === 0xff2a3a, JSON.stringify(rv));
+    // an enemy's ARMOR as their page tells it (Milestone 694): a gold shell over them while it lasts, your rounds doing
+    // its share (hacks.json armor.damageScale), and both gone when it ends (armor.seconds, on the wall clock)
+    const arm = await ev<{ id: number; scale: number; secs: number } | null>(
+      page,
+      `(() => { const R = window.__range; const d = R.duel(); const a = d.avatars[0]; const r = a ? d.remoteOf(a) : null; if (!r) return null; const p = a.group.position; R.sk.remoteHack(r.id, 4, p.x, p.y, p.z); return { id: r.id, scale: R.sk.armorScale(r.id), secs: 4 }; })()`,
+    );
+    const gold = await page.waitForFunction("(() => { const s = window.__range.duel().avatars[0].shellState(); return !!s && s.on > 0 && s.color === 0xffc23a; })()", { polling: 100, timeout: 15000 }).then(() => true, () => false);
+    check("speedkills: an enemy under ARMOR wears a gold shell, and your rounds do its share on them (0.4)", !!arm && arm.scale === 0.4 && gold, JSON.stringify(arm));
+    await sleep(4600);
+    const after = await page
+      .waitForFunction(`(() => { const R = window.__range; const s = R.duel().avatars[0].shellState(); return (!s || s.on === 0) && R.sk.armorScale(${arm?.id ?? -1}) === 1; })()`, { polling: 100, timeout: 15000 })
+      .then(() => true, () => false);
+    check("speedkills: and when ARMOR ends the shell goes and your rounds do their whole damage again", after);
+    // others' landings, slides and mantles are heard where they are (Milestone 695): the bot's figure taken through them
+    // (its pose read as the sounds read it), 4 m from you
+    await ev(page, `(() => { const R = window.__range; const a = R.duel().avatars[0]; window.__fake = { stance: "stand", speed: 0, pitch: 0 }; Object.defineProperty(a, "currentPose", { get: () => window.__fake, configurable: true }); const q = a.group.position; R.player.teleport(q.x + 4, q.y, q.z, 90, 0); })()`);
+    for (const st of ["air", "stand", "slide", "stand", "mantle", "stand"]) {
+      await ev(page, `window.__fake = { stance: ${JSON.stringify(st)}, speed: 3, pitch: 0 }`);
+      await gameSleep(page, 0.3);
+    }
+    const heard = await ev<string[]>(page, "window.__range.sk.othersHeard()");
+    check("speedkills: another figure's landing, slide and mantle are heard where it is", ["land", "slide", "mantle"].every((k) => heard.includes(k)), JSON.stringify(heard));
     await page.close();
   }
   // THE CENTRE, picked (arenas/centre.ts, the owner, 2026-10-01): the city's own middle, inside a circle you cannot leave;
@@ -6399,6 +6464,16 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   // landed was being shot down before the checks were done (at 70 and at 4 of 150 by the decay's check on 2026-10-16,
   // dead by the outline check on 2026-10-17), the match then over and every check after it reading nothing
   await ev(page, "window.__range.duel().holdFire = true");
+  // an enemy's REVEAL that catches you (Milestone 695): its scan's mark names you, and you are told for its seconds. An
+  // enemy bot's, as it would come off the wire (duel.ts receiveSquad); a squad mate's tells you nothing
+  const told = await ev<{ before: number; mate: number; enemy: number } | null>(
+    page,
+    `(() => { const R = window.__range; const d = R.duel(); const foe = d.bots.find((b) => !d.isFriend(b.bot.remote.id)); const mate = d.bots.find((b) => d.isFriend(b.bot.remote.id)); if (!foe) return null; const before = R.sk.revealedLeft();
+      const mark = { t: "mark", k: "scan", at: [R.player.pos.x, R.player.pos.y, R.player.pos.z], label: "", target: d.id };
+      if (mate) d.receiveSquad(mark, mate.bot.remote.id, null); const fromMate = R.sk.revealedLeft();
+      d.receiveSquad(mark, foe.bot.remote.id, null); return { before, mate: fromMate, enemy: R.sk.revealedLeft() }; })()`,
+  );
+  check("speedkills: an enemy's REVEAL that catches you puts REVEALED up for its seconds, a squad mate's does not", !!told && told.before === 0 && told.mate === 0 && told.enemy > 7, JSON.stringify(told));
   // its sky (speedkills.json identity.skies): golden hour it starts at (the owner's, 2026-10-04), the neon night, and the
   // hazy day to see the city by (Milestone 288), applied at once
   const sky = await ev<{ options: string[]; start: string; night: number; golden: number; kept: string | null }>(
@@ -8139,6 +8214,10 @@ async function main(): Promise<void> {
     const t0 = await ev<number>(page, "performance.now()");
     const f = await ev<{ merged: { meshes: number; after: number } | null; calls: number }>(page, "({ merged: window.__range.merged, calls: window.__range.drawCalls() })");
     check("loads with the static merge done", f.merged !== null && f.merged.after < f.merged.meshes, f.merged ? `${f.merged.meshes} -> ${f.merged.after} meshes` : "none");
+    // an enemy's shield shell's shaders, a plain and a skinned figure's, built with the rest, not at the first round on a
+    // shield (outline.ts ShieldShell.warmKit, Milestone 694)
+    const shellWarm = await page.waitForFunction(`(() => { const R = window.__range; const k = R.scene.getObjectByName("shell-warm"); if (!k || k.children.length !== 2) return false; const pr = R.renderer.properties.get(k.children[0].material); return !!pr.programs && pr.programs.size >= 2; })()`, { polling: 500, timeout: 90000 }).then(() => true, () => false);
+    check("the shield shell's two shaders, a plain and a skinned figure's, are built at load, before the first round on a shield", shellWarm);
     // the loading screen counts the models and textures in, and goes once they are and a frame is drawn
     // (90 s, not 30: the first page of a run compiles every module of the dev server's, and with the machine at 94% under
     // other runs the world was in 31 s on, every part of it, where a quiet machine takes 4; this is not a speed check)

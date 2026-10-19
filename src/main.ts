@@ -104,6 +104,7 @@ import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
+import { ShieldShell } from "./game/outline";
 import { Killcam, Recorder } from "./game/killcam";
 import { DamageLog, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
@@ -1334,6 +1335,8 @@ const SHIELD_TIER: Record<number, HitTier> = { 1: "white", 2: "blue", 3: "purple
 const hud = new Hud($<HTMLCanvasElement>("hud"));
 /** short-lived world effects: the dash's streaks (fx.ts) */
 const fx = new FxLayer(scene);
+// the shield shell's two shaders built with the rest, not at the first round on a shield (outline.ts, Milestone 694)
+scene.add(ShieldShell.warmKit());
 // everyone's sprays on the walls (sprays.ts)
 const sprays = new SprayLayer(scene);
 let sprayReadyAt = 0;
@@ -3526,9 +3529,31 @@ function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
   const onShield = rem.shield > 0;
   const at = fig.group.position.clone().add(new THREE.Vector3(0, 1, 0));
   fig.hit(gameTime, "body", amount, 1, 1, at);
-  d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position));
-  hud.addDamage(fig.overHead(hudCfg.damageNumbers.over), amount, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", false, gameTime, rem);
-  hud.hitMarker(gameTime, false, "hit");
+  const felt = amount * armorScaleOf(rem.id);
+  d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position), felt);
+  const broke = onShield && rem.shield <= 0 && rem.health > 0;
+  if (onShield) shieldFx(fig, at, ARMOR_COLOR[2], broke);
+  hud.addDamage(fig.overHead(hudCfg.damageNumbers.over), felt, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", false, gameTime, rem);
+  hud.hitMarker(gameTime, false, broke ? "break" : "hit", ARMOR_COLOR[2]);
+  if (broke) audio.shieldBreak();
+}
+
+/**
+ * Someone else's shield taking your round, as you see it (Milestone 694, the owner's gap analysis against Apex, Hyper
+ * Scape and Empulse): their shape flares in the shield's colour where it landed (dummy.ts shieldHit), and the round
+ * that breaks it bursts it off their chest in shards (fx.ts). A white flash said a round landed; this says the shield
+ * took it, and when it is gone, the moment to push.
+ */
+function shieldFx(fig: Dummy, at: THREE.Vector3, color: number, broke: boolean): void {
+  fig.shieldHit(at, color, broke);
+  if (broke) fx.shieldBreak(fig.chestAt(), color, gameTime);
+}
+
+/** others under ARMOR, until when on the page's wall clock (remoteHack): what your rounds do to them is its share */
+const armoredUntil = new Map<number, number>();
+function armorScaleOf(id: number): number {
+  const until = armoredUntil.get(id);
+  return until !== undefined && realNow() < until ? H.armor.damageScale : 1;
 }
 
 /**
@@ -3839,6 +3864,16 @@ function stepHacks(now: number, dt: number): void {
     scene.remove(m.mesh);
     mines.splice(i, 1);
   }
+  // others under ARMOR: their gold shell while it lasts (Milestone 694), in any match (a bots' arena is no Duel)
+  if (d) {
+    const t = realNow();
+    for (const a of d.avatars) {
+      const r = d.remoteOf(a);
+      const until = r ? armoredUntil.get(r.id) : undefined;
+      a.setArmored(until !== undefined && t < until);
+      if (r && until !== undefined && t >= until) armoredUntil.delete(r.id);
+    }
+  }
   // others under INVISIBILITY: nearly unseen, unless close
   if (d instanceof Duel) {
     const t = realNow();
@@ -3984,7 +4019,9 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
   switch (n) {
     case 1:
     case 2:
-      audio.whoosh();
+      // where they are, and the hack's own sound (Milestone 694: a whoosh from everywhere said nothing of where)
+      audio.whoosh(a);
+      audio.hackSound(n === 1 ? "slam" : "leap", a);
       break;
     case 3: {
       // anyone's HEAL heals you too if you stand in it, an enemy's as well (the owner: "we should be able to heal in it
@@ -3992,10 +4029,15 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       const mesh = healMesh(a);
       // (at the base rate: its fusion level does not travel)
       healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
+      audio.hackSound("heal", a);
       break;
     }
     case 4:
-      audio.shieldBreak();
+      // their ARMOR (Milestone 694): a gold shell on them while it lasts (the frame's loop below), your rounds doing its
+      // share (armorScaleOf), and its own sound where they are. It played a shield breaking, from everywhere: the very
+      // sound of your own round breaking a shield
+      armoredUntil.set(from, realNow() + H.armor.seconds);
+      if (!audio.hackSound("armor", a)) audio.whoosh(a);
       break;
     case 5: {
       const secs = b ? b.x : 0;
@@ -4560,6 +4602,12 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     }
   };
   brPlay.reset();
+  // an enemy's REVEAL caught you (Milestone 695): told, for its seconds, as Apex tells you a scan found you
+  if (d instanceof Duel)
+    d.onRevealed = () => {
+      hud.revealed(gameTime + H.reveal.seconds);
+      audio.scanSweep(0.6);
+    };
   // a team mate's SCOUT scan, in the modes (a battle royale's marks go through onMark below)
   if (d instanceof Duel && !(d instanceof BrMatch)) d.onMark = (k, _from, _at, _label, target) => void (k === "scan" && target >= 0 && d.revealOne(target, H.reveal.shareSeconds));
   if (d instanceof BrMatch) {
@@ -6243,6 +6291,8 @@ function stepTrails(now: number): void {
 const zoomFov43 = (w: ResolvedWeapon): number => w.zoomFov43 + ((w.zoomToggleFov43 ?? w.zoomFov43) - w.zoomFov43) * zoomBlend;
 const rnd = () => Math.random();
 const tmpDir = new THREE.Vector3();
+/** the view the compass and the minimap were last drawn for (tools/e2e.ts) */
+const hudView = { yaw: 0, x: 0, z: 0 };
 const tmpQ = new THREE.Quaternion();
 /** the eye this frame: where shots leave from, and the first-person camera */
 const eye = new THREE.Vector3();
@@ -7222,16 +7272,23 @@ function step(): void {
         // when you last hurt them: their plate shows for a while after
         damagedAt.set(remote.id, gameTime);
       }
-      duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance);
+      // under ARMOR (their page said so: remoteHack) a round does its share there: shown as it lands, and their bars kept
+      // to it rather than to the whole round (Milestone 694)
+      const felt = r.amount * armorScaleOf(remote.id);
+      duel.localHit(remote, r.amount, r.headshot, e.weapon, e.distance, felt);
       stats.hits++;
-      stats.damage += r.amount;
+      stats.damage += felt;
       if (r.headshot) stats.headshots++;
       const color = onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d";
       // at zero they are out: there are no knocks (Milestone 529). A human in a squad match was marked and called
       // KNOCKED DOWN until their own "down" came back, though they were already out
       const kill = wasAlive && remote.health <= 0;
-      hud.addDamage(e.dummy ? e.dummy.overHead(hudCfg.damageNumbers.over) : r.point, r.amount, r.headshot ? "#ffd23c" : color, r.headshot || kill, now, remote);
-      hud.hitMarker(now, r.headshot, kill ? "kill" : "hit");
+      // their shield flares where the round landed, and the round that took the last of it breaks it off them in shards,
+      // with a marker of its own (Milestone 694)
+      const broke = onShield && remote.shield <= 0 && !kill;
+      if (onShield && e.dummy) shieldFx(e.dummy, r.point, ARMOR_COLOR[2], broke);
+      hud.addDamage(e.dummy ? e.dummy.overHead(hudCfg.damageNumbers.over) : r.point, felt, r.headshot ? "#ffd23c" : color, r.headshot || kill, now, remote);
+      hud.hitMarker(now, r.headshot, kill ? "kill" : broke ? "break" : "hit", ARMOR_COLOR[2]);
       if (kill) {
         killStreak = gameTime - lastKillAt <= hudCfg.killMarker.streak ? killStreak + 1 : 0;
         lastKillAt = gameTime;
@@ -7241,7 +7298,7 @@ function step(): void {
         stats.knocks++;
         audio.knock();
         if (e.dummy) audio.bodyFall(e.dummy.group.position);
-      } else if (onShield && remote.shield <= 0) audio.shieldBreak();
+      } else if (broke) audio.shieldBreak();
       else audio.hitTier(r.headshot ? "head" : onShield ? "blue" : "health");
       return;
     }
@@ -7257,7 +7314,9 @@ function step(): void {
     if (firstHit) e.dummy.engagedAt = now;
     const color = r.toShield > 0 ? `#${ARMOR_COLOR[e.dummy.tier].toString(16).padStart(6, "0")}` : "#ff4a3d";
     hud.addDamage(e.dummy.overHead(hudCfg.damageNumbers.over), r.amount, r.headshot ? "#ffd23c" : color, r.headshot || r.knocked, now, e.dummy);
-    hud.hitMarker(now, r.headshot, r.knocked ? "knock" : "hit");
+    // its shield flares in its tier's colour, and breaks off it in shards (Milestone 694)
+    if (r.toShield > 0) shieldFx(e.dummy, r.point, ARMOR_COLOR[e.dummy.tier], r.broke && !r.knocked);
+    hud.hitMarker(now, r.headshot, r.knocked ? "knock" : r.broke ? "break" : "hit", ARMOR_COLOR[e.dummy.tier]);
     if (r.knocked) {
       hud.notice("KNOCKED DOWN", now, 0.8);
       stats.knocks++;
@@ -7591,6 +7650,17 @@ function step(): void {
     reload: { on: ws.reloading, progress: ws.reloadProgress(now), empty: ws.clip === 0 },
   });
   pipeline.setDesaturation(sounds.desat);
+  // The compass and the minimap turn with what you see and centre on it (Milestone 696): watching a squad mate, or the
+  // killcam's replay through your killer's eyes, it is their view and where they are. They read your own still body's
+  // yaw, so a mate looking the other way had the minimap turned half round (the owner, 2026-10-18: "the minimap was
+  // upside down at one point in the BR"). Your own play keeps your aim's yaw: the camera's carries the recoil's kick.
+  const viewOther = killcam.active || watch !== null;
+  const viewFwd = tmpDir.set(0, 0, -1).applyQuaternion(camera.quaternion);
+  const hudYaw = viewOther && Math.hypot(viewFwd.x, viewFwd.z) > 1e-3 ? (Math.atan2(-viewFwd.x, -viewFwd.z) * 180) / Math.PI : player.yaw;
+  const hudAt = killcam.active ? camera.position : watch ? watch.group.position : player.pos;
+  hudView.yaw = hudYaw;
+  hudView.x = hudAt.x;
+  hudView.z = hudAt.z;
   hud.draw(now, camera, {
     wallRun: wallLean,
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
@@ -7622,9 +7692,9 @@ function step(): void {
     hipFov: hipH,
     fps,
     frameMs,
-    yaw: player.yaw,
-    px: player.pos.x,
-    pz: player.pos.z,
+    yaw: hudYaw,
+    px: hudAt.x,
+    pz: hudAt.z,
     holstered: holster !== "out",
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
     duel: duelHud,
@@ -8040,6 +8110,15 @@ const GALLERY = { x: 0, z: -8 };
     spireTop: () => ({ ...SPIRE_TOP }),
     /** someone else's hack as their page told this one (tools/e2e.ts: an enemy's HEAL heals you too) */
     remoteHack: (from: number, n: number, x: number, y: number, z: number) => remoteHack(from, n, new THREE.Vector3(x, y, z), undefined),
+    /** what your rounds do to them under ARMOR (armorScaleOf), and the shards of shields broken in the air now */
+    armorScale: (id: number) => armorScaleOf(id),
+    /** the others' movement sounds lately played (soundscape.ts, Milestone 695) */
+    othersHeard: () => sounds.othersHeard.slice(),
+    /** the REVEALED warning's seconds left (Milestone 695) */
+    revealedLeft: () => hud.revealedLeft(gameTime),
+    shards: () => fx.shards.count,
+    /** hud.json shieldFx itself, live: a photo of the flare, the shards and the marker stretches their seconds (tools) */
+    shieldFx: () => hudCfg.shieldFx,
     state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, slamRing: { ...slamRingState }, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
     fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
     /** the city's edge as this page has it (Phase 20 A4): past it, the countdown */
@@ -8151,6 +8230,8 @@ const GALLERY = { x: 0, z: -8 };
   leaveMatch: () => duelLeaveBtn.click(),
   /** the viewmodel's inspect and first draw (tools/e2e.ts) */
   /** how the camera is moving with the body (tools/e2e.ts): the slide's lean, the boost's pull, and the angles the shot uses */
+  /** the view the compass and the minimap were last drawn for (Milestone 696) */
+  hudView: () => ({ ...hudView }),
   feelState: () => ({ lean: slideLean, air: airLean, yaw: player.yaw, pitch: player.pitch, landSide: player.landSide, lurchSide: player.lurchSide }),
   /** the gun camera's near plane, metres (tools/e2e.ts: nothing of a held gun comes inside it) */
   vmCameraNear: () => vmCamera.near,

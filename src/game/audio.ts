@@ -398,11 +398,15 @@ export class GameAudio {
     return true;
   }
 
-  /** a hack's recorded layers (audio.json hacks) over its own synthesis; false when it has none or the files are not there */
-  hackSound(id: string): boolean {
+  /**
+   * A hack's recorded layers (audio.json hacks) over its own synthesis; false when it has none or the files are not
+   * there. Someone else's is heard where they used it (`at`, Milestone 694): an enemy's LEAP or ARMOR played as your
+   * own, from everywhere and full, said nothing of where they were.
+   */
+  hackSound(id: string, at: Vec | null = null): boolean {
     const layers = (cfg.hacks as Record<string, Array<{ take: string; level: number; len: number; rate: number }> | undefined>)[id];
     if (!layers?.length) return false;
-    const v = this.voice(null, Math.max(...layers.map((l) => l.len)) + 0.3, "own", 2, 0.4);
+    const v = this.voice(at, Math.max(...layers.map((l) => l.len)) + 0.3, at ? "fx" : "own", 2, 0.4);
     if (!v) return false;
     let any = false;
     for (const l of layers) any = this.sampleCut(v.input, v.t, l.take, l.level, l.len, l.rate) || any;
@@ -1004,16 +1008,17 @@ export class GameAudio {
     }
   }
 
-  jump(): void {
-    const v = this.voice(null, 0.2, "fx", 1, 0.2);
+  /** a jump: yours, or someone else's where they are (`at`, Milestone 695) */
+  jump(at: Vec | null = null): void {
+    const v = this.voice(at, 0.2, "fx", 1, 0.2);
     if (!v) return;
     this.noise(v.input, v.t, 0.15, "bandpass", 700, 0.7, 0.12, 0.02, 1400);
   }
 
   /** a landing, by how hard: a thud and grit */
-  land(impact01: number, surface: Surface): void {
-    this.cue("land", null);
-    const v = this.voice(null, 0.3, "fx", 1, 0.3);
+  land(impact01: number, surface: Surface, at: Vec | null = null): void {
+    this.cue("land", at);
+    const v = this.voice(at, 0.3, "fx", 1, 0.3);
     if (!v) return;
     const k = Math.max(0.2, Math.min(1, impact01));
     this.sample(v.input, v.t, "land", 0.7 * k, 0.9);
@@ -1145,11 +1150,21 @@ export class GameAudio {
     this.noise(v.input, v.t, 0.04, "bandpass", 1300 + Math.random() * 400, 1.2, 0.2);
   }
 
-  mantle(): void {
-    const v = this.voice(null, 0.3, "fx", 1, 0.2);
+  mantle(at: Vec | null = null): void {
+    const v = this.voice(at, 0.3, "fx", 1, 0.2);
     if (!v) return;
     this.noise(v.input, v.t, 0.05, "bandpass", 1200, 1.2, 0.3);
     this.noise(v.input, v.t + 0.05, 0.22, "bandpass", 600, 0.7, 0.15, 0.03, 1100);
+  }
+
+  /**
+   * Someone else going into a slide, where they are (Milestone 695): the scrape your own slide loops, once and short,
+   * as it starts. A figure sliding at you was silent
+   */
+  slideStart(at: Vec): void {
+    const v = this.voice(at, 0.6, "fx", 1, 0.3);
+    if (!v) return;
+    this.noise(v.input, v.t, 0.5, "bandpass", 1100, 0.9, 0.35, 0.02, 700);
   }
 
   /** a JOLT: a rising rush of air; `volume` below 1 for someone else's */
@@ -1345,8 +1360,9 @@ export class GameAudio {
   }
 
   /** the drop begins, or anything else worth a whoosh */
-  whoosh(): void {
-    const v = this.voice(null, 0.6, "fx", 1, 0.3);
+  /** a rush of air: yours, or someone else's where they are (`at`) */
+  whoosh(at: Vec | null = null): void {
+    const v = this.voice(at, 0.6, "fx", 1, 0.3);
     if (!v) return;
     this.noise(v.input, v.t, 0.5, "bandpass", 300, 0.8, 0.3, 0.1, 1800);
   }
