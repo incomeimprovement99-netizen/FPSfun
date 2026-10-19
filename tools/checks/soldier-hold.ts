@@ -25,6 +25,44 @@ function check(label: string, cond: boolean, detail = ""): void {
   const m = /export const MELEE_TIME = ([\d.]+);/.exec(readFileSync("src/game/viewmodel.ts", "utf8"));
   check("the soldier's melee swing is the game's melee time (viewmodel.ts MELEE_TIME)", !!m && Number(m[1]) === holdCfg.melee.time, `${holdCfg.melee.time} s against ${m?.[1] ?? "none"}`);
 }
+
+// Every hand's fingers closed as a hand closes (Milestone 603; the owner, 2026-10-18: "ensure the hands logically line up
+// and fingers and not just no gaps"). Read off soldierhold.json, gun by gun, both hands, as tools/figure-grip.ts fits
+// them: a finger's last joint follows its middle one (one tendon bends both: grip.follow of it, the trigger finger's up
+// to all of it, the thumb's grip.thumbFollow), no finger is hooked off a straight knuckle (its middle joint no more
+// than twice its knuckle and 45 degrees), and no holding finger between two others is curled far off both of them (one
+// straight between two closed round a grip touched the gun with its tip and was no grasp; a hand's end finger is let
+// curl further, as a little finger wraps under a grip's end and a support hand's index round a trigger guard). The
+// fingers before it broke all three: a ring finger 84 degrees at the knuckle, 5 at its middle and 76 at its last joint.
+{
+  const G = holdCfg.grip;
+  type Joints = Record<string, number[]>;
+  const base = holdCfg.fingers as unknown as Record<"l" | "r", Joints>;
+  const bad: string[] = [];
+  for (const [id, gun] of Object.entries(holdCfg.guns as unknown as Record<string, { fingers?: Record<"l" | "r", Joints> }>)) {
+    for (const side of ["r", "l"] as const) {
+      const F = { ...base[side], ...(gun.fingers?.[side] ?? {}) };
+      const curl: Record<string, number> = {};
+      for (const f of ["index", "middle", "ring", "pinky", "thumb"]) {
+        const [k, m, d] = F[f];
+        curl[f] = k + m;
+        const trigger = side === "r" && f === "index";
+        const lo = (f === "thumb" ? G.thumbFollow : G.follow) * m;
+        const hi = trigger ? Math.max(m, lo) : lo;
+        if (d < Math.min(lo, hi) - 1 || d > Math.max(lo, hi) + 1) bad.push(`${id} ${side} ${f}: its last joint ${d} on a middle one of ${m}`);
+        if (f !== "thumb" && !trigger && m > 2 * Math.max(0, k) + G.hookBy) bad.push(`${id} ${side} ${f}: hooked, ${m} at its middle joint off ${k} at its knuckle`);
+      }
+      const holding = side === "r" ? ["middle", "ring", "pinky"] : ["index", "middle", "ring", "pinky"];
+      holding.forEach((f, i) => {
+        if (i === 0 || i === holding.length - 1) return;
+        const near = [holding[i - 1], holding[i + 1]];
+        const off = Math.min(...near.map((n) => Math.abs(curl[f] - curl[n])));
+        if (off > G.apart) bad.push(`${id} ${side} ${f}: curled ${curl[f]} where the fingers beside it are ${near.map((n) => curl[n]).join(" and ")}`);
+      });
+    }
+  }
+  check("every gun's fingers close as a hand closes: each last joint following its middle, none hooked, none between two curled far off both (soldierhold.json grip)", bad.length === 0, bad.slice(0, 6).join("; ") + (bad.length > 6 ? `; and ${bad.length - 6} more` : ""));
+}
 const GLB = `public/${soldierCfg.model}`;
 console.log("\nThe soldier's rifle hold, measured");
 if (!existsSync(GLB)) {

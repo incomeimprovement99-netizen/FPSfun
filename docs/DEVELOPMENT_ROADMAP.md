@@ -15275,3 +15275,46 @@ stone; Hyper Scape's slam reads as a body coming down onto what it hits.
   - The e2e (skfigure, the figure's stances): coming down at 38 m/s the knees are 33 cm higher against the hips than
     falling at 10 m/s (20 at least). It fails with the plunge taken out (7 cm).
   - verify, rules and the type check.
+
+## Milestone 603 — The soldier's fingers closed as a hand closes
+
+The owner, 2026-10-18: "double check your stuff and ensure the hands logically line up and fingers and not just no
+gaps". The third-person soldier's fingers had been fitted by tools/figure-fit.ts, one phalanx at a time, each closed
+until its skin touched the gun. They touched, but they were no hand: measured on all ten guns, a ring finger 84 degrees
+at the knuckle, 5 at its middle joint and 76 at its last; pinkies hooked off straight knuckles; support thumbs tucked
+into the fist at 90/100/80; the CHOOCH's right ring finger and little finger 18 mm inside the gun.
+
+- **How a hand closes** (tools/figure-grip.ts, soldierhold.json grip): a finger's last two joints move together on one
+  tendon, so each finger is two numbers, its knuckle and its middle joint, the last joint following at two thirds of
+  the middle (the thumb's at 0.8). Every finger is searched on a grid, all at once (each is measured on its own skin),
+  and of the joints that leave its tip on what it holds and no skin in it the one nearest a grasp's proportion is kept
+  (the middle joint 1.2 times the knuckle). A second pass asks each finger to curl about as far as the hand's other
+  holding fingers (the middle one of their curls: a neighbours' mean let one straight finger straighten the next), and
+  both passes let a finger swing up to 15 degrees to one side of its line. The right hand's holding fingers wrap: a
+  finger straight along the grip with its tip on it cost nothing, and the alternator's middle and ring fingers were.
+  The trigger finger stays on the trigger at the crease of its last joint, its last joint following anywhere from two
+  thirds to all of the middle (the VINSON's narrow guard left it 15 mm off at two thirds).
+- **Where a hand cannot close** (MOVE=r): the CHOOCH's right hand was placed where its ring finger and little finger
+  went into the gun at any curl; the fitter found the place within 15 mm where every holding finger can close round the
+  grip (5, 15 and 5 mm along the gun's axes), and of the places near it the one that keeps the forearm out of the gun
+  as well (5, 15 and 0: the right forearm 36 mm into it at rest, where 41 failed the arm check's 40). Its fingers are in
+  the gun 2 mm at most now (were 18).
+- **What changed** on the ten guns: every finger refitted (soldierhold.json guns.<id>.fingers), the CHOOCH's right hand
+  moved (guns.lstar.hands.r.at), and the shared fingers a gun without its own takes are the USSO's. Two set by hand
+  where a fit's answer met another check: the PANDA's left thumb (the fit's swing of 30 put its tip 10 mm into the gun
+  each time the hand came back from a punch; 15 leaves it 4 mm off the gun held and 6 in at the punch's end, of 8),
+  and its right thumb kept as it was (its fit sat 6 mm in). A reload key's fingers take the hold's sideways swing where
+  they give none (rifle.ts closeFingers), so the fingers of the six keys whose hold swing changed keep the swing they had (the USSO's
+  charging handle thumb went 30 mm off the gun without it). Photographed
+  every gun's hands from three sides at the grip and the support: each hand closed round what it holds.
+- **The check** (tools/checks/soldier-hold.ts, in verify): every gun, both hands: each last joint following its middle
+  (the trigger finger's up to all of it), no middle joint more than twice its knuckle and 45 degrees, and no holding
+  finger between two others curled more than 60 degrees off both of them (a hand's end finger may curl further: the
+  CHOOCH's little finger wraps under its grip's end, the APUHTHEE's support index round the trigger guard). It fails on
+  the fingers before, 111 faults, and on the alternator's right ring finger put back straight.
+- **Checked:**
+  - The e2e's soldier hold test (skfigure, figureHoldTest): all ten guns, 312 of 315, the three failures then fixed
+    (the PANDA's punch, the USSO's charging handle, the CHOOCH's forearm, above) and their five guns run again, all of
+    it passing (168 and 39 checks).
+  - Photographed every gun's hands at the grip and the support from three sides each.
+  - verify, rules and the type check.

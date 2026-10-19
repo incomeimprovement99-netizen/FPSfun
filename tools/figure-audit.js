@@ -319,6 +319,9 @@
     // each finger's nearest skin to the gun, mm (outside it; 0 touching or in): a finger meant to hold the gun and 2 cm
     // off it is a hand held open beside the gun, which a measure of depth alone would call perfect
     const fingerGap = {};
+    // each finger's last phalanx's nearest skin to the gun, mm: a holding finger's tip is on what it holds, where a finger
+    // touching only by its middle phalanx sticks straight past the grip (fingerGap read 0 for those)
+    const tipGap = {};
     const palmGap = { l: 30, r: 30 };
     /** each palm skin point's nearest gap to the gun, mm (30 past reach), for palmFlush */
     const palmPts = { l: [], r: [] };
@@ -385,6 +388,7 @@
             const key = `${fm[1]}_${fm[3]}`;
             const gap = d > 0 ? 0 : Math.min(30, far.d * pt.scale * 1000);
             if (!(key in fingerGap) || gap < fingerGap[key]) fingerGap[key] = Math.round(gap);
+            if (fm[2] === "3" && (!(key in tipGap) || gap < tipGap[key])) tipGap[key] = Math.round(gap);
           }
           if (d > handIn[m[3]]) handIn[m[3]] = d;
           if (opts.pts && d > 0.004) (out.pts ??= []).push([wp.x, wp.y, wp.z, 0]);
@@ -453,6 +457,7 @@
     out.handOnHand = Math.round(hoh * 1000);
     out.handOnHandN = hohN;
     out.fingerGap = fingerGap;
+    out.tipGap = tipGap;
     // the fingers whose knuckle is below the gun's lowest point, which have nothing there to hold: the soldier's glove
     // is wider than STRYDER's handle is long, and its right pinky hangs under it, its knuckle 13 mm below the bottom
     {
