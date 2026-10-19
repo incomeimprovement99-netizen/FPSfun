@@ -267,9 +267,10 @@ function meshCount(plan: ArenaPlan): number {
 // (the legacy game's Warehouse, Triangle, Crossing, Ringworks and NEON BLOCK went in Milestone 533)
 check("one drawn arena: the Gulag's Vault", ARENA_PLANS.length === 1 && ARENA_PLANS[0].id === "vault", ARENA_PLANS.map((p) => p.id).join(", "));
 check(
-  "the list holds the Vault, the Neon City's two arenas (each its own piece of the city's file) and THE CENTRE",
-  ARENA_MAPS.length === 4 && ARENA_MAPS[0].id === "vault" &&
-    ARENA_MAPS.slice(1, 3).every((m, i) => m.id === ["yard", "hall"][i] && !!m.city && m.chunk === `a-${m.id}`) && ARENA_MAPS[3].id === "centre" && !!ARENA_MAPS[3].city,
+  "the list holds the Vault, the Neon City's two arenas (each its own piece of the city's file), THE CENTRE and the Gulag's street (its own piece too, for the Gulag alone)",
+  ARENA_MAPS.length === 5 && ARENA_MAPS[0].id === "vault" &&
+    ARENA_MAPS.slice(1, 3).every((m, i) => m.id === ["yard", "hall"][i] && !!m.city && m.chunk === `a-${m.id}`) && ARENA_MAPS[3].id === "centre" && !!ARENA_MAPS[3].city &&
+    ARENA_MAPS[4].id === "gulag" && !!ARENA_MAPS[4].city && ARENA_MAPS[4].chunk === "a-gulag" && ARENA_MAPS[4].bestFor.join() === "gulag",
   ARENA_MAPS.map((m) => m.id).join(", ")
 );
 // THE CENTRE (arenas/centre.ts): the city's own middle inside a circle. Its spawns, its 1v1 circle and Control's
@@ -293,7 +294,7 @@ check(
 check(
   "every map id is its own, and every map names modes that exist",
   new Set(ARENA_MAPS.map((m) => m.id)).size === ARENA_MAPS.length &&
-    ARENA_MAPS.every((m) => m.bestFor.every((k) => k === "duel" || (MODE_KINDS as string[]).includes(k))),
+    ARENA_MAPS.every((m) => m.bestFor.every((k) => k === "duel" || k === "gulag" || (MODE_KINDS as string[]).includes(k))),
   ARENA_MAPS.map((m) => `${m.id}: ${m.bestFor.join("/")}`).join(", ")
 );
 check(

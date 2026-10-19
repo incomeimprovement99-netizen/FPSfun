@@ -248,6 +248,8 @@ export interface BotSense {
   urgent?: boolean;
   /** walk right onto the goal, not to within reach of it (a stair's waypoints: SpeedKills' climbs) */
   exact?: boolean;
+  /** never walk out of this circle once at its edge, fighting or not (the Gulag's overtime flag, brmatch.ts gulagFrame) */
+  tether?: { x: number; z: number; r: number };
   canShoot: boolean;
 }
 
@@ -1258,6 +1260,15 @@ export class Bot {
     } else if (dist < (this.cover ? 0.6 : sense.exact && !target ? 0.3 : 1.5) || (this.cover && !sees)) want.set(0, 0);
     // standing over a drop, rummaging through it: it does not walk while it does that
     if (this.looter.holding) want.set(0, 0);
+    // held to a circle: at its edge, nothing of the way it wants that leads further out (it strafes on the flag it holds,
+    // and does not walk off THE GULAG's ledge after someone it sees in the street)
+    const T = sense.tether;
+    if (T) {
+      const [ox, oz] = [this.pos.x - T.x, this.pos.z - T.z];
+      const d = Math.hypot(ox, oz);
+      const out = d > 1e-3 ? (want.x * ox + want.y * oz) / d : 0;
+      if (d > T.r - 0.6 && out > 0) want.addScaledVector(new THREE.Vector2(ox / d, oz / d), -out);
+    }
     // a crouch now and then while it fires (by tier), never while it walks to cover
     if (sees && target && !this.cover && !running && tier.crouchPeek > 0) {
       // only a crouch that still sees the target (not one that ducks behind low cover mid-fight)

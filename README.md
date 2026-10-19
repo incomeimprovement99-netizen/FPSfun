@@ -228,6 +228,8 @@ describes the retired legacy game, and goes with its code.
   level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
   for a hack. The HUD shows each gun's level as pips.
 - **Loot:** guns and hack cores on every floor, whichever start you pick.
+  Each outer district's landmark holds more of it (its courtyard, top tier,
+  hall, hotel, deck, club, market or block hall), and THE VAULT the most.
   Every item stands in a thin beam of light in its rarity's colour (white,
   blue, violet, gold), taller and brighter the rarer it is, so loot reads from
   across a street (Milestone 705).
@@ -243,7 +245,9 @@ describes the retired legacy game, and goes with its code.
   as a shot's.
 - **Health:** 100 health and a 50 shield, both coming back on their own.
 - **Dying:**
-  - Your first death is the Gulag, until the capture zone opens.
+  - Your first death is the Gulag, until the capture zone opens: THE GULAG, one
+    street of the city with a ledge in its middle, a jump to its lower level
+    and a double jump to its top, where the overtime flag stands.
   - After that you are a ghost: fast, unseen, no gun, while a squad mate is
     still up. Your squad sees you as your soldier drawn in light in your squad
     colour, running and jumping as you do; enemies never see you. In solo, or
@@ -319,7 +323,10 @@ describes the retired legacy game, and goes with its code.
   plain, each drawn alone with none of the city round it: NEON YARD, a yard
   under the sky inside 7 m concrete walls, its cover crates, cool boxes and a
   wall across each end; and NEON HALL, a closed concrete hall under a 6 m roof,
-  six pillars, crates and a wall before each end, lit by its ceiling lamps.
+  six pillars, crates and a wall before each end, lit by its ceiling lamps. THE
+  GULAG, the Gulag's fight and on no menu, is a third: one street 48 m long
+  between 7 m walls, a road with pavements and kerbs, lamps along both kerbs,
+  and a ledge of two levels in the middle, stairs up each end for the bot.
   Neither spawn is the better one, and neither looks at the other. THE CENTRE,
   the Neon City's own middle (its tower, the tower's podium and the Sky Ring)
   inside a circle you cannot leave, plays FFA, team deathmatch and Control
@@ -1083,7 +1090,7 @@ src/game/
   range.ts                 the range level: its colliders, banks, rails, signs, gates, and its plain look
   rangedress.ts            the range's street in the Neon City bundle: its own file, laid over the plain look
   armory.ts                SpeedKills' range armory: the guns and hacks on stands, their screens, E to take and fuse
-  arena.ts                 the arenas' list, their capture circles and the Gulag's Vault
+  arena.ts                 the arenas' list, their capture circles and the Vault
   warehouse.ts             the roof and beams
   course.ts                the course engine: rooms, gates, splits, ghosts, results TV
   courses/basic.ts         The Run: nine rooms out up one half and back down the other, measured

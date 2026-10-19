@@ -692,7 +692,9 @@ export class LootField {
           // which standingSpots leaves to the halls' own loot below)
           const here = solidsIn(x - 0.3, x + 0.3, z - 0.3, z + 0.3).filter((s) => x > s.minX - 0.3 && x < s.maxX + 0.3 && z > s.minZ - 0.3 && z < s.maxZ + 0.3);
           const floor = here.find((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && Math.abs(s.top - floorY) < 0.3);
-          if (floor && !here.some((s) => s.base < floor.top + 1.9 - 1e-4 && s.top > floor.top + 0.05)) spots.push(new THREE.Vector3(x, floor.top + 0.01, z));
+          // (or the world's own floor, where the site's is the street's: a district's courtyard, hall or market, Milestone 661)
+          const top = floor ? floor.top : Math.abs(floorY) < 0.3 && Math.abs(worldFloor(x, z)) < 0.05 ? 0 : null;
+          if (top !== null && !here.some((s) => s.base < top + 1.9 - 1e-4 && s.top > top + 0.05)) spots.push(new THREE.Vector3(x, top + 0.01, z));
         }
       }
       fill(spots, tier);

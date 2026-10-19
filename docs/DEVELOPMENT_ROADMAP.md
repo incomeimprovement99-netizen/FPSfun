@@ -15410,3 +15410,134 @@ fall away from the hit.
     1.24 m away on the far side each time. It fails with the turn taken out (0 from the left, -1.24 from behind:
     onto the shooter).
   - verify, rules and the type check.
+
+## Milestone 660 — Head-high cover in every open district space
+
+The districts' first review asked for it first: "no stretch past about 15 m without head-high cover ... today shotguns
+and SMGs have no way to close the distance". It named LANTERN ALLEYS' way in, THE STACKS' court, THE TERRACES' top
+tier, THE TERMINAL's forecourt, THE WORKS' yard and GLASS HEIGHTS' deck. Measured on version 94, open ground past 8 m
+from cover a body stands behind (each district's share, and its farthest spot):
+
+| District | Past 8 m | Farthest |
+|---|---|---|
+| THE STRIP | 21% | 16 m |
+| GLASS HEIGHTS | 19% | |
+| THE TERMINAL | 14% | |
+| THE WORKS | 10.5% (its block hall's empty floor) | |
+| LANTERN ALLEYS | 8% | |
+| THE TERRACES | 8% | |
+| THE STACKS | 6% | |
+| THE CANYON | none | |
+
+- **The fill** (`rules.dress.districtCover`, tools/neon-layout.ts): the street cover's own, run over the band past the
+  ring road.
+  - **Where:** at the ground, on THE TERRACES' three tiers (each by its own area) and on GLASS HEIGHTS' 26 m deck.
+  - **How:** from every open spot, cover within 8 m (a stack from the floor past 1.4 m). The farthest spot takes one of
+    its district's pieces within 6 m of it, then the next farthest.
+  - **The pieces:**
+    - THE WORKS: crate stacks, cooling plant, electric boxes and a tank.
+    - LANTERN ALLEYS: food stalls.
+    - THE TERMINAL and GLASS HEIGHTS: ticket and vending machines.
+    - THE TERRACES and THE STRIP: concrete panels.
+  - **Kept clear of:**
+    - everything a body stands in, by 1.6 m;
+    - the pads, the lifts' and zips' ends, and the bots' street graph;
+    - LANTERN ALLEYS' alleys, THE TERRACES' walks up and THE WORKS' halls door to door (each walked by its own check,
+      and each found shut by a first pass);
+    - every district name's view from the ring road, for anything over 2.2 m (a 4.7 m electric box hid THE WORKS').
+  - **Raised levels:** no piece within 1.6 m of a tier's edge or a ramp's top.
+  - **The result:** 105 pieces.
+- **Laid last:** the bake lists the cover's boxes in `laid` (tools/import-neon.ts), and the next layout leaves them out
+  of the collision it measures. Without it, each run found the last run's crates standing as cover and laid another set
+  (159 then 157, 102 then 109); with it, two rounds reached the fixed point.
+- **A stack counts:** a crate on crates is head-high cover. Measured box by box, as before, each crate read 1 m and the
+  stacks counted for nothing.
+- **Checked:** a new check measures the bake's own collision. At the ground, no more than 1% of any district may be
+  past 8 m from cover, and nothing past 10 m. On the raised levels, no more than 10%, and nothing past 15 m.
+  - Every district now reads 0% at the ground, the farthest spot 8.3 m. THE TERRACES' tiers read 6% or less, GLASS
+    HEIGHTS' deck 2.4%.
+  - With the cover's boxes taken out of the collision, the check fails at the old levels: THE TERMINAL 13%, GLASS
+    HEIGHTS 18%.
+  - LANTERN ALLEYS' alleys, THE TERRACES' walks and THE WORKS' L are all walked clear.
+  - The e2e: the speedkills section, 115 checks; its slam check looked for a 10 m circle of open street to fight in, which the cover now leaves nowhere, and failed until it asked for a 12.5 by 6 m box along its bots' line instead. verify, rules and the type check. Photographed at the review's district spots.
+
+  The map: its files lo 164.2 MB, hi 244.2 MB, max 541.6 MB. **Its files are version 95.**
+
+## Milestone 661 — The best loot in every district's landmark
+
+From the map's gap analysis (docs/GAP_ANALYSIS_MAP.md, gap 2). Hyper Scape puts its best and fastest-respawning loot in
+its landmarks (Red Tiger), and Apex in its high-tier places and vaults: it is why a squad drops on one place over
+another. The centre had its loot sites (the four decks, the lobby, the four corner blocks, THE VAULT). The eight outer
+districts each had a landmark, and no loot of their own past their sector's spread.
+
+- **A loot site at each district's landmark** (neonmap.json `game.sites`, `landmark: true`):
+
+  | District | Its landmark | Reach | Floor |
+  |---|---|---|---|
+  | LANTERN ALLEYS | its courtyard | 9 m | the ground |
+  | THE TERRACES | the top tier's rooms | 12 m | 9 m |
+  | THE TERMINAL | the station hall | 14 m | the ground |
+  | THE STACKS | the capsule hotel | 12 m | every floor |
+  | GLASS HEIGHTS | the front deck | 12 m | 26 m |
+  | THE STRIP | the club | 9 m | the ground |
+  | THE CANYON | the market floor | 14 m | the ground |
+  | THE WORKS | the block hall | 12 m | the ground |
+
+- **Rolled at a tier of their own,** loot.json `landmark`: eight spots, twice a plain site's four and under THE
+  VAULT's twelve, so each district has a place worth the drop and the tower's vault stays the richest. The loot code
+  already rolls a site as richer spots (src/game/loot.ts), on its own floor where it names one.
+- **The street's own floor for a site on the ground** (src/game/loot.ts): a site that names its floor looked only for a
+  box with its top at that height, which the tower's floors are and the street is not. Five of the landmarks are on the
+  street, and they rolled almost nothing.
+- **Named on the big map:** the map names every site, so the eight districts' names are on it for the first time, each
+  over its landmark.
+- **Checked:** a new check rolls a match's loot as the game does and counts what lies at each landmark, on its floor:
+  LANTERN ALLEYS 15 items, THE TERRACES 12, THE TERMINAL 21, THE STACKS 9, GLASS HEIGHTS 12, THE STRIP 17, THE CANYON 12, THE WORKS 14. Before the street's floor counted, it failed: LANTERN ALLEYS 3 items, THE STRIP 3, THE CANYON 2 and THE
+  WORKS 1. The e2e: the speedkills section (115 checks) and the gulag section (12).
+
+## Milestone 662 — THE GULAG: one street of the city, a ledge in its middle
+
+The owner, 2026-10-18: "the gulag should just be one street like the firing range with one building in the middle, a
+suepr simple one, or just a ledge that has two levels to it and can see the rest of the gulag when they are on top,
+just a double jump height worth."
+
+The Gulag's fight was in the Vault, a room drawn from the legacy game's plan builder in its old textures. It is now
+THE GULAG, laid by the city's layout as NEON YARD and NEON HALL are and baked into the city's file as a node of its own
+(rules.arenas `gulag`, chunk `a-gulag`, out past the arenas at map z 330):
+
+- **One street,** 48 m by 15 m between 7 m concrete walls, laid as the city's straight streets are: a 10 m road of
+  asphalt down the middle, a 2.5 m pavement either side, the city's kerbs along the road's edges and its street lamps
+  along both kerbs, and a neon sign on each end wall. (A dashed line down the middle was tried and taken out: the
+  pack's road mark drew as a dark groove.)
+- **A ledge in the middle, two levels:**
+  - The lower level, 16 m by 6 m, its top at 1.4 m: a jump (1.42 m) from the street.
+  - The upper block on it, 6 m square, its top at 2.7 m: a jump from the lower level, or a jump and a double jump
+    (2.74 m) from the street on its long sides, no mantle needed.
+  - From the top a standing eye sees the street's floor past all of the cover: 166 of 188 spots along the foot of both long walls. The 3 m wall before each spawn
+    is the one place to hide from it.
+  - Built of the pack's 2.5 m wall panels, half-metre corner pieces and floor tiles; the layout measures the top's
+    height and writes it for the game (cfg.arenas `gulag.ledge`).
+- **The overtime flag on its top** (brmatch.ts): the flag stands at the ledge's height, and standing on it counts there.
+  In overtime the bot holds the flag once it is on it (src/game/bots.ts `tether`): it fights from the top and does not
+  walk off it after someone it sees in the street. The e2e's overtime check (the bot alone on the flag takes it) failed
+  until it did.
+- **Stairs for the bot.** The Gulag's fight is against a bot, and a bot cannot jump or climb, so two of the pack's
+  simple stairs climb each end to the lower level and two more climb from it to the top. A bot going for the middle
+  walks first to the nearer way up on the street's long axis (`ways`), then straight in along it. The stairs collide as
+  quarter-metre cells (rules.fine), a step a cell.
+- **Cover,** laid twice as every arena's is: a wall before each spawn, a stack of two crates, a cooling unit and a
+  vending machine. The ledge breaks the line between the two spawns.
+- **Shown alone while you are in it,** the city hidden (neonmap.ts showNeonPart, from the frame in main.ts), with the
+  sun's shadows over the street and the minimap drawn from its own walls. Out of it, the city and the battle royale's
+  shadows come back.
+- **On no menu:** the map picker and the capture circles leave it out (`bestFor` "gulag").
+- **Checked:** a new check off the bake's collision:
+  - past the battle royale's edge and every sector, its own node, and br.json's Gulag map;
+  - walls 6.7 m high along every side;
+  - the two spawns with room, out of each other's sight, each facing 6 m of open floor and more;
+  - the levels' heights against a jump and a double jump, with a body's room over the flag and its circle on the top;
+  - the view from the top;
+  - a bot's straight walk from each way up to the flag.
+  With a double jump 0.3 m shorter (2.44 m) the levels' check fails, and a bot walked in from the side, not from a way
+  up, stops at the ledge's wall.
+  The arenas check holds the map list. The e2e gulag section plays a Gulag in it. the speedkills section (115 checks) and the gulag section (12).

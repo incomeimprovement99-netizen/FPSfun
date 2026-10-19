@@ -2621,7 +2621,7 @@ for (const [value, label] of [
   // the box wears the word MAP in the lobby, so the options do not repeat it
   // (the Neon maps alone: the legacy game's warehouse and drawn arenas are not SpeedKills' places)
   ["auto", "Picked for the mode"],
-  ...ARENA_MAPS.filter((m) => m.city).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
+  ...ARENA_MAPS.filter((m) => m.city && !m.bestFor.includes("gulag")).map((m) => [m.id, `${m.name[0]}${m.name.slice(1).toLowerCase()}`]),
 ] as Array<[string, string]>) {
   const o = document.createElement("option");
   o.value = value;
@@ -3009,7 +3009,8 @@ function respawnForMatch(d: MatchLike): void {
   if (gulagIn) {
     const room = arenaMap(GULAG.map);
     player.setBounds(room.bounds);
-    setRegion("range");
+    // (THE GULAG is a street of the city's file, on its side of the world; the frame shows it alone, gulagRoom below)
+    setRegion(room.city ? "br" : "range");
     // facing open floor, as every arena spawn does, not the wall a metre off
     player.teleport(gulagIn.x, 0, gulagIn.z, openYaw(gulagIn.x, gulagIn.z, gulagIn.yaw));
     hud.notice("THE GULAG: WIN AND YOU ARE BACK IN", gameTime, 3);
@@ -5526,8 +5527,14 @@ function cityMap(): ArenaMapInfo | null {
   const m = arenaMap((duel as { arenaId: string }).arenaId);
   return m.city ? m : null;
 }
+/** in the Gulag's room, where it is a street of the city's file (THE GULAG, Milestone 662): that map; null otherwise */
+function gulagRoom(): ArenaMapInfo | null {
+  if (!(duel instanceof BrMatch) || !duel.gulag || duel.gulag.phase === "wait") return null;
+  const m = arenaMap(GULAG.map);
+  return m.city ? m : null;
+}
 function shadowOverCityMap(): void {
-  const m = cityMap();
+  const m = cityMap() ?? gulagRoom();
   if (m) setShadowRegion(new THREE.Vector3(m.center.x, 0, m.center.z), m.id === CENTRE_MAP.id ? CENTRE.shadow : arenaShadow(m));
 }
 // THE CENTRE's wall where its circle is, and its capture circle, shown while a match is played on it (frame below)
@@ -5537,7 +5544,7 @@ centreWall.scale.set(CENTRE.radius, CENTRE.wall.height / (centreWall.geometry as
 centreWall.position.y = CENTRE.wall.height / 2;
 (centreWall.material as THREE.MeshBasicMaterial).opacity = CENTRE.wall.opacity;
 centreWall.visible = false;
-const cityMarks = ARENA_MAPS.filter((m) => m.city).map((m) => buildCityMarks(brSide, m));
+const cityMarks = ARENA_MAPS.filter((m) => m.city && !m.bestFor.includes("gulag")).map((m) => buildCityMarks(brSide, m));
 /** the city map whose piece of the file is shown (showNeonPart), so the change is made once */
 let partFor: string | null = null;
 /** the city's graph cut to THE CENTRE's circle, made the first time bots are fought on it */
@@ -7595,15 +7602,20 @@ function step(): void {
   }
 
 
-  // THE CENTRE's wall, and a city map's capture circle, while a match is played on it; a Neon arena drawn alone
+  // THE CENTRE's wall, and a city map's capture circle, while a match is played on it; a Neon arena drawn alone, and
+  // THE GULAG while you are in it
   {
     const m = cityMap();
     centreWall.visible = m?.id === CENTRE_MAP.id;
     for (const h of cityMarks) h.root.visible = h.root.name === `arena:${m?.id}`;
-    if ((m?.id ?? null) !== partFor) {
-      partFor = m?.id ?? null;
-      showNeonPart(m?.chunk ?? null);
+    const part = m ?? gulagRoom();
+    if ((part?.id ?? null) !== partFor) {
+      const was = partFor;
+      partFor = part?.id ?? null;
+      showNeonPart(part?.chunk ?? null);
       shadowOverCityMap();
+      // (out of the Gulag's street, the battle royale's own shadows again)
+      if (!part && was === GULAG.map && regionNow === "br") setRegion("br");
       renderer.shadowMap.needsUpdate = true;
     }
   }
@@ -7774,7 +7786,7 @@ function step(): void {
     course: duel ? null : (courses.map((c) => c.hud(now)).find((h) => h !== null) ?? null),
     duel: duelHud,
     // the battle royale's map, except in the Gulag's room, where the minimap shows the room
-    mapRegion: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : undefined,
+    mapRegion: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : (gulagRoom()?.bounds ?? undefined),
     // the drop shows the map by itself for its first moments, then it steps
     // aside so you can see the ground you are steering onto; M opens it any
     // time. Only while you are still in the air: a guest who lands before the

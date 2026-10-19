@@ -3135,7 +3135,8 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   // the clock run down; the bot put on the flag, you in a corner
   await ev(p2, "(() => { const g = window.__range.duel().gulag; g.overtimeAt = performance.now() / 1000; })()");
   const ot = await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase === 'overtime' && window.__range.duel().hud().br.gulag.phase === 'overtime'", { polling: 100, timeout: 4000 }).then(() => true, () => false);
-  await ev(p2, `(() => { const d = window.__range.duel(); const f = d.gulagFlag.position; d.gulagBot.pos.set(f.x, 0, f.z); d.gulagBot.dummy.group.position.set(f.x, 0, f.z); })()`);
+  // (on the flag, at its height: THE GULAG's is on the ledge's top, Milestone 662)
+  await ev(p2, `(() => { const d = window.__range.duel(); const f = d.gulagFlag.position; d.gulagBot.pos.set(f.x, f.y, f.z); d.gulagBot.dummy.group.position.set(f.x, f.y, f.z); })()`);
   // the feed from here on, and where the Gulag is, to look for a second death's drop in it afterwards
   const flagAt = await ev<{ x: number; z: number }>(p2, `(() => { const d = window.__range.duel(); window.__gfeed = []; const f = d.onFeed; d.onFeed = (t, ...a) => { window.__gfeed.push(t); f?.(t, ...a); }; const p = d.gulagFlag.position; return { x: p.x, z: p.z }; })()`);
   const taking = await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.capThem > 1", { polling: 100, timeout: 6000 }).then(() => true, () => false);
@@ -5815,9 +5816,11 @@ async function speedkillsSlamTest(browser: Browser): Promise<void> {
   const before = await ev<{ spot: boolean; bots: Hp[]; numbers: number }>(
     page,
     `(() => { const r = window.__range; const d = r.duel(); d.holdFire = true;
-      // on open street, flat 10 m round and clear of pads (where the match lands you may be a crate's top or a kerb, and
-      // the floor under a slam then moves the rule's 2.5 m about: a run hit the bot a storey over as well)
-      const clear = (x, z) => !r.brMap.pads.some((q) => Math.hypot(q.x - x, q.z - z) < 10) && !r.solids.some((b) => b.maxX > x - 10 && b.minX < x + 10 && b.maxZ > z - 10 && b.minZ < z + 10 && b.base < 6 && b.top > 0.1);
+      // on open street, flat from 3 m behind you to past the far bot and 3 m to each side, and clear of pads (where the
+      // match lands you may be a crate's top or a kerb, and the floor under a slam then moves the rule's 2.5 m about: a run
+      // hit the bot a storey over as well). (Not 10 m round: the districts' cover, Milestone 660, stands within 8 m of every
+      // open spot, so no such circle is left)
+      const clear = (x, z) => !r.brMap.pads.some((q) => Math.hypot(q.x - x, q.z - z) < 10) && !r.solids.some((b) => b.maxX > x - 3 && b.minX < x + 9.5 && b.maxZ > z - 3 && b.minZ < z + 3 && b.base < 6 && b.top > 0.1);
       const spot = r.brMap.nodes.find((q) => (q.y ?? 0) === 0 && clear(q.x, q.z));
       if (spot) r.player.teleport(spot.x, 0, spot.z, 0);
       const p = r.player.pos.clone();

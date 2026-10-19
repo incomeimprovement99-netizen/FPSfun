@@ -37,6 +37,11 @@ export interface ArenaMapInfo {
   city?: boolean;
   /** the city file's own piece it is drawn in, shown alone while it is played, the city hidden (arenas/neonarenas.ts) */
   chunk?: string;
+  /**
+   * what stands in its middle where it is not the floor (THE GULAG's ledge): the top's height, where the overtime flag
+   * stands, and the ways up a bot walks to first (it cannot jump or climb), world space
+   */
+  ledge?: { y: number; ways: Array<{ x: number; z: number }> };
 }
 
 /** a plan, as the rest of the game wants to read it */

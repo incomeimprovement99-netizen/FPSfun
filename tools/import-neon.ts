@@ -250,7 +250,9 @@ if (mode === "bake") {
   // (the boxes of what the layout lays last, the street walls and the High City's climbs (rules.low.walls,
   // rules.blocks.climbs): where they lie in the collision, written beside it, so the next layout's passes leave out
   // exactly these and see the rest as they never stood)
-  const LAID = [cfg.rules.low.walls, (cfg.rules.blocks as { climbs?: unknown }).climbs, (cfg.rules.dress as { cover?: unknown }).cover].map((q) => (q as { chunk?: string } | undefined)?.chunk).filter(Boolean);
+  // (and the districts' cover, Milestone 660: left out of it, the next layout found its own last pieces standing as cover
+  // already there, and the rerun laid 109 pieces where the run before it laid 102)
+  const LAID = [cfg.rules.low.walls, (cfg.rules.blocks as { climbs?: unknown }).climbs, (cfg.rules.dress as { cover?: unknown }).cover, (cfg.rules.dress as { districtCover?: unknown }).districtCover].map((q) => (q as { chunk?: string } | undefined)?.chunk).filter(Boolean);
   const laid: number[][] = [];
   /** every draw that collides (placed "o" or "s"): what a window may open onto, not the hanging lamps and signs ("g") */
   const collidingDraws: Array<{ d: Draw; m: M4 }> = [];
@@ -1261,7 +1263,8 @@ if (mode === "bake") {
     console.log(`${file}: ${(bytes / 1e6).toFixed(1)} MB${batch ? `; batches of ${stats.batches.join(", ")} materials (layers: ${Object.entries(stats.layers).map(([k, v]) => `${k} ${v.join("/")}`).join(", ")}), ${stats.left} materials left a primitive each` : ""}`);
   }
   await pool.stop();
-  cfg.baked = { draw, triangles: tris, boxes: all.length, chunks: Object.fromEntries(baked.map((b) => [b.id.replace("neon/", ""), { tris: b.tris, min: b.min.map((v) => +v.toFixed(2)), max: b.max.map((v) => +v.toFixed(2)) }])), mb: { ...(cfg.baked?.mb ?? {}), ...sizes } };
+  // (the draw counts of the sizes not baked this run kept, as their megabytes are: a bake of one size alone kept only its own)
+  cfg.baked = { draw: { ...(cfg.baked?.draw ?? {}), ...draw }, triangles: tris, boxes: all.length, chunks: Object.fromEntries(baked.map((b) => [b.id.replace("neon/", ""), { tris: b.tris, min: b.min.map((v) => +v.toFixed(2)), max: b.max.map((v) => +v.toFixed(2)) }])), mb: { ...(cfg.baked?.mb ?? {}), ...sizes } };
   // only what the bake measured goes back, into the file as it is now: a bake takes minutes, and writing back the copy
   // read at its start threw away the game's sites, added to the file while one ran
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));

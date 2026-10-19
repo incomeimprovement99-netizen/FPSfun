@@ -1482,7 +1482,9 @@ export class BrMatch extends Duel {
     const room = arenaMap(GULAG.map);
     const feet = new THREE.Vector3(local.x, local.y, local.z);
     const bot = this.gulagBot;
-    const onFlag = (x: number, y: number, z: number) => Math.hypot(x - room.center.x, z - room.center.z) <= GULAG.flagRadius && y < 1.5;
+    // (the flag on the floor of the middle, or on THE GULAG's ledge, its top)
+    const flagY = room.ledge?.y ?? 0;
+    const onFlag = (x: number, y: number, z: number) => Math.hypot(x - room.center.x, z - room.center.z) <= GULAG.flagRadius && y > flagY - 0.5 && y < flagY + 1.5;
     const meOn = g.phase === "overtime" && this.alive && onFlag(local.x, local.y, local.z);
     const themOn = g.phase === "overtime" && !!bot && bot.alive && onFlag(bot.pos.x, bot.pos.y, bot.pos.z);
     const ev = g.tick(now, dt, meOn, themOn);
@@ -1497,10 +1499,27 @@ export class BrMatch extends Duel {
       // in overtime it goes for the flag; in the fight, once the countdown is out, it comes looking for you where it cannot
       // see you (the owner, 2026-09-28: it stood at its spawn the whole fight, waiting to be found). By the room's middle
       // while the middle is nearer you than it is: straight at you ran it into the cover between the two ends
-      const mid = new THREE.Vector3(room.center.x, 0, room.center.z);
+      const mid = new THREE.Vector3(room.center.x, flagY, room.center.z);
       const viaMid = Math.hypot(bot.pos.x - mid.x, bot.pos.z - mid.z) > 3 && Math.hypot(mid.x - feet.x, mid.z - feet.z) < Math.hypot(bot.pos.x - feet.x, bot.pos.z - feet.z);
-      const goal = g.phase === "overtime" ? mid : g.phase === "fight" ? (viaMid ? mid : new THREE.Vector3(feet.x, 0, feet.z)) : null;
-      const shots = bot.update(now, dt, { target: sees ? feet : null, targetId: this.id, goal, canShoot: g.live });
+      let goal = g.phase === "overtime" ? mid : g.phase === "fight" ? (viaMid ? mid : new THREE.Vector3(feet.x, 0, feet.z)) : null;
+      // THE GULAG's middle is a ledge whose stairs climb from its ends, and a bot cannot jump: from the street, the middle
+      // is by the nearer way up (rules.arenas gulag `ways`, on the room's long axis) and straight in along the axis from it
+      let exact = false;
+      const L = room.ledge;
+      if (goal === mid && L && L.ways.length && bot.pos.y < 0.3) {
+        const way = L.ways.reduce((a, w) => (Math.hypot(w.x - bot.pos.x, w.z - bot.pos.z) < Math.hypot(a.x - bot.pos.x, a.z - bot.pos.z) ? w : a));
+        const [ax, az] = [way.x - mid.x, way.z - mid.z];
+        const len = Math.hypot(ax, az);
+        const along = ((bot.pos.x - mid.x) * ax + (bot.pos.z - mid.z) * az) / len;
+        const off = Math.abs((bot.pos.x - mid.x) * az - (bot.pos.z - mid.z) * ax) / len;
+        if (!(off < 0.35 && along > 0 && along <= len + 0.3)) {
+          goal = new THREE.Vector3(way.x, 0, way.z);
+          exact = true;
+        }
+      }
+      // (in overtime it holds the flag once on it: a bot that sees you from it fights from it)
+      const tether = g.phase === "overtime" ? { x: room.center.x, z: room.center.z, r: GULAG.flagRadius } : undefined;
+      const shots = bot.update(now, dt, { target: sees ? feet : null, targetId: this.id, goal, exact, tether, canShoot: g.live });
       let d = 0;
       for (const s of shots) {
         this.onShotFired?.(bot.remote.id, s.from, s.dir, s.weapon);
@@ -1590,7 +1609,7 @@ export class BrMatch extends Duel {
     const flag = new THREE.Mesh(new THREE.PlaneGeometry(1.1, 0.7), new THREE.MeshStandardMaterial({ color: 0xff7a1a, emissive: 0xff7a1a, emissiveIntensity: 0.5, side: THREE.DoubleSide }));
     flag.position.set(0.56, 2.6, 0);
     g.add(flag);
-    g.position.set(room.center.x, 0, room.center.z);
+    g.position.set(room.center.x, room.ledge?.y ?? 0, room.center.z);
     this.scene.add(g);
     this.gulagFlag = g;
   }

@@ -97,6 +97,65 @@ const slabs = cfg.court.halls.length + cfg.underground.slabs.length;
 check("the collision the bake measured, every box, and the street's slab over each hall and the station", RANGE_SOLIDS.length - firstSolid === SOLIDS.solids.length + slabs && SOLIDS.solids.length === cfg.baked.boxes, `${RANGE_SOLIDS.length - firstSolid} of ${SOLIDS.solids.length} + ${slabs}, bake ${cfg.baked.boxes}`);
 check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.tallest.top) < 1e-6 && SPIRE_TOP.y > 100, `${SPIRE_TOP.y}`);
 
+// Head-high cover in the districts' open ground (Milestone 660; the districts' first review: "no stretch past about 15 m
+// without head-high cover"): measured off the bake's collision, at the ground and each of rules.dress.districtCover's
+// levels, every open spot of the band past the ring road within `far` of a box a standing body hides behind. Allowed:
+// 1% of a district's ground past it and nothing past 10 m; on the raised levels (THE TERRACES' tiers, GLASS HEIGHTS'
+// deck) 10% and nothing past 15 m
+{
+  const DC = (cfg.rules.dress as { districtCover?: { far: number; tall: number; band: number[]; levels: Array<{ y: number; districts?: string[]; rect?: number[] }>; sectors: Record<string, string> } }).districtCover;
+  const said: string[] = [];
+  let ok = !!DC && ((cfg as { districtCover?: unknown[] }).districtCover?.length ?? 0) >= 60;
+  if (DC) {
+    const C = 0.5, H = DC.band[1] + 2, N = Math.round((2 * H) / C);
+    const sectorOf = (x: number, z: number) => (Math.abs(x) <= 50 ? (z < 0 ? "n" : "s") : Math.abs(z) <= 50 ? (x < 0 ? "w" : "e") : (z < 0 ? "n" : "s") + (x < 0 ? "w" : "e"));
+    // (lowest first: cover is a stack climbed from the floor, a crate on crates head-high as surely as a wall)
+    const boxes = [...(SOLIDS as { solids: number[][] }).solids].sort((a, b) => a[4] - b[4]);
+    for (const L of DC.levels) {
+      const y0 = L.y;
+      const body = new Uint8Array(N * N), cover = new Uint8Array(N * N), floor = new Uint8Array(N * N);
+      const stack = new Float32Array(N * N).fill(y0 + 0.45);
+      for (const b of boxes) {
+        if (b[1] < -H || b[0] > H || b[3] < -H || b[2] > H) continue;
+        const i0 = Math.max(0, Math.floor((b[0] + H) / C)), i1 = Math.min(N - 1, Math.floor((b[1] + H) / C));
+        const j0 = Math.max(0, Math.floor((b[2] + H) / C)), j1 = Math.min(N - 1, Math.floor((b[3] + H) / C));
+        for (let i = i0; i <= i1; i++)
+          for (let j = j0; j <= j1; j++) {
+            const k = i * N + j;
+            if (b[4] < y0 + 1.8 && b[5] > y0 + 0.3) body[k] = 1;
+            if (b[4] <= stack[k] + 0.05 && b[4] >= y0 - 0.5 && b[5] > stack[k]) stack[k] = b[5];
+            if (stack[k] > y0 + DC.tall) cover[k] = 1;
+            if (Math.abs(b[5] - y0) <= 0.35) floor[k] = 1;
+          }
+      }
+      const D = new Float32Array(N * N);
+      for (let k = 0; k < D.length; k++) D[k] = cover[k] ? 0 : 1e9;
+      for (let i = 0; i < N; i++) for (let j = 0; j < N; j++) { const k = i * N + j; if (i > 0) D[k] = Math.min(D[k], D[k - N] + 1, j > 0 ? D[k - N - 1] + Math.SQRT2 : 1e9, j < N - 1 ? D[k - N + 1] + Math.SQRT2 : 1e9); if (j > 0) D[k] = Math.min(D[k], D[k - 1] + 1); }
+      for (let i = N - 1; i >= 0; i--) for (let j = N - 1; j >= 0; j--) { const k = i * N + j; if (i < N - 1) D[k] = Math.min(D[k], D[k + N] + 1, j < N - 1 ? D[k + N + 1] + Math.SQRT2 : 1e9, j > 0 ? D[k + N - 1] + Math.SQRT2 : 1e9); if (j < N - 1) D[k] = Math.min(D[k], D[k + 1] + 1); }
+      const per = new Map<string, { open: number; far: number; max: number }>();
+      for (let i = 0; i < N; i++)
+        for (let j = 0; j < N; j++) {
+          const k = i * N + j, x = -H + (i + 0.5) * C, z = -H + (j + 0.5) * C;
+          const m = Math.max(Math.abs(x), Math.abs(z));
+          const d = DC.sectors[sectorOf(x, z)];
+          if (m < DC.band[0] || m > DC.band[1] || body[k] || !(floor[k] || y0 === 0) || (L.districts && !L.districts.includes(d))) continue;
+          if (L.rect && !(x >= L.rect[0] && x <= L.rect[1] && z >= L.rect[2] && z <= L.rect[3])) continue;
+          const st = per.get(d) ?? per.set(d, { open: 0, far: 0, max: 0 }).get(d)!;
+          st.open++;
+          if (D[k] * C > DC.far) st.far++;
+          st.max = Math.max(st.max, D[k] * C);
+        }
+      const [share, most] = y0 === 0 ? [0.01, 10] : [0.1, 15];
+      for (const [d, st] of per) {
+        const bad = st.far / st.open > share || st.max > most;
+        if (bad) ok = false;
+        if (bad || y0 === 0) said.push(`${d}${y0 ? ` at ${y0} m` : ""} ${((st.far / st.open) * 100).toFixed(1)}%, farthest ${st.max.toFixed(1)} m${bad ? " (too far)" : ""}`);
+      }
+    }
+  }
+  check("the districts' open ground: head-high cover within 8 m of every spot (1% of a district's ground, 10% of a raised level, may lack it)", ok, said.join("; "));
+}
+
 // The city's air thin and its bloom almost none (Milestone 658; the owner, 2026-10-18: "thin the golden-hour haze ... bloom
 // is a big thing, we don't want that almost at all ... the night fog, just a bit if anything"): the haze's far end
 // 400 m and more by day and no nearer by night, its near end 40 m and more; the bloom's strength 0.1 at most and its
@@ -1868,6 +1927,14 @@ const drops = [...loot.drops.values()];
   const strays = drops.filter((d) => d.item.kind === "weapon" && !PROFILE.roster.includes(d.item.id)).map((d) => d.item.id);
   check("every gun a match lays on the city's floor is on SpeedKills' roster", strays.length === 0, strays.length ? strays.join(", ") : `${drops.filter((d) => d.item.kind === "weapon").length} guns`);
 }
+// The districts' landmarks (Milestone 661, docs/GAP_ANALYSIS_MAP.md: Hyper Scape and Apex put their best loot in their
+// landmarks): each of the eight districts a loot site at its landmark, rolled at the `landmark` tier, six items and more
+// lying within its reach, on its own floor where it names one
+{
+  const marks = map.sites.filter((s) => s.tier === "landmark");
+  const counts = marks.map((s) => drops.filter((d) => Math.hypot(d.pos.x - s.x, d.pos.z - s.z) < (s.radius ?? 9) + 1 && (s.y === undefined || Math.abs(d.pos.y - s.y) < 0.8)).length);
+  check("the districts' landmarks: each of the eight districts a loot site at its landmark, its loot lying there", marks.length === 8 && counts.every((n) => n >= 6), marks.map((s, i) => `${s.name} ${counts[i]}`).join(", "));
+}
 // THE VAULT (game.sites `vault`): a site on the tower's 32 m floor with its own tier, its loot on that floor alone and
 // richer than a floor's share: the floor's items within its reach against the floor under it
 {
@@ -2377,6 +2444,87 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       check(`${m.name}: its roof over all of its floor at ${L.roof} m`, bare === 0, `${under} m2 roofed${bare ? `, ${bare} open` : ""}`);
     }
   }
+}
+
+// THE GULAG (rules.arenas gulag, Milestone 662; the owner, 2026-10-18: "one street like the firing range with one building
+// in the middle ... a ledge that has two levels to it and can see the rest of the gulag when they are on top, just a
+// double jump height worth"), off the bake's collision: past the battle royale's edge and every sector, its own node; the
+// Gulag's map (br.json gulag.map); walls along every side; the two spawns with a body's room on the ground and out of each
+// other's sight, each facing open floor; the ledge's top under the flag at the height the game reads (cfg.arenas
+// ledge.y), a jump over the lower level, which is a jump over the street, the top a double jump over it (a jump and a
+// double jump, no mantle), with a body's room over the flag and the flag's circle all on the top; from the top a
+// standing eye sees the street's floor past the cover all round but behind the walls before the spawns; and a bot's
+// straight walk from each way up (it cannot jump: brmatch.ts gulagFrame walks it there first) reaching the top
+{
+  const { GULAG_MAP } = await import("../../src/game/arenas/neonarenas");
+  const { EXTRA } = await import("../../src/game/movement");
+  const { botWalk } = await import("../../src/game/botbody");
+  const brJson = JSON.parse(readFileSync(join(import.meta.dirname, "..", "..", "src", "config", "br.json"), "utf8"));
+  const m = GULAG_MAP;
+  const b = m.bounds;
+  const L = (cfg as unknown as { arenas: Record<string, { chunk: string; ledge?: { y: number } }> }).arenas.gulag;
+  const baked = cfg.baked.chunks as Record<string, { min: number[]; max: number[] }>;
+  const sectors = cfg.game.sectors as Array<{ minX: number; maxX: number; minZ: number; maxZ: number }>;
+  const lx = [b.minX - BR_X, b.maxX - BR_X];
+  const lz = [b.minZ - BR_Z, b.maxZ - BR_Z];
+  const apart = lz[0] > BR_HALF || lz[1] < -BR_HALF || lx[0] > BR_HALF || lx[1] < -BR_HALF;
+  const inSector = sectors.some((s) => lx[0] < s.maxX && lx[1] > s.minX && lz[0] < s.maxZ && lz[1] > s.minZ);
+  const node = baked[L.chunk];
+  const drawn = !!node && node.min[0] < lx[0] && node.max[0] > lx[1] && node.min[2] < lz[0] && node.max[2] > lz[1];
+  check("THE GULAG: past the battle royale's edge and every sector, baked as its own node, and the Gulag's map", apart && !inSector && drawn && brJson.gulag.map === m.id, `x ${lx.map((v) => v.toFixed(0)).join(" to ")}, z ${lz.map((v) => v.toFixed(0)).join(" to ")}, map ${brJson.gulag.map}${node ? "" : "; not baked"}`);
+  const r = MOVE.radius + 0.1;
+  const eye = MOVE.standHeight - 0.1;
+  const solidAt = (x: number, z: number, y: number) => solidsIn(x, x, z, z).some((q) => q.minX <= x && q.maxX >= x && q.minZ <= z && q.maxZ >= z && q.base <= y && q.top >= y);
+  const gaps: string[] = [];
+  for (let x = b.minX + 0.25; x < b.maxX; x += 0.5) for (const z of [b.minZ - 0.25, b.maxZ + 0.25]) if (![0.4, eye, 6.7].every((y) => solidAt(x, z, y))) gaps.push(`${(x - BR_X).toFixed(1)}, ${(z - BR_Z).toFixed(1)}`);
+  for (let z = b.minZ + 0.25; z < b.maxZ; z += 0.5) for (const x of [b.minX - 0.25, b.maxX + 0.25]) if (![0.4, eye, 6.7].every((y) => solidAt(x, z, y))) gaps.push(`${(x - BR_X).toFixed(1)}, ${(z - BR_Z).toFixed(1)}`);
+  check("THE GULAG: a wall 6.7 m high along every side", gaps.length === 0, gaps.length ? `${gaps.length} gaps, first at ${gaps.slice(0, 3).join("; ")}` : `${(2 * (b.maxX - b.minX + b.maxZ - b.minZ)).toFixed(0)} m of wall`);
+  const held = m.spawns.filter(({ x, z }) => floorAt(x, z) !== 0 || solidsIn(x - r, x + r, z - r, z + r).some((q) => q.minX < x + r && q.maxX > x - r && q.minZ < z + r && q.maxZ > z - r && q.top > 0.3 && q.base < 1.8));
+  const [p, q] = m.spawns;
+  let cut = false;
+  for (let k = 1, n = Math.ceil(Math.hypot(q.x - p.x, q.z - p.z) / 0.25); k < n && !cut; k++) cut = solidAt(p.x + ((q.x - p.x) * k) / n, p.z + ((q.z - p.z) * k) / n, eye);
+  const ahead = m.spawns.map((s) => {
+    const y = (s.yaw * Math.PI) / 180;
+    let d = 0;
+    while (d < 30 && !solidAt(s.x - Math.sin(y) * d, s.z - Math.cos(y) * d, eye)) d += 0.25;
+    return d;
+  });
+  check("THE GULAG: its two spawns each with a body's room on the ground, out of each other's sight, each facing 6 m of open floor and more", m.spawns.length === 2 && held.length === 0 && cut && ahead.every((d) => d >= 6), `held ${held.length}, cut ${cut}, ahead ${ahead.map((d) => d.toFixed(1)).join(", ")} m`);
+  // the ledge's two levels: the top as the solids have it under the flag, the lower level's halfway out to an end
+  const c = m.center;
+  const topAt = (x: number, z: number) => Math.max(0, ...solidsIn(x, x, z, z).filter((s) => s.minX <= x && s.maxX >= x && s.minZ <= z && s.maxZ >= z && s.top < 8).map((s) => s.top));
+  const top = topAt(c.x, c.z);
+  const lower = topAt(c.x - 5, c.z + 2);
+  const roomOver = !solidsIn(c.x - r, c.x + r, c.z - r, c.z + r).some((s) => s.minX < c.x + r && s.maxX > c.x - r && s.minZ < c.z + r && s.maxZ > c.z - r && s.base < top + MOVE.standHeight && s.top > top + 0.05);
+  const ring: number[] = [];
+  for (let a = 0; a < 16; a++) ring.push(topAt(c.x + Math.cos((a * Math.PI) / 8) * (brJson.gulag.flagRadius - 0.3), c.z + Math.sin((a * Math.PI) / 8) * (brJson.gulag.flagRadius - 0.3)));
+  const jump = MOVE.jumpHeight;
+  const dj = jump + EXTRA.doubleJump.height;
+  check(
+    "THE GULAG: the ledge's top under the flag where the game has it, a jump over its lower level, a jump over the street, the top a jump and a double jump over it, a body's room over the flag and its circle on the top",
+    m.ledge !== undefined && Math.abs(top - m.ledge.y) < 0.05 && Math.abs((L.ledge?.y ?? -1) - top) < 0.05 && lower > 0.5 && lower <= jump && top - lower <= jump && top > jump && top <= dj && roomOver && ring.every((y) => Math.abs(y - top) < 0.05),
+    `top ${top.toFixed(2)} m (the game ${m.ledge?.y}), lower ${lower.toFixed(2)} m, a jump ${jump.toFixed(2)}, with a double jump ${dj.toFixed(2)}, room ${roomOver}, the circle ${[...new Set(ring.map((y) => y.toFixed(2)))].join("/")}`
+  );
+  // from the top, a standing eye at its edge nearest the spot: the street's floor seen at every half metre along both long
+  // walls' foot, but behind the walls before the spawns
+  let seen = 0;
+  const hidden: string[] = [];
+  for (let x = b.minX + 1; x < b.maxX; x += 0.5)
+    for (const z of [b.minZ + 1, b.maxZ - 1]) {
+      const from = new THREE.Vector3(c.x + Math.max(-2.5, Math.min(2.5, x - c.x)), top + eye, c.z + Math.sign(z - c.z) * 2.5);
+      const n = Math.ceil(from.distanceTo(new THREE.Vector3(x, 0.3, z)) / 0.2);
+      let blocked = false;
+      for (let k = 1; k < n && !blocked; k++) {
+        const t = k / n;
+        blocked = solidAt(from.x + (x - from.x) * t, from.z + (z - from.z) * t, from.y + (0.3 - from.y) * t);
+      }
+      if (blocked) hidden.push(`${(x - c.x).toFixed(1)}, ${(z - c.z).toFixed(1)}`);
+      else seen++;
+    }
+  check("THE GULAG: from the top a standing eye sees the street's floor along both long walls past all of the cover (most of it, the walls before the spawns hide their own corners)", seen / (seen + hidden.length) > 0.85, `${seen} of ${seen + hidden.length} spots seen${hidden.length ? `; hidden ${hidden.slice(0, 6).join("; ")}` : ""}`);
+  // a bot from each way up, straight to the flag
+  const walks = (m.ledge?.ways ?? []).map((w) => botWalk(w.x, w.z, 0, c.x, c.z));
+  check("THE GULAG: a bot's straight walk from each way up (it cannot jump) climbs the stairs to the flag on the top", walks.length === 2 && walks.every((w) => w.ok && Math.abs(w.y - top) < 0.05), walks.map((w) => `${w.ok ? "up" : `stopped at ${(w.x - c.x).toFixed(1)}, ${(w.z - c.z).toFixed(1)}`} at ${w.y.toFixed(2)} m`).join("; "));
 }
 
 // The tower's express lifts (rules.tower.express; the owner, 2026-10-09: "express lifts and three new levels up to the

@@ -27,6 +27,9 @@
     },
     "hot": {
       "spots": 54
+    },
+    "landmark": {
+      "spots": 8
     }
   },
   "_sites": "The small places between the big ones (br.ts's sites: the Notch, Table Station, the Crossing, the Well, Highpoint, the Sump, Motor Pool, the Relay). Each is its own tier, 'site': four spots, about eleven items, leaning a little richer than a mid place, so a detour through one is worth a gun or a kit piece and a fight over it is short. They are laid after the nine places, so the Hot Zone and the places' own rolls are what they were, and never the Hot Zone: a site is 15 to 30 m across and a Hot Zone there would be a drop spot for the whole lobby. They are paid for out of the field: the loose spots on open sand went from 20 to 2, because the sites now fill the ground between the places that the field's scatter stood in for, and the floor stays inside densityTargets.",
@@ -77,5 +80,6 @@
     "walkways": 0.5,
     "tier": "site"
   },
-  "_districts": "SpeedKills' districts made of the packs' own demo scenes (citydistricts.json, floors.ts DISTRICT_FLOORS, Phase 25): `perDistrict` spots on each one's canyons' floor and its walkways, a metre and more from any edge, rolled at `tier` as the halls' are, last of all and on a stream of their own, so the loot everywhere else lands where it did. `walkways`: the share of them up on the walkways, drawn until each share is met (Phase 26.4): drawn at random over the plan, the narrow walkways lost to the wide canyons' floor, 0 to 4 spots of 12 up there, where the fights over the pads' landings and the fire escapes' tops are."
+  "_districts": "SpeedKills' districts made of the packs' own demo scenes (citydistricts.json, floors.ts DISTRICT_FLOORS, Phase 25): `perDistrict` spots on each one's canyons' floor and its walkways, a metre and more from any edge, rolled at `tier` as the halls' are, last of all and on a stream of their own, so the loot everywhere else lands where it did. `walkways`: the share of them up on the walkways, drawn until each share is met (Phase 26.4): drawn at random over the plan, the narrow walkways lost to the wide canyons' floor, 0 to 4 spots of 12 up there, where the fights over the pads' landings and the fire escapes' tops are.",
+  "_landmark": "`landmark`: a district's landmark, a site in neonmap.json game.sites (Milestone 661): eight spots, twice a site's, under THE VAULT's twelve, so each of the eight districts has a place worth the drop and the tower's vault stays the richest."
 }

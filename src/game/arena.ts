@@ -2,13 +2,14 @@
 //
 // SpeedKills fights on its Neon maps (the owner, 2026-10-09: "2 1v1 maps, 1 centre destrict map, 1 br map, all new
 // neon stuff"): NEON YARD and NEON HALL (arenas/neonarenas.ts) and THE CENTRE (arenas/centre.ts), all three drawn in the
-// city's own file. The Vault (arenas/vault.ts) is the one drawn arena left, built here: the Gulag's fight is in it
-// (br.json gulag.map). The legacy game's Warehouse, Triangle, Crossing, Ringworks and NEON BLOCK went in Milestone 533.
+// city's own file, and the Gulag's fight on THE GULAG, a street in the same file (br.json gulag.map, Milestone 662). The
+// Vault (arenas/vault.ts) is the one drawn arena left, built here: the Gulag's room until Milestone 662. The legacy
+// game's Warehouse, Triangle, Crossing, Ringworks and NEON BLOCK went in Milestone 533.
 import * as THREE from "three";
 import { buildPlan } from "./arenas/build";
 import { PLAN_MAPS, type ArenaMapInfo } from "./arenas";
 import { CENTRE_MAP } from "./arenas/centre";
-import { YARD_MAP, HALL_MAP } from "./arenas/neonarenas";
+import { YARD_MAP, HALL_MAP, GULAG_MAP } from "./arenas/neonarenas";
 
 /** the capture circle, arena centre */
 export const ZONE_RADIUS = 3.5;
@@ -25,10 +26,10 @@ export interface ArenaHandles {
 // here picks a map by itself: the choosing is duel.ts's arenaFor, and what a mode picks if nobody says otherwise is
 // `mapFor`.
 
-export type ArenaMapId = "vault" | "centre" | "yard" | "hall";
+export type ArenaMapId = "vault" | "centre" | "yard" | "hall" | "gulag";
 
-/** every arena there is: the Gulag's Vault, then the three a menu offers */
-export const ARENA_MAPS: ArenaMapInfo[] = [...PLAN_MAPS, YARD_MAP, HALL_MAP, CENTRE_MAP];
+/** every arena there is: the Vault, the three a menu offers, and the Gulag's street */
+export const ARENA_MAPS: ArenaMapInfo[] = [...PLAN_MAPS, YARD_MAP, HALL_MAP, CENTRE_MAP, GULAG_MAP];
 
 /** a map by id, falling back to THE CENTRE (it has spawns for eight) so a stale saved id can never leave a match without an arena */
 export function arenaMap(id: string | null | undefined): ArenaMapInfo {

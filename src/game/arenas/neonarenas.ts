@@ -1,5 +1,7 @@
 // SpeedKills' two 1v1 arenas, NEON YARD and NEON HALL (the owner, 2026-10-09: "2 1v1 maps, 1 centre destrict map, 1 br
-// map, all new neon stuff, the 1v1 maps are supposed to be super basic"): small walled rooms of the Neon City bundle's
+// map, all new neon stuff, the 1v1 maps are supposed to be super basic"), and THE GULAG, the Gulag's fight (Milestone
+// 662; the owner, 2026-10-18: "the gulag should just be one street like the firing range with one building in the middle,
+// a super simple one, or just a ledge that has two levels to it"): small walled rooms of the Neon City bundle's
 // own pieces, laid by the city's layout out past its square (neon-layout.ts rules.arenas) and baked into the city's file,
 // each a node of its own that the page draws alone while it is played (neonmap.ts showNeonPart). Played on the city's
 // side of the world, like THE CENTRE, but with walls of their own: no circle, and none of the city in view.
@@ -11,7 +13,7 @@ import type { ArenaMapInfo } from "./index";
 import type { PlanSpawn } from "./plan";
 
 /** what the layout wrote of an arena (neonmap.json arenas), map-local */
-type Laid = { chunk: string; at: number[]; half: number[]; roof: number | null; shadow: number; spawns: number[][]; zones: number[][] };
+type Laid = { chunk: string; at: number[]; half: number[]; roof: number | null; shadow: number; spawns: number[][]; zones: number[][]; ledge?: { y: number; ways: number[][] } };
 
 // (the city's middle in the world: THE CENTRE's, which is br.ts BR_X and BR_Z, read here without three.js)
 const OX = centreCfg.x;
@@ -19,7 +21,7 @@ const OZ = centreCfg.z;
 
 const LAID = (neonCfg as unknown as { arenas: Record<string, Laid> }).arenas;
 
-function arena(id: string, name: string, blurb: string): ArenaMapInfo {
+function arena(id: string, name: string, blurb: string, bestFor = ["duel"]): ArenaMapInfo {
   const L = LAID[id];
   const [x, z] = [L.at[0] + OX, L.at[1] + OZ];
   const spawns: PlanSpawn[] = L.spawns.map(([sx, sz, yaw]) => ({ x: sx + OX, z: sz + OZ, yaw }));
@@ -35,15 +37,18 @@ function arena(id: string, name: string, blurb: string): ArenaMapInfo {
     teams: { a: spawns.filter((_, i) => i % 2 === 0), b: spawns.filter((_, i) => i % 2 === 1) },
     zones,
     crown: { x: zones[0].x, z: zones[0].z },
-    bestFor: ["duel"],
+    bestFor,
     plan: null,
     city: true,
     chunk: L.chunk,
+    ...(L.ledge ? { ledge: { y: L.ledge.y, ways: L.ledge.ways.map(([wx, wz]) => ({ x: wx + OX, z: wz + OZ })) } } : {}),
   };
 }
 
 export const YARD_MAP = arena("yard", "NEON YARD", "A walled yard under the open sky: crates, cool boxes and a wall across each end. Small, flat and quick.");
 export const HALL_MAP = arena("hall", "NEON HALL", "A closed concrete hall under one roof: pillars, crates and lamps overhead.");
+/** the Gulag's fight (br.json gulag.map), on no menu: one street, a ledge of two levels in its middle, the flag on its top */
+export const GULAG_MAP = arena("gulag", "THE GULAG", "One street of the city with a ledge of two levels in its middle.", ["gulag"]);
 
 /** the sun's shadow box's half width over an arena (range.ts setShadowRegion), rules.arenas `shadow` */
 export const arenaShadow = (m: ArenaMapInfo): number => LAID[m.id].shadow;

@@ -5359,6 +5359,204 @@ function onNode(o: OBox): boolean {
     console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}`);
   }
 }
+// Head-high cover in the districts' open ground (rules.dress.districtCover, Milestone 660). The districts' first review
+// asked for it first: "no stretch past about 15 m without head-high cover ... today shotguns and SMGs have no way to
+// close the distance". Its pictures were LANTERN ALLEYS' way in, THE STACKS' court, THE TERRACES' top tier, THE
+// TERMINAL's forecourt, THE WORKS' yard and GLASS HEIGHTS' deck. Measured on version 94: past 8 m from cover a body
+// stands behind on 6 to 21% of each district's open ground, the farthest spot 16 m.
+// The street cover's fill, run over the band past the ring road at each of `levels`:
+// - From every open spot of a level's floor, cover a standing body hides behind within `far` metres: a box from the
+//   floor past `tall` metres.
+// - The farthest spot takes a piece of its district's `pieces` within `near` metres of it. Each piece keeps `clear`
+//   metres from everything a body stands in, so every way past it stays a body's width, and `headroom` under anything
+//   over it. None goes on a pad's spot, a lift's or a zip's end, or across the bots' street graph.
+// - Then the next farthest, until every spot has its cover or no piece fits.
+// Measured on the last bake's collision, laid last (the bake lists its boxes in `laid` and the next run leaves them
+// out), so the next run measures the same ground.
+{
+  const DC = (R.dress as { districtCover?: { chunk: string; far: number; near: number; clear: number; headroom: number; tall: number; band: number[]; crate: string; most: number; seed: number; levels: Array<{ y: number; districts?: string[]; rect?: number[] }>; nameView: number; pieces: Record<string, string[]>; sectors: Record<string, string> } }).districtCover;
+  if (DC) {
+    const rndD = seeded(DC.seed);
+    const C = 0.5, H = DC.band[1] + 2;
+    const N = Math.round((2 * H) / C);
+    const mid = (k: number): Pt => [-H + (Math.floor(k / N) + 0.5) * C, -H + ((k % N) + 0.5) * C];
+    /** which district a spot is in, by its sector (the game's nine 100 m squares) */
+    const sectorOf = (x: number, z: number) => (Math.abs(x) <= 50 ? (z < 0 ? "n" : "s") : Math.abs(z) <= 50 ? (x < 0 ? "w" : "e") : (z < 0 ? "n" : "s") + (x < 0 ? "w" : "e"));
+    const districtOf = (x: number, z: number) => DC.sectors[sectorOf(x, z)];
+    // (the last bake's own district cover is left out of its collision: the bake lists its boxes in `laid`, lastSolids)
+    // (lowest first: a stack is climbed from the floor, a crate on crates being head-high cover as surely as a wall)
+    const boxes = lastSolids().filter((b) => !(b[1] < -H || b[0] > H || b[3] < -H || b[2] > H)).sort((a, b) => a[4] - b[4]);
+    // (the districts' own ways kept open: LANTERN ALLEYS' main alleys and each row's cross alleys, as its check walks them)
+    type LRow = { from: number[]; to: number[]; front: number[]; deep: number; skip?: number[][] };
+    const LD = (R.districts as { lantern?: { rows: LRow[]; lights: { alleys: Array<{ from: number[]; to: number[] }> } } }).lantern;
+    const ways: number[][][] = [...(LD?.lights.alleys ?? []).map((al) => [al.from, al.to])];
+    for (const row of LD?.rows ?? []) {
+      const Lr = Math.hypot(row.to[0] - row.from[0], row.to[1] - row.from[1]);
+      const t = [(row.to[0] - row.from[0]) / Lr, (row.to[1] - row.from[1]) / Lr];
+      for (const [s0, s1] of row.skip ?? []) {
+        const m = (s0 + s1) / 2;
+        const q = [row.from[0] + t[0] * m, row.from[1] + t[1] * m];
+        ways.push([[q[0] + row.front[0], q[1] + row.front[1]], [q[0] - row.front[0] * (row.deep + 1), q[1] - row.front[1] * (row.deep + 1)]]);
+      }
+    }
+    // (and THE TERRACES' ways up, each leg as its check walks it: a piece at the grand stair's foot shut it)
+    for (const route of Object.values(((R.districts as { terraces?: { walks?: Record<string, number[][]> } }).terraces?.walks ?? {})))
+      for (let i = 0; i + 1 < route.length; i++) ways.push([[route[i][0], route[i][1]], [route[i + 1][0], route[i + 1][1]]]);
+    // (and THE WORKS' halls walked door to door, its L indoors among them: a line through each hall from each door to the
+    // one across from it; a crate by the works block's west door shut the L)
+    for (const h of ((R.districts as { works?: { halls: Array<{ box: number[]; doors: Record<string, number[]> }> } }).works?.halls ?? [])) {
+      const [x0, x1, z0, z1] = h.box;
+      for (const [side, at] of Object.entries(h.doors))
+        for (const a of at) ways.push(side === "w" || side === "e" ? [[x0 - 2, a], [x1 + 2, a]] : [[a, z0 - 2], [a, z1 + 2]]);
+    }
+    // (no piece in a district name's view from the ring road, `nameView` either side of the line out to it, as the
+    // street's tall boards keep out of it: a 4.7 m box hid THE WORKS' name)
+    const views = Object.values((R.districts ?? {}) as Record<string, { name?: { at: number[] } }>).flatMap((d) => (d && typeof d === "object" && d.name ? [d.name.at] : []));
+    const inView = (x: number, z: number) =>
+      views.some(([nx, , nz]) =>
+        Math.abs(nz) > Math.abs(nx)
+          ? Math.abs(x - nx) < DC.nameView && Math.sign(z) === Math.sign(nz) && Math.abs(z) >= R.ring[0] - 1 && Math.abs(z) <= Math.abs(nz)
+          : Math.abs(z - nz) < DC.nameView && Math.sign(x) === Math.sign(nx) && Math.abs(x) >= R.ring[0] - 1 && Math.abs(x) <= Math.abs(nx),
+      );
+    const pads: Pt[] = [...((cfg.pads ?? []) as Array<{ pad: Pt }>).map((q) => q.pad), ...((cfg.spine?.up ?? []) as Array<{ pad: Pt }>).map((q) => q.pad)];
+    const ends: Pt[] = ((cfg.zips ?? []) as Array<{ a: number[]; b: number[] }>).flatMap((q) => [[q.a[0], q.a[2]] as Pt, [q.b[0], q.b[2]] as Pt]);
+    const seg = (q: Pt, a: number[], b: number[]) => {
+      const l2 = (b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2;
+      const t = Math.max(0, Math.min(1, ((q[0] - a[0]) * (b[0] - a[0]) + (q[1] - a[1]) * (b[1] - a[1])) / l2));
+      return Math.hypot(q[0] - a[0] - (b[0] - a[0]) * t, q[1] - a[1] - (b[1] - a[1]) * t);
+    };
+    const placed: Array<{ piece: string; c: Pt; yaw: number; y: number; d: string }> = [];
+    const report: string[] = [];
+    for (const L of DC.levels) {
+      const y0 = L.y;
+      const body = new Uint8Array(N * N), cover = new Uint8Array(N * N), floor = new Uint8Array(N * N), band = new Uint8Array(N * N);
+      const stack = new Float32Array(N * N).fill(y0 + 0.45);
+      const over = new Float32Array(N * N).fill(Infinity);
+      for (const b of boxes) {
+        const i0 = Math.max(0, Math.floor((b[0] + H) / C)), i1 = Math.min(N - 1, Math.floor((b[1] + H) / C));
+        const j0 = Math.max(0, Math.floor((b[2] + H) / C)), j1 = Math.min(N - 1, Math.floor((b[3] + H) / C));
+        for (let i = i0; i <= i1; i++)
+          for (let j = j0; j <= j1; j++) {
+            const k = i * N + j;
+            if (b[4] < y0 + 1.8 && b[5] > y0 + 0.3) body[k] = 1;
+            if (b[4] <= stack[k] + 0.05 && b[4] >= y0 - 0.5 && b[5] > stack[k]) stack[k] = b[5];
+            if (stack[k] > y0 + DC.tall) cover[k] = 1;
+            if (Math.abs(b[5] - y0) <= 0.35) floor[k] = 1;
+            if (b[4] >= y0 + 1.8) over[k] = Math.min(over[k], b[4]);
+          }
+      }
+      for (let k = 0; k < N * N; k++) {
+        const [x, z] = mid(k);
+        const m = Math.max(Math.abs(x), Math.abs(z));
+        // (the ground is the world's floor where nothing is: level 0 needs no box under a spot)
+        const inRect = !L.rect || (x >= L.rect[0] && x <= L.rect[1] && z >= L.rect[2] && z <= L.rect[3]);
+        if (m >= DC.band[0] && m <= DC.band[1] && inRect && (!L.districts || L.districts.includes(districtOf(x, z))) && (floor[k] || y0 === 0)) band[k] = 1;
+      }
+      const open = (k: number) => band[k] && !body[k];
+      const D = new Float32Array(N * N);
+      const field = () => {
+        for (let k = 0; k < D.length; k++) D[k] = cover[k] ? 0 : 1e9;
+        for (let i = 0; i < N; i++)
+          for (let j = 0; j < N; j++) {
+            const k = i * N + j;
+            if (i > 0) D[k] = Math.min(D[k], D[k - N] + 1, j > 0 ? D[k - N - 1] + Math.SQRT2 : 1e9, j < N - 1 ? D[k - N + 1] + Math.SQRT2 : 1e9);
+            if (j > 0) D[k] = Math.min(D[k], D[k - 1] + 1);
+          }
+        for (let i = N - 1; i >= 0; i--)
+          for (let j = N - 1; j >= 0; j--) {
+            const k = i * N + j;
+            if (i < N - 1) D[k] = Math.min(D[k], D[k + N] + 1, j < N - 1 ? D[k + N + 1] + Math.SQRT2 : 1e9, j > 0 ? D[k + N - 1] + Math.SQRT2 : 1e9);
+            if (j < N - 1) D[k] = Math.min(D[k], D[k + 1] + 1);
+          }
+      };
+      const cellsOf = (o: OBox, grow = 0): number[] => {
+        const r = Math.hypot(o.hu, o.hv) + grow + C;
+        const out: number[] = [];
+        for (let i = Math.max(0, Math.floor((o.c[0] - r + H) / C)); i <= Math.min(N - 1, Math.floor((o.c[0] + r + H) / C)); i++)
+          for (let j = Math.max(0, Math.floor((o.c[1] - r + H) / C)); j <= Math.min(N - 1, Math.floor((o.c[1] + r + H) / C)); j++) {
+            const [px, pz] = [-H + (i + 0.5) * C - o.c[0], -H + (j + 0.5) * C - o.c[1]];
+            if (Math.abs(px * o.u[0] + pz * o.u[1]) <= o.hu + grow + C / 2 && Math.abs(px * o.v[0] + pz * o.v[1]) <= o.hv + grow + C / 2) out.push(i * N + j);
+          }
+        return out;
+      };
+      const why = new Map<string, number>();
+      const fits = (o: OBox): boolean => {
+        const r = Math.hypot(o.hu, o.hv);
+        const [x, z] = o.c;
+        // (all of it inside the band: past the grid's edge a piece has no cells to be refused on, and one was laid 390 times)
+        const k = Math.max(Math.abs(x), Math.abs(z)) + r > DC.band[1] ? "band"
+          : !cellsOf(o).every((c) => open(c)) ? "ground"
+          : cellsOf(o, DC.clear).some((c) => body[c]) ? "clear"
+          // (on a raised level, nothing within `clear` of its edge, a stair's or a ramp's top: THE TERRACES' grand stair)
+          : y0 > 0 && cellsOf(o, DC.clear).some((c) => !band[c] && !body[c]) ? "edge"
+          : ways.some(([a, b]) => seg(o.c, a, b) < r + DC.clear) ? "way"
+          : o.top > 2.2 && inView(x, z) ? "name"
+          : cellsOf(o).some((c) => over[c] < y0 + o.top + DC.headroom) ? "under"
+          : pads.some(([px, pz]) => Math.hypot(px - x, pz - z) < r + R.dress.padClear) ? "pad"
+          : ends.some(([ex, ez]) => Math.hypot(ex - x, ez - z) < r + 6) ? "zip"
+          : lifts.some((q) => seg(o.c, q.ring, q.car) < r + R.lifts.clear) ? "lift"
+          : walkIns.some((q) => Math.hypot(q.door[0] - x, q.door[1] - z) < r + 3) ? "door"
+          : y0 === 0 && (STREET_GRAPH?.splits(o) || STREET_GRAPH?.strands(o)) ? "graph"
+          : "ok";
+        why.set(k, (why.get(k) ?? 0) + 1);
+        return k === "ok";
+      };
+      const tried = new Uint8Array(N * N);
+      const before = placed.length;
+      for (let n = 0; n < DC.most; n++) {
+        field();
+        let best = -1;
+        for (let k = 0; k < N * N; k++) if (open(k) && !tried[k] && (best < 0 || D[k] > D[best])) best = k;
+        if (best < 0 || D[best] * C <= DC.far) break;
+        const [bx, bz] = mid(best);
+        const district = districtOf(bx, bz);
+        const pool = [...(DC.pieces[district] ?? DC.pieces.default)].sort(() => rndD() - 0.5);
+        const spots: Pt[] = [[bx, bz]];
+        for (let r = C; r <= DC.near + 1e-6; r += C) for (let a = 0; a < 16; a++) spots.push([bx + r * Math.sin((a * Math.PI) / 8), bz + r * Math.cos((a * Math.PI) / 8)]);
+        let done = false;
+        for (const [x, z] of spots) {
+          for (const name of pool) {
+            // (a set of crates: two of `crate` side by side and a third on them, as THE CANYON's market lays them)
+            const crates = name === "crates";
+            const row = piece(crates ? DC.crate : name).row;
+            const [w, hgt, d] = crates ? [row.size![0] * 2 + 0.02, row.size![1] * 2, row.size![2]] : row.size!;
+            for (const yaw of [0, 90]) {
+              const o: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: w / 2, hv: d / 2, top: hgt };
+              if (!fits(o)) continue;
+              if (crates) {
+                const [ox, oz] = rotY(yaw, row.size![0] / 2 + 0.01, 0);
+                placeTurned(DC.chunk, DC.crate, x + ox, z + oz, yaw, "s", y0 - row.min![1]);
+                placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 - row.min![1]);
+                placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 + row.size![1] - row.min![1]);
+              } else placeFaced(DC.chunk, name, x, z, yaw, "s", y0 - row.min![1]);
+              if (y0 === 0) STREET_GRAPH?.add(o);
+              for (const c of cellsOf(o)) body[c] = cover[c] = 1;
+              placed.push({ piece: name, c: [+x.toFixed(3), +z.toFixed(3)], yaw, y: y0, d: district });
+              done = true;
+              break;
+            }
+            if (done) break;
+          }
+          if (done) break;
+        }
+        if (!done) for (const c of cellsOf({ c: [bx, bz], u: [1, 0], v: [0, 1], hu: 0.5, hv: 0.5, top: 0 })) tried[c] = 1;
+      }
+      field();
+      const per = new Map<string, { open: number; far: number; max: number }>();
+      for (let k = 0; k < N * N; k++)
+        if (open(k)) {
+          const [x, z] = mid(k);
+          const st = per.get(districtOf(x, z)) ?? per.set(districtOf(x, z), { open: 0, far: 0, max: 0 }).get(districtOf(x, z))!;
+          st.open++;
+          if (D[k] * C > DC.far) st.far++;
+          st.max = Math.max(st.max, D[k] * C);
+        }
+      report.push(`at ${y0} m ${placed.length - before} pieces: ${[...per].map(([d, st]) => `${d} ${((st.far / st.open) * 100).toFixed(1)}% past ${DC.far} m, farthest ${st.max.toFixed(1)}`).join("; ")} (${JSON.stringify(Object.fromEntries(why))})`);
+    }
+    cfg.districtCover = placed;
+    console.log(`the districts' cover: ${placed.length} pieces; ${report.join(" | ")}`);
+  }
+}
 // the two 1v1 arenas (rules.arenas; the owner, 2026-10-09: "2 1v1 maps ... the 1v1 maps are supposed to be super
 // basic"): small walled rooms of the bundle's own pieces, out past the city's square where nothing of the city stands,
 // each a chunk of its own (not "c-", so the bake keeps it a node of its own: the page draws the one in play and none of
@@ -5371,13 +5569,17 @@ function onNode(o: OBox): boolean {
     chunk: string;
     at: number[];
     half: number[];
-    floor: { piece: string; size: number[] };
+    floor: { piece: string; size: number[]; mat?: string; road?: number; pave?: { piece: string; size: number[] }; kerb?: { piece: string; every: number } };
     walls: { piece: string; long: number; thick: number; rows: number[]; top: number; front?: number[]; windows?: { piece: string; row: number; sides: string[]; at: number[] } };
     roof?: { piece: string; size: number[]; y: number };
     lamps?: { piece: string; y: number; yaw: number; at: number[][] };
     signs?: Array<[string, number, number, number]>;
     pillars?: { piece: string; rows: number[]; at: number[][] };
     cover: Array<[string, number, number, number, number?]>;
+    /** what stands in the middle (the Gulag's ledge): laid as the cover is, but the middle is not held clear of it */
+    centre?: Array<[string, number, number, number, number?]>;
+    /** where a bot starts up the middle's pieces, one of each opposite pair */
+    ways?: number[][];
     spawns: number[][];
     zones: number[][];
     clear: number;
@@ -5389,10 +5591,19 @@ function onNode(o: OBox): boolean {
     for (const A of AR.list) {
       const [ax, az] = A.at;
       const [hx, hz] = A.half;
-      const put = (name: string, x: number, z: number, yaw: number, mode: Place[5], y = 0) => placeAt(A.chunk, "arena", name, ax + x, az + z, ((yaw % 360) + 360) % 360, mode, { y });
-      // the floor, tiled over the room (drawn only: the world's floor is the ground at 0 everywhere)
+      const put = (name: string, x: number, z: number, yaw: number, mode: Place[5], y = 0, mat?: string) => placeAt(A.chunk, "arena", name, ax + x, az + z, ((yaw % 360) + 360) % 360, mode, { y, ...(mat ? { mat } : {}) });
+      // the floor, tiled over the room (drawn only: the world's floor is the ground at 0 everywhere); a street's (the
+      // Gulag's, "one street like the firing range") over its `road` alone, its pavements either side in tiles of their
+      // own and a kerb every `every` metres along each edge of the road, as the city's straight streets have
       const [fw, fd] = A.floor.size;
-      for (let x = -hx + fw / 2; x < hx; x += fw) for (let z = -hz + fd / 2; z < hz; z += fd) put(A.floor.piece, x, z, 0, "g");
+      const rz = A.floor.road ? A.floor.road / 2 : hz;
+      for (let x = -hx + fw / 2; x < hx; x += fw) for (let z = -rz + fd / 2; z < rz; z += fd) put(A.floor.piece, x, z, 0, "g", 0, A.floor.mat);
+      if (A.floor.road) {
+        const [pw, pd] = A.floor.pave!.size;
+        for (const k of [1, -1]) for (let x = -hx + pw / 2; x < hx; x += pw) for (let z = rz + pd / 2; z < hz; z += pd) put(A.floor.pave!.piece, x, k * z, 0, "g");
+        const K = A.floor.kerb!;
+        for (const k of [1, -1]) for (let x = -hx + K.every / 2; x < hx; x += K.every) put(K.piece, x, k * rz, 90, "g");
+      }
       // the walls, each side a row of panels centred on it and long enough to close the corners (a side's last panel
       // runs on past the corner, behind the next side's wall, where nobody stands)
       const W = A.walls;
@@ -5439,17 +5650,29 @@ function onNode(o: OBox): boolean {
       const cover: Array<{ x0: number; x1: number; z0: number; z1: number; top: number }> = [];
       for (const [x, z] of A.pillars?.at ?? []) for (const k of [1, -1]) A.pillars!.rows.forEach((y) => cover.push(put(A.pillars!.piece, k * x, k * z, 0, "o", y)));
       for (const [name, x, z, yaw, y] of A.cover) for (const k of [1, -1]) cover.push(put(name, k * x, k * z, yaw + (k < 0 ? 180 : 0), "o", y ?? 0));
+      // the middle's own pieces (the Gulag's two-level ledge): half of them given, the other half the same turned about
+      const centre: typeof cover = [];
+      for (const [name, x, z, yaw, y] of A.centre ?? []) for (const k of [1, -1]) centre.push(put(name, k * x, k * z, yaw + (k < 0 ? 180 : 0), "o", y ?? 0));
       // the spawns in opposite pairs, each facing the middle (a yaw of b faces back along the bearing b, arenas/centre.ts),
       // and none of them, nor the middle's circle, within `clear` of the cover
       const spawns = A.spawns.flatMap(([x, z]) => [[x, z], [-x, -z]]).map(([x, z]) => [ax + x, az + z, +((Math.atan2(x, z) * 180) / Math.PI).toFixed(1)]);
       const near = (x: number, z: number, r: number) => cover.find((b) => x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r);
       for (const [x, z] of [...spawns, [ax, az]]) {
         const r = x === ax && z === az ? A.clear + 3.5 : A.clear;
-        const hit = near(x, z, r);
+        const hit = near(x, z, r) ?? (x === ax && z === az ? undefined : centre.find((b) => x > b.x0 - r && x < b.x1 + r && z > b.z0 - r && z < b.z1 + r));
         if (hit) throw new Error(`the ${A.id} arena's ${x === ax && z === az ? "middle" : `spawn at ${(x - ax).toFixed(1)}, ${(z - az).toFixed(1)}`} is within ${r} m of its cover at x ${(hit.x0 - ax).toFixed(1)} to ${(hit.x1 - ax).toFixed(1)}, z ${(hit.z0 - az).toFixed(1)} to ${(hit.z1 - az).toFixed(1)}`);
       }
-      out[A.id] = { chunk: A.chunk, at: A.at, half: A.half, roof: A.roof?.y ?? null, shadow: A.shadow, spawns, zones: A.zones.map(([x, z]) => [ax + x, az + z]) };
-      console.log(`the ${A.id} arena at ${ax}, ${az}: ${2 * hx} by ${2 * hz} m, ${chunks.get(A.chunk)!.place.length} pieces, ${cover.length} of them cover, ${spawns.length} spawns`);
+      // the middle's top, where the middle has pieces (the Gulag's flag stands on its ledge), measured off what was laid
+      // there (the middle on a seam between two of them, their edges counted), and the ways up, each clear of everything (a bot walks to one and straight in from it)
+      const ways = (A.ways ?? []).flatMap(([x, z]) => [[x, z], [-x, -z]]).map(([x, z]) => [ax + x, az + z]);
+      for (const [x, z] of ways) {
+        const hit = [...cover, ...centre].find((b) => x > b.x0 - 0.5 && x < b.x1 + 0.5 && z > b.z0 - 0.5 && z < b.z1 + 0.5);
+        if (hit) throw new Error(`the ${A.id} arena's way up at ${(x - ax).toFixed(1)}, ${(z - az).toFixed(1)} is in its pieces at x ${(hit.x0 - ax).toFixed(1)} to ${(hit.x1 - ax).toFixed(1)}`);
+      }
+      const top = Math.max(0, ...centre.filter((b) => ax >= b.x0 - 1e-3 && ax <= b.x1 + 1e-3 && az >= b.z0 - 1e-3 && az <= b.z1 + 1e-3).map((b) => b.top));
+      const ledge = A.centre ? { y: +top.toFixed(3), ways } : undefined;
+      out[A.id] = { chunk: A.chunk, at: A.at, half: A.half, roof: A.roof?.y ?? null, shadow: A.shadow, spawns, zones: A.zones.map(([x, z]) => [ax + x, az + z]), ...(ledge ? { ledge } : {}) };
+      console.log(`the ${A.id} arena at ${ax}, ${az}: ${2 * hx} by ${2 * hz} m, ${chunks.get(A.chunk)!.place.length} pieces, ${cover.length} of them cover, ${spawns.length} spawns${ledge ? `, its middle ${centre.length} pieces, their top ${ledge.y} m` : ""}`);
     }
     cfg.arenas = out;
   }
