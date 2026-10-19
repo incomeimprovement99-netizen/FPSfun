@@ -5017,12 +5017,13 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     // others' landings, slides and mantles are heard where they are (Milestone 695): the bot's figure taken through them
     // (its pose read as the sounds read it), 4 m from you
     await ev(page, `(() => { const R = window.__range; const a = R.duel().avatars[0]; window.__fake = { stance: "stand", speed: 0, pitch: 0 }; Object.defineProperty(a, "currentPose", { get: () => window.__fake, configurable: true }); const q = a.group.position; R.player.teleport(q.x + 4, q.y, q.z, 90, 0); })()`);
-    for (const st of ["air", "stand", "slide", "stand", "mantle", "stand", "zip", "stand"]) {
-      await ev(page, `window.__fake = { stance: ${JSON.stringify(st)}, speed: 3, pitch: 0 }`);
+    for (const [i, st] of ["air", "stand", "slide", "stand", "mantle", "stand", "zip", "stand", "air", "air"].entries()) {
+      // (the last: a double jump, the figure's count of them one more: Milestone 713)
+      await ev(page, `window.__fake = { stance: ${JSON.stringify(st)}, speed: 3, pitch: 0, airJumps: ${i === 9 ? 1 : 0} }`);
       await gameSleep(page, 0.3);
     }
     const heard = await ev<string[]>(page, "window.__range.sk.othersHeard()");
-    check("speedkills: another figure's landing, slide, mantle and zipline are heard where it is", ["land", "slide", "mantle", "zip"].every((k) => heard.includes(k)), JSON.stringify(heard));
+    check("speedkills: another figure's landing, slide, mantle, zipline and double jump are heard where it is", ["land", "slide", "mantle", "zip", "airjump"].every((k) => heard.includes(k)), JSON.stringify(heard));
     // and its steps along a wall (Milestone 707): a wall run was silent; at 12 m/s, a step every audio.json wallStride
     await ev(page, `window.__fake = { stance: "wallL", speed: 12, pitch: 0 }`);
     await gameSleep(page, 1);

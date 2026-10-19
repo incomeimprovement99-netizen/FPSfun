@@ -12618,6 +12618,17 @@ Found checking each sound caption word against the sounds that say it (audio.ts 
 - **Checked:** tsc, verify (the new check), rules; e2e speedkills, its others-heard check now with a zipline (with
   the branch taken out it failed, the zipline not heard).
 
+## Milestone 713 — A double jump is heard
+
+- **It was silent, yours and everyone's:** your jump played as your feet left the ground and nothing as you jumped
+  again in the air; another figure's the same. A second jump is a player turning a fall into a climb over your head.
+- **Now a puff** (audio.ts airJump, audio.json footsteps.airJump: the thrusters' take cut short and quick): yours as
+  you make it, and someone else's where they are, read off the double jumps their figure counts (dummy.ts airJumps,
+  which already lifts the figure's knees).
+- **Checked:** tsc, verify, rules; e2e speedkills, its others-heard check now with a double jump (with the branch taken
+  out it failed, the double jump not heard). Its ghost check's two pages did not make one match once, run beside the
+  day's full sweep, and made it in the run after.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

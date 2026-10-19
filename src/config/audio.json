@@ -56,7 +56,9 @@
     "wall": {
       "legsAt": 7.5,
       "loud": 1.3
-    }
+    },
+    "_airJump": "A double jump's puff (Milestone 713): it had no sound, yours or anyone's, and a second jump is a player turning a fall into a climb over your head. The thrusters' take cut short and quick (`take`, `level` against the mix, `len` seconds, `rate` its speed, as hacks' are), a bandpassed puff without the file.",
+    "airJump": { "take": "hack_thrust", "level": 0.32, "len": 0.2, "rate": 1.7 }
   },
   "classes": {
     "pistol": {

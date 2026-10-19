@@ -50,12 +50,14 @@ export function surfaceAt(y: number, outdoors: boolean): Surface {
 
 export class Soundscape {
   private stepAcc = 0;
+  /** your double jumps counted so far (player.ts airJumps): one more is a puff */
+  private airJumpsWas = -1;
   private wasGround = true;
   private lastStance = "stand";
   private climbTapAt = 0;
   private others = new WeakMap<Dummy, number>();
   /** each figure's stance and height last frame, and how fast it was falling while in the air (their landings' weight) */
-  private otherMove = new WeakMap<Dummy, { stance: string; y: number; vy: number }>();
+  private otherMove = new WeakMap<Dummy, { stance: string; y: number; vy: number; airJumps: number }>();
   /** the others' movement sounds lately played, newest last (tools/e2e.ts) */
   readonly othersHeard: string[] = [];
   private heard(kind: string): void {
@@ -102,6 +104,9 @@ export class Soundscape {
     } else if (!p.onGround) this.stepAcc = 0;
     if (p.onGround && !this.wasGround && f.alive) a.land(p.landingSpeed / (600 * HU), surface);
     if (!p.onGround && this.wasGround && p.vel.y > 2 && !p.dropping) a.jump();
+    // a double jump (Milestone 713): it was silent
+    if (this.airJumpsWas >= 0 && p.airJumps > this.airJumpsWas && f.alive) a.airJump();
+    this.airJumpsWas = p.airJumps;
     this.wasGround = p.onGround;
     const stance = p.stance;
     if (stance === "mantle" && this.lastStance !== "mantle") a.mantle();
@@ -152,6 +157,11 @@ export class Soundscape {
           a.mantle(at);
           this.heard("mantle");
         }
+        // their double jump (Milestone 713): the figure counts them (dummy.ts airJumps), and one more is a puff where they are
+        if ((pose.airJumps ?? 0) > was.airJumps) {
+          a.airJump(at);
+          this.heard("airjump");
+        }
         // and their zipline's catch as they take one (Milestone 712): yours had it, and a squad riding over your roof was
         // silent, the very tell the zipline's sound is for
         if (pose.stance === "zip" && was.stance !== "zip") {
@@ -159,7 +169,7 @@ export class Soundscape {
           this.heard("zip");
         }
       }
-      this.otherMove.set(d, { stance: pose.stance, y: g.y, vy: airborne(pose.stance) ? Math.min(vy, was?.vy ?? 0) : 0 });
+      this.otherMove.set(d, { stance: pose.stance, y: g.y, vy: airborne(pose.stance) ? Math.min(vy, was?.vy ?? 0) : 0, airJumps: pose.airJumps ?? 0 });
       if (far) continue;
       // and along a wall (Milestone 707): someone running a wall was silent, the one way to come at you unheard
       const onWall = pose.stance === "wallL" || pose.stance === "wallR";

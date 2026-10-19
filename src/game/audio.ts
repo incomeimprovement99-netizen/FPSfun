@@ -1017,6 +1017,14 @@ export class GameAudio {
     this.noise(v.input, v.t, 0.15, "bandpass", 700, 0.7, 0.12, 0.02, 1400);
   }
 
+  /** a double jump's puff (audio.json footsteps.airJump): yours, or someone else's where they are */
+  airJump(at: Vec | null = null): void {
+    const v = this.voice(at, 0.35, "fx", 1, 0.2);
+    if (!v) return;
+    const j = cfg.footsteps.airJump;
+    if (!this.sampleCut(v.input, v.t, j.take, j.level, j.len, j.rate)) this.noise(v.input, v.t, 0.16, "bandpass", 900, 0.8, 0.14, 0.01, 2200);
+  }
+
   /** a landing, by how hard: a thud and grit */
   land(impact01: number, surface: Surface, at: Vec | null = null): void {
     this.cue("land", at);

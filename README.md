@@ -606,7 +606,7 @@ green plate always shows.
 - **Others' movement:** you hear their landings, slides, mantles and hacks where they are, and their steps along a
   wall when they wall run, a little louder than a sprint (Milestone 707). Every hack of theirs has its own sound where
   they used it, INVISIBILITY's shimmer, a MINE set down and a WALL going up among them (Milestone 710), and their
-  catch onto a zipline (Milestone 712).
+  catch onto a zipline (Milestone 712), and a puff for a double jump, theirs and yours (Milestone 713).
 - **An enemy's REVEAL that catches you:** puts a red REVEALED, counting down, under the compass.
 - **The compass and minimap:** they follow whoever you are watching (a squad mate, the killcam), and the minimap marks
   north.
