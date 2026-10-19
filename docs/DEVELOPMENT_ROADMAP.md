@@ -15360,3 +15360,21 @@ curve bolt upright, at SpeedKills' 14 m/s sprint.
     15.2 and 3.4 degrees, 9.3 on the mean (a sprint's own sway, 5.9 mid-stride, is toward the middle one way round and
     away the other). It fails with the lean taken out (5.9 and -5.9).
   - verify, rules and the type check.
+
+## Milestone 610 — A death falls away from the shot
+
+The second of the nice-to-haves left after Milestone 608. A figure's fall (the library's death clip, and its hit
+volumes' topple with it) goes backward, whichever way it faces: a player shot in the back fell onto the shooter. Apex's
+fall away from the hit.
+
+- **The turn** (dummy.ts faceTheShot, figure.json death): every hit remembers where it landed. Knocked out within 1.5 s
+  of one, the figure turns its front to it as it goes down, the shortest way round at 18 a second (its fall takes
+  0.32 s), so its backward fall goes away from the shot. A hit's point is on the near side, the shooter's; one within
+  3 cm of the body's middle leaves it facing as it was. The killer's page sees it (the shot is a hit there); a page that
+  only hears of the death (another player's shot) sees the fall as before.
+- **Checked:**
+  - Measured first: the death clip falls backward, its head 1.24 m behind where the figure stood, 0.2 m up.
+  - The e2e (skfigure, the figure's stances): shot dead from its left, from behind and from the front, the head ends
+    1.24 m away on the far side each time. It fails with the turn taken out (0 from the left, -1.24 from behind:
+    onto the shooter).
+  - verify, rules and the type check.

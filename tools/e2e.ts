@@ -6904,6 +6904,30 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("a run round a turn: sprinting round a 6 m circle either way its back leans toward the middle, 5 degrees or more on the mean of the two", (lean.left + lean.right) / 2 >= 5 && lean.left > 0 && lean.right > 0, JSON.stringify(lean));
+  // a death falls away from the shot (Milestone 610): shot dead from its left, from behind and from the front, its head
+  // ends up on the far side, a metre or more from where it stood
+  const death = await ev<Record<string, number>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      const out = {};
+      for (const [name, side] of [["left", [1, 0]], ["behind", [0, -1]], ["front", [0, 1]]]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 4, 180); r.figureLabManual(true);
+        r.figureLabStep(0.3);
+        f.group.updateMatrixWorld(true);
+        const from = f.group.localToWorld(new T.Vector3(side[0] * 0.3, 1.3, side[1] * 0.3));
+        const feet = f.group.position.clone();
+        f.hit(1000, "body", 500, 1, 1, from);
+        for (let i = 0; i < 50; i++) r.figureLabStep(0.05);
+        const head = f.mq.bone("Head").getWorldPosition(new T.Vector3());
+        const away = feet.clone().sub(from).setY(0).normalize();
+        out[name] = Math.round(head.sub(feet).setY(0).dot(away) * 100) / 100;
+      }
+      return out;
+    })()`,
+  );
+  check("a death falls away from the shot: shot from its left, from behind and from the front, the head ends a metre or more away on the far side", Object.values(death).every((d) => d >= 1), JSON.stringify(death));
   await page.close();
 }
 

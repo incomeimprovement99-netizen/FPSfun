@@ -41,6 +41,8 @@ export interface HitReport {
 const HEALTH_MAX = 100;
 const RESPAWN_S = 1.2;
 const FALL_S = 0.32;
+/** a death turned away from the shot: how long a hit counts, how near the middle is no side, how fast it turns (figure.json death) */
+const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number };
 
 // human hull, metres (72 units tall)
 const H = 72 * 0.0254;
@@ -283,6 +285,13 @@ export class Dummy {
   private railDir = 1;
   private respawnAt = 0;
   private fall = 0;
+  /**
+   * Where the last hit landed (world x and z) and when on this figure's clock, and the way it turns to fall away from it
+   * (Milestone 610): a figure's fall, its death clip's and its volumes' alike, is backward, so it turns its front to the
+   * shot as it goes down (figure.json death)
+   */
+  private hitFrom: { x: number; z: number; at: number } | null = null;
+  private fallYaw: number | null = null;
   private flash = 0;
   private headFlash = 0;
   /** a leg hit flashes blue: the flash's colour says which zone you hit */
@@ -1126,11 +1135,28 @@ export class Dummy {
     for (const o of root.children) if (o !== this.farGun && o.name !== "muzzle") o.visible = !on;
   }
 
+  /**
+   * The way to fall: away from where the last hit landed, if it was lately (figure.json death.hitFor), round from the
+   * body's middle to it (a hit's point is on the near side, the shooter's); a hit at the middle itself leaves it facing
+   * as it was. A figure knocked with no hit here (another page's shot) falls as it faces.
+   */
+  private faceTheShot(): void {
+    const h = this.hitFrom;
+    this.fallYaw = null;
+    if (!h || this.idleT - h.at > DEATH.hitFor) return;
+    const ax = this.group.position.x - h.x;
+    const az = this.group.position.z - h.z;
+    if (Math.hypot(ax, az) < DEATH.near) return;
+    // it faces +z, and its yaw turns +z to (sin, cos): its back to `away`, its front to the shot
+    this.fallYaw = Math.atan2(-ax, -az);
+  }
+
   /** knocked by something other than a hit here (the 1v1 opponent going down) */
   fallDown(dropGun = true): void {
     if (this.knocked) return;
     this.knocked = true;
     this.fall = 0.0001;
+    this.faceTheShot();
     this.respawnAt = Infinity;
     if (dropGun) this.dropGun();
     else {
@@ -1278,10 +1304,12 @@ export class Dummy {
     if (broke) this.staggerAt = this.idleT;
     // a headshot snaps the head back (mannequin.ts Hit_Head), so a player sees which shots were the head
     if (zone === "head") this.headAt = this.idleT;
+    this.hitFrom = { x: point.x, z: point.z, at: this.idleT };
     if (knocked) {
       this.knocked = true;
       this.respawnAt = now + RESPAWN_S;
       this.fall = 0.0001;
+      this.faceTheShot();
       this.dropGun();
     }
     // past the weapon's headshot range a head hit does body damage (the
@@ -1329,6 +1357,11 @@ export class Dummy {
     // at the end, pivoting at the feet and toppling away from the shooter.
     if (this.knocked && this.fall < 1) {
       this.fall = Math.min(1, this.fall + dt / FALL_S);
+      // turned to fall away from the shot as it starts to go (faceTheShot), the shortest way round
+      if (this.fallYaw !== null) {
+        const d = Math.atan2(Math.sin(this.fallYaw - this.group.rotation.y), Math.cos(this.fallYaw - this.group.rotation.y));
+        this.group.rotation.y += d * Math.min(1, dt * DEATH.turnRate);
+      }
       const t = this.fall;
       const ease = t < 0.82 ? Math.pow(t / 0.82, 2) : 1 - Math.sin(((t - 0.82) / 0.18) * Math.PI) * 0.06;
       this.group.rotation.x = (-Math.PI / 2 + 0.2) * ease;
