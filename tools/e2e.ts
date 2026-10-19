@@ -6594,6 +6594,68 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
  * a shoulder plate's rim shows its own inside with the suit behind it, and the space between an arm and the body shows
  * the world with no inside in front of it.)
  */
+/**
+ * The soldier on a wall and in the skydive, as others see it (Milestone 604): both were the jump pose until then. On a
+ * wall it leans off it, its feet toward it, the gun up; gliding it lies on the air, diving it goes head down; in the
+ * fall the gun is away and on the ground it stands up again with it. And the head's hit volume goes with the head: the
+ * volumes follow the bones (dummy.ts followBones), so a body leant 25 degrees is hit where it is drawn.
+ */
+async function figureStancesTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender");
+  const ready = await page.waitForFunction("window.__range.soldierReady() && window.__range.paidGuns().ready", { polling: 250, timeout: 180000 }).then(() => true, () => false);
+  if (!ready) {
+    console.log("  --  the soldier's or the guns' files are not here (npm run paid makes them), so its wall run and skydive are not checked");
+    await page.close();
+    return;
+  }
+  type Seen = { spine: number[]; head: number; soles: number; gun: boolean; headVolume: number };
+  /** a figure in `pose` for `seconds`, then `after` for `then` seconds if given: where its parts are in its own frame (+x its left) */
+  const seen = (pose: Record<string, unknown>, seconds = 1.5, after?: Record<string, unknown>, then = 0) =>
+    ev<Seen>(
+      page,
+      `(() => {
+        const r = window.__range, T = r.THREE;
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); r.figureLab([{ ...${JSON.stringify(pose)}, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        for (let i = 0; i < ${Math.round(seconds / 0.05)}; i++) r.figureLabStep(0.05);
+        const f = r.labFigures()[0], mq = f.mq;
+        // (the same figure on into the next pose: the lab holds its own, so this one is stepped here)
+        ${after ? `for (let i = 0, t = 1e5; i < ${Math.round(then / 0.05)}; i++) { t += 0.05; f.setPose(${JSON.stringify(after)}); f.update(t, 0.05); }` : ""}
+        const g = f, m = mq;
+        g.group.updateMatrixWorld(true);
+        const at = (n) => g.group.worldToLocal(m.bone(n).getWorldPosition(new T.Vector3()));
+        const pelvis = at("pelvis");
+        const spine = at("neck_01").sub(pelvis).normalize();
+        const head = at("Head");
+        const vol = g.hitMeshes.find((h) => h.userData.zone === "head");
+        const headVolume = vol ? vol.getWorldPosition(new T.Vector3()).distanceTo(m.bone("Head").getWorldPosition(new T.Vector3())) : -1;
+        return { spine: [spine.x, spine.y, spine.z].map((v) => Math.round(v * 100) / 100), head: Math.round((head.x - pelvis.x) * 1000) / 1000, soles: Math.round(((at("ball_l").x + at("ball_r").x) / 2 - pelvis.x) * 1000) / 1000, gun: !!m.gun?.visible, headVolume: Math.round(headVolume * 1000) / 1000 };
+      })()`,
+    );
+  const stand = await seen({ speed: 0, stance: "stand", pitch: 0 });
+  const left = await seen({ speed: 12, stance: "wallL", pitch: 0, moveDir: 0 });
+  const right = await seen({ speed: 12, stance: "wallR", pitch: 0, moveDir: 0 });
+  check(
+    "on a wall the soldier leans off it, its head away from the wall and its feet toward it, the gun up (a wall on its left, then its right)",
+    left.head < -0.15 && left.soles > 0.15 && right.head > 0.15 && right.soles < -0.15 && left.gun && right.gun,
+    `left: head ${left.head} m, feet ${left.soles} m; right: head ${right.head}, feet ${right.soles} m across the hips`,
+  );
+  check(
+    "and its head's hit volume goes with the drawn head (no further from the Head bone than standing, within 2 cm)",
+    stand.headVolume >= 0 && Math.abs(left.headVolume - stand.headVolume) < 0.02 && Math.abs(right.headVolume - stand.headVolume) < 0.02,
+    `standing ${stand.headVolume} m, on the walls ${left.headVolume} and ${right.headVolume}`,
+  );
+  const glide = await seen({ speed: 14, stance: "skydive", pitch: 0, moveDir: 0 });
+  const dive = await seen({ speed: 5, stance: "skydive", pitch: -80, moveDir: 0 });
+  const landed = await seen({ speed: 5, stance: "skydive", pitch: -80 }, 1.5, { speed: 0, stance: "stand", pitch: 0 }, 1.2);
+  check(
+    "in the skydive it lies on the air gliding and goes head down diving, the gun away; on the ground it stands with it again",
+    Math.abs(glide.spine[1]) < 0.35 && glide.spine[2] > 0.8 && dive.spine[1] < -0.7 && !glide.gun && !dive.gun && landed.spine[1] > 0.85 && landed.gun,
+    `along the back: glide ${glide.spine}, dive ${dive.spine}, landed ${landed.spine}; gun ${glide.gun}/${dive.gun}/${landed.gun}`,
+  );
+  await page.close();
+}
+
 async function neckSeamTest(browser: Browser): Promise<void> {
   const page = await open(browser, "?");
   const SIZE = 480;
@@ -8601,6 +8663,8 @@ async function main(): Promise<void> {
       console.log("\nThe soldier as others see it, holding the USSO and BOOG, and its reload (Phase 27)");
       await figureHoldTest(browser);
       await neckSeamTest(browser);
+      console.log("\nThe soldier on a wall and in the skydive, as others see it (Milestone 604)");
+      await figureStancesTest(browser);
     });
 
     if (want("sksquad")) await section("sksquad", async () => {

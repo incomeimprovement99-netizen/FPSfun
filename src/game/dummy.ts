@@ -102,8 +102,14 @@ export interface DummyOptions {
   board?: boolean;
 }
 
-/** what a rigged figure is doing, from the player it stands for */
-export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip";
+/**
+ * what a rigged figure is doing, from the player it stands for: and in the air, the two things it was only "air" for
+ * until Milestone 604, a wall run with the wall on the left or the right of the way it runs, and the battle royale's
+ * skydive (player.ts figureStance)
+ */
+export type FigureStance = "stand" | "crouch" | "slide" | "air" | "climb" | "mantle" | "zip" | "wallL" | "wallR" | "skydive";
+/** off the ground: a jump or a fall, a wall run or a skydive */
+export const airborne = (s: FigureStance): boolean => s === "air" || s === "wallL" || s === "wallR" || s === "skydive";
 /** what its hands are busy with: a reload, a swap, a throw, a melee swing, a revive, or holding interact on something */
 export type FigureAct = "reload" | "swap" | "throw" | "melee" | "interact" | "vent" | null;
 export interface FigurePose {
@@ -158,10 +164,12 @@ export const TURN_STEP_AT = 0.87;
 /** the step round: the feet catch up at this rate (1/s), lifting in turn */
 const TURN_STEP_RATE = 11;
 const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
-const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip"];
+const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip", "stand", "wallL", "wallR", "skydive"];
 /**
  * A stance as one small number for the network, and back. 7 was down, a knocked figure's crawl, gone with the
- * knockdowns (Milestone 529): a page from before that sends it reads as standing.
+ * knockdowns (Milestone 529): a page from before that sends it reads as standing, and it stays unused. 8 and 9 (a wall
+ * run, the wall on the left or the right of the way it runs) and 10 (a skydive) came in Milestone 604: a page from
+ * before reads them as standing, so its figure of a player on a wall or in the drop stands in the air for a release.
  */
 export const stanceCode = (s: FigureStance): number => Math.max(0, STANCE_CODE.indexOf(s));
 export const stanceFromCode = (c: number | undefined): FigureStance => STANCE_CODE[c ?? 0] ?? "stand";
@@ -710,7 +718,8 @@ export class Dummy {
     const speed = Math.max(0, p.speed);
     // the way it moves against the way it faces: the legs turn toward a strafe; walking backward the clips run backward
     const dir = p.moveDir ?? 0;
-    const moving = speed > 0.3 && (p.stance === "stand" || p.stance === "crouch");
+    // (a wall run's legs run along the wall, whichever way the body looks)
+    const moving = speed > 0.3 && (p.stance === "stand" || p.stance === "crouch" || p.stance === "wallL" || p.stance === "wallR");
     const back = moving && Math.abs(dir) > 1.9;
     let legYaw = 0;
     if (moving) {
@@ -719,9 +728,9 @@ export class Dummy {
       legYaw = -Math.max(-LEG_TURN, Math.min(LEG_TURN, d));
     }
     // in the air, and the landing: a squash as big as the fall was long
-    if (p.stance === "air") this.airT += dt;
+    if (airborne(p.stance)) this.airT += dt;
     else {
-      if (this.lastStance === "air" && this.airT > 0.12) this.landAmt = Math.min(1, 0.35 + this.airT * 0.9);
+      if (airborne(this.lastStance) && this.airT > 0.12) this.landAmt = Math.min(1, 0.35 + this.airT * 0.9);
       this.airT = 0;
     }
     this.lastStance = p.stance;

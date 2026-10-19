@@ -23,6 +23,7 @@ import { solidsIn } from "./solidgrid";
 const NEAR: import("./range").Solid[] = [];
 import * as THREE from "three";
 import type { Action } from "./input";
+import type { FigureStance } from "./dummy";
 import { HU, MOVE, jumpVelocityFor, slideDecay, EXTRA } from "./movement";
 import type { Solid } from "./range";
 import { floorAt } from "./floors";
@@ -272,6 +273,23 @@ export class Player {
     if (this.sliding) return "slide";
     if (!this.onGround) return "air";
     return this.crouched ? "crouch" : "stand";
+  }
+
+  /**
+   * What the figure others see of you is doing (dummy.ts FigureStance; Milestone 604). It is the stance, but a wall run
+   * and the battle royale's skydive were "air" too, and everyone saw a jump floating beside the wall or across the sky.
+   * A wall run says which side of the way you run the wall is on, not of the way you look, since the body leans off it
+   * whichever way the head is turned (a run looked back along is the same run).
+   */
+  get figureStance(): FigureStance {
+    const w = this.wallRun;
+    if (w) {
+      // the wall's normal against the way you move: out of it to your right is a wall on your left
+      const across = Math.hypot(this.vel.x, this.vel.z) > 0.5 ? w.nz * this.vel.x - w.nx * this.vel.z : -this.wallSide;
+      return across > 0 ? "wallL" : "wallR";
+    }
+    if (this.dropping && !this.onGround) return "skydive";
+    return this.stance;
   }
 
   /**

@@ -31,7 +31,7 @@ import * as THREE from "three";
 import { pack, unpack } from "peerjs-js-binarypack";
 import netCfg from "../../src/config/net.json";
 import { Duel, type HeirSnapshot, type LocalState } from "../../src/game/duel";
-import { actCode, actFromCode, emptyReloadOf, stanceFromCode } from "../../src/game/dummy";
+import { actCode, actFromCode, emptyReloadOf, stanceCode, stanceFromCode } from "../../src/game/dummy";
 import type { DeltaMsg, DeltaPart, Link, NetMsg, StateMsg } from "../../src/net/link";
 import { operatorById, operatorWearing } from "../../src/game/operators";
 import { lookCode, readLook } from "../../src/game/outfit";
@@ -195,6 +195,14 @@ check("an ack goes a few times a second, and history outlasts the round trip it 
     "the acts left keep their codes (throw 3, melee 4, interact 6), and an old page's down stance (7) reads as standing",
     kept.throw === 3 && kept.melee === 4 && kept.interact === 6 && kept.back === "interact" && kept.downStance === "stand",
     JSON.stringify(kept)
+  );
+  // A wall run and a skydive have stances of their own (Milestone 604), after the down stance's retired 7, and come
+  // back as themselves; an unknown code (a page from after this one) reads as standing
+  const newStances = (["wallL", "wallR", "skydive"] as const).map((st) => ({ st, code: stanceCode(st), back: stanceFromCode(dequantise(quantise({ ...s, st: stanceCode(st) })).st) }));
+  check(
+    "a wall run (8 the wall on the left, 9 on the right) and a skydive (10) go over the wire as their own stances and come back so; 11 reads as standing",
+    newStances.map((x) => x.code).join() === "8,9,10" && newStances.every((x) => x.back === x.st) && stanceFromCode(11) === "stand",
+    JSON.stringify(newStances)
   );
   // An overheated gun venting (CHOOCH) goes as 20 and comes back as a vent
   const vent = { code: actCode("vent"), back: dequantise(quantise({ ...s, ac: actCode("vent") })).ac };

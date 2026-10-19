@@ -14858,3 +14858,48 @@ course".
   - The e2e: the speedkills section, 102 of 103; the one that failed, no material drawn in two passes, is the firing range's armory labels from the lobby agent's range work (transparent two-sided, found by a probe of the scene; reported to it). verify, rules and the type check.
 
   The map's files are unchanged, version 94.
+
+## Milestone 604 — The wall run and the skydive, as others see them
+
+The owner, 2026-10-18: "do a gap analysis on your section (3rd person, enemy pov) between hyperscape/apex/empules vs
+speedkills and implement the most important ones". The two biggest gaps in what an enemy sees were two movements the
+figure had no stance for: a wall run and the battle royale's skydive both went over the wire as "air", so a player
+running a wall was a jump pose floating beside it for three seconds, and a whole squad dropping from the ship fell
+the length of the sky in the same jump pose. EMPULSE is built round its wall runs, and Apex's dive and glide are how
+you read where a squad is landing.
+
+- **New stances** (dummy.ts FigureStance, player.ts figureStance): `wallL` and `wallR`, the wall on the left or the
+  right of the way the runner runs (not of the way they look: the body leans off the wall whichever way the head
+  turns), and `skydive`, from leaving the ship to the ground. They go over the wire as stance codes 8, 9 and 10, after
+  the down stance's retired 7; a page from before reads them as standing. The player's own stance (the HUD, the
+  sounds, the camera) is unchanged: only the figure others see, the killcam's recording and your own third-person figure
+  read the new ones. The battle royale's "landed" test and the jumpmaster follow read `airborne()`, so a skydive is
+  still in the air to them. Bots dropping from the ship skydive too, gliding onto their place or diving straight down.
+- **The wall run** (mannequin.ts layBody, figure.json wallRun): the whole figure is turned about the way it runs, round
+  its hips, so its feet go onto the wall and its head away from it, as EMPULSE's and Titanfall's runners lean. The
+  angle is measured, not picked: the player's middle is held the hull's radius (0.41 m) off the wall and the soldier's
+  hips are 0.951 m up, so asin(0.41 / 0.951) is 25.3 degrees. The legs run the sprint at no more than 1.4 times its
+  pace (a wall run is twice a sprint's speed, and double time read as a scramble), and the gun stays up at the shoulder
+  instead of the sprint's low carry: a runner on a wall can shoot.
+- **The skydive** (mannequin.ts layBody, skydiveLimbs, figure.json skydive): looking level, a glide, the body laid 80
+  degrees forward, belly to the ground, in a skydiver's box (upper arms out, forearms up past the head, back arched,
+  thighs apart, shins up); looking down, a dive, 150 degrees forward, head down, arms back along the body, legs
+  together. As far between as the look is, the same blend the skydive's own steering uses (squad.json dive), so the
+  pose says which way the player is flying. The forearms and shins flutter in the wind. The gun is put away for the
+  fall and comes back into the hands on the ground, as Apex's legends fall with empty hands, and the landing plays
+  the landing's crouch.
+- **Fair to shoot at:** the hit volumes follow the bones (dummy.ts followBones), so a body leant 25 degrees off a wall
+  is hit where it is drawn. Turning the whole figure round its hips, before the clips and the hold, keeps the gun in the
+  hands and the volumes on the body.
+- **Checked:**
+  - tools/checks/reach.ts, with the real movement: a run along a wall on the left is `wallL`, on the right `wallR`,
+    and looked back along it the same frame it stays so while the view's side of it turns over; a drop from 300 m is
+    `skydive` all the way down and `stand` on the ground. It fails with the bug put back: the sides swapped (both runs
+    wrong) and the skydive sent as "air".
+  - tools/checks/net-delta.ts: 8, 9 and 10 through the codec and back as themselves, 11 standing. It fails with the
+    old stance list put back.
+  - The e2e (skfigure): on a wall the soldier's head is 0.23 to 0.31 m across its hips away from the wall and its feet
+    0.27 to 0.29 m toward it, the gun up, both sides; its head's hit volume stays on its head; gliding its back is level,
+    diving head down, the gun away in both, and on the ground it stands with the gun again. It fails with the lean and the
+    lay taken out (the head 4 cm across, the back upright in both falls). The whole section: 319 of 319.
+  - verify, rules and the type check.

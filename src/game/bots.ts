@@ -1145,7 +1145,8 @@ export class Bot {
         this.dropTarget = null;
       }
       this.dummy.group.position.copy(this.pos);
-      this.dummy.setPose({ speed: 0, stance: "air", pitch: -30 });
+      // (its skydive a glide onto its place, a dive straight down without one: the figure reads which from the pitch)
+      this.dummy.setPose({ speed: 0, stance: "skydive", pitch: t ? 0 : -80 });
       this.dummy.update(now, dt);
       return [];
     }

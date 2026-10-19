@@ -32,6 +32,21 @@
     "raise": 25,
     "bend": 40
   },
+  "_wallRun": "A wall run seen on a figure (Milestone 604; until then it was the plain jump pose floating beside the wall). EMPULSE's and Titanfall's runners lean off the wall with their feet on it, so the whole figure is turned about the way it runs, round its hips (the pelvis bone's height in the bind pose, measured as each figure is made), by the angle that puts a foot under the hips onto the wall: the player's middle is held the hull's radius off it (movement.json radius, 16 hu, 0.41 m), so asin(0.41 / hip height): the soldier's hips are 0.951 m up, 25.3 degrees. Eased in and out at `rate` a second. Its legs run the run's clip, no faster than `mostRate` times the clip's own pace: a wall run is twice a sprint's speed, and the sprint's legs at double time read as a scramble. The gun stays up, not in the sprint's low carry: a runner on a wall is a runner who can shoot. Ours.",
+  "wallRun": {
+    "rate": 8,
+    "mostRate": 1.4
+  },
+  "_skydive": "The battle royale's skydive seen on a figure (Milestone 604; until then the jump pose for the whole fall). Apex's legends fall in two poses, a belly-down glide with the arms out and a head-first dive with the arms back, and which one says where they are going; ours steer the same way (squad.json dive: a level look glides, a look down dives), so the figure is `glide` degrees forward of upright looking level and `dive` looking straight down, as far between as the look is, turned round the hips. The limbs, degrees on the body at rest (the arms as an emote's: raise sideways from hanging, forward from hanging; elbow bent toward the head; arch the back; head back from the chest; thigh back; spread apart; knee bent): gliding, the box a skydiver flies, upper arms out a little past level, forearms up past the head, the back arched, the head up to see ahead, thighs back and apart, shins up behind; diving, the arms back along the body and the legs together, nearly straight. The forearms and shins flutter `flutter[0]` degrees at `flutter[1]` a second. Eased in at `rateIn` a second off the ship and out at `rateOut` at the ground, where the landing's crouch takes it (mannequin.ts landUntil). The gun is put away for the fall, as Apex's legends fall with empty hands. Ours, posed by eye against Apex's.",
+  "skydive": {
+    "glide": 80,
+    "dive": 150,
+    "rateIn": 3,
+    "rateOut": 14,
+    "flutter": [3, 6],
+    "glideLimbs": { "raise": 100, "forward": 0, "elbow": 85, "arch": 15, "head": 45, "thigh": 20, "spread": 14, "knee": 75 },
+    "diveLimbs": { "raise": 0, "forward": -40, "elbow": -15, "arch": 0, "head": 15, "thigh": 0, "spread": -4, "knee": 4 }
+  },
   "_flatFeet": "Standing or crouched still, the soldier's clips hold its toes 16.1 degrees up from its bind pose, so it stood on its heels (measured by apex-lobby for the battle royale's card, Milestone 416: the foot-to-ball line 30.5 degrees down against 46.6 bound, the ankle 0.152 m up and the ball 0.072; the owner asked it fixed). Under `under` m/s each foot is turned back until its toe is no higher than the bind pose has it, eased in and out at `rate` a second (rifle-hold soldiers only; the legacy figures keep their clips). A foot the clips point down (a crouch's kneeling foot) and every moving foot are the clips' own: walking and running, the planted feet come down flat by themselves (measured: 2 to 8 degrees at mid stance). Turned flat, a standing sole was 11 to 22 mm into the floor (its heel had been 44 mm in, the toe 9 above): the standing clip holds the legs lower than a walk's planted foot (the ankle 0.152 m up against 0.174), so a figure standing still is also lifted `lift` m, eased the same way (measured off the boots' lowest skin; not crouched, whose kneeling foot is already above the floor).",
   "flatFeet": {
     "under": 0.6,

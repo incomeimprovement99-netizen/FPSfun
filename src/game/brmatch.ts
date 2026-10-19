@@ -125,7 +125,7 @@ function openGround(x: number, z: number): { x: number; z: number } {
 
 /** a bot goes only for loot within this height of its feet (src/config/bots.json loot.floor) */
 const BOT_LOOT_FLOOR = botsCfg.loot.floor;
-import { actCode, type Dummy } from "./dummy";
+import { actCode, airborne, type Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { navTree, reachedFrom, type NavTree } from "./navgraph";
 import { DISTRICT_HOLDS, ROOF_ROUTES, SPIRE_TOP } from "./world";
@@ -2158,7 +2158,8 @@ export class BrMatch extends Duel {
     // the lobby (someone still on the menu): the ring, the care packages and the bots wait for the drop
     if (this.phase === "waiting") return;
     // the drop ends for the host when it lands: the fight is on from then
-    if (this.phase === "countdown" && local.stance !== "air" && now - this.dropAt > 1) {
+    // (a skydive is in the air too: the figure others see has its own stance for it, Milestone 604)
+    if (this.phase === "countdown" && !airborne(local.stance) && now - this.dropAt > 1) {
       this.enter("fight", now, 0);
       this.onNotice?.(this.fightNotice());
     }

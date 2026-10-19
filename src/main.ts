@@ -39,7 +39,7 @@ import { loadQuality, saveQuality, measureRefresh, PRESETS, type Preset, drawRan
 import { falloff, lastSolidNormal, ProjectileSystem, solidHit } from "./game/projectile";
 import { takenHit } from "./game/hitpick";
 import AUDIO_CFG from "./config/audio.json";
-import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
+import { Dummy, ARMOR_NAME, ARMOR_COLOR, actCode, actFromCode, airborne, emptyReloadOf, type ArmorTier, type FigurePose } from "./game/dummy";
 import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, setHour, getSun, RANGE_SOLIDS, RANGE_PLAIN, TARGET_RAILS, TARGET_SPECS, PROP_PLACEMENTS } from "./game/range";
 import { floorAt } from "./game/floors";
 import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
@@ -2919,7 +2919,7 @@ function shipFrame(d: BrMatch, keys: MoveInput): void {
   const f = d.figureOf(following);
   const g = f?.group.position;
   const clear = g ? g.y - surfaceUnder(g.x, g.z, g.y) : 0;
-  if (!player.dropping || !f || !g || f.currentPose.stance !== "air" || clear < SHIP.follow.release) {
+  if (!player.dropping || !f || !g || !airborne(f.currentPose.stance) || clear < SHIP.follow.release) {
     following = null;
     player.leash = null;
     if (player.dropping) hud.notice("ON YOUR OWN: STEER IN", gameTime, 1.5);
@@ -6304,7 +6304,7 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();
-  f.setPose({ speed: player.speed, stance: player.stance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
+  f.setPose({ speed: player.speed, stance: player.figureStance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
   f.update(now, dt);
 }
 
@@ -7438,7 +7438,7 @@ function step(): void {
     // started; a battle royale's starts once it has loaded, its ship waiting at its start until the card has gone
     held: show !== null && (show.stage === "load" || (show.stage === "card" && !show.br)),
     shipHeld: show !== null && show.br,
-    stance: player.stance,
+    stance: player.figureStance,
     speed: player.speed,
     ads: ws.adsFrac,
     act: localAct(),
@@ -7457,7 +7457,7 @@ function step(): void {
   if (duel) {
     const d = duel;
     recorder.sample(wall, () => [
-      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.stance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: mySoldierCode() ?? undefined },
+      { id: d.id, name: profile.profile.name, x: player.pos.x, y: player.pos.y, z: player.pos.z, yaw: player.yaw, pitch: player.pitch, stance: player.figureStance, speed: player.speed, weapon: onScreen.weapon.id, op: loadouts.current.operator, alive: d.alive, soldier: mySoldierCode() ?? undefined },
       ...d.actorStates(),
     ]);
   }
@@ -8399,7 +8399,7 @@ const GALLERY = { x: 0, z: -8 };
   camera,
   /** screenshots: rigged figures in every stance, armed and unarmed, animated by the frame loop */
   rigGallery: (speed = 5) => {
-    const stances = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip"] as const;
+    const stances = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip", "wallL", "wallR", "skydive"] as const;
     stances.forEach((st, i) => {
       for (const [row, armed] of [
         [0, "vinson"],

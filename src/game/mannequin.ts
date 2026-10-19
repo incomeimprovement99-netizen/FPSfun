@@ -32,7 +32,9 @@ import { slow } from "./slow";
 import soldierHold from "../config/soldierhold.json";
 import feelCfg from "../config/gunfeel.json";
 import { newSweep, phaseMeshes, type PhaseSweep } from "./phase";
-import type { FigurePose } from "./dummy";
+import { airborne, type FigurePose } from "./dummy";
+import { MOVE } from "./movement";
+import squadCfg from "../config/squad.json";
 import type { EmotePose } from "./emotes";
 import { PROFILE } from "./game";
 import { loadSoldier, lookOf, readSoldierCode, soldierCode, soldierMaterial, soldierScene, SOLDIER_VARIANTS, type SoldierLook } from "./soldier";
@@ -135,6 +137,13 @@ const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 const CHEST_UP = figureCfg.chestUp as { most: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
+/** a wall run's lean in and out, a second, and the most its run clip is sped up (figure.json wallRun) */
+const WALL_RUN = figureCfg.wallRun as { rate: number; mostRate: number };
+/** the skydive's body, degrees forward of upright gliding and diving, its limbs, and its ease (figure.json skydive) */
+type Limbs = { raise: number; forward: number; elbow: number; arch: number; head: number; thigh: number; spread: number; knee: number };
+const SKYDIVE = figureCfg.skydive as unknown as { glide: number; dive: number; rateIn: number; rateOut: number; flutter: number[]; glideLimbs: Limbs; diveLimbs: Limbs };
+/** where a look goes from a glide to a dive, as the skydive's own steering has it (squad.json dive) */
+const DIVE = squadCfg.dive;
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
 const THROW_FOR = soldierHold.throwFor;
 /** how far the hands have come back onto a returning long gun when it shows (soldierhold.json gunBack) */
@@ -225,6 +234,10 @@ async function makeSoldierTemplate(clipRig: THREE.Object3D, soldier: THREE.Objec
 const DEG = Math.PI / 180;
 const Y = new THREE.Vector3(0, 1, 0);
 const X_AXIS = new THREE.Vector3(1, 0, 0);
+const Z_AXIS = new THREE.Vector3(0, 0, 1);
+/** the body's lean or lay this frame, and its axis (layBody) */
+const layQ = new THREE.Quaternion();
+const layV = new THREE.Vector3();
 
 /**
  * a gun's reload time, seconds (weapons.ts, fusion 0), from empty (the longer, with the rack) or tactical (a round
@@ -763,6 +776,16 @@ export class MannequinFigure {
   private staggerSeen = -Infinity;
   private staggerUntil = -Infinity;
   private wasAir = false;
+  /**
+   * 0..1 eased: a wall run's lean off its wall (+ a wall on the left of the run, - on the right), a skydive's laying of
+   * the body on the air, and its dive against its glide; and the hips' height in the bind pose, m, the point the body is
+   * turned round for both (measured off the soldier as it is made)
+   */
+  private wallW = 0;
+  private skyW = 0;
+  private diveW = 0;
+  private hipY = 0.95;
+  private baseY = 0;
   /** the double jumps seen so far (null until the first count arrives), and when the last one's knee lift began */
   private airJumpsSeen: number | null = null;
   private liftAt = -Infinity;
@@ -820,6 +843,10 @@ export class MannequinFigure {
       cullAsFigure(this.root, skinned, this.height);
     }
     sizeFingers(this.bones);
+    if (this.bones.pelvis) {
+      this.root.updateMatrixWorld(true);
+      this.hipY = this.bones.pelvis.getWorldPosition(new THREE.Vector3()).y - this.root.position.y;
+    }
     if (!slow("skeleton")) shareSkeletons(this.root);
     if (gunId) this.setGun(gunId);
   }
@@ -1243,6 +1270,11 @@ export class MannequinFigure {
     this.dead = on;
     if (this.gun) this.gun.visible = this.gunShown && !on;
     this.gunInHand = !!this.gun && this.gun.visible;
+    // (upright for the death clip, which lays it on the floor itself: a figure shot off a wall or out of the sky falls
+    // from where it was, not leaning or lying on the air)
+    this.wallW = this.skyW = 0;
+    this.root.quaternion.identity();
+    this.placeRoot();
     if (on) {
       // the library's death is 2.4 s: a game's is quicker (1.5 s)
       this.play("lower", "Death01", 1.6, 0.12, true, "full");
@@ -1254,6 +1286,73 @@ export class MannequinFigure {
       this.mixer.stopAllAction();
       this.lower = this.upper = null;
       this.lowerName = this.upperName = "";
+    }
+  }
+
+  /**
+   * A wall run leans the body off its wall and a skydive lays it on the air (Milestone 604): the whole figure turned
+   * round its hips before the clips and everything on top, so the hold, the hands and the hit volumes that follow the
+   * bones all work in it. A runner's feet go onto the wall: the player's middle is held its hull's radius off it
+   * (movement.json radius, player.ts wallRun), so the lean is the angle that carries a foot a hip's height under the
+   * hips that far across. A skydive is figure.json skydive.glide degrees forward of upright looking level and .dive
+   * looking down, as far between as the look is between the skydive's own glide and dive (squad.json dive).
+   */
+  private layBody(p: FigurePose, dt: number): void {
+    const wall = p.stance === "wallL" ? 1 : p.stance === "wallR" ? -1 : 0;
+    this.wallW += (wall - this.wallW) * Math.min(1, dt * WALL_RUN.rate);
+    const sky = p.stance === "skydive";
+    this.skyW += ((sky ? 1 : 0) - this.skyW) * Math.min(1, dt * (sky ? SKYDIVE.rateIn : SKYDIVE.rateOut));
+    const dive = Math.max(0, Math.min(1, (DIVE.flatPitch - p.pitch) / (DIVE.flatPitch - DIVE.downPitch)));
+    if (sky) this.diveW += (dive - this.diveW) * Math.min(1, dt * SKYDIVE.rateIn);
+    const q = this.root.quaternion.identity();
+    if (Math.abs(this.wallW) > 1e-3) {
+      // about the way it runs (figure space: +z its front, +x its left): a wall on its left turns its up to its right
+      const m = p.moveDir ?? 0;
+      const lean = Math.asin(Math.min(0.7, MOVE.radius / this.hipY));
+      q.multiply(layQ.setFromAxisAngle(layV.set(-Math.sin(m), 0, Math.cos(m)), lean * this.wallW));
+    }
+    if (this.skyW > 1e-3) q.multiply(layQ.setFromAxisAngle(X_AXIS, (SKYDIVE.glide + (SKYDIVE.dive - SKYDIVE.glide) * this.diveW) * DEG * this.skyW));
+    this.placeRoot();
+  }
+
+  /** the root where its turn leaves the hips where they were, on its lift (a still stand's, an emote's bounce) */
+  private placeRoot(): void {
+    const hip = layV.set(0, this.hipY, 0).applyQuaternion(this.root.quaternion);
+    this.root.position.set(-hip.x, this.baseY + this.hipY - hip.y, -hip.z);
+  }
+
+  /**
+   * The skydive's limbs (figure.json skydive), on the body at rest it is laid from. Gliding, the box a skydiver flies:
+   * the upper arms out level, the forearms up past the head, the back arched, the head up to see ahead, the thighs back
+   * and apart and the shins up behind. Diving: the arms back along the body, the legs together and nearly straight. As
+   * far between as the dive is, the forearms and shins fluttering in the wind.
+   */
+  private skydiveLimbs(b: Record<string, THREE.Object3D>, fig: THREE.Object3D): void {
+    const G = SKYDIVE.glideLimbs;
+    const D = SKYDIVE.diveLimbs;
+    const at = (key: keyof Limbs) => (G[key] + (D[key] - G[key]) * this.diveW) * DEG * this.skyW;
+    const [amp, hz] = SKYDIVE.flutter;
+    const flap = (phase: number) => amp * DEG * this.skyW * Math.sin(this.t * hz * 2 * Math.PI + phase);
+    // (the arms as an emote's: the right hangs toward -x, so it is raised about the front axis the negative way)
+    turnBone(b.upperarm_r, fig, Z_AXIS, -at("raise"));
+    turnBone(b.upperarm_r, fig, X_AXIS, -at("forward"));
+    if (b.upperarm_l) {
+      turnBone(b.upperarm_l, fig, Z_AXIS, at("raise"));
+      turnBone(b.upperarm_l, fig, X_AXIS, -at("forward"));
+    }
+    if (b.lowerarm_r) turnBone(b.lowerarm_r, fig, Z_AXIS, -(at("elbow") + flap(0)));
+    if (b.lowerarm_l) turnBone(b.lowerarm_l, fig, Z_AXIS, at("elbow") + flap(1.7));
+    if (b.spine_02) turnBone(b.spine_02, fig, X_AXIS, -at("arch"));
+    if (b.Head) turnBone(b.Head, fig, X_AXIS, -at("head"));
+    // (a turn about the figure's left by a positive angle takes a hanging bone's end back; the right leg is toward -x)
+    for (const [s, out, phase] of [["r", -1, 0.6], ["l", 1, 2.4]] as const) {
+      const thigh = b[`thigh_${s}`];
+      const calf = b[`calf_${s}`];
+      if (thigh) {
+        turnBone(thigh, fig, X_AXIS, at("thigh"));
+        turnBone(thigh, fig, Z_AXIS, out * at("spread"));
+      }
+      if (calf) turnBone(calf, fig, X_AXIS, at("knee") + flap(phase));
     }
   }
 
@@ -1325,8 +1424,9 @@ export class MannequinFigure {
     this.owed = 0;
     const speed = Math.max(0, p.speed);
     this.t += dt;
-    // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly
-    const air = p.stance === "air";
+    this.layBody(p, dt);
+    // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly (a skydive's too)
+    const air = airborne(p.stance);
     if (this.wasAir && !air && (fx.land ?? 0) > 0.4 && speed < 2.6 && p.stance === "stand") this.landUntil = this.t + 0.32;
     this.wasAir = air;
     // A double jump: the knees come up and go back down (figure.json doubleJump). The first count a figure is given is
@@ -1353,6 +1453,9 @@ export class MannequinFigure {
     }
     const back = speed > 0.3 && Math.abs(p.moveDir ?? 0) > 1.9;
     const dirSign = back ? -1 : 1;
+    const onWall = p.stance === "wallL" || p.stance === "wallR";
+    // in the skydive the hands are the body's: the gun put away until the ground (Apex's legends fall with empty hands)
+    if (p.stance === "skydive") armed = false;
     // A slide has a way in and a way out (the free library's Slide_Start and
     // Slide_Exit, once they have loaded): it used to cut straight into its
     // loop and straight out of it, which every other player saw as a pop.
@@ -1405,6 +1508,17 @@ export class MannequinFigure {
         break;
       case "zip":
         lower = "Idle_Rail_Loop";
+        full = true;
+        break;
+      case "wallL":
+      case "wallR":
+        // the run along the wall, its legs no quicker than a run's at mostRate (a wall run is twice a sprint's speed)
+        lower = speed > 6.2 ? "Sprint_Loop" : "Jog_Fwd_Loop";
+        lowerRate = Math.min(WALL_RUN.mostRate, speed / (speed > 6.2 ? 7.5 : 4.8)) * dirSign;
+        break;
+      case "skydive":
+        // the body laid on the air and its limbs set out on top (skydiveLimbs), from a body standing at rest
+        lower = "Idle_Loop";
         full = true;
         break;
       default:
@@ -1474,7 +1588,7 @@ export class MannequinFigure {
         upper = this.rifle && this.mount ? "Pistol_Aim_Neutral" : "Pistol_Reload";
         upperRate = 1;
         once = !(this.rifle && this.mount);
-      } else if ((p.act === "swap" && !this.cupSwap(p)) || ((lower === "Sprint_Loop" || sprintJump) && (p.ads ?? 0) < 0.3)) {
+      } else if ((p.act === "swap" && !this.cupSwap(p)) || (((lower === "Sprint_Loop" && !onWall) || sprintJump) && (p.ads ?? 0) < 0.3)) {
         upper = "Pistol_Idle_Loop";
         upperRate = 1;
       } else {
@@ -1556,8 +1670,10 @@ export class MannequinFigure {
         turnBone(b.lowerarm_l, fig, Z, em.lElbow);
         turnBone(b.lowerarm_l, fig, X, -em.lElbowF);
       }
-      this.root.position.y = em.bounce;
-    } else this.root.position.y = FLAT_FEET.lift * this.liftW;
+      this.baseY = em.bounce;
+    } else this.baseY = FLAT_FEET.lift * this.liftW;
+    this.placeRoot();
+    if (this.skyW > 0.01 && b.upperarm_r) this.skydiveLimbs(b, fig);
     // the double jump's knees, up and back down over its time: the thighs forward (a turn about the figure's left by a
     // negative angle brings a hanging bone's end forward) and the knees bent back
     if (lift >= 0 && lift < 1) {
