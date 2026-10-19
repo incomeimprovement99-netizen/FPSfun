@@ -230,7 +230,8 @@ ships.
 | `npm run fps run "<cmd>"` | any shell command on the box, in `~/range` | whatever it does |
 
 What lives where on the box: `~/range/app/` is the current release
-(`site/` and `server/`), `~/range/prev/` the one before, `~/range/range.env`
+(`site/` and `server/`), `~/range/prev/` the one before (whose `site/assets/` the server still serves, so a page
+opened before a deploy can load its own build's parts after it: Milestone 700), `~/range/range.env`
 the relay secret (written once by setup, never shipped),
 `~/range/boards.json` the online boards and `~/range/accounts.json` the
 accounts (password hashes, sessions and synced profiles), and

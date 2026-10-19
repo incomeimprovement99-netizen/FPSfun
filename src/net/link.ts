@@ -27,7 +27,18 @@ import type { DataConnection, PeerOptions } from "peerjs";
  * friends needs it
  */
 let peerLib: Promise<typeof import("peerjs")> | null = null;
-const peerjs = (): Promise<typeof import("peerjs")> => (peerLib ??= import("peerjs"));
+const peerjs = (): Promise<typeof import("peerjs")> =>
+  // (forgotten when it fails, so the next try fetches it again)
+  (peerLib ??= import("peerjs").catch((e: unknown) => {
+    peerLib = null;
+    throw e;
+  }));
+/**
+ * PeerJS's part of the game would not load (Milestone 700): said, not left at "Making a match..." for good. A page
+ * opened before a deploy asked for its own build's part, which the deploy had taken away; the server now keeps the
+ * release before's (serve.mjs), and a page that still cannot get it is told to reload.
+ */
+const NO_LIB = "Could not load the game's match-making part (the game was updated?): reload the page and try again.";
 import { withoutUndefined } from "./wire";
 
 /** the unordered channel for the delta packets (net.json fast) */
@@ -865,7 +876,9 @@ export function hostMatch(
       } else onError(peerError(err.type));
     });
   };
-  void start(0);
+  start(0).catch(() => {
+    if (!cancelled) onError(NO_LIB);
+  });
   return handle;
 }
 
@@ -964,7 +977,7 @@ export function joinMatch(
     });
     p.on("error", (err: { type?: string }) => live() && fail(peerError(err.type), !!err.type && HANDSHAKE_ERRORS.has(err.type)));
   };
-  void start();
+  start().catch(() => onError(NO_LIB));
   return () => {
     cancelled = true;
     clearTimeout(timer);

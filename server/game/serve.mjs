@@ -508,6 +508,22 @@ app.use(
   })
 );
 
+// A page opened before a deploy asks for its own build's files after it: a part loaded only when needed (PeerJS's,
+// when a match is made) is fetched then, and the deploy had taken it away, so the page sat on "Making a match..." for
+// good (Milestone 700). The release before is kept beside this one (tools/deploy-server.ts moves it to prev), and
+// its hashed files are served while it is: each name carries its content's hash, so the two releases' never collide.
+const PREV_ASSETS = resolve(process.env.PREV_DIST ?? join(DIST, "..", "..", "prev", "site"), "assets");
+if (existsSync(PREV_ASSETS))
+  app.use(
+    "/assets",
+    express.static(PREV_ASSETS, {
+      index: false,
+      setHeaders(res) {
+        res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      },
+    })
+  );
+
 const server = app.listen(PORT, HOST, () => {
   console.log(`range server ${version} on http://${HOST}:${PORT} (site ${DIST}, TURN ${TURN_SECRET ? "on" : "off"})`);
 });

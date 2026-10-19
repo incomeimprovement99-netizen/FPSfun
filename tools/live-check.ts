@@ -36,8 +36,26 @@ const askedNet = (page: Page): Promise<string> =>
     `JSON.stringify({ age: Math.round(performance.now()), asked: performance.getEntriesByType("resource").filter((e) => /net\\.json|peerjs/.test(e.name)).map((e) => [e.name.replace(/^https?:..[^/]+/, "").slice(0, 40), Math.round(e.startTime), Math.round(e.responseEnd)]) })`
   ).catch(() => "(the page did not answer)");
 
+/**
+ * Each page's requests still waiting for an answer (Milestone 700): when the host gets no match code, which of its
+ * files never came. After four deploys in a day the host sat on "Making a match..." for minutes with its net.json asked
+ * and answered, and nothing said what it was waiting on.
+ */
+const pending = new WeakMap<Page, Map<string, number>>();
+const waitingOn = (page: Page): string => {
+  const m = pending.get(page);
+  if (!m?.size) return "nothing pending";
+  const now = Date.now();
+  return [...m.entries()].map(([u, t]) => `${u.replace(/^https?:..[^/]+/, "").slice(0, 60)} (${Math.round((now - t) / 1000)} s)`).slice(0, 8).join(", ");
+};
+
 async function open(browser: Browser): Promise<Page> {
   const page = await browser.newPage();
+  const mine = new Map<string, number>();
+  pending.set(page, mine);
+  page.on("request", (r) => void mine.set(r.url(), Date.now()));
+  page.on("requestfinished", (r) => void mine.delete(r.url()));
+  page.on("requestfailed", (r) => void mine.delete(r.url()));
   page.on("pageerror", (e) => errors.push(String(e)));
   // a load the page itself cancelled (closed or moved on mid-download: the bought soldier is 1.7 MB and starts
   // loading as the page opens) is not a failure; a file that is not there answers 404, and that is still caught
@@ -129,7 +147,7 @@ async function main(): Promise<void> {
       code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
       check("the host gets a match code from the broker", /^[A-Z0-9]{5}$/.test(code), code);
     } catch {
-      check("the host gets a match code from the broker", false, `${await ev<string>(host, `document.getElementById("duelStatus").textContent`)}; host ${await askedNet(host)}`);
+      check("the host gets a match code from the broker", false, `${await ev<string>(host, `document.getElementById("duelStatus").textContent`)}; host ${await askedNet(host)}; waiting on: ${waitingOn(host)}; errors: ${errors.slice(-4).join(" | ") || "none"}`);
       return;
     }
     await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);

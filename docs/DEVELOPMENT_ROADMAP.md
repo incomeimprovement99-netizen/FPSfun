@@ -12381,6 +12381,31 @@ to 400 of the match's materials had no shader, all of them the bots' guns.
 - **Checked:** tsc, verify, rules; e2e sklobby ("sk order: aboard, the match's own figures and loot have their shaders
   before the ship flies over them", which failed before).
 
+## Milestone 700 — A page opened before a deploy can still make a match after it
+
+Four deploys on 2026-10-19 ended with the live check's host on "Making a match..." for minutes, its net.json asked and
+answered. Probed through the next deploy (node_modules/.scratch/staticprobe.mts and brokerprobe.mts): the broker
+answered at once, and net.json and the site's files in a tenth of a second, all through. What the probe did show: the
+moment the new release was up, the old release's own files were 404.
+
+- **The fault this found, for players:**
+  - PeerJS's part of the game is loaded only when a match is made (link.ts, to keep it off the page's start);
+  - a page opened before a deploy asked for its own build's part after it, and the deploy had taken that away;
+  - the import failed with nothing catching it, so the page sat on "Making a match..." for good.
+- **The server keeps the release before's files** (serve.mjs PREV_ASSETS): the deploy moves the old release to
+  `prev/`, and its hashed `assets/` are served behind the new release's. The names carry their content's hash, so the
+  two never collide. Proven by tools/checks/serve-prev.ts, the real server over a made-up release and the one before,
+  in npm run verify.
+- **A part that still will not load is said:** "Could not load the game's match-making part (the game was updated?):
+  reload the page and try again." A second try fetches it again rather than reusing the failed load.
+- **The live check says what a stuck host waits on:** the requests not yet answered and the page's last errors, so the
+  next time its own host stalls the cause is in the line.
+- **Not yet explained:** the live check's own host (a page opened after the deploy) stalled after four deploys and not
+  the fifth. Its next failure will name the request it waited on.
+- **Checked:**
+  - tsc, verify (the new server check, and proven: with the release before's files left out it fails), rules;
+  - e2e p2p.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
