@@ -228,6 +228,9 @@ describes the retired legacy game, and goes with its code.
   level 5: +2% damage and +10% magazine a level for a gun, a shorter cooldown
   for a hack. The HUD shows each gun's level as pips.
 - **Loot:** guns and hack cores on every floor, whichever start you pick.
+  Every item stands in a thin beam of light in its rarity's colour (white,
+  blue, violet, gold), taller and brighter the rarer it is, so loot reads from
+  across a street (Milestone 705).
   "Land with your loadout" changes only what you land holding: your two guns
   at level 0 rather than nothing, and the bots land armed. What you die with
   goes down loose, each gun at its level; a squad mate brings you back at your echo with it. A care package holds a gun at level 3 to 5 and two

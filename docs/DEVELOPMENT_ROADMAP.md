@@ -12466,6 +12466,29 @@ under them as bare text. Now every one is a plate (hud.ts plate), edged where it
 - **Checked:** tsc, verify, rules; e2e speedkills (the layout check on the bottom edge); photographed at 1080p in the
   range with each panel's state put on the HUD.
 
+## Milestone 705 — Loot you can see: every item in a beam of its rarity's colour
+
+docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md item 11, "loot you can see", handed to the lobby agent as game code.
+
+- **What it was:** photographed on the GPU at 1080p from three landings, four ways round each, with every item in
+  view ringed and its distance written beside it. A common or rare gun or hack core past about 20 m was a few pixels
+  on the street, and its ring on the floor, seen edge on, was nothing at all. Only epic and legendary items stood in a
+  beam, and a match lays mostly commons.
+- **Hyper Scape's answer,** from its gameplay frames: every item on the floor stands in a thin pillar of light in its
+  rarity's colour, which is what you see across a street long before the item.
+- **Now:** every item stands in a thin beam in its rarity's colour (white, blue, violet, gold; an echo's green),
+  fading to nothing at its top. The rarer, the taller and brighter: 1.6 m and dim for a common up to 3.8 m for a
+  legendary, so the eye goes to the rare ones first (loot.json beam). Past 15 m a beam widens with the distance, so it
+  stays about three pixels wide at 1080p instead of thinning to nothing.
+- **Cost:** one instanced draw call for each colour and rarity in view, as the rings are; one beam batch is made with
+  the field so the match's warm-up compiles the beams' shader before the ship flies over them.
+- **Seen:** at golden hour, the neon night and the hazy day: the rare and epic beams read across a plaza in all three,
+  the white ones over the dark street at 40 m.
+- **Left to the city agent:** the plan's other half, the map giving light at each loot spot.
+- **Checked:** tsc, verify, rules; e2e sklobby (the match's loot has its shaders aboard) and brsolo, with a new check
+  that every item in draw distance has its beam and a far one is widened (130 of 130 items; with the old beams put
+  back it failed, 9 beams for 134 items and none widened).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

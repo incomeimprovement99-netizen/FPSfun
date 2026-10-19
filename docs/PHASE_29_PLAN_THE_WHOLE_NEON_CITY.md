@@ -127,8 +127,8 @@ first.
    white get their pictures; walk-in doors framed with the pack's exterior gates.
 10. **Light** (built, Milestone 576: the night's sky fill an hour's own; noon looked at and left, SpeedKills' own day reading): a real night (today "a purple-tinted day", the range's sky fill still lighting the city), and noon on the
     ground (too dark, the parked cars glaring).
-11. **Loot you can see:** game code (the loot's glow), so a hand-off to the lobby agent, the map giving light at each
-    loot spot.
+11. **Loot you can see** (the game code's half built, Milestone 705: every item in a beam of its rarity's colour): game
+    code (the loot's glow), so a hand-off to the lobby agent, the map giving light at each loot spot.
 
 ## Where Hyper Scape went wrong, and what each district does about it
 

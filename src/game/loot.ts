@@ -8,8 +8,8 @@
 // Taking an item is the host's call in a squad: first come, first served.
 //
 // Drawn in code: a gun lies as its own model, the rest as a small box in the
-// rarity's colour; epic and legendary items stand in a beam of light. Only
-// what is within 70 m is drawn.
+// rarity's colour; every item stands in a beam of light in its rarity's colour,
+// taller and brighter the rarer it is. Only what is within 70 m is drawn.
 //
 // Two things decide what you find. A place has a TIER (src/config/loot.json),
 // which says how many spots it carries and how the rarity weights lean, and
@@ -92,6 +92,24 @@ export interface HotZone {
 /** each rarity's colour as a number, read once (it was read from its string for every item drawn, every frame) */
 const RARITY_HEX = new Map<string, number>(Object.entries(cfg.colors).map(([r, c]) => [r, new THREE.Color(c as string).getHex()]));
 const hexOf = (r: Rarity) => RARITY_HEX.get(r) ?? new THREE.Color(cfg.colors[r]).getHex();
+
+/**
+ * A beam's shape: an open tube a metre tall from its foot, scaled to its rarity's height. Its vertex colours fall
+ * from full at the foot to nothing at the top, which an additive material draws as light fading upward.
+ */
+function beamGeometry(): THREE.BufferGeometry {
+  const g = new THREE.CylinderGeometry(cfg.beam.radius, cfg.beam.radius, 1, 6, 3, true);
+  g.translate(0, 0.5, 0);
+  const y = g.getAttribute("position");
+  const col = new Float32Array(y.count * 3);
+  for (let i = 0; i < y.count; i++) {
+    // (eased: most of the light low, by the item)
+    const k = (1 - y.getY(i)) ** 1.6;
+    col[i * 3] = col[i * 3 + 1] = col[i * 3 + 2] = k;
+  }
+  g.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  return g;
+}
 
 /** a small deterministic random, the same on every browser for the same seed */
 export function seeded(seed: number): () => number {
@@ -389,7 +407,7 @@ export class LootField {
   set keyNext(n: number) {
     this.nextKey = Math.max(this.nextKey, Math.floor(n));
   }
-  private beamGeo = new THREE.CylinderGeometry(0.05, 0.05, 2.4, 6, 1, true);
+  private beamGeo = beamGeometry();
   private boxGeo = new THREE.BoxGeometry(0.34, 0.2, 0.34);
   /** a gun's ring on the floor , shared by every one (not one geometry each) */
   private ringGeo = new THREE.RingGeometry(0.34, 0.42, 20);
@@ -423,12 +441,16 @@ export class LootField {
   private readonly tmpQ = new THREE.Quaternion();
   private readonly tmpE = new THREE.Euler();
   private readonly tmpP = new THREE.Vector3();
+  private readonly tmpP2 = new THREE.Vector3();
   private readonly unit = new THREE.Vector3(1, 1, 1);
 
   /** no scene: nothing drawn (tools/verify.ts, in Node) */
   constructor(scene: THREE.Scene | null) {
     this.group.name = "loot";
     scene?.add(this.group);
+    // one beam batch made now, drawing nothing, so the match's warm-up (main.ts warmMatch) compiles the beams' shader
+    // (one for every colour: the colour is a uniform) before the first one comes into view
+    if (scene) this.beamBatch(hexOf("common"), "common");
     // (it never moves, nor does an item once it is down: their matrices worked out once, not every frame; ?slow=static)
     if (!slow("static")) {
       this.group.updateMatrix();
@@ -455,8 +477,8 @@ export class LootField {
     return g;
   }
 
-  /** the batched shapes of an item near enough to draw: its box, a gun's ring, a rare one's beam */
-  private drawBatched(d: LootDrop, now: number, near = true): void {
+  /** the batched shapes of an item near enough to draw: its box, a gun's ring, its beam (`dist` from the eye, metres) */
+  private drawBatched(d: LootDrop, now: number, near = true, dist = 0): void {
     const it = d.item;
     const colour = hexOf(it.rarity);
     const p = this.tmpP;
@@ -492,11 +514,22 @@ export class LootField {
         this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
       }
     }
-    if (it.rarity === "epic" || it.rarity === "legendary" || it.kind === "echo") {
-      p.set(d.pos.x, d.pos.y + 1.2, d.pos.z);
-      this.tmpQ.identity();
-      this.batch(`beam${colour}`, this.beamGeo, () => new THREE.MeshBasicMaterial({ color: it.kind === "echo" ? 0x7ddc8a : colour, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
-    }
+    // the beam: every item's, in its rarity's colour (an echo's green), widened past holdFrom to stay a few pixels wide
+    const beam = it.kind === "echo" ? 0x7ddc8a : colour;
+    const r = it.kind === "echo" ? "legendary" : it.rarity;
+    const wide = Math.max(1, dist / cfg.beam.holdFrom);
+    p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
+    this.tmpQ.identity();
+    this.tmpP2.set(wide, cfg.beam.height[r], wide);
+    this.beamBatch(beam, r).put(this.tmpM.compose(p, this.tmpQ, this.tmpP2));
+  }
+
+  /** a colour's and rarity's beams, one draw call for all of them */
+  private beamBatch(colour: number, r: Rarity): Batch {
+    const b = this.batch(`beam${colour}.${r}`, this.beamGeo, () => new THREE.MeshBasicMaterial({ color: colour, vertexColors: true, transparent: true, opacity: cfg.beam.opacity[r], blending: THREE.AdditiveBlending, depthWrite: false }));
+    // (named for tools/e2e.ts, which counts them against the items in draw distance)
+    b.mesh.name = "loot:beam";
+    return b;
   }
 
   /** an item into the world at `pos`: with a given key (from the seed or the host), or the next free one */
@@ -779,10 +812,11 @@ export class LootField {
     if (this.headless) return;
     const far2 = cfg.drawDistance * cfg.drawDistance;
     for (const d of this.drops.values()) {
-      const v = d.pos.distanceToSquared(cam) < far2;
+      const d2 = d.pos.distanceToSquared(cam);
+      const v = d2 < far2;
       d.obj.visible = v;
       if (!v) continue;
-      this.drawBatched(d, now, d.pos.distanceToSquared(cam) < CORE_DETAIL2);
+      this.drawBatched(d, now, d2 < CORE_DETAIL2, Math.sqrt(d2));
     }
     for (const b of this.batches.values()) b.close();
   }
