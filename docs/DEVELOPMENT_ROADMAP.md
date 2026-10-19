@@ -12554,6 +12554,18 @@ Found photographing the screens after a death on the GPU: a bot's rounds, the Gu
   beside it, apart and both on the screen (with the old centring put back it failed, the card over the recap's top);
   photographed at 1080p.
 
+## Milestone 709 — The last of the HUD's flat boxes on plates
+
+Milestones 697, 698 and 704 put the HUD on Hyper Scape's, Apex's and Empulse's kind of plate; a few panels seen less
+often were still flat boxes:
+
+- **On plates now:** the tutorial's instructions; a duel's round card and its summary; the flick drill's result and THE
+  RUN's; the quick chat (gold-edged); the loot card, edged in its verdict's colour (it had a stripe of it); the table of
+  everyone under the match card; each sound caption's line, as each kill feed line is; each squad mate's row.
+- **Left as they are:** the killcam's letterbox bars and the banner cards' art.
+- **Checked:** tsc, verify, rules; e2e speedkills (its loot start's drop check found nothing on the floor once, run
+  under the machine's load, and passed run alone); photographed at 1080p with each panel's state put on the HUD.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

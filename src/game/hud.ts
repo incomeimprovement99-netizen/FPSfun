@@ -680,8 +680,7 @@ export class Hud {
     if (line) lines.push(line);
     const shown = lines.slice(0, k === 1 ? 3 : 4);
     const h = k === 1 ? 86 * u : (40 + shown.length * 17) * u * k;
-    c.fillStyle = "rgba(8,10,12,0.78)";
-    c.fillRect(cx - w / 2, y0, w, h);
+    this.plate(cx - w / 2, y0, w, h, u, null, 1.1);
     c.fillStyle = t.done ? "#ffd23c" : "#7ddc8a";
     c.fillRect(cx - w / 2, y0, w * (t.step / t.of), 4 * u * k);
     this.text(t.done ? t.title : `${t.label} ${t.step} / ${t.of}  ·  ${t.title}`, cx, y0 + 30 * u * k, 700, 20 * u * k, t.done ? "#ffd23c" : "#7ddc8a", "center");
@@ -791,16 +790,11 @@ export class Hud {
   private roundCard(d: NonNullable<HudState["duel"]>, u: number, cx: number): void {
     const rows = d.players.filter((p) => p.kills !== undefined).slice(0, 8);
     if (!rows.length) return;
-    const c = this.ctx;
     const w = 420 * u;
     const rowH = 26 * u;
     const top = this.h * 0.46;
     const h = rowH * (rows.length + 1) + 16 * u;
-    c.fillStyle = "rgba(10, 13, 16, 0.82)";
-    c.fillRect(cx - w / 2, top, w, h);
-    c.strokeStyle = "rgba(255,255,255,0.12)";
-    c.lineWidth = 1;
-    c.strokeRect(cx - w / 2, top, w, h);
+    this.plate(cx - w / 2, top, w, h, u, null, 1.15);
     const x0 = cx - w / 2 + 16 * u;
     let y = top + 22 * u;
     this.text("THE ROUND", x0, y, 700, 13 * u, DIM);
@@ -868,8 +862,7 @@ export class Hud {
     const h = 150 * u;
     const x0 = cx - w / 2;
     const y0 = this.h * 0.24;
-    c.fillStyle = "rgba(8,10,12,0.82)";
-    c.fillRect(x0, y0, w, h);
+    this.plate(x0, y0, w, h, u, null, 1.15);
     c.fillStyle = "#8fd8ff";
     c.fillRect(x0, y0, w, 4 * u);
     this.text("FLICK DRILL COMPLETE", cx, y0 + 32 * u, 700, 18 * u, DIM, "center");
@@ -1323,8 +1316,7 @@ export class Hud {
     const h = 170 * u;
     const x0 = cx - w / 2;
     const y0 = this.h * 0.36 + 70 * u;
-    c.fillStyle = "rgba(8,10,12,0.8)";
-    c.fillRect(x0, y0, w, h);
+    this.plate(x0, y0, w, h, u, null, 1.15);
     c.fillStyle = sm.won ? "#ffd23c" : RED;
     c.fillRect(x0, y0, w, 4 * u);
     const row = (i: number, label: string, value: string) => {
@@ -1910,11 +1902,8 @@ export class Hud {
     const h = pad * 2 + 30 * u + 22 * u + lines * rowH + (noteLines.length ? 10 * u + noteLines.length * noteH : 0);
     const x = this.w / 2 + 70 * u;
     const y = this.h * 0.42 - h / 2;
-    c.fillStyle = "rgba(8,10,16,0.82)";
-    c.fillRect(x, y, w, h);
     const accent = v.verdict === "fuse" ? "#3cf2ff" : v.verdict === "max" ? DIM : v.verdict === "swap" ? "#ffd23c" : "#7ddc8a";
-    c.fillStyle = accent;
-    c.fillRect(x, y, 3 * u, h);
+    this.plate(x, y, w, h, u, accent, 1.15);
     this.edge(x, y, w, h, u);
     let yy = y + pad + 18 * u;
     this.text(v.title, x + pad, yy, 700, 22 * u, WHITE);
@@ -2197,13 +2186,11 @@ export class Hud {
   private drawQuickChat(s: HudState, u: number): void {
     const lines = s.quickChat;
     if (!lines || !lines.length) return;
-    const c = this.ctx;
     const x = 40 * u;
     const w = 230 * u;
     const rowH = 24 * u;
     const y = this.h * 0.42;
-    c.fillStyle = "rgba(10,13,16,0.82)";
-    c.fillRect(x, y, w, (lines.length + 1) * rowH + 12 * u);
+    this.plate(x, y, w, (lines.length + 1) * rowH + 12 * u, u, GOLD, 1.15);
     this.text("QUICK CHAT", x + 14 * u, y + 20 * u, 700, 13 * u, "#ffd23c");
     lines.forEach((line, i) => {
       this.text(`${i + 1}`, x + 14 * u, y + 20 * u + (i + 1) * rowH, 700, 14 * u, "#ffd23c");
@@ -2255,8 +2242,7 @@ export class Hud {
     if (t.length > 1) {
       const ty = y + h + 10 * u;
       const th = (30 + t.length * 22) * u;
-      c.fillStyle = "rgba(10,13,16,0.86)";
-      c.fillRect(x, ty, w, th);
+      this.plate(x, ty, w, th, u, null, 1.2);
       this.text("PLAYER", x + 24 * u, ty + 20 * u, 700, 12 * u, DIM);
       this.text("KILLS", x + w * 0.62, ty + 20 * u, 700, 12 * u, DIM, "right");
       this.text("DAMAGE", x + w * 0.82, ty + 20 * u, 700, 12 * u, DIM, "right");
@@ -3063,11 +3049,10 @@ export class Hud {
     for (const l of lines) {
       const where = l.where ? `  ${l.where}` : "";
       const range = l.range ? `  ${l.range}` : "";
-      c.fillStyle = "rgba(8, 10, 13, 0.6)";
       const text = `${l.text}${where}${range}`;
       c.font = `700 ${13 * u}px Rajdhani, sans-serif`;
       const w = c.measureText(text).width + 16 * u;
-      c.fillRect(x - 6 * u, y - 14 * u, w, 20 * u);
+      this.plate(x - 6 * u, y - 14 * u, w, 20 * u, u, null, 0.85);
       this.text(l.text, x, y, 700, 13 * u, WHITE);
       if (l.where) this.text(`${l.where}${range}`, x + c.measureText(l.text).width + 10 * u, y, 600, 12 * u, DIM);
       y += 22 * u;
@@ -3455,8 +3440,7 @@ export class Hud {
       const gone = r.life === "out" || r.life === "left";
       const dim = gone || r.life === "quiet";
       c.globalAlpha = gone ? 0.55 : 1;
-      c.fillStyle = "rgba(8,10,13,0.6)";
-      c.fillRect(x0, y, w, h);
+      this.plate(x0, y, w, h, u, null, 0.85);
       if (r.hurtK > 0) {
         c.fillStyle = `rgba(255,60,60,${(0.4 * r.hurtK).toFixed(3)})`;
         c.fillRect(x0, y, w, h);
@@ -3764,8 +3748,7 @@ export class Hud {
       const x0 = cx - w / 2;
       const y0 = this.h * 0.22;
       const c = this.ctx;
-      c.fillStyle = "rgba(8,10,12,0.8)";
-      c.fillRect(x0, y0, w, h);
+      this.plate(x0, y0, w, h, u, null, 1.15);
       c.fillStyle = "#ffd23c";
       c.fillRect(x0, y0, w, 4 * u);
       this.text(`${k.title} COMPLETE`, cx, y0 + 34 * u, 700, 20 * u, DIM, "center");
