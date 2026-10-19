@@ -115,8 +115,8 @@
     "max": 2
   },
   "invis": {
-    "_shimmer": "Someone else under INVISIBILITY past seenWithin is not gone: their shape shimmers, barely visible but noticeable when you know what to look for (the owner, 2026-10-19, after Hyper Scape's: 'they should shimmer, like barely visible but still noticeable'; Milestone 715). A pale rim at the figure's edges (`rim`, of the light's fresnel) and faint bands drifting up it (`band`, `bandScale` bands a metre, `bandSpeed` a second), added to what is behind, `amount` of it standing and `moving` at `movingFull` m/s and over, so a runner is the easier to catch. Everything else still treats them as unseen: no outline, no plate, no aim assist. Within seenWithin they are whole, as before.",
-    "shimmer": { "color": "#cfefff", "amount": 0.07, "moving": 0.16, "movingFull": 6, "rim": 0.8, "band": 0.3, "bandScale": 7, "bandSpeed": 2.5 },
+    "_shimmer": "Someone else under INVISIBILITY past seenWithin is not gone: their shape shimmers, barely visible but noticeable when you know what to look for (the owner, 2026-10-19, after Hyper Scape's: 'they should shimmer, like barely visible but still noticeable'; Milestone 715). A pale rim at the figure's edges (`rim`, of the light's fresnel) and faint bands drifting up it (`band`, `bandScale` bands a metre, `bandSpeed` a second), added to what is behind, `amount` of it standing and `moving` at `movingFull` m/s and over, so a runner is the easier to catch; a round landing on them flares it by `hit` for its hit flash (Milestone 718), as Hyper Scape's flash when hit. Everything else still treats them as unseen: no outline, no plate, no aim assist. Within seenWithin they are whole, as before.",
+    "shimmer": { "color": "#cfefff", "amount": 0.07, "moving": 0.16, "movingFull": 6, "rim": 0.8, "band": 0.3, "bandScale": 7, "bandSpeed": 2.5, "hit": 0.5 },
     "cooldown": 14,
     "seconds": 4,
     "seenWithin": 6,

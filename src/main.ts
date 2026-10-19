@@ -3513,7 +3513,7 @@ function stepGhosts(dt: number): void {
 /** others under INVISIBILITY, until when (the page's wall clock) */
 const unseenUntil = new Map<number, number>();
 /** INVISIBILITY's shimmer (hacks.json invis.shimmer), its colour read once */
-const SHIMMER = (HACK.invis as unknown as { shimmer: { color: string; amount: number; moving: number; movingFull: number; rim: number; band: number; bandScale: number; bandSpeed: number } }).shimmer;
+const SHIMMER = (HACK.invis as unknown as { shimmer: { color: string; amount: number; moving: number; movingFull: number; rim: number; band: number; bandScale: number; bandSpeed: number; hit: number } }).shimmer;
 const CLOAK_COLOR = new THREE.Color(SHIMMER.color).getHex();
 
 /**

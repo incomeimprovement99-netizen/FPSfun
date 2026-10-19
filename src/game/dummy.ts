@@ -593,11 +593,13 @@ export class Dummy {
    * Its INVISIBILITY's shimmer at `amount` (0 off), in `color`, its bands at `time` (main.ts: on while it is unseen past
    * hacks.json invis.seenWithin, its group hidden; the shimmer stands outside it)
    */
-  setCloak(amount: number, color: number, look: { rim: number; band: number; bandScale: number; bandSpeed: number }, time: number): void {
+  setCloak(amount: number, color: number, look: { rim: number; band: number; bandScale: number; bandSpeed: number; hit: number }, time: number): void {
     this.cloaked = amount > 0.001;
     if (!this.cloaked && !this.cloak) return;
     this.cloak ??= new CloakShell(this.group, [this.hits]);
-    this.cloak.show(amount, color, look, time);
+    // a round landing flares it (Milestone 718), as Hyper Scape's invisible flash when hit: its own hit flash, decaying
+    const hit = this.cloaked ? Math.max(this.flash, this.headFlash, this.legFlash) * look.hit : 0;
+    this.cloak.show(amount + hit, color, look, time);
   }
 
   /** the shimmer as drawn (tools/e2e.ts), or null when it has never shown */

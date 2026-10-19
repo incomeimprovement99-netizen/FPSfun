@@ -609,7 +609,8 @@ green plate always shows.
   they used it, INVISIBILITY's shimmer, a MINE set down and a WALL going up among them (Milestone 710), and their
   catch onto a zipline (Milestone 712), and a puff for a double jump, theirs and yours (Milestone 713).
 - **Others under INVISIBILITY:** hidden past 6 m but for a faint shimmer of their outline, a little more when they
-  move; whole within 6 m (Milestone 715).
+  move and a flash when a round lands; still shot, blasted and heard as anyone is; whole within 6 m (Milestones 715 to
+  718).
 - **An enemy's REVEAL that catches you:** puts a red REVEALED, counting down, under the compass.
 - **The compass and minimap:** they follow whoever you are watching (a squad mate, the killcam), and the minimap marks
   north.

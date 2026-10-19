@@ -12685,6 +12685,16 @@ INVISIBILITY (its `cloaked`) as there, as the rounds do since Milestone 716.
   is heard walking (7 steps in 1.5 s at 3.5 m/s; with the old rule put back, 0, and it failed). In that run the loot
   start's drop check also found nothing on the floor once, as it has before under load; it passed in the run before.
 
+## Milestone 718 — An invisible player flares when a round lands
+
+Hyper Scape's invisible players flash when hit; ours, since Milestones 715 and 716 hid them and let them be shot,
+showed only the hit marker and the number. A round landing on someone unseen under INVISIBILITY now brightens their
+shimmer for as long as the figure's own hit flash lasts (a tenth of a second or so): hacks.json invis.shimmer.hit, 0.5
+of the flash over the shimmer, so a shooter sees where the round went without the figure being shown.
+
+- **Checked:** tsc, verify, rules; e2e brsolo, the INVISIBILITY check now asks that a hit flares the shimmer (0.07 to
+  0.29 a frame after; with the flare taken out it stayed at 0.07, and it failed).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
