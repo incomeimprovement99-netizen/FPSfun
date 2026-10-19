@@ -12629,6 +12629,14 @@ Found checking each sound caption word against the sounds that say it (audio.ts 
   out it failed, the double jump not heard). Its ghost check's two pages did not make one match once, run beside the
   day's full sweep, and made it in the run after.
 
+## Milestone 714 — The killer's gun drawn in the killcam and the death recap
+
+- **The killcam:** the bar under the killer's name now carries their gun's own outline beside its name, as the kill
+  feed does since Milestone 701 (hud.ts drawKillcam; main.ts sends the gun's id with its name).
+- **The death recap:** each gun an opponent hit you with is drawn as its outline before its name and distances
+  (recap.ts keeps the gun's id with each).
+- **Checked:** tsc, verify, rules; e2e brsolo (the recap's layout); photographed at 1080p after a death.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

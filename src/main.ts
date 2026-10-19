@@ -7827,7 +7827,7 @@ function step(): void {
     voice: hudVoice,
     trainer: trainer.hud(now),
     mantleCue: trainer.cue && mantleCueOn,
-    killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponLabel(killcam.killerWeapon) : "", progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
+    killcam: killcam.active ? { name: killcam.killerName, weapon: killcam.killerWeapon ? weaponLabel(killcam.killerWeapon) : "", weaponId: killcam.killerWeapon && killcam.killerWeapon !== "melee" ? killcam.killerWeapon : null, progress: killcam.progress, left: killcam.left, skipKey: keyLabel("jump") } : null,
     recap: recap && !killcam.active ? { ...recap, age: now - recapShownAt, closeKey: keyLabel("jump"), killerCard: bannerOf(remoteBanners.get(recap.killerId) ?? botBanner(recap.killerId)) } : null,
     myCard: bannerOf(myBanner()),
     sectors: duel instanceof BrMatch && duel.decay ? skSectorsHud(duel) : null,

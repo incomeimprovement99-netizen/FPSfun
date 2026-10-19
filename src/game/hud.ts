@@ -282,7 +282,8 @@ export interface HudState {
    */
   callout?: string | null;
   /** the killcam is playing: whose eyes, their gun, how far through, the skip key */
-  killcam?: { name: string; weapon: string; progress: number; left: number; skipKey: string } | null;
+  /** `weaponId` the killer's gun's own, for its outline (Milestone 714) */
+  killcam?: { name: string; weapon: string; weaponId?: string | null; progress: number; left: number; skipKey: string } | null;
   /** the death recap, after the killcam: how long it has been up, the close key */
   recap?: (Recap & { age: number; closeKey: string; killerCard?: BannerCard | null }) | null;
   /** your banner card, for the champion screen */
@@ -938,7 +939,14 @@ export class Hud {
     c.fill();
     this.text("KILLCAM", 50 * u, bar / 2 + 8 * u, 700, 24 * u, WHITE);
     this.text(k.name, this.w / 2, bar / 2 + 6 * u, 700, 28 * u, RED, "center");
-    if (k.weapon) this.text(k.weapon.toUpperCase(), this.w / 2, bar / 2 + 28 * u, 600, 14 * u, DIM, "center");
+    if (k.weapon) {
+      // the gun's own outline beside its name (Milestone 714), as the kill feed carries it
+      const label = k.weapon.toUpperCase();
+      const lw = this.measure(label, 14 * u);
+      const gw = 66 * u;
+      const drew = !!k.weaponId && drawGun(c, k.weaponId, this.w / 2 - (lw + gw + 10 * u) / 2 + gw / 2, bar / 2 + 23 * u, gw, "#e6ebf0");
+      this.text(label, drew ? this.w / 2 - (lw + gw + 10 * u) / 2 + gw + 10 * u : this.w / 2, bar / 2 + 28 * u, 600, 14 * u, DIM, drew ? "left" : "center");
+    }
     this.text(`${k.skipKey} TO SKIP`, this.w - 30 * u, this.h - bar / 2 + 6 * u, 700, 16 * u, DIM, "right");
     c.fillStyle = "rgba(255,255,255,0.15)";
     c.fillRect(30 * u, this.h - bar / 2 - 2 * u, this.w * 0.4, 4 * u);
@@ -1040,8 +1048,16 @@ export class Hud {
       line(y + 72 * u, "THEM → YOU", row.taken, RED);
       const gun = row.guns[0];
       const dist = (g: typeof gun) => (g.near === null ? "" : g.far !== null && Math.round(g.far) !== Math.round(g.near) ? `  ${Math.round(g.near)}-${Math.round(g.far)} M` : `  ${Math.round(g.near)} M`);
-      const guns = row.guns.length ? row.guns.slice(0, 2).map((g) => `${g.name}${dist(g)}`).join("   ·   ") : "NO HITS ON YOU";
-      this.text(guns, bx, y + 96 * u, 600, 13 * u, "#c8d0d8");
+      // each gun with its own outline before its name (Milestone 714), as the kill feed and the carry card show a gun
+      if (!row.guns.length) this.text("NO HITS ON YOU", bx, y + 96 * u, 600, 13 * u, "#c8d0d8");
+      let gx = bx;
+      for (const g of row.guns.slice(0, 2)) {
+        const gw = 48 * u;
+        if (g.id && drawGun(c, g.id, gx + gw / 2, y + 91 * u, gw, "#c8d0d8")) gx += gw + 8 * u;
+        const t = `${g.name}${dist(g)}`;
+        this.text(t, gx, y + 96 * u, 600, 13 * u, "#c8d0d8");
+        gx += this.measure(t, 13 * u) + 24 * u;
+      }
       const right: string[] = [];
       if (row.left) right.push(`LEFT: ${poolText(row.left.shield)} SHIELD · ${poolText(row.left.health)} HEALTH`);
       right.forEach((t, j) => this.text(t, x0 + w - 24 * u, y + 24 * u + j * 18 * u, 700, 12 * u, DIM, "right"));

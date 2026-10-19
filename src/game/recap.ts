@@ -33,7 +33,8 @@ export interface RecapRow {
   /** them to you */
   taken: { damage: number; hits: number; heads: number };
   /** the guns they hit you with: name, hits, damage, closest and farthest */
-  guns: Array<{ name: string; hits: number; damage: number; near: number | null; far: number | null }>;
+  /** `id` the gun's own (its outline on the recap, Milestone 714), absent for melee or a gun not known */
+  guns: Array<{ name: string; id?: string; hits: number; damage: number; near: number | null; far: number | null }>;
   /** what they had left when you went down (null: not known) */
   left: { shield: number; health: number } | null;
 }
@@ -84,10 +85,10 @@ export class DamageLog {
       if (id < 0) continue;
       const mine = this.hits.filter((h) => h.from === this.me && h.to === id);
       const theirs = this.hits.filter((h) => h.from === id && h.to === this.me);
-      const guns = new Map<string, { name: string; hits: number; damage: number; near: number | null; far: number | null }>();
+      const guns = new Map<string, { name: string; id?: string; hits: number; damage: number; near: number | null; far: number | null }>();
       for (const h of theirs) {
         const key = h.weapon || "?";
-        const g = guns.get(key) ?? { name: h.weapon === "melee" ? "MELEE" : h.weapon ? weaponLabel(h.weapon).toUpperCase() : "UNKNOWN GUN", hits: 0, damage: 0, near: null, far: null };
+        const g = guns.get(key) ?? { name: h.weapon === "melee" ? "MELEE" : h.weapon ? weaponLabel(h.weapon).toUpperCase() : "UNKNOWN GUN", id: h.weapon && h.weapon !== "melee" ? h.weapon : undefined, hits: 0, damage: 0, near: null, far: null };
         g.hits++;
         g.damage += h.amount;
         if (h.dist !== null) {
