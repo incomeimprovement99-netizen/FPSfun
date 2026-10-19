@@ -17,6 +17,7 @@ import type { Course } from "./course";
 import type { Dummy } from "./dummy";
 import { RANGE_SOLIDS, type Solid } from "./range";
 import { emissive, flat } from "./geo";
+import { MOVE } from "./movement";
 import { TUTORIAL_COURSE, TUTORIAL_X, DIVIDERS, MOVE_ROOM, JUMP, DOUBLE, MANTLE, WALLRUN, DASH, HIGH, CLIMB, GLIDE, EXIT, OUT, BACK, DECK, RUN_WALL_X, inOut, inBack, type Ledge } from "./courses/tutorial";
 
 /** the panel at the top of the screen: the room, what to do, the skip bar, the marker; or the finish card (hud.ts) */
@@ -157,6 +158,8 @@ export const DASH_STEP = STEPS.findIndex((s) => s.title === "DASH");
 export const GUN_STEP = STEPS.findIndex((s) => s.title === "HIGH GROUND");
 
 const SKIP_HOLD = 1.2;
+/** how far round a door's collider a body counts as in its doorway: the body's radius and a hand (movement.json) */
+const DOOR_CLEAR = MOVE.radius + 0.1;
 /** a room this long, or this many falls in it, says what to change and how to skip it */
 const STUCK_AFTER = 60;
 const STUCK_FALLS = 3;
@@ -357,6 +360,11 @@ export class Tutorial {
       }
     }
     const inside = this.inside(c.pos);
+    // Never a door shut on a body (Milestone 693, the owner: "it doesn't allow me to exit the tutorial run into the firing
+    // range"). The way out is a metre-thick wall: half way through it you were out of the walls but not yet out of the
+    // tutorial, so it was reset, every door shut, and the way out's own closed on you and put you back inside, every
+    // door behind you shut too. Its doors now wait until you are clear of them.
+    const inDoor = this.doors.some((d) => c.pos.x > d.solid.minX - DOOR_CLEAR && c.pos.x < d.solid.maxX + DOOR_CLEAR && c.pos.z > d.solid.minZ - DOOR_CLEAR && c.pos.z < d.solid.maxZ + DOOR_CLEAR);
     if (this.active) {
       const step = STEPS[this.index];
       // (before the walls: the last step is done by walking out of them)
@@ -364,14 +372,14 @@ export class Tutorial {
         this.next(now);
         return this.update(now, c, false, keys);
       }
-      if (!inside) {
+      if (!inside && !inDoor) {
         this.reset();
         return null;
       }
     } else if (inside && inOut(c.pos.x) && c.pos.z < MOVE_ROOM.entryZ && now - this.doneAt > 1) {
       // in its start room: the first room
       this.restart(now);
-    } else if (!inside && this.doors.some((d) => d.openedAt !== null)) {
+    } else if (!inside && !inDoor && this.doors.some((d) => d.openedAt !== null)) {
       this.reset();
     }
     if (!this.active) {

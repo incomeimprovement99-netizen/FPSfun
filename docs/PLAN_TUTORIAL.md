@@ -56,6 +56,7 @@ royale.
 | 636 | **THE RUN rebuilt** for today's speeds: out and back, about 340 m, nine rooms each measured to its move, no ziplines, S from the route run end to end. | shipped (roadmap Milestone 636) |
 | 637 | **The guided tour out** (the owner, 2026-10-18: "yep remove old one"). Its panel stays as the tutorial's; the wall run's feel check gets its own e2e section. | shipped (roadmap Milestone 637) |
 | 638 | **The tutorial from the owner's playtest:** room 4 left by its door, room 5's wall run taken from a run beside the wall, a skip that puts you in the next room, a goal and a beacon in every room, no see-through walls, the Neon ceiling, and the whole tutorial run end to end. | shipped (roadmap Milestone 638) |
+| 693 | **The way out lets you out** (the owner: "it doesn't allow me to exit the tutorial run into the firing range"). Half way through the metre-thick way out you were out of the walls but not done, so it reset and shut every door, the way out's own on you. A door is never shut on a body now; the e2e walks you out. | shipped (roadmap Milestone 693) |
 
 ## The tutorial as built (Milestone 633)
 

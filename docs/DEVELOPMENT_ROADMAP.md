@@ -12240,6 +12240,26 @@ black boxes, the range's old dark panel.
   range-v2). Photographed at the golden hour and under the neon night. Proven: with the posts' colliders out the
   range check fails (0 of 14), and with the lamp's height typed 5.5 the bake refuses.
 
+## Milestone 693 — The tutorial's way out lets you out
+
+The owner, 2026-10-18: "IT DOESN'T ALLOW ME TO EXIT THE TUTORIAL RUN INTO THE FIRING RANGE AS WELL, THATS PRETTY BAD AND
+CLEARLY A BUG."
+
+- **The fault, reproduced on the live site by walking out** (node_modules/.scratch/tutdoor.mts): the way out is a door
+  in a metre-thick wall (z 8 to 9). The tutorial counts you out of its walls past z 9, but done with its last room only
+  past z 8.1. Half way through the doorway you were neither, so it reset: every door shut, the way out's own on top of
+  you. Its collider put you back inside at z 9.41, with every door behind you shut too, and nothing opened them again.
+- **The fix** (src/game/tutorial.ts): a door is never shut on a body. While you stand in any doorway (its collider and
+  your radius and a hand round it), the tutorial does not reset. You walk on through, the last room is done, and the
+  doors shut once you are clear of them.
+- **Why no test saw it:** the tutorial's e2e stood you past the way out (a teleport to z 6). It now walks you out from
+  13 m inside, forward held, and checks you come out into the range.
+- **Stale names:** the menu's Firing Range card still listed the ladders, ziplines and wallbounce wall Milestone 691
+  took out, and THE RUN was still "The Run (Basic)" with "Seven rooms". They now say what is there.
+- **Checked:** tsc, verify, rules; e2e sktutorial with the walk. Proven: with the doorway rule out the section fails
+  (in the suite's software drawing a long frame can carry you past the door as it shuts, so it is the tutorial left
+  unfinished that fails there; on a GPU page you are put back inside, as the owner was).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

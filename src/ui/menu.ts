@@ -337,7 +337,7 @@ export class Menu {
       matchCard("Team Deathmatch", ["tdm"]),
       matchCard("Control", ["control"]),
       matchCard("Free-for-all", ["ffa"]),
-      courseCard("basic", "The Run (Basic)"),
+      courseCard("basic", "The Run"),
       courseCard("drill", "Flick drill (30 targets)"),
       this.gunsCard(),
       techCard,
@@ -401,7 +401,7 @@ export class Menu {
   }
 
   setRunBest(basic: number | null): void {
-    $("runBest").textContent = basic !== null ? `Seven rooms, one technique each. Your best: ${basic.toFixed(2)} s.` : "Seven rooms, one technique each, twenty pop-ups.";
+    $("runBest").textContent = basic !== null ? `Nine rooms out and back, one move each. Your best: ${basic.toFixed(2)} s.` : "Nine rooms out and back, one move each: beat the clock.";
     // the panel shows the card's line, so a new best time has to reach it
     if (this.picked === "run") this.renderSetup();
   }

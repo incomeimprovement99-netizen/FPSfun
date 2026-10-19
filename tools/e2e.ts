@@ -6241,7 +6241,14 @@ async function skTutorialTest(browser: Browser): Promise<void> {
   await until(`window.__range.gameTime() >= ${gOut + 1}`, 90000);
   const exitOpen = await st();
   check("sk tutorial: past the superglide's gap by the optional bridge, SUPERGLIDE is done and the way out into the range opens", glided && !exitOpen.shut[8], JSON.stringify(exitOpen));
-  await tp(0, 0, 6, 0);
+  // out through the way out on foot, not put past it (Milestone 693, the owner: "it doesn't allow me to exit the tutorial
+  // run into the firing range"): half way through its wall the doors shut and put you back inside, and the suite, which
+  // stood you past it, never saw
+  await tp(0, 0, 13, 0);
+  await ev(t, `window.__range.setScript({ held: (a) => a === "forward", pressedNow: () => false }, () => { window.__range.player.yaw = 0; })`);
+  const walkedOut = await until("window.__range.player.pos.z < 5", 90000);
+  await stop();
+  check("sk tutorial: walked through the way out, you come out into the range, not shut back inside", walkedOut, JSON.stringify(await st()));
   const finished = await until("!window.__range.tutorial.active && localStorage.getItem('range.tutorial.done') === '1'");
   await until("window.__range.tutorial.doors.every((d) => d.solid.top <= d.h + 0.01)");
   await until("window.__range.triggerWhy().holster === 'out'", 10000);

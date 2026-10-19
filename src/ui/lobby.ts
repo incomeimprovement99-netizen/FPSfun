@@ -60,9 +60,9 @@ export interface LobbyMode {
  * every mode in the game.
  */
 export const LOBBY_MODES: readonly LobbyMode[] = [
-  { id: "range", go: "goRange", name: "Firing Range", card: "Guns, dummies, targets, ladders, ziplines and the wallbounce wall.", needs: ["range"], solo: true, friends: "range" },
+  { id: "range", go: "goRange", name: "Firing Range", card: "A street of the Neon City: every gun and hack on its stand, dummies and moving targets.", needs: ["range"], solo: true, friends: "range" },
   { id: "lab", go: "goLab", name: "Movement lab", card: "SpeedKills: climb a storey, run the wall, clear the gaps.", needs: [], solo: true, friends: null },
-  { id: "run", go: "goRun", name: "The Run (Basic)", card: "Seven rooms, one technique each, twenty pop-ups.", needs: [], solo: true, friends: null },
+  { id: "run", go: "goRun", name: "The Run", card: "Nine rooms out and back, one move each: beat the clock.", needs: [], solo: true, friends: null },
   { id: "tutorial", go: "goTutorial", name: "Tutorial", card: "Every move, then your hacks, then a fight: the game a room at a time.", needs: [], solo: true, friends: null },
   { id: "duel", go: "goDuel", name: "1v1 and 1v1v1", card: "You against a friend, or two. First to 3, with the circle.", needs: ["map", "rules", "rounds"], solo: false, friends: "arena" },
   { id: "bots", go: "goBots", name: "Arena, Bots", card: "The 1v1 rules against bots, alone or with friends.", needs: ["map", "arenabots", "difficulty", "rules", "rounds"], solo: true, friends: "arena" },
