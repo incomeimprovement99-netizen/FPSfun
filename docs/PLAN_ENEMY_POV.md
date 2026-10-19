@@ -42,8 +42,8 @@ An inventory of the code, 2026-10-18.
 
 - ~~A kill confirmed by a skull~~ and ~~the kill feed with the gun's outline and a headshot flag~~: done in
   Milestone 701.
-- **INVISIBILITY's shimmer:** Hyper Scape's invisible players ripple when they move and flash when hit; ours vanish
-  past 6 m and are whole inside it.
+- ~~INVISIBILITY's shimmer~~: done in Milestone 715, the owner's yes ("barely visible but still noticeable"), with the
+  bug that had them drawn whole at any range fixed.
 - ~~HEAL's sound and a bot's HEAL drawn~~: a player's HEAL is heard where it is since Milestone 695, and a bot's HEAL
   shows its area since Milestone 702.
 - ~~An enemy colour setting~~: the colour vision modes now give the outline, REVEAL and the trails their enemy colour

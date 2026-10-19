@@ -171,6 +171,177 @@ function shownIn(src: THREE.Object3D, root: THREE.Object3D): boolean {
   return true;
 }
 
+/**
+ * Someone under INVISIBILITY, as a shimmer (Milestone 715): a pale rim at their edges and faint bands drifting up them,
+ * added to what is behind, barely visible but noticeable when you know what to look for (hacks.json invis.shimmer).
+ *
+ * Its copies stand outside the figure, in the scene, so the figure itself can stay hidden (main.ts sets its group
+ * unseen past invis.seenWithin, and the outline, the plate and the aim assist all go by that). Each takes its source's
+ * place in the world every frame, and a skinned one shares its skeleton and its way of binding to it, so it is drawn
+ * exactly where its source would be: bound the other way, the soldier's pieces were drawn stretched out across the
+ * ground.
+ */
+export class CloakShell {
+  private readonly parts: Array<{ copy: THREE.Mesh; src: THREE.Mesh }> = [];
+  private sources = 0;
+  private mat: THREE.MeshBasicMaterial | null = null;
+  private readonly u = {
+    amt: { value: 0 },
+    color: { value: new THREE.Color() },
+    time: { value: 0 },
+    rim: { value: 0.9 },
+    band: { value: 0.35 },
+    bandScale: { value: 7 },
+    bandSpeed: { value: 2.5 },
+  };
+
+  constructor(
+    private readonly root: THREE.Object3D,
+    private readonly skip: THREE.Object3D[],
+  ) {}
+
+  private material(): THREE.MeshBasicMaterial {
+    if (this.mat) return this.mat;
+    const mat = new THREE.MeshBasicMaterial({ transparent: true, blending: THREE.AdditiveBlending, depthWrite: false, toneMapped: false, forceSinglePass: true });
+    const u = this.u;
+    mat.onBeforeCompile = (s) => {
+      s.uniforms.uAmt = u.amt;
+      s.uniforms.uColor = u.color;
+      s.uniforms.uTime = u.time;
+      s.uniforms.uRim = u.rim;
+      s.uniforms.uBand = u.band;
+      s.uniforms.uBandScale = u.bandScale;
+      s.uniforms.uBandSpeed = u.bandSpeed;
+      s.vertexShader = s.vertexShader.replace("#include <common>", "#include <common>\nvarying float vFres;\nvarying vec3 vWorld;").replace(
+        "#include <project_vertex>",
+        [
+          "#include <project_vertex>",
+          "#ifdef USE_SKINNING",
+          "vec3 fN = normalize(normalMatrix * objectNormal);",
+          "#else",
+          "vec3 fN = normalize(normalMatrix * normal);",
+          "#endif",
+          "vFres = 1.0 - abs(dot(fN, normalize(-mvPosition.xyz)));",
+          "vWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;",
+        ].join("\n"),
+      );
+      s.fragmentShader = s.fragmentShader
+        .replace("#include <common>", "#include <common>\nuniform float uAmt;\nuniform vec3 uColor;\nuniform float uTime;\nuniform float uRim;\nuniform float uBand;\nuniform float uBandScale;\nuniform float uBandSpeed;\nvarying float vFres;\nvarying vec3 vWorld;")
+        .replace(
+          "#include <dithering_fragment>",
+          [
+            "#include <dithering_fragment>",
+            // bands drifting up the shape, bent a little across it so they read as a ripple and not as stripes
+            "float w = sin(vWorld.x * 3.1 + vWorld.z * 2.3 + uTime * 1.7) * 1.5;",
+            "float b = 0.5 + 0.5 * sin(vWorld.y * uBandScale - uTime * uBandSpeed + w);",
+            "float k = uRim * vFres * vFres + uBand * b * b * vFres;",
+            "gl_FragColor = vec4(uColor * uAmt * k, 1.0);",
+          ].join("\n"),
+        );
+    };
+    this.mat = mat;
+    return mat;
+  }
+
+  /** the scene the copies stand in: the figure's top parent (a scene draws at the world's origin) */
+  private layer(): THREE.Object3D | null {
+    let p: THREE.Object3D | null = this.root.parent;
+    while (p?.parent) p = p.parent;
+    return p;
+  }
+
+  private build(): void {
+    for (const p of this.parts) p.copy.removeFromParent();
+    this.parts.length = 0;
+    const layer = this.layer();
+    const list = figureMeshes(this.root, this.skip);
+    this.sources = list.length;
+    if (!layer) return;
+    const mat = this.material();
+    for (const src of list) {
+      const sk = src as THREE.SkinnedMesh;
+      let copy: THREE.Mesh;
+      if (sk.isSkinnedMesh) {
+        const s = new THREE.SkinnedMesh(src.geometry, mat);
+        s.bindMode = sk.bindMode;
+        s.bind(sk.skeleton, sk.bindMatrix);
+        copy = s;
+      } else copy = new THREE.Mesh(src.geometry, mat);
+      copy.matrixAutoUpdate = false;
+      copy.userData.hull = true;
+      copy.castShadow = false;
+      copy.receiveShadow = false;
+      // (a skinned copy's own bounds are its bind pose at the origin, nowhere near the figure)
+      copy.frustumCulled = false;
+      layer.add(copy);
+      this.parts.push({ copy, src });
+    }
+  }
+
+  /** a mesh shown within the figure: itself and its parents up to the figure, but not the figure's own visibility */
+  private shown(src: THREE.Object3D): boolean {
+    for (let p: THREE.Object3D | null = src; p && p !== this.root; p = p.parent) if (!p.visible) return false;
+    return true;
+  }
+
+  /** at `amount` (0 off) in `color`, its bands at `time`: once a frame while it is on */
+  show(amount: number, color: number, look: { rim: number; band: number; bandScale: number; bandSpeed: number }, time: number): void {
+    const on = amount > 0.001;
+    if (on && (figureMeshes(this.root, this.skip).length !== this.sources || !this.parts.length || this.parts[0].copy.parent !== this.layer())) this.build();
+    this.u.amt.value = amount;
+    this.u.color.value.setHex(color);
+    this.u.time.value = time;
+    this.u.rim.value = look.rim;
+    this.u.band.value = look.band;
+    this.u.bandScale.value = look.bandScale;
+    this.u.bandSpeed.value = look.bandSpeed;
+    for (const p of this.parts) {
+      p.copy.visible = on && this.shown(p.src);
+      if (p.copy.visible) {
+        p.src.updateWorldMatrix(true, false);
+        p.copy.matrix.copy(p.src.matrixWorld);
+        p.copy.matrixWorldNeedsUpdate = true;
+      }
+    }
+  }
+
+  /** how many copies are drawn, at what amount (tools/e2e.ts) */
+  state(): { on: number; amount: number } {
+    return { on: this.parts.filter((p) => p.copy.visible).length, amount: this.u.amt.value };
+  }
+
+  /** a hidden plain and skinned mesh in its material, for the page's warm (as ShieldShell.warmKit) */
+  static warmKit(): THREE.Group {
+    const g = new THREE.Group();
+    g.name = "cloak-warm";
+    const mat = new CloakShell(g, []).material();
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 0.01, 0, 0, 0, 0.01, 0], 3));
+    geo.setAttribute("normal", new THREE.Float32BufferAttribute([0, 0, 1, 0, 0, 1, 0, 0, 1], 3));
+    geo.setAttribute("skinIndex", new THREE.Uint16BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 4));
+    geo.setAttribute("skinWeight", new THREE.Float32BufferAttribute([1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0], 4));
+    const plain = new THREE.Mesh(geo, mat);
+    const bone = new THREE.Bone();
+    const skinned = new THREE.SkinnedMesh(geo, mat);
+    skinned.add(bone);
+    skinned.bind(new THREE.Skeleton([bone]));
+    for (const m of [plain, skinned]) {
+      m.visible = false;
+      m.frustumCulled = false;
+      m.userData.dynamic = true;
+    }
+    g.add(plain, skinned);
+    return g;
+  }
+
+  dispose(): void {
+    for (const p of this.parts) p.copy.removeFromParent();
+    this.parts.length = 0;
+    this.mat?.dispose();
+    this.mat = null;
+  }
+}
+
 /** the frame's last things: a revealed figure's fill, every teammate's shape before any teammate's ring, after everything else */
 const FILL_ORDER = 989;
 const MASK_ORDER = 990;

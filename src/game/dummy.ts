@@ -12,7 +12,7 @@ import { applyFinishTo, displayGunModel } from "./gunmodels";
 import { MUZZLE, muzzleOf, showFlash, showGlint } from "./muzzle";
 import { OPERATORS, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
-import { MateOutline, Outline, ShieldShell } from "./outline";
+import { CloakShell, MateOutline, Outline, ShieldShell } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import figureCfg from "../config/figure.json";
 import rangeCfg from "../config/rangetools.json";
@@ -312,6 +312,8 @@ export class Dummy {
   private shellFlare = 0;
   private shellColor = 0x3b8bff;
   private readonly shellHit = new THREE.Vector3();
+  /** under INVISIBILITY past seenWithin (Milestone 715): its shimmer (outline.ts CloakShell), made the first time it is */
+  private cloak: CloakShell | null = null;
   /** under ARMOR (main.ts, from the hack's message): the gold shell, pulsing */
   private armored = false;
   readonly oneHit: boolean;
@@ -582,6 +584,21 @@ export class Dummy {
     return this.vols.torso.getWorldPosition(new THREE.Vector3());
   }
 
+  /**
+   * Its INVISIBILITY's shimmer at `amount` (0 off), in `color`, its bands at `time` (main.ts: on while it is unseen past
+   * hacks.json invis.seenWithin, its group hidden; the shimmer stands outside it)
+   */
+  setCloak(amount: number, color: number, look: { rim: number; band: number; bandScale: number; bandSpeed: number }, time: number): void {
+    if (amount <= 0.001 && !this.cloak) return;
+    this.cloak ??= new CloakShell(this.group, [this.hits]);
+    this.cloak.show(amount, color, look, time);
+  }
+
+  /** the shimmer as drawn (tools/e2e.ts), or null when it has never shown */
+  cloakState(): { on: number; amount: number } | null {
+    return this.cloak?.state() ?? null;
+  }
+
   /** the flare over ARMOR's gold while both are on: the flare says the round landed, the gold that it is armoured */
   private drawShell(): void {
     const F = SHIELD_FX.flare;
@@ -656,6 +673,8 @@ export class Dummy {
     this.revealRing = null;
     this.shell?.dispose();
     this.shell = null;
+    this.cloak?.dispose();
+    this.cloak = null;
     this.dropped?.obj.removeFromParent();
     this.dropped = null;
     this.mq?.dispose();
@@ -909,6 +928,8 @@ export class Dummy {
     this.revealRing = null;
     this.shell?.dispose();
     this.shell = null;
+    this.cloak?.dispose();
+    this.cloak = null;
     this.applyGlow();
     Dummy.onNewLook?.(this);
   }

@@ -104,7 +104,7 @@ import { FLOURISH_TIME, MELEE_TIME } from "./game/viewmodel";
 import { currentBinds, type Action } from "./game/input";
 import { bindName } from "./ui/binds";
 import { FxLayer } from "./game/fx";
-import { ShieldShell } from "./game/outline";
+import { CloakShell, ShieldShell } from "./game/outline";
 import { Killcam, Recorder } from "./game/killcam";
 import { DamageLog, type Recap } from "./game/recap";
 import { Soundscape } from "./game/soundscape";
@@ -1371,6 +1371,8 @@ const hud = new Hud($<HTMLCanvasElement>("hud"));
 const fx = new FxLayer(scene);
 // the shield shell's two shaders built with the rest, not at the first round on a shield (outline.ts, Milestone 694)
 scene.add(ShieldShell.warmKit());
+// (and INVISIBILITY's shimmer's, built the same way: Milestone 715)
+scene.add(CloakShell.warmKit());
 // everyone's sprays on the walls (sprays.ts)
 const sprays = new SprayLayer(scene);
 let sprayReadyAt = 0;
@@ -3506,6 +3508,9 @@ function stepGhosts(dt: number): void {
 
 /** others under INVISIBILITY, until when (the page's wall clock) */
 const unseenUntil = new Map<number, number>();
+/** INVISIBILITY's shimmer (hacks.json invis.shimmer), its colour read once */
+const SHIMMER = (HACK.invis as unknown as { shimmer: { color: string; amount: number; moving: number; movingFull: number; rim: number; band: number; bandScale: number; bandSpeed: number } }).shimmer;
+const CLOAK_COLOR = new THREE.Color(SHIMMER.color).getHex();
 
 /**
  * The pack's med kit (paidgun.ts, paidweapons.json props) standing in the middle of a HEAL area, turned to face this
@@ -3916,20 +3921,27 @@ function stepHacks(now: number, dt: number): void {
       if (r && until !== undefined && t >= until) armoredUntil.delete(r.id);
     }
   }
-  // others under INVISIBILITY: nearly unseen, unless close
-  if (d instanceof Duel) {
-    const t = realNow();
-    for (const a of d.avatars) {
-      const r = d.remoteOf(a);
-      if (!r) continue;
-      const until = unseenUntil.get(r.id);
-      if (until === undefined) continue;
-      if (t > until) {
-        unseenUntil.delete(r.id);
-        continue;
-      }
-      if (a.group.position.distanceTo(player.pos) > H.invis.seenWithin) a.group.visible = false;
-    }
+}
+
+/**
+ * Others under INVISIBILITY: unseen past seenWithin but for a shimmer (Milestone 715: the owner, "barely visible but
+ * still noticeable when we know what to look for"), more of it on a runner; whole inside it. After the match's own
+ * update, which shows every player's figure where its samples put it: run before it, as this was until Milestone 715,
+ * it hid them a moment too early and another player under INVISIBILITY was drawn whole at any range.
+ */
+function stepUnseen(): void {
+  const d = duel;
+  if (!(d instanceof Duel)) return;
+  const t = realNow();
+  const sh = SHIMMER;
+  for (const a of d.avatars) {
+    const r = d.remoteOf(a);
+    const until = r ? unseenUntil.get(r.id) : undefined;
+    if (r && until !== undefined && t > until) unseenUntil.delete(r.id);
+    const unseen = until !== undefined && t <= until && a.group.position.distanceTo(player.pos) > H.invis.seenWithin && !a.knocked;
+    if (unseen) a.group.visible = false;
+    const moving = Math.min(1, a.currentPose.speed / sh.movingFull);
+    a.setCloak(unseen ? sh.amount + (sh.moving - sh.amount) * moving : 0, CLOAK_COLOR, sh, t);
   }
 }
 
@@ -7590,6 +7602,7 @@ function step(): void {
     airJumps: player.airJumps,
   };
   duel?.update(local);
+  stepUnseen();
   hangout?.update(local);
   // the battle royale from your side: E, the pads, pings
   if (duel instanceof BrMatch) {

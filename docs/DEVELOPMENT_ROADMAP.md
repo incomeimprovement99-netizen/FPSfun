@@ -12637,6 +12637,30 @@ Found checking each sound caption word against the sounds that say it (audio.ts 
   (recap.ts keeps the gun's id with each).
 - **Checked:** tsc, verify, rules; e2e brsolo (the recap's layout); photographed at 1080p after a death.
 
+## Milestone 715 — Someone under INVISIBILITY shimmers, and is unseen at all
+
+The owner, 2026-10-19, asked whether an invisible player should shimmer as Hyper Scape's do: "Yes they should
+shimmer, like barely visible but still noticeable when we know what to look for".
+
+- **A bug first: they were never hidden.** Another player under INVISIBILITY was meant to vanish past
+  hacks.json invis.seenWithin (6 m). The hiding ran before the match's own update each frame, and that update shows
+  every player's figure where its samples put it, so it undid the hiding before anything was drawn: an invisible
+  player was drawn whole at any range. It runs after the match's update now (main.ts stepUnseen).
+- **The shimmer** (outline.ts CloakShell, hacks.json invis.shimmer): past seenWithin the figure stays hidden, and
+  everything that goes by that still treats it as unseen (no outline under your crosshair, no plate, no aim assist).
+  In its place, its shape: a pale rim at its edges and faint bands drifting up it, added to what is behind. Barely
+  there standing (0.07), a little more on a runner (0.16 at 6 m/s), so movement gives it away, as in Hyper Scape.
+  Within seenWithin the figure is whole, as before.
+- **How it is drawn:** copies of the figure's meshes in the shimmer's material, standing in the scene and not in the
+  figure (so the figure can be hidden), each placed from its source every frame; a skinned copy shares the figure's
+  skeleton and its way of binding to it (bound the other way, the first pictures had its pieces stretched across the
+  ground). Its shader is built with the page's warm (CloakShell.warmKit), as ARMOR's shell's is.
+- **Tuned on the GPU** at the neon night and the hazy day, at 10 and 22 m: from a clear glassy ghost (0.28 and 0.6)
+  down to a faint outline you find when you look for it.
+- **Checked:** tsc, verify, rules; e2e brsolo, a new check: the guest made unseen is hidden and shimmers from 15 m,
+  whole with no shimmer from 2 m, and no shimmer once it ends (with the old code put back it failed: the figure
+  visible from 15 m, no shimmer); e2e page and speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

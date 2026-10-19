@@ -3738,6 +3738,26 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     !!card && card.guns.length === 2 && card.guns[0][1] === 2 && card.guns[0][2] > 0 && card.hacks.length === 2 && card.hacks.every((h) => !!h && h[1] && h[2]) && card.vitals && !card.legacy,
     JSON.stringify(card),
   );
+  // someone under INVISIBILITY past seenWithin shimmers (Milestone 715, the owner: "barely visible but still noticeable"):
+  // the figure itself hidden, as it was, and its shimmer drawn instead; within seenWithin it is whole, no shimmer. The
+  // guest, as the host sees it (a player's figure; the bots never go unseen)
+  const cloak = await ev<{ far: { visible: boolean; on: number; amount: number } | null; near: { visible: boolean; on: number } | null; off: { on: number } | null } | null>(
+    host,
+    `new Promise((ok) => { const R = window.__range; const d = R.duel(); const a = d.avatars.find((x) => d.remoteOf(x)?.id === 1);
+      if (!a) return ok(null); const id = d.remoteOf(a).id; const q = a.group.position;
+      R.sk.remoteHack(id, 5, q.x, q.y, q.z, 30);
+      const read = () => { const s = a.cloakState(); return { visible: a.group.visible, on: s ? s.on : 0, amount: s ? s.amount : 0 }; };
+      R.player.teleport(q.x + 15, q.y, q.z, 90, 0);
+      setTimeout(() => { const far = read(); R.player.teleport(a.group.position.x + 2, a.group.position.y, a.group.position.z, 90, 0);
+        setTimeout(() => { const near = read(); R.sk.remoteHack(id, 5, q.x, q.y, q.z, 0);
+          R.player.teleport(a.group.position.x + 15, a.group.position.y, a.group.position.z, 90, 0);
+          setTimeout(() => ok({ far, near, off: { on: read().on } }), 600); }, 600); }, 600); })`,
+  );
+  check(
+    "INVISIBILITY: someone unseen past seenWithin is hidden and shimmers; close, whole and no shimmer; over, no shimmer",
+    !!cloak?.far && !cloak.far.visible && cloak.far.on > 0 && cloak.far.amount > 0 && !!cloak.near && cloak.near.visible && cloak.near.on === 0 && cloak.off?.on === 0,
+    JSON.stringify(cloak),
+  );
   // the host knocks the guest: in solo that is the end of them
   await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); d.localHit(r, 250, true); })()`);
   const out = await guest.waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 6000 }).then(() => true, () => false);
