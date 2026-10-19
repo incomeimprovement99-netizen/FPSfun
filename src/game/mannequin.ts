@@ -129,6 +129,8 @@ function clipSeconds(name: string): number {
 const ATHLETIC_JUMP = figureCfg.athleticJump;
 /** a double jump's knee lift: how long, and how far the thighs come up and the knees bend, degrees (figure.json doubleJump) */
 const DOUBLE_JUMP = figureCfg.doubleJump;
+/** a landing taken in the legs: the thighs forward, the knees bent and the chest over them, degrees at its hardest (figure.json landing) */
+const LANDING = figureCfg.landing as { raise: number; bend: number; lean: number };
 /** standing or crouched still, each foot's toe brought down to its bind pose's (figure.json flatFeet) */
 const FLAT_FEET = figureCfg.flatFeet;
 /** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
@@ -793,6 +795,8 @@ export class MannequinFigure {
   private skyW = 0;
   private diveW = 0;
   private hipY = 0.95;
+  /** the ankles' height over the floor in the bind pose, m (measured as the figure is made): a foot on the floor */
+  private ankleY = 0.1;
   private baseY = 0;
   /**
    * The body's turn round its hips (a wall run's lean, a skydive's lay) and its lean into a turn round its feet (bank),
@@ -872,6 +876,7 @@ export class MannequinFigure {
     if (this.bones.pelvis) {
       this.root.updateMatrixWorld(true);
       this.hipY = this.bones.pelvis.getWorldPosition(new THREE.Vector3()).y - this.root.position.y;
+      if (this.bones.foot_l) this.ankleY = this.bones.foot_l.getWorldPosition(new THREE.Vector3()).y - this.root.position.y;
     }
     if (!slow("skeleton")) shareSkeletons(this.root);
     if (gunId) this.setGun(gunId);
@@ -1807,6 +1812,26 @@ export class MannequinFigure {
         if (calf) turnBone(calf, fig, X_AXIS, PLUNGE.bend * DEG * w);
       }
       if (b.spine_02) turnBone(b.spine_02, fig, X_AXIS, PLUNGE.lean * DEG * w);
+    }
+    // A landing taken in the legs (Milestone 611): the knees give and the body sinks onto them for a moment, as much as
+    // the fall was long (dummy.ts land, 0.35 to 1, gone in a quarter of a second), on the run as well as standing still,
+    // where only a standing landing had its clip (landUntil, which this leaves to it). The feet stay on the ground: the
+    // body is lowered by what the bent legs lift them, measured off the feet before and after, and never so far that the
+    // lower ankle goes under its height on the floor (measured as the figure is made).
+    const landing = !air && !this.dead && this.t >= this.landUntil && (p.stance === "stand" || p.stance === "crouch") ? (fx.land ?? 0) : 0;
+    if (landing > 0.01 && b.foot_l && b.foot_r) {
+      const low = () => Math.min(b.foot_l.getWorldPosition(layP).y, b.foot_r.getWorldPosition(layP).y);
+      const before = low();
+      for (const s of ["l", "r"]) {
+        const thigh = b[`thigh_${s}`];
+        const calf = b[`calf_${s}`];
+        if (thigh) turnBone(thigh, fig, X_AXIS, -LANDING.raise * DEG * landing);
+        if (calf) turnBone(calf, fig, X_AXIS, LANDING.bend * DEG * landing);
+      }
+      if (b.spine_02) turnBone(b.spine_02, fig, X_AXIS, LANDING.lean * DEG * landing);
+      const floor = (this.root.parent ? this.root.parent.getWorldPosition(layV).y : 0) + this.ankleY;
+      this.root.position.y += Math.max(before, floor) - low();
+      this.root.updateMatrixWorld(true);
     }
     // the double jump's knees, up and back down over its time: the thighs forward (a turn about the figure's left by a
     // negative angle brings a hanging bone's end forward) and the knees bent back

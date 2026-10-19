@@ -6945,6 +6945,27 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("a death falls away from the shot: shot from its left, from behind and from the front, the head ends a metre or more away on the far side", Object.values(death).every((d) => d >= 1), JSON.stringify(death));
+  // a landing taken in the legs (Milestone 611): a second in the air and down on the run, its legs (hips over the lower
+  // ankle) come down to two thirds of their standing length for a moment (the run's clip alone, 83%), and no ankle goes
+  // under its height on the floor
+  const land = await ev<{ legs: number; ankle: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 6, stance: "air", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      let t = 1e5;
+      const step = (pose, n) => { for (let i = 0; i < n; i++) { t += 0.02; f.setPose(pose); f.update(t, 0.02); } };
+      step({ speed: 6, stance: "air", pitch: 0 }, 50);
+      step({ speed: 6, stance: "stand", pitch: 0 }, 3);
+      f.group.updateMatrixWorld(true);
+      const y = (n) => f.group.worldToLocal(f.mq.bone(n).getWorldPosition(new T.Vector3())).y;
+      const ankle = Math.min(y("foot_l"), y("foot_r"));
+      const legs = (y("pelvis") - ankle) / (f.mq.hipY - f.mq.ankleY);
+      return { legs: Math.round(legs * 100) / 100, ankle: Math.round((ankle - f.mq.ankleY) * 1000) / 1000 };
+    })()`,
+  );
+  check("a landing taken in the legs: down on the run from a second in the air, its legs come down to two thirds of their standing length or less, and no ankle under the floor", land.legs <= 0.67 && land.ankle >= -0.01, JSON.stringify(land));
   await page.close();
 }
 

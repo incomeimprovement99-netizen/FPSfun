@@ -37,6 +37,12 @@
     "rate": 8,
     "mostRate": 1.4
   },
+  "_landing": "A landing taken in the legs (mannequin.ts, Milestone 611): the knees give and the body sinks onto them for a moment, as much as the fall was long (dummy.ts land: 0.35 for a hop to 1 for a fall of 0.7 s or more, gone in a quarter of a second), the thighs coming forward `raise` degrees, the knees bending `bend` and the chest leaning `lean` over them at its hardest, the body lowered by what that lifts the feet, so they stay on the ground. Before, only a landing standing still showed one (the library's Jump_Land clip, which this leaves to it), and a player landing on the run from a roof ran straight on as if from the floor. Ours.",
+  "landing": {
+    "raise": 30,
+    "bend": 55,
+    "lean": 10
+  },
   "_death": "A figure's death falls away from the shot that killed it (dummy.ts faceTheShot, Milestone 610). Its fall, the death clip's (the library's Death01 falls backward: the head ends 1.2 m behind where it stood, 0.2 m up) and its hit volumes' topple alike, is backward, and it fell backward whichever way it faced, so a player shot from behind fell onto the shooter; Apex's fall away from the hit. As it goes down it turns its front to where the last hit landed, if that was within `hitFor` seconds and more than `near` metres off its middle across the ground (a hit's point is on the near side, the shooter's), the shortest way round at `turnRate` a second (its fall takes 0.32 s). Knocked with no hit on this page (another page's shot) it falls as it faces. Ours.",
   "death": {
     "hitFor": 1.5,

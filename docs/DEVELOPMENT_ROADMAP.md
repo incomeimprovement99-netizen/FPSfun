@@ -15541,3 +15541,21 @@ THE GULAG, laid by the city's layout as NEON YARD and NEON HALL are and baked in
   With a double jump 0.3 m shorter (2.44 m) the levels' check fails, and a bot walked in from the side, not from a way
   up, stops at the ledge's wall.
   The arenas check holds the map list. The e2e gulag section plays a Gulag in it. the speedkills section (115 checks) and the gulag section (12).
+
+## Milestone 611 — A landing taken in the legs
+
+The heavy landing from Milestone 604's nice-to-haves. Only a landing standing still showed one (the library's Jump_Land
+clip); a player coming down on the run from a roof ran straight on, as if from the floor.
+
+- **The landing** (mannequin.ts, figure.json landing): on the ground, after a fall, the knees give and the body sinks
+  onto them for a moment, as much as the fall was long (dummy.ts's land, 0.35 for a hop to 1 for 0.7 s in the air,
+  gone in a quarter of a second): the thighs forward 30 degrees, the knees bent 55 more and the chest leaning 10 over
+  them at the hardest. The body is lowered by what the bent legs lift the feet, measured off the feet before and after,
+  and never so far that the lower ankle goes under its height on the floor (measured as the figure is made, 0.170 m).
+  A landing standing still keeps its clip.
+- **Checked:**
+  - Traced frame by frame: down on the run from a second in the air, the hips over the lower ankle 0.44 m at their
+    lowest where the run's clip alone has 0.60, the lower ankle at its floor height.
+  - The e2e (skfigure, the figure's stances): the legs at 64% of their standing length at the landing, no ankle under
+    the floor. It fails with the landing taken out (83%).
+  - verify, rules and the type check.
