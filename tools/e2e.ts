@@ -3751,6 +3751,26 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
   // and the guest, out of it, watches whoever is left rather than a black
   // screen: their squad first, then the nearest, and they choose which
   // (docs/NEXT_STEPS.md item 7)
+  // the end of it (Milestone 708): with the death recap up and the match card with it (the last of a battle royale's
+  // players out: the match ends as the recap opens), the two stand side by side, not one over the other (centred, the
+  // card's rows ran through the recap's title), both on the screen. The guest's own recap, with a battle royale's card
+  // (its four rows) beside it: here the host plays on, so the guest's match has not ended.
+  {
+    await ev(guest, "window.__range.skipKillcam()");
+    const up = await guest.waitForFunction("!!window.__range.hud.last?.recap", { polling: 200, timeout: 15000 }).then(() => true, () => false);
+    const lay = await ev<{ recap: { x: number; y: number; w: number; h: number } | null; card: { x: number; y: number; w: number } | null; cardH: number; W: number; H: number } | null>(
+      guest,
+      `(() => { const h = window.__range.hud; const l = h.last; if (!l || !l.recap) return null; const u = h.h / 1080;
+        const summary = { alpha: 1, rows: [["Kills", "0"], ["Damage", "0"], ["Accuracy", "-"], ["Survived", "0:31"]], lines: [] };
+        // (as a battle royale's end has it: the placement up, which puts the card under the placement's line)
+        const duel = l.duel && l.duel.br ? { ...l.duel, br: { ...l.duel.br, placement: 15 } } : l.duel;
+        const L = h.endLayout({ ...l, summary, duel }, u);
+        return { ...L, cardH: (118 + 4 * 22 + 46) * u, W: h.w, H: h.h }; })()`,
+    );
+    const apart = !!lay?.recap && !!lay.card && (lay.card.x >= lay.recap.x + lay.recap.w || lay.card.x + lay.card.w <= lay.recap.x || lay.card.y >= lay.recap.y + lay.recap.h || lay.card.y + lay.cardH <= lay.recap.y);
+    const inside = !!lay?.recap && !!lay.card && lay.recap.x >= 0 && lay.card.x + lay.card.w <= lay.W && lay.recap.y + lay.recap.h <= lay.H && lay.card.y + lay.cardH <= lay.H;
+    check("out, the death recap and a match card stand side by side on the screen, not one over the other", up && apart && inside, JSON.stringify({ up, lay }));
+  }
   {
     await ev(guest, "window.__range.skipKillcam()");
     await ev(guest, "window.__range.closeRecap()");

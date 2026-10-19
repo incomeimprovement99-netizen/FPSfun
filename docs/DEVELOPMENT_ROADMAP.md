@@ -12536,6 +12536,24 @@ player running a wall is silent... EMPULSE's wall runs are loud, which is how yo
 - **Checked:** tsc, verify, rules; e2e speedkills, a new check: a figure taken onto a wall at 12 m/s is heard a step
   at a time (11 steps in a second of game time; with the wall branch taken out, 0, and it failed).
 
+## Milestone 708 — The end of a battle royale, one card beside the other
+
+Found photographing the screens after a death on the GPU: a bot's rounds, the Gulag lost, out.
+
+- **Three cards over each other:** the last player out of a battle royale gets the placement ("#15 OF 15 SQUADS"),
+  the match card (kills, damage, survived, the XP) and the death recap at once, the match ending as the recap opens.
+  Each was centred on its own, so the match card's rows ran through the recap's title and the killer's card sat on the
+  match card. Now (hud.ts endLayout) the recap and the match card stand side by side, their tops level, under the
+  placement; alone, each is centred as before.
+- **The placement on a plate:** its line ("0 kills · 0:28 survived · menu in 6") was bare grey text on the sky.
+- **The time survived stopped:** the line under the placement went on counting through the end card's hold, so the card
+  said 0:31 and the line over it 0:40. It stops at the match's end now (brmatch.ts finishedAt).
+- **A win:** the match card goes under the champion's own card, which it overlapped.
+- **The recap and the match card** stand on the HUD's plates, as the rest of it does since Milestones 697 to 706.
+- **Checked:** tsc, verify, rules; e2e brsolo, a new check: the out guest's recap with a battle royale's match card
+  beside it, apart and both on the screen (with the old centring put back it failed, the card over the recap's top);
+  photographed at 1080p.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

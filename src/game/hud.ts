@@ -974,21 +974,49 @@ export class Hud {
    * hits and headshots each way, the guns and distances they hit you from,
    * a heal of theirs just before, and what they had left.
    */
+  /**
+   * Where the death recap and the match card go (Milestone 708). Each alone is centred. Both up at once (a battle
+   * royale lost: the match ends as the recap opens) they stand side by side, the recap on the left and the card on the
+   * right, their tops level, under the placement: centred, each over the other, the card's rows ran through the recap's
+   * title, and the killer's card sat on the match card.
+   */
+  private endLayout(s: HudState, u: number): { recap: { x: number; y: number; w: number; h: number } | null; card: { x: number; y: number; w: number } | null } {
+    const r = s.recap;
+    const m = s.summary && s.summary.alpha > 0 ? s.summary : null;
+    const cardW = 420 * u;
+    const gap = 20 * u;
+    const recapH = r ? 96 * u + Math.max(1, Math.min(3, r.rows.length)) * 118 * u + 30 * u : 0;
+    // under the countdown's number and the centre notices, above the bottom edge
+    const recapY = Math.max(60 * u, Math.min(this.h * 0.47, this.h - recapH - 20 * u));
+    if (r && m) {
+      const recapW = Math.min(700 * u, this.w - 40 * u - cardW - gap);
+      const x0 = (this.w - (recapW + gap + cardW)) / 2;
+      return { recap: { x: x0, y: recapY, w: recapW, h: recapH }, card: { x: x0 + recapW + gap, y: recapY, w: cardW } };
+    }
+    const recapW = Math.min(this.w - 40 * u, 700 * u);
+    // a battle royale's own end card (the placement, big, at 30% down) is up while its match ends: the card goes under it
+    const brEnd = s.duel?.br?.placement !== null && s.duel?.br?.placement !== undefined;
+    return {
+      recap: r ? { x: this.w / 2 - recapW / 2, y: recapY, w: recapW, h: recapH } : null,
+      // (and under the champion's own card when the squad won, which it overlapped)
+      card: m ? { x: this.w / 2 - cardW / 2, y: brEnd ? this.h * 0.3 + (s.duel?.br?.placement === 1 && s.myCard ? 160 : 76) * u : this.h * 0.2, w: cardW } : null,
+    };
+  }
+
   private drawRecap(s: HudState, u: number): void {
     const r = s.recap;
-    if (!r) return;
+    const L = this.endLayout(s, u).recap;
+    if (!r || !L) return;
     const c = this.ctx;
     const rows = r.rows.slice(0, 3);
-    const w = Math.min(this.w - 40 * u, 700 * u);
+    const w = L.w;
     const rowH = 118 * u;
-    const h = 96 * u + Math.max(1, rows.length) * rowH + 30 * u;
-    const x0 = this.w / 2 - w / 2;
-    // under the countdown's number and the centre notices, above the bottom edge
-    const y0 = Math.max(60 * u, Math.min(this.h * 0.47, this.h - h - 20 * u));
+    const h = L.h;
+    const x0 = L.x;
+    const y0 = L.y;
     c.save();
     c.globalAlpha = Math.min(1, r.age / 0.2);
-    c.fillStyle = "rgba(8,10,12,0.9)";
-    c.fillRect(x0, y0, w, h);
+    this.plate(x0, y0, w, h, u, null, 1.25);
     c.fillStyle = RED;
     c.fillRect(x0, y0, w, 4 * u);
     this.text("DEATH RECAP", x0 + 22 * u, y0 + 30 * u, 700, 14 * u, DIM);
@@ -2186,23 +2214,22 @@ export class Hud {
   /** the match summary: a card over the middle of the screen once a match ends */
   private drawMatchCard(s: HudState, u: number): void {
     const m = s.summary;
-    if (!m || m.alpha <= 0) return;
+    const L = this.endLayout(s, u).card;
+    if (!m || !L) return;
     const c = this.ctx;
-    const w = 420 * u;
+    const w = L.w;
     const rowH = 22 * u;
     const h = (118 + m.rows.length * 22 + m.lines.length * 20 + 46) * u;
-    const x = this.w / 2 - w / 2;
-    // A battle royale's own end card (the placement, big, at 30% down) is up
-    // while its match ends: this one goes under it rather than over it.
-    const brEnd = s.duel?.br?.placement !== null && s.duel?.br?.placement !== undefined;
-    const y = brEnd ? this.h * 0.3 + 76 * u : this.h * 0.2;
+    // (where it goes: endLayout, beside the death recap when that is up too)
+    const x = L.x;
+    const y = L.y;
+    const mid = x + w / 2;
     c.save();
     c.globalAlpha = m.alpha;
-    c.fillStyle = "rgba(10,13,16,0.86)";
-    c.fillRect(x, y, w, h);
+    this.plate(x, y, w, h, u, null, 1.25);
     c.fillStyle = m.good ? "#ffd23c" : "#c8d0d8";
     c.fillRect(x, y, w, 4 * u);
-    this.text(m.title, this.w / 2, y + 38 * u, 700, 30 * u, m.good ? "#ffd23c" : WHITE, "center");
+    this.text(m.title, mid, y + 38 * u, 700, 30 * u, m.good ? "#ffd23c" : WHITE, "center");
     let ry = y + 70 * u;
     for (const [k, v] of m.rows) {
       this.text(k, x + 24 * u, ry, 600, 15 * u, DIM);
@@ -2210,10 +2237,10 @@ export class Hud {
       ry += rowH;
     }
     ry += 8 * u;
-    this.text(`+${m.xp} XP`, this.w / 2, ry + 6 * u, 700, 22 * u, "#ffd23c", "center");
+    this.text(`+${m.xp} XP`, mid, ry + 6 * u, 700, 22 * u, "#ffd23c", "center");
     ry += 26 * u;
     for (const line of m.lines) {
-      this.text(line, this.w / 2, ry, 600, 13 * u, "#ffe9a8", "center");
+      this.text(line, mid, ry, 600, 13 * u, "#ffe9a8", "center");
       ry += 20 * u;
     }
     // the level bar, running from where you were to where you are
@@ -2222,7 +2249,7 @@ export class Hud {
     c.fillRect(x + 24 * u, ry + 4 * u, bw, 8 * u);
     c.fillStyle = "#ffd23c";
     c.fillRect(x + 24 * u, ry + 4 * u, bw * Math.max(0, Math.min(1, m.bar)), 8 * u);
-    this.text(m.levelUp ? `LEVEL ${m.level}  ·  LEVEL UP` : `LEVEL ${m.level}`, this.w / 2, ry + 32 * u, 700, 14 * u, m.levelUp ? "#ffd23c" : DIM, "center");
+    this.text(m.levelUp ? `LEVEL ${m.level}  ·  LEVEL UP` : `LEVEL ${m.level}`, mid, ry + 32 * u, 700, 14 * u, m.levelUp ? "#ffd23c" : DIM, "center");
     // everyone's line, under the card: a match with friends ends on one table, not on your numbers alone
     const t = m.table ?? [];
     if (t.length > 1) {
@@ -2993,10 +3020,15 @@ export class Hud {
     if (br.placement !== null) {
       const won = br.placement === 1;
       // out of the squads: in solo that is everyone, in duos and trios it is how Apex counts it
-      this.text(won ? "LAST SQUAD STANDING" : `#${br.placement} OF ${br.squadsTotal}${br.team > 1 ? " SQUADS" : ""}`, cx, this.h * 0.3, 700, 62 * u, won ? "#ffd23c" : WHITE, "center");
+      const title = won ? "LAST SQUAD STANDING" : `#${br.placement} OF ${br.squadsTotal}${br.team > 1 ? " SQUADS" : ""}`;
       const m = Math.floor(br.survived / 60);
       const sec = Math.floor(br.survived % 60);
-      this.text(`${br.kills} kill${br.kills === 1 ? "" : "s"}  ·  ${m}:${sec.toString().padStart(2, "0")} survived  ·  menu in ${Math.ceil(s.duel?.left ?? 0)}`, cx, this.h * 0.3 + 44 * u, 700, 22 * u, DIM, "center");
+      const line = `${br.kills} kill${br.kills === 1 ? "" : "s"}  ·  ${m}:${sec.toString().padStart(2, "0")} survived  ·  menu in ${Math.ceil(s.duel?.left ?? 0)}`;
+      // on a plate (Milestone 708): its line was bare grey text, lost on a lit sky
+      const pw = Math.max(this.measure(title, 62 * u), this.measure(line, 22 * u)) + 64 * u;
+      this.plate(cx - pw / 2, this.h * 0.3 - 60 * u, pw, 116 * u, u, won ? GOLD : null, 1.15);
+      this.text(title, cx, this.h * 0.3, 700, 62 * u, won ? "#ffd23c" : WHITE, "center");
+      this.text(line, cx, this.h * 0.3 + 40 * u, 700, 22 * u, DIM, "center");
       // the champion's card under it
       if (won && s.myCard) this.drawCard(s.myCard, "YOU", cx - 150 * u, this.h * 0.3 + 70 * u, 300 * u, 74 * u, u);
     }

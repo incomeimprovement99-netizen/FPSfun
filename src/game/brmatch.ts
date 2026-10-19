@@ -487,6 +487,8 @@ export class BrMatch extends Duel {
   private aliveSeen: number;
   private readonly startedAt: number;
   private placement: number | null = null;
+  /** when this player's match ended (finishBr): the end card's time survived stops there, not at the menu (Milestone 708) */
+  private finishedAt: number | null = null;
   private endAt = Infinity;
   private botSendNext = 0;
   private ringSendNext = 0;
@@ -1926,7 +1928,8 @@ export class BrMatch extends Duel {
     this.brOver = true;
     this.placement = won ? 1 : Math.max(2, placement);
     this.phase = "matchEnd";
-    this.endAt = wallClock() + END_HOLD;
+    this.finishedAt = wallClock();
+    this.endAt = this.finishedAt + END_HOLD;
     this.summarise();
   }
 
@@ -2642,7 +2645,8 @@ export class BrMatch extends Duel {
         damage: this.phases[Math.min(v.phase, this.phases.length - 1)].damage,
       },
       placement: this.phase === "matchEnd" ? this.placement : null,
-      survived: now - this.startedAt,
+      // (it went on counting through the end card's hold, so the card said 0:31 and the line over it 0:40)
+      survived: (this.finishedAt ?? now) - this.startedAt,
       pois: this.map.pois.map((p) => ({ name: p.name, x: p.x, z: p.z })),
       sites: this.map.sites.map((p) => ({ name: p.name, x: p.x, z: p.z })),
       bounds: { minX: BR_CENTER.x - BR_HALF, maxX: BR_CENTER.x + BR_HALF, minZ: BR_CENTER.z - BR_HALF, maxZ: BR_CENTER.z + BR_HALF },
