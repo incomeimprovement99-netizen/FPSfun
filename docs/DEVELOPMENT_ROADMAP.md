@@ -14789,6 +14789,54 @@ its edges.
 - **Checked:** verify (the rocket check reads the name), rules and the type check; the HUD photographed with it in hand
   ("DEVINOS  LAUNCHER" fits its card).
 
+## Milestone 553 — Support hands that hold their guns, and empty hands as Apex shows them
+
+The owner, 2026-10-17: "SOME GUNS / HANDS ARE CLEARLY FUCKED UP STILL. LIKE LOGICALLY THE FINGERS ARE THE WRONG WAY ...
+A BIG OBV ONE IS ON ANAKIN AND THE ARM IS BENT LIKE CRAZY, NOT SURE HOW THAT PASSED E2E TESTS". And 2026-10-18: "THE
+FISTS THEMSELVES OUT LOOK RETARDED RIGHT NOW ... THE ANIMATIONS FOR THEM MOVING ARE LIKE PUNCHING THE AIR ... COMPARE
+WHAT WE HAVE NOW TO APEX / HYPERSCAPE UNARMED AND DO THE OVERLAY THING".
+
+- **ANAKIN's left hand** (fparms.json packGuns ASVal hold l, holdElbow l): it had held the front corner of the gun's
+  left side, its fingers and thumb pointing out into the air past it (the thumb more than 3 cm off the gun), the arm
+  rising up the middle of the picture to it. Measured off the model, the gun's front is a slab 4.5 cm wide and 8.5 cm
+  tall ahead of the trigger guard. The hand now holds it as a hand holds a fore-end, worked out in the gun's own frame
+  first: the palm under it just ahead of the guard, the fingers round its far side and the thumb along its near side,
+  then laid on it finger by finger (tools/pack-flush.ts). Its elbow hint was searched for the upper arm out of the
+  picture with the wrist straight: every fingertip and the thumb on the gun, the wrist 26 degrees at rest. The rest of
+  its moves were fitted again to the new hand: its aimed left shoulder (`shoulders` adsL: the wrist aimed 38 degrees, 54
+  on the new hand before), its swap's move off the gun (`cupMove` l: 32, from 73, and its fingers out of the gun) and its
+  first draw's elbow (`beforeArm` elbow: 27, from 84).
+- **Fingers in the air on five more guns**, found by measuring every support-hand fingertip's distance to its gun
+  at rest: REZ's thumb more than 3 cm off, CHOOCH's thumb 4.7 cm and forefinger 2.8, BIGANTLER's thumb 3.1 and
+  forefinger 1.5, the USSO's little finger 6 cm, DEVINOS's thumb and little finger 1.6 and 1.7. Each laid on the gun
+  joint by joint with the hand kept where it was, the skin kept out of the gun where it is seen. PANDA's little
+  finger, 2.1 cm off beside the end of its handguard, is left: a search of its three joints found no better place.
+- **The swap's cup on three of them:** laid on its gun, a finger or thumb went into it as the hands eased off for a swap,
+  where the e2e sees it (ANAKIN's little and ring fingers 18 mm, BIGANTLER's thumb in its pump 14, REZ's 15). Each
+  hand's move off its gun (`cupMove` l, and BIGANTLER's `cup` shape l) searched again and checked at every hundredth of
+  the swap: none in, each hand 4.2 to 4.9 cm off its hold (the owner's "slightly come off": within 5).
+- **Why the e2e passed them:** its checks counted skin inside the gun, daylight between hand and gun and the wrist's
+  bend. A finger pointing away from the gun is none of those. A new check: at rest every long gun's support-hand
+  fingertip and thumb within 2.5 cm of the gun (the faults were 3 to 10 cm; a finger lying beside a gun is not).
+- **The empty hands** (viewmodel.ts updateFists, fparms.json free.unarmed): read off Apex frame by frame (two videos,
+  a holstered sprint and two punches). Apex shows no hands at all standing or walking with nothing in them;
+  sprinting, an open hand comes up into the bottom of the picture on each step, the back of the hand to the eye and
+  the fingers toward the middle, the left a little left of the middle and the right a little right of it; a punch
+  swings the right fist up from under the right edge into the middle of the picture, big and near. Ours had held two
+  fists out ahead all the time, one showing its knuckles and the other the back of its hand, thrust forward in turn
+  as you ran. Now as Apex's, each place given as a share of the screen at a depth, so it holds at any field of
+  view, and laid over Apex's frames to fit: the hands' places within 2 to 4% of the screen. Hyper Scape has no empty
+  hands to compare: a match starts with a melee weapon.
+- **The empty hands' punch had shown nothing:** an emptied slot keeps its last gun's id, so a melee with nothing in
+  the hands went to the bought arms' gun punch, with no gun. The view's own fists punch whenever the hands are empty
+  or the gun is put away.
+- **A hook for pictures and checks:** main.ts pumpAt holds the sprint's pump at a share of its step.
+- **Checked:** the e2e's fists checks rewritten for the one fist now shown (the punch's: curled, its thumb across,
+  not rolled) and a new one for the hands as Apex shows them (none in the picture standing, each open hand up on its
+  own step with the other out, the punch's fist in the middle). verify, rules and the type check; the skpack e2e on the
+  six changed guns, every check passing (REZ's first draw read its forearm wrung 102 degrees once with the machine
+  loaded, 51 run alone, its known flourish flake).
+
 ## Milestone 657 — The city drawn in batches, and the last plan
 
 The owner, after a pause: "plan this part out deeply then finish out the city overall". Two fresh reviews, both taken

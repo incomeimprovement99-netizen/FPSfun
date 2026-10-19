@@ -150,7 +150,17 @@ export const PICKUP = (cfg as unknown as { pickup: { clip: string; seconds: numb
 const ss = THREE.MathUtils.smoothstep;
 
 /** the hands off a gun (fparms.json free): a fist's bend a joint, and the palm's way in the hand's own frame */
-export const FREE = (cfg as unknown as { free: { fist: Record<string, number>; thumb?: ThumbFit; twistShare: number; palmSign: { l: number; r: number }; palm: { along: number[]; up: number[] }; pull: number[] } }).free;
+/** the empty hands as Apex shows them (fparms.json free.unarmed): out of the picture, open hands pumping up into it on a sprint, a right fist on a punch */
+export type Unarmed = {
+  depth: number;
+  half: number;
+  low: number;
+  ease: number;
+  sprint: { peak: { l: number[]; r: number[] }; drift: number; rise: number; along: { l: number[]; r: number[] }; palm: { l: number[]; r: number[] }; curl: number };
+  rest: { along: { l: number[]; r: number[] }; palm: { l: number[]; r: number[] } };
+  punch: { hit: number[]; depth: number; at: number[]; along: number[]; palm: number[] };
+};
+export const FREE = (cfg as unknown as { free: { fist: Record<string, number>; thumb?: ThumbFit; twistShare: number; palmSign: { l: number; r: number }; palm: { along: number[]; up: number[] }; unarmed: Unarmed } }).free;
 /** an inspect in the bought arms' hands, its own length: the gun rolled about the right forearm (fparms.json inspectPack) */
 export const PACK_INSPECT = (cfg as unknown as { inspectPack: { seconds: number; roll: number[]; lift: number; show: number[]; turn: number[]; settle: number[]; flourish: number } }).inspectPack;
 /** where the open left hand is on an inspect, and how the hacks float, glow and are tossed away (fparms.json inspectPalm) */

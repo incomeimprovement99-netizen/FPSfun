@@ -531,6 +531,8 @@ export class ViewModel {
   private downAmt = 0;
   private crawlT = 0;
   private zipAmt = 0;
+  /** how far into a sprint's pump the empty hands are, 0..1, eased (fparms.json free.unarmed) */
+  private pumpW = 0;
 
   // resting placements for this model, gun-local
   private readonly supportBase = new THREE.Vector3();
@@ -918,6 +920,9 @@ export class ViewModel {
 
   /** a share of a melee swing held, for the checks and pictures (main.ts meleeAt) */
   meleeHold: number | null = null;
+
+  /** a share of the empty hands' sprint pump held, as if sprinting, for the checks and pictures (main.ts pumpAt) */
+  pumpHold: number | null = null;
 
   /** how far through taking something off the ground, or null */
   private pickupShare(): number | null {
@@ -1881,8 +1886,10 @@ export class ViewModel {
       (o.reticle.material as THREE.MeshBasicMaterial).opacity = smooth(0.35, 0.85, f.adsFrac);
     }
 
-    // (a melee in the bought arms' hands is their own: the right keeps the gun and the left punches, fprig.ts punch)
-    const packPunch = this.pack.active !== null && this.pack.active === packGunFor(w.id);
+    // (a melee in the bought arms' hands is their own: the right keeps the gun and the left punches, fprig.ts punch; with
+    // the hands empty or the gun put away the empty right hand punches: an emptied slot keeps its last gun's id, and
+    // the empty hands' punch had shown nothing at all)
+    const packPunch = f.lowered < 0.5 && this.pack.active !== null && this.pack.active === packGunFor(w.id);
     this.updateFists(f, Math.max(easeInOut(clamp(f.lowered * 2 - 1, 0, 1)), packPunch ? 0 : meleeEnv), !packPunch && mp >= 0 && mp < 1 ? mp : -1);
     this.heirloom?.animate?.(this.t);
     this.updateZipHand(f, dt, ads);
@@ -2111,8 +2118,18 @@ export class ViewModel {
     }
     const run = f.onGround ? Math.min(1, f.moveSpeed / 7.6) : 0.2;
     const amp = (f.sprinting ? SPRINT_PUMP : 0.45) * run;
-    const swing = Math.sin(this.bobT * 0.5) * amp;
+    const step = this.pumpHold !== null ? Math.sin(this.pumpHold * Math.PI * 2) : Math.sin(this.bobT * 0.5);
+    const swing = step * amp;
     const drop = (1 - up) * 0.4;
+    const U = FREE.unarmed;
+    const pumpTo = f.sprinting && f.onGround ? Math.min(1, f.moveSpeed / 7.6) : 0;
+    this.pumpW = this.pumpHold !== null ? 1 : this.pumpW + (pumpTo - this.pumpW) * Math.min(1, f.dt / U.ease);
+    // (a place on the screen, shares of it from the top left, `d` view metres ahead of the eye, in the view's space)
+    const onScreen = (sx: number, sy: number, d: number, out: THREE.Vector3): THREE.Vector3 =>
+      out.set((2 * sx - 1) * d * this.real.view.tanH, (1 - 2 * sy) * d * this.real.view.tanV, -d);
+    // a melee's right fist: up from under the right edge, landed in the middle, held, and back down
+    const [mLeave, mLand, mHold, mBack] = U.punch.at;
+    const punchW = melee < 0 ? 0 : melee < mLand ? smooth(mLeave, mLand, melee) : 1 - smooth(mHold, mBack, melee);
     for (const [hand, arm, elbow, side] of [
       [this.fistR, this.fistArmR, this.fistElbowR, 1],
       [this.fistL, this.fistArmL, this.fistElbowL, -1],
@@ -2134,17 +2151,39 @@ export class ViewModel {
         hand.group.rotation.z -= 0.5 * e;
       }
       arm.set(hand.wrist(this.tmp2), elbow, this.group.matrix);
-      // the bought arms' fists there: knuckles ahead and a little in, palms in and down, swinging with the run and, on a
-      // melee, the right one sweeping across as the view's did
-      const fh = this.freeHands[side > 0 ? "r" : "l"];
+      // the bought arms' hands as Apex shows its empty ones: out of the picture standing or walking, an open hand pumped
+      // up into its bottom on each step of a sprint, and on a melee the right fist swung up into the middle
+      // (fparms.json free.unarmed)
+      const k = side > 0 ? "r" : "l";
+      const fh = this.freeHands[k];
+      const S = U.sprint;
+      const rise = Math.max(0, side * step) ** S.rise * this.pumpW;
+      const [px, py] = S.peak[k];
+      const low = 1 + U.low;
+      let sx = px + side * S.drift * (1 - rise);
+      let sy = low + (py - low) * rise;
+      let d = U.depth;
+      // (hanging, its fingers down, out of the picture: pointed up as they are at the pump's top, they stood 5% into its
+      // bottom with the hand's middle half a screen under it)
+      fh.along.fromArray(U.rest.along[k]).lerp(this.tmp2.fromArray(S.along[k]), rise);
+      fh.palm.fromArray(U.rest.palm[k]).lerp(this.tmp2.fromArray(S.palm[k]), rise);
+      fh.fist = S.curl;
+      // (the punch over the pump: the right fist up from where it was, out of the picture or pumping)
+      const P = U.punch;
+      if (side > 0 && punchW > 0.001) {
+        const [tx, ty] = P.hit;
+        sx += (tx - sx) * punchW;
+        sy += (ty - sy) * punchW;
+        d += (P.depth - d) * punchW;
+        fh.along.lerp(this.tmp2.fromArray(P.along), punchW);
+        fh.palm.lerp(this.tmp2.fromArray(P.palm), punchW);
+        fh.fist = S.curl + (1 - S.curl) * punchW;
+      }
+      onScreen(sx, sy, d, this.tmp);
+      // (the wrist back from the hand's middle along its knuckles' way)
+      this.tmp.addScaledVector(this.tmp2.copy(fh.along).normalize(), -U.half);
       this.fists.updateMatrixWorld(true);
-      // (pulled in toward the eye: the bought arms are shorter than the view's own, and at its fists' place they were
-      // straight out, 97% of their reach)
-      this.fists.localToWorld(hand.wrist(fh.at).add(this.tmp.set(-side * FREE.pull[0], FREE.pull[1], FREE.pull[2])));
-      const sweep = side === 1 && melee >= 0 ? (0.5 - melee) * 1.4 : 0;
-      fh.along.set(-side * 0.25 + sweep, 0.25 - sw * 0.3, -1);
-      fh.palm.set(-side, -0.5, 0);
-      fh.fist = 1;
+      this.fists.localToWorld(fh.at.copy(this.tmp));
     }
     this.packFree = this.pack.freeReady;
   }

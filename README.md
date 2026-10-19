@@ -186,8 +186,9 @@ describes the retired legacy game, and goes with its code.
   arms lasts 5.2 s, a beat held after each turn of the gun: the left hand comes
   up from below, palm up, with the hacks you carry floating over it, each card
   glowing and showing its level as the HUD's pips do, and near the end tosses
-  them up to burn out in the air; holstered, the fists are the same bought arms
-  and gloves, each finger curled straight into the palm and the thumb across the front. A melee keeps the gun in the right hand while the left pulls back
+  them up to burn out in the air; with the gun put away or nothing in them, the
+  hands are out of sight standing or walking, as Apex keeps them: sprinting, an open hand swings up into the bottom of
+  the picture on each step, and a punch swings the right fist up into its middle. A melee with a gun keeps the gun in the right hand while the left pulls back
   beside you and punches, a fist, for 30; the gun cannot fire through it. A swap
   happens in place: the gun breaks up from its edges inward while both hands ease
   a little off it and cup round it, fingers bent, as a Hadouken is held, and the

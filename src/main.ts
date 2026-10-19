@@ -7973,6 +7973,10 @@ const GALLERY = { x: 0, z: -8 };
   meleeAt: (u: number | null) => {
     viewModel.meleeHold = u;
   },
+  /** hold the empty hands' sprint pump at a share of its step, as if sprinting, for pictures and the checks (null: as the game has it) */
+  pumpAt: (u: number | null) => {
+    viewModel.pumpHold = u;
+  },
   /** how many movement trails are drawn now (trails.ts) */
   trailCount: () => trails.count,
   /** a hack's cast in the hands (hackcast.ts): how far up the hand is and whether it has tapped */

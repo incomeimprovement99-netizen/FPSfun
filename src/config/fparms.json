@@ -139,9 +139,9 @@
               0.6692
             ],
             "pinky_01": [
-              0.3018,
-              -0.2466,
-              -0.3292
+              0.0938,
+              0.9448,
+              0.4503
             ],
             "middle_01": [
               -0.0164,
@@ -169,9 +169,14 @@
               -0.0711
             ],
             "pinky_02": [
-              0.2244,
-              0.0612,
-              -0.7993
+              -0.0346,
+              -0.1837,
+              -0.9524
+            ],
+            "pinky_03": [
+              1.4805,
+              0.0533,
+              0.158
             ]
           },
           "pick": {
@@ -722,40 +727,65 @@
       "hold": {
         "l": {
           "shift": [
-            0.0203,
-            -0.0301,
-            0.0083
+            -0.0009,
+            -0.0147,
+            0.0497
           ],
           "rot": [
-            -0.063,
-            0.491,
-            -0.342
+            -0.868,
+            -0.393,
+            -0.289
           ],
           "joint": {
             "thumb_01": [
-              -0.18,
-              -1.08,
-              0
+              -0.984,
+              -0.606,
+              -0.455
+            ],
+            "thumb_02": [
+              -0.378,
+              -0.652,
+              0.422
             ],
             "index_01": [
-              0.48,
-              -0.48,
-              0
+              0.553,
+              -0.336,
+              0.543
+            ],
+            "index_02": [
+              -0.104,
+              -0.442,
+              -0.211
             ],
             "middle_01": [
-              0.48,
-              -0.48,
-              -0.48
+              0.203,
+              0.089,
+              -0.449
+            ],
+            "middle_02": [
+              0.053,
+              0.178,
+              0.23
             ],
             "ring_01": [
-              -0.24,
-              0.36,
-              0
+              -0.215,
+              -0.241,
+              -0.127
+            ],
+            "ring_02": [
+              0.008,
+              -0.314,
+              0.027
             ],
             "pinky_01": [
-              0.12,
-              -0.48,
-              0
+              -0.041,
+              -1.047,
+              0.059
+            ],
+            "pinky_02": [
+              0.181,
+              -0.062,
+              0.031
             ]
           },
           "open": {},
@@ -894,9 +924,9 @@
           -0.08
         ],
         "adsL": [
-          0.02,
-          -0.03,
-          0.1
+          -0.02,
+          -0.04,
+          0.04
         ],
         "adsR": [
           -0.24,
@@ -987,9 +1017,9 @@
       },
       "holdElbow": {
         "l": [
-          0.1347,
-          -0.1251,
-          0.2869
+          0,
+          -0.06,
+          0.28
         ],
         "r": [
           -0.0991,
@@ -999,9 +1029,9 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.1395,
-          -0.3062,
-          0.2498
+          -0.05,
+          -0.06,
+          0.32
         ],
         "shoulder": [
           0.0509,
@@ -1024,9 +1054,9 @@
       "gunScale": 0.73,
       "cupMove": {
         "l": [
-          -0.04,
-          -0.01,
-          0
+          0,
+          -0.045,
+          0.02
         ],
         "r": [
           0.027,
@@ -1474,9 +1504,9 @@
           ],
           "joint": {
             "index_01": [
-              -0.081,
-              -1.84,
-              -0.381
+              0.2141,
+              -1.8169,
+              -0.2529
             ],
             "middle_01": [
               -0.075,
@@ -1494,19 +1524,34 @@
               -0.94
             ],
             "thumb_01": [
-              -0.99,
-              -1.091,
-              -0.908
+              -0.3678,
+              -1.4883,
+              -0.3995
             ],
             "thumb_02": [
-              0.164,
-              0.087,
-              -0.451
+              0.5759,
+              -0.681,
+              -0.6176
             ],
             "pinky_02": [
               -0.48,
               0.24,
               0
+            ],
+            "thumb_03": [
+              0.4715,
+              -0.119,
+              -0.3055
+            ],
+            "index_02": [
+              0.0492,
+              -0.4932,
+              0.3806
+            ],
+            "index_03": [
+              -0.4517,
+              -0.4606,
+              0.4466
             ]
           },
           "pick": {
@@ -1662,16 +1707,16 @@
       "_hold": "The KXG12's left hand is on its pump close in front of its grip; ours is 27 to 47 cm ahead of the trigger, so the hand is moved 19 cm forward and the left shoulder 14 cm (`shoulders` l), then searched on the pump's middle with the pump's back position scored too: laid flush by tools/pack-flush.ts alone it crept to the pump's rear end, its heel 14 mm into the receiver's bracket. The right shoulder is the straightest wrist on our raked grip (the KXG12's stands upright) at rest, in an inspect and aimed: 93 to 30 degrees at rest, 101 to 40 aimed, 65 to 37 in an inspect. Its pickup fit (`pick`) is 3 cm out and down: the pack's pickup brings the hand back 9 cm off the KXG12's hold, and with the hold's move on it the fingers went 11 mm into the pump.",
       "cupMove": {
         "l": [
-          -0.01,
-          -0.04,
-          0
+          0,
+          -0.045,
+          0.02
         ]
       },
       "cup": {
         "shape": {
           "l": [
-            0.25,
-            0.65
+            0.4,
+            0.8
           ]
         }
       },
@@ -1714,9 +1759,9 @@
           ],
           "joint": {
             "thumb_01": [
-              0,
-              -0.24,
-              0
+              0.1241,
+              0.5893,
+              0.7296
             ],
             "middle_01": [
               0.48,
@@ -1737,6 +1782,16 @@
               0.54,
               -0.24,
               0
+            ],
+            "thumb_02": [
+              -0.3273,
+              -0.1518,
+              -0.018
+            ],
+            "thumb_03": [
+              -0.5695,
+              0.0465,
+              0.0185
             ]
           }
         },
@@ -1907,9 +1962,9 @@
       "gunScale": 0.85,
       "cupMove": {
         "l": [
-          -0.0123,
-          -0.0178,
-          0.0103
+          -0.02,
+          -0.035,
+          0.01
         ],
         "r": [
           0.0285,
@@ -2006,7 +2061,38 @@
             -0.1882,
             0.009
           ],
-          "joint": {},
+          "joint": {
+            "thumb_01": [
+              0.0203,
+              0.7331,
+              -0.3485
+            ],
+            "thumb_02": [
+              0.7167,
+              0.7166,
+              0.14
+            ],
+            "thumb_03": [
+              -0.9131,
+              -0.1718,
+              0.738
+            ],
+            "index_01": [
+              0.2648,
+              0.7292,
+              1.2935
+            ],
+            "index_02": [
+              0.3641,
+              0.5995,
+              -0.1045
+            ],
+            "index_03": [
+              -0.688,
+              0.4394,
+              -0.1569
+            ]
+          },
           "pick": {
             "shift": [
               0.0121,
@@ -2615,19 +2701,34 @@
               0.045
             ],
             "pinky_01": [
-              0.362,
-              0.319,
-              0.148
+              0.1077,
+              0.3544,
+              0.4347
             ],
             "thumb_01": [
-              -0.062,
-              -0.284,
-              0.751
+              -0.615,
+              -0.7123,
+              1.0363
             ],
             "thumb_02": [
-              0.012,
-              0.029,
-              0.074
+              0.5368,
+              0.078,
+              0.2694
+            ],
+            "thumb_03": [
+              0.6051,
+              0.5059,
+              -0.5392
+            ],
+            "pinky_02": [
+              0.0518,
+              0.0756,
+              -0.0993
+            ],
+            "pinky_03": [
+              -0.2584,
+              0.0279,
+              -0.7446
             ]
           },
           "pick": {
@@ -3141,7 +3242,7 @@
     "ease": 0.12,
     "gunKeep": 0.5
   },
-  "_free": "The bought arms off a gun (fprig.ts free, handTurn; the owner, 2026-09-28: the fists were \"the old fists and not our new bought arms\"). `fist`: each finger joint's bend in a fist, radians, along the axis the pack's own grip bends it (its first gun's pose clip, the right hand round a pistol grip). `thumb`: each fist's thumb joints turned on top of that, radians about each joint's own axes, searched by tools/fist-thumb.ts to lie across the index and middle fingers' middle bones with none of it in them: bent as the grip bends it, its tip stood 1.3 to 1.6 of a phalanx out ahead of the fist like a pointing finger, now 0.42 (left) and 0.14 (right). `palmSign`: which way off the knuckles each hand's palm faces, opposite on the two hands, which are mirror images (the right at -1 like the left faced its palm out and up, the hand rolled 159 degrees on its forearm and the glove's cuff split from the sleeve; the owner, 2026-09-28: \"the right arm is clearly still so fucked up ... just put the guns away and look at the right arm\"). `palm`: on an inspect, the open left hand's knuckles and the way its palm faces, in the view's space (x right, y up, z back toward the eye), with the hack floating over it. `pull`: the fists moved from the view's own fists' place toward the eye, view metres (in, up, back): the bought arms are shorter than the view's, and there they were straight out, 97% of their reach. `twistShare`: of a hand's roll on its forearm, the share its twist bone halfway down the forearm takes, where the hand is posed here rather than by a clip (the fists, the open palm): with none, the whole roll was at the wrist, and the open palm's 150 degrees split the glove's cuff from the sleeve.",
+  "_free": "The bought arms off a gun (fprig.ts free, handTurn; the owner, 2026-09-28: the fists were \"the old fists and not our new bought arms\"). `fist`: each finger joint's bend in a fist, radians, along the axis the pack's own grip bends it (its first gun's pose clip, the right hand round a pistol grip). `thumb`: each fist's thumb joints turned on top of that, radians about each joint's own axes, searched by tools/fist-thumb.ts to lie across the index and middle fingers' middle bones with none of it in them: bent as the grip bends it, its tip stood 1.3 to 1.6 of a phalanx out ahead of the fist like a pointing finger, now 0.42 (left) and 0.14 (right). `palmSign`: which way off the knuckles each hand's palm faces, opposite on the two hands, which are mirror images (the right at -1 like the left faced its palm out and up, the hand rolled 159 degrees on its forearm and the glove's cuff split from the sleeve; the owner, 2026-09-28: \"the right arm is clearly still so fucked up ... just put the guns away and look at the right arm\"). `palm`: on an inspect, the open left hand's knuckles and the way its palm faces, in the view's space (x right, y up, z back toward the eye), with the hack floating over it. `twistShare`: of a hand's roll on its forearm, the share its twist bone halfway down the forearm takes, where the hand is posed here rather than by a clip (the fists, the open palm): with none, the whole roll was at the wrist, and the open palm's 150 degrees split the glove's cuff from the sleeve.",
   "free": {
     "fist": {
       "01": 1.3,
@@ -3167,11 +3268,6 @@
         0
       ]
     },
-    "pull": [
-      0.04,
-      0.04,
-      0.13
-    ],
     "thumb": {
       "l": {
         "thumb_01": [
@@ -3193,7 +3289,102 @@
         ]
       }
     },
-    "twistShare": 0.5
+    "twistShare": 0.5,
+    "_unarmed": "The empty hands, made to look as Apex shows its own (the owner, 2026-10-18: \"THE FISTS THEMSELVES OUT LOOK RETARDED RIGHT NOW ... THEY DON'T EVEN LOOK THE SAME AND THEN THE ANIMATIONS FOR THEM MOVING ARE LIKE PUNCHING THE AIR ... COMPARE WHAT WE HAVE NOW TO APEX / HYPERSCAPE UNARMED\"). Read off Apex frame by frame (YouTube NpX3zN_VTWQ at 28 to 30 s, a holstered sprint, and nyzvk_wqBFQ at 13 and 15 s, two punches): standing or walking with nothing in them Apex shows no hands at all; sprinting, two open hands pump up into the bottom of the picture in turn, one a step, the left peaking a little left of the middle and the right a little right of it, never thrust ahead; a punch is the right fist swung up from below the right edge into the middle of the picture, big and near,. Hyper Scape has no empty hands: a match starts with a melee weapon. Ours had two fists held out ahead all the time, one showing its knuckles and the other the back of its hand, thrust forward and back in turn as you ran. Places are where each hand's middle (its wrist to its middle knuckle) is on the screen, as shares of its width and height from the top left, at `depth` view metres ahead of the eye, so they hold at any field of view; the wrist is `half` back from there along the knuckles' way. `low`: screen heights under the bottom edge a hand goes when it is out of the picture. `ease`: seconds a sprint's pump comes in and goes over. `rest`: out of the picture each hand hangs, its knuckles `along` and its palm `palm`: pointed up as at the pump's top, the fingers stood 5% into the picture's bottom with the hand's middle half a screen under it. `sprint`: each hand's `peak`, its rise with the step (the sine of half the bob's phase, to the power `rise`: the right hand up on one half, the left on the other), `drift` out to its side as it drops, its knuckles' way `along` and its palm's way `palm` (view space: x right, y up, z back toward the eye), its fingers `curl` of the way to a fist. `punch`: the right fist up from where it was (out of the picture, or pumping) to `hit` on the screen at `depth`, over the melee's shares `at` (leaves, lands, holds to, back down by: the hit counts a third of the way through, main.ts meleeHitAt), its knuckles `along` and palm `palm`.",
+    "unarmed": {
+      "depth": 0.17,
+      "half": 0.045,
+      "low": 0.5,
+      "ease": 0.12,
+      "rest": {
+        "along": {
+          "l": [
+            0.2,
+            -1,
+            -0.3
+          ],
+          "r": [
+            -0.2,
+            -1,
+            -0.3
+          ]
+        },
+        "palm": {
+          "l": [
+            1,
+            0,
+            0
+          ],
+          "r": [
+            -1,
+            0,
+            0
+          ]
+        }
+      },
+      "sprint": {
+        "peak": {
+          "l": [
+            0.46,
+            1.01
+          ],
+          "r": [
+            0.73,
+            1.01
+          ]
+        },
+        "drift": 0.06,
+        "rise": 1.6,
+        "along": {
+          "l": [
+            0.6,
+            0.75,
+            -0.2
+          ],
+          "r": [
+            -0.6,
+            0.75,
+            -0.2
+          ]
+        },
+        "palm": {
+          "l": [
+            0.4,
+            -0.1,
+            -1
+          ],
+          "r": [
+            -0.4,
+            -0.1,
+            -1
+          ]
+        },
+        "curl": 0.15
+      },
+      "punch": {
+        "hit": [
+          0.62,
+          0.62
+        ],
+        "depth": 0.13,
+        "at": [
+          0.08,
+          0.3,
+          0.45,
+          0.8
+        ],
+        "along": [
+          -0.6,
+          0.45,
+          -0.8
+        ],
+        "palm": [
+          -0.3,
+          -1,
+          -0.1
+        ]
+      }
+    }
   },
   "_inspectPalm": "Where the open left hand's wrist is on an inspect, view metres (x right, y up, z back toward the eye): 2 cm right of, 6 cm below and 4 cm nearer than where round 4 put it (the owner, 2026-09-29: \"the arm looks out of place now when inspecting the hacks. If you just move it back down and slightly closer to the camera again i think it fixes it ... the arm is weirdly up and out there\": held at [-0.17, -0.1, -0.3] the whole arm lay across the left of the screen with the palm at eye height; here the forearm comes up from the bottom left, photographed at three places between the two), the cards still clear of the gun at every moment, the arm reaching and the wrist 48 degrees. Round 4 had raised it from [-0.14, -0.22, -0.3] (\"held higher and slightly more to the left so it doesn't bug in and out with the gun\"; there 34 to 87% of a card was over it). How the hacks float over the palm: `bob` metres up and down at `rate` a second, `spin` radians side to side. `lift`: how far off the palm they float, view metres (at 6 cm they sat in the palm). `pair`: each hack carried has its card, `gap` metres apart across the view at `scale` of one card's size, the pair `dx` metres right of the palm (the owner: \"slightly bigger themselves, be moved over slightly to the right as a pair\"). `hold`: the shares of the inspect by which the palm is up, and from which it goes back to the gun. `clear`: metres the hand bows out past the gun's left side on its way up to the palm and back, the most near the gun (6.75 x share x (1 - share)^2): straight, it went 9 to 25 mm through the gun. The cards come up only once the hand is halfway there. `glow`: each card's halo behind it, `base` bright and pulsing `depth` either way at `rate` a second; `pips`: the colours of each slot's level pips along a card's foot, as the HUD's hack boxes light them (hud.ts drawHacksSk; the owner: \"some more animation to it as well, like very basic glow or something or it should show the level as well like we do on the custom ui on the bottom\"). `toss`: near the end the palm flicks up `flick` metres over `at` and throws the cards, which rise `rise` metres, slower as they go, spreading `spread` apart and turning `turn` radians, and phase out over `fade` with the gun's own sweep (gunfeel.json phase), gone before the hand goes back (the owner: \"the tossing up animation of the hacks nearing the end of the inspect and they dissolve in the air like we plan to do when swapping guns\"). A pack gun's `palmElbow` moves the open hand's elbow off the knuckles' line, view metres: the L96X's rig sits 5 cm lower and 6 cm further ahead than the MPS5's (its `offset`), and from its shoulder BOOG's elbow swung out to the left, its sleeve across the bottom of the picture at every palm spot tried (lowered to where its shoulder is, the right card lay 14% over its scope); 10 cm down, 2 right and 2 ahead brings the forearm up from below as the USSO's does, the wrist 43 degrees (20 cm down bent it 67; 14 cm down bent it 61 as the hand went back to the gun, 92 to 94% of the inspect, where the frame sheets look and the e2e's samples did not). The MPS5's (the USSO's) 5 cm down: at the lower spot alone the forearm was wrung 90 degrees, the most the checks allow; 5 cm down, 76, the wrist 50.",
   "inspectPalm": {

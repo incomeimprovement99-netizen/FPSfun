@@ -1835,7 +1835,7 @@ type Moves = { cards: number; deep: number; wrist: number; wrung: number; short:
 async function packFrames(page: Page): Promise<void> {
   await ev(page, readFileSync(new URL("./pack-audit.js", import.meta.url), "utf8"));
   const RL = fparmsCfg.reload;
-  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; pointR: number; swap: number }; pointHand: number; trigTip: number; reloadSeen: { mag: number[]; tip: number[] }; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; throughWhere?: Record<string, string>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; gone: number; off: number; face: number; curl: number; radial: number }; aimReach: number; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
+  type Frames = { wrists: { rest: number[]; aimed: number[]; point: number; pointR: number; swap: number }; pointHand: number; trigTip: number; reloadSeen: { mag: number[]; tip: number[] }; nanBones: string[]; fit: { vanish: number[]; muzzle: number[]; across: number; upper: number }; pitch: number; hook: number; fists: { free: boolean; twist: number[]; curl: number[]; thumb: number[]; skew: number[]; rest: Record<"l" | "r", boolean>; upR: { r: number[]; lShown: boolean }; upL: { l: number[]; rShown: boolean }; punch: number[] }; handover: number; palmAhead: number; fov: number; adsNear: number; centreShift: number; centreSwapped: boolean; own: { off: number; turn: number; aimed: number }; pitchWant: number; melee: { on: boolean; free: boolean; off: number; curl: number; deep: number }; tactical: { empty: { handle: number; lead: string }; tactical: { handle: number; lead: string } }; handFit: { palm: number; palmTouch: number; thumb: number; mr: number; rp: number; seen: Record<"l" | "r", { holes: number; cracks: number }>; tips: Record<string, number> }; palm: { w: number; cards: number }; palmArm: { hand: number[]; exit: number[]; leaves: string; keys: string[] }; toss: { y0: number; y1: number; whole0: number; whole1: number; after: number }; rackCurl: number; lead: { out: number[]; into: number[] }; inspect: Moves; flourish: Moves; tilt: number[]; gripSame: number; slid: number; slidIn: number; magPhase: { radial: number[]; off: number[] }; miss: number; off: number; through: Record<string, number>; throughWhere?: Record<string, string>; inside: Record<string, number>; swap: { moved: number; deep: number; short: number; gone: number; off: number; face: number; curl: number; radial: number }; aimReach: number; pickLead: string; pickAfter: string; feed?: Feed; pump?: Pump; vent?: Vent };
 /** an overheat's vent (CHOOCH's): its turn's weight mid-vent and at its ends, which clip leads mid-vent, the deepest seen
  * skin in the gun through it, mm, and the worst wrist, degrees */
 type Vent = { mid: number; ends: number; lead: string; deep: number; wrist: number };
@@ -2065,7 +2065,7 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     o.hook = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const h = r.packArms().hookMiss; H.clear(); await H.gameWait(0.3); return Number.isFinite(h) ? h : ${id === "r97" ? 99 : 0};`);
     // the hands at rest: how much of the left palm and thumb lie on the gun (mm off it of the palm's nearest tenth of skin
     // and the thumb's nearest quarter), and the right hand's last three fingertips' spacing, mm
-    o.handFit = await pf<Frames["handFit"]>(`r.packRig().debugStill = true; H.clear(); await H.viewWait(0.3); const T = r.THREE; const a = window.__packAudit(0.004, false, { side: "l", gapList: true }); const pct = (xs, q) => { const s = (xs || []).slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 99; }; const g = r.packRig().group; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const s = g.getWorldScale(new T.Vector3()).x; const d = (p, q) => (at(p).distanceTo(at(q)) / s) * 1000; const seen = (side) => { const x = window.__packSeenGap(side); return x ? { holes: x.holes, cracks: x.cracks } : { holes: 99, cracks: 99 }; }; const out = { palm: pct(a.gapList.hand_l, 0.1), palmTouch: (a.palmGap.l ?? 1) * 1000, thumb: Math.max(pct(a.gapList.thumb_02_l, 0.25), pct(a.gapList.thumb_03_l, 0.25)), mr: d("middle_03_r", "ring_03_r"), rp: d("ring_03_r", "pinky_03_r"), seen: { l: seen("l"), r: seen("r") } }; r.packRig().debugStill = false; return out;`);
+    o.handFit = await pf<Frames["handFit"]>(`r.packRig().debugStill = true; H.clear(); await H.viewWait(0.3); const T = r.THREE; const a = window.__packAudit(0.004, false, { side: "l", gapList: true }); const pct = (xs, q) => { const s = (xs || []).slice().sort((x, y) => x - y); return s.length ? s[Math.min(s.length - 1, Math.floor(q * s.length))] : 99; }; const g = r.packRig().group; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const s = g.getWorldScale(new T.Vector3()).x; const d = (p, q) => (at(p).distanceTo(at(q)) / s) * 1000; const seen = (side) => { const x = window.__packSeenGap(side); return x ? { holes: x.holes, cracks: x.cracks } : { holes: 99, cracks: 99 }; }; const out = { palm: pct(a.gapList.hand_l, 0.1), palmTouch: (a.palmGap.l ?? 1) * 1000, thumb: Math.max(pct(a.gapList.thumb_02_l, 0.25), pct(a.gapList.thumb_03_l, 0.25)), mr: d("middle_03_r", "ring_03_r"), rp: d("ring_03_r", "pinky_03_r"), seen: { l: seen("l"), r: seen("r") }, tips: Object.fromEntries(["thumb", "index", "middle", "ring", "pinky"].map((f) => [f, a.boneGap[f + "_03_l"] ?? 99])) }; r.packRig().debugStill = false; return out;`);
     // and the forefinger closed round it, degrees
     o.rackCurl = await pf<number>(`r.debugView.reload = 0.76; await H.gameWait(0.2); const c = r.packArms().rackCurl; H.clear(); await H.gameWait(0.3); return c;`);
     // the pointing finger against the magazine, shares of the slide: a quarter into the phase out and halfway into the in
@@ -2073,7 +2073,10 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     const inAt = (RL.phaseIn[0] + RL.phaseIn[1]) / 2;
     o.lead = noMag ? { out: [], into: [] } : await pf<Frames["lead"]>(`const at = async (u) => { r.debugView.reload = u; await H.gameWait(0.15); const s = r.packArms(); return [s.tipSlid, s.magSlid]; }; const out = await at(${outAt}); const into = await at(${inAt}); H.clear(); await H.gameWait(0.3); return { out, into };`);
     // the hands off the gun: the bought arms' fists
-    o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const s = r.packArms(); const f = { free: s.free, twist: [s.twistL, s.twistR], curl: [s.curlL, s.curlR], thumb: [s.thumbL, s.thumbR], skew: [s.skewL, s.skewR] }; H.clear(); await H.gameWait(0.8); return f;`);
+    // (as Apex shows them: none in the picture standing, each open hand up into its bottom on its step of a sprint, the
+    // right fist in its middle on a punch; each hand's middle as shares of the screen from the top left, and whether any
+    // of its bones is in the picture)
+    o.fists = await pf<Frames["fists"]>(`r.debugView.lowered = 1; await H.gameWait(0.8); const T = r.THREE; const g = r.packRig().group; const cam = r.viewModelRoot().parent; const at = (n) => g.getObjectByName(n).getWorldPosition(new T.Vector3()); const shown = (k) => ["hand", "thumb_03", "index_03", "middle_03", "pinky_03"].some((b) => { const v = at(b + "_" + k).project(cam); return v.z < 1 && Math.abs(v.x) < 1 && Math.abs(v.y) < 1; }); const mid = (k) => { const v = at("hand_" + k).lerp(at("middle_01_" + k), 0.5).project(cam); return [(v.x + 1) / 2, (1 - v.y) / 2]; }; const rest = { l: shown("l"), r: shown("r") }; r.pumpAt(0.25); await H.viewWait(0.2); const upR = { r: mid("r"), lShown: shown("l") }; r.pumpAt(0.75); await H.viewWait(0.2); const upL = { l: mid("l"), rShown: shown("r") }; r.pumpAt(null); r.meleeAt(0.35); await H.viewWait(0.2); const s = r.packArms(); const f = { free: s.free, rest, upR, upL, punch: mid("r"), twist: [s.twistR], curl: [s.curlR], thumb: [s.thumbR], skew: [s.skewR] }; r.meleeAt(null); H.clear(); await H.gameWait(0.8); return f;`);
     // an inspect: the open left palm with the hack over it
     o.palm = await pf<{ w: number; cards: number }>(`r.debugView.inspect = 0.5; await H.gameWait(0.3); const p = { w: r.packArms().palm, cards: r.packArms().palmCards }; r.debugView.inspect = -1; await H.gameWait(0.3); return p;`);
     // the open hand's wrist and elbow on the screen (-1 to 1 across and up it), and the cards' hacks with their levels
@@ -2445,6 +2448,18 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
     g.length === packIds.length && g.every((x) => (["l", "r"] as const).every((k) => x.handFit.seen[k].holes <= SEEN_HOLES && x.handFit.seen[k].cracks <= SEEN_CRACKS)),
     show((x) => `l ${x.handFit.seen.l.holes}/${x.handFit.seen.l.cracks}, r ${x.handFit.seen.r.holes}/${x.handFit.seen.r.cracks}`),
   );
+  // (the owner, 2026-10-17: "SOME GUNS / HANDS ARE CLEARLY FUCKED UP STILL. LIKE LOGICALLY THE FINGERS ARE THE WRONG WAY
+  // ... A BIG OBV ONE IS ON ANAKIN": its left thumb stood straight out into the air, more than 3 cm off the gun, and REZ's,
+  // CHOOCH's and BIGANTLER's thumbs and the USSO's little finger stood 3 to 6 cm off theirs. Every check passed: they
+  // counted skin in the gun, daylight between hand and gun and the wrist's bend, and a finger pointing away is none of
+  // those. A pistol's left fingers lie on its right hand, not the gun. 2.5 cm: PANDA's little finger lies 2.1 cm from the
+  // end of its handguard, beside it, and a search of its three joints (tools/pack-flush.ts) found no better place)
+  const TIP_OFF = 25;
+  check(
+    `pack frames: at rest each long gun's support hand holds it with every finger and its thumb, none pointing off into the air (each tip within ${TIP_OFF} mm of the gun)`,
+    g.length === packIds.length && Object.entries(res.guns).every(([id, x]) => onHand(id) || Object.values(x.handFit.tips).every((v) => v <= TIP_OFF)),
+    show((x) => x.handFit.tips),
+  );
   // (and of the right: "why is the middle finger so separated from the bottom two? the 3 should be next to each other":
   // its tip 36 mm from the ring finger's, the ring's 25 from the little finger's)
   if (has("r97")) check(
@@ -2550,18 +2565,30 @@ type Pump = { apart: number; stroke: number; deep: number; empty: string; tactic
   );
   // (the owner, 2026-09-28: "the right arm is clearly still so fucked up ... just put the guns away and look at the right
   // arm": the right fist rolled 159 degrees on its forearm, the glove's cuff split from the sleeve, and each thumb out
-  // ahead of its fist like a pointing finger)
+  // ahead of its fist like a pointing finger. Since 2026-10-18 the one fist shown is the punch's)
   check(
-    "pack frames: the fists are the bought arms', neither rolled on its forearm past 45 degrees, every finger curled (120 degrees and more) and each thumb across the fingers (within a phalanx)",
+    "pack frames: an empty-handed punch is the bought arms' right fist, not rolled on its forearm past 45 degrees, every finger curled (120 degrees and more) and its thumb across the fingers (within a phalanx)",
     g.every((x) => x.fists.free && x.fists.twist.every((t) => t <= 45) && x.fists.curl.every((c) => c >= 120) && x.fists.thumb.every((t) => t <= 1)),
     show((x) => ({ twist: x.fists.twist.map(Math.round), curl: x.fists.curl.map(Math.round), thumb: x.fists.thumb.map((t) => +t.toFixed(2)) })),
   );
   check(
     // (the owner, 2026-10-11: "the fists out look obvously fucked up too lmao the fingers are all bent unnaturally": bent on
     // along the grip's own turn, the USSO's fists' fingers curled 75 and 28 degrees off their planes, across each other)
-    "pack frames: each fist's fingers curl in their own planes, square to the knuckles' line (20 degrees off at most)",
+    "pack frames: the punch's fist's fingers curl in their own planes, square to the knuckles' line (20 degrees off at most)",
     g.every((x) => x.fists.skew.every((t) => t <= 20)),
     show((x) => x.fists.skew.map(Math.round)),
+  );
+  // (the owner, 2026-10-18: "THE FISTS THEMSELVES OUT LOOK RETARDED RIGHT NOW ... THE ANIMATIONS FOR THEM MOVING ARE LIKE
+  // PUNCHING THE AIR ... COMPARE WHAT WE HAVE NOW TO APEX / HYPERSCAPE UNARMED": two fists had been held out ahead all the
+  // time and thrust forward in turn as you ran. Apex, read frame by frame, shows no hands standing or walking, an open hand
+  // up into the picture's bottom on each step of a sprint, and on a punch the right fist in its middle: fparms.json
+  // free.unarmed. Within a tenth of the screen of each place)
+  const UN = (fparmsCfg.free as unknown as { unarmed: { sprint: { peak: Record<"l" | "r", number[]> }; punch: { hit: number[] } } }).unarmed;
+  const near = (a: number[], b: number[]) => Math.hypot(a[0] - b[0], a[1] - b[1]) <= 0.1;
+  check(
+    "pack frames: with the hands empty, as Apex shows them: neither hand in the picture standing still, each open hand up into its bottom on its own step of a sprint with the other out of it, and a punch's right fist in its middle",
+    g.every((x) => !x.fists.rest.l && !x.fists.rest.r && near(x.fists.upR.r, UN.sprint.peak.r) && !x.fists.upR.lShown && near(x.fists.upL.l, UN.sprint.peak.l) && !x.fists.upL.rShown && near(x.fists.punch, UN.punch.hit)),
+    show((x) => ({ rest: x.fists.rest, upR: x.fists.upR.r.map((v) => +v.toFixed(2)), lShown: x.fists.upR.lShown, upL: x.fists.upL.l.map((v) => +v.toFixed(2)), rShown: x.fists.upL.rShown, punch: x.fists.punch.map((v) => +v.toFixed(2)) })),
   );
   check(
     "pack frames: on an inspect the left hand opens, palm up, with both hacks you carry over it",
