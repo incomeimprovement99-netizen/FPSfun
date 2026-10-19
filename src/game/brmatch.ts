@@ -1198,11 +1198,11 @@ export class BrMatch extends Duel {
     this.damage += amount;
     r.health = b.bot.dummy.health;
     r.shield = b.bot.dummy.shield;
-    if (b.bot.dummy.knocked) this.botDown(b, this.id);
+    if (b.bot.dummy.knocked) this.botDown(b, this.id, weapon, head);
   }
 
   /** the host: a guest's hit on a bot */
-  protected override onHitOther(to: number, amount: number, head: boolean, from: number): boolean {
+  protected override onHitOther(to: number, amount: number, head: boolean, from: number, weapon = ""): boolean {
     const b = this.bots.find((x) => x.bot.remote.id === to);
     if (!b) return false;
     if (this.phase !== "fight" || !b.bot.alive) return true;
@@ -1210,7 +1210,7 @@ export class BrMatch extends Duel {
     bot.dummy.hit(wallClock(), head ? "head" : "body", amount, 1, 1, bot.pos.clone().setY(bot.pos.y + 1.2));
     bot.remote.health = bot.dummy.health;
     bot.remote.shield = bot.dummy.shield;
-    if (bot.dummy.knocked) this.botDown(b, from);
+    if (bot.dummy.knocked) this.botDown(b, from, weapon, head);
     return true;
   }
 
@@ -1307,7 +1307,7 @@ export class BrMatch extends Duel {
   }
 
   /** a bot out, by `by` (a human id, a bot id, or -1 for the ring): at zero health it is out, there being no knocks */
-  private botDown(b: BrBot, by: number): void {
+  private botDown(b: BrBot, by: number, weapon = "", head = false): void {
     const r = b.bot.remote;
     if (!r.alive) return;
     r.alive = false;
@@ -1321,10 +1321,10 @@ export class BrMatch extends Duel {
       this.dropDeath(items, b.bot.pos.clone());
     }
     const who = this.whoDid(by);
-    // the end of it: the feed says eliminated
-    this.onFeed?.(`${who} eliminated ${r.name}`, mine, !mine);
+    // the end of it: the feed says eliminated, with the gun when there was one (Milestone 701)
+    this.onFeed?.(`${who} eliminated ${r.name}`, mine, !mine, { killer: who, victim: r.name, weapon: weapon || undefined, head });
     for (const o of this.bots) o.bot.forget(r.id);
-    this.broadcast({ t: "down", from: r.id, by });
+    this.broadcast({ t: "down", from: r.id, by, w: weapon || undefined, hd: head ? 1 : undefined });
     this.onKnockSeen?.(r.id, by);
     const left = this.aliveCount;
     // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one)
@@ -2334,7 +2334,7 @@ export class BrMatch extends Duel {
           other.bot.remote.health = other.bot.dummy.health;
           other.bot.remote.shield = other.bot.dummy.shield;
           if (other.bot.dummy.knocked) {
-            this.botDown(other, bot.remote.id);
+            this.botDown(other, bot.remote.id, bot.weapon.id);
             break;
           }
         }

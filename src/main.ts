@@ -4576,7 +4576,7 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   d.onRemoteShot = null;
   d.onNotice = (t) => hud.notice(t, gameTime, 1);
   d.onEnd = (reason) => endMatch(reason);
-  d.onFeed = (text, mine, neutral) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? P.feedAlly : P.feedEnemy);
+  d.onFeed = (text, mine, neutral, kill) => hud.feed(text, gameTime, neutral ? "#c8d0d8" : mine ? P.feedAlly : P.feedEnemy, kill);
   // someone else's dash, hack, emote, spray: remoteFx
   d.onRemoteFx = (k, from, a, b, n) => remoteFx(d, k, from, a, b, n);
   // SpeedKills: your two picked hacks, ready

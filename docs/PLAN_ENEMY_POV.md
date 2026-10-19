@@ -40,10 +40,8 @@ An inventory of the code, 2026-10-18.
 
 ## Nice to haves, next
 
-- **A kill confirmed by a skull:** Apex and Hyper Scape draw one in the crosshair; ours is a big red marker and
-  ELIMINATED.
-- **The kill feed with a headshot flag and the gun's outline between the names**, as Apex and Empulse show it. It comes
-  with the HUD's gun outlines (docs/PLAN_HUD_V2.md).
+- ~~A kill confirmed by a skull~~ and ~~the kill feed with the gun's outline and a headshot flag~~: done in
+  Milestone 701.
 - **INVISIBILITY's shimmer:** Hyper Scape's invisible players ripple when they move and flash when hit; ours vanish
   past 6 m and are whole inside it.
 - **HEAL's sound and a bot's HEAL drawn:** a bot's heal shows nothing, and anyone's is silent.

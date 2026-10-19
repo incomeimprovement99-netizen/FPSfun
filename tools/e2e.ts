@@ -6699,6 +6699,14 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   );
   // holding the zone alone wins: the bots kept out of it, you in it (dropped from above onto whatever floor
   // stands there: the Spire is solid to its tiers now), its meter near full
+  // the kill feed carries the gun and the head (Milestone 701): an enemy bot dropped by your round to the head, through
+  // the match's own path for a hit of yours (its figure hit, then the match told)
+  const fk = await ev<{ killer: string; victim: string; weapon: string | null; head: boolean } | null>(
+    page,
+    `(() => { const R = window.__range; const d = R.duel(); const foe = d.bots.find((b) => !d.isFriend(b.bot.remote.id) && b.bot.alive); if (!foe) return null; const q = foe.bot.pos;
+      foe.bot.dummy.hit(R.gameTime(), "head", 9999, 2, 1, q.clone().setY(q.y + 1.6)); d.localHit(foe.bot.remote, 9999, true, "r97", 12); return R.hud.feedKills[0]; })()`,
+  );
+  check("speedkills: a kill in the feed carries the gun's outline and the head (USSO, to the head)", !!fk && fk.weapon === "r97" && fk.head && fk.victim.length > 0, JSON.stringify(fk));
   const won = await ev<{ phase: string; placement: number | null; zone?: number[]; me?: number[]; health?: number; progress?: Record<string, number> }>(
     page,
     `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); d.holdFire = true; for (const b of d.bots) if (b.bot.alive) { b.bot.pos.set(b.bot.pos.x + 400, b.bot.pos.y, b.bot.pos.z); } const z = d.captureZone(); d.health = 100; r.player.teleport(z.x, 150, z.z, 0);

@@ -12406,6 +12406,23 @@ moment the new release was up, the old release's own files were 404.
   - tsc, verify (the new server check, and proven: with the release before's files left out it fails), rules;
   - e2e p2p.
 
+## Milestone 701 — The kill feed names the gun, and a kill shows a skull
+
+Two of the enemy-as-you-see-it gap analysis's nice-to-haves (docs/PLAN_ENEMY_POV.md):
+
+- **The kill feed carries the gun:**
+  - a kill's line puts the gun's own outline (the HUD's, tools/gun-silhouettes.ts) between the killer and the victim,
+    as Apex's and Empulse's feeds do, with a gold crosshair when the round was a head;
+  - the round that did it travels with the kill: a player's own down says its last hit's gun and head (duel.ts
+    lastHitWeapon, the `down` message's new `w` and `hd`), and the battle royale's host says them for its bots (the hit
+    that dropped one, or the bot that did);
+  - an older build sends neither and its lines read as text, as before.
+- **A kill confirmed shows a skull** over the crosshair in the kill marker's red (Apex and Hyper Scape draw one).
+- **Checked:**
+  - tsc, verify, rules;
+  - e2e speedkills (an enemy bot dropped by your round to the head: its line carries USSO and the head) and p2p;
+  - photographed: a feed of four kills with their guns' outlines, and the skull.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

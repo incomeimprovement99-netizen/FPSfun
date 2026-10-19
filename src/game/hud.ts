@@ -410,7 +410,7 @@ export class Hud {
   private noticeText = "";
   private noticeUntil = 0;
   /** the kill feed, top right, newest first */
-  private feedLines: Array<{ text: string; born: number; color: string }> = [];
+  private feedLines: Array<{ text: string; born: number; color: string; kill?: { killer: string; victim: string; weapon?: string; head?: boolean } }> = [];
   private techFeed: TechEntry[] = [];
   private hurtAt = -Infinity;
   private w = 0;
@@ -528,9 +528,14 @@ export class Hud {
     return this.feedLines.map((l) => l.text);
   }
 
+  /** the kill feed's kills as drawn, newest first: the gun and the head each line carries (tools/e2e.ts, Milestone 701) */
+  get feedKills(): Array<{ killer: string; victim: string; weapon: string | null; head: boolean } | null> {
+    return this.feedLines.map((l) => (l.kill ? { killer: l.kill.killer, victim: l.kill.victim, weapon: l.kill.weapon ?? null, head: !!l.kill.head } : null));
+  }
+
   /** a line in the kill feed ("YOU knocked BOT ASH") */
-  feed(text: string, now: number, color = WHITE): void {
-    this.feedLines.unshift({ text, born: now, color });
+  feed(text: string, now: number, color = WHITE, kill?: { killer: string; victim: string; weapon?: string; head?: boolean }): void {
+    this.feedLines.unshift({ text, born: now, color, kill });
     if (this.feedLines.length > 6) this.feedLines.length = 6;
   }
 
@@ -1249,11 +1254,30 @@ export class Hud {
     for (const l of this.feedLines) {
       const age = now - l.born;
       this.ctx.globalAlpha = age < 5 ? 1 : 1 - (age - 5);
-      // each line on a plate as wide as it, edged in its colour (Milestone 698)
+      // each line on a plate as wide as it, edged in its colour (Milestone 698); a kill with its gun known carries the
+      // gun's own outline between the names, and a head's mark, as Apex's and Empulse's feeds do (Milestone 701)
       this.ctx.font = this.font(700, 15 * u);
-      const w = this.ctx.measureText(l.text).width;
-      this.plate(x - w - 12 * u, y - 15 * u, w + 18 * u, 21 * u, u, l.color);
-      this.text(l.text, x, y, 700, 15 * u, l.color, "right");
+      const k = l.kill;
+      if (k?.weapon) {
+        const gw = 48 * u;
+        const head = k.head ? 18 * u : 0;
+        const kw = this.ctx.measureText(k.killer).width;
+        const vw = this.ctx.measureText(k.victim).width;
+        const w = kw + vw + gw + head + 20 * u;
+        this.plate(x - w - 12 * u, y - 15 * u, w + 18 * u, 21 * u, u, l.color);
+        this.text(k.victim, x, y, 700, 15 * u, WHITE, "right");
+        let at = x - vw - 8 * u;
+        if (k.head) {
+          drawIcon(this.ctx, "crosshair", at - 7 * u, y - 5 * u, 14 * u, GOLD);
+          at -= head;
+        }
+        if (!drawGun(this.ctx, k.weapon, at - gw / 2, y - 5 * u, gw, "#e6ebf0")) this.text("·", at - gw / 2, y, 700, 15 * u, DIM, "center");
+        this.text(k.killer, at - gw - 8 * u, y, 700, 15 * u, l.color, "right");
+      } else {
+        const w = this.ctx.measureText(l.text).width;
+        this.plate(x - w - 12 * u, y - 15 * u, w + 18 * u, 21 * u, u, l.color);
+        this.text(l.text, x, y, 700, 15 * u, l.color, "right");
+      }
       y += 25 * u;
     }
     this.ctx.globalAlpha = 1;
@@ -2337,6 +2361,8 @@ export class Hud {
         c.strokeStyle = "rgba(255,255,255,0.98)";
         c.lineWidth = 3;
       }
+      // a kill confirmed: a skull over the crosshair (Milestone 701), as Apex and Hyper Scape draw one
+      if (this.hitMarkerKind === "kill") drawIcon(c, "skull", cx, cy - r1 - 16 * u, 24 * u, "rgba(255,60,50,0.98)");
       for (const [dx, dy] of [
         [1, 1],
         [-1, 1],

@@ -278,7 +278,7 @@ export interface MatchLike {
   onNotice: ((text: string) => void) | null;
   onMatchEnd: ((s: MatchSummary) => void) | null;
   /** a line for the kill feed: who knocked whom (`neutral`: neither side was you) */
-  onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null;
+  onFeed: ((text: string, mine: boolean, neutral?: boolean, kill?: FeedKill) => void) | null;
   /** the match end card wants your win streak from the profile */
   streak: number;
   /** out with others still standing: a figure to watch, or null */
@@ -307,6 +307,17 @@ export interface MatchLike {
   localFx(k: string, a?: THREE.Vector3, b?: THREE.Vector3, n?: number): void;
   /** someone else's effect (a player's, or a bot's): draw and play it */
   onRemoteFx: ((k: string, from: number, a?: THREE.Vector3, b?: THREE.Vector3, n?: number) => void) | null;
+}
+
+/**
+ * A kill as the feed draws it (Milestone 701): who, whom, and the gun and whether the round was a head, when known, so
+ * the line can carry the gun's own outline between the names, as Apex's and Empulse's feeds do
+ */
+export interface FeedKill {
+  killer: string;
+  victim: string;
+  weapon?: string;
+  head?: boolean;
 }
 
 export class Duel implements MatchLike {
@@ -396,7 +407,7 @@ export class Duel implements MatchLike {
   onNotice: ((text: string) => void) | null = null;
   /** first to 3: the result, for stats (before the rematch starts) */
   onMatchEnd: ((s: MatchSummary) => void) | null = null;
-  onFeed: ((text: string, mine: boolean, neutral?: boolean) => void) | null = null;
+  onFeed: ((text: string, mine: boolean, neutral?: boolean, kill?: FeedKill) => void) | null = null;
   streak = 0;
   protected lastSummary: MatchSummary | null = null;
   /** the host: how many have arrived, for the panel */
@@ -520,6 +531,9 @@ export class Duel implements MatchLike {
   protected onSomeoneDown(_id: number, _by: number, _melee?: boolean): void {}
   /** the last hit this player took was a melee (the `down` says so: Gun Run takes a level for it) */
   protected lastHitMelee = false;
+  /** the gun and the head of the last round that hit this player: the kill feed's, and what a down says (Milestone 701) */
+  protected lastHitWeapon = "";
+  protected lastHitHead = false;
   /** the ids the humans use; bots are 100 up */
   static readonly BOT_ID = 100;
   /** on this player's side: no damage either way (a battle royale's squad; a team in the modes) */
@@ -1270,7 +1284,12 @@ export class Duel implements MatchLike {
           const by = m.by === this.id ? this.myName || "YOU" : (causeName(m.by) ?? this.nameOf(m.by) ?? `PLAYER ${m.by + 1}`);
           const mine = m.by === this.id;
           // a `down` is the end of them: the feed says so
-          this.onFeed?.(m.by === EDGE_ID ? `${r.name} went OUT OF BOUNDS` : `${by} eliminated ${r.name}`, mine, !mine && this.mode !== "duel");
+          this.onFeed?.(
+            m.by === EDGE_ID ? `${r.name} went OUT OF BOUNDS` : `${by} eliminated ${r.name}`,
+            mine,
+            !mine && this.mode !== "duel",
+            m.by === EDGE_ID ? undefined : { killer: by, victim: r.name, weapon: typeof m.w === "string" ? m.w : undefined, head: m.hd === 1 },
+          );
           if (mine) this.kills++;
         }
         if (this.role === "host") {
@@ -1581,6 +1600,8 @@ export class Duel implements MatchLike {
     this.health = Math.max(0, this.health - (amount - toShield));
     this.onHurt?.(amount);
     this.onDamaged?.(from, amount, head, weapon, dist);
+    this.lastHitWeapon = weapon;
+    this.lastHitHead = head;
     // no knockdowns: at zero health you are out (in a battle royale to the Gulag, then a ghost), whether a squad mate is
     // up or not (the legacy game's squads went down first; Milestone 529)
     if (this.health <= 0) this.eliminate(from, "knocked");
@@ -1599,11 +1620,13 @@ export class Duel implements MatchLike {
     this.deaths++;
     this.onEliminated?.(from);
     const who = causeName(from) ?? this.nameOf(from) ?? "SOMEONE";
-    this.onFeed?.(from === EDGE_ID ? `${this.myName || "YOU"} went OUT OF BOUNDS` : `${who} eliminated ${this.myName || "YOU"}`, false);
+    const me = this.myName || "YOU";
+    const w = this.lastHitWeapon || undefined;
+    this.onFeed?.(from === EDGE_ID ? `${me} went OUT OF BOUNDS` : `${who} eliminated ${me}`, false, undefined, from === EDGE_ID ? undefined : { killer: who, victim: me, weapon: w, head: this.lastHitHead });
     // this player's own count of their deaths goes with it: the restore lockout grows with it, and
     // each squad mate counted only the downs it heard, so one missed made its lockout shorter (plan 12, item 6)
     this.noteDeath(this.id);
-    this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp(), bn: this.boxDeaths.get(this.id)?.n });
+    this.broadcast({ t: "down", by: from, m: this.lastHitMelee ? 1 : undefined, tm: senderStamp(), bn: this.boxDeaths.get(this.id)?.n, w, hd: this.lastHitHead ? 1 : undefined });
     if (this.role === "host" && this.mode === "duel") this.checkLastStanding(wallClock());
     this.onSomeoneDown(this.id, from, this.lastHitMelee);
   }
@@ -2154,7 +2177,7 @@ function wellFormed(m: NetMsg): boolean {
     case "hit":
       return finite(m.to, m.amount) && m.amount >= 0 && m.amount <= 1000 && (m.w == null || typeof m.w === "string") && (m.d == null || finite(m.d));
     case "down":
-      return finite(m.by);
+      return finite(m.by) && (m.w == null || (typeof m.w === "string" && m.w.length <= 24)) && (m.hd == null || finite(m.hd));
     case "door":
       return finite(m.i) && typeof m.open === "boolean";
     default:

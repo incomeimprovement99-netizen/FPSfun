@@ -605,6 +605,8 @@ green plate always shows.
 - **The guns:** each slot shows the gun's own outline, drawn from its model by `tools/gun-silhouettes.ts` into
   public/icons/guns (local, copied with the paid files).
 - **The top of the screen:** the counts, compass, minimap and kill feed are framed to match.
+- **The kill feed:** each kill puts the gun's outline between the names, with a gold crosshair for a headshot
+  (Milestone 701), and a kill shows a red skull over your crosshair.
 
 **The killcam and the death recap.** Eliminated, you see the last 4 s from
 your killer's eyes (Space skips; a setting turns it off), then a card: for
