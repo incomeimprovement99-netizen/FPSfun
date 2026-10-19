@@ -137,7 +137,7 @@ import type { HitTier } from "./game/audio";
 import { ammoTypeOf } from "./game/ammo";
 import { RETICLE_COLORS, RETICLE_DEFAULT, RETICLE_STYLES, cleanReticle, drawReticle, loadReticle, saveReticle, type Reticle } from "./game/reticle";
 import { Progress, levelFor, type Award } from "./game/progress";
-import { HUD_SCALES, P, VISION_MODES, access, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
+import { HUD_SCALES, P, VISION_MODES, access, enemy3d, loadAccess, saveAccess, setHudScale, setVision, type VisionMode } from "./game/palette";
 import { LoadingScreen, type PlayerCard } from "./ui/loading";
 import { Intro } from "./ui/intro";
 import { setMuzzleViewer } from "./game/muzzle";
@@ -3551,7 +3551,7 @@ function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
  */
 function shieldFx(fig: Dummy, at: THREE.Vector3, color: number, broke: boolean): void {
   fig.shieldHit(at, color, broke);
-  if (broke) fx.shieldBreak(fig.chestAt(), color, gameTime);
+  if (broke) fx.shieldBreak(fig.chestAt(), color, gameTime, fig.group.position.distanceTo(player.pos));
 }
 
 /** others under ARMOR, until when on the page's wall clock (remoteHack): what your rounds do to them is its share */
@@ -6811,7 +6811,7 @@ function step(): void {
     // a width in pixels on the screen, whatever the distance and however far a scope has zoomed: in metres it grew
     // with the distance and not with the zoom, and through a sniper's scope at 40 m the rim was 13 pixels a side
     const perPx = (2 * Math.tan((camera.fov * DEG) / 2) * dist) / Math.max(1, window.innerHeight);
-    aimed?.setOutline(true, Math.max(O.min, O.px * perPx), parseInt(O.color.slice(1), 16), O.back);
+    aimed?.setOutline(true, Math.max(O.min, O.px * perPx), parseInt(enemy3d(O.color).slice(1), 16), O.back);
     outlined = aimed;
     const S = PROFILE.feel.streaks;
     const over = player.speed / MOVE.sprintSpeed;
@@ -7584,7 +7584,7 @@ function step(): void {
   // out over the data's threat_scope_fadedist range.
   {
     const look = (H.reveal as unknown as { outline: { color: string; width: number; fill: number } }).outline;
-    const revealColor = parseInt(look.color.slice(1), 16);
+    const revealColor = parseInt(enemy3d(look.color).slice(1), 16);
     const range = drawn.threatRange;
     const aim = Math.max(0, Math.min(1, ((debugView.ads ?? ws.adsFrac) - 0.6) / 0.3));
     for (const d of duel ? [...threatTargets, ...duel.avatars] : threatTargets) {

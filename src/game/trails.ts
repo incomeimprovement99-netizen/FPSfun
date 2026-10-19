@@ -4,6 +4,7 @@
  * ribbon of light along the way their feet went, fading over its seconds, turned to face the eye at every point so it
  * reads from any side, drawn only near enough to matter. Numbers: src/config/hud.json trails.
  */
+import { enemy3d } from "./palette";
 import * as THREE from "three";
 import cfg from "../config/hud.json";
 
@@ -77,6 +78,8 @@ export class Trails {
    * turns to face.
    */
   update(now: number, eye: THREE.Vector3, players: Array<{ key: unknown; feet: THREE.Vector3; side: TrailSide; live: boolean; airJumps?: number }>): void {
+    // an enemy's trail in the colour vision mode's enemy colour (Milestone 703)
+    this.colours.enemy.set(enemy3d(TRAILS.colors.enemy));
     for (const t of this.trails.values()) t.seen = false;
     const far2 = TRAILS.maxDist * TRAILS.maxDist;
     for (const pl of players) {

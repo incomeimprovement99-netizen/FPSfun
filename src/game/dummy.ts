@@ -527,6 +527,7 @@ export class Dummy {
   setOutline(on: boolean, width = 0.02, color = 0xff2a3a, back = 0): void {
     if (!on && !this.outline) return;
     this.outline ??= new Outline(this.group, [this.hits], color, back);
+    this.outline.setColor(color);
     this.outline.show(on, width);
   }
 

@@ -46,10 +46,10 @@ An inventory of the code, 2026-10-18.
   past 6 m and are whole inside it.
 - ~~HEAL's sound and a bot's HEAL drawn~~: a player's HEAL is heard where it is since Milestone 695, and a bot's HEAL
   shows its area since Milestone 702.
-- **An enemy colour setting** for the outline, REVEAL and the trails, as Splitgate and Empulse offer. The colour-vision
-  modes recolour only the HUD today.
+- ~~An enemy colour setting~~: the colour vision modes now give the outline, REVEAL and the trails their enemy colour
+  (Milestone 703).
 - **Hit reactions seen by a third player:** a hit flinches the figure only on the shooter's page (the character agent's,
   once the hit travels).
 - **An echo or dissolve on death:** Hyper Scape turns the dead into an echo. Ours fall where they die, guns scattered
   (with the character agent: the fall is theirs, any material effect ours).
-- **Shard size by distance:** the break's shards are a fixed size; far off they are a few pixels.
+- ~~Shard size by distance~~: done in Milestone 703.

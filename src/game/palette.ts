@@ -46,6 +46,16 @@ export function setVision(mode: VisionMode): void {
   P.feedAlly = m.feedAlly;
 }
 
+/**
+ * An enemy's colour on the figures and in the world (Milestone 703): the outline round the enemy you aim at, a REVEAL's
+ * rim and fill, the trails behind them. Each keeps its own tuned red with normal colour vision; a colour vision mode
+ * gives them its own enemy colour, as it gives the HUD's (they were red whatever the mode, the one place it did not
+ * reach)
+ */
+export function enemy3d(normal: string): string {
+  return access.vision === "normal" ? normal : P.enemy;
+}
+
 export function setHudScale(scale: number): void {
   // only the offered steps: a free number here is a HUD off the screen
   access.hudScale = HUD_SCALES.includes(scale) ? scale : 1;

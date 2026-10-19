@@ -44,10 +44,17 @@ export class Outline {
   constructor(
     private readonly root: THREE.Object3D,
     private readonly skip: THREE.Object3D[],
-    private readonly color: number,
+    private color: number,
     back = 0,
   ) {
     this.back.value = back;
+  }
+
+  /** its colour now (a colour vision mode's enemy colour, palette.ts enemy3d) */
+  setColor(color: number): void {
+    if (color === this.color) return;
+    this.color = color;
+    for (const m of this.mats.values()) m.mat.color.setHex(color);
   }
 
   /** the hull material for meshes of this scale, made on first asking */

@@ -4914,6 +4914,15 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     const shown = await page.waitForFunction("window.__range.duel().avatars.some((a) => (a.revealState()?.on ?? 0) > 0)", { polling: 100, timeout: 15000 }).then(() => true, () => false);
     const rv = await ev<{ on: number; through: boolean; fill: number; color: number } | null>(page, "(() => { const a = window.__range.duel().avatars.find((x) => x.revealState()); return a ? a.revealState() : null; })()");
     check("speedkills: a REVEAL draws the bot through walls, its rim and its shape filled in red", shown && !!rv && rv.on > 0 && rv.through && rv.fill > 0 && rv.color === 0xff2a3a, JSON.stringify(rv));
+    // with a colour vision mode the REVEAL takes that mode's enemy colour, as the HUD's do (Milestone 703): deuteranopia's
+    // orange, then back to normal
+    const cv = await ev<{ color: number | null; back: number | null }>(
+      page,
+      `new Promise((ok) => { const sel = document.getElementById("accVision"); sel.value = "deuteranopia"; sel.dispatchEvent(new Event("change"));
+        setTimeout(() => { const a = window.__range.duel().avatars.find((x) => x.revealState()); const color = a ? a.revealState().color : null; sel.value = "normal"; sel.dispatchEvent(new Event("change"));
+          setTimeout(() => ok({ color, back: a ? a.revealState().color : null }), 1500); }, 1500); })`,
+    );
+    check("speedkills: with a colour vision mode, a REVEAL takes its enemy colour (deuteranopia's orange), and red again after", cv.color === 0xff9d1a && cv.back === 0xff2a3a, JSON.stringify(cv));
     // an enemy's ARMOR as their page tells it (Milestone 694): a gold shell over them while it lasts, your rounds doing
     // its share (hacks.json armor.damageScale), and both gone when it ends (armor.seconds, on the wall clock)
     const arm = await ev<{ id: number; scale: number; secs: number } | null>(

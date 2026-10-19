@@ -12434,6 +12434,20 @@ itself.
   page; the bots' arena draws it on its one.
 - **Checked:** tsc, verify, rules; e2e skbots (a bot taken low, its HEAL ready: its area appears).
 
+## Milestone 703 — An enemy's highlights in the colour vision mode's colour, and a far shield break seen
+
+Two more of the enemy-as-you-see-it nice-to-haves (docs/PLAN_ENEMY_POV.md):
+
+- **The colour vision modes reach the world** (palette.ts enemy3d): Settings, Accessibility, Colour vision already gave
+  the HUD's enemy colour (the pings, the kill feed, the plates) to a deuteranopia, protanopia or tritanopia player.
+  The outline round the enemy you aim at, a REVEAL's rim and fill, and the trails behind enemies stayed red whatever
+  the mode: the one place it did not reach, and the most important. They now take the mode's enemy colour (orange,
+  amber or pink), and keep their own tuned red with normal vision. Splitgate and Empulse offer an enemy colour; ours
+  rides the setting the game already has.
+- **A shield broken far off is still seen:** the break's shards grow with the distance past 12 m (hud.json
+  shieldFx.break.full); at 40 m they were a few pixels.
+- **Checked:** tsc, verify, rules; e2e speedkills (a REVEAL in deuteranopia's orange, and red again after).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

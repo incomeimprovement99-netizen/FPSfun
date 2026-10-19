@@ -5,7 +5,7 @@
 import * as THREE from "three";
 import hudCfg from "../config/hud.json";
 
-const SHIELD_BREAK = hudCfg.shieldFx.break as unknown as { shards: number; seconds: number; speed: [number, number]; up: number; size: [number, number] };
+const SHIELD_BREAK = hudCfg.shieldFx.break as unknown as { shards: number; seconds: number; speed: [number, number]; up: number; size: [number, number]; full: number };
 
 interface Effect {
   obj: THREE.Object3D;
@@ -28,8 +28,8 @@ export class FxLayer {
   }
 
   /** someone's shield broken by your round: its shards burst off `at`, their chest, in its `color` (hud.json shieldFx.break) */
-  shieldBreak(at: THREE.Vector3, color: number, now: number): void {
-    this.shards.burst(at, color, now, SHIELD_BREAK);
+  shieldBreak(at: THREE.Vector3, color: number, now: number, dist = 0): void {
+    this.shards.burst(at, color, now, SHIELD_BREAK, Math.max(1, dist / SHIELD_BREAK.full));
   }
 
   /**
@@ -148,7 +148,8 @@ export class ShardBurst {
   }
 
   /** a break at `at` (the chest), in `color`, as hud.json shieldFx.break says */
-  burst(at: THREE.Vector3, color: number, now: number, look: { shards: number; seconds: number; speed: [number, number]; up: number; size: [number, number] }): void {
+  /** `grow` the shards' size times this, so a break far off is not a few pixels (fx.ts shieldBreak) */
+  burst(at: THREE.Vector3, color: number, now: number, look: { shards: number; seconds: number; speed: [number, number]; up: number; size: [number, number] }, grow = 1): void {
     for (let i = 0; i < look.shards; i++) {
       if (this.live.length >= SHARD_MAX) this.live.shift();
       // outward all round, a little up: a shell coming off a body
@@ -163,7 +164,7 @@ export class ShardBurst {
         spin: 8 + Math.random() * 14,
         born: now,
         life: look.seconds * (0.7 + Math.random() * 0.3),
-        size: look.size[0] + Math.random() * (look.size[1] - look.size[0]),
+        size: (look.size[0] + Math.random() * (look.size[1] - look.size[0])) * grow,
         color: new THREE.Color(color),
       });
     }
