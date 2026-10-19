@@ -314,6 +314,11 @@ export class Dummy {
   private readonly shellHit = new THREE.Vector3();
   /** under INVISIBILITY past seenWithin (Milestone 715): its shimmer (outline.ts CloakShell), made the first time it is */
   private cloak: CloakShell | null = null;
+  /**
+   * Unseen under INVISIBILITY, its group hidden but its shimmer drawn: still there to be shot, blasted, slammed and mined
+   * (projectile.ts, main.ts), though nothing that goes by sight (the outline, the plate, the aim assist) finds it
+   */
+  cloaked = false;
   /** under ARMOR (main.ts, from the hack's message): the gold shell, pulsing */
   private armored = false;
   readonly oneHit: boolean;
@@ -589,7 +594,8 @@ export class Dummy {
    * hacks.json invis.seenWithin, its group hidden; the shimmer stands outside it)
    */
   setCloak(amount: number, color: number, look: { rim: number; band: number; bandScale: number; bandSpeed: number }, time: number): void {
-    if (amount <= 0.001 && !this.cloak) return;
+    this.cloaked = amount > 0.001;
+    if (!this.cloaked && !this.cloak) return;
     this.cloak ??= new CloakShell(this.group, [this.hits]);
     this.cloak.show(amount, color, look, time);
   }

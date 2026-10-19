@@ -337,6 +337,14 @@ export class ProjectileSystem {
   }
 
   /** every hit mesh in play, and who owns it */
+  /**
+   * A figure a round can find: shown, or unseen under INVISIBILITY (hidden but still there: Milestone 716; hidden
+   * past seenWithin, its rounds went through it), and not knocked down
+   */
+  static inReach(d: Dummy): boolean {
+    return (d.group.visible || d.cloaked) && !d.knocked;
+  }
+
   private gather(now: number): { meshes: THREE.Mesh[]; owner: Map<THREE.Object3D, Dummy>; tOwner: Map<THREE.Object3D, Target>; sOwner: Map<THREE.Object3D, Shootable> } {
     const meshes: THREE.Mesh[] = [];
     const owner = new Map<THREE.Object3D, Dummy>();
@@ -353,7 +361,7 @@ export class ProjectileSystem {
       }
     }
     for (const d of this.dummies) {
-      if (!d.group.visible || d.knocked) continue;
+      if (!ProjectileSystem.inReach(d)) continue;
       for (const m of d.hitMeshes) {
         // three's Raycaster ignores `visible`, so an invisible mesh would
         // still block. The armor plate is hidden at tier 0 and must not.

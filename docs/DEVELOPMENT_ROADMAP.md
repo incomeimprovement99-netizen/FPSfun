@@ -12661,6 +12661,19 @@ shimmer, like barely visible but still noticeable when we know what to look for"
   whole with no shimmer from 2 m, and no shimmer once it ends (with the old code put back it failed: the figure
   visible from 15 m, no shimmer); e2e page and speedkills.
 
+## Milestone 716 — An invisible player can still be shot
+
+Found reading what Milestone 715's hiding touched, an hour after it went out: a round, a rocket's blast, a SLAM and a
+MINE each skip a figure whose group is hidden (projectile.ts gather, main.ts rocketBlast and enemiesNear). Until
+Milestone 715 an invisible player was never really hidden, so they were hit like anyone; hidden properly, past 6 m
+they could not be hit at all. In Hyper Scape you can shoot someone you cannot quite see, and so it was here.
+
+- **One rule for a round's reach** (projectile.ts ProjectileSystem.inReach): shown, or unseen under INVISIBILITY (the
+  figure's `cloaked`, set with its shimmer), and not knocked down. Blasts, SLAMs and MINEs go by the same.
+- **Still unseen to everything that goes by sight:** the outline under your crosshair, the plate and the aim assist.
+- **Checked:** tsc, verify, rules; e2e brsolo, the INVISIBILITY check now asks that a round would find the cloaked guest
+  (with the old rule put back it failed: "shot": false).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

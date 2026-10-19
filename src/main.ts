@@ -1557,7 +1557,8 @@ function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon, on
   const full = falloff(w, travelled);
   const figs = duel ? duel.avatars.filter((a) => !!duel!.remoteOf(a) && !isAllyFigure(a)) : rangeTargets;
   for (const a of figs) {
-    if (!a.group.visible || a.knocked) continue;
+    // (one unseen under INVISIBILITY is hidden but still there: the blast reaches it, Milestone 716)
+    if ((!a.group.visible && !a.cloaked) || a.knocked) continue;
     const k = blastShare(travelled, meshGap(at, a.hitMeshes));
     const point = bodySight(a.group.position, a.crouchAmount > 0.5);
     if (k <= 0 || !blastSees(at, point, solidHit)) continue;
@@ -3547,7 +3548,8 @@ function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote; fig: Du
   const out: Array<{ rem: Remote; fig: Dummy }> = [];
   for (const a of d.avatars) {
     const rem = d.remoteOf(a);
-    if (!rem || !rem.alive || d.isAlly(rem.id) || !a.group.visible) continue;
+    // (one unseen under INVISIBILITY is hidden but still there: a SLAM or a MINE reaches it, Milestone 716)
+    if (!rem || !rem.alive || d.isAlly(rem.id) || (!a.group.visible && !a.cloaked)) continue;
     if (a.group.position.distanceTo(at) <= r) out.push({ rem, fig: a });
   }
   return out;
@@ -8202,6 +8204,12 @@ const GALLERY = { x: 0, z: -8 };
     remoteHack: (from: number, n: number, x: number, y: number, z: number, secs = 0) => remoteHack(from, n, new THREE.Vector3(x, y, z), secs > 0 ? new THREE.Vector3(secs, 0, 0) : undefined),
     /** someone else's effect as their page told this one, from a to b (tools/e2e.ts: a DASH, a WALL) */
     remoteFx: (k: string, from: number, a: [number, number, number], b: [number, number, number]) => duel && remoteFx(duel, k, from, new THREE.Vector3(...a), new THREE.Vector3(...b)),
+    /** whether a round would find the figure of player `id` now (projectile.ts inReach: Milestone 716) */
+    inReach: (id: number) => {
+      const d = duel;
+      const a = d?.avatars.find((x) => d.remoteOf(x)?.id === id);
+      return a ? ProjectileSystem.inReach(a) : null;
+    },
     /** someone else's hacks lately heard (Milestone 710) */
     heardHacks: () => heardHacks.slice(),
     /** what your rounds do to them under ARMOR (armorScaleOf), and the shards of shields broken in the air now */
