@@ -6804,6 +6804,25 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("a grapple: the left arm points at its hook point (within 10 degrees), the gun still in the right hand, and goes back to the gun after", grab.during <= 10 && grab.gun && grab.after > 30, JSON.stringify(grab));
+  // SLAM's way down (Milestone 608): a figure in the air coming down at the slam's 38 m/s has its knees up (each knee 20 cm
+  // or more higher against its hips than falling at 10 m/s, a jump's)
+  const plunge = await ev<{ slow: number; fast: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      const knees = (speed) => {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "air", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        f.group.position.y = 30;
+        for (let i = 0; i < 20; i++) { f.group.position.y -= speed * 0.02; r.figureLabStep(0.02); }
+        f.group.updateMatrixWorld(true);
+        const at = (n) => f.group.worldToLocal(f.mq.bone(n).getWorldPosition(new T.Vector3()));
+        return (at("calf_l").y + at("calf_r").y) / 2 - at("pelvis").y;
+      };
+      return { slow: Math.round(knees(10) * 1000) / 1000, fast: Math.round(knees(38) * 1000) / 1000 };
+    })()`,
+  );
+  check("SLAM's way down: coming down at 38 m/s its knees are up (20 cm or more higher against its hips than falling at 10 m/s)", plunge.fast - plunge.slow >= 0.2, JSON.stringify(plunge));
   await page.close();
 }
 

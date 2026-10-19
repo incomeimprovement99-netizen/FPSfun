@@ -137,6 +137,8 @@ const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 const CHEST_UP = figureCfg.chestUp as { most: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
+/** a plunge (SLAM's way down): falling faster than `fall` m/s, the knees up and the chest over them (figure.json plunge) */
+const PLUNGE = figureCfg.plunge as { fall: number; rate: number; raise: number; bend: number; lean: number };
 /** a grapple's arm up at its hook point and back, a second (figure.json grapple) */
 const GRAPPLE = figureCfg.grapple as { rate: number };
 /** a wall run's lean in and out, a second, and the most its run clip is sped up (figure.json wallRun) */
@@ -791,6 +793,10 @@ export class MannequinFigure {
   /** a grapple's hook point (world), until when on this figure's clock, how near is there, and the arm's weight on it */
   private grapple: { to: THREE.Vector3; until: number; arrive: number } | null = null;
   private grabW = 0;
+  /** where its group was last frame, its speed up or down from that (eased), and how far into a plunge it is */
+  private lastY: number | null = null;
+  private vy = 0;
+  private plungeW = 0;
   /** the double jumps seen so far (null until the first count arrives), and when the last one's knee lift began */
   private airJumpsSeen: number | null = null;
   private liftAt = -Infinity;
@@ -1455,6 +1461,12 @@ export class MannequinFigure {
     const pulled = !!G && this.t < G.until && this.root.getWorldPosition(new THREE.Vector3()).distanceTo(G.to) > G.arrive;
     this.grabW += ((pulled ? 1 : 0) - this.grabW) * Math.min(1, dt * GRAPPLE.rate);
     if (!pulled && this.grabW < 0.01) this.grapple = null;
+    // its fall from where its group goes (an enemy's is only where its samples put it), eased over the samples' steps
+    const y = this.root.parent ? this.root.parent.getWorldPosition(new THREE.Vector3()).y : 0;
+    // (no faster than 60 m/s: a figure put somewhere else, a respawn, is no fall)
+    if (this.lastY !== null && dt > 0) this.vy += (Math.max(-60, Math.min(60, (y - this.lastY) / dt)) - this.vy) * Math.min(1, dt * 20);
+    this.lastY = y;
+    this.plungeW += ((p.stance === "air" && this.vy < -PLUNGE.fall ? 1 : 0) - this.plungeW) * Math.min(1, dt * PLUNGE.rate);
     // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly (a skydive's too)
     const air = airborne(p.stance);
     if (this.wasAir && !air && (fx.land ?? 0) > 0.4 && speed < 2.6 && p.stance === "stand") this.landUntil = this.t + 0.32;
@@ -1704,6 +1716,19 @@ export class MannequinFigure {
     } else this.baseY = FLAT_FEET.lift * this.liftW;
     this.placeRoot();
     if (this.skyW > 0.01 && b.upperarm_r) this.skydiveLimbs(b, fig);
+    // A plunge (Milestone 608): SLAM's way down, 38 m/s, faster than anything else that falls in the air stance (the
+    // skydive's dive is 30), seen as a body coming down onto the ground it hits, knees up and the chest over them, as
+    // Hyper Scape's slam reads; it was the jump pose dropping like a stone
+    if (this.plungeW > 0.01) {
+      const w = this.plungeW;
+      for (const s of ["l", "r"]) {
+        const thigh = b[`thigh_${s}`];
+        const calf = b[`calf_${s}`];
+        if (thigh) turnBone(thigh, fig, X_AXIS, -PLUNGE.raise * DEG * w);
+        if (calf) turnBone(calf, fig, X_AXIS, PLUNGE.bend * DEG * w);
+      }
+      if (b.spine_02) turnBone(b.spine_02, fig, X_AXIS, PLUNGE.lean * DEG * w);
+    }
     // the double jump's knees, up and back down over its time: the thighs forward (a turn about the figure's left by a
     // negative angle brings a hanging bone's end forward) and the knees bent back
     if (lift >= 0 && lift < 1) {

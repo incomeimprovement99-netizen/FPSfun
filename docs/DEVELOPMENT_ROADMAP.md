@@ -15199,3 +15199,19 @@ body hauled after it; ours, seen by anyone else, was a jump pose with a line dra
     it (0 degrees off), the gun still in the right hand, and 2 s on the arm is back on the gun (70 degrees off the
     point). It fails with the arm left out (78 degrees off).
   - verify, rules and the type check.
+
+## Milestone 608 — SLAM's way down, seen
+
+The third of Milestone 604's nice-to-haves. SLAM comes down at 38 m/s, and others saw the jump pose dropping like a
+stone; Hyper Scape's slam reads as a body coming down onto what it hits.
+
+- **The plunge** (mannequin.ts, figure.json plunge): a figure in the air stance falling faster than 34 m/s, faster than
+  anything else in that stance falls (the skydive's 30 m/s dive has its own stance), brings its thighs up 70 degrees,
+  bends its knees 100 more and leans its chest 20 forward over them, eased at 15 a second; the gun stays in its hands.
+  The fall is read off where the figure's group goes (an enemy's from its samples), no faster than 60 m/s so a figure
+  put somewhere else is no fall, so nothing new goes over the wire.
+- **Checked:**
+  - Photographed coming down at 38 m/s from the side, front and back.
+  - The e2e (skfigure, the figure's stances): coming down at 38 m/s the knees are 33 cm higher against the hips than
+    falling at 10 m/s (20 at least). It fails with the plunge taken out (7 cm).
+  - verify, rules and the type check.

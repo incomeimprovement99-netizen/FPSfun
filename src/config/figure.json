@@ -37,6 +37,14 @@
     "rate": 8,
     "mostRate": 1.4
   },
+  "_plunge": "SLAM's way down seen on a figure (mannequin.ts, Milestone 608): it comes down at 38 m/s (hacks.json slam.downSpeed), faster than anything else in the air stance falls (the skydive's dive is 30 m/s, in its own stance), and it was the jump pose dropping like a stone. Falling faster than `fall` m/s (measured off where the figure's group goes, so an enemy's from its samples), the thighs come up `raise` degrees, the knees bend `bend` more and the chest leans `lean` forward over them, eased at `rate` a second: a body coming down onto what it hits, as Hyper Scape's slam reads. Ours.",
+  "plunge": {
+    "fall": 34,
+    "rate": 15,
+    "raise": 70,
+    "bend": 100,
+    "lean": 20
+  },
   "_grapple": "GRAPPLE seen on a figure (mannequin.ts reachArm, Milestone 607): EMPULSE's and Pathfinder's grapples are an arm thrown at the point and the body hauled after it, and ours was a jump pose with a line drawn from it. While a player's grapple pulls them (hacks.json grapple: until they are within `arrive` of its hook point or `maxSeconds` are up), their left hand lets go of the gun and the arm points at the point, eased in and out at `rate` a second. Ours.",
   "grapple": {
     "rate": 12
