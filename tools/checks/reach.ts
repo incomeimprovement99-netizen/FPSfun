@@ -544,8 +544,16 @@ const figureSeen = (() => {
   d.p.beginDrop(0, 300, 0, 0);
   d.step();
   const falling = d.p.figureStance;
-  for (let i = 0; i < 40 / DT && !d.p.onGround; i++) d.step();
-  return { left, right, falling, landed: d.p.onGround ? d.p.figureStance : "still falling" };
+  // and upright for its last moments (figure.json skydive.flare): laid on the air 3 s up, feet first 2 m up
+  let early = "";
+  let late = "";
+  for (let i = 0; i < 40 / DT && !d.p.onGround; i++) {
+    d.step();
+    const secs = d.p.pos.y / Math.max(1, -d.p.vel.y);
+    if (!early && secs < 3) early = d.p.figureStance;
+    if (!late && d.p.pos.y < 2) late = d.p.figureStance;
+  }
+  return { left, right, falling, early, late, landed: d.p.onGround ? d.p.figureStance : "still falling" };
 })();
 check(
   "a figure running a wall is seen with the wall on the side of its run it is on (wallL, wallR), not as a jump",
@@ -553,7 +561,11 @@ check(
   `left ${JSON.stringify(figureSeen.left)}, right ${JSON.stringify(figureSeen.right)}`,
 );
 check("and looked back along the wall, the same: the run's side of it, not the view's", figureSeen.left.viewTurned && figureSeen.left.back === "wallL" && figureSeen.right.viewTurned && figureSeen.right.back === "wallR");
-check("a skydive is seen as one all the way down, and standing once on the ground", figureSeen.falling === "skydive" && figureSeen.landed === "stand", `${figureSeen.falling}, then ${figureSeen.landed}`);
+check(
+  "a skydive is seen as one down to its last moments, upright feet first for those (figure.json skydive.flare), and standing on the ground",
+  figureSeen.falling === "skydive" && figureSeen.early === "skydive" && figureSeen.late === "air" && figureSeen.landed === "stand",
+  `${figureSeen.falling}, 3 s up ${figureSeen.early}, 2 m up ${figureSeen.late}, then ${figureSeen.landed}`,
+);
 
 if (process.env.WRITE) {
   const out = {

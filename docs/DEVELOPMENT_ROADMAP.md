@@ -15166,3 +15166,20 @@ that runs, jumps and looks round where they are. Ours was a pale capsule sliding
     mesh of it in the see-through material, within 2 m of where the guest is after it has run off. It fails with
     no figure made for the ghost. The whole section: 106 of 106.
   - verify, rules and the type check.
+
+## Milestone 606 — The skydive's landing position
+
+The first of Milestone 604's nice-to-haves. Apex's legends leave the dive or the glide some 30 m up and fall the rest
+upright, feet first, in a landing position. Ours were laid on the air until their feet touched, and the figure flipped
+upright in the landing's first frame.
+
+- **The flare** (player.ts figureStance, figure.json skydive.flare): the last 0.8 s of the fall, at the speed the
+  player is falling (10 m up gliding, 24 m diving), the figure others see is in the air stance, upright, the body
+  easing round to it over a fifth of a second (skydive.rateOut), and the landing's crouch takes it at the ground. The
+  ground under is the player's own (the floor and the solids under the hull), so a roof landing flares over the roof.
+  Bots dropping from the ship do the same at their drop speed.
+- **Checked:**
+  - tools/checks/reach.ts, a drop from 300 m with the real movement: the skydive with 3 s to fall, upright 2 m up,
+    standing on the ground. It fails with the flare taken out (still laid on the air 2 m up).
+  - The e2e (skship, the dropship ridden to a landing): 6 of 6, the drop from the ship to its landing in the city.
+  - verify, rules and the type check.

@@ -258,7 +258,8 @@ describes the retired legacy game, and goes with its code.
   draws back by the chest and punches out as a fist. A double jump lifts their
   knees for a moment. Running a wall they lean off it, feet to the wall and the gun
   up; in the battle royale's skydive they glide belly down with their arms out, or
-  dive head first, as they steer, the gun put away until the ground. Their gloved fingers are drawn a tenth smaller than the model's. A reload
+  dive head first, as they steer, the gun put away until the ground, and fall the
+  last moments upright, feet first, for the landing. Their gloved fingers are drawn a tenth smaller than the model's. A reload
   is the one you see in your own hands, on the same timeline: the left hand points
   at the magazine as it slides out and phases away, a new one phases in and seats,
   then the handle is racked or the bolt worked, in the gun's own reload time; and

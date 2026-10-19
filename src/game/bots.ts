@@ -47,6 +47,7 @@ import lootCfg from "../config/loot.json";
 import { asDifficulty } from "./stats";
 import { HEALTH_MAX, ROUNDS_TO_WIN, SHIELD_MAX, ZONE_CAPTURE, ZONE_DELAY, type DuelHud, type LocalState, type MatchLike, type Remote, type Spawn } from "./duel";
 import squadCfg from "../config/squad.json";
+import figureCfg from "../config/figure.json";
 import { glideStep } from "./dropship";
 
 const COUNTDOWN = 3;
@@ -1145,8 +1146,10 @@ export class Bot {
         this.dropTarget = null;
       }
       this.dummy.group.position.copy(this.pos);
-      // (its skydive a glide onto its place, a dive straight down without one: the figure reads which from the pitch)
-      this.dummy.setPose({ speed: 0, stance: "skydive", pitch: t ? 0 : -80 });
+      // (its skydive a glide onto its place, a dive straight down without one: the figure reads which from the pitch;
+      // upright for its last moments before the ground, as a player's, figure.json skydive.flare)
+      const sky = this.dropping && this.pos.y - ground > DROP_SPEED * figureCfg.skydive.flare;
+      this.dummy.setPose({ speed: 0, stance: sky ? "skydive" : "air", pitch: t ? 0 : -80 });
       this.dummy.update(now, dt);
       return [];
     }

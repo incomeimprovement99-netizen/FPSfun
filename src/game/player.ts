@@ -29,6 +29,7 @@ import type { Solid } from "./range";
 import { floorAt } from "./floors";
 import { ZIPLINES, type Zipline } from "./traversal";
 import squadCfg from "../config/squad.json";
+import figureCfg from "../config/figure.json";
 
 const DEG = Math.PI / 180;
 /** the skydive: terminal speed and steering, m/s (ours; the game's dive is its own system) */
@@ -36,6 +37,8 @@ const DEG = Math.PI / 180;
 const DIVE = squadCfg.dive;
 /** following a jumpmaster down (src/config/squad.json ship.follow) */
 const FOLLOW = squadCfg.ship.follow;
+/** a skydive's last moments before the ground, s at the speed it falls: the figure others see is upright for the landing (figure.json skydive.flare) */
+const FLARE = figureCfg.skydive.flare;
 
 export interface Bounds {
   minX: number; maxX: number; minZ: number; maxZ: number;
@@ -288,7 +291,9 @@ export class Player {
       const across = Math.hypot(this.vel.x, this.vel.z) > 0.5 ? w.nz * this.vel.x - w.nx * this.vel.z : -this.wallSide;
       return across > 0 ? "wallL" : "wallR";
     }
-    if (this.dropping && !this.onGround) return "skydive";
+    // (and upright, feet first, for its last moments before the ground, as Apex's legends take their landing position:
+    // it was laid on the air until its feet touched and flipped upright in the landing's first frame)
+    if (this.dropping && !this.onGround) return this.pos.y - this.groundUnder(this.pos.x, this.pos.z, MOVE.radius, this.pos.y) > Math.max(0, -this.vel.y) * FLARE ? "skydive" : "air";
     return this.stance;
   }
 
