@@ -108,3 +108,45 @@ export function drawIcon(ctx: CanvasRenderingContext2D, name: string, x: number,
   ctx.globalAlpha = prev;
   return true;
 }
+
+/**
+ * Each gun's outline (tools/gun-silhouettes.ts, Milestone 697): public/icons/guns/<id>.png, three times as wide as it
+ * is high, drawn from the gun's own model. Asked for the first time it is drawn; one that does not exist (a gun with no
+ * model) stays missing and the caller keeps its text.
+ */
+const guns = new Map<string, HTMLImageElement | null>();
+const gunTinted = new Map<string, HTMLCanvasElement>();
+function gunImage(id: string): HTMLImageElement | null {
+  if (!guns.has(id)) {
+    guns.set(id, null);
+    const img = new Image();
+    img.onload = () => guns.set(id, img);
+    img.src = `${BASE}/guns/${id}.png`;
+  }
+  return guns.get(id) ?? null;
+}
+
+/** a gun's outline `w` wide (a third of that high), centred on (x, y), in `color`; false while it loads or has none */
+export function drawGun(ctx: CanvasRenderingContext2D, id: string, x: number, y: number, w: number, color: string): boolean {
+  const img = gunImage(id);
+  if (!img) return false;
+  const pw = Math.max(1, Math.round(w));
+  const ph = Math.max(1, Math.round(w / 3));
+  const key = `${id}|${pw}|${color}`;
+  let b = gunTinted.get(key);
+  if (!b) {
+    b = document.createElement("canvas");
+    b.width = pw;
+    b.height = ph;
+    const g = b.getContext("2d");
+    if (!g) return false;
+    g.drawImage(img, 0, 0, pw, ph);
+    g.globalCompositeOperation = "source-in";
+    g.fillStyle = color;
+    g.fillRect(0, 0, pw, ph);
+    if (gunTinted.size > 200) gunTinted.clear();
+    gunTinted.set(key, b);
+  }
+  ctx.drawImage(b, Math.round(x - pw / 2), Math.round(y - ph / 2));
+  return true;
+}

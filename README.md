@@ -593,6 +593,16 @@ green plate always shows.
 - **The compass and minimap:** they follow whoever you are watching (a squad mate, the killcam), and the minimap marks
   north.
 
+**The HUD on plates** (Milestones 697 and 698, docs/PLAN_HUD_V2.md):
+- **Every element on a plate:** dark see-through plates with cut corners, as Hyper Scape's, Apex's and Empulse's are.
+- **Your shield and health:** slanted shield cells over a lit health bar that holds the health you just lost in red for
+  a moment.
+- **The hacks:** each on a framed tile with its picture (game-icons.net, CC BY 3.0), the cooldown sweeping round it, its
+  name over it and its key in the corner.
+- **The guns:** each slot shows the gun's own outline, drawn from its model by `tools/gun-silhouettes.ts` into
+  public/icons/guns (local, copied with the paid files).
+- **The top of the screen:** the counts, compass, minimap and kill feed are framed to match.
+
 **The killcam and the death recap.** Eliminated, you see the last 4 s from
 your killer's eyes (Space skips; a setting turns it off), then a card: for
 everyone who hurt you this life, the damage, hits and headshots each way,

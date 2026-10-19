@@ -52,3 +52,10 @@ What makes theirs look paid, in one line each:
    - **The frame rate:** small, out of the way.
 3. Photographed at 1080p and 720p in the range and in a battle royale, side by side with the frames above, and shown
    to the owner.
+
+## Shipped
+
+- **Milestone 697:** the bottom of the screen.
+- **Milestone 698:** the top of the screen.
+- **Left for later:** the kill feed's gun outlines between the names (the feed carries only text today), and a
+  headshot flag on a kill.

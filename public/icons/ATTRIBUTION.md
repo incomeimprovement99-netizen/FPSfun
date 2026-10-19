@@ -24,5 +24,15 @@ given here, in the README's credits, and in the game's own README screen.
 | `armor.svg` | armor-upgrade | Delapouite, game-icons.net (CC BY 3.0) |
 | `parachute.svg` | parachute | Lorc, game-icons.net (CC BY 3.0) |
 | `ladder.svg` | ladder | Delapouite, game-icons.net (CC BY 3.0) |
+| `hack_dash.svg` | sprint | Lorc, game-icons.net (CC BY 3.0) |
+| `hack_slam.svg` | meteor-impact | Lorc, game-icons.net (CC BY 3.0) |
+| `hack_leap.svg` | jump-across | Delapouite, game-icons.net (CC BY 3.0) |
+| `hack_grapple.svg` | grapple | Lorc, game-icons.net (CC BY 3.0) |
+| `hack_heal.svg` | health-increase | Sbed, game-icons.net (CC BY 3.0) |
+| `hack_armor.svg` | shield-reflect | Lorc, game-icons.net (CC BY 3.0) |
+| `hack_wall.svg` | brick-wall | Delapouite, game-icons.net (CC BY 3.0) |
+| `hack_invis.svg` | invisible | Delapouite, game-icons.net (CC BY 3.0) |
+| `hack_reveal.svg` | radar-sweep | Lorc, game-icons.net (CC BY 3.0) |
+| `hack_mine.svg` | land-mine | Lorc, game-icons.net (CC BY 3.0) |
 
 Re-fetch with `npm run icons` (tools/fetch-icons.ts); the files are gitignored.

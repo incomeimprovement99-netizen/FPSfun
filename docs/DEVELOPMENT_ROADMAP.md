@@ -12315,6 +12315,55 @@ The owner, 2026-10-18: "noticed the minimap was upside down at one point in the 
 - **North marked:** an N on the minimap's frame where north lies. A map that turns with you reads as upside down
   facing south without it.
 
+## Milestone 697 — The HUD's bottom edge on plates, with the hacks' pictures and the guns' own outlines
+
+The owner, 2026-10-18: "our hud is looking pretty basic, any way we can shape it up to be a bit nicer and more polished
+looking? like what is on screen all the time" and "ENSURE WE USE FREE ASSETS THAT LOOK LIKE THEY ARE PAID FOR THE HUD.
+COMPARE HYPER/EMPULSE/APEX AND LOOK HOW FANCY THEIR UI IS FOR THE HUD" (docs/PLAN_HUD_V2.md: frames off all three's
+gameplay, side by side with ours).
+
+- **Every element on a plate** (hud.ts plate, hud.json plate): dark and see-through, lighter at its top, a hairline
+  edge and a lit line along its top, its top-right and bottom-left corners cut. An accented plate carries a stripe and a
+  corner tick in its colour. What all three's HUDs share, and ours had none of: nothing floats as bare text.
+- **Your vitals:**
+  - on one plate;
+  - the shield in slanted cells, lit from the top, with a shine;
+  - the health bar lit the same way, and the health you just lost held in red for a moment before it drains (Apex's
+    and Hyper Scape's).
+- **The hacks as framed tiles (Hyper Scape's):**
+  - each hack's own picture, from game-icons.net (CC BY 3.0, credited in public/icons/ATTRIBUTION.md, fetched by npm
+    run icons, which now falls back to the icons' own GitHub copy when the site does not answer);
+  - its name over it in its slot's colour;
+  - the cooldown a dark wedge sweeping round, with its seconds;
+  - its key in a cap in the corner, its fusion pips along the top;
+  - a flash as it comes ready.
+- **The guns on plates, each with its own outline:**
+  - tools/gun-silhouettes.ts draws every gun's own model side-on, flat white, into public/icons/guns/<id>.png, the
+    muzzle to the left as the three face theirs;
+  - the HUD tints it (icons.ts drawGun), white in your hands and dim in the other slot;
+  - the slot in your hands is gold-edged;
+  - the rounds stand on a gold-edged plate of their own;
+  - the slots are 340 by 36 to hold the outline before the name.
+- **Free, and ours:** the guns' outlines are our own guns; the pictures game-icons.net's; the faces the ones the game
+  already ships; the plates drawn in code, sharp at every scale. Nothing of another game's art.
+- **Kept to the owner's layout** (Phase 20 A6): everything on the bottom edge, the health bar twice as thick, the ammo
+  half as big again, the hacks right of the health, the guns left of the ammo, nothing overlapping (the e2e's check).
+
+## Milestone 698 — The HUD's top on plates too
+
+- **The battle royale's counts:**
+  - three plates: those alive with a figure, the decay's clock, your kills with a skull;
+  - the clock's plate edged in pink while a sector decays.
+- **The compass:** hairlines over and under it, fading at its ends as the strip does; a bracket at each end in the
+  HUD's cyan; the bearing on a small plate under its middle.
+- **The minimap:** brackets on its corners (Hyper Scape frames its panels so).
+- **The kill feed:** each line on a plate as wide as it, edged in its colour.
+- **The frame rate:** stays the biggest number on the screen, as it was asked to be.
+- **Checked:**
+  - tsc, verify, rules;
+  - e2e speedkills (the layout check on the boxes the bottom edge draws);
+  - photographed at 1080p in a battle royale and at 720p in the range.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

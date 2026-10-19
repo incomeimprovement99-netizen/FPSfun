@@ -22,7 +22,7 @@ import doorsCfg from "./config/doors.json";
 import voiceCfg from "./config/voice.json";
 import rulesCfg from "./config/rules.json";
 import { FINISHES, chooseFinish, finishFor } from "./game/finishes";
-import { applyFinish, gunModel, resetGunModels } from "./game/gunmodels";
+import { applyFinish, displayGunModel, gunModel, resetGunModels } from "./game/gunmodels";
 import { Voice } from "./net/voice";
 import { seen, type SeenDetail, type SeenEvent } from "./net/seen";
 import { FEEDBACK_MAX, sendFeedback, type FeedbackKind } from "./net/feedback";
@@ -7671,12 +7671,14 @@ function step(): void {
     // name/ammo follow the INCOMING weapon during a swap; cone/ADS stay with
     // the gun actually in hand
     weaponName: shown.empty ? "FISTS" : shown.weapon.name,
+    weaponId: shown.empty ? null : shown.id,
     weaponKind: shown.empty ? null : weaponKind(shown.id),
     unarmed: shown.empty,
     fusion: { levels: loadout.slots.map((sl) => sl.fusion ?? 0), max: PROFILE.fusion.levels },
     slot: loadout.displayIndex + 1,
     slotCount: loadout.slots.length,
     otherName: loadout.slots[loadout.nextIndex].empty ? "EMPTY" : loadout.slots[loadout.nextIndex].weapon.name,
+    otherId: loadout.slots[loadout.nextIndex].empty ? null : loadout.slots[loadout.nextIndex].id,
     otherKind: loadout.slots[loadout.nextIndex].empty ? null : weaponKind(loadout.slots[loadout.nextIndex].id),
     swapping: loadout.swapping,
     fireMode: loadout.fireModeLabel(),
@@ -7768,7 +7770,7 @@ function step(): void {
     hacks: (["mobility", "utility"] as const).flatMap((slot) => {
       const h = hacks.get(slot);
       if (!h || (!duel && tutorial.hacksLocked)) return [];
-      return [{ name: hackDef(h.id)?.name ?? h.id, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), frac: hacks.fraction(slot, now), left: hacks.left(slot, now), level: h.level, maxLevel: HACK.fuseLevels, slot }];
+      return [{ id: String(h.id), name: hackDef(h.id)?.name ?? h.id, key: keyLabel(slot === "mobility" ? "ability" : "grenade"), frac: hacks.fraction(slot, now), left: hacks.left(slot, now), level: h.level, maxLevel: HACK.fuseLevels, slot }];
     }),
     callout: calloutNow,
     // the squad before the plates: a teammate the squad shows has its name tag, not a plate
@@ -8344,6 +8346,8 @@ const GALLERY = { x: 0, z: -8 };
     });
     return { textures: seen.size, compressed, other, mb: Math.round(bytes / 1e6) };
   },
+  /** a gun's model as a figure in the world holds it, for its outline on the HUD (tools/gun-silhouettes.ts) */
+  gunShape: (id: string) => displayGunModel(id).root,
   paidGuns: () => {
     // the gun in hand's bought model, and the skin it wears (paidgun.ts: its fusion level's)
     const root = viewModel.gunRoot;

@@ -32,6 +32,8 @@
     "minClip": 5
   },
   "_damageNumbers": "Damage numbers. Ours, after Apex's default: every hit on the same target within stack seconds of the last adds to one number, which pops to 1.25 times its size and back over pop seconds as it grows; a spray used to draw one number a round, sixteen of them on top of each other. On a figure the number stands `over` metres above the top of its head (its head volume, which follows the soldier's bones), not where the round struck (Milestone 690, the owner, 2026-10-18: \"the number should appear above the soldier when shooting/damaging them, it blocks the soldier right now if we hit them in the chest/legs\").",
+  "_plate": "What every element of the HUD sits on (Milestone 697, docs/PLAN_HUD_V2.md; the owner, 2026-10-18: \"our hud is looking pretty basic\" and \"COMPARE HYPER/EMPULSE/APEX AND LOOK HOW FANCY THEIR UI IS\"): Hyper Scape's, Apex's and Empulse's elements all stand on dark see-through plates with a hairline edge and cut corners, and nothing floats as bare text. A gradient from `top` to `bottom` (rgb) at `alpha`, a hairline `edge` (white's alpha) and a lit line along its top (`lit`), its top-right and bottom-left corners cut `cut` px; an accented plate has a `bar` px stripe down its left in its colour and a corner `tick` px long. `pad` px of plate round what it holds. Ours, tuned by eye against frames of the three.",
+  "plate": { "cut": 10, "top": "28,36,52", "bottom": "7,10,16", "alpha": 0.72, "edge": 0.16, "lit": 0.24, "bar": 3, "tick": 12, "pad": 8 },
   "_shieldFx": "An enemy's shield as you see it (Milestone 694, the owner's gap analysis against Apex, Hyper Scape and Empulse): `flare` the glow over a figure whose shield a round lands on, in the shield's colour (dummy.ts shieldHit, outline.ts ShieldShell), up to `peak` and gone in `seconds`, `fill` over the whole shape, `rim` more at its edges and brightest `spot` metres round where it landed, `width` metres off the figure; `break` the round that takes the last of it: the flare at `flare`, and `shards` shards (fx.ts ShardBurst) `size` metres across bursting off the chest at `speed` m/s and `up` m/s up, falling for `seconds`; `marker` its own hit marker (hud.ts), the ticks in the shield's colour `scale` times the size and a cracked shield `glyph` px high over the crosshair, held `hold` seconds; `armor` the gold shell over an enemy under ARMOR while it lasts (hacks.json armor), `glow` with a `pulse` either side of it `hz` times a second. Ours, tuned by eye: Apex's break is a burst of its colour and a cracked-shield marker, Halo's and Splitgate's shields shimmer over the body.",
   "shieldFx": {
     "flare": { "seconds": 0.2, "peak": 1.0, "fill": 0.08, "rim": 0.9, "spot": 0.3, "width": 0.012 },
@@ -322,7 +324,7 @@
       "You never run out of ammo. Reload and keep moving."
     ]
   },
-  "_layouts": "SpeedKills' bottom HUD (Phase 20 A6; src/game/hud.ts drawVitalsSk, drawHacksSk, drawWeaponsSk), in HUD pixels at 1080p times the HUD scale, and times a fit factor when the two sides would meet on a narrow screen. The owner's ask: everything on the bottom edge; the health bar twice the legacy 12 thick and a little longer than 330; the two hacks right of the health, lower and further right than the legacy square at 384, H-134, and bigger than its 58; the ammo count at 88, 1.52 times the legacy 58; the two guns with their fusion pips and level left of the count, digitsBox leaving room for a three-digit magazine; and a dark outline under every text and round every bar (text: lineWidth is the font size times text, kept between min and max; bars: bar). Legacy sizes measured off the live HUD at 1920x1080 by the Phase 20 diagnosis. Ours. The slots are 300 wide and carry the gun's class after its name in kindFont (Phase 20 A7).",
+  "_layouts": "SpeedKills' bottom HUD (Phase 20 A6; src/game/hud.ts drawVitalsSk, drawHacksSk, drawWeaponsSk), in HUD pixels at 1080p times the HUD scale, and times a fit factor when the two sides would meet on a narrow screen. The owner's ask: everything on the bottom edge; the health bar twice the legacy 12 thick and a little longer than 330; the two hacks right of the health, lower and further right than the legacy square at 384, H-134, and bigger than its 58; the ammo count at 88, 1.52 times the legacy 58; the two guns with their fusion pips and level left of the count, digitsBox leaving room for a three-digit magazine; and a dark outline under every text and round every bar (text: lineWidth is the font size times text, kept between min and max; bars: bar). Legacy sizes measured off the live HUD at 1920x1080 by the Phase 20 diagnosis. Ours. The slots carry the gun's class after its name in kindFont (Phase 20 A7); since Milestone 697 they are 340 wide and 36 high, a plate each with the gun's outline (gunW px wide) before its name, and the hacks' tiles draw each hack's picture (icon px).",
   "layouts": {
     "speedkills": {
       "margin": {
@@ -353,7 +355,8 @@
         "gap": 10,
         "nameFont": 13,
         "keyFont": 22,
-        "pipH": 4
+        "pipH": 4,
+        "icon": 40
       },
       "ammo": {
         "right": 60,
@@ -366,8 +369,9 @@
       },
       "slots": {
         "dx": 12,
-        "w": 300,
-        "h": 30,
+        "w": 340,
+        "h": 36,
+        "gunW": 72,
         "gap": 4,
         "numFont": 16,
         "nameFont": 18,

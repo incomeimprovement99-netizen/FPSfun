@@ -33,6 +33,12 @@ const SK_LAYOUT: SkLayout = hudCfg.layouts.speedkills;
 const NUMBERS = hudCfg.damageNumbers;
 const LOW_AMMO = hudCfg.lowAmmo;
 const KILL_MARK = hudCfg.killMarker;
+/** the plate every element stands on (hud.json plate, Milestone 697) */
+const PLATE = hudCfg.plate;
+/** the gold of the gun in your hands, and of its plate */
+const GOLD = "#ffd23c";
+/** your shield's cells, lit to dark (SpeedKills' one shield: purple) */
+const SHIELD_CELL: [string, string] = ["#c99bff", "#8a3ff0"];
 /** a shield break's marker (hud.json shieldFx.marker, Milestone 694) */
 const BREAK_MARK = hudCfg.shieldFx.marker;
 
@@ -44,7 +50,7 @@ export function ammoWarning(clip: number, clipSize: number, reloading: boolean):
 }
 import lootCfg from "../config/loot.json";
 import { REACH } from "./brplay";
-import { drawIcon, loadIcons } from "./icons";
+import { drawGun, drawIcon, loadIcons } from "./icons";
 import { drawReticle as drawCrosshair2d, type Reticle } from "./reticle";
 import { P, access } from "./palette";
 import { RING_TICK } from "./ring";
@@ -104,6 +110,9 @@ export interface HudState {
   /** the wall run's lean, -1 to 1: its streaks down the wall's side of the screen (drawWallRun) */
   wallRun?: number;
   weaponName: string;
+  /** the gun shown's id, and the other slot's, for their outlines (icons.ts drawGun); null for fists or an empty slot */
+  weaponId?: string | null;
+  otherId?: string | null;
   /** SpeedKills: the gun's class beside its name (speedkills.json kind; Phase 20 A7) */
   weaponKind?: string | null;
   /** SpeedKills: each slot's fusion level (slot 1 first) and the most there is */
@@ -248,7 +257,7 @@ export interface HudState {
    * name, the key, how much of the cooldown is still to go (0 ready), the
    * seconds left, and its fusion level against the most there is.
    */
-  hacks?: Array<{ name: string; key: string; frac: number; left: number; level: number; maxLevel: number; slot: "mobility" | "utility" }> | null;
+  hacks?: Array<{ id?: string; name: string; key: string; frac: number; left: number; level: number; maxLevel: number; slot: "mobility" | "utility" }> | null;
   /**
    * SpeedKills' sectors on the maps (decay.ts): each one's rectangle (world
    * space), name, colour, and where the decay has it; and the capture zone,
@@ -571,6 +580,7 @@ export class Hud {
 
   draw(now: number, camera: THREE.Camera, s: HudState): void {
     this.last = s;
+    this.tNow = now;
     this.padNow = s.padFamily ?? null;
     if (!this.enabled) return;
     const c = this.ctx;
@@ -1239,8 +1249,12 @@ export class Hud {
     for (const l of this.feedLines) {
       const age = now - l.born;
       this.ctx.globalAlpha = age < 5 ? 1 : 1 - (age - 5);
+      // each line on a plate as wide as it, edged in its colour (Milestone 698)
+      this.ctx.font = this.font(700, 15 * u);
+      const w = this.ctx.measureText(l.text).width;
+      this.plate(x - w - 12 * u, y - 15 * u, w + 18 * u, 21 * u, u, l.color);
       this.text(l.text, x, y, 700, 15 * u, l.color, "right");
-      y += 20 * u;
+      y += 25 * u;
     }
     this.ctx.globalAlpha = 1;
   }
@@ -1950,6 +1964,120 @@ export class Hud {
     c.strokeRect(x - t / 2, y - t / 2, w + t, h + t);
   }
 
+  /** the frame's time, for what the HUD animates itself (the health's ghost, a hack coming ready) */
+  private tNow = 0;
+  /** your health a moment ago: held, then drained to what it is, the loss you just took shown in red (Milestone 697) */
+  private hpGhost = { v: 1, hold: 0, at: 0 };
+  /** each hack tile: ready last frame, and when it last came ready (its flash) */
+  private hackWasReady: Array<boolean | undefined> = [];
+  private hackReadyAt: number[] = [];
+
+  /**
+   * A plate (hud.json plate, Milestone 697): what every element of the HUD stands on, as Hyper Scape's, Apex's and
+   * Empulse's do. Dark and see-through, lighter at its top, a hairline edge and a lit line along its top, its top-right
+   * and bottom-left corners cut; with an `accent`, a stripe down its left and a tick on its bottom-right corner in it.
+   * `strength` fades the whole of it (a slot not in your hands)
+   */
+  private plate(x: number, y: number, w: number, h: number, u: number, accent: string | null = null, strength = 1): void {
+    const c = this.ctx;
+    const k = Math.min(PLATE.cut * u, h / 3, w / 3);
+    c.save();
+    c.beginPath();
+    c.moveTo(x, y);
+    c.lineTo(x + w - k, y);
+    c.lineTo(x + w, y + k);
+    c.lineTo(x + w, y + h);
+    c.lineTo(x + k, y + h);
+    c.lineTo(x, y + h - k);
+    c.closePath();
+    const g = c.createLinearGradient(0, y, 0, y + h);
+    g.addColorStop(0, `rgba(${PLATE.top},${PLATE.alpha * strength})`);
+    g.addColorStop(1, `rgba(${PLATE.bottom},${PLATE.alpha * strength})`);
+    c.fillStyle = g;
+    c.fill();
+    c.lineWidth = Math.max(1, u);
+    c.strokeStyle = `rgba(255,255,255,${PLATE.edge * strength})`;
+    c.stroke();
+    c.beginPath();
+    c.moveTo(x + 1, y + 0.5);
+    c.lineTo(x + w - k, y + 0.5);
+    c.strokeStyle = `rgba(255,255,255,${PLATE.lit * strength})`;
+    c.stroke();
+    if (accent) {
+      c.fillStyle = accent;
+      c.fillRect(x, y, PLATE.bar * u, h - k);
+      const t = PLATE.tick * u;
+      c.lineWidth = Math.max(1.5, 2 * u);
+      c.strokeStyle = accent;
+      c.beginPath();
+      c.moveTo(x + w - t, y + h);
+      c.lineTo(x + w, y + h);
+      c.lineTo(x + w, y + h - t);
+      c.stroke();
+    }
+    c.restore();
+  }
+
+  /** a shield cell: a slanted bar, lit to `frac` from `color[0]` at its top to `color[1]` under, a shine along its top */
+  private cell(x: number, y: number, w: number, h: number, frac: number, color: [string, string], u: number): void {
+    const c = this.ctx;
+    const k = Math.min(h * 0.7, w / 4);
+    c.save();
+    c.beginPath();
+    c.moveTo(x + k, y);
+    c.lineTo(x + w, y);
+    c.lineTo(x + w - k, y + h);
+    c.lineTo(x, y + h);
+    c.closePath();
+    c.fillStyle = "rgba(0,0,0,0.5)";
+    c.fill();
+    const f = Math.max(0, Math.min(1, frac));
+    if (f > 0) {
+      c.save();
+      c.clip();
+      const g = c.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, color[0]);
+      g.addColorStop(1, color[1]);
+      c.fillStyle = g;
+      c.fillRect(x, y, w * f, h);
+      c.fillStyle = "rgba(255,255,255,0.35)";
+      c.fillRect(x, y, w * f, Math.max(1, h * 0.2));
+      c.restore();
+    }
+    // (the dark outline every bar has, so none is lost against a lit wall: the owner, Phase 20 A6)
+    const L = this.layout;
+    c.lineWidth = L.outline.bar * u;
+    c.strokeStyle = `rgba(${L.outline.rgb},${L.outline.alpha})`;
+    c.stroke();
+    c.restore();
+  }
+
+  /**
+   * Your health: a lit bar to `frac` (lighter at its top, a shine along it), and from it to `ghost` the health you just
+   * lost, in red, before it drains (Apex's and Hyper Scape's own)
+   */
+  private healthBar(x: number, y: number, w: number, h: number, frac: number, ghost: number, color: string, u: number): void {
+    const c = this.ctx;
+    c.fillStyle = "rgba(0,0,0,0.5)";
+    c.fillRect(x, y, w, h);
+    const f = Math.max(0, Math.min(1, frac));
+    const gf = Math.max(f, Math.min(1, ghost));
+    if (gf > f) {
+      c.fillStyle = "rgba(255,84,64,0.85)";
+      c.fillRect(x + w * f, y, w * (gf - f), h);
+    }
+    if (f > 0) {
+      const g = c.createLinearGradient(0, y, 0, y + h);
+      g.addColorStop(0, color);
+      g.addColorStop(1, color === RED ? "#a8241b" : "#b9c3cd");
+      c.fillStyle = g;
+      c.fillRect(x, y, w * f, h);
+      c.fillStyle = "rgba(255,255,255,0.4)";
+      c.fillRect(x, y, w * f, Math.max(1, h * 0.16));
+    }
+    this.edge(x, y, w, h, u);
+  }
+
   /** a bar: its track, its fill to `frac`, and in SpeedKills its outline */
   private bar(x: number, y: number, w: number, h: number, frac: number, track: string, fill: string, u: number): void {
     const c = this.ctx;
@@ -2550,9 +2678,27 @@ export class Hud {
       this.text("N", nx, ny + 4 * u, 800, 11 * u, "#ffd23c", "center");
     }
     // frame and player arrow
-    c.strokeStyle = "rgba(255,255,255,0.35)";
+    c.strokeStyle = "rgba(255,255,255,0.22)";
     c.lineWidth = 1.5;
     c.strokeRect(x0, y0, size, size);
+    // brackets on its corners (Milestone 698), as Hyper Scape frames its panels
+    {
+      const t = 16 * u;
+      c.strokeStyle = "rgba(60,242,255,0.75)";
+      c.lineWidth = Math.max(1.5, 2 * u);
+      for (const [px, py, dx, dy] of [
+        [x0, y0, 1, 1],
+        [x0 + size, y0, -1, 1],
+        [x0, y0 + size, 1, -1],
+        [x0 + size, y0 + size, -1, -1],
+      ]) {
+        c.beginPath();
+        c.moveTo(px, py + dy * t);
+        c.lineTo(px, py);
+        c.lineTo(px + dx * t, py);
+        c.stroke();
+      }
+    }
     const ax = x0 + size / 2;
     const ay = y0 + size / 2;
     c.fillStyle = "#ffd23c";
@@ -2725,13 +2871,17 @@ export class Hud {
     if (!br) return;
     const c = this.ctx;
     const cx = this.w / 2;
-    // top centre, under the compass: alive, kills, the ring's clock
-    c.fillStyle = PANEL;
-    c.fillRect(cx - 170 * u, 60 * u, 340 * u, 58 * u);
-    this.text(`${br.alive}`, cx - 120 * u, 102 * u, 700, 38 * u, WHITE, "center");
-    this.text("ALIVE", cx - 120 * u, 76 * u, 700, 13 * u, DIM, "center");
-    this.text(`${br.kills}`, cx + 120 * u, 102 * u, 700, 38 * u, "#7ddc8a", "center");
-    this.text("KILLS", cx + 120 * u, 76 * u, 700, 13 * u, DIM, "center");
+    // top centre, under the compass: alive, the clock, your kills, each on a plate (Milestone 698), a figure by those
+    // alive and a skull by your kills (Hyper Scape's and Apex's counts)
+    this.plate(cx - 170 * u, 60 * u, 96 * u, 58 * u, u);
+    this.plate(cx - 68 * u, 60 * u, 136 * u, 58 * u, u, br.ring.closing ? "#ff2e9a" : null);
+    this.plate(cx + 74 * u, 60 * u, 96 * u, 58 * u, u, "#7ddc8a");
+    this.text("ALIVE", cx - 122 * u, 77 * u, 700, 12 * u, DIM, "center");
+    drawIcon(c, "user", cx - 150 * u, 96 * u, 18 * u, DIM);
+    this.text(`${br.alive}`, cx - 112 * u, 106 * u, 700, 34 * u, WHITE, "center");
+    this.text("KILLS", cx + 122 * u, 77 * u, 700, 12 * u, DIM, "center");
+    drawIcon(c, "skull", cx + 94 * u, 96 * u, 18 * u, "#7ddc8a");
+    this.text(`${br.kills}`, cx + 132 * u, 106 * u, 700, 34 * u, "#7ddc8a", "center");
     const d = s.duel!;
     if (d.waiting) this.text(d.waiting, cx, this.h * 0.42, 700, 34 * u, "#ffd23c", "center");
     const t = br.ring.timeLeft;
@@ -3025,6 +3175,29 @@ export class Hud {
       else if (inside && major) this.text(String(bb), x, y - 5 * u, 600, 13 * u, DIM, "center");
     }
     c.restore();
+    // its frame (Milestone 698): a hairline over and under, fading at the ends as the strip does, and a bracket each end
+    {
+      const x0 = cx - width / 2;
+      const line = c.createLinearGradient(x0, 0, x0 + width, 0);
+      line.addColorStop(0, "rgba(255,255,255,0)");
+      line.addColorStop(0.2, "rgba(255,255,255,0.28)");
+      line.addColorStop(0.8, "rgba(255,255,255,0.28)");
+      line.addColorStop(1, "rgba(255,255,255,0)");
+      c.fillStyle = line;
+      c.fillRect(x0, y - 16 * u, width, Math.max(1, u));
+      c.fillRect(x0, y + 14 * u, width, Math.max(1, u));
+      c.strokeStyle = "rgba(60,242,255,0.7)";
+      c.lineWidth = Math.max(1.5, 2 * u);
+      for (const side of [-1, 1]) {
+        const ex = cx + side * width * 0.42;
+        c.beginPath();
+        c.moveTo(ex - side * 8 * u, y - 16 * u);
+        c.lineTo(ex, y - 16 * u);
+        c.lineTo(ex, y + 14 * u);
+        c.lineTo(ex - side * 8 * u, y + 14 * u);
+        c.stroke();
+      }
+    }
     // Your squad along the strip (Phase 27): each teammate's number on their colour at the bearing to them, or at
     // the strip's end, pointing, when they are off it. Before the readout, which stays readable over one.
     for (const t of s.squad?.tags ?? []) {
@@ -3053,8 +3226,9 @@ export class Hud {
       c.fillText(String(t.slot), x, py + bs / 2 + 3.5 * u);
       c.globalAlpha = 1;
     }
-    // bearing readout
-    this.text(String(Math.round(bearing) % 360), cx, y + 26 * u, 700, 16 * u, WHITE, "center");
+    // bearing readout, on a small plate under the strip's middle (Milestone 698)
+    this.plate(cx - 24 * u, y + 12 * u, 48 * u, 19 * u, u);
+    this.text(String(Math.round(bearing) % 360), cx, y + 27 * u, 700, 16 * u, WHITE, "center");
     c.fillStyle = "#ffd23c";
     c.beginPath();
     c.moveTo(cx, y + 9 * u);
@@ -3101,10 +3275,13 @@ export class Hud {
     const sh = L.shield.h * u;
     const yS = yH - (L.shield.gap + L.shield.h) * u;
     const base = yS - L.speed.gap * u;
-    const stanceColor = s.stance === "slide" ? "#ffd27a" : s.stance === "air" ? "#8fc7ff" : s.stance === "climb" ? "#7ddc8a" : WHITE;
-    const speedColor = WHITE;
+    // all of it on one plate (Milestone 697): Hyper Scape's, Apex's and Empulse's own vitals
+    const pad = PLATE.pad * u;
+    const top = base - L.speed.font * u * 0.78 - pad;
+    this.plate(x0 - pad, top, bw + 2 * pad, yH + hh + pad - top, u);
+    const stanceColor = s.stance === "slide" ? "#ffd27a" : s.stance === "air" ? "#8fc7ff" : s.stance === "climb" ? "#7ddc8a" : DIM;
     const sp = `${s.speedHu.toFixed(0)}`;
-    this.text(sp, x0, base, 700, L.speed.font * u, speedColor);
+    this.text(sp, x0, base, 700, L.speed.font * u, WHITE);
     this.textBox("speed", sp, x0, base, 700, L.speed.font * u, "left");
     c.font = this.font(700, L.speed.font * u);
     const sw = c.measureText(sp).width;
@@ -3115,10 +3292,19 @@ export class Hud {
     const segs = v ? Math.max(1, Math.round(v.shieldMax / L.shield.per)) : 2;
     const g = L.shield.segGap * u;
     const segW = (bw - g * (segs - 1)) / segs;
-    for (let i = 0; i < segs; i++) this.bar(x0 + i * (segW + g), yS, segW, sh, v ? (v.shield - i * L.shield.per) / L.shield.per : 1, "rgba(0,0,0,0.5)", "#a855f7", u);
+    for (let i = 0; i < segs; i++) this.cell(x0 + i * (segW + g), yS, segW, sh, v ? (v.shield - i * L.shield.per) / L.shield.per : 1, SHIELD_CELL, u);
     this.box("shield", x0, yS, bw, sh);
     const hp = v ? Math.max(0, v.health / v.healthMax) : 1;
-    this.bar(x0, yH, bw, hh, hp, "rgba(0,0,0,0.5)", hp < 0.3 ? RED : WHITE, u);
+    // the health just lost: held for a moment, then drained at the rate a bar reads (Milestone 697)
+    const G = this.hpGhost;
+    const dt = Math.max(0, Math.min(0.25, this.tNow - G.at));
+    G.at = this.tNow;
+    if (hp >= G.v) {
+      G.v = hp;
+      G.hold = 0;
+    } else if (!G.hold) G.hold = this.tNow + 0.45;
+    else if (this.tNow > G.hold) G.v = Math.max(hp, G.v - dt * 0.9);
+    this.healthBar(x0, yH, bw, hh, hp, G.v, hp < 0.3 ? RED : "#f4f6f8", u);
     this.box("health", x0, yH, bw, hh);
     const n = v ? poolText(v.health) : "100";
     const ny = yH + hh / 2 + L.health.font * u * 0.35;
@@ -3126,7 +3312,7 @@ export class Hud {
     this.textBox("healthNumber", n, x0 + bw - L.health.pad * u, ny, 700, L.health.font * u, "right");
     const sq = s.squad;
     if (sq?.me) this.drawMyNumber(sq.me, x0, yS, yH + hh - yS, u, L);
-    if (sq?.rows.length) this.drawSquadPanel(sq.rows, x0, base - L.speed.font * u * 0.75 - L.squad.gap * u, u, L);
+    if (sq?.rows.length) this.drawSquadPanel(sq.rows, x0, top - L.squad.gap * u, u, L);
   }
 
   /** your own number, on your colour, in the margin left of your shield and health (Phase 27) */
@@ -3290,21 +3476,52 @@ export class Hud {
       const x = x0 + i * (size + gap);
       const col = hk.slot === "mobility" ? "32, 224, 255" : "255, 46, 154";
       const ready = hk.frac <= 0;
-      c.fillStyle = PANEL;
-      c.fillRect(x, y, size, size);
-      if (!ready) {
-        c.fillStyle = "rgba(0, 0, 0, 0.55)";
-        c.fillRect(x, y, size, size * hk.frac);
+      // (a flash as it comes ready again)
+      if (ready && this.hackWasReady[i] === false) this.hackReadyAt[i] = this.tNow;
+      this.hackWasReady[i] = ready;
+      const flash = Math.max(0, 1 - (this.tNow - (this.hackReadyAt[i] ?? -9)) / 0.5);
+      // its tile (Milestone 697): Hyper Scape's framed tiles, its slot's colour lit when ready
+      this.plate(x, y, size, size, u, `rgba(${col}, ${ready ? 0.95 : 0.4})`);
+      if (flash > 0) {
+        c.save();
+        c.globalAlpha = flash * 0.45;
+        c.fillStyle = `rgb(${col})`;
+        c.fillRect(x, y, size, size);
+        c.restore();
       }
-      this.edge(x, y, size, size, u);
-      c.strokeStyle = `rgba(${col}, ${ready ? 0.95 : 0.4})`;
-      c.lineWidth = 2 * u;
-      c.strokeRect(x + u, y + u, size - 2 * u, size - 2 * u);
-      const name = hk.name.length > 8 ? hk.name.slice(0, 7) + "." : hk.name;
-      this.text(name, x + size / 2, y + 22 * u, 700, L.hacks.nameFont * u, ready ? `rgb(${col})` : `rgba(${col}, 0.75)`, "center");
-      this.text(ready ? hk.key : hk.left.toFixed(hk.left < 10 ? 1 : 0), x + size / 2, y + 50 * u, 700, L.hacks.keyFont * u, WHITE, "center");
+      const cx = x + size / 2;
+      const cy = y + size / 2;
+      // its picture (game-icons.net, CC BY 3.0: public/icons/ATTRIBUTION.md), its name in text until it loads
+      const drew = !!hk.id && drawIcon(c, `hack_${hk.id}`, cx, cy + 1 * u, L.hacks.icon * u, ready ? "#ffffff" : "rgba(214,222,230,0.42)");
+      if (!drew) {
+        const short = hk.name.length > 8 ? hk.name.slice(0, 7) + "." : hk.name;
+        this.text(short, cx, cy + 5 * u, 700, L.hacks.nameFont * u, ready ? `rgb(${col})` : `rgba(${col}, 0.75)`, "center");
+      }
+      if (!ready) {
+        // what is left of its cooldown: a dark wedge sweeping round to nothing, its seconds over it
+        c.save();
+        c.beginPath();
+        c.rect(x, y, size, size);
+        c.clip();
+        c.beginPath();
+        c.moveTo(cx, cy);
+        c.arc(cx, cy, size, -Math.PI / 2, -Math.PI / 2 + Math.PI * 2 * Math.min(1, hk.frac));
+        c.closePath();
+        c.fillStyle = "rgba(0,0,0,0.5)";
+        c.fill();
+        c.restore();
+        this.text(hk.left.toFixed(hk.left < 10 ? 1 : 0), cx, cy + 9 * u, 700, L.hacks.keyFont * u, WHITE, "center");
+      }
+      // its name over it, small capitals in its slot's colour (Hyper Scape's HEAL, FIREWALL)
+      this.text(hk.name.toUpperCase(), cx, y - 6 * u, 700, L.hacks.nameFont * u, `rgb(${col})`, "center");
+      // its key, a cap in its bottom right corner
+      const kh = 17 * u;
+      const ks = 12 * u;
+      const kw = this.keyCapWidth(hk.key, kh, ks, u);
+      this.keyCap(hk.key, x + size - kw - 4 * u, y + size - kh / 2 - 4 * u, kh, ks, u);
+      // its fusion: pips along its top
       const pw = (size - 16 * u) / hk.maxLevel;
-      for (let p = 0; p < hk.maxLevel; p++) this.bar(x + 8 * u + p * pw, y + size - 11 * u, pw - 3 * u, L.hacks.pipH * u, p < hk.level ? 1 : 0, "rgba(255,255,255,0.18)", `rgb(${col})`, u * 0.67);
+      for (let p = 0; p < hk.maxLevel; p++) this.bar(x + 8 * u + p * pw, y + 6 * u, pw - 3 * u, L.hacks.pipH * u, p < hk.level ? 1 : 0, "rgba(255,255,255,0.18)", `rgb(${col})`, u * 0.67);
       this.box(`hack${i}`, x, y, size, size);
     });
   }
@@ -3321,6 +3538,13 @@ export class Hud {
     const warn = s.unarmed ? null : ammoWarning(s.clip, s.clipSize, s.reloading);
     const clipColor = s.clip === 0 ? RED : s.swapping || s.holstered ? DIM : warn ? "#ffb13d" : WHITE;
     const clipText = s.unarmed ? "-" : `${s.clip}`;
+    // the rounds on a plate of their own, gold-edged for the gun in your hands (Milestone 697)
+    {
+      const pad = PLATE.pad * u;
+      const left = xR - L.ammo.digitsBox * u - pad / 2;
+      const top = base - L.ammo.font * u * 0.74 - pad;
+      this.plate(left, top, right - left + pad, base + pad * 0.6 - top, u, s.unarmed ? null : GOLD);
+    }
     this.text(clipText, xR, base, 700, L.ammo.font * u, s.unarmed ? DIM : clipColor, "right");
     this.textBox("ammo", clipText, xR, base, 700, L.ammo.font * u, "right");
     if (!s.unarmed) {
@@ -3340,19 +3564,15 @@ export class Hud {
     const sg = L.slots.gap * u;
     const sx = xR - (L.ammo.digitsBox + L.slots.dx) * u - sw;
     const names = s.slot === 1 ? [s.weaponName, s.otherName] : [s.otherName, s.weaponName];
+    const ids = s.slot === 1 ? [s.weaponId, s.otherId] : [s.otherId, s.weaponId];
     const n = s.fusion ? s.fusion.max : 0;
     const pipsW = n * L.slots.pipW * u + Math.max(0, n - 1) * L.slots.pipGap * u;
     for (let i = 0; i < 2 && i < s.slotCount; i++) {
       const active = i + 1 === s.slot;
       const y = base - (2 - i) * sh - (1 - i) * sg;
-      c.fillStyle = active ? "rgba(255,255,255,0.16)" : PANEL;
-      c.fillRect(sx, y, sw, sh);
-      this.edge(sx, y, sw, sh, u);
-      if (active) {
-        c.fillStyle = "#ffd23c";
-        c.fillRect(sx, y, 3 * u, sh);
-      }
-      this.text(`${i + 1}`, sx + 10 * u, y + sh / 2 + 6 * u, 700, L.slots.numFont * u, active ? "#ffd23c" : DIM);
+      // each slot a plate (Milestone 697), the one in your hands gold-edged
+      this.plate(sx, y, sw, sh, u, active ? GOLD : null, active ? 1 : 0.85);
+      this.text(`${i + 1}`, sx + 10 * u, y + sh / 2 + 6 * u, 700, L.slots.numFont * u, active ? GOLD : DIM);
       const lv = s.fusion ? s.fusion.levels[i] : undefined;
       // (fists and an empty slot have no level to show)
       const hasGun = names[i] !== "EMPTY" && !(active && s.unarmed);
@@ -3369,10 +3589,15 @@ export class Hud {
       const nameW = c.measureText(label).width;
       c.font = this.font(700, L.slots.kindFont * u);
       const kindW = kindText ? c.measureText(kindText).width + 6 * u : 0;
-      const room = sw - 26 * u - 8 * u - (lvText ? pipsW + lvW + 8 * u : 0);
+      // the gun's outline before its name (tools/gun-silhouettes.ts), as Hyper Scape's and Apex's slots show it
+      const gw = L.slots.gunW * u;
+      const id = ids[i];
+      const drewGun = hasGun && !!id && drawGun(c, id, sx + 26 * u + gw / 2, y + sh / 2, gw, active ? "#f4f6f8" : "rgba(196,204,212,0.6)");
+      const nx = sx + 26 * u + (drewGun ? gw + 8 * u : 0);
+      const room = sx + sw - nx - 8 * u - (lvText ? pipsW + lvW + 8 * u : 0);
       const fit = Math.min(1, room / Math.max(1, nameW + kindW));
-      this.text(label, sx + 26 * u, y + sh / 2 + 6.5 * u, 700, L.slots.nameFont * u * fit, active ? WHITE : DIM);
-      if (kindText) this.text(kindText, sx + 26 * u + (nameW + 6 * u) * fit, y + sh / 2 + 6.5 * u, 700, L.slots.kindFont * u * fit, active ? "#ffd23c" : DIM);
+      this.text(label, nx, y + sh / 2 + 6.5 * u, 700, L.slots.nameFont * u * fit, active ? WHITE : DIM);
+      if (kindText) this.text(kindText, nx + (nameW + 6 * u) * fit, y + sh / 2 + 6.5 * u, 700, L.slots.kindFont * u * fit, active ? GOLD : DIM);
       if (lvText && lv !== undefined) {
         const px0 = sx + sw - 8 * u - lvW - pipsW;
         for (let k = 0; k < n; k++) this.bar(px0 + k * (L.slots.pipW + L.slots.pipGap) * u, y + sh / 2 - 2 * u, L.slots.pipW * u, L.slots.pipH * u, k < lv ? 1 : 0, "rgba(255,255,255,0.18)", "#3cf2ff", u * 0.67);
