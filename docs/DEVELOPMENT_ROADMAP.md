@@ -12364,6 +12364,23 @@ gameplay, side by side with ours).
   - e2e speedkills (the layout check on the boxes the bottom edge draws);
   - photographed at 1080p in a battle royale and at 720p in the range.
 
+## Milestone 699 — A battle royale's bots' guns have their shaders before the ship flies over them
+
+The daily sweep's "sk order" check failed on 2026-10-17 and 2026-10-18, and again when rerun alone: aboard the ship, up
+to 400 of the match's materials had no shader, all of them the bots' guns.
+
+- **The cause, read off a probe of the ride** (node_modules/.scratch/skorder.mts):
+  - figures put their soldier on a few a frame (dummy.ts dress), so a battle royale's thirty bots were dressed through
+    the first ten seconds of the ride;
+  - that was after warmMatch had built the match's shaders;
+  - each bot's soldier and gun came with materials of their own, and each was built on the frame it first came into
+    view, as the ship flew over.
+- **The fix:** a figure's new soldier or gun says so (Dummy.onNewLook, from dress and setGun), and the page builds that
+  figure's shaders in the background, three figures a frame (main.ts stepLookWarm). The probe now reads no material
+  without its shader at any point of the ride.
+- **Checked:** tsc, verify, rules; e2e sklobby ("sk order: aboard, the match's own figures and loot have their shaders
+  before the ship flies over them", which failed before).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

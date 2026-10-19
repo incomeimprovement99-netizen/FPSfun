@@ -711,6 +711,7 @@ export class Dummy {
     this.farGun = null;
     this.lodFullGun = true;
     this.paintGuns();
+    Dummy.onNewLook?.(this);
   }
 
   /** show or hide the gun it holds (a bot still searching for one) */
@@ -848,6 +849,13 @@ export class Dummy {
     this.dress();
   }
 
+  /**
+   * A figure's soldier or gun is new (dress, setGun): the page builds its shaders then, in the background (main.ts,
+   * Milestone 699). Figures put the soldier on a few a frame, so a battle royale's bots were dressed during the ship's
+   * ride, after the match's own warm, and their guns' shaders were built on the frame each first came into view.
+   */
+  static onNewLook: ((d: Dummy) => void) | null = null;
+
   /** the frame's clock when figures last put the soldier on, and how many did on it (update) */
   private static dressFrame = -1;
   private static dressedNow = 0;
@@ -880,6 +888,7 @@ export class Dummy {
     this.shell?.dispose();
     this.shell = null;
     this.applyGlow();
+    Dummy.onNewLook?.(this);
   }
 
   /**

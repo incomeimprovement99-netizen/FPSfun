@@ -5537,6 +5537,29 @@ function brWarmed(): boolean {
   return false;
 }
 /**
+ * A figure's new soldier or gun (Dummy.onNewLook, Milestone 699): its shaders built in the background, a few figures a
+ * frame, not on the frame it is first drawn. A battle royale's bots put their soldiers on a few a frame through the
+ * ship's ride, after warmMatch, and the suite found up to 400 of their guns' materials with no shader as the ship flew
+ * over them (sk order, 2026-10-17 and 18).
+ */
+const lookWarm = new Set<Dummy>();
+Dummy.onNewLook = (d) => {
+  if (!NO_RENDER) lookWarm.add(d);
+};
+function stepLookWarm(): void {
+  let n = 0;
+  for (const d of lookWarm) {
+    lookWarm.delete(d);
+    if (!d.group.parent) continue;
+    try {
+      void pipeline.compileAsync(d.group).catch(() => undefined);
+    } catch {
+      /* built when drawn, as before */
+    }
+    if (++n >= 3) break;
+  }
+}
+/**
  * A battle royale's own figures and things (its bots, their guns, the floor's loot) are made with the match, after the
  * city's side was made ready (warmBrSide): their shaders compiled off the page's thread as the city's side draws them,
  * and their textures sent a few a frame, before the ship flies over them. Drawn first from the ship, they were compiled
@@ -6810,6 +6833,7 @@ function step(): void {
   player.holsterBoost = holster === "away" ? MOVE.holsterBoost : 1;
   stepWalls(gameTime);
   stepHacks(gameTime, dt);
+  stepLookWarm();
   stepDecay(gameTime);
   // SpeedKills: the shield comes back on its own a few seconds after the last
   // hit, and then health, more slowly (speedkills.json health); nothing to carry
