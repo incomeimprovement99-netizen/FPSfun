@@ -7,16 +7,12 @@
     "land": "SOMEONE LANDED",
     "door": "DOOR",
     "reload": "RELOAD",
-    "heal": "HEALING",
-    "revive": "REVIVE",
+    "revive": "RESTORE",
     "zip": "ZIPLINE",
     "pickup": "PICKUP",
-    "beacon": "BEACON",
-    "horn": "DROPSHIP",
-    "ring": "THE RING",
+    "ring": "THE DECAY",
     "package": "CARE PACKAGE",
     "knock": "KNOCKDOWN",
-    "hit": "HIT",
     "hack_dash": "DASH",
     "hack_slam": "SLAM",
     "hack_leap": "LEAP",
@@ -28,7 +24,8 @@
     "hack_mine": "MINE"
   },
   "_hacks": "hack_* are someone else's hacks, heard where they were used (audio.ts hackSound, Milestone 710): each is someone near you doing something, so all are important.",
-  "important": ["gun", "blast", "step", "land", "door", "reload", "heal", "revive", "zip", "knock", "hack_dash", "hack_slam", "hack_leap", "hack_heal", "hack_armor", "hack_wall", "hack_invis", "hack_reveal", "hack_mine"],
+  "_cued": "Every word here is a sound that is played and says so (audio.ts cue; tools/checks/access.ts holds every word to one). Until Milestone 712 half of them never were: a zipline, a care package, a restore, the decay's horn and a pickup were never captioned, and HEALING, BEACON, DROPSHIP and HIT had no sound left to say them (someone's HEAL is hack_heal).",
+  "important": ["gun", "blast", "step", "land", "door", "reload", "revive", "zip", "knock", "package", "hack_dash", "hack_slam", "hack_leap", "hack_heal", "hack_armor", "hack_wall", "hack_invis", "hack_reveal", "hack_mine"],
   "cone": {
     "ahead": 45,
     "behind": 45

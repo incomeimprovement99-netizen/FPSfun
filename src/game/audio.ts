@@ -1095,6 +1095,7 @@ export class GameAudio {
 
   /** an item going into the pack: the player's own, so it is not placed in the world */
   pickup(): void {
+    this.cue("pickup", null);
     const v = this.voice(null, 0.25, "fx", 1, 0);
     if (!v) return;
     if (!this.sample(v.input, v.t, "pickup", 0.4)) this.tone(v.input, v.t, 0.05, "triangle", 900, 1400, 0.09);
@@ -1109,6 +1110,8 @@ export class GameAudio {
 
   /** an ult going up: a zipline anchored, a scout's sweep */
   beacon(at: Vec): void {
+    // (a squad's restore at an echo is its one use today, Milestone 712: captioned as one)
+    this.cue("revive", at);
     const v = this.voice(at, 0.7, "fx", 0, 0.5);
     if (!v) return;
     if (!this.sample(v.input, v.t, "beacon", 0.6)) this.tone(v.input, v.t, 0.5, "sine", 220, 660, 0.2);
@@ -1120,6 +1123,7 @@ export class GameAudio {
    * way an impact does, because everyone is meant to hear it and decide.
    */
   horn(at: Vec | null): void {
+    this.cue("package", at);
     const v = this.voice(at, 1, "fx", 1, 1);
     if (!v) return;
     if (!this.sample(v.input, v.t, "horn", 1)) this.tone(v.input, v.t, 1.2, "sawtooth", 110, 80, 0.35);
@@ -1133,7 +1137,9 @@ export class GameAudio {
   }
 
   /** stepping onto a zipline: the hook taking the line */
-  zipOn(at: Vec): void {
+  zipOn(at: Vec, mine = false): void {
+    // (yours is played where you are, but written down as your own: no way and no distance)
+    this.cue("zip", mine ? null : at);
     const v = this.voice(at, 0.5, "fx", 0, 0.35);
     if (!v) return;
     if (!this.sample(v.input, v.t, "zip_ride", 0.5, 1.15)) this.tone(v.input, v.t, 0.25, "sawtooth", 500, 900, 0.14);
@@ -1330,6 +1336,7 @@ export class GameAudio {
 
   /** the ring starts to close: a long low horn */
   ringHorn(): void {
+    this.cue("ring", null);
     const v = this.voice(null, 2, "fx", 2, 0.6);
     if (!v) return;
     this.tone(v.input, v.t, 1.6, "sawtooth", 110, 104, 0.12, 0.35);

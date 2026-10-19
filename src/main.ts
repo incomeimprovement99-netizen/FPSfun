@@ -4339,6 +4339,8 @@ function applyLoot(it: LootItem): void {
   const d = duel instanceof BrMatch ? duel : null;
   // the hands take it off the ground (a gun comes into them by the swap instead)
   if (it.kind !== "weapon") viewModel.pickup();
+  // and a sound for it (Milestone 712): taking anything off the floor was silent, the pack's own sound never played
+  audio.pickup();
   const here = player.pos.clone();
   const putBack = (x: LootItem) => d?.dropLoot(x, here);
   const label = lootLabel(it);
@@ -4791,6 +4793,8 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   // a squad mate's restore at an echo: the beam while it runs
   if (k === "beam") {
     setBeam(from, n === 1 && a ? a : null);
+    // heard where it is as it starts (Milestone 712), as a revive is in Apex: a restore was silent
+    if (n === 1 && a) audio.beacon(a);
     if (n === 1 && a && duel instanceof BrMatch) duel.hearBeam(a);
   }
   // A care package (brmatch.ts: n 0 called, 1

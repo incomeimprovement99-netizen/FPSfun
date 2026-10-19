@@ -109,7 +109,7 @@ export class Soundscape {
     // reads as a decision, and on the battle royale map it is also the tell
     // that gives a rotating squad away, so it is a placed sound and not a
     // menu click.
-    if (stance === "zip" && this.lastStance !== "zip") a.zipOn(p.pos);
+    if (stance === "zip" && this.lastStance !== "zip") a.zipOn(p.pos, true);
     if (stance === "climb" && f.now >= this.climbTapAt) {
       this.climbTapAt = f.now + 0.22;
       a.climbTap();
@@ -151,6 +151,12 @@ export class Soundscape {
         if (pose.stance === "mantle" && was.stance !== "mantle") {
           a.mantle(at);
           this.heard("mantle");
+        }
+        // and their zipline's catch as they take one (Milestone 712): yours had it, and a squad riding over your roof was
+        // silent, the very tell the zipline's sound is for
+        if (pose.stance === "zip" && was.stance !== "zip") {
+          a.zipOn(at);
+          this.heard("zip");
         }
       }
       this.otherMove.set(d, { stance: pose.stance, y: g.y, vy: airborne(pose.stance) ? Math.min(vy, was?.vy ?? 0) : 0 });

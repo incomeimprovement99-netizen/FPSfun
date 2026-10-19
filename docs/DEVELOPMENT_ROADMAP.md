@@ -12598,6 +12598,26 @@ Found photographing every tab of the menu:
 - **Checked:** tsc, verify (the new check), rules; e2e page, with a new check: the voice chat slider sets the voice
   chat's volume and leaves the callouts' alone.
 
+## Milestone 712 — The captions that could never show, a pickup's sound, and others' ziplines
+
+Found checking each sound caption word against the sounds that say it (audio.ts cue):
+
+- **Half the captions could never show.** Sound captions (Settings) write down a sound when it plays and says so; nine
+  of the sixteen words had no sound that said them. A zipline, a care package's horn, the decay's horn and a pickup
+  played and were never written down; HEALING, REVIVE, BEACON, DROPSHIP and HIT had no sound left that was theirs.
+  - Now said: ZIPLINE (yours, and others' with which way and how far), CARE PACKAGE (its horn), THE DECAY (the horn as
+    a wave starts, was THE RING), PICKUP, and RESTORE (a squad's restore at an echo, was REVIVE).
+  - Gone: HEALING (someone's HEAL is HEAL AREA since Milestone 710), BEACON, DROPSHIP and HIT.
+  - **A check for the whole class** (tools/checks/access.ts, in verify): every word is a sound that cues it. It failed
+    on the words as they were ("never cued: heal, revive, zip, pickup, beacon, horn, ring, package, hit").
+- **Taking anything off the floor was silent:** the pack's pickup sound (audio.ts pickup) was never played. It plays
+  as you take a gun or a hack core.
+- **Others' ziplines were silent:** your catch onto a zipline played and theirs did not, the very tell the sound is for
+  (a squad riding over your roof). Theirs plays where they are as they take one (soundscape.ts).
+- **A restore is heard** where it is as it starts (audio.ts beacon), as a revive is in Apex.
+- **Checked:** tsc, verify (the new check), rules; e2e speedkills, its others-heard check now with a zipline (with
+  the branch taken out it failed, the zipline not heard).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

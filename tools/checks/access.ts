@@ -5,6 +5,11 @@
 import { HUD_SCALES, P, VISION_MODES, access, setHudScale, setVision } from "../../src/game/palette";
 
 import { CAPTION_IDS, CAPTION_WORDS, Captions, howFar, whereFrom } from "../../src/game/captions";
+import { readFileSync } from "node:fs";
+import audioCfg from "../../src/config/audio.json";
+
+/** audio.ts's own text: which sounds say which caption (this.cue) */
+const AUDIO_SRC = readFileSync(new URL("../../src/game/audio.ts", import.meta.url), "utf8");
 let fails = 0;
 function check(label: string, ok: boolean, detail = ""): void {
   if (!ok) fails++;
@@ -91,6 +96,12 @@ console.log("Sound captions");
   only.heard("pickup", 1, "AHEAD", "CLOSE");
   check("the important list is the short one: a pickup is captioned only on everything", all.live(1).length === 1 && only.live(1).length === 0);
   check("every sound the game cues has a word for it", ["gun", "blast", "step", "land", "door", "reload", "knock"].every((id) => !!CAPTION_WORDS[id]), CAPTION_IDS.length + " sounds");
+  // and the other way (Milestone 712): every word is a sound that says so, audio.ts's cue("<id>") or a hack's
+  // hack_<id> (hackSound), or the caption can never be shown; half of them could not be
+  const said = new Set([...AUDIO_SRC.matchAll(/this\.cue\("([a-z_]+)"/g)].map((m) => m[1]));
+  for (const id of Object.keys(audioCfg.hacks)) said.add(`hack_${id}`);
+  const never = CAPTION_IDS.filter((id) => !said.has(id));
+  check("every caption word is a sound the game plays and cues", never.length === 0, never.length ? `never cued: ${never.join(", ")}` : `${CAPTION_IDS.length} words`);
 }
 
 
