@@ -1338,7 +1338,8 @@ The same nine districts, the eight round the centre plain for now with straight
 roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined with
 low shophouses under lantern lines, jump pads up onto their roofs; and THE TERRACES in
 the west: three garden tiers stepping up to the edge, a grand stair up the middle, a run of
-balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls; and
+balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls, each lit and
+furnished; and
 THE TERMINAL in the south: a station hall of arcades under glass vaults, a metro train at its
 platform and trams on the strips beside it, jump pads onto its vault roofs; and THE STACKS
 in the north-west: three towers of stacked capsule pods round an avenue and a car park, and a
@@ -1348,12 +1349,12 @@ towers with decks at the High City's height, joined by gangways, the North deck'
 them, a glass lift up from its courtyard, its gangways glowing cyan underneath by night, and a 72 m glass tower with a
 cyan crown; and THE STRIP in the east: an 87 m
 black tower on the city's edge at the end of a boulevard, its foot ringed by glowing blocks under lit billboards, a
-glowing pyramid to run up onto a lookout 7 m over the plaza, and a club under a glowing inverted pyramid, its balcony
+glass pyramid of lit windows to run up onto a lookout 7 m over the plaza, and a club under a glowing inverted pyramid, its balcony
 running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
 walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L,
 crossed indoors from hall to hall, each with columns, a gallery and its stair, a tank and machines, and the corner's works block with an upper floor
-round an atrium, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
+round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
 crowned with tanks 31 m up, lit teal by night. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface

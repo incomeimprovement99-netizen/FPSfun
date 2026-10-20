@@ -15836,3 +15836,61 @@ and the index 20 mm off the gun; at BOOG's bolt a ring finger 71 at the knuckle,
     with each finger on the gun, BOOG's bolt and the BIGANTLER's pump among them).
   - Photographed the USSO's hand at its charging handle and BOOG's at its bolt, 1.75 and 2.72 s into the reload.
   - verify, rules and the type check.
+
+## Milestone 664 — THE WORKS made rust and machinery
+
+The districts' first review scored THE WORKS 3 of 10: "grey boxes, not rust and machinery; an empty hall". Photographed
+again on version 95: the works block's ground floor held two crate stacks and a cooling unit, its walls read dark blue
+inside and grey from the ring road, and two white shafts of light stood in its atrium from floor to roof.
+
+- **The works block's ground floor furnished** (`rules.districts.works.upper.ground`), laid as the arm halls' cover is,
+  never on one of the bots' street nodes or cutting their streets in two:
+  - two gas risers 13 m up the atrium, glowing green, off the two pads' lanes;
+  - under the ring, round its corners and off its four doors' ways in: two electric cabinets, two engines, a low tank,
+    a cooling unit and two crate stacks.
+  - Two 5 m process tanks were tried in the atrium: anywhere in it they stood on a street node, and the layout left
+    them out (it now says which pieces it left out and why).
+- **Pipe runs on its inside walls** (`upper.pipes`, drawn only): along the north wall's east half and the south wall's
+  west half, and two risers on the west wall.
+- **The halls in rust** (`wallMat`): every wall panel worn in the pack's rusted planks, which were a strip of each
+  panel among grey panels and dark concrete. The pack's rusted panels were tried first: grey with rust streaks, they
+  read no different. Chosen off a contact sheet of the pack's seven rust textures.
+- **No beam over a pad under a roof** (tools/import-neon.ts): the pads' beams of light mark them from across a plaza,
+  and the atrium's two pads (`below`, under the roof) stood in the hall as white shafts from floor to roof, the review's
+  "light cones" indoors. Their plates still glow. The bake records the beams it drew (`baked.padBeams`).
+- **Checked:** a new check, off the bake: every set of the ground floor laid and standing in the collision, the pipe
+  runs drawn, the walls in rust, and the beams drawn over every pad but the two under the roof. The existing checks
+  walk the L indoors, ride the atrium's pads and walk the ring as before.
+
+## Milestone 665 — THE TERRACES' rooms furnished and lit
+
+Photographed again on version 95, THE TERRACES read as terraces: a 15 m grand stair straight up from the ring road, tier
+walls of shop windows and gates, glass rails and cypresses. What the review's "an untextured room" named was still
+true: the six rooms in the tier walls were bare concrete boxes with a crate.
+
+- **Each room furnished** (`rules.districts.terraces.rooms.furnish`, in the room's own metres from its back wall,
+  mirrored with its crate's side): a couch against the back wall, a table and a chair, and a rack of goods along the
+  crate's wall.
+- **Lit:** a ceiling lamp under each room's slab, one the game lights as fill.
+- **Plastered:** its inside walls in the pack's plaster panels over the terrain kit's bare concrete.
+- **Checked:** a new check, off the bake: in each room three pieces and more standing on its floor (the crate alone
+  before), its lamp, its plaster.
+
+## Milestone 666 — THE STRIP's screens and glow
+
+The review named two faults in THE STRIP's look: "solid blue screens" and "flat red planes".
+
+- **The screens show their ads.** Each ad stand's picture was baked whole, but over it stood a quad of the pack's
+  Light02, a flat blue glow drawn opaque. Found by baking the stand alone (`NEON=gallery GALLERY=AD_Structure02`) and
+  reading its parts. The quad is now worn as the ad itself (`ads.mats`: `Light02=Ads10`, the second stand
+  `Light02=Ads05;Ads10=Ads05`).
+- **The pyramid and the club canopy glow as glass.** Their broad faces were the pack's plain red light, one tile
+  stretched over each 20 m face (their UVs read off the piece baked alone). Each is worn as the pack's lit-window glass
+  (`pyramid.mat`, `club.canopyMat`), so the pyramid reads as a glass pyramid of lit windows by night and by day. Its red
+  bands and the red glowing blocks round it are kept.
+- **Checked:** a new check that the layout laid both stands and both pieces in their new materials. Photographed from
+  the boulevard by day and night and from the air.
+- **Still to do:** the club as a dark room with a lit dance floor, and THE STRIP's night as the map's brightest (the
+  districts by night, Milestone 671).
+
+The e2e for all three: the speedkills section, 118 checks. verify, rules and tsc. Map files version 96: lo 165.6 MB, hi 245.6 MB, max 543.0 MB.

@@ -3731,7 +3731,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // alone, so nothing measured moves it
 {
   type Walk = number[][];
-  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; rooms?: { at: Pt[]; slab: string; wall: number; inner: string; crate: string }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
+  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; rooms?: { at: Pt[]; slab: string; wall: number; inner: string; innerMat?: string; crate: string; lamp?: string; furnish?: Array<[string, number, number, number]> }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
   if (DT) {
     const rndT = seeded(DT.seed);
     const S = DT.cell;
@@ -3828,14 +3828,24 @@ const STREET_WALL_BOXES: OBox[] = [];
       else if (c.top > 0 && !isRoom(c.x0, c.z0)) placeTurned(DT.chunk, DT.top.piece, c.x0 + S / 2, c.z0 + S / 2, 0, "g", c.top, DT.top.mat);
     }
     // each room: its slab, its floor's slab where it stands on a tier, its walls facing in, its crate
-    // (the crate's side by turns, not the seed's: a draw here would change every wall's pick after it)
+    // (the crate's side by turns, not the seed's: a draw here would change every wall's pick after it); and since
+    // Milestone 665 (the districts' review: "an untextured room") its furniture, `furnish` [piece, u, v, yaw] in the room's
+    // own metres, u from its back wall and v across, mirrored with the crate's side, a ceiling lamp the game lights as fill
+    // under its slab, and its inside walls in `innerMat`
+    let furnished = 0;
     for (const [ri, q] of (RM ? rooms : []).entries()) {
       const [cx, cz] = [q.x0 + S / 2, q.z0 + S / 2];
       placeTurned(DT.chunk, RM!.slab, cx, cz, 0, "g", q.top);
       if (q.floor > 0) placeTurned(DT.chunk, RM!.slab, cx, cz, 0, "g", q.floor);
       const w = RM!.wall;
-      for (const [x, z, n] of [[q.x0 + w, cz, [1, 0]], [cx, q.z0 + w, [0, 1]], [cx, q.z0 + S - w, [0, -1]]] as Array<[number, number, Pt]>) placeTurned(DT.chunk, RM!.inner, x, z, (Math.atan2(-n[1], n[0]) * 180) / Math.PI, "g", q.floor);
-      placeTurned(DT.chunk, RM!.crate, q.x0 + 1, cz + (ri % 2 ? -1.6 : 1.6), 90, "o", q.floor);
+      for (const [x, z, n] of [[q.x0 + w, cz, [1, 0]], [cx, q.z0 + w, [0, 1]], [cx, q.z0 + S - w, [0, -1]]] as Array<[number, number, Pt]>) placeTurned(DT.chunk, RM!.inner, x, z, (Math.atan2(-n[1], n[0]) * 180) / Math.PI, "g", q.floor, RM!.innerMat);
+      const side = ri % 2 ? -1 : 1;
+      placeTurned(DT.chunk, RM!.crate, q.x0 + 1, cz + side * 1.6, 90, "o", q.floor);
+      for (const [name, u, v, yaw] of RM!.furnish ?? []) {
+        placeTurned(DT.chunk, name, q.x0 + u, cz + side * v, side > 0 ? yaw : 180 - yaw, "o", q.floor - piece(name).row.min![1]);
+        furnished++;
+      }
+      if (RM!.lamp) placeTurned(DT.chunk, RM!.lamp, cx, cz, 0, "g", q.top - slabRow!.size![1] - piece(RM!.lamp).row.max![1]);
     }
     // the walls: on each edge where a square stands over the next (past the band, the ground), a storey at a time, facing
     // the lower side; none behind a ramp's head (its face is under the ramp); the pack's fronts on the faces seen from the
@@ -4039,7 +4049,7 @@ const STREET_WALL_BOXES: OBox[] = [];
       }
     cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "terraces"), { district: "terraces", ...DT.name }];
     cfg.terraces = { cells: cells.map((c) => [c.x0, c.z0, c.top, c.ramp ? 1 : 0]), rise, solids: solids.map((b) => b.map((v) => +v.toFixed(3))), rails: railAt, walls, trees, flowers, ferns, benches, lamps, rooms: rooms.map((q) => [q.x0, q.z0, q.floor, q.top]), blocks: blocks.map((q) => [q.z0, q.z1, q.top]), balconies: balconyAt };
-    console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps, ${blocks.length} blocks on the top tier with ${balconies} balconies`);
+    console.log(`THE TERRACES: ${cells.filter((c) => c.top > 0 || c.ramp).length} squares raised (${DT.ramp.cells.length} ramps), ${rooms.length} rooms with ${furnished} pieces of furniture, ${solids.length} collision boxes, ${walls} wall pieces, ${rails} rails, ${trees} cypresses, ${flowers} flower planters, ${ferns} fern planters, ${benches} benches, ${lamps} lamps, ${blocks.length} blocks on the top tier with ${balconies} balconies`);
   }
 }
 // whether a piece's footprint, a body's clearance round it (`perches_clear.walk`), takes in one of the bots' street nodes:
@@ -4550,9 +4560,9 @@ function onNode(o: OBox): boolean {
     tower: { piece: string; at: number[]; yaw: number };
     base: { piece: string; at: number[][] };
     ads: { piece: string; at: number[][]; mats?: string[] };
-    pyramid: { piece: string; at: number[]; steps: number; rim: number; cap: string };
+    pyramid: { piece: string; at: number[]; steps: number; rim: number; cap: string; mat?: string };
     club?: {
-      at: number[]; span: number; storeys: number; canopy: string; inset: number; walls: Array<[string, number, number, number]>; gates: number[][];
+      at: number[]; span: number; storeys: number; canopy: string; canopyMat?: string; inset: number; walls: Array<[string, number, number, number]>; gates: number[][];
       balcony: { y: number; slab: number; cell: number; deck: string };
       stairs: number[][]; bar: { piece: string; from: number[]; count: number; step: number; yaw: number }; seats: Array<[string, number, number, number]>;
     };
@@ -4590,7 +4600,7 @@ function onNode(o: OBox): boolean {
     const pr = piece(PY.piece).row;
     const [px, pz] = PY.at;
     const half = pr.size![0] / 2;
-    STREET_GRAPH?.add(placeTurned(DT.chunk, PY.piece, px, pz, 0, "g"));
+    STREET_GRAPH?.add(placeTurned(DT.chunk, PY.piece, px, pz, 0, "g", 0, PY.mat));
     const [run, rise] = [(half - PY.rim) / PY.steps, pr.size![1] / PY.steps];
     for (let k = 0; k < PY.steps; k++) {
       const h = half - (k + 0.5) * run;
@@ -4621,7 +4631,7 @@ function onNode(o: OBox): boolean {
         }
       // the canopy, its rim on the columns' tops
       const cr = piece(CL.canopy).row;
-      placeTurned(DT.chunk, CL.canopy, cx, cz, 0, "g", CL.storeys * br.size![1] - cr.size![1] - cr.min![1]);
+      placeTurned(DT.chunk, CL.canopy, cx, cz, 0, "g", CL.storeys * br.size![1] - cr.size![1] - cr.min![1], CL.canopyMat);
       for (const [name, x, z, yaw] of CL.walls) STREET_GRAPH?.add(placeTurned(DT.chunk, name, x, z, yaw, "o", -piece(name).row.min![1]));
       // the balcony's cells, in the hall's own metres from its north-west corner (u east, v south): a strip along each
       // wall between the columns, and three cells round each column's inner corner (from the wall's inner face to a
@@ -5028,10 +5038,10 @@ function onNode(o: OBox): boolean {
 {
   type Frame = { o: Pt; u: Pt; v: Pt };
   type Inside = { column: string; columns: Pt[]; gallery: { v: number; y: number; tile: string; rail: string; railShort: string; railH: number }; stair: { u: number }; crate: string; cover: Array<[string, number, number, number]>; pipes: Array<[string, number, number, number, number]>; cables: Array<[string, number, number, number, number]> };
-  type Upper = { hall: string; atrium: number[]; lampEvery: number; cover: Array<[string, number, number, number]> };
+  type Upper = { hall: string; atrium: number[]; lampEvery: number; cover: Array<[string, number, number, number]>; ground?: Array<[string, number, number, number]>; pipes?: Array<[string, number, number, number, number]> };
   type Roofs = { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]>; gas: number[][]; gasPiece: string; crate: string; yard: number[][] };
   type WorksLight = { strip: string; remap: string; every: number; in: number; roofLamp: string; lampRemap: string; roofLamps: number[][] };
-  type Works = { chunk: string; wall: string; wallShort: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; roofs?: Roofs; light?: WorksLight; name?: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
+  type Works = { chunk: string; wall: string; wallShort: string; wallMat?: string; storey: number; slab: number; door: number; roof: string[]; lamp: string; lampEvery: number; inside?: Inside; upper?: Upper; roofs?: Roofs; light?: WorksLight; name?: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; halls: Array<{ id: string; box: number[]; storeys: number; doors: Record<string, number[]>; frame?: Frame }> };
   const DW = (R.districts as { works?: Works } | undefined)?.works;
   if (DW) {
     const solids: number[][] = [];
@@ -5078,8 +5088,8 @@ function onNode(o: OBox): boolean {
               // (and its twin turned about on the same footprint: the panels are faced on one side only, and from
               // inside a hall its roof hung over open air)
               const [px, pz, yw] = [alongX ? a + l / 2 : line, alongX ? line : a + l / 2, alongX ? 90 : 0];
-              const o = placeTurned(DW.chunk, name, px, pz, yw, "g", y);
-              placeTurned(DW.chunk, name, px, pz, yw + 180, "g", y);
+              const o = placeTurned(DW.chunk, name, px, pz, yw, "g", y, DW.wallMat);
+              placeTurned(DW.chunk, name, px, pz, yw + 180, "g", y, DW.wallMat);
               if (st === 0) STREET_GRAPH?.add(o);
               panels++;
               a += l;
@@ -5202,7 +5212,7 @@ function onNode(o: OBox): boolean {
     // from the atrium's floor (rules.pads.spine's works-*)
     const UP = DW.upper;
     const UH = UP && DW.halls.find((h) => h.id === UP.hall);
-    const upper = { rails: [] as number[][], cover: 0, walk: [] as number[][] };
+    const upper = { rails: [] as number[][], cover: 0, walk: [] as number[][], ground: { laid: 0, of: 0, left: [] as string[] }, pipes: 0 };
     if (UP && UH && IN) {
       const [x0, x1, z0, z1] = UH.box;
       const [a0, a1, b0, b1] = UP.atrium;
@@ -5240,6 +5250,38 @@ function onNode(o: OBox): boolean {
         } else set.push([name, 0, 0, 0]);
         for (const [n, dx, dz, up] of set) placeTurned(DW.chunk, n, x + dx, z + dz, yaw, "o", y + up - piece(n).row.min![1]);
         upper.cover++;
+      }
+      // (and its ground floor, Milestone 664: the districts' review found it empty, "grey boxes, not rust and machinery".
+      // Each set laid as the arm halls' cover is, unless on a street node or cutting the streets in two; the pipe runs on
+      // its walls drawn only, by their bottoms)
+      for (const [name, x, z, yaw] of UP.ground ?? []) {
+        const set: Array<[string, number, number, number, number]> = [];
+        if (name === "crates") {
+          const c = piece(IN.crate).row;
+          const [ox, oz] = rotY(yaw, c.size![0] / 2 + 0.01, 0);
+          set.push([IN.crate, ox, oz, yaw, 0], [IN.crate, -ox, -oz, yaw, 0], [IN.crate, -ox, -oz, yaw, c.size![1]]);
+        } else set.push([name, 0, 0, yaw, 0]);
+        let [hu, hv, top] = [0, 0, 0];
+        for (const [n, dx, dz, , up] of set) {
+          const r = piece(n).row;
+          const [lu, lv] = rotY(-yaw, dx, dz);
+          hu = Math.max(hu, Math.abs(lu) + r.size![0] / 2);
+          hv = Math.max(hv, Math.abs(lv) + r.size![2] / 2);
+          top = Math.max(top, up + r.size![1]);
+        }
+        const ob: OBox = { c: [x, z], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu, hv, top };
+        upper.ground.of++;
+        if (onNode(ob) || STREET_GRAPH?.splits(ob)) {
+          upper.ground.left.push(`${name} at ${x}, ${z} (${onNode(ob) ? "on a street node" : "cutting the streets"})`);
+          continue;
+        }
+        STREET_GRAPH?.add(ob);
+        for (const [n, dx, dz, yw, up] of set) placeTurned(DW.chunk, n, x + dx, z + dz, yw, "o", up - piece(n).row.min![1]);
+        upper.ground.laid++;
+      }
+      for (const [name, x, z, yaw, y0] of UP.pipes ?? []) {
+        placeTurned(DW.chunk, name, x, z, yaw, "g", y0 - piece(name).row.min![1]);
+        upper.pipes++;
       }
       upper.walk = [[a0 - 2, b0 - 2], [a1 + 2, b0 - 2], [a1 + 2, b1 + 2], [a0 - 2, b1 + 2], [a0 - 2, b0 - 2]].map(([x, z]) => [x, z, y]);
     }
@@ -5356,7 +5398,7 @@ function onNode(o: OBox): boolean {
     }
     if (DW.name) cfg.districtNames = [...((cfg.districtNames ?? []) as Array<{ district: string }>).filter((q) => q.district !== "works"), { district: "works", ...DW.name }];
     cfg.works = { halls, panels, tiles, lamps, solids, ...(IN ? { inside } : {}), ...(UP ? { upper } : {}), ...(RW ? { roofs } : {}), ...(LG ? { light } : {}) };
-    console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}`);
+    console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}${UP ? `; the works block's ground floor ${upper.ground.laid} of ${upper.ground.of} sets${upper.ground.left.length ? ` (left out: ${upper.ground.left.join("; ")})` : ""}, ${upper.pipes} pipe runs` : ""}`);
   }
 }
 // Head-high cover in the districts' open ground (rules.dress.districtCover, Milestone 660). The districts' first review

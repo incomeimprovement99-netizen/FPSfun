@@ -2446,6 +2446,54 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   }
 }
 
+// THE WORKS made rust and machinery (Milestone 664; the districts' review: "grey boxes, not rust and machinery; an empty
+// hall"): every set of the works block's ground floor laid and standing in the bake's collision (something over a metre
+// tall at each), its pipe runs drawn, its halls' walls in rust, and no beam over a pad under a roof (the atrium's two, the
+// review's "light cones" indoors) while every other pad has its own
+{
+  const Wr = (cfg.rules.districts as unknown as { works: { wallMat?: string; upper: { ground?: Array<[string, number, number, number]>; pipes?: unknown[] } } }).works;
+  const Uc = (cfg as unknown as { works: { upper: { ground?: { laid: number; of: number; left: string[] }; pipes?: number } } }).works.upper;
+  const PB = (cfg.baked as unknown as { padBeams?: { pads: number; drawn: number; roofed: string[] } }).padBeams;
+  const want = Wr.upper.ground ?? [];
+  // (standing: something over a metre tall within 1.2 m of the set's middle, not a wall: a gas riser's pipes stand at
+  // its sides, a tank on its legs)
+  const bare = want.filter(([, x, z]) => !solidsIn(x + BR_X - 1.2, x + BR_X + 1.2, z + BR_Z - 1.2, z + BR_Z + 1.2).some((b) => b.minX < x + BR_X + 1.2 && b.maxX > x + BR_X - 1.2 && b.minZ < z + BR_Z + 1.2 && b.maxZ > z + BR_Z - 1.2 && Math.min(b.maxX - b.minX, b.maxZ - b.minZ) > 0.35 && b.base < 3 && b.top > 1 && b.top < 6.4));
+  const roofedWant = (cfg.rules.pads as unknown as { spine: { up: Array<{ id: string; below?: number }> } }).spine.up.filter((q) => q.below !== undefined).map((q) => q.id).sort();
+  check(
+    "THE WORKS: the works block's ground floor furnished, every set laid and standing, pipes on its walls, its halls in rust, and no beam over a pad under its roof",
+    want.length >= 8 && Uc.ground?.laid === want.length && bare.length === 0 && Uc.pipes === (Wr.upper.pipes ?? []).length && (Uc.pipes ?? 0) > 0 && !!Wr.wallMat && !!PB &&
+      JSON.stringify([...PB.roofed].sort()) === JSON.stringify(roofedWant) && roofedWant.length === 2 && PB.drawn === PB.pads - PB.roofed.length,
+    `${Uc.ground?.laid ?? 0} of ${want.length} sets${bare.length ? `, nothing standing at ${bare.map(([n, x, z]) => `${n} ${x}, ${z}`).join("; ")}` : ""}, ${Uc.pipes ?? 0} pipe runs, walls ${Wr.wallMat ?? "their own"}, beams ${PB ? `${PB.drawn} of ${PB.pads} pads, none over ${PB.roofed.join(" and ")}` : "not recorded"}`
+  );
+}
+
+// THE TERRACES' rooms furnished and lit (Milestone 665; the districts' review: "an untextured room"): in each of its
+// rooms, off the bake's collision, three pieces of furniture and more standing on its floor (the crate alone before), a
+// ceiling lamp the game lights as fill under its slab, and its inside walls in plaster
+{
+  const RMr = (cfg.rules.districts as unknown as { terraces: { rooms: { innerMat?: string; lamp?: string; furnish?: unknown[] } } }).terraces.rooms;
+  const rooms = ((cfg as unknown as { terraces: { rooms: number[][] } }).terraces.rooms ?? []);
+  const place = (cfg.chunks as unknown as Record<string, { place: Array<[string, number, number, number]> }>)[(cfg.rules.districts as unknown as { terraces: { chunk: string } }).terraces.chunk]?.place ?? [];
+  const each = rooms.map(([x0, z0, floor]) => {
+    const [ax, az] = [x0 + BR_X, z0 + BR_Z];
+    const n = solidsIn(ax + 0.3, ax + 4.7, az + 0.3, az + 4.7).filter((b) => b.minX >= ax + 0.2 && b.maxX <= ax + 4.8 && b.minZ >= az + 0.2 && b.maxZ <= az + 4.8 && b.base >= floor - 0.1 && b.base < floor + 0.3 && b.top > floor + 0.5 && b.top < floor + 2.2).length;
+    const lit = !!RMr.lamp && place.some((q) => q[0].endsWith(RMr.lamp!.split("/").pop()!) && Math.abs(q[1] - (x0 + 2.5)) < 0.01 && Math.abs(q[3] - (z0 + 2.5)) < 0.01);
+    return { n, lit };
+  });
+  check("THE TERRACES: each room furnished (three pieces and more standing in it), lit by a lamp the game lights, its walls in plaster", rooms.length === 6 && each.every((q) => q.n >= 3 && q.lit) && !!RMr.innerMat && (RMr.furnish?.length ?? 0) >= 3, each.map((q, i) => `room ${i + 1}: ${q.n} pieces${q.lit ? ", lit" : ", dark"}`).join("; "));
+}
+// THE STRIP's screens and glow (Milestone 666; the districts' review: "solid blue screens", "flat red planes"): each ad
+// stand's blue glow quad worn as its ad, and the pyramid's and the club canopy's flat red as the pack's lit-window glass, as
+// the layout laid them
+{
+  const SR = (cfg.rules.districts as unknown as { strip: { chunk: string; ads: { piece: string }; pyramid: { piece: string }; club: { canopy: string } } }).strip;
+  const place = (cfg.chunks as unknown as Record<string, { place: Array<[string, number, number, number, number, string, string?]> }>)[SR.chunk]?.place ?? [];
+  const of = (name: string) => place.filter((q) => q[0].endsWith(`/${name}`));
+  const ads = of(SR.ads.piece);
+  const glow = [...of(SR.pyramid.piece), ...of(SR.club.canopy)];
+  check("THE STRIP: both ad screens show their ads (the blue glow quad over each worn as it), the pyramid and the club canopy in the pack's lit-window glass", ads.length === 2 && ads.every((q) => (q[6] ?? "").includes("Light02=Ads")) && glow.length === 2 && glow.every((q) => q[6] === "Light00=BuildingWindows04"), `ads ${ads.map((q) => q[6] ?? "as drawn").join(", ")}; glow ${glow.map((q) => q[6] ?? "as drawn").join(", ")}`);
+}
+
 // THE GULAG (rules.arenas gulag, Milestone 662; the owner, 2026-10-18: "one street like the firing range with one building
 // in the middle ... a ledge that has two levels to it and can see the rest of the gulag when they are on top, just a
 // double jump height worth"), off the bake's collision: past the battle royale's edge and every sector, its own node; the

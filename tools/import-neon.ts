@@ -1226,11 +1226,23 @@ if (mode === "bake") {
   // (a pad's beam `beamScale` of the pack's 92 m: at full height a dozen of them crowded the sky and the four block
   // beams, which say where you are, were lost among them; a third marks the pad from across the plaza)
   const shortBeam = (m: M4): M4 => mul([1, 0, 0, 0, 0, cfg.rules.pads.beamScale ?? 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], m);
+  // (the beams drawn and the pads, for the checks: a pad under a roof gets none, below)
+  const padBeams = { pads: 0, drawn: 0, roofed: [] as string[] };
+  padBeams.pads += cfg.pads.length;
+  padBeams.drawn += cfg.pads.length;
   for (const q of cfg.pads) for (const key of [cfg.rules.pads.plate, cfg.rules.pads.beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === cfg.rules.pads.beam ? shortBeam(m) : m) })));
   // the centre's spine (rules.pads.spine), measured the same way: the plate under each and a beam over it, white up, red down
   cfg.spine = spinePads(all, cfg.rules);
+  // (no beam over a pad under a roof, `below`: THE WORKS' atrium's two stood in the block hall as white shafts from its
+  // floor to its roof, the districts' review's "light cones" indoors, Milestone 664; the plate says where it is)
+  const roofed = new Set((cfg.rules.pads.spine.up as Array<{ id: string; below?: number }>).filter((q) => q.below !== undefined).map((q) => q.id));
   for (const [list, beam] of [[cfg.spine.up, cfg.rules.pads.spine.beam], [cfg.spine.down, cfg.rules.pads.spine.downBeam], [cfg.spine.across, cfg.rules.pads.spine.beam]] as const)
-    for (const q of list as Array<{ pad: number[]; floor: number }>) for (const key of [cfg.rules.pads.plate, beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === beam ? shortBeam(m) : m) })));
+    for (const q of list as Array<{ id: string; pad: number[]; floor: number }>) {
+      padBeams.pads++;
+      if (roofed.has(q.id)) padBeams.roofed.push(q.id);
+      else padBeams.drawn++;
+      for (const key of [cfg.rules.pads.plate, beam]) if (key !== beam || !roofed.has(q.id)) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === beam ? shortBeam(m) : m) })));
+    }
   (groups.get(groupOf("c-pads")) ?? groups.set(groupOf("c-pads"), []).get(groupOf("c-pads"))!).push(...padDraws);
   for (const [id, all] of groups) {
     const b = bake(pack, res, `neon/${id}`, "", mats, all);
@@ -1264,7 +1276,7 @@ if (mode === "bake") {
   }
   await pool.stop();
   // (the draw counts of the sizes not baked this run kept, as their megabytes are: a bake of one size alone kept only its own)
-  cfg.baked = { draw: { ...(cfg.baked?.draw ?? {}), ...draw }, triangles: tris, boxes: all.length, chunks: Object.fromEntries(baked.map((b) => [b.id.replace("neon/", ""), { tris: b.tris, min: b.min.map((v) => +v.toFixed(2)), max: b.max.map((v) => +v.toFixed(2)) }])), mb: { ...(cfg.baked?.mb ?? {}), ...sizes } };
+  cfg.baked = { draw: { ...(cfg.baked?.draw ?? {}), ...draw }, triangles: tris, boxes: all.length, padBeams, chunks: Object.fromEntries(baked.map((b) => [b.id.replace("neon/", ""), { tris: b.tris, min: b.min.map((v) => +v.toFixed(2)), max: b.max.map((v) => +v.toFixed(2)) }])), mb: { ...(cfg.baked?.mb ?? {}), ...sizes } };
   // only what the bake measured goes back, into the file as it is now: a bake takes minutes, and writing back the copy
   // read at its start threw away the game's sites, added to the file while one ran
   const now = JSON.parse(readFileSync(cfgFile, "utf8"));

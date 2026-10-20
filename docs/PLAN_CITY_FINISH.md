@@ -4,6 +4,10 @@ The owner, 2026-10-17: "plan this part out deeply then finish out the city overa
 should only be done when we finish all outside districts and they are all populated nicely along with the center being
 a large ass and detailed place to fight".
 
+**What is left is planned in "The last stretch (2026-10-20)" below**, from the fresh reviews of that day; it takes over
+every item of the phases that follow that is not built. The rest of this page is the plan as it was written on
+2026-10-17.
+
 This plan comes from two fresh reviews taken today on the live map (version 93) and from measurements on it. Each
 review was by an agent that saw only the pictures. Every item below names the picture or number it answers. The
 reviews' full text is in docs/CENTRE_REVIEW.md (the centre, round 7, and the districts, round 1).
@@ -110,17 +114,22 @@ e2e, docs and deploy.
 - **663: the legacy left over taken out** (the owner, 2026-10-18: the old range's textures and the old ILranch city
   gone, if nothing uses them): the Vault and what only it used, the ILranch import code, and any texture or file
   nothing loads.
-- **664: THE WORKS made rust and machinery** (3/10).
+- **664: THE WORKS made rust and machinery** (3/10). *Built: the block hall's ground floor, its walls' pipes, the
+  halls in rust, no beams indoors. Left: the stairs to the ring (its pads are the way up), the outside tanks and
+  gantry.*
   - The block hall's empty ground floor filled: machines, crate stacks, pipe runs, and stairs up to its ring in view.
   - The halls' grey walls in the pack's rust.
   - Outside, more tanks, pipes and a crane-like gantry (the pack's beam frames).
   - The light cones taken out indoors.
-- **665: THE TERRACES made terraced** (3/10).
+- **665: THE TERRACES made terraced** (3/10). *Photographed again on version 95, the tiers, the grand stair and the
+  planted beds were already there; built: the rooms furnished, lit and plastered. The two pillars at the stair's head
+  hold its name, and stay.*
   - Retaining walls 3 to 4 m between the tiers, a wide stair seen straight from the ring road, and planted beds as
     cover.
   - The walk-through blocks' rooms given doors, windows and furniture.
   - The top tier's two blank pillars traced and taken out.
-- **666: THE STRIP lit and finished** (4.5/10).
+- **666: THE STRIP lit and finished** (4.5/10). *Built: the screens show their ads, the pyramid and the club canopy
+  as lit-window glass. Left: the club as a dark room, the night (671).*
   - The flat red planes given the pack's patterned LED panels.
   - The ad screens' solid blue traced (a material the import does not read) and fixed.
   - The loose black slab and cube traced and taken out.
@@ -187,6 +196,111 @@ e2e, docs and deploy.
 - **685: the final reviews**: the centre's round 8 and the districts' round 2. Done if both meet the bar above;
   otherwise their lists become the next milestones.
 
+## The last stretch (2026-10-20)
+
+The owner, 2026-10-20: "plan it all out now that we are getting near the end of the map build and then implement it
+all". Two fresh reviews were taken that morning on map version 96 (Milestones 660 to 666 in it), by agents that saw only
+the pictures; their text is in docs/CENTRE_REVIEW.md.
+
+- **The centre: 5.5** (round 8; 6 in round 7, by another reviewer). Visual 5, readability 5, flow 6, play styles 5,
+  finish 4, fun 6.
+- **The districts: 5.0** (round 2; 4.5 in round 1). THE STACKS, THE STRIP and THE CANYON 6; LANTERN ALLEYS and GLASS
+  HEIGHTS 5.5; THE TERMINAL 5; THE TERRACES and THE WORKS 4.5. Finish 4.
+
+The bar is unchanged: 7 or better for each, and every district 6 or better.
+
+### What both reviews hold against it
+
+1. **Finish** (4 in both): pieces floating or black in a picture, ceiling lamps hanging into head height, a kiosk that
+   reads as a train carriage, dark ground.
+2. **One face everywhere:** the same cream-framed window front on the centre, THE TERRACES, GLASS HEIGHTS, THE CANYON
+   and THE STRIP, the same crate, planter, car and rail in every district. This is the fault reviewers held against
+   Hyper Scape itself.
+3. **Bare tops and plazas:** roofs, decks, forecourts and courts with nothing to fight round.
+4. **The map ends in beige:** no city past the fence, "a tabletop floating in haze".
+5. **Night:** black but THE STRIP and the fence.
+6. **Pads read as white wedges of light,** not as pads.
+7. **Thin payoffs:** THE VAULT is a painted maze; MARKET and THE WELL have no silhouette; the club is open to the sky.
+
+### The order, and why
+
+Finish first: it is the lowest score in both reviews and the cheapest to raise. Then the districts' own faces and fronts,
+which most of the district scores turn on. Then the centre's payoffs, then the street level. The game-side items (a city
+past the fence, the pads' rings, the night) need no bake, so they are built while each batch bakes: a full bake takes 70
+minutes to two hours on the shared PC.
+
+Each batch is one map version and one full bake; each milestone in it keeps its own checks (a new check proven by
+putting the fault back, the touched e2e section, photographs by day and by night) and docs.
+
+**Batch 1, map version 97: finish and readability**
+
+- **667: the finish sweep**, each fault looked at in its picture first, then traced to its piece:
+  - THE STRIP: the black slab standing alone in the boulevard (d16, d98) and the untextured black cube by the club (d17);
+  - the dark specks floating in the sky (d00, centre 03 and 10);
+  - the pink see-through sheet at the boundary corner (d12), the white chevrons (d14), the blank white billboard (d08),
+    the black square on a capsule roof (d03), the GLASS HEIGHTS board standing out past its tower (d13);
+  - LANTERN ALLEYS' lantern lines given a mast where they meet (d02);
+  - the base hall's white kiosk that reads as a train carriage (centre 07), replaced with counters and kiosks;
+  - the tower floors' ceiling lamps set flush (centre 11, 13, 28);
+  - the sunken court's crates and machinery lit (centre 20);
+  - THE TERMINAL's vault roofs, solid black from above (d09);
+  - the hard ground seams and dirt patches (d01, d24);
+  - the sun drawn as an ellipse (centre 14).
+- **668: the pads read as pads**: a ring of light on the ground round each pad in its district's colour (game side) and
+  its beam cut to a short stub; the edge's red lines made thinner.
+
+**Batch 2, map version 98: the districts' own faces**
+
+- **669: GLASS HEIGHTS in white glass**: its towers' window grid worn as the pack's light glass, its crown cyan; its
+  27 m deck dressed (glass windbreaks, planters, benches); its glass lift's cabin framed so it reads (d13, d14, d15).
+- **670: THE CANYON a market**: stalls under awnings and hanging signs down its floor (d19, d20); its cliffs broken by
+  balconies, AC units, awnings and shop signs; its 48 m roofs broken by sheds, tanks and sign frames (d21, aerial).
+- **671: the fronts and courts**:
+  - LANTERN ALLEYS' silver capsule pods out of its rows, stalls in its court (d01, d02);
+  - THE STACKS' car park in parked cars and booths, food stalls in the hotel court, its roof dressed (d10, d11, d12);
+  - THE TERMINAL's forecourt kiosks and a taxi rank, wagons at its platforms (d07, d08);
+  - THE WORKS' ring in containers and pipe racks, its yards' cover 1.5 m and taller, teal floodlights on its halls
+    (d22, d23, d24);
+  - THE TERRACES' grand stair on one lit line seen from the centre (d04).
+- **672: THE STRIP's club**: a lit dance-floor grid, a DJ booth and speakers, a rig of lights over it, masts for its
+  ribbons, the concrete ring out (d18).
+
+**Batch 3, map version 99: the centre's payoffs**
+
+- **673: the roofs**: cover on the base roof, the lookout, each High City roof and each bridge (centre 09, 10, 14, 15);
+  a different crown on each High City roof (a helipad, a dish array, a roof garden, a pool); the walkable tops in deck
+  materials with trims and edge stripes (14, 15, 19, 25).
+- **674: THE VAULT a strongroom**: gold metal panels, a double-height strongroom with vault doors, display cases and lit
+  high-tier crates (28). The old 676's first fix (the reach model on the 35 m floor) goes first.
+- **675: the tower floors**: a drop hole or an atrium every second floor, ceilings with beams and ducts, the wall modules
+  varied floor to floor (11, 12, 13).
+- **676: the corner blocks and the plaza**: MARKET a canopy hall of crate stacks seen from the plaza, THE WELL a neon
+  ring at its rim and a lit bottom, MOTEL HILL a pole sign (18, 19); a centrepiece in the plaza before the base (06);
+  stalls in NOODLE square and MARKET street (16, 18).
+
+**Batch 4, map version 100: the street level**
+
+- **677: enterable two-storey shopfronts** along the Loop and in each corner block (the old 673).
+- **678: doors that read as doors**: a lit frame and an awning on every building you can enter, ledges and balconies to
+  mantle (22); the base hall's stair core in view (07).
+- **679: the 16 to 20 m tier** between the 12 m corner roofs and the 27 m High City roofs (the old 675), and a rail
+  colour per zone (the old 679).
+
+**Game side, built during the bakes**
+
+- **680: a city past the fence**: a ring of low towers and ground carried on beyond the wall, fogged, their windows lit
+  by night (both reviews' first ask for the frame of the map).
+- **681: the night pass**: each district glowing its colour from the air (THE STACKS pink, THE WORKS teal, LANTERN
+  ALLEYS red, GLASS HEIGHTS cyan, THE TERMINAL amber), pools of lamp light on the ground, THE STRIP the brightest.
+- **682: the loot spots' own light** (PHASE_29 item 11, the map's half after the lobby's beams) **and the decay
+  re-timed** for the districts' sizes.
+
+**Last**
+
+- **683: the frame measured with the PC unused** (the detail-mapped and cut-out batches if it misses the bar).
+- **684: the final reviews**, the centre's round 9 and the districts' round 3. Done if both meet the bar; otherwise
+  their lists become the next milestones.
+
 ## The owner's calls, decided 2026-10-18
 
 - **The golden-hour haze:** thinned (Milestone 658).
@@ -202,8 +316,8 @@ e2e, docs and deploy.
 - **The texture arrays on weak graphics cards.** Each array is kept under 128 MB, the smallest single allocation
   Direct3D 11 promises, and WebGL 2 promises 256 layers. If assembling an array still fails, the city is reported as
   failed through the lobby's reload message (Milestone 629), never drawn white.
-- **Bake time.** A full bake is about 30 minutes, and the arrays add the square layers. Each milestone takes one test
-  bake and one full bake.
+- **Bake time.** A full bake is 70 minutes to two hours on the shared PC (the arrays' square layers and the other
+  agents' load). Each batch takes test bakes at lo and one full bake; the game-side items fill the waits.
 - **Reach-model mismatches** like the one on the 35 m floor. Every placement is walked by the real player check, as
   now.
 - **Machine load.** e2e runs that flake under load are rerun alone, as now.
