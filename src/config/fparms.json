@@ -1602,68 +1602,158 @@
         },
         "r": {
           "shift": [
-            0.0002,
-            -0.0016,
-            -0.0002
+            -0.0127,
+            -0.0403,
+            -0.0165
           ],
           "rot": [
-            0.3927,
-            -0.1894,
-            -0.192
+            0.0602,
+            0.0431,
+            -0.1745
           ],
           "joint": {
             "thumb_01": [
-              0.0915,
-              -0.4707,
-              0.3317
+              0.0174,
+              -0.7482,
+              0.227
             ],
             "middle_01": [
-              -0.0601,
-              0.0241,
-              -0.2024
+              -0.1014,
+              -0.0949,
+              -0.3415
             ],
             "ring_01": [
-              -0.2034,
-              -0.2121,
-              0.0111
+              -0.1846,
+              -0.1002,
+              -0.1709
             ],
             "thumb_02": [
-              -0.3006,
-              -0.1566,
-              0.3796
+              -0.2762,
+              0.0395,
+              0.1676
             ],
             "middle_02": [
-              0.2751,
-              0.1499,
-              0.3061
+              0.2803,
+              0.1275,
+              0.1496
             ],
             "ring_02": [
-              -0.352,
-              -0.2766,
-              0.0861
+              -0.3519,
+              -0.2655,
+              -0.1061
             ],
             "pinky_01": [
-              -0.0196,
-              -0.0029,
-              0.0563
+              -0.0013,
+              0.1087,
+              -0.2017
             ],
             "pinky_02": [
-              0.0205,
-              -0.1624,
-              -0.0317
+              0.0262,
+              -0.1289,
+              -0.2993
             ],
             "index_01": [
-              -0.2458,
-              0.313,
-              0.3177
+              -0.2335,
+              0.2689,
+              0.2032
             ],
             "index_02": [
-              -0.6197,
-              0.3228,
-              0.1864
+              -0.6124,
+              0.2703,
+              0.0766
+            ],
+            "thumb_03": [
+              0.0214,
+              0.0086,
+              -0.2898
+            ],
+            "index_03": [
+              0.0077,
+              -0.0548,
+              -0.1063
+            ],
+            "middle_03": [
+              -0.0077,
+              -0.0237,
+              -0.1556
+            ],
+            "ring_03": [
+              0.0087,
+              0.0112,
+              -0.192
+            ],
+            "pinky_03": [
+              0.0228,
+              0.0291,
+              -0.2684
             ]
           },
-          "open": {}
+          "open": {},
+          "ads": {
+            "shift": [
+              0.0002,
+              -0.0016,
+              -0.0002
+            ],
+            "rot": [
+              0.3927,
+              -0.1894,
+              -0.192
+            ],
+            "joint": {
+              "thumb_01": [
+                0.0915,
+                -0.4707,
+                0.3317
+              ],
+              "middle_01": [
+                -0.0601,
+                0.0241,
+                -0.2024
+              ],
+              "ring_01": [
+                -0.2034,
+                -0.2121,
+                0.0111
+              ],
+              "thumb_02": [
+                -0.3006,
+                -0.1566,
+                0.3796
+              ],
+              "middle_02": [
+                0.2751,
+                0.1499,
+                0.3061
+              ],
+              "ring_02": [
+                -0.352,
+                -0.2766,
+                0.0861
+              ],
+              "pinky_01": [
+                -0.0196,
+                -0.0029,
+                0.0563
+              ],
+              "pinky_02": [
+                0.0205,
+                -0.1624,
+                -0.0317
+              ],
+              "index_01": [
+                -0.2458,
+                0.313,
+                0.3177
+              ],
+              "index_02": [
+                -0.6197,
+                0.3228,
+                0.1864
+              ]
+            },
+            "open": {}
+          }
         }
       },
       "shoulders": {
@@ -1720,7 +1810,7 @@
           ]
         }
       },
-      "_holdR": "The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip 90 mm behind it): searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, the middle, ring and little fingers laid by tools/pack-solve.ts (the forefinger kept as searched: laid again, it curled 60 mm off the trigger), and the aimed right shoulder fitted for the wrist (31 degrees; at the shoulder before, 63)."
+      "_holdR": "The right hand round the grip (2026-10-20, Milestone 556): the fingers had curled in the air beside the grip, its grooved front empty. Refitted by the grip search: the grip read off the model in level cuts 2.5 mm apart (its front strap, its width, the trigger guard's foot, the finger grooves where the front strap dips), targets set from it as a hand holds a pistol grip (each of the middle, ring and little fingers' knuckle on the grip's near side behind the front strap, its middle joint at the front strap, its tip round on the far side, a finger's width apart down from the guard's foot), and the hand's move and turn and each finger's curl about its own closing hinge (the fists' hinge, fprig.ts makeFists) searched to them with nothing of the hand seen in the gun, held to the e2e's own measures (the forefinger's tip on the trigger, the three fingers side by side), then moved the least that keeps the hand out of the gun where it is seen through the inspect, the first draw, the reload's point, new magazine and rack, and the swap (in the hold alone its fingers went 12.5 mm into the gun where it is seen as an inspect rolled it over). The forefinger's tip 3.1 mm from the trigger. Aimed it keeps the hold it had (`ads`): the new hold sits 3 cm lower and aimed the arm fell 3 cm short of it. Before that: The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip 90 mm behind it): searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, the middle, ring and little fingers laid by tools/pack-solve.ts (the forefinger kept as searched: laid again, it curled 60 mm off the trigger), and the aimed right shoulder fitted for the wrist (31 degrees; at the shoulder before, 63)."
     },
     "Drake-12": {
       "model": "Drake-12",

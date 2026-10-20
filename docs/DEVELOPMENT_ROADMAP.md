@@ -15320,6 +15320,37 @@ fight, against Apex, Hyper Scape and EMPULSE, where you find a shooter by his fl
   a round fired at you from 40 m, at 29 m, has a head 8 pixels across, where its streak is 1.5 and the head before
   this was nothing (the check reads 0 without it). In pictures beside a figure at 9 m: its flash before and after.
 
+## Milestone 556 — BIGANTLER's right hand round its grip
+
+The owner, 2026-10-19: "the right hand is not having the fingers on the dedicated grips for each finger on some guns
+where that applies. Ensure to look at both the left and right hand from a regular perspective and see if they are
+gripping it as they should be. A clear mistake is on the anakin, a finger is straight for some reason instead of each
+finger curled around its designated finger grip".
+
+- **What it was:** each gun's right hand is the pack's hand, posed for the pack's own gun and moved onto ours. Our grips
+  are thinner (2.5 to 4.5 cm across) and sit at other heights, and the hands had been fitted to what the checks
+  measured: nothing of the hand seen in the gun, the forefinger on the trigger. Nothing measured whether the fingers went
+  round the grip. Photographed from outside, all ten guns, both hands: on ANAKIN the middle finger stood up in the
+  trigger guard beside the forefinger and only the little finger went round the grip; on PANDA and BIGANTLER the hand
+  held the receiver above the grip, its grooved front empty, no finger round it. The pistols' and the long guns' left
+  hands hold their guns; the USSO's fingers are inside its full hand guard.
+- **BIGANTLER, fixed** (fparms.json packGuns KXG12 hold r): the grip read off the model in level cuts 2.5 mm apart (its
+  front strap, its width, the trigger guard's foot, the finger grooves), targets set from it as a hand holds a pistol
+  grip (each finger's knuckle on the grip's near side, its middle joint at the front strap, its tip round on the far
+  side, a finger's width apart down from the guard's foot), the hand's move and turn and each finger's curl about its
+  own closing hinge searched to them, held to the e2e's own measures, then moved the least that keeps it out of the gun
+  through every move (in the hold alone its fingers went 12.5 mm into the gun where it is seen as an inspect rolled it).
+  Aimed it keeps the hold it had (`ads`): the new one sits 3 cm lower and aimed the arm fell 3 cm short of it.
+- **ANAKIN and PANDA, not yet:** each has a refit that wraps the fingers round the grip (pictures before and after), and
+  each fails one check. ANAKIN's middle fingertip lies 12 mm inside its narrow grip, out of sight at rest, and the
+  inspect's roll brings it into sight for a tenth of a second (7.4 mm, the limit 4); PANDA's hand, kept out of its grip
+  and with no daylight along it, leaves the forefinger 5.1 mm off the trigger (the limit 4). Searched from five starts
+  and with each finger free, neither met every check at once, so both keep their old holds. The search tools are in the
+  scratchpad for the next try: the fingertips' targets on the grip's far face rather than in it, and the forefinger's
+  own joints free.
+- **Checked:** verify, rules, the type check, and the e2e's bought-arms frames on BIGANTLER (every frame of the reload,
+  swap, aim, inspect, flourish, pickup and punch, the forefinger on the trigger, no daylight).
+
 ## Milestone 557 — The open hand stays close at an inspect's ends
 
 The owner, 2026-10-20, after watching the ad's clips of each gun back to back: "some of our wrists look unnatural / arms
