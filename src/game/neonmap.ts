@@ -19,6 +19,9 @@ import { botWalk } from "./botbody";
 import { Doors } from "./doors";
 import { BR_X, BR_Z, BR_HALF, type BrMap, type GraphNode, type Poi } from "./br";
 import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay, useSectors } from "./world";
+import { buildSkyline } from "./skyline";
+import { buildPadRings } from "./padrings";
+import { buildLightPools } from "./lightpools";
 import { applyBatches } from "./neonbatch";
 import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
@@ -121,7 +124,7 @@ export function updateNeonFill(eye: THREE.Vector3): void {
  * arenas' own nodes are hidden with the city shown. Kept, and put on the file when it comes in.
  */
 const PART: { shown: string | null; root: THREE.Object3D | null } = { shown: null, root: null };
-const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names"]);
+const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names", "skyline", "skylineGround", "padRings", "lightPools"]);
 export function showNeonPart(chunk: string | null): void {
   if (PART.shown === chunk) return;
   PART.shown = chunk;
@@ -252,6 +255,16 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   rebuildSolidGrid();
 
   buildEdgeFence(root);
+  // a city past the fence (skyline.ts, Milestone 680) and a ring of light round each pad (padrings.ts, Milestone 668):
+  // both the city's, hidden with it while a Neon arena is drawn alone (CITY_EXTRAS)
+  buildSkyline(root);
+  {
+    const SP = (neonCfg as unknown as { spine?: { up: Array<{ pad: number[]; floor: number }>; down: Array<{ pad: number[]; floor: number }>; across?: Array<{ pad: number[]; floor: number }> } }).spine;
+    const spots = [...neonCfg.pads, ...(SP?.up ?? []), ...(SP?.down ?? []), ...(SP?.across ?? [])].map((q) => ({ x: q.pad[0] + BR_X, z: q.pad[1] + BR_Z, y: q.floor }));
+    buildPadRings(root, spots);
+  }
+  // (and a pool of light under each street lamp by night, lightpools.ts, Milestone 681)
+  buildLightPools(root);
   const ringWall = buildRingWall(root);
   // (hidden from the start: SpeedKills' battle royale is the decay's, which hides it as it begins, and before any match it
   // stood at its unit size in the tower's middle, a 120 m line in a Neon arena's sky with the city hidden)
@@ -493,7 +506,9 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   if (typeof document !== "undefined") {
     const group = new THREE.Group();
     group.name = "neon:names";
-    for (const q of (neonCfg as unknown as { names?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string }> }).names ?? []) {
+    // (and the signs over the metro kiosks' doors, cfg.labels, drawn the same way)
+    const named = neonCfg as unknown as { names?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string }>; labels?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string }> };
+    for (const q of [...(named.names ?? []), ...(named.labels ?? [])]) {
       const mesh = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.h), new THREE.MeshBasicMaterial({ map: neonLetters(q.text, q.colour, q.w, q.h), transparent: true, depthWrite: false, toneMapped: false }));
       mesh.position.set(q.at[0], q.at[1], q.at[2]);
       mesh.rotation.y = (q.yaw * Math.PI) / 180;

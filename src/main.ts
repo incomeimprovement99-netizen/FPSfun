@@ -127,6 +127,8 @@ import type { ArenaMapInfo } from "./game/arenas";
 import { programRepList, repsRoot } from "./game/programreps";
 import { compileSafely } from "./game/compilesafe";
 import { atmosphereOn, ownAir, tickAir } from "./game/atmosphere";
+import { skylineHour } from "./game/skyline";
+import { lightPoolsHour } from "./game/lightpools";
 import { ArenaMode } from "./game/modematch";
 import { MODES, MODE_TITLE, isModeKind, type ModeKind } from "./game/modes";
 import squadCfg from "./config/squad.json";
@@ -5514,6 +5516,9 @@ scene.add(rangeSide, brSide);
   // SpeedKills (Phase 20 A5): the range's later arrivals too (its props, the README TV, the spray wall, the drill's
   // pad), which were drawn from the city: 126 draw calls and 582k triangles whenever they were in view
   onRangeSide.push(rangeProps, readmeTv.root, sprayWall.group, drill.pad);
+  // (and the tutorial's doors, made after the range's own pieces were gathered: drawn from the city, 300 to 490 m off
+  // through the haze, they were the reviews' "dark specks in the sky", Milestone 667)
+  onRangeSide.push(...tutorial.doorMeshes);
   for (const o of onRangeSide) if (!lit.has(o)) rangeSide.attach(o);
 }
 brSide.attach(brMap.root);
@@ -6486,6 +6491,10 @@ function frame(): void {
   // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
   // clock, since game time stands still when nothing is being played
   tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
+  // (the city past the fence: its windows lit by night, a glint by day, skyline.ts)
+  skylineHour(hour.id === "hazyDay" || hour.id === "goldenHour");
+  // (and the pools of light under the street lamps, by night only, lightpools.ts)
+  lightPoolsHour(hour.id === "hazyDay" || hour.id === "goldenHour");
   // the Neon map's interiors lit from the lamps nearest the eye (neonmap.ts updateNeonFill)
   updateNeonFill(camera.position);
   phases.lap("view");

@@ -15894,3 +15894,84 @@ The review named two faults in THE STRIP's look: "solid blue screens" and "flat 
   districts by night, Milestone 671).
 
 The e2e for all three: the speedkills section, 118 checks. verify, rules and tsc. Map files version 96: lo 165.6 MB, hi 245.6 MB, max 543.0 MB.
+
+## Milestone 667 — The finish sweep
+
+Both fresh reviews of 2026-10-20 scored the finish 4 of 10, the lowest of any heading. Each fault they named was looked
+at in its picture first, then traced to its piece: a ray from the review's own camera through the fault's pixels in the
+game, and the placements whose boxes hold the point it hit (`tools/.scratch/near.mts`).
+
+- **THE STRIP's "black slab" and "black cube"** were the club's walls: the pack's black concrete walls, and one-sided,
+  so from the boulevard their backs drew black. They wear the strip's own red lit panels (`club.wallMat`) and are laid
+  twice, back to back.
+- **The club's "concrete ring"** was its stair's curled concrete balustrade: in the dark panels the map's dark fronts
+  wear (`club.stairMat`).
+- **THE TERMINAL's vaults, "solid black from above"**: their glass was the pack's near-black glass over a dark hall.
+  They wear the pack's light hex glass, the halls' lamps and the blank lightbox on each pier burn amber, the district's
+  colour, and the floor that read as "purple rock" is the hall's own marble (`terminal.hall.mat`).
+- **GLASS HEIGHTS' "white chevrons"**, the 72 m tower's lit strips, burn its cyan (a building's fifth entry is its
+  material), and its name board is 9 m wide, inside the tower's round front (it stood out past it at 12).
+- **LANTERN ALLEYS' lantern lines met in mid-air**: the pack's 8.5 m cable pole stands where they meet.
+- **"A black square on a capsule roof"** was the pack's black roof box: it wears its own grey plastic on all 38 roofs and
+  perches it stands on (`rules.wear`, a piece's material wherever it stands).
+- **The base hall's kiosk "reads as a train carriage"**: it is the court's metro entrance, and it now says so, a lit
+  METRO over its door (cfg.labels, drawn as the corner blocks' names are). The first try stood inside the hall's 3.1 m
+  ceiling and could not be seen; the check now proves each sign clear of anything solid.
+- **The tower floors' ceiling lamps "hanging into head height"** were flush, but a 0.81 by 0.28 m white slab 2.3 m over
+  a floor whose ceiling is 2.6 m up: the pack's slim 0.46 m strip lamp in their place.
+- **The sun drawn as an ellipse** at the picture's corner: its disk is about 3 degrees across (nearly 5 until now) and
+  its size is in sky.json (`sunDisk`).
+- **The specks in the sky** were the tutorial's ten doors, 4 by 3.3 m panels 300 to 490 m north of the map's middle,
+  found by listing every mesh drawn from the city that lies far outside it. The page draws only the side of the world the
+  camera is on, but the doors were made after the range's pieces were gathered onto its side, so they were drawn from the
+  city too, dark squares through the haze. They are on the range's side now.
+- **Checked:** a new check, off the layout and the bake's collision: the club's walls red and back to back, the halls,
+  the tower and the mast in their places and materials, every roof box grey, each METRO sign clear of anything solid.
+
+## Milestone 668 — The pads read as pads
+
+Both reviews read the pads' tall white beams as "white light wedges", nothing to do with a pad.
+
+- **A ring of light round every pad**, on its floor, in its place's colour: past the ring road its district's own,
+  inside it its sector's accent (`src/game/padrings.ts`, `game.padRings`). One instanced mesh for all 45.
+- **Each beam a 5.5 m stub** (`rules.pads.beamScale` 0.06, 17 m before), still marking the pad across a plaza.
+- **The edge fence's lines thinner** (`edge.fence.line`, 6 cm from 9): from a roof beside the fence the lines over the
+  eye ran off as wide red bands.
+- **Checked:** a new check that every pad has its ring on its floor in its colour; proven by lifting the rings half a
+  metre, when all 45 failed.
+
+## Milestone 680 — A city past the fence
+
+Both reviews' first ask for the frame of the map: "a tabletop floating in beige haze".
+
+- **Tower blocks to the horizon** past the out-of-bounds margin (`src/game/skyline.ts`, `world.json skyline`): one
+  instanced mesh of blocks on a jittered grid from 215 to 560 m out, low by the fence and rising toward the horizon,
+  some with a narrower block on top, each its own shade, under the dropship's 140 m line.
+- **Their windows worked out in the shader** from where each pixel stands, a storey and a bay a window, a third of them
+  lit warm or cool: they glow by night, glint by day, and the far ones fade into the haze faster than the map's fog.
+- **The ground carried on** past the map's own to 700 m.
+- **The first look stood as a wall:** from the 50 m lookout an even ring of like grey boxes stood over the map's own
+  towers. Lowered by the fence, thinned, shaded and hazed, it reads as a skyline and the map's own towers lead it.
+- **Checked:** a new check: blocks on every side, none within the out-of-bounds margin (the half and edge.margin, with
+  2 m to spare), all under the dropship's line, the ground carried on. Proven by moving the blocks in to 150 m, when 76
+  stood inside.
+
+## Milestone 681 — The night's pools of light
+
+The districts' review: the city at night "black but THE STRIP and the fence".
+
+- **A pool of light on the ground under every street lamp** by night (`src/game/lightpools.ts`, `game.pools`), the
+  lamp's warm white mixed with its place's colour; small red ones under LANTERN ALLEYS' lanterns; and a broad wash of
+  each district's colour over its open ground, which reads from the air. None by day.
+- **Checked:** a new check that each street lamp has its pool on its floor, the arenas' lamps left out.
+- **Still to do:** each district glowing more of its colour by night (its fronts' lit pieces), THE STRIP the brightest.
+
+## Milestone 682 — The decay against the districts
+
+The plan held the decay to be re-timed for the districts' sizes. Measured first: from every street node of a wave's
+sectors, a sprint along the bots' streets (no pad, no rope, no slide: the slowest way a player has) to a sector still
+standing, at the lobby's fastest pace, in every plan of 400 seeds (299 plans, 281621 runs at 14.0 m/s). The
+longest run against its warning is 25.5 s of 31 s, from c (-5, 45) in wave 4. The warnings stand as they are,
+and the check keeps them honest as the map changes.
+
+The e2e for all five: the speedkills and range sections and the tutorial's (sktutorial), 171 checks (the tutorial's 22 again alone once its dress file was in the worktree). verify, rules and tsc. Map files version 97: lo 165.2 MB, hi 245.8 MB, max 541.6 MB.

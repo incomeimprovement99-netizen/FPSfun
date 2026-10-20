@@ -195,7 +195,7 @@ export function makeSky(sunDir: THREE.Vector3, c: SkyColors = SKY): Sky {
       uGround: { value: new THREE.Color(c.ground) },
       uSunColor: { value: new THREE.Color(c.sun) },
       uSunDir: { value: sunDir.clone().normalize() },
-      uSunSize: { value: 0.0035 },
+      uSunSize: { value: skyCfg.sunDisk },
       uGlow: { value: 0.22 },
     },
     vertexShader: vert,

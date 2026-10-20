@@ -5,6 +5,8 @@
   "_sun": "dir is the direction the light comes FROM and is normalised by the code. intensity is the directional light's; env is scene.environmentIntensity, which at full strength fills every shadow straight back in and costs the scene its contrast.",
   "_light": "the DIRECTIONAL LIGHT's colour, which is not the same thing as the sun disk drawn in the dome: the disk is what you see when you look at the sun, the light is what falls on the world. They were the same value at first and that quietly changed how the range had always been lit, because the range's light was fff2dc and its disk fff0d0. An hour with no light colour uses its disk colour.",
   "_fog": "near and far in metres. The battle royale scales both up because its map is 440 m across and the range is 80 m.",
+  "_sunDisk": "The sun disk drawn in the dome (src/game/sky.ts), as 1 less the cosine of its radius: 0.0014 is a disk about 3 degrees across its edge (0.0035, nearly 5, until Milestone 667: at the wide field of view a disk that size near the picture's corner drew as a big ellipse, the centre's review round 8, picture 14).",
+  "sunDisk": 0.0014,
   "default": "goldenHour",
   "_neonNight": "SpeedKills' own hour (speedkills.json identity.skies): a neon city at night, after the owner's direction and Hyper Scape's screenshots. The dome's horizon is the city's glow, a violet the fog takes too, so the far towers go dark and violet rather than a grey-blue wash, and their windows and neon carry the picture; the moon is dim, so the lit things are what you see. Tuned by eye against the city's snapshots (npm run snap).",
   "order": [

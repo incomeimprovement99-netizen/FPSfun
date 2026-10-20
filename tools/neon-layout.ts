@@ -43,6 +43,13 @@ const add = (chunk: string, sector: string, p: Place) => {
   // (never a piece the map must not show, rules.banned: the pack's letter sign Neon008 spells "free sex" in Korean, and
   // stood in the street and as the south deck's 14 m landmark until Milestone 571)
   if ((R.banned?.pieces as string[] | undefined)?.some((b) => p[0].endsWith(`/${b}`))) throw new Error(`${p[0]}: in rules.banned`);
+  // (a piece that wears another material wherever it stands, unless its placement gives its own, rules.wear: the
+  // pack's black roof box read as "a black square" on every roof it stood on)
+  const wear = (R.wear as Record<string, string> | undefined)?.[p[0].split("/").pop()!];
+  if (wear && !p[6]) {
+    p = [...p] as Place;
+    p[6] = wear;
+  }
   const c = chunks.get(chunk) ?? chunks.set(chunk, { sector, place: [] }).get(chunk)!;
   c.place.push(p);
 };
@@ -1079,6 +1086,9 @@ if (holes.length) {
   const halls: Array<{ x0: number; x1: number; z0: number; z1: number; slab: number[]; route?: number[][]; open?: boolean }> = [];
   /** the turn that points a piece's own -z (an entrance's landing) the way given */
   const yawLanding = (dir: string) => ({ "-z": 0, "-x": 90, "+z": 180, "+x": 270 })[dir]!;
+  // (the lit signs over the kiosks' doors, drawn by the game as the corner blocks' names are: cfg.labels)
+  const labels: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string }> = [];
+  cfg.labels = labels;
   for (const h of hallList) {
     const alongX = h.side === "w" || h.side === "e";
     const out = h.side === "n" || h.side === "w" ? -1 : 1;
@@ -1129,6 +1139,12 @@ if (holes.length) {
       const a = (yawLanding(back) * Math.PI) / 180;
       const [c, s] = [Math.cos(a), Math.sin(a)];
       route = (E.route as number[][]).map(([lx, lz, y]) => [+(k.px + c * lx + s * lz).toFixed(2), +(k.pz - s * lx + c * lz).toFixed(2), y]);
+      // its sign over the door, in the kiosk's own metres (`sign.at`), facing out of its own -x face, the way a body
+      // comes to it (the route's first point stands off that face)
+      if (E.sign) {
+        const [lx, y, lz] = E.sign.at as number[];
+        labels.push({ text: E.sign.text, at: [+(k.px + c * lx + s * lz).toFixed(3), y, +(k.pz - s * lx + c * lz).toFixed(3)], yaw: +((Math.atan2(-c, s) * 180) / Math.PI).toFixed(2), w: E.sign.w, h: E.sign.h, colour: E.sign.colour });
+      }
       const [w0, w1] = [d + E.well[0], d + E.well[1]];
       const sides: Array<[number, string]> = [
         [h.at - thick / 2, "+" + (alongX ? "z" : "x")],
@@ -3628,7 +3644,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // across every `every` metres from front to front and on to the next in an X, the pack's Chinese lanterns hung along each,
 // drawn only. Placed off rules alone, so nothing measured moves it
 {
-  type Court = { shops: Array<{ piece: string; c: Pt; yaw: number }>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; web: { from: Pt; height: number; to: Pt[] }; stalls: { pieces: string[]; at: Pt[]; face: Pt } };
+  type Court = { shops: Array<{ piece: string; c: Pt; yaw: number }>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; web: { from: Pt; height: number; to: Pt[]; mast?: string }; stalls: { pieces: string[]; at: Pt[]; face: Pt } };
   const DL = (R.districts as { lantern?: { chunk: string; seed: number; pool: string[]; gap: number[]; rows: Array<{ id: string; from: Pt; to: Pt; front: Pt; deep: number; skip?: number[][] }>; lights: { cable: string; lanterns: string[]; height: number; every: number; hang: number; alleys: Array<{ from: Pt; to: Pt; half: number }> }; court?: Court } } | undefined)?.lantern;
   if (DL) {
     const rndD = seeded(DL.seed);
@@ -3709,6 +3725,8 @@ const STREET_WALL_BOXES: OBox[] = [];
         shops.push({ piece: sh.piece, at: sh.c.map((v) => +v.toFixed(3)), yaw: sh.yaw, door: [+(sh.c[0] + dx * reach).toFixed(3), +(sh.c[1] + dz * reach).toFixed(3)] });
       }
       for (const p of CT.web.to) string(CT.web.from, p, CT.web.height);
+      // (a mast where the lines meet: they met in mid-air, held by nothing)
+      if (CT.web.mast) STREET_GRAPH?.add(placeTurned(DL.chunk, CT.web.mast, CT.web.from[0], CT.web.from[1], 0, "o"));
       CT.stalls.at.forEach((p, k) => placeTurned(DL.chunk, CT.stalls.pieces[k % CT.stalls.pieces.length], p[0], p[1], yawToward(CT.stalls.face[0] - p[0], CT.stalls.face[1] - p[1]), "o"));
       cfg.districtNames = [{ district: "lantern", ...CT.name }];
     }
@@ -4079,7 +4097,7 @@ function onNode(o: OBox): boolean {
 // 6 and z from its pivot less 1 to its pivot plus 20.5. A taxi rank of the pack's urban cars on the forecourt, the
 // district's name over the arcade on the north face. Colliding as their own faces, as the centre's hall does
 {
-  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; concourse?: { machines: string[]; bench: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
+  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number; mat?: string }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; concourse?: { machines: string[]; bench: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
   if (TM) {
     const H = TM.hall;
     const hr = piece(H.piece).row;
@@ -4093,7 +4111,7 @@ function onNode(o: OBox): boolean {
     const halls: number[][] = [];
     for (let k = 0; k < H.count; k++) {
       const px = H.x0 - lz0 + along * k;
-      add(TM.chunk, "c", [piece(H.piece).key, +px.toFixed(3), H.lift, +pz.toFixed(3), H.yaw, "o"] as Place);
+      add(TM.chunk, "c", [piece(H.piece).key, +px.toFixed(3), H.lift, +pz.toFixed(3), H.yaw, "o", H.mat ?? null] as Place);
       halls.push([+(px + lz0).toFixed(3), +(px + lz1).toFixed(3), +(pz - lx1).toFixed(3), +(pz - lx0).toFixed(3)]);
     }
     // the taxi rank: the pack's urban cars nose to the station along the forecourt
@@ -4427,7 +4445,7 @@ function onNode(o: OBox): boolean {
 {
   type Glass = {
     chunk: string;
-    buildings: Array<[string, number, number, number]>;
+    buildings: Array<[string, number, number, number, string?]>;
     lift?: { car: number[]; out: number[]; decks: number; colour: string };
     ground?: { keep: number; rows: Array<{ pieces?: string[]; kind?: string; yaw: number; flip?: boolean; at: number[][] }>; crate: string; machines: string[]; lamps: { piece: string; at: number[][] } };
     light?: { strip: string; remap: string; every: number; side: number; under: number; ends: number; lampRemap: string; panel: string; panelRemap: string; panelEvery: number };
@@ -4436,9 +4454,9 @@ function onNode(o: OBox): boolean {
   let cfgGlassLift: { id: string; rope: number[][]; floor: number; car: number[]; out: number[]; land: number[]; foot: number[]; colour: string } | null = null;
   if (DG) {
     const slabs: Array<{ piece: string; c: number[]; foot: number[]; top: number }> = [];
-    for (const [name, x, z, yaw] of DG.buildings) {
+    for (const [name, x, z, yaw, mat] of DG.buildings) {
       const r = piece(name).row;
-      const box = placeTurned(DG.chunk, name, x, z, yaw, "o", -r.min![1]);
+      const box = placeTurned(DG.chunk, name, x, z, yaw, "o", -r.min![1], mat);
       STREET_GRAPH?.add(box);
       const side = Math.abs(Math.round(yaw / 90)) % 2 === 1;
       const [hx, hz] = side ? [r.size![2] / 2, r.size![0] / 2] : [r.size![0] / 2, r.size![2] / 2];
@@ -4562,7 +4580,7 @@ function onNode(o: OBox): boolean {
     ads: { piece: string; at: number[][]; mats?: string[] };
     pyramid: { piece: string; at: number[]; steps: number; rim: number; cap: string; mat?: string };
     club?: {
-      at: number[]; span: number; storeys: number; canopy: string; canopyMat?: string; inset: number; walls: Array<[string, number, number, number]>; gates: number[][];
+      at: number[]; span: number; storeys: number; canopy: string; canopyMat?: string; wallMat?: string; stairMat?: string; inset: number; walls: Array<[string, number, number, number]>; gates: number[][];
       balcony: { y: number; slab: number; cell: number; deck: string };
       stairs: number[][]; bar: { piece: string; from: number[]; count: number; step: number; yaw: number }; seats: Array<[string, number, number, number]>;
     };
@@ -4632,7 +4650,12 @@ function onNode(o: OBox): boolean {
       // the canopy, its rim on the columns' tops
       const cr = piece(CL.canopy).row;
       placeTurned(DT.chunk, CL.canopy, cx, cz, 0, "g", CL.storeys * br.size![1] - cr.size![1] - cr.min![1], CL.canopyMat);
-      for (const [name, x, z, yaw] of CL.walls) STREET_GRAPH?.add(placeTurned(DT.chunk, name, x, z, yaw, "o", -piece(name).row.min![1]));
+      // (each wall twice, back to back: the pack's wall draws one face of its slab, and from the boulevard the club's
+      // backs drew as a black slab standing alone)
+      for (const [name, x, z, yaw] of CL.walls) {
+        STREET_GRAPH?.add(placeTurned(DT.chunk, name, x, z, yaw, "o", -piece(name).row.min![1], CL.wallMat));
+        placeTurned(DT.chunk, name, x, z, yaw + 180, "o", -piece(name).row.min![1], CL.wallMat);
+      }
       // the balcony's cells, in the hall's own metres from its north-west corner (u east, v south): a strip along each
       // wall between the columns, and three cells round each column's inner corner (from the wall's inner face to a
       // column's inner face is two cells' worth, 5 m, by `inset`)
@@ -4662,7 +4685,7 @@ function onNode(o: OBox): boolean {
       const [smx, smz] = [(st.min![0] + st.max![0]) / 2, (st.min![2] + st.max![2]) / 2];
       const stairs: Array<{ at: number[]; route: number[][]; lanes: number[][][]; gap: number[][] }> = [];
       for (const [x, z, yaw] of CL.stairs) {
-        const box = placeTurned(DT.chunk, HS.stairs.piece, x, z, yaw, "g");
+        const box = placeTurned(DT.chunk, HS.stairs.piece, x, z, yaw, "g", 0, CL.stairMat);
         STREET_GRAPH?.add(box);
         const own = (ox: number, oz: number): Pt => [x + box.u[0] * (ox - smx) + box.v[0] * (oz - smz), z + box.u[1] * (ox - smx) + box.v[1] * (oz - smz)];
         const lanes = doubleStair(own, 0, `THE STRIP club's stair at (${x}, ${z})`);

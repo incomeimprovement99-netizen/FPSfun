@@ -186,6 +186,10 @@ export class Tutorial {
   private skipFrom = -Infinity;
   private doneAt = -Infinity;
   private readonly doors: TutorialDoor[] = [];
+  /** the doors' panels, for the page to put on the range's side (drawn from the city they were the sky's specks) */
+  get doorMeshes(): THREE.Object3D[] {
+    return this.doors.map((d) => d.mesh);
+  }
   private readonly shutMat = emissive(0xff3b2f, 1.4);
   private readonly openMat = emissive(0x7ddc8a, 1.4);
   /** a step began (its index): the page hands over what it needs, the dash and the ANAKIN */

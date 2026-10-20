@@ -232,7 +232,8 @@ minutes to two hours on the shared PC.
 Each batch is one map version and one full bake; each milestone in it keeps its own checks (a new check proven by
 putting the fault back, the touched e2e section, photographs by day and by night) and docs.
 
-**Batch 1, map version 97: finish and readability**
+**Batch 1, map version 97: finish and readability** (built 2026-10-20, with 680, 681 and 682: Milestones 667 to 668 and
+680 to 682 in docs/DEVELOPMENT_ROADMAP.md)
 
 - **667: the finish sweep**, each fault looked at in its picture first, then traced to its piece:
   - THE STRIP: the black slab standing alone in the boulevard (d16, d98) and the untextured black cube by the club (d17);

@@ -70,7 +70,7 @@ export function buildEdgeFence(root: THREE.Group): void {
   if (g) {
     g.clearRect(0, 0, 256, 256);
     g.fillStyle = "rgba(255,255,255,0.9)";
-    for (let y = 0; y < 256; y += 32) g.fillRect(0, y, 256, 3);
+    for (let y = 0; y < 256; y += 32) g.fillRect(0, y, 256, F.line);
     const foot = g.createLinearGradient(0, 256, 0, 180);
     foot.addColorStop(0, "rgba(255,255,255,0.9)");
     foot.addColorStop(1, "rgba(255,255,255,0)");

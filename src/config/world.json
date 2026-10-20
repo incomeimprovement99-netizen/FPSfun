@@ -16,7 +16,9 @@
    "opacity": 0.16,
    "nearOpacity": 0.45,
    "nearAt": 12,
-   "scroll": 0.35
+   "scroll": 0.35,
+   "line": 2,
+   "_line": "The fence's lit lines, a metre apart, each `line` 256ths of their 8 m texture high (6 cm; 3 until Milestone 668, 9 cm: from a roof beside the fence the lines over the eye ran off as wide red bands, the districts' review, picture 12)."
   }
  },
  "_padSolve": "A jump pad onto a roof (city.ts padOnto), in metres: it stands standOff past a body's radius from the face, throws you straight up to peakOver above the roof, and once you are clear above the edge carries you across to land landInside past it. Ours, so a pad lands you on the roof with no steering; holding forward in the air still carries you further.",
@@ -43,5 +45,71 @@
   "radius": 0.3,
   "threshold": 1,
   "_note": "The post chain's bloom (src/game/render.ts, Balanced and High): its strength, radius and luminance threshold. The owner, 2026-10-18: \"bloom is a big thing, we don't want that almost at all\". It was 0.32, 0.5 and 0.95: the tower's ceiling lamps, THE CANYON's walkway lamps and THE STRIP's club blew out to white, named in two reviews in a row. Now only the brightest light glows, faintly, and gunfire barely."
+ },
+ "_skyline": "A city past the fence (Milestone 680; both fresh reviews of 2026-10-20 found the edge 'a tabletop floating in beige haze', and asked first for a city carried on past the wall), drawn only (src/game/skyline.ts): the ground carried on from `from` metres past the fence (where the map's own ground ends) out to `ground`, and tower blocks on a jittered grid of `cell` m squares from `inner` (past the out-of-bounds margin, cut.half + edge.margin = 190, with room to spare) to `outer`, each square filled by `fill`, `size` m across, `height` m tall, low by the fence and rising toward the horizon (from the 50 m lookout an even ring stood as one wall over the map's own towers), `tall` of those past `tall.from` of the way out taller (all under the dropship's 140 m, squad.json ship.height); `setback` of the others carry a block `scale` as wide on top, `height` of their own height, for a skyline's broken line. Their windows are worked out in the shader, a storey `storey` m and a bay `bay` m, `lit` of them lit in `warm` or `cool`, glowing `glow.night` by night and `glow.day` by day, through the map's own haze, and the far ones taken by it faster (`haze`, of the fog's colour at `outer`). Each block wears one of `bodies`. `seed` the same skyline on every page. `keep` [x0, x1, z0, z1] map metres the towers and the ground stay out of: the firing range's footprint (its solids measured in the game, world x -34.5 to 123 and z -122 to 195, up to 60 m: map z -622 to -305), 10 m round; it stands 153 m past the fence inside the ring, and the first skyline stood towers in its lanes.",
+ "skyline": {
+  "from": 8,
+  "ground": 700,
+  "inner": 215,
+  "outer": 560,
+  "cell": 24,
+  "fill": 0.5,
+  "size": [
+   10,
+   20
+  ],
+  "height": [
+   14,
+   66
+  ],
+  "tall": {
+   "share": 0.05,
+   "from": 0.4,
+   "height": [
+    82,
+    108
+   ]
+  },
+  "setback": {
+   "share": 0.4,
+   "scale": [
+    0.45,
+    0.7
+   ],
+   "height": [
+    0.12,
+    0.3
+   ]
+  },
+  "storey": 3.6,
+  "bay": 2.4,
+  "lit": 0.32,
+  "glow": {
+   "day": 0.1,
+   "night": 1.15
+  },
+  "haze": {
+   "day": 0.6,
+   "night": 0.3
+  },
+  "warm": "#ffc98a",
+  "cool": "#8fd3ff",
+  "bodies": [
+   "#1d212b",
+   "#2b2721",
+   "#222b35",
+   "#2c2c30",
+   "#1f2622"
+  ],
+  "groundColour": "#17191e",
+  "seed": 6800,
+  "keep": [
+   [
+    -45,
+    133,
+    -632,
+    -295
+   ]
+  ]
  }
 }

@@ -56,7 +56,8 @@ describes the retired legacy game, and goes with its code.
     hurts for the first minute after the dropship, so a squad can loot first. A decaying sector dissolves from
     the ground up to its own highest roof, its line and its warning in its own colour.
   - Then a 14 m capture zone opens: a squad alone in it for 45 s wins.
-  - A lit red fence marks the city's edge. Past it you have 5 s to come back, or it is OUT OF BOUNDS.
+  - A lit red fence marks the city's edge, with the city carrying on to the horizon past it. Past the fence you have
+    5 s to come back, or it is OUT OF BOUNDS.
   - A match runs 6 to 7 minutes.
 - **Movement for roofs:** double jump, wall run and kick, slide, and a climb
   that goes up a storey (two with a double jump first). You sprint whenever you
@@ -1336,11 +1337,11 @@ City bundle alone, nothing drawn by hand; the ILranch city it replaced went on
 2026-10-09.
 The same nine districts, the eight round the centre plain for now with straight
 roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined with
-low shophouses under lantern lines, jump pads up onto their roofs; and THE TERRACES in
+low shophouses under lantern lines meeting at a pole in its court, jump pads up onto their roofs; and THE TERRACES in
 the west: three garden tiers stepping up to the edge, a grand stair up the middle, a run of
 balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls, each lit and
 furnished; and
-THE TERMINAL in the south: a station hall of arcades under glass vaults, a metro train at its
+THE TERMINAL in the south: a station hall of arcades under hex glass vaults, lit amber, a metro train at its
 platform and trams on the strips beside it, jump pads onto its vault roofs; and THE STACKS
 in the north-west: three towers of stacked capsule pods round an avenue and a car park, and a
 capsule hotel of 21 pods on three storeys round a court, galleries and stairs up to its roof, lit pink by
@@ -1349,13 +1350,15 @@ towers with decks at the High City's height, joined by gangways, the North deck'
 them, a glass lift up from its courtyard, its gangways glowing cyan underneath by night, and a 72 m glass tower with a
 cyan crown; and THE STRIP in the east: an 87 m
 black tower on the city's edge at the end of a boulevard, its foot ringed by glowing blocks under lit billboards, a
-glass pyramid of lit windows to run up onto a lookout 7 m over the plaza, and a club under a glowing inverted pyramid, its balcony
+glass pyramid of lit windows to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, its balcony
 running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
 walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L,
 crossed indoors from hall to hall, each with columns, a gallery and its stair, a tank and machines, and the corner's works block with an upper floor
 round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
-crowned with tanks 31 m up, lit teal by night. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground and each
+district is washed in its own colour; past the fence tower blocks stand to the horizon (`src/game/skyline.ts`), their
+windows lit. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the
@@ -1416,7 +1419,7 @@ station put together as its demo scene puts it: a glass-roofed hall on the plaza
 down to a platform with a train at it, a tunnel off into the dark, and a marble
 concourse behind the platform, closed on every side, and reached from the tower's
 court too: a door in its south wall, a corridor and a ramp down to a gate into the
-station's marble hall. Eight jump pads, the pack's plate and blue beam, throw you onto High City's
+station's marble hall. Every jump pad has a ring of light on the ground in its place's colour and a short beam. Eight, the pack's plate and blue beam, throw you onto High City's
 roofs; four more with white beams throw you from the plaza onto the tower's base's roof, one from there up to a lookout
 on the tower's east block at 49 m, two more from there up to the tower's crown at 109 m, and one with a red beam back
 down off the lookout; and pads in Market and by the Well throw you across onto their higher roofs and on onto the bridge

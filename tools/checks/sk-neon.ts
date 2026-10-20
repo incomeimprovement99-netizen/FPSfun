@@ -3817,5 +3817,188 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("every double-flight stair, the base's, the Sky Ring's, the capsule hotel's, the club's, THE CANYON's and THE WORKS' halls', walked up by a player in three lanes across its flights", (ST?.list.length ?? 0) === 32 && stuck.length === 0, stuck.slice(0, 4).join("; ") + (stuck.length > 4 ? ` and ${stuck.length - 4} more` : "") || `${walks} walks up ${ST?.list.length ?? 0} stairs`);
 }
 
+// a city past the fence (src/game/skyline.ts, Milestone 680): a ring of towers all round, none where a body can go (past
+// the out-of-bounds margin, the map's half and edge.margin, with 2 m to spare), every top under the dropship's line so no
+// ride flies through one, and the ground carried on from where the map's own ends
+{
+  const { SKYLINE } = await import("../../src/game/skyline");
+  const S = (worldCfg as unknown as { skyline: { from: number; inner: number; outer: number } }).skyline;
+  const reach = BR_HALF + (worldCfg as unknown as { edge: { margin: number } }).edge.margin + 2;
+  const shipY = (await import("../../src/config/squad.json")).default.ship.height;
+  const inside = SKYLINE.towers.filter((t) => Math.max(Math.abs(t.x) - t.w / 2, Math.abs(t.z) - t.d / 2) < reach);
+  const high = SKYLINE.towers.filter((t) => t.y + t.h >= shipY - 5);
+  // (and none in the firing range's footprint, which stands past the fence inside the ring: `keep`, measured off the
+  // range's solids in the game, which these checks do not build)
+  const range = (worldCfg as unknown as { skyline: { keep: number[][] } }).skyline.keep;
+  const inRange = SKYLINE.towers.filter((t) => range.some(([x0, x1, z0, z1]) => t.x + t.w / 2 > x0 && t.x - t.w / 2 < x1 && t.z + t.d / 2 > z0 && t.z - t.d / 2 < z1));
+  const sides = [(t: { x: number }) => t.x > reach, (t: { x: number }) => t.x < -reach, (t: { z: number }) => t.z > reach, (t: { z: number }) => t.z < -reach].map((f) => SKYLINE.towers.filter(f).length);
+  const drawn = scene.getObjectByName("skyline") as THREE.InstancedMesh | undefined;
+  const ground = scene.getObjectByName("skylineGround");
+  check(
+    "a city past the fence: towers on every side, none within the out-of-bounds margin or in the firing range, all under the dropship's line, the ground carried on from the map's own",
+    !!drawn && drawn.count === SKYLINE.towers.length && SKYLINE.towers.length >= 200 && sides.every((n) => n >= 40) && inside.length === 0 && inRange.length === 0 && range.length > 0 && high.length === 0 && !!ground && ground.children.length >= 4 && SKYLINE.ground > S.outer,
+    `${SKYLINE.towers.length} blocks (${sides.join("/")} east, west, south, north), ${inside.length} within ${reach} m, ${inRange.length} in the firing range, ${high.length} within 5 m of the ship's ${shipY} m, tallest ${Math.max(...SKYLINE.towers.map((t) => t.y + t.h)).toFixed(0)} m`
+  );
+}
+
+// a ring of light round every pad (src/game/padrings.ts, Milestone 668): one a pad on its floor, in its district's colour
+// past the ring road, its sector's inside, so the pads of one district read alike and not as the reviews' white wedges
+{
+  const { padColour } = await import("../../src/game/padrings");
+  const rings = scene.getObjectByName("padRings") as THREE.InstancedMesh | undefined;
+  const SP = (cfg as unknown as { spine?: { up: Array<{ pad: number[]; floor: number }>; down: Array<{ pad: number[]; floor: number }>; across?: Array<{ pad: number[]; floor: number }> } }).spine;
+  const pads = [...cfg.pads, ...(SP?.up ?? []), ...(SP?.down ?? []), ...(SP?.across ?? [])];
+  const m4 = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  const c = new THREE.Color();
+  const off: string[] = [];
+  const colours = new Set<string>();
+  pads.forEach((q, i) => {
+    if (!rings || i >= rings.count) return;
+    rings.getMatrixAt(i, m4);
+    p.setFromMatrixPosition(m4);
+    rings.getColorAt(i, c);
+    colours.add(c.getHexString());
+    const want = padColour(q.pad[0], q.pad[1]).multiplyScalar(cfg.game.padRings.glow);
+    if (Math.hypot(p.x - q.pad[0], p.z - q.pad[1]) > 0.05 || Math.abs(p.y - q.floor - 0.04) > 0.05 || Math.abs(c.r - want.r) + Math.abs(c.g - want.g) + Math.abs(c.b - want.b) > 0.02) off.push(`(${q.pad.join(", ")})`);
+  });
+  const district = pads.filter((q) => Math.max(Math.abs(q.pad[0]), Math.abs(q.pad[1])) > cfg.game.padRings.band).length;
+  check(
+    "a ring of light round every pad, on its floor, in its district's colour past the ring road and its sector's inside",
+    !!rings && rings.count === pads.length && off.length === 0 && colours.size >= 6 && district >= 8,
+    `${rings?.count ?? 0} rings for ${pads.length} pads (${district} in the districts), ${colours.size} colours, ${off.length} off: ${off.slice(0, 4).join(" ")}`
+  );
+}
+
+// the decay against the districts' sizes (Milestone 682; docs/PLAN_CITY_FINISH.md "the decay re-timed"): from every
+// street node of a wave's sectors, a sprint along the bots' streets (no pad, no rope, no slide: the slowest way a player
+// has) reaches a sector still standing inside the wave's warning, at the lobby's fastest pace, in every plan of 400
+// seeds. The far corners of the outer districts are the longest runs: measured, so the warning is the right length for
+// the map that is drawn now, not the centre's alone it was set on
+{
+  const { decayPlan, decayRounds, sectorIdAt } = await import("../../src/game/decay");
+  const sprint = MOVE.sprintSpeed;
+  const rounds = decayRounds("fast");
+  const nodes = map.nodes;
+  const sectorOf = nodes.map((n) => sectorIdAt(n.x - BR_X, n.z - BR_Z));
+  const seen = new Set<string>();
+  let worst = { t: 0, warn: 0, at: "", wave: 0, plan: "" };
+  let runs = 0;
+  for (let seed = 1; seed <= 400; seed++) {
+    const plan = decayPlan(seed);
+    const key = `${plan.final}:${plan.waves.map((w) => w.join("+")).join("/")}`;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    plan.waves.forEach((wave, w) => {
+      // (standing after this wave: every sector of the later waves and the final one)
+      const gone = new Set(plan.waves.slice(0, w + 1).flat());
+      const dist = new Float64Array(nodes.length).fill(Infinity);
+      const todo: number[] = [];
+      nodes.forEach((n, i) => {
+        if (n.links.length && sectorOf[i] && !gone.has(sectorOf[i]!)) {
+          dist[i] = 0;
+          todo.push(i);
+        }
+      });
+      // (a plain Dijkstra from every standing node at once; a few thousand nodes)
+      const done = new Uint8Array(nodes.length);
+      while (todo.length) {
+        let b = 0;
+        for (let k = 1; k < todo.length; k++) if (dist[todo[k]] < dist[todo[b]]) b = k;
+        const i = todo[b];
+        todo[b] = todo[todo.length - 1];
+        todo.pop();
+        if (done[i]) continue;
+        done[i] = 1;
+        const a = nodes[i];
+        for (const j of a.links) {
+          const c = nodes[j];
+          const d = dist[i] + Math.hypot(c.x - a.x, (c.y ?? 0) - (a.y ?? 0), c.z - a.z);
+          if (d < dist[j]) {
+            dist[j] = d;
+            todo.push(j);
+          }
+        }
+      }
+      const warn = rounds[w].warn ?? rounds[w].wait;
+      nodes.forEach((n, i) => {
+        if (!n.links.length || !sectorOf[i] || !wave.includes(sectorOf[i]!) || !Number.isFinite(dist[i])) return;
+        runs++;
+        const t = dist[i] / sprint;
+        if (t / warn > worst.t / Math.max(worst.warn, 1e-6)) worst = { t, warn, at: `${sectorOf[i]} (${(n.x - BR_X).toFixed(0)}, ${(n.z - BR_Z).toFixed(0)})`, wave: w + 1, plan: key };
+      });
+    });
+  }
+  check(
+    "the decay against the districts: from every street node of a wave's sectors a sprint reaches a standing sector inside the wave's warning, at the fastest pace, every plan of 400 seeds",
+    runs > 0 && worst.t <= worst.warn,
+    `${seen.size} plans, ${runs} runs at ${sprint.toFixed(1)} m/s; the longest against its warning ${worst.t.toFixed(1)} s of ${worst.warn.toFixed(0)} s, from ${worst.at} in wave ${worst.wave}`
+  );
+}
+
+// the finish sweep (Milestone 667): each fault the districts' review (round 2) and the centre's (round 8) named, fixed
+// where it stands. The club's walls in the strip's red panels, each laid back to back (one face of the pack's slab is
+// drawn, and the back stood as "a black slab"); THE TERMINAL's halls in light hex glass and amber light; the 72 m GLASS
+// HEIGHTS tower's chevrons cyan; a mast where LANTERN ALLEYS' lantern lines meet; every roof box in its grey (rules.wear);
+// a METRO sign over each court kiosk's door, clear of anything solid (at 3.6 m it stood inside the base hall's ceiling)
+{
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
+  const D = cfg.rules.districts as unknown as { strip: { club: { walls: unknown[]; wallMat: string } }; terminal: { hall: { piece: string; count: number; mat: string } }; glass: { buildings: Array<[string, number, number, number, string?]> }; lantern: { court: { web: { from: number[]; mast: string } } } };
+  const of = (name: string, mat?: string) => placed.filter((q) => String(q[0]).endsWith(`/${name}`) && (mat === undefined || q[6] === mat));
+  const clubWalls = of("CityWallsWall005.prefab", D.strip.club.wallMat).length + of("CityWallsWall00.prefab", D.strip.club.wallMat).length;
+  const halls = of(D.terminal.hall.piece, D.terminal.hall.mat).length;
+  const tower = D.glass.buildings.find((b) => b[4]);
+  const towerOk = !!tower && of(tower[0], tower[4]).length === 1;
+  const mast = of(D.lantern.court.web.mast).filter((q) => Math.hypot(Number(q[1]) - D.lantern.court.web.from[0], Number(q[3]) - D.lantern.court.web.from[1]) < 1).length;
+  const wear = (cfg.rules as unknown as { wear: Record<string, string> }).wear;
+  const unworn = Object.entries(wear).flatMap(([name, mat]) => of(name).filter((q) => !q[6] || (q[6] !== mat && !String(q[6]).includes("=")))).length;
+  const worn = Object.entries(wear).reduce((n, [name, mat]) => n + of(name, mat).length, 0);
+  const labels = (cfg as unknown as { labels?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number }> }).labels ?? [];
+  // (its face seen: across its width at its middle height, 0.3 m out in front of it, nothing solid; the collision's
+  // cells round the kiosk reach a cell past its drawn face, so the sign's own plane is tested from just in front)
+  const buried = labels.filter((q) => {
+    const [ux, uz] = [Math.cos((q.yaw * Math.PI) / 180), -Math.sin((q.yaw * Math.PI) / 180)];
+    const [nx, nz] = [Math.sin((q.yaw * Math.PI) / 180), Math.cos((q.yaw * Math.PI) / 180)];
+    for (let a = -0.5; a <= 0.5; a += 0.25)
+      for (const b of [0]) {
+        const [x, y, z] = [q.at[0] + ux * a * q.w + nx * 0.3 + BR_X, q.at[1] + b * q.h, q.at[2] + uz * a * q.w + nz * 0.3 + BR_Z];
+        if (solidsIn(x, x, z, z).some((s) => x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && y > s.base && y < s.top)) return true;
+      }
+    return false;
+  });
+  check(
+    "the finish sweep: the club's walls red and back to back, THE TERMINAL's halls glass and amber, GLASS HEIGHTS' chevrons cyan, a mast where the lantern lines meet, every roof box grey, a METRO sign over each kiosk clear of the ceiling",
+    clubWalls === 2 * D.strip.club.walls.length && halls === D.terminal.hall.count && towerOk && mast === 1 && unworn === 0 && worn >= 30 && labels.length === 2 && buried.length === 0,
+    `${clubWalls} club walls, ${halls} halls, tower ${towerOk}, ${mast} mast, ${worn} roof boxes worn grey (${unworn} not), ${labels.length} signs (${buried.length} in something solid)`
+  );
+}
+
+// a pool of light under every street lamp by night (src/game/lightpools.ts, Milestone 681): one a lamp (the arenas' own
+// left out), on its lamp's floor, in its place's colour mixed with the lamp's warm white
+{
+  const pools = scene.getObjectByName("lightPools") as THREE.InstancedMesh | undefined;
+  const P = (cfg.game as unknown as { pools: { sets: Array<{ pieces: string[] }>; lift: number } }).pools;
+  const lamps = Object.entries((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks)
+    .filter(([id]) => !id.startsWith("a-"))
+    .flatMap(([, ch]) => ch.place)
+    .filter((q) => P.sets[0].pieces.includes(String(q[0]).split("/").pop()!));
+  const { poolSpots } = await import("../../src/game/lightpools");
+  const all = poolSpots();
+  const m4 = new THREE.Matrix4();
+  const p = new THREE.Vector3();
+  let off = 0;
+  lamps.forEach((q, i) => {
+    if (!pools || i >= pools.count) return;
+    pools.getMatrixAt(i, m4);
+    p.setFromMatrixPosition(m4);
+    if (Math.hypot(p.x - Number(q[1]), p.z - Number(q[3])) > 0.05 || Math.abs(p.y - Number(q[2]) - P.lift) > 0.05) off++;
+  });
+  check(
+    "a pool of light under every street lamp by night, on its floor, the arenas' own left out; small ones under LANTERN ALLEYS' lanterns, a wash of each district's colour",
+    !!pools && pools.count === all.length && lamps.length >= 100 && off === 0 && all.length - lamps.length >= 8 + 100,
+    `${pools?.count ?? 0} pools (${lamps.length} street lamps, ${all.length - lamps.length - 8} lanterns, 8 district washes), ${off} off their lamp`
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);
