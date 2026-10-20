@@ -332,6 +332,20 @@ if (mode === "bake") {
   // its textures kept (the tower floors' walls in the pack's grey panels, each floor its colour: the pack's coloured
   // plastics are a noise texture under a flat colour, "flat colour with a speckle", the centre's third review)
   const derivedMat = (spec: string): string | null => {
+    // ("Name^#hex": the colour and the glow both tinted; a lit window's light is its emission, which a "*#" tint of the
+    // colour alone leaves as it was: GLASS HEIGHTS' cyan windows, Milestone 669)
+    if (spec.includes("^#")) {
+      const guid = `derived:${spec}`;
+      if (mats.has(guid)) return guid;
+      const [base, hex] = spec.split("^");
+      const bg = pack.matFor(base);
+      const info = bg ? readMaterial(pack, bg) : null;
+      if (!info) throw new Error(`no material ${base} to derive ${spec} from`);
+      const n = parseInt(hex.replace("#", ""), 16);
+      const tint = [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255];
+      mats.set(guid, { ...info, name: spec.replace(/[\^#]/g, "_"), color: [info.color[0] * tint[0], info.color[1] * tint[1], info.color[2] * tint[2], info.color[3]], emission: info.emission ? [info.emission[0] * tint[0], info.emission[1] * tint[1], info.emission[2] * tint[2]] : info.emission });
+      return guid;
+    }
     if (spec.includes("*#")) {
       const guid = `derived:${spec}`;
       if (mats.has(guid)) return guid;

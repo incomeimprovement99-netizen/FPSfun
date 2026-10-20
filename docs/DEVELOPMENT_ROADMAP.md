@@ -16006,3 +16006,57 @@ longest run against its warning is 25.5 s of 31 s, from c (-5, 45) in wave 4. Th
 and the check keeps them honest as the map changes.
 
 The e2e for all five: the speedkills and range sections and the tutorial's (sktutorial), 171 checks (the tutorial's 22 again alone once its dress file was in the worktree). verify, rules and tsc. Map files version 97: lo 165.2 MB, hi 245.8 MB, max 541.6 MB.
+
+## Milestone 669 — GLASS HEIGHTS in white and cyan glass
+
+The districts' review (round 2) held GLASS HEIGHTS to wear "the same cream-framed window front as the centre and the
+Canyon". Its four peninsula towers now wear white plastic in place of their grey rounded panels, and their windows' light
+burns cyan.
+
+- **A tint for a lit window** (`tools/import-neon.ts`, the spec `Name^#hex`): the pack's lit-room windows glow from their
+  emission, and a `*#` tint multiplies only the base colour, which the glow drowns: the first low bake's pictures read no
+  different. The new spec tints the colour and the emission both.
+- **Still to do:** the 27 m deck's windbreaks, planters and benches, and the lift's cabin.
+
+## Milestone 670 — THE CANYON's cliffs broken up
+
+"The Canyon's cliffs broken with balconies, AC, awnings, signs." Down both walls of both arms (`canyon.cliffs`), drawn
+only and only where a block stands behind the face (not across a passage's mouth or a stair's recess):
+
+- **36 blade signs** standing out of the walls over the walkways, read down the canyon: the pack's upright neon signs
+  already on the map, their letters read (an English name and "robot").
+- **49 wall units**, the pack's wall-hung cooling units, a storey apart up the cliffs, clear of the signs.
+- None lower than 5.4 m (a body on a walkway at 3.5 m and a jump) and none over the canyon's middle, checked.
+
+## Milestone 671 — The plazas filled, THE WORKS' doors
+
+- **Every district's open ground in its own cover** (`dress.districtCover`): cover within 6 m of every spot (8 until
+  now), 253 pieces from 105, each district from its own set of bigger pieces: THE WORKS' squat tanks, electric
+  cabinets and boxes; the food stalls of LANTERN ALLEYS, THE STACKS, THE CANYON and THE STRIP; THE TERMINAL's and
+  GLASS HEIGHTS' ticket kiosks. The 0.5 m vending machines, the review's "only cover", are out. The pack's tall planters
+  were tried and came out: their fronds are drawn only, no head-high cover in the collision, and the check found GLASS
+  HEIGHTS' ground 2.4% past 6 m where the layout had counted them. THE TERRACES' tiers and GLASS HEIGHTS' deck, narrow,
+  keep their 8 m (a level's own `far`). Nothing over 1.5 m stands in a district name's view within 7 m of the ring road:
+  a crate stack stood where a player reads THE STRIP's name.
+- **The bots' streets:** each piece keeps off the street nodes and leaves the streets whole, but standing at their edge
+  253 pieces took 10 of 659 nodes; the network's floor in the checks is 640 (650), with the reason beside it.
+- **THE WORKS' doors read as doors** ("the hall a ceiling on two walls open to the boundary"): each door was a whole wall
+  module left out, 10 m wide and the 7 m storey high. Each has a lintel from 3.5 m up (the pack's long wall at half size,
+  back to back, colliding), and every outside panel of a hall's top storey carries a teal strip light (the pack's second
+  strip variant: the check holds the galleries' own strips to hang against an underside, and the facade's first try
+  counted as 76 hanging free). The yards between the halls are kept clear 6 m past each door: a tank in one shut the L.
+- **Checked:** the district cover's check now holds every spot to 6 m and nothing on the ground past 8 m; a new check
+  for the lintels (drawn and colliding at their height) and the teal strips.
+
+## Milestone 672 — THE STRIP's club
+
+"Plain dance floor"; "the Strip club: dance-floor grid, DJ booth, speakers, light rig" (`strip.club.dance`):
+
+- **A lit dance floor** between the two stairs, the pack's floor tiles lit magenta and cyan in turn.
+- **The DJ's booth** at its south end: a table, a desk on it and two speakers worn black, colliding. At the north end it
+  stood across the way in from the north gate, and the walk-in check stopped there.
+- **A light rig**: two of the pack's trusses at 5.6 m under the canopy's point, a strip light under each end.
+- **Checked:** a new check for the faces of all four: the towers in their materials, the canyon's signs and units above
+  the walkways and off its middle, the lintels and strips, the club's floor, booth and rig.
+
+The e2e: the speedkills section, 118 checks. verify, rules and tsc. Map files version 98: lo 176.3 MB, hi 256.3 MB, max 553.3 MB.

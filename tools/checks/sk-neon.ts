@@ -86,9 +86,10 @@ const street = map.nodes.map((n, i) => ({ n, i })).filter(({ n }) => !n.y && n.l
 const seen = new Set<number>([street[0]?.i ?? 0]);
 const todo = [street[0]?.i ?? 0];
 while (todo.length) for (const j of map.nodes[todo.pop()!].links) if (!map.nodes[j].y && !seen.has(j)) (seen.add(j), todo.push(j));
-// (at least 650: the districts past the ring road stand on what was open street, THE CANYON's solid blocks alone on about
-// 60 of the south-west's nodes, 735 to 677)
-check("the street a network of at least 650 nodes", street.length >= 650, `${street.length}`);
+// (at least 640: the districts past the ring road stand on what was open street, THE CANYON's solid blocks alone on about
+// 60 of the south-west's nodes, 735 to 677; the districts' cover within 6 m, Milestone 671, 253 pieces, took 10 more,
+// 659 to 649, each piece off the nodes and the streets whole but standing at the edge of some)
+check("the street a network of at least 640 nodes", street.length >= 640, `${street.length}`);
 check("the street one network: every street node reaches the rest", seen.size === street.length, `${seen.size} of ${street.length}` + (seen.size < street.length ? `; cut off: ${street.filter(({ i }) => !seen.has(i)).slice(0, 4).map(({ n }) => `(${(n.x - BR_X).toFixed(1)}, ${(n.z - BR_Z).toFixed(1)})`).join(" ")}` : ""));
 
 // the collision the bake wrote, all of it; the tallest building's top where the ship passes
@@ -103,9 +104,9 @@ check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.t
 // 1% of a district's ground past it and nothing past 10 m; on the raised levels (THE TERRACES' tiers, GLASS HEIGHTS'
 // deck) 10% and nothing past 15 m
 {
-  const DC = (cfg.rules.dress as { districtCover?: { far: number; tall: number; band: number[]; levels: Array<{ y: number; districts?: string[]; rect?: number[] }>; sectors: Record<string, string> } }).districtCover;
+  const DC = (cfg.rules.dress as { districtCover?: { far: number; tall: number; band: number[]; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[] }>; sectors: Record<string, string> } }).districtCover;
   const said: string[] = [];
-  let ok = !!DC && ((cfg as { districtCover?: unknown[] }).districtCover?.length ?? 0) >= 60;
+  let ok = !!DC && ((cfg as { districtCover?: unknown[] }).districtCover?.length ?? 0) >= 200;
   if (DC) {
     const C = 0.5, H = DC.band[1] + 2, N = Math.round((2 * H) / C);
     const sectorOf = (x: number, z: number) => (Math.abs(x) <= 50 ? (z < 0 ? "n" : "s") : Math.abs(z) <= 50 ? (x < 0 ? "w" : "e") : (z < 0 ? "n" : "s") + (x < 0 ? "w" : "e"));
@@ -142,10 +143,10 @@ check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.t
           if (L.rect && !(x >= L.rect[0] && x <= L.rect[1] && z >= L.rect[2] && z <= L.rect[3])) continue;
           const st = per.get(d) ?? per.set(d, { open: 0, far: 0, max: 0 }).get(d)!;
           st.open++;
-          if (D[k] * C > DC.far) st.far++;
+          if (D[k] * C > (L.far ?? DC.far)) st.far++;
           st.max = Math.max(st.max, D[k] * C);
         }
-      const [share, most] = y0 === 0 ? [0.01, 10] : [0.1, 15];
+      const [share, most] = y0 === 0 ? [0.01, 8] : [0.1, 15];
       for (const [d, st] of per) {
         const bad = st.far / st.open > share || st.max > most;
         if (bad) ok = false;
@@ -153,7 +154,7 @@ check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.t
       }
     }
   }
-  check("the districts' open ground: head-high cover within 8 m of every spot (1% of a district's ground, 10% of a raised level, may lack it)", ok, said.join("; "));
+  check(`the districts' open ground: head-high cover within ${DC?.far ?? 0} m of every spot on the ground (a raised level its own), nothing on the ground past 8 m (1% of a district's ground, 10% of a raised level, may lack it), 200 pieces or more`, ok, said.join("; "));
 }
 
 // The city's air thin and its bloom almost none (Milestone 658; the owner, 2026-10-18: "thin the golden-hour haze ... bloom
@@ -3947,7 +3948,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const of = (name: string, mat?: string) => placed.filter((q) => String(q[0]).endsWith(`/${name}`) && (mat === undefined || q[6] === mat));
   const clubWalls = of("CityWallsWall005.prefab", D.strip.club.wallMat).length + of("CityWallsWall00.prefab", D.strip.club.wallMat).length;
   const halls = of(D.terminal.hall.piece, D.terminal.hall.mat).length;
-  const tower = D.glass.buildings.find((b) => b[4]);
+  const tower = D.glass.buildings.find((b) => b[0] === "StreetBuilding00_10x10.prefab" && b[4]);
   const towerOk = !!tower && of(tower[0], tower[4]).length === 1;
   const mast = of(D.lantern.court.web.mast).filter((q) => Math.hypot(Number(q[1]) - D.lantern.court.web.from[0], Number(q[3]) - D.lantern.court.web.from[1]) < 1).length;
   const wear = (cfg.rules as unknown as { wear: Record<string, string> }).wear;
@@ -3997,6 +3998,38 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "a pool of light under every street lamp by night, on its floor, the arenas' own left out; small ones under LANTERN ALLEYS' lanterns, a wash of each district's colour",
     !!pools && pools.count === all.length && lamps.length >= 100 && off === 0 && all.length - lamps.length >= 8 + 100,
     `${pools?.count ?? 0} pools (${lamps.length} street lamps, ${all.length - lamps.length - 8} lanterns, 8 district washes), ${off} off their lamp`
+  );
+}
+
+// the districts' own faces (Milestones 669 to 672): GLASS HEIGHTS' four peninsula towers in white and cyan glass; THE
+// CANYON's cliffs with blade signs over its walkways and wall units up them, none low enough to meet a body on a walkway
+// (3.5 m, a standing body and a jump over it) and none out over the canyon's middle; THE WORKS' doors each under a lintel
+// at its height (two half walls back to back to a 10 m door) and colliding there, its halls' outside panels lit teal;
+// THE STRIP's club with a lit dance floor, the DJ's booth standing and the rig over it
+{
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
+  const D = cfg.rules.districts as unknown as {
+    glass: { buildings: Array<[string, number, number, number, string?]> };
+    canyon: { cliffs: { signs: { pieces: string[] }; units: { pieces: string[] } } };
+    works: { wall: string; lintel: number; storey: number; facade: { piece: string; remap: string }; halls: Array<{ box: number[]; doors: Record<string, number[]> }> };
+  };
+  const towers = D.glass.buildings.filter((b) => b[0].startsWith("HighPlatform_Peninsula"));
+  const glassOk = towers.length === 4 && towers.every((b) => placed.some((q) => String(q[0]).endsWith(`/${b[0]}`) && q[6] === b[4]));
+  const C = (cfg as unknown as { canyon: { cliffs?: { signs: number; units: number } } }).canyon.cliffs;
+  const canyonPlaced = placed.filter((q) => [...D.canyon.cliffs.signs.pieces, ...D.canyon.cliffs.units.pieces].some((n) => String(q[0]).endsWith(`/${n.split("/").pop()}`)) && Number(q[1]) < -40 && Number(q[3]) > 40 && q[5] === "g");
+  const low = canyonPlaced.filter((q) => Number(q[2]) < 5.4);
+  // (the canyon's middle: 5 m either side of its arms' middle lines, z 125 and x -125)
+  const out = canyonPlaced.filter((q) => (Math.abs(Number(q[3]) - 125) < 2.6 && Number(q[1]) > -122) || (Math.abs(Number(q[1]) + 125) < 2.6 && Number(q[3]) < 122));
+  const W = D.works;
+  const doors = W.halls.reduce((n, h) => n + Object.values(h.doors).reduce((m, at) => m + at.length, 0), 0);
+  const lintels = placed.filter((q) => String(q[0]).endsWith(`/${W.wall}`) && Math.abs(Number(q[2]) - W.lintel) < 0.01 && q[8] === 0.5).length;
+  const lintelBoxes = (SOLIDS as { solids: number[][] }).solids.filter((b) => Math.abs(b[4] - W.lintel) < 0.05 && Math.abs(b[5] - W.storey) < 0.05 && Math.max(b[1] - b[0], b[3] - b[2]) > 9.5).length;
+  const teal = placed.filter((q) => String(q[0]).endsWith(`/${W.facade.piece}`) && q[6] === W.facade.remap && Number(q[1]) > 40 && Number(q[3]) > 40).length;
+  const club = (cfg as unknown as { strip: { club: { dance?: { tiles: number; booth: number; rig: number; left: string[] } } } }).strip.club.dance;
+  check(
+    "the districts' faces: GLASS HEIGHTS' towers in white and cyan, THE CANYON's cliffs signed and dressed above the walkways and off its middle, THE WORKS' doors under lintels that collide and its halls lit teal, THE STRIP's club a dance floor with its booth and rig",
+    glassOk && (C?.signs ?? 0) >= 30 && (C?.units ?? 0) >= 40 && low.length === 0 && out.length === 0 && lintels === doors * 4 && lintelBoxes >= doors && teal >= 60 && !!club && club.tiles === 6 && club.booth === 4 && club.rig === 6 && club.left.length === 0,
+    `glass ${glassOk}; canyon ${C?.signs ?? 0} signs, ${C?.units ?? 0} units (${low.length} low, ${out.length} over the middle); works ${lintels} lintel halves for ${doors} doors, ${lintelBoxes} lintel boxes, ${teal} teal strips; club ${club ? `${club.tiles} tiles, ${club.booth} booth, ${club.rig} rig${club.left.length ? `, left out ${club.left.join(", ")}` : ""}` : "none"}`
   );
 }
 

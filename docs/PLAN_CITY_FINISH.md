@@ -250,7 +250,9 @@ putting the fault back, the touched e2e section, photographs by day and by night
 - **668: the pads read as pads**: a ring of light on the ground round each pad in its district's colour (game side) and
   its beam cut to a short stub; the edge's red lines made thinner.
 
-**Batch 2, map version 98: the districts' own faces**
+**Batch 2, map version 98: the districts' own faces** (built 2026-10-20 as Milestones 669 to 672; GLASS HEIGHTS'
+deck and lift, THE CANYON's stalls and roofs, the fronts' own pieces in LANTERN ALLEYS, THE STACKS and THE TERRACES
+still to do)
 
 - **669: GLASS HEIGHTS in white glass**: its towers' window grid worn as the pack's light glass, its crown cyan; its
   27 m deck dressed (glass windbreaks, planters, benches); its glass lift's cabin framed so it reads (d13, d14, d15).

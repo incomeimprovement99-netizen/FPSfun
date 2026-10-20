@@ -1347,13 +1347,13 @@ in the north-west: three towers of stacked capsule pods round an avenue and a ca
 capsule hotel of 21 pods on three storeys round a court, galleries and stairs up to its roof, lit pink by
 night, and a jump pad onto a pod roof 20 m up the twin towers; and GLASS HEIGHTS in the north: white glass
 towers with decks at the High City's height, joined by gangways, the North deck's carried across the ring road onto
-them, a glass lift up from its courtyard, its gangways glowing cyan underneath by night, and a 72 m glass tower with a
+them, a glass lift up from its courtyard, its gangways glowing cyan underneath by night, its towers' windows glowing cyan, and a 72 m glass tower with a
 cyan crown; and THE STRIP in the east: an 87 m
 black tower on the city's edge at the end of a boulevard, its foot ringed by glowing blocks under lit billboards, a
-glass pyramid of lit windows to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, its balcony
-running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
+glass pyramid of lit windows to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, a lit dance floor, a DJ booth and a light rig
+in it, its balcony running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
-walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L,
+walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L, lintels over their doors and teal lights under their roofs,
 crossed indoors from hall to hall, each with columns, a gallery and its stair, a tank and machines, and the corner's works block with an upper floor
 round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
 crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground and each
