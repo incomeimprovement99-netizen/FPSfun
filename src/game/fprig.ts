@@ -171,6 +171,7 @@ export const PACK_PALM = (cfg as unknown as {
     rate: number;
     spin: number;
     hold: number[];
+    carry?: number;
     lift: number;
     clear: number;
     pair: { gap: number; scale: number; dx: number };

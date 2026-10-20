@@ -15320,6 +15320,34 @@ fight, against Apex, Hyper Scape and EMPULSE, where you find a shooter by his fl
   a round fired at you from 40 m, at 29 m, has a head 8 pixels across, where its streak is 1.5 and the head before
   this was nothing (the check reads 0 without it). In pictures beside a figure at 9 m: its flash before and after.
 
+## Milestone 557 — The open hand stays close at an inspect's ends
+
+The owner, 2026-10-20, after watching the ad's clips of each gun back to back: "some of our wrists look unnatural / arms
+do the same. mostly left arm ... there were some inconsistencies from what a normal arm would look like. can you back
+up and spot them? if they have clear fixes, implement them".
+
+- **How they were looked for:** the ad's ten gun clips (each gun's inspect) pulled frame by frame and laid side by side
+  at five moments; then all ten guns photographed in the game's own view at twelve moments each (rest, a swap's middle
+  both ways, the first draw's flick, the inspect's start, middle and end, aimed, a reload's point and its new magazine),
+  and every arm measured through every move (each wrist's bend, its twist on the forearm and the skin's wring, and each
+  shoulder, elbow and hand in the view): rest, inspect, flourish, reload, swap, aim, melee and pickup.
+- **The clear one:** as an inspect began and ended, the USSO's, BOOG's and ANAKIN's open left hand went far out, the arm
+  laid straight across the picture to the horizon, while the other seven guns' hands came up close from below. Those
+  three are framed with their own look while they inspect (packGuns inspectLook), eased in as the gun rolls and out as
+  it settles, and the open palm's spot was carried by that look's change while it was still up: ANAKIN's to 51 cm out
+  and 12 cm higher than the 26 cm the others hold it at, BOOG's to 50, the USSO's to 44. It is no longer carried
+  (fparms.json inspectPalm carry 0, viewmodel.ts palmFrame): the palm stays where every gun holds it. Through the inspect
+  the wrists bend 48, 43 and 53 degrees at most and the forearm wrings 79, 88 and 86 (the checks allow 60 and 90).
+- **Found, with no clear fix yet:** REZ's right elbow rests 18 cm above its hand (its raised shoulder suits the raked
+  grip; lower, the wrist bent 147 degrees), and aimed it is below the hand, so aiming in rolls the forearm up to 177
+  degrees on the way, and a swap's cup turns that wrist 170; aimed, the forearm is in the picture. CHOOCH's and PANDA's
+  left hands are turned 121 and 94 degrees on straight arms under their shrouds at rest. ANAKIN's aimed left wrist turns
+  111. The inspect's palm-up turns every left wrist 160 to 177 degrees, the forearm taking 85 to 89 of it, the same on
+  every gun.
+- **Checked:** verify, rules, the type check, and the e2e's bought-arms frames on the USSO, BOOG and ANAKIN (the inspect
+  all through: the cards clear of the gun, no hand through it, the wrists, the forearms' wring, the arms reaching).
+  Pictures of the three guns at the inspect's ends before and after.
+
 ## Milestone 657 — The city drawn in batches, and the last plan
 
 The owner, after a pause: "plan this part out deeply then finish out the city overall". Two fresh reviews, both taken

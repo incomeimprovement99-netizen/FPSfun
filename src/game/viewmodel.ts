@@ -817,12 +817,15 @@ export class ViewModel {
     const at = new THREE.Vector3().fromArray(this.pack.debugPalmAt ?? P.at);
     // the palm flicked up and back as it tosses the cards away
     at.y += P.toss.flick * Math.sin(Math.PI * smooth(P.toss.at[0], P.toss.at[1], i));
-    // (set where the shoulders were under the look before the refit, so carried by the look's change since: left where it
-    // was as the inspect eased back to the refit's look, BOOG's open hand bent its wrist to 87 degrees, 47 under that look)
+    // (set where the shoulders were under the look before the refit, and carried `carry` of the way by the look's change
+    // since, fparms.json inspectPalm: carried all the way, the palm went out with the look as it eased in and out while the
+    // hand was still up, ANAKIN's arm laid straight across the picture to 51 cm out; left where it was, BOOG's wrist had
+    // bent to 87 degrees before its palmElbow, 53 now)
     const since = this.beforeLook.clone().invert();
-    at.applyMatrix4(since);
+    const carry = P.carry ?? 1;
+    at.lerp(at.clone().applyMatrix4(since), carry);
     this.group.updateMatrixWorld(true);
-    return { w, at: this.group.localToWorld(at), turn: new THREE.Quaternion().setFromRotationMatrix(since) };
+    return { w, at: this.group.localToWorld(at), turn: new THREE.Quaternion().slerp(new THREE.Quaternion().setFromRotationMatrix(since), carry) };
   }
 
   /**
