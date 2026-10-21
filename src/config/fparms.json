@@ -2268,14 +2268,9 @@
           0,
           -0.2,
           0
-        ],
-        "l": [
-          0,
-          -0.06,
-          0.28
         ]
       },
-      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: the elbow stood 18 cm above the hand at rest and dropped under it aimed, so aiming in rolled the forearm 151 degrees and a swap's cup 171; with the hint the elbow stays down, 53 and 37, at rest 4 cm over the hand. Left: the wrist 45 at rest, 34."
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: the elbow stood 18 cm above the hand at rest and dropped under it aimed, so aiming in rolled the forearm 151 degrees and a swap's cup 171; with the hint the elbow stays down, 53 and 37, at rest 4 cm over the hand. The left keeps no hint: with one, the first draw's flourish bent its wrist to 77 degrees and wrung the forearm 114 (limits 60 and 90), 51 and 33 without (Milestone 752)."
     },
     "MGX5": {
       "model": "MGX5",

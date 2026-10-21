@@ -15351,6 +15351,15 @@ finger curled around its designated finger grip".
 - **Checked:** verify, rules, the type check, and the e2e's bought-arms frames on BIGANTLER (every frame of the reload,
   swap, aim, inspect, flourish, pickup and punch, the forefinger on the trigger, no daylight).
 
+## Milestone 752 — REZ's first draw unbent
+
+A sweep of every gun's moves after Milestone 750, with the e2e's own measures taken in the page (no e2e run, the
+owner's word for the day), found one move it broke: REZ's first draw's flourish. With the left elbow hint that
+Milestone 750 gave it, the left wrist bent to 77 degrees and the forearm wrung 114 as the gun flicked (the checks allow
+60 and 90; 51 and 33 before). The hint is out (fparms.json packGuns Drake-12 holdElbow keeps only r); REZ's right hint,
+which took the aim-in roll from 151 degrees to 53, stays. Every other gun's inspect, flourish, swap, rest and aim
+measured within the checks' limits.
+
 ## Milestone 751 — A near miss shows which way it came from
 
 The enemy view's next gap after Milestone 750: a round that passed you within 2.5 m cracked by (audio.ts whiz), and on
