@@ -15351,6 +15351,23 @@ finger curled around its designated finger grip".
 - **Checked:** verify, rules, the type check, and the e2e's bought-arms frames on BIGANTLER (every frame of the reload,
   swap, aim, inspect, flourish, pickup and punch, the forefinger on the trigger, no daylight).
 
+## Milestone 558 — ANAKIN's right hand round its grip
+
+The owner, 2026-10-20, after Milestone 556 left ANAKIN as it was: "anakin still looks fucked up tbh".
+
+- **What it was:** ANAKIN's middle finger stood up in the trigger guard beside the forefinger, and only the little
+  finger went round the grip (Milestone 556 has how it was found).
+- **Why the first refit failed:** the grip search aimed each fingertip half way into the grip, as a thick grip would
+  take it. ANAKIN's is 3.8 cm across, so its middle fingertip and the palm each lay 12 mm inside it, out of sight at
+  rest, and the inspect's roll of the gun brought the fingertip into sight.
+- **Now** (fparms.json packGuns ASVal hold r): the fingertips aimed at the grip's far face and the knuckles 2 cm out
+  from its near side, the hand's skin in the gun counted where it is not seen too. The three fingers lie under the
+  trigger guard one above the other round the grip's front. None of the hand is more than 5 mm in anywhere and none of
+  it is seen in the gun at rest, through the inspect, the first draw, the reload or any step of a swap; the forefinger's
+  tip is 3.1 mm from the trigger, the wrist 14 degrees, both arms reach aimed, no daylight along the right hand.
+- **Checked:** verify, rules, the type check, and those measures taken in the page with the e2e's own code (the owner
+  asked for no e2e runs that are not needed). PANDA's refit still waits, its forefinger 5.1 mm off the trigger.
+
 ## Milestone 557 — The open hand stays close at an inspect's ends
 
 The owner, 2026-10-20, after watching the ad's clips of each gun back to back: "some of our wrists look unnatural / arms
