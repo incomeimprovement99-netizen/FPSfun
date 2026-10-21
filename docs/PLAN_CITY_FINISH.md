@@ -268,7 +268,8 @@ still to do)
 - **672: THE STRIP's club**: a lit dance-floor grid, a DJ booth and speakers, a rig of lights over it, masts for its
   ribbons, the concrete ring out (d18).
 
-**Batch 3, map version 99: the centre's payoffs**
+**Batch 3, map version 99: the centre's payoffs** (built 2026-10-20 as Milestones 673 and 674; the deck materials, the
+High City crowns, the tower floors' drop holes (675) and the corner blocks' silhouettes still to do)
 
 - **673: the roofs**: cover on the base roof, the lookout, each High City roof and each bridge (centre 09, 10, 14, 15);
   a different crown on each High City roof (a helipad, a dish array, a roof garden, a pool); the walkable tops in deck

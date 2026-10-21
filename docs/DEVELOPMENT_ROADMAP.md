@@ -16077,3 +16077,28 @@ only and only where a block stands behind the face (not across a passage's mouth
   the walkways and off its middle, the lintels and strips, the club's floor, booth and rig.
 
 The e2e: the speedkills section, 118 checks. verify, rules and tsc. Map files version 98: lo 176.3 MB, hi 256.3 MB, max 553.3 MB.
+
+## Milestone 673 — Cover on the base roof
+
+The centre's review (round 8) asked first for "roof cover and crowns", the base roof round the tower "a bare deck"
+(picture 09), a cooling unit and the pads' lanes on it.
+
+- **The base roof has its own perch** (`rules.perches`, `base-roof`): twelve pieces of cooling units, cabinets, crates and
+  a low tank round the tower's foot, clear of the pads' lanes, the stairs and the atria. It is laid last of the perches,
+  so it moves none of the others' draws.
+- **The perches now keep off each pad's own spot as the bake placed it** (tools/neon-layout.ts): the bake moves a blocked
+  pad, and the first base roof laid a tank on the crown's south pad, which the bake then refused.
+- **The High City decks keep their sets and their crowns** (each its landmark: a tank and masts, an ad stand and gas
+  risers, a stand of trees, a parked flying car and masts). Themed sets were tried (a helipad's platform, a tank farm, a
+  roof garden, antennas): the bigger pieces left the decks fewer pieces of cover than they had, and laid early the new
+  perch moved every later perch's draws, so a landmark came out empty. Both were taken back.
+
+## Milestone 674 — THE VAULT a strongroom
+
+"THE VAULT a payoff"; it read as "a painted maze". The 32 m floor is laid as four halls behind gates (the `halls` plan) in
+place of the maze, its gold walls and lights kept, and its cover is the strongroom's own: the pack's short racks, its
+crates and cooling cabinets. The pack's 2.5 m racks were tried first: they shut a hall's corner off from a body. The
+gold trim along the partitions' feet, 30 lengths along a maze's, is 8 along the halls' walls, and its check now follows
+the floor's plan.
+
+**Checked:** a new check for both: base roof 12; the vault halls, 11 of its pieces. The e2e: the speedkills section, 118 checks. verify, rules and tsc. Map files version 99: lo 177.3 MB, hi 257.3 MB, max 554.2 MB.

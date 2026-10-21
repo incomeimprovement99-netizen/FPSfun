@@ -2931,6 +2931,9 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
       while (t < 40 && anyTop(q.at[0] + q.to[0] * t, q.at[1] + q.to[1] * t, R.pads.body) < q.face) t += 0.05;
       lands.push([q.at[0] + q.to[0] * (t + R.pads.body + q.land), q.at[1] + q.to[1] * (t + R.pads.body + q.land), PC.pad]);
     }
+    // (and each pad's own spot as the bake placed it (it moves a blocked one), where one stands on a perch's roof: the
+    // base roof's pads up to the crown, Milestone 673, where a tank stood on one)
+    for (const q of ((cfg.spine?.up ?? []) as Array<{ pad: number[] }>)) lands.push([q.pad[0], q.pad[1], PC.pad]);
     for (const q of (R.pads.spine?.down ?? []) as Array<{ pad: number[] }>) lands.push([q.pad[0], q.pad[1], PC.pad]);
     // (and on the High City decks: where their pads land, the lifts' landings, the bridges' ends and the zips' tops, each
     // its own clearance: a bridge's stair runs on from its end)

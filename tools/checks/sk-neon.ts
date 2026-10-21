@@ -444,8 +444,8 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 28 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the base's roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 29 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // THE GANGWAY's cover (Milestone 656; the sixth review: "the gangway's cover staggered with side shields"): along its long
 // leg its sets alternate rails, each solid on its deck 1.4 m and more, each with its shield 1.4 m and more along the same
 // rail; and from every half metre of the deck's middle line between the window's cell and the corner's, cover a body
@@ -3764,7 +3764,9 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const TR = (cfg.rules.tower.floors.at as unknown as Record<string, { trim?: { strip: string; remap: string } }>)["32"]?.trim;
   const lit = ((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-tower"]?.place ?? []).filter((q) => TR && String(q[0]).endsWith(`/${TR.strip}`) && q[6] === TR.remap) as Array<[string, number, number, number]>;
   const off = lit.filter(([, , y]) => y < 32 || y > 32.6);
-  check("THE VAULT: its maze lit gold along its partitions' feet", !!TR && lit.length >= 30 && off.length === 0, `${lit.length} lengths of gold trim, ${off.length} off the floor`);
+  // (30 along a maze's partitions; its halls since Milestone 674 have fewer, the gates' walls only)
+  const vplan = (cfg.rules.tower as unknown as { floors: { at: Record<string, { plan: string }> } }).floors.at["32"].plan;
+  check("THE VAULT: its partitions lit gold along their feet", !!TR && lit.length >= (vplan === "maze" ? 30 : 8) && off.length === 0, `${lit.length} lengths of gold trim, ${off.length} off the floor`);
 }
 
 // what the sixth review read wrong (Milestone 651): the names' planes drawn after the city's other see-through pieces
@@ -4030,6 +4032,20 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "the districts' faces: GLASS HEIGHTS' towers in white and cyan, THE CANYON's cliffs signed and dressed above the walkways and off its middle, THE WORKS' doors under lintels that collide and its halls lit teal, THE STRIP's club a dance floor with its booth and rig",
     glassOk && (C?.signs ?? 0) >= 30 && (C?.units ?? 0) >= 40 && low.length === 0 && out.length === 0 && lintels === doors * 4 && lintelBoxes >= doors && teal >= 60 && !!club && club.tiles === 6 && club.booth === 4 && club.rig === 6 && club.left.length === 0,
     `glass ${glassOk}; canyon ${C?.signs ?? 0} signs, ${C?.units ?? 0} units (${low.length} low, ${out.length} over the middle); works ${lintels} lintel halves for ${doors} doors, ${lintelBoxes} lintel boxes, ${teal} teal strips; club ${club ? `${club.tiles} tiles, ${club.booth} booth, ${club.rig} rig${club.left.length ? `, left out ${club.left.join(", ")}` : ""}` : "none"}`
+  );
+}
+
+// the centre's payoffs (Milestones 673 and 674): cover on the base roof (the perches' check counts it) and THE VAULT four
+// halls of the strongroom's crates and racks
+{
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place) as Array<[string, number, number, number]>;
+  const V = (cfg.rules.tower as unknown as { floors: { at: Record<string, { plan: string; pieces?: string[] }> } }).floors.at["32"];
+  const vault = placed.filter((p) => (V.pieces ?? []).some((n) => String(p[0]).endsWith(`/${n}`)) && p[2] > 31.5 && p[2] < 34.5 && Math.abs(p[1]) < 22 && Math.abs(p[3]) < 22).length;
+  const base = ((cfg as unknown as { perches: Array<{ name: string; at: unknown[] }> }).perches.find((q) => q.name === "base-roof")?.at.length ?? 0);
+  check(
+    "the centre's payoffs: cover on the base roof, THE VAULT four halls of the strongroom's crates and racks",
+    base >= 8 && V.plan === "halls" && vault >= 8,
+    `base roof ${base}; the vault ${V.plan}, ${vault} of its pieces`
   );
 }
 
