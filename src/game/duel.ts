@@ -1249,7 +1249,7 @@ export class Duel implements MatchLike {
         // the figure's gun kicks
         r.avatar.kick();
         // (a rocket never bursts on the figure that fired it: it leaves from inside it)
-        this.projectiles.fire(o, dir, this.weapon(m.w), true, 1, 1, r.avatar.muzzleWorld(), null, { figure: r.avatar });
+        this.projectiles.fire(o, dir, this.weapon(m.w), true, 1, 1, r.avatar.muzzleWorld(), null, { figure: r.avatar, ally: this.isAlly(from) });
         this.onShotFired?.(from, o, dir, m.w);
         if (this.role === "host" && from < Duel.BOT_ID) this.heardShot(o);
         this.shotAt.set(from, wallClock());

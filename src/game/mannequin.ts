@@ -906,7 +906,7 @@ export class MannequinFigure {
     const m = displayGunModel(id);
     const gun = m.root.clone(true);
     // the model's own flash out, a marker with a flash sprite in its place (muzzle.ts)
-    this.flash = fitMuzzle(gun, ammoTypeOf(id) === "energy", m.muzzle);
+    this.flash = fitMuzzle(gun, ammoTypeOf(id) === "energy", m.muzzle, id);
     // a magnified optic glints when its holder aims (Hyper Scape's lens flare), at its front lens: the frontmost point
     // of the gun within 3 cm of its sight line, measured off the model (at the eyepiece the gun and head hid it)
     // (every gun wears its profile's one optic)

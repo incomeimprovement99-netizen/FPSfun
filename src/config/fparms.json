@@ -356,6 +356,11 @@
           0.286,
           -0.5318,
           0.1526
+        ],
+        "r": [
+          0,
+          -0.2,
+          0.15
         ]
       },
       "look": {
@@ -401,7 +406,8 @@
           -0.07
         ]
       },
-      "_beforeArm": "The left elbow hint and shoulder the arm had before the 2026-10-02 refit (packGuns holdElbow l and shoulders l then), where the moves off the gun (the inspect's open hand, the punch, the point, the pickup) were fitted: the arm goes to them as the hand leaves the gun and while the gun is framed as before the refit (beforeFrame offArm). Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 at a reload's start, against 21, 42 and 18 before; the grip itself stays the new one, as mixed between the two the USSO's fingers went 18 mm into its front in a first draw."
+      "_beforeArm": "The left elbow hint and shoulder the arm had before the 2026-10-02 refit (packGuns holdElbow l and shoulders l then), where the moves off the gun (the inspect's open hand, the punch, the point, the pickup) were fitted: the arm goes to them as the hand leaves the gun and while the gun is framed as before the refit (beforeFrame offArm). Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 at a reload's start, against 21, 42 and 18 before; the grip itself stays the new one, as mixed between the two the USSO's fingers went 18 mm into its front in a first draw.",
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: the forearm turned 109 degrees through an inspect, 73 now; at rest 47, 13."
     },
     "L96X": {
       "model": "L96X",
@@ -660,6 +666,11 @@
           0.5654,
           -0.0463,
           -0.5745
+        ],
+        "r": [
+          0,
+          -0.2,
+          0
         ]
       },
       "look": {
@@ -711,7 +722,8 @@
           0.08
         ]
       },
-      "_beforeArm": "The left elbow hint and shoulder the arm had before the 2026-10-02 refit (packGuns holdElbow l and shoulders l then), where the moves off the gun (the inspect's open hand, the punch, the point, the pickup) were fitted: the arm goes to them as the hand leaves the gun and while the gun is framed as before the refit (beforeFrame offArm). Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 at a reload's start, against 21, 42 and 18 before; the grip itself stays the new one, as mixed between the two the USSO's fingers went 18 mm into its front in a first draw."
+      "_beforeArm": "The left elbow hint and shoulder the arm had before the 2026-10-02 refit (packGuns holdElbow l and shoulders l then), where the moves off the gun (the inspect's open hand, the punch, the point, the pickup) were fitted: the arm goes to them as the hand leaves the gun and while the gun is framed as before the refit (beforeFrame offArm). Kept in the new arm, BOOG's left wrist bent 97 degrees early in a punch, 84 at an inspect's end and 73 at a reload's start, against 21, 42 and 18 before; the grip itself stays the new one, as mixed between the two the USSO's fingers went 18 mm into its front in a first draw.",
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: 98 degrees through an inspect, 78 now; at rest 31, 14; in a swap 30, 13."
     },
     "ASVal": {
       "model": "AS_Val",
@@ -1264,73 +1276,163 @@
         },
         "r": {
           "shift": [
-            0.0143,
-            -0.0122,
-            0.0024
+            0.0217,
+            -0.0269,
+            -0.0273
           ],
           "rot": [
-            -0.334,
-            -0.1403,
-            -0.1978
+            -0.3065,
+            -0.1462,
+            -0.1753
           ],
           "joint": {
             "thumb_01": [
-              -0.4769,
-              -0.4359,
-              -0.2898
+              -0.3825,
+              -0.3428,
+              -0.2263
             ],
             "thumb_02": [
-              -0.5085,
-              -0.4314,
-              0.4805
+              -0.4951,
+              -0.5195,
+              0.5823
             ],
             "thumb_03": [
-              -0.48,
-              0.12,
-              0
+              -0.4887,
+              0.1142,
+              0.1312
             ],
             "middle_01": [
-              -0.5044,
-              -0.0313,
-              0.3288
+              -0.5248,
+              -0.2287,
+              -0.239
             ],
             "middle_02": [
-              0.305,
-              -0.3226,
-              0.1562
+              0.2925,
+              -0.4067,
+              -0.4323
             ],
             "ring_01": [
-              -0.0332,
-              0.3294,
-              0.257
+              -0.054,
+              0.2349,
+              0.207
             ],
             "ring_02": [
-              -0.2399,
-              -0.0322,
-              0.2111
+              -0.2405,
+              -0.0294,
+              0.1617
             ],
             "pinky_01": [
-              -0.2953,
-              0.4378,
-              0.0035
+              -0.3192,
+              0.3376,
+              0.0237
             ],
             "pinky_02": [
-              -0.0593,
-              0.4927,
-              -0.0328
+              -0.0594,
+              0.4894,
+              -0.0074
             ],
             "index_01": [
-              0.384,
-              0.0573,
-              0.216
+              0.3219,
+              0.2199,
+              0.3852
             ],
             "index_02": [
-              0.6351,
-              0.3899,
-              0.1495
+              0.6296,
+              0.4179,
+              0.2095
+            ],
+            "index_03": [
+              -0.0978,
+              0.2143,
+              0.4689
+            ],
+            "middle_03": [
+              -0.0465,
+              -0.0797,
+              -0.5848
+            ],
+            "ring_03": [
+              0.002,
+              0.003,
+              -0.0493
+            ],
+            "pinky_03": [
+              -0.0017,
+              -0.0031,
+              0.0254
             ]
           },
-          "open": {}
+          "open": {},
+          "ads": {
+            "shift": [
+              0.0143,
+              -0.0122,
+              0.0024
+            ],
+            "rot": [
+              -0.334,
+              -0.1403,
+              -0.1978
+            ],
+            "joint": {
+              "thumb_01": [
+                -0.4769,
+                -0.4359,
+                -0.2898
+              ],
+              "thumb_02": [
+                -0.5085,
+                -0.4314,
+                0.4805
+              ],
+              "thumb_03": [
+                -0.48,
+                0.12,
+                0
+              ],
+              "middle_01": [
+                -0.5044,
+                -0.0313,
+                0.3288
+              ],
+              "middle_02": [
+                0.305,
+                -0.3226,
+                0.1562
+              ],
+              "ring_01": [
+                -0.0332,
+                0.3294,
+                0.257
+              ],
+              "ring_02": [
+                -0.2399,
+                -0.0322,
+                0.2111
+              ],
+              "pinky_01": [
+                -0.2953,
+                0.4378,
+                0.0035
+              ],
+              "pinky_02": [
+                -0.0593,
+                0.4927,
+                -0.0328
+              ],
+              "index_01": [
+                0.384,
+                0.0573,
+                0.216
+              ],
+              "index_02": [
+                0.6351,
+                0.3899,
+                0.1495
+              ]
+            },
+            "open": {}
+          }
         }
       },
       "_solve": "tools/pack-solve.ts, 2026-10-12: pointing wrist: before 64, after 68 (tip 0.0 cm, 8 deg; arms in the picture 0.0% then 1.2%; elbow -0.45,-1.15,0.00, reach 0.24, aimAt 0.85).",
@@ -1444,7 +1546,20 @@
         0.1092
       ],
       "_pointShoulder": "PANDA points at its magazine in a reload from its own left shoulder (fprig.ts pointShoulder), the off-gun shoulder it had before the fix round: refitted for its inspect and first draw once the hold moved under the handguard (2026-10-12), the shared one bent the pointing wrist to 64 degrees, the finger 11 off the magazine; from this, 43 and 5.",
-      "_holdR": "The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had been 30 mm off): searched by tools/pack-flush.ts for the fingertip on the trigger, the palm on the grip and nothing seen in the gun, the fingers laid by tools/pack-solve.ts and the right shoulder fitted at rest and aimed for the wrist (39 and 9 degrees)."
+      "_holdR": "The right hand round the grip (2026-10-21, Milestone 750): it had held the receiver over the grip, the grip's grooved front empty under it, no finger round it. Refitted by the grip search as ANAKIN's and BIGANTLER's were (Milestones 556 and 558): the fingertips aimed at the grip's far face and the knuckles 2 cm out from its near side, then moved the least that keeps the hand out of the gun where it is seen through the inspect, the first draw, the reload and every step of a swap, with no daylight along it, and the forefinger's own three joints laid onto the trigger. Nothing of the hand seen in the gun anywhere, the forefinger on the trigger. Aimed it keeps the hold it had (`ads`): the new one sits 2 cm lower and aimed the arm fell 2.2 cm short of it. Before that: The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had been 30 mm off): searched by tools/pack-flush.ts for the fingertip on the trigger, the palm on the grip and nothing seen in the gun, the fingers laid by tools/pack-solve.ts and the right shoulder fitted at rest and aimed for the wrist (39 and 9 degrees).",
+      "holdElbow": {
+        "r": [
+          0,
+          -0.2,
+          0
+        ],
+        "l": [
+          0,
+          -0.06,
+          0.28
+        ]
+      },
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 39 and the forearm turned 47, 28 and 13 now; 105 through an inspect, 80. Left: turned 94 at rest, 87."
     },
     "KXG12": {
       "model": "KXG12",
@@ -1830,7 +1945,15 @@
           ]
         }
       },
-      "_holdR": "The right hand round the grip (2026-10-20, Milestone 556): the fingers had curled in the air beside the grip, its grooved front empty. Refitted by the grip search: the grip read off the model in level cuts 2.5 mm apart (its front strap, its width, the trigger guard's foot, the finger grooves where the front strap dips), targets set from it as a hand holds a pistol grip (each of the middle, ring and little fingers' knuckle on the grip's near side behind the front strap, its middle joint at the front strap, its tip round on the far side, a finger's width apart down from the guard's foot), and the hand's move and turn and each finger's curl about its own closing hinge (the fists' hinge, fprig.ts makeFists) searched to them with nothing of the hand seen in the gun, held to the e2e's own measures (the forefinger's tip on the trigger, the three fingers side by side), then moved the least that keeps the hand out of the gun where it is seen through the inspect, the first draw, the reload's point, new magazine and rack, and the swap (in the hold alone its fingers went 12.5 mm into the gun where it is seen as an inspect rolled it over). The forefinger's tip 3.1 mm from the trigger. Aimed it keeps the hold it had (`ads`): the new hold sits 3 cm lower and aimed the arm fell 3 cm short of it. Before that: The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip 90 mm behind it): searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, the middle, ring and little fingers laid by tools/pack-solve.ts (the forefinger kept as searched: laid again, it curled 60 mm off the trigger), and the aimed right shoulder fitted for the wrist (31 degrees; at the shoulder before, 63)."
+      "_holdR": "The right hand round the grip (2026-10-20, Milestone 556): the fingers had curled in the air beside the grip, its grooved front empty. Refitted by the grip search: the grip read off the model in level cuts 2.5 mm apart (its front strap, its width, the trigger guard's foot, the finger grooves where the front strap dips), targets set from it as a hand holds a pistol grip (each of the middle, ring and little fingers' knuckle on the grip's near side behind the front strap, its middle joint at the front strap, its tip round on the far side, a finger's width apart down from the guard's foot), and the hand's move and turn and each finger's curl about its own closing hinge (the fists' hinge, fprig.ts makeFists) searched to them with nothing of the hand seen in the gun, held to the e2e's own measures (the forefinger's tip on the trigger, the three fingers side by side), then moved the least that keeps the hand out of the gun where it is seen through the inspect, the first draw, the reload's point, new magazine and rack, and the swap (in the hold alone its fingers went 12.5 mm into the gun where it is seen as an inspect rolled it over). The forefinger's tip 3.1 mm from the trigger. Aimed it keeps the hold it had (`ads`): the new hold sits 3 cm lower and aimed the arm fell 3 cm short of it. Before that: The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip 90 mm behind it): searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, the middle, ring and little fingers laid by tools/pack-solve.ts (the forefinger kept as searched: laid again, it curled 60 mm off the trigger), and the aimed right shoulder fitted for the wrist (31 degrees; at the shoulder before, 63).",
+      "holdElbow": {
+        "r": [
+          0,
+          -0.2,
+          0
+        ]
+      },
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 31 and turned 41, 13 and 10 now; 81 in a swap, 48; through an inspect the wrist 54, 27."
     },
     "Drake-12": {
       "model": "Drake-12",
@@ -2139,7 +2262,20 @@
         "aimAt": 0.78
       },
       "_hold": "REZ on the Drake-12, drawn at 0.85 (`gunScale`): its fore-end is a flat-bottomed block 5.6 cm wide, and at full size every fit left the palm 20 to 25 mm in it. The left hand is on it ahead of the long magazine, 36 cm ahead of the gun's middle as the soldier holds it: every search from the Drake-12's own hand (tools/pack-grip.ts, pack-flush.ts, pack-solve.ts joints, pack-thumb.ts) left the palm or the thumb's root 14 to 25 mm in the block, the pack's hand meeting it edge on and the searches that keep the palm touching sinking it in; so the hand was aimed outright, palm up under the block and the knuckles round its right side, then searched with the palm free to stand off and the fingers on: none of it seen in the gun, no daylight, the wrist 32 degrees. Aimed, REZ's irons are over the gun's middle and its fore-end over 40 cm out from the eye: the left arm fell 35 cm short, so aimed its shoulder comes 40 cm forward (`shoulders` adsL), out of the picture but the hand. The right shoulder is up and back for our raked grip through an inspect, which rolls the gun about the right forearm: 147 to 22 degrees at rest, 105 to 46 in an inspect. The punch, the arm off the gun and the swap's cup by tools/pack-tune.ts; the pointing arm by tools/pack-solve.ts POINT_ONLY (its wrist 62 to 44).",
-      "_holdR": "The right forefinger on the trigger at rest (2026-10-13; it had held the foot of the grip, 126 mm from the trigger): the hand from where the pack holds its own gun, searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, fingers laid by tools/pack-solve.ts, the right shoulder fitted for the wrist. Aimed it takes its own `ads` fit, mixed in by the aim (fprig.ts): REZ's rear sight is well ahead of its grip, so aimed the hand on the trigger was so near the eye that its forearm filled the lower right of the picture from every shoulder the arm reaches from (moving the shoulder, the elbow or the gun's distance did not clear it); its aimed fit, searched with the gun aimed for the forearm out of the picture, holds the grip lower, the wrist 44 degrees."
+      "_holdR": "The right forefinger on the trigger at rest (2026-10-13; it had held the foot of the grip, 126 mm from the trigger): the hand from where the pack holds its own gun, searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun, fingers laid by tools/pack-solve.ts, the right shoulder fitted for the wrist. Aimed it takes its own `ads` fit, mixed in by the aim (fprig.ts): REZ's rear sight is well ahead of its grip, so aimed the hand on the trigger was so near the eye that its forearm filled the lower right of the picture from every shoulder the arm reaches from (moving the shoulder, the elbow or the gun's distance did not clear it); its aimed fit, searched with the gun aimed for the forearm out of the picture, holds the grip lower, the wrist 44 degrees.",
+      "holdElbow": {
+        "r": [
+          0,
+          -0.2,
+          0
+        ],
+        "l": [
+          0,
+          -0.06,
+          0.28
+        ]
+      },
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: the elbow stood 18 cm above the hand at rest and dropped under it aimed, so aiming in rolled the forearm 151 degrees and a swap's cup 171; with the hint the elbow stays down, 53 and 37, at rest 4 cm over the hand. Left: the wrist 45 at rest, 34."
     },
     "MGX5": {
       "model": "MGX5",
@@ -2393,7 +2529,15 @@
         "aimAt": 0.78
       },
       "_solve": "tools/pack-solve.ts, 2026-10-12: rest wrists: before L 53 R 29, after L 50 R 30; arms in the picture 42.7% then 42.7%, a sleeve's inside 40 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.12,-0.06,0.12]}); aimed wrists: before L 49 R 18, after L 34 R 18; arms in the picture 0.0% then 0.0%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.18000000000000002,-0.07,0.24000000000000002],\"r\":[-0.04,0.05,-0.1],\"adsR\":[-0.24,0.16,-0.24],\"adsL\":[0.03999999999999999,-0.019999999999999997,0.12]}); pointing wrist: before 56, after 49 (tip 0.0 cm, 9 deg; arms in the picture 0.1% then 0.2%; elbow -0.45,-1.00,0.00, reach 0.18, aimAt 0.78).",
-      "_holdR": "The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip's foot under the drum, 125 mm from the trigger): searched as G3's was, its palm inside the grip where nothing of it is seen; the right shoulder 12 cm further out than its wrist fit put it, so the inspect's right wrist stays at 29 degrees (62 there)."
+      "_holdR": "The right hand from where the pack holds its own gun, its forefinger on our trigger (2026-10-13; it had held the grip's foot under the drum, 125 mm from the trigger): searched as G3's was, its palm inside the grip where nothing of it is seen; the right shoulder 12 cm further out than its wrist fit put it, so the inspect's right wrist stays at 29 degrees (62 there).",
+      "holdElbow": {
+        "r": [
+          0,
+          -0.2,
+          0
+        ]
+      },
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 22, 7 now; in a swap the forearm turned 52, 18."
     },
     "DGL50": {
       "model": "DGL50",
@@ -2575,7 +2719,20 @@
         -0.08,
         0
       ],
-      "_holdR": "The right forefinger reaches the trigger (2026-10-13; it had lain 26 mm off it): only the forefinger's joints moved, the hand where it was on the grip, searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun (moved with it, the palm came 5 mm into the grip where it is seen)."
+      "_holdR": "The right forefinger reaches the trigger (2026-10-13; it had lain 26 mm off it): only the forefinger's joints moved, the hand where it was on the grip, searched by tools/pack-flush.ts for the fingertip on the trigger with nothing seen in the gun (moved with it, the palm came 5 mm into the grip where it is seen).",
+      "holdElbow": {
+        "r": [
+          0,
+          -0.2,
+          0.15
+        ],
+        "l": [
+          0,
+          -0.06,
+          0.28
+        ]
+      },
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest turned 25, 8 now; in a swap 49, 10. Left: at rest 37, 22."
     },
     "X18": {
       "model": "SK_X18",
@@ -3047,7 +3204,20 @@
         "y": 0.03,
         "z": 0
       },
-      "_twist": "DEVINOS's own turn while the left hand points at the rocket (2026-10-15; fprig.ts twist): the rocket is its magazine, seated in the tube's front, and from the first person the tube is seen from behind, its front hidden behind its own sight, so through the whole reload not a pixel of the rocket's phase was seen (tools/pack-audit.js __magSeen, the e2e's reload check) and the finger pointed at the sight. Turned 0.6 radians more toward the left and its front 0.2 down, the tube's mouth comes into the picture left of the sight with the rocket phasing in it (248 pixels of a 480 wide picture halfway, against 40 at the shared turn), the pointing wrist 52 degrees and the right 25, picked from a grid of yaw, pitch and roll. Its pointing spot (`point` along 0.38, aimAt 0.8) stays where it was on the gun now the rocket sits 9 cm further out (paidweapons.json roundOut): left at 0.3 behind the rocket's middle the finger went with it and pointed 14 degrees off the rocket, and drawn back to 0.5 or 0.6 the hand came up big by the eye; at 0.38 it points 7 degrees off, the wrist 56."
+      "_twist": "DEVINOS's own turn while the left hand points at the rocket (2026-10-15; fprig.ts twist): the rocket is its magazine, seated in the tube's front, and from the first person the tube is seen from behind, its front hidden behind its own sight, so through the whole reload not a pixel of the rocket's phase was seen (tools/pack-audit.js __magSeen, the e2e's reload check) and the finger pointed at the sight. Turned 0.6 radians more toward the left and its front 0.2 down, the tube's mouth comes into the picture left of the sight with the rocket phasing in it (248 pixels of a 480 wide picture halfway, against 40 at the shared turn), the pointing wrist 52 degrees and the right 25, picked from a grid of yaw, pitch and roll. Its pointing spot (`point` along 0.38, aimAt 0.8) stays where it was on the gun now the rocket sits 9 cm further out (paidweapons.json roundOut): left at 0.3 behind the rocket's middle the finger went with it and pointed 14 degrees off the rocket, and drawn back to 0.5 or 0.6 the hand came up big by the eye; at 0.38 it points 7 degrees off, the wrist 56.",
+      "holdElbow": {
+        "r": [
+          0,
+          -0.2,
+          0
+        ],
+        "l": [
+          0,
+          -0.06,
+          0.28
+        ]
+      },
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest turned 57, 43 now; through an inspect 123, 109. Left: the wrist 47 at rest, 41."
     }
   },
   "guns": {

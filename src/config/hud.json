@@ -1,5 +1,5 @@
 {
-  "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres. ownOpacity: how bright your own rounds' streaks are (additive, 0 to 1): at 0.9, as everyone else's are, a USSO spray at 18 rounds a second was a sheet of light over the target (the owner, 2026-09-28: \"the tracers ... are a bit obnoxious ... we should make the tracers much less visible\"). Others' rounds keep 0.9, so fire coming at you still reads; a signature gun's own tracer (gunfeel.json tracer, BOOG's) keeps its own. head: a soft round glow at the head of everyone else's rounds (not your own), size metres across up close and never under minPx pixels, at opacity: seen end on a streak is only its width, so a round fired at you had been a point 1.5 pixels across (the owner, 2026-10-18, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE).",
+  "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres. ownOpacity: how bright your own rounds' streaks are (additive, 0 to 1): at 0.9, as everyone else's are, a USSO spray at 18 rounds a second was a sheet of light over the target (the owner, 2026-09-28: \"the tracers ... are a bit obnoxious ... we should make the tracers much less visible\"). Others' rounds keep 0.9, so fire coming at you still reads; a signature gun's own tracer (gunfeel.json tracer, BOOG's) keeps its own. head: a soft round glow at the head of everyone else's rounds (not your own), size metres across up close and never under minPx pixels, at opacity: seen end on a streak is only its width, so a round fired at you had been a point 1.5 pixels across (the owner, 2026-10-18, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE). ally: a teammate's rounds and their heads in this colour, the squad's own cyan, where the enemy's are red (2026-10-21, the enemy view's gaps against Apex and Hyper Scape: a squad mate's spray past you read as fire at you).",
   "tracers": {
     "maxLen": 6,
     "width": 0.025,
@@ -10,7 +10,8 @@
       "size": 0.12,
       "minPx": 8,
       "opacity": 0.9
-    }
+    },
+    "ally": { "color": "#3fd8ff" }
   },
   "_impacts": "Bullet impacts on the level (src/game/impacts.ts). Ours: holes is how many hole decals stay on the map at once (the oldest goes first), each holeSize metres across and gone after holeLife seconds; a hit throws puffPer dust sprites (sparks off metal) from a pool of puffs, each living puffLife seconds; the sound carries hearing metres.",
   "impacts": {
@@ -51,11 +52,12 @@
     "pop": 0.08,
     "over": 0.3
   },
-  "_muzzleFlash": "Other players' muzzle flashes (src/game/muzzle.ts). Ours: a flash lights for life seconds on each shot, two frames at 60 fps, as a player's own view model flash does; size is its width in metres up close, a little over a rifle's muzzle brake; minPx is the fewest pixels across it is ever drawn on screen, so a shot at 150 m is still a point of light and not nothing. Since 2026-10-19 (the owner, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE): lit for 0.05 s, three frames at 60 fps, not two, never under 9 pixels (6 had been a point you saw only if you were already looking at it), and a soft halo round the star, halo.scale times its size at halo.opacity, as a flash lights the air round a muzzle.",
+  "_muzzleFlash": "Other players' muzzle flashes (src/game/muzzle.ts). Ours: a flash lights for life seconds on each shot, two frames at 60 fps, as a player's own view model flash does; size is its width in metres up close, a little over a rifle's muzzle brake; minPx is the fewest pixels across it is ever drawn on screen, so a shot at 150 m is still a point of light and not nothing. Since 2026-10-19 (the owner, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE): lit for 0.05 s, three frames at 60 fps, not two, never under 9 pixels (6 had been a point you saw only if you were already looking at it), and a soft halo round the star, halo.scale times its size at halo.opacity, as a flash lights the air round a muzzle. `byGun`: each gun's flash size against `size` (and its fewest pixels with it), so a figure's gun reads by its flash as its sound reads by its report (2026-10-21, the next of the enemy view's gaps against Apex, where a Mastiff's blast is a ball of fire and an R-99's a flicker): the SMGs and the fast pistol small and quick, the rifles and the heavy pistol a little over, the sniper, the shotguns and the launcher big.",
   "muzzleFlash": {
     "life": 0.05,
     "size": 0.35,
     "minPx": 9,
+    "byGun": { "r97": 0.8, "alternator_smg": 0.85, "autopistol": 0.7, "wingman": 1.1, "vinson": 1.15, "lstar": 1.2, "sentinel": 1.4, "shotgun": 1.5, "mastiff": 1.7, "launcher": 1.9 },
     "halo": {
       "scale": 2.4,
       "opacity": 0.35

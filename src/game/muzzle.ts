@@ -102,7 +102,7 @@ function material(kind: "ballistic" | "energy"): THREE.SpriteMaterial {
  * muzzle is a point the model already knows (`GunModel.muzzle`), so it is
  * passed in and the marker goes there.
  */
-export function fitMuzzle(gun: THREE.Object3D, energy: boolean, muzzle: THREE.Vector3): THREE.Sprite | null {
+export function fitMuzzle(gun: THREE.Object3D, energy: boolean, muzzle: THREE.Vector3, id?: string): THREE.Sprite | null {
   // a view model's flash, if this happens to be a clone of one: it is the
   // first-person copy's and has no business on a figure
   const stray = gun.children.find((c) => c.name === "muzzleflash");
@@ -117,6 +117,8 @@ export function fitMuzzle(gun: THREE.Object3D, energy: boolean, muzzle: THREE.Ve
   if (!canPaint()) return null;
   const s = new THREE.Sprite(material(energy ? "energy" : "ballistic"));
   s.name = "muzzle-flash";
+  // (each gun's own size, hud.json muzzleFlash byGun: at one size for all, a shotgun's blast and a pistol's pop read alike)
+  s.userData.size = MUZZLE.size * ((id && (MUZZLE.byGun as Record<string, number>)[id]) || 1);
   s.visible = false;
   s.renderOrder = 10;
   marker.add(s);
@@ -214,7 +216,8 @@ export function showFlash(s: THREE.Sprite, lit: boolean, spin: number): void {
   if (!lit) return;
   s.getWorldPosition(at);
   const dist = at.distanceTo(viewer.pos);
-  const size = Math.max(MUZZLE.size, (dist * MUZZLE.minPx) / viewer.pxPerRad);
+  const own = (s.userData.size as number | undefined) ?? MUZZLE.size;
+  const size = Math.max(own, (dist * MUZZLE.minPx * own) / MUZZLE.size / viewer.pxPerRad);
   s.parent?.getWorldScale(scaleOf);
   const k = scaleOf.x > 1e-6 ? scaleOf.x : 1;
   s.scale.setScalar(size / k);

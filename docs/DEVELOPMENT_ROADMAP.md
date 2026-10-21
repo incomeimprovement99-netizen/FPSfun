@@ -15351,6 +15351,30 @@ finger curled around its designated finger grip".
 - **Checked:** verify, rules, the type check, and the e2e's bought-arms frames on BIGANTLER (every frame of the reload,
   swap, aim, inspect, flourish, pickup and punch, the forefinger on the trigger, no daylight).
 
+## Milestone 750 — PANDA's grip, elbows that hold still, and an enemy's gun told by its flash and its sound
+
+The owner, 2026-10-21: "continue ... just go ahead and grind through it". The rest of the arm and hand items found on
+2026-10-20, and the enemy view's next gaps against Apex and Hyper Scape (Milestone 555's list).
+
+- **PANDA's right hand round its grip** (fparms.json packGuns G3 hold r): fitted as ANAKIN's was (Milestone 558), the
+  fingertips aimed at the grip's far face, then moved the least that keeps the hand out of the gun through the inspect,
+  the first draw, the reload and every step of a swap with no daylight along it, the forefinger's own joints laid on the
+  trigger. Nothing of the hand seen in the gun anywhere; aimed it keeps the hold it had.
+- **Elbows that hold still** (packGuns holdElbow, eight guns): left to the arm, an elbow went where the clip's pose put
+  it, and the forearm twisted round to reach the hand. REZ's right elbow stood 18 cm over its hand at rest and dropped
+  under it aimed, so aiming in rolled the forearm 151 degrees and a swap's cup 171; held down, 53 and 37. Each arm's
+  wrist bend and twist read over a grid of hints at rest, through the aim, the swap and the inspect, the best kept
+  where it was better everywhere (each gun's `_holdElbow` has its numbers): the USSO, BOOG, PANDA, BIGANTLER, REZ,
+  CHOOCH, APUHTHEE and DEVINOS right, and PANDA, REZ, APUHTHEE and DEVINOS left. Aimed, the hints let go as before.
+- **A gun's flash its own size** (hud.json muzzleFlash byGun, muzzle.ts): a figure's flash was one size on every gun;
+  now the SMGs and the fast pistol flicker small and the sniper, the shotguns and the launcher go off big.
+- **A teammate's rounds in the team's colour** (hud.json tracers ally, projectile.ts, duel.ts): a squad mate's tracer and
+  its glowing head are cyan, the enemy's red; a squad mate's spray past you had read as fire at you.
+- **A far shot keeps its gun's voice** (audio.json shots farOwn, audio.ts): past 80 m every gun of a class played the
+  class's one mid-distance take; a gun with its own recording now plays that, dulled by the air.
+- **Checked:** verify, rules and the type check; PANDA's hand and the elbows measured in the page with the e2e's own
+  code and photographed at rest, aimed and in a swap, before and after. No e2e run (the owner, for today).
+
 ## Milestone 558 — ANAKIN's right hand round its grip
 
 The owner, 2026-10-20, after Milestone 556 left ANAKIN as it was: "anakin still looks fucked up tbh".

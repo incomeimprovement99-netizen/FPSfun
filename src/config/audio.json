@@ -164,7 +164,7 @@
       "marksman": 1.0
     }
   },
-  "_shots": "Recorded gunshots (tools/fetch-guns.ts): The Free Firearm Sound Library, 24 real firearms, CC0. Each class has takes recorded near and at mid distance; a shot past `distance.farFrom` plays a mid-distance take. When a class has takes, the recording is the shot and the synthesised crack, body, thump and tail are not played: layered under a real report they only muddied it. `level` is the recording's loudness against the class's own `level`; `far` scales the mid-distance takes, which were recorded further off and are quieter for it. Without the files the synthesis plays exactly as before.",
+  "_shots": "Recorded gunshots (tools/fetch-guns.ts): The Free Firearm Sound Library, 24 real firearms, CC0. Each class has takes recorded near and at mid distance; a shot past `distance.farFrom` plays a mid-distance take. When a class has takes, the recording is the shot and the synthesised crack, body, thump and tail are not played: layered under a real report they only muddied it. `level` is the recording's loudness against the class's own `level`; `far` scales the mid-distance takes, which were recorded further off and are quieter for it. Without the files the synthesis plays exactly as before. `farOwn`: a far shot from a gun with its own recording (the pack guns) plays that recording at this share, dulled by the air on its way, not the class's mid-distance take: with it every gun of a class sounded alike past `farFrom`, and a far fight did not say which guns were in it (2026-10-21, the enemy view's gaps against Apex, where a far R-99 and a far Flatline sound like themselves).",
   "_hacks": "Each hack's recorded layers from Kenney's Sci-Fi Sounds (CC0, tools/fetch-sounds.ts hack_*), over the synthesis it already had (src/game/audio.ts hackSound): `take` a picked set, `level` against the rest of the mix, `len` seconds of it (the thrusters and the scan are five-second loops, cut and faded), `rate` its playback speed (under 1 deeper). The owner, 2026-10-02: the abilities' sounds were synthesis, and SLAM's a squeak; free recorded effects in their place. ARMOR's was the sound of a shield breaking, as it went up: its force field plays in its place. GRAPPLE (the zipline's catch) keeps its own. INVISIBILITY was a whoosh, and someone else's nothing at all: it is the force field quick and high, over the scan low, a shimmer (Milestone 710). Without the files every hack sounds as it did.",
   "hacks": {
     "dash": [{ "take": "hack_thrust", "level": 0.55, "len": 0.35, "rate": 1.15 }],
@@ -179,7 +179,8 @@
   },
   "shots": {
     "level": 0.9,
-    "far": 1.1
+    "far": 1.1,
+    "farOwn": 0.9
   },
   "_intro": "The title card's two shots (src/ui/intro.ts): a rifle round through the pane, then a shotgun blast. They sounded the same, a short synthesised crack each. The round plays a recorded rifle take; the blast plays a recorded 12 gauge take slowed to `blastRate`, deeper, as the owner asked ('more like a 12 gauge'), with a low sine thump from `thumpHz` down to half of it over `thumpTime` s under it, the chest hit a shotgun has and a rifle does not. Without the files both fall back to synthesis, the blast pitched down.",
   "intro": {

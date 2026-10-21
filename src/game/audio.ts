@@ -662,7 +662,10 @@ export class GameAudio {
     // echo and an energy gun's whine still are, since no recording has them.
     const S = cfg.shots;
     const packLevel = (PACK.guns as Record<string, { level: number } | undefined>)[id]?.level ?? 1;
+    // (far off, a pack gun's own take, the air on the way dulling it (voice's lowpass): the class's one mid-distance take
+    // made every gun of a class sound alike past distance.farFrom, so a far fight did not say which guns were in it)
     const recorded =
+      (far && !!pack && this.sample(v.input, v.t, `pack_fire_${id}`, S.level * packLevel * S.farOwn * L)) ||
       (far && this.sample(v.input, v.t, `shot_${cls}_far`, S.level * S.far * L)) ||
       (!!pack && this.sample(v.input, v.t, `pack_fire_${id}`, S.level * packLevel * L)) ||
       this.sample(v.input, v.t, `shot_${cls}`, S.level * L);

@@ -106,6 +106,8 @@ interface Bullet {
  */
 export interface Firer {
   figure?: Dummy | null;
+  /** a teammate's round: drawn in the team's colour (hud.json tracers ally), not the enemy's red */
+  ally?: boolean;
   onBurst?: (at: THREE.Vector3, travelled: number) => void;
 }
 
@@ -157,14 +159,18 @@ function tracerMatFor(color: string): THREE.MeshBasicMaterial {
 }
 /** the other player's rounds, redder so you can tell whose is whose */
 const remoteTracerMat = new THREE.MeshBasicMaterial({ color: 0xff6a4a, transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
+/** a teammate's rounds, in the team's colour (hud.json tracers ally): red like the enemy's, a squad mate's spray past you read as fire at you */
+const allyTracerMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(TRACER.ally.color), transparent: true, opacity: 0.9, blending: THREE.AdditiveBlending, depthWrite: false });
 /**
  * A glowing head on everyone else's rounds (hud.json tracers head): a streak seen end on is only its width, so a round
  * fired at you was a point 1.5 pixels across coming at you, where in Apex incoming fire is the brightest thing on
  * the screen. A soft round glow at its head, never under head.minPx across, reads from any side.
  */
-let headMat: THREE.SpriteMaterial | null = null;
-function remoteHeadMat(): THREE.SpriteMaterial | null {
-  if (headMat) return headMat;
+const headMats = new Map<string, THREE.SpriteMaterial>();
+function remoteHeadMat(color = 0xff7a55): THREE.SpriteMaterial | null {
+  const key = String(color);
+  const had = headMats.get(key);
+  if (had) return had;
   if (typeof document === "undefined") return null;
   const c = document.createElement("canvas");
   c.width = c.height = 32;
@@ -176,8 +182,9 @@ function remoteHeadMat(): THREE.SpriteMaterial | null {
   grad.addColorStop(1, "rgba(255,255,255,0)");
   g.fillStyle = grad;
   g.fillRect(0, 0, 32, 32);
-  headMat = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), color: 0xff7a55, transparent: true, opacity: TRACER.head.opacity, blending: THREE.AdditiveBlending, depthWrite: false });
-  return headMat;
+  const m = new THREE.SpriteMaterial({ map: new THREE.CanvasTexture(c), color, transparent: true, opacity: TRACER.head.opacity, blending: THREE.AdditiveBlending, depthWrite: false });
+  headMats.set(key, m);
+  return m;
 }
 const Z = new THREE.Vector3(0, 0, 1);
 const tv = new THREE.Vector3();
@@ -203,14 +210,14 @@ export class ProjectileSystem {
    */
   fire(origin: THREE.Vector3, dir: THREE.Vector3, w: ResolvedWeapon, visual = false, dmgScale = 1, speedScale = 1, drawFrom: THREE.Vector3 | null = null, style: { color: string; width: number } | null = null, firer: Firer | null = null): void {
     const rocket = !!w.blast;
-    const mesh: THREE.Object3D = rocket ? buildRocket() : new THREE.Mesh(tracerGeo, visual ? remoteTracerMat : style ? tracerMatFor(style.color) : tracerMat);
+    const mesh: THREE.Object3D = rocket ? buildRocket() : new THREE.Mesh(tracerGeo, visual ? (firer?.ally ? allyTracerMat : remoteTracerMat) : style ? tracerMatFor(style.color) : tracerMat);
     mesh.userData.width = style && !visual ? style.width : 1;
     mesh.position.copy(drawFrom ?? origin);
     if (rocket) mesh.quaternion.setFromUnitVectors(Z, dir.clone().normalize());
     else mesh.scale.setScalar(0.001);
     mesh.renderOrder = 5;
     this.scene.add(mesh);
-    const hm = visual && !rocket ? remoteHeadMat() : null;
+    const hm = visual && !rocket ? remoteHeadMat(firer?.ally ? new THREE.Color(TRACER.ally.color).getHex() : undefined) : null;
     const head = hm ? new THREE.Sprite(hm) : null;
     if (head) {
       head.renderOrder = 5;
