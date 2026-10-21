@@ -283,7 +283,7 @@ export class ProjectileSystem {
 
   /** where your ears are: someone else's round passing within 2.5 m cracks past you (onWhiz) */
   listener: THREE.Vector3 | null = null;
-  onWhiz: ((at: THREE.Vector3) => void) | null = null;
+  onWhiz: ((at: THREE.Vector3, from: THREE.Vector3, ally: boolean) => void) | null = null;
   /** someone else's round stopped against the level (where, the face, the gun): the page marks it */
   onVisualImpact: ((at: THREE.Vector3, normal: THREE.Vector3, weapon: string) => void) | null = null;
   /**
@@ -419,7 +419,7 @@ export class ProjectileSystem {
           const cz = prev.z + unit.z * k;
           if ((cx - L.x) ** 2 + (cy - L.y) ** 2 + (cz - L.z) ** 2 < 6.25) {
             b.whizzed = true;
-            this.onWhiz?.(new THREE.Vector3(cx, cy, cz));
+            this.onWhiz?.(new THREE.Vector3(cx, cy, cz), b.origin.clone(), !!b.firer?.ally);
           }
         }
         if (b.rocket) {

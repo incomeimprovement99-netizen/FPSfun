@@ -1538,7 +1538,11 @@ speedLines.style.cssText =
 // just before the HUD's canvas: both are fixed with no z-index, so the one later in the page is drawn over
 (document.getElementById("hud") ?? document.body.lastChild)?.before(speedLines);
 projectiles.listener = camera.position;
-projectiles.onWhiz = (p) => audio.whiz(p);
+projectiles.onWhiz = (p, from, ally) => {
+  audio.whiz(p);
+  // (a squad mate's round past you is not fire at you: no arc)
+  if (!ally) noteNearMiss(from);
+};
 projectiles.onVisualImpact = (at, normal) => markImpact(at, normal);
 // DEVINOS's rockets (rocket.ts): every burst is seen and heard; your own does its damage (rocketBlast)
 const rocketBursts = new RocketBursts(scene);
@@ -4209,6 +4213,43 @@ function noteDamageFrom(id: number): void {
     same.at = gameTime;
   } else damageFrom.unshift({ id, x: p.x, z: p.z, at: gameTime });
   damageFrom.length = Math.min(damageFrom.length, cfg.max);
+}
+/**
+ * Where the rounds that cracked past you lately came from (hud.json nearMiss), for the HUD's thin white arcs: the
+ * crack says a round went by, and on its own not which way to turn to whoever fired it
+ */
+const nearFrom: Array<{ x: number; z: number; at: number }> = [];
+function noteNearMiss(from: THREE.Vector3): void {
+  const cfg = hudCfg.nearMiss;
+  const same = nearFrom.find((e) => Math.hypot(e.x - from.x, e.z - from.z) < cfg.merge);
+  if (same) {
+    same.x = from.x;
+    same.z = from.z;
+    same.at = gameTime;
+  } else nearFrom.unshift({ x: from.x, z: from.z, at: gameTime });
+  nearFrom.length = Math.min(nearFrom.length, cfg.max);
+}
+/** the near misses' arcs this frame, as damageDirs */
+function nearMissDirs(): Array<{ angle: number; alpha: number }> {
+  const cfg = hudCfg.nearMiss;
+  const yawR = player.yaw * DEG;
+  const fx = -Math.sin(yawR);
+  const fz = -Math.cos(yawR);
+  const rx = Math.cos(yawR);
+  const rz = -Math.sin(yawR);
+  const out: Array<{ angle: number; alpha: number }> = [];
+  for (let i = nearFrom.length - 1; i >= 0; i--) {
+    const e = nearFrom[i];
+    const age = gameTime - e.at;
+    if (age > cfg.life || age < 0) {
+      nearFrom.splice(i, 1);
+      continue;
+    }
+    const dx = e.x - player.pos.x;
+    const dz = e.z - player.pos.z;
+    out.push({ angle: Math.atan2(dx * rx + dz * rz, dx * fx + dz * fz), alpha: 1 - age / cfg.life });
+  }
+  return out;
 }
 /** the arcs as the HUD draws them this frame: angle from straight ahead, clockwise, and what is left of each */
 function damageDirs(): Array<{ angle: number; alpha: number }> {
@@ -7834,6 +7875,7 @@ function step(): void {
     // where the item is.
     inventory: input.held("inventory") ? carryCard(now) : null,
     damageDirs: duel ? damageDirs() : undefined,
+    nearMissDirs: nearMissDirs(),
     reticle,
     summary: summaryView(),
     quickChat: gameTime < quickOpenUntil ? QUICK.lines : null,

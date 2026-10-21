@@ -137,6 +137,8 @@ export interface HudState {
    * both out from the shooter's position and your yaw every frame).
    */
   damageDirs?: Array<{ angle: number; alpha: number }>;
+  /** where rounds that cracked past you came from: thin white arcs (hud.json nearMiss) */
+  nearMissDirs?: Array<{ angle: number; alpha: number }>;
   /** the player's crosshair (src/game/reticle.ts); none is the old three prongs */
   reticle?: Reticle;
   /** the quick chat list while it is open: the lines, numbered 1 up */
@@ -2276,9 +2278,26 @@ export class Hud {
   }
 
   private drawDamageDirs(s: HudState, u: number): void {
+    const c = this.ctx;
+    // the near misses first, under any hit's arc: thinner, white, a little further out
+    const near = s.nearMissDirs;
+    if (near && near.length) {
+      const N = hudCfg.nearMiss;
+      const halfN = ((N.arc / 2) * Math.PI) / 180;
+      c.lineCap = "round";
+      for (const d of near) {
+        const a = d.angle - Math.PI / 2;
+        c.strokeStyle = `rgba(${N.color},${(N.opacity * d.alpha).toFixed(3)})`;
+        c.lineWidth = N.thick * u;
+        c.beginPath();
+        c.arc(this.w / 2, this.h / 2, N.radius * u, a - halfN, a + halfN);
+        c.stroke();
+      }
+      c.lineCap = "butt";
+      c.lineWidth = 2;
+    }
     const dirs = s.damageDirs;
     if (!dirs || !dirs.length) return;
-    const c = this.ctx;
     const cfg = hudCfg.damageDir;
     const cx = this.w / 2;
     const cy = this.h / 2;

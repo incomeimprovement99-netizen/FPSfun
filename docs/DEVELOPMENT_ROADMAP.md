@@ -15351,6 +15351,19 @@ finger curled around its designated finger grip".
 - **Checked:** verify, rules, the type check, and the e2e's bought-arms frames on BIGANTLER (every frame of the reload,
   swap, aim, inspect, flourish, pickup and punch, the forefinger on the trigger, no daylight).
 
+## Milestone 751 — A near miss shows which way it came from
+
+The enemy view's next gap after Milestone 750: a round that passed you within 2.5 m cracked by (audio.ts whiz), and on
+its own the crack said a round went by, not which way to turn to whoever fired it. In Apex and Hyper Scape fire coming
+close reads on the screen too.
+
+- **Now** (hud.json nearMiss, main.ts noteNearMiss and nearMissDirs, hud.ts drawDamageDirs, projectile.ts onWhiz): a
+  thin white arc round the crosshair, a little outside the red arc a hit draws and under it, pointing back along the
+  round to where it was fired from, and fading over 0.9 s. Rounds from within 4 m of an arc's source refresh it, at
+  most three show, and a squad mate's round past you draws none.
+- **Checked:** verify, rules, the type check, and in the page a round fired past the player from 30 m to the left: the
+  arc showed on the crosshair's left, 132 pixels out at 1080p. No e2e run (the owner, for today).
+
 ## Milestone 750 — PANDA's grip, elbows that hold still, and an enemy's gun told by its flash and its sound
 
 The owner, 2026-10-21: "continue ... just go ahead and grind through it". The rest of the arm and hand items found on
