@@ -25,13 +25,15 @@ function seeded(seed: number): () => number {
   };
 }
 
-/** whether a rectangle [x0, x1, z0, z1] (map metres) reaches into one kept clear (`keep`: the firing range's footprint) */
-const kept = (x0: number, x1: number, z0: number, z1: number) => S.keep.some(([a0, a1, b0, b1]) => x1 > a0 && x0 < a1 && z1 > b0 && z0 < b1);
+/** the rectangles [x0, x1, z0, z1] (map metres) kept clear (`keep`; none since round 9) */
+const KEEP = S.keep as unknown as number[][];
+/** whether a rectangle reaches into one kept clear */
+const kept = (x0: number, x1: number, z0: number, z1: number) => KEEP.some(([a0, a1, b0, b1]) => x1 > a0 && x0 < a1 && z1 > b0 && z0 < b1);
 
 /** a rectangle less the kept ones, as the rectangles left */
 function cut(r: number[]): number[][] {
   let out = [r];
-  for (const [a0, a1, b0, b1] of S.keep)
+  for (const [a0, a1, b0, b1] of KEEP)
     out = out.flatMap(([x0, x1, z0, z1]) => {
       if (!(x1 > a0 && x0 < a1 && z1 > b0 && z0 < b1)) return [[x0, x1, z0, z1]];
       // (the strips either side of the hole across its whole depth, then the bits above and below it)

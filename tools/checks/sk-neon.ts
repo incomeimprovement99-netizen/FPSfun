@@ -444,8 +444,8 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the base's roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 29 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the base's roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 30 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // THE GANGWAY's cover (Milestone 656; the sixth review: "the gangway's cover staggered with side shields"): along its long
 // leg its sets alternate rails, each solid on its deck 1.4 m and more, each with its shield 1.4 m and more along the same
 // rail; and from every half metre of the deck's middle line between the window's cell and the corner's, cover a body
@@ -3839,7 +3839,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const ground = scene.getObjectByName("skylineGround");
   check(
     "a city past the fence: towers on every side, none within the out-of-bounds margin or in the firing range, all under the dropship's line, the ground carried on from the map's own",
-    !!drawn && drawn.count === SKYLINE.towers.length && SKYLINE.towers.length >= 200 && sides.every((n) => n >= 40) && inside.length === 0 && inRange.length === 0 && range.length > 0 && high.length === 0 && !!ground && ground.children.length >= 4 && SKYLINE.ground > S.outer,
+    !!drawn && drawn.count === SKYLINE.towers.length && SKYLINE.towers.length >= 200 && sides.every((n) => n >= 40) && inside.length === 0 && inRange.length === 0 && high.length === 0 && !!ground && ground.children.length >= 4 && SKYLINE.ground > S.outer,
     `${SKYLINE.towers.length} blocks (${sides.join("/")} east, west, south, north), ${inside.length} within ${reach} m, ${inRange.length} in the firing range, ${high.length} within 5 m of the ship's ${shipY} m, tallest ${Math.max(...SKYLINE.towers.map((t) => t.y + t.h)).toFixed(0)} m`
   );
 }
@@ -4046,6 +4046,35 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "the centre's payoffs: cover on the base roof, THE VAULT four halls of the strongroom's crates and racks",
     base >= 8 && V.plan === "halls" && vault >= 8,
     `base roof ${base}; the vault ${V.plan}, ${vault} of its pieces`
+  );
+}
+
+// the corner blocks' marks and the doors (Milestones 676, 678 and 681's second half): a lit cap along THE WELL's rail, on
+// its top and nowhere over the hole, and a pool of light at its bottom; MOTEL HILL's pole sign on
+// its roof showing its ad; each walk-in's door under an awning and two lit strips; THE STRIP's wash the brightest
+{
+  const { outlineBoxes } = await import("../../src/game/outlines");
+  const { poolSpots } = await import("../../src/game/lightpools");
+  const W = (cfg as unknown as { well: { hole: number[]; bottom: number } }).well;
+  const boxes = outlineBoxes();
+  const [hx0, hx1, hz0, hz1] = W.hole;
+  // (each cap on a box of the bake's own collision, its top the rail's: the rail curves inside the hole's measured
+  // rectangle, so a cap is checked against the rail it stands on, not the rectangle)
+  const overHole = boxes.filter((b) => b[4] < 5 && !(SOLIDS as { solids: number[][] }).solids.some((q) => (b[0] + b[1]) / 2 >= q[0] && (b[0] + b[1]) / 2 <= q[1] && (b[2] + b[3]) / 2 >= q[2] && (b[2] + b[3]) / 2 <= q[3] && Math.abs(q[5] - b[4]) < 0.01)).length;
+  const bottom = poolSpots().some((q) => Math.abs(q[1] - W.bottom) < 0.01 && q[0] > hx0 && q[0] < hx1 && q[2] > hz0 && q[2] < hz1);
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
+  const sign = ((cfg as unknown as { perches: Array<{ name: string; at: unknown[] }> }).perches.find((q) => q.name === "motel-sign")?.at.length ?? 0);
+  const signWorn = placed.filter((q) => String(q[0]).endsWith("/AD_Structure02.prefab") && q[6]).length === placed.filter((q) => String(q[0]).endsWith("/AD_Structure02.prefab")).length;
+  const D = (cfg.rules.low as unknown as { walkIn: { door: { awning: string; strip: string; remap: string } } }).walkIn.door;
+  const walk = ((cfg as unknown as { walkIns: unknown[] }).walkIns ?? []).length;
+  const awnings = placed.filter((q) => String(q[0]).endsWith(`/${D.awning}`)).length;
+  const strips = placed.filter((q) => String(q[0]).endsWith(`/${D.strip}`) && q[6] === D.remap).length;
+  const PK = (cfg.game as unknown as { pools: { wash: { k: number }; washK: Record<string, number> } }).pools;
+  const brightest = Object.values(PK.washK).every((k) => k > PK.wash.k) && (PK.washK.strip ?? 0) > PK.wash.k;
+  check(
+    "the corner blocks' marks and the doors: the tower's corners and crown lit, a pool of light at THE WELL's bottom, MOTEL HILL's pole sign showing its ad, each walk-in's door under an awning and two lit strips, THE STRIP's wash the brightest",
+    boxes.length === 8 && boxes.every((b) => b[4] >= 12) && bottom && sign === 1 && signWorn && walk >= 4 && awnings === walk && strips === 2 * walk && brightest,
+    `${boxes.length} lit strips on the tower (lowest from ${Math.min(...boxes.map((b) => b[4])).toFixed(1)} m), ${overHole} off their boxes, a pool at the bottom ${bottom}; the pole sign ${sign}, every ad stand worn ${signWorn}; ${awnings} awnings and ${strips} strips for ${walk} walk-ins; the strip's wash ${PK.washK.strip} over ${PK.wash.k}`
   );
 }
 

@@ -16139,3 +16139,39 @@ gold trim along the partitions' feet, 30 lengths along a maze's, is 8 along the 
 the floor's plan.
 
 **Checked:** a new check for both: base roof 12; the vault halls, 11 of its pieces. The e2e: the speedkills section, 118 checks. verify, rules and tsc. Map files version 99: lo 177.3 MB, hi 257.3 MB, max 554.2 MB.
+
+## Milestone 676 — The tower lit by night, MOTEL HILL's pole sign, THE WELL's bottom lit
+
+The centre's review (round 8): "THE WELL a neon ring at its rim and light at its bottom, MOTEL HILL a pole sign".
+
+- **THE WELL's bottom lit** by night, a pool of light (`game.pools.spots`). Its rim was tried twice and taken back: a
+  strip round the hole's rectangle lay under the raised paving round it, out of sight, and lines along the rail's cells
+  (read off the bake's collision into `cfg.well.rail`) drew as flat pink bars from the review's spot over the shaft (the
+  fresh centre review, round 9: "a huge flat pink plane with saw-tooth edges").
+- **The tower lit by night** (round 9: "no crown light, a black slab at night"; `game.outlines`, `src/game/outlines.ts`):
+  its four corners lit from the base's roof to its crown and a ring round its crown, in THE VAULT's amber.
+- **MOTEL HILL's pole sign**: the pack's 9 m ad stand on the motel's roof, turned to the middle, its own perch laid before
+  the roof's cover (`motel-sign`).
+- **Every ad stand on a perch shows its ad** (`rules.wear`): THE STRIP's stands had their blue screen quad worn as an ad
+  since Milestone 666, but the perches' (the west deck's landmark, now the motel's) still drew it blue.
+
+## Milestone 678 (first part) — The walk-ins' doors marked
+
+"No door at the walk-in" (picture 22): each walk-in's front looked like every shell's. Each door now has the pack's 4.3 m
+window awning over its front's middle and two warm lit strips under it, drawn only (`low.walkIn.door`).
+
+## Milestone 681 (second part) — The night softer, THE STRIP the brightest
+
+The districts' washes of colour by night each at the same brightness until now; THE STRIP's is the brightest
+(`game.pools.washK`), as the night pass planned. Both fresh reviews (round 9, districts round 3) read the pools as "polka
+dots" and THE STRIP's wash as "a uniform magenta wash": the lamps' pools are wider and softer (7.5 m round, 0.42), the
+washes lower (0.16, THE STRIP 0.28).
+
+## Milestone 680 (second part) — The city past the fence
+
+The districts' review (round 3) found the tower blocks past the fence "close enough to show in play" and "a flat tan slab
+north of the map": that slab was the hole the skyline's ground left for the firing range, which stands past the fence. The
+page only ever draws the side of the world the camera is on, so the hole was never needed: the ground runs on whole, and
+the blocks start 245 m out (215).
+
+**Checked:** a new check for all of it: 8 lit strips on the tower (lowest from 12.0 m), 0 off their boxes, a pool at the bottom true; the pole sign 1, every ad stand worn true; 4 awnings and 8 strips for 4 walk-ins; the strip's wash 0.28 over 0.16. The e2e: none, the owner's call for today. verify, rules and tsc. Map files version 100: lo 177.5 MB, hi 257.5 MB, max 550.1 MB.

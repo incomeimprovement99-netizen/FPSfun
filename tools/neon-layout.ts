@@ -869,7 +869,7 @@ const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }
   // side (`face` degrees from its own +z) to the street, its collision its own triangles. The shell's footprint holds
   // it whole, so nothing else moves; mixed into the fronts' pool instead, none fitted along a curve and every seeded
   // choice after it came out different
-  const WI = L.walkIn as { swap: string; pieces: string[]; face: number } | undefined;
+  const WI = L.walkIn as { swap: string; pieces: string[]; face: number; door?: { awning: string; strip: string; remap: string; y: number; out: number; apart: number } } | undefined;
   if (WI) {
     let n = 0;
     for (const [chunk, ch] of chunks) {
@@ -891,6 +891,19 @@ const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }
         const [mx, mz] = rotY(yaw, (w0[0] + w1[0]) / 2, (w0[2] + w1[2]) / 2);
         ch.place[i] = [wr.key, +(c[0] - mx).toFixed(3), 0, +(c[1] - mz).toFixed(3), +yaw.toFixed(2), "o"] as Place;
         walkIns.push({ chunk, piece: name, at: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), door: [+(p[1] + fx + out[0] * 2).toFixed(3), +(p[3] + fz + out[1] * 2).toFixed(3)] });
+        // (its door marked, `door`, Milestone 678: the centre's review found "no door at the walk-in", a shop front like
+        // every shell's. An awning over the front's middle, its own +x out to the street, and two lit strips under it
+        // along the front, drawn only)
+        if (WI.door) {
+          const D = WI.door;
+          const along = rotY(t, 1, 0);
+          const front: Pt = [p[1] + fx, p[3] + fz];
+          const aw = piece(D.awning).row;
+          placeTurned(chunk, D.awning, front[0] + out[0] * (D.out + aw.size![0] / 2), front[1] + out[1] * (D.out + aw.size![0] / 2), yawToward(out[0], out[1]) - 90, "g", D.y - aw.min![1]);
+          const st = piece(D.strip).row;
+          for (const k of [-1, 1])
+            placeTurned(chunk, D.strip, front[0] + out[0] * D.out + along[0] * k * D.apart, front[1] + out[1] * D.out + along[1] * k * D.apart, yawToward(along[0], along[1]) - 90, "g", D.y - 0.05 - st.max![1], D.remap);
+        }
       });
     }
     console.log(`walk-in buildings: ${walkIns.length} for the ${WI.swap} shells`);
@@ -1862,7 +1875,15 @@ const baseBridgeAxes: Array<[Pt, Pt]> = [];
     const [rx, rz] = [+(ox + W.rope.at[0]).toFixed(3), +(oz + W.rope.at[1]).toFixed(3)];
     const ropes = [{ rope: [[rx, +(bottom + hang + R.lifts.under).toFixed(3), rz], [rx, +(W.rope.clear + hang).toFixed(3), rz]], floor: bottom, colour: W.rope.colour, onto: W.rope.onto, out: W.rope.out }];
     // (the bake's measure of its seal kept until it measures again)
-    cfg.well = { ...(cfg.well?.measured ? { measured: cfg.well.measured } : {}), at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale, corridor, back: W.back };
+    // (its rail's cells off the last bake's collision, Milestone 676: the street up to the rail's height, thin, within
+    // `rail.reach` of the hole, for the game's neon cap along it, game.outlines)
+    const RL = W.rail as { top: number[]; reach: number } | undefined;
+    const rail = RL
+      ? lastSolids()
+          .filter((b) => b[4] <= 0.2 && b[5] >= RL.top[0] && b[5] <= RL.top[1] && Math.min(b[1] - b[0], b[3] - b[2]) <= 1.01 && b[1] > hole[0] - RL.reach && b[0] < hole[1] + RL.reach && b[3] > hole[2] - RL.reach && b[2] < hole[3] + RL.reach)
+          .map((b) => [b[0], b[1], b[2], b[3], b[5]].map(r3))
+      : undefined;
+    cfg.well = { ...(cfg.well?.measured ? { measured: cfg.well.measured } : {}), ...(rail ? { rail } : {}), at: W.at, hole: hole.map(r3), foot, bottom, levels: (W.levels as Array<{ y: number }>).map((q) => q.y), slabs, ropes, flights, flightSpec: F.spec, flightMats: F.mats, flightScale: F.scale, corridor, back: W.back };
     // its block's light (rules.low.beam, below): up the light-well from its bottom
     beams.push({ chunk: `c-${W.block.split(",")[1] === "-1" ? "n" : "s"}${W.block.split(",")[0] === "-1" ? "w" : "e"}`, block: W.block, x: (hole[0] + hole[1]) / 2, y: bottom, z: (hole[2] + hole[3]) / 2 });
     console.log(`the Well: ${W.levels.length} levels to ${bottom} m, its well ${(hole[1] - hole[0]).toFixed(1)} by ${(hole[3] - hole[2]).toFixed(1)} m`);

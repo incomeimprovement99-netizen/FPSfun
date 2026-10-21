@@ -11,7 +11,7 @@ import neonCfg from "../config/neonmap.json";
 import { padColour } from "./padrings";
 
 type PoolSet = { pieces: string[]; r: number; k: number; every?: number; floor?: number };
-type Pools = { sets: PoolSet[]; wash: { r: number; k: number; out: number }; lift: number; mix: number; warm: string; glow: { day: number; night: number } };
+type Pools = { sets: PoolSet[]; wash: { r: number; k: number; out: number }; washK?: Record<string, number>; spots?: number[][]; lift: number; mix: number; warm: string; glow: { day: number; night: number } };
 const P = (neonCfg as unknown as { game: { pools: Pools } }).game.pools;
 let mat: THREE.MeshBasicMaterial | null = null;
 
@@ -58,11 +58,15 @@ export function poolSpots(): number[][] {
     }
   }
   // (each district's wash: the middle of its sector's part past the ring road, `out` metres from the map's middle)
+  // (a district at its own brightness where `washK` names it: THE STRIP the brightest)
+  const district = (neonCfg as unknown as { game: { padRings: { district: Record<string, string> } } }).game.padRings.district;
   for (const s of (neonCfg as unknown as { game: { sectors: Array<{ id: string; minX: number; maxX: number; minZ: number; maxZ: number }> } }).game.sectors) {
     if (s.id === "c") continue;
     const [x, z] = [Math.sign(s.minX + s.maxX) * P.wash.out, Math.sign(s.minZ + s.maxZ) * P.wash.out];
-    spots.push([x, 0, z, P.wash.r, P.wash.k]);
+    spots.push([x, 0, z, P.wash.r, P.washK?.[district[s.id]] ?? P.wash.k]);
   }
+  // (and pools of their own, `spots`: THE WELL's bottom)
+  for (const q of P.spots ?? []) spots.push(q);
   return spots;
 }
 

@@ -22,6 +22,7 @@ import { SECTORS, SPIRE_TOP, buildEdgeFence, buildRingWall, holdForDecay, useSec
 import { buildSkyline } from "./skyline";
 import { buildPadRings } from "./padrings";
 import { buildLightPools } from "./lightpools";
+import { buildOutlines } from "./outlines";
 import { applyBatches } from "./neonbatch";
 import { applyDetailMaps, applyUnityLooks } from "./detailmaps";
 import { MOVE } from "./movement";
@@ -124,7 +125,7 @@ export function updateNeonFill(eye: THREE.Vector3): void {
  * arenas' own nodes are hidden with the city shown. Kept, and put on the file when it comes in.
  */
 const PART: { shown: string | null; root: THREE.Object3D | null } = { shown: null, root: null };
-const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names", "skyline", "skylineGround", "padRings", "lightPools"]);
+const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names", "skyline", "skylineGround", "padRings", "lightPools", "outlines"]);
 export function showNeonPart(chunk: string | null): void {
   if (PART.shown === chunk) return;
   PART.shown = chunk;
@@ -265,6 +266,8 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   }
   // (and a pool of light under each street lamp by night, lightpools.ts, Milestone 681)
   buildLightPools(root);
+  // (and the neon outlines round the map's openings, THE WELL's rim, outlines.ts, Milestone 676)
+  buildOutlines(root);
   const ringWall = buildRingWall(root);
   // (hidden from the start: SpeedKills' battle royale is the decay's, which hides it as it begins, and before any match it
   // stood at its unit size in the tower's middle, a 120 m line in a Neon arena's sky with the city hidden)

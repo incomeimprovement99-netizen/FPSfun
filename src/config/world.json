@@ -46,11 +46,11 @@
   "threshold": 1,
   "_note": "The post chain's bloom (src/game/render.ts, Balanced and High): its strength, radius and luminance threshold. The owner, 2026-10-18: \"bloom is a big thing, we don't want that almost at all\". It was 0.32, 0.5 and 0.95: the tower's ceiling lamps, THE CANYON's walkway lamps and THE STRIP's club blew out to white, named in two reviews in a row. Now only the brightest light glows, faintly, and gunfire barely."
  },
- "_skyline": "A city past the fence (Milestone 680; both fresh reviews of 2026-10-20 found the edge 'a tabletop floating in beige haze', and asked first for a city carried on past the wall), drawn only (src/game/skyline.ts): the ground carried on from `from` metres past the fence (where the map's own ground ends) out to `ground`, and tower blocks on a jittered grid of `cell` m squares from `inner` (past the out-of-bounds margin, cut.half + edge.margin = 190, with room to spare) to `outer`, each square filled by `fill`, `size` m across, `height` m tall, low by the fence and rising toward the horizon (from the 50 m lookout an even ring stood as one wall over the map's own towers), `tall` of those past `tall.from` of the way out taller (all under the dropship's 140 m, squad.json ship.height); `setback` of the others carry a block `scale` as wide on top, `height` of their own height, for a skyline's broken line. Their windows are worked out in the shader, a storey `storey` m and a bay `bay` m, `lit` of them lit in `warm` or `cool`, glowing `glow.night` by night and `glow.day` by day, through the map's own haze, and the far ones taken by it faster (`haze`, of the fog's colour at `outer`). Each block wears one of `bodies`. `seed` the same skyline on every page. `keep` [x0, x1, z0, z1] map metres the towers and the ground stay out of: the firing range's footprint (its solids measured in the game, world x -34.5 to 123 and z -122 to 195, up to 60 m: map z -622 to -305), 10 m round; it stands 153 m past the fence inside the ring, and the first skyline stood towers in its lanes.",
+ "_skyline": "A city past the fence (Milestone 680; both fresh reviews of 2026-10-20 found the edge 'a tabletop floating in beige haze', and asked first for a city carried on past the wall), drawn only (src/game/skyline.ts): the ground carried on from `from` metres past the fence (where the map's own ground ends) out to `ground`, and tower blocks on a jittered grid of `cell` m squares from `inner` (past the out-of-bounds margin, cut.half + edge.margin = 190, with room to spare) to `outer`, each square filled by `fill`, `size` m across, `height` m tall, low by the fence and rising toward the horizon (from the 50 m lookout an even ring stood as one wall over the map's own towers), `tall` of those past `tall.from` of the way out taller (all under the dropship's 140 m, squad.json ship.height); `setback` of the others carry a block `scale` as wide on top, `height` of their own height, for a skyline's broken line. Their windows are worked out in the shader, a storey `storey` m and a bay `bay` m, `lit` of them lit in `warm` or `cool`, glowing `glow.night` by night and `glow.day` by day, through the map's own haze, and the far ones taken by it faster (`haze`, of the fog's colour at `outer`). Each block wears one of `bodies`. `seed` the same skyline on every page. `keep` [x0, x1, z0, z1] map metres the towers and the ground stay out of: the firing range's footprint (its solids measured in the game, world x -34.5 to 123 and z -122 to 195, up to 60 m: map z -622 to -305), 10 m round; it stands 153 m past the fence inside the ring, and the first skyline stood towers in its lanes. Since round 9: from 245 m (215), and `keep` empty: the page draws only the side of the world the camera is on, so the range and the city never show together, and the hole cut for the range drew as 'a flat tan slab north of the map'.",
  "skyline": {
   "from": 8,
   "ground": 700,
-  "inner": 215,
+  "inner": 245,
   "outer": 560,
   "cell": 24,
   "fill": 0.5,
@@ -103,13 +103,6 @@
   ],
   "groundColour": "#17191e",
   "seed": 6800,
-  "keep": [
-   [
-    -45,
-    133,
-    -632,
-    -295
-   ]
-  ]
+  "keep": []
  }
 }

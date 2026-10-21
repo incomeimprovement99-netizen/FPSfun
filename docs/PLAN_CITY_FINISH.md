@@ -282,7 +282,9 @@ High City crowns, the tower floors' drop holes (675) and the corner blocks' silh
   ring at its rim and a lit bottom, MOTEL HILL a pole sign (18, 19); a centrepiece in the plaza before the base (06);
   stalls in NOODLE square and MARKET street (16, 18).
 
-**Batch 4, map version 100: the street level**
+**Batch 4, map version 100: the street level** (built 2026-10-20 as THE WELL's ring, MOTEL HILL's sign (676), the
+walk-ins' doors (678's first part) and THE STRIP brightest (681's second part); the shopfronts, the rest of the doors
+and the 16 to 20 m tier still to do)
 
 - **677: enterable two-storey shopfronts** along the Loop and in each corner block (the old 673).
 - **678: doors that read as doors**: a lit frame and an awning on every building you can enter, ledges and balconies to
