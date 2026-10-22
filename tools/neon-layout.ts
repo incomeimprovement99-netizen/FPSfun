@@ -2866,10 +2866,12 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 // material of the block's colour, up from its rooms building's roof yard, or up the Well from its bottom, so where it
 // is and where its own loot lies show from anywhere; drawn only, nothing to stand on
 {
-  const BM = R.low.beam as { piece: string; mats: Record<string, string> } | undefined;
+  const BM = R.low.beam as { piece: string; mats: Record<string, string>; scale?: number } | undefined;
   if (BM) {
     const bp = piece(BM.piece);
-    for (const b of beams) add(b.chunk, "c", [bp.key, +b.x.toFixed(3), b.y, +b.z.toFixed(3), 0, "g", BM.mats[b.block]] as Place);
+    // (at `scale` of the pack's 92 m beam, about its foot: the reviews read the full beams as "debug lines" across
+    // every aerial)
+    for (const b of beams) add(b.chunk, "c", (BM.scale ? [bp.key, +b.x.toFixed(3), b.y, +b.z.toFixed(3), 0, "g", BM.mats[b.block], null, BM.scale] : [bp.key, +b.x.toFixed(3), b.y, +b.z.toFixed(3), 0, "g", BM.mats[b.block]]) as unknown as Place);
     cfg.beams = beams.map((b) => ({ block: b.block, at: [+b.x.toFixed(3), b.y, +b.z.toFixed(3)], mat: BM.mats[b.block] }));
   }
 }
@@ -4874,7 +4876,7 @@ function onNode(o: OBox): boolean {
     roofs?: { bridge: string; bridges: number[][]; cell: number; rail: string; railShort: string; railH: number; cover: Array<[string, number, number, number]> };
     market?: { crate: string; turned: string[]; rows: Array<{ pieces: string[]; yaw: number; flip?: boolean; at: number[][] }> };
     light?: { strip: string; remap: string; every: number; in: number; lamp: string; lampEvery: number; roofLamp: string; lampRemap: string; roofLamps: number[][] };
-    cliffs?: { faces: Array<[string, number, number, number, number]>; signs: { pieces: string[]; every: number; y: number[]; gap: number }; units: { pieces: string[]; every: number; y: number[]; gap: number } };
+    cliffs?: { faces: Array<[string, number, number, number, number]>; signs: { pieces: string[]; every: number; y: number[]; gap: number; scale?: number }; units: { pieces: string[]; every: number; y: number[]; gap: number } };
     name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string };
   };
   const DC = (R.districts as { canyon?: Canyon } | undefined)?.canyon;
@@ -5118,10 +5120,12 @@ function onNode(o: OBox): boolean {
           if (!behind(a - 0.8) || !behind(a + 0.8)) continue;
           const name = CF.signs.pieces[i % CF.signs.pieces.length];
           const r = piece(name).row;
-          const [x, z] = at(a, r.size![0] / 2 + CF.signs.gap);
+          // (at `scale` times the pack's size: at its own, 2.3 to 3.5 m, the review found them "small")
+          const k = CF.signs.scale ?? 1;
+          const [x, z] = at(a, (r.size![0] * k) / 2 + CF.signs.gap);
           const y = CF.signs.y[i % CF.signs.y.length];
-          placeTurned(DC.chunk, name, x, z, axis === "z" ? 90 : 0, "g", y - r.min![1]);
-          signsAt.push([a, y, y + r.size![1]]);
+          placeTurned(DC.chunk, name, x, z, axis === "z" ? 90 : 0, "g", y - r.min![1] * k, undefined, k);
+          signsAt.push([a, y, y + r.size![1] * k]);
           cliffs.signs++;
         }
         let j = 0;

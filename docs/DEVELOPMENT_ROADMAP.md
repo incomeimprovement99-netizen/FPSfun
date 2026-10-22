@@ -16184,3 +16184,25 @@ page only ever draws the side of the world the camera is on, so the hole was nev
 the blocks start 245 m out (215).
 
 **Checked:** a new check for all of it: 8 lit strips on the tower (lowest from 12.0 m), 0 off their boxes, a pool at the bottom true; the pole sign 1, every ad stand worn true; 4 awnings and 8 strips for 4 walk-ins; the strip's wash 0.28 over 0.16. The e2e: none, the owner's call for today. verify, rules and tsc. Map files version 100: lo 177.5 MB, hi 257.5 MB, max 550.1 MB.
+
+## Milestone 670 (second part) — THE CANYON's roofs and signs, the beams cut down
+
+From the fresh reviews of 2026-10-21 (the centre's round 9 at 5.5, the districts' round 3 at 5.3; docs/CENTRE_REVIEW.md):
+
+- **THE CANYON's roofs, "a flat brown plain"**: four of the pack's 9 m ad stands along the map's edge, their ads turned in
+  over the canyon, and two of its 7 m tanks (`canyon.roofs.cover`).
+- **Its blade signs "small and unlit by day"**: 1.7 times the pack's size (`canyon.cliffs.signs.scale`).
+- **The corner blocks' beams, "debug lines across every aerial"**: 0.45 of the pack's 92 m beam, about its foot
+  (`low.beam.scale`).
+- **The pads' cones, "a large white jump-pad cone still reads like the old wedges"**: cut to a 1.4 m glow at the plate
+  (`pads.beamScale` 0.015); the ring on the ground marks the pad.
+- **THE STRIP club's rig**, "the black beam over the club", taken out.
+- **THE TERMINAL's vaults, "green hex with yellow trim, not amber"**: the hex glass tinted amber, its colour and glow.
+- **GLASS HEIGHTS' chevrons, "flat placeholder polygons"**: tinted cyan in their own lit texture (`^#`), not the flat
+  glow of the `|` spec.
+- **The tower floors' "stretched and smeared" marble**: the 26 m floor in metal planks, THE VAULT in hex tiles.
+- **GLASS HEIGHTS' deck, "bare"**: its front deck's perch takes nine, planters and a bench among its cover.
+- **LANTERN ALLEYS' court**: three stalls (two before). A fourth at its south-east corner shut the bots' street to the
+  corner past it, and the check found the three nodes cut off, so it came out.
+
+**Checked:** all 313 map checks pass, the faces check following the club's rig as the rules give it. No e2e today (the owner's call). verify, rules and tsc. Map files version 101: lo 177.3 MB, hi 257.8 MB, max 554.0 MB.

@@ -4030,7 +4030,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const club = (cfg as unknown as { strip: { club: { dance?: { tiles: number; booth: number; rig: number; left: string[] } } } }).strip.club.dance;
   check(
     "the districts' faces: GLASS HEIGHTS' towers in white and cyan, THE CANYON's cliffs signed and dressed above the walkways and off its middle, THE WORKS' doors under lintels that collide and its halls lit teal, THE STRIP's club a dance floor with its booth and rig",
-    glassOk && (C?.signs ?? 0) >= 30 && (C?.units ?? 0) >= 40 && low.length === 0 && out.length === 0 && lintels === doors * 4 && lintelBoxes >= doors && teal >= 60 && !!club && club.tiles === 6 && club.booth === 4 && club.rig === 6 && club.left.length === 0,
+    glassOk && (C?.signs ?? 0) >= 30 && (C?.units ?? 0) >= 40 && low.length === 0 && out.length === 0 && lintels === doors * 4 && lintelBoxes >= doors && teal >= 60 && !!club && club.tiles === 6 && club.booth === 4 && club.rig === (cfg.rules.districts as unknown as { strip: { club: { dance: { rig: unknown[] } } } }).strip.club.dance.rig.length && club.left.length === 0,
     `glass ${glassOk}; canyon ${C?.signs ?? 0} signs, ${C?.units ?? 0} units (${low.length} low, ${out.length} over the middle); works ${lintels} lintel halves for ${doors} doors, ${lintelBoxes} lintel boxes, ${teal} teal strips; club ${club ? `${club.tiles} tiles, ${club.booth} booth, ${club.rig} rig${club.left.length ? `, left out ${club.left.join(", ")}` : ""}` : "none"}`
   );
 }

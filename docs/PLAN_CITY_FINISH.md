@@ -301,6 +301,17 @@ and the 16 to 20 m tier still to do)
 - **682: the loot spots' own light** (PHASE_29 item 11, the map's half after the lobby's beams) **and the decay
   re-timed** for the districts' sizes.
 
+**After map version 100 (the fresh reviews of 2026-10-21: the centre 5.5, the districts 5.3)**
+
+- **Version 101:** THE CANYON's roofs and bigger signs, the beams and the pads' cones cut down, the club's rig out, THE
+  TERMINAL's vaults amber, GLASS HEIGHTS' chevrons in their texture, the tower floors' marble replaced, GLASS HEIGHTS'
+  deck dressed, a third stall in LANTERN ALLEYS' court.
+- **Version 102:** GLASS HEIGHTS' and THE STRIP's towers lit at their corners and crowns, THE TERRACES' grand stair lit,
+  THE TERMINAL's lights in their texture, container trailers in THE WORKS' yards.
+- **Then:** the roofs broken into islands (THE CANYON, THE STACKS, GLASS HEIGHTS' deck, THE WORKS), THE TERRACES rebuilt
+  round its stair, THE WORKS' pipes and machine rows, a lighting pass on the dark spaces, the ground's density pass in the
+  centre, THE VAULT's doors and dais.
+
 **Last**
 
 - **683: the frame measured with the PC unused** (the detail-mapped and cut-out batches if it misses the bar).
