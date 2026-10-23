@@ -5555,6 +5555,14 @@ function onNode(o: OBox): boolean {
     console.log(`THE WORKS: ${halls.length} halls, ${panels} wall panels, ${tiles} roof tiles, ${lamps} ceiling lamps${IN ? `; inside ${inside.columns} columns, ${inside.galleries.length} galleries, ${inside.laid} of ${inside.of} sets of cover` : ""}${UP ? `; the works block's ground floor ${upper.ground.laid} of ${upper.ground.of} sets${upper.ground.left.length ? ` (left out: ${upper.ground.left.join("; ")})` : ""}, ${upper.pipes} pipe runs` : ""}`);
   }
 }
+// Hand-placed pieces (rules.dress.extras, Milestone 687): [chunk, piece, x, z, yaw, y (its pivot's), scale, material]
+// each, drawn only, nothing to stand on or behind: THE WORKS' pipe runs across its yards, THE CANYON's lantern lines
+{
+  const EX = (R.dress as { extras?: Array<[string, string, number, number, number, number, number?, string?]> }).extras ?? [];
+  for (const [chunk, name, x, z, yaw, y, scale, mat] of EX) placeTurned(chunk, name, x, z, yaw, "g", y, mat ?? undefined, scale ?? 1);
+  if (EX.length) console.log(`hand-placed pieces: ${EX.length}`);
+  cfg.extras = EX.length;
+}
 // Head-high cover in the districts' open ground (rules.dress.districtCover, Milestone 660). The districts' first review
 // asked for it first: "no stretch past about 15 m without head-high cover ... today shotguns and SMGs have no way to
 // close the distance". Its pictures were LANTERN ALLEYS' way in, THE STACKS' court, THE TERRACES' top tier, THE

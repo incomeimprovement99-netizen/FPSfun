@@ -16301,3 +16301,18 @@ plate with one air unit", THE WORKS' roofs "patchy grey ground with crates sprin
   planter after its hedges.
 - **Checked:** the perches' check counts the new one, THE WORKS' roofs' own check stands each piece on its roof
   (all 313 map checks pass; stacks-roof 8 pieces, 8 on its roof). No e2e this week (the owner's call). verify, rules and tsc. Map files version 103: lo 177.5 MB, hi 257.6 MB, max 554.9 MB.
+
+## Milestone 687 — THE WORKS' pipes, THE CANYON's lantern lines
+
+From the districts' review of 2026-10-21 (round 3): THE WORKS "run big pipes between halls at 4 to 8 m", its strips
+"white or green, not teal"; THE CANYON's floor "a bare corridor ... not a market" (round 2: "hanging signs").
+
+- **Hand-placed pieces** (`rules.dress.extras`, a new list, [chunk, piece, x, z, yaw, y, scale, material] each, drawn only).
+- **THE WORKS' pipe runs:** the pack's 9.8 m mounted pipe, two across each of its four 10 m yards between its halls, 3.8 m
+  up over the doors' lintels.
+- **THE CANYON's lantern lines:** a 10 m cable from wall to wall every 8 m down both arms at 6.2 m, over a body's head on
+  the walkways and under the blade signs, with three lanterns on each over the floor's middle only (over the walkways
+  they hung at head height).
+- **THE WORKS' facade strips** burn at 3 (1.5), so they read teal by day.
+- **Checked:** a new check that every hand-placed piece is laid, drawn only, over a body's head, the lanterns over the
+  canyon's floor (all 314 map checks pass; 80 pieces, 80 laid, 0 too low, 0 lanterns over a walkway). No e2e this week. verify, rules and tsc. Map files version 104: lo 179.0 MB, hi 259.0 MB, max 556.4 MB.

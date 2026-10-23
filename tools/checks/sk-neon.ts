@@ -4081,5 +4081,20 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// the hand-placed pieces (rules.dress.extras, Milestone 687): every one laid, drawn only, THE WORKS' pipes over its doors'
+// lintels and THE CANYON's lantern lines over a body on its walkways, their lanterns only over its floor's middle
+{
+  const EX = (cfg.rules.dress as unknown as { extras?: Array<[string, string, number, number, number, number]> }).extras ?? [];
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
+  const laid = EX.filter(([, name]) => placed.some((q) => String(q[0]).endsWith(`/${name}`) && q[5] === "g")).length;
+  const low = EX.filter(([, name, , , , y]) => (/Cable|Lamp/.test(name) ? y < 5.6 : y < 3.6)).length;
+  const lanternsOffMiddle = EX.filter(([chunk, name, x, z]) => chunk === "c-canyon" && /ChineseLamp/.test(name) && Math.abs(z - 125) > 2.6 && Math.abs(x + 125) > 2.6).length;
+  check(
+    "the hand-placed pieces: THE WORKS' pipe runs across its yards and THE CANYON's lantern lines, all laid drawn only, over a body's head, the lanterns over the canyon's floor",
+    EX.length >= 60 && laid === EX.length && low === 0 && lanternsOffMiddle === 0 && (cfg as unknown as { extras?: number }).extras === EX.length,
+    `${EX.length} pieces, ${laid} laid, ${low} too low, ${lanternsOffMiddle} lanterns over a walkway`
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);
