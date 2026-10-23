@@ -16231,3 +16231,20 @@ From the districts' review of 2026-10-21 (round 3: 5.3; docs/CENTRE_REVIEW.md):
   container trailer.
 
 **Checked:** all 313 map checks pass (the ground cover held to 8.5 m on open ground, THE TERRACES' room lamp found within 0.5 m of its middle). No e2e today (the owner's call). verify, rules and tsc. Map files version 102: lo 176.9 MB, hi 256.9 MB, max 554.3 MB.
+
+## Milestone 686 — Roofs into islands
+
+The districts' review of 2026-10-21 (round 3) asked first to "break the big roofs into islands": THE STACKS' roof "a bare
+plate with one air unit", THE WORKS' roofs "patchy grey ground with crates sprinkled on a grid", both "open sniper plates".
+
+- **A new perch over THE STACKS' capsule hotel roof** at 10.5 m: tanks, cabinets, cooling units and crates, each level, off
+  the roof's edge and its pads' and bridges' ends, the roof walkable round them (the perches' own measure off the bake's
+  collision). Laid last of the perches: each draws its spots from one shared sequence in list order, and one added early
+  moves every later one's draws (Milestone 673 found a landmark come out empty that way).
+- **17 pieces over THE WORKS' four arm halls' roofs** at 7 m, the same kinds. They were perches too, and moved every bake
+  (each roof's last spots refused the next time, three bakes running), so the spots they measured are written into
+  `works.roofs.cover`, none within 4.5 m of a footbridge's end along its line (two stood in the south yard's bridge's way).
+- **THE TERRACES' tiers carry trees** ("no grand stair or garden shows"): its set of cover takes the pack's cypress in a
+  planter after its hedges.
+- **Checked:** the perches' check counts the new one, THE WORKS' roofs' own check stands each piece on its roof
+  (all 313 map checks pass; stacks-roof 8 pieces, 8 on its roof). No e2e this week (the owner's call). verify, rules and tsc. Map files version 103: lo 177.5 MB, hi 257.6 MB, max 554.9 MB.
