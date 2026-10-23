@@ -5728,6 +5728,9 @@ function onNode(o: OBox): boolean {
                 placeTurned(DC.chunk, DC.crate, x + ox, z + oz, yaw, "s", y0 - row.min![1]);
                 placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 - row.min![1]);
                 placeTurned(DC.chunk, DC.crate, x - ox, z - oz, yaw, "s", y0 + row.size![1] - row.min![1]);
+              } else if ((DC as unknown as { mats?: Record<string, Record<string, string>> }).mats?.[district]?.[name]) {
+                // (a district's own material for a piece of its set: THE TERRACES' walls as hedges)
+                placeTurned(DC.chunk, name, x, z, yaw, "s", y0 - row.min![1], (DC as unknown as { mats: Record<string, Record<string, string>> }).mats[district][name]);
               } else placeFaced(DC.chunk, name, x, z, yaw, "s", y0 - row.min![1]);
               if (y0 === 0) STREET_GRAPH?.add(o);
               for (const c of cellsOf(o)) body[c] = cover[c] = 1;

@@ -1357,7 +1357,8 @@ walkways 3.5 m up both walls with stairs set into them, bridges across its roofs
 crossed indoors from hall to hall, each with columns, a gallery and its stair, a tank and machines, and the corner's works block with an upper floor
 round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
 crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground and each
-district is washed in its own colour, THE STRIP the brightest; the central tower's corners and crown glow amber; past the fence tower blocks stand to the horizon (`src/game/skyline.ts`), their
+district is washed in its own colour, THE STRIP the brightest; the central tower's corners and crown glow amber, GLASS HEIGHTS' tower's cyan and THE STRIP's
+magenta, and THE TERRACES' grand stair is lined in green; past the fence tower blocks stand to the horizon (`src/game/skyline.ts`), their
 windows lit. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface

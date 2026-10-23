@@ -8,7 +8,7 @@
 import * as THREE from "three";
 import neonCfg from "../config/neonmap.json";
 
-type Outline = { name: string; rect?: number[]; on?: string; posts?: boolean; y: number; out: number; w: number; h: number; colour: string; glow: number };
+type Outline = { name: string; rect?: number[]; on?: string; posts?: boolean; lines?: number[][]; side?: number; step?: number; y: number; out: number; w: number; h: number; colour: string; glow: number };
 const O = (neonCfg as unknown as { game: { outlines?: Outline[] } }).game.outlines ?? [];
 
 /** the strips' boxes, map-local [x0, x1, z0, z1, y0, y1] each, four to an outline (the checks read them) */
@@ -23,6 +23,29 @@ export function outlineBoxes(): Array<number[] & { k?: number }> {
         const [mx, mz] = [(b[0] + b[1]) / 2, (b[2] + b[3]) / 2];
         const along = b[1] - b[0] >= b[3] - b[2];
         out.push(along ? [b[0], b[1], mz - q.w / 2, mz + q.w / 2, b[4], b[4] + q.h] : [mx - q.w / 2, mx + q.w / 2, b[2], b[3], b[4], b[4] + q.h]);
+      }
+      continue;
+    }
+    if (q.lines) {
+      // (a line either side of the route, `side` off its middle, in steps of `step` metres along it, each a box `w`
+      // across: a stair's flight climbs in steps, so a line along it does too)
+      const st = q.step ?? 0.25;
+      for (let i = 0; i + 1 < q.lines.length; i++) {
+        const [ax, az, ay] = q.lines[i];
+        const [bx, bz, by] = q.lines[i + 1];
+        const L = Math.hypot(bx - ax, bz - az);
+        if (L < 1e-6) continue;
+        const [ux, uz] = [(bx - ax) / L, (bz - az) / L];
+        const n = Math.max(1, Math.round(L / st));
+        for (let k = 0; k < n; k++) {
+          const t = (k + 0.5) / n;
+          const [x, z, y] = [ax + (bx - ax) * t, az + (bz - az) * t, ay + (by - ay) * t];
+          for (const sd of [-1, 1]) {
+            const [px, pz] = [x - uz * sd * (q.side ?? 0), z + ux * sd * (q.side ?? 0)];
+            const [hx, hz] = [Math.abs(ux) * (L / n) / 2 + Math.abs(uz) * q.w / 2, Math.abs(uz) * (L / n) / 2 + Math.abs(ux) * q.w / 2];
+            out.push([px - hx, px + hx, pz - hz, pz + hz, y + q.y, y + q.y + q.h]);
+          }
+        }
       }
       continue;
     }
@@ -46,7 +69,13 @@ export function buildOutlines(root: THREE.Object3D): THREE.InstancedMesh | null 
   if (!boxes.length) return null;
   // (which outline each box is of, for its colour)
   const well = (neonCfg as unknown as { well?: Record<string, unknown> }).well ?? {};
-  const outlineOf = O.flatMap((q) => Array<Outline>(q.on ? (((well[q.on] as unknown[] | undefined) ?? []).length) : q.rect ? 4 : 0).fill(q));
+  // (a line's box count: two a step along each leg)
+  const lineBoxes = (q: Outline) => (q.lines ?? []).slice(1).reduce((n, b, i) => {
+    const a = q.lines![i];
+    const L = Math.hypot(b[0] - a[0], b[1] - a[1]);
+    return n + (L < 1e-6 ? 0 : 2 * Math.max(1, Math.round(L / (q.step ?? 0.25))));
+  }, 0);
+  const outlineOf = O.flatMap((q) => Array<Outline>(q.lines ? lineBoxes(q) : q.on ? (((well[q.on] as unknown[] | undefined) ?? []).length) : q.rect ? 4 : 0).fill(q));
   const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
   // (past the decay's own shader, as the fence's and the pads' rings are)
   mat.userData.decay = true;

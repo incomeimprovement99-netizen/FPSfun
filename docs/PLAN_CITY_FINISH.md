@@ -308,9 +308,22 @@ and the 16 to 20 m tier still to do)
   deck dressed, a third stall in LANTERN ALLEYS' court.
 - **Version 102:** GLASS HEIGHTS' and THE STRIP's towers lit at their corners and crowns, THE TERRACES' grand stair lit,
   THE TERMINAL's lights in their texture, container trailers in THE WORKS' yards.
-- **Then:** the roofs broken into islands (THE CANYON, THE STACKS, GLASS HEIGHTS' deck, THE WORKS), THE TERRACES rebuilt
-  round its stair, THE WORKS' pipes and machine rows, a lighting pass on the dark spaces, the ground's density pass in the
-  centre, THE VAULT's doors and dais.
+- **The rest, planned 2026-10-23** (the owner: "plan it all out ... continue until we have all the map planning stuff
+  finished"), one map version each, about 3 to 4 hours apiece on the shared PC, shipped as each passes:
+  - **Version 103 (Milestone 686), roofs into islands:** cover over THE STACKS' hotel roof, THE WORKS' hall roofs and
+    GLASS HEIGHTS' three back decks, as new perches laid last (each measured off the collision, its roof kept walkable);
+    THE TERRACES' tiers given planter walls and trees.
+  - **Version 104 (Milestone 687), industry and market:** THE WORKS' pipe runs across the yards between its halls,
+    machine rows in its halls, its facades lit by day; THE CANYON's floor hung with lantern lines and awnings over its
+    stalls.
+  - **Version 105 (Milestone 688), the lighting pass:** fill light in THE TERMINAL's concourse and THE WORKS' halls;
+    THE STRIP's dance floor a lit grid and its pyramid's steps edged in light; MOTEL HILL's yard and MARKET lit.
+  - **Version 106 (Milestone 689), the centre's ground and THE VAULT:** more cover on the plaza and the Loop, in
+    clusters; THE VAULT's gates as gold vault doors, gold edging round its halls, its loot lit.
+  - **Version 107 (Milestones 770 and 771), the close:** the final reviews (the centre's round 10, the districts' round
+    4) and a last batch from their lists; then the frame measured with the PC unused (the owner's call when).
+  - Tried and dropped: a neon ring round THE WELL's rim (twice), a different crown set on each High City roof, more
+    stalls in NOODLE square and MARKET street. The page: https://claude.ai/artifact/VtTRbvjkrHzHbe82hxm5xb.
 
 **Last**
 

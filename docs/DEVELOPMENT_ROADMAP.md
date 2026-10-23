@@ -16206,3 +16206,28 @@ From the fresh reviews of 2026-10-21 (the centre's round 9 at 5.5, the districts
   corner past it, and the check found the three nodes cut off, so it came out.
 
 **Checked:** all 313 map checks pass, the faces check following the club's rig as the rules give it. No e2e today (the owner's call). verify, rules and tsc. Map files version 101: lo 177.3 MB, hi 257.8 MB, max 554.0 MB.
+
+## Milestone 685 — Landmarks lit, THE TERRACES' stair and hedges, THE CANYON's roofs broken up
+
+From the districts' review of 2026-10-21 (round 3: 5.3; docs/CENTRE_REVIEW.md):
+
+- **GLASS HEIGHTS' and THE STRIP's towers lit** ("its own crown, a halo visible from across the map at 72 m"): each tower's
+  corners lit from its deck or foot to its top and a ring round its crown, in its district's colour (`game.outlines`, off
+  the footprints and tops the layout measured, `cfg.glass.slabs` and `cfg.strip.tower`), as the centre's tower is in
+  THE VAULT's amber.
+- **THE TERRACES' grand stair lit** ("a lit grand stair, visible from the ring, on the d04 axis"): a green line either
+  side of it from the ring road's pavement to the top tier, climbing with it (an outline's `lines`: a route of [x, z, y]
+  points, `rules.districts.terraces.walks.grand`, laid in quarter-metre steps).
+- **THE TERRACES' top tier in hedges** ("two freestanding concrete slabs ... replace the slabs with planter walls"): its
+  3 m walls of cover worn as clipped hedges in the pack's cypress foliage (`dress.districtCover.mats`, a district's own
+  material for a piece of its set). Its rooms ("a white plaster box with a blown-out ceiling") in the green panels of its
+  colour, under the slim strip lamp.
+- **THE CANYON's roofs broken up** ("a vast flat brown plain", "open sniper plates"): 58 pieces on them (44 before), the new
+  ones on a 6 m grid over each block's open roof, 3 m clear of what stands there, 8 m from a bridge's end and 12 m from
+  a pad's spot, tanks, cabinets and cooling units in turn; and the two ad stands on its west edge turned to face in (in
+  version 101 their black backs faced the canyon).
+- **THE TERMINAL's lights in their own texture** ("one flat yellow rectangle" on each pier): tinted amber with `^#`.
+- **THE WORKS' yards** ("group the yard crates into container stacks"): its set of cover leads with the pack's 13 m
+  container trailer.
+
+**Checked:** all 313 map checks pass (the ground cover held to 8.5 m on open ground, THE TERRACES' room lamp found within 0.5 m of its middle). No e2e today (the owner's call). verify, rules and tsc. Map files version 102: lo 176.9 MB, hi 256.9 MB, max 554.3 MB.

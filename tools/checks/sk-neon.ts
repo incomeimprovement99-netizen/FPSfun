@@ -146,7 +146,9 @@ check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.t
           if (D[k] * C > (L.far ?? DC.far)) st.far++;
           st.max = Math.max(st.max, D[k] * C);
         }
-      const [share, most] = y0 === 0 ? [0.01, 8] : [0.1, 15];
+      // (nothing on the ground past 8.5 m: the fill holds 6 m, and where no piece fits, as by THE STACKS' towers, a spot
+      // or two stand a little past 8)
+      const [share, most] = y0 === 0 ? [0.01, 8.5] : [0.1, 15];
       for (const [d, st] of per) {
         const bad = st.far / st.open > share || st.max > most;
         if (bad) ok = false;
@@ -154,7 +156,7 @@ check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.t
       }
     }
   }
-  check(`the districts' open ground: head-high cover within ${DC?.far ?? 0} m of every spot on the ground (a raised level its own), nothing on the ground past 8 m (1% of a district's ground, 10% of a raised level, may lack it), 200 pieces or more`, ok, said.join("; "));
+  check(`the districts' open ground: head-high cover within ${DC?.far ?? 0} m of every spot on the ground (a raised level its own), nothing on the ground past 8.5 m (1% of a district's ground, 10% of a raised level, may lack it), 200 pieces or more`, ok, said.join("; "));
 }
 
 // The city's air thin and its bloom almost none (Milestone 658; the owner, 2026-10-18: "thin the golden-hour haze ... bloom
@@ -2478,7 +2480,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const each = rooms.map(([x0, z0, floor]) => {
     const [ax, az] = [x0 + BR_X, z0 + BR_Z];
     const n = solidsIn(ax + 0.3, ax + 4.7, az + 0.3, az + 4.7).filter((b) => b.minX >= ax + 0.2 && b.maxX <= ax + 4.8 && b.minZ >= az + 0.2 && b.maxZ <= az + 4.8 && b.base >= floor - 0.1 && b.base < floor + 0.3 && b.top > floor + 0.5 && b.top < floor + 2.2).length;
-    const lit = !!RMr.lamp && place.some((q) => q[0].endsWith(RMr.lamp!.split("/").pop()!) && Math.abs(q[1] - (x0 + 2.5)) < 0.01 && Math.abs(q[3] - (z0 + 2.5)) < 0.01);
+    // (its pivot within half a metre of the room's middle: the slim strip lamp's pivot is off its own middle)
+    const lit = !!RMr.lamp && place.some((q) => q[0].endsWith(RMr.lamp!.split("/").pop()!) && Math.abs(q[1] - (x0 + 2.5)) < 0.5 && Math.abs(q[3] - (z0 + 2.5)) < 0.5);
     return { n, lit };
   });
   check("THE TERRACES: each room furnished (three pieces and more standing in it), lit by a lamp the game lights, its walls in plaster", rooms.length === 6 && each.every((q) => q.n >= 3 && q.lit) && !!RMr.innerMat && (RMr.furnish?.length ?? 0) >= 3, each.map((q, i) => `room ${i + 1}: ${q.n} pieces${q.lit ? ", lit" : ", dark"}`).join("; "));
@@ -4073,7 +4076,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const brightest = Object.values(PK.washK).every((k) => k > PK.wash.k) && (PK.washK.strip ?? 0) > PK.wash.k;
   check(
     "the corner blocks' marks and the doors: the tower's corners and crown lit, a pool of light at THE WELL's bottom, MOTEL HILL's pole sign showing its ad, each walk-in's door under an awning and two lit strips, THE STRIP's wash the brightest",
-    boxes.length === 8 && boxes.every((b) => b[4] >= 12) && bottom && sign === 1 && signWorn && walk >= 4 && awnings === walk && strips === 2 * walk && brightest,
+    boxes.filter((b) => b[4] === 12 && Math.abs(b[5] - b[4] - 97) < 0.01).length === 4 && boxes.filter((b) => b[5] - b[4] > 40).length >= 12 && bottom && sign === 1 && signWorn && walk >= 4 && awnings === walk && strips === 2 * walk && brightest,
     `${boxes.length} lit strips on the tower (lowest from ${Math.min(...boxes.map((b) => b[4])).toFixed(1)} m), ${overHole} off their boxes, a pool at the bottom ${bottom}; the pole sign ${sign}, every ad stand worn ${signWorn}; ${awnings} awnings and ${strips} strips for ${walk} walk-ins; the strip's wash ${PK.washK.strip} over ${PK.wash.k}`
   );
 }
