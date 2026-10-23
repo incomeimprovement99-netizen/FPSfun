@@ -946,8 +946,8 @@
       "_solve": "tools/pack-solve.ts, 2026-10-12: l after: deepest 0 mm, palm 0.0 mm, fingers middle 0 ring 0 pinky 0.",
       "shoulders": {
         "l": [
-          -0.0631,
-          -0.0457,
+          -0.1431,
+          -0.0857,
           0.0794
         ],
         "r": [
@@ -1049,8 +1049,8 @@
       },
       "holdElbow": {
         "l": [
-          0,
-          -0.06,
+          -0.12,
+          -0.18,
           0.28
         ],
         "r": [
@@ -1061,13 +1061,13 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.05,
-          -0.06,
+          0.07,
+          -0.12,
           0.32
         ],
         "shoulder": [
-          0.0509,
-          -0.0353,
+          -0.0891,
+          -0.0953,
           0.0067
         ]
       },
@@ -1130,7 +1130,8 @@
         "z": 0
       },
       "magSlide": 0.025,
-      "_twist": "ANAKIN's own turn while the left hand points at the magazine (2026-10-13; fprig.ts twist): its magazine is held in its grip, under the right hand, and at the reload's shared turn the gun went down to the right and took the magazine and the whole pointing hand under the picture's bottom edge for half the reload. Lifted 25 cm and rolled a little the other way, the grip, its magazine and both hands stay in the picture, searched for the magazine seen (121 pixels of a 480 wide picture), the fingertip in the picture and both wrists under 30 degrees. `magSlide`: its magazine slides 2.5 cm out as it phases, not the shared 8: sliding out of the grip it passed through the right hand round it, 10 mm of palm seen in the magazine."
+      "_twist": "ANAKIN's own turn while the left hand points at the magazine (2026-10-13; fprig.ts twist): its magazine is held in its grip, under the right hand, and at the reload's shared turn the gun went down to the right and took the magazine and the whole pointing hand under the picture's bottom edge for half the reload. Lifted 25 cm and rolled a little the other way, the grip, its magazine and both hands stay in the picture, searched for the magazine seen (121 pixels of a 480 wide picture), the fingertip in the picture and both wrists under 30 degrees. `magSlide`: its magazine slides 2.5 cm out as it phases, not the shared 8: sliding out of the grip it passed through the right hand round it, 10 mm of palm seen in the magazine.",
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold, so the forearm comes up from under the picture. The left arm at rest and in a first draw (2026-10-23, Milestone 753, the owner: \"show less of the left arm if needed to match, the FOV should barely see left arm on a bunch of guns\"): the rest shoulder (shoulders l), this hint and the first draw's shoulder and elbow (beforeArm) searched together, the hand where it is, for the least of the arm in the picture at rest and mid first draw, so the forearm comes up from under the picture to the gun as Apex's, EMPULSE's and Hyper Scape's support arms do (laid over their frames), the rest wrist 40 degrees or less and every move's frames where the hand leaves the gun and comes back, the swap's cup and the open palm held to what they had (wrists 50 or 5 more than before, wrung 85, skin in the gun 4 mm, the vent's too, and no daylight between the hand and the gun as the e2e reads it: a first fit left a pocket of it between the new forearm and the gun; scratchpad arms2 m-joint.js). ANAKIN's left arm at rest 5.1% of the picture, its upper arm 2.1, wrist 26; now 3.4%, upper arm 0.6, wrist 36. Mid first draw its upper arm 0.0% and 0 pixels of the sleeve's inside; now 0.0% and 0."
     },
     "G3": {
       "model": "G3",
@@ -1443,9 +1444,9 @@
           -0.16
         ],
         "l": [
-          -0.12,
-          -0.12,
-          0.08
+          -0.1,
+          -0.2,
+          0.1
         ],
         "adsL": [
           0.06,
@@ -1518,14 +1519,14 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.6473,
-          -0.104,
-          -0.6102
+          -0.18,
+          -0.1,
+          0.82
         ],
         "shoulder": [
           0.0142,
-          0.0048,
-          -0.0066
+          -0.0752,
+          0.0134
         ]
       },
       "meleeClearWay": [
@@ -1554,12 +1555,12 @@
           0
         ],
         "l": [
-          0,
-          -0.06,
-          0.28
+          1.13,
+          0.18,
+          -0.24
         ]
       },
-      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 39 and the forearm turned 47, 28 and 13 now; 105 through an inspect, 80. Left: turned 94 at rest, 87."
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 39 and the forearm turned 47, 28 and 13 now; 105 through an inspect, 80. Left: turned 94 at rest, 87. The left arm at rest and in a first draw (2026-10-23, Milestone 753, the owner: \"show less of the left arm if needed to match, the FOV should barely see left arm on a bunch of guns\"): the rest shoulder (shoulders l), this hint and the first draw's shoulder and elbow (beforeArm) searched together, the hand where it is, for the least of the arm in the picture at rest and mid first draw, so the forearm comes up from under the picture to the gun as Apex's, EMPULSE's and Hyper Scape's support arms do (laid over their frames), the rest wrist 40 degrees or less and every move's frames where the hand leaves the gun and comes back, the swap's cup and the open palm held to what they had (wrists 50 or 5 more than before, wrung 85, skin in the gun 4 mm, the vent's too, and no daylight between the hand and the gun as the e2e reads it: a first fit left a pocket of it between the new forearm and the gun; scratchpad arms2 m-joint.js). PANDA's left arm at rest 3.3% of the picture, its upper arm 1.8, wrist 33; now 2.7%, upper arm 0.8, wrist 39. Mid first draw its upper arm 6.3% and 1368 pixels of the sleeve's inside; now 1.3% and 0."
     },
     "KXG12": {
       "model": "KXG12",
@@ -1893,9 +1894,9 @@
       },
       "shoulders": {
         "l": [
-          0.03,
-          0.05,
-          0.14
+          0.11,
+          -0.13,
+          0.33
         ],
         "r": [
           -0.1,
@@ -1917,14 +1918,14 @@
       "_solve": "tools/pack-solve.ts, 2026-10-13: rest wrists: before L 33 R 30, after L 33 R 30; arms in the picture 40.7% then 40.8%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.03,0.05,0.14],\"r\":[-0.1,0.18,-0.18],\"adsR\":[0.16,0.16,-0.16],\"adsL\":[0.01,-0.06,0.26]}); aimed wrists: before L 7 R 40, after L 7 R 38; arms in the picture 37.7% then 37.7%, a sleeve's inside 0 then 0 px (shoulders {\"l\":[0.03,0.05,0.14],\"r\":[-0.1,0.18,-0.18],\"adsR\":[0.12,0.18,-0.16],\"adsL\":[0.01,-0.06,0.26]}); pointing wrist: before 29, after 29 (tip 0.0 cm, 180 deg; arms in the picture 14.7% then 14.5%; elbow -0.30,-1.00,0.00, reach 0.18, aimAt 1.00).",
       "beforeArm": {
         "elbow": [
-          -0.0971,
-          -0.6303,
+          0.0229,
+          -0.5103,
           -0.2378
         ],
         "shoulder": [
-          0.0366,
-          -0.0415,
-          0.1423
+          0.0766,
+          -0.0815,
+          0.2023
         ]
       },
       "_reload": "BIGANTLER's reload, a shell at a time (fprig.ts ShellReload), in shares of its empty reload (3.0 s; the tactical 2.0 s is read onto it and ends at `back`'s end), which the soldier reads too (the character agent's rifle.ts): the left hand off the pump over `leave`, `count` shells fed into the gate (Cover) over `feed`, each pushed in over `push` of its own share, back on the pump over `back`, and from empty only the KXG12's pump over `pump`. The KXG12 is a bullpup whose own reload feeds a port under the butt with the right hand; our gate is under the receiver behind the pump, so the left hand feeds it, procedurally. The shell (Bullet) rides at the hand's pinch `drop` under the gate and is pushed home; the hand stops `clear` under the shell's rest (at 3 cm the closing gate met the fingers, 7 to 11 mm in), drops by `dip` (our gun's frame) for the next, is turned `turn` off the hold and bowed out by `bow` on its way off the pump and back (straight, it went 7 mm through the gun's underside); its fingers are the KXG12's empty pump's at `shellAt` of it, where that hand holds a shell. The sound is laid on the same beats (packsounds.json KXG12 shells).",
@@ -1951,9 +1952,14 @@
           0,
           -0.2,
           0
+        ],
+        "l": [
+          0.1565,
+          -0.313,
+          0
         ]
       },
-      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 31 and turned 41, 13 and 10 now; 81 in a swap, 48; through an inspect the wrist 54, 27."
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 31 and turned 41, 13 and 10 now; 81 in a swap, 48; through an inspect the wrist 54, 27. The left arm at rest and in a first draw (2026-10-23, Milestone 753, the owner: \"show less of the left arm if needed to match, the FOV should barely see left arm on a bunch of guns\"): the rest shoulder (shoulders l), this hint and the first draw's shoulder and elbow (beforeArm) searched together, the hand where it is, for the least of the arm in the picture at rest and mid first draw, so the forearm comes up from under the picture to the gun as Apex's, EMPULSE's and Hyper Scape's support arms do (laid over their frames), the rest wrist 40 degrees or less and every move's frames where the hand leaves the gun and comes back, the swap's cup and the open palm held to what they had (wrists 50 or 5 more than before, wrung 85, skin in the gun 4 mm, the vent's too, and no daylight between the hand and the gun as the e2e reads it: a first fit left a pocket of it between the new forearm and the gun; scratchpad arms2 m-joint.js). BIGANTLER's left arm at rest 3.3% of the picture, its upper arm 1.8, wrist 34; now 1.8%, upper arm 0.0, wrist 32. Mid first draw its upper arm 0.0% and 0 pixels of the sleeve's inside; now 0.0% and 0."
     },
     "Drake-12": {
       "model": "Drake-12",
@@ -2417,9 +2423,9 @@
       },
       "shoulders": {
         "l": [
-          0.12,
-          -0.1,
-          0.2
+          0,
+          -0.28,
+          0.32
         ],
         "r": [
           -0.2,
@@ -2491,14 +2497,14 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.7883,
-          0.2484,
-          -0.2894
+          -0.08,
+          -0.16,
+          0.33
         ],
         "shoulder": [
-          0.1376,
-          -0.039,
-          0.22
+          0.1176,
+          -0.159,
+          0.26
         ]
       },
       "meleeClearWay": [
@@ -2530,9 +2536,14 @@
           0,
           -0.2,
           0
+        ],
+        "l": [
+          0.973,
+          0.0835,
+          0.42
         ]
       },
-      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 22, 7 now; in a swap the forearm turned 52, 18."
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest the wrist bent 22, 7 now; in a swap the forearm turned 52, 18. The left arm at rest and in a first draw (2026-10-23, Milestone 753, the owner: \"show less of the left arm if needed to match, the FOV should barely see left arm on a bunch of guns\"): the rest shoulder (shoulders l), this hint and the first draw's shoulder and elbow (beforeArm) searched together, the hand where it is, for the least of the arm in the picture at rest and mid first draw, so the forearm comes up from under the picture to the gun as Apex's, EMPULSE's and Hyper Scape's support arms do (laid over their frames), the rest wrist 40 degrees or less and every move's frames where the hand leaves the gun and comes back, the swap's cup and the open palm held to what they had (wrists 50 or 5 more than before, wrung 85, skin in the gun 4 mm, the vent's too, and no daylight between the hand and the gun as the e2e reads it: a first fit left a pocket of it between the new forearm and the gun; scratchpad arms2 m-joint.js). CHOOCH's left arm at rest 3.1% of the picture, its upper arm 2.3, wrist 26; now 1.5%, upper arm 0.7, wrist 40. Mid first draw its upper arm 3.2% and 2117 pixels of the sleeve's inside; now 1.9% and 0."
     },
     "DGL50": {
       "model": "DGL50",
@@ -3093,7 +3104,7 @@
         "l": [
           0.13,
           0.09,
-          0.16
+          0.18
         ],
         "r": [
           -0.12,
@@ -3165,13 +3176,13 @@
       },
       "beforeArm": {
         "elbow": [
-          -0.1516,
-          -0.2692,
-          0.2712
+          0.0284,
+          -0.5092,
+          0.1512
         ],
         "shoulder": [
-          0.0677,
-          0.04,
+          0.2077,
+          0,
           0.12
         ]
       },
@@ -3209,10 +3220,10 @@
         "l": [
           0,
           -0.06,
-          0.28
+          0.46
         ]
       },
-      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest turned 57, 43 now; through an inspect 123, 109. Left: the wrist 47 at rest, 41."
+      "_holdElbow": "Each arm's elbow is held toward `holdElbow` (view metres from the hand) at the hold (2026-10-21, Milestone 750, the owner of the ad's clips: \"some of our wrists look unnatural / arms do the same\"): left to the arm, the elbow went where the clip's pose put it, and the forearm twisted round to reach the hand. Tried over a grid of hints with each wrist's bend and twist read at rest, through the aim, the swap and the inspect: right: at rest turned 57, 43 now; through an inspect 123, 109. Left: the wrist 47 at rest, 41. The left arm at rest and in a first draw (2026-10-23, Milestone 753, the owner: \"show less of the left arm if needed to match, the FOV should barely see left arm on a bunch of guns\"): the rest shoulder (shoulders l), this hint and the first draw's shoulder and elbow (beforeArm) searched together, the hand where it is, for the least of the arm in the picture at rest and mid first draw, so the forearm comes up from under the picture to the gun as Apex's, EMPULSE's and Hyper Scape's support arms do (laid over their frames), the rest wrist 40 degrees or less and every move's frames where the hand leaves the gun and comes back, the swap's cup and the open palm held to what they had (wrists 50 or 5 more than before, wrung 85, skin in the gun 4 mm, the vent's too, and no daylight between the hand and the gun as the e2e reads it: a first fit left a pocket of it between the new forearm and the gun; scratchpad arms2 m-joint.js). DEVINOS's left arm at rest 4.9% of the picture, its upper arm 0.0, wrist 41; now 4.5%, upper arm 0.0, wrist 41. Mid first draw its upper arm 1.2% and 0 pixels of the sleeve's inside; now 0.0% and 0."
     }
   },
   "guns": {

@@ -800,3 +800,97 @@ window.__gunInside = (W = 480) => {
   for (let i = 0; i < W * H; i++) if (buf[i * 4 + 1] > 200 && buf[i * 4] < 60 && buf[i * 4 + 2] < 60) inside++;
   return { inside, parts: parts.length };
 };
+
+// How much of the left arm the eye sees, per cent of the picture: its upper arm, its forearm and its hand, the gun in
+// front of them (the owner, 2026-10-23: "show less of the left arm if needed to match, the FOV should barely see left arm
+// on a bunch of guns"; at rest Apex's, EMPULSE's and Hyper Scape's support arm comes up from under the picture to the
+// gun, a hand and some forearm, where ANAKIN's, PANDA's, BIGANTLER's and CHOOCH's upper arms were in the picture's lower
+// left, 1.8 to 2.3% of it, and PANDA's filled 6% in a first draw). Each part is found by drawing the arms with that
+// part's bone squashed to nothing and seeing which pixels go.
+window.__leftArmSeen = (W = 480) => {
+  const r = window.__range;
+  const T = r.THREE;
+  const R = r.renderer;
+  const root = r.viewModelRoot();
+  const cam = root.parent;
+  const bones = r.packRig().bones;
+  let scene = root;
+  while (scene.parent) scene = scene.parent;
+  let rig = null;
+  root.traverse((o) => {
+    if (o.name === "pack-arms") rig = o;
+  });
+  if (!rig || !rig.visible || !bones.upperarm_l) return null;
+  const under = (o, a) => {
+    for (let p = o; p; p = p.parent) if (p === a) return true;
+    return false;
+  };
+  const arm = new T.MeshBasicMaterial({ color: 0x00ff00, toneMapped: false, fog: false, side: T.DoubleSide });
+  const black = new T.MeshBasicMaterial({ color: 0x000000, toneMapped: false, fog: false });
+  const kept = [];
+  scene.traverse((o) => {
+    if (!(o.isMesh || o.isPoints || o.isLine || o.isSprite) || !o.layers.test(cam.layers)) return;
+    kept.push([o, o.material, o.visible]);
+    if (under(o, rig)) o.material = arm;
+    else if (under(o, root) && o.isMesh && o.visible) o.material = black;
+    else o.visible = false;
+  });
+  const H = Math.round((W * innerHeight) / innerWidth);
+  const N = W * H;
+  const rt = new T.WebGLRenderTarget(W, H);
+  const bg = scene.background;
+  const was = R.getRenderTarget();
+  const cc = R.getClearColor(new T.Color());
+  const ca = R.getClearAlpha();
+  const shot = () => {
+    const buf = new Uint8Array(N * 4);
+    R.setRenderTarget(rt);
+    R.setClearColor(0x000000, 1);
+    R.clear(true, true, true);
+    R.render(scene, cam);
+    R.readRenderTargetPixels(rt, 0, 0, W, H, buf);
+    return buf;
+  };
+  const without = (b) => {
+    const s = b.scale.clone();
+    b.scale.setScalar(1e-4);
+    b.updateMatrixWorld(true);
+    try {
+      return shot();
+    } finally {
+      b.scale.copy(s);
+      b.updateMatrixWorld(true);
+    }
+  };
+  let all, noHand, noFore, noArm;
+  try {
+    scene.background = null;
+    all = shot();
+    noHand = without(bones.hand_l);
+    noFore = without(bones.lowerarm_l);
+    noArm = without(bones.upperarm_l);
+  } finally {
+    R.setRenderTarget(was);
+    R.setClearColor(cc, ca);
+    scene.background = bg;
+    for (const [o, m, v] of kept) {
+      o.material = m;
+      o.visible = v;
+    }
+    rt.dispose();
+    arm.dispose();
+    black.dispose();
+  }
+  const on = (b, i) => b[i * 4 + 1] > 128;
+  let hand = 0;
+  let fore = 0;
+  let upper = 0;
+  for (let i = 0; i < N; i++) {
+    if (!on(all, i)) continue;
+    if (!on(noHand, i)) hand++;
+    else if (!on(noFore, i)) fore++;
+    else if (!on(noArm, i)) upper++;
+  }
+  const pc = (n) => (100 * n) / N;
+  return { upper: pc(upper), fore: pc(fore), hand: pc(hand) };
+};

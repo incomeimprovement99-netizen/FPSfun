@@ -15365,6 +15365,45 @@ finger curled around its designated finger grip".
 - **Checked:** verify, rules, the type check, and the e2e's bought-arms frames on BIGANTLER (every frame of the reload,
   swap, aim, inspect, flourish, pickup and punch, the forefinger on the trigger, no daylight).
 
+## Milestone 753 — The left arm under the gun, as the other games hold it
+
+The owner, 2026-10-23: "screenshot all guns in first person and look for logical misshapes, like the arm being bent too
+much or not how a natural hand would look / arm would look. overlap it with the apex/empus/hyperscape guns again and
+show less of the left arm if needed to match, the FOV should barely see left arm on a bunch of guns, confirm it with the
+overlays".
+
+- **Looked at:** all ten guns photographed in the game's own view (the owner's 110 field of view) at rest, aimed, at two
+  points of an empty reload, mid inspect and through the first draw, every part of the arms told apart in the picture
+  (the left hand, forearm and upper arm found by drawing the arms with each part's bone squashed to nothing), the rest
+  laid over the references: the R-99, Alternator, Flatline, EVA-8, Mastiff, Devotion, Sentinel and Wingman at rest in
+  Apex, the Harpy, Protocol V and Riot One in Hyper Scape, EMPULSE's SMG.
+- **What was wrong:** in every reference the support arm comes up from under the picture to the gun, a hand and a little
+  forearm. Ours came in on a slant from the lower left, and on ANAKIN, PANDA, BIGANTLER and CHOOCH the upper arm and
+  elbow were in the picture too, 1.8 to 2.3% of it, a sheet of sleeve; PANDA's and CHOOCH's left elbows were locked
+  straight (174 and 177 degrees) and CHOOCH's forearm wrung 121 degrees. In a first draw PANDA's upper arm filled 6% of
+  the picture and DEVINOS's 4%, and PANDA's and CHOOCH's sleeves came up open end first, 1400 and 2100 pixels of their
+  insides seen (no check looked at the first draw's sleeve).
+- **Now** (fparms.json packGuns shoulders l, holdElbow l and beforeArm, for ASVal, G3, KXG12, MGX5 and RPG): each gun's
+  rest shoulder, its elbow's hint and the first draw's shoulder and elbow searched together, the hand where it was, for
+  the least of the arm in the picture at rest and through the first draw, the rest wrist 40 degrees or less, and every
+  move held to what it had: the frames where the hand leaves the gun and comes back in an inspect and a reload, the
+  swap's cup and the open palm (the wrists within 50 or 5 more than before, the forearm wrung 85, no skin in the gun).
+  A first search on the rest alone shipped nothing: it bent ANAKIN's swap through its gun (17 mm) and REZ's first
+  inspect frame to 86 degrees. The next fit failed the bought-arms frames on a pocket of daylight between the new
+  forearm and the gun (ANAKIN 28 pixels of a hole, PANDA 64 of cracks) and CHOOCH's thumb 7.6 mm into the gun as it
+  vents; the search held those too. At rest the left arm's share of the picture: ANAKIN 5.1% to 3.4, PANDA 3.3 to 2.7,
+  BIGANTLER 3.3 to 1.8, CHOOCH 3.1 to 1.5, DEVINOS 4.9 to 4.6, each upper arm now under 1%; in a first draw PANDA's upper
+  arm 6.3% to 1.3, CHOOCH's 3.2 to 1.9, DEVINOS's 1.2 to none, no sleeve's inside seen. REZ keeps its arm: every rest
+  that hid more of it bent its wrist in the inspect's first frame and the reload (Milestone 752 found the same). The
+  USSO, BOOG and the pistols keep theirs: the USSO's and BOOG's already come up from below as the R-99's and Protocol V's
+  do, and the pistols' two-hand grips show as the Wingman's and Riot One's do.
+- **Checked:** verify, rules, the type check; the e2e's every-move measures taken in the page on the guns changed
+  (inspect, flourish, swap, reload, rest and aim: wrists, wrung forearms, reach, skin in the gun, all within the checks);
+  and two new checks in the bought-arms frames (tools/pack-audit.js `__leftArmSeen`): at rest the left upper arm under
+  1% of the picture, and through a first draw under 3% with no sleeve's inside seen. With PANDA's old arm put back
+  both fail and nothing else does (at rest its upper arm 1.7% of the picture; in the first draw 6.3% and 1484 pixels of
+  the sleeve's inside); the skpack section on the five guns changed passes.
+
 ## Milestone 752 — REZ's first draw unbent
 
 A sweep of every gun's moves after Milestone 750, with the e2e's own measures taken in the page (no e2e run, the

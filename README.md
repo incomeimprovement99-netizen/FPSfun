@@ -164,9 +164,10 @@ describes the retired legacy game, and goes with its code.
   Wingman and aimed at arm's length (each bought gun can have its own aimed distance from the eye); DEVINOS, the launcher, sits on the
   right shoulder, aimed through the sight beside its tube, the left hand on the grip under its front, and its reload
   phases a rocket into the tube, the warhead standing out of its mouth, the launcher turning so you see it come; and on every gun the right hand's lower three
-  fingers sit together round the grip with the forefinger's tip on the trigger; each left forearm comes in from the
-  lower left, as Apex's do, and the inside of the arms' cut-off sleeve never shows (the e2e looks for it in every state,
-  aimed too); and
+  fingers sit together round the grip with the forefinger's tip on the trigger; each left forearm comes up from
+  under the picture to the gun, as Apex's, EMPULSE's and Hyper Scape's do, the upper arm out of the picture at rest and
+  in a first draw, and the inside of the arms' cut-off sleeve never shows (the e2e looks for it in every state, aimed and
+  in a first draw too); and
   the wrists kept
   near straight throughout. On High the gun in your hands wears its skins at 2048,
   the other presets at 1024. On a reload the gun turns its underside toward you and
