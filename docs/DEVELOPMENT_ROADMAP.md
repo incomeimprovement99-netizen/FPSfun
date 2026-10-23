@@ -12695,6 +12695,20 @@ of the flash over the shimmer, so a shooter sees where the round went without th
 - **Checked:** tsc, verify, rules; e2e brsolo, the INVISIBILITY check now asks that a hit flares the shimmer (0.07 to
   0.29 a frame after; with the flare taken out it stayed at 0.07, and it failed).
 
+## Milestone 719 — Guns and hack cores on the floor without beams, on their rings
+
+The owner, 2026-10-23, watching the game in the ad: "remove the beams of light up in the air as well for
+weapons/hacks, just keep the circle around it on the ground".
+
+- **No beam over a gun or a hack core:** loot.json beam.kinds says which items stand in a beam, and since this
+  milestone it is an echo alone (where a squad mate can be restored); loot.ts drawBatched draws none for anything else.
+  A gun keeps its ring on the ground in its rarity's colour, and a hack core its ring in its slot's colour, as before
+  Milestone 705 put the beams over them.
+- **Checked:** tsc, verify, rules; e2e brsolo, its loot check now asks for no beam over a gun or a hack core, an
+  echo's alone, and every gun in draw distance on its ring (0 beams, 64 rings over 64 guns; with the beams put back
+  over every item it failed, 119 beams). Its first run on a machine at 100% CPU never started its matches, and the run
+  after passed.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

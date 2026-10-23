@@ -56,8 +56,9 @@
   "_pods": "a care package lands inside the next ring in rounds 2 to 4, falling this long (ours: Apex's fall time is not published)",
   "podFall": 8,
   "drawDistance": 70,
-  "_beam": "Every item stands in a thin beam of light in its rarity's colour, fading to nothing at its top, as every item on Hyper Scape's floor does (Milestone 705, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md item 11, 'loot you can see'). Before it only epic and legendary items had one, and a common or rare gun or hack core past about 20 m was a few pixels on the street. height and opacity by rarity, so the eye goes to the rare ones first; radius in metres, held at its width at holdFrom metres beyond it so a far beam stays about three pixels wide at 1080p and does not thin to nothing.",
+  "_beam": "Every item stands in a thin beam of light in its rarity's colour, fading to nothing at its top, as every item on Hyper Scape's floor does (Milestone 705, docs/PHASE_29_PLAN_THE_WHOLE_NEON_CITY.md item 11, 'loot you can see'). Before it only epic and legendary items had one, and a common or rare gun or hack core past about 20 m was a few pixels on the street. height and opacity by rarity, so the eye goes to the rare ones first; radius in metres, held at its width at holdFrom metres beyond it so a far beam stays about three pixels wide at 1080p and does not thin to nothing. `kinds` are the items that stand in one: since Milestone 719 an echo alone (the owner, 2026-10-23: 'remove the beams of light up in the air as well for weapons/hacks, just keep the circle around it on the ground'), guns and hack cores keeping only their ring on the ground.",
   "beam": {
+    "kinds": ["echo"],
     "radius": 0.035,
     "holdFrom": 15,
     "height": { "common": 1.6, "rare": 2.2, "epic": 3, "legendary": 3.8 },

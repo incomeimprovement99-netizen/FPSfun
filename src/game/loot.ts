@@ -7,9 +7,10 @@
 // box, a care package) get their keys from the host, which tells the squad.
 // Taking an item is the host's call in a squad: first come, first served.
 //
-// Drawn in code: a gun lies as its own model, the rest as a small box in the
-// rarity's colour; every item stands in a beam of light in its rarity's colour,
-// taller and brighter the rarer it is. Only what is within 70 m is drawn.
+// Drawn in code: a gun lies as its own model over a ring in its rarity's colour, a
+// hack core as the pack's canister over a ring in its slot's (a box past
+// coreDetail); an echo stands in a beam of light (loot.json beam.kinds: guns and
+// hack cores had one too, Milestones 705 to 718). Only what is within 70 m is drawn.
 //
 // Two things decide what you find. A place has a TIER (src/config/loot.json),
 // which says how many spots it carries and how the rarity weights lean, and
@@ -33,6 +34,8 @@ import { floorAt as worldFloor, FLOORS, HALL_FLOORS, inHall } from "./floors";
 import { inView } from "./figlod";
 
 export type Rarity = "common" | "rare" | "epic" | "legendary";
+/** the kinds of item that stand in a beam of light (loot.json beam.kinds) */
+const BEAM_KINDS = new Set<string>(cfg.beam.kinds);
 /** within this of the eye, squared, a hack core is the bought canister; beyond, a box (loot.json coreDetail) */
 const CORE_DETAIL2 = cfg.coreDetail ** 2;
 
@@ -492,7 +495,7 @@ export class LootField {
       }
       p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
       this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
-      this.batch(`ring${colour}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+      this.ringBatch(colour).put(this.tmpM.compose(p, this.tmpQ, this.unit));
     } else {
       // a hack core in its slot's colour (mobility cyan, utility magenta)
       const col = it.kind === "echo" ? 0x7ddc8a : it.kind === "hack" ? (hackSlotOf(it.id) === "mobility" ? 0x20e0ff : 0xff2e9a) : colour;
@@ -507,13 +510,15 @@ export class LootField {
         // strips, which do not say mobility or utility from across a street
         p.set(d.pos.x, d.pos.y + 0.02, d.pos.z);
         this.tmpQ.setFromEuler(this.tmpE.set(-Math.PI / 2, 0, 0));
-        this.batch(`ring${col}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: col, side: THREE.DoubleSide })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
+        this.ringBatch(col).put(this.tmpM.compose(p, this.tmpQ, this.unit));
       } else {
         p.set(d.pos.x, d.pos.y + 0.12, d.pos.z);
         this.batch(`box${col}`, this.boxGeo, () => new THREE.MeshStandardMaterial({ color: col, emissive: col, emissiveIntensity: 0.55, roughness: 0.5 })).put(this.tmpM.compose(p, this.tmpQ, this.unit));
       }
     }
-    // the beam: every item's, in its rarity's colour (an echo's green), widened past holdFrom to stay a few pixels wide
+    // the beam: only the kinds that keep one (loot.json beam.kinds: an echo, since Milestone 719), in its rarity's colour
+    // (an echo's green), widened past holdFrom to stay a few pixels wide
+    if (!BEAM_KINDS.has(it.kind)) return;
     const beam = it.kind === "echo" ? 0x7ddc8a : colour;
     const r = it.kind === "echo" ? "legendary" : it.rarity;
     const wide = Math.max(1, dist / cfg.beam.holdFrom);
@@ -521,6 +526,13 @@ export class LootField {
     this.tmpQ.identity();
     this.tmpP2.set(wide, cfg.beam.height[r], wide);
     this.beamBatch(beam, r).put(this.tmpM.compose(p, this.tmpQ, this.tmpP2));
+  }
+
+  /** a colour's rings on the floor, one draw call for all of them (named for tools/e2e.ts) */
+  private ringBatch(colour: number): Batch {
+    const b = this.batch(`ring${colour}`, this.ringGeo, () => new THREE.MeshBasicMaterial({ color: colour, side: THREE.DoubleSide }));
+    b.mesh.name = "loot:ring";
+    return b;
   }
 
   /** a colour's and rarity's beams, one draw call for all of them */

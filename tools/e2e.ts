@@ -42,7 +42,6 @@ import fparmsCfg from "../src/config/fparms.json";
 import gunfeelCfg from "../src/config/gunfeel.json";
 import squadCfg from "../src/config/squad.json";
 import startCfg from "../src/config/start.json";
-import lootCfgE2e from "../src/config/loot.json";
 import { readFileSync } from "node:fs";
 import sharp from "sharp";
 
@@ -3695,36 +3694,23 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
   await ev(host, "window.__range.duel().holdFire = true");
   const sides = await Promise.all([host, guest].map((p, i) => ev<{ team: string; ally: boolean }>(p, `({ team: window.__range.duel().team.id, ally: window.__range.duel().isAlly(${i === 0 ? 1 : 0}) })`)));
   check("solo with a friend: both play solo, and the other human is an opponent, not a mate", sides.every((x) => x.team === "solo" && !x.ally), JSON.stringify(sides));
-  // Loot you can see (Milestone 705): every item in draw distance stands in its beam, as tall as its rarity's, and one
-  // past loot.json beam.holdFrom widened with its distance (so it stays a few pixels wide), a near one not
-  const beams = await ev<{ items: number; beams: number; heights: number[]; near: number; far: number; farOk: number; nearOk: number }>(
+  // The loot's look on the floor (Milestone 719, the owner, 2026-10-23: "remove the beams of light up in the air as
+  // well for weapons/hacks, just keep the circle around it on the ground"): guns and hack cores stand in no beam, an
+  // echo alone keeps one (loot.json beam.kinds), and every gun in draw distance has its ring on the ground
+  const beams = await ev<{ guns: number; echoes: number; beams: number; rings: number }>(
     host,
     `(() => {
-      const R = window.__range; const T = R.THREE; const f = R.duel().lootField; const hold = ${lootCfgE2e.beam.holdFrom};
-      let items = 0;
-      for (const d of f.drops.values()) if (d.obj.visible) items++;
-      const m = new T.Matrix4(), p = new T.Vector3(), q = new T.Quaternion(), s = new T.Vector3();
-      let beams = 0, near = 0, far = 0, farOk = 0, nearOk = 0; const heights = new Set();
-      f.group.traverse((o) => {
-        if (o.name !== "loot:beam") return;
-        for (let i = 0; i < o.count; i++) {
-          o.getMatrixAt(i, m); m.decompose(p, q, s); beams++; heights.add(Math.round(s.y * 10) / 10);
-          // the nearest drop to this beam's foot: its distance from the eye the field drew from is the beam's width's
-          let best = null, bd = Infinity;
-          for (const d of f.drops.values()) { const e = Math.hypot(d.pos.x - p.x, d.pos.z - p.z); if (e < bd) { bd = e; best = d; } }
-          const eye = R.player.pos.clone(); eye.y += 1.6;
-          const dist = best ? best.pos.distanceTo(eye) : 0;
-          if (dist > hold + 5) { far++; if (Math.abs(s.x - dist / hold) < 0.25 * (dist / hold)) farOk++; }
-          else if (dist < hold - 2) { near++; if (Math.abs(s.x - 1) < 0.01) nearOk++; }
-        }
-      });
-      return { items, beams, heights: [...heights].sort((a, b) => a - b), near, far, farOk, nearOk };
+      const f = window.__range.duel().lootField;
+      let guns = 0, echoes = 0;
+      for (const d of f.drops.values()) if (d.obj.visible) { if (d.item.kind === "weapon") guns++; if (d.item.kind === "echo") echoes++; }
+      let beams = 0, rings = 0;
+      f.group.traverse((o) => { if (o.name === "loot:beam") beams += o.count; if (o.name === "loot:ring") rings += o.count; });
+      return { guns, echoes, beams, rings };
     })()`,
   );
-  const tall = Object.values(lootCfgE2e.beam.height);
   check(
-    "loot you can see: every item in draw distance stands in its beam, as tall as its rarity's, a far one widened and a near one not",
-    beams.items > 5 && Math.abs(beams.beams - beams.items) <= 2 && beams.heights.every((h) => tall.some((t) => Math.abs(t - h) < 0.05)) && beams.far > 0 && beams.farOk >= beams.far * 0.9 && beams.near > 0 && beams.nearOk === beams.near,
+    "the loot on the floor: no beam over a gun or a hack core, an echo's alone, and every gun in draw distance on its ring",
+    beams.guns > 5 && beams.beams === beams.echoes && beams.rings >= beams.guns,
     JSON.stringify(beams),
   );
   // the carry card on Tab (Milestone 706): both guns with their fusion and what it gives, both hacks with their cooldown
