@@ -7237,10 +7237,17 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       check(`the soldier holding ${name}, carried low ${label}: the left palm and its holding fingers on the gun (8 mm at most)`, !!low && on(low, id), JSON.stringify({ palmGap: low?.palmGap, fingerGap: low?.fingerGap, handGap: low?.handGap }));
     }
     // The right index on the trigger, not laid along the frame (the owner, 2026-09-30: the gun fires on a click, and a
-    // straight finger read as not firing): aimed in, the tip of its last joint on the trigger's face, 4 mm at most
-    const trig = await ev<number | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return window.__triggerGap(0); })()`);
-    // (at the crease of its last joint, through the guard, not only its tip: the owner, 2026-09-30, "more through the hold")
-    check(`the soldier holding ${name}: the right index finger on the trigger at its last joint's crease, aimed in`, trig !== null && trig <= 4, `${trig} mm from its face`);
+    // straight finger read as not firing), and the only finger in the guard (the owner, 2026-10-23: "never more than one
+    // finger in the trigger guard, and that one finger should be your pointer finger, and it should always be on the
+    // trigger with a slight bit of the finger, like tip, extending from the left side"): aimed in, its last phalanx's pad
+    // on the trigger's face (2 mm at most), its tip past the trigger's left side by a little (1 to 6 mm), and no other
+    // finger of the hand more than 1 mm into the guard (Milestone 614)
+    const trig = await ev<{ pad: number; past: number | null; others: number; which: string | null } | null>(page, `(() => { const r = window.__range; r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, ads: 1 }); r.figureLabStep(0.9); return window.__triggerFit(0); })()`);
+    check(
+      `the soldier holding ${name}: the right index finger alone in the guard, its pad on the trigger and its tip just past the trigger's left side, aimed in`,
+      trig !== null && trig.pad <= 2 && trig.past !== null && trig.past >= 1 && trig.past <= 6 && trig.others <= 1,
+      trig ? `pad ${trig.pad} mm off, tip ${trig.past} mm past, another finger ${trig.others} mm into the guard${trig.which ? ` (${trig.which})` : ""}` : "no trigger",
+    );
     // the fingers drawn at soldierhold.json fingerSize (the owner: "cut down by like 50%"), every one of both hands
     const sizes = await ev<number[]>(page, `(() => { const f = window.__range.labFigures()[0].figure; return ["index", "middle", "ring", "pinky", "thumb"].flatMap((n) => ["l", "r"].map((s) => Math.round(f.boneAt(n + "_01_" + s).scale.x * 1000) / 1000)); })()`);
     check(`the soldier holding ${name}: every finger drawn at ${soldierHoldCfg.fingerSize} of the model's size`, sizes.every((x) => Math.abs(x - soldierHoldCfg.fingerSize) < 1e-3), sizes.join());

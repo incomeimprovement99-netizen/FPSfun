@@ -16316,3 +16316,46 @@ From the districts' review of 2026-10-21 (round 3): THE WORKS "run big pipes bet
 - **THE WORKS' facade strips** burn at 3 (1.5), so they read teal by day.
 - **Checked:** a new check that every hand-placed piece is laid, drawn only, over a body's head, the lanterns over the
   canyon's floor (all 314 map checks pass; 80 pieces, 80 laid, 0 too low, 0 lanterns over a walkway). No e2e this week. verify, rules and tsc. Map files version 104: lo 179.0 MB, hi 259.0 MB, max 556.4 MB.
+
+## Milestone 614 — One finger in the trigger guard, its tip just past the trigger
+
+The owner, 2026-10-23, looking at the third-person PANDA: "you have like two fingers in the trigger guard. There should
+never be more than one finger in the trigger guard, and that one finger should be your pointer finger, and it should
+always be on the trigger with a slight bit of the finger, like tip, extending from the left side ... some of your
+fingernail would be past the trigger, all the way on the left side of the trigger, but only a little bit." Measured
+first: the index finger had the crease of its last joint on the trigger (the owner's 2026-09-30 call, "more through the
+hold"), and its tip went 8 to 26 mm through the trigger on six of the eight long guns; the two pistols' tips curled back
+on the trigger's right; PANDA's and ANAKIN's middle fingers were 11 and 6 mm up inside the guard.
+
+- **The measure** (tools/figure-audit.js __triggerFit): the trigger is the gun's own mesh named Trigger, its box in the
+  gun's frame; the pad is the trigger finger's last phalanx past its crease, to the trigger's front face; the tip is that
+  phalanx's skin furthest from its joint, how far past the trigger's left side (the gun's -x); in the guard is any skin
+  of the middle, ring or little finger within the trigger's width and a centimetre either side, from the trigger's back
+  to 4 cm in front of it, above its lowest point.
+- **The fit** (tools/figure-grip.ts, soldierhold.json grip.triggerPast and grip.triggerPad): the trigger finger's
+  knuckle, middle joint, last joint (following at two thirds to all of the middle) and swing (now up to 60 degrees either
+  way) searched for its pad on the trigger and its tip 3 mm past the trigger's left side; the hand's other fingers
+  charged 10 for each mm in the guard; a hand moved (MOVE=r) where the finger alone could not do it, the trigger finger
+  counted in the place it searches.
+- **What changed:** every gun's right hand refitted. Three hands moved: PANDA's 12.5 mm down the grip and 7.5 forward
+  (its middle finger was the one in the guard), ANAKIN's 2.5 mm forward, and STRYDER's 7.5 mm up and 2.5 to its left
+  (from where it was, the finger stopped 6 mm short of the left side).
+- **What the moves broke, and how it was put right:** the move search sees the hand at one pose and nothing of the
+  other hand. Moved, DEVINOS's wrist bent to 65 degrees looking 35 down, past the e2e's 60, and STRYDER's left thumb went
+  into the right hand (10 points 4 mm or more in, past the e2e's 5); the e2e's soldier hold test caught both. DEVINOS's
+  hand went back where it was: with the wider swing, its finger reaches the trigger from there (pad 0.3 mm off, tip 3.8
+  mm past). STRYDER's left hand moved with the right put its wrist past 60 looking down at every place tried (60.2 to
+  61.4), so it stayed where it was and its thumb was bent instead (the middle joint 15 degrees, swung 60): none of it in
+  the right hand, still touching it, the left palm 5 mm into the right at one point (the e2e allows 11 mm and 5 points).
+  tools/figure-grip.ts now says so above its move search: a moved hand goes through the e2e before it is kept.
+- **Checked:**
+  - Every gun aimed in (the e2e's numbers): the pad 0.1 to 1.4 mm off the trigger, the tip 2.3 to 3.8 mm past the
+    trigger's left side, no other finger in the guard (0 mm on all ten).
+  - The e2e's soldier hold test (skfigure, figureHoldTest), which now holds every gun to it (the pad within 2 mm, the
+    tip 1 to 6 mm past, no other finger more than 1 mm into the guard): all ten guns, 292 checks, passed every trigger
+    check and failed the 6 hold checks above; after the fix STRYDER and DEVINOS, the only two changed, 72 of 72. The
+    check fails on the hands before (PANDA: the tip 20.3 mm through, its middle finger 11.2 mm into the guard;
+    APUHTHEE: the tip curled 25.8 mm back on the right; the USSO's old finger already passed, 5.8 mm past).
+  - Photographed every gun's right hand from its left, right and front; looked at PANDA, USSO, STRYDER and DEVINOS
+    from the left, where the tip shows past the trigger.
+  - verify, rules and the type check.

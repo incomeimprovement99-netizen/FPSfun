@@ -7,12 +7,14 @@
 // joint about NATURAL times the knuckle) is kept. The thumb the same way, its last joint following its middle, its
 // sideways swing searched too. And a hand closes its fingers together: one held straight between two curled round the
 // grip touched the gun with its tip and was no grasp (the first fit's ring finger on the alternator), so a second pass
-// asks each finger to curl about as far as the hand's others (NEIGHBOUR, per degree off the middle one of theirs). The right index
-// finger goes on the trigger at the crease of its last joint, as before (the owner, 2026-09-30), its last joint
-// following too. The hands stay where they are, but for MOVE=r (or l): that hand is first moved, up to 15 mm, to where
-// its holding fingers can all close round what they hold alike without going into it. A hand placed where a finger's
-// line runs into the gun's side cannot close that finger at all: the alternator's right ring finger touched the gun
-// held straight and went 8 to 11 mm in at any curl, between two fingers closed round the grip.
+// asks each finger to curl about as far as the hand's others (NEIGHBOUR, per degree off the middle one of theirs). The
+// right index finger goes on the trigger, its last joint following too: its last phalanx's pad on the trigger's face and
+// its tip just past the trigger's left side, and no other finger in the guard (Milestone 614; the owner, 2026-10-23; it
+// had the crease of its last joint on the trigger, the owner's 2026-09-30 call, and went 8 to 26 mm through). The hands
+// stay where they are, but for MOVE=r (or l): that hand is first moved, up to 15 mm, to where its holding fingers can all
+// close round what they hold alike without going into it (or into the trigger guard). A hand placed where a finger's line
+// runs into the gun's side cannot close that finger at all: the alternator's right ring finger touched the gun held
+// straight and went 8 to 11 mm in at any curl, between two fingers closed round the grip.
 //
 // What it holds: the gun, or for a pistol's left hand the right hand round the grip as well (the left wraps the right).
 // Measured on one figure in the aimed pose by tools/figure-audit.js (tipGap: each finger's last phalanx to the gun).
@@ -30,7 +32,7 @@ const ID = process.argv[2] ?? "r97";
 const NO_REAL_MOUSE = `for (const t of ["pointerrawupdate", "pointermove", "mousemove"]) window.addEventListener(t, (e) => { if (e.isTrusted) e.stopImmediatePropagation(); }, true);`;
 const POSE = { speed: 0, stance: "stand", pitch: 0, ads: 1 };
 const HOLD = JSON.parse(fs.readFileSync(path.resolve("src/config/soldierhold.json"), "utf8"));
-const G = (HOLD.grip ?? {}) as { follow?: number; natural?: number; proportion?: number; thumbFollow?: number; neighbour?: number; swing?: number; spread?: number; wrapMin?: number; wrap?: number; hookBy?: number };
+const G = (HOLD.grip ?? {}) as { follow?: number; natural?: number; proportion?: number; thumbFollow?: number; neighbour?: number; swing?: number; spread?: number; wrapMin?: number; wrap?: number; hookBy?: number; triggerPast?: number; triggerPad?: number };
 /** the last joint's bend as a share of the middle joint's (soldierhold.json grip.follow) */
 const FOLLOW = G.follow ?? 0.67;
 /** a grasp's middle joint against its knuckle (soldierhold.json grip.natural) */
@@ -52,6 +54,19 @@ const WRAP_MIN = G.wrapMin ?? 60;
 const WRAP = G.wrap ?? 0.05;
 /** a finger's middle joint past twice its knuckle and HOOK_BY degrees is hooked: what tools/checks/soldier-hold.ts refuses */
 const HOOK_BY = G.hookBy ?? 45;
+/**
+ * The trigger finger (Milestone 614; the owner, 2026-10-23: "never more than one finger in the trigger guard, and that one
+ * finger should be your pointer finger, and it should always be on the trigger with a slight bit of the finger, like
+ * tip, extending from the left side"): its last phalanx's pad on the trigger's face and its tip TRIGGER_PAST mm past the
+ * trigger's left side; and the hand's other fingers out of the guard, each mm of one in it costing 10
+ */
+const TRIGGER_PAST = G.triggerPast ?? 3;
+/**
+ * what a mm of the pad off the trigger's face costs against a mm of the tip off TRIGGER_PAST (soldierhold.json
+ * grip.triggerPad): the finger is on the trigger first ("it should always be on the trigger"); weighed alike, the
+ * launcher's finger lay straight along the tube 19 mm off its trigger rather than go 20 mm through it
+ */
+const TRIGGER_PAD = G.triggerPad ?? 5;
 /** skin this far into what it holds is touching, not through (mm) */
 const TOUCH = 2;
 const FINGERS = ["index", "middle", "ring", "pinky"] as const;
@@ -66,6 +81,8 @@ type Audit = {
   palmGap?: { l: number; r: number };
   thumbX: { l: number; r: number };
   trigger: number | null;
+  /** figure-audit.js __triggerFit: the pad's gap to the trigger, the tip past its left side, each finger's height in the guard */
+  tfit: { pad: number; past: number | null; guard: Record<string, number> } | null;
 };
 const ev = <T>(page: Page, expr: string) => page.evaluate(expr) as Promise<T>;
 const r1 = (v: number) => Math.round(v * 10) / 10;
@@ -124,7 +141,7 @@ async function main(): Promise<void> {
       n++;
       return ev<Audit>(
         page,
-        `(() => { const r = window.__range; ${tune()}; r.figureLabStep(0.00001); const a = window.__figureAudit(0, { pitch: 0, handsOnly: true }); const mq = r.labFigures()[0].figure; const x = (s) => mq.gunObject.worldToLocal(mq.boneAt("thumb_03_" + s).getWorldPosition(new r.THREE.Vector3())).x * 100; a.thumbX = { l: x("l"), r: x("r") }; a.trigger = window.__triggerGap(0); return a; })()`,
+        `(() => { const r = window.__range; ${tune()}; r.figureLabStep(0.00001); const a = window.__figureAudit(0, { pitch: 0, handsOnly: true }); const mq = r.labFigures()[0].figure; const x = (s) => mq.gunObject.worldToLocal(mq.boneAt("thumb_03_" + s).getWorldPosition(new r.THREE.Vector3())).x * 100; a.thumbX = { l: x("l"), r: x("r") }; a.trigger = window.__triggerGap(0); a.tfit = window.__triggerFit(0); return a; })()`,
       );
     };
     /** how deep a finger's skin is in what it holds, mm (a pistol's left: in the right hand too) */
@@ -161,7 +178,7 @@ async function main(): Promise<void> {
         PROPORTION * Math.abs(m - NATURAL * k) +
         (want ? NEIGHBOUR * Math.abs(k + m - want[f]) : 0) +
         SPREAD * Math.abs(s - swing0[f]) +
-        (side === "r" ? WRAP * Math.max(0, WRAP_MIN - (k + m)) : 0) +
+        (side === "r" ? WRAP * Math.max(0, WRAP_MIN - (k + m)) + 10 * (a.tfit?.guard?.[f] ?? 0) : 0) +
         // (never hooked: the alternator's charging handle had a little finger 95 degrees at its middle joint off a straight
         // knuckle, its tip on the gun, before this)
         10 * Math.max(0, m - (2 * Math.max(0, k) + HOOK_BY));
@@ -231,26 +248,34 @@ async function main(): Promise<void> {
       let best = { c: Infinity, J: [...fingers.r.index], follow: FOLLOW };
       // (its last joint following the middle at FOLLOW, or as far as the middle: a finger pressing a trigger bends both
       // about alike, and through a narrow guard FOLLOW alone left the crease 15 mm off the VINSON's)
+      // Its last phalanx's pad on the trigger's face and its tip TRIGGER_PAST mm past the trigger's left side: before,
+      // its last joint's crease was put on the trigger (the owner, 2026-09-30), and the tip went 8 to 26 mm through on
+      // the long guns and curled back to the trigger's right on the pistols
       const at = async (k: number, m: number, swing: number, follow: number) => {
         fingers.r.index = [r1(k), r1(m), r1(m * follow), swing];
         const a = await measure();
-        const c = (a.trigger ?? 99) + 10 * Math.max(0, deepOf(a, "index", "r") - TOUCH);
+        const t = a.tfit;
+        const c = (t ? TRIGGER_PAD * t.pad + Math.abs((t.past ?? -99) - TRIGGER_PAST) : 99) + 10 * Math.max(0, deepOf(a, "index", "r") - TOUCH);
         if (c < best.c - 0.01) best = { c, J: [...fingers.r.index], follow };
       };
-      for (const follow of [FOLLOW, 1]) for (let k = 0; k <= 70; k += 10) for (let m = 0; m <= 100; m += 10) for (const s of [-30, -15, 0, 15, 30]) await at(k, m, s, follow);
+      // (swung up to 60 degrees either way: STRYDER's small trigger takes its pad with the tip just past only swung 40)
+      for (const follow of [FOLLOW, 1]) for (let k = -10; k <= 70; k += 10) for (let m = 0; m <= 100; m += 10) for (const s of [-60, -45, -30, -15, 0, 15, 30, 45, 60]) await at(k, m, s, follow);
       for (const step of [5, 2.5, 1]) {
         const b = [...best.J];
         for (const dk of [-step, 0, step]) for (const dm of [-step, 0, step]) for (const ds of [-step, 0, step]) if (dk || dm || ds) await at(b[0] + dk, b[1] + dm, b[3] + ds, best.follow);
       }
       fingers.r.index = best.J;
-      console.log(`r index on the trigger: ${JSON.stringify(best.J)}, its crease ${best.c.toFixed(1)} mm off`);
+      const t = (await measure()).tfit;
+      console.log(`r index on the trigger: ${JSON.stringify(best.J)}, its pad ${t?.pad} mm off the trigger, its tip ${t?.past} mm past its left side (cost ${best.c.toFixed(1)})`);
     };
 
     /**
      * The hand moved to where its holding fingers can each close round what they hold: every place within 15 mm on a 5
      * mm grid, then 2.5 mm round the best, each tried with the fingers at a grasp's curls (knuckle 20, 35, 50 or 65, the
      * middle joint NATURAL of it); a place costs each finger's best of those (its skin in the gun past TOUCH and its tip
-     * off it), the palm off its hold and a third of a mm for each mm it moved
+     * off it), the palm off its hold and a third of a mm for each mm it moved. Nothing here sees the wrist at other
+     * pitches or the other hand: M614's moves bent the DEVINOS wrist past the e2e's 60 degrees looking down and put the
+     * STRYDER's left thumb in the right hand, so a moved hand goes through the e2e's soldier hold test before it is kept
      */
     const moveHand = async (side: Side) => {
       hands = JSON.parse(JSON.stringify(own.hands)) as Record<Side, { at: number[] }>;
@@ -261,13 +286,18 @@ async function main(): Promise<void> {
         hands![side].at = at0.map((v, i) => r1(v * 10000 + d[i] * 10) / 10000);
         const each: Record<string, number> = Object.fromEntries(list.map((f) => [f, Infinity]));
         let palm = 0;
+        let trig = 0;
         for (const k of [20, 35, 50, 65]) {
           for (const f of list) set(side, f, k, NATURAL * k);
           const a = await measure();
-          for (const f of list) each[f] = Math.min(each[f], 10 * Math.max(0, deepOf(a, f, side) - TOUCH) + tipOf(a, f, side));
+          for (const f of list) each[f] = Math.min(each[f], 10 * Math.max(0, deepOf(a, f, side) - TOUCH) + tipOf(a, f, side) + (side === "r" ? 10 * (a.tfit?.guard?.[f] ?? 0) : 0));
           palm = 20 * Math.max(0, (a.palmGap?.[side] ?? 30) - 1);
+          // (and the trigger finger as it is, where the hand puts it: its pad on the trigger, its tip just past the left
+          // side; the PANDA's went 10.6 mm through at the best the finger alone could do, its hand too far across)
+          const t = a.tfit;
+          if (side === "r" && !KEY && t) trig = TRIGGER_PAD * t.pad + Math.abs((t.past ?? -99) - TRIGGER_PAST);
         }
-        return Object.values(each).reduce((t, v) => t + v, 0) + palm + Math.hypot(...d) / 3;
+        return Object.values(each).reduce((t, v) => t + v, 0) + palm + trig + Math.hypot(...d) / 3;
       };
       let best = { c: await costAt([0, 0, 0]), d: [0, 0, 0] };
       const start = best.c;

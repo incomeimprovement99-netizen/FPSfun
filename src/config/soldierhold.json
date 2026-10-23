@@ -125,9 +125,12 @@
     "wrapMin": 60,
     "wrap": 0.05,
     "hookBy": 45,
+    "_trigger": "The trigger finger (Milestone 614): its last phalanx's pad on the trigger's face and its tip `triggerPast` mm past the trigger's left side, \"a slight bit ... only a little bit\" (the owner, 2026-10-23); a mm of the pad off the face costs `triggerPad` against a mm of the tip off its mark, the finger on the trigger first. The hand's other fingers are kept out of the guard. tools/figure-grip.ts fits it, tools/figure-audit.js __triggerFit measures it, and the e2e holds every gun to the pad within 2 mm, the tip 1 to 6 mm past and no other finger more than 1 mm into the guard.",
+    "triggerPast": 3,
+    "triggerPad": 5,
     "apart": 60
   },
-  "_fingers": "Each finger's joints closed toward the palm, degrees, knuckle outward: its knuckle, its middle joint and its last, the last following the middle as `grip` says, fitted gun by gun onto what the hand holds by tools/figure-grip.ts (Milestone 603; before it, tools/figure-fit.ts closed each phalanx on its own until its skin touched, and left fingers no hand makes). The right hand's close round the grip, its index finger on the trigger at the crease of its last joint, through the guard (searched onto the trigger part's face: the owner, 2026-09-30, \"trigger finger should be on the trigger, not in the ready position\", then \"more through the hold ... right now its like the very finger tip is the only thing that can press the trigger\"), the thumb round the far side; the left's round or up the side of what it holds. A fourth number is the first joint's sideways swing, degrees, about the palm's normal: a finger's before its curl, the thumb's after it (the curled thumb turned round the far side of its hold; rifle.ts).",
+  "_fingers": "Each finger's joints closed toward the palm, degrees, knuckle outward: its knuckle, its middle joint and its last, the last following the middle as `grip` says, fitted gun by gun onto what the hand holds by tools/figure-grip.ts (Milestone 603; before it, tools/figure-fit.ts closed each phalanx on its own until its skin touched, and left fingers no hand makes). The right hand's close round the grip, its index finger alone in the trigger guard, the pad of its last phalanx on the trigger's face and its tip just past the trigger's left side (`grip.triggerPast`; Milestone 614, the owner, 2026-10-23: \"never more than one finger in the trigger guard, and that one finger should be your pointer finger, and it should always be on the trigger with a slight bit of the finger, like tip, extending from the left side\"; before, the crease of its last joint was on the trigger, the owner's 2026-09-30 \"more through the hold\", and the tip went 8 to 26 mm through), the thumb round the far side; the left's round or up the side of what it holds. A fourth number is the first joint's sideways swing, degrees, about the palm's normal: a finger's before its curl, the thumb's after it (the curled thumb turned round the far side of its hold; rifle.ts).",
   "fingers": {
     "r": {
       "index": [
@@ -822,16 +825,16 @@
       "fingers": {
         "r": {
           "index": [
-            7.5,
-            87.5,
-            58.6,
-            -12.5
+            16.5,
+            75,
+            75,
+            -9
           ],
           "middle": [
             52.5,
-            70,
-            46.9,
-            15
+            65,
+            43.6,
+            30
           ],
           "ring": [
             50,
@@ -1011,10 +1014,10 @@
       "fingers": {
         "r": {
           "index": [
-            0,
-            70,
-            70,
-            30
+            -6.5,
+            72.5,
+            72.5,
+            26.5
           ],
           "middle": [
             50,
@@ -1339,7 +1342,7 @@
           "at": [
             0.0619,
             -0.0602,
-            -0.0075
+            -0.01
           ],
           "fwd": [
             -0.244,
@@ -1373,18 +1376,19 @@
       "fingers": {
         "r": {
           "index": [
-            0,
-            45,
-            45,
-            10
+            -8.5,
+            67.5,
+            67.5,
+            33.5
           ],
           "middle": [
-            47.5,
-            62.5,
-            41.9
+            2.5,
+            37.5,
+            25.1,
+            30
           ],
           "ring": [
-            45,
+            47.5,
             55,
             36.9,
             15
@@ -1701,9 +1705,9 @@
       "hands": {
         "r": {
           "at": [
-            0.06,
-            -0.04,
-            0.0765
+            0.0625,
+            -0.0525,
+            0.069
           ],
           "fwd": [
             -0.244,
@@ -1737,33 +1741,34 @@
       "fingers": {
         "r": {
           "index": [
-            10,
-            50,
-            50,
-            35
+            9,
+            80,
+            53.6,
+            36
           ],
           "middle": [
-            37.5,
-            62.5,
-            41.9
+            15,
+            67.5,
+            45.2,
+            30
           ],
           "ring": [
-            47.5,
+            50,
+            60,
+            40.2,
+            30
+          ],
+          "pinky": [
+            50,
             60,
             40.2,
             15
           ],
-          "pinky": [
-            40,
-            50,
-            33.5,
-            15
-          ],
           "thumb": [
-            -10,
-            100,
-            80,
-            -105
+            60,
+            0,
+            0,
+            -127.5
           ]
         },
         "l": {
@@ -2080,15 +2085,16 @@
       "fingers": {
         "r": {
           "index": [
-            8.5,
-            61.5,
-            61.5,
-            29
+            0,
+            73.5,
+            73.5,
+            31.5
           ],
           "middle": [
-            20,
-            70,
-            46.9
+            25,
+            77.5,
+            51.9,
+            15
           ],
           "ring": [
             50,
@@ -2637,10 +2643,10 @@
       "fingers": {
         "r": {
           "index": [
-            6.5,
-            68.5,
-            68.5,
-            -15
+            -8.5,
+            72.5,
+            72.5,
+            -16.5
           ],
           "middle": [
             52.5,
@@ -2984,16 +2990,16 @@
       "fingers": {
         "r": {
           "index": [
-            10,
-            53.5,
-            35.8,
-            35
+            0,
+            35,
+            35,
+            36
           ],
           "middle": [
-            40,
-            50,
-            33.5,
-            15
+            42.5,
+            42.5,
+            28.5,
+            30
           ],
           "ring": [
             40,
@@ -3194,10 +3200,10 @@
       "fingers": {
         "r": {
           "index": [
-            7.5,
-            107.5,
-            107.5,
-            -15
+            13.5,
+            90,
+            60.3,
+            -6.5
           ],
           "middle": [
             57.5,
@@ -3333,9 +3339,9 @@
       "hands": {
         "r": {
           "at": [
-            0.0559,
-            -0.0479,
-            0.0649
+            0.0534,
+            -0.0404,
+            0.0674
           ],
           "fwd": [
             -0.248,
@@ -3369,10 +3375,10 @@
       "fingers": {
         "r": {
           "index": [
-            16.5,
-            103.5,
-            103.5,
-            15
+            -10,
+            90,
+            60.3,
+            42.5
           ],
           "middle": [
             55,
@@ -3380,21 +3386,21 @@
             43.6
           ],
           "ring": [
-            55,
+            52.5,
             65,
             43.6,
             15
           ],
           "pinky": [
-            62.5,
-            57.5,
-            38.5
+            52.5,
+            65,
+            43.6
           ],
           "thumb": [
-            52.5,
-            52.5,
-            42,
-            -52.5
+            45,
+            60,
+            48,
+            -90
           ]
         },
         "l": {
@@ -3420,9 +3426,9 @@
           ],
           "thumb": [
             90,
-            -10,
-            -8,
-            -45
+            15,
+            12,
+            -60
           ]
         }
       },
@@ -3537,10 +3543,10 @@
       "fingers": {
         "r": {
           "index": [
-            2.5,
-            56.5,
-            37.9,
-            -5
+            -18.5,
+            63.5,
+            63.5,
+            2.5
           ],
           "middle": [
             50,

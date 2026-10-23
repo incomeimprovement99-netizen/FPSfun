@@ -21,6 +21,13 @@
 //   2026-09-30: "the trigger finger should be more through the hold and still touching the trigger. right now its like
 //   the very finger tip is the only thing that can press the trigger". To the trigger's front face (the bought model's
 //   own part, a mesh named Trigger), sampled over the face's triangles, anywhere on it. null for a gun with no trigger
+// - __triggerFit(i): the trigger finger as the owner set it on 2026-10-23 ("there should never be more than one finger
+//   in the trigger guard, and that one finger should be your pointer finger, and it should always be on the trigger with
+//   a slight bit of the finger, like tip, extending from the left side"): pad, mm, the last phalanx's pad (its skin past
+//   the crease) to the trigger's front face; past, mm, how far the fingertip (its last phalanx's skin furthest from the
+//   joint) is past the trigger's left side (the gun's -x), less than 0 short of it; others, mm, how high any skin of the
+//   middle, ring or little finger rises above the trigger's lowest point in front of the trigger's back (in the guard),
+//   with which finger. null for a gun with no trigger
 // - palmFlush: the nearest tenth of each palm's skin to the gun, mm: laid on its hold, a few; touching with a sliver, 15+
 // - handOnHand: how deep any skin of the left hand is inside the right hand, mm, by handIn's rule against the right
 //   hand's skin as drawn, its forearm's with it so the mesh's open end is at the elbow, not by the left hand. A pistol
@@ -598,5 +605,77 @@
       for (const q of known.target) d = Math.min(d, v.distanceTo(q));
     }
     return Number.isFinite(d) ? Math.round(d * 10000) / 10 : null;
+  };
+
+  /** each figure's trigger (gun-local: its front face's points and its box) and the right hand's finger skins */
+  const fits = new WeakMap();
+  window.__triggerFit = (i) => {
+    const r = window.__range, T = r.THREE, mq = r.labFigures()[i].figure, gun = mq.gunObject;
+    if (!gun) return null;
+    let known = fits.get(gun);
+    if (!known) {
+      let trig = null;
+      gun.traverse((o) => {
+        if (!trig && o.isMesh && /^Trigger/.test(o.name)) trig = o;
+      });
+      if (!trig) return null;
+      gun.updateMatrixWorld(true);
+      const inv = gun.matrixWorld.clone().invert(), p = trig.geometry.getAttribute("position"), idx = trig.geometry.index;
+      const corners = [];
+      for (let k = 0; k < p.count; k++) corners.push(new T.Vector3().fromBufferAttribute(p, k).applyMatrix4(trig.matrixWorld).applyMatrix4(inv));
+      const box = new T.Box3().setFromPoints(corners);
+      const face = [];
+      const n = idx ? idx.count : p.count;
+      for (let t = 0; t < n; t += 3) {
+        const [a, b, c] = [0, 1, 2].map((k) => corners[idx ? idx.getX(t + k) : t + k]);
+        if ((a.z + b.z + c.z) / 3 > box.min.z + 0.006) continue;
+        for (let u = 0; u <= 6; u++) for (let w = 0; w <= 6 - u; w++) face.push(a.clone().multiplyScalar(u / 6).addScaledVector(b, w / 6).addScaledVector(c, (6 - u - w) / 6));
+      }
+      // the right hand's skin by the bone it is weighted most to: the trigger finger's last phalanx, and the others
+      const want = ["index_03_r", "middle_01_r", "middle_02_r", "middle_03_r", "ring_01_r", "ring_02_r", "ring_03_r", "pinky_01_r", "pinky_02_r", "pinky_03_r"];
+      const skin = Object.fromEntries(want.map((b) => [b, []]));
+      mq.root.traverse((o) => {
+        if (!o.isSkinnedMesh) return;
+        const ids = Object.fromEntries(want.map((b) => [o.skeleton.bones.findIndex((x) => x.name === b), b]));
+        const si = o.geometry.getAttribute("skinIndex"), sw = o.geometry.getAttribute("skinWeight");
+        for (let k = 0; k < si.count; k++) {
+          let top = -1, w = -1;
+          for (let c = 0; c < 4; c++) if (sw.getComponent(k, c) > w) (w = sw.getComponent(k, c)), (top = si.getComponent(k, c));
+          if (ids[top] !== undefined) skin[ids[top]].push([o, k]);
+        }
+      });
+      known = { face, box, skin, joint: mq.boneAt("index_03_r") };
+      fits.set(gun, known);
+    }
+    gun.updateMatrixWorld(true);
+    const inv = gun.matrixWorld.clone().invert(), v = new T.Vector3();
+    const joint = known.joint.getWorldPosition(new T.Vector3());
+    let pad = Infinity, tip = null, far = -1;
+    for (const [m, k] of known.skin.index_03_r) {
+      m.getVertexPosition(k, v).applyMatrix4(m.matrixWorld);
+      const out = v.distanceTo(joint);
+      const g = v.clone().applyMatrix4(inv);
+      if (out > far) (far = out), (tip = g);
+      // (the pad: past the crease, 11 mm out from the joint and more)
+      if (out < 0.011) continue;
+      for (const q of known.face) pad = Math.min(pad, g.distanceTo(q));
+    }
+    const B = known.box;
+    let others = 0, which = null;
+    const guard = { middle: 0, ring: 0, pinky: 0 };
+    for (const [bone, list] of Object.entries(known.skin)) {
+      if (bone === "index_03_r") continue;
+      const f = bone.split("_")[0];
+      for (const [m, k] of list) {
+        const g = m.getVertexPosition(k, v).applyMatrix4(m.matrixWorld).applyMatrix4(inv);
+        // in the guard: across the trigger's width (and 1 cm either side), from its back to 4 cm in front of it
+        if (Math.abs(g.x - (B.min.x + B.max.x) / 2) > (B.max.x - B.min.x) / 2 + 0.01 || g.z > B.max.z || g.z < B.min.z - 0.04) continue;
+        const up = (g.y - B.min.y) * 1000;
+        if (up > guard[f]) guard[f] = Math.round(up * 10) / 10;
+        if (up > others) (others = up), (which = bone);
+      }
+    }
+    const mm = (q) => [q.x, q.y, q.z].map((x) => Math.round(x * 10000) / 10);
+    return { pad: Math.round(pad * 10000) / 10, past: tip ? Math.round((B.min.x - tip.x) * 10000) / 10 : null, others: Math.round(others * 10) / 10, which, guard, box: [mm(B.min), mm(B.max)], tip: tip ? mm(tip) : null };
   };
 })();
