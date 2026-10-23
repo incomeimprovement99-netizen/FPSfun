@@ -1182,10 +1182,13 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   // Which reload it is crosses to the other screen (act code 9 from empty, 1 with rounds left): the owner, 2026-09-30, "a
   // reload differentiator for empty mag vs still 1 in the chamber". The guest reloads from empty, then with half a
   // magazine, its gun's own reload begun on its own clock (a key needs the gun out, and the round may have it away)
+  // (any packet heard since the reload began, not only the newest: in two loaded sweeps, 2026-10-19 and 10-23, the newest
+  // sample at each look never carried it, both reloads read as nothing, and each passed run alone)
   const reloadSeen = async (clip: string): Promise<{ act: string | null; empty: boolean | null }> => {
+    const since = await ev<number>(host, "(() => { const r = window.__range.duel().remotes.get(1); return r?.samples[r.samples.length - 1]?.at ?? -Infinity; })()");
     await ev(guest, `(() => { const r = window.__range; const s = r.loadout.active.state; s.clip = ${clip}; s.startReload(r.gameTime()); })()`);
     const got = await host
-      .waitForFunction(`(() => { const r = window.__range.duel().remotes.get(1); const s = r?.samples[r.samples.length - 1]; return s && s.act === "reload" ? { act: s.act, empty: !!s.reloadEmpty } : null; })()`, { polling: 50, timeout: 5000 })
+      .waitForFunction(`(() => { const r = window.__range.duel().remotes.get(1); const s = r?.samples.find((x) => x.at > ${since} && x.act === "reload"); return s ? { act: s.act, empty: !!s.reloadEmpty } : null; })()`, { polling: 50, timeout: 10000 })
       .then((h) => h.jsonValue() as Promise<{ act: string; empty: boolean }>, () => ({ act: null, empty: null }));
     await guest.waitForFunction("!window.__range.loadout.active.state.reloading", { polling: 100, timeout: 8000 }).catch(() => undefined);
     return got;
