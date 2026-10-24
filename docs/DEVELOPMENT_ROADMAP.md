@@ -16359,3 +16359,17 @@ on the trigger's right; PANDA's and ANAKIN's middle fingers were 11 and 6 mm up 
   - Photographed every gun's right hand from its left, right and front; looked at PANDA, USSO, STRYDER and DEVINOS
     from the left, where the tip shows past the trigger.
   - verify, rules and the type check.
+
+## Milestone 688 — The lighting pass
+
+From the reviews of 2026-10-21: THE TERMINAL's concourse "nearly black", THE WORKS' halls dark, THE STRIP's dance floor
+"flat untextured pastel" and its pyramid "cannot be recognised even from its own top".
+
+- **The interiors' fill over named floors** (`game.fill.rects`, src/game/neonmap.ts): the game's pool of fill lights
+  already stood at the base's and the tower's ceiling lamps and over the court and the station; it now also takes a grid
+  over THE TERMINAL's halls and each of THE WORKS' halls (the works block's upper floor too), off anything solid.
+- **THE STRIP's dance floor a lit grid:** its tiles wear the pack's lit-window panel, its panes tinted magenta and cyan in
+  turn, colour and glow (`^#`), in place of a flat glow.
+- **THE STRIP's pyramid edged in magenta:** a line up each of its four ridges from its foot's corners to its top, and round
+  its foot (`game.outlines`).
+- **Checked:** a new check (seven floors with fill spots, none in anything solid; the dance floor's panes in lit magenta and cyan; the pyramid's four ridges and foot outlined). No e2e this week. verify, rules and tsc. Map files version 105: lo 179.0 MB, hi 259.0 MB, max 557.3 MB.

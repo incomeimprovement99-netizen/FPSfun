@@ -4096,5 +4096,21 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// the lighting pass (Milestone 688): fill spots over THE TERMINAL's concourse and every one of THE WORKS' halls, none in
+// anything solid; THE STRIP's dance floor in lit panes; its pyramid's four ridges and foot outlined
+{
+  const FR = (cfg.game as unknown as { fill: { rects?: number[][] } }).fill.rects ?? [];
+  const spots = neonFillSpots();
+  const empty = FR.filter(([x0, x1, z0, z1, y]) => !spots.some((q) => q.x - BR_X > x0 && q.x - BR_X < x1 && q.z - BR_Z > z0 && q.z - BR_Z < z1 && q.y > y && q.y < y + 6));
+  const mats = (cfg.rules.districts as unknown as { strip: { club: { dance: { mats: string[] } } } }).strip.club.dance.mats;
+  const O = (cfg.game as unknown as { outlines: Array<{ name: string }> }).outlines;
+  const ridges = O.filter((q) => q.name.startsWith("the strip pyramid")).length;
+  check(
+    "the lighting pass: fill light over THE TERMINAL's concourse and THE WORKS' halls, THE STRIP's dance floor in lit panes, its pyramid's ridges and foot in light",
+    FR.length >= 6 && empty.length === 0 && mats.every((m) => m.includes("^#")) && ridges === 5,
+    `${FR.length} floors with fill (${empty.length} with no spot), dance floor ${mats.join(" / ")}, ${ridges} pyramid outlines`
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

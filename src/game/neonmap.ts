@@ -563,6 +563,9 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
     };
     over(K.x0, K.x1, K.z0, K.z1, K.y + F.height);
     for (const f of UG.floors as Array<{ rect: number[]; y: number; ramp?: boolean; well?: boolean }>) if (!f.ramp && !f.well) over(f.rect[0], f.rect[1], f.rect[2], f.rect[3], f.y + F.height);
+    // (and over the floors named in `rects` [x0, x1, z0, z1, floor]: THE TERMINAL's concourse and THE WORKS' halls, which
+    // the reviews found near black, Milestone 688)
+    for (const r of (F as unknown as { rects?: number[][] }).rects ?? []) over(r[0], r[1], r[2], r[3], r[4] + F.height);
     // (none inside or within `off` of anything solid: the station's grid met platform edges and the corridors' low
     // ceilings, and a spot on a wall's face lit one side of it only)
     const off = F.off;
