@@ -540,7 +540,8 @@ check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS
     return !roof || q.colour !== accent(q.block);
   });
   const beams = (cfg as unknown as { beams?: Array<{ block: string; mat: string }> }).beams ?? [];
-  const off = Object.keys(SEC).filter((b) => !beams.find((q) => q.block === b)?.mat.includes(accent(b) ?? "none"));
+  // (their beams, while the blocks had them: none since Milestone 689)
+  const off = (cfg.rules.low as unknown as { beam?: unknown }).beam ? Object.keys(SEC).filter((b) => !beams.find((q) => q.block === b)?.mat.includes(accent(b) ?? "none")) : beams.map((q) => q.block);
   check("THE WELL's and MARKET's names on their wedges' roofs, lit in their sectors' colours, and their beams the same colours", NMS.length === 2 && bad.length === 0 && off.length === 0, NMS.map((q) => `${q.text} ${q.colour}`).join("; ") + (bad.length ? `; wrong: ${bad.map((q) => q.text).join(", ")}` : "") + (off.length ? `; beams off: ${off.join(", ")}` : ""));
 }
 // no piece the map must not show (rules.banned): the pack's letter sign that spells "free sex" in Korean stood in the
@@ -738,7 +739,9 @@ check("each corner block named on the map over its roof yard, or the Well's over
     const p = s && placed.find((q) => Math.hypot((q[1] as number) - (s.x - BR_X), (q[3] as number) - (s.z - BR_Z)) < 0.01);
     return { name: s?.name ?? id, mat: p ? (p[6] as string) : null, want: BM?.mats[block] };
   });
-  check("a beam of light over each corner block in its own colour", placed.length === 4 && lit.every((q) => q.mat && q.mat === q.want) && new Set(lit.map((q) => q.mat)).size === 4, lit.map((q) => `${q.name} ${q.mat ?? "none"}`).join(", "));
+  // (none since Milestone 689: the tenth reviews' "pink bar" down THE WELL and "gold pole straight up into the sky")
+  if (BM) check("a beam of light over each corner block in its own colour", placed.length === 4 && lit.every((q) => q.mat && q.mat === q.want) && new Set(lit.map((q) => q.mat)).size === 4, lit.map((q) => `${q.name} ${q.mat ?? "none"}`).join(", "));
+  else check("no beam over the corner blocks (their names on their roofs say where they are)", placed.length === 0 && !(cfg as unknown as { beams?: unknown }).beams, `${placed.length} placed`);
 }
 // (and NOODLE ROW's own: the pack's street food stalls on its ground, each with two paper lanterns at its front, none on
 // a pavement or in a fire escape's room)
@@ -2371,7 +2374,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
       const got = place.filter((q) => String(q[0]).endsWith(name) && Math.abs(Number(q[2]) - h) < 1);
       const ok = got.filter((q) => {
         const y = Number(q[2]);
-        return y <= h && y + 3 > ceiling - 0.03 && y + F.frame.head < ceiling - 0.03 && String(q[6] ?? "").includes("=") && !/BareSteel|MetalBare|MetalPanel/.test(String(q[6] ?? ""));
+        // (its frame in a material of its own: each remap's target, since THE VAULT's gates remap their steel to gold)
+        return y <= h && y + 3 > ceiling - 0.03 && y + F.frame.head < ceiling - 0.03 && String(q[6] ?? "").includes("=") && !String(q[6] ?? "").split(";").some((r) => /BareSteel|MetalBare|MetalPanel/.test(r.split("=")[1] ?? r));
       });
       if (got.length !== want[kind] || ok.length !== want[kind]) bad.push(`${h} m ${kind}s ${ok.length} of ${want[kind]} (${got.length} placed)`);
       if (kind === "door") doors += ok.length;
@@ -2465,7 +2469,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check(
     "THE WORKS: the works block's ground floor furnished, every set laid and standing, pipes on its walls, its halls in rust, and no beam over a pad under its roof",
     want.length >= 8 && Uc.ground?.laid === want.length && bare.length === 0 && Uc.pipes === (Wr.upper.pipes ?? []).length && (Uc.pipes ?? 0) > 0 && !!Wr.wallMat && !!PB &&
-      JSON.stringify([...PB.roofed].sort()) === JSON.stringify(roofedWant) && roofedWant.length === 2 && PB.drawn === PB.pads - PB.roofed.length,
+      JSON.stringify([...PB.roofed].sort()) === JSON.stringify(roofedWant) && roofedWant.length === 2 && PB.drawn === ((cfg.rules.pads as unknown as { beamScale?: number }).beamScale === 0 ? 0 : PB.pads - PB.roofed.length),
     `${Uc.ground?.laid ?? 0} of ${want.length} sets${bare.length ? `, nothing standing at ${bare.map(([n, x, z]) => `${n} ${x}, ${z}`).join("; ")}` : ""}, ${Uc.pipes ?? 0} pipe runs, walls ${Wr.wallMat ?? "their own"}, beams ${PB ? `${PB.drawn} of ${PB.pads} pads, none over ${PB.roofed.join(" and ")}` : "not recorded"}`
   );
 }
@@ -3782,7 +3786,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const early = planes.filter((m) => m.renderOrder <= 0);
   check("the names' planes drawn after the city's other see-through pieces", planes.length >= 12 && early.length === 0, `${planes.length} name planes, ${early.length} drawn in the scene's own order`);
   const ropes = scene.getObjectByName("neon:ropes");
-  const G2 = cfg.game as unknown as { zipGlow: number; zipCollar: { glow: number } };
+  const G2 = cfg.game as unknown as { zipGlow: number; zipCollar: { glow: number }; zipCable?: string };
   const byColour = new Map<string, Set<number>>();
   ropes?.traverse((o) => {
     const m = (o as THREE.Mesh).material as THREE.MeshStandardMaterial | undefined;
@@ -3790,8 +3794,10 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     const k = m.emissive.getHexString();
     (byColour.get(k) ?? byColour.set(k, new Set()).get(k)!).add(m.emissiveIntensity);
   });
-  const bare = [...byColour].filter(([, g]) => !g.has(G2.zipGlow) || !g.has(G2.zipCollar.glow)).map(([k]) => `#${k}`);
-  check("every rope a cable unlit at zipGlow with lit collars in its colour", byColour.size >= 3 && bare.length === 0, bare.join(", ") || `${byColour.size} rope colours, each a cable and its collars`);
+  // (since Milestone 689 every rope one dark cable, `zipCable`, and only its collars in its colour)
+  const cableK = G2.zipCable ? new THREE.Color(G2.zipCable).getHexString() : null;
+  const bare = [...byColour].filter(([k, g]) => (cableK ? (k === cableK ? !g.has(G2.zipGlow) : !g.has(G2.zipCollar.glow)) : !g.has(G2.zipGlow) || !g.has(G2.zipCollar.glow))).map(([k]) => `#${k}`);
+  check("every rope a cable unlit at zipGlow with lit collars in its colour", byColour.size >= 3 && bare.length === 0 && (!cableK || byColour.has(cableK)), bare.join(", ") || `${byColour.size} rope colours${cableK ? `, the cable #${cableK}` : ""}, each with its collars`);
 }
 
 // THE STRIP's light (rules.districts.strip.light, Milestone 599): magenta strips under the club's balcony over its rails,
@@ -4076,7 +4082,7 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const brightest = Object.values(PK.washK).every((k) => k > PK.wash.k) && (PK.washK.strip ?? 0) > PK.wash.k;
   check(
     "the corner blocks' marks and the doors: the tower's corners and crown lit, a pool of light at THE WELL's bottom, MOTEL HILL's pole sign showing its ad, each walk-in's door under an awning and two lit strips, THE STRIP's wash the brightest",
-    boxes.filter((b) => b[4] === 12 && Math.abs(b[5] - b[4] - 97) < 0.01).length === 4 && boxes.filter((b) => b[5] - b[4] > 40).length >= 12 && bottom && sign === 1 && signWorn && walk >= 4 && awnings === walk && strips === 2 * walk && brightest,
+    boxes.filter((b) => b[4] === 12 && Math.abs(b[5] - b[4] - 97) < 0.01).length === 4 && boxes.filter((b) => b[5] - b[4] > 40).length === 4 && bottom && sign === 1 && signWorn && walk >= 4 && awnings === walk && strips === 2 * walk && brightest,
     `${boxes.length} lit strips on the tower (lowest from ${Math.min(...boxes.map((b) => b[4])).toFixed(1)} m), ${overHole} off their boxes, a pool at the bottom ${bottom}; the pole sign ${sign}, every ad stand worn ${signWorn}; ${awnings} awnings and ${strips} strips for ${walk} walk-ins; the strip's wash ${PK.washK.strip} over ${PK.wash.k}`
   );
 }
@@ -4109,6 +4115,42 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "the lighting pass: fill light over THE TERMINAL's concourse and THE WORKS' halls, THE STRIP's dance floor in lit panes, its pyramid's ridges and foot in light",
     FR.length >= 6 && empty.length === 0 && mats.every((m) => m.includes("^#")) && ridges === 5,
     `${FR.length} floors with fill (${empty.length} with no spot), dance floor ${mats.join(" / ")}, ${ridges} pyramid outlines`
+  );
+}
+
+// the centre's ground and THE VAULT (Milestone 689): the street cover's carriageway set real cover (no drawn-only planter
+// alone), THE VAULT's gates in gold steel, its floor edged in gold light
+{
+  const CO = (cfg.rules.dress as unknown as { cover: { road: string[] } }).cover;
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
+  const V = (cfg.rules.tower as unknown as { floors: { gate: string; at: Record<string, { gateMat?: string }> } }).floors;
+  const gold = placed.filter((q) => String(q[0]).endsWith(`/${V.gate}`) && Number(q[2]) > 31 && Number(q[2]) < 33 && String(q[6] ?? "").includes(V.at["32"].gateMat ?? "none")).length;
+  const edge = (cfg.game as unknown as { outlines: Array<{ name: string }> }).outlines.some((q) => q.name === "the vault floor");
+  const street = ((cfg as unknown as { streetCover?: unknown[] }).streetCover ?? []).length;
+  check(
+    "the centre's ground and THE VAULT: the carriageway's cover real cover, THE VAULT's gates gold, its floor edged in gold light",
+    CO.road.length >= 2 && CO.road[0] !== "GardenPit_premade00c Variant.prefab" && gold >= 4 && edge && street >= 120,
+    `carriageway set ${CO.road.join(", ")}, ${street} pieces of street cover, ${gold} gold gates, edge ${edge}`
+  );
+}
+
+// the tenth reviews' finish (Milestone 689): no beam over a pad, the flying cars over NOODLE ROW's lantern lines and under
+// the bridges, the zip ropes dark, the roof box grey, GLASS HEIGHTS' tower without its brown panels, THE VAULT's floor gold
+{
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
+  const FLY = (cfg.rules.dress as unknown as { flying: { pieces: string[] } }).flying.pieces;
+  const cars = placed.filter((q) => FLY.some((f) => String(q[0]).endsWith(`/${f}`)) && q[5] === "g");
+  const low = cars.filter((q) => Number(q[2]) < 19 || Number(q[2]) > 24.5).length;
+  const PB = (cfg.baked as unknown as { padBeams?: { drawn: number } }).padBeams;
+  const G = cfg.game as unknown as { zipCable?: string; zipRope: number };
+  const box = placed.filter((q) => String(q[0]).endsWith("/Coolbox00.prefab"));
+  const boxGrey = box.every((q) => q[6] == null || String(q[6]).includes("MetalBare01Dust"));
+  const tower = placed.find((q) => String(q[0]).endsWith("/StreetBuilding00_10x10.prefab") && Number(q[3]) < -130);
+  const V = (cfg.rules.tower as unknown as { floors: { at: Record<string, { floorMat?: string }> } }).floors.at["32"];
+  check(
+    "the tenth reviews' finish: no beam over a pad, the flying cars 19 to 24 m up, the zip ropes dark and thin, the roof box grey, GLASS HEIGHTS' tower without its brown panels, THE VAULT's floor gold",
+    !!PB && PB.drawn === 0 && cars.length >= 10 && low === 0 && !!G.zipCable && G.zipRope <= 0.04 && boxGrey && String(tower?.[6] ?? "").includes("Concrete03d=") && String(V.floorMat).includes("*#"),
+    `${PB?.drawn ?? "?"} pad beams, ${cars.length} flying cars (${low} out of 19 to 24 m), rope ${G.zipCable} ${G.zipRope} m, ${box.length} roof boxes grey ${boxGrey}, tower ${tower?.[6] ?? "missing"}, the vault floor ${V.floorMat}`
   );
 }
 

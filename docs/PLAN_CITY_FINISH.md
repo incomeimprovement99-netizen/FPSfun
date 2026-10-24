@@ -324,6 +324,23 @@ and the 16 to 20 m tier still to do)
     4) and a last batch from their lists; then the frame measured with the PC unused (the owner's call when).
   - Tried and dropped: a neon ring round THE WELL's rim (twice), a different crown set on each High City roof, more
     stalls in NOODLE square and MARKET street. The page: https://claude.ai/artifact/VtTRbvjkrHzHbe82hxm5xb.
+- **After the tenth reviews (2026-10-24, on version 105: the centre 5.5, the districts 5.4, finish 4.5 in both)**, the
+  owner: "rate the map ... and give clear next steps to get a better rating". The close (version 107 above) became:
+  - **Version 106 (Milestone 689), the finish faults and THE VAULT:** the district towers' outlines, the pads' and corner
+    blocks' beams, the flying cars on the lantern lines, the pale zip ropes, the brown panels and patches; THE VAULT's
+    gold doors, floor, strips and edge; the centre's street cover real; three review spots out of the geometry.
+  - **Version 107 (Milestones 770 to 772), the ground and the climbs:** fill light so shaded faces are not black (MOTEL
+    HILL's yard, THE WORKS' halls, THE TERMINAL's domes); a lit marker at the foot of every lift, pad and fire escape;
+    staggered cover on the bridge ring's spans; rows of cover every 15 to 20 m on the bare floors (THE CANYON's floor,
+    LANTERN ALLEYS' mouth, THE TERRACES' top tier, THE STACKS' court, THE WORKS' yard).
+  - **Version 108 (773 to 775), each district its own:** its own cover kit in place of the shared cabinet and planter;
+    THE TERMINAL a station (wagons in view at its platforms, departure boards for its blank panels); THE WORKS' halls
+    with gantries and machine rows; THE TERRACES seen from the centre; THE CANYON's lanterns traded for hanging signs.
+  - **Version 109 (776 to 778), the edge and the night:** low lit blocks in the dark moat past the fence; the districts
+    lit by night.
+  - **Then the reviews' round 11 and the districts' round 5.** Larger asks after that: an atrium through the tower's
+    floors, the High City blocks in different shapes, roofs cut into islands with gaps. The jagged shadows are the
+    renderer's (the lobby side).
 
 **Last**
 

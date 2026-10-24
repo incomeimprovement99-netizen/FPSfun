@@ -458,9 +458,12 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
   // (a rope from `a` to `b`, `r` thick, lit at `zipGlow`, and a lit collar in its colour every `zipCollar.every` metres:
   // at 3 cm the second review read the ropes as thin dotted lines, lit whole the fifth and sixth read them as lasers and
   // glowing tubes, and THE WELL's two as debug lines falling into its shaft; unlit, a rope is gone at night)
+  // (the rope itself dark and matt, `zipCable`, its collars in its colour: in its colour and glossy, the sun and the sky's
+  // light lit a lookout rope pale, "a thick pale rod speared into the facade" to the tenth review)
+  const cableMat = G.zipCable ? new THREE.MeshStandardMaterial({ color: 0x0a0d10, emissive: new THREE.Color(G.zipCable), emissiveIntensity: G.zipGlow, roughness: 1, metalness: 0 }) : null;
   const cable = (a: THREE.Vector3, b: THREE.Vector3, r: number, colour: string) => {
     const len = a.distanceTo(b);
-    const rope = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), emissive(new THREE.Color(colour).getHex(), G.zipGlow));
+    const rope = new THREE.Mesh(new THREE.CylinderGeometry(r, r, len, 8), cableMat ?? emissive(new THREE.Color(colour).getHex(), G.zipGlow));
     rope.position.copy(a).add(b).multiplyScalar(0.5);
     rope.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), b.clone().sub(a).normalize());
     ropes.push(rope);

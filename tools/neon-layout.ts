@@ -470,7 +470,9 @@ const noGround: Array<[number, number, number, number]> = [];
           // (2 cm into the floor, its top 2 cm inside the slab over it: neither face shares a plane with a floor)
           // (in the floor's own wall material, rules.tower.floors.at[h].mat: the floors looked alike)
           const isGate = k === gate && !!FR;
-          const wb = placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", isGate ? sunk(F.gate) : h - 0.02, isGate ? framed(F.gate) : P.mat);
+          // (a floor's `gateMat` over its gate's own steel too: THE VAULT's gates as gold vault doors, Milestone 689)
+          const gateMat = (P as { gateMat?: string }).gateMat;
+          const wb = placeTurned("c-tower", two ? piece5 : F.walls["2.5"], c[0], c[1], yaw, "o", isGate ? sunk(F.gate) : h - 0.02, isGate ? [framed(F.gate), gateMat].filter(Boolean).join(";") || undefined : P.mat);
           placed.push(wb);
           if (!isGate) plain.push(wb);
           bars.push({ o: wb, open: isGate ? FW.gate : 0, pad: padOf(two ? piece5 : F.walls["2.5"]) });
@@ -2864,7 +2866,9 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
 }
 // each corner block's own light (rules.low.beam, the master plan's colour a block): the pack's beam of light in the pack
 // material of the block's colour, up from its rooms building's roof yard, or up the Well from its bottom, so where it
-// is and where its own loot lies show from anywhere; drawn only, nothing to stand on
+// is and where its own loot lies show from anywhere; drawn only, nothing to stand on. None since Milestone 689 (no
+// rules.low.beam): the tenth reviews read them as "a pink bar" down THE WELL's shaft and "a gold pole straight up into the
+// sky", as every review since the fifth read the beams as debug lines; each block's name on its roof says where it is
 {
   const BM = R.low.beam as { piece: string; mats: Record<string, string>; scale?: number } | undefined;
   if (BM) {
@@ -2873,7 +2877,7 @@ let STREET_GRAPH: ReturnType<typeof streetGraph> | undefined;
     // every aerial)
     for (const b of beams) add(b.chunk, "c", (BM.scale ? [bp.key, +b.x.toFixed(3), b.y, +b.z.toFixed(3), 0, "g", BM.mats[b.block], null, BM.scale] : [bp.key, +b.x.toFixed(3), b.y, +b.z.toFixed(3), 0, "g", BM.mats[b.block]]) as unknown as Place);
     cfg.beams = beams.map((b) => ({ block: b.block, at: [+b.x.toFixed(3), b.y, +b.z.toFixed(3)], mat: BM.mats[b.block] }));
-  }
+  } else delete (cfg as unknown as { beams?: unknown }).beams;
 }
 // The corner blocks' roof bridges (rules.low.roofs; the master plan's item 8, "a roof-hopping layer"): the pack's
 // footbridge from a rooms building's roof to the roof beside it, `at` its middle and `along` its way across, its deck at
@@ -3586,6 +3590,8 @@ const STREET_WALL_BOXES: OBox[] = [];
         : foot && overlaps(o, boxOf(foot), CO.clear * 2) ? "well"
         : walkIns.some((q) => Math.hypot(q.door[0] - x, q.door[1] - z) < r + 3) ? "door"
         : kept.some(([kx, kz]) => Math.hypot(kx - x, kz - z) < r + R.dress.median.keep) ? "spawn"
+        // (nor within `keep` of a spot the checks found shut in, [x, z, metres]: the model never had its links)
+        : ((CO as { keep?: number[][] }).keep ?? []).some(([kx, kz, kr]) => Math.hypot(kx - x, kz - z) < r + kr) ? "keep"
         // (nor across a link of a node the model has off the main network: its guess at a link is wrong both ways, and a
         // kiosk it took to cut nothing shut two street nodes in at the bake)
         : STREET_GRAPH?.splits(o) || STREET_GRAPH?.strands(o) ? "graph"

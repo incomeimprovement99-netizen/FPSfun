@@ -16373,3 +16373,35 @@ From the reviews of 2026-10-21: THE TERMINAL's concourse "nearly black", THE WOR
 - **THE STRIP's pyramid edged in magenta:** a line up each of its four ridges from its foot's corners to its top, and round
   its foot (`game.outlines`).
 - **Checked:** a new check (seven floors with fill spots, none in anything solid; the dance floor's panes in lit magenta and cyan; the pyramid's four ridges and foot outlined). No e2e this week. verify, rules and tsc. Map files version 105: lo 179.0 MB, hi 259.0 MB, max 557.3 MB.
+
+## Milestone 689 — The tenth reviews' finish faults, the centre's ground, THE VAULT in gold
+
+The reviews of 2026-10-24 on version 105 (the centre's round 10: 5.5; the districts' round 4: 5.4; docs/CENTRE_REVIEW.md)
+both scored finish 4.5, the lowest of their scores, and several faults had been named two rounds running.
+
+- **No wireframe boxes round the towers:** GLASS HEIGHTS' and THE STRIP's lit corners and crowns (Milestone 685) were
+  drawn at their pieces' bounding boxes, a metre and a half to seven off their real faces, and stood in the air as "a
+  wireframe box", "debug bounds". Taken out; the centre's tower keeps its own, which sit on its walls.
+- **No light cones over the pads:** each pad's beam, the pack's 92 m cone cut to 1.4 m at its full width, drew as a flat
+  white wedge ("inverted light cones over rings"). None now (`rules.pads.beamScale` 0); each pad's ring marks it.
+- **No beams over the corner blocks:** MARKET's read as "a gold pole straight up into the sky" and THE WELL's as "a pink
+  bar" down its shaft, as every review since the fifth read the beams as debug lines. Each block's name on its roof says
+  where it is.
+- **The flying cars 19 to 24 m up** (11 to 28 before): two hung on NOODLE ROW's lantern lines.
+- **The zip ropes dark and 4 cm thick**, their collars in their colour: lit by the sun in its own colour a lookout rope
+  read as "a thick pale rod".
+- **The roof box in grey metal** ("a brown square patch" on a roof) and **GLASS HEIGHTS' tower's two 40 m concrete
+  panels in dark steel** ("two blank brown rectangles").
+- **THE VAULT in gold** ("no door, no gold light and no sense of reward"): its gates in the gold painted panels of its
+  walls (a floor's `gateMat` wears its gates' steel too), its hex floor tinted gold, its gold strips on every metre of its
+  walls (every second before), its floor edged in gold light 0.6 m in from the tower's walls (`game.outlines`).
+- **The centre's streets in real cover** (round 9: "an open killing field from the bridges"): the carriageway's set was
+  the pack's fern planter alone, drawn only and no cover in the collision; it leads with the pack's 3 m street box and
+  its cooling cabinet, and the fill holds every street spot to 5.5 m (6).
+- **THE TERMINAL's pier lightboxes show an ad** (the pack's Ads10): tinted amber, they still read as flat yellow
+  rectangles.
+- **Three review spots moved out of the geometry:** THE TERRACES' view from the centre stood inside the west High City
+  block (the collision pushed the camera into its facade, whose window frames from inside read as "black cables" and "a
+  gold pole" in rounds 3 and 4), THE WORKS' hall view stood behind a cabinet, THE TERMINAL's roof view against a vault.
+- **Checked:** two new checks (the carriageway's set real cover, 165 pieces of street cover, THE VAULT's 4 gates gold and its floor edged; no pad beam, 14 flying cars 19 to 24 m up, the ropes #25242b at 4 cm, 37 roof boxes grey, GLASS HEIGHTS' tower's concrete in steel, THE VAULT's floor gold); the beams' and outlines' checks now hold none. No e2e this week. verify, rules
+  and tsc. Map files version 106: lo 179.8 MB, hi 259.7 MB, max 556.7 MB.

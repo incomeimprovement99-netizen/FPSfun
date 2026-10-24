@@ -1240,11 +1240,14 @@ if (mode === "bake") {
   // (a pad's beam `beamScale` of the pack's 92 m: at full height a dozen of them crowded the sky and the four block
   // beams, which say where you are, were lost among them; a third marks the pad from across the plaza)
   const shortBeam = (m: M4): M4 => mul([1, 0, 0, 0, 0, cfg.rules.pads.beamScale ?? 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], m);
+  // (none at all at `beamScale` 0, Milestone 689: cut short, the cone kept its full width and drew as a flat white wedge
+  // over each pad, the tenth review's "inverted light cones over rings"; each pad's ring marks it, padrings.ts)
+  const beamOn = (cfg.rules.pads.beamScale ?? 1) > 0;
   // (the beams drawn and the pads, for the checks: a pad under a roof gets none, below)
   const padBeams = { pads: 0, drawn: 0, roofed: [] as string[] };
   padBeams.pads += cfg.pads.length;
-  padBeams.drawn += cfg.pads.length;
-  for (const q of cfg.pads) for (const key of [cfg.rules.pads.plate, cfg.rules.pads.beam]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === cfg.rules.pads.beam ? shortBeam(m) : m) })));
+  if (beamOn) padBeams.drawn += cfg.pads.length;
+  for (const q of cfg.pads) for (const key of beamOn ? [cfg.rules.pads.plate, cfg.rules.pads.beam] : [cfg.rules.pads.plate]) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === cfg.rules.pads.beam ? shortBeam(m) : m) })));
   // the centre's spine (rules.pads.spine), measured the same way: the plate under each and a beam over it, white up, red down
   cfg.spine = spinePads(all, cfg.rules);
   // (no beam over a pad under a roof, `below`: THE WORKS' atrium's two stood in the block hall as white shafts from its
@@ -1254,8 +1257,8 @@ if (mode === "bake") {
     for (const q of list as Array<{ id: string; pad: number[]; floor: number }>) {
       padBeams.pads++;
       if (roofed.has(q.id)) padBeams.roofed.push(q.id);
-      else padBeams.drawn++;
-      for (const key of [cfg.rules.pads.plate, beam]) if (key !== beam || !roofed.has(q.id)) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === beam ? shortBeam(m) : m) })));
+      else if (beamOn) padBeams.drawn++;
+      for (const key of [cfg.rules.pads.plate, beam]) if (key !== beam || (beamOn && !roofed.has(q.id))) padDraws.push(...draws(key).map(({ d, m }) => ({ d, m: mul(place(q.pad[0], q.floor, q.pad[1], 0), key === beam ? shortBeam(m) : m) })));
     }
   (groups.get(groupOf("c-pads")) ?? groups.set(groupOf("c-pads"), []).get(groupOf("c-pads"))!).push(...padDraws);
   for (const [id, all] of groups) {

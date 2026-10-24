@@ -1,7 +1,7 @@
 // The jump pads read as pads (Milestone 668). Both fresh reviews of 2026-10-20 read the pads' white beams as "white light
 // wedges", nothing to do with a pad. So each pad gets a ring of light on the ground round it, in its place's colour: a
 // district's own past the ring road (THE WORKS teal, LANTERN ALLEYS red, ...), the centre's sector's inside it. Its beam
-// is cut to a stub in the bake (neonmap.json rules.pads.beamScale).
+// is no longer drawn (neonmap.json rules.pads.beamScale 0, Milestone 689).
 //
 // One instanced mesh for every ring, its colour per instance. The numbers are in neonmap.json game.padRings.
 import * as THREE from "three";
