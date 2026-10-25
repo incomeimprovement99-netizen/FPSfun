@@ -16,10 +16,12 @@ type Outline = { name: string; rect?: number[]; on?: string; posts?: boolean; li
 const O = (neonCfg as unknown as { game: { outlines?: Outline[] } }).game.outlines ?? [];
 
 /** the strips' boxes, map-local [x0, x1, z0, z1, y0, y1] each, four to an outline (the checks read them) */
-export function outlineBoxes(): Array<number[] & { k?: number }> {
+export function outlineBoxes(only?: (name: string) => boolean): Array<number[] & { k?: number }> {
   const out: number[][] = [];
   const well = (neonCfg as unknown as { well?: Record<string, unknown> }).well ?? {};
   for (const q of O) {
+    // (the checks may ask for some outlines' boxes alone, by name)
+    if (only && !only(q.name)) continue;
     if (q.on) {
       // (a line `w` wide along each box's top, down its long side's middle, `h` high: whole caps on the rail's
       // half-metre cells drew as "a huge flat pink plane with saw-tooth edges" from over the shaft, round 9)

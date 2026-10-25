@@ -4175,5 +4175,27 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// the districts' edges lit (Milestone 776): THE TERRACES' three tier lips, THE CANYON's two walkway edges, a cornice round
+// each of THE WORKS' five halls and THE STACKS' hotel roof edge, each strip on or against something solid (a tier's top,
+// a walkway's slab, a hall's wall, the hotel's roof) within half a metre
+{
+  const { outlineBoxes } = await import("../../src/game/outlines");
+  const O2 = (cfg.game as unknown as { outlines: Array<{ name: string }> }).outlines;
+  const names = O2.map((q) => q.name);
+  const want = ["the terraces tier 3", "the terraces tier 6", "the terraces tier 9", "the canyon inner walkway edge", "the canyon outer walkway edge", "the capsule hotel roof edge"];
+  const halls = names.filter((n) => /^the works .* cornice$/.test(n)).length;
+  // (the edges alone: a climb's frame's lintel and the grand stair's lines stand over openings by design)
+  const edge = (n: string) => n.startsWith("the terraces tier") || n.startsWith("the canyon") || /^the works .* cornice$/.test(n) || n === "the capsule hotel roof edge";
+  const boxes = outlineBoxes(edge);
+  const S3 = (SOLIDS as { solids: number[][] }).solids;
+  // (each lit strip below 20 m and outside the tower, within half a metre of a box: none hangs in the air)
+  const loose = boxes.filter((b) => b[4] < 20 && Math.max(Math.abs((b[0] + b[1]) / 2), Math.abs((b[2] + b[3]) / 2)) > 100 && !S3.some((q) => q[0] < b[1] + 0.5 && q[1] > b[0] - 0.5 && q[2] < b[3] + 0.5 && q[3] > b[2] - 0.5 && q[4] < b[5] + 0.5 && q[5] > b[4] - 0.5)).length;
+  check(
+    "the districts' edges lit: THE TERRACES' tier lips, THE CANYON's walkway edges, THE WORKS' halls' cornices and THE STACKS' hotel roof edge, none in the air",
+    want.every((n) => names.some((m) => m === n || m.startsWith(`${n} `))) && halls === 5 && loose === 0 && boxes.length > 500,
+    `${want.filter((n) => names.some((m) => m === n || m.startsWith(`${n} `))).length} of ${want.length} edges, ${halls} cornices, ${boxes.length} strips, ${loose} in the air`
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

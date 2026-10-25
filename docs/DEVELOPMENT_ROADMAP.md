@@ -16474,3 +16474,28 @@ light pillar at the foot of each lift, jump pad and fire escape": from the stree
   toward them, and the corner blocks' first steps are 1.5 m up, a mantle from the street. The pads keep their rings.
 - **Checked:** a new check stands each frame on the street within 2.5 m of its climb's first step (13 frames), proven
   by moving one 10 m off its stair. No e2e this week. verify, rules and tsc. Game side only: map files version 107.
+
+## Milestone 775 — THE WORKS' halls as machine halls
+
+The districts' review of 2026-10-24 (round 4) found inside THE WORKS "one large empty room with a cabinet and a few wall
+pipes" and asked to "fill THE WORKS halls with gantry cranes, catwalk galleries, machines and pipe runs".
+
+- **Gantry rails** down each of the four arm halls: the pack's 4.7 m steel beam, five end to end, over the columns' lines
+  at 5 and 15 m in from the ring road, 5.2 m up under the roof, drawn only (`dress.extras`, 40 beams).
+- **Two more engines** on each arm hall's floor between its columns, off the bots' node lines
+  (`districts.works.inside.cover`, now 8 sets a hall).
+- **Checked:** THE WORKS' check lays 32 of 32 sets in the arm halls; the hand-placed pieces' check all 66 laid, none
+  under a body's head (32 of 32 sets in the arm halls, 66 hand-placed pieces all laid). No e2e this week. verify, rules and tsc. Map files version 108: lo 181.2 MB, hi 261.2 MB, max 558.1 MB.
+
+## Milestone 776 — The districts' edges lit in their colours
+
+The districts' review of 2026-10-24 (round 4): at night "the districts go almost fully black and only the floor rings
+read"; THE TERRACES "a tiny, far-off cluster" from the centre; THE WORKS' halls "black boxes against the sun".
+
+- **THE TERRACES' three tier lips** lit green along their fronts, so its steps read from the centre.
+- **THE CANYON's walkways' open edges** lit yellow-green down both walls and round the corner.
+- **A cornice round each of THE WORKS' five halls** in its teal, just under the roof.
+- **THE STACKS' capsule hotel's roof edge** over its court in its pink.
+- All drawn by the game as the tower's outlines are (`game.outlines`), by day and by night; no bake.
+- **Checked:** a new check finds every edge and stands each strip within half a metre of something solid (6 of 6 edges, 5 cornices, 1,940 strips, none in the air; proven with a cornice moved 2 m off its walls).
+  No e2e this week. verify, rules and tsc.
