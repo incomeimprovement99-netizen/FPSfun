@@ -87,6 +87,26 @@ export function buildSkyline(root: THREE.Object3D): void {
         SKYLINE.towers.push({ x: +(x + jx).toFixed(2), z: +(z + jz).toFixed(2), w: +(w * k).toFixed(2), d: +(d * k).toFixed(2), h: +sh.toFixed(1), y: +h.toFixed(1) });
       }
     }
+  // the low blocks between the out-of-bounds margin and the towers (Milestone 771; the districts' fourth review: past the
+  // fence "a dark empty moat" made the map "a model on a black table", worst at night): `low.from` to `inner` metres out,
+  // shorter and closer set, lit as the towers are, from a random sequence of their own so every tower stands where it stood
+  const L = (S as unknown as { low?: { from: number; cell: number; fill: number; size: number[]; height: number[] } }).low;
+  if (L) {
+    const lr = seeded(S.seed + 2);
+    for (let x = -S.inner + L.cell / 2; x < S.inner; x += L.cell)
+      for (let z = -S.inner + L.cell / 2; z < S.inner; z += L.cell) {
+        const [w, d] = [L.size[0] + lr() * (L.size[1] - L.size[0]), L.size[0] + lr() * (L.size[1] - L.size[0])];
+        const [jx, jz] = [(lr() - 0.5) * (L.cell - w), (lr() - 0.5) * (L.cell - d)];
+        const h = L.height[0] + lr() * (L.height[1] - L.height[0]);
+        const on = lr() < L.fill;
+        // (wholly in the band: nearest edge past `from`, farthest inside `inner`)
+        const [nx, nz] = [Math.abs(x + jx) - w / 2, Math.abs(z + jz) - d / 2];
+        const [fx, fz] = [Math.abs(x + jx) + w / 2, Math.abs(z + jz) + d / 2];
+        if (!on || Math.max(nx, nz) < L.from || Math.max(fx, fz) > S.inner) continue;
+        if (kept(x + jx - w / 2, x + jx + w / 2, z + jz - d / 2, z + jz + d / 2)) continue;
+        SKYLINE.towers.push({ x: +(x + jx).toFixed(2), z: +(z + jz).toFixed(2), w: +w.toFixed(2), d: +d.toFixed(2), h: +h.toFixed(1), y: 0 });
+      }
+  }
   // (each block its own shade, by instance: the body colour is white and the instances carry the shades)
   const mat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.85, metalness: 0.15 });
   // (past the fence, out of the decay's reach: its own shader would take this one's place, world.ts holdForDecay)

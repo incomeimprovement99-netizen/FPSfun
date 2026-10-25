@@ -103,6 +103,20 @@
   ],
   "groundColour": "#17191e",
   "seed": 6800,
-  "keep": []
+  "keep": [],
+  "low": {
+   "from": 194,
+   "cell": 16,
+   "fill": 0.8,
+   "size": [
+    8,
+    13
+   ],
+   "height": [
+    6,
+    18
+   ]
+  },
+  "_low": "The low blocks (Milestone 771; the districts' fourth review, 2026-10-24: past the fence 'a dark empty moat' made the map 'a model on a black table', worst at night): a jittered grid of `cell` metre squares from `from` metres out (past the out-of-bounds margin, the map's 150 and edge.margin 38, with 6 m to spare) to `inner`, each filled by `fill`, `size` metres a side and `height` tall, windows lit as the towers' are; the towers past `inner` stand where they stood (the low blocks draw from a random sequence of their own)."
  }
 }

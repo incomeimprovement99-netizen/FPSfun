@@ -16405,3 +16405,22 @@ both scored finish 4.5, the lowest of their scores, and several faults had been 
   gold pole" in rounds 3 and 4), THE WORKS' hall view stood behind a cabinet, THE TERMINAL's roof view against a vault.
 - **Checked:** two new checks (the carriageway's set real cover, 165 pieces of street cover, THE VAULT's 4 gates gold and its floor edged; no pad beam, 14 flying cars 19 to 24 m up, the ropes #25242b at 4 cm, 37 roof boxes grey, GLASS HEIGHTS' tower's concrete in steel, THE VAULT's floor gold); the beams' and outlines' checks now hold none. No e2e this week. verify, rules
   and tsc. Map files version 106: lo 179.8 MB, hi 259.7 MB, max 556.7 MB.
+
+## Milestones 771 to 773 — The moat filled, each district its own cover, the bridge ring's cover
+
+From the reviews of 2026-10-24 (the centre's round 10, the districts' round 4; docs/CENTRE_REVIEW.md).
+
+- **771, the moat past the fence filled:** "a dark empty moat" between the fence and the city past it made the map "a
+  model on a black table", worst at night. Low blocks, 6 to 18 m tall, now stand from 194 m out (past the out-of-bounds
+  margin) to the towers at 245 m, lit by night as the towers are (`world.json skyline.low`, src/game/skyline.ts; their
+  own random sequence, so every tower stands where it stood).
+- **772, each district its own:** THE CANYON's lantern lines, which "copy LANTERN ALLEYS", are bundles of the pack's
+  sagging cables instead, the three kinds in turn. The shared cooling cabinet is out of every district's own set of cover:
+  THE WORKS' oil drums, THE STACKS' and GLASS HEIGHTS' chest-high street box and THE TERRACES' hedges take its place. The street's pavements lose the yellow palm planter ("drop the shared
+  sci-fi cabinet and yellow palm planter"), the pack's small street box in its place.
+- **773, the bridge ring's cover:** the ring of bridges between the High City roofs had "almost no cover", "a road in the
+  sky". A second perch on each of its four bridges, crates and drums 5 m apart, laid after every
+  other perch so none of theirs moves.
+- **Checked:** the skyline's check holds the low blocks past the out-of-bounds margin; the perches' check counts 35; the
+  hand-placed pieces' check THE CANYON's 18 bundles (1506 blocks past the fence, none within 192 m; 35 perches, each piece on its roof; THE CANYON's 18 bundles, 26 hand-placed pieces all laid). No e2e this week. verify, rules and tsc. Map files
+  version 107: lo 179.9 MB, hi 259.9 MB, max 556.8 MB.

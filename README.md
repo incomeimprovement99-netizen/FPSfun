@@ -1354,13 +1354,12 @@ black tower on the city's edge at the end of a boulevard, its foot ringed by glo
 glass pyramid of lit windows to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, a lit dance floor, a DJ booth and a light rig
 in it, its balcony running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
-walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L, lintels over their doors and teal lights under their roofs,
+walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor, bundles of cables slung across it, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L, lintels over their doors and teal lights under their roofs,
 crossed indoors from hall to hall, each with columns, a gallery and its stair, a tank and machines, and the corner's works block with an upper floor
 round an atrium, gas risers glowing up through it, cabinets, engines and pipe runs under it, jump pads up to it; pads in its yards onto the roofs, footbridges between them, and the works block
 crowned with tanks 31 m up, lit teal by night. By night every street lamp throws a pool of light on the ground and each
-district is washed in its own colour, THE STRIP the brightest; the central tower's corners and crown glow amber, GLASS HEIGHTS' tower's cyan and THE STRIP's
-magenta, and THE TERRACES' grand stair is lined in green; past the fence tower blocks stand to the horizon (`src/game/skyline.ts`), their
-windows lit. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
+district is washed in its own colour, THE STRIP the brightest; the central tower's corners and crown glow amber, and THE TERRACES' grand stair is lined in green; past the fence low blocks and
+then tower blocks stand to the horizon (`src/game/skyline.ts`), their windows lit. The centre's streets curve (`tools/neon-streets.ts`): a round road, the
 Loop, circles the bundle's 151 m Neon Building 08 in the middle, and eight
 streets wind out from it in S-bends to the straight roads beyond, their surface
 baked from the same curves. High City's 26 m towers with walkable roofs face the

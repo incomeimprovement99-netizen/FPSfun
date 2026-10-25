@@ -447,7 +447,7 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
 const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name === "stacks-roof" ? 4 : name.startsWith("works-") ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS' hotel roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 31 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS' hotel roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 35 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // THE GANGWAY's cover (Milestone 656; the sixth review: "the gangway's cover staggered with side shields"): along its long
 // leg its sets alternate rails, each solid on its deck 1.4 m and more, each with its shield 1.4 m and more along the same
 // rail; and from every half metre of the deck's middle line between the window's cell and the corner's, cover a body
@@ -601,7 +601,10 @@ check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS
   const S = (SOLIDS as { solids: number[][] }).solids;
   const capped = ((cfg as unknown as { streetCover?: Array<{ piece: string; c: number[] }> }).streetCover ?? []).filter((q) => CAPS.pieces.includes(q.piece));
   const unlisted = capped.filter(({ c: [x, z] }) => !S.some((b, i) => b[0] < x && b[1] > x && b[2] < z && b[3] > z && Math.abs(b[5] - b[4] - CAPS.top) < 0.01 && LAIDR.some(([a, e]) => i >= a && i < e)));
-  check("the street cover's planters laid again by the layout's next run: each one's box listed in the bake's laid-last boxes", capped.length > 0 && unlisted.length === 0, `${capped.length - unlisted.length} of ${capped.length} listed${unlisted.length ? `; first unlisted at ${unlisted[0].c.join(", ")}` : ""}`);
+  // (none when no set of the street cover has a planter: the yellow palm planter left the pavements in Milestone 772)
+  const COv = (cfg.rules.dress as unknown as { cover: { road: string[]; pave: string[] } }).cover;
+  const usesCaps = [...COv.road, ...COv.pave].some((p) => CAPS.pieces.includes(p));
+  check("the street cover's planters laid again by the layout's next run: each one's box listed in the bake's laid-last boxes", (usesCaps ? capped.length > 0 : capped.length === 0) && unlisted.length === 0, `${capped.length - unlisted.length} of ${capped.length} listed${unlisted.length ? `; first unlisted at ${unlisted[0].c.join(", ")}` : ""}`);
   const VAN = (cfg.rules.dress as unknown as { cars: { vans?: { pieces: string[] } } }).cars.vans;
   const vans = Object.values(cfg.chunks as unknown as Record<string, { place: unknown[][] }>).flatMap((ch) => ch.place).filter((q) => VAN?.pieces.some((v) => String(q[0]).endsWith(`/${v}`)) && Number(q[2]) < 2);
   check("hover vans parked among the cars: six and more, whole cover", vans.length >= 6, `${vans.length}`);
@@ -4093,11 +4096,12 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const EX = (cfg.rules.dress as unknown as { extras?: Array<[string, string, number, number, number, number]> }).extras ?? [];
   const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
   const laid = EX.filter(([, name]) => placed.some((q) => String(q[0]).endsWith(`/${name}`) && q[5] === "g")).length;
-  const low = EX.filter(([, name, , , , y]) => (/Cable|Lamp/.test(name) ? y < 5.6 : y < 3.6)).length;
+  // (a bundle's pivot is its top: its sag hangs 2.2 m under it, Milestone 772)
+  const low = EX.filter(([, name, , , , y]) => (/CableBunch/.test(name) ? y < 7.8 : /Cable|Lamp/.test(name) ? y < 5.6 : y < 3.6)).length;
   const lanternsOffMiddle = EX.filter(([chunk, name, x, z]) => chunk === "c-canyon" && /ChineseLamp/.test(name) && Math.abs(z - 125) > 2.6 && Math.abs(x + 125) > 2.6).length;
   check(
-    "the hand-placed pieces: THE WORKS' pipe runs across its yards and THE CANYON's lantern lines, all laid drawn only, over a body's head, the lanterns over the canyon's floor",
-    EX.length >= 60 && laid === EX.length && low === 0 && lanternsOffMiddle === 0 && (cfg as unknown as { extras?: number }).extras === EX.length,
+    "the hand-placed pieces: THE WORKS' pipe runs across its yards and THE CANYON's cable bundles, all laid drawn only, over a body's head",
+    EX.length >= 26 && EX.filter(([chunk, name]) => chunk === "c-canyon" && /CableBunch/.test(name)).length === 18 && laid === EX.length && low === 0 && lanternsOffMiddle === 0 && (cfg as unknown as { extras?: number }).extras === EX.length,
     `${EX.length} pieces, ${laid} laid, ${low} too low, ${lanternsOffMiddle} lanterns over a walkway`
   );
 }
