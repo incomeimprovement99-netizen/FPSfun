@@ -3781,7 +3781,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // alone, so nothing measured moves it
 {
   type Walk = number[][];
-  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; rooms?: { at: Pt[]; slab: string; wall: number; inner: string; innerMat?: string; crate: string; lamp?: string; furnish?: Array<[string, number, number, number]> }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
+  const DT = (R.districts as { terraces?: { chunk: string; seed: number; cell: number; z: number[]; tiers: number[][]; raised: number[][]; ramp: { piece: string; mat?: string; up: Pt; steps: number; cells: Pt[] }; top: { piece: string; mat: string }; walls: { storey: number; plain: string; fronts: string[] }; rail: { piece: string; inset: number }; garden: { trees: string[]; treeOff: number; treesAt: number[]; landmarks?: Array<[string, number, number]>; flower: string; flowerOff: number; fern: string; bench: string; coverOff: number; lamp: string; lampOff: number; grove: { x: number; z: number[] }; avenue: { pieces: string[]; z: number[]; x: number[] } }; gate: { piece: string; at: Pt[] }; rooms?: { at: Pt[]; slab: string; wall: number; inner: string; innerMat?: string; crate: string; lamp?: string; furnish?: Array<[string, number, number, number]> }; blocks?: { x: number[]; rows: number[][]; uppers: string[]; balcony: { piece: string; inset: number; without: string[] }; hut: { at: Pt; door: string } }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; walks: Record<string, Walk> } } | undefined)?.terraces;
   if (DT) {
     const rndT = seeded(DT.seed);
     const S = DT.cell;
@@ -3972,6 +3972,12 @@ const STREET_WALL_BOXES: OBox[] = [];
     // a cypress at the foot of each block's street face on the top tier but the middle one's, clear of the gaps' mouths
     for (const z of G2.grove.z) {
       placeTurned(DT.chunk, G2.trees[trees % G2.trees.length], G2.grove.x, z, rndT() * 360, "s", tierAt(G2.grove.x - S / 2, z - S / 2));
+      trees++;
+    }
+    // (and its landmarks, `landmarks` [piece, x, z]: the pack's tall trees either side of the grand stair's head, Milestone
+    // 785; laid with no random draw, so nothing laid after them moves)
+    for (const [name, x, z] of G2.landmarks ?? []) {
+      placeTurned(DT.chunk, name, x, z, 0, "s", tierAt(x - S / 2, z - S / 2));
       trees++;
     }
     // cover behind the front rails: on each square with a rail on its street side, a fern planter or a bench by turns

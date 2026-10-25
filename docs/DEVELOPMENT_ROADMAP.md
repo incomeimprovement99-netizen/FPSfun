@@ -16524,3 +16524,26 @@ docs/CENTRE_REVIEW.md).
 - **Checked:** THE CENTRE's bot traced from its north spawn four times, each reaching the circle (4 of 4 traced runs reaching the circle, best 2.7 to 2.8 m; 45 columns for 45 rings, 4 of 4 doors framed, 12 pools under the Sky Ring); a new check
   for the columns, the doors' frames and the pools under the Sky Ring. No e2e this week. verify, rules and tsc. Map
   files version 109: lo 181.6 MB, hi 261.8 MB, max 559.3 MB.
+
+## Milestones 782 to 786 — Cover on the high ground, THE WORKS' tanks rusted, GLASS HEIGHTS' tower white, THE TERRACES' trees, THE STRIP's pyramid stepped in light
+
+From the reviews of 2026-10-25 (the centre's round 11, the districts' round 5).
+
+- **782, cover clusters on the high flat surfaces** ("cover clusters on every high flat surface: the Glass Heights deck,
+  the Stacks roof ... and the Lantern roofs"): a second perch on GLASS HEIGHTS' front deck and THE STACKS' capsule hotel
+  roof, the pack's crates, drums and small cooling boxes, laid after every other perch so none of theirs moves
+  (`rules.perches`, now 37). Second perches on LANTERN ALLEYS' roofs and the tower's lookout found no spot: their pitched
+  roofs and the lookout's raised parts and zip ends leave no level place with a body's way round it.
+- **783, THE WORKS' tanks rusted** ("a flat, untextured grey cylinder"; "no rust"): its set of cover's tanks in the pack's
+  rusted panels and rusted tiles (`dress.districtCover.mats.works`).
+- **784, GLASS HEIGHTS' tower its own** ("the tower is black, not white glass"; "make the tower white or clear glass with
+  a lit cyan crown ... so it stands apart from the centre's cream blocks"): its body in the white plastic its peninsulas
+  wear, its windows lit cyan as theirs are, its crown's lit band and lamps cyan (the tower's material remap).
+- **785, THE TERRACES' landmark** ("one big top-tier landmark such as a canopy tree"; "no tier or grand stair reads" from
+  the centre): the pack's tall tree in its pit, 15.5 m, either side of the grand stair's head on the top tier, behind the
+  district's name (`districts.terraces.garden.landmarks`, laid with no random draw so nothing after them moves).
+- **786, THE STRIP's pyramid stepped in light** ("the pyramid does not read as stepped"): each of its fourteen steps edged
+  in magenta at its top, measured off the collision (each step 0.5 m up and 0.38 m in from the one under it).
+- **Checked:** the perches' check counts 37, each piece on its roof; a new check finds the tower white, both trees on
+  the top tier and every step's strip on its step (37 perches, glass-front-2 2 and stacks-roof-2 6 pieces; the tower white, 2 of 2 trees on the top tier, 56 step strips on their steps, proven by lifting one step's strip 0.3 m). No e2e this week. verify, rules and tsc. Map files version
+  111 (version 110 was baked and checked at low size only, then carried into 111): lo 181.9 MB, hi 262.1 MB, max 555.5 MB.

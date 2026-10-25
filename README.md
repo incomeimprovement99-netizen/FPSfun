@@ -1339,7 +1339,8 @@ City bundle alone, nothing drawn by hand; the ILranch city it replaced went on
 The same nine districts, the eight round the centre plain for now with straight
 roads, but for LANTERN ALLEYS past the ring road in the north-east: alleys lined with
 low shophouses under lantern lines meeting at a pole in its court, jump pads up onto their roofs; and THE TERRACES in
-the west: three garden tiers stepping up to the edge, a grand stair up the middle, a run of
+the west: three garden tiers stepping up to the edge, their lips lit green, a grand stair up the middle with a tall tree either
+side of its head, a run of
 balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls, each lit and
 furnished; and
 THE TERMINAL in the south: a station hall of arcades under hex glass vaults, lit amber, metro map boards and
@@ -1348,10 +1349,10 @@ in the north-west: three towers of stacked capsule pods round an avenue and a ca
 capsule hotel of 21 pods on three storeys round a court, galleries and stairs up to its roof, lit pink by
 night, and a jump pad onto a pod roof 20 m up the twin towers; and GLASS HEIGHTS in the north: white glass
 towers with decks at the High City's height, joined by gangways, the North deck's carried across the ring road onto
-them, a glass lift up from its courtyard, its gangways glowing cyan underneath by night, its towers' windows glowing cyan, and a 72 m glass tower with a
-cyan crown; and THE STRIP in the east: an 87 m
+them, a glass lift up from its courtyard, its gangways glowing cyan underneath by night, its towers' windows glowing cyan, and a 72 m tower in
+white, its windows and crown lit cyan; and THE STRIP in the east: an 87 m
 black tower on the city's edge at the end of a boulevard, its foot ringed by glowing blocks under lit billboards, a
-glass pyramid of lit windows to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, a lit dance floor, a DJ booth and a light rig
+stepped pyramid of lit windows, each step edged in magenta, to run up onto a lookout 7 m over the plaza, and a club walled in red lit panels under a glowing inverted pyramid, a lit dance floor and a DJ booth
 in it, its balcony running right round, lit magenta by night; and THE CANYON in the south-west: a canyon street
 between two cliffs of lit windows 27 m high, down both arms and round the corner, passages in from the ring road,
 walkways 3.5 m up both walls with stairs set into them, bridges across its roofs, jump pads up from its passages, a market down its floor, bundles of cables slung across it, neon signs out over its walkways and yellow-green light by night; and THE WORKS in the south-east: rusted metal halls in an L, lintels over their doors and teal lights under their roofs,

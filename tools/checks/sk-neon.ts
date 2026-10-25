@@ -446,8 +446,8 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name === "stacks-roof" ? 4 : name.startsWith("works-") ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS' hotel roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 35 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (/-2$/.test(name) && !name.startsWith("ring") ? 1 : name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name === "stacks-roof" ? 4 : name.startsWith("works-") ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS' hotel roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 37 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // THE GANGWAY's cover (Milestone 656; the sixth review: "the gangway's cover staggered with side shields"): along its long
 // leg its sets alternate rails, each solid on its deck 1.4 m and more, each with its shield 1.4 m and more along the same
 // rail; and from every half metre of the deck's middle line between the window's cell and the corner's, cover a body
@@ -4114,7 +4114,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const empty = FR.filter(([x0, x1, z0, z1, y]) => !spots.some((q) => q.x - BR_X > x0 && q.x - BR_X < x1 && q.z - BR_Z > z0 && q.z - BR_Z < z1 && q.y > y && q.y < y + 6));
   const mats = (cfg.rules.districts as unknown as { strip: { club: { dance: { mats: string[] } } } }).strip.club.dance.mats;
   const O = (cfg.game as unknown as { outlines: Array<{ name: string }> }).outlines;
-  const ridges = O.filter((q) => q.name.startsWith("the strip pyramid")).length;
+  // (its ridges and foot: its steps are counted on their own since Milestone 786)
+  const ridges = O.filter((q) => q.name.startsWith("the strip pyramid") && !q.name.startsWith("the strip pyramid step")).length;
   check(
     "the lighting pass: fill light over THE TERMINAL's concourse and THE WORKS' halls, THE STRIP's dance floor in lit panes, its pyramid's ridges and foot in light",
     FR.length >= 6 && empty.length === 0 && mats.every((m) => m.includes("^#")) && ridges === 5,
@@ -4212,6 +4213,27 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "the pads' columns, the walk-ins' doors and the night's pools: a column of light over every pad's ring, a lit frame at each walk-in's door, pools under the Sky Ring all round",
     !!cols && !!rings && cols.count === rings.count && WI.length === 4 && byDoor.length === 4 && under >= 12,
     `${cols?.count ?? 0} columns for ${rings?.count ?? 0} rings, ${byDoor.length} of ${WI.length} doors framed, ${under} pools under the Sky Ring`
+  );
+}
+
+// GLASS HEIGHTS' tower white with a cyan crown, THE TERRACES' landmark trees, THE STRIP's pyramid stepped in light
+// (Milestones 784 to 786): the tower's body worn white and its crown's band cyan; the two tall trees laid on the top tier
+// either side of the grand stair's head; every step of the pyramid outlined at its top, each strip on its step's box
+{
+  const placed = Object.values((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks).flatMap((ch) => ch.place);
+  const tower = placed.find((q) => String(q[0]).endsWith("/StreetBuilding00_10x10.prefab") && Number(q[3]) < -130);
+  const tm = String(tower?.[6] ?? "");
+  const LM = (cfg.rules.districts as unknown as { terraces: { garden: { landmarks?: Array<[string, number, number]> } } }).terraces.garden.landmarks ?? [];
+  const trees = LM.filter(([name, x, z]) => placed.some((q) => String(q[0]).endsWith(`/${name}`) && Math.hypot(Number(q[1]) - x, Number(q[3]) - z) < 1.5 && Number(q[2]) > 8.9)).length;
+  // (by its pivot, which stands off its pit's middle by about a metre: the layout lays a piece by its footprint's middle)
+  const { outlineBoxes } = await import("../../src/game/outlines");
+  const stepBoxes = outlineBoxes((n) => n.startsWith("the strip pyramid step"));
+  const S4 = (SOLIDS as { solids: number[][] }).solids;
+  const off = stepBoxes.filter((b) => !S4.some((q) => q[0] < b[1] + 0.1 && q[1] > b[0] - 0.1 && q[2] < b[3] + 0.1 && q[3] > b[2] - 0.1 && Math.abs(q[5] - b[5]) < 0.06)).length;
+  check(
+    "GLASS HEIGHTS' tower white with a cyan crown, THE TERRACES' two tall trees on its top tier, THE STRIP's pyramid's every step edged in light at its top",
+    tm.includes("MetalBare02=PlasticWhite01") && tm.includes("MetalBare01_lgt 2=") && LM.length === 2 && trees === 2 && stepBoxes.length === 56 && off === 0,
+    `tower ${tm.includes("PlasticWhite01") ? "white" : "not white"}, ${trees} of ${LM.length} trees on the top tier, ${stepBoxes.length} step strips, ${off} off their steps`
   );
 }
 
