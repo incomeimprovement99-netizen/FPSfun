@@ -16424,3 +16424,16 @@ From the reviews of 2026-10-24 (the centre's round 10, the districts' round 4; d
 - **Checked:** the skyline's check holds the low blocks past the out-of-bounds margin; the perches' check counts 35; the
   hand-placed pieces' check THE CANYON's 18 bundles (1506 blocks past the fence, none within 192 m; 35 perches, each piece on its roof; THE CANYON's 18 bundles, 26 hand-placed pieces all laid). No e2e this week. verify, rules and tsc. Map files
   version 107: lo 179.9 MB, hi 259.9 MB, max 556.8 MB.
+
+## Milestone 774 — Every climb lit from the street
+
+The centre's review of 2026-10-24 (round 10) ranked fifth "make every climb visible from the street: a lit gantry or
+light pillar at the foot of each lift, jump pad and fire escape": from the street "the only cues are small rings".
+
+- **A lit frame at the foot of each climb:** two posts and a lintel across its way up, 2.2 m apart and 3 m high, in its
+  place's colour (the pads' rings' colours), at the corner blocks' three fire escapes, the High City's two, the Sky Ring's
+  four stairs (under its deck) and the base's four: an outline's `frames` (src/game/outlines.ts, `game.outlines` "the
+  climbs"). Each measured off the collision's first step: the fire escapes' flights rise away from their pivots, not
+  toward them, and the corner blocks' first steps are 1.5 m up, a mantle from the street. The pads keep their rings.
+- **Checked:** a new check stands each frame on the street within 2.5 m of its climb's first step (13 frames), proven
+  by moving one 10 m off its stair. No e2e this week. verify, rules and tsc. Game side only: map files version 107.

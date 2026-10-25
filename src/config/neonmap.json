@@ -92394,9 +92394,99 @@
     "h": 0.03,
     "colour": "#ffc94a",
     "glow": 2.4
+   },
+   {
+    "name": "the climbs",
+    "frames": [
+     [
+      -84.1,
+      -65.25,
+      90,
+      0
+     ],
+     [
+      69.9,
+      -65.25,
+      90,
+      0
+     ],
+     [
+      -88.75,
+      79.6,
+      0,
+      0
+     ],
+     [
+      5.6,
+      79.75,
+      90,
+      0
+     ],
+     [
+      79.75,
+      -5.6,
+      0,
+      0
+     ],
+     [
+      38.0,
+      -1.06,
+      90,
+      0
+     ],
+     [
+      1.06,
+      38.0,
+      0,
+      0
+     ],
+     [
+      -38.0,
+      1.06,
+      90,
+      0
+     ],
+     [
+      -1.06,
+      -38.0,
+      0,
+      0
+     ],
+     [
+      22.56,
+      -15.3,
+      0,
+      0
+     ],
+     [
+      -22.56,
+      15.3,
+      0,
+      0
+     ],
+     [
+      -3.4,
+      -17.06,
+      90,
+      0
+     ],
+     [
+      3.4,
+      17.06,
+      90,
+      0
+     ]
+    ],
+    "span": 2.2,
+    "y": 0,
+    "out": 0,
+    "w": 0.12,
+    "h": 3,
+    "colour": "place",
+    "glow": 2.2
    }
   ],
-  "_outlines": "Milestone 676 (the centre's review, round 9: 'the tower has no crown light and is a black slab at night'): neon outlines drawn by the game (src/game/outlines.ts): `posts`, a post `w` square at each corner of `rect` from `y` up `h`, the tower's corners from its base's roof to its crown; or a `rect` outline, four strips `out` metres round it at `y`, `w` wide and `h` high, a ring round its crown; in THE VAULT's amber at `glow` times. (THE WELL's rim was tried, first as a strip round its hole, which lay under the raised paving, then as caps and lines along its rail's cells off the collision, which drew as flat pink bars from the review's spot over the shaft; its bottom keeps its pool of light. An outline may also name a list of cfg.well, `on`, for a line down each box's top.) Since the districts' review (round 3): GLASS HEIGHTS' 72 m tower and THE STRIP's 87 m tower lit at their corners and crowns in their districts' colours (each a landmark seen from across the map: 'its own crown, a halo visible from across the map'), their footprints and tops as the layout measured them (cfg.glass.slabs, cfg.strip.tower); and `lines`, a lit line either side of a route ([x, z, y] points) `side` metres off its middle, laid in `step`-metre steps so it climbs a flight with it: THE TERRACES' grand stair, rules.districts.terraces.walks.grand, in its green ('a lit grand stair, visible from the ring, on the d04 axis'). THE STRIP's pyramid edged in magenta (round 3: 'give the pyramid lit step edges so it reads as a pyramid'): a line up each of its four ridges from its foot's corners to its top (cfg.strip.pyramid, as the layout measured it) and round its foot. THE VAULT's floor edged in gold light 0.6 m in from the tower's walls (round 9: 'no lighting drama'). GLASS HEIGHTS' and THE STRIP's towers' corners and crowns (Milestone 685) were taken out in Milestone 689: drawn at their pieces' bounding boxes, a metre and a half to seven off their real faces, they stood in the air round each tower as 'a wireframe box', 'debug bounds' (the tenth reviews).",
+  "_outlines": "Milestone 676 (the centre's review, round 9: 'the tower has no crown light and is a black slab at night'): neon outlines drawn by the game (src/game/outlines.ts): `posts`, a post `w` square at each corner of `rect` from `y` up `h`, the tower's corners from its base's roof to its crown; or a `rect` outline, four strips `out` metres round it at `y`, `w` wide and `h` high, a ring round its crown; in THE VAULT's amber at `glow` times. (THE WELL's rim was tried, first as a strip round its hole, which lay under the raised paving, then as caps and lines along its rail's cells off the collision, which drew as flat pink bars from the review's spot over the shaft; its bottom keeps its pool of light. An outline may also name a list of cfg.well, `on`, for a line down each box's top.) Since the districts' review (round 3): GLASS HEIGHTS' 72 m tower and THE STRIP's 87 m tower lit at their corners and crowns in their districts' colours (each a landmark seen from across the map: 'its own crown, a halo visible from across the map'), their footprints and tops as the layout measured them (cfg.glass.slabs, cfg.strip.tower); and `lines`, a lit line either side of a route ([x, z, y] points) `side` metres off its middle, laid in `step`-metre steps so it climbs a flight with it: THE TERRACES' grand stair, rules.districts.terraces.walks.grand, in its green ('a lit grand stair, visible from the ring, on the d04 axis'). THE STRIP's pyramid edged in magenta (round 3: 'give the pyramid lit step edges so it reads as a pyramid'): a line up each of its four ridges from its foot's corners to its top (cfg.strip.pyramid, as the layout measured it) and round its foot. THE VAULT's floor edged in gold light 0.6 m in from the tower's walls (round 9: 'no lighting drama'). GLASS HEIGHTS' and THE STRIP's towers' corners and crowns (Milestone 685) were taken out in Milestone 689: drawn at their pieces' bounding boxes, a metre and a half to seven off their real faces, they stood in the air round each tower as 'a wireframe box', 'debug bounds' (the tenth reviews). Since Milestone 774 'the climbs': a lit frame, two posts and a lintel `span` apart and `h` high, at the foot of each fire escape (the corner blocks' three, the High City's two), each of the Sky Ring's four stairs and the base's four, in its place's colour (the pads' rings'), measured off the collision: the centre's tenth review, 'make every climb visible from the street'.",
   "_fillRects": "Milestone 688 (round 9 and districts round 3: THE TERMINAL's concourse 'nearly black', THE WORKS' halls dark): the fill's grid also over each `fill.rects` [x0, x1, z0, z1, floor]: THE TERMINAL's halls and each of THE WORKS' halls (the works block's upper floor too), off anything solid as the rest are.",
   "zipCable": "#25242b"
  },

@@ -4158,5 +4158,22 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// every climb marked (Milestone 774): a lit frame at the foot of each fire escape and each stair onto the Sky Ring and the
+// base, standing on the street, each within 2.5 m of the climb's first step (the collision's lowest step box under 0.6 m,
+// or for the fire escapes, whose first step is 1.5 m up, a step box under 2 m)
+{
+  const { outlineBoxes } = await import("../../src/game/outlines");
+  const CL = (cfg.game as unknown as { outlines: Array<{ name: string; frames?: number[][] }> }).outlines.find((q) => q.name === "the climbs");
+  const boxes = outlineBoxes();
+  const S2 = (SOLIDS as { solids: number[][] }).solids;
+  const far = (CL?.frames ?? []).filter(([x, z]) => !S2.some((b) => b[5] > 0.1 && b[5] < 2 && b[4] < 1.6 && Math.max(b[0] - x, x - b[1], 0) < 2.5 && Math.max(b[2] - z, z - b[3], 0) < 2.5));
+  const onStreet = (CL?.frames ?? []).every(([, , , y]) => y === 0);
+  check(
+    "every climb marked: a lit frame at the foot of each fire escape and each stair onto the Sky Ring and the base, on the street, by its first step",
+    !!CL && (CL.frames ?? []).length === 13 && far.length === 0 && onStreet && boxes.length >= 39,
+    `${CL?.frames?.length ?? 0} frames${far.length ? `; no step by ${far.map(([x, z]) => `(${x}, ${z})`).join(", ")}` : ""}`
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);
