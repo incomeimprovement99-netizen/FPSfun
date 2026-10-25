@@ -1342,8 +1342,8 @@ low shophouses under lantern lines meeting at a pole in its court, jump pads up 
 the west: three garden tiers stepping up to the edge, a grand stair up the middle, a run of
 balconied blocks along the top to climb and drop across, and rooms open in the tiers' walls, each lit and
 furnished; and
-THE TERMINAL in the south: a station hall of arcades under hex glass vaults, lit amber, a metro train at its
-platform and trams on the strips beside it, jump pads onto its vault roofs; and THE STACKS
+THE TERMINAL in the south: a station hall of arcades under hex glass vaults, lit amber, metro map boards and
+ticket machines along its concourses, a metro train at its platform and trams on the strips beside it, jump pads onto its vault roofs; and THE STACKS
 in the north-west: three towers of stacked capsule pods round an avenue and a car park, and a
 capsule hotel of 21 pods on three storeys round a court, galleries and stairs up to its roof, lit pink by
 night, and a jump pad onto a pod roof 20 m up the twin towers; and GLASS HEIGHTS in the north: white glass
@@ -1422,7 +1422,7 @@ station put together as its demo scene puts it: a glass-roofed hall on the plaza
 down to a platform with a train at it, a tunnel off into the dark, and a marble
 concourse behind the platform, closed on every side, and reached from the tower's
 court too: a door in its south wall, a corridor and a ramp down to a gate into the
-station's marble hall. Every jump pad has a ring of light on the ground in its place's colour (no beam since Milestone 689). Eight, on the pack's plate, throw you onto High City's
+station's marble hall. Every jump pad has a ring of light on the ground in its place's colour and a short column of its light over it (no beam since Milestone 689). Eight, on the pack's plate, throw you onto High City's
 roofs; four more throw you from the plaza onto the tower's base's roof, one from there up to a lookout
 on the tower's east block at 49 m, two more from there up to the tower's crown at 109 m, and one back
 down off the lookout; and pads in Market and by the Well throw you across onto their higher roofs and on onto the bridge
@@ -1430,7 +1430,7 @@ ring, and the four roofs are joined into a ring round the tower by the pack's
 floating bridges over the street crossings, each riding over its islands' fence
 and stepping down to the roof by a short ramp; the bots' graph covers the street, the roofs and the floors, and a share
 of the loot is on the four roofs, named decks on the map; the four corner blocks are named too (MOTEL HILL, NOODLE
-ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof, and a big neon sign on a roof facing the middle; NOODLE ROW has street food stalls and a canopy of lanterns strung across its streets, MARKET stacks of crates along its pavements, and lamps ring THE WELL's shaft; THE WELL and MARKET have their names in neon letters on the roof of the building facing their junction; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street; and from MOTEL HILL's and NOODLE ROW's roof yards a zip line, a dark cable with lit collars in its block's colour, runs up to a High City deck, and three run from the tower's lookout at 49 m down to the north, east and south decks.
+ROW, MARKET, THE WELL), each with loot of its own through its building and on its roof, and a big neon sign on a roof facing the middle; NOODLE ROW has street food stalls and a canopy of lanterns strung across its streets, MARKET stacks of crates along its pavements, and lamps ring THE WELL's shaft; THE WELL and MARKET have their names in neon letters on the roof of the building facing their junction; and one building along the curves on each corner block is the pack's realistic kind, rooms and stairs inside to walk into from the street, a lit gold frame at its door; and from MOTEL HILL's and NOODLE ROW's roof yards a zip line, a dark cable with lit collars in its block's colour, runs up to a High City deck, and three run from the tower's lookout at 49 m down to the north, east and south decks.
 `tools/checks/sk-neon.ts` rides every pad, walks every bridge from island to island and back, walks the graph, both metro
 entrances and each rooms building's floors from the street, and climbs each fire escape onto its roof and back and into its yard.
 

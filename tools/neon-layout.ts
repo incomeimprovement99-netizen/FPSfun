@@ -4129,7 +4129,7 @@ function onNode(o: OBox): boolean {
 // 6 and z from its pivot less 1 to its pivot plus 20.5. A taxi rank of the pack's urban cars on the forecourt, the
 // district's name over the arcade on the north face. Colliding as their own faces, as the centre's hall does
 {
-  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number; mat?: string }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; concourse?: { machines: string[]; bench: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
+  const TM = (R.districts as { terminal?: { chunk: string; seed: number; hall: { piece: string; lift: number; yaw: number; count: number; x0: number; front: number; mat?: string }; rank: { pieces: string[]; z: number; x: number[]; yaw: number }; trains?: { metro: { piece: string; at: number[]; yaw: number; stop: string; stopGap: number }; plate: string; lift: number; strips: Array<{ x: number; z: number[]; trams: number[][] }>; trams: string[]; bench: string; benches: number[][] }; concourse?: { machines: string[]; bench: string; map?: string; spots: Array<[number, number, string, number]> }; roof?: { pieces: string[]; y: number; at: Pt[] }; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string } } } | undefined)?.terminal;
   if (TM) {
     const H = TM.hall;
     const hr = piece(H.piece).row;
@@ -4194,7 +4194,8 @@ function onNode(o: OBox): boolean {
     for (const [hi, [hx0, hx1, hz0]] of (CC ? halls : []).entries()) {
       const cx = (hx0 + hx1) / 2;
       for (const [si, [dx, dz, kind, yaw]] of CC!.spots.entries()) {
-        const name = kind === "bench" ? CC!.bench : CC!.machines[(hi * CC!.spots.length + si) % CC!.machines.length];
+        // (and the metro's map boards, kind "map", Milestone 777: the station's signs a traveller reads)
+        const name = kind === "bench" ? CC!.bench : kind === "map" && CC!.map ? CC!.map : CC!.machines[(hi * CC!.spots.length + si) % CC!.machines.length];
         const row = piece(name).row;
         const [mx, mz] = rotY(yaw, (row.min![0] + row.max![0]) / 2, (row.min![2] + row.max![2]) / 2);
         const o: OBox = { c: [cx + dx + mx, hz0 + dz + mz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row.size![0] / 2, hv: row.size![2] / 2, top: row.size![1] };

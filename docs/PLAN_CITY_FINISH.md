@@ -341,6 +341,17 @@ and the 16 to 20 m tier still to do)
   - **Then the reviews' round 11 and the districts' round 5.** Larger asks after that: an atrium through the tower's
     floors, the High City blocks in different shapes, roofs cut into islands with gaps. The jagged shadows are the
     renderer's (the lobby side).
+- **After the eleventh reviews (2026-10-25, on version 108: the centre 5.5, the districts 5.5).** Shipped since the tenth:
+  versions 106 (689), 107 (771 to 774), 108 (775, 776) and 109 (777 to 781). Next, from their lists:
+  - **Version 110 (782, 783):** a second perch of cover on GLASS HEIGHTS' deck, THE STACKS' roof, LANTERN ALLEYS' roofs
+    and the lookout; THE WORKS' tanks rusted.
+  - **Then:** THE TERRACES read from the ring road (a landmark on its top tier, its stair lit on the sight line), THE
+    CANYON's market stalls and the bridges' walls, THE WORKS' facades and a catwalk ring in its halls, LANTERN ALLEYS'
+    way in narrowed by shophouse fronts, THE VAULT's round doors and a central chamber, the tower floors told apart,
+    the base's offices dressed, the dark corners lit; the shadows' stair-steps are the renderer's.
+  - The owner's question of 2026-10-24, how far this goes: about 6 to 6.5 with these, about 7 with the structural work
+    (roof islands, a tower atrium, the High City blocks in different shapes, a lighting pass); 8 to 9 would need
+    landmark art made for this map, baked lighting and real players' play.
 
 **Last**
 

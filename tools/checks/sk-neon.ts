@@ -4197,5 +4197,23 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// the pads' columns, the walk-ins' doors and the night's pools (Milestones 779 to 781): a column over every pad's ring, a
+// lit frame at each walk-in's door within a metre of its door, pools under the Sky Ring's deck all round
+{
+  const cols = scene.getObjectByName("padColumns") as THREE.InstancedMesh | undefined;
+  const rings = scene.getObjectByName("padRings") as THREE.InstancedMesh | undefined;
+  const WI = (cfg as unknown as { walkIns: Array<{ door: number[] }> }).walkIns;
+  const DF = (cfg.game as unknown as { outlines: Array<{ name: string; frames?: number[][] }> }).outlines.find((q) => q.name === "the walk-in doors");
+  const byDoor = WI.filter((w) => (DF?.frames ?? []).some(([x, z]) => Math.hypot(x - w.door[0], z - w.door[1]) < 1));
+  const { poolSpots } = await import("../../src/game/lightpools");
+  const SR = (cfg as unknown as { skyring: { r0: number; r1: number } }).skyring;
+  const under = poolSpots().filter(([x, y, z]) => y === 0 && Math.hypot(x, z) > SR.r0 && Math.hypot(x, z) < SR.r1).length;
+  check(
+    "the pads' columns, the walk-ins' doors and the night's pools: a column of light over every pad's ring, a lit frame at each walk-in's door, pools under the Sky Ring all round",
+    !!cols && !!rings && cols.count === rings.count && WI.length === 4 && byDoor.length === 4 && under >= 12,
+    `${cols?.count ?? 0} columns for ${rings?.count ?? 0} rings, ${byDoor.length} of ${WI.length} doors framed, ${under} pools under the Sky Ring`
+  );
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

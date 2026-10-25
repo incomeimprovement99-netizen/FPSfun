@@ -16499,3 +16499,28 @@ read"; THE TERRACES "a tiny, far-off cluster" from the centre; THE WORKS' halls 
 - All drawn by the game as the tower's outlines are (`game.outlines`), by day and by night; no bake.
 - **Checked:** a new check finds every edge and stands each strip within half a metre of something solid (6 of 6 edges, 5 cornices, 1,940 strips, none in the air; proven with a cornice moved 2 m off its walls).
   No e2e this week. verify, rules and tsc.
+
+## Milestones 777 to 781 — THE TERMINAL's map boards, the pads' columns, the walk-ins' doors, softer night pools
+
+From the reviews of 2026-10-24 and 2026-10-25 (the centre's rounds 10 and 11, the districts' rounds 4 and 5;
+docs/CENTRE_REVIEW.md).
+
+- **777, THE TERMINAL reads as a station** ("nothing says 'station'", "a mall arcade"): the metro's map boards, two to
+  each hall either side of its walkway halfway along it, between its ticket machines and its benches
+  (`districts.terminal.concourse.spots` kind "map", the pack's MetroAd_Map00).
+- **778, THE CENTRE's bot fixed, denser district cover tried:** two of the pack's small street boxes on the pavement under
+  the Sky Ring's east side held THE CENTRE's bot from its north spawn 23 m short of the 1v1's circle in two runs of four
+  (the e2e's "its bot reaches the 1v1's circle" failing in one of the lobby's two runs); the street cover keeps off that
+  spot (`dress.cover.keep`). Head-high district cover within 5 and 5.5 m of every spot (6 now) was tried for the
+  districts' "cover rows on the big bare floors": at 5.5 a crate stack shut THE STRIP club's west gate and THE TERMINAL's
+  forecourt took cover in its middle halls' way in, so it stays at 6.
+- **779, the pads readable from across a street** ("make the jump pads readable from 30 m now the cones are gone: a lit
+  ring post or a short glow column"): over each pad's ring a column of its light 1.6 m tall, fading to nothing at its
+  top (src/game/padrings.ts, `game.padRings.column`).
+- **780, every walk-in a door you can read** ("give every walk-in building a door you can read: a lit frame"): a lit
+  frame in warm gold at each walk-in building's door (`game.outlines` "the walk-in doors") and a pool of light before it.
+- **781, softer night pools** ("uniform spotlight discs with pure black between them", "polka dots"; "the plaza under
+  the Sky Ring is unlit"): the street lamps' pools 9 m round at 0.8 (7.5 at 1), twelve pools under the Sky Ring's deck.
+- **Checked:** THE CENTRE's bot traced from its north spawn four times, each reaching the circle (4 of 4 traced runs reaching the circle, best 2.7 to 2.8 m; 45 columns for 45 rings, 4 of 4 doors framed, 12 pools under the Sky Ring); a new check
+  for the columns, the doors' frames and the pools under the Sky Ring. No e2e this week. verify, rules and tsc. Map
+  files version 109: lo 181.6 MB, hi 261.8 MB, max 559.3 MB.

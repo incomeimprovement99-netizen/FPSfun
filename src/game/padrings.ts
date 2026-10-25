@@ -9,7 +9,7 @@ import neonCfg from "../config/neonmap.json";
 import { BR_X, BR_Z } from "./br";
 
 type Sector = { id: string; accent: string; minX: number; maxX: number; minZ: number; maxZ: number };
-const G = (neonCfg as unknown as { game: { padRings: { inner: number; outer: number; glow: number; opacity: number; band: number; district: Record<string, string> }; sectors: Sector[] } }).game;
+const G = (neonCfg as unknown as { game: { padRings: { inner: number; outer: number; glow: number; opacity: number; band: number; district: Record<string, string>; column?: { h: number; k: number } }; sectors: Sector[] } }).game;
 const R = G.padRings;
 
 /** a pad's colour: its district's past the ring road (`band` from the middle), its sector's inside it (map metres) */
@@ -37,5 +37,28 @@ export function buildPadRings(root: THREE.Object3D, pads: Array<{ x: number; z: 
   rings.frustumCulled = false;
   rings.userData.dynamic = true;
   root.add(rings);
+  // (and over each ring a short column of its light, `column`, bright at the ring and gone `h` up: the centre's eleventh
+  // review could not read the rings from 30 m once the pack's cones were gone, Milestone 779; a vertex colour fades it,
+  // added to what is behind it, so its top is nothing)
+  const C = R.column;
+  if (C) {
+    const cg = new THREE.CylinderGeometry(R.outer, R.outer, C.h, 40, 1, true).translate(0, C.h / 2, 0);
+    const pos = cg.getAttribute("position");
+    const fade = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) fade.fill(Math.max(0, 1 - pos.getY(i) / C.h) * C.k, i * 3, i * 3 + 3);
+    cg.setAttribute("color", new THREE.BufferAttribute(fade, 3));
+    const cm = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: true });
+    cm.userData.decay = true;
+    const cols = new THREE.InstancedMesh(cg, cm, pads.length);
+    pads.forEach((p, i) => {
+      const [x, z] = [p.x - BR_X, p.z - BR_Z];
+      cols.setMatrixAt(i, m4.makeTranslation(x, (p.y ?? 0) + 0.04, z));
+      cols.setColorAt(i, padColour(x, z).multiplyScalar(R.glow));
+    });
+    cols.name = "padColumns";
+    cols.frustumCulled = false;
+    cols.userData.dynamic = true;
+    root.add(cols);
+  }
   return rings;
 }
