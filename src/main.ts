@@ -7891,7 +7891,7 @@ function step(): void {
     tutorial: tutorialHud,
     markers: duel instanceof BrMatch ? brPlay.hud.markers : null,
     captions: captions.mode === "off" ? null : captions.live(gameTime).map((l) => ({ text: l.text, where: l.where, range: l.range })),
-    pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), pick: pingPick } : null,
+    pingWheel: pingWheelOpen ? { items: PING_INTENTS.map((x) => x.label), icons: PING_INTENTS.map((x) => x.icon), pick: pingPick } : null,
     spectating: watch ? { name: watchName || watchMate?.name || "SOMEONE", first: !!watchMate && watchMate.id < Duel.BOT_ID && spectateFirst, of: duel ? duel.spectateList().length : 1, at: watchIndex + 1 } : null,
     voice: hudVoice,
     trainer: trainer.hud(now),

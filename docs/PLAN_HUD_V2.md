@@ -60,3 +60,4 @@ What makes theirs look paid, in one line each:
 - **Milestone 701:** the kill feed's gun outlines between the names, a headshot's mark, and a kill's skull.
 - **Milestone 704:** every panel that comes and goes (the prompt, the match code, the dropship, the Gulag, out of
   bounds, the notices) on the same plates.
+- **Milestone 720:** the ping and emote wheels as rings of slices on the plates, each ping with its picture.

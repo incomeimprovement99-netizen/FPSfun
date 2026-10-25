@@ -956,13 +956,14 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
     await ev(guest, "window.__range.input.locked = true");
     await guest.mouse.down({ button: "middle" });
     await sleep(450);
-    const wheel = await ev<{ open: boolean; items: number; pick: number | null }>(
+    const wheel = await ev<{ open: boolean; items: number; icons: number; pick: number | null }>(
       guest,
-      `(() => { const w = window.__range.hud.last?.pingWheel ?? null; return { open: !!w, items: w ? w.items.length : 0, pick: w ? w.pick : null }; })()`
+      `(() => { const w = window.__range.hud.last?.pingWheel ?? null; return { open: !!w, items: w ? w.items.length : 0, icons: w?.icons ? w.icons.filter(Boolean).length : 0, pick: w ? w.pick : null }; })()`
     );
     await guest.mouse.up({ button: "middle" });
     await sleep(150);
-    check("squad: holding the ping key opens the wheel of what a mark means", wheel.open && wheel.items === 6, JSON.stringify(wheel));
+    // (each slice with its picture since Milestone 720)
+    check("squad: holding the ping key opens the wheel of what a mark means, each with its picture", wheel.open && wheel.items === 6 && wheel.icons === 6, JSON.stringify(wheel));
     const sent = await ev<{ label: string | null }>(
       guest,
       `new Promise((ok) => { const r = window.__range; const d = r.duel();

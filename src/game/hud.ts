@@ -232,7 +232,7 @@ export interface HudState {
   /** sound captions (src/game/captions.ts): what was heard, which way and how far */
   captions?: Array<{ text: string; where: string; range: string }> | null;
   /** the ping wheel (the ping key, held): what a mark would mean, and the one the mouse points at */
-  pingWheel?: { items: string[]; pick: number | null } | null;
+  pingWheel?: { items: string[]; icons?: string[]; pick: number | null } | null;
   /**
    * What you are carrying, held open on Tab (Milestone 706): your two guns with their fusion level and what it gives,
    * your two hacks with their level, cooldown and what each does, and your shield and health, Hyper Scape's own Tab.
@@ -625,7 +625,8 @@ export class Hud {
     this.drawVitals(s, u);
     this.drawWeapons(s, u);
     this.drawCourse(s, u);
-    this.drawNotice(now, u);
+    // (a notice waits under a wheel or the carry card, which sit where it is: Milestone 720)
+    this.drawNotice(now, u, !!(s.pingWheel || s.emoteWheel || s.inventory));
     // (not under a wheel or the carry card, which sit where they are and hid them half under it: Milestone 706)
     if (!s.pingWheel && !s.emoteWheel && !s.inventory) {
       this.drawPrompt(s, u);
@@ -2425,7 +2426,7 @@ export class Hud {
     c.shadowBlur = 0;
   }
 
-  private drawNotice(now: number, u: number): void {
+  private drawNotice(now: number, u: number, covered = false): void {
     // an enemy's REVEAL has you (Milestone 695): under the compass and the battle royale's counts, over its zone line
     if (now < this.revealedUntil) {
       const c = this.ctx;
@@ -2435,7 +2436,7 @@ export class Hud {
       c.fillRect(this.w / 2 - 96 * u, y - 19 * u, 192 * u, 26 * u);
       this.text(`REVEALED  ·  ${Math.ceil(this.revealedUntil - now)}`, this.w / 2, y, 800, 16 * u, "#ff4a4a", "center");
     }
-    if (now >= this.noticeUntil) return;
+    if (now >= this.noticeUntil || covered) return;
     const a = Math.min(1, (this.noticeUntil - now) / 0.25);
     this.ctx.globalAlpha = a;
     // on a gold-edged plate as wide as it (Milestone 704): bare gold text was lost on a lit street
@@ -3094,33 +3095,93 @@ export class Hud {
     }
   }
 
-  /** the ping wheel: what a mark would mean, six round the middle */
+  /** the ping wheel: what a mark would mean, six round the middle, each with its picture */
   private drawPingWheel(s: HudState, u: number): void {
     const w = s.pingWheel;
     if (!w) return;
+    this.drawWheel(w.items, w.icons ?? null, w.pick, "90, 190, 255", "PING", "MOVE TO WHAT YOU MEAN, LET GO TO MARK IT", u);
+  }
+
+  /**
+   * A wheel (Milestone 720): its choices as slices of one ring round the middle, as Apex's ping wheel and Hyper Scape's
+   * are, on the HUD's plates: each a dark slice lit from inside, its picture over its name, the one pointed at lit in
+   * the wheel's colour and pushed out a little, and its name again in the hub. They were dark discs, the HUD's last
+   * shapes from before its plates. The slices are where pingPickAt and the emote pick already look: the first at the
+   * top, clockwise.
+   */
+  private drawWheel(items: string[], icons: string[] | null, pick: number | null, rgb: string, title: string, hint: string, u: number): void {
     const c = this.ctx;
     const cx = this.w / 2;
     const cy = this.h / 2;
-    const R = 130 * u;
-    c.fillStyle = "rgba(0,0,0,0.35)";
+    const inner = 66 * u;
+    const outer = 182 * u;
+    const n = Math.max(1, items.length);
+    const half = Math.PI / n;
+    const gap = Math.min(0.04, half * 0.12);
+    // the world dimmed round it, so the slices read over a lit street
+    const back = c.createRadialGradient(cx, cy, inner, cx, cy, outer + 70 * u);
+    back.addColorStop(0, "rgba(0,0,0,0.42)");
+    back.addColorStop(1, "rgba(0,0,0,0)");
+    c.fillStyle = back;
     c.beginPath();
-    c.arc(cx, cy, R + 56 * u, 0, Math.PI * 2);
+    c.arc(cx, cy, outer + 70 * u, 0, Math.PI * 2);
     c.fill();
-    w.items.forEach((name, i) => {
-      const a = (i / w.items.length) * Math.PI * 2;
-      const x = cx + Math.sin(a) * R;
-      const y = cy - Math.cos(a) * R;
-      const on = w.pick === i;
-      c.fillStyle = on ? "rgba(90,190,255,0.3)" : "rgba(8,10,12,0.75)";
+    items.forEach((name, i) => {
+      const on = pick === i;
+      const a = (i / n) * Math.PI * 2;
+      // (the canvas measures from the right, clockwise; the wheel from the top)
+      const t0 = a - Math.PI / 2 - half + gap;
+      const t1 = a - Math.PI / 2 + half - gap;
+      const push = on ? 8 * u : 0;
+      const ox = cx + Math.sin(a) * push;
+      const oy = cy - Math.cos(a) * push;
       c.beginPath();
-      c.arc(x, y, 44 * u, 0, Math.PI * 2);
+      c.arc(ox, oy, outer, t0, t1);
+      c.arc(ox, oy, inner, t1, t0, true);
+      c.closePath();
+      const g = c.createRadialGradient(ox, oy, inner, ox, oy, outer);
+      g.addColorStop(0, on ? `rgba(${rgb}, 0.42)` : `rgba(${PLATE.top}, 0.8)`);
+      g.addColorStop(1, on ? `rgba(${rgb}, 0.18)` : `rgba(${PLATE.bottom}, 0.78)`);
+      c.fillStyle = g;
       c.fill();
-      c.strokeStyle = on ? "#5abeff" : "rgba(255,255,255,0.25)";
-      c.lineWidth = 2 * u;
+      c.lineWidth = (on ? 2 : 1) * u;
+      c.strokeStyle = on ? `rgb(${rgb})` : `rgba(255,255,255,${PLATE.edge})`;
       c.stroke();
-      for (const [j, line] of name.split(" ").entries()) this.text(line, x, y + (j - (name.split(" ").length - 1) / 2) * 13 * u + 4 * u, 700, 11 * u, on ? "#5abeff" : WHITE, "center");
+      // its outer edge lit, the plates' lit top
+      c.beginPath();
+      c.arc(ox, oy, outer - 1.5 * u, t0 + 0.01, t1 - 0.01);
+      c.strokeStyle = on ? `rgb(${rgb})` : `rgba(255,255,255,${PLATE.lit})`;
+      c.lineWidth = (on ? 3 : 1) * u;
+      c.stroke();
+      const mid = (inner + outer) / 2 + 4 * u;
+      const x = ox + Math.sin(a) * mid;
+      const y = oy - Math.cos(a) * mid;
+      const col = on ? `rgb(${rgb})` : WHITE;
+      const icon = icons?.[i];
+      const drew = !!icon && drawIcon(c, icon, x, y - 12 * u, 28 * u, on ? "#ffffff" : "rgba(230,235,240,0.85)");
+      const lines = name.split(" ");
+      const ly = drew ? y + 14 * u : y - ((lines.length - 1) * 13 * u) / 2 + 4 * u;
+      lines.forEach((line, j) => this.text(line, x, ly + j * 13 * u, 700, 11 * u, col, "center"));
     });
-    this.text("MOVE TO WHAT YOU MEAN, LET GO TO MARK IT", cx, cy + R + 76 * u, 700, 13 * u, DIM, "center");
+    // the hub: what letting go would do
+    c.beginPath();
+    c.arc(cx, cy, inner - 8 * u, 0, Math.PI * 2);
+    const hub = c.createLinearGradient(0, cy - inner, 0, cy + inner);
+    hub.addColorStop(0, `rgba(${PLATE.top}, 0.85)`);
+    hub.addColorStop(1, `rgba(${PLATE.bottom}, 0.85)`);
+    c.fillStyle = hub;
+    c.fill();
+    c.lineWidth = 1 * u;
+    c.strokeStyle = pick !== null ? `rgb(${rgb})` : `rgba(255,255,255,${PLATE.edge})`;
+    c.stroke();
+    const said = pick !== null ? items[pick] : title;
+    const words = said.split(" ");
+    words.forEach((wd, j) => this.text(wd, cx, cy + 5 * u + (j - (words.length - 1) / 2) * 15 * u, 700, pick !== null ? 14 * u : 13 * u, pick !== null ? `rgb(${rgb})` : DIM, "center"));
+    // what to do, on a plate under it
+    c.font = this.font(700, 13 * u);
+    const hw = c.measureText(hint).width + 28 * u;
+    this.plate(cx - hw / 2, cy + outer + 22 * u, hw, 26 * u, u);
+    this.text(hint, cx, cy + outer + 40 * u, 700, 13 * u, DIM, "center");
   }
 
   /**
@@ -3204,33 +3265,11 @@ export class Hud {
     this.text("HOLD TAB", this.w / 2, y0 + h - 14 * u, 700, 12 * u, DIM, "center");
   }
 
-  /** the emote wheel: six round the middle, the one pointed at lit */
+  /** the emote wheel: the emotes round the middle, the one pointed at lit (drawWheel, in gold) */
   private drawEmoteWheel(s: HudState, u: number): void {
     const w = s.emoteWheel;
     if (!w) return;
-    const c = this.ctx;
-    const cx = this.w / 2;
-    const cy = this.h / 2;
-    const R = 120 * u;
-    c.fillStyle = "rgba(0,0,0,0.35)";
-    c.beginPath();
-    c.arc(cx, cy, R + 50 * u, 0, Math.PI * 2);
-    c.fill();
-    w.items.forEach((name, i) => {
-      const a = (i / w.items.length) * Math.PI * 2;
-      const x = cx + Math.sin(a) * R;
-      const y = cy - Math.cos(a) * R;
-      const on = w.pick === i;
-      c.fillStyle = on ? "rgba(255,210,60,0.3)" : "rgba(8,10,12,0.75)";
-      c.beginPath();
-      c.arc(x, y, 38 * u, 0, Math.PI * 2);
-      c.fill();
-      c.strokeStyle = on ? "#ffd23c" : "rgba(255,255,255,0.25)";
-      c.lineWidth = 2 * u;
-      c.stroke();
-      this.text(name, x, y + 5 * u, 700, 12 * u, on ? "#ffd23c" : WHITE, "center");
-    });
-    this.text("MOVE TO AN EMOTE, LET GO TO PLAY IT", cx, cy + R + 70 * u, 700, 13 * u, DIM, "center");
+    this.drawWheel(w.items, null, w.pick, "255, 210, 60", "EMOTE", "MOVE TO AN EMOTE, LET GO TO PLAY IT", u);
   }
 
   private drawStats(s: HudState, u: number): void {

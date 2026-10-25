@@ -12709,6 +12709,23 @@ weapons/hacks, just keep the circle around it on the ground".
   over every item it failed, 119 beams). Its first run on a machine at 100% CPU never started its matches, and the run
   after passed.
 
+## Milestone 720 — The ping and emote wheels as rings of slices, on the HUD's plates
+
+The two wheels were the HUD's last shapes from before its plates (Milestones 697 to 709): a ring of dark discs, each
+with its name. Now (hud.ts drawWheel) each is a ring of slices round the middle, as Apex's ping wheel and Hyper
+Scape's are:
+
+- **Each slice** a dark plate lit from inside, its outer edge lit as a plate's top is; the ping wheel's slices carry a
+  picture over the name (brplay.ts PING_INTENTS icon: a map for GOING HERE, swords for ATTACKING, an eye for WATCHING,
+  a skull for ENEMY, a backpack for LOOT, a shield for DEFENDING).
+- **The slice pointed at** lit in the wheel's colour (the ping wheel's blue, the emote wheel's gold) and pushed out a
+  little, its name again in the hub; with none picked the hub says PING or EMOTE.
+- **The hint** under it on a plate; the world round it dimmed; a notice waits until the wheel or the carry card closes
+  (it ran across the slices).
+- **The same picks:** the slices sit where pingPickAt and the emote pick already look, the first at the top, clockwise.
+- **Checked:** tsc, verify, rules; e2e squad, its wheel check now asks for a picture on each slice (with them taken
+  out it failed, 0 of 6); photographed at 1080p and 720p, with a slice picked and without.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -158,13 +158,14 @@ const PAD_UP = squad.pad.up;
  * (The "ammo" slice says LOOT HERE since Milestone 706: SpeedKills' ammo is endless, and NEED AMMO asked for nothing.
  * Its id, and its life in squad.json, stay; an older build's NEED AMMO still marks, with a loot mark's life.)
  */
-export const PING_INTENTS: ReadonlyArray<{ id: "go" | "defend" | "attack" | "ammo" | "watch" | "enemy"; label: string; marker: "enemy" | "loot" | "go" }> = [
-  { id: "go", label: "GOING HERE", marker: "go" },
-  { id: "attack", label: "ATTACKING HERE", marker: "go" },
-  { id: "watch", label: "WATCHING HERE", marker: "go" },
-  { id: "enemy", label: "ENEMY HERE", marker: "enemy" },
-  { id: "ammo", label: "LOOT HERE", marker: "loot" },
-  { id: "defend", label: "DEFENDING HERE", marker: "go" },
+export const PING_INTENTS: ReadonlyArray<{ id: "go" | "defend" | "attack" | "ammo" | "watch" | "enemy"; label: string; marker: "enemy" | "loot" | "go"; icon: string }> = [
+  // (`icon` its picture on the wheel, public/icons: Milestone 720)
+  { id: "go", label: "GOING HERE", marker: "go", icon: "map" },
+  { id: "attack", label: "ATTACKING HERE", marker: "go", icon: "swords" },
+  { id: "watch", label: "WATCHING HERE", marker: "go", icon: "eye" },
+  { id: "enemy", label: "ENEMY HERE", marker: "enemy", icon: "skull" },
+  { id: "ammo", label: "LOOT HERE", marker: "loot", icon: "backpack" },
+  { id: "defend", label: "DEFENDING HERE", marker: "go", icon: "shield" },
 ];
 
 /** the slice of the wheel a direction points at (the same maths as the emote and heal wheels) */
