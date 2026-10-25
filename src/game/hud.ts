@@ -243,6 +243,8 @@ export interface HudState {
     guns: Array<{ id: string | null; name: string; kind: string | null; clip: number; size: number; inHand: boolean; level: number; max: number; perks: string[] }>;
     hacks: Array<{ id: string; name: string; slot: "mobility" | "utility"; key: string; level: number; max: number; left: number; cooldown: number; blurb: string } | null>;
     vitals: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
+    /** the key that holds it open on the device in hand, "" where it has none (Milestone 721) */
+    key?: string;
   } | null;
   /** nameplates over the other players and the bots */
   plates?: Array<{ world: THREE.Vector3; name: string; health: number; shield: number; shieldMax: number; alive: boolean; ally?: boolean; aimbot?: boolean }>;
@@ -1116,6 +1118,8 @@ export class Hud {
 
   /** the bottom of the keys panel this frame, for the kill feed to start under (0: not shown) */
   private hintsBottom = 0;
+  /** the keys panel's left edge this frame, 0 when it is not drawn (the loot card keeps off it: Milestone 721) */
+  private hintsLeft = 0;
 
   /**
    * The keys on screen (keyhints.json): up on the right under the FPS, a row a
@@ -1213,11 +1217,14 @@ export class Hud {
 
   private drawKeyHints(s: HudState, u: number): void {
     this.hintsBottom = 0;
+    this.hintsLeft = 0;
     const k = s.keyHints;
-    if (!k || !k.rows.length) return;
+    // (not under the carry card, which on a narrow screen reached across it: Milestone 721)
+    if (!k || !k.rows.length || s.inventory) return;
     const right = this.w - 30 * u;
     const width = 330 * u;
     const left = right - width;
+    this.hintsLeft = left - 12 * u;
     const rowH = 27 * u;
     const top = 116 * u;
     const head = 26 * u;
@@ -1919,8 +1926,12 @@ export class Hud {
     const noteH = 15 * u;
     const lines = (v.sayMore ? 1 : 0) + (v.heads ? 1 : 0) + v.rows.length;
     const h = pad * 2 + 30 * u + 22 * u + lines * rowH + (noteLines.length ? 10 * u + noteLines.length * noteH : 0);
-    const x = this.w / 2 + 70 * u;
     const y = this.h * 0.42 - h / 2;
+    // right of the crosshair, or left of it where the keys panel would be under it (a narrow screen: at 1024 by 768 the
+    // two lay one over the other, Milestone 721)
+    const right = this.w / 2 + 70 * u;
+    const underKeys = this.hintsLeft > 0 && right + w > this.hintsLeft && y < this.hintsBottom;
+    const x = underKeys ? this.w / 2 - 70 * u - w : right;
     const accent = v.verdict === "fuse" ? "#3cf2ff" : v.verdict === "max" ? DIM : v.verdict === "swap" ? "#ffd23c" : "#7ddc8a";
     this.plate(x, y, w, h, u, accent, 1.15);
     this.edge(x, y, w, h, u);
@@ -3262,7 +3273,9 @@ export class Hud {
       this.text(`COOLDOWN ${Math.round(hk.cooldown)} S`, x + cw - 14 * u, y + 98 * u, 700, 13 * u, WHITE, "right");
       this.text(hk.blurb, x + 20 * u, y + 126 * u, 600, 13 * u, "rgba(230,235,240,0.85)");
     });
-    this.text("HOLD TAB", this.w / 2, y0 + h - 14 * u, 700, 12 * u, DIM, "center");
+    // (the key on the device in hand: it said HOLD TAB to a pad player too, Milestone 721)
+    const hold = inv.key ?? "TAB";
+    if (hold) this.text(`HOLD ${hold}`, this.w / 2, y0 + h - 14 * u, 700, 12 * u, DIM, "center");
   }
 
   /** the emote wheel: the emotes round the middle, the one pointed at lit (drawWheel, in gold) */

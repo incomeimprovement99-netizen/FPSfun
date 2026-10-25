@@ -12726,6 +12726,26 @@ Scape's are:
 - **Checked:** tsc, verify, rules; e2e squad, its wheel check now asks for a picture on each slice (with them taken
   out it failed, 0 of 6); photographed at 1080p and 720p, with a slice picked and without.
 
+## Milestone 721 — The HUD with a pad and on a narrow screen
+
+Photographed as a pad player sees it at 1920 by 1080, 1280 by 720 and 1024 by 768 (scratch padhud.mts):
+
+- **Keys no button of the pad's does:** the list of what is at your feet said "T: NEXT ITEM" and the carry card "HOLD
+  TAB" to a pad player, since a key's name falls back to the keyboard's where the pad has no button for it. A new
+  main.ts keyOnDevice gives "" for those, and neither line is drawn then.
+- **The loot card over the keys panel:** at 4:3 the card right of the crosshair lay over the keys panel down the right;
+  it goes left of the crosshair when it would.
+- **The keys panel under the carry card:** at 4:3 the card reached across it; the panel waits while the card is open.
+- **The e2e's loot start flake, found:** its check that what you die with goes down loose had failed a few times under
+  load, the player already out before the death it makes. The detail added on 2026-10-19 and today said who: OUT OF
+  BOUNDS. The test's open-ground finder (window.__range.openGround) searched 120 m round the landing with no thought of
+  the city's edge, and could stand the player past it, where the edge's countdown took them; in a battle royale it now
+  keeps inside the city.
+- **Checked:** tsc, verify, rules; e2e brsolo, a new check: the carry card's hint is TAB on a keyboard and none on a pad
+  (with the old key put back it failed, TAB on both); e2e speedkills twice with the open-ground fix (the loot start's
+  check passed both times, the player alive before the death; the second run's THE CENTRE bot fell 23 m short of the
+  circle on the city's graph once, a bot pathing flake of the city's); photographed at all three sizes.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

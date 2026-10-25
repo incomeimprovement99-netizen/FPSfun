@@ -3738,7 +3738,15 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     host,
     `(() => { const v = window.__range.hud.last?.inventory ?? null; return v ? { guns: v.guns.map((g) => [g.id ?? null, g.level ?? -1, (g.perks ?? []).length]), hacks: (v.hacks ?? []).map((h) => h && [h.id, h.cooldown > 0, (h.blurb ?? "").length > 0]), vitals: !!v.vitals, legacy: "ammo" in v || "armor" in v } : null; })()`,
   );
+  // and its hint says the key on the device in hand (Milestone 721): TAB on a keyboard, none on a pad, which has no
+  // button for it (it said HOLD TAB to a pad player)
+  const keyOf = await ev<{ keys: string | null; pad: string | null }>(
+    host,
+    `new Promise((ok) => { const r = window.__range; const keys = r.hud.last?.inventory?.key ?? null; r.input.device = "pad";
+      setTimeout(() => { const pad = r.hud.last?.inventory?.key ?? null; r.input.device = "keyboard"; ok({ keys, pad }); }, 300); })`,
+  );
   await ev(host, "(() => { const r = window.__range; r.input.down.delete('Tab'); r.loadout.slots[0].fusion = 0; })()");
+  check("the carry card's hint is the key on the device in hand: TAB on a keyboard, none on a pad", keyOf.keys === "TAB" && keyOf.pad === "", JSON.stringify(keyOf));
   check(
     "the carry card on Tab: both guns with their fusion and what it gives, both hacks with their cooldown and what they do, your vitals, no legacy pack",
     !!card && card.guns.length === 2 && card.guns[0][1] === 2 && card.guns[0][2] > 0 && card.hacks.length === 2 && card.hacks.every((h) => !!h && h[1] && h[2]) && card.vitals && !card.legacy,
@@ -6048,9 +6056,10 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
     const fell = await ev<{ x: number; z: number }>(page, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
     // (how it stood before: twice on a loaded machine the loot start found nothing dropped, as if the player were out
     // already, by the decay or a stray round; said in the check's detail so the next time says which)
-    const before = await ev<{ alive: boolean; health: number; inDecay: boolean | null; ring: number | null }>(
+    // (on 2026-10-25 it said alive false, health 0, not in the decay: out before it; so who, and the feed's last lines)
+    const before = await ev<{ alive: boolean; health: number; inDecay: boolean | null; ring: number | null; by: string | null; feed: string[] }>(
       page,
-      "(() => { const d = window.__range.duel(); const h = d.hud(); return { alive: d.alive, health: d.health, inDecay: h.br?.ring?.outside ?? null, ring: h.br?.ring?.phase ?? null }; })()",
+      "(() => { const R = window.__range; const d = R.duel(); const h = d.hud(); return { alive: d.alive, health: d.health, inDecay: h.br?.ring?.outside ?? null, ring: h.br?.ring?.phase ?? null, by: R.hud.last?.recap?.killerName ?? null, feed: R.hud.feedText.slice(0, 3) }; })()",
     );
     await ev(page, "window.__range.duel().takeHit(500, 100)");
     // (the drop is the death's frame's: waited for, not slept on, as a loaded machine runs that frame late)

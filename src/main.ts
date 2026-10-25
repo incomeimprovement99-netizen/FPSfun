@@ -3322,6 +3322,11 @@ function stopEmote(): void {
  * they are using the controller and swap out the buttons for them"). An action no pad button does keeps its key.
  */
 const keyLabel = (a: Action): string => (input.device === "pad" ? padLabel(a, input.pad.family) : null) ?? bindName(currentBinds()[a]?.[0] ?? "?").toUpperCase();
+/**
+ * The key for `a` on the device in hand, or "" where it has none (Milestone 721): keyLabel falls back to the
+ * keyboard's key, so a pad player was told "T: NEXT ITEM" and "HOLD TAB" for actions no button of theirs does
+ */
+const keyOnDevice = (a: Action): string => (input.device === "pad" && padLabel(a, input.pad.family) === null ? "" : keyLabel(a));
 // The range's signs name keys too (geo.ts textPanel, Milestone 621): a sign says "the stick forward" where a keyboard
 // says W, and is redrawn when what it would say changes (the device in hand, the controller, a rebind)
 const panelLabel = (a: string): string => (input.device === "pad" && (a === "forward" || a === "right") ? `the stick ${a}` : keyLabel(a as Action));
@@ -4293,7 +4298,7 @@ let swungAt = -Infinity;
 /** the battle royale from your side: E, the pads, pings (brplay.ts) */
 const brPlay = new BrPlay({
   onEnemyPing: () => announcer.say("spotted", realNow()),
-  keyLabel: (a) => keyLabel(a),
+  keyLabel: (a) => keyOnDevice(a),
   notice: (t) => hud.notice(t, gameTime, 2),
   sound: (k) => (k === "ping" ? audio.hitTier("white") : audio.whoosh()),
   beam: (at) => {
@@ -7873,7 +7878,7 @@ function step(): void {
     // drawInventory). Read only on purpose: what a player needs mid-match is
     // the answer to "what have I got", and dropping and swapping are done
     // where the item is.
-    inventory: input.held("inventory") ? carryCard(now) : null,
+    inventory: input.held("inventory") ? { ...carryCard(now), key: keyOnDevice("inventory") } : null,
     damageDirs: duel ? damageDirs() : undefined,
     nearMissDirs: nearMissDirs(),
     reticle,
@@ -8593,6 +8598,9 @@ const GALLERY = { x: 0, z: -8 };
       for (let a = 0; a < 16; a++) {
         const px = x + Math.cos((a / 16) * Math.PI * 2) * r;
         const pz = z + Math.sin((a / 16) * Math.PI * 2) * r;
+        // in a battle royale, inside the city: a spot past its edge put the e2e's player out of bounds, who was out by
+        // the edge's countdown before the check that kills them (its loot start's flake, found 2026-10-25: Milestone 721)
+        if (duel instanceof BrMatch && (px < BR_BOUNDS.minX + 6 || px > BR_BOUNDS.maxX - 6 || pz < BR_BOUNDS.minZ + 6 || pz > BR_BOUNDS.maxZ - 6)) continue;
         // only what stands on the floor: a roof or a girder overhead is no obstacle
         if (!RANGE_SOLIDS.some((s) => s.base < 2 && s.top > 0.05 && px > s.minX - clear && px < s.maxX + clear && pz > s.minZ - clear && pz < s.maxZ + clear)) return { x: px, z: pz };
         if (r === 0) break;
