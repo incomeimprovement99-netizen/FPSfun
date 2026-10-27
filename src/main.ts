@@ -68,7 +68,7 @@ import { reloadPlanOf, rifleConfig, tuneRifle } from "./game/rifle";
 import { buildRingWall, cityDecay, cityEdge, SECTORS, ROOF_ROUTES, SPIRE_TOP } from "./game/world";
 import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
-import { healArea } from "./game/healarea";
+import { disposeHealArea, healArea } from "./game/healarea";
 import { Trails } from "./game/trails";
 import { selfFadeAt, spectateCamera } from "./game/tpcam";
 import DECAY_CFG from "./config/decay.json";
@@ -3660,7 +3660,7 @@ function resetHacks(): void {
   skPull = null;
   skLeap = false;
   armorUntil = invisUntil = -Infinity;
-  for (const z of healZones.splice(0)) scene.remove(z.mesh);
+  for (const z of healZones.splice(0)) disposeHealArea(z.mesh);
   for (const m of mines.splice(0)) scene.remove(m.mesh);
   const p = savedPicks();
   hacks.set(p.mobility, 0);
@@ -3886,7 +3886,7 @@ function stepHacks(now: number, dt: number): void {
   for (let i = healZones.length - 1; i >= 0; i--) {
     const z = healZones[i];
     if (now > z.until) {
-      scene.remove(z.mesh);
+      disposeHealArea(z.mesh);
       healZones.splice(i, 1);
       continue;
     }

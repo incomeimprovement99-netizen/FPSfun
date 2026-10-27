@@ -297,7 +297,7 @@ async function boardPlace(page: Page): Promise<{ board: HudBox | null; keys: Hud
   return ev(
     page,
     `new Promise((ok) => { const h = window.__range.hud; const was = h.enabled; h.enabled = true;
-      setTimeout(() => { const b = h.boxes; const u = innerHeight / 1080; const board = b.board ?? null, keys = b.keys ?? null, feed = b.feed ?? null;
+      setTimeout(() => { const b = h.placed; const u = innerHeight / 1080; const board = b.board ?? null, keys = b.keys ?? null, feed = b.feed ?? null;
         const room = feed && { x: feed.x - 420 * u, y: feed.y, w: 420 * u, h: 150 * u };
         const meet = (p, q) => !!p && !!q && p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
         h.enabled = was; ok({ board, keys, feed, clear: !!board && !meet(board, keys) && !meet(board, room) }); }, 400); })`,
@@ -5032,6 +5032,18 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     `(() => { const r = window.__range; const before = r.sk.state().healZones; const p = r.player.pos; r.sk.remoteHack(987654, 3, p.x, p.y, p.z); return { before, after: r.sk.state().healZones }; })()`,
   );
   check("speedkills: an enemy's HEAL is an area you heal in too", foeHeal.after === foeHeal.before + 1, JSON.stringify(foeHeal));
+  // and a heal area gone frees what it made (Milestone 724): taken out of the scene alone, each left its rings, wall and
+  // signs on the GPU, about a hundred geometries a battle royale from the bots' heals; the med kit in it is the pack's
+  // model, shared, and stays
+  await ev(
+    page,
+    `(() => { const R = window.__range; const f = (window.__healFreed = { own: 0, freed: 0, kit: 0, kitFreed: 0 });
+      R.scene.traverse((o) => { if (o.name !== "heal-area") return; o.traverse((m) => { if (!m.geometry || m.isSprite) return; const own = !!m.userData.healOwn; if (own) f.own++; else f.kit++;
+        m.geometry.addEventListener("dispose", () => { if (own) f.freed++; else f.kitFreed++; }); }); }); })()`,
+  );
+  await gameSleep(page, 10);
+  const freed = await ev<{ own: number; freed: number; kit: number; kitFreed: number; zones: number }>(page, "({ ...window.__healFreed, zones: window.__range.sk.state().healZones })");
+  check("speedkills: a heal area gone frees its own rings and wall, and not the shared med kit in it", freed.zones === 0 && freed.own >= 4 && freed.freed === freed.own && freed.kitFreed === 0, JSON.stringify(freed));
   await hack("armor", "utility", 150);
   const arm = await ev<{ armored: boolean; hackSlow: number }>(page, "window.__range.sk.state()");
   check("speedkills: ARMOR is on, and you are slower under it", arm.armored && arm.hackSlow < 1, JSON.stringify(arm));
@@ -5826,6 +5838,14 @@ async function skIntroTest(browser: Browser): Promise<void> {
   const kept = under.length && firstUnder.startAt !== null && lastUnder.startAt !== null ? lastUnder.startAt - firstUnder.startAt : 0;
   check("sk order: the ship waits at its start while the loading screen and the card are up (its clock held with the card)", cardLong > 1.5 && full > 1 && kept > cardLong * 0.5, `full ${full}; the card ${cardLong.toFixed(2)} s; the ship's start moved on ${kept.toFixed(2)} s with it`);
   check("sk order: once the card has gone the ship sets off", !last.card && last.aboard && last.doorsIn !== null && last.doorsIn < full - 0.5, brief(last));
+  // the movement trails' shader built with the page's (trails.ts, Milestone 724): a trail is made only when someone
+  // runs near, and one made aboard, after the match's warm, built its shader on the frame it was first drawn (the
+  // 2026-10-27 sweep: two trails without one as the ship flew)
+  const trailWarm = await ev<{ there: boolean; built: boolean }>(
+    page,
+    `(() => { const R = window.__range; const w = R.scene.getObjectByName("trail-warm"); const pr = w && R.renderer.properties.get(w.material); return { there: !!w, built: !!(pr && pr.currentProgram) }; })()`,
+  );
+  check("sk order: the movement trails' shader is built with the page's, before any trail is made", trailWarm.there && trailWarm.built, JSON.stringify(trailWarm));
   // the match's own things (its bots, their guns, the floor's loot) have their shaders while you ride, before the ship
   // flies over them (main.ts warmMatch): drawn first from the ship, they were compiled on that frame, 0.25 s about 9 s
   // into the ride (a hunt, 2026-10-01)

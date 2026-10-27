@@ -597,8 +597,8 @@ export class Hud {
     c.clearRect(0, 0, this.w, this.h);
     // (this frame's: a board or keys panel not drawn leaves none from an earlier one)
     this.feedFrom = 0;
-    delete this.boxes.board;
-    delete this.boxes.keys;
+    delete this.placed.board;
+    delete this.placed.keys;
     // layout unit: 1 px at 1080p, times the player's HUD scale (Settings, Accessibility)
     const u = (this.h / 1080) * access.hudScale;
     // the killcam has the screen to itself, and the kill feed
@@ -1237,7 +1237,7 @@ export class Hud {
     const foot = 32 * u;
     const h = head + k.rows.length * rowH + foot;
     this.hintsBottom = top + h;
-    this.box("keys", left, top, width, h);
+    this.placed.keys = { x: left, y: top, w: width, h };
     // (?slow=keys: drawn every frame, as before)
     if (slow("keys")) return this.paintKeyHints(k, u, left, right, width, top, h);
     const dpr = this.canvas.width / this.w;
@@ -1317,7 +1317,7 @@ export class Hud {
         this.feedFrom = at.top + h + 22 * u;
       }
     }
-    this.box("board", at.right - w, at.top, w, h);
+    this.placed.board = { x: at.right - w, y: at.top, w, h };
     return at;
   }
 
@@ -1325,7 +1325,7 @@ export class Hud {
   private drawFeed(now: number, u: number): void {
     const x = this.w - 30 * u;
     let y = Math.max(this.hintsBottom ? this.hintsBottom + 22 * u : 120 * u, this.feedFrom);
-    this.box("feed", x, y - 15 * u, 0, 0);
+    this.placed.feed = { x, y: y - 15 * u, w: 0, h: 0 };
     for (let i = this.feedLines.length - 1; i >= 0; i--) if (now - this.feedLines[i].born > 6) this.feedLines.splice(i, 1);
     for (const l of this.feedLines) {
       const age = now - l.born;
@@ -2213,6 +2213,11 @@ export class Hud {
 
   /** where each piece of SpeedKills' bottom HUD was drawn this frame (tools/e2e.ts holds the owner's layout to them) */
   readonly boxes: Record<string, { x: number; y: number; w: number; h: number }> = {};
+  /**
+   * Where the right-hand column's panels were drawn this frame: the keys panel, a scoreboard, the kill feed's top
+   * (tools/e2e.ts boardPlace, Milestone 722). Not in `boxes`, which is the bottom HUD's and held to the bottom edge.
+   */
+  readonly placed: Record<string, { x: number; y: number; w: number; h: number }> = {};
 
   private box(k: string, x: number, y: number, w: number, h: number): void {
     this.boxes[k] = { x, y, w, h };

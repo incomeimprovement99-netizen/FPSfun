@@ -46,6 +46,7 @@ export function healArea(radius: number, cfg: HealAreaCfg): THREE.Group {
   const add = (m: THREE.Mesh) => {
     m.frustumCulled = false;
     m.userData.dynamic = true;
+    m.userData.healOwn = true;
     g.add(m);
     return m;
   };
@@ -79,6 +80,7 @@ export function healArea(radius: number, cfg: HealAreaCfg): THREE.Group {
     s.position.set(Math.cos(a) * r, 0, Math.sin(a) * r);
     s.scale.setScalar(P.size);
     s.userData.phase = Math.random();
+    s.userData.healOwn = true;
     s.frustumCulled = false;
     g.add(s);
     return s;
@@ -94,4 +96,19 @@ export function healArea(radius: number, cfg: HealAreaCfg): THREE.Group {
     }
   };
   return g;
+}
+
+/**
+ * A heal area gone, and what it made freed (Milestone 724): taken out of the scene alone, each left its rings, wall and
+ * signs on the GPU, about a hundred geometries a battle royale from the bots' heals (a probe, 2026-10-27). Only its
+ * own: the med kit in the middle is the pack's model, shared with every other one, and a sprite's quad is three's own.
+ */
+export function disposeHealArea(g: THREE.Object3D): void {
+  g.removeFromParent();
+  g.traverse((o) => {
+    if (!o.userData.healOwn) return;
+    const m = o as THREE.Mesh;
+    if (!(o as THREE.Sprite).isSprite) m.geometry.dispose();
+    (m.material as THREE.Material).dispose();
+  });
 }

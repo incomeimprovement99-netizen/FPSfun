@@ -54,6 +54,20 @@ export class Trails {
   constructor(private readonly scene: THREE.Scene | null) {
     this.mat = new THREE.MeshBasicMaterial({ vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, side: THREE.DoubleSide, forceSinglePass: true, toneMapped: false, fog: false });
     this.colours = { enemy: new THREE.Color(TRAILS.colors.enemy), ally: new THREE.Color(TRAILS.colors.ally) };
+    // Its shader built with the page's (main.ts warmScene) and not on the frame the first trail or tracer is drawn: a
+    // trail is made only when someone runs near, and aboard the ship that came after the match's warm, a stall over
+    // the city (the e2e's sk order check, 2026-10-27). Hidden, its colours as a trail's, so the same program.
+    if (scene) {
+      const geo = new THREE.BufferGeometry();
+      geo.setAttribute("position", new THREE.Float32BufferAttribute([0, 0, 0, 0.01, 0, 0, 0, 0.01, 0], 3));
+      geo.setAttribute("color", new THREE.Float32BufferAttribute([0, 0, 0, 0, 0, 0, 0, 0, 0], 3));
+      const warm = new THREE.Mesh(geo, this.mat);
+      warm.name = "trail-warm";
+      warm.visible = false;
+      warm.frustumCulled = false;
+      warm.userData.dynamic = true;
+      scene.add(warm);
+    }
   }
 
   /** how many trails are drawn now (tools, the checks) */

@@ -12785,6 +12785,29 @@ Found in the 2026-10-27 bug hunt, a review of the last week's code:
   (the swap check's first form tried the bots' guns for one with as many meshes and found none; it builds the case
   itself now).
 
+## Milestone 724 — HEAL's areas freed when they go, and the trails' shader built with the page's
+
+Found in the 2026-10-27 bug hunt and that day's full sweep:
+
+- **A leak, a hundred geometries a battle royale:** the bug hunt's run of the same modes over and over (SCENES=range,
+  tdm,tdm,tdm,br,br) held its textures, shaders, objects and heap level, but the GPU's geometries grew 15 to 30 a team
+  deathmatch and 178 a battle royale. A probe (scratch geoleak.mts) stamped every geometry with where it was made and
+  listed, after a second and a third battle royale, the ones drawn and neither disposed nor in the scene: all 215 were
+  HEAL's areas (healarea.ts), each one's two rings, two arcs and wall, left on the GPU when the area was taken out of
+  the scene; the bots heal with it all match. disposeHealArea now frees what an area made, and not the med kit in it
+  (the pack's model, shared) or a sprite's quad (three's own).
+- **The trails' shader on the ship:** a movement trail is made only when someone runs near, and the sweep's ride had
+  two made aboard, after the match's warm, their shader built on the frame they were first drawn ("sk order: aboard,
+  the match's own figures and loot have their shaders before the ship flies over them" failed with trail:trail twice).
+  The trails' material stands in a hidden mesh from the page's start (trails.ts), so the page's warm builds it.
+- **Milestone 722's boxes, out of the bottom HUD's:** the keys panel's, the board's and the kill feed's places had gone
+  into hud.ts boxes, which e2e speedkills holds to the bottom edge ("sk hud: all on the bottom edge ... nothing
+  overlapping" failed on them); they are in a record of their own, placed.
+- **Checked:** tsc, verify, rules; the probe again after the fix; e2e speedkills, a new check: a heal area gone frees
+  its own rings and wall and not the med kit in it; e2e sklobby, a new check: the trails' shader is built with the
+  page's, before any trail; e2e modes and triple again for the boards' new record. With each fix taken out its check
+  failed.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
