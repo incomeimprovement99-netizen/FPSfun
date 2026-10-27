@@ -639,7 +639,7 @@ export interface RifleState {
   lastReload?: number | null;
   /**
    * The figure's own memory of where the gun sits in its right hand, taken while both hands hold it: a full-body clip
-   * (a slide, a climb, a zipline) takes the arms, and the gun goes with the right hand rather than hanging at the
+   * (a slide, a climb) takes the arms, and the gun goes with the right hand rather than hanging at the
    * shoulder with no hand on it.
    */
   mem?: { gunInHand: THREE.Matrix4 | null; cup?: Partial<Record<Side, { at: THREE.Vector3; face: THREE.Vector3; fwd: THREE.Vector3 }>> };
@@ -648,6 +648,8 @@ export interface RifleState {
    * once the gun coming is the one held, and `carry` how far the hands are from the last gun's cup to this one's
    */
   cup?: { w: number; second: boolean; carry: number } | null;
+  /** 0..1 the left hand closed round a zip line's rope, off the gun (mannequin.ts reaches the arm up to it) */
+  ropeL?: number;
 }
 
 /** what a gun offers a reload, gun-local: its magazine (the group a reload takes out) and where the hand takes it, and the charging handle or bolt */
@@ -991,6 +993,8 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     }
     closeFingers(side, carried ? Math.max(w, 1 - s.stance) : w, reloadAt?.fingers ?? null, cupK, fistK);
   }
+  // a zip line's rope in the left hand: closed round it as a fist closes (soldierhold.json fist), off the gun
+  if ((s.ropeL ?? 0) > 0.01) closeFingers("l", s.ropeL!, null, 0, 1);
   // held in both hands in the stance: remember where the gun is in the right hand, for when a full-body clip takes the arms
   if (s.mem && handR && s.stance > 0.99 && s.wR > 0.99 && u === null) {
     handR.updateWorldMatrix(true, false);

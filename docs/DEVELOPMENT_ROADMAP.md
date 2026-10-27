@@ -16623,3 +16623,36 @@ faults came out of it, both with a wall behind someone:
   over their head and no hand on it; the long gun vanishes for an emote, an interact or a throw (in the skydive it is on
   the back); a long gun is planted muzzle-down on the ledge in a climb; and an enemy's contrast against what is behind
   it in the city (enemysee.mts) is near nothing at some spots and hours.
+
+## Milestone 616 — Hanging from a zip line by one hand
+
+Found by Milestone 615's survey: a player riding a zip line was drawn standing in the air under the rope with the gun
+in both hands (the rail clip, full body), the rope 0.3 m over their head and no hand on it. Apex's legends ride theirs
+hanging from the rope by one hand, the gun in the other. The Neon City has them (from the tower's lookout to the High
+City's decks), so an enemy coming down one is seen from the streets and the decks.
+
+- **The pose** (mannequin.ts, figure.json zipline): the left hand lets go of the gun and the arm goes up to the rope,
+  eased in and out at `rate` a second, the hand closed round it as a fist closes (soldierhold.json fist, rifle.ts
+  `ropeL`); the legs hang under it (the standing clip's, the thighs 15 degrees forward and the knees bent 35); the gun
+  stays in the right hand, at the shoulder or aimed as anywhere else, and it fires from there.
+- **Where the rope is:** the game hangs a rider movement.json ziplineHang (2.13 m) under the rope (player.ts hangAt), so
+  every figure knows where its rope is from its own feet, a remote player's too. The knuckles go `grip` [6 cm left, 3 cm
+  under, 6 cm ahead] off the point over the feet, the arm aimed so the knuckles, not the wrist, point at it (a grapple
+  still points the wrist).
+- **Hung from the hand:** from the soldier's shoulder, 2.13 m under the rope, the straight arm fell 9 cm short of it.
+  The body is raised until the arm, as straight as it goes, reaches (`lift`, 15 cm at most), its feet a little over the
+  ones the game moves. Raised before the gun is placed in the right hand; the arm's reach is measured once it is up.
+- **And a measure put right:** with the left hand off the gun, the figure's hold points (what the audit and the e2e
+  read a palm against) gave the right hand's target as the gun's bare grip point, not where the hold puts the palm: the
+  right hand read 9.5 to 18 cm off its grip on every gun while it was on it. Each hand's own target is read now.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): on a zip line, every gun, the left knuckles within 3 cm of their hold under
+    the rope, the left hand off the gun, the gun shown and its grip in the right hand: 0.6 to 1.7 cm on every gun. On
+    the old pose it fails (the knuckles 99 cm from their hold, the hands 25 cm apart).
+  - Measured on every gun (node_modules/.scratch/zipgrip.mts): the knuckles 2.11 to 2.12 m over the feet, 6.2 to 6.4
+    cm off the rope's line (their hold is 6.7 cm off it); photographed with the rope drawn, from the side, the front and
+    three quarters (zipshot.mts).
+  - The whole of the soldier's e2e section with it (the hold on every gun, the neck, the stances): 326 checks, E2E PASS.
+  - The rail clip, which nothing plays now, is out of the clips' file (tools/fetch-clips.ts, mannequin-more.glb 192 to
+    138 KB); the slide and the climb still load from it.
+  - verify, rules and the type check.

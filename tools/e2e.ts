@@ -20,6 +20,7 @@ import { HIT_POSES, MEASURE_HEADS } from "./soldier-hits";
 import lodCfg from "../src/config/lod.json";
 import soldierHoldCfg from "../src/config/soldierhold.json";
 import figureCfg from "../src/config/figure.json";
+import movementCfg from "../src/config/movement.json";
 import puppeteer, { type Browser, type Page } from "puppeteer";
 import brCfg from "../src/config/br.json";
 import { decayRounds } from "../src/game/decay";
@@ -7035,6 +7036,37 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("a grapple: the left arm points at its hook point (within 10 degrees), the gun still in the right hand, and goes back to the gun after", grab.during <= 10 && grab.gun && grab.after > 30, JSON.stringify(grab));
+  // A zip line (Milestone 616): the rider hangs from the rope by the left hand, closed round it, the gun in the right
+  // hand, every gun (it stood in the air under the rope with the gun in both hands). The rope runs movement.json
+  // ziplineHang over the feet the game moves; the knuckles go figure.json zipline.grip off the point right over them
+  const ZIP = (figureCfg as unknown as { zipline: { grip: number[] } }).zipline;
+  const zips = await ev<Array<{ id: string; knuckle: number; off: number; gun: boolean; inHand: boolean; grip: number | null }>>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE, out = [];
+      const hang = ${movementCfg.ziplineHang} * 0.0254, G = ${JSON.stringify(ZIP.grip)};
+      for (const id of ${JSON.stringify(Object.keys(soldierHoldCfg.guns).filter((k) => !k.startsWith("_")))}) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: id, look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        r.figureLabStep(1);
+        r.figureLabPose(0, { speed: 10, stance: "zip", pitch: 0, moveDir: 0 });
+        for (let i = 0; i < 24; i++) r.figureLabStep(0.05);
+        const mq = f.mq, at = (n) => mq.bone(n).getWorldPosition(new T.Vector3());
+        // (the hold: G[0] to its left and G[2] ahead of the point right over its feet, G[1] under the rope)
+        const hold = f.group.localToWorld(new T.Vector3(G[0], 0, G[2])); hold.y = f.group.getWorldPosition(new T.Vector3()).y + hang - G[1];
+        const k = at("middle_01_l");
+        const a = window.__figureAudit(0, { pitch: 0 });
+        out.push({ id, knuckle: Math.round(k.distanceTo(hold) * 1000) / 10, off: Math.round(k.distanceTo(at("middle_01_r")) * 100), gun: !!mq.gun?.visible, inHand: !!mq.gunInHand, grip: a?.grip ?? null });
+      }
+      return out;
+    })()`,
+  );
+  const zipBad = zips.filter((z) => !(z.knuckle <= 3 && z.off >= 30 && z.gun && z.inHand && (z.grip ?? 99) <= 3));
+  check(
+    "on a zip line it hangs from the rope by its left hand, every gun: the left knuckles within 3 cm of their hold under the rope, the left hand off the gun (30 cm or more from the right), the gun shown and its grip in the right hand (3 cm)",
+    zips.length > 0 && zipBad.length === 0,
+    JSON.stringify(zipBad.length ? zipBad : zips.map((z) => `${z.id} ${z.knuckle}cm`)),
+  );
   // SLAM's way down (Milestone 608): a figure in the air coming down at the slam's 38 m/s has its knees up (each knee 20 cm
   // or more higher against its hips than falling at 10 m/s, a jump's)
   const plunge = await ev<{ slow: number; fast: number }>(

@@ -69,6 +69,14 @@
   "grapple": {
     "rate": 12
   },
+  "_zipline": "A zip line seen on a figure (mannequin.ts ropeAt and reachArm, Milestone 616): Apex's legends ride theirs hanging from the rope by one hand, the gun in the other, and ours stood in the air under the rope with the gun in both hands (the rail clip). Now the left hand lets go of the gun and the arm goes up to the rope, eased in and out at `rate` a second, the hand closed round it, the legs hanging under it (the standing clip's, the thighs `thigh` degrees forward and the knees bent `knee` back) and the gun in the right hand. The rope runs movement.json ziplineHang (2.13 m) over the rider's feet (player.ts hangAt); the hand holds it `grip` [left, under, ahead] m off the point right over the feet. From the soldier's shoulder there its straight arm falls 9 cm short of the rope, so the body is raised until it reaches, `lift` m at most: hung from its hand, its feet a little over the ones the game moves.",
+  "zipline": {
+    "rate": 10,
+    "grip": [0.06, 0.03, 0.06],
+    "lift": 0.15,
+    "thigh": 15,
+    "knee": 35
+  },
   "_ghost": "A squad mate's ghost as the squad sees it (src/game/ghostfigure.ts, Milestone 605): out with a squad mate standing, a player goes on as a ghost, and Hyper Scape's squads see theirs (its echoes) as the players still, a figure of light that runs where they run. Ours was a pale capsule. It is their soldier now, playing its clips from what they send, flat light in their squad colour `opacity` see-through (the capsule's 0.35, a little more for a body's thinner limbs), closing on where they were last heard at `follow` a second (their state arrives 20 to 30 times a second: unsmoothed it stepped). No gun, no shadow, no hit volumes, and only a squad mate's page makes one. Ours.",
   "ghost": {
     "opacity": 0.4,

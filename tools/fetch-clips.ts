@@ -46,7 +46,7 @@ export const FILES = [
       ..."Punch_Jab Hit_Chest Death01".split(" "),
     ],
   },
-  { ...UAL2, out: "public/models/mannequin/mannequin-more.glb", rig: false, clips: "Slide_Loop ClimbUp_1m Idle_Rail_Loop".split(" ") },
+  { ...UAL2, out: "public/models/mannequin/mannequin-more.glb", rig: false, clips: "Slide_Loop ClimbUp_1m".split(" ") },
   // Phase 17 (docs/FEEL_GAP.md): a second punch, a headshot that reads, a
   // hand to a door or a bin, a dance
   { ...UAL1, out: "public/models/mannequin/mannequin-extra-1.glb", rig: false, clips: "Punch_Cross Hit_Head Interact Dance_Loop".split(" ") },

@@ -145,6 +145,8 @@ const BANK = figureCfg.bank as { most: number; share: number; minSpeed: number; 
 const PLUNGE = figureCfg.plunge as { fall: number; rate: number; raise: number; bend: number; lean: number };
 /** a grapple's arm up at its hook point and back, a second (figure.json grapple) */
 const GRAPPLE = figureCfg.grapple as { rate: number };
+/** a zip line's hand up on the rope and back, a second, and where on the rope it holds (figure.json zipline) */
+const ZIPLINE = figureCfg.zipline as { rate: number; grip: number[]; lift: number; thigh: number; knee: number };
 /** a wall run's lean in and out, a second, and the most its run clip is sped up (figure.json wallRun) */
 const WALL_RUN = figureCfg.wallRun as { rate: number; mostRate: number };
 /** the skydive's body, degrees forward of upright gliding and diving, its limbs, and its ease (figure.json skydive) */
@@ -817,6 +819,10 @@ export class MannequinFigure {
   /** a grapple's hook point (world), until when on this figure's clock, how near is there, and the arm's weight on it */
   private grapple: { to: THREE.Vector3; until: number; arrive: number } | null = null;
   private grabW = 0;
+  /** how far its left hand is up on a zip line's rope, 0 to 1, eased (figure.json zipline) */
+  private zipW = 0;
+  /** the left arm's reach to its knuckles held straight up at the rope, measured once it is there (reachArm) */
+  private zipReach: number | null = null;
   /** where its group was last frame, its speed up or down from that (eased), and how far into a plunge it is */
   private lastY: number | null = null;
   private vy = 0;
@@ -1295,8 +1301,10 @@ export class MannequinFigure {
   holdPoints(): { grip: THREE.Vector3; support: THREE.Vector3 } | null {
     if (!this.gun || !this.grip || !this.support) return null;
     const p = this.rifle ? this.rifleOut?.palm : null;
-    if (p?.r && p.l) return { grip: p.r.clone(), support: p.l.clone() };
     this.root.updateMatrixWorld(true);
+    // (each hand's own target where the hold placed one: the left off the gun on a zip line, the right's grip was read off
+    // the gun's bare grip point instead, 9.5 to 18 cm from where the hold puts the palm)
+    if (p?.r) return { grip: p.r.clone(), support: p.l ? p.l.clone() : this.gun.localToWorld(this.supportHold().clone()) };
     return { grip: this.gun.localToWorld(this.grip.clone()), support: this.gun.localToWorld(this.supportHold().clone()) };
   }
 
@@ -1456,6 +1464,13 @@ export class MannequinFigure {
     }
   }
 
+  /** where its left hand holds a zip line's rope (world): the rope runs ziplineHang over its feet (player.ts hangAt) */
+  private ropeAt(out: THREE.Vector3): THREE.Vector3 {
+    const G = ZIPLINE.grip;
+    // (+x is the figure's left, +z the way it faces)
+    return this.root.localToWorld(out.set(G[0], 0, G[2])).setY((this.root.parent ?? this.root).getWorldPosition(new THREE.Vector3()).y + MOVE.ziplineHang - G[1]);
+  }
+
   /** pulled to a grapple's hook point (world): the left hand lets go of the gun and the arm reaches up at it */
   reachFor(to: THREE.Vector3, seconds: number, arrive: number): void {
     this.grapple = { to: to.clone(), until: this.t + seconds, arrive };
@@ -1469,11 +1484,24 @@ export class MannequinFigure {
    */
   private reachArm(b: Record<string, THREE.Object3D>): void {
     const G = this.grapple;
-    if (!G || this.grabW < 0.01 || !b.upperarm_l || !b.lowerarm_l || !b.hand_l) return;
-    const sh = b.upperarm_l.getWorldPosition(new THREE.Vector3());
-    aimBone(b.upperarm_l, b.lowerarm_l.getWorldPosition(new THREE.Vector3()).sub(sh), G.to.clone().sub(sh), this.grabW);
-    const el = b.lowerarm_l.getWorldPosition(new THREE.Vector3());
-    aimBone(b.lowerarm_l, b.hand_l.getWorldPosition(new THREE.Vector3()).sub(el), G.to.clone().sub(el), this.grabW);
+    // a grapple's hook point, or a zip line's rope over its head (Milestone 616)
+    const grab = !!G && this.grabW >= 0.01;
+    const w = grab ? this.grabW : this.zipW;
+    const up = b.upperarm_l;
+    const fore = b.lowerarm_l;
+    // (a grapple points the wrist at its point; a rope is held in the closed fingers, so the knuckles go to it)
+    const tip = grab ? b.hand_l : b.middle_01_l;
+    if (w < 0.01 || !up || !fore || !tip) return;
+    const to = grab ? G!.to.clone() : this.ropeAt(new THREE.Vector3());
+    const aim = () => {
+      const sh = up.getWorldPosition(new THREE.Vector3());
+      aimBone(up, tip.getWorldPosition(new THREE.Vector3()).sub(sh), to.clone().sub(sh), w);
+      const el = fore.getWorldPosition(new THREE.Vector3());
+      aimBone(fore, tip.getWorldPosition(new THREE.Vector3()).sub(el), to.clone().sub(el), w);
+    };
+    aim();
+    // (and the straight arm's reach to its knuckles, for the next frame's lift onto the rope: update)
+    if (!grab && this.zipW > 0.99) this.zipReach = up.getWorldPosition(new THREE.Vector3()).distanceTo(tip.getWorldPosition(new THREE.Vector3()));
   }
 
   /** knocked out: only the death clip runs */
@@ -1581,6 +1609,9 @@ export class MannequinFigure {
     const pulled = !!G && this.t < G.until && this.root.getWorldPosition(new THREE.Vector3()).distanceTo(G.to) > G.arrive;
     this.grabW += ((pulled ? 1 : 0) - this.grabW) * Math.min(1, dt * GRAPPLE.rate);
     if (!pulled && this.grabW < 0.01) this.grapple = null;
+    // on a zip line the left hand goes up onto the rope (reachArm), off the gun
+    const zipping = p.stance === "zip";
+    this.zipW += ((zipping ? 1 : 0) - this.zipW) * Math.min(1, dt * ZIPLINE.rate);
     // its fall from where its group goes (an enemy's is only where its samples put it), eased over the samples' steps
     const y = this.root.parent ? this.root.parent.getWorldPosition(new THREE.Vector3()).y : 0;
     // (no faster than 60 m/s: a figure put somewhere else, a respawn, is no fall)
@@ -1669,8 +1700,9 @@ export class MannequinFigure {
         full = true;
         break;
       case "zip":
-        lower = "Idle_Rail_Loop";
-        full = true;
+        // hanging from the rope by the left hand (reachArm), the legs down under it (below) and the gun in the right hand,
+        // as Apex's legends ride theirs; it was the rail clip, the gun in both hands, standing in the air under the rope
+        lower = "Idle_Loop";
         break;
       case "wallL":
       case "wallR":
@@ -1880,6 +1912,29 @@ export class MannequinFigure {
         if (calf) turnBone(calf, fig, X_AXIS, DOUBLE_JUMP.bend * DEG * w);
       }
     }
+    // on a zip line the legs hang under the hand on the rope, the thighs a little forward and the knees bent back
+    if (this.zipW > 0.01)
+      for (const s of ["l", "r"]) {
+        const thigh = b[`thigh_${s}`];
+        const calf = b[`calf_${s}`];
+        if (thigh) turnBone(thigh, fig, X_AXIS, -ZIPLINE.thigh * DEG * this.zipW);
+        if (calf) turnBone(calf, fig, X_AXIS, ZIPLINE.knee * DEG * this.zipW);
+      }
+    // Hung from the rope by the left hand: the body raised until that arm, as straight as it goes, reaches it. The rope
+    // runs ziplineHang over the feet the game moves, and from the soldier's shoulder there its arm fell 9 cm short.
+    // Raised here, before the gun is placed in the right hand (raised after it, the hand went up off the grip)
+    if (this.zipW > 0.01 && b.upperarm_l && b.lowerarm_l && b.hand_l) {
+      const sh = b.upperarm_l.getWorldPosition(new THREE.Vector3());
+      const d = this.ropeAt(new THREE.Vector3()).sub(sh);
+      // (the arm's reach to its knuckles as reachArm last left it straight, or its bones' lengths end to end)
+      const el = b.lowerarm_l.getWorldPosition(new THREE.Vector3());
+      const reach = this.zipReach ?? sh.distanceTo(el) + el.distanceTo(b.hand_l.getWorldPosition(new THREE.Vector3())) + 0.1;
+      const lift = Math.max(0, Math.min(ZIPLINE.lift, d.y - Math.sqrt(Math.max(0, reach * reach - d.x * d.x - d.z * d.z)))) * this.zipW;
+      if (lift > 1e-4) {
+        this.root.position.y += lift;
+        this.root.updateMatrixWorld(true);
+      }
+    }
     // Standing or crouched still, the soldier's clips held its toes 16 degrees up from its bind pose, so it stood on its
     // heels (measured by apex-lobby for the card, Milestone 416; the owner asked it fixed): each foot is turned about its
     // own side to side until its toe is no higher than the bind pose has it, eased in as it stops and out as it moves, so
@@ -1927,10 +1982,10 @@ export class MannequinFigure {
       // tucked round a gun still in the sprint's carry, 39 mm into the belly, as the feet left the ground)
       this.carryW.air += ((sprintJump ? 1 : 0) - this.carryW.air) * Math.min(1, dt * AIR_CARRY);
       this.gripW += ((holding && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
-      // the left hand stays with the gun through a reload: it is the hand that does it
-      const support = holding && !full && this.t >= this.staggerUntil && !pulled;
+      // the left hand stays with the gun through a reload: it is the hand that does it (but not on a zip line: the rope)
+      const support = holding && !full && this.t >= this.staggerUntil && !pulled && !zipping;
       this.ikW += ((support ? 1 : 0) - this.ikW) * Math.min(1, dt * REACH.support);
-      if (this.gunComing && Math.min(this.gripW, this.ikW) >= GUN_BACK) this.gunComing = false;
+      if (this.gunComing && Math.min(this.gripW, zipping ? 1 : this.ikW) >= GUN_BACK) this.gunComing = false;
       // a reload's progress, on the gun's own reload time (an enemy's figure is told only that it reloads)
       // (a tactical one, where the first person has its own, laid on the empty one's beats in seconds: rifle.ts tacticalOf)
       const empty = p.reloadEmpty ?? false;
@@ -1955,6 +2010,7 @@ export class MannequinFigure {
         melee,
         mem: this.rifleMem,
         cup: cupState,
+        ropeL: this.zipW,
       });
       this.lastReload = reload;
       if (this.rifleOut.seated) this.seatKick = 1;
@@ -2016,12 +2072,12 @@ export class MannequinFigure {
       // the right hand always on the grip while it shows; the left on the handguard unless the hands are busy
       this.gripW += ((shown && !full ? 1 : 0) - this.gripW) * Math.min(1, dt * REACH.grip);
       this.reach("r", this.grip, this.gripW);
-      const support = shown && !full && p.act !== "reload" && this.t >= this.staggerUntil;
+      const support = shown && !full && p.act !== "reload" && this.t >= this.staggerUntil && p.stance !== "zip";
       this.ikW += ((support ? 1 : 0) - this.ikW) * Math.min(1, dt * REACH.support);
       this.reachSupport(this.ikW);
     } else {
       // a pistol: the aim clip's two-hand grip, the left hand onto the frame's support point
-      const holding = aimed && upper === "Pistol_Aim_Neutral" && shown;
+      const holding = aimed && upper === "Pistol_Aim_Neutral" && shown && p.stance !== "zip";
       this.ikW += ((holding ? 1 : 0) - this.ikW) * Math.min(1, dt * 10);
       this.reachSupport(this.ikW);
     }
