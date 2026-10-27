@@ -15,6 +15,7 @@
 // (needs the dev server; a real GPU, as pack-frames.ts has; never the real mouse or keyboard)
 import fs from "node:fs";
 import path from "node:path";
+import emotesCfg from "../src/config/emotes.json";
 import soldierHold from "../src/config/soldierhold.json";
 import puppeteer, { type Page } from "puppeteer";
 import sharp from "sharp";
@@ -47,8 +48,11 @@ const XRAY = process.env.XRAY === "1";
 
 type Pose = { speed: number; stance: string; pitch?: number; ads?: number; moveDir?: number; act?: string | null; weapon?: string; airJumps?: number; reloadEmpty?: boolean };
 type Times = { reload: number; reloadEmpty: number; deploy: number; holster: number };
-/** a sequence: its pose to settle into, then what it does over time (a pose from each moment on), and when to photograph it */
-type Seq = { name: string; settle: Pose; at: (t: number) => Pose; frames: number[]; label: (t: number) => string; aimed: (t: number) => boolean; kicks?: number[] };
+/**
+ * a sequence: its pose to settle into, then what it does over time (a pose from each moment on), and when to photograph
+ * it; `calls` are what the pose cannot say, page code run on the lab figure `f` at a moment (an emote: f.emote(0))
+ */
+type Seq = { name: string; settle: Pose; at: (t: number) => Pose; frames: number[]; label: (t: number) => string; aimed: (t: number) => boolean; kicks?: number[]; calls?: Array<[number, string]> };
 
 const stand: Pose = { speed: 0, stance: "stand", pitch: 0 };
 const every = (to: number, step: number, from = 0) => {
@@ -186,7 +190,86 @@ function sequences(gun: string, other: string, T: Times, To: Times): Seq[] {
       label: (t) => `${t.toFixed(2)} s ${t < 0.9 ? "slide" : "out"}`,
       aimed: () => false,
     },
+    // The rest of what a player's figure does in play (the owner, 2026-10-27: "continue looking for things that could be
+    // fixed with 3rd person or enemy views"): until then photographed only by the e2e's numbers, or not at all
+    {
+      // a climb up a ledge (a mantle plays the same clip, mannequin.ts), then standing on top
+      name: "climb",
+      settle: stand,
+      at: (t) => (t < 0.1 || t >= 1.3 ? stand : { speed: 0, stance: "climb", pitch: 0 }),
+      frames: every(1.6, 0.08),
+      label: (t) => `${t.toFixed(2)} s ${t < 0.1 ? "stand" : t < 1.3 ? "climb" : "on top"}`,
+      aimed: (t) => t > 1.55,
+    },
+    {
+      // riding a zip line, then off it
+      name: "zip",
+      settle: stand,
+      at: (t) => (t < 1 ? { speed: 10, stance: "zip", pitch: 0 } : stand),
+      frames: every(1.4, 0.1),
+      label: (t) => `${t.toFixed(2)} s ${t < 1 ? "zip" : "off"}`,
+      aimed: (t) => t > 1.35,
+    },
+    {
+      // a wall run with the wall on the left, then on the right (the e2e's own speed)
+      name: "wall",
+      settle: { speed: 12, stance: "stand", pitch: 0 },
+      at: (t) => ({ speed: 12, stance: t < 1 ? "wallL" : "wallR", pitch: 0, moveDir: 0 }),
+      frames: every(2, 0.1),
+      label: (t) => `${t.toFixed(2)} s wall ${t < 1 ? "left" : "right"}`,
+      aimed: () => false,
+    },
+    {
+      // the battle royale's drop: a glide, a dive, and the landing (the e2e's poses)
+      name: "skydive",
+      settle: { speed: 14, stance: "skydive", pitch: 0, moveDir: 0 },
+      at: (t) => (t < 0.8 ? { speed: 14, stance: "skydive", pitch: 0, moveDir: 0 } : t < 1.6 ? { speed: 5, stance: "skydive", pitch: -80, moveDir: 0 } : stand),
+      frames: every(2.6, 0.1),
+      label: (t) => `${t.toFixed(2)} s ${t < 0.8 ? "glide" : t < 1.6 ? "dive" : "landed"}`,
+      aimed: (t) => t > 2.5,
+    },
+    {
+      // holding interact on something (a loot box, a door, a pad), then back to the gun
+      name: "interact",
+      settle: stand,
+      at: (t) => ({ ...stand, act: t < 1.2 ? "interact" : null }),
+      frames: every(1.8, 0.1),
+      label: (t) => `${t.toFixed(2)} s ${t < 1.2 ? "interact" : "back"}`,
+      aimed: (t) => t > 1.7,
+    },
+    {
+      // running backwards and sideways at a run, not aimed (the strafe is the walk, aimed)
+      name: "backrun",
+      settle: { speed: 7, stance: "stand", pitch: 0, moveDir: Math.PI },
+      at: (t) => ({ speed: 7, stance: "stand", pitch: 0, moveDir: t < 0.8 ? Math.PI : t < 1.6 ? Math.PI / 2 : -Math.PI / 2 }),
+      frames: every(2.4, 0.1),
+      label: (t) => `${t.toFixed(1)} s ${t < 0.8 ? "back" : t < 1.6 ? "right" : "left"}`,
+      aimed: () => true,
+    },
+    emoteSeq(),
   ];
+}
+
+/** every emote in turn (emotes.json list), each photographed a quarter, half and most of the way through, then the gun back */
+function emoteSeq(): Seq {
+  const list = (emotesCfg as { list: Array<{ name: string; seconds: number }> }).list;
+  const starts: number[] = [];
+  let t = 0;
+  for (const e of list) {
+    starts.push(t);
+    t += e.seconds + 0.5;
+  }
+  const end = t;
+  const which = (u: number) => Math.max(0, starts.findIndex((s, i) => u >= s && (i === starts.length - 1 || u < starts[i + 1])));
+  return {
+    name: "emotes",
+    settle: stand,
+    at: () => stand,
+    calls: starts.map((s, i) => [s, `f.emote(${i})`] as [number, string]),
+    frames: [...starts.flatMap((s, i) => [0.25, 0.5, 0.85].map((k) => Math.round((s + k * list[i].seconds) * 1000) / 1000)), end + 0.6],
+    label: (u) => (u >= end ? "after" : `${list[which(u)].name} ${Math.round(((u - starts[which(u)]) / list[which(u)].seconds) * 100)}%`),
+    aimed: (u) => u >= end,
+  };
 }
 
 /** the sides a figure is seen from: its turn from facing the camera, degrees (+ turns its right side toward the camera) */
@@ -335,9 +418,15 @@ async function main(): Promise<void> {
             const tiles: Buffer[] = [];
             const frames: Array<{ t: number; audit: Audit | null; bad: string[] }> = [];
             let now = 0;
+            const calls = [...(seq.calls ?? [])];
+            const callsTo = async (to: number) => {
+              while (calls.length && calls[0][0] <= to + 1e-9) await ev(page, `(() => { const f = window.__range.labFigures()[0]; ${calls.shift()![1]}; })()`);
+            };
             for (const t of seq.frames) {
               // the pose each moment on the way there, so an act starts at 0 and a gun changes when it should
+              await callsTo(now);
               while (now < t - 1e-9) {
+                await callsTo(now);
                 const kick = seq.kicks?.find((k) => k >= now - 1e-9 && k < now + 1 / 30 - 1e-9);
                 if (kick !== undefined) await ev(page, "window.__range.labFigures()[0].kick()");
                 const next = Math.min(t, now + 1 / 30);

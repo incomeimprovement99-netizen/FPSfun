@@ -70,6 +70,7 @@ import { EDGE, EDGE_BOUNDS, EdgeWatch, pastEdge } from "./game/edge";
 import { EDGE_ID } from "./game/causes";
 import { healArea } from "./game/healarea";
 import { Trails } from "./game/trails";
+import { selfFadeAt, spectateCamera } from "./game/tpcam";
 import DECAY_CFG from "./config/decay.json";
 import { Hacks, HACK, HACK_DEFS, cooldownOf, hackDef, hackSlotOf, savedPicks, savePicks, type HackId, type HackSlot } from "./game/hacks";
 import { BotMatch, MOST_BOTS, tierSpeed } from "./game/bots";
@@ -6443,6 +6444,8 @@ function stepTrails(now: number): void {
 const zoomFov43 = (w: ResolvedWeapon): number => w.zoomFov43 + ((w.zoomToggleFov43 ?? w.zoomFov43) - w.zoomFov43) * zoomBlend;
 const rnd = () => Math.random();
 const tmpDir = new THREE.Vector3();
+/** where the camera watching someone looks (tpcam.ts) */
+const tmpLook = new THREE.Vector3();
 /** the view the compass and the minimap were last drawn for (tools/e2e.ts) */
 const hudView = { yaw: 0, x: 0, z: 0 };
 const tmpQ = new THREE.Quaternion();
@@ -6508,6 +6511,8 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   const ac = localAct();
   f.setPose({ speed: player.speed, stance: player.figureStance, pitch: player.pitch, moveDir: moveDirOf(player.vel.x, player.vel.z, player.yaw), ads: loadout.active.state.adsFrac, act: actFromCode(ac), airJumps: player.airJumps, reloadEmpty: emptyReloadOf(ac) });
   f.update(now, dt);
+  // thinned out as a wall at your back brings the camera up against it (tpcam.ts)
+  f.figure?.setFade(selfFadeAt(camera.position.distanceTo(eye)));
 }
 
 /**
@@ -7274,12 +7279,9 @@ function step(): void {
     camera.position.set(f.position.x, f.position.y + (pose.stance === "crouch" || pose.stance === "slide" ? 1.05 : 1.6), f.position.z);
     camera.quaternion.setFromEuler(new THREE.Euler((pose.pitch * Math.PI) / 180, f.rotation.y - Math.PI, 0, "YXZ"));
   } else if (watch) {
-    // behind and above the figure, looking where it looks (the figure faces +z of its own rotation)
-    const f = watch.group;
-    const fx = Math.sin(f.rotation.y);
-    const fz = Math.cos(f.rotation.y);
-    camera.position.set(f.position.x - fx * 2.6, f.position.y + 2.1, f.position.z - fz * 2.6);
-    camera.lookAt(f.position.x + fx * 2, f.position.y + 1.2, f.position.z + fz * 2);
+    // behind and above the figure, looking where it looks, short of any wall behind it (tpcam.ts)
+    spectateCamera(watch.group.position, watch.group.rotation.y, solidHit, camera.position, tmpLook);
+    camera.lookAt(tmpLook);
   }
   const hipV = verticalFovFrom43(hipH);
   const adsV = verticalFovFrom43(adsH);

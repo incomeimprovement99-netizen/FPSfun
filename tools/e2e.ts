@@ -8832,8 +8832,9 @@ async function main(): Promise<void> {
     await ev(page, `document.getElementById("goRange").click(); document.getElementById("startMode").click()`);
     await ev(page, "window.__range.setThirdPerson(true)");
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
-    const tp = await ev<{ dist: number; fig: boolean; vm: boolean }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible() }; })()`);
-    check("third person: the camera sits behind the shoulder, your figure shows, the gun in hand does not", tp.dist > 1.8 && tp.dist < 3 && tp.fig && !tp.vm, JSON.stringify(tp));
+    // (and your figure whole there, none of it thinned: it thins only as a wall brings the camera in, tpcam.ts)
+    const tp = await ev<{ dist: number; fig: boolean; vm: boolean; drawn: number | null }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible(), drawn: window.__range.selfFigure()?.figure?.faded ?? null }; })()`);
+    check("third person: the camera sits behind the shoulder, your figure shows whole, the gun in hand does not", tp.dist > 1.8 && tp.dist < 3 && tp.fig && tp.drawn === 1 && !tp.vm, JSON.stringify(tp));
     await ev(page, "window.__range.setOrbit(180, 10)");
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     const orbit = await ev<{ ahead: number }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; return { ahead: -(c.position.z - p.pos.z) }; })()`);

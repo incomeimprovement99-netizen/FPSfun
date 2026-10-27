@@ -52,6 +52,7 @@ import { feelFails } from "./checks/feel";
 import { gulagFails } from "./checks/gulag";
 import { decayClockFails } from "./checks/decay-clock";
 import { squadViewFails } from "./checks/squadview";
+import { tpcamFails } from "./checks/tpcam";
 import { clipsFails } from "./checks/clips";
 import { hitcheckFails } from "./checks/hitcheck";
 import { rulesFails } from "./checks/rules";
@@ -1368,7 +1369,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + hullFails + calloutFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails + perfTipFails + cityBakeFails + servePrevFails + pageIdsFails;
+fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + tpcamFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + hullFails + calloutFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails + perfTipFails + cityBakeFails + servePrevFails + pageIdsFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

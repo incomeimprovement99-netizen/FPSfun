@@ -74,6 +74,20 @@
     "opacity": 0.4,
     "follow": 14
   },
+  "_spectateCam": "Watching someone in third person once you are out (src/game/tpcam.ts, Milestone 615): the camera `back` m behind them and `up` m over their feet, looking at a point `lookAhead` m in front of them and `lookUp` m up (the numbers it always had). It looks out to that place from their head (`pivotUp` m over their feet) first and stops `gap` m short of the first wall on the way, as your own third-person camera stops 0.15 m short of the wall behind you: put there whatever stood there, in the Neon City it was inside the wall behind them or past it.",
+  "spectateCam": {
+    "back": 2.6,
+    "up": 2.1,
+    "pivotUp": 1.6,
+    "lookAhead": 2,
+    "lookUp": 1.2,
+    "gap": 0.15
+  },
+  "_selfFade": "Your own soldier in third person thinned out as a wall at your back brings the camera in (tpcam.ts selfFadeAt, Milestone 615): whole while the camera is `from` m or more from your eye, gone at `to` m, eased between. The camera stands 2.44 m from the eye at the hip (the e2e reads 2.443), 1.57 m aimed in (0.9 m nearer) and 3 m in front in an emote, so none of those thins it; a wall pulls it to 0.52 m, where the head and shoulders covered a third of the screen (five of the Neon City's eye-level review spots, measured by node_modules/.scratch/tpcam-walls.mts).",
+  "selfFade": {
+    "from": 1.2,
+    "to": 0.6
+  },
   "_skydive": "The battle royale's skydive seen on a figure (Milestone 604; until then the jump pose for the whole fall). Apex's legends fall in two poses, a belly-down glide with the arms out and a head-first dive with the arms back, and which one says where they are going; ours steer the same way (squad.json dive: a level look glides, a look down dives), so the figure is `glide` degrees forward of upright looking level and `dive` looking straight down, as far between as the look is, turned round the hips. The limbs, degrees on the body at rest (the arms as an emote's: raise sideways from hanging, forward from hanging; elbow bent toward the head; arch the back; head back from the chest; thigh back; spread apart; knee bent): gliding, the box a skydiver flies, upper arms out a little past level, forearms up past the head, the back arched, the head up to see ahead, thighs back and apart, shins up behind; diving, the arms at the sides a little out from the body and the legs together, nearly straight (swung back along it, the right arm went 13 to 52 mm into the gun slung on the back). The forearms and shins flutter `flutter[0]` degrees at `flutter[1]` a second. Eased in at `rateIn` a second off the ship and out at `rateOut`: the last `flare` seconds of the fall, at the speed it falls (player.ts figureStance), it is upright, feet first, as Apex's legends take their landing position some 30 m up, and the landing's crouch takes it at the ground (mannequin.ts landUntil). Laid on the air to the last, it turned upright in the landing's first frame; 0.8 s is 10 m over the ground gliding and 24 m diving. The hands are empty for the fall and a long gun is slung on the back, as Apex's legends carry theirs (mannequin.ts holsterMount, Milestone 612): diagonal, the muzzle up over the left shoulder `holster.tilt` degrees off the spine, its grip and magazine toward the left hip, its side flat to the back `holster.gap` m off the skin there, `holster.height` of the way from the lower chest to the neck; the skin is measured off the posed soldier (the furthest-back vertex within `holster.band` m of the spine, its pack and armour with it). At 35 degrees, with its grip toward the right shoulder, the dive's right arm went into the short guns; at 20 with the grip toward the hip and the arms at the sides, no bone is in any of the eight long guns. A pistol is put away. Ours, posed by eye against Apex's.",
   "skydive": {
     "glide": 80,

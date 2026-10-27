@@ -16547,3 +16547,40 @@ From the reviews of 2026-10-25 (the centre's round 11, the districts' round 5).
 - **Checked:** the perches' check counts 37, each piece on its roof; a new check finds the tower white, both trees on
   the top tier and every step's strip on its step (37 perches, glass-front-2 2 and stacks-roof-2 6 pieces; the tower white, 2 of 2 trees on the top tier, 56 step strips on their steps, proven by lifting one step's strip 0.3 m). No e2e this week. verify, rules and tsc. Map files version
   111 (version 110 was baked and checked at low size only, then carried into 111): lo 181.9 MB, hi 262.1 MB, max 555.5 MB.
+
+## Milestone 615 — The third-person cameras with a wall behind them
+
+The owner, 2026-10-27: "continue looking for things that could be fixed with 3rd person or enemy views". A survey
+first: tools/figure-frames.ts photographs the rest of what a figure does in play (below), and two probes of the Neon
+City in third person (node_modules/.scratch/tpcam-walls.mts: at the centre's eye-level review spots, the player turned
+every 30 degrees, the frame photographed where a wall pulls the camera in closest; enemysee.mts, below). Two camera
+faults came out of it, both with a wall behind someone:
+
+- **Your own soldier.** In third person a wall at your back pulls the camera in to stay this side of it, to 0.52 m from
+  your eye at five of the twelve spots (THE STRIP's street, the noodle row, the market, the walk-in, the fire escape),
+  and your head and shoulders covered a third of the screen. Now the body thins out as the camera comes in past 1.2 m
+  from your eye and is gone at 0.6 m (figure.json selfFade; eased, so nothing steps as the camera slides along a wall),
+  the gun with it once the body is mostly gone (left on its own it hung in the air in front of you). Thinned by
+  dropping a share of its pixels (three's alphaHash) rather than blending, which sorts wrongly against itself; the
+  soldier's materials are each figure's own, so no other figure thins. The camera stands 2.44 m from your eye at the
+  hip, 1.57 aimed in and 3 in an emote, so none of those thins it.
+- **Watching someone once you are out.** A bot, or a squad mate with the third-person key, is watched from 2.6 m behind
+  and 2.1 m up, and the camera was put there whatever stood there: in the city's streets and towers, inside the wall
+  behind them or past it. Now it looks out to that place from their head first and stops 0.15 m short of the first
+  wall on the way (src/game/tpcam.ts spectateCamera, figure.json spectateCam), as your own third-person camera does.
+- **The survey's tool** (tools/figure-frames.ts): new sequences `climb`, `zip`, `wall`, `skydive`, `interact`,
+  `backrun` and `emotes` (every emote in turn; a sequence can now run page code on the figure at a moment, `calls`).
+- **Checked:**
+  - tools/checks/tpcam.ts (in verify): with nothing behind them the watching camera is where it always was; with a
+    wall 2.2 to 0.1 m behind them, square on or turned 30 degrees, it is on their side of it; your own soldier whole at
+    the hip, aimed in and in an emote, gone at 0.52 m, thinning without a step. Each part fails with its fix taken out
+    (the camera 2.5 m past the wall; the soldier drawn whole at 0.52 m).
+  - In the city (tpcam-walls.mts): at four of those spots the camera is still pulled in to 0.52 m, and the soldier
+    and the gun are not drawn there; at the hip, photographed thinned at 0.75, 0.5 and 0.25.
+  - The e2e's page section, whose third-person check now wants your figure drawn whole at the hip: 58 checks, E2E PASS
+    (the camera 2.443 m from the eye, the figure drawn whole).
+  - verify, rules and the type check.
+- **Found, for the next milestones:** a zip line rider holds the gun in both hands standing in the air, the rope 0.3 m
+  over their head and no hand on it; the long gun vanishes for an emote, an interact or a throw (in the skydive it is on
+  the back); a long gun is planted muzzle-down on the ledge in a climb; and an enemy's contrast against what is behind
+  it in the city (enemysee.mts) is near nothing at some spots and hours.

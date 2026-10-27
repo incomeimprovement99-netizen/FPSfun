@@ -1497,6 +1497,37 @@ export class MannequinFigure {
     }
   }
 
+  /** how much of the body is drawn, 1 all of it (setFade) */
+  private fade = 1;
+  /**
+   * The body drawn in part, 1 whole to 0 not at all (your own soldier as a wall brings the third-person camera up
+   * against it: tpcam.ts selfFadeAt). Hashed, a share of its pixels dropped, not blended: a body half see-through drawn
+   * blended sorts wrongly against itself and the gun in its hands.
+   */
+  setFade(alpha: number): void {
+    const a = Math.max(0, Math.min(1, alpha));
+    if (Math.abs(a - this.fade) >= 1e-3) {
+      const hashed = a < 0.999;
+      for (const m of this.mats) {
+        if (m.alphaHash !== hashed) {
+          m.alphaHash = hashed;
+          m.needsUpdate = true;
+        }
+        m.opacity = hashed ? a : 1;
+      }
+      this.fade = a;
+    }
+    // (the gun goes with the body once the body is mostly gone: left on its own it hung in the air in front of you. Its
+    // materials are its model's, shared with every figure holding one, so it is shown or not rather than thinned; called
+    // after update(), which shows it again each frame)
+    if (this.gun && a < 0.5) this.gun.visible = false;
+  }
+
+  /** how much of the body is drawn (setFade) */
+  get faded(): number {
+    return this.fade;
+  }
+
   private play(layer: "lower" | "upper", name: string, timeScale: number, fade = 0.18, once = false, source: "lower" | "upper" | "full" = layer): void {
     const key = `${source}:${name}`;
     const clip = this.tpl.clips.get(key) ?? this.tpl.clips.get(`${layer}:Idle_Loop`);
