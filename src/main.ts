@@ -3955,10 +3955,13 @@ function stepUnseen(): void {
     const r = d.remoteOf(a);
     const until = r ? unseenUntil.get(r.id) : undefined;
     if (r && until !== undefined && t > until) unseenUntil.delete(r.id);
-    const unseen = until !== undefined && t <= until && a.group.position.distanceTo(player.pos) > H.invis.seenWithin && !a.knocked;
+    // (never from their own squad, who saw them whole until Milestone 715 made the hiding work and hid them, their
+    // mate's ring with them: Milestone 723; and no shimmer over the killcam's replay, which hides the figures but not
+    // the shimmer standing outside them)
+    const unseen = until !== undefined && t <= until && !(r && d.isAlly(r.id)) && a.group.position.distanceTo(player.pos) > H.invis.seenWithin && !a.knocked;
     if (unseen) a.group.visible = false;
     const moving = Math.min(1, a.currentPose.speed / sh.movingFull);
-    a.setCloak(unseen ? sh.amount + (sh.moving - sh.amount) * moving : 0, CLOAK_COLOR, sh, t);
+    a.setCloak(unseen && !killcam.active ? sh.amount + (sh.moving - sh.amount) * moving : 0, CLOAK_COLOR, sh, t);
   }
 }
 

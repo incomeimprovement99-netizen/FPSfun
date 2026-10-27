@@ -602,8 +602,14 @@ export class Dummy {
     this.cloak.show(amount + hit, color, look, time);
   }
 
+  /** its shimmer off at once: a figure taken out for another look (Duel.setAvatarLook) leaves none standing */
+  dropCloak(): void {
+    this.cloaked = false;
+    this.cloak?.show(0, 0, { rim: 0, band: 0, bandScale: 0, bandSpeed: 0 }, 0);
+  }
+
   /** the shimmer as drawn (tools/e2e.ts), or null when it has never shown */
-  cloakState(): { on: number; amount: number } | null {
+  cloakState(): { on: number; amount: number; outside: number } | null {
     return this.cloak?.state() ?? null;
   }
 

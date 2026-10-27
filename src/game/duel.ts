@@ -1011,6 +1011,8 @@ export class Duel implements MatchLike {
     // (the new look of a figure already down: down, without a second gun falling; the old one's goes)
     if (old.knocked) next.fallDown(false);
     old.clearDropped();
+    // (its shimmer stands outside its group: left on, it stayed as a still figure where it was, Milestone 723)
+    old.dropCloak();
     this.scene.remove(old.group);
     this.projectiles.removeDummy(old);
     r.avatar = next;

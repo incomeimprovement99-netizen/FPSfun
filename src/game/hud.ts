@@ -595,6 +595,10 @@ export class Hud {
     if (!this.enabled) return;
     const c = this.ctx;
     c.clearRect(0, 0, this.w, this.h);
+    // (this frame's: a board or keys panel not drawn leaves none from an earlier one)
+    this.feedFrom = 0;
+    delete this.boxes.board;
+    delete this.boxes.keys;
     // layout unit: 1 px at 1080p, times the player's HUD scale (Settings, Accessibility)
     const u = (this.h / 1080) * access.hudScale;
     // the killcam has the screen to itself, and the kill feed
@@ -1120,6 +1124,8 @@ export class Hud {
   private hintsBottom = 0;
   /** the keys panel's left edge this frame, 0 when it is not drawn (the loot card keeps off it: Milestone 721) */
   private hintsLeft = 0;
+  /** where the kill feed starts this frame when a scoreboard had to go above it (Milestone 722), 0 otherwise */
+  private feedFrom = 0;
 
   /**
    * The keys on screen (keyhints.json): up on the right under the FPS, a row a
@@ -1231,6 +1237,7 @@ export class Hud {
     const foot = 32 * u;
     const h = head + k.rows.length * rowH + foot;
     this.hintsBottom = top + h;
+    this.box("keys", left, top, width, h);
     // (?slow=keys: drawn every frame, as before)
     if (slow("keys")) return this.paintKeyHints(k, u, left, right, width, top, h);
     const dpr = this.canvas.width / this.w;
@@ -1294,10 +1301,31 @@ export class Hud {
     this.text("to hide this", left + pw + hw + 6 * u, mid + 5 * u, 600, 14 * u, "#ffd23c");
   }
 
+  /**
+   * Where a scoreboard down the right goes, its plate `w` by `h` (Milestone 722): under the kill feed's six lines as
+   * before, but left of the keys panel when that is up, where both boards were drawn over the keys; on a screen too
+   * narrow for that (it would reach the crosshair) under the keys panel, the kill feed then under the board. Its plate's
+   * right edge and top.
+   */
+  private boardSpot(w: number, h: number, u: number): { right: number; top: number } {
+    const top = 254 * u;
+    let at = { right: this.w - 20 * u, top };
+    if (this.hintsLeft > 0) {
+      if (this.hintsLeft - w > this.w / 2 + 140 * u) at = { right: this.hintsLeft, top };
+      else {
+        at = { right: this.w - 20 * u, top: this.hintsBottom + 14 * u };
+        this.feedFrom = at.top + h + 22 * u;
+      }
+    }
+    this.box("board", at.right - w, at.top, w, h);
+    return at;
+  }
+
   /** the kill feed under the FPS counter, six seconds a line (and under the keys, when they are up) */
   private drawFeed(now: number, u: number): void {
     const x = this.w - 30 * u;
-    let y = this.hintsBottom ? this.hintsBottom + 22 * u : 120 * u;
+    let y = Math.max(this.hintsBottom ? this.hintsBottom + 22 * u : 120 * u, this.feedFrom);
+    this.box("feed", x, y - 15 * u, 0, 0);
     for (let i = this.feedLines.length - 1; i >= 0; i--) if (now - this.feedLines[i].born > 6) this.feedLines.splice(i, 1);
     for (const l of this.feedLines) {
       const age = now - l.born;
@@ -1386,13 +1414,20 @@ export class Hud {
     this.text(`${d.them}`, cx + 30 * u, 102 * u, 700, 38 * u, WHITE);
     this.text("THEM", cx + 120 * u, 97 * u, 700, 18 * u, RED, "right");
     this.text(`ROUND ${d.round}   FIRST TO 3` + (d.ping !== null ? `   PING ${Math.round(d.ping)} ms` : ""), cx, 136 * u, 600, 14 * u, DIM, "center");
-    // three or more: a scoreboard down the right, names, scores, who is up
+    // three or more: a scoreboard down the right, names, scores, who is up (on a plate, clear of the kill feed and the
+    // keys panel: boardSpot, Milestone 722; it was at 140, where the feed's lines start)
     if (d.players.length > 2) {
-      const x = this.w - 30 * u;
+      const names = d.players.map((p) => `${p.alive ? "" : "DOWN  "}${p.name}`);
+      c.font = this.font(700, 15 * u);
+      const w = 44 * u + Math.max(...names.map((t) => c.measureText(t).width)) + 22 * u;
+      const h = 34 * u + (d.players.length - 1) * 22 * u;
+      const at = this.boardSpot(w, h, u);
+      this.plate(at.right - w, at.top, w, h, u);
+      const x = at.right - 10 * u;
       d.players.forEach((p, i) => {
-        const y = 140 * u + i * 22 * u;
+        const y = at.top + 25 * u + i * 22 * u;
         const col = p.you ? "#7ddc8a" : p.alive ? WHITE : DIM;
-        this.text(`${p.alive ? "" : "DOWN  "}${p.name}`, x - 44 * u, y, 700, 15 * u, col, "right");
+        this.text(names[i], x - 44 * u, y, 700, 15 * u, col, "right");
         this.text(`${p.score}`, x, y, 700, 18 * u, col, "right");
       });
     }
@@ -1512,16 +1547,23 @@ export class Hud {
       this.text("BEST OTHER", cx + 175 * u, 84 * u, 700, 13 * u, RED, "right");
       this.text(`FIRST TO ${m.ffa.limit} KILLS${m.left !== null ? `  ·  ${clock(m.left)}` : ""}`, cx, 138 * u, 600, 14 * u, DIM, "center");
     }
-    // the scoreboard, down the right under the feed
-    const x = this.w - 30 * u;
-    const top = 270 * u;
+    // the scoreboard, down the right under the feed, on a plate, clear of the keys panel (boardSpot, Milestone 722: it
+    // was drawn over the keys, which a new player has up)
     const value = (r: ModeRow) => `${r.kills} / ${r.deaths}`;
-    this.text("KILLS / DEATHS", x, top - 18 * u, 700, 11 * u, DIM, "right");
-    m.rows.slice(0, 9).forEach((r, i) => {
-      const y = top + i * 19 * u;
+    const rows = m.rows.slice(0, 9);
+    const names = rows.map((r) => `${r.alive ? "" : "DOWN  "}${r.name}`);
+    c.font = this.font(700, 14 * u);
+    const bw = 110 * u + Math.max(0, ...names.map((t) => c.measureText(t).width)) + 22 * u;
+    const bh = 49 * u + Math.max(0, rows.length - 1) * 19 * u;
+    const at = this.boardSpot(bw, bh, u);
+    this.plate(at.right - bw, at.top, bw, bh, u);
+    const x = at.right - 10 * u;
+    this.text("KILLS / DEATHS", x, at.top + 21 * u, 700, 11 * u, DIM, "right");
+    rows.forEach((r, i) => {
+      const y = at.top + 41 * u + i * 19 * u;
       const col = r.you ? "#7ddc8a" : r.ally ? "#8fd8ff" : r.alive ? WHITE : DIM;
       this.text(value(r), x, y, 700, 14 * u, col, "right");
-      this.text(`${r.alive ? "" : "DOWN  "}${r.name}`, x - 110 * u, y, 700, 14 * u, col, "right");
+      this.text(names[i], x - 110 * u, y, 700, 14 * u, col, "right");
     });
     // down in a mode with respawns: back in soon
     if (m.respawnIn !== null && d.phase === "fight") {

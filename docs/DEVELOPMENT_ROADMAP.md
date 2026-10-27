@@ -12746,6 +12746,45 @@ Photographed as a pad player sees it at 1920 by 1080, 1280 by 720 and 1024 by 76
   check passed both times, the player alive before the death; the second run's THE CENTRE bot fell 23 m short of the
   circle on the city's graph once, a bot pathing flake of the city's); photographed at all three sizes.
 
+## Milestone 722 — The scoreboards clear of the keys panel and the kill feed
+
+Found in the 2026-10-27 bug hunt, playing a team deathmatch in Firefox at 1600 by 900 (a Firefox player had come in the
+night before): the arena modes' KILLS / DEATHS board was drawn at a fixed height down the right, over the keys panel a
+new player has up, names and numbers through "Left click" and "Right click". A 3+ duel's board did the same, and sat
+where the kill feed's lines start even with the keys panel hidden.
+
+- **Where they go now (hud.ts boardSpot):** under the kill feed's six lines as before, but left of the keys panel when
+  that is up; on a screen too narrow for that (it would reach the crosshair) under the keys panel, the kill feed then
+  under the board.
+- **On plates:** both boards were the HUD's last bare text over the world; each is on a plate now, as wide as its
+  longest name.
+- **Checked:** tsc, verify, rules; e2e modes, a new check: the team deathmatch's board clear of the keys and the feed,
+  left of the keys at 800 by 450 and under them at 600 by 450 with the feed under it; e2e triple, a new check: the
+  three's board clear of both. With the old placement put back both failed. Photographed at 1600 by 900 and 1024 by
+  768 with a full kill feed.
+
+## Milestone 723 — INVISIBILITY: a squad mate stays whole to their squad, and the shimmer follows a swapped gun
+
+Found in the 2026-10-27 bug hunt, a review of the last week's code:
+
+- **A squad mate hidden from their own squad:** since Milestone 715 made the hiding work, a team mate who went invisible
+  more than 6 m away was hidden from their own squad too, their mate's ring with them. They stay whole to their squad
+  now, as they always were before Milestone 715 (main.ts stepUnseen).
+- **The shimmer on a swapped gun:** its copies were built again only when the figure's count of meshes changed. A gun
+  swapped for one with as many meshes left the copies on the old gun, which once taken out of the hands stands at the
+  world's origin, and the new gun bare. Now a copy whose mesh has left the figure builds them again (outline.ts
+  CloakShell), and the count is taken twice a second instead of walking the whole figure every frame.
+- **A look changed while unseen:** the figure taken out kept its shimmer standing where it was until the match ended;
+  it drops it now (dummy.ts dropCloak, from duel.ts setAvatarLook).
+- **The killcam:** the replay hides the live figures, but the shimmer stands outside them and showed over it; none
+  while it plays.
+- **Checked:** tsc, verify, rules; e2e squad, a new check: a squad mate unseen past seenWithin is whole to the host and
+  shimmers for nobody; e2e brsolo, two new checks: one of the unseen guest's meshes swapped for a copy of itself (the
+  count the same and the old one out of the figure, as a gun with as many meshes does) leaves no copy outside the
+  figure, and a figure swapped for another look leaves no shimmer standing. With each fix taken out its check failed
+  (the swap check's first form tried the bots' guns for one with as many meshes and found none; it builds the case
+  itself now).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

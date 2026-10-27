@@ -184,6 +184,8 @@ function shownIn(src: THREE.Object3D, root: THREE.Object3D): boolean {
 export class CloakShell {
   private readonly parts: Array<{ copy: THREE.Mesh; src: THREE.Mesh }> = [];
   private sources = 0;
+  /** when the figure's meshes were last counted (show) */
+  private counted = -Infinity;
   private mat: THREE.MeshBasicMaterial | null = null;
   private readonly u = {
     amt: { value: 0 },
@@ -278,6 +280,12 @@ export class CloakShell {
     }
   }
 
+  /** a mesh still in the figure: one taken out of it (a gun swapped away) is left where it was, at the world's origin */
+  private inFigure(src: THREE.Object3D): boolean {
+    for (let p: THREE.Object3D | null = src; p; p = p.parent) if (p === this.root) return true;
+    return false;
+  }
+
   /** a mesh shown within the figure: itself and its parents up to the figure, but not the figure's own visibility */
   private shown(src: THREE.Object3D): boolean {
     for (let p: THREE.Object3D | null = src; p && p !== this.root; p = p.parent) if (!p.visible) return false;
@@ -287,7 +295,21 @@ export class CloakShell {
   /** at `amount` (0 off) in `color`, its bands at `time`: once a frame while it is on */
   show(amount: number, color: number, look: { rim: number; band: number; bandScale: number; bandSpeed: number }, time: number): void {
     const on = amount > 0.001;
-    if (on && (figureMeshes(this.root, this.skip).length !== this.sources || !this.parts.length || this.parts[0].copy.parent !== this.layer())) this.build();
+    if (on) {
+      // Built again when one of its meshes has left the figure: a gun swapped for one with as many meshes kept the
+      // copies on the old gun, drawn at the world's origin, and the new gun bare (Milestone 723). The figure's meshes are
+      // counted twice a second for one added beside the rest, not every frame: that walked the whole figure.
+      let stale = !this.parts.length || this.parts[0].copy.parent !== this.layer();
+      for (let i = 0; !stale && i < this.parts.length; i++) stale = !this.inFigure(this.parts[i].src);
+      if (!stale && Math.abs(time - this.counted) > 0.5) {
+        this.counted = time;
+        stale = figureMeshes(this.root, this.skip).length !== this.sources;
+      }
+      if (stale) {
+        this.build();
+        this.counted = time;
+      }
+    }
     this.u.amt.value = amount;
     this.u.color.value.setHex(color);
     this.u.time.value = time;
@@ -306,8 +328,8 @@ export class CloakShell {
   }
 
   /** how many copies are drawn, at what amount (tools/e2e.ts) */
-  state(): { on: number; amount: number } {
-    return { on: this.parts.filter((p) => p.copy.visible).length, amount: this.u.amt.value };
+  state(): { on: number; amount: number; outside: number } {
+    return { on: this.parts.filter((p) => p.copy.visible).length, amount: this.u.amt.value, outside: this.parts.filter((p) => p.copy.visible && !this.inFigure(p.src)).length };
   }
 
   /** a hidden plain and skinned mesh in its material, for the page's warm (as ShieldShell.warmKit) */

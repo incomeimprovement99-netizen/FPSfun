@@ -593,7 +593,8 @@ optics and hop-ups.
 In every mode the HUD is laid out where the game puts things: health and
 shield bottom left, weapon and
 ammo bottom right, the tech feed on the left, the kill feed and scoreboard
-top right in a match, damage numbers over the target's head and hit markers, a notice
+top right in a match (the scoreboard on a plate left of the keys panel when that is up, under it on a narrow screen:
+Milestone 722), damage numbers over the target's head and hit markers, a notice
 line in the middle; in a battle royale the alive count, your kills and the
 ring's clock top centre, the rings on the minimap, and an orange edge when
 you are outside. **An enemy's name and bars** show only after you have hurt
@@ -612,7 +613,8 @@ green plate always shows.
   catch onto a zipline (Milestone 712), and a puff for a double jump, theirs and yours (Milestone 713).
 - **Others under INVISIBILITY:** hidden past 6 m but for a faint shimmer of their outline, a little more when they
   move and a flash when a round lands; still shot, blasted and heard as anyone is; whole within 6 m (Milestones 715 to
-  718).
+  718). A squad mate under it stays whole to their own squad, and the shimmer follows a swapped gun and stays out of the
+  killcam (Milestone 723).
 - **An enemy's REVEAL that catches you:** puts a red REVEALED, counting down, under the compass.
 - **The compass and minimap:** they follow whoever you are watching (a squad mate, the killcam), and the minimap marks
   north.

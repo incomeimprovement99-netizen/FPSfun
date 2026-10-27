@@ -286,6 +286,23 @@ const brRow = (team: "solo" | "duo" | "trio", bots: number): string =>
  * through, and a bot that walks into a shut door opens it.
  */
 /** a mode alone from the Play tab's button: in the game (the pad's Start), the fight on */
+type HudBox = { x: number; y: number; w: number; h: number };
+/**
+ * Where the HUD drew its scoreboard against the keys panel and the kill feed's room (six lines down from where the feed
+ * starts), the HUD drawn for the moment on a ?norender page (Milestone 722: the arena modes' board lay over the keys
+ * panel a new player has up, and a 3+ duel's over the keys and the kill feed)
+ */
+async function boardPlace(page: Page): Promise<{ board: HudBox | null; keys: HudBox | null; feed: HudBox | null; clear: boolean }> {
+  return ev(
+    page,
+    `new Promise((ok) => { const h = window.__range.hud; const was = h.enabled; h.enabled = true;
+      setTimeout(() => { const b = h.boxes; const u = innerHeight / 1080; const board = b.board ?? null, keys = b.keys ?? null, feed = b.feed ?? null;
+        const room = feed && { x: feed.x - 420 * u, y: feed.y, w: 420 * u, h: 150 * u };
+        const meet = (p, q) => !!p && !!q && p.x < q.x + q.w && q.x < p.x + p.w && p.y < q.y + q.h && q.y < p.y + p.h;
+        h.enabled = was; ok({ board, keys, feed, clear: !!board && !meet(board, keys) && !meet(board, room) }); }, 400); })`,
+  );
+}
+
 async function startModePage(browser: Browser, query: string, button: string, setup = ""): Promise<Page> {
   const page = await open(browser, query);
   // the card picks the mode and the panel's own button starts it (the lobby,
@@ -388,6 +405,18 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
     `(() => { const d = window.__range.duel(); const rs = d.avatars.map((a) => d.remoteOf(a)); const m = d.hud().mode; return { allies: rs.filter((r) => d.isAlly(r.id)).length, enemies: rs.filter((r) => !d.isAlly(r.id)).length, you: m.teams.you, them: m.teams.them, limit: m.teams.limit }; })()`
   );
   check("tdm: four bots to face fills your side to four, 0 - 0, first to 30", t0.allies === 3 && t0.enemies === 4 && t0.you === 0 && t0.them === 0 && t0.limit === 30, JSON.stringify(t0));
+  // its scoreboard clear of the keys panel and the kill feed (Milestone 722): left of the keys on a wide screen; under
+  // them on a narrow one, the feed then under the board
+  const wideBoard = await boardPlace(t);
+  await t.setViewport({ width: 600, height: 450, deviceScaleFactor: 1 });
+  const narrowBoard = await boardPlace(t);
+  await t.setViewport({ width: 800, height: 450, deviceScaleFactor: 1 });
+  check(
+    "tdm: the scoreboard clear of the keys panel and the kill feed: left of the keys on a wide screen, under them on a narrow one with the feed under it",
+    wideBoard.clear && !!wideBoard.board && !!wideBoard.keys && wideBoard.board.x + wideBoard.board.w <= wideBoard.keys.x &&
+      narrowBoard.clear && !!narrowBoard.board && !!narrowBoard.keys && !!narrowBoard.feed && narrowBoard.board.y >= narrowBoard.keys.y + narrowBoard.keys.h && narrowBoard.feed.y >= narrowBoard.board.y + narrowBoard.board.h,
+    JSON.stringify({ wideBoard, narrowBoard }),
+  );
   const tdmGuns = await ev<string[]>(t, "window.__range.duel().bots.map((b) => b.bot.remote.avatarWeapon)");
   check("tdm: the bots keep their own guns (each its own)", new Set(tdmGuns).size >= 4, tdmGuns.join(","));
   const ff = await ev<{ health: number; before: number }>(
@@ -946,6 +975,17 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   check("squad: the host drops a forged hit (more than a round can do) and one with no shot behind it", !!target && forged.refused.length === 2 && /more than one round/.test(forged.refused[0].why) && /no shot/.test(forged.refused[1].why), JSON.stringify({ target, forged }));
   // the guest runs no bots: its squad count is the host's, off the ring packet
   check("squad: the guest counts the squads still in it the way the host does", after[0].squads > 1 && after[1].squads === after[0].squads, JSON.stringify(after.map((a) => a.squads)));
+  // a squad mate under INVISIBILITY stays whole to their own squad (Milestone 723: past seenWithin they were hidden from
+  // it, their mate's ring with them, once Milestone 715 made the hiding work)
+  const mateCloak = await ev<{ ally: boolean; visible: boolean; on: number } | null>(
+    host,
+    `new Promise((ok) => { const R = window.__range; const d = R.duel(); const a = d.avatars.find((x) => d.remoteOf(x)?.id === 1);
+      if (!a) return ok(null); const q = a.group.position; const me = R.player.pos.clone();
+      R.sk.remoteHack(1, 5, q.x, q.y, q.z, 30); R.player.teleport(q.x + 15, q.y, q.z, 90, 0);
+      setTimeout(() => { const s = a.cloakState(); const out = { ally: d.isAlly(1), visible: a.group.visible, on: s ? s.on : 0 };
+        R.sk.remoteHack(1, 5, q.x, q.y, q.z, 0); R.player.teleport(me.x, me.y, me.z, 0, 0); ok(out); }, 600); })`,
+  );
+  check("squad: a squad mate under INVISIBILITY stays whole to their own squad, no shimmer", !!mateCloak && mateCloak.ally && mateCloak.visible && mateCloak.on === 0, JSON.stringify(mateCloak));
   // a ping: the guest marks a place, the host sees it
   await ev(guest, `(() => { const r = window.__range; const d = r.duel(); d.sendMark("go", r.player.pos.clone(), "GOING HERE"); })()`);
   const pinged = await host.waitForFunction("window.__range.brPlay.markers.some((m) => m.from === 1 && m.k === 'go')", { polling: 100, timeout: 4000 }).then(() => true, () => false);
@@ -1287,6 +1327,11 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
   check(`${tag}: last one standing, the host takes the round on all three screens`, scored.every(Boolean), scored.join(","));
   const hostYou = await ev<number>(host, "window.__range.duel().hud().you");
   check(`${tag}: and it is the host's point`, hostYou === 1, `${hostYou}`);
+  // the three's scoreboard clear of the keys panel and the kill feed (Milestone 722: it sat where the feed starts)
+  if (tag === "1v1v1") {
+    const placed = await boardPlace(host);
+    check(`${tag}: the scoreboard clear of the keys panel and the kill feed`, placed.clear, JSON.stringify(placed));
+  }
   // The state packets, page by page: each guest's link to the host carried
   // the delta packets when both ends are this build with them on, and the
   // full ones otherwise; nothing was refused and nobody was sent a delta
@@ -3773,6 +3818,26 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     !!cloak?.far && !cloak.far.visible && cloak.far.on > 0 && cloak.far.amount > 0 && cloak.far.shot === true && cloak.far.flared > cloak.far.amount && !!cloak.near && cloak.near.visible && cloak.near.on === 0 && cloak.off?.on === 0,
     JSON.stringify(cloak),
   );
+  // a gun swapped while unseen (Milestone 723): the shimmer's copies stayed on the old gun when the new one had as many
+  // meshes, drawn where the old gun was left (the world's origin), the new gun bare; and a figure taken out for another
+  // look while unseen left its shimmer standing. The swap made exactly: one of the guest's meshes swapped for a copy of
+  // itself, the count the same and the old one out of the figure, as a gun with as many meshes does
+  const swap = await ev<{ swapped: boolean; on: number; outside: number; oldOn: number } | null>(
+    host,
+    `new Promise((ok) => { const R = window.__range; const d = R.duel(); const a = d.avatars.find((x) => d.remoteOf(x)?.id === 1);
+      if (!a) return ok(null); const r = d.remoteOf(a); const q = a.group.position;
+      R.sk.remoteHack(1, 5, q.x, q.y, q.z, 30); R.player.teleport(q.x + 15, q.y, q.z, 90, 0);
+      // (one the shimmer copies and draws: outline.ts figureMeshes' own test, and shown; a plain one first, a skinned one
+      // shares its skeleton)
+      const copied = (o) => { if (!o.isMesh || o.userData.hull || !o.parent || !o.geometry.getAttribute("normal") || Array.isArray(o.material) || o.material.transparent || !o.material.visible) return false; for (let p = o; p; p = p.parent) if (p === a.hits) return false; for (let p = o; p && p !== a.group; p = p.parent) if (!p.visible) return false; return true; };
+      setTimeout(() => { let m = null, sk = null; a.group.traverse((o) => { if (!copied(o)) return; if (!o.isSkinnedMesh) m ??= o; else sk ??= o; }); m ??= sk;
+        const parent = m && m.parent; const twin = m && m.clone(); if (m) { parent.add(twin); m.removeFromParent(); }
+        setTimeout(() => { const s = a.cloakState(); if (m) { twin.removeFromParent(); parent.add(m); }
+          const op = r.avatarOp; d.setAvatarLook(r, r.avatarWeapon, op + "-e2e", r.avatarLook); const oldOn = a.cloakState().on; d.setAvatarLook(r, r.avatarWeapon, op, r.avatarLook);
+          R.sk.remoteHack(1, 5, q.x, q.y, q.z, 0); ok({ swapped: !!m, on: s ? s.on : 0, outside: s ? s.outside : -1, oldOn }); }, 400); }, 600); })`,
+  );
+  check("INVISIBILITY: a gun swapped while unseen carries the shimmer, none left where the old gun went", !!swap && swap.swapped && swap.on > 0 && swap.outside === 0, JSON.stringify(swap));
+  check("INVISIBILITY: a figure swapped for another look while unseen leaves no shimmer standing", !!swap && swap.oldOn === 0, JSON.stringify(swap));
   // the host knocks the guest: in solo that is the end of them
   await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); d.localHit(r, 250, true); })()`);
   const out = await guest.waitForFunction("!window.__range.duel().alive", { polling: 100, timeout: 6000 }).then(() => true, () => false);
