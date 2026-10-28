@@ -41,6 +41,7 @@
 import { nextBoardValue } from "./boardrules.mjs";
 import express from "express";
 import { ExpressPeerServer } from "peer";
+import { WebSocketServer } from "ws";
 import { createHmac, randomBytes, scrypt, timingSafeEqual } from "node:crypto";
 import { appendFileSync, existsSync, readFileSync, renameSync, statSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
@@ -209,6 +210,13 @@ try {
 }
 /** a user by key, only if it is one (never anything inherited) */
 const userAt = (key) => (Object.hasOwn(accounts.users, key) ? accounts.users[key] : undefined);
+// Every profile together, in bytes, held under a budget (Milestone 730): the file is in memory and written whole every
+// few seconds, and 5,000 accounts at 128 KB each would be 640 MB, past what pm2 lets the server use, read again at every
+// start: a server that could never come back up. Real profiles are a few kilobytes.
+const PROFILES_MAX_BYTES = 48 * 1024 * 1024;
+const sizeOf = (profile) => (profile ? JSON.stringify(profile).length : 0);
+let profileBytes = 0;
+for (const u of Object.values(accounts.users)) profileBytes += sizeOf(u.profile);
 // the file's size is bounded: this many accounts, profiles this big, this many profile saves a user per 10 minutes
 const MAX_ACCOUNTS = 5000;
 const SAVE_LIMIT = 40;
@@ -256,6 +264,25 @@ const tooMany = (req) => {
   tries.set(ip, p);
   return ++p.count > TRY_LIMIT;
 };
+// and wrong passwords for one account, from anywhere (Milestone 730): the limit above is an address's, so guesses spread
+// over many addresses went unlimited. Past this many in the window that account's sign-in waits for the next.
+const missed = new Map();
+const MISS_LIMIT = 30;
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, p] of missed) if (p.resetAt < now) missed.delete(key);
+}, POST_WINDOW_MS).unref();
+const missedTooOften = (key) => {
+  const p = missed.get(key);
+  return !!p && p.resetAt >= Date.now() && p.count >= MISS_LIMIT;
+};
+const missOne = (key) => {
+  const now = Date.now();
+  const p = missed.get(key) ?? { count: 0, resetAt: now + POST_WINDOW_MS };
+  if (p.resetAt < now) Object.assign(p, { count: 0, resetAt: now + POST_WINDOW_MS });
+  p.count++;
+  missed.set(key, p);
+};
 const newSession = (key) => {
   const token = randomBytes(32).toString("hex");
   accounts.sessions[token] = { user: key, expires: Date.now() + SESSION_DAYS * 86400 * 1000 };
@@ -300,10 +327,14 @@ app.post("/api/account/login", express.json({ limit: "2kb" }), safe(async (req, 
   if (tooMany(req)) return res.status(429).json({ error: "slow down" });
   const c = credentials(req.body);
   if (c.error) return res.status(400).json({ error: "wrong name or password" });
+  if (missedTooOften(c.key)) return res.status(429).json({ error: "slow down" });
   const u = userAt(c.key);
   // an unknown name costs the same hash as a known one, so the answer's timing tells nothing
   const hash = await hashOf(c.password, u?.salt ?? "00".repeat(16));
-  if (!u || typeof u.hash !== "string" || !timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(u.hash, "hex"))) return res.status(401).json({ error: "wrong name or password" });
+  if (!u || typeof u.hash !== "string" || !timingSafeEqual(Buffer.from(hash, "hex"), Buffer.from(u.hash, "hex"))) {
+    if (u) missOne(c.key);
+    return res.status(401).json({ error: "wrong name or password" });
+  }
   res.json({ ok: true, name: u.name, token: newSession(c.key), profile: u.profile, updated: u.updated });
 }));
 
@@ -335,6 +366,9 @@ app.put("/api/account/profile", express.json({ limit: PROFILE_MAX }), (req, res)
   s.user.saves.push(now);
   const profile = req.body && typeof req.body === "object" ? req.body.profile : undefined;
   if (!profile || typeof profile !== "object" || Array.isArray(profile)) return res.status(400).json({ error: "bad profile" });
+  const grown = sizeOf(profile) - sizeOf(s.user.profile);
+  if (grown > 0 && profileBytes + grown > PROFILES_MAX_BYTES) return res.status(507).json({ error: "the server is full" });
+  profileBytes += grown;
   s.user.profile = profile;
   s.user.updated = new Date().toISOString();
   accountsDirty = true;
@@ -528,10 +562,38 @@ const server = app.listen(PORT, HOST, () => {
   console.log(`range server ${version} on http://${HOST}:${PORT} (site ${DIST}, TURN ${TURN_SECRET ? "on" : "off"})`);
 });
 
+// The broker's sockets (Milestone 730). A message is a little JSON (an offer, an answer, a candidate), so one far past that
+// is refused at the socket (ws took 100 MB); and an address holds so many at once, so one machine cannot fill the broker
+// for everyone (concurrent_limit counts every address together). The address is Caddy's, last in X-Forwarded-For (a
+// client can put its own before it), else the socket's own.
+const WS_MAX_BYTES = 64 * 1024;
+const WS_PER_ADDRESS = 24;
+const wsHeld = new Map();
+const wsAddress = (req) => {
+  const remote = req.socket.remoteAddress ?? "?";
+  const fwd = req.headers["x-forwarded-for"];
+  const local = remote === "127.0.0.1" || remote === "::1" || remote === "::ffff:127.0.0.1";
+  return local && typeof fwd === "string" && fwd.trim() ? fwd.split(",").pop().trim() : remote;
+};
+const brokerSockets = (options) => {
+  const wss = new WebSocketServer({ ...options, maxPayload: WS_MAX_BYTES, verifyClient: ({ req }) => (wsHeld.get(wsAddress(req)) ?? 0) < WS_PER_ADDRESS });
+  wss.on("connection", (socket, req) => {
+    const a = wsAddress(req);
+    wsHeld.set(a, (wsHeld.get(a) ?? 0) + 1);
+    socket.on("close", () => {
+      const n = (wsHeld.get(a) ?? 1) - 1;
+      if (n > 0) wsHeld.set(a, n);
+      else wsHeld.delete(a);
+    });
+  });
+  return wss;
+};
+
 const broker = ExpressPeerServer(server, {
   path: "/",
   key: PEER_KEY,
   proxied: true,
+  createWebSocketServer: brokerSockets,
   // no listing of who is online: a code is the only way in
   allow_discovery: false,
   // a few friends at a time; this caps a flood, not real use
@@ -541,6 +603,13 @@ const broker = ExpressPeerServer(server, {
 });
 broker.on("connection", () => peers++);
 broker.on("disconnect", () => (peers = Math.max(0, peers - 1)));
+// A socket's error (a message that is not JSON, one past the cap above, a connection dropped mid-frame) comes out as the
+// broker's "error": with nobody listening it was thrown, and one bad frame from anyone stopped the whole server, the
+// site, the accounts and every match being made with it (Milestone 730). Said, and the server goes on.
+let brokerErrors = 0;
+broker.on("error", (e) => {
+  if (brokerErrors++ < 20 || brokerErrors % 1000 === 0) console.error(`broker: ${e?.message ?? e} (${brokerErrors} so far)`);
+});
 app.use("/peerjs", broker);
 
 // unknown paths: a plain 404, not the game page (a typo in an asset path should

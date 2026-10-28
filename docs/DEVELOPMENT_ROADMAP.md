@@ -12882,6 +12882,30 @@ landing seconds late by then; at most 64; dropped if this page takes the match o
 - **Checked:** tsc, verify, rules; e2e brsolo's getting back in, a new check: a gun the guest puts down in the moment
   its link is gone is on the host's floor once it is back (with the keeping taken out it failed).
 
+## Milestone 730 — The game server kept up under bad clients
+
+A review of the menus, the accounts and the game server in the 2026-10-28 bug hunt, read for security first:
+
+- **One frame stopped the server:** a message on the broker's socket that was not JSON (or one past ws's size limit,
+  or a socket dropped mid-frame) came out as the broker's "error" event, and with nobody listening for it the throw
+  stopped the whole process: the site, the accounts, the boards and every match being made. Anyone could do it with
+  the broker's key, which /net.json gives out; pm2 brought it back 2 s later, and again each time. The server now
+  hears those errors, logs them (`broker:` in `npm run fps logs`) and goes on.
+- **The broker could be filled:** one address could hold 500 sockets (the whole broker's limit), and a socket took
+  messages of up to 100 MB. The server makes the broker's sockets itself now (server/game/serve.mjs brokerSockets, `ws`
+  declared beside peer): 64 KB a message, 24 sockets an address (the address Caddy saw).
+- **Wrong passwords from many addresses:** the sign-in limit was an address's; an account now also takes no more than
+  30 wrong passwords a 10 minutes from anywhere.
+- **An accounts file that could not be read back:** 5,000 accounts at the 128 KB a profile allows is past what pm2
+  lets the server use, read again at every start. Every profile together is held under 48 MB (a save past it is told
+  the server is full); real profiles are a few kilobytes.
+- **Checked:** verify, rules, a new check in verify (tools/checks/serve-broker.ts) that runs the real server on a
+  spare port: a frame that is not JSON leaves it up, a 200 KB frame closes only that socket, one address gets 23 of 30
+  sockets (24 with the one held from before). Against the server as it was live, the first frame stopped it and all
+  three failed. The deploy's live check plays a 1v1 through the changed broker.
+- **Left:** a board's 100 places and the feedback and visit logs can still be pushed out by a flood under made-up
+  names; the menus' and accounts' findings of the same review follow in Milestone 731.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

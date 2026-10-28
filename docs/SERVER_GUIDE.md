@@ -268,10 +268,14 @@ release so a deploy keeps them. Back `accounts.json` up now and then
 ## 9. How it works, briefly
 
 `server/game/serve.mjs` is one Node process: it serves the built site, runs
-the PeerJS broker at `/peerjs`, answers `/net.json` (the broker's path and
+the PeerJS broker at `/peerjs` (its sockets capped at 64 KB a message and 24 an
+address, and a bad frame logged as `broker:` in `npm run fps logs` rather than
+stopping the server), answers `/net.json` (the broker's path and
 TURN credentials that expire after 12 hours, signed with the relay's
 secret), keeps the boards at `/api/board` and the accounts at `/api/account`
-(register, login, logout, profile; rate limited, sessions of 30 days), keeps
+(register, login, logout, profile; rate limited by address and, for wrong
+passwords, by account; every profile together held under 48 MB; sessions of 30
+days), keeps
 the visit log at `/api/seen` (a line from `src/net/seen.ts` as the page opens, a
 lobby is made or joined, a match starts and the page closes; 120 a 10 minutes an
 address), and answers `/health`. The game
