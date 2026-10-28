@@ -353,6 +353,8 @@ export class Duel implements MatchLike {
   /** the host's links by guest id; a guest has one link, to the host */
   protected links = new Map<number, Link>();
   protected hostLink: Link | null = null;
+  /** what this guest said while it had no host to say it to, getting back in (toHost) */
+  private outbox: NetMsg[] = [];
   /** the delta packets' streams to and from each peer, and whether each peer reads them (public for the tests and tools/net-cost.ts) */
   readonly sync: StateSync;
   /** during a frame (update), the delta parts waiting to go to each peer as one packet */
@@ -758,6 +760,8 @@ export class Duel implements MatchLike {
     this.hostId = this.id;
     this.hostLink = null;
     this.reconnectUntil = null;
+    // (said to a host that is now this page: nobody to send it to)
+    this.outbox.length = 0;
     this.heirSnap = null;
     this.heirSeen = null;
     this.sync.forgetPeer(old);
@@ -820,6 +824,8 @@ export class Duel implements MatchLike {
     link.onMessage = (m) => this.receive(m, this.hostId);
     link.onClose = () => this.hostDropped();
     this.reconnectUntil = null;
+    // (what it said meanwhile, in the order it said it: toHost)
+    for (const m of this.outbox.splice(0)) link.send(m);
     this.remote(this.hostId).lastHeard = wallClock();
     this.sync.forgetPeer(this.hostId);
     if (MIGRATE) link.send({ t: "heir", op: "can" });
@@ -1028,7 +1034,18 @@ export class Duel implements MatchLike {
       return;
     }
     if (this.role === "host") for (const l of this.links.values()) l.send(m);
-    else this.hostLink?.send(m);
+    else this.toHost(m);
+  }
+
+  /**
+   * A guest's message to its host, or, while it is getting back in, kept for when it is (Milestone 729). It went
+   * nowhere: a death's drop said in those seconds left the guns out of the match, and a Gulag's note, a pickup, a
+   * restore or a ping never reached it. Not the states, the tracers or a hit (stale by then, or a round landing
+   * seconds late), and no more than a match's worth of seconds would hold.
+   */
+  protected toHost(m: NetMsg): void {
+    if (this.hostLink) this.hostLink.send(m);
+    else if (this.reconnectUntil !== null && m.t !== "s" && m.t !== "shot" && m.t !== "hit" && m.t !== "ping" && this.outbox.length < 64) this.outbox.push(m);
   }
 
   /** the host: pass a guest's message on to the other guests, stamped */
@@ -1672,7 +1689,7 @@ export class Duel implements MatchLike {
   sendRespawn(to: number, at: THREE.Vector3, echo = false): void {
     const m: NetMsg = { t: "respawn", to, at: [at.x, at.y, at.z], ...(echo ? { bx: 1 } : {}) };
     if (this.role === "host") this.links.get(to)?.send({ ...m, from: this.id });
-    else this.hostLink?.send(m);
+    else this.toHost(m);
   }
 
   /** a ping, for the squad */

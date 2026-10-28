@@ -12842,8 +12842,8 @@ edges:
   city. Someone of yours in the Gulag counts for the win now.
 - **Pings:** another side's player could not be pinged as an enemy (the ping skipped every player); only your own
   squad is skipped now.
-- **Left as it is:** the capture's progress is not carried to a migrated host. (With friends on separate sides, a
-  capture placing every side alike: Milestone 727.)
+- **Left then:** the capture's progress not carried to a migrated host (Milestone 728). (With friends on separate
+  sides, a capture placing every side alike: Milestone 727.)
 - **Checked:** tsc, verify, rules; e2e gulag, four new checks: someone who leaves in the Gulag is no longer counted in
   there; a pickup granted after you are out goes back on the floor, not into your slots; a Gulag won takes your first
   death's echo off the floor; the last squad mate losing it, the rest out, ends the match on the host. e2e migrate, a
@@ -12861,6 +12861,26 @@ out in (as judgeSides noted it), any other where it was.
 - **Checked:** tsc, verify, rules; e2e brsolo, a new check: with the guest out early, a capture by a bot squad and one
   by the host's side each tell the guest the place it went out in (the host's own end and what it sends held back for
   it, and the match put back, so the test plays on to its end). With the side's place left out it failed.
+
+## Milestone 728 — A capture under way carried to a new host
+
+The host's capture meters lived on the host alone, so a host leaving in the endgame started a hold under way again
+from nothing on its heir. The guests already hear the holder's meter as it fills (the ring message's `cp`): the heir
+now starts from what it last heard (brmatch.ts restoreAsHost). Only the holder's meter: the others' were never told.
+
+- **Checked:** tsc, verify, rules; e2e migrate, a new check: a meter of 7.3 s on the old host's own side is the heir's
+  on taking over (with the line taken out it failed).
+
+## Milestone 729 — What a guest says while it gets back in
+
+A guest whose link to the host dropped sent everything it said in those seconds to nowhere (duel.ts broadcast went to
+`hostLink?`, empty while it reconnects): a death's drop then left its guns out of the match, and a Gulag's note, a
+pickup, a restore or a ping never arrived. A guest now keeps what it says while it is getting back in and sends it, in
+order, once it is (duel.ts toHost, used by every guest send). Not the states, the tracers or a hit, stale or a round
+landing seconds late by then; at most 64; dropped if this page takes the match over instead.
+
+- **Checked:** tsc, verify, rules; e2e brsolo's getting back in, a new check: a gun the guest puts down in the moment
+  its link is gone is on the host's floor once it is back (with the keeping taken out it failed).
 
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 

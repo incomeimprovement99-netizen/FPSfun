@@ -840,7 +840,7 @@ export class BrMatch extends Duel {
       if (!it) return;
       this.onLootTaken?.(it);
       this.broadcast({ t: "loot", op: "gone", key, by: this.id });
-    } else if (f.drops.has(key)) this.hostLink?.send({ t: "loot", op: "take", key });
+    } else if (f.drops.has(key)) this.toHost({ t: "loot", op: "take", key });
   }
 
   /** put an item down (a swapped gun, what someone had when they died): the host keys it and tells the squad */
@@ -850,7 +850,7 @@ export class BrMatch extends Duel {
     if (this.role === "host") {
       const key = f.add(item, at);
       this.broadcast({ t: "loot", op: "add", key, item, at: [at.x, at.y, at.z] });
-    } else this.hostLink?.send({ t: "loot", op: "drop", item, at: [at.x, at.y, at.z] });
+    } else this.toHost({ t: "loot", op: "drop", item, at: [at.x, at.y, at.z] });
   }
 
   /**
@@ -886,7 +886,7 @@ export class BrMatch extends Duel {
       if (f.remove(key)) this.broadcast({ t: "loot", op: "gone", key, by: this.id });
     } else if (f.drops.has(key)) {
       this.discarding.add(key);
-      this.hostLink?.send({ t: "loot", op: "take", key });
+      this.toHost({ t: "loot", op: "take", key });
     }
   }
 
@@ -1042,7 +1042,7 @@ export class BrMatch extends Duel {
       this.hostDoor(i, open);
       return;
     }
-    this.hostLink?.send({ t: "door", i, open });
+    this.toHost({ t: "door", i, open });
     this.doorAsked.set(i, wallClock());
     const me = this.lastLocal;
     if (open || !me || doors.canClose(i, [me])) doors.set(i, open);
@@ -1055,7 +1055,7 @@ export class BrMatch extends Duel {
     if (!d || d.open || d.broken || this.phase !== "fight") return;
     if (this.role === "host") this.hostKick(i);
     else {
-      this.hostLink?.send({ t: "door", i, open: false, k: 1 });
+      this.toHost({ t: "door", i, open: false, k: 1 });
       doors.kickHeard(i);
     }
   }
@@ -1676,6 +1676,10 @@ export class BrMatch extends Duel {
     const ring = new Ring(this.area, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases, this.decayCircle ?? undefined);
     ring.restore(this.view, this.area);
     this.ring = ring;
+    // the capture's meter where this page last heard it (Milestone 728): the old host's meters went with it, and a hold
+    // under way started again from nothing on the heir. The holder's alone: the others' were never told.
+    this.capture.progress.clear();
+    if (this.capture.holder >= 0 && this.capture.held > 0) this.capture.progress.set(this.capture.holder, this.capture.held);
     const s = readBrSnap(mode);
     if (!s) return;
     const rt = (v: number | null): number => (v === null ? Infinity : now + v);

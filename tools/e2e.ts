@@ -3537,6 +3537,10 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   const kitsOf = "window.__range.duel().bots.map((x) => [x.bot.index, x.bot.lootKit.gunId, x.bot.lootKit.armor].join(':')).sort()";
   // a snapshot made after the bots are as they will be read: let one more go out
   await sleep(1300);
+  // a capture under way, the host's own side holding it (set by hand: the zone opens late), heard by the guests as its
+  // meter (Milestone 728: it started again from nothing on the heir)
+  const holdKey = await ev<number>(host, "(() => { const d = window.__range.duel(); const k = d.sideOf(d.id); d.capture.holder = k; d.capture.held = 7.3; d.capture.progress.set(k, 7.3); return k; })()");
+  await heir.waitForFunction(`window.__range.duel().capture.holder === ${holdKey}`, { polling: 100, timeout: 4000 }).catch(() => undefined);
   // A pickup a moment before the host goes. The item is off every floor the moment it is taken, so the heir has to hear
   // of it soon (duel.ts heirSoon), not at the next second's snapshot: a takeover from the snapshot before it rebuilt the
   // bot without the item, and it was gone from the match (a gun lost so, 2026-10-12). Taken here through the bot's own
@@ -3563,6 +3567,8 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   // the heir's ring closes on the final sector, as the first host's did (Milestone 726: it drew the seed's own circles,
   // and the bots fled the decay, packages fell and a won Gulag dropped toward them)
   if (took) {
+    const meter = await ev<number | null>(heir, `window.__range.duel().capture.progress.get(${holdKey}) ?? null`);
+    check(`${label}: the heir carries on the capture's meter where the old host had it`, meter !== null && Math.abs(meter - 7.3) < 0.15, JSON.stringify({ holdKey, meter }));
     const onFinal = await ev<boolean>(heir, `(() => { const d = window.__range.duel(); const c = d.decayCircle; return !!d.ring && !!c && d.ring.plan.every((q) => Math.abs(q.cx - c.cx) < 0.01 && Math.abs(q.cz - c.cz) < 0.01); })()`);
     check(`${label}: the heir's ring closes on the final sector, as the first host's did`, onFinal);
   }
@@ -3668,8 +3674,13 @@ async function rejoinTest(browser: Browser, query: string): Promise<void> {
   await ev(host, "window.__range.duel().holdFire = true");
   // the guest's connection drops: the host holds the seat and takes the guest back on it (over two tabs that is at once)
   await ev(host, "(() => { const d = window.__range.duel(); const take = d.rejoin.bind(d); window.__backs = []; d.rejoin = (l, id) => { const held = d.held.has(id); const ok = take(l, id); window.__backs.push({ id, held, ok }); return ok; }; })()");
-  await ev(guest, "(() => { window.__match = window.__range.duel(); window.__range.duel().dropHostLink(); })()");
+  // and in the moment it is gone, the guest puts a gun down (as a death's drop would): it reaches the match once the guest
+  // is back (Milestone 729: said with no host to say it to, it went nowhere, and the guns were gone from the match)
+  const putAt = await ev<number[]>(guest, `(() => { const R = window.__range; window.__match = R.duel(); const d = R.duel(); d.dropHostLink(); const p = R.player.pos;
+    d.dropLoot({ kind: "weapon", id: "mastiff", n: 1, rarity: "epic", fusion: 0 }, new R.THREE.Vector3(p.x + 2, p.y, p.z)); return [p.x + 2, p.y, p.z]; })()`);
   const back = await guest.waitForFunction("window.__range.duel()?.reconnectUntil === null", { polling: 200, timeout: 20000 }).then(() => true, () => false);
+  const gotDrop = await host.waitForFunction(`(() => { const f = window.__range.duel().lootField; return !!f && [...f.drops.values()].some((x) => x.item.id === "mastiff" && x.item.rarity === "epic" && Math.hypot(x.pos.x - ${putAt[0]}, x.pos.z - ${putAt[2]}) < 1.5); })()`, { polling: 200, timeout: 6000 }).then(() => true, () => false);
+  check("getting back in: what the guest said while it had no host (a gun put down) reaches the match once it is back", back && gotDrop, JSON.stringify({ back, gotDrop, putAt }));
   const backs = await ev<Array<{ id: number; held: boolean; ok: boolean }>>(host, "window.__backs");
   const same = await ev<{ same: boolean; phase: string }>(guest, "({ same: window.__range.duel() === window.__match, phase: window.__range.duel()?.phase })");
   check("getting back in: a dropped connection holds the guest's seat, the guest's match keeps going, and it is taken back on that seat", backs.length === 1 && backs[0].id === 1 && backs[0].held && backs[0].ok && same.same && same.phase === "fight", JSON.stringify({ backs, same }));
