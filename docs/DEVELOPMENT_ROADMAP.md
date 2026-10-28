@@ -16679,3 +16679,36 @@ City's decks), so an enemy coming down one is seen from the streets and the deck
   - The rail clip, which nothing plays now, is out of the clips' file (tools/fetch-clips.ts, mannequin-more.glb 192 to
     138 KB); the slide and the climb still load from it.
   - verify, rules and the type check.
+
+## Milestone 617 — The long gun on the back for an emote, an interact or a throw
+
+Found by Milestone 615's survey: an emote, holding interact on something and a throw take the soldier's hands, and its
+long gun went with them, gone from the figure until it was back in its hands. An enemy dancing or looting showed no gun
+at all, and their gun popped out of nothing after. In the skydive a long gun already rides on the back (Milestone 612),
+as Apex's legends carry theirs.
+
+- **The sling** (mannequin.ts): from the moment something takes the hands until the gun is in them again, a long gun
+  rides on the back; a pistol is put away, as in the skydive.
+- **Where on the back** (figure.json sling, holsterMount): the skydive's holster, diagonal at 20 degrees with its lower
+  end at the right hip, had the standing right forearm 43 mm into BOOG. Every long gun was put through every emote and
+  an interact at each place tried (node_modules/.scratch/slingprobe.mts, how deep the soldier goes into the gun):
+  upright to 5 degrees with its middle 0.38 of the way from the lower chest to the neck left 12 mm (the USSO's sight
+  against the right upper arm, 17 in the e2e's interact); 5 cm to the left of the spine as well, nothing of the soldier
+  is in any of the eight guns in any of them.
+- **Two faults on the way:** the place on the back is kept in the chest's frame, measured once; measured standing with
+  the rifleman's stance still turning the chest toward the gun, the gun swung off to the right side once the chest
+  turned back (its box 0.23 to 0.43 m right of the spine). It is measured now once the hold has let go of the chest.
+  And a gun not yet shown as a figure is made is not put away: only something taking the hands slings it.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): an emote and holding interact, the USSO, BOOG, DEVINOS and APUHTHEE: a long
+    gun shown on the back, out of the hands, nothing of the soldier 5 mm into it; the pistol put away; after, the gun back
+    in the hands: 0 mm on all four. It fails with the sling taken out (no gun shown). The whole soldier section with it:
+    326 checks before the last shift to the left, the sling's check its one failure (the USSO 17 mm), and the stance
+    checks after it, 12 of 12.
+  - Photographed (tools/figure-frames.ts SEQ=emotes,interact, from behind and the right): no frame past the frames'
+    15 mm bar while the gun is on the back.
+  - verify, rules and the type check.
+- **And the p2p reload check** (tools only): in the 2026-10-27 full sweep it failed with nothing arrived at all, the
+  third loaded sweep running, and passed alone. The guest's reload is now made sure of (tried again while its gun will
+  not reload), and a miss says what each page saw (the guest's reload begun, its match's phase, the host's samples and
+  their acts), so the next one can tell a lost act from a reload that never began. The p2p section: 47 checks, E2E PASS.

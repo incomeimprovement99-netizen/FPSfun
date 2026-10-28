@@ -1225,14 +1225,29 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   // magazine, its gun's own reload begun on its own clock (a key needs the gun out, and the round may have it away)
   // (any packet heard since the reload began, not only the newest: in two loaded sweeps, 2026-10-19 and 10-23, the newest
   // sample at each look never carried it, both reloads read as nothing, and each passed run alone)
-  const reloadSeen = async (clip: string): Promise<{ act: string | null; empty: boolean | null }> => {
+  // (and in the 2026-10-27 sweep nothing arrived at all, a third loaded sweep running, passing alone: so the guest's
+  // reload is now made sure of, tried again while its gun will not reload, and a miss says what each page saw)
+  const reloadSeen = async (clip: string): Promise<{ act: string | null; empty: boolean | null; why?: unknown }> => {
     const since = await ev<number>(host, "(() => { const r = window.__range.duel().remotes.get(1); return r?.samples[r.samples.length - 1]?.at ?? -Infinity; })()");
-    await ev(guest, `(() => { const r = window.__range; const s = r.loadout.active.state; s.clip = ${clip}; s.startReload(r.gameTime()); })()`);
+    let began: { reloading: boolean; noAmmo: boolean; tries: number } = { reloading: false, noAmmo: false, tries: 0 };
+    for (let i = 1; i <= 5 && !began.reloading; i++) {
+      await guest.waitForFunction("!window.__range.loadout.active.state.reloading", { polling: 100, timeout: 8000 }).catch(() => undefined);
+      began = await ev(guest, `(() => { const r = window.__range; const s = r.loadout.active.state; s.clip = ${clip}; s.startReload(r.gameTime()); return { reloading: !!s.reloading, noAmmo: !!s.noAmmo, tries: ${i} }; })()`);
+      if (!began.reloading) await sleep(300);
+    }
     const got = await host
       .waitForFunction(`(() => { const r = window.__range.duel().remotes.get(1); const s = r?.samples.find((x) => x.at > ${since} && x.act === "reload"); return s ? { act: s.act, empty: !!s.reloadEmpty } : null; })()`, { polling: 50, timeout: 10000 })
-      .then((h) => h.jsonValue() as Promise<{ act: string; empty: boolean }>, () => ({ act: null, empty: null }));
-    await guest.waitForFunction("!window.__range.loadout.active.state.reloading", { polling: 100, timeout: 8000 }).catch(() => undefined);
-    return got;
+      .then((h) => h.jsonValue() as Promise<{ act: string; empty: boolean }>, () => null);
+    if (got) {
+      await guest.waitForFunction("!window.__range.loadout.active.state.reloading", { polling: 100, timeout: 8000 }).catch(() => undefined);
+      return got;
+    }
+    const why = {
+      began,
+      guest: await ev(guest, "(() => { const d = window.__range.duel(); return { phase: d?.phase ?? null, alive: d?.alive ?? null, reloading: !!window.__range.loadout.active.state.reloading }; })()"),
+      host: await ev(host, `(() => { const d = window.__range.duel(); const r = d?.remotes.get(1); const n = r?.samples ?? []; return { phase: d?.phase ?? null, samples: n.length, newer: n.filter((x) => x.at > ${since}).length, acts: [...new Set(n.map((x) => x.act))] }; })()`),
+    };
+    return { act: null, empty: null, why };
   };
   const fromEmpty = await reloadSeen("0");
   const tactical = await reloadSeen("Math.max(1, Math.floor(s.clip / 2))");
@@ -7086,6 +7101,43 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     "on a zip line it hangs from the rope by its left hand, every gun: the left knuckles within 3 cm of their hold under the rope, the left hand off the gun (30 cm or more from the right), the gun shown and its grip in the right hand (3 cm)",
     zips.length > 0 && zipBad.length === 0,
     JSON.stringify(zipBad.length ? zipBad : zips.map((z) => `${z.id} ${z.knuckle}cm`)),
+  );
+  // The gun put away (Milestone 617): an emote and an interact take the hands, and a long gun went with them, gone from
+  // the figure until it was back in its hands. Now a long gun rides on the back as it does in the skydive (holsterMount),
+  // shown and nothing of the soldier in it (figure.json sling: upright and to the left of the spine, the arms clear of it
+  // even where they come behind the back); a pistol is put away; and after, it is back in the hands
+  const away = await ev<Array<{ id: string; emote: { gun: boolean; inHand: boolean; deep: number }; interact: { gun: boolean; inHand: boolean; deep: number }; after: { gun: boolean; inHand: boolean } }>>(
+    page,
+    `(() => {
+      const r = window.__range, out = [];
+      for (const id of ["r97", "sentinel", "launcher", "wingman"]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: id, look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        r.figureLabStep(1);
+        const look = () => ({ gun: !!f.mq.gun?.visible, inHand: !!f.mq.gunInHand, deep: Math.max(0, ...Object.values(window.__figureAudit(0, { pitch: 0, exact: true }).gunWhere ?? {})) });
+        f.emote(0);
+        for (let i = 0; i < 20; i++) r.figureLabStep(0.05);
+        const emote = look();
+        for (let i = 0; i < 60; i++) r.figureLabStep(0.05);
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "interact" });
+        for (let i = 0; i < 16; i++) r.figureLabStep(0.05);
+        const interact = look();
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+        for (let i = 0; i < 30; i++) r.figureLabStep(0.05);
+        out.push({ id, emote, interact, after: { gun: !!f.mq.gun?.visible, inHand: !!f.mq.gunInHand } });
+      }
+      return out;
+    })()`,
+  );
+  const awayBad = away.filter((a) => {
+    const pistol = (soldierHoldCfg.guns as Record<string, { stance?: string }>)[a.id]?.stance === "pistol";
+    const slung = (s: { gun: boolean; inHand: boolean; deep: number }) => (pistol ? !s.gun : s.gun && !s.inHand && s.deep <= 5);
+    return !(slung(a.emote) && slung(a.interact) && a.after.gun && a.after.inHand);
+  });
+  check(
+    "in an emote and holding interact, a long gun rides on the back (shown, out of the hands, nothing of the soldier 5 mm into it) and a pistol is put away; after, the gun is back in the hands",
+    away.length === 4 && awayBad.length === 0,
+    JSON.stringify(awayBad.length ? awayBad : away.map((a) => `${a.id} emote ${a.emote.deep} mm, interact ${a.interact.deep} mm`)),
   );
   // SLAM's way down (Milestone 608): a figure in the air coming down at the slam's 38 m/s has its knees up (each knee 20 cm
   // or more higher against its hips than falling at 10 m/s, a jump's)

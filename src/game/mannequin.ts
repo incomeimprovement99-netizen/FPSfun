@@ -157,6 +157,8 @@ type Limbs = { raise: number; forward: number; elbow: number; arch: number; head
  */
 const HOLSTERS = new Map<string, THREE.Matrix4>();
 const SKYDIVE = figureCfg.skydive as unknown as { glide: number; dive: number; rateIn: number; rateOut: number; flutter: number[]; glideLimbs: Limbs; diveLimbs: Limbs; holster: { tilt: number; gap: number; band: number; height: number } };
+/** and on the back standing, for an emote, an interact or a throw: more upright and higher (figure.json sling) */
+const SLING = figureCfg.sling as { tilt: number; height: number; left: number };
 /** where a look goes from a glide to a dive, as the skydive's own steering has it (squad.json dive) */
 const DIVE = squadCfg.dive;
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
@@ -823,6 +825,8 @@ export class MannequinFigure {
   private zipW = 0;
   /** the left arm's reach to its knuckles held straight up at the rope, measured once it is there (reachArm) */
   private zipReach: number | null = null;
+  /** its long gun on its back while something has the hands, until they have it again (Milestone 617) */
+  private slung = false;
   /** where its group was last frame, its speed up or down from that (eased), and how far into a plunge it is */
   private lastY: number | null = null;
   private vy = 0;
@@ -1601,6 +1605,8 @@ export class MannequinFigure {
     }
     dt += this.owed;
     this.owed = 0;
+    // (armed coming in: it is put down below for what takes the hands, and the gun is then put on the back: the end)
+    const armedIn = armed;
     const speed = Math.max(0, p.speed);
     this.t += dt;
     this.layBody(p, dt);
@@ -2082,9 +2088,16 @@ export class MannequinFigure {
       this.reachSupport(this.ikW);
     }
     this.reachArm(b);
-    // in the skydive a long gun rides on the back, as Apex's legends carry theirs (holsterMount); a pistol is put away
-    if (this.skyW > 0.5 && this.gun && this.mount && this.gunShown && !this.dead && !pistolStance(this.gunId)) {
-      const at = this.holsterMount();
+    // in the skydive a long gun rides on the back, as Apex's legends carry theirs (holsterMount); a pistol is put away. And
+    // the same for an emote, an interact or a throw, which take the hands, until the hands are back on it (Milestone 617):
+    // it vanished and came back, so an enemy dancing or looting showed no gun at all
+    // (from the moment something takes the hands until the gun is in them again: a gun not yet shown as a figure is made
+    // is not put away, and the back measured in that first frame's pose put the gun off to the right side, for good)
+    if (armedIn && !armed) this.slung = true;
+    else if (!armedIn || this.gun?.visible) this.slung = false;
+    const away = !!this.gun && armedIn && this.slung;
+    if ((this.skyW > 0.5 || away) && this.gun && this.mount && this.gunShown && !this.dead && !pistolStance(this.gunId)) {
+      const at = this.holsterMount(this.skyW <= 0.5);
       if (at) {
         at.decompose(this.mount.position, this.mount.quaternion, this.mount.scale);
         this.gun.visible = true;
@@ -2094,21 +2107,25 @@ export class MannequinFigure {
   }
 
   /**
-   * Where the long gun rides on the back for the skydive (Milestone 612): it was put away for the fall and vanished, and
-   * Apex's legends fall with theirs slung on the back. Diagonal across it, the muzzle up over the left shoulder
+   * Where the long gun rides on the back for the skydive (Milestone 612), an emote, an interact and a throw (617): it was
+   * put away for the fall and vanished, and Apex's legends fall with theirs slung on the back. Diagonal across it, the muzzle up over the left shoulder
    * `holster.tilt` degrees off upright, its side flat to the back `holster.gap` m off the soldier's skin there. The skin
    * is measured, not guessed: every vertex of the soldier as it is posed (its pack and armour with it) within
    * `holster.band` m of the spine across, between the lower chest and the neck, the one furthest back. Kept, in the
-   * chest bone's frame (the mount's own), for each kit and gun.
+   * chest bone's frame (the mount's own), for each kit and gun. Standing (`stand`), as figure.json sling has it: at the
+   * skydive's the gun's lower end hung at the right hip, where a standing figure's right arm went through it.
    */
-  private holsterMount(): THREE.Matrix4 | null {
+  private holsterMount(stand: boolean): THREE.Matrix4 | null {
     const b = this.bones;
     const gun = this.gun;
     if (!gun || !this.mount || !b.spine_02 || !b.spine_03 || !b.neck_01) return null;
-    const key = `${soldierCode(this.soldier)}|${this.gunId}`;
+    const key = `${soldierCode(this.soldier)}|${this.gunId}|${stand ? "stand" : "sky"}`;
     const kept = HOLSTERS.get(key);
     if (kept) return kept;
-    const H = SKYDIVE.holster;
+    // (measured standing once the hold has let the chest go: it is kept in the chest's frame, and measured with the
+    // rifleman's stance still turning the chest toward the gun, the gun swung off to the right side once it turned back)
+    if (stand && this.gripW > 0.05) return null;
+    const H: { tilt: number; gap: number; band: number; height: number; left?: number } = stand ? { ...SKYDIVE.holster, ...SLING } : SKYDIVE.holster;
     this.root.updateMatrixWorld(true);
     const toRoot = this.root.matrixWorld.clone().invert();
     const inRoot = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3()).applyMatrix4(toRoot);
@@ -2149,7 +2166,7 @@ export class MannequinFigure {
     const xAxis = new THREE.Vector3(0, 0, 1);
     const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis);
     const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
-    const centre = new THREE.Vector3(0, lo + (hi - lo) * H.height, back - H.gap - ((box.max.x - box.min.x) / 2) * scale);
+    const centre = new THREE.Vector3(H.left ?? 0, lo + (hi - lo) * H.height, back - H.gap - ((box.max.x - box.min.x) / 2) * scale);
     const at = centre.sub(mid.clone().multiplyScalar(scale).applyQuaternion(q));
     const gunInRoot = new THREE.Matrix4().compose(at, q, new THREE.Vector3(scale, scale, scale));
     // the mount, which holds the gun as it does in the hand, in the chest bone's frame

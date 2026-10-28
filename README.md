@@ -661,7 +661,8 @@ until it has hold of it, rather than reaching at nothing. Their shots leave
 the end of the barrel, which is also where their muzzle flashes are.
 The legs go the way the figure moves while its body stays on its aim, and
 standing still its feet stay planted as it turns, then step round. On a zip
-line it hangs from the rope by its left hand, the gun in its right. Out,
+line it hangs from the rope by its left hand, the gun in its right; in the
+skydive, an emote or an interact a long gun rides on its back. Out,
 the figure drops its gun and it lies by the body.
 
 ## Controls
