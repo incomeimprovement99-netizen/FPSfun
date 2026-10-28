@@ -116,6 +116,12 @@
     "tilt": 5,
     "height": 0.38
   },
+  "_slide": "A slide seen on a figure (mannequin.ts, Milestone 831): the clip played whole laid the soldier on its back, the gun 25 to 55 degrees off where it looked, and a player shoots sliding (Apex's legends slide sat up, the gun on the aim). Now the slide's legs and hips are played and the gun held on top: the chest brought up through the spine to `back` degrees behind upright (negative is forward: as it stands, 5 forward), and turned round by however far the slide's hips face from `hipsTurn` degrees, the standing clip's (the slide's face 18 the other way, and the rifleman's stance, which turns the chest from the hips, left the stock in the right collarbone); the gun brought up toward the eye at least `ads` of the way, all of it (at the hip on the seated lap PANDA's went 12 cm into the thighs, DEVINOS's tube carried low 10 cm into the chest, and at 0.7 the tube was against the head). Measured on every gun (node_modules/.scratch/slideprobe.mts): the gun under a degree off the look and no deeper in the soldier than standing aimed in, 26 mm at most.",
+  "slide": {
+    "back": -6,
+    "hipsTurn": 13,
+    "ads": 1
+  },
   "_flatFeet": "Standing or crouched still, the soldier's clips hold its toes 16.1 degrees up from its bind pose, so it stood on its heels (measured by apex-lobby for the battle royale's card, Milestone 416: the foot-to-ball line 30.5 degrees down against 46.6 bound, the ankle 0.152 m up and the ball 0.072; the owner asked it fixed). Under `under` m/s each foot is turned back until its toe is no higher than the bind pose has it, eased in and out at `rate` a second (rifle-hold soldiers only; the legacy figures keep their clips). A foot the clips point down (a crouch's kneeling foot) and every moving foot are the clips' own: walking and running, the planted feet come down flat by themselves (measured: 2 to 8 degrees at mid stance). Turned flat, a standing sole was 11 to 22 mm into the floor (its heel had been 44 mm in, the toe 9 above): the standing clip holds the legs lower than a walk's planted foot (the ankle 0.152 m up against 0.174), so a figure standing still is also lifted `lift` m, eased the same way (measured off the boots' lowest skin; not crouched, whose kneeling foot is already above the floor).",
   "flatFeet": {
     "under": 0.6,

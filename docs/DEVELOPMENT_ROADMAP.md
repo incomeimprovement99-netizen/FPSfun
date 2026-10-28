@@ -16936,3 +16936,33 @@ From the lobby agent's bug hunt of 2026-10-27 (the owner asked for a full one).
   the columns drew as blown-out white drums in the street and the frames as white rectangles; the columns dimmer (0.4).
 - **Checked:** a new check finds the four lit meshes taught the decay as lights, every pool on its floor and the centre's
   colour not white (4 of 4 lit meshes taught, 0 pools spilling, the centre #8fd4ff; proven with the trim emptied, when 43 pools spilled).
+
+## Milestone 831 — A slide sat up, the gun on the aim
+
+A soldier sliding was the free library's slide played whole: the body laid on its back, the gun in the right hand
+pointing 25 to 55 degrees off where the player looked (BOOG 42, the USSO 48). A player shoots sliding, and Apex's
+legends slide sat up with the gun on the aim. Found looking further for the owner's "things that could be fixed with
+3rd person or enemy views".
+
+- **The slide** (mannequin.ts, figure.json slide): the slide's legs and hips are played and the gun held on top as
+  anywhere else, so it is on the look and fires from there. The chest is brought up through the spine to stand as it
+  does standing (`back`, 6 degrees forward), and turned round by however far the slide's hips face from the standing
+  clip's (`hipsTurn`, 13): its hips face 18 degrees the other way, and the rifleman's stance, which turns the chest from
+  the hips, left the shoulders 10 to 15 degrees short and the stock in the right collarbone. The gun comes up to the
+  eye (`ads` 1): held at the hip on the seated lap PANDA's went 12 cm into the thighs, and DEVINOS's tube, carried low,
+  10 cm into the chest. The way out of a slide is played the same.
+- **Measured on every gun** (node_modules/.scratch/slideprobe.mts): the upper chest within 3 degrees of upright, the gun
+  under a degree off the look, and the gun no deeper in the soldier than it is standing aimed in (26 mm at most, LSTAR's
+  against the right upper arm). On the way there: leant back 30 degrees the aimed gun went 10 to 13 cm into the chest;
+  sat up but not turned round, 4 to 6 cm into the collarbone.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): a slide on every gun, sat up (within 15 degrees), the gun along the look (6
+    degrees) in the right hand (3 cm), no more than 40 mm of it in the soldier; 14 of 14. On the old slide it fails (the
+    chest 37 degrees back, the gun 39 to 48 degrees off the look). The whole soldier section: 329 checks, E2E PASS.
+  - Photographed (figure-frames.ts SEQ=slide, from the right and the front): PANDA, BOOG, DEVINOS and APUHTHEE sliding
+    with the gun up at the eye.
+  - verify, rules and the type check.
+- **And a check put right:** since Milestone 618 a long gun goes on the back for a throw too, shown and out of the hands,
+  and the soldier hold test's throw check still wanted it hidden: it failed on all eight long guns on main (M618 shipped
+  on the stance checks alone, not the whole soldier section). It now reads the gun out of the hands, and back in them
+  within a second.

@@ -137,6 +137,8 @@ const FLAT_FEET = figureCfg.flatFeet;
 const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
 const CHEST_UP = figureCfg.chestUp as { most: number };
+/** a slide seen on a figure, sat up with the gun held (figure.json slide, Milestone 831) */
+const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
 /** a runner's lean into a turn: no more than `most` degrees, `share` of a balanced lean, above `minSpeed` m/s (figure.json bank) */
@@ -1105,12 +1107,26 @@ export class MannequinFigure {
    * leans no more than `most` degrees forward of the figure's up (figure.json chestUp), split between spine_02 and
    * spine_03; a lean back (a slide) is the clip's.
    */
-  private holdChestUp(b: Record<string, THREE.Object3D>, fig: THREE.Object3D): void {
+  private holdChestUp(b: Record<string, THREE.Object3D>, fig: THREE.Object3D, sliding = false): void {
     // (each world read brings its own bone's chain up to date: the whole figure, every bone and mesh, was updated here
     // a frame for two bones' positions)
     const toFig = this.chestQ.copy(fig.getWorldQuaternion(this.chestQ)).invert();
     const line = b.neck_01.getWorldPosition(this.chestA).sub(b.spine_03.getWorldPosition(this.chestB)).applyQuaternion(toFig);
     const lean = Math.atan2(line.z, line.y);
+    // Sliding, sat up: the slide's hips lie the body back, and the chest is brought up through the three spine bones to
+    // stand as it does standing, `slide.back` degrees behind upright (Milestone 831: left 30 degrees back, the gun along
+    // the eye's line went 10 to 13 cm into the upper chest aimed in)
+    const under = sliding ? -lean - SLIDE.back * DEG : 0;
+    if (under > 0) {
+      for (const s of [b.spine_01, b.spine_02, b.spine_03]) if (s) turnBone(s, fig, X_AXIS, under / 3);
+      // and turned round as standing: the slide's hips face 18 degrees the other way, and the rifleman's stance, which
+      // turns the chest from the hips, left the shoulders 10 to 15 short and the stock in the right collarbone
+      if (b.spine_01 && b.thigh_l && b.thigh_r) {
+        const hips = b.thigh_l.getWorldPosition(this.chestA).sub(b.thigh_r.getWorldPosition(this.chestB)).applyQuaternion(toFig);
+        turnBone(b.spine_01, fig, Y, Math.atan2(hips.z, hips.x) - SLIDE.hipsTurn * DEG);
+      }
+      return;
+    }
     const over = lean - CHEST_UP.most * DEG;
     if (over <= 0) return;
     // (+x is the figure's left: a negative turn tips the chest back)
@@ -1697,8 +1713,9 @@ export class MannequinFigure {
         lowerRate = speed > 0.3 ? (speed / 2.2) * dirSign : 1;
         break;
       case "slide":
+        // the legs' and hips' slide, the gun held and aimed on top of it, the chest sat up (holdChestUp): played whole, the
+        // clip laid the soldier on its back with the gun 25 to 55 degrees off its look, and a player shoots sliding
         lower = hasClip("Slide_Start") && this.t - this.slideAt < clipSeconds("Slide_Start") ? "Slide_Start" : "Slide_Loop";
-        full = true;
         break;
       case "air":
         // a fast jump (out of a sprint, a slide, a pad) tucks its legs like an athlete's; a standing hop does not
@@ -1728,7 +1745,6 @@ export class MannequinFigure {
       default:
         if (this.t < this.slideExitUntil && speed > 0.3) {
           lower = "Slide_Exit";
-          full = true;
         } else if (this.t < this.landUntil) {
           lower = "Jump_Land";
           lowerRate = 2.2;
@@ -1820,11 +1836,13 @@ export class MannequinFigure {
       turnBone(b.spine_01, fig, Y, -fx.legYaw);
     }
     const aimed = !full && armed && p.act !== "swap";
+    // (on a slide, or on the way out of one)
+    const sliding = p.stance === "slide" || lower === "Slide_Exit";
     this.scoped = aimed && !act && wantGun && !this.gunComing ? (p.ads ?? 0) * (1 - this.lowered) : 0;
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
     // (the soldier's chest held up before the look bends it: the clips lean it 33 to 40 degrees crouched and aimed or
     // sprinting, and from behind the shoulder armour and the pack hid the head; the owner, 2026-10-04: more upright)
-    if (b.spine_02 && b.spine_03 && b.neck_01 && !full && !this.dead) this.holdChestUp(b, fig);
+    if (b.spine_02 && b.spine_03 && b.neck_01 && !full && !this.dead) this.holdChestUp(b, fig, sliding);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
     // (the soldier looking down bends only as far as its gun's hold needs, at the waist, and its head goes down onto the
@@ -1968,7 +1986,8 @@ export class MannequinFigure {
       const ventU = V ? (this.t - this.actAt) / lockoutSeconds(this.gunId) : 0;
       // (and a gun carried low unless aimed in, DEVINOS's tube, whose back half up on the shoulder hid the head from behind)
       const CL = carryLowOf(this.gunId);
-      const carriedLow = !!CL && (p.ads ?? 0) < 0.3 && p.act !== "reload" && this.t - this.shotAt > CL.after;
+      // (on a slide it is up as the other guns are: carried low on the seated lap, the tube went 10 cm into the chest)
+      const carriedLow = !!CL && (sliding ? Math.max(p.ads ?? 0, SLIDE.ads) : (p.ads ?? 0)) < 0.3 && p.act !== "reload" && this.t - this.shotAt > CL.after;
       // (and through a punch, the right hand keeping the gun where it was: brought up to the shoulder for it and down
       // again, it swept the left wrist past 70 degrees)
       const low = holding && !full && (carriedLow || (!rifleMelee && ((p.act === "swap" && !cup) || (p.act === "vent" && !V) || upper === "Pistol_Idle_Loop"))) ? 1 : 0;
@@ -2004,7 +2023,9 @@ export class MannequinFigure {
       const reload = reloadU !== null && tactical ? (reloadU * reloadSeconds(this.gunId, false)) / reloadSeconds(this.gunId, true) : reloadU;
       this.rifleOut = holdRifle(this.root, this.bones, this.rifle, { id: this.gunId, gun: this.gun!, mount: this.mount, grip: this.grip, support: this.supportHold(), butt: this.butt, parts: this.reloadParts ?? undefined, sight: this.sight ?? undefined, mid: this.gunMid }, {
         pitch: (Math.max(-70, Math.min(70, p.pitch)) * DEG * (aimed ? 1 : 0)),
-        ads: aimed ? (p.ads ?? 0) : 0,
+        // (sliding, the gun up toward the eye at least `slide.ads` of the way: held at the hip on the seated slide's lap,
+        // PANDA's went 12 cm into the thighs)
+        ads: aimed ? Math.max(p.ads ?? 0, sliding ? SLIDE.ads : 0) : 0,
         lowered: this.lowered,
         carry: this.carryW,
         wR: this.gripW,
