@@ -12808,6 +12808,48 @@ Found in the 2026-10-27 bug hunt and that day's full sweep:
   page's, before any trail; e2e modes and triple again for the boards' new record. With each fix taken out its check
   failed.
 
+## Milestone 725 — A notice under the list of what is at your feet
+
+Found photographing the battle royale's HUD at 1366 by 768 and 2560 by 1080 in the 2026-10-27 bug hunt (scratch
+hudsizes.mts): with two things or more in reach, the list of them under the E prompt was drawn over a notice ("SQUAD
+WIPED  ·  12 SQUADS LEFT"), which stood at a fixed height under the prompt. It happened at every size, whenever a
+notice came while looting. The notice is drawn after the prompt and the list now, under the list when that is up
+(hud.ts reachBottom; the two in hud.placed for the checks).
+
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: a notice with two things in reach goes under the list,
+  not over it (with the old height put back it failed); photographed at 1366 by 768 again.
+
+## Milestone 726 — The Gulag and the end of a match with friends
+
+A review of the battle royale's core in the 2026-10-27 bug hunt, read for what only happens with friends or at the
+edges:
+
+- **A match nobody could end:** a squad mate who lost the Gulag while the rest of the squad was out left the host's
+  match running, nobody up, until a bot squad took the zone. The loss is told before the state saying they are down,
+  and the host judged the squad with them still standing. A loss now counts them out at once (brmatch.ts noteGulag).
+- **And another:** someone who left while in the Gulag stayed in the host's count of those in there, so their side was
+  never out (playerGone).
+- **A Gulag won left its echo:** the echo your first death left stayed on the floor after you won your way back, and a
+  mate's restore at it stood you at that old spot and handed back a later death's kit while those guns lay where you
+  fell again. It goes when you are back (main.ts respawnForMatch).
+- **A pickup granted after you were out:** it went into the slots of one who was out, and with both full the gun in
+  hand went down a second time beside the one your death left. It goes back on the floor where it lay.
+- **After a host migration:** the heir's ring was drawn from the seed's own circles, not the final sector's, so the
+  bots fled the decay, packages fell and a won Gulag dropped you toward the wrong place (restoreAsHost).
+- **The Gulag after the end:** its clock ran on through the end card, and a player waiting to go in when a mate won the
+  match was taken into the room, the killcam and the recap cut; it stops with the match.
+- **The last bot down while your one survivor is in the Gulag:** no win, and the Gulag's winner dropped into an empty
+  city. Someone of yours in the Gulag counts for the win now.
+- **Pings:** another side's player could not be pinged as an enemy (the ping skipped every player); only your own
+  squad is skipped now.
+- **Left as it is:** with friends on separate sides, a bot squad holding the zone gives every human side the same
+  placement (cosmetic); the capture's progress is not carried to a migrated host.
+- **Checked:** tsc, verify, rules; e2e gulag, four new checks: someone who leaves in the Gulag is no longer counted in
+  there; a pickup granted after you are out goes back on the floor, not into your slots; a Gulag won takes your first
+  death's echo off the floor; the last squad mate losing it, the rest out, ends the match on the host. e2e migrate, a
+  new check: the heir's ring closes on the final sector. With each fix taken out its check failed. The Gulag after the
+  end, the win with a survivor in the Gulag and the ping have no check of their own (each a single condition, read).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

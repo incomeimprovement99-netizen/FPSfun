@@ -599,6 +599,9 @@ export class Hud {
     this.feedFrom = 0;
     delete this.placed.board;
     delete this.placed.keys;
+    delete this.placed.reach;
+    delete this.placed.notice;
+    this.reachBottom = 0;
     // layout unit: 1 px at 1080p, times the player's HUD scale (Settings, Accessibility)
     const u = (this.h / 1080) * access.hudScale;
     // the killcam has the screen to itself, and the kill feed
@@ -631,14 +634,15 @@ export class Hud {
     this.drawVitals(s, u);
     this.drawWeapons(s, u);
     this.drawCourse(s, u);
-    // (a notice waits under a wheel or the carry card, which sit where it is: Milestone 720)
-    this.drawNotice(now, u, !!(s.pingWheel || s.emoteWheel || s.inventory));
     // (not under a wheel or the carry card, which sit where they are and hid them half under it: Milestone 706)
     if (!s.pingWheel && !s.emoteWheel && !s.inventory) {
       this.drawPrompt(s, u);
       this.drawReachList(u);
       this.drawLootCard(s, u);
     }
+    // (a notice waits under a wheel or the carry card, which sit where it is: Milestone 720; after the list of what is
+    // at your feet, which it goes under: Milestone 725)
+    this.drawNotice(now, u, !!(s.pingWheel || s.emoteWheel || s.inventory));
     this.drawTechFeed(now, u);
     this.drawPlates(now, camera, s, u);
     this.drawMateTags(camera, s, u);
@@ -1126,6 +1130,8 @@ export class Hud {
   private hintsLeft = 0;
   /** where the kill feed starts this frame when a scoreboard had to go above it (Milestone 722), 0 otherwise */
   private feedFrom = 0;
+  /** the bottom of the list of what is at your feet this frame, 0 when it is not drawn (the notice keeps under it) */
+  private reachBottom = 0;
 
   /**
    * The keys on screen (keyhints.json): up on the right under the FPS, a row a
@@ -2024,6 +2030,8 @@ export class Hud {
     const pw = widest + 96 * u;
     const foot = REACH.cycleKey ? 16 * u : 0;
     this.plate(cx - pw / 2, top - 6 * u, pw, rows.length * rowH + foot + 10 * u, u);
+    this.reachBottom = top - 6 * u + rows.length * rowH + foot + 10 * u;
+    this.placed.reach = { x: cx - pw / 2, y: top - 6 * u, w: pw, h: rows.length * rowH + foot + 10 * u };
     rows.forEach((r, i) => {
       const y = top + i * rowH + 15 * u;
       const picked = r.key === REACH.pick;
@@ -2500,8 +2508,11 @@ export class Hud {
     // on a gold-edged plate as wide as it (Milestone 704): bare gold text was lost on a lit street
     this.ctx.font = this.font(700, 30 * u);
     const tw = this.ctx.measureText(this.noticeText).width;
-    this.plate(this.w / 2 - tw / 2 - 20 * u, this.h * 0.64 - 31 * u, tw + 40 * u, 42 * u, u, GOLD);
-    this.text(this.noticeText, this.w / 2, this.h * 0.64, 700, 30 * u, "#ffd23c", "center");
+    // under the list of what is at your feet when that is up, which lay over it with two things in reach (Milestone 725)
+    const y = Math.max(this.h * 0.64, this.reachBottom + 37 * u);
+    this.plate(this.w / 2 - tw / 2 - 20 * u, y - 31 * u, tw + 40 * u, 42 * u, u, GOLD);
+    this.placed.notice = { x: this.w / 2 - tw / 2 - 20 * u, y: y - 31 * u, w: tw + 40 * u, h: 42 * u };
+    this.text(this.noticeText, this.w / 2, y, 700, 30 * u, "#ffd23c", "center");
     this.ctx.globalAlpha = 1;
   }
 

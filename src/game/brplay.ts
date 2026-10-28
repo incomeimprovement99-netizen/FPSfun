@@ -320,7 +320,8 @@ export class BrPlay {
     for (const a of match.avatars) {
       if (!a.group.visible || a.knocked) continue;
       const r = match.remoteOf(a);
-      if (!r || r.id < 100) continue;
+      // (a squad mate is not an enemy; another side's player is, and was skipped with the mates, Milestone 726)
+      if (!r || match.isAlly(r.id)) continue;
       const to = a.group.position.clone().setY(a.group.position.y + 1.2).sub(eye);
       const dist = to.length();
       if (dist > 200) continue;

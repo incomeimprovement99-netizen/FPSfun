@@ -1342,7 +1342,9 @@ export class BrMatch extends Duel {
     }
     else this.onNotice?.(mine ? `${r.name} DOWN  ·  ${left} LEFT` : `${left} LEFT`);
     if (this.manySides) this.judgeSides();
-    else if (this.bots.every((x) => !x.bot.alive) && this.humansAlive > 0) this.endBr(true);
+    // (someone of yours in the Gulag counts: the last bot down while your only survivor fought there gave no win, and
+    // the Gulag's winner dropped into an empty city, Milestone 726)
+    else if (this.bots.every((x) => !x.bot.alive) && (this.humansAlive > 0 || this.gulagIds.size > 0)) this.endBr(true);
   }
 
   /** where a won Gulag drops you back: 8 m or more from a squad mate who is up, else anywhere well inside the ring, on open ground */
@@ -1449,6 +1451,11 @@ export class BrMatch extends Duel {
   private noteGulag(id: number, n: number): void {
     if (n === 1) this.gulagIds.add(id);
     else this.gulagIds.delete(id);
+    // A squad mate's loss is them out now (Milestone 726): their state packets from the Gulag's fight said up, and the
+    // one saying down comes after this note, which judged the squad with them still standing and nothing judged it
+    // again. A duo whose host was out and whose guest lost the Gulag sat on, nobody up, till a bot squad took the zone.
+    const r = id !== this.id ? this.remotes.get(id) : undefined;
+    if (n === 0 && r) r.alive = false;
     if (id === this.id) this.localFx("gulag", undefined, undefined, n);
     // a loss, yours or a squad mate's: the squad is judged again now that nobody of it is in there
     if (this.manySides) this.judgeSides();
@@ -1664,7 +1671,9 @@ export class BrMatch extends Duel {
    * loot keys as the host had them.
    */
   protected override restoreAsHost(now: number, _oldHost: number, mode: unknown): void {
-    const ring = new Ring(this.area, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases);
+    // (on the final sector's circle, as the first host's: without it the bots fled the decay, packages fell and a won
+    // Gulag dropped you toward the seed's own circles, Milestone 726)
+    const ring = new Ring(this.area, seeded((this.seed ^ RING_SALT) >>> 0), RING_ATTRACTORS, this.phases, this.decayCircle ?? undefined);
     ring.restore(this.view, this.area);
     this.ring = ring;
     const s = readBrSnap(mode);
@@ -1831,6 +1840,8 @@ export class BrMatch extends Duel {
   /** a squad mate gone (left, or silent): with nobody of the squad still up, it is over */
   protected override playerGone(id: number, notice: string): void {
     super.playerGone(id, notice);
+    // (gone from the Gulag too: one who left in it stayed counted in there, and their side was never out, Milestone 726)
+    this.gulagIds.delete(id);
     if (this.manySides) this.judgeSides();
     else if (this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
   }
@@ -2000,8 +2011,15 @@ export class BrMatch extends Duel {
           if (it) this.dropLoot(it, at);
         }
       } else if (m.op === "gone") {
+        const was = f.drops.get(key)?.pos.clone();
         const it = f.remove(key);
-        if (it && m.by === this.id && !this.discarding.delete(key)) this.onLootTaken?.(it);
+        if (it && m.by === this.id && !this.discarding.delete(key)) {
+          // granted after you went out (a round trip late): back on the floor where it lay, not into the slots of one who
+          // is out (Milestone 726: with both full the gun in hand went down a second time, beside the one your death left)
+          if (!this.alive || this.gulag) {
+            if (was) this.dropLoot(it, was);
+          } else this.onLootTaken?.(it);
+        }
       } else if (m.op === "add" && at) {
         const it = wireItem(m.item);
         if (it) f.add(it, at, key);
@@ -2056,8 +2074,9 @@ export class BrMatch extends Duel {
     // the ship flies on every browser, on its own clock, from when this page has shown the match
     if (local.shipHeld) this.holdShip(now);
     this.placeShip(now);
-    // the Gulag: your first death's way back
-    this.gulagFrame(now, frameDt, local);
+    // the Gulag: your first death's way back, while there is a match to go back to (the end card's seconds took a mate's
+    // win's waiting player into the room and cut the killcam and the recap, Milestone 726)
+    if (this.phase !== "matchEnd" && !this.brOver) this.gulagFrame(now, frameDt, local);
     this.updatePods(now);
     this.lootField?.update(new THREE.Vector3(local.x, local.y + 1.6, local.z), now);
     // the ring wall, from the host's ring or the mirrored one

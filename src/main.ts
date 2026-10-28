@@ -3119,6 +3119,13 @@ function respawnForMatch(d: MatchLike): void {
     }
     killcam.stop();
     recap = null;
+    // back from a Gulag won: the echo your first death left goes, and what a restore at it would have given back
+    // (Milestone 726). Left there, a mate's restore at it stood you up at that old spot and handed back a later death's
+    // kit while those guns lay where you fell again.
+    if (!gulagIn && d instanceof BrMatch && d.lootField) {
+      for (const drop of [...d.lootField.drops.values()]) if (drop.item.kind === "echo" && drop.item.owner === d.id) d.discardLoot(drop.key);
+      deathKit = [];
+    }
   }
   // an arena mode: back in after going down, the killcam and the recap give way
   if (d instanceof ArenaMode && d.phase === "fight") {

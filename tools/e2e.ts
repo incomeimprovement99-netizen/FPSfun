@@ -3266,6 +3266,37 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   const rescued = await guest.waitForFunction("!window.__range.duel().gulag && window.__range.duel().alive", { polling: 100, timeout: 5000 }).then(() => true, () => false);
   const hostLeft = await host.waitForFunction("!window.__range.duel().gulagIds.has(1)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
   check("the Gulag: a squad mate's restore at your echo brings you back out of it, and the host hears the trip is over", rescued && hostLeft, JSON.stringify({ rescued, hostLeft }));
+  // someone who leaves while in the Gulag is no longer in it (Milestone 726: they stayed in the host's count, and their
+  // side was never out); a third player, 7, made up for it
+  const leftIn = await ev<boolean>(host, `(() => { const d = window.__range.duel(); d.hearGulag(7, 1); d.playerGone(7, "left"); return d.gulagIds.has(7); })()`);
+  check("the Gulag: someone who leaves while in the Gulag is no longer counted in there", leftIn === false, String(leftIn));
+  // a pickup granted to the guest after they are out goes back on the floor, not into their slots (Milestone 726)
+  const late = await ev<{ key: number; taken: boolean; slots: string; back: boolean } | null>(
+    guest,
+    `new Promise((ok) => { const R = window.__range; const d = R.duel(); const f = d.lootField; const drop = f && [...f.drops.values()].find((x) => x.item.kind === "weapon");
+      if (!drop) return ok(null); const was = drop.pos.clone(); const before = R.loadout.slots.map((s) => s.id).join(); let taken = false; const on = d.onLootTaken; d.onLootTaken = (it) => { taken = true; on?.(it); };
+      d.alive = false; d.onExtra({ t: "loot", op: "gone", key: drop.key, by: d.id }, 0); d.alive = true; d.onLootTaken = on;
+      setTimeout(() => ok({ key: drop.key, taken, slots: before === R.loadout.slots.map((s) => s.id).join() ? "same" : "changed", back: [...f.drops.values()].some((x) => x.item.id === drop.item.id && x.pos.distanceTo(was) < 0.5) }), 800); })`,
+  );
+  check("the Gulag: a pickup granted after you are out goes back on the floor where it lay, not into your slots", !!late && !late.taken && late.slots === "same" && late.back, JSON.stringify(late));
+  // the host's own trip, won: back in the match, its first death's echo gone (Milestone 726: left on the floor, a restore
+  // at it stood you up at the old spot and gave back a later death's kit as well)
+  await ev(host, "(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()");
+  const hostIn = await host.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.phase !== 'wait' && window.__range.duel().gulagBot", { polling: 100, timeout: (G.delay + 6) * 1000 }).then(() => true, () => false);
+  await ev(host, "(() => { const b = window.__range.duel().gulagBot; if (b) b.dummy.hit(0, 'body', 500, 1, 1, b.dummy.group.position); })()");
+  const hostBack = await host.waitForFunction("!window.__range.duel().gulag && window.__range.duel().alive", { polling: 100, timeout: (G.after + 6) * 1000 }).then(() => true, () => false);
+  await sleep(800);
+  const echoLeft = await ev<boolean>(host, `(() => { const d = window.__range.duel(); return !!d.lootField && [...d.lootField.drops.values()].some((x) => x.item.kind === "echo" && x.item.owner === d.id); })()`);
+  check("the Gulag: won, your first death's echo is gone from the floor", hostIn && hostBack && echoLeft === false, JSON.stringify({ hostIn, hostBack, echoLeft }));
+  // a squad mate losing the Gulag while the rest are out ends it on the host (Milestone 726: the loss came before the
+  // state saying they were down, the squad was judged with them standing, and the match ran on with nobody up). The
+  // host made out, the guest sent in and losing, as their pages would say it
+  const mateLost = await ev<{ over: boolean; phase: string }>(
+    host,
+    `new Promise((ok) => { const d = window.__range.duel(); d.alive = false; d.hearGulag(1, 1); const r = d.remotes.get(1); if (r) r.alive = true; d.hearGulag(1, 0);
+      setTimeout(() => ok({ over: !!d.brOver, phase: d.phase }), 300); })`,
+  );
+  check("the Gulag: the last squad mate losing it, the rest out, ends the match on the host", mateLost.over, JSON.stringify(mateLost));
   await host.close();
   await guest.close();
 }
@@ -3529,6 +3560,12 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   const backIn = (Date.now() - t0) / 1000;
   const same = await Promise.all([heir, other].map((p) => ev<boolean>(p, "window.__range.duel() === window.__match")));
   check(`${label}: the heir takes the match over and the third friend is back in on its seat`, took && back && same.every(Boolean), JSON.stringify({ took, back, same, tookIn, backIn }));
+  // the heir's ring closes on the final sector, as the first host's did (Milestone 726: it drew the seed's own circles,
+  // and the bots fled the decay, packages fell and a won Gulag dropped toward them)
+  if (took) {
+    const onFinal = await ev<boolean>(heir, `(() => { const d = window.__range.duel(); const c = d.decayCircle; return !!d.ring && !!c && d.ring.plan.every((q) => Math.abs(q.cx - c.cx) < 0.01 && Math.abs(q.cz - c.cz) < 0.01); })()`);
+    check(`${label}: the heir's ring closes on the final sector, as the first host's did`, onFinal);
+  }
   if (!took) {
     await close();
     return;
@@ -6105,6 +6142,18 @@ async function speedkillsStartsTest(browser: Browser): Promise<void> {
         !!card.full && /^FUSES TO LEVEL \d/.test(card.full.say) && card.full.rows.length >= 4 && card.full.notes.length > 0 && !!card.compact && /^FUSE \d -> \d/.test(card.compact.say) && !!card.swap && /^SWAPS FOR YOUR /.test(card.swap.say) && card.swap.rows.some((r) => r.label === "TIME TO KILL"),
         JSON.stringify(card).slice(0, 600),
       );
+      // and a notice with two things in reach (Milestone 725): the list of what is at your feet lay over the notice,
+      // which stood at a fixed height under the prompt; it goes under the list now
+      const stacked = await ev<{ reach: HudBox | null; notice: HudBox | null }>(
+        page,
+        `new Promise((ok) => { const r = window.__range; const f = r.duel().lootField; ${clear};
+          f.add({ kind: "weapon", id: "sentinel", n: 1, rarity: "common", fusion: 0 }, new r.THREE.Vector3(${S.x}, 0, ${S.z} - 1.4));
+          f.add({ kind: "weapon", id: "mastiff", n: 1, rarity: "common", fusion: 0 }, new r.THREE.Vector3(${S.x} + 0.4, 0, ${S.z} - 1.5));
+          r.player.teleport(${S.x}, 0, ${S.z}, 0, -45); r.hud.notice("SQUAD WIPED  ·  12 SQUADS LEFT", r.gameTime(), 4);
+          const h = r.hud; const was = h.enabled; h.enabled = true;
+          setTimeout(() => { const out = { reach: h.placed.reach ?? null, notice: h.placed.notice ?? null }; h.enabled = was; ${clear}; ok(out); }, 500); })`,
+      );
+      check("sk loot card: a notice with two things in reach goes under the list of them, not over it", !!stacked.reach && !!stacked.notice && stacked.notice.y >= stacked.reach.y + stacked.reach.h, JSON.stringify(stacked));
     }
     await take(`{ kind: "weapon", id: "${a.slots[0].id}", n: 1, rarity: "common", fusion: 0 }`);
     const b = await ev<Here>(page, here);
