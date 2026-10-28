@@ -369,6 +369,18 @@ export class BotLooter {
     return this.armed || spent > this.window * LOOTING.overtime;
   }
 
+  /**
+   * A bot that never found a gun, past its overtime, is handed a common one, the kit's `fallback` (bots.json loot,
+   * Milestone 733): it stopped looking then, held its fire for the rest of the match and strafed in front of you, a
+   * free kill. True once, the frame it is handed.
+   */
+  armUnarmed(now: number): boolean {
+    if (this.armed || !Number.isFinite(this.startedAt) || now - this.startedAt <= this.window * LOOTING.overtime) return false;
+    this.kit.gunId = LOOTING.fallback;
+    this.kit.gun = 1;
+    return true;
+  }
+
   /** would it rather have this than what it is carrying */
   wants(item: BotLootItem): boolean {
     const k = this.kit;
@@ -1073,6 +1085,7 @@ export class Bot {
     }
     const got = this.looter.step(now, this.pos, src, busy, gunOnly);
     if (got) this.equip(got);
+    else if (this.looter.armUnarmed(now)) this.refit();
     return this.looter.goal;
   }
 
@@ -1231,7 +1244,8 @@ export class Bot {
     // where to go: cover when it is low and getting its breath back; a gun, running for it
     // unarmed; at the target if seen (keeping a distance); the loot it is going
     // for; where it last saw one (a hunt), or a shot it heard; else the match's goal
-    const hunting = !sees && this.lastSeen && tier.name !== "easy" ? this.lastSeen.pos : null;
+    // (the two gentlest tiers leave a target they lost: beginner, below easy, hunted it, Milestone 733)
+    const hunting = !sees && this.lastSeen && tier.name !== "easy" && tier.name !== "beginner" ? this.lastSeen.pos : null;
     if (this.cover?.via && Math.hypot(this.cover.via.x - this.pos.x, this.cover.via.z - this.pos.z) < 0.8) this.cover.via = null;
     const goal = this.cover ? (this.cover.via ?? this.cover.spot) : running ? lootGoal : (target ?? (sense.urgent ? sense.goal : (lootGoal ?? hunting ?? this.heard?.pos ?? sense.goal)));
     const toGoal = goal ? new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z) : new THREE.Vector2();

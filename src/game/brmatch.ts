@@ -1357,7 +1357,9 @@ export class BrMatch extends Duel {
       x = near.x + Math.cos(a) * r;
       z = near.z + Math.sin(a) * r;
     } else {
-      const c = this.view.current;
+      // SpeedKills: in the final sector, which never decays (Milestone 733: the ring's first round is the whole map, and
+      // with no mate up a won Gulag dropped you anywhere in it, a wave's sector warned or decaying among them)
+      const c = this.decay && this.decayCircle ? this.decayCircle : this.view.current;
       const r = Math.sqrt(Math.random()) * c.r * 0.6;
       x = c.cx + Math.cos(a) * r;
       z = c.cz + Math.sin(a) * r;
@@ -2676,7 +2678,8 @@ export class BrMatch extends Duel {
         current: { ...v.current },
         next: { ...v.next },
         // not in the Gulag's room: the ring cannot reach you there, so it does not warn you either
-        outside: local && !(this.gulag && this.gulag.phase !== "wait") ? (this.decay ? this.lostAt(local.x, local.z) : Math.hypot(local.x - v.current.cx, local.z - v.current.cz) > v.current.r) : false,
+        // (nor out: a ghost waiting on its squad walked the decayed streets told it was being hurt, Milestone 733)
+        outside: local && this.alive && !(this.gulag && this.gulag.phase !== "wait") ? (this.decay ? this.lostAt(local.x, local.z) : Math.hypot(local.x - v.current.cx, local.z - v.current.cz) > v.current.r) : false,
         damage: this.phases[Math.min(v.phase, this.phases.length - 1)].damage,
       },
       placement: this.phase === "matchEnd" ? this.placement : null,

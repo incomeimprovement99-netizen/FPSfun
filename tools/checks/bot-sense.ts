@@ -297,6 +297,10 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   const bare = loot("hard", new Floor(), 14);
   check("but one that has found no gun keeps looking rather than going unarmed", !bare.looter.armed && !bare.looter.done(upAt));
   check("and it gives up in the end rather than following the floor for ever", bare.looter.done(lootCfg.botSearch.hard * LOOTING.window * LOOTING.overtime + 1), `${LOOTING.overtime} windows`);
+  // and giving up, it is handed a common gun rather than holding its fire for the match (Milestone 733); not before
+  const early = bare.looter.armUnarmed(upAt);
+  const handed = bare.looter.armUnarmed(lootCfg.botSearch.hard * LOOTING.window * LOOTING.overtime + 1);
+  check("and giving up it is handed a common gun (bots.json loot.fallback), not before", !early && handed && bare.looter.armed && bare.looter.kit.gunId === LOOTING.fallback && bare.looter.kit.gun === 1, JSON.stringify({ early, handed, kit: bare.looter.kit }));
 
   // A gun first. It took the nearest thing it wanted, and a heal (when there were heals) or a helmet is a
   // rummage each: 60 s into real battle royales a bot in four still had no gun,

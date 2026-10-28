@@ -12948,6 +12948,31 @@ posts as often as it likes. A flood would need about seventeen addresses to fill
 - **Left:** the feedback and visit logs keep one older file each; a flood from many addresses could still push real
   notes out of them (a feedback note is 10 a 10 minutes an address).
 
+## Milestone 733 — The tutorial, the bots and the decay: five small ones
+
+A review of the tutorial, the bots and the decay in the 2026-10-28 bug hunt found the owner's decay rules holding (no
+warning or damage in the first minute after the ship, the final sector the seed's, nothing ticking after the match)
+and no tutorial door that can stay shut, and these:
+
+- **A won Gulag into the decay:** with no squad mate up, the drop back went anywhere inside the ring, and the ring's
+  first round is the whole map: about one drop in ten came down in a wave's sector, warned or decaying. It drops you
+  in the final sector now, which never decays (brmatch.ts dropBackSpot).
+- **A bot unarmed for the match:** a bot that found no gun in its search and its overtime stopped looking and "fought
+  unarmed", which in SpeedKills, where a bot has no fists, meant holding its fire for the rest of the match, strafing in
+  front of you, a free kill. Past its overtime it is handed a common STRYDER now (bots.json loot.fallback).
+- **Beginner bots hunted you:** the tier below easy chased where it last saw you, where easy leaves a lost target be;
+  neither does now.
+- **The tutorial's first sign said E:** its skip hint named the E key to a pad player and to one who had moved
+  interact; it names the player's own key or button, as every other sign does.
+- **A ghost told it was in the decay:** a dead squad mate waiting on a restore walked the decayed streets under the
+  orange edge and IN THE DECAY, though nothing could hurt it; only the living are warned now.
+- **Left as it is:** the capture round's clock ends with the ring's horn and nothing else, by design (decay.json); the
+  host's bots could in principle target a guest in the Gulag, which is 170 m past the city's edge behind its walls.
+- **Checked:** tsc, verify, rules; verify's bot check (bot-sense.ts), a new check: no gun before the overtime, a common
+  STRYDER once past it; e2e gulag, a new check: forty drop-back picks with no mate up all in the final sector; e2e
+  brsolo, a new check: the guest out, with every spot made a lost sector, is not warned. With each fix taken out its
+  check failed (the old drop back put most of the forty outside). e2e sktutorial for the sign.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

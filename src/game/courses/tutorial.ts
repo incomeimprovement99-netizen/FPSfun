@@ -265,7 +265,7 @@ export const TUTORIAL_COURSE: CourseLayout = {
   sign:
     "THE TUTORIAL\n\nThe game a room at a time: every move first, then your hacks, then a gun and a fight. " +
     "A room's door opens once you have done its move, and the dark glass walls cannot be climbed or run on.\n\n" +
-    "Fall into a pit and you are back at its door. Stuck on a room? Hold the interact key (E) to skip it.",
+    "Fall into a pit and you are back at its door. Stuck on a room? Hold {interact} to skip it.",
   signAt: { x: OUT.x0 + 0.51, z: 15.5 },
   girders: [-3.5, 3.5, 17.5, 24.5],
   lights: [0, 21],

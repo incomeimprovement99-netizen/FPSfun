@@ -3210,6 +3210,15 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
     `(() => { const R = window.__range; const p = R.player.pos; return { y: p.y, inMap: p.x > -220 && p.x < 220 && p.z > 280 && p.z < 720, guns: R.loadout.slots.filter((s) => !s.empty).map((s) => s.id).sort(), alive: R.duel().alive }; })()`
   );
   check("the Gulag: won, you drop back into the match with the guns you fought with", won && back.alive && back.y > 40 && back.inMap && JSON.stringify(back.guns) === JSON.stringify(guns), JSON.stringify(back));
+  // and with no squad mate up, where a won Gulag drops you is in the final sector, which never decays (Milestone 733: the
+  // ring's first round is the whole map, and a drop could land in a wave's sector, warned or decaying); forty picks
+  const drops = await ev<{ out: number; worst: number; r: number }>(
+    page,
+    `(() => { const d = window.__range.duel(); const c = d.decayCircle; let out = 0, worst = 0;
+      for (let i = 0; i < 40; i++) { const s = d.dropBackSpot(null); const e = Math.hypot(s.x - c.cx, s.z - c.cz); worst = Math.max(worst, e); if (e > c.r + 6) out++; }
+      return { out, worst: Math.round(worst), r: Math.round(c.r) }; })()`,
+  );
+  check("the Gulag: won with no squad mate up, you drop back in the final sector, which never decays (forty picks)", drops.out === 0, JSON.stringify(drops));
   // a second death is final: one trip a match
   await page.waitForFunction("!window.__range.player.dropping", { polling: 200, timeout: 20000 }).catch(() => undefined);
   await ev(page, "(() => { const d = window.__range.duel(); d.takeHit(1000, d.bots[0].bot.remote.id); })()");
@@ -3918,6 +3927,13 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
   // standing is an opponent; it counted as a mate before Milestone 499, and the guest was a ghost nobody could restore)
   const ghost = await ev<boolean>(guest, "!!window.__range.duel().ghost");
   check("solo with a friend: the host's shots hurt the guest, and that is the end, no ghost", out && !ghost, JSON.stringify({ out, ghost }));
+  // out, the guest is not told it is in the decay, which cannot hurt it (Milestone 733: a ghost waiting on its squad
+  // walked the decayed streets under IN THE DECAY); everywhere made a lost sector for the moment
+  const ghostWarned = await ev<{ alive: boolean; outside: boolean | null }>(
+    guest,
+    `(() => { const d = window.__range.duel(); d.lostAt = () => true; const o = d.hud().br?.ring?.outside ?? null; delete d.lostAt; return { alive: d.alive, outside: o }; })()`,
+  );
+  check("solo with a friend: out, the guest is not warned it is in the decay, which cannot hurt it", !ghostWarned.alive && ghostWarned.outside === false, JSON.stringify(ghostWarned));
   await sleep(1000);
   const going = await ev<string>(host, "window.__range.duel().phase");
   check("solo with a friend: the match goes on for the host", going === "fight", going);
