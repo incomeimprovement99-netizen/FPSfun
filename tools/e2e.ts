@@ -1229,10 +1229,15 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   // reload is now made sure of, tried again while its gun will not reload, and a miss says what each page saw)
   const reloadSeen = async (clip: string): Promise<{ act: string | null; empty: boolean | null; why?: unknown }> => {
     const since = await ev<number>(host, "(() => { const r = window.__range.duel().remotes.get(1); return r?.samples[r.samples.length - 1]?.at ?? -Infinity; })()");
-    let began: { reloading: boolean; noAmmo: boolean; tries: number } = { reloading: false, noAmmo: false, tries: 0 };
+    // (a gun that overheats has no magazine and never reloads, CHOOCH's: in the 2026-10-28 sweep the guest's reload never
+    // began in five tries, nothing else in its way, the match's round having put that gun in its hands. So the guest is
+    // put on a gun that reloads first, and a miss says which it held)
+    await ev(guest, `(() => { const r = window.__range, L = r.loadout; if (!L.active.weapon.mech?.overheat) return; const i = L.slots.findIndex((x) => !x.weapon.mech?.overheat); if (i >= 0) L.requestSwap(i, r.gameTime()); })()`);
+    await guest.waitForFunction("!window.__range.loadout.swapping", { polling: 100, timeout: 5000 }).catch(() => undefined);
+    let began: { reloading: boolean; noAmmo: boolean; tries: number; gun: string; overheats: boolean } = { reloading: false, noAmmo: false, tries: 0, gun: "", overheats: false };
     for (let i = 1; i <= 5 && !began.reloading; i++) {
       await guest.waitForFunction("!window.__range.loadout.active.state.reloading", { polling: 100, timeout: 8000 }).catch(() => undefined);
-      began = await ev(guest, `(() => { const r = window.__range; const s = r.loadout.active.state; s.clip = ${clip}; s.startReload(r.gameTime()); return { reloading: !!s.reloading, noAmmo: !!s.noAmmo, tries: ${i} }; })()`);
+      began = await ev(guest, `(() => { const r = window.__range; const a = r.loadout.active, s = a.state; s.clip = ${clip}; s.startReload(r.gameTime()); return { reloading: !!s.reloading, noAmmo: !!s.noAmmo, tries: ${i}, gun: a.weapon.id, overheats: !!a.weapon.mech?.overheat }; })()`);
       if (!began.reloading) await sleep(300);
     }
     const got = await host
