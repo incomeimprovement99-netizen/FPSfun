@@ -407,9 +407,9 @@ export class GameAudio {
     const layers = (cfg.hacks as Record<string, Array<{ take: string; level: number; len: number; rate: number }> | undefined>)[id];
     if (!layers?.length) return false;
     // someone else's, captioned with its name and where it was (captions.json hack_*, Milestone 710)
-    if (at) this.cue(`hack_${id}`, at);
     const v = this.voice(at, Math.max(...layers.map((l) => l.len)) + 0.3, at ? "fx" : "own", 2, 0.4);
     if (!v) return false;
+    if (at) this.cue(`hack_${id}`, at);
     let any = false;
     for (const l of layers) any = this.sampleCut(v.input, v.t, l.take, l.level, l.len, l.rate) || any;
     return any;
@@ -451,7 +451,7 @@ export class GameAudio {
   }
 
   /** a take of a recorded sound into `dest` at `t`, a little varied in pitch; false when there is none */
-  private sample(dest: AudioNode, t: number, name: string, level: number, rate = 1): boolean {
+  private sample(dest: AudioNode, t: number, name: string, level: number, rate = 1, stopAt?: number): boolean {
     const takes = this.samples.get(name);
     const ctx = this.ctx;
     if (!takes?.length || !ctx) return false;
@@ -462,6 +462,8 @@ export class GameAudio {
     g.gain.value = level;
     src.connect(g).connect(dest);
     src.start(t);
+    // (a long take used for its start only: it played on for seconds after its voice had gone, Milestone 734)
+    if (stopAt !== undefined) src.stop(stopAt);
     this.samplesPlayed++;
     return true;
   }
@@ -582,10 +584,14 @@ export class GameAudio {
     }
     this.voices++;
     this.played++;
+    // faded over its last 60 ms, not cut: a take running past the length asked for ended in a pop (Milestone 734)
+    const end = t + length + 0.3;
+    input.gain.setValueAtTime(input.gain.value, Math.max(t, end - 0.06));
+    input.gain.linearRampToValueAtTime(0, end);
     setTimeout(() => {
       this.voices = Math.max(0, this.voices - 1);
       input.disconnect();
-    }, (t - ctx.currentTime + length + 0.3) * 1000);
+    }, (end - ctx.currentTime) * 1000);
     return { input, t, dist };
   }
 
@@ -640,7 +646,6 @@ export class GameAudio {
    * far ones arrive late and dull, the near ones crack.
    */
   gun(id: string, at: Vec | null = null, level = 1): void {
-    this.cue("gun", at);
     const cls = this.gunClass(id);
     const k = cfg.classes[cls];
     const D = cfg.distance;
@@ -653,6 +658,8 @@ export class GameAudio {
     const life = Math.max(k.tail, takes ? Math.max(...takes.map((b) => b.duration)) : 0);
     const v = at ? this.voice(at, life + 0.6, "fx", far0 > D.gunLow ? 0 : 1, 1, D.ref.gun) : this.voice(null, life + 0.2, "own", 2);
     if (!v) return;
+    // (captioned once it plays: a far shot the voices refused was still written down, Milestone 734)
+    this.cue("gun", at);
     const L = k.level * level;
     const jitter = 0.94 + Math.random() * 0.12;
     const far = v.dist > D.farFrom;
@@ -706,9 +713,10 @@ export class GameAudio {
 
   /** a grenade going off: a frag's deep boom, an arc star's crackling snap; SLAM's landing, a boom into the ground */
   blast(kind: "frag" | "arcstar" | "slam", at: Vec): void {
-    this.cue("blast", at);
-    const v = this.voice(at, 1.6, "fx", 2, 1.4, cfg.distance.ref.blast);
+    // (SLAM's explosion played at 0.7 runs to about 2.3 s: it was cut at 1.9, Milestone 734)
+    const v = this.voice(at, kind === "slam" ? 2.1 : 1.6, "fx", 2, 1.4, cfg.distance.ref.blast);
     if (!v) return;
+    this.cue("blast", at);
     if (kind === "frag") {
       this.sample(v.input, v.t, "explosion", 0.9, 0.85);
       this.noise(v.input, v.t, 0.05, "highpass", 2400, 0.7, 0.9, 0.0008);
@@ -985,12 +993,12 @@ export class GameAudio {
 
   /** a footstep: yours (no `at`) or someone's; quieter crouched, louder sprinting */
   footstep(surface: Surface, at: Vec | null = null, loud = 1): void {
-    this.cue("step", at);
     // (long enough for the recorded steps, the grass ones about 0.8 s)
     // someone else's step near you is never dropped for the voice cap: it is the information
     const near = !!at && Math.hypot(at.x - this.lis.x, at.y - this.lis.y, at.z - this.lis.z) <= cfg.distance.stepsNear;
     const v = this.voice(at, 0.85, "fx", at ? (near ? 2 : 0) : 1, 0.3);
     if (!v) return;
+    this.cue("step", at);
     const j = 0.9 + Math.random() * 0.2;
     // halved on the owner's ear (2026-09-15): steps were louder than the room
     const L = (at ? cfg.footsteps.othersLevel : cfg.footsteps.ownLevel) * loud;
@@ -1030,9 +1038,9 @@ export class GameAudio {
 
   /** a landing, by how hard: a thud and grit */
   land(impact01: number, surface: Surface, at: Vec | null = null): void {
-    this.cue("land", at);
     const v = this.voice(at, 0.3, "fx", 1, 0.3);
     if (!v) return;
+    this.cue("land", at);
     const k = Math.max(0.2, Math.min(1, impact01));
     this.sample(v.input, v.t, "land", 0.7 * k, 0.9);
     this.tone(v.input, v.t, 0.12 + 0.1 * k, "sine", 120, 45, 0.5 * k);
@@ -1088,9 +1096,9 @@ export class GameAudio {
    * cannot do a hinge.
    */
   door(at: Vec, kind: "open" | "close" | "kick"): void {
-    this.cue("door", at);
     const v = this.voice(at, kind === "kick" ? 0.9 : 0.55, "fx", 0, kind === "kick" ? 0.7 : 0.45);
     if (!v) return;
+    this.cue("door", at);
     const name = kind === "open" ? "door_open" : kind === "close" ? "door_close" : "door_kick";
     if (!this.sample(v.input, v.t, name, kind === "kick" ? 1 : 0.7)) {
       this.tone(v.input, v.t, kind === "kick" ? 0.22 : 0.14, "triangle", kind === "kick" ? 160 : 420, 90, 0.3);
@@ -1134,9 +1142,10 @@ export class GameAudio {
    * way an impact does, because everyone is meant to hear it and decide.
    */
   horn(at: Vec | null): void {
-    this.cue("package", at);
-    const v = this.voice(at, 1, "fx", 1, 1);
+    // (its take is 2 s: it was cut at 1.3, Milestone 734)
+    const v = this.voice(at, 2, "fx", 1, 1);
     if (!v) return;
+    this.cue("package", at);
     if (!this.sample(v.input, v.t, "horn", 1)) this.tone(v.input, v.t, 1.2, "sawtooth", 110, 80, 0.35);
   }
 
@@ -1150,10 +1159,10 @@ export class GameAudio {
   /** stepping onto a zipline: the hook taking the line */
   zipOn(at: Vec, mine = false): void {
     // (yours is played where you are, but written down as your own: no way and no distance)
-    this.cue("zip", mine ? null : at);
     const v = this.voice(at, 0.5, "fx", 0, 0.35);
     if (!v) return;
-    if (!this.sample(v.input, v.t, "zip_ride", 0.5, 1.15)) this.tone(v.input, v.t, 0.25, "sawtooth", 500, 900, 0.14);
+    this.cue("zip", mine ? null : at);
+    if (!this.sample(v.input, v.t, "zip_ride", 0.5, 1.15, v.t + 0.8)) this.tone(v.input, v.t, 0.25, "sawtooth", 500, 900, 0.14);
   }
 
   /** the menu: a click, a confirmation, an error */

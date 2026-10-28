@@ -12973,6 +12973,36 @@ and no tutorial door that can stay shut, and these:
   brsolo, a new check: the guest out, with every spot made a lost sector, is not warned. With each fix taken out its
   check failed (the old drop back put most of the forty outside). e2e sktutorial for the sign.
 
+## Milestone 734 — The microphone let go after a match, and the sounds' ends
+
+A review of the sound in the 2026-10-28 bug hunt found nothing that grows without end over a long visit (one-shots are
+let go, the maps by figure are weak, the caches capped, one AudioContext) and these:
+
+- **The microphone after a match:** the key pressed in a match asks the browser for the microphone; if the match ended
+  while it asked and the player then allowed it, the microphone was taken for a voice chat that was over, the last
+  match's players were called with it, and nothing was left to let it go, the browser's recording mark on for the rest
+  of the visit. It is let go at once now (src/net/voice.ts, a count of stops), and a stopped voice chat turns the last
+  match's late calls away; the same voice chat serves the next match on the same connection, as before.
+- **Watching a squad mate, the wrong steps:** out and watching someone, the footsteps, jumps, landings and slides heard
+  were the ones near your still body, from the wrong place, and the ones by the one you watched were silent. They are
+  measured from the ears (the camera) now (soundscape.ts).
+- **Sounds cut off with a pop:** each sound's nodes were let go at the length its caller gave, with no fade; the care
+  package's horn (a 2 s take) was cut at 1.3 s, SLAM's slowed boom at 1.9 of its 2.3, and the zipline's catch let its
+  5 s take play on, unconnected, for 4 s. Every sound now fades over its last 60 ms, those lengths are their takes', and
+  the zipline's take stops with its sound.
+- **The announcer after a match:** its lines from the match's last seconds were spoken in the range after it; a match's
+  end clears them.
+- **Captions for sounds never played:** a far door, a shot past hearing or a step past the voices' cap was still written
+  down, and with five lines on screen pushed the near ones off. A caption is written once its sound plays. Your own
+  grapple was captioned as someone else's zipline ahead; it is your own.
+- **Left as it is:** voice chat keeps its own volume, not under the master's (its own slider); a voice call that failed
+  is not tried again until the group changes.
+- **Checked:** tsc, verify, rules; a new check in verify (tools/checks/voice-stop.ts): a microphone allowed after the
+  stop is let go and nobody called, a late call turned away, and the next match on the same connection talks again
+  (against the voice chat as it was, all three failed); e2e speedkills, a new check: a door 400 m off is not captioned
+  and one near is (with the caption back before the sound, the far one was); e2e p2p for the voice chat over the real
+  broker. The watching, the fades and the announcer by reading.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

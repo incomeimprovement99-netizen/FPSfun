@@ -45,6 +45,7 @@ import { seenFails } from "./checks/seen";
 import { servePrevFails } from "./checks/serve-prev";
 import { serveBrokerFails } from "./checks/serve-broker";
 import { accountSayFails } from "./checks/account-say";
+import { voiceStopFails } from "./checks/voice-stop";
 import { pageIdsFails } from "./checks/page-ids";
 import { holdFails } from "./checks/hold";
 import { hullFails } from "./checks/hull";
@@ -1371,7 +1372,7 @@ console.log("Viewmodel roster");
 
 // the modules under tools/checks/ printed their sections as they were
 // imported, which is before this file's own body ran
-fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + tpcamFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + hullFails + calloutFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails + perfTipFails + cityBakeFails + servePrevFails + serveBrokerFails + accountSayFails + pageIdsFails;
+fails += skyHoursFails + pickupReachFails + botSenseFails + viewmodelArmsFails + arenasFails + reticleFails + progressFails + accessFails + brRulesFails + netDeltaFails + audioOcclusionFails + dropshipFails + gulagFails + decayClockFails + squadViewFails + tpcamFails + clipsFails + emotesFails + boardsFails + botFireFails + feelFails + hitcheckFails + rulesFails + finishesFails + modeRestoreFails + wallsFails + figLodFails + renderBudgetFails + introFails + pingWheelFails + lobbyFails + holdFails + hullFails + calloutFails + announcerFails + packSoundsFails + brCardFails + gamesFails + hacksFails + solidGridFails + seenFails + perfTipFails + cityBakeFails + servePrevFails + serveBrokerFails + accountSayFails + voiceStopFails + pageIdsFails;
 
 console.log(fails === 0 ? "\nVERIFY PASS" : `\nVERIFY FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

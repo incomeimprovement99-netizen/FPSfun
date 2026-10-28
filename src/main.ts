@@ -3759,7 +3759,8 @@ function useHack(slot: HackSlot, now: number): void {
       // (your own figure in third person reaches for it as others see you do)
       selfFig?.reachFor(to, H.grapple.maxSeconds, H.grapple.arrive);
       fx.jolt(player.pos.clone(), to, now);
-      audio.zipOn(player.pos);
+      // (yours: captioned as your own, not as someone's zipline ahead, Milestone 734)
+      audio.zipOn(player.pos, true);
       sendFx("grap", player.pos.clone(), to);
       break;
     }
@@ -5228,6 +5229,8 @@ const newSeed = (): number => Math.floor(Math.random() * 2 ** 31);
 const brDifficulty = (): BotDifficulty => asDifficulty(botDifficulty.value);
 const brBotCount = (): number => Math.max(1, Math.min(MOST_BOTS, Number(brBots.value) || 11));
 function endMatch(reason: string): void {
+  // (the announcer's lines from the match's last seconds were spoken in the range after it, Milestone 734)
+  announcer.clear();
   const wasBr = duel instanceof BrMatch;
   // a match over while it was still being shown (left from the menu over the loading screen): the screen goes with it,
   // and nothing it put off is said
@@ -7821,6 +7824,7 @@ function step(): void {
     alive: duel ? duel.alive : true,
     health: duel ? duel.health : HEALTH_MAX,
     figures: duel ? duel.avatars : [],
+    ear: camera.position,
     heal: null,
     reload: { on: ws.reloading, progress: ws.reloadProgress(now), empty: ws.clip === 0 },
   });

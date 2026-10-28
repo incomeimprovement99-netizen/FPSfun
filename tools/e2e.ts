@@ -5247,6 +5247,16 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     }
     const heard = await ev<string[]>(page, "window.__range.sk.othersHeard()");
     check("speedkills: another figure's landing, slide, mantle, zipline and double jump are heard where it is", ["land", "slide", "mantle", "zip", "airjump"].every((k) => heard.includes(k)), JSON.stringify(heard));
+    // a sound the voices refuse is not written down (Milestone 734: a far door, a far shot, a step past the voices' cap
+    // were still captioned, and pushed the near ones off the five lines): a door 400 m off, past all hearing, and one
+    // close by
+    const cued = await ev<string[]>(
+      page,
+      `(() => { const R = window.__range; const a = R.audio; const was = a.onCue; const got = []; const p = R.player.pos;
+        a.onCue = (id, at, f, e) => { got.push(id + (at && Math.hypot(at.x - p.x, at.z - p.z) > 100 ? ":far" : ":near")); was?.(id, at, f, e); };
+        a.door({ x: p.x + 400, y: p.y + 1, z: p.z }, "open"); a.door({ x: p.x + 3, y: p.y + 1, z: p.z }, "open"); a.onCue = was; return got; })()`,
+    );
+    check("speedkills: a sound too far to be heard is not captioned, a near one is", cued.join() === "door:near", cued.join());
     // and its footsteps while it is unseen under INVISIBILITY (Milestone 717): its figure hidden past seenWithin, its
     // shimmer up; hidden, its steps went silent (the sounds skip a hidden figure)
     await ev(

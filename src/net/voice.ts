@@ -30,6 +30,8 @@ export class Voice {
   /** our microphone, once the player has pressed the key and allowed it */
   private mic: MediaStream | null = null;
   private asking: Promise<MediaStream | null> | null = null;
+  /** one more at each stop(): a microphone allowed after it belongs to a voice chat that is over (setTalking) */
+  private gen = 0;
   /** calls we made with our microphone, by the callee's PeerJS id */
   private outgoing = new Map<string, MediaConnection>();
   /** what we hear, by the talker's PeerJS id */
@@ -66,6 +68,7 @@ export class Voice {
   async setTalking(on: boolean): Promise<void> {
     this.talking = on;
     if (on && !this.mic && !this.denied) {
+      const gen = this.gen;
       this.asking ??= navigator.mediaDevices
         ?.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true } })
         .then(
@@ -75,8 +78,16 @@ export class Voice {
             return null;
           }
         ) ?? Promise.resolve(null);
-      this.mic = await this.asking;
+      const got = await this.asking;
       this.asking = null;
+      // The match ended while the browser asked (Milestone 734): allowed after, the microphone was taken for a voice chat
+      // that was over, the last match's players were called, and nothing was left to let it go, the browser's
+      // recording mark on for the rest of the visit. Let go at once.
+      if (gen !== this.gen) {
+        for (const t of got?.getTracks() ?? []) t.stop();
+        return;
+      }
+      this.mic = got;
       if (!this.mic) return;
       this.callGroup();
     }
@@ -106,6 +117,10 @@ export class Voice {
 
   /** out of the match: every call ended, the microphone let go */
   stop(): void {
+    this.gen++;
+    // (nobody to talk to or hear until the next match says who: a late call from the last one was still answered,
+    // Milestone 734)
+    this.group = new Set();
     for (const c of this.outgoing.values()) c.close();
     this.outgoing.clear();
     for (const [id, h] of [...this.heard]) this.dropHeard(id, h);

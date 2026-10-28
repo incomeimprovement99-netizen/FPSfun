@@ -27,6 +27,8 @@ export interface SoundFrame {
   health: number;
   /** other figures to hear walking */
   figures: Dummy[];
+  /** where the ears are: the camera, which is the one watched once you are out (Milestone 734) */
+  ear: { x: number; z: number };
   /** a heal in progress, 0..1, or null */
   heal: number | null;
   /** the gun in hand: reloading, how far, and whether from empty */
@@ -134,7 +136,9 @@ export class Soundscape {
       if ((!d.group.visible && !d.cloaked) || d.knocked) continue;
       const pose = d.currentPose;
       const g = d.group.position;
-      const far = Math.hypot(g.x - p.pos.x, g.z - p.pos.z) > hear;
+      // (from the ears, not your body: out and watching a squad mate, the steps by them were silent and those by your
+      // still body heard, Milestone 734)
+      const far = Math.hypot(g.x - f.ear.x, g.z - f.ear.z) > hear;
       // their jumps, landings, slides and mantles, where they are (Milestone 695): yours had them, and theirs were
       // silent, so a figure dropping off a ledge behind you or sliding round a corner made no sound but its steps
       const was = this.otherMove.get(d);
