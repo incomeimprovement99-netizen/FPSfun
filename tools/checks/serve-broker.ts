@@ -1,6 +1,8 @@
-// The broker under bad clients (Milestone 730): one frame that was not JSON reached the broker's "error" with nobody
-// listening, and the throw stopped the whole server (the site, the accounts and every match being made). A frame far
-// past a signalling message's size is refused at the socket, and one address holds no more than so many sockets.
+// The game server under bad clients. The broker (Milestone 730): one frame that was not JSON reached the broker's
+// "error" with nobody listening, and the throw stopped the whole server (the site, the accounts and every match being
+// made); a frame far past a signalling message's size is refused at the socket, and one address holds no more than so
+// many sockets. The boards (Milestone 732): an address puts no more than six new names on them in a day, so a flood
+// of made-up names cannot push every real result off a board's 100 places.
 //
 // The real server, run on a spare port over a made-up release.
 //
@@ -32,7 +34,7 @@ function socket(id: string): Promise<{ ws: WebSocket; open: boolean }> {
   });
 }
 
-console.log("The broker under bad clients");
+console.log("The game server under bad clients");
 if (!existsSync(new URL("../../server/game/node_modules/ws/package.json", import.meta.url))) {
   console.log("  --  skipped: server/game has no node_modules (npm install there to run it)");
 } else {
@@ -65,6 +67,11 @@ if (!existsSync(new URL("../../server/game/node_modules/ws/package.json", import
     for (const h of held) open.push(h.ws);
     const n = held.filter((h) => h.open).length;
     check("one address holds no more than its share of the broker's sockets (24), the rest refused", n >= 20 && n <= 24 && (await alive()), `${n} of 30 open`);
+    // the boards: six new names from here today, a seventh refused, the first again taken
+    const post = (name: string) => fetch(`http://127.0.0.1:${PORT}/api/board/submit`, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify({ board: "duel:wins", name, value: 1 }) }).then((r) => r.status, () => 0);
+    const got = [];
+    for (const name of ["FLOOD1", "FLOOD2", "FLOOD3", "FLOOD4", "FLOOD5", "FLOOD6", "FLOOD7", "FLOOD1"]) got.push(await post(name));
+    check("an address puts no more than six new names on the boards in a day; a name already there still posts", got.join() === "200,200,200,200,200,200,429,200", got.join());
   } finally {
     for (const w of open) try { w.close(); } catch { /* gone */ }
     srv.kill();

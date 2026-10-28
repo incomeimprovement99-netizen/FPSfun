@@ -12923,12 +12923,26 @@ The menus' and accounts' findings of Milestone 730's review:
 - **Results that went nowhere:** after a sign-out the account's name stays the name here, and the boards refuse an
   account's name from a browser not signed in to it; every result after went nowhere while the Stats tab said each one
   was posted. The tab now says the results are not being posted and why (src/game/leaderboard.ts BOARD_REFUSED).
-- **Left:** signing in on a browser that has its own stats puts the account's over them with no merge; a board's 100
-  places and the feedback and visit logs can still be pushed out by a flood under made-up names.
+- **Left:** signing in on a browser that has its own stats puts the account's over them with no merge. (A board's 100
+  places pushed out by a flood of made-up names: Milestone 732.)
 - **Checked:** tsc, verify, rules; a new check in verify (tools/checks/account-say.ts): only a 401 says sign in, each
   other answer its own words, and a refused board post is remembered and cleared by the next one taken; e2e pad, a new
   check: after three controller presets one table and one preset box, and the Range preset's D-pad down named. With
   the fixes taken out both failed. leaderboard.ts reads Vite's env with `?.` so the check can run it under node.
+
+## Milestone 732 — The boards kept from a flood of made-up names
+
+The last of Milestone 730's review: a board keeps 100 places, and an address could post 30 results a 10 minutes under
+any names, so a flood of made-up names at the best a board takes pushed every real result off it for good, about 35
+minutes from one address. An address now puts no more than six new names on the boards in a day (server/game/serve.mjs
+NEW_NAMES_A_DAY: six, so friends playing from one house, on one address, are not turned away); a name already on a board
+posts as often as it likes. A flood would need about seventeen addresses to fill a board.
+
+- **Checked:** verify, rules; the server check (tools/checks/serve-broker.ts, now the game server under bad clients)
+  posts seven new names and the first again from one address: six taken, the seventh refused, the first taken again.
+  With the cap taken out it failed.
+- **Left:** the feedback and visit logs keep one older file each; a flood from many addresses could still push real
+  notes out of them (a feedback note is 10 a 10 minutes an address).
 
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 

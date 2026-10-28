@@ -273,7 +273,8 @@ address, and a bad frame logged as `broker:` in `npm run fps logs` rather than
 stopping the server), answers `/net.json` (the broker's path and
 TURN credentials that expire after 12 hours, signed with the relay's
 secret), keeps the boards at `/api/board` and the accounts at `/api/account`
-(register, login, logout, profile; rate limited by address and, for wrong
+(register, login, logout, profile; the boards take six new names an address a
+day; rate limited by address and, for wrong
 passwords, by account; every profile together held under 48 MB; sessions of 30
 days), keeps
 the visit log at `/api/seen` (a line from `src/net/seen.ts` as the page opens, a

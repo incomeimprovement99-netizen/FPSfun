@@ -145,6 +145,18 @@ app.get("/api/board/top", (req, res) => {
   res.json({ board, entries: (boards[board] ?? []).slice(0, n) });
 });
 
+// New names on the boards from one address in a day (Milestone 732): a board keeps 100, and a flood of made-up names at
+// the best a board takes pushed every real result off it for good (about 35 minutes from one address under the post
+// limit). A name already there posts as often as it likes; an address's seventh new name in a day is refused (six:
+// friends playing from one house share an address).
+const NEW_NAMES_A_DAY = 6;
+const DAY_MS = 24 * 3600 * 1000;
+const namesBy = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [ip, v] of namesBy) if (v.resetAt < now) namesBy.delete(ip);
+}, POST_WINDOW_MS).unref();
+
 app.post("/api/board/submit", express.json({ limit: "2kb" }), (req, res) => {
   const now = Date.now();
   const ip = req.ip ?? "?";
@@ -169,6 +181,13 @@ app.post("/api/board/submit", express.json({ limit: "2kb" }), (req, res) => {
   const lower = LOWER_IS_BETTER.test(board);
   const entries = (boards[board] ??= []);
   const mine = entries.find((e) => e.name === name);
+  if (!mine) {
+    const v = namesBy.get(ip) ?? { names: new Set(), resetAt: now + DAY_MS };
+    if (v.resetAt < now) Object.assign(v, { names: new Set(), resetAt: now + DAY_MS });
+    if (!v.names.has(name) && v.names.size >= NEW_NAMES_A_DAY) return res.status(429).json({ error: "too many new names from here today" });
+    v.names.add(name);
+    namesBy.set(ip, v);
+  }
   // what the board keeps: a time's best, or wins one more at most (boardrules.mjs)
   const kept = nextBoardValue(lower, mine?.value, value, board);
   if (kept === null) return res.status(400).json({ error: "bad value" });
