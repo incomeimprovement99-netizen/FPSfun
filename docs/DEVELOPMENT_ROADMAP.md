@@ -12995,13 +12995,24 @@ let go, the maps by figure are weak, the caches capped, one AudioContext) and th
 - **Captions for sounds never played:** a far door, a shot past hearing or a step past the voices' cap was still written
   down, and with five lines on screen pushed the near ones off. A caption is written once its sound plays. Your own
   grapple was captioned as someone else's zipline ahead; it is your own.
-- **Left as it is:** voice chat keeps its own volume, not under the master's (its own slider); a voice call that failed
-  is not tried again until the group changes.
+- **Left as it is:** voice chat keeps its own volume, not under the master's (its own slider). (A voice call that failed,
+  not tried again: Milestone 735.)
 - **Checked:** tsc, verify, rules; a new check in verify (tools/checks/voice-stop.ts): a microphone allowed after the
   stop is let go and nobody called, a late call turned away, and the next match on the same connection talks again
   (against the voice chat as it was, all three failed); e2e speedkills, a new check: a door 400 m off is not captioned
   and one near is (with the caption back before the sound, the far one was); e2e p2p for the voice chat over the real
   broker. The watching, the fades and the announcer by reading.
+
+## Milestone 735 — A voice call turned away is made again
+
+The last of Milestone 734's review: a voice call to a squad mate was made once. When their page was not ready for it
+(its voice chat not yet made) or had not yet been told we were in its group, it turned the call away, and that mate
+never heard us until the group changed; a friend joining a range where you had already talked was the likely case. A
+call turned away or lost is made again now, after 1.5 s, then 3, 6 and so on, five times at most, while they are still
+in the group and the microphone is on (src/net/voice.ts, voice.json retry).
+
+- **Checked:** tsc, verify, rules; verify's voice check (voice-stop.ts), a new check: a call turned away at once is made
+  again (with the retry taken out, one call only; the check waits up to 8 s, verify's busy loop firing timers late); e2e p2p's voice chat over the real broker.
 
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 

@@ -34,6 +34,8 @@ export class Voice {
   private gen = 0;
   /** calls we made with our microphone, by the callee's PeerJS id */
   private outgoing = new Map<string, MediaConnection>();
+  /** how many times each callee's call has been made again (callGroup) */
+  private retries = new Map<string, number>();
   /** what we hear, by the talker's PeerJS id */
   private heard = new Map<string, Heard>();
   private ctx: AudioContext | null = null;
@@ -51,6 +53,7 @@ export class Voice {
   /** who this page may talk to and hear now (their PeerJS ids): calls to anyone else end */
   setGroup(ids: Iterable<string>): void {
     this.group = new Set([...ids].filter((id) => id && id !== this.peer.id));
+    this.retries.clear();
     for (const [id, call] of [...this.outgoing]) {
       if (this.group.has(id)) continue;
       call.close();
@@ -121,6 +124,7 @@ export class Voice {
     // (nobody to talk to or hear until the next match says who: a late call from the last one was still answered,
     // Milestone 734)
     this.group = new Set();
+    this.retries.clear();
     for (const c of this.outgoing.values()) c.close();
     this.outgoing.clear();
     for (const [id, h] of [...this.heard]) this.dropHeard(id, h);
@@ -141,8 +145,17 @@ export class Voice {
       const call = this.peer.call(id, mic, { metadata: { voice: 1 } });
       if (!call) continue;
       this.outgoing.set(id, call);
+      const gen = this.gen;
       const gone = () => {
-        if (this.outgoing.get(id) === call) this.outgoing.delete(id);
+        if (this.outgoing.get(id) !== call) return;
+        this.outgoing.delete(id);
+        // turned away or lost: made again in a moment while they are still in the group (voice.json retry, Milestone 735)
+        const n = (this.retries.get(id) ?? 0) + 1;
+        this.retries.set(id, n);
+        if (n > cfg.retry.times) return;
+        setTimeout(() => {
+          if (gen === this.gen && this.mic && this.group.has(id) && !this.outgoing.has(id)) this.callGroup();
+        }, cfg.retry.ms * 2 ** (n - 1));
       };
       call.on("close", gone);
       call.on("error", gone);
