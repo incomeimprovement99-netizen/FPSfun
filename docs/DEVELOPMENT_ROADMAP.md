@@ -12906,6 +12906,30 @@ A review of the menus, the accounts and the game server in the 2026-10-28 bug hu
 - **Left:** a board's 100 places and the feedback and visit logs can still be pushed out by a flood under made-up
   names; the menus' and accounts' findings of the same review follow in Milestone 731.
 
+## Milestone 731 — The controller table, the sync's message and a refused board post
+
+The menus' and accounts' findings of Milestone 730's review:
+
+- **The controller table grew:** in Settings, each key rebind, Escape, reset or controller preset drew the whole
+  controller list again under the last, the old copies keeping old buttons (editing one put them back). Its box is
+  emptied first now (src/ui/binds.ts renderPad).
+- **A blank button:** the Range controller preset puts the fusion step (`magLevel`) on D-pad down, which was not in the
+  Controls list, so that button showed blank and a key taken from it said "It was magLevel". It is in The range's
+  group now.
+- **"Could not sync: sign in again" for everything:** a sync turned down for too many saves, a profile too big for the
+  server or no answer at all said to sign in again, which put the account's older profile over this browser's newer
+  one. Each answer says its own thing now, and only a server that signed you out says sign in (src/ui/account.ts
+  syncFailed).
+- **Results that went nowhere:** after a sign-out the account's name stays the name here, and the boards refuse an
+  account's name from a browser not signed in to it; every result after went nowhere while the Stats tab said each one
+  was posted. The tab now says the results are not being posted and why (src/game/leaderboard.ts BOARD_REFUSED).
+- **Left:** signing in on a browser that has its own stats puts the account's over them with no merge; a board's 100
+  places and the feedback and visit logs can still be pushed out by a flood under made-up names.
+- **Checked:** tsc, verify, rules; a new check in verify (tools/checks/account-say.ts): only a 401 says sign in, each
+  other answer its own words, and a refused board post is remembered and cleared by the next one taken; e2e pad, a new
+  check: after three controller presets one table and one preset box, and the Range preset's D-pad down named. With
+  the fixes taken out both failed. leaderboard.ts reads Vite's env with `?.` so the check can run it under node.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -145,12 +145,16 @@ export async function pullIfNewer(): Promise<boolean> {
   return true;
 }
 
-/** this browser's saved data up to the account; false when not signed in or it failed */
+/** the last save's answer when it failed: its HTTP status, 0 for no answer at all (the Account tab says which) */
+export const PUSH_FAILED: { status: number | null } = { status: null };
+
+/** this browser's saved data up to the account; false when not signed in or it failed (PUSH_FAILED says why) */
 export async function push(): Promise<boolean> {
   const s = session();
   if (!s) return false;
   const r = await call("profile", "PUT", { profile: collectProfile() }, s.token);
   if (r.status === 401) saveSession(null);
+  PUSH_FAILED.status = r.status === 200 ? null : r.status;
   if (r.status !== 200) return false;
   saveSession({ ...s, updated: typeof r.json.updated === "string" ? r.json.updated : s.updated });
   return true;

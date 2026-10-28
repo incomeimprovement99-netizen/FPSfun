@@ -86,6 +86,8 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
     title: "The range",
     actions: [
       ["cycleArmor", "Dummy armour"],
+      // (the Range controller preset's D-pad down: missing here, its button showed blank, Milestone 731)
+      ["magLevel", "The gun in hand's fusion level, a step at a time"],
       ["dummyMode", "Dummies: stand, strafe, crouch, random"],
       ["resetDummies", "Reset dummies and the course"],
       ["ghost", "Ghost of your best run"],
@@ -317,6 +319,9 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
   /** the controller: a row per button, a list of what it can do; Start is always the menu */
   const renderPad = () => {
     let pad = loadPad();
+    // (its own box is emptied first: render empties only the keys' table, and each rebind, reset or preset added the
+    // whole controller list again, the old copies keeping old buttons, Milestone 731)
+    if (padRoot !== root) padRoot.innerHTML = "";
     const h = document.createElement("div");
     h.className = "bindGroup";
     h.textContent = "Controller buttons";

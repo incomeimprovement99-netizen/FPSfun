@@ -7,7 +7,7 @@ import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
 import { OPERATORS } from "../game/operators";
 import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
-import { BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
+import { BOARD_REFUSED, BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 import { LOBBY_MODES, lobbyMode, setupFor, friendsModeFor } from "./lobby";
 
 export type Mode = "range" | "run" | "tutorial" | "duel" | "bots" | "br" | "tdm" | "control" | "ffa" | "lab";
@@ -358,9 +358,11 @@ export class Menu {
   /** the online boards card, when the site has a board (our own server does) */
   private async renderOnline(): Promise<void> {
     const on = await leaderboardOnline();
-    $("statsOnline").textContent = on
-      ? "Online boards are on: every course run and every win is posted under your name."
-      : "Everything here is saved in this browser only. The online boards are on the game's own server.";
+    $("statsOnline").textContent = !on
+      ? "Everything here is saved in this browser only. The online boards are on the game's own server."
+      : BOARD_REFUSED.name
+        ? `Your results are not being posted: ${BOARD_REFUSED.name} is an account's name. Sign in to it (Account), or play under another name.`
+        : "Online boards are on: every course run and every win is posted under your name.";
     const card = document.getElementById("onlineCard");
     if (!card || !on) return;
     const pick = BOARDS.find((b) => b.id === this.boardPick) ?? BOARDS[0];

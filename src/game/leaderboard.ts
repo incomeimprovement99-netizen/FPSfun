@@ -36,12 +36,13 @@ export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "win
   { id: "bots:easy:wins", label: "Wins against easy bots", unit: "wins" },
 ];
 
-const BUILD_URL = (import.meta.env.VITE_LEADERBOARD_URL as string | undefined)?.replace(/\/$/, "") ?? "";
+// (env read with ?.: tools/checks/account-say.ts runs this file under plain node, which has no import.meta.env)
+const BUILD_URL = (import.meta.env?.VITE_LEADERBOARD_URL as string | undefined)?.replace(/\/$/, "") ?? "";
 // Only the old Cloudflare board (server/leaderboard/worker.ts) reads this. It
 // is built into the page, so it is not a secret from anyone who opens the
 // bundle, and the game's own server does not look at it: that one checks the
 // account session instead.
-const SECRET = (import.meta.env.VITE_LEADERBOARD_SECRET as string | undefined) ?? "";
+const SECRET = (import.meta.env?.VITE_LEADERBOARD_SECRET as string | undefined) ?? "";
 
 let base: Promise<string> | null = null;
 /** the board's address, or "" when there is none; looked up once */
@@ -63,6 +64,13 @@ function boardBase(): Promise<string> {
 export const leaderboardOnline = async (): Promise<boolean> => (await boardBase()) !== "";
 
 /** record a result; resolves to your rank on that board, or null */
+/**
+ * A name the boards would not take this visit, or null (Milestone 731): a name an account owns, posted from a browser
+ * not signed in to it (after a sign-out it stays the name here), is refused, and every result after it went nowhere
+ * while the Stats tab said each one was posted.
+ */
+export const BOARD_REFUSED: { name: string | null } = { name: null };
+
 export async function submitScore(board: string, name: string, value: number): Promise<number | null> {
   const b = await boardBase();
   if (!b) return null;
@@ -75,7 +83,9 @@ export async function submitScore(board: string, name: string, value: number): P
       headers: { "content-type": "application/json", ...(session() ? { authorization: `Bearer ${session()!.token}` } : {}) },
       body: JSON.stringify({ board, name, value, secret: SECRET }),
     });
+    if (r.status === 403) BOARD_REFUSED.name = name;
     if (!r.ok) return null;
+    BOARD_REFUSED.name = null;
     const j = (await r.json()) as { rank?: number };
     return typeof j.rank === "number" ? j.rank : null;
   } catch {

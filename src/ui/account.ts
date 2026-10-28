@@ -1,13 +1,25 @@
 // The account box on the Stats tab (src/net/account.ts): sign up, sign in,
 // sync, sign out. Optional; on a site without the game's own server it says
 // so and stays out of the way.
-import { accountBase, pullIfNewer, push, session, signIn, signOut } from "../net/account";
+import { accountBase, pullIfNewer, push, PUSH_FAILED, session, signIn, signOut } from "../net/account";
 
 const $ = <T extends HTMLElement>(id: string) => document.getElementById(id) as T;
 
 export interface AccountUiDeps {
   /** your name on the boards and to the people you play: the account's, once signed in */
   setName: (name: string) => void;
+}
+
+/**
+ * What a failed sync says, by the server's answer (Milestone 731). It said "sign in again" whatever went wrong: after
+ * a few too many saves (429), a profile too big for it (400, 413, 507) or no answer at all, and signing in again put the
+ * account's older profile over this browser's newer one.
+ */
+export function syncFailed(status: number | null): string {
+  if (status === 401) return "Could not sync: the server has signed you out. Sign in again.";
+  if (status === 429) return "Not synced yet: a lot of saves just now. It goes up after your next match.";
+  if (status === 400 || status === 413 || status === 507) return "Could not sync: the server would not take this much. Your things are safe in this browser.";
+  return "Could not sync: no answer from the server. Your things are safe in this browser; try again in a minute.";
 }
 
 export function initAccountUi(deps: AccountUiDeps): { sync: () => void } {
@@ -78,7 +90,7 @@ export function initAccountUi(deps: AccountUiDeps): { sync: () => void } {
     say("Syncing...");
     void push().then((ok) => {
       render();
-      say(ok ? "Synced." : "Could not sync: sign in again.", ok);
+      say(ok ? "Synced." : syncFailed(PUSH_FAILED.status), ok);
     });
   });
   $("accountSignOut").addEventListener("click", () => {

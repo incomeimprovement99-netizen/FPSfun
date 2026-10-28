@@ -3120,6 +3120,15 @@ async function padTest(browser: Browser, query: string): Promise<void> {
   const df = await ev<string[]>(page, "(() => { const b = window.__range.padButtons(); return [b[4], b[0], b[5], b[12] ?? 'nothing', b[15]]; })()");
   // (Default since Milestone 538: the two hacks on the bumpers, ping on D-pad up, the controls panel on D-pad right)
   check("pad presets: Bumper Jumper (jump on LB, the ability on A), then Default (ability, jump, the utility hack on RB, ping on D-pad up, the keys panel on D-pad right)", bj.join() === "jump,ability" && df.join() === "ability,jump,grenade,ping,keyHints", `${bj} / ${df}`);
+  // the controller's table drawn once, whatever changed it (Milestone 731: each rebind, reset or preset added the whole
+  // list again), and the Range preset's D-pad down named, the fusion step (it showed blank, not in the Controls list)
+  await ev(page, `(() => { const s = document.getElementById("padPreset"); s.value = "range"; s.dispatchEvent(new Event("change")); })()`);
+  const padTable = await ev<{ presets: number; heads: number; dpadDown: string; shown: boolean }>(
+    page,
+    `(() => { const sel = document.querySelector('#padBindTable select[data-button="13"]'); return { presets: document.querySelectorAll("#padPreset").length, heads: document.querySelectorAll("#padBindTable .bindGroup").length, dpadDown: sel ? sel.value : "", shown: !!sel && sel.selectedIndex >= 0 }; })()`,
+  );
+  await ev(page, `(() => { const s = document.getElementById("padPreset"); s.value = "default"; s.dispatchEvent(new Event("change")); })()`);
+  check("pad presets: the controller's table is drawn once after three changes, and the Range preset's D-pad down is named (the fusion step)", padTable.presets === 1 && padTable.heads === 1 && padTable.dpadDown === "magLevel" && padTable.shown, JSON.stringify(padTable));
   // The prompts follow the controller (Milestone 538): a pad in hand names its buttons in the keys panel and the
   // prompts, an unnamed pad as Xbox's, a DualSense as PlayStation's, and a key on the keyboard turns them back
   // (and the range's signs, Milestone 621; since Milestone 636 THE RUN's vent names the slide's button and its climb
