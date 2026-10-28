@@ -1912,13 +1912,25 @@ export class BrMatch extends Duel {
     // a full meter: the match is theirs
     if (key >= CAPTURE_BOT) {
       this.onFeed?.("A SQUAD HELD THE CAPTURE ZONE", false, true);
-      this.endBr(false);
+      // (friends on sides of their own each placed as their side stands: Milestone 727)
+      if (this.manySides) this.placeSides(null, this.botSquadsAlive + 1);
+      else this.endBr(false);
       return;
     }
+    this.placeSides(key, 2);
+  }
+
+  /**
+   * A capture's result, a side at a time (Milestone 727): the side that held it first, a side already out at the place
+   * it went out in (judgeSides placedAt), any other at `rest`. Every side was told the same place: behind the bot squads
+   * when a bot squad held it, second when a side of players did, a side out long before among them.
+   */
+  private placeSides(winner: number | null, rest: number): void {
     const humans = [this.id, ...[...this.remotes.values()].filter((r) => r.id < Duel.BOT_ID).map((r) => r.id)];
     for (const id of humans) {
-      const won = this.sideOf(id) === key;
-      const placement = won ? 1 : 2;
+      const side = this.sideOf(id);
+      const won = side === winner;
+      const placement = won ? 1 : Math.max(2, this.placedAt.get(side) ?? rest);
       if (id === this.id) this.finishBr(won, placement);
       else this.links.get(id)?.send({ t: "brend", won, placement });
     }

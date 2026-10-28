@@ -3942,6 +3942,23 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     check("out of a battle royale: a click moves you along the list of who is left", !!next && !!spec && next.name !== spec.name, JSON.stringify({ was: spec?.name, now: next?.name }));
     await ev(guest, "(() => { window.__range.input.locked = false; })()");
   }
+  // A capture's result, a side at a time (Milestone 727): the guest, out early, is told the place it went out in, whether
+  // a bot squad or the host's side holds the zone; every side was told the same place. The host's own end and what it
+  // sends are held back here, and the match put back as it was, so it plays on to the end below
+  const capture = await ev<{ out: number | null; byBots: number | null; byHost: number | null }>(
+    host,
+    `(() => { const d = window.__range.duel(); const out = d.placedAt.get(d.sideOf(1)) ?? null; const link = d.links.get(1); const snd = link.send; const fin = d.finishBr;
+      const told = []; d.finishBr = () => undefined; link.send = (m) => { if (m.t === "brend") told.push(m.placement); else snd.call(link, m); };
+      const run = (zone, at) => { d.captureZone = () => zone; d.capture.progress.clear(); d.updateCapture(9999, { x: at.x, y: 0, z: at.z }); d.brOver = false; delete d.captureZone; };
+      const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping);
+      if (b) run({ x: b.bot.pos.x, z: b.bot.pos.z, r: 0.2 }, { x: 1e5, z: 1e5 });
+      const byBots = told.length ? told[told.length - 1] : null;
+      const me = window.__range.player.pos; run({ x: me.x, z: me.z, r: 0.2 }, { x: me.x, z: me.z });
+      const byHost = told.length > 1 ? told[told.length - 1] : null;
+      d.finishBr = fin; link.send = snd; d.capture.progress.clear(); d.capture.holder = -1; d.capture.held = 0;
+      return { out, byBots, byHost }; })()`,
+  );
+  check("solo with a friend: a capture places a side already out where it went out, whether bots or a side of players hold the zone", capture.out !== null && capture.byBots === capture.out && capture.byHost === capture.out, JSON.stringify(capture));
   // the bots go: one side is left, the host's
   await ev(host, `(() => { const d = window.__range.duel(); for (const b of d.bots) if (b.bot.alive) d.onHitOther(b.bot.remote.id, 999, true, d.id); })()`);
   const ends = await Promise.all([host, guest].map((p) => p.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 100, timeout: 8000 }).then(() => true, () => false)));

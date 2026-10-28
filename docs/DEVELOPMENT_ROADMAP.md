@@ -12842,13 +12842,25 @@ edges:
   city. Someone of yours in the Gulag counts for the win now.
 - **Pings:** another side's player could not be pinged as an enemy (the ping skipped every player); only your own
   squad is skipped now.
-- **Left as it is:** with friends on separate sides, a bot squad holding the zone gives every human side the same
-  placement (cosmetic); the capture's progress is not carried to a migrated host.
+- **Left as it is:** the capture's progress is not carried to a migrated host. (With friends on separate sides, a
+  capture placing every side alike: Milestone 727.)
 - **Checked:** tsc, verify, rules; e2e gulag, four new checks: someone who leaves in the Gulag is no longer counted in
   there; a pickup granted after you are out goes back on the floor, not into your slots; a Gulag won takes your first
   death's echo off the floor; the last squad mate losing it, the rest out, ends the match on the host. e2e migrate, a
   new check: the heir's ring closes on the final sector. With each fix taken out its check failed. The Gulag after the
   end, the win with a survivor in the Gulag and the ping have no check of their own (each a single condition, read).
+
+## Milestone 727 — A capture places each side as it stands
+
+The last finding of the 2026-10-27 review of the battle royale's core: with friends on sides of their own, a full
+capture meter told every side the same place. A bot squad holding the zone put every side behind the bot squads still
+up, and a side of players holding it put every other side second, a side out long before among them. A capture now
+places a side a time (brmatch.ts placeSides): the side that held it first, a side already out at the place it went
+out in (as judgeSides noted it), any other where it was.
+
+- **Checked:** tsc, verify, rules; e2e brsolo, a new check: with the guest out early, a capture by a bot squad and one
+  by the host's side each tell the guest the place it went out in (the host's own end and what it sends held back for
+  it, and the match put back, so the test plays on to its end). With the side's place left out it failed.
 
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
