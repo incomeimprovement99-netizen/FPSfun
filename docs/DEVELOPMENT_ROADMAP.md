@@ -17032,3 +17032,45 @@ legends slide sat up with the gun on the aim. Found looking further for the owne
   and the soldier hold test's throw check still wanted it hidden: it failed on all eight long guns on main (M618 shipped
   on the stance checks alone, not the whole soldier section). It now reads the gun out of the hands, and back in them
   within a second.
+
+## Milestones 811 to 816 — The tower's floors told apart, the court calmer, the corner roofs traced, the roads past the fence lit, THE CANYON's hanging signs, LANTERN ALLEYS' shophouses, THE WORKS lined in teal
+
+From the centre's review of 2026-10-25 (round 11) and the districts' (round 5).
+
+- **811, the tower's floors told apart by what stands on them** ("make the tower floors distinct: a different prop set
+  ... per floor"; "every tower floor has the same ceiling and floor"): each lower floor its own set of cover from the
+  pack where all took one shared set: 14 a lobby (couches, round tables, a vending machine, benches), 17 offices (desks,
+  computers, racks), 20 a store (crates, drums, racks), 23 a workshop (engines, drums, cooling units), 26 a server room
+  (computers, cabinets, racks), 29 a lounge (couches, tables), 35 a lab (cabinets, computers, racks); THE VAULT keeps its
+  own (`tower.floors.at[h].pieces`).
+- **812, the sunken court calmer and the corner roofs traced** ("the sunken court's marble floor is visually noisy";
+  the corner blocks "don't announce themselves"): the court's floor in the pack's concrete tiles (`court.floorMat`), and a
+  cornice in each corner block's colour round its rooms building's roof, MOTEL HILL pink, NOODLE ROW red, MARKET blue
+  (`game.outlines`).
+- **813, the roads past the fence lit at night** (the districts' fifth review: "the moat: a lit elevated road or
+  canal"; "at night ... the moat a black void"): a grid of warm road lines on the ground past the fence every 16 m out
+  to the city's edge, among the low blocks of Milestone 771, lit only at night (world.json `skyline.roads`; skyline.ts).
+- **814, THE CANYON's hanging signs** ("hanging signs every 25-30 m"): a lit plate across the street every 24 m down
+  both arms, NIGHT MARKET, NOODLES, REPAIRS, PARTS, EXCHANGE and OPEN LATE, read both ways, on a wire from wall to wall,
+  each at the first height from 11 m that the walls' blade signs and units leave clear (`cliffs.banners`; the layout's
+  banners, drawn by the game).
+- **815, LANTERN ALLEYS' way in its own** ("the entrance narrowed with shophouse fronts instead of the capsule pods";
+  round 4: "its way in reads as THE STACKS"): the pack's rounded capsule building drawn as its narrow shophouse on its
+  own slot, centred where it stood, in row A, the way in from the ring road the review looked down (`lantern.swap`), so
+  every other house stands where it did. Taken out of the pool first, every house after it fell somewhere else and the
+  bake's pad solver refused twice: the jump pads lantern-b and lantern-c lost the tall houses they throw onto, and moved
+  onto others one stood under a 7.5 m overhang. Swapped in every row, the district's roof cover (Milestone 583) had
+  nowhere to stand: the capsules' flat roofs were the only ones level enough.
+- **816, THE WORKS lined in teal inside** (rounds 2 to 5: "black inside", "rust and teal do not show"): its facades'
+  teal strip on each inside panel of every storey too, under the ceiling (`facade.inside`).
+- **The tower floors' way model at a piece's corners.** 811's new cover drew the floors' one sequence differently,
+  and on THE VAULT a crate came to stand in the passage to its south-east room: the walk check found that room and the
+  east room behind it 2 and 11% walked. The layout's model of the way round each floor had counted a piece's collision
+  column as a round margin, so past a corner it left a way the columns (which stand out along both sides at once) shut.
+  A piece of cover now takes the cells within a body's radius of its bounds grown a column on every side (neon-layout.ts
+  `hits`, `square`), and a floor may keep boxes of its own clear of cover (`floors.at[h].keep`): THE VAULT keeps the
+  passage, where the corner fix alone left the crate standing. A scratch flood of the storey on the bake's collision
+  found the crate by leaving each piece out in turn (tools/.scratch/vault32.mts).
+- **The lit roads cut at the blocks:** laid on the low blocks' cells' edges, 27 lines ran under a block that filled its
+  cell or under the outer towers; each line now stops half a metre short of a block's walls.
+- **Checked:** the map check's 321 checks pass on the low, high and max bakes (the bake converged on its third low run), among them new checks for the lit roads (every lamp row past the fence band and under no block, drawn by night only), for THE CANYON's banners, LANTERN ALLEYS' swapped row and THE WORKS' inside strips (each failing with its feature taken out), and THE VAULT's east and south-east rooms walked again (100% and 98% where the crate had them at 2 and 11%); pictures of each change by day and the lit roads from the air by night. verify, rules and tsc. Map files version 114: lo 181.8 MB, hi 262.0 MB, max 555.4 MB.

@@ -49,11 +49,19 @@ function cut(r: number[]): number[][] {
 
 const glow = { value: S.glow.night };
 const haze = { value: S.haze.night };
+/** the lit roads' material, for the hour (skylineHour) */
+let roadMat: THREE.MeshBasicMaterial | null = null;
+type Roads = { from: number; to: number; every: number; w: number; dash?: { len: number; every: number }; colour: string; glow: { day: number; night: number } };
+const ROADS = (S as unknown as { roads?: Roads }).roads;
 
 /** the towers' windows lit for the hour: bright by night, a glint by day; and how far the haze takes the far ones */
 export function skylineHour(day: boolean): void {
   glow.value = day ? S.glow.day : S.glow.night;
   haze.value = day ? S.haze.day : S.haze.night;
+  if (roadMat && ROADS) {
+    roadMat.color.set(ROADS.colour).multiplyScalar(day ? ROADS.glow.day : ROADS.glow.night);
+    roadMat.visible = (day ? ROADS.glow.day : ROADS.glow.night) > 0;
+  }
 }
 
 /** what was built, for the checks: the towers' footprints in the map's own metres, and the ground's reach */
@@ -197,4 +205,53 @@ export function buildSkyline(root: THREE.Object3D): void {
   }
   root.add(ground);
   SKYLINE.ground = G;
+  // the city's lit roads past the fence (Milestone 813; the districts' fifth review: "put something visible in the dark
+  // band (a lit elevated road or a canal)", "at night ... the moat is a black void"): a grid of lit lines on the ground
+  // every `every` metres from `from` out to `to`, between the low blocks, none inside the map's square
+  if (ROADS) {
+    const lines: number[][] = [];
+    // (a line along x at z `c` (or along z at x `c`) from a to b, cut where a block stands on it, half a metre clear of
+    // its walls: on the cells' edges a block of the full cell's width touched the line, and the outer towers stood on it)
+    const cut = (alongX: boolean, a: number, b: number, c: number): number[][] => {
+      const [c0, c1] = [c - ROADS.w / 2 - 0.5, c + ROADS.w / 2 + 0.5];
+      const on = SKYLINE.towers
+        .filter((t) => (alongX ? t.z - t.d / 2 < c1 && t.z + t.d / 2 > c0 : t.x - t.w / 2 < c1 && t.x + t.w / 2 > c0))
+        .map((t) => (alongX ? [t.x - t.w / 2 - 0.5, t.x + t.w / 2 + 0.5] : [t.z - t.d / 2 - 0.5, t.z + t.d / 2 + 0.5]))
+        .sort((p, q) => p[0] - q[0]);
+      const out: number[][] = [];
+      let s = a;
+      for (const [h0, h1] of on) {
+        if (h1 <= s || h0 >= b) continue;
+        if (h0 > s) out.push([s, h0]);
+        s = Math.max(s, h1);
+      }
+      if (s < b) out.push([s, b]);
+      return out.filter(([p, q]) => q - p > 1);
+    };
+    // (and each line as a row of lamps, `dash`: drawn whole, the grid read from the air as a lit floor's lines, not as
+    // streets)
+    const dashes = (p: number, q: number): number[][] => {
+      const D = ROADS.dash;
+      if (!D) return [[p, q]];
+      const out: number[][] = [];
+      for (let s = p + (D.every - D.len) / 2; s + D.len <= q + 1e-6; s += D.every) out.push([s, s + D.len]);
+      return out;
+    };
+    for (let c = -ROADS.to; c <= ROADS.to + 1e-6; c += ROADS.every) {
+      const spans = Math.abs(c) < ROADS.from ? [[-ROADS.to, -ROADS.from], [ROADS.from, ROADS.to]] : [[-ROADS.to, ROADS.to]];
+      for (const [a, b] of spans) {
+        for (const [p, q] of cut(true, a, b, c)) for (const [d0, d1] of dashes(p, q)) lines.push([d0, d1, c - ROADS.w / 2, c + ROADS.w / 2]);
+        for (const [p, q] of cut(false, a, b, c)) for (const [d0, d1] of dashes(p, q)) lines.push([c - ROADS.w / 2, c + ROADS.w / 2, d0, d1]);
+      }
+    }
+    roadMat = new THREE.MeshBasicMaterial({ color: new THREE.Color(ROADS.colour).multiplyScalar(ROADS.glow.night), toneMapped: false });
+    roadMat.userData.decay = true;
+    const roads = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 0.04, 1), roadMat, lines.length);
+    const m4 = new THREE.Matrix4();
+    lines.forEach(([x0, x1, z0, z1], i) => roads.setMatrixAt(i, m4.makeScale(x1 - x0, 1, z1 - z0).setPosition((x0 + x1) / 2, 0.01, (z0 + z1) / 2)));
+    roads.name = "skylineRoads";
+    roads.frustumCulled = false;
+    roads.userData.dynamic = true;
+    root.add(roads);
+  }
 }

@@ -532,6 +532,28 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       mesh.renderOrder = NAMES_ORDER;
       group.add(mesh);
     }
+    // and THE CANYON's hanging signs (the layout's banners, Milestone 814): each a plate across the street read both ways,
+    // two faces back to back, on a wire from wall to wall along its top
+    const wireMat = new THREE.MeshBasicMaterial({ color: 0x15171a });
+    for (const q of (neonCfg as unknown as { banners?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back: string; span: number }> }).banners ?? []) {
+      const map = neonLetters(q.text, q.colour, q.w, q.h, { back: q.back, fill: true });
+      const turn = (q.yaw * Math.PI) / 180;
+      for (const side of [0, Math.PI]) {
+        const mesh = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.h), new THREE.MeshBasicMaterial({ map, transparent: true, depthWrite: false, toneMapped: false }));
+        // (each face 2 cm off the middle along its own way out, so the two never fight for the same pixels)
+        mesh.position.set(q.at[0] + Math.sin(turn + side) * 0.02, q.at[1], q.at[2] + Math.cos(turn + side) * 0.02);
+        mesh.rotation.y = turn + side;
+        mesh.userData.dynamic = true;
+        mesh.renderOrder = NAMES_ORDER;
+        group.add(mesh);
+      }
+      const wire = new THREE.Mesh(new THREE.BoxGeometry(q.span, 0.05, 0.05), wireMat);
+      wire.position.set(q.at[0], q.at[1] + q.h / 2 + 0.03, q.at[2]);
+      wire.rotation.y = turn;
+      wire.userData.dynamic = true;
+      wire.renderOrder = NAMES_ORDER;
+      group.add(wire);
+    }
     // and THE VAULT's on the tower's four faces across its storey (rules.tower.vaultSign), placed off the tower's measured
     // square: the reviews read the vault as "a thin gold line" from the roofs round it
     const VS = (neonCfg.rules as unknown as { tower?: { vaultSign?: { text: string; colour: string; y: number; h: number; back?: string; fill?: boolean; faces: Array<[string, number, number, number]> } } }).tower?.vaultSign;

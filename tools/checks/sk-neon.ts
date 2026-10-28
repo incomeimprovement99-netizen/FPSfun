@@ -3856,6 +3856,35 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// the lit roads past the fence (src/game/skyline.ts, Milestone 813): a grid of lines on the ground, every one wholly past
+// `from` and under no block, lit at night and not drawn by day
+{
+  const { skylineHour, SKYLINE } = await import("../../src/game/skyline");
+  const RD = (worldCfg as unknown as { skyline: { roads: { from: number } } }).skyline.roads;
+  const roads = scene.getObjectByName("skylineRoads") as THREE.InstancedMesh | undefined;
+  const [m4, p, s, q] = [new THREE.Matrix4(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Quaternion()];
+  // (an interval's nearest point to 0)
+  const near = (a: number, b: number) => (a < 0 && b > 0 ? 0 : Math.min(Math.abs(a), Math.abs(b)));
+  const [inside, under] = [[] as string[], [] as string[]];
+  for (let i = 0; i < (roads?.count ?? 0); i++) {
+    roads!.getMatrixAt(i, m4);
+    m4.decompose(p, q, s);
+    const [x0, x1, z0, z1] = [p.x - s.x / 2, p.x + s.x / 2, p.z - s.z / 2, p.z + s.z / 2];
+    if (Math.max(near(x0, x1), near(z0, z1)) < RD.from - 0.01) inside.push(`(${p.x.toFixed(0)}, ${p.z.toFixed(0)})`);
+    if (SKYLINE.towers.some((t) => x1 > t.x - t.w / 2 && x0 < t.x + t.w / 2 && z1 > t.z - t.d / 2 && z0 < t.z + t.d / 2)) under.push(`(${p.x.toFixed(0)}, ${p.z.toFixed(0)})`);
+  }
+  const mat = roads?.material as THREE.MeshBasicMaterial | undefined;
+  skylineHour(true);
+  const byDay = mat?.visible;
+  skylineHour(false);
+  const byNight = mat?.visible;
+  check(
+    "the lit roads past the fence: every line past the fence's band and under no block, lit by night and not drawn by day",
+    !!roads && roads.count >= 40 && inside.length === 0 && under.length === 0 && byDay === false && byNight === true,
+    `${roads?.count ?? 0} lines, ${inside.length} inside ${RD.from} m${inside.length ? ` (${inside[0]})` : ""}, ${under.length} under a block${under.length ? ` (${under.slice(0, 3).join(", ")})` : ""}, drawn by day ${byDay}, by night ${byNight}`
+  );
+}
+
 // a ring of light round every pad (src/game/padrings.ts, Milestone 668): one a pad on its floor, in its district's colour
 // past the ring road, its sector's inside, so the pads of one district read alike and not as the reviews' white wedges
 {
@@ -4189,14 +4218,14 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const want = ["the terraces tier 3", "the terraces tier 6", "the terraces tier 9", "the canyon inner walkway edge", "the canyon outer walkway edge", "the capsule hotel roof edge"];
   const halls = names.filter((n) => /^the works .* cornice$/.test(n)).length;
   // (the edges alone: a climb's frame's lintel and the grand stair's lines stand over openings by design)
-  const edge = (n: string) => n.startsWith("the terraces tier") || n.startsWith("the canyon") || /^the works .* cornice$/.test(n) || n === "the capsule hotel roof edge";
+  const edge = (n: string) => n.startsWith("the terraces tier") || n.startsWith("the canyon") || /^the works .* cornice$/.test(n) || n === "the capsule hotel roof edge" || / roof cornice$/.test(n);
   const boxes = outlineBoxes(edge);
   const S3 = (SOLIDS as { solids: number[][] }).solids;
   // (each lit strip below 20 m and outside the tower, within half a metre of a box: none hangs in the air)
   const loose = boxes.filter((b) => b[4] < 20 && Math.max(Math.abs((b[0] + b[1]) / 2), Math.abs((b[2] + b[3]) / 2)) > 100 && !S3.some((q) => q[0] < b[1] + 0.5 && q[1] > b[0] - 0.5 && q[2] < b[3] + 0.5 && q[3] > b[2] - 0.5 && q[4] < b[5] + 0.5 && q[5] > b[4] - 0.5)).length;
   check(
     "the districts' edges lit: THE TERRACES' tier lips, THE CANYON's walkway edges, THE WORKS' halls' cornices and THE STACKS' hotel roof edge, none in the air",
-    want.every((n) => names.some((m) => m === n || m.startsWith(`${n} `))) && halls === 5 && loose === 0 && boxes.length > 500,
+    want.every((n) => names.some((m) => m === n || m.startsWith(`${n} `))) && halls === 5 && names.filter((n) => / roof cornice$/.test(n)).length === 3 && loose === 0 && boxes.length > 500,
     `${want.filter((n) => names.some((m) => m === n || m.startsWith(`${n} `))).length} of ${want.length} edges, ${halls} cornices, ${boxes.length} strips, ${loose} in the air`
   );
 }
@@ -4267,6 +4296,29 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "the lit pieces go with their sector's decay, every lamp's pool on its floor, the centre's pads and frames not white",
     taught === 4 && spill.length === 0 && centre !== "ffffff",
     `${taught} of 4 lit meshes taught the decay as lights, ${spill.length} pools spilling${spill.length ? ` (first at ${spill[0].slice(0, 3).map((v) => v.toFixed(1)).join(", ")})` : ""}, the centre's colour #${centre}`
+  );
+}
+
+// THE CANYON's hanging signs, LANTERN ALLEYS' way in all shophouses and THE WORKS lined in teal inside (Milestones 814
+// to 816, the districts' fifth review): a banner across the street for each the config asks for, each from wall to wall
+// over the walkways' heads; no capsule building in LANTERN ALLEYS' swapped rows; a teal strip on each inside panel of
+// THE WORKS' halls, every one of them placed (the outside ones and the inside ones together)
+{
+  const BN = (cfg as unknown as { banners?: Array<{ at: number[]; span: number }> }).banners ?? [];
+  const ask = (cfg.rules as unknown as { districts: { canyon: { cliffs: { banners?: { at: unknown[] } } } } }).districts.canyon.cliffs.banners?.at.length ?? 0;
+  const across = BN.filter((b) => Math.abs(b.span - 10) < 0.01 && b.at[1] > 6 && b.at[1] < 20).length;
+  const place = (k: string) => (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks[k]?.place ?? [];
+  const SW = (cfg.rules as unknown as { districts: { lantern: { swap?: { pieces: Record<string, string>; rows: string[] } } } }).districts.lantern.swap;
+  const houses = (cfg as unknown as { lanternAlleys: { houses: Array<{ row: string; piece: string }> } }).lanternAlleys.houses;
+  const pods = houses.filter((q) => !SW || (SW.rows.includes(q.row) && q.piece in SW.pieces)).length;
+  const swapped = houses.filter((q) => SW?.rows.includes(q.row) && Object.values(SW.pieces).includes(q.piece)).length;
+  const WS = (cfg as unknown as { works?: { strips?: { facades: number; inside: number } } }).works?.strips;
+  const WF = (cfg.rules as unknown as { districts: { works: { facade: { piece: string; remap: string } } } }).districts.works.facade;
+  const teal = place("c-works").filter((q) => String(q[0]).endsWith(`/${WF.piece}`) && q[6] === WF.remap).length;
+  check(
+    "THE CANYON's banners across the street, LANTERN ALLEYS' way in all shophouses, THE WORKS lined in teal inside",
+    ask >= 6 && across === ask && pods === 0 && swapped > 0 && !!WS && WS.inside >= 80 && teal === WS.facades + WS.inside,
+    `${across} of ${ask} banners from wall to wall at ${BN.map((b) => b.at[1]).join(", ")} m, ${pods} capsule buildings in LANTERN ALLEYS' rows ${SW?.rows.join(", ") ?? "(none swapped)"}, ${WS?.inside ?? 0} teal strips inside THE WORKS (${teal} placed of ${(WS?.facades ?? 0) + (WS?.inside ?? 0)})`
   );
 }
 

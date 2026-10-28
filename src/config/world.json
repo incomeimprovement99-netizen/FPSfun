@@ -117,6 +117,22 @@
     18
    ]
   },
-  "_low": "The low blocks (Milestone 771; the districts' fourth review, 2026-10-24: past the fence 'a dark empty moat' made the map 'a model on a black table', worst at night): a jittered grid of `cell` metre squares from `from` metres out (past the out-of-bounds margin, the map's 150 and edge.margin 38, with 6 m to spare) to `inner`, each filled by `fill`, `size` metres a side and `height` tall, windows lit as the towers' are; the towers past `inner` stand where they stood (the low blocks draw from a random sequence of their own)."
+  "_low": "The low blocks (Milestone 771; the districts' fourth review, 2026-10-24: past the fence 'a dark empty moat' made the map 'a model on a black table', worst at night): a jittered grid of `cell` metre squares from `from` metres out (past the out-of-bounds margin, the map's 150 and edge.margin 38, with 6 m to spare) to `inner`, each filled by `fill`, `size` metres a side and `height` tall, windows lit as the towers' are; the towers past `inner` stand where they stood (the low blocks draw from a random sequence of their own).",
+  "roads": {
+   "from": 158,
+   "to": 245,
+   "every": 16,
+   "w": 0.5,
+   "colour": "#ffb766",
+   "glow": {
+    "day": 0,
+    "night": 0.9
+   },
+   "dash": {
+    "len": 1.0,
+    "every": 5
+   }
+  },
+  "_roads": "The city's lit roads past the fence (Milestone 813; the districts' fifth review: 'put something visible in the dark band (a lit elevated road or a canal)', at night 'the moat is a black void'): a grid of lit lines `w` wide on the ground every `every` metres from `from` (past the fence) out to `to`, between the low blocks, in a street lamp's amber at `glow` by night and not drawn by day. Each line a row of lamps, `dash` metres long every `every` (drawn whole, the grid read from the air as a lit floor's lines, not as streets)."
  }
 }
