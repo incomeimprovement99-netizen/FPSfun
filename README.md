@@ -274,7 +274,7 @@ describes the retired legacy game, and goes with its code.
   last moments upright, feet first, for the landing. A GRAPPLE throws their left
   arm up at the point it pulls them to, and SLAM's way down brings their knees up
   under them. Running round a turn they lean into it, a landing sinks into their
-  legs, and shot dead they fall away from the shot. Their gloved fingers are drawn a tenth smaller than the model's. A reload
+  legs, and shot dead they fall away from the shot, turned off any wall they would lie through. Their gloved fingers are drawn a tenth smaller than the model's. A reload
   is the one you see in your own hands, on the same timeline: the left hand points
   at the magazine as it slides out and phases away, a new one phases in and seats,
   then the handle is racked or the bolt worked, in the gun's own reload time; and

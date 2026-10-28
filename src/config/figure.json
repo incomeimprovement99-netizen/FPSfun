@@ -43,11 +43,14 @@
     "bend": 55,
     "lean": 10
   },
-  "_death": "A figure's death falls away from the shot that killed it (dummy.ts faceTheShot, Milestone 610). Its fall, the death clip's (the library's Death01 falls backward: the head ends 1.2 m behind where it stood, 0.2 m up) and its hit volumes' topple alike, is backward, and it fell backward whichever way it faced, so a player shot from behind fell onto the shooter; Apex's fall away from the hit. As it goes down it turns its front to where the last hit landed, if that was within `hitFor` seconds and more than `near` metres off its middle across the ground (a hit's point is on the near side, the shooter's), the shortest way round at `turnRate` a second (its fall takes 0.32 s). Knocked with no hit on this page (another page's shot) it falls as it faces. Ours.",
+  "_death": "A figure's death falls away from the shot that killed it (dummy.ts faceTheShot, Milestone 610). Its fall, the death clip's (the library's Death01 falls backward: the head ends 1.2 m behind where it stood, 0.2 m up) and its hit volumes' topple alike, is backward, and it fell backward whichever way it faced, so a player shot from behind fell onto the shooter; Apex's fall away from the hit. As it goes down it turns its front to where the last hit landed, if that was within `hitFor` seconds and more than `near` metres off its middle across the ground (a hit's point is on the near side, the shooter's), the shortest way round at `turnRate` a second (its fall takes 0.32 s). Knocked with no hit on this page (another page's shot) it falls as it faces. Ours. And never through a wall (Milestone 619): with its back to one it lay through it, every one of 25 such falls at the Neon City's eye-level spots (node_modules/.scratch/deathwall.mts). The way it falls is turned `roomStep` degrees at a time, either way, to the nearest with `room` m clear behind it `roomUp` m over the floor (the head ends 1.2 m behind), or the one with the most room if none has it.",
   "death": {
     "hitFor": 1.5,
     "near": 0.03,
-    "turnRate": 18
+    "turnRate": 18,
+    "room": 1.3,
+    "roomUp": 0.5,
+    "roomStep": 30
   },
   "_bank": "A runner seen leaning into a turn (mannequin.ts leanIntoTurn, Milestone 609): Apex's and Titanfall's do, and ours ran a curve bolt upright. On the ground above `minSpeed` m/s (a jog), the body leans toward the turn's middle round its feet, as far as a body balanced against the game's gravity would (the angle whose tangent is the sideways acceleration over gravity, movement.json), `share` of that, never more than `most` degrees, eased at `rate` a second; its way of moving and the change in it are read off where the figure goes, smoothed at `smooth` a second (an enemy's position comes in 20 to 30 times a second). Balanced in full, SpeedKills' sprint (14 m/s) turned a radian a second against its gravity (17.5 m/s/s) leans 39 degrees, a cyclist's lean; a third of it, capped at 12, reads as a runner's, and half that turn leans 8. Ours.",
   "bank": {

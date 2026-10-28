@@ -14,6 +14,7 @@ import { OPERATORS, type OperatorSkin } from "./operators";
 import { MannequinFigure, useMannequin } from "./mannequin";
 import { CloakShell, MateOutline, Outline, ShieldShell } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
+import { solidHit } from "./projectile";
 import figureCfg from "../config/figure.json";
 import rangeCfg from "../config/rangetools.json";
 import hudCfg from "../config/hud.json";
@@ -42,7 +43,8 @@ const HEALTH_MAX = 100;
 const RESPAWN_S = 1.2;
 const FALL_S = 0.32;
 /** a death turned away from the shot: how long a hit counts, how near the middle is no side, how fast it turns (figure.json death) */
-const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number };
+const DEG = Math.PI / 180;
+const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number; room: number; roomUp: number; roomStep: number };
 
 // human hull, metres (72 units tall)
 const H = 72 * 0.0254;
@@ -1178,12 +1180,38 @@ export class Dummy {
   private faceTheShot(): void {
     const h = this.hitFrom;
     this.fallYaw = null;
-    if (!h || this.idleT - h.at > DEATH.hitFor) return;
-    const ax = this.group.position.x - h.x;
-    const az = this.group.position.z - h.z;
-    if (Math.hypot(ax, az) < DEATH.near) return;
+    const ax = h ? this.group.position.x - h.x : 0;
+    const az = h ? this.group.position.z - h.z : 0;
     // it faces +z, and its yaw turns +z to (sin, cos): its back to `away`, its front to the shot
-    this.fallYaw = Math.atan2(-ax, -az);
+    if (h && this.idleT - h.at <= DEATH.hitFor && Math.hypot(ax, az) >= DEATH.near) this.fallYaw = Math.atan2(-ax, -az);
+    this.roomToFall();
+  }
+
+  /**
+   * And never through a wall (Milestone 619): the fall lays the head `room` m behind where it stood, and with its back
+   * to a wall it lay through it (every one of 25 such falls at the Neon City's eye-level spots). The way it would fall
+   * is turned `roomStep` degrees at a time, either way, to the nearest with that much room `roomUp` m over the floor, or
+   * the one with the most if none has it.
+   */
+  private roomToFall(): void {
+    const want = this.fallYaw ?? this.group.rotation.y;
+    const from = this.group.position.clone();
+    from.y += DEATH.roomUp;
+    const back = new THREE.Vector3();
+    const roomAt = (yaw: number) => solidHit(from, back.set(-Math.sin(yaw), 0, -Math.cos(yaw)), DEATH.room);
+    if (roomAt(want) >= DEATH.room) return;
+    let best = { yaw: want, room: roomAt(want) };
+    for (let k = DEATH.roomStep; k <= 180; k += DEATH.roomStep)
+      for (const s of k < 180 ? [1, -1] : [1]) {
+        const yaw = want + s * k * DEG;
+        const room = roomAt(yaw);
+        if (room >= DEATH.room) {
+          this.fallYaw = yaw;
+          return;
+        }
+        if (room > best.room) best = { yaw, room };
+      }
+    this.fallYaw = best.yaw;
   }
 
   /** knocked by something other than a hit here (the 1v1 opponent going down) */

@@ -7285,6 +7285,36 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("a death falls away from the shot: shot from its left, from behind and from the front, the head ends a metre or more away on the far side", Object.values(death).every((d) => d >= 1), JSON.stringify(death));
+  // and never through a wall (Milestone 619): knocked down with its back to a wall 0.45 m behind it, square on and turned
+  // 30 degrees, the head stays this side of the wall (every such fall in the Neon City lay through it). The wall is a box
+  // put in the page's solids for the check and taken out after
+  const walled = await ev<Array<{ turn: number; head: number }>>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE;
+      const { RANGE_SOLIDS } = await import("/src/game/range.ts");
+      const { rebuildSolidGrid } = await import("/src/game/solidgrid.ts");
+      const out = [];
+      for (const turn of [0, 30]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 4, 180 + turn); r.figureLabManual(true);
+        r.figureLabStep(0.3);
+        const at = f.group.position.clone();
+        // the wall across +z behind it: it faces -z, turned 180 from the camera, so its back is to +z
+        const wall = { minX: at.x - 3, maxX: at.x + 3, minZ: at.z + 0.45, maxZ: at.z + 0.8, base: at.y - 0.1, top: at.y + 3 };
+        RANGE_SOLIDS.push(wall);
+        rebuildSolidGrid();
+        f.fallDown();
+        for (let i = 0; i < 50; i++) r.figureLabStep(0.05);
+        const head = f.mq.bone("Head").getWorldPosition(new T.Vector3());
+        out.push({ turn, head: Math.round((head.z - at.z) * 100) / 100 });
+        RANGE_SOLIDS.splice(RANGE_SOLIDS.indexOf(wall), 1);
+        rebuildSolidGrid();
+      }
+      return out;
+    })()`,
+  );
+  check("and never through a wall: its back to a wall 0.45 m behind, square on and turned 30 degrees, its head ends this side of it", walled.length === 2 && walled.every((w) => w.head < 0.45), JSON.stringify(walled));
   // a landing taken in the legs (Milestone 611): a second in the air and down on the run, its legs (hips over the lower
   // ankle) come down to two thirds of their standing length for a moment (the run's clip alone, 83%), and no ankle goes
   // under its height on the floor

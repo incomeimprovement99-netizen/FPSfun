@@ -16789,3 +16789,22 @@ the hand.
     12 of 12. It fails with the climb carrying the gun again.
   - Photographed (figure-frames.ts SEQ=climb, from the right and behind): the guns lie along the bent back.
   - verify, rules and the type check.
+
+## Milestone 619 — A death never through a wall
+
+A soldier shot dead falls backward, turned away from the shot (Milestone 610), its head ending 1.2 m behind where it
+stood. Nothing looked at what was there: in the Neon City's streets a soldier killed with its back to a building lay
+with its head and shoulders inside the wall. Measured first (node_modules/.scratch/deathwall.mts): at the centre's
+twelve eye-level spots, every facing with a wall within 1.2 m behind, a figure knocked down there; all 25 lay through
+the wall.
+
+- **The fall** (dummy.ts roomToFall, figure.json death): the way it would fall is checked for `room` (1.3 m) of clear
+  floor behind it, `roomUp` (0.5 m) over the floor, by the same ray the shots use (projectile.ts solidHit); if a wall is
+  nearer, the way is turned `roomStep` (30) degrees at a time, either way, to the nearest that has the room, or the one
+  with the most if none has it. A fall with the room is as it was.
+- **Checked:**
+  - deathwall.mts again: 0 of the 25 lie through the wall.
+  - The e2e's soldier stances (skfigure): with a wall put 0.45 m behind it, square on and turned 30 degrees, the head
+    ends this side of the wall; without the turn it ends 1.24 and 1.07 m past it (the check fails). The fall away from
+    the shot is as it was (1.24 m on the far side, shot from the left, behind and the front); 13 of 13.
+  - verify, rules and the type check.
