@@ -16766,3 +16766,26 @@ as Apex's legends carry theirs.
   third loaded sweep running, and passed alone. The guest's reload is now made sure of (tried again while its gun will
   not reload), and a miss says what each page saw (the guest's reload begun, its match's phase, the host's samples and
   their acts), so the next one can tell a lost act from a reload that never began. The p2p section: 47 checks, E2E PASS.
+
+## Milestone 618 — The long gun on the back for a climb, the sling measured upright
+
+Found by Milestone 615's survey: in a climb or a mantle the clip takes both hands onto the ledge, and a long gun was
+carried in the right hand through it, planted muzzle-down on the ledge and swung about (BOOG's pointed at the ground
+halfway up). Now a long gun rides on the back for it, as for an emote or an interact (Milestone 617); a pistol stays in
+the hand.
+
+- **The climb** (mannequin.ts): a climb or a mantle takes the hands for a long gun as an emote does, so it goes on the
+  back and comes back to the hands on top.
+- **The sling measured upright:** its place on the back is kept in the chest's frame, measured once for each kit and
+  gun. Milestone 617 measured it once the hold had let the chest go; a climb bends the chest, and a climb is most often
+  the first time a long gun goes on the back in a match. Now it is measured on the soldier put in its bind pose (three's
+  Skeleton.pose: upright, untwisted, the arms out of the way), the bones put back after, so what the figure is doing
+  the first time does not matter. Measured so, it needs no shift to the side: figure.json sling.left went.
+- **Checked:**
+  - Every long gun through every emote and an interact, measured on the bind-pose sling (slingprobe.mts): nothing of
+    the soldier in any gun.
+  - The e2e's soldier stances (skfigure): the sling check now climbs too, the USSO, BOOG, DEVINOS and APUHTHEE: a long
+    gun on the back with nothing of the soldier in it, the pistol in the hand, and every gun back in the hands after;
+    12 of 12. It fails with the climb carrying the gun again.
+  - Photographed (figure-frames.ts SEQ=climb, from the right and behind): the guns lie along the bent back.
+  - verify, rules and the type check.

@@ -158,7 +158,7 @@ type Limbs = { raise: number; forward: number; elbow: number; arch: number; head
 const HOLSTERS = new Map<string, THREE.Matrix4>();
 const SKYDIVE = figureCfg.skydive as unknown as { glide: number; dive: number; rateIn: number; rateOut: number; flutter: number[]; glideLimbs: Limbs; diveLimbs: Limbs; holster: { tilt: number; gap: number; band: number; height: number } };
 /** and on the back standing, for an emote, an interact or a throw: more upright and higher (figure.json sling) */
-const SLING = figureCfg.sling as { tilt: number; height: number; left: number };
+const SLING = figureCfg.sling as { tilt: number; height: number };
 /** where a look goes from a glide to a dive, as the skydive's own steering has it (squad.json dive) */
 const DIVE = squadCfg.dive;
 /** how long the soldier's throw takes before the hands go back for the gun, s (soldierhold.json throwFor) */
@@ -1655,6 +1655,10 @@ export class MannequinFigure {
     const onWall = p.stance === "wallL" || p.stance === "wallR";
     // in the skydive the hands are the body's: the gun put away until the ground (Apex's legends fall with empty hands)
     if (p.stance === "skydive") armed = false;
+    // and a climb or a mantle takes both hands onto the ledge: a long gun goes on the back for it (Milestone 618; it was
+    // carried in the right hand through the climb clip, which planted it muzzle-down on the ledge and swung it about); a
+    // pistol stays in the hand
+    if ((p.stance === "climb" || p.stance === "mantle") && this.rifle && !pistolStance(this.gunId)) armed = false;
     // A slide has a way in and a way out (the free library's Slide_Start and
     // Slide_Exit, once they have loaded): it used to cut straight into its
     // loop and straight out of it, which every other player saw as a pop.
@@ -2122,10 +2126,39 @@ export class MannequinFigure {
     const key = `${soldierCode(this.soldier)}|${this.gunId}|${stand ? "stand" : "sky"}`;
     const kept = HOLSTERS.get(key);
     if (kept) return kept;
-    // (measured standing once the hold has let the chest go: it is kept in the chest's frame, and measured with the
-    // rifleman's stance still turning the chest toward the gun, the gun swung off to the right side once it turned back)
-    if (stand && this.gripW > 0.05) return null;
-    const H: { tilt: number; gap: number; band: number; height: number; left?: number } = stand ? { ...SKYDIVE.holster, ...SLING } : SKYDIVE.holster;
+    const H = stand ? { ...SKYDIVE.holster, ...SLING } : SKYDIVE.holster;
+    // Standing, measured on the soldier in its bind pose, upright and untwisted, and the bones put back after. It is kept
+    // in the chest's frame: measured as the figure stood, the rifleman's stance still turning the chest toward the gun
+    // (or a climb bending it), the gun swung off to the right side of the back once the chest came back
+    let skel: THREE.Skeleton | null = null;
+    if (stand)
+      this.root.traverse((o) => {
+        if (!skel && (o as THREE.SkinnedMesh).isSkinnedMesh) skel = (o as THREE.SkinnedMesh).skeleton;
+      });
+    const S = skel as THREE.Skeleton | null;
+    const saved = S ? S.bones.map((x) => [x.position.clone(), x.quaternion.clone(), x.scale.clone()] as const) : null;
+    S?.pose();
+    try {
+      const held = this.measureHolster(H);
+      if (held) HOLSTERS.set(key, held);
+      return held;
+    } finally {
+      if (S && saved) {
+        S.bones.forEach((x, i) => {
+          x.position.copy(saved[i][0]);
+          x.quaternion.copy(saved[i][1]);
+          x.scale.copy(saved[i][2]);
+        });
+        this.root.updateMatrixWorld(true);
+      }
+    }
+  }
+
+  /** holsterMount's place, measured on the figure as it is posed now (the chest bone's frame), or null */
+  private measureHolster(H: { tilt: number; gap: number; band: number; height: number }): THREE.Matrix4 | null {
+    const b = this.bones;
+    const gun = this.gun;
+    if (!gun || !b.spine_02 || !b.spine_03 || !b.neck_01) return null;
     this.root.updateMatrixWorld(true);
     const toRoot = this.root.matrixWorld.clone().invert();
     const inRoot = (o: THREE.Object3D) => o.getWorldPosition(new THREE.Vector3()).applyMatrix4(toRoot);
@@ -2166,15 +2199,13 @@ export class MannequinFigure {
     const xAxis = new THREE.Vector3(0, 0, 1);
     const yAxis = new THREE.Vector3().crossVectors(zAxis, xAxis);
     const q = new THREE.Quaternion().setFromRotationMatrix(new THREE.Matrix4().makeBasis(xAxis, yAxis, zAxis));
-    const centre = new THREE.Vector3(H.left ?? 0, lo + (hi - lo) * H.height, back - H.gap - ((box.max.x - box.min.x) / 2) * scale);
+    const centre = new THREE.Vector3(0, lo + (hi - lo) * H.height, back - H.gap - ((box.max.x - box.min.x) / 2) * scale);
     const at = centre.sub(mid.clone().multiplyScalar(scale).applyQuaternion(q));
     const gunInRoot = new THREE.Matrix4().compose(at, q, new THREE.Vector3(scale, scale, scale));
     // the mount, which holds the gun as it does in the hand, in the chest bone's frame
     const mountInRoot = gunInRoot.multiply(gun.matrix.clone().invert());
     const chestInRoot = toRoot.clone().multiply(b.spine_03.matrixWorld);
-    const held = chestInRoot.invert().multiply(mountInRoot);
-    HOLSTERS.set(key, held);
-    return held;
+    return chestInRoot.invert().multiply(mountInRoot);
   }
 
   dispose(): void {

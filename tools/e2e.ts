@@ -7172,7 +7172,8 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   // the figure until it was back in its hands. Now a long gun rides on the back as it does in the skydive (holsterMount),
   // shown and nothing of the soldier in it (figure.json sling: upright and to the left of the spine, the arms clear of it
   // even where they come behind the back); a pistol is put away; and after, it is back in the hands
-  const away = await ev<Array<{ id: string; emote: { gun: boolean; inHand: boolean; deep: number }; interact: { gun: boolean; inHand: boolean; deep: number }; after: { gun: boolean; inHand: boolean } }>>(
+  // (and a climb, Milestone 618: a long gun went with the right hand onto the ledge, a pistol stays in it)
+  const away = await ev<Array<{ id: string; emote: { gun: boolean; inHand: boolean; deep: number }; interact: { gun: boolean; inHand: boolean; deep: number }; climb: { gun: boolean; inHand: boolean; deep: number }; after: { gun: boolean; inHand: boolean } }>>(
     page,
     `(() => {
       const r = window.__range, out = [];
@@ -7190,7 +7191,12 @@ async function figureStancesTest(browser: Browser): Promise<void> {
         const interact = look();
         r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
         for (let i = 0; i < 30; i++) r.figureLabStep(0.05);
-        out.push({ id, emote, interact, after: { gun: !!f.mq.gun?.visible, inHand: !!f.mq.gunInHand } });
+        r.figureLabPose(0, { speed: 0, stance: "climb", pitch: 0 });
+        for (let i = 0; i < 12; i++) r.figureLabStep(0.05);
+        const climb = look();
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+        for (let i = 0; i < 30; i++) r.figureLabStep(0.05);
+        out.push({ id, emote, interact, climb, after: { gun: !!f.mq.gun?.visible, inHand: !!f.mq.gunInHand } });
       }
       return out;
     })()`,
@@ -7198,12 +7204,12 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   const awayBad = away.filter((a) => {
     const pistol = (soldierHoldCfg.guns as Record<string, { stance?: string }>)[a.id]?.stance === "pistol";
     const slung = (s: { gun: boolean; inHand: boolean; deep: number }) => (pistol ? !s.gun : s.gun && !s.inHand && s.deep <= 5);
-    return !(slung(a.emote) && slung(a.interact) && a.after.gun && a.after.inHand);
+    return !(slung(a.emote) && slung(a.interact) && (pistol ? a.climb.gun && a.climb.inHand : slung(a.climb)) && a.after.gun && a.after.inHand);
   });
   check(
-    "in an emote and holding interact, a long gun rides on the back (shown, out of the hands, nothing of the soldier 5 mm into it) and a pistol is put away; after, the gun is back in the hands",
+    "in an emote, holding interact and in a climb, a long gun rides on the back (shown, out of the hands, nothing of the soldier 5 mm into it); a pistol is put away, and kept in the hand climbing; after, the gun is back in the hands",
     away.length === 4 && awayBad.length === 0,
-    JSON.stringify(awayBad.length ? awayBad : away.map((a) => `${a.id} emote ${a.emote.deep} mm, interact ${a.interact.deep} mm`)),
+    JSON.stringify(awayBad.length ? awayBad : away.map((a) => `${a.id} emote ${a.emote.deep} mm, interact ${a.interact.deep} mm, climb ${a.climb.deep} mm`)),
   );
   // SLAM's way down (Milestone 608): a figure in the air coming down at the slam's 38 m/s has its knees up (each knee 20 cm
   // or more higher against its hips than falling at 10 m/s, a jump's)
