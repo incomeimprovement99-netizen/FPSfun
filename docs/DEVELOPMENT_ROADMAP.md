@@ -12941,6 +12941,10 @@ posts as often as it likes. A flood would need about seventeen addresses to fill
 - **Checked:** verify, rules; the server check (tools/checks/serve-broker.ts, now the game server under bad clients)
   posts seven new names and the first again from one address: six taken, the seventh refused, the first taken again.
   With the cap taken out it failed.
+- **A check that broke another:** Milestone 731's account check stood in for every fetch while it ran, and verify runs
+  its checks side by side in one process, so the server check's own /health was answered with a refusal while it
+  waited for its server and all four of its checks failed (they passed alone). The stand-in answers its own two
+  addresses only now.
 - **Left:** the feedback and visit logs keep one older file each; a flood from many addresses could still push real
   notes out of them (a feedback note is 10 a 10 minutes an address).
 

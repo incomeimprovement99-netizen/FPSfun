@@ -23,9 +23,13 @@ const realFetch = g.fetch;
 const hadLocation = "location" in g;
 if (!hadLocation) g.location = { href: "http://check.test/" };
 let answer = 403;
-g.fetch = (async (u: string | URL) => {
-  if (String(u).endsWith("net.json")) return new Response(JSON.stringify({ board: "/api/board" }), { headers: { "content-type": "application/json" } });
-  return new Response(JSON.stringify(answer === 200 ? { rank: 3 } : { error: "that name belongs to an account" }), { status: answer, headers: { "content-type": "application/json" } });
+// (its own two addresses only: verify runs its checks side by side in one process, and a stand-in for every fetch
+// answered the server check's own /health with a refusal while it waited for its server to start)
+g.fetch = (async (u: string | URL, init?: RequestInit) => {
+  const url = String(u);
+  if (url === "./net.json") return new Response(JSON.stringify({ board: "/api/board" }), { headers: { "content-type": "application/json" } });
+  if (url.startsWith("http://check.test/")) return new Response(JSON.stringify(answer === 200 ? { rank: 3 } : { error: "that name belongs to an account" }), { status: answer, headers: { "content-type": "application/json" } });
+  return realFetch(u, init);
 }) as typeof fetch;
 try {
   const { submitScore, BOARD_REFUSED } = await import("../../src/game/leaderboard");
