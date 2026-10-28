@@ -16808,3 +16808,45 @@ the wall.
     ends this side of the wall; without the turn it ends 1.24 and 1.07 m past it (the check fails). The fall away from
     the shot is as it was (1.24 m on the far side, shot from the left, behind and the front); 13 of 13.
   - verify, rules and the type check.
+
+## Milestones 787 to 789 — The centre's streets denser in cover, THE TERRACES' hedges green, LANTERN ALLEYS' court furnished
+
+From the reviews of 2026-10-25 (the centre's round 11, the districts' round 5).
+
+- **787, the centre's streets and squares denser in cover** (the centre's first ask: "chest-high cover every 8 to 10 m
+  at street level ... the NOODLE ROW forecourt, the lantern street, the MARKET street, the base apron"; "about 20 m of
+  paving with one cabinet"): the squares between the curves, NOODLE ROW's and MARKET's among them, were no street to the
+  fill and held no cover; the open ground up to 12 m past the pavement with nothing over it is now filled too
+  (`dress.cover.plaza`), and every open spot within 5 m of cover (5.5 before), up to 400 pieces (`far`, `most`).
+  4.5 m was tried: its pieces walled the street node at (-45, 45) in on all sides but two, and a sprint from it out of
+  the decay's fourth wave took 48 s against a 31 s warning; a 3 m board there is kept off (`keep`).
+- **788, THE TERRACES' hedges in grass** ("one black slab" on its top tier): its 3 m walls of cover in the pack's grass
+  (the gardens' own) in place of the cypress's bark (`dress.districtCover.mats.terraces`). The slab the review saw is a
+  hedge's face turned from the low sun, and in shade it still reads dark.
+- **789, LANTERN ALLEYS' court furnished** ("fill the court with stalls and tables"): the pack's round tables, one by
+  each of its three stalls toward the mast, off the bots' alleys' lines, given to the street graph's model as the mast is
+  (`districts.lantern.court.tables`).
+- **Checked:** 253 pieces of street cover, the squares beside the streets among them, every street node reached and every decay sprint inside its warning; THE CENTRE's bot reaching its circle in 4 of 4 traced runs. No e2e of the map's sections today (the lobby agent's full sweep runs on main). verify, rules and
+  tsc. Map files version 112: lo 183.0 MB, hi 263.2 MB, max 556.5 MB.
+
+## Milestone 810 — The lit pieces go with the decay, the pools on their floors, the centre's lights not white
+
+From the lobby agent's bug hunt of 2026-10-27 (the owner asked for a full one).
+
+- **The lit pieces go with their sector's decay:** the outlines (the tower's corners and crown, THE VAULT's floor line, the
+  districts' edges, the climbs' and doors' frames), the pads' rings and columns and the night's pools opted out of the
+  decay's shader, because it measured where a fragment stands without its instance's matrix and would have tested every
+  instance at its mesh's middle; so in a gone sector they stayed lit over red ground. The shader takes the instance's
+  matrix (src/game/world.ts teachDecay), and a lit piece (`decayLight`) goes from the ground up, where the city's own
+  ground stays, corrupted red.
+- **The pads' columns hidden with the city** in a Neon arena and the Gulag (they were missing from its extras, so all 45
+  stayed drawn in the arena's sky).
+- **The fence's posts on a material of their own:** they set the decay's flag on the shared emissive() material, so any
+  city mesh of the same colour and strength would never have dissolved.
+- **Every lamp's pool on its floor:** on a roof or a walkway a pool's flat disc spilled past the edge into the air, and by
+  THE WELL five lay over the open shaft. tools/neon-pooltrim.ts measures each against the collision and writes
+  `game.pools.trim` (43 pools cut, the five by THE WELL dropped).
+- **The centre's pads and frames in a colour of their own** (`game.padRings.centre`, a pale blue): in its sector's white
+  the columns drew as blown-out white drums in the street and the frames as white rectangles; the columns dimmer (0.4).
+- **Checked:** a new check finds the four lit meshes taught the decay as lights, every pool on its floor and the centre's
+  colour not white (4 of 4 lit meshes taught, 0 pools spilling, the centre #8fd4ff; proven with the trim emptied, when 43 pools spilled).

@@ -9,9 +9,10 @@
 import * as THREE from "three";
 import neonCfg from "../config/neonmap.json";
 import { padColour } from "./padrings";
+import { decayLight } from "./world";
 
 type PoolSet = { pieces: string[]; r: number; k: number; every?: number; floor?: number };
-type Pools = { sets: PoolSet[]; wash: { r: number; k: number; out: number }; washK?: Record<string, number>; spots?: number[][]; lift: number; mix: number; warm: string; glow: { day: number; night: number } };
+type Pools = { sets: PoolSet[]; wash: { r: number; k: number; out: number }; washK?: Record<string, number>; spots?: number[][]; trim?: number[][]; lift: number; mix: number; warm: string; glow: { day: number; night: number } };
 const P = (neonCfg as unknown as { game: { pools: Pools } }).game.pools;
 let mat: THREE.MeshBasicMaterial | null = null;
 
@@ -48,13 +49,21 @@ function poolTexture(): THREE.Texture | null {
 export function poolSpots(): number[][] {
   const chunks = (neonCfg as unknown as { chunks: Record<string, { place: Array<[string, number, number, number]> }> }).chunks;
   const spots: number[][] = [];
+  // (a lamp's pool cut to its floor, `trim` [x, z, radius]: on a roof or a walkway a flat disc spilled past the edge
+  // into the air, and by THE WELL over its open shaft, the lobby agent's bug hunt of 2026-10-27; 0 drops it. Measured
+  // off the collision by tools/neon-pooltrim.ts, Milestone 810)
+  const trim = new Map((P.trim ?? []).map(([x, z, r]) => [`${x.toFixed(2)},${z.toFixed(2)}`, r]));
   for (const set of P.sets) {
     let n = 0;
     for (const [id, ch] of Object.entries(chunks)) {
       // (an arena is drawn alone, without the city's extras; its own lamps keep their own light)
       if (id.startsWith("a-")) continue;
       // (a hanging light's pool on the street under it, `floor`, not at its own height)
-      for (const [name, x, y, z] of ch.place) if (set.pieces.includes(name.split("/").pop()!) && n++ % (set.every ?? 1) === 0) spots.push([x, set.floor ?? y, z, set.r, set.k]);
+      for (const [name, x, y, z] of ch.place)
+        if (set.pieces.includes(name.split("/").pop()!) && n++ % (set.every ?? 1) === 0) {
+          const r = trim.get(`${x.toFixed(2)},${z.toFixed(2)}`) ?? set.r;
+          if (r > 0) spots.push([x, set.floor ?? y, z, Math.min(r, set.r), set.k]);
+        }
     }
   }
   // (each district's wash: the middle of its sector's part past the ring road, `out` metres from the map's middle)
@@ -76,7 +85,8 @@ export function buildLightPools(root: THREE.Object3D): THREE.InstancedMesh {
   // (one quad a metre round, each pool scaled to its own radius)
   const geo = new THREE.PlaneGeometry(2, 2).rotateX(-Math.PI / 2);
   mat = new THREE.MeshBasicMaterial({ map: poolTexture(), color: 0xffffff, transparent: true, opacity: P.glow.night, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, polygonOffset: true, polygonOffsetFactor: -2, polygonOffsetUnits: -2 });
-  mat.userData.decay = true;
+  // (gone with its sector's decay, Milestone 810)
+  decayLight(mat);
   const pools = new THREE.InstancedMesh(geo, mat, spots.length);
   const m4 = new THREE.Matrix4();
   const warm = new THREE.Color(P.warm);

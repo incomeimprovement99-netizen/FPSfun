@@ -4002,7 +4002,10 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const m4 = new THREE.Matrix4();
   const p = new THREE.Vector3();
   let off = 0;
-  lamps.forEach((q, i) => {
+  // (but those whose pool its trim drops, Milestone 810: the lamps round THE WELL, whose pools lay over its shaft)
+  const TR = new Map((((cfg.game as unknown as { pools: { trim?: number[][] } }).pools.trim ?? []) as number[][]).map(([x, z, r]) => [`${x.toFixed(2)},${z.toFixed(2)}`, r]));
+  const lit = lamps.filter((q) => TR.get(`${Number(q[1]).toFixed(2)},${Number(q[3]).toFixed(2)}`) !== 0);
+  lit.forEach((q, i) => {
     if (!pools || i >= pools.count) return;
     pools.getMatrixAt(i, m4);
     p.setFromMatrixPosition(m4);
@@ -4010,8 +4013,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   });
   check(
     "a pool of light under every street lamp by night, on its floor, the arenas' own left out; small ones under LANTERN ALLEYS' lanterns, a wash of each district's colour",
-    !!pools && pools.count === all.length && lamps.length >= 100 && off === 0 && all.length - lamps.length >= 8 + 100,
-    `${pools?.count ?? 0} pools (${lamps.length} street lamps, ${all.length - lamps.length - 8} lanterns, 8 district washes), ${off} off their lamp`
+    !!pools && pools.count === all.length && lamps.length >= 100 && off === 0 && all.length - lit.length >= 8 + 100,
+    `${pools?.count ?? 0} pools (${lit.length} of ${lamps.length} street lamps, ${all.length - lit.length - 8} lanterns and the centre's own, 8 district washes), ${off} off their lamp`
   );
 }
 
@@ -4234,6 +4237,36 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "GLASS HEIGHTS' tower white with a cyan crown, THE TERRACES' two tall trees on its top tier, THE STRIP's pyramid's every step edged in light at its top",
     tm.includes("MetalBare02=PlasticWhite01") && tm.includes("MetalBare01_lgt 2=") && LM.length === 2 && trees === 2 && stepBoxes.length === 56 && off === 0,
     `tower ${tm.includes("PlasticWhite01") ? "white" : "not white"}, ${trees} of ${LM.length} trees on the top tier, ${stepBoxes.length} step strips, ${off} off their steps`
+  );
+}
+
+// the lit pieces with the decay, the pools on their floors, the centre's lights not white (Milestone 810, the lobby
+// agent's bug hunt of 2026-10-27): every outline's, pad ring's and column's and pool's material taught the decay as a
+// light; each lamp's pool on a roof or a walkway, its rim at 0.85 of it sampled every 22.5 degrees, on a box topped at
+// its height, and none by THE WELL over its hole; the centre's pads' colour its own, not white
+{
+  const lit = ["outlines", "padRings", "padColumns", "lightPools"].map((n) => scene.getObjectByName(n) as THREE.Mesh | undefined);
+  const taught = lit.filter((m) => m && (m.material as THREE.Material).userData.decay && (m.material as THREE.Material).userData.decayLight).length;
+  const { poolSpots } = await import("../../src/game/lightpools");
+  const { padColour } = await import("../../src/game/padrings");
+  const PK = (cfg.game as unknown as { pools: { wash: { r: number }; spots?: number[][] } }).pools;
+  const own = new Set((PK.spots ?? []).map((q) => `${q[0]},${q[2]}`));
+  const S5 = (SOLIDS as { solids: number[][] }).solids;
+  const H = (cfg as unknown as { well?: { hole: number[] } }).well?.hole ?? [0, 0, 0, 0];
+  const onFloor = (x: number, z: number, y: number) => S5.some((b) => x >= b[0] && x <= b[1] && z >= b[2] && z <= b[3] && Math.abs(b[5] - y) < 0.35);
+  const spill = poolSpots().filter(([x, y, z, r]) => {
+    if (r >= PK.wash.r - 0.01 || own.has(`${x},${z}`)) return false;
+    for (let a = 0; a < 16; a++) {
+      const [px, pz] = [x + Math.cos((a * Math.PI) / 8) * r * 0.85, z + Math.sin((a * Math.PI) / 8) * r * 0.85];
+      if (y > 0.5 ? !onFloor(px, pz, y) : px > H[0] && px < H[1] && pz > H[2] && pz < H[3]) return true;
+    }
+    return false;
+  });
+  const centre = padColour(0, -38).getHexString();
+  check(
+    "the lit pieces go with their sector's decay, every lamp's pool on its floor, the centre's pads and frames not white",
+    taught === 4 && spill.length === 0 && centre !== "ffffff",
+    `${taught} of 4 lit meshes taught the decay as lights, ${spill.length} pools spilling${spill.length ? ` (first at ${spill[0].slice(0, 3).map((v) => v.toFixed(1)).join(", ")})` : ""}, the centre's colour #${centre}`
   );
 }
 

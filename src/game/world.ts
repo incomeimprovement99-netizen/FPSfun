@@ -95,7 +95,9 @@ export function buildEdgeFence(root: THREE.Group): void {
     m.userData.dynamic = true;
     root.add(m);
   }
-  const postMat = emissive(parseInt(F.color.slice(1), 16), worldCfg.neonGlow);
+  // (a material of its own: emissive() hands out one cached material a colour and strength, and the flag on it would
+  // have kept any city mesh of the same from dissolving)
+  const postMat = emissive(parseInt(F.color.slice(1), 16), worldCfg.neonGlow).clone();
   postMat.userData.decay = true;
   const per = Math.round((BR_HALF * 2) / F.postGap);
   const posts = new THREE.InstancedMesh(new THREE.BoxGeometry(0.3, F.height, 0.3), postMat, per * 4);
@@ -226,6 +228,9 @@ const DECAY = {
 function teachDecay(m: THREE.Material): void {
   if (m.userData.decay) return;
   m.userData.decay = true;
+  // (a lit piece, `decayLight`: a ring, a pool, a strip of light goes from the ground up, where the city's own ground
+  // stays, corrupted red, under it)
+  const light = !!m.userData.decayLight;
   const prev = m.onBeforeCompile;
   m.onBeforeCompile = (shader, r) => {
     prev?.call(m, shader, r);
@@ -236,7 +241,9 @@ function teachDecay(m: THREE.Material): void {
     shader.uniforms.uSkTime = DECAY.time;
     shader.vertexShader = shader.vertexShader
       .replace("#include <common>", "#include <common>\nvarying vec3 vSkWorld;")
-      .replace("#include <begin_vertex>", "#include <begin_vertex>\nvSkWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;");
+      // (an instance where it stands: its own matrix first, Milestone 810; without it every instance was tested at
+      // its mesh's middle)
+      .replace("#include <begin_vertex>", "#include <begin_vertex>\n#ifdef USE_INSTANCING\nvSkWorld = (modelMatrix * instanceMatrix * vec4(transformed, 1.0)).xyz;\n#else\nvSkWorld = (modelMatrix * vec4(transformed, 1.0)).xyz;\n#endif");
     const n = SECTORS.length;
     shader.fragmentShader = shader.fragmentShader
       .replace(
@@ -259,7 +266,7 @@ vec3 skGlow = vec3(0.0);`
     float jag = fract(sin(dot(floor(vSkWorld.xz * 0.8), vec2(12.9898, 78.233))) * 43758.5453) * 1.4;
     float line = uSkLevel[i] - jag;
     // the ground stays, corrupted red: it is where you still stand while the decay hurts you
-    if (uSkLevel[i] >= 0.0 && vSkWorld.y <= 0.25) { skGlow += vec3(0.55, 0.02, 0.12); continue; }
+    if (uSkLevel[i] >= 0.0 && vSkWorld.y <= 0.25) ${light ? "discard;" : "{ skGlow += vec3(0.55, 0.02, 0.12); continue; }"}
     if (uSkLevel[i] >= 0.0 && vSkWorld.y < line) discard;
     if (uSkLevel[i] >= 0.0 && vSkWorld.y < line + 1.6) skGlow += uSkTint[i] * (1.0 - (vSkWorld.y - line) / 1.6) * 3.0;
     if (uSkWarn[i] > 0.0) skGlow += uSkTint[i] * (0.25 + 0.25 * sin(uSkTime * 6.0)) * uSkWarn[i];
@@ -269,8 +276,17 @@ vec3 skGlow = vec3(0.0);`
   };
   // (with what the material's program is already keyed by: the Neon City map's detail maps patch it too, detailmaps.ts)
   const prevKey = m.customProgramCacheKey.bind(m);
-  m.customProgramCacheKey = () => `${prevKey()}|skdecay`;
+  m.customProgramCacheKey = () => `${prevKey()}|skdecay${light ? "light" : ""}`;
   m.needsUpdate = true;
+}
+
+/**
+ * A lit piece of the city (an outline, a pad's ring or column, a pool of lamp light) taught the decay at once: it is
+ * built after the map's own materials were, and goes with its sector from the ground up (Milestone 810)
+ */
+export function decayLight(m: THREE.Material): void {
+  m.userData.decayLight = true;
+  teachDecay(m);
 }
 
 /** each sector's dissolve top as the map in play measured it, metres, in SECTORS' order (for the checks) */

@@ -11,6 +11,7 @@
 import * as THREE from "three";
 import neonCfg from "../config/neonmap.json";
 import { padColour } from "./padrings";
+import { decayLight } from "./world";
 
 type Outline = { name: string; rect?: number[]; on?: string; posts?: boolean; lines?: number[][]; side?: number; step?: number; frames?: number[][]; span?: number; y: number; out: number; w: number; h: number; colour: string; glow: number };
 const O = (neonCfg as unknown as { game: { outlines?: Outline[] } }).game.outlines ?? [];
@@ -95,8 +96,8 @@ export function buildOutlines(root: THREE.Object3D): THREE.InstancedMesh | null 
   }, 0);
   const outlineOf = O.flatMap((q) => Array<Outline>(q.frames ? q.frames.length * 3 : q.lines ? lineBoxes(q) : q.on ? (((well[q.on] as unknown[] | undefined) ?? []).length) : q.rect ? 4 : 0).fill(q));
   const mat = new THREE.MeshBasicMaterial({ color: 0xffffff, toneMapped: false });
-  // (past the decay's own shader, as the fence's and the pads' rings are)
-  mat.userData.decay = true;
+  // (gone with its sector's decay, Milestone 810: until then past the decay's shader, and lit over a gone sector's ground)
+  decayLight(mat);
   const mesh = new THREE.InstancedMesh(new THREE.BoxGeometry(1, 1, 1), mat, boxes.length);
   const m4 = new THREE.Matrix4();
   boxes.forEach(([x0, x1, z0, z1, y0, y1], i) => {

@@ -3544,9 +3544,14 @@ const STREET_WALL_BOXES: OBox[] = [];
     for (const o of STREET_GRAPH?.held ?? []) for (const k of cellsOf(o)) (o.top > 0.3 && (body[k] = 1), o.top > 1 && (cover[k] = 1));
     const open = (k: number) => !body[k] && (floor[k] > -0.3 || !Number.isFinite(floor[k]));
     const street = new Uint8Array(N * N);
+    // (and the open ground beside the streets, `plaza` metres past the pavement with nothing over it: the squares between
+    // the curves, NOODLE ROW's and MARKET's among them, the centre's eleventh review's "about 20 m of paving with one
+    // cabinet", Milestone 787; open sky over it keeps the cover out of the buildings)
+    const plaza = (CO as { plaza?: number }).plaza ?? 0;
     for (let k = 0; k < N * N; k++) {
       const [x, z] = mid(k);
-      if (onRoad(x, z) < CV.pave || Math.max(Math.abs(x), Math.abs(z)) >= L.edge) street[k] = 1;
+      const d = onRoad(x, z);
+      if (d < CV.pave || Math.max(Math.abs(x), Math.abs(z)) >= L.edge || (d < CV.pave + plaza && over[k] === Infinity)) street[k] = 1;
     }
     // (each cell's distance to cover, two passes of a chamfer in cells)
     const D = new Float32Array(N * N);
@@ -3676,7 +3681,7 @@ const STREET_WALL_BOXES: OBox[] = [];
 // across every `every` metres from front to front and on to the next in an X, the pack's Chinese lanterns hung along each,
 // drawn only. Placed off rules alone, so nothing measured moves it
 {
-  type Court = { shops: Array<{ piece: string; c: Pt; yaw: number }>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; web: { from: Pt; height: number; to: Pt[]; mast?: string }; stalls: { pieces: string[]; at: Pt[]; face: Pt } };
+  type Court = { shops: Array<{ piece: string; c: Pt; yaw: number }>; name: { text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back?: string }; web: { from: Pt; height: number; to: Pt[]; mast?: string }; stalls: { pieces: string[]; at: Pt[]; face: Pt }; tables?: Array<[string, number, number, number]> };
   const DL = (R.districts as { lantern?: { chunk: string; seed: number; pool: string[]; gap: number[]; rows: Array<{ id: string; from: Pt; to: Pt; front: Pt; deep: number; skip?: number[][] }>; lights: { cable: string; lanterns: string[]; height: number; every: number; hang: number; alleys: Array<{ from: Pt; to: Pt; half: number }> }; court?: Court } } | undefined)?.lantern;
   if (DL) {
     const rndD = seeded(DL.seed);
@@ -3760,6 +3765,9 @@ const STREET_WALL_BOXES: OBox[] = [];
       // (a mast where the lines meet: they met in mid-air, held by nothing)
       if (CT.web.mast) STREET_GRAPH?.add(placeTurned(DL.chunk, CT.web.mast, CT.web.from[0], CT.web.from[1], 0, "o"));
       CT.stalls.at.forEach((p, k) => placeTurned(DL.chunk, CT.stalls.pieces[k % CT.stalls.pieces.length], p[0], p[1], yawToward(CT.stalls.face[0] - p[0], CT.stalls.face[1] - p[1]), "o"));
+      // (and its tables, `tables` [piece, x, z, yaw], between the stalls and the mast, Milestone 789: given to the street
+      // graph's model, as the mast is, so the street cover laid after them keeps its links)
+      for (const [name, x, z, yaw] of CT.tables ?? []) STREET_GRAPH?.add(placeTurned(DL.chunk, name, x, z, yaw, "o"));
       cfg.districtNames = [{ district: "lantern", ...CT.name }];
     }
     cfg.lanternAlleys = { houses, shops, cables, lanterns: hung };

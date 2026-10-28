@@ -125,7 +125,7 @@ export function updateNeonFill(eye: THREE.Vector3): void {
  * arenas' own nodes are hidden with the city shown. Kept, and put on the file when it comes in.
  */
 const PART: { shown: string | null; root: THREE.Object3D | null } = { shown: null, root: null };
-const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names", "skyline", "skylineGround", "padRings", "lightPools", "outlines"]);
+const CITY_EXTRAS = new Set(["edgeFence", "edgePosts", "edgeStrips", "neon:ropes", "neon:names", "skyline", "skylineGround", "padRings", "padColumns", "lightPools", "outlines"]);
 export function showNeonPart(chunk: string | null): void {
   if (PART.shown === chunk) return;
   PART.shown = chunk;
