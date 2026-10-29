@@ -13159,6 +13159,19 @@ anyone to take.
 - **Checked:** tsc, verify, rules; verify's bot check, a new line: a bot on a floor of a common, a rare and an epic gun
   ends on the epic and puts the other two down (on the old code it put none down).
 
+## Milestone 855 — In third person, the shots go where the crosshair is
+
+From a review of shooting and being hit (2026-10-29). In third person the camera sits behind your shoulder, 0.45 m to
+the right of your eyes, and your shots leave from your eyes toward the point the camera's crosshair is on. That point
+was the camera ray's first wall: figures were left out. With an enemy on the crosshair and open ground behind them, the
+aim went to the far wall, and a round from your eyes passed about 45 cm to their left (measured: 45 cm at 5 m, 42 at
+20; the torso is 25 cm either side of its middle), a miss whether hip-fired or aimed; a melee the same. Only a wall close
+behind the enemy hid it. The camera's ray meets the first enemy as well as the first wall now (main.ts, the third-person
+aim; your own figure and your squad's are never among them, the character agent's note).
+
+- **Checked:** tsc, verify, rules; e2e page, a new check: in third person in the range, the view on the farthest dummy's
+  chest, a ray from the eyes along the shots' aim hits that dummy (on the old aim it did not).
+
 ## Milestone 856 — A gun drawn after a Sentinel headshot is not refused
 
 From a review of shooting and being hit (2026-10-29). The host holds each guest's claimed hits to what the gun can do

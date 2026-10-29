@@ -9426,6 +9426,25 @@ async function main(): Promise<void> {
     // (and your figure whole there, none of it thinned: it thins only as a wall brings the camera in, tpcam.ts)
     const tp = await ev<{ dist: number; fig: boolean; vm: boolean; drawn: number | null }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; const e = p.eyePosition(); return { dist: Math.hypot(c.position.x - e.x, c.position.y - e.y, c.position.z - e.z), fig: window.__range.selfFigureVisible(), vm: window.__range.viewModelVisible(), drawn: window.__range.selfFigure()?.figure?.faded ?? null }; })()`);
     check("third person: the camera sits behind the shoulder, your figure shows whole, the gun in hand does not", tp.dist > 1.8 && tp.dist < 3 && tp.fig && tp.drawn === 1 && !tp.vm, JSON.stringify(tp));
+    // (Milestone 855) a dummy on the crosshair is where the shots go: the camera's mark was its ray's first wall, and a
+    // round from the eye, 0.45 m left of the camera, passed beside a figure on the crosshair with open ground behind it.
+    // The view turned onto the nearest dummy past 6 m, the range's far wall well behind it (the camera moves as you turn,
+    // so a few times), then a ray from the eye along the aim
+    const tpAim = await ev<{ dummy: number; onCam: boolean; onShot: boolean; behind: number } | null>(
+      page,
+      `(async () => { const R = window.__range; const T = R.THREE; const p = R.player; const c = R.camera; const frame = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const ds = R.dummies.filter((d) => d.group.visible && !d.knocked); if (!ds.length) return null;
+        const near = ds.filter((x) => x.group.position.distanceTo(p.pos) > 6); if (!near.length) return null; const d = near.reduce((a, b) => (b.group.position.distanceTo(p.pos) < a.group.position.distanceTo(p.pos) ? b : a));
+        const chest = d.group.position.clone().add(new T.Vector3(0, 1.25, 0));
+        for (let i = 0; i < 4; i++) { const v = chest.clone().sub(c.position); p.yaw = Math.atan2(-v.x, -v.z) * 180 / Math.PI; p.pitch = Math.asin(v.y / v.length()) * 180 / Math.PI; await frame(); }
+        d.group.updateMatrixWorld(true);
+        const ray = new T.Raycaster(); const fwd = new T.Vector3(0, 0, -1).applyQuaternion(c.quaternion);
+        ray.set(c.position, fwd); const onCam = ray.intersectObjects(d.hitMeshes, false).length > 0;
+        const a = R.aimNow(); ray.set(p.eyePosition(), new T.Vector3(0, 0, -1).applyQuaternion(p.orientationAt(a.yaw, a.pitch, 0, 0)));
+        const onShot = ray.intersectObjects(d.hitMeshes, false).length > 0;
+        return { dummy: +d.group.position.distanceTo(p.pos).toFixed(1), onCam, onShot, behind: +Math.min(200, R.solidHit ? R.solidHit(chest, fwd, 200) : -1).toFixed(1) }; })()`,
+    );
+    check("third person: a dummy on the crosshair is where the shots go", !!tpAim && tpAim.onCam && tpAim.onShot, JSON.stringify(tpAim));
     await ev(page, "window.__range.setOrbit(180, 10)");
     await ev(page, "new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)))");
     const orbit = await ev<{ ahead: number }>(page, `(() => { const p = window.__range.player; const c = window.__range.camera; return { ahead: -(c.position.z - p.pos.z) }; })()`);

@@ -1304,6 +1304,8 @@ const earFwd = new THREE.Vector3();
 const earUp = new THREE.Vector3();
 /** the third-person aim: where the crosshair is, from the eye (in first person, the view itself) */
 let aimYaw = 0;
+/** third person: the camera's ray, to the first enemy it meets (the aim point) */
+const tpAimRay = new THREE.Raycaster();
 let aimPitch = 0;
 const audio = new GameAudio();
 /** the callouts and the match's voice (announcer.ts); what it last saw of the match, for what changed */
@@ -7275,8 +7277,18 @@ function step(): void {
     if (wall < dist) dist = Math.max(0.25, wall - 0.15);
     camera.position.copy(pivot).addScaledVector(back, dist);
     camera.quaternion.copy(camQ);
-    // the aim: the eye toward the camera ray's first wall (or 200 m out)
-    const reach = Math.min(200, solidHit(camera.position, fwd, 200));
+    // the aim: the eye toward what the camera ray meets first, a wall or an enemy (or 200 m out). The first wall alone put
+    // the aim far behind an enemy on the crosshair, and a round from the eye, 0.45 m left of the camera, passed about
+    // 45 cm left of them: a miss at any range in the open, a melee too (Milestone 855). Not your own figure or your
+    // squad's (neither is among the foes)
+    let reach = Math.min(200, solidHit(camera.position, fwd, 200));
+    const foes = duel ? duel.avatars.filter((a) => !isAllyFigure(a) && a.group.visible && !a.knocked) : rangeTargets.filter((a) => a.group.visible && !a.knocked);
+    if (foes.length) {
+      tpAimRay.set(camera.position, fwd);
+      tpAimRay.far = reach;
+      const hit = tpAimRay.intersectObjects(foes.flatMap((a) => a.hitMeshes), false)[0];
+      if (hit) reach = hit.distance;
+    }
     const at = camera.position.clone().addScaledVector(fwd, reach);
     const d = at.sub(eye);
     const len = d.length();
@@ -8183,6 +8195,8 @@ const GALLERY = { x: 0, z: -8 };
   },
   galleryPositions: () => galleryFigs.map((d) => [d.group.position.x, d.group.position.y, d.group.position.z, d.group.visible]),
   setThirdPerson,
+  /** where the shots go this frame, degrees (third person: from the eye toward the camera ray's mark; tools/e2e.ts) */
+  aimNow: () => ({ yaw: aimYaw, pitch: aimPitch }),
   selfFigureVisible: () => selfFig?.group.visible ?? false,
   viewModelVisible: () => viewModel.group.visible,
   /** the gun in the hands and the arms, for a picture to find a part by name (tools/gunfeel-sheet.ts) */
