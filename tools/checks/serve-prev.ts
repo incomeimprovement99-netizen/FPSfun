@@ -9,6 +9,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { freePort } from "./free-port";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -59,10 +60,10 @@ console.log("The release before's files, after a deploy");
 if (!existsSync(new URL("../../server/game/node_modules/express/package.json", import.meta.url))) {
   console.log("  --  skipped: server/game has no node_modules (npm install there to run it)");
 } else {
-  const after = await statuses(true, 4127, ["/assets/index-NEW.js", "/assets/peer-OLD.js", "/assets/none.js"]);
+  const after = await statuses(true, await freePort(), ["/assets/index-NEW.js", "/assets/peer-OLD.js", "/assets/none.js"]);
   check("after a deploy, a page from before it still gets its own build's parts (the release before's)", after[1] === 200, JSON.stringify(after));
   check("and the new release's own, and a name in neither is a 404", after[0] === 200 && after[2] === 404, JSON.stringify(after));
-  const first = await statuses(false, 4128, ["/assets/index-NEW.js", "/assets/peer-OLD.js"]);
+  const first = await statuses(false, await freePort(), ["/assets/index-NEW.js", "/assets/peer-OLD.js"]);
   check("with no release before (the first deploy) the server starts and serves its own", first[0] === 200 && first[1] === 404, JSON.stringify(first));
 }
 

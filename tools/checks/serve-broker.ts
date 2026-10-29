@@ -11,6 +11,7 @@ import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { freePort } from "./free-port";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -19,7 +20,8 @@ function check(label: string, cond: boolean, detail = ""): void {
 }
 
 const SERVE = new URL("../../server/game/serve.mjs", import.meta.url);
-const PORT = 4131;
+// (a port of its own: a fixed one met another verify run's server, free-port.ts)
+const PORT = await freePort();
 const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
 const alive = () => fetch(`http://127.0.0.1:${PORT}/health`).then((r) => r.ok, () => false);
 /** a broker socket as the game opens one: open, or refused / closed */

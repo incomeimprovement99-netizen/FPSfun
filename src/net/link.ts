@@ -585,6 +585,8 @@ class LocalLink implements Link {
 
 export interface HostHandle {
   code: string;
+  /** what a friend arriving now is told the match is (retarget changes it; the checks read it) */
+  readonly opts: MatchOpts | undefined;
   cancel(): void;
   /** a guest left before the match began: their place (and id) is open again */
   release(id: number): void;
@@ -710,6 +712,9 @@ export function hostMatch(
   const handle: HostHandle = {
     get code() {
       return code;
+    },
+    get opts() {
+      return opts;
     },
     cancel: () => {
       cancelled = true;

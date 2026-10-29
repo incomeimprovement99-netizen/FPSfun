@@ -13214,6 +13214,28 @@ still comes full), and one taken into your hand comes up as a swap brings one up
 - **Checked:** tsc, verify, rules; e2e speedkills, a new check: an empty gun put down for another goes down empty and
   comes back empty, and the gun taken into your hand is coming up (on the old code it came back full, firing at once).
 
+## Milestone 860 — With friends on another mode while a code waits
+
+From a review of making and joining matches with friends (2026-10-29). Pressing With friends makes a code and waits for
+the first friend. Picking another mode and pressing With friends again changed the Friends tab to it, then pressed Host,
+which returns at once while a code is out: the tab said Team Deathmatch, and the friend who opened the invite played
+the 1v1 it was made for. The waiting code is that mode's now (main.ts onFriends, the hosting handle's retarget, as the
+code waiting in an empty range already was); the same code and invite link.
+
+- **Checked:** tsc, verify, rules; e2e panel, a new check: with a code waiting from the bots arena, With friends on Team
+  Deathmatch keeps the code and a friend arriving on it is told Team Deathmatch (on the old code, still the arena).
+
+## Milestone 861 — verify's server checks on ports of their own
+
+Twice on 2026-10-29, for this agent and the character agent, the first `npm run verify` failed six checks at once and
+the next run passed. The checks that run the real game server (tools/checks/serve-broker.ts, serve-prev.ts) listened
+on fixed ports, 4131, 4127 and 4128: two verify runs at once (a deploy's release gate beside a worktree's run, or two
+agents') started two servers on one port, the second never came up, and its checks talked to the first's server as it
+went down. Each run asks the system for a free port now (tools/checks/free-port.ts).
+
+- **Checked:** two copies of the server check run at once: on the fixed port one failed ("a frame that is not JSON
+  leaves the server up": its socket had reached the other run's server), on free ports both pass; verify.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

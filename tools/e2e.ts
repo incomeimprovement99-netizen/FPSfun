@@ -9009,6 +9009,19 @@ async function lobbyPanelTest(browser: Browser): Promise<void> {
   await sleep(600);
   const friends = await ev<{ tab: string; mode: string }>(page, `({ tab: window.__range.menu.tab, mode: document.getElementById("duelMode").value })`);
   check("With friends carries the mode across, which nobody should have to do by hand", friends.mode === "arena" && friends.tab === "duel", JSON.stringify(friends));
+  // (Milestone 860) with that code waiting for its first friend, With friends on another mode makes the code that mode's:
+  // Host returned at once with a code out, the tab said Team Deathmatch and the friend who came played the 1v1. (Out of
+  // the battle royale above first: with a match on, With friends makes no code)
+  await ev(page, "window.__range.duel()?.leave()");
+  await sleep(300);
+  await ev(page, `(() => { window.__range.toMenu(); document.getElementById("goBots").click(); document.getElementById("playFriends").click(); })()`);
+  await page.waitForFunction("!!window.__range.lobbyCode()", { polling: 200, timeout: 20000 }).catch(() => undefined);
+  const firstCode = await ev<string | null>(page, "window.__range.lobbyCode()");
+  await ev(page, "window.__range.toMenu()");
+  await ev(page, `document.getElementById("goTdm").click(); document.getElementById("playFriends").click()`);
+  await sleep(600);
+  const moved = await ev<{ code: string | null; mode: string | null; picked: string }>(page, `({ code: window.__range.lobbyCode(), mode: window.__range.lobbyMode(), picked: document.getElementById("duelMode").value })`);
+  check("With friends on another mode while a code waits: the same code, now that mode's", !!firstCode && moved.code === firstCode && moved.mode === "tdm" && moved.picked === "tdm", JSON.stringify({ firstCode, ...moved }));
   await ev(page, `(() => { const b = document.getElementById("duelLeave"); if (b && !b.hidden) b.click(); })()`);
   await page.close();
 }

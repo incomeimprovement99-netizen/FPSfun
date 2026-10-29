@@ -6057,6 +6057,16 @@ const menu = new Menu(loadouts, profile, {
       }
       return;
     }
+    // A code already waiting for its first friend, made for another mode: it is this mode's now. Host returned at once
+    // with a code out, so the tab said the new mode and the friend who came played the old one (Milestone 860)
+    if (!g && !duel && !hangout && hosting) {
+      readHostSettings();
+      const players = want === "range" ? MAX_PLAYERS : Math.max(2, Math.min(MAX_PLAYERS, Number(duelPlayers.value) || 2));
+      hosting.retarget(players, [], hostBr ?? undefined, hostOpts ?? undefined);
+      menu.show("duel");
+      duelButtons();
+      return;
+    }
     menu.show("duel");
     duelHostBtn.click();
   },
@@ -8358,6 +8368,8 @@ const GALLERY = { x: 0, z: -8 };
     return true;
   },
   lobbyCode: () => (hosting && !duel ? hosting.code : null),
+  /** the mode a friend arriving on that code is told it is (tools/e2e.ts) */
+  lobbyMode: () => (hosting && !duel ? (hosting.opts?.mode?.kind ?? (hosting.opts?.range ? "range" : "duel")) : null),
   setMapOpen: (on: boolean) => (mapOpen = on),
   /** emotes (tools/e2e.ts): play one, and what is playing */
   emote: (i: number) => playEmote(i, gameTime),
