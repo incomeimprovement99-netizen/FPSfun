@@ -13236,6 +13236,21 @@ went down. Each run asks the system for a free port now (tools/checks/free-port.
 - **Checked:** two copies of the server check run at once: on the fixed port one failed ("a frame that is not JSON
   leaves the server up": its socket had reached the other run's server), on free ports both pass; verify.
 
+## Milestone 862 — An item put down rests where a body would stand
+
+Milestone 851 brought everything put down to the floor under it, and tested that floor at a single point: a gun put
+down in the seam between two steps of a stair, or just past a box's edge, fell through to the floor below. Measured on
+a fresh battle royale floor, 23 of its 1,315 items would have moved, one from 57.5 m to 48.5 m and one from the street
+into the metro under it; a gun swapped on the stairs went down a storey. The floor is found as a body standing there
+finds it now, within a body's radius (brmatch.ts restingSpot, as player.ts groundUnder), and only items the field
+itself left hanging past an edge still come down: 7 of the 1,315, by 0.1 to 1.6 m. A death's drop used the same point
+test before Milestone 851, and is put right with it.
+
+- **Checked:** tsc, verify, rules; verify's br rules, a new check: a gun over a 2 cm seam between two steps stays on the
+  steps, one in the air comes to the ground (with the single point it fell through the seam); e2e speedkills. The
+  sweep's Gulag check ("a pickup granted after you are out goes back on the floor where it lay") failed once under the
+  day's load and is to be run again on a quiet machine.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

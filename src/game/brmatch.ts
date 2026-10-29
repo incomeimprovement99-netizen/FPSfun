@@ -284,6 +284,21 @@ export interface BrHud {
   gulag: { phase: string; clock: number; opponent: string; capMe: number; capThem: number; capture: number } | null;
 }
 
+/**
+ * Where something put down at `p` comes to rest, as a body standing there would stand: the highest top at or under it
+ * within a body's radius (player.ts groundUnder), or the ground; never raised. Tested at a single point it fell through
+ * the seam between two steps of a stair, or past a box's edge, to the floor below: a gun swapped on the stairs went down a
+ * storey, and 23 of a fresh floor's 1,315 items would have moved, one 9 m (Milestone 862).
+ */
+export function restingSpot(p: THREE.Vector3): THREE.Vector3 {
+  const r = MOVE.radius;
+  let y = floorAt(p.x, p.z);
+  for (const s of solidsIn(p.x - r, p.x + r, p.z - r, p.z + r)) {
+    if (p.x + r > s.minX && p.x - r < s.maxX && p.z + r > s.minZ && p.z - r < s.maxZ && s.top <= p.y + 0.05 && s.top > y) y = s.top;
+  }
+  return new THREE.Vector3(p.x, Math.min(p.y, y), p.z);
+}
+
 /** the heir's snapshot of a battle royale (BrMatch.snapshotMode); times are seconds from when it was made, null for never */
 interface BrSnap {
   b: Array<{
@@ -896,11 +911,9 @@ export class BrMatch extends Duel {
     } else this.toHost({ t: "loot", op: "drop", item, at: [at.x, at.y, at.z] });
   }
 
-  /** a spot brought down to the floor under it: the highest top there at or under it, or the ground (never raised) */
+  /** a spot brought down to the floor under it (restingSpot) */
   private floored(p: THREE.Vector3): THREE.Vector3 {
-    let y = floorAt(p.x, p.z);
-    for (const s of solidsIn(p.x, p.x, p.z, p.z)) if (s.minX <= p.x && s.maxX >= p.x && s.minZ <= p.z && s.maxZ >= p.z && s.top <= p.y + 0.05 && s.top > y) y = s.top;
-    return new THREE.Vector3(p.x, Math.min(p.y, y), p.z);
+    return restingSpot(p);
   }
 
   /**

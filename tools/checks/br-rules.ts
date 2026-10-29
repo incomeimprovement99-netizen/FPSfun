@@ -10,7 +10,9 @@
 //
 // Run on its own: npx tsx tools/checks/br-rules.ts. Also belongs inside npm
 // run verify.
-import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, humanSides, sideOfHuman, DROP_HEIGHT } from "../../src/game/brmatch";
+import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, humanSides, sideOfHuman, DROP_HEIGHT, restingSpot } from "../../src/game/brmatch";
+import { RANGE_SOLIDS } from "../../src/game/range";
+import * as THREE from "three";
 import { BOT_NAMES, MOST_BOTS } from "../../src/game/bots";
 import { RING_PHASES, RING_BOUNDS } from "../../src/game/ring";
 import brCfg from "../../src/config/br.json";
@@ -135,6 +137,23 @@ check(
   "the config carries its own notes",
   Boolean(brCfg._note && brCfg._teams && brCfg._pod && brCfg._podHeard && brCfg._podLure && brCfg._defaultTeam)
 );
+
+// (Milestone 862) something put down comes to rest on what a body standing there would stand on: two steps of a stair
+// side by side, a seam 2 cm wide between them, and a gun put down over the seam stays on the steps. Tested at a single
+// point under it, it fell through the seam to the floor below. (Boxes far off from everything, there and gone again
+// in the one synchronous step, so no other check running beside this one sees them)
+{
+  const X = 9000;
+  const steps = [
+    { minX: X - 1, maxX: X - 0.01, minZ: -1, maxZ: 1, top: 1, base: 0 },
+    { minX: X + 0.01, maxX: X + 1, minZ: -1, maxZ: 1, top: 1, base: 0 },
+  ];
+  RANGE_SOLIDS.push(...steps);
+  const rest = restingSpot(new THREE.Vector3(X, 1.01, 0)).y;
+  const air = restingSpot(new THREE.Vector3(X + 5, 3, 0)).y;
+  RANGE_SOLIDS.splice(RANGE_SOLIDS.length - steps.length, steps.length);
+  check("a gun put down over the seam between two steps stays on the steps, and one put down in the air comes to the ground", Math.abs(rest - 1) < 1e-6 && air === 0, JSON.stringify({ rest, air }));
+}
 
 export const brRulesFails = fails;
 if (process.argv[1]?.includes("br-rules")) console.log(fails ? `\n${fails} FAILED` : "\nbr rules PASS");
