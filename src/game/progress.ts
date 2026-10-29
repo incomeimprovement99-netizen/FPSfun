@@ -40,6 +40,18 @@ export interface Award {
 }
 
 const KEY = "range.progress.v1";
+
+/**
+ * The page's storage, or null when the browser refuses it. With site data blocked, even reading `localStorage` throws,
+ * and this was read outside any try, at the page's start, so the whole page stopped there and never loaded (Milestone 736).
+ */
+function pageStorage(): Pick<Storage, "getItem" | "setItem"> | null {
+  try {
+    return typeof localStorage === "undefined" ? null : localStorage;
+  } catch {
+    return null;
+  }
+}
 const MODE_KINDS = new Set(["tdm", "control", "ffa"]);
 
 /** what one level to the next costs: level n to n + 1 */
@@ -105,7 +117,7 @@ export class Progress {
   /** called whenever something changes, so a screen that shows it can redraw */
   onChange: (() => void) | null = null;
 
-  constructor(private readonly storage: Pick<Storage, "getItem" | "setItem"> | null = typeof localStorage !== "undefined" ? localStorage : null) {
+  constructor(private readonly storage: Pick<Storage, "getItem" | "setItem"> | null = pageStorage()) {
     let raw: unknown = null;
     try {
       const t = this.storage?.getItem(KEY);

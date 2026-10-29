@@ -8538,6 +8538,22 @@ async function startScreenTest(browser: Browser): Promise<void> {
   const tut = await ev<{ pick: boolean; step: string | null; started: string | null; nudge: boolean }>(fresh, `({ pick: !document.getElementById("pick").hidden, step: window.__range.tutorial.stepTitle, started: localStorage.getItem("range.startedOnce"), nudge: !document.getElementById("startNudge").hidden })`);
   check("start: someone new is nudged to the tutorial, which goes straight in (no hack pick) to its first room, and the nudge is gone after", nudged && !tut.pick && tut.step === "MOVE" && tut.started === "1" && !tut.nudge, JSON.stringify({ nudged, tut }));
   await fresh.close();
+  // (Milestone 736) a browser that refuses the page its storage (site data blocked: even reading localStorage throws)
+  // still gets the game; one read outside any try stopped the page at its start, and it never loaded
+  const refuse = `for (const k of ["localStorage", "sessionStorage"]) Object.defineProperty(window, k, { configurable: true, get() { throw new DOMException("The operation is insecure.", "SecurityError"); } });`;
+  const blocked = await open(browser, "?norender&home=on", BASE, refuse).catch(() => null);
+  let noStore: { start: boolean; step: string | null } | null = null;
+  if (blocked) {
+    await blocked
+      .waitForFunction(`(() => { const L = document.getElementById("loading"); return !L || L.hidden || L.classList.contains("done"); })()`, { polling: 250, timeout: 60000 })
+      .catch(() => undefined);
+    const start = await ev<boolean>(blocked, `!document.getElementById("start").hidden`);
+    await ev(blocked, `document.getElementById("startTutorial").click()`);
+    await sleep(800);
+    noStore = { start, step: await ev<string | null>(blocked, "window.__range.tutorial.stepTitle") };
+    await blocked.close();
+  }
+  check("start: with the browser's storage refused, the page still loads to the start screen and the tutorial plays", noStore !== null && noStore.start && noStore.step === "MOVE", JSON.stringify(noStore));
   await ev(page, `localStorage.setItem("range.startedOnce", "1")`);
   await ev(page, `(() => { const k = ${JSON.stringify(kept)}; if (k.hacks === null) localStorage.removeItem("range.sk.hacks"); else localStorage.setItem("range.sk.hacks", k.hacks); if (k.diff !== null) localStorage.setItem("range.bots.difficulty", k.diff); })()`);
   await page.close();

@@ -13014,6 +13014,17 @@ in the group and the microphone is on (src/net/voice.ts, voice.json retry).
 - **Checked:** tsc, verify, rules; verify's voice check (voice-stop.ts), a new check: a call turned away at once is made
   again (with the retry taken out, one call only; the check waits up to 8 s, verify's busy loop firing timers late); e2e p2p's voice chat over the real broker.
 
+## Milestone 736 — The game loads with the browser's site data blocked
+
+A browser set to block sites' data (a privacy setting, or a school or work machine's policy) throws on any read of the
+page's storage, even of `localStorage` itself. Every read of it at the page's start sat inside a try but one: the
+progress (XP and challenges) took `localStorage` as its default outside any, so the page stopped there, on the loading
+screen, for good. It is read inside a try now (src/game/progress.ts pageStorage), and with storage refused the game plays
+with its defaults, nothing kept past the visit. A full storage (every write refused) already played.
+
+- **Checked:** tsc, verify, rules; e2e start, a new check: a page whose storage throws loads to the start screen and the
+  tutorial plays (with the old read put back, it never loaded, and the page error showed).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
