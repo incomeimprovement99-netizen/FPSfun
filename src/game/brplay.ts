@@ -72,6 +72,8 @@ export interface ReachHud {
  */
 export interface CarryState {
   hacks?: Record<string, string | null>;
+  /** the hacks already at their top level: a core of one is no use, and taken it goes straight back down */
+  topped?: string[];
 }
 
 /** an item as the reach list needs it: no THREE objects, so a tool can build one */
@@ -550,15 +552,19 @@ export class BrPlay {
     // you carry, and with both slots full it puts the one in hand down, which
     // the next step of the hold would pick straight back up.
     // (nor a hack core of another hack in its slot: taking it swaps yours down, and the next step took that back,
-    // back and forth about fourteen times in three seconds; Phase 20 A8)
-    const swapsHack = (key: number): boolean => {
+    // back and forth about fourteen times in three seconds; Phase 20 A8. Nor a core of a hack at its top level: taken,
+    // it goes back down under a new key, which the next step took again, for as long as the key was held, and nothing
+    // past it was reached; Milestone 850)
+    const leaves = (key: number): boolean => {
       const it = f.drops.get(key)?.item;
-      if (it?.kind !== "hack" || !carry?.hacks) return false;
+      if (it?.kind !== "hack") return false;
+      if (carry?.topped?.includes(it.id)) return true;
+      if (!carry?.hacks) return false;
       const slot = hackSlotOf(it.id);
       const held = slot ? carry.hacks[slot] : null;
       return !!held && held !== it.id;
     };
-    const next = left.find((r) => !this.inFlight(r.key, now) && !isGun(r.key) && !swapsHack(r.key));
+    const next = left.find((r) => !this.inFlight(r.key, now) && !isGun(r.key) && !leaves(r.key));
     if (next && holdDue(now, this.takeDownAt, this.lastTakeAt)) {
       this.take(match, next.key, now);
       this.lastTakeAt = now;

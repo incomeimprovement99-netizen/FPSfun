@@ -13094,6 +13094,19 @@ The last of the arena modes' review (Milestones 737 and 738), and one more it le
   your rounds, scoring nothing, and off again none is; e2e brsolo, a new check: a squads-of-friends battle royale hosted
   with the hidden row on has the rule on no page. Both failed on the old code.
 
+## Milestone 850 — Holding E leaves a core your hack has no use for
+
+The first of a review of the battle royale's loot and what you carry (2026-10-28): holding E takes everything in reach
+but guns and the cores of the other hack in a slot (each would put yours down for the next step to take back). A core
+of the hack you hold at its top level was not left: taken, it goes straight back down under a new key ("ALREADY AT ITS
+TOP LEVEL"), and the next step of the hold, a fifth of a second on, took it again, for as long as E was held. The
+pickup's hand and sound over and over, the notice each time, an add and a gone to every friend, and nothing past it
+reached. The hold leaves it now (brplay.ts, CarryState topped, from main.ts's hacks); a press still takes it, and says so.
+
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: with one hack at its top level and a core of it and one
+  of the other at your feet, a press and a hold take the other's core (it fuses) and leave the first where it lay, under
+  its own key (with the old hold, it was taken and put back over and over).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -4323,7 +4323,13 @@ const brPlay = new BrPlay({
   },
 });
 // What you carry, for the hold that empties a spot: it leaves a hack core that would swap yours.
-brPlay.carrying = () => ({ hacks: { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null } });
+brPlay.carrying = () => ({
+  hacks: { mobility: hacks.get("mobility")?.id ?? null, utility: hacks.get("utility")?.id ?? null },
+  topped: (["mobility", "utility"] as const).flatMap((slot) => {
+    const h = hacks.get(slot);
+    return h && h.level >= HACK.fuseLevels ? [String(h.id)] : [];
+  }),
+});
 // ---------- SpeedKills' loot card (Phase 20 A8; lootcard.ts) ----------
 let lootCardMode: LootCardMode = (() => {
   try {

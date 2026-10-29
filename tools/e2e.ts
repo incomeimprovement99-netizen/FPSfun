@@ -7029,6 +7029,23 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       return { first, second, third, hack }; })()`
   );
   check("speedkills br: a gun found is level 0, a copy fuses it to 1, a level-4 copy takes it to 4, a hack core fuses its hack", fuse.first === 0 && fuse.second === 1 && fuse.third === 4 && fuse.hack === 1, JSON.stringify(fuse));
+  // (Milestone 850) holding E over a core of a hack at its top level: the hold leaves it where it lies. It took the core,
+  // put it back down under a new key (no use at the top), and took that again, for as long as E was held. The press
+  // takes the nearer core (the other hack's, which fuses), the view up so neither is aimed at
+  const topped = await ev<{ kept: boolean; util: number[]; mobKey: number | null }>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const T = r.THREE;
+      const [mob, util] = r.sk.hacks().map((h) => h.held);
+      for (let i = 0; i < 9 && r.sk.take(mob.id, 0) !== "maxed"; i++);
+      const p = r.player.pos.clone(); r.player.pitch = 80;
+      d.dropLoot({ kind: "hack", id: util.id, n: 0, rarity: "common" }, new T.Vector3(p.x + 0.3, p.y, p.z));
+      d.dropLoot({ kind: "hack", id: mob.id, n: 0, rarity: "common" }, new T.Vector3(p.x + 1.1, p.y, p.z));
+      const mobKey = [...d.lootField.drops.values()].find((x) => x.item.kind === "hack" && x.item.id === mob.id && Math.hypot(x.pos.x - p.x - 1.1, x.pos.z - p.z) < 0.2)?.key ?? null;
+      const before = r.sk.hacks()[1].held.level; let n = 0;
+      r.setScript({ held: (a) => a === "interact", pressedNow: (a) => a === "interact" && n++ === 0 });
+      setTimeout(() => { r.setScript(null); r.player.pitch = 0; ok({ kept: mobKey !== null && d.lootField.drops.has(mobKey), util: [before, r.sk.hacks()[1].held.level], mobKey }); }, 2500); }))()`
+  );
+  check("speedkills br: holding E leaves a core of a hack already at its top level where it lies, and takes the one it can use", topped.kept && topped.util[1] === topped.util[0] + 1, JSON.stringify(topped));
   // (before the decay: from its first wave the player stands in a sector coming apart, and the checks of a
   // fight's feel are not about that; there the outline read nothing on some runs)
   // (the bot frozen and moved by hand: its world matrix is brought up to date as the renderer would, since a
