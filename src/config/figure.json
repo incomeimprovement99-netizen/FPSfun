@@ -128,6 +128,15 @@
     "rate": 10,
     "lift": 0.021
   },
+  "_gait": "The legs' moving clips and how fast each is played (mannequin.ts, Milestone 833): each at the figure's speed over the speed its own stride covers at its own pace, `walk`, `jog`, `sprint` and `crouch` m/s, so a planted foot stays where it is on the floor. Measured (node_modules/.scratch/locoprobe.mts: a foot is planted while it is low and going back against the body, and its speed back then is the ground its stride covers) at each clip's own pace: the jog's ankle 100% of its 4.8 and the sprint's toe 104 to 117% of its 7.5 (a sprinter lands on the forefoot), but the walk's 57% of the 1.6 it was played against and the crouch walk's 20 to 30% of 2.2. The crouch walk's 2 s loop carries each toe 81 cm back. At SpeedKills' crouch speed (2.03 m/s, movement.json crouchSpeed) a crouched enemy's feet went over a quarter of the ground it crossed, and slid over the rest. The jog takes over from the walk at `jogFrom` m/s and the sprint from the jog at `sprintFrom`.",
+  "gait": {
+    "walk": 0.9,
+    "jog": 4.8,
+    "sprint": 7.5,
+    "crouch": 0.63,
+    "jogFrom": 2.6,
+    "sprintFrom": 6.2
+  },
   "_plant": "A soldier standing still keeps its feet where they are on the floor as it turns on them (mannequin.ts plantFeet, Milestone 832). The body turned on the spot with its hips (dummy.ts plant) and the feet went round on the floor with them: measured (node_modules/.scratch/turnprobe.mts), 405 degrees of turns slid each foot 1.8 to 2.4 m along the floor and never lifted one, against 1 to 2 cm of the standing clip's own sway; the pelvis turns about itself, 7 cm off the figure's middle, so even the planted feet went round 7 mm a frame. Still (stance stand or crouch, no faster than `under` m/s, the dummy's own still), and `after` s after it stopped or changed stance (the clips' blend into the idle moves the feet), each foot is held at its place on the floor (its ankle's and its toe's x and z, the heights the clip gives them: a crouch's kneeling foot stands on its toe, nearly upright, and held by the way it pointed its toe still slid 2 cm), its leg bent to reach it, eased in and out at `rate` a second. Once the clip's ankle or toe is `stepAt` m from where it is held, the foot steps there, lifted `lift` m over `stepTime` s, at its place by `land` of that time and set straight down (one that followed the clip's foot down to the floor slid 2 to 7 cm a frame with it while the body was still turning), and the other foot after it if it is `settle` m from its own. A step on the spot is a short shuffle: the walk clip's toe, for scale, lifts 16 cm over 0.68 s at 1.6 m/s.",
   "plant": {
     "under": 0.3,

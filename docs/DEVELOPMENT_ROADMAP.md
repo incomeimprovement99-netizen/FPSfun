@@ -17224,3 +17224,29 @@ with 3rd person or enemy views".
     turns over them, then one foot lifted round and the other after it, the crouch's kneeling leg left down.
   - verify, rules and the type check.
 - **And a comment put right:** dummy.ts said the feet lift in turn as the hips catch up; until now nothing lifted them.
+
+## Milestone 833 — A crouch walk's feet on the floor
+
+The legs' moving clips are played at the figure's speed over the ground each one's stride covers, so a planted foot
+stays where it is. Those four speeds were typed into mannequin.ts by eye, and two were wrong: the crouch walk was played
+as though its stride covered 2.2 m/s and the walk 1.6. Measured (node_modules/.scratch/locoprobe.mts: a foot is planted
+while it is low and going back against the body, and its speed back then is the ground the stride covers), at each
+clip's own pace the crouch walk's planted foot went back at 20 to 30% of 2.2 and the walk's at 57% of 1.6. At
+SpeedKills' crouch speed (2.03 m/s) a crouched enemy's feet went over a quarter of the ground it crossed and slid over
+the rest. The jog's ankle (100% of its 4.8) and the sprint's toe (104 to 117% of its 7.5; a sprinter lands on the
+forefoot) were right. Found looking further for the owner's "things that could be fixed with 3rd person or enemy views".
+
+- **Measured speeds in figure.json** (`gait`, with the measurements in its note; the numbers had been literals in the
+  code): the crouch walk 0.63 m/s (its 2 s loop carries each toe 81 cm back), the walk 0.9; the jog 4.8 and the sprint
+  7.5 as they were, and where the jog and the sprint take over (2.6 and 6.2 m/s) beside them.
+- **Measured after:** the walk's planted foot 96 to 103% of the speed from 0.9 to 2.5 m/s; the crouch walk's ankles
+  about 100% at 2.03 m/s. At crouch speed the clip now plays 3.2 times its own pace, about three steps a second: a quick
+  crouch walk, photographed side on a frame every 30th of a second.
+- **No root motion:** checked on the way. The moving clips' pelvis stays where it is against the figure's place (the
+  crouch's 27 cm behind it), so nothing is carried forward and snapped back at a loop.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): walking at 2 m/s, jogging at 6.1, sprinting at 14 and crouched at 2.03, the
+    planted foot goes back at 80 to 125% of the soldier's speed. 96, 100, 101 and 102%. With
+    the old speeds put back it fails on the walk (54%) and the crouch (29%), and nothing else does. The whole soldier
+    section: 331 checks, E2E PASS.
+  - verify, rules and the type check.

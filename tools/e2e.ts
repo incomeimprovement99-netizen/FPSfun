@@ -7481,6 +7481,44 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     turns.length === 2 && turns.every((t) => t.slid <= 30 && t.high >= 40),
     turns.map((t) => `${t.stance}: slid ${t.slid} mm, lifted ${t.high} mm`).join("; "),
   );
+  // A moving soldier's planted foot keeps its place on the floor (Milestone 833): each moving clip played at the figure's
+  // speed over the ground its stride covers. A foot is planted while low and going back against the body, and its speed
+  // back then against the body's is the match (1: still on the floor). The crouch walk was played as though its stride
+  // covered 2.2 m/s and the walk 1.6, where they cover about 0.63 and 0.9: a crouched enemy's feet went over a quarter
+  // of the ground it crossed. The jog's ankle and the sprint's toe (a sprinter lands on the forefoot) were right.
+  const gaits = await ev<Array<{ label: string; match: number }>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE, out = [];
+      for (const [label, stance, speed, bone] of [["walk 2.0", "stand", 2.0, "foot"], ["jog 6.1", "stand", 6.1, "foot"], ["sprint 14", "stand", 14, "ball"], ["crouch 2.03", "crouch", 2.03, "foot"]]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed, stance, pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        r.figureLabStep(1);
+        const way = new T.Vector3(0, 0, 1).applyQuaternion(f.group.quaternion);
+        const rows = [];
+        for (let i = 0; i < 180; i++) {
+          r.figureLabStep(1 / 60);
+          rows.push(["l", "r"].map((s) => f.mq.bone(bone + "_" + s).getWorldPosition(new T.Vector3())));
+        }
+        const back = [];
+        for (const k of [0, 1])
+          for (let i = 20; i < rows.length - 20; i++) {
+            let low = Infinity;
+            for (let j = i - 20; j <= i + 20; j++) low = Math.min(low, rows[j][k].y);
+            const v = -rows[i + 1][k].clone().sub(rows[i - 1][k]).dot(way) * 30;
+            if (rows[i][k].y - low <= 0.015 && v > 0) back.push(v);
+          }
+        back.sort((a, b) => a - b);
+        out.push({ label, match: back.length ? Math.round((back[Math.floor(back.length / 2)] / speed) * 100) : 0 });
+      }
+      return out;
+    })()`,
+  );
+  check(
+    "a moving soldier's planted foot goes back as fast as the soldier goes on (80 to 125% of it): walking, jogging, sprinting and crouched",
+    gaits.length === 4 && gaits.every((g) => g.match >= 80 && g.match <= 125),
+    gaits.map((g) => `${g.label}: ${g.match}%`).join(", "),
+  );
   // a landing taken in the legs (Milestone 611): a second in the air and down on the run, its legs (hips over the lower
   // ankle) come down to two thirds of their standing length for a moment (the run's clip alone, 83%), and no ankle goes
   // under its height on the floor

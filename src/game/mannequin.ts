@@ -133,6 +133,8 @@ const DOUBLE_JUMP = figureCfg.doubleJump;
 const LANDING = figureCfg.landing as { raise: number; bend: number; lean: number };
 /** standing or crouched still, each foot's toe brought down to its bind pose's (figure.json flatFeet) */
 const FLAT_FEET = figureCfg.flatFeet;
+/** the ground each moving clip's stride covers a second at its own pace, and where the jog and the sprint take over (figure.json gait) */
+const GAIT = figureCfg.gait as { walk: number; jog: number; sprint: number; crouch: number; jogFrom: number; sprintFrom: number };
 /** standing still, each foot held to its place on the floor as the body turns, and a step round (figure.json plant) */
 const PLANT = figureCfg.plant as { under: number; after: number; rate: number; stepAt: number; settle: number; stepTime: number; land: number; lift: number };
 /** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
@@ -1827,7 +1829,7 @@ export class MannequinFigure {
     switch (p.stance) {
       case "crouch":
         lower = speed > 0.3 ? "Crouch_Fwd_Loop" : "Crouch_Idle_Loop";
-        lowerRate = speed > 0.3 ? (speed / 2.2) * dirSign : 1;
+        lowerRate = speed > 0.3 ? (speed / GAIT.crouch) * dirSign : 1;
         break;
       case "slide":
         // the legs' and hips' slide, the gun held and aimed on top of it, the chest sat up (holdChestUp): played whole, the
@@ -1851,8 +1853,8 @@ export class MannequinFigure {
       case "wallL":
       case "wallR":
         // the run along the wall, its legs no quicker than a run's at mostRate (a wall run is twice a sprint's speed)
-        lower = speed > 6.2 ? "Sprint_Loop" : "Jog_Fwd_Loop";
-        lowerRate = Math.min(WALL_RUN.mostRate, speed / (speed > 6.2 ? 7.5 : 4.8)) * dirSign;
+        lower = speed > GAIT.sprintFrom ? "Sprint_Loop" : "Jog_Fwd_Loop";
+        lowerRate = Math.min(WALL_RUN.mostRate, speed / (speed > GAIT.sprintFrom ? GAIT.sprint : GAIT.jog)) * dirSign;
         break;
       case "skydive":
         // the body laid on the air and its limbs set out on top (skydiveLimbs), from a body standing at rest
@@ -1865,15 +1867,15 @@ export class MannequinFigure {
         } else if (this.t < this.landUntil) {
           lower = "Jump_Land";
           lowerRate = 2.2;
-        } else if (speed > 6.2) {
+        } else if (speed > GAIT.sprintFrom) {
           lower = "Sprint_Loop";
-          lowerRate = (speed / 7.5) * dirSign;
-        } else if (speed > 2.6) {
+          lowerRate = (speed / GAIT.sprint) * dirSign;
+        } else if (speed > GAIT.jogFrom) {
           lower = "Jog_Fwd_Loop";
-          lowerRate = (speed / 4.8) * dirSign;
+          lowerRate = (speed / GAIT.jog) * dirSign;
         } else if (speed > 0.3) {
           lower = "Walk_Loop";
-          lowerRate = (speed / 1.6) * dirSign;
+          lowerRate = (speed / GAIT.walk) * dirSign;
         }
     }
     // an emote: the gun put away, the arms hanging from the legs' clip, and the pose on top (below);
@@ -1889,7 +1891,7 @@ export class MannequinFigure {
     // A jump out of a sprint keeps the sprint's carry, as a runner's gun stays low until they aim: raised in the air and
     // lowered again on landing, the stock swept through the right forearm both ways. And a gun carried low into the
     // landing stays low until the landing is over, to come up in the standing body (Phase 27, 27.12)
-    const sprintJump = (p.stance === "air" && speed > 6.2) || (lower === "Jump_Land" && this.lowered > 0.5);
+    const sprintJump = (p.stance === "air" && speed > GAIT.sprintFrom) || (lower === "Jump_Land" && this.lowered > 0.5);
     // the hands: a full-body clip takes them too; otherwise the gun's pose, or the arms' swing
     let upper = lower;
     let upperRate = lowerRate;
