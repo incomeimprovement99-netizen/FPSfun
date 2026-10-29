@@ -13025,6 +13025,31 @@ with its defaults, nothing kept past the visit. A full storage (every write refu
 - **Checked:** tsc, verify, rules; e2e start, a new check: a page whose storage throws loads to the start screen and the
   tutorial plays (with the old read put back, it never loaded, and the page error showed).
 
+## Milestone 737 — The arena's modes when a friend drops or the host goes
+
+A review of src/game/modematch.ts (team deathmatch, free-for-all and Control with friends) for the faults the battle
+royale's own review found in brmatch.ts (Milestone 726) found four:
+
+- **A new host with the friends split shot through its enemies:** each bot the page runs is taken out of reach of that
+  page's rounds when it is on that page's side, and the test was "team 0", the first host's. The heir is the lowest
+  guest, on team 1 when the friends are split, so after the host left its rounds passed through every bot it fought,
+  and one of its own bots it hit went down without the down being counted, and stayed down for the rest of the match. It
+  is the page's own team now.
+- **A friend whose held seat ran out stayed on the board:** a dropped connection holds a seat for 60 s; only a goodbye
+  took the player's row off the board, so a free-for-all's clock could name a player long gone its winner. Every way
+  out takes them off (playerGone).
+- **A dropped friend's still figure fought on:** while the seat was held their figure stood where it was, counted on
+  Control's zones (taking and holding one), and the bots shot at it for the whole hold. A held seat is nobody's to fight.
+- **A side with nobody left on it played on:** friends split with no bots, the other side all gone, or a free-for-all
+  down to one, ran on to the clock with nobody to fight, and the clock could give the win to the side that had left.
+  The side that is left wins (lastSide); a held seat still counts, and a free-for-all you started alone is not ended.
+- **Left as it is:** Control respawns you on your most forward zone while the other side is taking it (the zone is yours
+  until it turns); the next milestones take the short start, the starts' points and the friendly fire rule.
+- **Checked:** tsc, verify, rules; e2e modes, two new checks: a free-for-all friend whose connection drops is nobody's
+  to fight while the seat is held and off the board after (the host plays on), and with the friends split the other
+  side's only player leaving ends the match, the host's side's; e2e migrate, a new run with the friends split and bots:
+  the new host's rounds reach every bot of the other side and none of its own.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

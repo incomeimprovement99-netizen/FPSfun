@@ -252,8 +252,10 @@ export class ArenaMode extends Duel {
       this.board.row(id);
       const mb: ModeBot = { bot, team, respawnAt: Infinity, goal: Math.floor(Math.random() * 12) };
       this.bots.push(mb);
-      // a team mate's bullets pass through it (it is not a target for this side's guns)
-      if (tdm && team === 0) projectiles.removeDummy(bot.dummy);
+      // a team mate's bullets pass through it (it is not a target for this side's guns). This page's side, not team 0:
+      // an heir with the friends split is on team 1, and its rounds went through the bots it fought and downed its own
+      // for good (Milestone 737)
+      if (tdm && team === this.teamFor(this.id)) projectiles.removeDummy(bot.dummy);
       return mb;
     }
   }
@@ -359,6 +361,9 @@ export class ArenaMode extends Duel {
     if (me) out.push({ id: this.id, x: me.x, y: me.y, z: me.z, alive: this.alive, low: me.crouch });
     // a guest's remotes include the host's bots (the host's own are in this.bots)
     for (const r of this.remotes.values()) {
+      // a dropped guest's figure stands where it was while its seat is held: it took and held Control's zones, and the
+      // bots shot at it, for the whole hold (Milestone 737)
+      if (this.held.has(r.id)) continue;
       const s = r.samples[r.samples.length - 1];
       if (s) out.push({ id: r.id, x: s.x, y: s.y, z: s.z, alive: r.alive, low: s.stance === "crouch" || s.stance === "slide" });
     }
@@ -800,6 +805,11 @@ export class ArenaMode extends Duel {
       }
       return;
     }
+    const alone = this.lastSide();
+    if (alone !== null) {
+      this.endMatch(alone, now);
+      return;
+    }
     const fighters = this.fighters();
     // Control: the zones, the points, the bonus and the lockout
     if (this.control) {
@@ -843,6 +853,23 @@ export class ArenaMode extends Duel {
       this.applyBotShots(b, sense.targetId, shots, now);
       if (this.phase !== "fight") return;
     }
+  }
+
+  /**
+   * The host: who has won by being all that is left, once a player has gone. Friends split with no bots on the far
+   * side, all of them gone, or a free-for-all down to you: the match ran on to its clock with nobody to fight, and at the
+   * clock could give the win to the side that had left (Milestone 737). A seat held for a dropped friend still counts.
+   */
+  private lastSide(): number | null {
+    const humans = [this.id, ...this.links.keys(), ...this.held.keys()];
+    if (humans.length >= this.players) return null;
+    if (teamMode(this.modeKind)) {
+      const on = [0, 0];
+      for (const id of humans) on[this.teamFor(id)]++;
+      for (const b of this.bots) on[b.team]++;
+      return on[0] && on[1] ? null : TEAM_WIN(on[0] ? 0 : 1);
+    }
+    return humans.length + this.bots.length < 2 ? this.id : null;
   }
 
   /** a shot here or a guest's: the bots in earshot may come to look */
@@ -983,11 +1010,13 @@ export class ArenaMode extends Duel {
     }
   }
 
-  /** a guest left: off the board */
-  protected override guestLeft(id: number): void {
-    super.guestLeft(id);
-    if (this.ended || this.role !== "host") return;
-    this.board.remove(id);
+  /**
+   * A player gone for good: off the board. Only a goodbye took them off it; a held seat that ran out left their row, so a
+   * free-for-all's clock could name them its winner (Milestone 737).
+   */
+  protected override playerGone(id: number, notice: string): void {
+    super.playerGone(id, notice);
+    if (!this.ended) this.board.remove(id);
   }
 
   // ------------------------------------------------------------ the HUD

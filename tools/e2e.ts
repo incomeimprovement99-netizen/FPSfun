@@ -878,6 +878,17 @@ async function modesFriendsTest(browser: Browser, query: string): Promise<void> 
   check("figures: the guest aims down sights and the host's figure of the guest raises its gun", aimed, JSON.stringify(await ev(host, "window.__range.duel().remotes.get(1)?.avatar.currentPose")));
   // (a heal's item in the figure's hand was the legacy game's: SpeedKills heals with its HEAL hack, and its health
   // comes back on its own)
+  // (Milestone 737) the guest's connection drops and it never comes back: while its seat is held its still figure is
+  // nobody's to fight (bots shot at it, Control's zones counted it), and once the hold runs out it is off the board (a
+  // free-for-all's clock could name it the winner); the host plays on against its bot
+  await ev(host, "window.__range.duel().rejoin = () => false");
+  await ev(guest, "window.__range.duel().dropHostLink()");
+  const heldNow = await host.waitForFunction("window.__range.duel().held.has(1)", { polling: 100, timeout: 8000 }).then(() => true, () => false);
+  const fights = await ev<number[]>(host, "window.__range.duel().fighters().map((f) => f.id)");
+  await ev(host, "window.__range.duel().held.set(1, 0)");
+  const offBoard = await host.waitForFunction("!window.__range.duel().held.has(1) && !window.__range.duel().board.sorted.some((r) => r.id === 1)", { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  const goesOn = await ev<string>(host, "window.__range.duel().phase");
+  check("modes friends: a dropped friend's held seat is nobody's to fight, and once the hold runs out they are off the board; the host plays on against its bot", heldNow && !fights.includes(1) && offBoard && goesOn === "fight", JSON.stringify({ heldNow, fights, offBoard, goesOn, rows: await ev(host, "window.__range.duel().board.sorted.map((r) => r.id)") }));
   await ev(guest, "window.__range.duel()?.leave()");
   await host.waitForFunction("window.__range.duel() === null || window.__range.duel().phase", { polling: 200, timeout: 5000 }).catch(() => undefined);
   await ev(host, "window.__range.duel()?.leave()");
@@ -3413,7 +3424,7 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
  * seat. The match goes on: the same match on both pages, the score and the
  * clock carried over, and the two hearing each other.
  */
-async function migrateTest(browser: Browser, query: string, label = "host migration", kind = "ffa", bots = 0): Promise<void> {
+async function migrateTest(browser: Browser, query: string, label = "host migration", kind = "ffa", bots = 0, sides = "together"): Promise<void> {
   const host = await open(browser, query);
   const b = await open(browser, query);
   const c = await open(browser, query);
@@ -3421,7 +3432,7 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
   const close = async () => {
     for (const p of pages) if (!p.isClosed()) await p.close();
   };
-  await ev(host, `(() => { document.getElementById("duelMode").value = "${kind}"; document.getElementById("modeBots").value = "${bots}"; document.getElementById("modeSides").value = "together"; document.getElementById("botDifficulty").value = "mixed"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
+  await ev(host, `(() => { document.getElementById("duelMode").value = "${kind}"; document.getElementById("modeBots").value = "${bots}"; document.getElementById("modeSides").value = "${sides}"; document.getElementById("botDifficulty").value = "mixed"; document.getElementById("duelPlayers").value = "3"; document.getElementById("duelHost").click(); })()`);
   try {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
     const code = await ev<string>(host, `document.querySelector("#duelStatus .code").textContent`);
@@ -3486,6 +3497,10 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
     const figures = await ev<number>(heir, "[...window.__range.duel().remotes.keys()].filter((id) => id >= 100).length");
     const extra = kind === "control" ? await ev<{ zones: number; heirZones: number }>(heir, "(() => { const d = window.__range.duel(); return { zones: d.control ? d.control.zones.length : 0, heirZones: d.control ? 1 : 0 }; })()") : null;
     check(`${label}: the bots are the same ones, each with its tier and team, run by the new host, and heard from on the other guest's screen`, botsBefore.length > 0 && botsAfter === botsBefore && figures === 0 && botFlow < HEARD && (!extra || extra.zones === 3), JSON.stringify({ botsBefore, botsAfter, figures, botFlow, extra }));
+    // (Milestone 737) the new host's rounds hit the bots of the other side and pass through its own: with the friends
+    // split the heir is on team 1, and it took team 0's out of reach (its enemies) and left its own to be downed for good
+    const reach = await ev<Array<[number, boolean]>>(heir, "(() => { const d = window.__range.duel(); const mine = d.teamFor(d.id); return d.bots.map((b) => [b.team === mine ? 1 : 0, d.projectiles.dummies.includes(b.bot.dummy)]); })()");
+    check(`${label}: the new host's rounds can hit every bot of the other side and none of its own`, reach.length > 0 && reach.every(([own, hit]) => hit === !own), JSON.stringify(reach));
   }
   // and the new host names its own heir: the last guest
   const next = await heir.waitForFunction(`window.__range.duel().heir === ${otherId}`, { polling: 200, timeout: 5000 }).then(() => true, () => false);
@@ -4109,6 +4124,12 @@ async function modesSplitTest(browser: Browser, query: string): Promise<void> {
   await ev(host, `(() => { const d = window.__range.duel(); const r = [...d.remotes.values()].find((x) => x.id === 1); d.localHit(r, 30, false); })()`);
   const hurt = await guest.waitForFunction(`window.__range.duel().health + window.__range.duel().shield < ${hp0}`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
   check("split sides: the host's hit on the other side lands", hurt);
+  // (Milestone 737) the guest leaves, and nobody is left on its side: the match is over, the host's side's. It ran on to
+  // its clock with nobody to fight
+  await ev(guest, "window.__range.duel()?.leave()");
+  const over = await host.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 200, timeout: 6000 }).then(() => true, () => false);
+  const won = await ev<string | null>(host, "window.__range.duel()?.hud().mode?.winner ?? null");
+  check("split sides: the other side's only player leaves, and the match is over, won by the host's side", over && won === "YOUR TEAM", JSON.stringify({ over, won }));
   await host.close();
   await guest.close();
 }
@@ -9516,6 +9537,8 @@ async function main(): Promise<void> {
       await migrateTest(browser, "?net=local&norender", "host migration (tdm)", "tdm", 6);
       console.log("\nHost migration in Control, with bots");
       await migrateTest(browser, "?net=local&norender", "host migration (control)", "control", 3);
+      console.log("\nHost migration in team deathmatch with the friends split, with bots");
+      await migrateTest(browser, "?net=local&norender", "host migration (tdm, split)", "tdm", 4, "split");
       console.log("\nHost migration in a battle royale");
       await brMigrateTest(browser, "?net=local&norender");
     });
