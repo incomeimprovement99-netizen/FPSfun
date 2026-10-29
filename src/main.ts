@@ -3572,6 +3572,15 @@ function hackMesh(color: number, r: number, h: number, opacity = 0.28): THREE.Me
 /** the enemies near a spot: their record and their figure (bots and players both) */
 function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote; fig: Dummy }> {
   const d = duel;
+  // the arena alone with bots, whose match is no Duel: its bots (SLAM and MINE found nobody there, Milestone 893)
+  if (d instanceof BotMatch) {
+    const out: Array<{ rem: Remote; fig: Dummy }> = [];
+    for (const a of d.avatars) {
+      const rem = d.remoteOf(a);
+      if (rem && rem.alive && a.group.position.distanceTo(at) <= r) out.push({ rem, fig: a });
+    }
+    return out;
+  }
   if (!(d instanceof Duel)) return [];
   const out: Array<{ rem: Remote; fig: Dummy }> = [];
   for (const a of d.avatars) {
@@ -3609,12 +3618,14 @@ function seesBody(at: THREE.Vector3, fig: Dummy): boolean {
 /** a hack's damage on a figure, the way a bullet's reaches it: its own hit, then the match's, and its number as a shot's */
 function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
   const d = duel;
-  if (!(d instanceof Duel)) return;
+  if (!(d instanceof Duel) && !(d instanceof BotMatch)) return;
   const onShield = rem.shield > 0;
   const at = fig.group.position.clone().add(new THREE.Vector3(0, 1, 0));
   fig.hit(gameTime, "body", amount, 1, 1, at);
   const felt = amount * armorScaleOf(rem.id);
-  d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position), felt);
+  // (a bots' arena's own way in for a hit, as a round's: its bot a dummy whose hit() took it, Milestone 893)
+  if (d instanceof Duel) d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position), felt);
+  else d.localHit(rem, amount);
   const broke = onShield && rem.shield <= 0 && rem.health > 0;
   if (onShield) shieldFx(fig, at, ARMOR_COLOR[2], broke);
   hud.addDamage(fig.overHead(hudCfg.damageNumbers.over), felt, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", false, gameTime, rem);
@@ -3692,7 +3703,8 @@ function resetHacks(): void {
 /** fire a slot's hack, if it is ready */
 function useHack(slot: HackSlot, now: number): void {
   const d = duel;
-  if (d instanceof Duel && (!d.alive || !d.canFire)) return;
+  // (any match's: alone with bots, a hack went off in the countdown, Milestone 893)
+  if (d && (!d.alive || !d.canFire)) return;
   if (player.aboard) return;
   // the tutorial teaches them in their own room, and they are off until then (Milestone 633)
   if (!d && tutorial.hacksLocked) {
@@ -3815,7 +3827,7 @@ function useHack(slot: HackSlot, now: number): void {
     }
     case "invis": {
       invisUntil = now + H.invis.seconds;
-      if (d instanceof Duel) d.hiddenUntil.set(d.id, realNow() + H.invis.seconds);
+      hideMe(realNow() + H.invis.seconds);
       if (!audio.hackSound("invis")) audio.whoosh();
       sendFx("sk", player.pos.clone(), new THREE.Vector3(H.invis.seconds, 0, 0), 5);
       break;
@@ -3855,10 +3867,19 @@ function useHack(slot: HackSlot, now: number): void {
   viewModel.castHack(id);
   if (id !== "invis" && now < invisUntil) {
     invisUntil = -Infinity;
-    if (d instanceof Duel) d.hiddenUntil.delete(d.id);
+    hideMe(null);
     sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
   }
   hud.notice(name, now, 0.6);
+}
+
+/** your INVISIBILITY as the match's bots read it: until `until` on the page's wall clock, or over (null); a bots' arena too */
+function hideMe(until: number | null): void {
+  const d = duel;
+  if (!(d instanceof Duel) && !(d instanceof BotMatch)) return;
+  const id = d instanceof Duel ? d.id : 0;
+  if (until === null) d.hiddenUntil.delete(id);
+  else d.hiddenUntil.set(id, until);
 }
 
 /**
@@ -3880,7 +3901,7 @@ function stepHacks(now: number, dt: number): void {
   const d = duel;
   // ARMOR: most of a hit taken away, and slower while it lasts
   const armored = now < armorUntil;
-  if (d instanceof Duel) d.incomingScale = armored ? H.armor.damageScale : 1;
+  if (d instanceof Duel || d instanceof BotMatch) d.incomingScale = armored ? H.armor.damageScale : 1;
   // a ghost is quicker than anyone alive (speedkills.json life ghostSpeed)
   const ghost = d instanceof BrMatch && d.ghost;
   player.hackSlow = ghost ? (PROFILE.life.ghostSpeed ?? 1) : armored ? H.armor.speedScale : 1;
@@ -3893,7 +3914,7 @@ function stepHacks(now: number, dt: number): void {
   // INVISIBILITY ends when you fire, or aim in (Hyper Scape's rule; Phase 20 A9)
   if (now < invisUntil && (now - loadout.active.state.lastShotAt < 0.05 || loadout.active.state.adsFrac > 0.1)) {
     invisUntil = -Infinity;
-    if (d instanceof Duel) d.hiddenUntil.delete(d.id);
+    hideMe(null);
     sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
   }
   // GRAPPLE: a pull along the line until you arrive, hit something, or it gives out
@@ -8410,7 +8431,7 @@ const GALLERY = { x: 0, z: -8 };
     shards: () => fx.shards.count,
     /** hud.json shieldFx itself, live: a photo of the flare, the shards and the marker stretches their seconds (tools) */
     shieldFx: () => hudCfg.shieldFx,
-    state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, slamRing: { ...slamRingState }, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel ? duel.incomingScale : 1 }),
+    state: () => ({ armored: gameTime < armorUntil, invisible: gameTime < invisUntil, slam: skSlam?.phase ?? null, slamRing: { ...slamRingState }, pulling: !!skPull, leap: skLeap, healZones: healZones.length, mines: mines.length, hackSlow: player.hackSlow, incoming: duel instanceof Duel || duel instanceof BotMatch ? duel.incomingScale : 1 }),
     fusion: () => loadout.slots.map((sl) => sl.fusion ?? 0),
     /** the city's edge as this page has it (Phase 20 A4): past it, the countdown */
     edge: () => ({ out: edge.since !== null, since: edge.since, struckAt: edge.struckAt, left: edge.left(gameTime), armed: edgeArmed, inside: edgeInside.toArray(), city: { ...BR_BOUNDS }, wall: { ...EDGE_BOUNDS }, margin: EDGE.margin }),

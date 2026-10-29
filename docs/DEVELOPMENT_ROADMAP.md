@@ -13390,6 +13390,19 @@ From the same review, two more:
   e2e speedkills, a new check: someone's mine goes when it blows 16 m from where it was put down, and their next past
   the cap takes the old one (each failing on the old code).
 
+## Milestone 893 — Your hacks alone with bots
+
+From the review of the hacks (Milestone 890). "Arena, Bots" played alone starts a BotMatch, which is no Duel, and the
+hacks asked for a Duel everywhere: a SLAM's landing found nobody, a MINE never went off and sat out its 30 s, ARMOR only
+slowed you (a hit's share is the Duel's), INVISIBILITY hid you from no bot, and a hack could be cast in the round's
+countdown. The bots' arena has ARMOR's share and INVISIBILITY's clock now (bots.ts BotMatch incomingScale, hiddenUntil,
+your last shot giving you away), SLAM and MINE find its bots and hurt them as your rounds do (main.ts enemiesNear,
+hackHurt), and a hack waits for the fight in any match.
+
+- **Checked:** tsc, verify, rules; e2e bots, a new check of its own page: a SLAM's landing reaches the bot, ARMOR takes
+  its share of a hit, and INVISIBILITY hides you (on the old code, none of the three).
+- **Left as it is:** a WALL put up at an angle collides as the box round it, up to 3.2 m square.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -1475,6 +1475,24 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
 }
 
 /** one page against a bot: it comes for you, shoots, and can be knocked */
+/**
+ * Your hacks alone with bots (Milestone 893): a SLAM's landing reaches the bot, ARMOR takes its share of a hit, and
+ * INVISIBILITY is the match's to read. Its match is no Duel, and all three did nothing there. A page of its own, as the
+ * ARMOR and INVISIBILITY it turns on would change what botsTest measures after.
+ */
+async function botHacksTest(browser: Browser, query: string): Promise<void> {
+  const page = await open(browser, query);
+  await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
+  await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`);
+  await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 100, timeout: 60000 }).catch(() => undefined);
+  const got = await ev<{ reach: boolean; incoming: number; hidden: boolean } | null>(page, `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); if (!d || !d.avatars.length) return ok(null); const b = d.avatars[0]; const id = d.remoteOf(b).id; const p = b.group.position;
+    const reach = r.sk.burstReach(p.x + 2, p.y, p.z).includes(id); r.sk.setHack("armor"); r.sk.use("utility");
+    requestAnimationFrame(() => requestAnimationFrame(() => { const incoming = r.sk.state().incoming; r.sk.setHack("invis"); r.sk.use("utility"); const hidden = (d.hiddenUntil?.get(0) ?? -Infinity) > performance.now() / 1000; ok({ reach, incoming, hidden }); })); }))()`);
+  check("bots: your hacks work alone with bots: a SLAM reaches the bot, ARMOR takes its share of a hit, INVISIBILITY hides you", !!got && got.reach && got.incoming < 1 && got.hidden, JSON.stringify(got));
+  await ev(page, "window.__range.duel()?.leave()");
+  await page.close();
+}
+
 async function botsTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
@@ -9750,6 +9768,7 @@ async function main(): Promise<void> {
     if (want("bots")) await section("bots", async () => {
       console.log("\nArena, Bots");
       await botsTest(browser, "?norender");
+      await botHacksTest(browser, "?norender");
       console.log("\nBot tiers");
       await botTiersTest(browser, "?norender");
       console.log("\nWhere you are being shot from");

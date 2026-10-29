@@ -1586,6 +1586,14 @@ export class BotMatch implements MatchLike {
   shield = SHIELD_MAX;
   shieldMax = SHIELD_MAX;
   alive = true;
+  /**
+   * What your hacks need of a match, as a Duel has them (Milestone 893): ARMOR's share of a hit that reaches you, and
+   * when your INVISIBILITY runs out (by id, yours 0) with your last shot, which gives you away. Alone in the arena with
+   * bots this match is no Duel, and SLAM, MINE, ARMOR and INVISIBILITY did nothing in it.
+   */
+  incomingScale = 1;
+  readonly hiddenUntil = new Map<number, number>();
+  private lastShotAt = -Infinity;
   /** the tests: the bots hold their fire (they still move and see), as the battle royale's can */
   holdFire = false;
   /** the kits that show an enemy (SCOUT, SMOKE) work here too: the practice is where a kit is learned */
@@ -1715,6 +1723,7 @@ export class BotMatch implements MatchLike {
 
   localShot(origin?: THREE.Vector3): void {
     this.shots++;
+    this.lastShotAt = wallClock();
     // the bots in earshot may come to look
     if (origin) for (const b of this.bots) b.hear(origin, wallClock());
   }
@@ -1804,6 +1813,7 @@ export class BotMatch implements MatchLike {
 
   private takeHit(amount: number, from: Bot | null = null, weapon = "", dist: number | null = null): void {
     if (!this.alive || this.phase !== "fight") return;
+    amount *= this.incomingScale;
     const toShield = Math.min(this.shield, amount);
     this.shield -= toShield;
     this.health = Math.max(0, this.health - (amount - toShield));
@@ -1863,9 +1873,11 @@ export class BotMatch implements MatchLike {
     }
 
     // the bots think and shoot; a hit on you lands at once, with the bot's gun and distance for the recap
+    // (not under your INVISIBILITY, unless you have just fired: as the other matches' bots, Milestone 893)
+    const unseen = (this.hiddenUntil.get(0) ?? -Infinity) > now && now - this.lastShotAt >= 0.5;
     for (const b of this.bots) {
       const before = b.alive;
-      const sees = this.alive && b.alive && !b.dropping && b.sees(feet);
+      const sees = this.alive && b.alive && !b.dropping && !unseen && b.sees(feet);
       // (on THE CENTRE by the city's graph, round the tower's podium and up its stairs, not straight into them)
       const goal = this.nav ? this.nav.step(b.pos, center, new THREE.Vector3()) : center;
       const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal, canShoot: this.phase === "fight" && !this.holdFire });
