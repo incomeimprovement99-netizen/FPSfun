@@ -7567,6 +7567,44 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     gaits.length === 4 && gaits.every((g) => g.match >= 80 && g.match <= 125),
     gaits.map((g) => `${g.label}: ${g.match}%`).join(", "),
   );
+  // and on a strafe it goes sideways over the floor, not along it (Milestone 834): the legs turned at most 72 degrees
+  // toward the way it moved, so a strafe straight to the side ran them 18 degrees off it and the planted toe slid
+  // sideways at a third of the speed. The planted foot's speed across the way it moves, against its speed
+  const strafes = await ev<Array<{ label: string; across: number }>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE, out = [];
+      for (const [label, stance, speed, dir, bone] of [["right 8.8", "stand", 8.8, Math.PI / 2, "ball"], ["left 8.8", "stand", 8.8, -Math.PI / 2, "ball"], ["crouched 2.03", "crouch", 2.03, Math.PI / 2, "foot"]]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed, stance, pitch: 0, moveDir: dir, ads: 1, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        r.figureLabStep(1);
+        // (its +z is its front and +x its left, so a move to its right is toward -x)
+        const way = new T.Vector3(-Math.sin(dir), 0, Math.cos(dir)).applyQuaternion(f.group.quaternion);
+        const side = new T.Vector3(0, 1, 0).cross(way);
+        const rows = [];
+        for (let i = 0; i < 180; i++) {
+          r.figureLabStep(1 / 60);
+          rows.push(["l", "r"].map((s) => f.mq.bone(bone + "_" + s).getWorldPosition(new T.Vector3())));
+        }
+        const across = [];
+        for (const k of [0, 1])
+          for (let i = 20; i < rows.length - 20; i++) {
+            let low = Infinity;
+            for (let j = i - 20; j <= i + 20; j++) low = Math.min(low, rows[j][k].y);
+            const d = rows[i + 1][k].clone().sub(rows[i - 1][k]).multiplyScalar(30);
+            if (rows[i][k].y - low <= 0.015 && d.dot(way) < 0) across.push(Math.abs(d.dot(side)));
+          }
+        across.sort((a, b) => a - b);
+        out.push({ label, across: across.length ? Math.round((across[Math.floor(across.length / 2)] / speed) * 100) : 99 });
+      }
+      return out;
+    })()`,
+  );
+  check(
+    "on a strafe straight to the side its planted foot slides sideways at no more than a tenth of its speed: both ways at the run's 8.8 m/s, and crouched",
+    strafes.length === 3 && strafes.every((s) => s.across <= 10),
+    strafes.map((s) => `${s.label}: ${s.across}%`).join(", "),
+  );
   // a landing taken in the legs (Milestone 611): a second in the air and down on the run, its legs (hips over the lower
   // ankle) come down to two thirds of their standing length for a moment (the run's clip alone, 83%), and no ankle goes
   // under its height on the floor

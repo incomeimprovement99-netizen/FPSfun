@@ -17293,3 +17293,25 @@ forefoot) were right. Found looking further for the owner's "things that could b
     the old speeds put back it fails on the walk (54%) and the crouch (29%), and nothing else does. The whole soldier
     section: 331 checks, E2E PASS.
   - verify, rules and the type check.
+
+## Milestone 834 — A strafe's feet go sideways with it
+
+On a strafe the body stays on its aim and the legs turn toward the way it moves, the run played along them. They
+turned at most 72 degrees, so a strafe straight to the side (A or D, at the run's 8.8 m/s, the way every fight is
+fought) ran the legs 18 degrees off the way the soldier went, and the planted toe slid sideways over the floor at 33 to
+37% of the speed: 60% at 105 degrees, 27 to 44% crouched. Measured with node_modules/.scratch/locoprobe.mts (a foot is
+planted while low and going back against the body). Found looking further for the owner's "things that could be fixed
+with 3rd person or enemy views".
+
+- **The legs turn the whole way to the side** (figure.json strafe, `legTurn` 90; it was a literal in dummy.ts): a
+  straight strafe slides 1 to 2% of its speed sideways, 105 degrees 27 to 29%, and crouched 6 to 12%. The twist is taken
+  at the waist, spine_01 turned back by as much, so the chest and the gun stay on the aim; photographed from behind and
+  from 45 degrees off the aim, it reads as a sideways run with the upper body held on target.
+- **The way back unchanged** (`backFrom`, 109 degrees, also a literal before, in dummy.ts and mannequin.ts): a straight
+  strafe is well inside it, so it never flickers between running forward and backward.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): a strafe straight to the side, both ways at 8.8 m/s and crouched, its
+    planted foot slides sideways at no more than a tenth of its speed. 1% right, 1% left and 6%
+    crouched. With the legs turned 72 degrees again it fails (34, 33 and 29%), and nothing else does. The whole soldier
+    section: 332 checks, E2E PASS.
+  - verify, rules and the type check.

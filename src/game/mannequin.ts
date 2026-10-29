@@ -133,6 +133,8 @@ const DOUBLE_JUMP = figureCfg.doubleJump;
 const LANDING = figureCfg.landing as { raise: number; bend: number; lean: number };
 /** standing or crouched still, each foot's toe brought down to its bind pose's (figure.json flatFeet) */
 const FLAT_FEET = figureCfg.flatFeet;
+/** past this way of moving from the way it faces, degrees, the legs run backward (figure.json strafe; dummy.ts turns them) */
+const BACK_FROM = (figureCfg.strafe as { backFrom: number }).backFrom;
 /** the ground each moving clip's stride covers a second at its own pace, and where the jog and the sprint take over (figure.json gait) */
 const GAIT = figureCfg.gait as { walk: number; jog: number; sprint: number; crouch: number; jogFrom: number; sprintFrom: number };
 /** standing still, each foot held to its place on the floor as the body turns, and a step round (figure.json plant) */
@@ -1785,7 +1787,7 @@ export class MannequinFigure {
       this.staggerSeen = fx.stagger;
       this.staggerUntil = this.t + 0.3;
     }
-    const back = speed > 0.3 && Math.abs(p.moveDir ?? 0) > 1.9;
+    const back = speed > 0.3 && Math.abs(p.moveDir ?? 0) > BACK_FROM * DEG;
     const dirSign = back ? -1 : 1;
     const onWall = p.stance === "wallL" || p.stance === "wallR";
     // in the skydive the hands are the body's: the gun put away until the ground (Apex's legends fall with empty hands)

@@ -165,8 +165,10 @@ export const actFromCode = (c: number | undefined): FigureAct => (c === VENT ? "
 /** the act code is a reload from empty */
 export const emptyReloadOf = (c: number | undefined): boolean => c === EMPTY_RELOAD;
 
-/** the legs turn at most this far from the body toward the way it moves (a strafe) */
-const LEG_TURN = 1.25;
+/** the legs turn at most this far from the body toward the way it moves (a strafe), and past backFrom it runs backward (figure.json strafe) */
+const STRAFE = figureCfg.strafe as { legTurn: number; backFrom: number };
+const LEG_TURN = (STRAFE.legTurn * Math.PI) / 180;
+const BACK_FROM = (STRAFE.backFrom * Math.PI) / 180;
 /** standing still, the feet stay planted while the body turns, until it has turned this far (radians, 50 degrees); then a step round */
 export const TURN_STEP_AT = 0.87;
 /** the step round: the hips catch up at this rate (1/s), and the feet step round after them (mannequin.ts plantFeet) */
@@ -832,7 +834,7 @@ export class Dummy {
     const dir = p.moveDir ?? 0;
     // (a wall run's legs run along the wall, whichever way the body looks)
     const moving = speed > 0.3 && (p.stance === "stand" || p.stance === "crouch" || p.stance === "wallL" || p.stance === "wallR");
-    const back = moving && Math.abs(dir) > 1.9;
+    const back = moving && Math.abs(dir) > BACK_FROM;
     let legYaw = 0;
     if (moving) {
       const d = back ? Math.atan2(Math.sin(dir - Math.PI), Math.cos(dir - Math.PI)) : dir;
