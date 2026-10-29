@@ -186,5 +186,23 @@ console.log("SpeedKills' movement where it went wrong (player.ts)");
   check("a wall run ends in the mantle it runs into", mantled > 0 && onWallMantling === 0, JSON.stringify({ mantled, onWallMantling }));
 }
 
+// (Milestone 869) a frame's hitch at speed does not carry the body through a thin wall: at 14 m/s (a slide jump's) at a
+// wall 0.25 m thick, one frame of 0.1 s (the game's longest), from twelve points between touching it and a stride short
+{
+  world([{ minX: -10, maxX: 10, minZ: -5.25, maxZ: -5, top: 6 }]);
+  let through = 0;
+  for (let k = 0; k < 12; k++) {
+    const p = player();
+    const inp = new Script();
+    inp.hold("forward");
+    p.teleport(0, 1, -4.3 - k * 0.025, 0);
+    p.vel.set(0, 0, -14);
+    p.update(0.1, 100.1, inp, 0, 1, false);
+    inp.endFrame();
+    if (p.pos.z < -5.25) through++;
+  }
+  check("a 0.1 s frame at 14 m/s does not carry the body through a 0.25 m wall", through === 0, `${through} of 12 through`);
+}
+
 console.log(fails === 0 ? "\nSK MOVES PASS" : `\nSK MOVES FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

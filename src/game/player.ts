@@ -1981,31 +1981,41 @@ export class Player {
     const feet = this.pos.y;
     const bodyH = this.crouched || this.sliding ? MOVE.crouchHeight : MOVE.standHeight;
 
-    // X. Push out to the face we came from, chosen by the PREVIOUS position.
+    // X. Push out to the face we came from, chosen by the PREVIOUS position. A move longer than the body's radius is
+    // tested along its way, a radius at a time: tested only where it ended, one 0.1 s frame at a sprint (a hitch) carried
+    // the body through a wall 0.25 m thick, and the grapple through one at a steady 20 fps (Milestone 869)
     const fromX = this.pos.x;
     const nx = fromX + this.vel.x * dt;
+    const legsX = Math.max(1, Math.ceil(Math.abs(nx - fromX) / r));
     let hitX = false;
-    for (const s of this.overlapping(nx, this.pos.z, r)) {
-      if (!this.blocks(s, feet, bodyH)) continue;
-      hitX = true;
-      const mid = (s.minX + s.maxX) / 2;
-      this.pos.x = fromX <= mid ? s.minX - r : s.maxX + r;
-      this.vel.x = 0;
-      break;
+    for (let k = 1; k <= legsX && !hitX; k++) {
+      const tx = fromX + ((nx - fromX) * k) / legsX;
+      for (const s of this.overlapping(tx, this.pos.z, r)) {
+        if (!this.blocks(s, feet, bodyH)) continue;
+        hitX = true;
+        const mid = (s.minX + s.maxX) / 2;
+        this.pos.x = fromX <= mid ? s.minX - r : s.maxX + r;
+        this.vel.x = 0;
+        break;
+      }
     }
     if (!hitX) this.pos.x = nx;
 
-    // Z
+    // Z (along its way too)
     const fromZ = this.pos.z;
     const nz = fromZ + this.vel.z * dt;
+    const legsZ = Math.max(1, Math.ceil(Math.abs(nz - fromZ) / r));
     let hitZ = false;
-    for (const s of this.overlapping(this.pos.x, nz, r)) {
-      if (!this.blocks(s, feet, bodyH)) continue;
-      hitZ = true;
-      const mid = (s.minZ + s.maxZ) / 2;
-      this.pos.z = fromZ <= mid ? s.minZ - r : s.maxZ + r;
-      this.vel.z = 0;
-      break;
+    for (let k = 1; k <= legsZ && !hitZ; k++) {
+      const tz = fromZ + ((nz - fromZ) * k) / legsZ;
+      for (const s of this.overlapping(this.pos.x, tz, r)) {
+        if (!this.blocks(s, feet, bodyH)) continue;
+        hitZ = true;
+        const mid = (s.minZ + s.maxZ) / 2;
+        this.pos.z = fromZ <= mid ? s.minZ - r : s.maxZ + r;
+        this.vel.z = 0;
+        break;
+      }
     }
     if (!hitZ) this.pos.z = nz;
 

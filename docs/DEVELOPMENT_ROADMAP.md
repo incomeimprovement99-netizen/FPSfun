@@ -13326,6 +13326,19 @@ the streaks and the pose others saw; a mantle or a rope ends it.
 - **Left as they are:** a wall run's turn into an inside corner depends on the frame rate (7 of 40 at 30 fps, 37 at
   144), and a frame of 0.1 s at a sprint can carry a body through a wall 0.25 m thick (no sub-steps); both are next.
 
+## Milestone 869 — A hitch does not carry you through a wall
+
+From the review of the player's movement (Milestone 866). A frame's move along each axis was tested where it ended:
+the game's longest frame is 0.1 s, and one of those at speed (a hitch, a tab come back) moved a body past a thin wall
+with no test in between (simulated: at 14 m/s, 8 of 12 starts went through a 0.25 m wall; the Neon map has 7,338 tall
+walls 0.2 to 0.3 m thick and 588 thinner), and the grapple at 26 m/s through one at a steady 20 fps. A move longer than
+the body's radius is tested along its way now, a radius at a time (player.ts integrate); a frame's move at 60 fps is
+shorter than that, and is tested as before.
+
+- **Checked:** tsc, verify, rules; sk-moves.ts, a new line: a 0.1 s frame at 14 m/s from twelve points short of a 0.25 m
+  wall, none through (on the old test 8 of 12); e2e speedkills, skwall, sktutorial.
+- **Left as it is:** a wall run's turn into an inside corner depends on the frame rate (7 of 40 at 30 fps, 37 at 144).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
