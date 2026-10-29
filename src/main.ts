@@ -3725,8 +3725,9 @@ function useHack(slot: HackSlot, now: number): void {
       }
       const at = eyeAt.addScaledVector(fwd, reach);
       const to = new THREE.Vector3(at.x, Math.max(floorAt(at.x, at.z), at.y - (player.eyePosition().y - player.pos.y)), at.z);
-      player.teleport(to.x, to.y, to.z, player.yaw, player.pitch);
-      player.vel.set(player.vel.x, Math.max(0, player.vel.y), player.vel.z);
+      // (blink, not teleport: teleport zeroed the momentum this was to keep, Milestone 867)
+      player.blink(to.x, to.y, to.z);
+      player.vel.y = Math.max(0, player.vel.y);
       if (thirdPerson) fx.jolt(from, to, now);
       audio.jolt(1);
       audio.hackSound("dash");

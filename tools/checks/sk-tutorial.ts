@@ -70,9 +70,10 @@ function dash(p: Player, pitchDeg: number): void {
   const hit = solidHit(eye, fwd, hacksCfg.dash.distance);
   const reach = Math.max(0, Math.min(hacksCfg.dash.distance, (Number.isFinite(hit) ? hit : hacksCfg.dash.distance) - MOVE.radius * 1.5));
   const at = eye.addScaledVector(fwd, reach);
-  const v = p.vel.clone();
-  p.teleport(at.x, Math.max(0, at.y - (p.eyePosition().y - p.pos.y)), at.z, p.yaw, p.pitch);
-  p.vel.set(v.x, Math.max(0, v.y), v.z);
+  // (as main.ts moves you since Milestone 867: a blink, which keeps the momentum; the teleport this modelled zeroed it,
+  // and the momentum was put back here, where the game had none)
+  p.blink(at.x, Math.max(0, at.y - (p.eyePosition().y - p.pos.y)), at.z);
+  p.vel.y = Math.max(0, p.vel.y);
 }
 
 /** on a ledge's top, or past it the way the room runs */

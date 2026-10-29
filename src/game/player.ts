@@ -133,6 +133,8 @@ export class Player {
   private airJumpLeft = true;
   /** how many double jumps this player has made: the figure others see flips on each new one (dummy.ts FigurePose) */
   airJumps = 0;
+  /** the jump press of this frame left the ship (leaveShip): it is used */
+  private jumpedOut = false;
   /** while running a wall: which face (its normal, and where its plane is along it) and when it started */
   private wallRun: { nx: number; nz: number; plane: number; since: number; start: number } | null = null;
   /** a wall a run ran out on (movement.json wallRun.duration): it takes you again only once you have touched the ground */
@@ -325,6 +327,24 @@ export class Player {
     this.onGround = false;
   }
 
+  /**
+   * Moved there in an instant, the way you were going (SpeedKills' DASH): your velocity and your sprint kept, a zip, a
+   * climb, a mantle or a wall run left behind. The dash went by teleport(), which starts everything over, and its zeroed
+   * velocity took the momentum the dash meant to keep: a dash at a sprint landed standing (Milestone 867).
+   */
+  blink(x: number, y: number, z: number): void {
+    this.pos.set(x, y, z);
+    this.stepSmooth = 0;
+    this.leash = null;
+    this.zip = null;
+    this.mantle = null;
+    this.climbing = false;
+    this.climbNormal = null;
+    this.wallRun = null;
+    this.onGround = false;
+    this.climbBaseline = y;
+  }
+
   /** carried with the ship this frame */
   ride(x: number, y: number, z: number): void {
     this.pos.set(x, y, z);
@@ -334,6 +354,8 @@ export class Player {
   /** off the ship: into the skydive from where you are, looking where you look */
   leaveShip(below: number): void {
     this.aboard = false;
+    // the press that jumps out is that jump, not a double jump as well (Milestone 868)
+    this.jumpedOut = true;
     this.pos.y -= below;
     this.vel.set(0, 0, 0);
     this.onGround = false;
@@ -724,7 +746,11 @@ export class Player {
 
     // ----- jumps -----
     const coyote = !this.onGround && now - this.lastGroundAt <= MOVE.jumpGracePeriod;
-    if (jumpPressed) {
+    // (the press that left the ship this frame went on that: it was a double jump too, the feed's, the count's and the
+    // figure's, on every jump out; Milestone 868)
+    const outOfShip = this.jumpedOut;
+    this.jumpedOut = false;
+    if (jumpPressed && !outOfShip) {
       if (this.climbing) this.climbJump(now, wx, wz, wl, crouchPressed);
       else if (this.wallRun) this.kickOffWall(now);
       else if (this.onGround || coyote) this.doJump(now, !this.onGround);
@@ -1398,6 +1424,8 @@ export class Player {
       if (s.top > ledge + 1e-4 && s.base < ledge + MOVE.standHeight) return false;
     }
     if (!supported) return false;
+    // a wall run ends in a mantle (its lean and its pose stayed through it; Milestone 868)
+    this.wallRun = null;
     this.mantle = {
       fromX: this.pos.x,
       fromY: feet,
@@ -1578,6 +1606,10 @@ export class Player {
    */
   private mountZip(now: number, target: ZipTarget): void {
     const { line, s } = target;
+    // a rope gives the double jump back, as the ground and a wall do (it never did: Milestone 868), and a wall run ends
+    // on it (its lean and its pose stayed the whole ride)
+    this.airJumpLeft = true;
+    this.wallRun = null;
     const abx = line.b.x - line.a.x;
     const aby = line.b.y - line.a.y;
     const abz = line.b.z - line.a.z;
@@ -2029,7 +2061,33 @@ export class Player {
       }
     }
     const ceiling = this.onGround ? feetY + MOVE.stepHeight : feetY;
-    const ground = this.groundUnder(this.pos.x, this.pos.z, r, Math.max(ceiling, this.pos.y));
+    let ground = this.groundUnder(this.pos.x, this.pos.z, r, Math.max(ceiling, this.pos.y));
+    // A step up into a space too low to stand in is a wall, not a step: stepping up put the head inside the box over it,
+    // and the next frame's push-out threw you sideways, up to half that box's width (10 m seen; about 373 places in the
+    // Neon map, most on the tower's upper floors; Milestone 866). Each axis that carried you onto it goes back, so a
+    // step brushed at an angle is slid along.
+    if (!wasAir && ground > this.pos.y + 1e-4) {
+      const top = Math.max(ceiling, this.pos.y);
+      const low = (x: number, z: number): boolean => {
+        const g = this.groundUnder(x, z, r, top);
+        return g > this.pos.y + 1e-4 && this.overlapping(x, z, r).some((s) => s.base > g + 1e-4 && s.base < g + bodyH - 1e-4);
+      };
+      if (low(this.pos.x, this.pos.z)) {
+        if (!low(fromX, this.pos.z)) {
+          this.pos.x = fromX;
+          this.vel.x = 0;
+        } else if (!low(this.pos.x, fromZ)) {
+          this.pos.z = fromZ;
+          this.vel.z = 0;
+        } else {
+          this.pos.x = fromX;
+          this.pos.z = fromZ;
+          this.vel.x = 0;
+          this.vel.z = 0;
+        }
+        ground = this.groundUnder(this.pos.x, this.pos.z, r, top);
+      }
+    }
     if (this.pos.y <= ground + 1e-4) {
       // a step UP while already on the ground is a step, not a landing: the
       // view keeps its height for a moment and catches up

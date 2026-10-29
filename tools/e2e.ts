@@ -5192,6 +5192,12 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await hack("dash", "mobility", 500);
   const z1 = await ev<number>(page, "window.__range.player.pos.z");
   check("speedkills: DASH carries you about 26 m the way you look", z0 - z1 > 20 && z0 - z1 < 28, `${(z0 - z1).toFixed(1)} m`);
+  // (Milestone 867) and the way you were going: a dash at a run arrives running (the page's own DASH; it moved you by a
+  // teleport, which zeroed the momentum the line after it was to keep)
+  await ev(page, `window.__range.player.teleport(-27.75, 0, 60, 0)`);
+  await sleep(200);
+  const dashKept = await ev<number>(page, `(() => { const r = window.__range; r.sk.setHack("dash"); r.player.vel.set(0, 0, -10); r.sk.use("mobility"); return Math.hypot(r.player.vel.x, r.player.vel.z); })()`);
+  check("speedkills: DASH keeps your momentum, a dash at a run arriving running", dashKept > 9, `${dashKept.toFixed(1)} m/s after`);
   // LEAP: straight up four storeys, then a glide
   await ev(page, `window.__range.player.teleport(-21, 0, 200, 0)`);
   await sleep(200);

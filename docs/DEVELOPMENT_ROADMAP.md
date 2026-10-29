@@ -13284,6 +13284,48 @@ where the host's rule says 1.5. It runs on real time as the host's does now (brm
 - **Checked:** tsc, verify, rules; e2e brsolo, a new check: two of a friend's frames a second apart in a gone sector
   hurt it once (on the 0.1 s cap, never).
 
+## Milestone 866 — A step with no room over it is a wall
+
+From a review of the player's movement (2026-10-29). On the ground a body steps up onto any top within the step
+height (0.56 m), and the step did not ask whether there was room to stand on it. Under a box lower than a body over the
+step, the head went into the box, and the next frame's push-out, which takes a body out to the nearer side of a box it
+is in, threw it sideways, up to half the box's width (simulated: 10.4 m off a raised floor under a slab 2 m up). The
+Neon map has about 373 such places, the city agent found: some 150 on the tower's upper floors (0.55 m cover under
+ceilings 1.8 m over the step), about 20 on its ground floor, the rest scattered; a likely part of "I can glitch
+through stairs going up". A step up with no room over it is a wall now (player.ts integrate): the axis that carried you
+onto it goes back, so one brushed at an angle is slid along, and crouched (a lower body) you step up where there is
+room for it. The map needs no change.
+
+- **Checked:** tsc, verify, rules; a new verify check run in its own process (tools/checks/sk-moves.ts, the real
+  Player over a few boxes): a run at a 0.5 m step under a slab 2 m up stops at it, never more than a stride in a frame,
+  the head never in the slab (on the old step, 10.41 m in one frame, the head in the slab); e2e speedkills, skwall,
+  sktutorial.
+
+## Milestone 867 — DASH keeps your momentum
+
+From the same review. DASH moves you up to 26 m the way you look and was to keep your momentum, its code and its note
+said so; it moved you by teleport(), which zeroes the velocity and starts everything over, so the line after it kept
+nothing: a dash at a sprint landed standing, one mid-jump over a gap dropped straight down. It moves you by a blink now
+(player.ts blink: the velocity and the sprint kept, a zip, a climb, a mantle or a wall run left). The tutorial's check
+modelled the dash with the momentum put back after the teleport, so it passed on what the game did not do; it calls
+the blink, as the game does.
+
+- **Checked:** tsc, verify, rules; sk-moves.ts, a new line (a blink keeps the velocity, a teleport does not); e2e
+  speedkills, a new check: a dash at a run arrives at over 9 of its 10 m/s (on the old dash, nothing).
+
+## Milestone 868 — The double jump given back by a rope, and not spent jumping out of the ship
+
+From the same review, three small ones in player.ts. The press that jumps out of the ship was a double jump as well,
+in the same frame (the feed's DOUBLE JUMP, the count, the figure others see), on every jump out; it is the jump out
+alone now. A rope never gave the double jump back, though its notes said the ground, a wall and a rope do; mounting
+one does now. And a wall run went on through a mantle, and through a whole zip ride, taken from it: the view's lean,
+the streaks and the pose others saw; a mantle or a rope ends it.
+
+- **Checked:** tsc, verify, rules; sk-moves.ts, three new lines, each failing with its fix taken out (the ship exit 1
+  double jump, the rope none after the zip jump, the mantle on the wall all 18 of its frames).
+- **Left as they are:** a wall run's turn into an inside corner depends on the frame rate (7 of 40 at 30 fps, 37 at
+  144), and a frame of 0.1 s at a sprint can carry a body through a wall 0.25 m thick (no sub-steps); both are next.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
