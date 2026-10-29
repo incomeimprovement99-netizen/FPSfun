@@ -13251,6 +13251,39 @@ test before Milestone 851, and is put right with it.
   sweep's Gulag check ("a pickup granted after you are out goes back on the floor where it lay") failed once under the
   day's load and is to be run again on a quiet machine.
 
+## Milestone 863 — A care package comes down in the open
+
+From a review of the battle royale's rules (2026-10-29). A care package's spot was moved off walls by clearGround,
+which lets a spot sit under a roof (its own note says so), though the code said it was placed as a bot's landing is:
+with THE TOWER the final sector, 332 of 400 of its spots had a box over them, 42 of those over 50 m up, and the
+package, its canopy and its smoke came down through the tower into a ground-floor room, its gold loot indoors under
+the beam; in the other sectors 15 to 73% of spots were covered. It comes down on open ground now, as the bots land
+(brmatch.ts podSpot, openGround). The city agent agreed.
+
+- **Checked:** tsc, verify, rules; verify's br rules, a new check: a package's spot under a 10 m roof 3 m up is moved
+  out from under it (on clearGround it stayed); e2e brsolo.
+
+## Milestone 864 — Every bot squad drops on a point of its own
+
+From the same review. The bots' squads take the places in an order that puts THE TOWER every other squad, and each
+took the drop point and ring of its number over the whole order: the tower's six drop points were used only at 0, 2
+and 4, and every ring stayed 0, so squads 0 and 6, 2 and 8, and 4 and 10 of a solo match landed round one point,
+enemies 0 to 18 m apart with 4 s of grace; in trios, six bots of two squads on one 9 m ring. A place's squads take its
+drop points in turn now, and only once all are taken does the next go a ring further out (brmatch.ts dropSlots).
+
+- **Checked:** tsc, verify, rules; verify's br rules, a new check: eleven squads over a tower of six drop points and
+  five places of two, no two on one place, point and ring (on the old count, two pairs shared the tower's 0 and 2).
+
+## Milestone 865 — A friend's decay on real time
+
+From the same review. The host's decay hurts on real time, its clock taking up to 1.1 s a frame so a hidden tab's one
+frame a second still counts; a friend hurts itself on its own tick, and that tick ran on the frame's step capped at 0.1
+s: a friend under 10 fps took less decay, and one whose tab was hidden, standing in a gone sector, was hurt every 15 s
+where the host's rule says 1.5. It runs on real time as the host's does now (brmatch.ts update, tickDt).
+
+- **Checked:** tsc, verify, rules; e2e brsolo, a new check: two of a friend's frames a second apart in a gone sector
+  hurt it once (on the 0.1 s cap, never).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -107,6 +107,16 @@ function clearGround(x: number, z: number): { x: number; z: number } {
  * a spot sit under a roof, which is right for someone who walks there and
  * wrong for someone who falls there, since they land on the roof instead.
  */
+/**
+ * Where a care package comes down near (x, z): open ground with nothing over it, as a bot's landing is (openGround). It
+ * came down by clearGround, which lets a spot sit under a roof: with THE TOWER the final sector, 332 of 400 of its spots
+ * had a box over them, and the package, its canopy and its smoke came down through the tower into a ground-floor room
+ * (Milestone 863).
+ */
+export function podSpot(x: number, z: number): { x: number; z: number } {
+  return openGround(x, z);
+}
+
 function openGround(x: number, z: number): { x: number; z: number } {
   const pad = 0.7;
   // (the boxes near, from the solid grid: up to 640 tries a landing over all of the Neon map's 79,000 boxes was a third of
@@ -297,6 +307,25 @@ export function restingSpot(p: THREE.Vector3): THREE.Vector3 {
     if (p.x + r > s.minX && p.x - r < s.maxX && p.z + r > s.minZ && p.z - r < s.maxZ && s.top <= p.y + 0.05 && s.top > y) y = s.top;
   }
   return new THREE.Vector3(p.x, Math.min(p.y, y), p.z);
+}
+
+/**
+ * Each bot squad's place, drop point there, and how far out round it (rings of `apart`): a place's squads take its drop
+ * points in turn, and only once all are taken does the next go a ring further out. By the squad's number over the whole
+ * order, THE TOWER, every other squad's, used only its drops 0, 2 and 4 and kept every ring at 0, so squads 0 and 6 (2
+ * and 8, 4 and 10) landed on one point, enemies 0 to 18 m apart (Milestone 864).
+ */
+export function dropSlots<P extends { drops: readonly unknown[] }>(order: readonly P[], squads: number): Array<{ poi: P; drop: number; ring: number }> {
+  const visits = new Map<P, number>();
+  const out: Array<{ poi: P; drop: number; ring: number }> = [];
+  for (let s = 0; s < squads; s++) {
+    const poi = order[s % order.length];
+    const nth = visits.get(poi) ?? 0;
+    visits.set(poi, nth + 1);
+    const n = Math.max(1, poi.drops.length);
+    out.push({ poi, drop: nth % n, ring: Math.floor(nth / n) });
+  }
+  return out;
 }
 
 /** the heir's snapshot of a battle royale (BrMatch.snapshotMode); times are seconds from when it was made, null for never */
@@ -626,15 +655,15 @@ export class BrMatch extends Duel {
       const rest = order.filter((p) => p !== spire);
       if (spire) order = rest.length ? rest.flatMap((p) => [spire, p]) : [spire];
       const apart = squadCfg.drop.apart;
+      const slots = dropSlots(order, Math.ceil(this.botCount / this.team.size));
       for (let i = 0; i < this.botCount; i++) {
         // A bot squad lands together: the place and the drop point belong to
         // the squad, not to the bot, so trios arrive as three and a solo
         // lobby still spreads one bot per place the way it always did.
         const squad = Math.floor(i / this.team.size);
-        const poi = order[squad % order.length];
-        const drop = poi.drops[squad % poi.drops.length];
+        const { poi, drop: di, ring } = slots[squad];
+        const drop = poi.drops[di];
         // spread round the drop point, further out the more of them share it
-        const ring = Math.floor(squad / (order.length * poi.drops.length));
         const a = rng() * Math.PI * 2;
         const r = apart * (0.5 + ring);
         // A ring round a drop point can cross a building or the ridge's rock,
@@ -2155,6 +2184,10 @@ export class BrMatch extends Duel {
   override update(local: LocalState): void {
     this.lastLocal = local;
     const frameDt = Math.max(0, Math.min(0.1, wallClock() - this.lastClock));
+    // the decay's tick on real time, to a hidden tab's one frame a second as the host's clock is (duel.ts frame): on the
+    // frame's 0.1 s it ran slow under 10 fps, and a hidden tab in a gone sector was hurt every 15 s, not every 1.5
+    // (Milestone 865)
+    const tickDt = Math.max(0, Math.min(1.1, wallClock() - this.lastClock));
     super.update(local);
     if (this.ended) return;
     const now = wallClock();
@@ -2178,7 +2211,7 @@ export class BrMatch extends Duel {
     wall.scale.set(Math.max(0.01, cur.r), 1, Math.max(0.01, cur.r));
     // a guest hurts itself outside the mirrored ring, on its own tick
     if (this.role === "guest" && this.phase === "fight") {
-      this.guestTick += frameDt;
+      this.guestTick += tickDt;
       if (this.guestTick >= RING_TICK) {
         this.guestTick -= RING_TICK;
         const outHere = this.decay ? this.lostAt(local.x, local.z) : Math.hypot(local.x - cur.cx, local.z - cur.cz) > cur.r;
@@ -2339,8 +2372,7 @@ export class BrMatch extends Duel {
       this.podPhases.add(ring.phase);
       const a = Math.random() * Math.PI * 2;
       const r = Math.sqrt(Math.random()) * ring.next.r * P.inset;
-      // out of any wall or rock it would have come down in, as a bot's landing is
-      const clear = clearGround(ring.next.cx + Math.cos(a) * r, ring.next.cz + Math.sin(a) * r);
+      const clear = podSpot(ring.next.cx + Math.cos(a) * r, ring.next.cz + Math.sin(a) * r);
       const at = new THREE.Vector3(clear.x, 0, clear.z);
       const warning = P.announce + LOOT.podFall;
       this.addPod(at, warning);

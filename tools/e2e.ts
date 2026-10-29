@@ -3939,6 +3939,15 @@ async function brSoloTest(browser: Browser, query: string): Promise<void> {
     !!card && card.guns.length === 2 && card.guns[0][1] === 2 && card.guns[0][2] > 0 && card.hacks.length === 2 && card.hacks.every((h) => !!h && h[1] && h[2]) && card.vitals && !card.legacy,
     JSON.stringify(card),
   );
+  // (Milestone 865) a guest's decay on real time: two frames a second apart (a hidden tab's) in a gone sector hurt it once,
+  // as the host's clock would. On the frame's 0.1 s cap they counted 0.2 s and hurt it never
+  const slowTicks = await ev<number>(
+    guest,
+    `(() => { const d = window.__range.duel(); const lost = d.lostAt; const hurt = d.hurt; let n = 0; d.lostAt = () => true; d.hurt = () => { n++; }; d.guestTick = 0;
+      for (let i = 0; i < 2; i++) { d.lastClock = performance.now() / 1000 - 1; d.update(d.lastLocal); }
+      d.lostAt = lost; d.hurt = hurt; return n; })()`,
+  );
+  check("brsolo: a guest's decay counts real time, two frames a second apart in a gone sector hurting it once", slowTicks === 1, `${slowTicks} hits`);
   // someone under INVISIBILITY past seenWithin shimmers (Milestone 715, the owner: "barely visible but still noticeable"):
   // the figure itself hidden, as it was, and its shimmer drawn instead; within seenWithin it is whole, no shimmer. The
   // guest, as the host sees it (a player's figure; the bots never go unseen)

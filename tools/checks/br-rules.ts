@@ -10,7 +10,7 @@
 //
 // Run on its own: npx tsx tools/checks/br-rules.ts. Also belongs inside npm
 // run verify.
-import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, humanSides, sideOfHuman, DROP_HEIGHT, restingSpot } from "../../src/game/brmatch";
+import { TEAMS, teamFor, savedTeamId, botSquads, squadsInMatch, humanSides, sideOfHuman, DROP_HEIGHT, restingSpot, podSpot, dropSlots } from "../../src/game/brmatch";
 import { RANGE_SOLIDS } from "../../src/game/range";
 import * as THREE from "three";
 import { BOT_NAMES, MOST_BOTS } from "../../src/game/bots";
@@ -153,6 +153,29 @@ check(
   const air = restingSpot(new THREE.Vector3(X + 5, 3, 0)).y;
   RANGE_SOLIDS.splice(RANGE_SOLIDS.length - steps.length, steps.length);
   check("a gun put down over the seam between two steps stays on the steps, and one put down in the air comes to the ground", Math.abs(rest - 1) < 1e-6 && air === 0, JSON.stringify({ rest, air }));
+}
+
+// (Milestone 863) a care package comes down on open ground, not under a roof: a roof 3 m up over a 10 m square, and the
+// package's spot under its middle moved out from under it (on clearGround it stayed, and came down through the roof)
+{
+  const X = 9100;
+  const roof = { minX: X - 5, maxX: X + 5, minZ: -5, maxZ: 5, top: 12, base: 3 };
+  RANGE_SOLIDS.push(roof);
+  const at = podSpot(X, 0);
+  RANGE_SOLIDS.splice(RANGE_SOLIDS.length - 1, 1);
+  const under = at.x > roof.minX - 0.7 && at.x < roof.maxX + 0.7 && at.z > roof.minZ - 0.7 && at.z < roof.maxZ + 0.7;
+  check("a care package comes down on open ground, not under a roof", !under, JSON.stringify(at));
+}
+
+// (Milestone 864) every bot squad its own drop point: the tower every other squad's with six drops, the others two each,
+// eleven squads as a solo match with its bots has; no two share a place, a drop point and a ring
+{
+  const tower = { id: "c", drops: [0, 1, 2, 3, 4, 5] };
+  const rest = ["a", "b", "d", "e", "f"].map((id) => ({ id, drops: [0, 1] }));
+  const order = rest.flatMap((p) => [tower, p]);
+  const slots = dropSlots(order, 11);
+  const keys = slots.map((s) => `${s.poi.id}:${s.drop}:${s.ring}`);
+  check("every bot squad drops on a point of its own: no two share a place, a drop point and a ring", new Set(keys).size === keys.length, keys.join(" "));
 }
 
 export const brRulesFails = fails;
