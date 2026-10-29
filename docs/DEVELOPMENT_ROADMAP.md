@@ -17546,3 +17546,29 @@ could be fixed with 3rd person or enemy views".
     and 0 mm above their flat-floor heights. With the feet left where the clip has them it fails (both off the box), and
     nothing else does. The whole soldier section: 333 checks, E2E PASS.
   - verify, rules and the type check.
+
+## Milestone 836 — A step up seen on a figure
+
+A body on the ground goes up or down a step in one frame (player.ts: onto any top up to a step's height, 0.56 m, and
+down onto one as far), and a bot's figure and your own soldier in third person are put where the body is every frame,
+so every kerb was a 15 to 20 cm pop and a staircase a stutter. The player's own eye has eased over the step since
+Phase 13 (movement.json stepSmoothTime) and other players are drawn 100 ms behind between their updates, which spreads a
+step over one update; the bots, most of a battle royale's enemies, were not eased at all. Found looking further for the
+owner's "things that could be fixed with 3rd person or enemy views".
+
+- **The body eased onto the step** (mannequin.ts, figure.json stepEase): the drawn body keeps its height and closes on
+  the step at the eye's own rate (a step's height every stepSmoothTime, 0.12 s), no more than 0.2 m behind, and the feet
+  are reached onto the step at once, the legs bent up to it, as a body rises after its foot is up. Down a step the same
+  the other way. A step is a move after a frame that did not move the body: a lift moves its rider every frame and is no
+  step, and a move further than a step is a figure put somewhere else, which is not eased.
+- **Measured** (node_modules/.scratch/stepprobe.mts, against the same frames without the step, so the run's own bob is
+  taken out): jogging onto a 0.2 m kerb the body is drawn 200 mm below the step on its frame and 122, 44 and 0 below on
+  the next three, the lower foot on the step throughout; up a staircase of 0.2 m steps every other frame it lags 0.17 to
+  0.25 m (0.2 now) with its feet on each step; on a lift rising 8 cm a frame it dips 8 cm on the first frame only.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): jogging onto a 0.2 m kerb, 10 cm or more still to rise on the step's frame
+    with the lower foot on the step, all the way up by a fifth of a second, and a lift's rider not lagging after its first
+    frame. 200, 122, 45 and 0 mm
+    below the kerb on its frames, the lower foot on it, and a lift's rider 80 mm down on its first frame only. With no
+    easing it fails (up the whole step in one frame), and nothing else does. The whole soldier section: 334 checks, E2E PASS.
+  - verify, rules and the type check.

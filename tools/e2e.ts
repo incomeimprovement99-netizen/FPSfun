@@ -7685,6 +7685,32 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     edge.feet.length === 2 && edge.feet.every((f, i) => f.on && Math.abs(f.ankle - edge.flat[i]) <= 50),
     `feet ${edge.feet.map((f, i) => `${f.on ? "on" : "off"} the box, ankle ${f.ankle} mm (flat ${edge.flat[i]})`).join("; ")}`,
   );
+  // A step up seen on a figure (Milestone 836): a bot's and your own soldier's figure are put where the body is every
+  // frame, and a body moves up a kerb in one frame, so the figure popped up by the whole step. Jogging onto a 0.2 m kerb
+  // against the same frames without it: on the step's frame the drawn body is still at least 10 cm below where it is
+  // going and the lower ankle within 2 cm of the step, by a fifth of a second it is all the way up, and on a lift that
+  // rises 8 cm a frame it does not lag past its first frame
+  const steps = await ev<{ kerb: number[][]; lift: number[][] }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      const run = (rises, speed) => {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 90); r.figureLabManual(true);
+        r.figureLabStep(1);
+        const read = () => { const g = f.group.position.y; return [f.mq.bone("pelvis").getWorldPosition(new T.Vector3()).y - g, Math.min(f.mq.bone("foot_l").getWorldPosition(new T.Vector3()).y, f.mq.bone("foot_r").getWorldPosition(new T.Vector3()).y) - g]; };
+        return rises.map((rise) => { f.group.position.y += rise; r.figureLabStep(1 / 60); return read(); });
+      };
+      // (each against the same frames without the rise: the run's own bob taken out; pelvis and lower ankle, mm)
+      const vs = (rises, speed) => { const a = run(rises, speed), c = run(rises.map(() => 0), speed); return a.map((q, i) => q.map((v, k) => Math.round((v - c[i][k]) * 1000))); };
+      return { kerb: vs([0, 0.2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], 4), lift: vs(Array(20).fill(0.08), 0) };
+    })()`,
+  );
+  check(
+    "a figure jogging onto a 0.2 m kerb rises onto it, not in one frame: 10 cm or more still to go on the step's frame, its foot on the step, all the way up by a fifth of a second; a lift's rider does not lag after its first frame",
+    steps.kerb[1][0] <= -100 && Math.abs(steps.kerb[1][1]) <= 20 && Math.abs(steps.kerb[13][0]) <= 10 && steps.lift.slice(2).every((q) => Math.abs(q[0]) <= 10),
+    `kerb, pelvis/ankle against no kerb (mm): ${steps.kerb.map((q) => q.join("/")).join(" ")}; lift pelvis: ${steps.lift.map((q) => q[0]).join(" ")}`,
+  );
   // a landing taken in the legs (Milestone 611): a second in the air and down on the run, its legs (hips over the lower
   // ankle) come down to two thirds of their standing length for a moment (the run's clip alone, 83%), and no ankle goes
   // under its height on the floor

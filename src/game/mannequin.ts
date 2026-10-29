@@ -140,6 +140,8 @@ const FLAT_FEET = figureCfg.flatFeet;
 const BACK_FROM = (figureCfg.strafe as { backFrom: number }).backFrom;
 /** the ground each moving clip's stride covers a second at its own pace, and where the jog and the sprint take over (figure.json gait) */
 const GAIT = figureCfg.gait as { walk: number; jog: number; sprint: number; crouch: number; jogFrom: number; sprintFrom: number };
+/** a step up or down seen on a figure: the drawn body eased onto it at the eye's rate (figure.json stepEase) */
+const STEP_EASE = figureCfg.stepEase as { most: number; still: number };
 /** a still foot out past the edge the body stands on, onto it (figure.json footing) */
 const FOOTING = figureCfg.footing as { hang: number; reach: number; inset: number; drop: number };
 /** the solids near a still foot, filled per query (solidsIn's scratch list) */
@@ -880,6 +882,10 @@ export class MannequinFigure {
   private slung = false;
   /** where its group was last frame, its speed up or down from that (eased), and how far into a plunge it is */
   private lastY: number | null = null;
+  /** the drawn body behind its feet after a step, metres (negative: below them), the last frame's rise, and whether it was on the ground then (stepEase) */
+  private stepOff = 0;
+  private lastRise = 0;
+  private stepGround = false;
   private vy = 0;
   private plungeW = 0;
   /** the double jumps seen so far (null until the first count arrives), and when the last one's knee lift began */
@@ -1823,6 +1829,20 @@ export class MannequinFigure {
     const y = this.root.parent ? this.root.parent.getWorldPosition(new THREE.Vector3()).y : 0;
     // (no faster than 60 m/s: a figure put somewhere else, a respawn, is no fall)
     if (this.lastY !== null && dt > 0) this.vy += (Math.max(-60, Math.min(60, (y - this.lastY) / dt)) - this.vy) * Math.min(1, dt * 20);
+    // A step up or down (figure.json stepEase): the drawn body keeps its height and closes on the feet at the eye's rate
+    // (movement.json stepSmoothTime). A step moves the feet in one go after a frame that did not (a lift moves its rider
+    // every frame); anything further than a step is a figure put somewhere else, which is not eased.
+    const grounded = p.stance === "stand" || p.stance === "crouch";
+    const close = (MOVE.stepHeight / MOVE.stepSmoothTime) * dt;
+    this.stepOff = this.stepOff > 0 ? Math.max(0, this.stepOff - close) : Math.min(0, this.stepOff + close);
+    if (this.lastY !== null) {
+      const rise = y - this.lastY;
+      if (Math.abs(rise) > MOVE.stepHeight) this.stepOff = 0;
+      else if (grounded && this.stepGround && Math.abs(rise) > STEP_EASE.still && Math.abs(this.lastRise) <= STEP_EASE.still) this.stepOff = Math.max(-STEP_EASE.most, Math.min(STEP_EASE.most, this.stepOff - rise));
+      this.lastRise = rise;
+    }
+    if (!grounded) this.stepOff = 0;
+    this.stepGround = grounded;
     this.lastY = y;
     this.plungeW += ((p.stance === "air" && this.vy < -PLUNGE.fall ? 1 : 0) - this.plungeW) * Math.min(1, dt * PLUNGE.rate);
     // a landing from standing (or a walk): the impact's crouch from the landing clip, briefly (a skydive's too)
@@ -2080,6 +2100,11 @@ export class MannequinFigure {
       this.baseY = em.bounce;
     } else this.baseY = FLAT_FEET.lift * this.liftW;
     this.placeRoot();
+    // (behind a step it has just taken: stepEase, the feet put back on the step below)
+    if (this.stepOff !== 0) {
+      this.root.position.y += this.stepOff;
+      this.root.updateMatrixWorld(true);
+    }
     if (this.skyW > 0.01 && b.upperarm_r) this.skydiveLimbs(b, fig);
     // A plunge (Milestone 608): SLAM's way down, 38 m/s, faster than anything else that falls in the air stance (the
     // skydive's dive is 30), seen as a body coming down onto the ground it hits, knees up and the chest over them, as
@@ -2156,6 +2181,12 @@ export class MannequinFigure {
     this.flatW += (still - this.flatW) * Math.min(1, dt * FLAT_FEET.rate);
     // (and lifted onto them standing: the standing clip holds the legs lower than a walk's planted foot)
     this.liftW += ((still && p.stance === "stand" ? 1 : 0) - this.liftW) * Math.min(1, dt * FLAT_FEET.rate);
+    // the feet on the step the body is easing onto (stepEase): the legs bent up to it, or reached down
+    if (Math.abs(this.stepOff) > 0.003 && b.foot_l && b.foot_r && b.thigh_l && b.thigh_r && b.calf_l && b.calf_r)
+      for (const s of ["l", "r"] as const) {
+        const a = b[`foot_${s}`].getWorldPosition(new THREE.Vector3());
+        this.legTo(s, a.setY(a.y - this.stepOff));
+      }
     this.plantFeet(!full && !this.dead && !em && (p.stance === "stand" || p.stance === "crouch") && speed <= PLANT.under && this.skyW < 0.01 && this.zipW < 0.01, p.stance, dt);
     if (this.flatW > 0.01) this.flattenFeet(this.flatW);
     const shown = !!this.gun && this.gun.visible;

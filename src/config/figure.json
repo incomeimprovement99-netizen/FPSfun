@@ -142,6 +142,11 @@
     "legTurn": 90,
     "backFrom": 109
   },
+  "_stepEase": "A step up or down a kerb or a stair seen on a figure (mannequin.ts, Milestone 836). A body on the ground moves up or down by a whole step in one frame (player.ts: onto any top up to a step's height, 0.56 m, and down onto one as far), and a bot's and your own soldier's figure are put where the body is every frame, so a kerb was a 15 cm pop and a staircase a stutter. The player's own eye has caught up over movement.json stepSmoothTime since Phase 13 (the feet and the hit boxes untouched); the drawn body now does the same, lagging the step and closing on it at the eye's rate, no more than `most` m behind, its feet reached onto the step at once, as a body rises after its foot is up. A step is a move of more than `still` m after a frame that did not move it: a lift moves its rider every frame, and that is no step.",
+  "stepEase": {
+    "most": 0.2,
+    "still": 0.005
+  },
   "_footing": "A still soldier's foot out past the edge it stands on goes onto it (mannequin.ts onSupport, Milestone 835). A body stands on the highest top anywhere under its hull's square (player.ts groundUnder, radius MOVE.radius 0.41 m, up to a step's height, 0.56 m), as Source's and Apex's do, so at a step's, a curb's or a roof's edge it stands with its middle up to 0.39 m out past it and its feet over the floor below, or the street. The drawn body stays where the body is (its hit volumes and the player's eye are there); standing still, a foot whose middle has nothing within `hang` m of the body's height under it is moved to the nearest place on a top at that height within `reach` m, `inset` m in from its edges, and the leg bent to it, the body let down no more than `drop` m where a straight leg cannot reach. At a roof's edge the soldier leans out over it on feet set back on the roof.",
   "footing": {
     "hang": 0.03,
