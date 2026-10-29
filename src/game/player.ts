@@ -136,7 +136,8 @@ export class Player {
   /** the jump press of this frame left the ship (leaveShip): it is used */
   private jumpedOut = false;
   /** while running a wall: which face (its normal, and where its plane is along it) and when it started */
-  private wallRun: { nx: number; nz: number; plane: number; since: number; start: number } | null = null;
+  /** a wall run: its wall, when it began, and which way along it and how fast it went last (Milestone 896) */
+  private wallRun: { nx: number; nz: number; plane: number; since: number; start: number; dir?: number; speed?: number } | null = null;
   /** a wall a run ran out on (movement.json wallRun.duration): it takes you again only once you have touched the ground */
   private spentWall: { nx: number; nz: number; plane: number } | null = null;
   /** the face last left, and when: it takes you again after movement.json wallRun.sameWall, any other at once */
@@ -968,16 +969,21 @@ export class Player {
       this.leaveWall(now);
       return;
     }
-    // which way along the wall you are going (the tangent you are moving on), and how fast
+    // which way along the wall you are going (the tangent you are moving on), and how fast. A frame's step into the
+    // corner ahead has its speed along taken off by the collision before this reads it: then the way and the speed are
+    // the run's own from the frame before (Milestone 896)
     const along = this.vel.x * -run.nz + this.vel.z * run.nx;
-    const dir = Math.sign(along) || 1;
+    const stopped = Math.abs(along) < 1e-3 && (run.speed ?? 0) > 0;
+    const dir = stopped ? (run.dir ?? 1) : Math.sign(along) || 1;
     const tx = -run.nz * dir;
     const tz = run.nx * dir;
-    let speed = Math.abs(along);
+    let speed = stopped ? (run.speed ?? 0) : Math.abs(along);
     // An inside corner ahead: the run turns onto the wall across its way, going on away from the one it leaves, with
-    // all of its speed. Before, the corner was a wall you ran into and stopped against.
-    if (this.wallAt(tx, tz, MOVE.climbAttachReach)) {
-      this.wallRun = { nx: -tx, nz: -tz, plane: this.planeOf(-tx, -tz), since: now, start: run.start };
+    // all of its speed. Before, the corner was a wall you ran into and stopped against. Looked for a frame's step ahead
+    // as well as a hand's width: a hand's width alone found it at 144 fps and missed it at 30, where a step went into
+    // the corner, which stopped the run (Milestone 896: 7 turns of 40 at 30 fps, 37 at 144)
+    if (this.wallAt(tx, tz, MOVE.climbAttachReach + speed * dt)) {
+      this.wallRun = { nx: -tx, nz: -tz, plane: this.planeOf(-tx, -tz), since: now, start: run.start, speed };
       this.vel.x = run.nx * speed;
       this.vel.z = run.nz * speed;
       this.tech("WALL TURN", `${Math.round(speed / HU)} hu/s round the corner`, true);
@@ -997,6 +1003,8 @@ export class Player {
       if (speed < W.speed) speed = Math.min(W.speed, speed + W.accel * wishAlong * dt);
     } else speed = Math.max(0, speed - W.drag * dt);
     speed = Math.min(speed, W.maxSpeed);
+    run.dir = dir;
+    run.speed = speed;
     // along the wall at that speed, and held against it (the collision takes the push back off)
     this.vel.x = tx * speed - run.nx * W.hold;
     this.vel.z = tz * speed - run.nz * W.hold;

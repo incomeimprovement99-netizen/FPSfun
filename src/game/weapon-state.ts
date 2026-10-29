@@ -231,8 +231,12 @@ export class WeaponState {
       // A new pull, or a trigger held through a long idle, starts the schedule
       // from now. A stale time left within one interval must not survive a new
       // pull: the shot it lets through would schedule the next one early (two
-      // Wingman shots 83 ms apart, two sniper shots 0.2 s apart).
-      if (fresh || this.nextShotAt < now - interval) this.nextShotAt = Math.max(this.nextShotAt, now);
+      // Wingman shots 83 ms apart, two sniper shots 0.2 s apart). An idle is no
+      // shot in the frame before, or a schedule further behind than this frame
+      // could owe (a gun just changed has none): one fallen behind while it
+      // fired was the frame rate's, and starting it over lost the shots owed,
+      // an R-97 firing 15 a second at 15 fps of its 18 (Milestone 895).
+      if (fresh || now - this.nextShotAt > dt + interval || now - this.lastShotAt > dt + interval) this.nextShotAt = Math.max(this.nextShotAt, now);
       while (this.nextShotAt <= now && this.clip > 0) {
         // The spring runs between the shots of a frame, not only between
         // frames. At 144 fps that is one shot a frame and it makes no

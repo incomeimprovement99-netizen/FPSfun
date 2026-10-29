@@ -16,7 +16,8 @@ export const WALL = wallCfg;
 const CFG = wallCfg;
 
 export interface PutWall {
-  solid: Solid;
+  /** its collision: one box square to the world's axes, or short pieces along a panel at an angle (wall.json piece) */
+  solids: Solid[];
   mesh: THREE.Mesh;
   until: number;
 }
@@ -38,15 +39,27 @@ export function putWall(parent: THREE.Object3D, x: number, y: number, z: number,
   mesh.position.set(x, y + CFG.height / 2, z);
   mesh.rotation.y = deg * (Math.PI / 180);
   parent.add(mesh);
-  // the solid: the box the panel fills, squared off to the world's axes (as
-  // every other solid is), so a wall put up at an angle is the box round it
+  // its collision: boxes squared off to the world's axes, as every other solid is. One box round a panel at an angle was
+  // up to 3.2 m square (Milestone 894); a panel at an angle is short pieces along it now, each the box round its piece,
+  // and one square to the axes stays the one box that is exactly it
   const c = Math.abs(Math.cos(mesh.rotation.y));
   const s = Math.abs(Math.sin(mesh.rotation.y));
-  const halfX = (CFG.width * c + CFG.thick * s) / 2;
-  const halfZ = (CFG.width * s + CFG.thick * c) / 2;
-  const solid: Solid = { minX: x - halfX, maxX: x + halfX, minZ: z - halfZ, maxZ: z + halfZ, base: y, top: y + CFG.height };
-  RANGE_SOLIDS.push(solid);
-  const w: PutWall = { solid, mesh, until: now + seconds };
+  const n = Math.min(c, s) < 1e-3 ? 1 : Math.max(1, Math.ceil(CFG.width / CFG.piece));
+  const len = CFG.width / n;
+  // (the panel's width runs along its own x, which a turn about y takes to (cos, 0, -sin))
+  const ax = Math.cos(mesh.rotation.y);
+  const az = -Math.sin(mesh.rotation.y);
+  const halfX = (len * c + CFG.thick * s) / 2;
+  const halfZ = (len * s + CFG.thick * c) / 2;
+  const solids: Solid[] = [];
+  for (let k = 0; k < n; k++) {
+    const t = -CFG.width / 2 + len * (k + 0.5);
+    const px = x + ax * t;
+    const pz = z + az * t;
+    solids.push({ minX: px - halfX, maxX: px + halfX, minZ: pz - halfZ, maxZ: pz + halfZ, base: y, top: y + CFG.height });
+  }
+  RANGE_SOLIDS.push(...solids);
+  const w: PutWall = { solids, mesh, until: now + seconds };
   WALLS.push(w);
   return w;
 }
@@ -61,8 +74,10 @@ export function stepWalls(now: number): void {
 }
 
 function drop(w: PutWall): void {
-  const i = RANGE_SOLIDS.indexOf(w.solid);
-  if (i >= 0) RANGE_SOLIDS.splice(i, 1);
+  for (const s of w.solids) {
+    const i = RANGE_SOLIDS.indexOf(s);
+    if (i >= 0) RANGE_SOLIDS.splice(i, 1);
+  }
   w.mesh.removeFromParent();
 }
 

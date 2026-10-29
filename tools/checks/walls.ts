@@ -47,14 +47,18 @@ console.log("The WALL hack's walls");
   check(`the wall stands its ${SECONDS} s and then goes, solid and all`, still === 1 && RANGE_SOLIDS.length === 0 && WALLS.length === 0 && shot(V(0, 1.2, -6)) > 39);
 }
 {
-  // turned 45 degrees: the box round it is wider than the panel and no thinner
+  // (Milestone 894) turned 45 degrees: its collision follows the panel, short boxes along it, the whole panel in them and
+  // nothing a metre off its face. As one box round it, it stopped rounds 2.3 m in front of the panel and behind it
   RANGE_SOLIDS.length = 0;
   clearWalls();
   const w = putWall(parent, 0, 0, 0, 45, 0, SECONDS);
-  const s = w.solid;
-  const diag = (W.width + W.thick) / Math.SQRT2;
-  check("a wall turned 45 degrees has the box round it, not a box the panel pokes out of", Math.abs(s.maxX - s.minX - diag) < 0.05 && Math.abs(s.maxZ - s.minZ - diag) < 0.05, `${(s.maxX - s.minX).toFixed(2)} by ${(s.maxZ - s.minZ).toFixed(2)} m`);
-  check("and it stands on the ground, its own height tall", Math.abs(s.base - 0) < 1e-9 && Math.abs(s.top - W.height) < 1e-9);
+  const inAny = (x: number, z: number) => w.solids.some((b) => x >= b.minX && x <= b.maxX && z >= b.minZ && z <= b.maxZ);
+  const along = (t: number): [number, number] => [Math.cos(Math.PI / 4) * t, -Math.sin(Math.PI / 4) * t];
+  const ends = [-W.width / 2 + 0.05, 0, W.width / 2 - 0.05].every((t) => inAny(...along(t)));
+  // a metre off the panel's face, along its normal (sin, cos at 45 degrees), at its middle and toward each end
+  const off = [-1.5, 0, 1.5].some((t) => { const [x, z] = along(t); return inAny(x + Math.sin(Math.PI / 4), z + Math.cos(Math.PI / 4)); });
+  check("a wall turned 45 degrees collides along its panel: the whole panel in its boxes, nothing a metre off its face", ends && !off && w.solids.length > 1, JSON.stringify({ ends, off, boxes: w.solids.length }));
+  check("and it stands on the ground, its own height tall", w.solids.every((s) => Math.abs(s.base - 0) < 1e-9 && Math.abs(s.top - W.height) < 1e-9));
   clearWalls();
   check("a match ending takes every wall and its solid", WALLS.length === 0 && RANGE_SOLIDS.length === 0);
 }

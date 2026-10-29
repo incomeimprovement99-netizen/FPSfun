@@ -13403,6 +13403,41 @@ hackHurt), and a hack waits for the fight in any match.
   its share of a hit, and INVISIBILITY hides you (on the old code, none of the three).
 - **Left as it is:** a WALL put up at an angle collides as the box round it, up to 3.2 m square.
 
+## Milestone 894 — A WALL put up at an angle collides as itself
+
+From the review of the hacks (Milestone 890). A WALL's collision is boxes square to the world's axes, as every solid's
+is, and it was one box round the panel: put up at 45 degrees it was 3.2 m square, stopping rounds 2.3 m in front of the
+panel and behind it, and with cover a few metres ahead (the panel then comes in close) taking in the one who put it up,
+who was shoved out of it. A panel at an angle collides as short pieces along it now, each the box round its piece
+(wall.json piece, 0.5 m), and one square to the axes stays the one box that is exactly it (walls.ts putWall).
+
+- **Checked:** tsc, verify, rules; verify's walls check: a wall at 45 degrees has the whole panel in its boxes and
+  nothing a metre off its face (as one box round it, the point off its face was inside); e2e speedkills.
+
+## Milestone 895 — An automatic fires its rate at a low frame rate
+
+From the review of shooting and being hit (Milestone 855). Held, an automatic's next shot is kept on a schedule, and a
+schedule fallen more than one interval behind was started over from now, to keep a trigger held through a long idle
+from firing a burst at once. Below about 20 fps a frame is longer than two of an R-97's intervals, so that happened
+every frame or two while it fired, and the shots owed were lost: 15 a second at 15 fps of its 18, 10 at 10 fps. The
+schedule starts over now only after an idle (no shot in the frame before) or when it is further behind than one frame
+could owe (weapon-state.ts), so a held gun keeps its rate at any frame rate and a frame never fires more than its own
+share.
+
+- **Checked:** tsc, verify, rules; verify's weapon lines, a new one: an R-97 held two seconds fires as many shots at 15
+  fps as at 60 (on the old schedule, six fewer); e2e range, speedkills.
+
+## Milestone 896 — A wall run turns into an inside corner at any frame rate
+
+From the review of the player's movement (Milestone 866). A run turns onto the wall across its way at an inside corner,
+found a hand's width ahead (0.1 m). The step of a frame went further than that into the corner wall below about 144
+fps, and the collision took the run's speed along off before the turn read it, so its way fell back to +1 and its speed
+to nothing, and the run ended against the corner: 7 turns of 40 at 30 fps, 16 at 60, 37 at 144. The run keeps its own
+way and speed from the frame before, and looks for the corner a frame's step ahead as well (player.ts stepWallRun).
+
+- **Checked:** tsc, verify, rules; sk-moves.ts, a new line: an L of two walls, a run at 15 m/s, forty starts, 40 turns of
+  40 at 30, 60 and 144 fps (on the old run 7, 16 and 37); e2e skwall, sktutorial.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

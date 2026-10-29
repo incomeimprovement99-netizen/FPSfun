@@ -205,6 +205,38 @@ console.log("SpeedKills' movement where it went wrong (player.ts)");
   check("a 0.1 s frame at 14 m/s does not carry the body through a 0.25 m wall", through === 0, `${through} of 12 through`);
 }
 
+// (Milestone 896) a wall run turns into an inside corner at any frame rate: an L of two walls, a run at 15 m/s along the
+// first, forty starts a little apart, at 30, 60 and 144 fps. It turned 7 times of 40 at 30 fps and 37 at 144
+{
+  world([
+    { minX: -2, maxX: -0.5, minZ: -40, maxZ: 10, top: 10 },
+    { minX: -2, maxX: 10, minZ: -45, maxZ: -40, top: 10 },
+  ]);
+  const turned: number[] = [];
+  for (const fps of [30, 60, 144]) {
+    const step = 1 / fps;
+    let n = 0;
+    for (let k = 0; k < 40; k++) {
+      const p = player();
+      const inp = new Script();
+      let t = 100;
+      const tech: string[] = [];
+      p.onTech = (name) => tech.push(name);
+      p.teleport(-0.5 + MOVE.radius + 0.05, 2, k * 0.013, 0);
+      p.vel.set(0, 1, -15);
+      inp.hold("forward");
+      for (let i = 0; i < fps * 4 && !tech.includes("WALL TURN"); i++) {
+        t += step;
+        p.update(step, t, inp, 0, 1, false);
+        inp.endFrame();
+      }
+      if (tech.includes("WALL TURN")) n++;
+    }
+    turned.push(n);
+  }
+  check("a wall run turns into an inside corner at 30, 60 and 144 fps alike (35 of 40 at least at each)", turned.every((n) => n >= 35), JSON.stringify({ at30: turned[0], at60: turned[1], at144: turned[2] }));
+}
+
 // (Milestone 891) LEAP's glide falls as the dive's glide does and lands softly, with nothing of the dropship's dive
 {
   world([]);

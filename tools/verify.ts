@@ -501,6 +501,17 @@ console.log("\nLoadout (two slots, independent state)");
   const boog = resolveWeapon("sentinel").shotInterval;
   eq("BOOG: no two shots closer than its rechamber", semiGaps("sentinel", [0.2, 1.84, 2.06]) >= boog - 1e-9, true);
 
+  // (Milestone 895) an automatic held fires its own rate at a low frame rate: the R-97 held two seconds fires as many at 15
+  // fps as at 60. A frame over two of its intervals started its schedule over, and the shots owed were lost
+  const heldFor = (fps: number): number => {
+    const st = new WeaponState(resolveWeapon("r97"));
+    st.clip = 1000;
+    let n = 0;
+    for (let f = 0; f <= fps * 2; f++) n += st.update(1 / fps, f / fps, true, false, "stand", "still", false, false, () => 0.5).length;
+    return n;
+  };
+  eq("R-97 held 2 s: as many shots at 15 fps as at 60 (within one)", Math.abs(heldFor(15) - heldFor(60)) <= 1, true);
+
   // a new gun does not inherit the old one's cooldown
   const st6 = new WeaponState(resolveWeapon("sentinel"));
   st6.update(1 / 60, 0, true, false, "stand", "still", false, false, () => 0.5);

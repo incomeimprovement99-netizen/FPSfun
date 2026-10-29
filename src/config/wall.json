@@ -3,5 +3,7 @@
   "width": 4.2,
   "height": 2.4,
   "thick": 0.35,
-  "reach": 4
+  "reach": 4,
+  "_piece": "A panel put up at an angle collides as short pieces along it, each the box round its piece, at most this long, in metres; one square to the world's axes is one box, exactly the panel. As one box round it, a panel at 45 degrees was up to 3.2 m square: it stopped rounds 2.3 m in front of the panel and behind it, and could take in the one who put it up, who was shoved out of it (Milestone 894). Ours.",
+  "piece": 0.5
 }
