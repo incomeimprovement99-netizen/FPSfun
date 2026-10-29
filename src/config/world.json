@@ -18,7 +18,9 @@
    "nearAt": 12,
    "scroll": 0.35,
    "line": 2,
-   "_line": "The fence's lit lines, a metre apart, each `line` 256ths of their 8 m texture high (6 cm; 3 until Milestone 668, 9 cm: from a roof beside the fence the lines over the eye ran off as wide red bands, the districts' review, picture 12)."
+   "_line": "The fence's lit lines, a metre apart, each `line` 256ths of their 8 m texture high (6 cm; 3 until Milestone 668, 9 cm: from a roof beside the fence the lines over the eye ran off as wide red bands, the districts' review, picture 12).",
+   "fade": 0.5,
+   "_fade": "Milestone 826 (the districts' sixth review: from THE STACKS' and THE WORKS' roofs 'pink and red fence wires fan across the sky', 'climb steeply like lasers'): the lines fade from `fade` of the fence's height (7 m) to nothing at its top, so over the eye of a body on a 10 to 12 m roof beside it they are gone and the fence still reads at the street."
   }
  },
  "_padSolve": "A jump pad onto a roof (city.ts padOnto), in metres: it stands standOff past a body's radius from the face, throws you straight up to peakOver above the roof, and once you are clear above the edge carries you across to land landInside past it. Ours, so a pad lands you on the roof with no steering; holding forward in the air still carries you further.",

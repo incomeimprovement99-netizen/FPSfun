@@ -80,7 +80,25 @@ export function buildEdgeFence(root: THREE.Group): void {
   const tex = new THREE.CanvasTexture(canvas);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
   tex.repeat.set((BR_HALF * 2) / 8, F.height / 8);
-  const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(F.color), transparent: true, opacity: F.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
+  // (its lines gone toward its top from `fade` of its height up, Milestone 826: from a roof beside it the lines over the
+  // eye ran off across the sky like lasers, the districts' sixth review; a vertex colour fades it, a row of vertices and
+  // their texture's v moved up to where the fade starts)
+  const fade = (F as { fade?: number }).fade;
+  const geo = new THREE.PlaneGeometry(BR_HALF * 2, F.height, 1, fade === undefined ? 1 : 2);
+  if (fade !== undefined) {
+    const pos = geo.getAttribute("position");
+    const uv = geo.getAttribute("uv");
+    const col = new Float32Array(pos.count * 3);
+    for (let i = 0; i < pos.count; i++) {
+      if (Math.abs(pos.getY(i)) < 1e-6) {
+        pos.setY(i, (fade - 0.5) * F.height);
+        uv.setY(i, fade);
+      }
+      col.fill(pos.getY(i) > (fade - 0.5) * F.height + 1e-3 ? 0 : 1, i * 3, i * 3 + 3);
+    }
+    geo.setAttribute("color", new THREE.BufferAttribute(col, 3));
+  }
+  const mat = new THREE.MeshBasicMaterial({ map: tex, color: new THREE.Color(F.color), vertexColors: fade !== undefined, transparent: true, opacity: F.opacity, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, toneMapped: false, forceSinglePass: true });
   mat.userData.decay = true;
   for (const [x, z, turn] of [
     [0, -BR_HALF, false],
@@ -88,7 +106,7 @@ export function buildEdgeFence(root: THREE.Group): void {
     [-BR_HALF, 0, true],
     [BR_HALF, 0, true],
   ] as const) {
-    const m = new THREE.Mesh(new THREE.PlaneGeometry(BR_HALF * 2, F.height), mat);
+    const m = new THREE.Mesh(geo, mat);
     m.position.set(x, F.height / 2, z);
     if (turn) m.rotation.y = Math.PI / 2;
     m.name = "edgeFence";

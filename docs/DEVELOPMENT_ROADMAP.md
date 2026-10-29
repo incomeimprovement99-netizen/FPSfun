@@ -17602,3 +17602,35 @@ owner's "things that could be fixed with 3rd person or enemy views".
   place, every frame after. 23 and 33 cm
   every frame; with the snap off it fails (87 and 68 cm), and nothing else does. The whole soldier section: 335
   checks, E2E PASS.
+
+## Milestones 823 to 826, 870 and 871 — THE VAULT's gold, the station's hall floored, THE STRIP's club roofed, the fence's lines faded at its top, THE TERRACES' hedges green, THE TERMINAL's departures board
+
+From the centre's review of 2026-10-28 (round 12) and the districts' (round 6).
+
+- **823, THE VAULT's payoff** ("THE VAULT looks like a corner shop: one shelf, one black box, flat yellow paint"; "gold
+  loot lockers", "brighter gold"): its cover worn in the pack's scratched gold metal, each piece's own materials read off
+  its mesh (the crates' MetalPanel03_00, MetalPlanks02 and pannel02, the rack's steel and black frame, the cooling unit's
+  metals, black plastic and panels; one remap for all failed the bake, a piece has to have each material it remaps), a
+  floor's `coverMat` map; and its floor in the pack's octagonal marble with gold lines, tinted gold (drawn as the pack
+  has it, it is white, and the first picture read white from the stair), where its hex plastic was tinted gold.
+- **824, the station's hall floored as its concourse** (round 12's station picture opens on it): the marble hall's pink
+  hex floor in the concourse's concrete tiles (`underground.hall.mat`).
+- **825, THE STRIP's club roofed** (the districts' sixth review: "give the STRIP club a roof: a dark ceiling with light
+  rigs"; "the club has no roof", "red and black strips floating diagonally above it"; from the boulevard "a huge tilted
+  slab hangs over the boulevard"): the pack's inverted pyramid, open to the sky through its bottom, whose edges read
+  from inside and from the boulevard as loose strips and a tilted slab, is out. A flat roof of the pack's floor tiles over
+  the whole hall at the walls' tops (7 m), worn in the map's dark panels, collides as a typed slab, and THE STRIP's
+  magenta strip lights hang under it every 2.5 by 5 m (`club.roof`).
+- **826, the edge fence's lines faded toward its top** (the districts' sixth review: from THE STACKS' and THE WORKS' roofs
+  "pink and red fence wires fan across the sky", "climb steeply like lasers"): from half the fence's height (7 m) its
+  lit lines fade to nothing at its top (world.json `edge.fence.fade`; world.ts, a vertex colour over a row of vertices
+  and their texture's v moved up to where the fade starts), so over the eye of a body on a 10 to 12 m roof beside it they
+  are gone, and at the street the fence reads as before.
+- **870, THE TERRACES' hedges light** (the districts' sixth review: "a plain dark brown slab ... looks untextured" on the
+  top tier; the fifth: "one black slab"): its 3 m walls of cover in the pack's plaster tinted a garden green, a darker
+  green on their tops (`districtCover.mats.terraces`), where the pack's grass, a ground texture, drew on a wall's face as
+  near black (Milestone 788). The city's milestones from here are 870 to 889 (810 to 829 used; 850 to 869 the lobby's).
+- **871, THE TERMINAL a station from its forecourt** ("a departure board and clock over the front arches"): a lit board
+  reading DEPARTURES and a clock either side of its name over its front arches, in its amber, drawn by the game as the
+  districts' names are (`game.boards`, neonmap.ts).
+- **Checked:** the map check's 327 checks pass on the low, high and max bakes, among them new ones for THE VAULT's gold cover and floor and the station's hall, THE STRIP's club roof (no canopy, its tiles over the whole hall, a slab in the collision, the rig under it), the fence's fade, and THE TERRACES' hedges with THE TERMINAL's boards; each fails with its change taken out. Pictures of each by day. verify, rules and tsc. Map files version 119: lo 184.0 MB, hi 264.5 MB, max 562.1 MB.

@@ -2499,12 +2499,13 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
 // stand's blue glow quad worn as its ad, and the pyramid's and the club canopy's flat red as the pack's lit-window glass, as
 // the layout laid them
 {
-  const SR = (cfg.rules.districts as unknown as { strip: { chunk: string; ads: { piece: string }; pyramid: { piece: string }; club: { canopy: string } } }).strip;
+  const SR = (cfg.rules.districts as unknown as { strip: { chunk: string; ads: { piece: string }; pyramid: { piece: string }; club: { canopy: string; roof?: unknown } } }).strip;
   const place = (cfg.chunks as unknown as Record<string, { place: Array<[string, number, number, number, number, string, string?]> }>)[SR.chunk]?.place ?? [];
   const of = (name: string) => place.filter((q) => q[0].endsWith(`/${name}`));
   const ads = of(SR.ads.piece);
   const glow = [...of(SR.pyramid.piece), ...of(SR.club.canopy)];
-  check("THE STRIP: both ad screens show their ads (the blue glow quad over each worn as it), the pyramid and the club canopy in the pack's lit-window glass", ads.length === 2 && ads.every((q) => (q[6] ?? "").includes("Light02=Ads")) && glow.length === 2 && glow.every((q) => q[6] === "Light00=BuildingWindows04"), `ads ${ads.map((q) => q[6] ?? "as drawn").join(", ")}; glow ${glow.map((q) => q[6] ?? "as drawn").join(", ")}`);
+  // (the club's canopy out since Milestone 825, the club roofed)
+  check("THE STRIP: both ad screens show their ads (the blue glow quad over each worn as it), the pyramid and the club canopy in the pack's lit-window glass", ads.length === 2 && ads.every((q) => (q[6] ?? "").includes("Light02=Ads")) && glow.length === (SR.club.roof ? 1 : 2) && glow.every((q) => q[6] === "Light00=BuildingWindows04"), `ads ${ads.map((q) => q[6] ?? "as drawn").join(", ")}; glow ${glow.map((q) => q[6] ?? "as drawn").join(", ")}`);
 }
 
 // THE GULAG (rules.arenas gulag, Milestone 662; the owner, 2026-10-18: "one street like the firing range with one building
@@ -3887,6 +3888,29 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// the edge fence's lines gone toward its top (src/game/world.ts, Milestone 826; the districts' sixth review: from a roof
+// beside it "fence wires fan across the sky"): its four sides, each lit to `fade` of its height and dark at its top
+{
+  const F = (worldCfg as unknown as { edge: { fence: { height: number; fade?: number } } }).edge.fence;
+  const sides: THREE.Mesh[] = [];
+  scene.traverse((o) => {
+    if (o.name === "edgeFence") sides.push(o as THREE.Mesh);
+  });
+  const faded = sides.filter((m) => {
+    const pos = m.geometry.getAttribute("position");
+    const col = m.geometry.getAttribute("color");
+    if (!col || F.fade === undefined) return false;
+    let [lit, dark] = [true, true];
+    for (let i = 0; i < pos.count; i++) {
+      const y = pos.getY(i) + F.height / 2;
+      if (y <= F.fade * F.height + 1e-3 && col.getX(i) < 0.99) lit = false;
+      if (y >= F.height - 1e-3 && col.getX(i) > 0.01) dark = false;
+    }
+    return lit && dark;
+  }).length;
+  check("the edge fence's lines fade toward its top: each side lit to its fade height and dark at its top", sides.length === 4 && faded === 4, `${faded} of ${sides.length} sides, the fade from ${((F.fade ?? 1) * F.height).toFixed(1)} m of ${F.height}`);
+}
+
 // a ring of light round every pad (src/game/padrings.ts, Milestone 668): one a pad on its floor, in its district's colour
 // past the ring road, its sector's inside, so the pads of one district read alike and not as the reviews' white wedges
 {
@@ -4186,10 +4210,11 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const box = placed.filter((q) => String(q[0]).endsWith("/Coolbox00.prefab"));
   const boxGrey = box.every((q) => q[6] == null || String(q[6]).includes("MetalBare01Dust"));
   const tower = placed.find((q) => String(q[0]).endsWith("/StreetBuilding00_10x10.prefab") && Number(q[3]) < -130);
+  // (THE VAULT's floor tinted gold, or since Milestone 823 the pack's gold marble)
   const V = (cfg.rules.tower as unknown as { floors: { at: Record<string, { floorMat?: string }> } }).floors.at["32"];
   check(
     "the tenth reviews' finish: no beam over a pad, the flying cars 19 to 24 m up, the zip ropes dark and thin, the roof box grey, GLASS HEIGHTS' tower without its brown panels, THE VAULT's floor gold",
-    !!PB && PB.drawn === 0 && cars.length >= 10 && low === 0 && !!G.zipCable && G.zipRope <= 0.04 && boxGrey && String(tower?.[6] ?? "").includes("Concrete03d=") && String(V.floorMat).includes("*#"),
+    !!PB && PB.drawn === 0 && cars.length >= 10 && low === 0 && !!G.zipCable && G.zipRope <= 0.04 && boxGrey && String(tower?.[6] ?? "").includes("Concrete03d=") && /\*#|Gold/.test(String(V.floorMat)),
     `${PB?.drawn ?? "?"} pad beams, ${cars.length} flying cars (${low} out of 19 to 24 m), rope ${G.zipCable} ${G.zipRope} m, ${box.length} roof boxes grey ${boxGrey}, tower ${tower?.[6] ?? "missing"}, the vault floor ${V.floorMat}`
   );
 }
@@ -4378,6 +4403,57 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "the walk-ins entered through their doors, the pads' columns clear of the walls round them",
     WI.length === 4 && shut.length === 0 && !!cols && cols.count > 40 && into.length === 0,
     `${WI.length - shut.length} of ${WI.length} walk-ins open from their door points${shut.length ? ` (shut: ${shut.map((w) => `(${w.door.join(", ")})`).join(", ")})` : ""}, ${into.length} columns into a wall${into.length ? `: ${into.slice(0, 4).join(", ")}` : ""}`
+  );
+}
+
+// THE VAULT's gold and the station's hall floored as its concourse (Milestones 823 and 824, the centre's twelfth
+// review): every piece of cover on THE VAULT's floor worn in its `coverMat`, its floor in its own tiles, and the hall
+// worn in its `mat`
+{
+  const TF = (cfg.rules as unknown as { tower: { floors: { at: Record<string, { coverMat?: Record<string, string>; floorMat?: string; pieces?: string[] }> } } }).tower.floors.at["32"];
+  const vault = ((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-tower"]?.place ?? []).filter((q) => q[5] === "o" && Math.abs(Number(q[2]) - 32) < 0.6 && (TF.pieces ?? []).some((n) => String(q[0]).endsWith(`/${n}`)));
+  const gold = vault.filter((q) => TF.coverMat && q[6] === TF.coverMat[String(q[0]).split("/").pop()!]).length;
+  const HL = (cfg.rules as unknown as { underground: { hall: { piece: string; mat?: string } } }).underground.hall;
+  const hall = ((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-station"]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${HL.piece}`));
+  check(
+    "THE VAULT's cover in gold on a gold floor, the station's hall floored as its concourse",
+    !!TF.coverMat && Object.keys(TF.coverMat).length >= 3 && vault.length >= 8 && gold === vault.length && /Gold/.test(TF.floorMat ?? "") && !!HL.mat && hall.length === 1 && hall.every((q) => q[6] === HL.mat),
+    `${gold} of ${vault.length} pieces on THE VAULT's floor in gold, its floor ${TF.floorMat}, the hall ${hall.map((q) => q[6]).join(", ") || "none"}`
+  );
+}
+
+// THE STRIP's club roofed (Milestone 825, the districts' sixth review: "the club has no roof"): no canopy over it, the
+// roof's tiles over the whole hall at its height, a typed slab under them and the rig of strip lights under that
+{
+  const CLr = (cfg.rules.districts as unknown as { strip: { chunk: string; club: { canopy: string; roof?: { y: number; slab: number; tile: string; mat: string } } } }).strip;
+  const cl = (cfg as unknown as { strip?: { club?: { hall: number[]; roof?: { tiles: number; rig: number } } } }).strip?.club;
+  const placedS = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks[CLr.chunk]?.place ?? [];
+  const RFc = CLr.club.roof;
+  const canopy = placedS.filter((q) => String(q[0]).endsWith(`/${CLr.club.canopy}`)).length;
+  const tiles = placedS.filter((q) => RFc && String(q[0]).endsWith(`/${RFc.tile.split("/").pop()}`) && q[6] === RFc.mat).length;
+  const H = cl?.hall ?? [0, 0, 0, 0];
+  const slab = (SOLIDS as { solids: number[][] }).solids.some((b) => RFc && b[0] <= H[0] + 0.01 && b[1] >= H[1] - 0.01 && b[2] <= H[2] + 0.01 && b[3] >= H[3] - 0.01 && Math.abs(b[5] - RFc.y) < 0.3);
+  check(
+    "THE STRIP's club roofed: no canopy, its roof's tiles over the whole hall, a slab under them, a rig of lights under that",
+    !!RFc && canopy === 0 && !!cl?.roof && tiles === cl.roof.tiles && tiles >= 64 && slab && cl.roof.rig >= 16,
+    `${canopy} canopies, ${tiles} roof tiles of ${cl?.roof?.tiles ?? 0}, the slab ${slab ? "in the collision" : "missing"}, ${cl?.roof?.rig ?? 0} rig lights`
+  );
+}
+
+// THE TERRACES' hedges light and THE TERMINAL's boards (Milestones 870 and 871, the districts' sixth review): every
+// material of its 3 m walls of cover worn in a tinted plaster, none in the grass; two boards on THE TERMINAL's front,
+// each in front of it, beside its name and off it
+{
+  const TM = (cfg.rules.dress as unknown as { districtCover: { mats: Record<string, Record<string, string>> } }).districtCover.mats.terraces ?? {};
+  const wall = Object.values(TM)[0] ?? "";
+  const hedge = wall.split(";").every((r) => /=PlasterDirt00\*#/.test(r)) && !/ETPGrass/.test(wall);
+  const BD = (cfg.game as unknown as { boards?: Array<{ at: number[]; w: number; h: number; text: string }> }).boards ?? [];
+  const NM = (cfg.rules.districts as unknown as { terminal: { name: { at: number[]; w: number; h: number }; hall: { front: number } } }).terminal;
+  const clear = BD.filter((b) => Math.abs(b.at[2] - NM.name.at[2]) < 0.2 && b.at[2] < NM.hall.front && (Math.abs(b.at[0] - NM.name.at[0]) > NM.name.w / 2 + b.w / 2 || b.at[1] + b.h / 2 < NM.name.at[1] - NM.name.h / 2)).length;
+  check(
+    "THE TERRACES' hedges in tinted plaster, THE TERMINAL's departures board and clock on its front beside its name",
+    hedge && BD.length === 2 && clear === 2 && BD.some((b) => b.text === "DEPARTURES"),
+    `hedge ${wall}; ${BD.length} boards (${BD.map((b) => b.text).join(", ")}), ${clear} clear of the name`
   );
 }
 

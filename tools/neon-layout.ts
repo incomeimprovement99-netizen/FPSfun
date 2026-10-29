@@ -381,7 +381,7 @@ const noGround: Array<[number, number, number, number]> = [];
     let tWalls = 0, tProps = 0, tLamps = 0;
     let tTrim = 0;
     const wayLog: string[] = [];
-    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; keep?: number[][]; mat?: string; lampMat?: string; trim?: { strip: string; remap: string; y: number; every: number; off: number } }>)) {
+    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; coverMat?: Record<string, string>; keep?: number[][]; mat?: string; lampMat?: string; trim?: { strip: string; remap: string; y: number; every: number; off: number } }>)) {
       const h = Number(hs);
       const plan = F.plans[P.plan] as Record<string, string>;
       const placed: OBox[] = [];
@@ -622,7 +622,9 @@ const noGround: Array<[number, number, number, number]> = [];
         const row = piece(name).row;
         const [lx, lz] = [qx0 + rnd3() * (qx1 - qx0), qz0 + rnd3() * (qz1 - qz0)];
         const yaw = Math.floor(rnd3() * 4) * 90 + (row.size![0] < 1.2 && row.size![2] < 1.2 ? rnd3() * 40 - 20 : 0);
-        if (tryCover(name, lx, lz, yaw)) got++;
+        // (worn in the floor's `coverMat` for it where that names one, each piece its own metals: THE VAULT's in gold,
+        // Milestone 823)
+        if (tryCover(name, lx, lz, yaw, P.coverMat?.[name])) got++;
       }
       // the pack's ceiling lamp on a grid under the floor over it, none over the core
       const lamp = piece(F.lamp.piece).row;
@@ -1246,7 +1248,8 @@ if (holes.length) {
   const H = U.hall;
   const hallRow = piece(H.piece).row;
   const [hx, hz] = [sx + H.at[0], sz + H.at[1]];
-  pivot("c-station", H.piece, hx, 0, hz, 0);
+  // (worn in `mat` where it names one, Milestone 824: its pink hex marble floor, as the concourse's was)
+  pivot("c-station", H.piece, hx, 0, hz, 0, undefined, H.mat);
   const hallRect: [number, number, number, number] = [hx + hallRow.min![0], hx + hallRow.max![0], hz + hallRow.min![2], hz + hallRow.max![2]];
   openGround(...hallRect);
   // The concourse on east of it behind the platform, so every arch in the platform's back opens onto a room: the pack's
@@ -4649,7 +4652,7 @@ function onNode(o: OBox): boolean {
     ads: { piece: string; at: number[][]; mats?: string[] };
     pyramid: { piece: string; at: number[]; steps: number; rim: number; cap: string; mat?: string };
     club?: {
-      at: number[]; span: number; storeys: number; canopy: string; canopyMat?: string; wallMat?: string; stairMat?: string; inset: number;
+      at: number[]; span: number; storeys: number; canopy: string; canopyMat?: string; roof?: { y: number; slab: number; tile: string; mat: string; rig: number[] }; wallMat?: string; stairMat?: string; inset: number;
       dance?: { tile: string; mats: string[]; x: number[]; z: number[]; y: number; booth: Array<[string, number, number, number, number, string?]>; rig: Array<[string, number, number, number, number, string?]> }; walls: Array<[string, number, number, number]>; gates: number[][];
       balcony: { y: number; slab: number; cell: number; deck: string };
       stairs: number[][]; bar: { piece: string; from: number[]; count: number; step: number; yaw: number }; seats: Array<[string, number, number, number]>;
@@ -4717,9 +4720,34 @@ function onNode(o: OBox): boolean {
           solids.push(plug);
           columns.push(plug);
         }
-      // the canopy, its rim on the columns' tops
-      const cr = piece(CL.canopy).row;
-      placeTurned(DT.chunk, CL.canopy, cx, cz, 0, "g", CL.storeys * br.size![1] - cr.size![1] - cr.min![1], CL.canopyMat);
+      // the canopy, its rim on the columns' tops; or, `roof` (Milestone 825; the districts' sixth review: "the club has
+      // no roof", the canopy's edges "strips floating diagonally above it" and from the boulevard "a huge tilted slab"),
+      // a flat roof of the pack's floor tiles over the whole hall at the walls' tops, worn dark, a typed slab, and a rig
+      // of the district's strip lights under it, `rig` [every along x, every along z] metres
+      const RF = CL.roof;
+      const roof = { tiles: 0, rig: 0 };
+      if (RF) {
+        const tr = piece(RF.tile).row;
+        const n = Math.ceil((2 * half) / tr.size![0] - 1e-6);
+        const s0 = (-n * tr.size![0]) / 2;
+        for (let i = 0; i < n; i++)
+          for (let j = 0; j < n; j++) {
+            placeTurned(DT.chunk, RF.tile, cx + s0 + (i + 0.5) * tr.size![0], cz + s0 + (j + 0.5) * tr.size![2], 0, "g", RF.y - tr.max![1], RF.mat);
+            roof.tiles++;
+          }
+        solids.push([...hall, +(RF.y - RF.slab).toFixed(2), RF.y]);
+        if (DT.light) {
+          const sr = piece(DT.light.strip).row;
+          for (let x = hall[0] + RF.rig[0] / 2; x < hall[1]; x += RF.rig[0])
+            for (let z = hall[2] + RF.rig[1] / 2; z < hall[3]; z += RF.rig[1]) {
+              placeTurned(DT.chunk, DT.light.strip, x, z, 0, "g", RF.y - RF.slab - sr.max![1], DT.light.remap);
+              roof.rig++;
+            }
+        }
+      } else {
+        const cr = piece(CL.canopy).row;
+        placeTurned(DT.chunk, CL.canopy, cx, cz, 0, "g", CL.storeys * br.size![1] - cr.size![1] - cr.min![1], CL.canopyMat);
+      }
       // (each wall twice, back to back: the pack's wall draws one face of its slab, and from the boulevard the club's
       // backs drew as a black slab standing alone)
       for (const [name, x, z, yaw] of CL.walls) {
@@ -4858,7 +4886,7 @@ function onNode(o: OBox): boolean {
       for (const [u, v] of [[lo, ow], [hi, ow], [hi, lo], [oe, lo], [oe, hi], [hi, hi], [hi, oe], [lo, oe], [lo, hi], [ow, hi], [ow, lo], [lo, lo]] as Pt[])
         ring.push([+(x0 + u).toFixed(2), +(z0 + v).toFixed(2), BL.y]);
       ring.push(ring[0]);
-      club = { at: CL.at, hall, columns, deck, stairs, rails, railLines, ring, gates: CL.gates, y: BL.y, ...(CL.dance ? { dance } : {}) };
+      club = { at: CL.at, hall, columns, deck, stairs, rails, railLines, ring, gates: CL.gates, y: BL.y, ...(CL.dance ? { dance } : {}), ...(RF ? { roof: { ...roof, y: RF.y } } : {}) };
     }
     // the ground's cover (`ground`), as GLASS HEIGHTS' rows: each laid unless within `keep` of the tower, a block, the
     // pyramid or the club, on a street node or cutting the bots' streets in two

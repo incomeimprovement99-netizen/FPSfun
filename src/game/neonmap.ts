@@ -532,6 +532,17 @@ export function buildNeonMap(scene: THREE.Scene, boxes?: number[][]): BrMap {
       mesh.renderOrder = NAMES_ORDER;
       group.add(mesh);
     }
+    // and the boards the game config names (`game.boards`, Milestone 871: THE TERMINAL's departures and clock), each a
+    // filled plate as a district's name is
+    for (const q of (neonCfg as unknown as { game: { boards?: Array<{ text: string; at: number[]; yaw: number; w: number; h: number; colour: string; back: string }> } }).game.boards ?? []) {
+      const mesh = new THREE.Mesh(new THREE.PlaneGeometry(q.w, q.h), new THREE.MeshBasicMaterial({ map: neonLetters(q.text, q.colour, q.w, q.h, { back: q.back, fill: true }), transparent: true, depthWrite: false, toneMapped: false }));
+      mesh.position.set(q.at[0], q.at[1], q.at[2]);
+      mesh.rotation.y = (q.yaw * Math.PI) / 180;
+      mesh.name = "neon:board";
+      mesh.userData.dynamic = true;
+      mesh.renderOrder = NAMES_ORDER;
+      group.add(mesh);
+    }
     // and THE CANYON's hanging signs (the layout's banners, Milestone 814): each a plate across the street read both ways,
     // two faces back to back, on a wire from wall to wall along its top
     const wireMat = new THREE.MeshBasicMaterial({ color: 0x15171a });
