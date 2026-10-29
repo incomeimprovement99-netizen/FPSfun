@@ -896,6 +896,8 @@ if (mode === "bake") {
     ];
     let lidArea = 0;
     const levelAreas: Array<{ at: number; kind: string; area: number }> = [];
+    // (each slab's underside the ceiling of the floor under it, in that floor's own `ceilingMat` where it names one)
+    const ceilings: Array<{ over: number; at: number; mat: string }> = [];
     for (const { h, kind, spec } of levels) {
       const banded = kind !== "floor";
       const g = banded && kind !== "lid" ? gL : g0;
@@ -1005,7 +1007,12 @@ if (mode === "bake") {
         tri += push(`vault-band-${h}`, [{ part: band.part, mat: VB.mat }]);
         bands.push({ at: h, length: +band.length.toFixed(1), high: +(hi - lo).toFixed(2) });
       }
-      tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
+      // (its underside the ceiling of the floor under it: THE VAULT's in dark steel, Milestone 818, where the white plaster
+      // over its gold walls read as an office)
+      const below = (TW.shaft as number[]).filter((y) => y < h - 0.01).sort((a, b) => b - a)[0];
+      const ceil = below === undefined ? undefined : (cfg.rules.tower.floors.at as Record<string, { ceilingMat?: string }>)[String(below)]?.ceilingMat;
+      if (ceil) ceilings.push({ over: below, at: h, mat: ceil });
+      tri += push(`tower-${h}`, [...(["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: k === "top" && own ? own : k === "under" && ceil ? ceil : TW.mats[k] })), { part: skirt, mat: TW.mats.edge }]);
     }
     // (the main body is 22.5 by 20.5 m outside its shell: a floor much bigger got out through a gap in it)
     if (areas.some((a) => a > (sx1 - sx0) * (sz1 - sz0))) throw new Error(`a tower floor came out bigger than the tower: ${areas.map((a) => a.toFixed(0)).join(", ")} m2`);
@@ -1017,7 +1024,7 @@ if (mode === "bake") {
     if (levelAreas.length) console.log(`the tower's levels: ${levelAreas.map((q) => `${q.kind} at ${q.at} m ${q.area} m2`).join(", ")}`);
     console.log(`the tower's floors' cracks along the facade left open: ${holes.map((m, k) => `${TW.shaft[k]} m ${m} m2`).join(", ")}`);
     if (bands.length) console.log(`THE VAULT's gold bands: ${bands.map((b) => `${b.at} m ${b.length} m long`).join(", ")}`);
-    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, ...(LID ? { lid: +lidArea.toFixed(1) } : {}), ...(levelAreas.length ? { levels: levelAreas } : {}), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
+    cfg.tower.measured = { floors: areas.map((a) => +a.toFixed(1)), holes, bands, ...(ceilings.length ? { ceilings } : {}), ...(LID ? { lid: +lidArea.toFixed(1) } : {}), ...(levelAreas.length ? { levels: levelAreas } : {}), seal: seal.map((q) => ({ at: q.at, rays: q.rays, out: q.gaps, windows: q.windows, where: q.out })) };
     console.log(`the tower's floors sealed but for their windows: ${seal.map((q) => `${q.at} m ${q.gaps} of ${q.rays} rays out elsewhere, ${q.windows} through the windows`).join("; ")}`);
     console.log(`the tower's floors: its core and ${TW.shaft.length} floors (${areas.map((a) => a.toFixed(0)).join(", ")} m2), ${tri} triangles`);
     // over the base and the tower, a face-up triangle in the same plane as another material's, which the eye sees as a

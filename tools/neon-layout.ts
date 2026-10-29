@@ -732,7 +732,7 @@ const highFires: Array<{ block: string; at: number[]; yaw: number; roof: number;
 const rooms: number[][] = [];
 const fires: Array<{ block: string; at: number[]; yaw: number; roof: number; rise: number; flights: number }> = [];
 const yards: Array<{ block: string; inside: number[]; y: number }> = [];
-const walkIns: Array<{ chunk: string; piece: string; at: number[]; yaw: number; door: number[] }> = [];
+const walkIns: Array<{ chunk: string; piece: string; at: number[]; yaw: number; door: number[]; out: number[] }> = [];
 /** each corner block's light (rules.low.beam): where it rises from */
 const beams: Array<{ chunk: string; block: string; x: number; y: number; z: number }> = [];
 /** each corner block's wedge (below): its fork, the way out along its bisector, its width and top, for its name */
@@ -878,7 +878,7 @@ const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }
   // side (`face` degrees from its own +z) to the street, its collision its own triangles. The shell's footprint holds
   // it whole, so nothing else moves; mixed into the fronts' pool instead, none fitted along a curve and every seeded
   // choice after it came out different
-  const WI = L.walkIn as { swap: string; pieces: string[]; face: number; door?: { awning: string; strip: string; remap: string; y: number; out: number; apart: number } } | undefined;
+  const WI = L.walkIn as { swap: string; pieces: string[]; face: number; doors?: Record<string, { side: number; along: number }>; door?: { awning: string; strip: string; remap: string; y: number; out: number; apart: number } } | undefined;
   if (WI) {
     let n = 0;
     for (const [chunk, ch] of chunks) {
@@ -892,21 +892,27 @@ const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }
         // the shell's front's middle on the map, and the way to the street
         const [fx, fz] = rotY(t, (sh.min![0] + sh.max![0]) / 2, sh.max![2]);
         const out = rotY(t, 0, 1);
-        const yaw = t + WI.face;
+        // (its door's side to the street, `doors`, Milestone 819: each piece's one street door, measured off its mesh, on
+        // its own +x side (1) or -x (-1) at `along` on its own z; `face` turns its -x side to the street, so Neon Building
+        // 06 showed the street its back and the block its door)
+        const DR = WI.doors?.[name];
+        const yaw = t + WI.face + (DR && DR.side > 0 ? 180 : 0);
         const [w0, w1] = [wr.row.min!, wr.row.max!];
         // (its depth from the street: its own extent along the side turned to it)
         const depth = Math.abs(WI.face) === 90 ? w1[0] - w0[0] : w1[2] - w0[2];
         const c: Pt = [p[1] + fx - out[0] * (depth / 2), p[3] + fz - out[1] * (depth / 2)];
         const [mx, mz] = rotY(yaw, (w0[0] + w1[0]) / 2, (w0[2] + w1[2]) / 2);
         ch.place[i] = [wr.key, +(c[0] - mx).toFixed(3), 0, +(c[1] - mz).toFixed(3), +yaw.toFixed(2), "o"] as Place;
-        walkIns.push({ chunk, piece: name, at: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), door: [+(p[1] + fx + out[0] * 2).toFixed(3), +(p[3] + fz + out[1] * 2).toFixed(3)] });
+        // (the door's place along the front: its own z from the building's middle, turned as the building is)
+        const shift = DR ? rotY(yaw, 0, DR.along - (w0[2] + w1[2]) / 2) : [0, 0];
+        walkIns.push({ chunk, piece: name, at: [+c[0].toFixed(3), +c[1].toFixed(3)], yaw: +yaw.toFixed(2), door: [+(p[1] + fx + shift[0] + out[0] * 2).toFixed(3), +(p[3] + fz + shift[1] + out[1] * 2).toFixed(3)], out: [+out[0].toFixed(3), +out[1].toFixed(3)] });
         // (its door marked, `door`, Milestone 678: the centre's review found "no door at the walk-in", a shop front like
         // every shell's. An awning over the front's middle, its own +x out to the street, and two lit strips under it
         // along the front, drawn only)
         if (WI.door) {
           const D = WI.door;
           const along = rotY(t, 1, 0);
-          const front: Pt = [p[1] + fx, p[3] + fz];
+          const front: Pt = [p[1] + fx + shift[0], p[3] + fz + shift[1]];
           const aw = piece(D.awning).row;
           placeTurned(chunk, D.awning, front[0] + out[0] * (D.out + aw.size![0] / 2), front[1] + out[1] * (D.out + aw.size![0] / 2), yawToward(out[0], out[1]) - 90, "g", D.y - aw.min![1]);
           const st = piece(D.strip).row;
@@ -949,6 +955,9 @@ const wedges: Array<{ block: string; fork: Pt; out: Pt; w: number; top: number }
         const yaw = yawToward(-gx, -gz) - D.face;
         const o: OBox = { c: [cx, cz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: row0.size![0] / 2 + (D.grow ?? 0), hv: row0.size![2] / 2 + (D.grow ?? 0), top: row0.max![1] };
         if (!fits(o) || fireBoxes.some((q) => overlaps(o, q, L.gap))) continue;
+        // (and 3 m clear of a walk-in's door point, Milestone 819: with NOODLE ROW's walk-in turned to show its door, a
+        // food stall stood on the way in)
+        if (walkIns.some((q) => Math.hypot(q.door[0] - cx, q.door[1] - cz) < Math.hypot(o.hu, o.hv) + 3)) continue;
         cands.push({ c: [cx, cz], yaw, d });
       }
     cands.sort((a, b) => a.d - b.d);
@@ -1201,8 +1210,8 @@ if (holes.length) {
   const U = R.underground;
   const S = U.station;
   /** a piece by its pivot, not its footprint's middle: these pieces fit each other by their pivots, as in the scene */
-  const pivot = (chunk: string, name: string, x: number, y: number, z: number, yaw: number, without?: string[]): void => {
-    add(chunk, "c", [piece(name).key, +x.toFixed(3), +y.toFixed(3), +z.toFixed(3), yaw, "o", ...(without ? [null, without] : [])] as Place);
+  const pivot = (chunk: string, name: string, x: number, y: number, z: number, yaw: number, without?: string[], mat?: string): void => {
+    add(chunk, "c", [piece(name).key, +x.toFixed(3), +y.toFixed(3), +z.toFixed(3), yaw, "o", ...(without || mat ? [mat ?? null, ...(without ? [without] : [])] : [])] as Place);
   };
   const [sx, sy, sz] = [S.x, S.platform, S.back];
   const mid = piece(S.pieces.mid).row;
@@ -1249,7 +1258,8 @@ if (holes.length) {
   const qLen = qRow.size![0];
   let qx = hallRect[1];
   while (qx + qLen <= sx + Q.to + 1e-6) {
-    pivot("c-station", Q.piece, qx + qLen, sy, hz, 0);
+    // (worn in `mat` where it names one, Milestone 817: its pink hex marble read as a hotel's corridor)
+    pivot("c-station", Q.piece, qx + qLen, sy, hz, 0, undefined, Q.mat);
     qx += qLen;
   }
   const capRow = piece(Q.cap).row;
@@ -5647,7 +5657,7 @@ function onNode(o: OBox): boolean {
 // Measured on the last bake's collision, laid last (the bake lists its boxes in `laid` and the next run leaves them
 // out), so the next run measures the same ground.
 {
-  const DC = (R.dress as { districtCover?: { chunk: string; far: number; near: number; clear: number; headroom: number; tall: number; band: number[]; crate: string; most: number; seed: number; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[] }>; nameView: number; pieces: Record<string, string[]>; sectors: Record<string, string> } }).districtCover;
+  const DC = (R.dress as { districtCover?: { chunk: string; far: number; farBy?: Record<string, number>; near: number; clear: number; headroom: number; tall: number; band: number[]; crate: string; most: number; seed: number; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[] }>; nameView: number; pieces: Record<string, string[]>; sectors: Record<string, string> } }).districtCover;
   if (DC) {
     const rndD = seeded(DC.seed);
     const C = 0.5, H = DC.band[1] + 2;
@@ -5730,6 +5740,15 @@ function onNode(o: OBox): boolean {
         if (m >= DC.band[0] && m <= DC.band[1] && inRect && (!L.districts || L.districts.includes(districtOf(x, z))) && (floor[k] || y0 === 0)) band[k] = 1;
       }
       const open = (k: number) => band[k] && !body[k];
+      // (each spot's own `far`: the level's, or on the ground its district's in `farBy`, Milestone 821)
+      const farAt = new Float32Array(N * N).fill(L.far ?? DC.far);
+      if (!L.far && DC.farBy)
+        for (let k = 0; k < N * N; k++) {
+          if (!band[k]) continue;
+          const [x, z] = mid(k);
+          const f = DC.farBy[districtOf(x, z)];
+          if (f !== undefined) farAt[k] = f;
+        }
       const D = new Float32Array(N * N);
       const field = () => {
         for (let k = 0; k < D.length; k++) D[k] = cover[k] ? 0 : 1e9;
@@ -5783,8 +5802,9 @@ function onNode(o: OBox): boolean {
       for (let n = 0; n < DC.most; n++) {
         field();
         let best = -1;
-        for (let k = 0; k < N * N; k++) if (open(k) && !tried[k] && (best < 0 || D[k] > D[best])) best = k;
-        if (best < 0 || D[best] * C <= (L.far ?? DC.far)) break;
+        // (the spot farthest past its own `far`)
+        for (let k = 0; k < N * N; k++) if (open(k) && !tried[k] && (best < 0 || D[k] * C - farAt[k] > D[best] * C - farAt[best])) best = k;
+        if (best < 0 || D[best] * C <= farAt[best]) break;
         const [bx, bz] = mid(best);
         const district = districtOf(bx, bz);
         const pool = [...(DC.pieces[district] ?? DC.pieces.default)].sort(() => rndD() - 0.5);

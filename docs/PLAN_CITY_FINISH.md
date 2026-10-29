@@ -353,6 +353,24 @@ and the 16 to 20 m tier still to do)
     (roof islands, a tower atrium, the High City blocks in different shapes, a lighting pass); 8 to 9 would need
     landmark art made for this map, baked lighting and real players' play.
 
+- **After the twelfth reviews (2026-10-28, on version 114: the centre 5.5, the districts 5.5, finish 4.5 in both).**
+  Shipped since the eleventh: versions 109 to 114 (Milestones 777 to 789, 810 to 816), and version 116 (817 to 822:
+  the concourse's and the tower basement's floors, THE VAULT's steel ceiling, the walk-ins turned to show their doors
+  with the frames over them, slimmer pad columns, more cover in THE STACKS, LANTERN ALLEYS and THE WORKS, LANTERN
+  ALLEYS' sign off its mast's line). Next, finish first, since both reviews hold finish at 4.5:
+  - **Version 117:** THE VAULT's cover in gold metal on a gold marble floor (its payoff), the station's hall floored as
+    its concourse; then the broken pictures left: THE STRIP's tilted slab over its boulevard and the club's floating
+    strips (d16, d18); GLASS HEIGHTS' tilted sign and the panel by its lift (d14, d15); a hover car off LANTERN ALLEYS'
+    pavement (d03); THE TERRACES' hedge reading as a brown slab (d05).
+  - **Then the open floors:** each district's own cover on its plazas and decks, no 20 m without waist-high cover and a
+    full-height blocker (THE STACKS d10/d11, LANTERN ALLEYS' court d02, GLASS HEIGHTS' deck d14, THE TERRACES' top d05,
+    THE WORKS' yard d22), and solid cover on the bridge ring, the lookout and the Sky Ring (glass rails are not cover).
+  - **Then the landmarks:** THE STRIP's club roofed (a dark ceiling with light rigs); THE CANYON's floor a market of
+    stalls with awnings; THE TERMINAL's wagon at the arcade's end and a departure board; THE VAULT's payoff (lockers in
+    the maze's dead ends, a central strongroom); the curved tower out of THE STRIP and THE TERRACES.
+  - **Structural, last:** the tower floors different in shape (a double-height hall, holes and inner stairs), ledges and
+    awnings on the corner blocks' faces.
+
 **Last**
 
 - **683: the frame measured with the PC unused** (the detail-mapped and cut-out batches if it misses the bar).

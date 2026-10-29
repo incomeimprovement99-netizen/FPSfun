@@ -10,7 +10,7 @@ import { BR_X, BR_Z } from "./br";
 import { decayLight } from "./world";
 
 type Sector = { id: string; accent: string; minX: number; maxX: number; minZ: number; maxZ: number };
-const G = (neonCfg as unknown as { game: { padRings: { inner: number; outer: number; glow: number; opacity: number; band: number; district: Record<string, string>; column?: { h: number; k: number }; centre?: string }; sectors: Sector[] } }).game;
+const G = (neonCfg as unknown as { game: { padRings: { inner: number; outer: number; glow: number; opacity: number; band: number; district: Record<string, string>; column?: { h: number; k: number; r?: number; trim?: number[][] }; centre?: string }; sectors: Sector[] } }).game;
 const R = G.padRings;
 
 /** a pad's colour: its district's past the ring road (`band` from the middle), its sector's inside it (map metres) */
@@ -47,7 +47,8 @@ export function buildPadRings(root: THREE.Object3D, pads: Array<{ x: number; z: 
   // added to what is behind it, so its top is nothing)
   const C = R.column;
   if (C) {
-    const cg = new THREE.CylinderGeometry(R.outer, R.outer, C.h, 40, 1, true).translate(0, C.h / 2, 0);
+    // (`r` across, inside its ring since Milestone 820: as wide as the ring, by a facade it read as a drum half into it)
+    const cg = new THREE.CylinderGeometry(C.r ?? R.outer, C.r ?? R.outer, C.h, 40, 1, true).translate(0, C.h / 2, 0);
     const pos = cg.getAttribute("position");
     const fade = new Float32Array(pos.count * 3);
     for (let i = 0; i < pos.count; i++) fade.fill(Math.max(0, 1 - pos.getY(i) / C.h) * C.k, i * 3, i * 3 + 3);
@@ -55,9 +56,14 @@ export function buildPadRings(root: THREE.Object3D, pads: Array<{ x: number; z: 
     const cm = new THREE.MeshBasicMaterial({ color: 0xffffff, vertexColors: true, transparent: true, depthWrite: false, blending: THREE.AdditiveBlending, toneMapped: false, side: THREE.DoubleSide, forceSinglePass: true });
     decayLight(cm);
     const cols = new THREE.InstancedMesh(cg, cm, pads.length);
+    // (each column's radius cut to the room round its pad, `trim` [x, z, scale] measured off the collision by
+    // tools/neon-pooltrim.ts, 0 leaving it out, Milestone 820: by the east block's fire escape a column stood half into
+    // the facade)
+    const cut = new Map((C.trim ?? []).map(([x, z, s]) => [`${x},${z}`, s]));
     pads.forEach((p, i) => {
       const [x, z] = [p.x - BR_X, p.z - BR_Z];
-      cols.setMatrixAt(i, m4.makeTranslation(x, (p.y ?? 0) + 0.04, z));
+      const s = cut.get(`${+x.toFixed(3)},${+z.toFixed(3)}`) ?? 1;
+      cols.setMatrixAt(i, m4.makeScale(s, 1, s).setPosition(x, (p.y ?? 0) + 0.04, z));
       cols.setColorAt(i, padColour(x, z).multiplyScalar(R.glow));
     });
     cols.name = "padColumns";

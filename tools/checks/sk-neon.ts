@@ -104,7 +104,7 @@ check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.t
 // 1% of a district's ground past it and nothing past 10 m; on the raised levels (THE TERRACES' tiers, GLASS HEIGHTS'
 // deck) 10% and nothing past 15 m
 {
-  const DC = (cfg.rules.dress as { districtCover?: { far: number; tall: number; band: number[]; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[] }>; sectors: Record<string, string> } }).districtCover;
+  const DC = (cfg.rules.dress as { districtCover?: { far: number; farBy?: Record<string, number>; tall: number; band: number[]; levels: Array<{ y: number; far?: number; districts?: string[]; rect?: number[] }>; sectors: Record<string, string> } }).districtCover;
   const said: string[] = [];
   let ok = !!DC && ((cfg as { districtCover?: unknown[] }).districtCover?.length ?? 0) >= 200;
   if (DC) {
@@ -143,13 +143,14 @@ check("the ship passes the tallest building's top", Math.abs(SPIRE_TOP.y - cfg.t
           if (L.rect && !(x >= L.rect[0] && x <= L.rect[1] && z >= L.rect[2] && z <= L.rect[3])) continue;
           const st = per.get(d) ?? per.set(d, { open: 0, far: 0, max: 0 }).get(d)!;
           st.open++;
-          if (D[k] * C > (L.far ?? DC.far)) st.far++;
+          // (a district's own `far` on the ground, Milestone 821)
+          if (D[k] * C > (L.far ?? (y0 === 0 ? DC.farBy?.[d] : undefined) ?? DC.far)) st.far++;
           st.max = Math.max(st.max, D[k] * C);
         }
       // (nothing on the ground past 8.5 m: the fill holds 6 m, and where no piece fits, as by THE STACKS' towers, a spot
       // or two stand a little past 8)
-      const [share, most] = y0 === 0 ? [0.01, 8.5] : [0.1, 15];
       for (const [d, st] of per) {
+        const [share, most] = y0 === 0 ? [0.01, (DC.farBy?.[d] ?? DC.far) + 2.5] : [0.1, 15];
         const bad = st.far / st.open > share || st.max > most;
         if (bad) ok = false;
         if (bad || y0 === 0) said.push(`${d}${y0 ? ` at ${y0} m` : ""} ${((st.far / st.open) * 100).toFixed(1)}%, farthest ${st.max.toFixed(1)} m${bad ? " (too far)" : ""}`);
@@ -767,7 +768,8 @@ check("each corner block named on the map over its roof yard, or the Well's over
   const FUR = (cfg as unknown as { furniture?: Array<{ at: number[]; piece: string }> }).furniture ?? [];
   const onPave = (x: number, z: number) => { const d = SFs.surface(x, z, CVs.round); return d >= 0.2 && d <= CVs.pave; };
   const offPave = FUR.filter((q) => !onPave(q.at[0], q.at[1]));
-  check("street furniture along every pavement, each piece on its pavement and off the road", FUR.length >= 40 && offPave.length === 0 && new Set(FUR.map((q) => q.piece)).size >= 6, `${FUR.length} pieces, ${new Set(FUR.map((q) => q.piece)).size} kinds, ${offPave.length} off the pavement`);
+  // (36 and more since Milestone 819: the walk-ins' doors at their buildings' ends keep four pieces off their ways in)
+  check("street furniture along every pavement, each piece on its pavement and off the road", FUR.length >= 36 && offPave.length === 0 && new Set(FUR.map((q) => q.piece)).size >= 6, `${FUR.length} pieces, ${new Set(FUR.map((q) => q.piece)).size} kinds, ${offPave.length} off the pavement`);
   const stacks = CR.map((q) => ({ q, n: sw.filter((p) => /\/Crate0/.test(String(p[0])) && Math.hypot((p[1] as number) - q.at[0], (p[3] as number) - q.at[1]) < 2.5).length, street: onStreetHere(q.at[0], q.at[1]) }));
   check("MARKET: its crate stacks, three crates each, on the block's own ground off the street", MK.length > 0 && CR.length === MK.reduce((a, m) => a + m.count, 0) && stacks.every((e) => e.n >= 3 && !e.street && e.q.at[0] < 0 && e.q.at[1] > 0), stacks.map((e) => `(${e.q.at.join(", ")}) ${e.n} crates${e.street ? " ON THE STREET" : ""}`).join("; "));
 }
@@ -4062,7 +4064,8 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const towers = D.glass.buildings.filter((b) => b[0].startsWith("HighPlatform_Peninsula"));
   const glassOk = towers.length === 4 && towers.every((b) => placed.some((q) => String(q[0]).endsWith(`/${b[0]}`) && q[6] === b[4]));
   const C = (cfg as unknown as { canyon: { cliffs?: { signs: number; units: number } } }).canyon.cliffs;
-  const canyonPlaced = placed.filter((q) => [...D.canyon.cliffs.signs.pieces, ...D.canyon.cliffs.units.pieces].some((n) => String(q[0]).endsWith(`/${n.split("/").pop()}`)) && Number(q[1]) < -40 && Number(q[3]) > 40 && q[5] === "g");
+  // (past the ring road: MARKET's corner block, inside it, wears the same signs on its fronts)
+  const canyonPlaced = placed.filter((q) => [...D.canyon.cliffs.signs.pieces, ...D.canyon.cliffs.units.pieces].some((n) => String(q[0]).endsWith(`/${n.split("/").pop()}`)) && Number(q[1]) < -40 && Number(q[3]) > 40 && Math.max(-Number(q[1]), Number(q[3])) > 105 && q[5] === "g");
   const low = canyonPlaced.filter((q) => Number(q[2]) < 5.4);
   // (the canyon's middle: 5 m either side of its arms' middle lines, z 125 and x -125)
   const out = canyonPlaced.filter((q) => (Math.abs(Number(q[3]) - 125) < 2.6 && Number(q[1]) > -122) || (Math.abs(Number(q[1]) + 125) < 2.6 && Number(q[3]) < 122));
@@ -4231,13 +4234,14 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
 }
 
 // the pads' columns, the walk-ins' doors and the night's pools (Milestones 779 to 781): a column over every pad's ring, a
-// lit frame at each walk-in's door within a metre of its door, pools under the Sky Ring's deck all round
+// lit frame at each walk-in's door, within half a metre of the front over its door (its door point 2 m out, less 1.75 m
+// along its way out, since Milestone 819), pools under the Sky Ring's deck all round
 {
   const cols = scene.getObjectByName("padColumns") as THREE.InstancedMesh | undefined;
   const rings = scene.getObjectByName("padRings") as THREE.InstancedMesh | undefined;
-  const WI = (cfg as unknown as { walkIns: Array<{ door: number[] }> }).walkIns;
+  const WI = (cfg as unknown as { walkIns: Array<{ door: number[]; out: number[] }> }).walkIns;
   const DF = (cfg.game as unknown as { outlines: Array<{ name: string; frames?: number[][] }> }).outlines.find((q) => q.name === "the walk-in doors");
-  const byDoor = WI.filter((w) => (DF?.frames ?? []).some(([x, z]) => Math.hypot(x - w.door[0], z - w.door[1]) < 1));
+  const byDoor = WI.filter((w) => (DF?.frames ?? []).some(([x, z]) => Math.hypot(x - (w.door[0] - w.out[0] * 1.75), z - (w.door[1] - w.out[1] * 1.75)) < 0.5));
   const { poolSpots } = await import("../../src/game/lightpools");
   const SR = (cfg as unknown as { skyring: { r0: number; r1: number } }).skyring;
   const under = poolSpots().filter(([x, y, z]) => y === 0 && Math.hypot(x, z) > SR.r0 && Math.hypot(x, z) < SR.r1).length;
@@ -4319,6 +4323,61 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
     "THE CANYON's banners across the street, LANTERN ALLEYS' way in all shophouses, THE WORKS lined in teal inside",
     ask >= 6 && across === ask && pods === 0 && swapped > 0 && !!WS && WS.inside >= 80 && teal === WS.facades + WS.inside,
     `${across} of ${ask} banners from wall to wall at ${BN.map((b) => b.at[1]).join(", ")} m, ${pods} capsule buildings in LANTERN ALLEYS' rows ${SW?.rows.join(", ") ?? "(none swapped)"}, ${WS?.inside ?? 0} teal strips inside THE WORKS (${teal} placed of ${(WS?.facades ?? 0) + (WS?.inside ?? 0)})`
+  );
+}
+
+// the station's concourse a metro's and THE VAULT's ceiling a strongroom's (Milestones 817 and 818, the centre's eleventh
+// review): every module of the concourse worn in its own floor's tiles, the tower's basement floor beside the court in
+// the court's, and the slab over THE VAULT baked with its underside in the floor's own ceiling
+{
+  const UC = (cfg.rules as unknown as { underground: { concourse: { piece: string; mat?: string } } }).underground.concourse;
+  const mods = ((cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-station"]?.place ?? []).filter((q) => String(q[0]).endsWith(`/${UC.piece}`));
+  const worn = mods.filter((q) => UC.mat && q[6] === UC.mat).length;
+  const FA = (cfg.rules as unknown as { tower: { floors: { at: Record<string, { ceilingMat?: string }> } } }).tower.floors.at;
+  const want = Object.entries(FA).filter(([, v]) => v.ceilingMat).map(([k, v]) => `${k}:${v.ceilingMat}`);
+  const MR = cfg.rules as unknown as { middle: { remap?: string }; court: { floorMat: string } };
+  const basement = MR.middle.remap?.split("=")[1];
+  const got = ((cfg as unknown as { tower: { measured: { ceilings?: Array<{ over: number; mat: string }> } } }).tower.measured.ceilings ?? []).map((q) => `${q.over}:${q.mat}`);
+  check(
+    "the station's concourse in its own tiles, the tower's basement in the court's, THE VAULT's ceiling baked in its own",
+    !!UC.mat && mods.length >= 4 && worn === mods.length && basement === MR.court.floorMat && want.includes("32:" + FA["32"]?.ceilingMat) && want.every((w) => got.includes(w)),
+    `${worn} of ${mods.length} concourse modules worn in ${UC.mat}, the basement in ${basement} (the court ${MR.court.floorMat}), ceilings asked ${want.join(", ") || "none"}, baked ${got.join(", ") || "none"}`
+  );
+}
+
+// the walk-ins' doors where their doors are and the pads' columns clear of the walls (Milestones 819 and 820, the
+// centre's twelfth review): from each walk-in's door point, 2 m out in the street, a body walks in through its door (a
+// ray at 1 m and at 1.7 m straight in meets no box for 3.5 m, 1.5 m inside), and each column, at its scale, meets no box standing
+// in its height (its circle at a third and two thirds of its height, every 22.5 degrees)
+{
+  const WI = (cfg as unknown as { walkIns: Array<{ door: number[]; out?: number[] }> }).walkIns;
+  const S7 = (SOLIDS as { solids: number[][] }).solids;
+  const inBox = (x: number, y: number, z: number) => S7.some((b) => x > b[0] && x < b[1] && z > b[2] && z < b[3] && y > b[4] && y < b[5]);
+  const shut = WI.filter((w) => {
+    if (!w.out) return true;
+    const [dx, dz] = [-w.out[0], -w.out[1]];
+    return [1, 1.7].some((y) => {
+      for (let k = 0; k <= 3.5; k += 0.1) if (inBox(w.door[0] + dx * k, y, w.door[1] + dz * k)) return true;
+      return false;
+    });
+  });
+  const cols = scene.getObjectByName("padColumns") as THREE.InstancedMesh | undefined;
+  const PRc = (cfg.game as unknown as { padRings: { outer: number; column: { h: number; r?: number } } }).padRings;
+  const [m4, p, s, q] = [new THREE.Matrix4(), new THREE.Vector3(), new THREE.Vector3(), new THREE.Quaternion()];
+  const into: string[] = [];
+  for (let i = 0; i < (cols?.count ?? 0); i++) {
+    cols!.getMatrixAt(i, m4);
+    m4.decompose(p, q, s);
+    if (s.x < 0.01) continue;
+    const r = (PRc.column.r ?? PRc.outer) * s.x - 0.05;
+    let hit = false;
+    for (const f of [1 / 3, 2 / 3]) for (let a = 0; a < 16 && !hit; a++) hit = inBox(p.x + Math.cos((a * Math.PI) / 8) * r, p.y + PRc.column.h * f, p.z + Math.sin((a * Math.PI) / 8) * r);
+    if (hit) into.push(`(${p.x.toFixed(1)}, ${p.z.toFixed(1)})`);
+  }
+  check(
+    "the walk-ins entered through their doors, the pads' columns clear of the walls round them",
+    WI.length === 4 && shut.length === 0 && !!cols && cols.count > 40 && into.length === 0,
+    `${WI.length - shut.length} of ${WI.length} walk-ins open from their door points${shut.length ? ` (shut: ${shut.map((w) => `(${w.door.join(", ")})`).join(", ")})` : ""}, ${into.length} columns into a wall${into.length ? `: ${into.slice(0, 4).join(", ")}` : ""}`
   );
 }
 

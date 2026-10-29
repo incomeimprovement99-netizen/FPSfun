@@ -17074,3 +17074,39 @@ From the centre's review of 2026-10-25 (round 11) and the districts' (round 5).
 - **The lit roads cut at the blocks:** laid on the low blocks' cells' edges, 27 lines ran under a block that filled its
   cell or under the outer towers; each line now stops half a metre short of a block's walls.
 - **Checked:** the map check's 321 checks pass on the low, high and max bakes (the bake converged on its third low run), among them new checks for the lit roads (every lamp row past the fence band and under no block, drawn by night only), for THE CANYON's banners, LANTERN ALLEYS' swapped row and THE WORKS' inside strips (each failing with its feature taken out), and THE VAULT's east and south-east rooms walked again (100% and 98% where the crate had them at 2 and 11%); pictures of each change by day and the lit roads from the air by night. verify, rules and tsc. Map files version 114: lo 181.8 MB, hi 262.0 MB, max 555.4 MB.
+
+## Milestones 817 to 822 — The station's concourse a metro's, THE VAULT's ceiling a strongroom's, the walk-ins' doors where their doors are, slimmer pad columns, fuller district floors, LANTERN ALLEYS' sign clear
+
+From the centre's reviews of 2026-10-25 (round 11) and 2026-10-28 (round 12), and the districts' of 2026-10-28 (round 6).
+
+- **817, the station's concourse a metro's, not a hotel's** ("21 a hotel corridor, not a metro"): its modules' pink hex
+  marble floor in the pack's concrete tiles (`underground.concourse.mat`, through the layout's `pivot`, which now takes a
+  material). And the review's picture of the court ("the floor texture distracting"; round 12: "the floor is black
+  marble") looks across the tower's basement floor inside its round wall, which still wore the court's old marble after
+  Milestone 812 gave the court concrete tiles: it wears them too (`middle.remap`).
+- **818, THE VAULT's ceiling a strongroom's** ("THE VAULT ... reads as a yellow office"): a floor's `ceilingMat`, the slab
+  over it baked with its underside in it (tools/import-neon.ts, recorded in the bake's `tower.measured.ceilings`): THE
+  VAULT's in the pack's dark steel tiles, where white plaster hung over its gold walls.
+- **819, the walk-ins' doors where their doors are** (round 12: "a glowing door frame stands in front of a solid wall"):
+  the pack's two walk-in buildings have one street door each, near an end, measured off their meshes cut at 1 and 1.8 m
+  (tools/.scratch/planat.mts): Neon Building 05's on its own -x side at z 0.87 to 2.62, Neon Building 06's on its +x side
+  at z -1.63 to -0.38. The layout turns a building's -x side to the street and marked the door at the front's middle:
+  at MOTEL HILL and MARKET the frame, awning and strips stood over a wall 8 m from Neon Building 05's door, and NOODLE
+  ROW's and THE WELL's Neon Building 06 showed the street its back, its door on the block's inside. Neon Building 06 is
+  turned about (`walkIn.doors`), and each building's awning, strips and frame stand over its door, the frame a quarter
+  metre out from the front (it stood 2.3 m out). A first try turned the wrong one about, and the new check below found
+  all four door points shut; turned the right way, a NOODLE ROW food stall stood on its door's way in, and the corner
+  blocks' stalls and crates now keep 3 m clear of a walk-in's door point.
+- **820, slimmer pad columns** (round 12: "a large magenta column runs half into the facade" by the east block's fire
+  escape): a pick of the picture put the column 0.8 m in front of the facade, read as inside it through its additive
+  light. Each column is now 1 m across inside its ring's 1.15 to 1.55 m (`padRings.column.r`), and cut to the room
+  round its pad where a box stands within it (`column.trim`, measured by tools/neon-pooltrim.ts; none needs it at 1 m).
+- **821, the districts' open floors fuller** (the districts' sixth review: "fill the open floors ... no 20 m of open
+  ground without a waist-high cover piece", THE STACKS' plaza and court, LANTERN ALLEYS' court, THE WORKS' yard): a
+  district's own `far` on the ground (`districtCover.farBy`), head-high cover within 5 m of every spot in THE STACKS,
+  LANTERN ALLEYS and THE WORKS (6 elsewhere: at 5.5 THE STRIP's club gate and THE TERMINAL's way in shut, Milestone 778),
+  and within 7 m on GLASS HEIGHTS' deck and THE TERRACES' tiers (8; at 6, 10 and 15% of them stayed past it, more than
+  the check lets a raised level). The fill takes the spot farthest past its own `far`.
+- **822, LANTERN ALLEYS' sign clear of its mast** ("the pole cuts the court sign to 'LANTER ALLEYS'"): the name 3 m along
+  the shop's front, its left end on the front's end.
+- **Checked:** the map check's 323 checks pass on the low, high and max bakes, among them new ones for the concourse's and the basement's floors and THE VAULT's baked ceiling, for each walk-in entered straight in through its door and every pad column clear of the boxes round it, and the districts' cover held to each one's own distance; each fails with its change taken out (the door check found all four doors shut on the first, wrong turn). Pictures of each change by day. verify, rules and tsc. Map files version 116: lo 183.9 MB, hi 264.1 MB, max 557.4 MB.

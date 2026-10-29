@@ -39,7 +39,30 @@ for (const [x, y, z, r] of poolSpots()) {
   while (rr > 1 && !ok(rr)) rr -= 0.25;
   trims.push([+x.toFixed(3), +z.toFixed(3), rr > 1.2 ? +(rr / 0.85).toFixed(2) : 0]);
 }
+// and each jump pad's column of light cut to the room round it (Milestone 820; the centre's twelfth review: by the east
+// block's fire escape a column stood "half into the facade"): its radius scaled to the nearest box standing in its
+// height (from 0.3 m over its floor to its top) within its radius, 0.15 m short of it, and left out where under half of
+// it is clear
+const PRC = cfg.game.padRings;
+const SP = cfg.spine ?? {};
+const pads: Array<{ pad: number[]; floor: number }> = [...cfg.pads, ...(SP.up ?? []), ...(SP.down ?? []), ...(SP.across ?? [])];
+const cols: number[][] = [];
+for (const q of pads) {
+  const [x, z] = q.pad;
+  const [y0, y1] = [q.floor + 0.3, q.floor + PRC.column.h];
+  const RC = PRC.column.r ?? PRC.outer;
+  let near = RC;
+  for (const b of S) {
+    if (b[4] >= y1 || b[5] <= y0) continue;
+    const d = Math.hypot(Math.max(b[0] - x, 0, x - b[1]), Math.max(b[2] - z, 0, z - b[3]));
+    near = Math.min(near, d);
+  }
+  if (near >= RC) continue;
+  const s = (near - 0.15) / RC;
+  cols.push([+x.toFixed(3), +z.toFixed(3), s < 0.5 ? 0 : +s.toFixed(3)]);
+}
 const fresh = JSON.parse(readFileSync(cfgPath, "utf8"));
 fresh.game.pools.trim = trims;
+fresh.game.padRings.column.trim = cols;
 writeFileSync(cfgPath, JSON.stringify(fresh, null, 1) + "\n");
-console.log(`pools trimmed to their floors: ${trims.length} (${trims.filter((t) => t[2] === 0).length} dropped)`);
+console.log(`pools trimmed to their floors: ${trims.length} (${trims.filter((t) => t[2] === 0).length} dropped); pads' columns cut to the room round them: ${cols.length} (${cols.filter((t) => t[2] === 0).length} left out)`);

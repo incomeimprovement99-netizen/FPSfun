@@ -451,3 +451,30 @@ Whole map: a centre with a thin band; districts share wet paving, the cream-blac
 
 The centre held at 5.5 and the districts rose to 5.5 (finish 4.5 to 5.0, THE TERMINAL 5.5 to 6.5). Their asks are the
 plan's next versions (docs/PLAN_CITY_FINISH.md, "After the eleventh reviews").
+
+## Round 12 (the centre) and the districts' round 6, 2026-10-28 (map version 114)
+
+The same method and spots as round 11, on map version 114 (since version 108: THE TERMINAL's map boards, the pads'
+columns, the walk-ins' door frames, softer night pools, cover on the high ground and denser street cover, THE WORKS'
+tanks rusted and its halls lined in teal, GLASS HEIGHTS' tower white, THE TERRACES' trees and green hedges, THE STRIP's
+pyramid steps lit, LANTERN ALLEYS' court tables and shophouse way in, the tower's floors furnished each its own way, the
+corner roofs' cornices, THE CANYON's hanging signs, the lit roads past the fence). Each review by a fresh agent that saw
+only the pictures. In their words cut short:
+
+CENTRE ROUND 12 (2026-10-28, map version 114): overall 5.5 (round 11: 5.5)
+Scores: visual 6, readability 6, flow 6.5, play-style 6, finish 4.5, fun 6.5.
+Ten changes: 1 each tower floor different in shape, not just colour (a double-height hall, a mezzanine, holes and inner stairs; 12 = 13); 2 THE VAULT's payoff (vault doors in view from the stair, gold lockers in the maze's dead ends, brighter gold, a central strongroom; 28); 3 light the dark spaces by day (base hall 07, MARKET road 18, MOTEL HILL yard 17, corner roofs 26, THE WELL's bottom 19); 4 ledges, awnings, balconies and AC units on the corner blocks and the High City's lower floors (04, 18, 27); 5 solid cover every 8-10 m on the bridge ring, the lookout, the green High City roof and the Sky Ring (15, 10, 14, 08; glass rails are not cover); 6 the corner blocks' street furniture (MARKET stalls with awnings and crates, NOODLE ROW counters and booths) and each block's name at eye level; 7 the walk-in door frames on real openings (22); 8 the base hall a furnished lobby, the blown-out white panel out (07); 9 the green clover glass in each place's own colour (06, 08, 09, 20); 10 cover and a second way out in the court and the station (20, 21).
+Broken: 07 an over-bright white rectangle, a cross column of misaligned blocks; 11/28 ragged wall bottoms; 14 the sun a stretched oval; 20 the floor still black marble; 22 a lit door frame before a solid wall; 25 the gangway's cover not seen; 27 a magenta pad column half into the facade, the fire escape's frame two pink sticks; 19 the shaft a black pit; night-23 pools hard-edged discs; night-24 the road one even pink; 01 brown ground, props like confetti; 04/05 a car's hood fills a third of the frame.
+Gap: Red Tiger's ornate individual buildings against one slab and curtain-wall cylinders; no loot in view, THE VAULT a corner shop; routes on rails (rings and bridges), facades not climbable; one ceiling height, corridor-like floors; the court and station single sightlines.
+
+DISTRICTS ROUND 6 (2026-10-28, map version 114): overall 5.5 (round 5: 5.5)
+Per district: LANTERN 6, TERRACES 4.5, TERMINAL 5.5, STACKS 6, GLASS 4.5, STRIP 6, CANYON 7, WORKS 5.
+Together: visual 5.5, readability 5.5, flow 6, play-style 5, finish 4.5, fun 6, overall 5.5.
+Ten changes: 1 fill the open floors (STACKS plaza and court d10/d11, LANTERN court d02, GLASS deck d14, TERRACES top d05, WORKS yard d22): no 20 m without waist-high cover and a full-height blocker, each in the district's kit; 2 THE TERRACES read from the ring road (a wide lit stair on the axis, retaining walls, stepped blocks for the green curved tower; d04); 3 the curved tower in GLASS HEIGHTS only (out of THE STRIP d17 and THE TERRACES d04); 4 the STRIP club a roof (dark ceiling, light rigs), the floating diagonal strips out (d18), the tilted slab over the boulevard checked (d16); 5 trains where the player looks in THE TERMINAL (a wagon at the arcade's end d08, a departure board and clock d07), pale vault glass (d09); 6 the flat roofs broken up (CANYON d21, WORKS d24: roof huts, stair heads, sign frames, low walls); 7 THE CANYON's floor a market (stall rows with awnings, carts, hanging cloth; d19); 8 GLASS deck tiled with kiosks, planters, low glass walls, the lift a lit glass cabin (d14, d15); 9 the backdrop dimmer at night and hazier by day, its silhouettes varied, the fence's top wires lower (d99, d11, d12, d24); 10 THE WORKS outside: corrugated cladding, big doors, outside stairs, a chimney or crane, a bigger sign (d22).
+Broken: d01 a blotchy shimmering ring-road surface; d02 a lantern pole cuts the sign to "LANTER ALLEYS"; d03 blotchy ground, a hover car on the pavement; d05 an untextured brown slab; d07 a thin blue line from the floor; d08 a blank white lightbox; d11/d12 fence wires fanning across the sky, a black card with a tube (d12); d14 untextured deck and cyan prisms, a tilted sign; d15 thin lines and a floating black panel by the lift; d16/d98 a huge tilted slab over the boulevard; d18 the club open to the sky with floating strips; d98 the night STRIP a tinted day; d99 the play square darker than the filler; aerial haze against clear skies on the ground.
+Whole map: a centre with a thin ring of filler; THE STRIP's and GLASS HEIGHTS' towers alone break the skyline; the CANYON's flat brown L of roofs looks unfinished; from straight down the haze washes it out; the edge reads (red fence, dark moat) but the backdrop's flat window boxes are a cruder style, and brighter than the map at night.
+
+Both held at 5.5. THE CANYON rose to 7 (6.3), its hanging signs read; GLASS HEIGHTS fell to 4.5 (5.5), its deck and its
+tower's shared model counted against it; finish stays 4.5 in both. The court's picture looks across the tower's basement
+floor, which still wore the old marble (Milestone 817 gives it the court's tiles). Their asks are the plan's next
+versions (docs/PLAN_CITY_FINISH.md, "After the twelfth reviews").
