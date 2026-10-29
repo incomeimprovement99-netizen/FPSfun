@@ -396,6 +396,8 @@ function wireItem(x: unknown): LootItem | null {
   if (typeof o.ownerName === "string") it.ownerName = o.ownerName.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 16);
   // SpeedKills: a gun's fusion level
   if (typeof o.fusion === "number" && Number.isFinite(o.fusion)) it.fusion = Math.max(0, Math.min(5, Math.floor(o.fusion)));
+  // and the rounds in a gun put down (Milestone 859)
+  if (typeof o.clip === "number" && Number.isFinite(o.clip)) it.clip = Math.max(0, Math.min(500, Math.floor(o.clip)));
   return it;
 }
 

@@ -4468,14 +4468,25 @@ function applyLoot(it: LootItem): void {
         // (as the hack's: the FUSED notice was written over by the bare name after the switch)
         return;
       }
+      // A gun put down keeps its rounds, and one taken into your hand comes up as a swap brings one up. An empty gun put
+      // down and taken straight back came back full and fired that frame: a reload skipped with two presses of E, and
+      // every deploy time with it (Milestone 859). A gun found on the floor still comes full.
+      const loaded = (i: number): void => {
+        const st = loadout.slots[i].state;
+        if (it.clip !== undefined) st.clip = Math.max(0, Math.min(loadout.slots[i].weapon.clipSize, it.clip));
+      };
       const empty = loadout.emptySlot;
       if (empty >= 0) {
         loadout.give(empty, it.id, it.fusion ?? 0);
+        loaded(empty);
         if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
+        else loadout.raise(gameTime);
       } else {
         const s = loadout.active;
-        putBack({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0 });
+        putBack({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0, clip: s.state.clip });
         loadout.give(loadout.activeIndex, it.id, it.fusion ?? 0);
+        loaded(loadout.activeIndex);
+        loadout.raise(gameTime);
       }
       audio.swap();
       break;

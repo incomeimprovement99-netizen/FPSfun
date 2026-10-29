@@ -7077,6 +7077,22 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       return { floor, dropped: fresh ? fresh.pos.y : null, out: fresh ? fresh.item.id : null }; })()`
   );
   check("speedkills br: a gun swapped out three metres up goes down on the floor under you", swapped.dropped !== null && Math.abs(swapped.dropped - swapped.floor) < 0.3, JSON.stringify(swapped));
+  // (Milestone 859) a gun put down keeps its rounds, and one taken into your hand comes up as a swap does: an empty gun
+  // put down and taken straight back came back full and fired that frame, a reload skipped with two presses of E
+  const kept = await ev<{ clip: number | null; back: number; full: number; raising: boolean }>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const f = d.lootField; const g = (id) => ({ kind: "weapon", id, n: 1, rarity: "common", fusion: 0 });
+      const held = () => r.loadout.slots.filter((s) => !s.empty).map((s) => s.id);
+      const spare = () => ["mastiff", "shotgun", "sentinel", "lstar", "autopistol", "alternator_smg", "r97", "vinson"].find((id) => !held().includes(id));
+      while (held().length < 2) r.applyLoot(g(spare()));
+      const s = r.loadout.active; const was = s.id; s.state.clip = 0; const before = new Set(f.drops.keys());
+      r.applyLoot(g(spare())); const raising = r.loadout.swapping;
+      const down = [...f.drops.values()].find((x) => !before.has(x.key) && x.item.id === was);
+      if (!down) return { clip: null, back: -1, full: 0, raising };
+      f.remove(down.key); r.applyLoot(down.item); const a = r.loadout.active;
+      return { clip: down.item.clip ?? null, back: a.state.clip, full: a.weapon.clipSize, raising }; })()`
+  );
+  check("speedkills br: an empty gun put down goes down empty and comes back empty, and a gun taken into your hand comes up as a swap does", kept.clip === 0 && kept.back === 0 && kept.raising, JSON.stringify(kept));
   // (Milestone 853) the floor is drawn round the view, not your body: the page gives the match the camera's place, and
   // the match draws round what it is given. Out and watching a mate, it was drawn round your still body, and the mate
   // 70 m off walked over empty ground. A gun 120 m off with the view moved to it is drawn, one at your feet is not

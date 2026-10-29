@@ -249,6 +249,8 @@ export interface LootItemWire {
   id: string;
   n: number;
   rarity: string;
+  /** a gun someone put down: the rounds in it (not `mag`, the legacy game's magazine attachment) */
+  clip?: number;
   mag?: number;
   attach?: Record<string, string | null>;
   owner?: number;

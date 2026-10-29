@@ -13202,6 +13202,18 @@ The fusion ends the reload now (loadout.ts fuse).
 - **Checked:** tsc, verify, rules; verify's loadout lines, a new one: a copy fused in mid-reload leaves a full gun that
   is not reloading (on the old fusion it was still reloading).
 
+## Milestone 859 — A gun put down keeps its rounds, and one taken comes up as a swap does
+
+From the review of shooting and being hit (Milestone 855). With both hands full, taking a gun off the floor put the one
+in your hand down and gave you the new one with a full magazine, ready to fire that frame; the one put down carried
+nothing of its magazine. So an empty gun put down and taken straight back came back full and fired at once: a reload
+(1.5 to 3.3 s) and every deploy skipped with two presses of E. A gun put down keeps the rounds in it now (loot.ts
+LootItem clip, over the wire as clip, not the legacy game's mag), a gun taken gets them back (a gun found on the floor
+still comes full), and one taken into your hand comes up as a swap brings one up (loadout.ts raise), its deploy time.
+
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: an empty gun put down for another goes down empty and
+  comes back empty, and the gun taken into your hand is coming up (on the old code it came back full, firing at once).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

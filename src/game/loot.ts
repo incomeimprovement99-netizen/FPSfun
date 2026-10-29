@@ -56,6 +56,8 @@ export interface LootItem {
   ownerName?: string;
   /** SpeedKills: a gun's fusion level, 0 as found to 5 (a hack core's level is its n) */
   fusion?: number;
+  /** a gun someone put down: the rounds in it (a gun found on the floor comes full) */
+  clip?: number;
 }
 
 export interface LootDrop {
