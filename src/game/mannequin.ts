@@ -174,7 +174,7 @@ function onSupport(x: number, z: number, y: number): { dx: number; dz: number } 
   return best;
 }
 /** standing still, each foot held to its place on the floor as the body turns, and a step round (figure.json plant) */
-const PLANT = figureCfg.plant as { under: number; after: number; rate: number; stepAt: number; settle: number; stepTime: number; land: number; lift: number };
+const PLANT = figureCfg.plant as { under: number; after: number; rate: number; stepAt: number; settle: number; stepTime: number; land: number; lift: number; snap: number };
 /** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
 const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
@@ -1183,6 +1183,11 @@ export class MannequinFigure {
     }
     // how far a foot is from where the clip has it, its ankle or its toe, as a share of `m` metres
     const off = (s: "l" | "r", m: number) => Math.max(Math.hypot(clip[s].x - H[s].x, clip[s].z - H[s].z), Math.hypot(clip[s].bx - H[s].bx, clip[s].bz - H[s].bz)) / m;
+    // (a foot further off than any step is a body put somewhere else, a respawn or a teleport: no step, the clip's places)
+    if (off("l", PLANT.snap) > 1 || off("r", PLANT.snap) > 1) {
+      for (const s of ["l", "r"] as const) for (const q of keys) H[s][q] = clip[s][q];
+      this.step = null;
+    }
     const lift = { l: 0, r: 0 };
     const begin = (s: "l" | "r") => (this.step = { s, at: this.t, from: { ...H[s] } });
     if (hold && !this.step && this.plantW > 0.99) {

@@ -17572,3 +17572,12 @@ owner's "things that could be fixed with 3rd person or enemy views".
     below the kerb on its frames, the lower foot on it, and a lift's rider 80 mm down on its first frame only. With no
     easing it fails (up the whole step in one frame), and nothing else does. The whole soldier section: 334 checks, E2E PASS.
   - verify, rules and the type check.
+- **And a fault of Milestone 832's put right:** a soldier standing still that was put somewhere else in one frame (a
+  respawn, a teleport) had its feet held where they had stood and stepped from there: 10 m away, its legs stretched
+  toward the old place, the ankles 87 and 68 cm from its middle (23 and 33 standing), for 0.4 s while they stepped back
+  one at a time (node_modules/.scratch/teleprobe.mts). A foot further than any step from the clip's (figure.json
+  plant.snap, 0.5 m) is a body put somewhere else, and both feet take the clip's places at once: 23 and 33 cm every
+  frame. A new e2e check in the soldier stances: moved 10 m in a frame standing still, each ankle within 10 cm of its
+  place, every frame after. 23 and 33 cm
+  every frame; with the snap off it fails (87 and 68 cm), and nothing else does. The whole soldier section: 335
+  checks, E2E PASS.

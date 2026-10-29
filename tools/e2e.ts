@@ -7573,6 +7573,28 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     turns.length === 2 && turns.every((t) => t.slid <= 30 && t.high >= 40),
     turns.map((t) => `${t.stance}: slid ${t.slid} mm, lifted ${t.high} mm`).join("; "),
   );
+  // and put somewhere else standing still (a respawn, a teleport) its feet go with it: they were held where they stood
+  // and stepped from there, the legs stretched toward the old place for 0.4 s (Milestone 836). Moved 10 m in a frame, each
+  // ankle stays within 10 cm of its distance from the body's middle before, every frame after
+  const moved = await ev<number[][]>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(1.5);
+      const read = () => { const g = f.group.position; return ["l", "r"].map((s) => { const a = f.mq.bone("foot_" + s).getWorldPosition(new T.Vector3()); return Math.round(Math.hypot(a.x - g.x, a.z - g.z) * 100); }); };
+      const out = [read()];
+      f.group.position.x += 10;
+      for (let i = 0; i < 30; i++) { r.figureLabStep(1 / 60); out.push(read()); }
+      return out;
+    })()`,
+  );
+  check(
+    "and moved 10 m in a frame standing still (a respawn), its feet go with it: each ankle within 10 cm of where it was from the body's middle, every frame after",
+    moved.length === 31 && moved.every((q) => Math.abs(q[0] - moved[0][0]) <= 10 && Math.abs(q[1] - moved[0][1]) <= 10),
+    `ankles from the middle (cm), frame by frame: ${moved.map((q) => q.join("/")).join(" ")}`,
+  );
   // A moving soldier's planted foot keeps its place on the floor (Milestone 833): each moving clip played at the figure's
   // speed over the ground its stride covers. A foot is planted while low and going back against the body, and its speed
   // back then against the body's is the match (1: still on the floor). The crouch walk was played as though its stride
