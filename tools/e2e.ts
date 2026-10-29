@@ -3751,6 +3751,23 @@ async function rejoinTest(browser: Browser, query: string): Promise<void> {
   ]);
   const hostNow = await ev<number>(host, "performance.now() / 1000");
   check("getting back in: the guest is back on its own seat, and the two hear each other again", back && seat.linked && !seat.held && hostNow - flow[0] < HEARD && flow[1] < HEARD, JSON.stringify({ back, seat, t0, sinceGuest: hostNow - flow[0], sinceHost: flow[1] }));
+  // (Milestone 852) what changed on the floor while the guest was away reaches it once it is back: with its seat held and
+  // its attempts turned away, the host puts a gun down and takes another off the floor, then lets it back. The changes
+  // went to the links there were, and its floor stayed as it was for the rest of the match
+  await ev(host, "(() => { const d = window.__range.duel(); const back = d.rejoin.bind(d); window.__letBack = false; d.rejoin = (l, id) => (window.__letBack ? back(l, id) : false); })()");
+  await ev(guest, "window.__range.duel().dropHostLink()");
+  const awayHeld = await host.waitForFunction("window.__range.duel().held.has(1)", { polling: 50, timeout: 4000 }).then(() => true, () => false);
+  const changed = await ev<{ added: number; removed: number }>(
+    host,
+    `(() => { const R = window.__range; const d = R.duel(); const f = d.lootField; const p = R.player.pos;
+      d.dropLoot({ kind: "weapon", id: "lstar", n: 1, rarity: "legendary", fusion: 2 }, new R.THREE.Vector3(p.x + 3, p.y, p.z)); const added = Math.max(...f.drops.keys());
+      const gone = [...f.drops.values()].find((x) => x.key !== added && x.item.kind === "weapon"); f.remove(gone.key); d.broadcast({ t: "loot", op: "gone", key: gone.key, by: 0 });
+      return { added, removed: gone.key }; })()`
+  );
+  await ev(host, "window.__letBack = true");
+  const backAgain = await guest.waitForFunction("window.__range.duel()?.reconnectUntil === null", { polling: 200, timeout: 20000 }).then(() => true, () => false);
+  const seen = await guest.waitForFunction(`(() => { const f = window.__range.duel().lootField; return f.drops.has(${changed.added}) && !f.drops.has(${changed.removed}); })()`, { polling: 100, timeout: 4000 }).then(() => true, () => false);
+  check("getting back in: a gun put down and one taken while the guest was away are on its floor as they are on the host's once it is back", awayHeld && backAgain && seen, JSON.stringify({ awayHeld, backAgain, seen, ...changed }));
   // a seat nobody comes back for: the host gives it up once the hold is over
   // (the host turns the guest's attempts away, so it cannot get back this time)
   await ev(host, "(() => { window.__range.duel().rejoin = () => false; })()");
@@ -7031,7 +7048,8 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
   check("speedkills br: a gun found is level 0, a copy fuses it to 1, a level-4 copy takes it to 4, a hack core fuses its hack", fuse.first === 0 && fuse.second === 1 && fuse.third === 4 && fuse.hack === 1, JSON.stringify(fuse));
   // (Milestone 850) holding E over a core of a hack at its top level: the hold leaves it where it lies. It took the core,
   // put it back down under a new key (no use at the top), and took that again, for as long as E was held. The press
-  // takes the nearer core (the other hack's, which fuses), the view up so neither is aimed at
+  // takes the nearer core (the other hack's, which fuses), the view up so neither is aimed at; one of the city's own
+  // cores of that hack in reach can fuse it a level more
   const topped = await ev<{ kept: boolean; util: number[]; mobKey: number | null }>(
     page,
     `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const T = r.THREE;
@@ -7045,7 +7063,20 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       r.setScript({ held: (a) => a === "interact", pressedNow: (a) => a === "interact" && n++ === 0 });
       setTimeout(() => { r.setScript(null); r.player.pitch = 0; ok({ kept: mobKey !== null && d.lootField.drops.has(mobKey), util: [before, r.sk.hacks()[1].held.level], mobKey }); }, 2500); }))()`
   );
-  check("speedkills br: holding E leaves a core of a hack already at its top level where it lies, and takes the one it can use", topped.kept && topped.util[1] === topped.util[0] + 1, JSON.stringify(topped));
+  check("speedkills br: holding E leaves a core of a hack already at its top level where it lies, and takes the one it can use", topped.kept && topped.util[1] > topped.util[0], JSON.stringify(topped));
+  // (Milestone 851) a gun swapped out in the air goes down on the floor under you, not where you were: both hands full,
+  // three metres up, a third gun taken
+  const swapped = await ev<{ floor: number; dropped: number | null; out: string | null }>(
+    page,
+    `(() => { const r = window.__range; const d = r.duel(); const f = d.lootField; const g = (id) => ({ kind: "weapon", id, n: 1, rarity: "common", fusion: 0 });
+      r.applyLoot(g("r97")); r.applyLoot(g("vinson"));
+      const floor = r.player.pos.y; r.player.pos.y += 3; const before = new Set(f.drops.keys());
+      r.applyLoot(g("wingman"));
+      const fresh = [...f.drops.values()].find((x) => !before.has(x.key) && x.item.kind === "weapon");
+      r.player.pos.y = floor;
+      return { floor, dropped: fresh ? fresh.pos.y : null, out: fresh ? fresh.item.id : null }; })()`
+  );
+  check("speedkills br: a gun swapped out three metres up goes down on the floor under you", swapped.dropped !== null && Math.abs(swapped.dropped - swapped.floor) < 0.3, JSON.stringify(swapped));
   // (before the decay: from its first wave the player stands in a sector coming apart, and the checks of a
   // fight's feel are not about that; there the outline read nothing on some runs)
   // (the bot frozen and moved by hand: its world matrix is brought up to date as the renderer would, since a

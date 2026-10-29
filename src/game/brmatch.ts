@@ -596,6 +596,7 @@ export class BrMatch extends Duel {
       BR_BOUNDS_WORLD,
       map.sites.map((s) => ({ x: s.x, z: s.z, id: s.id, radius: s.radius ?? brmapCfg.siteRadius, y: s.y, tier: s.tier }))
     );
+    this.lootSeeded = this.lootField.keyNext;
     if (this.role === "host") {
       // The bots take the OTHER places: where the squad drops is the squad's.
       // Landing beside three of them with no gun was the whole of a match.
@@ -843,14 +844,50 @@ export class BrMatch extends Duel {
     } else if (f.drops.has(key)) this.toHost({ t: "loot", op: "take", key });
   }
 
-  /** put an item down (a swapped gun, what someone had when they died): the host keys it and tells the squad */
-  dropLoot(item: LootItem, at: THREE.Vector3): void {
+  /** the first key the floor's seed did not give: from it on, items made in play (lootSync sends them whole) */
+  private lootSeeded = 1;
+
+  /**
+   * A guest back on its seat after a dropped connection asks the host for the floor as it stands now. What changed while
+   * it was away (a mate's echo and guns, a care package, a bot's take, a restock) went to the links there were, and its
+   * floor stayed as it was for the rest of the match: an echo it could not restore, a gun it could not take (Milestone 852).
+   * Asked once the new link is ours: sent with the host's taking it back, it came before the welcome and went nowhere.
+   */
+  protected override onBackIn(link: Link): void {
+    if (this.lootField) link.send({ t: "loot", op: "sync" });
+  }
+
+  private lootSync(f: LootField): NetMsg {
+    const keys: number[] = [];
+    for (const k of [...f.drops.keys()].sort((a, b) => a - b)) {
+      if (keys.length && keys[keys.length - 1] === k - 1) keys[keys.length - 1] = k;
+      else keys.push(k, k);
+    }
+    const made: Array<[number, LootItem, number, number, number]> = [];
+    for (const d of f.drops.values()) if (d.key >= this.lootSeeded) made.push([d.key, d.item, d.pos.x, d.pos.y, d.pos.z]);
+    return { t: "loot", op: "sync", keys, made, nk: f.keyNext };
+  }
+
+  /**
+   * Put an item down (a swapped gun, what someone had when they died): the host keys it and tells the squad. On the floor
+   * under the spot: a gun or hack swapped out mid-jump, or on a guest whose answer from the host came a round trip later
+   * with them in the air, went down where the body was and hung there, out of reach (Milestone 851).
+   */
+  dropLoot(item: LootItem, spot: THREE.Vector3): void {
     const f = this.lootField;
     if (!f) return;
+    const at = this.floored(spot);
     if (this.role === "host") {
       const key = f.add(item, at);
       this.broadcast({ t: "loot", op: "add", key, item, at: [at.x, at.y, at.z] });
     } else this.toHost({ t: "loot", op: "drop", item, at: [at.x, at.y, at.z] });
+  }
+
+  /** a spot brought down to the floor under it: the highest top there at or under it, or the ground (never raised) */
+  private floored(p: THREE.Vector3): THREE.Vector3 {
+    let y = floorAt(p.x, p.z);
+    for (const s of solidsIn(p.x, p.x, p.z, p.z)) if (s.minX <= p.x && s.maxX >= p.x && s.minZ <= p.z && s.maxZ >= p.z && s.top <= p.y + 0.05 && s.top > y) y = s.top;
+    return new THREE.Vector3(p.x, Math.min(p.y, y), p.z);
   }
 
   /**
@@ -858,17 +895,12 @@ export class BrMatch extends Duel {
    * itself for their restore. There are no death boxes (the owner, 2026-10-04): the box was a marker the items lay round.
    */
   dropDeath(items: LootItem[], at: THREE.Vector3): void {
-    // (each on the floor under its spot: the highest top there at or under it, or the ground. A player killed in the air,
-    // falling from the drop or mid-jump, left it all hanging where they died, the echo out of a mate's reach below it)
-    const floored = (p: THREE.Vector3): THREE.Vector3 => {
-      let y = floorAt(p.x, p.z);
-      for (const s of solidsIn(p.x, p.x, p.z, p.z)) if (s.minX <= p.x && s.maxX >= p.x && s.minZ <= p.z && s.maxZ >= p.z && s.top <= p.y + 0.05 && s.top > y) y = s.top;
-      return new THREE.Vector3(p.x, Math.min(p.y, y), p.z);
-    };
+    // (each on the floor under its spot, as every drop is: a player killed in the air, falling from the drop or
+    // mid-jump, left it all hanging where they died, the echo out of a mate's reach below it)
     items.forEach((it, i) => {
-      if (it.kind === "echo") return void this.dropLoot(it, floored(at));
+      if (it.kind === "echo") return void this.dropLoot(it, at);
       const a = (i / Math.max(1, items.length)) * Math.PI * 2;
-      this.dropLoot(it, floored(at.clone().add(new THREE.Vector3(Math.cos(a) * 0.9, 0, Math.sin(a) * 0.9))));
+      this.dropLoot(it, at.clone().add(new THREE.Vector3(Math.cos(a) * 0.9, 0, Math.sin(a) * 0.9)));
     });
   }
 
@@ -2027,7 +2059,7 @@ export class BrMatch extends Duel {
         } else if (m.op === "drop" && at) {
           const it = wireItem(m.item);
           if (it) this.dropLoot(it, at);
-        }
+        } else if (m.op === "sync") this.links.get(from)?.send(this.lootSync(f));
       } else if (m.op === "gone") {
         const was = f.drops.get(key)?.pos.clone();
         const it = f.remove(key);
@@ -2041,6 +2073,22 @@ export class BrMatch extends Duel {
       } else if (m.op === "add" && at) {
         const it = wireItem(m.item);
         if (it) f.add(it, at, key);
+      } else if (m.op === "sync" && Array.isArray(m.keys) && Array.isArray(m.made)) {
+        // back after a dropped connection: the host's floor as it stands (lootSync)
+        const fin = (v: unknown): v is number => typeof v === "number" && Number.isFinite(v);
+        const runs = m.keys.filter(fin);
+        const lies = (k: number): boolean => {
+          for (let i = 0; i + 1 < runs.length; i += 2) if (k >= runs[i] && k <= runs[i + 1]) return true;
+          return false;
+        };
+        for (const k of [...f.drops.keys()]) if (!lies(k)) f.remove(k);
+        for (const row of m.made) {
+          if (!Array.isArray(row) || row.length !== 5) continue;
+          const [k, wi, x, y, z] = row;
+          const it = wireItem(wi);
+          if (fin(k) && it && fin(x) && fin(y) && fin(z) && !f.drops.has(k)) f.add(it, new THREE.Vector3(x, y, z), k);
+        }
+        if (fin(m.nk)) f.keyNext = m.nk;
       }
       return;
     }

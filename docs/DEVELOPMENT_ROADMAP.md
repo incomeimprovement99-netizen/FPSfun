@@ -13107,6 +13107,36 @@ reached. The hold leaves it now (brplay.ts, CarryState topped, from main.ts's ha
   of the other at your feet, a press and a hold take the other's core (it fuses) and leave the first where it lay, under
   its own key (with the old hold, it was taken and put back over and over).
 
+## Milestone 851 — A gun put down in the air lands on the floor
+
+From the loot review (Milestone 850): a gun or hack core you swap out, or a core your hack is past using, was put down
+where your body was. Swapped mid-jump it hung in the air; on a guest it is put down when the host's answer comes, a
+round trip later, by when a jump pad or a roof's edge had carried you on, and it hung metres up, drawn but out of reach
+(a take reaches 2 m above an item). Only a death's drop was brought down to the floor. Every item put down is now
+(brmatch.ts dropLoot, floored: the highest top under the spot at or below it, or the ground; never raised), care
+packages' and restocks' too.
+
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: both hands full, three metres up, a third gun taken, the
+  one swapped out lies on the floor under you (on the old code, three metres up).
+
+## Milestone 852 — Back after a dropped connection, the floor as it is
+
+From the loot review (Milestone 850): a friend whose connection drops has their seat held for a minute, and the
+floor's changes in that minute (a squad mate's echo and guns, a care package, a bot's take, a restock, the host's own
+take) went to the links there were. Back on their seat, nothing put it right: for the rest of the match they could not
+see or take what was put down, could not restore a mate whose echo they never got, and saw guns long gone, which they
+could press E on for nothing. The doors had this put right in every ring message; the loot had nothing. A friend back
+on their seat now asks the host for the floor as it stands, once the new link is theirs (duel.ts onBackIn), and is sent
+it (brmatch.ts lootSync): the keys lying there as runs, every item made in play whole, and the next key; their page
+drops what is gone and lays what it lacks. (Sent with the host's taking them back, it came before the welcome and went
+nowhere.) A friend coming back to an heir after the host left comes through the same door.
+
+- **Left as it is:** a take the host granted in the moment the connection dropped reaches nobody (its answer went to a
+  link that was gone); the item is off every floor.
+- **Checked:** tsc, verify, rules; e2e brsolo, a new check: with a guest's seat held and its attempts turned away, the
+  host puts a gun down and takes one off the floor, then lets it back; the guest's floor has the one and not the other
+  (on the old code, neither change reached it).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -829,8 +829,12 @@ export class Duel implements MatchLike {
     this.remote(this.hostId).lastHeard = wallClock();
     this.sync.forgetPeer(this.hostId);
     if (MIGRATE) link.send({ t: "heir", op: "can" });
+    this.onBackIn(link);
     this.onFeed?.("Back in the match", false);
   }
+
+  /** a guest back on its seat on the host's `link`: what it missed while away is its to ask for (the battle royale's floor) */
+  protected onBackIn(_link: Link): void {}
 
   /** a player's figure by id, or null (the page paints their gun's finish on it) */
   avatarOf(id: number): Dummy | null {

@@ -142,7 +142,12 @@ export type NetMsg =
    * or `drop` one (a swapped gun, what someone had when they died); the host says an item is
    * `gone` (and who took it) or that one was `add`ed, with its key.
    */
-  | { t: "loot"; from?: number; op: "take" | "gone" | "add" | "drop"; key?: number; by?: number; item?: LootItemWire; at?: [number, number, number] }
+  /**
+   * The floor's loot. A "sync" is a guest back on its seat after a dropped connection asking for the floor, and the host's
+   * answer, the floor as it stands (BrMatch.lootSync): the keys lying there as first and last of each run, every item made
+   * in play with its key and place, and the next key
+   */
+  | { t: "loot"; from?: number; op: "take" | "gone" | "add" | "drop" | "sync"; key?: number; by?: number; item?: LootItemWire; at?: [number, number, number]; keys?: number[]; made?: Array<[number, LootItemWire, number, number, number]>; nk?: number }
   /** a squad member is down, not out (a squad mate can still revive them) */
   | { t: "dnd"; from?: number; by: number }
   /** a revive on `to`: started, given up, or done */
