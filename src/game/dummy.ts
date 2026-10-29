@@ -169,7 +169,7 @@ export const emptyReloadOf = (c: number | undefined): boolean => c === EMPTY_REL
 const LEG_TURN = 1.25;
 /** standing still, the feet stay planted while the body turns, until it has turned this far (radians, 50 degrees); then a step round */
 export const TURN_STEP_AT = 0.87;
-/** the step round: the feet catch up at this rate (1/s), lifting in turn */
+/** the step round: the hips catch up at this rate (1/s), and the feet step round after them (mannequin.ts plantFeet) */
 const TURN_STEP_RATE = 11;
 const wrapAngle = (a: number): number => Math.atan2(Math.sin(a), Math.cos(a));
 const STANCE_CODE: FigureStance[] = ["stand", "crouch", "slide", "air", "climb", "mantle", "zip", "stand", "wallL", "wallR", "skydive"];

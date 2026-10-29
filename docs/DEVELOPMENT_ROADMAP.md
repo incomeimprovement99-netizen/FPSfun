@@ -17146,3 +17146,37 @@ From the centre's reviews of 2026-10-25 (round 11) and 2026-10-28 (round 12), an
 - **822, LANTERN ALLEYS' sign clear of its mast** ("the pole cuts the court sign to 'LANTER ALLEYS'"): the name 3 m along
   the shop's front, its left end on the front's end.
 - **Checked:** the map check's 323 checks pass on the low, high and max bakes, among them new ones for the concourse's and the basement's floors and THE VAULT's baked ceiling, for each walk-in entered straight in through its door and every pad column clear of the boxes round it, and the districts' cover held to each one's own distance; each fails with its change taken out (the door check found all four doors shut on the first, wrong turn). Pictures of each change by day. verify, rules and tsc. Map files version 116: lo 183.9 MB, hi 264.1 MB, max 557.4 MB.
+
+## Milestone 832 — Feet planted turning on the spot
+
+An enemy standing still and turning (tracking a target, checking a corner) turned on its feet: the hips held for the
+first 50 degrees and then swung round to catch up, and both feet went round on the floor with them, never lifted.
+Measured (node_modules/.scratch/turnprobe.mts), 405 degrees of turns slid each foot 1.8 to 2.4 m along the floor,
+against 1 to 2 cm of the standing clip's own sway. Even while the hips held, the feet went round 7 mm a frame: the pelvis
+turns about itself, 7 cm off the soldier's middle. Found looking further for the owner's "things that could be fixed
+with 3rd person or enemy views".
+
+- **Feet held to the floor** (mannequin.ts plantFeet, figure.json plant): standing or crouched still, once the clips
+  have settled (0.25 s), each foot is held at its place, its ankle's and its toe's x and z (the heights are the clip's),
+  the leg bent onto it by a two-bone reach (legTo) with the knee on the side the clip bends it, and the foot turned onto
+  its toe. Moving, in the air, in an emote or a full-body clip, the feet are the clips' own, eased back over a tenth of
+  a second.
+- **A step round:** once the clip's ankle or toe is 7 cm from where the foot is held, the foot steps there, lifted 7 cm
+  over 0.22 s, at its place by three quarters of that time and set straight down, then the other foot if it is 3 cm off
+  its own: one foot at a time, as a person turns. For scale, the walk clip's toe lifts 16 cm over 0.68 s.
+- **The kneeling foot:** a crouch's right foot stands on its toe, nearly upright, and held by the way it pointed its toe
+  still slid 2 cm before any step, so each foot holds its toe's place too. A step that followed the clip's foot all the
+  way down to the floor slid 2 to 7 cm a frame with it while the body was still turning; it lands at three quarters of
+  its time now.
+- **Measured after** (the same 405 degrees): standing, 1.8 to 2.9 cm along the floor over the whole run (the clip's sway
+  alone 0.9 to 1.7); crouched, 4.2 to 5.5 cm, which was 22 to 36 cm before the toe hold and the landing. Everything else
+  is lifted steps, 7 cm high.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): turned 90 degrees in a quarter of a second, standing and crouched, no ankle
+    or toe slides more than 3 cm along the floor and the feet lift 4 cm or more. 8 and 11 mm slid, the feet
+    lifted 71 mm. With the hold taken out it fails (541 and 917 mm slid, 1 and 2 mm lifted), and nothing else does. The
+    whole soldier section: 330 checks, E2E PASS.
+  - Photographed a frame every 50 ms through a 90 degree turn, standing and crouched: the feet still while the body
+    turns over them, then one foot lifted round and the other after it, the crouch's kneeling leg left down.
+  - verify, rules and the type check.
+- **And a comment put right:** dummy.ts said the feet lift in turn as the hips catch up; until now nothing lifted them.

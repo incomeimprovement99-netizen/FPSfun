@@ -7413,6 +7413,46 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     slides.length > 0 && slideBad.length === 0,
     JSON.stringify(slideBad.length ? slideBad : slides.map((s) => `${s.id} lean ${s.lean} aim ${s.aim} in ${s.gunIn}`)),
   );
+  // Turning on the spot (Milestone 832): the feet kept where they are on the floor while the body turns on them, and a
+  // step round once they are too far behind it. Turned 90 degrees in a quarter of a second, standing and crouched, each
+  // foot went round on the floor with the body, 25 to 65 cm of it, and none lifted
+  const turns = await ev<Array<{ stance: string; slid: number; high: number }>>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE, out = [];
+      for (const stance of ["stand", "crouch"]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance, pitch: 0, ads: 1, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        r.figureLabStep(1.5);
+        const at = () => ["foot_l", "foot_r", "ball_l", "ball_r"].map((n) => f.mq.bone(n).getWorldPosition(new T.Vector3()));
+        const rows = [at()];
+        for (let i = 0; i < 75; i++) {
+          if (i < 15) f.group.rotation.y += Math.PI / 2 / 15;
+          r.figureLabStep(1 / 60);
+          rows.push(at());
+        }
+        // each ankle's and toe's way across the floor while down (within 2 cm of the lowest it is), and the highest one goes
+        let slid = 0, high = 0;
+        for (let k = 0; k < 4; k++) {
+          const low = Math.min(...rows.map((p) => p[k].y));
+          let s = 0;
+          for (let i = 1; i < rows.length; i++) {
+            const a = rows[i - 1][k], c = rows[i][k];
+            if (a.y - low < 0.02 && c.y - low < 0.02) s += Math.hypot(c.x - a.x, c.z - a.z);
+            high = Math.max(high, c.y - low);
+          }
+          slid = Math.max(slid, s);
+        }
+        out.push({ stance, slid: Math.round(slid * 1000), high: Math.round(high * 1000) });
+      }
+      return out;
+    })()`,
+  );
+  check(
+    "turning on the spot, standing and crouched, the feet step round: none slides more than 3 cm along the floor, and they lift 4 cm or more",
+    turns.length === 2 && turns.every((t) => t.slid <= 30 && t.high >= 40),
+    turns.map((t) => `${t.stance}: slid ${t.slid} mm, lifted ${t.high} mm`).join("; "),
+  );
   // a landing taken in the legs (Milestone 611): a second in the air and down on the run, its legs (hips over the lower
   // ankle) come down to two thirds of their standing length for a moment (the run's clip alone, 83%), and no ankle goes
   // under its height on the floor

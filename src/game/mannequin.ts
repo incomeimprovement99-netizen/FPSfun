@@ -133,6 +133,8 @@ const DOUBLE_JUMP = figureCfg.doubleJump;
 const LANDING = figureCfg.landing as { raise: number; bend: number; lean: number };
 /** standing or crouched still, each foot's toe brought down to its bind pose's (figure.json flatFeet) */
 const FLAT_FEET = figureCfg.flatFeet;
+/** standing still, each foot held to its place on the floor as the body turns, and a step round (figure.json plant) */
+const PLANT = figureCfg.plant as { under: number; after: number; rate: number; stepAt: number; settle: number; stepTime: number; land: number; lift: number };
 /** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
 const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
@@ -767,6 +769,15 @@ export class MannequinFigure {
   private liftW = 0;
   /** each foot's foot-to-ball pitch in the bind pose against the figure's up, radians, found once */
   private footRest: Record<string, number> | null = null;
+  /** standing still, where each foot is held on the floor: its ankle's world x and z, and its toe's (plantFeet) */
+  private readonly planted = { l: { x: 0, z: 0, bx: 0, bz: 0 }, r: { x: 0, z: 0, bx: 0, bz: 0 } };
+  /** how far the feet are held to their places, 0 to 1, eased */
+  private plantW = 0;
+  /** since when it has stood still in this stance (the feet are held once the clips have settled) */
+  private plantSince = 0;
+  private plantStance = "";
+  /** the foot stepping round to its place (none: both down), when it lifted and where from */
+  private step: { s: "l" | "r"; at: number; from: { x: number; z: number; bx: number; bz: number } } | null = null;
   /** the way the face looks, in the Head bone's own frame, from the bind pose (headUp); null until measured */
   private faceLocal: THREE.Vector3 | null = null;
   private readonly footA = new THREE.Vector3();
@@ -1070,6 +1081,112 @@ export class MannequinFigure {
       world.premultiply(this.footT.setFromAxisAngle(side, -lift * w));
       foot.quaternion.copy(parentQ.invert().multiply(world));
     }
+  }
+
+  /**
+   * Standing still, the feet kept where they are on the floor while the body turns on them, and a step round once a
+   * foot is too far from where the clip has it (figure.json plant, Milestone 832): the body turned on the spot with its
+   * hips and both feet went round on the floor with them, never lifted. Each foot is held at its place, its ankle's and
+   * its toe's x and z (the heights are the clip's: a crouch's kneeling foot stands on its toe, nearly upright, and
+   * held by the way it pointed its toe still slid), the leg bent onto the ankle (legTo) and the foot turned onto the
+   * toe. A step lifts it to where the clip has it by `land` of its time and sets it straight down there, then the other
+   * foot follows if it is off its own: one that went on following the clip's foot down to the floor slid with it while
+   * the body was still turning.
+   */
+  private plantFeet(can: boolean, stance: string, dt: number): void {
+    const b = this.bones;
+    if (!b.thigh_l || !b.calf_l || !b.foot_l || !b.ball_l || !b.thigh_r || !b.calf_r || !b.foot_r || !b.ball_r) return;
+    if (!can || stance !== this.plantStance) {
+      this.plantSince = this.t;
+      this.plantStance = stance;
+    }
+    const hold = can && this.t - this.plantSince >= PLANT.after;
+    const k = Math.min(1, dt * PLANT.rate);
+    // (a hold beginning takes the feet where the clip has them)
+    const fresh = this.plantW === 0;
+    this.plantW += ((hold ? 1 : 0) - this.plantW) * k;
+    if (!hold && this.plantW < 0.005) {
+      this.plantW = 0;
+      this.step = null;
+      return;
+    }
+    const at = (s: "l" | "r") => {
+      const a = b[`foot_${s}`].getWorldPosition(new THREE.Vector3());
+      const t = b[`ball_${s}`].getWorldPosition(new THREE.Vector3());
+      return { x: a.x, y: a.y, z: a.z, bx: t.x, by: t.y, bz: t.z };
+    };
+    const clip = { l: at("l"), r: at("r") };
+    const H = this.planted;
+    const keys = ["x", "z", "bx", "bz"] as const;
+    if (fresh) for (const s of ["l", "r"] as const) for (const q of keys) H[s][q] = clip[s][q];
+    // (letting go: the places go to the clip's feet as the hold eases out)
+    if (!hold) {
+      this.step = null;
+      for (const s of ["l", "r"] as const) for (const q of keys) H[s][q] += (clip[s][q] - H[s][q]) * k;
+    }
+    // how far a foot is from where the clip has it, its ankle or its toe, as a share of `m` metres
+    const off = (s: "l" | "r", m: number) => Math.max(Math.hypot(clip[s].x - H[s].x, clip[s].z - H[s].z), Math.hypot(clip[s].bx - H[s].bx, clip[s].bz - H[s].bz)) / m;
+    const lift = { l: 0, r: 0 };
+    const begin = (s: "l" | "r") => (this.step = { s, at: this.t, from: { ...H[s] } });
+    if (hold && !this.step && this.plantW > 0.99) {
+      const s = off("l", PLANT.stepAt) >= off("r", PLANT.stepAt) ? "l" : "r";
+      if (off(s, PLANT.stepAt) > 1) begin(s);
+    }
+    if (this.step) {
+      const { s, from } = this.step;
+      const u = Math.min(1, (this.t - this.step.at) / PLANT.stepTime);
+      if (u <= PLANT.land) {
+        const e = smooth(0, PLANT.land, u);
+        for (const q of keys) H[s][q] = from[q] + (clip[s][q] - from[q]) * e;
+      }
+      lift[s] = PLANT.lift * Math.sin(Math.PI * u);
+      if (u >= 1) {
+        this.step = null;
+        const o = s === "l" ? "r" : "l";
+        if (off(o, PLANT.settle) > 1) begin(o);
+      }
+    }
+    const w = this.plantW;
+    for (const s of ["l", "r"] as const) {
+      const c = clip[s];
+      const to = new THREE.Vector3(c.x + (H[s].x - c.x) * w, c.y + lift[s], c.z + (H[s].z - c.z) * w);
+      if (to.distanceToSquared(new THREE.Vector3(c.x, c.y, c.z)) > 1e-8) this.legTo(s, to);
+      // and the foot turned onto its toe's place
+      const ankle = b[`foot_${s}`].getWorldPosition(new THREE.Vector3());
+      const toe = new THREE.Vector3(c.bx + (H[s].bx - c.bx) * w, c.by + lift[s], c.bz + (H[s].bz - c.bz) * w);
+      aimBone(b[`foot_${s}`], b[`ball_${s}`].getWorldPosition(new THREE.Vector3()).sub(ankle), toe.sub(ankle), 1);
+    }
+  }
+
+  /** one leg's ankle onto a point (world): the thigh and the calf, the knee on the side the clip bends it */
+  private legTo(s: "l" | "r", to: THREE.Vector3): void {
+    const b = this.bones;
+    const thigh = b[`thigh_${s}`];
+    const calf = b[`calf_${s}`];
+    const foot = b[`foot_${s}`];
+    const a = thigh.getWorldPosition(new THREE.Vector3());
+    const knee = calf.getWorldPosition(new THREE.Vector3());
+    const ankle = foot.getWorldPosition(new THREE.Vector3());
+    const l1 = a.distanceTo(knee);
+    const l2 = knee.distanceTo(ankle);
+    const toT = to.clone().sub(a);
+    const dist = Math.max(Math.abs(l1 - l2) + 1e-3, Math.min(l1 + l2 - 1e-3, toT.length()));
+    const dir = toT.normalize();
+    // (the knee's side: where the clip bends it, off the line from the hip to the ankle; the figure's front if straight)
+    const pole = knee.clone().sub(a);
+    pole.addScaledVector(dir, -pole.dot(dir));
+    if (pole.lengthSq() < 1e-8) {
+      pole.set(0, 0, 1).applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion()));
+      pole.addScaledVector(dir, -pole.dot(dir));
+    }
+    pole.normalize();
+    const cosA = Math.max(-1, Math.min(1, (l1 * l1 + dist * dist - l2 * l2) / (2 * l1 * dist)));
+    const sinA = Math.sqrt(1 - cosA * cosA);
+    const bend = a.clone().addScaledVector(dir, cosA * l1).addScaledVector(pole, sinA * l1);
+    aimBone(thigh, knee.clone().sub(a), bend.sub(a), 1);
+    const k2 = calf.getWorldPosition(new THREE.Vector3());
+    const c2 = foot.getWorldPosition(new THREE.Vector3());
+    aimBone(calf, c2.sub(k2), a.clone().addScaledVector(dir, dist).sub(k2), 1);
   }
 
   /**
@@ -1971,6 +2088,7 @@ export class MannequinFigure {
     this.flatW += (still - this.flatW) * Math.min(1, dt * FLAT_FEET.rate);
     // (and lifted onto them standing: the standing clip holds the legs lower than a walk's planted foot)
     this.liftW += ((still && p.stance === "stand" ? 1 : 0) - this.liftW) * Math.min(1, dt * FLAT_FEET.rate);
+    this.plantFeet(!full && !this.dead && !em && (p.stance === "stand" || p.stance === "crouch") && speed <= PLANT.under && this.skyW < 0.01 && this.zipW < 0.01, p.stance, dt);
     if (this.flatW > 0.01) this.flattenFeet(this.flatW);
     const shown = !!this.gun && this.gun.visible;
     if (this.mount && this.grip && this.rifle && this.butt && this.support) {
