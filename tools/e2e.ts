@@ -426,6 +426,15 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   );
   const ffScore = await ev<number>(t, "window.__range.duel().hud().mode.teams.you");
   check("tdm: a team mate takes no damage from you and scores nothing", ff.health === ff.before && ffScore === 0, JSON.stringify(ff));
+  // (Milestone 739) with the custom rules' friendly fire on, a team mate is a target for your rounds and goes down to
+  // them, scoring nothing; off again, none is. The rule was read nowhere in the modes: rounds went through team mates
+  await ev(t, "window.__range.duel().friendlyFire = true");
+  await sleep(300);
+  const ffOn = await ev<{ reach: boolean; down: boolean; you: number }>(t, `(() => { const d = window.__range.duel(); const a = d.avatars.find((x) => { const r = d.remoteOf(x); return r && d.isAlly(r.id) && r.alive; }); const r = d.remoteOf(a); const reach = d.projectiles.dummies.includes(a); a.hit(0, "body", 900, 1, 1, a.group.position); d.localHit(r, 900, false, "r97", 8); return { reach, down: !r.alive, you: d.hud().mode.teams.you }; })()`);
+  await ev(t, "window.__range.duel().friendlyFire = false");
+  await sleep(300);
+  const ffOff = await ev<boolean>(t, "(() => { const d = window.__range.duel(); return d.avatars.filter((x) => { const r = d.remoteOf(x); return r && d.isAlly(r.id); }).every((a) => !d.projectiles.dummies.includes(a)); })()");
+  check("tdm: with friendly fire on a team mate is a target and goes down to your rounds, scoring nothing; off again, none is", ffOn.reach && ffOn.down && ffOn.you === 0 && ffOff, JSON.stringify({ ffOn, ffOff }));
   await ev(t, knockBot("!d.isAlly(r.id)"));
   await sleep(200);
   const t1 = await ev<number>(t, "window.__range.duel().hud().mode.teams.you");
@@ -3770,7 +3779,8 @@ async function brSquadsTest(browser: Browser, query: string): Promise<void> {
   const host = await open(browser, query);
   pages.push(host);
   await ev(host, brRow("duo", 2));
-  await ev(host, `(() => { document.getElementById("brSides").value = "split"; document.getElementById("duelMode").value = "br"; document.getElementById("duelPlayers").value = "4"; document.getElementById("duelHost").click(); })()`);
+  // (friendly fire left on in the Rules row, as from a team deathmatch before: the row is hidden for a battle royale)
+  await ev(host, `(() => { document.getElementById("ruleFF").value = "on"; document.getElementById("brSides").value = "split"; document.getElementById("duelMode").value = "br"; document.getElementById("duelPlayers").value = "4"; document.getElementById("duelHost").click(); })()`);
   let code = "";
   try {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
@@ -3789,6 +3799,10 @@ async function brSquadsTest(browser: Browser, query: string): Promise<void> {
   }
   // by id: 0 and 1 are one duo, 2 and 3 the other
   const ids = await Promise.all(pages.map((p) => ev<number>(p, "window.__range.duel().id")));
+  // (Milestone 739) the hidden row's friendly fire reaches no page of the match: it did, and a duo's bullets hurt each
+  // other with nothing on screen to say so
+  const ffs = await Promise.all(pages.map((p) => ev<boolean>(p, "window.__range.duel().friendlyFire")));
+  check("squads of friends: friendly fire left on in the hidden Rules row reaches no page of a battle royale", ffs.every((f) => f === false), JSON.stringify(ffs));
   const by = (id: number) => pages[ids.indexOf(id)];
   const sides = await Promise.all(pages.map((p) => ev<{ id: number; allies: number[]; jm: number | null; lead: boolean; total: number }>(p, `(() => { const d = window.__range.duel(); return { id: d.id, allies: [0, 1, 2, 3].filter((i) => d.isAlly(i)), jm: d.jumpmaster(), lead: d.isJumpmaster(), total: d.squadsTotal }; })()`)));
   // (the two duos and the bots' own: one bot duo in the legacy game's match of two bots, as many as fill SpeedKills' thirty)

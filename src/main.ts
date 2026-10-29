@@ -1565,7 +1565,8 @@ projectiles.self = () => (duel && duel.alive ? { feet: player.pos, low: player.c
 function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon, onImpact: (e: ImpactEvent) => void): void {
   if (duel && duel.phase !== "fight") return;
   const full = falloff(w, travelled);
-  const figs = duel ? duel.avatars.filter((a) => !!duel!.remoteOf(a) && !isAllyFigure(a)) : rangeTargets;
+  // (a team mate too when the custom rules turn friendly fire on: rockets went past them, Milestone 739)
+  const figs = duel ? duel.avatars.filter((a) => !!duel!.remoteOf(a) && ((duel instanceof Duel && duel.friendlyFire) || !isAllyFigure(a))) : rangeTargets;
   for (const a of figs) {
     // (one unseen under INVISIBILITY is hidden but still there: the blast reaches it, Milestone 716)
     if ((!a.group.visible && !a.cloaked) || a.knocked) continue;
@@ -3571,7 +3572,8 @@ function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote; fig: Du
   for (const a of d.avatars) {
     const rem = d.remoteOf(a);
     // (one unseen under INVISIBILITY is hidden but still there: a SLAM or a MINE reaches it, Milestone 716)
-    if (!rem || !rem.alive || d.isAlly(rem.id) || (!a.group.visible && !a.cloaked)) continue;
+    // (a team mate too with friendly fire on, Milestone 739)
+    if (!rem || !rem.alive || (d.isAlly(rem.id) && !d.friendlyFire) || (!a.group.visible && !a.cloaked)) continue;
     if (a.group.position.distanceTo(at) <= r) out.push({ rem, fig: a });
   }
   return out;
@@ -5327,7 +5329,10 @@ function applyRules(d: Duel, r: MatchRules | undefined): void {
   matchGuns = null;
   if (!r) return;
   if (typeof r.rounds === "number" && rulesCfg.rounds.includes(r.rounds)) d.roundsToWin = r.rounds;
-  d.friendlyFire = r.ff === true;
+  // Only where the Rules row shows it: a battle royale hides the row but was still sent the rule as the panel last had
+  // it, so a host who once turned friendly fire on for team deathmatch gave their squad's bullets to each other in every
+  // battle royale after, with nothing on screen to say so (Milestone 739)
+  d.friendlyFire = r.ff === true && !(d instanceof BrMatch);
   if (typeof r.guns === "string" && r.guns in rulesCfg.classes && !(d instanceof BrMatch)) matchGuns = r.guns as keyof typeof rulesCfg.classes;
 }
 /** every frame of such a match: a gun of another class in hand (the start, a respawn, the Loadouts tab) becomes one of the class's */

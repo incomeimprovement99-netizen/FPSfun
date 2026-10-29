@@ -450,7 +450,7 @@ export class ArenaMode extends Duel {
       super.localHit(r, amount, head, weapon, dist);
       return;
     }
-    if (this.phase !== "fight" || !r.alive || this.friendly(r.id)) return;
+    if (this.phase !== "fight" || !r.alive || (!this.friendlyFire && this.friendly(r.id))) return;
     this.hits++;
     this.damage += amount;
     r.health = b.bot.dummy.health;
@@ -458,11 +458,11 @@ export class ArenaMode extends Duel {
     if (b.bot.dummy.knocked) this.botDown(b, this.id, weapon === "melee");
   }
 
-  /** the host: a guest's hit on a bot (a team mate's is ignored) */
+  /** the host: a guest's hit on a bot (a team mate's is ignored, unless friendly fire is on) */
   protected override onHitOther(to: number, amount: number, head: boolean, from: number, weapon = ""): boolean {
     const b = this.bots.find((x) => x.bot.remote.id === to);
     if (!b) return false;
-    if (this.phase !== "fight" || !b.bot.alive || this.sameSide(from, to)) return true;
+    if (this.phase !== "fight" || !b.bot.alive || (!this.friendlyFire && this.sameSide(from, to))) return true;
     const bot = b.bot;
     bot.dummy.hit(wallClock(), head ? "head" : "body", amount, 1, 1, bot.pos.clone().setY(bot.pos.y + 1.2));
     bot.remote.health = bot.dummy.health;
@@ -825,8 +825,13 @@ export class ArenaMode extends Duel {
     if (this.phase === "fight" && !this.alive && now >= this.respawnAt) this.respawnMe();
     // Control: the zones in the arena, in the colour of whoever holds them
     if (this.modeKind === "control") this.drawZones(now);
-    // team deathmatch: a team mate's figure is no target for this side's bullets
-    if (teamMode(this.modeKind)) for (const r of this.remotes.values()) if (this.friendly(r.id)) this.projectiles.removeDummy(r.avatar);
+    // team deathmatch: a team mate's figure (a friend's or a bot's) is no target for this side's bullets, unless the
+    // custom rules turn friendly fire on. The rule was read nowhere here, so it did nothing in these modes (Milestone 739)
+    if (teamMode(this.modeKind)) {
+      const reach = (d: Dummy): void => (this.friendlyFire ? this.projectiles.addDummy(d) : this.projectiles.removeDummy(d));
+      for (const r of this.remotes.values()) if (this.friendly(r.id)) reach(r.avatar);
+      for (const b of this.bots) if (this.friendly(b.bot.remote.id)) reach(b.bot.dummy);
+    }
     // the bots, for this side's figures and plates
     for (const b of this.bots) {
       const s = b.bot.remote.samples;
@@ -949,7 +954,10 @@ export class ArenaMode extends Duel {
     for (const b of this.bots) b.bot.hear(at, now);
   }
 
-  /** a bot's burst (its frag's, its rocket's; the host's page drew it): its enemies take what `hurts` says, from gun `w` */
+  /**
+   * A bot's burst (its frag's, its rocket's; the host's page drew it): its enemies take what `hurts` says, from gun `w`.
+   * Never its own side, friendly fire or not: a bot throws with no thought for who is beside its target.
+   */
   botBurst(owner: number, hurts: BurstHurts, w: string): void {
     if (this.role !== "host" || this.phase !== "fight") return;
     const thrower = this.bots.find((x) => x.bot.remote.id === owner);

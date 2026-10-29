@@ -13077,6 +13077,23 @@ Two more from the review of the arena's modes (Milestone 737):
   only the two on the board (the short start's test, a free-for-all before, is a team deathmatch now). Both failed on
   the old code (two starts 0 m apart; nobody beside the two, and a row for the empty seat); e2e migrate.
 
+## Milestone 739 — Friendly fire where the Rules row shows it, and only there
+
+The last of the arena modes' review (Milestones 737 and 738), and one more it led to:
+
+- **The rule did nothing in team deathmatch and Control:** the Rules row offers "Friendly fire on" for both, but the
+  modes took every team mate (a friend's figure and a bot) out of reach of the side's rounds each frame whatever the
+  rule said, ignored a hit on a team mate bot, and rockets and hacks passed team mates by. With the rule on, a team
+  mate is a target for rounds, rockets and hacks (modematch.ts update, localHit, onHitOther; main.ts rocketBlast and the
+  hacks' reach); a team kill scores nothing, as before. A bot's own frag or rocket still never hurts its side.
+- **The rule reached battle royales it was hidden from:** the Rules row is not shown for a battle royale, but the host
+  sent the rule as the panel last had it, so a host who had turned friendly fire on for a team deathmatch gave their
+  squad's bullets to each other in every battle royale after in that visit, with nothing on screen to say so. A battle
+  royale never takes it (main.ts applyRules).
+- **Checked:** tsc, verify, rules; e2e modes, a new check: with the rule on, a team mate bot is a target and goes down to
+  your rounds, scoring nothing, and off again none is; e2e brsolo, a new check: a squads-of-friends battle royale hosted
+  with the hidden row on has the rule on no page. Both failed on the old code.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
