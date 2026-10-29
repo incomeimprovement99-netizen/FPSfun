@@ -13339,6 +13339,27 @@ shorter than that, and is tested as before.
   wall, none through (on the old test 8 of 12); e2e speedkills, skwall, sktutorial.
 - **Left as it is:** a wall run's turn into an inside corner depends on the frame rate (7 of 40 at 30 fps, 37 at 144).
 
+## Milestone 890 — DASH onto a block, SLAM and MINE only through what they can see
+
+From a review of the hacks (2026-10-29), five in main.ts. (Numbered 890: 870 to 889 are the city agent's.)
+
+- **DASH into a block:** its feet went to the eye's height less the eye's own, or the area's floor, with no box asked:
+  over a block 0.56 to 1.68 m tall the body landed inside it, and the push-out threw it out of the block's side, 12 m
+  once. Now it stands on the highest top under the eye within a body's radius, and where no body fits it lands a metre
+  back at a time, or is given back (dashFeet).
+- **A hack given back ended INVISIBILITY:** the cast card and the end of your INVISIBILITY came before a DASH with
+  nowhere to go or a GRAPPLE with nothing in reach was given back; both come once a hack has gone off now.
+- **SLAM after you go down:** it went on, and a ghost's landing hurt whoever was in reach (a slam is about 3 s up to
+  30 m and back); it ends when you go down.
+- **SLAM and MINE through walls:** a SLAM's landing hurt through a wall, and a MINE chased and went off through walls
+  and floors, on an enemy in the room above; both reach only a body in sight of them now, as a rocket's burst does
+  (seesBody, rocket.ts blastSees).
+- **A MINE's chase clock:** it ran from the first time anyone came in reach, so anyone coming back past it later set it
+  off at once where it sat; it starts over when nobody is near (by reading; no check of its own).
+- **Checked:** tsc, verify, rules; e2e speedkills, three new checks: a DASH over a 1 m block stands you on it, a DASH
+  given back leaves INVISIBILITY on, and a SLAM's landing reaches a bot in sight and not one behind a wall, ending
+  when you go down (each failing on the old code).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

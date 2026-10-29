@@ -5198,6 +5198,26 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   await sleep(200);
   const dashKept = await ev<number>(page, `(() => { const r = window.__range; r.sk.setHack("dash"); r.player.vel.set(0, 0, -10); r.sk.use("mobility"); return Math.hypot(r.player.vel.x, r.player.vel.z); })()`);
   check("speedkills: DASH keeps your momentum, a dash at a run arriving running", dashKept > 9, `${dashKept.toFixed(1)} m/s after`);
+  // (Milestone 890) a DASH that ends over a block lower than the eye stands you on it: its feet went into the block, and
+  // the push-out threw you out of its side (12 m once). A block 24 m wide and 1 m tall where the dash ends
+  await ev(page, `window.__range.player.teleport(-27.75, 0, 60, 0)`);
+  await sleep(200);
+  const onBlock = await ev<{ x: number; y: number; z: number }>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const block = { minX: -40, maxX: -16, minZ: 30, maxZ: 38, top: 1, base: 0 }; r.solids.push(block);
+      r.player.pitch = 0; r.player.vel.set(0, 0, 0); r.sk.setHack("dash"); r.sk.use("mobility");
+      setTimeout(() => { const p = r.player.pos; const out = { x: +p.x.toFixed(2), y: +p.y.toFixed(2), z: +p.z.toFixed(2) }; r.solids.splice(r.solids.indexOf(block), 1); ok(out); }, 400); }))()`,
+  );
+  check("speedkills: a DASH over a block lower than the eye stands you on it, not inside it", Math.abs(onBlock.x + 27.75) < 1 && Math.abs(onBlock.y - 1) < 0.15 && onBlock.z < 38 && onBlock.z > 30, JSON.stringify(onBlock));
+  // (Milestone 890) a DASH given back (a wall a metre ahead, nowhere to go) leaves INVISIBILITY on: it ended it, and
+  // showed the cast card, for a hack that never went off
+  const keptInvis = await ev<{ before: boolean; after: boolean; dashBack: number }>(
+    page,
+    `(() => { const r = window.__range; r.player.teleport(-27.75, 0, 60, 0); r.player.pitch = 0; const wall = { minX: -40, maxX: -16, minZ: 58.6, maxZ: 59, top: 5, base: 0 }; r.solids.push(wall);
+      r.sk.setHack("invis"); r.sk.use("utility"); const before = r.sk.state().invisible; r.sk.setHack("dash"); r.sk.use("mobility");
+      const after = r.sk.state().invisible; const dashBack = r.sk.hacks()[0].left; r.solids.splice(r.solids.indexOf(wall), 1); return { before, after, dashBack }; })()`,
+  );
+  check("speedkills: a DASH given back (a wall ahead) leaves INVISIBILITY on", keptInvis.before && keptInvis.after && keptInvis.dashBack === 0, JSON.stringify(keptInvis));
   // LEAP: straight up four storeys, then a glide
   await ev(page, `window.__range.player.teleport(-21, 0, 200, 0)`);
   await sleep(200);
@@ -7092,6 +7112,18 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       return { floor, dropped: fresh ? fresh.pos.y : null, out: fresh ? fresh.item.id : null }; })()`
   );
   check("speedkills br: a gun swapped out three metres up goes down on the floor under you", swapped.dropped !== null && Math.abs(swapped.dropped - swapped.floor) < 0.3, JSON.stringify(swapped));
+  // (Milestone 890) a SLAM's landing reaches a bot in sight of it and not one behind a wall, and a SLAM ends when you go
+  // down: it hurt through walls, and went on after a death to land from a ghost
+  const burst = await ev<{ open: boolean; walled: boolean; slam: string | null; after: string | null } | null>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping && !x.bot.aboard); if (!b) return ok(null);
+      const id = b.bot.remote.id; const p = b.bot.pos.clone(); const open = r.sk.burstReach(p.x + 2, p.y, p.z).includes(id);
+      const wall = { minX: p.x + 0.9, maxX: p.x + 1.1, minZ: p.z - 3, maxZ: p.z + 3, top: p.y + 4, base: p.y - 1 }; r.solids.push(wall);
+      const walled = r.sk.burstReach(p.x + 2, p.y, p.z).includes(id); r.solids.splice(r.solids.indexOf(wall), 1);
+      const back = r.player.pos.clone(); r.sk.setHack("slam"); r.sk.use("mobility"); const slam = r.sk.state().slam; d.alive = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => { const after = r.sk.state().slam; d.alive = true; r.player.teleport(back.x, back.y, back.z, 0); ok({ open, walled, slam, after }); })); }))()`,
+  );
+  check("speedkills br: a SLAM's landing reaches a bot in sight of it and not one behind a wall, and a SLAM ends when you go down", !!burst && burst.open && !burst.walled && burst.slam === "up" && burst.after === null, JSON.stringify(burst));
   // (Milestone 859) a gun put down keeps its rounds, and one taken into your hand comes up as a swap does: an empty gun
   // put down and taken straight back came back full and fired that frame, a reload skipped with two presses of E
   const kept = await ev<{ clip: number | null; back: number; full: number; raising: boolean }>(

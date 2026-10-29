@@ -44,7 +44,8 @@ import { buildRange, RANGE_BOUNDS, RANGE_ENV_SHARE, skyFollow, setShadowRegion, 
 import { floorAt } from "./game/floors";
 import { HOURS, HOUR_IDS, hourFor, loadSkHour, saveSkHour, type Hour } from "./game/sky";
 import { BR_BOUNDS, BR_CENTER, BR_X, BR_Z } from "./game/br";
-import { BrMatch, DROP_HEIGHT, teamFor } from "./game/brmatch";
+import { BrMatch, DROP_HEIGHT, restingSpot, teamFor } from "./game/brmatch";
+import { solidsIn } from "./game/solidgrid";
 import { SHIP, surfaceUnder, type ShipRun } from "./game/dropship";
 import { GULAG } from "./game/gulag";
 import brCfg from "./config/br.json";
@@ -3591,8 +3592,16 @@ function slamTargets(at: THREE.Vector3): Array<{ rem: Remote; fig: Dummy }> {
   const S = H.slam as unknown as { radius: number; height: number };
   return enemiesNear(at, S.radius + S.height).filter(({ fig }) => {
     const p = fig.group.position;
-    return Math.hypot(p.x - at.x, p.z - at.z) <= S.radius && Math.abs(p.y - at.y) <= S.height;
+    return Math.hypot(p.x - at.x, p.z - at.z) <= S.radius && Math.abs(p.y - at.y) <= S.height && seesBody(at, fig);
   });
+}
+
+/**
+ * A hack's burst at `at` reaches a body only in sight of it, as a rocket's does (rocket.ts blastSees): a SLAM hurt through
+ * a wall, and a MINE chased and went off through walls and floors, on an enemy in the room above (Milestone 890).
+ */
+function seesBody(at: THREE.Vector3, fig: Dummy): boolean {
+  return blastSees(at.clone().setY(at.y + 0.3), bodySight(fig.group.position, fig.crouchAmount > 0.5), solidHit);
 }
 
 /** a hack's damage on a figure, the way a bullet's reaches it: its own hit, then the match's, and its number as a shot's */
@@ -3700,14 +3709,6 @@ function useHack(slot: HackSlot, now: number): void {
   }
   const id = hacks.use(slot, now);
   if (!id) return;
-  // the hand's tap on the hack's card (hackcast.ts): the hack goes off at once, as Hyper Scape's did, under it
-  viewModel.castHack(id);
-  // another hack ends INVISIBILITY, as Hyper Scape's did (Phase 20 A9)
-  if (id !== "invis" && now < invisUntil) {
-    invisUntil = -Infinity;
-    if (d instanceof Duel) d.hiddenUntil.delete(d.id);
-    sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
-  }
   const eye = camera.position.clone();
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const name = hackDef(id)?.name ?? id;
@@ -3718,13 +3719,20 @@ function useHack(slot: HackSlot, now: number): void {
       const from = player.pos.clone();
       const eyeAt = player.eyePosition().clone();
       const hit = solidHit(eyeAt, fwd, H.dash.distance);
-      const reach = Math.max(0, Math.min(H.dash.distance, (Number.isFinite(hit) ? hit : H.dash.distance) - MOVE.radius * 1.5));
-      if (reach < 1) {
+      let reach = Math.max(0, Math.min(H.dash.distance, (Number.isFinite(hit) ? hit : H.dash.distance) - MOVE.radius * 1.5));
+      // where a body fits along it: the farthest, a metre at a time back toward you (Milestone 890)
+      const eyeH = player.eyePosition().y - player.pos.y;
+      let feet: number | null = null;
+      for (; reach >= 1; reach -= 1) {
+        feet = dashFeet(eyeAt.clone().addScaledVector(fwd, reach), eyeH);
+        if (feet !== null) break;
+      }
+      if (reach < 1 || feet === null) {
         hacks.refund(slot);
         return;
       }
-      const at = eyeAt.addScaledVector(fwd, reach);
-      const to = new THREE.Vector3(at.x, Math.max(floorAt(at.x, at.z), at.y - (player.eyePosition().y - player.pos.y)), at.z);
+      const at = eyeAt.clone().addScaledVector(fwd, reach);
+      const to = new THREE.Vector3(at.x, feet, at.z);
       // (blink, not teleport: teleport zeroed the momentum this was to keep, Milestone 867)
       player.blink(to.x, to.y, to.z);
       player.vel.y = Math.max(0, player.vel.y);
@@ -3833,7 +3841,30 @@ function useHack(slot: HackSlot, now: number): void {
       break;
     }
   }
+  // Gone off: the hand's tap on the hack's card (hackcast.ts), under it as Hyper Scape's was, and another hack ends
+  // INVISIBILITY (Phase 20 A9). Both came before the hack was known to go off, so a DASH with nowhere to go or a
+  // GRAPPLE with nothing in reach, given back, still showed the card and ended your INVISIBILITY (Milestone 890)
+  viewModel.castHack(id);
+  if (id !== "invis" && now < invisUntil) {
+    invisUntil = -Infinity;
+    if (d instanceof Duel) d.hiddenUntil.delete(d.id);
+    sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
+  }
   hud.notice(name, now, 0.6);
+}
+
+/**
+ * Where a DASH puts your feet for the eye at `at`: on the highest top under the eye within a body's radius (a block the
+ * eye clears is stood on), else in the air at the eye's height less the eye's own; null when no body fits there (a box
+ * over the spot lower than a body). The feet went to the eye's height less its own, or the area's floor, with no box
+ * asked: over a block 0.56 to 1.68 m tall that put the body inside it, and the push-out threw it out of the block's side,
+ * 12 m once (Milestone 890).
+ */
+function dashFeet(at: THREE.Vector3, eyeH: number): number | null {
+  const feet = Math.max(restingSpot(at).y, at.y - eyeH);
+  const r = MOVE.radius;
+  const roof = solidsIn(at.x - r, at.x + r, at.z - r, at.z + r).some((s) => at.x + r > s.minX && at.x - r < s.maxX && at.z + r > s.minZ && at.z - r < s.maxZ && s.base < feet + MOVE.standHeight - 1e-4 && s.top > feet + 1e-4);
+  return roof ? null : feet;
 }
 
 /** the hacks' frame: slams, pulls, leaps, the heal areas, mines, armour and invisibility */
@@ -3873,6 +3904,8 @@ function stepHacks(now: number, dt: number): void {
     player.dropping = true;
   } else if (skLeap && player.onGround && player.vel.y <= 0) skLeap = false;
   // SLAM: up, a hang at the top, then down hard; on landing, whoever is under it
+  // a SLAM ends when you go down: it went on, and a ghost's landing hurt whoever was in reach (Milestone 890)
+  if (skSlam && duel instanceof Duel && !duel.alive) skSlam = null;
   if (skSlam) {
     if (skSlam.phase === "up" && player.vel.y <= 0) skSlam = { phase: "hang", at: now, level: skSlam.level };
     else if (skSlam.phase === "hang") {
@@ -3924,8 +3957,15 @@ function stepHacks(now: number, dt: number): void {
     }
     m.mesh.rotation.y += dt * 3;
     if (!m.mine || now < m.armAt) continue;
-    const near = enemiesNear(m.at, H.mine.trigger).sort((a, b) => a.fig.group.position.distanceTo(m.at) - b.fig.group.position.distanceTo(m.at))[0];
-    if (!near) continue;
+    const near = enemiesNear(m.at, H.mine.trigger)
+      .filter((e) => seesBody(m.at, e.fig))
+      .sort((a, b) => a.fig.group.position.distanceTo(m.at) - b.fig.group.position.distanceTo(m.at))[0];
+    // (nobody in reach: its chase starts over the next time someone comes. It ran from the first, and anyone coming
+    // back past it set it off at once where it sat, Milestone 890)
+    if (!near) {
+      m.chaseFrom = null;
+      continue;
+    }
     // it chases for hacks.json mine.chase seconds at most, then goes off where it is
     m.chaseFrom ??= now;
     const to = near.fig.group.position.clone().setY(near.fig.group.position.y + 0.8).sub(m.at);
@@ -3935,7 +3975,7 @@ function stepHacks(now: number, dt: number): void {
       m.mesh.position.copy(m.at);
       continue;
     }
-    for (const e of enemiesNear(m.at, H.mine.radius)) hackHurt(e.rem, e.fig, m.damage ?? H.mine.damage, "mine");
+    for (const e of enemiesNear(m.at, H.mine.radius)) if (seesBody(m.at, e.fig)) hackHurt(e.rem, e.fig, m.damage ?? H.mine.damage, "mine");
     audio.blast("frag", m.at);
     sendFx("sk", m.at.clone(), undefined, 8);
     scene.remove(m.mesh);
@@ -8321,6 +8361,8 @@ const GALLERY = { x: 0, z: -8 };
     hacks: () => (["mobility", "utility"] as const).map((slot) => ({ slot, held: hacks.get(slot) ? { ...hacks.get(slot)! } : null, left: hacks.left(slot, gameTime) })),
     setHack: (id: HackId, level = 0) => hacks.set(id, level),
     take: (id: HackId, level = 0) => hacks.take(id, level, gameTime),
+    /** whom a SLAM landing at (x, y, z) would reach, by id (tools/e2e.ts: only bodies in sight of it, Milestone 890) */
+    burstReach: (x: number, y: number, z: number) => slamTargets(new THREE.Vector3(x, y, z)).map((e) => e.rem.id),
     use: (slot: HackSlot) => useHack(slot, gameTime),
     /** the Spire's crown deck, world metres (city.ts SPIRE_TOP): the ship passes beside it (tools/e2e.ts) */
     spireTop: () => ({ ...SPIRE_TOP }),
