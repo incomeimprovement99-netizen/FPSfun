@@ -166,6 +166,11 @@ class Floor implements BotLootSource {
     this.drops.delete(key);
     return d.item;
   }
+  /** the guns a bot put down for better ones */
+  readonly putDown: Array<{ id: string; level: number }> = [];
+  put(gun: { id: string; level: number }): void {
+    this.putDown.push(gun);
+  }
 }
 
 const gun = (id: string, rarity: string): BotLootItem => ({ kind: "weapon", id, rarity, n: 1 });
@@ -238,8 +243,12 @@ console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json b
   check("so the tier that searched fastest still searches fastest", new BotLooter("elite").rummage < new BotLooter("easy").rummage);
   near("and it loots for a few of its own searches", new BotLooter("hard").window, lootCfg.botSearch.hard * LOOTING.window, 1e-9);
 
-  const rich = loot("normal", richFloor(), 50);
+  const richField = richFloor();
+  const rich = loot("normal", richField, 50);
   const poor = loot("normal", poorFloor(), 50);
+  // (Milestone 854) each gun it trades up from goes back down: it took the common r97, then the rare and the epic, and
+  // the ones it let go were gone from the match
+  check("a gun it trades up from is put down, not lost", richField.putDown.length > 0 && richField.putDown.every((g) => g.id !== rich.looter.kit.gunId), JSON.stringify({ putDown: richField.putDown, holds: rich.looter.kit.gunId }));
   check("a bot that landed on a place finds a gun", rich.looter.armed, `${rich.looter.kit.gunId}`);
   check("and takes the best one there, not the first", rich.looter.kit.gun === 3, `grade ${rich.looter.kit.gun}`);
   check("its kit only ever goes up", rich.scores.every((s, i) => i === 0 || s >= rich.scores[i - 1]), rich.scores.join(" -> "));

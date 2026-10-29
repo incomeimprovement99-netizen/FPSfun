@@ -281,6 +281,11 @@ export interface BotLootSource {
   near(at: THREE.Vector3, radius: number): BotLootDrop[];
   /** take it: the item, or null if someone got there first */
   take(key: number): BotLootItem | null;
+  /**
+   * A gun it put down for a better one, where it stood, at its level: a player's swap leaves the old gun on the floor,
+   * and a bot's deleted it, so over a match the bots used the floor's guns up (Milestone 854)
+   */
+  put?(gun: { id: string; level: number }, at: THREE.Vector3): void;
 }
 
 /** what a bot has on it, as it loots */
@@ -320,6 +325,8 @@ export class BotLooter {
   private mark: { key: number; pos: THREE.Vector3; since: number; gun: boolean; best: number; bestAt: number } | null = null;
   private holdUntil = Infinity;
   private scanAt = -Infinity;
+  /** the gun the last take replaced, to go down where it stood (BotLootSource put) */
+  private setDown: { id: string; level: number } | null = null;
   private startedAt = Infinity;
   /** spots it could not get to: it does not pick the same unreachable one again */
   private gaveUp = new Set<number>();
@@ -403,6 +410,7 @@ export class BotLooter {
       // the same gun again is a level up (its rank is its fusion level plus one)
       if (item.id === k.gunId) k.gun = Math.min(6, Math.max(k.gun + 1, rank));
       else {
+        if (k.gunId) this.setDown = { id: k.gunId, level: Math.max(0, k.gun - 1) };
         k.gunId = item.id;
         k.gun = rank;
       }
@@ -459,6 +467,8 @@ export class BotLooter {
       const item = source.take(key);
       if (!item) return null;
       this.put(item);
+      if (this.setDown) source.put?.(this.setDown, at);
+      this.setDown = null;
       return item;
     }
     if (now < this.scanAt) return null;

@@ -4661,6 +4661,8 @@ function endShow(say = true): void {
 
 /** the callbacks every kind of match gets */
 function wireMatch(d: MatchLike, kind: MatchKind): void {
+  // a battle royale's floor drawn round what you see: you, or the one you watch (Milestone 853)
+  if (d instanceof BrMatch) d.lootEye = camera.position;
   // dropping into a match: the short card, over the match already starting
   // underneath it. Nothing waits for it (src/ui/intro.ts).
   // SpeedKills: the loading screen first, then the card, then the match (showFrame); not for a tab in the background,

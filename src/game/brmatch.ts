@@ -150,7 +150,7 @@ import type { ActorState } from "./killcam";
 import brmapCfg from "../config/brmap.json";
 /** bot squads acting as squads (bots.json squads) */
 const SQUADS = botsCfg.squads;
-import { LootField, LOOT, deathDropOf, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
+import { LootField, LOOT, deathDropOf, levelRarity, seeded, speedkillsPackage, type LootItem, type LootKind, type Rarity } from "./loot";
 import { causeName, EDGE_ID } from "./causes";
 import { EDGE } from "./edge";
 import { LIFE_WIRE } from "./squadview";
@@ -680,6 +680,10 @@ export class BrMatch extends Duel {
             }
             return it;
           },
+          put: (gun, at) => {
+            const level = Math.min(PROFILE.fusion.levels, gun.level);
+            this.dropLoot({ kind: "weapon", id: gun.id, n: 1, rarity: levelRarity(level), fusion: level }, at.clone());
+          },
         };
       }
     }
@@ -843,6 +847,13 @@ export class BrMatch extends Duel {
       this.broadcast({ t: "loot", op: "gone", key, by: this.id });
     } else if (f.drops.has(key)) this.toHost({ t: "loot", op: "take", key });
   }
+
+  /**
+   * Where the loot is drawn round: the view (main.ts gives it the camera's place), not your body. Out and watching a
+   * mate, or in the killcam, the floor was drawn within 70 m of your still body, and the one you watched walked over
+   * empty ground and took what you could not see (Milestone 853). Unset (the checks' bare matches), your eyes.
+   */
+  lootEye: THREE.Vector3 | null = null;
 
   /** the first key the floor's seed did not give: from it on, items made in play (lootSync sends them whole) */
   private lootSeeded = 1;
@@ -2144,7 +2155,7 @@ export class BrMatch extends Duel {
     // win's waiting player into the room and cut the killcam and the recap, Milestone 726)
     if (this.phase !== "matchEnd" && !this.brOver) this.gulagFrame(now, frameDt, local);
     this.updatePods(now);
-    this.lootField?.update(new THREE.Vector3(local.x, local.y + 1.6, local.z), now);
+    this.lootField?.update(this.lootEye ?? new THREE.Vector3(local.x, local.y + 1.6, local.z), now);
     // the ring wall, from the host's ring or the mirrored one
     const cur = this.view.current;
     const wall = this.map.ringWall;

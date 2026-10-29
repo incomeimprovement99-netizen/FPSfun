@@ -7077,6 +7077,19 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       return { floor, dropped: fresh ? fresh.pos.y : null, out: fresh ? fresh.item.id : null }; })()`
   );
   check("speedkills br: a gun swapped out three metres up goes down on the floor under you", swapped.dropped !== null && Math.abs(swapped.dropped - swapped.floor) < 0.3, JSON.stringify(swapped));
+  // (Milestone 853) the floor is drawn round the view, not your body: the page gives the match the camera's place, and
+  // the match draws round what it is given. Out and watching a mate, it was drawn round your still body, and the mate
+  // 70 m off walked over empty ground. A gun 120 m off with the view moved to it is drawn, one at your feet is not
+  const eyeDraw = await ev<{ wired: boolean; far: boolean; near: boolean }>(
+    page,
+    `(() => new Promise((ok) => { const R = window.__range; const d = R.duel(); const f = d.lootField; const T = R.THREE; const p = R.player.pos.clone();
+      const wired = d.lootEye === R.camera.position; const g = (fusion) => ({ kind: "weapon", id: "lstar", n: 1, rarity: "epic", fusion });
+      d.dropLoot(g(3), new T.Vector3(p.x + 120, p.y + 5, p.z)); d.dropLoot(g(2), new T.Vector3(p.x, p.y, p.z));
+      const find = (fu) => [...f.drops.values()].reverse().find((x) => x.item.id === "lstar" && x.item.fusion === fu);
+      const far = find(3); const near = find(2); const was = d.lootEye; d.lootEye = far.pos.clone().add(new T.Vector3(0, 1.6, 0));
+      requestAnimationFrame(() => requestAnimationFrame(() => { const out = { wired, far: far.obj.visible, near: near.obj.visible }; d.lootEye = was; f.remove(far.key); f.remove(near.key); ok(out); })); }))()`,
+  );
+  check("speedkills br: the floor is drawn round the view the page gives (the camera), not round your body", eyeDraw.wired && eyeDraw.far && !eyeDraw.near, JSON.stringify(eyeDraw));
   // (before the decay: from its first wave the player stands in a sector coming apart, and the checks of a
   // fight's feel are not about that; there the outline read nothing on some runs)
   // (the bot frozen and moved by hand: its world matrix is brought up to date as the renderer would, since a

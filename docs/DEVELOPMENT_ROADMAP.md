@@ -13137,6 +13137,28 @@ nowhere.) A friend coming back to an heir after the host left comes through the 
   host puts a gun down and takes one off the floor, then lets it back; the guest's floor has the one and not the other
   (on the old code, neither change reached it).
 
+## Milestone 853 — Watching someone, the floor round them is drawn
+
+From the loot review (Milestone 850): the floor's loot is drawn within 70 m of a point, and the point was your body. Out
+of a battle royale and watching a squad mate (or anyone left), the camera is with them and your body lies where you went
+out: once they were 70 m from it, they walked over empty ground and took guns you never saw; the killcam round a far
+killer the same. The floor is drawn round the view now (brmatch.ts lootEye, which main.ts's wireMatch gives the
+camera's place in every battle royale, solo or with friends); in your own eyes, that is where you are.
+
+- **Checked:** tsc, verify, rules; e2e speedkills, a new check: the match is handed the camera's place, and with the
+  view moved 120 m from your body a gun there is drawn and one at your feet is not (on the old code, the other way
+  round). A check of it through a friend's spectating in brsolo passed on the old code as well and was dropped.
+
+## Milestone 854 — A bot that trades up puts its old gun down
+
+From the loot review (Milestone 850): a bot that found a better gun took it and its old one went nowhere, gone from the
+match, where a player's swap leaves the old gun on the floor. Over a match the bots used up the floor's guns (only the
+hot zone is restocked). It is put down where the bot stood, at its level (bots.ts BotLootSource put, brmatch.ts), for
+anyone to take.
+
+- **Checked:** tsc, verify, rules; verify's bot check, a new line: a bot on a floor of a common, a rare and an epic gun
+  ends on the epic and puts the other two down (on the old code it put none down).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
