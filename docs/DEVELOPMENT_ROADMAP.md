@@ -13360,6 +13360,36 @@ From a review of the hacks (2026-10-29), five in main.ts. (Numbered 890: 870 to 
   given back leaves INVISIBILITY on, and a SLAM's landing reaches a bot in sight and not one behind a wall, ending
   when you go down (each failing on the old code).
 
+## Milestone 891 — LEAP glides on its own, not as the dropship's dive
+
+From the review of the hacks (Milestone 890). At the top of a LEAP its glide set the player's `dropping`, which is the
+dropship's dive: the trigger locked and the gun put away for the whole glide, the dive's HUD up, and in a battle royale
+the announcer's "Get ready to drop" on every leap; and hacks.json leap.glideSeconds was read nowhere, so the glide had
+no limit. LEAP has a glide of its own now (player.ts gliding: the dive's way of falling and steering and its soft
+landing, nothing else), ended at its seconds (main.ts). And in the real dive a throw cannot move you, so LEAP and SLAM
+there spent their cooldown for nothing; they are refused there now and kept.
+
+- **Checked:** tsc, verify, rules; sk-moves.ts, a new line (a leap's glide falls no faster than the dive's glide, lands,
+  and is over, the dropship's dive never on); e2e speedkills, the LEAP check reads the glide and the dive kept off.
+
+## Milestone 892 — The modes' bots lose you under INVISIBILITY, and others' mines go away
+
+From the same review, two more:
+
+- **INVISIBILITY in team deathmatch, Control and free-for-all:** only the battle royale's bots looked at who was
+  unseen; the modes' bots saw an invisible player the whole time, though main.ts said the host's bots stop seeing
+  them. They lose you now until it runs out or you fire, as the battle royale's do (modematch.ts sense).
+- **Someone else's mine on your page:** its drawing stood where it was put down (the chase is not sent), and when it
+  went off it was taken away only within 6 m of that spot, so a mine that had chased stood on for its 30 s; and the
+  owner's next mine past the cap, which takes the old one away on their page, left it standing here. Each drawing has
+  its owner now: their blast takes their nearest away, and their next past the cap their oldest (main.ts remoteHack).
+- **Left as they are:** a remote mine is still not drawn chasing (its blast is where it ends); a WALL put up at an angle
+  collides as the box round it, up to 3.2 m square; in "Arena, Bots" played alone, SLAM, MINE, ARMOR and INVISIBILITY
+  do nothing (its match is no Duel). All three next.
+- **Checked:** tsc, verify, rules; e2e modes, a new check: an enemy bot picks you, and under INVISIBILITY it does not;
+  e2e speedkills, a new check: someone's mine goes when it blows 16 m from where it was put down, and their next past
+  the cap takes the old one (each failing on the old code).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -305,6 +305,13 @@ export class Player {
    */
   dropping = false;
   /**
+   * LEAP's glide (main.ts sets it at the leap's top, and ends it at hacks.json leap.glideSeconds): the dive's way of
+   * falling and steering, and its soft landing, and nothing else of the dropship's. The leap set `dropping`, which is the
+   * dropship's dive: the trigger locked and the gun put away, the dive's HUD, and in a battle royale the announcer's "Get
+   * ready to drop", on every leap, and no limit to the glide (Milestone 891).
+   */
+  gliding = false;
+  /**
    * Aboard the dropship (src/game/dropship.ts): carried with it, no gravity,
    * no moving, looking round freely, until you jump or it puts you out. The
    * battle royale's match drives it from outside with ride().
@@ -419,6 +426,7 @@ export class Player {
   teleport(x: number, y: number, z: number, yaw: number, pitch = 0): void {
     this.pos.set(x, y, z);
     this.vel.set(0, 0, 0);
+    this.gliding = false;
     // the view arrives with the body: a step's catch-up is about a step
     this.stepSmooth = 0;
     this.yaw = yaw;
@@ -462,6 +470,8 @@ export class Player {
    */
   impulse(vx: number, vy: number, vz: number): void {
     if (this.zip || this.dropping || this.aboard) return;
+    // (out of a leap's glide: a pad or a hack throws you as it would in the air)
+    this.gliding = false;
     this.mantle = null;
     this.climbing = false;
     this.climbNormal = null;
@@ -797,7 +807,7 @@ export class Player {
       const v = this.vel.length();
       const most = DIVE.diveFall + DIVE.glideSpeed;
       if (v > most) this.vel.multiplyScalar(most / v);
-    } else if (this.dropping && !this.onGround) {
+    } else if ((this.dropping || this.gliding) && !this.onGround) {
       // The skydive, in two states: where you look is the trade between
       // falling and travelling. Level is a glide, the long way to a far
       // place; straight down is a dive, the fast way onto the place under you.
@@ -2168,9 +2178,10 @@ export class Player {
       this.climbNormal = null;
     }
     this.landingSpeed = impact;
-    if (this.dropping) {
-      // the end of a drop: on your feet, no stun, no slide, a small dip
+    if (this.dropping || this.gliding) {
+      // the end of a drop or a leap's glide: on your feet, no stun, no slide, a small dip
       this.dropping = false;
+      this.gliding = false;
       this.leash = null;
       this.vel.x = 0;
       this.vel.z = 0;

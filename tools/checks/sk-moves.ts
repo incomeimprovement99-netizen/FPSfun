@@ -7,6 +7,7 @@ import type { Action } from "../../src/game/input";
 import { RANGE_SOLIDS } from "../../src/game/range";
 import { ZIPLINES, type Zipline } from "../../src/game/traversal";
 import { MOVE } from "../../src/game/movement";
+import squadCfg from "../../src/config/squad.json";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -202,6 +203,27 @@ console.log("SpeedKills' movement where it went wrong (player.ts)");
     if (p.pos.z < -5.25) through++;
   }
   check("a 0.1 s frame at 14 m/s does not carry the body through a 0.25 m wall", through === 0, `${through} of 12 through`);
+}
+
+// (Milestone 891) LEAP's glide falls as the dive's glide does and lands softly, with nothing of the dropship's dive
+{
+  world([]);
+  const p = player();
+  const inp = new Script();
+  let t = 100;
+  p.teleport(0, 16, 0, 0);
+  p.gliding = true;
+  let fell = 0;
+  let wasDropping = false;
+  for (let i = 0; i < 60 * 20 && !p.onGround; i++) {
+    const y = p.pos.y;
+    t += dt;
+    p.update(dt, t, inp, 0, 1, false);
+    inp.endFrame();
+    fell = Math.max(fell, (y - p.pos.y) / dt);
+    if (p.dropping) wasDropping = true;
+  }
+  check("a leap's glide falls no faster than the dive's glide (squad.json dive.glideFall), lands, and is over, with the dropship's dive never on", p.onGround && !p.gliding && !wasDropping && fell <= squadCfg.dive.glideFall + 0.5, JSON.stringify({ landed: p.onGround, gliding: p.gliding, wasDropping, fastest: +fell.toFixed(1) }));
 }
 
 console.log(fails === 0 ? "\nSK MOVES PASS" : `\nSK MOVES FAIL (${fails})`);

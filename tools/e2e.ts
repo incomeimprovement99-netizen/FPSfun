@@ -426,6 +426,12 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   );
   const ffScore = await ev<number>(t, "window.__range.duel().hud().mode.teams.you");
   check("tdm: a team mate takes no damage from you and scores nothing", ff.health === ff.before && ffScore === 0, JSON.stringify(ff));
+  // (Milestone 892) an enemy bot does not see you under INVISIBILITY: it picks you, and once you are unseen it does not.
+  // The modes' bots saw an invisible player the whole time (only the battle royale's looked)
+  const seen = await ev<{ before: number; after: number }>(t, `(() => { const R = window.__range; const d = R.duel(); const b = d.bots.find((x) => x.team !== 0 && x.bot.alive); const was = b.bot.sees; b.bot.sees = () => true;
+    const p = b.bot.pos; R.player.teleport(p.x + 2, p.y, p.z, 90); d.lastLocal = { ...d.lastLocal, x: p.x + 2, y: p.y, z: p.z };
+    const before = d.sense(b, d.fighters()).targetId; d.hiddenUntil.set(d.id, performance.now() / 1000 + 10); const after = d.sense(b, d.fighters()).targetId; d.hiddenUntil.delete(d.id); b.bot.sees = was; return { before, after }; })()`);
+  check("tdm: an enemy bot sees you, and under INVISIBILITY it does not", seen.before === 0 && seen.after !== 0, JSON.stringify(seen));
   // (Milestone 739) with the custom rules' friendly fire on, a team mate is a target for your rounds and goes down to
   // them, scoring nothing; off again, none is. The rule was read nowhere in the modes: rounds went through team mates
   await ev(t, "window.__range.duel().friendlyFire = true");
@@ -5228,14 +5234,22 @@ async function speedkillsTest(browser: Browser): Promise<void> {
   for (let i = 0; i < 30 && !glide; i++) {
     await sleep(100);
     top = Math.max(top, await ev<number>(page, "window.__range.player.pos.y"));
-    glide = await ev<boolean>(page, "window.__range.player.dropping");
+    // (its own glide, not the dropship's dive: that locked the trigger, put the gun away and showed the dive's HUD,
+    // Milestone 891)
+    glide = await ev<boolean>(page, "window.__range.player.gliding && !window.__range.player.dropping");
   }
-  check("speedkills: LEAP throws you about four storeys up, then you glide", top > 12 && glide, `${top.toFixed(1)} m, gliding ${glide}`);
+  check("speedkills: LEAP throws you about four storeys up, then you glide, not dive as from the ship", top > 12 && glide, `${top.toFixed(1)} m, gliding ${glide}`);
   await page.waitForFunction("window.__range.player.onGround", { polling: 100, timeout: 20000 }).catch(() => undefined);
   // HEAL: an area on the ground; ARMOR: slower while it lasts; INVISIBILITY; MINE
   await hack("heal", "utility", 150);
   const healed = await ev<{ healZones: number }>(page, "window.__range.sk.state()");
   check("speedkills: HEAL puts a healing area down", healed.healZones >= 1, JSON.stringify(healed));
+  // (Milestone 892) someone else's mine on this page: their blast takes it away wherever its chase took it, and their
+  // next past the cap takes the old one. It stood on for 30 s unless it blew within 6 m of where it was put down
+  const theirMines = await ev<{ start: number; two: number; blown: number }>(page, `(() => { const r = window.__range; const p = r.player.pos; const start = r.sk.state().mines;
+    r.sk.remoteHack(424242, 6, p.x + 20, p.y, p.z); r.sk.remoteHack(424242, 6, p.x + 24, p.y, p.z); const two = r.sk.state().mines - start;
+    r.sk.remoteHack(424242, 8, p.x + 36, p.y, p.z); const blown = r.sk.state().mines - start; return { start, two, blown }; })()`);
+  check("speedkills: someone else's mine goes when it blows where its chase took it, and their next past the cap takes the old one", theirMines.two === 1 && theirMines.blown === 0, JSON.stringify(theirMines));
   // an enemy's HEAL heals you too if you stand in it (the owner, 2026-09-27: "we should be able to heal in it
   // anyways"): someone on no side of yours puts one down at your feet, and it is one more area that heals
   const foeHeal = await ev<{ before: number; after: number }>(

@@ -3482,6 +3482,8 @@ let skSlam: { phase: "up" | "hang" | "down"; at: number; level?: number } | null
 let skPull: { to: THREE.Vector3; until: number } | null = null;
 /** LEAP rising: at the top it becomes a glide */
 let skLeap = false;
+/** when LEAP's glide ends of itself (hacks.json leap.glideSeconds, Milestone 891) */
+let leapGlideUntil = -Infinity;
 let armorUntil = -Infinity;
 let invisUntil = -Infinity;
 /** HEAL's areas: yours and your squad's heal you while you stand in them */
@@ -3491,7 +3493,7 @@ let healingNow = 0;
 /** the heal felt in the view, eased toward healingNow */
 let healFelt = 0;
 /** MINE's mines: yours hunt and hurt; everyone else's are drawn */
-const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null }> = [];
+const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null; owner?: number }> = [];
 /** your WALL hack's panels standing, oldest first (hacks.json wall.max) */
 const myWalls: PutWall[] = [];
 /** when a ghost next looks round it */
@@ -3702,6 +3704,12 @@ function useHack(slot: HackSlot, now: number): void {
     hud.notice(`NO ${slot.toUpperCase()} HACK`, now, 0.8);
     return;
   }
+  // In the dropship's dive a throw cannot move you (player.ts impulse): LEAP and SLAM spent their cooldown there for
+  // nothing (Milestone 891)
+  if (player.dropping && (held.id === "leap" || held.id === "slam")) {
+    hud.notice(`${hackDef(held.id)?.name ?? held.id}: NOT IN THE DIVE`, now, 0.8);
+    return;
+  }
   const left = hacks.left(slot, now);
   if (left > 0) {
     hud.notice(`${hackDef(held.id)?.name ?? held.id}: BACK IN ${left.toFixed(1)} S`, now, 0.6);
@@ -3901,8 +3909,11 @@ function stepHacks(now: number, dt: number): void {
   // LEAP: at the top, a glide down (the skydive's glide)
   if (skLeap && !player.onGround && player.vel.y <= 0) {
     skLeap = false;
-    player.dropping = true;
+    // its own glide, not the dropship's dive (Milestone 891)
+    player.gliding = true;
+    leapGlideUntil = now + H.leap.glideSeconds;
   } else if (skLeap && player.onGround && player.vel.y <= 0) skLeap = false;
+  if (player.gliding && now > leapGlideUntil) player.gliding = false;
   // SLAM: up, a hang at the top, then down hard; on landing, whoever is under it
   // a SLAM ends when you go down: it went on, and a ghost's landing hurt whoever was in reach (Milestone 890)
   if (skSlam && duel instanceof Duel && !duel.alive) skSlam = null;
@@ -4185,7 +4196,14 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       if (bought) scene.add(bought);
       const mesh = bought ?? hackMesh(0xff2e9a, 0.35, 0.12);
       mesh.position.copy(a).setY(a.y + (bought ? 0 : 0.06));
-      mines.push({ at: a.clone(), armAt: Infinity, until: gameTime + H.mine.life, mesh, mine: false });
+      // whose it is: their next past hacks.json mine.max takes the oldest away here too, as it does on their page, where
+      // nothing was sent and the old one stood here for its 30 s (Milestone 892)
+      const theirs = mines.filter((m) => !m.mine && m.owner === from);
+      for (const old of theirs.slice(0, Math.max(0, theirs.length - H.mine.max + 1))) {
+        scene.remove(old.mesh);
+        mines.splice(mines.indexOf(old), 1);
+      }
+      mines.push({ at: a.clone(), armAt: Infinity, until: gameTime + H.mine.life, mesh, mine: false, owner: from });
       // and heard as it lands (Milestone 710): it was set down in silence
       audio.hackSound("mine", a);
       break;
@@ -4195,7 +4213,10 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       audio.blast(n === 7 ? "slam" : "frag", a);
       // the mine that went off: its drawing goes
       if (n === 8) {
-        const i = mines.findIndex((m) => !m.mine && m.at.distanceTo(a) < 6);
+        // (its owner's nearest: it went off where its chase took it, up to 15 m from where it was put down, and only
+        // within 6 m of that was it taken away, so most stood on for their 30 s; Milestone 892)
+        const theirs = mines.filter((m) => !m.mine && m.owner === from).sort((p, q) => p.at.distanceTo(a) - q.at.distanceTo(a));
+        const i = theirs.length ? mines.indexOf(theirs[0]) : mines.findIndex((m) => !m.mine && m.at.distanceTo(a) < 6);
         if (i >= 0) {
           scene.remove(mines[i].mesh);
           mines.splice(i, 1);

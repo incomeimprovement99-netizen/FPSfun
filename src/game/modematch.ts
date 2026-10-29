@@ -1036,8 +1036,12 @@ export class ArenaMode extends Duel {
     let target: THREE.Vector3 | null = null;
     let targetId = -1;
     let best = Infinity;
+    // a player under INVISIBILITY is not seen until it runs out or they fire, as the battle royale's bots do: the modes'
+    // bots saw them the whole time, though main.ts said the host's bots stop seeing them (Milestone 892)
+    const now = wallClock();
+    const unseen = (id: number) => (this.hiddenUntil.get(id) ?? -Infinity) > now && now - (this.shotAt.get(id) ?? -Infinity) >= 0.5;
     for (const f of fighters) {
-      if (!f.alive || f.id === me || this.sameSide(f.id, me)) continue;
+      if (!f.alive || f.id === me || this.sameSide(f.id, me) || unseen(f.id)) continue;
       const p = new THREE.Vector3(f.x, f.y, f.z);
       const d = bot.pos.distanceTo(p);
       if (d < best && bot.sees(p)) {
