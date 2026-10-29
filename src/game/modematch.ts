@@ -28,6 +28,8 @@ import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
 import { arenaMap, type ArenaMapId } from "./arena";
+import { RANGE_SOLIDS } from "./range";
+import { floorAt } from "./floors";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
 import type { ActorState } from "./killcam";
@@ -193,6 +195,9 @@ export class ArenaMode extends Duel {
   private lastLocal: LocalState | null = null;
   /** the tests: the bots hold their fire (they still move and see) */
   holdFire = false;
+  /** the host: the bots asked for and their gun, kept to fill the sides again for those in when it starts short */
+  private botsAsked = 0;
+  private botGun = "";
 
   constructor(scene: THREE.Scene, projectiles: ProjectileSystem, opts: ArenaModeOpts) {
     super(scene, projectiles, { players: opts.players, myId: opts.myId, link: opts.link, guestId: opts.guestId, mode: "arena", map: opts.map ?? null });
@@ -205,29 +210,56 @@ export class ArenaMode extends Duel {
     for (let id = 0; id < this.players; id++) this.teamOf.set(id, split ? ((id % 2) as 0 | 1) : 0);
     if (this.modeKind === "control") this.buildZones(scene);
     if (this.role !== "host") return;
-    // The bots you asked for are the ones you face. A team mode then fills
-    // your side with ally bots so the sides are even, which is what "3 bots"
-    // means when there are two of you: three against you, one beside you.
-    const enemies = Math.max(tdm ? 1 : 0, Math.min(MODES.maxBots, opts.bots));
-    let allies = tdm ? Math.max(0, enemies - this.players) : 0;
+    this.botsAsked = opts.bots;
+    this.botGun = opts.botWeapon || "";
+    this.fillSides(Array.from({ length: this.players }, (_, id) => id));
+  }
+
+  /**
+   * The host: the bots for the humans there are, and a row on the board for each. The bots you asked for are the ones
+   * you face. A team mode then fills your side with ally bots so the sides are even, which is what "3 bots" means when
+   * there are two of you: three against you, one beside you.
+   */
+  private fillSides(humans: number[]): void {
+    const tdm = teamMode(this.modeKind);
+    const asked = Math.min(MODES.maxBots, this.botsAsked);
+    const enemies = Math.max(tdm ? 1 : 0, asked);
+    let allies = tdm ? Math.max(0, enemies - humans.length) : 0;
     let foes = enemies;
-    if (split) {
+    if (this.split) {
       // Split: the bots even the two sides up. The side size is the larger
       // side of humans, or half of everyone if the bots asked for take it past.
-      const h0 = Math.ceil(this.players / 2);
-      const h1 = Math.floor(this.players / 2);
-      const side = Math.max(h0, Math.ceil((this.players + Math.min(MODES.maxBots, opts.bots)) / 2));
+      const h0 = humans.filter((id) => this.teamFor(id) === 0).length;
+      const h1 = humans.length - h0;
+      const side = Math.max(h0, h1, Math.ceil((humans.length + asked) / 2));
       allies = side - h0;
       foes = side - h1;
     }
     for (let i = 0; i < allies + foes; i++) {
       const team: 0 | 1 = tdm && i >= allies ? 1 : 0;
       const id = Duel.BOT_ID + i;
-      const gun = opts.botWeapon || BOT_WEAPONS[i % BOT_WEAPONS.length];
+      const gun = this.botGun || BOT_WEAPONS[i % BOT_WEAPONS.length];
       // each its own tier ("mixed" draws one per bot)
       this.makeBot(i, team, tierFor(this.difficulty), gun, this.startSpawn(id, team));
     }
-    for (let id = 0; id < this.players; id++) this.board.row(id);
+    for (const id of humans) this.board.row(id);
+  }
+
+  /**
+   * The host started with those in (startNow): the sides filled again for them. The bots and the rows were made for every
+   * seat, so a match made for four with "4 bots" and started with two was two against four, not four against four, and
+   * the board kept rows for seats nobody took (Milestone 738).
+   */
+  protected override onStartShort(): void {
+    const humans = [this.id, ...this.links.keys()];
+    for (const b of this.bots) {
+      b.bot.dispose();
+      this.teamOf.delete(b.bot.remote.id);
+    }
+    this.bots = [];
+    for (const r of this.board.sorted) if (!humans.includes(r.id)) this.board.remove(r.id);
+    for (const id of [...this.teamOf.keys()]) if (!humans.includes(id)) this.teamOf.delete(id);
+    this.fillSides(humans);
   }
 
   /** one of the match's bots: the host's, at the start, or the heir's, in place of the figure it saw (host migration) */
@@ -305,23 +337,61 @@ export class ArenaMode extends Duel {
     const S = this.layout;
     let p: number[];
     if (teamMode(this.modeKind)) {
+      // a side's own end, each body its own point, the side's humans first and then its bots, and past the end's points
+      // stepped out round them. The humans went by their id and the bots after every human, wrapping round the end's
+      // points, so a fifth on a side started inside the first, a bot in a human (Milestone 738). (THE CENTRE's spread
+      // points are the two ends' own, so they add none.)
       const list = team === 0 ? S.a : S.b;
-      const i = id < Duel.BOT_ID ? id : (this.players + (id - Duel.BOT_ID)) % list.length;
-      p = list[i % list.length];
+      const humans = [...this.teamOf].filter(([h, t]) => h < Duel.BOT_ID && t === team).map(([h]) => h).sort((x, y) => x - y);
+      const k = id - Duel.BOT_ID;
+      const i = id < Duel.BOT_ID ? Math.max(0, humans.indexOf(id)) : humans.length + this.bots.filter((b) => b.team === team && b.bot.index < k).length;
+      p = this.lapOut(list, i);
     } else {
       // all eighteen points, ends and middle alternating: a lobby of eight
       // humans plus bots each gets their own
-      const order = S.order;
       const i = id < Duel.BOT_ID ? id : this.players + (id - Duel.BOT_ID);
-      p = order[i % order.length];
-      // more bodies than points: each lap round the list steps out in a grid
-      // from the point it shares, so thirty bots do not start inside each
-      // other (the owner's stress test asks for thirty and more)
-      const lap = Math.floor(i / order.length);
-      if (lap > 0) p = [p[0] + ((lap % 3) - 1) * 2.6, p[1] + Math.ceil(lap / 3) * 2.6 * (lap % 2 ? 1 : -1)];
+      p = this.lapOut(S.order, i);
     }
     const w = this.world(p);
     return { x: w.x, z: w.z, yaw: yawToMiddle(p[0], p[1]) };
+  }
+
+  /**
+   * The `i`th body's start of a list of points. More bodies than points: each lap round the list steps out from the
+   * point it shares, so thirty bots do not start inside each other (the owner's stress test asks for thirty and more).
+   */
+  private lapOut(points: number[][], i: number): number[] {
+    const p = points[i % points.length];
+    const lap = Math.floor(i / points.length);
+    return lap > 0 ? this.stepOut(p, lap) : p;
+  }
+
+  /**
+   * The `lap`th clear place round a start point (the arena's own coordinates), on modes.json stepOut's rings: inside the
+   * arena and out of every wall. A fixed grid step put a team's fifth in a wall on THE CENTRE and out past NEON HALL's
+   * walls (Milestone 738). With nowhere clear, the point itself.
+   */
+  private stepOut(p: number[], lap: number): number[] {
+    const C = MODES.stepOut;
+    const b = this.arenaBounds;
+    const over = (x: number, z: number, pad: number) => RANGE_SOLIDS.filter((s) => x > s.minX - pad && x < s.maxX + pad && z > s.minZ - pad && z < s.maxZ + pad);
+    // the floor the point stands on: a raised one is a solid's top under it, not a roof over it
+    const at = this.world(p);
+    const ground = floorAt(at.x, at.z);
+    const feet = Math.max(ground, ...over(at.x, at.z, 0).map((s) => s.top).filter((t) => t < ground + C.head * 2));
+    const clear: number[][] = [];
+    for (const r of C.rings) {
+      for (let k = 0; k < 8; k++) {
+        const a = (k / 8) * Math.PI * 2;
+        const q = [p[0] + Math.cos(a) * r, p[1] + Math.sin(a) * r];
+        const w = this.world(q);
+        if (w.x < b.minX + C.edge || w.x > b.maxX - C.edge || w.z < b.minZ + C.edge || w.z > b.maxZ - C.edge) continue;
+        if (b.circle && Math.hypot(w.x - b.circle.x, w.z - b.circle.z) > b.circle.r - C.edge) continue;
+        if (over(w.x, w.z, C.pad).some((s) => s.base < feet + C.head && s.top > feet + C.knee)) continue;
+        clear.push(q);
+      }
+    }
+    return clear.length ? clear[(lap - 1) % clear.length] : p;
   }
 
   /** a respawn: this side's spawns (a team's end in team deathmatch, anywhere otherwise) farthest from the enemies up */

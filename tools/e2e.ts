@@ -467,6 +467,11 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   const ct = await startModePage(browser, query, "goControl", `document.getElementById("modeBots").value = "5"`);
   const ctl0 = await ev<{ kind: string; n: number; allies: number; zones: string }>(ct, "(() => { const d = window.__range.duel(); const h = d.hud().mode; return { kind: h.kind, n: d.avatars.length, allies: h.rows.filter((r) => r.ally).length, zones: (h.control?.zones ?? []).map((z) => z.id).join('') }; })()");
   check("control: five bots to face makes it five a side, zones A, B and C", ctl0.kind === "control" && ctl0.n === 9 && ctl0.allies === 4 && ctl0.zones === "ABC", JSON.stringify(ctl0));
+  // (Milestone 738) each of the ten starts on a point of its own: a side's starts were its end's four points, and the
+  // fifth on your side started inside you
+  // (and none inside a wall: past its end's four, a side's fifth is stepped out round them)
+  const apart = await ev<{ min: number; walled: number }>(ct, "(() => { const R = window.__range; const d = R.duel(); const s = [d.startSpawn(d.id, d.teamFor(d.id)), ...d.bots.map((b) => d.startSpawn(b.bot.remote.id, b.team))]; let min = Infinity; for (let i = 0; i < s.length; i++) for (let j = i + 1; j < s.length; j++) min = Math.min(min, Math.hypot(s[i].x - s[j].x, s[i].z - s[j].z)); const y = R.player.pos.y; const walled = s.filter((p) => R.solids.some((b) => p.x > b.minX - 0.35 && p.x < b.maxX + 0.35 && p.z > b.minZ - 0.35 && p.z < b.maxZ + 0.35 && b.base < y + 1.7 && b.top > y + 0.4)).length; return { min, walled }; })()");
+  check("control: five a side, each of the ten starts on a point of its own, none in a wall", apart.min > 1 && apart.walled === 0, JSON.stringify({ min: +apart.min.toFixed(2), walled: apart.walled }));
   // the bots stand still (the test's zone is its own); you walk onto A, on your side
   await ev(ct, "(() => { const d = window.__range.duel(); d.bots.forEach((b) => { b.bot.update = () => []; }); const z = d.hud().mode.control.zones[0].at; window.__range.player.teleport(z.x, 0, z.z, 180); })()");
   const tookA = await ct.waitForFunction("window.__range.duel().hud().mode.control.zones[0].owner === 'you'", { polling: 200, timeout: 14000 }).then(() => true, () => false);
@@ -3639,15 +3644,19 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   const lateKit = late ? after.kits.find((k) => k.split(":")[0] === String(late.index)) : undefined;
   check(`${label}: a gun a bot picked up 0.2 s before the host left is still in its hands after the takeover`, !!late && lateKit?.split(":")[1] === late.gun, JSON.stringify({ late, lateKit }));
   const expected = ring.timeLeft - (Date.now() - ringAt) / 1000;
+  // A close is 20 s and the steps before the snapshot can take most of it on a busy machine: a ring that finished closing
+  // during the takeover is on its plan as the next phase's wait (it failed so, 0.5 s from the end, 2026-10-28)
+  const sameClose = after.ring.phase === ring.phase && after.ring.state === "closing" && Math.abs(after.ring.timeLeft - expected) < 2.5;
+  const movedOn = expected < 2.5 && after.ring.phase === ring.phase + 1 && after.ring.state === "waiting" && after.ring.timeLeft > 0;
   check(
     `${label}: the ring is where it was on its plan, its clock running on`,
-    after.hasRing && after.ring.phase === ring.phase && after.ring.state === "closing" && ring.state === "closing" && Math.abs(after.ring.timeLeft - expected) < 2.5,
+    after.hasRing && ring.state === "closing" && (sameClose || movedOn),
     JSON.stringify({ before: ring, after: after.ring, expected })
   );
   const botFlow = await ev<number>(other, "Math.max(...[...window.__range.duel().remotes.values()].filter((r) => r.id >= 100 && r.alive).map((r) => performance.now() / 1000 - r.lastHeard))");
   const otherRing = await ev<number>(other, "window.__range.duel().view.phase");
   // (a bot standing still is sent only as a keyframe, every 2 s)
-  check(`${label}: the third friend hears from the bots and follows the new host's ring`, botFlow < 3 && otherRing === ring.phase, JSON.stringify({ botFlow, otherRing }));
+  check(`${label}: the third friend hears from the bots and follows the new host's ring`, botFlow < 3 && otherRing === after.ring.phase, JSON.stringify({ botFlow, otherRing, heirRing: after.ring.phase }));
   await close();
 }
 
@@ -4143,7 +4152,8 @@ async function lobbyShortTest(browser: Browser, query: string): Promise<void> {
   const pages: Page[] = [];
   const host = await open(browser, query);
   pages.push(host);
-  await ev(host, `(() => { document.getElementById("duelMode").value = "ffa"; document.getElementById("duelPlayers").value = "4"; document.getElementById("modeBots").value = "1"; document.getElementById("duelHost").click(); })()`);
+  // (team deathmatch with four bots to face since Milestone 738: started with two, the sides are filled for two)
+  await ev(host, `(() => { document.getElementById("duelMode").value = "tdm"; document.getElementById("modeSides").value = "together"; document.getElementById("duelPlayers").value = "4"; document.getElementById("modeBots").value = "4"; document.getElementById("duelHost").click(); })()`);
   let code = "";
   try {
     await host.waitForSelector("#duelStatus .code", { timeout: 20000 });
@@ -4183,6 +4193,10 @@ async function lobbyShortTest(browser: Browser, query: string): Promise<void> {
   const count = await ev<number>(host, "window.__range.duel()?.players ?? -1");
   const dbg = going.every(Boolean) ? "" : JSON.stringify(await Promise.all(pages.map((p) => ev(p, "(() => { const d = window.__range.duel(); return d ? { phase: d.phase, players: d.players, links: d.links?.size, ready: d.ready, rs: [...d.remotes.values()].filter((r) => r.id < 100).map((r) => [r.id, r.ready]), status: document.getElementById('duelStatus').textContent.slice(0, 80) } : { none: document.getElementById('duelStatus').textContent.slice(0, 80) }; })()"))));
   check("start with those in: the match starts for the two who are in", going.every(Boolean) && count === 2, JSON.stringify({ going, count }) + dbg);
+  // (Milestone 738) the sides filled for the two who are in: four bots to face and two beside them, and no rows on the
+  // board for seats nobody took. They were made for four, so it was two against four, and the board kept PLAYER 4
+  const filled = await ev<{ allies: number; foes: number; rows: number[] }>(host, "(() => { const d = window.__range.duel(); return { allies: d.bots.filter((b) => b.team === 0).length, foes: d.bots.filter((b) => b.team === 1).length, rows: d.board.sorted.map((r) => r.id).filter((id) => id < 100).sort((a, b) => a - b) }; })()");
+  check("start with those in: the sides are filled for the two who are in (four bots to face, two beside them), and the board has only them", filled.allies === 2 && filled.foes === 4 && filled.rows.join() === "0,1", JSON.stringify(filled));
   const late = await open(browser, query);
   pages.push(late);
   await ev(late, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);

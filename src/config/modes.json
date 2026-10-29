@@ -59,12 +59,20 @@
   },
   "countdown": 3,
   "matchEnd": 10,
-  "_bots": "bots added to a mode with no teams (free-for-all) by the host's setting; team deathmatch and Control fill both teams to teamSize. The cap is what the frame rate will carry rather than what the arena was drawn for: the owner asked to be able to put thirty and more in a match, to stress the game and to have something always shooting. Past the spawns a map has, they are stepped out around them in a grid.",
+  "_bots": "bots added to a mode with no teams (free-for-all) by the host's setting; team deathmatch and Control fill both teams to teamSize. The cap is what the frame rate will carry rather than what the arena was drawn for: the owner asked to be able to put thirty and more in a match, to stress the game and to have something always shooting. Past the spawns a map has, they are stepped out around them (stepOut).",
   "maxBots": 36,
   "_spawnFacing": "Which way you face when an arena match puts you down. A spawn faces the middle, and the new arenas put a pillar or a container on that line on purpose, to break the shot from one spawn to the other; so a spawn faced the box a metre away. Now the facing turns, in steps of `step` degrees either side up to `sweep`, to the nearest heading with at least `clear` metres of open view, and keeps the middle when it already has that. Ours.",
   "spawnFacing": {
     "clear": 8,
     "sweep": 70,
     "step": 10
+  },
+  "_stepOut": "More bodies than a list of starts has points (a free-for-all's thirty bots, a team's fifth on an end of four): each lap round the list takes the next clear place on rings of these radii, in metres, round the point it shares, eight to a ring. Clear is `edge` metres inside the arena's walls and its circle, and no wall within `pad` of the body between `knee` and `head` metres over the floor the point stands on. A fixed 2.6 m grid step put a team's fifth in a wall on THE CENTRE and out past NEON HALL's walls (Milestone 738). Ours.",
+  "stepOut": {
+    "rings": [1.6, 2.6, 3.6],
+    "edge": 0.8,
+    "pad": 0.4,
+    "knee": 0.4,
+    "head": 1.7
   }
 }

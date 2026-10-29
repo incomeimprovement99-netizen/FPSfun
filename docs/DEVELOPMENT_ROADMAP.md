@@ -13050,6 +13050,33 @@ royale's own review found in brmatch.ts (Milestone 726) found four:
   side's only player leaving ends the match, the host's side's; e2e migrate, a new run with the friends split and bots:
   the new host's rounds reach every bot of the other side and none of its own.
 
+## Milestone 738 — An arena match started short, and every start a point of its own
+
+Two more from the review of the arena's modes (Milestone 737):
+
+- **Started with those in:** a host can start a match before every seat is taken (Start with N). The bots and the
+  board were made when the match was, for every seat, and stayed so: a team deathmatch made for four with four bots to
+  face and started with two was two against four, where one made for two is four against four, and the board kept a
+  row for each seat nobody took. The sides are filled again for those in (ArenaMode.onStartShort, fillSides), and the
+  rows of the empty seats go.
+- **Starts on top of each other:** a team's starts were its end's four points, the humans by their id and the bots after
+  every human, so the fifth on a side (Control's five a side, against five bots) started inside you, and with the
+  friends split two humans could share a point. A side now starts on its end's points, each body its own, humans first
+  and then its bots. (THE CENTRE's spread points are the two ends' own, so they add no starts.)
+- **Past a list's points, clear ground:** more bodies than starts (a side's fifth, a free-for-all's thirty bots) stepped
+  out from the point they shared on a fixed 2.6 m grid, which put Control's fifth in a wall on THE CENTRE and a bot out
+  past NEON HALL's walls. Each lap takes the next clear place on rings round the point now (modematch.ts stepOut,
+  modes.json stepOut): inside the arena's walls and its circle, and no wall at a body's height over the floor the point
+  stands on.
+- **The battle royale's migration check:** "the ring is where it was on its plan" failed twice in these runs, the
+  ring's 20 s close ending in the half second the host's tab took to go: a busy machine spends most of the close on the
+  steps before the snapshot. A ring that closed during the takeover and is on the next phase's wait passes; the third
+  friend is checked against the heir's ring.
+- **Checked:** tsc, verify, rules; e2e modes, two new checks: Control five a side starts all ten on points of their own,
+  none in a wall (NEON HALL's Control, every bot inside its walls, was the old maps check), and a team deathmatch made for four started with two has four bots to face and two beside them, and
+  only the two on the board (the short start's test, a free-for-all before, is a team deathmatch now). Both failed on
+  the old code (two starts 0 m apart; nobody beside the two, and a row for the empty seat); e2e migrate.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
