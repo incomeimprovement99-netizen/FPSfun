@@ -75,6 +75,13 @@ console.log("The host's check on a claimed hit");
   for (let i = 0; i < Math.ceil(per / round) + 5; i++) if (fast.judge({ from: 8, amount: round, weapon: SAMPLE, dist: 10 }, 10 + i * 0.001, 10, 10) === null) passed++;
   check("claims faster than the gun fires are refused once a second's worth is in", passed * round <= per && passed * round > per - round - 1e-6, `${passed} passed of ${Math.round(per)} a second`);
   check("the refused are kept for the tests, with why", fast.refused.length > 0 && /faster/.test(fast.refused[0].why));
+  // (Milestone 856) a gun drawn after another is held to its own rate: a Sentinel headshot, then the R-97 0.75 s later
+  const swap = new HitCheck();
+  const snipe = resolveWeapon("sentinel");
+  const smg = resolveWeapon("r97");
+  const first = swap.judge({ from: 9, amount: maxRound(snipe), weapon: "sentinel", dist: 20 }, 10, 9.95, 20);
+  const after = swap.judge({ from: 9, amount: maxRound(smg), weapon: "r97", dist: 20 }, 10.75, 10.7, 20);
+  check("a gun drawn after a Sentinel headshot is held to its own rate, not the Sentinel's damage as well", first === null && after === null, JSON.stringify({ first, after, snipe: Math.round(maxRound(snipe)), smgPerSecond: Math.round(maxPerSecond(smg)) }));
 }
 
 // SpeedKills: a claim names a gun of its roster, a swing or a hack that hurts. Any other name passed as an older build's

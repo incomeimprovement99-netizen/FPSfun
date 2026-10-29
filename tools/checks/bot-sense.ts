@@ -26,6 +26,7 @@ import {
   DIFFICULTY,
   aimError,
   inCone,
+  nextShotTime,
   scopedGun,
   sightRange,
   sightScale,
@@ -232,6 +233,22 @@ function loot(tier: BotTier, floor: Floor, seconds: number, busy = false, at = n
   }
   scores.push(looter.score);
   return { looter, scores };
+}
+
+// (Milestone 857) a bot's rate of fire is its gun's on any host: an R-97's 18 a second, whether the host draws 60 frames
+// a second or 144. From the frame it fired on, it was 15 a second at 60
+for (const hz of [60, 144]) {
+  const interval = 1 / 18;
+  let due = 0;
+  let shots = 0;
+  for (let f = 0; f < hz * 10; f++) {
+    const now = f / hz;
+    if (now >= due) {
+      due = nextShotTime(now, due, interval);
+      shots++;
+    }
+  }
+  check(`a bot's R-97 fires its 18 a second on a ${hz} Hz host`, Math.abs(shots / 10 - 18) < 0.5, `${(shots / 10).toFixed(1)} a second`);
 }
 
 console.log("\nA bot loots (bots.ts BotLooter, times from src/config/loot.json botSearch)");

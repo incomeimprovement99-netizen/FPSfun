@@ -81,7 +81,7 @@ export function shotWindow(w: ResolvedWeapon): number {
 
 export class HitCheck {
   /** each shooter's claims in the last second, for the rate */
-  private recent = new Map<number, Array<{ at: number; amount: number }>>();
+  private recent = new Map<number, Array<{ at: number; amount: number; weapon: string }>>();
   /** claims refused so far, by why (the tests read it; nothing is shown to players) */
   readonly refused: Array<{ from: number; why: string }> = [];
 
@@ -119,12 +119,14 @@ export class HitCheck {
     const list = (this.recent.get(c.from) ?? []).filter((h) => now - h.at < 1);
     // (a rocket's burst hits everyone in its reach with one round: blastVictims of them a round)
     const perSecond = gun ? maxPerSecond(gun) * (gun.blast ? C.blastVictims : 1) : (melee ? C.meleeMax : C.otherMax) * 2;
-    const sum = list.reduce((a, h) => a + h.amount, 0);
+    // (each gun against its own rate: summed over every gun, a Sentinel's 450 headshot left the R-97 drawn after it none
+    // of its 402 for the rest of the second, and its hits on the next enemy were refused, Milestone 856)
+    const sum = list.reduce((a, h) => a + (h.weapon === c.weapon ? h.amount : 0), 0);
     if (sum + c.amount > perSecond) {
       this.recent.set(c.from, list);
       return `faster than the gun fires (${Math.round(sum + c.amount)} in a second, over ${Math.round(perSecond)})`;
     }
-    list.push({ at: now, amount: c.amount });
+    list.push({ at: now, amount: c.amount, weapon: c.weapon });
     this.recent.set(c.from, list);
     return null;
   }

@@ -164,6 +164,9 @@ export class Loadout {
     s.fusion = to;
     this.rebuildSlot(s, true);
     s.state.clip = s.weapon.clipSize;
+    // and a reload under way has nothing left to do: it went on, a full gun that would not fire until the old reload ran
+    // out and loaded nothing (Milestone 858)
+    s.state.cancelAction();
     return true;
   }
 

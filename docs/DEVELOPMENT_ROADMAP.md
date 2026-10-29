@@ -13159,6 +13159,36 @@ anyone to take.
 - **Checked:** tsc, verify, rules; verify's bot check, a new line: a bot on a floor of a common, a rare and an epic gun
   ends on the epic and puts the other two down (on the old code it put none down).
 
+## Milestone 856 — A gun drawn after a Sentinel headshot is not refused
+
+From a review of shooting and being hit (2026-10-29). The host holds each guest's claimed hits to what the gun can do
+in a second (src/net/hitcheck.ts). The second's sum was over every claim, but held to the gun of the claim in hand: a
+Sentinel headshot is 450, more than an R-97's whole second (402) or any roster gun's but the launcher's, so a guest who
+swapped to the R-97 after one had that gun's hits on the next enemy refused for the rest of the second. They saw their
+damage numbers, and the enemy took nothing. Each gun's claims are held to its own rate now.
+
+- **Checked:** tsc, verify, rules; verify's hit check, a new line: a Sentinel headshot, then the R-97 0.75 s later, both
+  pass (on the old check the second was refused).
+
+## Milestone 857 — A bot fires at its gun's rate on any host
+
+From the same review: a bot's next shot was timed from the frame it fired on, so its rate of fire was its host's frame
+rate's: an R-97 bot fired 15 a second on a 60 Hz host and 17.7 on a 144 Hz one, the gun's 18. The same bot did about
+18% more damage on the faster host. It keeps its schedule while it fires (bots.ts nextShotTime), so it fires the gun's
+rate on both; on a 60 Hz host the bots fire a little faster than they did, as fast as on a fast one.
+
+- **Checked:** tsc, verify, rules; verify's bot check, new lines: an R-97 bot fires 18 a second at 60 Hz and at 144 Hz
+  (on the old timing, 15.0 at 60).
+
+## Milestone 858 — A copy picked up mid-reload is a gun you can fire
+
+From the same review: picking up a copy of the gun you were reloading fused it a level and filled its magazine, but the
+reload went on: a full gun that would not fire until the old reload ran out (2.7 s of an L-STAR's) and loaded nothing.
+The fusion ends the reload now (loadout.ts fuse).
+
+- **Checked:** tsc, verify, rules; verify's loadout lines, a new one: a copy fused in mid-reload leaves a full gun that
+  is not reloading (on the old fusion it was still reloading).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

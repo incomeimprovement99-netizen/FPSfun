@@ -448,6 +448,12 @@ console.log("\nLoadout (two slots, independent state)");
   lo.setFusion(0, 3);
   eq("slot 1 at fusion 3 has the bigger magazine", lo.active.weapon.clipSize > clip0, true);
   eq("slot 2's fusion untouched", lo.slots[1].fusion ?? 0, 0);
+  // (Milestone 858) a copy picked up mid-reload: the magazine full and the reload over, so the gun fires
+  const lo6 = new Loadout(["r97", "wingman"]);
+  lo6.active.state.clip = 0;
+  lo6.active.state.startReload(50);
+  lo6.fuse(0, 1);
+  eq("a copy fused in mid-reload leaves a full gun that is not reloading", lo6.active.state.reloading, false);
 
   // redirecting mid-swap: changing your mind must not mean riding it out
   const lo2 = new Loadout(["vinson", "wingman"]);

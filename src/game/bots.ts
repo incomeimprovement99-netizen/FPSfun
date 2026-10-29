@@ -120,6 +120,15 @@ const SIGHT = botsCfg.sight;
  * the shot it takes the moment it spots you is the wide one, and it dials in
  * from there exactly as it always did at arena range.
  */
+/**
+ * When a bot's next shot is due, from the one just fired: on the schedule while it keeps firing, and from now once it
+ * had stopped. From the frame it fired on, its rate was its host's frame rate's: an R-97 bot fired 15 a second on a
+ * 60 Hz host and 17.7 on a 144 Hz one, the gun's 18 (Milestone 857).
+ */
+export function nextShotTime(now: number, due: number, interval: number): number {
+  return now - due < interval ? due + interval : now + interval;
+}
+
 export function aimError(d: Difficulty, t: number, dist = 0): number {
   const far = 1 + SIGHT.far.perMetre * Math.max(0, dist - SIGHT.far.from);
   return (d.errFloor + (d.errStart - d.errFloor) * Math.pow(d.errDecay, Math.max(0, t))) * far;
@@ -1451,7 +1460,7 @@ export class Bot {
     }
     if (target && sense.canShoot && !this.holdingFire && this.mag.ready(now, this.weapon) && now - this.seenAt >= this.diff.reaction && now >= this.nextShotAt) {
       const interval = Math.max(this.weapon.shotInterval, this.weapon.semiAuto ? 0.25 : 0) / this.diff.fireScale;
-      this.nextShotAt = now + interval;
+      this.nextShotAt = nextShotTime(now, this.nextShotAt, interval);
       this.mag.fired(now, this.weapon, interval);
       if (now >= this.nextErrAt) {
         this.nextErrAt = now + 0.25;
