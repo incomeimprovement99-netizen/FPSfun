@@ -7618,6 +7618,42 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     strafes.length === 3 && strafes.every((s) => s.across <= 10),
     strafes.map((s) => `${s.label}: ${s.across}%`).join(", "),
   );
+  // A still soldier at an edge stands on it (Milestone 835): a body stands on the highest top anywhere under its hull's
+  // square, so its middle can be 0.39 m out past a step's or a roof's edge, and its feet were out over the floor below.
+  // A box 0.45 m high put in the page's solids for the check, the soldier at its top with its middle 0.3 m past its
+  // edge, facing along it: each foot's middle over the box, its ankle within 5 cm of its height standing on flat floor
+  const edge = await ev<{ flat: number[]; feet: Array<{ on: boolean; ankle: number }> }>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE;
+      const { RANGE_SOLIDS } = await import("/src/game/range.ts");
+      const { rebuildSolidGrid } = await import("/src/game/solidgrid.ts");
+      const stand = (rise) => {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 4, 0); r.figureLabManual(true);
+        const at = f.group.position.clone();
+        const box = { minX: at.x - 3, maxX: at.x - 0.3, minZ: at.z - 2, maxZ: at.z + 2, base: at.y - 0.1, top: at.y + rise };
+        if (rise > 0) { RANGE_SOLIDS.push(box); rebuildSolidGrid(); }
+        f.group.position.y = at.y + rise;
+        f.group.rotation.y = 0;
+        r.figureLabStep(1.5);
+        const feet = ["l", "r"].map((s) => {
+          const a = f.mq.bone("foot_" + s).getWorldPosition(new T.Vector3()), b = f.mq.bone("ball_" + s).getWorldPosition(new T.Vector3());
+          const mx = (a.x + b.x) / 2, mz = (a.z + b.z) / 2;
+          return { on: mx >= box.minX && mx <= box.maxX && mz >= box.minZ && mz <= box.maxZ, ankle: Math.round((a.y - box.top) * 1000) };
+        });
+        if (rise > 0) { RANGE_SOLIDS.splice(RANGE_SOLIDS.indexOf(box), 1); rebuildSolidGrid(); }
+        return feet;
+      };
+      const flat = stand(0).map((f) => f.ankle);
+      return { flat, feet: stand(0.45) };
+    })()`,
+  );
+  check(
+    "a still soldier at an edge stands on it: its middle 0.3 m out past a 0.45 m box's edge, both feet on the box, each ankle within 5 cm of its height on flat floor",
+    edge.feet.length === 2 && edge.feet.every((f, i) => f.on && Math.abs(f.ankle - edge.flat[i]) <= 50),
+    `feet ${edge.feet.map((f, i) => `${f.on ? "on" : "off"} the box, ankle ${f.ankle} mm (flat ${edge.flat[i]})`).join("; ")}`,
+  );
   // a landing taken in the legs (Milestone 611): a second in the air and down on the run, its legs (hips over the lower
   // ankle) come down to two thirds of their standing length for a moment (the run's clip alone, 83%), and no ankle goes
   // under its height on the floor

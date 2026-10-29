@@ -661,7 +661,7 @@ until it has hold of it, rather than reaching at nothing. Their shots leave
 the end of the barrel, which is also where their muzzle flashes are.
 The legs go the way the figure moves while its body stays on its aim, and
 standing or crouched still its feet stay planted on the floor as it turns,
-then step round one at a time. It slides
+then step round one at a time, and at an edge they stand on it. It slides
 sat up with the gun at its eye. On a zip
 line it hangs from the rope by its left hand, the gun in its right; in the
 skydive, an emote, an interact or a climb a long gun rides on its back. Out,

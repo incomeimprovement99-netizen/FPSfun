@@ -142,6 +142,13 @@
     "legTurn": 90,
     "backFrom": 109
   },
+  "_footing": "A still soldier's foot out past the edge it stands on goes onto it (mannequin.ts onSupport, Milestone 835). A body stands on the highest top anywhere under its hull's square (player.ts groundUnder, radius MOVE.radius 0.41 m, up to a step's height, 0.56 m), as Source's and Apex's do, so at a step's, a curb's or a roof's edge it stands with its middle up to 0.39 m out past it and its feet over the floor below, or the street. The drawn body stays where the body is (its hit volumes and the player's eye are there); standing still, a foot whose middle has nothing within `hang` m of the body's height under it is moved to the nearest place on a top at that height within `reach` m, `inset` m in from its edges, and the leg bent to it, the body let down no more than `drop` m where a straight leg cannot reach. At a roof's edge the soldier leans out over it on feet set back on the roof.",
+  "footing": {
+    "hang": 0.03,
+    "reach": 0.8,
+    "inset": 0.06,
+    "drop": 0.06
+  },
   "_plant": "A soldier standing still keeps its feet where they are on the floor as it turns on them (mannequin.ts plantFeet, Milestone 832). The body turned on the spot with its hips (dummy.ts plant) and the feet went round on the floor with them: measured (node_modules/.scratch/turnprobe.mts), 405 degrees of turns slid each foot 1.8 to 2.4 m along the floor and never lifted one, against 1 to 2 cm of the standing clip's own sway; the pelvis turns about itself, 7 cm off the figure's middle, so even the planted feet went round 7 mm a frame. Still (stance stand or crouch, no faster than `under` m/s, the dummy's own still), and `after` s after it stopped or changed stance (the clips' blend into the idle moves the feet), each foot is held at its place on the floor (its ankle's and its toe's x and z, the heights the clip gives them: a crouch's kneeling foot stands on its toe, nearly upright, and held by the way it pointed its toe still slid 2 cm), its leg bent to reach it, eased in and out at `rate` a second. Once the clip's ankle or toe is `stepAt` m from where it is held, the foot steps there, lifted `lift` m over `stepTime` s, at its place by `land` of that time and set straight down (one that followed the clip's foot down to the floor slid 2 to 7 cm a frame with it while the body was still turning), and the other foot after it if it is `settle` m from its own. A step on the spot is a short shuffle: the walk clip's toe, for scale, lifts 16 cm over 0.68 s at 1.6 m/s.",
   "plant": {
     "under": 0.3,

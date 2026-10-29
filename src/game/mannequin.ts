@@ -34,6 +34,9 @@ import feelCfg from "../config/gunfeel.json";
 import { newSweep, phaseMeshes, type PhaseSweep } from "./phase";
 import { airborne, type FigurePose } from "./dummy";
 import { MOVE } from "./movement";
+import { solidsIn } from "./solidgrid";
+import { floorAt } from "./floors";
+import type { Solid } from "./range";
 import squadCfg from "../config/squad.json";
 import type { EmotePose } from "./emotes";
 import { PROFILE } from "./game";
@@ -137,6 +140,37 @@ const FLAT_FEET = figureCfg.flatFeet;
 const BACK_FROM = (figureCfg.strafe as { backFrom: number }).backFrom;
 /** the ground each moving clip's stride covers a second at its own pace, and where the jog and the sprint take over (figure.json gait) */
 const GAIT = figureCfg.gait as { walk: number; jog: number; sprint: number; crouch: number; jogFrom: number; sprintFrom: number };
+/** a still foot out past the edge the body stands on, onto it (figure.json footing) */
+const FOOTING = figureCfg.footing as { hang: number; reach: number; inset: number; drop: number };
+/** the solids near a still foot, filled per query (solidsIn's scratch list) */
+const NEAR_FOOT: Solid[] = [];
+/**
+ * Where a still foot at (x, z) goes when nothing holds it up (figure.json footing, Milestone 835): a body stands on the
+ * highest top anywhere under its hull's square, so at an edge its feet were out over the floor below. The move to the
+ * nearest place on a top at the body's height `y` (`inset` in from its edges, within `reach`), or null when something
+ * at that height is under the foot already or nothing is in reach.
+ */
+function onSupport(x: number, z: number, y: number): { dx: number; dz: number } | null {
+  const F = FOOTING;
+  const near = solidsIn(x - F.reach, x + F.reach, z - F.reach, z + F.reach, NEAR_FOOT);
+  let under = floorAt(x, z);
+  for (const s of near) if (x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && s.top <= y + F.hang && s.top > under) under = s.top;
+  if (y - under <= F.hang) return null;
+  let best: { dx: number; dz: number } | null = null;
+  let bestD = F.reach;
+  for (const s of near) {
+    if (Math.abs(s.top - y) > F.hang) continue;
+    // (a top narrower than two insets: its middle)
+    const px = s.maxX - s.minX > 2 * F.inset ? Math.max(s.minX + F.inset, Math.min(s.maxX - F.inset, x)) : (s.minX + s.maxX) / 2;
+    const pz = s.maxZ - s.minZ > 2 * F.inset ? Math.max(s.minZ + F.inset, Math.min(s.maxZ - F.inset, z)) : (s.minZ + s.maxZ) / 2;
+    const d = Math.hypot(px - x, pz - z);
+    if (d < bestD) {
+      bestD = d;
+      best = { dx: px - x, dz: pz - z };
+    }
+  }
+  return best;
+}
 /** standing still, each foot held to its place on the floor as the body turns, and a step round (figure.json plant) */
 const PLANT = figureCfg.plant as { under: number; after: number; rate: number; stepAt: number; settle: number; stepTime: number; land: number; lift: number };
 /** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
@@ -1120,6 +1154,19 @@ export class MannequinFigure {
       return { x: a.x, y: a.y, z: a.z, bx: t.x, by: t.y, bz: t.z };
     };
     const clip = { l: at("l"), r: at("r") };
+    // (held, a foot out past the edge the body stands on goes onto it, its middle's place: onSupport)
+    if (hold) {
+      const stand = this.root.parent ? this.root.parent.getWorldPosition(new THREE.Vector3()).y : 0;
+      for (const s of ["l", "r"] as const) {
+        const c = clip[s];
+        const m = onSupport((c.x + c.bx) / 2, (c.z + c.bz) / 2, stand);
+        if (!m) continue;
+        c.x += m.dx;
+        c.z += m.dz;
+        c.bx += m.dx;
+        c.bz += m.dz;
+      }
+    }
     const H = this.planted;
     const keys = ["x", "z", "bx", "bz"] as const;
     if (fresh) for (const s of ["l", "r"] as const) for (const q of keys) H[s][q] = clip[s][q];
@@ -1151,10 +1198,27 @@ export class MannequinFigure {
       }
     }
     const w = this.plantW;
+    const tos = { l: new THREE.Vector3(), r: new THREE.Vector3() };
+    for (const s of ["l", "r"] as const) tos[s].set(clip[s].x + (H[s].x - clip[s].x) * w, clip[s].y + lift[s], clip[s].z + (H[s].z - clip[s].z) * w);
+    // (the body let down as far as a leg needs to reach its place, no more than footing.drop: a place set back on an
+    // edge is beside the hips, past a straight leg's reach)
+    let drop = 0;
+    for (const s of ["l", "r"] as const) {
+      const hip = b[`thigh_${s}`].getWorldPosition(new THREE.Vector3());
+      const knee = b[`calf_${s}`].getWorldPosition(new THREE.Vector3());
+      const reach = (hip.distanceTo(knee) + knee.distanceTo(b[`foot_${s}`].getWorldPosition(new THREE.Vector3()))) - 0.002;
+      const across = Math.hypot(tos[s].x - hip.x, tos[s].z - hip.z);
+      if (across < reach) drop = Math.max(drop, hip.y - tos[s].y - Math.sqrt(reach * reach - across * across));
+    }
+    drop = Math.min(FOOTING.drop, drop);
+    if (drop > 1e-4) {
+      this.root.position.y -= drop;
+      this.root.updateMatrixWorld(true);
+    }
     for (const s of ["l", "r"] as const) {
       const c = clip[s];
-      const to = new THREE.Vector3(c.x + (H[s].x - c.x) * w, c.y + lift[s], c.z + (H[s].z - c.z) * w);
-      if (to.distanceToSquared(new THREE.Vector3(c.x, c.y, c.z)) > 1e-8) this.legTo(s, to);
+      const to = tos[s];
+      if (drop > 1e-4 || to.distanceToSquared(new THREE.Vector3(c.x, c.y, c.z)) > 1e-8) this.legTo(s, to);
       // and the foot turned onto its toe's place
       const ankle = b[`foot_${s}`].getWorldPosition(new THREE.Vector3());
       const toe = new THREE.Vector3(c.bx + (H[s].bx - c.bx) * w, c.by + lift[s], c.bz + (H[s].bz - c.bz) * w);

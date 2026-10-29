@@ -17380,3 +17380,32 @@ with 3rd person or enemy views".
     crouched. With the legs turned 72 degrees again it fails (34, 33 and 29%), and nothing else does. The whole soldier
     section: 332 checks, E2E PASS.
   - verify, rules and the type check.
+
+## Milestone 835 — A soldier at an edge stands on it
+
+A body stands on the highest top anywhere under its hull's square (player.ts groundUnder: 0.41 m out from its middle,
+up to a step's height, 0.56 m), as Source's and Apex's bodies do. So a soldier stopped at a step's, a curb's, a
+platform's or a roof's edge stood with its middle up to 0.39 m out past it, and its feet out over the floor below or
+the street: an enemy peeking over a roof stood in the air beside it. Counted over every edge a body can step up onto
+(node_modules/.scratch/ledgefloat.mts, the range, the course and the city together), two of every three left the feet
+hanging when the body stood at the very edge, 40 cm at the median. Found looking further for the owner's "things that
+could be fixed with 3rd person or enemy views".
+
+- **The feet onto what holds the body up** (mannequin.ts onSupport, figure.json footing): standing still, a foot whose
+  middle has nothing under it within 3 cm of the body's height is moved to the nearest place on a top at that height
+  (6 cm in from its edges, within 0.8 m), its leg bent to it by the same reach the planted feet use (Milestone 832), and
+  the body let down no more than 6 cm where a straight leg cannot reach. The drawn body stays where the body is, its hit
+  volumes and the player's eye with it: let down to the floor below, a player's head would be drawn under their own eye
+  line and they could see over cover their drawn head was behind.
+- **Measured** (node_modules/.scratch/edgeprobe.mts, the middle 0.3 m out past a box's edge): on a 0.2 m step, a 0.45
+  m ledge and a 3 m roof, facing along the edge and facing out, standing and crouched, both feet's middles were off the
+  box in 6 of 7 cases and are on it in all of them, the ankles within 1 cm of their standing height facing out and the
+  outer one 4 cm high facing along (the body down its full 6 cm).
+- **Photographed** before and after, from on the box: the soldier in the air beside the edge before; on it after, its
+  legs angled back to the edge, as someone stands leaning out to look down.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): at a 0.45 m box with its middle 0.3 m out past the edge, facing along it,
+    both feet on the box and each ankle within 5 cm of its height on flat floor. Both on it, the ankles 42
+    and 0 mm above their flat-floor heights. With the feet left where the clip has them it fails (both off the box), and
+    nothing else does. The whole soldier section: 333 checks, E2E PASS.
+  - verify, rules and the type check.
