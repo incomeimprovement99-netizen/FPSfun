@@ -13438,6 +13438,131 @@ way and speed from the frame before, and looks for the corner a frame's step ahe
 - **Checked:** tsc, verify, rules; sk-moves.ts, a new line: an L of two walls, a run at 15 m/s, forty starts, 40 turns of
   40 at 30, 60 and 144 fps (on the old run 7, 16 and 37); e2e skwall, sktutorial.
 
+## Milestone 897 — Out of the tutorial by the menu, not through it
+
+From a review of the tutorial and THE RUN. Firing Range from the menu (and hosting a match from it, which goes by the
+range) put you at the range's spawn with the tutorial still on, and the step in hand read that place as done: the spawn
+is past its way out and in its back rooms' lane. From SUPERGLIDE it went on to OUT and was done in the same frame, the
+win sting, TUTORIAL COMPLETE and its card in the range, and the tutorial marked done; from DASH it began HIGH GROUND in
+the range, a door opening and the ANAKIN handed over and taken back. Leaving the tutorial for anywhere else ends it first
+(main.ts goTo).
+
+- **Checked:** tsc, verify, rules; e2e sktutorial, a new check: in SUPERGLIDE, Firing Range from the menu ends the
+  tutorial and leaves it not done (on the old code it was marked done).
+
+## Milestone 898 — THE RUN's back rooms entered only inside them
+
+From the same review. A back room is entered past its door, going toward the start, and its trigger had no far end:
+the back half runs on into the start area, so a run started there, in through the gate's right half or across the line
+to read the sign, entered SUPERGLIDE, CROSSFIRE, HIGH GROUND and FINAL in the frame it began. Their fourteen dummies
+stood up at once, their splits were nothing and WALL RUN's room time came out below zero (a gold for it), a best run
+kept those splits, and a run turned back at WALL RUN could finish through FINAL's door. Each back room's trigger ends at
+its far wall now (courses/basic.ts intoBack).
+
+- **Checked:** tsc, verify, rules; sk-run.ts, a new line: no room is entered anywhere in the start area, either half,
+  gate to the first door (on the old triggers SUPERGLIDE, CROSSFIRE, HIGH GROUND and FINAL); the whole route still enters
+  every room in order.
+
+## Milestone 899 — THE RUN names its keys as you have them
+
+THE RUN's rules sign said F resets the course, and F is the mobility hack's key: a player who read it dashed 26 m. The
+sign and the FINAL room's tip name the keys from the binds now, as the tips' other keys are (Milestone 621), and are
+drawn again when they change; the results TV's line under the board names its reset, copy and ghost keys the same way
+(geo.ts panelKeyName, onPanelKeys).
+
+- **Checked:** tsc, verify, rules; e2e sktutorial, a new check: the sign names Y, and U once reset is rebound to it.
+
+## Milestone 900 — A loadout picked in the tutorial is the one it gives back
+
+The tutorial keeps your guns from before when it hands you the ANAKIN, and gives them back at its end. A loadout applied
+in it replaced the ANAKIN at once and was thrown away at the end for the old guns, the menu showing one loadout and
+your hands another. The ANAKIN stays in hand now, the other slot takes the new gun, and the guns given back are the new
+loadout's, as THE RUN already does for its pistols (main.ts applyLoadout).
+
+- **Checked:** tsc, verify, rules; e2e sktutorial, a new check: a loadout picked in HIGH GROUND keeps the ANAKIN in
+  hand, and leaving gives back that loadout (on the old code the old guns).
+
+## Milestone 901 — The carry card's key in the Controls tab
+
+From a review of the settings and controls. The carry card (Tab, held) had no row in the Controls tab, and a key put on
+another action moves over from whatever had it: Tab put on anything took the card's only key, and with no row there was
+no way to give it one again but every key back to the default. It has its row now (binds.ts), and each row names its
+action for the checks.
+
+- **Checked:** tsc, verify, rules; tools/checks/controls.ts, a new check in verify: every bound action has a row in the
+  Controls tab (with the card's row taken out, it names the card).
+
+## Milestone 902 — The controller's ADS sensitivity comes in with the sights
+
+The controller's look at ADS is the hip's, scaled by the zoom's ratio and by the ADS level (Settings, 1 to 8, 3 the
+plain one). The zoom's ratio came in with the sights, but the level was outside the blend and came in whole on the
+first aimed frame: at level 8 a jump from 240 to 640 degrees a second as the sights started up, and the same drop as
+they came down, at level 1 from 240 to 80. It comes in with the sights now, as the mouse's ADS multiplier does
+(gamepad.ts poll).
+
+- **Checked:** tsc, verify, rules; controls.ts: a hair into the aim the look is within 1% of the hip's at levels 1 and 8
+  (on the old poll 67% and 167% off).
+
+## Milestone 903 — The left stick pushed forward leaves a toggled crouch and aim alone
+
+With auto sprint on (the controller's default) the left stick pushed past 80% forward is a sprint press, and a sprint
+press stands a toggled crouch up and takes a toggled aim down. SpeedKills always sprints, so that press did nothing
+else: pushing the stick all the way forward, no button touched, stood you up and dropped your sights, and hold mode
+did not. Where everyone always sprints the stick's own press is told apart from the sprint button's, and only the
+button's ends the toggles (gamepad.ts stickSprint, main.ts sprintPressed).
+
+- **Checked:** tsc, verify, rules; controls.ts: the stick's press is its own and the button's is not; e2e finish, a new
+  check: toggle crouch and toggle aim, the stick pushed all the way forward keeps you crouched and aimed.
+
+## Milestone 904 — A on a menu button plays on a controller
+
+A controller plays without the pointer, as its Start does, since a pad press cannot ask the browser for a pointer lock.
+A on the menu's Play, Resume or the hack pick's Start now went the mouse's way: the lock was refused, the menu stayed up
+(over a match being built behind it) and said to click. With a controller in hand a menu button now plays the
+controller's way, and still asks for the lock quietly in case it was a real click (input.ts lock).
+
+- **Checked:** tsc, verify, rules; e2e start, a new check: A on Resume goes back in the controller's way, no pointer lock
+  asked of the browser.
+
+## Milestone 905 — Start in the hack pick is its Start now
+
+Start on a controller in the hack pick played the range with the pick's ten seconds still running behind the game, which
+then pulled you into the mode picked (or put you back at the range's spawn). Start in the pick is its Start now
+(start.ts startNow).
+
+- **Checked:** tsc, verify, rules; e2e start, a new check: Start in the pick ends it and plays the controller's way (on the
+  old code the pick stayed open behind the game).
+
+## Milestone 906 — The controller's settings kept as they were set
+
+Two small ones from the same review. With the site's data refused, the Controls tab read the controller's buttons back
+from storage at each draw and found none, so a button changed after a preset, or after any key rebound, put every other
+button back to the default; the tab keeps them itself now, as it keeps the keys. And an advanced look field (yaw,
+pitch, their ADS speeds) left blank was saved as its least, 10 degrees a second, under the empty field; a blank field
+keeps its number and shows it again, as the basic ones fall back to theirs.
+
+- **Checked:** tsc, verify, rules; controls.ts: with the site's data refused a button changed after a preset keeps the
+  preset's others (on the old tab, the default's); e2e finish, a new check: a blanked field keeps its number.
+
+## Milestone 907 — The DPI measure waits for a pointer lock given late
+
+The DPI measure needs the pointer locked, and read the lock straight after asking for it. A browser whose request gives
+no promise grants it a moment later, so the measure failed there every time, and the lock it was then given held the
+cursor over the menu until Esc. It waits for the lock, a second at most (dpi-calibrate.ts).
+
+- **Checked:** tsc, verify, rules; controls.ts: a lock granted 20 ms after a request that returns nothing, and the
+  measure is on (on the old code it failed, no pointer lock).
+
+## Milestone 908 — Alt+Tab out of a fullscreen match
+
+Fullscreen takes the bound keys with Keyboard Lock, so that Ctrl+W and the like reach the game, and a key in the lock
+takes the system's shortcuts made with it: with Tab (the carry card) and Alt (look round) both in it, Alt+Tab went to
+the game, and a fullscreen match could not be left that way without Esc first. Tab is left out of the lock: on its own
+it is no browser shortcut, and reaches the page as before (input.ts keyboardLockKeys). Not tried in a real browser
+here: a test page never takes the lock.
+
+- **Checked:** tsc, verify, rules; controls.ts: the lock takes the bound keys but Escape and Tab.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

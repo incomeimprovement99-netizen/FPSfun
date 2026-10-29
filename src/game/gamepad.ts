@@ -261,6 +261,8 @@ export class GamepadInput {
   justConnected = false;
   /** a stick moved or a button went down this frame: the prompts turn to the pad (input.ts device) */
   touchedNow = false;
+  /** this frame's sprint press is the left stick crossing auto sprint's line, no button (main.ts sprintPressed) */
+  stickSprint = false;
   /** the pad's id as the browser gives it (its name and USB ids), for its family */
   id = "";
   /** the right stick through the deadzone this frame, for a wheel's pick (x right, y down) */
@@ -315,6 +317,7 @@ export class GamepadInput {
   poll(now: number, dt: number, adsScale: number, adsFrac = 0, opticMult = 1): { yawLeft: number; pitchUp: number } {
     const p = this.pad();
     this.pressed.clear();
+    this.stickSprint = false;
     this.lookX = 0;
     this.lookY = 0;
     this.touchedNow = false;
@@ -391,7 +394,10 @@ export class GamepadInput {
     }
     // auto sprint: a forward push is a sprint press each time it starts
     const sprintAt = -PAD.autoSprintAt;
-    if (s.autoSprint && my < sprintAt && !(this.lastMove.y < sprintAt)) this.pressed.add("sprint");
+    if (s.autoSprint && my < sprintAt && !(this.lastMove.y < sprintAt)) {
+      this.stickSprint = !this.pressed.has("sprint");
+      this.pressed.add("sprint");
+    }
     if (s.autoSprint && my < sprintAt) next.add("sprint");
     this.lastMove = { x: mx, y: my };
     this.down = next;
@@ -412,7 +418,10 @@ export class GamepadInput {
     const curve = (v: number) => padCurve(s, v);
     const yawSpeed = PAD.yawPerLevel * Math.max(1, Math.min(8, s.look));
     const pitchSpeed = yawSpeed * PAD.pitchShare;
-    const adsK = adsScale === 1 ? 1 : adsScale * (Math.max(1, Math.min(8, s.ads)) / PAD.adsBase);
+    // the ADS level comes in with the sights as the zoom's ratio does (adsScale, made with adsFrac), the mouse's way:
+    // outside the blend it came in whole on the first aimed frame, at level 8 a jump from 240 to 640 degrees a second
+    // (Milestone 902)
+    const adsK = adsScale * (1 + (Math.max(1, Math.min(8, s.ads)) / PAD.adsBase - 1) * Math.max(0, Math.min(1, adsFrac)));
     this.lookX = -curve(rx) * yawSpeed * adsK * dt;
     this.lookY = -curve(ry) * pitchSpeed * adsK * dt;
     return { yawLeft: this.lookX, pitchUp: this.lookY };

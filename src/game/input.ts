@@ -29,6 +29,16 @@ export function setBinds(changes: Partial<Record<Action, string[]>>): void {
   GAME_KEYS = Input.boundKeys();
 }
 
+/**
+ * The keys fullscreen's Keyboard Lock takes from the browser and the system: every bound key but Escape (the menu's)
+ * and Tab. A key in the lock takes the system's shortcuts made with it, and with Tab (the carry card) and Alt (look
+ * round) both in it Alt+Tab went to the game, so a fullscreen match could not be left that way without Esc first
+ * (Milestone 908). Tab on its own is no browser shortcut: it reaches the page without the lock.
+ */
+export function keyboardLockKeys(): string[] {
+  return [...Input.boundKeys()].filter((k) => k !== "Escape" && k !== "Tab");
+}
+
 /** the live bindings, for the Controls tab */
 export const currentBinds = (): Readonly<Record<Action, readonly string[]>> => BINDS as Record<Action, string[]>;
 
@@ -164,6 +174,17 @@ export class Input {
 
   /** `quiet`: a lock the game asks for by itself; a refusal is not reported */
   async lock(quiet = false): Promise<void> {
+    // A controller in hand plays without the pointer (padPlaying, as its Start does). Its A on the menu's Play, Resume
+    // or Start now is no click, so the browser refused the lock and the menu stayed up, over a match being built behind
+    // it, with the mouse's hint (Milestone 904). The lock is still asked for, quietly, for a real click on the button. (Not
+    // for a lock the game asks for by itself: a menu the player opened stays up.)
+    if (!quiet && this.device === "pad" && this.pad.connected) {
+      if (!this.padPlaying) {
+        this.padPlaying = true;
+        this.onLockChange?.(true);
+      }
+      quiet = true;
+    }
     if (this.automated) {
       // A lock the game asks for by itself (a match connecting, the return
       // after Esc) is refused, as a real browser refuses one with no click
@@ -191,7 +212,7 @@ export class Input {
     const kb = (navigator as Navigator & { keyboard?: { lock?: (codes?: string[]) => Promise<void> } }).keyboard;
     if (document.fullscreenElement && kb?.lock) {
       try {
-        await kb.lock([...GAME_KEYS].filter((k) => k !== "Escape"));
+        await kb.lock(keyboardLockKeys());
       } catch {
         /* Keyboard Lock not available (Firefox, Safari) */
       }

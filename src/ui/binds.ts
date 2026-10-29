@@ -54,6 +54,8 @@ const GROUPS: ReadonlyArray<{ title: string; actions: ReadonlyArray<[Action, str
       ["slot1", "Weapon 1"],
       ["slot2", "Weapon 2"],
       ["holster", "Holster (15% faster)"],
+      // (it had no row: a key put on another action took its only one, Tab, for good, Milestone 901)
+      ["inventory", "Carry card: your guns, hacks and vitals (hold)"],
       ["inspect", "Inspect the gun (also: hold reload with a full magazine)"],
       ["melee", "Melee"],
       ["zoomToggle", "Variable optic zoom"],
@@ -183,6 +185,10 @@ export function applySavedBinds(): void {
 /** build the Controls tab's table into `root` and keep it live */
 export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLElement = root): void {
   let changes = withoutClashes(load());
+  // The controller's changes, kept here as the keys' are: read back from storage at each draw, a page with its site data
+  // refused had none, and a button changed after a preset (or after any key rebound) put every other button back to the
+  // default (Milestone 906)
+  let pad = loadPad();
   /** the chip waiting for a key, and how to stop waiting */
   let capturing: { stop: () => void } | null = null;
 
@@ -284,6 +290,7 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
       for (const [action, label] of g.actions) {
         const row = document.createElement("div");
         row.className = "bindRow";
+        row.dataset.action = action;
         const name = document.createElement("span");
         name.className = "bindName";
         name.textContent = label;
@@ -318,7 +325,6 @@ export function initBindsUi(root: HTMLElement, note: HTMLElement, padRoot: HTMLE
 
   /** the controller: a row per button, a list of what it can do; Start is always the menu */
   const renderPad = () => {
-    let pad = loadPad();
     // (its own box is emptied first: render empties only the keys' table, and each rebind, reset or preset added the
     // whole controller list again, the old copies keeping old buttons, Milestone 731)
     if (padRoot !== root) padRoot.innerHTML = "";

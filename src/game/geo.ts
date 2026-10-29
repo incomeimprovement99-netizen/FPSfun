@@ -391,10 +391,22 @@ let panelKey: (action: string) => string = (a) => a.toUpperCase();
 /** the panels whose text names a key: each one's redraw, and the text it last drew */
 const keyPanels: { draw: () => void; text: string }[] = [];
 
+/** what else is drawn naming keys (THE RUN's TV), redrawn with the panels */
+const keyRedraws: Array<() => void> = [];
+
 /** name the keys with this from now on, and redraw every panel that names one */
 export function setPanelKeys(name: (action: string) => string): void {
   panelKey = name;
   for (const p of keyPanels) p.draw();
+  for (const d of keyRedraws) d();
+}
+
+/** a key as the panels name it now, for a drawing of its own; `redraw` is called again when that changes */
+export function panelKeyName(action: string): string {
+  return panelKey(action);
+}
+export function onPanelKeys(redraw: () => void): void {
+  keyRedraws.push(redraw);
 }
 
 /** what the panels that name a key say now (the e2e reads them) */

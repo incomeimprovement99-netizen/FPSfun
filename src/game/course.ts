@@ -31,7 +31,7 @@
 import * as THREE from "three";
 import { Dummy } from "./dummy";
 import { RANGE_SOLIDS } from "./range";
-import { PAL, bevel, flat, emissive, hazardTexture, graffitiTexture, worldTiledMaterial, textPanel, type WallTheme } from "./geo";
+import { PAL, bevel, flat, emissive, hazardTexture, graffitiTexture, worldTiledMaterial, textPanel, panelKeyName, onPanelKeys, type WallTheme } from "./geo";
 import { warehouseRoof } from "./warehouse";
 import { material } from "./materials";
 import { ZIPLINES, buildLadder } from "./traversal";
@@ -682,6 +682,8 @@ export class Course {
     this.root.add(screen);
     this.drawTv();
     document.fonts?.load('700 40px "Rajdhani"').then(() => this.drawTv(), () => undefined);
+    // its keys as the player has them (Milestone 899: it said Y, P and K whatever was bound, or on a pad)
+    onPanelKeys(() => this.drawTv());
   }
 
   private drawTv(): void {
@@ -765,7 +767,7 @@ export class Course {
     g.textAlign = "center";
     g.fillStyle = "#6f7a85";
     g.font = font(600, 28);
-    g.fillText("Turn round: the start line is behind you.  Y resets.  P copies your result.  K toggles the ghost.", W / 2, H - 28);
+    g.fillText(`Turn round: the start line is behind you.  ${panelKeyName("resetDummies")} resets.  ${panelKeyName("copyResult")} copies your result.  ${panelKeyName("ghost")} toggles the ghost.`, W / 2, H - 28);
     this.tvTex.needsUpdate = true;
   }
 

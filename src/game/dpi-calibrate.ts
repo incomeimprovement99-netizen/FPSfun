@@ -87,6 +87,19 @@ export class DpiCalibrator {
         ok = false;
       }
     }
+    // A browser whose request gives no promise grants the lock a moment later: it is waited for, a second at most. The
+    // measure failed there every time, and the lock it was then given held the cursor over the menu (Milestone 907).
+    if (ok && document.pointerLockElement !== this.el) {
+      await new Promise<void>((done) => {
+        const end = () => {
+          document.removeEventListener("pointerlockchange", end);
+          window.clearTimeout(timer);
+          done();
+        };
+        const timer = window.setTimeout(end, 1000);
+        document.addEventListener("pointerlockchange", end);
+      });
+    }
     // Without pointer lock the browser applies OS acceleration to movementX,
     // so the counts are not hardware counts and the answer would be wrong.
     // Report it rather than measuring something meaningless.

@@ -229,7 +229,7 @@ Falling into the red floor in room 5 adds 2 s and puts you back at its door.
 Your guns switch to the P2020 and Glock 17 for the run and come back after.
 
 Each room's fastest route is written on the wall you came in by. Turn round
-in any room to read it. P copies your result to paste to friends; F resets.
+in any room to read it. P copies your result to paste to friends; Y resets.
 
 ## Known gaps (by design, not bugs)
 

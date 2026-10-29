@@ -2538,10 +2538,17 @@ let flourishAt = -Infinity;
 let tutorialHud: TutorialHud | null = null;
 /** toggle crouch's state: down until the next press, a jump or a sprint */
 let crouchLatch = false;
+/**
+ * A sprint pressed for itself. Where everyone always sprints, the pad's left stick pushed past auto sprint's line is no
+ * press: it stood a toggled crouch up and took a toggled aim down with no button touched (Milestone 903).
+ */
+function sprintPressed(src: Pick<MoveInput, "pressedNow">): boolean {
+  return src.pressedNow("sprint") && !(player.sprintMode === "always" && input.pad.stickSprint);
+}
 /** the movement's input with crouch as a toggle: a press flips it, and it is "held" while down */
 function crouchToggled(src: MoveInput): MoveInput {
   if (src.pressedNow("crouch")) crouchLatch = !crouchLatch;
-  if (src.pressedNow("jump") || src.pressedNow("sprint")) crouchLatch = false;
+  if (src.pressedNow("jump") || sprintPressed(src)) crouchLatch = false;
   return { held: (a) => (a === "crouch" ? crouchLatch : src.held(a)), pressedNow: (a) => src.pressedNow(a) };
 }
 /** a figure on your side (a squad mate, a team mate): no aim assist toward it, a friendly plate */
@@ -3344,7 +3351,7 @@ const keyOnDevice = (a: Action): string => (input.device === "pad" && padLabel(a
 const panelLabel = (a: string): string => (input.device === "pad" && (a === "forward" || a === "right") ? `the stick ${a}` : keyLabel(a as Action));
 let panelKeysSaid = "";
 const panelKeysNow = (): void => {
-  const said = ["interact", "forward", "right", "crouch"].map(panelLabel).join("|");
+  const said = ["interact", "forward", "right", "crouch", "resetDummies", "holster", "copyResult", "ghost"].map(panelLabel).join("|");
   if (said === panelKeysSaid) return;
   panelKeysSaid = said;
   setPanelKeys(panelLabel);
@@ -4253,6 +4260,8 @@ function tutorialCheck(): TutorialCheck {
 }
 /** the guns the tutorial took off you for the ANAKIN, given back when it is over */
 let tutorialSlots: SlotSetup[] | null = null;
+/** the gun the tutorial hands you for its shooting rooms, in the slot you had in hand */
+const TUTORIAL_GUN = "alternator_smg";
 tutorial.onStep = (title, index) => {
   hud.notice(`TUTORIAL: ${title}`, gameTime, 1.4);
   audio.countdown(false);
@@ -4266,7 +4275,7 @@ tutorial.onStep = (title, index) => {
   // and the ANAKIN in your hands (the owner: "a couple rooms after that where the ANAKIN is defaulted to the user")
   if (index === GUN_STEP) {
     tutorialSlots ??= loadout.slots.map((_, i) => loadout.setup(i));
-    loadout.setWeaponId(loadout.activeIndex, "alternator_smg");
+    loadout.setWeaponId(loadout.activeIndex, TUTORIAL_GUN);
     holster = "raising";
     holsterAt = gameTime;
   }
@@ -5978,6 +5987,14 @@ function applyLoadout(def: LoadoutDef): void {
     // not strip the attachments off guns you get back at the end
     const saved = savedSlots;
     savedSlots = ids.map((id, i) => (saved[i]?.id === id ? saved[i] : { id, attach: {}, zoomAlt: false }));
+  } else if (tutorialSlots) {
+    // The tutorial's gun stays in hand for its rooms, and the guns it gives back at the end are this loadout's: they were
+    // the ones from before it, kept when it handed the gun over, so a loadout applied in it was thrown away (Milestone 900)
+    const saved = tutorialSlots;
+    tutorialSlots = ids.map((id, i) => (saved[i]?.id === id ? saved[i] : { id, attach: {}, zoomAlt: false }));
+    ids.forEach((id, i) => {
+      if (loadout.slots[i].id !== TUTORIAL_GUN && loadout.slots[i].id !== id) loadout.setWeaponId(i, id);
+    });
   } else if (duel && duel.phase === "fight" && (loadout.slots[0].id !== def.slot1 || loadout.slots[1].id !== def.slot2)) {
     // mid-fight a new gun would come up with a full magazine and no deploy
     // time: it waits for the next round's spawn
@@ -6024,6 +6041,10 @@ function goTo(mode: Mode): void {
     return;
   }
   for (const c of courses) c.leave();
+  // Out of the tutorial for anywhere else, it ends first: the step in hand read the place you were put as done, and the
+  // range's spawn is past its way out and in its back rooms' lane, so leaving from SUPERGLIDE said TUTORIAL COMPLETE in
+  // the range and marked it done, and leaving from DASH began HIGH GROUND there (Milestone 897)
+  if (mode !== "tutorial" && tutorial.active) tutorial.reset();
   if (mode === "tutorial") {
     // at its start, from its first room, every door shut
     player.setBounds(RANGE_PLAY);
@@ -6418,9 +6439,14 @@ try {
   const saveAdv = () => {
     s.advanced = adv.value === "1";
     advBox.hidden = !s.advanced;
+    // (a blank field keeps its number, as the basic ones fall back to theirs: Number("") is 0, which was its least, saved
+    // under an empty field, Milestone 906)
     for (const [k, lo, hi] of nums) {
-      const n = Number(inputs.get(k)!.value);
-      if (Number.isFinite(n)) (s as unknown as Record<string, number>)[k] = Math.max(lo, Math.min(hi, n));
+      const el = inputs.get(k)!;
+      const n = Number(el.value);
+      const at = s as unknown as Record<string, number>;
+      if (el.value.trim() !== "" && Number.isFinite(n)) at[k] = Math.max(lo, Math.min(hi, n));
+      else el.value = String(at[k]);
     }
     try {
       localStorage.setItem(LS_PAD, JSON.stringify(s));
@@ -6735,8 +6761,10 @@ function step(): void {
   if (input.pad.menuPressed) {
     if (input.locked) input.unlock();
     else if (!overlay.classList.contains("hidden")) {
-      // on the menu: Start plays
-      if (!calibrating) {
+      // on the menu: Start plays (in the hack pick it is its Start now, which plays the pad's way: Milestone 905)
+      if (startScreen.startNow()) {
+        /* the pick's own way in */
+      } else if (!calibrating) {
         readSettings();
         input.padPlaying = true;
         input.onLockChange?.(true);
@@ -7123,7 +7151,7 @@ function step(): void {
   if (settings.adsToggle) {
     if (!input.playing || loadout.swapping || holster !== "out" || knockedOut) adsLatch = false;
     else if (input.pressedNow("ads") && !loadout.active.empty) adsLatch = !adsLatch;
-    else if (input.pressedNow("sprint")) adsLatch = false;
+    else if (sprintPressed(input)) adsLatch = false;
   } else adsLatch = false;
   // a test's script aims as it fires (the trigger below), so a check can read the view aimed for real
   const adsIn = scriptInput ? scriptInput.held("ads") : settings.adsToggle ? adsLatch : input.held("ads");

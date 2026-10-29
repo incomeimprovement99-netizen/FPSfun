@@ -130,7 +130,10 @@ export const DIVIDERS: CourseLayout["dividers"] = [
 ];
 
 const intoOut = (entryZ: number) => (x: number, _y: number, z: number) => inOut(x) && z > entryZ + 0.7;
-const intoBack = (entryZ: number) => (x: number, _y: number, z: number) => inBack(x) && z < entryZ - 0.7;
+// (a back room's far end too: the back half runs on into the start area, where every back room's trigger was met at once,
+// and a run started there entered all four in the frame it began, splits of nothing and a finish through FINAL's door
+// with the rest of the course not run, Milestone 898)
+const intoBack = (entryZ: number, exitZ: number) => (x: number, _y: number, z: number) => inBack(x) && z < entryZ - 0.7 && z > exitZ;
 /** a room's tip on the wall you came in by, over its door, facing into the room: only seen if you turn round */
 const tipOut = (entryZ: number) => ({ x: OX, y: 5.4, z: entryZ + 0.51, rotY: 0 });
 const tipBack = (entryZ: number) => ({ x: BX, y: 5.4, z: entryZ - 0.51, rotY: Math.PI });
@@ -207,7 +210,7 @@ export const ROOMS: Room[] = [
     tipX: BX,
     tipAt: tipBack(GLIDE.entryZ),
     tip: tip("SUPERGLIDE", "Jump at the ledge and mantle up. At the very end of the mantle press jump, then crouch one frame later: you leave fast enough to clear the gap. Miss it and you drop into the pit: climb out up its far side, the slow way. Three on the deck. Out left."),
-    trigger: intoBack(GLIDE.entryZ),
+    trigger: intoBack(GLIDE.entryZ, GLIDE.exitZ),
     enemies: [
       { x: -9, y: GLIDE.h, z: GLIDE.b0 - 3.5, gun: "semipistol" },
       { x: -3.5, y: GLIDE.h, z: GLIDE.b0 - 4, gun: "vinson", sway: 0.4 },
@@ -220,7 +223,7 @@ export const ROOMS: Room[] = [
     tipX: BX,
     tipAt: tipBack(CROSS.entryZ),
     tip: tip("CROSSFIRE", "Four walk across the room, each at its own pace. Lead them, and slide between the pillars. Out right."),
-    trigger: intoBack(CROSS.entryZ),
+    trigger: intoBack(CROSS.entryZ, CROSS.exitZ),
     enemies: X.walkers.map(walker),
   },
   {
@@ -229,7 +232,7 @@ export const ROOMS: Room[] = [
     tipX: BX,
     tipAt: tipBack(HIGH.entryZ),
     tip: tip("HIGH GROUND", "The three are behind the screen, out of sight from the floor. Double jump up onto the platform and shoot them over it, then drop off and round the screen by the right-hand wall. Out left."),
-    trigger: intoBack(HIGH.entryZ),
+    trigger: intoBack(HIGH.entryZ, HIGH.exitZ),
     enemies: [
       { x: -10.5, z: HIGH.screenZ - 5, gun: "vinson" },
       { x: -8, z: HIGH.screenZ - 6.5, gun: "semipistol" },
@@ -241,8 +244,8 @@ export const ROOMS: Room[] = [
     entryZ: FINAL.entryZ,
     tipX: BX,
     tipAt: tipBack(FINAL.entryZ),
-    tip: tip("FINAL SPRINT", "Holster (3) to sprint 15% faster, draw and drop all four, and cross the gold line."),
-    trigger: intoBack(FINAL.entryZ),
+    tip: tip("FINAL SPRINT", "Holster ({holster}) to sprint 15% faster, draw and drop all four, and cross the gold line."),
+    trigger: intoBack(FINAL.entryZ, FINAL.exitZ),
     enemies: [
       { x: -10, z: FINAL.entryZ - 12, gun: "vinson" },
       { x: -3, z: FINAL.entryZ - 18, gun: "semipistol", sway: 0.4 },
@@ -337,7 +340,7 @@ export const BASIC_COURSE: CourseLayout = {
     "and back down the other side to finish here. Drop every armed dummy: each one left standing adds 3 s. Starting the run equips " +
     `the ${weaponName("semipistol")} and the ${weaponName("g17")}; your guns come back when you finish. The dark glass walls take no wall run.\n\n` +
     "Every room's fastest route is written on the wall you came in by. " +
-    "You will only see it if you turn round.\n\nF resets the course.",
+    "You will only see it if you turn round.\n\n{resetDummies} resets the course.",
   girders: [-9, 0, 9],
   lights: [BX, OX],
   build(b) {

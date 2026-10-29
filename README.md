@@ -1511,7 +1511,7 @@ themselves, so crouching on Ctrl and pressing W would close the tab. Playing
 goes fullscreen with Keyboard Lock by default (Settings, "Fullscreen while
 playing"), which hands those keys to the game in Chrome and Edge. Windowed, or
 in Firefox or Safari, the browser asks "Leave site?" instead of closing; C is
-also bound to crouch.
+also bound to crouch. Tab is left out of the lock, so Alt+Tab still leaves a fullscreen match.
 
 **Collision is boxes.** Every wall, floor and step is an axis-aligned box; slopes
 are stepped. That covers everything built so far, but curved or angled level
@@ -1608,7 +1608,7 @@ guns are built with their grips at the hand for that.
 | Low frame rate | Settings, Graphics: Competitive. The frame cap is the monitor's refresh rate; the guide under "Getting past" raises it. |
 | No textures locally | `npm run assets` was not run (the textures are not in git). |
 | Controller does nothing | press a button so the browser exposes it, then Start. Only standard-mapping pads (Xbox, PlayStation, most others) map by default. |
-| Course timer will not start | cross the start line going forward (the course button puts you facing it); stepping back over it or off the course resets the run. F resets the course and the dummies. |
+| Course timer will not start | cross the start line going forward (the course button puts you facing it); stepping back over it or off the course resets the run. Y (Reset dummies and the course, in Controls) resets the course and the dummies. |
 
 ## Docs
 

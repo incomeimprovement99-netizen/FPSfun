@@ -511,5 +511,15 @@ const DJS = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9];
   check("every room's par is over a second", pars.every((x) => x > 1), pars.join(" "));
 }
 
+// (Milestone 898) no room is entered from the start area, either half of it, from the gate to BREACH's door: the back
+// rooms' triggers had no far end, and the back half runs on into the start area, so a run started there (in through the
+// gate's right half, or across the line to read the sign) entered SUPERGLIDE, CROSSFIRE, HIGH GROUND and FINAL at once
+{
+  const met = new Set<string>();
+  for (let x = BASIC_COURSE.x0 + 0.3; x < BASIC_COURSE.x1 - 0.3; x += 0.25)
+    for (let z = 9; z < BREACH.entryZ; z += 0.25) for (const r of ROOMS) if (r.trigger(x, 0, z)) met.add(r.name);
+  check("no room is entered from the start area, either half of it, gate to the first door", met.size === 0, [...met].join(", ") || "none");
+}
+
 console.log(fails === 0 ? "\nSK RUN PASS" : `\nSK RUN FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

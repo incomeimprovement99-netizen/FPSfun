@@ -1357,10 +1357,21 @@ async function tripleTest(browser: Browser, query: string, tag = "1v1v1", pages3
     [g1, g2, 1],
   ] as const) {
     const to = await ev<{ x: number; z: number }>(mover, `(() => { const p = window.__range.player; const b = window.__range.duel().arenaBounds; const cx = b.circle ? b.circle.x : (b.minX + b.maxX) / 2, cz = b.circle ? b.circle.z : (b.minZ + b.maxZ) / 2; const dx = cx - p.pos.x, dz = cz - p.pos.z, d = Math.hypot(dx, dz) || 1; p.teleport(p.pos.x + (dx / d) * 4, p.pos.y, p.pos.z + (dz / d) * 4, p.yaw); return { x: p.pos.x, z: p.pos.z }; })()`);
-    const moved = await watcher
-      .waitForFunction(`(() => { const r = window.__range.duel().remotes.get(${id}); const g = r && r.avatar.group.position; return !!g && Math.hypot(g.x - ${to.x}, g.z - ${to.z}) < 0.2; })()`, { polling: 100, timeout: 5000 })
-      .then(() => true, () => false);
-    check(`${tag}: player ${id + 1} moves and the other guest sees it, through the host`, moved, JSON.stringify(await ev(watcher, `(() => { const g = window.__range.duel().remotes.get(${id})?.avatar.group.position; return { want: ${JSON.stringify(to)}, saw: g && { x: +g.x.toFixed(2), z: +g.z.toFixed(2) } }; })()`)));
+    // Seen where the mover is, read again each time, and that within a metre of where it was put: a body put down
+    // against a piece is pushed out of its collision column, and the watcher saw it half a metre from the asked spot
+    // (sweeps of 2026-10-28 and 10-29), where it really stood
+    type At = { x: number; z: number };
+    let last: { asked: At; at: At; saw: At | null } = { asked: to, at: to, saw: null };
+    let moved = false;
+    for (const end = Date.now() + 5000; !moved && Date.now() < end; ) {
+      const at = await ev<At>(mover, "({ x: window.__range.player.pos.x, z: window.__range.player.pos.z })");
+      const saw = await ev<At | null>(watcher, `(() => { const g = window.__range.duel().remotes.get(${id})?.avatar.group.position; return g ? { x: g.x, z: g.z } : null; })()`);
+      last = { asked: to, at, saw };
+      moved = !!saw && Math.hypot(at.x - to.x, at.z - to.z) < 1 && Math.hypot(saw.x - at.x, saw.z - at.z) < 0.2;
+      if (!moved) await sleep(100);
+    }
+    const r2 = (p: At | null) => p && { x: +p.x.toFixed(2), z: +p.z.toFixed(2) };
+    check(`${tag}: player ${id + 1} moves and the other guest sees it, through the host`, moved, JSON.stringify({ asked: r2(last.asked), at: r2(last.at), saw: r2(last.saw) }));
   }
   for (const p of pages) await pressPlay(p);
   for (const p of pages) await p.waitForFunction(`window.__range.duel().phase === "fight"`, { polling: 200, timeout: 15000 });
@@ -1787,6 +1798,32 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   await sleep(500);
   const up = await ev<boolean>(page, "window.__range.player.crouched");
   check("toggle crouch: a press crouches and it holds; a jump stands you up", down && !up, `${down} then ${up}`);
+  // (Milestone 903) the left stick pushed past auto sprint's line, no button touched, leaves a toggled crouch down and a
+  // toggled aim in: everyone always sprints, and the stick's sprint press stood you up and took the sights down
+  const pushPast = async () => {
+    await ev(page, "window.__pad.axes[1] = -0.6");
+    await sleep(150);
+    await ev(page, "window.__pad.axes[1] = -1");
+    await sleep(350);
+    await ev(page, "window.__pad.axes[1] = 0");
+    await sleep(150);
+  };
+  await ev(page, "window.__range.player.teleport(0, 0, 0, 0)");
+  await padTap(page, 1);
+  await sleep(400);
+  await pushPast();
+  const stillDown = await ev<boolean>(page, "window.__range.player.crouched");
+  await padTap(page, 1);
+  await sleep(400);
+  await ev(page, `(() => { const s = document.getElementById("adsMode"); s.value = "toggle"; s.dispatchEvent(new Event("change")); window.__range.player.teleport(0, 0, 0, 0); })()`);
+  await padTap(page, 6);
+  await sleep(500);
+  await pushPast();
+  const stillAimed = await ev<number>(page, "window.__range.loadout.active.state.adsFrac");
+  await padTap(page, 6);
+  await sleep(300);
+  await ev(page, `(() => { const s = document.getElementById("adsMode"); s.value = "hold"; s.dispatchEvent(new Event("change")); })()`);
+  check("toggle crouch and aim: the left stick pushed all the way forward, no button, keeps you crouched and aimed", stillDown && stillAimed > 0.9, JSON.stringify({ stillDown, stillAimed: +stillAimed.toFixed(2) }));
   await ev(page, `(() => { const s = document.getElementById("crouchMode"); s.value = "hold"; s.dispatchEvent(new Event("change")); })()`);
   // ---- per-optic ADS: the 3x's multiplier applies with a 3x on
   // (DEVINOS wears the 3x, its fixed optic: SpeedKills fits none)
@@ -1808,6 +1845,11 @@ async function finishTest(browser: Browser, query: string): Promise<void> {
   await ev(page, `(() => { const s = document.getElementById("padAdvanced"); s.value = "1"; s.dispatchEvent(new Event("change")); const y = document.getElementById("pad_extraYaw"); y.value = "150"; y.dispatchEvent(new Event("change")); })()`);
   const adv = await ev<{ advanced: boolean; extraYaw: number; saved: boolean }>(page, `({ advanced: window.__range.input.pad.settings.advanced, extraYaw: window.__range.input.pad.settings.extraYaw, saved: (JSON.parse(localStorage.getItem("range.pad.v1") || "{}").extraYaw === 150) })`);
   check("advanced look: on, with the extra yaw set and remembered", adv.advanced && adv.extraYaw === 150 && adv.saved, JSON.stringify(adv));
+  // (Milestone 906) a field blanked keeps its number and shows it again, as the basic ones fall back to theirs; it was
+  // set to its least (10 degrees a second) under an empty field
+  await ev(page, `(() => { const y = document.getElementById("pad_yaw"); y.dataset.was = y.value; y.value = ""; y.dispatchEvent(new Event("change")); })()`);
+  const blank = await ev<{ was: number; now: number; shown: string }>(page, `(() => { const y = document.getElementById("pad_yaw"); return { was: Number(y.dataset.was), now: window.__range.input.pad.settings.yaw, shown: y.value }; })()`);
+  check("advanced look: a field blanked keeps its number, and shows it again", blank.now === blank.was && blank.now > 10 && blank.shown === String(blank.was), JSON.stringify(blank));
   await ev(page, `(() => { const s = document.getElementById("padAdvanced"); s.value = "0"; s.dispatchEvent(new Event("change")); })()`);
   // ---- the stick's outer deadzone and curve strength: set, used, remembered, then put back
   await ev(page, `(() => { for (const [id, v] of [["padOuterDeadzone", "10"], ["padExponent", "2.2"]]) { const i = document.getElementById(id); i.value = v; i.dispatchEvent(new Event("change")); } })()`);
@@ -6741,6 +6783,54 @@ async function wallFeelTest(browser: Browser): Promise<void> {
  * and remembered, your own guns and hacks back. The moves themselves are proven on the same geometry by
  * tools/checks/sk-tutorial.ts.
  */
+/**
+ * Out of the tutorial by the menu (Milestones 897, 900), and THE RUN's sign (Milestone 899). Firing Range from the menu
+ * put you at the range's spawn with the tutorial still on, and its step read that place as done: from SUPERGLIDE it was
+ * TUTORIAL COMPLETE in the range, marked done. A loadout picked in it was thrown away at its end for the guns from before
+ * it. THE RUN's sign said F resets the course, F being a hack's key.
+ */
+async function skTutorialLeaveTest(browser: Browser): Promise<void> {
+  const t = await open(browser, "?norender");
+  const doneBefore = await ev<string | null>(t, `(() => { const d = localStorage.getItem("range.tutorial.done"); localStorage.removeItem("range.tutorial.done"); return d; })()`);
+  await ev(t, `document.getElementById("goTutorial").click(); document.getElementById("startMode").click()`);
+  await pressPlay(t);
+  // a step by its title, as the rooms would have brought you to it (its own start: the gun's step hands the gun over)
+  const toStep = (title: string) => ev(t, `(() => { const tu = window.__range.tutorial; for (let i = 0; i < 20; i++) { tu.index = i; if (tu.stepTitle === ${JSON.stringify(title)}) break; } tu.begin(window.__range.gameTime()); })()`);
+  const held = () => ev<string[]>(t, "window.__range.loadout.slots.map((s) => s.id)");
+  const before = await held();
+  await toStep("HIGH GROUND");
+  await gameSleep(t, 0.3);
+  const armed = await held();
+  // another loadout picked in it: the first in the list with neither of the guns from before
+  const want = await ev<string[]>(t, `(() => { const r = window.__range; for (const b of document.querySelectorAll("#loadoutList button")) { b.click(); const c = r.loadouts.current; if (![c.slot1, c.slot2].some((g) => ${JSON.stringify(before)}.includes(g) || g === "alternator_smg")) return [c.slot1, c.slot2]; } return []; })()`);
+  await gameSleep(t, 0.3);
+  const inIt = await held();
+  check("sk tutorial: a loadout picked in it keeps the tutorial's ANAKIN in hand, the other slot the new gun", want.length === 2 && armed.includes("alternator_smg") && inIt.includes("alternator_smg") && inIt.some((g) => want.includes(g)), JSON.stringify({ before, armed, want, inIt }));
+  await toStep("SUPERGLIDE");
+  await gameSleep(t, 0.3);
+  await ev(t, `document.getElementById("goRange").click(); document.getElementById("startMode").click()`);
+  await pressPlay(t);
+  await gameSleep(t, 1);
+  const out = await ev<{ active: boolean; done: string | null; held: string[] }>(t, `({ active: window.__range.tutorial.active, done: localStorage.getItem("range.tutorial.done"), held: window.__range.loadout.slots.map((s) => s.id) })`);
+  check("sk tutorial: Firing Range from the menu in SUPERGLIDE ends the tutorial, not done (no TUTORIAL COMPLETE in the range)", !out.active && out.done === null, JSON.stringify(out));
+  check("sk tutorial: and the guns given back are the loadout picked in it", out.held.join() === want.join(), JSON.stringify({ want, held: out.held }));
+  // THE RUN's sign names the reset key as bound, and again when it is rebound
+  const signSays = () => ev<string>(t, `((window.__range.keyPanelTexts().find((x) => x.startsWith("THE RUN")) || "").match(/(\\S+) resets the course/) || [])[1] || ""`);
+  const said = await signSays();
+  await ev(t, `document.querySelector('#tabs button[data-tab="controls"]').click()`);
+  await ev(t, `[...document.querySelectorAll("#bindTable .bindRow")].find((r) => r.querySelector(".bindName").textContent === "Reset dummies and the course").querySelector(".bindKey").click()`);
+  await sleep(50);
+  await ev(t, `document.dispatchEvent(new KeyboardEvent("keydown", { code: "KeyU", bubbles: true }))`);
+  await t.waitForFunction(`/\\bU resets the course/.test(window.__range.keyPanelTexts().find((x) => x.startsWith("THE RUN")) || "")`, { polling: 100, timeout: 5000 }).catch(() => undefined);
+  const rebound = await signSays();
+  check("sk tutorial: THE RUN's sign names the reset key as bound (Y), and the new one when it is rebound (U)", said === "Y" && rebound === "U", JSON.stringify({ said, rebound }));
+  // (the browser's other pages share this one's storage: the keys, the loadout and the tutorial's mark put back)
+  await ev(t, `document.getElementById("bindsReset").click()`);
+  await ev(t, `[...document.querySelectorAll("#loadoutList button")].find((b) => b.textContent.startsWith("USSO and BOOG"))?.click()`);
+  await ev(t, `(() => { const d = ${JSON.stringify(doneBefore)}; if (d === null) localStorage.removeItem("range.tutorial.done"); else localStorage.setItem("range.tutorial.done", d); })()`);
+  await t.close();
+}
+
 async function skTutorialTest(browser: Browser): Promise<void> {
   // (drawn: a figure's hit volumes follow its pose as the frame draws it, as the soldiers' shots need; so every wait is on
   // the game's own clock or on the thing waited for, since a drawn headless page runs few frames a second)
@@ -8873,6 +8963,53 @@ const CENTRE_NAME = neonSectorsCfg.game.sectors.find((s) => s.id === "c")!.name;
  * like MUCH more simple"): two ways in and More; either way in asks for the hacks for ten seconds, on your last picks
  * (DASH and HEAL for someone new), and goes in by itself when the time is up.
  */
+/**
+ * The start screen by controller (Milestones 904, 905). Start in the hack pick played the range with the pick's timer
+ * still going, which then pulled you into the mode picked; A on a menu button (Resume, Start now) asked the browser for
+ * a pointer lock no pad press can get, so the menu stayed up. (A test page's lock never fails, input.ts says why: a
+ * controller's way in shows here as playing without one.)
+ */
+async function padStartTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?norender&home=on", BASE, `localStorage.setItem("range.startedOnce", "1")`);
+  await page
+    .waitForFunction(`(() => { const L = document.getElementById("loading"); return !L || L.hidden || L.classList.contains("done"); })()`, { polling: 250, timeout: 180000 })
+    .catch(() => undefined);
+  const kept = await ev<string | null>(page, `localStorage.getItem("range.sk.hacks")`);
+  // a controller in hand: the left stick nudged inside the menu's own line (padnav moves at 0.55), so nothing is lit
+  await ev(page, padSet(0, false));
+  await ev(page, "window.__pad.axes[1] = 0.3");
+  await sleep(300);
+  await ev(page, "window.__pad.axes[1] = 0");
+  await sleep(150);
+  const device = await ev<string>(page, "window.__range.input.device");
+  const views = `({ pick: !document.getElementById("pick").hidden, overlay: !document.getElementById("overlay").classList.contains("hidden"), playing: window.__range.input.playing, locked: window.__range.input.locked, padPlaying: window.__range.input.padPlaying })`;
+  // the Firing Range picked (as A on it), then Start in the pick
+  await ev(page, `document.getElementById("startRange").click()`);
+  const picking = await ev<{ pick: boolean }>(page, views);
+  await padTap(page, 9);
+  await sleep(500);
+  const started = await ev<{ pick: boolean; overlay: boolean; playing: boolean; locked: boolean; padPlaying: boolean }>(page, views);
+  check(
+    "start by pad: Start in the hack pick is its Start now: the pick is over, and the game is played the controller's way",
+    device === "pad" && picking.pick && !started.pick && !started.overlay && started.playing && !started.locked && started.padPlaying,
+    JSON.stringify({ device, picking, started }),
+  );
+  // back to the start screen (Start), then A on Resume
+  await padTap(page, 9);
+  await sleep(400);
+  const menu = await ev<{ overlay: boolean; playing: boolean }>(page, views);
+  await ev(page, `document.getElementById("startResume").click()`);
+  await sleep(400);
+  const resumed = await ev<{ overlay: boolean; playing: boolean; locked: boolean; padPlaying: boolean }>(page, views);
+  check(
+    "start by pad: A on Resume goes back in the controller's way, with no pointer lock asked of the browser",
+    menu.overlay && !menu.playing && !resumed.overlay && resumed.playing && !resumed.locked && resumed.padPlaying,
+    JSON.stringify({ menu, resumed }),
+  );
+  await ev(page, `(() => { const k = ${JSON.stringify(kept)}; if (k === null) localStorage.removeItem("range.sk.hacks"); else localStorage.setItem("range.sk.hacks", k); })()`);
+  await page.close();
+}
+
 async function startScreenTest(browser: Browser): Promise<void> {
   // (a player who has chosen a way in before: the returning one, Milestone 632; someone new is a page of its own below)
   const page = await open(browser, "?norender&home=on", BASE, `localStorage.setItem("range.startedOnce", "1")`);
@@ -9930,6 +10067,8 @@ async function main(): Promise<void> {
     if (want("start")) await section("start", async () => {
       console.log("\nThe start screen: two ways in and More, and the hacks picked on a timer before play");
       await startScreenTest(browser);
+      console.log("\nThe start screen by controller: Start in the hack pick, and A on Resume");
+      await padStartTest(browser);
     });
 
     if (want("skbots")) await section("skbots", async () => {
@@ -9963,6 +10102,8 @@ async function main(): Promise<void> {
     if (want("sktutorial")) await section("sktutorial", async () => {
       console.log("\nThe tutorial: its rooms, doors, pits, the hacks' and the gun's locks, DASH, the ANAKIN, the soldiers, the way out");
       await skTutorialTest(browser);
+      console.log("\nOut of the tutorial by the menu, a loadout picked in it, and THE RUN's sign naming its key");
+      await skTutorialLeaveTest(browser);
     });
 
     if (want("botsquads")) await section("botsquads", async () => {

@@ -118,6 +118,16 @@ export class StartScreen {
     return this.view === "start" && !this.o.canResume();
   }
 
+  /**
+   * Start on a controller: in the pick it is Start now, as the button is. It played the range with the pick's timer
+   * still going behind the game, which then pulled you into the mode picked (Milestone 905). True when it was the pick's.
+   */
+  startNow(): boolean {
+    if (this.view !== "pick" || !this.pick) return false;
+    this.finish(true);
+    return true;
+  }
+
   /** the menu as it was, from now until Back (More, or an invite link that opens on the Friends tab) */
   more(): void {
     this.wantMenu = true;
