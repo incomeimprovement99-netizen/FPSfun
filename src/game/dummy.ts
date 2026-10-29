@@ -15,6 +15,9 @@ import { MannequinFigure, useMannequin } from "./mannequin";
 import { CloakShell, MateOutline, Outline, ShieldShell } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import { solidHit } from "./projectile";
+import { solidsIn } from "./solidgrid";
+import { floorAt } from "./floors";
+import type { Solid } from "./range";
 import figureCfg from "../config/figure.json";
 import rangeCfg from "../config/rangetools.json";
 import hudCfg from "../config/hud.json";
@@ -44,7 +47,15 @@ const RESPAWN_S = 1.2;
 const FALL_S = 0.32;
 /** a death turned away from the shot: how long a hit counts, how near the middle is no side, how fast it turns (figure.json death) */
 const DEG = Math.PI / 180;
-const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number; room: number; roomUp: number; roomStep: number };
+const DEATH = figureCfg.death as { hitFor: number; near: number; turnRate: number; room: number; roomUp: number; roomStep: number; ledge: number; probe: number };
+/** the solids under a fall's line, filled per query (solidsIn's scratch list) */
+const UNDER: Solid[] = [];
+/** the highest floor at (x, z) no higher than y (a top, or the world's own floor) */
+function floorUnder(x: number, z: number, y: number): number {
+  let best = floorAt(x, z);
+  for (const s of solidsIn(x, x, z, z, UNDER)) if (x >= s.minX && x <= s.maxX && z >= s.minZ && z <= s.maxZ && s.top <= y + 0.05 && s.top > best) best = s.top;
+  return best;
+}
 
 // human hull, metres (72 units tall)
 const H = 72 * 0.0254;
@@ -1200,7 +1211,17 @@ export class Dummy {
     const from = this.group.position.clone();
     from.y += DEATH.roomUp;
     const back = new THREE.Vector3();
-    const roomAt = (yaw: number) => solidHit(from, back.set(-Math.sin(yaw), 0, -Math.cos(yaw)), DEATH.room);
+    const feet = this.group.position.y;
+    // (up to a wall, or to the last place along the line with floor under it at the feet's height: an edge it would lie
+    // out past; looked at a step past the room it needs, as the head lies 1.2 m back and has a size)
+    const roomAt = (yaw: number) => {
+      const dx = -Math.sin(yaw);
+      const dz = -Math.cos(yaw);
+      const wall = solidHit(from, back.set(dx, 0, dz), DEATH.room);
+      for (let d = DEATH.probe; d <= DEATH.room + DEATH.probe + 1e-6; d += DEATH.probe)
+        if (floorUnder(from.x + dx * d, from.z + dz * d, feet) < feet - DEATH.ledge) return Math.min(wall, d - DEATH.probe);
+      return wall;
+    };
     if (roomAt(want) >= DEATH.room) return;
     let best = { yaw: want, room: roomAt(want) };
     for (let k = DEATH.roomStep; k <= 180; k += DEATH.roomStep)

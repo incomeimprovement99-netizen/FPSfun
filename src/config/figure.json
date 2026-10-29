@@ -50,8 +50,11 @@
     "turnRate": 18,
     "room": 1.3,
     "roomUp": 0.5,
-    "roomStep": 30
+    "roomStep": 30,
+    "ledge": 0.25,
+    "probe": 0.2
   },
+  "_deathLedge": "And never off an edge into the air (dummy.ts roomToFall, Milestone 837): the room a fall needs ended only at a wall, so a soldier killed with its back to a step's, a ledge's or a roof's edge lay flat in the air out past it, its head 1 m beyond a roof's edge and 3.2 m over the street (node_modules/.scratch/deathedge.mts). Its room also ends where the floor along the fall's line, looked at every `probe` m, is more than `ledge` m under the body's feet, and the fall is turned the same way it is off a wall.",
   "_bank": "A runner seen leaning into a turn (mannequin.ts leanIntoTurn, Milestone 609): Apex's and Titanfall's do, and ours ran a curve bolt upright. On the ground above `minSpeed` m/s (a jog), the body leans toward the turn's middle round its feet, as far as a body balanced against the game's gravity would (the angle whose tangent is the sideways acceleration over gravity, movement.json), `share` of that, never more than `most` degrees, eased at `rate` a second; its way of moving and the change in it are read off where the figure goes, smoothed at `smooth` a second (an enemy's position comes in 20 to 30 times a second). Balanced in full, SpeedKills' sprint (14 m/s) turned a radian a second against its gravity (17.5 m/s/s) leans 39 degrees, a cyclist's lean; a third of it, capped at 12, reads as a runner's, and half that turn leans 8. Ours.",
   "bank": {
     "most": 12,

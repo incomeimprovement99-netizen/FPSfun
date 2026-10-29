@@ -17677,3 +17677,25 @@ From the centre's review of 2026-10-28 (round 12) and the districts' (round 6).
   reading DEPARTURES and a clock either side of its name over its front arches, in its amber, drawn by the game as the
   districts' names are (`game.boards`, neonmap.ts).
 - **Checked:** the map check's 327 checks pass on the low, high and max bakes, among them new ones for THE VAULT's gold cover and floor and the station's hall, THE STRIP's club roof (no canopy, its tiles over the whole hall, a slab in the collision, the rig under it), the fence's fade, and THE TERRACES' hedges with THE TERMINAL's boards; each fails with its change taken out. Pictures of each by day. verify, rules and tsc. Map files version 119: lo 184.0 MB, hi 264.5 MB, max 562.1 MB.
+
+## Milestone 837 — A death never off an edge into the air
+
+A soldier's death falls away from the shot and is turned off a wall it would lie through (Milestones 610 and 619), but
+the room a fall needs ended only at a wall, so one killed with its back to a step's, a ledge's or a roof's edge fell
+out past it and lay flat in the air: on a 3 m box with its back 0.2 m from the edge, its head ended 1 m past it and 3.2
+m over the floor below, and the same off a 0.45 m ledge and turned 30 degrees (node_modules/.scratch/deathedge.mts).
+Found from the edges looked at for Milestone 835.
+
+- **The room ends at an edge too** (dummy.ts roomToFall, figure.json death `ledge` and `probe`): the fall's line is
+  looked at every 0.2 m, and its room ends at the last place with floor under it no more than 0.25 m below the feet, as
+  well as at a wall; the fall is turned 30 degrees at a time either way to the nearest with room, as it is off a wall.
+  The line is looked at a step past the room the fall needs: the death clip's head comes to rest about 1.2 m back and
+  has a size, and turned to a line whose floor ended at 1.2 m the head lay just over the edge.
+- **Measured after:** on a 3 m box with the back 0.2 and 0.6 m from the edge, turned 30 degrees, and off a 0.45 m
+  ledge, the head and the pelvis end on the box, 0.18 and 0.07 m over it; photographed before and after from on the box.
+- **Checked:**
+  - The e2e's soldier stances (skfigure): its back 0.2 and 0.6 m from a 3 m box's edge, its head and pelvis end on
+    the box. Head 0.18 and pelvis 0.07 m
+    over the box both times. With the edge left out of the room it fails (the head 3.18 m over the floor below), and
+    nothing else does. The whole soldier section: 336 checks, E2E PASS.
+  - verify, rules and the type check.

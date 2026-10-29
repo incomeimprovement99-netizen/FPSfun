@@ -7571,6 +7571,38 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("and never through a wall: its back to a wall 0.45 m behind, square on and turned 30 degrees, its head ends this side of it", walled.length === 2 && walled.every((w) => w.head < 0.45), JSON.stringify(walled));
+  // nor off an edge into the air (Milestone 837): on a 3 m box, its back 0.2 and 0.6 m from the edge, it lay out past
+  // it flat in the air, the head 3.2 m over the floor below; its head and pelvis end on the box, under 0.4 m over it
+  const ledged = await ev<Array<{ back: number; head: number; pelvis: number }>>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE;
+      const { RANGE_SOLIDS } = await import("/src/game/range.ts");
+      const { rebuildSolidGrid } = await import("/src/game/solidgrid.ts");
+      const out = [];
+      for (const back of [0.2, 0.6]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 4, 0); r.figureLabManual(true);
+        const at = f.group.position.clone();
+        // the box's +x edge BACK m behind it: it faces -x, its back to +x
+        const box = { minX: at.x - 4, maxX: at.x + back, minZ: at.z - 3, maxZ: at.z + 3, base: at.y - 0.1, top: at.y + 3 };
+        RANGE_SOLIDS.push(box);
+        rebuildSolidGrid();
+        f.group.position.y = at.y + 3;
+        f.group.rotation.y = -Math.PI / 2;
+        r.figureLabStep(0.5);
+        f.fallDown();
+        for (let i = 0; i < 50; i++) r.figureLabStep(0.05);
+        // (over what is under it: the box's top where it is over the box, the floor below past it)
+        const over = (n) => { const v = f.mq.bone(n).getWorldPosition(new T.Vector3()); const onBox = v.x >= box.minX && v.x <= box.maxX && v.z >= box.minZ && v.z <= box.maxZ; return Math.round((v.y - (onBox ? box.top : at.y)) * 100) / 100; };
+        out.push({ back, head: over("Head"), pelvis: over("pelvis") });
+        RANGE_SOLIDS.splice(RANGE_SOLIDS.indexOf(box), 1);
+        rebuildSolidGrid();
+      }
+      return out;
+    })()`,
+  );
+  check("nor off an edge into the air: its back 0.2 and 0.6 m from a 3 m box's edge, its head and pelvis end on the box (under 0.4 m over it)", ledged.length === 2 && ledged.every((l) => l.head < 0.4 && l.pelvis < 0.4), JSON.stringify(ledged));
   // A slide (Milestone 831): sat up with the gun on the look, every gun, the way a player shoots sliding. Played whole,
   // the clip laid the soldier on its back, the gun 25 to 55 degrees off where it looked
   const slides = await ev<Array<{ id: string; lean: number; aim: number | null; grip: number | null; gunIn: number }>>(
