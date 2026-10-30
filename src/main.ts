@@ -6804,7 +6804,8 @@ function selfFigure(now: number, dt: number, weaponId: string, op: string, look:
   const f = selfFig;
   f.group.visible = true;
   f.group.position.copy(player.pos);
-  f.group.rotation.y = player.yaw * DEG + Math.PI;
+  // (not once it is down: the fall's own turn off a wall or an edge was rewritten every frame, as the look went on)
+  if (!f.knocked) f.group.rotation.y = player.yaw * DEG + Math.PI;
   if (knocked) f.fallDown();
   else if (f.knocked) f.reset();
   const ac = localAct();

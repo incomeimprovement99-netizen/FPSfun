@@ -390,6 +390,8 @@ function turnBone(bone: THREE.Object3D, figure: THREE.Object3D, axisLocal: THREE
 }
 
 export interface MannequinImpulses {
+  /** it is running backward (dummy.ts, with a band round the line; a figure with no say reads its moveDir against the line) */
+  back?: boolean;
   kick: number;
   flinch: number;
   jolt: number;
@@ -817,7 +819,11 @@ export class MannequinFigure {
   private plantSince = 0;
   private plantStance = "";
   /** the foot stepping round to its place (none: both down), when it lifted and where from */
-  private step: { s: "l" | "r"; at: number; from: { x: number; z: number; bx: number; bz: number } } | null = null;
+  private step: { s: "l" | "r"; at: number; from: { x: number; z: number; bx: number; bz: number }; landed: boolean } | null = null;
+  /** how far each foot is lifted (a step cut short comes down over a moment, not in a frame) */
+  private readonly footLift = { l: 0, r: 0 };
+  /** where the figure was the last frame its feet were held (a body moved further than any step is one put somewhere else) */
+  private plantAt: { x: number; z: number } | null = null;
   /** the way the face looks, in the Head bone's own frame, from the bind pose (headUp); null until measured */
   private faceLocal: THREE.Vector3 | null = null;
   private readonly footA = new THREE.Vector3();
@@ -1160,6 +1166,9 @@ export class MannequinFigure {
       return { x: a.x, y: a.y, z: a.z, bx: t.x, by: t.y, bz: t.z };
     };
     const clip = { l: at("l"), r: at("r") };
+    // (where the clip has them before any edge moves them: what the hold eases from, so a foot goes onto an edge over the
+    // hold's own ease and does not jump there)
+    const base = { l: { ...clip.l }, r: { ...clip.r } };
     // (held, a foot out past the edge the body stands on goes onto it, its middle's place: onSupport)
     if (hold) {
       const stand = this.root.parent ? this.root.parent.getWorldPosition(new THREE.Vector3()).y : 0;
@@ -1183,13 +1192,18 @@ export class MannequinFigure {
     }
     // how far a foot is from where the clip has it, its ankle or its toe, as a share of `m` metres
     const off = (s: "l" | "r", m: number) => Math.max(Math.hypot(clip[s].x - H[s].x, clip[s].z - H[s].z), Math.hypot(clip[s].bx - H[s].bx, clip[s].bz - H[s].bz)) / m;
-    // (a foot further off than any step is a body put somewhere else, a respawn or a teleport: no step, the clip's places)
-    if (off("l", PLANT.snap) > 1 || off("r", PLANT.snap) > 1) {
+    // (a body that moved further than any step since its last frame here was put somewhere else, a respawn or a teleport:
+    // no step, the clip's places. Measured off the feet it took a fast spin for one, both feet jumping, its step lost)
+    const place = this.root.parent ? this.root.parent.getWorldPosition(new THREE.Vector3()) : null;
+    if (place && this.plantAt && Math.hypot(place.x - this.plantAt.x, place.z - this.plantAt.z) > PLANT.snap) {
       for (const s of ["l", "r"] as const) for (const q of keys) H[s][q] = clip[s][q];
       this.step = null;
     }
-    const lift = { l: 0, r: 0 };
-    const begin = (s: "l" | "r") => (this.step = { s, at: this.t, from: { ...H[s] } });
+    if (place) this.plantAt = { x: place.x, z: place.z };
+    const lift = this.footLift;
+    lift.l *= 1 - k;
+    lift.r *= 1 - k;
+    const begin = (s: "l" | "r") => (this.step = { s, at: this.t, from: { ...H[s] }, landed: false });
     if (hold && !this.step && this.plantW > 0.99) {
       const s = off("l", PLANT.stepAt) >= off("r", PLANT.stepAt) ? "l" : "r";
       if (off(s, PLANT.stepAt) > 1) begin(s);
@@ -1197,9 +1211,11 @@ export class MannequinFigure {
     if (this.step) {
       const { s, from } = this.step;
       const u = Math.min(1, (this.t - this.step.at) / PLANT.stepTime);
-      if (u <= PLANT.land) {
+      // (once past `land`, however long the frame: a far figure's long frames stepped over the last placing, and stepped again)
+      if (!this.step.landed) {
         const e = smooth(0, PLANT.land, u);
         for (const q of keys) H[s][q] = from[q] + (clip[s][q] - from[q]) * e;
+        this.step.landed = u >= PLANT.land;
       }
       lift[s] = PLANT.lift * Math.sin(Math.PI * u);
       if (u >= 1) {
@@ -1210,7 +1226,7 @@ export class MannequinFigure {
     }
     const w = this.plantW;
     const tos = { l: new THREE.Vector3(), r: new THREE.Vector3() };
-    for (const s of ["l", "r"] as const) tos[s].set(clip[s].x + (H[s].x - clip[s].x) * w, clip[s].y + lift[s], clip[s].z + (H[s].z - clip[s].z) * w);
+    for (const s of ["l", "r"] as const) tos[s].set(base[s].x + (H[s].x - base[s].x) * w, base[s].y + lift[s], base[s].z + (H[s].z - base[s].z) * w);
     // (the body let down as far as a leg needs to reach its place, no more than footing.drop: a place set back on an
     // edge is beside the hips, past a straight leg's reach)
     let drop = 0;
@@ -1227,7 +1243,7 @@ export class MannequinFigure {
       this.root.updateMatrixWorld(true);
     }
     for (const s of ["l", "r"] as const) {
-      const c = clip[s];
+      const c = base[s];
       const to = tos[s];
       if (drop > 1e-4 || to.distanceToSquared(new THREE.Vector3(c.x, c.y, c.z)) > 1e-8) this.legTo(s, to);
       // and the foot turned onto its toe's place
@@ -1876,7 +1892,7 @@ export class MannequinFigure {
       this.staggerSeen = fx.stagger;
       this.staggerUntil = this.t + 0.3;
     }
-    const back = speed > 0.3 && Math.abs(p.moveDir ?? 0) > BACK_FROM * DEG;
+    const back = fx.back ?? (speed > 0.3 && Math.abs(p.moveDir ?? 0) > BACK_FROM * DEG);
     const dirSign = back ? -1 : 1;
     const onWall = p.stance === "wallL" || p.stance === "wallR";
     // in the skydive the hands are the body's: the gun put away until the ground (Apex's legends fall with empty hands)
@@ -2140,7 +2156,8 @@ export class MannequinFigure {
         if (calf) turnBone(calf, fig, X_AXIS, LANDING.bend * DEG * landing);
       }
       if (b.spine_02) turnBone(b.spine_02, fig, X_AXIS, LANDING.lean * DEG * landing);
-      const floor = (this.root.parent ? this.root.parent.getWorldPosition(layV).y : 0) + this.ankleY;
+      // (a body behind a step is below its feet: stepEase)
+      const floor = (this.root.parent ? this.root.parent.getWorldPosition(layV).y : 0) + this.ankleY + Math.min(0, this.stepOff);
       this.root.position.y += Math.max(before, floor) - low();
       this.root.updateMatrixWorld(true);
     }

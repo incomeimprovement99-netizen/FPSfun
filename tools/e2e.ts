@@ -7901,6 +7901,8 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   check("and never through a wall: its back to a wall 0.45 m behind, square on and turned 30 degrees, its head ends this side of it", walled.length === 2 && walled.every((w) => w.head < 0.45), JSON.stringify(walled));
   // nor off an edge into the air (Milestone 837): on a 3 m box, its back 0.2 and 0.6 m from the edge, it lay out past
   // it flat in the air, the head 3.2 m over the floor below; its head and pelvis end on the box, under 0.4 m over it
+  // (and with its middle 0.3 m out past the edge, over nothing, as a body can stand: the fall turns onto the box and its head
+  // lies there, Milestone 838. Its hips stay past the edge: a fall turns about the body's place, which is over nothing)
   const ledged = await ev<Array<{ back: number; head: number; pelvis: number }>>(
     page,
     `(async () => {
@@ -7908,7 +7910,7 @@ async function figureStancesTest(browser: Browser): Promise<void> {
       const { RANGE_SOLIDS } = await import("/src/game/range.ts");
       const { rebuildSolidGrid } = await import("/src/game/solidgrid.ts");
       const out = [];
-      for (const back of [0.2, 0.6]) {
+      for (const back of [0.2, 0.6, -0.3]) {
         r.player.teleport(0, 0, 0, 0, 0);
         r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 4, 0); r.figureLabManual(true);
         const at = f.group.position.clone();
@@ -7930,7 +7932,33 @@ async function figureStancesTest(browser: Browser): Promise<void> {
       return out;
     })()`,
   );
-  check("nor off an edge into the air: its back 0.2 and 0.6 m from a 3 m box's edge, its head and pelvis end on the box (under 0.4 m over it)", ledged.length === 2 && ledged.every((l) => l.head < 0.4 && l.pelvis < 0.4), JSON.stringify(ledged));
+  check("nor off an edge into the air: its back 0.2 and 0.6 m from a 3 m box's edge, its head and pelvis end on the box (under 0.4 m over it), and with its middle 0.3 m past the edge its head does", ledged.length === 3 && ledged.every((l) => l.head < 0.4 && (l.back < 0 || l.pelvis < 0.4)), JSON.stringify(ledged));
+  // but a flight of stairs is a floor: read as an edge against the feet, a fall was turned off it, in a stairwell into its wall
+  const flight = await ev<number>(
+    page,
+    `(async () => {
+      const r = window.__range, T = r.THREE;
+      const { RANGE_SOLIDS } = await import("/src/game/range.ts");
+      const { rebuildSolidGrid } = await import("/src/game/solidgrid.ts");
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 4, 0); r.figureLabManual(true);
+      const at = f.group.position.clone();
+      const solids = [{ minX: at.x - 4, maxX: at.x + 0.2, minZ: at.z - 3, maxZ: at.z + 3, base: at.y - 0.1, top: at.y + 2.2 }];
+      for (let i = 0; i < 10; i++) solids.push({ minX: at.x + 0.2 + 0.3 * i, maxX: at.x + 0.5 + 0.3 * i, minZ: at.z - 3, maxZ: at.z + 3, base: at.y - 0.1, top: at.y + 2.2 - 0.18 * (i + 1) });
+      RANGE_SOLIDS.push(...solids);
+      rebuildSolidGrid();
+      f.group.position.y = at.y + 2.2;
+      f.group.rotation.y = -Math.PI / 2;
+      r.figureLabStep(0.5);
+      f.fallDown();
+      for (let i = 0; i < 50; i++) r.figureLabStep(0.05);
+      const down = f.mq.bone("Head").getWorldPosition(new T.Vector3()).x - at.x;
+      for (const s of solids) RANGE_SOLIDS.splice(RANGE_SOLIDS.indexOf(s), 1);
+      rebuildSolidGrid();
+      return Math.round(down * 100) / 100;
+    })()`,
+  );
+  check("and with its back to a flight of stairs going down it falls down them (the head 0.8 m or more along)", flight >= 0.8, `${flight} m`);
   // A slide (Milestone 831): sat up with the gun on the look, every gun, the way a player shoots sliding. Played whole,
   // the clip laid the soldier on its back, the gun 25 to 55 degrees off where it looked
   const slides = await ev<Array<{ id: string; lean: number; aim: number | null; grip: number | null; gunIn: number }>>(
@@ -7960,7 +7988,7 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   // Turning on the spot (Milestone 832): the feet kept where they are on the floor while the body turns on them, and a
   // step round once they are too far behind it. Turned 90 degrees in a quarter of a second, standing and crouched, each
   // foot went round on the floor with the body, 25 to 65 cm of it, and none lifted
-  const turns = await ev<Array<{ stance: string; slid: number; high: number }>>(
+  const turns = await ev<Array<{ stance: string; slid: number; high: number; off: number }>>(
     page,
     `(() => {
       const r = window.__range, T = r.THREE, out = [];
@@ -7987,15 +8015,19 @@ async function figureStancesTest(browser: Browser): Promise<void> {
           }
           slid = Math.max(slid, s);
         }
-        out.push({ stance, slid: Math.round(slid * 1000), high: Math.round(high * 1000) });
+        // (and they end under it: a foot that lifted and came down in its old place passed the rest)
+        const from = (q) => Math.hypot(q.x - f.group.position.x, q.z - f.group.position.z);
+        const last = rows[rows.length - 1];
+        const off = Math.max(Math.abs(from(last[0]) - from(rows[0][0])), Math.abs(from(last[1]) - from(rows[0][1])));
+        out.push({ stance, slid: Math.round(slid * 1000), high: Math.round(high * 1000), off: Math.round(off * 1000) });
       }
       return out;
     })()`,
   );
   check(
-    "turning on the spot, standing and crouched, the feet step round: none slides more than 3 cm along the floor, and they lift 4 cm or more",
-    turns.length === 2 && turns.every((t) => t.slid <= 30 && t.high >= 40),
-    turns.map((t) => `${t.stance}: slid ${t.slid} mm, lifted ${t.high} mm`).join("; "),
+    "turning on the spot, standing and crouched, the feet step round: none slides more than 3 cm along the floor, they lift 4 cm or more, and they end under the body (10 cm)",
+    turns.length === 2 && turns.every((t) => t.slid <= 30 && t.high >= 40 && t.off <= 100),
+    turns.map((t) => `${t.stance}: slid ${t.slid} mm, lifted ${t.high} mm, ended ${t.off} mm off`).join("; "),
   );
   // and put somewhere else standing still (a respawn, a teleport) its feet go with it: they were held where they stood
   // and stepped from there, the legs stretched toward the old place for 0.4 s (Milestone 836). Moved 10 m in a frame, each
@@ -8018,6 +8050,41 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     "and moved 10 m in a frame standing still (a respawn), its feet go with it: each ankle within 10 cm of where it was from the body's middle, every frame after",
     moved.length === 31 && moved.every((q) => Math.abs(q[0] - moved[0][0]) <= 10 && Math.abs(q[1] - moved[0][1]) <= 10),
     `ankles from the middle (cm), frame by frame: ${moved.map((q) => q.join("/")).join(" ")}`,
+  );
+  // and turned on its feet, then setting off, its hips go round over a moment (Milestone 838): the hips' turn against the
+  // feet was dropped in one frame, up to 50 degrees of hips and knees at a stroke. And a figure brought back at a new
+  // yaw stands square: its feet's old yaw stayed through a death, the hips turned as much as 180 degrees
+  const offTurn = await ev<{ snap: number; square: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(1.5);
+      const hips = () => f.mq.bone("pelvis").getWorldQuaternion(new T.Quaternion());
+      // (the hips against the body: the bone has a rest turn of its own)
+      const rel = () => f.group.getWorldQuaternion(new T.Quaternion()).invert().multiply(hips());
+      const rest = rel();
+      for (let i = 0; i < 12; i++) { f.group.rotation.y += (40 * Math.PI) / 180 / 12; r.figureLabStep(1 / 60); }
+      const before = hips();
+      r.figureLabPose(0, { speed: 4, stance: "stand", pitch: 0 });
+      r.figureLabStep(1 / 60);
+      const snap = Math.round((hips().angleTo(before) * 180) / Math.PI);
+      // brought back at a new yaw, a standing figure again
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      r.figureLabStep(1);
+      for (let i = 0; i < 12; i++) { f.group.rotation.y += (40 * Math.PI) / 180 / 12; r.figureLabStep(1 / 60); }
+      f.reset();
+      f.group.rotation.y += Math.PI;
+      r.figureLabStep(1 / 60);
+      const square = Math.round((rel().angleTo(rest) * 180) / Math.PI);
+      return { snap, square };
+    })()`,
+  );
+  check(
+    "turned 40 degrees on its feet and setting off, its hips do not snap round (15 degrees at most in the frame); brought back at a new yaw its hips are not left turned (60 degrees at most off its body)",
+    offTurn.snap <= 15 && offTurn.square <= 60,
+    `hips moved ${offTurn.snap} degrees in the frame; ${offTurn.square} degrees off the body after a reset`,
   );
   // A moving soldier's planted foot keeps its place on the floor (Milestone 833): each moving clip played at the figure's
   // speed over the ground its stride covers. A foot is planted while low and going back against the body, and its speed
@@ -8064,7 +8131,7 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     page,
     `(() => {
       const r = window.__range, T = r.THREE, out = [];
-      for (const [label, stance, speed, dir, bone] of [["right 8.8", "stand", 8.8, Math.PI / 2, "ball"], ["left 8.8", "stand", 8.8, -Math.PI / 2, "ball"], ["crouched 2.03", "crouch", 2.03, Math.PI / 2, "foot"]]) {
+      for (const [label, stance, speed, dir, bone] of [["right 8.8", "stand", 8.8, Math.PI / 2, "ball"], ["left 8.8", "stand", 8.8, -Math.PI / 2, "ball"], ["crouched 2.03", "crouch", 2.03, Math.PI / 2, "foot"], ["back and left 8.8", "stand", 8.8, -2.36, "ball"]]) {
         r.player.teleport(0, 0, 0, 0, 0);
         r.figureLabManual(false); const [f] = r.figureLab([{ speed, stance, pitch: 0, moveDir: dir, ads: 1, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
         r.figureLabStep(1);
@@ -8091,8 +8158,8 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check(
-    "on a strafe straight to the side its planted foot slides sideways at no more than a tenth of its speed: both ways at the run's 8.8 m/s, and crouched",
-    strafes.length === 3 && strafes.every((s) => s.across <= 10),
+    "on a strafe straight to the side its planted foot slides sideways at no more than a tenth of its speed: both ways at the run's 8.8 m/s, crouched, and running back and to the side",
+    strafes.length === 4 && strafes.every((s) => s.across <= 10),
     strafes.map((s) => `${s.label}: ${s.across}%`).join(", "),
   );
   // A still soldier at an edge stands on it (Milestone 835): a body stands on the highest top anywhere under its hull's

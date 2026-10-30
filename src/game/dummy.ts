@@ -15,6 +15,7 @@ import { MannequinFigure, useMannequin } from "./mannequin";
 import { CloakShell, MateOutline, Outline, ShieldShell } from "./outline";
 import { emoteAt, emotePose } from "./emotes";
 import { solidHit } from "./projectile";
+import { MOVE } from "./movement";
 import { solidsIn } from "./solidgrid";
 import { floorAt } from "./floors";
 import type { Solid } from "./range";
@@ -66,7 +67,9 @@ const H = 72 * 0.0254;
  * raycaster would otherwise hit hidden ones), and the armour plate still uses
  * mesh visibility to switch itself off at tier 0.
  */
-const HITBOX = new THREE.MeshBasicMaterial({ visible: false });
+// (both sides: volumes move between frames, so a round can start a frame inside one, and from inside a one-sided volume
+// shows no face to hit; a point-blank shot or swing the same. Up to 5 in 100 rounds at a target running at you went through)
+const HITBOX = new THREE.MeshBasicMaterial({ visible: false, side: THREE.DoubleSide });
 
 /** the plinth under a range figure */
 const baseMat = new THREE.MeshStandardMaterial({ color: 0x3a4047, roughness: 0.5, metalness: 0.55 });
@@ -177,9 +180,10 @@ export const actFromCode = (c: number | undefined): FigureAct => (c === VENT ? "
 export const emptyReloadOf = (c: number | undefined): boolean => c === EMPTY_RELOAD;
 
 /** the legs turn at most this far from the body toward the way it moves (a strafe), and past backFrom it runs backward (figure.json strafe) */
-const STRAFE = figureCfg.strafe as { legTurn: number; backFrom: number };
+const STRAFE = figureCfg.strafe as { legTurn: number; backFrom: number; backBand: number };
 const LEG_TURN = (STRAFE.legTurn * Math.PI) / 180;
 const BACK_FROM = (STRAFE.backFrom * Math.PI) / 180;
+const BACK_BAND = (STRAFE.backBand * Math.PI) / 180;
 /** standing still, the feet stay planted while the body turns, until it has turned this far (radians, 50 degrees); then a step round */
 export const TURN_STEP_AT = 0.87;
 /** the step round: the hips catch up at this rate (1/s), and the feet step round after them (mannequin.ts plantFeet) */
@@ -353,6 +357,10 @@ export class Dummy {
   /** the feet's yaw while standing still (world, radians), and a step round in progress */
   private plantYaw: number | null = null;
   private stepping = false;
+  /** the feet were held last frame (the hips' turn on them goes to the legs' ease as it moves off) */
+  private plantHeld = false;
+  /** it is running backward (figure.json strafe backFrom, backBand) */
+  private runningBack = false;
   private stepT = 0;
   /** a landing's squash (1 on touchdown, decaying) and how long it was in the air */
   private landAmt = 0;
@@ -845,7 +853,10 @@ export class Dummy {
     const dir = p.moveDir ?? 0;
     // (a wall run's legs run along the wall, whichever way the body looks)
     const moving = speed > 0.3 && (p.stance === "stand" || p.stance === "crouch" || p.stance === "wallL" || p.stance === "wallR");
-    const back = moving && Math.abs(dir) > BACK_FROM;
+    // (a band either side of the line: a way of moving near it, a bot circling or a remote's noisy samples, flipped the legs
+    // and the clip's direction back and forth)
+    const back = moving && Math.abs(dir) > (this.runningBack ? BACK_FROM - BACK_BAND : BACK_FROM + BACK_BAND);
+    this.runningBack = back;
     let legYaw = 0;
     if (moving) {
       const d = back ? Math.atan2(Math.sin(dir - Math.PI), Math.cos(dir - Math.PI)) : dir;
@@ -865,9 +876,14 @@ export class Dummy {
     const facing = this.group.rotation.y;
     const still = speed <= 0.3 && (p.stance === "stand" || p.stance === "crouch");
     if (!still || this.plantYaw === null) {
+      // (setting off, the hips' turn against the feet goes to the legs' own ease: dropped at a stroke, a soldier turned up
+      // to 50 degrees on its feet had its hips and knees snap round in a frame as it moved)
+      if (this.plantHeld && this.plantYaw !== null) this.eased.legYaw += wrapAngle(this.plantYaw - facing);
+      this.plantHeld = false;
       this.plantYaw = facing;
       this.stepping = false;
     } else {
+      this.plantHeld = true;
       if (!this.stepping && Math.abs(wrapAngle(this.plantYaw - facing)) > TURN_STEP_AT) {
         this.stepping = true;
         this.stepT = 0;
@@ -907,7 +923,7 @@ export class Dummy {
     }
     const ep = this.emoteIndex !== null ? emotePose(this.emoteIndex, this.emoteT) : null;
     const emoting = !!ep && ep.weight > 0.02;
-    this.mq?.update(p, dt, !!this.armedWith && this.gunShown, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps, shots: this.shots }, this.lodAnimate);
+    this.mq?.update(p, dt, !!this.armedWith && this.gunShown, { kick: this.kickAmt, flinch: this.flinchAmt, jolt: this.joltAmt, legYaw: e.legYaw + plant, back, ads: e.ads, land: this.landAmt, stagger: this.staggerAt, headHit: this.headAt, emote: emoting ? ep : null, airJumps: p.airJumps, shots: this.shots }, this.lodAnimate);
     // a scoped figure glints (muzzle.ts, Hyper Scape's lens flare) only while it is looking down its scope (mannequin.ts
     // scoped): not while its gun is away, and not for an aim held through a reload, a swap, a throw or a strike
     if (this.mq?.glint) showGlint(this.mq.glint, this.gunShown ? this.mq.scoped : 0, this.glintT += dt);
@@ -1212,15 +1228,25 @@ export class Dummy {
     from.y += DEATH.roomUp;
     const back = new THREE.Vector3();
     const feet = this.group.position.y;
-    // (up to a wall, or to the last place along the line with floor under it at the feet's height: an edge it would lie
-    // out past; looked at a step past the room it needs, as the head lies 1.2 m back and has a size)
+    // Up to a wall, or to the last place along the line before the floor drops away: an edge it would lie out past. Each
+    // look is against the one before, so a flight of stairs is a floor to lie down (against the feet it read as an edge, and
+    // the fall was turned into the stairwell's wall), and from the first floor it finds: a body can stand with its middle
+    // 0.39 m out past its edge, over nothing, and every way then had no room. Looked at a step past the room it needs: the
+    // head lies 1.2 m back and has a size.
     const roomAt = (yaw: number) => {
       const dx = -Math.sin(yaw);
       const dz = -Math.cos(yaw);
       const wall = solidHit(from, back.set(dx, 0, dz), DEATH.room);
-      for (let d = DEATH.probe; d <= DEATH.room + DEATH.probe + 1e-6; d += DEATH.probe)
-        if (floorUnder(from.x + dx * d, from.z + dz * d, feet) < feet - DEATH.ledge) return Math.min(wall, d - DEATH.probe);
-      return wall;
+      let floor: number | null = null;
+      for (let d = DEATH.probe; d <= DEATH.room + DEATH.probe + 1e-6; d += DEATH.probe) {
+        const under = floorUnder(from.x + dx * d, from.z + dz * d, feet + DEATH.roomUp);
+        if (floor === null) {
+          if (feet - under <= DEATH.ledge) floor = under;
+          else if (d > MOVE.radius + DEATH.probe) return 0;
+        } else if (floor - under > DEATH.ledge) return Math.min(wall, d - DEATH.probe);
+        else floor = under;
+      }
+      return floor === null ? 0 : wall;
     };
     if (roomAt(want) >= DEATH.room) return;
     let best = { yaw: want, room: roomAt(want) };
@@ -1258,6 +1284,10 @@ export class Dummy {
   }
 
   reset(): void {
+    // (a fall or a round's start turned it with no frame of animate: kept, its hips came back turned as much as 180 degrees)
+    this.plantYaw = null;
+    this.plantHeld = false;
+    this.stepping = false;
     this.setTier(this.tier);
     this.knocked = false;
     this.fall = 0;

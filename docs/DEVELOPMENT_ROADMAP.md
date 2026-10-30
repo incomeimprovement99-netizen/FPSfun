@@ -18368,3 +18368,40 @@ only, shipped on map version 121 ahead of the next bake because it is the first 
   "the playable square is darker than the filler city round it"): the skyline's windows' night glow 0.6, where it was
   1.15 (world.json `skyline.glow.night`).
 - **Checked:** the map check counts each, and failed with each put back (gamma 1, glow 1.15). verify, rules and tsc.
+
+## Milestone 838 — What a review of the soldier's feet, falls and hit volumes found
+
+The owner, 2026-10-30, with the week's tokens running out: the heaviest job first. Three fresh reviewers read this
+week's soldier work with no sight of my own checks, one each on the feet and steps, the edges, falls and strafes, and
+the drawn body against how a hit is decided, the second with a model of the real map (neonmap.solids.json v121). They
+found faults in what I had shipped, two of them regressions of mine, and none in the question I most wanted answered: the
+step lag and the edge drop cannot get a fair headshot refused (no check reads a head's height, and the volumes go with
+the drawn body in the same frame).
+
+- **Hips no longer snap setting off:** the hips' turn against the planted feet was dropped in one frame as a soldier
+  moved, up to 50 degrees of hips and knees at a stroke. It goes to the legs' own ease now. Common: turn, then walk.
+- **Respawned hips:** the feet's old yaw stayed through a death, so a figure brought back at a new yaw stood with its
+  hips turned as much as 180 degrees. `reset` clears it.
+- **Falls (regressions of Milestone 837):** a body with its middle past an edge, over nothing, had no room any way, which
+  lost the turn off walls too; and stairs, judged against the feet, read as an edge, so a fall was turned into a stairwell's
+  wall (modelled over 1,502 places: through a wall 0 before Milestone 837, 17 after it, 12 now; off an edge 167, 83, 43).
+  Each look along the line is now against the one before, from the first floor it finds. Still open: with its middle past
+  the edge the fall turns onto the box and the head lies there, but the hips stay past the edge, as a fall turns about the
+  body's place; moving the body itself would be a change of its own.
+- **Your own third-person death** kept none of a fall's turn: its yaw was rewritten every frame.
+- **Hit volumes both sided** (`HITBOX`): volumes move between frames, so a round can start a frame inside one, and a
+  one-sided volume shows no face from inside. Up to 5 in 100 rounds at a target running at you went through it, point-blank
+  shots and swings too (computed by the reviewer for head-sized volumes, the worst case).
+- **Feet, smaller ones:** a foot goes onto an edge over the hold's ease and no longer jumps there, and its toe no
+  longer twists on the first frame; the snap for a body put somewhere else measures the body, not the feet, so a fast spin
+  is not taken for one; a step cut short comes down over a moment; a long frame cannot skip a step's landing; a landing
+  allows for a body behind a step.
+- **The backward run has a band** (figure.json strafe `backBand`, 8 degrees): a way of moving near the line flipped the
+  legs and the clip's direction back and forth.
+- **Found and handed on:** a DASH gets a guest's fair hits refused, as the host's range check allows 10 m and 30% and a
+  blink moves 26 m in a frame (the lobby agent's hitcheck.ts).
+- **Checked:** new e2e checks, each failing on the old dummy.ts: hips setting off and after a reset, a fall with the
+  middle past an edge, a fall down stairs; and the turning and strafe checks closed where the review showed they could
+  pass broken (the feet must end under the body; a strafe past the back line). The hips move 6 degrees in
+  the frame (41 before) and sit 0 off after a reset (114 before); a fall goes 1.24 m down a flight (0 before). The whole
+  soldier section: 338 checks, E2E PASS; verify, rules and the type check.
