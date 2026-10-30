@@ -4475,5 +4475,18 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   );
 }
 
+// the city past the fence dimmer at night (Milestone 878, the districts' sixth review: "halve its window light at night"):
+// the skyline's windows at night under 0.7
+{
+  const glow = (worldCfg as unknown as { skyline: { glow: { night: number } } }).skyline.glow.night;
+  check("the city past the fence dimmer at night", glow < 0.7, `the skyline's night glow ${glow}`);
+}
+
+// faces in shade not pure black (Milestone 882, the thirteenth reviews): the grade's gamma on the darks, after its S-curve
+{
+  const { GRADE } = await import("../../src/game/grade");
+  check("the grade lifts the darks its S-curve crushes", GRADE.shadowGamma < 0.8 && GRADE.shadowKnee > 0.2 && GRADE.shadowKnee < 0.6, `gamma ${GRADE.shadowGamma} to a luma of ${GRADE.shadowKnee}`);
+}
+
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");
 process.exit(fails ? 1 : 0);

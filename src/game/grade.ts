@@ -36,6 +36,8 @@ uniform float uContrast;
 uniform float uSaturation;
 uniform float uVignette;
 uniform float uGrain;
+uniform float uShadowGamma;
+uniform float uShadowKnee;
 uniform float uTime;
 varying vec2 vUv;
 
@@ -60,6 +62,15 @@ void main() {
   vec3 lift = ( c - 0.5 ) * uContrast + 0.5;
   vec3 soft = c * c * ( 3.0 - 2.0 * c );
   c = mix( lift, soft, 0.35 );
+
+  // --- shadow floor ---
+  // The S-curve halves what is under a tenth of full: a wall in shade at 0.10
+  // left it at 0.05, and all four reviews of the city on 2026-10-30 named "faces
+  // in shade go pure black", three of them first. A gamma on the darks alone,
+  // gone by the knee, gives their texture back and leaves the lit half of the
+  // frame as the curve made it.
+  float d = dot( max( c, vec3( 0.0 ) ), LUMA );
+  c = mix( pow( max( c, vec3( 0.0 ) ), vec3( uShadowGamma ) ), c, smoothstep( 0.0, uShadowKnee, d ) );
 
   // --- saturation ---
   float g = dot( c, LUMA );
@@ -94,6 +105,10 @@ export interface GradeSettings {
   saturation: number;
   vignette: number;
   grain: number;
+  /** the gamma on the darks after the S-curve, under 1 to lift them (Milestone 882) */
+  shadowGamma: number;
+  /** the display luma at which that lift is gone */
+  shadowKnee: number;
 }
 
 /**
@@ -113,6 +128,8 @@ export const GRADE: GradeSettings = {
   // because at 109 degrees the "edge" is where you are actually looking.
   vignette: 0.2,
   grain: 0.016,
+  shadowGamma: 0.62,
+  shadowKnee: 0.42,
 };
 
 export function makeGradePass(s: GradeSettings = GRADE): ShaderPass {
@@ -127,6 +144,8 @@ export function makeGradePass(s: GradeSettings = GRADE): ShaderPass {
       uSaturation: { value: s.saturation },
       uVignette: { value: s.vignette },
       uGrain: { value: s.grain },
+      uShadowGamma: { value: s.shadowGamma },
+      uShadowKnee: { value: s.shadowKnee },
       uTime: { value: 0 },
     },
     vertexShader: vert,

@@ -18154,3 +18154,20 @@ From the reviews of 2026-10-28 (the centre's round 12, the districts' round 6).
   Ring"). Placed as perches, they stood across the tops of two of its stairs and its deck: the walk round it reached 31
   of its 248 m. The ring wants cover laid to its own walk, not a roof's.
 - **Checked:** the map check's 328 checks pass on the low, high and max bakes, among them a new one for the corner blocks' names over their walk-ins' doors and MARKET's stalls (fails with two names or a stall taken out), and the perches' count held to 41 with the new roofs' pieces each standing on its roof. Pictures of each by day. verify, rules and tsc. Map files version 121: lo 185.5 MB, hi 266.0 MB, max 563.6 MB.
+
+## Milestones 878 and 882 — Faces in shade no longer black, the city past the fence dimmer at night
+
+From the fresh reviews of 2026-10-30 (the centre's round 13, the districts' round 7) and the districts' sixth. Game side
+only, shipped on map version 121 ahead of the next bake because it is the first ask of those reviews.
+
+- **882, faces in shade no longer black** (all four reviewers named it, three of them first: "faces away from the sun go
+  pure black", "raise the shade floor everywhere"): the colour grade's S-curve halved what was under a tenth of full, a
+  wall in shade at 0.10 coming out at 0.05. A gamma of 0.62 on the darks alone, gone by a luma of 0.42, after the curve
+  (grade.ts `shadowGamma`, `shadowKnee`), gives the shaded roads, walls and tanks their texture back and leaves the lit
+  half of the frame alone. Exposure, the hemisphere light and the environment had been tried before and changed nothing,
+  because the loss was in the grade. The grade runs on Balanced and High; Competitive has no grade pass and stays as it
+  was. Pictured new against old at MARKET's road, THE WORKS' tank and MOTEL HILL's roof.
+- **878, the city past the fence dimmer at night** (the districts' sixth review: "halve its window light at night",
+  "the playable square is darker than the filler city round it"): the skyline's windows' night glow 0.6, where it was
+  1.15 (world.json `skyline.glow.night`).
+- **Checked:** the map check counts each, and failed with each put back (gamma 1, glow 1.15). verify, rules and tsc.
