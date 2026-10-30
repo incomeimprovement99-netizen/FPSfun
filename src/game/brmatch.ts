@@ -149,6 +149,7 @@ const CAPTURE_BOT = 100;
 /** the Gulag's bot, apart from the match's (theirs start at Duel.BOT_ID) */
 const GULAG_BOT_ID = 990;
 import { BR_BOUNDS, BR_CENTER, BR_HALF, BR_X, BR_Z, type BrMap, type Poi } from "./br";
+import { STALE } from "../net/hitcheck";
 import { SHIP, ShipRun, buildShip, shipLine, type ShipLine } from "./dropship";
 
 /** the ring's own stream off the match seed, so the loot field's and the ship's draws do not shift it */
@@ -1273,7 +1274,7 @@ export class BrMatch extends Duel {
   // ------------------------------------------------------------ the fight
 
   /** the host's own bullet hit a bot (its dummy took the damage already); a guest's goes to the host as a hit message */
-  override localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
+  override localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null, felt = amount): void {
     if (this.gulagBot && r === this.gulagBot.remote) {
       if (!this.gulag?.live) return;
       this.hits++;
@@ -1284,7 +1285,7 @@ export class BrMatch extends Duel {
     }
     const b = this.bots.find((x) => x.bot.remote === r);
     if (!b) {
-      super.localHit(r, amount, head, weapon, dist);
+      super.localHit(r, amount, head, weapon, dist, felt);
       return;
     }
     if (this.phase !== "fight" || !r.alive) return;
@@ -1594,7 +1595,9 @@ export class BrMatch extends Duel {
       this.showFlag(true);
     }
     if (bot && (g.phase === "countdown" || g.live)) {
-      const sees = this.alive && bot.alive && bot.sees(feet);
+      // (not under your INVISIBILITY: as every other match's bots, Milestones 892 and 893)
+      const hidden = (this.hiddenUntil.get(this.id) ?? -Infinity) > now;
+      const sees = this.alive && bot.alive && !hidden && bot.sees(feet);
       // in overtime it goes for the flag; in the fight, once the countdown is out, it comes looking for you where it cannot
       // see you (the owner, 2026-09-28: it stood at its spawn the whole fight, waiting to be found). By the room's middle
       // while the middle is nearer you than it is: straight at you ran it into the cover between the two ends
@@ -1622,7 +1625,8 @@ export class BrMatch extends Duel {
       let d = 0;
       for (const s of shots) {
         this.onShotFired?.(bot.remote.id, s.from, s.dir, s.weapon);
-        if (hitsBody(s.from, s.dir, feet)) d += s.damage;
+        // (at the height you stand: crouching did nothing in the Gulag, Milestone 940)
+        if (hitsBody(s.from, s.dir, feet, local.crouch ? CROUCH_TOP : BODY_TOP)) d += s.damage;
       }
       if (d > 0 && this.alive) this.takeHit(d, bot.remote.id, false, shots[0].weapon, bot.pos.distanceTo(feet));
       bot.remote.health = bot.dummy.health;
@@ -1656,6 +1660,13 @@ export class BrMatch extends Duel {
     else if (ev === "lost" && this.alive && this.gulagBot) this.eliminate(this.gulagBot.remote.id, "finished");
   }
 
+  /** the page: beaten in the Gulag, where your ghost goes */
+  onGulagLost: ((at: { x: number; z: number }) => void) | null = null;
+  /** this respawn is a won Gulag's, not the match's start (the page leaves off the start's notices) */
+  get backFromGulag(): boolean {
+    return this.gulagKit !== null;
+  }
+
   /** out of the room: won, dropping back into the live ring near someone of yours; lost, out */
   private leaveGulag(won: boolean): void {
     const g = this.gulag;
@@ -1664,7 +1675,7 @@ export class BrMatch extends Duel {
     this.gulagBot = null;
     this.showFlag(false);
     this.noteGulag(this.id, won ? 2 : 0);
-    if (!won || !g) return;
+    if (won && !g) return;
     const mates: THREE.Vector3[] = [];
     for (const r of this.remotes.values()) {
       if (r.id >= Duel.BOT_ID || !this.friendly(r.id) || !r.alive || this.gulagIds.has(r.id)) continue;
@@ -1672,6 +1683,12 @@ export class BrMatch extends Duel {
       if (s) mates.push(new THREE.Vector3(s.x, 0, s.z));
     }
     const at = this.dropBackSpot(mates.length ? mates[Math.floor(Math.random() * mates.length)] : null);
+    if (!won || !g) {
+      // (a ghost by its squad: left in the room, off the map, the page's bounds put it at the city's north edge, a long walk
+      // from a mate who could restore it, Milestone 946)
+      this.onGulagLost?.(at);
+      return;
+    }
     this.gulagKit = g.guns;
     this.respawnPoint = new THREE.Vector3(at.x, 0, at.z);
     this.onRespawn?.();
@@ -1997,7 +2014,8 @@ export class BrMatch extends Duel {
     const here = new Set<number>();
     if (this.alive && !this.gulagIds.has(this.id) && inside(local.x, local.z)) here.add(this.sideOf(this.id));
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !r.alive) continue;
+      // (a dropped friend's figure stands there for the host's whole hold: it took and contested the zone, Milestone 943)
+      if (r.id >= Duel.BOT_ID || !r.alive || this.held.has(r.id)) continue;
       const last = r.samples[r.samples.length - 1];
       if (last && inside(last.x, last.z)) here.add(this.sideOf(r.id));
     }
@@ -2442,12 +2460,15 @@ export class BrMatch extends Duel {
     const humans: Array<{ id: number; feet: THREE.Vector3; low: boolean; cue: SightCue }> = [];
     // a player under INVISIBILITY is not seen by the bots until it runs out or they fire (SpeedKills)
     const unseen = (id: number) => (this.hiddenUntil.get(id) ?? -Infinity) > now && !firing(id);
-    if (this.alive && !this.gulagIds.has(this.id) && !unseen(this.id)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) } });
+    // Nobody in the sky: a bot on the ground took a diver for a target, and for up to a minute a dropped friend's figure, which
+    // cannot die, pulled them off the real players (Milestone 943)
+    const inSky = (stance: string, y: number): boolean => stance === "skydive" || y > SHIP.height - SHIP.exit - 5;
+    if (this.alive && !this.gulagIds.has(this.id) && !unseen(this.id) && !inSky(local.stance, local.y)) humans.push({ id: this.id, feet, low: local.crouch, cue: { speed: local.speed, crouched: local.crouch, firing: firing(this.id) } });
     for (const r of this.remotes.values()) {
-      if (r.id >= Duel.BOT_ID || !r.alive || unseen(r.id)) continue;
+      if (r.id >= Duel.BOT_ID || !r.alive || unseen(r.id) || this.held.has(r.id)) continue;
       const last = r.samples[r.samples.length - 1];
       const low = !!last && (last.stance === "crouch" || last.stance === "slide");
-      if (last) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) } });
+      if (last && !inSky(last.stance, last.y)) humans.push({ id: r.id, feet: new THREE.Vector3(last.x, last.y, last.z), low, cue: { speed: last.speed, crouched: low, firing: firing(r.id) } });
     }
 
     // the ship: a bot leaves it as it passes nearest the bot's place, and
@@ -2862,6 +2883,12 @@ export class BrMatch extends Duel {
   protected override whereIs(id: number): THREE.Vector3 | null {
     const b = this.bots.find((x) => x.bot.remote.id === id);
     return b ? b.bot.pos : super.whereIs(id);
+  }
+
+  /** a bot's DASH, for the hit check: a bot has no states here, and its run is inside the check's slack */
+  protected override wentLately(id: number): number {
+    const b = this.bots.find((x) => x.bot.remote.id === id);
+    return b ? b.bot.dashedWithin(STALE, wallClock()) : super.wentLately(id);
   }
 
   /** out with others still up: a squad mate first, then whoever is nearest */

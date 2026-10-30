@@ -23,12 +23,13 @@
 import type { Seen } from "./reveal";
 import { senderStamp } from "../net/state";
 import * as THREE from "three";
+import { STALE } from "../net/hitcheck";
+import { stepOutAt } from "./stepout";
 import { Bot, botName, WIRE_TIERS, BOT_WEAPONS, DIFFICULTY, BODY_TOP, CROUCH_TOP, hitsBody, rocketBurst, tierFor, type BotSense, type BotTier, type BurstHurts } from "./bots";
 import type { Dummy } from "./dummy";
 import type { ProjectileSystem } from "./projectile";
 import { Duel, HEALTH_MAX, type DuelHud, type LocalState, type Remote, type Spawn } from "./duel";
 import { arenaMap, type ArenaMapId } from "./arena";
-import { RANGE_SOLIDS } from "./range";
 import { floorAt } from "./floors";
 import type { BotDifficulty } from "./stats";
 import type { Link, NetMsg } from "../net/link";
@@ -153,7 +154,7 @@ function readArenaSnap(v: unknown): ArenaSnap | null {
   const o = v as Record<string, unknown>;
   const num = (x: unknown): x is number => typeof x === "number" && Number.isFinite(x);
   const b = Array.isArray(o.b)
-    ? o.b.filter((r): r is ArenaSnap["b"][number] => Array.isArray(r) && r.length === 6 && num(r[0]) && r[0] >= 0 && r[0] < 64 && num(r[1]) && (r[2] === 0 || r[2] === 1) && num(r[3]) && num(r[4]) && typeof r[5] === "string")
+    ? o.b.filter((r): r is ArenaSnap["b"][number] => Array.isArray(r) && r.length === 6 && num(r[0]) && r[0] >= 0 && r[0] < 256 && num(r[1]) && (r[2] === 0 || r[2] === 1) && num(r[3]) && num(r[4]) && typeof r[5] === "string")
     : [];
   return { b, nb: num(o.nb) ? o.nb : -1 };
 }
@@ -270,6 +271,8 @@ export class ArenaMode extends Duel {
     const id = Duel.BOT_ID + i;
     {
       const bot = new Bot(i, scene, projectiles, DIFFICULTY[tier], spawn, id, gun, botName(i));
+      // (the circle a player cannot cross: 9 of 13 bots were out past it in a minute, Milestone 940)
+      bot.ring = this.arenaBounds.circle ?? null;
       bot.onJolt = (a, b) => {
         this.onRemoteFx?.("jolt", bot.remote.id, a, b);
         this.broadcast({ t: "fx", from: bot.remote.id, k: "jolt", a: [a.x, a.y, a.z], b: [b.x, b.y, b.z] });
@@ -372,26 +375,9 @@ export class ArenaMode extends Duel {
    * walls (Milestone 738). With nowhere clear, the point itself.
    */
   private stepOut(p: number[], lap: number): number[] {
-    const C = MODES.stepOut;
-    const b = this.arenaBounds;
-    const over = (x: number, z: number, pad: number) => RANGE_SOLIDS.filter((s) => x > s.minX - pad && x < s.maxX + pad && z > s.minZ - pad && z < s.maxZ + pad);
-    // the floor the point stands on: a raised one is a solid's top under it, not a roof over it
     const at = this.world(p);
-    const ground = floorAt(at.x, at.z);
-    const feet = Math.max(ground, ...over(at.x, at.z, 0).map((s) => s.top).filter((t) => t < ground + C.head * 2));
-    const clear: number[][] = [];
-    for (const r of C.rings) {
-      for (let k = 0; k < 8; k++) {
-        const a = (k / 8) * Math.PI * 2;
-        const q = [p[0] + Math.cos(a) * r, p[1] + Math.sin(a) * r];
-        const w = this.world(q);
-        if (w.x < b.minX + C.edge || w.x > b.maxX - C.edge || w.z < b.minZ + C.edge || w.z > b.maxZ - C.edge) continue;
-        if (b.circle && Math.hypot(w.x - b.circle.x, w.z - b.circle.z) > b.circle.r - C.edge) continue;
-        if (over(w.x, w.z, C.pad).some((s) => s.base < feet + C.head && s.top > feet + C.knee)) continue;
-        clear.push(q);
-      }
-    }
-    return clear.length ? clear[(lap - 1) % clear.length] : p;
+    const w = stepOutAt(at.x, at.z, lap, this.arenaBounds);
+    return w ? [w.x - this.layout.ox, w.z - this.layout.oz] : p;
   }
 
   /** a respawn: this side's spawns (a team's end in team deathmatch, anywhere otherwise) farthest from the enemies up */
@@ -401,12 +387,16 @@ export class ArenaMode extends Duel {
     // (a guest works it out from the zones the host last sent)
     if (this.modeKind === "control" && (this.control || this.controlView)) {
       const team = this.teamFor(id);
-      const zones = this.layout.zones.map(([, x, z], i) => ({ x, z, owner: this.zonesNow()[i]?.owner ?? -1 }));
+      // (a zone with the other team on it is not one to come back on: 2.2 m from an enemy clearing it, Milestone 942)
+      const enemyOn = (x: number, z: number): boolean => {
+        const w = this.world([x, z]);
+        return this.fighters().some((f) => f.alive && this.teamFor(f.id) !== team && Math.hypot(f.x - w.x, f.z - w.z) <= MODES.control.radius);
+      };
+      const zones = this.layout.zones.map(([, x, z], i) => ({ x, z, owner: enemyOn(x, z) ? -1 : (this.zonesNow()[i]?.owner ?? -1) }));
       const zn = controlSpawnZone(zones, team);
       if (zn) {
-        const a = Math.random() * Math.PI * 2;
-        const r = 1.5 + Math.random() * 1.5;
-        const p = [zn.x + Math.cos(a) * r, zn.z + Math.sin(a) * r];
+        // (a clear place by it: at any bearing, a third of NEON HALL's put a bot in a box, frozen there, Milestone 940)
+        const p = this.stepOut([zn.x, zn.z], 1 + Math.floor(Math.random() * 16));
         const w = this.world(p);
         return { x: w.x, z: w.z, yaw: yawToMiddle(team === 0 ? p[0] : p[0], team === 0 ? p[1] - 20 : p[1] + 20) };
       }
@@ -444,10 +434,11 @@ export class ArenaMode extends Duel {
   // ------------------------------------------------------------ the fight
 
   /** the host's own bullet hit a bot (its dummy took the damage already) */
-  override localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null): void {
+  override localHit(r: Remote, amount: number, head: boolean, weapon = "", dist: number | null = null, felt = amount): void {
     const b = this.bots.find((x) => x.bot.remote === r);
     if (!b) {
-      super.localHit(r, amount, head, weapon, dist);
+      // (`felt` on with it: without it ARMOR's share was dropped here, and an armoured target's bars read as down, Milestone 941)
+      super.localHit(r, amount, head, weapon, dist, felt);
       return;
     }
     if (this.phase !== "fight" || !r.alive || (!this.friendlyFire && this.friendly(r.id))) return;
@@ -541,9 +532,10 @@ export class ArenaMode extends Duel {
   // ------------------------------------------------------------ rounds
 
   protected override respawn(): void {
+    // (before it, not after: onRespawn reads the spot, and a rematch began where your last life had, Milestone 941)
+    this.spawnPick = null;
     super.respawn();
     this.respawnAt = Infinity;
-    this.spawnPick = null;
     // a new match: everyone at their start; the bots too
     for (const b of this.bots) {
       b.bot.respawnAt(this.startSpawn(b.bot.remote.id, b.team));
@@ -671,7 +663,7 @@ export class ArenaMode extends Duel {
           v: mine === 0 ? -z.v : z.v,
           bonus: i === bonusZone,
           at: new THREE.Vector3(w.x, 0, w.z),
-          here: !!me && Math.hypot(me.x - w.x, me.z - w.z) <= MODES.control.radius,
+          here: !!me && Math.hypot(me.x - w.x, me.z - w.z) <= MODES.control.radius && me.y - floorAt(me.x, me.z) < MODES.control.zoneHeight,
         };
       }),
       you: Math.floor(sc[mine]),
@@ -687,7 +679,7 @@ export class ArenaMode extends Duel {
     const c = this.control;
     if (!c) return null;
     const team = b.team;
-    const counts = c.counts(this.fighters().map((f) => ({ x: f.x - this.layout.ox, z: f.z - this.layout.oz, team: this.teamFor(f.id), alive: f.alive })));
+    const counts = c.counts(this.onZones());
     const pos = { x: b.bot.pos.x - this.layout.ox, z: b.bot.pos.z - this.layout.oz };
     let best: { x: number; z: number } | null = null;
     let bestD = Infinity;
@@ -711,24 +703,44 @@ export class ArenaMode extends Duel {
     return new THREE.Vector3(w.x, 0, w.z);
   }
 
+  /** Control's banners, from the zones' events: the host's own, and a guest's from what the host sends (they saw none) */
+  private sayControl(events: string[]): void {
+    const mine = this.teamFor(this.id);
+    const bonus = this.control?.bonus?.zone ?? this.controlView?.bonus ?? 0;
+    for (const e of events) {
+      const [what, zone, team] = e.split(" ");
+      if (what === "taken") this.onNotice?.(Number(team) === mine ? `ZONE ${zone} TAKEN` : `ZONE ${zone} LOST`);
+      else if (what === "bonus" && zone === undefined) this.onNotice?.(`BONUS: HOLD ZONE ${this.layout.zones[Math.max(0, bonus)][0]} FOR ${MODES.control.bonus.points}`);
+      else if (what === "lockout" && zone !== "broken") this.onNotice?.(Number(zone) === mine ? "LOCKOUT: HOLD ALL THREE TO WIN" : "LOCKOUT: RETAKE A ZONE OR LOSE");
+      else if (what === "lockout") this.onNotice?.("LOCKOUT BROKEN");
+    }
+  }
+
+  /** who stands on Control's zones: up, and on the zone, not on the Sky Ring's deck over it (Milestone 942) */
+  private onZones(): Array<{ x: number; z: number; team: 0 | 1; alive: boolean }> {
+    return this.fighters().map((f) => ({ x: f.x - this.layout.ox, z: f.z - this.layout.oz, team: this.teamFor(f.id), alive: f.alive && f.y - floorAt(f.x, f.z) < MODES.control.zoneHeight }));
+  }
+
   /** the host: the rules' state to every guest */
-  private sendMode(now: number): void {
+  private sendMode(now: number, events?: string[]): void {
     if (this.role !== "host") return;
     this.modeSendNext = now + MODE_SEND_EVERY;
-    if (!this.links.size) return;
-    // each row: id, kills, deaths, team
+    // each row: id, kills, deaths, team (and made here with no one to send them to: a solo rematch's board stood empty, and
+    // an FFA clock with no kills paid the one row on it a win, Milestone 941)
     const rows: Array<[number, number, number, number]> = [];
     const ids = [this.id, ...[...this.remotes.keys()].filter((id) => id < Duel.BOT_ID), ...this.bots.map((b) => b.bot.remote.id)];
     for (const id of ids) {
       const r = this.board.row(id);
       rows.push([id, r.kills, r.deaths, this.teamFor(id)]);
     }
+    if (!this.links.size) return;
     this.broadcast({
       t: "mode",
       left: Math.max(0, this.clockLeft(now) ?? 0),
       rows,
       tm: this.modeKind === "tdm" ? [this.teams.score[0], this.teams.score[1]] : undefined,
       ct: this.control ? this.controlPacket(now) : undefined,
+      ev: events,
       win: this.winner ?? undefined,
     });
   }
@@ -806,6 +818,7 @@ export class ArenaMode extends Duel {
     this.leftSeen = m.left;
     this.leftAt = wallClock();
     this.winner = fin(m.win) ? m.win : null;
+    if (Array.isArray(m.ev)) this.sayControl(m.ev.filter((e): e is string => typeof e === "string"));
   }
 
   /** seconds on the clock */
@@ -851,6 +864,12 @@ export class ArenaMode extends Duel {
       if (this.modeKind === "control" && !this.control) this.control = new Control(now, Math.random, this.layout.zones);
       this.sendMode(now);
     } else if (this.phase === "matchEnd" && now >= this.phaseEndsAt) {
+      // with nobody left to play, no rematch: its fight ended on its first frame, a win on the board and the profile every
+      // 13 s for a parked tab (Milestone 941)
+      if (this.lastSide() !== null) {
+        this.finish("Nobody is left to play.");
+        return;
+      }
       // straight into a rematch
       this.board.clear();
       this.teams.clear();
@@ -889,16 +908,9 @@ export class ArenaMode extends Duel {
     const fighters = this.fighters();
     // Control: the zones, the points, the bonus and the lockout
     if (this.control) {
-      const r = this.control.update(now, dt, fighters.map((f) => ({ x: f.x - this.layout.ox, z: f.z - this.layout.oz, team: this.teamFor(f.id), alive: f.alive })));
-      const mine = this.teamFor(this.id);
-      for (const e of r.events) {
-        const [what, zone, team] = e.split(" ");
-        if (what === "taken") this.onNotice?.(Number(team) === mine ? `ZONE ${zone} TAKEN` : `ZONE ${zone} LOST`);
-        else if (what === "bonus" && zone === undefined) this.onNotice?.(`BONUS: HOLD ZONE ${this.control.zones[this.control.bonus?.zone ?? 0].id} FOR ${MODES.control.bonus.points}`);
-        else if (what === "lockout" && zone !== "broken") this.onNotice?.(Number(zone) === mine ? "LOCKOUT: HOLD ALL THREE TO WIN" : "LOCKOUT: RETAKE A ZONE OR LOSE");
-        else if (what === "lockout") this.onNotice?.("LOCKOUT BROKEN");
-      }
-      if (r.events.length) this.sendMode(now);
+      const r = this.control.update(now, dt, this.onZones());
+      this.sayControl(r.events);
+      if (r.events.length) this.sendMode(now, r.events);
       if (r.winner !== null) {
         this.endMatch(TEAM_WIN(r.winner), now);
         return;
@@ -1191,6 +1203,12 @@ export class ArenaMode extends Duel {
   protected override whereIs(id: number): THREE.Vector3 | null {
     const b = this.bots.find((x) => x.bot.remote.id === id);
     return b ? b.bot.pos : super.whereIs(id);
+  }
+
+  /** a bot's DASH, for the hit check: a bot has no states here, and its run is inside the check's slack */
+  protected override wentLately(id: number): number {
+    const b = this.bots.find((x) => x.bot.remote.id === id);
+    return b ? b.bot.dashedWithin(STALE, wallClock()) : super.wentLately(id);
   }
 
   override leave(): void {

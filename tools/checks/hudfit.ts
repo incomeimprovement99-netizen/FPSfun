@@ -173,5 +173,19 @@ console.log("\nWhat the match's own state says (src/main.ts)");
   check("out (a ghost, between lives), no spray goes up", /function doSpray[\s\S]{0,200}if \(duel && !duel\.alive\) return false;/.test(main));
 }
 
+console.log("\nA city that does not come, a page that goes away (src/main.ts, src/game/neonmap.ts)");
+{
+  const { readFileSync } = await import("node:fs");
+  const main = readFileSync(new URL("../../src/main.ts", import.meta.url), "utf8");
+  const neon = readFileSync(new URL("../../src/game/neonmap.ts", import.meta.url), "utf8");
+  // (Milestones 944 and 945) what a browser needs a failed network or a lost GPU to show; e2e start and page run the rest
+  check("a failed boxes file counts as a failed city, and is asked for again", /boxes\.status === "rejected"/.test(main) && /BOXES\.loading = null;\s+throw e;/.test(neon));
+  check("the wait for the boxes has an end", /Promise\.race\(\[loadNeonSolids\(\)/.test(main));
+  check("the city's limit is on nothing coming", /Math\.max\(show\.at, show\.city \? cityMovedAt : -Infinity\)/.test(main));
+  check("an Alt-Tab does not end the wait for the city", /show\.stage === "load" && show\.city && !\(cityIn && brWarm === "done"\)/.test(main));
+  check("a GPU reset retakes the roads' picture, and one that stays gone says so", /webglcontextrestored[\s\S]{0,260}retakeReflection\(\)/.test(main) && /introCfg\.show\.gfxGone,/.test(main));
+  check("a Graphics preset is refused in a match", /addEventListener\("change", \(\) => \{\s+\/\/[^\n]*\n\s+if \(duel\) \{\s+qualitySel\.value = quality\.preset;/.test(main));
+}
+
 console.log(fails === 0 ? "\nHUD FIT PASS" : `\nHUD FIT FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

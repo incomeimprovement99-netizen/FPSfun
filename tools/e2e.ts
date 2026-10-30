@@ -3886,11 +3886,12 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
   const expected = ring.timeLeft - (Date.now() - ringAt) / 1000;
   // A close is 20 s and the steps before the snapshot can take most of it on a busy machine: a ring that finished closing
   // during the takeover is on its plan as the next phase's wait (it failed so, 0.5 s from the end, 2026-10-28)
-  const sameClose = after.ring.phase === ring.phase && after.ring.state === "closing" && Math.abs(after.ring.timeLeft - expected) < 2.5;
+  // (and on a busier one it can be past the close before the snapshot: the same stage, its clock on, is the same thing)
+  const sameClose = after.ring.phase === ring.phase && after.ring.state === ring.state && Math.abs(after.ring.timeLeft - expected) < 2.5;
   const movedOn = expected < 2.5 && after.ring.phase === ring.phase + 1 && after.ring.state === "waiting" && after.ring.timeLeft > 0;
   check(
     `${label}: the ring is where it was on its plan, its clock running on`,
-    after.hasRing && ring.state === "closing" && (sameClose || movedOn),
+    after.hasRing && (sameClose || movedOn),
     JSON.stringify({ before: ring, after: after.ring, expected })
   );
   const botFlow = await ev<number>(other, "Math.max(...[...window.__range.duel().remotes.values()].filter((r) => r.id >= 100 && r.alive).map((r) => performance.now() / 1000 - r.lastHeard))");
@@ -7264,7 +7265,8 @@ async function speedkillsShipTest(browser: Browser): Promise<void> {
  * says the map did not load, rather than nothing. The next match asks for it again, and with the file back it draws.
  */
 async function cityMissingTest(browser: Browser): Promise<void> {
-  const page = await open(browser, "?");
+  // (with the loading screen a player has, which is what the failure now ends)
+  const page = await open(browser, "?intro=on");
   // a visit with no copy kept: the pages before this one in the run share its browser's Cache Storage, and a bot match on
   // NEON YARD earlier in the section kept the city there, so the page read it from that and asked the site for nothing
   await ev(page, `caches.delete("sk-city")`);
@@ -7280,7 +7282,8 @@ async function cityMissingTest(browser: Browser): Promise<void> {
     }
     void r.continue();
   });
-  await ev(page, `(async () => { const r = window.__range; r.startBr({ seed: 42, poi: "c" }); })()`);
+  // (a script's input, as a player's locked pointer: with the menu up the screen stands aside and waits)
+  await ev(page, `(async () => { const r = window.__range; r.setScript({ held: () => false, pressedNow: () => false }, () => undefined); r.startBr({ seed: 42, poi: "c" }); })()`);
   const said = await page.waitForFunction(`/DID NOT LOAD/.test(window.__range.hud.noticeNow)`, { polling: 250, timeout: 40000 }).then(() => true, () => false);
   const heads = asked.filter((m) => m === "HEAD").length;
   const notice = await ev<string>(page, "window.__range.hud.noticeNow");
@@ -7289,6 +7292,10 @@ async function cityMissingTest(browser: Browser): Promise<void> {
     said && heads === 4 && /RELOAD THE PAGE/.test(notice),
     JSON.stringify({ said, heads, notice }),
   );
+  // (Milestone 944) said on the loading screen, and back: it held 180 s and dropped you on nothing
+  const back = await page.waitForFunction("window.__range.duel() === null", { polling: 250, timeout: 15000 }).then(() => true, () => false);
+  const words = await ev<string>(page, `document.getElementById("duelStatus")?.textContent ?? ""`);
+  check("and the match goes back, saying why", back && /DID NOT LOAD/.test(words), JSON.stringify({ back, words }));
   // back on the site: the next match asks again and the city draws
   gone = false;
   await ev(page, "window.__range.duel()?.leave()");
@@ -7488,7 +7495,8 @@ async function speedkillsBrTest(browser: Browser): Promise<void> {
       r.applyLoot(g(spare())); const raising = r.loadout.swapping;
       const down = [...f.drops.values()].find((x) => !before.has(x.key) && x.item.id === was);
       if (!down) return { clip: null, back: -1, full: 0, raising };
-      f.remove(down.key); r.applyLoot(down.item); const a = r.loadout.active;
+      // (by its id, not the slot in hand: taken mid-swap it can be on its way up, Milestone 927)
+      f.remove(down.key); r.applyLoot(down.item); const a = r.loadout.slots.find((x) => x.id === was);
       return { clip: down.item.clip ?? null, back: a.state.clip, full: a.weapon.clipSize, raising }; })()`
   );
   check("speedkills br: an empty gun put down goes down empty and comes back empty, and a gun taken into your hand comes up as a swap does", kept.clip === 0 && kept.back === 0 && kept.raising, JSON.stringify(kept));

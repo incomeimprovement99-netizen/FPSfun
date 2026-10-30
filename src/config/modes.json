@@ -14,6 +14,8 @@
   },
   "_control": "Control (docs/RESEARCH_PHASE_12.md section 3), scaled to the arena: Apex plays 9 v 9 over three zones, 1 point a second per zone held, first to 1,000 or 30 minutes, a 150-point bonus zone, spawns on zones linked to your base, and a lockout when one team holds all three. Ours: 5 v 5, first to 500 or 10 minutes. The capture speed by the number on a zone is Apex's (1, 1.5, 2, 2.25, 2.5, 2.75, 3); the base capture time (8 s from neutral with one player, twice that to take an enemy's), the bonus timings, the lockout's 30 s and the 5 s respawn are ours (Apex's are unpublished, and it respawns in waves of up to 10 s). These zones are in arena coordinates, the rules' own checks' (verify.ts); a match takes its map's (src/game/arenas).",
   "control": {
+    "_zoneHeight": "Metres over the street that still count as on a zone (modematch.ts onZones, Milestone 942): over a double jump, and under the Sky Ring's deck at 3.5 m, which covers 43 to 44% of each of THE CENTRE's zones and held them from above.",
+    "zoneHeight": 3,
     "teamSize": 5,
     "scoreLimit": 500,
     "timeLimit": 600,

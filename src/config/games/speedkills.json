@@ -378,6 +378,7 @@
   },
   "_botTierSpeed": "A tier's speed times this, on top of botSpeedScale (bots.ts speed): Casual (easy) at 0.75, so a bot is easier to follow with the eye and the gun while players learn the game (the owner, 2026-09-29: \"make the bots move like 0.75x speed so they are easier to track for everyone to start\"). A tier not named moves as it did.",
   "botTierSpeed": {
+    "beginner": 0.85,
     "easy": 0.75
   },
   "_botStrafe": "A fighting bot's sideways share (bots.json tiers strafe) times this, on top of its speed (botSpeedScale): the owner, 2026-10-09, \"make the bots a little bit easier to hit, their strafing is wild right now\". Measured in a bot match before (a bot in sight of you, 20 samples a second for 19 s): a Skilled bot strafed at 8.6 m/s on average and 11.0 at most, its whole speed, reversing at full speed 13 times, because the strafe was stretched to full length (fixed in bots.ts); Advanced 9.4 and 13.5. With the strafe following its sine and this share, a Skilled bot peaks at about 7.3 m/s and slows into each turn.",

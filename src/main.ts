@@ -209,7 +209,9 @@ let show: { stage: "load" | "board" | "card"; words?: { name: string; sub: strin
 // and the whole of the way in with it
 document.addEventListener("visibilitychange", () => {
   if (!document.hidden) return;
-  if (show) endShow();
+  // (not the wait for the city: it goes on with the page hidden, and ending it for an Alt-Tab dropped you on no city, with
+  // no screen to say why, Milestone 945)
+  if (show && !(show.stage === "load" && show.city && !(cityIn && brWarm === "done"))) endShow();
   if (intro.kind === "match") intro.skip();
 });
 // a key or a click takes the rest of it: nobody wants a title card twice
@@ -911,10 +913,19 @@ applyHour(hour);
 // GPU) loses the context. three brings the context back by itself, but a
 // static shadow map comes back empty (the whole sunlit range in shadow) and
 // the sky's environment map comes back black, so both are redrawn.
-glCanvas.addEventListener("webglcontextlost", () => hud.notice("GRAPHICS RESET: RECOVERING", gameTime, 4));
+// (a context that does not come back says so: four seconds of RECOVERING and then silence over a frozen picture, Milestone 945)
+let gfxGone: ReturnType<typeof setTimeout> | undefined;
+glCanvas.addEventListener("webglcontextlost", () => {
+  hud.notice("GRAPHICS RESET: RECOVERING", gameTime, 4);
+  gfxGone = setTimeout(() => hud.notice(introCfg.show.gfxGone, gameTime, 3600), introCfg.show.gfxGoneAfter * 1000);
+});
 glCanvas.addEventListener("webglcontextrestored", () => {
+  clearTimeout(gfxGone);
+  hud.notice("", gameTime, 0);
   renderer.shadowMap.needsUpdate = true;
   void installSky(scene, renderer, hour.hdr);
+  // (the roads' picture of the city came back black: Milestone 945)
+  retakeReflection();
 });
 // Post-processing. Ambient occlusion is what stops a scene made of boxes
 // reading as flat shapes floating on a flat floor.
@@ -937,6 +948,12 @@ qualitySel.value = quality.preset;
 // The renderer's antialiasing and canvas mode are fixed when the WebGL context
 // is created, so a preset change applies by reloading. Settings persist.
 qualitySel.addEventListener("change", () => {
+  // (not in a match: the reload cost you it, with no word, and the new preset was kept even on Stay, Milestone 945)
+  if (duel) {
+    qualitySel.value = quality.preset;
+    hud.notice("GRAPHICS CHANGE BETWEEN MATCHES: IT RELOADS THE PAGE", gameTime, 4);
+    return;
+  }
   saveQuality(qualitySel.value as Preset);
   location.reload();
 });
@@ -1022,6 +1039,8 @@ let cityIn = new URLSearchParams(location.search).has("norender");
  * mode"). A match on it now waits for it under its own screen (showFrame), the battle royale's behind the player's card.
  */
 let cityAsked = cityIn;
+/** the city's file failed: a match waiting for it says so and goes back (the load stage), when it was seen */
+let cityBroke: number | null = null;
 function askCity(): void {
   if (cityAsked) return;
   cityAsked = true;
@@ -1031,14 +1050,16 @@ function askCity(): void {
   const workers = Math.max(4, Math.min(introCfg.show.cityWorkers, (navigator.hardwareConcurrency || 4) - 1));
   // (and the city's boxes, which a match on it cannot do without: neonmap.ts loadNeonSolids)
   const askedAt = performance.now();
-  void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(([dressed]) => {
+  void Promise.allSettled([dressNeonMap(brMap.root, renderer, quality.cityKit, workers), loadNeonSolids()]).then(([dressed, boxes]) => {
     cityIn = true;
     // The site did not have the city's file after every try, or it broke off (Milestone 629): said to the player, not a
     // drop onto nothing, and asked for again by the next match
-    const failed = cityLoadFailed() || dressed.status === "rejected";
+    // (its boxes too: one failed request and the match had no collision, all visit, Milestone 944)
+    const failed = cityLoadFailed() || dressed.status === "rejected" || boxes.status === "rejected";
     if (failed) {
       cityAsked = false;
-      hud.notice("THE CITY'S MAP DID NOT LOAD: RELOAD THE PAGE TO PLAY ON IT", gameTime, 15);
+      cityBroke = performance.now() / 1000;
+      hud.notice(introCfg.show.cityFailed, gameTime, 15);
     }
     // (for the visit log: how long a match waited for the city, and whether it came over the network or from the
     // browser's own copy; every map release is a new file to fetch)
@@ -2947,6 +2968,7 @@ function boardShip(d: BrMatch, run: ShipRun): void {
   following = null;
   // the first of your squad leads it down (the host, unless the friends are split into squads)
   linkedTo = d.jumpmaster();
+  masterWent = null;
   const master = d.isJumpmaster();
   const say = (): void => {
     hud.notice(master ? "YOU LEAD THE DROP: THE SQUAD JUMPS WITH YOU" : linkedTo !== null ? `${d.nameFor(linkedTo)} LEADS THE DROP` : `THE SHIP PASSES ${SPIRE_TOP.y > 0 ? "THE SPIRE" : d.poi.name}: JUMP WHEN YOU LIKE`, gameTime, 3);
@@ -2986,6 +3008,16 @@ function shipFrame(d: BrMatch, keys: MoveInput): void {
     if (linkedTo !== null && keys.pressedNow("crouch")) {
       linkedTo = null;
       hud.notice("YOU BROKE OFF: JUMP WHEN YOU LIKE", gameTime, 2);
+    }
+    // The jumpmaster went: with them, once this page's own doors are open. Each page flies its own ship, and one a little
+    // behind theirs left a follower outside the map (Milestone 946).
+    if (masterWent !== null && masterWent === linkedTo && run.doorsOpen(t)) {
+      const master = masterWent;
+      linkedTo = null;
+      masterWent = null;
+      jumpOut(d, `FOLLOWING ${d.nameFor(master)}  ·  ${keyLabel("crouch")} BREAKS OFF`);
+      following = master;
+      return;
     }
     if (run.gone(t)) jumpOut(d, "THE SHIP IS LEAVING THE MAP");
     else if (run.doorsOpen(t) && keys.pressedNow("jump")) {
@@ -3072,10 +3104,11 @@ function respawnForMatch(d: MatchLike): void {
         player.beginDrop(sp.x, DROP_HEIGHT, sp.z, sp.yaw);
         mapOpen = false;
         dropMapUntil = gameTime + squadCfg.dive.mapSeconds;
-        hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
+        // (a won Gulag comes back this way, and heard the match's opening again: Milestone 946)
+        if (!d.backFromGulag) hud.notice(`DROPPING INTO ${d.poi.name}`, gameTime, 3);
         // and the hot zone, so the match's own decision is one everybody has:
         // kitted guns in one named place, and everyone told where
-        const hot = d.hotZone();
+        const hot = d.backFromGulag ? null : d.hotZone();
         if (hot) window.setTimeout(() => hud.notice(`HOT ZONE: ${hot.name.toUpperCase()}  ·  KITTED GUNS, AND EVERYONE KNOWS`, gameTime, 4), 1200);
       }
     }
@@ -4649,6 +4682,8 @@ let calloutWas: string | null = null;
 const placeShownAt = new Map<string, number>();
 /** on the ship in a squad: the jumpmaster (the host) you are linked to, whose jump takes you with them */
 let linkedTo: number | null = null;
+/** the jumpmaster linked to has jumped, this page's doors not open yet (rideShip) */
+let masterWent: number | null = null;
 /** following that jumpmaster down: their id, until you break off or the ground comes close */
 let following: number | null = null;
 /** where the formation puts you behind the jumpmaster this frame */
@@ -4698,9 +4733,27 @@ function showFrame(): void {
   }
   const N = introCfg.settle.frames;
   if (show.stage === "load") {
+    // The city did not come: said on this screen, a moment, and back to where you were. The screen held on to its limit (the
+    // notice under it, gone by then) and dropped you on nothing (Milestone 944).
+    if (show.city && cityBroke !== null) {
+      loadingScreen.sayLine(S.cityFailed);
+      if (now - cityBroke > S.cityFailHold) {
+        cityBroke = null;
+        d.leave();
+        setDuelStatusText(S.cityFailed);
+      }
+      return;
+    }
     // A match on the city waits for it: its file by its bytes (the bar's files are counted, and the city is two of
     // them), then its textures, then its shaders built (warmBrSide)
     const cityReady = (!show.city || (cityIn && brWarm === "done")) && figuresIn();
+    // its limit is on nothing coming, not on the whole wait: 180 s is under the file on an ordinary line (8 Mbit/s for Low,
+    // 25 for Max), and the match went ahead with no city and no word (Milestone 944)
+    const mark = NEON_MAP.got + NEON_MAP.unpacked + WARM.done;
+    if (mark !== cityMark) {
+      cityMark = mark;
+      cityMovedAt = now;
+    }
     let files = loadingScreen.filesIn;
     if (show.city && !cityReady) {
       const got = NEON_MAP.total > 0 ? NEON_MAP.got / NEON_MAP.total : 0;
@@ -4725,7 +4778,7 @@ function showFrame(): void {
     if (loadingScreen.loaded) loadingScreen.step(0.1 + 0.6 * files + 0.1 * Math.min(1, loadingScreen.calm / S.loadFrames) * (loadingScreen.allAsked && cityReady ? 1 : 0));
     // everything the match asked for is in, and the page drew a few frames steadily after it (a city's file can be
     // hundreds of megabytes: its own, longer, limit)
-    if ((loadingScreen.loaded && loadingScreen.allAsked && cityReady && loadingScreen.calm >= S.loadFrames) || now - show.at > (show.city ? S.cityMost : S.loadMost)) {
+    if ((loadingScreen.loaded && loadingScreen.allAsked && cityReady && loadingScreen.calm >= S.loadFrames) || now - Math.max(show.at, show.city ? cityMovedAt : -Infinity) > (show.city ? S.cityMost : S.loadMost)) {
       if (show.city) loadingScreen.sayLine("");
       show.stage = show.br ? "board" : "card";
       show.at = now;
@@ -4791,6 +4844,10 @@ function showCard(): void {
  * The way in is over, or cut short (the tab went into the background, the match ended): the match goes on its own,
  * and what it put off is said now, unless `say` is false (the match it was about is gone)
  */
+/** how far the city's wait had got, and when that last moved (the load stage) */
+let cityMark = -1;
+let cityMovedAt = -Infinity;
+
 function endShow(say = true): void {
   const s = show;
   show = null;
@@ -4803,6 +4860,12 @@ function endShow(say = true): void {
 function wireMatch(d: MatchLike, kind: MatchKind): void {
   // a battle royale's floor drawn round what you see: you, or the one you watch (Milestone 853)
   if (d instanceof BrMatch) d.lootEye = camera.position;
+  if (d instanceof BrMatch) {
+    d.onGulagLost = (at) => {
+      setRegion("br");
+      player.teleport(at.x, 0, at.z, player.yaw);
+    };
+  }
   // dropping into a match: the short card, over the match already starting
   // underneath it. Nothing waits for it (src/ui/intro.ts).
   // SpeedKills: the loading screen first, then the card, then the match (showFrame); not for a tab in the background,
@@ -5014,9 +5077,7 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   }
   // the jumpmaster jumped: a squad mate still linked to them goes too, and follows them down
   if (k === "jm" && player.aboard && linkedTo === from && d instanceof BrMatch) {
-    linkedTo = null;
-    jumpOut(d, `FOLLOWING ${d.nameFor(from)}  ·  ${keyLabel("crouch")} BREAKS OFF`);
-    following = from;
+    masterWent = from;
     return;
   }
   if (k === "jolt" && a && b) {
@@ -5080,10 +5141,11 @@ function boxesFirst(start: () => void, link?: Link): boolean {
   }
   // a file that never came is no reason never to start: it starts without them, as before Milestone 445
   boxesWaiting = true;
-  void loadNeonSolids()
-    .catch(() => undefined)
+  // (and a request that hangs is no reason either: nothing ended this wait, Milestone 944)
+  void Promise.race([loadNeonSolids().catch(() => undefined), new Promise((ok) => setTimeout(ok, introCfg.show.boxesMost * 1000))])
     .then(() => {
-      boxesTried = true;
+      // (a request that failed is asked for again by the next match)
+      boxesTried = neonSolidsIn();
       boxesWaiting = false;
       clearInterval(ping);
       if (!link) return start();

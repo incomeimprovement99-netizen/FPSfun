@@ -164,7 +164,7 @@ export type NetMsg =
    * [id, kills, deaths, team]; the teams' scores; Control's zones; the winner
    * (an id, or a team as -10 - team) once it is decided.
    */
-  | { t: "mode"; left: number; rows: Array<[number, number, number, number]>; tm?: [number, number]; ct?: number[]; win?: number }
+  | { t: "mode"; left: number; rows: Array<[number, number, number, number]>; tm?: [number, number]; ct?: number[]; ev?: string[]; win?: number }
   | { t: "bye"; from?: number }
   /** the host took this guest out of the lobby */
   | { t: "kick" }

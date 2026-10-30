@@ -59,10 +59,16 @@ export function neonSolidsIn(): boolean {
 export function loadNeonSolids(): Promise<void> {
   // a test's slow phone (e2e lateBoxesTest): the boxes held back this many milliseconds once they are in
   const late = (globalThis as { __boxesLate?: number }).__boxesLate ?? 0;
-  return (BOXES.loading ??= import("../config/neon/neonmap.solids.json").then(async (m) => {
-    if (late > 0) await new Promise((r) => setTimeout(r, late));
-    addNeonSolids(m.default.solids as number[][]);
-  }));
+  return (BOXES.loading ??= import("../config/neon/neonmap.solids.json")
+    .then(async (m) => {
+      if (late > 0) await new Promise((r) => setTimeout(r, late));
+      addNeonSolids(m.default.solids as number[][]);
+    })
+    // (forgotten when it fails, so the next try fetches it again: one failed request kept for good was no collision all visit)
+    .catch((e: unknown) => {
+      BOXES.loading = null;
+      throw e;
+    }));
 }
 /** the boxes into the world: the collision, the fill lights' spots clear of them, the decay's hold on them */
 export function addNeonSolids(boxes: number[][]): void {

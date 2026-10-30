@@ -525,10 +525,15 @@ const FEEDBACK_KINDS = new Set(["bug", "idea", "change", "other"]);
 const FEEDBACK_MAX_CHARS = 1500;
 /** notes an address may send in POST_WINDOW_MS: a few a sitting is plenty, and a script is stopped early */
 const FEEDBACK_LIMIT = 10;
+// and in a day: at the limit above, one address pushed every real note out through both of the file's rotations in 21 hours
+// (Milestone 946)
+const FEEDBACK_A_DAY = 30;
 const feedbackPosts = new Map();
+const feedbackDay = new Map();
 setInterval(() => {
   const now = Date.now();
   for (const [ip, p] of feedbackPosts) if (p.resetAt < now) feedbackPosts.delete(ip);
+  for (const [ip, d] of feedbackDay) if (d.resetAt < now) feedbackDay.delete(ip);
 }, POST_WINDOW_MS).unref();
 app.post("/api/feedback", express.text({ type: "*/*", limit: "8kb" }), (req, res) => {
   res.set("Cache-Control", "no-store");
@@ -538,6 +543,9 @@ app.post("/api/feedback", express.text({ type: "*/*", limit: "8kb" }), (req, res
   if (p.resetAt < now) Object.assign(p, { count: 0, resetAt: now + POST_WINDOW_MS });
   feedbackPosts.set(ip, p);
   if (++p.count > FEEDBACK_LIMIT) return res.status(429).end();
+  const day = feedbackDay.get(ip) ?? { count: 0, resetAt: now + DAY_MS };
+  feedbackDay.set(ip, day);
+  if (++day.count > FEEDBACK_A_DAY) return res.status(429).end();
   let b;
   try {
     b = JSON.parse(typeof req.body === "string" ? req.body : "");

@@ -13926,6 +13926,101 @@ takes the rotated `feedback.jsonl.1` and `seen.jsonl.1` too (tools/release-steps
   box with pm2, curl and npm stand-ins: a good release stays; a crash at start and a failed reload each put the last one
   back and fail; a bad tar leaves nothing; a rollback whose reload failed does not pass (four failing on the old steps).
 
+## Milestone 939 — A fair hit on someone who dashed
+
+From a code review by the character agent. A DASH moves a body up to 26 m in a frame, and a guest's picture of it is at least
+0.15 s old, so rounds that landed on where the target was were measured against where it had gone. Refused: under 27 m dashing
+away, 21 to 79 m dashing in, under 10 m dashing sideways, and swings past 9.4 m. The shooter saw the marker and the bars fall,
+even ELIMINATED, and the target took nothing. The host now allows for how far the two themselves went in the last STALE
+seconds, by its own states (a bot's by its DASH), so the check stays as tight as it was for anyone who did not move
+(hitcheck.ts, duel.ts wentLately).
+
+- **Checked:** tsc, verify, rules; netfigures.ts: a guest's round from 10 m on a target now 36 m off, after its DASH, passes
+  the real `hitSane` and a claim from 300 m does not (refused on the old code); hitcheck.ts as before.
+
+## Milestone 940 — Bots that fight as you do
+
+From reviews of how bots fight and of the arena modes. Bots in the modes were never held to THE CENTRE's circle: 9 of 13 were
+past the wall a player cannot cross within a minute. In a match against bots they walked through the loading screen, the card
+and the countdown, 34 m to 7 m, and fired the moment it said FIGHT, the reaction already spent; they stand at their marks until
+then. Crouching did nothing against the bots of a match or the Gulag; they aim at your height. A beginner ran faster than Easy
+(7.2 against 6.3 m/s); 6.1 now. And bots could start or come back inside a box and stand there for good: the start grid put 7
+of 24 in a wall on NEON HALL, and a third of the spots by Control's zones there were in one. Both take a clear place, on the one
+`stepOutAt` (src/game/stepout.ts).
+
+- **Checked:** tsc, verify, rules; tools/checks/arena-rules.ts, new in verify, the real ArenaMode, BotMatch and Bot on a fake
+  clock: every bot held to the circle, 0 m walked under the countdown (24.6 m on the old code), 0 of 100 spots in a box (48);
+  the crouch read from the source.
+
+## Milestone 941 — How a match ends and starts again
+
+A host left alone collected a win every 13 s: each rematch's fight ended on its first frame, and each fed the profile and the
+online board, a parked tab climbing it. With nobody left to play the match ends and says so. A rematch started you where your
+last life had, at the far end of the circle in team deathmatch; it starts you at your start. A solo rematch had an empty board,
+and an FFA clock with no kills paid the one row on it a win. ARMOR's share was dropped in the arena modes and the battle royale's
+hits on players: a hit of 100 felt as 25 took 100 on the host's page, read as ELIMINATED on an armoured target still up (Milestone
+694's fault again, here) (modematch.ts, brmatch.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules.ts: each of these, on the old code 4 match ends in 40 s, the rematch at (-4.7, 545)
+  and not (4.7, 545), 0 rows, 100 taken.
+
+## Milestone 942 — Control counts who is on a zone
+
+A zone counted anyone over it at any height: the Sky Ring's deck at 3.5 m covers 43 to 44% of each of THE CENTRE's zones, so a
+player up there took and held one with nobody on the ring, and the HUD said they were on it. Over `control.zoneHeight` (3 m)
+is not on it. You could come back 2 m from an enemy clearing your zone; a zone with the other team on it is not one to come
+back on. And guests never saw ZONE TAKEN, BONUS or LOCKOUT, the host alone working them out: they go in the mode message
+(modematch.ts, modes.json).
+
+- **Checked:** tsc, verify, rules; arena-rules.ts: the deck not on the zone, the street on it, 58 m from the enemy at the nearest
+  (1.5 m on the old code), a guest told ZONE A TAKEN.
+
+## Milestone 943 — Bots in a battle royale
+
+The decay lost to a sighting and to cover: a bot on lost ground with an enemy in sight held its distance, and beside a crate
+stood still out of sight, until it died, 60 runs of 60 for a low beginner. Hurried, a bot goes for safe ground, and fires as it
+goes. Bots fought a dropped friend's held figure, which cannot die, and it took and contested the capture zone, for the whole
+hold of up to a minute. Nobody in the sky is a target now, a diver or a rider, a guest as the host always was (with Milestone
+933 starting the fight early, this mattered more). And the Gulag's bot saw through INVISIBILITY (bots.ts, brmatch.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules.ts: 1.4 m from safe ground after 3 s with an enemy in sight (25.6 m on the old
+  code); the rest read from the source.
+
+## Milestone 944 — A city that does not come
+
+From a review of loading. A city file that failed held the screen 180 s and then dropped you on nothing, its notice long gone
+and under the screen anyway; it says so on the screen and goes back, and the next match asks again. One failed request for the
+collision boxes was kept for good, no collision all visit, unsaid; it counts as a failed city and is asked for again. The
+screen's limit was 180 s for the whole wait, under the download on an ordinary line (8 Mbit/s for Low, 25 for High's), so the match
+went ahead with no city and no word; `cityMost` is now 60 s with nothing coming. And a hung request for the boxes held a start for
+ever; 20 s at the most (main.ts, neonmap.ts, intro.json).
+
+- **Checked:** tsc, verify, rules; e2e start: the file missing, the match goes back saying why, and the next one draws the city;
+  hudfit.ts reads the rest from the source.
+
+## Milestone 945 — A page that goes away and comes back
+
+An Alt-Tab during the wait for the city ended the screen for good, dropping you on no city; only the wait stays. After a GPU reset
+the roads' picture of the city came back black; it is taken again. A reset that never came back gave 4 s of RECOVERING and silence
+over a frozen picture; after 8 s it says to reload. And a change of Graphics reloaded the page with no word, which mid-match cost
+you the match and kept the preset even on Stay; it waits for the end of the match, and its hint says it reloads (main.ts,
+index.html).
+
+- **Checked:** tsc, verify, rules; hudfit.ts from the source (a real GPU loss and a real Alt-Tab need a real browser: the owner's
+  to try); e2e hidden.
+
+## Milestone 946 — What was left of the reviews
+
+A lost Gulag left your ghost in a room off the map, and the page's bounds pushed it to the city's north edge, a long walk from a
+mate who could restore it; it goes by your squad. A won Gulag heard the match's opening again, DROPPING INTO and HOT ZONE. Each page
+flies its own ship, and a follower whose ship was a little behind the jumpmaster's left outside the map; they go when their own doors
+open. A level 4 or 5 gun lost levels through a bot, whose rank stopped at the rarity's; it keeps its fusion level. A host migration
+dropped bots of an index of 64 and up, which a team mode reaches at 36 bots. And one address could push every real note out of the
+feedback file in 21 hours; it sends 30 a day (main.ts, brmatch.ts, bots.ts, modematch.ts, serve.mjs).
+
+- **Checked:** tsc, verify, rules; arena-rules.ts: a level 5 gun at rank 6 (legendary's 5 on the old code), the rest read from the
+  source; e2e migrate, skship, gulag.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

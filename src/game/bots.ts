@@ -25,6 +25,7 @@ import { botBlocked, botGroundAt } from "./botbody";
 import { PROFILE } from "./game";
 import { botSoldierCode } from "./soldier";
 import hackCfg from "../config/hacks.json";
+import { stepOutAt } from "./stepout";
 import { cooldownOf } from "./hacks";
 import { Revealed, type Seen } from "./reveal";
 import * as THREE from "three";
@@ -277,6 +278,8 @@ export interface BotLootItem {
   rarity: string;
   /** how many (a hack's level) */
   n?: number;
+  /** a gun's fusion level: rarity stops at legendary, and a level 5 gun came back off a bot as level 3 (Milestone 946) */
+  fusion?: number;
 }
 /** that item, and where it is lying */
 export interface BotLootDrop {
@@ -400,7 +403,7 @@ export class BotLooter {
   /** would it rather have this than what it is carrying */
   wants(item: BotLootItem): boolean {
     const k = this.kit;
-    const rank = RARITY_RANK[item.rarity] ?? 1;
+    const rank = Math.max(RARITY_RANK[item.rarity] ?? 1, (item.fusion ?? 0) + 1);
     switch (item.kind) {
       case "weapon":
         // SpeedKills: a copy of its own gun fuses it, as a player's does
@@ -414,7 +417,7 @@ export class BotLooter {
   /** that item onto the kit */
   private put(item: BotLootItem): void {
     const k = this.kit;
-    const rank = RARITY_RANK[item.rarity] ?? 1;
+    const rank = Math.max(RARITY_RANK[item.rarity] ?? 1, (item.fusion ?? 0) + 1);
     if (item.kind === "weapon") {
       // the same gun again is a level up (its rank is its fusion level plus one)
       if (item.id === k.gunId) k.gun = Math.min(6, Math.max(k.gun + 1, rank));
@@ -577,6 +580,11 @@ export class Bot {
   fence: { minX: number; maxX: number; minZ: number; maxZ: number } | null = null;
   /** a circle it keeps inside, its edge a wall to it (THE CENTRE, arenas/centre.ts); null elsewhere */
   ring: { x: number; z: number; r: number } | null = null;
+
+  /** how far its DASH took it, if it dashed in the last `seconds` (the host's hit check, Milestone 939) */
+  dashedWithin(seconds: number, now: number): number {
+    return now - this.dashedAt <= seconds ? hackCfg.dash.distance : 0;
+  }
   /**
    * The floor it loots off, or null for a bot that was handed its kit (every
    * arena mode). Setting it is the whole of the wiring: from its next frame
@@ -637,6 +645,7 @@ export class Bot {
   /** SpeedKills: when its Heal and Dash hacks are next ready, and the heal running until */
   private skHealAt = -Infinity;
   private skDashAt = -Infinity;
+  private dashedAt = -Infinity;
   private skHealUntil = -Infinity;
   /** SpeedKills: the hacks its tier carries (bots.json skHacks) */
   get skHacks(): readonly string[] {
@@ -862,6 +871,7 @@ export class Bot {
       this.joltSpeed = hackCfg.dash.distance / hackCfg.dash.seconds;
       this.joltLeft = hackCfg.dash.seconds;
       this.skDashAt = now + cooldownOf("dash", 0);
+      this.dashedAt = now;
       this.skUsed.dash++;
       this.dummy.jolt();
       this.joltFrom.copy(this.pos);
@@ -1272,12 +1282,15 @@ export class Bot {
     // (the two gentlest tiers leave a target they lost: beginner, below easy, hunted it, Milestone 733)
     const hunting = !sees && this.lastSeen && tier.name !== "easy" && tier.name !== "beginner" ? this.lastSeen.pos : null;
     if (this.cover?.via && Math.hypot(this.cover.via.x - this.pos.x, this.cover.via.z - this.pos.z) < 0.8) this.cover.via = null;
-    const goal = this.cover ? (this.cover.via ?? this.cover.spot) : running ? lootGoal : (target ?? (sense.urgent ? sense.goal : (lootGoal ?? hunting ?? this.heard?.pos ?? sense.goal)));
+    // Hurried (the decay, a climb under way), it goes, and fires as it goes: a sighting or a crate beside it kept it on lost
+    // ground until it died, 15 m from safe ground, a beginner in 60 runs of 60 (Milestone 943)
+    const cover = sense.urgent ? null : this.cover;
+    const goal = cover ? (cover.via ?? cover.spot) : sense.urgent ? sense.goal : running ? lootGoal : (target ?? (lootGoal ?? hunting ?? this.heard?.pos ?? sense.goal));
     const toGoal = goal ? new THREE.Vector2(goal.x - this.pos.x, goal.z - this.pos.z) : new THREE.Vector2();
     const dist = toGoal.length();
     let want = new THREE.Vector2();
     if (dist > 1e-3) want.copy(toGoal).divideScalar(dist);
-    if (sees && !this.cover && target && !running) {
+    if (sees && !cover && target && !running && !sense.urgent) {
       // strafe across the line of sight, hold the distance; a dodge reverses it and runs it harder
       const toT = new THREE.Vector2(target.x - this.pos.x, target.z - this.pos.z);
       const td = toT.length();
@@ -1296,7 +1309,7 @@ export class Bot {
       // and slows into each turn as the sine does. Stretched, every bot ran sideways at the whole of it and reversed at
       // full speed (a Skilled SpeedKills bot 10.8 m/s, about every 1.5 s; the owner, 2026-10-09: "wild")
       if (want.length() > 1) want.normalize();
-    } else if (dist < (this.cover ? 0.6 : sense.exact && !target ? 0.3 : 1.5) || (this.cover && !sees)) want.set(0, 0);
+    } else if (dist < (cover ? 0.6 : sense.exact && !target ? 0.3 : 1.5) || (cover && !sees)) want.set(0, 0);
     // standing over a drop, rummaging through it: it does not walk while it does that
     if (this.looter.holding) want.set(0, 0);
     // held to a circle: at its edge, nothing of the way it wants that leads further out (it strafes on the flag it holds,
@@ -1694,14 +1707,18 @@ export class BotMatch implements MatchLike {
       const ring = Math.ceil(lap / 3);
       const dx = ((lap % 3) - 1) * step;
       const dz = ring * step * (lap % 2 ? 1 : -1);
+      // (a clear place, or it started in a wall or on another bot and stood there for good: 7 of 24 on NEON HALL, Milestone 940)
+      const clear = lap === 0 ? null : stepOutAt(home.x, home.z, lap, wall);
       const spawn =
         lap === 0
           ? home
-          : {
-              x: Math.max(wall.minX + 2, Math.min(wall.maxX - 2, home.x + dx)),
-              z: Math.max(wall.minZ + 2, Math.min(wall.maxZ - 2, home.z + dz)),
-              yaw: home.yaw,
-            };
+          : clear
+            ? { ...clear, yaw: home.yaw }
+            : {
+                x: Math.max(wall.minX + 2, Math.min(wall.maxX - 2, home.x + dx)),
+                z: Math.max(wall.minZ + 2, Math.min(wall.maxZ - 2, home.z + dz)),
+                yaw: home.yaw,
+              };
       const b = new Bot(i, scene, projectiles, DIFFICULTY[tierFor(difficulty)], spawn);
       b.ring = drawn.bounds.circle ?? null;
       b.onJolt = (a, to) => this.onRemoteFx?.("jolt", b.remote.id, a, to);
@@ -1881,16 +1898,20 @@ export class BotMatch implements MatchLike {
     // the bots think and shoot; a hit on you lands at once, with the bot's gun and distance for the recap
     // (not under your INVISIBILITY, unless you have just fired: as the other matches' bots, Milestone 893)
     const unseen = (this.hiddenUntil.get(0) ?? -Infinity) > now && now - this.lastShotAt >= 0.5;
+    // Stood at their marks as you are until FIGHT: they walked through the loading screen, the card and the countdown, 34 m to
+    // 7 m, and fired the moment it said FIGHT, the reaction already spent (Milestone 940)
+    const waiting = this.phase === "countdown";
     for (const b of this.bots) {
       const before = b.alive;
-      const sees = this.alive && b.alive && !b.dropping && !unseen && b.sees(feet);
+      const sees = !waiting && this.alive && b.alive && !b.dropping && !unseen && b.sees(feet);
       // (on THE CENTRE by the city's graph, round the tower's podium and up its stairs, not straight into them)
-      const goal = this.nav ? this.nav.step(b.pos, center, new THREE.Vector3()) : center;
+      const goal = waiting ? null : this.nav ? this.nav.step(b.pos, center, new THREE.Vector3()) : center;
       const shots = b.update(now, dt, { target: sees ? feet : null, targetId: 0, goal, canShoot: this.phase === "fight" && !this.holdFire });
       let d = 0;
       for (const s of shots) {
         this.onShotFired?.(b.remote.id, s.from, s.dir, s.weapon);
-        if (hitsBody(s.from, s.dir, feet)) d += s.damage;
+        // (at the height you stand: crouching did nothing here, Milestone 940)
+        if (hitsBody(s.from, s.dir, feet, local.crouch ? CROUCH_TOP : BODY_TOP)) d += s.damage;
       }
       if (d > 0) {
         this.lastHitBy = b;

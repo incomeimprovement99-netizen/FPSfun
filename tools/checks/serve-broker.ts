@@ -140,6 +140,7 @@ if (!existsSync(new URL("../../server/game/node_modules/ws/package.json", import
   check("a stop writes again on the way out", /const out = \(\) => \{\s+flushBoards\(\);\s+flushAccounts\(\);\s+process\.exit\(0\);/.test(src) && /server\.close\(out\)/.test(src) && /setTimeout\(out, /.test(src));
   check("an address makes no more than NEW_ACCOUNTS_A_DAY accounts in a day", /from\.made >= NEW_ACCOUNTS_A_DAY/.test(src));
   check("each page's relay credential is its own, its quota with it", /TURN_TTL_S\}:\$\{randomBytes\(/.test(src));
+  check("an address sends no more than FEEDBACK_A_DAY notes in a day", /\+\+day\.count > FEEDBACK_A_DAY/.test(src));
 }
 
 export const serveBrokerFails = fails;

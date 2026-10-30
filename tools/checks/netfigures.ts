@@ -5,6 +5,7 @@
 //   - a clean link and a player who taps a key are drawn 100 ms behind, the sender's quiet no lateness;
 //   - a figure that stopped is drawn where they stopped, not on past it until the next state;
 //   - a bot's down is stamped, as a player's is, so a state from just before it cannot stand it back up;
+//   - a guest's fair hit on someone who then used a DASH passes the host's check (Milestone 939);
 //   - the drop (Milestones 932 to 934): a won Gulag comes down by a mate on ground that has not decayed, a friend down
 //     first starts the fight, a bot's fall meets the floor it fell past, and no WALL, HEAL or MINE stands in the sky.
 //
@@ -156,6 +157,38 @@ console.log("\nA bot's down (src/game/brmatch.ts, src/game/modematch.ts)");
   };
   check("a bot's down in a battle royale carries the sender's stamp", stamped("brmatch.ts", /broadcast\(\{ t: "down", from: r\.id/));
   check("and in the arena modes", stamped("modematch.ts", /broadcast\(\{ t: "down", from: r\.id/));
+}
+
+console.log("\nA hit on someone who dashed (src/game/duel.ts, src/net/hitcheck.ts)");
+{
+  const wire = new Wire();
+  const [h1, g1] = wire.pair(0, 1);
+  const [h2, g2] = wire.pair(0, 2);
+  const host = new Duel(scene, projectiles, { players: 3, myId: 0, link: h1, guestId: 1, mode: "arena" });
+  host.addGuest(h2, 2);
+  const a = new Duel(scene, projectiles, { players: 3, myId: 1, link: g1, mode: "arena" });
+  const b = new Duel(scene, projectiles, { players: 3, myId: 2, link: g2, mode: "arena" });
+  for (const d of [host, a, b]) ins(d).phase = "fight";
+  let bx = 10;
+  const step = (n: number): void => {
+    for (let i = 0; i < n; i++) {
+      tick(1000 / 30);
+      host.update(st(-100, 0));
+      a.update(st(0, 0));
+      b.update(st(bx, 0));
+      wire.drain();
+    }
+  };
+  step(60);
+  // the shooter fires at the figure 10 m off; the target's DASH, 26 m in a frame, is on the host before the hit's message
+  bx += 26;
+  step(6);
+  const h = host as unknown as { hitSane(from: number, m: unknown): boolean; shotAt: Map<number, number> };
+  h.shotAt.set(1, performance.now() / 1000);
+  const passed = h.hitSane(1, { t: "hit", to: 2, amount: 10, w: "vinson", d: 10 });
+  check("a guest's round on where a target was, before its 26 m DASH, passes the host's check", passed, `the host has them ${bx} m apart, the claim 10 m`);
+  const forged = h.hitSane(1, { t: "hit", to: 2, amount: 10, w: "vinson", d: 300 });
+  check("and a claim from 300 m does not", !forged);
 }
 
 console.log("\nThe drop (src/game/brmatch.ts, src/game/bots.ts, src/main.ts)");

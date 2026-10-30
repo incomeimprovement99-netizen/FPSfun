@@ -88,10 +88,13 @@ export class HitCheck {
   /**
    * Why a claimed hit is refused, or null to let it through. `lastShotAt` is
    * when the host last heard a shot from the shooter (undefined for never),
-   * `apart` how far apart the host sees the two now (null if it cannot say).
+   * `apart` how far apart the host sees the two now (null if it cannot say),
+   * `moved` how far the two went themselves in the last STALE seconds: a DASH puts a body 26 m on in a frame, and the
+   * rounds a guest landed on where it was were refused against where it is, the shooter seeing the hit and the target
+   * taking nothing (Milestone 939).
    */
-  judge(c: HitClaim, now: number, lastShotAt: number | undefined, apart: number | null): string | null {
-    const why = this.why(c, now, lastShotAt, apart);
+  judge(c: HitClaim, now: number, lastShotAt: number | undefined, apart: number | null, moved = 0): string | null {
+    const why = this.why(c, now, lastShotAt, apart, moved);
     if (why) {
       this.refused.push({ from: c.from, why });
       if (this.refused.length > 50) this.refused.shift();
@@ -99,7 +102,7 @@ export class HitCheck {
     return why;
   }
 
-  private why(c: HitClaim, now: number, lastShotAt: number | undefined, apart: number | null): string | null {
+  private why(c: HitClaim, now: number, lastShotAt: number | undefined, apart: number | null, moved: number): string | null {
     if (!Number.isFinite(c.amount) || c.amount < 0) return "not a number";
     const melee = c.weapon === "melee";
     const gun = melee ? null : gunOf(c.weapon);
@@ -113,8 +116,8 @@ export class HitCheck {
     // as late as its whole flight, 3 s, past the window a bullet's needs)
     if (gun && (lastShotAt === undefined || now - lastShotAt > shotWindow(gun))) return "no shot fired";
     if (apart !== null) {
-      if (melee && apart > MELEE_APART) return `a swing from ${apart.toFixed(1)} m away`;
-      if (c.dist !== null && Math.abs(apart - c.dist) > C.rangeSlack + apart * C.rangeShare) return `claimed from ${c.dist.toFixed(0)} m, but ${apart.toFixed(0)} m apart`;
+      if (melee && apart - moved > MELEE_APART) return `a swing from ${apart.toFixed(1)} m away`;
+      if (c.dist !== null && Math.abs(apart - c.dist) > C.rangeSlack + apart * C.rangeShare + moved) return `claimed from ${c.dist.toFixed(0)} m, but ${apart.toFixed(0)} m apart`;
     }
     const list = (this.recent.get(c.from) ?? []).filter((h) => now - h.at < 1);
     // (a rocket's burst hits everyone in its reach with one round: blastVictims of them a round)

@@ -37,7 +37,7 @@ import { resolveWeapon, type ResolvedWeapon } from "./weapons";
 import type { AckMsg, DeltaMsg, DeltaPart, Link, NetMsg, RoundPhase, StateMsg } from "../net/link";
 import { senderStamp, stateMsg, stateOf, type PlayerState } from "../net/state";
 import { StateSync } from "../net/statesync";
-import { HitCheck } from "../net/hitcheck";
+import { HitCheck, STALE } from "../net/hitcheck";
 import { ZONE_RADIUS, arenaMap, mapFor, type ArenaMapId } from "./arena";
 import type { Bounds } from "./player";
 import { operatorWearing } from "./operators";
@@ -379,6 +379,8 @@ export class Duel implements MatchLike {
   readonly hitCheck = new HitCheck();
   /** where this player last was, for the host's hit check */
   private selfAt = new THREE.Vector3();
+  /** where this player has been lately, for the host's check of a hit (wentLately) */
+  private selfTrail: Array<{ at: number; x: number; y: number; z: number }> = [];
   /** the host: each guest's round trip, ms (the roster, and the worst as this.ping) */
   readonly pingOf = new Map<number, number>();
   private weaponCache = new Map<string, ResolvedWeapon>();
@@ -1825,7 +1827,8 @@ export class Duel implements MatchLike {
       { from, amount: m.amount, weapon: typeof m.w === "string" ? m.w : "", dist: typeof m.d === "number" && Number.isFinite(m.d) ? m.d : null },
       wallClock(),
       this.shotAt.get(from),
-      a && b ? a.distanceTo(b) : null
+      a && b ? a.distanceTo(b) : null,
+      a && b ? this.wentLately(from) + this.wentLately(m.to) : 0
     );
     if (why && !this.warned.has(from)) {
       this.warned.add(from);
@@ -1836,6 +1839,16 @@ export class Duel implements MatchLike {
   private warned = new Set<number>();
 
   /** where a player is as this browser sees it (this player, or a remote's last state); the subclasses add their bots */
+  /** how far a player got from where they stood in the last STALE seconds, by the host's own states */
+  protected wentLately(id: number): number {
+    const s = id === this.id ? this.selfTrail : this.remotes.get(id)?.samples;
+    if (!s || !s.length) return 0;
+    const end = s[s.length - 1];
+    let far = 0;
+    for (let i = s.length - 2; i >= 0 && end.at - s[i].at <= STALE; i--) far = Math.max(far, Math.hypot(end.x - s[i].x, end.y - s[i].y, end.z - s[i].z));
+    return far;
+  }
+
   protected whereIs(id: number): THREE.Vector3 | null {
     if (id === this.id) return this.selfAt;
     const s = this.remotes.get(id)?.samples.at(-1);
@@ -1846,6 +1859,8 @@ export class Duel implements MatchLike {
   private frame(local: LocalState): void {
     const now = wallClock();
     this.selfAt.set(local.x, local.y, local.z);
+    this.selfTrail.push({ at: now, x: local.x, y: local.y, z: local.z });
+    while (now - this.selfTrail[0].at > STALE) this.selfTrail.shift();
     this.ready = local.ready && !local.held;
     // Capture time is real time too. Up to 1.1 s a step covers a hidden tab's
     // one frame a second; a longer gap (a stalled tab) is not counted.
