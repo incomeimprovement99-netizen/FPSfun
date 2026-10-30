@@ -19,6 +19,7 @@ import { WeaponState } from "./weapon-state";
 import type { ResolvedWeapon } from "./weapons";
 import type { BotDifficulty } from "./stats";
 import cfg from "../config/rangetools.json";
+import { PROFILE } from "./game";
 
 // ---------------------------------------------------------------- moving dummies
 
@@ -69,7 +70,9 @@ export class DummyBehaviour {
         m.off += m.vel * dt;
       }
       d.group.position.x = m.home.x + m.off;
-      d.setPose({ speed: Math.abs(m.vel), stance: m.crouch ? "crouch" : "stand", pitch: 0 });
+      // (sidestepping, as the rail dummies do: facing the firing line, its right is the world's -x. With no way given it
+      // ran forward on the spot, its legs' hit volumes with it, Milestone 920)
+      d.setPose({ speed: Math.abs(m.vel), stance: m.crouch ? "crouch" : "stand", pitch: 0, moveDir: m.vel > 0 ? -Math.PI / 2 : m.vel < 0 ? Math.PI / 2 : 0 });
     }
   }
 
@@ -89,9 +92,10 @@ export class DummyBehaviour {
 
 export class RangeCombat {
   level: "off" | BotDifficulty = "off";
-  shield = 75;
+  // a match's shield (the game's health): it was 75, SpeedKills' is 50 (Milestone 921)
+  readonly shieldMax = PROFILE.health ? PROFILE.health.shield : 75;
+  shield = this.shieldMax;
   health = 100;
-  readonly shieldMax = 75;
   alive = true;
   private downUntil = 0;
   private seenAt = new Map<Dummy, number>();
@@ -334,7 +338,9 @@ export class SprayWall {
       c.fillStyle = "rgba(255,210,60,0.85)";
       let prev: { x: number; y: number } | null = null;
       this.shown = { hits: [], want: [], cone: this.shown.cone, band: [] };
-      for (const r of this.reference(w)) {
+      // (the pattern as fired: aimed or from the hip; it drew the aimed one always, 1.3 m off the ANAKIN's hip line at
+      // 20 m, Milestone 919)
+      for (const r of this.reference(w, ads)) {
         const x = at.u * W - Math.tan((r.yaw * Math.PI) / 180) * dist * pxPerM;
         const y = at.v * H - Math.tan((r.pitch * Math.PI) / 180) * dist * pxPerM;
         this.shown.want.push({ u: x / W, v: y / H });
@@ -464,6 +470,9 @@ export class FlickDrill {
     this.target.group.position.set(x, 0, z);
     this.target.group.rotation.y = 0;
     this.target.popUp();
+    // where it is now, for the rest of this frame's rounds: they tested its old place, so one shotgun pull's other
+    // pellets each cleared the next figure unseen, five at once with BIGANTLER (Milestone 918)
+    this.target.group.updateMatrixWorld(true);
   }
 
   /** your shots while it runs (per pellet, as the range's accuracy counts) */

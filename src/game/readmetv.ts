@@ -224,7 +224,9 @@ export class ReadmeTv implements Shootable {
   onHit(point: THREE.Vector3, _weapon: string): boolean {
     const b = this.buttons.find((x) => Math.abs(point.x - x.plate.position.x) <= BTN.width / 2 + 0.05 && Math.abs(point.y - x.plate.position.y) <= BTN.height / 2 + 0.05);
     if (b) {
-      this.press(b.action);
+      // one press a frame: a shotgun's pellets each pressed, three to five pages turned by one pull (Milestone 919)
+      if (this.pressedAt !== this.lastNow) this.press(b.action);
+      this.pressedAt = this.lastNow;
       return true;
     }
     const px = (point.x - (SCREEN.x - SCREEN.width / 2)) * SCREEN.px;
@@ -315,6 +317,8 @@ export class ReadmeTv implements Shootable {
   }
 
   private lastNow = 0;
+  /** the frame an arrow was last pressed in */
+  private pressedAt = -1;
   update(now: number): void {
     this.lastNow = now;
     for (const b of this.buttons) b.update(now);

@@ -832,6 +832,10 @@ async function rulesTest(browser: Browser, query: string): Promise<void> {
   await ev(h1, `(() => { const d = window.__range.duel(); d.localHit(d.remotes.get(1), 250, true, "shotgun"); })()`);
   const over = await Promise.all([h1, g1].map((p) => p.waitForFunction(`window.__range.duel()?.phase === "matchEnd"`, { polling: 100, timeout: 8000 }).then(() => true, () => false)));
   check("rules: shotguns only, first to 1: both hold only shotguns, and one knock ends the match", guns.every((g) => g.length > 0 && g.every((id) => id === "shotgun" || id === "mastiff")) && over.every(Boolean), JSON.stringify({ guns, over }));
+  // (Milestone 922) a trade on match point: the friend's own fall, by the host's round, comes in after the match was summed
+  // up. It counted then, the rematch starting one kill up
+  const late = await ev<{ before: number; after: number; summarised: boolean }>(h1, `(() => { const d = window.__range.duel(); const before = d.kills; d.receive({ t: "down", by: d.id }, 1); return { before, after: d.kills, summarised: d.summarised }; })()`);
+  check("a kill that lands after the match was summed up is not counted for the rematch", late.summarised && late.after === late.before, JSON.stringify(late));
   await h1.close();
   await g1.close();
   const two = await pair([set("duelMode", "tdm"), set("duelPlayers", "2"), set("modeBots", "1"), set("ruleGuns", "any"), set("ruleRounds", "3"), set("ruleFF", "on")].join("; "));
@@ -1542,12 +1546,35 @@ async function botTiersTest(browser: Browser, query: string): Promise<void> {
 async function botHacksTest(browser: Browser, query: string): Promise<void> {
   const page = await open(browser, query);
   await ev(page, `document.getElementById("overlay").classList.add("hidden")`);
+  // (Milestone 917) a fusion level tried in the range does not ride into a match: the gun starts it at level 0
+  await ev(page, "window.__range.sk.setFusion(0, 4)");
   await ev(page, `(() => { document.getElementById("botCount").value = "1"; document.getElementById("botDifficulty").value = "easy"; window.__range.startBots(); })()`);
   await page.waitForFunction("window.__range.duel()?.phase === 'fight'", { polling: 100, timeout: 60000 }).catch(() => undefined);
+  const fusion = await ev<number[]>(page, "window.__range.sk.fusion()");
+  check("bots: a fusion level set in the range does not come into the match", fusion.every((f) => f === 0), JSON.stringify(fusion));
   const got = await ev<{ reach: boolean; incoming: number; hidden: boolean } | null>(page, `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); if (!d || !d.avatars.length) return ok(null); const b = d.avatars[0]; const id = d.remoteOf(b).id; const p = b.group.position;
     const reach = r.sk.burstReach(p.x + 2, p.y, p.z).includes(id); r.sk.setHack("armor"); r.sk.use("utility");
     requestAnimationFrame(() => requestAnimationFrame(() => { const incoming = r.sk.state().incoming; r.sk.setHack("invis"); r.sk.use("utility"); const hidden = (d.hiddenUntil?.get(0) ?? -Infinity) > performance.now() / 1000; ok({ reach, incoming, hidden }); })); }))()`);
   check("bots: your hacks work alone with bots: a SLAM reaches the bot, ARMOR takes its share of a hit, INVISIBILITY hides you", !!got && got.reach && got.incoming < 1 && got.hidden, JSON.stringify(got));
+  // (Milestone 922) the next round starts clear: a WALL and a MINE put down and a hack cooling as the round ends are gone,
+  // and the hack ready, at the next round's countdown. They lived on into it, a mine laid late homing in on the respawn
+  const fresh = await ev<{ before: { walls: number; mines: number; left: number }; phase: string; walls: number; mines: number; left: number }>(
+    page,
+    `(() => new Promise((ok) => { const r = window.__range; const d = r.duel(); const left = () => r.sk.hacks().find((h) => h.slot === "utility")?.left ?? -1;
+      r.sk.setHack("wall"); r.sk.use("utility"); r.sk.setHack("mine"); r.sk.use("utility");
+      const before = { walls: r.wallCount(), mines: r.sk.state().mines, left: left() };
+      d.enter("roundEnd", performance.now() / 1000, 0.4);
+      const t0 = performance.now();
+      const wait = () => { if (d.phase === "countdown" || performance.now() - t0 > 6000) requestAnimationFrame(() => requestAnimationFrame(() => ok({ before, phase: d.phase, walls: r.wallCount(), mines: r.sk.state().mines, left: left() }))); else setTimeout(wait, 20); };
+      wait(); }))()`,
+  );
+  // (Milestone 921) the range's own keys do nothing in a match: Y put "RESET: DUMMIES, NUMBERS, THE WALL" on the screen
+  await ev(page, "window.__range.input.locked = true");
+  await page.keyboard.press("KeyY");
+  await gameSleep(page, 0.2);
+  const saidReset = await ev<string>(page, "window.__range.hud.noticeNow");
+  check("bots: the range's reset key does nothing in a match", !/RESET: DUMMIES/.test(saidReset), saidReset);
+  check("bots: a new round starts clear: no WALL or MINE from the last, the hack ready", fresh.before.walls > 0 && fresh.before.mines > 0 && fresh.before.left > 0 && fresh.phase === "countdown" && fresh.walls === 0 && fresh.mines === 0 && fresh.left === 0, JSON.stringify(fresh));
   await ev(page, "window.__range.duel()?.leave()");
   await page.close();
 }
@@ -1932,6 +1959,9 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   await sleep(900);
   const moved = await ev<number[]>(page, "window.__range.dummies.filter((d) => !d.rail).map((d) => d.group.position.x)");
   check("range: strafing dummies move off their marks", moved.some((x, i) => Math.abs(x - home[i]) > 0.3), moved.map((x, i) => (x - home[i]).toFixed(2)).join(","));
+  // (Milestone 920) and they sidestep, their legs going the way they move: they ran forward on the spot
+  const ways = await ev<number[]>(page, "window.__range.dummies.filter((d) => !d.rail && d.pose && d.pose.speed > 0.1).map((d) => +Math.abs(d.pose.moveDir ?? 0).toFixed(2))");
+  check("range: a strafing dummy sidesteps, a quarter turn off its facing", ways.length > 0 && ways.every((w) => w === +(Math.PI / 2).toFixed(2)), JSON.stringify(ways));
   await sel("dummyMode", "stand");
 
   // ---- the camera that moves with the body (src/config/player.json `feel`)
@@ -1962,8 +1992,14 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   // shoot back: the nearest dummies fire and you have a shield in the range
   await ev(page, "window.__range.player.teleport(0, 0, 0, 0)");
   await sel("dummyShoot", "hard");
-  const hurt = await page.waitForFunction("window.__range.rangeCombat.shield < 75 || window.__range.rangeCombat.health < 100", { polling: 200, timeout: 12000 }).then(() => true, () => false);
+  const hurt = await page.waitForFunction("window.__range.rangeCombat.shield < window.__range.rangeCombat.shieldMax || window.__range.rangeCombat.health < 100", { polling: 200, timeout: 12000 }).then(() => true, () => false);
   check("range: shoot back: the dummies hit you", hurt, JSON.stringify(await ev(page, "({ sh: window.__range.rangeCombat.shield, hp: window.__range.rangeCombat.health })")));
+  // (Milestone 921) the dummies' mode changed mid-fight leaves you as you were: it refilled you, and stood you up while down
+  const hurtNow = await ev<{ sh: number; hp: number }>(page, "({ sh: window.__range.rangeCombat.shield, hp: window.__range.rangeCombat.health })");
+  await sel("dummyMode", "crouch");
+  const afterMode = await ev<{ sh: number; hp: number }>(page, "({ sh: window.__range.rangeCombat.shield, hp: window.__range.rangeCombat.health })");
+  await sel("dummyMode", "stand");
+  check("range: changing the dummies' mode mid-fight does not refill you", afterMode.sh <= hurtNow.sh && afterMode.hp <= hurtNow.hp && hurtNow.sh + hurtNow.hp < 150, JSON.stringify({ hurtNow, afterMode }));
   await sel("dummyShoot", "off");
   // (the spray wall was checked here: a burst from its yellow mark, 20 m off. In SpeedKills both stand 40 m past the
   // sandbox's edge (range.json sandbox edgeZ -24, Phase 20 A12), where no player can reach the mark: the owner's call
@@ -1986,6 +2022,45 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   for (let i = 0; i < 30; i++) await ev(page, "window.__range.drill.onHit(window.__range.drill.target, window.__range.gameTime())");
   const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
+  // (Milestone 918) DEVINOS clears a drill figure: its rocket stopped on the board and its burst never reached it
+  {
+    await ev(page, `document.getElementById("goDrill").click()`);
+    await page.waitForFunction(`window.__range.drill.state === "running"`, { polling: 100, timeout: 8000 }).catch(() => undefined);
+    // (its burst on the figure's board, through the rounds' own path: a rocket fired at the figure's spot, anywhere in a
+    // cone out from the pad, met props on the way and burst by a dummy, whose number then sat in the shotgun's check)
+    await gameSleep(page, 0.3);
+    const cleared = await ev<{ blasted: boolean; done: number }>(page, `(() => { const r = window.__range; const t = r.drill.target; const m = t.hitMeshes[0]; const p = m ? m.getWorldPosition(new r.THREE.Vector3()) : t.group.position.clone().setY(1.2);
+      const blasted = r.blastAt(p.x, p.y, p.z + 0.1, 10); return { blasted, done: r.drill.done }; })()`);
+    check("range: DEVINOS's rocket burst on a drill figure clears it", cleared.blasted && cleared.done === 1, JSON.stringify(cleared));
+    await ev(page, `(() => { const r = window.__range; r.drill.stop(); })()`);
+    // (its numbers gone before the checks after it read theirs)
+    await gameSleep(page, 2);
+  }
+  // (Milestone 919) the manual's arrows: one press a frame, where a shotgun's pellets each pressed, three to five pages a pull
+  {
+    // (the text as it comes in by itself: the README screen's own check, later, asks that it does)
+    await page.waitForFunction("window.__range.readmeTv.loaded", { polling: 100, timeout: 20000 }).catch(() => undefined);
+    const presses = await ev<number>(
+      page,
+      `(() => { const tv = window.__range.readmeTv; const b = tv.buttons.find((x) => x.action === "nextPage"); let n = 0; const was = tv.onPress;
+        tv.onPress = (...a) => { n++; was?.(...a); }; for (let i = 0; i < 4; i++) tv.onHit(b.plate.position.clone(), "mastiff"); tv.onPress = was; tv.goto(0, 0); return n; })()`,
+    );
+    check("range: one shotgun pull's pellets on the manual's arrow press it once", presses === 1, `${presses} presses`);
+  }
+  // (Milestone 919) the spray wall draws the pattern as you fire it: from the hip, the hip's, where it drew the aimed one
+  {
+    const sp = await ev<{ toHip: number; toAimed: number }>(
+      page,
+      `(() => { const r = window.__range; const l = r.loadout; l.setWeaponId(0, "alternator_smg"); const g = l.slots[0].weapon; const w = r.sprayWall;
+        const b = w.group.children.find((m) => m.isMesh); const p = new r.THREE.Vector3(b.position.x + 0.02, b.position.y, b.position.z);
+        const at = w.uv(p); const per = w.uv(p.clone().add(new r.THREE.Vector3(0, 0, 1))).u - at.u; const W = w.canvas.width, H = w.canvas.height, dist = 20;
+        const tan = (d) => Math.tan((d * Math.PI) / 180);
+        const exp = (ads) => { const ref = w.reference(g, ads); const q = ref[ref.length - 1]; return { u: at.u - tan(q.yaw) * dist * per, v: at.v - (tan(q.pitch) * dist * per * W) / H }; };
+        w.clear(); w.hit(p, g, 1e6, dist, false); const got = w.shown.want[w.shown.want.length - 1]; w.clear();
+        const gap = (e) => Math.hypot(e.u - got.u, e.v - got.v); const out = { toHip: gap(exp(false)), toAimed: gap(exp(true)) }; l.setWeaponId(0, "r97"); return out; })()`,
+    );
+    check("range: from the hip the spray wall draws the hip's pattern, not the aimed one", sp.toHip < 1e-6 && sp.toAimed > 0.01, JSON.stringify(sp));
+  }
   // The range's targets (the owner, 2026-10-12: the soldier or a bullseye board, never our robot): the figures made with
   // the page, before the soldier was ready, put it on when it is (dummy.ts dress), and the drill's target is a board
   const soldierIn = await page.waitForFunction("window.__range.soldierReady()", { polling: 250, timeout: 120000 }).then(() => true, () => false);
@@ -9826,6 +9901,14 @@ async function main(): Promise<void> {
     await ev(page, `(() => { const p = window.__range.player; p.pos.set(${X}, 0, 13.5); p.vel.set(0, 0, 0); })()`);
     // a little time on the clock before the menu stops it
     await page.waitForFunction("window.__range.course.running && window.__range.courseClock() > 0.05", { polling: 50, timeout: 8000 }).catch(() => undefined);
+    // (Milestone 917) the fusion key does nothing on a run: fusing THE RUN's lent pistols was 14 rounds to SIDEARM's 9
+    {
+      await ev(page, "window.__range.input.locked = true");
+      await page.keyboard.press("KeyU");
+      await gameSleep(page, 0.2);
+      const f = await ev<{ level: number; running: boolean }>(page, "({ level: window.__range.sk.fusion()[window.__range.loadout.activeIndex], running: window.__range.course.running })");
+      check("the fusion key does nothing on a run of THE RUN", f.running && f.level === 0, JSON.stringify(f));
+    }
     await toMenu(page);
     const clock = () => ev<number>(page, "window.__range.courseClock()");
     const c0 = await clock();

@@ -34,6 +34,8 @@ export interface SlotSetup {
   id: string;
   attach: Attachments;
   zoomAlt: boolean;
+  /** its fusion level (SpeedKills): THE RUN and the tutorial gave guns back at 0 (Milestone 917) */
+  fusion?: number;
 }
 
 export class Loadout {
@@ -177,6 +179,8 @@ export class Loadout {
     s.fusion = Math.max(0, Math.min(PROFILE.fusion.levels, Math.round(level)));
     this.rebuildSlot(s, true);
     s.state.clip = s.weapon.clipSize;
+    // (as fuse does: a reload under way went on, the full gun not firing till it ran out, Milestone 917)
+    s.state.cancelAction();
   }
 
   /** the first empty slot, or -1 */
@@ -215,7 +219,7 @@ export class Loadout {
   /** what a slot carries, to put back later: the course lends you its pistols */
   setup(slotIndex: number): SlotSetup {
     const s = this.slots[slotIndex];
-    return { id: s.id, attach: { ...s.attach }, zoomAlt: s.zoomAlt };
+    return { id: s.id, attach: { ...s.attach }, zoomAlt: s.zoomAlt, fusion: s.fusion ?? 0 };
   }
 
   /** put a slot back as `setup` had it, its sight included, with a full magazine */
@@ -225,7 +229,8 @@ export class Loadout {
     this.setWeaponId(slotIndex, su.id);
     s.attach = { ...su.attach };
     s.zoomAlt = su.zoomAlt;
-    s.weapon = resolveWeapon(s.id, modNames(s.attach));
+    s.fusion = su.fusion ?? 0;
+    s.weapon = resolveWeapon(s.id, modNames(s.attach), s.fusion);
     s.state.setWeapon(s.weapon);
     s.energy = fullEnergy(s.weapon);
   }

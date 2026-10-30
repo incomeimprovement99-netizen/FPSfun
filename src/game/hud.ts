@@ -173,6 +173,8 @@ export interface HudState {
   vFovDeg: number;
   stats: { shots: number; hits: number; headshots: number; damage: number; knocks: number; lastTtk: number | null };
   armorName: string;
+  /** the key that steps the dummies' armour, as bound ("" when the device has none) */
+  armorKey: string;
   cm360: number;
   hipFov: number;
   fps: number;
@@ -1010,10 +1012,14 @@ export class Hud {
     const recapW = Math.min(this.w - 40 * u, 700 * u);
     // a battle royale's own end card (the placement, big, at 30% down) is up while its match ends: the card goes under it
     const brEnd = s.duel?.br?.placement !== null && s.duel?.br?.placement !== undefined;
+    // any other match's end has its result in big letters and the rematch's clock under them (drawDuel, drawMode): the
+    // card goes under those, where it went over them (Milestone 922)
+    const otherEnd = !brEnd && s.duel?.phase === "matchEnd";
+    const resultY = (s.duel?.mode ? 0.3 : 0.36) * this.h + 66 * u;
     return {
       recap: r ? { x: this.w / 2 - recapW / 2, y: recapY, w: recapW, h: recapH } : null,
       // (and under the champion's own card when the squad won, which it overlapped)
-      card: m ? { x: this.w / 2 - cardW / 2, y: brEnd ? this.h * 0.3 + (s.duel?.br?.placement === 1 && s.myCard ? 160 : 76) * u : this.h * 0.2, w: cardW } : null,
+      card: m ? { x: this.w / 2 - cardW / 2, y: brEnd ? this.h * 0.3 + (s.duel?.br?.placement === 1 && s.myCard ? 160 : 76) * u : otherEnd ? resultY : this.h * 0.2, w: cardW } : null,
     };
   }
 
@@ -1368,7 +1374,9 @@ export class Hud {
   /** the match summary at the end: rounds, K/D, damage, accuracy */
   private drawSummary(s: HudState, u: number): void {
     const d = s.duel;
-    if (!d || d.phase !== "matchEnd" || !d.summary || d.br) return;
+    // (not with SpeedKills' match card up, which says all of it: the two were drawn over each other, and over the friends'
+    // table, at every end but a battle royale's, Milestone 922)
+    if (!d || d.phase !== "matchEnd" || !d.summary || d.br || (s.summary && s.summary.alpha > 0)) return;
     const sm = d.summary;
     const c = this.ctx;
     const cx = this.w / 2;
@@ -3356,7 +3364,8 @@ export class Hud {
       ["ACCURACY", `${acc}%  ${s.stats.hits}/${s.stats.shots}`],
       ["DAMAGE", `${damageText(s.stats.damage)}   HS ${s.stats.headshots}`],
       ["KNOCKS", `${s.stats.knocks}   TTK ${s.stats.lastTtk === null ? "-" : s.stats.lastTtk.toFixed(2)}`],
-      ["DUMMY", `${s.armorName.toUpperCase()}  (T)`],
+      // (its key as bound: it said T after a rebind, Milestone 921)
+      ["DUMMY", `${s.armorName.toUpperCase()}${s.armorKey ? `  (${s.armorKey})` : ""}`],
       ["SENS", `${s.cm360.toFixed(1)} cm/360  FOV ${s.hipFov.toFixed(0)}`],
     ];
     lines.forEach(([k, v], i) => {

@@ -13662,6 +13662,76 @@ given up now lets its peer go with it, whatever gave it up (link.ts hostMatch fa
   opens, past `lost` the lobby is over, and with the broker back a friend with the old code finds no match (on the old
   code the friend got in).
 
+## Milestone 917 — Fusion levels stay where they belong
+
+From a review of the firing range. A fusion level set on the range's key, or taken at a stand, rode into every match
+but the battle royale's (whose landing gives the loadout fresh): a 1v1, a bot match or the modes started at up to half
+again the magazine and a tenth more damage, which Milestone 221 had called a fault and fixed for the battle royale
+alone. Every match now starts its guns at level 0. The key did nothing to stop a run of THE RUN either, where it fused
+the lent pistols (SIDEARM 14 rounds to its 9, a fifth off its reload, on a timed course with a board); it does nothing
+on a run now. Pressed mid-reload it filled the magazine and left the reload going, the full gun firing only when the old
+reload ran out (1.80 s on an R-97), as a fuse at a stand did before Milestone 858; it ends the reload now. And a gun
+given back after THE RUN or the tutorial came back at level 0; it keeps its level (loadout.ts setup and restore).
+
+- **Checked:** tsc, verify, rules; tools/checks/range-tools.ts, new in verify: the key mid-reload fires the full magazine
+  at once (on the old code at 1.80 s), a gun lent and given back keeps its level 3 (the old, 0); e2e bots: a level 4 set
+  in the range is 0 in the match; e2e page: the key does nothing on a run.
+
+## Milestone 918 — The flick drill: one figure a pull, DEVINOS's too, and it stops when you go
+
+The drill puts its next figure up the moment one is hit, but the rest of that frame's rounds tested the old figure's
+place: one shotgun pull cleared five figures with BIGANTLER, four with REZ, the time going to the online board. The
+figure's new place counts at once now (rangetools.ts FlickDrill next). DEVINOS's rocket stopped on the drill's board
+and its burst never reached it, so the drill sat at 0 of 30 with its clock running; the burst reaches it (main.ts
+rocketBlast). And the drill went on timing in THE RUN, the tutorial or the lab, counting their shots; going anywhere
+stops it.
+
+- **Checked:** tsc, verify, rules; range-tools.ts: one pull of BIGANTLER or REZ at 6 and 10 m clears one figure (on the
+  old code five and four); e2e range: DEVINOS's rocket clears a figure.
+
+## Milestone 919 — The manual turns a page a pull, and the spray wall shows the hip's pattern
+
+Each of a shotgun's pellets on one of the manual's arrows pressed it, three to five pages turned by one pull; the arrows
+take one press a frame now (readmetv.ts). And the spray wall drew the aimed pattern whatever the way you fired, a line
+1.3 m off the ANAKIN's from the hip at 20 m, where the board's own words say it must follow the way you fire; it draws
+the hip's from the hip (rangetools.ts SprayWall hit).
+
+- **Checked:** tsc, verify, rules; e2e range, two new checks: four pellets on the arrow in one frame press it once, and
+  a burst from the hip draws the hip's pattern.
+
+## Milestone 920 — Strafing dummies sidestep
+
+The range's strafing dummies were given no way to move, so the soldier ran forward on the spot as its body slid
+sideways, its legs' hit volumes with it. They sidestep now, as the rail dummies do (rangetools.ts DummyBehaviour).
+
+- **Checked:** tsc, verify, rules; range-tools.ts and e2e range: a strafing dummy's legs go a quarter turn off its
+  facing, the way it moves (on the old code, straight ahead).
+
+## Milestone 921 — The range's numbers, keys and shooting back
+
+The practice overlay's ACCURACY, DAMAGE and KNOCKS counted the whole of every match too; they start again when you come
+back. The range's armour and reset keys worked in a match (Y put "RESET: DUMMIES, NUMBERS, THE WALL" on the screen);
+they are the range's only. The overlay said T for the armour key whatever it was bound to; it says the key. Changing the
+dummies' mode or speed while they shot back refilled you, and stood you up at once while down; only turning shooting back
+on or changing it does. And shooting back gave you a 75 shield, the legacy game's; it is the game's own, 50.
+
+- **Checked:** tsc, verify, rules; range-tools.ts: the shield is the game's; e2e range: the dummies' mode changed
+  mid-fight leaves you as you were; e2e bots: the reset key does nothing in a match.
+
+## Milestone 922 — How a match ends, and the next round starts clear
+
+From a review of how matches end. Every end but a battle royale's drew SpeedKills' match card, the old summary card and
+the big result over one another, the old card's rows across the friends' table; the old card is not drawn with the new,
+and the new goes under the result and the rematch's clock (hud.ts endLayout, drawSummary). A new round or a rematch
+began with the last one's WALLs and MINEs still up (a mine laid late homed in on the respawned enemy), its cooldowns
+running and a hack pick changed in the menu not applied; it starts clear, your picks ready. And on match point a trade's
+kill that came in after the match was summed up was counted for the rematch, which started one up; it is not.
+
+- **Checked:** tsc, verify, rules; tools/checks/endcards.ts, new in verify, the real HUD on a stand-in canvas: a 1v1's
+  end draws one card, under the result, and an arena mode's card goes under its result (on the old HUD the old card drew
+  eleven times over and the card sat at 20% down); e2e bots: a WALL, a MINE and a cooling hack at a round's end are gone
+  and ready at the next countdown; e2e duel: a kill after the match was summed up is not counted.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

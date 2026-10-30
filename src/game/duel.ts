@@ -1313,7 +1313,9 @@ export class Duel implements MatchLike {
             !mine && this.mode !== "duel",
             m.by === EDGE_ID ? undefined : { killer: by, victim: r.name, weapon: typeof m.w === "string" ? m.w : undefined, head: m.hd === 1 },
           );
-          if (mine) this.kills++;
+          // (a kill that lands after the match was summed up, a trade on match point, belongs to that match and not the
+          // rematch, which started one kill up: Milestone 922)
+          if (mine && !this.summarised) this.kills++;
         }
         if (this.role === "host") {
           this.relay(m, from);

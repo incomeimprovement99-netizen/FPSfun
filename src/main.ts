@@ -1569,7 +1569,8 @@ function rocketBlast(at: THREE.Vector3, travelled: number, w: ResolvedWeapon, on
   if (duel && duel.phase !== "fight") return;
   const full = falloff(w, travelled);
   // (a team mate too when the custom rules turn friendly fire on: rockets went past them, Milestone 739)
-  const figs = duel ? duel.avatars.filter((a) => !!duel!.remoteOf(a) && ((duel instanceof Duel && duel.friendlyFire) || !isAllyFigure(a))) : rangeTargets;
+  // (outside a match the flick drill's figure too: the rocket stopped on it and its burst never reached it, Milestone 918)
+  const figs = duel ? duel.avatars.filter((a) => !!duel!.remoteOf(a) && ((duel instanceof Duel && duel.friendlyFire) || !isAllyFigure(a))) : [...rangeTargets, drill.target];
   for (const a of figs) {
     // (one unseen under INVISIBILITY is hidden but still there: the blast reaches it, Milestone 716)
     if ((!a.group.visible && !a.cloaked) || a.knocked) continue;
@@ -1648,8 +1649,11 @@ let cycleDummyMode: () => string = () => "";
   const apply = () => {
     dummyBehaviour.mode = modeSel.value as DummyMode;
     dummyBehaviour.speed = Number(speedSel.value) || 1;
+    const was = rangeCombat.level;
     rangeCombat.level = (shootSel.value === "easy" || shootSel.value === "normal" || shootSel.value === "hard" ? shootSel.value : "off") as RangeCombat["level"];
-    rangeCombat.refill();
+    // a fresh shield and health when shooting back starts or changes: the dummies' mode and speed refilled you mid-fight,
+    // and stood you up at once while down (Milestone 921)
+    if (rangeCombat.level !== was) rangeCombat.refill();
     try {
       localStorage.setItem("range.dummies", JSON.stringify({ mode: modeSel.value, speed: speedSel.value, shoot: shootSel.value }));
     } catch {
@@ -3499,6 +3503,8 @@ const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Object3D;
 let healingNow = 0;
 /** the heal felt in the view, eased toward healingNow */
 let healFelt = 0;
+/** the match's phase last frame, to see a new round or a rematch begin */
+let lastMatchPhase: string | null = null;
 /** MINE's mines: yours hunt and hurt; everyone else's are drawn */
 const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null; owner?: number }> = [];
 /** your WALL hack's panels standing, oldest first (hacks.json wall.max) */
@@ -4818,6 +4824,12 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   edgeArmed = false;
   tutorial.reset();
   drill.stop();
+  // Every match from fusion level 0: a level tried on the range's key, or taken at a stand, rode into a 1v1, a bot match
+  // or the modes, up to half again the magazine and a tenth more damage (Milestone 917; the battle royale's landing gives
+  // its loadout fresh as well)
+  loadout.slots.forEach((sl, i) => {
+    if ((sl.fusion ?? 0) > 0) loadout.setFusion(i, 0);
+  });
   // the killcam's recording and the recap's log
   recorder.clear();
   killcam.stop();
@@ -5399,6 +5411,8 @@ function endMatch(reason: string): void {
   hud.notice(reason.toUpperCase(), gameTime, 3);
   // the range gives back your two picks, ready, whatever the match left you holding (Phase 20 A12)
   resetHacks();
+  // and its practice numbers start again: they went on with the whole match's shots, damage and knocks (Milestone 921)
+  Object.assign(stats, { shots: 0, hits: 0, headshots: 0, damage: 0, knocks: 0, lastTtk: null });
   // and says where to go in it once the match's own notice has been read
   window.setTimeout(() => {
     if (!duel) hud.notice(`THE RANGE  ·  THE RUN: THREE COURSES THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
@@ -6074,6 +6088,8 @@ function goTo(mode: Mode): void {
   // range's spawn is past its way out and in its back rooms' lane, so leaving from SUPERGLIDE said TUTORIAL COMPLETE in
   // the range and marked it done, and leaving from DASH began HIGH GROUND there (Milestone 897)
   if (mode !== "tutorial" && tutorial.active) tutorial.reset();
+  // and the flick drill: it went on timing in THE RUN, the tutorial or the lab, counting their shots (Milestone 918)
+  drill.stop();
   if (mode === "tutorial") {
     // at its start, from its first room, every door shut
     player.setBounds(RANGE_PLAY);
@@ -6931,11 +6947,12 @@ function step(): void {
     if (!duel && input.pressedNow("interact") && drill.state === "idle" && drill.onPad(player.pos)) drill.start(now);
     // the armory: the stand in front of you, taken (or fused, taken again)
     else if (atStand && ((scriptInput ?? input).pressedNow("interact") || padInteracts)) takeFromArmory(atStand);
-    if (input.pressedNow("cycleArmor")) {
+    // (the range's own keys: in a match Y put "RESET: DUMMIES, NUMBERS, THE WALL" on the screen, Milestone 921)
+    if (!duel && input.pressedNow("cycleArmor")) {
       armorTier = ((armorTier + 1) % 5) as ArmorTier;
       for (const d of dummies) d.setTier(armorTier); // also clears engagedAt
     }
-    if (input.pressedNow("resetDummies")) {
+    if (!duel && input.pressedNow("resetDummies")) {
       for (const d of dummies) d.reset();
       for (const t of targets) t.reset();
       for (const c of courses) c.reset();
@@ -6959,7 +6976,9 @@ function step(): void {
     if (!loadout.swapping && !knockedOut) {
       // SpeedKills has no attachments: out of a match, the magazine key steps
       // the gun in hand through its fusion levels, so each can be tried
-      if (!duel && input.pressedNow("magLevel")) {
+      // (not on a run: THE RUN lends its pistols, and fusing them was 14 rounds to SIDEARM's 9 on a timed course,
+      // Milestone 917)
+      if (!duel && !courseRunning() && input.pressedNow("magLevel")) {
         const next = ((loadout.active.fusion ?? 0) + 1) % (PROFILE.fusion.levels + 1);
         loadout.setFusion(loadout.activeIndex, next);
         hud.notice(`${weaponLabel(loadout.active.id).toUpperCase()}  ·  FUSION LEVEL ${next}`, now, 1.2);
@@ -7865,6 +7884,15 @@ function step(): void {
     airJumps: player.airJumps,
   };
   duel?.update(local);
+  // A new round or a rematch starts clear: no WALL or MINE from the last one, your hacks ready on your picks. They lived
+  // on into it (a mine laid late homed in on the respawned enemy), the cooldowns ran on, and a pick changed in the menu
+  // waited until the friends left (Milestone 922).
+  const phaseNow = duel?.phase ?? null;
+  if (duel && phaseNow === "countdown" && (lastMatchPhase === "roundEnd" || lastMatchPhase === "matchEnd")) {
+    clearWalls();
+    resetHacks();
+  }
+  lastMatchPhase = phaseNow;
   stepUnseen();
   hangout?.update(local);
   // the battle royale from your side: E, the pads, pings
@@ -8057,6 +8085,7 @@ function step(): void {
     vFovDeg: camera.fov,
     stats,
     armorName: ARMOR_NAME[armorTier],
+    armorKey: keyOnDevice("cycleArmor"),
     cm360: cmPer360(settings.sens, settings.dpi),
     hipFov: hipH,
     fps,
@@ -8570,6 +8599,13 @@ const GALLERY = { x: 0, z: -8 };
     const point = a.group.position.clone().setY(a.group.position.y + 1.2);
     const report = a.hit(gameTime, "body", amount, 1, 1, point);
     impactSink({ dummy: a, report, target: null, targetHead: false, damage: report?.amount ?? 0, point, distance: 6, weapon: loadout.active.id });
+    return true;
+  },
+  /** a DEVINOS rocket's burst at (x, y, z) after `travelled` metres, through the rounds' impact path (tools/e2e.ts) */
+  blastAt: (x: number, y: number, z: number, travelled = 10) => {
+    if (!impactSink) return false;
+    const sink = impactSink;
+    rocketBlast(new THREE.Vector3(x, y, z), travelled, resolveWeapon("launcher"), (e) => sink(e));
     return true;
   },
   /** the regens (tools/e2e.ts) */
