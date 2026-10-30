@@ -18405,3 +18405,24 @@ the drawn body in the same frame).
   pass broken (the feet must end under the body; a strafe past the back line). The hips move 6 degrees in
   the frame (41 before) and sit 0 off after a reset (114 before); a fall goes 1.24 m down a flight (0 before). The whole
   soldier section: 338 checks, E2E PASS; verify, rules and the type check.
+
+## Milestone 839 — CHOOCH's head in a jump, a pistol in a climb
+
+Every state of the soldier on all ten guns was filmed a frame at a time and a fresh reviewer looked at the sheets (86 of
+260 before its picture limit: every state on the R-97 and APUHTHEE, most on CHOOCH and DEVINOS; BOOG, ANAKIN, PANDA and
+STRYDER unseen). Three of its faults were confirmed by eye; this takes the two worst that could be fixed outright.
+
+- **CHOOCH in a sprint's jump showed no head** (soldierhold.json guns.lstar.air): its own carry, solved to keep its drum
+  out of the tucked body, lifted the gun onto the face, so from in front a jumping CHOOCH had a drum on its shoulders: a
+  third of the head hidden, and the enemy's head is what you aim at. Tried 38 carries, measured by rays from 10 m in
+  front at nine points on the head: the gun now lies across the chest, 22 cm lower. None of the head is hidden, both hands
+  stay on it, and it reads clean from the front and the side. The audit's exact look calls it 70 mm in the body; the pictures
+  show none, as with looking up (Milestone 838's survey).
+- **A pistol in a climb** hung under the fist, 11 cm off its grip, as the climb clip takes the hand. It is put away for a
+  climb or a mantle, as in the skydive, and comes back after.
+- **Still open from the same sheets:** the hands in the ready pose on nothing for a moment as a slung gun returns (a throw,
+  an interact, a climb, the skydive's end), then the gun snaps in; DEVINOS's left wrist 86 degrees through its reload, and
+  its aim dropping 24 degrees at a jump's take-off.
+- **Checked:** a new e2e check in the soldier stances. On the old code it fails
+  (the pistol shown in the climb, 33% of the head hidden); now not shown, and 0%. The stances check that wanted a pistol kept
+  in the hand climbing is changed to the new rule. The whole soldier section: E2E PASS; verify, rules and the type check.

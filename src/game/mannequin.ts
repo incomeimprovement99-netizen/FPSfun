@@ -1899,8 +1899,8 @@ export class MannequinFigure {
     if (p.stance === "skydive") armed = false;
     // and a climb or a mantle takes both hands onto the ledge: a long gun goes on the back for it (Milestone 618; it was
     // carried in the right hand through the climb clip, which planted it muzzle-down on the ledge and swung it about); a
-    // pistol stays in the hand
-    if ((p.stance === "climb" || p.stance === "mantle") && this.rifle && !pistolStance(this.gunId)) armed = false;
+    // pistol is put away, as in the skydive (Milestone 839: kept, it hung under the fist, 11 cm off its grip)
+    if ((p.stance === "climb" || p.stance === "mantle") && this.rifle) armed = false;
     // A slide has a way in and a way out (the free library's Slide_Start and
     // Slide_Exit, once they have loaded): it used to cut straight into its
     // loop and straight out of it, which every other player saw as a pop.

@@ -7788,10 +7788,10 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   const awayBad = away.filter((a) => {
     const pistol = (soldierHoldCfg.guns as Record<string, { stance?: string }>)[a.id]?.stance === "pistol";
     const slung = (s: { gun: boolean; inHand: boolean; deep: number }) => (pistol ? !s.gun : s.gun && !s.inHand && s.deep <= 5);
-    return !(slung(a.emote) && slung(a.interact) && (pistol ? a.climb.gun && a.climb.inHand : slung(a.climb)) && a.after.gun && a.after.inHand);
+    return !(slung(a.emote) && slung(a.interact) && slung(a.climb) && a.after.gun && a.after.inHand);
   });
   check(
-    "in an emote, holding interact and in a climb, a long gun rides on the back (shown, out of the hands, nothing of the soldier 5 mm into it); a pistol is put away, and kept in the hand climbing; after, the gun is back in the hands",
+    "in an emote, holding interact and in a climb, a long gun rides on the back (shown, out of the hands, nothing of the soldier 5 mm into it); a pistol is put away; after, the gun is back in the hands",
     away.length === 4 && awayBad.length === 0,
     JSON.stringify(awayBad.length ? awayBad : away.map((a) => `${a.id} emote ${a.emote.deep} mm, interact ${a.interact.deep} mm, climb ${a.climb.deep} mm`)),
   );
@@ -8085,6 +8085,52 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     "turned 40 degrees on its feet and setting off, its hips do not snap round (15 degrees at most in the frame); brought back at a new yaw its hips are not left turned (60 degrees at most off its body)",
     offTurn.snap <= 15 && offTurn.square <= 60,
     `hips moved ${offTurn.snap} degrees in the frame; ${offTurn.square} degrees off the body after a reset`,
+  );
+  // A fresh look at every state, Milestone 839. A pistol in a climb is put away: kept, it hung under the fist, 11 cm off its
+  // grip. And CHOOCH in a sprint's jump shows its head: its own carry lifted the gun onto the face, a third of the head
+  // hidden from straight ahead and the drum where the head should be
+  const fresh = await ev<{ during: boolean; after: boolean; hid: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [p] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "wingman", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(1);
+      r.figureLabPose(0, { speed: 0, stance: "climb", pitch: 0 });
+      r.figureLabStep(0.4);
+      const during = !!p.mq.gunObject.visible;
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      r.figureLabStep(1.2);
+      const after = !!p.mq.gunObject.visible;
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 14, stance: "stand", pitch: 0, weapon: "lstar", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(1.2);
+      r.figureLabPose(0, { speed: 14, stance: "air", pitch: 0 });
+      let worst = 0;
+      const ray = new T.Raycaster();
+      for (let i = 0; i < 6; i++) {
+        r.figureLabStep(0.1);
+        f.group.updateMatrixWorld(true);
+        const head = f.mq.bone("Head").getWorldPosition(new T.Vector3());
+        const fwd = new T.Vector3(0, 0, 1).applyQuaternion(f.group.quaternion), left = new T.Vector3(fwd.z, 0, -fwd.x);
+        const meshes = [];
+        f.mq.gunObject.traverse((o) => { if (o.isMesh && o.visible) meshes.push(o); });
+        let hid = 0;
+        for (const dx of [-0.08, 0, 0.08]) for (const dy of [0, 0.08, 0.16]) {
+          const q = head.clone().addScaledVector(left, dx).add(new T.Vector3(0, dy, 0));
+          const from = q.clone().addScaledVector(fwd, 10);
+          ray.set(from, q.clone().sub(from).normalize());
+          ray.far = 10;
+          if (ray.intersectObjects(meshes, false).length) hid++;
+        }
+        worst = Math.max(worst, hid / 9);
+      }
+      return { during, after, hid: Math.round(worst * 100) };
+    })()`,
+  );
+  check(
+    "a pistol is put away for a climb and back in the hand after it, and CHOOCH in a sprint's jump hides none of the head from straight ahead",
+    !fresh.during && fresh.after && fresh.hid === 0,
+    `pistol shown in the climb ${fresh.during}, after it ${fresh.after}; head hidden ${fresh.hid}%`,
   );
   // A moving soldier's planted foot keeps its place on the floor (Milestone 833): each moving clip played at the figure's
   // speed over the ground its stride covers. A foot is planted while low and going back against the body, and its speed
