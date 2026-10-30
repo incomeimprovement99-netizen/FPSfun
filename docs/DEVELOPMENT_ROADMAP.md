@@ -18028,3 +18028,27 @@ Found from the edges looked at for Milestone 835.
     over the box both times. With the edge left out of the room it fails (the head 3.18 m over the floor below), and
     nothing else does. The whole soldier section: 336 checks, E2E PASS.
   - verify, rules and the type check.
+
+## Milestones 873 to 876 — THE WORKS' name where it is seen, the flat roofs broken up, the corner blocks' names at their doors, MARKET's stalls
+
+From the reviews of 2026-10-28 (the centre's round 12, the districts' round 6).
+
+- **873, THE WORKS' name where it is seen** (the districts' sixth review: "the sign is small"): its name on the east
+  arm's hall over the ring road and, 14 m wide, on the works block's second storey toward the corner, lit boards in its
+  teal (`game.boards`); the south arm's sign stays.
+- **874, the flat roofs broken up** (the districts' sixth review: "break up the flat roofs, CANYON's 48 m decks and the
+  WORKS decks, with roof huts, stair heads, sign frames and low walls"): canyon-roof-s and -w on THE CANYON's outer
+  roofs, works-roof-s and -e on THE WORKS' arm halls, the pack's tanks, cooling units, 3 m walls and cabinets
+  (rules.perches, appended last, as every new perch is).
+- **875, each corner block's name at its door** (the centre's twelfth review: "put each block's name at eye level at its
+  entrances"; "the corner-block names are barely seen from the street"): MOTEL HILL, NOODLE ROW, MARKET and THE WELL on
+  a lit board in the block's own colour over its walk-in's door, above the awning (`game.boards`, placed off the
+  walk-ins' door points).
+- **876, MARKET's street stalls** ("MARKET stalls with awnings and crate stacks in the street (d18 shows none)"): two of
+  the pack's food stalls with their awnings on the block's own ground by its street, a set of its own after its crate
+  stacks (`rules.low.market`, saved as `marketStalls`), kept clear of by the street furniture. The layout found room for
+  two, not the three asked.
+- **Tried and taken out (872):** crates and cabinets on the Sky Ring's 4 m deck (the review: "solid cover ... on the Sky
+  Ring"). Placed as perches, they stood across the tops of two of its stairs and its deck: the walk round it reached 31
+  of its 248 m. The ring wants cover laid to its own walk, not a roof's.
+- **Checked:** the map check's 328 checks pass on the low, high and max bakes, among them a new one for the corner blocks' names over their walk-ins' doors and MARKET's stalls (fails with two names or a stall taken out), and the perches' count held to 41 with the new roofs' pieces each standing on its roof. Pictures of each by day. verify, rules and tsc. Map files version 121: lo 185.5 MB, hi 266.0 MB, max 563.6 MB.

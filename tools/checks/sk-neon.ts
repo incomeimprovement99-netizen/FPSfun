@@ -447,8 +447,8 @@ check("THE CANYON: a pad up each wall of each passage, each landing on the roof 
 }
 // (and on the four bridges of the ring round the tower and the gangway, two pieces and more each: the fourth and fifth
 // reviews asked for cover there)
-const least = (name: string) => (/-2$/.test(name) && !name.startsWith("ring") ? 1 : name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name === "stacks-roof" ? 4 : name.startsWith("works-") ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
-check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS' hotel roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 37 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
+const least = (name: string) => (name.startsWith("canyon-roof") ? 2 : /-2$/.test(name) && !name.startsWith("ring") ? 1 : name === "crown" ? 6 : name === "lookout" ? 2 : name === "base-roof" ? 8 : name === "motel-sign" ? 1 : name === "stacks-roof" ? 4 : name.startsWith("works-") ? 2 : name.startsWith("landmark") || name.startsWith("roof") ? 1 : name.startsWith("lantern") ? 1 : name.startsWith("terraces") || name.startsWith("glass") || name.startsWith("strip") ? 1 : name.startsWith("ring") ? 2 : 6);
+check("the perches: cover on the crown, the lookout, the base's roof, THE STACKS' hotel roof, the four High City decks, the four bridges round the tower, the corner blocks' roofs, LANTERN ALLEYS' houses, THE TERRACES' blocks, GLASS HEIGHTS' decks and THE STRIP's pyramid, a landmark on each deck, each piece standing on its roof", PCH.length === (cfg.rules.perches as unknown[]).length && PCH.length === 41 && PCH.every((p) => p.at.length >= least(p.name) && onIt(p).length === p.at.length), PCH.map((p) => `${p.name} ${p.at.length} pieces, ${onIt(p).length} on its roof`).join("; "));
 // THE GANGWAY's cover (Milestone 656; the sixth review: "the gangway's cover staggered with side shields"): along its long
 // leg its sets alternate rails, each solid on its deck 1.4 m and more, each with its shield 1.4 m and more along the same
 // rail; and from every half metre of the deck's middle line between the window's cell and the corner's, cover a body
@@ -761,7 +761,8 @@ check("each corner block named on the map over its roof yard, or the Well's over
   const each = SS.map((q) => ({ q, lit: lanterns.filter((p) => Math.hypot((p[1] as number) - q.at[0], (p[3] as number) - q.at[1]) < 3).length, street: onStreetHere(q.at[0], q.at[1]) }));
   check("NOODLE ROW: its food stalls, each with its two lanterns, on the block's own ground off the street", !!ST && SS.length === ST.count && each.every((e) => e.lit >= 2 && !e.street && e.q.at[0] > 0 && e.q.at[1] < 0), each.map((e) => `(${e.q.at.join(", ")}) ${e.lit} lanterns${e.street ? " ON THE STREET" : ""}`).join("; "));
   // (and MARKET's: crate stacks for cover on its ground, each its three crates, none on the street)
-  const MK = (cfg.rules.low as unknown as { market?: Array<{ count: number; pieces: string[]; extras: unknown[] }> }).market ?? [];
+  // (the crate stacks' sets, saved as `crates`; MARKET's food stalls a set of their own since Milestone 876)
+  const MK = ((cfg.rules.low as unknown as { market?: Array<{ count: number; pieces: string[]; extras: unknown[]; save?: string }> }).market ?? []).filter((m) => m.save === "crates");
   const CR = (cfg as unknown as { crates?: Array<{ at: number[] }> }).crates ?? [];
   const sw = (cfg.chunks as Record<string, { place: unknown[][] }>)["c-sw"]?.place ?? [];
   // the street furniture (rules.dress.furniture): along the pavements, each on a pavement (off the road, within it), plenty
@@ -4447,13 +4448,30 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   const TM = (cfg.rules.dress as unknown as { districtCover: { mats: Record<string, Record<string, string>> } }).districtCover.mats.terraces ?? {};
   const wall = Object.values(TM)[0] ?? "";
   const hedge = wall.split(";").every((r) => /=PlasterDirt00\*#/.test(r)) && !/ETPGrass/.test(wall);
-  const BD = (cfg.game as unknown as { boards?: Array<{ at: number[]; w: number; h: number; text: string }> }).boards ?? [];
+  // (the boards on THE TERMINAL's front: by its name, on its plane)
+  const BD = ((cfg.game as unknown as { boards?: Array<{ at: number[]; w: number; h: number; text: string }> }).boards ?? []).filter((b) => Math.abs(b.at[0]) < 20 && Math.abs(b.at[2] - 117.4) < 1);
   const NM = (cfg.rules.districts as unknown as { terminal: { name: { at: number[]; w: number; h: number }; hall: { front: number } } }).terminal;
   const clear = BD.filter((b) => Math.abs(b.at[2] - NM.name.at[2]) < 0.2 && b.at[2] < NM.hall.front && (Math.abs(b.at[0] - NM.name.at[0]) > NM.name.w / 2 + b.w / 2 || b.at[1] + b.h / 2 < NM.name.at[1] - NM.name.h / 2)).length;
   check(
     "THE TERRACES' hedges in tinted plaster, THE TERMINAL's departures board and clock on its front beside its name",
     hedge && BD.length === 2 && clear === 2 && BD.some((b) => b.text === "DEPARTURES"),
     `hedge ${wall}; ${BD.length} boards (${BD.map((b) => b.text).join(", ")}), ${clear} clear of the name`
+  );
+}
+
+// each corner block's name over its walk-in's door and MARKET's street stalls (Milestones 875 and 876, the centre's
+// twelfth review): a board within a metre of the front over each walk-in's door, above its awning; MARKET's stalls all
+// laid on its own block (the layout lays them off the street, as NOODLE ROW's)
+{
+  const WIb = (cfg as unknown as { walkIns: Array<{ door: number[]; out: number[] }> }).walkIns;
+  const BDb = (cfg.game as unknown as { boards?: Array<{ text: string; at: number[] }> }).boards ?? [];
+  const named = WIb.filter((w) => BDb.some((b) => Math.hypot(b.at[0] - (w.door[0] - w.out[0] * 1.75), b.at[2] - (w.door[1] - w.out[1] * 1.75)) < 1 && b.at[1] > 3.5 && b.at[1] < 6)).length;
+  const MS = (cfg.rules.low as unknown as { market: Array<{ save?: string; count: number }> }).market.find((m) => m.save === "marketStalls");
+  const ST = (cfg as unknown as { marketStalls?: Array<{ at: number[] }> }).marketStalls ?? [];
+  check(
+    "each corner block's name over its walk-in's door, MARKET's food stalls on its own ground",
+    WIb.length === 4 && named === 4 && !!MS && ST.length === MS.count && ST.every((q) => q.at[0] < 0 && q.at[1] > 0),
+    `${named} of ${WIb.length} walk-ins with their block's name over the door; ${ST.length} of ${MS?.count ?? 0} MARKET stalls on its block`
   );
 }
 

@@ -377,6 +377,31 @@ and the 16 to 20 m tier still to do)
 - **684: the final reviews**, the centre's round 9 and the districts' round 3. Done if both meet the bar; otherwise
   their lists become the next milestones.
 
+## How a map version is made, and where the finish stands (2026-10-29)
+
+**The loop, per version.** A batch script edits the layout's rules (src/config/neonmap.json) and, where a change needs
+it, the layout (tools/neon-layout.ts), the bake (tools/import-neon.ts) or the game (src/game/*.ts), and adds a map check
+for it to tools/checks/sk-neon.ts. Then: the layout run; the low bake, its layout rerun and the config's diff, again until
+the diff is empty (one to three bakes, 10 to 30 minutes each on the shared PC); the map checks (about 4 minutes, 330 of
+them); pictures of each change from the reviews' own spots; the high and max bakes (70 to 110 minutes with the other
+agents deploying); each new check proved by putting its fault back on a copy of the config and restoring it; verify,
+rules and tsc; the roadmap milestone, the diary, the deploy guide's sizes; the commit, the rebase onto main, the bake
+copied into apex-range, the deploy announced to the other agents, the merge, push, backup and deploy with its live check.
+
+**Faster, since 2026-10-29 (the owner: "is there any way we can speed up"):** the checks stay (4 minutes, and every
+failure they caught was a real break: rooms walled off, doors facing walls, pads with nothing to land on, cover across a
+stair's top), but the slow part, the high and max bakes, runs once for two or three batches: each batch goes through the
+low bake and its checks on its own, and the full bakes and the deploy follow the last. A game-only change (boards, the
+fence's fade, the skyline's glow) needs no bake of its own and rides with the next.
+
+**Where the finish stands (version 121).** Built: every district, the centre and its tower, every route up and across,
+the night, the city past the fence. Fresh reviewers score the centre 5.5 and the districts 5.5 (round 12 and round 6),
+finish 4.5 in both; THE CANYON 7. About three quarters of the way to the bar (both reviews at 7): what is left is the
+finish faults the reviews keep naming (one at a time, cheap), the open floors and roofs given cover (mostly done), the
+landmarks' payoffs (THE VAULT, the club, the station; begun), then the structural work the reviews put first: tower
+floors different in shape (a double-height hall, holes and inner stairs), ledges and awnings on the corner blocks' faces,
+the curved tower in GLASS HEIGHTS only. Last, the frame measured on an idle PC and the final reviews.
+
 ## The owner's calls, decided 2026-10-18
 
 - **The golden-hour haze:** thinned (Milestone 658).

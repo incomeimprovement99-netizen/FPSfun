@@ -3185,6 +3185,8 @@ const roofBridges: Array<{ block: string; a: number[]; b: number[]; deck: number
     for (const ch of chunks.values()) for (const q of ch.place) if (q[0] === lampKey) taken.push({ c: [q[1], q[3]], r: 0.6 });
     for (const q of ((cfg.stalls ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 2.5 });
     for (const q of ((cfg.crates ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 1.5 });
+    // (and MARKET's food stalls, Milestone 876)
+    for (const q of ((cfg.marketStalls ?? []) as Array<{ at: number[] }>)) taken.push({ c: [q.at[0], q.at[1]], r: 2.5 });
     for (const q of ((cfg.walkIns ?? []) as Array<{ door: number[] }>)) taken.push({ c: [q.door[0], q.door[1]], r: 3 });
     const clearF = (x: number, z: number, r: number, st: Street, apart = FU.apart): boolean =>
       onRoad(x, z, st) > R.dress.crossing + r &&
