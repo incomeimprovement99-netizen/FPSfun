@@ -374,7 +374,8 @@ async function main(): Promise<void> {
     await page.evaluateOnNewDocument(NO_REAL_MOUSE);
     await page.evaluateOnNewDocument(() => localStorage.setItem("range.welcomed", "1"));
     page.on("pageerror", (e) => console.log("pageerror:", String(e)));
-    await page.goto(`${URL}${URL.includes("?") ? "&" : "?"}game=speedkills&nointro`, { waitUntil: "domcontentloaded", timeout: 60000 });
+    // (on the menu, not the start screen in front of it: the Loadouts tab opened behind that, and its soldier was never drawn)
+    await page.goto(`${URL}${URL.includes("?") ? "&" : "?"}game=speedkills&nointro&nohome`, { waitUntil: "domcontentloaded", timeout: 60000 });
     await page.waitForFunction("Boolean(window.__range) && window.__range.loaded()", { timeout: 90000 });
     await page.waitForFunction("window.__range.soldierReady()", { polling: 250, timeout: 60000 });
     await page.waitForFunction("window.__range.paidGuns().ready", { polling: 250, timeout: 60000 }).catch(() => console.log("the bought guns did not load: the procedural ones are shown"));
