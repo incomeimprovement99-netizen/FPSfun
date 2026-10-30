@@ -698,6 +698,16 @@ export function hostMatch(
   };
   const release = (id: number) => void taken.delete(id);
   let peer: Peer | null = null;
+  // A lobby given up is over, its peer with it. Left alive after the broker had been gone `lost` seconds, the peer went on
+  // getting back, registered the old code again, and took a friend from an old invite into a lobby the page had said was
+  // over, beside any new one the player made (Milestone 916).
+  const fail = (msg: string) => {
+    if (cancelled) return;
+    cancelled = true;
+    peer?.destroy();
+    localCh?.close();
+    onError(msg);
+  };
   // each seat's key: a guest back after a dropped connection shows it to take the same seat again
   const keys = new Map<number, string>(resume?.keys ?? []);
   for (const [id] of resume?.keys ?? []) taken.add(id);
@@ -794,7 +804,7 @@ export function hostMatch(
           listen();
           onCode(code);
         } else if (performance.now() < claimUntil) setTimeout(tryClaim, 1000);
-        else onError("Could not take the match's code over.");
+        else fail("Could not take the match's code over.");
       }, 400);
     };
     tryClaim();
@@ -861,7 +871,7 @@ export function hostMatch(
       }, BROKER.retry * 1000);
       // still away after `lost`, with nobody in: say so (someone in has their own connection and needs no broker)
       setTimeout(() => {
-        if (!cancelled && !p.destroyed && goneAt === since && taken.size === 0) onError(peerError("network"));
+        if (!cancelled && !p.destroyed && goneAt === since && taken.size === 0) fail(peerError("network"));
       }, BROKER.lost * 1000);
     });
     p.on("error", (err: { type?: string }) => {
@@ -871,7 +881,7 @@ export function hostMatch(
       if (resume && err.type === "unavailable-id" && !cancelled) {
         p.destroy();
         if (performance.now() < claimUntil) setTimeout(() => void start(attempt + 1), 1000);
-        else onError("Could not take the match's code over.");
+        else fail("Could not take the match's code over.");
         return;
       }
       // once someone is in, a broker hiccup does not touch the direct connections
@@ -886,12 +896,10 @@ export function hostMatch(
         p.destroy();
         code = makeCode();
         void start(attempt + 1);
-      } else onError(peerError(err.type));
+      } else fail(peerError(err.type));
     });
   };
-  start(0).catch(() => {
-    if (!cancelled) onError(NO_LIB);
-  });
+  start(0).catch(() => fail(NO_LIB));
   return handle;
 }
 

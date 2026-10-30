@@ -13650,6 +13650,18 @@ before (main.ts handOver, onHandover).
   the host is told (then Make host goes through), and with the friend's code 3 s late and the match begun, the friend
   stays in it (on the old code: no word, the second ask refused, and the friend gone to a lobby of its own).
 
+## Milestone 916 — A lobby given up is over for good
+
+From the review of joining a match, its first finding. A host waiting alone whose broker was gone longer than
+net.json broker.lost (25 s: a network that dropped, the public broker down) was told its lobby was over, and its peer
+was left alive: it went on getting back to the broker, registered the old code again when it could, and took a friend
+from the old invite into a lobby the page had said was over, beside any new one the player had made since. A lobby
+given up now lets its peer go with it, whatever gave it up (link.ts hostMatch fail).
+
+- **Checked:** tsc, verify, rules; e2e p2p, a new check: the host's broker socket closed and every new one shut as it
+  opens, past `lost` the lobby is over, and with the broker back a friend with the old code finds no match (on the old
+  code the friend got in).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -3789,6 +3789,43 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
  * end the host's lobby too, with "No match with that code" on the host's own screen (a probe on our own server,
  * 2026-09-29). Now the host's lobby waits for the broker and the friend's page tries once more.
  */
+/**
+ * (Milestone 916) The broker gone for good while a host waits alone: past net.json broker.lost its lobby is over, and
+ * the broker back, a friend with the old invite finds no match. The page went on getting back to the broker, registered
+ * the old code again, and took the friend into a lobby it had said was over. The broker's loss is made on the page: its
+ * socket closed, and every new one closed as it opens, until it is let back.
+ */
+async function hostGoneTest(browser: Browser, query: string): Promise<void> {
+  const REC = `(() => { const W = window.WebSocket; window.__sockets = []; window.__noBroker = false; window.WebSocket = class extends W { constructor(...a) { super(...a); window.__sockets.push(this); if (window.__noBroker && /peerjs/.test(String(a[0]))) this.addEventListener("open", () => this.close()); } }; })()`;
+  const host = await open(browser, query, BASE, REC);
+  await ev(host, `document.getElementById("duelHost").click()`);
+  const code = await host.waitForSelector("#duelStatus .code", { timeout: 30000 }).then(() => ev<string>(host, `document.querySelector("#duelStatus .code").textContent`), () => "");
+  if (!code) {
+    console.log("  --  host gone: skipped, no code from the broker");
+    await host.close();
+    return;
+  }
+  await ev(host, `(() => { window.__noBroker = true; window.__sockets.filter((x) => /peerjs/.test(x.url) && x.readyState === 1).forEach((x) => x.close()); })()`);
+  const over = await host.waitForFunction(`!document.querySelector("#duelStatus .code")`, { polling: 500, timeout: (netCfg.broker.lost + 20) * 1000 }).then(() => true, () => false);
+  const said = await ev<string>(host, `document.getElementById("duelStatus").textContent`);
+  // the broker back for the page, and a friend with the old invite
+  await ev(host, "window.__noBroker = false");
+  await sleep((netCfg.broker.retry + 3) * 1000);
+  const guest = await open(browser, query);
+  await ev(guest, `(() => { document.getElementById("duelCode").value = "${code}"; document.getElementById("duelJoin").click(); })()`);
+  const joined = await guest.waitForFunction("window.__range.duel() !== null", { polling: 300, timeout: 20000 }).then(() => true, () => false);
+  const hostIn = await ev<boolean>(host, "window.__range.duel() !== null");
+  check(
+    "host gone: a lobby given up after the broker was gone is over for good: a friend with its old code finds no match",
+    over && !joined && !hostIn,
+    JSON.stringify({ code, over, said: said.slice(0, 80), joined, hostIn }),
+  );
+  for (const p of [guest, host]) {
+    await ev(p, "window.__range.duel()?.leave()").catch(() => undefined);
+    await p.close();
+  }
+}
+
 async function brokerBlipTest(browser: Browser, query: string, afterMs: number): Promise<void> {
   const REC = `(() => { const W = window.WebSocket; window.__sockets = []; window.WebSocket = class extends W { constructor(...a) { super(...a); window.__sockets.push(this); } }; })()`;
   const host = await open(browser, query, BASE, REC);
@@ -10203,6 +10240,8 @@ async function main(): Promise<void> {
         await voiceTest(browser, "?norender");
         console.log("\nThe broker gone for a moment in the middle of a Join, over peer to peer");
         for (const ms of [50, 300]) await brokerBlipTest(browser, "?norender", ms);
+        console.log("\nThe broker gone for good while a host waits alone, over peer to peer");
+        await hostGoneTest(browser, "?norender");
         console.log("\nThe group from match to match, over peer to peer (a welcome mid-match, packed the way PeerJS packs it)");
         await skGroupTest(browser, "?norender");
       }
