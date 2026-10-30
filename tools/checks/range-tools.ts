@@ -41,6 +41,7 @@ console.log("The flick drill (src/game/rangetools.ts FlickDrill)");
       const w = resolveWeapon(id);
       const eye = new THREE.Vector3(cfg.drill.padX, cfg.board.height, cfg.drill.padZ);
       const pattern = blastOffsets(w, true, rnd)!;
+      drill.onShot(w.pellets);
       for (let p = 0; p < w.pellets; p++) {
         const [across, upDeg] = pattern[p % pattern.length];
         const d = new THREE.Vector3(0, 0, -1).applyAxisAngle(new THREE.Vector3(0, 1, 0), -across * DEG).applyAxisAngle(new THREE.Vector3(1, 0, 0), upDeg * DEG);

@@ -2025,7 +2025,8 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   const pos = await ev<{ x: number; z: number }>(page, "({ x: window.__range.drill.target.group.position.x, z: window.__range.drill.target.group.position.z })");
   const dist = Math.hypot(pos.x - 3, pos.z - 2.2);
   check("range: its figure is 5 to 30 m out ahead of the pad", dist >= 4.9 && dist <= 30.1 && pos.z < 2.2, JSON.stringify(pos));
-  for (let i = 0; i < 30; i++) await ev(page, "window.__range.drill.onHit(window.__range.drill.target, window.__range.gameTime())");
+  // (a pull each: the drill counts one figure a trigger pull, Milestone 918)
+  for (let i = 0; i < 30; i++) await ev(page, "(() => { const d = window.__range.drill; d.onShot(1); d.onHit(d.target, window.__range.gameTime()); })()");
   const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
   // (Milestone 918) DEVINOS clears a drill figure: its rocket stopped on the board and its burst never reached it
@@ -2036,7 +2037,7 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
     // cone out from the pad, met props on the way and burst by a dummy, whose number then sat in the shotgun's check)
     await gameSleep(page, 0.3);
     const cleared = await ev<{ blasted: boolean; done: number }>(page, `(() => { const r = window.__range; const t = r.drill.target; const m = t.hitMeshes[0]; const p = m ? m.getWorldPosition(new r.THREE.Vector3()) : t.group.position.clone().setY(1.2);
-      const blasted = r.blastAt(p.x, p.y, p.z + 0.1, 10); return { blasted, done: r.drill.done }; })()`);
+      r.drill.onShot(1); const blasted = r.blastAt(p.x, p.y, p.z + 0.1, 10); return { blasted, done: r.drill.done }; })()`);
     check("range: DEVINOS's rocket burst on a drill figure clears it", cleared.blasted && cleared.done === 1, JSON.stringify(cleared));
     await ev(page, `(() => { const r = window.__range; r.drill.stop(); })()`);
     // (its numbers gone before the checks after it read theirs)

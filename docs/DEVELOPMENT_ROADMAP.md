@@ -13681,7 +13681,9 @@ given back after THE RUN or the tutorial came back at level 0; it keeps its leve
 
 The drill puts its next figure up the moment one is hit, but the rest of that frame's rounds tested the old figure's
 place: one shotgun pull cleared five figures with BIGANTLER, four with REZ, the time going to the online board. The
-figure's new place counts at once now (rangetools.ts FlickDrill next). DEVINOS's rocket stopped on the drill's board
+figure's new place counts at once now (rangetools.ts FlickDrill next), and one figure is cleared a trigger pull at most: a pellet still
+in flight that met the next figure where it came up cleared that one too, now and then (the release gate's own run of
+the check caught BIGANTLER clearing two). DEVINOS's rocket stopped on the drill's board
 and its burst never reached it, so the drill sat at 0 of 30 with its clock running; the burst reaches it (main.ts
 rocketBlast). And the drill went on timing in THE RUN, the tutorial or the lab, counting their shots; going anywhere
 stops it.

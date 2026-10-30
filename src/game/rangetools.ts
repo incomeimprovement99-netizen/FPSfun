@@ -406,6 +406,9 @@ export class FlickDrill {
   private startAt = 0;
   private endAt = 0;
   private doneAt = 0;
+  /** trigger pulls so far, and the one whose round last cleared a figure: one figure a pull */
+  private pull = 0;
+  private hitPull = -1;
   done = 0;
   shots = 0;
   hits = 0;
@@ -478,11 +481,16 @@ export class FlickDrill {
   /** your shots while it runs (per pellet, as the range's accuracy counts) */
   onShot(n: number): void {
     if (this.state === "running") this.shots += n;
+    this.pull++;
   }
 
   /** a hit on the drill's figure: the next comes at once; the last stops the clock */
   onHit(d: Dummy, now: number): boolean {
     if (d !== this.target || this.state !== "running") return false;
+    // One figure a trigger pull (Milestone 918): a shotgun's pellet still in flight that met the next figure where it came
+    // up cleared it unseen, now and then two with BIGANTLER's five (a figure's new place, counted at once, was the rest)
+    if (this.hitPull === this.pull) return true;
+    this.hitPull = this.pull;
     this.hits++;
     this.done++;
     if (this.done >= this.total) {
