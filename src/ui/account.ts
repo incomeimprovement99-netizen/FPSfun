@@ -55,8 +55,16 @@ export function initAccountUi(deps: AccountUiDeps): { sync: () => void } {
     if (s)
       void pullIfNewer().then((newer) => {
         if (newer) location.reload();
+        else lapsed();
       });
   });
+  // the server signed this browser out (its session ran out): the box says so, where it went on saying signed in while
+  // nothing went up (Milestone 910)
+  const lapsed = () => {
+    if (session() || inn.hidden) return;
+    render();
+    say(syncFailed(401), false);
+  };
   const go = async (create: boolean) => {
     const name = nameIn.value.trim();
     const password = passIn.value;
@@ -105,7 +113,7 @@ export function initAccountUi(deps: AccountUiDeps): { sync: () => void } {
     sync: () => {
       if (!session()) return;
       if (pending) clearTimeout(pending);
-      pending = setTimeout(() => void push(), 1500);
+      pending = setTimeout(() => void push().then(lapsed), 1500);
     },
   };
 }

@@ -315,6 +315,15 @@ export interface CoursePlayer extends PadPlayer {
   teleport(x: number, y: number, z: number, yaw: number, pitch?: number): void;
 }
 
+/**
+ * A course's own name for what is kept of it, the Stats tab's runs and its online board (course:<this>): with its
+ * version, so a rebuilt course starts them again. THE RUN's rebuild kept the old, shorter course's times, which no run of
+ * it now can beat (Milestone 913).
+ */
+export function courseKey(L: { id: string; version?: number }): string {
+  return `${L.id}${L.version ? `.r${L.version}` : ""}`;
+}
+
 /** the localStorage keys; the first course keeps the names from before there were two, until it is rebuilt */
 export function storageKeys(id: string, version?: number): { best: string; splits: string; ghost: string; recent: string; ghostOn: string } {
   const p = (id === "basic" ? "range.course" : `range.course.${id}`) + (version ? `.r${version}` : "");

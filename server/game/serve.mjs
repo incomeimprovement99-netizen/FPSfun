@@ -38,7 +38,7 @@
 //   SEEN_FILE     the visit log, default seen.jsonl next to this file
 //   FEEDBACK_FILE what players sent from the Feedback tab, default feedback.jsonl next to this file
 //   VERSION       shown on /health, default the build stamp in dist/version.txt
-import { nextBoardValue } from "./boardrules.mjs";
+import { boardName, nextBoardValue } from "./boardrules.mjs";
 import express from "express";
 import { ExpressPeerServer } from "peer";
 import { WebSocketServer } from "ws";
@@ -102,7 +102,9 @@ app.get("/net.json", (req, res) => {
 // the browser is the only witness, so these are boards between friends, not
 // ranked play (that needs the game server of NEXT_STEPS).
 const BOARD_FILE = resolve(process.env.BOARD_FILE ?? join(here, "boards.json"));
-const BOARD_IDS = new Set(["course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "gunrun:wins", "tdm:wins", "crown:wins", "control:wins", "ffa:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins", "bots:elite:wins", "bots:mixed:wins", "match:kills", "match:damage"]);
+// (THE RUN's board is its rebuilt course's, Milestone 913: the old one's times, from a course a third as long, could not be
+// beaten; the old ids stay for a page from before)
+const BOARD_IDS = new Set(["course:basic.r2", "course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "gunrun:wins", "tdm:wins", "crown:wins", "control:wins", "ffa:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins", "bots:elite:wins", "bots:mixed:wins", "match:kills", "match:damage"]);
 const LOWER_IS_BETTER = /^course:/;
 const NAME = /^[A-Za-z0-9_ .-]{1,16}$/;
 const MAX_ENTRIES = 100;
@@ -167,6 +169,7 @@ app.post("/api/board/submit", express.json({ limit: "2kb" }), (req, res) => {
   const body = req.body && typeof req.body === "object" ? req.body : {};
   const { board, value } = body;
   let { name } = body;
+  if (typeof name === "string") name = boardName(name);
   if (typeof board !== "string" || !BOARD_IDS.has(board)) return res.status(400).json({ error: "bad board" });
   // Who a result is from. It used to be whatever name the post carried, so
   // anyone could post under anyone's name, a registered player's included, and
@@ -313,12 +316,18 @@ const userOf = (req) => {
   const m = /^Bearer ([0-9a-f]{64})$/.exec(req.get("authorization") ?? "");
   const s = m && Object.hasOwn(accounts.sessions, m[1]) ? accounts.sessions[m[1]] : undefined;
   if (!s || s.expires < Date.now()) return null;
+  // in use, a session goes on (once a day at most): it ran out 30 days after its sign-in whatever, and signing in again
+  // then could put the account's older copy over the browser's newer one (Milestone 910)
+  if (s.expires - Date.now() < (SESSION_DAYS - 1) * 86400 * 1000) {
+    s.expires = Date.now() + SESSION_DAYS * 86400 * 1000;
+    accountsDirty = true;
+  }
   const u = userAt(s.user);
   return u ? { key: s.user, token: m[1], user: u } : null;
 };
 const credentials = (body) => {
   const b = body && typeof body === "object" ? body : {};
-  const name = typeof b.name === "string" ? b.name.trim() : "";
+  const name = typeof b.name === "string" ? boardName(b.name) : "";
   const password = typeof b.password === "string" ? b.password : "";
   if (!NAME.test(name)) return { error: "a name is 1 to 16 letters, digits, spaces, _ . or -" };
   if (password.length < PASSWORD_MIN || password.length > PASSWORD_MAX) return { error: `a password is ${PASSWORD_MIN} to ${PASSWORD_MAX} characters` };

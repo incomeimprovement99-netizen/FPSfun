@@ -85,7 +85,8 @@ function randomName(): string {
 const num = (v: unknown): number => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
 
 /** a player name as the online board accepts it: letters, digits, space, _ . -, at most 16 */
-const cleanName = (s: string): string => s.replace(/[^A-Za-z0-9_ .-]/g, "").trim().slice(0, 16);
+// (spaces run together to one, as the boards keep a name: two names that differ only there read the same, Milestone 912)
+const cleanName = (s: string): string => s.replace(/[^A-Za-z0-9_ .-]/g, "").replace(/ {2,}/g, " ").trim().slice(0, 16);
 
 function validMatch(m: unknown): MatchStats {
   const out = emptyMatch();
@@ -104,6 +105,31 @@ export class Stats {
 
   constructor() {
     this.profile = this.load();
+  }
+
+  /** what this page last wrote: a stored copy that is still it was not changed by another tab */
+  private written: string | null = null;
+  /** the tech counts this page has not written yet, kept over a copy read again */
+  private pending: { tech: Record<string, number>; techMiss: Record<string, number> } = { tech: {}, techMiss: {} };
+
+  /**
+   * The stored copy, when another tab of the game has written one since this page did (Milestone 909): each page read it
+   * once and wrote its own whole copy back, so a second tab's matches were wiped by the first tab's next run. Storage
+   * refused or empty: this page's own copy stays.
+   */
+  private fresh(): void {
+    let raw: string | null;
+    try {
+      raw = localStorage.getItem(KEY);
+    } catch {
+      return;
+    }
+    if (!raw || raw === this.written) return;
+    const add = this.pending;
+    const p = this.load();
+    for (const key of ["tech", "techMiss"] as const) for (const [k, n] of Object.entries(add[key])) p[key][k] = (p[key][k] ?? 0) + n;
+    this.profile = p;
+    this.pending = add;
   }
 
   private load(): Profile {
@@ -152,7 +178,10 @@ export class Stats {
 
   private persist(p = this.profile): void {
     try {
-      localStorage.setItem(KEY, JSON.stringify(p));
+      const t = JSON.stringify(p);
+      localStorage.setItem(KEY, t);
+      this.written = t;
+      this.pending = { tech: {}, techMiss: {} };
     } catch {
       /* ignore */
     }
@@ -167,6 +196,7 @@ export class Stats {
   setName(name: string): void {
     const n = cleanName(name);
     if (!n) return;
+    this.fresh();
     this.profile.name = n;
     this.persist();
   }
@@ -181,6 +211,7 @@ export class Stats {
 
   /** a finished course run */
   recordRun(courseId: string, time: number, rank: string): void {
+    this.fresh();
     const c = this.course(courseId);
     c.runs++;
     if (c.best === null || time < c.best) c.best = time;
@@ -192,6 +223,7 @@ export class Stats {
 
   /** a finished match of any kind */
   recordMatch(kind: MatchKind, s: MatchSummary): void {
+    this.fresh();
     const m = this.match(kind);
     m.played++;
     if (s.won) {
@@ -216,6 +248,8 @@ export class Stats {
   recordTech(name: string, good: boolean): void {
     const bag = good ? this.profile.tech : this.profile.techMiss;
     bag[name] = (bag[name] ?? 0) + 1;
+    const owed = this.pending[good ? "tech" : "techMiss"];
+    owed[name] = (owed[name] ?? 0) + 1;
     // not persisted on every line: the feed can fire many times a second
     this.dirty = true;
   }
@@ -224,6 +258,7 @@ export class Stats {
   flush(): void {
     if (!this.dirty) return;
     this.dirty = false;
+    this.fresh();
     this.persist();
   }
 

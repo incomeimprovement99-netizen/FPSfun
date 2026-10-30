@@ -944,7 +944,9 @@ Cloudflare Worker, for a build made with `VITE_LEADERBOARD_URL`. Either way
 it trusts the game, so it is a board for friends, not a ranked ladder: a wins
 board counts the posts rather than the total anyone claims, and a best-of-a-
 match board takes nothing above what a match can produce (60 kills, 20,000
-damage).
+damage). A result that does not reach the board (no answer, a restart) waits in
+the browser and goes before the next one. THE RUN's board is the rebuilt
+course's (`course:basic.r2`) and takes no time under 20 s.
 
 ## How it works
 

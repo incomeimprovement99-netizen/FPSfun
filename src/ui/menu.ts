@@ -7,6 +7,8 @@ import { botSquads, saveTeamId, savedTeamId, teamFor } from "../game/brmatch";
 import { OPERATORS } from "../game/operators";
 import { HEIRLOOMS } from "../game/heirlooms";
 import { Stats, type MatchKind, type MatchStats } from "../game/stats";
+import { courseKey } from "../game/course";
+import { BASIC_COURSE } from "../game/courses/basic";
 import { BOARD_REFUSED, BOARDS, leaderboardOnline, topScores, type BoardEntry } from "../game/leaderboard";
 import { LOBBY_MODES, lobbyMode, setupFor, friendsModeFor } from "./lobby";
 
@@ -337,7 +339,7 @@ export class Menu {
       matchCard("Team Deathmatch", ["tdm"]),
       matchCard("Control", ["control"]),
       matchCard("Free-for-all", ["ffa"]),
-      courseCard("basic", "The Run"),
+      courseCard(`${courseKey(BASIC_COURSE)}`, "The Run"),
       courseCard("drill", "Flick drill (30 targets)"),
       this.gunsCard(),
       techCard,

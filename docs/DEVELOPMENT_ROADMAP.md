@@ -13563,6 +13563,78 @@ here: a test page never takes the lock.
 
 - **Checked:** tsc, verify, rules; controls.ts: the lock takes the bound keys but Escape and Tab.
 
+## Milestone 909 — Two tabs of the game keep what each earns
+
+From a review of progress, the boards and accounts. Progress (XP, levels, challenges) and the Stats tab's numbers were
+read once, when a page started, and each award wrote the page's whole copy back. A second tab of the game (a friend's
+invite opened beside it) had everything it earned wiped by the first tab's next run: three duels won in the second,
+4,965 XP stored, and after one run of THE RUN in the first, 200. The next menu opened then synced that to the account.
+Each page now reads the stored copy again before it writes, when another tab has written since, keeping the tech
+counts it had not written yet (progress.ts, stats.ts fresh).
+
+- **Checked:** tsc, verify, rules; tools/checks/keep.ts, new in verify: two tabs on one storage, the stored XP and the
+  Stats tab's duels, runs and tech are both tabs' (on the old code, the first tab's alone).
+
+## Milestone 910 — Signing in again keeps the newer copy
+
+A session ran out 30 days after its sign-in, however much it was used. The next save was then refused and the session
+dropped without a word (the Account box went on saying signed in, and nothing more went up), and signing in again put
+the account's copy over this browser's, everything earned since lost. A session in use now goes on (the server moves
+its end on, once a day at most); one that runs out is remembered with when this browser last synced, and signing in
+again keeps this browser's copy and sends it up when nobody has saved to the account since (the account's comes on as
+before when another browser has); and the box says the server signed you out (serve.mjs userOf, account.ts lapse).
+
+- **Checked:** tsc, verify, rules; keep.ts: a session run out, then signed in again with nothing saved since, keeps this
+  browser's 9,000 XP and sends it up (on the old code, the account's 1,000 came over it), and with another browser's
+  save since, the account's comes on; the deploy's dry run of the server.
+
+## Milestone 911 — A finished challenge is not put straight back up
+
+Challenges rotate through their pool, and the rotation went on from the count finished, so one finished out of the
+pool's order was put straight back up at nothing: a 5,200-damage match finished "Deal 5,000 damage" and it came back
+twice running. The rotation keeps its own place in the pool now (progress.ts refill, the state's `next`).
+
+- **Checked:** tsc, verify, rules; keep.ts: the second challenge finished on its own is not back up after (on the old
+  code it was).
+
+## Milestone 912 — Names and numbers the boards keep
+
+A name with a space at its start or end was a name of its own, past the check that keeps an account's name for its
+owner, and a table shows "Alice " as "Alice": a post as "Alice " at 5 s went to the top of THE RUN's board above the
+real Alice. The boards keep a name with its end spaces trimmed and its inner ones run together, and the game names
+players the same way. THE RUN's board takes no time under 20 s (its measured route is 29.5 s, a DASH or two saves
+seconds, not ten); every course board kept anything from 5 s up, and keeps a course's best for good. And a wins post is
+a whole win at most (a post of 3.5 over 3 was kept as 3.5 wins) (boardrules.mjs boardName, COURSE_FLOOR).
+
+- **Checked:** tsc, verify, rules; verify's boards check, new lines (on the old rules a 5 s RUN time and 3.5 wins were
+  kept); the deploy's dry run: a name posted with spaces round it counts as the name, and a 10 s RUN time is refused.
+
+## Milestone 913 — THE RUN's board for the course as it is
+
+THE RUN was rebuilt in Milestone 636, three times as long, and only its own saved keys took the new version: the Stats
+tab's runs and the online board went on under the old course's name. The board's top two, 25.35 s and 29.88 s, were
+runs of the old course, faster than the new one's whole route, and could never be beaten; one player's Stats tab showed
+a best of 25.35 s and a top ten of old runs while the Play tab said 48.45 s. Both are the rebuilt course's own now
+(course.ts courseKey: course:basic.r2), and start again. The Stats tab no longer offers the advanced course's board
+(gone in Milestone 633) or the Gun Run and Crown boards nothing posts to, and offers the elite and mixed bots' wins that
+were posted and never shown. The dead courses' keys, their ghost runs most of a profile (98 KB of one account's 107
+KB, near what a save may be), stay out of what is synced.
+
+- **Checked:** tsc, verify, rules; keep.ts: THE RUN's board is the rebuilt course's, offered and kept by the server, the
+  old ones not offered, and the dead courses' keys stay out of the account's copy; verify's boards check.
+
+## Milestone 914 — A result that did not get to the board waits
+
+A board result that did not get there was dropped: no answer (a deploy's restart), the server busy, or too many posts
+from one address (30 in 10 minutes, shared by a house and counted for every course and drill finish), and the page that
+could not find the board at its start posted nothing all visit. A wins board counts a post as one win at most, so each
+was a win the board never had back. A result that does not get there waits in this browser and goes before the next,
+in the order they were made (and at the next visit's start); a look for the board that got no answer is made again
+(leaderboard.ts).
+
+- **Checked:** tsc, verify, rules; keep.ts: with the server down for two wins and back for the third, the three go in
+  order (on the old code, only the third).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

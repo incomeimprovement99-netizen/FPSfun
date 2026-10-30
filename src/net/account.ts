@@ -10,8 +10,19 @@
 // from it; an account without one takes this browser's.
 
 const TOKEN_KEY = "range.account.v1";
-/** kept per browser: the session, and the graphics (this machine's) */
-const NOT_SYNCED = new Set([TOKEN_KEY, "range.quality"]);
+/** the account whose session ran out here, and when this browser last synced to it (Milestone 910) */
+const LAPSED_KEY = "range.account.lapsed";
+/**
+ * Kept per browser: the session and the one that ran out, the graphics (this machine's), and the board results still
+ * to be posted (leaderboard.ts: another browser posting them again would count them twice)
+ */
+const NOT_SYNCED = new Set([TOKEN_KEY, LAPSED_KEY, "range.quality", "range.board.queue"]);
+/**
+ * And the keys of courses that are gone: THE RUN before its rebuild (Milestone 636: its keys without a version) and the
+ * advanced course (gone in Milestone 633). Their ghost runs were most of a profile, 98 KB of one account's 107 KB, near
+ * what a save may be (Milestone 913).
+ */
+const RETIRED = /^range\.course\.(best|splits\.v2|ghost\.v2|recent\.v1|ghostOn)$|^range\.course\.advanced\./;
 /** a key bigger than this stays local (a recorded ghost run) */
 const KEY_MAX = 64 * 1024;
 
@@ -41,6 +52,29 @@ export function session(): Session | null {
   }
 }
 
+/**
+ * The server signed this session out (it ran out): this browser goes on, and is told so. Who it was and when it last
+ * synced are kept, so that signing in again can tell whose copy is the newer (Milestone 910).
+ */
+function lapse(s: Session): void {
+  saveSession(null);
+  try {
+    localStorage.setItem(LAPSED_KEY, JSON.stringify({ name: s.name, updated: s.updated }));
+  } catch {
+    /* ignore */
+  }
+}
+
+function takeLapsed(): { name: string; updated: string | null } | null {
+  try {
+    const l = JSON.parse(localStorage.getItem(LAPSED_KEY) ?? "null") as { name?: unknown; updated?: unknown } | null;
+    localStorage.removeItem(LAPSED_KEY);
+    return l && typeof l.name === "string" ? { name: l.name, updated: typeof l.updated === "string" ? l.updated : null } : null;
+  } catch {
+    return null;
+  }
+}
+
 function saveSession(s: Session | null): void {
   try {
     if (s) localStorage.setItem(TOKEN_KEY, JSON.stringify(s));
@@ -56,7 +90,7 @@ export function collectProfile(): Record<string, string> {
   try {
     for (let i = 0; i < localStorage.length; i++) {
       const k = localStorage.key(i);
-      if (!k || !k.startsWith("range.") || NOT_SYNCED.has(k)) continue;
+      if (!k || !k.startsWith("range.") || NOT_SYNCED.has(k) || RETIRED.test(k)) continue;
       const v = localStorage.getItem(k);
       if (v !== null && v.length <= KEY_MAX) out[k] = v;
     }
@@ -109,6 +143,14 @@ export async function signIn(name: string, password: string, create: boolean): P
   if (r.status !== 200 || typeof r.json.token !== "string") return { ok: false, error: typeof r.json.error === "string" ? r.json.error : "that did not work" };
   const s: Session = { name: String(r.json.name), token: r.json.token, updated: typeof r.json.updated === "string" ? r.json.updated : null };
   saveSession(s);
+  // Signed in again after this browser's session ran out: if nobody has saved to the account since this browser last
+  // did, what it earned meanwhile is the newer copy, and goes up. The account's went over it, everything since the
+  // session ran out lost (Milestone 910).
+  const lapsed = takeLapsed();
+  if (lapsed && lapsed.updated !== null && s.updated !== null && lapsed.name.toLowerCase() === s.name.toLowerCase() && s.updated <= lapsed.updated) {
+    await push();
+    return { ok: true };
+  }
   const prof = r.json.profile;
   if (prof && typeof prof === "object" && !Array.isArray(prof)) {
     applyProfile(prof as Record<string, unknown>);
@@ -134,7 +176,7 @@ export async function pullIfNewer(): Promise<boolean> {
   const s = session();
   if (!s) return false;
   const r = await call("profile", "GET", undefined, s.token);
-  if (r.status === 401) saveSession(null);
+  if (r.status === 401) lapse(s);
   if (r.status !== 200) return false;
   const updated = typeof r.json.updated === "string" ? r.json.updated : null;
   const prof = r.json.profile;
@@ -153,7 +195,7 @@ export async function push(): Promise<boolean> {
   const s = session();
   if (!s) return false;
   const r = await call("profile", "PUT", { profile: collectProfile() }, s.token);
-  if (r.status === 401) saveSession(null);
+  if (r.status === 401) lapse(s);
   PUSH_FAILED.status = r.status === 200 ? null : r.status;
   if (r.status !== 200) return false;
   saveSession({ ...s, updated: typeof r.json.updated === "string" ? r.json.updated : s.updated });

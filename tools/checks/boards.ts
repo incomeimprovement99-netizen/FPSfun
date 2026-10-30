@@ -8,7 +8,7 @@
 // Run on its own: npx tsx tools/checks/boards.ts.
 import { readFileSync } from "node:fs";
 // @ts-expect-error: a plain JavaScript module of the server's
-import { BEST_OF, nextBoardValue } from "../../server/game/boardrules.mjs";
+import { BEST_OF, COURSE_FLOOR, boardName, nextBoardValue } from "../../server/game/boardrules.mjs";
 
 let fails = 0;
 function check(label: string, cond: boolean, detail = ""): void {
@@ -44,6 +44,11 @@ check("every board the game posts to is one the server keeps", missing.length ==
   const best = (prev: number | undefined, v: number, board = "match:kills") => nextBoardValue(false, prev, v, board);
   check("a best-of-a-match board keeps the best rather than counting posts", best(undefined, 12) === 12 && best(12, 17) === 17, `${best(undefined, 12)}, then ${best(12, 17)}`);
   check("and a worse match changes nothing", best(17, 3) === 17);
+  // (Milestone 912) a name with spaces at its ends or doubled inside is the name without them, so it meets the check that
+  // keeps an account's name for its owner; THE RUN's board takes nothing under its own floor; wins are whole
+  check("a name's end spaces go and its inner ones run together, as the boards keep it", boardName(" Alice ") === "Alice" && boardName("Al  ice") === "Al ice" && boardName("B00G") === "B00G");
+  check("THE RUN's board refuses a time under its floor, which no run of it makes, and keeps one over it", nextBoardValue(true, undefined, 5, "course:basic.r2") === null && nextBoardValue(true, undefined, COURSE_FLOOR["course:basic.r2"] + 9, "course:basic.r2") === COURSE_FLOOR["course:basic.r2"] + 9, `floor ${COURSE_FLOOR["course:basic.r2"]} s`);
+  check("a wins post of 1.5 counts as a whole win at most", wins(undefined, 1.5) === 1 && wins(3, 3.5) === 3, `${wins(undefined, 1.5)}, ${wins(3, 3.5)}`);
   check("a forged match above anything a match can produce is refused", best(17, 999) === null && best(undefined, 19999, "match:damage") === 19999, `kills cap ${BEST_OF["match:kills"]}, damage cap ${BEST_OF["match:damage"]}`);
 }
 

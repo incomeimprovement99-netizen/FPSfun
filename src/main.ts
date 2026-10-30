@@ -28,7 +28,7 @@ import { seen, type SeenDetail, type SeenEvent } from "./net/seen";
 import { FEEDBACK_MAX, sendFeedback, type FeedbackKind } from "./net/feedback";
 import { SlowTip } from "./game/perftip";
 import type Peer from "peerjs";
-import { Course } from "./game/course";
+import { Course, courseKey } from "./game/course";
 import { keyPanelTexts, setPanelKeys } from "./game/geo";
 import { BASIC_COURSE, RUN_ROUTE } from "./game/courses/basic";
 import { TUTORIAL_COURSE, DASH_HAZARD } from "./game/courses/tutorial";
@@ -77,7 +77,7 @@ import { Hacks, HACK, HACK_DEFS, cooldownOf, hackDef, hackSlotOf, savedPicks, sa
 import { BotMatch, MOST_BOTS, tierSpeed } from "./game/bots";
 import { Stats, asDifficulty, type MatchKind, type MatchSummary, type BotDifficulty } from "./game/stats";
 import { initAccountUi } from "./ui/account";
-import { submitScore } from "./game/leaderboard";
+import { flushScores, submitScore } from "./game/leaderboard";
 import { hostMatch, joinMatch, normaliseCode, type BrWelcome, type HostHandle, type Link, type MatchOpts, type MatchRules, type NetMsg } from "./net/link";
 import { deviceProblem, dismissWelcome, initWelcome } from "./ui/welcome";
 import { AimAssist } from "./game/aimassist";
@@ -5965,10 +5965,10 @@ for (const course of courses) {
   };
   course.onNotice = (text) => hud.notice(text, gameTime, 1.2);
   course.onFinish = (r) => {
-    profile.recordRun(course.layout.id, r.time, r.rank);
+    profile.recordRun(courseKey(course.layout), r.time, r.rank);
     announceAward(progress.awardRun(r.rank));
     profile.flush();
-    void submitScore(`course:${course.layout.id}`, profile.profile.name, Number(r.time.toFixed(3))).then((rank) => {
+    void submitScore(`course:${courseKey(course.layout)}`, profile.profile.name, Number(r.time.toFixed(3))).then((rank) => {
       if (rank !== null) hud.notice(`#${rank} ON THE ONLINE BOARD`, gameTime, 3);
     });
   };
@@ -6224,6 +6224,8 @@ const account = initAccountUi({
     menu.renderStats();
   },
 });
+// a result from a visit before whose post did not get there goes now (Milestone 914)
+void flushScores();
 menu.setRunBest(courseBasic.best);
 applyLoadout(loadouts.current);
 let armorTier: ArmorTier = 0;

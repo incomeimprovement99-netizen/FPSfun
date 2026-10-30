@@ -27,6 +27,8 @@ interface State {
   active: Array<{ id: string; got: number }>;
   /** how many challenges have been finished, all time */
   done: number;
+  /** where the pool's rotation goes on from: the one after the last challenge put up (Milestone 911) */
+  next?: number;
 }
 
 export interface Award {
@@ -106,6 +108,7 @@ function clean(raw: unknown): State {
     const n = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v >= 0 ? v : 0);
     fresh.xp = n(r.xp);
     fresh.done = Math.floor(n(r.done));
+    if (typeof r.next === "number" && Number.isFinite(r.next) && r.next >= 0) fresh.next = Math.floor(r.next);
     if (Array.isArray(r.active))
       for (const a of r.active) if (a && typeof a === "object" && CHALLENGES.some((c) => c.id === (a as { id: unknown }).id) && !fresh.active.some((x) => x.id === a.id)) fresh.active.push({ id: a.id, got: n(a.got) });
   }
@@ -117,6 +120,9 @@ export class Progress {
   /** called whenever something changes, so a screen that shows it can redraw */
   onChange: (() => void) | null = null;
 
+  /** what this page last wrote: a stored copy that is still it was not changed by another tab */
+  private written: string | null = null;
+
   constructor(private readonly storage: Pick<Storage, "getItem" | "setItem"> | null = pageStorage()) {
     let raw: unknown = null;
     try {
@@ -126,6 +132,28 @@ export class Progress {
       raw = null;
     }
     this.s = clean(raw);
+    this.refill();
+  }
+
+  /**
+   * The stored copy, when another tab of the game has written one since this page did. Each page read it once and wrote
+   * its own whole copy back at each award, so a second tab (a friend's invite opened beside the game) had what it
+   * earned wiped by the first tab's next run, and the account was then synced from that (Milestone 909). Storage refused
+   * or empty: this page's own copy stays.
+   */
+  private fresh(): void {
+    let t: string | null | undefined;
+    try {
+      t = this.storage?.getItem(KEY);
+    } catch {
+      return;
+    }
+    if (!t || t === this.written) return;
+    try {
+      this.s = clean(JSON.parse(t));
+    } catch {
+      return;
+    }
     this.refill();
   }
 
@@ -155,6 +183,7 @@ export class Progress {
   }
 
   private apply(matchXp: number, add: Record<string, number>): Award {
+    this.fresh();
     const levelBefore = this.level.level;
     let gained = matchXp;
     const completed: Challenge[] = [];
@@ -174,21 +203,28 @@ export class Progress {
     return { gained, match: matchXp, levelBefore, levelAfter: this.level.level, completed };
   }
 
-  /** top the active list back up, rotating through the pool from where the finished ones were */
+  /**
+   * Top the active list back up, rotating through the pool from the one after the last put up. The rotation went on
+   * from the count finished, so a challenge finished out of the pool's order was put straight back up at nothing:
+   * "Deal 5,000 damage" twice in a row, "Win 3 matches" after the third win and the sixth (Milestone 911). A copy from
+   * before that has no place in the pool goes on from its count, as it did.
+   */
   private refill(): void {
     const want = Math.min(cfg.active, CHALLENGES.length);
-    let cursor = this.s.done;
+    let cursor = this.s.next ?? this.s.done;
     let guard = 0;
     while (this.s.active.length < want && guard++ < CHALLENGES.length * 2) {
       const c = CHALLENGES[cursor % CHALLENGES.length];
       cursor++;
       if (!this.s.active.some((a) => a.id === c.id)) this.s.active.push({ id: c.id, got: 0 });
     }
+    this.s.next = cursor % CHALLENGES.length;
   }
 
   private save(): void {
     try {
-      this.storage?.setItem(KEY, JSON.stringify(this.s));
+      this.written = JSON.stringify(this.s);
+      this.storage?.setItem(KEY, this.written);
     } catch {
       // storage off: progress counts for the session and is not kept
     }
