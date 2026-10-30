@@ -258,5 +258,41 @@ console.log("SpeedKills' movement where it went wrong (player.ts)");
   check("a leap's glide falls no faster than the dive's glide (squad.json dive.glideFall), lands, and is over, with the dropship's dive never on", p.onGround && !p.gliding && !wasDropping && fell <= squadCfg.dive.glideFall + 0.5, JSON.stringify({ landed: p.onGround, gliding: p.gliding, wasDropping, fastest: +fell.toFixed(1) }));
 }
 
+// (Milestone 931) a dive steered into a roof's edge mantles up: that is a landing, where `dropping` stayed on and the gun
+// stayed away and the trigger locked on the roof until the next jump
+{
+  world([{ minX: -15, maxX: 15, minZ: -40, maxZ: -10, top: 20, base: 0 }]);
+  const inp = new Script();
+  let mantled = 0;
+  let stuck = 0;
+  for (let y0 = 22; y0 <= 34; y0 += 0.5) {
+    for (const pitch of [-5, -20, -35]) {
+      const p = player();
+      p.beginDrop(0, y0, 0, 0);
+      p.pitch = pitch;
+      let t = 100;
+      let rose = false;
+      inp.hold("forward");
+      for (let i = 0; i < 1200; i++) {
+        t += dt;
+        p.update(dt, t, inp, 0, 1, false);
+        inp.endFrame();
+        if (p.mantling) rose = true;
+        if (p.onGround && !p.mantling) break;
+      }
+      // a second stood still on the roof: walking on, the far end's fall would end it
+      inp.release("forward");
+      for (let i = 0; i < 60; i++) {
+        t += dt;
+        p.update(dt, t, inp, 0, 1, false);
+        inp.endFrame();
+      }
+      if (rose) mantled++;
+      if (rose && p.dropping) stuck++;
+    }
+  }
+  check("a dive that ends in a mantle onto a roof is a landing", mantled > 0 && stuck === 0, JSON.stringify({ mantled, stuck }));
+}
+
 console.log(fails === 0 ? "\nSK MOVES PASS" : `\nSK MOVES FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

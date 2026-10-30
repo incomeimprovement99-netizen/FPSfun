@@ -481,7 +481,8 @@ export class ArenaMode extends Duel {
     if (mine) this.kills++;
     const who = by === this.id ? this.myName || "YOU" : (this.nameOf(by) ?? "SOMEONE");
     this.onFeed?.(`${who} knocked ${r.name}`, mine, !mine);
-    this.broadcast({ t: "down", from: r.id, by, m: melee ? 1 : undefined });
+    // (stamped as a player's is: a state from just before it, late, stood the bot back up, Milestone 935)
+    this.broadcast({ t: "down", from: r.id, by, m: melee ? 1 : undefined, tm: senderStamp() });
     if (mine) this.onNotice?.(`${r.name} DOWN`);
     b.respawnAt = now + this.respawnDelay;
     this.scoreDown(r.id, by, melee, b.bot.pos.x, b.bot.pos.z);

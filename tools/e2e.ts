@@ -598,7 +598,8 @@ async function jitterTest(browser: Browser, query: string, lossy = false): Promi
       return { x: c.x, z: c.z, found: false }; })()`,
   );
   await sleep(600);
-  await ev(guest, `(() => { const r = window.__range; const R = 4; const w = 1.5; const t0 = performance.now();
+  // (its speed said as it is: the place is set by hand with no velocity, and a state saying 0 is one saying they stopped)
+  await ev(guest, `(() => { const r = window.__range; const R = 4; const w = 1.5; const t0 = performance.now(); Object.defineProperty(r.player, "speed", { get: () => R * w, set() {}, configurable: true });
     r.setScript({ held: () => false, pressedNow: () => false }, () => { const t = (performance.now() - t0) / 1000; r.player.pos.set(${ring.x} + R * Math.cos(w * t), r.player.pos.y, ${ring.z} + R * Math.sin(w * t)); r.player.vel.set(0, 0, 0); r.player.yaw = (-w * t * 180) / Math.PI; }); })()`);
   await sleep(1500);
   // how even the figure's speed is, frame to frame, over 2.5 s: the spread of it over its mean

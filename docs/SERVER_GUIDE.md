@@ -221,7 +221,7 @@ ships.
 | `npm run fps logs` | the server's last 60 log lines | no |
 | `npm run fps seen [days] [all]` | who played: the visit log (`~/range/seen.jsonl`) read as sittings, each browser's lines grouped until half an hour passes with nothing, the last 3 days by default in Chicago time; the deploy's own test browser is left out unless `all` | no |
 | `npm run fps feedback [days] [all]` | what players sent from the menu's Feedback tab (`~/range/feedback.jsonl`), oldest first with its kind, name, build and settings, the last 7 days by default; the deploy's own test browser left out unless `all` | no |
-| `npm run fps backup` | copies `boards.json`, `accounts.json`, `seen.jsonl` and `feedback.jsonl` down to `server-backup/<date>/` (gitignored: password hashes) | no |
+| `npm run fps backup` | copies `boards.json`, `accounts.json`, `seen.jsonl` and `feedback.jsonl`, with the rotated `.1` of the last two, down to `server-backup/<date>/` (gitignored: password hashes) | no |
 | `npm run fps ssh` | a shell on the box | only what you type |
 | `npm run fps restart` | restart the game server, rereading `~/range/range.env` | restarts it |
 | `npm run fps rollback` | put the previous release back | yes |

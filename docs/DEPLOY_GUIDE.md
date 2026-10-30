@@ -36,7 +36,7 @@ npm run fps deploy     # the release gate, the public build of the last commit, 
 `npm run fps deploy` runs the release gate first (`npm run verify`, `npm run rules` and the recorded sounds on disk:
 `tools/release-gate.ts`), builds the **last commit** in a clean copy (whatever is half-edited here is left out), packs
 it with `server/game/`, copies it to the box, swaps it in, reloads pm2, checks `/health`, and then plays a 1v1 on the
-live site through its own broker (LIVE CHECK). `npm run fps rollback` puts the previous release back. Only one deploy
+live site through its own broker (LIVE CHECK). A release that does not answer `/health` as itself in 20 s is swapped back by the deploy, which then fails. `npm run fps rollback` puts the previous release back. Only one deploy
 at a time: they share `apex-range/dist`.
 
 If the LIVE CHECK fails right after the restart on "the host gets a match code", run `npm run live` on its own a

@@ -39,6 +39,7 @@ import { releaseGate } from "./release-gate";
 import { cityBakeProblems, rangeDressProblems, rangeVersion, tutorialDressProblems } from "./citybake";
 import { execFileSync, execSync, spawn, spawnSync } from "node:child_process";
 import { lookup } from "node:dns/promises";
+import { HEALTH_AFTER_RELOAD, rollbackSteps, shipSteps } from "./release-steps";
 import { cpSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, unlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -59,11 +60,6 @@ if (existsSync(envFile)) {
 const HOST = process.env.RANGE_HOST ?? "";
 const KEY = process.env.RANGE_KEY ?? "";
 const DOMAIN = process.env.RANGE_DOMAIN ?? "";
-/**
- * after pm2 reloads the server: /health once it answers, up to 20 s, else the failing probe (a second after the reload
- * the server was not yet listening, and a deploy that had gone out whole failed there, 2026-09-29)
- */
-const HEALTH_AFTER_RELOAD = "for i in $(seq 1 20); do curl -fsS localhost:4100/health >/dev/null 2>&1 && break; sleep 1; done; curl -fsS localhost:4100/health; echo";
 // (ConnectTimeout covers opening the connection only: on 2026-10-01 one opened and then stalled, and the deploy sat
 // silent for 29 minutes before anything said so. The keep-alives drop a session the far end has stopped answering
 // after a minute; a long quiet step, npm ci or the reload, is still answered and goes on.)
@@ -110,10 +106,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
  * ignores (public/tex, models, audio) copied in, and a junction to this
  * folder's node_modules. dropSnapshot() removes it.
  */
-function snapshot(): string {
+function snapshot(head = "HEAD"): string {
   const dir = mkdtempSync(join(tmpdir(), "range-head-"));
   const tar = `${dir}.tar`;
-  execFileSync("git", ["archive", "--format=tar", "-o", tar, "HEAD"], { cwd: ROOT });
+  execFileSync("git", ["archive", "--format=tar", "-o", tar, head], { cwd: ROOT });
   execFileSync(TAR, ["-xf", tar, "-C", dir]);
   rmSync(tar, { force: true });
   // (the Neon City's bake of the committed map version only: every older bake kept in public/models/paid/neon went
@@ -157,16 +153,17 @@ function snapshot(): string {
   return dir;
 }
 function dropSnapshot(dir: string): void {
-  // the junction first, by itself, so nothing can ever walk into the real node_modules
-  unlinkSync(join(dir, "node_modules"));
+  // the junction first, by itself, so nothing can ever walk into the real node_modules (not made yet when the copy was
+  // refused: the ENOENT said instead of the reason, and the copy left in the temp folder, Milestone 938)
+  if (existsSync(join(dir, "node_modules"))) unlinkSync(join(dir, "node_modules"));
   rmSync(dir, { recursive: true, force: true });
 }
 
 /** build the public beta in `src` (this folder, or a snapshot of the last commit) and pack site/ + server/ into one tarball; returns its path and the version stamp */
-function pack(src = ROOT): { tgz: string; version: string } {
+function pack(src = ROOT, head = "HEAD"): { tgz: string; version: string } {
   console.log(`\n== building the public beta${src === ROOT ? " from this folder as it is" : " from the last commit"}`);
   execSync("npm run build:beta", { cwd: src, stdio: "inherit" });
-  const sha = out("git rev-parse --short HEAD");
+  const sha = out(`git rev-parse --short ${head}`);
   const dirty = src === ROOT && out("git status --porcelain") ? "+local" : "";
   const version = `${sha}${dirty} ${new Date().toISOString().slice(0, 16)}Z`;
   writeFileSync(join(src, "dist", "version.txt"), `${version}\n`);
@@ -334,9 +331,10 @@ async function main(): Promise<void> {
     needHost();
     spawnSync(SSH, [...sshArgs, HOST], { stdio: "inherit" });
   } else if (verb === "restart") {
-    ssh(`pm2 startOrReload ~/range/app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; ${HEALTH_AFTER_RELOAD}`);
+    ssh(`set -e; pm2 startOrReload ~/range/app/server/ecosystem.config.cjs --update-env; pm2 save >/dev/null; ${HEALTH_AFTER_RELOAD}`);
   } else if (verb === "backup") {
-    const have = sshOut("cd ~/range && ls boards.json accounts.json seen.jsonl feedback.jsonl 2>/dev/null || true").split(/\s+/).filter(Boolean);
+    // (with what the logs rotated: the players' notes in them were kept nowhere else, Milestone 938)
+    const have = sshOut("cd ~/range && ls boards.json accounts.json seen.jsonl seen.jsonl.1 feedback.jsonl feedback.jsonl.1 2>/dev/null || true").split(/\s+/).filter(Boolean);
     if (!have.length) return console.log("nothing to save yet: no boards or accounts on the box");
     const dir = join(ROOT, "server-backup", new Date().toISOString().slice(0, 16).replace(/[:T]/g, "-"));
     mkdirSync(dir, { recursive: true });
@@ -369,11 +367,7 @@ async function main(): Promise<void> {
   } else if (verb === "logs") {
     ssh("pm2 logs range --lines 60 --nostream");
   } else if (verb === "rollback") {
-    ssh(
-      "set -e; cd ~/range; test -d prev || { echo 'no previous release'; exit 1; }; " +
-        "mv app failed; mv prev app; mv failed prev; " +
-        `pm2 startOrReload app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null; ${HEALTH_AFTER_RELOAD}`
-    );
+    ssh(rollbackSteps);
   } else if (verb === "dry") {
     // the release as the box would get it, unpacked and run here
     const { tgz, version } = pack();
@@ -404,45 +398,36 @@ async function main(): Promise<void> {
     }
   } else if (verb === "deploy") {
     needHost();
+    // The commit the gate passes is the commit that ships: HEAD read again after the gate's minutes could be another
+    // agent's merge, gone out ungated, and /health could name a commit that was not the one packed (Milestone 938).
+    const head = out("git rev-parse HEAD");
     releaseGate(ROOT);
     // the last commit, built from a clean copy; `deploy local` ships this folder as it is, uncommitted edits and all
     const local = process.argv[3] === "local";
     if (!local) {
-      console.log(`== deploying the last commit: ${execFileSync("git", ["log", "-1", "--format=%h %s"], { cwd: ROOT, encoding: "utf8" }).trim()}`);
+      console.log(`== deploying the last commit: ${execFileSync("git", ["log", "-1", "--format=%h %s", head], { cwd: ROOT, encoding: "utf8" }).trim()}`);
+      if (out("git rev-parse HEAD") !== head) console.log("   (main moved during the gate: this release is the commit the gate passed, not the newest)");
       const ahead = spawnSync("git", ["rev-list", "--count", "origin/main..HEAD"], { cwd: ROOT, encoding: "utf8" });
       if (ahead.status === 0 && ahead.stdout.trim() !== "0") console.log(`   (${ahead.stdout.trim()} of them not pushed to origin/main yet)`);
       if (out("git status --porcelain")) console.log("   (this folder has uncommitted changes, which this release leaves out: commit them first, or npm run fps deploy local)");
     }
-    const src = local ? ROOT : snapshot();
+    const src = local ? ROOT : snapshot(head);
     let packed: { tgz: string; version: string };
     try {
-      packed = pack(src);
+      packed = pack(src, local ? "HEAD" : head);
     } finally {
       if (!local) dropSnapshot(src);
     }
     const { tgz, version } = packed;
     console.log(`\n== shipping ${version} to ${HOST}`);
-    ssh("mkdir -p ~/range");
-    scp(tgz, "range/incoming.tgz");
-    rmSync(tgz, { force: true });
-    ssh(
-      [
-        "set -e",
-        "cd ~/range",
-        // (one command a step, so set -e stops at the first that fails: chained with &&, a tar that ran out of disk
-        // did not stop it, and the half-unpacked release was swapped in over the running one, 2026-10-13)
-        "rm -rf next",
-        "mkdir next",
-        "tar -xzf incoming.tgz -C next",
-        "rm incoming.tgz",
-        "cd next/server",
-        "npm ci --omit=dev --no-audit --no-fund --loglevel=error",
-        "cd ~/range",
-        "rm -rf prev; if [ -d app ]; then mv app prev; fi; mv next app",
-        "pm2 startOrReload app/server/ecosystem.config.cjs --update-env && pm2 save >/dev/null",
-        HEALTH_AFTER_RELOAD,
-      ].join("; ")
-    );
+    // (what a stopped deploy left goes first: the upload needs its room)
+    ssh("mkdir -p ~/range; rm -rf ~/range/next ~/range/incoming.tgz");
+    try {
+      scp(tgz, "range/incoming.tgz");
+    } finally {
+      rmSync(tgz, { force: true });
+    }
+    ssh(shipSteps(version.split(" ")[0]));
     if (DOMAIN) {
       console.log(`\n== playing a 1v1 on https://${DOMAIN}/ through its own broker`);
       liveCheck(`https://${DOMAIN}/`);

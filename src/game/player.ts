@@ -1501,6 +1501,10 @@ export class Player {
     const carry = Math.min(mt.entry, MOVE.sprintSpeed) * MOVE.mantleCarry;
     this.vel.set(mt.dirX * carry, 0, mt.dirZ * carry);
     this.mantle = null;
+    // a dive that ends on a ledge is a landing: `dropping` stayed on, the gun hidden and the trigger locked on the roof
+    // until your next jump (Milestone 931)
+    this.dropping = false;
+    this.gliding = false;
     // a jump pressed in this mantle's window must not count for the next one
     this.sgJumpFrame = -10;
     this.onGround = true;

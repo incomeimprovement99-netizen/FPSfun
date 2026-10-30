@@ -1421,7 +1421,8 @@ export class BrMatch extends Duel {
     // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one). The guests are told with
     // the down: their pages have no bots, and never said it (Milestone 926)
     const wiped = this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive);
-    this.broadcast({ t: "down", from: r.id, by, w: weapon || undefined, hd: head ? 1 : undefined, wp: wiped ? 1 : undefined });
+    // (stamped as a player's is: a state from just before it, late on the unordered channel, stood the bot back up, Milestone 935)
+    this.broadcast({ t: "down", from: r.id, by, w: weapon || undefined, hd: head ? 1 : undefined, wp: wiped ? 1 : undefined, tm: senderStamp() });
     this.onKnockSeen?.(r.id, by);
     const left = this.aliveCount;
     if (wiped) {
@@ -1437,24 +1438,23 @@ export class BrMatch extends Duel {
 
   /** where a won Gulag drops you back: 8 m or more from a squad mate who is up, else anywhere well inside the ring, on open ground */
   private dropBackSpot(near: THREE.Vector3 | null): { x: number; z: number } {
-    const a = Math.random() * Math.PI * 2;
-    let x: number;
-    let z: number;
+    const inCity = (v: number, mid: number): number => Math.max(mid - BR_HALF + 5, Math.min(mid + BR_HALF - 5, v));
+    // By a mate, on ground the decay has not reached: any bearing took you down into a lost sector beside them, its damage
+    // ticking as you fell (Milestone 932). Nothing clear round them: the final sector, as with no mate up.
     if (near) {
-      const r = 8 + Math.random() * Math.max(0, GULAG.landSpread - 8);
-      x = near.x + Math.cos(a) * r;
-      z = near.z + Math.sin(a) * r;
-    } else {
-      // SpeedKills: in the final sector, which never decays (Milestone 733: the ring's first round is the whole map, and
-      // with no mate up a won Gulag dropped you anywhere in it, a wave's sector warned or decaying among them)
-      const c = this.decay && this.decayCircle ? this.decayCircle : this.view.current;
-      const r = Math.sqrt(Math.random()) * c.r * 0.6;
-      x = c.cx + Math.cos(a) * r;
-      z = c.cz + Math.sin(a) * r;
+      for (let i = 0; i < 12; i++) {
+        const a = Math.random() * Math.PI * 2;
+        const r = 8 + Math.random() * Math.max(0, GULAG.landSpread - 8);
+        const o = openGround(inCity(near.x + Math.cos(a) * r, BR_CENTER.x), inCity(near.z + Math.sin(a) * r, BR_CENTER.z));
+        if (!this.lostAt(o.x, o.z)) return o;
+      }
     }
-    x = Math.max(BR_CENTER.x - BR_HALF + 5, Math.min(BR_CENTER.x + BR_HALF - 5, x));
-    z = Math.max(BR_CENTER.z - BR_HALF + 5, Math.min(BR_CENTER.z + BR_HALF - 5, z));
-    return openGround(x, z);
+    // SpeedKills: in the final sector, which never decays (Milestone 733: the ring's first round is the whole map, and
+    // with no mate up a won Gulag dropped you anywhere in it, a wave's sector warned or decaying among them)
+    const a = Math.random() * Math.PI * 2;
+    const c = this.decay && this.decayCircle ? this.decayCircle : this.view.current;
+    const r = Math.sqrt(Math.random()) * c.r * 0.6;
+    return openGround(inCity(c.cx + Math.cos(a) * r, BR_CENTER.x), inCity(c.cz + Math.sin(a) * r, BR_CENTER.z));
   }
 
 
@@ -2342,7 +2342,13 @@ export class BrMatch extends Duel {
     if (this.phase === "waiting") return;
     // the drop ends for the host when it lands: the fight is on from then
     // (a skydive is in the air too: the figure others see has its own stance for it, Milestone 604)
-    if (this.phase === "countdown" && !airborne(local.stance) && now - this.dropAt > 1) {
+    // Or a friend down first, the ship's doors open: they stood with a gun that did nothing and no word why, about 20 s when
+    // the host rode to the end of the line (Milestone 933).
+    const friendDown = !!this.ship && this.ship.doorsIn(now) <= 0 && [...this.remotes.values()].some((r) => {
+      const s = r.samples[r.samples.length - 1];
+      return r.id < Duel.BOT_ID && r.alive && !!s && !airborne(s.stance);
+    });
+    if (this.phase === "countdown" && (!airborne(local.stance) || friendDown) && now - this.dropAt > 1) {
       this.enter("fight", now, 0);
       this.onNotice?.(this.fightNotice());
     }

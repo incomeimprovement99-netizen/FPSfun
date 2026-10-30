@@ -3747,7 +3747,8 @@ function useHack(slot: HackSlot, now: number): void {
   }
   // In the dropship's dive a throw cannot move you (player.ts impulse): LEAP and SLAM spent their cooldown there for
   // nothing (Milestone 891)
-  if (player.dropping && (held.id === "leap" || held.id === "slam")) {
+  // (and WALL, HEAL and MINE, which stood at your height in the sky: Milestone 932)
+  if (player.dropping && (held.id === "leap" || held.id === "slam" || held.id === "wall" || held.id === "heal" || held.id === "mine")) {
     hud.notice(`${hackDef(held.id)?.name ?? held.id}: NOT IN THE DIVE`, now, 0.8);
     return;
   }

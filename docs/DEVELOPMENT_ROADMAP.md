@@ -13834,6 +13834,98 @@ doSpray, sprays.ts, brplay.ts).
   spray on a WALL panel stays as long as the panel; e2e sklobby: a friend's spray in the range together is theirs on
   their page.
 
+## Milestone 931 — A dive that ends on a ledge is a landing
+
+From a review of the dropship and the fall. A dive steered into a roof's edge mantled up onto the roof and never ended:
+`dropping` stayed on, so the gun stayed away and the trigger stayed locked until your next jump. Finishing a mantle ends
+the dive and the glide (player.ts).
+
+- **Checked:** tsc, verify, rules; sk-moves.ts: 22 dives into a block's face that mantle onto its roof, none still
+  diving a second later (22 of 22 on the old code).
+
+## Milestone 932 — Back in the fight on ground that is left, and nothing stood in the sky
+
+A won Gulag dropped you by a mate at any bearing, so a mate near the decay's edge meant coming down in a lost sector, its
+damage ticking on the way. It takes 12 tries for ground the decay has not reached, and with none, the final sector. WALL,
+HEAL and MINE used in a dive stood at your height in the sky; a dive refuses them as it does LEAP and SLAM (brmatch.ts
+dropBackSpot, main.ts useHack).
+
+- **Checked:** tsc, verify, rules; netfigures.ts, new in verify, the real dropBackSpot: 0 of 400 in a lost sector (194 of
+  400 on the old code), the final sector when nothing is clear.
+
+## Milestone 933 — A friend down first starts the fight
+
+The fight began when you landed. Riding to the end of the line with a friend already down, the friend stood with a gun
+that did nothing and no word why, about 20 s when the host rode longest. A friend on the ground, the ship's doors open,
+starts it too (brmatch.ts).
+
+- **Checked:** tsc, verify, rules; netfigures.ts; e2e skship.
+
+## Milestone 934 — A bot's floor, and a friend who is reconnecting
+
+A bot's fall asked for the ground from the height it had fallen to, so at 30 fps a frame's fall past a floor (a metre)
+missed it and the bot went on under the street; it asks from where the frame began (bots.ts). A guest took down anyone
+silent for 10 s, with the host holding that seat for 60 s: a friend reconnecting was torn down on every guest's screen, and
+the guest getting back in lost every figure but the host's, a LOST line each. A guest gives the others the host's hold as
+well and takes nobody down while it is getting back in itself: the host says who has really gone (duel.ts).
+
+- **Checked:** tsc, verify, rules; netfigures.ts: through an 11 s drop every figure stays and nobody reads LOST (on the
+  old code both guests lost the figure and read LOST).
+
+## Milestone 935 — Figures where they are
+
+From a review of the network sync. The sender's own quiet counted as lateness: a player who stopped for under 0.6 s with
+the mouse still and moved on was drawn 300 ms behind on a clean link, not 100; the quiet now comes out of the gap. A figure
+was drawn on past a state saying it had stopped, up to a metre, until the next state; no longer. A figure first seen out
+lay at the world's origin; it lies where it is. And a bot's down carried no stamp, so a state from just before it, late on
+the unordered channel, stood the bot back up; it is stamped as a player's is (duel.ts, brmatch.ts, modematch.ts).
+
+- **Checked:** tsc, verify, rules; netfigures.ts: 100 ms behind on a clean link (300 on the old code), 0 of 12 stops over
+  25 cm off at 250 m and at 40 m with 15% lost (7 of 12 and 2 of 12, worst 1.05 m), a figure that is out at its real spot
+  after a rejoin (0, 0 on the old code), each down stamped; e2e duel, triple, migrate, skship, bots.
+
+## Milestone 936 — One frame no longer stops the server
+
+From a review of the game server. A broker message whose `dst` was an object with no way to be a string was queued for a
+client that did not exist, and 5 s later the broker's sweep of its queue threw on it, in a timer of its own, past the
+`broker.on("error")` of Milestone 730: the whole server went down, the site, the accounts and every match being made,
+and any sign-up not yet written with it. Anyone could send it, and sending it every few seconds kept the site down. A `dst`
+that is no string is dropped before the broker handles the frame (serve.mjs).
+
+- **Checked:** tsc, verify, rules; serve-broker.ts: the server up past the sweep, an offer to nobody still answered
+  EXPIRE; on the old server it exited at the sweep.
+
+## Milestone 937 — A server one client cannot fill
+
+The same review. One socket may send 512 KB in 10 s and is dropped past it: every socket of an address sending its largest
+frames took the server from 76 MB to 3 GB in 9 s. An address makes 20 accounts a day: one took every player's profile
+budget in 6.4 hours and the last account in 3.5 days. The profile budget counts bytes, not characters (a 144 MB file
+counted as 46). A file that will not parse is kept beside itself as `<file>.bad-<time>`, where the next write replaced it
+with an empty one and 200 users became 1; the hourly sweep no longer writes when it changed nothing. A stop writes again on
+the way out, so a sign-up mid-hash is not answered 200 and lost. A client's bad request (a body in an encoding nobody reads,
+a path that is no path) is refused with no stack in the log, which grew 7.5 GB a day from one client. And each page's relay
+credential is its own, as coturn counts its quota by what follows the expiry: all players were one user of 8 relays.
+
+- **Checked:** tsc, verify, rules; serve-broker.ts: the socket dropped, no log line, the bad file kept (the first two
+  failing on the old server, which the first frame had already stopped). The budget, the stop, the day's limit and the
+  credential are read from the source: a stop by signal is a kill on Windows, and the others take hours.
+- **Not done, on the box:** `no-tcp-relay` for coturn and pm2-logrotate need `setup.sh` run there.
+
+## Milestone 938 — A release that fails puts the last one back
+
+`fps deploy` swapped the new release in before asking whether it came up, and nothing swapped back: a server that crashed
+at start left pm2 looping and the site down until someone ran a rollback. And any answer on /health passed, so a reload
+that failed left the old server over the new site, called a good deploy. A release now has to answer /health as itself
+within 20 s, or the last one goes back and the deploy fails; `fps rollback` and `fps restart` stop on a failed reload too. A
+failed unpack leaves neither `next/` nor the upload on the disk, and what a stopped deploy left goes before the next upload.
+The commit the gate passes is the commit that ships (pinned before the gate: HEAD read again after it could be another
+agent's merge). A copy refused for an unwhole bake says why, not ENOENT, and leaves nothing in the temp folder. `fps backup`
+takes the rotated `feedback.jsonl.1` and `seen.jsonl.1` too (tools/release-steps.ts, tools/deploy-server.ts).
+
+- **Checked:** tsc, verify, rules; tools/checks/release-steps.ts, new in verify, the real shell steps in bash on a stand-in
+  box with pm2, curl and npm stand-ins: a good release stays; a crash at start and a failed reload each put the last one
+  back and fail; a bad tar leaves nothing; a rollback whose reload failed does not pass (four failing on the old steps).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

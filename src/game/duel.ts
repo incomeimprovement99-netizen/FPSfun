@@ -162,7 +162,9 @@ export interface Remote {
    */
   outAtSent?: number;
   /** the jitter buffer: the worst recent wait from one state's time to the next one's arrival, and the delay the figure is drawn at */
-  buffer?: { need: number; delay: number };
+  buffer?: { need: number; delay: number; sentAt?: number };
+  /** its figure has been put where it is once (a figure first seen out lay at the world's origin) */
+  placed?: boolean;
   health: number;
   shield: number;
   /** their armour's size (a battle royale's shield core), from their state packets */
@@ -1402,8 +1404,15 @@ export class Duel implements MatchLike {
     const B = netCfg.buffer;
     const b = (r.buffer ??= { need: 0, delay: INTERP_DELAY });
     const prev = r.samples[r.samples.length - 1];
+    // The time a sender who said they stopped sent nothing is no lateness: a player who stopped for under 0.6 s with the
+    // mouse still and moved on counted as a late state, and on a clean link was drawn 300 ms behind for it, not 100
+    // (Milestone 935). A runner's own gaps (a page that hitched) still count: the delay is what rides them out.
+    const sent = r.clock ? r.clock.sent : undefined;
+    const quiet = prev && prev.speed < 0.05 && sent !== undefined && b.sentAt !== undefined ? Math.max(0, sent - b.sentAt - 1 / SEND_HZ) : 0;
+    b.sentAt = sent;
+    const gap = prev ? now - prev.at - quiet : Infinity;
     // a gap of seconds is a player who stopped sending (standing still between keyframes), not a late state
-    if (prev && now - prev.at < B.max * 2) b.need = Math.max(now - prev.at, b.need * B.keep);
+    if (gap < B.max * 2) b.need = Math.max(gap, b.need * B.keep);
     else b.need *= B.keep;
   }
 
@@ -1859,7 +1868,13 @@ export class Duel implements MatchLike {
       return;
     }
     for (const r of [...this.remotes.values()]) {
-      if (now - r.lastHeard > SILENCE_LIMIT && !(r.id >= Duel.BOT_ID && this.phase === "matchEnd")) {
+      // A guest gives the others the host's hold on a seat as well, and takes nobody down while it is itself getting back
+      // in: the host says who has really gone. At 10 s a friend reconnecting (the host holding their seat for 60 s) was torn
+      // down on every guest, and a guest getting back in lost every figure but the host's, a LOST line each (Milestone 934).
+      const others = this.role === "guest" && r.id !== this.hostId;
+      if (others && this.reconnectUntil !== null) continue;
+      const limit = others ? SILENCE_LIMIT + netCfg.rejoin.hold : SILENCE_LIMIT;
+      if (now - r.lastHeard > limit && !(r.id >= Duel.BOT_ID && this.phase === "matchEnd")) {
         if (this.role === "guest" && r.id === this.hostId) {
           // a connection gone quiet is a dropped one: drop it and get back in (the timer above ends it)
           if (this.reconnectUntil !== null) continue;
@@ -2002,11 +2017,15 @@ export class Duel implements MatchLike {
     if (past) a = s[s.length - 2];
     const span = b.at - a.at;
     const k = span > 1e-6 ? Math.max(0, Math.min(1, (t - a.at) / span)) : 1;
-    const ahead = past && span > 1e-6 && span < 0.5 ? Math.min(t - b.at, B.extrapolate) / span : 0;
+    // (not past a state that says they stopped: drawn on past it, up to a metre, until the next, Milestone 935)
+    const stopped = b.speed < 0.05 && Math.abs(b.y - a.y) < 0.01;
+    const ahead = past && !stopped && span > 1e-6 && span < 0.5 ? Math.min(t - b.at, B.extrapolate) / span : 0;
     const g = r.avatar.group;
     const kp = k + ahead;
     // SpeedKills: a player out is a ghost that still moves; their body stays where it fell (main.ts draws the ghost for their squad)
-    if (r.alive) g.position.set(a.x + (b.x - a.x) * kp, a.y + (b.y - a.y) * kp, a.z + (b.z - a.z) * kp);
+    // (and a figure first seen out lies where it is, not at the world's origin: Milestone 935)
+    if (r.alive || !r.placed) g.position.set(a.x + (b.x - a.x) * kp, a.y + (b.y - a.y) * kp, a.z + (b.z - a.z) * kp);
+    r.placed = true;
     let dy = b.yaw - a.yaw;
     dy = ((((dy + 180) % 360) + 360) % 360) - 180;
     // the figure faces +z; a player at yaw 0 looks down -z

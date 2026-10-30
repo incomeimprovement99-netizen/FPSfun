@@ -1168,6 +1168,7 @@ export class Bot {
         return [];
       }
       const t = this.dropTarget;
+      const fellFrom = this.pos.y;
       if (t) {
         // gliding onto its place off the ship, the way a player would fly it (dropship.ts)
         const yaw = glideStep(this.pos, t, dt, (x, z) => this.groundAt(x, z), (x, z) => this.blocked(x, z));
@@ -1179,7 +1180,12 @@ export class Bot {
         // straight down at the drop speed until the ground, or a roof, is under the feet
         this.pos.y -= DROP_SPEED * dt;
       }
+      // the ground as it stood from where the frame began: asked from the height it fell to, a frame's fall past a floor
+      // (a metre at 30 fps) missed it, and the bot went on under the street (Milestone 934)
+      const end = this.pos.y;
+      this.pos.y = Math.max(end, fellFrom);
       const ground = this.groundAt(this.pos.x, this.pos.z);
+      this.pos.y = end;
       if (this.pos.y <= ground) {
         this.pos.y = ground;
         this.dropping = false;

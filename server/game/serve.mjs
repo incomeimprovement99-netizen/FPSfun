@@ -78,14 +78,15 @@ app.get("/health", (_req, res) => {
 });
 
 // the connection settings for the game; TURN credentials in the coturn REST
-// format (use-auth-secret): username "<expiry>:range", password
-// base64(HMAC-SHA1(secret, username))
+// format (use-auth-secret): username "<expiry>:<random>", password
+// base64(HMAC-SHA1(secret, username)). The random part is each page's own: coturn counts its user-quota by what follows
+// the expiry, so a shared ":range" made every player one user, sharing 8 relays between them (Milestone 937).
 app.get("/net.json", (req, res) => {
   res.set("Cache-Control", "no-store");
   const iceServers = [{ urls: "stun:stun.l.google.com:19302" }];
   if (TURN_SECRET) {
     const host = process.env.TURN_HOST ?? req.hostname;
-    const username = `${Math.floor(Date.now() / 1000) + TURN_TTL_S}:range`;
+    const username = `${Math.floor(Date.now() / 1000) + TURN_TTL_S}:${randomBytes(6).toString("hex")}`;
     const credential = createHmac("sha1", TURN_SECRET).update(username).digest("base64");
     iceServers.push(
       { urls: `stun:${host}:${TURN_PORT}` },
@@ -108,12 +109,24 @@ const BOARD_IDS = new Set(["course:basic.r2", "course:basic", "course:advanced",
 const LOWER_IS_BETTER = /^course:/;
 const NAME = /^[A-Za-z0-9_ .-]{1,16}$/;
 const MAX_ENTRIES = 100;
+/**
+ * A file that will not parse is kept beside itself, whatever is wrong with it: the next write put an empty one over it,
+ * and every account or board with it (Milestone 937: a file one byte short, 200 users to 1, the hourly sweep enough).
+ */
+const putAside = (file) => {
+  try {
+    renameSync(file, `${file}.bad-${Date.now()}`);
+  } catch (e) {
+    console.error(`could not put ${file} aside (${e})`);
+  }
+};
 /** @type {Record<string, Array<{ name: string; value: number; at: string }>>} */
 let boards = {};
 try {
   if (existsSync(BOARD_FILE)) boards = JSON.parse(readFileSync(BOARD_FILE, "utf8"));
 } catch (e) {
-  console.error(`boards: could not read ${BOARD_FILE}, starting empty (${e})`);
+  console.error(`boards: could not read ${BOARD_FILE}, kept beside itself, starting empty (${e})`);
+  putAside(BOARD_FILE);
 }
 let boardsDirty = false;
 /** write to a temp file and rename, so a crash mid-write never leaves half a file */
@@ -228,7 +241,8 @@ try {
     accounts = { users: Object.assign(Object.create(null), saved.users), sessions: Object.assign(Object.create(null), saved.sessions) };
   }
 } catch (e) {
-  console.error(`accounts: could not read ${ACCOUNT_FILE}, starting empty (${e})`);
+  console.error(`accounts: could not read ${ACCOUNT_FILE}, kept beside itself, starting empty (${e})`);
+  putAside(ACCOUNT_FILE);
 }
 /** a user by key, only if it is one (never anything inherited) */
 const userAt = (key) => (Object.hasOwn(accounts.users, key) ? accounts.users[key] : undefined);
@@ -236,7 +250,8 @@ const userAt = (key) => (Object.hasOwn(accounts.users, key) ? accounts.users[key
 // few seconds, and 5,000 accounts at 128 KB each would be 640 MB, past what pm2 lets the server use, read again at every
 // start: a server that could never come back up. Real profiles are a few kilobytes.
 const PROFILES_MAX_BYTES = 48 * 1024 * 1024;
-const sizeOf = (profile) => (profile ? JSON.stringify(profile).length : 0);
+// (bytes, not characters: a body of three-byte characters counted a third of its size, 144 MB on disk as 46, Milestone 937)
+const sizeOf = (profile) => (profile ? Buffer.byteLength(JSON.stringify(profile)) : 0);
 let profileBytes = 0;
 for (const u of Object.values(accounts.users)) profileBytes += sizeOf(u.profile);
 // the file's size is bounded: this many accounts, profiles this big, this many profile saves a user per 10 minutes
@@ -263,14 +278,23 @@ const flushAccounts = () => {
 setInterval(flushAccounts, 3000).unref();
 setInterval(() => {
   const now = Date.now();
-  for (const [t, s] of Object.entries(accounts.sessions)) if (s.expires < now) delete accounts.sessions[t];
-  accountsDirty = true;
+  for (const [t, s] of Object.entries(accounts.sessions)) {
+    if (s.expires < now) {
+      delete accounts.sessions[t];
+      accountsDirty = true;
+    }
+  }
+  for (const [ip, s] of signups) if (s.resetAt < now) signups.delete(ip);
 }, 3600 * 1000).unref();
 
 /** scrypt, the way Node does it, as a promise: 64 bytes, N = 16384 */
 const hashOf = (password, salt) =>
   new Promise((ok, fail) => scrypt(password, Buffer.from(salt, "hex"), 64, { N: 16384, r: 8, p: 1 }, (e, key) => (e ? fail(e) : ok(key.toString("hex")))));
 
+// New accounts from one address in a day: at the limit below, one address took every player's profile budget in 6.4 hours
+// and the last account in 3.5 days, with nothing to take them back (Milestone 937). A household or a LAN is well under it.
+const NEW_ACCOUNTS_A_DAY = 20;
+const signups = new Map();
 // 10 sign-ups or sign-ins per 10 minutes per address: a guess at a password costs
 const tries = new Map();
 const TRY_LIMIT = 10;
@@ -341,11 +365,17 @@ app.post("/api/account/register", express.json({ limit: "2kb" }), safe(async (re
   if (c.error) return res.status(400).json({ error: c.error });
   if (userAt(c.key)) return res.status(409).json({ error: "that name is taken" });
   if (Object.keys(accounts.users).length >= MAX_ACCOUNTS) return res.status(503).json({ error: "no room for new accounts" });
+  const now = Date.now();
+  const from = signups.get(req.ip) ?? { made: 0, resetAt: now + DAY_MS };
+  if (from.resetAt < now) Object.assign(from, { made: 0, resetAt: now + DAY_MS });
+  signups.set(req.ip, from);
+  if (from.made >= NEW_ACCOUNTS_A_DAY) return res.status(429).json({ error: "too many new accounts from here today" });
   const salt = randomBytes(16).toString("hex");
   const hash = await hashOf(c.password, salt);
   // (a second sign-up for the same name while this one hashed)
   if (userAt(c.key)) return res.status(409).json({ error: "that name is taken" });
   accounts.users[c.key] = { name: c.name, salt, hash, created: new Date().toISOString(), profile: null, updated: null };
+  from.made++;
   accountsDirty = true;
   res.json({ ok: true, name: c.name, token: newSession(c.key), profile: null, updated: null });
 }));
@@ -596,6 +626,11 @@ const server = app.listen(PORT, HOST, () => {
 // client can put its own before it), else the socket's own.
 const WS_MAX_BYTES = 64 * 1024;
 const WS_PER_ADDRESS = 24;
+// and what one socket may send in a while: every socket of an address sending its largest frames to a client not there
+// took the server from 76 MB to 3 GB in 9 s, each frame kept for its 5 s, past pm2's cap and every player's socket with
+// it (Milestone 937). A real client's signalling is a few kilobytes a connection.
+const WS_RATE_BYTES = 512 * 1024;
+const WS_RATE_MS = 10 * 1000;
 const wsHeld = new Map();
 const wsAddress = (req) => {
   const remote = req.socket.remoteAddress ?? "?";
@@ -608,6 +643,17 @@ const brokerSockets = (options) => {
   wss.on("connection", (socket, req) => {
     const a = wsAddress(req);
     wsHeld.set(a, (wsHeld.get(a) ?? 0) + 1);
+    let sent = 0;
+    let since = Date.now();
+    socket.on("message", (data) => {
+      const now = Date.now();
+      if (now - since > WS_RATE_MS) {
+        since = now;
+        sent = 0;
+      }
+      sent += data.length;
+      if (sent > WS_RATE_BYTES) socket.terminate();
+    });
     socket.on("close", () => {
       const n = (wsHeld.get(a) ?? 1) - 1;
       if (n > 0) wsHeld.set(a, n);
@@ -638,6 +684,12 @@ let brokerErrors = 0;
 broker.on("error", (e) => {
   if (brokerErrors++ < 20 || brokerErrors % 1000 === 0) console.error(`broker: ${e?.message ?? e} (${brokerErrors} so far)`);
 });
+// A `dst` that is no string (an object with no way to be one) was queued for nobody, and 5 s later the broker's sweep of
+// its queue threw on it, in a timer nothing here is round: one frame from anyone stopped the whole server, and any sign-up
+// not yet written with it (Milestone 936). The broker says "message" before it handles the frame.
+broker.on("message", (_client, m) => {
+  if (m && typeof m.dst !== "string") delete m.dst;
+});
 app.use("/peerjs", broker);
 
 // unknown paths: a plain 404, not the game page (a typo in an asset path should
@@ -646,15 +698,25 @@ app.use((_req, res) => res.status(404).type("text/plain").send("not found"));
 // a body that is not JSON, or too big: a plain 400, not a stack trace in the log
 app.use((err, _req, res, next) => {
   if (err?.type === "entity.parse.failed" || err?.type === "entity.too.large") return res.status(400).json({ error: "bad json" });
+  // and any other request that was the client's fault (a body in an encoding nobody reads, a path that is no path): a stack
+  // in the log each, past every limit here, 7.5 GB a day from one client (Milestone 937)
+  const status = err?.status ?? err?.statusCode;
+  if (status >= 400 && status < 500) return res.status(status).type("text/plain").send("bad request");
   next(err);
 });
 
 const stop = () => {
   flushBoards();
   flushAccounts();
-  server.close(() => process.exit(0));
+  // (again on the way out: a sign-up mid-hash when this ran was answered 200 and never written, Milestone 937)
+  const out = () => {
+    flushBoards();
+    flushAccounts();
+    process.exit(0);
+  };
+  server.close(out);
   // open broker sockets keep close() waiting; pm2 would kill us anyway
-  setTimeout(() => process.exit(0), 2000).unref();
+  setTimeout(out, 2000).unref();
 };
 process.on("SIGTERM", stop);
 process.on("SIGINT", stop);
