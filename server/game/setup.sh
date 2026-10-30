@@ -62,6 +62,10 @@ fi
 node --version
 if ! command -v pm2 >/dev/null; then sudo npm install -g pm2; fi
 pm2 --version
+# the log kept to a size: left alone it grows until the disk is full, and a full disk stops the accounts being written
+pm2 install pm2-logrotate >/dev/null
+pm2 set pm2-logrotate:max_size 20M >/dev/null
+pm2 set pm2-logrotate:retain 5 >/dev/null
 # pm2 resurrects what the deploy saved (pm2 save) when the box boots
 if ! systemctl is-enabled "pm2-$USER" >/dev/null 2>&1; then
   sudo env PATH="$PATH" "$(command -v pm2)" startup systemd -u "$USER" --hp "$HOME" >/dev/null
@@ -114,6 +118,8 @@ fingerprint
 # a match is a few KB/s each way; these cap abuse, not play
 total-quota=100
 user-quota=8
+# browsers relay over UDP: a TCP relay only let any page's credential open a connection to anywhere through this box
+no-tcp-relay
 max-bps=250000
 stale-nonce=600
 no-cli

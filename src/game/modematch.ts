@@ -260,6 +260,8 @@ export class ArenaMode extends Duel {
     this.bots = [];
     for (const r of this.board.sorted) if (!humans.includes(r.id)) this.board.remove(r.id);
     for (const id of [...this.teamOf.keys()]) if (!humans.includes(id)) this.teamOf.delete(id);
+    // the sides again for who stayed: by seat, ids 0 and 2 were two friends split against each other on one team (Milestone 947)
+    if (this.split) [...humans].sort((a, b) => a - b).forEach((id, i) => this.teamOf.set(id, (i % 2) as 0 | 1));
     this.fillSides(humans);
   }
 
@@ -352,7 +354,9 @@ export class ArenaMode extends Duel {
     } else {
       // all eighteen points, ends and middle alternating: a lobby of eight
       // humans plus bots each gets their own
-      const i = id < Duel.BOT_ID ? id : this.players + (id - Duel.BOT_ID);
+      // (the bots after the highest seat, not the count of them: with a seat left empty, a friend and a bot began as one)
+      const seats = Math.max(this.players, ...[...this.teamOf.keys()].filter((h) => h < Duel.BOT_ID).map((h) => h + 1));
+      const i = id < Duel.BOT_ID ? id : seats + (id - Duel.BOT_ID);
       p = this.lapOut(S.order, i);
     }
     const w = this.world(p);

@@ -200,6 +200,25 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
 }
 
 {
+  // (Milestone 947) a friend gone before the host starts, a seat left empty
+  const w = new Wire();
+  const [h, gl] = w.pair();
+  const [h2] = w.pair();
+  const short = (kind: string, split: boolean): Any => {
+    const d: Any = new ArenaMode(scene, projectiles, { players: 4, myId: 0, link: h, guestId: 2, kind, bots: 2, difficulty: "normal", split, map: null } as never);
+    d.addGuest(h2, 3);
+    d.startNow();
+    return d;
+  };
+  void gl;
+  const tdm = short("tdm", true);
+  check("friends split, a seat empty: still on two sides", tdm.teamFor(0) !== tdm.teamFor(2), `${tdm.teamFor(0)} and ${tdm.teamFor(2)}`);
+  const ffa = short("ffa", false);
+  const a = ffa.startSpawn(3, 0);
+  const b = ffa.startSpawn(100, 0);
+  check("and in a free-for-all the last friend and the first bot do not start as one", Math.hypot(a.x - b.x, a.z - b.z) > 1, `${Math.hypot(a.x - b.x, a.z - b.z).toFixed(1)} m apart`);
+}
+{
   // (Milestone 946) a gun's level through a bot, and what a won or lost Gulag leaves
   const { BotLooter } = await import("../../src/game/bots");
   const l: Any = new (BotLooter as Any)();

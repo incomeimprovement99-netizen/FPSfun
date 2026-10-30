@@ -14021,6 +14021,16 @@ feedback file in 21 hours; it sends 30 a day (main.ts, brmatch.ts, bots.ts, mode
 - **Checked:** tsc, verify, rules; arena-rules.ts: a level 5 gun at rank 6 (legendary's 5 on the old code), the rest read from the
   source; e2e migrate, skship, gulag.
 
+## Milestone 947 — A short start with a seat empty
+
+A friend who left the lobby before the host started left a gap in the seats. With friends split, ids 0 and 2 both came out on team 0
+against two bots, though the host had chosen sides; the sides are dealt again by seat. In a free-for-all with ids 0, 2 and 3, the
+third friend and the first bot started on the same spot; the bots start after the highest seat (modematch.ts). And `setup.sh` now
+turns coturn's TCP relays off, which browsers do not use, and keeps pm2's log to a size: both take effect when `npm run fps setup` is
+next run on the box.
+
+- **Checked:** tsc, verify, rules; arena-rules.ts: on two sides (one on the old code), 90 m apart (0 m).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
