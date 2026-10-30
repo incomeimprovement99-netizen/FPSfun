@@ -484,6 +484,8 @@ function carryCard(now: number): NonNullable<HudState["inventory"]> {
       kind: sl.empty ? null : weaponKind(sl.id),
       clip: sl.state.clip,
       size: sl.weapon.clipSize,
+      // (what is left of it as the bottom panel counts it: the card said infinite whatever the setting, Milestone 928)
+      reserve: sl.empty ? 0 : loadout.reserve(sl),
       inHand: i === loadout.activeIndex,
       level: sl.fusion ?? 0,
       max: PROFILE.fusion.levels,
@@ -1454,6 +1456,8 @@ const remoteFinishes = new Map<number, number>();
  */
 function doSpray(now: number): boolean {
   if (now < sprayReadyAt) return false;
+  // (out, a ghost or between lives, as a ping and an emote are: a ghost roaming the map sprayed for everyone, Milestone 930)
+  if (duel && !duel.alive) return false;
   const eye = player.eyePosition();
   // the way you face, from your own angles (the camera is a frame behind a turn)
   const dir = new THREE.Vector3(0, 0, -1).applyQuaternion(player.orientationAt(player.yaw, player.pitch, 0, 0));
@@ -1465,11 +1469,21 @@ function doSpray(now: number): boolean {
   const at = eye.clone().addScaledVector(dir, t);
   const normal = lastSolidNormal.clone();
   const idx = Math.max(0, Math.min(SPRAYS.list.length - 1, Number(sprayPick.value) || 0));
-  sprays.place(duel?.id ?? 0, at, normal, idx, now);
+  // (yours under your own id in the range with friends too: there a guest's went under the host's, 0, and the two took
+  // each other down on its page, Milestone 930)
+  sprays.place((duel ?? hangout)?.id ?? 0, at, normal, idx, now, sprayLife(at));
   sendFx("spray", at, normal, idx);
   audio.spray(at);
   sprayReadyAt = now + SPRAYS.cooldown;
   return true;
+}
+/**
+ * How long a spray at `at` stays: on a WALL hack's panel no longer than the panel, which went after its 15 s and left the
+ * spray in the air for the rest of its two minutes (Milestone 930); anywhere else, the list's own.
+ */
+function sprayLife(at: THREE.Vector3): number | undefined {
+  const w = WALLS.find((x) => x.solids.some((s) => at.x > s.minX - 0.05 && at.x < s.maxX + 0.05 && at.z > s.minZ - 0.05 && at.z < s.maxZ + 0.05 && at.y > s.base - 0.05 && at.y < s.top + 0.05));
+  return w ? Math.max(0.5, w.until - gameTime) : undefined;
 }
 // bullet holes and dust where rounds hit the level, anyone's (impacts.ts)
 const impacts = new ImpactLayer(scene);
@@ -3013,7 +3027,9 @@ function shipHud(d: BrMatch, run: ShipRun): NonNullable<HudState["ship"]> {
     at: [at.x, at.z],
     doorsIn: run.doorsIn(t),
     endIn: run.endIn(t),
-    master: d.players > 1 && d.id === 0,
+    // (the drop's own rule: the host in a solo battle royale with friends was told the squad jumps with it, and a second
+    // squad's leader that it jumps alone, Milestone 927)
+    master: d.isJumpmaster(),
     linkedTo: linkedTo !== null ? d.nameFor(linkedTo) : null,
     keys: { jump: keyLabel("jump"), crouch: keyLabel("crouch"), map: keyLabel("map") },
   };
@@ -3319,7 +3335,7 @@ let lastEmote = 0;
 function playEmote(i: number, now: number): void {
   const def = EMOTES[i];
   const d = duel;
-  if (!def || now < emoteReadyAt || !player.onGround || (d && !d.alive)) return;
+  if (!def || now < emoteReadyAt || !player.onGround || (d && !d.alive) || input.held("fire") || input.held("ads")) return;
   emoting = { index: i, until: now + def.seconds };
   emoteReadyAt = now + def.seconds + emotesCfg.cooldown;
   lastEmote = i;
@@ -4542,7 +4558,8 @@ function applyLoot(it: LootItem): void {
       // level) or swaps in for the other of its slot, which goes down where you stand
       const had = hacks.get(hackSlotOf(it.id) ?? "mobility");
       const what = hacks.take(it.id as HackId, it.n, gameTime);
-      if (what === "swapped" && had && had.id !== it.id) putBack({ kind: "hack", id: had.id, n: had.level, rarity: "common" });
+      // (in its level's colour, as a core on the floor is: Milestone 927)
+      if (what === "swapped" && had && had.id !== it.id) putBack({ kind: "hack", id: had.id, n: had.level, rarity: levelRarity(had.level) });
       const held = hacks.get(hackSlotOf(it.id) ?? "mobility");
       hud.notice(what === "fused" ? `${hackDef(it.id)?.name ?? it.id} FUSED  ·  LEVEL ${held?.level ?? 0}` : what === "maxed" ? `${hackDef(it.id)?.name ?? it.id}: ALREADY AT ITS TOP LEVEL` : `${hackDef(it.id)?.name ?? it.id} HACK`, gameTime, 1.6);
       if (what === "maxed") putBack(it);
@@ -4587,11 +4604,15 @@ function applyLoot(it: LootItem): void {
         if (loadout.activeIndex !== empty) loadout.requestSwap(empty, gameTime);
         else loadout.raise(gameTime);
       } else {
-        const s = loadout.active;
+        // The slot the card named, the gun in hand, held on to: given into mid-swap, the swap landed first, so the new
+        // gun's rounds and its raise went to the other slot's gun, the new one full in a slot not in hand (Milestone 927)
+        const slot = loadout.activeIndex;
+        const s = loadout.slots[slot];
         putBack({ kind: "weapon", id: s.id, n: 1, rarity: levelRarity(s.fusion ?? 0), fusion: s.fusion ?? 0, clip: s.state.clip });
-        loadout.give(loadout.activeIndex, it.id, it.fusion ?? 0);
-        loaded(loadout.activeIndex);
-        loadout.raise(gameTime);
+        loadout.give(slot, it.id, it.fusion ?? 0);
+        loaded(slot);
+        if (loadout.activeIndex !== slot) loadout.requestSwap(slot, gameTime);
+        else loadout.raise(gameTime);
       }
       audio.swap();
       break;
@@ -4831,6 +4852,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
   edgeArmed = false;
   tutorial.reset();
   drill.stop();
+  // (and no REVEALED left counting from the last: Milestone 928)
+  hud.revealed(-Infinity);
   // Every match from fusion level 0: a level tried on the range's key, or taken at a stand, rode into a 1v1, a bot match
   // or the modes, up to half again the magazine and a tenth more damage (Milestone 917; the battle royale's landing gives
   // its loadout fresh as well)
@@ -4975,7 +4998,7 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   }
   // someone's spray, where they put it
   if (k === "spray" && a && b && typeof n === "number") {
-    sprays.place(from, a, b, n, gameTime);
+    sprays.place(from, a, b, n, gameTime, sprayLife(a));
     audio.spray(a);
     return;
   }
@@ -5418,6 +5441,7 @@ function endMatch(reason: string): void {
   hud.notice(reason.toUpperCase(), gameTime, 3);
   // the range gives back your two picks, ready, whatever the match left you holding (Phase 20 A12)
   resetHacks();
+  hud.revealed(-Infinity);
   // and its practice numbers start again: they went on with the whole match's shots, damage and knocks (Milestone 921)
   Object.assign(stats, { shots: 0, hits: 0, headshots: 0, damage: 0, knocks: 0, lastTtk: null });
   // and says where to go in it once the match's own notice has been read
@@ -7254,7 +7278,8 @@ function step(): void {
   // aim or fire. Every frame, and off the same keys that move you (a script's
   // in the tests), so one never outlives the menu or a scripted walk.
   if (emoting) {
-    const moved = (["forward", "back", "left", "right"] as const).some((a) => moveIn.held(a)) || moveIn.pressedNow("jump") || moveIn.pressedNow("crouch") || input.pressedNow("fire") || input.pressedNow("ads");
+    // (fire and aim held, not only pressed: an automatic held through the emote's key waved as it shot, Milestone 930)
+    const moved = (["forward", "back", "left", "right"] as const).some((a) => moveIn.held(a)) || moveIn.pressedNow("jump") || moveIn.pressedNow("crouch") || input.held("fire") || input.held("ads");
     if (moved) stopEmote();
     else if (now >= emoting.until) emoting = null;
   }
@@ -7900,6 +7925,9 @@ function step(): void {
     resetHacks();
   }
   lastMatchPhase = phaseNow;
+  // out (a death, a ghost watching a mate): the REVEALED warning was yours, and went on counting over the recap and the
+  // one you watch, as if they were revealed (Milestone 928)
+  if (duel && !duel.alive) hud.revealed(-Infinity);
   stepUnseen();
   hangout?.update(local);
   // the battle royale from your side: E, the pads, pings
@@ -8971,7 +8999,9 @@ const GALLERY = { x: 0, z: -8 };
   banners: () => Object.fromEntries(remoteBanners),
   /** sprays: put yours up, and whose are up */
   spray: () => doSpray(gameTime),
-  sprays: () => ({ count: sprays.count, owners: sprays.owners() }),
+  sprays: () => ({ count: sprays.count, owners: sprays.owners(), lives: sprays.lives() }),
+  /** an item taken as E takes one off the floor or a stand (tools/e2e.ts) */
+  takeLoot: (it: LootItem) => applyLoot(it),
   /** bullet impacts marked on the level since the page opened */
   impacts: () => impacts.count,
   /** DEVINOS's rocket bursts showing (rocket.ts) */

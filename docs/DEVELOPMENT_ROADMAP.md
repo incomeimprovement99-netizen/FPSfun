@@ -13778,6 +13778,62 @@ down. And in the range with friends their steps, jumps and landings were silent;
   the ship to be shown; e2e speedkills: another's REVEAL is heard; e2e squad: a bot squad wiped is said on the guest's
   page; e2e sklobby: in the range together a friend's landing is heard (each failing on the old code).
 
+## Milestone 927 — The loot as the card says it
+
+From a review of the HUD and the loot screens. A gun taken in the middle of a swap went into the wrong hands: the swap
+landed first, so the new gun's rounds and its raise went to the other slot's gun, the new one full in a slot not in hand,
+and a gun put down empty and taken back mid-swap came back full; it goes into the slot the card named, the gun in hand,
+with its own rounds, and comes up. The card said a gun put down was full; it says the rounds it comes with. With the
+CHOOCH (it overheats) on either side, its heat was set against a magazine and a reload it never has; each row is set
+only against its own kind. Three guns at your feet offered HOLD: TAKE ALL and showed TAKING EVERYTHING for a hold that
+takes no guns; the hold is offered only for what it takes. The dropship panel said the host of a solo battle royale with
+friends led the squad's drop, and a second squad's leader that it jumped alone; it says the drop's own rule. And a hack
+core swapped down went in white, not its level's colour (main.ts applyLoot, lootcard.ts, brplay.ts, main.ts shipHud).
+
+- **Checked:** tsc, verify, rules; tools/checks/hudfit.ts, new in verify: a gun put down with 1 round is offered with 1, a
+  reloading gun is not set against the CHOOCH; tools/checks/pings.ts: three guns at your feet offer no hold; e2e range: a
+  gun taken mid-swap is in the slot in hand with its 2 rounds, and in hand.
+
+## Milestone 928 — The HUD readable at every scale, and saying what is so
+
+At HUD scale 1.25 the full loot card sat over the prompt (what E does), and at 1.4 over the minimap's corner; it ends
+above the prompt and keeps off the minimap. At 1.25 and 1.4 the kill feed under the keys panel ran down over the ammo
+count and the gun slots; it shows the newest lines that fit above them. A ghost's line had an empty key cap. The REVEALED
+warning went on counting after you died (over the one you then watch, as if they were revealed) and into the next match
+or the range; it goes with your life and the match. The carry card said infinite rounds whatever the setting, and a
+cooldown rounded to the second (13 S for the loot card's 12.6); it says the reserve as the bottom panel does, and the
+cooldown to a tenth (hud.ts, main.ts).
+
+- **Checked:** tsc, verify, rules; hudfit.ts, the real HUD on a stand-in canvas: at 1366x768 and 1920x1080, HUD scales 1
+  to 1.4, the loot card ends above the prompt and the feed above the bottom right's panels (on the old HUD neither, at
+  1.25 and 1.4), no empty key cap, the carry card's reserve and cooldown; e2e bots: REVEALED goes with the match.
+
+## Milestone 929 — Pings where you look
+
+From a review of how players talk to each other. A ping met the street's floor at 0 wherever you were, so in the sunken
+court or the station a tap looking down marked a spot 28 m behind you, and the wheel's pings met no floor at all, their
+marks 300 m off and 45 m underground; both meet the floor you stand on. A tap marked loot behind the wall you looked at;
+an item is marked only in sight. A double tap or the wheel's ENEMY HERE on an enemy marked the place past him and took the
+tap's mark on him away; it marks and follows him. An ENEMY HERE took a DEFENDING HERE of up to 8.6 s before for the double
+tap's GOING HERE (its age read off the GOING ping's life); a mark keeps its own birth time. And a pinged enemy gone
+INVISIBLE was followed by the mark on every screen of the squad; it stays where he was seen (brplay.ts).
+
+- **Checked:** tsc, verify, rules; pings.ts, new in verify, the real BrPlay on a stand-in match: each of these (all eight
+  failing on the old code).
+
+## Milestone 930 — Sprays, emotes and a mate's marks
+
+In the range with friends a guest's spray went under the host's id on the guest's page, the two taking each other's
+down there; it is the guest's own. A spray on a WALL hack's panel hung in the air for the rest of its two minutes after
+the panel went; it goes with the panel. A ghost, or a player between lives, could put sprays up for everyone; no longer.
+An emote started with fire held, and went on through it (only a new press stopped one); it does not start, and holding
+fire or aim ends it. And a squad mate who left kept their marks up for up to 20 s; their marks go with them (main.ts
+doSpray, sprays.ts, brplay.ts).
+
+- **Checked:** tsc, verify, rules; pings.ts: a mate who left takes their marks; e2e emote: no emote while fire is held, a
+  spray on a WALL panel stays as long as the panel; e2e sklobby: a friend's spray in the range together is theirs on
+  their page.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

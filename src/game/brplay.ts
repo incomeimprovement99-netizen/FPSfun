@@ -25,6 +25,7 @@ import type { Dummy } from "./dummy";
 import type { Action } from "./input";
 import type { MoveInput, Player } from "./player";
 import { solidHit } from "./projectile";
+import { floorAt } from "./floors";
 import { lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
 import { DROP_HEIGHT } from "./brmatch";
 import squad from "../config/squad.json";
@@ -40,6 +41,8 @@ export interface Marker {
   until: number;
   /** a figure it follows (an enemy ping), or -1 */
   target: number;
+  /** when it was put up (the double tap's test, Milestone 929) */
+  born: number;
 }
 
 /** one thing lying within reach of your feet, as the prompt's list shows it */
@@ -272,23 +275,69 @@ export class BrPlay {
     const kind = k === "enemy" || k === "loot" ? k : "go";
     // one ping each at a time: a new one replaces your last
     this.markers = this.markers.filter((m) => m.from !== from || m.k !== kind);
-    // an "enemy here" right after a place ping is the double tap: it replaces that place ping (on every screen)
-    if (kind === "enemy" && target === -1) this.markers = this.markers.filter((m) => !(m.from === from && m.k === "go" && m.until - squad.pingLife.go > now - 0.6));
+    // an "enemy here" right after a place ping is the double tap: it replaces that place ping (on every screen). Put up
+    // within the double tap's 0.6 s, by its own clock: told from its end and the GOING ping's life, a wheel's DEFENDING HERE
+    // (20 s) was taken for one for 8.6 s after it went up (Milestone 929)
+    if (kind === "enemy" && target === -1) this.markers = this.markers.filter((m) => !(m.from === from && m.k === "go" && now - m.born < 0.6));
     // an intent's own life when the wheel chose one (its label says which),
     // else the kind's: a plan outlives a warning (src/config/squad.json)
     const intent = PING_INTENTS.find((x) => x.label === label);
     const life = intent ? (squad.pingWheel.life as Record<string, number>)[intent.id] : squad.pingLife[kind];
-    this.markers.push({ k: kind, at: at.clone(), label, from, until: now + life, target });
+    this.markers.push({ k: kind, at: at.clone(), label, from, until: now + life, target, born: now });
     this.deps.sound("ping");
     if (kind === "enemy") this.deps.onEnemyPing?.();
   }
 
-  /** an enemy ping where you look (the double tap): "ENEMY HERE", whatever is there */
-  pingEnemy(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3, now: number, myId: number): void {
+  /**
+   * Where the look meets a wall or the floor under you, 300 m at most. The floor was the street's, at 0: in the sunken
+   * court or the station (7 and 13 m down) the look met it behind you, and a ping went 28 m back the other way; and the
+   * wheel's had no floor at all, its marks 300 m off and 45 m underground (Milestone 929).
+   */
+  private lookAt(eye: THREE.Vector3, fwd: THREE.Vector3): THREE.Vector3 {
     const wall = solidHit(eye, fwd, 300);
-    const ground = fwd.y < -1e-3 ? eye.y / -fwd.y : Infinity;
+    const above = eye.y - floorAt(eye.x, eye.z);
+    const ground = fwd.y < -1e-3 && above > 0 ? above / -fwd.y : Infinity;
     const t = Math.min(wall, ground, 300);
-    const at = eye.clone().addScaledVector(fwd, Number.isFinite(t) ? t : 60);
+    return eye.clone().addScaledVector(fwd, Number.isFinite(t) ? t : 60);
+  }
+
+  /** an enemy within 2.5 degrees of the look and in sight of it, nearest first (a tap's, and the double tap's) */
+  private enemyAt(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3): Dummy | null {
+    let best: { d: Dummy; dist: number } | null = null;
+    for (const a of match.avatars) {
+      if (!a.group.visible || a.knocked) continue;
+      const r = match.remoteOf(a);
+      // (a squad mate is not an enemy; another side's player is, and was skipped with the mates, Milestone 726)
+      if (!r || match.isAlly(r.id)) continue;
+      const to = a.group.position.clone().setY(a.group.position.y + 1.2).sub(eye);
+      const dist = to.length();
+      if (dist > 200) continue;
+      if (to.dot(fwd) / dist < Math.cos((2.5 * Math.PI) / 180)) continue;
+      if (solidHit(eye, to.clone().divideScalar(dist), dist) < dist) continue;
+      if (!best || dist < best.dist) best = { d: a, dist };
+    }
+    return best?.d ?? null;
+  }
+
+  /** the figure marked and followed, for the squad: a tap's on an enemy, and now the double tap's too */
+  private markEnemy(match: BrMatch, d: Dummy, now: number, myId: number): void {
+    const r = match.remoteOf(d)!;
+    const at = d.group.position.clone();
+    this.addMarker("enemy", at, `ENEMY: ${r.name}`, myId, r.id, now);
+    match.sendMark("enemy", at, `ENEMY: ${r.name}`, r.id);
+  }
+
+  /**
+   * An enemy ping where you look (the double tap): the enemy under the crosshair when there is one, followed, else
+   * "ENEMY HERE" where you look. It marked the place past him always, and took the tap's mark on him away (Milestone 929).
+   */
+  pingEnemy(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3, now: number, myId: number): void {
+    const d = this.enemyAt(match, eye, fwd);
+    if (d) {
+      this.markEnemy(match, d, now, myId);
+      return;
+    }
+    const at = this.lookAt(eye, fwd);
     this.addMarker("enemy", at, "ENEMY HERE", myId, -1, now);
     match.sendMark("enemy", at, "ENEMY HERE");
   }
@@ -305,8 +354,7 @@ export class BrPlay {
       this.pingEnemy(match, eye, fwd, now, myId);
       return it.label;
     }
-    const wall = solidHit(eye, fwd, 300);
-    const at = eye.clone().addScaledVector(fwd, Math.min(wall, 300));
+    const at = this.lookAt(eye, fwd);
     this.addMarker(it.marker, at, it.label, myId, -1, now);
     match.sendMark(it.marker, at, it.label);
     return it.label;
@@ -317,38 +365,25 @@ export class BrPlay {
    * near the line is loot, else the ground or wall you are looking at.
    */
   ping(match: BrMatch, eye: THREE.Vector3, fwd: THREE.Vector3, now: number, myId: number): "enemy" | "loot" | "go" {
-    // a figure within 2 degrees of the line and in sight
-    let best: { d: Dummy; dist: number } | null = null;
-    for (const a of match.avatars) {
-      if (!a.group.visible || a.knocked) continue;
-      const r = match.remoteOf(a);
-      // (a squad mate is not an enemy; another side's player is, and was skipped with the mates, Milestone 726)
-      if (!r || match.isAlly(r.id)) continue;
-      const to = a.group.position.clone().setY(a.group.position.y + 1.2).sub(eye);
-      const dist = to.length();
-      if (dist > 200) continue;
-      if (to.dot(fwd) / dist < Math.cos((2.5 * Math.PI) / 180)) continue;
-      if (solidHit(eye, to.clone().divideScalar(dist), dist) < dist) continue;
-      if (!best || dist < best.dist) best = { d: a, dist };
-    }
-    if (best) {
-      const r = match.remoteOf(best.d)!;
-      const at = best.d.group.position.clone();
-      this.addMarker("enemy", at, `ENEMY: ${r.name}`, myId, r.id, now);
-      match.sendMark("enemy", at, `ENEMY: ${r.name}`, r.id);
+    const enemy = this.enemyAt(match, eye, fwd);
+    if (enemy) {
+      this.markEnemy(match, enemy, now, myId);
       return "enemy";
     }
+    // an item near the line and in sight of you: one behind the wall you looked at was marked (Milestone 929)
     const drop = match.lootField?.nearest(eye, fwd, 40);
-    if (drop) {
+    const seen = (p: THREE.Vector3): boolean => {
+      const to = p.clone().setY(p.y + 0.3).sub(eye);
+      const dist = to.length();
+      return dist < 0.5 || solidHit(eye, to.divideScalar(dist), dist) >= dist - 0.3;
+    };
+    if (drop && seen(drop.pos)) {
       const label = `LOOT: ${lootLabel(drop.item)}`;
       this.addMarker("loot", drop.pos, label, myId, -1, now);
       match.sendMark("loot", drop.pos, label);
       return "loot";
     }
-    const wall = solidHit(eye, fwd, 300);
-    const ground = fwd.y < -1e-3 ? eye.y / -fwd.y : Infinity;
-    const t = Math.min(wall, ground, 300);
-    const at = eye.clone().addScaledVector(fwd, Number.isFinite(t) ? t : 60);
+    const at = this.lookAt(eye, fwd);
     this.addMarker("go", at, "GOING HERE", myId, -1, now);
     match.sendMark("go", at, "GOING HERE");
     return "go";
@@ -369,12 +404,14 @@ export class BrPlay {
     ctx: { alive: boolean; playing: boolean; myId: number }
   ): BrPlayHud {
     const out: BrPlayHud = { prompt: null, hold: null, markers: [], reach: { rows: [], pick: -1, cycleKey: "" } };
-    this.markers = this.markers.filter((m) => now < m.until);
+    // (and a mate's go with them: one who left kept their marks up for up to 20 s, Milestone 930)
+    this.markers = this.markers.filter((m) => now < m.until && (m.from === ctx.myId || match.avatars.some((x) => match.remoteOf(x)?.id === m.from)));
     for (const m of this.markers) {
-      // an enemy ping follows its figure
+      // an enemy ping follows its figure, while it is seen: gone INVISIBLE it was followed on every screen of the squad
+      // (Milestone 929)
       if (m.target >= 0) {
         const a = match.avatars.find((x) => match.remoteOf(x)?.id === m.target);
-        if (a) m.at.copy(a.group.position);
+        if (a && a.group.visible) m.at.copy(a.group.position);
       }
       out.markers.push({ k: m.k, at: m.at.clone().setY(m.at.y + (m.k === "enemy" ? 2.2 : 0.4)), label: m.label, mine: m.from === ctx.myId });
     }
@@ -523,9 +560,20 @@ export class BrPlay {
     const pick = this.pickOf(rows, eye, fwd, f);
     const row = rows.find((r) => r.key === pick) ?? rows[0];
     out.reach = { rows, pick: row.key, cycleKey: many ? this.deps.keyLabel(CYCLE) : "", how: this.pickHow(rows, eye, fwd, f) };
-    // what a hold would still take: everything in reach
-    const left = rows;
-    out.prompt = { key: many && left.length > 1 ? `${key} / HOLD` : key, text: many && left.length > 1 ? `TAKE ${row.label}  ·  HOLD: TAKE ALL` : `TAKE ${row.label}` };
+    // what a hold would still take: what is in reach but guns and cores it would swap or cannot fuse (below). It counted
+    // everything, so three guns said HOLD: TAKE ALL and TAKING EVERYTHING, 2 LEFT for a hold that took nothing (Milestone 927)
+    const leaves = (key: number): boolean => {
+      const it = f.drops.get(key)?.item;
+      if (it?.kind !== "hack") return false;
+      if (carry?.topped?.includes(it.id)) return true;
+      if (!carry?.hacks) return false;
+      const slot = hackSlotOf(it.id);
+      const held = slot ? carry.hacks[slot] : null;
+      return !!held && held !== it.id;
+    };
+    const left = rows.filter((r) => !isGun(r.key) && !leaves(r.key));
+    const holds = many && left.some((r) => r.key !== row.key);
+    out.prompt = { key: holds ? `${key} / HOLD` : key, text: holds ? `TAKE ${row.label}  ·  HOLD: TAKE ALL` : `TAKE ${row.label}` };
     if (input.pressedNow("interact")) {
       // the press takes the one the prompt names, as it always has
       if (isGun(row.key)) {
@@ -555,16 +603,7 @@ export class BrPlay {
     // back and forth about fourteen times in three seconds; Phase 20 A8. Nor a core of a hack at its top level: taken,
     // it goes back down under a new key, which the next step took again, for as long as the key was held, and nothing
     // past it was reached; Milestone 850)
-    const leaves = (key: number): boolean => {
-      const it = f.drops.get(key)?.item;
-      if (it?.kind !== "hack") return false;
-      if (carry?.topped?.includes(it.id)) return true;
-      if (!carry?.hacks) return false;
-      const slot = hackSlotOf(it.id);
-      const held = slot ? carry.hacks[slot] : null;
-      return !!held && held !== it.id;
-    };
-    const next = left.find((r) => !this.inFlight(r.key, now) && !isGun(r.key) && !leaves(r.key));
+    const next = left.find((r) => !this.inFlight(r.key, now));
     if (next && holdDue(now, this.takeDownAt, this.lastTakeAt)) {
       this.take(match, next.key, now);
       this.lastTakeAt = now;

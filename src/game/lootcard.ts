@@ -161,9 +161,14 @@ export function lootCardView(item: LootItem, ctx: { slots: SlotView[]; active: n
     card.heads = o.verdict === "fuse" ? [`NOW (LV ${o.from})`, `AFTER (LV ${o.to})`] : [have ? `YOUR ${weaponName(against!.id).toUpperCase()}` : "IN HAND", `THIS ${name}`];
     const oneShot = get.head >= (PROFILE.health ? PROFILE.health.health + PROFILE.health.shield : 150);
     const ttkRow: CardRow = { label: "TIME TO KILL", have: have ? `${have.ttk.toFixed(2)} S` : "-", get: oneShot && !full ? "1 HEADSHOT" : `${get.ttk.toFixed(2)} S`, cmp: have ? cmpOf(have.ttk, get.ttk, true) : 0 };
+    // (a gun that overheats against one that reloads: each row only for the kind it means, Milestone 927; the CHOOCH's heat
+    // was a magazine, and a magazine a count of shots to overheat)
+    const like = !!have && !!have.heat === !!get.heat;
+    // (a gun put down keeps its rounds, Milestone 859: it is taken as it was put down, not full)
+    const comes = item.clip !== undefined ? `${Math.max(0, Math.min(get.mag, item.clip))}/${get.mag}` : `${get.mag} FULL`;
     const magRow: CardRow = get.heat
-      ? { label: "SHOTS TO OVERHEAT", have: have ? String(have.mag) : "-", get: String(get.mag), cmp: have ? cmpOf(have.mag, get.mag, false) : 0 }
-      : { label: "MAGAZINE", have: have ? `${clip}/${have.mag}` : "-", get: `${get.mag} FULL`, cmp: have ? cmpOf(have.mag, get.mag, false) : 0 };
+      ? { label: "SHOTS TO OVERHEAT", have: like ? String(have!.mag) : "-", get: String(get.mag), cmp: like ? cmpOf(have!.mag, get.mag, false) : 0 }
+      : { label: "MAGAZINE", have: like ? `${clip}/${have!.mag}` : "-", get: comes, cmp: like ? cmpOf(have!.mag, get.mag, false) : 0 };
     if (!full) {
       card.rows = [ttkRow, magRow];
       return card;
@@ -173,7 +178,7 @@ export function lootCardView(item: LootItem, ctx: { slots: SlotView[]; active: n
       { label: "DAMAGE", have: have ? have.dmg : "-", get: get.dmg, cmp: o.verdict === "fuse" && have ? cmpOf(Number.parseFloat(have.dmg), Number.parseFloat(get.dmg), false) : 0 },
       { label: "FIRE RATE", have: have ? `${one(have.rate)} / S` : "-", get: `${one(get.rate)} / S`, cmp: 0 },
       magRow,
-      get.heat ? { label: "RELOAD", have: "-", get: "COOLS, NEVER RELOADS", cmp: 0 } : { label: "RELOAD", have: have ? `${have.reload.toFixed(1)} S` : "-", get: `${get.reload.toFixed(1)} S`, cmp: have ? cmpOf(have.reload, get.reload, true) : 0 },
+      get.heat ? { label: "RELOAD", have: "-", get: "COOLS, NEVER RELOADS", cmp: 0 } : { label: "RELOAD", have: like ? `${have!.reload.toFixed(1)} S` : "-", get: `${get.reload.toFixed(1)} S`, cmp: like ? cmpOf(have!.reload, get.reload, true) : 0 },
     ];
     if (o.verdict !== "fuse" && oneShot) card.rows.push({ label: "HEADSHOT", have: have ? one(have.head) : "-", get: `${one(get.head)}, ONE SHOT`, cmp: 0 });
     const use = useOf(item.id);

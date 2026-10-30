@@ -242,7 +242,7 @@ export interface HudState {
    * dummy's armour (the T key's) as your own shield.
    */
   inventory?: {
-    guns: Array<{ id: string | null; name: string; kind: string | null; clip: number; size: number; inHand: boolean; level: number; max: number; perks: string[] }>;
+    guns: Array<{ id: string | null; name: string; kind: string | null; clip: number; size: number; reserve?: number; inHand: boolean; level: number; max: number; perks: string[] }>;
     hacks: Array<{ id: string; name: string; slot: "mobility" | "utility"; key: string; level: number; max: number; left: number; cooldown: number; blurb: string } | null>;
     vitals: { shield: number; shieldMax: number; health: number; healthMax: number } | null;
     /** the key that holds it open on the device in hand, "" where it has none (Milestone 721) */
@@ -1339,7 +1339,12 @@ export class Hud {
     let y = Math.max(this.hintsBottom ? this.hintsBottom + 22 * u : 120 * u, this.feedFrom);
     this.placed.feed = { x, y: y - 15 * u, w: 0, h: 0 };
     for (let i = this.feedLines.length - 1; i >= 0; i--) if (now - this.feedLines[i].born > 6) this.feedLines.splice(i, 1);
-    for (const l of this.feedLines) {
+    // As many of the newest as fit above the bottom right's panels (the ammo, the slots): under the keys panel at HUD
+    // scale 1.25 and 1.4 the feed ran down over the ammo count and the gun slots (Milestone 928)
+    const floor = Math.min(this.h, ...Object.values(this.boxes).filter((b) => b.x + b.w > this.w * 0.6 && b.y > this.h * 0.5).map((b) => b.y));
+    const fit = Math.max(0, Math.floor((floor - 8 * u - y) / (25 * u)) + 1);
+    // (the newest first, as the feed keeps them)
+    for (const l of this.feedLines.slice(0, fit)) {
       const age = now - l.born;
       this.ctx.globalAlpha = age < 5 ? 1 : 1 - (age - 5);
       // each line on a plate as wide as it, edged in its colour (Milestone 698); a kill with its gun known carries the
@@ -1935,12 +1940,13 @@ export class Hud {
     c.font = this.font(700, 22 * u);
     const tw = c.measureText(p.text).width;
     const cap = 30 * u;
-    const key = this.keyCapWidth(p.key, cap, 18 * u, u);
-    const gap = 10 * u;
+    // (a line with no key, a ghost's, has no cap: it drew an empty one, Milestone 928)
+    const key = p.key ? this.keyCapWidth(p.key, cap, 18 * u, u) : 0;
+    const gap = p.key ? 10 * u : 0;
     const total = key + gap + tw;
     const x = this.w / 2 - total / 2;
     this.plate(x - 10 * u, y - cap / 2 - 6 * u, total + 20 * u, cap + 12 * u, u);
-    this.keyCap(p.key, x, y, cap, 18 * u, u);
+    if (p.key) this.keyCap(p.key, x, y, cap, 18 * u, u);
     this.text(p.text, x + key + gap, y + 8 * u, 700, 22 * u, WHITE);
   }
 
@@ -1982,12 +1988,17 @@ export class Hud {
     const noteH = 15 * u;
     const lines = (v.sayMore ? 1 : 0) + (v.heads ? 1 : 0) + v.rows.length;
     const h = pad * 2 + 30 * u + 22 * u + lines * rowH + (noteLines.length ? 10 * u + noteLines.length * noteH : 0);
-    const y = this.h * 0.42 - h / 2;
+    let y = this.h * 0.42 - h / 2;
     // right of the crosshair, or left of it where the keys panel would be under it (a narrow screen: at 1024 by 768 the
     // two lay one over the other, Milestone 721)
     const right = this.w / 2 + 70 * u;
     const underKeys = this.hintsLeft > 0 && right + w > this.hintsLeft && y < this.hintsBottom;
     const x = underKeys ? this.w / 2 - 70 * u - w : right;
+    // Clear of the minimap on the left, and ending above the prompt (drawPrompt's plate, at 58% down), whose line is what
+    // E does: at HUD scale 1.25 the full card sat over the prompt, and at 1.4 over the minimap's corner (Milestone 928)
+    const mini = 26 * u + 230 * u + 12 * u;
+    if (x < mini) y = Math.max(y, mini);
+    y = Math.max(12 * u, Math.min(y, this.h * 0.58 - 27 * u - h));
     const accent = v.verdict === "fuse" ? "#3cf2ff" : v.verdict === "max" ? DIM : v.verdict === "swap" ? "#ffd23c" : "#7ddc8a";
     this.plate(x, y, w, h, u, accent, 1.15);
     this.edge(x, y, w, h, u);
@@ -3314,7 +3325,7 @@ export class Hud {
       if (g.kind) this.text(g.kind.toUpperCase(), x + 200 * u, y + 60 * u, 600, 13 * u, DIM);
       if (g.inHand) this.text("IN HAND", x + cw - 14 * u, y + 22 * u, 700, 11 * u, GOLD, "right");
       pips(x + 20 * u, y + 98 * u, g.level, g.max, GOLD);
-      this.text(`${g.clip} / ${g.size}  ∞`, x + cw - 14 * u, y + 98 * u, 700, 16 * u, WHITE, "right");
+      this.text(`${g.clip} / ${g.size}  ${g.reserve === undefined || !Number.isFinite(g.reserve) ? "∞" : g.reserve}`, x + cw - 14 * u, y + 98 * u, 700, 16 * u, WHITE, "right");
       if (!g.perks.length) this.text(`ANOTHER ${g.name} FUSES IT A LEVEL`, x + 20 * u, y + 124 * u, 600, 12 * u, DIM);
       else {
         this.text(g.perks.slice(0, 3).join("  ·  "), x + 20 * u, y + 124 * u, 700, 12 * u, "#7ddc8a");
@@ -3336,7 +3347,8 @@ export class Hud {
       this.text(`${hk.slot.toUpperCase()}  ·  ${hk.key}`, x + 100 * u, y + 60 * u, 600, 13 * u, DIM);
       this.text(hk.left > 0 ? `${Math.ceil(hk.left)} S` : "READY", x + cw - 14 * u, y + 24 * u, 700, 14 * u, hk.left > 0 ? DIM : "#7ddc8a", "right");
       pips(x + 20 * u, y + 98 * u, hk.level, hk.max, col);
-      this.text(`COOLDOWN ${Math.round(hk.cooldown)} S`, x + cw - 14 * u, y + 98 * u, 700, 13 * u, WHITE, "right");
+      // (to a tenth, as the loot card says it: a level's 12.6 s read 13, Milestone 928)
+      this.text(`COOLDOWN ${Number.isInteger(hk.cooldown) ? hk.cooldown : hk.cooldown.toFixed(1)} S`, x + cw - 14 * u, y + 98 * u, 700, 13 * u, WHITE, "right");
       this.text(hk.blurb, x + 20 * u, y + 126 * u, 600, 13 * u, "rgba(230,235,240,0.85)");
     });
     // (the key on the device in hand: it said HOLD TAB to a pad player too, Milestone 721)

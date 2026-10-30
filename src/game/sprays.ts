@@ -62,6 +62,8 @@ interface Mark {
   mesh: THREE.Mesh;
   mat: THREE.MeshBasicMaterial;
   born: number;
+  /** how long it stays: the list's, or less on what goes sooner (a WALL hack's panel) */
+  life: number;
 }
 
 export class SprayLayer {
@@ -73,7 +75,7 @@ export class SprayLayer {
   constructor(private scene: THREE.Scene) {}
 
   /** player `owner`'s spray `index` on the wall at `at`, facing `normal`: their last one goes */
-  place(owner: number, at: THREE.Vector3, normal: THREE.Vector3, index: number, now: number): void {
+  place(owner: number, at: THREE.Vector3, normal: THREE.Vector3, index: number, now: number, life = SPRAYS.life): void {
     const map = sprayTexture(index);
     if (!sprayAt(index)) return;
     this.remove(owner);
@@ -88,13 +90,18 @@ export class SprayLayer {
     mesh.scale.setScalar(SPRAYS.size);
     mesh.userData.dynamic = true;
     this.scene.add(mesh);
-    this.marks.set(owner, { mesh, mat, born: now });
+    this.marks.set(owner, { mesh, mat, born: now, life });
     this.count++;
   }
 
   /** whose sprays are up (tools/e2e.ts) */
   owners(): number[] {
     return [...this.marks.keys()];
+  }
+
+  /** how long each owner's spray stays, by owner (tools/e2e.ts) */
+  lives(): Record<number, number> {
+    return Object.fromEntries([...this.marks].map(([o, m]) => [o, m.life]));
   }
 
   remove(owner: number): void {
@@ -108,8 +115,8 @@ export class SprayLayer {
   update(now: number): void {
     for (const [owner, m] of this.marks) {
       const age = now - m.born;
-      if (age > SPRAYS.life) this.remove(owner);
-      else if (age > SPRAYS.life - 5) m.mat.opacity = (SPRAYS.life - age) / 5;
+      if (age > m.life) this.remove(owner);
+      else if (age > m.life - 5) m.mat.opacity = Math.min(1, (m.life - age) / 5);
     }
   }
 

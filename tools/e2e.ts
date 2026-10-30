@@ -1574,6 +1574,8 @@ async function botHacksTest(browser: Browser, query: string): Promise<void> {
       const wait = () => { if (d.phase === "countdown" || performance.now() - t0 > 6000) requestAnimationFrame(() => requestAnimationFrame(() => ok({ before, phase: d.phase, walls: r.wallCount(), mines: r.sk.state().mines, left: left() }))); else setTimeout(wait, 20); };
       wait(); }))()`,
   );
+  // (Milestone 928) a REVEALED warning goes with the match: it went on counting into the range
+  await ev(page, "(() => { const R = window.__range; R.hud.revealed(R.gameTime() + 60); })()");
   // (Milestone 921) the range's own keys do nothing in a match: Y put "RESET: DUMMIES, NUMBERS, THE WALL" on the screen
   await ev(page, "window.__range.input.locked = true");
   await page.keyboard.press("KeyY");
@@ -1582,6 +1584,9 @@ async function botHacksTest(browser: Browser, query: string): Promise<void> {
   check("bots: the range's reset key does nothing in a match", !/RESET: DUMMIES/.test(saidReset), saidReset);
   check("bots: a new round starts clear: no WALL or MINE from the last, the hack ready", fresh.before.walls > 0 && fresh.before.mines > 0 && fresh.before.left > 0 && fresh.phase === "countdown" && fresh.walls === 0 && fresh.mines === 0 && fresh.left === 0, JSON.stringify(fresh));
   await ev(page, "window.__range.duel()?.leave()");
+  await page.waitForFunction("window.__range.duel() === null", { polling: 100, timeout: 8000 }).catch(() => undefined);
+  const revealed = await ev<number>(page, "window.__range.sk.revealedLeft()");
+  check("bots: a REVEALED warning goes with the match, not on into the range", revealed === 0, `${revealed.toFixed(1)} s left`);
   await page.close();
 }
 
@@ -2029,6 +2034,19 @@ async function rangeTest(browser: Browser, query: string): Promise<void> {
   for (let i = 0; i < 30; i++) await ev(page, "(() => { const d = window.__range.drill; d.onShot(1); d.onHit(d.target, window.__range.gameTime()); })()");
   const done = await ev<{ state: string; best: number | null }>(page, "({ state: window.__range.drill.state, best: window.__range.drill.best })");
   check("range: thirty down and the drill has a time and a best", done.state === "done" && (done.best ?? 0) > 0, JSON.stringify(done));
+  // (Milestone 927) a gun taken in the middle of a swap goes into the slot the card named, the gun in hand, with its own
+  // rounds, and comes into your hands: the swap landed first, and the new gun's rounds went to the other gun
+  {
+    const mid = await ev<{ slots: Array<{ id: string; clip: number }>; active: number }>(
+      page,
+      `(() => new Promise((ok) => { const R = window.__range; const l = R.loadout; l.setWeaponId(0, "r97"); l.setWeaponId(1, "vinson"); l.requestSwap(0, R.gameTime());
+        setTimeout(() => { l.requestSwap(1, R.gameTime()); R.takeLoot({ kind: "weapon", id: "mastiff", n: 1, rarity: "common", fusion: 0, clip: 2 });
+          const t0 = R.gameTime(); const wait = () => { if (!l.swapping || R.gameTime() - t0 > 4) ok({ slots: l.slots.map((s) => ({ id: s.id, clip: s.state.clip })), active: l.activeIndex }); else setTimeout(wait, 50); }; setTimeout(wait, 100); }, 1500); }))()`,
+    );
+    const m = mid.slots.find((x) => x.id === "mastiff");
+    check("range: a gun taken mid-swap goes into the slot in hand, with its own rounds, and into your hands", !!m && mid.slots.indexOf(m) === 0 && m.clip === 2 && mid.active === 0 && mid.slots[1].id === "vinson", JSON.stringify(mid));
+    await ev(page, `(() => { const l = window.__range.loadout; l.setWeaponId(0, "r97"); l.setWeaponId(1, "sentinel"); })()`);
+  }
   // (Milestone 918) DEVINOS clears a drill figure: its rocket stopped on the board and its burst never reached it
   {
     await ev(page, `document.getElementById("goDrill").click()`);
@@ -3568,6 +3586,22 @@ async function emoteTest(browser: Browser, query: string, duelQuery: string): Pr
   await ev(page, "window.__range.setScript(null)");
   const off = await ev<{ emoting: unknown; fig: number | null }>(page, "(() => { const R = window.__range; const f = R.selfFigure(); return { emoting: R.emoting(), fig: f ? f.emoting : null }; })()");
   check("emote: a step ends it", off.emoting === null && off.fig === null, JSON.stringify(off));
+  // (Milestone 930) not while you fire: an automatic held through the emote's key waved as it shot
+  // (past the last emote's own wait, which would refuse it whatever)
+  await gameSleep(page, 8);
+  // (the mouse's own button held: a page not playing reads no pad)
+  await ev(page, "window.__range.input.mouseDown[0] = true");
+  await gameSleep(page, 0.3);
+  await ev(page, "window.__range.emote(1)");
+  await gameSleep(page, 0.3);
+  const firing = await ev<unknown>(page, "window.__range.emoting()");
+  await ev(page, "window.__range.input.mouseDown[0] = false");
+  check("emote: none starts while fire is held", firing === null, JSON.stringify(firing));
+  // (Milestone 930) a spray on a WALL hack's panel goes with the panel, where it hung in the air for the rest of its two minutes
+  await ev(page, `(() => { const R = window.__range; R.input.device = "keyboard"; const p = R.player; p.teleport(0, 0, 0, 0, 0); R.sk.setHack("wall"); R.sk.use("utility"); })()`);
+  await gameSleep(page, 0.3);
+  const wallSpray = await ev<{ walls: number; sprayed: boolean; life: number | null }>(page, `(() => { const R = window.__range; const sprayed = R.spray(); const s = R.sprays(); return { walls: R.wallCount(), sprayed, life: s.lives[0] ?? null }; })()`);
+  check("sprays: one on a WALL hack's panel stays as long as the panel, not two minutes", wallSpray.walls > 0 && wallSpray.sprayed && wallSpray.life !== null && wallSpray.life <= 16, JSON.stringify(wallSpray));
   await page.close();
 
   // a 1v1's host waves: the guest's figure of the host waves, and stops when the host moves
@@ -5863,6 +5897,15 @@ async function skGroupTest(browser: Browser, Q = "?net=local&norender"): Promise
     const heardH = await ev<string[]>(host, "window.__range.sk.othersHeard()");
     await ev(host, `(() => { const a = window.__range.hangout().avatars[0]; delete a.currentPose; })()`);
     check("group: in the range together a friend's landing is heard", heardH.includes("land"), JSON.stringify(heardH));
+  }
+  // (Milestone 930) a friend's spray in the range together is theirs on their own page: it went under the host's id there
+  {
+    // (on a WALL of its own, 4 m out: the range together's spot has nothing in spray's reach)
+    await ev(guest, `(() => { const R = window.__range; const p = R.player; p.yaw = 0; p.pitch = 0; R.sk.setHack("wall"); R.sk.use("utility"); })()`);
+    await gameSleep(guest, 0.3);
+    const sprayed = await ev<boolean>(guest, "window.__range.spray()");
+    const own = await ev<{ id: number; owners: number[] }>(guest, "({ id: window.__range.hangout().id, owners: window.__range.sprays().owners })");
+    check("group: a friend's spray in the range together is filed under their own id on their page", sprayed && own.id !== 0 && own.owners.includes(own.id) && !own.owners.includes(0), JSON.stringify({ sprayed, ...own }));
   }
 
   // from the range, a battle royale for both
