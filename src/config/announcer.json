@@ -31,6 +31,18 @@
     "squads3": { "by": "announcer", "priority": 3, "cooldown": 30, "say": ["Three squads remain."] },
     "squads2": { "by": "announcer", "priority": 4, "cooldown": 30, "say": ["Two squads left. Final fight."] },
     "won": { "by": "announcer", "priority": 5, "cooldown": 10, "say": ["You are the last squad standing.", "Victory. Last squad standing."] },
+    "wonZone": {
+      "by": "announcer",
+      "priority": 5,
+      "cooldown": 10,
+      "say": ["Victory. Your squad held the zone.", "The zone is yours. Victory."]
+    },
+    "lostZone": {
+      "by": "announcer",
+      "priority": 5,
+      "cooldown": 10,
+      "say": ["The zone was taken.", "Another squad held the zone."]
+    },
     "lost": { "by": "announcer", "priority": 5, "cooldown": 10, "say": ["Your squad has been eliminated.", "You have been eliminated."] }
   }
 }

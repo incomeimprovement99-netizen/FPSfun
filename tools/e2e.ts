@@ -1104,6 +1104,12 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   // self-revive, the care package, the loadout crate and Storm Surge, and solo with a friend. SpeedKills has no
   // knockdown, decays its city instead of a ring, and its echo restore with a friend is speedkillsGhostTest's; solo with a
   // friend is brSoloTest's)
+  // (Milestone 926) a bot squad wiped is said on the guest's page too: only the host's has bots, and only it said so
+  {
+    await ev(host, `(() => { const d = window.__range.duel(); const b = d.bots.find((x) => x.bot.alive && !x.bot.dropping); if (!b) return; for (const o of d.bots.filter((x) => x.team === b.team && x.bot.alive)) { o.bot.dummy.hit(window.__range.gameTime(), "body", 1e4, 1, 1, o.bot.pos.clone()); d.botDown(o, d.id); } })()`);
+    const told = await guest.waitForFunction(`/SQUAD WIPED/.test(window.__range.hud.noticeNow)`, { polling: 50, timeout: 5000 }).then(() => true, () => false);
+    check("squad: a bot squad wiped is said on the guest's page as on the host's", told, await ev<string>(guest, "window.__range.hud.noticeNow"));
+  }
   // out for what follows: the guest a ghost while the host is up
   await ev(host, "window.__range.duel().holdFire = true");
   await ev(guest, `(() => { const d = window.__range.duel(); d.takeHit(500, 100); })()`);
@@ -5572,6 +5578,9 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     );
     const hacksHeard = await ev<string[]>(page, "window.__range.sk.heardHacks()");
     check("speedkills: another figure's INVISIBILITY, MINE, WALL and DASH are heard where they were used", ["hack_invis", "hack_mine", "hack_wall", "hack_dash"].every((k) => hacksHeard.includes(k)), JSON.stringify(hacksHeard));
+    // (Milestone 926) and their REVEAL: it was the one nobody else heard
+    await ev(page, `(() => { const R = window.__range; const d = R.duel(); const a = d.avatars[0]; const r = a ? d.remoteOf(a) : null; if (!r) return; const p = a.group.position; R.sk.remoteHack(r.id, 10, p.x, p.y, p.z); })()`);
+    check("speedkills: another figure's REVEAL is heard where it was used", (await ev<string[]>(page, "window.__range.sk.heardHacks()")).includes("hack_reveal"));
     // others' landings, slides and mantles are heard where they are (Milestone 695): the bot's figure taken through them
     // (its pose read as the sounds read it), 4 m from you
     await ev(page, `(() => { const R = window.__range; const a = R.duel().avatars[0]; window.__fake = { stance: "stand", speed: 0, pitch: 0 }; Object.defineProperty(a, "currentPose", { get: () => window.__fake, configurable: true }); const q = a.group.position; R.player.teleport(q.x + 4, q.y, q.z, 90, 0); })()`);
@@ -5582,6 +5591,11 @@ async function speedkillsTest(browser: Browser): Promise<void> {
     }
     const heard = await ev<string[]>(page, "window.__range.sk.othersHeard()");
     check("speedkills: another figure's landing, slide, mantle, zipline and double jump are heard where it is", ["land", "slide", "mantle", "zip", "airjump"].every((k) => heard.includes(k)), JSON.stringify(heard));
+    // (Milestone 925) and its reload as it starts: it was silent
+    await ev(page, `window.__fake = { stance: "stand", speed: 0, pitch: 0, act: "reload" }`);
+    await gameSleep(page, 0.3);
+    await ev(page, `window.__fake = { stance: "stand", speed: 0, pitch: 0 }`);
+    check("speedkills: another figure's reload is heard where it is", (await ev<string[]>(page, "window.__range.sk.othersHeard()")).includes("reload"));
     // a sound the voices refuse is not written down (Milestone 734: a far door, a far shot, a step past the voices' cap
     // were still captioned, and pushed the near ones off the five lines): a door 400 m off, past all hearing, and one
     // close by
@@ -5839,6 +5853,16 @@ async function skGroupTest(browser: Browser, Q = "?net=local&norender"): Promise
   await ev(host, `window.__range.hangout().localFx("emote", undefined, undefined, 0)`);
   const emote = await guest.waitForFunction(`window.__range.remoteFxLog.some((e) => e.k === "emote" && e.from === 0)`, { polling: 100, timeout: 5000 }).then(() => true, () => false);
   check("group: in the range together the host's emote reaches the friend", emote);
+  // (Milestone 926) and the friend's movement is heard there: the range's figures were no match's, and its sounds took none
+  {
+    await ev(host, `(() => { const R = window.__range; const a = R.hangout().avatars[0]; window.__fakeH = { stance: "air", speed: 3, pitch: 0 }; Object.defineProperty(a, "currentPose", { get: () => window.__fakeH, configurable: true }); })()`);
+    await gameSleep(host, 0.3);
+    await ev(host, `window.__fakeH = { stance: "stand", speed: 3, pitch: 0 }`);
+    await gameSleep(host, 0.3);
+    const heardH = await ev<string[]>(host, "window.__range.sk.othersHeard()");
+    await ev(host, `(() => { const a = window.__range.hangout().avatars[0]; delete a.currentPose; })()`);
+    check("group: in the range together a friend's landing is heard", heardH.includes("land"), JSON.stringify(heardH));
+  }
 
   // from the range, a battle royale for both
   await ev(host, `(() => { ${brRow("duo", 2)}; window.__range.menu.pickMode("br"); document.getElementById("playFriends").click(); })()`);

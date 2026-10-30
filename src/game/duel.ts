@@ -1316,6 +1316,8 @@ export class Duel implements MatchLike {
           // (a kill that lands after the match was summed up, a trade on match point, belongs to that match and not the
           // rematch, which started one kill up: Milestone 922)
           if (mine && !this.summarised) this.kills++;
+          // (the last of a bot squad, the host says: Milestone 926)
+          if (m.wp === 1 && this.role !== "host") this.squadWiped();
         }
         if (this.role === "host") {
           this.relay(m, from);
@@ -1593,6 +1595,9 @@ export class Duel implements MatchLike {
     }
     this.onRespawn?.();
   }
+
+  /** a bot squad wiped, as the host said (a battle royale's: brmatch.ts) */
+  protected squadWiped(): void {}
 
   protected summarise(): void {
     if (this.summarised) return;

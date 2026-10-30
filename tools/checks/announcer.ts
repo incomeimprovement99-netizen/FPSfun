@@ -29,6 +29,8 @@ console.log("The announcer");
   check("stepping outside the ring is said, but not while dropping into it", same(cues(base, w({ outside: true })), ["outside"]) && same(cues(w({ dropping: true }), w({ dropping: true, outside: true })), []));
   check("down to three squads, then two, each said once", same(cues(w({ squads: 4 }), w({ squads: 3 })), ["squads3"]) && same(cues(w({ squads: 3 }), w({ squads: 2 })), ["squads2"]) && same(cues(w({ squads: 5 }), w({ squads: 4 })), []));
   check("in solo the count is not said: it is everyone", same(cues(w({ team: 1, squads: 4 }), w({ team: 1, squads: 3 })), []));
+  // (Milestone 926) a capture's end says the zone, not the last squad standing or your elimination
+  check("a capture's end says the zone: held by your side, or taken by another", same(cues(base, w({ placement: 1, zone: true })), ["wonZone"]) && same(cues(base, w({ placement: 3, zone: true })), ["lostZone"]));
   check("the end says the win or the loss, once", same(cues(base, w({ placement: 1 })), ["won"]) && same(cues(base, w({ placement: 4 })), ["lost"]) && same(cues(w({ placement: 4 }), w({ placement: 4 })), []));
   check("in the sector decay no ring is said: its waves closing are not the ring closing, and stepping into the decay says the decay", same(cues(w({ decay: true }), w({ decay: true, closing: true })), []) && same(cues(w({ decay: true, ringPhase: 5 }), w({ decay: true, ringPhase: 5, closing: true })), []) && same(cues(w({ decay: true }), w({ decay: true, outside: true })), ["decayOutside"]));
   check("two things at once are both said, in order", same(cues(base, w({ closing: true, squads: 3 })), ["ringClosing", "squads3"]));
@@ -38,7 +40,7 @@ console.log("The announcer");
   const longest = Math.max(...lines.flatMap(([, l]) => l.say.map((s) => s.split(" ").length)));
   check("every line is a callout, not a speech (at most seven words)", longest <= 7, `${longest} words`);
   check("a spray of knocks is one callout: the knock and kill lines wait at least 2 s", CFG.lines.knock.cooldown >= 2 && CFG.lines.kill.cooldown >= 2);
-  check("being down outranks a knock, and the end of the match outranks everything", CFG.lines.down.priority > CFG.lines.knock.priority && lines.every(([k, l]) => k === "won" || k === "lost" || l.priority < CFG.lines.won.priority));
+  check("being down outranks a knock, and the end of the match outranks everything", CFG.lines.down.priority > CFG.lines.knock.priority && lines.every(([k, l]) => k === "won" || k === "lost" || k === "wonZone" || k === "lostZone" || l.priority < CFG.lines.won.priority));
   check("each pick of words comes from the line's own list", lines.every(([k, l]) => [0, 0.5, 0.999].every((r) => l.say.includes(wordsFor(k as Line, r)))));
 }
 

@@ -65,6 +65,11 @@ export class GameAudio {
   private muffle: BiquadFilterNode | null = null;
   /** your own gun: its own bus and compressor, joined after the master one (audio.json ownGun) */
   private ownBus: GainNode | null = null;
+  /**
+   * Each bus's share of the reverb, at its slider: the reverb took every voice's send straight to the master, past the
+   * buses, so at Effects 0 every gun, blast and footstep still played as its tail, and at Hits 0 the knock (Milestone 924)
+   */
+  private wet: Record<"fx" | "hit" | "own", GainNode> | null = null;
   private reverbSend: GainNode | null = null;
   private white: AudioBuffer | null = null;
   private voices = 0;
@@ -166,6 +171,12 @@ export class GameAudio {
     this.hitBus.gain.setTargetAtTime(this.volumes.hits, t, 0.02);
     // your own gun skips the master gain (it joins after the master compressor), so the sliders reach it here
     this.ownBus?.gain.setTargetAtTime(0.5 * this.volumes.master * this.volumes.effects, t, 0.02);
+    // (and their reverb: it joins at the master, so the master gain is not counted twice)
+    if (this.wet) {
+      this.wet.fx.gain.setTargetAtTime(this.volumes.effects, t, 0.02);
+      this.wet.hit.gain.setTargetAtTime(this.volumes.hits, t, 0.02);
+      this.wet.own.gain.setTargetAtTime(this.volumes.effects, t, 0.02);
+    }
     // (a loop that is on starts or stops with the slider: at nothing it is not played at all)
     if (this.musicState.on) this.syncLoop("music", false, true);
     if (this.ambienceState.on) this.syncLoop("ambience", false, true);
@@ -288,6 +299,12 @@ export class GameAudio {
         this.reverbSend.gain.value = this.space === "indoor" ? cfg.reverb.indoor : cfg.reverb.outdoor;
         this.reverbSend.connect(rev);
         rev.connect(this.master);
+        const wet = (): GainNode => {
+          const g = ctx.createGain();
+          g.connect(this.reverbSend!);
+          return g;
+        };
+        this.wet = { fx: wet(), hit: wet(), own: wet() };
         this.white = this.noiseBuffer(ctx, 2);
         this.loadSamples(ctx);
         const l = ctx.listener;
@@ -574,13 +591,13 @@ export class GameAudio {
       // far away there is more room than sound: more of it goes to the reverb
       const send = ctx.createGain();
       send.gain.value = reverb * Math.min(1.6, 0.6 + dist / 60) * (1 + blocked * (cfg.occlusion.reverbBoost - 1));
-      pan.connect(send).connect(this.reverbSend);
+      pan.connect(send).connect(this.wet?.[bus] ?? this.reverbSend);
       if (dist > cfg.delayFrom) t += dist / cfg.speedOfSound;
     } else {
       input.connect(out);
       const send = ctx.createGain();
       send.gain.value = reverb * 0.6;
-      input.connect(send).connect(this.reverbSend);
+      input.connect(send).connect(this.wet?.[bus] ?? this.reverbSend);
     }
     this.voices++;
     this.played++;
@@ -818,7 +835,8 @@ export class GameAudio {
    * up by `semitones` for a streak, as Valorant's chime climbs with each kill.
    */
   eliminate(semitones = 0): void {
-    const v = this.voice(null, 0.5, "fx", 3, 0);
+    // (on the hits, with the knock it plays over: the Hit sounds slider did not reach it, Milestone 924)
+    const v = this.voice(null, 0.5, "hit", 3, 0);
     if (!v) return;
     const k = Math.pow(2, semitones / 12);
     this.tone(v.input, v.t, 0.09, "triangle", 880 * k, 1175 * k, 0.16);
@@ -853,6 +871,20 @@ export class GameAudio {
       this.noise(v.input, v.t, 0.03, "bandpass", 3000, 3, 0.3, 0.001);
       this.noise(v.input, v.t + 0.09, 0.04, "bandpass", 2200, 3, 0.35, 0.001);
     }
+  }
+
+  /**
+   * Someone else's reload, where they are: the magazine out, and in a moment later. A reload behind a wall was silent,
+   * though the Settings' captions promise one, and the only RELOAD caption was your own (Milestone 925).
+   */
+  reloadAt(at: Vec): void {
+    const v = this.voice(at, 0.9, "fx", 1, 0.4);
+    if (!v) return;
+    this.cue("reload", at);
+    this.sample(v.input, v.t, "mag_out", 0.35, 1.4);
+    this.noise(v.input, v.t, 0.05, "bandpass", 1600, 2, 0.25);
+    this.sample(v.input, v.t + 0.6, "mag_in", 0.35, 1.4);
+    this.noise(v.input, v.t + 0.6, 0.04, "bandpass", 2400, 2.5, 0.35, 0.001);
   }
 
   /** the old reload click (the heal-done chime uses its own now) */
@@ -974,9 +1006,10 @@ export class GameAudio {
   }
   /** a knock: a low descending stinger */
   knock(): void {
-    this.cue("knock", null);
     const v = this.voice(null, 0.6, "hit", 2, 0.3);
     if (!v) return;
+    // (a caption for what is played: one the voice limit refused was written down all the same, Milestone 924)
+    this.cue("knock", null);
     this.tone(v.input, v.t, 0.25, "triangle", 520, 390, 0.25);
     this.tone(v.input, v.t + 0.12, 0.35, "triangle", 390, 260, 0.25);
   }
@@ -1114,9 +1147,9 @@ export class GameAudio {
 
   /** an item going into the pack: the player's own, so it is not placed in the world */
   pickup(): void {
-    this.cue("pickup", null);
     const v = this.voice(null, 0.25, "fx", 1, 0);
     if (!v) return;
+    this.cue("pickup", null);
     if (!this.sample(v.input, v.t, "pickup", 0.4)) this.tone(v.input, v.t, 0.05, "triangle", 900, 1400, 0.09);
   }
 
@@ -1130,9 +1163,9 @@ export class GameAudio {
   /** an ult going up: a zipline anchored, a scout's sweep */
   beacon(at: Vec): void {
     // (a squad's restore at an echo is its one use today, Milestone 712: captioned as one)
-    this.cue("revive", at);
     const v = this.voice(at, 0.7, "fx", 0, 0.5);
     if (!v) return;
+    this.cue("revive", at);
     if (!this.sample(v.input, v.t, "beacon", 0.6)) this.tone(v.input, v.t, 0.5, "sine", 220, 660, 0.2);
   }
 
@@ -1356,9 +1389,9 @@ export class GameAudio {
 
   /** the ring starts to close: a long low horn */
   ringHorn(): void {
-    this.cue("ring", null);
     const v = this.voice(null, 2, "fx", 2, 0.6);
     if (!v) return;
+    this.cue("ring", null);
     this.tone(v.input, v.t, 1.6, "sawtooth", 110, 104, 0.12, 0.35);
     this.tone(v.input, v.t, 1.6, "sawtooth", 165, 156, 0.08, 0.35);
     this.noise(v.input, v.t, 1.4, "lowpass", 400, 0.5, 0.06, 0.3);

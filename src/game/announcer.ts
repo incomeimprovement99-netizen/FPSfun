@@ -29,6 +29,8 @@ export interface Watch {
   team: number;
   /** where you finished, once you have (1 is the win) */
   placement: number | null;
+  /** the match ended by the capture zone's meter: its end is the zone's, not the last squad's (Milestone 926) */
+  zone?: boolean;
   /** SpeedKills' sector decay: there is no ring to speak of, its waves are said where the decay is run (main.ts stepDecay) */
   decay?: boolean;
 }
@@ -49,7 +51,8 @@ export function cues(prev: Watch | null, next: Watch): Line[] {
     if (next.squads === 3) out.push("squads3");
     else if (next.squads === 2) out.push("squads2");
   }
-  if (next.placement !== null && prev.placement === null) out.push(next.placement === 1 ? "won" : "lost");
+  // (a capture's end: "the last squad standing" with four squads up, and "eliminated" to a squad alive, Milestone 926)
+  if (next.placement !== null && prev.placement === null) out.push(next.zone ? (next.placement === 1 ? "wonZone" : "lostZone") : next.placement === 1 ? "won" : "lost");
   return out;
 }
 

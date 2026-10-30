@@ -82,6 +82,9 @@ export class Captions {
     const text = CAPTION_WORDS[id];
     if (!text) return;
     if (this.mode === "important" && !capCfg.important.includes(id)) return;
+    // A sound with no place is your own: the important ones are the sounds that mean someone is near, and your steps, shots
+    // and reloads pushed a door's line off in a third of a second, and your own landing said SOMEONE LANDED (Milestone 923)
+    if (!where && capCfg.important.includes(id)) return;
     const last = this.lines[this.lines.length - 1];
     if (last && last.id === id && last.where === where && now - last.at < capCfg.repeat) {
       // the same thing again from the same place: the line stays, its clock restarts

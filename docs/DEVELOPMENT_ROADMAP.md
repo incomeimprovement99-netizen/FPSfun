@@ -13732,6 +13732,50 @@ kill that came in after the match was summed up was counted for the rematch, whi
   eleven times over and the card sat at 20% down); e2e bots: a WALL, a MINE and a cooling hack at a round's end are gone
   and ready at the next countdown; e2e duel: a kill after the match was summed up is not counted.
 
+## Milestone 923 — Captions of someone near are never your own sounds
+
+From a review of the sound and the captions. The important captions are the sounds that mean someone is near, and
+your own steps, shots, reloads and landings were written down among them with no place: a door to your left was pushed
+off the five lines in a third of a second of sprinting and firing, and every landing of yours, every respawn too, said
+SOMEONE LANDED. A sound of your own is not written as one of those (captions.ts heard).
+
+- **Checked:** tsc, verify, rules; verify's access check, a new line: a door's line stays up through your own steps,
+  shots, landing, reload and kill.
+
+## Milestone 924 — The sliders reach every sound they name
+
+The reverb took each voice's send straight to the master, past the buses, so with Effects at 0 every gun, blast and
+footstep still played as its tail, and with Hits at 0 the knock and a shield breaking; each bus's reverb is at its own
+slider now. The kill chime was an effect, out of the Hit sounds slider's reach, and is a hit sound now. A battle
+royale's ping played the hit marker's blip (a white shield hit), on the Hits slider; it plays the ping's own tick. And a
+sound the voice limit refused was captioned all the same (a pickup, a restore, as Milestone 734 fixed for shots); it is
+captioned only when played (audio.ts).
+
+- **Checked:** tsc, verify, rules; tools/checks/sound.ts, new in verify, the real mixer on a stand-in Web Audio graph:
+  at Effects 0 nothing of a gun, a blast or a step reaches the speakers, at Hits 0 nothing of the knock, a shield break
+  or the kill chime, a refused pickup is not captioned, and a ping plays its own tick.
+
+## Milestone 925 — Someone else's reload is heard
+
+A reload by someone else was silent: their figure's act said it, and nothing read it. It is heard where they are as it
+starts, and captioned with its place (soundscape.ts, audio.ts reloadAt), as the Settings' captions promise.
+
+- **Checked:** tsc, verify, rules; sound.ts: the reload is played and captioned with its place; e2e speedkills: a figure's
+  reload is heard (on the old code it was not).
+
+## Milestone 926 — The announcer's last line, the others' REVEAL, a squad wiped on a guest, the range together
+
+A battle royale ended by the capture zone said "You are the last squad standing" with four squads up, or "You have been
+eliminated" to a squad alive when a bot squad held it; it says the zone now, held or taken (announcer.json wonZone,
+lostZone). "Get ready to drop" was said under the loading screen, then not when the ship flew; it is said once the ship
+is shown. Someone else's REVEAL made no sound and its caption could never show; it is heard where they are. A guest
+never heard "Squad wiped" or saw SQUAD WIPED, only the host's page having bots; the host says it with the last one's
+down. And in the range with friends their steps, jumps and landings were silent; their figures are heard.
+
+- **Checked:** tsc, verify, rules; verify's announcer check: a capture's end says the zone; sound.ts: the drop waits for
+  the ship to be shown; e2e speedkills: another's REVEAL is heard; e2e squad: a bot squad wiped is said on the guest's
+  page; e2e sklobby: in the range together a friend's landing is heard (each failing on the old code).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

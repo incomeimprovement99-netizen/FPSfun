@@ -95,6 +95,14 @@ console.log("Sound captions");
   only.mode = "important";
   only.heard("pickup", 1, "AHEAD", "CLOSE");
   check("the important list is the short one: a pickup is captioned only on everything", all.live(1).length === 1 && only.live(1).length === 0);
+  // (Milestone 923) your own sounds (they have no place) are not someone near: a door's line stays up through your steps,
+  // shots and landing, where they pushed it off in a third of a second and your landing said SOMEONE LANDED
+  const near = new Captions();
+  near.mode = "important";
+  near.heard("door", 10, "LEFT", "CLOSE");
+  for (const [i, id] of ["gun", "step", "gun", "step", "land", "reload", "knock"].entries()) near.heard(id, 10.05 + i * 0.04, "", "");
+  const lines = near.live(10.4).map((l) => l.text);
+  check("your own steps, shots, landing and reload are not captioned as someone near: the door's line stays", lines.length === 1 && lines[0] === CAPTION_WORDS.door, JSON.stringify(lines));
   check("every sound the game cues has a word for it", ["gun", "blast", "step", "land", "door", "reload", "knock"].every((id) => !!CAPTION_WORDS[id]), CAPTION_IDS.length + " sounds");
   // and the other way (Milestone 712): every word is a sound that says so, audio.ts's cue("<id>") or a hack's
   // hack_<id> (hackSound), or the caption can never be shown; half of them could not be

@@ -3850,6 +3850,8 @@ function useHack(slot: HackSlot, now: number): void {
       const n = kitSight()?.reveal(player.pos, fwd, H.reveal.range, H.reveal.cone, H.reveal.seconds) ?? 0;
       audio.pingTick();
       audio.hackSound("reveal");
+      // and heard by the others where you are (Milestone 926): the one hack nobody else heard, its caption never shown
+      sendFx("sk", player.pos.clone(), undefined, 10);
       hud.notice(n > 0 ? `REVEAL: ${n} ENEMY${n > 1 ? " CONTACTS" : ""}` : "REVEAL: NOBODY THERE", now, 1.4);
       break;
     }
@@ -4242,6 +4244,10 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       audio.hackSound("mine", a);
       break;
     }
+    case 10:
+      // their REVEAL (Milestone 926), where they are
+      if (!audio.hackSound("reveal", a)) audio.whoosh(a);
+      break;
     case 7:
     case 8: {
       audio.blast(n === 7 ? "slam" : "frag", a);
@@ -4414,7 +4420,8 @@ const brPlay = new BrPlay({
   onEnemyPing: () => announcer.say("spotted", realNow()),
   keyLabel: (a) => keyOnDevice(a),
   notice: (t) => hud.notice(t, gameTime, 2),
-  sound: (k) => (k === "ping" ? audio.hitTier("white") : audio.whoosh()),
+  // (a ping's own tick: it was the hit marker's, a white shield hit, on the Hit sounds slider, Milestone 924)
+  sound: (k) => (k === "ping" ? audio.pingTick() : audio.whoosh()),
   beam: (at) => {
     setBeam(-1, at);
     duel?.localFx("beam", at ?? undefined, undefined, at ? 1 : 0);
@@ -8020,7 +8027,9 @@ function step(): void {
     const b = duelHud?.br;
     const dropping = duel instanceof BrMatch && (player.aboard || player.dropping);
     if (b) {
-      const w: Watch = { dropping, ringPhase: b.ring.phase, ringPhases: b.ring.phases, closing: b.ring.closing, outside: b.ring.outside, squads: b.squads, team: b.team, placement: b.placement, decay: duel instanceof BrMatch && !!duel.decay };
+      // ("drop" said once the ship is shown: under the loading screen it was said to nobody, and its cooldown kept it from
+      // being said when the ship flew; and a capture's end said as one, Milestone 926)
+      const w: Watch = { dropping: dropping && !show, ringPhase: b.ring.phase, ringPhases: b.ring.phases, closing: b.ring.closing, outside: b.ring.outside, squads: b.squads, team: b.team, placement: b.placement, decay: duel instanceof BrMatch && !!duel.decay, zone: duel instanceof BrMatch && duel.zoneEnded };
       for (const line of cues(watchWas, w)) announcer.say(line, realNow());
       watchWas = w;
     } else watchWas = null;
@@ -8039,7 +8048,8 @@ function step(): void {
     match: duelHud,
     alive: duel ? duel.alive : true,
     health: duel ? duel.health : HEALTH_MAX,
-    figures: duel ? duel.avatars : [],
+    // (the friends in the range with you too: their steps, jumps and landings were silent, Milestone 926)
+    figures: duel ? duel.avatars : hangout ? hangout.avatars : [],
     ear: camera.position,
     heal: null,
     reload: { on: ws.reloading, progress: ws.reloadProgress(now), empty: ws.clip === 0 },

@@ -59,7 +59,7 @@ export class Soundscape {
   private climbTapAt = 0;
   private others = new WeakMap<Dummy, number>();
   /** each figure's stance and height last frame, and how fast it was falling while in the air (their landings' weight) */
-  private otherMove = new WeakMap<Dummy, { stance: string; y: number; vy: number; airJumps: number }>();
+  private otherMove = new WeakMap<Dummy, { stance: string; y: number; vy: number; airJumps: number; act: string | null }>();
   /** the others' movement sounds lately played, newest last (tools/e2e.ts) */
   readonly othersHeard: string[] = [];
   private heard(kind: string): void {
@@ -173,8 +173,13 @@ export class Soundscape {
           a.zipOn(at);
           this.heard("zip");
         }
+        // and their reload as it starts (Milestone 925): it was silent, a reload behind a wall the Settings promise
+        if (pose.act === "reload" && was.act !== "reload") {
+          a.reloadAt({ x: g.x, y: g.y + 1.2, z: g.z });
+          this.heard("reload");
+        }
       }
-      this.otherMove.set(d, { stance: pose.stance, y: g.y, vy: airborne(pose.stance) ? Math.min(vy, was?.vy ?? 0) : 0, airJumps: pose.airJumps ?? 0 });
+      this.otherMove.set(d, { stance: pose.stance, y: g.y, vy: airborne(pose.stance) ? Math.min(vy, was?.vy ?? 0) : 0, airJumps: pose.airJumps ?? 0, act: pose.act ?? null });
       if (far) continue;
       // and along a wall (Milestone 707): someone running a wall was silent, the one way to come at you unheard
       const onWall = pose.stance === "wallL" || pose.stance === "wallR";

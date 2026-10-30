@@ -1418,11 +1418,12 @@ export class BrMatch extends Duel {
     // the end of it: the feed says eliminated, with the gun when there was one (Milestone 701)
     this.onFeed?.(`${who} eliminated ${r.name}`, mine, !mine, { killer: who, victim: r.name, weapon: weapon || undefined, head });
     for (const o of this.bots) o.bot.forget(r.id);
-    this.broadcast({ t: "down", from: r.id, by, w: weapon || undefined, hd: head ? 1 : undefined });
+    // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one). The guests are told with
+    // the down: their pages have no bots, and never said it (Milestone 926)
+    const wiped = this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive);
+    this.broadcast({ t: "down", from: r.id, by, w: weapon || undefined, hd: head ? 1 : undefined, wp: wiped ? 1 : undefined });
     this.onKnockSeen?.(r.id, by);
     const left = this.aliveCount;
-    // the last of a bot squad: the squad is wiped (duos and trios; in solo every death is one)
-    const wiped = this.team.size > 1 && !this.bots.some((o) => o.team === b.team && o.bot.alive);
     if (wiped) {
       this.onNotice?.(`SQUAD WIPED  ·  ${this.squadsAlive} SQUADS LEFT`);
       this.onWiped?.();
@@ -1832,6 +1833,17 @@ export class BrMatch extends Duel {
 
   /** a squad of bots wiped out, the last of it by anyone (announcer.ts) */
   onWiped: (() => void) | null = null;
+
+  /** a bot squad wiped, as the host said with its last one's down (a guest's page: Milestone 926) */
+  protected squadWiped(): void {
+    this.onNotice?.("SQUAD WIPED");
+    this.onWiped?.();
+  }
+
+  /** the match ended by the capture zone's meter (the announcer's last line is the zone's: Milestone 926) */
+  get zoneEnded(): boolean {
+    return this.capture.held >= decayCfg.capture.hold - 0.5;
+  }
 
   /** where the match is played: the whole map */
   readonly area: { cx: number; cz: number; r: number };

@@ -116,7 +116,7 @@ export type NetMsg =
   | { t: "hit"; from?: number; to: number; amount: number; head: boolean; w?: string; d?: number }
   /** a player (or a host's bot) is out: `by` whom; `m` 1 when it was a melee (Gun Run takes a level for it) */
   /** `w` the gun of the round that did it and `hd` 1 when it was a head (Milestone 701, the kill feed's): an older build sends neither */
-  | { t: "down"; from?: number; by: number; m?: number; tm?: number; bn?: number; w?: string; hd?: number }
+  | { t: "down"; from?: number; by: number; m?: number; tm?: number; bn?: number; w?: string; hd?: number; wp?: number }
   | { t: "round"; n: number; scores: number[]; phase: RoundPhase; left: number; winner: number }
   | { t: "ping"; at: number }
   | { t: "pong"; at: number }
