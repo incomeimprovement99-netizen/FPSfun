@@ -64,6 +64,9 @@ async function forward(page: Page): Promise<void> {
   await page.bringToFront();
   front = page;
   await sleep(600);
+  // (and into the game again: the other page's turn in front took this one's focus, and a page that loses it goes to
+  // its menu, so every picture after the first page switch was of the menu)
+  await pressPlay(page);
 }
 async function shot(page: Page, name: string, note: string): Promise<void> {
   await forward(page);
