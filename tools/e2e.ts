@@ -706,7 +706,8 @@ async function voiceTest(browser: Browser, query: string): Promise<void> {
  * that friend opens a new code for the same match, and all three are in it
  * with the friend hosting, nobody typing a code.
  */
-async function handoverTest(browser: Browser, query: string): Promise<void> {
+/** three pages in one Free-for-all lobby with a bot, the host first, and its code; null when they did not get there */
+async function threeInLobby(browser: Browser, query: string, tag: string): Promise<{ pages: Page[]; code: string } | null> {
   const pages: Page[] = [];
   const host = await open(browser, query);
   pages.push(host);
@@ -722,14 +723,61 @@ async function handoverTest(browser: Browser, query: string): Promise<void> {
       await sleep(500);
     }
     for (const p of pages) await p.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 25000 });
+    return { pages, code };
   } catch {
-    check("handover: three in one lobby", false, code);
+    check(`${tag}: three in one lobby`, false, code);
     for (const p of pages) await p.close();
-    return;
+    return null;
   }
+}
+
+/**
+ * (Milestone 915) The friend asked to take the host makes its new code slowly, and the match starts meanwhile: the
+ * friend stays in the match, and its new code goes. It left the match being played for a lobby of its own.
+ */
+async function handoverLateTest(browser: Browser, query: string): Promise<void> {
+  const three = await threeInLobby(browser, query, "handover late");
+  if (!three) return;
+  const { pages } = three;
+  const host = pages[0];
   const ids = await Promise.all(pages.map((p) => ev<number>(p, "window.__range.duel().id")));
   const heir = pages[ids.indexOf(1)];
-  // the host's roster: Make host on player 2
+  await ev(heir, "window.__handoverLate = 3000");
+  const clicked = await host
+    .waitForSelector('#duelRoster [data-host="1"]', { timeout: 6000 })
+    .then(async () => {
+      await ev(host, `document.querySelector('#duelRoster [data-host="1"]').click()`);
+      return true;
+    }, () => false);
+  await sleep(300);
+  for (const p of pages) await pressPlay(p);
+  await sleep(4500);
+  const heirNow = await ev<{ role: string; id: number; phase: string } | null>(heir, "(() => { const d = window.__range.duel(); return d ? { role: d.role, id: d.id, phase: d.phase } : null; })()");
+  const hostSees = await ev<number>(host, "window.__range.duel()?.links.size ?? -1");
+  check(
+    "handover late: a friend whose new code comes after the match has begun stays in the match (its new code goes)",
+    clicked && heirNow?.role === "guest" && heirNow.id === 1 && heirNow.phase !== "waiting" && hostSees === 2,
+    JSON.stringify({ clicked, heirNow, hostSees }),
+  );
+  for (const p of pages) await p.close();
+}
+
+async function handoverTest(browser: Browser, query: string): Promise<void> {
+  const three = await threeInLobby(browser, query, "handover");
+  if (!three) return;
+  const { pages, code } = three;
+  const host = pages[0];
+  const ids = await Promise.all(pages.map((p) => ev<number>(p, "window.__range.duel().id")));
+  const heir = pages[ids.indexOf(1)];
+  // (Milestone 915) the first ask goes unanswered (player 2's page drops it, as a page that closed would): past the wait
+  // the host is told, and may ask again. It waited for good, Make host dead until a reload
+  await ev(heir, "(() => { const d = window.__range.duel(); window.__keptHandover = d.onHandover; d.onHandover = () => undefined; })()");
+  await host.waitForSelector('#duelRoster [data-host="1"]', { timeout: 6000 }).catch(() => undefined);
+  await ev(host, `document.querySelector('#duelRoster [data-host="1"]')?.click()`);
+  const toldHost = await host.waitForFunction(`/did not take the host/.test(document.getElementById("duelStatus").textContent)`, { polling: 200, timeout: 20000 }).then(() => true, () => false);
+  await ev(heir, "(() => { window.__range.duel().onHandover = window.__keptHandover; })()");
+  check("handover: an ask nobody answers is over after its wait, and the host is told", toldHost, await ev<string>(host, `document.getElementById("duelStatus").textContent`));
+  // the host's roster: Make host on player 2, again
   const clicked = await host
     .waitForSelector('#duelRoster [data-host="1"]', { timeout: 6000 })
     .then(async () => {
@@ -9932,6 +9980,8 @@ async function main(): Promise<void> {
       await tripleTest(browser, "?net=local&norender", "1v1v1 mixed", [{}, {}, { extra: "&deltas=0", want: "full" }]);
       console.log("\nHanding the host over in the lobby");
       await handoverTest(browser, "?net=local&norender");
+      console.log("\nHanding the host over, the friend's code late and the match begun");
+      await handoverLateTest(browser, "?net=local&norender");
     });
 
     if (want("bots")) await section("bots", async () => {

@@ -5497,7 +5497,7 @@ function brPlayersDefault(): void {
 }
 
 /** a code for a match of `players` on hostBr and hostOpts as they stand: the invite on the Friends tab, the guests into the match as they come */
-function openHosting(players: number, then?: (code: string) => void): void {
+function openHosting(players: number, then?: (code: string) => void, failed?: () => void): void {
   setDuelStatus("Making a match...", "live");
   hosting = hostMatch(
     players,
@@ -5523,6 +5523,7 @@ function openHosting(players: number, then?: (code: string) => void): void {
     (err) => {
       setDuelStatusText(err, "bad");
       hosting = null;
+      failed?.();
       duelButtons();
     },
     hostBr ?? undefined,
@@ -5563,14 +5564,24 @@ function joinCode(code: string): void {
  * everyone else to move to it, then goes there itself. Nobody types a code.
  */
 let handingTo: number | null = null;
+/** the friend last asked, whose code is still taken after the wait (net.json handover) */
+let handedTo: number | null = null;
 /** the new host's own code while it leaves the old lobby: its end must not close the new one */
 let takingOver = false;
 function handOver(to: number): void {
   const d = duel;
   if (!(d instanceof Duel) || d.role !== "host" || d.phase !== "waiting" || handingTo !== null) return;
   handingTo = to;
+  handedTo = to;
   d.tell(to, { t: "host", op: "take", players: d.players, br: hostBr ?? undefined, opts: hostOpts ?? undefined });
   setDuelStatusText(`Handing the host to ${d.nameFor(to)}...`);
+  // No code back in the wait: the ask is over, and Make host works again. It waited for good, the button dead until a
+  // reload, when the friend's page closed or its new code failed (Milestone 915).
+  window.setTimeout(() => {
+    if (handingTo !== to || duel !== d) return;
+    handingTo = null;
+    if (d.phase === "waiting") setDuelStatusText(`${d.nameFor(to)} did not take the host. Try again, or pick someone else.`, "bad");
+  }, netCfg.handover.wait * 1000);
 }
 function onHandover(d: Duel, m: Extract<NetMsg, { t: "host" }>, from: number): void {
   if (m.op === "take" && d.role === "guest") {
@@ -5579,20 +5590,38 @@ function onHandover(d: Duel, m: Extract<NetMsg, { t: "host" }>, from: number): v
     hostBr = m.br ?? null;
     hostOpts = m.opts ?? null;
     takingOver = true;
-    openHosting(players, (code) => {
+    const took = (code: string) => {
+      // The match began, or this page left it, while the code was being made: the new code goes, and this page stays
+      // where it is. It left the match being played for a lobby of its own (Milestone 915).
+      if (duel !== d || d.phase !== "waiting") {
+        takingOver = false;
+        hosting?.cancel();
+        hosting = null;
+        duelButtons();
+        return;
+      }
       // The code, then out of the old lobby at once (the code goes first on
       // the ordered channel): a friend who arrived while this page was still
       // a guest there would be turned away. The new code stays open (endMatch).
       d.tell(0, { t: "host", op: "code", code });
-      if (duel === d) d.leave();
+      d.leave();
       takingOver = false;
       goTo("range");
       setDuelStatusText(`You are the host now. Your code is ${code}: the others are on their way.`);
       duelButtons();
-    });
-  } else if (m.op === "code" && d.role === "host" && from === handingTo && typeof m.code === "string" && m.code.length === 5) {
+    };
+    // (a test's page makes its code late, as a slow broker would: e2e triple)
+    const late = (window as unknown as { __handoverLate?: number }).__handoverLate ?? 0;
+    openHosting(
+      players,
+      (code) => (late > 0 ? void window.setTimeout(() => took(code), late) : took(code)),
+      // (no code at all: this page is a guest as before, and its next match's end must close its code as any other)
+      () => void (takingOver = false),
+    );
+  } else if (m.op === "code" && d.role === "host" && (from === handingTo || (handingTo === null && from === handedTo)) && typeof m.code === "string" && m.code.length === 5) {
     const code = m.code;
     handingTo = null;
+    handedTo = null;
     // everyone else to the new code, then this page too
     for (const id of d.roster().map((r) => r.id)) if (id !== from) d.tell(id, { t: "host", op: "move", code });
     setTimeout(() => {

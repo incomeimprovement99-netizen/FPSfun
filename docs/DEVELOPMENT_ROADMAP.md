@@ -13635,6 +13635,21 @@ in the order they were made (and at the next visit's start); a look for the boar
 - **Checked:** tsc, verify, rules; keep.ts: with the server down for two wins and back for the third, the three go in
   order (on the old code, only the third).
 
+## Milestone 915 — Make host: an ask that goes unanswered, and a code that comes late
+
+From the review of joining a match (2026-10-29), its second finding; its third was Milestone 860. The lobby's Make host asks a friend to open a new
+code and send it back. An ask that got no code back (the friend's page closed, or its broker would not have the new
+code) waited for good: Make host was dead until the page was reloaded, and the status went on saying it was handing the
+host over. And a friend whose code came after the match had begun (everyone ready while the broker was slow) left the
+match being played for a lobby of its own. Past a wait (net.json handover, 10 s) the ask is over, the host is told and
+may ask again or someone else, a code that comes late from the friend last asked is still taken, a friend whose code
+comes after the match began stays in it and its new code goes, and a new code that fails leaves the friend a guest as
+before (main.ts handOver, onHandover).
+
+- **Checked:** tsc, verify, rules; e2e triple, two new checks: an ask the friend's page drops is over after the wait and
+  the host is told (then Make host goes through), and with the friend's code 3 s late and the match begun, the friend
+  stays in it (on the old code: no word, the second ask refused, and the friend gone to a lobby of its own).
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
