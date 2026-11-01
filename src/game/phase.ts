@@ -14,6 +14,8 @@ import * as THREE from "three";
 
 /** one sweep: how far along it is and the axis it runs along, shared by every material it drives */
 export interface PhaseSweep {
+  /** the material clones made for it (phasedMaterial) */
+  clones?: THREE.Material[];
   /** 0 gone, 1 whole */
   phase: { value: number };
   /** where the sweep starts and the way it runs, world space; len is how long the axis is */
@@ -142,12 +144,14 @@ if (uPhaseRim > 0.0 && !phaseHolo) gl_FragColor.rgb += uPhaseColor * uPhaseRim *
 #endif
 `;
 
-const phased = new WeakMap<THREE.Material, Map<PhaseSweep, THREE.Material>>();
+// (weak both ways: the outer key is a gun's cached material, which stays, and a strong Map under it kept every figure's
+// sweep and clone for the page's life, 250 materials a battle royale, Milestone 952)
+const phased = new WeakMap<THREE.Material, WeakMap<PhaseSweep, THREE.Material>>();
 
 /** a material with this sweep compiled in: one clone a material and sweep, made once */
 export function phasedMaterial(src: THREE.Material, sweep: PhaseSweep): THREE.Material {
   let bySweep = phased.get(src);
-  if (!bySweep) phased.set(src, (bySweep = new Map()));
+  if (!bySweep) phased.set(src, (bySweep = new WeakMap()));
   const have = bySweep.get(sweep);
   if (have) return have;
   const m = src.clone();
@@ -183,7 +187,14 @@ export function phasedMaterial(src: THREE.Material, sweep: PhaseSweep): THREE.Ma
   // its own program: three keys programs by the compile function's text, and every phased clone shares it
   m.customProgramCacheKey = () => `phase|${src.type}`;
   bySweep.set(sweep, m);
+  (sweep.clones ??= []).push(m);
   return m;
+}
+
+/** a sweep's clones let go of on the GPU, when the figure it belonged to goes */
+export function disposeSweep(sweep: PhaseSweep): void {
+  for (const m of sweep.clones ?? []) m.dispose();
+  sweep.clones = [];
 }
 
 /** the material a phased clone was made from, or the material itself */

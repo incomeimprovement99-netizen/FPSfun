@@ -14043,6 +14043,56 @@ good. And a program's first use on a lost context threw, three asking it for a l
   browser: an Alt-Tab leaves the loading screen up, a GPU lost through WEBGL_lose_context says to reload and clears when it comes back
   with no page error, a Graphics change in a match is refused and said.
 
+## Milestone 949 — An account that keeps what you earned
+
+From a review of the saved data. A save went straight over the account, and there is one copy. A tab left open wiped ten matches
+played on a laptop with one press of Esc; a page whose look failed as it opened took 14 matches down to 3; a save that got no answer
+was lost to the next browser's. Signing in on a main PC to an account made on a phone took 200 matches to 1, and signing out, playing
+and signing in again took 25 to 3. A save now says which copy it was made from, and the server sends one made from an older copy
+back (409) to be merged and sent again. Signing in merges too (mergeprofile.ts): the most XP, the highest of each count, the best time
+with its splits and ghost; settings, keys and loadouts are the account's. Signing out sends what is here first. A browser keeps whose
+record it holds, so a friend's account on it starts its own and does not carry the last player's away. What a failed save left goes
+up as the page next opens, THE RUN's times go up as a match's did, a failed look at the server is asked again where it stopped every
+save for the visit, an answer after Sign out does not bring the session back, the render scale stays per machine as the README says,
+and the box says when a save on signing in failed.
+
+- **Checked:** tsc, verify, rules; tools/checks/accounts.ts, new in verify, the real modules against the real server, each browser
+  its own storage: every case above (11 failing on the old code); keep.ts: the further copy comes on.
+
+## Milestone 950 — What a match is worth
+
+Control's score went into the rounds a match pays 40 XP for: a win paid 20,740 XP against a 1v1's 860, a loss 18,100, level 50 in ten
+wins; team deathmatch paid 40 a team kill, a free-for-all each kill twice. A mode's match is one round, and its score goes to its card
+(XP already saved stays). A draw counted as a loss and ended a streak; it is neither. One NaN in a summary was saved as null and read
+back as 0, the whole XP gone and the next sync taking it to the account; a summary's numbers are counts now. A battle royale's deaths
+said none for a death, a won Gulag and a win. Beginner matches never showed on the Stats tab and their wins had no board; both do. The
+practice aim bot's wins, kills and times went on the boards; not any more. A write refused by a full store took every match back to
+the last good one; it counts for the session as it says. And a match's end posting three results together sent the first three
+times and could lose one; they go in turn (modematch.ts, stats.ts, progress.ts, brmatch.ts, leaderboard.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules.ts: a mode's match pays one round, a draw is no loss, NaN changes nothing.
+
+## Milestone 951 — Who is where, when it counts
+
+From reviews of the killcam and of a squad's life. A player who died in the first half of a swap to a gun they had held before went
+out of the scene and out of reach on the other page for the rest of the match, while they could still hit it: the same figure was
+handed back, stood up, and removed as the old one. It waits to take the gun until it is up. When a host went, the heir judged the
+match with no bots rebuilt: a win on the spot with 6 bots up, or #2 of 5 for #5; nobody is judged until they are back. The Gulag's
+countdown held its bot and not you: 12 rounds killed it before FIGHT, and a MINE took its shield; guns and hacks wait for FIGHT. Every
+care package's mark went after a frame, from Milestone 930's rule for a mate who left. A ghost could not ping, though the game says
+it does. A mate who lost the Gulag stood where they died. And the decay's kills said THE RING.
+
+- **Checked:** tsc, verify, rules; netfigures.ts: the figure stays in the scene and in reach through the swap; arena-rules.ts and pings.ts
+  for the rest; e2e gulag, migrate, brsolo, squad.
+
+## Milestone 952 — Figures let go of
+
+Every figure's phased gun materials stayed for the page's life: a strong map under a shared material's weak one, 250 more materials a
+battle royale and most of a megabyte, for bots, friends and every killcam ghost. The map is weak both ways, and a figure disposes its
+clones (phase.ts, mannequin.ts).
+
+- **Checked:** tsc, verify, rules; a real page's `queryObjects` count over several matches.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -31,7 +31,7 @@ import perfCfg from "../config/perf.json";
 import { slow } from "./slow";
 import soldierHold from "../config/soldierhold.json";
 import feelCfg from "../config/gunfeel.json";
-import { newSweep, phaseMeshes, type PhaseSweep } from "./phase";
+import { disposeSweep, newSweep, phaseMeshes, type PhaseSweep } from "./phase";
 import { airborne, type FigurePose } from "./dummy";
 import { MOVE } from "./movement";
 import { solidsIn } from "./solidgrid";
@@ -2473,6 +2473,8 @@ export class MannequinFigure {
     this.mixer.uncacheRoot(this.root);
     this.root.removeFromParent();
     for (const m of this.mats) m.dispose();
+    disposeSweep(this.magSweep);
+    disposeSweep(this.gunSweep);
     // each clone has its own skeleton (and its bone texture on the GPU), or shares one (disposing a disposed one is nothing)
     this.root.traverse((o) => {
       const m = o as THREE.SkinnedMesh;

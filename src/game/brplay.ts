@@ -405,7 +405,8 @@ export class BrPlay {
   ): BrPlayHud {
     const out: BrPlayHud = { prompt: null, hold: null, markers: [], reach: { rows: [], pick: -1, cycleKey: "" } };
     // (and a mate's go with them: one who left kept their marks up for up to 20 s, Milestone 930)
-    this.markers = this.markers.filter((m) => now < m.until && (m.from === ctx.myId || match.avatars.some((x) => match.remoteOf(x)?.id === m.from)));
+    // (from under 0 is the match's own, a care package's: every one's mark was gone after a frame)
+    this.markers = this.markers.filter((m) => now < m.until && (m.from < 0 || m.from === ctx.myId || match.avatars.some((x) => match.remoteOf(x)?.id === m.from)));
     for (const m of this.markers) {
       // an enemy ping follows its figure, while it is seen: gone INVISIBLE it was followed on every screen of the squad
       // (Milestone 929)

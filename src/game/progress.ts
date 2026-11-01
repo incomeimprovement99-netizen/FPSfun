@@ -9,7 +9,7 @@
 // board that reads it are untouched. The numbers are in
 // src/config/progress.json.
 import cfg from "../config/progress.json";
-import type { MatchKind, MatchSummary } from "./stats";
+import { cleanSummary, type MatchKind, type MatchSummary } from "./stats";
 
 export interface Challenge {
   id: string;
@@ -172,7 +172,8 @@ export class Progress {
   }
 
   /** a finished match */
-  award(kind: MatchKind, s: MatchSummary): Award {
+  award(kind: MatchKind, raw: MatchSummary): Award {
+    const s = cleanSummary(raw);
     return this.apply(xpFor(kind, s), statsOf(kind, s));
   }
 
@@ -222,11 +223,18 @@ export class Progress {
   }
 
   private save(): void {
+    const text = JSON.stringify(this.s);
     try {
-      this.written = JSON.stringify(this.s);
-      this.storage?.setItem(KEY, this.written);
+      this.storage?.setItem(KEY, text);
+      this.written = text;
     } catch {
-      // storage off: progress counts for the session and is not kept
+      // storage off: progress counts for the session and is not kept (and what is there is not read as another tab's, which
+      // took every match back to the last good write, Milestone 950)
+      try {
+        this.written = this.storage?.getItem(KEY) ?? this.written;
+      } catch {
+        /* ignore */
+      }
     }
     this.onChange?.();
   }

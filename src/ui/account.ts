@@ -85,9 +85,9 @@ export function initAccountUi(deps: AccountUiDeps): { sync: () => void } {
     }
     if (s) deps.setName(s.name);
     // (a new account took this browser's things; the name change goes up too)
-    await push();
+    const up = await push();
     render();
-    say(`Signed in as ${s?.name}. This browser's settings, keys, loadouts and stats are on the account now.`);
+    say(up ? `Signed in as ${s?.name}. This browser's settings, keys, loadouts and stats are on the account now.` : syncFailed(PUSH_FAILED.status), up);
   };
   $("accountSignIn").addEventListener("click", () => void go(false));
   $("accountSignUp").addEventListener("click", () => void go(true));

@@ -379,6 +379,8 @@ export class Duel implements MatchLike {
   readonly hitCheck = new HitCheck();
   /** where this player last was, for the host's hit check */
   private selfAt = new THREE.Vector3();
+  /** this page is taking the match over from a host that went: its bots are not back yet */
+  protected migrating = false;
   /** where this player has been lately, for the host's check of a hit (wentLately) */
   private selfTrail: Array<{ at: number; x: number; y: number; z: number }> = [];
   /** the host: each guest's round trip, ms (the roster, and the worst as this.ping) */
@@ -775,7 +777,10 @@ export class Duel implements MatchLike {
       // their streams start over from whole states when they are back
       this.sync.forgetPeer(id);
     }
+    // (nobody is judged until the match is rebuilt: with no bots yet the heir had won, or lost, on the spot, Milestone 951)
+    this.migrating = true;
     this.playerGone(old, `${this.remotes.get(old)?.name ?? "The host"} left: you are the host now`);
+    this.migrating = false;
     this.restoreAsHost(now, old, snap.mode);
     this.onFeed?.("The host is gone: you are the host now", false);
   }
@@ -1016,6 +1021,10 @@ export class Duel implements MatchLike {
       r.avatars.set(look ? `${weapon}|${op}|${look}` : `${weapon}|${op}`, r.avatar);
       return;
     }
+    // A figure down, its gun changing to one it has held: a swap begun before the death lands after it. makeAvatar hands back
+    // this same figure, stood up, and it was then taken out of the scene as the old one: that player unseen and unhittable
+    // here for the rest of the match, and able to hit (Milestone 951). It takes the gun when it is back up.
+    if (r.avatar.knocked && r.avatars.get(look ? `${weapon}|${op}|${look}` : `${weapon}|${op}`) === r.avatar) return;
     const old = r.avatar;
     const next = this.makeAvatar(r, weapon, op, look);
     next.group.position.copy(old.group.position);

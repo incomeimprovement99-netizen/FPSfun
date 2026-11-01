@@ -1040,7 +1040,7 @@ export class Hud {
     c.fillStyle = RED;
     c.fillRect(x0, y0, w, 4 * u);
     this.text("DEATH RECAP", x0 + 22 * u, y0 + 30 * u, 700, 14 * u, DIM);
-    this.text(r.byEdge ? "TERMINATED: OUT OF BOUNDS" : r.byRing ? "ELIMINATED BY THE RING" : `ELIMINATED BY ${r.killerName}`, x0 + 22 * u, y0 + 62 * u, 700, 28 * u, r.byEdge ? "#ff3b4a" : r.byRing ? "#ff9a4a" : WHITE);
+    this.text(r.byEdge ? "TERMINATED: OUT OF BOUNDS" : r.byRing ? "ELIMINATED BY THE DECAY" : `ELIMINATED BY ${r.killerName}`, x0 + 22 * u, y0 + 62 * u, 700, 28 * u, r.byEdge ? "#ff3b4a" : r.byRing ? "#ff9a4a" : WHITE);
     // their card, over the recap's top right edge
     if (!r.byRing && !r.byEdge && r.killerCard) this.drawCard(r.killerCard, r.killerName, x0 + w - 232 * u, y0 - 66 * u, 220 * u, 58 * u, u);
     this.text(`YOU DEALT ${damageText(r.totalDealt)}  ·  TOOK ${damageText(r.totalTaken)}`, x0 + w - 22 * u, y0 + 62 * u, 700, 15 * u, DIM, "right");
@@ -1398,7 +1398,7 @@ export class Hud {
       this.text(value, x0 + w - 24 * u, y, 700, 16 * u, WHITE, "right");
     };
     const k = d.mode?.kind;
-    row(0, k === "tdm" ? "TEAM SCORE" : "ROUNDS", `${sm.roundsWon} - ${sm.roundsLost}`);
+    row(0, k === "tdm" ? "TEAM SCORE" : "ROUNDS", `${(sm.score ?? [sm.roundsWon, sm.roundsLost]).join(" - ")}`);
     row(1, "KILLS / DEATHS", `${sm.kills} / ${sm.deaths}   K/D ${sm.deaths ? (sm.kills / sm.deaths).toFixed(2) : sm.kills.toFixed(2)}`);
     row(2, "DAMAGE", damageText(sm.damage));
     row(3, "ACCURACY", sm.shots ? `${Math.round((100 * sm.hits) / sm.shots)}%  (${sm.hits} of ${sm.shots})` : "-");

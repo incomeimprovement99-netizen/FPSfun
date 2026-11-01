@@ -525,7 +525,7 @@ function summaryView(): HudState["summary"] {
     ["Accuracy", s.shots ? `${Math.round((100 * s.hits) / s.shots)}%` : "-"],
   ];
   if (br) rows.push(["Survived", `${Math.floor((s.survived ?? 0) / 60)}:${String(Math.floor((s.survived ?? 0) % 60)).padStart(2, "0")}`]);
-  else rows.push(["Rounds", `${s.roundsWon} - ${s.roundsLost}`]);
+  else rows.push(["Rounds", (s.score ?? [s.roundsWon, s.roundsLost]).join(" - ")]);
   // the bar runs from the XP before the match to the XP after, over `fill`
   const t = Math.min(1, age / cfg.fill);
   const shown = L.xpBefore + L.a.gained * (1 - Math.pow(1 - t, 3));
@@ -4990,6 +4990,8 @@ function wireMatch(d: MatchLike, kind: MatchKind): void {
     menu.renderStats();
     profile.flush();
     account.sync();
+    // (not with the practice aim bot on: its wins, kills and damage went on the boards with everyone's, Milestone 950)
+    if (aimbot.enabled) return;
     if (s.won)
       void submitScore(`${kind}:wins`, profile.profile.name, profile.match(kind).won).then((rank) => {
         if (rank !== null) hud.notice(`#${rank} FOR WINS ON THE ONLINE BOARD`, gameTime, 3);
@@ -6105,6 +6107,9 @@ for (const course of courses) {
     profile.recordRun(courseKey(course.layout), r.time, r.rank);
     announceAward(progress.awardRun(r.rank));
     profile.flush();
+    // (the box's own words said a run went up; only a match did, Milestone 949)
+    account.sync();
+    if (aimbot.enabled) return;
     void submitScore(`course:${courseKey(course.layout)}`, profile.profile.name, Number(r.time.toFixed(3))).then((rank) => {
       if (rank !== null) hud.notice(`#${rank} ON THE ONLINE BOARD`, gameTime, 3);
     });
@@ -7012,7 +7017,8 @@ function step(): void {
     // quickly an enemy there, and HOLDING it opens the wheel of what the mark
     // means (src/game/brplay.ts PING_INTENTS). A squad without voice is
     // legible or it is not, and "here" on its own is not.
-    if (input.pressedNow("ping") && duel instanceof BrMatch && duel.alive) {
+    // (a ghost's too: it moves, pings and sees)
+    if (input.pressedNow("ping") && duel instanceof BrMatch && (duel.alive || duel.ghost)) {
       pingHeldAt = now;
       pingVec.x = pingVec.y = 0;
       pingPick = null;
@@ -7023,7 +7029,7 @@ function step(): void {
       const pick = pingPick;
       pingWheelOpen = false;
       pingHeldAt = -1;
-      if (duel instanceof BrMatch && duel.alive) {
+      if (duel instanceof BrMatch && (duel.alive || duel.ghost)) {
         const f = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
         if (held) {
           // the wheel: what it picked, or nothing if it pointed nowhere

@@ -35,6 +35,7 @@ export const BOARDS: ReadonlyArray<{ id: string; label: string; unit: "s" | "win
   { id: "bots:hard:wins", label: "Wins against hard bots", unit: "wins" },
   { id: "bots:normal:wins", label: "Wins against normal bots", unit: "wins" },
   { id: "bots:easy:wins", label: "Wins against easy bots", unit: "wins" },
+  { id: "bots:beginner:wins", label: "Wins against beginner bots", unit: "wins" },
 ];
 
 // (env read with ?.: tools/checks/account-say.ts runs this file under plain node, which has no import.meta.env)
@@ -120,14 +121,21 @@ async function post(b: string, e: Queued): Promise<number | null | "again"> {
  * is left waiting.
  */
 async function postQueued(b: string): Promise<boolean> {
-  let q = queued();
-  while (q.length) {
-    if ((await post(b, q[0])) === "again") return false;
-    q = queued().slice(1);
-    setQueued(q);
-  }
-  return true;
+  // one at a time: a match's end posts three together, and each sent the head of the queue, and one's answer cut a
+  // result another was still waiting on (Milestone 950)
+  const run = posting.then(async () => {
+    let q = queued();
+    while (q.length) {
+      if ((await post(b, q[0])) === "again") return false;
+      q = queued().slice(1);
+      setQueued(q);
+    }
+    return true;
+  });
+  posting = run.catch(() => false);
+  return run;
 }
+let posting: Promise<unknown> = Promise.resolve();
 
 export const leaderboardOnline = async (): Promise<boolean> => (await boardBase()) !== "";
 

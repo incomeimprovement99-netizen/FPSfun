@@ -6,17 +6,22 @@
 // The "profile" is this browser's own saved data: every localStorage key the
 // game writes (range.*) but the session itself and the graphics quality (a
 // fact about this machine, not the player). Signing in to an account that has
-// a profile puts it on and reloads the page, so every part of the game starts
-// from it; an account without one takes this browser's.
+// a profile makes the two one (mergeprofile.ts) and reloads the page, so every
+// part of the game starts from it; an account without one takes this browser's.
+// A save says which copy it was made from, and one made from an older copy than
+// the account's is merged and sent again (Milestone 949).
+import { isRecordKey, mergeProfiles } from "./mergeprofile";
 
 const TOKEN_KEY = "range.account.v1";
-/** the account whose session ran out here, and when this browser last synced to it (Milestone 910) */
-const LAPSED_KEY = "range.account.lapsed";
+/** whose record this browser holds: the last account on it, kept past signing out, so a friend's is not taken for it */
+const WHO_KEY = "range.account.who";
+/** a stamp of what last went up, for a page that opens with more than that */
+const PUSHED_KEY = "range.account.pushed";
 /**
- * Kept per browser: the session and the one that ran out, the graphics (this machine's), and the board results still
+ * Kept per browser: the session and what is said of it, the graphics (this machine's), and the board results still
  * to be posted (leaderboard.ts: another browser posting them again would count them twice)
  */
-const NOT_SYNCED = new Set([TOKEN_KEY, LAPSED_KEY, "range.quality", "range.board.queue"]);
+const NOT_SYNCED = new Set([TOKEN_KEY, WHO_KEY, PUSHED_KEY, "range.account.lapsed", "range.quality", "range.renderScale", "range.board.queue"]);
 /**
  * And the keys of courses that are gone: THE RUN before its rebuild (Milestone 636: its keys without a version) and the
  * advanced course (gone in Milestone 633). Their ghost runs were most of a profile, 98 KB of one account's 107 KB, near
@@ -36,10 +41,18 @@ export interface Session {
 let base: Promise<string | null> | null = null;
 /** where the accounts are: /net.json says, on our own server; null anywhere else */
 export function accountBase(): Promise<string | null> {
+  // (a server that says it has none is kept; a look that failed is asked again: one failure while the server restarted
+  // sent nothing up for the rest of the visit, Milestone 949)
   base ??= fetch("./net.json", { cache: "no-store" })
-    .then((r) => (r.ok ? r.json() : null))
+    .then((r) => {
+      if (!r.ok) throw new Error(String(r.status));
+      return r.json();
+    })
     .then((j: { account?: unknown } | null) => (j && typeof j.account === "string" ? j.account.replace(/\/$/, "") : null))
-    .catch(() => null);
+    .catch(() => {
+      base = null;
+      return null;
+    });
   return base;
 }
 
@@ -52,27 +65,37 @@ export function session(): Session | null {
   }
 }
 
-/**
- * The server signed this session out (it ran out): this browser goes on, and is told so. Who it was and when it last
- * synced are kept, so that signing in again can tell whose copy is the newer (Milestone 910).
- */
-function lapse(s: Session): void {
-  saveSession(null);
+function owner(): string | null {
   try {
-    localStorage.setItem(LAPSED_KEY, JSON.stringify({ name: s.name, updated: s.updated }));
+    return localStorage.getItem(WHO_KEY);
+  } catch {
+    return null;
+  }
+}
+
+function setOwner(name: string): void {
+  try {
+    localStorage.setItem(WHO_KEY, name);
   } catch {
     /* ignore */
   }
 }
 
-function takeLapsed(): { name: string; updated: string | null } | null {
+/** this browser's record gone, its next owner's to start: `name` is who it now is */
+function clearRecord(name: string): void {
   try {
-    const l = JSON.parse(localStorage.getItem(LAPSED_KEY) ?? "null") as { name?: unknown; updated?: unknown } | null;
-    localStorage.removeItem(LAPSED_KEY);
-    return l && typeof l.name === "string" ? { name: l.name, updated: typeof l.updated === "string" ? l.updated : null } : null;
+    for (const k of Object.keys(collectProfile())) if (isRecordKey(k)) localStorage.removeItem(k);
+    localStorage.setItem("range.profile.v1", JSON.stringify({ name, matches: {}, courses: {}, tech: {}, techMiss: {}, since: new Date().toISOString() }));
   } catch {
-    return null;
+    /* ignore */
   }
+}
+
+function stamp(p: Record<string, string>): string {
+  const t = JSON.stringify(Object.keys(p).sort().map((k) => [k, p[k]]));
+  let h = 2166136261;
+  for (let i = 0; i < t.length; i++) h = Math.imul(h ^ t.charCodeAt(i), 16777619);
+  return (h >>> 0).toString(36);
 }
 
 function saveSession(s: Session | null): void {
@@ -143,18 +166,26 @@ export async function signIn(name: string, password: string, create: boolean): P
   if (r.status !== 200 || typeof r.json.token !== "string") return { ok: false, error: typeof r.json.error === "string" ? r.json.error : "that did not work" };
   const s: Session = { name: String(r.json.name), token: r.json.token, updated: typeof r.json.updated === "string" ? r.json.updated : null };
   saveSession(s);
-  // Signed in again after this browser's session ran out: if nobody has saved to the account since this browser last
-  // did, what it earned meanwhile is the newer copy, and goes up. The account's went over it, everything since the
-  // session ran out lost (Milestone 910).
-  const lapsed = takeLapsed();
-  if (lapsed && lapsed.updated !== null && s.updated !== null && lapsed.name.toLowerCase() === s.name.toLowerCase() && s.updated <= lapsed.updated) {
-    await push();
-    return { ok: true };
-  }
+  // This browser's record is this player's unless it was left by another account: a friend's sign-in on it neither takes
+  // on what is here nor carries it into their account (Milestone 949).
+  const held = owner();
+  const same = held === null || held.toLowerCase() === s.name.toLowerCase();
+  setOwner(s.name);
   const prof = r.json.profile;
-  if (prof && typeof prof === "object" && !Array.isArray(prof)) {
-    applyProfile(prof as Record<string, unknown>);
+  const has = !!prof && typeof prof === "object" && !Array.isArray(prof);
+  if (!same) {
+    clearRecord(s.name);
+    if (has) applyProfile(prof as Record<string, unknown>);
+    else await push();
     return { ok: true, reload: true };
+  }
+  if (has) {
+    // Both kept: what this browser earned, signed out or with its session run out, and what the account has
+    const here = collectProfile();
+    const both = mergeProfiles(here, onlyStrings(prof as Record<string, unknown>));
+    applyProfile(both);
+    await push();
+    return Object.keys(both).every((k) => both[k] === here[k]) ? { ok: true } : { ok: true, reload: true };
   }
   // a new account (or one never synced): it takes this browser's
   await push();
@@ -163,7 +194,11 @@ export async function signIn(name: string, password: string, create: boolean): P
 
 export async function signOut(): Promise<void> {
   const s = session();
-  if (s) await call("logout", "POST", undefined, s.token);
+  if (s) {
+    // what is here goes up first: signing out left it on this browser alone
+    await push();
+    await call("logout", "POST", undefined, s.token);
+  }
   saveSession(null);
 }
 
@@ -175,16 +210,37 @@ export async function signOut(): Promise<void> {
 export async function pullIfNewer(): Promise<boolean> {
   const s = session();
   if (!s) return false;
+  setOwner(s.name);
   const r = await call("profile", "GET", undefined, s.token);
-  if (r.status === 401) lapse(s);
+  if (r.status === 401) saveSession(null);
   if (r.status !== 200) return false;
   const updated = typeof r.json.updated === "string" ? r.json.updated : null;
   const prof = r.json.profile;
-  if (!updated || updated === s.updated || !prof || typeof prof !== "object" || Array.isArray(prof)) return false;
-  if (s.updated && updated < s.updated) return false;
-  applyProfile(prof as Record<string, unknown>);
+  const newer = !!updated && updated !== s.updated && !!prof && typeof prof === "object" && !Array.isArray(prof) && !(s.updated && updated < s.updated);
+  if (!newer) {
+    // what a failed save left here goes up as the page opens, and does not wait for the next match
+    if (unsaved()) await push();
+    return false;
+  }
+  // (both kept, as a save that meets another's: what this browser earned and failed to send went under the account's)
+  const here = collectProfile();
+  const both = mergeProfiles(here, onlyStrings(prof as Record<string, unknown>));
+  applyProfile(both);
   saveSession({ ...s, updated });
+  await push();
   return true;
+}
+
+function unsaved(): boolean {
+  try {
+    return localStorage.getItem(PUSHED_KEY) !== stamp(collectProfile());
+  } catch {
+    return false;
+  }
+}
+
+function onlyStrings(p: Record<string, unknown>): Record<string, string> {
+  return Object.fromEntries(Object.entries(p).filter((e): e is [string, string] => typeof e[1] === "string"));
 }
 
 /** the last save's answer when it failed: its HTTP status, 0 for no answer at all (the Account tab says which) */
@@ -194,10 +250,26 @@ export const PUSH_FAILED: { status: number | null } = { status: null };
 export async function push(): Promise<boolean> {
   const s = session();
   if (!s) return false;
-  const r = await call("profile", "PUT", { profile: collectProfile() }, s.token);
-  if (r.status === 401) lapse(s);
+  // `base` is the copy this one was made from: the account's, if it has moved on since, comes back to be merged. A tab left
+  // open, a look that failed as the page opened or a save that got no answer each went straight over what another
+  // browser had saved, with no undo (Milestone 949).
+  let profile = collectProfile();
+  let r = await call("profile", "PUT", { profile, base: s.updated }, s.token);
+  if (r.status === 409 && r.json.profile && typeof r.json.profile === "object" && !Array.isArray(r.json.profile)) {
+    profile = mergeProfiles(profile, onlyStrings(r.json.profile as Record<string, unknown>));
+    applyProfile(profile);
+    r = await call("profile", "PUT", { profile, base: typeof r.json.updated === "string" ? r.json.updated : null }, s.token);
+  }
+  // (signed out while this was on its way: its answer does not bring the session back)
+  if (session()?.token !== s.token) return false;
+  if (r.status === 401) saveSession(null);
   PUSH_FAILED.status = r.status === 200 ? null : r.status;
   if (r.status !== 200) return false;
   saveSession({ ...s, updated: typeof r.json.updated === "string" ? r.json.updated : s.updated });
+  try {
+    localStorage.setItem(PUSHED_KEY, stamp(profile));
+  } catch {
+    /* ignore */
+  }
   return true;
 }

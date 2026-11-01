@@ -57,6 +57,10 @@ export interface Profile {
 
 export interface MatchSummary {
   won: boolean;
+  /** nobody won (a clock that ran out level): neither a win nor a loss, and a streak goes on */
+  draw?: boolean;
+  /** a mode's score, yours and theirs, for its card */
+  score?: [number, number];
   roundsWon: number;
   roundsLost: number;
   kills: number;
@@ -71,6 +75,15 @@ export interface MatchSummary {
 }
 
 const KEY = "range.profile.v1";
+
+/**
+ * A summary's numbers as counts: one NaN went into a total, was saved as null and read back as 0, and the next sync took
+ * the whole record with it (Milestone 950).
+ */
+export function cleanSummary(s: MatchSummary): MatchSummary {
+  const n = (v: number): number => (Number.isFinite(v) ? Math.max(0, v) : 0);
+  return { ...s, roundsWon: n(s.roundsWon), roundsLost: n(s.roundsLost), kills: n(s.kills), deaths: n(s.deaths), damage: n(s.damage), shots: n(s.shots), hits: n(s.hits), survived: s.survived === undefined ? undefined : n(s.survived) };
+}
 const BOARD_SIZE = 10;
 
 const emptyMatch = (): MatchStats => ({ played: 0, won: 0, lost: 0, roundsWon: 0, roundsLost: 0, kills: 0, deaths: 0, damage: 0, shots: 0, hits: 0, streak: 0, bestStreak: 0 });
@@ -183,7 +196,12 @@ export class Stats {
       this.written = t;
       this.pending = { tech: {}, techMiss: {} };
     } catch {
-      /* ignore */
+      // (what is there is this page's to go on from: read as another tab's, a full store took every match back, Milestone 950)
+      try {
+        this.written = localStorage.getItem(KEY);
+      } catch {
+        /* ignore */
+      }
     }
     this.onChange?.();
   }
@@ -222,15 +240,16 @@ export class Stats {
   }
 
   /** a finished match of any kind */
-  recordMatch(kind: MatchKind, s: MatchSummary): void {
+  recordMatch(kind: MatchKind, raw: MatchSummary): void {
     this.fresh();
+    const s = cleanSummary(raw);
     const m = this.match(kind);
     m.played++;
     if (s.won) {
       m.won++;
       m.streak++;
       m.bestStreak = Math.max(m.bestStreak, m.streak);
-    } else {
+    } else if (!s.draw) {
       m.lost++;
       m.streak = 0;
     }

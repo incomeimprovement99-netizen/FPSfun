@@ -334,7 +334,7 @@ export class Menu {
       `<div class="statcard wide" id="onlineCard" hidden></div>`,
       matchCard("1v1 with friends", ["duel"]),
       matchCard("1v1v1 with friends", ["triple"]),
-      matchCard("Arena, Bots", ["bots:easy", "bots:normal", "bots:hard", "bots:elite", "bots:mixed"]),
+      matchCard("Arena, Bots", ["bots:beginner", "bots:easy", "bots:normal", "bots:hard", "bots:elite", "bots:mixed"]),
       matchCard("Battle Royale (bots)", ["br"]),
       matchCard("Team Deathmatch", ["tdm"]),
       matchCard("Control", ["control"]),

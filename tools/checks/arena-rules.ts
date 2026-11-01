@@ -200,6 +200,29 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
 }
 
 {
+  // (Milestone 950) what a match is worth, and a summary that is not numbers
+  const { xpFor } = await import("../../src/game/progress");
+  const { cleanSummary } = await import("../../src/game/stats");
+  const d = solo("control");
+  run([{ d, l: () => local() }], 5);
+  d.winner = -10;
+  d.control.score = [500, 310];
+  d.summarise?.();
+  const end = (d.endSummary ?? d.lastSummary ?? null) as Any;
+  const win = { won: true, roundsWon: 1, roundsLost: 0, kills: 0, deaths: 0, damage: 0, shots: 0, hits: 0 };
+  check("a mode's match pays one round, whatever its score", !end || end.roundsWon <= 1, JSON.stringify(end));
+  check("and pays what a 1v1's round does", xpFor("control", win) < 1000, `${xpFor("control", win)} XP`);
+  const nan = cleanSummary({ ...win, kills: NaN, damage: Infinity, hits: -3 });
+  check("a summary's numbers are counts: no NaN or Infinity reaches a total", nan.kills === 0 && nan.damage === 0 && nan.hits === 0, JSON.stringify(nan));
+}
+{
+  // (Milestone 951) the Gulag's countdown holds your hands as it holds its bot
+  const { BrMatch } = await import("../../src/game/brmatch");
+  const fire = Object.getOwnPropertyDescriptor(BrMatch.prototype, "canFire")?.get;
+  const at = (phase: string): boolean => !!fire?.call(Object.create(BrMatch.prototype, { phase: { value: "fight" }, alive: { value: true }, gulag: { value: { phase } } }));
+  check("no gun or hack in the Gulag's countdown; both once it is FIGHT", !at("countdown") && at("fight"), JSON.stringify({ countdown: at("countdown"), fight: at("fight") }));
+}
+{
   // (Milestone 947) a friend gone before the host starts, a seat left empty
   const w = new Wire();
   const [h, gl] = w.pair();

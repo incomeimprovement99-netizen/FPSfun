@@ -124,14 +124,16 @@ console.log("\nSigning in again after the session ran out (src/net/account.ts)")
     out && r.ok && !r.reload && local === 9000 && up === 9000,
     JSON.stringify({ signedOut: out, reload: !!r.reload, local, onAccount: up }),
   );
-  // another browser saved since: the account's is the newer, and comes on as before
+  // another browser saved since: both are kept, and the page starts again from them (Milestone 949)
   localStorage.setItem("range.account.v1", JSON.stringify({ name: "Alice", token: "t3", updated }));
   live = false;
   await account.push();
   live = true;
   updated = "2026-10-03T10:00:00.000Z";
+  profile = { ...profile, "range.progress.v1": JSON.stringify({ xp: 12000, active: [], done: 0 }) };
   const r2 = await account.signIn("Alice", "password1", false);
-  check("and when another browser saved since, the account's copy comes on (a reload), as before", r2.ok && !!r2.reload);
+  const both = JSON.parse(localStorage.getItem("range.progress.v1") ?? "{}").xp;
+  check("and when another browser saved since, the further copy comes on (a reload)", r2.ok && !!r2.reload && both === 12000, JSON.stringify({ reload: !!r2.reload, both }));
   store.clear();
 }
 

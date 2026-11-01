@@ -1546,7 +1546,11 @@ export class BrMatch extends Duel {
     // one saying down comes after this note, which judged the squad with them still standing and nothing judged it
     // again. A duo whose host was out and whose guest lost the Gulag sat on, nobody up, till a bot squad took the zone.
     const r = id !== this.id ? this.remotes.get(id) : undefined;
-    if (n === 0 && r) r.alive = false;
+    if (n === 0 && r) {
+      r.alive = false;
+      // (the state saying down now finds them already not alive: they stood where they died, Milestone 951)
+      if (!r.avatar.knocked) r.avatar.fallDown();
+    }
     if (id === this.id) this.localFx("gulag", undefined, undefined, n);
     // a loss, yours or a squad mate's: the squad is judged again now that nobody of it is in there
     if (this.manySides) this.judgeSides();
@@ -1658,6 +1662,11 @@ export class BrMatch extends Duel {
   private decideGulag(ev: GulagEvent): void {
     if (ev === "won") this.onNotice?.("YOU WON THE GULAG: BACK INTO THE MATCH");
     else if (ev === "lost" && this.alive && this.gulagBot) this.eliminate(this.gulagBot.remote.id, "finished");
+  }
+
+  /** and the Gulag's countdown holds your guns and hacks, as it holds its bot: 12 rounds killed it before FIGHT (Milestone 951) */
+  override get canFire(): boolean {
+    return super.canFire && this.gulag?.phase !== "countdown";
   }
 
   /** the page: beaten in the Gulag, where your ghost goes */
@@ -1821,6 +1830,7 @@ export class BrMatch extends Duel {
     if (this.lootField) this.lootField.keyNext = s.nk;
     this.botSendNext = 0;
     this.ringSendNext = 0;
+    this.judgeNow();
   }
 
   /** the bots as the host runs them: index, tier and squad (the tests) */
@@ -1964,6 +1974,11 @@ export class BrMatch extends Duel {
     super.playerGone(id, notice);
     // (gone from the Gulag too: one who left in it stayed counted in there, and their side was never out, Milestone 726)
     this.gulagIds.delete(id);
+    if (!this.migrating) this.judgeNow();
+  }
+
+  /** with nobody of a side still up, it is over */
+  private judgeNow(): void {
     if (this.manySides) this.judgeSides();
     else if (this.role === "host" && !this.brOver && this.phase === "fight" && this.sideOut) this.endBr(false);
   }
@@ -2089,7 +2104,8 @@ export class BrMatch extends Duel {
       roundsWon: won ? 1 : 0,
       roundsLost: won ? 0 : 1,
       kills: this.kills,
-      deaths: this.alive ? 0 : 1,
+      // (every life: a death, a won Gulag and a win said none)
+      deaths: Math.max(this.deaths, this.alive ? 0 : 1),
       damage: this.damage,
       shots: this.shots,
       hits: this.hits,

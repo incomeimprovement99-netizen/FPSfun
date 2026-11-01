@@ -105,7 +105,7 @@ app.get("/net.json", (req, res) => {
 const BOARD_FILE = resolve(process.env.BOARD_FILE ?? join(here, "boards.json"));
 // (THE RUN's board is its rebuilt course's, Milestone 913: the old one's times, from a course a third as long, could not be
 // beaten; the old ids stay for a page from before)
-const BOARD_IDS = new Set(["course:basic.r2", "course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "gunrun:wins", "tdm:wins", "crown:wins", "control:wins", "ffa:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins", "bots:elite:wins", "bots:mixed:wins", "match:kills", "match:damage"]);
+const BOARD_IDS = new Set(["course:basic.r2", "course:basic", "course:advanced", "course:drill", "duel:wins", "triple:wins", "br:wins", "gunrun:wins", "tdm:wins", "crown:wins", "control:wins", "ffa:wins", "bots:beginner:wins", "bots:easy:wins", "bots:normal:wins", "bots:hard:wins", "bots:elite:wins", "bots:mixed:wins", "match:kills", "match:damage"]);
 const LOWER_IS_BETTER = /^course:/;
 const NAME = /^[A-Za-z0-9_ .-]{1,16}$/;
 const MAX_ENTRIES = 100;
@@ -424,6 +424,9 @@ app.put("/api/account/profile", express.json({ limit: PROFILE_MAX }), (req, res)
   s.user.saves.push(now);
   const profile = req.body && typeof req.body === "object" ? req.body.profile : undefined;
   if (!profile || typeof profile !== "object" || Array.isArray(profile)) return res.status(400).json({ error: "bad profile" });
+  // A save made from an older copy than this one is sent back to be merged: it went straight over what another browser had
+  // saved, and there is one copy (Milestone 949). (A page from before says no base, and is taken as it was.)
+  if (req.body.base !== undefined && req.body.base !== s.user.updated) return res.status(409).json({ error: "saved from another browser", profile: s.user.profile, updated: s.user.updated });
   const grown = sizeOf(profile) - sizeOf(s.user.profile);
   if (grown > 0 && profileBytes + grown > PROFILES_MAX_BYTES) return res.status(507).json({ error: "the server is full" });
   profileBytes += grown;

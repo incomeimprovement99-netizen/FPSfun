@@ -137,5 +137,14 @@ console.log("\nThe loot at your feet (src/game/brplay.ts)");
   check("and cores of the hacks you hold beside a gun: the hold is offered", /HOLD: TAKE ALL/.test(cores), cores);
 }
 
+console.log("\nA care package's mark (src/game/brplay.ts)");
+{
+  // (Milestone 951) marked by the match itself, its `from` under 0: it stays its time
+  const p = play();
+  p.addMarker("go", new THREE.Vector3(1, 0, -5), "CARE PACKAGE", -5, -1, 19);
+  p.update(19.1, matchWith([], new Map()), {} as never, {} as never, new THREE.Vector3(), look(0, 0), { alive: false, playing: false, myId: 1 });
+  check("a care package's mark outlives the first frame", p.markers.some((m) => m.from === -5), `${p.markers.length} marks`);
+}
+
 console.log(fails === 0 ? "\nPINGS PASS" : `\nPINGS FAIL (${fails})`);
 process.exit(fails === 0 ? 0 : 1);

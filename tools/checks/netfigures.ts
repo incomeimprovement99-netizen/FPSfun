@@ -6,6 +6,7 @@
 //   - a figure that stopped is drawn where they stopped, not on past it until the next state;
 //   - a bot's down is stamped, as a player's is, so a state from just before it cannot stand it back up;
 //   - a guest's fair hit on someone who then used a DASH passes the host's check (Milestone 939);
+//   - a player down, a swap of theirs landing after it: their figure stays in the scene and in reach (Milestone 951);
 //   - the drop (Milestones 932 to 934): a won Gulag comes down by a mate on ground that has not decayed, a friend down
 //     first starts the fight, a bot's fall meets the floor it fell past, and no WALL, HEAL or MINE stands in the sky.
 //
@@ -189,6 +190,29 @@ console.log("\nA hit on someone who dashed (src/game/duel.ts, src/net/hitcheck.t
   check("a guest's round on where a target was, before its 26 m DASH, passes the host's check", passed, `the host has them ${bx} m apart, the claim 10 m`);
   const forged = h.hitSane(1, { t: "hit", to: 2, amount: 10, w: "vinson", d: 300 });
   check("and a claim from 300 m does not", !forged);
+}
+
+console.log("\nA swap that lands after a death (src/game/duel.ts)");
+{
+  const reach: unknown[] = [];
+  const hits = { addDummy: (x: unknown) => void (reach.includes(x) || reach.push(x)), removeDummy: (x: unknown) => void (reach.includes(x) && reach.splice(reach.indexOf(x), 1)), fire: () => undefined } as unknown as typeof projectiles;
+  const wire = new Wire();
+  const [h, gl] = wire.pair(0, 1);
+  const host = new Duel(scene, hits, { players: 2, myId: 0, link: h, guestId: 1, mode: "arena" }) as unknown as { applyState(m: unknown, from: number, now: number): void; receive(m: unknown, via: number): void; remotes: Map<number, { avatar: { group: { parent: unknown }; knocked: boolean } }> };
+  void gl;
+  const st = (w: string, alive = true): unknown => ({ t: "s", x: 1, y: 0, z: 2, yaw: 0, pitch: 0, hp: 100, sh: 50, w, op: "vanguard", alive, crouch: false });
+  const now = (): number => performance.now() / 1000;
+  host.applyState(st("vinson"), 1, now());
+  host.applyState(st("r97"), 1, now());
+  host.applyState(st("vinson"), 1, now());
+  host.receive({ t: "down", by: 0 }, 1);
+  host.applyState(st("r97", false), 1, now());
+  const fig = host.remotes.get(1)?.avatar;
+  check("down mid-swap: the figure stays in the scene, down, and in reach", !!fig && fig.group.parent === scene && fig.knocked && reach.includes(fig), JSON.stringify({ inScene: fig?.group.parent === scene, knocked: fig?.knocked, reach: reach.includes(fig) }));
+  tick(3000);
+  host.applyState(st("r97", true), 1, now());
+  const up = host.remotes.get(1)?.avatar;
+  check("and back up it has the gun, seen and hittable", !!up && up.group.parent === scene && reach.includes(up));
 }
 
 console.log("\nThe drop (src/game/brmatch.ts, src/game/bots.ts, src/main.ts)");

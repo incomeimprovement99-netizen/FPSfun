@@ -564,21 +564,19 @@ export class ArenaMode extends Duel {
     const me = this.board.row(this.id);
     const myTeam = this.teamFor(this.id);
     const won = this.winner !== null && (this.winner === this.id || (teamMode(this.modeKind) && this.winner === TEAM_WIN(myTeam)));
-    let roundsWon = 0;
-    let roundsLost = 0;
-    if (this.modeKind === "tdm") {
-      roundsWon = this.teams.score[myTeam];
-      roundsLost = this.teams.score[myTeam === 0 ? 1 : 0];
-    } else if (this.modeKind === "control") {
+    // The score of the match, for the card; a mode's match is one round. The score went into the rounds a match pays 40 XP
+    // for: a Control win paid 20,740 XP against a 1v1's 860, and a loss 18,100, level 50 in ten wins (Milestone 950).
+    let score: [number, number] = [0, 0];
+    if (this.modeKind === "tdm") score = [this.teams.score[myTeam], this.teams.score[myTeam === 0 ? 1 : 0]];
+    else if (this.modeKind === "control") {
       const sc = this.controlScore();
-      roundsWon = Math.floor(sc[myTeam]);
-      roundsLost = Math.floor(sc[myTeam === 0 ? 1 : 0]);
+      score = [Math.floor(sc[myTeam]), Math.floor(sc[myTeam === 0 ? 1 : 0])];
     } else if (this.modeKind === "ffa") {
       // your kills against the best of the others
-      roundsWon = me.kills;
-      roundsLost = Math.max(0, ...this.board.sorted.filter((r) => r.id !== this.id).map((r) => r.kills));
+      score = [me.kills, Math.max(0, ...this.board.sorted.filter((r) => r.id !== this.id).map((r) => r.kills))];
     }
-    this.lastSummary = { won, roundsWon, roundsLost, kills: me.kills, deaths: me.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
+    const draw = this.winner === -1;
+    this.lastSummary = { won, draw, roundsWon: won ? 1 : 0, roundsLost: won || draw ? 0 : 1, score, kills: me.kills, deaths: me.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
     this.onMatchEnd?.(this.lastSummary);
     this.kills = 0;
     this.deaths = 0;
