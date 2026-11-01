@@ -3887,7 +3887,8 @@ async function brMigrateTest(browser: Browser, query: string, label = "host migr
     const [, gun, armor] = k.split(":");
     return { gun, armor: Number(armor) };
   };
-  const kitSame = after.kits.filter((k, i) => part(k).gun === part(kits[i] ?? "").gun).length;
+  // (of those that had a gun: one with none finds one in the takeover's seconds, and on a busy machine those are many)
+  const kitSame = after.kits.filter((k, i) => part(kits[i] ?? "").gun === "" || part(k).gun === part(kits[i] ?? "").gun).length;
   const kitLost = after.kits.filter((k, i) => (part(kits[i] ?? "").gun !== "" && part(k).gun === "") || part(k).armor < part(kits[i] ?? "").armor).length;
   check(
     `${label}: the same bots, each with its tier and squad and (nearly all) the kit it had looted, run by the new host`,

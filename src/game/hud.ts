@@ -3130,7 +3130,8 @@ export class Hud {
     if (br.placement !== null) {
       const won = br.placement === 1;
       // out of the squads: in solo that is everyone, in duos and trios it is how Apex counts it
-      const title = won ? "LAST SQUAD STANDING" : `#${br.placement} OF ${br.squadsTotal}${br.team > 1 ? " SQUADS" : ""}`;
+      // (a zone held is not a last squad: others were still up, and the card said otherwise, Milestone 965)
+      const title = won ? (br.zoneWon ? "THE ZONE IS YOURS" : "LAST SQUAD STANDING") : `#${br.placement} OF ${br.squadsTotal}${br.team > 1 ? " SQUADS" : ""}`;
       const m = Math.floor(br.survived / 60);
       const sec = Math.floor(br.survived % 60);
       const line = `${br.kills} kill${br.kills === 1 ? "" : "s"}  ·  ${m}:${sec.toString().padStart(2, "0")} survived  ·  menu in ${Math.ceil(s.duel?.left ?? 0)}`;

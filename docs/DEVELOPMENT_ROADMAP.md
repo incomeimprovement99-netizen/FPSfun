@@ -14226,6 +14226,14 @@ hack. And a second tab's rename of a loadout was written over by the first's nex
 
 - **Checked:** tsc, verify, rules; e2e sklobby.
 
+## Milestone 965 — Who is told, at the end
+
+A guest's match ended by a bot squad's zone with no word; the feed says so on every page. A win by the zone said LAST SQUAD STANDING with
+squads still up; it says the zone is yours. After a host migration a later match in that group refused every dropped friend, the rejoin
+bound to the first match. And a link that closed during the wait for the city's boxes left a guest on "Joining..." (brmatch.ts, hud.ts, main.ts).
+
+- **Checked:** tsc, verify, rules; e2e speedkills.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

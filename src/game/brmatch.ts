@@ -276,6 +276,8 @@ export interface BrHud {
   hot: { name: string; x: number; z: number; radius: number } | null;
   /** where you finished once it is over (1 = the win) */
   placement: number | null;
+  /** the match was ended by the capture zone's meter */
+  zoneWon: boolean;
   survived: number;
   pois: Array<{ name: string; x: number; z: number }>;
   /** the small sites between the places, named smaller on the map */
@@ -2236,7 +2238,11 @@ export class BrMatch extends Duel {
         this.capture.held = Math.max(0, Math.min(decayCfg.capture.hold, m.cp[2]));
         if (this.capture.holder >= 0) this.capture.progress.set(this.capture.holder, this.capture.held);
       }
-    } else if (m.t === "brend") this.finishBr(m.won, m.placement);
+    } else if (m.t === "brend") {
+      // (a guest's match just ended: the feed's word was the host's alone, Milestone 965)
+      if (!m.won && this.zoneEnded) this.onFeed?.("A SQUAD HELD THE CAPTURE ZONE", false, true);
+      this.finishBr(m.won, m.placement);
+    }
   }
 
   override update(local: LocalState): void {
@@ -2857,6 +2863,7 @@ export class BrMatch extends Duel {
         damage: this.phases[Math.min(v.phase, this.phases.length - 1)].damage,
       },
       placement: this.phase === "matchEnd" ? this.placement : null,
+      zoneWon: this.phase === "matchEnd" && this.zoneEnded,
       // (it went on counting through the end card's hold, so the card said 0:31 and the line over it 0:40)
       survived: (this.finishedAt ?? now) - this.startedAt,
       pois: this.map.pois.map((p) => ({ name: p.name, x: p.x, z: p.z })),

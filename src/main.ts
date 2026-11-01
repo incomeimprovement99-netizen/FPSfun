@@ -2573,7 +2573,8 @@ function takeOverHosting(d: Duel, snap: HeirSnapshot): void {
     { code: seat.code, keys: snap.keys, host: d.id, claim: netCfg.migrate.claim }
   );
   hosting = h;
-  h.onRejoin = (link, id) => (duel === d && d.role === "host" ? d.rejoin(link, id) : false);
+  // (whichever match this group is in: bound to the first, every friend who dropped from a later one was refused, Milestone 965)
+  h.onRejoin = (link, id) => (duel instanceof Duel && duel.role === "host" ? duel.rejoin(link, id) : false);
 }
 /** what this page's welcome into a match said, for taking it over (host migration) */
 let joinedWith: { players: number; br?: BrWelcome; opts?: MatchOpts } | null = null;
@@ -5231,7 +5232,11 @@ function boxesFirst(start: () => void, link?: Link): boolean {
     .then(() => {
       boxesWaiting = false;
       clearInterval(ping);
-      if (gone) return;
+      if (gone) {
+        // (said: a guest stayed on "Joining..." with nothing behind it, Milestone 965)
+        setDuelStatus("The match went before it started.");
+        return;
+      }
       boxesPass = true;
       if (!link) return start();
       link.onMessage = null;
