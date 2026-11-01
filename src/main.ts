@@ -6832,24 +6832,25 @@ const lodFrustum = new THREE.Frustum();
 const lodMatrix = new THREE.Matrix4();
 
 function frame(): void {
-  phases.start();
-  framesRun++;
-  // where the figures are being looked at from this frame (figlod.ts): their
-  // animation, their shadows and their guns follow from it
-  camera.updateMatrixWorld();
-  lodFrustum.setFromProjectionMatrix(lodMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
-  setFigureView(camera.position, lodFrustum, framesRun, fps);
-  // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
-  // clock, since game time stands still when nothing is being played
-  tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
-  // (the city past the fence: its windows lit by night, a glint by day, skyline.ts)
-  skylineHour(hour.id === "hazyDay" || hour.id === "goldenHour");
-  // (and the pools of light under the street lamps, by night only, lightpools.ts)
-  lightPoolsHour(hour.id === "hazyDay" || hour.id === "goldenHour");
-  // the Neon map's interiors lit from the lamps nearest the eye (neonmap.ts updateNeonFill)
-  updateNeonFill(camera.position);
-  phases.lap("view");
+  // (the whole of it: only step() was guarded, and a throw in what comes before it did stop the game for good)
   try {
+    phases.start();
+    framesRun++;
+    // where the figures are being looked at from this frame (figlod.ts): their
+    // animation, their shadows and their guns follow from it
+    camera.updateMatrixWorld();
+    lodFrustum.setFromProjectionMatrix(lodMatrix.multiplyMatrices(camera.projectionMatrix, camera.matrixWorldInverse));
+    setFigureView(camera.position, lodFrustum, framesRun, fps);
+    // SpeedKills' haze every frame, played or not (a menu, a picture of the city): looks only, and it eases by the wall's
+    // clock, since game time stands still when nothing is being played
+    tickAir(scene, camera, performance.now() / 1000, hour.id === "hazyDay" || hour.id === "goldenHour");
+    // (the city past the fence: its windows lit by night, a glint by day, skyline.ts)
+    skylineHour(hour.id === "hazyDay" || hour.id === "goldenHour");
+    // (and the pools of light under the street lamps, by night only, lightpools.ts)
+    lightPoolsHour(hour.id === "hazyDay" || hour.id === "goldenHour");
+    // the Neon map's interiors lit from the lamps nearest the eye (neonmap.ts updateNeonFill)
+    updateNeonFill(camera.position);
+    phases.lap("view");
     step();
   } catch (e) {
     input.endFrame();
@@ -6861,6 +6862,20 @@ function frame(): void {
   phases.end(gameTime);
   schedule();
 }
+
+// What goes wrong on a player's machine, for the owner (`npm run fps seen`): a fault had only ever been seen on a test
+// browser (Milestone 948). A few different ones a visit: a fault of every frame is one fault.
+const faultsSaid = new Set<string>();
+function sayFault(e: unknown): void {
+  const stack = e instanceof Error ? (e.stack ?? "") : "";
+  const place = /\/(?:src|assets)\/[^\s)?]+/.exec(stack)?.[0] ?? "";
+  const text = `${e instanceof Error ? e.message : String(e)} ${place}`.trim();
+  if (faultsSaid.has(text) || faultsSaid.size >= 5) return;
+  faultsSaid.add(text);
+  note("error", { text });
+}
+window.addEventListener("error", (e) => sayFault(e.error ?? e.message));
+window.addEventListener("unhandledrejection", (e) => sayFault(e.reason));
 
 let rosterAt = 0;
 function step(): void {
@@ -9083,6 +9098,7 @@ const GALLERY = { x: 0, z: -8 };
   frameCost: () => ({ ...frameCost }),
   /** a solo battle royale on a given seed and place, so the benchmark measures the same match every run */
   startBr: (o?: { seed?: number; poi?: string }) => startBr(o?.seed, o?.poi),
+  showStage: () => show?.stage ?? null,
   techLog,
   /** drive the player from a script instead of the keyboard (null to stop) */
   /** SpeedKills' low towers' ways up as graph nodes (city.ts), for the tests */

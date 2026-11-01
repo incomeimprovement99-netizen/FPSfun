@@ -101,6 +101,11 @@ if (!existsSync(new URL("../../server/game/node_modules/ws/package.json", import
     for (let i = 0; i < 12 && fast.open; i++) fast.ws.send(JSON.stringify({ type: "OFFER", dst: "nobody", payload: "x".repeat(60 * 1024) }));
     await wait(700);
     check("a socket sending far past signalling's bytes is dropped, the server up", fast.open && cut && (await alive()), JSON.stringify({ opened: fast.open, cut }));
+    // (Milestone 948) a fault on a player's page reaches the visit log
+    const fault = await fetch(`http://127.0.0.1:${PORT}/api/seen`, { method: "POST", body: JSON.stringify({ ev: "error", text: "boom at /src/main.ts" }) });
+    await wait(100);
+    const line = readFileSync(join(root, "s.jsonl"), "utf8");
+    check("a fault on a player's page reaches the visit log", fault.ok && /"ev":"error"/.test(line) && /boom at/.test(line), `${fault.status}`);
     // (Milestone 937) a client's bad request is its own fault: no stack in the log
     const before = logs.length;
     const bad = await fetch(`http://127.0.0.1:${PORT}/api/seen`, { method: "POST", headers: { "content-type": "application/json", "content-encoding": "x" }, body: "{}" });

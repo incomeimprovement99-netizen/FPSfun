@@ -23,6 +23,8 @@ export interface SeenLine {
   fps?: number;
   preset?: string;
   on?: string;
+  /** a fault on the page: its message and file */
+  text?: string;
   v?: string;
   bot?: number;
 }
@@ -96,6 +98,8 @@ export function describe(l: SeenLine): string {
     case "city":
       if (l.on === "failed") return `the city did not load (after ${l.secs ?? "?"} s)`;
       return `waited ${l.secs ?? "?"} s for the city${typeof l.mb === "number" ? ` (${l.mb} MB, ${l.cached === 1 ? "from its own copy" : "downloaded"})` : ""}`;
+    case "error":
+      return `a fault on the page: ${l.text ?? "?"}`;
     case "host":
       return `made a lobby ${l.code ?? ""}${mode}`.trim();
     case "join":

@@ -447,7 +447,7 @@ app.put("/api/account/profile", express.json({ limit: PROFILE_MAX }), (req, res)
 const SEEN_FILE = resolve(process.env.SEEN_FILE ?? join(here, "seen.jsonl"));
 /** past this the file is moved aside to .1 (the one before that goes), so it never fills the disk */
 const SEEN_MAX_BYTES = 5 * 1024 * 1024;
-const SEEN_EVENTS = new Set(["open", "loaded", "host", "join", "match", "city", "close"]);
+const SEEN_EVENTS = new Set(["open", "loaded", "host", "join", "match", "city", "close", "error"]);
 const SEEN_LIMIT = 120;
 const seenPosts = new Map();
 setInterval(() => {
@@ -499,6 +499,8 @@ app.post("/api/seen", express.text({ type: "*/*", limit: "1kb" }), (req, res) =>
     fps: typeof b.fps === "number" && Number.isFinite(b.fps) ? Math.max(0, Math.min(1000, Math.round(b.fps))) : undefined,
     preset: shortText(b.preset, 12),
     on: shortText(b.on, 8),
+    // a fault on the page: its message and file (Milestone 948)
+    text: shortText(b.text, 160),
     // the build that was served (its commit), so a visit can be matched to what the player saw
     v: version.split(" ")[0],
     // a test browser (the deploy's live check drives one): kept, and marked so the reader can leave it out

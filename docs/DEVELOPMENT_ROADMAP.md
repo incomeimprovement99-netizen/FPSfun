@@ -14031,6 +14031,18 @@ next run on the box.
 
 - **Checked:** tsc, verify, rules; arena-rules.ts: on two sides (one on the old code), 90 m apart (0 m).
 
+## Milestone 948 — A fault on a player's machine reaches the owner
+
+Every fault this project has found was found on a test browser: a player's page said nothing to anyone. The first few different ones
+a visit now go into the visit log, `npm run fps seen` saying `a fault on the page:` and its message and file (main.ts sayFault, seen.ts,
+serve.mjs). The frame's guard covers the whole frame: what ran before `step()` was outside it, and a throw there stopped the game for
+good. And a program's first use on a lost context threw, three asking it for a log and getting null; a lost context draws nothing
+(render.ts), found by the new e2e below.
+
+- **Checked:** tsc, verify, rules; serve-broker.ts: a fault reaches the log. e2e hidden, new `pageGoneTest`, for Milestone 945 in a real
+  browser: an Alt-Tab leaves the loading screen up, a GPU lost through WEBGL_lose_context says to reload and clears when it comes back
+  with no page error, a Graphics change in a match is refused and said.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -9,7 +9,7 @@
 // it is one, so the deploy's own live check can be told from a friend.
 import { session } from "./account";
 
-export type SeenEvent = "open" | "loaded" | "host" | "join" | "match" | "city" | "close";
+export type SeenEvent = "open" | "loaded" | "host" | "join" | "match" | "city" | "close" | "error";
 
 export interface SeenDetail {
   /** the name the player goes by (the profile's) */
@@ -31,6 +31,8 @@ export interface SeenDetail {
   preset?: string;
   /** where the player was as they closed it: loading, menu, match or range */
   on?: string;
+  /** a fault on this page: its message and the file it came from */
+  text?: string;
 }
 
 /**
@@ -81,6 +83,7 @@ export function seen(ev: SeenEvent, d: SeenDetail = {}): void {
     fps: d.fps,
     preset: d.preset,
     on: d.on,
+    text: d.text,
     bot: navigator.webdriver ? 1 : undefined,
   });
   const send = (url: string) => {

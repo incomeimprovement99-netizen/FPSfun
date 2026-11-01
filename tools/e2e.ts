@@ -4378,6 +4378,58 @@ const FAKE_HIDDEN = `(() => {
   const st = window.setTimeout.bind(window);
   window.setTimeout = (fn, ms, ...a) => st(fn, window.__hidden ? Math.max(1000, ms || 0) : ms, ...a);
 })()`;
+/** (Milestone 945) a tab that goes away during the city's wait, a GPU that goes and comes back, a preset changed in a match */
+async function pageGoneTest(browser: Browser): Promise<void> {
+  const page = await open(browser, "?intro=on", BASE, FAKE_HIDDEN);
+  // the city's file held back: the wait for it is what an Alt-Tab must not end
+  await ev(page, `caches.delete("sk-city")`);
+  await page.setRequestInterception(true);
+  let hold = true;
+  const held: Array<() => void> = [];
+  page.on("request", (r) => {
+    if (hold && /neonmap-v\d+-\w+\.glb/.test(r.url())) held.push(() => void r.continue());
+    else void r.continue();
+  });
+  await ev(page, `(() => { const r = window.__range; r.setScript({ held: () => false, pressedNow: () => false }, () => undefined); r.startBr({ seed: 42, poi: "c" }); })()`);
+  await sleep(3000);
+  const screen = `window.__range.showStage() === "load"`;
+  const up = await ev<boolean>(page, screen);
+  await ev(page, `(() => { window.__hidden = true; document.dispatchEvent(new Event("visibilitychange")); })()`);
+  await sleep(300);
+  await ev(page, `(() => { window.__hidden = false; document.dispatchEvent(new Event("visibilitychange")); })()`);
+  await sleep(300);
+  check("page: an Alt-Tab during the wait for the city leaves the loading screen up", up && (await ev<boolean>(page, screen)), JSON.stringify({ up }));
+  hold = false;
+  for (const go of held.splice(0)) go();
+  await ev(page, "window.__range.duel()?.leave()");
+  await page.close();
+  // a GPU reset: said, said again if it stays gone, and all clear when it comes back
+  const gl = await open(browser, "?");
+  await gl.waitForFunction("!!window.__range", { polling: 200, timeout: 30000 });
+  await ev(gl, `(() => { window.__lose = window.__range.renderer.getContext().getExtension("WEBGL_lose_context"); window.__lose?.loseContext(); })()`);
+  const has = await ev<boolean>(gl, "!!window.__lose");
+  if (has) {
+    const gone = await gl.waitForFunction(`/RELOAD THE PAGE/.test(window.__range.hud.noticeNow)`, { polling: 250, timeout: 15000 }).then(() => true, () => false);
+    await ev(gl, "window.__lose.restoreContext()");
+    const clear = await gl.waitForFunction(`!/GRAPHICS/.test(window.__range.hud.noticeNow)`, { polling: 250, timeout: 8000 }).then(() => true, () => false);
+    check("page: a GPU that stays gone says to reload, and one that comes back clears it", gone && clear, JSON.stringify({ gone, clear }));
+  } else console.log("  --  skipped: this browser has no WEBGL_lose_context");
+  await gl.close();
+  // a Graphics change in a match waits for its end: it reloaded the page, and the match with it
+  const q = await open(browser, "?norender");
+  await ev(q, `window.__range.startBots()`);
+  const on = await q.waitForFunction("window.__range.duel() !== null", { polling: 200, timeout: 30000 }).then(() => true, () => false);
+  if (on) {
+    const was = await ev<string>(q, `document.getElementById("quality").value`);
+    const other = was === "competitive" ? "balanced" : "competitive";
+    await ev(q, `(() => { window.__stayed = true; const s = document.getElementById("quality"); s.value = "${other}"; s.dispatchEvent(new Event("change")); })()`);
+    await sleep(1000);
+    const after = await ev<{ stayed: boolean; value: string; said: string }>(q, `({ stayed: window.__stayed === true, value: document.getElementById("quality").value, said: window.__range.hud.noticeNow })`);
+    check("page: a Graphics change in a match waits for its end, and says so", after.stayed && after.value === was && /BETWEEN MATCHES/.test(after.said), JSON.stringify(after));
+  } else check("page: a match to change Graphics in", false);
+  await q.close();
+}
+
 async function hiddenHostTest(browser: Browser, query: string): Promise<void> {
   const host = await open(browser, query, BASE, FAKE_HIDDEN);
   const guest = await open(browser, query);
@@ -10357,6 +10409,7 @@ async function main(): Promise<void> {
     if (want("hidden")) await section("hidden", async () => {
       console.log("\nA hidden host: the match runs on at 30 Hz from a worker, not at the background tab's one frame a second");
       await hiddenHostTest(browser, "?net=local&norender");
+      await pageGoneTest(browser);
     });
 
     if (want("speedkills")) await section("speedkills", async () => {

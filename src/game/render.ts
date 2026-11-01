@@ -281,6 +281,8 @@ export class Renderer {
   }
 
   render(now = 0): void {
+    // (a lost context draws nothing, and a program's first use on one threw: three asks it for a log, and gets null)
+    if (this.renderer.getContext().isContextLost()) return;
     if (!slow("uniforms")) cacheArrayUniforms(this.renderer);
     if (!this.composer) {
       this.renderer.render(this.scene, this.camera);
