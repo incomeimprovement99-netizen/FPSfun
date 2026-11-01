@@ -483,7 +483,7 @@ export class ArenaMode extends Duel {
     this.scoreDown(r.id, by, melee, b.bot.pos.x, b.bot.pos.z);
   }
 
-  private get respawnDelay(): number {
+  get respawnDelay(): number {
     return this.modeKind === "control" ? MODES.control.respawn : this.modeKind === "ffa" ? MODES.ffa.respawn : MODES.tdm.respawn;
   }
 

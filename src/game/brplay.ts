@@ -27,7 +27,7 @@ import type { MoveInput, Player } from "./player";
 import { solidHit } from "./projectile";
 import { floorAt } from "./floors";
 import { lootLabel, type LootItem, type LootDrop, type Rarity } from "./loot";
-import { DROP_HEIGHT } from "./brmatch";
+import { DROP_HEIGHT, restingSpot } from "./brmatch";
 import squad from "../config/squad.json";
 import windowPad from "../config/windowpad.json";
 import { stepPads, type CoursePad, type PadState } from "./course";
@@ -145,7 +145,7 @@ interface Deps {
   /** an enemy ping, yours or a squad mate's: someone says so (announcer.ts) */
   onEnemyPing?: () => void;
   /** a restore's beam: on at a place, or off */
-  beam?: (at: THREE.Vector3 | null) => void;
+  beam?: (at: THREE.Vector3 | null, seconds?: number) => void;
 }
 
 /** the hold at a squad mate's echo, and the pads (src/config/squad.json) */
@@ -485,7 +485,7 @@ export class BrPlay {
           // (until their first packet says they are up, the echo is not offered again)
           this.echoDone = { owner, at: now };
         }, rate);
-        if (fresh && this.hold?.kind === "echo") this.deps.beam?.(at);
+        if (fresh && this.hold?.kind === "echo") this.deps.beam?.(at, need / rate);
       } else this.cancelHold();
     } else {
       this.cancelHold();
@@ -671,11 +671,17 @@ export class BrPlay {
   private echoHere(match: BrMatch, p: THREE.Vector3, eye: THREE.Vector3, fwd: THREE.Vector3, now: number): LootDrop | null {
     const f = match.lootField;
     if (!f) return null;
-    if (f.nearest(eye, fwd)) return null;
+    // (not once a hold has begun: the mate's own guns lie round it, and a dip of the crosshair over one took a 15 s restore
+    // back to nothing, Milestone 956)
+    if (f.nearest(eye, fwd) && this.hold?.kind !== "echo") return null;
     for (const d of f.drops.values()) {
       if (d.item.kind !== "echo" || d.item.owner === undefined || d.item.owner === match.id || !match.isAlly(d.item.owner)) continue;
-      if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > ECHO.reach || Math.abs(d.pos.y - p.y) > 2.5) continue;
-      if (match.memberAlive(d.item.owner) !== false) continue;
+      // (on what is under it now: a sector gone from under an echo left it in the air, out of reach, its ghost stranded)
+      if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > ECHO.reach || (Math.abs(d.pos.y - p.y) > 2.5 && Math.abs(restingSpot(d.pos).y - p.y) > 2.5)) continue;
+      // (a mate in the Gulag can be brought out; the wait for it was all the offer lasted)
+      if (match.memberAlive(d.item.owner) !== false && !match.inGulag(d.item.owner)) continue;
+      // (out for good: no restore to offer, and the line stood in the way of looting round it)
+      if (!Number.isFinite(match.boxLockout(d.item.owner))) continue;
       if (this.echoDone && this.echoDone.owner === d.item.owner && now - this.echoDone.at < 3) continue;
       return d;
     }

@@ -340,7 +340,9 @@ export function makeCode(): string {
 }
 
 export function normaliseCode(raw: string): string {
-  return raw.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
+  // (a whole invite link pasted in: the box cut it to "https", five good letters and a match that was not there, Milestone 960)
+  const link = /[?&]join=([A-Za-z0-9]+)/.exec(raw);
+  return (link ? link[1] : raw).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 5);
 }
 
 /** a link over a PeerJS data connection */
@@ -385,7 +387,10 @@ class PeerLink implements Link {
     conn.on("close", end);
     conn.on("error", end);
     peer.on("disconnected", () => {
-      // losing the broker does not matter once the data channel is open
+      // Losing the broker does not matter to the data channel, which is open; it does to voice, which calls through it: every
+      // call from or to this guest failed for the rest of the session, a deploy being enough (Milestone 961). The host's own
+      // peer has its own way back (hostMatch).
+      if (this.ownsPeer && !this.closed && !peer.destroyed) setTimeout(() => !this.closed && !peer.destroyed && peer.disconnected && peer.reconnect(), 1000);
     });
     // The second channel: negotiated, so each end opens it with the same id
     // and no signalling; an older build opens none, and it never pairs.

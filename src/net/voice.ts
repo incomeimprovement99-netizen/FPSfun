@@ -48,6 +48,8 @@ export class Voice {
 
   constructor(private readonly peer: Peer) {
     peer.on("call", (call) => this.answer(call));
+    // (back on the broker after a blink: what could not be called then is called now, Milestone 961)
+    peer.on("open", () => this.callGroup());
   }
 
   /** who this page may talk to and hear now (their PeerJS ids): calls to anyone else end */
@@ -121,6 +123,10 @@ export class Voice {
   /** out of the match: every call ended, the microphone let go */
   stop(): void {
     this.gen++;
+    // (the next press asks afresh: a shared answer gave the next match a microphone this stop had ended, and a no, or a
+    // microphone plugged in since, stood for the whole session, Milestone 961)
+    this.asking = null;
+    this.denied = false;
     // (nobody to talk to or hear until the next match says who: a late call from the last one was still answered,
     // Milestone 734)
     this.group = new Set();
@@ -159,6 +165,13 @@ export class Voice {
       };
       call.on("close", gone);
       call.on("error", gone);
+      // Nothing comes back from a call turned away, or from a page not there to turn it down: PeerJS sends no refusal, so
+      // `close` never fired, and that talker was silent to that friend until the group changed (Milestone 961)
+      setTimeout(() => {
+        if (this.outgoing.get(id) !== call || call.open) return;
+        call.close();
+        gone();
+      }, cfg.retry.answer);
     }
   }
 
@@ -184,7 +197,14 @@ export class Voice {
     const audio = new Audio();
     audio.srcObject = stream;
     audio.volume = this.muted.has(call.peer) ? 0 : Math.max(0, Math.min(1, this.volume));
-    void audio.play().catch(() => undefined);
+    // (a page nobody has clicked yet is refused sound: it comes on with the first click or key, Milestone 961)
+    void audio.play().catch(() => {
+      const again = (): void => {
+        void audio.play().catch(() => undefined);
+        void this.ctx?.resume();
+      };
+      for (const ev of ["pointerdown", "keydown"]) window.addEventListener(ev, again, { once: true, capture: true });
+    });
     let analyser: AnalyserNode | null = null;
     try {
       this.ctx ??= new AudioContext();

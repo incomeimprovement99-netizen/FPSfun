@@ -86,7 +86,7 @@ const allDown = (figs: readonly Dummy[]) => figs.length > 0 && figs.every((d) =>
 const STEPS: Step[] = [
   {
     title: "MOVE",
-    text: "Walk forward to the door with {forward}. The mouse looks around. You always run: there is no walking.",
+    text: "Walk forward to the door with {forward}, looking round as you go. You always run: there is no walking.",
     done: (c) => inOut(c.pos.x) && c.pos.z > MOVE_ROOM.exitZ - 3,
     goal: () => doorAt(DIVIDERS[1]),
   },
@@ -393,7 +393,7 @@ export class Tutorial {
           step: STEPS.length,
           of: STEPS.length,
           title: "TUTORIAL COMPLETE",
-          text: "Every gun and hack is on the stands here: try them on the dummies. Then Battle Royale, from the start screen: a squad of two, the city decays sector by sector, and your first death sends you to the Gulag to win your way back.",
+          text: "Every gun and hack is on the stands here: try them on the dummies. Then Battle Royale, from the start screen: the city decays sector by sector, and your first death sends you to the Gulag to win your way back.",
           marker: null,
           skip: 0,
           done: true,

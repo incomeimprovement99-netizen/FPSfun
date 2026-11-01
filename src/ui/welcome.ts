@@ -31,6 +31,9 @@ export function initWelcome(): void {
   if (problem) {
     warn.innerHTML = problem;
     warn.hidden = false;
+    // (the game opens on the start screen, with this box's menu hidden: a phone was told nothing, Milestone 963)
+    const sign = document.getElementById("startSignText");
+    if (sign) sign.innerHTML = problem;
   }
   // the welcome sits on the Play tab; the device warning above every tab
   box.hidden = seen;

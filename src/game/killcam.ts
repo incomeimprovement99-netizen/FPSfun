@@ -158,12 +158,14 @@ export class Killcam {
    * `killerId`. Returns false when there is nothing to show (the ring, or no
    * recording of them).
    */
-  start(rec: Recorder, killT: number, killerId: number, killerName: string, victimId = -1): boolean {
+  start(rec: Recorder, killT: number, killerId: number, killerName: string, victimId = -1, room = Infinity): boolean {
     this.stop();
     if (killerId < 0 || !rec.saw(killerId, killT, cfg.before + 0.5)) return false;
     this.rec = rec;
     const first = rec.frames[0]?.t ?? killT;
-    this.startT = Math.max(first, killT - cfg.before);
+    // `room` is the seconds until you are back in: it starts late enough to end by then. It ran from 4 s back whatever came
+    // next, and a first death's trip to the Gulag cut it a second before the kill (Milestone 955).
+    this.startT = Math.max(first, killT - Math.min(cfg.before, Math.max(0.5, room - cfg.after)));
     this.endT = killT + cfg.after;
     this.lag = killT - this.startT;
     this.t = this.startT;
@@ -310,7 +312,11 @@ export class Killcam {
   /** the camera: at the killer's eye, looking where they looked */
   pose(camera: THREE.PerspectiveCamera): void {
     const k = this.actorAt(this.t, this.killerId);
-    if (!k) return;
+    // (a killer who left: the replay ends, where the camera fell back on your own body with the bars and their gun up)
+    if (!k) {
+      this.stop();
+      return;
+    }
     camera.position.set(k.x, k.y + eyeHeight(k.stance), k.z);
     camera.quaternion.setFromEuler(new THREE.Euler(k.pitch * DEG, k.yaw * DEG, 0, "YXZ"));
     this.killerWeapon = k.weapon;

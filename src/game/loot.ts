@@ -546,6 +546,18 @@ export class LootField {
   }
 
   /** an item into the world at `pos`: with a given key (from the seed or the host), or the next free one */
+  /**
+   * What lies where `where` says down onto what is under it now: a sector gone took the floors from under its loot and
+   * left it in the air, 110 m up at the most, and a mate's echo out of reach (Milestone 958).
+   */
+  settle(where: (x: number, z: number) => boolean, rest: (p: THREE.Vector3) => THREE.Vector3): void {
+    for (const d of [...this.drops.values()]) {
+      if (!where(d.pos.x, d.pos.z)) continue;
+      const y = rest(d.pos).y;
+      if (y < d.pos.y - 0.05) this.add(d.item, d.pos.clone().setY(y), d.key);
+    }
+  }
+
   add(item: LootItem, pos: THREE.Vector3, key?: number): number {
     const k = key ?? this.nextKey++;
     if (key !== undefined) this.nextKey = Math.max(this.nextKey, key + 1);

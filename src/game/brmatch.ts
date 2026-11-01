@@ -863,8 +863,9 @@ export class BrMatch extends Duel {
     if (this.role !== "host") return this.squadsSeen;
     // the humans' sides with someone up: each their own in solo, each squad when split, else one
     const up = new Set<number>();
-    if (this.alive) up.add(this.sideOf(this.id));
-    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && r.alive) up.add(this.sideOf(r.id));
+    // (one on the way to the Gulag is still in it: the count fell and rose, and the announcer said so)
+    if (this.alive || this.gulag) up.add(this.sideOf(this.id));
+    for (const r of this.remotes.values()) if (r.id < Duel.BOT_ID && (r.alive || this.gulagIds.has(r.id))) up.add(this.sideOf(r.id));
     const mine = up.size;
     return this.botSquadsAlive + mine;
   }
@@ -1075,7 +1076,13 @@ export class BrMatch extends Duel {
           if (!this.brOver) {
             this.onRemoteFx?.("pod", this.id, p.at.clone(), undefined, 1);
             this.onNotice?.(`CARE PACKAGE DOWN  ·  ${this.placeNear(p.at)}`);
-            if (this.role === "host") this.podItems().forEach((it, i) => this.dropLoot(it, p.at.clone().add(new THREE.Vector3(Math.cos(i * 2.1) * 1.3, 0, Math.sin(i * 2.1) * 1.3))));
+            // (each on a clear spot of its own: spread further than the pod's own clearance, 13% of them lay inside a box on
+            // some final sectors, three of the game's best items found only through the reach list, Milestone 958)
+            if (this.role === "host")
+              this.podItems().forEach((it, i) => {
+                const o = openGround(p.at.x + Math.cos(i * 2.1) * 1.3, p.at.z + Math.sin(i * 2.1) * 1.3);
+                this.dropLoot(it, restingSpot(new THREE.Vector3(o.x, p.at.y + brCfg.pod.stepUp, o.z)));
+              });
           }
         }
       }
@@ -1794,7 +1801,7 @@ export class BrMatch extends Duel {
     this.ring = ring;
     // the capture's meter where this page last heard it (Milestone 728): the old host's meters went with it, and a hold
     // under way started again from nothing on the heir. The holder's alone: the others' were never told.
-    this.capture.progress.clear();
+    // (each side's as this page last heard it, and not only the holder's: a side stepped in on lost all it had)
     if (this.capture.holder >= 0 && this.capture.held > 0) this.capture.progress.set(this.capture.holder, this.capture.held);
     const s = readBrSnap(mode);
     if (!s) return;
@@ -1817,7 +1824,8 @@ export class BrMatch extends Duel {
       bot.remote.shieldMax = bot.dummy.shieldMax;
       bot.remote.health = bot.dummy.health;
       bot.remote.shield = bot.dummy.shield;
-      if (!row.al) {
+      // (or down since the snapshot, a second old at the most: it stood up again at 0 health, its gun on the floor too, Milestone 957)
+      if (!row.al || r?.alive === false) {
         bot.dummy.fallDown(false);
         bot.remote.alive = false;
       }
@@ -1885,6 +1893,8 @@ export class BrMatch extends Duel {
   protected override onStartShort(): void {
     this.squadsTotal = squadsInMatch(this.botCount, this.team.size, this.players, this.split);
     this.squadsSeen = this.squadsTotal;
+    // (who is here, not how many: two left of four split into duos, ids 0 and 2, are enemies, and both won, Milestone 956)
+    this.sidesHere = new Set([this.id, ...this.links.keys()].map((id) => this.sideOf(id))).size;
   }
 
   /** the host's landing and a guest's say the same thing, and solo says it differently */
@@ -1908,8 +1918,9 @@ export class BrMatch extends Duel {
 
   /** the humans are more than one side (solo with friends, or squads of friends): each placed on its own */
   private get manySides(): boolean {
-    return humanSides(this.team.size, this.players, this.split) > 1;
+    return (this.sidesHere ?? humanSides(this.team.size, this.players, this.split)) > 1;
   }
+  private sidesHere: number | null = null;
 
   /** the one whose jump takes you with them: the first of your squad, unless that is you or you are alone in it */
   jumpmaster(): number | null {
@@ -2037,8 +2048,8 @@ export class BrMatch extends Duel {
     for (const b of this.bots) if (b.bot.alive && !b.bot.dropping && inside(b.bot.pos.x, b.bot.pos.z)) here.add(CAPTURE_BOT + b.team);
     if (here.size !== 1) {
       // empty, or contested: nobody's meter moves
+      // (and what the last one held stays on the HUD: stepping off said 0 / 45 S, and it was all still there, Milestone 958)
       c.holder = here.size > 1 ? -2 : -1;
-      c.held = 0;
       return;
     }
     const key = [...here][0];
@@ -2223,6 +2234,7 @@ export class BrMatch extends Duel {
         this.capture.open = m.cp[0] === 1;
         this.capture.holder = Math.round(m.cp[1]);
         this.capture.held = Math.max(0, Math.min(decayCfg.capture.hold, m.cp[2]));
+        if (this.capture.holder >= 0) this.capture.progress.set(this.capture.holder, this.capture.held);
       }
     } else if (m.t === "brend") this.finishBr(m.won, m.placement);
   }
@@ -2425,7 +2437,8 @@ export class BrMatch extends Duel {
       const a = Math.random() * Math.PI * 2;
       const r = Math.sqrt(Math.random()) * ring.next.r * P.inset;
       const clear = podSpot(ring.next.cx + Math.cos(a) * r, ring.next.cz + Math.sin(a) * r);
-      const at = new THREE.Vector3(clear.x, 0, clear.z);
+      // (on what is there: a third of the packages on a step sat under its surface, Milestone 958)
+      const at = restingSpot(new THREE.Vector3(clear.x, brCfg.pod.stepUp, clear.z));
       const warning = P.announce + LOOT.podFall;
       this.addPod(at, warning);
       this.broadcast({ t: "pod", at: [at.x, at.y, at.z], lands: warning });
@@ -2862,7 +2875,8 @@ export class BrMatch extends Duel {
           const s = r.samples[r.samples.length - 1];
           return { id: r.id, x: s.x, z: s.z, name: r.name, alive: r.alive };
         }),
-      gulag: this.gulag ? { phase: this.gulag.phase, clock: this.gulag.clock(now), opponent: this.gulagBot?.remote.name ?? "", capMe: this.gulag.capMe, capThem: this.gulag.capThem, capture: GULAG.capture } : null,
+      // (not past the end: a match decided while you were in the room left its clock running under the card)
+      gulag: this.gulag && !this.brOver ? { phase: this.gulag.phase, clock: this.gulag.clock(now), opponent: this.gulagBot?.remote.name ?? "", capMe: this.gulag.capMe, capThem: this.gulag.capThem, capture: GULAG.capture } : null,
     };
     return {
       ...base,
@@ -2882,7 +2896,9 @@ export class BrMatch extends Duel {
   /** the humans (Duel's), and on the host the bots it runs: the killcam's recording */
   override actorStates(): ActorState[] {
     const out = super.actorStates();
-    for (const b of this.bots) {
+    // (and the Gulag's bot, or a loss there has no replay)
+    const room = this.gulagBot ? [{ bot: this.gulagBot }] : [];
+    for (const b of [...this.bots, ...room]) {
       const bot = b.bot;
       const p = bot.dummy.currentPose;
       out.push({ id: bot.remote.id, name: bot.remote.name, x: bot.pos.x, y: bot.pos.y, z: bot.pos.z, yaw: ((bot.dummy.group.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: bot.remote.avatarWeapon, op: bot.remote.avatarOp, alive: bot.alive, soldier: bot.dummy.skin.soldier });

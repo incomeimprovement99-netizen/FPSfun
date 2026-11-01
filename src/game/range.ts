@@ -517,7 +517,7 @@ function spawnNote(): THREE.Mesh {
     g.fillText("TUTORIAL", 320, 190);
     g.fillStyle = "rgba(232,226,214,0.9)";
     g.font = '600 62px "Rajdhani", "Segoe UI", sans-serif';
-    g.fillText("turn round: the right-hand gate. THE RUN: left", 322, 285);
+    g.fillText("turn round: the left-hand gate. THE RUN: right", 322, 285);
     tex.needsUpdate = true;
   };
   draw();

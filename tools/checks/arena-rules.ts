@@ -204,6 +204,14 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   check("a hack's kill says so as a round's does, and a REVEAL's count stands", /if \(kill\) sayKill\(fig, gameTime\)/.test(page) && /if \(id !== "reveal"\) hud\.notice\(name/.test(page));
   check("THE RUN starts your hacks at their first level", /for \(const h of savedHacks\) hacks\.set\(h\.id, 0\)/.test(page));
   check("a REVEAL against bots has an end", /this\.shownKit\.step\(now\)/.test(bots));
+  const play = read("brplay.ts");
+  // (Milestones 955 to 957)
+  check("the watch camera holds who you chose", /x\.figure === watchFig/.test(page) && /!killcam\.active && input\.pressedNow\("fire"\)/.test(page));
+  check("a Gulag loss has a replay", /const room = this\.gulagBot \? \[\{ bot: this\.gulagBot \}\] : \[\]/.test(br));
+  check("a restore holds through the guns round the echo, and a mate in the Gulag can be brought out", /this\.hold\?\.kind !== "echo"/.test(play) && /!match\.inGulag\(d\.item\.owner\)/.test(play));
+  check("an out-for-good mate's echo stands in nobody's way, and only a ghost is drawn as one", /!Number\.isFinite\(match\.boxLockout\(d\.item\.owner\)\)/.test(play) && /r\.life !== LIFE_WIRE\.ghost/.test(page));
+  check("a restore's beam lasts as long as the hold", /this\.deps\.beam\?\.\(at, need \/ rate\)/.test(play));
+  check("the city is whole as a match ends, and a bot just down stays down for an heir", /announcer\.clear\(\);\s+\/\/[^\n]*\n\s+\/\/[^\n]*\n\s+cityDecay\(null, gameTime\)/.test(page) && /!row\.al \|\| r\?\.alive === false/.test(br));
   check("the Gulag's bot does not see through INVISIBILITY", /const sees = this\.alive && bot\.alive && !hidden && bot\.sees\(feet\)/.test(br));
 }
 
@@ -229,6 +237,38 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   const fire = Object.getOwnPropertyDescriptor(BrMatch.prototype, "canFire")?.get;
   const at = (phase: string): boolean => !!fire?.call(Object.create(BrMatch.prototype, { phase: { value: "fight" }, alive: { value: true }, gulag: { value: { phase } } }));
   check("no gun or hack in the Gulag's countdown; both once it is FIGHT", !at("countdown") && at("fight"), JSON.stringify({ countdown: at("countdown"), fight: at("fight") }));
+}
+{
+  // (Milestone 955) the real Killcam: a replay with so many seconds before you are back
+  const { Killcam, Recorder } = await import("../../src/game/killcam");
+  const cfg = (await import("../../src/config/killcam.json")).default as { before: number; after: number };
+  const rec: Any = new Recorder();
+  const frames: Any[] = [];
+  for (let t = 0; t <= 10; t += 0.1) frames.push({ t, actors: [{ id: 7, name: "K", x: 0, y: 0, z: 0, yaw: 0, pitch: 0, stance: "stand", speed: 0, weapon: "vinson", op: "vanguard", alive: true }, { id: 0, name: "ME", x: 5, y: 0, z: 0, yaw: 0, pitch: 0, stance: "stand", speed: 0, weapon: "vinson", op: "vanguard", alive: true }], shots: [] });
+  rec.frames = frames;
+  const k: Any = new Killcam(scene, projectiles);
+  const ok = k.start(rec, 8, 7, "K", 0, 3);
+  const len = k.endT - k.startT;
+  check("a replay with 3 s before you are back ends by then, and reaches the kill", ok && len <= 3 + 1e-6 && k.startT < 8 && k.endT >= 8, JSON.stringify({ start: k.startT, end: k.endT }));
+  k.stop();
+  const whole = k.start(rec, 8, 7, "K", 0);
+  check("and one with all the time in the world is the whole replay", whole && Math.abs(k.endT - k.startT - (cfg.before + cfg.after)) < 1e-6, `${k.endT - k.startT} s`);
+  k.killerId = 99;
+  k.pose(new THREE.PerspectiveCamera());
+  check("a killer gone from the recording ends the replay", !k.active);
+  k.stop();
+}
+{
+  // (Milestone 958) the real LootField's settle: what lay on a gone sector comes down, and nothing else moves
+  const { LootField } = await import("../../src/game/loot");
+  const f: Any = Object.create(LootField.prototype);
+  f.drops = new Map([[1, { key: 1, item: {}, pos: new THREE.Vector3(10, 40, 0) }], [2, { key: 2, item: {}, pos: new THREE.Vector3(-10, 40, 0) }]]);
+  f.add = (item: unknown, pos: THREE.Vector3, key: number): void => f.drops.set(key, { key, item, pos });
+  f.settle((x: number) => x > 0, (p: THREE.Vector3) => new THREE.Vector3(p.x, 3, p.z));
+  check("loot on a gone sector comes down to what is under it; elsewhere it stays", f.drops.get(1).pos.y === 3 && f.drops.get(2).pos.y === 40, JSON.stringify([f.drops.get(1).pos.y, f.drops.get(2).pos.y]));
+  const src = readFileSync(new URL("../../src/game/brmatch.ts", import.meta.url), "utf8");
+  check("a package's items each lie on a clear spot, at the floor's height", /const o = openGround\(p\.at\.x \+ Math\.cos\(i \* 2\.1\) \* 1\.3/.test(src) && /const at = restingSpot\(new THREE\.Vector3\(clear\.x, brCfg\.pod\.stepUp, clear\.z\)\)/.test(src));
+  check("a side's capture meter stays through stepping off and a change of host", !/c\.held = 0;/.test(src) && !/this\.capture\.progress\.clear\(\)/.test(src));
 }
 {
   // (Milestone 947) a friend gone before the host starts, a seat left empty

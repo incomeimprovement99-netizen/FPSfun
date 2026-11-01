@@ -1498,7 +1498,9 @@ export class Duel implements MatchLike {
     // tell the other guest, then carry on if one is left; a 1v1 is over (a
     // battle royale goes on for whoever is left in the squad)
     this.relay({ t: "bye" }, id);
-    if (this.mode === "duel" && (this.players === 2 || this.links.size === 0)) {
+    // (a 1v1 under way: a lobby keeps its code for the next friend, where a leave, a reload or a kick ended it and the invite
+    // said No match with that code, Milestone 960)
+    if (this.mode === "duel" && this.phase !== "waiting" && (this.players === 2 || this.links.size === 0)) {
       this.finish(`${r?.name ?? "Your opponent"} left the match.`);
       return;
     }

@@ -1548,8 +1548,9 @@ in code from measured holds (`src/config/soldierhold.json`).
 **Saves are per browser**, unless you sign in to an account on the game's own
 server. Settings, loadouts, the profile, best times and ghosts are in
 localStorage: another browser or device starts fresh, and clearing site data
-clears them. Signed in, they sync to the account (the graphics preset stays
-per machine).
+clears them. Signed in, they sync to the account (the graphics preset and
+render scale stay per machine), and two browsers' saves are merged, not
+overwritten: the most XP, the highest counts, the best times.
 
 **Gunshots are recorded.** Every class of gun (pistol, SMG, rifle, LMG,
 marksman, sniper, shotgun) fires takes of real guns from The Free Firearm

@@ -2289,12 +2289,16 @@ function onEliminated(d: MatchLike, by: number): void {
     // an echo only where there is a squad to bring you back: in solo the others are opponents
     if (d.players > 1 && d.team.size > 1) items.push({ kind: "echo", id: "echo", n: 1, rarity: "common", owner: d.id, ownerName: profile.profile.name });
     // an out-of-bounds death leaves it where you last stood in the city, so a restore is never out there
-    d.dropDeath(items, by === EDGE_ID ? edgeInside.clone() : player.pos.clone());
+    // (any death in the margin: a bot's left it out there, a 5 s hold past a 5 s countdown, Milestone 956)
+    d.dropDeath(items, by === EDGE_ID || pastEdge(player.pos.x, player.pos.z) ? edgeInside.clone() : player.pos.clone());
   }
   if (by === EDGE_ID) player.teleport(edgeInside.x, edgeInside.y, edgeInside.z, player.yaw);
   recap = dlog.recap(t, by, (id) => d.nameFor(id), (id) => d.vitalsFor(id));
   recapShownAt = gameTime;
-  if (killcamOn && by >= 0 && by !== d.id && killcam.start(recorder, t, by, d.nameFor(by), d.id) && killcam.killerWeapon && !NO_RENDER) {
+  // (until you are back: the Gulag's wait, a mode's respawn)
+  const room = d instanceof BrMatch && d.gulag ? GULAG.delay : d instanceof ArenaMode ? d.respawnDelay : Infinity;
+  if (killcamOn && by >= 0 && by !== d.id && killcam.start(recorder, t, by, d.nameFor(by), d.id, room) && killcam.killerWeapon && !NO_RENDER) {
+    audio.stopReload();
     // the killer's gun, as the view will hold it, compiled before it is shown (gunLayer's lights are the scene's)
     killcamGunReady = false;
     const gen = ++killcamGunGen;
@@ -2355,6 +2359,9 @@ let hangout: Duel | null = null;
  */
 const voices = new WeakMap<Peer, Voice>();
 let voice: Voice | null = null;
+/** the peer `voice` is on, and the names it last told who is muted */
+let voiceOn: unknown = null;
+let voiceNamesKey = "";
 let voiceGroupKey = "";
 let voiceTalking = false;
 let hudVoice: { me: boolean; talking: string[] } | null = null;
@@ -2378,13 +2385,15 @@ function hearsVoice(d: Duel, id: number): boolean {
 }
 function voiceFrame(): void {
   const d = duel instanceof Duel ? duel : hangout;
-  if (d && !voice) {
-    const peer = d.anyLink()?.voicePeer?.();
-    if (peer) {
-      voice = voices.get(peer) ?? new Voice(peer);
-      voices.set(peer, voice);
-      voice.setVolume(voiceVolume);
-    }
+  // a new link's own peer (back in after a drop, a new host): voice stayed on the destroyed one, nobody heard, and the HUD
+  // said you were talking (Milestone 961)
+  const peer = d?.anyLink()?.voicePeer?.() ?? null;
+  if (voice && peer && peer !== voiceOn) voiceStop();
+  if (d && !voice && peer) {
+    voice = voices.get(peer) ?? new Voice(peer);
+    voices.set(peer, voice);
+    voiceOn = peer;
+    voice.setVolume(voiceVolume);
   }
   if (!d || !voice) {
     hudVoice = null;
@@ -2401,7 +2410,12 @@ function voiceFrame(): void {
   if (key !== voiceGroupKey) {
     voiceGroupKey = key;
     voice.setGroup(ids);
-    // a muted name stays muted under its new id
+  }
+  // A muted name stays muted under its new id: told when the names change and not only the group, whose first frame of a
+  // new match still calls everyone PLAYER 2, and every move unmuted them (Milestone 961)
+  const namesKey = [...names].map(([pid, name]) => `${pid}=${name}`).join();
+  if (namesKey !== voiceNamesKey) {
+    voiceNamesKey = namesKey;
     for (const [pid, name] of names) voice.setMuted(pid, mutedNames.has(name));
   }
   voiceNames = names;
@@ -2462,7 +2476,9 @@ $("voiceList").addEventListener("click", (e) => {
 function voiceStop(): void {
   voice?.stop();
   voice = null;
+  voiceOn = null;
   voiceGroupKey = "";
+  voiceNamesKey = "";
   voiceTalking = false;
   hudVoice = null;
 }
@@ -2820,6 +2836,8 @@ function duelButtons(): void {
   duelJoinBtn.hidden = busy;
   duelCode.hidden = busy;
   duelPlayers.hidden = busy;
+  // (with a code out it changed nothing: friends played the old mode with the tab showing the new one, Milestone 960)
+  duelMode.disabled = busy;
   duelLeaveBtn.hidden = !busy;
   // the host with some friends in and some places still open: start with those in
   const d = duel instanceof Duel ? duel : null;
@@ -3325,7 +3343,7 @@ function clearSquadRings(): void {
 let echoRegen: { rate: number } | null = null;
 /** the restore beams in the world, by who is holding (your own is -1) */
 const beams = new Map<number, { obj: THREE.Mesh; until: number; hum: (() => void) | null }>();
-function setBeam(key: number, at: THREE.Vector3 | null): void {
+function setBeam(key: number, at: THREE.Vector3 | null, seconds = squadCfg.echoRespawn.time): void {
   const old = beams.get(key);
   if (old) {
     old.hum?.();
@@ -3338,7 +3356,8 @@ function setBeam(key: number, at: THREE.Vector3 | null): void {
   const obj = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 180, 10, 1, true), new THREE.MeshBasicMaterial({ color: 0x5dff7a, transparent: true, opacity: 0.35, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide, forceSinglePass: true }));
   obj.position.set(at.x, at.y + 90, at.z);
   scene.add(obj);
-  beams.set(key, { obj, until: gameTime + squadCfg.echoRespawn.time + 1, hum: audio.beamHum(at, squadCfg.echoRespawn.time) });
+  // (as long as the hold: a restore with the ghost away is 15 s, and its beam and hum stopped at 8)
+  beams.set(key, { obj, until: gameTime + seconds + 1, hum: audio.beamHum(at, seconds) });
 }
 
 // a dropped gun's clatter on the floor; the menu's clicks
@@ -3576,7 +3595,8 @@ function stepGhosts(dt: number): void {
   if (d) {
     for (const a of d.avatars) {
       const r = d.remoteOf(a);
-      if (!r || r.alive || r.id >= Duel.BOT_ID || !d.isFriend(r.id)) continue;
+      // (a ghost: a mate out for good, or waiting for the Gulag, glowed at where they fell)
+      if (!r || r.alive || r.life !== LIFE_WIRE.ghost || r.id >= Duel.BOT_ID || !d.isFriend(r.id)) continue;
       const last = r.samples[r.samples.length - 1];
       if (!last) continue;
       let m = ghostFigs.get(r.id);
@@ -3636,8 +3656,11 @@ function hackMesh(color: number, r: number, h: number, opacity = 0.28): THREE.Me
 }
 
 /** the enemies near a spot: their record and their figure (bots and players both) */
-function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote; fig: Dummy }> {
+function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote | null; fig: Dummy }> {
   const d = duel;
+  // the range's dummies, with no record of their own: the tutorial sends you here to try your hacks on them, and a SLAM or a
+  // MINE did nothing to one (Milestone 959)
+  if (!d) return dummies.filter((f) => f.group.visible && !f.knocked && f.group.position.distanceTo(at) <= r).map((fig) => ({ rem: null, fig }));
   // the arena alone with bots, whose match is no Duel: its bots (SLAM and MINE found nobody there, Milestone 893)
   if (d instanceof BotMatch) {
     const out: Array<{ rem: Remote; fig: Dummy }> = [];
@@ -3665,7 +3688,7 @@ function enemiesNear(at: THREE.Vector3, r: number): Array<{ rem: Remote; fig: Du
  * air alone, the owner saw it hit nobody (2026-09-28): an enemy a storey off counted, one on the floor at the ring's
  * edge did not
  */
-function slamTargets(at: THREE.Vector3): Array<{ rem: Remote; fig: Dummy }> {
+function slamTargets(at: THREE.Vector3): Array<{ rem: Remote | null; fig: Dummy }> {
   const S = H.slam as unknown as { radius: number; height: number };
   return enemiesNear(at, S.radius + S.height).filter(({ fig }) => {
     const p = fig.group.position;
@@ -3694,8 +3717,15 @@ function sayKill(fig: Dummy | null | undefined, now: number): void {
 }
 
 /** a hack's damage on a figure, the way a bullet's reaches it: its own hit, then the match's, and its number as a shot's */
-function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
+function hackHurt(rem: Remote | null, fig: Dummy, amount: number, what: string): void {
   const d = duel;
+  if (!rem) {
+    const r = fig.hit(gameTime, "body", amount, 1, 1, fig.group.position.clone().setY(fig.group.position.y + 1));
+    if (!r) return;
+    hud.addDamage(fig.overHead(hudCfg.damageNumbers.over), r.amount, r.toShield > 0 ? `#${ARMOR_COLOR[fig.tier].toString(16).padStart(6, "0")}` : "#ff4a3d", r.knocked, gameTime, fig);
+    hud.hitMarker(gameTime, false, r.knocked ? "knock" : r.broke ? "break" : "hit", ARMOR_COLOR[fig.tier]);
+    return;
+  }
   if (!(d instanceof Duel) && !(d instanceof BotMatch)) return;
   const wasAlive = rem.health > 0;
   const onShield = rem.shield > 0;
@@ -3790,7 +3820,7 @@ function useHack(slot: HackSlot, now: number): void {
   if (player.aboard) return;
   // the tutorial teaches them in their own room, and they are off until then (Milestone 633)
   if (!d && tutorial.hacksLocked) {
-    hud.notice("YOUR HACKS COME ON IN THE HACKS ROOM", now, 1.2);
+    hud.notice("YOUR HACKS COME ON IN THE DASH ROOM", now, 1.2);
     return;
   }
   const held = hacks.get(slot);
@@ -4176,6 +4206,8 @@ resetHacks();
 // ---------------------------------------------------------------- SpeedKills' decay and capture zone
 /** what the decay last had each sector as, so each change is said once */
 let decaySeen: Record<string, string> = {};
+/** how many sectors are gone: another one, and what lay on it comes down */
+let decayGone = 0;
 let captureSaid = false;
 /** the decay's frame: the city dissolved where it has reached, and each change of a sector said */
 // ---------- SpeedKills' edge (Phase 20 A4; edge.ts) ----------
@@ -4219,8 +4251,14 @@ function stepDecay(now: number): void {
   cityDecay(states, now);
   if (!d || !states) {
     decaySeen = {};
+    decayGone = 0;
     captureSaid = false;
     return;
+  }
+  const gone = Object.values(states).filter((s) => s.phase === "gone").length;
+  if (gone !== decayGone) {
+    decayGone = gone;
+    d.lootField?.settle((x, z) => d.lostAt(x, z), restingSpot);
   }
   const warned: string[] = [];
   const decaying: string[] = [];
@@ -4508,8 +4546,8 @@ const brPlay = new BrPlay({
   notice: (t) => hud.notice(t, gameTime, 2),
   // (a ping's own tick: it was the hit marker's, a white shield hit, on the Hit sounds slider, Milestone 924)
   sound: (k) => (k === "ping" ? audio.pingTick() : audio.whoosh()),
-  beam: (at) => {
-    setBeam(-1, at);
+  beam: (at, seconds) => {
+    setBeam(-1, at, seconds);
     duel?.localFx("beam", at ?? undefined, undefined, at ? 1 : 0);
     // the bots hear it a long way off
     if (at && duel instanceof BrMatch) duel.hearBeam(at);
@@ -4565,6 +4603,7 @@ let spectateFirst = true;
  * they are out; fire takes the next and aim the one before.
  */
 let watchIndex = 0;
+let watchFig: Dummy | null = null;
 let watchName = "";
 
 /**
@@ -5149,8 +5188,12 @@ let hostBr: BrWelcome | null = null;
 /** the host's settings (abilities on or off), fixed at Create, in every guest's welcome */
 let hostOpts: MatchOpts | null = null;
 
-/** the city's boxes were asked for and the ask is over, in or not (boxesFirst) */
-let boxesTried = false;
+/**
+ * The ask for the city's boxes is over, in or not: the start it held goes on, this once (boxesFirst). A failed file was
+ * asked for again by that same start, which waited again, for ever, the loading screen up and a friend on "Joining..."
+ * (Milestone 960, Milestone 944's own fault); the next match asks again.
+ */
+let boxesPass = false;
 /** a start is waiting on them (boxesFirst): the loading screen Start put up stays up until it starts */
 let boxesWaiting = false;
 /**
@@ -5161,7 +5204,10 @@ let boxesWaiting = false;
  * and starts once they are in; true when it may start now.
  */
 function boxesFirst(start: () => void, link?: Link): boolean {
-  if (neonSolidsIn() || boxesTried) return true;
+  if (neonSolidsIn() || boxesPass) {
+    boxesPass = false;
+    return true;
+  }
   // A friend's match on the other end is already running, and counts this one gone after 10 s of silence (duel.ts
   // SILENCE_LIMIT): a busy machine's host waited longer than that, said nothing, and its friend was told it had left
   // (the live check, 2026-10-04). So the link is pinged as a match pings it, and what comes in on it is kept for the match.
@@ -5182,12 +5228,11 @@ function boxesFirst(start: () => void, link?: Link): boolean {
   // (and a request that hangs is no reason either: nothing ended this wait, Milestone 944)
   void Promise.race([loadNeonSolids().catch(() => undefined), new Promise((ok) => setTimeout(ok, introCfg.show.boxesMost * 1000))])
     .then(() => {
-      // (a request that failed is asked for again by the next match)
-      boxesTried = neonSolidsIn();
       boxesWaiting = false;
       clearInterval(ping);
-      if (!link) return start();
       if (gone) return;
+      boxesPass = true;
+      if (!link) return start();
       link.onMessage = null;
       link.onClose = closed;
       start();
@@ -5291,6 +5336,10 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
  */
 function startHangout(link: Link, myId: number, guestId: number): void {
   cancelJoin = null;
+  // (as any other way out of these: a step of the tutorial read the teleport as done, and a run's clock ran on, Milestone 960)
+  for (const c of courses) c.leave();
+  if (tutorial.active) tutorial.reset();
+  drill.stop();
   const h = new Duel(scene, projectiles, { players: MAX_PLAYERS, myId, link, guestId, mode: "range" });
   hangout = h;
   h.onEnd = (reason) => endHangout(/host left/i.test(reason) ? "The host left the range." : /^You left/.test(reason) ? "You left the group." : reason);
@@ -5402,8 +5451,9 @@ function startBots(): void {
   duel = d;
   player.setBounds(d.arenaBounds);
   wireMatch(d, `bots:${diff}`);
+  applyRules(d, rulesNow());
   respawnForMatch(d);
-  setDuelStatus(`Against ${count === 1 ? "a bot" : `${count} bots`}, ${diff}. First to 3 rounds.`, "good");
+  setDuelStatus(`Against ${count === 1 ? "a bot" : `${count} bots`}, ${PROFILE.botNames?.[diff] ?? diff}. First to ${d.roundsToWin} rounds.`, "good");
   duelButtons();
 }
 /** what a mode is played to, for the status line */
@@ -5429,6 +5479,7 @@ function startMode(kind: ModeKind): void {
   duel = d;
   player.setBounds(d.arenaBounds);
   wireMatch(d, kind);
+  applyRules(d, rulesNow());
   respawnForMatch(d);
   setDuelStatus(`${MODE_TITLE[kind]} against ${kind === "tdm" || kind === "control" ? "a team of bots, with bots on your side" : `${bots} bot${bots === 1 ? "" : "s"}`}, ${diff}: ${modeGoal(d)}`, "good");
   duelButtons();
@@ -5496,6 +5547,12 @@ const brBotCount = (): number => Math.max(1, Math.min(MOST_BOTS, Number(brBots.v
 function endMatch(reason: string): void {
   // (the announcer's lines from the match's last seconds were spoken in the range after it, Milestone 734)
   announcer.clear();
+  // The city whole again now, and not on the next frame: a match started in the same breath laid its floor with the last
+  // one's decay out, 1,088 items of 1,281 elsewhere, and two pages could differ (Milestone 957)
+  cityDecay(null, gameTime);
+  decaySeen = {};
+  decayGone = 0;
+  captureSaid = false;
   const wasBr = duel instanceof BrMatch;
   // a match over while it was still being shown (left from the menu over the loading screen): the screen goes with it,
   // and nothing it put off is said
@@ -5554,7 +5611,7 @@ function endMatch(reason: string): void {
   Object.assign(stats, { shots: 0, hits: 0, headshots: 0, damage: 0, knocks: 0, lastTtk: null });
   // and says where to go in it once the match's own notice has been read
   window.setTimeout(() => {
-    if (!duel) hud.notice(`THE RANGE  ·  THE RUN: THREE COURSES THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
+    if (!duel) hud.notice(`THE RANGE  ·  THE RUN AND THE TUTORIAL: THROUGH THE LIT GATES BEHIND YOU  ·  THE MANUAL: THE SCREEN AHEAD  ·  HACKS ON ${keyLabel("ability")} AND ${keyLabel("grenade")}`, gameTime, 6);
   }, 3200);
   const together = !party ? "" : "guests" in party ? " Your group is still here: pick the next match above and Play again." : " Your group is still together: the host starts the next match.";
   setDuelStatusText(reason + together);
@@ -5567,16 +5624,18 @@ function endMatch(reason: string): void {
     }, 0);
 }
 /** what the host's match will be, from the Friends tab as it stands: read when a match is made, and again for the group's next one */
+/** the Rules row as it stands (a match alone reads it too: Rounds, Guns and Friendly fire did nothing there, Milestone 963) */
+function rulesNow(): MatchRules {
+  const guns = $<HTMLSelectElement>("ruleGuns").value;
+  return { guns: guns in rulesCfg.classes ? guns : "any", rounds: Number($<HTMLSelectElement>("ruleRounds").value) || 3, ff: $<HTMLSelectElement>("ruleFF").value === "on" };
+}
 function readHostSettings(): void {
   // a battle royale squad: the place, the bots, the difficulty and the squad
   // size are fixed now so every guest is told the same
   hostBr = duelMode.value === "br" ? { poi: brMap.pois[Math.floor(Math.random() * brMap.pois.length)].id, bots: brBotCount(), difficulty: brDifficulty(), seed: newSeed(), start: brStart(), team: brTeamId(), pace: brPace(), split: $<HTMLSelectElement>("brSides").value === "split" } : null;
   const mk = duelModeKind();
   // the custom rules (the Rules row), for everyone
-  const guns = $<HTMLSelectElement>("ruleGuns").value;
-  // and the ability numbers as the panel has them: only what is not the
-  // config's own, so a match that changed nothing carries nothing
-  const rules: MatchRules = { guns: guns in rulesCfg.classes ? guns : "any", rounds: Number($<HTMLSelectElement>("ruleRounds").value) || 3, ff: $<HTMLSelectElement>("ruleFF").value === "on" };
+  const rules = rulesNow();
   // a class of guns arms the bots with its first, unless the Bot guns box already picked one
   const classGun = rules.guns !== "any" ? rulesCfg.classes[rules.guns as keyof typeof rulesCfg.classes].guns[0] : null;
   hostOpts = {
@@ -5591,10 +5650,14 @@ function readHostSettings(): void {
 /** the class of guns this match allows (custom rules), or null for any: not in a battle royale or Gun Run */
 let matchGuns: keyof typeof rulesCfg.classes | null = null;
 /** a match's custom rules, as the host set them (this page's, or the welcome's): rounds, friendly fire, guns */
-function applyRules(d: Duel, r: MatchRules | undefined): void {
+function applyRules(d: Duel | BotMatch, r: MatchRules | undefined): void {
   matchGuns = null;
   if (!r) return;
   if (typeof r.rounds === "number" && rulesCfg.rounds.includes(r.rounds)) d.roundsToWin = r.rounds;
+  if (d instanceof BotMatch) {
+    if (typeof r.guns === "string" && r.guns in rulesCfg.classes) matchGuns = r.guns as keyof typeof rulesCfg.classes;
+    return;
+  }
   // Only where the Rules row shows it: a battle royale hides the row but was still sent the rule as the panel last had
   // it, so a host who once turned friendly fire on for team deathmatch gave their squad's bullets to each other in every
   // battle royale after, with nothing on screen to say so (Milestone 739)
@@ -5802,7 +5865,7 @@ duelJoinBtn.addEventListener("click", () => {
 // the Flick drill button: to the pad, facing downrange, the countdown starts once you are in
 $("goDrill").addEventListener("click", () => {
   if (duel) {
-    hud.notice("LEAVE THE MATCH FIRST (1V1 TAB)", gameTime, 2);
+    hud.notice("LEAVE THE MATCH FIRST", gameTime, 2);
     return;
   }
   goTo("range");
@@ -6117,6 +6180,8 @@ function sendCityTextures(compiled: Promise<unknown>, drawn: THREE.Object3D[]): 
 // Two slots, each with its own clip and reload state: empty one mag, swap,
 // empty the other, swap back and the first is still empty.
 const loadout = new Loadout([loadouts.current.slot1, loadouts.current.slot2]);
+// (the range's ammo as the box says from the start: Counted read Counted after a reload, and the range was endless, Milestone 960)
+loadout.ammo.infinite = !rangeAmmoCounted;
 // from here the readout describes the gun actually in hand, attachments included
 currentWeapon = () => loadout.active.weapon;
 currentOpticZoom = () => {
@@ -6688,6 +6753,9 @@ const PLAY_HINT = playHint.textContent ?? "";
 // embedded page may not be allowed at all): say so, instead of a click that
 // does nothing.
 input.onLockRefused = () => {
+  // (and on the start screen, where that line is hidden and a button seemed to do nothing, Milestone 963)
+  const sign = document.getElementById("startSignText");
+  if (sign && !$("start").hidden) sign.textContent = "The browser did not let the game take the mouse. Click again in a second.";
   playHint.classList.add("warn");
   playHint.textContent = "The browser did not let the game take the mouse. Press Esc or click again in a second (after Esc, Chrome makes you wait a moment).";
 };
@@ -6712,7 +6780,7 @@ input.onLockChange = (locked) => {
   // (only standing at the range's spawn, where the gates are behind you: it came up in the arenas and the lab too)
   if (locked && !courseHinted && !duel && Math.hypot(player.pos.x, player.pos.z) < 20) {
     courseHinted = true;
-    hud.notice("BEHIND YOU: THE TUTORIAL (the right-hand gate) AND THE RUN (the left)", gameTime, 5);
+    hud.notice("BEHIND YOU AS YOU TURN ROUND: THE TUTORIAL (the left-hand gate) AND THE RUN (the right)", gameTime, 5);
   }
   if (locked) audio.unlock(); // create/resume the AudioContext from the gesture
   // coming back to the panel: the build may have changed in game
@@ -7501,10 +7569,15 @@ function step(): void {
   if (knockedOut && duel && !(duel instanceof BrMatch && duel.ghost)) {
     const list = duel.spectateList();
     if (list.length) {
-      if (input.playing && input.pressedNow("fire")) watchIndex++;
-      if (input.playing && input.pressedNow("ads")) watchIndex--;
+      // Who you chose, not a place in the list: it sorts by distance each frame, and the camera jumped from one to another
+      // with nothing pressed (Milestone 955). Not moved by keys pressed in the killcam, where it is not seen.
+      const was = list.findIndex((x) => x.figure === watchFig);
+      if (was >= 0) watchIndex = was;
+      if (input.playing && !killcam.active && input.pressedNow("fire")) watchIndex++;
+      if (input.playing && !killcam.active && input.pressedNow("ads")) watchIndex--;
       watchIndex = ((watchIndex % list.length) + list.length) % list.length;
       const pick = list[watchIndex];
+      watchFig = pick.figure;
       watch = pick.figure;
       watchName = pick.name;
     } else {
@@ -7513,6 +7586,7 @@ function step(): void {
     }
   } else {
     watchIndex = 0;
+    watchFig = null;
     watchName = "";
   }
   if (knockedOut && !watch && !(duel instanceof BrMatch && duel.ghost)) camera.position.y -= 1.0;
@@ -7660,7 +7734,7 @@ function step(): void {
     camera.quaternion.copy(camQ);
   }
   const watchMate = watch && duel ? duel.remoteOf(watch) : null;
-  if (watch && knockedOut && input.pressedNow("thirdPerson")) spectateFirst = !spectateFirst;
+  if (watch && knockedOut && !killcam.active && input.pressedNow("thirdPerson")) spectateFirst = !spectateFirst;
   if (watch && watchMate && watchMate.id < Duel.BOT_ID && spectateFirst) {
     // a squad mate: through their eyes, their aim
     const f = watch.group;
@@ -7954,7 +8028,8 @@ function step(): void {
     const m = gunModel(drawn.id);
     if (m.root.userData.finish !== f.id) applyFinish(m, f);
     const key = `${drawn.id}:${f.id}`;
-    if ((duel || hangout) && (key !== finishSent || now - finishSentAt > BANNERS.resend)) {
+    // (the gun in the replay is the killer's: the match was told yours was theirs, Milestone 955)
+    if (!killcam.active && (duel || hangout) && (key !== finishSent || now - finishSentAt > BANNERS.resend)) {
       finishSent = key;
       finishSentAt = now;
       sendFx("fin", undefined, undefined, FINISHES.indexOf(f));
@@ -7987,13 +8062,14 @@ function step(): void {
     climbing: player.stance === "climb",
     mantling: player.stance === "mantle",
     clipEmpty: onScreen.state.clip <= 0,
-    clipFrac: onScreen.weapon.clipSize > 0 ? onScreen.state.clip / onScreen.weapon.clipSize : 1,
-    clip: onScreen.state.clip,
+    // (the replay's gun is the killer's, full: dying empty or in a reload played it on theirs, Milestone 955)
+    clipFrac: killcam.active ? 1 : onScreen.weapon.clipSize > 0 ? onScreen.state.clip / onScreen.weapon.clipSize : 1,
+    clip: killcam.active ? onScreen.weapon.clipSize : onScreen.state.clip,
     vy: player.vel.y,
     // (an overheated gun's lockout is a vent to the view, not a reload: CHOOCH's hands stay on it, fparms.json packGuns vent)
-    reloading: debugView.reload !== null || (onScreen.state.reloading && !onScreen.state.overheated),
-    vent: debugView.vent ?? (onScreen.state.overheated && onScreen.state.reloading ? onScreen.state.reloadProgress(now) : undefined),
-    reloadProgress: debugView.reload ?? (onScreen.state.reloading ? onScreen.state.reloadProgress(now) : 0),
+    reloading: !killcam.active && (debugView.reload !== null || (onScreen.state.reloading && !onScreen.state.overheated)),
+    vent: killcam.active ? undefined : (debugView.vent ?? (onScreen.state.overheated && onScreen.state.reloading ? onScreen.state.reloadProgress(now) : undefined)),
+    reloadProgress: killcam.active ? 0 : (debugView.reload ?? (onScreen.state.reloading ? onScreen.state.reloadProgress(now) : 0)),
     lookYaw,
     lookPitch,
     landDip: player.viewDip,
@@ -8011,8 +8087,13 @@ function step(): void {
   // a snapshot of a figure wants the whole figure: the gun in your own hands
   // covers the half of it nearest the camera (tools/snap.ts)
   viewModel.group.visible = !snapNoGun && (killcam.active ? killcamGunReady : !third && !knockedOut && !player.dropping && !player.aboard);
-  if (killcam.active && killcam.firedThisFrame) viewModel.onShot();
-  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(), third && !killcam.active, knockedOut);
+  if (killcam.active && killcam.firedThisFrame) {
+    viewModel.onShot();
+    // (the replay was silent, your own reload playing over it, Milestone 955)
+    audio.gun(killcam.killerWeapon);
+  }
+  // (a ghost stands: fallen, its body was dragged along under a third-person camera, Milestone 956)
+  selfFigure(now, dt, emptyHand ? "" : onScreen.weapon.id, loadouts.current.operator, lookCode(), third && !killcam.active, knockedOut && !(duel instanceof BrMatch && duel.ghost));
   if (!labManual)
     for (const lf of labFigs) {
       lf.f.setPose(lf.pose);
@@ -8659,7 +8740,7 @@ const GALLERY = { x: 0, z: -8 };
     setHack: (id: HackId, level = 0) => hacks.set(id, level),
     take: (id: HackId, level = 0) => hacks.take(id, level, gameTime),
     /** whom a SLAM landing at (x, y, z) would reach, by id (tools/e2e.ts: only bodies in sight of it, Milestone 890) */
-    burstReach: (x: number, y: number, z: number) => slamTargets(new THREE.Vector3(x, y, z)).map((e) => e.rem.id),
+    burstReach: (x: number, y: number, z: number) => slamTargets(new THREE.Vector3(x, y, z)).map((e) => e.rem?.id ?? -1),
     use: (slot: HackSlot) => useHack(slot, gameTime),
     /** the Spire's crown deck, world metres (city.ts SPIRE_TOP): the ship passes beside it (tools/e2e.ts) */
     spireTop: () => ({ ...SPIRE_TOP }),
@@ -9149,6 +9230,7 @@ const GALLERY = { x: 0, z: -8 };
   /** a solo battle royale on a given seed and place, so the benchmark measures the same match every run */
   startBr: (o?: { seed?: number; poi?: string }) => startBr(o?.seed, o?.poi),
   showStage: () => show?.stage ?? null,
+  rangeDummies: () => dummies,
   techLog,
   /** drive the player from a script instead of the keyboard (null to stop) */
   /** SpeedKills' low towers' ways up as graph nodes (city.ts), for the tests */

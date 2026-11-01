@@ -1044,7 +1044,7 @@ export class Hud {
     // their card, over the recap's top right edge
     if (!r.byRing && !r.byEdge && r.killerCard) this.drawCard(r.killerCard, r.killerName, x0 + w - 232 * u, y0 - 66 * u, 220 * u, 58 * u, u);
     this.text(`YOU DEALT ${damageText(r.totalDealt)}  ·  TOOK ${damageText(r.totalTaken)}`, x0 + w - 22 * u, y0 + 62 * u, 700, 15 * u, DIM, "right");
-    if (!rows.length) this.text(r.byEdge ? "You stayed past the city's edge: OUT OF BOUNDS." : "Nobody hit you this life: it was the ring.", x0 + 22 * u, y0 + 110 * u, 600, 15 * u, DIM);
+    if (!rows.length) this.text(r.byEdge ? "You stayed past the city's edge: OUT OF BOUNDS." : "Nobody hit you this life: it was the decay.", x0 + 22 * u, y0 + 110 * u, 600, 15 * u, DIM);
     rows.forEach((row, i) => {
       const y = y0 + 88 * u + i * rowH;
       c.fillStyle = row.killer ? "rgba(255,75,62,0.1)" : "rgba(255,255,255,0.04)";

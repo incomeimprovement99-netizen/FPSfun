@@ -310,13 +310,13 @@
     "tipsBr": [
       { "tag": "THE DECAY", "say": "There is no ring. Sectors of the city decay in waves, each warned on your map first. Inside a decaying sector you take damage, and it eats the ground floors first: climb or get out." },
       { "tag": "THE CAPTURE ZONE", "say": "When only the last sector is left, its capture zone opens. Hold it for {captureHold} seconds to win, or be the last squad standing." },
-      { "tag": "FUSE YOUR GUNS", "say": "Walk over a copy of a gun you carry to fuse it a level up, to level {gunLevels}. A copy at a higher level takes yours straight to it." },
+      { "tag": "FUSE YOUR GUNS", "say": "Take a copy of a gun you carry to fuse it a level up, to level {gunLevels}. A copy at a higher level takes yours straight to it." },
       { "tag": "FUSE YOUR HACKS", "say": "You carry one mobility hack and one utility hack. Take the same hack again to fuse it a level up, to level {hackLevels}: a shorter cooldown each time." },
       { "tag": "GET UP HIGH", "say": "Jump pads throw you onto the roofs, the lifts carry you up the towers, and zip lines run from the roof yards to the High City decks." },
       { "tag": "MOVEMENT", "say": "Double jump, wall run, wall kick, slide, superglide and tap-strafe all work here. Chain them: speed is your armour." },
       { "tag": "SUPERGLIDE", "say": "Jump in the last moment of a mantle and crouch the frame after for a burst of speed. The range's trainer bar shows your timing." },
       { "tag": "TAP-STRAFE", "say": "Just after a jump, tap a direction key to swing your momentum that way. Small taps keep almost all your speed." },
-      { "tag": "WALL KICK", "say": "Jump into a wall and jump again off it to kick away. The wallbounce wall in the range has the recipe on a sign." },
+      { "tag": "WALL KICK", "say": "Jump into a wall and jump again off it to kick away." },
       { "tag": "SECOND CHANCE", "say": "Die once and you win your way back in a 1v1. Die again and you are a ghost: stay with your squad to be revived faster." },
       { "tag": "THE DROP", "say": "The middle of the city is the hottest drop: the most loot, and the most fights." },
       { "tag": "AMMO", "say": "You never run out of ammo. Reload and keep moving." }

@@ -14125,8 +14125,97 @@ guns do: DASH at level 4 crossed the GAP in one, on a course with a board (main.
 
 - **Checked:** tsc, verify, rules; netfigures.ts: a ghost's look tells nobody, a real REVEAL does (real Duels over a wire);
   arena-rules.ts reads the rest from the source; e2e range, bots, gulag.
-- **Left, the owner's:** whether hacks belong on THE RUN at all. **Left:** the tutorial's last card says to try hacks on the range's
-  dummies, and SLAM, MINE and HEAL do nothing there.
+- **Left, the owner's:** whether hacks belong on THE RUN at all.
+
+## Milestone 955 — The killcam and the watch camera
+
+From a review of what a player sees after going down. The replay ran from 4 s back whatever came next: the trip to the Gulag cut it a
+second before the kill, and a team deathmatch or free-for-all respawn at the kill, the victim's fall unseen. It starts late enough to
+end by the time you are back. A killer who left put the camera on your own body with their gun and the bars still up; it ends the
+replay. A Gulag loss had no replay, its bot not being recorded. The replay's gun played your own reload or empty magazine; it is full
+and quiet. And the watch camera held a place in a list sorted by distance each frame, so it jumped between people with nothing
+pressed; it holds who you chose, and keys pressed in the killcam do not move it unseen (main.ts, killcam.ts, brmatch.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules.ts on the real Killcam: a replay with 3 s of room ends by the time you are back and past
+  the kill (cut before it on the old code), one whose killer left ends.
+
+## Milestone 956 — A squad's lives
+
+A mate's own guns round their echo took the crosshair, and a dip over one zeroed a restore of up to 15 s; once a hold has begun it
+holds. A mate in the Gulag could not be brought out at their echo past the 3 s wait, though the game's rule says they can. A mate out
+for good left a line in the way of looting round their echo, and glowed as a ghost where they fell, as did one waiting for the Gulag.
+An echo whose sector dissolved under it was out of reach, its ghost stranded. A death in the 38 m past the city's edge left the echo out
+there, a 5 s hold past a 5 s countdown; it lies at the edge. A restore with the ghost away is 15 s and its beam and hum stopped at 8.
+And a third-person ghost dragged its own body (brplay.ts, main.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules.ts reads these from the source; e2e squad, sksquad, brsolo.
+
+## Milestone 957 — What the decay and a match leave behind
+
+"Start for everyone" from inside a battle royale laid the next match's floor with the last one's decay still out, 1,088 items of 1,281
+elsewhere, and two pages could differ; the city is whole the moment a match ends. A bot killed in the second before a host went stood up
+at the heir at 0 health with its gun on the floor too. The squads count fell and rose through the Gulag's wait, and the announcer said so.
+And a recap with nobody on it said "it was the ring" (main.ts, brmatch.ts, hud.ts).
+
+- **Checked:** tsc, verify, rules; e2e migrate, brsolo.
+
+## Milestone 958 — What lies on the floor
+
+A sector gone took the floors from under its loot and left it in the air, up to 110 m, and a mate's echo out of reach: another sector
+gone, and what lay on it comes down to what is under it (loot.ts settle, main.ts stepDecay). A care package's items spread further than
+its own clearance, 13% of them inside a box on some final sectors, and a third of the packages on a step sat under its surface; each
+item takes a clear spot and the floor's height (brmatch.ts). Stepping off the capture zone said 0 / 45 S with all of it still kept, and
+a change of host kept only the holder's meter; both keep what each side held. And a match decided while you were in the Gulag left its
+clock running under the end card.
+
+- **Checked:** tsc, verify, rules; arena-rules.ts: the real `settle`; the rest read from the source; e2e brsolo, gulag.
+
+## Milestone 959 — Hacks on the range's dummies
+
+The tutorial's last card says to try every hack on the dummies, and a SLAM or a MINE did nothing to one: only a match had enemies. The
+range's dummies are in reach of both now, with a damage number and a marker (main.ts enemiesNear, hackHurt).
+
+- **Checked:** tsc, verify, rules; e2e range: a MINE by a dummy goes off and hurts it.
+
+## Milestone 960 — A lobby keeps its door open
+
+From a review of friends together. A failed or hung file of the city's boxes kept a match from ever starting: the start it held asked
+again and waited again, Milestone 944's own fault; the wait's end lets that one start go on. A 1v1 or three-seat lobby ended when its last
+friend left, reloaded or was kicked, the invite then saying No match with that code; a lobby frees the seat, and only a 1v1 under way ends.
+A whole invite link pasted into the code box was cut to `https`, five good letters and no match; the code is read from it. Joining the
+range together left the tutorial or a timed run going. The mode box stayed live with a code out, friends playing the old mode under the
+new name; it is locked. And the range's ammo set to Counted came back endless after a reload (main.ts, duel.ts, link.ts).
+
+- **Checked:** tsc, verify, rules; the reviewer's boxes-and-startnow and lobby-leave probes on the real functions; e2e invite, duel.
+
+## Milestone 961 — Voice that stays on
+
+A call that reached a page not ready for it was lost for the match: PeerJS sends no refusal, so Milestone 735's retry never fired; one
+unanswered after 4 s counts as turned away and is made again. Voice stayed on the old peer after a reconnect or a host migration, nobody
+hearing, the HUD saying you talked; it moves to the new one. A guest's peer never got back to the broker after a blink, a deploy being
+enough, and every call after it failed; it does, and calls round again. A muted friend came unmuted at every move between match and range;
+it is told again when the names change. Sound refused before a first click stayed off for good; it comes on with the click. And a no to
+the microphone, or one taken as a match ended, no longer stands for the session (voice.ts, main.ts, link.ts).
+
+- **Checked:** tsc, verify, rules; the reviewer's real PeerJS and main-pieces probes.
+
+## Milestone 962 — The game's words true of the game
+
+From a review of a new player's first hour. Battle Royale promised a squad mate nobody provides; the spawn's note sent you to the wrong
+gate; the settings talked of a knock and a bleed-out, death boxes, a ring of twelve minutes, ladders, ziplines, a wallbounce wall, a
+triangle, Gun Run, marksmen and two stacks of ammo, none of them so; a Shift to sprint in a game that always runs; THREE COURSES; a
+HACKS ROOM that is called DASH; and "Everything you set is remembered" where seven boxes are not. All put right (index.html, tutorial.ts,
+range.ts, hud.json, main.ts, binds.ts, MANUAL.md).
+
+- **Checked:** tsc, verify, rules.
+
+## Milestone 963 — The first screen, and rules alone
+
+Rounds, Guns and Friendly fire showed for a match played alone and did nothing: only a hosted match read them. Alone they apply too, and a
+match against bots goes to its Rounds (main.ts rulesNow, bots.ts). A phone or an unsuited browser was warned in a box inside the hidden
+menu, and tapping Tutorial simply did nothing; the warning is on the start screen. So is the word when the browser refuses the mouse.
+
+- **Checked:** tsc, verify, rules.
 
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 

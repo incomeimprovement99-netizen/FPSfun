@@ -1640,6 +1640,8 @@ export class BotMatch implements MatchLike {
   }
   private bots: Bot[] = [];
   private scores: number[];
+  /** the Rules row's Rounds, as a Duel's (main.ts applyRules) */
+  roundsToWin = ROUNDS_TO_WIN;
   private lastWinner = -1;
   private phaseEndsAt: number;
   private fightStartedAt = 0;
@@ -1800,7 +1802,7 @@ export class BotMatch implements MatchLike {
     if (phase === "matchEnd") {
       const mine = this.scores[0];
       const others = this.scores.slice(1).reduce((a, b) => a + b, 0);
-      this.lastSummary = { won: mine >= ROUNDS_TO_WIN, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
+      this.lastSummary = { won: mine >= this.roundsToWin, roundsWon: mine, roundsLost: others, kills: this.kills, deaths: this.deaths, damage: this.damage, shots: this.shots, hits: this.hits };
       this.onMatchEnd?.(this.lastSummary);
       this.kills = this.deaths = this.damage = this.shots = this.hits = 0;
     }
@@ -1818,7 +1820,7 @@ export class BotMatch implements MatchLike {
     if (this.phase !== "fight") return;
     if (winner >= 0) this.scores[winner]++;
     this.lastWinner = winner;
-    const over = this.scores.some((s) => s >= ROUNDS_TO_WIN);
+    const over = this.scores.some((s) => s >= this.roundsToWin);
     this.enter(over ? "matchEnd" : "roundEnd", now, over ? MATCH_END : ROUND_END);
   }
 
@@ -1952,7 +1954,7 @@ export class BotMatch implements MatchLike {
       left: Math.max(0, this.phaseEndsAt - now),
       ping: null,
       youWonRound: decided ? this.lastWinner === 0 : null,
-      youWonMatch: this.phase === "matchEnd" ? mine >= ROUNDS_TO_WIN : null,
+      youWonMatch: this.phase === "matchEnd" ? mine >= this.roundsToWin : null,
       zone: {
         live: this.phase === "fight" && this.zoneLive,
         startsIn: this.phase === "fight" ? this.zoneStartsIn : ZONE_DELAY,

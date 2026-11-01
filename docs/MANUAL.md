@@ -4,7 +4,7 @@ SpeedKills is a fast movement shooter that runs in your browser. Fight across th
 the city itself decays around you, or in quick 1v1s, team fights and Control. Everything here, the range included, is
 free to play and needs nothing installed.
 
-Shoot the arrows beside this screen to turn the page or change section, or punch a section's name in the list.
+Shoot the arrows beside this screen to turn the page or change section, or shoot a section's name in the list.
 
 ## Controls
 
@@ -29,7 +29,7 @@ slash. In play, every prompt names the buttons of the controller in your hands.
 
 | Button | Action |
 |---|---|
-| Left stick | Move (push it all the way forward to sprint) |
+| Left stick | Move (you always run) |
 | Right stick | Look |
 | RT / R2 | Fire |
 | LT / L2 | Aim |
@@ -144,7 +144,7 @@ On the Play tab, behind **Extra modes**.
   again fuses it a level up.
 - **The dummies:** stand, strafe or crouch (the full stop key), and reset them with Y. They can shoot back (the Play
   tab's Range box).
-- **The Run and THE CHAIN:** timed movement courses through the lit gates behind you, with your best times kept.
+- **The Run:** a timed movement course through the lit gates behind you, with your best times kept.
 - **The movement lab:** a block of floors, walls and gaps for every move.
 - **The superglide trainer, the flick drill and the spray wall:** the timing bar on every mantle, thirty targets in a
   cone against the clock, and your spray against each gun's pattern.
@@ -154,7 +154,7 @@ On the Play tab, behind **Extra modes**.
 - **Graphics:** Competitive is the fastest, Balanced adds the city's full detail, High adds everything. The FPS counter
   is in the top right.
 - **Time of day:** golden hour (the start), the neon night or a hazy day (F8 swaps golden hour and the hazy day).
-- **Your soldier and loadouts:** the Loadouts tab: your soldier's colours and pieces, your guns, your hacks and your
+- **Your soldier and loadouts:** the Loadouts tab: your soldier's colours and pieces, your guns and your
   melee weapon.
 - **Your banner:** an icon, a frame and a title, shown to whoever you eliminate and when your squad wins.
 
