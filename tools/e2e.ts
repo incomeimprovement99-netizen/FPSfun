@@ -8232,7 +8232,8 @@ async function figureStancesTest(browser: Browser): Promise<void> {
   // No pop through a change of stance (Milestone 841): the slide's way in looped, wrapped to its first frame, a body
   // standing, and the fade to the loop ran from there, the pelvis up 81 cm in a frame 0.82 s into every slide; a climb's end
   // dropped the chest 27 degrees in a frame. At 60 frames a second through both
-  const pops = await ev<{ slide: number; lean: number }>(
+  // (Milestone 843: nor a slide's gun, thrown 40 cm in a frame as its aim came on at a stroke, nor a landing, 27 cm in one)
+  const pops = await ev<{ slide: number; lean: number; gun: number; land: number }>(
     page,
     `(() => {
       const r = window.__range, T = r.THREE;
@@ -8242,10 +8243,10 @@ async function figureStancesTest(browser: Browser): Promise<void> {
       const read = () => {
         f.group.updateMatrixWorld(true);
         const pel = f.group.worldToLocal(f.mq.bone("pelvis").getWorldPosition(new T.Vector3())), neck = f.group.worldToLocal(f.mq.bone("neck_01").getWorldPosition(new T.Vector3()));
-        return [pel.y, (Math.atan2(Math.hypot(neck.x - pel.x, neck.z - pel.z), neck.y - pel.y) * 180) / Math.PI];
+        return [pel.y, (Math.atan2(Math.hypot(neck.x - pel.x, neck.z - pel.z), neck.y - pel.y) * 180) / Math.PI, f.mq.gunInHand ? f.group.worldToLocal(f.mq.gunObject.getWorldPosition(new T.Vector3())) : null];
       };
       const run = (steps) => {
-        let last = read(), rise = 0, lean = 0;
+        let last = read(), rise = 0, lean = 0, gun = 0;
         for (const [pose, secs] of steps) {
           r.figureLabPose(0, pose);
           for (let i = 0; i < Math.round(secs * 60); i++) {
@@ -8253,22 +8254,26 @@ async function figureStancesTest(browser: Browser): Promise<void> {
             const q = read();
             rise = Math.max(rise, Math.abs(q[0] - last[0]));
             lean = Math.max(lean, Math.abs(q[1] - last[1]));
+            if (q[2] && last[2]) gun = Math.max(gun, q[2].distanceTo(last[2]));
             last = q;
           }
         }
-        return [rise, lean];
+        return [rise, lean, gun];
       };
-      const slide = run([[{ speed: 12, stance: "slide", pitch: 0 }, 1.3], [{ speed: 7, stance: "stand", pitch: 0 }, 0.6]])[0];
+      const [slide, , gun] = run([[{ speed: 12, stance: "slide", pitch: 0 }, 1.3], [{ speed: 7, stance: "stand", pitch: 0 }, 0.6]]);
+      r.figureLabPose(0, { speed: 14, stance: "stand", pitch: 0 });
+      r.figureLabStep(0.6);
+      const land = run([[{ speed: 14, stance: "air", pitch: 0 }, 0.6], [{ speed: 14, stance: "stand", pitch: 0 }, 0.6]])[0];
       r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
       r.figureLabStep(1);
       const lean = run([[{ speed: 0, stance: "climb", pitch: 0 }, 1.2], [{ speed: 0, stance: "stand", pitch: 0 }, 0.6]])[1];
-      return { slide: Math.round(slide * 100), lean: Math.round(lean) };
+      return { slide: Math.round(slide * 100), lean: Math.round(lean), gun: Math.round(gun * 100), land: Math.round(land * 100) };
     })()`,
   );
   check(
-    "no pop through a slide or a climb's end: the pelvis moves 25 cm at most in a frame through a slide and out of it, the chest 15 degrees at most at a climb's end",
-    pops.slide <= 25 && pops.lean <= 15,
-    `pelvis ${pops.slide} cm in a frame, chest ${pops.lean} degrees`,
+    "no pop through a slide or a climb's end: the pelvis moves 25 cm at most in a frame through a slide and out of it, its gun 20, the chest 15 degrees at most at a climb's end, and a landing's body 16 cm",
+    pops.slide <= 25 && pops.lean <= 15 && pops.gun <= 20 && pops.land <= 16,
+    `pelvis ${pops.slide} cm in a frame, gun ${pops.gun} cm, chest ${pops.lean} degrees, landing ${pops.land} cm`,
   );
   // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
   const salute = await ev<number>(
@@ -8436,11 +8441,16 @@ async function figureStancesTest(browser: Browser): Promise<void> {
       let t = 1e5;
       const step = (pose, n) => { for (let i = 0; i < n; i++) { t += 0.02; f.setPose(pose); f.update(t, 0.02); } };
       step({ speed: 6, stance: "air", pitch: 0 }, 50);
-      step({ speed: 6, stance: "stand", pitch: 0 }, 3);
-      f.group.updateMatrixWorld(true);
       const y = (n) => f.group.worldToLocal(f.mq.bone(n).getWorldPosition(new T.Vector3())).y;
-      const ankle = Math.min(y("foot_l"), y("foot_r"));
-      const legs = (y("pelvis") - ankle) / (f.mq.hipY - f.mq.ankleY);
+      // (at its deepest: the knees give over a few frames, Milestone 843)
+      let legs = 9, ankle = 9;
+      for (let i = 0; i < 10; i++) {
+        step({ speed: 6, stance: "stand", pitch: 0 }, 1);
+        f.group.updateMatrixWorld(true);
+        const a = Math.min(y("foot_l"), y("foot_r"));
+        legs = Math.min(legs, (y("pelvis") - a) / (f.mq.hipY - f.mq.ankleY));
+        ankle = Math.min(ankle, a);
+      }
       return { legs: Math.round(legs * 100) / 100, ankle: Math.round((ankle - f.mq.ankleY) * 1000) / 1000 };
     })()`,
   );

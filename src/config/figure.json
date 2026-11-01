@@ -41,7 +41,8 @@
   "landing": {
     "raise": 30,
     "bend": 55,
-    "lean": 10
+    "lean": 10,
+    "rate": 30
   },
   "_death": "A figure's death falls away from the shot that killed it (dummy.ts faceTheShot, Milestone 610). Its fall, the death clip's (the library's Death01 falls backward: the head ends 1.2 m behind where it stood, 0.2 m up) and its hit volumes' topple alike, is backward, and it fell backward whichever way it faced, so a player shot from behind fell onto the shooter; Apex's fall away from the hit. As it goes down it turns its front to where the last hit landed, if that was within `hitFor` seconds and more than `near` metres off its middle across the ground (a hit's point is on the near side, the shooter's), the shortest way round at `turnRate` a second (its fall takes 0.32 s). Knocked with no hit on this page (another page's shot) it falls as it faces. Ours. And never through a wall (Milestone 619): with its back to one it lay through it, every one of 25 such falls at the Neon City's eye-level spots (node_modules/.scratch/deathwall.mts). The way it falls is turned `roomStep` degrees at a time, either way, to the nearest with `room` m clear behind it `roomUp` m over the floor (the head ends 1.2 m behind), or the one with the most room if none has it.",
   "death": {
@@ -123,7 +124,8 @@
   "slide": {
     "back": -6,
     "hipsTurn": 13,
-    "ads": 1
+    "ads": 1,
+    "rate": 14
   },
   "_flatFeet": "Standing or crouched still, the soldier's clips hold its toes 16.1 degrees up from its bind pose, so it stood on its heels (measured by apex-lobby for the battle royale's card, Milestone 416: the foot-to-ball line 30.5 degrees down against 46.6 bound, the ankle 0.152 m up and the ball 0.072; the owner asked it fixed). Under `under` m/s each foot is turned back until its toe is no higher than the bind pose has it, eased in and out at `rate` a second (rifle-hold soldiers only; the legacy figures keep their clips). A foot the clips point down (a crouch's kneeling foot) and every moving foot are the clips' own: walking and running, the planted feet come down flat by themselves (measured: 2 to 8 degrees at mid stance). Turned flat, a standing sole was 11 to 22 mm into the floor (its heel had been 44 mm in, the toe 9 above): the standing clip holds the legs lower than a walk's planted foot (the ankle 0.152 m up against 0.174), so a figure standing still is also lifted `lift` m, eased the same way (measured off the boots' lowest skin; not crouched, whose kneeling foot is already above the floor).",
   "flatFeet": {

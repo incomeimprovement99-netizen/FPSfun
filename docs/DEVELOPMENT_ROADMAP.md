@@ -18712,3 +18712,19 @@ Two more reviewers looked at BOOG, PANDA, ANAKIN and STRYDER, all 104 sheets, wh
 of BIGANTLER and REZ unseen. Beyond the above they found the head hidden behind the gun and arms at a look of 40 degrees up
 on the long guns, which comes with aiming that high, and PANDA's left forearm across the face for a frame as it leaves a
 rope. Left as they are.
+
+## Milestone 843 — No pop in any change of stance
+
+The 60-frames-a-second measure that found the slide's pop (Milestone 841) was run over every change of stance, 20 of them, on
+the USSO, DEVINOS and APUHTHEE (node_modules/.scratch/popscan.mts: the most the pelvis, head, chest and gun move in one frame).
+It found three more that no film at 10 frames a second can show.
+
+- **A slide threw the gun 40 cm in a frame** and let the chest go 24 degrees at its end, as its sat-up hold and raised aim
+  came on and off at a stroke (Milestone 831's). They ease now (figure.json slide `rate`): 13 cm and 6 degrees.
+- **Every landing from a run dropped the body 21 to 27 cm in a frame**, as the knees gave at once (Milestone 611's). They give
+  over a few frames (figure.json landing `rate`): 11 cm.
+- **The aim:** the hold read the raw aim, though the figure has kept an eased one all along. A sudden aim, as a bot's, moved
+  the gun 35 cm in a frame; 6 now.
+- **Left:** the hand from the skydive to a jump leans the chest 18 degrees in a frame, on every gun, and is rare.
+- **Checked:** the no-pop check in the soldier stances (skfigure) also holds the slide's gun to 20 cm in a frame and a landing
+  to 16. On the old code it fails (the gun 26 cm, a landing 24); on this one it passes, the gun 12 and a landing 10, and the section passes all 342 checks.

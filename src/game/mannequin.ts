@@ -133,7 +133,7 @@ const ATHLETIC_JUMP = figureCfg.athleticJump;
 /** a double jump's knee lift: how long, and how far the thighs come up and the knees bend, degrees (figure.json doubleJump) */
 const DOUBLE_JUMP = figureCfg.doubleJump;
 /** a landing taken in the legs: the thighs forward, the knees bent and the chest over them, degrees at its hardest (figure.json landing) */
-const LANDING = figureCfg.landing as { raise: number; bend: number; lean: number };
+const LANDING = figureCfg.landing as { raise: number; bend: number; lean: number; rate: number };
 /** standing or crouched still, each foot's toe brought down to its bind pose's (figure.json flatFeet) */
 const FLAT_FEET = figureCfg.flatFeet;
 /** past this way of moving from the way it faces, degrees, the legs run backward (figure.json strafe; dummy.ts turns them) */
@@ -182,7 +182,7 @@ const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
 const CHEST_UP = figureCfg.chestUp as { most: number; rate: number };
 /** a slide seen on a figure, sat up with the gun held (figure.json slide, Milestone 831) */
-const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number };
+const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number; rate: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
 const AIM_BEND = figureCfg.aimBend as { up: number[]; down: number[]; downByGun: Record<string, number[]> };
 /** a runner's lean into a turn: no more than `most` degrees, `share` of a balanced lean, above `minSpeed` m/s (figure.json bank) */
@@ -1325,7 +1325,7 @@ export class MannequinFigure {
    * leans no more than `most` degrees forward of the figure's up (figure.json chestUp), split between spine_02 and
    * spine_03; a lean back (a slide) is the clip's.
    */
-  private holdChestUp(b: Record<string, THREE.Object3D>, fig: THREE.Object3D, sliding = false): void {
+  private holdChestUp(b: Record<string, THREE.Object3D>, fig: THREE.Object3D): void {
     // (each world read brings its own bone's chain up to date: the whole figure, every bone and mesh, was updated here
     // a frame for two bones' positions)
     const toFig = this.chestQ.copy(fig.getWorldQuaternion(this.chestQ)).invert();
@@ -1334,14 +1334,15 @@ export class MannequinFigure {
     // Sliding, sat up: the slide's hips lie the body back, and the chest is brought up through the three spine bones to
     // stand as it does standing, `slide.back` degrees behind upright (Milestone 831: left 30 degrees back, the gun along
     // the eye's line went 10 to 13 cm into the upper chest aimed in)
-    const under = sliding ? -lean - SLIDE.back * DEG : 0;
+    // (as far as the slide's hold has come on: `rate` a second, on and off, or the chest and the gun went in a frame)
+    const under = this.slideW > 0.01 ? (-lean - SLIDE.back * DEG) * this.slideW : 0;
     if (under > 0) {
       for (const s of [b.spine_01, b.spine_02, b.spine_03]) if (s) turnBone(s, fig, X_AXIS, under / 3);
       // and turned round as standing: the slide's hips face 18 degrees the other way, and the rifleman's stance, which
       // turns the chest from the hips, left the shoulders 10 to 15 short and the stock in the right collarbone
       if (b.spine_01 && b.thigh_l && b.thigh_r) {
         const hips = b.thigh_l.getWorldPosition(this.chestA).sub(b.thigh_r.getWorldPosition(this.chestB)).applyQuaternion(toFig);
-        turnBone(b.spine_01, fig, Y, Math.atan2(hips.z, hips.x) - SLIDE.hipsTurn * DEG);
+        turnBone(b.spine_01, fig, Y, (Math.atan2(hips.z, hips.x) - SLIDE.hipsTurn * DEG) * this.slideW);
       }
       return;
     }
@@ -1352,6 +1353,10 @@ export class MannequinFigure {
     turnBone(b.spine_02, fig, X_AXIS, -over * 0.5);
     turnBone(b.spine_03, fig, X_AXIS, -over * 0.5);
   }
+  /** how far the slide's sat-up hold is on, 0 to 1, eased (figure.json slide rate) */
+  private slideW = 0;
+  /** how far a landing has given in the knees so far, eased toward fx.land (figure.json landing rate) */
+  private landW = 0;
   /** how far the chest is held up, 0 to 1, eased: not through a whole-body clip (figure.json chestUp) */
   private chestW = 1;
   private readonly chestA = new THREE.Vector3();
@@ -2112,7 +2117,8 @@ export class MannequinFigure {
     // (the soldier's chest held up before the look bends it: the clips lean it 33 to 40 degrees crouched and aimed or
     // sprinting, and from behind the shoulder armour and the pack hid the head; the owner, 2026-10-04: more upright)
     this.chestW += ((full ? 0 : 1) - this.chestW) * Math.min(1, dt * CHEST_UP.rate);
-    if (b.spine_02 && b.spine_03 && b.neck_01 && this.chestW > 0.01 && !this.dead) this.holdChestUp(b, fig, sliding);
+    this.slideW += ((sliding ? 1 : 0) - this.slideW) * Math.min(1, dt * SLIDE.rate);
+    if (b.spine_02 && b.spine_03 && b.neck_01 && this.chestW > 0.01 && !this.dead) this.holdChestUp(b, fig);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
     // (the soldier looking down bends only as far as its gun's hold needs, at the waist, and its head goes down onto the
@@ -2201,7 +2207,10 @@ export class MannequinFigure {
     // where only a standing landing had its clip (landUntil, which this leaves to it). The feet stay on the ground: the
     // body is lowered by what the bent legs lift them, measured off the feet before and after, and never so far that the
     // lower ankle goes under its height on the floor (measured as the figure is made).
-    const landing = !air && !this.dead && this.t >= this.landUntil && (p.stance === "stand" || p.stance === "crouch") ? (fx.land ?? 0) : 0;
+    // (over a few frames: given at once, the body dropped 27 cm in one)
+    const landTo = !air && !this.dead && this.t >= this.landUntil && (p.stance === "stand" || p.stance === "crouch") ? (fx.land ?? 0) : 0;
+    this.landW = landTo < this.landW ? landTo : this.landW + (landTo - this.landW) * (1 - Math.exp(-dt * LANDING.rate));
+    const landing = this.landW;
     if (landing > 0.01 && b.foot_l && b.foot_r) {
       const low = () => Math.min(b.foot_l.getWorldPosition(layP).y, b.foot_r.getWorldPosition(layP).y);
       const before = low();
@@ -2320,7 +2329,8 @@ export class MannequinFigure {
         pitch: (Math.max(-70, Math.min(70, p.pitch)) * DEG * (aimed ? 1 : 0)),
         // (sliding, the gun up toward the eye at least `slide.ads` of the way: held at the hip on the seated slide's lap,
         // PANDA's went 12 cm into the thighs)
-        ads: aimed ? Math.max(p.ads ?? 0, sliding ? SLIDE.ads : 0) : 0,
+        // (the eased aim, and the slide's as far as it has come on: taken raw, a slide threw the gun 40 cm in a frame)
+        ads: aimed ? Math.max(fx.ads, SLIDE.ads * this.slideW) : 0,
         lowered: this.lowered,
         carry: this.carryW,
         wR: this.gripW,
