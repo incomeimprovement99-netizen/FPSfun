@@ -136,6 +136,8 @@
    }
   },
   "_roads": "The city's lit roads past the fence (Milestone 813; the districts' fifth review: 'put something visible in the dark band (a lit elevated road or a canal)', at night 'the moat is a black void'): a grid of lit lines `w` wide on the ground every `every` metres from `from` (past the fence) out to `to`, between the low blocks, in a street lamp's amber at `glow` by night and not drawn by day. Each line a row of lamps, `dash` metres long every `every` (drawn whole, the grid read from the air as a lit floor's lines, not as streets).",
-  "_glow878": "Milestone 878 (the districts' sixth review: 'halve its window light at night', 'the playable square is darker than the filler city round it'): the windows' night glow 0.6 (1.15)."
+  "_glow878": "Milestone 878 (the districts' sixth review: 'halve its window light at night', 'the playable square is darker than the filler city round it'): the windows' night glow 0.6 (1.15).",
+  "groundDay": "#4a4d54",
+  "_groundDay884": "Milestone 884 (the districts' seventh review: 'the black ground past the fence a pale road by day'): `groundDay`, the ground past the fence by day; by night `groundColour`, where the map's own lamps should be the light in view."
  }
 }

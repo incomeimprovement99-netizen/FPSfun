@@ -947,7 +947,9 @@ if (mode === "bake") {
       };
       // (the ropes' holes in each slab they pass, up to the penthouse's floor: not its ceiling)
       const ropesHere = EXH && h <= (EXH as unknown as { to: number }).to + 0.01 ? ropeHoles : [];
-      const parts = storeySlab(g, region, banded ? [coreHole, ...ropesHere] : [coreHole], null, h, banded ? spec!.slab : TW.slab, TW.scale);
+      // (and a floor's own `holes`, Milestone 879: the floor under it rises two storeys there)
+      const holesHere: Pt[][] = banded ? [] : ((cfg.rules.tower.floors.at as Record<string, { holes?: number[][] }>)[String(h)]?.holes ?? []).map(([x0, x1, z0, z1]) => [[x0, z0], [x1, z0], [x1, z1], [x0, z1]]);
+      const parts = storeySlab(g, region, banded ? [coreHole, ...ropesHere] : [coreHole, ...holesHere], null, h, banded ? spec!.slab : TW.slab, TW.scale);
       if (kind === "lid") {
         lidArea = inn.n * cell * cell;
         tri += push("tower-lid", (["top", "edge", "under"] as const).map((k) => ({ part: parts[k], mat: TW.mats[k] })));

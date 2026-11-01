@@ -1342,10 +1342,13 @@ check("the high city decks, the lobby and the corner blocks as the map's named s
       // (and the express ropes' shafts, open over the 45.5 m floor where they start: rules.tower.express)
       const EXs = (TW as unknown as { express?: { at: number[][]; hole: number; to: number } }).express;
       const inShaft = (x: number, z: number) => !!EXs && h < EXs.to && EXs.at.some(([ex, ez]) => Math.abs(x - ex) < EXs.hole / 2 + 0.3 && Math.abs(z - ez) < EXs.hole / 2 + 0.3);
+      // (and the holes in the slab over it, open on purpose since Milestone 879: rules.tower.floors.at[the storey over].holes)
+      const holesOver = (cfg.rules.tower as unknown as { floors: { at: Record<string, { holes?: number[][] }> } }).floors.at[String(ST[i + 1])]?.holes ?? [];
+      const inHole = (x: number, z: number) => holesOver.some(([a, b, c, d]) => x > a - 0.3 && x < b + 0.3 && z > c - 0.3 && z < d + 0.3);
       for (let x = sx0 + 0.5; x < sx1 - 0.5; x += C)
         for (let z = sz0 + 0.5; z < sz1 - 0.5; z += C) {
           if (x > cx0 - 0.3 && x < cx1 + 0.3 && z > cz0 - 0.3 && z < cz1 + 0.3) continue;
-          if (inShaft(x, z)) continue;
+          if (inShaft(x, z) || inHole(x, z)) continue;
           const [wx, wz] = [x + BR_X, z + BR_Z];
           const here = solidsIn(wx, wx, wz, wz).filter((b) => b.minX <= wx && b.maxX >= wx && b.minZ <= wz && b.maxZ >= wz);
           if (![floorAt(wx, wz), ...here.map((b) => b.top)].some((t) => Math.abs(t - h) < 0.1) || here.some((b) => b.base < h + MOVE.standHeight && b.top > h + MOVE.stepHeight)) continue;
@@ -4482,10 +4485,48 @@ check("loot on the roofs too, 40 items over 12 m and 10 over 24 m", over12 >= 40
   check("the city past the fence dimmer at night", glow < 0.7, `the skyline's night glow ${glow}`);
 }
 
+// the ground past the fence pale by day (Milestone 884, the districts' seventh review: "the black ground past the fence a
+// pale road by day"): at least three times the night's colour in its green, which carries most of a colour's light
+{
+  const SKg = (worldCfg as unknown as { skyline: { groundColour: string; groundDay?: string } }).skyline;
+  const g = (hex: string) => parseInt(hex.slice(3, 5), 16);
+  check("the ground past the fence pale by day", !!SKg.groundDay && g(SKg.groundDay) >= 3 * g(SKg.groundColour), `${SKg.groundDay} by day, ${SKg.groundColour} by night`);
+}
+
 // faces in shade not pure black (Milestone 882, the thirteenth reviews): the grade's gamma on the darks, after its S-curve
 {
   const { GRADE } = await import("../../src/game/grade");
   check("the grade lifts the darks its S-curve crushes", GRADE.shadowGamma < 0.8 && GRADE.shadowKnee > 0.2 && GRADE.shadowKnee < 0.6, `gamma ${GRADE.shadowGamma} to a luma of ${GRADE.shadowKnee}`);
+}
+
+// the tower's floors open between storeys (Milestone 879, the centre's twelfth review: "holes and inner stairs between
+// floors"): over each hole in a slab, off the collision's half and quarter metre lines (on one a point is in no box), most
+// of it open through that floor, the floor under it there, no lamp hung in it. Most, not all: a corner of the tower's
+// shell keeps its own quarter disc of floor, which a hole does not cut, so 26 m's is open over 7.75 of its 10.5 m2.
+{
+  const FA9 = (cfg.rules.tower as unknown as { floors: { lamp: { piece: string }; at: Record<string, { holes?: number[][] }> } }).floors;
+  const S9 = (SOLIDS as { solids: number[][] }).solids;
+  const towerPlaced = (cfg as unknown as { chunks: Record<string, { place: unknown[][] }> }).chunks["c-tower"]?.place ?? [];
+  const lampEnd = `/${FA9.lamp.piece.split("/").pop()}`;
+  const res: Array<{ h: number; n: number; open: number; under: number; lamps: number }> = [];
+  for (const [hs, P] of Object.entries(FA9.at))
+    for (const [x0, x1, z0, z1] of P.holes ?? []) {
+      const h = Number(hs);
+      let [n, open, under] = [0, 0, 0];
+      for (let x = x0 + 0.625; x < x1 - 0.4; x += 0.5)
+        for (let z = z0 + 0.625; z < z1 - 0.4; z += 0.5) {
+          n++;
+          if (!S9.some((b) => x > b[0] && x < b[1] && z > b[2] && z < b[3] && Math.abs(b[5] - h) < 0.3)) open++;
+          if (S9.some((b) => x > b[0] && x < b[1] && z > b[2] && z < b[3] && Math.abs(b[5] - (h - 3)) < 0.3)) under++;
+        }
+      const lamps = towerPlaced.filter((q) => String(q[0]).endsWith(lampEnd) && Number(q[2]) > h - 3 && Number(q[2]) < h && Number(q[1]) > x0 && Number(q[1]) < x1 && Number(q[3]) > z0 && Number(q[3]) < z1).length;
+      res.push({ h, n, open, under, lamps });
+    }
+  check(
+    "the tower's floors open between storeys: each hole open through its slab, the floor under it there, no lamp in it",
+    res.length >= 1 && res.every((r) => r.n >= 4 && r.open >= r.n * 0.6 && r.under >= r.n * 0.5 && r.lamps === 0),
+    res.map((r) => `${r.h} m: ${r.open} of ${r.n} spots open, ${r.under} over the floor under, ${r.lamps} lamps`).join("; ") || "no holes"
+  );
 }
 
 console.log(fails ? `\n${fails} FAILED` : "\nall passed");

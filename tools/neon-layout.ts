@@ -381,7 +381,7 @@ const noGround: Array<[number, number, number, number]> = [];
     let tWalls = 0, tProps = 0, tLamps = 0;
     let tTrim = 0;
     const wayLog: string[] = [];
-    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; coverMat?: Record<string, string>; keep?: number[][]; mat?: string; lampMat?: string; trim?: { strip: string; remap: string; y: number; every: number; off: number } }>)) {
+    for (const [hs, P] of Object.entries(F.at as Record<string, { plan: string; cover: number; pieces?: string[]; coverMat?: Record<string, string>; keep?: number[][]; holes?: number[][]; mat?: string; lampMat?: string; trim?: { strip: string; remap: string; y: number; every: number; off: number } }>)) {
       const h = Number(hs);
       const plan = F.plans[P.plan] as Record<string, string>;
       const placed: OBox[] = [];
@@ -412,6 +412,8 @@ const noGround: Array<[number, number, number, number]> = [];
       // (and the floor's own `keep` boxes [x0, x1, z0, z1] on the map, Milestone 814's bake: a way the model left open
       // past a piece and its collision shut)
       for (const k of P.keep ?? []) keepT.push(boxOf(k));
+      // (and its `holes` in the slab, Milestone 879, with 0.6 m round them: a piece by one's edge would hang over it)
+      for (const [x0, x1, z0, z1] of P.holes ?? []) keepT.push(boxOf([x0 - 0.6, x1 + 0.6, z0 - 0.6, z1 + 0.6]));
       // (and the express ropes on every floor they pass or start from, their holes and `clear` round them: the way on and off)
       if (EX && h >= EX.from && h <= EX.to) for (const [ex, ez] of EX.at) keepT.push(boxOf([ex + px - EX.hole / 2 - F.clear, ex + px + EX.hole / 2 + F.clear, ez + pz - EX.hole / 2 - F.clear, ez + pz + EX.hole / 2 + F.clear]));
       // the partitions: a line from a to b (its own metres), opened as the plan says
@@ -628,6 +630,9 @@ const noGround: Array<[number, number, number, number]> = [];
       }
       // the pack's ceiling lamp on a grid under the floor over it, none over the core
       const lamp = piece(F.lamp.piece).row;
+      // (none under a hole in the slab over it, the next storey's `holes`, Milestone 879)
+      const SH = C.storeys as number[];
+      const overHoles = ((F.at as Record<string, { holes?: number[][] }>)[String(SH[SH.indexOf(h) + 1])]?.holes ?? []).map((q) => boxOf(q));
       for (let lx = qx0 + F.lamp.every / 2; lx < qx1; lx += F.lamp.every)
         for (let lz = qz0 + F.lamp.every / 2; lz < qz1; lz += F.lamp.every) {
           // (the fitting is 3.1 m long and the grid's lines fall on the partitions' (both are on the 2.5 m grid): where it
@@ -635,7 +640,7 @@ const noGround: Array<[number, number, number, number]> = [];
           // nothing fits; on the maze floors every spot crossed one)
           const fits = [0, 1.5, -1.5].flatMap((dx) => [0, 1.5, -1.5].flatMap((dz) => [0, 90].map((yaw) => ({ dx, dz, yaw })))).find(({ dx, dz, yaw }) => {
             const lampBox: OBox = { c: [lx + dx + px, lz + dz + pz], u: rotY(yaw, 1, 0), v: rotY(yaw, 0, 1), hu: lamp.size![0] / 2, hv: lamp.size![2] / 2, top: 0 };
-            return inFloor(lx + dx, lz + dz, 0.8) && !overlaps(lampBox, keepT[0], 0.2) && !wallBoxes.some((q) => overlaps(lampBox, q, 0.1));
+            return inFloor(lx + dx, lz + dz, 0.8) && !overlaps(lampBox, keepT[0], 0.2) && !wallBoxes.some((q) => overlaps(lampBox, q, 0.1)) && !overHoles.some((q) => overlaps(lampBox, q, 0.3));
           });
           if (!fits) continue;
           // (under the floor's own ceiling: the halls at 35 m are a 3.5 m storey, and lamps hung for a 3 m one floated half a

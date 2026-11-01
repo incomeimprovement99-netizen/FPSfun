@@ -51,6 +51,8 @@ const glow = { value: S.glow.night };
 const haze = { value: S.haze.night };
 /** the lit roads' material, for the hour (skylineHour) */
 let roadMat: THREE.MeshBasicMaterial | null = null;
+/** the ground past the fence's material, for the hour: asphalt by day, near black by night */
+let groundMat: THREE.MeshStandardMaterial | null = null;
 type Roads = { from: number; to: number; every: number; w: number; dash?: { len: number; every: number }; colour: string; glow: { day: number; night: number } };
 const ROADS = (S as unknown as { roads?: Roads }).roads;
 
@@ -58,6 +60,7 @@ const ROADS = (S as unknown as { roads?: Roads }).roads;
 export function skylineHour(day: boolean): void {
   glow.value = day ? S.glow.day : S.glow.night;
   haze.value = day ? S.haze.day : S.haze.night;
+  groundMat?.color.set(day ? S.groundDay : S.groundColour);
   if (roadMat && ROADS) {
     roadMat.color.set(ROADS.colour).multiplyScalar(day ? ROADS.glow.day : ROADS.glow.night);
     roadMat.visible = (day ? ROADS.glow.day : ROADS.glow.night) > 0;
@@ -193,6 +196,7 @@ export function buildSkyline(root: THREE.Object3D): void {
   ];
   const gmat = new THREE.MeshStandardMaterial({ color: new THREE.Color(S.groundColour), roughness: 1, metalness: 0 });
   gmat.userData.decay = true;
+  groundMat = gmat;
   const ground = new THREE.Group();
   ground.name = "skylineGround";
   // (in pieces round the firing range, whose own floor is at the same height)

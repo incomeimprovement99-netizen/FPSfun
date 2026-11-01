@@ -18426,3 +18426,35 @@ STRYDER unseen). Three of its faults were confirmed by eye; this takes the two w
 - **Checked:** a new e2e check in the soldier stances. On the old code it fails
   (the pistol shown in the climb, 33% of the head hidden); now not shown, and 0%. The stances check that wanted a pistol kept
   in the hand climbing is changed to the new rule. The whole soldier section: E2E PASS; verify, rules and the type check.
+
+## Milestones 879, 880 and 884 — The tower open between storeys, THE CENTRE's bot's way back, the ground past the fence by day
+
+From the reviews of 2026-10-28 (the centre's round 12, the districts' round 6).
+
+- **879, the tower open between storeys** (the centre's twelfth review, its first ask: "make each tower floor different
+  in shape, not just colour ... a double-height hall, a mezzanine, holes and inner stairs between floors"): a floor's
+  `holes` [x0, x1, z0, z1], cut out of its slab by the bake as the express ropes' holes are (tools/import-neon.ts), kept
+  clear of cover by the layout with 0.6 m round them and no lamp hung under one: the open floor at 26 m opens 3 by 3.5 m
+  over the maze at 23 in its north-west corner, where both floors are whole (read off the bake's collision), so from 26
+  you look down into the maze and from 23 up two storeys. A corner of the tower's shell keeps its own quarter
+  disc of floor, which a hole does not cut, so it is open over 7.75 of its 10.5 m2 (measured 2026-10-30). First tried on its east side, it took the floor from under the
+  gangway's stair from the 26 m window, and the gangway's checks failed; the tower's ceiling check now leaves a hole's
+  footprint out of the floor under it.
+- **880, THE CENTRE's bot's way back** (the lobby agent's e2e speedkills on version 121, twice: "its bot reaches the
+  1v1's circle from north of the tower by the city's graph", the bot no nearer than 41.3 m): the street cover's fill
+  draws on everything laid before it, and on version 121 it put a 1.5 m street box at (14.7, -35.8), on the bot's way
+  from its north spawn round the east of the base; the bot went into the base's hall instead and stuck on the sunken
+  court's rail under the first floor, 0.9 m up with 1.75 m of headroom. A street cover `keep` spot at (14.5, -36, 3), as
+  Milestone 787's for the same bot, and the bot's trace (tools/.scratch/centrebot.mts) run again before the deploy.
+- **884, the ground past the fence by day** (the districts' seventh review: "the black ground past the fence a pale road by
+  day"): world.json `skyline.groundDay` #4a4d54 by day, asphalt grey; by night it stays near black, where the map's own
+  lamps should be the light in view (skyline.ts, game side, no bake). At #6a6e75 the ground met the haze and the skyline's
+  blocks looked cut off at their feet, so one step darker, pictured from the lookout and the drop's height.
+- **Tried and taken out again (877):** crates against the Sky Ring's outer fence every 10 m, kept 4 m from its stairs,
+  bridges, lifts and pads. The walk round the ring still stopped at one, 150 of its 248 m reached; the ring's cover waits
+  for a measured walk of its own.
+- **A stray write, put right:** on 2026-10-30 a proposal agent's script, meant as a dry run, wrote its market rules into
+  this worktree's config, layout and map check while the max bake ran. The map files were built from the clean layout and
+  stayed good. The owner agreed to resume; the three files were put back from the snapshots, keeping the max bake's
+  numbers, and the layout rerun over them changed nothing. Proposal scripts now default to a dry run.
+- **Checked:** version 122's lo, hi and max baked, 332 map checks, the hole's and the day ground's each failing with its fault put back, THE CENTRE's bot traced to within 2.9 m of the circle; the speedkills e2e rerun by the lobby agent. verify, rules and tsc. Map files version 122: lo 185.4 MB, hi 265.9 MB, max 563.5 MB.

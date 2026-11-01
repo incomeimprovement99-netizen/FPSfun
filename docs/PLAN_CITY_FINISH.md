@@ -371,6 +371,15 @@ and the 16 to 20 m tier still to do)
   - **Structural, last:** the tower floors different in shape (a double-height hall, holes and inner stairs), ledges and
     awnings on the corner blocks' faces.
 
+- **After the thirteenth reviews (2026-10-30, on version 122: the centre 6.1 and 6.2, the districts 5.5 and 5.6, finish 5
+  in all four; two reviewers each from now on).** All four put first: faces in shade going pure black by day, and one
+  kit shared by every district. Next, in order: the shade floor (a lighting pass, the first ask of three of the four);
+  each district's own cover and dressing, the white-framed crate pile, the yellow planters, the clover rail, the poster
+  wall and the MOTEL signs to one place each; the tower floors each their own wall plan; THE VAULT's payoff (ingot cages,
+  an open vault door in view of the stair); THE WELL lit; MARKET's and THE CANYON's stalls; THE WORKS clad and given a
+  landmark; the curved tower out of THE TERRACES and THE STRIP. The agents' measured proposals for the last of these are
+  in %TEMP%/neon/proposals.
+
 **Last**
 
 - **683: the frame measured with the PC unused** (the detail-mapped and cut-out batches if it misses the bar).
