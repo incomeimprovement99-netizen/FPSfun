@@ -8188,6 +8188,94 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     !fresh.during && fresh.after && fresh.hid === 0,
     `pistol shown in the climb ${fresh.during}, after it ${fresh.after}; head hidden ${fresh.hid}%`,
   );
+  // A gun coming back to the hands comes by a phase (Milestone 840): held on the back until the hands were all but there, they
+  // stood in the ready pose on nothing, then it jumped across whole in a frame. After a throw, on a long gun and a pistol:
+  // in the hands soon, and only part phased in on the first frame it is there
+  const back = await ev<Array<{ id: string; shownAfter: number; phase: number; whole: number }>>(
+    page,
+    `(() => {
+      const r = window.__range, out = [];
+      for (const id of ["r97", "lstar", "wingman"]) {
+        r.player.teleport(0, 0, 0, 0, 0);
+        r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: id, look: "S0000010" }], 3, 180); r.figureLabManual(true);
+        r.figureLabStep(1);
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "interact" });
+        r.figureLabStep(1);
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+        let shownAfter = -1, phase = -1, whole = -1;
+        for (let i = 0; i < 90; i++) {
+          r.figureLabStep(1 / 60);
+          const p = f.mq.gunSweep.phase.value;
+          if (shownAfter < 0 && f.mq.gunInHand) { shownAfter = i; phase = p; }
+          if (shownAfter >= 0 && whole < 0 && p >= 1) whole = i;
+        }
+        out.push({ id, shownAfter: Math.round((shownAfter * 1000) / 60), phase: Math.round(phase * 100) / 100, whole: Math.round((whole * 1000) / 60) });
+      }
+      return out;
+    })()`,
+  );
+  check(
+    "a gun coming back to the hands phases in as they arrive: in them within 0.2 s, under half there on its first frame, whole within 0.4 s (a long gun and a pistol)",
+    back.length === 3 && back.every((g) => g.shownAfter >= 0 && g.shownAfter <= 200 && g.phase < 0.5 && g.whole >= 0 && g.whole <= 400),
+    JSON.stringify(back),
+  );
+  // No pop through a change of stance (Milestone 841): the slide's way in looped, wrapped to its first frame, a body
+  // standing, and the fade to the loop ran from there, the pelvis up 81 cm in a frame 0.82 s into every slide; a climb's end
+  // dropped the chest 27 degrees in a frame. At 60 frames a second through both
+  const pops = await ev<{ slide: number; lean: number }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 12, stance: "stand", pitch: 0, weapon: "sentinel", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(0.6);
+      const read = () => {
+        f.group.updateMatrixWorld(true);
+        const pel = f.group.worldToLocal(f.mq.bone("pelvis").getWorldPosition(new T.Vector3())), neck = f.group.worldToLocal(f.mq.bone("neck_01").getWorldPosition(new T.Vector3()));
+        return [pel.y, (Math.atan2(Math.hypot(neck.x - pel.x, neck.z - pel.z), neck.y - pel.y) * 180) / Math.PI];
+      };
+      const run = (steps) => {
+        let last = read(), rise = 0, lean = 0;
+        for (const [pose, secs] of steps) {
+          r.figureLabPose(0, pose);
+          for (let i = 0; i < Math.round(secs * 60); i++) {
+            r.figureLabStep(1 / 60);
+            const q = read();
+            rise = Math.max(rise, Math.abs(q[0] - last[0]));
+            lean = Math.max(lean, Math.abs(q[1] - last[1]));
+            last = q;
+          }
+        }
+        return [rise, lean];
+      };
+      const slide = run([[{ speed: 12, stance: "slide", pitch: 0 }, 1.3], [{ speed: 7, stance: "stand", pitch: 0 }, 0.6]])[0];
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      r.figureLabStep(1);
+      const lean = run([[{ speed: 0, stance: "climb", pitch: 0 }, 1.2], [{ speed: 0, stance: "stand", pitch: 0 }, 0.6]])[1];
+      return { slide: Math.round(slide * 100), lean: Math.round(lean) };
+    })()`,
+  );
+  check(
+    "no pop through a slide or a climb's end: the pelvis moves 25 cm at most in a frame through a slide and out of it, the chest 15 degrees at most at a climb's end",
+    pops.slide <= 25 && pops.lean <= 15,
+    `pelvis ${pops.slide} cm in a frame, chest ${pops.lean} degrees`,
+  );
+  // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
+  const salute = await ev<number>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "r97", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      r.figureLabStep(1);
+      f.emote(3);
+      r.figureLabStep(1.1);
+      f.group.updateMatrixWorld(true);
+      const brow = f.mq.bone("Head").localToWorld(f.mq.rifle.eyeR.clone()).add(new T.Vector3(0, 0.035, 0));
+      return Math.round(f.mq.bone("middle_03_r").getWorldPosition(new T.Vector3()).distanceTo(brow) * 100);
+    })()`,
+  );
+  check("a salute's fingertips are at the brow (6 cm)", salute <= 6, `${salute} cm`);
   // A moving soldier's planted foot keeps its place on the floor (Milestone 833): each moving clip played at the figure's
   // speed over the ground its stride covers. A foot is planted while low and going back against the body, and its speed
   // back then against the body's is the match (1: still on the floor). The crouch walk was played as though its stride
@@ -8625,6 +8713,9 @@ async function figureHoldTest(browser: Browser): Promise<void> {
       const g = await ev<{ z: number; shown: boolean; inHand: boolean }>(page, gunZ);
       if (!g.inHand) continue;
       if (backAt < 0) backAt = 0.2 + i * 0.06;
+      // (against the gun whole: it forms between the hands as they close, Milestone 840, and a gun still forming is no solid
+      // for a hand to be through)
+      if ((await ev<number>(page, `window.__range.labFigures()[0].mq.gunSweep.phase.value`)) < 1) continue;
       const a = await ev<A | null>(page, `window.__figureAudit(0, { pitch: 0 })`);
       worst = Math.max(worst, a?.handIn?.l ?? 0, a?.handIn?.r ?? 0);
       worstOver = Math.max(worstOver, over(a));

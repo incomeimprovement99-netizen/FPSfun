@@ -142,6 +142,8 @@ const BACK_FROM = (figureCfg.strafe as { backFrom: number }).backFrom;
 const GAIT = figureCfg.gait as { walk: number; jog: number; sprint: number; crouch: number; jogFrom: number; sprintFrom: number };
 /** a step up or down seen on a figure: the drawn body eased onto it at the eye's rate (figure.json stepEase) */
 const STEP_EASE = figureCfg.stepEase as { most: number; still: number };
+/** a salute's wrist from the right eye and its elbow's way, figure frame (figure.json salute) */
+const SALUTE = figureCfg.salute as { wrist: number[]; brow: number[]; elbow: number[] };
 /** a still foot out past the edge the body stands on, onto it (figure.json footing) */
 const FOOTING = figureCfg.footing as { hang: number; reach: number; inset: number; drop: number };
 /** the solids near a still foot, filled per query (solidsIn's scratch list) */
@@ -178,7 +180,7 @@ const PLANT = figureCfg.plant as { under: number; after: number; rate: number; s
 /** the soldier's head held up to where it looks, against the chest's lean (figure.json headUp) */
 const HEAD_UP = figureCfg.headUp as { hold: number; most: number };
 /** the soldier's chest held no more than this far forward of upright, degrees (figure.json chestUp) */
-const CHEST_UP = figureCfg.chestUp as { most: number };
+const CHEST_UP = figureCfg.chestUp as { most: number; rate: number };
 /** a slide seen on a figure, sat up with the gun held (figure.json slide, Milestone 831) */
 const SLIDE = figureCfg.slide as { back: number; hipsTurn: number; ads: number };
 /** an aimed look's pitch as spine_01's, spine_02's and spine_03's shares of it, up and the soldier's down (figure.json aimBend) */
@@ -209,6 +211,8 @@ const DIVE = squadCfg.dive;
 const THROW_FOR = soldierHold.throwFor;
 /** how far the hands have come back onto a returning long gun when it shows (soldierhold.json gunBack) */
 const GUN_BACK = soldierHold.gunBack;
+/** a gun coming back to the hands, phasing away on the back and in between them, seconds (soldierhold.json gunReturn) */
+const GUN_RETURN = (soldierHold as unknown as { gunReturn: { out: number; in: number } }).gunReturn;
 /** how fast a sprint jump's own carry comes in, per second (soldierhold.json airRate) */
 const AIR_CARRY = soldierHold.airRate;
 
@@ -834,6 +838,8 @@ export class MannequinFigure {
   private readonly footT = new THREE.Quaternion();
   /** the long gun is on its way back into the hands after a throw, a heal or a reach: hidden until they are on it */
   private gunComing = false;
+  /** when a gun coming back began its phase, on the figure's clock; below 0 none (soldierhold.json gunReturn) */
+  private comeAt = -1;
   /** 0..1 each, eased: the lowered carry a swap's own, and a sprint jump's own (rifle.ts carryOf) */
   private carryW = { swap: 0, air: 0, vent: 0 };
   /** how far lowered the gun was as a vent began */
@@ -1339,12 +1345,15 @@ export class MannequinFigure {
       }
       return;
     }
-    const over = lean - CHEST_UP.most * DEG;
+    // (as far as the hold has come on: a climb's clip ending dropped the chest 27 degrees in a frame)
+    const over = (lean - CHEST_UP.most * DEG) * this.chestW;
     if (over <= 0) return;
     // (+x is the figure's left: a negative turn tips the chest back)
     turnBone(b.spine_02, fig, X_AXIS, -over * 0.5);
     turnBone(b.spine_03, fig, X_AXIS, -over * 0.5);
   }
+  /** how far the chest is held up, 0 to 1, eased: not through a whole-body clip (figure.json chestUp) */
+  private chestW = 1;
   private readonly chestA = new THREE.Vector3();
   private readonly chestB = new THREE.Vector3();
   private readonly chestQ = new THREE.Quaternion();
@@ -1736,6 +1745,32 @@ export class MannequinFigure {
     if (!grab && this.zipW > 0.99) this.zipReach = up.getWorldPosition(new THREE.Vector3()).distanceTo(tip.getWorldPosition(new THREE.Vector3()));
   }
 
+  /** one arm's wrist onto a point (world), weighted by w: the upper arm and the forearm, the elbow toward `pole` (figure frame) */
+  private armTo(s: "l" | "r", to: THREE.Vector3, w: number, pole: THREE.Vector3): void {
+    const b = this.bones;
+    const up = b[`upperarm_${s}`];
+    const lo = b[`lowerarm_${s}`];
+    const hand = b[`hand_${s}`];
+    if (!up || !lo || !hand || w < 0.01) return;
+    const a = up.getWorldPosition(new THREE.Vector3());
+    const e = lo.getWorldPosition(new THREE.Vector3());
+    const c = hand.getWorldPosition(new THREE.Vector3());
+    const l1 = a.distanceTo(e);
+    const l2 = e.distanceTo(c);
+    const toT = to.clone().sub(a);
+    const dist = Math.max(Math.abs(l1 - l2) + 1e-3, Math.min(l1 + l2 - 1e-3, toT.length()));
+    const dir = toT.normalize();
+    const side = pole.clone().applyQuaternion(this.root.getWorldQuaternion(new THREE.Quaternion()));
+    side.addScaledVector(dir, -side.dot(dir)).normalize();
+    const cosA = Math.max(-1, Math.min(1, (l1 * l1 + dist * dist - l2 * l2) / (2 * l1 * dist)));
+    const sinA = Math.sqrt(1 - cosA * cosA);
+    const elbow = a.clone().addScaledVector(dir, cosA * l1).addScaledVector(side, sinA * l1);
+    aimBone(up, e.clone().sub(a), elbow.sub(a), w);
+    const e2 = lo.getWorldPosition(new THREE.Vector3());
+    const c2 = hand.getWorldPosition(new THREE.Vector3());
+    aimBone(lo, c2.sub(e2), a.clone().addScaledVector(dir, dist).sub(e2), w);
+  }
+
   /** knocked out: only the death clip runs */
   updateDead(dt: number): void {
     // the last live frame's turns come off first, so the death clip starts clean
@@ -1942,6 +1977,9 @@ export class MannequinFigure {
         // the legs' and hips' slide, the gun held and aimed on top of it, the chest sat up (holdChestUp): played whole, the
         // clip laid the soldier on its back with the gun 25 to 55 degrees off its look, and a player shoots sliding
         lower = hasClip("Slide_Start") && this.t - this.slideAt < clipSeconds("Slide_Start") ? "Slide_Start" : "Slide_Loop";
+        // (once, held on its last frame: looping, it wrapped to its first, a body standing, and the fade to the loop ran from
+        // there, the pelvis up 81 cm in a frame 0.82 s into every slide)
+        lowerOnce = lower === "Slide_Start";
         break;
       case "air":
         // a fast jump (out of a sprint, a slide, a pad) tucks its legs like an athlete's; a standing hop does not
@@ -2049,7 +2087,12 @@ export class MannequinFigure {
     // nearly there: shown at once, it came back through both hands while they were still on their way (Phase 27, 27.12)
     const wantGun = this.gunShown && armed && !this.dead;
     if (!wantGun && this.rifle && this.mount) this.gunComing = true;
-    if (this.gun) this.gun.visible = wantGun && !(this.gunComing && Math.min(this.gripW, this.ikW) < GUN_BACK);
+    // (on its way, off the back and between the hands by a phase: held on the back till they were all but there, they stood
+    // on nothing and it jumped across. Not until the skydive lets it off the back)
+    if (!wantGun) this.comeAt = -1;
+    else if (this.gunComing && this.comeAt < 0 && this.skyW <= 0.5) this.comeAt = this.t;
+    const comeOut = GUN_RETURN.out;
+    if (this.gun) this.gun.visible = wantGun && !(this.gunComing && (this.comeAt < 0 || this.t - this.comeAt < comeOut));
     this.gunInHand = !!this.gun && this.gun.visible;
     this.restoreClipPose();
     this.mixer.update(dt);
@@ -2068,7 +2111,8 @@ export class MannequinFigure {
     const pitch = aimed ? Math.max(-70, Math.min(70, p.pitch)) * DEG : 0;
     // (the soldier's chest held up before the look bends it: the clips lean it 33 to 40 degrees crouched and aimed or
     // sprinting, and from behind the shoulder armour and the pack hid the head; the owner, 2026-10-04: more upright)
-    if (b.spine_02 && b.spine_03 && b.neck_01 && !full && !this.dead) this.holdChestUp(b, fig, sliding);
+    this.chestW += ((full ? 0 : 1) - this.chestW) * Math.min(1, dt * CHEST_UP.rate);
+    if (b.spine_02 && b.spine_03 && b.neck_01 && this.chestW > 0.01 && !this.dead) this.holdChestUp(b, fig, sliding);
     // +x is the figure's left: a turn about it by a negative angle tips the chest back (a look up)
     const lean = fx.jolt * 0.45 - fx.flinch * 0.22;
     // (the soldier looking down bends only as far as its gun's hold needs, at the waist, and its head goes down onto the
@@ -2117,6 +2161,18 @@ export class MannequinFigure {
       if (b.lowerarm_l) {
         turnBone(b.lowerarm_l, fig, Z, em.lElbow);
         turnBone(b.lowerarm_l, fig, X, -em.lElbowF);
+      }
+      if (em.rBrow > 0.01 && b.Head && this.rifle?.eyeR) {
+        b.Head.updateWorldMatrix(true, false);
+        const q = fig.getWorldQuaternion(new THREE.Quaternion());
+        const eye = b.Head.localToWorld(this.rifle.eyeR.clone());
+        this.armTo("r", eye.clone().add(new THREE.Vector3(...SALUTE.wrist).applyQuaternion(q)), em.rBrow, new THREE.Vector3(...SALUTE.elbow));
+        // (the fingers to the brow: straight on from the forearm they went past it)
+        if (b.hand_r && b.middle_03_r) {
+          const wrist = b.hand_r.getWorldPosition(new THREE.Vector3());
+          const brow = eye.add(new THREE.Vector3(...SALUTE.brow).applyQuaternion(q));
+          aimBone(b.hand_r, b.middle_03_r.getWorldPosition(new THREE.Vector3()).sub(wrist), brow.sub(wrist), em.rBrow);
+        }
       }
       this.baseY = em.bounce;
     } else this.baseY = FLAT_FEET.lift * this.liftW;
@@ -2286,12 +2342,21 @@ export class MannequinFigure {
       if (this.rifleOut.seated) this.seatKick = 1;
       this.seatKick = Math.max(0, this.seatKick - dt / soldierHold.reload.seatKickFor);
       // a swap's phase: the gun going away out over the first half, the new one in over the second; whole once it is over
-      const swapPh = SW && swapR !== null ? (second ? smooth(SW.in[0], SW.in[1], swapR) : 1 - smooth(SW.out[0], SW.out[1], swapR)) : 1;
+      const swapR01 = SW && swapR !== null ? (second ? smooth(SW.in[0], SW.in[1], swapR) : 1 - smooth(SW.out[0], SW.out[1], swapR)) : 1;
+      // and a gun coming back: away on the back, then in between the hands
+      const comeU = this.comeAt < 0 ? Infinity : this.t - this.comeAt;
+      const comePh = comeU < comeOut ? 1 - smooth(0, comeOut, comeU) : comeU < comeOut + GUN_RETURN.in ? smooth(comeOut, comeOut + GUN_RETURN.in, comeU) : 1;
+      // (and it has come: left set for hands a little short of the hold, the whole return ran again)
+      if (this.comeAt >= 0 && comeU >= comeOut + GUN_RETURN.in) {
+        this.comeAt = -1;
+        this.gunComing = false;
+      }
+      const swapPh = Math.min(swapR01, comePh);
       const G = this.gunSweep;
       G.phase.value = swapPh;
       G.time.value = this.t;
       // in place, as the first person's (phase.ts radial): out from the gun's edges in, and the next from its middle out
-      G.radial.value = cup ? 1 : 0;
+      G.radial.value = cup || comePh < 1 ? 1 : 0;
       if (swapPh < 1 && this.gun) {
         this.gun.updateWorldMatrix(true, false);
         G.origin.value.copy(this.gunNear).applyMatrix4(this.gun.matrixWorld);

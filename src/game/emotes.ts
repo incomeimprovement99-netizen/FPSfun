@@ -38,6 +38,8 @@ export interface EmotePose {
   lForward: number;
   lElbow: number;
   lElbowF: number;
+  /** how far the right hand is reached to the brow (figure.json salute), 0 none */
+  rBrow: number;
   /** the upper body: turned, leant forward (+) or back, leant to its left (+) */
   spineTwist: number;
   spineLean: number;
@@ -52,7 +54,7 @@ export interface EmotePose {
   clip?: string;
 }
 
-const ZERO: EmotePose = { weight: 0, rRaise: 0, rForward: 0, rElbow: 0, rElbowF: 0, lRaise: 0, lForward: 0, lElbow: 0, lElbowF: 0, spineTwist: 0, spineLean: 0, spineSide: 0, headNod: 0, headTilt: 0, hipSway: 0, bounce: 0 };
+const ZERO: EmotePose = { weight: 0, rRaise: 0, rForward: 0, rElbow: 0, rElbowF: 0, lRaise: 0, lForward: 0, lElbow: 0, lElbowF: 0, rBrow: 0, spineTwist: 0, spineLean: 0, spineSide: 0, headNod: 0, headTilt: 0, hipSway: 0, bounce: 0 };
 
 const smooth = (x: number) => {
   const c = Math.max(0, Math.min(1, x));
@@ -98,6 +100,7 @@ export function emotePose(index: number, t: number): EmotePose {
       p.rRaise = 1.25;
       p.rForward = 0.9;
       p.rElbow = 2.2;
+      p.rBrow = 1;
       p.spineLean = -0.05;
       break;
     case "shrug":

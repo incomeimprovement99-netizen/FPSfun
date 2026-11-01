@@ -146,6 +146,12 @@
     "backFrom": 109,
     "backBand": 8
   },
+  "_salute": "A salute's hand at the brow (mannequin.ts armTo, Milestone 842). Swung about the figure's axes from emotes.ts, however they were set (60 tried), the fingertips stopped 17 to 20 cm from the brow, at the collar, and the salute read as a shoulder scratch. The arm is reached: the wrist to `wrist` m from the right eye in the figure's frame (+x its left, +z its front), the elbow toward `elbow`, out to its side, and the hand bent at the wrist so its fingers point at `brow`, the brow from the same eye.",
+  "salute": {
+    "wrist": [-0.16, 0.0, 0.0],
+    "brow": [0.0, 0.035, 0.02],
+    "elbow": [-1, -0.15, 0.3]
+  },
   "_stepEase": "A step up or down a kerb or a stair seen on a figure (mannequin.ts, Milestone 836). A body on the ground moves up or down by a whole step in one frame (player.ts: onto any top up to a step's height, 0.56 m, and down onto one as far), and a bot's and your own soldier's figure are put where the body is every frame, so a kerb was a 15 cm pop and a staircase a stutter. The player's own eye has caught up over movement.json stepSmoothTime since Phase 13 (the feet and the hit boxes untouched); the drawn body now does the same, lagging the step and closing on it at the eye's rate, no more than `most` m behind, its feet reached onto the step at once, as a body rises after its foot is up. A step is a move of more than `still` m after a frame that did not move it: a lift moves its rider every frame, and that is no step.",
   "stepEase": {
     "most": 0.2,
@@ -196,7 +202,8 @@
   },
   "_chestUp": "The soldier's chest held no more than `most` degrees forward of upright, measured along the upper chest (spine_03 to the neck, what stands between a shooter behind and the head) in the figure's frame, the rest taken back through spine_02 and spine_03 before the look's own bend (the owner, 2026-10-04, choosing it: the clips lean the chest 33 to 40 degrees crouched and aimed or sprinting, and from behind the shoulder armour and the pack hid much of the head even held up, headUp). A lean back, a slide's, is the clip's. Not in an emote or dead. At 20, crouched and aimed the raised right shoulder (VANGUARD's shoulder armour, RUNNER's suit) hid 12 to 22 of every 100 points of the skull from 30 m behind, straight or 30 degrees off (2026-10-11, the owner: \"i want to always be able to clearly snipe hs someone from the back\"); at 12, 0 to 3; at 5, none; at 8, the side views of a crouched aim and a sprint still the clips' own.",
   "chestUp": {
-    "most": 8
+    "most": 8,
+    "rate": 12
   },
   "_aimBend": "How an aimed look's pitch bends the soldier, as shares of it for spine_01, spine_02 and spine_03 (mannequin.ts): looking up, the chest bends back over its two upper bones; looking down, the soldier's own `down` bends it a little at the waist and the head goes down onto the stock for the rest (mannequin.ts holdHeadUp). Bent 0.9 of the look at the chest looking down as up, 30 degrees down put the head down between the shoulders, and from 30 m behind the shoulders, the back armour and the raised right arm hid 56 to 76 of every 100 points of the head turned to a shooter straight behind and 57 to 84 from 30 degrees off (BOOG and APUHTHEE, VANGUARD and RUNNER). Measured at 30 degrees down by how much of the look bends the body: 1.3 hid 62 to 94, 0.9 56 to 84 wherever it bent (the waist, the chest, both), 0.5 30 to 60, 0.3 23 to 46, 0.1 13 to 40 (the skull alone, over the head's lowest 6 cm: 0 to 26). But the hands need the body bent to keep a gun along a look down: looking 35 down, the skfigure hold's bar (a wrist bent 60 degrees at most, the gun 40 mm into the body at most) held every gun bent 0.9 at the chest; bent at the waist, every gun but BIGANTLER, REZ, CHOOCH, STRYDER and DEVINOS at 0.3 (their wrists 62 to 75; DEVINOS 66 come up from its carry), all but CHOOCH at 0.5 (DEVINOS's right wrist on the bar, 60: bent 0.6 or 0.7 to clear it, its raised arm and the chest took 9 to 18 of every 100 shots at RUNNER's head from behind), and CHOOCH (its right wrist 62 at 0.7) at 0.9. So each gun bends as little as its hold allows: `down`, or its own in `downByGun`. Looking up, `up`.",
   "aimBend": {

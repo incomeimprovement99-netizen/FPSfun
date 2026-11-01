@@ -18555,3 +18555,54 @@ From the reviews of 2026-10-28 (the centre's round 12, the districts' round 6).
   stayed good. The owner agreed to resume; the three files were put back from the snapshots, keeping the max bake's
   numbers, and the layout rerun over them changed nothing. Proposal scripts now default to a dry run.
 - **Checked:** version 122's lo, hi and max baked, 332 map checks, the hole's and the day ground's each failing with its fault put back, THE CENTRE's bot traced to within 2.9 m of the circle; the speedkills e2e rerun by the lobby agent. verify, rules and tsc. Map files version 122: lo 185.4 MB, hi 265.9 MB, max 563.5 MB.
+
+## Milestone 840 — A gun comes back to the hands by a phase
+
+After a throw, an interact, an emote, a climb or the skydive, a long gun waited on the back until the hands were 97% of
+the way to its hold. So they stood in the ready pose gripping nothing for about 0.15 s, and the gun jumped across from the
+back in one frame; a pistol the same, out of nowhere. Found by the film of every state (Milestone 839).
+
+- **The return is a phase** (mannequin.ts, soldierhold.json gunReturn), the game's own language for a gun arriving, as a
+  swap in place has it (phase.ts radial): away on the back over 0.16 s from its edges in, then in between the hands over
+  0.22 s from its middle out, whole as they close on it. A pistol has nothing on the back and waits the same time. The skydive holds it on
+  the back until the body is upright.
+- **Photographed** after a throw on the USSO and CHOOCH from the front: the hands come in, the gun forms between them, whole
+  by 0.1 s later and staying. A first go ran the return twice, as the gun was left marked on its way for hands a little
+  short of the hold; it is marked done when its phase ends.
+- **Checked:** the e2e's soldier stances (skfigure): after an interact on the USSO, CHOOCH and APUHTHEE the gun is in the
+  hands within 0.2 s, under half there on its first frame, whole within 0.4 s. On the old code it fails
+  (in the hands at 333 ms, already whole); now 167 ms, just begun, whole at 383. The older throw check counted a hand against the
+  gun from its first frame in the hands, written for a whole gun appearing through them; it counts from the gun being whole
+  now, as one still forming is no solid to be through. The whole soldier section: 342 checks, E2E PASS.
+
+## Milestone 841 — A slide with no pop, a climb's end with no snap
+
+Three reviewers of the film flagged the same thing on every gun at the end of a slide, and I had put it down to a normal
+exit from one frame. Measured at 60 frames a second (node_modules/.scratch/popprobe.mts), it was worse than it looked and
+not at the end: 0.82 s into every slide the pelvis went up 81 cm in one frame, from lying to standing height, and sank back
+over 0.2 s. The way into a slide (`Slide_Start`) was playing on a loop: at its end it wrapped to its first frame, a body
+standing, and the fade to the slide's loop ran from there. `lowerOnce` in mannequin.ts was declared and never set. Milestone 831
+laid that open, by taking the slide off the whole-body path.
+
+- **The way in plays once**, held on its last frame: the pelvis stays at 5 cm through the change, and the largest move in a
+  frame through a slide and out of it is 10 cm, the stand-up's.
+- **A climb's end:** the chest was dropped 27 degrees in a frame, as its hold came back the frame the whole-body clip ended.
+  It eases back in and out now (figure.json chestUp `rate`): 12 degrees at most, over five frames.
+- **Checked:** the e2e's soldier stances (skfigure), at 60 frames a second: the pelvis 25 cm at most in a frame through a
+  slide, the chest 15 degrees at most at a climb's end. On the old code it fails (81 cm,
+  27 degrees); now 10 cm and 12 degrees.
+
+## Milestone 842 — A salute at the brow
+
+The salute's hand stopped at the collar and read as a shoulder scratch. No setting of its arm's numbers reached the brow
+(60 tried, 17 to 20 cm off at best), as they only swing the arm about the figure's axes. The arm is reached now (mannequin.ts
+armTo, figure.json salute): the wrist out by the right eye, the elbow to the side, and the hand bent at the wrist so its
+fingers point at the brow. The fingertips are 2 cm from it. Checked: an e2e check in the soldier stances (6 cm). On the old code it fails (20 cm);
+now 2 cm.
+
+## The film's other sheets
+
+Two more reviewers looked at BOOG, PANDA, ANAKIN and STRYDER, all 104 sheets, which leaves parts of CHOOCH and DEVINOS and most
+of BIGANTLER and REZ unseen. Beyond the above they found the head hidden behind the gun and arms at a look of 40 degrees up
+on the long guns, which comes with aiming that high, and PANDA's left forearm across the face for a frame as it leaves a
+rope. Left as they are.
