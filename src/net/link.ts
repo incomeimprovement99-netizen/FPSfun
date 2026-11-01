@@ -18,6 +18,7 @@
 // joins tabs of the same browser on one machine. It is how the match is
 // tested without the internet, and it is handy for trying it alone.
 import { pack, unpack } from "peerjs-js-binarypack";
+import { frameFits } from "./framecheck";
 import netCfgFast from "../config/net.json";
 import type Peer from "peerjs";
 import type { DataConnection, PeerOptions } from "peerjs";
@@ -371,6 +372,10 @@ class PeerLink implements Link {
     conn.on("data", (d) => {
       if (!this.closed) this.onMessage?.(d as NetMsg);
     });
+    // (PeerJS unpacks a frame before anything here hears of it: framecheck.ts)
+    const c = conn as unknown as { _handleDataMessage?: (e: { data: unknown }) => void };
+    const take = c._handleDataMessage?.bind(conn);
+    if (take) c._handleDataMessage = (e) => void (frameFits(e.data) && take(e));
     const end = () => {
       if (this.closed) return;
       this.closed = true;
@@ -399,6 +404,7 @@ class PeerLink implements Link {
         ch.onmessage = (e: MessageEvent) => {
           if (this.closed) return;
           let m: NetMsg | null = null;
+          if (!frameFits(e.data)) return;
           try {
             m = unpack(e.data as ArrayBuffer) as NetMsg;
           } catch {

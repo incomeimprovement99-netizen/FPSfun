@@ -14093,6 +14093,24 @@ clones (phase.ts, mannequin.ts).
 
 - **Checked:** tsc, verify, rules; a real page's `queryObjects` count over several matches.
 
+## Milestone 953 — What a peer can do to you
+
+From a review of what a bad or broken peer can send, run on real pages and real matches. A host's welcome reached a guest's page as
+markup: its numbers and what it named went into the status line, and in real Chrome a host ran script in a friend's page, their
+account's token in reach. Its numbers are numbers now and what it names is escaped (main.ts startDuel). A hit naming `constructor`
+passed the host's check: the name is on every object, so the cap came out NaN and any amount went through, with no shot behind it,
+one shot for anyone from anywhere. A claim names one of the table's own hacks (hitcheck.ts). A delta packet said who each part was
+about and was believed: one packet naming 2,000 made 2,000 figures on the host and on every guest through the relay, one at a huge id
+made the rounds' arrays too long to spread and the host's HUD threw every frame, and a guest could rename or kill any figure for a
+frame. A guest speaks only for itself now, and only the host for anyone else (statesync.ts, duel.ts). Five bytes saying they held four
+billion items froze the page they reached, on the main thread, before any of our code, and a host frozen is the lobby: a frame whose
+counts promise more than it holds is dropped unread, on both channels (framecheck.ts, link.ts). A `round` or `zone` with no array and a
+speed that was no number are ignored.
+
+- **Checked:** tsc, verify, rules; hitcheck.ts: `constructor`, `toString`, `__proto__`, `hasOwnProperty` refused (all passing on the old
+  code); netfigures.ts: 2,000 forged parts make no figure (2,000 on the old code), every real message's frame passes, four forged
+  frames are dropped; the reviewer's real-page probe no longer runs its script.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

@@ -7,6 +7,7 @@
 //   - a bot's down is stamped, as a player's is, so a state from just before it cannot stand it back up;
 //   - a guest's fair hit on someone who then used a DASH passes the host's check (Milestone 939);
 //   - a player down, a swap of theirs landing after it: their figure stays in the scene and in reach (Milestone 951);
+//   - a guest speaks only for itself, and a frame whose counts promise more than it holds is dropped unread (Milestone 953);
 //   - the drop (Milestones 932 to 934): a won Gulag comes down by a mate on ground that has not decayed, a friend down
 //     first starts the fight, a bot's fall meets the floor it fell past, and no WALL, HEAL or MINE stands in the sky.
 //
@@ -213,6 +214,40 @@ console.log("\nA swap that lands after a death (src/game/duel.ts)");
   host.applyState(st("r97", true), 1, now());
   const up = host.remotes.get(1)?.avatar;
   check("and back up it has the gun, seen and hittable", !!up && up.group.parent === scene && reach.includes(up));
+}
+
+console.log("\nWhat a peer may say (src/net/statesync.ts, src/net/framecheck.ts, src/main.ts)");
+{
+  const wire = new Wire();
+  const [h, gl] = wire.pair(0, 1);
+  const host = new Duel(scene, projectiles, { players: 2, myId: 0, link: h, guestId: 1, mode: "arena" });
+  const guest = new Duel(scene, projectiles, { players: 2, myId: 1, link: gl, mode: "arena" });
+  for (const d of [host, guest]) ins(d).phase = "fight";
+  for (let i = 0; i < 30; i++) {
+    tick(1000 / 30);
+    host.update(st(0, 0));
+    guest.update(st(5, 0));
+    wire.drain();
+  }
+  const before = ins(host).remotes.size;
+  const keyframe = (f: number | undefined, seq: number, epoch: number, over: Record<string, unknown> = {}) => ({ ...(f === undefined ? {} : { f }), q: seq, e: epoch, d: { x: 100, y: 0, z: 100, aw: 0, ap: 0, cr: 0, hp: 100, sh: 75, al: 1, w: "vinson", op: "vanguard", nm: "FORGED", ...over } });
+  const forged = Array.from({ length: 2000 }, (_, i) => keyframe(1000 + i, 1000 + i, 1000 + i, { nm: `P${i}` }));
+  (host as unknown as { receive(m: unknown, via: number): void }).receive({ t: "sd", from: 1, p: forged }, 1);
+  check("a guest naming 2,000 others makes no figures", ins(host).remotes.size === before, `${before} to ${ins(host).remotes.size}`);
+  const { frameFits } = await import("../../src/net/framecheck");
+  const { pack } = await import("peerjs-js-binarypack");
+  const real = [{ t: "s", x: 1.5, y: -2, z: 300000, w: "vinson", name: "P", alive: true, sp: null }, { p: [{ f: 1, x: [1, 2, 3] }, { f: 2, s: "x".repeat(300) }] }, Array.from({ length: 900 }, (_, i) => i % 7), { b: new Uint8Array(70000).buffer }];
+  const buf = async (v: unknown) => {
+    const p = pack(v as never) as unknown;
+    return p instanceof Blob ? p.arrayBuffer() : (p as ArrayBuffer);
+  };
+  let good = 0;
+  for (const v of real) if (frameFits(await buf(v))) good++;
+  check("every real message's frame passes", good === real.length, `${good} of ${real.length}`);
+  const bombs = [[0xdd, 0xff, 0xff, 0xff, 0xff], [0xdf, 0xff, 0xff, 0xff, 0xff], [0xdc, 0xff, 0xff], [0x92, 0xdd, 0x7f, 0xff, 0xff, 0xff, 0x00]];
+  check("a frame promising more than it holds is dropped", bombs.every((f) => !frameFits(new Uint8Array(f).buffer)));
+  const main = readFileSync(new URL("../../src/main.ts", import.meta.url), "utf8");
+  check("what a host's welcome names goes through the escape, and its numbers are numbers", /const goal = escapeHtml\(/.test(main) && /const whole = \(v: unknown, most: number\)/.test(main));
 }
 
 console.log("\nThe drop (src/game/brmatch.ts, src/game/bots.ts, src/main.ts)");

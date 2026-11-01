@@ -500,6 +500,9 @@ export class Duel implements MatchLike {
     this.role = this.id === this.hostId ? "host" : "guest";
     this.sync = new StateSync(this.id);
     this.lastClock = now;
+    // A guest speaks for itself, and only the host for anyone else: one packet naming 2,000 made 2,000 figures here and on every
+    // guest, and one at a huge id made the rounds' arrays too long to spread, the host's HUD throwing every frame (Milestone 953)
+    this.sync.may = (subject, via) => (this.role === "host" ? subject === via : Number.isInteger(subject) && subject >= 0 && subject < Duel.BOT_ID + 256);
     this.scores = new Array(Math.max(2, this.players)).fill(0);
     this.caps = new Array(Math.max(2, this.players)).fill(0);
     const a = arenaFor(this.players, opts.map ?? null);
@@ -1267,7 +1270,7 @@ export class Duel implements MatchLike {
       } else if (m.t === "zone") {
         if (this.role === "guest") {
           this.zoneLive = m.live;
-          this.caps = m.caps.slice();
+          if (Array.isArray(m.caps)) this.caps = m.caps.slice();
           this.zoneStartsIn = m.startsIn;
         }
       }
@@ -1443,7 +1446,7 @@ export class Duel implements MatchLike {
     const stale = m.alive && !r.alive && sentAt !== null && r.outAtSent !== undefined && sentAt <= r.outAtSent;
     const alive = m.alive && !stale;
     this.noteLateness(r, at, now);
-    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (m.sp ?? 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0, reloadEmpty: emptyReloadOf(ac) });
+    r.samples.push({ at, x: m.x, y: m.y, z: m.z, yaw: m.yaw, pitch: m.pitch, crouch: m.crouch, stance, speed: (Number.isFinite(m.sp) ? (m.sp as number) : 0) / 10, ads: typeof m.ad === "number" && Number.isFinite(m.ad) ? Math.max(0, Math.min(1, m.ad / 10)) : 0, act: actFromCode(ac), airJumps: typeof m.dj === "number" && Number.isFinite(m.dj) ? m.dj : 0, reloadEmpty: emptyReloadOf(ac) });
     if (r.samples.length > 30) r.samples.shift();
     // Their own numbers lag our hits by a round trip, so just after a hit a
     // packet can only LOWER what we predicted; after that it is the truth, a
@@ -1567,7 +1570,7 @@ export class Duel implements MatchLike {
   private applyRound(m: Extract<NetMsg, { t: "round" }>): void {
     const prev = this.phase;
     this.round = m.n;
-    this.scores = m.scores.slice();
+    if (Array.isArray(m.scores)) this.scores = m.scores.slice();
     this.phase = m.phase;
     this.phaseEndsAt = wallClock() + m.left;
     if (m.phase === "roundEnd" || m.phase === "matchEnd") this.lastWinner = m.winner;

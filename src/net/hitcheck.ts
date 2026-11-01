@@ -106,7 +106,9 @@ export class HitCheck {
     if (!Number.isFinite(c.amount) || c.amount < 0) return "not a number";
     const melee = c.weapon === "melee";
     const gun = melee ? null : gunOf(c.weapon);
-    const hack = melee || gun ? undefined : HACK_MAX[c.weapon];
+    // (its own names only: "constructor" is on every object, and came out as a cap of NaN, which no amount is over: any
+    // guest's claim of any size with no shot behind it, Milestone 953)
+    const hack = melee || gun || !Object.hasOwn(HACK_MAX, c.weapon) ? undefined : HACK_MAX[c.weapon];
     // A claim names a gun of the roster, a swing or a hack that hurts. otherMax, for an older build's claim with no id,
     // let any other name through with no shot behind it, a forged 250 a claim that took a player out in one (Milestone 499)
     if (!melee && !gun && hack === undefined) return `names nothing that hurts in this game (${c.weapon || "no weapon"})`;

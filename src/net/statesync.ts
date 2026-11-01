@@ -64,6 +64,8 @@ function subjectOf(p: unknown, via: number): number {
 }
 
 export class StateSync {
+  /** who a peer may speak for (the match says: Duel) */
+  may: (subject: number, via: number) => boolean = () => true;
   private peers = new Map<number, PeerStreams>();
   /** each new outgoing stream's epoch: consecutive, from a random start, so a stream begun again is never mistaken for the old one */
   private epochNext = Math.floor(Math.random() * 0x10000);
@@ -163,6 +165,10 @@ export class StateSync {
       const from = subjectOf(part, via);
       // our own state, relayed back at us: the simulation here is the source
       if (from === this.self) continue;
+      if (!this.may(from, via)) {
+        this.stats.unexpected++;
+        continue;
+      }
       let s = p.in.get(from);
       if (!s) {
         s = new StateIn();

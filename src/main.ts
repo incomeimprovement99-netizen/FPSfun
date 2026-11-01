@@ -5163,6 +5163,12 @@ function boxesFirst(start: () => void, link?: Link): boolean {
 
 /** a friend's match: the host on its first guest, or a guest on the host's welcome (`br`: a battle royale squad) */
 function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: BrWelcome, opts?: MatchOpts): void {
+  // A welcome is only the host's word: its numbers went into the status line as they came, and a host's markup ran in a
+  // friend's page, their account's token in reach (Milestone 953).
+  const whole = (v: unknown, most: number): number => (typeof v === "number" && Number.isInteger(v) && v >= 0 && v <= most ? v : 0);
+  players = Math.max(2, whole(players, Duel.BOT_ID));
+  myId = whole(myId, Duel.BOT_ID);
+  if (br) br = { ...br, bots: whole(br.bots, MOST_BOTS) };
   if (!boxesFirst(() => startDuel(link, players, myId, guestId, br, opts), link)) return;
   // the range together: a friend who opens the invite while the group is in it comes in there
   if (hangout && myId === 0 && hangout.role === "host") {
@@ -5226,7 +5232,8 @@ function startDuel(link: Link, players: number, myId: number, guestId = 1, br?: 
     wireMatch(d, players >= 3 ? "triple" : "duel");
     applyRules(d, myId === 0 ? (hostOpts?.rules ?? undefined) : opts?.rules);
   }
-  const goal = d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `${(d as BrMatch).team.label}: the squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.";
+  // (it goes into the status line as markup, and what it names came from the host)
+  const goal = escapeHtml(d instanceof ArenaMode ? `${MODE_TITLE[d.modeKind]}: ${modeGoal(d)}` : squad ? `${(d as BrMatch).team.label}: the squad drops onto ${(d as BrMatch).poi.name} against ${squad.bots} bots.` : "First to 3 rounds.");
   d.onSlotFree = (id) => hosting?.release(id);
   d.onRoster = (connected, total) => {
     duelButtons();

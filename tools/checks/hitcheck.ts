@@ -48,6 +48,8 @@ console.log("The host's check on a claimed hit");
   const SAMPLE = "vinson";
   const r301 = resolveWeapon(SAMPLE, [], 5);
   const h = new HitCheck();
+  // (Milestone 953) a name every object has is no hack: its cap came out NaN, and any amount passed with no shot
+  for (const name of ["constructor", "toString", "__proto__", "hasOwnProperty"]) check(`a claim naming "${name}" is refused`, new HitCheck().judge({ from: 3, amount: 400, weapon: name, dist: null }, 10, undefined, null) !== null);
   check("a round's worth more than the gun can do is refused", h.judge({ from: 1, amount: maxRound(r301) + 1, weapon: SAMPLE, dist: 10 }, 10, 9.9, 10) !== null);
   check("a gun's hit with no shot heard lately is refused", h.judge({ from: 2, amount: 10, weapon: SAMPLE, dist: 10 }, 10, 10 - C.shotWindow - 0.1, 10) !== null && h.judge({ from: 3, amount: 10, weapon: SAMPLE, dist: 10 }, 10, undefined, 10) !== null);
   check("a claim from 100 m by two players 10 m apart is refused; a round trip's drift is not", h.judge({ from: 4, amount: 10, weapon: SAMPLE, dist: 100 }, 10, 9.9, 10) !== null && h.judge({ from: 5, amount: 10, weapon: SAMPLE, dist: 18 }, 10, 9.9, 10) === null);
