@@ -572,8 +572,8 @@ export class Duel implements MatchLike {
    * here, and a mark for the squad, so a friend sees them too. Returns how
    * many it found.
    */
-  reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number): number {
-    return this.shownKit.scan(this.enemiesNow(), at, fwd, range, cone, seconds, wallClock(), (s) => this.sendMark("scan", s.at.clone(), s.name, s.id));
+  reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number, quiet = false): number {
+    return this.shownKit.scan(this.enemiesNow(), at, fwd, range, cone, seconds, wallClock(), (s) => this.sendMark("scan", s.at.clone(), s.name, s.id, quiet));
   }
 
   /** SMOKE's passive: every enemy standing somewhere `where` says yes to, shown for `seconds` */
@@ -1727,8 +1727,8 @@ export class Duel implements MatchLike {
   }
 
   /** a ping, for the squad */
-  sendMark(k: string, at: THREE.Vector3, label: string, target = -1): void {
-    this.broadcast({ t: "mark", k, at: [at.x, at.y, at.z], label: label.slice(0, 40), target });
+  sendMark(k: string, at: THREE.Vector3, label: string, target = -1, quiet = false): void {
+    this.broadcast({ t: "mark", k, at: [at.x, at.y, at.z], label: label.slice(0, 40), target, q: quiet ? 1 : undefined });
   }
 
   /** where a respawn drops you in; the battle royale's own spawn otherwise */
@@ -1766,7 +1766,8 @@ export class Duel implements MatchLike {
         if (!vec3(m.at) || typeof m.k !== "string") return;
         // an enemy's REVEAL that caught you: its scan names each one it showed, and an enemy's ping is not shown here, so
         // you were never told (Milestone 695, after Apex's scan warning)
-        if (m.k === "scan" && m.target === this.id && !this.friendly(from)) this.onRevealed?.(from);
+        // (a real REVEAL: a ghost's look told anyone within 25 m REVEALED, with its sweep, twice a second, Milestone 954)
+        if (m.k === "scan" && m.target === this.id && !m.q && !this.friendly(from)) this.onRevealed?.(from);
         // a ping is for its squad: another squad's (squads of friends) is passed on, not shown
         if (this.friendly(from)) this.onMark?.(m.k.slice(0, 12), from, new THREE.Vector3(...m.at), typeof m.label === "string" ? m.label.replace(/[\p{Cc}<>&"'`]/gu, "").slice(0, 40) : "", typeof m.target === "number" ? m.target : -1);
         this.relay(m, from);

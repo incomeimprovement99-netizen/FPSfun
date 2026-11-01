@@ -3473,7 +3473,7 @@ function hearReload(now: number): void {
  * match has it, the ones built on Duel and the offline bot practice, so the
  * page asks for it rather than for a class.
  */
-function kitSight(): { reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number): number; revealWhere(where: (at: THREE.Vector3) => boolean, seconds: number): number; revealOne(id: number, seconds: number): void; shown: ReadonlySet<Dummy> } | null {
+function kitSight(): { reveal(at: THREE.Vector3, fwd: THREE.Vector3 | null, range: number, cone: number, seconds: number, quiet?: boolean): number; revealWhere(where: (at: THREE.Vector3) => boolean, seconds: number): number; revealOne(id: number, seconds: number): void; shown: ReadonlySet<Dummy> } | null {
   const d = duel as unknown as { reveal?: unknown; shown?: unknown } | null;
   return d && typeof d.reveal === "function" && d.shown instanceof Set ? (d as never) : null;
 }
@@ -3489,7 +3489,10 @@ function wallSpot(): { x: number; y: number; z: number; deg: number } {
   const fx = -Math.sin(r);
   const fz = -Math.cos(r);
   const ahead = Math.max(1.2, Math.min(reach, solidHit(player.pos.clone().setY(player.pos.y + 1), new THREE.Vector3(fx, 0, fz), reach) - 0.4));
-  return { x: player.pos.x + fx * ahead, y: player.pos.y, z: player.pos.z + fz * ahead, deg: yaw };
+  const x = player.pos.x + fx * ahead;
+  const z = player.pos.z + fz * ahead;
+  // (on what is under it: in the air it hung there, a gap beneath it, Milestone 954)
+  return { x, y: restingSpot(new THREE.Vector3(x, player.pos.y, z)).y, z, deg: yaw };
 }
 
 /** where a throw of this reach lands: what you look at, or the far end of it */
@@ -3546,6 +3549,7 @@ let skLeap = false;
 let leapGlideUntil = -Infinity;
 let armorUntil = -Infinity;
 let invisUntil = -Infinity;
+let invisAt = -Infinity;
 /** HEAL's areas: yours and your squad's heal you while you stand in them */
 const healZones: Array<{ at: THREE.Vector3; until: number; mesh: THREE.Object3D; rate: number }> = [];
 /** being healed this frame by a HEAL area (the view's green edges and rising "+", hud.ts drawHealing) */
@@ -3677,10 +3681,23 @@ function seesBody(at: THREE.Vector3, fig: Dummy): boolean {
   return blastSees(at.clone().setY(at.y + 0.3), bodySight(fig.group.position, fig.crouchAmount > 0.5), solidHit);
 }
 
+/** you took someone out: the chime, the word, the fall */
+function sayKill(fig: Dummy | null | undefined, now: number): void {
+  killStreak = gameTime - lastKillAt <= hudCfg.killMarker.streak ? killStreak + 1 : 0;
+  lastKillAt = gameTime;
+  audio.eliminate(Math.min(killStreak, hudCfg.killMarker.chimeMax) * hudCfg.killMarker.chimeStep);
+  hud.notice("ELIMINATED", now, 0.8);
+  announcer.say("kill", realNow());
+  stats.knocks++;
+  audio.knock();
+  if (fig) audio.bodyFall(fig.group.position);
+}
+
 /** a hack's damage on a figure, the way a bullet's reaches it: its own hit, then the match's, and its number as a shot's */
 function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
   const d = duel;
   if (!(d instanceof Duel) && !(d instanceof BotMatch)) return;
+  const wasAlive = rem.health > 0;
   const onShield = rem.shield > 0;
   const at = fig.group.position.clone().add(new THREE.Vector3(0, 1, 0));
   fig.hit(gameTime, "body", amount, 1, 1, at);
@@ -3689,10 +3706,13 @@ function hackHurt(rem: Remote, fig: Dummy, amount: number, what: string): void {
   if (d instanceof Duel) d.localHit(rem, amount, false, what, player.pos.distanceTo(fig.group.position), felt);
   else d.localHit(rem, amount);
   const broke = onShield && rem.shield <= 0 && rem.health > 0;
+  // (a mine or a SLAM that takes someone out says so as a round does: it was a plain hit marker, no chime, no word, Milestone 954)
+  const kill = wasAlive && rem.health <= 0;
   if (onShield) shieldFx(fig, at, ARMOR_COLOR[2], broke);
-  hud.addDamage(fig.overHead(hudCfg.damageNumbers.over), felt, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", false, gameTime, rem);
-  hud.hitMarker(gameTime, false, broke ? "break" : "hit", ARMOR_COLOR[2]);
-  if (broke) audio.shieldBreak();
+  hud.addDamage(fig.overHead(hudCfg.damageNumbers.over), felt, onShield ? `#${ARMOR_COLOR[2].toString(16).padStart(6, "0")}` : "#ff4a3d", kill, gameTime, rem);
+  hud.hitMarker(gameTime, false, kill ? "kill" : broke ? "break" : "hit", ARMOR_COLOR[2]);
+  if (kill) sayKill(fig, gameTime);
+  else if (broke) audio.shieldBreak();
 }
 
 /**
@@ -3785,6 +3805,15 @@ function useHack(slot: HackSlot, now: number): void {
     hud.notice(`${hackDef(held.id)?.name ?? held.id}: NOT IN THE DIVE`, now, 0.8);
     return;
   }
+  // Nor what cannot go off where you are, its cooldown spent for nothing: on a rope a LEAP or a SLAM cannot lift you, and that
+  // SLAM went off at your next landing; a climb or a dive takes GRAPPLE's pull away; and aiming ends INVISIBILITY in the same
+  // frame (Milestone 954).
+  const moves = held.id === "leap" || held.id === "slam" || held.id === "grapple";
+  const notHere = player.onZip && moves ? "NOT ON A ROPE" : held.id === "grapple" && player.dropping ? "NOT IN THE DIVE" : held.id === "grapple" && player.climbing ? "NOT WHILE CLIMBING" : held.id === "invis" && loadout.active.state.adsFrac > 0.1 ? "NOT WHILE AIMING" : null;
+  if (notHere) {
+    hud.notice(`${hackDef(held.id)?.name ?? held.id}: ${notHere}`, now, 0.8);
+    return;
+  }
   const left = hacks.left(slot, now);
   if (left > 0) {
     hud.notice(`${hackDef(held.id)?.name ?? held.id}: BACK IN ${left.toFixed(1)} S`, now, 0.6);
@@ -3792,6 +3821,8 @@ function useHack(slot: HackSlot, now: number): void {
   }
   const id = hacks.use(slot, now);
   if (!id) return;
+  // (a hack ends an emote as a key does: a LEAP went on waving at 12 m, its camera with it)
+  stopEmote();
   const eye = camera.position.clone();
   const fwd = new THREE.Vector3(0, 0, -1).applyQuaternion(camera.quaternion);
   const name = hackDef(id)?.name ?? id;
@@ -3861,7 +3892,8 @@ function useHack(slot: HackSlot, now: number): void {
       break;
     }
     case "heal": {
-      const at = player.pos.clone();
+      // (on the floor under you: in the air it stood at your height, 12 m over anyone it was for, Milestone 954)
+      const at = restingSpot(player.pos);
       const mesh = healMesh(at);
       const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
       healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
@@ -3890,6 +3922,7 @@ function useHack(slot: HackSlot, now: number): void {
     }
     case "invis": {
       invisUntil = now + H.invis.seconds;
+      invisAt = now;
       hideMe(realNow() + H.invis.seconds);
       if (!audio.hackSound("invis")) audio.whoosh();
       sendFx("sk", player.pos.clone(), new THREE.Vector3(H.invis.seconds, 0, 0), 5);
@@ -3906,7 +3939,7 @@ function useHack(slot: HackSlot, now: number): void {
       break;
     }
     case "mine": {
-      const to = aimPoint(H.mine.range);
+      const to = restingSpot(aimPoint(H.mine.range));
       // the pack's mine when it is in (paidgun.ts), sat on the ground; our lit ring otherwise
       const bought = paidProp("mine");
       if (bought) scene.add(bought);
@@ -3935,7 +3968,8 @@ function useHack(slot: HackSlot, now: number): void {
     hideMe(null);
     sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
   }
-  hud.notice(name, now, 0.6);
+  // (a REVEAL has said what it found: the name went straight over it)
+  if (id !== "reveal") hud.notice(name, now, 0.6);
 }
 
 /** your INVISIBILITY as the match's bots read it: until `until` on the page's wall clock, or over (null); a bots' arena too */
@@ -3973,11 +4007,13 @@ function stepHacks(now: number, dt: number): void {
   // a ghost sees the enemies near it, a moment at a time, and so does its squad through its marks
   if (ghost && now >= ghostSeeAt) {
     ghostSeeAt = now + 0.5;
-    kitSight()?.reveal(player.pos, null, PROFILE.life.ghostSight, 360, 0.7);
+    kitSight()?.reveal(player.pos, null, PROFILE.life.ghostSight, 360, 0.7, true);
   }
   stepGhosts(dt);
   // INVISIBILITY ends when you fire, or aim in (Hyper Scape's rule; Phase 20 A9)
-  if (now < invisUntil && (now - loadout.active.state.lastShotAt < 0.05 || loadout.active.state.adsFrac > 0.1)) {
+  // (a shot since it began, not one in the last 50 ms: under 20 fps the frame was longer than that, and it went on through
+  // four rounds, Milestone 954)
+  if (now < invisUntil && (loadout.active.state.lastShotAt >= invisAt || loadout.active.state.adsFrac > 0.1)) {
     invisUntil = -Infinity;
     hideMe(null);
     sendFx("sk", player.pos.clone(), new THREE.Vector3(0, 0, 0), 5);
@@ -6094,6 +6130,7 @@ refreshDerived();
 // Your guns come back as you had them: attachments and mag level included
 // (saving the ids alone stripped every attachment after a run).
 let savedSlots: SlotSetup[] | null = null;
+let savedHacks: Array<{ id: HackId; level: number }> | null = null;
 /** a loadout picked mid-fight: its guns, put on at the next round's spawn */
 let pendingSlots: string[] | null = null;
 for (const course of courses) {
@@ -6104,9 +6141,17 @@ for (const course of courses) {
       if (!savedSlots) savedSlots = loadout.slots.map((_, i) => loadout.setup(i));
       loadout.setWeaponId(0, "semipistol");
       loadout.setWeaponId(1, "g17");
+      // and your hacks at their first level, as a lent gun is: DASH at level 4 crossed the GAP in one, on a course with a board
+      // whose every room is passed by its own move (Milestone 954)
+      if (!savedHacks) {
+        savedHacks = (["mobility", "utility"] as const).flatMap((s) => hacks.get(s) ?? []).map((h) => ({ id: h.id, level: h.level }));
+        for (const h of savedHacks) hacks.set(h.id, 0);
+      }
     } else if (savedSlots) {
       savedSlots.forEach((su, i) => loadout.restore(i, su));
       savedSlots = null;
+      for (const h of savedHacks ?? []) hacks.set(h.id, h.level);
+      savedHacks = null;
     }
   };
   course.onNotice = (text) => hud.notice(text, gameTime, 1.2);
@@ -7792,16 +7837,8 @@ function step(): void {
       if (onShield && e.dummy) shieldFx(e.dummy, r.point, ARMOR_COLOR[2], broke);
       hud.addDamage(e.dummy ? e.dummy.overHead(hudCfg.damageNumbers.over) : r.point, felt, r.headshot ? "#ffd23c" : color, r.headshot || kill, now, remote);
       hud.hitMarker(now, r.headshot, kill ? "kill" : broke ? "break" : "hit", ARMOR_COLOR[2]);
-      if (kill) {
-        killStreak = gameTime - lastKillAt <= hudCfg.killMarker.streak ? killStreak + 1 : 0;
-        lastKillAt = gameTime;
-        audio.eliminate(Math.min(killStreak, hudCfg.killMarker.chimeMax) * hudCfg.killMarker.chimeStep);
-        hud.notice("ELIMINATED", now, 0.8);
-        announcer.say("kill", realNow());
-        stats.knocks++;
-        audio.knock();
-        if (e.dummy) audio.bodyFall(e.dummy.group.position);
-      } else if (broke) audio.shieldBreak();
+      if (kill) sayKill(e.dummy, now);
+      else if (broke) audio.shieldBreak();
       else audio.hitTier(r.headshot ? "head" : onShield ? "blue" : "health");
       return;
     }

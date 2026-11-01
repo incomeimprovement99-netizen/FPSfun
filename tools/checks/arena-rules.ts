@@ -196,6 +196,14 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   check("crouching counts against the bots of a 1v1 and the Gulag", /hitsBody\(s\.from, s\.dir, feet, local\.crouch \? CROUCH_TOP : BODY_TOP\)/.test(bots) && /hitsBody\(s\.from, s\.dir, feet, local\.crouch \? CROUCH_TOP : BODY_TOP\)/.test(br));
   check("bots do not fight a dropped friend's held figure, or take the zone by it", /unseen\(r\.id\) \|\| this\.held\.has\(r\.id\)/.test(br) && /!r\.alive \|\| this\.held\.has\(r\.id\)\) continue;\s+const last = r\.samples\[r\.samples\.length - 1\];\s+if \(last && inside/.test(br));
   check("nobody in the sky is a target", /if \(last && !inSky\(last\.stance, last\.y\)\) humans\.push/.test(br) && /!inSky\(local\.stance, local\.y\)\) humans\.push/.test(br));
+  const page = readFileSync(new URL("../../src/main.ts", import.meta.url), "utf8");
+  // (Milestone 954) what a press does where it cannot go off, and what comes of it
+  check("a move hack is refused on a rope, GRAPPLE in a climb or a dive, INVISIBILITY aiming, no cooldown spent", /player\.onZip && moves \? "NOT ON A ROPE"/.test(page) && /"NOT WHILE CLIMBING"/.test(page) && /"NOT WHILE AIMING"/.test(page));
+  check("WALL, HEAL and MINE go on what is under them", /const at = restingSpot\(player\.pos\)/.test(page) && /restingSpot\(aimPoint\(H\.mine\.range\)\)/.test(page) && /y: restingSpot\(new THREE\.Vector3\(x, player\.pos\.y, z\)\)\.y/.test(page));
+  check("INVISIBILITY ends on a shot since it began, at any frame rate", /lastShotAt >= invisAt/.test(page));
+  check("a hack's kill says so as a round's does, and a REVEAL's count stands", /if \(kill\) sayKill\(fig, gameTime\)/.test(page) && /if \(id !== "reveal"\) hud\.notice\(name/.test(page));
+  check("THE RUN starts your hacks at their first level", /for \(const h of savedHacks\) hacks\.set\(h\.id, 0\)/.test(page));
+  check("a REVEAL against bots has an end", /this\.shownKit\.step\(now\)/.test(bots));
   check("the Gulag's bot does not see through INVISIBILITY", /const sees = this\.alive && bot\.alive && !hidden && bot\.sees\(feet\)/.test(br));
 }
 

@@ -14111,6 +14111,23 @@ speed that was no number are ignored.
   code); netfigures.ts: 2,000 forged parts make no figure (2,000 on the old code), every real message's frame passes, four forged
   frames are dropped; the reviewer's real-page probe no longer runs its script.
 
+## Milestone 954 — Every hack does what it says
+
+From a review of every hack, on real pages. REVEAL against bots never ended: one press a wall-hack for the match; it runs its 8 s. On a
+rope SLAM, LEAP and GRAPPLE spent their cooldowns and did nothing, and that SLAM went off at your next landing; GRAPPLE did the same
+in a climb and a dive, and INVISIBILITY pressed while aiming ended in its first frame. Each is refused with a word, nothing spent.
+WALL, HEAL and MINE used in the air stood at your height, a wall hovering and a heal ring 12 m over anyone it was for; they go on what
+is under them. A ghost's look told any enemy within 25 m REVEALED, with its sweep, twice a second, giving the ghost away; only a real
+REVEAL does. Under 20 fps INVISIBILITY ran on through four rounds, its test a 50 ms window shorter than the frame; any shot since it
+began ends it. REVEAL's count was written over by its name at once. A SLAM or MINE that took someone out gave a plain hit marker;
+it gives the chime and ELIMINATED a round does. A hack ends an emote. And on THE RUN your hacks ride at their first level, as its lent
+guns do: DASH at level 4 crossed the GAP in one, on a course with a board (main.ts, bots.ts, duel.ts).
+
+- **Checked:** tsc, verify, rules; netfigures.ts: a ghost's look tells nobody, a real REVEAL does (real Duels over a wire);
+  arena-rules.ts reads the rest from the source; e2e range, bots, gulag.
+- **Left, the owner's:** whether hacks belong on THE RUN at all. **Left:** the tutorial's last card says to try hacks on the range's
+  dummies, and SLAM, MINE and HEAL do nothing there.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

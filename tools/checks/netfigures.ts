@@ -216,6 +216,31 @@ console.log("\nA swap that lands after a death (src/game/duel.ts)");
   check("and back up it has the gun, seen and hittable", !!up && up.group.parent === scene && reach.includes(up));
 }
 
+console.log("\nA ghost's look (src/game/duel.ts)");
+{
+  // (Milestone 954) only a real REVEAL tells the one it found
+  const wire = new Wire();
+  const [h, gl] = wire.pair(0, 1);
+  const host = new Duel(scene, projectiles, { players: 2, myId: 0, link: h, guestId: 1, mode: "arena" });
+  const guest = new Duel(scene, projectiles, { players: 2, myId: 1, link: gl, mode: "arena" });
+  let told = 0;
+  guest.onRevealed = () => void told++;
+  for (const d of [host, guest]) ins(d).phase = "fight";
+  for (let i = 0; i < 20; i++) {
+    tick(1000 / 30);
+    host.update(st(0, 0));
+    guest.update(st(5, 0));
+    wire.drain();
+  }
+  const at = new (await import("three")).Vector3();
+  host.reveal(at, null, 25, 360, 0.7, true);
+  wire.drain();
+  const quiet = told;
+  host.reveal(at, null, 25, 360, 0.7);
+  wire.drain();
+  check("a ghost's look does not tell them REVEALED; a real one does", quiet === 0 && told === 1, JSON.stringify({ quiet, told }));
+}
+
 console.log("\nWhat a peer may say (src/net/statesync.ts, src/net/framecheck.ts, src/main.ts)");
 {
   const wire = new Wire();

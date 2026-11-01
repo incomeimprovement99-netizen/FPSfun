@@ -1863,6 +1863,8 @@ export class BotMatch implements MatchLike {
     this.lastFeet.copy(feet);
     this.lastLow = local.crouch;
     const center = this.center;
+    // (a REVEAL's time runs here as in a Duel: nothing ended it, one press a wall-hack for the rest of the match, Milestone 954)
+    this.shownKit.step(now);
     // the first countdown waits for the mode's card to end, as a match's start does (duel.ts LocalState.held)
     if (local.held && this.phase === "countdown" && this.round === 1) this.phaseEndsAt = Math.max(this.phaseEndsAt, now + COUNTDOWN);
 

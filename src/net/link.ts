@@ -156,7 +156,7 @@ export type NetMsg =
   /** `to` comes back, on `at` (`bx`: held at their echo) */
   | { t: "respawn"; from?: number; to: number; at: [number, number, number]; bx?: number }
   /** a ping for the squad: what (`k`), where, a label, a figure's id when it is on one */
-  | { t: "mark"; from?: number; k: string; at: [number, number, number]; label?: string; target?: number }
+  | { t: "mark"; from?: number; k: string; at: [number, number, number]; label?: string; target?: number; q?: number }
   /** a care package is on its way down to `at`, landing in `lands` seconds */
   | { t: "pod"; from?: number; at: [number, number, number]; lands: number }
   /**

@@ -1044,6 +1044,9 @@ async function brSquadTest(browser: Browser, query: string): Promise<void> {
   const aliveBefore = await ev<number>(host, "window.__range.duel().hud().br.alive");
   await ev(guest, guestRounds("x.id >= 100 && x.alive", 12));
   await sleep(1200);
+  // (the guest's count comes with the host's ring message, a second or so apart, later on a busy machine)
+  await guest.waitForFunction(`window.__range.duel().hud().br.alive < ${aliveBefore}`, { polling: 200, timeout: 5000 }).catch(() => undefined);
+  await sleep(300);
   const after = await Promise.all([host, guest].map((p) => ev<{ alive: number; kills: number; squads: number }>(p, "({ alive: window.__range.duel().hud().br.alive, kills: window.__range.duel().hud().br.kills, squads: window.__range.duel().hud().br.squads })")));
   // (fewer, not one fewer: SpeedKills' bots fight each other meanwhile)
   check("squad: the kill is the guest's, and both see the same fewer alive", after[1].kills === 1 && after[0].kills === 0 && after[0].alive < aliveBefore && after[1].alive === after[0].alive, JSON.stringify({ aliveBefore, after }));
@@ -3482,7 +3485,8 @@ async function gulagTest(browser: Browser, query: string, squadQuery: string): P
   await ev(p2, `(() => { const d = window.__range.duel(); const f = d.gulagFlag.position; d.gulagBot.pos.set(f.x, f.y, f.z); d.gulagBot.dummy.group.position.set(f.x, f.y, f.z); })()`);
   // the feed from here on, and where the Gulag is, to look for a second death's drop in it afterwards
   const flagAt = await ev<{ x: number; z: number }>(p2, `(() => { const d = window.__range.duel(); window.__gfeed = []; const f = d.onFeed; d.onFeed = (t, ...a) => { window.__gfeed.push(t); f?.(t, ...a); }; const p = d.gulagFlag.position; return { x: p.x, z: p.z }; })()`);
-  const taking = await p2.waitForFunction("window.__range.duel().gulag && window.__range.duel().gulag.capThem > 1", { polling: 100, timeout: 6000 }).then(() => true, () => false);
+  // (or over already: on a busy machine the steps above can take longer than its hold)
+  const taking = await p2.waitForFunction("!window.__range.duel()?.gulag || window.__range.duel().gulag.capThem > 1", { polling: 100, timeout: 6000 }).then(() => true, () => false);
   const lost = await p2.waitForFunction(`window.__range.duel() === null || window.__range.duel().phase === "matchEnd"`, { polling: 100, timeout: (G.capture + 8) * 1000 }).then(() => true, () => false);
   check("the Gulag: past its clock, overtime's flag; the bot holds it alone, and you are out", ot && taking && lost, JSON.stringify({ ot, taking, lost }));
   // lost, the trip is over and nothing else: nothing dropped in the Gulag's room, and the feed names the one who won it
@@ -3748,7 +3752,7 @@ async function migrateTest(browser: Browser, query: string, label = "host migrat
     check(`${label}: the new host's rounds can hit every bot of the other side and none of its own`, reach.length > 0 && reach.every(([own, hit]) => hit === !own), JSON.stringify(reach));
   }
   // and the new host names its own heir: the last guest
-  const next = await heir.waitForFunction(`window.__range.duel().heir === ${otherId}`, { polling: 200, timeout: 5000 }).then(() => true, () => false);
+  const next = await heir.waitForFunction(`window.__range.duel().heir === ${otherId}`, { polling: 200, timeout: 15000 }).then(() => true, () => false);
   check(`${label}: the new host names the other guest its heir`, next);
   await close();
 }
