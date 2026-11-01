@@ -379,6 +379,8 @@ export class Duel implements MatchLike {
   readonly hitCheck = new HitCheck();
   /** where this player last was, for the host's hit check */
   private selfAt = new THREE.Vector3();
+  /** the host started with whoever was in (startNow) */
+  private startedShort = false;
   /** this page is taking the match over from a host that went: its bots are not back yet */
   protected migrating = false;
   /** where this player has been lately, for the host's check of a hit (wentLately) */
@@ -715,7 +717,8 @@ export class Duel implements MatchLike {
     }
     if (!this.holdsSeats() || !this.onHostLost) {
       this.left = true;
-      this.finish("The host left the match.");
+      // (lost, and not said to have gone: this page's own connection reads the same, with the host still there, Milestone 964)
+      this.finish("Lost the connection to the host.");
       return;
     }
     this.hostLink = null;
@@ -877,6 +880,7 @@ export class Duel implements MatchLike {
   startNow(): boolean {
     if (this.role !== "host" || this.phase !== "waiting" || this.mode === "duel" || this.links.size < 1 || this.links.size >= this.players - 1) return false;
     this.players = this.links.size + 1;
+    this.startedShort = true;
     this.onStartShort();
     this.onRoster?.(this.links.size, this.players);
     return true;
@@ -1512,6 +1516,13 @@ export class Duel implements MatchLike {
     // turned away as "full"
     if (this.phase === "waiting") {
       this.onSlotFree?.(id);
+      // Started with whoever was in, the code closed: nobody can take a place, so it goes. A friend leaving then left a match
+      // waiting for them for good, its code on show (Milestone 964).
+      if (this.startedShort) {
+        if (this.links.size === 0) return this.finish("Everyone left.");
+        this.players = this.links.size + 1;
+        this.onStartShort();
+      }
       this.onRoster?.(this.links.size, this.players);
     }
   }

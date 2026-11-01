@@ -4338,7 +4338,8 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       if (!audio.hackSound("armor", a)) audio.whoosh(a);
       break;
     case 5: {
-      const secs = b ? b.x : 0;
+      // (no longer than the hack lasts, whatever the packet says: a player or a bot was hidden from for as long as it asked)
+      const secs = b ? Math.min(b.x, H.invis.seconds) : 0;
       if (secs > 0) unseenUntil.set(from, realNow() + secs);
       else unseenUntil.delete(from);
       // going unseen is heard where they are (Milestone 710): it was the one hack nobody heard

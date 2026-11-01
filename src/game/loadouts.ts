@@ -76,6 +76,11 @@ export class Loadouts {
 
   constructor() {
     this.store = this.load();
+    // (a second tab's change, kept: this one's next save wrote its old copy over it, Milestone 964)
+    if (typeof window !== "undefined" && typeof window.addEventListener === "function")
+      window.addEventListener("storage", (e) => {
+        if (e.key === KEY) this.store = this.load();
+      });
     if (PICK && this.store.pick !== PICK) {
       this.store.selected = { kind: "default", index: 0 };
       this.store.pick = PICK;

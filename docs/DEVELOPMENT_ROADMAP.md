@@ -14217,6 +14217,15 @@ menu, and tapping Tutorial simply did nothing; the warning is on the start scree
 
 - **Checked:** tsc, verify, rules.
 
+## Milestone 964 — Smaller things left by the reviews
+
+After Start now, a friend leaving before the round left a match waiting for them for good with its code on show, the code closed; the match
+shrinks to who is left, or ends if nobody is. A guest's own lost connection in a lobby read "The host left the match", with the host
+still there; it says it lost the connection. An INVISIBILITY message said how long it lasted and was believed; it lasts no longer than the
+hack. And a second tab's rename of a loadout was written over by the first's next save (duel.ts, main.ts, loadouts.ts).
+
+- **Checked:** tsc, verify, rules; e2e sklobby.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF
