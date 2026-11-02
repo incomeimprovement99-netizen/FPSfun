@@ -40,6 +40,7 @@ const peerjs = (): Promise<typeof import("peerjs")> =>
  * release before's (serve.mjs), and a page that still cannot get it is told to reload.
  */
 const NO_LIB = "Could not load the game's match-making part (the game was updated?): reload the page and try again.";
+const SERVER_DOWN = "The game's server is not answering: try again in a minute.";
 import { withoutUndefined } from "./wire";
 
 /** the unordered channel for the delta packets (net.json fast) */
@@ -665,7 +666,8 @@ async function peerOptions(): Promise<PeerOptions> {
         config: { iceServers: j.iceServers ?? [] },
       };
     } catch {
-      if (performance.now() >= until) return {};
+      // (said, not the public broker: nobody on this site is there, and a friend was told there was no match with that code)
+      if (performance.now() >= until) throw new Error(SERVER_DOWN);
       await new Promise((r) => setTimeout(r, 1000));
     } finally {
       clearTimeout(timer);
@@ -739,7 +741,10 @@ export function hostMatch(
     },
     cancel: () => {
       cancelled = true;
-      peer?.destroy();
+      // (a moment on, as Link.close waits: destroyed at once, the goodbye said just before it never left, and a host's
+      // Leave reached its lobby as a lost connection, Milestone 968)
+      const p = peer;
+      setTimeout(() => p?.destroy(), BROKER.byeFlush * 1000);
       localCh?.close();
     },
     release,
@@ -910,7 +915,7 @@ export function hostMatch(
       } else fail(peerError(err.type));
     });
   };
-  start(0).catch(() => fail(NO_LIB));
+  start(0).catch((e: unknown) => fail(e instanceof Error && e.message === SERVER_DOWN ? SERVER_DOWN : NO_LIB));
   return handle;
 }
 
@@ -1009,7 +1014,7 @@ export function joinMatch(
     });
     p.on("error", (err: { type?: string }) => live() && fail(peerError(err.type), !!err.type && HANDSHAKE_ERRORS.has(err.type)));
   };
-  start().catch(() => onError(NO_LIB));
+  start().catch((e: unknown) => onError(e instanceof Error && e.message === SERVER_DOWN ? SERVER_DOWN : NO_LIB));
   return () => {
     cancelled = true;
     clearTimeout(timer);

@@ -1660,6 +1660,9 @@ export class BrMatch extends Duel {
     const name = `GULAG ${BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)]}`;
     const bot = new Bot(90, this.scene, this.projectiles, DIFFICULTY[GULAG.tier as keyof typeof DIFFICULTY], theirs, GULAG_BOT_ID, g.guns[Math.random() < 0.5 ? 0 : 1], name);
     bot.remote.name = name;
+    // (its HEAL and JOLT drawn: they had no screen but the mine, so it healed and leapt with nothing to see, Milestone 968)
+    bot.onJolt = (a, b) => this.onRemoteFx?.("jolt", bot.remote.id, a, b);
+    bot.onHeal = (at) => this.onRemoteFx?.("sk", bot.remote.id, at, undefined, 3);
     this.gulagBot = bot;
     this.alive = true;
     this.health = HEALTH_MAX;
@@ -2914,7 +2917,7 @@ export class BrMatch extends Duel {
     for (const b of [...this.bots, ...room]) {
       const bot = b.bot;
       const p = bot.dummy.currentPose;
-      out.push({ id: bot.remote.id, name: bot.remote.name, x: bot.pos.x, y: bot.pos.y, z: bot.pos.z, yaw: ((bot.dummy.group.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: bot.remote.avatarWeapon, op: bot.remote.avatarOp, alive: bot.alive, soldier: bot.dummy.skin.soldier });
+      out.push({ id: bot.remote.id, name: bot.remote.name, x: bot.pos.x, y: bot.pos.y, z: bot.pos.z, yaw: ((bot.dummy.group.rotation.y - Math.PI) * 180) / Math.PI, pitch: p.pitch, stance: p.stance, speed: p.speed, weapon: bot.remote.avatarWeapon, op: bot.remote.avatarOp, alive: bot.alive, soldier: bot.dummy.skin.soldier, ads: p.ads ?? 0 });
     }
     return out;
   }

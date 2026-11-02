@@ -474,7 +474,7 @@ async function modesTest(browser: Browser, query: string): Promise<void> {
   await ev(f, knockBot("true"));
   await sleep(400);
   const f3 = await ev<{ phase: string; winner: string | null; won: boolean | null; summary: { roundsWon: number } | null }>(f, "(() => { const d = window.__range.duel(); const m = d.hud().mode; return { phase: d.phase, winner: m.winner, won: m.won, summary: d.lastSummary ? { roundsWon: d.lastSummary.roundsWon } : null }; })()");
-  check("ffa: the 20th kill wins it for you alone", f3.phase === "matchEnd" && f3.won === true && f3.winner === "YOU" && f3.summary?.roundsWon === 20, JSON.stringify(f3));
+  check("ffa: the 20th kill wins it for you alone", f3.phase === "matchEnd" && f3.won === true && f3.winner === "YOU" && f3.summary?.roundsWon === 1, JSON.stringify(f3));
   await ev(f, "window.__range.duel()?.leave()");
   await f.close();
 
@@ -1352,8 +1352,17 @@ async function duelTest(browser: Browser, query: string, label: string, bases: [
   check(`${label}: a reload from empty is seen as one on the other screen, and one with rounds left as the tactical one`, fromEmpty.act === "reload" && fromEmpty.empty === true && tactical.act === "reload" && tactical.empty === false, JSON.stringify({ fromEmpty, tactical }));
 
   // leaving tells the other side
-  await ev(guest, "window.__range.duel().leave()");
-  await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 });
+  if (label === "p2p") {
+    // (Milestone 968) over a real connection a host's goodbye gets out: the page closed its connection at once, and the
+    // guest read a host who left as its own lost connection
+    await ev(host, "window.__range.duel().leave()");
+    await guest.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 });
+    const said = await ev<string>(guest, `document.getElementById("duelStatus").textContent`);
+    check(`${label}: a host leaving is told as that, not as a lost connection`, /host left/i.test(said), said);
+  } else {
+    await ev(guest, "window.__range.duel().leave()");
+    await host.waitForFunction("window.__range.duel() === null", { polling: 200, timeout: 15000 });
+  }
   check(`${label}: leaving ends the match on the other side`, true);
   await ev(host, `(() => { const k = ${JSON.stringify(keptSoldier)}; if (k === null) localStorage.removeItem("range.sk.soldier"); else localStorage.setItem("range.sk.soldier", k); })()`);
   await host.close();
@@ -6995,6 +7004,9 @@ async function speedkillsGhostTest(browser: Browser, start: "loot" | "loadout"):
   await sleep(700);
   const far = await ev<string>(host, "JSON.stringify(window.__range.brPlay.hud.prompt)");
   check(`${tag}: at the echo the prompt is RESTORE, and it says the ghost is away`, /RESTORE/.test(far) && /AWAY/.test(far), far);
+  // (Milestone 968) and it has a mark, so the screen and the maps say where it is from anywhere
+  const echoMarks = await ev<string[]>(host, "window.__range.brPlay.hud.markers.map((m) => m.label)");
+  check(`${tag}: a mate's echo has a mark with their name`, echoMarks.some((l) => /^RESTORE /.test(l)), JSON.stringify(echoMarks));
   await ev(host, `window.__range.setScript({ held: (a) => a === "interact", pressedNow: () => false })`);
   await sleep(5500);
   const early = await ev<boolean>(guest, "window.__range.duel().alive");

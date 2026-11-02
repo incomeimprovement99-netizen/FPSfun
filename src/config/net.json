@@ -85,7 +85,9 @@
   "broker": {
     "retry": 1.5,
     "lost": 25,
-    "ask": 20
+    "ask": 20,
+    "_byeFlush": "seconds a host's connection is kept after its goodbye, so the goodbye leaves (as Link.close's own 100 ms).",
+    "byeFlush": 0.15
   },
   "_group": "The group between matches (the owner, 2026-09-29: invite once, then pull everyone into the next match, a 1v1, a battle royale or back to the range). In the range together (main.ts hangout) each friend stands beside the range's spawn by their id so a group arriving at once is not one figure inside another: `perRow` to a row, `spacing` metres apart along it, rows `rowStep` metres further back. A body is 0.81 m across (movement.json radius, 16 inches, 0.406 m), so 1.6 m leaves a body's width to walk between two.",
   "group": {

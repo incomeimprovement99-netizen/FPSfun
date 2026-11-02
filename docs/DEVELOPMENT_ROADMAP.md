@@ -14256,6 +14256,21 @@ measure from where you are looking. A mark high behind you sits at the top, a lo
 
 - **Checked:** tsc, verify, rules; hudfit.ts; e2e brsolo, modes.
 
+## Milestone 968 — What the reviews left: an echo you can find, a goodbye that arrives
+
+A mate's echo was on no map, no compass and no screen; it has a mark with the mate's name, drawn on the maps as every mark is. A followed
+enemy's mark leapt 800 m when they went to the Gulag; it stays at the door. Compass tags in the Gulag's room all pointed at the same city
+and are gone there. A battle royale's lobby showed the city's map with your arrow off it. The compass lay over the minimap in a narrow
+window or at a large HUD size. A GRAPPLE or LEAP ran on after you went down, pulling your ghost. A level 3 HEAL healed its owner at three
+times what it healed a mate in it; its rate travels, capped at the hack's best. Another player's WALLs past their cap stood on your page.
+The Gulag's bot healed and jolted with nothing to see. A hack changed in the tutorial replaced the one its room asked for. A host's Leave
+reached its guests as a lost connection, its goodbye destroyed with the connection before it left. And with the game's server silent a page
+went to the public broker, where nobody on the site is: it now says the server is not answering (brplay.ts, hud.ts, main.ts, brmatch.ts, modematch.ts, link.ts).
+
+M966's Esc on the menu also went to a start screen that a page without one does not have; it asks whether it has one.
+
+- **Checked:** tsc, verify, rules; hudfit; e2e page, duel, range, modes, sklobby, brsolo, speedkills, p2p.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

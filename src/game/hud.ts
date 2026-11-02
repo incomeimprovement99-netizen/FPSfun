@@ -3414,7 +3414,8 @@ export class Hud {
     const c = this.ctx;
     const cx = this.w / 2;
     const y = 34 * u;
-    const width = 560 * u;
+    // (clear of the minimap's edge: at a large HUD size or in a narrow window the strip lay over it, Milestone 968)
+    const width = Math.max(hudCfg.compassMin * u, Math.min(560 * u, this.w - 2 * hudCfg.compassClear * u));
     const span = 90; // degrees visible across the strip
     // Bearing: 0 = north = -z; yaw is positive to the left, so bearing = -yaw
     const bearing = ((-s.yaw % 360) + 360) % 360;

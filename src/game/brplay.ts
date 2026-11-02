@@ -412,7 +412,8 @@ export class BrPlay {
       // (Milestone 929)
       if (m.target >= 0) {
         const a = match.avatars.find((x) => match.remoteOf(x)?.id === m.target);
-        if (a && a.group.visible) m.at.copy(a.group.position);
+        // (and no further than the Gulag's door: the mark leapt 800 m to its room, off every map, Milestone 968)
+        if (a && a.group.visible && !match.inGulag(m.target)) m.at.copy(a.group.position);
       }
       out.markers.push({ k: m.k, at: m.at.clone().setY(m.at.y + (m.k === "enemy" ? 2.2 : 0.4)), label: m.label, mine: m.from === ctx.myId });
     }
@@ -422,6 +423,11 @@ export class BrPlay {
       this.publish(out.reach);
       this.out = out;
       return out;
+    }
+    // Where to go for a mate you can bring back: their echo was on no map, no compass and no screen, with their 15 s of
+    // standing on it known only to who saw them fall (Milestone 968).
+    if (!match.inGulag(ctx.myId)) {
+      for (const d of this.echoesOpen(match)) out.markers.push({ k: "go", at: d.pos.clone().setY(d.pos.y + 0.4), label: `RESTORE ${d.item.ownerName ?? "A SQUAD MATE"}`, mine: false });
     }
     const p = player.pos;
     // a jump pad's carry over the edge, once you are above it (and none if you came down first)
@@ -675,17 +681,26 @@ export class BrPlay {
     // back to nothing, Milestone 956)
     if (f.nearest(eye, fwd) && this.hold?.kind !== "echo") return null;
     for (const d of f.drops.values()) {
-      if (d.item.kind !== "echo" || d.item.owner === undefined || d.item.owner === match.id || !match.isAlly(d.item.owner)) continue;
+      if (!this.echoOpen(match, d)) continue;
       // (on what is under it now: a sector gone from under an echo left it in the air, out of reach, its ghost stranded)
       if (Math.hypot(d.pos.x - p.x, d.pos.z - p.z) > ECHO.reach || (Math.abs(d.pos.y - p.y) > 2.5 && Math.abs(restingSpot(d.pos).y - p.y) > 2.5)) continue;
-      // (a mate in the Gulag can be brought out; the wait for it was all the offer lasted)
-      if (match.memberAlive(d.item.owner) !== false && !match.inGulag(d.item.owner)) continue;
-      // (out for good: no restore to offer, and the line stood in the way of looting round it)
-      if (!Number.isFinite(match.boxLockout(d.item.owner))) continue;
       if (this.echoDone && this.echoDone.owner === d.item.owner && now - this.echoDone.at < 3) continue;
       return d;
     }
     return null;
+  }
+
+  /** a squad mate's echo that a restore can use now */
+  private echoOpen(match: BrMatch, d: LootDrop): boolean {
+    if (d.item.kind !== "echo" || d.item.owner === undefined || d.item.owner === match.id || !match.isAlly(d.item.owner)) return false;
+    // (a mate in the Gulag can be brought out; the wait for it was all the offer lasted)
+    if (match.memberAlive(d.item.owner) !== false && !match.inGulag(d.item.owner)) return false;
+    // (out for good: no restore to offer, and the line stood in the way of looting round it)
+    return Number.isFinite(match.boxLockout(d.item.owner));
+  }
+
+  private echoesOpen(match: BrMatch): LootDrop[] {
+    return [...(match.lootField?.drops.values() ?? [])].filter((d) => this.echoOpen(match, d));
   }
 
   get hud(): BrPlayHud {

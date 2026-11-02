@@ -209,7 +209,7 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   check("the watch camera holds who you chose", /x\.figure === watchFig/.test(page) && /!killcam\.active && input\.pressedNow\("fire"\)/.test(page));
   check("a Gulag loss has a replay", /const room = this\.gulagBot \? \[\{ bot: this\.gulagBot \}\] : \[\]/.test(br));
   check("a restore holds through the guns round the echo, and a mate in the Gulag can be brought out", /this\.hold\?\.kind !== "echo"/.test(play) && /!match\.inGulag\(d\.item\.owner\)/.test(play));
-  check("an out-for-good mate's echo stands in nobody's way, and only a ghost is drawn as one", /!Number\.isFinite\(match\.boxLockout\(d\.item\.owner\)\)/.test(play) && /r\.life !== LIFE_WIRE\.ghost/.test(page));
+  check("an out-for-good mate's echo stands in nobody's way, and only a ghost is drawn as one", /return Number\.isFinite\(match\.boxLockout\(d\.item\.owner\)\)/.test(play) && /r\.life !== LIFE_WIRE\.ghost/.test(page));
   check("a restore's beam lasts as long as the hold", /this\.deps\.beam\?\.\(at, need \/ rate\)/.test(play));
   check("the city is whole as a match ends, and a bot just down stays down for an heir", /announcer\.clear\(\);\s+\/\/[^\n]*\n\s+\/\/[^\n]*\n\s+cityDecay\(null, gameTime\)/.test(page) && /!row\.al \|\| r\?\.alive === false/.test(br));
   check("the Gulag's bot does not see through INVISIBILITY", /const sees = this\.alive && bot\.alive && !hidden && bot\.sees\(feet\)/.test(br));

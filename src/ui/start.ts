@@ -116,7 +116,7 @@ export class StartScreen {
       return true;
     }
     // (More, on a page with nothing to go back to: Back. It tried to take the mouse into the range, Milestone 966)
-    if (this.view === "menu" && !this.inMatch && !this.o.canResume()) {
+    if (this.enabled && this.view === "menu" && !this.inMatch && !this.o.canResume()) {
       this.wantMenu = false;
       this.show("start");
       return true;

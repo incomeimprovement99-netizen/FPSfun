@@ -215,6 +215,26 @@ console.log("\nThe maps and marks (src/game/hud.ts, src/main.ts, src/game/brmatc
   check("a menu on the way in holds the ship only in a match of your own", /shipHeld: show !== null && show\.br && \(input\.playing/.test(m));
   check("a chasing mine is told to the others", /sendFx\("sk", m\.at\.clone\(\), undefined, 12\)/.test(m) && /case 12:/.test(m));
   check("the slow tip waits for the loading screen", /overlay\.classList\.contains\("hidden"\) && show === null/.test(m));
+  // (Milestone 968) the compass keeps off the minimap (its right edge 256 at 1080p), at a size the window has room for
+  const compassLeft = (W: number): number => {
+    const narrow = make(W, 1080) as unknown as { drawCompass(s: unknown, u: number): void };
+    ops.length = 0;
+    tag = "compass";
+    narrow.drawCompass({ yaw: 0, px: 0, pz: 0 }, 1);
+    return Math.min(...ops.filter((o) => o.tag === "compass" && o.w).map((o) => o.x ?? Infinity));
+  };
+  check("in a narrow window the compass stays off the minimap, and a wide one keeps its size", compassLeft(1000) >= 256 && compassLeft(1920) === 680, `left ${compassLeft(1000)} at 1000 wide, ${compassLeft(1920)} at 1920`);
+  const bp = read("game/brplay.ts");
+  const link = read("net/link.ts");
+  check("a followed enemy's mark stays at the Gulag's door", /a\.group\.visible && !match\.inGulag\(m\.target\)/.test(bp));
+  check("no squad tags on the compass from the Gulag's room", /\(here \|\| row\.life === "ghost"\) && !gulagRoom\(\)/.test(m));
+  check("a battle royale's lobby is not the city's map", /duel instanceof BrMatch && duel\.phase !== "waiting" && !\(duel\.gulag/.test(m));
+  check("down, a GRAPPLE and a LEAP stop with a SLAM", /!duel\.alive\) \{\s+skSlam = null;\s+skPull = null;\s+skLeap = false;/.test(m));
+  check("a HEAL's rate travels, to the hack's best at most", /new THREE\.Vector3\(healRate, 0, 0\), 3\)/.test(m) && /Math\.max\(0, Math\.min\(b\.x, Math\.max\(H\.heal\.perSecond, \.\.\.healRates\)\)\)/.test(m));
+  check("another's WALL stops at their cap", /while \(walls\.length >= H\.wall\.max\)/.test(m));
+  check("a hack changed in the tutorial waits for its end", /if \(!duel && !tutorial\.active\) resetHacks\(\)/.test(m));
+  check("the Gulag's bot shows its HEAL and JOLT", /bot\.onHeal = \(at\) => this\.onRemoteFx\?\.\("sk", bot\.remote\.id, at, undefined, 3\);\s+this\.gulagBot = bot/.test(br));
+  check("no answer from the game's server is said, not the public broker", /performance\.now\(\) >= until\) throw new Error\(SERVER_DOWN\)/.test(link));
 }
 
 console.log(fails === 0 ? "\nHUD FIT PASS" : `\nHUD FIT FAIL (${fails})`);

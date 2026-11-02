@@ -6,7 +6,6 @@
     "cooldown": 12,
     "distance": 26,
     "seconds": 0.14,
-    "exitSpeed": 9,
     "cooldowns": [
       12,
       11,

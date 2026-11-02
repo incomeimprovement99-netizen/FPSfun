@@ -3332,7 +3332,8 @@ function squadNow(d: BrMatch, now: number): HudState["squad"] {
       fig.setMateOutline(parseInt(row.color.slice(1), 16), Math.max(M.outline.min, Math.min(M.outline.max, M.outline.px * perPx)));
       seen.add(fig);
     }
-    if (here || row.life === "ghost") tags.push({ id: row.id, world: f.at.clone().setY(f.at.y + M.tag.lift), slot: row.slot, color: row.color, name: row.name, life: row.life, health: row.health, shield: row.shield, shieldMax: row.shieldMax, dist: row.dist ?? 0 });
+    // (not from the Gulag's room, 800 m off: every tag sat at the strip's end, pointing at the same city, Milestone 968)
+    if ((here || row.life === "ghost") && !gulagRoom()) tags.push({ id: row.id, world: f.at.clone().setY(f.at.y + M.tag.lift), slot: row.slot, color: row.color, name: row.name, life: row.life, health: row.health, shield: row.shield, shieldMax: row.shieldMax, dist: row.dist ?? 0 });
   }
   for (const fig of ringed) if (!seen.has(fig)) fig.setMateOutline(null);
   ringed.clear();
@@ -3588,6 +3589,8 @@ let lastMatchPhase: string | null = null;
 const mines: Array<{ at: THREE.Vector3; armAt: number; until: number; mesh: THREE.Object3D; mine: boolean; damage?: number; chaseFrom?: number | null; owner?: number; saidAt?: number }> = [];
 /** your WALL hack's panels standing, oldest first (hacks.json wall.max) */
 const myWalls: PutWall[] = [];
+/** the others' WALLs, by whose */
+const wallsOf = new Map<number, PutWall[]>();
 /** when a ghost next looks round it */
 let ghostSeeAt = 0;
 /** the squad's ghosts, drawn where they are: each dead squad mate's soldier as light (ghostfigure.ts) */
@@ -3648,6 +3651,8 @@ function healKit(ring: THREE.Object3D): void {
 }
 
 /** a HEAL area on the ground at `at` (healarea.ts), anyone's: they all look the same */
+/** HEAL's rate at each fusion level */
+const healRates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds ?? [];
 function healMesh(at: THREE.Vector3): THREE.Group {
   const g = healArea(H.heal.radius, (H as unknown as { healArea: Parameters<typeof healArea>[1] }).healArea);
   g.position.copy(at);
@@ -3932,11 +3937,12 @@ function useHack(slot: HackSlot, now: number): void {
       // (on the floor under you: in the air it stood at your height, 12 m over anyone it was for, Milestone 954)
       const at = restingSpot(player.pos);
       const mesh = healMesh(at);
-      const rates = (H.heal as unknown as { perSeconds?: number[] }).perSeconds;
-      healZones.push({ at, until: now + H.heal.seconds, mesh, rate: rates?.[held.level] ?? H.heal.perSecond });
+      const healRate = healRates[held.level] ?? H.heal.perSecond;
+      healZones.push({ at, until: now + H.heal.seconds, mesh, rate: healRate });
       audio.healDone();
       audio.hackSound("heal");
-      sendFx("sk", at, undefined, 3);
+      // (with its rate: a level 3 HEAL healed its owner at three times what it healed a mate standing in it, Milestone 968)
+      sendFx("sk", at, new THREE.Vector3(healRate, 0, 0), 3);
       break;
     }
     case "armor": {
@@ -4075,7 +4081,12 @@ function stepHacks(now: number, dt: number): void {
   if (player.gliding && now > leapGlideUntil) player.gliding = false;
   // SLAM: up, a hang at the top, then down hard; on landing, whoever is under it
   // a SLAM ends when you go down: it went on, and a ghost's landing hurt whoever was in reach (Milestone 890)
-  if (skSlam && duel instanceof Duel && !duel.alive) skSlam = null;
+  // (all of them: a GRAPPLE or a LEAP ran on after you went down, and pulled your ghost across the map, Milestone 968)
+  if (duel instanceof Duel && !duel.alive) {
+    skSlam = null;
+    skPull = null;
+    skLeap = false;
+  }
   if (skSlam) {
     if (skSlam.phase === "up" && player.vel.y <= 0) skSlam = { phase: "hang", at: now, level: skSlam.level };
     else if (skSlam.phase === "hang") {
@@ -4208,7 +4219,8 @@ function stepUnseen(): void {
     sel.addEventListener("change", () => {
       const now = savedPicks();
       savePicks({ ...now, [slot]: sel.value as HackId });
-      if (!duel) resetHacks();
+      // (not over the tutorial's: the room asking for its hack could no longer be passed; its end sets your picks, onReset)
+      if (!duel && !tutorial.active) resetHacks();
     });
   }
 }
@@ -4343,8 +4355,8 @@ function remoteHack(from: number, n: number, a: THREE.Vector3 | undefined, b: TH
       // anyone's HEAL heals you too if you stand in it, an enemy's as well (the owner: "we should be able to heal in it
       // anyways"), and it looks the same as yours
       const mesh = healMesh(a);
-      // (at the base rate: its fusion level does not travel)
-      healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: H.heal.perSecond });
+      // (its own rate, but none past the hack's best: the packet is the sender's word, and a bot sends none)
+      healZones.push({ at: a.clone(), until: gameTime + H.heal.seconds, mesh, rate: b ? Math.max(0, Math.min(b.x, Math.max(H.heal.perSecond, ...healRates))) : H.heal.perSecond });
       audio.hackSound("heal", a);
       break;
     }
@@ -5139,7 +5151,11 @@ function remoteFx(d: MatchLike, k: string, from: number, a?: THREE.Vector3, b?: 
   }
   // someone else's WALL: the same wall here
   if (k === "wall" && a && b) {
-    putWall(scene, a.x, a.y, a.z, b.x, gameTime, H.wall.seconds);
+    // (to their cap: past it their oldest went on their page and stood on everyone else's, in the way, Milestone 968)
+    const walls = (wallsOf.get(from) ?? []).filter((w) => w.until > gameTime);
+    while (walls.length >= H.wall.max) walls.shift()!.until = gameTime;
+    walls.push(putWall(scene, a.x, a.y, a.z, b.x, gameTime, H.wall.seconds));
+    wallsOf.set(from, walls);
     // WALL's own sound where it goes up, as yours is (Milestone 710); a clatter was all it had
     if (!audio.hackSound("wall", a)) audio.clatter(a);
     return;
@@ -8386,7 +8402,8 @@ function step(): void {
     duel: duelHud,
     // the battle royale's map, except in the Gulag's room, where the minimap shows the room
     // (a mode's arena its own map: over the whole world NEON YARD was 27 x 36 px, the arrow as big as it, Milestone 967)
-    mapRegion: duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : ((cityMap() ?? gulagRoom())?.bounds ?? undefined),
+    // (a lobby's wait is in the range: the city's map put your arrow off its edge, Milestone 968)
+    mapRegion: duel instanceof BrMatch && duel.phase !== "waiting" && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : ((cityMap() ?? gulagRoom())?.bounds ?? undefined),
     // the drop shows the map by itself for its first moments, then it steps
     // aside so you can see the ground you are steering onto; M opens it any
     // time. Only while you are still in the air: a guest who lands before the

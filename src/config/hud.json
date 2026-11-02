@@ -2,6 +2,10 @@
   "_mapRebuild": "mapRebuild: seconds at the least between redrawing the map's canvas for boxes coming and going (hud.ts ensureMap); markAbove: metres over your eye past which a mark behind you sits at the top of the screen, not the bottom.",
   "mapRebuild": 2,
   "markAbove": 8,
+  "_compassClear": "px at 1080p from the screen's middle that the compass stays out of the minimap by: the map's right edge (256) and a gap (hud.ts drawCompass).",
+  "compassClear": 266,
+  "_compassMin": "the narrowest the compass goes, px at 1080p: under this it is unreadable, and overlapping is the better of the two.",
+  "compassMin": 240,
   "_tracers": "Tracers (projectile.ts). Ours, after Apex and Warzone: a streak along the round's flight, a frame's travel long up to maxLen metres, width metres across and never thinner than minPx on screen; drawn from the gun's muzzle and joined to the real path (which leaves the eye) over the first blend metres. ownOpacity: how bright your own rounds' streaks are (additive, 0 to 1): at 0.9, as everyone else's are, a USSO spray at 18 rounds a second was a sheet of light over the target (the owner, 2026-09-28: \"the tracers ... are a bit obnoxious ... we should make the tracers much less visible\"). Others' rounds keep 0.9, so fire coming at you still reads; a signature gun's own tracer (gunfeel.json tracer, BOOG's) keeps its own. head: a soft round glow at the head of everyone else's rounds (not your own), size metres across up close and never under minPx pixels, at opacity: seen end on a streak is only its width, so a round fired at you had been a point 1.5 pixels across (the owner, 2026-10-18, asking how an enemy reads from your view against Apex, Hyper Scape and EMPULSE). ally: a teammate's rounds and their heads in this colour, the squad's own cyan, where the enemy's are red (2026-10-21, the enemy view's gaps against Apex and Hyper Scape: a squad mate's spray past you read as fire at you).",
   "tracers": {
     "maxLen": 6,
