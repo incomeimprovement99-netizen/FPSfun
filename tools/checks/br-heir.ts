@@ -117,10 +117,32 @@ console.log("A battle royale's care packages across a change of host (src/game/b
   gone(host);
   run(ls.slice(1), 3, wire);
   const landedFirst = pod.landed && heir.role === "guest";
+  // (a death's gun beside it, as at any contested package: it read as the package's own, Milestone 1006)
+  heir.lootField.add({ kind: "weapon", id: "r97", n: 1, rarity: "common", fusion: 0 }, pod.at.clone().add(new THREE.Vector3(1, 0, 0)), heir.lootField.keyNext);
   heir.takeOver(snap);
   run(ls.slice(1), 2, wire);
-  const near = [...heir.lootField.drops.values()].filter((d: Any) => d.key >= pod.keyAt && Math.hypot(d.pos.x - pod.at.x, d.pos.z - pod.at.z) < 4);
-  check("a package down between the host going and the heir taking over is laid by the heir (it lay empty all match)", landedFirst && near.length === 3, `${near.length} of 3 items on the floor`);
+  const near = [...heir.lootField.drops.values()].filter((d: Any) => d.key >= pod.keyAt && d.item.id !== "r97" && Math.hypot(d.pos.x - pod.at.x, d.pos.z - pod.at.z) < 4);
+  check("a package down between the host going and the heir taking over is laid by the heir, a death's gun beside it or not (it lay empty all match)", landedFirst && near.length === 3, `${near.length} of 3 items on the floor`);
+}
+{
+  // (Milestone 1006) the host laid it, everything was taken, and the host went within the second: not laid a second time
+  const { host, heir, wire, ls } = start();
+  host.ring.phase = 1;
+  host.ring.state = "closing";
+  host.ring.timeLeft = 20;
+  host.ringSendNext = 0;
+  run(ls, 0.3, wire);
+  const pod = heir.pods[0];
+  run(ls, pod.landsAt - clock + 0.2, wire);
+  const heard = pod.keys.length;
+  for (const k of pod.keys) heir.lootField.remove(k);
+  const snap = heir.heirSnap;
+  gone(host);
+  run(ls.slice(1), 1, wire);
+  heir.takeOver(snap);
+  run(ls.slice(1), 1, wire);
+  const again = [...heir.lootField.drops.values()].filter((d: Any) => d.key >= pod.keyAt && Math.hypot(d.pos.x - pod.at.x, d.pos.z - pod.at.z) < 4).length;
+  check("a package the old host laid, all taken, is not laid again by the heir", heard === 3 && again === 0, `${heard} heard laid, ${again} laid again`);
 }
 {
   const { host, heir, wire, ls } = start();

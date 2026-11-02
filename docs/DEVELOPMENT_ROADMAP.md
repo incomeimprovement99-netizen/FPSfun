@@ -14465,6 +14465,20 @@ held as the match ends stays held for its time, and the guest gets its result as
 
 - **Checked:** tsc, verify, rules; br-heir (two new checks, each failing with its fault put back); e2e migrate, p2p, brsolo.
 
+## Milestone 1006 — What Milestones 999 to 1004 got wrong, from a review of them
+
+A fresh review of the day's fixes, run against the code. M1000 made a bot's change of target a new sighting, and a match's bots are given the nearest enemy
+afresh each frame: two enemies side by side, the nearest flickering between them, restarted its reaction and its wide aim at every change, and it never fired
+(0 rounds in 3 s, where it fired 16 to 25 before); a strafing pair cost it a tenth to a fifth of its rounds. A target it saw within half a second is no new
+sighting now (bots.json glance, the old literal half second with it). M1001's controller press that let go of a key chip reached the menu all the same, which
+reads the buttons by index: B went back to the start screen, a bumper turned the tab. A swallowed press is the menu's too now. M1001 also named an AZERTY
+keyboard's digits by what they print unshifted, "&" for 1 and "É" for 2; the digits keep their digits. And M1003's heir counted any item near a package as
+its own: a death's gun beside a contested one left it empty, and one the old host laid and everyone took was laid twice. The host marks a package's items as
+it lays them, every page keeps their keys on the package, and the heir lays one only if it heard none (bots.ts, bots.json, gamepad.ts, binds.ts, brmatch.ts,
+link.ts).
+
+- **Checked:** tsc, verify, rules; arena-rules, controls and br-heir (six new checks, each failing with its fault put back); e2e bots, gulag, migrate, brsolo, pad.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

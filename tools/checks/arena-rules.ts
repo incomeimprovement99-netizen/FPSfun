@@ -220,6 +220,18 @@ check("a beginner is no faster than Easy", tierSpeed("beginner") <= tierSpeed("e
   const held = firstShot(watch(false), () => ({ target: a, targetId: 0, canShoot: true }));
   check("a bot's new target waits out its reaction (it was shot at once, the last one's aim settled)", swap >= tier.reaction - 1e-6 && swap < 1, `first round ${(swap * 1000).toFixed(0)} ms after the swap, reaction ${(tier.reaction * 1000).toFixed(0)} ms`);
   check("and a fight it could not shoot in starts its reaction when it can (a Gulag's countdown spent it)", held >= tier.reaction - 1e-6 && held < 1, `first round ${(held * 1000).toFixed(0)} ms after it could, reaction ${(tier.reaction * 1000).toFixed(0)} ms`);
+  // (Milestone 1006) two enemies side by side, the nearest changing between them every few frames: each change was a new
+  // sighting, and the bot never fired
+  const b: Any = new Bot(0, scene, projectiles, tier, { x: 0, z: 0, yaw: 0 }, 1, "vinson");
+  const pair = [new THREE.Vector3(0, 0, -12), new THREE.Vector3(1.6, 0, -12)];
+  let t = clock + 200;
+  let shots = 0;
+  for (let i = 0; i < 180; i++) {
+    b.mag.left = 99;
+    const k = Math.floor(i / 3) % 2;
+    shots += b.update((t += 1 / 60), 1 / 60, { target: pair[k], targetId: k === 0 ? 3 : 4, goal: null, canShoot: true }).length;
+  }
+  check("a bot fires on two enemies side by side, the nearest flickering between them", shots >= 10, `${shots} rounds in 3 s`);
 }
 {
   const read = (f: string): string => readFileSync(new URL(`../../src/game/${f}`, import.meta.url), "utf8");

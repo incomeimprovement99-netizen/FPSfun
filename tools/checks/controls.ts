@@ -193,7 +193,8 @@ console.log("\nThe Controls tab's smaller things (src/ui/binds.ts)");
   setKeyboardLayout(new Map([["KeyW", "z"], ["KeyQ", "a"], ["Digit1", "&"], ["Semicolon", "m"]]));
   const named = ["KeyW", "KeyQ", "Digit1", "Semicolon", "ShiftLeft", "KeyE"].map(bindName);
   setKeyboardLayout(null);
-  check("an AZERTY keyboard's keys go by its own marks (the key bound as W is Z), the rest as before", named.join(" ") === "Z A & M Shift E", named.join(" "));
+  // (the digits stay digits: AZERTY's unshifted "&" and "É" are printed beside the 1 and 2 a player looks for, Milestone 1006)
+  check("an AZERTY keyboard's keys go by its own marks (the key bound as W is Z), its digits and the rest as before", named.join(" ") === "Z A 1 M Shift E", named.join(" "));
   const tick = () => new Promise((r) => setTimeout(r, 0));
   const fire = (t: string, e: Record<string, unknown>) => (docListeners[t] ?? []).slice().forEach((f) => f({ preventDefault() {}, stopPropagation() {}, ...e }));
   const root = new El();
@@ -216,6 +217,11 @@ console.log("\nThe Controls tab's smaller things (src/ui/binds.ts)");
   const waiting = !!(docListeners.keydown ?? []).length;
   const let1 = cancelBindCapture();
   const let2 = cancelBindCapture();
+  // (and that press is spent: the menu reads the buttons by index, and B took it back to the start screen, Milestone 1006)
+  const gp = new GamepadInput();
+  gp.rawPressed.add(1);
+  gp.swallow();
+  check("a press that lets go of a key chip reaches nothing else, the menu's buttons included", gp.rawPressed.size === 0);
   check("a key chip waiting for a key is let go by a controller's button, its key kept", waiting && let1 && !let2 && !(docListeners.keydown ?? []).length && chips("fire")[0].textContent === bindName(DEFAULT_BINDS.fire[0]), JSON.stringify({ waiting, let1, let2 }));
   // the controller's own tab says what changed on it, where the keys' note is on another tab
   const padRoot = new El();

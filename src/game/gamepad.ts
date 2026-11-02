@@ -482,6 +482,9 @@ export class GamepadInput {
   /** this frame's presses are spent: a menu took them */
   swallow(): void {
     this.pressed.clear();
+    // (the menu's too: it reads the buttons by index, and a press that let go of a key chip also took the menu back to the
+    // start screen, or turned its tab, Milestone 1006)
+    this.rawPressed.clear();
   }
   /** Start went down this frame */
   get menuPressed(): boolean {

@@ -126,8 +126,9 @@ export function setKeyboardLayout(m: { get(code: string): string | undefined } |
 
 /** a binding as a person would say it */
 export function bindName(b: string): string {
-  // (the keys that print a character: the layout's own, a letter in capitals as the rest are)
-  const own = /^(?:Key|Digit|Minus|Equal|Bracket|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote|IntlBackslash)/.test(b) ? layout?.get(b) : undefined;
+  // (the keys that print a character: the layout's own, a letter in capitals as the rest are. Not the digits: an AZERTY
+  // keyboard's give "&" and "É" unshifted, and its keys are printed with the digit, the one a player looks for, Milestone 1006)
+  const own = /^(?:Key|Minus|Equal|Bracket|Semicolon|Quote|Comma|Period|Slash|Backslash|Backquote|IntlBackslash)/.test(b) ? layout?.get(b) : undefined;
   if (own && own.trim()) return own.length === 1 ? own.toUpperCase() : own;
   const named: Record<string, string> = {
     mouse0: "Left click",

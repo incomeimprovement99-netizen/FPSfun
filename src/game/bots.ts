@@ -206,6 +206,8 @@ export function scopedGun(w: Pick<ResolvedWeapon, "optic" | "damage">): boolean 
 
 /** how long a bot remembers where it last saw its target, s */
 const SEEN_MEMORY = botsCfg.seenMemory;
+/** a sighting lost for less than this is the same one, s */
+const GLANCE = botsCfg.glance;
 /** a crouched bot's eye, m */
 const CROUCH_EYE = 0.95;
 const COVER = botsCfg.cover;
@@ -609,6 +611,8 @@ export class Bot {
   private aimSet = false;
   /** the last place and time it saw its target, and who */
   lastSeen: { pos: THREE.Vector3; at: number; id: number } | null = null;
+  /** when it last saw each it has fought, by id: a change of target back to one seen a moment ago is no new sighting */
+  private seenIds = new Map<number, number>();
   /** a shot it heard: go and look */
   heard: { pos: THREE.Vector3; until: number } | null = null;
   /** a dodge: the strafe reversed and harder, until then */
@@ -1214,9 +1218,11 @@ export class Bot {
     const tier = this.diff;
     // (a glance lost for under half a second is the same sighting: the reaction does not start over)
     // Someone else is a new sighting too: a target swapped with no gap between kept the last one's reaction spent and its
-    // aim settled, and was shot at once with the settled aim (Milestone 1000).
-    const someoneElse = sees && !!this.lastSeen && this.lastSeen.id !== sense.targetId;
-    if (sees && ((!this.sawLast && now - this.lastTargetAt > 0.5) || someoneElse)) {
+    // aim settled, and was shot at once with the settled aim (Milestone 1000). Not one it saw a moment ago: the nearest of
+    // two side by side changed back and forth every few frames, and each change held its fire for good (Milestone 1006).
+    const someoneElse = sees && !!this.lastSeen && this.lastSeen.id !== sense.targetId && now - (this.seenIds.get(sense.targetId) ?? -Infinity) > GLANCE;
+    if (sees) this.seenIds.set(sense.targetId, now);
+    if (sees && ((!this.sawLast && now - this.lastTargetAt > GLANCE) || someoneElse)) {
       // a new sighting: the reaction starts; an elite bot back round a corner where it lost you is already aimed
       const back = !someoneElse && tier.preAim && this.lastSeen && now - this.lastSeen.at < 3 && this.lastSeen.pos.distanceTo(target) < 3.5;
       this.seenAt = back ? now - tier.reaction * 0.75 : now;
