@@ -21,6 +21,7 @@
       "over": 1.2,
       "under": 1.5
     },
+    "_wallRunOffFor": "wallRun.offFor: seconds after a rope's end, or a GRAPPLE's pull, before a wall run can start (player.ts noWallUntil): a rope that stops under its roof ran you along the wall away from it.",
     "wallRun": {
       "offFor": 0.3,
       "minSpeed": 150,

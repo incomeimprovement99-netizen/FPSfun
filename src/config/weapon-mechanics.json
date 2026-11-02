@@ -2,7 +2,7 @@
   "_note": "How the guns that are not a plain trigger work: the L-STAR's heat (CHOOCH) and the shotguns' blast patterns (BIGANTLER, REZ). Where the weapon data has the number it is read from there and only the rule lives here; where current Apex has moved past the data, the number here is Season 30's with its source in docs/RESEARCH_PHASE_11.md. Anything marked ours has no published number. The legacy guns' own (the HAVOC's wind-up, the Charge Rifle's charge, the 30-30's aimed charge, the choke, the Nemesis' burst charge, the Bocek's draw), the hop-ups, their locked kind and the second fire modes went with the legacy game, Milestones 521 and 522.",
 
   "overheat": {
-    "_note": "L-STAR: no magazine; the mag level's shots to overheat (24/26/28/30), a forced cooldown of 1.19/1.15/1.11/1.07 s from full, cooling from 0.08 s after you stop, a full cool over the data's charge_cooldown_time (2.45 s).",
+    "_note": "L-STAR (CHOOCH): no magazine; the mag level's shots to overheat, then a forced cooldown, `lockout` seconds, before it fires again, and `coolTime` seconds from full heat to none after `coolDelay` without firing. Both shrink with each fusion level's reload share (weapons.ts speedkillsTuned).",
     "lstar": { "lockout": 1.19, "coolDelay": 0.08, "coolTime": 2.45 }
   },
   "blast": {

@@ -14373,6 +14373,20 @@ had the other's; the page keeps the settings it is running on, and the record is
 
 - **Checked:** tsc, verify, rules; hudfit.
 
+## Milestone 998 — What the last fixes broke, from a review of them
+
+A fresh review of Milestones 966 to 997 found what they brought in. M991's push out of a box went box by box without asking where each push left the body: on the
+Neon map's clusters of thin slices it threw one 9.9 m into a building and kept it there, where the old code got out in 0.69 m. It goes to the nearest spot that is
+free now, three boxes deep: 231 of 3,000 bodies put into walls still in something after a frame, against 903, and 1,646 before Milestone 991. M993's round deadzone
+let a stick resting on a diagonal through at 0.006, which made the pad the device in hand and gave a mouse player aim assist; under 2% of a stick is rest. A resting
+axis of an unmapped device that moves is let go. M995 wiped the spray wall at every touch of the pad. A 1v1's or mode's lobby showed its arena while you waited in
+the range. M966 let a guest's own ship fly off while its menu was up. M992's reach list hid a gun on a crate you stood against; it is in sight from the eye or the
+chest. A held menu drove the frame rate to 1000. A mantle's bounds test missed the body's width and THE CENTRE's circle. A wall kick took the double jump's first
+0.1 s, and a pad's throw shut out a wall run for 0.3 s. A slide did not count against the range's dummies. And four notes said what the code no longer does
+(player.ts, gamepad.ts, brplay.ts, main.ts, configs).
+
+- **Checked:** tsc, verify, rules; sk-moves; the review's probes; e2e range, speedkills, skship, pad, duel.
+
 ## Milestone 500 — Every left hand on its gun, and DEVINOS held on the soldier
 
 The owner, 2026-10-05: "WOW THE LEFT SUPPORT HAND ON THE USSO HAS A GAP BETWEEN IT AND THE GUN, DOUBLE CHECK FOR ANY MORE OF

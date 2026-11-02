@@ -572,12 +572,15 @@ export class BrPlay {
       return !!d && Math.hypot(d.pos.x - this.gunTakenFrom.x, d.pos.z - this.gunTakenFrom.z) < 0.5;
     };
     // (not through a wall: E could swap your gun for one in the next room, Milestone 992)
-    const chest = new THREE.Vector3(p.x, p.y + LOOTING.chest, p.z);
-    const clear = (d: ReachDrop): boolean => {
-      const to = new THREE.Vector3(d.pos.x, d.pos.y + 0.2, d.pos.z).sub(chest);
-      const dist = to.length();
-      return dist < 0.6 || solidHit(chest, to.divideScalar(dist), dist) >= dist - 0.3;
-    };
+    // (from the chest or the eye: from the chest alone a gun on a crate you stood against, or past a ledge you stood on, was
+    // hidden, Milestone 998)
+    const from = [new THREE.Vector3(p.x, p.y + LOOTING.chest, p.z), new THREE.Vector3(p.x, p.y + LOOTING.eye, p.z)];
+    const clear = (d: ReachDrop): boolean =>
+      from.some((o) => {
+        const to = new THREE.Vector3(d.pos.x, d.pos.y + 0.2, d.pos.z).sub(o);
+        const dist = to.length();
+        return dist < 0.6 || solidHit(o, to.divideScalar(dist), dist) >= dist - 0.3;
+      });
     const rows = reachRows(f.drops.values(), p, clear).filter((r) => !letGo(r.key));
     if (!rows.length) {
       this.stopTaking();

@@ -42,6 +42,10 @@ const FLARE = figureCfg.skydive.flare;
 
 /** metres a body may touch a box by without being in it */
 const SKIN = 1e-7;
+/** how many of the nearest spots still in something pushOut looks on from, at each depth */
+const PUSH_FRONTIER = 12;
+/** the furthest pushOut moves a body, metres: further is a throw */
+const PUSH_MOST = 2.5;
 
 export interface Bounds {
   minX: number; maxX: number; minZ: number; maxZ: number;
@@ -241,6 +245,8 @@ export class Player {
   private zipExitAt = -Infinity;
   /** no wall run before this */
   private noWallUntil = -Infinity;
+  /** when the last jump off the ground was (the double jump's grace counts from it) */
+  private groundJumpAt = -Infinity;
   /** mid-air interacts used since you last touched the ground or mantled */
   zipAirUses = 0;
   private zipRegenAt = 0;
@@ -485,7 +491,8 @@ export class Player {
     this.mantle = null;
     this.climbing = false;
     this.climbNormal = null;
-    this.pulledOff(this.lastNow);
+    // (off the wall, but not kept off it: a pad's throw straight into a wall run is a chain, Milestone 998)
+    this.leaveWall(this.lastNow);
     this.endSlide();
     this.vel.set(vx, vy, vz);
     this.onGround = false;
@@ -580,22 +587,46 @@ export class Player {
   }
 
   /**
-   * Out of what the body is already in (a WALL put up over it) by the shortest way. The X move below went by the box's
-   * middle and X first: 2.21 m where 0.48 m got out, a head in a 10 m box 5.4 m (Milestone 991).
+   * Out of what the body is already in (a WALL put up over it) to the nearest spot that is free: each face of each box it is
+   * in, and of what that lands it in, three deep. The X move below went by the box's middle and X first, 2.21 m where 0.48 m
+   * got out (Milestone 991); and box by box, without asking where each push left it, the Neon map's clusters of thin slices
+   * threw a body 9.9 m into a building and kept it there, where 0.69 m got out (Milestone 998).
    */
   private pushOut(feet: number, height: number): void {
     const r = MOVE.radius;
-    for (const s of this.overlapping(this.pos.x, this.pos.z, r)) {
-      if (!this.blocks(s, feet, height)) continue;
-      const west = this.pos.x + r - s.minX;
-      const east = s.maxX - this.pos.x + r;
-      const north = this.pos.z + r - s.minZ;
-      const south = s.maxZ - this.pos.z + r;
-      const least = Math.min(west, east, north, south);
-      if (least === west) this.pos.x = s.minX - r;
-      else if (least === east) this.pos.x = s.maxX + r;
-      else if (least === north) this.pos.z = s.minZ - r;
-      else this.pos.z = s.maxZ + r;
+    const inAt = (x: number, z: number): Solid[] => this.overlapping(x, z, r).filter((s) => this.blocks(s, feet, height));
+    const x0 = this.pos.x;
+    const z0 = this.pos.z;
+    if (!inAt(x0, z0).length) return;
+    let frontier: Array<[number, number]> = [[x0, z0]];
+    let best: [number, number] | null = null;
+    let bestD = Infinity;
+    for (let depth = 0; depth < 3; depth++) {
+      const next: Array<[number, number]> = [];
+      for (const [px, pz] of frontier) {
+        for (const s of inAt(px, pz)) {
+          for (const [cx, cz] of [
+            [s.minX - r, pz],
+            [s.maxX + r, pz],
+            [px, s.minZ - r],
+            [px, s.maxZ + r],
+          ] as Array<[number, number]>) {
+            const d = Math.hypot(cx - x0, cz - z0);
+            if (d >= bestD) continue;
+            if (!inAt(cx, cz).length) {
+              best = [cx, cz];
+              bestD = d;
+            } else next.push([cx, cz]);
+          }
+        }
+      }
+      frontier = next.sort((a, b) => Math.hypot(a[0] - x0, a[1] - z0) - Math.hypot(b[0] - x0, b[1] - z0)).slice(0, PUSH_FRONTIER);
+    }
+    // (and only so far: past it the nearest face found can be a big box's far one, 44 m off where 2 m would do; such a body is
+    // left to walk out, the moves below no longer pushing it out of what it is already in)
+    if (best && bestD <= PUSH_MOST) {
+      this.pos.x = best[0];
+      this.pos.z = best[1];
     }
   }
 
@@ -817,7 +848,8 @@ export class Player {
       else if (this.wallRun) this.kickOffWall(now);
       else if (this.onGround || coyote) this.doJump(now, !this.onGround);
       // (from the jump too: launch ends coyote time by clearing lastGroundAt, so a double tap spent it at once)
-      else if (this.extraMoves && this.airJumpLeft && now - Math.max(this.lastGroundAt, this.lastJumpAt) > EXTRA.doubleJump.grace) this.doubleJump(now);
+      // (from the ground's jump alone: from a wall kick's too, a double jump pressed in its first 0.1 s was refused, Milestone 998)
+      else if (this.extraMoves && this.airJumpLeft && now - Math.max(this.lastGroundAt, this.groundJumpAt) > EXTRA.doubleJump.grace) this.doubleJump(now);
       // a jump pressed in the air at a wall you are not on: say why not
       else if (!this.mantle) this.explainNoAttach(wx, wz, wl);
     }
@@ -1153,6 +1185,7 @@ export class Player {
   private doJump(now: number, coyote: boolean): void {
     // leaving the ground arms the double jump, for the matches that have one
     this.airJumpLeft = true;
+    this.groundJumpAt = now;
     let height = this.sliding ? MOVE.slideJumpHeight : MOVE.jumpHeight;
 
     // Jump fatigue: only while the fatigue state is on, and never for a coyote
@@ -1508,8 +1541,11 @@ export class Player {
     }
     if (!supported) return false;
     // (nor over the edge of the play area: it ended there and the next frame snapped you back 0.95 m)
+    // (with the body's width, and THE CENTRE's circle: the frame's clamp pulled a mantle back up to 0.41 m off its ledge, and
+    // on THE CENTRE the whole 0.95 m, Milestone 998)
     const b = this.bounds;
-    if (toX < b.minX || toX > b.maxX || toZ < b.minZ || toZ > b.maxZ) return false;
+    if (toX < b.minX + r || toX > b.maxX - r || toZ < b.minZ + r || toZ > b.maxZ - r) return false;
+    if (b.circle && Math.hypot(toX - b.circle.x, toZ - b.circle.z) > b.circle.r - r) return false;
     // a wall run ends in a mantle (its lean and its pose stayed through it; Milestone 868)
     this.wallRun = null;
     this.mantle = {
@@ -2093,6 +2129,9 @@ export class Player {
     const feet = this.pos.y;
     const bodyH = this.crouched || this.sliding ? MOVE.crouchHeight : MOVE.standHeight;
     this.pushOut(feet, bodyH);
+    // What it is still in, with no free spot near enough to find, it walks out of: the moves below pushed out by a box's middle,
+    // and from inside one that was a throw of up to 44 m (Milestone 998).
+    const stuckIn = new Set(this.overlapping(this.pos.x, this.pos.z, r).filter((s) => this.blocks(s, feet, bodyH)));
 
     // X. Push out to the face we came from, chosen by the PREVIOUS position. A move longer than the body's radius is
     // tested along its way, a radius at a time: tested only where it ended, one 0.1 s frame at a sprint (a hitch) carried
@@ -2105,7 +2144,7 @@ export class Player {
       const tx = fromX + ((nx - fromX) * k) / legsX;
       // (the nearest face of all it meets, and the edge of a sunken floor as a wall, as below for Z: Milestone 991)
       for (const s of this.overlapping(tx, this.pos.z, r)) {
-        if (!this.blocks(s, feet, bodyH)) continue;
+        if (!this.blocks(s, feet, bodyH) || stuckIn.has(s)) continue;
         const mid = (s.minX + s.maxX) / 2;
         const face = fromX <= mid ? s.minX - r : s.maxX + r;
         if (!hitX || Math.abs(face - fromX) < Math.abs(this.pos.x - fromX)) this.pos.x = face;
@@ -2130,7 +2169,7 @@ export class Player {
       // And the street outside a sunken floor is a wall to who stands on it: the platform's edges have none of their own, so
       // walking off one rose you 13 m through the slab.
       for (const s of this.overlapping(this.pos.x, tz, r)) {
-        if (!this.blocks(s, feet, bodyH)) continue;
+        if (!this.blocks(s, feet, bodyH) || stuckIn.has(s)) continue;
         const mid = (s.minZ + s.maxZ) / 2;
         const face = fromZ <= mid ? s.minZ - r : s.maxZ + r;
         if (!hitZ || Math.abs(face - fromZ) < Math.abs(this.pos.z - fromZ)) this.pos.z = face;

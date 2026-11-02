@@ -110,10 +110,17 @@ export function padDeadzone(s: Pick<PadSettings, "deadzone" | "outerDeadzone">, 
  * aim bent onto the axes: 0.3 at 30 degrees off up looked 4 degrees off up, in the range every small correction is made
  * in, and a full diagonal was 0.74 of full speed (Milestone 993).
  */
+/** a stick's share past its deadzone under which it is resting */
+const PAD_REST = 0.02;
+
 export function padRadial(s: Pick<PadSettings, "deadzone" | "outerDeadzone">, x: number, y: number): { x: number; y: number } {
   const m = Math.hypot(x, y);
   if (m <= s.deadzone) return { x: 0, y: 0 };
-  const k = Math.min(1, (m - s.deadzone) / Math.max(1e-3, 1 - s.deadzone - s.outerDeadzone)) / m;
+  const out = Math.min(1, (m - s.deadzone) / Math.max(1e-3, 1 - s.deadzone - s.outerDeadzone));
+  // (and a hair past it is still rest: a stick resting on a diagonal, out of a round deadzone and inside the old square one,
+  // gave 0.006, which made the pad the device in hand and gave a mouse player aim assist, Milestone 998)
+  if (out < PAD_REST) return { x: 0, y: 0 };
+  const k = out / m;
   return { x: x * k, y: y * k };
 }
 
@@ -281,7 +288,7 @@ export class GamepadInput {
   justGone = false;
   /** the device the resting axes below are of, and they */
   private restFor = "";
-  private restAxes: number[] = [];
+  private restAxes = new Map<number, number>();
   /** a stick moved or a button went down this frame: the prompts turn to the pad (input.ts device) */
   touchedNow = false;
   /** this frame's sprint press is the left stick crossing auto sprint's line, no button (main.ts sprintPressed) */
@@ -321,6 +328,7 @@ export class GamepadInput {
         // (a Y held as it went fired a swap on its return, and the Controller tab went on saying connected, Milestone 993)
         this.id = "";
         this.prevButtons = [];
+        this.restFor = "";
         this.justGone = true;
       }
     });
@@ -365,9 +373,11 @@ export class GamepadInput {
     // a pedal at -1 turned the view 160 degrees a second with nothing touched, in a mouse session too (Milestone 993).
     if (this.restFor !== p.id) {
       this.restFor = p.id;
-      this.restAxes = p.mapping === "standard" ? [] : p.axes.flatMap((v, i) => (Math.abs(v) > 0.5 ? [i] : []));
+      this.restAxes = new Map(p.mapping === "standard" ? [] : p.axes.flatMap((v, i) => (Math.abs(v) > 0.5 ? [[i, v] as [number, number]] : [])));
     }
-    const ax = p.axes.map((v, i) => (this.restAxes.includes(i) ? 0 : v));
+    // (one that moves from where it rested is a stick after all: a pad woken by a push held that axis dead all visit)
+    for (const [i, v] of this.restAxes) if (Math.abs((p.axes[i] ?? v) - v) > 0.2) this.restAxes.delete(i);
+    const ax = p.axes.map((v, i) => (this.restAxes.has(i) ? 0 : v));
     const left = padRadial(s, ax[0] ?? 0, ax[1] ?? 0);
     const right = padRadial(s, ax[2] ?? 0, ax[3] ?? 0);
     const mx = left.x;

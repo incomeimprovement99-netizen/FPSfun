@@ -3457,8 +3457,12 @@ const panelKeysNow = (): void => {
   // The menu's own words name keys too: they named the defaults whatever was bound, Caps Lock to talk, Space to skip, 8 to spray
   // (Milestone 996)
   for (const el of document.querySelectorAll<HTMLElement>("[data-key]")) el.textContent = keyLabel(el.dataset.key as Action);
-  sprayWall.clearKey = panelLabel("resetDummies");
-  sprayWall.clear();
+  // (the keyboard's key, and wiped only when that changes: a touch of the pad and then the mouse wiped your hits, Milestone 998)
+  const clearKey = bindName(currentBinds().resetDummies?.[0] ?? "?").toUpperCase();
+  if (sprayWall.clearKey !== clearKey) {
+    sprayWall.clearKey = clearKey;
+    sprayWall.clear();
+  }
 };
 /**
  * The keys on screen (keyhints.json, hud.ts drawKeyHints): up for everyone until
@@ -7185,7 +7189,8 @@ function step(): void {
   // second had passed while the spring and spread had advanced only 0.1 s.
   gameTime += dt;
   const now = gameTime;
-  fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
+  // (not from a frame the menu held: at dt 0 it climbed to 1000, and the far figures posed once in 67 frames after, Milestone 998)
+  if (dt > 0) fps += (1 / Math.max(dt, 1e-3) - fps) * 0.05;
   visitFrame(dt);
   frameHook?.(now, dt);
   // the map's doors swing to where they are (any of them, in a match or not)
@@ -8162,7 +8167,7 @@ function step(): void {
   // the range's tooling: moving dummies, the ones that shoot back, the drill, the trainer
   if (!duel) {
     dummyBehaviour.update(now, dt);
-    if (input.playing || scriptInput) rangeCombat.update(now, dummies, player.pos, projectiles, combatWeapon, player.crouched ? CROUCH_TOP : undefined);
+    if (input.playing || scriptInput) rangeCombat.update(now, dummies, player.pos, projectiles, combatWeapon, player.crouched || player.sliding ? CROUCH_TOP : undefined);
     // the menu open: the drill's clock waits
     if (!input.playing && !scriptInput) drill.hold(dt);
     drill.update(now);
@@ -8300,7 +8305,8 @@ function step(): void {
     held: show !== null && (show.stage === "load" || (show.stage === "card" && !show.br)),
     // (a menu opened on the way in holds a match of your own: a host's Esc held its ship and every bot on it, its friends'
     // ships flying on, Milestone 966)
-    shipHeld: show !== null && show.br && (input.playing || !!scriptInput || !(duel instanceof Duel && duel.players > 1)),
+    // (and a guest's own: holding it holds nobody else, and let go it flew off the map while the city loaded, Milestone 998)
+    shipHeld: show !== null && show.br && (input.playing || !!scriptInput || !(duel instanceof Duel && duel.players > 1) || (duel instanceof Duel && duel.role !== "host")),
     stance: player.figureStance,
     speed: player.speed,
     ads: ws.adsFrac,
@@ -8531,7 +8537,8 @@ function step(): void {
     // (a mode's arena its own map: over the whole world NEON YARD was 27 x 36 px, the arrow as big as it, Milestone 967)
     // (a lobby's wait is in the range: the city's map put your arrow off its edge, Milestone 968)
     // (and the range's, out of a match: once the city's boxes were in, the range's M map was the whole world, Milestone 995)
-    mapRegion: duel instanceof BrMatch && duel.phase !== "waiting" && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : ((cityMap() ?? gulagRoom())?.bounds ?? (duel ? undefined : RANGE_BOUNDS)),
+    // (any lobby's wait is in the range: a 1v1's or a mode's drew its arena with your arrow off it, Milestone 998)
+    mapRegion: !duel || duel.phase === "waiting" ? RANGE_BOUNDS : duel instanceof BrMatch && !(duel.gulag && duel.gulag.phase !== "wait") ? BR_BOUNDS : ((cityMap() ?? gulagRoom())?.bounds ?? undefined),
     // the drop shows the map by itself for its first moments, then it steps
     // aside so you can see the ground you are steering onto; M opens it any
     // time. Only while you are still in the air: a guest who lands before the

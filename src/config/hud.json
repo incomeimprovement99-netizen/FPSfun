@@ -2,7 +2,7 @@
   "_mapRebuild": "mapRebuild: seconds at the least between redrawing the map's canvas for boxes coming and going (hud.ts ensureMap); markAbove: metres over your eye past which a mark behind you sits at the top of the screen, not the bottom.",
   "mapRebuild": 2,
   "markAbove": 8,
-  "_compassClear": "px at 1080p from the screen's middle that the compass stays out of the minimap by: the map's right edge (256) and a gap (hud.ts drawCompass).",
+  "_compassClear": "px at 1080p from the screen's left edge that the compass keeps clear of, on both sides: the minimap's right edge (256) and a gap (hud.ts drawCompass).",
   "compassClear": 266,
   "_compassMin": "the narrowest the compass goes, px at 1080p: under this it is unreadable, and overlapping is the better of the two.",
   "compassMin": 240,
@@ -144,8 +144,10 @@
     "swapGuard": 0.8,
     "pingGap": 0.8,
     "padCycle": "zoomToggle",
-    "chest": 1.1
+    "chest": 1.1,
+    "eye": 1.6
   },
+  "_padCycle": "loot.padCycle: the action that steps the reach list on a pad, which has no button for loot.cycle (brplay.ts). loot.chest and loot.eye: the heights, from the feet, a row of the list must be in sight from, either one (brplay.ts).",
   "_pingGap": "loot.pingGap: how many metres off the crosshair's line a tap ping may mark an item. In metres, not degrees: wide up close, narrow far off, which is how a player's aim is (brplay.ts ping).",
   "_swapGuard": "loot.swapGuard: seconds after you take a gun during which a gun that appears within reach is left out of the list. Taking a gun with both slots full puts the one in hand down at your feet, inside the reach list, and nearest. A press read over several frames, or a hold, took it straight back and put the new one down, and the two swapped every frame for as long as the key was down. Ours: long enough to cover a press and let go, short enough that a gun dropped by someone else a moment later is still offered.",
   "_damageDir": "Where you are being shot from: a red arc round the crosshair pointing at whoever hit you, the way Apex, Warzone and every other shooter since Halo draws it. Without it a hit from behind was a number going down and no idea which way to turn. life is how long an arc lasts after the last hit from that direction, radius and thick its size in HUD pixels at 1080p, arc its width in degrees. A new hit from within merge metres of an arc's source refreshes that arc instead of stacking a second one, and at most max are shown, newest first. Ours.",
