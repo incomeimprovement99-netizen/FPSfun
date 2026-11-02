@@ -795,7 +795,10 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
   // Aimed in, the gun comes up to the eye: the butt where it puts the sight line through the right eye, `relief` in
   // front of it and `cheek` under it (the head has leant onto the stock above), blended in by how far the figure aims.
   const gunScale0 = g.gun.getWorldScale(new THREE.Vector3()).x;
-  if (s.ads > 0 && g.sight && rig.eyeR && b.Head) {
+  // A gun with pocket.aim has it at the hip too, eased up from its low carry (Milestone 1022): DEVINOS's own pocket, behind
+  // the shoulder in a turned chest, put its tube along the left shoulder and the reaching left arm inside it
+  const aimK = Math.max(Math.min(1, s.ads), ((C.pocket as { aim?: number }).aim ?? 0) * Math.pow(1 - lo, (C.pocket as { aimEase?: number }).aimEase ?? 1));
+  if (aimK > 0 && g.sight && rig.eyeR && b.Head) {
     const eye = b.Head.localToWorld(rig.eyeR.clone());
     const A2 = C.aim;
     const upW = Y.clone().applyQuaternion(q);
@@ -805,7 +808,7 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     const sightAt = eye.clone().addScaledVector(fwdW, A2.relief * figScale).addScaledVector(upW, -A2.cheek * figScale).addScaledVector(rightW, (A2.side ?? 0) * figScale);
     // where the butt is when the gun's sight is at sightAt: sightAt + q (butt - sight)
     const buttAt = sightAt.add(g.butt.clone().sub(g.sight).multiplyScalar(gunScale0).applyQuaternion(q));
-    pocket.lerp(buttAt, Math.min(1, s.ads) * s.stance);
+    pocket.lerp(buttAt, aimK * s.stance);
   }
   // a shot drives the gun back into the shoulder
   if (s.kick > 0) pocket.add(new THREE.Vector3(0, 0, -C.recoil.back * s.kick * figScale).applyQuaternion(figQ));
@@ -907,6 +910,13 @@ export function holdRifle(fig: THREE.Object3D, bones: Record<string, THREE.Objec
     if (side === "l" && SR && u !== null && reloadAt) {
       const off = u < SR.back[0] ? smooth(u, SR.leave[0], SR.leave[1]) : 1 - smooth(u, SR.back[0], SR.back[1]);
       palmAt.add(new THREE.Vector3(...SR.bow).multiplyScalar(4 * off * (1 - off) * gunScale).applyQuaternion(gunQ));
+    }
+    // and any other gun's left hand off its hold to a reload's key and back the same (reload.bow, the gun's frame): DEVINOS's
+    // forearm went straight through its fore grip, 15 cm deep, on the way to the rocket and back
+    const RB = (R as { bow?: number[] }).bow;
+    if (side === "l" && RB && !SR && reloadAt && (reloadAt.fingers.from === "hold") !== (reloadAt.fingers.to === "hold")) {
+      const t = reloadAt.fingers.t;
+      palmAt.add(new THREE.Vector3(...RB).multiplyScalar(4 * t * (1 - t) * gunScale).applyQuaternion(gunQ));
     }
     if (side === "l" && pumpDz !== 0 && (!reloadAt || reloadAt.key === "hold")) palmAt.add(new THREE.Vector3(0, 0, pumpDz * gunScale).applyQuaternion(gunQ));
     // A swap in place: the hand comes off its hold `move` (the gun's frame, metres: soldierhold.json swapCup), its palm

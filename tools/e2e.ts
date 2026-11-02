@@ -8468,6 +8468,39 @@ async function figureStancesTest(browser: Browser): Promise<void> {
     })()`,
   );
   check("DEVINOS aimed in and out keeps its tube out of the head and the neck (45 mm at most) and the right wrist 60 degrees at most, and a hop's landing leaves its carry where it is (3 degrees a frame at most)", tube.deep <= 45 && tube.wrist <= 60 && tube.land <= 3, JSON.stringify(tube));
+  // DEVINOS at the hip on the right shoulder (Milestone 1022): its butt sits 0.3 m behind the shoulder in the chest's frame,
+  // and with the chest turned that put the tube along the left shoulder after a hip shot and through a reload, the left
+  // arm reaching under the rocket inside it (the forearm 150 mm, the chest 55, 87 frames of the reload)
+  const hip = await ev<{ side: number; frames: number; worst: number; where: string }>(
+    page,
+    `(() => {
+      const r = window.__range, T = r.THREE;
+      r.player.teleport(0, 0, 0, 0, 0);
+      r.figureLabManual(false); const [f] = r.figureLab([{ speed: 0, stance: "stand", pitch: 0, weapon: "launcher", look: "S0000010" }], 3, 180); r.figureLabManual(true);
+      for (let i = 0; i < 900 && !(f.mq && f.mq.gunObject && f.mq.bones.Head); i++) r.figureLabStep(1 / 60);
+      r.figureLabStep(1.6);
+      r.labFigures()[0].kick();
+      r.figureLabStep(0.5);
+      f.group.updateMatrixWorld(true);
+      // (the figure's +x is its left)
+      const tube = f.group.worldToLocal(f.mq.gunObject.localToWorld(new T.Vector3(0, 0, 0)));
+      const head = f.group.worldToLocal(f.mq.bones.Head.getWorldPosition(new T.Vector3()));
+      let frames = 0, worst = 0, where = "";
+      for (let i = 0; i < r.weaponTimes("launcher").reloadEmpty * 60; i++) {
+        r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0, act: "reload", reloadEmpty: true });
+        r.figureLabStep(1 / 60);
+        const a = window.__figureAudit(0, { pitch: 0, locate: true, exact: true });
+        if (!a) continue;
+        let m = 0;
+        for (const [k, v] of Object.entries(a.gunWhere ?? {})) if (v > m) { m = v; if (v > worst) { worst = v; where = k; } }
+        if (m > 15) frames++;
+      }
+      r.figureLabPose(0, { speed: 0, stance: "stand", pitch: 0 });
+      r.figureLabStep(1);
+      return { side: Math.round((head.x - tube.x) * 100), frames, worst: Math.round(worst), where };
+    })()`,
+  );
+  check("DEVINOS fired from the hip holds its tube on the right shoulder (10 cm or more right of the head), and reloaded from there keeps it out of the body (over 15 mm on 3 frames at most, 20 mm the deepest)", hip.side >= 10 && hip.frames <= 3 && hip.worst <= 20, JSON.stringify(hip));
   // A salute's hand at the brow (Milestone 842): swung about the figure's axes its fingertips stopped 20 cm off, at the collar
   const salute = await ev<number>(
     page,

@@ -19237,3 +19237,28 @@ and measured at 60 frames a second each was worse than the film shows.
   aim's way and the landing. On the old code both fail (the hand 12 cm along the rocket; the tube 69 mm into the head,
   the wrist 68, a landing 9.9 degrees a frame); on the new they pass (2 cm; 35 mm, 27, 0). The soldier stances pass, 348
   checks.
+
+## Milestone 1022 — DEVINOS at the hip and in its reload on the right shoulder
+
+DEVINOS's hold at the hip, which an enemy with it takes for a second after a shot from the hip and all through a reload, had
+its tube along the left shoulder, not the right. Its butt sits 0.3 m behind the shoulder for the tube's length, set in the
+chest's frame (soldierhold.json `pocket`), and with the chest turned 45 to 60 degrees that point swung round behind the left
+shoulder. The reload's left hand, reaching under the rocket, went inside the tube: measured at 60 frames a second with the
+audit's exact look (node_modules/.scratch/reloadin.mts, tubeside.mts), 97 of the reload's 186 frames had the tube over 15 mm
+into the body, the left forearm 150 mm, the upper arm 70, the chest 55. A lower hand or a lower elbow did nothing: the arm
+is nearly straight, and its shoulder was in the tube's back end.
+
+- **On the right shoulder:** a gun's `pocket.aim` takes the aim's place at the hip too (rifle.ts), DEVINOS's whole, so at the
+  hip and in a reload the tube sits on the right shoulder where aiming puts it, the head upright: 24 cm right of the head,
+  where it was 19 cm left of it. Its way up from the low carry is eased in to the third power (`aimEase`), which crosses
+  the head no deeper than the aim's way of Milestone 1021 (35 to 39 mm for a few frames; straight in, 47).
+- **Not tipped:** tipped down 24 on the shoulder the right wrist bent 72 degrees; level, 30 (soldierhold.json
+  guns.launcher.reload `tilt`).
+- **Round under the gun:** on the way from its hold to the rocket and back the left hand bows 10 cm under the gun, most half
+  way (a gun's reload `bow`, as a shell gun's own): straight, the forearm went 150 mm through the fore grip for two frames
+  each way.
+- From a shot, the reload has no frame over 15 mm. Looked at from above, the side and the front (node_modules/.scratch/
+  topshot.mts, reloadfit.mts): the tube on the shoulder, the hand palm up under its mouth as the rocket goes in.
+- **Checked:** a new check in the soldier stances fires DEVINOS from the hip and reloads it: on the old code it fails (the tube 20 cm
+  left of the head, 97 frames over 15 mm, the left forearm 146 mm), on the new it passes (24 cm right, none). The soldier
+  stances pass, 349 checks.
